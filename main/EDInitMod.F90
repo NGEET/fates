@@ -492,7 +492,6 @@ contains
              !           allocate(newppft(numpft))
           else !default
              num_new_patches = 1
-             newparea = area
           end if !nocomp
 
           is_first_patch = itrue 
@@ -647,7 +646,6 @@ contains
           sitep => sites(s)
           call updateSizeDepRhizHydProps(sitep, bc_in(s))
        end do
-       deallocate(recall_older_patch)
     end if
 
     return
