@@ -199,7 +199,6 @@ contains
     integer  :: irep                                          ! Flag to exit iteration loop
     real(r8) :: sb
     real(r8) :: error                                         ! Error check
-    real(r8) :: lgerror 
     real(r8) :: down_rad, up_rad                              ! Iterative solution do Dif_dn and Dif_up
     real(r8) :: ftweight(nclmax,maxpft,nlevleaf)
     real(r8) :: k_dir(maxpft)                              ! Direct beam extinction coefficient
@@ -264,7 +263,6 @@ contains
          clumping_index  => EDPftvarcon_inst%clumping_index) 
 
 
-      lgerror = 0.05_r8
 
       ! Initialize local arrays
 
@@ -989,7 +987,7 @@ contains
             if (radtype == idirect)then
                !here we are adding a within-ED radiation scheme tolerance, and then adding the diffrence onto the albedo
                !it is important that the lower boundary for this is ~1000 times smaller than the tolerance in surface albedo. 
-               if (abs(error)  >  1.e-9_r8 .and. abs(error) < lgerror)then
+               if (abs(error)  >  1.e-9_r8 .and. abs(error) < 0.15_r8)then
                   albd_parb_out(ib) = albd_parb_out(ib) + error
                   !this terms adds the error back on to the albedo. While this is partly inexcusable, it is 
                   ! in the medium term a solution that
@@ -998,7 +996,7 @@ contains
                   ! to the complexity of this code, but where the system generates occasional errors, we
                   ! will deal with them for now.
                end if
-               if (abs(error)  >  lgerror)then
+               if (abs(error)  >  0.15_r8)then
                   write(fates_log(),*) 'Large Dir Radn consvn error',error ,ib
                   write(fates_log(),*) 'diags', albd_parb_out(ib), ftdd_parb_out(ib), &
                        ftid_parb_out(ib), fabd_parb_out(ib)
@@ -1012,11 +1010,11 @@ contains
                end if
             else
                
-               if (abs(error)  >  1.e-9_r8 .and. abs(error) < lgerror)then
+               if (abs(error)  >  1.e-9_r8 .and. abs(error) < 0.15_r8)then
                   albi_parb_out(ib) = albi_parb_out(ib) + error
                end if
                
-               if (abs(error)  >  lgerror)then
+               if (abs(error)  >  0.15_r8)then
                   write(fates_log(),*)  'lg Dif Radn consvn error',error ,ib
                   write(fates_log(),*) 'diags', albi_parb_out(ib), ftii_parb_out(ib), &
                        fabi_parb_out(ib)
