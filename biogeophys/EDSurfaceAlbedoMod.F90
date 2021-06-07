@@ -117,7 +117,7 @@ contains
                  bc_out(s)%fabi_parb(ifp,:)            = 0._r8  ! output HLM
                  bc_out(s)%fabd_parb(ifp,:)            = 0._r8  ! output HLM
                  bc_out(s)%ftdd_parb(ifp,:)            = 1._r8 ! output HLM
-                 bc_out(s)%ftid_parb(ifp,:)            = 1._r8 ! output HLM
+                 bc_out(s)%ftid_parb(ifp,:)            = 0._r8 ! output HLM
                  bc_out(s)%ftii_parb(ifp,:)            = 1._r8 ! output HLM
                  
                  if (maxval(currentPatch%nrad(1,:))==0)then
@@ -129,7 +129,7 @@ contains
                        bc_out(s)%albd_parb(ifp,ib) = bc_in(s)%albgr_dir_rb(ib)
                        bc_out(s)%albi_parb(ifp,ib) = bc_in(s)%albgr_dif_rb(ib)
                        bc_out(s)%ftdd_parb(ifp,ib)= 1.0_r8
-                       bc_out(s)%ftid_parb(ifp,ib)= 1.0_r8
+                       bc_out(s)%ftid_parb(ifp,ib)= 0.0_r8
                        bc_out(s)%ftii_parb(ifp,ib)= 1.0_r8
                     enddo
 
@@ -289,7 +289,7 @@ contains
       fabd_parb_out(1:hlm_numSWb) = 0.0_r8
       fabi_parb_out(1:hlm_numSWb) = 0.0_r8
       ftdd_parb_out(1:hlm_numSWb) = 1.0_r8
-      ftid_parb_out(1:hlm_numSWb) = 1.0_r8
+      ftid_parb_out(1:hlm_numSWb) = 0.0_r8
       ftii_parb_out(1:hlm_numSWb) = 1.0_r8
                  
       ! Is this pft/canopy layer combination present in this patch?
@@ -565,7 +565,6 @@ contains
             end do!ft
          end do!L
                        
-         currentPatch%radiation_error = 0.0_r8    
          do ib = 1,hlm_numSWb
             Dif_dn(:,:,:) = 0.00_r8
             Dif_up(:,:,:) = 0.00_r8
@@ -970,11 +969,9 @@ contains
             if (radtype == idirect)then
                error = (forc_dir(radtype) + forc_dif(radtype)) - &
                     (fabd_parb_out(ib)  + albd_parb_out(ib) + currentPatch%sabs_dir(ib))
-               currentPatch%radiation_error = currentPatch%radiation_error + error               
             else
                error = (forc_dir(radtype) + forc_dif(radtype)) - &
                     (fabi_parb_out(ib)  + albi_parb_out(ib) + currentPatch%sabs_dif(ib))
-               currentPatch%radiation_error = currentPatch%radiation_error + error
             endif
             lai_reduction(:) = 0.0_r8
             do L = 1, currentPatch%NCL_p
