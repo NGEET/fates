@@ -216,7 +216,6 @@ contains
     real(r8) :: Dif_up(nclmax,maxpft,nlevleaf)           ! Upward diffuse flux above canopy layer J (W/m**2 ground area)
     real(r8) :: lai_change(nclmax,maxpft,nlevleaf)       ! Forward diffuse flux onto canopy layer J (W/m**2 ground area)
 
-     real(r8) :: total_lai_sai(nclmax,maxpft,nlevleaf)  ! Total intercepting surfaces in canopy layer. m2
     real(r8) :: frac_lai                                ! Fraction of lai in each layer
     real(r8) :: frac_sai                                ! Fraction of sai in each layer
     real(r8) :: f_abs(nclmax,maxpft,nlevleaf,maxSWb)    ! Fraction of light absorbed by surfaces.
@@ -296,24 +295,27 @@ contains
          do ft = 1,numpft
             currentPatch%canopy_mask(L,ft) = 0
             do  iv = 1, currentPatch%nrad(L,ft)
-               total_lai_sai(L,ft,iv) = currentPatch%elai_profile(L,ft,iv)+currentPatch%esai_profile(L\
-,ft,iv)
                if (currentPatch%canopy_area_profile(L,ft,iv) > 0._r8)then
                   currentPatch%canopy_mask(L,ft) = 1
                   ! layer level reflectance qualities
                   do ib = 1,hlm_numSWb !vis, nir
-                    if(total_lai_sai(L,ft,iv).gt.0._r8)then
-                      frac_lai = currentPatch%elai_profile(L,ft,iv)/total_lai_sai(L,ft,iv)
+!                    if(total_lai_sai(L,ft,iv).gt.0._r8)then
+                      frac_lai = currentPatch%elai_profile(L,ft,iv)/&
+                       (currentPatch%elai_profile(L,ft,iv)+ &
+                       currentPatch%esai_profile(L,ft,iv))
                       frac_sai = 1.0_r8 - frac_lai
                       f_abs(L,ft,iv,ib) = 1.0_r8 - (frac_lai*(rhol(ft,ib) + taul(ft,ib))+&
                                       frac_sai*(rhos(ft,ib) + taus(ft,ib)))
                       rho_layer(L,ft,iv,ib)=frac_lai*rhol(ft,ib)+frac_sai*rhos(ft,ib)
                       tau_layer(L,ft,iv,ib)=frac_lai*taul(ft,ib)+frac_sai*taus(ft,ib)
-               
-                    else ! this is an empty layer, so all the light goes through. 
-                      rho_layer(L,ft,iv,ib)=0.0_r8
-                      tau_layer(L,ft,iv,ib)=1.0_r8
-                    end if
+                      rho_layer(L,ft,iv,ib)= rhol(ft,ib)
+                       tau_layer(L,ft,iv,ib)=taul(ft,ib)
+                       f_abs(L,ft,iv,ib) = 1.0_r8 -(taul(ft,ib)+rhol(ft,ib))
+                     
+!                    else ! this is an empty layer, so all the light goes through. 
+!                      rho_layer(L,ft,iv,ib)=0.0_r8
+!                      tau_layer(L,ft,iv,ib)=1.0_r8
+!                    end if
                
                   end do !ib
                endif
@@ -388,7 +390,8 @@ contains
                         gdir = phi1b(ft) + phi2b(ft) * sin(angle)
                         tr_dif_z(L,ft,iv) = tr_dif_z(L,ft,iv) + exp(-clumping_index(ft) * &
                              gdir / sin(angle) * &
-                           total_lai_sai(L,ft,iv)) * &
+                             (currentPatch%elai_profile(L,ft,iv)+ &
+                              currentPatch%esai_profile(L,ft,iv))) * &
                              sin(angle)*cos(angle)
                      end do
                      
@@ -410,7 +413,14 @@ contains
                   laisum = 0.00_r8                         
                   !total direct beam getting to the bottom of the top canopy.
                   do iv = 1,currentPatch%nrad(L,ft) 
-                     laisum = laisum + total_lai_sai(L,ft,iv)                     
+                     if( currentPatch%elai_profile(L,ft,iv) &
+                    +currentPatch%esai_profile(L,ft,iv).gt.0._r8.and.ftweight(L,ft,iv).le.0._r8)then
+
+                      write(*,*) 'lai in layer by no weight'
+                     endif 
+
+                     laisum = laisum+currentPatch%elai_profile(L,ft,iv) &
+                    +currentPatch%esai_profile(L,ft,iv)
                      lai_change(L,ft,iv) = 0.0_r8
                      if (( ftweight(L,ft,iv+1)  >  0.0_r8 ) .and. ( ftweight(L,ft,iv+1)  <  ftweight(L,ft,iv) ))then
                         !where there is a partly empty leaf layer, some fluxes go straight through.
@@ -465,9 +475,11 @@ contains
                      ! Now use cumulative lai at center of layer.
                      ! Same as tr_dir_z calcualtions, but in the middle of the layer? FIX(RF,032414)-WHY?
                      if (iv  ==  1) then
-                        laisum = 0.5_r8 * total_lai_sai(L,ft,iv) 
+                        laisum = 0.5_r8 *  (currentPatch%elai_profile(L,ft,iv)+ &
+               currentPatch%esai_profile(L,ft,iv))
                      else
-                        laisum = laisum + total_lai_sai(L,ft,iv)
+                        laisum = laisum +  (currentPatch%elai_profile(L,ft,iv)+ &
+               currentPatch%esai_profile(L,ft,iv))
                      end if
                      
                      
@@ -700,7 +712,8 @@ contains
 
                         !... plus the direct beam intercepted and intransmitted by this layer.
                           down_rad = down_rad + forc_dir(radtype) * tr_dir_z(L,ft,iv) * (1.00_r8 - &
-                              exp(-k_dir(ft) * total_lai_sai(L,ft,iv))) * tau_layer(L,ft,iv,ib)
+                              exp(-k_dir(ft) *  (currentPatch%elai_profile(L,ft,iv)+ &
+                              currentPatch%esai_profile(L,ft,iv))  )) * tau_layer(L,ft,iv,ib)
 
 
                         !... plus the direct beam intercepted and intransmitted by this layer. 
@@ -762,7 +775,8 @@ contains
                            !reflection of the lower layer,
                            up_rad = Dif_dn(L,ft,iv) * refl_dif(L,ft,iv,ib)
                            up_rad = up_rad + forc_dir(radtype) * tr_dir_z(L,ft,iv) * (1.00_r8 - exp(-k_dir(ft) * &
-                           total_lai_sai(L,ft,iv)) )* rho_layer(L,ft,iv,ib)
+                            (currentPatch%elai_profile(L,ft,iv)+ &
+                           currentPatch%esai_profile(L,ft,iv))  ))* rho_layer(L,ft,iv,ib)
                            up_rad = up_rad + Dif_up(L,ft,iv+1) * tran_dif(L,ft,iv,ib)
                            up_rad = up_rad * ftweight(L,ft,iv)/ftweight(L,ft,1)
                            up_rad = up_rad + Dif_up(L,ft,iv+1) *(ftweight(L,ft,1)-ftweight(L,ft,iv))/ftweight(L,ft,1)
@@ -804,7 +818,8 @@ contains
                      ! Absorbed direct beam and diffuse do leaf layers
                      do iv = 1, currentPatch%nrad(L,ft)
                         Abs_dir_z(ft,iv) = ftweight(L,ft,iv)* forc_dir(radtype) * tr_dir_z(L,ft,iv) * &
-                           (1.00_r8 - exp(-k_dir(ft) * total_lai_sai(L,ft,iv))) * f_abs(L,ft,iv,ib)
+                           (1.00_r8 - exp(-k_dir(ft) *  (currentPatch%elai_profile(L,ft,iv)+ &
+                        currentPatch%esai_profile(L,ft,iv)) )) * f_abs(L,ft,iv,ib)
                         Abs_dif_z(ft,iv) = ftweight(L,ft,iv)* ((Dif_dn(L,ft,iv) + &
                            Dif_up(L,ft,iv+1)) * (1.00_r8 - tr_dif_z(L,ft,iv)) * f_abs(L,ft,iv,ib))
                      end do
