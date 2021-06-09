@@ -959,11 +959,11 @@ contains
     ! to the layer-by-layer absorbing root (which is now a hybrid compartment)
     ! ------------------------------------------------------------------------------
     ccohort_hydr%v_troot = (1._r8-t2aroot_vol_donate_frac) * v_troot
-    
+    ! modified by Junyan May 29, 2020     
     ! Partition the total absorbing root lengths and volumes into the active soil layers
     ! We have a condition, where we may ignore the first layer
     ! ------------------------------------------------------------------------------
-    ! modified by Junyan May 29, 2020 
+
     ! norm = 1._r8 - &
     !      zeng2001_crootfr(roota, rootb,site_hydr%zi_rhiz(1)-site_hydr%dz_rhiz(1), site_hydr%zi_rhiz(nlevrhiz))
  
@@ -972,6 +972,7 @@ contains
     !    z_fr_max/(1 + ((z_fr_max-z_fr_0)/z_fr_0)*exp(-frk*dbh_rev))
     !  which is constrained by the maximum soil depth:  site_hydr%zi_rhiz(nlevrhiz)
 
+    ! The dynamic root growth model by Junyan Ding, June 9, 2021
     z_fr = min(site_hydr%zi_rhiz(nlevrhiz), z_fr_max/(1 + ((z_fr_max-z_fr_0)/z_fr_0)*exp(-frk*dbh_rev)))
     norm = 1._r8 - &
           zeng2001_crootfr(roota, rootb,site_hydr%zi_rhiz(1)-site_hydr%dz_rhiz(1), z_fr)
