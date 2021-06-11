@@ -18,6 +18,7 @@ module FatesRestartInterfaceMod
   use FatesInterfaceTypesMod,       only : bc_in_type 
   use FatesInterfaceTypesMod,       only : bc_out_type
   use FatesInterfaceTypesMod,       only : hlm_use_planthydro
+  use FatesInterfaceTypesMod,       only : hlm_use_sp
   use FatesInterfaceTypesMod,       only : fates_maxElementsPerSite
   use EDCohortDynamicsMod,     only : UpdateCohortBioPhysRates
   use FatesHydraulicsMemMod,   only : nshell
@@ -113,6 +114,7 @@ module FatesRestartInterfaceMod
   integer :: ir_frmort_co
   integer :: ir_smort_co
   integer :: ir_asmort_co
+  integer :: ir_c_area_co
 
   integer :: ir_daily_n_uptake_co
   integer :: ir_daily_p_uptake_co
@@ -1008,6 +1010,15 @@ contains
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_errfates_mbal)
     
     
+    ! Only register satellite phenology related restart variables if it is turned on!
+
+    if(hlm_use_sp .eq. itrue) then
+         call this%set_restart_var(vname='fates_cohort_area', vtype=cohort_r8, &
+             long_name='area of the fates cohort', &
+             units='m2', flushval = flushzero, &
+             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_c_area_co )
+    end if
+
 
     ! Only register hydraulics restart variables if it is turned on!
     
@@ -1683,6 +1694,7 @@ contains
            rio_imortcflux_si           => this%rvars(ir_imortcflux_si)%r81d, &
            rio_fmortcflux_cano_si      => this%rvars(ir_fmortcflux_cano_si)%r81d, &
            rio_fmortcflux_usto_si      => this%rvars(ir_fmortcflux_usto_si)%r81d)
+           !rio_c_area_co               => this%rvars(ir_c_area_co)%r81d)
 
 
        totalCohorts = 0
@@ -1905,6 +1917,11 @@ contains
                    rio_isnew_co(io_idx_co)     = old_cohort
                 endif
                 
+                if (hlm_use_sp .eq. itrue) then
+                    !rio_c_area_co(io_idx_co) = ccohort%c_area
+                    this%rvars(ir_c_area_co)%r81d(io_idx_co) = ccohort%c_area
+                end if
+          
                 if ( debug ) then
                    write(fates_log(),*) 'CLTV offsetNumCohorts II ',io_idx_co, &
                          cohortsperpatch
@@ -2101,7 +2118,7 @@ contains
                 end do
              end do
           end if
-          
+
        enddo
        
        if ( debug ) then
@@ -2322,6 +2339,7 @@ contains
      use EDTypesMod, only : maxSWb
      use FatesInterfaceTypesMod, only : numpft
      use FatesInterfaceTypesMod, only : fates_maxElementsPerPatch
+     use EDPhysiologyMod, only : assign_cohort_sp_properties
      use EDTypesMod, only : numWaterMem
      use EDTypesMod, only : num_vegtemp_mem
      use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
@@ -2474,6 +2492,7 @@ contains
           rio_imortcflux_si           => this%rvars(ir_imortcflux_si)%r81d, &
           rio_fmortcflux_cano_si      => this%rvars(ir_fmortcflux_cano_si)%r81d, &
           rio_fmortcflux_usto_si      => this%rvars(ir_fmortcflux_usto_si)%r81d)
+          !rio_c_area_co               => this%rvars(ir_c_area_co)%r81d)
      
 
        totalcohorts = 0
@@ -2677,6 +2696,11 @@ contains
                    call this%GetCohortRealVector(ccohort%co_hydr%errh2o_growturn_ag, &
                                                  n_hypool_ag, &
                                                  ir_hydro_err_growturn_ag_covec,io_idx_co)
+                end if
+
+                if (hlm_use_sp .eq. itrue) then
+                    !ccohort%c_area = rio_c_area_co(io_idx_co)
+                    ccohort%c_area = this%rvars(ir_c_area_co)%r81d(io_idx_co)
                 end if
                 
                 io_idx_co = io_idx_co + 1
