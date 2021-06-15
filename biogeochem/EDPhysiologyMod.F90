@@ -1594,8 +1594,10 @@ contains
 
 
   ! =====================================================================================
-
-  subroutine recruitment( currentSite, currentPatch, bc_in )
+ 
+  ! subroutine recruitment( currentSite, currentPatch, bc_in )
+  !YL------- pass in bc_out ------
+  subroutine recruitment( currentSite, currentPatch, bc_in, bc_out )
     !
     ! !DESCRIPTION:
     ! spawn new cohorts of juveniles of each PFT             
@@ -1607,6 +1609,7 @@ contains
     type(ed_site_type), intent(inout), target   :: currentSite
     type(ed_patch_type), intent(inout), pointer :: currentPatch
     type(bc_in_type), intent(in)                :: bc_in
+    type(bc_out_type), intent(inout)            :: bc_out
     !
     ! !LOCAL VARIABLES:
     class(prt_vartypes), pointer :: prt

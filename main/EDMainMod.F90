@@ -219,8 +219,9 @@ contains
        do while (associated(currentPatch))                 
           
           ! adds small cohort of each PFT
-          call recruitment(currentSite, currentPatch, bc_in)
-          
+          ! call recruitment(currentSite, currentPatch, bc_in)
+          !YL --------------
+          call recruitment(currentSite, currentPatch, bc_in, bc_out)
           currentPatch => currentPatch%younger
        enddo
     end if

@@ -1375,8 +1375,7 @@ contains
 
     !YL--------- 
     real(r8) :: site_seed_out(maxpft)  ! The sum of seed-rain leaving the site [kg/site/day]
-    real(r8) :: disp_frac(maxpft)      ! fraction of seed-rain among the site_seed_rain that's leaving the site [unitless]
-    real(r8) :: seed_in_supply         !
+    real(r8) :: disp_frac(maxpft) ! fraction of seed-rain among the site_seed_rain that's leaving the site [unitless]
     !-----------
 
     do el = 1, num_elements
@@ -1434,7 +1433,6 @@ contains
                    (seed_prod * currentCohort%n + store_m_to_repro)*disp_frac(pft)
              
              write(fates_log(),*) 'pft, site_seed_rain(pft), site_seed_out(pft):', pft, site_seed_rain(pft), site_seed_out(pft)
-             print *, pft, site_seed_rain(pft), site_seed_out(pft)
 
              !-----------
 
@@ -1488,12 +1486,8 @@ contains
 
              ! Seeds entering externally [kg/site/day]
              site_mass%seed_in = site_mass%seed_in + seed_in_external*currentPatch%area
-
-             !YL-------
-             site_mass%seed_out = site_mass%seed_out + site_seed_out(pft)
-             !----------
-
-            end if !use this pft  
+             write(fates_log(),*) 'pft, equivalent seed_suppl: ', pft, site_mass%seed_in/currentPatch%area/seed_stoich/years_per_day
+             end if !use this pft  
           enddo
           
           
@@ -1601,7 +1595,9 @@ contains
 
   ! =====================================================================================
 
-  subroutine recruitment( currentSite, currentPatch, bc_in )
+  ! subroutine recruitment( currentSite, currentPatch, bc_in )
+  ! YL------- pass in bc_out
+  subroutine recruitment( currentSite, currentPatch, bc_in , bc_out )
     !
     ! !DESCRIPTION:
     ! spawn new cohorts of juveniles of each PFT             
@@ -1613,6 +1609,7 @@ contains
     type(ed_site_type), intent(inout), target   :: currentSite
     type(ed_patch_type), intent(inout), pointer :: currentPatch
     type(bc_in_type), intent(in)                :: bc_in
+    type(bc_out_type), intent(inout)            :: bc_out
     !
     ! !LOCAL VARIABLES:
     class(prt_vartypes), pointer :: prt
