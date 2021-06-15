@@ -711,7 +711,7 @@ contains
                 currentPatch => currentPatch%younger
              enddo !end patch loop
              write(fates_log(),*) 'aborting on date:',hlm_current_year,hlm_current_month,hlm_current_day
-             call endrun(msg=errMsg(sourcefile, __LINE__))
+             !call endrun(msg=errMsg(sourcefile, __LINE__))
          !end if
           
       endif
