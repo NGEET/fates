@@ -1384,6 +1384,16 @@ contains
           
        enddo
 
+       do pft = 1,numpft
+          
+          new_litt%seed_decay(pft) = new_litt%seed_decay(pft) + &
+               curr_litt%seed_decay(pft)*patch_site_areadis/newPatch%area
+          
+          new_litt%seed_germ_decay(pft) = new_litt%seed_germ_decay(pft) + &
+               curr_litt%seed_germ_decay(pft)*patch_site_areadis/newPatch%area
+          
+       end do
+       
        ! -----------------------------------------------------------------------------
        ! Distribute the existing litter that was already in place on the donor
        ! patch.  Some of this burns and is sent to the atmosphere, and some goes to the 
