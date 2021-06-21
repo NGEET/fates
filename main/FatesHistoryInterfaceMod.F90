@@ -5217,7 +5217,7 @@ end subroutine update_history_hifrq
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_ar_understory_si_scpf )
 
     call this%set_history_var(vname='NPP_SCPF', units='kgC/m2/yr',            &
-          long='total net primary production by pft/size', use_default='inactive',       &
+          long='total net primary production by pft/size', use_default='active',       &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_totl_si_scpf )
 
@@ -5227,7 +5227,7 @@ end subroutine update_history_hifrq
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_leaf_si_scpf )
 
    call this%set_history_var(vname='NPP_SEED_SCPF', units='kgC/m2/yr',       &
-         long='NPP flux into seeds by pft/size', use_default='inactive',                &
+         long='NPP flux into seeds by pft/size', use_default='active',                &
          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_seed_si_scpf )
 
@@ -5691,7 +5691,7 @@ end subroutine update_history_hifrq
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_bsw_md_canopy_si_scls )
 
     call this%set_history_var(vname='SEED_PROD_CANOPY_SCLS', units = 'kg C / ha / yr',               &
-          long='SEED_PROD for canopy plants by size class', use_default='inactive',   &
+          long='SEED_PROD for canopy plants by size class', use_default='active',   &
           avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_seed_prod_canopy_si_scls )
     
