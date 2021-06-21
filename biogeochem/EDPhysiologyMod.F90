@@ -1431,9 +1431,8 @@ contains
                    (seed_prod * currentCohort%n + store_m_to_repro)*(1-disp_frac(pft))
              site_seed_out(pft) = site_seed_out(pft) + &
                    (seed_prod * currentCohort%n + store_m_to_repro)*disp_frac(pft)
-             
              write(fates_log(),*) 'pft, site_seed_rain(pft), site_seed_out(pft):', pft, site_seed_rain(pft), site_seed_out(pft)
-
+             print *, 'pft, site_seed_rain(pft), site_seed_out(pft):', pft, site_seed_rain(pft), site_seed_out(pft)
              !-----------
 
              currentCohort => currentCohort%shorter
@@ -1486,7 +1485,8 @@ contains
 
              ! Seeds entering externally [kg/site/day]
              site_mass%seed_in = site_mass%seed_in + seed_in_external*currentPatch%area
-             write(fates_log(),*) 'pft, equivalent seed_suppl: ', pft, site_mass%seed_in/currentPatch%area/seed_stoich/years_per_day
+             write(fates_log(),*) 'pft, site_mass%seed_in, site_seed_rain, site_seed_out: ', pft, site_mass%seed_in, site_seed_rain(pft), site_seed_out(pft)
+!             write(fates_log(),*) 'pft, equivalent seed_suppl: ', pft, site_mass%seed_in/currentPatch%area/seed_stoich/years_per_day
              end if !use this pft  
           enddo
           
