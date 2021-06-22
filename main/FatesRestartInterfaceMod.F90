@@ -947,13 +947,13 @@ contains
            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seedgerm_litt)
 
 
-    call this%RegisterCohortVector(symbol_base='fates_seed_decay', vtype=cohort_r8, &
-            long_name_base='seed bank (non-germinated)',  &
+    call this%RegisterCohortVector(symbol_base='fates_seed_frag', vtype=cohort_r8, &
+            long_name_base='seed bank fragmentation flux (non-germinated)',  &
             units='kg/m2', veclength=num_elements, flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seed_decay_litt)
 
-    call this%RegisterCohortVector(symbol_base='fates_seedgerm_decay', vtype=cohort_r8, &
-           long_name_base='seed bank (germinated)',  &
+    call this%RegisterCohortVector(symbol_base='fates_seedgerm_frag', vtype=cohort_r8, &
+           long_name_base='seed bank fragmentation flux (germinated)',  &
            units='kg/m2', veclength=num_elements, flushval = flushzero, &
            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seedgerm_decay_litt)
     
