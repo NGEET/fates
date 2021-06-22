@@ -3682,8 +3682,8 @@ end subroutine flush_hvars
 
             ! summarize radiation profiles through the canopy
             do ipft=1,numpft
-               do ican=1,nclmax         !  cpatch%ncl_p  ?
-                  do ileaf=1,nlevleaf   !  cpatch%ncan(ican,ipft) ?
+               do ican=1,cpatch%ncl_p
+                  do ileaf=1,cpatch%ncan(ican,ipft)
                      ! calculate where we are on multiplexed dimensions
                      cnlfpft_indx = ileaf + (ican-1) * nlevleaf + (ipft-1) * nlevleaf * nclmax 
                      cnlf_indx = ileaf + (ican-1) * nlevleaf
@@ -3756,11 +3756,12 @@ end subroutine flush_hvars
                        cpatch%fabi_sha_z(ican,ipft,1) * cpatch%area * AREA_INV
                   !
                end do
-           end do
+            end do
 
             ! PFT-mean radiation profiles
-            do ican=1,nclmax
-               do ileaf=1,nlevleaf
+            do ican = 1, cpatch%ncl_p
+               do ileaf = 1, maxval(cpatch%nrad(ican,:))
+                  
                   ! calculate where we are on multiplexed dimensions
                   cnlf_indx = ileaf + (ican-1) * nlevleaf
                   !
