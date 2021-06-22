@@ -1384,7 +1384,7 @@ contains
 
        !YL-------
        site_seed_out(:) = 0._r8 ! seed-rain leaving the site, 05/21
-       disp_frac(:) = 0.4       ! to be specified in the parameter file or calculated using dispersal kernel 
+       disp_frac(:) = 0.2       ! to be specified in the parameter file or calculated using dispersal kernel 
        !---------
 
        element_id = element_list(el)
@@ -1424,14 +1424,14 @@ contains
 
              !YL----------
 
-             !site_seed_rain(pft) = site_seed_rain(pft) +  &
-             !      (seed_prod * currentCohort%n + store_m_to_repro)
-
              site_seed_rain(pft) = site_seed_rain(pft) +  &
-                   (seed_prod * currentCohort%n + store_m_to_repro)*(1-disp_frac(pft))
-             site_seed_out(pft) = site_seed_out(pft) + &
-                   (seed_prod * currentCohort%n + store_m_to_repro)*disp_frac(pft)
-             write(fates_log(),*) 'pft, site_seed_rain(pft), site_seed_out(pft):', pft, site_seed_rain(pft)*10000.0, site_seed_out(pft)*10000.0
+                   (seed_prod * currentCohort%n + store_m_to_repro) ![kg/site/day, kg/ha/day]
+
+             !site_seed_rain(pft) = site_seed_rain(pft) +  &
+             !      (seed_prod * currentCohort%n + store_m_to_repro)*(1-disp_frac(pft))
+             !site_seed_out(pft) = site_seed_out(pft) + &
+             !      (seed_prod * currentCohort%n + store_m_to_repro)*disp_frac(pft)
+             !write(fates_log(),*) 'pft, site_seed_rain(pft), site_seed_out(pft):', pft, site_seed_rain(pft)*10000.0, site_seed_out(pft)*10000.0
 !             print *, 'pft, site_seed_rain(pft), site_seed_out(pft):', pft, site_seed_rain(pft), site_seed_out(pft)
              !-----------
 
@@ -1466,11 +1466,13 @@ contains
 
              if(currentSite%use_this_pft(pft).eq.itrue)then
              ! Seed input from local sources (within site)
-             litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)/area
 
-             !YL--------
+             !YL-----
+             !litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)/area
+             litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)*(1-disp_frac(pft))/area ![kg/m2/day]
              ! write(fates_log(),*) 'pft, litt%seed_in_local(pft), site_seed_rain(pft): ', litt%seed_in_local(pft), site_seed_rain(pft)
-             
+             !-------
+
              ! If there is forced external seed rain, we calculate the input mass flux
              ! from the different elements, usung the seed optimal stoichiometry
              ! for non-carbon
@@ -1488,19 +1490,24 @@ contains
              end select
              
              ! Seed input from external sources (user param seed rain, or dispersal model)
-             seed_in_external =  seed_stoich*EDPftvarcon_inst%seed_suppl(pft)*years_per_day
+             
+             !YL--------
+             seed_in_external =  seed_stoich*EDPftvarcon_inst%seed_suppl(pft)*years_per_day ![kg/m2/day]
+             !seed_in_external = seed_stoich*EDPftvarcon_inst%seed_suppl(pft)*years_per_day + 5.0E-7 ![kg/m2/day] # to test seed_in in comparison with seed_out
+             !----------
+
              litt%seed_in_extern(pft) = litt%seed_in_extern(pft) + seed_in_external
 
              ! Seeds entering externally [kg/site/day]
-             site_mass%seed_in = site_mass%seed_in + seed_in_external*currentPatch%area
+             site_mass%seed_in = site_mass%seed_in + seed_in_external*currentPatch%area ![kg/site/day]
  
              !YL---------
-             site_mass%seed_out = site_mass%seed_out + site_seed_out(pft)
-             ! write(fates_log(),*) 'pft, equivalent seed_suppl: ', pft, site_mass%seed_in/currentPatch%area/seed_stoich/years_per_day
+             site_mass%seed_out = site_mass%seed_out + site_seed_rain(pft)*disp_frac(pft) ![kg/site/day]
+             write(fates_log(),*) 'pft, site_seed_rain(pft), site_mass%seed_in, site_mass%seed_out', pft, site_seed_rain(pft), site_mass%seed_in, site_mass%seed_out
+             !-----------
+
              end if !use this pft  
           enddo
-          
-          write(fates_log(),*) 'pft, site_mass%seed_in, site_mass%seed_out: ', pft, site_mass%seed_in*10000.0, site_mass%seed_in*10000.0
           
           currentPatch => currentPatch%younger
        enddo
