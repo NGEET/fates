@@ -1470,6 +1470,8 @@ contains
              !YL-----
              !litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)/area
              litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)*(1-disp_frac(pft))/area ![kg/m2/day]
+             !litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)/area*0.8 ![kg/m2/day]
+             write(fates_log(),*) 'pft, disp_frac(pft): ', pft, disp_frac(pft)
              ! write(fates_log(),*) 'pft, litt%seed_in_local(pft), site_seed_rain(pft): ', litt%seed_in_local(pft), site_seed_rain(pft)
              !-------
 
@@ -1503,6 +1505,7 @@ contains
  
              !YL---------
              site_mass%seed_out = site_mass%seed_out + site_seed_rain(pft)*disp_frac(pft) ![kg/site/day]
+             !site_mass%seed_out = site_mass%seed_out + site_seed_rain(pft)*0.2
              write(fates_log(),*) 'pft, site_seed_rain(pft), site_mass%seed_in, site_mass%seed_out', pft, site_seed_rain(pft), site_mass%seed_in, site_mass%seed_out
              !-----------
 
