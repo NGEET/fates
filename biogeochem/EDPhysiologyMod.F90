@@ -318,6 +318,9 @@ contains
                 litt%seed_germ_in(pft) - & 
                 litt%seed_germ_decay(pft)
 
+          !YL------
+          write(fates_log(),*) 'el, pft, litt%seed_germ(pft), litt%seed(pft), litt%seed_in_local(pft): ', el, pft, litt%seed_germ(pft), litt%seed(pft), litt%seed_in_local(pft)
+          !-------
 
        enddo
        
@@ -1471,8 +1474,8 @@ contains
              !litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)/area
              litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)*(1-disp_frac(pft))/area ![kg/m2/day]
              !litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)/area*0.8 ![kg/m2/day]
-             write(fates_log(),*) 'pft, disp_frac(pft): ', pft, disp_frac(pft)
-             ! write(fates_log(),*) 'pft, litt%seed_in_local(pft), site_seed_rain(pft): ', litt%seed_in_local(pft), site_seed_rain(pft)
+             !write(fates_log(),*) 'pft,  ', pft, disp_frac(pft)
+             !write(fates_log(),*) 'pft, litt%seed_in_local(pft), site_seed_rain(pft): ', pft, litt%seed_in_local(pft), site_seed_rain(pft)
              !-------
 
              ! If there is forced external seed rain, we calculate the input mass flux
@@ -1504,9 +1507,9 @@ contains
              site_mass%seed_in = site_mass%seed_in + seed_in_external*currentPatch%area ![kg/site/day]
  
              !YL---------
-             site_mass%seed_out = site_mass%seed_out + site_seed_rain(pft)*disp_frac(pft) ![kg/site/day]
+             !site_mass%seed_out = site_mass%seed_out + site_seed_rain(pft)*disp_frac(pft) ![kg/site/day]
              !site_mass%seed_out = site_mass%seed_out + site_seed_rain(pft)*0.2
-             write(fates_log(),*) 'pft, site_seed_rain(pft), site_mass%seed_in, site_mass%seed_out', pft, site_seed_rain(pft), site_mass%seed_in, site_mass%seed_out
+             !write(fates_log(),*) 'pft, site_seed_rain(pft), litt%seed_in_local(pft), site_mass%seed_out: ', pft, site_seed_rain(pft), litt%seed_in_local(pft), site_mass%seed_out
              !-----------
 
              end if !use this pft  
@@ -1516,6 +1519,12 @@ contains
        enddo
     
     end do
+
+    do pft = 1,numpft
+        site_mass%seed_out = site_mass%seed_out + site_seed_rain(pft)*disp_frac(pft) ![kg/site/day]
+        write(fates_log(),*) 'pft, site_seed_rain(pft), site_mass%seed_out: ', pft, site_mass%seed_out
+    end do
+
 
     return
   end subroutine SeedIn
