@@ -73,7 +73,7 @@ contains
      total_stock = biomass_stock + seed_stock + litter_stock
 
      !YL-----
-     write(fates_log(),*) 'seed_stock, litter_stock: ', seed_stock, litter_stock
+     !write(fates_log(),*) 'seed_stock, litter_stock: ', seed_stock, litter_stock
      !-------
      return
   end subroutine SiteMassStock
@@ -109,11 +109,6 @@ contains
       seed_stock = currentPatch%area * &
             (sum(litt%seed) + sum(litt%seed_germ))
 
-      !YL-----
-      write(fates_log(),*) 'litt%seed: ', litt%seed
-      write(fates_log(),*) 'litt%seed_germ: ', litt%seed_germ
-      write(fates_log(),*) 'seed_stock (current patch):', seed_stock
-      !-------
 
       ! Total mass on living plants
       live_stock = 0._r8
