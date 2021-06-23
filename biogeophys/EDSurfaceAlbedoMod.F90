@@ -382,7 +382,7 @@ contains
                         gdir = phi1b(ft) + phi2b(ft) * sin(angle)
                         tr_dif_z(L,ft,iv) = tr_dif_z(L,ft,iv) + exp(-clumping_index(ft) * &
                              gdir / sin(angle) * &
-                             (currentPatch%elai_profile(L,ft,iv)+ currentPatch%esai_profile(L,ft,iv))) * &
+                             (currentPatch%elai_profile(L,ft,iv)+currentPatch%esai_profile(L,ft,iv))) * &
                              sin(angle)*cos(angle)
                      end do
                      
@@ -403,14 +403,9 @@ contains
                   endif
                   laisum = 0.00_r8                         
                   !total direct beam getting to the bottom of the top canopy.
-                  do iv = 1,currentPatch%nrad(L,ft) 
+                  do iv = 1,currentPatch%nrad(L,ft)
                      laisum = laisum + currentPatch%elai_profile(L,ft,iv)+currentPatch%esai_profile(L,ft,iv)
-                     if( currentPatch%elai_profile(L,ft,iv) &
-                    +currentPatch%esai_profile(L,ft,iv).gt.0._r8.and.ftweight(L,ft,iv).le.0._r8)then
-                      write(*,*) 'lai in layer by no weight'
-                     endif 
-
-                     lai_change(L,ft,iv) = 0.0_r8
+                      lai_change(L,ft,iv) = 0.0_r8
                      if (( ftweight(L,ft,iv+1)  >  0.0_r8 ) .and. ( ftweight(L,ft,iv+1)  <  ftweight(L,ft,iv) ))then
                         !where there is a partly empty leaf layer, some fluxes go straight through.
                         lai_change(L,ft,iv) = ftweight(L,ft,iv)-ftweight(L,ft,iv+1)
@@ -464,9 +459,9 @@ contains
                      ! Now use cumulative lai at center of layer.
                      ! Same as tr_dir_z calcualtions, but in the middle of the layer? FIX(RF,032414)-WHY?
                      if (iv  ==  1) then
-                        laisum = 0.5_r8 * (currentPatch%elai_profile(L,ft,iv)+ currentPatch%esai_profile(L,ft,iv))
+                        laisum = 0.5_r8 * (currentPatch%elai_profile(L,ft,iv)+currentPatch%esai_profile(L,ft,iv))
                      else
-                        laisum = laisum + currentPatch%elai_profile(L,ft,iv)+ currentPatch%esai_profile(L,ft,iv)
+                        laisum = laisum + currentPatch%elai_profile(L,ft,iv)+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currentPatch%esai_profile(L,ft,iv)
                      end if
                      
                      
@@ -762,7 +757,7 @@ contains
                            !reflection of the lower layer,
                            up_rad = Dif_dn(L,ft,iv) * refl_dif(L,ft,iv,ib)
                            up_rad = up_rad + forc_dir(radtype) * tr_dir_z(L,ft,iv) * (1.00_r8 - exp(-k_dir(ft) * &
-                            (currentPatch%elai_profile(L,ft,iv)+currentPatch%esai_profile(L,ft,iv))  ))* &
+                            (currentPatch%elai_profile(L,ft,iv)+currentPatch%esai_profile(L,ft,iv))))* &
                             rho_layer(L,ft,iv,ib)
                            up_rad = up_rad + Dif_up(L,ft,iv+1) * tran_dif(L,ft,iv,ib)
                            up_rad = up_rad * ftweight(L,ft,iv)/ftweight(L,ft,1)
@@ -810,7 +805,6 @@ contains
                         Abs_dif_z(ft,iv) = ftweight(L,ft,iv)* ((Dif_dn(L,ft,iv) + &
                            Dif_up(L,ft,iv+1)) * (1.00_r8 - tr_dif_z(L,ft,iv)) * f_abs(L,ft,iv,ib))
                      end do
-
                      
                      ! Absorbed direct beam and diffuse do soil
                      if (L == currentPatch%NCL_p)then
