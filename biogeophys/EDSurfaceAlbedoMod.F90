@@ -290,7 +290,9 @@ contains
       ftii_parb_out(1:hlm_numSWb) = 1.0_r8
                  
       ! Is this pft/canopy layer combination present in this patch?
-      
+      rho_layer(:,:,:,:)=0.0_r8
+      tau_layer(:,:,:,:)=0.0_r8
+      f_abs(:,:,:,:)=0.0_r8
       do L = 1,nclmax
          do ft = 1,numpft
             currentPatch%canopy_mask(L,ft) = 0
@@ -299,15 +301,18 @@ contains
                   currentPatch%canopy_mask(L,ft) = 1
                   ! layer level reflectance qualities
                   do ib = 1,hlm_numSWb !vis, nir
-                      frac_lai = currentPatch%elai_profile(L,ft,iv)/&
-                       (currentPatch%elai_profile(L,ft,iv)+ currentPatch%esai_profile(L,ft,iv))
+                      if(currentPatch%elai_profile(L,ft,iv)+ currentPatch%esai_profile(L,ft,iv).gt.0.0_r8) then
+                        frac_lai = currentPatch%elai_profile(L,ft,iv)/&
+                         (currentPatch%elai_profile(L,ft,iv)+ currentPatch%esai_profile(L,ft,iv))
+                      else
+                        frac_lai = 1.0_r8
+                      endif
                       !frac_lai = 1.0_r8 ! make the same as previous codebase, in theory. 
                       frac_sai = 1.0_r8 - frac_lai
                       f_abs(L,ft,iv,ib) = 1.0_r8 - (frac_lai*(rhol(ft,ib) + taul(ft,ib))+&
                                       frac_sai*(rhos(ft,ib) + taus(ft,ib)))
                       rho_layer(L,ft,iv,ib)=frac_lai*rhol(ft,ib)+frac_sai*rhos(ft,ib)
                       tau_layer(L,ft,iv,ib)=frac_lai*taul(ft,ib)+frac_sai*taus(ft,ib)
-                      f_abs(L,ft,iv,ib) = 1.0_r8 -(taul(ft,ib)+rhol(ft,ib))
                      
                   end do !ib
                endif
