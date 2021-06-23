@@ -286,7 +286,7 @@ contains
       fabd_parb_out(1:hlm_numSWb) = 0.0_r8
       fabi_parb_out(1:hlm_numSWb) = 0.0_r8
       ftdd_parb_out(1:hlm_numSWb) = 1.0_r8
-      ftid_parb_out(1:hlm_numSWb) = 0.0_r8
+      ftid_parb_out(1:hlm_numSWb) = 1.0_r8
       ftii_parb_out(1:hlm_numSWb) = 1.0_r8
                  
       ! Is this pft/canopy layer combination present in this patch?
