@@ -299,7 +299,6 @@ contains
                   currentPatch%canopy_mask(L,ft) = 1
                   ! layer level reflectance qualities
                   do ib = 1,hlm_numSWb !vis, nir
-!                    if(total_lai_sai(L,ft,iv).gt.0._r8)then
                       frac_lai = currentPatch%elai_profile(L,ft,iv)/&
                        (currentPatch%elai_profile(L,ft,iv)+ currentPatch%esai_profile(L,ft,iv))
                       frac_lai = 1.0_r8 ! make the same as previous codebase, in theory. 
@@ -310,11 +309,6 @@ contains
                       tau_layer(L,ft,iv,ib)=frac_lai*taul(ft,ib)+frac_sai*taus(ft,ib)
                       f_abs(L,ft,iv,ib) = 1.0_r8 -(taul(ft,ib)+rhol(ft,ib))
                      
-!                    else ! this is an empty layer, so all the light goes through. 
-!                      rho_layer(L,ft,iv,ib)=0.0_r8
-!                      tau_layer(L,ft,iv,ib)=1.0_r8
-!                    end if
-               
                   end do !ib
                endif
             end do !iv
@@ -410,12 +404,12 @@ contains
                   laisum = 0.00_r8                         
                   !total direct beam getting to the bottom of the top canopy.
                   do iv = 1,currentPatch%nrad(L,ft) 
+                     laisum = laisum + currentPatch%elai_profile(L,ft,iv)+currentPatch%esai_profile(L,ft,iv)
                      if( currentPatch%elai_profile(L,ft,iv) &
                     +currentPatch%esai_profile(L,ft,iv).gt.0._r8.and.ftweight(L,ft,iv).le.0._r8)then
                       write(*,*) 'lai in layer by no weight'
                      endif 
 
-                     laisum = laisum+currentPatch%elai_profile(L,ft,iv)+currentPatch%esai_profile(L,ft,iv)
                      lai_change(L,ft,iv) = 0.0_r8
                      if (( ftweight(L,ft,iv+1)  >  0.0_r8 ) .and. ( ftweight(L,ft,iv+1)  <  ftweight(L,ft,iv) ))then
                         !where there is a partly empty leaf layer, some fluxes go straight through.
@@ -470,9 +464,9 @@ contains
                      ! Now use cumulative lai at center of layer.
                      ! Same as tr_dir_z calcualtions, but in the middle of the layer? FIX(RF,032414)-WHY?
                      if (iv  ==  1) then
-                        laisum = 0.5_r8 *  (currentPatch%elai_profile(L,ft,iv)+ currentPatch%esai_profile(L,ft,iv))
+                        laisum = 0.5_r8 * (currentPatch%elai_profile(L,ft,iv)+ currentPatch%esai_profile(L,ft,iv))
                      else
-                        laisum = laisum +  (currentPatch%elai_profile(L,ft,iv)+  currentPatch%esai_profile(L,ft,iv))
+                        laisum = laisum + currentPatch%elai_profile(L,ft,iv)+ currentPatch%esai_profile(L,ft,iv)
                      end if
                      
                      
@@ -768,7 +762,8 @@ contains
                            !reflection of the lower layer,
                            up_rad = Dif_dn(L,ft,iv) * refl_dif(L,ft,iv,ib)
                            up_rad = up_rad + forc_dir(radtype) * tr_dir_z(L,ft,iv) * (1.00_r8 - exp(-k_dir(ft) * &
-                            (currentPatch%elai_profile(L,ft,iv)+currentPatch%esai_profile(L,ft,iv))  ))* rho_layer(L,ft,iv,ib)
+                            (currentPatch%elai_profile(L,ft,iv)+currentPatch%esai_profile(L,ft,iv))  ))* &
+                            rho_layer(L,ft,iv,ib)
                            up_rad = up_rad + Dif_up(L,ft,iv+1) * tran_dif(L,ft,iv,ib)
                            up_rad = up_rad * ftweight(L,ft,iv)/ftweight(L,ft,1)
                            up_rad = up_rad + Dif_up(L,ft,iv+1) *(ftweight(L,ft,1)-ftweight(L,ft,iv))/ftweight(L,ft,1)
