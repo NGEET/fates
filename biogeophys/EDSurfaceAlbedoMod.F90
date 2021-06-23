@@ -301,7 +301,7 @@ contains
                   do ib = 1,hlm_numSWb !vis, nir
                       frac_lai = currentPatch%elai_profile(L,ft,iv)/&
                        (currentPatch%elai_profile(L,ft,iv)+ currentPatch%esai_profile(L,ft,iv))
-                      frac_lai = 1.0_r8 ! make the same as previous codebase, in theory. 
+                      !frac_lai = 1.0_r8 ! make the same as previous codebase, in theory. 
                       frac_sai = 1.0_r8 - frac_lai
                       f_abs(L,ft,iv,ib) = 1.0_r8 - (frac_lai*(rhol(ft,ib) + taul(ft,ib))+&
                                       frac_sai*(rhos(ft,ib) + taus(ft,ib)))
@@ -461,7 +461,7 @@ contains
                      if (iv  ==  1) then
                         laisum = 0.5_r8 * (currentPatch%elai_profile(L,ft,iv)+currentPatch%esai_profile(L,ft,iv))
                      else
-                        laisum = laisum + currentPatch%elai_profile(L,ft,iv)+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currentPatch%esai_profile(L,ft,iv)
+                        laisum = laisum + currentPatch%elai_profile(L,ft,iv)+currentPatch%esai_profile(L,ft,iv)
                      end if
                      
                      
