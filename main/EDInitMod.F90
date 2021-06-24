@@ -672,12 +672,14 @@ contains
      endif !use_this_pft
     enddo !numpft
 
-    ! Zero the mass flux pools of the new cohorts
-!    temp_cohort => patch_in%tallest
-!    do while(associated(temp_cohort)) 
-!       call temp_cohort%prt%ZeroRates()
-!       temp_cohort => temp_cohort%shorter
-!    end do
+    ! Pass patch level temperature to the new cohorts (this is a nominal 15C right now)
+    temp_cohort => patch_in%tallest
+    do while(associated(temp_cohort)) 
+       call temp_cohort%tveg_lpa%UpdateRmean(patch_in%tveg_lpa%GetMean())
+       temp_cohort => temp_cohort%shorter
+    end do
+
+
 
     call fuse_cohorts(site_in, patch_in,bc_in)
     call sort_cohorts(patch_in)

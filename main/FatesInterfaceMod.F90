@@ -23,6 +23,7 @@ module FatesInterfaceMod
    use EDTypesMod                , only : numlevsoil_max
    use EDTypesMod                , only : ed_site_type
    use EDTypesMod                , only : ed_patch_type
+   use EDTypesMod                , only : leaf_photo_temp_acclim_days
    use FatesConstantsMod         , only : r8 => fates_r8
    use FatesConstantsMod         , only : itrue,ifalse
    use FatesConstantsMod         , only : nearzero
@@ -72,6 +73,7 @@ module FatesInterfaceMod
    use PRTAllometricCNPMod       , only : InitPRTGlobalAllometricCNP
    use FatesRunningMeanMod       , only : ema_24hr
    use FatesRunningMeanMod       , only : fixed_24hr
+   use FatesRunningMeanMod       , only : ema_lpa
    use FatesRunningMeanMod       , only : moving_ema_window
    use FatesRunningMeanMod       , only : fixed_window
    
@@ -865,7 +867,8 @@ contains
          call ema_24hr%define(sec_per_day, hlm_stepsize, moving_ema_window)
          allocate(fixed_24hr)
          call fixed_24hr%define(sec_per_day, hlm_stepsize, fixed_window)
-
+         allocate(ema_lpa)
+         call ema_lpa%define(leaf_photo_temp_acclim_days,hlm_stepsize,moving_ema_window)
          
 
       else
@@ -1839,6 +1842,7 @@ contains
      type(bc_in_type), intent(in)      :: bc_in(:)
      
      type(ed_patch_type),  pointer :: cpatch
+     type(ed_cohort_type), pointer :: ccohort
      integer :: s, ifp
 
 
@@ -1848,6 +1852,14 @@ contains
         do while(associated(cpatch))
            ifp=ifp+1
            call cpatch%tveg24%UpdateRMean(bc_in(s)%tveg_pa(ifp))
+           call cpatch%tveg_lpa%UpdateRMean(bc_in(s)%tveg_pa(ifp))
+
+           ccohort => cpatch%tallest
+           do while (associated(ccohort))
+              call ccohort%tveg_lpa%UpdateRMean(bc_in(s)%tveg_pa(ifp))
+              ccohort => ccohort%shorter
+           end do
+           
            cpatch => cpatch%younger
         enddo
      enddo

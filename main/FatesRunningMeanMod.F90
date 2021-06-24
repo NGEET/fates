@@ -90,6 +90,7 @@ module FatesRunningMeanMod
   
   class(rmean_def_type), public, pointer :: ema_24hr   ! Exponential moving average - 24hr window
   class(rmean_def_type), public, pointer :: fixed_24hr ! Fixed, 24-hour window
+  class(rmean_def_type), public, pointer :: ema_lpa    ! Exponential moving average - leaf photo acclimation
   
 contains
 

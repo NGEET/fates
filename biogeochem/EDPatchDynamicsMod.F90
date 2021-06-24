@@ -85,7 +85,7 @@ module EDPatchDynamicsMod
   use SFParamsMod,            only : SF_VAL_CWD_FRAC
   use EDParamsMod,            only : logging_event_code
   use EDParamsMod,            only : logging_export_frac
-  use FatesRunningMeanMod,    only : ema_24hr, fixed_24hr
+  use FatesRunningMeanMod,    only : ema_24hr, fixed_24hr, ema_lpa
   
   ! CIME globals
   use shr_infnan_mod       , only : nan => shr_infnan_nan, assignment(=)
@@ -676,7 +676,7 @@ contains
              ! These values will inherit all info from the original patch
              ! --------------------------------------------------------------------------
              call new_patch%tveg24%CopyFromDonor(currentPatch%tveg24)
-
+             call new_patch%tveg_lpa%CopyFromDonor(currentPatch%tveg_lpa)
              
              
              ! --------------------------------------------------------------------------
@@ -2013,6 +2013,8 @@ contains
 
     allocate(new_patch%tveg24)
     call new_patch%tveg24%InitRMean(fixed_24hr,init_value=temp_init_vegc,init_offset=real(hlm_current_tod,r8) )
+    allocate(new_patch%tveg_lpa)
+    call new_patch%tveg_lpa%InitRmean(ema_lpa,init_value=temp_init_vegc)
     
     ! Litter
     ! Allocate, Zero Fluxes, and Initialize to "unset" values
@@ -2517,6 +2519,7 @@ contains
 
     ! Weighted mean of the running means
     call rp%tveg24%FuseRMean(dp%tveg24,rp%area*inv_sum_area)
+    call rp%tveg_lpa%FuseRMean(dp%tveg_lpa,rp%area*inv_sum_area)
     
     rp%fuel_eff_moist       = (dp%fuel_eff_moist*dp%area + rp%fuel_eff_moist*rp%area) * inv_sum_area
     rp%livegrass            = (dp%livegrass*dp%area + rp%livegrass*rp%area) * inv_sum_area
@@ -2858,6 +2861,7 @@ contains
     
     ! Deallocate any running means
     deallocate(cpatch%tveg24)
+    deallocate(cpatch%tveg_lpa)
     
     return
   end subroutine dealloc_patch
