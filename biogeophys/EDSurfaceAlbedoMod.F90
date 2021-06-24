@@ -221,7 +221,7 @@ contains
     real(r8) :: f_abs(nclmax,maxpft,nlevleaf,maxSWb)    ! Fraction of light absorbed by surfaces.
     real(r8) :: rho_layer(nclmax,maxpft,nlevleaf,maxSWb)! Weighted verage reflectance of layer
     real(r8) :: tau_layer(nclmax,maxpft,nlevleaf,maxSWb)! Weighted average transmittance of layer
-
+    real(r8) :: f_abs_leaf(nclmax,maxpft,nlevleaf,maxSWb)
     real(r8) :: Abs_dir_z(maxpft,nlevleaf)
     real(r8) :: Abs_dif_z(maxpft,nlevleaf)
     real(r8) :: abs_rad(maxSWb)                               !radiation absorbed by soil
@@ -293,6 +293,7 @@ contains
       rho_layer(:,:,:,:)=0.0_r8
       tau_layer(:,:,:,:)=0.0_r8
       f_abs(:,:,:,:)=0.0_r8
+      f_abs_leaf(:,:,:,:)=0._r8
       do L = 1,nclmax
          do ft = 1,numpft
             currentPatch%canopy_mask(L,ft) = 0
@@ -311,6 +312,8 @@ contains
                       frac_sai = 1.0_r8 - frac_lai
                       f_abs(L,ft,iv,ib) = 1.0_r8 - (frac_lai*(rhol(ft,ib) + taul(ft,ib))+&
                                       frac_sai*(rhos(ft,ib) + taus(ft,ib)))
+                      f_abs_leaf(L,ft,iv,ib) = frac_lai*(1.0_r8 - rhol(ft,ib) - taul(ft,ib))/f_abs(L,ft,iv,ib)
+
                       rho_layer(L,ft,iv,ib)=frac_lai*rhol(ft,ib)+frac_sai*rhos(ft,ib)
                       tau_layer(L,ft,iv,ib)=frac_lai*taul(ft,ib)+frac_sai*taus(ft,ib)
                      
@@ -833,15 +836,15 @@ contains
                                       currentPatch%fabd_sun_z(L,ft,iv)
                               endif
                               currentPatch%fabd_sha_z(L,ft,iv) = Abs_dif_z(ft,iv) * &
-                                   (1._r8 - currentPatch%f_sun(L,ft,iv))
-                              currentPatch%fabd_sun_z(L,ft,iv) = Abs_dif_z(ft,iv) * &
+                                   (1._r8 - currentPatch%f_sun(L,ft,iv))*f_abs_leaf(L,ft,iv,ib)
+                              currentPatch%fabd_sun_z(L,ft,iv) =( Abs_dif_z(ft,iv) * &
                                    currentPatch%f_sun(L,ft,iv) + &
-                                   Abs_dir_z(ft,iv)
+                                   Abs_dir_z(ft,iv))*f_abs_leaf(L,ft,iv,ib)
                            else
                               currentPatch%fabi_sha_z(L,ft,iv) = Abs_dif_z(ft,iv) * &
-                                   (1._r8 - currentPatch%f_sun(L,ft,iv))
+                                   (1._r8 - currentPatch%f_sun(L,ft,iv))*f_abs_leaf(L,ft,iv,ib)
                               currentPatch%fabi_sun_z(L,ft,iv) = Abs_dif_z(ft,iv) * &
-                                   currentPatch%f_sun(L,ft,iv)
+                                   currentPatch%f_sun(L,ft,iv)*f_abs_leaf(L,ft,iv,ib)
                            endif
                            if ( debug ) then
                               write(fates_log(),*) 'EDsurfAlb 740 ', currentPatch%fabd_sha_z(L,ft,iv), &
