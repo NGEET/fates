@@ -1694,7 +1694,6 @@ contains
            rio_imortcflux_si           => this%rvars(ir_imortcflux_si)%r81d, &
            rio_fmortcflux_cano_si      => this%rvars(ir_fmortcflux_cano_si)%r81d, &
            rio_fmortcflux_usto_si      => this%rvars(ir_fmortcflux_usto_si)%r81d)
-           !rio_c_area_co               => this%rvars(ir_c_area_co)%r81d)
 
 
        totalCohorts = 0
@@ -1918,7 +1917,6 @@ contains
                 endif
                 
                 if (hlm_use_sp .eq. itrue) then
-                    !rio_c_area_co(io_idx_co) = ccohort%c_area
                     this%rvars(ir_c_area_co)%r81d(io_idx_co) = ccohort%c_area
                 end if
           
@@ -2492,7 +2490,6 @@ contains
           rio_imortcflux_si           => this%rvars(ir_imortcflux_si)%r81d, &
           rio_fmortcflux_cano_si      => this%rvars(ir_fmortcflux_cano_si)%r81d, &
           rio_fmortcflux_usto_si      => this%rvars(ir_fmortcflux_usto_si)%r81d)
-          !rio_c_area_co               => this%rvars(ir_c_area_co)%r81d)
      
 
        totalcohorts = 0
@@ -2699,7 +2696,6 @@ contains
                 end if
 
                 if (hlm_use_sp .eq. itrue) then
-                    !ccohort%c_area = rio_c_area_co(io_idx_co)
                     ccohort%c_area = this%rvars(ir_c_area_co)%r81d(io_idx_co)
                 end if
                 
