@@ -2431,7 +2431,7 @@ contains
                 !             layers have transporting-to-absorbing root water potential gradients of opposite sign
                 ! -----------------------------------------------------------------------------------
                 
-                call OrderLayersForSolve1D(site_hydr, ccohort, ccohort_hydr, ordered, kbg_layer)
+                call OrderLayersForSolve1D(site_hydr, ccohort, ccohort_hydr, ordered, kbg_layer,bc_in(s))
                 
                 call ImTaylorSolve1D(site_hydr,ccohort,ccohort_hydr, &
                                      dtime,qflx_tran_veg_indiv,ordered, kbg_layer, & 
@@ -2881,9 +2881,10 @@ contains
 
   ! ===================================================================================
 
-  subroutine OrderLayersForSolve1D(site_hydr,cohort,cohort_hydr,ordered, kbg_layer)
+  subroutine OrderLayersForSolve1D(site_hydr,cohort,cohort_hydr,ordered, kbg_layer,bc_in)
     
     ! Arguments (IN)
+    type(bc_in_type), intent(in)                 :: bc_in
     type(ed_site_hydr_type), intent(in),target   :: site_hydr
     type(ed_cohort_type), intent(in),target      :: cohort
     type(ed_cohort_hydr_type),intent(in),target  :: cohort_hydr
@@ -2915,7 +2916,6 @@ contains
     
     kbg_tot      = 0._r8
     kbg_layer(:) = 0._r8
-
     ft = cohort%pft
     
     do j=1,site_hydr%nlevrhiz
@@ -2967,6 +2967,12 @@ contains
        
        !! upper bound limited to size()-1 b/c of zero-flux outer boundary condition
        kbg_layer(j)        = 1._r8/r_bg
+
+       !Marius
+       if(bc_in%temp_hard_sl(j)<0._r8 .and. bc_in%temp_hard_sl(j)>-5._r8)then
+          kbg_layer(j)=((bc_in%temp_hard_sl(j)+5._r8)/5._r8)*kbg_layer(j)
+       end if
+
        kbg_tot             = kbg_tot + kbg_layer(j)
 
     enddo !soil layer

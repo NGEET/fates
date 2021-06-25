@@ -464,7 +464,7 @@ module FatesInterfaceMod
       real(r8),allocatable :: hksat_sisl(:)        ! hydraulic conductivity at saturation (mm H2O /s)
       real(r8),allocatable :: h2o_liq_sisl(:)      ! Liquid water mass in each layer (kg/m2)
       real(r8) :: smpmin_si                        ! restriction for min of soil potential (mm)
-      
+      real(r8),allocatable :: temp_hard_sl(:)      ! soil temperature (Kelvin) Marius
    end type bc_in_type
 
 
@@ -792,6 +792,7 @@ contains
          allocate(bc_in%bsw_sisl(nlevsoil_in))
          allocate(bc_in%hksat_sisl(nlevsoil_in))
          allocate(bc_in%h2o_liq_sisl(nlevsoil_in)); bc_in%h2o_liq_sisl = nan
+         allocate(bc_in%temp_hard_sl(nlevsoil_in)) !Marius
       end if
 
       return
@@ -928,6 +929,7 @@ contains
          this%bc_in(s)%sucsat_sisl(:) = 0.0_r8
          this%bc_in(s)%bsw_sisl(:) = 0.0_r8
          this%bc_in(s)%hksat_sisl(:) = 0.0_r8
+         this%bc_in(s)%temp_hard_sl(:) = 0.0_r8 !Marius
       end if
 
 
