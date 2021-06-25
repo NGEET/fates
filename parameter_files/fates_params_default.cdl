@@ -124,6 +124,27 @@ variables:
 		fates_allom_stmode:units = "index" ;
 		fates_allom_stmode:long_name = "storage allometry function index." ;
 		fates_allom_stmode:possible_values = "1: target storage proportional to trimmed maximum leaf biomass." ;
+
+	double fates_allom_zroot_max_dbh(fates_pft) ;
+		fates_allom_zroot_max_dbh:units = "cm" ;
+      fates_allom_zroot_max_dbh:long_name = "dbh at which maximum rooting depth is defined" ;
+
+	double fates_allom_zroot_max_z(fates_pft) ;
+      fates_allom_zroot_max_z:units = "m" ;
+		fates_allom_zroot_max_z:long_name = "the maximum rooting depth defined at dbh = fates_allom_zroot_max_dbh" ;
+
+	double fates_allom_zroot_min_dbh(fates_pft) ;
+		fates_allom_zroot_min_dbh:units = "cm" ;
+		fates_allom_zroot_min_dbh:long_name = "dbh at which the rooting depth for a recruit is defined" ;
+
+	double fates_allom_zroot_min_z(fates_pft) ;
+		fates_allom_zroot_min_z:units = "m" ;
+		fates_allom_zroot_min_z:long_name = "the maximum rooting depth defined at dbh = fates_allom_zroot_min_dbh" ;
+
+	double fates_allom_zroot_k(fates_pft) ;
+		fates_allom_zroot_k:units = "unitless" ;
+		fates_allom_zroot_k:long_name = "scale coefficient of logistic rooting depth model" ;
+
 	double fates_branch_turnover(fates_pft) ;
 		fates_branch_turnover:units = "yr" ;
 		fates_branch_turnover:long_name = "turnover time of branches" ;
@@ -796,6 +817,16 @@ data:
  fates_allom_smode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
  fates_allom_stmode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
+
+ fates_allom_zroot_max_dbh = 100, 100, 100, 100, 100, 100, 2, 2, 2, 2, 2, 2 ;
+
+ fates_allom_zroot_max_z = 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100;
+
+ fates_allom_zroot_min_dbh = 1, 1, 1, 2.5, 2.5, 2.5, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1 ;
+
+ fates_allom_zroot_min_z = 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100;
+
+ fates_allom_zroot_k = 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10 ;
 
  fates_branch_turnover = 150, 150, 150, 150, 150, 150, 150, 150, 150, 0, 0, 0 ;
 
