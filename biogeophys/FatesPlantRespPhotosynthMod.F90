@@ -214,7 +214,7 @@ contains
                                    ! above the leaf layer of interest
     real(r8) :: lai_current        ! the LAI in the current leaf layer
     real(r8) :: cumulative_lai     ! the cumulative LAI, top down, to the leaf layer of interest
-
+    real(r8) :: psi_leaf           ! water potential of leaf
     real(r8), allocatable :: rootfr_ft(:,:)  ! Root fractions per depth and PFT
 
     ! -----------------------------------------------------------------------------------
@@ -398,9 +398,9 @@ contains
                                  (hlm_parteh_mode .ne. prt_carbon_allom_hyp )   ) then
                                
                                if (hlm_use_planthydro.eq.itrue ) then
-                                   
-                                 stomatal_intercept_btran = max( cf/rsmax0,stomatal_intercept(ft)*currentCohort%co_hydr%btran )
-                                 btran_eff = currentCohort%co_hydr%btran 
+                                 psi_leaf = currentCohort%co_hydr%psi_ag(1) 
+                                 stomatal_intercept_btran = max( cf/rsmax0,stomatal_intercept(ft)*currentCohort%co_hydr%btran ) 
+                                 btran_eff = currentCohort%co_hydr%btran
                                  
                                  ! dinc_ed is the total vegetation area index of each "leaf" layer
                                  ! we convert to the leaf only portion of the increment
@@ -526,7 +526,9 @@ contains
                                                         bc_in(s)%forc_pbot,                 &  ! in
                                                         bc_in(s)%cair_pa(ifp),              &  ! in
                                                         bc_in(s)%oair_pa(ifp),              &  ! in
+                                                        bc_in(s)%rb_pa(ifp),                &  ! in                                                        
                                                         btran_eff,                          &  ! in
+                                                        psi_leaf,                           &  ! in                                                        
                                                         stomatal_intercept_btran,           &  ! in
                                                         cf,                                 &  ! in
                                                         gb_mol,                             &  ! in
@@ -841,8 +843,10 @@ contains
                                      can_press,         &  ! in
                                      can_co2_ppress,    &  ! in
                                      can_o2_ppress,     &  ! in
+                                     rb,                &  ! in
                                      btran,             &  ! in
-                                     stomatal_intercept_btran,  &  ! in
+                                     psi,               &  ! in                                     
+                                     stomatal_intercept_btran,   &  ! in
                                      cf,                &  ! in
                                      gb_mol,            &  ! in
                                      ceair,             &  ! in
@@ -940,12 +944,26 @@ contains
    real(r8) :: init_co2_inter_c  ! First guess intercellular co2 specific to C path
    real(r8) :: term                 ! intermediate variable in Medlyn stomatal conductance model
    real(r8) :: vpd                  ! water vapor deficit in Medlyn stomatal model (KPa)
+   
+   real(r8), dimension(0:1) :: bbbopt ! Cuticular conductance at full water potential (umol H2O /m2/s)
 
-
+   real(r8) :: psi               ! Water potential of leaf                 
+   real(r8) :: gstoma_out        ! Adjusted stoma conductance that incorporates the leaf water status
+   real(r8) :: qs                ! specific humidity at leaf surface
+   real(r8) :: qsat              ! saturated specific humidity 
+   real(r8) :: qsat_adj          ! specific humidity adjusted by leaf water potential    (g/kg)     
+   real(r8) :: LWP_star          ! leaf water potential scaling coefficient for inner leaf humidity, 0 means total dehydroted leaf, 1 means total saturated leaf
+   integer  :: k_lwp             ! an sclaing coefficient for the ratio of leaf xylem water potential to mesophyll water potential                     
+   real(r8) :: th_sat            ! saturated water content of leaf m3/m3
+   real(r8) :: th_rs             ! residual waater content of leaf m3/m3
+   real(r8) :: rb                ! leaf boundary layer ressistance  
    ! Parameters
    ! ------------------------------------------------------------------------
    ! Fraction of light absorbed by non-photosynthetic pigments
+  
    real(r8),parameter :: fnps = 0.15_r8       
+
+
 
    ! For plants with no leaves, a miniscule amount of conductance
    ! can happen through the stems, at a partial rate of cuticular conductance
@@ -1108,16 +1126,26 @@ contains
 
                  end if
 
-                 ! Net carbon assimilation. Exit iteration if an < 0
-                 anet = agross  - lmr
-                 if (anet < 0._r8) then
-                    loop_continue = .false.
-                 end if
+
+                !!! Calculate anet, only exit iteration with negative anet when using anet in calculating gs
+                ! this is version B  
+                 anet = agross - lmr
+                 if (use_agross == 1) then
+                   leaf_co2_ppress = can_co2_ppress- h2o_co2_bl_diffuse_ratio/gb_mol * agross * can_press 
+                 else
+                   if (anet < 0._r8) then
+                     loop_continue = .false.
+                   end if
+                   ! With an <= 0, then gs_mol = stomatal_intercept_btran, adjusted on L1214               
+                   leaf_co2_ppress = can_co2_ppress- h2o_co2_bl_diffuse_ratio/gb_mol * anet * can_press 		   
+                 end if 
 
                  ! Quadratic gs_mol calculation with an known. Valid for an >= 0.
-                 ! With an <= 0, then gs_mol = stomatal_intercept_btran                 
-                 leaf_co2_ppress = can_co2_ppress- h2o_co2_bl_diffuse_ratio/gb_mol * anet * can_press 
+                 ! With an <= 0, then gs_mol = bbb
+                 
+
                  leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
+
                  if ( stomatal_model == 2 ) then
                   !stomatal conductance calculated from Medlyn et al. (2011), the numerical &
                   !implementation was adapted from the equations in CLM5.0 
@@ -1130,22 +1158,29 @@ contains
                   cquad = stomatal_intercept_btran*stomatal_intercept_btran + &
                           (2.0*stomatal_intercept_btran + term * &
                           (1.0 - medlyn_slope(ft)* medlyn_slope(ft) / vpd)) * term
-           
+
                   call quadratic_f (aquad, bquad, cquad, r1, r2)
                   gs_mol = max(r1,r2)
 
-                else if ( stomatal_model == 1 ) then         !stomatal conductance calculated from Ball et al. (1987)
+               else if ( stomatal_model == 1 ) then         !stomatal conductance calculated from Ball et al. (1987)
+                  if (use_agross == 1) then
+                    aquad = leaf_co2_ppress
+                    bquad = leaf_co2_ppress*(gb_mol - stomatal_intercept_btran) - bb_slope(ft) * agross * can_press
+                    cquad = -gb_mol*(leaf_co2_ppress*stomatal_intercept_btran + &
+                                  bb_slope(ft)*agross*can_press * ceair/ veg_esat )
+                  else
                     aquad = leaf_co2_ppress
                     bquad = leaf_co2_ppress*(gb_mol - stomatal_intercept_btran) - bb_slope(ft) * anet * can_press
                     cquad = -gb_mol*(leaf_co2_ppress*stomatal_intercept_btran + &
                                   bb_slope(ft)*anet*can_press * ceair/ veg_esat )
-
-                 call quadratic_f (aquad, bquad, cquad, r1, r2)
-                 gs_mol = max(r1,r2)
-                 end if 
+                  end if   
+                    call quadratic_f (aquad, bquad, cquad, r1, r2)
+                    gs_mol = max(r1,r2)
+                end if 
                  ! Derive new estimate for co2_inter_c
                  co2_inter_c = can_co2_ppress - anet * can_press * &
                        (h2o_co2_bl_diffuse_ratio*gs_mol+h2o_co2_stoma_diffuse_ratio*gb_mol) / (gb_mol*gs_mol)
+
 
                  ! Check for co2_inter_c convergence. Delta co2_inter_c/pair = mol/mol. 
                  ! Multiply by 10**6 to convert to umol/mol (ppm). Exit iteration if 
@@ -1158,19 +1193,18 @@ contains
                  end if
               end do !iteration loop
               
-              ! End of co2_inter_c iteration.  Check for an < 0, in which case
-              ! gs_mol =stomatal_intercept_btran 
-              if (anet < 0._r8) then
-                  gs_mol = stomatal_intercept_btran
-              end if
-              
-              ! Final estimates for leaf_co2_ppress and co2_inter_c 
-              ! (needed for early exit of co2_inter_c iteration when an < 0)
-              leaf_co2_ppress = can_co2_ppress - h2o_co2_bl_diffuse_ratio/gb_mol * anet * can_press
-              leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
-              co2_inter_c = can_co2_ppress - anet * can_press * &
-                            (h2o_co2_bl_diffuse_ratio*gs_mol+h2o_co2_stoma_diffuse_ratio*gb_mol) / (gb_mol*gs_mol)
-              
+              ! End of co2_inter_c iteration.  Check for an < 0, in which case gs_mol = bbb
+              ! And Final estimates for leaf_co2_ppress and co2_inter_c 
+              ! (needed for early exit of co2_inter_c iteration when an < 0)	      
+                if (anet < 0._r8) then
+                    gs_mol = stomatal_intercept_btran	      
+	        end if
+		leaf_co2_ppress = can_co2_ppress - h2o_co2_bl_diffuse_ratio/gb_mol * anet * can_press
+                leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
+                co2_inter_c = can_co2_ppress - anet * can_press * &
+                            (h2o_co2_bl_diffuse_ratio*gs_mol+h2o_co2_stoma_diffuse_ratio*gb_mol) / (gb_mol*gs_mol)		
+    
+             
               ! Convert gs_mol (umol /m**2/s) to gs (m/s) and then to rs (s/m)
               gs = gs_mol / cf
 	      
@@ -1204,7 +1238,7 @@ contains
                  write (fates_log(),*)'gs_mol= ',gs_mol
                  call endrun(msg=errMsg(sourcefile, __LINE__))
               end if
-             
+              
              ! Compare with Medlyn model: gs_mol = 1.6*(1+m/sqrt(vpd)) * an/leaf_co2_ppress*p + b
               if ( stomatal_model == 2 ) then
                  gs_mol_err = h2o_co2_stoma_diffuse_ratio*(1 + medlyn_slope(ft)/sqrt(vpd))*max(anet,0._r8)/leaf_co2_ppress*can_press + stomatal_intercept_btran
@@ -1213,7 +1247,6 @@ contains
                  hs = (gb_mol*ceair + gs_mol* veg_esat ) / ((gb_mol+gs_mol)*veg_esat )
                  gs_mol_err = bb_slope(ft)*max(anet, 0._r8)*hs/leaf_co2_ppress*can_press + stomatal_intercept_btran
               end if
-
               if (abs(gs_mol-gs_mol_err) > 1.e-01_r8) then
                  write (fates_log(),*) 'Stomatal model error check - stomatal conductance error:'
                  write (fates_log(),*) gs_mol, gs_mol_err
@@ -1221,9 +1254,63 @@ contains
               
            enddo !sunsha loop
 
-           ! This is the stomatal resistance of the leaf layer
-           rstoma_out = 1._r8/gstoma
-	   
+            ! This is the stomatal resistance of the leaf layer of a given cohort
+
+            ! Adjusting gs (compute a virtual gs) that will be passed to host model
+            ! compute specific humidity from vapor pressure
+            ! q = 0.622*e/(can_press - 0.378*e) 
+            ! source https://cran.r-project.org/web/packages/humidity/vignettes/humidity-measures.html
+
+           if (hlm_use_planthydro.eq.itrue) then
+
+             !Calculates inner leaf humidity as a function of mesophyll water potential 
+             ! Adopted from  Vesala et la., 2017 https://www.frontiersin.org/articles/10.3389/fpls.2017.00054/full
+             ! LWP_star = wi/w0 = exp(psi_meso*Vh20/(R*T)) , w is the water vapor concentration 
+             ! Vh20:  molar volume of water (18 × 10−6 m3 mol−1) 
+             ! R is the universal gas constant and T the interfacial temperature 
+             ! 
+             ! th_sat = EDPftvarcon_inst%hydr_thetas_node(ft,1)
+             ! th_rs = EDPftvarcon_inst%hydr_resid_node(ft,1)
+             
+	     ! Note: to disable this control, set k_lwp to zero, LWP_star will be 1, see code (line 1308) below 
+             k_lwp = EDPftvarcon_inst%hydr_k_lwp(ft)
+             if (psi<0) then
+               LWP_star = exp(((k_lwp) * psi)*18.0_r8/(8.314_r8*veg_tempk))
+             else 
+               LWP_star = 1
+             end if
+             ! now adjust inner leaf humidity by LWP_star
+             ! note: q is the specific humidity
+             qs = 0.622 * ceair / (can_press - 0.378 * ceair)
+             qsat = 0.622 * veg_esat / (can_press - 0.378 * veg_esat)
+             qsat_adj = qsat*LWP_star
+             
+             if (k_lwp == 0 ) then 
+               rstoma_out = 1._r8/gstoma
+             else 
+               if ((qsat_adj - qs) <= 0) then
+          
+                 ! if inner leaf vapor pressure is less then or equal to that at leaf surface
+                 ! then set stomata resistance to be very large to stop the transpiration or back flow of vapor
+                  rstoma_out = rsmax0*100
+               else
+                  rstoma_out = (qsat-qs)*( 1/gstoma + rb)/(qsat_adj - qs)-rb
+                
+               end if
+               if (rstoma_out <=0 ) then
+
+                 write (fates_log(),*) 'qsat:', qsat, 'qs:', qs
+                 write (fates_log(),*) 'LWP :', psi, 'BTRAN:', th_rs, 'th:', th
+                 write (fates_log(),*)  'ceair:', ceair, 'veg_esat:', veg_esat            
+                 write (fates_log(),*) 'rstoma_out:', rstoma_out, 'rb:', rb  
+                 write (fates_log(),*)  'LWP_star', LWP_star 
+                 call endrun(msg=errMsg(sourcefile, __LINE__))                  
+               end if      
+             end if  ! k_lwp == 0
+            else 
+              rstoma_out = 1._r8/gstoma
+            end if
+	         ! end of Junyan modification
         else
 
            ! No leaf area. This layer is present only because of stems. 
@@ -1687,7 +1774,7 @@ contains
       
       real(r8), parameter :: mm_kc25_umol_per_mol       = 404.9_r8
       real(r8), parameter :: mm_ko25_mmol_per_mol       = 278.4_r8
-      real(r8), parameter :: co2_cpoint_umol_per_mol    = 42.75_r8
+      real(r8), parameter :: co2_cpoint_umol_per_mol    = 42.75_r8  
       
       ! Activation energy, from:
       ! Bernacchi et al (2001) Plant, Cell and Environment 24:253-259
