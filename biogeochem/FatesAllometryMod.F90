@@ -95,7 +95,7 @@ module FatesAllometryMod
   use shr_log_mod      , only : errMsg => shr_log_errMsg
   use FatesGlobals     , only : fates_log
   use FatesGlobals     , only : endrun => fates_endrun
-  use EDTypesMod       , only : nlevleaf, dinc_ed
+  use EDTypesMod       , only : nlevleaf, dinc_vai
   use EDTypesMod       , only : nclmax
 
 
@@ -730,7 +730,7 @@ contains
 
     tree_sai   =  prt_params%allom_sai_scaler(pft) * target_lai
 
-    if( (treelai + tree_sai) > (nlevleaf*dinc_ed) )then
+    if( (treelai + tree_sai) > (sum(dinc_vai)) )then
 
        call h_allom(dbh,pft,h)
 
@@ -739,7 +739,8 @@ contains
        write(fates_log(),*) 'sai: ',tree_sai
        write(fates_log(),*) 'target_lai: ',target_lai
        write(fates_log(),*) 'lai+sai: ',treelai+tree_sai
-       write(fates_log(),*) 'nlevleaf,dinc_ed,nlevleaf*dinc_ed :',nlevleaf,dinc_ed,nlevleaf*dinc_ed
+       write(fates_log(),*) 'dinc_vai:',dinc_vai
+       write(fates_log(),*) 'nlevleaf,sum(dinc_vai):',nlevleaf,sum(dinc_vai)
        write(fates_log(),*) 'pft: ',pft
        write(fates_log(),*) 'call id: ',call_id
        write(fates_log(),*) 'n: ',nplant

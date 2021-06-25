@@ -232,6 +232,7 @@ module FatesInterfaceTypesMod
    integer , public, allocatable :: fates_hdim_levfuel(:)          ! fire fuel size class (fsc) dimension
    integer , public, allocatable :: fates_hdim_levcwdsc(:)         ! cwd class dimension
    integer , public, allocatable :: fates_hdim_levcan(:)           ! canopy-layer dimension 
+   integer , public, allocatable :: fates_hdim_levleaf(:)          ! leaf-layer dimension 
    integer , public, allocatable :: fates_hdim_levelem(:)              ! element dimension
    integer , public, allocatable :: fates_hdim_canmap_levcnlf(:)   ! canopy-layer map into the canopy-layer x leaf-layer dim
    integer , public, allocatable :: fates_hdim_lfmap_levcnlf(:)    ! leaf-layer map into the can-layer x leaf-layer dimension
