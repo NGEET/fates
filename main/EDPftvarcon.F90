@@ -200,7 +200,7 @@ module EDPftvarcon
      ! PFT x Organ Dimension  (organs are: 1=leaf, 2=stem, 3=transporting root, 4=absorbing root)
      ! ----------------------------------------------------------------------------------
 
-     ! Van Genuchten PV PK curves
+     ! Van Genuchten PV PK curves  (NOT IMPLEMENTED)
      real(r8), allocatable :: hydr_vg_alpha_node(:,:)   ! capilary length parameter in van Genuchten model
      real(r8), allocatable :: hydr_vg_m_node(:,:)       ! pore size distribution, m in van Genuchten 1980 model, range (0,1)
      real(r8), allocatable :: hydr_vg_n_node(:,:)       ! pore size distribution, n in van Genuchten 1980 model, range >2
@@ -218,6 +218,12 @@ module EDPftvarcon
      real(r8), allocatable :: hydr_resid_node(:,:)  ! residual fraction (fraction)
      real(r8), allocatable :: hydr_thetas_node(:,:) ! saturated water content (cm3/cm3)
 
+
+     ! Table that maps HLM pfts to FATES pfts for fixed biogeography mode
+     ! The values are area fractions (NOT IMPLEMENTED)
+     real(r8), allocatable :: hlm_pft_map(:,:)
+
+     
      
    contains
      procedure, public :: Init => EDpftconInit
@@ -296,16 +302,19 @@ contains
 
     use FatesParametersInterface, only : fates_parameters_type, param_string_length
     use FatesParametersInterface, only : dimension_name_pft, dimension_shape_1d
-
+    use FatesParametersInterface, only : dimension_name_hlm_pftno, dimension_shape_2d
+    
     implicit none
 
     class(EDPftvarcon_type), intent(inout) :: this
     class(fates_parameters_type), intent(inout) :: fates_params
 
     character(len=param_string_length), parameter :: dim_names(1) = (/dimension_name_pft/)
-
+    character(len=param_string_length) :: pftmap_dim_names(2)
+    
     integer, parameter :: dim_lower_bound(1) = (/ lower_bound_pft /)
-
+    
+    
     character(len=param_string_length) :: name
 
     !X!    name = ''
@@ -619,7 +628,15 @@ contains
     name = 'fates_prescribed_puptake'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)    
-  
+
+    ! adding the hlm_pft_map variable with two dimensions - FATES PFTno and HLM PFTno
+    pftmap_dim_names(1) = dimension_name_pft 
+    pftmap_dim_names(2) = dimension_name_hlm_pftno 
+
+    name = 'fates_hlm_pft_map'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+         dimension_names=pftmap_dim_names, lower_bounds=dim_lower_bound)
+    
   end subroutine Register_PFT
 
   !-----------------------------------------------------------------------
@@ -952,6 +969,10 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%eca_lambda_ptase)
 
+    name = 'fates_hlm_pft_map' 
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%hlm_pft_map)
+    
   end subroutine Receive_PFT
 
   !-----------------------------------------------------------------------

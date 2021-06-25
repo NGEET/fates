@@ -11,6 +11,8 @@ dimensions:
 	fates_pft = 12 ;
 	fates_prt_organs = 4 ;
 	fates_string_length = 60 ;
+	fates_hlm_pftno = 14 ;
+	
 variables:
 	double fates_history_ageclass_bin_edges(fates_history_age_bins) ;
 		fates_history_ageclass_bin_edges:units = "yr" ;
@@ -552,6 +554,11 @@ fates_hydr_k_lwp:possible_values = "0: turns off leaf humidity effects on conduc
 	double fates_z0mr(fates_pft) ;
 		fates_z0mr:units = "unitless" ;
 		fates_z0mr:long_name = "Ratio of momentum roughness length to canopy top height" ;
+
+	double fates_hlm_pft_map(fates_hlm_pftno, fates_pft) ;
+   	fates_hlm_pft_map:units = "area fraction" ;
+      fates_hlm_pft_map:long_name = "In fixed biogeog mode, fraction of HLM area associated with each FATES PFT" ;
+
 	double fates_fire_FBD(fates_litterclass) ;
 		fates_fire_FBD:units = "kg Biomass/m3" ;
 		fates_fire_FBD:long_name = "fuel bulk density" ;
@@ -1303,6 +1310,22 @@ fates_hydr_k_lwp = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
  fates_z0mr = 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 
     0.055, 0.055, 0.055 ;
+
+	 fates_hlm_pft_map =  
+ 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+ 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+ 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+ 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+ 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+ 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
+ 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
+ 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
+ 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
+ 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
+ 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
+ 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0,
+ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 ;
 
  fates_fire_FBD = 15.4, 16.8, 19.6, 999, 4, 4 ;
 
