@@ -127,23 +127,23 @@ variables:
 
 	double fates_allom_zroot_max_dbh(fates_pft) ;
 		fates_allom_zroot_max_dbh:units = "cm" ;
-      fates_allom_zroot_max_dbh:long_name = "dbh at which maximum rooting depth is defined" ;
+      fates_allom_zroot_max_dbh:long_name = "dbh at which maximum rooting depth is defined (NOT USED)" ;
 
 	double fates_allom_zroot_max_z(fates_pft) ;
       fates_allom_zroot_max_z:units = "m" ;
-		fates_allom_zroot_max_z:long_name = "the maximum rooting depth defined at dbh = fates_allom_zroot_max_dbh" ;
+		fates_allom_zroot_max_z:long_name = "the maximum rooting depth defined at dbh = fates_allom_zroot_max_dbh (NOT USED). note: max_z=min_z=large, sets rooting depth to soil depth" ;
 
 	double fates_allom_zroot_min_dbh(fates_pft) ;
 		fates_allom_zroot_min_dbh:units = "cm" ;
-		fates_allom_zroot_min_dbh:long_name = "dbh at which the rooting depth for a recruit is defined" ;
+		fates_allom_zroot_min_dbh:long_name = "dbh at which the rooting depth for a recruit is defined (NOT USED)" ;
 
 	double fates_allom_zroot_min_z(fates_pft) ;
 		fates_allom_zroot_min_z:units = "m" ;
-		fates_allom_zroot_min_z:long_name = "the maximum rooting depth defined at dbh = fates_allom_zroot_min_dbh" ;
+		fates_allom_zroot_min_z:long_name = "the maximum rooting depth defined at dbh = fates_allom_zroot_min_dbh (NOT USED) note: max_z=min_z=large, sets rooting depth to soil depth" ;
 
 	double fates_allom_zroot_k(fates_pft) ;
 		fates_allom_zroot_k:units = "unitless" ;
-		fates_allom_zroot_k:long_name = "scale coefficient of logistic rooting depth model" ;
+		fates_allom_zroot_k:long_name = "scale coefficient of logistic rooting depth model (NOT USED)" ;
 
 	double fates_branch_turnover(fates_pft) ;
 		fates_branch_turnover:units = "yr" ;
@@ -708,6 +708,12 @@ variables:
 	double fates_soil_salinity ;
 		fates_soil_salinity:units = "ppt" ;
 		fates_soil_salinity:long_name = "soil salinity used for model when not coupled to dynamic soil salinity" ;
+   double fates_vai_top_bin_width ;
+		fates_vai_top_bin_width:units = "m2/m2" ;
+		fates_vai_top_bin_width:long_name = "width in VAI units of uppermost leaf+stem layer scattering element in each canopy layer (NOT USED)" ;
+	double fates_vai_width_increase_factor ;
+		fates_vai_width_increase_factor:units = "unitless" ;
+		fates_vai_width_increase_factor:long_name = "factor by which each leaf+stem scattering element increases in VAI width (1 = uniform spacing) (NOT USED)" ;
 
 // global attributes:
 		:history = "This parameter file is maintained in version control\nSee https://github.com/NGEET/fates/blob/master/parameter_files/fates_params_default.cdl \nFor changes, use git blame \n" ;
@@ -1360,4 +1366,8 @@ data:
  fates_q10_mr = 1.5 ;
 
  fates_soil_salinity = 0.4 ;
+
+ fates_vai_top_bin_width = 1.0 ;
+
+ fates_vai_width_increase_factor = 1.0 ;
 }

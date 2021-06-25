@@ -20,7 +20,14 @@ module EDParamsMod
    !
    ! this is what the user can use for the actual values
    !
-   
+
+   real(r8),protected, public :: vai_top_bin_width         ! width in VAI units of uppermost leaf+stem
+                                                           ! layer scattering element in each canopy layer [m2/m2]
+                                                           ! (NOT YET IMPLEMENTED)
+   real(r8),protected, public :: vai_width_increase_factor ! factor by which each leaf+stem scattering element
+                                                           ! increases in VAI width (1 = uniform spacing)
+                                                           ! (NOT YET IMPLEMENTED)
+    
    real(r8),protected, public :: fates_mortality_disturbance_fraction ! the fraction of canopy mortality that results in disturbance
    real(r8),protected, public :: ED_val_comp_excln
    real(r8),protected, public :: ED_val_init_litter
@@ -59,6 +66,9 @@ module EDParamsMod
    real(r8),protected,allocatable,public :: ED_val_history_ageclass_bin_edges(:)
    real(r8),protected,allocatable,public :: ED_val_history_height_bin_edges(:)
    real(r8),protected,allocatable,public :: ED_val_history_coageclass_bin_edges(:)
+
+   character(len=param_string_length),parameter,public :: ED_name_vai_top_bin_width = "fates_vai_top_bin_width"
+   character(len=param_string_length),parameter,public :: ED_name_vai_width_increase_factor = "fates_vai_width_increase_factor"
    
    character(len=param_string_length),parameter,public :: ED_name_mort_disturb_frac = "fates_mort_disturb_frac"
    character(len=param_string_length),parameter,public :: ED_name_comp_excln = "fates_comp_excln"
@@ -173,6 +183,8 @@ contains
 
     implicit none
 
+    vai_top_bin_width                     = nan
+    vai_width_increase_factor             = nan
     fates_mortality_disturbance_fraction  = nan
     ED_val_comp_excln                     = nan
     ED_val_init_litter                    = nan
@@ -240,6 +252,12 @@ contains
        
     call FatesParamsInit()
 
+    call fates_params%RegisterParameter(name=ED_name_vai_top_bin_width, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=ED_name_vai_width_increase_factor, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+    
     call fates_params%RegisterParameter(name=ED_name_mort_disturb_frac, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
@@ -390,6 +408,12 @@ contains
     class(fates_parameters_type), intent(inout) :: fates_params
 
     real(r8) :: tmpreal ! local real variable for changing type on read
+
+    call fates_params%RetreiveParameter(name=ED_name_vai_top_bin_width, &
+         data=vai_top_bin_width)
+
+    call fates_params%RetreiveParameter(name=ED_name_vai_width_increase_factor, &
+         data=vai_width_increase_factor)
     
     call fates_params%RetreiveParameter(name=ED_name_mort_disturb_frac, &
           data=fates_mortality_disturbance_fraction)
@@ -544,6 +568,8 @@ contains
      if(debug_report .and. is_master) then
         
         write(fates_log(),*) '-----------  FATES Scalar Parameters -----------------'
+        write(fates_log(),fmt0) 'vai_top_bin_width = ',vai_top_bin_width
+        write(fates_log(),fmt0) 'vai_width_increase_factor = ',vai_width_increase_factor
         write(fates_log(),fmt0) 'fates_mortality_disturbance_fraction = ',fates_mortality_disturbance_fraction
         write(fates_log(),fmt0) 'ED_val_comp_excln = ',ED_val_comp_excln
         write(fates_log(),fmt0) 'ED_val_init_litter = ',ED_val_init_litter
