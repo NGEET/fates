@@ -47,6 +47,7 @@ module FatesPlantHydraulicsMod
   use EDParamsMod       , only : hydr_kmax_rsurf2
   use EDParamsMod       , only : hydr_psi0
   use EDParamsMod       , only : hydr_psicap
+  use EDParamsMod       , only : hydr_wtftype_node
   
   use EDTypesMod        , only : ed_site_type
   use EDTypesMod        , only : ed_patch_type
@@ -190,12 +191,12 @@ module FatesPlantHydraulicsMod
        __FILE__
 
 
-  integer, public, parameter :: van_genuchten_type      = 1
-  integer, public, parameter :: campbell_type           = 2
-  integer, public, parameter :: tfs_type                = 3
+  integer, public, parameter :: van_genuchten_type      = 2
+  integer, public, parameter :: campbell_type           = 3
+  integer, public, parameter :: tfs_type                = 1
   
-  integer, parameter :: plant_wrf_type = tfs_type
-  integer, parameter :: plant_wkf_type = tfs_type
+  !integer, parameter :: plant_wrf_type = tfs_type
+  !integer, parameter :: plant_wkf_type = tfs_type
   integer, parameter :: soil_wrf_type  = campbell_type
   integer, parameter :: soil_wkf_type  = campbell_type
   
@@ -5312,81 +5313,67 @@ contains
     ! Initialize the Water Retention Functions
     ! -----------------------------------------------------------------------------------
 
-    select case(plant_wrf_type)
-    case(van_genuchten_type)
-       do ft = 1,numpft
-            do pm = 1, n_plant_media
-                allocate(wrf_vg)
-                wrf_plant(pm,ft)%p => wrf_vg
-                call wrf_vg%set_wrf_param([alpha_vg, psd_vg, th_sat_vg, th_res_vg])
-            end do
-        end do
-     case(campbell_type)
-        do ft = 1,numpft
-           do pm = 1,n_plant_media
-              allocate(wrf_cch)
-              wrf_plant(pm,ft)%p => wrf_cch
-              call wrf_cch%set_wrf_param([EDPftvarcon_inst%hydr_thetas_node(ft,pm), &
-                                          EDPftvarcon_inst%hydr_pinot_node(ft,pm), &
-                                          9._r8])
+    do pm = 1, n_plant_media
+       select case(hydr_wtftype_node(pm))
+       case(van_genuchten_type)
+          do ft = 1,numpft
+             allocate(wrf_vg)
+             wrf_plant(pm,ft)%p => wrf_vg
+             call wrf_vg%set_wrf_param([EDPftvarcon_inst%hydr_vg_alpha_node(ft,pm), &
+                                        EDPftvarcon_inst%hydr_vg_m_node(ft,pm), &
+                                        EDPftvarcon_inst%hydr_thetas_node(ft,pm), &
+                                        EDPftvarcon_inst%hydr_resid_node(ft,pm)])
+          end do
+       case(tfs_type)
+          do ft = 1,numpft
+             allocate(wrf_tfs)
+             wrf_plant(pm,ft)%p => wrf_tfs
+             if (pm.eq.leaf_p_media) then   ! Leaf tissue
+                cap_slp    = 0.0_r8
+                cap_int    = 0.0_r8
+                cap_corr   = 1.0_r8
+             else               ! Non leaf tissues
+                cap_slp    = (hydr_psi0 - hydr_psicap )/(1.0_r8 - rwccap(pm))  
+                cap_int    = -cap_slp + hydr_psi0    
+                cap_corr   = -cap_int/cap_slp
+             end if
+             call wrf_tfs%set_wrf_param([EDPftvarcon_inst%hydr_thetas_node(ft,pm), &
+                                         EDPftvarcon_inst%hydr_resid_node(ft,pm), &
+                                         EDPftvarcon_inst%hydr_pinot_node(ft,pm), &
+                                         EDPftvarcon_inst%hydr_epsil_node(ft,pm), &
+                                         rwcft(pm), & 
+                                         cap_corr, &
+                                         cap_int, &
+                                         cap_slp,real(pm,r8)])
            end do
-        end do
-     case(tfs_type)
-        do ft = 1,numpft
-           do pm = 1,n_plant_media
-              allocate(wrf_tfs)
-              wrf_plant(pm,ft)%p => wrf_tfs
-
-              if (pm.eq.leaf_p_media) then   ! Leaf tissue
-                 cap_slp    = 0.0_r8
-                 cap_int    = 0.0_r8
-                 cap_corr   = 1.0_r8
-              else               ! Non leaf tissues
-                 cap_slp    = (hydr_psi0 - hydr_psicap )/(1.0_r8 - rwccap(pm))  
-                 cap_int    = -cap_slp + hydr_psi0    
-                 cap_corr   = -cap_int/cap_slp
-              end if
-              
-              call wrf_tfs%set_wrf_param([EDPftvarcon_inst%hydr_thetas_node(ft,pm), &
-                                          EDPftvarcon_inst%hydr_resid_node(ft,pm), &
-                                          EDPftvarcon_inst%hydr_pinot_node(ft,pm), &
-                                          EDPftvarcon_inst%hydr_epsil_node(ft,pm), &
-                                          rwcft(pm), & 
-                                          cap_corr, &
-                                          cap_int, &
-                                          cap_slp,real(pm,r8)])
-           end do
-        end do
-
-    end select
+        end select
+     end do
 
     ! -----------------------------------------------------------------------------------
     ! Initialize the Water Conductance (K) Functions
     ! -----------------------------------------------------------------------------------
-
-    select case(plant_wkf_type)
-    case(van_genuchten_type)
-        do ft = 1,numpft
-            do pm = 1, n_plant_media
-                allocate(wkf_vg)
-                wkf_plant(pm,ft)%p => wkf_vg
-                call wkf_vg%set_wkf_param([alpha_vg, psd_vg, th_sat_vg, th_res_vg, tort_vg])
-            end do
-           
-        end do
-    case(campbell_type)
-        write(fates_log(),*) 'campbell/clapp-hornberger conductance not used in plants'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-    case(tfs_type)
-        do ft = 1,numpft
-            do pm = 1, n_plant_media
-               allocate(wkf_tfs)
-               wkf_plant(pm,ft)%p => wkf_tfs
-               call wkf_tfs%set_wkf_param([EDPftvarcon_inst%hydr_p50_node(ft,pm), &
-                                       EDPftvarcon_inst%hydr_avuln_node(ft,pm)])
-            end do
-        end do
-    end select
+    do pm = 1, n_plant_media
+       select case(hydr_wtftype_node(pm))
+    
+       case(van_genuchten_type)
+          do ft = 1,numpft
+             allocate(wkf_vg)
+             wkf_plant(pm,ft)%p => wkf_vg
+             call wkf_vg%set_wkf_param([EDPftvarcon_inst%hydr_vg_alpha_node(ft,pm), &
+                                        EDPftvarcon_inst%hydr_vg_m_node(ft,pm), &
+                                        EDPftvarcon_inst%hydr_thetas_node(ft,pm), &
+                                        EDPftvarcon_inst%hydr_resid_node(ft,pm), &
+                                        tort_vg])
+          end do
+       case(tfs_type)
+          do ft = 1,numpft
+             allocate(wkf_tfs)
+             wkf_plant(pm,ft)%p => wkf_tfs
+             call wkf_tfs%set_wkf_param([EDPftvarcon_inst%hydr_p50_node(ft,pm), &
+                  EDPftvarcon_inst%hydr_avuln_node(ft,pm)])
+          end do
+       end select
+    end do
 
     ! There is only 1 stomata conductance hypothesis which uses the p50 and 
     ! vulnerability parameters

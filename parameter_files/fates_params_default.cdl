@@ -24,7 +24,17 @@ variables:
 	double fates_history_sizeclass_bin_edges(fates_history_size_bins) ;
 		fates_history_sizeclass_bin_edges:units = "cm" ;
 		fates_history_sizeclass_bin_edges:long_name = "Lower edges for DBH size class bins used in size-resolved cohort history output" ;
-	char fates_pftname(fates_pft, fates_string_length) ;
+
+   double fates_hydr_wtftype_node(fates_hydr_organs) ;
+	   fates_hydr_wtftype_node:units = "unitless" ;
+		fates_hydr_wtftype_node:long_name = "Switch that defines the water transfer functions for each organ." ;
+		fates_hydr_wtftype_node:possible_values = "1: Christofferson et al. 2016 (TFS); 2: Van Genuchten 1980" ;
+		
+   char fates_hydr_organname_node(fates_hydr_organs, fates_string_length) ;
+	   fates_hydr_organname_node:units = "unitless - string" ;
+		fates_hydr_organname_node:long_name = "Name of plant hydraulics organs (DONT CHANGE, order matches media list in FatesHydraulicsMemMod.F90)" ;
+		
+   char fates_pftname(fates_pft, fates_string_length) ;
 		fates_pftname:units = "unitless - string" ;
 		fates_pftname:long_name = "Description of plant type" ;
 	char fates_prt_organ_name(fates_prt_organs, fates_string_length) ;
@@ -220,6 +230,18 @@ variables:
 	double fates_grperc(fates_pft) ;
 		fates_grperc:units = "unitless" ;
 		fates_grperc:long_name = "Growth respiration factor" ;
+
+	double fates_hydr_vg_alpha_node(fates_hydr_organs,fates_pft) ;
+		fates_hydr_vg_alpha_node:units = "MPa-1" ;
+		fates_hydr_vg_alpha_node:long_name = "capalary length parameter in van Genuchten model" ;
+   double fates_hydr_vg_m_node(fates_hydr_organs,fates_pft) ;
+		fates_hydr_vg_m_node:units = "unitless" ;
+		fates_hydr_vg_m_node:long_name = "m in van Genuchten 1980 model, 2nd pore size distribution parameter" ;
+	double fates_hydr_vg_n_node(fates_hydr_organs,fates_pft) ;
+		fates_hydr_vg_n_node:units = "unitless" ;
+		fates_hydr_vg_n_node:long_name = "n in van Genuchten 1980 model, pore size distribution parameter" ;
+
+
 	double fates_hydr_avuln_gs(fates_pft) ;
 		fates_hydr_avuln_gs:units = "unitless" ;
 		fates_hydr_avuln_gs:long_name = "shape parameter for stomatal control of water vapor exiting leaf" ;
@@ -757,6 +779,12 @@ data:
   "sapwood                                          ",
   "structure                                        " ;
 
+ fates_hydr_organname_node =
+  "leaf                                             ",
+  "stem                                             ",
+  "transporting root                                ",
+  "absorbing root                                   " ;
+ 
  fates_prt_organ_id = 1, 2, 3, 6 ;
 
  fates_alloc_storage_cushion = 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 
@@ -911,6 +939,23 @@ data:
 
  fates_hydr_avuln_gs = 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 
     2.5 ;
+
+ fates_hydr_vg_alpha_node = 0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005,
+0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005,
+0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005,
+0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005 ;
+
+ fates_hydr_vg_m_node = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
+ 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
+ 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
+ 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5 ;
+
+ fates_hydr_vg_n_node = 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+ 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+ 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+ 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ;
+
+ fates_hydr_wtftype_node = 1, 1, 1, 1 ;
 
  fates_hydr_avuln_node =
   2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,

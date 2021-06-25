@@ -189,23 +189,35 @@ module EDPftvarcon
      ! ---------------------------------------------------------------------------------------------
 
      ! PFT Dimension
-     real(r8), allocatable :: hydr_p_taper(:)       ! xylem taper exponent
-     real(r8), allocatable :: hydr_rs2(:)           ! absorbing root radius (m)
-     real(r8), allocatable :: hydr_srl(:)           ! specific root length (m g-1)
-     real(r8), allocatable :: hydr_rfrac_stem(:)    ! fraction of total tree resistance from troot to canopy
-     real(r8), allocatable :: hydr_avuln_gs(:)      ! shape parameter for stomatal control of water vapor exiting leaf 
-     real(r8), allocatable :: hydr_p50_gs(:)        ! water potential at 50% loss of stomatal conductance
-
+     real(r8), allocatable :: hydr_p_taper(:)    ! xylem taper exponent
+     real(r8), allocatable :: hydr_rs2(:)        ! absorbing root radius (m)
+     real(r8), allocatable :: hydr_srl(:)        ! specific root length (m g-1)
+     real(r8), allocatable :: hydr_rfrac_stem(:) ! fraction of total tree resistance from troot to canopy
+     real(r8), allocatable :: hydr_avuln_gs(:)   ! shape parameter for stomatal control of water vapor exiting leaf 
+     real(r8), allocatable :: hydr_p50_gs(:)     ! water potential at 50% loss of stomatal conductance
+     real(r8), allocatable :: hydr_k_lwp(:)      ! inner leaf humidity scaling coefficient
+     
      ! PFT x Organ Dimension  (organs are: 1=leaf, 2=stem, 3=transporting root, 4=absorbing root)
+     ! ----------------------------------------------------------------------------------
+
+     ! Van Genuchten PV PK curves
+     real(r8), allocatable :: hydr_vg_alpha_node(:,:)   ! capilary length parameter in van Genuchten model
+     real(r8), allocatable :: hydr_vg_m_node(:,:)       ! pore size distribution, m in van Genuchten 1980 model, range (0,1)
+     real(r8), allocatable :: hydr_vg_n_node(:,:)       ! pore size distribution, n in van Genuchten 1980 model, range >2
+
+     ! TFS PV-PK curves
      real(r8), allocatable :: hydr_avuln_node(:,:)  ! xylem vulernability curve shape parameter 
      real(r8), allocatable :: hydr_p50_node(:,:)    ! xylem water potential at 50% conductivity loss (MPa)
-     real(r8), allocatable :: hydr_thetas_node(:,:) ! saturated water content (cm3/cm3)
      real(r8), allocatable :: hydr_epsil_node(:,:)  ! bulk elastic modulus (MPa)
      real(r8), allocatable :: hydr_pitlp_node(:,:)  ! turgor loss point (MPa)
-     real(r8), allocatable :: hydr_resid_node(:,:)  ! residual fraction (fraction)
      real(r8), allocatable :: hydr_fcap_node(:,:)   ! fraction of (1-resid_node) that is capillary in source
      real(r8), allocatable :: hydr_pinot_node(:,:)  ! osmotic potential at full turgor
      real(r8), allocatable :: hydr_kmax_node(:,:)   ! maximum xylem conductivity per unit conducting xylem area
+
+     ! Parameters for both VG and TFS PV-PK curves
+     real(r8), allocatable :: hydr_resid_node(:,:)  ! residual fraction (fraction)
+     real(r8), allocatable :: hydr_thetas_node(:,:) ! saturated water content (cm3/cm3)
+
      
    contains
      procedure, public :: Init => EDpftconInit
@@ -1172,6 +1184,18 @@ contains
     dim_names(1) = dimension_name_pft
     dim_names(2) = dimension_name_hydr_organs
 
+    name = 'fates_hydr_vg_alpha_node'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_hydr_vg_m_node'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_hydr_vg_n_node'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
     name = 'fates_hydr_avuln_node'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -1207,8 +1231,19 @@ contains
     name = 'fates_hydr_kmax_node'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
-    
 
+    name = 'fates_hydr_vg_alpha_node'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_hydr_vg_m_node'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_hydr_vg_n_node'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
   end subroutine Register_PFT_hydr_organs
 
   !-----------------------------------------------------------------------
@@ -1224,6 +1259,19 @@ contains
      class(fates_parameters_type), intent(inout) :: fates_params
      
      character(len=param_string_length) :: name
+
+
+     name = 'fates_hydr_vg_alpha_node'
+     call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%hydr_vg_alpha_node)
+
+     name = 'fates_hydr_vg_m_node'
+     call fates_params%RetreiveParameterAllocate(name=name, &
+           data=this%hydr_vg_m_node)
+
+     name = 'fates_hydr_vg_n_node'
+     call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%hydr_vg_n_node)
      
      name = 'fates_hydr_avuln_node'
      call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1261,6 +1309,18 @@ contains
      call fates_params%RetreiveParameterAllocate(name=name, &
            data=this%hydr_kmax_node)
 
+     name = 'fates_hydr_vg_alpha_node'
+     call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%hydr_vg_alpha_node)
+     
+     name = 'fates_hydr_vg_m_node'
+     call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%hydr_vg_m_node)
+     
+     name = 'fates_hydr_vg_n_node'
+     call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%hydr_vg_n_node)
+     
   end subroutine Receive_PFT_hydr_organs
 
   ! ===============================================================================================
@@ -1356,6 +1416,9 @@ contains
         write(fates_log(),fmt0) 'hydr_fcap_node = ',EDPftvarcon_inst%hydr_fcap_node
         write(fates_log(),fmt0) 'hydr_pinot_node = ',EDPftvarcon_inst%hydr_pinot_node
         write(fates_log(),fmt0) 'hydr_kmax_node = ',EDPftvarcon_inst%hydr_kmax_node
+        write(fates_log(),fmt0) 'hydr_vg_alpha_node  = ',EDPftvarcon_inst%hydr_vg_alpha_node
+        write(fates_log(),fmt0) 'hydr_vg_m_node  = ',EDPftvarcon_inst%hydr_vg_m_node
+        write(fates_log(),fmt0) 'hydr_vg_n_node  = ',EDPftvarcon_inst%hydr_vg_n_node
         write(fates_log(),*) '-------------------------------------------------'
 
      end if
