@@ -265,6 +265,9 @@ variables:
 	double fates_hydr_thetas_node(fates_hydr_organs, fates_pft) ;
 		fates_hydr_thetas_node:units = "cm3/cm3" ;
 		fates_hydr_thetas_node:long_name = "saturated water content" ;
+
+   
+
 	double fates_leaf_c3psn(fates_pft) ;
 		fates_leaf_c3psn:units = "flag" ;
 		fates_leaf_c3psn:long_name = "Photosynthetic pathway (1=c3, 0=c4)" ;
@@ -633,7 +636,10 @@ variables:
 	double fates_init_litter ;
 		fates_init_litter:units = "NA" ;
 		fates_init_litter:long_name = "Initialization value for litter pool in cold-start (NOT USED)" ;
-	double fates_leaf_stomatal_model ;
+
+
+
+   double fates_leaf_stomatal_model ;
 		fates_leaf_stomatal_model:units = "unitless" ;
 		fates_leaf_stomatal_model:long_name = "switch for choosing between Ball-Berry (1) stomatal conductance model and Medlyn (2) model" ;
 	double fates_logging_coll_under_frac ;
@@ -699,6 +705,9 @@ variables:
 	double fates_phen_ncolddayslim ;
 		fates_phen_ncolddayslim:units = "days" ;
 		fates_phen_ncolddayslim:long_name = "day threshold exceedance for temperature leaf-drop" ;
+	double fates_photo_temp_acclim_timescale ;
+	   fates_photo_temp_acclim_timescale:units = "days" ;
+		fates_photo_temp_acclim_timescale:long_name = "Length of the window for the exponential moving average (ema) of vegetation temperature used in photosynthesis temperature acclimation (NOT USED)" ;
 	double fates_q10_froz ;
 		fates_q10_froz:units = "unitless" ;
 		fates_q10_froz:long_name = "Q10 for frozen-soil respiration rates" ;
@@ -1360,6 +1369,8 @@ data:
  fates_phen_mindayson = 90 ;
 
  fates_phen_ncolddayslim = 5 ;
+ 
+ fates_photo_temp_acclim_timescale = 30 ;
 
  fates_q10_froz = 1.5 ;
 

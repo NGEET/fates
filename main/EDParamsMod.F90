@@ -21,13 +21,16 @@ module EDParamsMod
    ! this is what the user can use for the actual values
    !
 
-   real(r8),protected, public :: vai_top_bin_width         ! width in VAI units of uppermost leaf+stem
-                                                           ! layer scattering element in each canopy layer [m2/m2]
-                                                           ! (NOT YET IMPLEMENTED)
-   real(r8),protected, public :: vai_width_increase_factor ! factor by which each leaf+stem scattering element
-                                                           ! increases in VAI width (1 = uniform spacing)
-                                                           ! (NOT YET IMPLEMENTED)
-    
+   real(r8),protected, public :: vai_top_bin_width           ! width in VAI units of uppermost leaf+stem
+                                                             ! layer scattering element in each canopy layer [m2/m2]
+                                                             ! (NOT YET IMPLEMENTED)
+   real(r8),protected, public :: vai_width_increase_factor   ! factor by which each leaf+stem scattering element
+                                                             ! increases in VAI width (1 = uniform spacing)
+                                                             ! (NOT YET IMPLEMENTED)
+   real(r8),protected, public :: photo_temp_acclim_timescale ! Length of the window for the exponential moving average (ema)
+                                                             ! of vegetation temperature used in photosynthesis
+                                                             ! temperature acclimation (NOT YET IMPLEMENTED)
+   
    real(r8),protected, public :: fates_mortality_disturbance_fraction ! the fraction of canopy mortality that results in disturbance
    real(r8),protected, public :: ED_val_comp_excln
    real(r8),protected, public :: ED_val_init_litter
@@ -69,7 +72,7 @@ module EDParamsMod
 
    character(len=param_string_length),parameter,public :: ED_name_vai_top_bin_width = "fates_vai_top_bin_width"
    character(len=param_string_length),parameter,public :: ED_name_vai_width_increase_factor = "fates_vai_width_increase_factor"
-   
+   character(len=param_string_length),parameter,public :: ED_name_photo_temp_acclim_timescale = "fates_photo_temp_acclim_timescale"
    character(len=param_string_length),parameter,public :: ED_name_mort_disturb_frac = "fates_mort_disturb_frac"
    character(len=param_string_length),parameter,public :: ED_name_comp_excln = "fates_comp_excln"
    character(len=param_string_length),parameter,public :: ED_name_init_litter = "fates_init_litter"
@@ -185,6 +188,7 @@ contains
 
     vai_top_bin_width                     = nan
     vai_width_increase_factor             = nan
+    photo_temp_acclim_timescale           = nan
     fates_mortality_disturbance_fraction  = nan
     ED_val_comp_excln                     = nan
     ED_val_init_litter                    = nan
@@ -256,6 +260,9 @@ contains
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=ED_name_vai_width_increase_factor, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+    
+    call fates_params%RegisterParameter(name=ED_name_photo_temp_acclim_timescale, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
     
     call fates_params%RegisterParameter(name=ED_name_mort_disturb_frac, dimension_shape=dimension_shape_scalar, &
@@ -414,6 +421,9 @@ contains
 
     call fates_params%RetreiveParameter(name=ED_name_vai_width_increase_factor, &
          data=vai_width_increase_factor)
+
+    call fates_params%RetreiveParameter(name=ED_name_photo_temp_acclim_timescale, &
+         data=photo_temp_acclim_timescale)
     
     call fates_params%RetreiveParameter(name=ED_name_mort_disturb_frac, &
           data=fates_mortality_disturbance_fraction)
@@ -570,6 +580,7 @@ contains
         write(fates_log(),*) '-----------  FATES Scalar Parameters -----------------'
         write(fates_log(),fmt0) 'vai_top_bin_width = ',vai_top_bin_width
         write(fates_log(),fmt0) 'vai_width_increase_factor = ',vai_width_increase_factor
+        write(fates_log(),fmt0) 'photo_temp_acclim_timescale = ',photo_temp_acclim_timescale
         write(fates_log(),fmt0) 'fates_mortality_disturbance_fraction = ',fates_mortality_disturbance_fraction
         write(fates_log(),fmt0) 'ED_val_comp_excln = ',ED_val_comp_excln
         write(fates_log(),fmt0) 'ED_val_init_litter = ',ED_val_init_litter
