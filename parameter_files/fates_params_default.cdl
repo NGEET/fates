@@ -241,6 +241,11 @@ variables:
 		fates_hydr_vg_n_node:units = "unitless" ;
 		fates_hydr_vg_n_node:long_name = "n in van Genuchten 1980 model, pore size distribution parameter" ;
 
+double fates_hydr_k_lwp(fates_pft) ;
+fates_hydr_k_lwp:units = "unitless" ;
+fates_hydr_k_lwp:long_name = "inner leaf humidity scaling coefficient" ;
+fates_hydr_k_lwp:possible_values = "0: turns off leaf humidity effects on conductance. 1-10 activates humidity effects" ;
+
 
 	double fates_hydr_avuln_gs(fates_pft) ;
 		fates_hydr_avuln_gs:units = "unitless" ;
@@ -939,6 +944,8 @@ data:
 
  fates_hydr_avuln_gs = 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 
     2.5 ;
+
+fates_hydr_k_lwp = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
  fates_hydr_vg_alpha_node = 0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005,
 0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005,

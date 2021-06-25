@@ -456,6 +456,10 @@ contains
     name = 'fates_hydr_p50_gs'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_hydr_k_lwp'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
     name = 'fates_mort_bmort'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
@@ -778,6 +782,10 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
           data=this%hydr_p50_gs)
 
+    name = 'fates_hydr_k_lwp'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%hydr_k_lwp)
+    
     name = 'fates_mort_bmort'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%bmort)
@@ -1407,6 +1415,7 @@ contains
         write(fates_log(),fmt0) 'hydr_rfrac_stem = ',EDPftvarcon_inst%hydr_rfrac_stem
         write(fates_log(),fmt0) 'hydr_avuln_gs = ',EDPftvarcon_inst%hydr_avuln_gs
         write(fates_log(),fmt0) 'hydr_p50_gs = ',EDPftvarcon_inst%hydr_p50_gs
+        write(fates_log(),fmt0) 'hydr_k_lwp = ',EDPftvarcon_inst%hydr_k_lwp
         write(fates_log(),fmt0) 'hydr_avuln_node = ',EDPftvarcon_inst%hydr_avuln_node
         write(fates_log(),fmt0) 'hydr_p50_node = ',EDPftvarcon_inst%hydr_p50_node
         write(fates_log(),fmt0) 'hydr_thetas_node = ',EDPftvarcon_inst%hydr_thetas_node 
