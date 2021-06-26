@@ -143,7 +143,7 @@ variables:
 		fates_allom_zroot_max_z:long_name = "the maximum rooting depth defined at dbh = fates_allom_zroot_max_dbh (NOT USED). note: max_z=min_z=large, sets rooting depth to soil depth" ;
 	double fates_allom_zroot_min_dbh(fates_pft) ;
 		fates_allom_zroot_min_dbh:units = "cm" ;
-		fates_allom_zroot_min_dbh:long_name = "dbh at which the rooting depth for a recruit is defined (NOT USED)" ;
+		fates_allom_zroot_min_dbh:long_name = "dbh at which the maximum rooting depth for a recruit is defined (NOT USED)" ;
 	double fates_allom_zroot_min_z(fates_pft) ;
 		fates_allom_zroot_min_z:units = "m" ;
 		fates_allom_zroot_min_z:long_name = "the maximum rooting depth defined at dbh = fates_allom_zroot_min_dbh (NOT USED) note: max_z=min_z=large, sets rooting depth to soil depth" ;
