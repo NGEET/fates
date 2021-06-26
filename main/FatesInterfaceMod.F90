@@ -308,6 +308,7 @@ contains
     fates%bc_out(s)%plant_stored_h2o_si = 0.0_r8
 
     !YL-------
+    fates%bc_in(s)%seed_in(:) = 0.0_r8
     fates%bc_out(s)%seed_out(:) = 0.0_r8
     !---------
     
@@ -465,6 +466,13 @@ contains
          allocate(bc_in%hksat_sisl(nlevsoil_in))
          allocate(bc_in%h2o_liq_sisl(nlevsoil_in)); bc_in%h2o_liq_sisl = nan
       end if
+
+
+      !YL---------
+      ! Seed dispersal
+      allocate(bc_in%seed_in(1:numpft))
+      !-----------
+
 
       ! Land use
 
