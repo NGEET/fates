@@ -319,7 +319,7 @@ contains
                 litt%seed_germ_decay(pft)
 
           !YL------
-          write(fates_log(),*) 'el, pft, litt%seed_germ(pft), litt%seed(pft), litt%seed_in_local(pft): ', el, pft, litt%seed_germ(pft), litt%seed(pft), litt%seed_in_local(pft)
+          !write(fates_log(),*) 'el, pft, litt%seed_germ(pft), litt%seed(pft), litt%seed_in_local(pft): ', el, pft, litt%seed_germ(pft), litt%seed(pft), litt%seed_in_local(pft)
           !-------
 
        enddo
@@ -1336,8 +1336,11 @@ contains
 
 
   ! =====================================================================================
-
-  subroutine SeedIn( currentSite, bc_in)
+  
+  !YL--------------
+  !subroutine SeedIn( currentSite, bc_in)
+  subroutine SeedIn( currentSite, bc_in, bc_out)
+  !----------------
 
     ! -----------------------------------------------------------------------------------
     ! Flux from plants into the seed pool. 
@@ -1359,6 +1362,10 @@ contains
     ! !ARGUMENTS    
     type(ed_site_type), intent(inout), target  :: currentSite
     type(bc_in_type), intent(in)               :: bc_in
+
+    !YL---------
+    type(bc_out_type),  intent(inout)          :: bc_out
+    !-----------
 
     type(ed_patch_type), pointer     :: currentPatch
     type(litter_type), pointer       :: litt

@@ -574,9 +574,12 @@ contains
     ! With growth and mortality rates now calculated we can determine the seed rain
     ! fluxes. However, because this is potentially a cross-patch mixing model
     ! we will calculate this as a group
-
-    call SeedIn(currentSite,bc_in)
     
+    !YL-------
+    !call SeedIn(currentSite,bc_in)
+    call SeedIn(currentSite,bc_in,bc_out)
+    !---------
+
     ! Calculate all other litter fluxes
     ! -----------------------------------------------------------------------------------
 
