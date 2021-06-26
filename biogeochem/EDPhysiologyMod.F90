@@ -1493,15 +1493,15 @@ contains
           
           currentPatch => currentPatch%younger
        enddo
-    
-    end do
 
-    !YL, 06/23/2021, track seed mass living the site -----------
-    do pft = 1,numpft
-        site_mass%seed_out = site_mass%seed_out + site_seed_rain(pft)*disp_frac(pft) ![kg/site/day]
-        write(fates_log(),*) 'pft, site_seed_rain(pft), site_mass%seed_out: ', pft, site_mass%seed_out
+       !YL, 06/23/2021, track seed mass living the site -----------
+        do pft = 1,numpft
+            site_mass%seed_out = site_mass%seed_out + site_seed_rain(pft)*disp_frac(pft) ![kg/site/day]
+            write(fates_log(),*) 'pft, site_seed_rain(pft), site_mass%seed_out: ', pft, site_mass%seed_out
+        end do
+        !-----------------------------------------------------------
+ 
     end do
-    !-----------------------------------------------------------
 
 
     return
