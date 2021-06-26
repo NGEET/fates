@@ -273,7 +273,7 @@ variables:
 		fates_hydr_thetas_node:long_name = "saturated water content" ;
 	double fates_hydr_vg_alpha_node(fates_hydr_organs, fates_pft) ;
 		fates_hydr_vg_alpha_node:units = "MPa-1" ;
-		fates_hydr_vg_alpha_node:long_name = "capalary length parameter in van Genuchten model" ;
+		fates_hydr_vg_alpha_node:long_name = "capillary length parameter in van Genuchten model" ;
 	double fates_hydr_vg_m_node(fates_hydr_organs, fates_pft) ;
 		fates_hydr_vg_m_node:units = "unitless" ;
 		fates_hydr_vg_m_node:long_name = "m in van Genuchten 1980 model, 2nd pore size distribution parameter" ;
