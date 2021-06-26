@@ -137,7 +137,7 @@ variables:
 		fates_allom_zroot_k:long_name = "scale coefficient of logistic rooting depth model (NOT USED)" ;
 	double fates_allom_zroot_max_dbh(fates_pft) ;
 		fates_allom_zroot_max_dbh:units = "cm" ;
-		fates_allom_zroot_max_dbh:long_name = "dbh at which maximum rooting depth is defined (NOT USED)" ;
+		fates_allom_zroot_max_dbh:long_name = "dbh at which a plant reaches the maximum value for its maximum rooting depth (NOT USED)" ;
 	double fates_allom_zroot_max_z(fates_pft) ;
 		fates_allom_zroot_max_z:units = "m" ;
 		fates_allom_zroot_max_z:long_name = "the maximum rooting depth defined at dbh = fates_allom_zroot_max_dbh (NOT USED). note: max_z=min_z=large, sets rooting depth to soil depth" ;
