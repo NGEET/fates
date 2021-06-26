@@ -1501,15 +1501,21 @@ contains
           currentPatch => currentPatch%younger
        enddo
 
-       !YL, 06/23/2021, track seed mass living the site -----------
+       !YL, 06/23/2021, track seed mass (of each element) leaving the site -----------
         do pft = 1,numpft
             site_mass%seed_out = site_mass%seed_out + site_seed_rain(pft)*disp_frac(pft) ![kg/site/day]
             write(fates_log(),*) 'pft, site_seed_rain(pft), site_mass%seed_out: ', pft, site_mass%seed_out
         end do
-        !-----------------------------------------------------------
+        !-----------------------------------------------------------------------------
  
     end do
 
+    !YL---------
+    do pft = 1,numpft
+        bc_out%seed_out(pft) = bc_out%seed_out(pft) + site_seed_rain(pft)*disp_frac(pft) ![kg/site/day]
+        write(fates_log(),*) 'pft, site_seed_rain(pft), bc_out%seed_out(pft): ', pft, site_seed_rain(pft), bc_out%seed_out(pft)
+    end do
+    !-----------
 
     return
   end subroutine SeedIn
