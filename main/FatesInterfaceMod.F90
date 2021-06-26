@@ -306,6 +306,10 @@ contains
        fates%bc_out(s)%qflx_ro_sisl(:)        = 0.0_r8
     end if
     fates%bc_out(s)%plant_stored_h2o_si = 0.0_r8
+
+    !YL-------
+    fates%bc_out(s)%seed_out(:) = 0.0_r8
+    !---------
     
     return
   end subroutine zero_bcs
@@ -590,6 +594,11 @@ contains
          allocate(bc_out%qflx_soil2root_sisl(nlevsoil_in))
          allocate(bc_out%qflx_ro_sisl(nlevsoil_in))
       end if
+
+      !YL---------
+      ! Seed dispersal
+      allocate(bc_out%seed_out(1:numpft))
+      !-----------
 
       return
    end subroutine allocate_bcout
