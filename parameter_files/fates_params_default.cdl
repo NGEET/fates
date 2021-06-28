@@ -508,7 +508,9 @@ variables:
 	double fates_tausvis(fates_pft) ;
 		fates_tausvis:units = "fraction" ;
 		fates_tausvis:long_name = "Stem transmittance: visible" ;
-
+   double fates_dev_arbitrary_pft(fates_pft) ;
+      fates_dev_arbitrary_pft:units = "unknown" ;
+	   fates_dev_arbitrary_pft:long_name = "Unassociated pft dimensioned free parameter that developers can use for testing arbitrary new hypotheses" ;
 
 	double fates_trim_inc(fates_pft) ;
 		fates_trim_inc:units = "m2/m2" ;
@@ -729,7 +731,11 @@ variables:
    double fates_theta_cj_c4 ;
 			 fates_theta_cj_c4:units = "unitless" ;
 			 fates_theta_cj_c4:long_name = "Empirical curvature parameter for ac, aj photosynthesis co-limitation in c4 plants" ;
-			 
+
+   double fates_dev_arbitrary ;
+	       fates_dev_arbitrary:units = "unknown" ;
+			 fates_dev_arbitrary:long_name = "Unassociated free parameter that developers can use for testing arbitrary new hypotheses" ;
+
 	double fates_q10_froz ;
 		fates_q10_froz:units = "unitless" ;
 		fates_q10_froz:long_name = "Q10 for frozen-soil respiration rates" ;
@@ -1308,6 +1314,8 @@ data:
 
  fates_woody = 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0 ;
 
+ fates_dev_arbitrary_pft = _,_,_,_,_,_,_,_,_,_,_,_ ;
+
  fates_z0mr = 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 
     0.055, 0.055, 0.055 ;
 
@@ -1447,13 +1455,15 @@ data:
 
  fates_photo_temp_acclim_timescale = 30 ;
 
- fates_theta_cj_c3 = 0.999
+ fates_theta_cj_c3 = 0.999 ;
 
- fates_theta_cj_c4 = 0.999
+ fates_theta_cj_c4 = 0.999 ;
  
  fates_q10_froz = 1.5 ;
 
  fates_q10_mr = 1.5 ;
+
+ fates_dev_arbitrary = _ ;
 
  fates_soil_salinity = 0.4 ;
 

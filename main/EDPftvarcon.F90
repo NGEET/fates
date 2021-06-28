@@ -15,7 +15,6 @@ module EDPftvarcon
   use FatesGlobals,   only : fates_log
   use FatesGlobals,   only : endrun => fates_endrun
   use FatesLitterMod, only : ilabile,icellulose,ilignin
-  use PRTGenericMod,  only : num_organ_types
   use PRTGenericMod,  only : leaf_organ, fnrt_organ, store_organ
   use PRTGenericMod,  only : sapw_organ, struct_organ, repro_organ
   use PRTGenericMod,  only : prt_cnp_flex_allom_hyp,prt_carbon_allom_hyp
@@ -42,7 +41,7 @@ module EDPftvarcon
 
   !ED specific variables. 
   type, public ::  EDPftvarcon_type
-
+      
      real(r8), allocatable :: freezetol(:)           ! minimum temperature tolerance
      real(r8), allocatable :: hgt_min(:)             ! sapling height m
      real(r8), allocatable :: dleaf(:)               ! leaf characteristic dimension length (m)
@@ -180,6 +179,11 @@ module EDPftvarcon
      real(r8), allocatable :: prescribed_puptake(:)   ! If there is no soil BGC model active,
                                                       ! prescribe an uptake rate for phosphorus
                                                       ! This is the fraction of plant demand
+
+
+     ! Unassociated pft dimensioned free parameter that
+     ! developers can use for testing arbitrary new hypothese
+     real(r8), allocatable :: dev_arbitrary_pft(:) 
      
      ! Parameters dimensioned by PFT and leaf age
      real(r8), allocatable :: vcmax25top(:,:)             ! maximum carboxylation rate of Rub. at 25C, 
@@ -629,6 +633,10 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)    
 
+    name = 'fates_dev_arbitrary_pft'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
     ! adding the hlm_pft_map variable with two dimensions - FATES PFTno and HLM PFTno
     pftmap_dim_names(1) = dimension_name_pft 
     pftmap_dim_names(2) = dimension_name_hlm_pftno 
@@ -924,6 +932,10 @@ contains
     name = 'fates_prescribed_puptake'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%prescribed_puptake)
+
+    name = 'fates_dev_arbitrary_pft'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%dev_arbitrary_pft)
     
     name = 'fates_eca_decompmicc'
     call fates_params%RetreiveParameterAllocate(name=name, &

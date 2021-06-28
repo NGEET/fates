@@ -68,6 +68,12 @@ module EDParamsMod
    real(r8),protected,public  :: q10_mr     ! Q10 for respiration rate (for soil fragmenation and plant respiration)    (unitless)
    real(r8),protected,public  :: q10_froz   ! Q10 for frozen-soil respiration rates (for soil fragmentation)            (unitless)
 
+   ! Unassociated pft dimensioned free parameter that developers can use for testing arbitrary new hypotheses
+   ! (THIS PARAMETER IS UNUSED, FEEL FREE TO USE IT FOR WHATEVER PURPOSE YOU LIKE. WE CAN
+   !  HELP MIGRATE YOUR USAGE OF THE PARMETER TO A PERMANENT HOME LATER)
+   real(r8),protected,public  :: dev_arbitrary 
+   character(len=param_string_length),parameter,public :: name_dev_arbitrary = "fates_dev_arbitrary"
+   
    ! parameters whose size is defined in the parameter file
    real(r8),protected,allocatable,public :: ED_val_history_sizeclass_bin_edges(:)
    real(r8),protected,allocatable,public :: ED_val_history_ageclass_bin_edges(:)
@@ -77,12 +83,12 @@ module EDParamsMod
    ! Switch that defines the current pressure-volume and pressure-conductivity model
    ! to be used at each node (compartment/organ)
    ! 1  = Christofferson et al. 2016 (TFS),   2 = Van Genuchten 1980
-   integer, protected,allocatable,public :: hydr_wtftype_node(:) 
+   integer, protected,allocatable,public :: hydr_htftype_node(:) 
    
    character(len=param_string_length),parameter,public :: ED_name_vai_top_bin_width = "fates_vai_top_bin_width"
    character(len=param_string_length),parameter,public :: ED_name_vai_width_increase_factor = "fates_vai_width_increase_factor"
    character(len=param_string_length),parameter,public :: ED_name_photo_temp_acclim_timescale = "fates_photo_temp_acclim_timescale"
-   character(len=param_string_length),parameter,public :: ED_name_hydr_wtftype_node = "fates_hydr_wtftype_node"
+   character(len=param_string_length),parameter,public :: ED_name_hydr_htftype_node = "fates_hydr_htftype_node"
    
    character(len=param_string_length),parameter,public :: ED_name_mort_disturb_frac = "fates_mort_disturb_frac"
    character(len=param_string_length),parameter,public :: ED_name_comp_excln = "fates_comp_excln"
@@ -239,6 +245,7 @@ contains
     q10_froz                              = nan
     theta_cj_c3                           = nan
     theta_cj_c4                           = nan
+    dev_arbitrary                         = nan
   end subroutine FatesParamsInit
 
   !-----------------------------------------------------------------------
@@ -399,6 +406,9 @@ contains
     call fates_params%RegisterParameter(name=fates_name_q10_froz, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
+    call fates_params%RegisterParameter(name=name_dev_arbitrary, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+    
     ! non-scalar parameters
 
     call fates_params%RegisterParameter(name=ED_name_hydr_htftype_node, dimension_shape=dimension_shape_1d, &
@@ -569,7 +579,10 @@ contains
           data=q10_mr)
     
     call fates_params%RetreiveParameter(name=fates_name_q10_froz, &
-          data=q10_froz)
+         data=q10_froz)
+    
+    call fates_params%RetreiveParameter(name=name_dev_arbitrary, &
+         data=dev_arbitrary)
 
     call fates_params%RetreiveParameter(name=fates_name_active_crown_fire, & 
           data=tmpreal)
