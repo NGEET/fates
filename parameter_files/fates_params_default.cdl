@@ -723,12 +723,12 @@ variables:
 		fates_photo_temp_acclim_timescale:long_name = "Length of the window for the exponential moving average (ema) of vegetation temperature used in photosynthesis temperature acclimation (NOT USED)" ;
 
    double fates_theta_cj_c3 ;
-			 fates_theta_cj_c3:units = "unitless"
-			 fates_theta_cj_c3:long_name = "Empirical curvature parameter for ac, aj photosynthesis co-limitation in c3 plants"
+			 fates_theta_cj_c3:units = "unitless" ;
+			 fates_theta_cj_c3:long_name = "Empirical curvature parameter for ac, aj photosynthesis co-limitation in c3 plants" ;
 
    double fates_theta_cj_c4 ;
-			 fates_theta_cj_c4:units = "unitless"
-			 fates_theta_cj_c4:long_name = "Empirical curvature parameter for ac, aj photosynthesis co-limitation in c4 plants"
+			 fates_theta_cj_c4:units = "unitless" ;
+			 fates_theta_cj_c4:long_name = "Empirical curvature parameter for ac, aj photosynthesis co-limitation in c4 plants" ;
 			 
 	double fates_q10_froz ;
 		fates_q10_froz:units = "unitless" ;
