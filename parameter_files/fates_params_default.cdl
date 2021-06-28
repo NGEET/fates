@@ -25,10 +25,10 @@ variables:
 	double fates_history_sizeclass_bin_edges(fates_history_size_bins) ;
 		fates_history_sizeclass_bin_edges:units = "cm" ;
 		fates_history_sizeclass_bin_edges:long_name = "Lower edges for DBH size class bins used in size-resolved cohort history output" ;
-	double fates_hydr_wtftype_node(fates_hydr_organs) ;
-		fates_hydr_wtftype_node:units = "unitless" ;
-		fates_hydr_wtftype_node:long_name = "Switch that defines the water transfer functions for each organ." ;
-		fates_hydr_wtftype_node:possible_values = "1: Christofferson et al. 2016 (TFS); 2: Van Genuchten 1980" ;
+	double fates_hydr_htftype_node(fates_hydr_organs) ;
+		fates_hydr_htftype_node:units = "unitless" ;
+		fates_hydr_htftype_node:long_name = "Switch that defines the hydraulic transfer functions for each organ." ;
+		fates_hydr_htftype_node:possible_values = "1: Christofferson et al. 2016 (TFS); 2: Van Genuchten 1980" ;
 	double fates_prt_organ_id(fates_prt_organs) ;
 		fates_prt_organ_id:units = "index, unitless" ;
 		fates_prt_organ_id:long_name = "This is the global index the organ in this file is associated with in PRTGenericMod.F90" ;
@@ -273,13 +273,13 @@ variables:
 		fates_hydr_thetas_node:long_name = "saturated water content" ;
 	double fates_hydr_vg_alpha_node(fates_hydr_organs, fates_pft) ;
 		fates_hydr_vg_alpha_node:units = "MPa-1" ;
-		fates_hydr_vg_alpha_node:long_name = "(used if hydr_wtftype_node = 2), capillary length parameter in van Genuchten model" ;
+		fates_hydr_vg_alpha_node:long_name = "(used if hydr_htftype_node = 2), capillary length parameter in van Genuchten model" ;
 	double fates_hydr_vg_m_node(fates_hydr_organs, fates_pft) ;
 		fates_hydr_vg_m_node:units = "unitless" ;
-		fates_hydr_vg_m_node:long_name = "(used if hydr_wtftype_node = 2),m in van Genuchten 1980 model, 2nd pore size distribution parameter" ;
+		fates_hydr_vg_m_node:long_name = "(used if hydr_htftype_node = 2),m in van Genuchten 1980 model, 2nd pore size distribution parameter" ;
 	double fates_hydr_vg_n_node(fates_hydr_organs, fates_pft) ;
 		fates_hydr_vg_n_node:units = "unitless" ;
-		fates_hydr_vg_n_node:long_name = "(used if hydr_wtftype_node = 2),n in van Genuchten 1980 model, pore size distribution parameter" ;
+		fates_hydr_vg_n_node:long_name = "(used if hydr_htftype_node = 2),n in van Genuchten 1980 model, pore size distribution parameter" ;
 	double fates_leaf_c3psn(fates_pft) ;
 		fates_leaf_c3psn:units = "flag" ;
 		fates_leaf_c3psn:long_name = "Photosynthetic pathway (1=c3, 0=c4)" ;
@@ -508,6 +508,8 @@ variables:
 	double fates_tausvis(fates_pft) ;
 		fates_tausvis:units = "fraction" ;
 		fates_tausvis:long_name = "Stem transmittance: visible" ;
+
+
 	double fates_trim_inc(fates_pft) ;
 		fates_trim_inc:units = "m2/m2" ;
 		fates_trim_inc:long_name = "Arbitrary incremental change in trimming function." ;
@@ -719,6 +721,15 @@ variables:
 	double fates_photo_temp_acclim_timescale ;
 		fates_photo_temp_acclim_timescale:units = "days" ;
 		fates_photo_temp_acclim_timescale:long_name = "Length of the window for the exponential moving average (ema) of vegetation temperature used in photosynthesis temperature acclimation (NOT USED)" ;
+
+   double fates_theta_cj_c3 ;
+			 fates_theta_cj_c3:units = "unitless"
+			 fates_theta_cj_c3:long_name = "Empirical curvature parameter for ac, aj photosynthesis co-limitation in c3 plants"
+
+   double fates_theta_cj_c4 ;
+			 fates_theta_cj_c4:units = "unitless"
+			 fates_theta_cj_c4:long_name = "Empirical curvature parameter for ac, aj photosynthesis co-limitation in c4 plants"
+			 
 	double fates_q10_froz ;
 		fates_q10_froz:units = "unitless" ;
 		fates_q10_froz:long_name = "Q10 for frozen-soil respiration rates" ;
@@ -748,7 +759,7 @@ data:
  fates_history_sizeclass_bin_edges = 0, 5, 10, 15, 20, 30, 40, 50, 60, 70, 
     80, 90, 100 ;
 
- fates_hydr_wtftype_node = 1, 1, 1, 1 ;
+ fates_hydr_htftype_node = 1, 1, 1, 1 ;
 
  fates_prt_organ_id = 1, 2, 3, 6 ;
 
@@ -1436,6 +1447,10 @@ data:
 
  fates_photo_temp_acclim_timescale = 30 ;
 
+ fates_theta_cj_c3 = 0.999
+
+ fates_theta_cj_c4 = 0.999
+ 
  fates_q10_froz = 1.5 ;
 
  fates_q10_mr = 1.5 ;

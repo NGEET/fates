@@ -47,7 +47,7 @@ module FatesPlantHydraulicsMod
   use EDParamsMod       , only : hydr_kmax_rsurf2
   use EDParamsMod       , only : hydr_psi0
   use EDParamsMod       , only : hydr_psicap
-  use EDParamsMod       , only : hydr_wtftype_node
+  use EDParamsMod       , only : hydr_htftype_node
   
   use EDTypesMod        , only : ed_site_type
   use EDTypesMod        , only : ed_patch_type
@@ -195,7 +195,7 @@ module FatesPlantHydraulicsMod
   ! conductivity relationship are available.
   ! For plants: Users can option between useing tfs and van_genuchten
   ! by specifying their choice in the parameter file,
-  ! with the model parameter hydr_wtftype_node,
+  ! with the model parameter hydr_htftype_node,
   ! the value should be 1 for TFS or 2 for VG (as shown below).
   ! Campbell, could technically be used, but the parameters for
   ! that hypothesis are not in the parameter file, so it not currently available.
@@ -5326,7 +5326,7 @@ contains
     ! -----------------------------------------------------------------------------------
 
     do pm = 1, n_plant_media
-       select case(hydr_wtftype_node(pm))
+       select case(hydr_htftype_node(pm))
        case(van_genuchten_type)
           do ft = 1,numpft
              allocate(wrf_vg)
@@ -5365,7 +5365,7 @@ contains
     ! Initialize the Water Conductance (K) Functions
     ! -----------------------------------------------------------------------------------
     do pm = 1, n_plant_media
-       select case(hydr_wtftype_node(pm))
+       select case(hydr_htftype_node(pm))
     
        case(van_genuchten_type)
           do ft = 1,numpft

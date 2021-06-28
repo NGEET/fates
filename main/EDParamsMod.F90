@@ -60,6 +60,10 @@ module EDParamsMod
 
    real(r8), protected, public :: cg_strikes             ! fraction of cloud to ground lightning strikes (0-1)
    character(len=param_string_length),parameter :: fates_name_cg_strikes="fates_fire_cg_strikes"
+
+   ! empirical curvature parameters for ac, aj photosynthesis co-limitation, c3 and c4 plants respectively
+   real(r8),protected,public  :: theta_cj_c3
+   real(r8),protected,public  :: theta_cj_c4
    
    real(r8),protected,public  :: q10_mr     ! Q10 for respiration rate (for soil fragmenation and plant respiration)    (unitless)
    real(r8),protected,public  :: q10_froz   ! Q10 for frozen-soil respiration rates (for soil fragmentation)            (unitless)
@@ -103,12 +107,11 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_canopy_closure_thresh= "fates_canopy_closure_thresh"      
    character(len=param_string_length),parameter,public :: ED_name_stomatal_model= "fates_leaf_stomatal_model"
 
-   ! Resistance to active crown fire
-  
-
+   character(len=param_string_length),parameter,public :: name_theta_cj_c3 = "fates_theta_cj_c3"
+   character(len=param_string_length),parameter,public :: name_theta_cj_c4 = "fates_theta_cj_c4"
+   
    character(len=param_string_length),parameter :: fates_name_q10_mr="fates_q10_mr"
    character(len=param_string_length),parameter :: fates_name_q10_froz="fates_q10_froz"
-
 
    ! non-scalar parameter names
    character(len=param_string_length),parameter,public :: ED_name_history_sizeclass_bin_edges= "fates_history_sizeclass_bin_edges"      
@@ -234,7 +237,8 @@ contains
     eca_plant_escalar                     = nan
     q10_mr                                = nan
     q10_froz                              = nan
-
+    theta_cj_c3                           = nan
+    theta_cj_c4                           = nan
   end subroutine FatesParamsInit
 
   !-----------------------------------------------------------------------
@@ -272,7 +276,11 @@ contains
     call fates_params%RegisterParameter(name=ED_name_photo_temp_acclim_timescale, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
+    call fates_params%RegisterParameter(name=name_theta_cj_c3, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
     
+    call fates_params%RegisterParameter(name=name_theta_cj_c4, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
     
     call fates_params%RegisterParameter(name=ED_name_mort_disturb_frac, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
@@ -393,7 +401,7 @@ contains
 
     ! non-scalar parameters
 
-    call fates_params%RegisterParameter(name=ED_name_hydr_wtftype_node, dimension_shape=dimension_shape_1d, &
+    call fates_params%RegisterParameter(name=ED_name_hydr_htftype_node, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names_hydro_organs)
     
     call fates_params%RegisterParameter(name=ED_name_history_sizeclass_bin_edges, dimension_shape=dimension_shape_1d, &
@@ -428,7 +436,7 @@ contains
     class(fates_parameters_type), intent(inout) :: fates_params
 
     real(r8) :: tmpreal ! local real variable for changing type on read
-    real(r8), allocatable :: hydr_wtftype_real(:)
+    real(r8), allocatable :: hydr_htftype_real(:)
     
     call fates_params%RetreiveParameter(name=ED_name_vai_top_bin_width, &
          data=vai_top_bin_width)
@@ -551,6 +559,12 @@ contains
     call fates_params%RetreiveParameter(name=eca_name_plant_escalar, &
           data=eca_plant_escalar)
 
+    call fates_params%RetreiveParameter(name=name_theta_cj_c3, &
+          data=theta_cj_c3)
+
+     call fates_params%RetreiveParameter(name=name_theta_cj_c4, &
+          data=theta_cj_c4)
+     
     call fates_params%RetreiveParameter(name=fates_name_q10_mr, &
           data=q10_mr)
     
@@ -577,11 +591,11 @@ contains
     call fates_params%RetreiveParameterAllocate(name=ED_name_history_coageclass_bin_edges, &
          data=ED_val_history_coageclass_bin_edges)
 
-    call fates_params%RetreiveParameterAllocate(name=ED_name_hydr_wtftype_node, &
-         data=hydr_wtftype_real)
-    allocate(hydr_wtftype_node(size(hydr_wtftype_real)))
-    hydr_wtftype_node(:) = nint(hydr_wtftype_real(:))
-    deallocate(hydr_wtftype_real)
+    call fates_params%RetreiveParameterAllocate(name=ED_name_hydr_htftype_node, &
+         data=hydr_htftype_real)
+    allocate(hydr_htftype_node(size(hydr_htftype_real)))
+    hydr_htftype_node(:) = nint(hydr_htftype_real(:))
+    deallocate(hydr_htftype_real)
 
   end subroutine FatesReceiveParams
   
@@ -601,7 +615,7 @@ contains
         write(fates_log(),fmt0) 'vai_top_bin_width = ',vai_top_bin_width
         write(fates_log(),fmt0) 'vai_width_increase_factor = ',vai_width_increase_factor
         write(fates_log(),fmt0) 'photo_temp_acclim_timescale = ',photo_temp_acclim_timescale
-        write(fates_log(),fmti) 'hydr_wtftype_node = ',hydr_wtftype_node
+        write(fates_log(),fmti) 'hydr_htftype_node = ',hydr_htftype_node
         write(fates_log(),fmt0) 'fates_mortality_disturbance_fraction = ',fates_mortality_disturbance_fraction
         write(fates_log(),fmt0) 'ED_val_comp_excln = ',ED_val_comp_excln
         write(fates_log(),fmt0) 'ED_val_init_litter = ',ED_val_init_litter
