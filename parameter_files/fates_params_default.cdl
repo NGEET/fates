@@ -137,13 +137,13 @@ variables:
 		fates_allom_zroot_k:long_name = "scale coefficient of logistic rooting depth model (NOT USED)" ;
 	double fates_allom_zroot_max_dbh(fates_pft) ;
 		fates_allom_zroot_max_dbh:units = "cm" ;
-		fates_allom_zroot_max_dbh:long_name = "dbh at which maximum rooting depth is defined (NOT USED)" ;
+		fates_allom_zroot_max_dbh:long_name = "dbh at which a plant reaches the maximum value for its maximum rooting depth (NOT USED)" ;
 	double fates_allom_zroot_max_z(fates_pft) ;
 		fates_allom_zroot_max_z:units = "m" ;
 		fates_allom_zroot_max_z:long_name = "the maximum rooting depth defined at dbh = fates_allom_zroot_max_dbh (NOT USED). note: max_z=min_z=large, sets rooting depth to soil depth" ;
 	double fates_allom_zroot_min_dbh(fates_pft) ;
 		fates_allom_zroot_min_dbh:units = "cm" ;
-		fates_allom_zroot_min_dbh:long_name = "dbh at which the rooting depth for a recruit is defined (NOT USED)" ;
+		fates_allom_zroot_min_dbh:long_name = "dbh at which the maximum rooting depth for a recruit is defined (NOT USED)" ;
 	double fates_allom_zroot_min_z(fates_pft) ;
 		fates_allom_zroot_min_z:units = "m" ;
 		fates_allom_zroot_min_z:long_name = "the maximum rooting depth defined at dbh = fates_allom_zroot_min_dbh (NOT USED) note: max_z=min_z=large, sets rooting depth to soil depth" ;
@@ -273,7 +273,7 @@ variables:
 		fates_hydr_thetas_node:long_name = "saturated water content" ;
 	double fates_hydr_vg_alpha_node(fates_hydr_organs, fates_pft) ;
 		fates_hydr_vg_alpha_node:units = "MPa-1" ;
-		fates_hydr_vg_alpha_node:long_name = "capalary length parameter in van Genuchten model" ;
+		fates_hydr_vg_alpha_node:long_name = "capillary length parameter in van Genuchten model" ;
 	double fates_hydr_vg_m_node(fates_hydr_organs, fates_pft) ;
 		fates_hydr_vg_m_node:units = "unitless" ;
 		fates_hydr_vg_m_node:long_name = "m in van Genuchten 1980 model, 2nd pore size distribution parameter" ;
@@ -1098,7 +1098,7 @@ data:
  fates_maintresp_reduction_curvature = 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 
     0.01, 0.01, 0.01, 0.01, 0.01, 0.01 ;
 
- fates_maintresp_reduction_intercept = 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1 ;
+ fates_maintresp_reduction_intercept = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
  fates_mort_bmort = 0.014, 0.014, 0.014, 0.014, 0.014, 0.014, 0.014, 0.014, 
     0.014, 0.014, 0.014, 0.014 ;
