@@ -191,12 +191,24 @@ module FatesPlantHydraulicsMod
        __FILE__
 
 
+  ! These index flags specify which pressure-volumen and pressure
+  ! conductivity relationship are available.
+  ! For plants: Users can option between useing tfs and van_genuchten
+  ! by specifying their choice in the parameter file,
+  ! with the model parameter hydr_wtftype_node,
+  ! the value should be 1 for TFS or 2 for VG (as shown below).
+  ! Campbell, could technically be used, but the parameters for
+  ! that hypothesis are not in the parameter file, so it not currently available.
+  ! For soil: The soil hypothesis should follow the hypothesis for water transfer
+  ! in the Host Land Model. At this time campbell is the default for both
+  ! ELM and ALM. However, if alternatives arise (like VG), we still need to write
+  ! interface routines to transfer over parameters.  Right now we just hard-code
+  ! the use of campbell_type for the soil (see a few lines below).
+  
   integer, public, parameter :: van_genuchten_type      = 2
   integer, public, parameter :: campbell_type           = 3
   integer, public, parameter :: tfs_type                = 1
   
-  !integer, parameter :: plant_wrf_type = tfs_type
-  !integer, parameter :: plant_wkf_type = tfs_type
   integer, parameter :: soil_wrf_type  = campbell_type
   integer, parameter :: soil_wkf_type  = campbell_type
   
