@@ -564,7 +564,7 @@ contains
                endif ! currentPatch%canopy_mask
             end do!ft
          end do!L
-                       
+        currentPatch%radiation_error = 0.0_r8
          do ib = 1,hlm_numSWb
             Dif_dn(:,:,:) = 0.00_r8
             Dif_up(:,:,:) = 0.00_r8
@@ -971,9 +971,11 @@ contains
             if (radtype == idirect)then
                error = (forc_dir(radtype) + forc_dif(radtype)) - &
                     (fabd_parb_out(ib)  + albd_parb_out(ib) + currentPatch%sabs_dir(ib))
+               currentPatch%radiation_error = currentPatch%radiation_error + error  
             else
                error = (forc_dir(radtype) + forc_dif(radtype)) - &
                     (fabi_parb_out(ib)  + albi_parb_out(ib) + currentPatch%sabs_dif(ib))
+               currentPatch%radiation_error = currentPatch%radiation_error + error  
             endif
             lai_reduction(:) = 0.0_r8
             do L = 1, currentPatch%NCL_p
