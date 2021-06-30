@@ -940,10 +940,10 @@ contains
         call bstore_allom(dbh,ipft,canopy_trim,ct_store,ct_dstoredd)
         
         ! fraction of carbon going towards reproduction
-        ! Adam will make changes to this section of code
+        ! Adam has changed this section
 
         if (dbh <= prt_params%dbh_repro_threshold(ipft)) then ! cap on leaf biomass
-           repro_fraction = prt_params%seed_alloc(ipft)
+           repro_fraction = prt_params%seed_alloc(ipft) / 4.0_r8 ! ahb added / 4.0_r8
         else
            repro_fraction = prt_params%seed_alloc(ipft) + prt_params%seed_alloc_mature(ipft)
         end if
