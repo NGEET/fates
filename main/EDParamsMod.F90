@@ -31,6 +31,12 @@ module EDParamsMod
                                                              ! of vegetation temperature used in photosynthesis
                                                              ! temperature acclimation (NOT YET IMPLEMENTED)
 
+   integer,protected, public :: maintresp_model       ! switch for choosing between leaf maintenance
+                                                      ! respiration model. 1=Ryan (1991) (NOT YET IMPLEMENTED)
+   integer,protected, public :: photo_tempsens_model  ! switch for choosing the model that defines the temperature
+                                                      ! sensitivity of photosynthetic parameters (vcmax, jmax).
+                                                      ! 1=non-acclimating (NOT YET IMPLEMENTED)
+   
    real(r8),protected, public :: fates_mortality_disturbance_fraction ! the fraction of canopy mortality that results in disturbance
    real(r8),protected, public :: ED_val_comp_excln
    real(r8),protected, public :: ED_val_init_litter
@@ -88,8 +94,9 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_vai_top_bin_width = "fates_vai_top_bin_width"
    character(len=param_string_length),parameter,public :: ED_name_vai_width_increase_factor = "fates_vai_width_increase_factor"
    character(len=param_string_length),parameter,public :: ED_name_photo_temp_acclim_timescale = "fates_photo_temp_acclim_timescale"
+   character(len=param_string_length),parameter,public :: name_photo_tempsens_model = "fates_photo_tempsens_model"
+   character(len=param_string_length),parameter,public :: name_maintresp_model = "fates_maintresp_model"
    character(len=param_string_length),parameter,public :: ED_name_hydr_htftype_node = "fates_hydr_htftype_node"
-   
    character(len=param_string_length),parameter,public :: ED_name_mort_disturb_frac = "fates_mort_disturb_frac"
    character(len=param_string_length),parameter,public :: ED_name_comp_excln = "fates_comp_excln"
    character(len=param_string_length),parameter,public :: ED_name_init_litter = "fates_init_litter"
@@ -205,6 +212,8 @@ contains
     vai_top_bin_width                     = nan
     vai_width_increase_factor             = nan
     photo_temp_acclim_timescale           = nan
+    photo_tempsens_model                  = -9
+    maintresp_model                       = -9
     fates_mortality_disturbance_fraction  = nan
     ED_val_comp_excln                     = nan
     ED_val_init_litter                    = nan
@@ -283,6 +292,12 @@ contains
     call fates_params%RegisterParameter(name=ED_name_photo_temp_acclim_timescale, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
+    call fates_params%RegisterParameter(name=name_photo_tempsens_model,dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=name_maintresp_model,dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+    
     call fates_params%RegisterParameter(name=name_theta_cj_c3, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
     
@@ -456,6 +471,14 @@ contains
 
     call fates_params%RetreiveParameter(name=ED_name_photo_temp_acclim_timescale, &
          data=photo_temp_acclim_timescale)
+
+    call fates_params%RetreiveParameter(name=name_photo_tempsens_model, &
+         data=tmpreal)
+    photo_tempsens_model = nint(tmpreal)
+
+    call fates_params%RetreiveParameter(name=name_maintresp_model, &
+         data=tmpreal)
+    maintresp_model = nint(tmpreal)
     
     call fates_params%RetreiveParameter(name=ED_name_mort_disturb_frac, &
           data=fates_mortality_disturbance_fraction)

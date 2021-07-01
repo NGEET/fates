@@ -43,6 +43,7 @@ def main():
     (u'fates_pft', u'fates_string_length'):5,
     (u'fates_hydr_organs', u'fates_string_length'):6,
     (u'fates_prt_organs', u'fates_string_length'):7,
+    (u'fates_litterclass', u'fates_string_length'):7,
     (u'fates_pft',):8,
     (u'fates_hydr_organs', u'fates_pft'):8,
     (u'fates_leafage_class', u'fates_pft'):8,

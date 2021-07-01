@@ -1,4 +1,4 @@
-netcdf fates_params_default {
+netcdf fates_params_default.c210629_sorted {
 dimensions:
 	fates_NCWD = 4 ;
 	fates_history_age_bins = 7 ;
@@ -38,6 +38,9 @@ variables:
 	char fates_hydr_organname_node(fates_hydr_organs, fates_string_length) ;
 		fates_hydr_organname_node:units = "unitless - string" ;
 		fates_hydr_organname_node:long_name = "Name of plant hydraulics organs (DONT CHANGE, order matches media list in FatesHydraulicsMemMod.F90)" ;
+	char fates_litterclass_name(fates_litterclass, fates_string_length) ;
+		fates_litterclass_name:units = "unitless - string" ;
+		fates_litterclass_name:long_name = "Name of the litter classes, for variables associated with dimension fates_litterclass" ;
 	char fates_prt_organ_name(fates_prt_organs, fates_string_length) ;
 		fates_prt_organ_name:units = "unitless - string" ;
 		fates_prt_organ_name:long_name = "Name of plant organs (order must match PRTGenericMod.F90)" ;
@@ -686,6 +689,9 @@ variables:
 	double fates_logging_mechanical_frac ;
 		fates_logging_mechanical_frac:units = "fraction" ;
 		fates_logging_mechanical_frac:long_name = "Fraction of stems killed due infrastructure an other mechanical means" ;
+	double fates_maintresp_model ;
+		fates_maintresp_model:units = "unitless" ;
+		fates_maintresp_model:long_name = "switch for choosing between maintenance respiration models. 1=Ryan (1991) (NOT USED)" ;
 	double fates_mort_disturb_frac ;
 		fates_mort_disturb_frac:units = "fraction" ;
 		fates_mort_disturb_frac:long_name = "fraction of canopy mortality that results in disturbance (i.e. transfer of area from new to old patch)" ;
@@ -725,6 +731,9 @@ variables:
 	double fates_photo_temp_acclim_timescale ;
 		fates_photo_temp_acclim_timescale:units = "days" ;
 		fates_photo_temp_acclim_timescale:long_name = "Length of the window for the exponential moving average (ema) of vegetation temperature used in photosynthesis temperature acclimation (NOT USED)" ;
+	double fates_photo_tempsens_model ;
+		fates_photo_tempsens_model:units = "unitless" ;
+		fates_photo_tempsens_model:long_name = "switch for choosing the model that defines the temperature sensitivity of photosynthetic parameters (vcmax, jmax). 1=non-acclimating (NOT USED)" ;
 	double fates_q10_froz ;
 		fates_q10_froz:units = "unitless" ;
 		fates_q10_froz:long_name = "Q10 for frozen-soil respiration rates" ;
@@ -783,6 +792,14 @@ data:
   "stem                                             ",
   "transporting root                                ",
   "absorbing root                                   " ;
+
+ fates_litterclass_name =
+  "twig                                             ",
+  "small branch                                     ",
+  "large branch                                     ",
+  "trunk                                            ",
+  "dead leaves                                      ",
+  "live grass                                       " ;
 
  fates_prt_organ_name =
   "leaf                                             ",
@@ -1426,6 +1443,8 @@ data:
 
  fates_logging_mechanical_frac = 0.05 ;
 
+ fates_maintresp_model = 1 ;
+
  fates_mort_disturb_frac = 1 ;
 
  fates_mort_understorey_death = 0.55983 ;
@@ -1451,6 +1470,8 @@ data:
  fates_phen_ncolddayslim = 5 ;
 
  fates_photo_temp_acclim_timescale = 30 ;
+
+ fates_photo_tempsens_model = 1 ;
 
  fates_q10_froz = 1.5 ;
 
