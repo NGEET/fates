@@ -73,7 +73,8 @@ module PRTParametersMod
      real(r8), allocatable :: seed_alloc_mature(:)       ! fraction of carbon balance allocated to 
                                                          ! clonal reproduction.
      real(r8), allocatable :: seed_alloc(:)              ! fraction of carbon balance allocated to seeds.
-
+     real(r8), allocatable :: repro_alloc_a(:)           ! ahb added this; sigmoidal shape param relating dbh to seed allocation fraction
+     real(r8), allocatable :: repro_alloc_b(:)           ! ahb added this; intercept param relating dbh to seed allocation fraction
 
      ! Derived parameters
 

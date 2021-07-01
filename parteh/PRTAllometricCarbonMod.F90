@@ -908,7 +908,7 @@ contains
       real(r8) :: ct_ddeaddd     ! target structural biomass derivative wrt diameter, (kgC/cm)
       real(r8) :: ct_dtotaldd    ! target total (not reproductive) biomass derivative wrt diameter, (kgC/cm)
       real(r8) :: repro_fraction ! fraction of carbon balance directed towards reproduction (kgC/kgC)
-      real(r8), parameter :: repro_alloc_a = 0.0058, repro_alloc_b = -3.1380 !ahb added this 6/30/2021
+      !real(r8), parameter :: repro_alloc_a = 0.0058, repro_alloc_b = -3.1380 !ahb added this 6/30/2021
 
       associate( dbh    => c_pools(dbh_id), &
                  cleaf  => c_pools(leaf_c_id), &
@@ -940,7 +940,7 @@ contains
         call bstore_allom(dbh,ipft,canopy_trim,ct_store,ct_dstoredd)
         
         ! fraction of carbon going towards reproduction
-        ! Adam has changed this section
+        ! ahb changed this section
 
         !original code
         !-------------------------------------------------------------------------------------!
@@ -951,10 +951,11 @@ contains
         !end if
         !-------------------------------------------------------------------------------------!
 
-        !new code
+        !new regeneration code (ahb)
         !-------------------------------------------------------------------------------------!
         repro_fraction = prt_params%seed_alloc(ipft) * &
-        (exp(repro_alloc_b+repro_alloc_a*dbh*10.0_r8) / (1 + exp(repro_alloc_b+repro_alloc_a*dbh*10.0_r8)))
+        (exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*10.0_r8) / &
+        (1 + exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_b(ipft)*dbh*10.0_r8)))
         !-------------------------------------------------------------------------------------!
 
         dCdx = 0.0_r8
