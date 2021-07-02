@@ -15,7 +15,6 @@ module EDPftvarcon
   use FatesGlobals,   only : fates_log
   use FatesGlobals,   only : endrun => fates_endrun
   use FatesLitterMod, only : ilabile,icellulose,ilignin
-  use PRTGenericMod,  only : num_organ_types
   use PRTGenericMod,  only : leaf_organ, fnrt_organ, store_organ
   use PRTGenericMod,  only : sapw_organ, struct_organ, repro_organ
   use PRTGenericMod,  only : prt_cnp_flex_allom_hyp,prt_carbon_allom_hyp
@@ -42,7 +41,7 @@ module EDPftvarcon
 
   !ED specific variables. 
   type, public ::  EDPftvarcon_type
-
+      
      real(r8), allocatable :: freezetol(:)           ! minimum temperature tolerance
      real(r8), allocatable :: hgt_min(:)             ! sapling height m
      real(r8), allocatable :: dleaf(:)               ! leaf characteristic dimension length (m)
@@ -180,6 +179,11 @@ module EDPftvarcon
      real(r8), allocatable :: prescribed_puptake(:)   ! If there is no soil BGC model active,
                                                       ! prescribe an uptake rate for phosphorus
                                                       ! This is the fraction of plant demand
+
+
+     ! Unassociated pft dimensioned free parameter that
+     ! developers can use for testing arbitrary new hypothese
+     real(r8), allocatable :: dev_arbitrary_pft(:) 
      
      ! Parameters dimensioned by PFT and leaf age
      real(r8), allocatable :: vcmax25top(:,:)             ! maximum carboxylation rate of Rub. at 25C, 
@@ -189,23 +193,41 @@ module EDPftvarcon
      ! ---------------------------------------------------------------------------------------------
 
      ! PFT Dimension
-     real(r8), allocatable :: hydr_p_taper(:)       ! xylem taper exponent
-     real(r8), allocatable :: hydr_rs2(:)           ! absorbing root radius (m)
-     real(r8), allocatable :: hydr_srl(:)           ! specific root length (m g-1)
-     real(r8), allocatable :: hydr_rfrac_stem(:)    ! fraction of total tree resistance from troot to canopy
-     real(r8), allocatable :: hydr_avuln_gs(:)      ! shape parameter for stomatal control of water vapor exiting leaf 
-     real(r8), allocatable :: hydr_p50_gs(:)        ! water potential at 50% loss of stomatal conductance
-
+     real(r8), allocatable :: hydr_p_taper(:)    ! xylem taper exponent
+     real(r8), allocatable :: hydr_rs2(:)        ! absorbing root radius (m)
+     real(r8), allocatable :: hydr_srl(:)        ! specific root length (m g-1)
+     real(r8), allocatable :: hydr_rfrac_stem(:) ! fraction of total tree resistance from troot to canopy
+     real(r8), allocatable :: hydr_avuln_gs(:)   ! shape parameter for stomatal control of water vapor exiting leaf 
+     real(r8), allocatable :: hydr_p50_gs(:)     ! water potential at 50% loss of stomatal conductance
+     real(r8), allocatable :: hydr_k_lwp(:)      ! inner leaf humidity scaling coefficient
+     
      ! PFT x Organ Dimension  (organs are: 1=leaf, 2=stem, 3=transporting root, 4=absorbing root)
+     ! ----------------------------------------------------------------------------------
+
+     ! Van Genuchten PV PK curves  (NOT IMPLEMENTED)
+     real(r8), allocatable :: hydr_vg_alpha_node(:,:)   ! capilary length parameter in van Genuchten model
+     real(r8), allocatable :: hydr_vg_m_node(:,:)       ! pore size distribution, m in van Genuchten 1980 model, range (0,1)
+     real(r8), allocatable :: hydr_vg_n_node(:,:)       ! pore size distribution, n in van Genuchten 1980 model, range >2
+
+     ! TFS PV-PK curves
      real(r8), allocatable :: hydr_avuln_node(:,:)  ! xylem vulernability curve shape parameter 
      real(r8), allocatable :: hydr_p50_node(:,:)    ! xylem water potential at 50% conductivity loss (MPa)
-     real(r8), allocatable :: hydr_thetas_node(:,:) ! saturated water content (cm3/cm3)
      real(r8), allocatable :: hydr_epsil_node(:,:)  ! bulk elastic modulus (MPa)
      real(r8), allocatable :: hydr_pitlp_node(:,:)  ! turgor loss point (MPa)
-     real(r8), allocatable :: hydr_resid_node(:,:)  ! residual fraction (fraction)
      real(r8), allocatable :: hydr_fcap_node(:,:)   ! fraction of (1-resid_node) that is capillary in source
      real(r8), allocatable :: hydr_pinot_node(:,:)  ! osmotic potential at full turgor
      real(r8), allocatable :: hydr_kmax_node(:,:)   ! maximum xylem conductivity per unit conducting xylem area
+
+     ! Parameters for both VG and TFS PV-PK curves
+     real(r8), allocatable :: hydr_resid_node(:,:)  ! residual fraction (fraction)
+     real(r8), allocatable :: hydr_thetas_node(:,:) ! saturated water content (cm3/cm3)
+
+
+     ! Table that maps HLM pfts to FATES pfts for fixed biogeography mode
+     ! The values are area fractions (NOT IMPLEMENTED)
+     real(r8), allocatable :: hlm_pft_map(:,:)
+
+     
      
    contains
      procedure, public :: Init => EDpftconInit
@@ -284,16 +306,19 @@ contains
 
     use FatesParametersInterface, only : fates_parameters_type, param_string_length
     use FatesParametersInterface, only : dimension_name_pft, dimension_shape_1d
-
+    use FatesParametersInterface, only : dimension_name_hlm_pftno, dimension_shape_2d
+    
     implicit none
 
     class(EDPftvarcon_type), intent(inout) :: this
     class(fates_parameters_type), intent(inout) :: fates_params
 
     character(len=param_string_length), parameter :: dim_names(1) = (/dimension_name_pft/)
-
+    character(len=param_string_length) :: pftmap_dim_names(2)
+    
     integer, parameter :: dim_lower_bound(1) = (/ lower_bound_pft /)
-
+    
+    
     character(len=param_string_length) :: name
 
     !X!    name = ''
@@ -444,6 +469,10 @@ contains
     name = 'fates_hydr_p50_gs'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_hydr_k_lwp'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
     name = 'fates_mort_bmort'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
@@ -603,7 +632,19 @@ contains
     name = 'fates_prescribed_puptake'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)    
-  
+
+    name = 'fates_dev_arbitrary_pft'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    ! adding the hlm_pft_map variable with two dimensions - FATES PFTno and HLM PFTno
+    pftmap_dim_names(1) = dimension_name_pft 
+    pftmap_dim_names(2) = dimension_name_hlm_pftno 
+
+    name = 'fates_hlm_pft_map'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+         dimension_names=pftmap_dim_names, lower_bounds=dim_lower_bound)
+    
   end subroutine Register_PFT
 
   !-----------------------------------------------------------------------
@@ -766,6 +807,10 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
           data=this%hydr_p50_gs)
 
+    name = 'fates_hydr_k_lwp'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%hydr_k_lwp)
+    
     name = 'fates_mort_bmort'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%bmort)
@@ -887,6 +932,10 @@ contains
     name = 'fates_prescribed_puptake'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%prescribed_puptake)
+
+    name = 'fates_dev_arbitrary_pft'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%dev_arbitrary_pft)
     
     name = 'fates_eca_decompmicc'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -932,6 +981,10 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%eca_lambda_ptase)
 
+    name = 'fates_hlm_pft_map' 
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%hlm_pft_map)
+    
   end subroutine Receive_PFT
 
   !-----------------------------------------------------------------------
@@ -1172,6 +1225,18 @@ contains
     dim_names(1) = dimension_name_pft
     dim_names(2) = dimension_name_hydr_organs
 
+    name = 'fates_hydr_vg_alpha_node'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_hydr_vg_m_node'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_hydr_vg_n_node'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
     name = 'fates_hydr_avuln_node'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -1207,8 +1272,19 @@ contains
     name = 'fates_hydr_kmax_node'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
-    
 
+    name = 'fates_hydr_vg_alpha_node'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_hydr_vg_m_node'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_hydr_vg_n_node'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
   end subroutine Register_PFT_hydr_organs
 
   !-----------------------------------------------------------------------
@@ -1224,6 +1300,19 @@ contains
      class(fates_parameters_type), intent(inout) :: fates_params
      
      character(len=param_string_length) :: name
+
+
+     name = 'fates_hydr_vg_alpha_node'
+     call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%hydr_vg_alpha_node)
+
+     name = 'fates_hydr_vg_m_node'
+     call fates_params%RetreiveParameterAllocate(name=name, &
+           data=this%hydr_vg_m_node)
+
+     name = 'fates_hydr_vg_n_node'
+     call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%hydr_vg_n_node)
      
      name = 'fates_hydr_avuln_node'
      call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1261,6 +1350,18 @@ contains
      call fates_params%RetreiveParameterAllocate(name=name, &
            data=this%hydr_kmax_node)
 
+     name = 'fates_hydr_vg_alpha_node'
+     call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%hydr_vg_alpha_node)
+     
+     name = 'fates_hydr_vg_m_node'
+     call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%hydr_vg_m_node)
+     
+     name = 'fates_hydr_vg_n_node'
+     call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%hydr_vg_n_node)
+     
   end subroutine Receive_PFT_hydr_organs
 
   ! ===============================================================================================
@@ -1347,6 +1448,7 @@ contains
         write(fates_log(),fmt0) 'hydr_rfrac_stem = ',EDPftvarcon_inst%hydr_rfrac_stem
         write(fates_log(),fmt0) 'hydr_avuln_gs = ',EDPftvarcon_inst%hydr_avuln_gs
         write(fates_log(),fmt0) 'hydr_p50_gs = ',EDPftvarcon_inst%hydr_p50_gs
+        write(fates_log(),fmt0) 'hydr_k_lwp = ',EDPftvarcon_inst%hydr_k_lwp
         write(fates_log(),fmt0) 'hydr_avuln_node = ',EDPftvarcon_inst%hydr_avuln_node
         write(fates_log(),fmt0) 'hydr_p50_node = ',EDPftvarcon_inst%hydr_p50_node
         write(fates_log(),fmt0) 'hydr_thetas_node = ',EDPftvarcon_inst%hydr_thetas_node 
@@ -1356,6 +1458,9 @@ contains
         write(fates_log(),fmt0) 'hydr_fcap_node = ',EDPftvarcon_inst%hydr_fcap_node
         write(fates_log(),fmt0) 'hydr_pinot_node = ',EDPftvarcon_inst%hydr_pinot_node
         write(fates_log(),fmt0) 'hydr_kmax_node = ',EDPftvarcon_inst%hydr_kmax_node
+        write(fates_log(),fmt0) 'hydr_vg_alpha_node  = ',EDPftvarcon_inst%hydr_vg_alpha_node
+        write(fates_log(),fmt0) 'hydr_vg_m_node  = ',EDPftvarcon_inst%hydr_vg_m_node
+        write(fates_log(),fmt0) 'hydr_vg_n_node  = ',EDPftvarcon_inst%hydr_vg_n_node
         write(fates_log(),*) '-------------------------------------------------'
 
      end if
