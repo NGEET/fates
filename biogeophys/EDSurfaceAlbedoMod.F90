@@ -1199,7 +1199,8 @@ contains
                end do !iv
             end do !FT
          end do !CL
-
+         cpatch%radiation_error = cpatch%radiation_error * (bc_in(s)%solad_parb(ifp,ipar)+ &
+             bc_in(s)%solai_parb(ifp,ipar))
          ! output the actual PAR profiles through the canopy for diagnostic purposes
          
          do CL = 1, cpatch%NCL_p
