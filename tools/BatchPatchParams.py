@@ -8,14 +8,6 @@ import os
 import argparse
 import code  # For development: code.interact(local=dict(globals(), **locals()))
 
-# This is the list of fields that should be changed
-# (no spaces on comma parsed parameter values):
-# ---------------------------------------------------------------------------------------
-
-
-
-override_list = [["fates_prescribed_nuptake","pft","0,0,0,0,0,0,0,0,0,0,0,0"], \
-                 ["fates_prescribed_puptake","pft","0,0,0,0,0,0,0,0,0,0,0,0"],]
 
 
 # ---------------------------------------------------------------------------------------
@@ -25,7 +17,7 @@ class param_type:
         self.name = name
         self.values = values_text.replace(" ","") #[float(x) for x in values_text.split(',')]
         
-    
+# ---------------------------------------------------------------------------------------
 
 
 def load_xml(xmlfile): 
