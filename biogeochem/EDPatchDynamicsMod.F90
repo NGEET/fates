@@ -1405,7 +1405,6 @@ contains
                curr_litt%seed_germ_decay(pft)*patch_site_areadis/newPatch%area
           
        end do
-
        
        ! -----------------------------------------------------------------------------
        ! Distribute the existing litter that was already in place on the donor

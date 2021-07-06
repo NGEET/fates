@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+
+while getopts ":h" option; do
+   case $option in
+      h) # display Help
+	   echo "script to compare two PFTs in a FATES parameter file.  takes three arguments: "
+	   echo "first argument is the parameter file name"
+	   echo "second argument is the first pft number (PFT numbering starts with 1)"
+	   echo "third argument is the second pft number (PFT numbering starts with 1)"
+         exit;;
+   esac
+done
+
+
+tempfile1=$(mktemp)
+tempfile2=$(mktemp)
+tempfile3=$(mktemp)
+tempfile4=$(mktemp)
+
+toolsdir=$(dirname "$0")
+
+$toolsdir/FatesPFTIndexSwapper.py --pft-indices=$2 --fin=$1 --fout=${tempfile1} 1>/dev/null
+$toolsdir/FatesPFTIndexSwapper.py --pft-indices=$3 --fin=$1 --fout=${tempfile2} 1>/dev/null
+
+ncdump ${tempfile1} >> ${tempfile3}
+ncdump ${tempfile2} >> ${tempfile4}
+
+diff  ${tempfile3} ${tempfile4}
+
+rm ${tempfile1}
+rm ${tempfile2}
+rm ${tempfile3}
+rm ${tempfile4}
