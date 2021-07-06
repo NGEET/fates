@@ -1541,7 +1541,7 @@ contains
     ! that times the ratio of (hypothetical) seed mass to recruit biomass
 
     do pft = 1,numpft
-       litt%seed_germ_in(pft) =  min(litt%seed(pft) * EDPftvarcon_inst%germination_rate(pft), &
+       litt%seed_germ_in(pft) =  min(litt%seed(pft) * EDPftvarcon_inst%germination_rate(pft) / 4.0_r8, & !ahb added / 4.0_r8 as a test
                                      max_germination)*years_per_day
        
        !set the germination only under the growing season...c.xu
