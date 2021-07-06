@@ -23,7 +23,6 @@ module FatesInterfaceMod
    use EDTypesMod                , only : numlevsoil_max
    use EDTypesMod                , only : ed_site_type
    use EDTypesMod                , only : ed_patch_type
-   use EDTypesMod                , only : leaf_photo_temp_acclim_days
    use FatesConstantsMod         , only : r8 => fates_r8
    use FatesConstantsMod         , only : itrue,ifalse
    use FatesConstantsMod         , only : nearzero
@@ -40,6 +39,7 @@ module FatesInterfaceMod
    use EDParamsMod               , only : FatesReportParams
    use EDParamsMod               , only : bgc_soil_salinity
    use FatesPlantHydraulicsMod   , only : InitHydroGlobals
+   use EDParamsMod               , only : photo_temp_acclim_timescale
    use EDParamsMod               , only : ED_val_history_sizeclass_bin_edges
    use EDParamsMod               , only : ED_val_history_ageclass_bin_edges
    use EDParamsMod               , only : ED_val_history_height_bin_edges
@@ -868,7 +868,8 @@ contains
          allocate(fixed_24hr)
          call fixed_24hr%define(sec_per_day, hlm_stepsize, fixed_window)
          allocate(ema_lpa)
-         call ema_lpa%define(leaf_photo_temp_acclim_days,hlm_stepsize,moving_ema_window)
+         call ema_lpa%define(photo_temp_acclim_timescale*sec_per_day, &
+              hlm_stepsize,moving_ema_window)
          
 
       else

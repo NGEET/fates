@@ -193,13 +193,6 @@ module EDTypesMod
   integer, public :: n_uptake_mode
   integer, public :: p_uptake_mode
 
-
-  ! Leaf photosynthetic temperature acclimation timescale [days]
-  ! (This variable may be moved to the FATES parameter file soon)
-  
-  real(r8), parameter, public :: leaf_photo_temp_acclim_days = 30._r8
-  
-  
   !************************************
   !** COHORT type structure          **
   !************************************
@@ -430,7 +423,8 @@ module EDTypesMod
      ! Running means
      !class(rmean_type), pointer :: t2m                          ! Place-holder for 2m air temperature (variable window-size)
      class(rmean_type), pointer :: tveg24                        ! 24-hour mean vegetation temperature (K)
-     
+     class(rmean_type), pointer :: tveg_lpa                      ! Running mean of vegetation temperature at the
+                                                                 ! leaf photosynthesis acclimation timescale
      
      ! LEAF ORGANIZATION
      real(r8) ::  pft_agb_profile(maxpft,n_dbh_bins)            ! binned above ground biomass, for patch fusion: KgC/m2

@@ -302,7 +302,7 @@ contains
 
     ! Allocate running mean functions
     allocate(new_cohort%tveg_lpa)
-    call new_cohort%tveg_lpa%InitRMean(ema_lpa)
+    call new_cohort%tveg_lpa%InitRMean(ema_lpa,init_value=patchptr%tveg_lpa%GetMean())
     
     ! Recuits do not have mortality rates, nor have they moved any
     ! carbon when they are created.  They will bias our statistics

@@ -355,8 +355,13 @@ contains
 
                if(currentPatch%countcohorts > 0.0)then   ! Ignore empty patches
 
+                  print*,"Ts: ",bc_in(s)%tveg_pa(ifp),cpatch%tveg_lpa%GetMean()
+                  
                   currentCohort => currentPatch%tallest
                   do while (associated(currentCohort)) ! Cohort loop
+
+                     print*," c ",currentCohort%tveg_lpa%GetMean()
+
                      
                      ! Identify the canopy layer (cl), functional type (ft)
                      ! and the leaf layer (IV) for this cohort
