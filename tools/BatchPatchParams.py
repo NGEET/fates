@@ -7,7 +7,7 @@
 import os
 import argparse
 import code  # For development: code.interact(local=dict(globals(), **locals()))
-
+from scipy.io import netcdf
 
 
 # ---------------------------------------------------------------------------------------
@@ -88,22 +88,33 @@ def main():
     # Use FatesPFTIndexSwapper.py to prune out unwanted PFTs
     swapcmd="../tools/FatesPFTIndexSwapper.py --pft-indices="+pftlist+" --fin="+base_nc+" --fout="+new_nc   #+" 1>/dev/null"
     os.system(swapcmd)
-    
-    #    code.interact(local=dict(globals(), **locals()))
+
+    # We open the new parameter file. We only use this
+    # to do some dimension checking. 
+    fp_nc  = netcdf.netcdf_file(base_nc, 'r')
     
     # On subsequent parameters, overwrite the file
     for param in paramlist:
 
-        if(len(param.values.split(',')) != len(pftlist.split(',')) ):
-            print('The number of parameters for pfts does not match the pft list')
+        dset_len = len(fp_nc.variables.get(param.name).data[:])
+        if(len(param.values.split(',')) != dset_len ):
+            print('The number of parameters values specified does not match the dataset')
             exit(2)
         
         change_str = parse_syscall_str(new_nc,new_nc,param.name,"pft",param.values)
         os.system(change_str)
 
-    # Dump the new file to the cdl
-    os.system("ncdump "+new_nc+" > "+new_cdl)
+    # Sort the new file
+    newer_nc = os.popen('mktemp').read().rstrip('\n')
+    os.system("../tools/ncvarsort.py --fin "+new_nc+" --fout "+newer_nc+" --overwrite")
 
+    # Dump the new file to the cdl
+    os.system("ncdump "+newer_nc+" > "+new_cdl)
+
+    fp_nc.close()
+
+    print("\nBatch parameter transfer complete\n")
+    
         
 # This is the actual call to main
 
