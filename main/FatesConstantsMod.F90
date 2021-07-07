@@ -141,6 +141,9 @@ module FatesConstantsMod
   ! Conversion factor: milimeters per meter
   real(fates_r8), parameter, public :: mm_per_m = 1.0E3_fates_r8
 
+  ! Conversion factor: milimeters per centimeter ahb added this 7/7/2021
+  ! read(fates_r8), parameter, public :: mm_per_cm = 1.0E1_fates_r8
+
   ! Conversion factor: m2 per ha
   real(fates_r8), parameter, public :: m2_per_ha = 1.0e4_fates_r8
 
