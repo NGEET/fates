@@ -49,6 +49,7 @@ module EDPatchDynamicsMod
   use FatesGlobals         , only : endrun => fates_endrun
   use FatesConstantsMod    , only : r8 => fates_r8
   use FatesConstantsMod    , only : itrue, ifalse
+  use FatesConstantsMod    , only : t_water_freeze_k_1atm
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesPlantHydraulicsMod, only : AccumulateMortalityWaterStorage
   use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
@@ -698,7 +699,10 @@ contains
                  nc%prt => null()
                  call InitPRTObject(nc%prt)
                  call InitPRTBoundaryConditions(nc)
-                 
+                 ! Allocate running mean functions
+                 allocate(nc%tveg_lpa)
+                 call nc%tveg_lpa%InitRMean(ema_lpa,init_value=new_patch%tveg_lpa%GetMean())
+
                  call zero_cohort(nc)
 
                  ! nc is the new cohort that goes in the disturbed patch (new_patch)... currentCohort
@@ -1992,8 +1996,8 @@ contains
     real(r8), intent(in) :: areap                ! initial area of this patch in m2. 
     integer, intent(in)  :: label                ! anthropogenic disturbance label
 
-    real(r8), parameter :: temp_init_vegc = 15._r8 ! Until bc's are pointed to by sites
-                                                   ! give veg temp a default temp.
+    ! Until bc's are pointed to by sites give veg temp a default temp [K]
+    real(r8), parameter :: temp_init_veg = 15._r8+t_water_freeze_k_1atm 
     
     ! !LOCAL VARIABLES:
     !---------------------------------------------------------------------
@@ -2011,9 +2015,9 @@ contains
     allocate(new_patch%fragmentation_scaler(currentSite%nlevsoil))
 
     allocate(new_patch%tveg24)
-    call new_patch%tveg24%InitRMean(fixed_24hr,init_value=temp_init_vegc,init_offset=real(hlm_current_tod,r8) )
+    call new_patch%tveg24%InitRMean(fixed_24hr,init_value=temp_init_veg,init_offset=real(hlm_current_tod,r8) )
     allocate(new_patch%tveg_lpa)
-    call new_patch%tveg_lpa%InitRmean(ema_lpa,init_value=temp_init_vegc)
+    call new_patch%tveg_lpa%InitRmean(ema_lpa,init_value=temp_init_veg)
     
     ! Litter
     ! Allocate, Zero Fluxes, and Initialize to "unset" values

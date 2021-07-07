@@ -38,6 +38,7 @@ module FatesRestartInterfaceMod
   use PRTGenericMod,           only : prt_global
   use PRTGenericMod,           only : num_elements
   use FatesRunningMeanMod,     only : rmean_type
+  use FatesRunningMeanMod,     only : ema_lpa
 
   ! CIME GLOBALS
   use shr_log_mod       , only : errMsg => shr_log_errMsg
@@ -138,8 +139,10 @@ module FatesRestartInterfaceMod
   integer :: ir_gnd_alb_dir_pasb
 
   ! Running Means
-  integer :: ir_tveg24patch_pa
-
+  integer :: ir_tveg24_pa
+  integer :: ir_tveglpa_pa
+  integer :: ir_tveglpa_co
+  
   integer :: ir_ddbhdt_co
   integer :: ir_resp_tstep_co
   integer :: ir_pft_co
@@ -1217,9 +1220,16 @@ contains
 
    call this%DefineRMeanRestartVar(vname='fates_tveg24patch',vtype=cohort_r8, &
         long_name='24-hour patch veg temp', &
-        units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveg24patch_pa)
-   
+        units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveg24_pa)
 
+   call this%DefineRMeanRestartVar(vname='fates_tveglpapatch',vtype=cohort_r8, &
+        long_name='running average (EMA) of patch veg temp for photo acclim', &
+        units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveglpa_pa)
+   
+   call this%DefineRMeanRestartVar(vname='fates_tveglpacohort',vtype=cohort_r8, &
+        long_name='running average (EMA) of cohort veg temp for photo acclim', &
+        units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveglpa_co)
+   
 
     ! Register all of the PRT states and fluxes
 
@@ -1999,7 +2009,9 @@ contains
                    write(fates_log(),*) 'CLTV offsetNumCohorts II ',io_idx_co, &
                          cohortsperpatch
                 endif
-             
+
+                call this%SetRMeanRestartVar(ccohort%tveg_lpa, ir_tveglpa_co, io_idx_co)
+                
                 io_idx_co = io_idx_co + 1
                 
                 ccohort => ccohort%taller
@@ -2016,7 +2028,8 @@ contains
              rio_area_pa(io_idx_co_1st)        = cpatch%area
 
              ! Patch level running means
-             call this%SetRMeanRestartVar(cpatch%tveg24, ir_tveg24patch_pa, io_idx_co_1st)
+             call this%SetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
+             call this%SetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
              
              ! set cohorts per patch for IO
              rio_ncohort_pa( io_idx_co_1st )   = cohortsperpatch
@@ -2356,6 +2369,11 @@ contains
                    call InitHydrCohort(sites(s),new_cohort)
                 end if
 
+                ! Allocate running mean functions
+                allocate(new_cohort%tveg_lpa)
+                call new_cohort%tveg_lpa%InitRMean(ema_lpa)
+
+                
                 ! Update the previous
                 prev_cohort => new_cohort
                 
@@ -2766,6 +2784,8 @@ contains
                    call UpdatePlantPsiFTCFromTheta(ccohort,sites(s)%si_hydr)
 
                 end if
+
+                call this%GetRMeanRestartVar(ccohort%tveg_lpa, ir_tveglpa_co, io_idx_co)
                 
                 io_idx_co = io_idx_co + 1
              
@@ -2794,8 +2814,8 @@ contains
              cpatch%solar_zenith_angle = rio_solar_zenith_angle_pa(io_idx_co_1st)
 
 
-             call this%GetRMeanRestartVar(cpatch%tveg24, ir_tveg24patch_pa, io_idx_co_1st)
-             
+             call this%GetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
+             call this%GetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
              
              ! set cohorts per patch for IO
              

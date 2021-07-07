@@ -23,6 +23,7 @@ module FatesInterfaceMod
    use EDTypesMod                , only : numlevsoil_max
    use EDTypesMod                , only : ed_site_type
    use EDTypesMod                , only : ed_patch_type
+   use EDTypesMod                , only : ed_cohort_type
    use FatesConstantsMod         , only : r8 => fates_r8
    use FatesConstantsMod         , only : itrue,ifalse
    use FatesConstantsMod         , only : nearzero

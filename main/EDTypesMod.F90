@@ -390,7 +390,7 @@ module EDTypesMod
 
      ! Running means
      class(rmean_type), pointer :: tveg_lpa              ! exponential moving average of leaf temperature at the
-                                                         ! leaf photosynthetic acclimation time-scale
+                                                         ! leaf photosynthetic acclimation time-scale [K]
 
      
   end type ed_cohort_type
@@ -424,7 +424,7 @@ module EDTypesMod
      !class(rmean_type), pointer :: t2m                          ! Place-holder for 2m air temperature (variable window-size)
      class(rmean_type), pointer :: tveg24                        ! 24-hour mean vegetation temperature (K)
      class(rmean_type), pointer :: tveg_lpa                      ! Running mean of vegetation temperature at the
-                                                                 ! leaf photosynthesis acclimation timescale
+                                                                 ! leaf photosynthesis acclimation timescale [K]
      
      ! LEAF ORGANIZATION
      real(r8) ::  pft_agb_profile(maxpft,n_dbh_bins)            ! binned above ground biomass, for patch fusion: KgC/m2

@@ -16,6 +16,7 @@ module EDCohortDynamicsMod
   use FatesConstantsMod     , only : fates_unset_r8
   use FatesConstantsMod     , only : nearzero
   use FatesConstantsMod     , only : calloc_abs_error
+  use FatesRunningMeanMod       , only : ema_lpa
   use FatesInterfaceTypesMod     , only : hlm_days_per_year
   use FatesInterfaceTypesMod     , only : nleafage
   use SFParamsMod           , only : SF_val_CWD_frac
@@ -995,7 +996,7 @@ contains
      type(ed_cohort_type),intent(inout) :: currentCohort
 
      ! Remove the running mean structure
-     deallocate(new_cohort%tveg_lpa)
+     deallocate(currentCohort%tveg_lpa)
      
      ! At this point, nothing should be pointing to current Cohort
      if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(currentCohort)
@@ -1806,7 +1807,7 @@ contains
     n%kp25top    = o%kp25top 
 
     ! Copy over running means
-    n%tveg_lpa%CopyFromDonor(o%tveg_lpa)
+    call n%tveg_lpa%CopyFromDonor(o%tveg_lpa)
     
     ! CARBON FLUXES
     n%gpp_acc_hold    = o%gpp_acc_hold
