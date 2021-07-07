@@ -1182,7 +1182,7 @@ contains
     integer, parameter :: downreg_logi   = 2
     integer, parameter :: downreg_CN_logi = 3
     
-    integer, parameter :: downreg_type = downreg_linear
+    integer, parameter :: downreg_type = downreg_CN_logi
 
     
     real(r8), parameter :: logi_k   = 25.0_r8         ! logistic function k
