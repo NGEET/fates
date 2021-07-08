@@ -24,6 +24,7 @@ module FatesInterfaceMod
    use EDTypesMod                , only : ed_site_type
    use EDTypesMod                , only : ed_patch_type
    use EDTypesMod                , only : ed_cohort_type
+   use EDTypesMod                , only : area_inv
    use FatesConstantsMod         , only : r8 => fates_r8
    use FatesConstantsMod         , only : itrue,ifalse
    use FatesConstantsMod         , only : nearzero
@@ -77,6 +78,8 @@ module FatesInterfaceMod
    use FatesRunningMeanMod       , only : ema_lpa
    use FatesRunningMeanMod       , only : moving_ema_window
    use FatesRunningMeanMod       , only : fixed_window
+   use FatesHistoryInterfaceMod  , only : fates_hist
+   use FatesHistoryInterfaceMod  , only : ih_tveglpa_si_age,ih_tveglpa_si
    
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -249,7 +252,6 @@ contains
     fates%bc_in(s)%precip24_pa(:)      = 0.0_r8
     fates%bc_in(s)%relhumid24_pa(:)    = 0.0_r8
     fates%bc_in(s)%wind24_pa(:)        = 0.0_r8
-    fates%bc_in(s)%tveg_pa(:)          = 0.0_r8
      
     fates%bc_in(s)%solad_parb(:,:)     = 0.0_r8
     fates%bc_in(s)%solai_parb(:,:)     = 0.0_r8
@@ -461,7 +463,6 @@ contains
       allocate(bc_in%wind24_pa(maxPatchesPerSite))
       allocate(bc_in%relhumid24_pa(maxPatchesPerSite))
       allocate(bc_in%precip24_pa(maxPatchesPerSite))
-      allocate(bc_in%tveg_pa(maxPatchesPerSite))
       
       ! Radiation
       allocate(bc_in%solad_parb(maxPatchesPerSite,hlm_numSWb))
@@ -871,7 +872,6 @@ contains
          allocate(ema_lpa)
          call ema_lpa%define(photo_temp_acclim_timescale*sec_per_day, &
               hlm_stepsize,moving_ema_window)
-         
 
       else
          ! If we are not using FATES, the cohort dimension is still
@@ -1845,28 +1845,51 @@ contains
      
      type(ed_patch_type),  pointer :: cpatch
      type(ed_cohort_type), pointer :: ccohort
-     integer :: s, ifp
-
+     integer :: s, ifp, io_si
 
      do s = 1,size(sites,dim=1)
+
         ifp=0
         cpatch => sites(s)%oldest_patch
         do while(associated(cpatch))
            ifp=ifp+1
-           call cpatch%tveg24%UpdateRMean(bc_in(s)%tveg_pa(ifp))
-           call cpatch%tveg_lpa%UpdateRMean(bc_in(s)%tveg_pa(ifp))
+           call cpatch%tveg24%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
+           call cpatch%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
 
            ccohort => cpatch%tallest
            do while (associated(ccohort))
-              call ccohort%tveg_lpa%UpdateRMean(bc_in(s)%tveg_pa(ifp))
+              call ccohort%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
               ccohort => ccohort%shorter
            end do
            
            cpatch => cpatch%younger
         enddo
-     enddo
+     end do
 
+     ! Update running mean history variables
+     ! -------------------------------------------------------------------------------
+     associate(hio_tveglpa_si_age => fates_hist%hvars(ih_tveglpa_si_age)%r82d, &
+               hio_tveglpa_si     => fates_hist%hvars(ih_tveglpa_si)%r81d)
+
+       do s = 1,size(sites,dim=1)
+
+          io_si  = sites(s)%h_gid
+          hio_tveglpa_si_age(io_si,:) = 0._r8
+          hio_tveglpa_si(io_si)       = 0._r8
+          
+          cpatch => sites(s)%oldest_patch
+          do while(associated(cpatch))
+             hio_tveglpa_si_age(io_si,cpatch%age_class) = &
+                  hio_tveglpa_si_age(io_si,cpatch%age_class) + &
+                  cpatch%tveg_lpa%GetMean()*cpatch%area/sites(s)%area_by_age(cpatch%age_class)
+             hio_tveglpa_si(io_si) = hio_tveglpa_si(io_si) + &
+                  cpatch%tveg_lpa%GetMean()*cpatch%area*area_inv
+             cpatch => cpatch%younger
+          enddo
+       end do
+     end associate
+          
      return
    end subroutine UpdateFatesRMeansTStep
-   
-end module FatesInterfaceMod
+      
+ end module FatesInterfaceMod

@@ -534,6 +534,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_fire_sum_fuel_si_age
   integer :: ih_tveg24_si_age
   integer :: ih_tveg24_si
+  integer,public :: ih_tveglpa_si_age
+  integer,public :: ih_tveglpa_si
   
   ! indices to (site x height) variables
   integer :: ih_canopy_height_dist_si_height
@@ -4624,6 +4626,20 @@ end subroutine update_history_hifrq
          use_default='active', &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_tveg24_si )
+
+    call this%set_history_var(vname='TVEGLPA_AGE', units='Kelvin', &
+         long='fates leaf photo-acclim running mean vegetation temperature by patch age', &
+         use_default='active', &
+         avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=2, &
+         ivar=ivar, initialize=initialize_variables, index = ih_tveglpa_si_age )
+
+    call this%set_history_var(vname='TVEGLPA_SI', units='Kelvin', &
+         long='fates leaf photo-acclim running mean vegetation temperature by site', &
+         use_default='active', &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=2, &
+         ivar=ivar, initialize=initialize_variables, index = ih_tveglpa_si )
+    
+
     
     ! Litter Variables
 

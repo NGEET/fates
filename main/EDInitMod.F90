@@ -68,6 +68,7 @@ module EDInitMod
   use PRTGenericMod,          only : nitrogen_element
   use PRTGenericMod,          only : phosphorus_element
   use PRTGenericMod,          only : SetState
+  use FatesSizeAgeTypeIndicesMod,only : get_age_class_index
 
   ! CIME GLOBALS
   use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -130,6 +131,8 @@ contains
     allocate(site_in%area_pft(1:numpft))
     allocate(site_in%use_this_pft(1:numpft))
 
+    allocate(site_in%area_by_age(1:nlevage))
+    
     do el=1,num_elements
         allocate(site_in%flux_diags(el)%leaf_litter_input(1:numpft))
         allocate(site_in%flux_diags(el)%root_litter_input(1:numpft))
@@ -228,6 +231,8 @@ contains
 
     site_in%area_pft(:) = 0._r8
     site_in%use_this_pft(:) = fates_unset_int
+
+    site_in%area_by_age(:) = 0._r8
   end subroutine zero_site
 
   ! ============================================================================
@@ -347,6 +352,7 @@ contains
      ! !LOCAL VARIABLES:
      integer  :: s
      integer  :: el
+     integer  :: ageclass
      real(r8) :: age !notional age of this patch
 
      ! dummy locals
@@ -358,9 +364,7 @@ contains
      type(ed_patch_type), pointer :: newp
      type(ed_patch_type), pointer :: currentPatch
 
-     ! List out some nominal patch values that are used for Near Bear Ground initializations
-     ! as well as initializing inventory
-     age                  = 0.0_r8
+     
      ! ---------------------------------------------------------------------------------------------
 
      ! ---------------------------------------------------------------------------------------------
@@ -409,7 +413,9 @@ contains
            sites(s)%oldest_patch   => newp
 
            ! make new patch...
-
+           ! List out some nominal patch values that are used for Near Bear Ground initializations
+           ! as well as initializing inventory
+           age = 0.0_r8
            call create_patch(sites(s), newp, age, area, primaryforest)
            
            ! Initialize the litter pools to zero, these
@@ -437,11 +443,11 @@ contains
 
      end if
 
-     ! zero all the patch fire variables for the first timestep
      do s = 1, nsites
         currentPatch => sites(s)%youngest_patch
         do while(associated(currentPatch))
 
+           ! zero all the patch fire variables for the first timestep
            currentPatch%litter_moisture(:)         = 0._r8
            currentPatch%fuel_eff_moist             = 0._r8
            currentPatch%livegrass                  = 0._r8
@@ -461,6 +467,7 @@ contains
            currentPatch%scorch_ht(:)               = 0._r8
            currentPatch%frac_burnt                 = 0._r8
            currentPatch%burnt_frac_litter(:)       = 0._r8
+
            currentPatch => currentPatch%older
         enddo
      enddo

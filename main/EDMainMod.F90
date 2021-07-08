@@ -655,6 +655,8 @@ contains
 
     call TotalBalanceCheck(currentSite,final_check_id)
 
+    currentSite%area_by_age(:) = 0._r8
+    
     currentPatch => currentSite%oldest_patch
     do while(associated(currentPatch))
         
@@ -666,7 +668,10 @@ contains
         ! This cohort count is used in the photosynthesis loop
         call count_cohorts(currentPatch)
 
-
+        ! Update the total area of by patch age class array 
+        currentSite%area_by_age(currentPatch%age_class) = &
+             currentSite%area_by_age(currentPatch%age_class) + currentPatch%area
+        
         currentPatch => currentPatch%younger    
     enddo
 

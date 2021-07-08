@@ -707,7 +707,11 @@ module EDTypesMod
      ! Fixed Biogeography mode inputs
      real(r8), allocatable :: area_PFT(:)                      ! Area allocated to individual PFTs    
      integer, allocatable  :: use_this_pft(:)                  ! Is area_PFT > 0 ? (1=yes, 0=no)
- 
+
+     ! Total area of patches in each age bin [m2]
+     real(r8), allocatable :: area_by_age(:)
+
+     
      ! Mass Balance (allocation for each element)
 
      type(site_massbal_type), pointer :: mass_balance(:)

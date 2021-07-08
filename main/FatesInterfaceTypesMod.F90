@@ -351,9 +351,6 @@ module FatesInterfaceTypesMod
       ! Average precipitation over the last 24 hours [mm/s]
       real(r8), allocatable :: precip24_pa(:)
       
-      ! Patch Vegetation temperature (K)
-      real(r8),allocatable :: tveg_pa(:)
-
       ! Average relative humidity over past 24 hours [-]
       real(r8), allocatable :: relhumid24_pa(:)
 
