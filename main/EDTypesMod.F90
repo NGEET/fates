@@ -18,8 +18,10 @@ module EDTypesMod
   use FatesLitterMod,        only : ncwd
   use FatesConstantsMod,     only : n_anthro_disturbance_categories
   use FatesConstantsMod,     only : days_per_year
+  use FatesRunningMeanMod,   only : rmean_type
   use FatesInterfaceTypesMod,only : bc_in_type
   use FatesInterfaceTypesMod,only : bc_out_type
+
   
   implicit none
   private               ! By default everything is private
@@ -190,8 +192,7 @@ module EDTypesMod
 
   integer, public :: n_uptake_mode
   integer, public :: p_uptake_mode
-  
-  
+
   !************************************
   !** COHORT type structure          **
   !************************************
@@ -386,6 +387,12 @@ module EDTypesMod
      ! Hydraulics
      type(ed_cohort_hydr_type), pointer :: co_hydr       ! All cohort hydraulics data, see FatesHydraulicsMemMod.F90
 
+
+     ! Running means
+     class(rmean_type), pointer :: tveg_lpa              ! exponential moving average of leaf temperature at the
+                                                         ! leaf photosynthetic acclimation time-scale [K]
+
+     
   end type ed_cohort_type
 
   !************************************
@@ -412,6 +419,13 @@ module EDTypesMod
      integer  ::  anthro_disturbance_label                         ! patch label for anthropogenic disturbance classification
      real(r8) ::  age_since_anthro_disturbance                     ! average age for secondary forest since last anthropogenic disturbance
 
+
+     ! Running means
+     !class(rmean_type), pointer :: t2m                          ! Place-holder for 2m air temperature (variable window-size)
+     class(rmean_type), pointer :: tveg24                        ! 24-hour mean vegetation temperature (K)
+     class(rmean_type), pointer :: tveg_lpa                      ! Running mean of vegetation temperature at the
+                                                                 ! leaf photosynthesis acclimation timescale [K]
+     
      ! LEAF ORGANIZATION
      real(r8) ::  pft_agb_profile(maxpft,n_dbh_bins)            ! binned above ground biomass, for patch fusion: KgC/m2
      real(r8) ::  canopy_layer_tlai(nclmax)                     ! total leaf area index of each canopy layer
@@ -678,7 +692,6 @@ module EDTypesMod
      ! Resource management
      type (ed_resources_management_type) :: resources_management ! resources_management at the site 
 
-
      ! If this simulation uses shared memory then the sites need to know what machine
      ! index they are on. This index is (currently) only used to identify the sites
      ! position in history output fields
@@ -687,7 +700,6 @@ module EDTypesMod
      ! Global index of this site in the history output file
      integer :: h_gid
      
-     
      ! INDICES 
      real(r8) ::  lat                                          ! latitude:  degrees 
      real(r8) ::  lon                                          ! longitude: degrees 
@@ -695,7 +707,11 @@ module EDTypesMod
      ! Fixed Biogeography mode inputs
      real(r8), allocatable :: area_PFT(:)                      ! Area allocated to individual PFTs    
      integer, allocatable  :: use_this_pft(:)                  ! Is area_PFT > 0 ? (1=yes, 0=no)
- 
+
+     ! Total area of patches in each age bin [m2]
+     real(r8), allocatable :: area_by_age(:)
+
+     
      ! Mass Balance (allocation for each element)
 
      type(site_massbal_type), pointer :: mass_balance(:)
