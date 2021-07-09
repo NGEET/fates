@@ -252,6 +252,7 @@ contains
        site_mass%frag_out = site_mass%frag_out + currentPatch%area * &
             ( sum(litt%ag_cwd_frag) + sum(litt%bg_cwd_frag) + &
             sum(litt%leaf_fines_frag) + sum(litt%root_fines_frag) + &
+            !sum(litt%non_seed_repro_mass_decay) + & !ahb added this line on 7/8/2021
             sum(litt%seed_decay) + sum(litt%seed_germ_decay))
        
     end do
@@ -1365,6 +1366,7 @@ contains
     real(r8) :: site_seed_rain(maxpft) ! This is the sum of seed-rain for the site [kg/site/day]
     real(r8) :: seed_in_external       ! Mass of externally generated seeds [kg/m2/day]
     real(r8) :: seed_stoich            ! Mass ratio of nutrient per C12 in seeds [kg/kg]
+    real(r8) :: repro_mass_prod        ! Mass of reproductive material produced [kg/day] ; added by ahb 7/8/2021
     real(r8) :: seed_prod              ! Seed produced in this dynamics step [kg/day]
     integer  :: n_litt_types           ! number of litter element types (c,n,p, etc)
     integer  :: el                     ! loop counter for litter element types
@@ -1403,9 +1405,35 @@ contains
              ! specified as input.  This routine will also remove the mass
              ! from the parteh state-variable.
 
-             call PRTReproRelease(currentCohort%prt,repro_organ,element_id, &
-                   1.0_r8, seed_prod)
+             !START ahb changes
              
+             !--------------------------------------------------------------------------
+             !original code
+             !call PRTReproRelease(currentCohort%prt,repro_organ,element_id, &
+             !      1.0_r8, seed_prod)
+             !--------------------------------------------------------------------------
+
+             !--------------------------------------------------------------------------
+             !ahb's new code
+             !the original code sends all reproductive tissue to seed
+             !This new code, added by ahb, is designed to send some reproductive biomass 
+             !straight to the leaf litter pool to account for non-seed reproductive
+             !biomass. For now, ahb does this after the call to the
+             !PRTReproRelease function, but a better solution would probably be to do 
+             !this within the PRTReproRelease module in parteh/PRTLossFluxesMod.F90::L342 
+             !by adding new live reproductive organs (ahb needs help with this).
+
+             call PRTReproRelease(currentCohort%prt,repro_organ,element_id, &
+                    1.0_r8, repro_mass_prod) !ahb changed from seed_prod to repro_mass_prod
+
+             seed_prod = repro_mass_prod ! * 0.5_r8 ! only a fraction  of reproductive carbon is seed (ahb) 
+
+             ! the remainder goes to non-seed reproductive litter
+             !litt%non_seed_repro_mass_decay(pft) = repro_mass_prod * (1.0_r8 - 0.5_r8) ! ahb
+             !---------------------------------------------------------------------------            
+              
+             !END ahb changes
+                          
              if(element_id==carbon12_element)then
                  currentcohort%seed_prod = seed_prod
              end if
@@ -1496,7 +1524,7 @@ contains
     ! Assume that decay rates are same for all chemical species
 
     do pft = 1,numpft 
-       litt%seed_decay(pft) = litt%seed(pft) * &
+       litt%seed_decay(pft) = litt%seed(pft) * & 
              EDPftvarcon_inst%seed_decay_rate(pft)*years_per_day
 
        litt%seed_germ_decay(pft) = litt%seed_germ(pft) * &
@@ -1541,7 +1569,7 @@ contains
     ! that times the ratio of (hypothetical) seed mass to recruit biomass
 
     do pft = 1,numpft
-       litt%seed_germ_in(pft) =  min(litt%seed(pft) * EDPftvarcon_inst%germination_rate(pft) / 4.0_r8, & !ahb added / 4.0_r8 as a test
+       litt%seed_germ_in(pft) =  min(litt%seed(pft) * EDPftvarcon_inst%germination_rate(pft), & 
                                      max_germination)*years_per_day
        
        !set the germination only under the growing season...c.xu

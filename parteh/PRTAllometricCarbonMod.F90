@@ -42,7 +42,7 @@ module PRTAllometricCarbonMod
   use FatesConstantsMod   , only : r8 => fates_r8
   use FatesConstantsMod   , only : i4 => fates_int
   use FatesConstantsMod   , only : sec_per_day
-  !use FatesConstantsMod   , only : mm_per_cm !ahb added this 7/7/2021
+  use FatesConstantsMod   , only : mm_per_cm !ahb added this 7/7/2021
   use FatesIntegratorsMod , only : RKF45
   use FatesIntegratorsMod , only : Euler
   use FatesConstantsMod   , only : calloc_abs_error
@@ -909,7 +909,6 @@ contains
       real(r8) :: ct_ddeaddd     ! target structural biomass derivative wrt diameter, (kgC/cm)
       real(r8) :: ct_dtotaldd    ! target total (not reproductive) biomass derivative wrt diameter, (kgC/cm)
       real(r8) :: repro_fraction ! fraction of carbon balance directed towards reproduction (kgC/kgC)
-      real(r8), parameter :: mm_per_cm = 10.0_r8 !ahb added this; this is temporary. Need to add this to the FATES constants file 
 
       associate( dbh    => c_pools(dbh_id), &
                  cleaf  => c_pools(leaf_c_id), &

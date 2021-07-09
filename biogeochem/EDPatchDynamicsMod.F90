@@ -1392,6 +1392,9 @@ contains
           new_litt%seed_decay(pft) = new_litt%seed_decay(pft) + &
                curr_litt%seed_decay(pft)*patch_site_areadis/newPatch%area
 
+          new_litt%non_seed_repro_mass_decay(pft) = new_litt%non_seed_repro_mass_decay(pft) + &  !ahb added this
+               curr_litt%non_seed_repro_mass_decay(pft)*patch_site_areadis/newPatch%area !ahb added this
+
           new_litt%seed_germ_decay(pft) = new_litt%seed_germ_decay(pft) + &
                curr_litt%seed_germ_decay(pft)*patch_site_areadis/newPatch%area
           

@@ -1099,21 +1099,39 @@ contains
           ! decaying seeds from the litter pool
           do ipft = 1,numpft
              do id = 1,nlev_eff_decomp
+          !ahb START
+          !original code
+          !------------------------------------------------------------------------
+          !      flux_lab_si(id) = flux_lab_si(id) + &
+          !           (litt%seed_decay(ipft) + litt%seed_germ_decay(ipft)) * &
+          !           EDPftvarcon_inst%lf_flab(ipft) * area_frac* surface_prof(id)
 
-                flux_lab_si(id) = flux_lab_si(id) + &
-                     (litt%seed_decay(ipft) + litt%seed_germ_decay(ipft)) * &
-                     EDPftvarcon_inst%lf_flab(ipft) * area_frac* surface_prof(id)
+          !      flux_cel_si(id) = flux_cel_si(id) + &
+          !           (litt%seed_decay(ipft) + litt%seed_germ_decay(ipft)) * &
+          !           EDPftvarcon_inst%lf_fcel(ipft) * area_frac* surface_prof(id)
 
-                flux_cel_si(id) = flux_cel_si(id) + &
-                     (litt%seed_decay(ipft) + litt%seed_germ_decay(ipft)) * &
-                     EDPftvarcon_inst%lf_fcel(ipft) * area_frac* surface_prof(id)
+          !     flux_lig_si(id) = flux_lig_si(id) + &
+          !           (litt%seed_decay(ipft) + litt%seed_germ_decay(ipft)) * &
+          !           EDPftvarcon_inst%lf_flig(ipft) * area_frac* surface_prof(id)
+          !-------------------------------------------------------------------------
 
-                flux_lig_si(id) = flux_lig_si(id) + &
-                     (litt%seed_decay(ipft) + litt%seed_germ_decay(ipft)) * &
-                     EDPftvarcon_inst%lf_flig(ipft) * area_frac* surface_prof(id)
+          !new code
+          !-------------------------------------------------------------------------       
+                 flux_lab_si(id) = flux_lab_si(id) + &
+                      (litt%seed_decay(ipft) + litt%seed_germ_decay(ipft) + litt%non_seed_repro_mass_decay(ipft)) * &
+                      EDPftvarcon_inst%lf_flab(ipft) * area_frac* surface_prof(id)
+
+                 flux_cel_si(id) = flux_cel_si(id) + &
+                      (litt%seed_decay(ipft) + litt%seed_germ_decay(ipft) + litt%non_seed_repro_mass_decay(ipft)) * &
+                      EDPftvarcon_inst%lf_fcel(ipft) * area_frac* surface_prof(id)
+
+                 flux_lig_si(id) = flux_lig_si(id) + &
+                      (litt%seed_decay(ipft) + litt%seed_germ_decay(ipft) + litt%non_seed_repro_mass_decay(ipft)) * &
+                      EDPftvarcon_inst%lf_flig(ipft) * area_frac* surface_prof(id)
+           !-------------------------------------------------------------------------
              end do
           end do
-
+          !END ahb mods
 
           do j = 1, nlev_eff_soil
 

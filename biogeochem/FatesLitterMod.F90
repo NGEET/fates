@@ -105,6 +105,7 @@ module FatesLitterMod
       real(r8),allocatable ::  root_fines_frag(:,:) ! kg/m2/day
 
       real(r8), allocatable :: seed_decay(:)      ! decay of viable seeds to litter     [kg/m2/day]
+      real(r8), allocatable :: non_seed_repro_mass_decay(:)      ! ahb, decay of non-seed reproductive mass [kg/m2/day]
       real(r8), allocatable :: seed_germ_decay(:) ! decay of germinated seeds to litter [kg/m2/day]
       real(r8), allocatable :: seed_germ_in(:)    ! flux from viable to germinated seed [kg/m2/day]
 
@@ -193,6 +194,8 @@ contains
        
        this%seed_decay(pft)      = this%seed_decay(pft) * self_weight + &
                                    donor_litt%seed_decay(pft) * donor_weight
+       this%non_seed_repro_mass_decay(pft)      = this%non_seed_repro_mass_decay(pft) * self_weight + & !ahb
+                                   donor_litt%non_seed_repro_mass_decay(pft) * donor_weight !ahb
        this%seed_germ_decay(pft) = this%seed_germ_decay(pft) * self_weight + &
                                    donor_litt%seed_germ_decay(pft) * donor_weight
        this%seed_germ_in(pft)    = this%seed_germ_in(pft) * self_weight + &
@@ -252,6 +255,7 @@ contains
     this%leaf_fines_frag(:)   = donor_litt%leaf_fines_frag(:)
     
     this%seed_decay(:)        = donor_litt%seed_decay(:)
+    this%non_seed_repro_mass_decay(:)        = donor_litt%non_seed_repro_mass_decay(:) !ahb
     this%seed_germ_decay(:)   = donor_litt%seed_germ_decay(:)
     this%seed_germ_in(:)      = donor_litt%seed_germ_in(:)
     this%root_fines(:,:)      = donor_litt%root_fines(:,:)
@@ -289,6 +293,7 @@ contains
     allocate(this%seed_germ(numpft))
     allocate(this%seed_germ_in(numpft))
     allocate(this%seed_germ_decay(numpft))
+    allocate(this%non_seed_repro_mass_decay(numpft)) !ahb
     allocate(this%seed_decay(numpft))
 
     ! Initialize everything to a nonsense flag
@@ -312,6 +317,7 @@ contains
     this%root_fines_frag(:,:) = fates_unset_r8
 
     this%seed_decay(:)        = fates_unset_r8
+    this%non_seed_repro_mass_decay(:) = fates_unset_r8 !ahb
     this%seed_germ_decay(:)   = fates_unset_r8
     this%seed_germ_in(:)      = fates_unset_r8
 
@@ -376,6 +382,7 @@ contains
     deallocate(this%root_fines_frag)
    
     deallocate(this%seed_decay)
+    deallocate(this%non_seed_repro_mass_decay)
     deallocate(this%seed_germ_decay)
     deallocate(this%seed_germ_in)
 
@@ -402,6 +409,7 @@ contains
     
     this%seed_germ_in(:)      = 0._r8
     this%seed_decay(:)        = 0._r8
+    this%non_seed_repro_mass_decay = 0._r8
     this%seed_germ_decay(:)   = 0._r8
 
 
