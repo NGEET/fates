@@ -1426,7 +1426,7 @@ contains
              call PRTReproRelease(currentCohort%prt,repro_organ,element_id, &
                     1.0_r8, repro_mass_prod) !ahb changed from seed_prod to repro_mass_prod
 
-             seed_prod = repro_mass_prod ! * 0.5_r8 ! only a fraction  of reproductive carbon is seed (ahb) 
+             seed_prod = repro_mass_prod ! only a fraction  of reproductive carbon is seed (ahb) 
 
              ! the remainder goes to non-seed reproductive litter
              !litt%non_seed_repro_mass_decay(pft) = repro_mass_prod * (1.0_r8 - 0.5_r8) ! ahb
