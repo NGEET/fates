@@ -944,15 +944,23 @@ contains
         !START ahb's changes
 
         !original code
-        !-------------------------------------------------------------------------------------!
+        !-------------------------------------------------------------------------------------
         !if (dbh <= prt_params%dbh_repro_threshold(ipft)) then ! cap on leaf biomass
         !   repro_fraction = prt_params%seed_alloc(ipft)
         !else
         !   repro_fraction = prt_params%seed_alloc(ipft) + prt_params%seed_alloc_mature(ipft)
         !end if
-        !-------------------------------------------------------------------------------------!
+        !-------------------------------------------------------------------------------------
+        
+        !new code
+        !-------------------------------------------------------------------------------------
+        !This reproductive allocation function calculates the fraction of available carbon
+        !allocated to reproductive tissue based on a cohort's size. This function is based on
+        !empirical data and analysis at BCI (Visser et al., 2016).
 
-        !new regeneration code (ahb, July 2021)
+        !Visser MD, Bruijning M, Wright SJ, Muller-Landau HC, Jongejans E, Comita LS, 
+        !de Kroon H. 2016. Functional traits as predictors of vital rates across the life cycle 
+        !of tropical trees. Functional Ecology 30: 168–180. 
         !-------------------------------------------------------------------------------------!
         repro_fraction = prt_params%seed_alloc(ipft) * &
         (exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm) / &
