@@ -115,6 +115,9 @@ module FatesRestartInterfaceMod
   integer :: ir_smort_co
   integer :: ir_asmort_co
   integer :: ir_c_area_co
+  integer :: ir_treelai_co
+  integer :: ir_treesai_co
+  integer :: ir_canopy_layer_tlai_pa
 
   integer :: ir_daily_n_uptake_co
   integer :: ir_daily_p_uptake_co
@@ -1017,6 +1020,18 @@ contains
              long_name='area of the fates cohort', &
              units='m2', flushval = flushzero, &
              hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_c_area_co )
+         call this%set_restart_var(vname='fates_cohort_treelai', vtype=cohort_r8, &
+             long_name='leaf area index of fates cohort', &
+             units='m2/m2', flushval = flushzero, &
+             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_treelai_co )
+         call this%set_restart_var(vname='fates_cohort_treesai', vtype=cohort_r8, &
+             long_name='stem area index of fates cohort', &
+             units='m2/m2', flushval = flushzero, &
+             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_treesai_co )
+         call this%set_restart_var(vname='fates_canopy_layer_tlai_pa', vtype=cohort_r8, &
+             long_name='total patch level leaf area index of each fates canopy layer', &
+             units='m2/m2', flushval = flushzero, &
+             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_canopy_layer_tlai_pa )
     end if
 
 
@@ -1540,6 +1555,7 @@ contains
    use EDTypesMod, only : ed_cohort_type
    use EDTypesMod, only : ed_patch_type
    use EDTypesMod, only : maxSWb
+   use EDTypesMod, only : nclmax
    use EDTypesMod, only : numWaterMem
    use EDTypesMod, only : num_vegtemp_mem
 
@@ -1579,7 +1595,7 @@ contains
     integer  :: io_idx_si_cwd  ! each site-cwd index
     integer  :: io_idx_si_pft  ! each site-pft index
     integer  :: io_idx_si_vtmem ! indices for veg-temp memory at site
-
+    integer  :: io_idx_pa_ncl   ! each canopy layer within each patch
 
     ! Some counters (for checking mostly)
     integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
@@ -1918,6 +1934,8 @@ contains
 
                 if (hlm_use_sp .eq. itrue) then
                     this%rvars(ir_c_area_co)%r81d(io_idx_co) = ccohort%c_area
+                    this%rvars(ir_treelai_co)%r81d(io_idx_co) = ccohort%treelai
+                    this%rvars(ir_treesai_co)%r81d(io_idx_co) = ccohort%treesai
                 end if
 
                 if ( debug ) then
@@ -1970,6 +1988,7 @@ contains
                  io_idx_pa_cwsl = io_idx_co_1st
                  io_idx_pa_dcsl = io_idx_co_1st
                  io_idx_pa_dc   = io_idx_co_1st
+                 io_idx_pa_ncl   = io_idx_co_1st
 
                  litt => cpatch%litter(el+1)
 
@@ -2011,6 +2030,13 @@ contains
                 io_idx_pa_ib = io_idx_pa_ib + 1
              end do
 
+             if (hlm_use_sp .eq. itrue) then
+               do i = 1,nclmax
+                 this%rvars(ir_canopy_layer_tlai_pa)%r81d(io_idx_pa_ncl) = cpatch%canopy_layer_tlai(i)
+                 io_idx_pa_ncl = io_idx_pa_ncl + 1
+               end do
+             end if
+
              ! Set the first cohort index to the start of the next patch, increment
              ! by the maximum number of cohorts per patch
              io_idx_co_1st = io_idx_co_1st + fates_maxElementsPerPatch
@@ -2020,6 +2046,7 @@ contains
              io_idx_pa_cwd  = io_idx_co_1st
              io_idx_pa_ib   = io_idx_co_1st
              io_idx_co      = io_idx_co_1st
+             io_idx_pa_ncl  = io_idx_co_1st
 
              if ( debug ) then
                 write(fates_log(),*) 'CLTV io_idx_co_1st ', io_idx_co_1st
@@ -2335,6 +2362,7 @@ contains
      use EDTypesMod, only : ed_cohort_type
      use EDTypesMod, only : ed_patch_type
      use EDTypesMod, only : maxSWb
+     use EDTypesMod, only : nclmax
      use FatesInterfaceTypesMod, only : numpft
      use FatesInterfaceTypesMod, only : fates_maxElementsPerPatch
      use EDTypesMod, only : numWaterMem
@@ -2383,6 +2411,7 @@ contains
      integer  :: io_idx_si_capf ! each cohort age class x pft index within site
      integer  :: io_idx_si_cwd
      integer  :: io_idx_si_pft
+     integer  :: io_idx_pa_ncl   ! each canopy layer within each patch
 
      ! Some counters (for checking mostly)
      integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
@@ -2502,6 +2531,7 @@ contains
           io_idx_pa_ib   = io_idx_co_1st
           io_idx_si_wmem = io_idx_co_1st
           io_idx_si_vtmem = io_idx_co_1st
+          io_idx_pa_ncl = io_idx_co_1st
 
           ! Hydraulics counters  lyr = hydraulic layer, shell = rhizosphere shell
           io_idx_si_lyr_shell = io_idx_co_1st
@@ -2696,6 +2726,8 @@ contains
 
                 if (hlm_use_sp .eq. itrue) then
                     ccohort%c_area = this%rvars(ir_c_area_co)%r81d(io_idx_co)
+                    ccohort%treelai = this%rvars(ir_treelai_co)%r81d(io_idx_co)
+                    ccohort%treesai = this%rvars(ir_treesai_co)%r81d(io_idx_co)
                 end if
 
                 io_idx_co = io_idx_co + 1
@@ -2787,6 +2819,13 @@ contains
                 io_idx_pa_ib = io_idx_pa_ib + 1
              end do
 
+             if (hlm_use_sp .eq. itrue) then
+               do i = 1,nclmax
+                 cpatch%canopy_layer_tlai(i) = this%rvars(ir_canopy_layer_tlai_pa)%r81d(io_idx_pa_ncl)
+                 io_idx_pa_ncl = io_idx_pa_ncl + 1
+               end do
+             end if
+
              ! Now increment the position of the first cohort to that of the next
              ! patch
 
@@ -2797,6 +2836,7 @@ contains
              io_idx_pa_cwd  = io_idx_co_1st
              io_idx_pa_ib   = io_idx_co_1st
              io_idx_co      = io_idx_co_1st
+             io_idx_pa_ncl  = io_idx_co_1st
 
              if ( debug ) then
                 write(fates_log(),*) 'CVTL io_idx_co_1st ', io_idx_co_1st
