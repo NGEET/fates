@@ -28,9 +28,10 @@ module FatesHydroWTFMod
        __FILE__
 
 
-!  real(r8), parameter :: min_ftc = 0.00001_r8   ! Minimum allowed fraction of total conductance
+  real(r8), parameter :: min_ftc = 0.00001_r8   ! Minimum allowed fraction of total conductance
 !  The above cause negative organ water content
-  real(r8), parameter :: min_ftc = 0.00001e2_r8   ! Minimum allowed fraction of total conductance
+!  real(r8), parameter :: min_ftc = 0.00001e2_r8   ! Minimum allowed fraction of total conductance
+!  real(r8), parameter :: min_ftc = 1.e-10_r8   ! Minimum allowed fraction of total conductance
                                                
   ! Bounds on saturated fraction, outside of which we use linear PV or stop flow
   ! In this context, the saturated fraction is defined by the volumetric WC "th"
@@ -74,6 +75,7 @@ module FatesHydroWTFMod
      procedure :: dpsidth_from_th => dpsidth_from_th_base
      procedure :: set_wrf_param   => set_wrf_param_base
      procedure :: get_thsat       => get_thsat_base
+     procedure :: get_thmin       => get_thmin_base
 
      ! All brands of WRFs have access to these tools to operate
      ! above and below sat and residual, should they want to
@@ -123,6 +125,7 @@ module FatesHydroWTFMod
      procedure :: dpsidth_from_th => dpsidth_from_th_vg
      procedure :: set_wrf_param   => set_wrf_param_vg
      procedure :: get_thsat       => get_thsat_vg
+     procedure :: get_thmin       => get_thmin_vg
   end type wrf_type_vg
 
   ! Water Conductivity Function
@@ -153,6 +156,7 @@ module FatesHydroWTFMod
      procedure :: dpsidth_from_th => dpsidth_from_th_cch
      procedure :: set_wrf_param   => set_wrf_param_cch
      procedure :: get_thsat       => get_thsat_cch
+     procedure :: get_thmin       => get_thmin_cch
   end type wrf_type_cch
 
   ! Water Conductivity Function
@@ -182,6 +186,7 @@ module FatesHydroWTFMod
      procedure :: dpsidth_from_th => dpsidth_from_th_smooth_cch
      procedure :: set_wrf_param   => set_wrf_param_smooth_cch
      procedure :: get_thsat       => get_thsat_smooth_cch
+     procedure :: get_thmin       => get_thmin_smooth_cch
   end type wrf_type_smooth_cch
 
   ! Water Conductivity Function
@@ -218,6 +223,7 @@ module FatesHydroWTFMod
      procedure :: dpsidth_from_th => dpsidth_from_th_tfs
      procedure :: set_wrf_param   => set_wrf_param_tfs
      procedure :: get_thsat       => get_thsat_tfs
+     procedure :: get_thmin       => get_thmin_tfs
      procedure :: bisect_pv
   end type wrf_type_tfs
 
@@ -341,6 +347,14 @@ contains
     write(fates_log(),*) 'check how the class pointer was setup'
     call endrun(msg=errMsg(sourcefile, __LINE__))
   end function get_thsat_base
+  function get_thmin_base(this) result(th_sat)
+    class(wrf_type)     :: this
+    real(r8)            :: th_sat
+    write(fates_log(),*) 'The base thmin call'
+    write(fates_log(),*) 'should never be actualized'
+    write(fates_log(),*) 'check how the class pointer was setup'
+    call endrun(msg=errMsg(sourcefile, __LINE__))
+  end function get_thmin_base
   subroutine set_wkf_param_base(this,params_in)
     class(wkf_type)     :: this
     real(r8),intent(in) :: params_in(:)
@@ -444,6 +458,15 @@ contains
       th_sat = this%th_sat
       
   end function get_thsat_vg
+  ! =====================================================================================
+
+  function get_thmin_vg(this) result(th_min)
+      class(wrf_type_vg)   :: this
+      real(r8) :: th_min
+      
+      th_min = this%th_min
+      
+  end function get_thmin_vg
   
   ! =====================================================================================
   
@@ -717,6 +740,15 @@ contains
       th_sat = this%th_sat
       
   end function get_thsat_cch
+  ! =====================================================================================
+
+  function get_thmin_cch(this) result(th_min)
+      class(wrf_type_cch)   :: this
+      real(r8) :: th_min
+      
+      th_min = this%th_min
+      
+  end function get_thmin_cch
   
   ! =====================================================================================
   
@@ -970,6 +1002,15 @@ contains
       th_sat = this%th_sat
       
   end function get_thsat_smooth_cch
+  ! =====================================================================================
+
+  function get_thmin_smooth_cch(this) result(th_min)
+      class(wrf_type_smooth_cch)   :: this
+      real(r8) :: th_min
+      
+      th_min = this%th_min
+      
+  end function get_thmin_smooth_cch
   
   ! =====================================================================================
   
@@ -1456,6 +1497,15 @@ contains
       th_sat = this%th_sat
       
   end function get_thsat_tfs
+  ! =====================================================================================
+
+  function get_thmin_tfs(this) result(th_min)
+      class(wrf_type_tfs)   :: this
+      real(r8) :: th_min
+      
+      th_min = this%th_min
+      
+  end function get_thmin_tfs
   
   ! =====================================================================================
   
