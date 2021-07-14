@@ -1584,11 +1584,32 @@ contains
     ! and thus the mortality rate (in units of individuals) is the product of 
     ! that times the ratio of (hypothetical) seed mass to recruit biomass
 
+    !ORIGINAL CODE	
+    !-------------------------------------------------------------------------------------------
     do pft = 1,numpft
        litt%seed_germ_in(pft) =  min(litt%seed(pft) * EDPftvarcon_inst%germination_rate(pft), &  
                                      max_germination)*years_per_day
-       
-       !set the germination only under the growing season...c.xu
+    !-------------------------------------------------------------------------------------------   
+    
+    !ahb NEW CODE
+    !-------------------------------------------------------------------------------------------
+    !Step 1. Define a variable that is the mean SMP in the top 6 cm over the prior 14 days
+	
+        !real(r8),parameter :: demerg_soil_depth = 0.06_r8
+        !ilayer_swater_emerg = minloc(abs(bc_in%z_sisl(:)-demerg_soil_depth),dim=1)
+	!smp_emerg_today = bc_in%smp_sl(ilayer_swater_emerg)
+        !currentSite%water_memory_emerg(1) = smp_emerg_today
+        !NEED TO BUILD OUT THIS WATER MEMORY MORE
+
+    !do pft = 1,numpft
+    !   litt%seed_germ_in(pft) =  min(litt%seed(pft) * EDPftvarcon_inst%germination_rate(pft), &  
+    !                                 max_germination)*years_per_day
+    !-------------------------------------------------------------------------------------------
+
+
+
+
+    !set the germination only under the growing season...c.xu
 
        if ((prt_params%season_decid(pft) == itrue ) .and. &
              (any(cold_stat == [phen_cstat_nevercold,phen_cstat_iscold]))) then
