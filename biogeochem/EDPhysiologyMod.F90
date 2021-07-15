@@ -1484,6 +1484,11 @@ contains
              ! Seed input from local sources (within site)
              litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)/area
 
+             !new code 7/14/2021 ahb
+             !--------------------------------
+             litt%seed_decay(pft) = litt%seed_in_local(pft) * 0.5_r8
+             !--------------------------------
+
              ! If there is forced external seed rain, we calculate the input mass flux
              ! from the different elements, usung the seed optimal stoichiometry
              ! for non-carbon
