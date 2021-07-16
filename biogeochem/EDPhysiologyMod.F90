@@ -1407,47 +1407,9 @@ contains
              ! of seeds [kg] released by the plant, per the mass_fraction
              ! specified as input.  This routine will also remove the mass
              ! from the parteh state-variable.
-
-
-
-
-
-             !START ahb changes
              
-             !--------------------------------------------------------------------------
-             !original code
              call PRTReproRelease(currentCohort%prt,repro_organ,element_id, &
                    1.0_r8, seed_prod)
-             !--------------------------------------------------------------------------
-
-             !--------------------------------------------------------------------------
-             !ahb's new code
-             !the original code sends all reproductive tissue to seed
-             !This new code, added by ahb, is designed to send some reproductive biomass 
-             !straight to the leaf litter pool to account for non-seed reproductive
-             !biomass. For now, ahb does this after the call to the
-             !PRTReproRelease function, but a better solution would probably be to do 
-             !this within the PRTReproRelease module in parteh/PRTLossFluxesMod.F90::L342 
-             !by adding new live reproductive organs (ahb needs help with this).
-
-             !call PRTReproRelease(currentCohort%prt,repro_organ,element_id, &
-             !       1.0_r8, repro_mass_prod) !ahb changed from seed_prod to repro_mass_prod
-
-             !seed_prod = repro_mass_prod * repro_frac_seed ! seed production per ind. (ahb)
-                                                            ! only a fraction  of reproductive (ahb) 
-                                                            ! mass is seed (ahb) 
-             
-             !non_seed_repro_prod = repro_mass_prod * (1.0_r8 - repro_frac_seed) !non-seed repro (ahb) 
-                                                                                 !mass per ind. (ahb)
-
-             !litt%seed_decay(pft) = non_seed_repro_prod * currentCohort%n / area !send non-seed repro mass to seed decay pool
-             !---------------------------------------------------------------------------            
-              
-             !END ahb changes
-
-
-
-
                           
              if(element_id==carbon12_element)then
                  currentcohort%seed_prod = seed_prod 
@@ -1484,7 +1446,12 @@ contains
              ! Seed input from local sources (within site)
              litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)/area
 
-             !new code 7/14/2021 ahb
+             !New regeneration code added by ahb on 7/15/2021
+             !The original code sends all reproductive tissue to seed
+             !This new code is designed to send some reproductive biomass 
+             !straight to the leaf litter pool to account for non-seed reproductive
+             !biomass. Also see small change to SeedDecay subroutine.
+             !This can be turned off by commenting out line 1456.
              !--------------------------------
              litt%seed_decay(pft) = litt%seed_in_local(pft) * (1.0_r8 - EDPftvarcon_inst%repro_frac_seed(pft)) !ahb
              !--------------------------------
