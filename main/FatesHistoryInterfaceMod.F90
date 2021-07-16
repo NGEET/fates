@@ -3377,12 +3377,6 @@ end subroutine flush_hvars
 
          end do
 
-         ! and reset the disturbance-related field buffers
-
-         do el = 1, num_elements
-             call sites(s)%flux_diags(el)%ZeroFluxDiags()
-         end do
-
       enddo ! site loop
       
     end associate
