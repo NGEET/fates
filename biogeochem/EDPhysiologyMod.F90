@@ -1367,7 +1367,7 @@ contains
     real(r8) :: seed_in_external       ! Mass of externally generated seeds [kg/m2/day]
     real(r8) :: seed_stoich            ! Mass ratio of nutrient per C12 in seeds [kg/kg]
     real(r8) :: repro_mass_prod        ! Mass of reproductive material produced [kg/day] ; added by ahb 7/8/2021
-    !real(r8), parameter :: repro_frac_seed = 0.5        !added by ahb 7/12/2021
+    real(r8), parameter :: repro_frac_seed = 0.5        !added by ahb 7/12/2021; move this to param file
     real(r8) :: seed_prod              ! Seed produced in this dynamics step [kg/day]
     real(r8) :: non_seed_repro_prod    ! Mass of non-seed reproductive material produced [kg/day] ; added by ahb 7/10/2021
     integer  :: n_litt_types           ! number of litter element types (c,n,p, etc)
@@ -1486,7 +1486,7 @@ contains
 
              !new code 7/14/2021 ahb
              !--------------------------------
-             litt%seed_decay(pft) = litt%seed_in_local(pft) * 0.5_r8
+             litt%seed_decay(pft) = litt%seed_in_local(pft) * (1.0_r8 - EDPftvarcon_inst%repro_frac_seed(pft)) !ahb
              !--------------------------------
 
              ! If there is forced external seed rain, we calculate the input mass flux
@@ -1545,8 +1545,9 @@ contains
 
     do pft = 1,numpft 
        litt%seed_decay(pft) = litt%seed(pft) * & 
-             EDPftvarcon_inst%seed_decay_rate(pft)*years_per_day ! + & ! "+ &" added by ahb (7/10/2021)
-    !         litt%seed_decay(pft) ! whole line added by ahb (7/10/2021)
+             EDPftvarcon_inst%seed_decay_rate(pft)*years_per_day  + & ! "+ &" added by ahb (7/10/2021)
+             litt%seed_decay(pft) ! line added by ahb so that the flux from non-seed reproductive
+                                  ! biomass (from SeedIn subroutine) is not lost  (7/10/2021)
 
        litt%seed_germ_decay(pft) = litt%seed_germ(pft) * &
              EDPftvarcon_inst%seed_decay_rate(pft)*years_per_day
