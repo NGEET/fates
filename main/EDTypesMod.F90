@@ -444,6 +444,7 @@ module EDTypesMod
      integer  ::  ncan(nclmax,maxpft)                           ! number of total   leaf layers for each canopy layer and pft
 
      !RADIATION FLUXES      
+     real(r8) :: fcansno                                        ! Fraction of canopy covered in snow
 
      logical  ::  solar_zenith_flag                             ! integer flag specifying daylight (based on zenith angle)
      real(r8) ::  solar_zenith_angle                            ! solar zenith angle (radians)

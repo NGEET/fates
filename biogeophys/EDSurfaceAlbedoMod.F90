@@ -46,9 +46,20 @@ module EDSurfaceRadiationMod
   logical :: debug = .false.  ! for debugging this module
 
   
-  real(r8), public  :: albice(maxSWb) = &       ! albedo land ice by waveband (1=vis, 2=nir)
-        (/ 0.80_r8, 0.55_r8 /)
+!  real(r8), public  :: albice(maxSWb) = &       ! albedo land ice by waveband (1=vis, 2=nir)
+ !       (/ 0.80_r8, 0.55_r8 /)
 
+!parameters of canopy snow reflectance model. 
+! the parameters in the 2-stream model are not directly analagous to those here
+! and so they are stored here for now in common with the ice parameters above.
+! in principle these could be moved to the parameter file. 
+ 
+  real(r8), public  :: albice(maxSWb) = &       ! albedo land ice by waveband (1=vis, 2=nir)       
+        (/ 0.80_r8, 0.55_r8 /)
+  real(r8), public  :: rho_snow(maxSWb) = &       ! albedo land ice by waveband (1=vis, 2=nir)     
+        (/ 0.80_r8, 0.55_r8 /)
+  real(r8), public  :: tau_snow(maxSWb) = &       ! albedo land ice by waveband (1=vis, 2=nir)  
+        (/ 0.01_r8, 0.01_r8 /)
 contains
    
   subroutine ED_Norman_Radiation (nsites, sites, bc_in, bc_out )
@@ -109,6 +120,7 @@ contains
               currentPatch%solar_zenith_angle        = bc_in(s)%coszen_pa(ifp)
               currentPatch%gnd_alb_dif(1:hlm_numSWb) = bc_in(s)%albgr_dif_rb(1:hlm_numSWb)
               currentPatch%gnd_alb_dir(1:hlm_numSWb) = bc_in(s)%albgr_dir_rb(1:hlm_numSWb)
+              currentPatch%fcansno                   = bc_in(s)%fcansno_pa(ifp)
 
               if(currentPatch%solar_zenith_flag )then
 
@@ -316,7 +328,12 @@ contains
 
                       rho_layer(L,ft,iv,ib)=frac_lai*rhol(ft,ib)+frac_sai*rhos(ft,ib)
                       tau_layer(L,ft,iv,ib)=frac_lai*taul(ft,ib)+frac_sai*taus(ft,ib)
-                     
+
+                      ! adjust reflectance and transmittance for canopy snow
+                      rho_layer(L,ft,iv,ib)=rho_layer(L,ft,iv,ib)*(1.0_r8- currentPatch%fcansno) &
+                      + rho_snow(ib) * currentPatch%fcansno
+                      tau_layer(L,ft,iv,ib)=tau_layer(L,ft,iv,ib)*(1.0_r8- currentPatch%fcansno) &
+                      + tau_snow(ib) * currentPatch%fcansno
                   end do !ib
                endif
             end do !iv

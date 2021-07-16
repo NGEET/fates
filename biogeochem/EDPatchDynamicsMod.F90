@@ -2185,6 +2185,7 @@ contains
 
     currentPatch%solar_zenith_flag          = .false.
     currentPatch%solar_zenith_angle         = nan
+    currentPatch%fcansno                    = nan
 
     currentPatch%gnd_alb_dir(:)             = nan
     currentPatch%gnd_alb_dif(:)             = nan
