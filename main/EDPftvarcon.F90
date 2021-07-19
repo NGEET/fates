@@ -104,6 +104,9 @@ module EDPftvarcon
                                                          ! ungerminated), decaying per year    (yr-1)
      
      real(r8), allocatable :: repro_frac_seed(:)         ! added by ahb 7/15/2021
+     real(r8), allocatable :: a_emerg(:)                     ! added by ahb 7/19/2021
+     real(r8), allocatable :: b_emerg(:)                     ! added by ahb 7/19/2021
+     real(r8), allocatable :: par_crit_germ(:)              ! added by ahb 7/19/2021
      real(r8), allocatable :: trim_limit(:)              ! Limit to reductions in leaf area w stress (m2/m2)
      real(r8), allocatable :: trim_inc(:)                ! Incremental change in trimming function   (m2/m2)
      real(r8), allocatable :: rhol(:, :)
@@ -518,6 +521,18 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_a_emerg'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+                 
+    name = 'fates_b_emerg'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+                 
+    name = 'fates_par_crit_germ'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+                 
     name = 'fates_seed_decay_rate'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -853,6 +868,18 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%repro_frac_seed)
 
+    name = 'fates_a_emerg'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%a_emerg)
+             
+    name = 'fates_b_emerg'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%b_emerg)
+    
+    name = 'fates_par_crit_germ'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%par_crit_germ)
+                              
     name = 'fates_seed_decay_rate'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%seed_decay_rate)
@@ -1340,6 +1367,9 @@ contains
         write(fates_log(),fmt0) 'germination_timescale = ',EDPftvarcon_inst%germination_rate
         write(fates_log(),fmt0) 'seed_decay_turnover = ',EDPftvarcon_inst%seed_decay_rate
         write(fates_log(),fmt0) 'repro_frac_seed = ',EDPftvarcon_inst%repro_frac_seed
+        write(fates_log(),fmt0) 'a_emerg = ',EDPftvarcon_inst%a_emerg
+        write(fates_log(),fmt0) 'b_emerg = ',EDPftvarcon_inst%b_emerg
+        write(fates_log(),fmt0) 'par_crit_germ = ',EDPftvarcon_inst%par_crit_germ
         write(fates_log(),fmt0) 'trim_limit = ',EDPftvarcon_inst%trim_limit
         write(fates_log(),fmt0) 'trim_inc = ',EDPftvarcon_inst%trim_inc
         write(fates_log(),fmt0) 'rhol = ',EDPftvarcon_inst%rhol
