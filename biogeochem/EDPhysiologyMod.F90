@@ -231,7 +231,8 @@ contains
        ! Calculate seed germination rate, the status flags prevent
        ! germination from occuring when the site is in a drought 
        ! (for drought deciduous) or too cold (for cold deciduous)
-       call SeedGermination(litt, currentSite%cstatus, currentSite%dstatus)
+       call SeedGermination(litt, currentSite%cstatus, currentSite%dstatus, bc_in, currentPatch) !ahb added currentPatch
+       
        
        ! Send fluxes from newly created litter into the litter pools
        ! This litter flux is from non-disturbance inducing mortality, as well
@@ -1525,18 +1526,20 @@ contains
   end subroutine SeedDecay
 
   ! ============================================================================
-  subroutine SeedGermination( litt, cold_stat, drought_stat )
+  subroutine SeedGermination( litt, cold_stat, drought_stat, bc_in, currentPatch ) !ahb added currentPatch
     !
     ! !DESCRIPTION:
-    !  Flux from seed pool into sapling pool    
+    !  Flux from seed bank into the seedling pool    
     !
     ! !USES:
     
     !
     ! !ARGUMENTS
     type(litter_type) :: litt  
-    integer, intent(in) :: cold_stat    ! Is the site in cold leaf-off status?
-    integer, intent(in) :: drought_stat ! Is the site in drought leaf-off status?
+    integer, intent(in) :: cold_stat      ! Is the site in cold leaf-off status?
+    integer, intent(in) :: drought_stat   ! Is the site in drought leaf-off status?
+    type(bc_in_type), intent(in) :: bc_in ! ahb added this
+    type(ed_patch_type), intent(in) :: currentPatch
     !
     ! !LOCAL VARIABLES:
     integer :: pft
@@ -1544,6 +1547,23 @@ contains
    
     real(r8), parameter ::  max_germination = 1.0_r8 ! Cap on germination rates. 
                                                     ! KgC/m2/yr Lishcke et al. 2009
+
+
+    !New seedling emergence parameters (ahb)
+
+         real(r8), parameter :: emerg_soil_depth = 0.06    !soil depth (m) for emergence
+         real(r8), parameter :: mpa_per_mm_suction = 1.e-5
+         real(r8), parameter :: a_emerg = 0.0006 
+         real(r8), parameter :: b_emerg = 1.6
+         integer :: ilayer_swater_emerg
+         real(r8) :: f_PAR
+         real(r8), parameter :: PAR_crit = 70
+         real(r8) :: wetness_index
+         real(r8) :: f_emerg
+         real(r8) :: SMP_seed                               !SMP at emerg_soil_depth
+         real(r8) :: PAR_seed                               !PAR at seedling layer
+
+
 
     ! Turning of this cap? because the cap will impose changes on proportionality
     ! of nutrients. (RGK 02-2019)
@@ -1559,27 +1579,32 @@ contains
 
     !ORIGINAL CODE	
     !-------------------------------------------------------------------------------------------
-    do pft = 1,numpft
-       litt%seed_germ_in(pft) =  min(litt%seed(pft) * EDPftvarcon_inst%germination_rate(pft), &  
-                                     max_germination)*years_per_day
+    !do pft = 1,numpft
+    !   litt%seed_germ_in(pft) =  min(litt%seed(pft) * EDPftvarcon_inst%germination_rate(pft), &  
+    !                                 max_germination)*years_per_day
     !-------------------------------------------------------------------------------------------   
     
     !ahb NEW CODE
     !-------------------------------------------------------------------------------------------
-    !Step 1. Define a variable that is the mean SMP in the top 6 cm over the prior 14 days
-	
-        !real(r8),parameter :: demerg_soil_depth = 0.06_r8
-        !ilayer_swater_emerg = minloc(abs(bc_in%z_sisl(:)-demerg_soil_depth),dim=1)
-	!smp_emerg_today = bc_in%smp_sl(ilayer_swater_emerg)
-        !currentSite%water_memory_emerg(1) = smp_emerg_today
-        !NEED TO BUILD OUT THIS WATER MEMORY MORE
+    !Step 1. calculate the photoblastic germination rate modifier
+        PAR_seed = currentPatch%parprof_pft_dir_z(1,1,1) !(ican, pft, ileaf)      !PAR at lowest layer?
+                                                                                  !W-M2... (mean over 24 hrs?)
+        PAR_seed = PAR_seed * 4.6                                                 !covert to umol s-1 of PAR
+        f_PAR = PAR_seed / (PAR_seed + PAR_crit)                                  !calculate photoblastic germ rate
+                                                                                  !modifier        
+    !Step 2. calculate the soil matric potential at 'emerg_soil_depth' (m)	
+        ilayer_swater_emerg = minloc(abs(bc_in%z_sisl(:)-emerg_soil_depth),dim=1) !define soil layer
+    	SMP_seed = bc_in%smp_sl(ilayer_swater_emerg)                              !calculate smp (mm H20 suction?)
+    	wetness_index = 1.0_r8 / (SMP_seed * -1.0_r8 * mpa_per_mm_suction)        !calculate wetness
 
-    !do pft = 1,numpft
-    !   litt%seed_germ_in(pft) =  min(litt%seed(pft) * EDPftvarcon_inst%germination_rate(pft), &  
-    !                                 max_germination)*years_per_day
+    !Step 3. calculate the seedling emergence rate based on SMP_seed and f_PAR 
+    	f_emerg = f_PAR * a_emerg * wetness_index**b_emerg
+     
+    !Step 4. calculate the 'seed_germ_in' flux                                    !put all code inside loop
+                                                                                  !when params become pft-specific    
+    do pft = 1,numpft
+       litt%seed_germ_in(pft) =  min(litt%seed(pft) * f_emerg, max_germination)
     !-------------------------------------------------------------------------------------------
-
-
 
 
     !set the germination only under the growing season...c.xu
