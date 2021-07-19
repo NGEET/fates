@@ -2180,9 +2180,11 @@ contains
     currentPatch%c_stomata                  = 0.0_r8 ! This is calculated immediately before use
     currentPatch%c_lblayer                  = 0.0_r8
     currentPatch%fragmentation_scaler(:)    = 0.0_r8
+    currentPatch%radiation_error            = 0.0_r8
 
     currentPatch%solar_zenith_flag          = .false.
     currentPatch%solar_zenith_angle         = nan
+    currentPatch%fcansno                    = nan
 
     currentPatch%gnd_alb_dir(:)             = nan
     currentPatch%gnd_alb_dif(:)             = nan
@@ -2519,7 +2521,8 @@ contains
     rp%zstar                = (dp%zstar*dp%area + rp%zstar*rp%area) * inv_sum_area
     rp%c_stomata            = (dp%c_stomata*dp%area + rp%c_stomata*rp%area) * inv_sum_area
     rp%c_lblayer            = (dp%c_lblayer*dp%area + rp%c_lblayer*rp%area) * inv_sum_area
-    
+    rp%radiation_error      = (dp%radiation_error*dp%area + rp%radiation_error*rp%area) * inv_sum_area
+
     rp%area = rp%area + dp%area !THIS MUST COME AT THE END!
 
     !insert donor cohorts into recipient patch

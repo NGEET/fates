@@ -442,7 +442,10 @@ module FatesInterfaceTypesMod
       !           I am leaving it at this scale for simplicity.  Patches should
       !           have no spacially variable information
       real(r8), allocatable :: coszen_pa(:)
-      
+
+      ! fraction of canopy that is covered in snow
+      real(r8), allocatable :: fcansno_pa(:)
+       
       ! Abledo of the ground for direct radiation, by site broadband (0-1)
       real(r8), allocatable :: albgr_dir_rb(:)
 
