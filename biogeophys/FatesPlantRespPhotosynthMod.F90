@@ -3,7 +3,7 @@ module FATESPlantRespPhotosynthMod
   !-------------------------------------------------------------------------------------
   ! !DESCRIPTION:
   ! Calculates the plant respiration and photosynthetic fluxes for the FATES model
-  ! This code is similar to and was originally based off of the 'photosynthesis' 
+  ! This code is similar to and was originally based off of the 'photosynthesis'
   ! subroutine in the CLM model.
   !
   ! Parameter for activation and deactivation energies were taken from:
@@ -33,10 +33,10 @@ module FATESPlantRespPhotosynthMod
   use EDTypesMod,        only : nlevleaf
   use EDTypesMod,        only : nclmax
   use PRTGenericMod,     only : max_nleafage
-  use EDTypesMod,        only : do_fates_salinity 
+  use EDTypesMod,        only : do_fates_salinity
   use EDParamsMod,       only : q10_mr
   use PRTGenericMod,     only : prt_carbon_allom_hyp
-  use PRTGenericMod,     only : prt_cnp_flex_allom_hyp 
+  use PRTGenericMod,     only : prt_cnp_flex_allom_hyp
   use PRTGenericMod,     only : all_carbon_elements
   use PRTGenericMod,     only : nitrogen_element
   use PRTGenericMod,     only : leaf_organ
@@ -61,7 +61,7 @@ module FATESPlantRespPhotosynthMod
   !-------------------------------------------------------------------------------------
 
   ! maximum stomatal resistance [s/m] (used across several procedures)
-  real(r8),parameter :: rsmax0 =  2.e8_r8                    
+  real(r8),parameter :: rsmax0 =  2.e8_r8
 
   logical   ::  debug = .false.
   !-------------------------------------------------------------------------------------
@@ -69,7 +69,7 @@ module FATESPlantRespPhotosynthMod
   ! Ratio of H2O/CO2 gas diffusion in stomatal airspace (approximate)
   real(r8),parameter :: h2o_co2_stoma_diffuse_ratio = 1.6_r8
 
-  ! Ratio of H2O/CO2 gass diffusion in the leaf boundary layer (approximate) 
+  ! Ratio of H2O/CO2 gass diffusion in the leaf boundary layer (approximate)
   real(r8),parameter :: h2o_co2_bl_diffuse_ratio = 1.4_r8
 
 contains
@@ -88,7 +88,7 @@ contains
 
     ! !USES:
 
-    use EDPftvarcon         , only : EDPftvarcon_inst 
+    use EDPftvarcon         , only : EDPftvarcon_inst
 
     use FatesSynchronizedParamsMod , only : FatesSynchronizedParamsInst
     use EDTypesMod        , only : ed_patch_type
@@ -130,7 +130,7 @@ contains
     ! in one loop and then sent to the cohorts in another loop.  If hydraulics are
     ! on, we calculate a unique solution for each level-cohort-layer combination.
     ! If we are not using hydraulics, we calculate a unique solution for each
-    ! level-pft-layer combination.  Thus the following three arrays are statically 
+    ! level-pft-layer combination.  Thus the following three arrays are statically
     ! allocated for the maximum space of the two cases (numCohortsPerPatch)
     ! The "_z" suffix indicates these variables are discretized at the "leaf_layer"
     ! scale.
@@ -145,22 +145,20 @@ contains
     real(r8) :: lmr_z(nlevleaf,maxpft,nclmax)
 
     ! stomatal resistance [s/m]
-    real(r8) :: rs_z(nlevleaf,maxpft,nclmax)    
+    real(r8) :: rs_z(nlevleaf,maxpft,nclmax)
 
     ! net leaf photosynthesis averaged over sun and shade leaves. [umol CO2/m**2/s]
-    real(r8) :: anet_av_z(nlevleaf,maxpft,nclmax)  
+    real(r8) :: anet_av_z(nlevleaf,maxpft,nclmax)
 
     ! Mask used to determine which leaf-layer biophysical rates have been
     ! used already
     logical :: rate_mask_z(nlevleaf,maxpft,nclmax)
 
-    real(r8) :: vcmax_z            ! leaf layer maximum rate of carboxylation 
+    real(r8) :: vcmax_z            ! leaf layer maximum rate of carboxylation
     ! (umol co2/m**2/s)
-    real(r8) :: jmax_z             ! leaf layer maximum electron transport rate 
+    real(r8) :: jmax_z             ! leaf layer maximum electron transport rate
     ! (umol electrons/m**2/s)
-    real(r8) :: tpu_z              ! leaf layer triose phosphate utilization rate 
-    ! (umol CO2/m**2/s)
-    real(r8) :: kp_z               ! leaf layer initial slope of CO2 response 
+    real(r8) :: kp_z               ! leaf layer initial slope of CO2 response
     ! curve (C4 plants)
     real(r8) :: c13disc_z(nclmax,maxpft,nlevleaf) ! carbon 13 in newly assimilated carbon at leaf level
 
@@ -175,13 +173,13 @@ contains
     real(r8) :: ceair              ! vapor pressure of air, constrained (Pa)
     real(r8) :: nscaler            ! leaf nitrogen scaling coefficient
     real(r8) :: leaf_frac          ! ratio of to leaf biomass to total alive biomass
-    real(r8) :: tcsoi              ! Temperature response function for root respiration. 
+    real(r8) :: tcsoi              ! Temperature response function for root respiration.
     real(r8) :: tcwood             ! Temperature response function for wood
 
     real(r8) :: elai               ! exposed LAI (patch scale)
-    real(r8) :: live_stem_n        ! Live stem (above-ground sapwood) 
+    real(r8) :: live_stem_n        ! Live stem (above-ground sapwood)
     ! nitrogen content (kgN/plant)
-    real(r8) :: live_croot_n       ! Live coarse root (below-ground sapwood) 
+    real(r8) :: live_croot_n       ! Live coarse root (below-ground sapwood)
     ! nitrogen content (kgN/plant)
     real(r8) :: sapw_c             ! Sapwood carbon (kgC/plant)
     real(r8) :: store_c_target     ! Target storage carbon (kgC/plant)
@@ -199,7 +197,7 @@ contains
     real(r8) :: r_stomata          ! Mean stomatal resistance across all leaves in the patch [s/m]
 
 
-    real(r8) :: maintresp_reduction_factor  ! factor by which to reduce maintenance 
+    real(r8) :: maintresp_reduction_factor  ! factor by which to reduce maintenance
     ! respiration when storage pools are low
     real(r8) :: b_leaf             ! leaf biomass kgC
     real(r8) :: frac               ! storage pool as a fraction of target leaf biomass
@@ -207,11 +205,11 @@ contains
     ! over each cohort x layer.
     real(r8) :: cohort_eleaf_area  ! This is the effective leaf area [m2] reported by each cohort
     real(r8) :: lnc_top            ! Leaf nitrogen content per unit area at canopy top [gN/m2]
-    real(r8) :: lmr25top           ! canopy top leaf maint resp rate at 25C 
+    real(r8) :: lmr25top           ! canopy top leaf maint resp rate at 25C
     ! for this plant or pft (umol CO2/m**2/s)
     real(r8) :: leaf_inc           ! LAI-only portion of the vegetation increment of dinc_ed
     real(r8) :: lai_canopy_above   ! the LAI in the canopy layers above the layer of interest
-    real(r8) :: lai_layers_above   ! the LAI in the leaf layers, within the current canopy, 
+    real(r8) :: lai_layers_above   ! the LAI in the leaf layers, within the current canopy,
     ! above the leaf layer of interest
     real(r8) :: lai_current        ! the LAI in the current leaf layer
     real(r8) :: cumulative_lai     ! the cumulative LAI, top down, to the leaf layer of interest
@@ -223,7 +221,7 @@ contains
     !
     ! -----------------------------------------------------------------------------------
     !real(r8) :: psncanopy_pa  ! patch sunlit leaf photosynthesis (umol CO2 /m**2/ s)
-    !real(r8) :: lmrcanopy_pa  ! patch sunlit leaf maintenance respiration rate (umol CO2/m**2/s) 
+    !real(r8) :: lmrcanopy_pa  ! patch sunlit leaf maintenance respiration rate (umol CO2/m**2/s)
 
     integer  :: cl,s,iv,j,ps,ft,ifp ! indices
     integer  :: nv                  ! number of leaf layers
@@ -249,9 +247,9 @@ contains
 
     associate(  &
          c3psn     => EDPftvarcon_inst%c3psn  , &
-         slatop    => prt_params%slatop , &  ! specific leaf area at top of canopy, 
+         slatop    => prt_params%slatop , &  ! specific leaf area at top of canopy,
                                 ! projected area basis [m^2/gC]
-         woody     => prt_params%woody,   &  ! Is vegetation woody or not? 
+         woody     => prt_params%woody,   &  ! Is vegetation woody or not?
          stomatal_intercept   => EDPftvarcon_inst%stomatal_intercept ) !Unstressed minimum stomatal conductance
 
 
@@ -271,13 +269,14 @@ contains
 
        do ft = 1,numpft
           call set_root_fraction(rootfr_ft(ft,:), ft, &
-               bc_in(s)%zi_sisl)
+                   bc_in(s)%zi_sisl, &
+                   bc_in(s)%max_rooting_depth_index_col)
        end do
 
 
        ifp = 0
        currentpatch => sites(s)%oldest_patch
-       do while (associated(currentpatch))  
+       do while (associated(currentpatch))
           if(currentpatch%nocomp_pft_label.ne.0)then
              ifp   = ifp+1
              NCL_p = currentPatch%NCL_p
@@ -290,7 +289,7 @@ contains
              g_sb_leaves = 0._r8
              check_elai  = 0._r8
 
-             ! Part II. Filter out patches 
+             ! Part II. Filter out patches
              ! Patch level filter flag for photosynthesis calculations
              ! has a short memory, flags:
              ! 1 = patch has not been called
@@ -300,8 +299,8 @@ contains
              if(bc_in(s)%filter_photo_pa(ifp)==2)then
 
 
-                ! Part III. Calculate the number of sublayers for each pft and layer.  
-                ! And then identify which layer/pft combinations have things in them.  
+                ! Part III. Calculate the number of sublayers for each pft and layer.
+                ! And then identify which layer/pft combinations have things in them.
                 ! Output:
                 ! currentPatch%ncan(:,:)
                 ! currentPatch%canopy_mask(:,:)
@@ -322,7 +321,7 @@ contains
                      bc_in(s)%eair_pa(ifp),    & ! in
                      bc_in(s)%esat_tv_pa(ifp), & ! in
                      bc_in(s)%rb_pa(ifp),      & ! in
-                     mm_kco2,                  & ! out              
+                     mm_kco2,                  & ! out
                      mm_ko2,                   & ! out
                      co2_cpoint,               & ! out
                      cf,                       & ! out
@@ -336,7 +335,7 @@ contains
                 ! Part VI: Loop over all leaf layers.
                 ! The concept of leaf layers is a result of the radiative transfer scheme.
                 ! A leaf layer has uniform radiation environment.  Leaf layers are a group
-                ! of vegetation surfaces (stems and leaves) which inhabit the same 
+                ! of vegetation surfaces (stems and leaves) which inhabit the same
                 ! canopy-layer "CL", have the same functional type "ft" and within those
                 ! two partitions are further partitioned into vertical layers where
                 ! downwelling radiation attenuates in order.
@@ -348,7 +347,7 @@ contains
                 ! With plant hydraulics, we must realize that photosynthesis and
                 ! respiration will be different for leaves of each cohort in the leaf
                 ! layers, as they will have there own hydraulic limitations.
-                ! NOTE: Only need to flush mask on the number of used pfts, not the whole 
+                ! NOTE: Only need to flush mask on the number of used pfts, not the whole
                 ! scratch space.
                 ! ------------------------------------------------------------------------
                 rate_mask_z(:,1:numpft,:) = .false.
@@ -367,14 +366,14 @@ contains
                       !                     call bstore_allom(currentCohort%dbh,currentCohort%pft, &
                       !                                       currentCohort%canopy_trim,store_c_target)
 
-                      call storage_fraction_of_target(store_c_target, & 
+                      call storage_fraction_of_target(store_c_target, &
                            currentCohort%prt%GetState(store_organ, all_carbon_elements), &
                            frac)
                       call lowstorage_maintresp_reduction(frac,currentCohort%pft, &
                            maintresp_reduction_factor)
 
                       ! are there any leaves of this pft in this layer?
-                      if(currentPatch%canopy_mask(cl,ft) == 1)then 
+                      if(currentPatch%canopy_mask(cl,ft) == 1)then
 
                          ! Loop over leaf-layers
                          do iv = 1,currentCohort%nv
@@ -382,9 +381,9 @@ contains
                             ! ------------------------------------------------------------
                             ! If we are doing plant hydro-dynamics (or any run-type
                             ! where cohorts may generate different photosynthetic rates
-                            ! of other cohorts in the same canopy-pft-layer combo), 
-                            ! we re-calculate the leaf biophysical rates for the 
-                            ! cohort-layer combo of interest.  
+                            ! of other cohorts in the same canopy-pft-layer combo),
+                            ! we re-calculate the leaf biophysical rates for the
+                            ! cohort-layer combo of interest.
                             ! but in the vanilla case, we only re-calculate if it has
                             ! not been done yet.
                             ! Other cases where we need to solve for every cohort
@@ -400,7 +399,7 @@ contains
                                if (hlm_use_planthydro.eq.itrue ) then
 
                                   stomatal_intercept_btran = max( cf/rsmax0,stomatal_intercept(ft)*currentCohort%co_hydr%btran )
-                                  btran_eff = currentCohort%co_hydr%btran 
+                                  btran_eff = currentCohort%co_hydr%btran
 
                                   ! dinc_ed is the total vegetation area index of each "leaf" layer
                                   ! we convert to the leaf only portion of the increment
@@ -409,18 +408,18 @@ contains
                                        currentCohort%treelai/(currentCohort%treelai+currentCohort%treesai)
 
                                   ! Now calculate the cumulative top-down lai of the current layer's midpoint
-                                  lai_canopy_above  = sum(currentPatch%canopy_layer_tlai(1:cl-1)) 
+                                  lai_canopy_above  = sum(currentPatch%canopy_layer_tlai(1:cl-1))
                                   lai_layers_above  = leaf_inc * (iv-1)
                                   lai_current       = min(leaf_inc, currentCohort%treelai - lai_layers_above)
-                                  cumulative_lai    = lai_canopy_above + lai_layers_above + 0.5*lai_current 
+                                  cumulative_lai    = lai_canopy_above + lai_layers_above + 0.5*lai_current
 
                                else
 
-                                  stomatal_intercept_btran = max( cf/rsmax0,stomatal_intercept(ft)*currentPatch%btran_ft(ft) ) 
+                                  stomatal_intercept_btran = max( cf/rsmax0,stomatal_intercept(ft)*currentPatch%btran_ft(ft) )
 
                                   btran_eff = currentPatch%btran_ft(ft)
                                   ! For consistency sake, we use total LAI here, and not exposed
-                                  ! if the plant is under-snow, it will be effectively dormant for 
+                                  ! if the plant is under-snow, it will be effectively dormant for
                                   ! the purposes of nscaler
 
                                   cumulative_lai = sum(currentPatch%canopy_layer_tlai(1:cl-1))  + &
@@ -436,7 +435,7 @@ contains
 
 
                                ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593 used
-                               ! kn = 0.11. Here, derive kn from vcmax25 as in Lloyd et al 
+                               ! kn = 0.11. Here, derive kn from vcmax25 as in Lloyd et al
                                ! (2010) Biogeosciences, 7, 1833-1859
 
                                kn = decay_coeff_kn(ft,currentCohort%vcmax25top)
@@ -455,7 +454,7 @@ contains
                                select case(hlm_parteh_mode)
                                case (prt_carbon_allom_hyp)
 
-                                  lnc_top  = prt_params%nitr_stoich_p1(ft,leaf_organ)/slatop(ft)
+                                 lnc_top  = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/slatop(ft)
 
                                case (prt_cnp_flex_allom_hyp)
 
@@ -464,12 +463,12 @@ contains
                                      leaf_n  = currentCohort%prt%GetState(leaf_organ, nitrogen_element)
                                      lnc_top = leaf_n / (slatop(ft) * leaf_c )
                                   else
-                                     lnc_top  = prt_params%nitr_stoich_p1(ft,leaf_organ)/slatop(ft)
+                                    lnc_top  = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/slatop(ft)
                                   end if
 
                                   ! If one wants to break coupling with dynamic N conentrations,
                                   ! use the stoichiometry parameter
-                                  ! lnc_top  = prt_params%nitr_stoich_p1(ft,leaf_organ)/slatop(ft)
+                                 ! lnc_top  = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/slatop(ft)
 
                                end select
 
@@ -484,9 +483,9 @@ contains
                                     bc_in(s)%t_veg_pa(ifp),   &  ! in
                                     lmr_z(iv,ft,cl))             ! out
 
-                               ! Part VII: Calculate (1) maximum rate of carboxylation (vcmax), 
-                               ! (2) maximum electron transport rate, (3) triose phosphate 
-                               ! utilization rate and (4) the initial slope of CO2 response curve 
+                               ! Part VII: Calculate (1) maximum rate of carboxylation (vcmax),
+                               ! (2) maximum electron transport rate, (3) triose phosphate
+                               ! utilization rate and (4) the initial slope of CO2 response curve
                                ! (C4 plants). Earlier we calculated their base rates as dictated
                                ! by their plant functional type and some simple scaling rules for
                                ! nitrogen limitation baesd on canopy position (not prognostic).
@@ -500,17 +499,15 @@ contains
                                     ft,                                 &  ! in
                                     currentCohort%vcmax25top,           &  ! in
                                     currentCohort%jmax25top,            &  ! in
-                                    currentCohort%tpu25top,             &  ! in
                                     currentCohort%kp25top,              &  ! in
                                     nscaler,                            &  ! in
                                     bc_in(s)%t_veg_pa(ifp),             &  ! in
                                     btran_eff,                          &  ! in
                                     vcmax_z,                            &  ! out
                                     jmax_z,                             &  ! out
-                                    tpu_z,                              &  ! out
                                     kp_z )                                 ! out
 
-                               ! Part IX: This call calculates the actual photosynthesis for the 
+                               ! Part IX: This call calculates the actual photosynthesis for the
                                ! leaf layer, as well as the stomatal resistance and the net assimilated carbon.
 
                                call LeafLayerPhotosynthesis(currentPatch%f_sun(cl,ft,iv),    &  ! in
@@ -522,7 +519,6 @@ contains
                                     ft,                                 &  ! in
                                     vcmax_z,                            &  ! in
                                     jmax_z,                             &  ! in
-                                    tpu_z,                              &  ! in
                                     kp_z,                               &  ! in
                                     bc_in(s)%t_veg_pa(ifp),             &  ! in
                                     bc_in(s)%esat_tv_pa(ifp),           &  ! in
@@ -554,11 +550,11 @@ contains
                          currentCohort%rdark      = 0.0_r8
                          currentCohort%resp_m     = 0.0_r8
                          currentCohort%ts_net_uptake = 0.0_r8
-                         currentCohort%c13disc_clm = 0.0_r8 
+                         currentCohort%c13disc_clm = 0.0_r8
 
                          ! ---------------------------------------------------------------
                          ! Part VII: Transfer leaf flux rates (like maintenance respiration,
-                         ! carbon assimilation and conductance) that are defined by the 
+                         ! carbon assimilation and conductance) that are defined by the
                          ! leaf layer (which is area independent, ie /m2) onto each cohort
                          ! (where the rates become per cohort, ie /individual). Most likely
                          ! a sum over layers.
@@ -569,7 +565,7 @@ contains
                               lmr_z(1:nv,ft,cl),                     & !in
                               rs_z(1:nv,ft,cl),                      & !in
                               currentPatch%elai_profile(cl,ft,1:nv), & !in
-                              c13disc_z(cl, ft, 1:nv),               & !in 
+                              c13disc_z(cl, ft, 1:nv),               & !in
                               currentCohort%c_area,                  & !in
                               currentCohort%n,                       & !in
                               bc_in(s)%rb_pa(ifp),                   & !in
@@ -585,13 +581,13 @@ contains
 
                       else
 
-                         ! In this case, the cohort had no leaves, 
+                         ! In this case, the cohort had no leaves,
                          ! so no productivity,conductance, transpiration uptake
                          ! or dark respiration
                          cohort_eleaf_area       = 0.0_r8
-                         currentCohort%gpp_tstep = 0.0_r8 
-                         currentCohort%rdark = 0.0_r8 
-                         currentCohort%g_sb_laweight = 0.0_r8 
+                         currentCohort%gpp_tstep = 0.0_r8
+                         currentCohort%rdark = 0.0_r8
+                         currentCohort%g_sb_laweight = 0.0_r8
                          currentCohort%ts_net_uptake(:) = 0.0_r8
 
                       end if  ! if(currentPatch%canopy_mask(cl,ft) == 1)then
@@ -602,7 +598,7 @@ contains
                       ! fine root pools.
                       ! ------------------------------------------------------------------
 
-                      ! Calculate the amount of nitrogen in the above and below ground 
+                      ! Calculate the amount of nitrogen in the above and below ground
                       ! stem and root pools, used for maint resp
                       ! We are using the fine-root C:N ratio as an approximation for
                       ! the sapwood pools.
@@ -616,14 +612,14 @@ contains
                       case (prt_carbon_allom_hyp)
 
                          live_stem_n = prt_params%allom_agb_frac(currentCohort%pft) * &
-                              sapw_c * prt_params%nitr_stoich_p1(ft,sapw_organ)
+                              sapw_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ))
 
                          live_croot_n = (1.0_r8-prt_params%allom_agb_frac(currentCohort%pft)) * &
-                              sapw_c * prt_params%nitr_stoich_p1(ft,sapw_organ)
+                              sapw_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ))
 
-                         fnrt_n = fnrt_c * prt_params%nitr_stoich_p1(ft,fnrt_organ)
+                        fnrt_n = fnrt_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(fnrt_organ))
 
-                      case(prt_cnp_flex_allom_hyp) 
+                      case(prt_cnp_flex_allom_hyp)
 
                          live_stem_n = prt_params%allom_agb_frac(currentCohort%pft) * &
                               currentCohort%prt%GetState(sapw_organ, nitrogen_element)
@@ -637,10 +633,10 @@ contains
                          ! use the stoichiometry parameter
                          !
                          ! live_stem_n = prt_params%allom_agb_frac(currentCohort%pft) * &
-                         !               sapw_c * prt_params%nitr_stoich_p1(ft,sapw_organ)
+                        !               sapw_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ))
                          ! live_croot_n = (1.0_r8-prt_params%allom_agb_frac(currentCohort%pft)) * &
-                         !               sapw_c * prt_params%nitr_stoich_p1(ft,sapw_organ)
-                         ! fnrt_n = fnrt_c * prt_params%nitr_stoich_p1(ft,fnrt_organ)
+                        !               sapw_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ))
+                        ! fnrt_n = fnrt_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(fnrt_organ))
 
 
                       case default
@@ -651,7 +647,7 @@ contains
                       !------------------------------------------------------------------------------
                       ! Calculate Whole Plant Respiration
                       ! (this doesn't really need to be in this iteration at all, surely?)
-                      ! Response: (RGK 12-2016): I think the positioning of these calls is 
+                      ! Response: (RGK 12-2016): I think the positioning of these calls is
                       ! appropriate as of now.  Maintenance calculations in sapwood and roots
                       ! vary by cohort and with changing temperature at the minimum, and there are
                       ! no sub-pools chopping up those pools any finer that need to be dealt with.
@@ -660,7 +656,7 @@ contains
                       ! Live stem MR (kgC/plant/s) (above ground sapwood)
                       ! ------------------------------------------------------------------
                       if ( int(woody(ft)) == itrue) then
-                         tcwood = q10_mr**((bc_in(s)%t_veg_pa(ifp)-tfrz - 20.0_r8)/10.0_r8) 
+                         tcwood = q10_mr**((bc_in(s)%t_veg_pa(ifp)-tfrz - 20.0_r8)/10.0_r8)
                          ! kgC/s = kgN * kgC/kgN/s
                          currentCohort%livestem_mr  = live_stem_n * ED_val_base_mr_20 * tcwood * maintresp_reduction_factor
                       else
@@ -689,7 +685,7 @@ contains
                                  rootfr_ft(ft,j) * maintresp_reduction_factor
                          enddo
                       else
-                         currentCohort%livecroot_mr = 0._r8    
+                         currentCohort%livecroot_mr = 0._r8
                       end if
 
 
@@ -706,18 +702,18 @@ contains
 
 
 
-                      ! add on whole plant respiration values in kgC/indiv/s-1  
+                      ! add on whole plant respiration values in kgC/indiv/s-1
                       currentCohort%resp_m = currentCohort%livestem_mr + &
                            currentCohort%livecroot_mr + &
                            currentCohort%froot_mr
 
                       ! no drought response right now.. something like:
                       ! resp_m = resp_m * (1.0_r8 - currentPatch%btran_ft(currentCohort%pft) * &
-                      !                    EDPftvarcon_inst%resp_drought_response(ft))   
+                      !                    EDPftvarcon_inst%resp_drought_response(ft))
 
                       currentCohort%resp_m = currentCohort%resp_m + currentCohort%rdark
 
-                      ! convert from kgC/indiv/s to kgC/indiv/timestep       
+                      ! convert from kgC/indiv/s to kgC/indiv/timestep
                       currentCohort%resp_m        = currentCohort%resp_m  * dtime
                       currentCohort%gpp_tstep     = currentCohort%gpp_tstep * dtime
                       currentCohort%ts_net_uptake = currentCohort%ts_net_uptake * dtime
@@ -737,7 +733,7 @@ contains
                            currentCohort%resp_tstep  ! kgC/indiv/ts
 
                       ! Accumulate the combined conductance (stomatal+leaf boundary layer)
-                      ! Note that currentCohort%g_sb_laweight is weighted by the leaf area 
+                      ! Note that currentCohort%g_sb_laweight is weighted by the leaf area
                       ! of each cohort and has units of [m/s] * [m2 leaf]
 
                       g_sb_leaves  = g_sb_leaves + currentCohort%g_sb_laweight
@@ -748,7 +744,7 @@ contains
 
                       currentCohort => currentCohort%shorter
 
-                   enddo  ! end cohort loop.   
+                   enddo  ! end cohort loop.
                 end if !count_cohorts is more than zero.
 
                 check_elai = check_elai / currentPatch%total_canopy_area
@@ -765,7 +761,7 @@ contains
                    ! units of [m/s]*[m2] / [m2] = [m/s]
                    g_sb_leaves = g_sb_leaves / (elai*currentPatch%total_canopy_area)
 
-                   if( g_sb_leaves > (1._r8/rsmax0) ) then 
+                   if( g_sb_leaves > (1._r8/rsmax0) ) then
 
                       ! Combined mean leaf resistance is the inverse of mean leaf conductance
                       r_sb_leaves  = 1.0_r8/g_sb_leaves
@@ -838,7 +834,6 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
      ft,                &  ! in
      vcmax,             &  ! in
      jmax,              &  ! in
-     tpu,               &  ! in
      co2_rcurve_islope, &  ! in
      veg_tempk,         &  ! in
      veg_esat,          &  ! in
@@ -860,7 +855,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
      c13disc_z)            ! out
 
   ! ------------------------------------------------------------------------------------
-  ! This subroutine calculates photosynthesis and stomatal conductance within each leaf 
+  ! This subroutine calculates photosynthesis and stomatal conductance within each leaf
   ! sublayer.
   ! A note on naming conventions: As this subroutine is called for every
   ! leaf-sublayer, many of the arguments are specific to that "leaf sub layer"
@@ -873,16 +868,15 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
 
   ! Arguments
   ! ------------------------------------------------------------------------------------
-  real(r8), intent(in) :: f_sun_lsl         ! 
+  real(r8), intent(in) :: f_sun_lsl         !
   real(r8), intent(in) :: parsun_lsl        ! Absorbed PAR in sunlist leaves
   real(r8), intent(in) :: parsha_lsl        ! Absorved PAR in shaded leaves
   real(r8), intent(in) :: laisun_lsl        ! LAI in sunlit leaves
   real(r8), intent(in) :: laisha_lsl        ! LAI in shaded leaves
-  real(r8), intent(in) :: canopy_area_lsl   ! 
+  real(r8), intent(in) :: canopy_area_lsl   !
   integer,  intent(in) :: ft                ! (plant) Functional Type Index
   real(r8), intent(in) :: vcmax             ! maximum rate of carboxylation (umol co2/m**2/s)
   real(r8), intent(in) :: jmax              ! maximum electron transport rate (umol electrons/m**2/s)
-  real(r8), intent(in) :: tpu               ! triose phosphate utilization rate (umol CO2/m**2/s)
   real(r8), intent(in) :: co2_rcurve_islope ! initial slope of CO2 response curve (C4 plants)
   real(r8), intent(in) :: veg_tempk         ! vegetation temperature
   real(r8), intent(in) :: veg_esat          ! saturation vapor pressure at veg_tempk (Pa)
@@ -898,9 +892,9 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
   ! ia a best reasonable scenario of where we can get that information from.
 
   real(r8), intent(in) :: can_press       ! Air pressure NEAR the surface of the leaf (Pa)
-  real(r8), intent(in) :: can_co2_ppress  ! Partial pressure of CO2 NEAR the leaf surface (Pa) 
-  real(r8), intent(in) :: can_o2_ppress   ! Partial pressure of O2 NEAR the leaf surface (Pa) 
-  real(r8), intent(in) :: btran           ! transpiration wetness factor (0 to 1) 
+  real(r8), intent(in) :: can_co2_ppress  ! Partial pressure of CO2 NEAR the leaf surface (Pa)
+  real(r8), intent(in) :: can_o2_ppress   ! Partial pressure of O2 NEAR the leaf surface (Pa)
+  real(r8), intent(in) :: btran           ! transpiration wetness factor (0 to 1)
   real(r8), intent(in) :: stomatal_intercept_btran !water-stressed minimum stomatal conductance (umol H2O/m**2/s)
   real(r8), intent(in) :: cf              ! s m**2/umol -> s/m (ideal gas conversion) [umol/m3]
   real(r8), intent(in) :: gb_mol          ! leaf boundary layer conductance (umol /m**2/s)
@@ -912,13 +906,13 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
 
   real(r8), intent(out) :: psn_out        ! carbon assimilated in this leaf layer umolC/m2/s
   real(r8), intent(out) :: rstoma_out     ! stomatal resistance (1/gs_lsl) (s/m)
-  real(r8), intent(out) :: anet_av_out    ! net leaf photosynthesis (umol CO2/m**2/s) 
+  real(r8), intent(out) :: anet_av_out    ! net leaf photosynthesis (umol CO2/m**2/s)
   ! averaged over sun and shade leaves.
-  real(r8), intent(out) :: c13disc_z      ! carbon 13 in newly assimilated carbon 				     
+  real(r8), intent(out) :: c13disc_z      ! carbon 13 in newly assimilated carbon
 
   ! Locals
   ! ------------------------------------------------------------------------
-  integer :: c3c4_path_index    ! Index for which photosynthetic pathway 
+  integer :: c3c4_path_index    ! Index for which photosynthetic pathway
   ! is active.  C4 = 0,  C3 = 1
   integer :: sunsha             ! Index for differentiating sun and shade
   real(r8) :: gstoma            ! Stomatal Conductance of this leaf layer (m/s)
@@ -938,7 +932,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
   real(r8) :: gs_mol_err        ! gs_mol for error check
   real(r8) :: ac                ! Rubisco-limited gross photosynthesis (umol CO2/m**2/s)
   real(r8) :: aj                ! RuBP-limited gross photosynthesis (umol CO2/m**2/s)
-  real(r8) :: ap                ! product-limited (C3) or CO2-limited  
+  real(r8) :: ap                ! product-limited (C3) or CO2-limited
   ! (C4) gross photosynthesis (umol CO2/m**2/s)
   real(r8) :: ai                ! intermediate co-limited photosynthesis (umol CO2/m**2/s)
   real(r8) :: leaf_co2_ppress   ! CO2 partial pressure at leaf surface (Pa)
@@ -950,14 +944,14 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
   ! Parameters
   ! ------------------------------------------------------------------------
   ! Fraction of light absorbed by non-photosynthetic pigments
-  real(r8),parameter :: fnps = 0.15_r8       
+  real(r8),parameter :: fnps = 0.15_r8
 
   ! For plants with no leaves, a miniscule amount of conductance
   ! can happen through the stems, at a partial rate of cuticular conductance
   real(r8),parameter :: stem_cuticle_loss_frac = 0.1_r8
 
   ! empirical curvature parameter for electron transport rate
-  real(r8),parameter :: theta_psii = 0.7_r8   
+  real(r8),parameter :: theta_psii = 0.7_r8
 
   ! First guess on ratio between intercellular co2 and the atmosphere
   ! an iterator converges on actual
@@ -967,9 +961,9 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
   ! quantum efficiency, used only for C4 (mol CO2 / mol photons) (index 0)
   real(r8),parameter,dimension(0:1) :: quant_eff = [0.05_r8,0.0_r8]
 
-  ! empirical curvature parameter for ac, aj photosynthesis co-limitation. 
-  ! Changed theta_cj and theta_ip to 0.999 to effectively remove smoothing logic 
-  ! following Anthony Walker's findings from MAAT. 
+  ! empirical curvature parameter for ac, aj photosynthesis co-limitation.
+  ! Changed theta_cj and theta_ip to 0.999 to effectively remove smoothing logic
+  ! following Anthony Walker's findings from MAAT.
   real(r8),parameter,dimension(0:1) :: theta_cj  = [0.999_r8,0.999_r8]
 
   ! empirical curvature parameter for ap photosynthesis co-limitation
@@ -1006,38 +1000,38 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
   else ! day time (a little bit more complicated ...)
 
      !is there leaf area? - (NV can be larger than 0 with only stem area if deciduous)
-     if ( laisun_lsl + laisha_lsl > 0._r8 ) then 
+     if ( laisun_lsl + laisha_lsl > 0._r8 ) then
 
-        !Loop aroun shaded and unshaded leaves          
-        psn_out     = 0._r8    ! psn is accumulated across sun and shaded leaves. 
-        rstoma_out  = 0._r8    ! 1/rs is accumulated across sun and shaded leaves. 
+        !Loop aroun shaded and unshaded leaves
+        psn_out     = 0._r8    ! psn is accumulated across sun and shaded leaves.
+        rstoma_out  = 0._r8    ! 1/rs is accumulated across sun and shaded leaves.
         anet_av_out = 0._r8
         gstoma  = 0._r8
 
-        do  sunsha = 1,2      
-           ! Electron transport rate for C3 plants. 
+        do  sunsha = 1,2
+           ! Electron transport rate for C3 plants.
            ! Convert par from W/m2 to umol photons/m**2/s using the factor 4.6
-           ! Convert from units of par absorbed per unit ground area to par 
-           ! absorbed per unit leaf area. 
+           ! Convert from units of par absorbed per unit ground area to par
+           ! absorbed per unit leaf area.
 
            if(sunsha == 1)then !sunlit
               if(( laisun_lsl * canopy_area_lsl) > 0.0000000001_r8)then
 
-                 qabs = parsun_lsl / (laisun_lsl * canopy_area_lsl )   
-                 qabs = qabs * 0.5_r8 * (1._r8 - fnps) *  4.6_r8 
+                 qabs = parsun_lsl / (laisun_lsl * canopy_area_lsl )
+                 qabs = qabs * 0.5_r8 * (1._r8 - fnps) *  4.6_r8
 
               else
                  qabs = 0.0_r8
               end if
            else
 
-              qabs = parsha_lsl / (laisha_lsl * canopy_area_lsl)  
-              qabs = qabs * 0.5_r8 * (1._r8 - fnps) *  4.6_r8 
+              qabs = parsha_lsl / (laisha_lsl * canopy_area_lsl)
+              qabs = qabs * 0.5_r8 * (1._r8 - fnps) *  4.6_r8
 
            end if
 
-           !convert the absorbed par into absorbed par per m2 of leaf, 
-           ! so it is consistant with the vcmax and lmr numbers. 
+           !convert the absorbed par into absorbed par per m2 of leaf,
+           ! so it is consistant with the vcmax and lmr numbers.
            aquad = theta_psii
            bquad = -(qabs + jmax)
            cquad = qabs * jmax
@@ -1049,15 +1043,15 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
 
            niter = 0
            loop_continue = .true.
-           do while(loop_continue)                 
+           do while(loop_continue)
               ! Increment iteration counter. Stop if too many iterations
               niter = niter + 1
 
               ! Save old co2_inter_c
               co2_inter_c_old = co2_inter_c
 
-              ! Photosynthesis limitation rate calculations 
-              if (c3c4_path_index == 1)then    
+              ! Photosynthesis limitation rate calculations
+              if (c3c4_path_index == 1)then
 
                  ! C3: Rubisco-limited photosynthesis
                  ac = vcmax * max(co2_inter_c-co2_cpoint, 0._r8) / &
@@ -1067,8 +1061,12 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
                  aj = je * max(co2_inter_c-co2_cpoint, 0._r8) / &
                       (4._r8*co2_inter_c+8._r8*co2_cpoint)
 
-                 ! C3: Product-limited photosynthesis 
-                 ap = 3._r8 * tpu
+                    ! Gross photosynthesis smoothing calculations. Co-limit ac and aj.
+                    aquad = theta_cj(c3c4_path_index)
+                    bquad = -(ac + aj)
+                    cquad = ac * aj
+                    call quadratic_f (aquad, bquad, cquad, r1, r2)
+                    agross = min(r1,r2)
 
               else
 
@@ -1078,7 +1076,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
                  ! C4: RuBP-limited photosynthesis
                  if(sunsha == 1)then !sunlit
                     !guard against /0's in the night.
-                    if((laisun_lsl * canopy_area_lsl) > 0.0000000001_r8) then   
+                    if((laisun_lsl * canopy_area_lsl) > 0.0000000001_r8) then
                        aj = quant_eff(c3c4_path_index) * parsun_lsl * 4.6_r8
                        !convert from per cohort to per m2 of leaf)
                        aj = aj / (laisun_lsl * canopy_area_lsl)
@@ -1091,11 +1089,10 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
                  end if
 
                  ! C4: PEP carboxylase-limited (CO2-limited)
-                 ap = co2_rcurve_islope * max(co2_inter_c, 0._r8) / can_press  
-
-              end if
+                 ap = co2_rcurve_islope * max(co2_inter_c, 0._r8) / can_press
 
               ! Gross photosynthesis smoothing calculations. First co-limit ac and aj. Then co-limit ap
+
               aquad = theta_cj(c3c4_path_index)
               bquad = -(ac + aj)
               cquad = ac * aj
@@ -1108,6 +1105,8 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
               call quadratic_f (aquad, bquad, cquad, r1, r2)
               agross = min(r1,r2)
 
+                 end if
+
               ! Net carbon assimilation. Exit iteration if an < 0
               anet = agross  - lmr
               if (anet < 0._r8) then
@@ -1115,14 +1114,14 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
               end if
 
               ! Quadratic gs_mol calculation with an known. Valid for an >= 0.
-              ! With an <= 0, then gs_mol = stomatal_intercept_btran                 
-              leaf_co2_ppress = can_co2_ppress- h2o_co2_bl_diffuse_ratio/gb_mol * anet * can_press 
+              ! With an <= 0, then gs_mol = stomatal_intercept_btran
+              leaf_co2_ppress = can_co2_ppress- h2o_co2_bl_diffuse_ratio/gb_mol * anet * can_press
               leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
               if ( stomatal_model == 2 ) then
                  !stomatal conductance calculated from Medlyn et al. (2011), the numerical &
-                 !implementation was adapted from the equations in CLM5.0 
+                 !implementation was adapted from the equations in CLM5.0
                  vpd =  max((veg_esat - ceair), 50._r8) * 0.001_r8          !addapted from CLM5. Put some constraint on VPD
-                 !when Medlyn stomatal conductance is being used, the unit is KPa. Ignoring the constraint will cause errors when model runs.          
+                 !when Medlyn stomatal conductance is being used, the unit is KPa. Ignoring the constraint will cause errors when model runs.
                  term = h2o_co2_stoma_diffuse_ratio * anet / (leaf_co2_ppress / can_press)
                  aquad = 1.0_r8
                  bquad = -(2.0 * (stomatal_intercept_btran+ term) + (medlyn_slope(ft) * term)**2 / &
@@ -1147,9 +1146,9 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
               co2_inter_c = can_co2_ppress - anet * can_press * &
                    (h2o_co2_bl_diffuse_ratio*gs_mol+h2o_co2_stoma_diffuse_ratio*gb_mol) / (gb_mol*gs_mol)
 
-              ! Check for co2_inter_c convergence. Delta co2_inter_c/pair = mol/mol. 
-              ! Multiply by 10**6 to convert to umol/mol (ppm). Exit iteration if 
-              ! convergence criteria of +/- 1 x 10**-6 ppm is met OR if at least ten 
+              ! Check for co2_inter_c convergence. Delta co2_inter_c/pair = mol/mol.
+              ! Multiply by 10**6 to convert to umol/mol (ppm). Exit iteration if
+              ! convergence criteria of +/- 1 x 10**-6 ppm is met OR if at least ten
               ! iterations (niter=10) are completed
 
               if ((abs(co2_inter_c-co2_inter_c_old)/can_press*1.e06_r8 <=  2.e-06_r8) &
@@ -1159,12 +1158,12 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
            end do !iteration loop
 
            ! End of co2_inter_c iteration.  Check for an < 0, in which case
-           ! gs_mol =stomatal_intercept_btran 
+           ! gs_mol =stomatal_intercept_btran
            if (anet < 0._r8) then
               gs_mol = stomatal_intercept_btran
            end if
 
-           ! Final estimates for leaf_co2_ppress and co2_inter_c 
+           ! Final estimates for leaf_co2_ppress and co2_inter_c
            ! (needed for early exit of co2_inter_c iteration when an < 0)
            leaf_co2_ppress = can_co2_ppress - h2o_co2_bl_diffuse_ratio/gb_mol * anet * can_press
            leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
@@ -1174,28 +1173,28 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
            ! Convert gs_mol (umol /m**2/s) to gs (m/s) and then to rs (s/m)
            gs = gs_mol / cf
 
-           ! estimate carbon 13 discrimination in leaf level carbon 
+           ! estimate carbon 13 discrimination in leaf level carbon
            ! flux Liang WEI and Hang ZHOU 2018, based on
            ! Ubierna and Farquhar, 2014 doi:10.1111/pce.12346, using the simplified model:
            ! $\Delta ^{13} C = \alpha_s + (b - \alpha_s) \cdot \frac{C_i}{C_a}$
            ! just hard code b and \alpha_s for now, might move to parameter set in future
            ! b = 27.0 alpha_s = 4.4
            ! TODO, not considering C4 or CAM right now, may need to address this
-           ! note co2_inter_c is intracelluar CO2, not intercelluar 
+           ! note co2_inter_c is intracelluar CO2, not intercelluar
            c13disc_z = 4.4_r8 + (27.0_r8 - 4.4_r8) * &
-                min (can_co2_ppress, max (co2_inter_c, 0._r8)) / can_co2_ppress 
+                min (can_co2_ppress, max (co2_inter_c, 0._r8)) / can_co2_ppress
 
-           ! Accumulate total photosynthesis umol/m2 ground/s-1. 
+           ! Accumulate total photosynthesis umol/m2 ground/s-1.
            ! weight per unit sun and sha leaves.
-           if(sunsha == 1)then !sunlit       
+           if(sunsha == 1)then !sunlit
               psn_out     = psn_out + agross * f_sun_lsl
               anet_av_out = anet_av_out + anet * f_sun_lsl
               gstoma  = gstoma + 1._r8/(min(1._r8/gs, rsmax0)) * f_sun_lsl
            else
-              psn_out = psn_out + agross * (1.0_r8-f_sun_lsl)                 
-              anet_av_out = anet_av_out + anet * (1.0_r8-f_sun_lsl) 
+              psn_out = psn_out + agross * (1.0_r8-f_sun_lsl)
+              anet_av_out = anet_av_out + anet * (1.0_r8-f_sun_lsl)
               gstoma  = gstoma + &
-                   1._r8/(min(1._r8/gs, rsmax0)) * (1.0_r8-f_sun_lsl) 
+                   1._r8/(min(1._r8/gs, rsmax0)) * (1.0_r8-f_sun_lsl)
            end if
 
            ! Make sure iterative solution is correct
@@ -1208,8 +1207,8 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
            ! Compare with Medlyn model: gs_mol = 1.6*(1+m/sqrt(vpd)) * an/leaf_co2_ppress*p + b
            if ( stomatal_model == 2 ) then
               gs_mol_err = h2o_co2_stoma_diffuse_ratio*(1 + medlyn_slope(ft)/sqrt(vpd))*max(anet,0._r8)/leaf_co2_ppress*can_press + stomatal_intercept_btran
-              ! Compare with Ball-Berry model: gs_mol = m * an * hs/leaf_co2_ppress*p + b             
-           else if ( stomatal_model == 1 ) then 
+              ! Compare with Ball-Berry model: gs_mol = m * an * hs/leaf_co2_ppress*p + b
+           else if ( stomatal_model == 1 ) then
               hs = (gb_mol*ceair + gs_mol* veg_esat ) / ((gb_mol+gs_mol)*veg_esat )
               gs_mol_err = bb_slope(ft)*max(anet, 0._r8)*hs/leaf_co2_ppress*can_press + stomatal_intercept_btran
            end if
@@ -1226,8 +1225,8 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
 
      else
 
-        ! No leaf area. This layer is present only because of stems. 
-        ! Net assimilation is zero, not negative because there are 
+        ! No leaf area. This layer is present only because of stems.
+        ! Net assimilation is zero, not negative because there are
         ! no leaves to even respire
         ! (leaves are off, or have reduced to 0)
 
@@ -1237,14 +1236,14 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
         rstoma_out  = min(rsmax0,cf/(stem_cuticle_loss_frac*stomatal_intercept(ft)))
         c13disc_z = 0.0_r8
 
-     end if !is there leaf area? 
+     end if !is there leaf area?
 
 
-  end if    ! night or day 
+   end if    ! night or day
 
 
-end associate
-return
+   end associate
+   return
 end subroutine LeafLayerPhotosynthesis
 
 ! =====================================================================================
@@ -1258,7 +1257,7 @@ subroutine ScaleLeafLayerFluxToCohort(nv,          & ! in   currentCohort%nv
    c_area,      & ! in   currentCohort%c_area
    nplant,      & ! in   currentCohort%n
    rb,          & ! in   bc_in(s)%rb_pa(ifp)
-   maintresp_reduction_factor, & ! in 
+   maintresp_reduction_factor, & ! in
    g_sb_laweight, & ! out  currentCohort%g_sb_laweight [m/s] [m2-leaf]
    gpp,         &   ! out  currentCohort%gpp_tstep
    rdark,       &   ! out  currentCohort%rdark
@@ -1273,109 +1272,109 @@ subroutine ScaleLeafLayerFluxToCohort(nv,          & ! in   currentCohort%nv
   ! array which has the "_z" tag, thus "llz".
   ! ------------------------------------------------------------------------------------
 
-use FatesConstantsMod, only : umolC_to_kgC
+   use FatesConstantsMod, only : umolC_to_kgC
 
-! Arguments
-integer, intent(in)  :: nv               ! number of active leaf layers
-real(r8), intent(in) :: psn_llz(nv)      ! layer photosynthesis rate (GPP) [umolC/m2leaf/s]
-real(r8), intent(in) :: lmr_llz(nv)      ! layer dark respiration rate [umolC/m2leaf/s]
-real(r8), intent(in) :: rs_llz(nv)       ! leaf layer stomatal resistance [s/m]
-real(r8), intent(in) :: elai_llz(nv)     ! exposed LAI per layer [m2 leaf/ m2 pft footprint]
-real(r8), intent(in) :: c13disc_llz(nv)  ! leaf layer c13 discrimination, weighted mean
-real(r8), intent(in) :: c_area           ! crown area m2/m2
-real(r8), intent(in) :: nplant           ! indiv/m2
-real(r8), intent(in) :: rb               ! leaf boundary layer resistance (s/m)
-real(r8), intent(in) :: maintresp_reduction_factor  ! factor by which to reduce maintenance respiration
-real(r8), intent(out) :: g_sb_laweight      ! Combined conductance (stomatal + boundary layer) for the cohort 
-! weighted by leaf area [m/s]*[m2]
-real(r8), intent(out) :: gpp        ! GPP (kgC/indiv/s)
-real(r8), intent(out) :: rdark      ! Dark Leaf Respiration (kgC/indiv/s)
-real(r8), intent(out) :: cohort_eleaf_area  ! Effective leaf area of the cohort [m2]
-real(r8), intent(out) :: c13disc_clm     ! unpacked Cohort level c13 discrimination
-real(r8)              :: sum_weight      ! sum of weight for unpacking d13c flux (c13disc_z) from
-! (canopy_layer, pft, leaf_layer) matrix to cohort (c13disc_clm)
+   ! Arguments
+   integer, intent(in)  :: nv               ! number of active leaf layers
+   real(r8), intent(in) :: psn_llz(nv)      ! layer photosynthesis rate (GPP) [umolC/m2leaf/s]
+   real(r8), intent(in) :: lmr_llz(nv)      ! layer dark respiration rate [umolC/m2leaf/s]
+   real(r8), intent(in) :: rs_llz(nv)       ! leaf layer stomatal resistance [s/m]
+   real(r8), intent(in) :: elai_llz(nv)     ! exposed LAI per layer [m2 leaf/ m2 pft footprint]
+   real(r8), intent(in) :: c13disc_llz(nv)  ! leaf layer c13 discrimination, weighted mean
+   real(r8), intent(in) :: c_area           ! crown area m2/m2
+   real(r8), intent(in) :: nplant           ! indiv/m2
+   real(r8), intent(in) :: rb               ! leaf boundary layer resistance (s/m)
+   real(r8), intent(in) :: maintresp_reduction_factor  ! factor by which to reduce maintenance respiration
+   real(r8), intent(out) :: g_sb_laweight      ! Combined conductance (stomatal + boundary layer) for the cohort
+   ! weighted by leaf area [m/s]*[m2]
+   real(r8), intent(out) :: gpp        ! GPP (kgC/indiv/s)
+   real(r8), intent(out) :: rdark      ! Dark Leaf Respiration (kgC/indiv/s)
+   real(r8), intent(out) :: cohort_eleaf_area  ! Effective leaf area of the cohort [m2]
+   real(r8), intent(out) :: c13disc_clm     ! unpacked Cohort level c13 discrimination
+   real(r8)              :: sum_weight      ! sum of weight for unpacking d13c flux (c13disc_z) from
+   ! (canopy_layer, pft, leaf_layer) matrix to cohort (c13disc_clm)
 
-! GPP IN THIS SUBROUTINE IS A RATE. THE CALLING ARGUMENT IS GPP_TSTEP. AFTER THIS
-! CALL THE RATE WILL BE MULTIPLIED BY THE INTERVAL TO GIVE THE INTEGRATED QUANT.
+   ! GPP IN THIS SUBROUTINE IS A RATE. THE CALLING ARGUMENT IS GPP_TSTEP. AFTER THIS
+   ! CALL THE RATE WILL BE MULTIPLIED BY THE INTERVAL TO GIVE THE INTEGRATED QUANT.
 
-! Locals
-integer  :: il                       ! leaf layer index
-real(r8) :: cohort_layer_eleaf_area  ! the effective leaf area of the cohort's current layer [m2]
+   ! Locals
+   integer  :: il                       ! leaf layer index
+   real(r8) :: cohort_layer_eleaf_area  ! the effective leaf area of the cohort's current layer [m2]
 
-cohort_eleaf_area = 0.0_r8
-g_sb_laweight     = 0.0_r8
-gpp               = 0.0_r8
-rdark             = 0.0_r8
+   cohort_eleaf_area = 0.0_r8
+   g_sb_laweight     = 0.0_r8
+   gpp               = 0.0_r8
+   rdark             = 0.0_r8
 
-do il = 1, nv        ! Loop over the leaf layers this cohort participates in
-
-
-   ! Cohort's total effective leaf area in this layer [m2]
-   ! leaf area index of the layer [m2/m2 ground] * [m2 ground]
-   ! elai_llz is the LAI for the whole PFT. Multiplying this by the ground
-   ! area this cohort contributes, give the cohort's portion of the leaf
-   ! area in this layer
-   cohort_layer_eleaf_area = elai_llz(il) * c_area
-
-   ! Increment the cohort's total effective leaf area [m2]
-   cohort_eleaf_area       = cohort_eleaf_area + cohort_layer_eleaf_area
-
-   ! Leaf conductance (stomatal and boundary layer)
-   ! This should be the weighted average over the leaf surfaces.
-   ! Since this is relevant to the stomata, its weighting should be based
-   ! on total leaf area, and not really footprint area
-   ! [m/s] * [m2 cohort's leaf layer]
-   g_sb_laweight = g_sb_laweight + 1.0_r8/(rs_llz(il)+rb) * cohort_layer_eleaf_area
-
-   ! GPP    [umolC/m2leaf/s] * [m2 leaf ] -> [umolC/s]   (This is cohort group sum)
-   gpp = gpp + psn_llz(il) * cohort_layer_eleaf_area
-
-   ! Dark respiration
-   ! [umolC/m2leaf/s] * [m2 leaf]    (This is the cohort group sum)
-   rdark = rdark + lmr_llz(il) * cohort_layer_eleaf_area
-
-end do
+   do il = 1, nv        ! Loop over the leaf layers this cohort participates in
 
 
+      ! Cohort's total effective leaf area in this layer [m2]
+      ! leaf area index of the layer [m2/m2 ground] * [m2 ground]
+      ! elai_llz is the LAI for the whole PFT. Multiplying this by the ground
+      ! area this cohort contributes, give the cohort's portion of the leaf
+      ! area in this layer
+      cohort_layer_eleaf_area = elai_llz(il) * c_area
 
-if (nv > 1) then     
-   ! cohort%c13disc_clm as weighted mean of d13c flux at all related leave layers
-   sum_weight = sum(psn_llz(1:nv-1) * elai_llz(1:nv-1))
-   if (sum_weight .eq. 0.0_r8) then
-      c13disc_clm = 0.0
-   else
-      c13disc_clm = sum(c13disc_llz(1:nv-1) * psn_llz(1:nv-1) * elai_llz(1:nv-1)) / sum_weight 
+      ! Increment the cohort's total effective leaf area [m2]
+      cohort_eleaf_area       = cohort_eleaf_area + cohort_layer_eleaf_area
+
+      ! Leaf conductance (stomatal and boundary layer)
+      ! This should be the weighted average over the leaf surfaces.
+      ! Since this is relevant to the stomata, its weighting should be based
+      ! on total leaf area, and not really footprint area
+      ! [m/s] * [m2 cohort's leaf layer]
+      g_sb_laweight = g_sb_laweight + 1.0_r8/(rs_llz(il)+rb) * cohort_layer_eleaf_area
+
+      ! GPP    [umolC/m2leaf/s] * [m2 leaf ] -> [umolC/s]   (This is cohort group sum)
+      gpp = gpp + psn_llz(il) * cohort_layer_eleaf_area
+
+      ! Dark respiration
+      ! [umolC/m2leaf/s] * [m2 leaf]    (This is the cohort group sum)
+      rdark = rdark + lmr_llz(il) * cohort_layer_eleaf_area
+
+   end do
+
+
+
+   if (nv > 1) then
+      ! cohort%c13disc_clm as weighted mean of d13c flux at all related leave layers
+      sum_weight = sum(psn_llz(1:nv-1) * elai_llz(1:nv-1))
+      if (sum_weight .eq. 0.0_r8) then
+         c13disc_clm = 0.0
+      else
+         c13disc_clm = sum(c13disc_llz(1:nv-1) * psn_llz(1:nv-1) * elai_llz(1:nv-1)) / sum_weight
+      end if
+
    end if
 
-end if
 
+   ! -----------------------------------------------------------------------------------
+   ! We DO NOT normalize g_sb_laweight.
+   ! The units that we are passing back are [m/s] * [m2 effective leaf]
+   ! We will add these up over the whole patch, and then normalized
+   ! by the patch's total leaf area in the calling routine
+   ! -----------------------------------------------------------------------------------
 
-! -----------------------------------------------------------------------------------
-! We DO NOT normalize g_sb_laweight.
-! The units that we are passing back are [m/s] * [m2 effective leaf]
-! We will add these up over the whole patch, and then normalized
-! by the patch's total leaf area in the calling routine
-! -----------------------------------------------------------------------------------
+   ! -----------------------------------------------------------------------------------
+   ! Convert dark respiration and GPP from [umol/s] to [kgC/plant/s]
+   ! Also, apply the maintenance respiration reduction factor
+   ! -----------------------------------------------------------------------------------
 
-! -----------------------------------------------------------------------------------
-! Convert dark respiration and GPP from [umol/s] to [kgC/plant/s]
-! Also, apply the maintenance respiration reduction factor
-! -----------------------------------------------------------------------------------
+   rdark     = rdark * umolC_to_kgC * maintresp_reduction_factor / nplant
+   gpp       = gpp * umolC_to_kgC / nplant
 
-rdark     = rdark * umolC_to_kgC * maintresp_reduction_factor / nplant
-gpp       = gpp * umolC_to_kgC / nplant
+   if ( debug ) then
+      write(fates_log(),*) 'EDPhoto 816 ', gpp
+      write(fates_log(),*) 'EDPhoto 817 ', psn_llz(1:nv)
+      write(fates_log(),*) 'EDPhoto 820 ', nv
+      write(fates_log(),*) 'EDPhoto 821 ', elai_llz(1:nv)
+      write(fates_log(),*) 'EDPhoto 843 ', rdark
+      write(fates_log(),*) 'EDPhoto 873 ', nv
+      write(fates_log(),*) 'EDPhoto 874 ', cohort_eleaf_area
+   endif
 
-if ( debug ) then
-   write(fates_log(),*) 'EDPhoto 816 ', gpp
-   write(fates_log(),*) 'EDPhoto 817 ', psn_llz(1:nv)
-   write(fates_log(),*) 'EDPhoto 820 ', nv
-   write(fates_log(),*) 'EDPhoto 821 ', elai_llz(1:nv)
-   write(fates_log(),*) 'EDPhoto 843 ', rdark
-   write(fates_log(),*) 'EDPhoto 873 ', nv
-   write(fates_log(),*) 'EDPhoto 874 ', cohort_eleaf_area
-endif
-
-return
+   return
 end subroutine ScaleLeafLayerFluxToCohort
 
 ! =====================================================================================
@@ -1390,20 +1389,20 @@ function ft1_f(tl, ha) result(ans)
   ! 7/23/16: Copied over from CLM by Ryan Knox
   !
   !!USES
-use FatesConstantsMod, only : rgas => rgas_J_K_kmol
-use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
-!
-! !ARGUMENTS:
-real(r8), intent(in) :: tl  ! leaf temperature in photosynthesis temperature function (K)
-real(r8), intent(in) :: ha  ! activation energy in photosynthesis temperature function (J/mol)
-!
-! !LOCAL VARIABLES:
-real(r8) :: ans
-!-------------------------------------------------------------------------------
+   use FatesConstantsMod, only : rgas => rgas_J_K_kmol
+   use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
+   !
+   ! !ARGUMENTS:
+   real(r8), intent(in) :: tl  ! leaf temperature in photosynthesis temperature function (K)
+   real(r8), intent(in) :: ha  ! activation energy in photosynthesis temperature function (J/mol)
+   !
+   ! !LOCAL VARIABLES:
+   real(r8) :: ans
+   !-------------------------------------------------------------------------------
 
-ans = exp( ha / (rgas*1.e-3_r8*(tfrz+25._r8)) * (1._r8 - (tfrz+25._r8)/tl) )
+   ans = exp( ha / (rgas*1.e-3_r8*(tfrz+25._r8)) * (1._r8 - (tfrz+25._r8)/tl) )
 
-return
+   return
 end function ft1_f
 
 ! =====================================================================================
@@ -1417,23 +1416,23 @@ function fth_f(tl,hd,se,scaleFactor) result(ans)
   ! Jinyun Tang separated it out from Photosynthesis, Feb. 07/2013
   ! 7/23/16: Copied over from CLM by Ryan Knox
   !
-use FatesConstantsMod, only : rgas => rgas_J_K_kmol
-use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
+   use FatesConstantsMod, only : rgas => rgas_J_K_kmol
+   use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
 
-!
-! !ARGUMENTS:
-real(r8), intent(in) :: tl  ! leaf temperature in photosynthesis temp function (K)
-real(r8), intent(in) :: hd  ! deactivation energy in photosynthesis temp function (J/mol)
-real(r8), intent(in) :: se  ! entropy term in photosynthesis temp function (J/mol/K)
-real(r8), intent(in) :: scaleFactor  ! scaling factor for high temp inhibition (25 C = 1.0)
-!
-! !LOCAL VARIABLES:
-real(r8) :: ans
-!-------------------------------------------------------------------------------
+   !
+   ! !ARGUMENTS:
+   real(r8), intent(in) :: tl  ! leaf temperature in photosynthesis temp function (K)
+   real(r8), intent(in) :: hd  ! deactivation energy in photosynthesis temp function (J/mol)
+   real(r8), intent(in) :: se  ! entropy term in photosynthesis temp function (J/mol/K)
+   real(r8), intent(in) :: scaleFactor  ! scaling factor for high temp inhibition (25 C = 1.0)
+   !
+   ! !LOCAL VARIABLES:
+   real(r8) :: ans
+   !-------------------------------------------------------------------------------
 
-ans = scaleFactor / ( 1._r8 + exp( (-hd+se*tl) / (rgas*1.e-3_r8*tl) ) )
+   ans = scaleFactor / ( 1._r8 + exp( (-hd+se*tl) / (rgas*1.e-3_r8*tl) ) )
 
-return
+   return
 end function fth_f
 
 ! =====================================================================================
@@ -1447,23 +1446,23 @@ function fth25_f(hd,se)result(ans)
   ! Jinyun Tang separated it out from Photosynthesis, Feb. 07/2013
   ! 7/23/16: Copied over from CLM by Ryan Knox
   !
-  !!USES    
+  !!USES
 
-use FatesConstantsMod, only : rgas => rgas_J_K_kmol
-use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
+   use FatesConstantsMod, only : rgas => rgas_J_K_kmol
+   use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
 
-!
-! !ARGUMENTS:
-real(r8), intent(in) :: hd    ! deactivation energy in photosynthesis temp function (J/mol)
-real(r8), intent(in) :: se    ! entropy term in photosynthesis temp function (J/mol/K)
-!
-! !LOCAL VARIABLES:
-real(r8) :: ans
-!-------------------------------------------------------------------------------
+   !
+   ! !ARGUMENTS:
+   real(r8), intent(in) :: hd    ! deactivation energy in photosynthesis temp function (J/mol)
+   real(r8), intent(in) :: se    ! entropy term in photosynthesis temp function (J/mol/K)
+   !
+   ! !LOCAL VARIABLES:
+   real(r8) :: ans
+   !-------------------------------------------------------------------------------
 
-ans = 1._r8 + exp( (-hd+se*(tfrz+25._r8)) / (rgas*1.e-3_r8*(tfrz+25._r8)) )
+   ans = 1._r8 + exp( (-hd+se*(tfrz+25._r8)) / (rgas*1.e-3_r8*(tfrz+25._r8)) )
 
-return
+   return
 end function fth25_f
 
 ! =====================================================================================
@@ -1484,30 +1483,30 @@ subroutine quadratic_f (a, b, c, r1, r2)
   ! !USES:
   !
   ! !ARGUMENTS:
-real(r8), intent(in)  :: a,b,c       ! Terms for quadratic equation
-real(r8), intent(out) :: r1,r2       ! Roots of quadratic equation
-!
-! !LOCAL VARIABLES:
-real(r8) :: q                        ! Temporary term for quadratic solution
-!------------------------------------------------------------------------------
+   real(r8), intent(in)  :: a,b,c       ! Terms for quadratic equation
+   real(r8), intent(out) :: r1,r2       ! Roots of quadratic equation
+   !
+   ! !LOCAL VARIABLES:
+   real(r8) :: q                        ! Temporary term for quadratic solution
+   !------------------------------------------------------------------------------
 
-if (a == 0._r8) then
-   write (fates_log(),*) 'Quadratic solution error: a = ',a
-   call endrun(msg=errMsg(sourcefile, __LINE__))
-end if
+   if (a == 0._r8) then
+      write (fates_log(),*) 'Quadratic solution error: a = ',a
+      call endrun(msg=errMsg(sourcefile, __LINE__))
+   end if
 
-if (b >= 0._r8) then
-   q = -0.5_r8 * (b + sqrt(b*b - 4._r8*a*c))
-else
-   q = -0.5_r8 * (b - sqrt(b*b - 4._r8*a*c))
-end if
+   if (b >= 0._r8) then
+      q = -0.5_r8 * (b + sqrt(b*b - 4._r8*a*c))
+   else
+      q = -0.5_r8 * (b - sqrt(b*b - 4._r8*a*c))
+   end if
 
-r1 = q / a
-if (q /= 0._r8) then
-   r2 = c / q
-else
-   r2 = 1.e36_r8
-end if
+   r1 = q / a
+   if (q /= 0._r8) then
+      r2 = c / q
+   else
+      r2 = 1.e36_r8
+   end if
 
 end subroutine quadratic_f
 
@@ -1530,30 +1529,30 @@ subroutine quadratic_fast (a, b, c, r1, r2)
   ! !USES:
   !
   ! !ARGUMENTS:
-real(r8), intent(in)  :: a,b,c       ! Terms for quadratic equation
-real(r8), intent(out) :: r1,r2       ! Roots of quadratic equation
-!
-! !LOCAL VARIABLES:
-real(r8) :: q                        ! Temporary term for quadratic solution
-!------------------------------------------------------------------------------
+   real(r8), intent(in)  :: a,b,c       ! Terms for quadratic equation
+   real(r8), intent(out) :: r1,r2       ! Roots of quadratic equation
+   !
+   ! !LOCAL VARIABLES:
+   real(r8) :: q                        ! Temporary term for quadratic solution
+   !------------------------------------------------------------------------------
 
-!  if (a == 0._r8) then
-!     write (fates_log(),*) 'Quadratic solution error: a = ',a
-!     call endrun(msg=errMsg(sourcefile, __LINE__))
-!  end if
+   !  if (a == 0._r8) then
+   !     write (fates_log(),*) 'Quadratic solution error: a = ',a
+   !     call endrun(msg=errMsg(sourcefile, __LINE__))
+   !  end if
 
-if (b >= 0._r8) then
-   q = -0.5_r8 * (b + sqrt(b*b - 4._r8*a*c))
-else
-   q = -0.5_r8 * (b - sqrt(b*b - 4._r8*a*c))
-end if
+   if (b >= 0._r8) then
+      q = -0.5_r8 * (b + sqrt(b*b - 4._r8*a*c))
+   else
+      q = -0.5_r8 * (b - sqrt(b*b - 4._r8*a*c))
+   end if
 
-r1 = q / a
-!  if (q /= 0._r8) then
-r2 = c / q
-!  else
-!     r2 = 1.e36_r8
-!  end if
+   r1 = q / a
+   !  if (q /= 0._r8) then
+   r2 = c / q
+   !  else
+   !     r2 = 1.e36_r8
+   !  end if
 
 end subroutine quadratic_fast
 
@@ -1581,53 +1580,53 @@ subroutine UpdateCanopyNCanNRadPresent(currentPatch)
   ! ---------------------------------------------------------------------------------
 
 
-use EDTypesMod , only : ed_patch_type
-use EDTypesMod , only : ed_cohort_type
+   use EDTypesMod , only : ed_patch_type
+   use EDTypesMod , only : ed_cohort_type
 
-! Arguments
-type(ed_patch_type), target :: currentPatch
-type(ed_cohort_type), pointer :: currentCohort
+   ! Arguments
+   type(ed_patch_type), target :: currentPatch
+   type(ed_cohort_type), pointer :: currentCohort
 
-! Locals
-integer :: cl  ! Canopy Layer Index
-integer :: ft  ! Function Type Index
-integer :: iv  ! index of the exposed leaf layer for each canopy layer and pft
+   ! Locals
+   integer :: cl  ! Canopy Layer Index
+   integer :: ft  ! Function Type Index
+   integer :: iv  ! index of the exposed leaf layer for each canopy layer and pft
 
-! Loop through the cohorts in this patch, associate each cohort with a layer and PFT
-! and use the cohort's memory of how many layer's it takes up to assign the maximum
-! of the layer/pft index it is in
-! ---------------------------------------------------------------------------------
+   ! Loop through the cohorts in this patch, associate each cohort with a layer and PFT
+   ! and use the cohort's memory of how many layer's it takes up to assign the maximum
+   ! of the layer/pft index it is in
+   ! ---------------------------------------------------------------------------------
 
-currentPatch%ncan(:,:) = 0
-! redo the canopy structure algorithm to get round a 
-! bug that is happening for site 125, FT13.
-currentCohort => currentPatch%tallest
-do while(associated(currentCohort))
+   currentPatch%ncan(:,:) = 0
+   ! redo the canopy structure algorithm to get round a
+   ! bug that is happening for site 125, FT13.
+   currentCohort => currentPatch%tallest
+   do while(associated(currentCohort))
 
-   currentPatch%ncan(currentCohort%canopy_layer,currentCohort%pft) = &
-        max(currentPatch%ncan(currentCohort%canopy_layer,currentCohort%pft), &
-        currentCohort%NV)
+      currentPatch%ncan(currentCohort%canopy_layer,currentCohort%pft) = &
+         max(currentPatch%ncan(currentCohort%canopy_layer,currentCohort%pft), &
+         currentCohort%NV)
 
-   currentCohort => currentCohort%shorter
+      currentCohort => currentCohort%shorter
 
-enddo !cohort   
+   enddo !cohort
 
-! NRAD = NCAN ...
-currentPatch%nrad = currentPatch%ncan
+   ! NRAD = NCAN ...
+   currentPatch%nrad = currentPatch%ncan
 
-! Now loop through and identify which layer and pft combo has scattering elements
-do cl = 1,nclmax
-   do ft = 1,numpft
-      currentPatch%canopy_mask(cl,ft) = 0
-      do iv = 1, currentPatch%nrad(cl,ft);
-         if(currentPatch%canopy_area_profile(cl,ft,iv) > 0._r8)then
-            currentPatch%canopy_mask(cl,ft) = 1
-         end if
-      end do !iv     
-   enddo !ft
-enddo !cl
+   ! Now loop through and identify which layer and pft combo has scattering elements
+   do cl = 1,nclmax
+      do ft = 1,numpft
+         currentPatch%canopy_mask(cl,ft) = 0
+         do iv = 1, currentPatch%nrad(cl,ft);
+            if(currentPatch%canopy_area_profile(cl,ft,iv) > 0._r8)then
+               currentPatch%canopy_mask(cl,ft) = 1
+            end if
+         end do !iv
+      enddo !ft
+   enddo !cl
 
-return
+   return
 end subroutine UpdateCanopyNCanNRadPresent
 
 ! ====================================================================================
@@ -1651,110 +1650,109 @@ subroutine GetCanopyGasParameters(can_press, &
   ! and O2, as well as the CO2 compentation point.
   ! ---------------------------------------------------------------------------------
 
-use FatesConstantsMod, only: umol_per_mol
-use FatesConstantsMod, only: mmol_per_mol
-use FatesConstantsMod, only: umol_per_kmol
-use FatesConstantsMod, only : rgas => rgas_J_K_kmol
+   use FatesConstantsMod, only: umol_per_mol
+   use FatesConstantsMod, only: mmol_per_mol
+   use FatesConstantsMod, only: umol_per_kmol
+   use FatesConstantsMod, only : rgas => rgas_J_K_kmol
 
-! Arguments
-real(r8), intent(in) :: can_press           ! Air pressure within the canopy (Pa)
-real(r8), intent(in) :: can_o2_partialpress ! Partial press of o2 in the canopy (Pa)
-real(r8), intent(in) :: veg_tempk           ! The temperature of the vegetation (K)
-real(r8), intent(in) :: air_tempk           ! Temperature of canopy air (K)
-real(r8), intent(in) :: air_vpress          ! Vapor pressure of canopy air (Pa)
-real(r8), intent(in) :: veg_esat            ! Saturated vapor pressure at veg surf (Pa)
-real(r8), intent(in) :: rb                  ! Leaf Boundary layer resistance (s/m)
+   ! Arguments
+   real(r8), intent(in) :: can_press           ! Air pressure within the canopy (Pa)
+   real(r8), intent(in) :: can_o2_partialpress ! Partial press of o2 in the canopy (Pa)
+   real(r8), intent(in) :: veg_tempk           ! The temperature of the vegetation (K)
+   real(r8), intent(in) :: air_tempk           ! Temperature of canopy air (K)
+   real(r8), intent(in) :: air_vpress          ! Vapor pressure of canopy air (Pa)
+   real(r8), intent(in) :: veg_esat            ! Saturated vapor pressure at veg surf (Pa)
+   real(r8), intent(in) :: rb                  ! Leaf Boundary layer resistance (s/m)
 
-real(r8), intent(out) :: mm_kco2       ! Michaelis-Menten constant for CO2 (Pa)
-real(r8), intent(out) :: mm_ko2        !  Michaelis-Menten constant for O2 (Pa)
-real(r8), intent(out) :: co2_cpoint    !  CO2 compensation point (Pa)
-real(r8), intent(out) :: cf            ! conversion factor between molar form and velocity form
-! of conductance and resistance: [umol/m3] 
-real(r8), intent(out) :: gb_mol        ! leaf boundary layer conductance (umol H2O/m**2/s)
-real(r8), intent(out) :: ceair         ! vapor pressure of air, constrained (Pa)
+   real(r8), intent(out) :: mm_kco2       ! Michaelis-Menten constant for CO2 (Pa)
+   real(r8), intent(out) :: mm_ko2        !  Michaelis-Menten constant for O2 (Pa)
+   real(r8), intent(out) :: co2_cpoint    !  CO2 compensation point (Pa)
+   real(r8), intent(out) :: cf            ! conversion factor between molar form and velocity form
+                                          ! of conductance and resistance: [umol/m3]
+   real(r8), intent(out) :: gb_mol        ! leaf boundary layer conductance (umol H2O/m**2/s)
+   real(r8), intent(out) :: ceair         ! vapor pressure of air, constrained (Pa)
 
-! Locals 
-real(r8) :: kc25                ! Michaelis-Menten constant for CO2 at 25C (Pa)
-real(r8) :: ko25                ! Michaelis-Menten constant for O2 at 25C (Pa)
-real(r8) :: sco                 ! relative specificity of rubisco
-real(r8) :: cp25                ! CO2 compensation point at 25C (Pa)
+   ! Locals
+   real(r8) :: kc25                ! Michaelis-Menten constant for CO2 at 25C (Pa)
+   real(r8) :: ko25                ! Michaelis-Menten constant for O2 at 25C (Pa)
+   real(r8) :: sco                 ! relative specificity of rubisco
+   real(r8) :: cp25                ! CO2 compensation point at 25C (Pa)
 
-! ---------------------------------------------------------------------------------
-! Intensive values (per mol of air) 
-! kc, ko, currentPatch, from: Bernacchi et al (2001) 
-! Plant, Cell and Environment 24:253-259
-! ---------------------------------------------------------------------------------
+   ! ---------------------------------------------------------------------------------
+   ! Intensive values (per mol of air)
+   ! kc, ko, currentPatch, from: Bernacchi et al (2001)
+   ! Plant, Cell and Environment 24:253-259
+   ! ---------------------------------------------------------------------------------
 
-real(r8), parameter :: mm_kc25_umol_per_mol       = 404.9_r8
-real(r8), parameter :: mm_ko25_mmol_per_mol       = 278.4_r8
-real(r8), parameter :: co2_cpoint_umol_per_mol    = 42.75_r8
+   real(r8), parameter :: mm_kc25_umol_per_mol       = 404.9_r8
+   real(r8), parameter :: mm_ko25_mmol_per_mol       = 278.4_r8
+   real(r8), parameter :: co2_cpoint_umol_per_mol    = 42.75_r8
 
-! Activation energy, from:
-! Bernacchi et al (2001) Plant, Cell and Environment 24:253-259
-! Bernacchi et al (2003) Plant, Cell and Environment 26:1419-1430
-! except TPU from: Harley et al (1992) Plant, Cell and Environment 15:271-282
+   ! Activation energy, from:
+   ! Bernacchi et al (2001) Plant, Cell and Environment 24:253-259
+   ! Bernacchi et al (2003) Plant, Cell and Environment 26:1419-1430
 
-real(r8), parameter :: kcha    = 79430._r8  ! activation energy for kc (J/mol)
-real(r8), parameter :: koha    = 36380._r8  ! activation energy for ko (J/mol)
-real(r8), parameter :: cpha    = 37830._r8  ! activation energy for cp (J/mol)
-
-
-! Derive sco from currentPatch and O2 using present-day O2 (0.209 mol/mol) and re-calculate
-! currentPatch to account for variation in O2 using currentPatch = 0.5 O2 / sco
-
-! FIXME (RGK 11-30-2016 THere are more constants here, but I don't have enough information
-! about what they are or do, so I can't give them more descriptive names. Someone please
-! fill this in when possible)
-
-kc25 = ( mm_kc25_umol_per_mol / umol_per_mol ) * can_press
-ko25 = ( mm_ko25_mmol_per_mol / mmol_per_mol ) * can_press
-sco  = 0.5_r8 * 0.209_r8 / (co2_cpoint_umol_per_mol / umol_per_mol )
-cp25 = 0.5_r8 * can_o2_partialpress / sco
-
-if( veg_tempk.gt.150_r8 .and. veg_tempk.lt.350_r8 )then
-   mm_kco2       = kc25 * ft1_f(veg_tempk, kcha)
-   mm_ko2         = ko25 * ft1_f(veg_tempk, koha)
-   co2_cpoint     = cp25 * ft1_f(veg_tempk, cpha)
-else
-   mm_kco2    = 1.0_r8
-   mm_ko2     = 1.0_r8
-   co2_cpoint = 1.0_r8
-end if
-
-! ---------------------------------------------------------------------------------
-!
-! cf is the conversion factor between molar form and velocity form
-! of conductance and resistance: [umol/m3]
-!
-! i.e.
-! [m/s] * [umol/m3] -> [umol/m2/s]
-!
-! Breakdown of the conversion factor: [ umol / m3 ]
-!
-! Rgas [J /K /kmol]
-! Air Potential Temperature [ K ]
-! Canopy Pressure      [ Pa ]
-! conversion: umol/kmol =  1e9
-!
-! [ Pa * K * kmol umol/kmol  /  J K ] = [ Pa * umol / J ] 
-! since: 1 Pa = 1 N / m2
-! [ Pa * umol / J ] = [ N * umol / J m2 ]
-! since: 1 J = 1 N * m
-! [ N * umol / J m2 ] = [ N * umol / N m3 ]
-! [ umol / m3 ]
-! 
-! --------------------------------------------------------------------------------
-
-cf = can_press/(rgas * air_tempk )*umol_per_kmol
-gb_mol = (1._r8/ rb) * cf           
-
-! Constrain eair >= 0.05*esat_tv so that solution does not blow up. This ensures
-! that hs does not go to zero. Also eair <= veg_esat so that hs <= 1
-ceair = min( max(air_vpress, 0.05_r8*veg_esat ),veg_esat )
+   real(r8), parameter :: kcha    = 79430._r8  ! activation energy for kc (J/mol)
+   real(r8), parameter :: koha    = 36380._r8  ! activation energy for ko (J/mol)
+   real(r8), parameter :: cpha    = 37830._r8  ! activation energy for cp (J/mol)
 
 
+   ! Derive sco from currentPatch and O2 using present-day O2 (0.209 mol/mol) and re-calculate
+   ! currentPatch to account for variation in O2 using currentPatch = 0.5 O2 / sco
 
-return
+   ! FIXME (RGK 11-30-2016 THere are more constants here, but I don't have enough information
+   ! about what they are or do, so I can't give them more descriptive names. Someone please
+   ! fill this in when possible)
+
+   kc25 = ( mm_kc25_umol_per_mol / umol_per_mol ) * can_press
+   ko25 = ( mm_ko25_mmol_per_mol / mmol_per_mol ) * can_press
+   sco  = 0.5_r8 * 0.209_r8 / (co2_cpoint_umol_per_mol / umol_per_mol )
+   cp25 = 0.5_r8 * can_o2_partialpress / sco
+
+   if( veg_tempk.gt.150_r8 .and. veg_tempk.lt.350_r8 )then
+      mm_kco2       = kc25 * ft1_f(veg_tempk, kcha)
+      mm_ko2         = ko25 * ft1_f(veg_tempk, koha)
+      co2_cpoint     = cp25 * ft1_f(veg_tempk, cpha)
+   else
+      mm_kco2    = 1.0_r8
+      mm_ko2     = 1.0_r8
+      co2_cpoint = 1.0_r8
+   end if
+
+   ! ---------------------------------------------------------------------------------
+   !
+   ! cf is the conversion factor between molar form and velocity form
+   ! of conductance and resistance: [umol/m3]
+   !
+   ! i.e.
+   ! [m/s] * [umol/m3] -> [umol/m2/s]
+   !
+   ! Breakdown of the conversion factor: [ umol / m3 ]
+   !
+   ! Rgas [J /K /kmol]
+   ! Air Potential Temperature [ K ]
+   ! Canopy Pressure      [ Pa ]
+   ! conversion: umol/kmol =  1e9
+   !
+   ! [ Pa * K * kmol umol/kmol  /  J K ] = [ Pa * umol / J ]
+   ! since: 1 Pa = 1 N / m2
+   ! [ Pa * umol / J ] = [ N * umol / J m2 ]
+   ! since: 1 J = 1 N * m
+   ! [ N * umol / J m2 ] = [ N * umol / N m3 ]
+   ! [ umol / m3 ]
+   !
+   ! --------------------------------------------------------------------------------
+
+   cf = can_press/(rgas * air_tempk )*umol_per_kmol
+   gb_mol = (1._r8/ rb) * cf
+
+   ! Constrain eair >= 0.05*esat_tv so that solution does not blow up. This ensures
+   ! that hs does not go to zero. Also eair <= veg_esat so that hs <= 1
+   ceair = min( max(air_vpress, 0.05_r8*veg_esat ),veg_esat )
+
+
+
+   return
 end subroutine GetCanopyGasParameters
 
 ! ====================================================================================
@@ -1765,45 +1763,45 @@ subroutine LeafLayerMaintenanceRespiration(lmr25top_ft, &
    veg_tempk,     &
    lmr)
 
-use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
-use EDPftvarcon         , only : EDPftvarcon_inst
+   use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
+   use EDPftvarcon         , only : EDPftvarcon_inst
 
-! Arguments
-real(r8), intent(in)  :: lmr25top_ft  ! canopy top leaf maint resp rate at 25C 
-! for this pft (umol CO2/m**2/s)
-integer,  intent(in)  :: ft           ! (plant) Functional Type Index
-real(r8), intent(in)  :: nscaler      ! Scale for leaf nitrogen profile
-real(r8), intent(in)  :: veg_tempk    ! vegetation temperature
-real(r8), intent(out) :: lmr          ! Leaf Maintenance Respiration  (umol CO2/m**2/s)
+   ! Arguments
+   real(r8), intent(in)  :: lmr25top_ft  ! canopy top leaf maint resp rate at 25C
+   ! for this pft (umol CO2/m**2/s)
+   integer,  intent(in)  :: ft           ! (plant) Functional Type Index
+   real(r8), intent(in)  :: nscaler      ! Scale for leaf nitrogen profile
+   real(r8), intent(in)  :: veg_tempk    ! vegetation temperature
+   real(r8), intent(out) :: lmr          ! Leaf Maintenance Respiration  (umol CO2/m**2/s)
 
-! Locals
-real(r8) :: lmr25   ! leaf layer: leaf maintenance respiration rate at 25C (umol CO2/m**2/s)
+   ! Locals
+   real(r8) :: lmr25   ! leaf layer: leaf maintenance respiration rate at 25C (umol CO2/m**2/s)
 
-! Parameter
-real(r8), parameter :: lmrha = 46390._r8    ! activation energy for lmr (J/mol)
-real(r8), parameter :: lmrhd = 150650._r8   ! deactivation energy for lmr (J/mol)
-real(r8), parameter :: lmrse = 490._r8      ! entropy term for lmr (J/mol/K)
-real(r8), parameter :: lmrc = 1.15912391_r8 ! scaling factor for high 
-! temperature inhibition (25 C = 1.0)
-
-
+   ! Parameter
+   real(r8), parameter :: lmrha = 46390._r8    ! activation energy for lmr (J/mol)
+   real(r8), parameter :: lmrhd = 150650._r8   ! deactivation energy for lmr (J/mol)
+   real(r8), parameter :: lmrse = 490._r8      ! entropy term for lmr (J/mol/K)
+   real(r8), parameter :: lmrc = 1.15912391_r8 ! scaling factor for high
+   ! temperature inhibition (25 C = 1.0)
 
 
 
-! Part I: Leaf Maintenance respiration: umol CO2 / m**2 [leaf] / s
-! ----------------------------------------------------------------------------------
-lmr25 = lmr25top_ft * nscaler 
 
-if ( nint(EDpftvarcon_inst%c3psn(ft)) == 1)then
-   lmr = lmr25 * ft1_f(veg_tempk, lmrha) * &
-        fth_f(veg_tempk, lmrhd, lmrse, lmrc)
-else
-   lmr = lmr25 * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8)
-   lmr = lmr / (1._r8 + exp( 1.3_r8*(veg_tempk-(tfrz+55._r8)) ))
-end if
 
-! Any hydrodynamic limitations could go here, currently none
-! lmr = lmr * (nothing)
+   ! Part I: Leaf Maintenance respiration: umol CO2 / m**2 [leaf] / s
+   ! ----------------------------------------------------------------------------------
+   lmr25 = lmr25top_ft * nscaler
+
+   if ( nint(EDpftvarcon_inst%c3psn(ft)) == 1)then
+      lmr = lmr25 * ft1_f(veg_tempk, lmrha) * &
+         fth_f(veg_tempk, lmrhd, lmrse, lmrc)
+   else
+      lmr = lmr25 * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8)
+      lmr = lmr / (1._r8 + exp( 1.3_r8*(veg_tempk-(tfrz+55._r8)) ))
+   end if
+
+   ! Any hydrodynamic limitations could go here, currently none
+   ! lmr = lmr * (nothing)
 
 end subroutine LeafLayerMaintenanceRespiration
 
@@ -1813,14 +1811,12 @@ subroutine LeafLayerBiophysicalRates( parsun_lsl, &
    ft,            &
    vcmax25top_ft, &
    jmax25top_ft, &
-   tpu25top_ft, &
    co2_rcurve_islope25top_ft, &
    nscaler,    &
    veg_tempk,      &
    btran, &
    vcmax, &
    jmax, &
-   tpu, &
    co2_rcurve_islope )
 
   ! ---------------------------------------------------------------------------------
@@ -1833,111 +1829,93 @@ subroutine LeafLayerBiophysicalRates( parsun_lsl, &
   ! The output biophysical rates are:
   ! vcmax: maximum rate of carboxilation,
   ! jmax: maximum electron transport rate,
-  ! tpu: triose phosphate utilization rate and
   ! co2_rcurve_islope: initial slope of CO2 response curve (C4 plants)
   ! ---------------------------------------------------------------------------------
 
-use EDPftvarcon         , only : EDPftvarcon_inst
-use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
+   use EDPftvarcon         , only : EDPftvarcon_inst
+   use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
 
-! Arguments
-! ------------------------------------------------------------------------------
+   ! Arguments
+   ! ------------------------------------------------------------------------------
 
-real(r8), intent(in) :: parsun_lsl      ! PAR absorbed in sunlit leaves for this layer
-integer,  intent(in) :: ft              ! (plant) Functional Type Index
-real(r8), intent(in) :: nscaler         ! Scale for leaf nitrogen profile
-real(r8), intent(in) :: vcmax25top_ft   ! canopy top maximum rate of carboxylation at 25C 
-! for this pft (umol CO2/m**2/s)
-real(r8), intent(in) :: jmax25top_ft    ! canopy top maximum electron transport rate at 25C 
-! for this pft (umol electrons/m**2/s)
-real(r8), intent(in) :: tpu25top_ft     ! canopy top triose phosphate utilization rate at 25C 
-! for this pft (umol CO2/m**2/s)
-real(r8), intent(in) :: co2_rcurve_islope25top_ft ! initial slope of CO2 response curve
-! (C4 plants) at 25C, canopy top, this pft
-real(r8), intent(in) :: veg_tempk           ! vegetation temperature
-real(r8), intent(in) :: btran           ! transpiration wetness factor (0 to 1) 
+   real(r8), intent(in) :: parsun_lsl      ! PAR absorbed in sunlit leaves for this layer
+   integer,  intent(in) :: ft              ! (plant) Functional Type Index
+   real(r8), intent(in) :: nscaler         ! Scale for leaf nitrogen profile
+   real(r8), intent(in) :: vcmax25top_ft   ! canopy top maximum rate of carboxylation at 25C
+                                             ! for this pft (umol CO2/m**2/s)
+   real(r8), intent(in) :: jmax25top_ft    ! canopy top maximum electron transport rate at 25C
+                                             ! for this pft (umol electrons/m**2/s)
+   real(r8), intent(in) :: co2_rcurve_islope25top_ft ! initial slope of CO2 response curve
+                                             ! (C4 plants) at 25C, canopy top, this pft
+   real(r8), intent(in) :: veg_tempk           ! vegetation temperature
+   real(r8), intent(in) :: btran           ! transpiration wetness factor (0 to 1)
 
-real(r8), intent(out) :: vcmax             ! maximum rate of carboxylation (umol co2/m**2/s)
-real(r8), intent(out) :: jmax              ! maximum electron transport rate 
-! (umol electrons/m**2/s)
-real(r8), intent(out) :: tpu               ! triose phosphate utilization rate 
-! (umol CO2/m**2/s)
-real(r8), intent(out) :: co2_rcurve_islope ! initial slope of CO2 response curve (C4 plants)
+   real(r8), intent(out) :: vcmax             ! maximum rate of carboxylation (umol co2/m**2/s)
+   real(r8), intent(out) :: jmax              ! maximum electron transport rate
+                                                ! (umol electrons/m**2/s)
+   real(r8), intent(out) :: co2_rcurve_islope ! initial slope of CO2 response curve (C4 plants)
 
-! Locals
-! -------------------------------------------------------------------------------
-real(r8) :: vcmax25             ! leaf layer: maximum rate of carboxylation at 25C
-! (umol CO2/m**2/s)
-real(r8) :: jmax25              ! leaf layer: maximum electron transport rate at 25C 
-! (umol electrons/m**2/s)
-real(r8) :: tpu25               ! leaf layer: triose phosphate utilization rate at 25C 
-! (umol CO2/m**2/s)
-real(r8) :: co2_rcurve_islope25 ! leaf layer: Initial slope of CO2 response curve 
-! (C4 plants) at 25C
+   ! Locals
+   ! -------------------------------------------------------------------------------
+   real(r8) :: vcmax25             ! leaf layer: maximum rate of carboxylation at 25C
+                                    ! (umol CO2/m**2/s)
+   real(r8) :: jmax25              ! leaf layer: maximum electron transport rate at 25C
+                                    ! (umol electrons/m**2/s)
+   real(r8) :: co2_rcurve_islope25 ! leaf layer: Initial slope of CO2 response curve
+                                    ! (C4 plants) at 25C
 
 
-! Parameters
-! ---------------------------------------------------------------------------------
-real(r8) :: vcmaxha        ! activation energy for vcmax (J/mol)
-real(r8) :: jmaxha         ! activation energy for jmax (J/mol)
-real(r8) :: tpuha          ! activation energy for tpu (J/mol)
-real(r8) :: vcmaxhd        ! deactivation energy for vcmax (J/mol)
-real(r8) :: jmaxhd         ! deactivation energy for jmax (J/mol)
-real(r8) :: tpuhd          ! deactivation energy for tpu (J/mol)
-real(r8) :: vcmaxse        ! entropy term for vcmax (J/mol/K)
-real(r8) :: jmaxse         ! entropy term for jmax (J/mol/K)
-real(r8) :: tpuse          ! entropy term for tpu (J/mol/K)
-real(r8) :: vcmaxc         ! scaling factor for high temperature inhibition (25 C = 1.0)
-real(r8) :: jmaxc          ! scaling factor for high temperature inhibition (25 C = 1.0)
-real(r8) :: tpuc           ! scaling factor for high temperature inhibition (25 C = 1.0)
+   ! Parameters
+   ! ---------------------------------------------------------------------------------
+   real(r8) :: vcmaxha        ! activation energy for vcmax (J/mol)
+   real(r8) :: jmaxha         ! activation energy for jmax (J/mol)
+   real(r8) :: vcmaxhd        ! deactivation energy for vcmax (J/mol)
+   real(r8) :: jmaxhd         ! deactivation energy for jmax (J/mol)
+   real(r8) :: vcmaxse        ! entropy term for vcmax (J/mol/K)
+   real(r8) :: jmaxse         ! entropy term for jmax (J/mol/K)
+   real(r8) :: vcmaxc         ! scaling factor for high temperature inhibition (25 C = 1.0)
+   real(r8) :: jmaxc          ! scaling factor for high temperature inhibition (25 C = 1.0)
 
-vcmaxha = EDPftvarcon_inst%vcmaxha(FT)
-jmaxha  = EDPftvarcon_inst%jmaxha(FT)
-tpuha   = EDPftvarcon_inst%tpuha(FT)
+   vcmaxha = EDPftvarcon_inst%vcmaxha(FT)
+   jmaxha  = EDPftvarcon_inst%jmaxha(FT)
 
-vcmaxhd = EDPftvarcon_inst%vcmaxhd(FT)
-jmaxhd  = EDPftvarcon_inst%jmaxhd(FT)
-tpuhd   = EDPftvarcon_inst%tpuhd(FT)
+   vcmaxhd = EDPftvarcon_inst%vcmaxhd(FT)
+   jmaxhd  = EDPftvarcon_inst%jmaxhd(FT)
 
-vcmaxse = EDPftvarcon_inst%vcmaxse(FT)
-jmaxse  = EDPftvarcon_inst%jmaxse(FT)
-tpuse   = EDPftvarcon_inst%tpuse(FT)
+   vcmaxse = EDPftvarcon_inst%vcmaxse(FT)
+   jmaxse  = EDPftvarcon_inst%jmaxse(FT)
 
-vcmaxc = fth25_f(vcmaxhd, vcmaxse)
-jmaxc  = fth25_f(jmaxhd, jmaxse)
-tpuc   = fth25_f(tpuhd, tpuse)
+   vcmaxc = fth25_f(vcmaxhd, vcmaxse)
+   jmaxc  = fth25_f(jmaxhd, jmaxse)
 
-if ( parsun_lsl <= 0._r8) then           ! night time
-   vcmax             = 0._r8
-   jmax              = 0._r8
-   tpu               = 0._r8
-   co2_rcurve_islope = 0._r8
-else                                     ! day time
+   if ( parsun_lsl <= 0._r8) then           ! night time
+      vcmax             = 0._r8
+      jmax              = 0._r8
+      co2_rcurve_islope = 0._r8
+   else                                     ! day time
 
-   ! Vcmax25top was already calculated to derive the nscaler function
-   vcmax25 = vcmax25top_ft * nscaler
-   jmax25  = jmax25top_ft * nscaler
-   tpu25   = tpu25top_ft * nscaler
-   co2_rcurve_islope25 = co2_rcurve_islope25top_ft * nscaler
+      ! Vcmax25top was already calculated to derive the nscaler function
+      vcmax25 = vcmax25top_ft * nscaler
+      jmax25  = jmax25top_ft * nscaler
+      co2_rcurve_islope25 = co2_rcurve_islope25top_ft * nscaler
 
-   ! Adjust for temperature
-   vcmax = vcmax25 * ft1_f(veg_tempk, vcmaxha) * fth_f(veg_tempk, vcmaxhd, vcmaxse, vcmaxc)
-   jmax  = jmax25 * ft1_f(veg_tempk, jmaxha) * fth_f(veg_tempk, jmaxhd, jmaxse, jmaxc)
-   tpu   = tpu25 * ft1_f(veg_tempk, tpuha) * fth_f(veg_tempk, tpuhd, tpuse, tpuc)
+      ! Adjust for temperature
+      vcmax = vcmax25 * ft1_f(veg_tempk, vcmaxha) * fth_f(veg_tempk, vcmaxhd, vcmaxse, vcmaxc)
+      jmax  = jmax25 * ft1_f(veg_tempk, jmaxha) * fth_f(veg_tempk, jmaxhd, jmaxse, jmaxc)
 
-   if (nint(EDPftvarcon_inst%c3psn(ft))  /=  1) then
-      vcmax = vcmax25 * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8)
-      vcmax = vcmax / (1._r8 + exp( 0.2_r8*((tfrz+15._r8)-veg_tempk ) ))
-      vcmax = vcmax / (1._r8 + exp( 0.3_r8*(veg_tempk-(tfrz+40._r8)) ))
+      if (nint(EDPftvarcon_inst%c3psn(ft))  /=  1) then
+         vcmax = vcmax25 * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8)
+         vcmax = vcmax / (1._r8 + exp( 0.2_r8*((tfrz+15._r8)-veg_tempk ) ))
+         vcmax = vcmax / (1._r8 + exp( 0.3_r8*(veg_tempk-(tfrz+40._r8)) ))
+      end if
+      !q10 response of product limited psn.
+      co2_rcurve_islope = co2_rcurve_islope25 * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8)
    end if
-   !q10 response of product limited psn. 
-   co2_rcurve_islope = co2_rcurve_islope25 * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8) 
-end if
 
-! Adjust for water limitations 
-vcmax = vcmax * btran
+   ! Adjust for water limitations
+   vcmax = vcmax * btran
 
-return
+   return
 end subroutine LeafLayerBiophysicalRates
 
 subroutine lowstorage_maintresp_reduction(frac, pft, maintresp_reduction_factor)
@@ -1945,45 +1923,45 @@ subroutine lowstorage_maintresp_reduction(frac, pft, maintresp_reduction_factor)
   ! This subroutine reduces maintenance respiration rates when storage pool is low.  The premise
   ! of this is that mortality of plants increases when storage is low because they are not able
   ! to repair tissues, generate defense compounds, etc.  This reduction is reflected in a reduced
-  ! maintenance demand.  The output of this function takes the form of a curve between 0 and 1, 
+  ! maintenance demand.  The output of this function takes the form of a curve between 0 and 1,
   ! and the curvature of the function is determined by a parameter.
 
   ! Uses
-use EDPftvarcon         , only : EDPftvarcon_inst 
+   use EDPftvarcon         , only : EDPftvarcon_inst
 
-! Arguments
-! ------------------------------------------------------------------------------
-real(r8), intent(in) :: frac      ! ratio of storage to target leaf biomass
-integer,  intent(in) :: pft       ! what pft is this cohort?
-real(r8), intent(out) :: maintresp_reduction_factor  ! the factor by which to reduce maintenance respiration
+   ! Arguments
+   ! ------------------------------------------------------------------------------
+   real(r8), intent(in) :: frac      ! ratio of storage to target leaf biomass
+   integer,  intent(in) :: pft       ! what pft is this cohort?
+   real(r8), intent(out) :: maintresp_reduction_factor  ! the factor by which to reduce maintenance respiration
 
-! --------------------------------------------------------------------------------
-! Parameters are at the PFT level:
-! fates_maintresp_reduction_curvature controls the curvature of this.  
-! If this parameter is zero, then there is no reduction until the plant dies at storage = 0.
-! If this parameter is one, then there is a linear reduction in respiration below the storage point.
-! Intermediate values will give some (concave-downwards) curvature.  
-!
-! maintresp_reduction_intercept controls the maximum amount of throttling.  
-! zero means no throttling at any point, so it turns this mechanism off completely and so 
-! allows an entire cohort to die via negative carbon-induced termination mortality.
-! one means complete throttling, so no maintenance respiration at all, when out of carbon.
-! ---------------------------------------------------------------------------------
+   ! --------------------------------------------------------------------------------
+   ! Parameters are at the PFT level:
+   ! fates_maintresp_reduction_curvature controls the curvature of this.
+   ! If this parameter is zero, then there is no reduction until the plant dies at storage = 0.
+   ! If this parameter is one, then there is a linear reduction in respiration below the storage point.
+   ! Intermediate values will give some (concave-downwards) curvature.
+   !
+   ! maintresp_reduction_intercept controls the maximum amount of throttling.
+   ! zero means no throttling at any point, so it turns this mechanism off completely and so
+   ! allows an entire cohort to die via negative carbon-induced termination mortality.
+   ! one means complete throttling, so no maintenance respiration at all, when out of carbon.
+   ! ---------------------------------------------------------------------------------
 
-if( frac .lt. 1._r8 )then
-   if ( EDPftvarcon_inst%maintresp_reduction_curvature(pft) .ne. 1._r8 ) then
-      maintresp_reduction_factor = (1._r8 - EDPftvarcon_inst%maintresp_reduction_intercept(pft)) + &
-           EDPftvarcon_inst%maintresp_reduction_intercept(pft) * &
-           (1._r8 - EDPftvarcon_inst%maintresp_reduction_curvature(pft)**frac) &
-           / (1._r8-EDPftvarcon_inst%maintresp_reduction_curvature(pft))
-   else  ! avoid nan answer for linear case
-      maintresp_reduction_factor = (1._r8 - EDPftvarcon_inst%maintresp_reduction_intercept(pft)) + &
-           EDPftvarcon_inst%maintresp_reduction_intercept(pft) * frac
+   if( frac .lt. 1._r8 )then
+      if ( EDPftvarcon_inst%maintresp_reduction_curvature(pft) .ne. 1._r8 ) then
+         maintresp_reduction_factor = (1._r8 - EDPftvarcon_inst%maintresp_reduction_intercept(pft)) + &
+            EDPftvarcon_inst%maintresp_reduction_intercept(pft) * &
+            (1._r8 - EDPftvarcon_inst%maintresp_reduction_curvature(pft)**frac) &
+            / (1._r8-EDPftvarcon_inst%maintresp_reduction_curvature(pft))
+      else  ! avoid nan answer for linear case
+         maintresp_reduction_factor = (1._r8 - EDPftvarcon_inst%maintresp_reduction_intercept(pft)) + &
+            EDPftvarcon_inst%maintresp_reduction_intercept(pft) * frac
+      endif
+
+   else
+      maintresp_reduction_factor = 1._r8
    endif
-
-else
-   maintresp_reduction_factor = 1._r8
-endif
 
 
 end subroutine lowstorage_maintresp_reduction

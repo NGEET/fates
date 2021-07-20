@@ -9,7 +9,7 @@ dimensions:
 	fates_leafage_class = 1 ;
 	fates_litterclass = 6 ;
 	fates_pft = 12 ;
-	fates_prt_organs = 6 ;
+	fates_prt_organs = 4 ;
 	fates_string_length = 60 ;
 	fates_variants = 2 ;
         fates_hlm_pftno = 14 ;        
@@ -32,7 +32,10 @@ variables:
 		fates_pftname:long_name = "Description of plant type" ;
 	char fates_prt_organ_name(fates_prt_organs, fates_string_length) ;
 		fates_prt_organ_name:units = "unitless - string" ;
-		fates_prt_organ_name:long_name = "Plant organ name (order must match PRTGenericMod.F90)" ;
+		fates_prt_organ_name:long_name = "Name of plant organs (order must match PRTGenericMod.F90)" ;
+   double fates_prt_organ_id(fates_prt_organs) ;
+	   fates_prt_organ_id:units = "index, unitless" ;
+		fates_prt_organ_id:long_name = "This is the global index the organ in this file is associated with in PRTGenericMod.F90" ;
 	double fates_alloc_storage_cushion(fates_pft) ;
 		fates_alloc_storage_cushion:units = "fraction" ;
 		fates_alloc_storage_cushion:long_name = "maximum size of storage C pool, relative to maximum size of leaf C pool" ;
@@ -283,15 +286,6 @@ variables:
 	double fates_leaf_stor_priority(fates_pft) ;
 		fates_leaf_stor_priority:units = "unitless" ;
 		fates_leaf_stor_priority:long_name = "factor governing priority of replacing storage with NPP" ;
-	double fates_leaf_tpuha(fates_pft) ;
-		fates_leaf_tpuha:units = "J/mol" ;
-		fates_leaf_tpuha:long_name = "activation energy for tpu" ;
-	double fates_leaf_tpuhd(fates_pft) ;
-		fates_leaf_tpuhd:units = "J/mol" ;
-		fates_leaf_tpuhd:long_name = "deactivation energy for tpu" ;
-	double fates_leaf_tpuse(fates_pft) ;
-		fates_leaf_tpuse:units = "J/mol/K" ;
-		fates_leaf_tpuse:long_name = "entropy term for tpu" ;
 	double fates_leaf_vcmax25top(fates_leafage_class, fates_pft) ;
 		fates_leaf_vcmax25top:units = "umol CO2/m^2/s" ;
 		fates_leaf_vcmax25top:long_name = "maximum carboxylation rate of Rub. at 25C, canopy top" ;
@@ -393,16 +387,16 @@ variables:
 		fates_prescribed_npp_understory:long_name = "NPP per unit crown area of understory trees for prescribed physiology mode" ;
 	double fates_prescribed_nuptake(fates_pft) ;
 	    fates_prescribed_nuptake:units = "fraction" ;
-		fates_prescribed_nuptake:long_name = "Nitrogen uptake flux as fraction of NPP demand. 0=fully coupled simulation" ;
+		fates_prescribed_nuptake:long_name = "Prescribed N uptake flux. 0=fully coupled simulation >0=prescribed (experimental)" ;
 	double fates_prescribed_puptake(fates_pft) ;
     	fates_prescribed_puptake:units = "fraction" ;
-		fates_prescribed_puptake:long_name = "Phosphorus uptake flux as fraction of NPP demand. 0=fully coupled simulation" ;
+		fates_prescribed_puptake:long_name = "Prescribed P uptake flux. 0=fully coupled simulation, >0=prescribed (experimental)" ;
 	double fates_prescribed_recruitment(fates_pft) ;
 		fates_prescribed_recruitment:units = "n/yr" ;
 		fates_prescribed_recruitment:long_name = "recruitment rate for prescribed physiology mode" ;
 	double fates_prt_alloc_priority(fates_prt_organs, fates_pft) ;
 		fates_prt_alloc_priority:units = "index (0-fates_prt_organs)" ;
-		fates_prt_alloc_priority:long_name = "Priority order for allocation" ;
+		fates_prt_alloc_priority:long_name = "Priority order for allocation (C storage=2)" ;
 	double fates_prt_nitr_stoich_p1(fates_prt_organs, fates_pft) ;
 		fates_prt_nitr_stoich_p1:units = "(gN/gC)" ;
 		fates_prt_nitr_stoich_p1:long_name = "nitrogen stoichiometry, parameter 1" ;
@@ -415,6 +409,13 @@ variables:
 	double fates_prt_phos_stoich_p2(fates_prt_organs, fates_pft) ;
 		fates_prt_phos_stoich_p2:units = "(gP/gC)" ;
 		fates_prt_phos_stoich_p2:long_name = "phosphorous stoichiometry, parameter 2" ;
+	double fates_nitr_store_ratio(fates_pft) ;	  
+		fates_nitr_store_ratio:units = "(gN/gN)" ;
+		fates_nitr_store_ratio:long_name = "ratio of storeable N, to functional N bound in cell structures of leaf,root,sap" ;
+	double fates_phos_store_ratio(fates_pft) ;	  
+		fates_phos_store_ratio:units = "(gP/gP)" ;
+		fates_phos_store_ratio:long_name = "ratio of storeable P, to functional P bound in cell structures of leaf,root,sap" ;
+		
 	double fates_recruit_hgt_min(fates_pft) ;
 		fates_recruit_hgt_min:units = "m" ;
 		fates_recruit_hgt_min:long_name = "the minimum height (ie starting height) of a newly recruited plant" ;
@@ -724,9 +725,9 @@ data:
   "leaf                                             ",
   "fine root                                        ",
   "sapwood                                          ",
-  "storage                                          ",
-  "reproduction                                     ",
   "structure                                        " ;
+
+ fates_prt_organ_id = 1, 2, 3, 6 ;
 
  fates_alloc_storage_cushion = 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 
     1.2, 1.2, 1.2 ;
@@ -985,14 +986,6 @@ data:
  fates_leaf_stor_priority = 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 
     0.8, 0.8 ;
 
- fates_leaf_tpuha = 53100, 53100, 53100, 53100, 53100, 53100, 53100, 53100, 
-    53100, 53100, 53100, 53100 ;
-
- fates_leaf_tpuhd = 150650, 150650, 150650, 150650, 150650, 150650, 150650, 
-    150650, 150650, 150650, 150650, 150650 ;
-
- fates_leaf_tpuse = 490, 490, 490, 490, 490, 490, 490, 490, 490, 490, 490, 490 ;
-
  fates_leaf_vcmax25top =
   50, 65, 39, 62, 41, 58, 62, 54, 54, 78, 78, 78 ;
 
@@ -1077,9 +1070,9 @@ data:
  fates_prescribed_npp_understory = 0.03125, 0.03125, 0.03125, 0.03125, 
     0.03125, 0.03125, 0.03125, 0.03125, 0.03125, 0.03125, 0.03125, 0.03125 ;
 
- fates_prescribed_nuptake = 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0 ;
+ fates_prescribed_nuptake = 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ;
 
- fates_prescribed_puptake = 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0 ;
+ fates_prescribed_puptake = 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ;
 
  fates_prescribed_recruitment = 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 
     0.02, 0.02, 0.02, 0.02, 0.02 ;
@@ -1088,8 +1081,6 @@ data:
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
   2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
   3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-  3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4 ;
 
  fates_prt_nitr_stoich_p1 =
@@ -1098,9 +1089,6 @@ data:
     0.024, 0.024,
   1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 
     1e-08, 1e-08,
-  1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 
-    1e-08, 1e-08,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 
     0.0047, 0.0047, 0.0047 ;
 
@@ -1110,9 +1098,6 @@ data:
     0.024, 0.024,
   1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 
     1e-08, 1e-08,
-  1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 
-    1e-08, 1e-08,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 
     0.0047, 0.0047, 0.0047 ;
 
@@ -1123,9 +1108,6 @@ data:
     0.0024, 0.0024, 0.0024,
   1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 
     1e-09, 1e-09,
-  1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 
-    1e-09, 1e-09,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 
     0.00047, 0.00047, 0.00047, 0.00047 ;
 
@@ -1136,11 +1118,12 @@ data:
     0.0024, 0.0024, 0.0024,
   1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 
     1e-09, 1e-09,
-  1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 
-    1e-09, 1e-09,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 
     0.00047, 0.00047, 0.00047, 0.00047 ;
+
+ fates_nitr_store_ratio = 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5;
+
+ fates_phos_store_ratio = 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5;
 
  fates_recruit_hgt_min = 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 0.75, 0.75, 0.75, 
     0.125, 0.125, 0.125 ;
@@ -1205,23 +1188,17 @@ data:
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
  fates_turnover_nitr_retrans =
   0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25,
   0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
  fates_turnover_phos_retrans =
   0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25,
   0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
