@@ -1589,8 +1589,8 @@ contains
     !the old prescribed seed germination rate parameter.
     !-------------------------------------------------------------------------------------------
     !Step 1. calculate the photoblastic germination rate modifier
-        PAR_seed = currentPatch%parprof_pft_dir_z(1,1,1) + & !(ican, pft, ileaf)      !PAR at lowest layer?
-                   currentPatch%parprof_pft_dif_z(1,1,1)                              !W-M2... (mean over 24 hrs?)
+        PAR_seed = currentPatch%parprof_dir_z(1,1) + & !(ican, ileaf)           !is 1,1 PAR at lowest layer?
+                   currentPatch%parprof_dif_z(1,1)                              !W-M2... (mean over 24 hrs?)
         PAR_seed = PAR_seed * 4.6                                                 !covert to umol s-1 of PAR
         f_PAR = PAR_seed / (PAR_seed + EDPftvarcon_inst%par_crit_germ(pft))                                  !calculate photoblastic germ rate
                                                                                   !modifier        
