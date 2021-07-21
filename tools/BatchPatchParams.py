@@ -47,16 +47,11 @@ def load_xml(xmlfile):
 # Little function for assembling the call to the system to make the modification
 # ----------------------------------------------------------------------------------------
 
-def parse_syscall_str(fnamein,fnameout,param_name,dimtype,param_val):
-
-    if(dimtype=="pft"):
-        pft_str = " --allpfts"
-    else:
-        pft_str = ""
+def parse_syscall_str(fnamein,fnameout,param_name,param_val):
 
     sys_call_str = "../tools/modify_fates_paramfile.py"+" --fin " + fnamein + \
-                   " --fout " + fnameout + " --var " + param_name + pft_str + \
-                   " --val " + param_val + " --overwrite"
+                   " --fout " + fnameout + " --var " + param_name + \
+                   " --val " + param_val + " --overwrite --all"
 
     return(sys_call_str)
 
@@ -96,12 +91,7 @@ def main():
     # On subsequent parameters, overwrite the file
     for param in paramlist:
 
-        dset_len = len(fp_nc.variables.get(param.name).data[:])
-        if(len(param.values.split(',')) != dset_len ):
-            print('The number of parameters values specified does not match the dataset')
-            exit(2)
-        
-        change_str = parse_syscall_str(new_nc,new_nc,param.name,"pft",param.values)
+        change_str = parse_syscall_str(new_nc,new_nc,param.name,param.values)
         os.system(change_str)
 
     # Sort the new file
