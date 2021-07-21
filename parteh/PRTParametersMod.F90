@@ -13,9 +13,9 @@ module PRTParametersMod
 
      ! The following three PFT classes 
      ! are mutually exclusive
-     real(r8), allocatable :: stress_decid(:)        ! Is the plant stress deciduous? (1=yes, 0=no)
-     real(r8), allocatable :: season_decid(:)        ! Is the plant seasonally deciduous (1=yes, 0=no)
-     real(r8), allocatable :: evergreen(:)           ! Is the plant an evergreen (1=yes, 0=no)
+     integer, allocatable :: stress_decid(:)        ! Is the plant stress deciduous? (1=yes, 0=no)
+     integer, allocatable :: season_decid(:)        ! Is the plant seasonally deciduous (1=yes, 0=no)
+     integer, allocatable :: evergreen(:)           ! Is the plant an evergreen (1=yes, 0=no)
 
      
      ! Growth and Turnover Parameters
@@ -48,7 +48,23 @@ module PRTParametersMod
      real(r8), allocatable :: nitr_stoich_p1(:,:)        ! Parameter 1 for nitrogen stoichiometry (pft x organ) 
      real(r8), allocatable :: nitr_stoich_p2(:,:)        ! Parameter 2 for nitrogen stoichiometry (pft x organ) 
      real(r8), allocatable :: phos_stoich_p1(:,:)        ! Parameter 1 for phosphorus stoichiometry (pft x organ) 
-     real(r8), allocatable :: phos_stoich_p2(:,:)        ! Parameter 2 for phosphorus stoichiometry (pft x organ) 
+     real(r8), allocatable :: phos_stoich_p2(:,:)        ! Parameter 2 for phosphorus stoichiometry (pft x organ)
+
+     real(r8), allocatable :: nitr_store_ratio(:)        ! This is the ratio of the target nitrogen stored per
+                                                         ! target nitrogen that is bound into the tissues
+                                                         ! of leaves, fine-roots and sapwood
+     
+     
+     real(r8), allocatable :: phos_store_ratio(:)        ! This is the ratio of the target phosphorus stored per
+                                                         ! target phosphorus is bound into the tissues
+                                                         ! of leaves, fine-roots and sapwood
+
+     integer, allocatable :: organ_id(:)                 ! Mapping of the organ index in the parameter file, to the
+                                                         ! global list of organs found in PRTGenericMod.F90
+
+     
+
+     
      real(r8), allocatable :: alloc_priority(:,:)        ! Allocation priority for each organ (pft x organ) [integer 0-6]
      real(r8), allocatable :: cushion(:)                 ! labile carbon storage target as multiple of leaf pool.
      real(r8), allocatable :: leaf_stor_priority(:)      ! leaf turnover vs labile carbon use prioritisation
@@ -58,6 +74,19 @@ module PRTParametersMod
                                                          ! clonal reproduction.
      real(r8), allocatable :: seed_alloc(:)              ! fraction of carbon balance allocated to seeds.
 
+
+     ! Derived parameters
+
+     integer, allocatable :: organ_param_id(:)           ! This is the sparse reverse lookup index map. This is dimensioned
+                                                         ! by all the possible organs in parteh, and each index
+                                                         ! may point to the index in the parameter file, or will be -1
+     
+     real(r8), allocatable :: nitr_recr_stoich(:)        ! This is the N:C ratio of newly recruited plants that are
+                                                         ! on allometry at their recruitment diameter
+
+     real(r8), allocatable :: phos_recr_stoich(:)        ! This is the P:C ratio of newly recruited plants that are
+                                                         ! on allometry at their recruitment diameter
+     
 
      ! Allometry Parameters
      ! --------------------------------------------------------------------------------------------
@@ -108,6 +137,12 @@ module PRTParametersMod
      real(r8), allocatable :: allom_agb3(:)                 ! Parameter 3 for agb allometry
      real(r8), allocatable :: allom_agb4(:)                 ! Parameter 3 for agb allometry
 
+     real(r8), allocatable :: allom_zroot_max_dbh(:)        ! dbh at which maximum rooting depth saturates (largest possible) [cm]
+     real(r8), allocatable :: allom_zroot_max_z(:)          ! the maximum rooting depth defined at dbh = fates_allom_zroot_max_dbh [m]
+     real(r8), allocatable :: allom_zroot_min_dbh(:)        ! dbh at which the maximum rooting depth for a recruit is defined [cm]
+     real(r8), allocatable :: allom_zroot_min_z(:)          ! the maximum rooting depth defined at dbh = fates_allom_zroot_min_dbh [m]
+     real(r8), allocatable :: allom_zroot_k(:)              ! scale coefficient of logistic rooting depth model
+     
      
   end type prt_param_type
 

@@ -159,8 +159,6 @@ contains
                                    ! (umol co2/m**2/s)
     real(r8) :: jmax_z             ! leaf layer maximum electron transport rate 
                                    ! (umol electrons/m**2/s)
-    real(r8) :: tpu_z              ! leaf layer triose phosphate utilization rate 
-                                   ! (umol CO2/m**2/s)
     real(r8) :: kp_z               ! leaf layer initial slope of CO2 response 
                                    ! curve (C4 plants)
     real(r8) :: c13disc_z(nclmax,maxpft,nlevleaf) ! carbon 13 in newly assimilated carbon at leaf level
@@ -272,7 +270,8 @@ contains
 
          do ft = 1,numpft
              call set_root_fraction(rootfr_ft(ft,:), ft, &
-                   bc_in(s)%zi_sisl)
+                   bc_in(s)%zi_sisl, &
+                   bc_in(s)%max_rooting_depth_index_col)
          end do
           
 
@@ -456,7 +455,7 @@ contains
                               select case(hlm_parteh_mode)
                               case (prt_carbon_allom_hyp)
 
-                                 lnc_top  = prt_params%nitr_stoich_p1(ft,leaf_organ)/slatop(ft)
+                                 lnc_top  = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/slatop(ft)
                                  
                               case (prt_cnp_flex_allom_hyp)
 
@@ -465,12 +464,12 @@ contains
                                     leaf_n  = currentCohort%prt%GetState(leaf_organ, nitrogen_element)
                                     lnc_top = leaf_n / (slatop(ft) * leaf_c )
                                  else
-                                    lnc_top  = prt_params%nitr_stoich_p1(ft,leaf_organ)/slatop(ft)
+                                    lnc_top  = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/slatop(ft)
                                  end if
                                     
                                  ! If one wants to break coupling with dynamic N conentrations,
                                  ! use the stoichiometry parameter
-                                 ! lnc_top  = prt_params%nitr_stoich_p1(ft,leaf_organ)/slatop(ft)
+                                 ! lnc_top  = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/slatop(ft)
                                  
                               end select
 
@@ -501,14 +500,12 @@ contains
                                                              ft,                                 &  ! in
                                                              currentCohort%vcmax25top,           &  ! in
                                                              currentCohort%jmax25top,            &  ! in
-                                                             currentCohort%tpu25top,             &  ! in
                                                              currentCohort%kp25top,              &  ! in
                                                              nscaler,                            &  ! in
                                                              bc_in(s)%t_veg_pa(ifp),             &  ! in
                                                              btran_eff,                          &  ! in
                                                              vcmax_z,                            &  ! out
                                                              jmax_z,                             &  ! out
-                                                             tpu_z,                              &  ! out
                                                              kp_z )                                 ! out
                               
                               ! Part IX: This call calculates the actual photosynthesis for the 
@@ -523,7 +520,6 @@ contains
                                                         ft,                                 &  ! in
                                                         vcmax_z,                            &  ! in
                                                         jmax_z,                             &  ! in
-                                                        tpu_z,                              &  ! in
                                                         kp_z,                               &  ! in
                                                         bc_in(s)%t_veg_pa(ifp),             &  ! in
                                                         bc_in(s)%esat_tv_pa(ifp),           &  ! in
@@ -617,12 +613,12 @@ contains
                      case (prt_carbon_allom_hyp)
 
                         live_stem_n = prt_params%allom_agb_frac(currentCohort%pft) * &
-                              sapw_c * prt_params%nitr_stoich_p1(ft,sapw_organ)
+                              sapw_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ))
                         
                         live_croot_n = (1.0_r8-prt_params%allom_agb_frac(currentCohort%pft)) * &
-                              sapw_c * prt_params%nitr_stoich_p1(ft,sapw_organ)
+                              sapw_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ))
 
-                        fnrt_n = fnrt_c * prt_params%nitr_stoich_p1(ft,fnrt_organ)
+                        fnrt_n = fnrt_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(fnrt_organ))
 
                      case(prt_cnp_flex_allom_hyp) 
                      
@@ -638,10 +634,10 @@ contains
                         ! use the stoichiometry parameter
                         !
                         ! live_stem_n = prt_params%allom_agb_frac(currentCohort%pft) * &
-                        !               sapw_c * prt_params%nitr_stoich_p1(ft,sapw_organ)
+                        !               sapw_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ))
                         ! live_croot_n = (1.0_r8-prt_params%allom_agb_frac(currentCohort%pft)) * &
-                        !               sapw_c * prt_params%nitr_stoich_p1(ft,sapw_organ)
-                        ! fnrt_n = fnrt_c * prt_params%nitr_stoich_p1(ft,fnrt_organ)
+                        !               sapw_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ))
+                        ! fnrt_n = fnrt_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(fnrt_organ))
 
                         
                      case default
@@ -839,7 +835,6 @@ contains
                                      ft,                &  ! in
                                      vcmax,             &  ! in
                                      jmax,              &  ! in
-                                     tpu,               &  ! in
                                      co2_rcurve_islope, &  ! in
                                      veg_tempk,         &  ! in
                                      veg_esat,          &  ! in
@@ -870,6 +865,7 @@ contains
     ! ------------------------------------------------------------------------------------
     
     use EDPftvarcon       , only : EDPftvarcon_inst
+    use EDParamsMod       , only : theta_cj_c3, theta_cj_c4
 
     
     ! Arguments
@@ -883,7 +879,6 @@ contains
     integer,  intent(in) :: ft                ! (plant) Functional Type Index
     real(r8), intent(in) :: vcmax             ! maximum rate of carboxylation (umol co2/m**2/s)
     real(r8), intent(in) :: jmax              ! maximum electron transport rate (umol electrons/m**2/s)
-    real(r8), intent(in) :: tpu               ! triose phosphate utilization rate (umol CO2/m**2/s)
     real(r8), intent(in) :: co2_rcurve_islope ! initial slope of CO2 response curve (C4 plants)
     real(r8), intent(in) :: veg_tempk         ! vegetation temperature
     real(r8), intent(in) :: veg_esat          ! saturation vapor pressure at veg_tempk (Pa)
@@ -967,11 +962,6 @@ contains
 
    ! quantum efficiency, used only for C4 (mol CO2 / mol photons) (index 0)
    real(r8),parameter,dimension(0:1) :: quant_eff = [0.05_r8,0.0_r8]
-
-   ! empirical curvature parameter for ac, aj photosynthesis co-limitation. 
-   ! Changed theta_cj and theta_ip to 0.999 to effectively remove smoothing logic 
-   ! following Anthony Walker's findings from MAAT. 
-   real(r8),parameter,dimension(0:1) :: theta_cj  = [0.999_r8,0.999_r8]
 
    ! empirical curvature parameter for ap photosynthesis co-limitation
    real(r8),parameter :: theta_ip = 0.999_r8
@@ -1067,10 +1057,14 @@ contains
                     ! C3: RuBP-limited photosynthesis
                     aj = je * max(co2_inter_c-co2_cpoint, 0._r8) / &
                           (4._r8*co2_inter_c+8._r8*co2_cpoint)
-                 
-                    ! C3: Product-limited photosynthesis 
-                    ap = 3._r8 * tpu
-                 
+
+                    ! Gross photosynthesis smoothing calculations. Co-limit ac and aj.                                                                                             
+                    aquad = theta_cj_c3
+                    bquad = -(ac + aj)
+                    cquad = ac * aj
+                    call quadratic_f (aquad, bquad, cquad, r1, r2)
+                    agross = min(r1,r2)
+
                  else
                     
                     ! C4: Rubisco-limited photosynthesis
@@ -1091,23 +1085,24 @@ contains
                        aj = aj / (laisha_lsl * canopy_area_lsl)
                     end if
 
-                    ! C4: PEP carboxylase-limited (CO2-limited)
-                    ap = co2_rcurve_islope * max(co2_inter_c, 0._r8) / can_press  
-                    
+                    ! C4: PEP carboxylase-limited (CO2-limited)                                                                                                                    
+                    ap = co2_rcurve_islope * max(co2_inter_c, 0._r8) / can_press
+
+                    ! Gross photosynthesis smoothing calculations. First co-limit ac and aj. Then co-limit ap                                                                     
+
+                    aquad = theta_cj_c4
+                    bquad = -(ac + aj)
+                    cquad = ac * aj
+                    call quadratic_f (aquad, bquad, cquad, r1, r2)
+                    ai = min(r1,r2)
+
+                    aquad = theta_ip
+                    bquad = -(ai + ap)
+                    cquad = ai * ap
+                    call quadratic_f (aquad, bquad, cquad, r1, r2)
+                    agross = min(r1,r2)
+
                  end if
-
-                 ! Gross photosynthesis smoothing calculations. First co-limit ac and aj. Then co-limit ap
-                 aquad = theta_cj(c3c4_path_index)
-                 bquad = -(ac + aj)
-                 cquad = ac * aj
-                 call quadratic_f (aquad, bquad, cquad, r1, r2)
-                 ai = min(r1,r2)
-
-                 aquad = theta_ip
-                 bquad = -(ai + ap)
-                 cquad = ai * ap
-                 call quadratic_f (aquad, bquad, cquad, r1, r2)
-                 agross = min(r1,r2)
 
                  ! Net carbon assimilation. Exit iteration if an < 0
                  anet = agross  - lmr
@@ -1693,7 +1688,6 @@ contains
       ! Activation energy, from:
       ! Bernacchi et al (2001) Plant, Cell and Environment 24:253-259
       ! Bernacchi et al (2003) Plant, Cell and Environment 26:1419-1430
-      ! except TPU from: Harley et al (1992) Plant, Cell and Environment 15:271-282
 
       real(r8), parameter :: kcha    = 79430._r8  ! activation energy for kc (J/mol)
       real(r8), parameter :: koha    = 36380._r8  ! activation energy for ko (J/mol)
@@ -1814,14 +1808,12 @@ contains
                                          ft,            &
                                          vcmax25top_ft, &
                                          jmax25top_ft, &
-                                         tpu25top_ft, &
                                          co2_rcurve_islope25top_ft, &
                                          nscaler,    &
                                          veg_tempk,      &
                                          btran, &
                                          vcmax, &
                                          jmax, &
-                                         tpu, &
                                          co2_rcurve_islope )
 
       ! ---------------------------------------------------------------------------------
@@ -1834,7 +1826,6 @@ contains
       ! The output biophysical rates are:
       ! vcmax: maximum rate of carboxilation,
       ! jmax: maximum electron transport rate,
-      ! tpu: triose phosphate utilization rate and
       ! co2_rcurve_islope: initial slope of CO2 response curve (C4 plants)
       ! ---------------------------------------------------------------------------------
 
@@ -1851,8 +1842,6 @@ contains
                                               ! for this pft (umol CO2/m**2/s)
       real(r8), intent(in) :: jmax25top_ft    ! canopy top maximum electron transport rate at 25C 
                                               ! for this pft (umol electrons/m**2/s)
-      real(r8), intent(in) :: tpu25top_ft     ! canopy top triose phosphate utilization rate at 25C 
-                                              ! for this pft (umol CO2/m**2/s)
       real(r8), intent(in) :: co2_rcurve_islope25top_ft ! initial slope of CO2 response curve
                                               ! (C4 plants) at 25C, canopy top, this pft
       real(r8), intent(in) :: veg_tempk           ! vegetation temperature
@@ -1861,8 +1850,6 @@ contains
       real(r8), intent(out) :: vcmax             ! maximum rate of carboxylation (umol co2/m**2/s)
       real(r8), intent(out) :: jmax              ! maximum electron transport rate 
                                                  ! (umol electrons/m**2/s)
-      real(r8), intent(out) :: tpu               ! triose phosphate utilization rate 
-                                                 ! (umol CO2/m**2/s)
       real(r8), intent(out) :: co2_rcurve_islope ! initial slope of CO2 response curve (C4 plants)
       
       ! Locals
@@ -1871,8 +1858,6 @@ contains
                                       ! (umol CO2/m**2/s)
       real(r8) :: jmax25              ! leaf layer: maximum electron transport rate at 25C 
                                       ! (umol electrons/m**2/s)
-      real(r8) :: tpu25               ! leaf layer: triose phosphate utilization rate at 25C 
-                                      ! (umol CO2/m**2/s)
       real(r8) :: co2_rcurve_islope25 ! leaf layer: Initial slope of CO2 response curve 
                                       ! (C4 plants) at 25C
       
@@ -1881,50 +1866,39 @@ contains
       ! ---------------------------------------------------------------------------------
       real(r8) :: vcmaxha        ! activation energy for vcmax (J/mol)
       real(r8) :: jmaxha         ! activation energy for jmax (J/mol)
-      real(r8) :: tpuha          ! activation energy for tpu (J/mol)
       real(r8) :: vcmaxhd        ! deactivation energy for vcmax (J/mol)
       real(r8) :: jmaxhd         ! deactivation energy for jmax (J/mol)
-      real(r8) :: tpuhd          ! deactivation energy for tpu (J/mol)
       real(r8) :: vcmaxse        ! entropy term for vcmax (J/mol/K)
       real(r8) :: jmaxse         ! entropy term for jmax (J/mol/K)
-      real(r8) :: tpuse          ! entropy term for tpu (J/mol/K)
       real(r8) :: vcmaxc         ! scaling factor for high temperature inhibition (25 C = 1.0)
       real(r8) :: jmaxc          ! scaling factor for high temperature inhibition (25 C = 1.0)
-      real(r8) :: tpuc           ! scaling factor for high temperature inhibition (25 C = 1.0)
 
       vcmaxha = EDPftvarcon_inst%vcmaxha(FT)
       jmaxha  = EDPftvarcon_inst%jmaxha(FT)
-      tpuha   = EDPftvarcon_inst%tpuha(FT)
       
       vcmaxhd = EDPftvarcon_inst%vcmaxhd(FT)
       jmaxhd  = EDPftvarcon_inst%jmaxhd(FT)
-      tpuhd   = EDPftvarcon_inst%tpuhd(FT)
       
       vcmaxse = EDPftvarcon_inst%vcmaxse(FT)
       jmaxse  = EDPftvarcon_inst%jmaxse(FT)
-      tpuse   = EDPftvarcon_inst%tpuse(FT)
 
       vcmaxc = fth25_f(vcmaxhd, vcmaxse)
       jmaxc  = fth25_f(jmaxhd, jmaxse)
-      tpuc   = fth25_f(tpuhd, tpuse)
 
       if ( parsun_lsl <= 0._r8) then           ! night time
          vcmax             = 0._r8
          jmax              = 0._r8
-         tpu               = 0._r8
          co2_rcurve_islope = 0._r8
       else                                     ! day time
 
          ! Vcmax25top was already calculated to derive the nscaler function
          vcmax25 = vcmax25top_ft * nscaler
          jmax25  = jmax25top_ft * nscaler
-         tpu25   = tpu25top_ft * nscaler
          co2_rcurve_islope25 = co2_rcurve_islope25top_ft * nscaler
          
          ! Adjust for temperature
          vcmax = vcmax25 * ft1_f(veg_tempk, vcmaxha) * fth_f(veg_tempk, vcmaxhd, vcmaxse, vcmaxc)
          jmax  = jmax25 * ft1_f(veg_tempk, jmaxha) * fth_f(veg_tempk, jmaxhd, jmaxse, jmaxc)
-         tpu   = tpu25 * ft1_f(veg_tempk, tpuha) * fth_f(veg_tempk, tpuhd, tpuse, tpuc)
          
          if (nint(EDPftvarcon_inst%c3psn(ft))  /=  1) then
             vcmax = vcmax25 * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8)

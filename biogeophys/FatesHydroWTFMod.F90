@@ -304,6 +304,7 @@ contains
   function get_thsat_base(this) result(th_sat)
     class(wrf_type)     :: this
     real(r8)            :: th_sat
+    th_sat = 0._r8
     write(fates_log(),*) 'The base thsat call'
     write(fates_log(),*) 'should never be actualized'
     write(fates_log(),*) 'check how the class pointer was setup'

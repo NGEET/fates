@@ -86,6 +86,7 @@ module FatesRestartInterfaceMod
   integer :: ir_dleafoffdate_si
   integer :: ir_acc_ni_si
   integer :: ir_gdd_si
+  integer :: ir_snow_depth_si
   integer :: ir_trunk_product_si
   integer :: ir_ncohort_pa
   integer :: ir_canopy_layer_co
@@ -114,7 +115,8 @@ module FatesRestartInterfaceMod
   integer :: ir_smort_co
   integer :: ir_asmort_co
 
-  integer :: ir_daily_n_uptake_co
+  integer :: ir_daily_nh4_uptake_co
+  integer :: ir_daily_no3_uptake_co
   integer :: ir_daily_p_uptake_co
   integer :: ir_daily_c_efflux_co
   integer :: ir_daily_n_efflux_co
@@ -149,6 +151,8 @@ module FatesRestartInterfaceMod
   integer :: ir_fnrt_litt
   integer :: ir_seed_litt
   integer :: ir_seedgerm_litt
+  integer :: ir_seed_decay_litt
+  integer :: ir_seedgerm_decay_litt
   integer :: ir_seed_prod_co
   integer :: ir_livegrass_pa
   integer :: ir_age_pa
@@ -205,14 +209,11 @@ module FatesRestartInterfaceMod
   integer :: ir_hydro_th_troot
   integer :: ir_hydro_th_aroot_covec 
   integer :: ir_hydro_liqvol_shell_si
-  integer :: ir_hydro_err_growturn_aroot
-  integer :: ir_hydro_err_growturn_ag_covec
-  integer :: ir_hydro_err_growturn_troot
   integer :: ir_hydro_recruit_si
   integer :: ir_hydro_dead_si
   integer :: ir_hydro_growturn_err_si
-  integer :: ir_hydro_pheno_err_si
   integer :: ir_hydro_hydro_err_si
+  integer :: ir_hydro_errh2o
 
   ! The number of variable dim/kind types we have defined (static)
   integer, parameter, public :: fates_restart_num_dimensions = 2   !(cohort,column)
@@ -622,6 +623,10 @@ contains
          long_name='growing degree days at each site', units='degC days', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_gdd_si )
 
+    call this%set_restart_var(vname='fates_snow_depth_site', vtype=site_r8, &
+         long_name='average snow depth', units='m', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_snow_depth_si )
+
     call this%set_restart_var(vname='fates_trunk_product_site', vtype=site_r8, &
          long_name='Accumulate trunk product flux at site', &
          units='kgC/m2', flushval = flushzero, &
@@ -756,10 +761,15 @@ contains
          units='/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cmort_co )
 
-    call this%set_restart_var(vname='fates_daily_n_uptake', vtype=cohort_r8, &
-         long_name='fates cohort- daily nitrogen uptake', &
+    call this%set_restart_var(vname='fates_daily_nh4_uptake', vtype=cohort_r8, &
+         long_name='fates cohort- daily ammonium [NH4] uptake', &
          units='kg/plant/day', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_n_uptake_co )
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_nh4_uptake_co )
+    
+    call this%set_restart_var(vname='fates_daily_no3_uptake', vtype=cohort_r8, &
+         long_name='fates cohort- daily ammonium [NO3] uptake', &
+         units='kg/plant/day', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_no3_uptake_co )
 
     call this%set_restart_var(vname='fates_daily_p_uptake', vtype=cohort_r8, &
          long_name='fates cohort- daily phosphorus uptake', &
@@ -936,6 +946,17 @@ contains
            units='kg/m2', veclength=num_elements, flushval = flushzero, &
            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seedgerm_litt)
 
+
+    call this%RegisterCohortVector(symbol_base='fates_seed_frag', vtype=cohort_r8, &
+            long_name_base='seed bank fragmentation flux (non-germinated)',  &
+            units='kg/m2', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seed_decay_litt)
+
+    call this%RegisterCohortVector(symbol_base='fates_seedgerm_frag', vtype=cohort_r8, &
+           long_name_base='seed bank fragmentation flux (germinated)',  &
+           units='kg/m2', veclength=num_elements, flushval = flushzero, &
+           hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seedgerm_decay_litt)
+    
     call this%RegisterCohortVector(symbol_base='fates_ag_cwd_frag', vtype=cohort_r8, &
             long_name_base='above ground CWD frag flux',  &
             units='kg/m2/day', veclength=num_elements, flushval = flushzero, &
@@ -1035,21 +1056,6 @@ contains
             units='kg/plant', veclength=nlevsoi_hyd_max, flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_th_aroot_covec) 
 
-       call this%RegisterCohortVector(symbol_base='fates_hydro_err_aroot', vtype=cohort_r8, &
-            long_name_base='error in plant-hydro balance in absorbing roots',  &
-            units='kg/plant', veclength=nlevsoi_hyd_max, flushval = flushzero, &
-            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_err_growturn_aroot) 
-
-       call this%RegisterCohortVector(symbol_base='fates_hydro_err_ag', vtype=cohort_r8, &
-            long_name_base='error in plant-hydro balance above ground',  &
-            units='kg/plant', veclength=n_hypool_ag, flushval = flushzero, &
-            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_err_growturn_ag_covec) 
-
-       call this%RegisterCohortVector(symbol_base='fates_hydro_err_troot', vtype=cohort_r8, &
-            long_name_base='error in plant-hydro balance above ground',  &
-            units='kg/plant', veclength=n_hypool_troot, flushval = flushzero, &
-            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_err_growturn_troot) 
-
        ! Site-level volumentric liquid water content (shell x layer)
        call this%set_restart_var(vname='fates_hydro_liqvol_shell', vtype=cohort_r8, &
             long_name='Volumetric water content of rhizosphere compartments (layerxshell)', &
@@ -1074,17 +1080,17 @@ contains
             units='kg', flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_growturn_err_si )
 
-       ! Site-level water balance error due to phenology?
-       call this%set_restart_var(vname='fates_hydro_pheno_err', vtype=site_r8, &
-            long_name='Site level error for hydraulics due to phenology', &
-            units='kg', flushval = flushzero, &
-            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_pheno_err_si )
-
        ! Site-level water balance error in vegetation
        call this%set_restart_var(vname='fates_hydro_hydro_err', vtype=site_r8, &
             long_name='Site level error for hydrodynamics', &
             units='kg', flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_hydro_err_si )
+
+       call this%set_restart_var(vname='fates_errh2o', vtype=cohort_r8, &
+            long_name='ed cohort - running plant h2o error for hydro', &
+            units='kg/indiv', flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_errh2o )
+
        
     end if
 
@@ -1600,6 +1606,7 @@ contains
            rio_dleafoffdate_si         => this%rvars(ir_dleafoffdate_si)%int1d, &
            rio_acc_ni_si               => this%rvars(ir_acc_ni_si)%r81d, &
            rio_gdd_si                  => this%rvars(ir_gdd_si)%r81d, &
+           rio_snow_depth_si           => this%rvars(ir_snow_depth_si)%r81d, &
            rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
            rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
            rio_solar_zenith_flag_pa    => this%rvars(ir_solar_zenith_flag_pa)%int1d, &
@@ -1627,7 +1634,8 @@ contains
            rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
            rio_hmort_co                => this%rvars(ir_hmort_co)%r81d, &
            rio_cmort_co                => this%rvars(ir_cmort_co)%r81d, &
-           rio_daily_n_uptake_co       => this%rvars(ir_daily_n_uptake_co)%r81d, &
+           rio_daily_nh4_uptake_co     => this%rvars(ir_daily_nh4_uptake_co)%r81d, &
+           rio_daily_no3_uptake_co     => this%rvars(ir_daily_no3_uptake_co)%r81d, &
            rio_daily_p_uptake_co       => this%rvars(ir_daily_p_uptake_co)%r81d, &
            rio_daily_c_efflux_co       => this%rvars(ir_daily_c_efflux_co)%r81d, & 
            rio_daily_n_efflux_co       => this%rvars(ir_daily_n_efflux_co)%r81d, &      
@@ -1827,17 +1835,7 @@ contains
 
                    this%rvars(ir_hydro_th_troot)%r81d(io_idx_co) = ccohort%co_hydr%th_troot
 
-                   ! Load the error terms
-                   call this%setCohortRealVector(ccohort%co_hydr%errh2o_growturn_ag, &
-                                                 n_hypool_ag, &
-                                                 ir_hydro_err_growturn_ag_covec,io_idx_co)
-                   
-                   this%rvars(ir_hydro_err_growturn_aroot)%r81d(io_idx_co) = &
-                        ccohort%co_hydr%errh2o_growturn_aroot
-                        
-                   this%rvars(ir_hydro_err_growturn_troot)%r81d(io_idx_co) = &
-                        ccohort%co_hydr%errh2o_growturn_troot
-                        
+                   this%rvars(ir_hydro_errh2o)%r81d(io_idx_co) = ccohort%co_hydr%errh2o
 
                 end if
 
@@ -1872,7 +1870,8 @@ contains
                 rio_frmort_co(io_idx_co)       = ccohort%frmort                
 
                 ! Nutrient uptake/efflux
-                rio_daily_n_uptake_co(io_idx_co) = ccohort%daily_n_uptake
+                rio_daily_no3_uptake_co(io_idx_co) = ccohort%daily_no3_uptake
+                rio_daily_nh4_uptake_co(io_idx_co) = ccohort%daily_nh4_uptake
                 rio_daily_p_uptake_co(io_idx_co) = ccohort%daily_p_uptake
                 
                 rio_daily_c_efflux_co(io_idx_co) = ccohort%daily_c_efflux
@@ -1881,8 +1880,8 @@ contains
 
                 rio_daily_n_demand_co(io_idx_co) = ccohort%daily_n_demand
                 rio_daily_p_demand_co(io_idx_co) = ccohort%daily_p_demand
-                rio_daily_n_need_co(io_idx_co)   = ccohort%daily_n_need2
-                rio_daily_p_need_co(io_idx_co)   = ccohort%daily_p_need2
+                rio_daily_n_need_co(io_idx_co)   = ccohort%daily_n_need
+                rio_daily_p_need_co(io_idx_co)   = ccohort%daily_p_need
                  
                 !Logging
                 rio_lmort_direct_co(io_idx_co)       = ccohort%lmort_direct
@@ -1954,6 +1953,8 @@ contains
                  do i = 1,numpft
                     this%rvars(ir_seed_litt+el)%r81d(io_idx_pa_pft) = litt%seed(i)
                     this%rvars(ir_seedgerm_litt+el)%r81d(io_idx_pa_pft) = litt%seed_germ(i)
+                    this%rvars(ir_seed_decay_litt+el)%r81d(io_idx_pa_pft) = litt%seed_decay(i)
+                    this%rvars(ir_seedgerm_decay_litt+el)%r81d(io_idx_pa_pft) = litt%seed_germ_decay(i)
                     io_idx_pa_pft = io_idx_pa_pft + 1
                  end do
 
@@ -2052,6 +2053,7 @@ contains
           rio_dleafoffdate_si(io_idx_si) = sites(s)%dleafoffdate
           rio_acc_ni_si(io_idx_si)       = sites(s)%acc_NI
           rio_gdd_si(io_idx_si)          = sites(s)%grow_deg_days 
+          rio_snow_depth_si(io_idx_si)   = sites(s)%snow_depth
           
           ! Accumulated trunk product
           rio_trunk_product_si(io_idx_si) = sites(s)%resources_management%trunk_product_site
@@ -2081,7 +2083,6 @@ contains
              this%rvars(ir_hydro_recruit_si)%r81d(io_idx_si) = sites(s)%si_hydr%h2oveg_recruit
              this%rvars(ir_hydro_dead_si)%r81d(io_idx_si) = sites(s)%si_hydr%h2oveg_dead
              this%rvars(ir_hydro_growturn_err_si)%r81d(io_idx_si) = sites(s)%si_hydr%h2oveg_growturn_err
-             this%rvars(ir_hydro_pheno_err_si)%r81d(io_idx_si) = sites(s)%si_hydr%h2oveg_pheno_err
              this%rvars(ir_hydro_hydro_err_si)%r81d(io_idx_si) = sites(s)%si_hydr%h2oveg_hydro_err
 
              ! Hydraulics counters  lyr = hydraulic layer, shell = rhizosphere shell
@@ -2107,7 +2108,7 @@ contains
 
    ! ====================================================================================
 
-   subroutine create_patchcohort_structure(this, nc, nsites, sites, bc_in) 
+   subroutine create_patchcohort_structure(this, nc, nsites, sites, bc_in, bc_out) 
 
      ! ----------------------------------------------------------------------------------
      ! This subroutine takes a peak at the restart file to determine how to allocate
@@ -2137,7 +2138,8 @@ contains
      integer                     , intent(in)            :: nc
      integer                     , intent(in)            :: nsites
      type(ed_site_type)          , intent(inout), target :: sites(nsites)
-     type(bc_in_type)            , intent(in)            :: bc_in(nsites)
+     type(bc_in_type)                                    :: bc_in(nsites)
+     type(bc_out_type)                                   :: bc_out(nsites)
 
      ! local variables
      
@@ -2169,7 +2171,7 @@ contains
           io_idx_si  = this%restart_map(nc)%site_index(s)
           io_idx_co_1st  = this%restart_map(nc)%cohort1_index(s)
 
-          call init_site_vars( sites(s), bc_in(s) )
+          call init_site_vars( sites(s), bc_in(s), bc_out(s) )
           call zero_site( sites(s) )
 
           if ( rio_npatch_si(io_idx_si)<0 .or. rio_npatch_si(io_idx_si) > 10000 ) then
@@ -2388,6 +2390,7 @@ contains
           rio_dleafoffdate_si         => this%rvars(ir_dleafoffdate_si)%int1d, &
           rio_acc_ni_si               => this%rvars(ir_acc_ni_si)%r81d, &
           rio_gdd_si                  => this%rvars(ir_gdd_si)%r81d, &
+          rio_snow_depth_si           => this%rvars(ir_snow_depth_si)%r81d, &
           rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
           rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
           rio_solar_zenith_flag_pa    => this%rvars(ir_solar_zenith_flag_pa)%int1d, &
@@ -2415,7 +2418,8 @@ contains
           rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
           rio_hmort_co                => this%rvars(ir_hmort_co)%r81d, &
           rio_cmort_co                => this%rvars(ir_cmort_co)%r81d, &
-          rio_daily_n_uptake_co       => this%rvars(ir_daily_n_uptake_co)%r81d, & 
+          rio_daily_nh4_uptake_co     => this%rvars(ir_daily_nh4_uptake_co)%r81d, &
+          rio_daily_no3_uptake_co     => this%rvars(ir_daily_no3_uptake_co)%r81d, & 
           rio_daily_p_uptake_co       => this%rvars(ir_daily_p_uptake_co)%r81d, &       
           rio_daily_c_efflux_co       => this%rvars(ir_daily_c_efflux_co)%r81d, & 
           rio_daily_n_efflux_co       => this%rvars(ir_daily_n_efflux_co)%r81d, &      
@@ -2620,7 +2624,8 @@ contains
                 ccohort%frmort        = rio_frmort_co(io_idx_co)
                 
                 ! Nutrient uptake / efflux
-                ccohort%daily_n_uptake = rio_daily_n_uptake_co(io_idx_co)
+                ccohort%daily_nh4_uptake = rio_daily_nh4_uptake_co(io_idx_co)
+                ccohort%daily_no3_uptake = rio_daily_no3_uptake_co(io_idx_co)
                 ccohort%daily_p_uptake = rio_daily_p_uptake_co(io_idx_co)
                 ccohort%daily_c_efflux = rio_daily_c_efflux_co(io_idx_co)
                 ccohort%daily_n_efflux = rio_daily_n_efflux_co(io_idx_co)
@@ -2628,8 +2633,8 @@ contains
                 
                 ccohort%daily_n_demand = rio_daily_n_demand_co(io_idx_co) 
                 ccohort%daily_p_demand = rio_daily_p_demand_co(io_idx_co)
-                ccohort%daily_n_need2  = rio_daily_n_need_co(io_idx_co)
-                ccohort%daily_p_need2  = rio_daily_p_need_co(io_idx_co)
+                ccohort%daily_n_need   = rio_daily_n_need_co(io_idx_co)
+                ccohort%daily_p_need   = rio_daily_p_need_co(io_idx_co)
 
                 !Logging
                 ccohort%lmort_direct       = rio_lmort_direct_co(io_idx_co)
@@ -2656,18 +2661,10 @@ contains
                                                  ir_hydro_th_aroot_covec,io_idx_co)
                    
                    ccohort%co_hydr%th_troot = this%rvars(ir_hydro_th_troot)%r81d(io_idx_co)
-                   
+                   ccohort%co_hydr%errh2o = this%rvars(ir_hydro_errh2o)%r81d(io_idx_co)
+
                    call UpdatePlantPsiFTCFromTheta(ccohort,sites(s)%si_hydr)
 
-                   
-                   ccohort%co_hydr%errh2o_growturn_aroot = &
-                        this%rvars(ir_hydro_err_growturn_aroot)%r81d(io_idx_co)
-                   ccohort%co_hydr%errh2o_growturn_troot = &
-                        this%rvars(ir_hydro_err_growturn_troot)%r81d(io_idx_co)
-
-                   call this%GetCohortRealVector(ccohort%co_hydr%errh2o_growturn_ag, &
-                                                 n_hypool_ag, &
-                                                 ir_hydro_err_growturn_ag_covec,io_idx_co)
                 end if
                 
                 io_idx_co = io_idx_co + 1
@@ -2723,6 +2720,8 @@ contains
                  do i = 1,numpft
                      litt%seed(i)       = this%rvars(ir_seed_litt+el)%r81d(io_idx_pa_pft)
                      litt%seed_germ(i)  = this%rvars(ir_seedgerm_litt+el)%r81d(io_idx_pa_pft)
+                     litt%seed_decay(i)       = this%rvars(ir_seed_decay_litt+el)%r81d(io_idx_pa_pft)
+                     litt%seed_germ_decay(i)  = this%rvars(ir_seedgerm_decay_litt+el)%r81d(io_idx_pa_pft)
                      io_idx_pa_pft      = io_idx_pa_pft + 1
                   end do
 
@@ -2807,7 +2806,6 @@ contains
              sites(s)%si_hydr%h2oveg_recruit      = this%rvars(ir_hydro_recruit_si)%r81d(io_idx_si)
              sites(s)%si_hydr%h2oveg_dead         = this%rvars(ir_hydro_dead_si)%r81d(io_idx_si)
              sites(s)%si_hydr%h2oveg_growturn_err = this%rvars(ir_hydro_growturn_err_si)%r81d(io_idx_si)
-             sites(s)%si_hydr%h2oveg_pheno_err    = this%rvars(ir_hydro_pheno_err_si)%r81d(io_idx_si)
              sites(s)%si_hydr%h2oveg_hydro_err    = this%rvars(ir_hydro_hydro_err_si)%r81d(io_idx_si)
 
              ! Hydraulics counters  lyr = hydraulic layer, shell = rhizosphere shell
@@ -2868,6 +2866,7 @@ contains
           sites(s)%dleafoffdate   = rio_dleafoffdate_si(io_idx_si)
           sites(s)%acc_NI         = rio_acc_ni_si(io_idx_si)
           sites(s)%grow_deg_days  = rio_gdd_si(io_idx_si)
+          sites(s)%snow_depth     = rio_snow_depth_si(io_idx_si)
 
           sites(s)%resources_management%trunk_product_site = rio_trunk_product_si(io_idx_si)
 

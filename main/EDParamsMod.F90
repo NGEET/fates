@@ -20,6 +20,22 @@ module EDParamsMod
    !
    ! this is what the user can use for the actual values
    !
+
+   real(r8),protected, public :: vai_top_bin_width           ! width in VAI units of uppermost leaf+stem
+                                                             ! layer scattering element in each canopy layer [m2/m2]
+                                                             ! (NOT YET IMPLEMENTED)
+   real(r8),protected, public :: vai_width_increase_factor   ! factor by which each leaf+stem scattering element
+                                                             ! increases in VAI width (1 = uniform spacing)
+                                                             ! (NOT YET IMPLEMENTED)
+   real(r8),protected, public :: photo_temp_acclim_timescale ! Length of the window for the exponential moving average (ema)
+                                                             ! of vegetation temperature used in photosynthesis
+                                                             ! temperature acclimation (NOT YET IMPLEMENTED)
+
+   integer,protected, public :: maintresp_model       ! switch for choosing between leaf maintenance
+                                                      ! respiration model. 1=Ryan (1991) (NOT YET IMPLEMENTED)
+   integer,protected, public :: photo_tempsens_model  ! switch for choosing the model that defines the temperature
+                                                      ! sensitivity of photosynthetic parameters (vcmax, jmax).
+                                                      ! 1=non-acclimating (NOT YET IMPLEMENTED)
    
    real(r8),protected, public :: fates_mortality_disturbance_fraction ! the fraction of canopy mortality that results in disturbance
    real(r8),protected, public :: ED_val_comp_excln
@@ -50,16 +66,37 @@ module EDParamsMod
 
    real(r8), protected, public :: cg_strikes             ! fraction of cloud to ground lightning strikes (0-1)
    character(len=param_string_length),parameter :: fates_name_cg_strikes="fates_fire_cg_strikes"
+
+   ! empirical curvature parameters for ac, aj photosynthesis co-limitation, c3 and c4 plants respectively
+   real(r8),protected,public  :: theta_cj_c3
+   real(r8),protected,public  :: theta_cj_c4
    
    real(r8),protected,public  :: q10_mr     ! Q10 for respiration rate (for soil fragmenation and plant respiration)    (unitless)
    real(r8),protected,public  :: q10_froz   ! Q10 for frozen-soil respiration rates (for soil fragmentation)            (unitless)
 
-   ! two special parameters whose size is defined in the parameter file
+   ! Unassociated pft dimensioned free parameter that developers can use for testing arbitrary new hypotheses
+   ! (THIS PARAMETER IS UNUSED, FEEL FREE TO USE IT FOR WHATEVER PURPOSE YOU LIKE. WE CAN
+   !  HELP MIGRATE YOUR USAGE OF THE PARMETER TO A PERMANENT HOME LATER)
+   real(r8),protected,public  :: dev_arbitrary 
+   character(len=param_string_length),parameter,public :: name_dev_arbitrary = "fates_dev_arbitrary"
+   
+   ! parameters whose size is defined in the parameter file
    real(r8),protected,allocatable,public :: ED_val_history_sizeclass_bin_edges(:)
    real(r8),protected,allocatable,public :: ED_val_history_ageclass_bin_edges(:)
    real(r8),protected,allocatable,public :: ED_val_history_height_bin_edges(:)
    real(r8),protected,allocatable,public :: ED_val_history_coageclass_bin_edges(:)
+
+   ! Switch that defines the current pressure-volume and pressure-conductivity model
+   ! to be used at each node (compartment/organ)
+   ! 1  = Christofferson et al. 2016 (TFS),   2 = Van Genuchten 1980
+   integer, protected,allocatable,public :: hydr_htftype_node(:) 
    
+   character(len=param_string_length),parameter,public :: ED_name_vai_top_bin_width = "fates_vai_top_bin_width"
+   character(len=param_string_length),parameter,public :: ED_name_vai_width_increase_factor = "fates_vai_width_increase_factor"
+   character(len=param_string_length),parameter,public :: ED_name_photo_temp_acclim_timescale = "fates_photo_temp_acclim_timescale"
+   character(len=param_string_length),parameter,public :: name_photo_tempsens_model = "fates_photo_tempsens_model"
+   character(len=param_string_length),parameter,public :: name_maintresp_model = "fates_maintresp_model"
+   character(len=param_string_length),parameter,public :: ED_name_hydr_htftype_node = "fates_hydr_htftype_node"
    character(len=param_string_length),parameter,public :: ED_name_mort_disturb_frac = "fates_mort_disturb_frac"
    character(len=param_string_length),parameter,public :: ED_name_comp_excln = "fates_comp_excln"
    character(len=param_string_length),parameter,public :: ED_name_init_litter = "fates_init_litter"
@@ -83,12 +120,11 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_canopy_closure_thresh= "fates_canopy_closure_thresh"      
    character(len=param_string_length),parameter,public :: ED_name_stomatal_model= "fates_leaf_stomatal_model"
 
-   ! Resistance to active crown fire
-  
-
+   character(len=param_string_length),parameter,public :: name_theta_cj_c3 = "fates_theta_cj_c3"
+   character(len=param_string_length),parameter,public :: name_theta_cj_c4 = "fates_theta_cj_c4"
+   
    character(len=param_string_length),parameter :: fates_name_q10_mr="fates_q10_mr"
    character(len=param_string_length),parameter :: fates_name_q10_froz="fates_q10_froz"
-
 
    ! non-scalar parameter names
    character(len=param_string_length),parameter,public :: ED_name_history_sizeclass_bin_edges= "fates_history_sizeclass_bin_edges"      
@@ -173,6 +209,11 @@ contains
 
     implicit none
 
+    vai_top_bin_width                     = nan
+    vai_width_increase_factor             = nan
+    photo_temp_acclim_timescale           = nan
+    photo_tempsens_model                  = -9
+    maintresp_model                       = -9
     fates_mortality_disturbance_fraction  = nan
     ED_val_comp_excln                     = nan
     ED_val_init_litter                    = nan
@@ -211,7 +252,9 @@ contains
     eca_plant_escalar                     = nan
     q10_mr                                = nan
     q10_froz                              = nan
-
+    theta_cj_c3                           = nan
+    theta_cj_c4                           = nan
+    dev_arbitrary                         = nan
   end subroutine FatesParamsInit
 
   !-----------------------------------------------------------------------
@@ -222,7 +265,7 @@ contains
 
     use FatesParametersInterface, only : fates_parameters_type, dimension_name_scalar, dimension_shape_1d
     use FatesParametersInterface, only : dimension_name_history_size_bins, dimension_name_history_age_bins
-    use FatesParametersInterface, only : dimension_name_history_height_bins
+    use FatesParametersInterface, only : dimension_name_history_height_bins, dimension_name_hydr_organs
     use FatesParametersInterface, only : dimension_name_history_coage_bins
     use FatesParametersInterface, only : dimension_shape_scalar
 
@@ -236,10 +279,31 @@ contains
     character(len=param_string_length), parameter :: dim_names_ageclass(1) = (/dimension_name_history_age_bins/)
     character(len=param_string_length), parameter :: dim_names_height(1) = (/dimension_name_history_height_bins/)
     character(len=param_string_length), parameter :: dim_names_coageclass(1) = (/dimension_name_history_coage_bins/)
-
+    character(len=param_string_length), parameter :: dim_names_hydro_organs(1) = (/dimension_name_hydr_organs/)
        
     call FatesParamsInit()
 
+    call fates_params%RegisterParameter(name=ED_name_vai_top_bin_width, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=ED_name_vai_width_increase_factor, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+    
+    call fates_params%RegisterParameter(name=ED_name_photo_temp_acclim_timescale, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=name_photo_tempsens_model,dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=name_maintresp_model,dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+    
+    call fates_params%RegisterParameter(name=name_theta_cj_c3, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+    
+    call fates_params%RegisterParameter(name=name_theta_cj_c4, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+    
     call fates_params%RegisterParameter(name=ED_name_mort_disturb_frac, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
@@ -357,7 +421,14 @@ contains
     call fates_params%RegisterParameter(name=fates_name_q10_froz, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
+    call fates_params%RegisterParameter(name=name_dev_arbitrary, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+    
     ! non-scalar parameters
+
+    call fates_params%RegisterParameter(name=ED_name_hydr_htftype_node, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_hydro_organs)
+    
     call fates_params%RegisterParameter(name=ED_name_history_sizeclass_bin_edges, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names_sizeclass)
 
@@ -390,6 +461,24 @@ contains
     class(fates_parameters_type), intent(inout) :: fates_params
 
     real(r8) :: tmpreal ! local real variable for changing type on read
+    real(r8), allocatable :: hydr_htftype_real(:)
+    
+    call fates_params%RetreiveParameter(name=ED_name_vai_top_bin_width, &
+         data=vai_top_bin_width)
+
+    call fates_params%RetreiveParameter(name=ED_name_vai_width_increase_factor, &
+         data=vai_width_increase_factor)
+
+    call fates_params%RetreiveParameter(name=ED_name_photo_temp_acclim_timescale, &
+         data=photo_temp_acclim_timescale)
+
+    call fates_params%RetreiveParameter(name=name_photo_tempsens_model, &
+         data=tmpreal)
+    photo_tempsens_model = nint(tmpreal)
+
+    call fates_params%RetreiveParameter(name=name_maintresp_model, &
+         data=tmpreal)
+    maintresp_model = nint(tmpreal)
     
     call fates_params%RetreiveParameter(name=ED_name_mort_disturb_frac, &
           data=fates_mortality_disturbance_fraction)
@@ -503,11 +592,20 @@ contains
     call fates_params%RetreiveParameter(name=eca_name_plant_escalar, &
           data=eca_plant_escalar)
 
+    call fates_params%RetreiveParameter(name=name_theta_cj_c3, &
+          data=theta_cj_c3)
+
+     call fates_params%RetreiveParameter(name=name_theta_cj_c4, &
+          data=theta_cj_c4)
+     
     call fates_params%RetreiveParameter(name=fates_name_q10_mr, &
           data=q10_mr)
     
     call fates_params%RetreiveParameter(name=fates_name_q10_froz, &
-          data=q10_froz)
+         data=q10_froz)
+    
+    call fates_params%RetreiveParameter(name=name_dev_arbitrary, &
+         data=dev_arbitrary)
 
     call fates_params%RetreiveParameter(name=fates_name_active_crown_fire, & 
           data=tmpreal)
@@ -529,6 +627,11 @@ contains
     call fates_params%RetreiveParameterAllocate(name=ED_name_history_coageclass_bin_edges, &
          data=ED_val_history_coageclass_bin_edges)
 
+    call fates_params%RetreiveParameterAllocate(name=ED_name_hydr_htftype_node, &
+         data=hydr_htftype_real)
+    allocate(hydr_htftype_node(size(hydr_htftype_real)))
+    hydr_htftype_node(:) = nint(hydr_htftype_real(:))
+    deallocate(hydr_htftype_real)
 
   end subroutine FatesReceiveParams
   
@@ -539,11 +642,16 @@ contains
      logical,intent(in) :: is_master
 
      character(len=32),parameter :: fmt0 = '(a,(F12.4))'
+     character(len=32),parameter :: fmti = '(a,(I4))'
      logical, parameter :: debug_report = .false.
      
      if(debug_report .and. is_master) then
         
         write(fates_log(),*) '-----------  FATES Scalar Parameters -----------------'
+        write(fates_log(),fmt0) 'vai_top_bin_width = ',vai_top_bin_width
+        write(fates_log(),fmt0) 'vai_width_increase_factor = ',vai_width_increase_factor
+        write(fates_log(),fmt0) 'photo_temp_acclim_timescale = ',photo_temp_acclim_timescale
+        write(fates_log(),fmti) 'hydr_htftype_node = ',hydr_htftype_node
         write(fates_log(),fmt0) 'fates_mortality_disturbance_fraction = ',fates_mortality_disturbance_fraction
         write(fates_log(),fmt0) 'ED_val_comp_excln = ',ED_val_comp_excln
         write(fates_log(),fmt0) 'ED_val_init_litter = ',ED_val_init_litter

@@ -48,13 +48,19 @@ module FatesConstantsMod
 
   
   integer, public, parameter :: cohort_np_comp_scaling = 1  ! This flag definition indicates that EVERY cohort on
-                                                          ! the column should compete independently in the soil
-                                                          ! BGC nitrogen and phosphorus acquisition scheme.
+                                                            ! the column should compete independently in the soil
+                                                            ! BGC nitrogen and phosphorus acquisition scheme.
 
   integer, public, parameter :: pft_np_comp_scaling    = 2  ! This flag definition indicates that cohorts should
-                                                          ! be grouped into PFTs, and each PFT will be represented
-                                                          ! as the competitor, in the BGC N and P acquisition scheme
+                                                            ! be grouped into PFTs, and each PFT will be represented
+                                                            ! as the competitor, in the BGC N and P acquisition scheme
 
+  integer, public, parameter :: trivial_np_comp_scaling = 3 ! This flag definition indicates that either
+                                                            ! nutrients are turned off in FATES, or, that the
+                                                            ! plants are not coupled with below ground chemistry. In
+                                                            ! this situation, we send token boundary condition information.
+  
+  
   ! This flag specifies the scaling of how we present
   ! nutrient competitors to the HLM's soil BGC model
   
