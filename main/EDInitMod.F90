@@ -36,7 +36,7 @@ module EDInitMod
   use EDTypesMod                , only : phen_dstat_moistoff
   use EDTypesMod                , only : phen_cstat_notcold
   use EDTypesMod                , only : phen_dstat_moiston
-  use FatesInterfaceTypesMod         , only : bc_in_type
+  use FatesInterfaceTypesMod         , only : bc_in_type,bc_out_type
   use FatesInterfaceTypesMod         , only : hlm_use_planthydro
   use FatesInterfaceTypesMod         , only : hlm_use_inventory_init
   use FatesInterfaceTypesMod         , only : hlm_use_fixed_biogeog
@@ -44,6 +44,7 @@ module EDInitMod
   use FatesInterfaceTypesMod         , only : nleafage
   use FatesInterfaceTypesMod         , only : nlevsclass
   use FatesInterfaceTypesMod         , only : nlevcoage
+  use FatesInterfaceTypesMod         , only : nlevage
   use FatesAllometryMod         , only : h2d_allom
   use FatesAllometryMod         , only : bagw_allom
   use FatesAllometryMod         , only : bbgw_allom
@@ -52,7 +53,7 @@ module EDInitMod
   use FatesAllometryMod         , only : bsap_allom
   use FatesAllometryMod         , only : bdead_allom
   use FatesAllometryMod         , only : bstore_allom
-
+  use PRTGenericMod             , only : StorageNutrientTarget
   use FatesInterfaceTypesMod,      only : hlm_parteh_mode
   use PRTGenericMod,          only : prt_carbon_allom_hyp
   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
@@ -92,14 +93,15 @@ contains
 
   ! ============================================================================
 
-  subroutine init_site_vars( site_in, bc_in )
+  subroutine init_site_vars( site_in, bc_in, bc_out )
     !
     ! !DESCRIPTION:
     !
     !
     ! !ARGUMENTS    
-    type(ed_site_type), intent(inout) :: site_in
-    type(bc_in_type),intent(in)       :: bc_in
+    type(ed_site_type), intent(inout)    :: site_in
+    type(bc_in_type),intent(in),target   :: bc_in
+    type(bc_out_type),intent(in),target  :: bc_out
     !
     ! !LOCAL VARIABLES:
     !----------------------------------------------------------------------
@@ -133,19 +135,16 @@ contains
         allocate(site_in%flux_diags(el)%root_litter_input(1:numpft))
         allocate(site_in%flux_diags(el)%nutrient_efflux_scpf(nlevsclass*numpft))
         allocate(site_in%flux_diags(el)%nutrient_uptake_scpf(nlevsclass*numpft))
-        allocate(site_in%flux_diags(el)%nutrient_needgrow_scpf(nlevsclass*numpft))
-        allocate(site_in%flux_diags(el)%nutrient_needmax_scpf(nlevsclass*numpft))
+        allocate(site_in%flux_diags(el)%nutrient_need_scpf(nlevsclass*numpft))
     end do
 
     ! Initialize the static soil 
     ! arrays from the boundary (initial) condition
-
-   
+    
     site_in%zi_soil(:) = bc_in%zi_sisl(:)
     site_in%dz_soil(:) = bc_in%dz_sisl(:)
     site_in%z_soil(:)  = bc_in%z_sisl(:)
     
-
     !
     end subroutine init_site_vars
 
@@ -173,6 +172,7 @@ contains
     site_in%cstatus          = fates_unset_int    ! are leaves in this pixel on or off?
     site_in%dstatus          = fates_unset_int
     site_in%grow_deg_days    = nan  ! growing degree days
+    site_in%snow_depth       = nan
     site_in%nchilldays       = fates_unset_int
     site_in%ncolddays        = fates_unset_int
     site_in%cleafondate      = fates_unset_int  ! doy of leaf on
@@ -186,7 +186,7 @@ contains
     ! FIRE 
     site_in%acc_ni           = 0.0_r8     ! daily nesterov index accumulating over time. time unlimited theoretically.
     site_in%NF               = 0.0_r8     ! daily lightning strikes per km2 
-    site_in%frac_burnt       = 0.0_r8     ! burn area read in from external file
+    site_in%NF_successful    = 0.0_r8     ! daily successful iginitions per km2
 
     do el=1,num_elements
        ! Zero the state variables used for checking mass conservation
@@ -296,7 +296,7 @@ contains
           
           sites(s)%acc_NI     = acc_NI
           sites(s)%NF         = 0.0_r8         
-          sites(s)%frac_burnt = 0.0_r8
+          sites(s)%NF_successful  = 0.0_r8
          
          ! PLACEHOLDER FOR PFT AREA DATA MOVED ACROSS INTERFACE                                                                                   
           if(hlm_use_fixed_biogeog.eq.itrue)then
@@ -356,6 +356,7 @@ contains
      
      type(ed_site_type),  pointer :: sitep
      type(ed_patch_type), pointer :: newp
+     type(ed_patch_type), pointer :: currentPatch
 
      ! List out some nominal patch values that are used for Near Bear Ground initializations
      ! as well as initializing inventory
@@ -436,6 +437,35 @@ contains
 
      end if
 
+     ! zero all the patch fire variables for the first timestep
+     do s = 1, nsites
+        currentPatch => sites(s)%youngest_patch
+        do while(associated(currentPatch))
+
+           currentPatch%litter_moisture(:)         = 0._r8
+           currentPatch%fuel_eff_moist             = 0._r8
+           currentPatch%livegrass                  = 0._r8
+           currentPatch%sum_fuel                   = 0._r8
+           currentPatch%fuel_bulkd                 = 0._r8
+           currentPatch%fuel_sav                   = 0._r8
+           currentPatch%fuel_mef                   = 0._r8
+           currentPatch%ros_front                  = 0._r8
+           currentPatch%effect_wspeed              = 0._r8
+           currentPatch%tau_l                      = 0._r8
+           currentPatch%fuel_frac(:)               = 0._r8
+           currentPatch%tfc_ros                    = 0._r8
+           currentPatch%fi                         = 0._r8
+           currentPatch%fire                       = 0
+           currentPatch%fd                         = 0._r8
+           currentPatch%ros_back                   = 0._r8
+           currentPatch%scorch_ht(:)               = 0._r8
+           currentPatch%frac_burnt                 = 0._r8
+           currentPatch%burnt_frac_litter(:)       = 0._r8
+
+           currentPatch => currentPatch%older
+        enddo
+     enddo
+     
      ! This sets the rhizosphere shells based on the plant initialization
      ! The initialization of the plant-relevant hydraulics variables
      ! were set from a call inside of the init_cohorts()->create_cohort() subroutine
@@ -590,21 +620,22 @@ contains
              
           case(nitrogen_element)
              
-             m_struct = c_struct*prt_params%nitr_stoich_p2(pft,struct_organ)
-             m_leaf   = c_leaf*prt_params%nitr_stoich_p2(pft,leaf_organ)
-             m_fnrt   = c_fnrt*prt_params%nitr_stoich_p2(pft,fnrt_organ)
-             m_sapw   = c_sapw*prt_params%nitr_stoich_p2(pft,sapw_organ)
-             m_store  = c_store*prt_params%nitr_stoich_p2(pft,store_organ)
+             m_struct = c_struct*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(struct_organ))
+             m_leaf   = c_leaf*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(leaf_organ))
+             m_fnrt   = c_fnrt*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(fnrt_organ))
+             m_sapw   = c_sapw*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(sapw_organ))
              m_repro  = 0._r8
+             m_store = StorageNutrientTarget(pft,element_id,m_leaf,m_fnrt,m_sapw,m_struct)
              
           case(phosphorus_element)
 
-             m_struct = c_struct*prt_params%phos_stoich_p2(pft,struct_organ)
-             m_leaf   = c_leaf*prt_params%phos_stoich_p2(pft,leaf_organ)
-             m_fnrt   = c_fnrt*prt_params%phos_stoich_p2(pft,fnrt_organ)
-             m_sapw   = c_sapw*prt_params%phos_stoich_p2(pft,sapw_organ)
-             m_store  = c_store*prt_params%phos_stoich_p2(pft,store_organ)
+             m_struct = c_struct*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(struct_organ))
+             m_leaf   = c_leaf*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(leaf_organ))
+             m_fnrt   = c_fnrt*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(fnrt_organ))
+             m_sapw   = c_sapw*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(sapw_organ))
              m_repro  = 0._r8
+             m_store = StorageNutrientTarget(pft,element_id,m_leaf,m_fnrt,m_sapw,m_struct)
+             
           end select
 
           select case(hlm_parteh_mode)

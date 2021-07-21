@@ -12,10 +12,26 @@ module PRTInitParamsFatesMod
   use PRTGenericMod,     only : num_organ_types
   use PRTGenericMod,     only : leaf_organ, fnrt_organ, store_organ
   use PRTGenericMod,     only : sapw_organ, struct_organ, repro_organ
+  use PRTGenericMod,     only : nitrogen_element, phosphorus_element
   use FatesGlobals,      only : endrun => fates_endrun
   use FatesGlobals,      only : fates_log 
   use shr_log_mod,       only : errMsg => shr_log_errMsg
+  use EDPftvarcon,       only : EDPftvarcon_inst
   use PRTGenericMod,     only : prt_cnp_flex_allom_hyp,prt_carbon_allom_hyp
+  use FatesAllometryMod  , only : h_allom
+  use FatesAllometryMod  , only : h2d_allom
+  use FatesAllometryMod  , only : bagw_allom
+  use FatesAllometryMod  , only : bsap_allom
+  use FatesAllometryMod  , only : bleaf
+  use FatesAllometryMod  , only : bfineroot
+  use FatesAllometryMod  , only : bdead_allom
+  use FatesAllometryMod  , only : bstore_allom
+  use FatesAllometryMod  , only : bbgw_allom
+  use FatesAllometryMod  , only : carea_allom
+  use FatesAllometryMod  , only : CheckIntegratedAllometries
+  use FatesAllometryMod, only : set_root_fraction
+  use PRTGenericMod, only : StorageNutrientTarget
+  use EDTypesMod,          only : init_recruit_trim
   
   !
   ! !PUBLIC TYPES:
@@ -33,6 +49,7 @@ module PRTInitParamsFatesMod
   public :: PRTRegisterParams
   public :: PRTReceiveParams
   public :: PRTCheckParams
+  public :: PRTDerivedParams
   !-----------------------------------------------------------------------
 
 contains
@@ -51,7 +68,8 @@ contains
     call PRTRegisterPFTOrgans(fates_params)
     call PRTRegisterPFTLeafAge(fates_params)
     call Register_PFT_nvariants(fates_params)
-
+    call PRTRegisterOrgan(fates_params)
+    
   end subroutine PRTRegisterParams
 
   !-----------------------------------------------------------------------
@@ -67,10 +85,58 @@ contains
     call PRTReceivePFTOrgans(fates_params)
     call PRTReceivePFTLeafAge(fates_params)
     call Receive_PFT_nvariants(fates_params)
+    call PRTReceiveOrgan(fates_params)
     
   end subroutine PRTReceiveParams
 
-  !-----------------------------------------------------------------------
+  ! =====================================================================================
+  
+  subroutine PRTRegisterOrgan(fates_params)
+
+    use FatesParametersInterface, only : fates_parameters_type, param_string_length
+    use FatesParametersInterface, only : dimension_name_prt_organs, dimension_shape_1d
+
+    implicit none
+
+    class(fates_parameters_type), intent(inout) :: fates_params
+
+    character(len=param_string_length), parameter :: dim_names(1) = (/dimension_name_prt_organs/)
+    integer, parameter :: dim_lower_bound(1) = (/ lower_bound_general /)
+    character(len=param_string_length) :: name
+
+    name = 'fates_prt_organ_id'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+  end subroutine PRTRegisterOrgan
+    
+  ! =====================================================================================
+
+  subroutine PRTReceiveOrgan(fates_params)
+
+    ! Make sure to call this after PRTRegisterPFTOrgans
+    
+    use FatesParametersInterface, only : fates_parameters_type, param_string_length
+
+    implicit none
+
+    class(fates_parameters_type), intent(inout) :: fates_params
+
+    character(len=param_string_length) :: name
+
+    real(r8), allocatable :: tmpreal(:)  ! Temporary variable to hold floats
+    
+    name = 'fates_prt_organ_id'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=tmpreal)
+    allocate(prt_params%organ_id(size(tmpreal,dim=1)))
+    call ArrayNint(tmpreal,prt_params%organ_id)
+    deallocate(tmpreal)
+    
+  end subroutine PRTReceiveOrgan
+  
+  ! =====================================================================================
+  
   subroutine PRTRegisterPFT(fates_params)
 
     use FatesParametersInterface, only : fates_parameters_type, param_string_length
@@ -96,11 +162,6 @@ contains
     name = 'fates_phen_evergreen'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    
-    !X!    name = ''
-    !X!    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-    !X!         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_fnrt_prof_a'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
@@ -270,11 +331,41 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_allom_zroot_max_dbh'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_allom_zroot_max_z'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_allom_zroot_min_dbh'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_allom_zroot_min_z'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_allom_zroot_k'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+        
     name = 'fates_turnover_retrans_mode'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_branch_turnover'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+   
+
+    name = 'fates_nitr_store_ratio'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_phos_store_ratio'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
@@ -292,22 +383,30 @@ contains
 
     character(len=param_string_length) :: name
 
-    !X!    name = ''
-    !X!    call fates_params%RetreiveParameter(name=name, &
-    !X!         data=prt_params%)
+    real(r8), allocatable :: tmpreal(:)  ! Temporary variable to hold floats
+                                         ! that are converted to ints
 
     name = 'fates_phen_stress_decid'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=prt_params%stress_decid)
-
+         data=tmpreal)
+    allocate(prt_params%stress_decid(size(tmpreal,dim=1)))
+    call ArrayNint(tmpreal,prt_params%stress_decid)
+    deallocate(tmpreal)
+    
     name = 'fates_phen_season_decid'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=prt_params%season_decid)
-
+         data=tmpreal)
+    allocate(prt_params%season_decid(size(tmpreal,dim=1)))
+    call ArrayNint(tmpreal,prt_params%season_decid)
+    deallocate(tmpreal)
+    
     name = 'fates_phen_evergreen'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=prt_params%evergreen)
-    
+         data=tmpreal)
+    allocate(prt_params%evergreen(size(tmpreal,dim=1)))
+    call ArrayNint(tmpreal,prt_params%evergreen)
+    deallocate(tmpreal)
+
     name = 'fates_leaf_slamax'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=prt_params%slamax)
@@ -475,7 +574,27 @@ contains
     name = 'fates_allom_agb4'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=prt_params%allom_agb4)
-	 
+
+    name = 'fates_allom_zroot_max_dbh'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=prt_params%allom_zroot_max_dbh)
+    
+    name = 'fates_allom_zroot_max_z'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=prt_params%allom_zroot_max_z)
+    
+    name = 'fates_allom_zroot_min_dbh'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=prt_params%allom_zroot_min_dbh)
+    
+    name = 'fates_allom_zroot_min_z'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=prt_params%allom_zroot_min_z)
+    
+    name = 'fates_allom_zroot_k'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=prt_params%allom_zroot_k)
+    
     name = 'fates_branch_turnover'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=prt_params%branch_long)
@@ -484,7 +603,15 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
           data=prt_params%turnover_retrans_mode)
 
-
+    name = 'fates_nitr_store_ratio'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=prt_params%nitr_store_ratio)
+    
+    name = 'fates_phos_store_ratio'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=prt_params%phos_store_ratio)
+    
+    
   end subroutine PRTReceivePFT
 
   !-----------------------------------------------------------------------
@@ -513,6 +640,21 @@ contains
     return
   end subroutine PRTRegisterPFTLeafAge
 
+  ! =====================================================================================
+
+  subroutine ArrayNint(realarr,intarr)
+
+    real(r8),intent(in)  :: realarr(:)
+    integer,intent(out)  :: intarr(:)
+    integer  :: i
+
+    do i = 1,size(realarr,dim=1)
+       intarr(i) = nint(realarr(i))
+    end do
+    
+    return
+  end subroutine ArrayNint
+  
   ! =====================================================================================
   
   subroutine Register_PFT_nvariants(fates_params)
@@ -748,6 +890,13 @@ contains
         write(fates_log(),fmt0) 'allom_agb2 = ',prt_params%allom_agb2
         write(fates_log(),fmt0) 'allom_agb3 = ',prt_params%allom_agb3
         write(fates_log(),fmt0) 'allom_agb4 = ',prt_params%allom_agb4
+
+        write(fates_log(),fmt0) 'allom_zroot_max_dbh = ',prt_params%allom_zroot_max_dbh
+        write(fates_log(),fmt0) 'allom_zroot_max_z = ',prt_params%allom_zroot_max_z
+        write(fates_log(),fmt0) 'allom_zroot_min_dbh = ',prt_params%allom_zroot_min_dbh
+        write(fates_log(),fmt0) 'allom_zroot_min_z = ',prt_params%allom_zroot_min_z
+        write(fates_log(),fmt0) 'allom_zroot_k = ',prt_params%allom_zroot_k
+        
         write(fates_log(),fmt0) 'prt_nitr_stoich_p1 = ',prt_params%nitr_stoich_p1
         write(fates_log(),fmt0) 'prt_nitr_stoich_p2 = ',prt_params%nitr_stoich_p2
         write(fates_log(),fmt0) 'prt_phos_stoich_p1 = ',prt_params%phos_stoich_p1
@@ -760,12 +909,54 @@ contains
         write(fates_log(),fmt0) 'turnover_carb_retrans = ',prt_params%turnover_carb_retrans
         write(fates_log(),fmt0) 'turnover_nitr_retrans = ',prt_params%turnover_nitr_retrans
         write(fates_log(),fmt0) 'turnover_phos_retrans = ',prt_params%turnover_phos_retrans
+        write(fates_log(),fmt0) 'organ_id = ',prt_params%organ_id
+        write(fates_log(),fmt0) 'nitr_store_ratio = ',prt_params%nitr_store_ratio
+        write(fates_log(),fmt0) 'phos_store_ratio = ',prt_params%phos_store_ratio
         write(fates_log(),*) '-------------------------------------------------'
 
      end if
 
   end subroutine FatesReportPFTParams
 
+  ! =====================================================================================
+
+  subroutine PRTDerivedParams()
+
+    integer :: npft     ! number of PFTs
+    integer :: ft       ! pft index
+    integer :: norgans  ! number of organs in the parameter file
+    integer :: i, io    ! generic loop index and organ loop index
+    
+    norgans = size(prt_params%organ_id,1)
+    npft    = size(prt_params%evergreen,1)
+    
+    ! Set the reverse lookup map for organs to the parameter file index
+    allocate(prt_params%organ_param_id(num_organ_types))
+    allocate(prt_params%nitr_recr_stoich(npft))
+    allocate(prt_params%phos_recr_stoich(npft))
+    
+    ! Initialize them as invalid
+    prt_params%organ_param_id(:) = -1
+    
+    do i = 1,norgans
+       prt_params%organ_param_id(prt_params%organ_id(i)) = i
+    end do
+
+    
+    ! Calculate the stoichiometry of a new recruit, and use this for defining
+    ! seed stoichiometry and 
+
+    do ft = 1,npft
+
+       prt_params%nitr_recr_stoich(ft) = NewRecruitTotalStoichiometry(ft,nitrogen_element)
+       prt_params%phos_recr_stoich(ft) = NewRecruitTotalStoichiometry(ft,phosphorus_element)
+       
+    end do
+
+    
+    return
+  end subroutine PRTDerivedParams
+    
   ! =====================================================================================
   
   subroutine PRTCheckParams(is_master)
@@ -793,37 +984,53 @@ contains
      integer :: norgans  ! size of the plant organ dimension
      integer :: i, io    ! generic loop index and organ loop index
 
-     
-     integer, parameter,dimension(6) :: cnpflex_organs = &
-          [leaf_organ, fnrt_organ, sapw_organ, store_organ, repro_organ, struct_organ]
-
-     
      npft = size(prt_params%evergreen,1)
 
      ! Prior to performing checks copy grperc to the 
      ! organ dimensioned version
 
-     norgans = size(prt_params%nitr_stoich_p1,2)
+     norgans = size(prt_params%organ_id,1)
 
      if(.not.is_master) return
 
 
-
-
-     if (norgans .ne. num_organ_types) then
-        write(fates_log(),*) 'The size of the organ dimension for PRT parameters'
-        write(fates_log(),*) 'as specified in the parameter file is incompatible.'
-        write(fates_log(),*) 'All currently acceptable hypothesese are using'
-        write(fates_log(),*) 'the full set of num_organ_types = ',num_organ_types
-        write(fates_log(),*) 'The parameter file listed ',norgans
-        write(fates_log(),*) 'Exiting'
+     if( any(prt_params%organ_id(:)<1) .or. &
+         any(prt_params%organ_id(:)>num_organ_types) ) then
+        write(fates_log(),*) 'prt_organ_ids should match the global ids'
+        write(fates_log(),*) 'of organ types found in PRTGenericMod.F90'
+        write(fates_log(),*) 'organ_ids: ',prt_params%organ_id(:)
+        write(fates_log(),*) 'Aborting'
         call endrun(msg=errMsg(sourcefile, __LINE__))
      end if
 
+     ! Check to make sure the organ ids are valid if this is the
+     ! cnp_flex_allom_hypothesis
+     if ((hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) .or. &
+         (hlm_parteh_mode .eq. prt_carbon_allom_hyp) ) then
 
+         do io = 1,norgans
+           if(prt_params%organ_id(io) == repro_organ) then
+              write(fates_log(),*) 'with flexible cnp or c-only alloc hypothesese'
+              write(fates_log(),*) 'reproductive tissues are a special case'
+              write(fates_log(),*) 'and therefore should not be included in'
+              write(fates_log(),*) 'the parameter file organ list'
+              write(fates_log(),*) 'fates_prt_organ_id: ',prt_params%organ_id(:)
+              write(fates_log(),*) 'Aborting'
+           end if
+           if(prt_params%organ_id(io) == store_organ) then
+              write(fates_log(),*) 'with flexible cnp or c-only alloc hypothesese'
+              write(fates_log(),*) 'storage is a special case'
+              write(fates_log(),*) 'and therefore should not be included in'
+              write(fates_log(),*) 'the parameter file organ list'
+              write(fates_log(),*) 'fates_prt_organ_id: ',prt_params%organ_id(:)
+              write(fates_log(),*) 'Aborting'
+           end if
+           
+        end do
+     end if
      
-     do ipft = 1,npft
-        
+     pftloop: do ipft = 1,npft
+
         ! Check to see if evergreen, deciduous flags are mutually exclusive
         ! ----------------------------------------------------------------------------------
 
@@ -912,134 +1119,116 @@ contains
         ! should not be re-translocating mass upon turnover.
         ! Note to advanced users. Feel free to remove these checks...
         ! -------------------------------------------------------------------
+
+        if ((hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) .or. &
+             (hlm_parteh_mode .eq. prt_carbon_allom_hyp) ) then
+
+           do i = 1,norgans
+              io = prt_params%organ_id(i)
+
+              if(io == sapw_organ) then
+                 if ((prt_params%turnover_carb_retrans(ipft,i) > nearzero)) then
+                    write(fates_log(),*) ' Retranslocation of sapwood tissues should be zero.'
+                    write(fates_log(),*) ' PFT#: ',ipft
+                    write(fates_log(),*) ' carbon retrans: ',prt_params%turnover_carb_retrans(ipft,i)
+                    write(fates_log(),*) ' Aborting'
+                    call endrun(msg=errMsg(sourcefile, __LINE__))
+                 end if
+              elseif(io == struct_organ) then
+                 if ((prt_params%turnover_carb_retrans(ipft,i) > nearzero)) then
+                    write(fates_log(),*) ' Retranslocation of structural tissues should be zero.'
+                    write(fates_log(),*) ' PFT#: ',ipft
+                    write(fates_log(),*) ' carbon retrans: ',prt_params%turnover_carb_retrans(ipft,i)
+                    write(fates_log(),*) ' Aborting'
+                    call endrun(msg=errMsg(sourcefile, __LINE__))
+                 end if
+              end if
+
+              ! Otherwise, all other retranslocations should be between 0 and 1
+              if ( (prt_params%turnover_carb_retrans(ipft,i) > 1.0_r8) .or. & 
+                   (prt_params%turnover_carb_retrans(ipft,i) < 0.0_r8) ) then
+                 write(fates_log(),*) ' Retranslocation rates should be between 0 and 1.'
+                 write(fates_log(),*) ' PFT#: ',ipft
+                 write(fates_log(),*) ' parameter file index: ',i,' global index: ',io
+                 write(fates_log(),*) ' retranslocation rate: ',prt_params%turnover_carb_retrans(ipft,i)
+                 write(fates_log(),*) ' Aborting'
+                 call endrun(msg=errMsg(sourcefile, __LINE__))
+              end if
+
+           end do
+        end if
         
-        if ( (prt_params%turnover_carb_retrans(ipft,repro_organ) > nearzero) ) then
-           write(fates_log(),*) ' Retranslocation of reproductive tissues should be zero.'
-           write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' carbon: ',prt_params%turnover_carb_retrans(ipft,repro_organ)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-        end if
         if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-           if ((prt_params%turnover_nitr_retrans(ipft,repro_organ) > nearzero) .or.  & 
-               (prt_params%turnover_phos_retrans(ipft,repro_organ) > nearzero) ) then
-              write(fates_log(),*) ' Retranslocation of reproductive tissues should be zero.'
-              write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' carbon: ',prt_params%turnover_carb_retrans(ipft,repro_organ)
-              write(fates_log(),*) ' nitr: ',prt_params%turnover_nitr_retrans(ipft,repro_organ)
-              write(fates_log(),*) ' phos: ',prt_params%turnover_phos_retrans(ipft,repro_organ)
-              write(fates_log(),*) ' Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
-           end if
-        end if
            
-        if ((prt_params%turnover_carb_retrans(ipft,sapw_organ) > nearzero)) then
-           write(fates_log(),*) ' Retranslocation of sapwood tissues should be zero.'
-           write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' carbon: ',prt_params%turnover_carb_retrans(ipft,sapw_organ)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-        end if
-        if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-           if ((prt_params%turnover_nitr_retrans(ipft,sapw_organ) > nearzero) .or.  & 
-               (prt_params%turnover_phos_retrans(ipft,sapw_organ) > nearzero) ) then
-              write(fates_log(),*) ' Retranslocation of sapwood tissues should be zero.'
-              write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' carbon: ',prt_params%turnover_carb_retrans(ipft,sapw_organ)
-              write(fates_log(),*) ' nitr: ',prt_params%turnover_nitr_retrans(ipft,sapw_organ)
-              write(fates_log(),*) ' phos: ',prt_params%turnover_phos_retrans(ipft,sapw_organ)
-              write(fates_log(),*) ' Aborting'
+           ! Make sure nutrient storage fractions are positive
+           if( prt_params%nitr_store_ratio(ipft) < 0._r8  ) then
+              write(fates_log(),*) 'With parteh allometric CNP hypothesis'
+              write(fates_log(),*) 'nitr_store_ratio must be > 0'
+              write(fates_log(),*) 'PFT#: ',ipft
+              write(fates_log(),*) 'nitr_store_ratio = ',prt_params%nitr_store_ratio(ipft)
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
-        end if
+           if( prt_params%phos_store_ratio(ipft) < 0._r8 ) then
+              write(fates_log(),*) 'With parteh allometric CNP hypothesis'
+              write(fates_log(),*) 'phos_store_ratio must be > 0'
+              write(fates_log(),*) 'PFT#: ',ipft
+              write(fates_log(),*) 'nitr_store_ratio = ',prt_params%phos_store_ratio(ipft)
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
 
-        if ((prt_params%turnover_carb_retrans(ipft,struct_organ) > nearzero)) then
-           write(fates_log(),*) ' Retranslocation of structural(dead) tissues should be zero.'
-           write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' carbon: ',prt_params%turnover_carb_retrans(ipft,struct_organ)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-        end if
-        if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-           if ((prt_params%turnover_nitr_retrans(ipft,struct_organ) > nearzero) .or.  & 
-               (prt_params%turnover_phos_retrans(ipft,struct_organ) > nearzero) ) then
-              write(fates_log(),*) ' Retranslocation of structural(dead) tissues should be zero.'
-              write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' nitr: ',prt_params%turnover_nitr_retrans(ipft,struct_organ)
-              write(fates_log(),*) ' phos: ',prt_params%turnover_phos_retrans(ipft,struct_organ)
-              write(fates_log(),*) ' Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
-           end if
+           do i = 1,norgans
+              io = prt_params%organ_id(i)
+
+              if(io == sapw_organ) then
+                 if ((prt_params%turnover_nitr_retrans(ipft,i) > nearzero)) then
+                    write(fates_log(),*) ' Retranslocation of sapwood tissues should be zero.'
+                    write(fates_log(),*) ' PFT#: ',ipft
+                    write(fates_log(),*) ' nitrogen retrans: ',prt_params%turnover_nitr_retrans(ipft,i)
+                    write(fates_log(),*) ' Aborting'
+                    call endrun(msg=errMsg(sourcefile, __LINE__))
+                 end if
+                 if ((prt_params%turnover_phos_retrans(ipft,i) > nearzero)) then
+                    write(fates_log(),*) ' Retranslocation of sapwood tissues should be zero.'
+                    write(fates_log(),*) ' PFT#: ',ipft
+                    write(fates_log(),*) ' phosphorus retrans: ',prt_params%turnover_nitr_retrans(ipft,i)
+                    write(fates_log(),*) ' Aborting'
+                    call endrun(msg=errMsg(sourcefile, __LINE__))
+                 end if
+              elseif(io == struct_organ) then
+                 if ((prt_params%turnover_nitr_retrans(ipft,i) > nearzero)) then
+                    write(fates_log(),*) ' Retranslocation of structural tissues should be zero.'
+                    write(fates_log(),*) ' PFT#: ',ipft
+                    write(fates_log(),*) ' carbon retrans: ',prt_params%turnover_nitr_retrans(ipft,i)
+                    write(fates_log(),*) ' Aborting'
+                    call endrun(msg=errMsg(sourcefile, __LINE__))
+                 end if
+                 if ((prt_params%turnover_phos_retrans(ipft,i) > nearzero)) then
+                    write(fates_log(),*) ' Retranslocation of structural tissues should be zero.'
+                    write(fates_log(),*) ' PFT#: ',ipft
+                    write(fates_log(),*) ' phosphorus retrans: ',prt_params%turnover_nitr_retrans(ipft,i)
+                    write(fates_log(),*) ' Aborting'
+                    call endrun(msg=errMsg(sourcefile, __LINE__))
+                 end if
+              end if
+              
+              ! Otherwise, all other retranslocations should be between 0 and 1
+              if ((prt_params%turnover_nitr_retrans(ipft,i) > 1.0_r8) .or.  & 
+                   (prt_params%turnover_phos_retrans(ipft,i) > 1.0_r8) .or. &
+                   (prt_params%turnover_nitr_retrans(ipft,i) < 0.0_r8) .or.  & 
+                   (prt_params%turnover_phos_retrans(ipft,i) < 0.0_r8)) then
+                 write(fates_log(),*) ' Retranslocation should range from 0 to 1.'
+                 write(fates_log(),*) ' PFT#: ',ipft
+                 write(fates_log(),*) ' parameter file organ index: ',i,' global index: ',io
+                 write(fates_log(),*) ' nitr: ',prt_params%turnover_nitr_retrans(ipft,i)
+                 write(fates_log(),*) ' phos: ',prt_params%turnover_phos_retrans(ipft,i)
+                 write(fates_log(),*) ' Aborting'
+                 call endrun(msg=errMsg(sourcefile, __LINE__))
+              end if
+
+           end do
+           
         end if
         
-        ! Leaf retranslocation should be between 0 and 1
-        if ( (prt_params%turnover_carb_retrans(ipft,leaf_organ) > 1.0_r8) .or. & 
-             (prt_params%turnover_carb_retrans(ipft,leaf_organ) < 0.0_r8) ) then
-           write(fates_log(),*) ' Retranslocation of leaf tissues should be between 0 and 1.'
-           write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' carbon: ',prt_params%turnover_carb_retrans(ipft,leaf_organ)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-        end if
-        if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-           if ((prt_params%turnover_nitr_retrans(ipft,leaf_organ) > 1.0_r8) .or.  & 
-               (prt_params%turnover_phos_retrans(ipft,leaf_organ) > 1.0_r8) .or. &
-               (prt_params%turnover_nitr_retrans(ipft,leaf_organ) < 0.0_r8) .or.  & 
-               (prt_params%turnover_phos_retrans(ipft,leaf_organ) < 0.0_r8)) then
-              write(fates_log(),*) ' Retranslocation of leaf tissues should be between 0 and 1.'
-              write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' nitr: ',prt_params%turnover_nitr_retrans(ipft,leaf_organ)
-              write(fates_log(),*) ' phos: ',prt_params%turnover_phos_retrans(ipft,leaf_organ)
-              write(fates_log(),*) ' Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
-           end if
-        end if
-        
-        ! Fineroot retranslocation should be between 0-1
-        if ((prt_params%turnover_carb_retrans(ipft,fnrt_organ) > 1.0_r8) .or. & 
-            (prt_params%turnover_carb_retrans(ipft,fnrt_organ) < 0.0_r8)) then
-           write(fates_log(),*) ' Retranslocation of leaf tissues should be between 0 and 1.'
-           write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' carbon: ',prt_params%turnover_carb_retrans(ipft,fnrt_organ)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-        end if
-        if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-           if ((prt_params%turnover_nitr_retrans(ipft,fnrt_organ) > 1.0_r8) .or.  & 
-               (prt_params%turnover_phos_retrans(ipft,fnrt_organ) > 1.0_r8) .or. &
-               (prt_params%turnover_nitr_retrans(ipft,fnrt_organ) < 0.0_r8) .or.  & 
-               (prt_params%turnover_phos_retrans(ipft,fnrt_organ) < 0.0_r8)) then
-              write(fates_log(),*) ' Retranslocation of leaf tissues should be between 0 and 1.'
-              write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' nitr: ',prt_params%turnover_nitr_retrans(ipft,fnrt_organ)
-              write(fates_log(),*) ' phos: ',prt_params%turnover_phos_retrans(ipft,fnrt_organ)
-              write(fates_log(),*) ' Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
-           end if
-        end if
-
-        ! Storage retranslocation should be between 0-1 (storage retrans seems weird, but who knows)
-        if ((prt_params%turnover_carb_retrans(ipft,store_organ) > 1.0_r8) .or. & 
-            (prt_params%turnover_carb_retrans(ipft,store_organ) < 0.0_r8)) then
-           write(fates_log(),*) ' Retranslocation of leaf tissues should be between 0 and 1.'
-           write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' carbon: ',prt_params%turnover_carb_retrans(ipft,store_organ)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-        end if
-        if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-           if ((prt_params%turnover_nitr_retrans(ipft,store_organ) > 1.0_r8) .or.  & 
-               (prt_params%turnover_phos_retrans(ipft,store_organ) > 1.0_r8) .or. &
-               (prt_params%turnover_nitr_retrans(ipft,store_organ) < 0.0_r8) .or.  & 
-               (prt_params%turnover_phos_retrans(ipft,store_organ) < 0.0_r8)) then
-              write(fates_log(),*) ' Retranslocation of leaf tissues should be between 0 and 1.'
-              write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' nitr: ',prt_params%turnover_nitr_retrans(ipft,store_organ)
-              write(fates_log(),*) ' phos: ',prt_params%turnover_phos_retrans(ipft,store_organ)
-              write(fates_log(),*) ' Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
-           end if
-        end if
 
         ! Growth respiration
         !        if (parteh_mode .eq. prt_carbon_allom_hyp) then
@@ -1060,30 +1249,30 @@ contains
 !           end if
 !        end if
 
-
-        ! The first nitrogen stoichiometry is used in all cases
-        if ( (any(prt_params%nitr_stoich_p1(ipft,:) < 0.0_r8)) .or. &
-             (any(prt_params%nitr_stoich_p1(ipft,:) >= 1.0_r8))) then
-           write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' N per C stoichiometry must bet between 0-1'
-           write(fates_log(),*) prt_params%nitr_stoich_p1(ipft,:)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
+        if ((hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) .or. &
+             (hlm_parteh_mode .eq. prt_carbon_allom_hyp) ) then
+           ! The first nitrogen stoichiometry is used in all cases
+           if ( (any(prt_params%nitr_stoich_p1(ipft,:) < 0.0_r8)) .or. &
+                (any(prt_params%nitr_stoich_p1(ipft,:) >= 1.0_r8))) then
+              write(fates_log(),*) ' PFT#: ',ipft
+              write(fates_log(),*) ' N per C stoichiometry must bet between 0-1'
+              write(fates_log(),*) prt_params%nitr_stoich_p1(ipft,:)
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
         end if
-
 
         if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
 
-           do i = 1,size(cnpflex_organs,dim=1)
-              io = cnpflex_organs(i)
-              if ( (prt_params%nitr_stoich_p1(ipft,io) < 0._r8) .or. &
-                   (prt_params%nitr_stoich_p2(ipft,io) < 0._r8) .or. &
-                   (prt_params%phos_stoich_p1(ipft,io) < 0._r8) .or. &
-                   (prt_params%phos_stoich_p2(ipft,io) < 0._r8) .or. & 
-                   (prt_params%nitr_stoich_p1(ipft,io) > 1._r8) .or. &
-                   (prt_params%nitr_stoich_p2(ipft,io) > 1._r8) .or. &
-                   (prt_params%phos_stoich_p1(ipft,io) > 1._r8) .or. &
-                   (prt_params%phos_stoich_p2(ipft,io) > 1._r8) ) then
+           do i = 1,norgans
+              if ( (prt_params%nitr_stoich_p1(ipft,i) < 0._r8) .or. &
+                   (prt_params%nitr_stoich_p2(ipft,i) < 0._r8) .or. &
+                   (prt_params%phos_stoich_p1(ipft,i) < 0._r8) .or. &
+                   (prt_params%phos_stoich_p2(ipft,i) < 0._r8) .or. & 
+                   (prt_params%nitr_stoich_p1(ipft,i) > 1._r8) .or. &
+                   (prt_params%nitr_stoich_p2(ipft,i) > 1._r8) .or. &
+                   (prt_params%phos_stoich_p1(ipft,i) > 1._r8) .or. &
+                   (prt_params%phos_stoich_p2(ipft,i) > 1._r8) ) then
                  write(fates_log(),*) 'When the C,N,P allocation hypothesis with flexible'
                  write(fates_log(),*) 'stoichiometry is turned on (prt_cnp_flex_allom_hyp),'
                  write(fates_log(),*) 'all stoichiometries must be greater than or equal to zero,'
@@ -1093,10 +1282,10 @@ contains
                  write(fates_log(),*) 'You specified an organ/pft less than zero.'
                  write(fates_log(),*) 'PFT: ',ipft
                  write(fates_log(),*) 'organ index (see head of PRTGenericMod): ',io
-                 write(fates_log(),*) 'nitr_stoich_p1: ',prt_params%nitr_stoich_p1(ipft,io)
-                 write(fates_log(),*) 'nitr_stoich_p2: ',prt_params%phos_stoich_p1(ipft,io)
-                 write(fates_log(),*) 'phos_stoich_p1: ',prt_params%nitr_stoich_p2(ipft,io)
-                 write(fates_log(),*) 'phos_stoich_p2: ',prt_params%phos_stoich_p2(ipft,io)
+                 write(fates_log(),*) 'nitr_stoich_p1: ',prt_params%nitr_stoich_p1(ipft,i)
+                 write(fates_log(),*) 'nitr_stoich_p2: ',prt_params%phos_stoich_p1(ipft,i)
+                 write(fates_log(),*) 'phos_stoich_p1: ',prt_params%nitr_stoich_p2(ipft,i)
+                 write(fates_log(),*) 'phos_stoich_p2: ',prt_params%phos_stoich_p2(ipft,i)
                  write(fates_log(),*) 'Aborting'
                  call endrun(msg=errMsg(sourcefile, __LINE__))
               end if
@@ -1113,8 +1302,6 @@ contains
 
         end if
 
-
-        
 
         ! Check turnover time-scales
         
@@ -1224,11 +1411,92 @@ contains
         end if
 
 
-     end do
+     end do pftloop
 
 
      return
    end subroutine PRTCheckParams
 
+   ! ====================================================================================
+   
+   function NewRecruitTotalStoichiometry(ft,element_id) result(recruit_stoich)
+
+     ! ----------------------------------------------------------------------------------
+     ! This function calculates the total N:C or P:C ratio for a newly recruited plant
+     ! It does this by first identifying the dbh of a new plant, then uses
+     ! allometry to calculate the starting amount of carbon, and then uses
+     ! the stoichiometry parameters to determine the proportional mass of N or P
+     !
+     ! This process only has to be called once, and is then stored in parameter
+     ! constants for each PFT.  These values are used for determining nutrient
+     ! fluxes into seed pools (on plant), and also from germinated seed polls (on ground)
+     ! into new recruits.
+     ! ----------------------------------------------------------------------------------
+
+
+     integer,intent(in) :: ft
+     integer,intent(in) :: element_id
+     real(r8)           :: recruit_stoich  ! nutrient to carbon ratio of recruit
+
+     real(r8) :: dbh         ! dbh of the new recruit [cm]
+     real(r8) :: c_leaf      ! target leaf biomass [kgC]
+     real(r8) :: c_fnrt      ! target fine root biomass [kgC]
+     real(r8) :: c_sapw      ! target sapwood biomass [kgC]
+     real(r8) :: a_sapw      ! target sapwood cross section are [m2] (dummy)
+     real(r8) :: c_agw       ! target Above ground biomass [kgC]
+     real(r8) :: c_bgw       ! target Below ground biomass [kgC]
+     real(r8) :: c_struct    ! target Structural biomass [kgc]
+     real(r8) :: c_store     ! target Storage biomass [kgC]
+     real(r8) :: c_total     ! total target carbon
+     real(r8) :: nutr_total  ! total target nutrient
+
+     call h2d_allom(EDPftvarcon_inst%hgt_min(ft),ft,dbh)
+     call bleaf(dbh,ft,init_recruit_trim,c_leaf)
+     call bfineroot(dbh,ft,init_recruit_trim,c_fnrt)
+     call bsap_allom(dbh,ft,init_recruit_trim,a_sapw, c_sapw)
+     call bagw_allom(dbh,ft,c_agw)
+     call bbgw_allom(dbh,ft,c_bgw)
+     call bdead_allom(c_agw,c_bgw,c_sapw,ft,c_struct)
+     call bstore_allom(dbh,ft,init_recruit_trim,c_store)
+
+     ! Total carbon in a newly recruited plant
+     c_total = c_leaf + c_fnrt + c_sapw + c_struct + c_store
+
+     ! Total nutrient in a newly recruited plant
+     select case(element_id)
+     case(nitrogen_element)
+
+        nutr_total = &
+             c_struct*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(struct_organ)) + &
+             c_leaf*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(leaf_organ)) + &
+             c_fnrt*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(fnrt_organ)) + & 
+             c_sapw*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(sapw_organ)) + &
+             StorageNutrientTarget(ft, element_id, &
+             c_leaf*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(leaf_organ)), &
+             c_fnrt*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(fnrt_organ)), &
+             c_sapw*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(sapw_organ)), &
+             c_struct*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(struct_organ)))
+
+     case(phosphorus_element)
+
+        nutr_total = &
+             c_struct*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(struct_organ)) + &
+             c_leaf*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(leaf_organ)) + &
+             c_fnrt*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(fnrt_organ)) + & 
+             c_sapw*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(sapw_organ)) + &
+             StorageNutrientTarget(ft, element_id, &
+             c_leaf*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(leaf_organ)), &
+             c_fnrt*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(fnrt_organ)), &
+             c_sapw*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(sapw_organ)), &
+             c_struct*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(struct_organ)))
+
+
+     end select
+
+     recruit_stoich = nutr_total/c_total
+
+
+     return
+   end function NewRecruitTotalStoichiometry
   
  end module PRTInitParamsFatesMod
