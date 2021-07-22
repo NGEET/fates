@@ -864,6 +864,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
   ! ------------------------------------------------------------------------------------
 
   use EDPftvarcon       , only : EDPftvarcon_inst
+    use EDParamsMod       , only : theta_cj_c3, theta_cj_c4
 
 
   ! Arguments
@@ -961,11 +962,6 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
   ! quantum efficiency, used only for C4 (mol CO2 / mol photons) (index 0)
   real(r8),parameter,dimension(0:1) :: quant_eff = [0.05_r8,0.0_r8]
 
-  ! empirical curvature parameter for ac, aj photosynthesis co-limitation.
-  ! Changed theta_cj and theta_ip to 0.999 to effectively remove smoothing logic
-  ! following Anthony Walker's findings from MAAT.
-  real(r8),parameter,dimension(0:1) :: theta_cj  = [0.999_r8,0.999_r8]
-
   ! empirical curvature parameter for ap photosynthesis co-limitation
   real(r8),parameter :: theta_ip = 0.999_r8
 
@@ -1062,7 +1058,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
                       (4._r8*co2_inter_c+8._r8*co2_cpoint)
 
                     ! Gross photosynthesis smoothing calculations. Co-limit ac and aj.
-                    aquad = theta_cj(c3c4_path_index)
+                    aquad = theta_cj_c3
                     bquad = -(ac + aj)
                     cquad = ac * aj
                     call quadratic_f (aquad, bquad, cquad, r1, r2)
@@ -1093,7 +1089,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
 
               ! Gross photosynthesis smoothing calculations. First co-limit ac and aj. Then co-limit ap
 
-              aquad = theta_cj(c3c4_path_index)
+                    aquad = theta_cj_c4
               bquad = -(ac + aj)
               cquad = ac * aj
               call quadratic_f (aquad, bquad, cquad, r1, r2)

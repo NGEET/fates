@@ -1417,7 +1417,6 @@ contains
           
        end do
 
-       
        ! -----------------------------------------------------------------------------
        ! Distribute the existing litter that was already in place on the donor
        ! patch.  Some of this burns and is sent to the atmosphere, and some goes to the 
