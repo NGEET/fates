@@ -1,4 +1,4 @@
-module FatesHydroWTFMod
+ module FatesHydroWTFMod
 
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesConstantsMod, only : fates_unset_r8
@@ -179,7 +179,10 @@ module FatesHydroWTFMod
      real(r8) :: th_sat   ! Saturation volumetric water content         [m3/m3]
      real(r8) :: psi_sat  ! Bubbling pressure (potential at saturation) [Mpa]
      real(r8) :: beta     ! Clapp-Hornberger "beta" parameter           [-]
-     real(r8) :: scch_pu, scch_ps, scch_b2, scch_b3
+     real(r8) :: scch_pu  ! An estimated breakpoint capillary pressure, below which the specified water retention curve is applied. It is also the lower limit when the smoothing function is applied. [Mpa]
+     real(r8) :: scch_ps  ! An estimated breakpoint capillary pressure, an upper limit where smoothing funciton is applied. [Mpa]
+     real(r8) :: scch_b2  ! constant coefficient of the quadratic term in the smoothing polynomial function [-]
+     real(r8) :: scch_b3  ! constant coefficient of the cubic term in the smoothing polynomial function [-]
    contains
      procedure :: th_from_psi     => th_from_psi_smooth_cch
      procedure :: psi_from_th     => psi_from_th_smooth_cch
@@ -194,7 +197,10 @@ module FatesHydroWTFMod
      real(r8) :: th_sat   ! Saturation volumetric water content         [m3/m3]
      real(r8) :: psi_sat  ! Bubbling pressure (potential at saturation) [Mpa]
      real(r8) :: beta     ! Clapp-Hornberger "beta" parameter           [-]
-     real(r8) :: scch_pu, scch_ps, scch_b2, scch_b3
+     real(r8) :: scch_pu  ! An estimated breakpoint capillary pressure, below which the specified water retention curve is applied. It is also the lower limit when the smoothing function is applied. [Mpa]
+     real(r8) :: scch_ps  ! An estimated breakpoint capillary pressure, an upper limit where smoothing funciton is applied. [Mpa]
+     real(r8) :: scch_b2  ! constant coefficient of the quadratic term in the smoothing polynomial function [-]
+     real(r8) :: scch_b3  ! constant coefficient of the cubic term in the smoothing polynomial function [-]
    contains
      procedure :: ftc_from_psi      => ftc_from_psi_smooth_cch
      procedure :: dftcdpsi_from_psi => dftcdpsi_from_psi_smooth_cch
@@ -700,7 +706,7 @@ contains
 
     class(wrf_type_cch) :: this
     real(r8), intent(in) :: params_in(:)
-    real(r8) :: th_max
+    real(r8) :: th_max ! saturated water content
 
     this%th_sat  = params_in(1)
     this%psi_sat = params_in(2)
@@ -856,16 +862,16 @@ contains
 
     class(wrf_type_smooth_cch) :: this
     real(r8), intent(in) :: params_in(:)
-    integer  :: styp
-    real(r8) :: th_max
+    integer  :: styp    ! an option to force constant coefficient of the quadratic term 0 (styp = 1) or to force the constant coefficient of the cubic term 0 (styp/=2)
+    real(r8) :: th_max  ! saturated water content [-]
     ! !LOCAL VARIABLES:
-    real(r8) :: pu
-    real(r8) :: bcAtPu
-    real(r8) :: lambdaDeltaPuOnPu
-    real(r8) :: oneOnDeltaPu
-    real(r8) :: lambda
-    real(r8) :: alpha
-    real(r8) :: ps
+    real(r8) :: pu      ! an estimated breakpoint at which the constant coefficient of the quadratic term (styp=2) or the cubic term (styp/=2) is 0 [Mpa]
+    real(r8) :: bcAtPu  ! working local
+    real(r8) :: lambdaDeltaPuOnPu !working local
+    real(r8) :: oneOnDeltaPu !working local
+    real(r8) :: lambda       ! working local, inverse of Clapp and Hornberger "b"
+    real(r8) :: alpha        ! working local 
+    real(r8) :: ps           ! working local, 90% of entry pressure [Mpa]
     
 
 
@@ -935,14 +941,14 @@ contains
 
     class(wkf_type_smooth_cch) :: this
     real(r8), intent(in) :: params_in(:)
-    integer  :: styp
-    real(r8) :: pu
-    real(r8) :: bcAtPu
-    real(r8) :: lambdaDeltaPuOnPu
-    real(r8) :: oneOnDeltaPu
-    real(r8) :: lambda
-    real(r8) :: alpha
-    real(r8) :: ps
+    integer  :: styp ! an option to force constant coefficient of the quadratic term 0 (styp = 1) or to force the constant coefficient of the cubic term 0 (styp/=2)
+    real(r8) :: pu   ! an estimated breakpoint at which the constant coefficient of the quadratic term (styp=2) or the cubic term (styp/=2) is 0 [Mpa]
+    real(r8) :: bcAtPu !working local
+    real(r8) :: lambdaDeltaPuOnPu ! working local
+    real(r8) :: oneOnDeltaPu      ! working local
+    real(r8) :: lambda            ! working local
+    real(r8) :: alpha             ! working local
+    real(r8) :: ps                ! working local, 90% of entry pressure [Mpa]
 
     this%th_sat  = params_in(1)
     this%psi_sat = params_in(2)
