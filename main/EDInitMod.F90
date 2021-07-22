@@ -783,8 +783,19 @@ contains
 
              stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(temp_cohort%pft)
 
-
              if(hlm_use_sp.eq.ifalse)then ! do not override SP vales with phenology
+
+                if( prt_params%season_decid(pft) == itrue .and. &
+                    any(site_in%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
+                   temp_cohort%laimemory = c_leaf
+                   temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
+                   temp_cohort%structmemory = c_struct * stem_drop_fraction
+                   c_leaf = 0._r8
+                   c_sapw = (1.0_r8-stem_drop_fraction) * c_sapw
+                   c_struct  = (1.0_r8-stem_drop_fraction) * c_struct
+                   cstatus = leaves_off
+                endif
+
                 if ( prt_params%stress_decid(pft) == itrue .and. &
                      any(site_in%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff])) then
                    temp_cohort%laimemory = c_leaf
@@ -795,6 +806,7 @@ contains
                    c_struct  = (1.0_r8-stem_drop_fraction) * c_struct
                    cstatus = leaves_off
                 endif
+
              end if ! SP mode
 
              if ( debug ) write(fates_log(),*) 'EDInitMod.F90 call create_cohort '
