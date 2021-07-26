@@ -1591,7 +1591,7 @@ contains
     !Step 1. calculate the photoblastic germination rate modifier
         PAR_seed = currentPatch%parprof_dir_z(1,1) + & !(ican, ileaf)           !is 1,1 PAR at lowest layer?
                    currentPatch%parprof_dif_z(1,1)                              !W-M2... (mean over 24 hrs?)
-        PAR_seed = PAR_seed * 4.6                                                 !covert to umol s-1 of PAR
+        PAR_seed = PAR_seed * 4.6_r8                                                 !covert to umol s-1 of PAR
         f_PAR = PAR_seed / (PAR_seed + EDPftvarcon_inst%par_crit_germ(pft))                                  !calculate photoblastic germ rate
                                                                                   !modifier        
     !Step 2. calculate the soil matric potential at 'emerg_soil_depth' (m)	
@@ -1602,8 +1602,8 @@ contains
     !Step 3. calculate the seedling emergence rate based on SMP_seed and f_PAR 
     	f_emerg = f_PAR * EDPftvarcon_inst%a_emerg(pft) * wetness_index**EDPftvarcon_inst%b_emerg(pft)
      
-    !Step 4. calculate the 'seed_germ_in' flux                                    !put all code inside loop
-                                                                                  !when params become pft-specific    
+    !Step 4. calculate the 'seed_germ_in' flux                                   
+                                                                                     
     !do pft = 1,numpft
        litt%seed_germ_in(pft) =  min(litt%seed(pft) * f_emerg, max_germination)
     !-------------------------------------------------------------------------------------------
