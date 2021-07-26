@@ -29,7 +29,7 @@ def main():
     # make empty lists to hold the variable names in. the first of these is a list of sub-lists,
     # one for each type of variable (based on dimensionality).
     # the second is the master list that will contain all variables.
-    varnames_list = [[],[],[],[],[],[],[],[],[],[]]
+    varnames_list = [[],[],[],[],[],[],[],[],[],[],[],[],[]]
     varnames_list_sorted = []
     #
     # sort the variables by dimensionality, but mix the PFT x other dimension in with the regular PFT-indexed variables
@@ -38,15 +38,20 @@ def main():
     (u'fates_history_coage_bins',):1,
     (u'fates_history_height_bins',):2,
     (u'fates_history_size_bins',):3,
-    (u'fates_pft', u'fates_string_length'):4,
-    (u'fates_prt_organs', u'fates_string_length'):5,
-    (u'fates_pft',):6,
-    (u'fates_hydr_organs', u'fates_pft'):6,
-    (u'fates_leafage_class', u'fates_pft'):6,
-    (u'fates_prt_organs', u'fates_pft'):6,
-    (u'fates_litterclass',):7,
-    (u'fates_NCWD',):8,
-    ():9}
+    (u'fates_hydr_organs',):4,
+    (u'fates_prt_organs',):4,
+    (u'fates_pft', u'fates_string_length'):5,
+    (u'fates_hydr_organs', u'fates_string_length'):6,
+    (u'fates_prt_organs', u'fates_string_length'):7,
+    (u'fates_litterclass', u'fates_string_length'):7,
+    (u'fates_pft',):8,
+    (u'fates_hydr_organs', u'fates_pft'):8,
+    (u'fates_leafage_class', u'fates_pft'):8,
+    (u'fates_prt_organs', u'fates_pft'):8,
+    (u'fates_hlm_pftno', u'fates_pft'):9,
+    (u'fates_litterclass',):10,
+    (u'fates_NCWD',):11,
+    ():12}
     #
     # go through each of the variables and assign it to one of the sub-lists based on its dimensionality
     for v_name, varin in dsin.variables.items():
