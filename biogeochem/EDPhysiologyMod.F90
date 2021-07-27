@@ -19,6 +19,8 @@ module EDPhysiologyMod
   use FatesInterfaceTypesMod, only    : hlm_phosphorus_spec
   use FatesConstantsMod, only    : r8 => fates_r8
   use FatesConstantsMod, only    : nearzero
+  use FatesConstantsMod, only    : sec_per_day
+  use FatesConstantsMod, only    : megajoules_per_joule
   use EDPftvarcon      , only    : EDPftvarcon_inst
   use PRTParametersMod , only    : prt_params
   use EDPftvarcon      , only    : GetDecompyFrac
@@ -226,7 +228,7 @@ contains
        litt => currentPatch%litter(el)
 
        ! Calculate loss rate of viable seeds to litter
-       call SeedDecay(litt)
+       call SeedDecay(litt, currentPatch, bc_in)
        
        ! Calculate seed germination rate, the status flags prevent
        ! germination from occuring when the site is in a drought 
@@ -1452,7 +1454,6 @@ contains
              !This new code is designed to send some reproductive biomass 
              !straight to the leaf litter pool to account for non-seed reproductive
              !biomass. Also see small change to SeedDecay subroutine.
-             !This can be turned off by commenting out line 1456.
              !--------------------------------
              litt%seed_decay(pft) = litt%seed_in_local(pft) * (1.0_r8 - EDPftvarcon_inst%repro_frac_seed(pft)) !ahb
              !--------------------------------
@@ -1493,16 +1494,22 @@ contains
   
   ! ============================================================================
 
-  subroutine SeedDecay( litt )
+  subroutine SeedDecay( litt , currentPatch, bc_in )
     !
     ! !DESCRIPTION:
     !  Flux from seed pool into leaf litter pool    
     !
     ! !ARGUMENTS     
     type(litter_type) :: litt
+    type(ed_patch_type), intent(in) :: currentPatch ! ahb added this
+    type(bc_in_type), intent(in) :: bc_in ! ahb added this    
     !
     ! !LOCAL VARIABLES:
     integer  ::  pft
+    real(r8) ::  cumulative_light_seedling  !cumulative light at the seedling layer (MJ) over prior 64 days
+                                            !this 64 day window is hard-coded for now because param values
+                                            !would need to change if the window changes
+    real(r8) :: seedling_light_mort_rate    !the daily seedling mortality rate from light stress
     !----------------------------------------------------------------------
 
     ! default value from Liscke and Loffler 2006 ; making this a PFT-specific parameter
@@ -1516,9 +1523,32 @@ contains
              EDPftvarcon_inst%seed_decay_rate(pft)*years_per_day  + & ! "+ &" added by ahb (7/10/2021)
              litt%seed_decay(pft) ! line added by ahb so that the flux from non-seed reproductive
                                   ! biomass (from SeedIn subroutine) is not lost  (7/10/2021)
+    !START ahb's changes
+    !ORIGINAL CODE
+    !----------------------------------------------------------------------
+    !   litt%seed_germ_decay(pft) = litt%seed_germ(pft) * &
+    !         EDPftvarcon_inst%seed_decay_rate(pft)*years_per_day
+    !----------------------------------------------------------------------
 
-       litt%seed_germ_decay(pft) = litt%seed_germ(pft) * &
-             EDPftvarcon_inst%seed_decay_rate(pft)*years_per_day
+    !----------------------------------------------------------------------
+    !NEW CODE FOR ENVIRONMENTALLY SENSITIVE SEEDLING MORTALITY
+    !Step 1. Calculate the daily seedling mortality rate from light stress
+        cumulative_light_seedling = ( currentPatch%parprof_dir_z(1,1) + & !indices: (ican, ileaf); is 1,1 PAR at lowest layer?
+                                      currentPatch%parprof_dif_z(1,1) ) * &
+                                      megajoules_per_joule * sec_per_day * 64.0_r8 !this is a placeholder until I get
+                                                                                   !cumulative sum over prior 64 days working
+
+        seedling_light_mort_rate = exp(EDPftvarcon_inst%seedling_light_mort_a(pft) * &
+        cumulative_light_seedling + EDPftvarcon_inst%seedling_light_mort_b(pft)) 
+
+        
+        litt%seed_germ_decay(pft) = (litt%seed_germ(pft) * seedling_light_mort_rate) !+ &
+                                    !(litt%seed_germ(pft) * seedling_h2o_mort_rate) + &
+                                    !(litt%seed_germ(pft) * EDPftvarcon_inst%background_seedling_mort(pft) &
+                                    !*years_per_day)
+               
+    !-----------------------------------------------------------------------
+    !END ahb's changes
 
     enddo
 
@@ -1526,7 +1556,7 @@ contains
   end subroutine SeedDecay
 
   ! ============================================================================
-  subroutine SeedGermination( litt, cold_stat, drought_stat, bc_in, currentPatch ) !ahb added currentPatch
+  subroutine SeedGermination( litt, cold_stat, drought_stat, bc_in, currentPatch ) !ahb added currentPatch and bc_in
     !
     ! !DESCRIPTION:
     !  Flux from seed bank into the seedling pool    

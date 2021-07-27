@@ -167,6 +167,9 @@ module FatesConstantsMod
   ! Conversion: seconds per day
   real(fates_r8), parameter, public :: sec_per_day = 86400.0_fates_r8
 
+  ! Conversion: megajoules per joule
+  real(fates_r8), parameter, public :: megajoules_per_joule = 1.0E-6_fates_r8
+
   ! Conversion: days per second
   real(fates_r8), parameter, public :: days_per_sec = 1.0_fates_r8/86400.0_fates_r8
 

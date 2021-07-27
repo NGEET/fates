@@ -103,9 +103,12 @@ module EDPftvarcon
                                                          ! ungerminated), decaying per year    (yr-1)
      
      real(r8), allocatable :: repro_frac_seed(:)         ! added by ahb 7/15/2021
-     real(r8), allocatable :: a_emerg(:)                     ! added by ahb 7/19/2021
-     real(r8), allocatable :: b_emerg(:)                     ! added by ahb 7/19/2021
-     real(r8), allocatable :: par_crit_germ(:)              ! added by ahb 7/19/2021
+     real(r8), allocatable :: a_emerg(:)                 !added by ahb 7/19/2021
+     real(r8), allocatable :: b_emerg(:)                 !added by ahb 7/19/2021
+     real(r8), allocatable :: par_crit_germ(:)           !added by ahb 7/19/2021
+     real(r8), allocatable :: seedling_light_mort_a(:)   !added by ahb on 7/27/2021
+     real(r8), allocatable :: seedling_light_mort_b(:)   !added by ahb on 7/27/2021
+     real(r8), allocatable :: background_seedling_mort(:)!added by ahb on 7/27/2021
      real(r8), allocatable :: trim_limit(:)              ! Limit to reductions in leaf area w stress (m2/m2)
      real(r8), allocatable :: trim_inc(:)                ! Incremental change in trimming function   (m2/m2)
      real(r8), allocatable :: rhol(:, :)
@@ -561,7 +564,19 @@ contains
     name = 'fates_par_crit_germ'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_seedling_light_mort_a'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
                  
+    name = 'fates_seedling_light_mort_b'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_background_seedling_mort'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+                              
     name = 'fates_seed_decay_rate'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -924,6 +939,18 @@ contains
     name = 'fates_par_crit_germ'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%par_crit_germ)
+    
+    name = 'fates_seedling_light_mort_a'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%seedling_light_mort_a)
+
+    name = 'fates_seedling_light_mort_b'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%seedling_light_mort_b)
+
+    name = 'fates_background_seedling_mort'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%background_seedling_mort)
                               
     name = 'fates_seed_decay_rate'
     call fates_params%RetreiveParameterAllocate(name=name, &
