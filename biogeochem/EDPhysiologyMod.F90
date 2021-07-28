@@ -1506,10 +1506,11 @@ contains
     !
     ! !LOCAL VARIABLES:
     integer  ::  pft
-    real(r8) ::  cumulative_light_seedling  !cumulative light at the seedling layer (MJ) over prior 64 days
-                                            !this 64 day window is hard-coded for now because param values
-                                            !would need to change if the window changes
-    real(r8) :: seedling_light_mort_rate    !the daily seedling mortality rate from light stress
+    real(r8) ::  cumulative_light_seedling   !cumulative light at the seedling layer (MJ) over prior 64 days
+                                             !this 64 day window is hard-coded for now because param values
+                                             !would need to change if the window changes
+    real(r8) ::  seedling_light_mort_rate    !the daily seedling mortality rate from light stress
+    real(r8), parameter ::  mpa_per_mm_suction = 1.0e5_r8
     !----------------------------------------------------------------------
 
     ! default value from Liscke and Loffler 2006 ; making this a PFT-specific parameter
@@ -1588,10 +1589,10 @@ contains
     !
     ! !ARGUMENTS
     type(litter_type) :: litt  
-    integer, intent(in) :: cold_stat      ! Is the site in cold leaf-off status?
-    integer, intent(in) :: drought_stat   ! Is the site in drought leaf-off status?
-    type(bc_in_type), intent(in) :: bc_in ! ahb added this
-    type(ed_patch_type), intent(in) :: currentPatch
+    integer, intent(in) :: cold_stat                   ! Is the site in cold leaf-off status?
+    integer, intent(in) :: drought_stat                ! Is the site in drought leaf-off status?
+    type(bc_in_type), intent(in) :: bc_in              ! ahb added this July 2021
+    type(ed_patch_type), intent(in) :: currentPatch    ! ahb added this July 2021
     !
     ! !LOCAL VARIABLES:
     integer :: pft
@@ -1642,7 +1643,7 @@ contains
         f_PAR = PAR_seed / (PAR_seed + EDPftvarcon_inst%par_crit_germ(pft))          !calculate photoblastic germ rate
                                                                                      !modifier        
     !Step 2. calculate the soil matric potential at the seedling root depth	
-        ilayer_swater_emerg = minloc(abs(bc_in%z_sisl(:)-root_depth),dim=1)  !define soil layer
+        ilayer_swater_emerg = minloc(abs(bc_in%z_sisl(:)-EDPftvarcon_inst%seedling_root_depth(pft)),dim=1)  !define soil layer
         SMP_seed = bc_in%smp_sl(ilayer_swater_emerg)                                 !calculate smp (mm H20 suction?)
         wetness_index = 1.0_r8 / (SMP_seed * (-1.0_r8) * mpa_per_mm_suction)           !calculate wetness
 
