@@ -1595,26 +1595,21 @@ contains
     !
     ! !LOCAL VARIABLES:
     integer :: pft
-
-   
     real(r8), parameter ::  max_germination = 1.0_r8 ! Cap on germination rates. 
                                                     ! KgC/m2/yr Lishcke et al. 2009
 
-
-    !New seedling emergence parameters (ahb)
-
-         real(r8), parameter :: emerg_soil_depth = 0.06    !soil depth (m) for emergence
-         real(r8), parameter :: mpa_per_mm_suction = 1.e-5 ! move this to FATES globals once sure of smp units
-         !real(r8), parameter :: a_emerg = 0.0006 
-         !real(r8), parameter :: b_emerg = 1.6
-         integer :: ilayer_swater_emerg
-         real(r8) :: f_PAR
-         !real(r8), parameter :: PAR_crit = 70
-         real(r8) :: wetness_index
-         real(r8) :: f_emerg
-         real(r8) :: SMP_seed                               !SMP at emerg_soil_depth
-         real(r8) :: PAR_seed                               !PAR at seedling layer
-
+    !Light and moisture-sensitive seedling emergence variables (ahb)
+    !------------------------------------------------------------------------------------------------------------
+    real(r8), parameter :: root_depth = 0.06
+    real(r8), parameter :: mpa_per_mm_suction = 1.e-5 ! move this to FATES globals once sure of smp units
+    integer :: ilayer_swater_emerg                    ! the soil layer used for seedling moisture functions
+    real(r8) :: f_PAR                                 ! emergence rate modifier for light-sensitive germination
+    real(r8) :: wetness_index                         ! a soil 'wetness index' calculated from smp
+                                                      ! used in the moisture-sensitive emergence function                                                      
+    real(r8) :: f_emerg                               ! the fraction of the seed bank emerging in the current time step
+    real(r8) :: SMP_seed                              ! soil matric potential at seedling rooting depth
+    real(r8) :: PAR_seed                              ! photosynthetically active radiation at the seedling layer
+    !-------------------------------------------------------------------------------------------------------------
 
 
     ! Turning of this cap? because the cap will impose changes on proportionality
@@ -1641,15 +1636,15 @@ contains
     !the old prescribed seed germination rate parameter.
     !-------------------------------------------------------------------------------------------
     !Step 1. calculate the photoblastic germination rate modifier
-        PAR_seed = currentPatch%parprof_dir_z(1,1) + & !(ican, ileaf)           !is 1,1 PAR at lowest layer?
-                   currentPatch%parprof_dif_z(1,1)                              !W-M2... (mean over 24 hrs?)
+        PAR_seed = currentPatch%parprof_dir_z(1,1) + & !(ican, ileaf)                !is 1,1 PAR at lowest layer?
+                   currentPatch%parprof_dif_z(1,1)                                   !W-M2... (mean over 24 hrs?)
         PAR_seed = PAR_seed * 4.6_r8                                                 !covert to umol s-1 of PAR
-        f_PAR = PAR_seed / (PAR_seed + EDPftvarcon_inst%par_crit_germ(pft))                                  !calculate photoblastic germ rate
-                                                                                  !modifier        
-    !Step 2. calculate the soil matric potential at 'emerg_soil_depth' (m)	
-        ilayer_swater_emerg = minloc(abs(bc_in%z_sisl(:)-emerg_soil_depth),dim=1) !define soil layer
-    	SMP_seed = bc_in%smp_sl(ilayer_swater_emerg)                              !calculate smp (mm H20 suction?)
-    	wetness_index = 1.0_r8 / (SMP_seed * -1.0_r8 * mpa_per_mm_suction)        !calculate wetness
+        f_PAR = PAR_seed / (PAR_seed + EDPftvarcon_inst%par_crit_germ(pft))          !calculate photoblastic germ rate
+                                                                                     !modifier        
+    !Step 2. calculate the soil matric potential at the seedling root depth	
+        ilayer_swater_emerg = minloc(abs(bc_in%z_sisl(:)-root_depth),dim=1)  !define soil layer
+    	SMP_seed = bc_in%smp_sl(ilayer_swater_emerg)                                 !calculate smp (mm H20 suction?)
+    	wetness_index = 1.0_r8 / (SMP_seed * (-1.0_r8) * mpa_per_mm_suction)           !calculate wetness
 
     !Step 3. calculate the seedling emergence rate based on SMP_seed and f_PAR 
     	f_emerg = f_PAR * EDPftvarcon_inst%a_emerg(pft) * wetness_index**EDPftvarcon_inst%b_emerg(pft)
