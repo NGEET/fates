@@ -1526,8 +1526,8 @@ contains
     !START ahb's changes
     !ORIGINAL CODE
     !----------------------------------------------------------------------
-    !   litt%seed_germ_decay(pft) = litt%seed_germ(pft) * &
-    !         EDPftvarcon_inst%seed_decay_rate(pft)*years_per_day
+       litt%seed_germ_decay(pft) = litt%seed_germ(pft) * &
+             EDPftvarcon_inst%seed_decay_rate(pft)*years_per_day
     !----------------------------------------------------------------------
 
     !----------------------------------------------------------------------
@@ -1564,7 +1564,7 @@ contains
      
     
     !Step 4. Add background mortality and send seedling carbon to litter flux (i.e. to 'seed_germ_decay' flux)        
-        litt%seed_germ_decay(pft) = (litt%seed_germ(pft) * seedling_light_mort_rate) !+ &
+        !litt%seed_germ_decay(pft) = (litt%seed_germ(pft) * seedling_light_mort_rate) !+ &
                                     !(litt%seed_germ(pft) * seedling_h2o_mort_rate) + &
                                     !(litt%seed_germ(pft) * EDPftvarcon_inst%background_seedling_mort(pft) &
                                     !*years_per_day)
