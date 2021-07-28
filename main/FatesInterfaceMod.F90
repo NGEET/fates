@@ -21,9 +21,14 @@ module FatesInterfaceMod
    use EDTypesMod                , only : do_fates_salinity
    use EDTypesMod                , only : numWaterMem
    use EDTypesMod                , only : numlevsoil_max
+   use EDTypesMod                , only : ed_site_type
+   use EDTypesMod                , only : ed_patch_type
+   use EDTypesMod                , only : ed_cohort_type
+   use EDTypesMod                , only : area_inv
    use FatesConstantsMod         , only : r8 => fates_r8
    use FatesConstantsMod         , only : itrue,ifalse
    use FatesConstantsMod         , only : nearzero
+   use FatesConstantsMod         , only : sec_per_day
    use FatesGlobals              , only : fates_global_verbose
    use FatesGlobals              , only : fates_log
    use FatesGlobals              , only : endrun => fates_endrun
@@ -36,6 +41,7 @@ module FatesInterfaceMod
    use EDParamsMod               , only : FatesReportParams
    use EDParamsMod               , only : bgc_soil_salinity
    use FatesPlantHydraulicsMod   , only : InitHydroGlobals
+   use EDParamsMod               , only : photo_temp_acclim_timescale
    use EDParamsMod               , only : ED_val_history_sizeclass_bin_edges
    use EDParamsMod               , only : ED_val_history_ageclass_bin_edges
    use EDParamsMod               , only : ED_val_history_height_bin_edges
@@ -67,8 +73,14 @@ module FatesInterfaceMod
    use PRTInitParamsFatesMod     , only : PRTCheckParams, PRTDerivedParams
    use PRTAllometricCarbonMod    , only : InitPRTGlobalAllometricCarbon
    use PRTAllometricCNPMod       , only : InitPRTGlobalAllometricCNP
-
-
+   use FatesRunningMeanMod       , only : ema_24hr
+   use FatesRunningMeanMod       , only : fixed_24hr
+   use FatesRunningMeanMod       , only : ema_lpa
+   use FatesRunningMeanMod       , only : moving_ema_window
+   use FatesRunningMeanMod       , only : fixed_window
+   use FatesHistoryInterfaceMod  , only : fates_hist
+   use FatesHistoryInterfaceMod  , only : ih_tveglpa_si_age,ih_tveglpa_si
+   
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
    use shr_infnan_mod            , only : nan => shr_infnan_nan, assignment(=)
@@ -134,7 +146,8 @@ module FatesInterfaceMod
    public :: set_bcpconst
    public :: zero_bcs
    public :: set_bcs
-
+   public :: UpdateFatesRMeansTStep
+   
 contains
 
   ! ====================================================================================
@@ -234,13 +247,12 @@ contains
     
     ! Input boundaries
     
-    fates%bc_in(s)%t_veg24_pa(:)  = 0.0_r8
-    fates%bc_in(s)%precip24_pa(:) = 0.0_r8
-    fates%bc_in(s)%relhumid24_pa(:) = 0.0_r8
-    fates%bc_in(s)%wind24_pa(:)     = 0.0_r8
-
     fates%bc_in(s)%lightning24(:)      = 0.0_r8
     fates%bc_in(s)%pop_density(:)      = 0.0_r8
+    fates%bc_in(s)%precip24_pa(:)      = 0.0_r8
+    fates%bc_in(s)%relhumid24_pa(:)    = 0.0_r8
+    fates%bc_in(s)%wind24_pa(:)        = 0.0_r8
+     
     fates%bc_in(s)%solad_parb(:,:)     = 0.0_r8
     fates%bc_in(s)%solai_parb(:,:)     = 0.0_r8
     fates%bc_in(s)%smp_sl(:)           = 0.0_r8
@@ -445,12 +457,9 @@ contains
       allocate(bc_in%t_scalar_sisl(nlevsoil_in))
 
       ! Lightning (or successful ignitions) and population density
+      ! Fire related variables
       allocate(bc_in%lightning24(maxPatchesPerSite))
       allocate(bc_in%pop_density(maxPatchesPerSite))
-
-      ! Vegetation Dynamics
-      allocate(bc_in%t_veg24_pa(maxPatchesPerSite))
-
       allocate(bc_in%wind24_pa(maxPatchesPerSite))
       allocate(bc_in%relhumid24_pa(maxPatchesPerSite))
       allocate(bc_in%precip24_pa(maxPatchesPerSite))
@@ -471,6 +480,8 @@ contains
          allocate(bc_in%salinity_sl(nlevsoil_in))
       endif
 
+      
+      
       ! Photosynthesis
       allocate(bc_in%filter_photo_pa(maxPatchesPerSite))
       allocate(bc_in%dayl_factor_pa(maxPatchesPerSite))
@@ -852,6 +863,15 @@ contains
          ! These will not be used if use_ed or use_fates is false
          call fates_history_maps()
 
+         
+         ! Instantiate the time-averaging method globals
+         allocate(ema_24hr)
+         call ema_24hr%define(sec_per_day, hlm_stepsize, moving_ema_window)
+         allocate(fixed_24hr)
+         call fixed_24hr%define(sec_per_day, hlm_stepsize, fixed_window)
+         allocate(ema_lpa)
+         call ema_lpa%define(photo_temp_acclim_timescale*sec_per_day, &
+              hlm_stepsize,moving_ema_window)
 
       else
          ! If we are not using FATES, the cohort dimension is still
@@ -1211,6 +1231,7 @@ contains
          hlm_numlevgrnd   = unset_int
          hlm_name         = 'unset'
          hlm_hio_ignore_val   = unset_double
+         hlm_stepsize     = unset_double
          hlm_masterproc   = unset_int
          hlm_ipedof       = unset_int
          hlm_nu_com      = 'unset'
@@ -1419,6 +1440,14 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if( abs(hlm_stepsize-unset_double)<nearzero) then
+            if (fates_global_verbose()) then
+               write(fates_log(),*) 'FATES parameters unset: hlm_stepsize, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         
+         
          if( abs(hlm_hio_ignore_val-unset_double)<1e-10 ) then
             if (fates_global_verbose()) then
                write(fates_log(),*) 'FATES dimension/parameter unset: hio_ignore'
@@ -1733,6 +1762,11 @@ contains
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hio_ignore_val = ',rval,' to FATES'
                end if
+            case('stepsize')
+               hlm_stepsize = rval
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering stepsize = ',rval,' to FATES'
+               end if
             case default
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'tag not recognized:',trim(tag)
@@ -1798,9 +1832,64 @@ contains
       return
    end subroutine FatesReportParameters
 
-  ! =====================================================================================
+   ! =====================================================================================
 
+   subroutine UpdateFatesRMeansTStep(sites,bc_in)
 
+     ! In this routine, we update any FATES buffers where
+     ! we calculate running means. It is assumed that this buffer is updated
+     ! on the model time-step.
 
+     type(ed_site_type), intent(inout) :: sites(:)
+     type(bc_in_type), intent(in)      :: bc_in(:)
+     
+     type(ed_patch_type),  pointer :: cpatch
+     type(ed_cohort_type), pointer :: ccohort
+     integer :: s, ifp, io_si
 
-end module FatesInterfaceMod
+     do s = 1,size(sites,dim=1)
+
+        ifp=0
+        cpatch => sites(s)%oldest_patch
+        do while(associated(cpatch))
+           ifp=ifp+1
+           call cpatch%tveg24%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
+           call cpatch%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
+
+           ccohort => cpatch%tallest
+           do while (associated(ccohort))
+              call ccohort%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
+              ccohort => ccohort%shorter
+           end do
+           
+           cpatch => cpatch%younger
+        enddo
+     end do
+
+     ! Update running mean history variables
+     ! -------------------------------------------------------------------------------
+     associate(hio_tveglpa_si_age => fates_hist%hvars(ih_tveglpa_si_age)%r82d, &
+               hio_tveglpa_si     => fates_hist%hvars(ih_tveglpa_si)%r81d)
+
+       do s = 1,size(sites,dim=1)
+
+          io_si  = sites(s)%h_gid
+          hio_tveglpa_si_age(io_si,:) = 0._r8
+          hio_tveglpa_si(io_si)       = 0._r8
+          
+          cpatch => sites(s)%oldest_patch
+          do while(associated(cpatch))
+             hio_tveglpa_si_age(io_si,cpatch%age_class) = &
+                  hio_tveglpa_si_age(io_si,cpatch%age_class) + &
+                  cpatch%tveg_lpa%GetMean()*cpatch%area/sites(s)%area_by_age(cpatch%age_class)
+             hio_tveglpa_si(io_si) = hio_tveglpa_si(io_si) + &
+                  cpatch%tveg_lpa%GetMean()*cpatch%area*area_inv
+             cpatch => cpatch%younger
+          enddo
+       end do
+     end associate
+          
+     return
+   end subroutine UpdateFatesRMeansTStep
+      
+ end module FatesInterfaceMod

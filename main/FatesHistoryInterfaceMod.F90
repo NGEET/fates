@@ -532,7 +532,11 @@ module FatesHistoryInterfaceMod
   ! integer :: ih_fire_rate_of_spread_front_si_age
   integer :: ih_fire_intensity_si_age
   integer :: ih_fire_sum_fuel_si_age
-
+  integer :: ih_tveg24_si_age
+  integer :: ih_tveg24_si
+  integer,public :: ih_tveglpa_si_age
+  integer,public :: ih_tveglpa_si
+  
   ! indices to (site x height) variables
   integer :: ih_canopy_height_dist_si_height
   integer :: ih_leaf_height_dist_si_height
@@ -1750,7 +1754,6 @@ end subroutine flush_hvars
     real(r8) :: npp_partition_error ! a check that the NPP partitions sum to carbon allocation
     real(r8) :: frac_canopy_in_bin  ! fraction of a leaf's canopy that is within a given height bin
     real(r8) :: binbottom,bintop    ! edges of height bins
-    
     real(r8) :: gpp_cached ! variable used to cache gpp value in previous time step; for C13 discrimination
 
     ! The following are all carbon states, turnover and net allocation flux variables
@@ -1995,6 +1998,8 @@ end subroutine flush_hvars
                ! hio_fire_rate_of_spread_front_si_age  => this%hvars(ih_fire_rate_of_spread_front_si_age)%r82d, &
                hio_fire_intensity_si_age          => this%hvars(ih_fire_intensity_si_age)%r82d, &
                hio_fire_sum_fuel_si_age           => this%hvars(ih_fire_sum_fuel_si_age)%r82d, &
+               hio_tveg24_si_age                  => this%hvars(ih_tveg24_si_age)%r82d, &
+               hio_tveg24_si                      => this%hvars(ih_tveg24_si)%r81d, &
                hio_burnt_frac_litter_si_fuel      => this%hvars(ih_burnt_frac_litter_si_fuel)%r82d, &
                hio_fuel_amount_si_fuel            => this%hvars(ih_fuel_amount_si_fuel)%r82d, &
                hio_fuel_amount_age_fuel            => this%hvars(ih_fuel_amount_age_fuel)%r82d, &
@@ -2131,6 +2136,9 @@ end subroutine flush_hvars
 
          hio_harvest_carbonflux_si(io_si) = sites(s)%harvest_carbon_flux
 
+         hio_tveg24_si_age(io_si, :) = 0._r8
+         hio_tveg24_si(io_si) = 0._r8
+         
          ipa = 0
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
@@ -2192,7 +2200,15 @@ end subroutine flush_hvars
 
             hio_fire_sum_fuel_si_age(io_si, cpatch%age_class) = hio_fire_sum_fuel_si_age(io_si, cpatch%age_class) + &
                  cpatch%sum_fuel * g_per_kg * cpatch%area * AREA_INV
-             
+
+            if(cpatch%tveg24%c_index>0) then
+               hio_tveg24_si_age(io_si, cpatch%age_class) = &
+                    hio_tveg24_si_age(io_si, cpatch%age_class) + &
+                    cpatch%tveg24%GetMean()*cpatch%area
+               hio_tveg24_si(io_si) = hio_tveg24_si(io_si) + &
+                    cpatch%tveg24%GetMean()*cpatch%area*area_inv
+            end if
+            
             if(associated(cpatch%tallest))then
                hio_trimming_si(io_si) = hio_trimming_si(io_si) + cpatch%tallest%canopy_trim * cpatch%area * AREA_INV
             endif
@@ -2861,6 +2877,9 @@ end subroutine flush_hvars
             if (hio_area_si_age(io_si, ipa2) .gt. tiny) then
                hio_lai_si_age(io_si, ipa2) = hio_lai_si_age(io_si, ipa2) / (hio_area_si_age(io_si, ipa2)*AREA)
                hio_ncl_si_age(io_si, ipa2) = hio_ncl_si_age(io_si, ipa2) / (hio_area_si_age(io_si, ipa2)*AREA)
+
+               hio_tveg24_si_age(io_si, ipa2) = hio_tveg24_si_age(io_si, ipa2) / (hio_area_si_age(io_si, ipa2)*AREA)
+               
                do i_pft = 1, numpft
                   iagepft = ipa2 + (i_pft-1) * nlevage
                   hio_scorch_height_si_agepft(io_si, iagepft) = &
@@ -3541,6 +3560,8 @@ end subroutine flush_hvars
             hio_c_lblayer_si(io_si) = hio_c_lblayer_si(io_si) + &
                  cpatch%c_lblayer * cpatch%total_canopy_area
 
+
+            
             ccohort => cpatch%shortest
             do while(associated(ccohort))
                
@@ -4592,6 +4613,34 @@ end subroutine update_history_hifrq
          ivar=ivar, initialize=initialize_variables, index = ih_burnt_frac_litter_si_fuel )
 
 
+    ! Running means
+    
+    call this%set_history_var(vname='TVEG24_AGE', units='Kelvin', &
+         long='fates 24-hr running mean vegetation temperature by patch age', &
+         use_default='active', &
+         avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_tveg24_si_age )
+
+    call this%set_history_var(vname='TVEG24_SI', units='Kelvin', &
+         long='fates 24-hr running mean vegetation temperature by site', &
+         use_default='active', &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_tveg24_si )
+
+    call this%set_history_var(vname='TVEGLPA_AGE', units='Kelvin', &
+         long='fates leaf photo-acclim running mean vegetation temperature by patch age', &
+         use_default='active', &
+         avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=2, &
+         ivar=ivar, initialize=initialize_variables, index = ih_tveglpa_si_age )
+
+    call this%set_history_var(vname='TVEGLPA_SI', units='Kelvin', &
+         long='fates leaf photo-acclim running mean vegetation temperature by site', &
+         use_default='active', &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=2, &
+         ivar=ivar, initialize=initialize_variables, index = ih_tveglpa_si )
+    
+
+    
     ! Litter Variables
 
     call this%set_history_var(vname='LITTER_IN', units='gC m-2 s-1',           &

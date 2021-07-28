@@ -37,7 +37,8 @@ module FatesRestartInterfaceMod
   use FatesLitterMod,          only : ndcmpy
   use PRTGenericMod,           only : prt_global
   use PRTGenericMod,           only : num_elements
-
+  use FatesRunningMeanMod,     only : rmean_type
+  use FatesRunningMeanMod,     only : ema_lpa
 
   ! CIME GLOBALS
   use shr_log_mod       , only : errMsg => shr_log_errMsg
@@ -137,7 +138,11 @@ module FatesRestartInterfaceMod
   integer :: ir_gnd_alb_dif_pasb
   integer :: ir_gnd_alb_dir_pasb
 
-
+  ! Running Means
+  integer :: ir_tveg24_pa
+  integer :: ir_tveglpa_pa
+  integer :: ir_tveglpa_co
+  
   integer :: ir_ddbhdt_co
   integer :: ir_resp_tstep_co
   integer :: ir_pft_co
@@ -292,7 +297,9 @@ module FatesRestartInterfaceMod
      procedure, private :: GetCohortRealVector
      procedure, private :: SetCohortRealVector
      procedure, private :: RegisterCohortVector
-
+     procedure, private :: DefineRMeanRestartVar
+     procedure, private :: GetRMeanRestartVar
+     procedure, private :: SetRMeanRestartVar
   end type fates_restart_interface_type
 
   
@@ -1211,7 +1218,18 @@ contains
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index =   ir_promcflux_si )
 
 
+   call this%DefineRMeanRestartVar(vname='fates_tveg24patch',vtype=cohort_r8, &
+        long_name='24-hour patch veg temp', &
+        units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveg24_pa)
 
+   call this%DefineRMeanRestartVar(vname='fates_tveglpapatch',vtype=cohort_r8, &
+        long_name='running average (EMA) of patch veg temp for photo acclim', &
+        units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveglpa_pa)
+   
+   call this%DefineRMeanRestartVar(vname='fates_tveglpacohort',vtype=cohort_r8, &
+        long_name='running average (EMA) of cohort veg temp for photo acclim', &
+        units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveglpa_co)
+   
 
     ! Register all of the PRT states and fluxes
 
@@ -1224,7 +1242,90 @@ contains
     this%num_restart_vars_ = ivar
     
  end subroutine define_restart_vars
+
+ ! =====================================================================================
+ 
+ subroutine DefineRMeanRestartVar(this,vname,vtype,long_name,units,initialize,ivar,index)
+
+   class(fates_restart_interface_type) :: this
+   character(len=*),intent(in)  :: vname
+   character(len=*),intent(in)  :: vtype
+   character(len=*),intent(in)  :: long_name
+   character(len=*),intent(in)  :: units
+   logical, intent(in)          :: initialize
+   integer,intent(inout)        :: ivar
+   integer,intent(inout)        :: index
+
+   integer :: dummy_index
+   
+   call this%set_restart_var(vname= trim(vname)//'_cmean', vtype=vtype, &
+        long_name=long_name//' current mean', &
+        units=units, flushval = flushzero, &
+        hlms='CLM:ALM', initialize=initialize, ivar=ivar, index = index )
+
+   call this%set_restart_var(vname= trim(vname)//'_lmean', vtype=vtype, &
+        long_name=long_name//' latest mean', &
+        units=units, flushval = flushzero, &
+        hlms='CLM:ALM', initialize=initialize, ivar=ivar, index = dummy_index )
+   
+   call this%set_restart_var(vname= trim(vname)//'_cindex', vtype=vtype, &
+        long_name=long_name//' index', &
+        units='index', flushval = flushzero, &
+        hlms='CLM:ALM', initialize=initialize, ivar=ivar, index = dummy_index )
+
+   
+   return
+ end subroutine DefineRMeanRestartVar
+
+
+ ! =====================================================================================
   
+  subroutine GetRMeanRestartVar(this, rmean_var, ir_var_index, position_index)
+    
+    class(fates_restart_interface_type) , intent(inout) :: this
+    class(rmean_type), intent(inout) :: rmean_var
+
+    integer,intent(in)     :: ir_var_index
+    integer,intent(in)     :: position_index
+    
+    integer :: i_pos              ! vector position loop index
+    integer :: ir_pos_var         ! global variable index
+
+
+    rmean_var%c_mean  = this%rvars(ir_var_index)%r81d(position_index)
+     
+    rmean_var%l_mean  = this%rvars(ir_var_index+1)%r81d(position_index)
+    
+    rmean_var%c_index = nint(this%rvars(ir_var_index+2)%r81d(position_index))
+    
+    return
+  end subroutine GetRMeanRestartVar
+
+  ! =======================================================================================
+  
+  subroutine SetRMeanRestartVar(this, rmean_var, ir_var_index, position_index)
+    
+    class(fates_restart_interface_type) , intent(inout) :: this
+    class(rmean_type), intent(inout) :: rmean_var
+
+    integer,intent(in)     :: ir_var_index
+    integer,intent(in)     :: position_index
+    
+    integer :: i_pos              ! vector position loop index
+    integer :: ir_pos_var         ! global variable index
+
+    this%rvars(ir_var_index)%r81d(position_index) = rmean_var%c_mean
+     
+    this%rvars(ir_var_index+1)%r81d(position_index) = rmean_var%l_mean
+    
+    this%rvars(ir_var_index+2)%r81d(position_index) = real(rmean_var%c_index,r8)
+    
+    return
+  end subroutine SetRMeanRestartVar
+
+  
+
+ 
  ! =====================================================================================
  
   subroutine DefinePRTRestartVars(this,initialize_variables,ivar)
@@ -1416,6 +1517,12 @@ contains
     
   end subroutine RegisterCohortVector
 
+
+
+
+
+
+  
   ! =====================================================================================
   
   subroutine GetCohortRealVector(this, state_vector, len_state_vector, &
@@ -1902,7 +2009,9 @@ contains
                    write(fates_log(),*) 'CLTV offsetNumCohorts II ',io_idx_co, &
                          cohortsperpatch
                 endif
-             
+
+                call this%SetRMeanRestartVar(ccohort%tveg_lpa, ir_tveglpa_co, io_idx_co)
+                
                 io_idx_co = io_idx_co + 1
                 
                 ccohort => ccohort%taller
@@ -1917,6 +2026,10 @@ contains
              rio_patchdistturbcat_pa(io_idx_co_1st)   = cpatch%anthro_disturbance_label
              rio_agesinceanthrodist_pa(io_idx_co_1st) = cpatch%age_since_anthro_disturbance
              rio_area_pa(io_idx_co_1st)        = cpatch%area
+
+             ! Patch level running means
+             call this%SetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
+             call this%SetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
              
              ! set cohorts per patch for IO
              rio_ncohort_pa( io_idx_co_1st )   = cohortsperpatch
@@ -2256,6 +2369,11 @@ contains
                    call InitHydrCohort(sites(s),new_cohort)
                 end if
 
+                ! Allocate running mean functions
+                allocate(new_cohort%tveg_lpa)
+                call new_cohort%tveg_lpa%InitRMean(ema_lpa)
+
+                
                 ! Update the previous
                 prev_cohort => new_cohort
                 
@@ -2666,6 +2784,8 @@ contains
                    call UpdatePlantPsiFTCFromTheta(ccohort,sites(s)%si_hydr)
 
                 end if
+
+                call this%GetRMeanRestartVar(ccohort%tveg_lpa, ir_tveglpa_co, io_idx_co)
                 
                 io_idx_co = io_idx_co + 1
              
@@ -2693,6 +2813,10 @@ contains
              cpatch%solar_zenith_flag  = ( rio_solar_zenith_flag_pa(io_idx_co_1st) .eq. itrue )
              cpatch%solar_zenith_angle = rio_solar_zenith_angle_pa(io_idx_co_1st)
 
+
+             call this%GetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
+             call this%GetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
+             
              ! set cohorts per patch for IO
              
              if ( debug ) then

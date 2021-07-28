@@ -357,7 +357,7 @@ contains
 
                   currentCohort => currentPatch%tallest
                   do while (associated(currentCohort)) ! Cohort loop
-                     
+
                      ! Identify the canopy layer (cl), functional type (ft)
                      ! and the leaf layer (IV) for this cohort
                      ft = currentCohort%pft
