@@ -1533,6 +1533,8 @@ contains
     !----------------------------------------------------------------------
     !NEW CODE FOR ENVIRONMENTALLY SENSITIVE SEEDLING MORTALITY
     !Step 1. Calculate the daily seedling mortality rate from light stress
+
+        !ADD CODE FOR CUMULATIVE LIGHT
         cumulative_light_seedling = ( currentPatch%parprof_dir_z(1,1) + & !indices: (ican, ileaf); is 1,1 PAR at lowest layer?
                                       currentPatch%parprof_dif_z(1,1) ) * &
                                       megajoules_per_joule * sec_per_day * 64.0_r8 !this is a placeholder until I get
@@ -1541,7 +1543,27 @@ contains
         seedling_light_mort_rate = exp(EDPftvarcon_inst%seedling_light_mort_a(pft) * &
         cumulative_light_seedling + EDPftvarcon_inst%seedling_light_mort_b(pft)) 
 
+    !Step 2. Calculate the moisture deficit days !this code is a placeholder for now 
+
+        !ilayer_swater_emerg = minloc(abs(bc_in%z_sisl(:)-emerg_soil_depth),dim=1)     !define soil layer
+
         
+        !moisture_def_days = abs(bc_in%smp_sl(ilayer_swater_emerg) * mpa_per_mm_suction) - &    !calculate smp (mm H20 suction?)
+        !                    abs(EDPftvarcon_inst%seedling_smp_crit(pft))
+                             
+       
+    !Step 3. Calculate the daily seedling mortality rate from moisture stress
+           
+        !seedling_h2o_mort_rate = EDPftvarcon_inst%seedling_h2o_mort_a(pft) * moisture_def_days**2 + &
+        !                         EDPftvarcon_inst%seedling_h2o_mort_b(pft) * moisture_def_days + &
+        !                         EDPftvarcon_inst%seedling_h2o_mort_c(pft)
+
+        !if (moisture_def_days < EDPftvarcon_inst%moisture_dd_crit(pft) ) then
+        !     seedling_h2o_mort_rate = 0.0_r8
+        !end if
+     
+    
+    !Step 4. Add background mortality and send seedling carbon to litter flux (i.e. to 'seed_germ_decay' flux)        
         litt%seed_germ_decay(pft) = (litt%seed_germ(pft) * seedling_light_mort_rate) !+ &
                                     !(litt%seed_germ(pft) * seedling_h2o_mort_rate) + &
                                     !(litt%seed_germ(pft) * EDPftvarcon_inst%background_seedling_mort(pft) &
