@@ -1643,11 +1643,11 @@ contains
                                                                                      !modifier        
     !Step 2. calculate the soil matric potential at the seedling root depth	
         ilayer_swater_emerg = minloc(abs(bc_in%z_sisl(:)-root_depth),dim=1)  !define soil layer
-    	SMP_seed = bc_in%smp_sl(ilayer_swater_emerg)                                 !calculate smp (mm H20 suction?)
-    	wetness_index = 1.0_r8 / (SMP_seed * (-1.0_r8) * mpa_per_mm_suction)           !calculate wetness
+        SMP_seed = bc_in%smp_sl(ilayer_swater_emerg)                                 !calculate smp (mm H20 suction?)
+        wetness_index = 1.0_r8 / (SMP_seed * (-1.0_r8) * mpa_per_mm_suction)           !calculate wetness
 
     !Step 3. calculate the seedling emergence rate based on SMP_seed and f_PAR 
-    	f_emerg = f_PAR * EDPftvarcon_inst%a_emerg(pft) * wetness_index**EDPftvarcon_inst%b_emerg(pft)
+        f_emerg = f_PAR * EDPftvarcon_inst%a_emerg(pft) * wetness_index**EDPftvarcon_inst%b_emerg(pft)
      
     !Step 4. calculate the 'seed_germ_in' flux                                   
                                                                                      
