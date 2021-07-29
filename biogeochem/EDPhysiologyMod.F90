@@ -1607,7 +1607,7 @@ contains
     !do pft = 1,numpft
        litt%seed_germ_in(pft) =  min(litt%seed(pft) * f_emerg, max_germination)
     !-------------------------------------------------------------------------------------------
-
+    !END ahb's new code
 
     !set the germination only under the growing season...c.xu
 
