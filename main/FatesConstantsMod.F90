@@ -169,7 +169,10 @@ module FatesConstantsMod
 
   ! Conversion: megajoules per joule
   real(fates_r8), parameter, public :: megajoules_per_joule = 1.0E-6_fates_r8
-
+ 
+  ! Conversion: megapascals per mm H2O suction
+  real(fates_r8), parameter, public :: mpa_per_mm_suction = 1.0E-5_fates_r8
+ 
   ! Conversion: days per second
   real(fates_r8), parameter, public :: days_per_sec = 1.0_fates_r8/86400.0_fates_r8
 

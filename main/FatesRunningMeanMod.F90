@@ -88,9 +88,10 @@ module FatesRunningMeanMod
 
   ! Define the time methods that we want to have available to us
   
-  class(rmean_def_type), public, pointer :: ema_24hr   ! Exponential moving average - 24hr window
-  class(rmean_def_type), public, pointer :: fixed_24hr ! Fixed, 24-hour window
-  class(rmean_def_type), public, pointer :: ema_lpa    ! Exponential moving average - leaf photo acclimation
+  class(rmean_def_type), public, pointer :: ema_24hr      ! Exponential moving average - 24hr window
+  class(rmean_def_type), public, pointer :: fixed_24hr    ! Fixed, 24-hour window
+  class(rmean_def_type), public, pointer :: ema_lpa       ! Exponential moving average - leaf photo acclimation
+  class(rmean_def_type), public, pointer :: moving_64day  ! Moving, 64-day window; added by ahb       
   
 contains
 

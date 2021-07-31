@@ -21,6 +21,7 @@ module EDPhysiologyMod
   use FatesConstantsMod, only    : nearzero
   use FatesConstantsMod, only    : sec_per_day
   use FatesConstantsMod, only    : megajoules_per_joule
+  use FatesConstantsMod, only    : mpa_per_mm_suction
   use EDPftvarcon      , only    : EDPftvarcon_inst
   use PRTParametersMod , only    : prt_params
   use EDPftvarcon      , only    : GetDecompyFrac
@@ -1498,7 +1499,8 @@ contains
   subroutine SeedDecay( litt , currentPatch, bc_in )
     !
     ! !DESCRIPTION:
-    !  Flux from seed pool into leaf litter pool    
+    ! 1. Flux from seed pool into leaf litter pool
+    ! 2. Flux from seedling pool into leaf litter pool   
     !
     ! !ARGUMENTS     
     type(litter_type) :: litt
@@ -1507,26 +1509,31 @@ contains
     !
     ! !LOCAL VARIABLES:
     integer  ::  pft
-    real(r8) ::  cumulative_light_seedling   !cumulative light at the seedling layer (MJ) over prior 64 days
-                                             !this 64 day window is hard-coded for now because param values
-                                             !would need to change if the window changes
+    real(r8) ::  seedling_layer_par          !cumulative light at the seedling layer (MJ) over prior window of days 
+                                             !(defined by 'light_mort_window' param)
+    real(r8), parameter ::  seedling_light_mort_window = 64.0 !days; move to pft-level parameter
     real(r8) ::  seedling_light_mort_rate    !the daily seedling mortality rate from light stress
-    real(r8), parameter ::  mpa_per_mm_suction = 1.0e5_r8
     !----------------------------------------------------------------------
 
+    
+    ! 1. Flux from seed pool into leaf litter pool
+    
     ! default value from Liscke and Loffler 2006 ; making this a PFT-specific parameter
     ! decays the seed pool according to exponential model
     ! seed_decay_rate is in yr-1
     ! seed_decay is kg/day
     ! Assume that decay rates are same for all chemical species
 
+    ! START ahb's changes
     do pft = 1,numpft 
        litt%seed_decay(pft) = litt%seed(pft) * & 
              EDPftvarcon_inst%seed_decay_rate(pft)*years_per_day  + & ! "+ &" added by ahb (7/10/2021)
              litt%seed_decay(pft) ! line added by ahb so that the flux from non-seed reproductive
                                   ! biomass (from SeedIn subroutine) is not lost  (7/10/2021)
-    !START ahb's changes
-    !ORIGINAL CODE
+ 
+    ! 2. Flux from seedling pool into leaf litter pool
+ 
+    ! ORIGINAL CODE
     !----------------------------------------------------------------------
        litt%seed_germ_decay(pft) = litt%seed_germ(pft) * &
              EDPftvarcon_inst%seed_decay_rate(pft)*years_per_day
@@ -1537,13 +1544,17 @@ contains
     !Step 1. Calculate the daily seedling mortality rate from light stress
 
         !ADD CODE FOR CUMULATIVE LIGHT
-        cumulative_light_seedling = ( currentPatch%parprof_dir_z(1,1) + & !indices: (ican, ileaf); is 1,1 PAR at lowest layer?
-                                      currentPatch%parprof_dif_z(1,1) ) * &
-                                      megajoules_per_joule * sec_per_day * 64.0_r8 !this is a placeholder until I get
-                                                                                   !cumulative sum over prior 64 days working
+     !   seedling_layer_par = ( currentPatch%parprof_dir_z(currentPatch%ncl_p,max(currentPatch%ncan(currentPatch%ncl_p,:))) ) ! + &
+                              ! currentPatch%parprof_dif_z(currentPatch%ncl_p,max(currentPatch%ncan(currentPatch%ncl_p,:))) )
+                              ! * &
+                              ! megajoules_per_joule * sec_per_day * seedling_light_mort_window 
 
-        seedling_light_mort_rate = exp(EDPftvarcon_inst%seedling_light_mort_a(pft) * &
-        cumulative_light_seedling + EDPftvarcon_inst%seedling_light_mort_b(pft)) 
+    !    seedling_light_mort_rate = exp(EDPftvarcon_inst%seedling_light_mort_a(pft) * &
+    !    seedling_layer_par + EDPftvarcon_inst%seedling_light_mort_b(pft)) 
+        
+
+    !    write(fates_log(),*) 'seedling layer par ', seedling_layer_par
+    !    write(fates_log(),*) 'seedling light mort rate ', seedling_light_mort_rate
 
     !Step 2. Calculate the moisture deficit days !this code is a placeholder for now 
 
@@ -1602,15 +1613,14 @@ contains
 
     !Light and moisture-sensitive seedling emergence variables (ahb)
     !------------------------------------------------------------------------------------------------------------
-    real(r8), parameter :: root_depth = 0.06
-    real(r8), parameter :: mpa_per_mm_suction = 1.e-5 ! move this to FATES globals once sure of smp units
-    integer :: ilayer_swater_emerg                    ! the soil layer used for seedling moisture functions
-    real(r8) :: f_PAR                                 ! emergence rate modifier for light-sensitive germination
-    real(r8) :: wetness_index                         ! a soil 'wetness index' calculated from smp
-                                                      ! used in the moisture-sensitive emergence function                                                      
-    real(r8) :: f_emerg                               ! the fraction of the seed bank emerging in the current time step
-    real(r8) :: SMP_seed                              ! soil matric potential at seedling rooting depth
-    real(r8) :: PAR_seed                              ! photosynthetically active radiation at the seedling layer
+    integer  :: ilayer_seedling_root                            ! the soil layer at seedling rooting depth
+    real(r8) :: seedling_layer_smp                              ! soil matric potential at seedling rooting depth
+    real(r8) :: wetness_index                                   ! a soil 'wetness index' calculated from soil matric potential
+   
+    real(r8) :: seedling_layer_par                              ! photosynthetically active radiation at the seedling layer
+    real(r8) :: photoblastic_germ_modifier                      ! seedling emergence rate modifier for light-sensitive germination
+                                                                ! used in the moisture-sensitive emergence function                                                  
+    real(r8) :: seedling_emerg_rate                             ! the fraction of the seed bank emerging in the current time step
     !-------------------------------------------------------------------------------------------------------------
 
 
@@ -1625,7 +1635,8 @@ contains
     ! is seed_decay_rate(p)/germination_rate(p)
     ! and thus the mortality rate (in units of individuals) is the product of 
     ! that times the ratio of (hypothetical) seed mass to recruit biomass
-
+    
+    !START ahb's CHANGES
     !ORIGINAL CODE	
     !-------------------------------------------------------------------------------------------
     do pft = 1,numpft
@@ -1633,30 +1644,51 @@ contains
     !                                 max_germination)*years_per_day
     !-------------------------------------------------------------------------------------------   
     
-    !ahb NEW CODE
-    !This new code adds light and moisture-sensitive seedling emergence functions. It replaces
-    !the old prescribed seed germination rate parameter.
+    !This code adds light and moisture-sensitive seedling emergence from the seed bank. 
+    !It replaces the old prescribed seed germination rate parameter.
     !-------------------------------------------------------------------------------------------
     !Step 1. calculate the photoblastic germination rate modifier
-        PAR_seed = currentPatch%parprof_dir_z(1,1) + & !(ican, ileaf)                !is 1,1 PAR at lowest layer?
-                   currentPatch%parprof_dif_z(1,1)                                   !W-M2... (mean over 24 hrs?)
-        PAR_seed = PAR_seed * 4.6_r8                                                 !covert to umol s-1 of PAR
-        f_PAR = PAR_seed / (PAR_seed + EDPftvarcon_inst%par_crit_germ(pft))          !calculate photoblastic germ rate
-                                                                                     !modifier        
-    !Step 2. calculate the soil matric potential at the seedling root depth	
-        ilayer_swater_emerg = minloc(abs(bc_in%z_sisl(:)-EDPftvarcon_inst%seedling_root_depth(pft)),dim=1)  !define soil layer
-        SMP_seed = bc_in%smp_sl(ilayer_swater_emerg)                                 !calculate smp (mm H20 suction?)
-        wetness_index = 1.0_r8 / (SMP_seed * (-1.0_r8) * mpa_per_mm_suction)           !calculate wetness
 
-    !Step 3. calculate the seedling emergence rate based on SMP_seed and f_PAR 
-        f_emerg = f_PAR * EDPftvarcon_inst%a_emerg(pft) * wetness_index**EDPftvarcon_inst%b_emerg(pft)
+        seedling_layer_par = &
+          ( currentPatch%parprof_dir_z(currentPatch%ncl_p,maxval(currentPatch%ncan(currentPatch%ncl_p,:))) + &
+            currentPatch%parprof_dif_z(currentPatch%ncl_p,maxval(currentPatch%ncan(currentPatch%ncl_p,:))) + &
+            currentPatch%parprof_dif_z(1,1)  &
+            )
+       
+            
+        write(fates_log(),*) 'nrm parprof', currentPatch%nrmlzd_parprof_dir_z(:,:,:)
+        !write(fates_log(),*) 'parprof', currentPatch%parprof_dif_z(1,:)
+        !write(fates_log(),*) 'number_leaf_layers_in_second_canopy_layer', maxval(currentPatch%ncan(currentPatch%ncl_p,:))
+        
+        !write(fates_log(),*) 'seedling_layer_par_raw', seedling_layer_par
+        
+        seedling_layer_par = seedling_layer_par * 4.6_r8                !covert to umol s-1 of PAR
+                                                                        !1 W/m2 ≈ 4.6 μmole.m2/s
+        
+        photoblastic_germ_modifier = seedling_layer_par / &
+                (seedling_layer_par + EDPftvarcon_inst%par_crit_germ(pft))
+
+    !Step 2. calculate the soil matric potential at the seedling root depth
+        
+        !define soil layer
+        ilayer_seedling_root = minloc(abs(bc_in%z_sisl(:)-EDPftvarcon_inst%seedling_root_depth(pft)),dim=1) 
+
+        !get soil matric potential (mm of H2O suction) at the seedling rooting depth
+        seedling_layer_smp = bc_in%smp_sl(ilayer_seedling_root)    
+
+        !calculate a soil wetness index, which is used by the moisture-based seedling mortality function
+        wetness_index = 1.0_r8 / (seedling_layer_smp * (-1.0_r8) * mpa_per_mm_suction)          
+
+    !Step 3. calculate the seedling emergence rate based on soil moisture and par
+        seedling_emerg_rate = photoblastic_germ_modifier * EDPftvarcon_inst%a_emerg(pft) * &
+                wetness_index**EDPftvarcon_inst%b_emerg(pft)
      
     !Step 4. calculate the 'seed_germ_in' flux                                   
                                                                                      
     !do pft = 1,numpft
-       litt%seed_germ_in(pft) =  min(litt%seed(pft) * f_emerg, max_germination)
+       litt%seed_germ_in(pft) =  min(litt%seed(pft) * seedling_emerg_rate, max_germination)
     !-------------------------------------------------------------------------------------------
-
+    !END ahb changes
 
     !set the germination only under the growing season...c.xu
 
