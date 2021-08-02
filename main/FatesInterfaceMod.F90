@@ -322,6 +322,10 @@ module FatesInterfaceMod
       ! (RGK-01-2017)
       real(r8)             :: t_veg24_si
 
+      real(r8)             :: t_ref2m_24_si  !marius
+      real(r8)             :: t_ref2m_min_si !marius
+      real(r8)             :: t_ref2m_max_si !marius
+
       ! Patch 24 hour vegetation temperature [K]
       real(r8),allocatable :: t_veg24_pa(:)  
       
@@ -464,7 +468,6 @@ module FatesInterfaceMod
       real(r8),allocatable :: hksat_sisl(:)        ! hydraulic conductivity at saturation (mm H2O /s)
       real(r8),allocatable :: h2o_liq_sisl(:)      ! Liquid water mass in each layer (kg/m2)
       real(r8) :: smpmin_si                        ! restriction for min of soil potential (mm)
-      real(r8),allocatable :: temp_hard_sl(:)      ! soil temperature (Kelvin) Marius
    end type bc_in_type
 
 
@@ -792,7 +795,6 @@ contains
          allocate(bc_in%bsw_sisl(nlevsoil_in))
          allocate(bc_in%hksat_sisl(nlevsoil_in))
          allocate(bc_in%h2o_liq_sisl(nlevsoil_in)); bc_in%h2o_liq_sisl = nan
-         allocate(bc_in%temp_hard_sl(nlevsoil_in)) !Marius
       end if
 
       return
@@ -892,6 +894,9 @@ contains
       ! Input boundaries
       
       this%bc_in(s)%t_veg24_si     = 0.0_r8
+      this%bc_in(s)%t_ref2m_24_si  = 0.0_r8 !marius
+      this%bc_in(s)%t_ref2m_min_si = 0.0_r8 !marius
+      this%bc_in(s)%t_ref2m_max_si = 0.0_r8 !marius
       this%bc_in(s)%t_veg24_pa(:)  = 0.0_r8
       this%bc_in(s)%precip24_pa(:) = 0.0_r8
       this%bc_in(s)%relhumid24_pa(:) = 0.0_r8
@@ -929,7 +934,6 @@ contains
          this%bc_in(s)%sucsat_sisl(:) = 0.0_r8
          this%bc_in(s)%bsw_sisl(:) = 0.0_r8
          this%bc_in(s)%hksat_sisl(:) = 0.0_r8
-         this%bc_in(s)%temp_hard_sl(:) = 0.0_r8 !Marius
       end if
 
 

@@ -335,7 +335,10 @@ module EDTypesMod
                                                          ! (i.e. they are moved to newly-anthro-disturbed secondary 
                                                          !  forest patch).  fraction /per logging activity
 
-     real(r8) :: seed_prod                               ! diagnostic seed production rate [kgC/plant/day]
+     real(r8) ::  seed_prod                              ! diagnostic seed production rate [kgC/plant/day]
+
+     real(r8) ::  hard_level                             ! Hardiness state (K) (marius)
+     real(r8) ::  hard_GRF                               ! Growth reducing factor due to frost if not hardened (marius)
 
      ! NITROGEN POOLS      
      ! ----------------------------------------------------------------------------------
@@ -1020,6 +1023,8 @@ module EDTypesMod
      write(fates_log(),*) 'co%hmort                  = ', ccohort%hmort
      write(fates_log(),*) 'co%frmort                 = ', ccohort%frmort
      write(fates_log(),*) 'co%asmort                 = ', ccohort%asmort
+     write(fates_log(),*) 'co%hard_level             = ', ccohort%hard_level !marius
+     write(fates_log(),*) 'co%hard_GRF               = ', ccohort%hard_GRF   !marius
      write(fates_log(),*) 'co%isnew                  = ', ccohort%isnew
      write(fates_log(),*) 'co%dndt                   = ', ccohort%dndt
      write(fates_log(),*) 'co%dhdt                   = ', ccohort%dhdt

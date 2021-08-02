@@ -464,6 +464,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_sflc_scpf                     
   integer :: ih_lflc_scpf                   
   integer :: ih_btran_scpf
+  integer :: ih_hard_level_scpf !marius
+  integer :: ih_hard_GRF_scpf   !marius
   
   ! Hydro: Soil water states
   integer :: ih_rootwgt_soilvwc_si
@@ -1819,7 +1821,10 @@ end subroutine flush_hvars
                hio_m9_si_scpf          => this%hvars(ih_m9_si_scpf)%r82d, &
                hio_m10_si_scpf         => this%hvars(ih_m10_si_scpf)%r82d, &
                hio_m10_si_capf         => this%hvars(ih_m10_si_capf)%r82d, &
-      
+
+               hio_hard_level_scpf   => this%hvars(ih_hard_level_scpf)%r82d, & !marius
+               hio_hard_GRF_scpf     => this%hvars(ih_hard_GRF_scpf)%r82d, &   !marius
+
                hio_crownfiremort_si_scpf     => this%hvars(ih_crownfiremort_si_scpf)%r82d, &
                hio_cambialfiremort_si_scpf   => this%hvars(ih_cambialfiremort_si_scpf)%r82d, &
 
@@ -2218,7 +2223,7 @@ end subroutine flush_hvars
                   struct_c_turnover = ccohort%prt%GetTurnover(struct_organ, all_carbon_elements) * days_per_year
                   
                   ! Net change from allocation and transport [kgC/day] * [day/yr] = [kgC/yr]
-                 sapw_c_net_alloc   = ccohort%prt%GetNetAlloc(sapw_organ, all_carbon_elements) * days_per_year
+                  sapw_c_net_alloc   = ccohort%prt%GetNetAlloc(sapw_organ, all_carbon_elements) * days_per_year
                   store_c_net_alloc  = ccohort%prt%GetNetAlloc(store_organ, all_carbon_elements) * days_per_year
                   leaf_c_net_alloc   = ccohort%prt%GetNetAlloc(leaf_organ, all_carbon_elements) * days_per_year
                   fnrt_c_net_alloc   = ccohort%prt%GetNetAlloc(fnrt_organ, all_carbon_elements) * days_per_year
@@ -2322,6 +2327,12 @@ end subroutine flush_hvars
                     else
                        hio_c13disc_si_scpf(io_si,scpf) = 0.0_r8
                     endif
+		    
+                    ! Hardening
+		    hio_hard_level_scpf(io_si,scpf)    =   hio_hard_level_scpf(io_si,scpf) + & !marius
+                        (ccohort%hard_level)
+		    hio_hard_GRF_scpf(io_si,scpf)    =   hio_hard_GRF_scpf(io_si,scpf) + & !marius
+                        (ccohort%hard_level)
 
                     ! number density [/ha]
                     hio_nplant_si_scpf(io_si,scpf) = hio_nplant_si_scpf(io_si,scpf) + ccohort%n
@@ -3148,7 +3159,7 @@ end subroutine flush_hvars
                   ! Calculate index for the scpf class
                   associate( scpf => ccohort%size_by_pft_class, &
                              scls => ccohort%size_class )
-                    
+
                   ! scale up cohort fluxes to their patches
                   hio_npp_pa(io_pa) = hio_npp_pa(io_pa) + &
                         ccohort%npp_tstep * g_per_kg * n_density * per_dt_tstep
@@ -3173,6 +3184,7 @@ end subroutine flush_hvars
                        * n_perm2 *  sec_per_day * days_per_year
                   hio_livestem_mr_si(io_si) = hio_livestem_mr_si(io_si) + ccohort%livestem_mr &
                        * n_perm2 *  sec_per_day * days_per_year
+
 
                   ! Total AR (kgC/m2/yr) = (kgC/plant/step) / (s/step) * (plant/m2) * (s/yr)
                   hio_ar_si_scpf(io_si,scpf)    =   hio_ar_si_scpf(io_si,scpf) + &
@@ -3425,9 +3437,9 @@ end subroutine flush_hvars
     
     ! Locals
     integer  :: s        ! The local site index
-    integer  :: io_si     ! The site index of the IO array
+    integer  :: io_si    ! The site index of the IO array
     integer  :: ipa      ! The local "I"ndex of "PA"tches 
-    integer  :: ft               ! functional type index
+    integer  :: ft       ! functional type index
     integer  :: scpf
 !    integer  :: io_shsl  ! The combined "SH"ell "S"oil "L"ayer index in the IO array
     real(r8) :: n_density   ! individual of cohort per m2.
@@ -3651,10 +3663,10 @@ end subroutine flush_hvars
                   mean_aroot4 = (ccohort_hydr%psi_aroot(4)*ccohort_hydr%v_aroot_layer(4)) / &
                        (ccohort_hydr%v_aroot_layer(4))
 
-                  hio_awp_sl2(io_si,iscpf)             = hio_awp_sl2(io_si,iscpf) + &
+                  hio_awp_sl2(io_si,iscpf)             = hio_awp_sl2(io_si,iscpf) + & !marius
                        mean_aroot2 * number_fraction     ! [MPa]
                   
-                  hio_awp_sl4(io_si,iscpf)             = hio_awp_sl4(io_si,iscpf) + &
+                  hio_awp_sl4(io_si,iscpf)             = hio_awp_sl4(io_si,iscpf) + & !marius
                        mean_aroot4 * number_fraction     ! [MPa]
 
                   mean_aroot = sum(ccohort_hydr%psi_aroot(:)*ccohort_hydr%v_aroot_layer(:)) / &
@@ -4842,6 +4854,16 @@ end subroutine flush_hvars
           long='fine root maintenance autotrophic respiration per m2 per year by pft/size',use_default='inactive',&
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_frootm_si_scpf )
+
+    call this%set_history_var(vname='HARDINESS',  units='°C',            &
+         long='Hardiness level of vegetation', use_default='active',       &
+         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, & !marius
+         ivar=ivar, initialize=initialize_variables, index = ih_hard_level_scpf )
+
+    call this%set_history_var(vname='HARD_GRF',  units='-',            &
+         long='Growth reducing factor fram hardiness', use_default='active',       &
+         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, & !marius
+         ivar=ivar, initialize=initialize_variables, index = ih_hard_GRF_scpf )
 
     ! size-class only variables
 

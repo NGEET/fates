@@ -71,6 +71,7 @@ module EDMainMod
   use FatesGlobals             , only : endrun => fates_endrun
   use ChecksBalancesMod        , only : SiteMassStock
   use EDMortalityFunctionsMod  , only : Mortality_Derivative
+  use EDMortalityFunctionsMod  , only : Hardening_scheme !Marius
 
   use PRTGenericMod,          only : carbon12_element
   use PRTGenericMod,          only : all_carbon_elements
@@ -339,6 +340,7 @@ contains
 
           ! Calculate the mortality derivatives
           call Mortality_Derivative( currentSite, currentCohort, bc_in )
+	  call Hardening_scheme( currentCohort, bc_in ) !hard_level and hard_GRF will be updated, ED_ecosystem_dynamics is called once a day at beginning of day Marius
 
           ! -----------------------------------------------------------------------------
           ! Apply Plant Allocation and Reactive Transport

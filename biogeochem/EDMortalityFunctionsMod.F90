@@ -30,7 +30,7 @@ module EDMortalityFunctionsMod
    
    public :: mortality_rates
    public :: Mortality_Derivative
-   
+   public :: Hardening_scheme
    
    ! ============================================================================
    ! 10/30/09: Created by Rosie Fisher
@@ -50,12 +50,12 @@ contains
     ! ============================================================================
     
     use FatesConstantsMod,  only : tfrz => t_water_freeze_k_1atm
-    use FatesInterfaceMod        , only : hlm_hio_ignore_val   
+    use FatesInterfaceMod,  only : hlm_hio_ignore_val   
     use FatesConstantsMod,  only : fates_check_param_set
     
     type (ed_cohort_type), intent(in) :: cohort_in 
     type (bc_in_type), intent(in) :: bc_in
-    real(r8),intent(out) :: bmort ! background mortality : Fraction per year
+    real(r8),intent(out) :: bmort  ! background mortality : Fraction per year
     real(r8),intent(out) :: cmort  ! carbon starvation mortality
     real(r8),intent(out) :: hmort  ! hydraulic failure mortality
     real(r8),intent(out) :: frmort ! freezing stress mortality
@@ -273,6 +273,95 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
 
     return
 
- end subroutine Mortality_Derivative
+  end subroutine Mortality_Derivative
+
+! ============================================================================
+
+  subroutine Hardening_scheme( cohort_in,bc_in ) !marius
+    !
+    ! !DESCRIPTION:
+    ! Hardening module from Rammig et al. 2010. 
+    ! Implemented for evergreen trees --> Norway spruce
+    ! Controls the unrealistic root water release by reducing root confuctivity to efflux
+    ! and causes a reduction of growing through gfday.
+
+    ! !ARGUMENTS
+    type (ed_cohort_type), intent(inout) :: cohort_in
+    type (bc_in_type), intent(in) :: bc_in
+    
+    ! !LOCAL VARIABLES:
+    real(r8) :: Tmean ! daily average temperature °C
+    real(r8) :: Tmin  ! daily min temperature °C
+    real(r8) :: Tmax  ! daily max temperature °C
+   
+    real(r8), parameter :: min_h = -2  	! Minimum hardiness level from Bigras for Picea abies (°C)
+    real(r8), parameter :: max_h = -30 	! Maximum hardiness level from Bigras for Picea abies (°C)
+    real(r8), parameter :: LT50 = 20  	! Lethal temperature difference between the hardiness level and the minimum temperature” 
+                                        ! at which 50% of the trees are damaged (°C)
+                                        ! and determines the inflection-point of the curve, depending on the Dday
+    real(r8), parameter :: b = 0.2      ! Slope parameter
+    real(r8) :: target_h         	! Target hardiness 
+    real(r8) :: rate_h         		! Hardening rate     
+    real(r8) :: rate_dh        		! Dehardening rate
+    real(r8) :: hard_level_prev         ! Temporary variable for the previous time-step hardiness level
+    real(r8) :: hard_diff            	! Daily difference between Hday and Tmin (°C)
+
+    Tmean=bc_in%t_ref2m_24_si-273.15
+    Tmin=bc_in%t_ref2m_min_si-273.15
+    Tmax=bc_in%t_ref2m_max_si-273.15
+
+    !Calculation of the target hardiness
+    if (Tmean < -15) then !
+       target_h=-30
+    else if (Tmean> 15) then
+       target_h=-3.5
+    else
+       target_h=(-8 + 1.138333*Tmean - 0.07238889*Tmean**2 - &
+                0.001133333*Tmean**3 + 0.0001488889*Tmean**4) 
+    end if
+    !Calculation of the hardening rate
+    if (Tmin< -15) then
+       rate_h=1
+    else if (Tmin> 20) then
+       rate_h=0.1
+    else
+       rate_h=(0.5 - 0.04110476*Tmin + 0.0005219048*Tmin**2 + &
+              0.00005104762*Tmin**3 - 0.000001219048*Tmin**4) 
+    end if
+    !Calculation of the dehardening rate
+    if (Tmax< 4) then
+       rate_dh=0
+    else if (Tmax> 16) then
+       rate_dh=5
+    else
+       rate_dh=(0.4166667*Tmax - 1.666667) 
+    end if
+
+    !================================================    
+    !Hardening calculation
+    hard_level_prev = cohort_in%hard_level
+    if (hard_level_prev + rate_dh > min_h) then    ! During winter
+       cohort_in%hard_level = min_h
+    else if (hard_level_prev >= target_h) then
+       cohort_in%hard_level = hard_level_prev - rate_h
+    else if (hard_level_prev <= target_h) then
+       cohort_in%hard_level = hard_level_prev + rate_dh
+    end if
+    if (cohort_in%hard_level > min_h) then
+       cohort_in%hard_level = min_h
+    else if (cohort_in%hard_level < max_h) then
+       cohort_in%hard_level = max_h
+    end if
+    hard_diff=hard_level_prev-Tmin
+    !Calculation of the growth reducing factor
+    cohort_in%hard_GRF=(1/(1+exp(b*(hard_diff-LT50))))
+    return
+
+  end subroutine Hardening_scheme
 
 end module EDMortalityFunctionsMod
+
+
+
+
+
