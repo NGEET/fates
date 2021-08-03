@@ -2012,10 +2012,15 @@ contains
           ! It is assumed that cpatch%canopy_area_profile and cpat%xai_profiles
           ! have been updated (ie ed_leaf_area_profile has been called since dynamics has been called)
 
+          write(fates_log(),*) 's, ifp: ', s, ifp
+          write(fates_log(),*) 'EDCanopyStructure pre: bc_out(s)%tlai_pa(ifp): ', bc_out(s)%tlai_pa(ifp)
+
           bc_out(s)%elai_pa(ifp) = calc_areaindex(currentPatch,'elai')
           bc_out(s)%tlai_pa(ifp) = calc_areaindex(currentPatch,'tlai')
           bc_out(s)%esai_pa(ifp) = calc_areaindex(currentPatch,'esai')
           bc_out(s)%tsai_pa(ifp) = calc_areaindex(currentPatch,'tsai')
+
+          write(fates_log(),*) 'EDCanopyStructure post: bc_out(s)%tlai_pa(ifp): ', bc_out(s)%tlai_pa(ifp)
 
           !if(debug) then
           !   write(fates_log(),*) 'ifp: ', ifp
