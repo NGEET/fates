@@ -1861,6 +1861,8 @@ contains
 
                          currentPatch%tlai_profile(cl,ft,iv) = currentPatch%tlai_profile(cl,ft,iv) / &
                               currentPatch%canopy_area_profile(cl,ft,iv)
+                      write(fates_log(), *) 'currentPatch%tlai_profile(cl,ft,iv): ', currentPatch%tlai_profile(cl,ft,iv)
+                      write(fates_log(), *) 'currentPatch%canopy_area_profile(cl,ft,iv): ', currentPatch%canopy_area_profile(cl,ft,iv)
 
                          currentPatch%tsai_profile(cl,ft,iv) = currentPatch%tsai_profile(cl,ft,iv) / &
                               currentPatch%canopy_area_profile(cl,ft,iv)
