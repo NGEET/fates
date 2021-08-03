@@ -1846,6 +1846,8 @@ contains
      type(ed_patch_type),  pointer :: cpatch
      type(ed_cohort_type), pointer :: ccohort
      integer :: s, ifp, io_si
+     real(r8) :: seedling_layer_par
+
 
      do s = 1,size(sites,dim=1)
 
@@ -1856,11 +1858,22 @@ contains
            call cpatch%tveg24%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            call cpatch%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
 
+           !ahb wrote these lines here
+           seedling_layer_par = ( cpatch%parprof_dir_z(cpatch%ncl_p,maxval(cpatch%ncan(cpatch%ncl_p,:)) -1.0_r8 ) ) ! + &
+           ! cpatch%parprof_dif_z(cpatch%ncl_p,maxval(cpatch%ncan(cpatch%ncl_p,:))) )
+           write(fates_log(),*) 'patch number', cpatch%patchno 
+           write(fates_log(),*) 'canopy layers', cpatch%ncl_p
+           write(fates_log(),*) 'leaf layers', maxval(cpatch%ncan(cpatch%ncl_p,:))
+           write(fates_log(),*) 'cat parprof', seedling_layer_par
+
+
            ccohort => cpatch%tallest
+    
            do while (associated(ccohort))
               call ccohort%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
               ccohort => ccohort%shorter
            end do
+
            
            cpatch => cpatch%younger
         enddo

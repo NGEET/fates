@@ -1651,12 +1651,10 @@ contains
 
         seedling_layer_par = &
           ( currentPatch%parprof_dir_z(currentPatch%ncl_p,maxval(currentPatch%ncan(currentPatch%ncl_p,:))) + &
-            currentPatch%parprof_dif_z(currentPatch%ncl_p,maxval(currentPatch%ncan(currentPatch%ncl_p,:))) + &
-            currentPatch%parprof_dif_z(1,1)  &
-            )
+            currentPatch%parprof_dif_z(currentPatch%ncl_p,maxval(currentPatch%ncan(currentPatch%ncl_p,:))) )
        
             
-        write(fates_log(),*) 'nrm parprof', currentPatch%nrmlzd_parprof_dir_z(:,:,:)
+        !write(fates_log(),*) 'nrm parprof', currentPatch%nrmlzd_parprof_dir_z(:,:,:)
         !write(fates_log(),*) 'parprof', currentPatch%parprof_dif_z(1,:)
         !write(fates_log(),*) 'number_leaf_layers_in_second_canopy_layer', maxval(currentPatch%ncan(currentPatch%ncl_p,:))
         
