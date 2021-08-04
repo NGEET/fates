@@ -238,7 +238,7 @@ contains
     fates%bc_in(s)%precip24_pa(:) = 0.0_r8
     fates%bc_in(s)%relhumid24_pa(:) = 0.0_r8
     fates%bc_in(s)%wind24_pa(:)     = 0.0_r8
-
+    fates%bc_in(s)%t_a10_pa(:)      = 0.0_r8
     fates%bc_in(s)%lightning24(:)      = 0.0_r8
     fates%bc_in(s)%pop_density(:)      = 0.0_r8
     fates%bc_in(s)%solad_parb(:,:)     = 0.0_r8
@@ -473,6 +473,7 @@ contains
 
       ! Photosynthesis
       allocate(bc_in%filter_photo_pa(maxPatchesPerSite))
+      allocate(bc_in%t_a10_pa(maxPatchesPerSite))
       allocate(bc_in%dayl_factor_pa(maxPatchesPerSite))
       allocate(bc_in%esat_tv_pa(maxPatchesPerSite))
       allocate(bc_in%eair_pa(maxPatchesPerSite))

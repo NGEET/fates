@@ -215,6 +215,8 @@ contains
     real(r8) :: cohort_eleaf_area  ! This is the effective leaf area [m2] reported by each cohort
     real(r8) :: lnc_top            ! Leaf nitrogen content per unit area at canopy top [gN/m2]
     real(r8) :: lpc_top            ! Leaf phosphorus content per unit area at canopy top [gP/m2]
+    real(r8) :: fnr                ! (gRubisco/gN in Rubisco)
+    real(r8) :: act25              ! (umol/mgRubisco/min) Rubisco activity at 25C
     real(r8) :: jmax_np1           ! jmax~np relationship coefficient
     real(r8) :: jmax_np2           ! jmax~np relationship coefficient
     real(r8) :: jmax_np3           ! jmax~np relationship coefficient
@@ -264,10 +266,17 @@ contains
                                              ! projected area basis [m^2/gC]
          woody     => prt_params%woody,   &  ! Is vegetation woody or not? 
          stomatal_intercept   => EDPftvarcon_inst%stomatal_intercept, &  !Unstressed minimum stomatal conductance
+         flnr        => EDPftvarcon_inst%flnr, &       ! Input: fraction of leaf N in the Rubisco enzyme (gN Rubisco / gN leaf)
          vcmax_np1   => EDPftvarcon_inst%vcmax_np1, &  !vcmax~np relationship coefficient
          vcmax_np2   => EDPftvarcon_inst%vcmax_np2, &  !vcmax~np relationship coefficient
          vcmax_np3   => EDPftvarcon_inst%vcmax_np3, &  !vcmax~np relationship coefficient
          vcmax_np4   => EDPftvarcon_inst%vcmax_np4 )   !vcmax~np relationship coefficient
+
+         ! vcmax25 parameters from Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593
+         fnr = 7.16_r8
+         act25 = 3.6_r8 !umol/mgRubisco/min
+         ! Convert rubisco activity units from umol/mgRubisco/min -> umol/gRubisco/s
+         act25 = act25 * 1000.0_r8 / 60.0_r8
 
          ! jmax~np relationship coefficients needed in the parteh calculation of
          ! variable jmax25top_prt
@@ -461,7 +470,13 @@ contains
                               case (prt_carbon_allom_hyp)
 
                                  lnc_top  = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/slatop(ft)
-                                 
+                                 ! Approach taken from ELM carbon-only photosynthesis code (Q. Zhu)
+                                 ! using three Rubisco enzyme terms related to leaf N and lnc at top of the canopy
+                                 vcmax25top_prt = lnc_top * flnr(ft) * fnr * act25
+    
+                                 kn_prt = decay_coeff_kn(ft,vcmax25top_prt)
+                                 nscaler_prt = exp(-kn_prt * cumulative_lai)
+
                               case (prt_cnp_flex_allom_hyp)
 
                                  leaf_c  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
@@ -470,8 +485,8 @@ contains
                                     leaf_p  = currentCohort%prt%GetState(leaf_organ, phosphorus_element)
                                     lnc_top = leaf_n / (slatop(ft) * leaf_c )
                                     lpc_top = leaf_p / (slatop(ft) * leaf_c )
-                                    ! lnc_top = leaf_n / currentPatch%tlai_profile(cl,ft,iv)
-                                    ! lpc_top = leaf_p / currentPatch%tlai_profile(cl,ft,iv)
+                                    ! lnc_top = leaf_n / currentPatch%tlai_profile(cl,ft,iv) !testing with LAI method
+                                    ! lpc_top = leaf_p / currentPatch%tlai_profile(cl,ft,iv) !testing with LAI method
                                     lnc_top = min(max(lnc_top,0.25_r8),3.0_r8) !based on doi: 10.1002/ece3.1173
                                     lpc_top = min(max(lpc_top,0.014_r8),0.85_r8) !based on doi: 10.1002/ece3.1173
                                  else
@@ -543,6 +558,7 @@ contains
                                                              nscaler,                            &  ! in
                                                              nscaler_prt,                        &  ! in
                                                              bc_in(s)%t_veg_pa(ifp),             &  ! in
+                                                             bc_in(s)%t_a10_pa(ifp),             &  ! in
                                                              bc_in(s)%dayl_factor_pa(ifp),       &  ! in
                                                              btran_eff,                          &  ! in
                                                              vcmax_z,                            &  ! out
@@ -1859,6 +1875,7 @@ contains
                                          nscaler,    &
                                          nscaler_prt, & 
                                          veg_tempk,      &
+                                         temp_a10,  &
                                          dayl_factor, &
                                          btran, &
                                          vcmax, &
@@ -1899,6 +1916,7 @@ contains
       real(r8), intent(in) :: jmax25top_prt_ft   ! canopy top maximum electron transport rate at 25C for parteh
                                                  ! for this pft (umol CO2/m**2/s) 
       real(r8), intent(in) :: veg_tempk          ! vegetation temperature
+      real(r8), intent(in) :: temp_a10           ! 10-day running mean of 2m temperature (K)
       real(r8), intent(in) :: dayl_factor        ! daylength scaling factor (0-1)
       real(r8), intent(in) :: btran              ! transpiration wetness factor (0 to 1) 
                                                     
@@ -1915,7 +1933,8 @@ contains
                                       ! (umol electrons/m**2/s)
       real(r8) :: co2_rcurve_islope25 ! leaf layer: Initial slope of CO2 response curve 
                                       ! (C4 plants) at 25C
-      
+      real(r8) :: jmax25top_prt_c     ! leaf layer: maximum electron transport rate at 25C
+                                      ! but for parteh, C-only tracking   
       
       ! Parameters
       ! ---------------------------------------------------------------------------------
@@ -1948,25 +1967,39 @@ contains
          co2_rcurve_islope = 0._r8
       else                                     ! day time
 
+      if ((hlm_parteh_mode .eq. prt_carbon_allom_hyp ) .or. &
+         (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp )  ) then
          select case(hlm_parteh_mode)
          case (prt_carbon_allom_hyp)
-              !vcmax25top_ft = lnc_top * flnr * fnr * act25 * dayl_factor
-              !jmax25top_ft = (2.59_r8 - 0.035_r8*min(max((temp_a10-tfrz),11._r8),35._r8)) * vcmax25top_ft
+
+              ! Calculating jmax25top here b/c need temp_a10, but still need
+              ! vcmax25top_prt_ft from above.
+              ! Approach taken from ELM photosynthesis code (Q. Zhu)
+              jmax25top_prt_c = (2.59_r8 - 0.035_r8*min(max((temp_a10-tfrz),11._r8),35._r8)) * &
+                      (vcmax25top_prt_ft * dayl_factor)
+              vcmax25 = vcmax25top_prt_ft * nscaler_prt
+              jmax25  = jmax25top_prt_c * nscaler_prt
+              co2_rcurve_islope25 = 20000._r8 * vcmax25top_prt_ft * nscaler_prt
 
          case (prt_cnp_flex_allom_hyp)
 
               ! Using the newly calculated top of the canopy vcmax and jmax, not the parameter file values
               vcmax25 = vcmax25top_prt_ft * dayl_factor * nscaler_prt
               jmax25  = jmax25top_prt_ft * dayl_factor * nscaler_prt
+              co2_rcurve_islope25 = 20000._r8 * vcmax25top_prt_ft * nscaler_prt
          
          end select
 
+      else
 
          ! Vcmax25top was already calculated to derive the nscaler function
+         ! When parteh is not used, and C-only
          vcmax25 = vcmax25top_ft * nscaler
          jmax25  = jmax25top_ft * nscaler
          co2_rcurve_islope25 = co2_rcurve_islope25top_ft * nscaler
-         
+
+      end if !Loop for if using parteh 
+   
          print*,"vcmax25top, vcmax25top_prt, vcmax25: ",vcmax25top_ft,vcmax25top_prt_ft,vcmax25
          print*,"nscaler, nscaler_prt, day_length : ",nscaler,nscaler_prt,dayl_factor
          print*,"jmax25top, jmax25top_prt, jmax25: ",jmax25top_ft,jmax25top_prt_ft,jmax25

@@ -405,7 +405,10 @@ module FatesInterfaceTypesMod
 
       ! daylength scaling factor (0-1)
       real(r8), allocatable :: dayl_factor_pa(:)
-      
+     
+      ! 10-day running mean of 2m temperature (K)
+      real(r8), allocatable :: t_a10_pa(:)
+ 
       ! saturation vapor pressure at t_veg (Pa)
       real(r8), allocatable :: esat_tv_pa(:)
 
