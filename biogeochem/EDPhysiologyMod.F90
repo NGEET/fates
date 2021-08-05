@@ -2477,7 +2477,7 @@ contains
     catanf_30 = catanf(30._r8)
 
     ifp = currentPatch%patchno 
-    if(currentPatch%nocomp_pft_label.gt.0)then
+    if(currentPatch%nocomp_pft_label.ne.0)then
 
        ! Use the hlm temp and moisture decomp fractions by default
        if ( use_hlm_soil_scalar ) then
