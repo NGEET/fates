@@ -142,6 +142,7 @@ module FatesRestartInterfaceMod
   integer :: ir_tveg24_pa
   integer :: ir_tveglpa_pa
   integer :: ir_tveglpa_co
+  integer :: ir_seedling_layer_par24_pa !ahb
   
   integer :: ir_ddbhdt_co
   integer :: ir_resp_tstep_co
@@ -1215,12 +1216,15 @@ contains
    call this%set_restart_var(vname='fates_promcflux', vtype=site_r8, &
          long_name='fates diagnostic promotion carbon flux ', &
          units='', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index =   ir_promcflux_si )
-
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index =   ir_promcflux_si ) 
 
    call this%DefineRMeanRestartVar(vname='fates_tveg24patch',vtype=cohort_r8, &
         long_name='24-hour patch veg temp', &
         units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveg24_pa)
+
+   call this%DefineRMeanRestartVar(vname='fates_seedling_layer_par24',vtype=cohort_r8, &
+        long_name='24-hour seedling layer PAR', &
+        units='K', initialize=initialize_variables,ivar=ivar, index = ir_seedling_layer_par24_pa)
 
    call this%DefineRMeanRestartVar(vname='fates_tveglpapatch',vtype=cohort_r8, &
         long_name='running average (EMA) of patch veg temp for photo acclim', &
@@ -2030,6 +2034,7 @@ contains
              ! Patch level running means
              call this%SetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
              call this%SetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
+             call this%SetRMeanRestartVar(cpatch%seedling_layer_par24, ir_seedling_layer_par24_pa, io_idx_co_1st)
              
              ! set cohorts per patch for IO
              rio_ncohort_pa( io_idx_co_1st )   = cohortsperpatch
@@ -2816,7 +2821,8 @@ contains
 
              call this%GetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
              call this%GetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
-             
+             call this%GetRMeanRestartVar(cpatch%seedling_layer_par24, ir_seedling_layer_par24_pa, io_idx_co_1st)
+
              ! set cohorts per patch for IO
              
              if ( debug ) then

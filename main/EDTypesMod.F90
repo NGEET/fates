@@ -426,7 +426,8 @@ module EDTypesMod
      class(rmean_type), pointer :: tveg_lpa                      ! Running mean of vegetation temperature at the
                                                                  ! leaf photosynthesis acclimation timescale [K]
      
-     class(rmean_type), pointer :: seedling_layer_par            ! photosynthetically active radiation at the seedling layer (w-m2) 
+     class(rmean_type), pointer :: seedling_layer_par24          ! 24-hour mean of photosynthetically active radiation
+                                                                 ! at the seedling layer (w-m2) 
 
      ! LEAF ORGANIZATION
      real(r8) ::  pft_agb_profile(maxpft,n_dbh_bins)            ! binned above ground biomass, for patch fusion: KgC/m2

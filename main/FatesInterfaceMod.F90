@@ -1846,8 +1846,10 @@ contains
      type(ed_patch_type),  pointer :: cpatch
      type(ed_cohort_type), pointer :: ccohort
      integer :: s, ifp, io_si
-     real(r8) :: seedling_layer_par
-
+     real(r8) :: new_seedling_layer_par !seedling layer par in the current timestep
+     integer :: n_leaf                  !number of leaf layers per canopy layer in patch
+     real(r8) :: lai_sun_frac
+     real(r8) :: lai_shade_frac
 
      do s = 1,size(sites,dim=1)
 
@@ -1857,14 +1859,30 @@ contains
            ifp=ifp+1
            call cpatch%tveg24%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            call cpatch%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
+           
+           !updating seedling layer par; ahb, August 2021
+           !---------------------------------------------------------------------------------------
 
-           !ahb wrote these lines here
-           seedling_layer_par = ( cpatch%parprof_dir_z(cpatch%ncl_p,maxval(cpatch%ncan(cpatch%ncl_p,:)) -1.0_r8 ) ) ! + &
-           ! cpatch%parprof_dif_z(cpatch%ncl_p,maxval(cpatch%ncan(cpatch%ncl_p,:))) )
-           write(fates_log(),*) 'patch number', cpatch%patchno 
-           write(fates_log(),*) 'canopy layers', cpatch%ncl_p
-           write(fates_log(),*) 'leaf layers', maxval(cpatch%ncan(cpatch%ncl_p,:))
-           write(fates_log(),*) 'cat parprof', seedling_layer_par
+           n_leaf = maxval(cpatch%ncan(cpatch%ncl_p,:)) !calculating the number of leaf layers
+                                                        !in the lowest canopy layer
+           
+           !calculating the fraction of total lai (summed across pfts) in sun vs. shade
+           !at the lowest leaf level of the lowest canopy level           
+           lai_sun_frac = sum(cpatch%ed_laisun_z(cpatch%ncl_p,:,n_leaf)) &
+            / ( sum(cpatch%ed_laisun_z(cpatch%ncl_p,:,n_leaf)) + &   !summed across pfts  
+                sum(cpatch%ed_laisha_z(cpatch%ncl_p,:,n_leaf)) )    !summed across pfts
+            
+           lai_shade_frac = 1.0_r8 - lai_sun_frac     
+           
+           !calculating seedling layer par for the current time step
+           !using the weighted average of direct and diffuse par profiles 
+          
+           new_seedling_layer_par = & 
+             (cpatch%parprof_dir_z(cpatch%ncl_p,n_leaf) * lai_sun_frac) + &
+             (cpatch%parprof_dif_z(cpatch%ncl_p,n_leaf) * (1.0_r8 - lai_sun_frac))
+     
+           call cpatch%seedling_layer_par24%UpdateRMean(new_seedling_layer_par)
+           !---------------------------------------------------------------------------------------
 
 
            ccohort => cpatch%tallest

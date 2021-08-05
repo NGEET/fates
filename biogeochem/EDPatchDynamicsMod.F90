@@ -678,7 +678,7 @@ contains
              ! --------------------------------------------------------------------------
              call new_patch%tveg24%CopyFromDonor(currentPatch%tveg24)
              call new_patch%tveg_lpa%CopyFromDonor(currentPatch%tveg_lpa)
-             
+             call new_patch%seedling_layer_par24%CopyFromDonor(currentPatch%seedling_layer_par24) 
              
              ! --------------------------------------------------------------------------
              ! The newly formed patch from disturbance (new_patch), has now been given 
@@ -2002,6 +2002,8 @@ contains
     ! Until bc's are pointed to by sites give veg temp a default temp [K]
     real(r8), parameter :: temp_init_veg = 15._r8+t_water_freeze_k_1atm 
     
+    real(r8), parameter :: init_seedling_par = 5.0_r8                      !arbtrary initialization, ahb 
+
     ! !LOCAL VARIABLES:
     !---------------------------------------------------------------------
     integer :: el                                ! element loop index
@@ -2021,7 +2023,13 @@ contains
     call new_patch%tveg24%InitRMean(fixed_24hr,init_value=temp_init_veg,init_offset=real(hlm_current_tod,r8) )
     allocate(new_patch%tveg_lpa)
     call new_patch%tveg_lpa%InitRmean(ema_lpa,init_value=temp_init_veg)
-    
+   
+
+    allocate(new_patch%seedling_layer_par24)
+    call new_patch%seedling_layer_par24%InitRMean(fixed_24hr,init_value=init_seedling_par,init_offset=real(hlm_current_tod,r8) )
+
+
+
     ! Litter
     ! Allocate, Zero Fluxes, and Initialize to "unset" values
 
@@ -2526,7 +2534,8 @@ contains
     ! Weighted mean of the running means
     call rp%tveg24%FuseRMean(dp%tveg24,rp%area*inv_sum_area)
     call rp%tveg_lpa%FuseRMean(dp%tveg_lpa,rp%area*inv_sum_area)
-    
+    call rp%seedling_layer_par24%FuseRMean(dp%seedling_layer_par24,rp%area*inv_sum_area) !ahb
+
     rp%fuel_eff_moist       = (dp%fuel_eff_moist*dp%area + rp%fuel_eff_moist*rp%area) * inv_sum_area
     rp%livegrass            = (dp%livegrass*dp%area + rp%livegrass*rp%area) * inv_sum_area
     rp%sum_fuel             = (dp%sum_fuel*dp%area + rp%sum_fuel*rp%area) * inv_sum_area
@@ -2868,7 +2877,8 @@ contains
     ! Deallocate any running means
     deallocate(cpatch%tveg24)
     deallocate(cpatch%tveg_lpa)
-    
+    deallocate(cpatch%seedling_layer_par24)
+
     return
   end subroutine dealloc_patch
 

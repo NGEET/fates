@@ -1617,7 +1617,7 @@ contains
     real(r8) :: seedling_layer_smp                              ! soil matric potential at seedling rooting depth
     real(r8) :: wetness_index                                   ! a soil 'wetness index' calculated from soil matric potential
    
-    real(r8) :: seedling_layer_par                              ! photosynthetically active radiation at the seedling layer
+    real(r8) :: seedling_layer_par                         ! photosynthetically active radiation at the seedling layer
     real(r8) :: photoblastic_germ_modifier                      ! seedling emergence rate modifier for light-sensitive germination
                                                                 ! used in the moisture-sensitive emergence function                                                  
     real(r8) :: seedling_emerg_rate                             ! the fraction of the seed bank emerging in the current time step
@@ -1649,16 +1649,14 @@ contains
     !-------------------------------------------------------------------------------------------
     !Step 1. calculate the photoblastic germination rate modifier
 
-        seedling_layer_par = &
-          ( currentPatch%parprof_dir_z(currentPatch%ncl_p,maxval(currentPatch%ncan(currentPatch%ncl_p,:))) + &
-            currentPatch%parprof_dif_z(currentPatch%ncl_p,maxval(currentPatch%ncan(currentPatch%ncl_p,:))) )
-       
-            
-        !write(fates_log(),*) 'nrm parprof', currentPatch%nrmlzd_parprof_dir_z(:,:,:)
-        !write(fates_log(),*) 'parprof', currentPatch%parprof_dif_z(1,:)
-        !write(fates_log(),*) 'number_leaf_layers_in_second_canopy_layer', maxval(currentPatch%ncan(currentPatch%ncl_p,:))
+        seedling_layer_par = currentPatch%seedling_layer_par24%GetMean()
+    
+       ! write(fates_log(),*) 'nrm parprof', currentPatch%nrmlzd_parprof_dir_z(:,:,:)
+       ! write(fates_log(),*) 'parprof', currentPatch%parprof_dif_z(1,:)
+       ! write(fates_log(),*) 'number_leaf_layers_in_second_canopy_layer', maxval(currentPatch%ncan(currentPatch%ncl_p,:))
         
-        !write(fates_log(),*) 'seedling_layer_par_raw', seedling_layer_par
+        write(fates_log(),*) 'patchno', currentPatch%patchno
+        write(fates_log(),*) 'seedling_layer_par', seedling_layer_par
         
         seedling_layer_par = seedling_layer_par * 4.6_r8                !covert to umol s-1 of PAR
                                                                         !1 W/m2 ≈ 4.6 μmole.m2/s
