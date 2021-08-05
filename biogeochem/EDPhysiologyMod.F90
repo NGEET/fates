@@ -1239,9 +1239,6 @@ contains
 
                    if(store_c>nearzero) then
 
-                      store_c_transfer_frac = &
-                           min(EDPftvarcon_inst%phenflush_fraction(ipft)*currentCohort%laimemory, store_c)/store_c
-
                      store_c_transfer_frac = & 
                           min((EDPftvarcon_inst%phenflush_fraction(ipft)*currentCohort%laimemory)/store_c, &
                           (1.0_r8-carbon_store_buffer))
@@ -2479,29 +2476,6 @@ contains
 
     ifp = currentPatch%patchno 
     if(currentPatch%nocomp_pft_label.gt.0)then
-       if ( .not. use_century_tfunc ) then
-          !calculate rate constant scalar for soil temperature,assuming that the base rate constants 
-          !are assigned for non-moisture limiting conditions at 25C.
-          if (bc_in%t_veg24_pa(ifp)  >=  tfrz) then
-             t_scalar = q10_mr**((bc_in%t_veg24_pa(ifp)-(tfrz+25._r8))/10._r8)
-             !  Q10**((t_soisno(c,j)-(tfrz+25._r8))/10._r8)
-          else
-             t_scalar = (q10_mr**(-25._r8/10._r8))*(q10_froz**((bc_in%t_veg24_pa(ifp)-tfrz)/10._r8))
-             !Q10**(-25._r8/10._r8))*(froz_q10**((t_soisno(c,j)-tfrz)/10._r8)
-          endif
-       else
-          ! original century uses an arctangent function to calculate the 
-          ! temperature dependence of decomposition      
-          t_scalar = max(catanf(bc_in%t_veg24_pa(ifp)-tfrz)/catanf_30,0.01_r8)
-       endif
-
-       !Moisture Limitations   
-       !BTRAN APPROACH - is quite simple, but max's out decomp at all unstressed 
-       !soil moisture values, which is not realistic.  
-       !litter decomp is proportional to water limitation on average... 
-       w_scalar = sum(currentPatch%btran_ft(1:numpft))/real(numpft,r8)
-
-       currentPatch%fragmentation_scaler =  min(1.0_r8,max(0.0_r8,t_scalar * w_scalar))
 
        ! Use the hlm temp and moisture decomp fractions by default
        if ( use_hlm_soil_scalar ) then
