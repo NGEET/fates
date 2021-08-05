@@ -224,6 +224,7 @@ contains
 
     ! Calculate the fragmentation rates    
     call fragmentation_scaler(currentPatch, bc_in)
+    write(fates_log(),*) 'PreDistLittFlux: frag_scaler: ', currentPatch%fragmentation_scaler
 
 
     do el = 1, num_elements
@@ -249,6 +250,7 @@ contains
 
        nlev_eff_decomp = max(bc_in%max_rooting_depth_index_col, 1)
        call CWDOut(litt,currentPatch%fragmentation_scaler,nlev_eff_decomp)
+       write(fates_log(),*) 'PreDistLittFlux: sum ag_cwd_frag: ', sum(litt%ag_cwd_frag)
 
 
        site_mass => currentSite%mass_balance(el)
