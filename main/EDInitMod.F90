@@ -327,11 +327,11 @@ contains
              end do !hlm_pft
 
              do ft =  1,numpft
-                if(sites(s)%area_pft(ft).lt.0.01_r8.and.sites(s)%area_pft(ft).gt.0.0_r8)then
-                   write(fates_log(),*)  'removing small pft patches',s,ft,sites(s)%area_pft(ft)
-                   sites(s)%area_pft(ft)=0.0_r8
-                   ! remove tiny patches to prevent numerical errors in terminate patches
-              endif
+             !   if(sites(s)%area_pft(ft).lt.0.01_r8.and.sites(s)%area_pft(ft).gt.0.0_r8)then
+             !      write(fates_log(),*)  'removing small pft patches',s,ft,sites(s)%area_pft(ft)
+             !      sites(s)%area_pft(ft)=0.0_r8
+             !      ! remove tiny patches to prevent numerical errors in terminate patches
+             ! endif
                 if(sites(s)%area_pft(ft).lt.0._r8)then
                    write(fates_log(),*) 'negative area',s,ft,sites(s)%area_pft(ft)
                    call endrun(msg=errMsg(sourcefile, __LINE__))
