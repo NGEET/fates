@@ -62,7 +62,7 @@ def main():
         # val_list = args.val.split(',')
         # output_vec = [float(valstr) for valstr in val_list]
         outputval = np.fromstring(args.val, sep=',', dtype=np.float64)
-    
+
     else:
     
         try:
@@ -117,6 +117,12 @@ def main():
             elif(ndim_file==1):
                 for i in range(var.shape[0]):
                     var[i] = outputval[i]
+            elif(ndim_file==0):
+                var.assignValue(outputval[0])
+            else:
+                print("Unhandled dimension size in modify_fates_paramfile.py")
+                print("using --all flag")
+                exit(2)
                         
         else:
             

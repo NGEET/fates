@@ -50,7 +50,7 @@ def load_xml(xmlfile):
 def parse_syscall_str(fnamein,fnameout,param_name,param_val):
 
     sys_call_str = "../tools/modify_fates_paramfile.py"+" --fin " + fnamein + \
-                   " --fout " + fnameout + " --var " + param_name + \
+                   " --fout " + fnameout + " --var " + param_name + " --silent " +\
                    " --val " + param_val + " --overwrite --all"
 
     return(sys_call_str)
@@ -73,7 +73,6 @@ def main():
     # Convert the base cdl file into a temp nc binary
     base_nc = os.popen('mktemp').read().rstrip('\n')
     gencmd = "ncgen -o "+base_nc+" "+base_cdl
-    print(gencmd)
     os.system(gencmd)
     
     # Generate a temp output file name
