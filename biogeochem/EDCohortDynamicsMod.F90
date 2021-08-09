@@ -34,6 +34,7 @@ module EDCohortDynamicsMod
   use EDTypesMod            , only : min_npm2, min_nppatch
   use EDTypesMod            , only : min_n_safemath
   use EDTypesMod            , only : nlevleaf
+  use EDTypesMod            , only : nlevleafmem
   use PRTGenericMod         , only : max_nleafage
   use EDTypesMod            , only : ican_upper
   use EDTypesMod            , only : site_fluxdiags_type
@@ -65,7 +66,8 @@ module EDCohortDynamicsMod
   use FatesAllometryMod  , only : carea_allom
   use FatesAllometryMod  , only : ForceDBH
   use FatesAllometryMod  , only : tree_lai, tree_sai
-  use FatesAllometryMod    , only : set_root_fraction
+  use FatesAllometryMod  , only : set_root_fraction
+  use FatesAllometryMod  , only : GetNLevVeg
   use PRTGenericMod,          only : prt_carbon_allom_hyp   
   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
   use PRTGenericMod,          only : prt_vartypes
@@ -300,8 +302,6 @@ contains
 
     call InitPRTBoundaryConditions(new_cohort)
 
-   
-
     ! Recuits do not have mortality rates, nor have they moved any
     ! carbon when they are created.  They will bias our statistics
     ! until they have experienced a full day.  We need a newly recruited flag.
@@ -309,6 +309,12 @@ contains
     ! growth, disturbance and mortality.
     new_cohort%isnew = .true.
 
+    ! New cohorts are not trimmable because they have not experienced
+    ! time to generate an annual carbon balance. This value will be
+    ! set to true to all existing cohorts at the end of the next trimming
+    ! attempt
+    new_cohort%is_trimmable = .false.
+    
     if( hlm_use_planthydro.eq.itrue ) then
 
        nlevrhiz = currentSite%si_hydr%nlevrhiz
@@ -513,7 +519,8 @@ contains
     currentCohort%indexnumber        = fates_unset_int  ! unique number for each cohort. (within clump?)
     currentCohort%canopy_layer       = fates_unset_int  ! canopy status of cohort (1 = canopy, 2 = understorey, etc.)   
     currentCohort%canopy_layer_yesterday       = nan  ! recent canopy status of cohort (1 = canopy, 2 = understorey, etc.)   
-    currentCohort%NV                 = fates_unset_int  ! Number of leaf layers: -
+    currentCohort%nveg_act           = fates_unset_int
+    currentCohort%nveg_max           = fates_unset_int
     currentCohort%status_coh         = fates_unset_int  ! growth status of plant  (2 = leaves on , 1 = leaves off)
     currentCohort%size_class         = fates_unset_int  ! size class index
     currentCohort%size_class_lasttimestep = fates_unset_int  ! size class index
@@ -629,7 +636,6 @@ contains
 
     currentCohort => cc_p
 
-    currentCohort%NV                 = 0    
     currentCohort%status_coh         = 0    
     currentCohort%rdark              = 0._r8
     currentCohort%resp_m             = 0._r8
@@ -646,8 +652,6 @@ contains
     currentcohort%gpp_tstep          = 0._r8
     currentcohort%resp_tstep         = 0._r8
     currentcohort%resp_acc_hold      = 0._r8
-
-    currentcohort%year_net_uptake(:) = 999._r8 ! this needs to be 999, or trimming of new cohorts will break. 
     currentcohort%ts_net_uptake(:)   = 0._r8
     currentcohort%fraction_crown_burned = 0._r8 
     currentCohort%size_class            = 1
@@ -1149,6 +1153,7 @@ contains
                                       write(fates_log(),*) 'canopy_trim:',currentCohort%canopy_trim,nextc%canopy_trim
                                       write(fates_log(),*) 'canopy_layer_yesterday:', &
                                            currentCohort%canopy_layer_yesterday,nextc%canopy_layer_yesterday
+                                      write(fates_log(),*) 'is_trimmable:',currentCohort%is_trimmable,nextc%is_trimmable
                                       do i=1, nlevleaf
                                          write(fates_log(),*) 'leaf level: ',i,'year_net_uptake', &
                                               currentCohort%year_net_uptake(i),nextc%year_net_uptake(i)
@@ -1183,8 +1188,10 @@ contains
                                    currentCohort%structmemory   = (currentCohort%n*currentCohort%structmemory   &
                                         + nextc%n*nextc%structmemory)/newn				      				      
 
-                                   currentCohort%canopy_trim = (currentCohort%n*currentCohort%canopy_trim &
-                                        + nextc%n*nextc%canopy_trim)/newn
+
+                                   call FuseVegLayerMem(currentCohort,nextc,currentPatch,currentSite%spread)
+                                   
+                                   
 
                                    ! c13disc_acc calculation; weighted mean by GPP
                                    if ((currentCohort%n * currentCohort%gpp_acc + nextc%n * nextc%gpp_acc) .eq. 0.0_r8) then
@@ -1434,15 +1441,10 @@ contains
                                       currentCohort%ddbhdt     = (currentCohort%n*currentCohort%ddbhdt  + &
                                            nextc%n*nextc%ddbhdt)/newn
 
-                                      do i=1, nlevleaf     
-                                         if (currentCohort%year_net_uptake(i) == 999._r8 .or. nextc%year_net_uptake(i) == 999._r8) then
-                                            currentCohort%year_net_uptake(i) = &
-                                                 min(nextc%year_net_uptake(i),currentCohort%year_net_uptake(i))
-                                         else
-                                            currentCohort%year_net_uptake(i) = (currentCohort%n*currentCohort%year_net_uptake(i) + &
-                                                 nextc%n*nextc%year_net_uptake(i))/newn                
-                                         endif
-                                      enddo
+                                      
+
+                                      
+                                        
 
                                    end if !(currentCohort%isnew)
 
@@ -1740,6 +1742,10 @@ contains
 
   end subroutine insert_cohort
 
+
+
+    
+          
   !-------------------------------------------------------------------------------------!
   subroutine copy_cohort( currentCohort,copyc )
     !
@@ -1776,7 +1782,8 @@ contains
     n%leaf_cost       = o%leaf_cost
     n%canopy_layer    = o%canopy_layer
     n%canopy_layer_yesterday    = o%canopy_layer_yesterday
-    n%nv              = o%nv
+    n%nveg_act        = o%nveg_act
+    n%nveg_max        = o%nveg_max
     n%status_coh      = o%status_coh
     n%canopy_trim     = o%canopy_trim
     n%excl_weight     = o%excl_weight               
@@ -1893,6 +1900,110 @@ contains
 
   end subroutine copy_cohort
 
+  ! =====================================================================================
+  
+  subroutine FuseVegLayerMem(ccohort,ncohort,cpatch,site_spread)
+
+    ! This routine handles the fusion of cohorts' vegetation
+    ! layer carbon balance memory, and its trimming value
+    ! This is tricky becuase:
+    !
+    ! 1) two alike cohorts may or may not have existed since
+    !    the last time we started tracking net uptake
+    !    in which case we either revert to the one that did
+    !    or the typical weighted average
+    ! 2) two alike cohorts may not have had the same trimming
+    !    factor, and thus have been tracking carbon
+    !    balance over two different LAI depths
+
+    type(ed_cohort_type) :: ccohort     ! current (recipient)
+    type(ed_cohort_type) :: ncohort     ! next (donor)
+    type(ed_patch_type)  :: cpatch      ! current patch (both cohorts are on this patch)
+    real(r8),intent(in)  :: site_spread
+    
+    real(r8) :: joint_net_uptake(nlevleaf)
+    real(r8) :: joint_wgt(nlevleaf)
+    real(r8) :: leaf_c
+    integer :: iv  ! veg layer index
+    integer :: ivm  ! veg layer memory index
+    integer :: iv0,iv1  ! lowest and highest veg layer index matching memory
+    
+    joint_net_uptake(:) = 0._r8
+    joint_wgt(:) = 0._r8
+    
+    if(ccohort%is_trimmable .and. ncohort%is_trimmable) then
+
+       ccohort%canopy_trim = (ccohort%n*ccohort%canopy_trim &
+            + ncohort%n*ncohort%canopy_trim)/(ccohort%n+ncohort%n)
+       
+       do ivm = 1, min(nlevleafmem,ccohort%nveg_max)
+          iv = ccohort%nveg_max - ivm + 1
+          joint_net_uptake(iv) = ccohort%n*ccohort%year_net_uptake(ivm)
+          joint_wgt(iv)        = ccohort%n
+       end do
+       do ivm = 1, min(nlevleafmem,ncohort%nveg_max)
+          iv = ncohort%nveg_max - ivm + 1
+          joint_net_uptake(iv) = joint_net_uptake(iv)+ncohort%n*ncohort%year_net_uptake(ivm)
+          joint_wgt(iv)        = joint_wgt(iv)+ncohort%n
+       end do
+
+       iv0 = min(max(ccohort%nveg_max-nlevleafmem+1,1),max(ncohort%nveg_max-nlevleafmem+1,1))
+       iv1 = max(ccohort%nveg_max,ncohort%nveg_max)
+
+       if(debug)then
+          if(joint_wgt(iv0)<nearzero .or. joint_wgt(iv1)<nearzero) then
+             write(fates_log(),*) 'Error generating joint net uptake'
+             write(fates_log(),*) 'endpoints dont have valid values: ',&
+                  iv0,iv1,joint_wgt(iv0),joint_wgt(iv1),ccohort%nveg_max,ncohort%nveg_max
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+       end if
+       
+       do iv = iv0 ,iv1
+          if(joint_wgt(iv)<nearzero) then
+             ! This scenario should be incredibly unlikely
+             ! but its better to have something here than nothing
+             ! Note: there should be net uptake defined (and therefore weights)
+             ! at the end-points.
+             joint_net_uptake(iv) = &
+                  0.5_r8*(joint_net_uptake(iv0)+joint_net_uptake(iv1)/joint_wgt(iv1))
+          else
+             joint_net_uptake(iv) = joint_net_uptake(iv)/joint_wgt(iv)
+          end if
+       end do
+
+       leaf_c = ccohort%prt%GetState(leaf_organ, carbon12_element)
+       call GetNLevVeg(ccohort%dbh, leaf_c, site_spread, ccohort%pft, &
+                       ccohort%canopy_trim, ccohort%canopy_layer, &
+                       cpatch%canopy_layer_tlai, ccohort%vcmax25top, &
+                       ccohort%nveg_act,ccohort%nveg_max) 
+
+       do ivm = 1, min(nlevleafmem,ncohort%nveg_max)
+          iv = ccohort%nveg_max - ivm + 1
+          ccohort%year_net_uptake(ivm) = joint_net_uptake(iv)
+       end do
+
+    else
+       
+       ! Note: If the recipient cohort (ccohort) is trimmable
+       ! but the donor (ncohort) is not, then the cohort maintains
+       ! its trimming information and ignores the donor's
+       ! thus, nothing needs to be done
+       ! Note: If both cohorts are not trimmable, then they
+       ! both should have uninitialized year_net_uptakes, and
+       ! thus, nothing needs to be done
+
+       if(ncohort%is_trimmable) then
+          ccohort%canopy_trim = ncohort%canopy_trim
+          ccohort%year_net_uptake(:) = ncohort%year_net_uptake(:)
+          ccohort%is_trimmable = .true.
+       end if
+       
+    end if
+
+  end subroutine FuseVegLayerMem
+
+                                      
   !-------------------------------------------------------------------------------------!
   subroutine count_cohorts( currentPatch )
     !

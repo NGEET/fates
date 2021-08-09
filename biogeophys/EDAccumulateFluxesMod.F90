@@ -13,6 +13,7 @@ module EDAccumulateFluxesMod
   use FatesGlobals, only      : fates_log
   use shr_log_mod , only      : errMsg => shr_log_errMsg
   use FatesConstantsMod , only : r8 => fates_r8
+  use EDTypesMod, only         : nlevleafmem
 
 
   implicit none
@@ -93,13 +94,12 @@ contains
                           (ccohort%c13disc_clm * ccohort%gpp_tstep)) / &
                           (ccohort%gpp_acc + ccohort%gpp_tstep)
                 endif
-                
-                do iv=1,ccohort%nv
-                   if(ccohort%year_net_uptake(iv) == 999._r8)then ! note that there were leaves in this layer this year. 
-                      ccohort%year_net_uptake(iv) = 0._r8
-                   end if
-                   ccohort%year_net_uptake(iv) = ccohort%year_net_uptake(iv) + ccohort%ts_net_uptake(iv)
-                enddo
+
+                if( ccohort%is_trimmable ) then
+                   do iv=1,min(ccohort%nveg_max,nlevleafmem)
+                      ccohort%year_net_uptake(iv) = ccohort%year_net_uptake(iv) + ccohort%ts_net_uptake(iv)
+                   end do
+                end if
                 
                 ccohort => ccohort%taller
              enddo ! while(associated(ccohort))

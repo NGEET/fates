@@ -102,6 +102,7 @@ module FatesAllometryMod
   implicit none
 
   private
+  public :: GetNLevVeg    ! Number of vegetation layers for the plant
   public :: h2d_allom     ! Generic height to diameter wrapper
   public :: h_allom       ! Generic diameter to height wrapper
   public :: bagw_allom    ! Generic AGWB (above grnd. woody bio) wrapper
@@ -758,6 +759,57 @@ contains
 
     return
   end function tree_sai
+
+  
+  subroutine GetNLevVeg(dbh, leaf_c, site_spread, ipft, canopy_trim, &
+       canopy_layer,canopy_layer_tlai, vcmax25top, &
+       nveg_act, nveg_max)
+    
+    ! Determine the maximum number of leaf (vegetation) layers
+    ! for a cohort. This is based off of allometry, and assuming the plant
+    ! has the maximum leaf for its size and trimming.
+
+    real(r8), intent(inout) :: dbh
+    real(r8), intent(in) :: leaf_c
+    real(r8), intent(in) :: site_spread
+    integer,  intent(in) :: ipft
+    real(r8), intent(in) :: canopy_trim
+    integer,  intent(in) :: canopy_layer
+    real(r8), intent(in) :: canopy_layer_tlai(:)
+    real(r8), intent(in) :: vcmax25top
+    integer, intent(out) :: nveg_act
+    integer, intent(out) :: nveg_max
+    
+    integer  :: nv
+    real(r8) :: c_area
+    real(r8) :: leaf_c_target
+    real(r8) :: max_lai, max_sai
+    real(r8), parameter :: nplant_dum = 1.0_r8  ! Number of plants falls out (dummy)
+    
+    call carea_allom(dbh,nplant_dum,site_spread,ipft,c_area)
+    
+    max_lai = tree_lai(leaf_c, ipft, c_area, &
+         nplant_dum, canopy_layer, canopy_layer_tlai, vcmax25top )    
+    
+    max_sai = tree_sai(ipft, dbh, canopy_trim, &
+         c_area, nplant_dum, canopy_layer, canopy_layer_tlai, max_lai, &
+         vcmax25top, 0)  
+
+    nveg_act  = ceiling((max_lai+max_sai)/dinc_ed)
+
+    call bleaf(dbh,ipft,canopy_trim,leaf_c_target)
+    
+    max_lai = tree_lai(leaf_c_target, ipft, c_area, &
+         nplant_dum, canopy_layer, canopy_layer_tlai, vcmax25top )    
+    
+    max_sai = tree_sai(ipft, dbh, canopy_trim, &
+         c_area, nplant_dum, canopy_layer, canopy_layer_tlai, max_lai, &
+         vcmax25top, 0)  
+
+    nveg_max  = ceiling((max_lai+max_sai)/dinc_ed)
+    
+    return
+  end subroutine GetNLevVeg
   
   ! ============================================================================
   ! Generic sapwood biomass interface

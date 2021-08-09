@@ -36,6 +36,7 @@ module EDTypesMod
                                                           ! to understory layers (all layers that
                                                           ! are not the top canopy layer)
 
+  integer, parameter, public :: nlevleafmem = 4           ! number of layers for veg memory used for trimming
   integer, parameter, public :: nlevleaf = 30             ! number of leaf layers in canopy layer
   integer, parameter, public :: maxpft = 16               ! maximum number of PFTs allowed
                                                           ! the parameter file may determine that fewer
@@ -231,13 +232,20 @@ module EDTypesMod
      real(r8) ::  leaf_cost                              ! How much does it cost to maintain leaves: kgC/m2/year-1
      real(r8) ::  excl_weight                            ! How much of this cohort is demoted each year, as a proportion of all cohorts:-
      real(r8) ::  prom_weight                            ! How much of this cohort is promoted each year, as a proportion of all cohorts:-
-     integer  ::  nv                                     ! Number of leaf layers: -
+     integer  ::  nveg_act                               ! Number of vegetation layers (actual) at any point in time
+     integer  ::  nveg_max                               ! Maximum number of vegetation layers based on allometry 
      integer  ::  status_coh                             ! growth status of plant  (2 = leaves on , 1 = leaves off)
      real(r8) ::  c_area                                 ! areal extent of canopy (m2)
      real(r8) ::  treelai                                ! lai of an individual within cohort leaf area (m2) / crown area (m2)
      real(r8) ::  treesai                                ! stem area index of an indiv. within cohort: stem area (m2) / crown area (m2)
      logical  ::  isnew                                  ! flag to signify a new cohort, new cohorts have not experienced
                                                          ! npp or mortality and should therefore not be fused or averaged
+     logical  ::  is_trimmable                           ! This is only true if a cohort has been in existance since the last trimming attempt.
+                                                         ! this is necessary because we require a whole year's worth of carbon balance
+                                                         ! information to make the decision.  Newly recruited cohorts (which are not trimmable), that
+                                                         ! are fused into a trimmable cohort, will inherit the trimmable flag and the annual
+                                                         ! carbon balance information. All cohorts should be initialized as is_trimmable = .false.
+     
      integer  ::  size_class                             ! An index that indicates which diameter size bin the cohort currently resides in
                                                          ! this is used for history output. We maintain this in the main cohort memory
                                                          ! because we don't want to continually re-calculate the cohort's position when
@@ -322,8 +330,8 @@ module EDTypesMod
 
 
 
-     real(r8) ::  ts_net_uptake(nlevleaf)              ! Net uptake of leaf layers: kgC/m2/timestep
-     real(r8) ::  year_net_uptake(nlevleaf)            ! Net uptake of leaf layers: kgC/m2/year
+     real(r8) ::  ts_net_uptake(nlevleafmem)              ! Net uptake of leaf layers: kgC/m2/timestep
+     real(r8) ::  year_net_uptake(nlevleafmem)            ! Net uptake of leaf layers: kgC/m2/year
 
      ! RESPIRATION COMPONENTS
      real(r8) ::  rdark                                  ! Dark respiration: kgC/indiv/s
@@ -1042,7 +1050,8 @@ module EDTypesMod
      write(fates_log(),*) 'co%leaf_cost              = ', ccohort%leaf_cost
      write(fates_log(),*) 'co%canopy_layer           = ', ccohort%canopy_layer
      write(fates_log(),*) 'co%canopy_layer_yesterday = ', ccohort%canopy_layer_yesterday
-     write(fates_log(),*) 'co%nv                     = ', ccohort%nv
+     write(fates_log(),*) 'co%nveg_act               = ', ccohort%nveg_act
+     write(fates_log(),*) 'co%nveg_max               = ', ccohort%nveg_max
      write(fates_log(),*) 'co%status_coh             = ', ccohort%status_coh
      write(fates_log(),*) 'co%canopy_trim            = ', ccohort%canopy_trim
      write(fates_log(),*) 'co%excl_weight            = ', ccohort%excl_weight               
@@ -1079,6 +1088,7 @@ module EDTypesMod
      write(fates_log(),*) 'co%frmort                 = ', ccohort%frmort
      write(fates_log(),*) 'co%asmort                 = ', ccohort%asmort
      write(fates_log(),*) 'co%isnew                  = ', ccohort%isnew
+     write(fates_log(),*) 'co%is_trimmable           = ', ccohort%is_trimmable
      write(fates_log(),*) 'co%dndt                   = ', ccohort%dndt
      write(fates_log(),*) 'co%dhdt                   = ', ccohort%dhdt
      write(fates_log(),*) 'co%ddbhdt                 = ', ccohort%ddbhdt

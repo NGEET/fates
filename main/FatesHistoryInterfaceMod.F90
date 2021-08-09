@@ -2779,7 +2779,7 @@ end subroutine flush_hvars
                !
                hio_crownarea_si_can(io_si, ican) = hio_crownarea_si_can(io_si, ican) + ccohort%c_area / AREA
                !
-               do ileaf=1,ccohort%nv
+               do ileaf=1,ccohort%nveg_act
                   cnlf_indx = ileaf + (ican-1) * nlevleaf
                   hio_crownarea_si_cnlf(io_si, cnlf_indx) = hio_crownarea_si_cnlf(io_si, cnlf_indx) + &
                        ccohort%c_area / AREA
@@ -3669,13 +3669,13 @@ end subroutine flush_hvars
                 end associate
                endif
 
-               !!! canopy leaf carbon balance
-               ican = ccohort%canopy_layer
-               do ileaf=1,ccohort%nv
-                  cnlf_indx = ileaf + (ican-1) * nlevleaf
-                  hio_ts_net_uptake_si_cnlf(io_si, cnlf_indx) = hio_ts_net_uptake_si_cnlf(io_si, cnlf_indx) + &
-                       ccohort%ts_net_uptake(ileaf) * g_per_kg * per_dt_tstep * ccohort%c_area / AREA
-               end do
+!               !!! canopy leaf carbon balance
+!               ican = ccohort%canopy_layer
+!               do ileaf=1,ccohort%nveg_act
+!                  cnlf_indx = ileaf + (ican-1) * nlevleaf
+!                  hio_ts_net_uptake_si_cnlf(io_si, cnlf_indx) = hio_ts_net_uptake_si_cnlf(io_si, cnlf_indx) + &
+!                       ccohort%ts_net_uptake(ileaf) * g_per_kg * per_dt_tstep * ccohort%c_area / AREA
+!               end do
 
                ccohort => ccohort%taller
             enddo ! cohort loop
@@ -5156,11 +5156,11 @@ end subroutine update_history_hifrq
          ivar=ivar, initialize=initialize_variables, index = ih_fabi_sha_top_si_can )
 
     !!! canopy-resolved fluxes and structure
-    call this%set_history_var(vname='NET_C_UPTAKE_CNLF', units='gC/m2/s',                 &
-         long='net carbon uptake by each canopy and leaf layer per unit ground area (i.e. divide by CROWNAREA_CNLF to make per leaf area)', &
-         use_default='inactive',       &
-         avgflag='A', vtype=site_cnlf_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_ts_net_uptake_si_cnlf )
+    !!call this%set_history_var(vname='NET_C_UPTAKE_CNLF', units='gC/m2/s',                 &
+    !!     long='net carbon uptake by each canopy and leaf layer per unit ground area (i.e. divide by CROWNAREA_CNLF to make per leaf area)', &
+    !!     use_default='inactive',       &
+    !!     avgflag='A', vtype=site_cnlf_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+    !!     ivar=ivar, initialize=initialize_variables, index = ih_ts_net_uptake_si_cnlf )
 
     call this%set_history_var(vname='CROWNAREA_CNLF', units='m2/m2',                 &
          long='total crown area that is occupied by leaves in each canopy and leaf layer', &

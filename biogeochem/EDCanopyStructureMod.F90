@@ -14,12 +14,14 @@ module EDCanopyStructureMod
   use EDPftvarcon           , only : EDPftvarcon_inst
   use PRTParametersMod      , only : prt_params
   use FatesAllometryMod     , only : carea_allom
+  use FatesAllometryMod     , only : h2d_allom
   use EDCohortDynamicsMod   , only : copy_cohort, terminate_cohorts, fuse_cohorts
   use EDCohortDynamicsMod   , only : InitPRTObject
   use EDCohortDynamicsMod   , only : InitPRTBoundaryConditions
   use EDCohortDynamicsMod   , only : SendCohortToLitter
   use FatesAllometryMod     , only : tree_lai
   use FatesAllometryMod     , only : tree_sai
+  use FatesAllometryMod     , only : GetNLevVeg
   use EDtypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod            , only : nclmax
   use EDTypesMod            , only : nlevleaf
@@ -1423,8 +1425,10 @@ contains
     ! currentCohort%treesai    ! SAI per unit crown area  (m2/m2)
     ! currentCohort%lai        ! LAI per unit canopy area (m2/m2)
     ! currentCohort%sai        ! SAI per unit canopy area (m2/m2)
-    ! currentCohort%NV         ! The number of discrete vegetation
+    ! currentCohort%nveg_      ! The number of discrete vegetation
     !                          ! layers needed to describe this crown
+    !                          ! _max: on-allometry
+    !                          ! _act: actual (not necessarily on allometry)
     !
     ! The following patch level diagnostics are updated here:
     ! 
@@ -1479,9 +1483,13 @@ contains
     real(r8) :: leaf_c                   ! leaf carbon [kg]
     
     !----------------------------------------------------------------------
-
-
-
+    real(r8) :: test_trim
+    real(r8) :: test_n
+    real(r8) :: test_vcmax25
+    integer :: test_cl
+    real(r8) :: dbh
+    integer :: idbh
+    
     smooth_leaf_distribution = 0
 
     ! Here we are trying to generate a profile of leaf area, indexed by 'z' and by pft
@@ -1541,15 +1549,17 @@ contains
           currentCohort%lai =  currentCohort%treelai *currentCohort%c_area/currentPatch%total_canopy_area 
           currentCohort%sai =  currentCohort%treesai *currentCohort%c_area/currentPatch%total_canopy_area  
 
-          ! Number of actual vegetation layers in this cohort's crown
-          currentCohort%nv =  ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)  
-
-          currentPatch%ncan(cl,ft) = max(currentPatch%ncan(cl,ft),currentCohort%NV)
-
           patch_lai = patch_lai + currentCohort%lai
 
           currentPatch%canopy_layer_tlai(cl) = currentPatch%canopy_layer_tlai(cl) + currentCohort%lai
+          
+          call GetNLevVeg(currentCohort%dbh, leaf_c, currentSite%spread, currentCohort%pft, &
+                          currentCohort%canopy_trim, currentCohort%canopy_layer, &
+                          currentPatch%canopy_layer_tlai, currentCohort%vcmax25top, &
+                          currentCohort%nveg_act,currentCohort%nveg_max)
 
+          currentPatch%ncan(cl,ft) = max(currentPatch%ncan(cl,ft),currentCohort%nveg_act)
+          
           currentCohort => currentCohort%shorter 
           
        enddo !currentCohort
@@ -1681,7 +1691,7 @@ contains
                 ! before dividing it by the total area. Fill up layer for whole layers.  
                 ! --------------------------------------------------------------------------
                 
-                do iv = 1,currentCohort%NV
+                do iv = 1,currentCohort%nveg_act
                    
                    ! This loop builds the arrays that define the effective (not snow covered)
                    ! and total (includes snow covered) area indices for leaves and stems
@@ -1689,11 +1699,11 @@ contains
                    ! is obscured by snow.
                    
                    layer_top_hite = currentCohort%hite - &
-                         ( real(iv-1,r8)/currentCohort%NV * currentCohort%hite *  &
+                         ( real(iv-1,r8)/currentCohort%nveg_act * currentCohort%hite *  &
                          EDPftvarcon_inst%crown(currentCohort%pft) )
                    
                    layer_bottom_hite = currentCohort%hite - &
-                         ( real(iv,r8)/currentCohort%NV * currentCohort%hite * &
+                         ( real(iv,r8)/currentCohort%nveg_act * currentCohort%hite * &
                          EDPftvarcon_inst%crown(currentCohort%pft) )
                    
                    fraction_exposed = 1.0_r8
@@ -1709,13 +1719,13 @@ contains
                          (layer_top_hite-layer_bottom_hite ))))
                    endif
                    
-                   if(iv==currentCohort%NV) then
+                   if(iv==currentCohort%nveg_act) then
                       remainder = (currentCohort%treelai + currentCohort%treesai) - &
-                            (dinc_ed*real(currentCohort%nv-1,r8))
+                            (dinc_ed*real(currentCohort%nveg_act-1,r8))
                       if(remainder > dinc_ed )then
                          write(fates_log(), *)'ED: issue with remainder', &
                                currentCohort%treelai,currentCohort%treesai,dinc_ed, & 
-                               currentCohort%NV,remainder
+                               currentCohort%nveg_act,remainder
                          call endrun(msg=errMsg(sourcefile, __LINE__))
                       endif
                    else
@@ -1859,7 +1869,7 @@ contains
           endif !leaf distribution
           
        end if
-       
+
        currentPatch => currentPatch%younger 
        
     enddo !patch       

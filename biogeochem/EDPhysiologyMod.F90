@@ -42,6 +42,7 @@ module EDPhysiologyMod
   use FatesLitterMod      , only : icellulose
   use EDTypesMod          , only : AREA,AREA_INV
   use EDTypesMod          , only : nlevleaf
+  use EDTypesMod          , only : nlevleafmem
   use EDTypesMod          , only : num_vegtemp_mem
   use EDTypesMod          , only : maxpft
   use EDTypesMod          , only : ed_site_type, ed_patch_type, ed_cohort_type
@@ -83,6 +84,7 @@ module EDPhysiologyMod
   use FatesAllometryMod  , only : carea_allom
   use FatesAllometryMod  , only : CheckIntegratedAllometries
   use FatesAllometryMod, only : set_root_fraction
+  use FatesAllometryMod, only : GetNLevVeg
   use PRTGenericMod, only : prt_carbon_allom_hyp
   use PRTGenericMod, only : prt_cnp_flex_allom_hyp
   use PRTGenericMod, only : prt_vartypes
@@ -370,7 +372,8 @@ contains
     type (ed_cohort_type) , pointer :: currentCohort
     type (ed_patch_type)  , pointer :: currentPatch
 
-    integer  :: z                     ! leaf layer
+    integer  :: z                     ! veg layer
+    integer  :: zm                    ! veg memory layer (starts at lowest veg layer and works up)
     integer  :: ipft                  ! pft index
     logical  :: trimmed               ! was this layer trimmed in this year? If not expand the canopy. 
     real(r8) :: tar_bl                ! target leaf biomass       (leaves flushed, trimmed)
@@ -388,7 +391,7 @@ contains
     real(r8) :: leaf_inc              ! LAI-only portion of the vegetation increment of dinc_ed
     real(r8) :: lai_canopy_above      ! the LAI in the canopy layers above the layer of interest
     real(r8) :: lai_layers_above      ! the LAI in the leaf layers, within the current canopy, 
-                                      ! above the leaf layer of interest
+    ! above the leaf layer of interest
     real(r8) :: lai_current           ! the LAI in the current leaf layer
     real(r8) :: cumulative_lai        ! whole canopy cumulative LAI, top down, to the leaf layer of interest
     real(r8) :: cumulative_lai_cohort ! cumulative LAI within the current cohort only
@@ -405,9 +408,11 @@ contains
     ! y is the cumulative lai for the current cohort
     ! b is the y-intercept i.e. the cumulative lai that has zero net-net uptake
     ! m is the slope of the linear fit
-    integer :: nll = 3                    ! Number of leaf layers to fit a regression to for calculating the optimum lai
+
+    integer :: nll = 3                    ! Number of leaf layers to fit a regression
+                                          ! to for calculating the optimum lai
     character(1) :: trans = 'N'           ! Input matrix is not transposed
-    
+
     integer, parameter :: m = 2, n = 2    ! Number of rows and columns, respectively, in matrix A
     integer, parameter :: nrhs = 1        ! Number of columns in matrix B and X
     integer, parameter :: workmax = 100   ! Maximum iterations to minimize work
@@ -415,7 +420,7 @@ contains
     integer :: lda = m, ldb = n           ! Leading dimension of A and B, respectively
     integer :: lwork                      ! Dimension of work array
     integer :: info                       ! Procedure diagnostic ouput
-    
+
     real(r8) :: nnu_clai_a(m,n)           ! LHS of linear least squares fit, A matrix
     real(r8) :: nnu_clai_b(m,nrhs)        ! RHS of linear least squares fit, B matrix
     real(r8) :: work(workmax)             ! work array
@@ -427,54 +432,60 @@ contains
 
     !----------------------------------------------------------------------
 
+
     ipatch = 1 ! Start counting patches
 
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
- 
+
        ! Add debug diagnstic output to determine which patch
        if (debug) then
           write(fates_log(),*) 'Current patch:', ipatch
           write(fates_log(),*) 'Current patch cohorts:', currentPatch%countcohorts
        endif
- 
+
        icohort = 1
-        
+
        currentCohort => currentPatch%tallest
        do while (associated(currentCohort)) 
 
-         ! Save off the incoming trim and laimemory
-         initial_trim = currentCohort%canopy_trim
-         initial_laimem = currentCohort%laimemory
+          ! Save off the incoming trim and laimemory
+          initial_trim = currentCohort%canopy_trim
+          initial_laimem = currentCohort%laimemory
 
           ! Add debug diagnstic output to determine which cohort
           if (debug) then
-            write(fates_log(),*) 'Current cohort:', icohort
-            write(fates_log(),*) 'Starting canopy trim:', initial_trim
-            write(fates_log(),*) 'Starting laimemory:', currentCohort%laimemory
-          endif   
+             write(fates_log(),*) 'Current cohort:', icohort
+             write(fates_log(),*) 'Starting canopy trim:', initial_trim
+             write(fates_log(),*) 'Starting laimemory:', currentCohort%laimemory
+          endif
 
           trimmed = .false.
           ipft = currentCohort%pft
-          call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,currentCohort%c_area)
 
-          leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+          ! Identify current canopy layer (cl)
+          cl = currentCohort%canopy_layer
+
+          leaf_c          = currentCohort%prt%GetState(leaf_organ,carbon12_element)
 
           currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, &
-                                           currentCohort%n, currentCohort%canopy_layer,               &
-                                           currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )    
+               currentCohort%n, currentCohort%canopy_layer,     &
+               currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )
 
           currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
-                                           currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
-                                           currentPatch%canopy_layer_tlai, currentCohort%treelai, &
-                                           currentCohort%vcmax25top,0 )  
+               currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
+               currentPatch%canopy_layer_tlai, currentCohort%treelai , &
+               currentCohort%vcmax25top,5)  
 
-          currentCohort%nv      = ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)
+          call GetNLevVeg(currentCohort%dbh, leaf_c, currentSite%spread, currentCohort%pft, &
+                          currentCohort%canopy_trim, currentCohort%canopy_layer, &
+                          currentPatch%canopy_layer_tlai, currentCohort%vcmax25top, &
+                          currentCohort%nveg_act,currentCohort%nveg_max)
 
-          if (currentCohort%nv > nlevleaf)then
-             write(fates_log(),*) 'nv > nlevleaf',currentCohort%nv, &
-                   currentCohort%treelai,currentCohort%treesai, &
-                   currentCohort%c_area,currentCohort%n,leaf_c
+          if (currentCohort%nveg_max > nlevleaf)then
+             write(fates_log(),*) 'nveg_max > nlevleaf',currentCohort%nveg_max, &
+                  currentCohort%treelai,currentCohort%treesai, &
+                  currentCohort%c_area,currentCohort%n,leaf_c
              call endrun(msg=errMsg(sourcefile, __LINE__))
           endif
 
@@ -486,48 +497,55 @@ contains
              bfr_per_bleaf = tar_bfr/tar_bl
           endif
 
-          ! Identify current canopy layer (cl)
-          cl = currentCohort%canopy_layer
-          
           ! PFT-level maximum SLA value, even if under a thick canopy (same units as slatop)
           sla_max = prt_params%slamax(ipft)
 
           ! Initialize nnu_clai_a
           nnu_clai_a(:,:) = 0._r8
           nnu_clai_b(:,:) = 0._r8
-          
-          !Leaf cost vs netuptake for each leaf layer. 
-          do z = 1, currentCohort%nv
 
-             ! Calculate the cumulative total vegetation area index (no snow occlusion, stems and leaves)
+          ! We dont trimm, if it is not trimmable
 
-             leaf_inc    = dinc_ed * &
-                   currentCohort%treelai/(currentCohort%treelai+currentCohort%treesai)
-             
-             ! Now calculate the cumulative top-down lai of the current layer's midpoint within the current cohort
-             lai_layers_above      = leaf_inc * (z-1)
-             lai_current           = min(leaf_inc, currentCohort%treelai - lai_layers_above)
-             cumulative_lai_cohort = lai_layers_above + 0.5*lai_current
+          if_trimmable: if(currentCohort%is_trimmable)then
 
-             ! Now add in the lai above the current cohort for calculating the sla leaf level
-             lai_canopy_above  = sum(currentPatch%canopy_layer_tlai(1:cl-1)) 
-             cumulative_lai    = lai_canopy_above + cumulative_lai_cohort
+             ! Leaf cost vs netuptake for each leaf layer.
+             ! Lets loop over the last few leaf layers, only the number of layers
+             ! necessary for evaluating the trend
 
-             ! There was activity this year in this leaf layer.  This should only occur for bottom most leaf layer
-             if (currentCohort%year_net_uptake(z) /= 999._r8)then 
-                   
+             leafmem_loop: do zm = 1, min(nll,currentCohort%nveg_max)
+
+                ! The actual leaf layer index (going from top to bottom)
+                z = currentCohort%nveg_max - zm + 1
+
+                ! Calculate the cumulative total vegetation area index (no snow occlusion, stems and leaves)
+
+                leaf_inc    = dinc_ed * &
+                     currentCohort%treelai/(currentCohort%treelai+currentCohort%treesai)
+
+                ! Now calculate the cumulative top-down lai of the current layer's midpoint within the current cohort
+                lai_layers_above      = leaf_inc * (z-1)
+                lai_current           = min(leaf_inc, currentCohort%treelai - lai_layers_above)
+                cumulative_lai_cohort = lai_layers_above + 0.5*lai_current
+
+                ! Now add in the lai above the current cohort for calculating the sla leaf level
+                lai_canopy_above  = sum(currentPatch%canopy_layer_tlai(1:cl-1)) 
+                cumulative_lai    = lai_canopy_above + cumulative_lai_cohort
+
                 ! Calculate sla_levleaf following the sla profile with overlying leaf area
                 ! Scale for leaf nitrogen profile
                 kn = decay_coeff_kn(ipft,currentCohort%vcmax25top)
                 ! Nscaler value at leaf level z
                 nscaler_levleaf = exp(-kn * cumulative_lai)
+
                 ! Sla value at leaf level z after nitrogen profile scaling (m2/gC)
+                ! (RGK) THIS SHOULD BE USING THE SLAMAX AS WELL< NOT JUST A CAP
                 sla_levleaf = prt_params%slatop(ipft)/nscaler_levleaf
 
+                ! 
                 if(sla_levleaf > sla_max)then
                    sla_levleaf = sla_max
                 end if
-                   
+
                 !Leaf Cost kgC/m2/year-1
                 !decidous costs. 
                 if (prt_params%season_decid(ipft) ==  itrue .or. &
@@ -544,15 +562,16 @@ contains
                            bfr_per_bleaf / prt_params%root_long(ipft)
                    endif
 
+
                    currentCohort%leaf_cost = currentCohort%leaf_cost * &
-                         (prt_params%grperc(ipft) + 1._r8)
+                        (prt_params%grperc(ipft) + 1._r8)
                 else !evergreen costs
 
                    ! Leaf cost at leaf level z accounting for sla profile
                    currentCohort%leaf_cost = 1.0_r8/(sla_levleaf* &
                         sum(prt_params%leaf_long(ipft,:))*1000.0_r8) !convert from sla in m2g-1 to m2kg-1
-                   
-                   
+
+
                    if ( int(prt_params%allom_fmode(ipft)) .eq. 1 ) then
                       ! if using trimmed leaf for fine root biomass allometry, add the cost of the root increment
                       ! to the leaf increment; otherwise do not.
@@ -561,45 +580,39 @@ contains
                            bfr_per_bleaf / prt_params%root_long(ipft)
                    endif
                    currentCohort%leaf_cost = currentCohort%leaf_cost * &
-                         (prt_params%grperc(ipft) + 1._r8)
+                        (prt_params%grperc(ipft) + 1._r8)
                 endif
 
                 ! Construct the arrays for a least square fit of the net_net_uptake versus the cumulative lai
                 ! if at least nll leaf layers are present in the current cohort and only for the bottom nll 
                 ! leaf layers.
-                if (currentCohort%nv > nll .and. currentCohort%nv - z < nll) then 
 
-                  ! Build the A matrix for the LHS of the linear system. A = [n  sum(x); sum(x)  sum(x^2)]
-                  ! where n = nll and x = yearly_net_uptake-leafcost
-                  nnu_clai_a(1,1) = nnu_clai_a(1,1) + 1 ! Increment for each layer used
-                  nnu_clai_a(1,2) = nnu_clai_a(1,2) + currentCohort%year_net_uptake(z) - currentCohort%leaf_cost
-                  nnu_clai_a(2,1) = nnu_clai_a(1,2)
-                  nnu_clai_a(2,2) = nnu_clai_a(2,2) + (currentCohort%year_net_uptake(z) - currentCohort%leaf_cost)**2
+                ! Build the A matrix for the LHS of the linear system. A = [n  sum(x); sum(x)  sum(x^2)]
+                ! where n = nll and x = yearly_net_uptake-leafcost
+                nnu_clai_a(1,1) = nnu_clai_a(1,1) + 1 ! Increment for each layer used
+                nnu_clai_a(1,2) = nnu_clai_a(1,2) + currentCohort%year_net_uptake(zm) - currentCohort%leaf_cost
+                nnu_clai_a(2,1) = nnu_clai_a(1,2)
+                nnu_clai_a(2,2) = nnu_clai_a(2,2) + (currentCohort%year_net_uptake(zm) - currentCohort%leaf_cost)**2
 
-                  ! Build the B matrix for the RHS of the linear system. B = [sum(y); sum(x*y)]
-                  ! where x = yearly_net_uptake-leafcost and y = cumulative_lai_cohort
-                  nnu_clai_b(1,1) = nnu_clai_b(1,1) + cumulative_lai_cohort
-                  nnu_clai_b(2,1) = nnu_clai_b(2,1) + (cumulative_lai_cohort * & 
-                                    (currentCohort%year_net_uptake(z) - currentCohort%leaf_cost))
-                end if
+                ! Build the B matrix for the RHS of the linear system. B = [sum(y); sum(x*y)]
+                ! where x = yearly_net_uptake-leafcost and y = cumulative_lai_cohort
+                nnu_clai_b(1,1) = nnu_clai_b(1,1) + cumulative_lai_cohort
+                nnu_clai_b(2,1) = nnu_clai_b(2,1) + (cumulative_lai_cohort * & 
+                     (currentCohort%year_net_uptake(zm) - currentCohort%leaf_cost))
+
 
                 ! Check leaf cost against the yearly net uptake for that cohort leaf layer
-                if (currentCohort%year_net_uptake(z) < currentCohort%leaf_cost) then
+                if (currentCohort%year_net_uptake(zm) < currentCohort%leaf_cost) then
                    ! Make sure the cohort trim fraction is great than the pft trim limit
                    if (currentCohort%canopy_trim > EDPftvarcon_inst%trim_limit(ipft)) then
-
-                     !  if ( debug ) then
-                     !     write(fates_log(),*) 'trimming leaves', &
-                     !           currentCohort%canopy_trim,currentCohort%leaf_cost
-                     !  endif
 
                       ! keep trimming until none of the canopy is in negative carbon balance.              
                       if (currentCohort%hite > EDPftvarcon_inst%hgt_min(ipft)) then
                          currentCohort%canopy_trim = currentCohort%canopy_trim - &
-                               EDPftvarcon_inst%trim_inc(ipft)
+                              EDPftvarcon_inst%trim_inc(ipft)
                          if (prt_params%evergreen(ipft) /= 1)then
                             currentCohort%laimemory = currentCohort%laimemory * &
-                                  (1.0_r8 - EDPftvarcon_inst%trim_inc(ipft)) 
+                                 (1.0_r8 - EDPftvarcon_inst%trim_inc(ipft)) 
                          endif
 
                          trimmed = .true.
@@ -607,74 +620,78 @@ contains
                       endif ! hite check
                    endif ! trim limit check
                 endif ! net uptake check
-             endif ! leaf activity check 
-          enddo ! z, leaf layer loop
+
+             enddo leafmem_loop
+          end if if_trimmable
 
           ! Compute the optimal cumulative lai based on the cohort net-net uptake profile if at least 2 leaf layers
-          if (nnu_clai_a(1,1) > 1) then
+          if_optimumtrim: if (nnu_clai_a(1,1) > 1) then
 
-            ! Compute the optimum size of the work array
-            lwork = -1 ! Ask sgels to compute optimal number of entries for work
-            call dgels(trans, m, n, nrhs, nnu_clai_a, lda, nnu_clai_b, ldb, work, lwork, info)
-            lwork = int(work(1)) ! Pick the optimum.  TBD, can work(1) come back with greater than work size?
+             ! Compute the optimum size of the work array
+             lwork = -1 ! Ask sgels to compute optimal number of entries for work
+             call dgels(trans, m, n, nrhs, nnu_clai_a, lda, nnu_clai_b, ldb, work, lwork, info)
+             lwork = int(work(1)) ! Pick the optimum.  TBD, can work(1) come back with greater than work size?
 
-            ! if (debug) then
-            !    write(fates_log(),*) 'LLSF lwork output (info, lwork):', info, lwork
-            ! endif
+             ! if (debug) then
+             !    write(fates_log(),*) 'LLSF lwork output (info, lwork):', info, lwork
+             ! endif
 
-            ! Compute the minimum of 2-norm of of the least squares fit to solve for X
-            ! Note that dgels returns the solution by overwriting the nnu_clai_b array.  
-            ! The result has the form: X = [b; m]
-            ! where b = y-intercept (i.e. the cohort lai that has zero yearly net-net uptake)
-            ! and m is the slope of the linear fit
-            call dgels(trans, m, n, nrhs, nnu_clai_a, lda, nnu_clai_b, ldb, work, lwork, info)
+             ! Compute the minimum of 2-norm of of the least squares fit to solve for X
+             ! Note that dgels returns the solution by overwriting the nnu_clai_b array.  
+             ! The result has the form: X = [b; m]
+             ! where b = y-intercept (i.e. the cohort lai that has zero yearly net-net uptake)
+             ! and m is the slope of the linear fit
+             call dgels(trans, m, n, nrhs, nnu_clai_a, lda, nnu_clai_b, ldb, work, lwork, info)
 
-            if (info < 0) then
-               write(fates_log(),*) 'LLSF optimium LAI calculation returned illegal value'
-               call endrun(msg=errMsg(sourcefile, __LINE__))
-            endif
+             if (info < 0) then
+                write(fates_log(),*) 'LLSF optimium LAI calculation returned illegal value'
+                call endrun(msg=errMsg(sourcefile, __LINE__))
+             endif
 
-            if (debug) then
-               write(fates_log(),*) 'LLSF optimium LAI (intercept,slope):', nnu_clai_b
-               write(fates_log(),*) 'LLSF optimium LAI:', nnu_clai_b(1,1)
-               write(fates_log(),*) 'LLSF optimium LAI info:', info
-               write(fates_log(),*) 'LAI fraction (optimum_lai/cumulative_lai):', nnu_clai_b(1,1) / cumulative_lai_cohort
-            endif
+             if (debug) then
+                write(fates_log(),*) 'LLSF optimium LAI (intercept,slope):', nnu_clai_b
+                write(fates_log(),*) 'LLSF optimium LAI:', nnu_clai_b(1,1)
+                write(fates_log(),*) 'LLSF optimium LAI info:', info
+                write(fates_log(),*) 'LAI fraction (optimum_lai/cumulative_lai):', nnu_clai_b(1,1) / cumulative_lai_cohort
+             endif
 
-            ! Calculate the optimum trim based on the initial canopy trim value
-            if (cumulative_lai_cohort > 0._r8) then  ! Sometime cumulative_lai comes in at 0.0?
+             ! Calculate the optimum trim based on the initial canopy trim value
+             if (cumulative_lai_cohort > 0._r8) then  ! Sometime cumulative_lai comes in at 0.0?
 
-               ! 
-               optimum_trim = (nnu_clai_b(1,1) / cumulative_lai_cohort) * initial_trim
-               optimum_laimem = (nnu_clai_b(1,1) / cumulative_lai_cohort) * initial_laimem
+                ! 
+                optimum_trim = (nnu_clai_b(1,1) / cumulative_lai_cohort) * initial_trim
+                optimum_laimem = (nnu_clai_b(1,1) / cumulative_lai_cohort) * initial_laimem
 
-               ! Determine if the optimum trim value makes sense.  The smallest cohorts tend to have unrealistic fits.
-               if (optimum_trim > 0. .and. optimum_trim < 1.) then
-                  currentCohort%canopy_trim = optimum_trim
+                ! Determine if the optimum trim value makes sense.  The smallest cohorts tend to have unrealistic fits.
+                if (optimum_trim > 0. .and. optimum_trim < 1.) then
+                   currentCohort%canopy_trim = optimum_trim
 
-                  ! If the cohort pft is not evergreen we reduce the laimemory as well
-                  if (prt_params%evergreen(ipft) /= 1) then
-                     currentCohort%laimemory = optimum_laimem
-                  endif
+                   ! If the cohort pft is not evergreen we reduce the laimemory as well
+                   if (prt_params%evergreen(ipft) /= 1) then
+                      currentCohort%laimemory = optimum_laimem
+                   endif
 
-                  trimmed = .true.
+                   trimmed = .true.
 
-               endif
-            endif
-         endif
+                endif
+             endif
+          endif if_optimumtrim
 
-          ! Reset activity for the cohort for the start of the next year
-          currentCohort%year_net_uptake(:) = 999.0_r8
+          ! Set cohort annual uptake to zero, this also
+          ! initializes a cohort so that the mean should proceed. Cohorts
+          ! that are not zero'd here, are not allowed to trim (because
+          ! they need full year)
+          currentCohort%year_net_uptake(:) = 0.0_r8
 
           ! Add to trim fraction if cohort not trimmed at all 
           if ( (.not.trimmed) .and.currentCohort%canopy_trim < 1.0_r8)then
              currentCohort%canopy_trim = currentCohort%canopy_trim + EDPftvarcon_inst%trim_inc(ipft)
-          endif 
+          endif
 
           if ( debug ) then
              write(fates_log(),*) 'trimming:',currentCohort%canopy_trim
           endif
-         
+
           ! currentCohort%canopy_trim = 1.0_r8 !FIX(RF,032414) this turns off ctrim for now. 
           currentCohort => currentCohort%shorter
           icohort = icohort + 1

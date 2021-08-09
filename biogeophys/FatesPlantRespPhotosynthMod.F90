@@ -32,6 +32,7 @@ module FATESPlantRespPhotosynthMod
    use FatesInterfaceTypesMod, only : nleafage
    use EDTypesMod,        only : maxpft
    use EDTypesMod,        only : nlevleaf
+   use EDTypesMod,        only : nlevleafmem
    use EDTypesMod,        only : nclmax
    use PRTGenericMod,     only : max_nleafage
    use EDTypesMod,        only : do_fates_salinity 
@@ -214,7 +215,8 @@ contains
                                    ! above the leaf layer of interest
     real(r8) :: lai_current        ! the LAI in the current leaf layer
     real(r8) :: cumulative_lai     ! the cumulative LAI, top down, to the leaf layer of interest
-
+    integer  :: ivm, iv, nvm, nva  ! Loop indices and bounds for cohort vegetation layers
+    
     real(r8), allocatable :: rootfr_ft(:,:)  ! Root fractions per depth and PFT
 
     ! -----------------------------------------------------------------------------------
@@ -224,7 +226,7 @@ contains
     !real(r8) :: psncanopy_pa  ! patch sunlit leaf photosynthesis (umol CO2 /m**2/ s)
     !real(r8) :: lmrcanopy_pa  ! patch sunlit leaf maintenance respiration rate (umol CO2/m**2/s) 
 
-    integer  :: cl,s,iv,j,ps,ft,ifp ! indices
+    integer  :: cl,s,j,ps,ft,ifp ! indices
     integer  :: nv                  ! number of leaf layers
     integer  :: NCL_p               ! number of canopy layers in patch
     integer  :: iage                ! loop counter for leaf age classes
@@ -377,7 +379,7 @@ contains
                      if(currentPatch%canopy_mask(cl,ft) == 1)then 
   
                         ! Loop over leaf-layers
-                        do iv = 1,currentCohort%nv
+                        do iv = 1,currentCohort%nveg_act
                            
                            ! ------------------------------------------------------------
                            ! If we are doing plant hydro-dynamics (or any run-type
@@ -560,13 +562,14 @@ contains
                         ! (where the rates become per cohort, ie /individual). Most likely
                         ! a sum over layers.
                         ! ---------------------------------------------------------------
-                        nv = currentCohort%nv
+                        nva = currentCohort%nveg_act
+                        nvm = currentCohort%nveg_max
                         call ScaleLeafLayerFluxToCohort(nv,                                    & !in
-                                                        currentPatch%psn_z(cl,ft,1:nv),        & !in
-                                                        lmr_z(1:nv,ft,cl),                     & !in
-                                                        rs_z(1:nv,ft,cl),                      & !in
-                                                        currentPatch%elai_profile(cl,ft,1:nv), & !in
-                                                        c13disc_z(cl, ft, 1:nv),               & !in 
+                                                        currentPatch%psn_z(cl,ft,1:nva),       & !in
+                                                        lmr_z(1:nva,ft,cl),                    & !in
+                                                        rs_z(1:nva,ft,cl),                     & !in
+                                                        currentPatch%elai_profile(cl,ft,1:nva),& !in
+                                                        c13disc_z(cl, ft, 1:nva),              & !in 
                                                         currentCohort%c_area,                  & !in
                                                         currentCohort%n,                       & !in
                                                         bc_in(s)%rb_pa(ifp),                   & !in
@@ -578,8 +581,20 @@ contains
                                                         cohort_eleaf_area)                       !out
                         
                         ! Net Uptake does not need to be scaled, just transfer directly
-                        currentCohort%ts_net_uptake(1:nv) = anet_av_z(1:nv,ft,cl) * umolC_to_kgC
-
+                        ! only track the last few bins
+                        ! Also, here we track net uptake in the vegetation memory
+                        ! array. This has a reverse indexing. 1 refers to the lowest possible
+                        ! bin in the cohort's vegetation layering scheme, which is defined by
+                        ! allometry. The cohort might not actually have leaves down to its
+                        ! maximum depth because of a weak carbon balance or due to
+                        ! being in a deciduous transition. 
+                        if(nva>0) then
+                           do ivm = nvm-nva+1, min(nlevleafmem,nva)
+                              iv = nvm - ivm + 1
+                              currentCohort%ts_net_uptake(ivm) = anet_av_z(iv,ft,cl) * umolC_to_kgC
+                           end do
+                        end if
+                        
                      else
                         
                         ! In this case, the cohort had no leaves, 
@@ -1245,12 +1260,12 @@ contains
  
   ! =====================================================================================
 
-  subroutine ScaleLeafLayerFluxToCohort(nv,          & ! in   currentCohort%nv
-                                        psn_llz,     & ! in   %psn_z(1:currentCohort%nv,ft,cl)
-                                        lmr_llz,     & ! in   lmr_z(1:currentCohort%nv,ft,cl)
-                                        rs_llz,      & ! in   rs_z(1:currentCohort%nv,ft,cl)
-                                        elai_llz,    & ! in   %elai_profile(cl,ft,1:currentCohort%nv)
-					c13disc_llz, & ! in   c13disc_z(cl, ft, 1:currentCohort%nv)
+  subroutine ScaleLeafLayerFluxToCohort(nveg_act,          & ! in   nveg_act
+                                        psn_llz,     & ! in   %psn_z(nveg_act,ft,cl)
+                                        lmr_llz,     & ! in   lmr_z(nveg_act,ft,cl)
+                                        rs_llz,      & ! in   rs_z(nveg_act,ft,cl)
+                                        elai_llz,    & ! in   %elai_profile(cl,ft,nveg_act)
+					c13disc_llz, & ! in   c13disc_z(cl, ft, 1:nveg_act)
                                         c_area,      & ! in   currentCohort%c_area
                                         nplant,      & ! in   currentCohort%n
                                         rb,          & ! in   bc_in(s)%rb_pa(ifp)
@@ -1272,12 +1287,12 @@ contains
     use FatesConstantsMod, only : umolC_to_kgC
     
     ! Arguments
-    integer, intent(in)  :: nv               ! number of active leaf layers
-    real(r8), intent(in) :: psn_llz(nv)      ! layer photosynthesis rate (GPP) [umolC/m2leaf/s]
-    real(r8), intent(in) :: lmr_llz(nv)      ! layer dark respiration rate [umolC/m2leaf/s]
-    real(r8), intent(in) :: rs_llz(nv)       ! leaf layer stomatal resistance [s/m]
-    real(r8), intent(in) :: elai_llz(nv)     ! exposed LAI per layer [m2 leaf/ m2 pft footprint]
-    real(r8), intent(in) :: c13disc_llz(nv)  ! leaf layer c13 discrimination, weighted mean
+    integer, intent(in)  :: nveg_act               ! number of active leaf layers
+    real(r8), intent(in) :: psn_llz(nveg_act)      ! layer photosynthesis rate (GPP) [umolC/m2leaf/s]
+    real(r8), intent(in) :: lmr_llz(nveg_act)      ! layer dark respiration rate [umolC/m2leaf/s]
+    real(r8), intent(in) :: rs_llz(nveg_act)       ! leaf layer stomatal resistance [s/m]
+    real(r8), intent(in) :: elai_llz(nveg_act)     ! exposed LAI per layer [m2 leaf/ m2 pft footprint]
+    real(r8), intent(in) :: c13disc_llz(nveg_act)  ! leaf layer c13 discrimination, weighted mean
     real(r8), intent(in) :: c_area           ! crown area m2/m2
     real(r8), intent(in) :: nplant           ! indiv/m2
     real(r8), intent(in) :: rb               ! leaf boundary layer resistance (s/m)
@@ -1303,7 +1318,7 @@ contains
     gpp               = 0.0_r8
     rdark             = 0.0_r8
 
-    do il = 1, nv        ! Loop over the leaf layers this cohort participates in
+    do il = 1, nveg_act        ! Loop over the leaf layers this cohort participates in
 
     
        ! Cohort's total effective leaf area in this layer [m2]
@@ -1334,13 +1349,13 @@ contains
     
     
 
-     if (nv > 1) then     
+     if (nveg_act > 1) then     
       ! cohort%c13disc_clm as weighted mean of d13c flux at all related leave layers
-      sum_weight = sum(psn_llz(1:nv-1) * elai_llz(1:nv-1))
+      sum_weight = sum(psn_llz(1:nveg_act-1) * elai_llz(1:nveg_act-1))
          if (sum_weight .eq. 0.0_r8) then
             c13disc_clm = 0.0
          else
-     	    c13disc_clm = sum(c13disc_llz(1:nv-1) * psn_llz(1:nv-1) * elai_llz(1:nv-1)) / sum_weight 
+     	    c13disc_clm = sum(c13disc_llz(1:nveg_act-1) * psn_llz(1:nveg_act-1) * elai_llz(1:nveg_act-1)) / sum_weight 
 	 end if   
 
      end if
@@ -1363,11 +1378,11 @@ contains
     
     if ( debug ) then
        write(fates_log(),*) 'EDPhoto 816 ', gpp
-       write(fates_log(),*) 'EDPhoto 817 ', psn_llz(1:nv)
-       write(fates_log(),*) 'EDPhoto 820 ', nv
-       write(fates_log(),*) 'EDPhoto 821 ', elai_llz(1:nv)
+       write(fates_log(),*) 'EDPhoto 817 ', psn_llz(1:nveg_act)
+       write(fates_log(),*) 'EDPhoto 820 ', nveg_act
+       write(fates_log(),*) 'EDPhoto 821 ', elai_llz(1:nveg_act)
        write(fates_log(),*) 'EDPhoto 843 ', rdark
-       write(fates_log(),*) 'EDPhoto 873 ', nv
+       write(fates_log(),*) 'EDPhoto 873 ', nveg_act
        write(fates_log(),*) 'EDPhoto 874 ', cohort_eleaf_area
     endif
     
@@ -1602,7 +1617,7 @@ contains
          
          currentPatch%ncan(currentCohort%canopy_layer,currentCohort%pft) = &
                max(currentPatch%ncan(currentCohort%canopy_layer,currentCohort%pft), &
-                   currentCohort%NV)
+                   currentCohort%nveg_act)
          
          currentCohort => currentCohort%shorter
          

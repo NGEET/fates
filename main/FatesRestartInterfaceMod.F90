@@ -143,6 +143,7 @@ module FatesRestartInterfaceMod
   integer :: ir_pft_co
   integer :: ir_status_co
   integer :: ir_isnew_co
+  integer :: ir_istrimmable_co
 
   ! Litter
   integer :: ir_agcwd_litt
@@ -219,9 +220,7 @@ module FatesRestartInterfaceMod
   integer, parameter, public :: fates_restart_num_dimensions = 2   !(cohort,column)
   integer, parameter, public :: fates_restart_num_dim_kinds = 4    !(cohort-int,cohort-r8,site-int,site-r8)
 
-  ! integer constants for storing logical data
-  integer, parameter, public :: old_cohort = 0
-  integer, parameter, public :: new_cohort = 1  
+
 
   real(r8), parameter, public :: flushinvalid = -9999.0
   real(r8), parameter, public :: flushzero = 0.0
@@ -864,6 +863,11 @@ contains
          units='0/1', flushval = flushone, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_isnew_co )
 
+    call this%set_restart_var(vname='fates_istrimmable', vtype=cohort_int, &
+         long_name='ed cohort - binary flag specifying if the cohort has persisted since the last trim attempt', &
+         units='0/1', flushval = flushone, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_istrimmable_co )
+    
     call this%set_restart_var(vname='fates_gsblaweight',vtype=cohort_r8, &
          long_name='ed cohort - leaf-area weighted total stomatal+blayer conductance', &
          units='[m/s]*[m2]', flushval = flushzero, &
@@ -1655,6 +1659,7 @@ contains
            rio_pft_co                  => this%rvars(ir_pft_co)%int1d, &
            rio_status_co               => this%rvars(ir_status_co)%int1d, &
            rio_isnew_co                => this%rvars(ir_isnew_co)%int1d, &
+           rio_istrimmable_co          => this%rvars(ir_istrimmable_co)%int1d, &
            rio_gnd_alb_dif_pasb        => this%rvars(ir_gnd_alb_dif_pasb)%r81d, &
            rio_gnd_alb_dir_pasb        => this%rvars(ir_gnd_alb_dir_pasb)%r81d, &
            rio_spread_si               => this%rvars(ir_spread_si)%r81d, &
@@ -1893,9 +1898,14 @@ contains
                 rio_pft_co(io_idx_co)          = ccohort%pft
                 rio_status_co(io_idx_co)       = ccohort%status_coh
                 if ( ccohort%isnew ) then
-                   rio_isnew_co(io_idx_co)     = new_cohort
+                   rio_isnew_co(io_idx_co)     = itrue
                 else
-                   rio_isnew_co(io_idx_co)     = old_cohort
+                   rio_isnew_co(io_idx_co)     = ifalse
+                endif
+                if ( ccohort%is_trimmable ) then
+                   rio_istrimmable_co(io_idx_co) = itrue
+                else
+                   rio_istrimmable_co(io_idx_co) = ifalse
                 endif
                 
                 if ( debug ) then
@@ -2439,6 +2449,7 @@ contains
           rio_pft_co                  => this%rvars(ir_pft_co)%int1d, &
           rio_status_co               => this%rvars(ir_status_co)%int1d, &
           rio_isnew_co                => this%rvars(ir_isnew_co)%int1d, &
+          rio_istrimmable_co          => this%rvars(ir_istrimmable_co)%int1d, &
           rio_gnd_alb_dif_pasb        => this%rvars(ir_gnd_alb_dif_pasb)%r81d, &
           rio_gnd_alb_dir_pasb        => this%rvars(ir_gnd_alb_dir_pasb)%r81d, &
           rio_spread_si               => this%rvars(ir_spread_si)%r81d, &
@@ -2645,8 +2656,9 @@ contains
                 ccohort%resp_tstep   = rio_resp_tstep_co(io_idx_co)
                 ccohort%pft          = rio_pft_co(io_idx_co)
                 ccohort%status_coh   = rio_status_co(io_idx_co)
-                ccohort%isnew        = ( rio_isnew_co(io_idx_co) .eq. new_cohort )
-
+                ccohort%isnew        = ( rio_isnew_co(io_idx_co) .eq. itrue )
+                ccohort%is_trimmable = ( rio_istrimmable_co(io_idx_co) .eq. itrue )
+                
                 call UpdateCohortBioPhysRates(ccohort)
 
 
