@@ -2944,7 +2944,7 @@ contains
        ! Calculate total effective conductance over path  [kg s-1 MPa-1]
        ! from absorbing root node to 1st rhizosphere shell
        r_bg = 1._r8/(kmax_aroot*ftc_aroot)
-       
+
        ! Path is across the upper an lower rhizosphere comparment
        ! on each side of the nodes. Since there is no flow across the outer
        ! node to the edge, we ignore that last half compartment
@@ -2965,13 +2965,14 @@ contains
        
        !! upper bound limited to size()-1 b/c of zero-flux outer boundary condition
        kbg_layer(j)        = 1._r8/r_bg
+
+       if (cohort%hard_level < -3.0_r8) then  !Marius
+          kbg_layer(j)=((cohort%hard_level + 35.0_r8)/32.0_r8)*kbg_layer(j) 
+       end if
+
        kbg_tot             = kbg_tot + kbg_layer(j)
 
     enddo !soil layer
-
-    if (cohort%hard_level< -2._r8) then  !Marius
-       kbg_layer(:)=((cohort%hard_level+ 30._r8)/28._r8)*kbg_layer(:) 
-    end if
     
     kbg_layer = kbg_layer/kbg_tot
 

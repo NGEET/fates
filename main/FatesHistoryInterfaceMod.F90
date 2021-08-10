@@ -2329,10 +2329,10 @@ end subroutine flush_hvars
                     endif
 		    
                     ! Hardening
-		    hio_hard_level_scpf(io_si,scpf)    =   hio_hard_level_scpf(io_si,scpf) + & !marius
-                        (ccohort%hard_level)
-		    hio_hard_GRF_scpf(io_si,scpf)    =   hio_hard_GRF_scpf(io_si,scpf) + & !marius
-                        (ccohort%hard_level)
+		    hio_hard_level_scpf(io_si,scpf)    =   ccohort%hard_level !marius
+                        
+		    hio_hard_GRF_scpf(io_si,scpf)    =   ccohort%hard_GRF !marius
+                        
 
                     ! number density [/ha]
                     hio_nplant_si_scpf(io_si,scpf) = hio_nplant_si_scpf(io_si,scpf) + ccohort%n

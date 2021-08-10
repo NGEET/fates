@@ -294,67 +294,71 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     real(r8) :: Tmin  ! daily min temperature °C
     real(r8) :: Tmax  ! daily max temperature °C
    
-    real(r8), parameter :: min_h = -2  	! Minimum hardiness level from Bigras for Picea abies (°C)
-    real(r8), parameter :: max_h = -30 	! Maximum hardiness level from Bigras for Picea abies (°C)
-    real(r8), parameter :: LT50 = 20  	! Lethal temperature difference between the hardiness level and the minimum temperature” 
+    real(r8), parameter :: min_h = -2.0_r8  	! Minimum hardiness level from Bigras for Picea abies (°C)
+    real(r8), parameter :: max_h = -30.0_r8 	! Maximum hardiness level from Bigras for Picea abies (°C)
+    real(r8), parameter :: LT50 = 20.0_r8  	! Lethal temperature difference between the hardiness level and the minimum temperature” 
                                         ! at which 50% of the trees are damaged (°C)
                                         ! and determines the inflection-point of the curve, depending on the Dday
-    real(r8), parameter :: b = 0.2      ! Slope parameter
+    real(r8), parameter :: b = 0.2_r8      ! Slope parameter
     real(r8) :: target_h         	! Target hardiness 
     real(r8) :: rate_h         		! Hardening rate     
     real(r8) :: rate_dh        		! Dehardening rate
     real(r8) :: hard_level_prev         ! Temporary variable for the previous time-step hardiness level
+    real(r8) :: hard_level_next
     real(r8) :: hard_diff            	! Daily difference between Hday and Tmin (°C)
 
-    Tmean=bc_in%t_ref2m_24_si-273.15
-    Tmin=bc_in%t_ref2m_min_si-273.15
-    Tmax=bc_in%t_ref2m_max_si-273.15
+    Tmean=bc_in%t_ref2m_24_si-273.15_r8
+    Tmin=bc_in%t_ref2m_min_si-273.15_r8
+    Tmax=bc_in%t_ref2m_max_si-273.15_r8
 
     !Calculation of the target hardiness
-    if (Tmean < -15) then !
-       target_h=-30
-    else if (Tmean> 15) then
-       target_h=-3.5
+    if (Tmean < -15.0_r8) then !
+       target_h=-30.0_r8
+    else if (Tmean> 15.0_r8) then
+       target_h=-3.5_r8
     else
-       target_h=(-8 + 1.138333*Tmean - 0.07238889*Tmean**2 - &
-                0.001133333*Tmean**3 + 0.0001488889*Tmean**4) 
+       target_h=(-8.0_r8 + 1.138333_r8*Tmean - 0.07238889_r8*Tmean**2.0_r8 - &
+                0.0011333_r8*Tmean**3.0_r8 + 0.00014889_r8*Tmean**4.0_r8) 
     end if
     !Calculation of the hardening rate
-    if (Tmin< -15) then
-       rate_h=1
-    else if (Tmin> 20) then
-       rate_h=0.1
+    if (Tmin< -15.0_r8) then
+       rate_h=1.0_r8
+    else if (Tmin> 20.0_r8) then
+       rate_h=0.1_r8
     else
-       rate_h=(0.5 - 0.04110476*Tmin + 0.0005219048*Tmin**2 + &
-              0.00005104762*Tmin**3 - 0.000001219048*Tmin**4) 
+       rate_h=(0.5_r8 - 0.04110476_r8*Tmin + 0.00052190_r8*Tmin**2.0_r8 + &
+              0.00005105_r8*Tmin**3.0_r8 - 0.00000122_r8*Tmin**4.0_r8) 
     end if
     !Calculation of the dehardening rate
-    if (Tmax< 4) then
-       rate_dh=0
-    else if (Tmax> 16) then
-       rate_dh=5
+    if (Tmax< 4.0_r8) then
+       rate_dh=0.0_r8
+    else if (Tmax> 16.0_r8) then
+       rate_dh=5.0_r8
     else
-       rate_dh=(0.4166667*Tmax - 1.666667) 
+       rate_dh=(0.4166667_r8*Tmax - 1.666667_r8) 
     end if
 
     !================================================    
     !Hardening calculation
     hard_level_prev = cohort_in%hard_level
-    if (hard_level_prev + rate_dh > min_h) then    ! During winter
-       cohort_in%hard_level = min_h
+    if (hard_level_prev + rate_dh > min_h) then !line is important so that the hardiness doesn't oscillate
+       hard_level_next = min_h
     else if (hard_level_prev >= target_h) then
-       cohort_in%hard_level = hard_level_prev - rate_h
-    else if (hard_level_prev <= target_h) then
-       cohort_in%hard_level = hard_level_prev + rate_dh
+       hard_level_next = hard_level_prev - rate_h
+    else if (hard_level_prev < target_h) then
+       hard_level_next = hard_level_prev + rate_dh
     end if
-    if (cohort_in%hard_level > min_h) then
-       cohort_in%hard_level = min_h
-    else if (cohort_in%hard_level < max_h) then
-       cohort_in%hard_level = max_h
+    if (hard_level_next > min_h) then
+       hard_level_next = min_h
     end if
+    if (hard_level_next < max_h) then
+       hard_level_next = max_h
+    end if
+    cohort_in%hard_level=hard_level_next
+    !write(fates_log(),*) 'Hard_level: ',cohort_in%hard_level,rate_dh,rate_h,target_h
     hard_diff=hard_level_prev-Tmin
     !Calculation of the growth reducing factor
-    cohort_in%hard_GRF=(1/(1+exp(b*(hard_diff-LT50))))
+    cohort_in%hard_GRF=(1.0_r8/(1.0_r8+exp(b*(hard_diff-LT50))))
     return
 
   end subroutine Hardening_scheme
