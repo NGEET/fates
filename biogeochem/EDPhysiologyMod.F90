@@ -1657,7 +1657,10 @@ contains
         
         write(fates_log(),*) 'patchno', currentPatch%patchno
         write(fates_log(),*) 'seedling_layer_par', seedling_layer_par
-        
+        write(fates_log(),*) 'seedling_emerg_smp', currentPatch%sdlng_emerg_smp%GetMean()
+        write(fates_log(),*) 'seedling_mort_par', currentPatch%sdlng_mort_par%GetMean()
+        write(fates_log(),*) 'seedling2sap_trans_par', currentPatch%sdlng2sap_par%GetMean()
+            
         seedling_layer_par = seedling_layer_par * 4.6_r8                !covert to umol s-1 of PAR
                                                                         !1 W/m2 ≈ 4.6 μmole.m2/s
         

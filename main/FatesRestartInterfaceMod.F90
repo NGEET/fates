@@ -143,7 +143,13 @@ module FatesRestartInterfaceMod
   integer :: ir_tveglpa_pa
   integer :: ir_tveglpa_co
   integer :: ir_seedling_layer_par24_pa !ahb
+  integer :: ir_sdlng_emerg_smp_pa !ahb
+  integer :: ir_sdlng_mort_par_pa ! ahb
+  integer :: ir_sdlng2sap_par_pa ! ahb
+
   
+
+
   integer :: ir_ddbhdt_co
   integer :: ir_resp_tstep_co
   integer :: ir_pft_co
@@ -1224,7 +1230,19 @@ contains
 
    call this%DefineRMeanRestartVar(vname='fates_seedling_layer_par24',vtype=cohort_r8, &
         long_name='24-hour seedling layer PAR', &
-        units='K', initialize=initialize_variables,ivar=ivar, index = ir_seedling_layer_par24_pa)
+        units='W m2-1', initialize=initialize_variables,ivar=ivar, index = ir_seedling_layer_par24_pa)
+
+   call this%DefineRMeanRestartVar(vname='fates_sdlng_emerg_smp',vtype=cohort_r8, &
+        long_name='seedling layer PAR on the seedling emergence timescale', &
+        units='mm suction', initialize=initialize_variables,ivar=ivar, index = ir_sdlng_emerg_smp_pa)
+
+   call this%DefineRMeanRestartVar(vname='fates_sdlng_mort_par',vtype=cohort_r8, &
+        long_name='seedling layer PAR on the seedling mortality timescale', &
+        units='W m2-1', initialize=initialize_variables,ivar=ivar, index = ir_sdlng_mort_par_pa)
+
+   call this%DefineRMeanRestartVar(vname='fates_sdlng2sap_par',vtype=cohort_r8, &
+        long_name='seedling layer PAR on the seedling to sapling transition timescale', &
+        units='W m2-1', initialize=initialize_variables,ivar=ivar, index = ir_sdlng2sap_par_pa)
 
    call this%DefineRMeanRestartVar(vname='fates_tveglpapatch',vtype=cohort_r8, &
         long_name='running average (EMA) of patch veg temp for photo acclim', &
@@ -2035,6 +2053,9 @@ contains
              call this%SetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
              call this%SetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
              call this%SetRMeanRestartVar(cpatch%seedling_layer_par24, ir_seedling_layer_par24_pa, io_idx_co_1st)
+             call this%SetRMeanRestartVar(cpatch%sdlng_emerg_smp, ir_sdlng_emerg_smp_pa,io_idx_co_1st)
+             call this%SetRMeanRestartVar(cpatch%sdlng_mort_par, ir_sdlng_mort_par_pa,io_idx_co_1st)
+             call this%SetRMeanRestartVar(cpatch%sdlng2sap_par, ir_sdlng2sap_par_pa,io_idx_co_1st) 
              
              ! set cohorts per patch for IO
              rio_ncohort_pa( io_idx_co_1st )   = cohortsperpatch
@@ -2822,6 +2843,10 @@ contains
              call this%GetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
              call this%GetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
              call this%GetRMeanRestartVar(cpatch%seedling_layer_par24, ir_seedling_layer_par24_pa, io_idx_co_1st)
+             call this%GetRMeanRestartVar(cpatch%sdlng_emerg_smp, ir_sdlng_emerg_smp_pa,io_idx_co_1st)
+             call this%GetRMeanRestartVar(cpatch%sdlng_mort_par, ir_sdlng_mort_par_pa,io_idx_co_1st)
+             call this%GetRMeanRestartVar(cpatch%sdlng2sap_par, ir_sdlng2sap_par_pa,io_idx_co_1st)
+
 
              ! set cohorts per patch for IO
              

@@ -42,6 +42,9 @@ module FatesInterfaceMod
    use EDParamsMod               , only : bgc_soil_salinity
    use FatesPlantHydraulicsMod   , only : InitHydroGlobals
    use EDParamsMod               , only : photo_temp_acclim_timescale
+   use EDParamsMod               , only : sdlng_emerg_h2o_timescale
+   use EDParamsMod               , only : sdlng_mort_par_timescale
+   use EDParamsMod               , only : sdlng2sap_par_timescale
    use EDParamsMod               , only : ED_val_history_sizeclass_bin_edges
    use EDParamsMod               , only : ED_val_history_ageclass_bin_edges
    use EDParamsMod               , only : ED_val_history_height_bin_edges
@@ -74,6 +77,8 @@ module FatesInterfaceMod
    use PRTAllometricCarbonMod    , only : InitPRTGlobalAllometricCarbon
    use PRTAllometricCNPMod       , only : InitPRTGlobalAllometricCNP
    use FatesRunningMeanMod       , only : ema_24hr
+   use FatesRunningMeanMod       , only : ema_sdlng_emerg_h2o, ema_sdlng_mort_par
+   use FatesRunningMeanMod       , only : ema_sdlng_mdd, ema_sdlng2sap_par
    use FatesRunningMeanMod       , only : fixed_24hr
    use FatesRunningMeanMod       , only : ema_lpa
    use FatesRunningMeanMod       , only : moving_ema_window
@@ -872,6 +877,20 @@ contains
          allocate(ema_lpa)
          call ema_lpa%define(photo_temp_acclim_timescale*sec_per_day, &
               hlm_stepsize,moving_ema_window)
+         allocate(ema_sdlng_emerg_h2o)
+         call ema_sdlng_emerg_h2o%define(sdlng_emerg_h2o_timescale*sec_per_day, &
+              hlm_stepsize,moving_ema_window)
+         allocate(ema_sdlng_mort_par)
+         call ema_sdlng_mort_par%define(sdlng_mort_par_timescale*sec_per_day, &
+              hlm_stepsize,moving_ema_window)
+         !allocate(ema_sdlng_mdd)
+         !call ema_sdlng_mdd%define(sdlng_mdd_timescale*sec_per_day, &
+         !     hlm_stepsize,moving_ema_window)
+         allocate(ema_sdlng2sap_par)
+         call ema_sdlng2sap_par%define(sdlng2sap_par_timescale*sec_per_day, &
+              hlm_stepsize,moving_ema_window)
+
+
 
       else
          ! If we are not using FATES, the cohort dimension is still
@@ -1847,6 +1866,14 @@ contains
      type(ed_cohort_type), pointer :: ccohort
      integer :: s, ifp, io_si
      real(r8) :: new_seedling_layer_par !seedling layer par in the current timestep
+     real(r8) :: new_seedling_layer_smp !seedling layer smp in the current timestep
+     !real(r8) :: new_seedling_mdd !seedling layer moisture deficit days in the current timestep
+     
+     !real(r8), parameter :: seedling_smp_crit = -175912.9_r8 !seedling soil moisture stress 
+                                        !threshold at which point
+                                        !the seedling layer starts accumulating moisture
+                                        !deficit days; move to pft-specific param if works
+     integer  :: ilayer_seedling_root   !the soil layer at seedling rooting depth
      integer :: n_leaf                  !number of leaf layers per canopy layer in patch
      real(r8) :: lai_sun_frac
      real(r8) :: lai_shade_frac
@@ -1860,7 +1887,8 @@ contains
            call cpatch%tveg24%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            call cpatch%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            
-           !updating seedling layer par; ahb, August 2021
+           !updating seedling layer par, soil matric potential and 
+           !moisture deficit days (mdd) in the seedling layer; ahb, August 2021
            !---------------------------------------------------------------------------------------
 
            n_leaf = maxval(cpatch%ncan(cpatch%ncl_p,:)) !calculating the number of leaf layers
@@ -1880,8 +1908,25 @@ contains
            new_seedling_layer_par = & 
              (cpatch%parprof_dir_z(cpatch%ncl_p,n_leaf) * lai_sun_frac) + &
              (cpatch%parprof_dif_z(cpatch%ncl_p,n_leaf) * (1.0_r8 - lai_sun_frac))
-     
+
            call cpatch%seedling_layer_par24%UpdateRMean(new_seedling_layer_par)
+           call cpatch%sdlng_mort_par%UpdateRMean(new_seedling_layer_par)
+           call cpatch%sdlng2sap_par%UpdateRMean(new_seedling_layer_par)
+
+           !calculating seedling layer soil matric potential for the current time step
+           !note: need to make this a pft-specific running mean...
+           ilayer_seedling_root = minloc(abs(bc_in(s)%z_sisl(:)-EDPftvarcon_inst%seedling_root_depth(1)),dim=1) 
+           new_seedling_layer_smp = bc_in(s)%smp_sl(ilayer_seedling_root)
+           
+           !updating the soil matric potential moving averages
+           call cpatch%sdlng_emerg_smp%UpdateRMean(new_seedling_layer_smp)
+
+           !calculating moisture deficit days in the seedling layer
+           !new_seedling_mdd = 0.0_r8
+           
+           ! new_seedling_mdd = (abs(seedling_smp_crit) - abs(new_seedling_layer_smp)) * -1.0_r8
+
+
            !---------------------------------------------------------------------------------------
 
 

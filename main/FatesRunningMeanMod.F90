@@ -90,10 +90,13 @@ module FatesRunningMeanMod
   
   class(rmean_def_type), public, pointer :: ema_24hr      ! Exponential moving average - 24hr window
   class(rmean_def_type), public, pointer :: fixed_24hr    ! Fixed, 24-hour window
-  class(rmean_def_type), public, pointer :: ema_lpa       ! Exponential moving average - leaf photo acclimation
-  class(rmean_def_type), public, pointer :: ema_seedling_mort  ! Exponential moving average
-                                                               ! seedling mort from light       
-  
+  class(rmean_def_type), public, pointer :: ema_lpa       ! Exponential moving average (EMA) - leaf photo acclimation  
+  class(rmean_def_type), public, pointer :: ema_sdlng_emerg_h2o  ! EMA for moisture-based seedling emergence
+  class(rmean_def_type), public, pointer :: ema_sdlng_mort_par  ! EMA for seedling mort from light stress
+  class(rmean_def_type), public, pointer :: ema_sdlng_mdd  ! EMA for seedling moisture deficit days 
+  class(rmean_def_type), public, pointer :: ema_sdlng2sap_par  ! EMA for seedling to sapling transition rates
+                                                               ! based in par
+
 contains
 
 

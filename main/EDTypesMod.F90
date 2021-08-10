@@ -429,6 +429,22 @@ module EDTypesMod
      class(rmean_type), pointer :: seedling_layer_par24          ! 24-hour mean of photosynthetically active radiation
                                                                  ! at the seedling layer (w-m2) 
 
+     class(rmean_type), pointer :: sdlng_emerg_smp               ! Running mean of soil matric potential at the seedling
+                                                                 ! rooting depth at the h2o seedling emergence 
+                                                                 ! timescale (see sdlng_emerg_h2o_timescale parameter) 
+     class(rmean_type), pointer :: sdlng_mort_par                ! Running mean of photosythetically active radiation
+                                                                 ! at the seedling layer and at the par-based seedling  
+                                                                 ! mortality timescale (sdlng_mort_par_timescale)
+     class(rmean_type), pointer :: sdlng_mdd                     ! Running mean of moisture deficit days
+                                                                 ! at the seedling layer and at the mdd-based seedling  
+                                                                 ! mortality timescale (sdlng_mdd_timescale) 
+                                                                 ! (sdlng2sap_par_timescale)
+     class(rmean_type), pointer :: sdlng2sap_par                 ! Running mean of photosythetically active radiation
+                                                                 ! at the seedling layer and at the par-based seedling  
+                                                                 ! to sapling transition timescale 
+                                                                 ! (sdlng2sap_par_timescale)
+
+
      ! LEAF ORGANIZATION
      real(r8) ::  pft_agb_profile(maxpft,n_dbh_bins)            ! binned above ground biomass, for patch fusion: KgC/m2
      real(r8) ::  canopy_layer_tlai(nclmax)                     ! total leaf area index of each canopy layer
