@@ -2965,11 +2965,6 @@ contains
        
        !! upper bound limited to size()-1 b/c of zero-flux outer boundary condition
        kbg_layer(j)        = 1._r8/r_bg
-
-       if (cohort%hard_level < -3.0_r8) then  !Marius
-          kbg_layer(j)=((cohort%hard_level + 35.0_r8)/32.0_r8)*kbg_layer(j) 
-       end if
-
        kbg_tot             = kbg_tot + kbg_layer(j)
 
     enddo !soil layer
@@ -3413,6 +3408,9 @@ contains
                     kmax_dn = 1._r8/(1._r8/cohort_hydr%kmax_aroot_lower(ilayer) + & 
                               1._r8/cohort_hydr%kmax_aroot_radial_out(ilayer))
                 end if
+	        if (cohort%hard_level < -2.0_r8) then  !Marius
+		   kmax_dn=((cohort%hard_level + 30.0_r8)/28.0_r8)*kmax_dn
+	        end if
 
                 kmax_up = site_hydr%kmax_upper_shell(ilayer,1)*aroot_frac_plant
 

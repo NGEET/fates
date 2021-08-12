@@ -20,6 +20,8 @@ module EDMortalityFunctionsMod
    use EDLoggingMortalityMod , only : LoggingMortality_frac
    use EDParamsMod           , only : fates_mortality_disturbance_fraction
    use FatesInterfaceMod     , only : bc_in_type
+   use FatesInterfaceMod     , only : hlm_day_of_year
+   use FatesInterfaceMod     , only : hlm_model_day
 
    use PRTGenericMod,          only : all_carbon_elements
    use PRTGenericMod,          only : store_organ
@@ -304,8 +306,11 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     real(r8) :: rate_h         		! Hardening rate     
     real(r8) :: rate_dh        		! Dehardening rate
     real(r8) :: hard_level_prev         ! Temporary variable for the previous time-step hardiness level
-    real(r8) :: hard_level_next
     real(r8) :: hard_diff            	! Daily difference between Hday and Tmin (°C)
+    real(r8) :: aggd5
+    integer, parameter :: wint = 260
+    integer, parameter :: aut = 210
+
 
     Tmean=bc_in%t_ref2m_24_si-273.15_r8
     Tmin=bc_in%t_ref2m_min_si-273.15_r8
@@ -340,22 +345,44 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
 
     !================================================    
     !Hardening calculation
+
+    write(fates_log(),*) hlm_day_of_year,rate_dh,rate_h,target_h,aggd5, 'Hard_level: ',cohort_in%hard_level
     hard_level_prev = cohort_in%hard_level
-    if (hard_level_prev + rate_dh > min_h) then !line is important so that the hardiness doesn't oscillate
-       hard_level_next = min_h
-    else if (hard_level_prev >= target_h) then
-       hard_level_next = hard_level_prev - rate_h
-    else if (hard_level_prev < target_h) then
-       hard_level_next = hard_level_prev + rate_dh
+    if (hlm_day_of_year==1 .or. hlm_model_day==1) then
+       aggd5=0._r8
     end if
-    if (hard_level_next > min_h) then
-       hard_level_next = min_h
+    aggd5= aggd5 + max(0._r8,Tmean-5._r8)
+    if ( ((aggd5 >=120._r8) .and. (hlm_day_of_year <=aut)) .or. (hard_level_prev + rate_dh < min_h) )  then
+       cohort_in%hard_level = min_h
+       write(fates_log(),*) "Summer"
+    else if (hlm_day_of_year < aut) then
+       write(fates_log(),*) "Spring"
+       if (hard_level_prev + rate_dh > min_h) then
+          cohort_in%hard_level = min_h
+       else if (hard_level_prev >= target_h) then
+          cohort_in%hard_level = hard_level_prev - rate_h
+       else if (hard_level_prev <= target_h) then
+          cohort_in%hard_level = hard_level_prev + rate_dh
+       end if
     end if
-    if (hard_level_next < max_h) then
-       hard_level_next = max_h
+    if (hlm_day_of_year >= wint) then
+       write(fates_log(),*) "Winter"
+       cohort_in%hard_level = hard_level_prev - rate_h
     end if
-    cohort_in%hard_level=hard_level_next
-    !write(fates_log(),*) 'Hard_level: ',cohort_in%hard_level,rate_dh,rate_h,target_h
+    !if (hard_level_prev + rate_dh > min_h) then 
+    !   hard_level_next = min_h
+    !else if (hard_level_prev >= target_h) then
+    !   hard_level_next = hard_level_prev - rate_h
+    !else if (hard_level_prev < target_h) then
+    !   hard_level_next = hard_level_prev + rate_dh
+    !end if
+    if (cohort_in%hard_level> min_h) then
+       cohort_in%hard_level = min_h
+    end if
+    if (cohort_in%hard_level < max_h) then
+       cohort_in%hard_level = max_h
+    end if
+    
     hard_diff=hard_level_prev-Tmin
     !Calculation of the growth reducing factor
     cohort_in%hard_GRF=(1.0_r8/(1.0_r8+exp(b*(hard_diff-LT50))))
