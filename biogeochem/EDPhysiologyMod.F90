@@ -242,14 +242,11 @@ contains
        ! as litter fluxes from live trees
        call CWDInput(currentSite, currentPatch, litt,bc_in)
 
-
        ! Only calculate fragmentation flux over layers that are active
        ! (RGK-Mar2019) SHOULD WE MAX THIS AT 1? DONT HAVE TO
 
        nlev_eff_decomp = max(bc_in%max_rooting_depth_index_col, 1)
        call CWDOut(litt,currentPatch%fragmentation_scaler,nlev_eff_decomp)
-       write(fates_log(),*) 'PreDistLittFlux: sum ag_cwd_frag: ', sum(litt%ag_cwd_frag)
-
 
        site_mass => currentSite%mass_balance(el)
 
