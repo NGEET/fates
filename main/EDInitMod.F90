@@ -434,7 +434,6 @@ contains
     type(ed_site_type),  pointer :: sitep
     type(ed_patch_type), pointer :: newppft(:)
     type(ed_patch_type), pointer :: newp
-    type(ed_patch_type), pointer :: recall_older_patch
     type(ed_patch_type), pointer :: currentPatch
 
     ! List out some nominal patch values that are used for Near Bear Ground initializations
@@ -469,7 +468,6 @@ contains
 
     else
 
-       allocate(recall_older_patch)
        do s = 1, nsites
           sites(s)%sp_tlai(:) = 0._r8
           sites(s)%sp_tsai(:) = 0._r8
@@ -536,16 +534,15 @@ contains
                    sites(s)%youngest_patch => newp
                    sites(s)%oldest_patch   => newp
                    is_first_patch = ifalse
-                else ! the new patch is the 'oldest' one, arbitrarily.
+                else
                    ! Set pointers for N>1 patches. Note this only happens when nocomp mode s on.
                    ! The new patch is the 'youngest' one, arbitrarily.
                    newp%patchno = nocomp_pft
-                   newp%older => recall_older_patch
+                   newp%older     => sites(s)%youngest_patch
                    newp%younger   => null()
-                   recall_older_patch%younger => newp
+                   sites(s)%youngest_patch%younger => newp
                    sites(s)%youngest_patch   => newp
                 end if
-                recall_older_patch => newp ! remember this patch for the next one to point at.
 
                 ! Initialize the litter pools to zero, these
                 ! pools will be populated by looping over the existing patches
