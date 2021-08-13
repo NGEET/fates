@@ -195,6 +195,18 @@ variables:
 	double fates_eca_vmax_ptase(fates_pft) ;
 		fates_eca_vmax_ptase:units = "gP/m2/s" ;
 		fates_eca_vmax_ptase:long_name = "maximum production rate for biochemical P (per m2) (ECA)" ;
+        double fates_eca_vcmax_np1(fates_pft) ;
+                fates_eca_vcmax_np1:long_name = "vcmax~np relationship coefficient" ;
+                fates_eca_vcmax_np1:unit = "" ;
+        double fates_eca_vcmax_np2(fates_pft) ;
+                fates_eca_vcmax_np2:long_name = "vcmax~np relationship coefficient" ;
+                fates_eca_vcmax_np2:unit = "" ;
+        double fates_eca_vcmax_np3(fates_pft) ;
+                fates_eca_vcmax_np3:long_name = "vcmax~np relationship coefficient" ;
+                fates_eca_vcmax_np3:unit = "" ;
+        double fates_eca_vcmax_np4(fates_pft) ;
+                fates_eca_vcmax_np4:long_name = "vcmax~np relationship coefficient" ;
+                fates_eca_vcmax_np4:unit = "" ;
 	double fates_fire_alpha_SH(fates_pft) ;
 		fates_fire_alpha_SH:units = "m / (kw/m)**(2/3)" ;
 		fates_fire_alpha_SH:long_name = "spitfire parameter, alpha scorch height, Equation 16 Thonicke et al 2010" ;
@@ -289,7 +301,10 @@ variables:
 	double fates_leaf_c3psn(fates_pft) ;
 		fates_leaf_c3psn:units = "flag" ;
 		fates_leaf_c3psn:long_name = "Photosynthetic pathway (1=c3, 0=c4)" ;
-	double fates_leaf_clumping_index(fates_pft) ;
+	double fates_leaf_flnr(fates_pft) ;
+		fates_leaf_flnr:units = "gN Rubisco / gN leaf" ;
+		fates_leaf_flnr:long_name = "fraction of leaf N in the Rubisco enzyme" ;
+        double fates_leaf_clumping_index(fates_pft) ;
 		fates_leaf_clumping_index:units = "fraction (0-1)" ;
 		fates_leaf_clumping_index:long_name = "factor describing how much self-occlusion of leaf scattering elements decreases light interception" ;
 	double fates_leaf_diameter(fates_pft) ;
@@ -933,6 +948,18 @@ data:
  fates_eca_vmax_ptase = 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 
     5e-09, 5e-09, 5e-09, 5e-09, 5e-09 ;
 
+ fates_eca_vcmax_np1 = 4.02421875, 3.2345, 4.800, 3.878125, 4.800, 4.7175,
+    3.9421875, 3.700, 3.7859375, 3.86757, 3.7859375, 4.43859375 ;
+
+ fates_eca_vcmax_np2 = 0.7640625, 0.7828125, 0.7453125, 0.9140625, 0.8015625,
+    0.91875, 1.096875, 0.6, 1.134375, 0.742968, 1.134375, 0.6703125 ;
+
+ fates_eca_vcmax_np3 = 0.07125, 0.08375, 0.08625, 0.19125, 0.12125, 0.185,
+    0.1225, 0.04, 0.1725, 0.126875, 0.1725, 0.14625 ;
+
+ fates_eca_vcmax_np4 = 0.282, 0.282, 0.282, 0.282, 0.282, 0.282, 0.282, 0.282,
+    0.282, 0.282, 0.282, 0.282 ;
+
  fates_fire_alpha_SH = 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 
     0.2 ;
 
@@ -1067,6 +1094,9 @@ data:
   2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ;
 
  fates_leaf_c3psn = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 ;
+
+ fates_leaf_flnr = 0.0461, 0.04875, 0.0546, 0.0515, 0.0716, 0.1007, 0.0517, 
+    0.0943, 0.0943, 0.1365, 0.1365, 0.09 ;
 
  fates_leaf_clumping_index = 0.85, 0.85, 0.8, 0.85, 0.85, 0.9, 0.85, 0.9, 
     0.9, 0.75, 0.75, 0.75 ;

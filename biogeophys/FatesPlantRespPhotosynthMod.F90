@@ -40,6 +40,7 @@ module FATESPlantRespPhotosynthMod
    use PRTGenericMod,     only : prt_cnp_flex_allom_hyp 
    use PRTGenericMod,     only : all_carbon_elements
    use PRTGenericMod,     only : nitrogen_element
+   use PRTGenericMod,     only : phosphorus_element
    use PRTGenericMod,     only : leaf_organ
    use PRTGenericMod,     only : fnrt_organ
    use PRTGenericMod,     only : sapw_organ
@@ -161,6 +162,10 @@ contains
                                    ! (umol electrons/m**2/s)
     real(r8) :: kp_z               ! leaf layer initial slope of CO2 response 
                                    ! curve (C4 plants)
+    real(r8) :: vcmax25top_prt     ! canopy top: variable maximum rate of carboxylation at 25C for parteh
+                                   ! (umol CO2/m**2/s)
+    real(r8) :: jmax25top_prt      ! canopy top: variable maximum electron transport rate at 25C for parteh
+                                   ! (umol electrons/m**2/s)
     real(r8) :: c13disc_z(nclmax,maxpft,nlevleaf) ! carbon 13 in newly assimilated carbon at leaf level
    
     real(r8) :: mm_kco2            ! Michaelis-Menten constant for CO2 (Pa)
@@ -169,10 +174,12 @@ contains
     real(r8) :: btran_eff          ! effective transpiration wetness factor (0 to 1)
     real(r8) :: stomatal_intercept_btran   ! water-stressed minimum stomatal conductance (umol H2O/m**2/s)
     real(r8) :: kn                 ! leaf nitrogen decay coefficient
+    real(r8) :: kn_prt             ! leaf nitrogen decay coefficient based on variable vcmax25top_prt
     real(r8) :: cf                 ! s m**2/umol -> s/m (ideal gas conversion) [umol/m3]
     real(r8) :: gb_mol             ! leaf boundary layer conductance (molar form: [umol /m**2/s])
     real(r8) :: ceair              ! vapor pressure of air, constrained (Pa)
     real(r8) :: nscaler            ! leaf nitrogen scaling coefficient
+    real(r8) :: nscaler_prt        ! leaf nitrogen scaling coefficient based on variable vcmax25top_prt
     real(r8) :: leaf_frac          ! ratio of to leaf biomass to total alive biomass
     real(r8) :: tcsoi              ! Temperature response function for root respiration. 
     real(r8) :: tcwood             ! Temperature response function for wood
@@ -188,6 +195,7 @@ contains
     real(r8) :: fnrt_n             ! Fine root nitrogen content (kgN/plant)
     real(r8) :: leaf_c             ! Leaf carbon (kgC/plant)
     real(r8) :: leaf_n             ! leaf nitrogen content (kgN/plant)
+    real(r8) :: leaf_p             ! leaf phosphorus (kgP/plant)
     real(r8) :: g_sb_leaves        ! Mean combined (stomata+boundary layer) leaf conductance [m/s]
                                    ! over all of the patch's leaves.  The "sb" refers to the combined
                                    ! "s"tomatal and "b"oundary layer.
@@ -206,6 +214,12 @@ contains
                                    ! over each cohort x layer.
     real(r8) :: cohort_eleaf_area  ! This is the effective leaf area [m2] reported by each cohort
     real(r8) :: lnc_top            ! Leaf nitrogen content per unit area at canopy top [gN/m2]
+    real(r8) :: lpc_top            ! Leaf phosphorus content per unit area at canopy top [gP/m2]
+    real(r8) :: fnr                ! (gRubisco/gN in Rubisco)
+    real(r8) :: act25              ! (umol/mgRubisco/min) Rubisco activity at 25C
+    real(r8) :: jmax_np1           ! jmax~np relationship coefficient
+    real(r8) :: jmax_np2           ! jmax~np relationship coefficient
+    real(r8) :: jmax_np3           ! jmax~np relationship coefficient
     real(r8) :: lmr25top           ! canopy top leaf maint resp rate at 25C 
                                    ! for this plant or pft (umol CO2/m**2/s)
     real(r8) :: leaf_inc           ! LAI-only portion of the vegetation increment of dinc_ed
@@ -251,8 +265,24 @@ contains
          slatop    => prt_params%slatop , &  ! specific leaf area at top of canopy, 
                                              ! projected area basis [m^2/gC]
          woody     => prt_params%woody,   &  ! Is vegetation woody or not? 
-         stomatal_intercept   => EDPftvarcon_inst%stomatal_intercept ) !Unstressed minimum stomatal conductance
+         stomatal_intercept   => EDPftvarcon_inst%stomatal_intercept, &  !Unstressed minimum stomatal conductance
+         flnr        => EDPftvarcon_inst%flnr, &       ! Input: fraction of leaf N in the Rubisco enzyme (gN Rubisco / gN leaf)
+         vcmax_np1   => EDPftvarcon_inst%vcmax_np1, &  !vcmax~np relationship coefficient
+         vcmax_np2   => EDPftvarcon_inst%vcmax_np2, &  !vcmax~np relationship coefficient
+         vcmax_np3   => EDPftvarcon_inst%vcmax_np3, &  !vcmax~np relationship coefficient
+         vcmax_np4   => EDPftvarcon_inst%vcmax_np4 )   !vcmax~np relationship coefficient
 
+         ! vcmax25 parameters from Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593
+         fnr = 7.16_r8
+         act25 = 3.6_r8 !umol/mgRubisco/min
+         ! Convert rubisco activity units from umol/mgRubisco/min -> umol/gRubisco/s
+         act25 = act25 * 1000.0_r8 / 60.0_r8
+
+         ! jmax~np relationship coefficients needed in the parteh calculation of
+         ! variable jmax25top_prt
+         jmax_np1 = 1.246_r8     
+         jmax_np2 = 0.886_r8        
+         jmax_np3 = 0.089_r8        
 
       do s = 1,nsites
 
@@ -434,48 +464,70 @@ contains
                                 btran_eff = btran_eff*currentPatch%bstress_sal_ft(ft)
                               endif 
                               
-                              
-                              ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593 used
-                              ! kn = 0.11. Here, derive kn from vcmax25 as in Lloyd et al 
-                              ! (2010) Biogeosciences, 7, 1833-1859
-                              
-                              kn = decay_coeff_kn(ft,currentCohort%vcmax25top)
-
-                              ! Scale for leaf nitrogen profile
-                              nscaler = exp(-kn * cumulative_lai)
-                              
-                              ! Leaf maintenance respiration to match the base rate used in CN
-                              ! but with the new temperature functions for C3 and C4 plants.
-
-                              ! CN respiration has units:  g C / g N [leaf] / s. This needs to be
-                              ! converted from g C / g N [leaf] / s to umol CO2 / m**2 [leaf] / s
-                              
-                              ! Then scale this value at the top of the canopy for canopy depth
-                              ! Leaf nitrogen concentration at the top of the canopy (g N leaf / m**2 leaf)
+                             
+                              ! Leaf nutrient concentrations at the top of the canopy (g N leaf / m**2 leaf)
                               select case(hlm_parteh_mode)
                               case (prt_carbon_allom_hyp)
 
                                  lnc_top  = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/slatop(ft)
-                                 
+                                 ! Approach taken from ELM carbon-only photosynthesis code (Q. Zhu)
+                                 ! using three Rubisco enzyme terms related to leaf N and lnc at top of the canopy
+                                 vcmax25top_prt = lnc_top * flnr(ft) * fnr * act25
+    
+                                 kn_prt = decay_coeff_kn(ft,vcmax25top_prt)
+                                 nscaler_prt = exp(-kn_prt * cumulative_lai)
+
                               case (prt_cnp_flex_allom_hyp)
 
                                  leaf_c  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
                                  if( (leaf_c*slatop(ft)) > nearzero) then
                                     leaf_n  = currentCohort%prt%GetState(leaf_organ, nitrogen_element)
+                                    leaf_p  = currentCohort%prt%GetState(leaf_organ, phosphorus_element)
                                     lnc_top = leaf_n / (slatop(ft) * leaf_c )
+                                    lpc_top = leaf_p / (slatop(ft) * leaf_c )
+                                    ! lnc_top = leaf_n / currentPatch%tlai_profile(cl,ft,iv) !testing with LAI method
+                                    ! lpc_top = leaf_p / currentPatch%tlai_profile(cl,ft,iv) !testing with LAI method
+                                    lnc_top = min(max(lnc_top,0.25_r8),3.0_r8) !based on doi: 10.1002/ece3.1173
+                                    lpc_top = min(max(lpc_top,0.014_r8),0.85_r8) !based on doi: 10.1002/ece3.1173
                                  else
-                                    lnc_top  = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/slatop(ft)
+                                    lnc_top = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/slatop(ft)
+                                    lpc_top = prt_params%phos_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/slatop(ft)
                                  end if
                                     
                                  ! If one wants to break coupling with dynamic N conentrations,
                                  ! use the stoichiometry parameter
                                  ! lnc_top  = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/slatop(ft)
                                  
+                                 vcmax25top_prt = exp(vcmax_np1(ft) + vcmax_np2(ft)*log(lnc_top) + &
+                                          vcmax_np3(ft)*log(lpc_top) + vcmax_np4(ft)*log(lnc_top)*log(lpc_top))
+                                 jmax25top_prt = exp(jmax_np1 + jmax_np2*log(vcmax25top_prt) + jmax_np3*log(lpc_top))
+                                 vcmax25top_prt = min(max(vcmax25top_prt, 10.0_r8), 150.0_r8)
+                                 jmax25top_prt  = min(max(jmax25top_prt, 10.0_r8), 250.0_r8)
+
+                                 kn_prt = decay_coeff_kn(ft,vcmax25top_prt)
+                                 nscaler_prt = exp(-kn_prt * cumulative_lai) 
+
                               end select
 
                               lmr25top = 2.525e-6_r8 * (1.5_r8 ** ((25._r8 - 20._r8)/10._r8))
                               lmr25top = lmr25top * lnc_top / (umolC_to_kgC * g_per_kg)
                               
+                              ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593 used
+                              ! kn = 0.11. Here, derive kn from vcmax25 as in Lloyd et al 
+                              ! (2010) Biogeosciences, 7, 1833-1859
+
+                              kn = decay_coeff_kn(ft,currentCohort%vcmax25top)
+
+                              ! Scale for leaf nitrogen profile
+                              nscaler = exp(-kn * cumulative_lai)
+
+                              ! Leaf maintenance respiration to match the base rate used in CN
+                              ! but with the new temperature functions for C3 and C4 plants.
+
+                              ! CN respiration has units:  g C / g N [leaf] / s. This needs to be
+                              ! converted from g C / g N [leaf] / s to umol CO2 / m**2 [leaf] / s
+
+                              ! Then scale this value at the top of the canopy for canopy depth
 
                               ! Part VII: Calculate dark respiration (leaf maintenance) for this layer
                               call LeafLayerMaintenanceRespiration( lmr25top,                 &  ! in
@@ -501,8 +553,13 @@ contains
                                                              currentCohort%vcmax25top,           &  ! in
                                                              currentCohort%jmax25top,            &  ! in
                                                              currentCohort%kp25top,              &  ! in
+                                                             vcmax25top_prt,                     &  ! in
+                                                             jmax25top_prt,                      &  ! in
                                                              nscaler,                            &  ! in
+                                                             nscaler_prt,                        &  ! in
                                                              bc_in(s)%t_veg_pa(ifp),             &  ! in
+                                                             bc_in(s)%t_a10_pa(ifp),             &  ! in
+                                                             bc_in(s)%dayl_factor_pa(ifp),       &  ! in
                                                              btran_eff,                          &  ! in
                                                              vcmax_z,                            &  ! out
                                                              jmax_z,                             &  ! out
@@ -542,7 +599,7 @@ contains
 
                               rate_mask_z(iv,ft,cl) = .true.
                            end if
-                        end do
+                        end do  !leaf-layer loop
 
                         ! Zero cohort flux accumulators.
                         currentCohort%npp_tstep  = 0.0_r8
@@ -815,7 +872,7 @@ contains
             
             currentPatch => currentPatch%younger
             
-        end do
+        end do  !patch loop
         
         deallocate(rootfr_ft)
  
@@ -1809,8 +1866,13 @@ contains
                                          vcmax25top_ft, &
                                          jmax25top_ft, &
                                          co2_rcurve_islope25top_ft, &
+                                         vcmax25top_prt_ft, &
+                                         jmax25top_prt_ft, &
                                          nscaler,    &
+                                         nscaler_prt, & 
                                          veg_tempk,      &
+                                         temp_a10,  &
+                                         dayl_factor, &
                                          btran, &
                                          vcmax, &
                                          jmax, &
@@ -1838,14 +1900,21 @@ contains
       real(r8), intent(in) :: parsun_lsl      ! PAR absorbed in sunlit leaves for this layer
       integer,  intent(in) :: ft              ! (plant) Functional Type Index
       real(r8), intent(in) :: nscaler         ! Scale for leaf nitrogen profile
+      real(r8), intent(in) :: nscaler_prt     ! Scale for leaf nitrogen profile based on variable vcmax25top_prt
       real(r8), intent(in) :: vcmax25top_ft   ! canopy top maximum rate of carboxylation at 25C 
                                               ! for this pft (umol CO2/m**2/s)
       real(r8), intent(in) :: jmax25top_ft    ! canopy top maximum electron transport rate at 25C 
                                               ! for this pft (umol electrons/m**2/s)
       real(r8), intent(in) :: co2_rcurve_islope25top_ft ! initial slope of CO2 response curve
                                               ! (C4 plants) at 25C, canopy top, this pft
-      real(r8), intent(in) :: veg_tempk           ! vegetation temperature
-      real(r8), intent(in) :: btran           ! transpiration wetness factor (0 to 1) 
+      real(r8), intent(in) :: vcmax25top_prt_ft  ! canopy top maximum rate of carboxylation at 25C for parteh
+                                                 ! for this pft (umol CO2/m**2/s)
+      real(r8), intent(in) :: jmax25top_prt_ft   ! canopy top maximum electron transport rate at 25C for parteh
+                                                 ! for this pft (umol CO2/m**2/s) 
+      real(r8), intent(in) :: veg_tempk          ! vegetation temperature
+      real(r8), intent(in) :: temp_a10           ! 10-day running mean of 2m temperature (K)
+      real(r8), intent(in) :: dayl_factor        ! daylength scaling factor (0-1)
+      real(r8), intent(in) :: btran              ! transpiration wetness factor (0 to 1) 
                                                     
       real(r8), intent(out) :: vcmax             ! maximum rate of carboxylation (umol co2/m**2/s)
       real(r8), intent(out) :: jmax              ! maximum electron transport rate 
@@ -1860,7 +1929,8 @@ contains
                                       ! (umol electrons/m**2/s)
       real(r8) :: co2_rcurve_islope25 ! leaf layer: Initial slope of CO2 response curve 
                                       ! (C4 plants) at 25C
-      
+      real(r8) :: jmax25top_prt_c     ! leaf layer: maximum electron transport rate at 25C
+                                      ! but for parteh, C-only tracking   
       
       ! Parameters
       ! ---------------------------------------------------------------------------------
@@ -1881,6 +1951,8 @@ contains
       
       vcmaxse = EDPftvarcon_inst%vcmaxse(FT)
       jmaxse  = EDPftvarcon_inst%jmaxse(FT)
+      !vcmaxse = 668.39_r8 - 1.07_r8 * min(max((temp_a10-tfrz),11._r8),35._r8) !Kattge & Knorr 2007
+      !jmaxse  = 659.70_r8 - 0.75_r8 * min(max((temp_a10-tfrz),11._r8),35._r8) !Kattge & Knorr 2007
 
       vcmaxc = fth25_f(vcmaxhd, vcmaxse)
       jmaxc  = fth25_f(jmaxhd, jmaxse)
@@ -1891,11 +1963,43 @@ contains
          co2_rcurve_islope = 0._r8
       else                                     ! day time
 
+      if ((hlm_parteh_mode .eq. prt_carbon_allom_hyp ) .or. &
+         (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp )  ) then
+         select case(hlm_parteh_mode)
+         case (prt_carbon_allom_hyp)
+
+              ! Calculating jmax25top here b/c need temp_a10, but still need
+              ! vcmax25top_prt_ft from above.
+              ! Approach taken from ELM photosynthesis code (Q. Zhu)
+              jmax25top_prt_c = (2.59_r8 - 0.035_r8*min(max((temp_a10-tfrz),11._r8),35._r8)) * &
+                      (vcmax25top_prt_ft * dayl_factor)
+              vcmax25 = vcmax25top_prt_ft * nscaler_prt
+              jmax25  = jmax25top_prt_c * nscaler_prt
+              co2_rcurve_islope25 = 20000._r8 * vcmax25top_prt_ft * nscaler_prt
+
+         case (prt_cnp_flex_allom_hyp)
+
+              ! Using the newly calculated top of the canopy vcmax and jmax, not the parameter file values
+              vcmax25 = vcmax25top_prt_ft * dayl_factor * nscaler_prt
+              jmax25  = jmax25top_prt_ft * dayl_factor * nscaler_prt
+              co2_rcurve_islope25 = 20000._r8 * vcmax25top_prt_ft * nscaler_prt
+         
+         end select
+
+      else
+
          ! Vcmax25top was already calculated to derive the nscaler function
+         ! When parteh is not used, and C-only
          vcmax25 = vcmax25top_ft * nscaler
          jmax25  = jmax25top_ft * nscaler
          co2_rcurve_islope25 = co2_rcurve_islope25top_ft * nscaler
-         
+
+      end if !Loop for if using parteh 
+   
+         print*,"vcmax25top, vcmax25top_prt, vcmax25: ",vcmax25top_ft,vcmax25top_prt_ft,vcmax25
+         print*,"nscaler, nscaler_prt, day_length : ",nscaler,nscaler_prt,dayl_factor
+         print*,"jmax25top, jmax25top_prt, jmax25: ",jmax25top_ft,jmax25top_prt_ft,jmax25
+
          ! Adjust for temperature
          vcmax = vcmax25 * ft1_f(veg_tempk, vcmaxha) * fth_f(veg_tempk, vcmaxhd, vcmaxse, vcmaxc)
          jmax  = jmax25 * ft1_f(veg_tempk, jmaxha) * fth_f(veg_tempk, jmaxhd, jmaxse, jmaxc)
