@@ -1601,11 +1601,11 @@ contains
 
     ! If any N or P is still hanging around, put it in storage
 
-    !state_n(store_id)%ptr = state_n(store_id)%ptr + n_gain
-    !state_p(store_id)%ptr = state_p(store_id)%ptr + p_gain
+    state_n(store_id)%ptr = state_n(store_id)%ptr + n_gain
+    state_p(store_id)%ptr = state_p(store_id)%ptr + p_gain
 
-    !n_gain = 0._r8
-    !p_gain = 0._r8
+    n_gain = 0._r8
+    p_gain = 0._r8
     
     
     ! -----------------------------------------------------------------------------------
@@ -1638,13 +1638,13 @@ contains
     ! -----------------------------------------------------------------------------------
 
     c_efflux = max(0.0_r8,c_gain)
-    n_efflux = max(0.0_r8,n_gain)
-    p_efflux = max(0.0_r8,p_gain)
+!    n_efflux = max(0.0_r8,n_gain)
+!    p_efflux = max(0.0_r8,p_gain)
 
 
     c_gain = 0.0_r8
-    n_gain = 0.0_r8
-    p_gain = 0.0_r8
+!    n_gain = 0.0_r8
+!    p_gain = 0.0_r8
 
     return
   end subroutine CNPAllocateRemainder
