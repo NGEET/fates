@@ -80,6 +80,11 @@ module FatesRunningMeanMod
   end type rmean_type
 
 
+  type, public :: rmean_arr_type
+     class(rmean_type), pointer :: p
+  end type rmean_arr_type
+
+
   logical, parameter :: debug = .true.
   
   character(len=*), parameter, private :: sourcefile = &

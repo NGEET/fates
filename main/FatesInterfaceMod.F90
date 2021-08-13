@@ -45,6 +45,7 @@ module FatesInterfaceMod
    use EDParamsMod               , only : sdlng_emerg_h2o_timescale
    use EDParamsMod               , only : sdlng_mort_par_timescale
    use EDParamsMod               , only : sdlng2sap_par_timescale
+   use EDParamsMod               , only : sdlng_mdd_timescale
    use EDParamsMod               , only : ED_val_history_sizeclass_bin_edges
    use EDParamsMod               , only : ED_val_history_ageclass_bin_edges
    use EDParamsMod               , only : ED_val_history_height_bin_edges
@@ -883,11 +884,11 @@ contains
          allocate(ema_sdlng_mort_par)
          call ema_sdlng_mort_par%define(sdlng_mort_par_timescale*sec_per_day, &
               hlm_stepsize,moving_ema_window)
-         !allocate(ema_sdlng_mdd)
-         !call ema_sdlng_mdd%define(sdlng_mdd_timescale*sec_per_day, &
-         !     hlm_stepsize,moving_ema_window)
          allocate(ema_sdlng2sap_par)
          call ema_sdlng2sap_par%define(sdlng2sap_par_timescale*sec_per_day, &
+              hlm_stepsize,moving_ema_window)
+         allocate(ema_sdlng_mdd)
+         call ema_sdlng_mdd%define(sdlng_mdd_timescale*sec_per_day, &
               hlm_stepsize,moving_ema_window)
 
 
@@ -1864,19 +1865,20 @@ contains
      
      type(ed_patch_type),  pointer :: cpatch
      type(ed_cohort_type), pointer :: ccohort
-     integer :: s, ifp, io_si
-     real(r8) :: new_seedling_layer_par !seedling layer par in the current timestep
-     real(r8) :: new_seedling_layer_smp !seedling layer smp in the current timestep
-     !real(r8) :: new_seedling_mdd !seedling layer moisture deficit days in the current timestep
+     integer :: s, ifp, io_si, pft 
+     real(r8) :: new_seedling_layer_par                !seedling layer par in the current timestep
+     real(r8) :: new_seedling_layer_smp(maxpft)        !seedling layer smp in the current timestep
+     real(r8) :: new_seedling_mdd(maxpft)              !seedling layer moisture deficit days in the current timestep
      
-     !real(r8), parameter :: seedling_smp_crit = -175912.9_r8 !seedling soil moisture stress 
-                                        !threshold at which point
-                                        !the seedling layer starts accumulating moisture
-                                        !deficit days; move to pft-specific param if works
-     integer  :: ilayer_seedling_root   !the soil layer at seedling rooting depth
+     real(r8), parameter :: seedling_smp_crit = -175912.9_r8 !seedling soil moisture stress 
+                                                             !threshold at which point
+                                                             !the seedling layer starts accumulating moisture
+                                                             !deficit days; move to pft-specific param if works
+     integer  :: ilayer_seedling_root(maxpft)                !the soil layer at seedling rooting depth
      integer :: n_leaf                  !number of leaf layers per canopy layer in patch
      real(r8) :: lai_sun_frac
      real(r8) :: lai_shade_frac
+     integer,parameter :: ipar = 1      !solar radiation in the shortwave band (i.e. par)
 
      do s = 1,size(sites,dim=1)
 
@@ -1899,7 +1901,7 @@ contains
            lai_sun_frac = sum(cpatch%ed_laisun_z(cpatch%ncl_p,:,n_leaf)) &
             / ( sum(cpatch%ed_laisun_z(cpatch%ncl_p,:,n_leaf)) + &   !summed across pfts  
                 sum(cpatch%ed_laisha_z(cpatch%ncl_p,:,n_leaf)) )    !summed across pfts
-            
+           
            lai_shade_frac = 1.0_r8 - lai_sun_frac     
            
            !calculating seedling layer par for the current time step
@@ -1908,25 +1910,62 @@ contains
            new_seedling_layer_par = & 
              (cpatch%parprof_dir_z(cpatch%ncl_p,n_leaf) * lai_sun_frac) + &
              (cpatch%parprof_dif_z(cpatch%ncl_p,n_leaf) * (1.0_r8 - lai_sun_frac))
+           
+           ! if there is no lai in the patch (i.e. no vegetation) then the lai_sun_frac 
+           ! and lai_shade frac vars become nan, causing seedling layer par to be nan.
+           ! which messes up the running means. This say's that if there is no lai, the
+           ! par at the seedling layer is taken from the ctsm boundary conditions
+           if (new_seedling_layer_par /= new_seedling_layer_par) then
+                   new_seedling_layer_par = bc_in(s)%solad_parb(ifp,ipar) + bc_in(s)%solai_parb(ifp,ipar)
+           end if
 
+           ! update the par running means
            call cpatch%seedling_layer_par24%UpdateRMean(new_seedling_layer_par)
            call cpatch%sdlng_mort_par%UpdateRMean(new_seedling_layer_par)
            call cpatch%sdlng2sap_par%UpdateRMean(new_seedling_layer_par)
 
-           !calculating seedling layer soil matric potential for the current time step
-           !note: need to make this a pft-specific running mean...
-           ilayer_seedling_root = minloc(abs(bc_in(s)%z_sisl(:)-EDPftvarcon_inst%seedling_root_depth(1)),dim=1) 
-           new_seedling_layer_smp = bc_in(s)%smp_sl(ilayer_seedling_root)
+           !write(fates_log(),*) 'patchno', cpatch%patchno
+           !write(fates_log(),*) 'patcharea', cpatch%area
+           !write(fates_log(),*) 'laiSun',sum(cpatch%ed_laisun_z(cpatch%ncl_p,:,n_leaf))
+           !write(fates_log(),*) 'laiShade',sum(cpatch%ed_laisha_z(cpatch%ncl_p,:,n_leaf))
+           !write(fates_log(),*) 'patchlaiSunFrac', lai_sun_frac
+           !write(fates_log(),*) 'patchlaiShadeFrac', lai_shade_frac
+           !write(fates_log(),*) 'parprof_dir', cpatch%parprof_dir_z(cpatch%ncl_p,n_leaf)
+           !write(fates_log(),*) 'parprof_dif', cpatch%parprof_dif_z(cpatch%ncl_p,n_leaf)
+           !write(fates_log(),*) 'bc_in par d', bc_in(s)%solad_parb(ifp,ipar)
+           !write(fates_log(),*) 'bc_in par i', bc_in(s)%solad_parb(ifp,ipar)
+           !write(fates_log(),*) 'new_seedling_layer_par', new_seedling_layer_par
+           !write(fates_log(),*) 'par24', cpatch%seedling_layer_par24%GetMean()
+           !write(fates_log(),*) 'parMort', cpatch%sdlng_mort_par%GetMean()
+
+
+           do pft = 1,numpft
+           !calculate the soil moisture at the seedling rooting depth for each pft
+
+           ilayer_seedling_root(pft) = minloc(abs(bc_in(s)%z_sisl(:)-EDPftvarcon_inst%seedling_root_depth(pft)),dim=1)
+           new_seedling_layer_smp(pft) = bc_in(s)%smp_sl(ilayer_seedling_root(pft))
+
+           !calculate the new moisture deficit day (mdd) value for each pft
+           new_seedling_mdd(pft) = (abs(seedling_smp_crit) - abs(new_seedling_layer_smp(pft))) * (-1.0_r8)
            
-           !updating the soil matric potential moving averages
-           call cpatch%sdlng_emerg_smp%UpdateRMean(new_seedling_layer_smp)
+           ! if mdds are negative then it means that soil is wetter than smp_crit and the moisture
+           ! deficit is 0  
+           if (new_seedling_mdd(pft) < 0.0_r8) then
+                  new_seedling_mdd(pft) = 0.0_r8
+           endif 
 
-           !calculating moisture deficit days in the seedling layer
-           !new_seedling_mdd = 0.0_r8
+           !update the smp and mdd running means
+           call cpatch%sdlng_emerg_smp(pft)%p%UpdateRMean(new_seedling_layer_smp(pft))
+           call cpatch%sdlng_mdd(pft)%p%UpdateRMean(new_seedling_mdd(pft))
            
-           ! new_seedling_mdd = (abs(seedling_smp_crit) - abs(new_seedling_layer_smp)) * -1.0_r8
-
-
+           
+           !write(fates_log(),*) 'new_seedling_layer_smp', new_seedling_layer_smp(pft)
+           !write(fates_log(),*) 'smpEmerg', cpatch%sdlng_emerg_smp(pft)%p%GetMean()
+           !write(fates_log(),*) 'new_sdling_mdd', new_seedling_mdd(pft)
+           !write(fates_log(),*) 'sdling_mdd', cpatch%sdlng_mdd(pft)%p%GetMean()
+           
+           enddo
+           !END ahb's changes 
            !---------------------------------------------------------------------------------------
 
 

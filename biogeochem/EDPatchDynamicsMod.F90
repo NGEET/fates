@@ -86,7 +86,7 @@ module EDPatchDynamicsMod
   use SFParamsMod,            only : SF_VAL_CWD_FRAC
   use EDParamsMod,            only : logging_event_code
   use EDParamsMod,            only : logging_export_frac
-  use FatesRunningMeanMod,    only : ema_24hr, fixed_24hr, ema_lpa
+  use FatesRunningMeanMod,    only : ema_24hr, fixed_24hr, ema_lpa, ema_sdlng_mdd
   use FatesRunningMeanMod,    only : ema_sdlng_emerg_h2o, ema_sdlng_mort_par, ema_sdlng2sap_par
   
   ! CIME globals
@@ -473,6 +473,7 @@ contains
     real(r8) :: patch_site_areadis           ! total area disturbed in m2 per patch per day
     real(r8) :: age                          ! notional age of this patch in years
     integer  :: el                           ! element loop index
+    integer  :: pft                          ! pft loop index
     integer  :: tnull                        ! is there a tallest cohort?
     integer  :: snull                        ! is there a shortest cohort?
     integer  :: levcan                       ! canopy level
@@ -680,10 +681,16 @@ contains
              call new_patch%tveg24%CopyFromDonor(currentPatch%tveg24)
              call new_patch%tveg_lpa%CopyFromDonor(currentPatch%tveg_lpa)
              call new_patch%seedling_layer_par24%CopyFromDonor(currentPatch%seedling_layer_par24) 
-             call new_patch%sdlng_emerg_smp%CopyFromDonor(currentPatch%sdlng_emerg_smp) 
              call new_patch%sdlng_mort_par%CopyFromDonor(currentPatch%sdlng_mort_par) 
              call new_patch%sdlng2sap_par%CopyFromDonor(currentPatch%sdlng2sap_par) 
              
+
+             do pft = 1,maxpft
+                call new_patch%sdlng_emerg_smp(pft)%p%CopyFromDonor(currentPatch%sdlng_emerg_smp(pft)%p) !ahb
+                call new_patch%sdlng_mdd(pft)%p%CopyFromDonor(currentPatch%sdlng_mdd(pft)%p) !ahb
+             enddo
+
+
              ! --------------------------------------------------------------------------
              ! The newly formed patch from disturbance (new_patch), has now been given 
              ! some litter from dead plants and pre-existing litter from the donor patches.
@@ -2010,7 +2017,7 @@ contains
 
     real(r8), parameter :: init_seedling_smp = -26652.0_r8                 !mean smp (mm) from prior ED2
                                                                            !simulation at BCI (arbitrary)
-
+    integer             :: pft                                             !pft index
 
     ! !LOCAL VARIABLES:
     !---------------------------------------------------------------------
@@ -2031,28 +2038,24 @@ contains
     call new_patch%tveg24%InitRMean(fixed_24hr,init_value=temp_init_veg,init_offset=real(hlm_current_tod,r8) )
     allocate(new_patch%tveg_lpa)
     call new_patch%tveg_lpa%InitRmean(ema_lpa,init_value=temp_init_veg)
-   
-
     allocate(new_patch%seedling_layer_par24)
-    call new_patch%seedling_layer_par24%InitRMean(fixed_24hr,init_value=init_seedling_par,init_offset=real(hlm_current_tod,r8) )
-
-    allocate(new_patch%sdlng_emerg_smp)
-    call new_patch%sdlng_emerg_smp%InitRMean(ema_sdlng_emerg_h2o, &
-                                             init_value=init_seedling_smp,init_offset=real(hlm_current_tod,r8) )
-
+    call new_patch%seedling_layer_par24%InitRMean(fixed_24hr,init_value=init_seedling_par, init_offset=real(hlm_current_tod,r8))
     allocate(new_patch%sdlng_mort_par)
-    call new_patch%sdlng_mort_par%InitRMean(ema_sdlng_mort_par, &
-                                             init_value=init_seedling_par,init_offset=real(hlm_current_tod,r8) )
-
-    !allocate(new_patch%sdlng_mdd)
-    !call new_patch%sdlng_mdd%InitRMean(ema_sdlng_mdd, &
-    !                                         init_value=0.0_r8,init_offset=real(hlm_current_tod,r8) )
-
+    call new_patch%sdlng_mort_par%InitRMean(ema_sdlng_mort_par,init_value=temp_init_veg)
     allocate(new_patch%sdlng2sap_par)
-    call new_patch%sdlng2sap_par%InitRMean(ema_sdlng2sap_par, &
-                                             init_value=init_seedling_par,init_offset=real(hlm_current_tod,r8) )
+    call new_patch%sdlng2sap_par%InitRMean(ema_sdlng2sap_par,init_value=init_seedling_par)
+    
+    allocate(new_patch%sdlng_mdd(maxpft))
+    allocate(new_patch%sdlng_emerg_smp(maxpft))
 
+    do pft = 1,maxpft
+      allocate(new_patch%sdlng_mdd(pft)%p)
+      call new_patch%sdlng_mdd(pft)%p%InitRMean(ema_sdlng_mdd, init_value=0.0_r8)
+      allocate(new_patch%sdlng_emerg_smp(pft)%p)
+      call new_patch%sdlng_emerg_smp(pft)%p%InitRMean(ema_sdlng_emerg_h2o,init_value=init_seedling_smp)
+    enddo
 
+    
 
     ! Litter
     ! Allocate, Zero Fluxes, and Initialize to "unset" values
@@ -2528,7 +2531,7 @@ contains
     type (ed_cohort_type), pointer :: nextc         ! Remembers next cohort in list 
     type (ed_cohort_type), pointer :: storesmallcohort
     type (ed_cohort_type), pointer :: storebigcohort  
-    integer                        :: c,p          !counters for pft and litter size class. 
+    integer                        :: c,p,pft      !counters for pft and litter size class. ahb added pft here.
     integer                        :: tnull,snull  ! are the tallest and shortest cohorts associated?
     integer                        :: el           ! loop counting index for elements
     type(ed_patch_type), pointer   :: youngerp     ! pointer to the patch younger than donor
@@ -2559,7 +2562,12 @@ contains
     call rp%tveg24%FuseRMean(dp%tveg24,rp%area*inv_sum_area)
     call rp%tveg_lpa%FuseRMean(dp%tveg_lpa,rp%area*inv_sum_area)
     call rp%seedling_layer_par24%FuseRMean(dp%seedling_layer_par24,rp%area*inv_sum_area) !ahb
-    call rp%sdlng_emerg_smp%FuseRMean(dp%sdlng_emerg_smp,rp%area*inv_sum_area) !ahb
+    
+    do pft = 1,maxpft
+    call rp%sdlng_emerg_smp(pft)%p%FuseRMean(dp%sdlng_emerg_smp(pft)%p,rp%area*inv_sum_area) !ahb
+    call rp%sdlng_mdd(pft)%p%FuseRMean(dp%sdlng_mdd(pft)%p,rp%area*inv_sum_area) !ahb
+    enddo
+
     call rp%sdlng_mort_par%FuseRMean(dp%sdlng_mort_par,rp%area*inv_sum_area) !ahb
     call rp%sdlng2sap_par%FuseRMean(dp%sdlng2sap_par,rp%area*inv_sum_area) !ahb
 
@@ -2866,7 +2874,7 @@ contains
 
     type(ed_cohort_type), pointer :: ccohort  ! current
     type(ed_cohort_type), pointer :: ncohort  ! next
-    integer                       :: el       ! loop counter for elements
+    integer                       :: el,pft       ! loop counter for elements and pfts
     
     ! First Deallocate the cohort space
     ! -----------------------------------------------------------------------------------
@@ -2905,11 +2913,16 @@ contains
     deallocate(cpatch%tveg24)
     deallocate(cpatch%tveg_lpa)
     deallocate(cpatch%seedling_layer_par24)
-    deallocate(cpatch%sdlng_emerg_smp)
     deallocate(cpatch%sdlng_mort_par)
-    deallocate(cpatch%sdlng_mdd)
     deallocate(cpatch%sdlng2sap_par)
 
+    do pft = 1, maxpft
+     deallocate(cpatch%sdlng_mdd(pft)%p)
+     deallocate(cpatch%sdlng_emerg_smp(pft)%p)
+    enddo
+    
+    deallocate(cpatch%sdlng_mdd)
+    deallocate(cpatch%sdlng_emerg_smp)
 
     return
   end subroutine dealloc_patch

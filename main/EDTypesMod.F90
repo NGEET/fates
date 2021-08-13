@@ -18,7 +18,7 @@ module EDTypesMod
   use FatesLitterMod,        only : ncwd
   use FatesConstantsMod,     only : n_anthro_disturbance_categories
   use FatesConstantsMod,     only : days_per_year
-  use FatesRunningMeanMod,   only : rmean_type
+  use FatesRunningMeanMod,   only : rmean_type,rmean_arr_type
   use FatesInterfaceTypesMod,only : bc_in_type
   use FatesInterfaceTypesMod,only : bc_out_type
 
@@ -429,13 +429,14 @@ module EDTypesMod
      class(rmean_type), pointer :: seedling_layer_par24          ! 24-hour mean of photosynthetically active radiation
                                                                  ! at the seedling layer (w-m2) 
 
-     class(rmean_type), pointer :: sdlng_emerg_smp               ! Running mean of soil matric potential at the seedling
+     class(rmean_arr_type), pointer :: sdlng_emerg_smp(:)           
+                                                                 ! Running mean of soil matric potential at the seedling
                                                                  ! rooting depth at the h2o seedling emergence 
                                                                  ! timescale (see sdlng_emerg_h2o_timescale parameter) 
      class(rmean_type), pointer :: sdlng_mort_par                ! Running mean of photosythetically active radiation
                                                                  ! at the seedling layer and at the par-based seedling  
                                                                  ! mortality timescale (sdlng_mort_par_timescale)
-     class(rmean_type), pointer :: sdlng_mdd                     ! Running mean of moisture deficit days
+     class(rmean_arr_type), pointer :: sdlng_mdd(:)                  ! Running mean of moisture deficit days
                                                                  ! at the seedling layer and at the mdd-based seedling  
                                                                  ! mortality timescale (sdlng_mdd_timescale) 
                                                                  ! (sdlng2sap_par_timescale)

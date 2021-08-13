@@ -146,6 +146,7 @@ module FatesRestartInterfaceMod
   integer :: ir_sdlng_emerg_smp_pa !ahb
   integer :: ir_sdlng_mort_par_pa ! ahb
   integer :: ir_sdlng2sap_par_pa ! ahb
+  integer :: ir_sdlng_mdd_pa ! ahb
 
   
 
@@ -1244,6 +1245,10 @@ contains
         long_name='seedling layer PAR on the seedling to sapling transition timescale', &
         units='W m2-1', initialize=initialize_variables,ivar=ivar, index = ir_sdlng2sap_par_pa)
 
+   call this%DefineRMeanRestartVar(vname='fates_sdlng_mdd',vtype=cohort_r8, &
+        long_name='seedling moisture deficit days', &
+        units='mm days', initialize=initialize_variables,ivar=ivar, index = ir_sdlng_mdd_pa)
+
    call this%DefineRMeanRestartVar(vname='fates_tveglpapatch',vtype=cohort_r8, &
         long_name='running average (EMA) of patch veg temp for photo acclim', &
         units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveglpa_pa)
@@ -1661,6 +1666,7 @@ contains
    use EDTypesMod, only : maxSWb
    use EDTypesMod, only : numWaterMem
    use EDTypesMod, only : num_vegtemp_mem
+   use EDTypesMod, only : maxpft
 
     ! Arguments
     class(fates_restart_interface_type)             :: this
@@ -2053,10 +2059,14 @@ contains
              call this%SetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
              call this%SetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
              call this%SetRMeanRestartVar(cpatch%seedling_layer_par24, ir_seedling_layer_par24_pa, io_idx_co_1st)
-             call this%SetRMeanRestartVar(cpatch%sdlng_emerg_smp, ir_sdlng_emerg_smp_pa,io_idx_co_1st)
              call this%SetRMeanRestartVar(cpatch%sdlng_mort_par, ir_sdlng_mort_par_pa,io_idx_co_1st)
              call this%SetRMeanRestartVar(cpatch%sdlng2sap_par, ir_sdlng2sap_par_pa,io_idx_co_1st) 
-             
+            
+             do i_pft = 1, maxpft 
+             call this%SetRMeanRestartVar(cpatch%sdlng_mdd(i_pft)%p, ir_sdlng_mdd_pa,io_idx_co_1st) 
+             call this%SetRMeanRestartVar(cpatch%sdlng_emerg_smp(i_pft)%p, ir_sdlng_emerg_smp_pa,io_idx_co_1st)
+             enddo
+
              ! set cohorts per patch for IO
              rio_ncohort_pa( io_idx_co_1st )   = cohortsperpatch
              
@@ -2461,6 +2471,7 @@ contains
      use FatesInterfaceTypesMod, only : numpft
      use FatesInterfaceTypesMod, only : fates_maxElementsPerPatch
      use EDTypesMod, only : numWaterMem
+     use EDTypesMod, only : maxpft
      use EDTypesMod, only : num_vegtemp_mem
      use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
 
@@ -2478,7 +2489,7 @@ contains
      type(ed_cohort_type),pointer :: ccohort     ! current cohort
      type(litter_type), pointer   :: litt        ! litter object on the current patch
      ! loop indices
-     integer :: s, i, j, k
+     integer :: s, i, j, k, pft                 
 
      ! ----------------------------------------------------------------------------------
      ! The following group of integers indicate the positional index (idx)
@@ -2843,10 +2854,13 @@ contains
              call this%GetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
              call this%GetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
              call this%GetRMeanRestartVar(cpatch%seedling_layer_par24, ir_seedling_layer_par24_pa, io_idx_co_1st)
-             call this%GetRMeanRestartVar(cpatch%sdlng_emerg_smp, ir_sdlng_emerg_smp_pa,io_idx_co_1st)
              call this%GetRMeanRestartVar(cpatch%sdlng_mort_par, ir_sdlng_mort_par_pa,io_idx_co_1st)
              call this%GetRMeanRestartVar(cpatch%sdlng2sap_par, ir_sdlng2sap_par_pa,io_idx_co_1st)
-
+             
+             do pft = 1, maxpft 
+             call this%GetRMeanRestartVar(cpatch%sdlng_mdd(pft)%p, ir_sdlng_mdd_pa,io_idx_co_1st)
+             call this%GetRMeanRestartVar(cpatch%sdlng_emerg_smp(pft)%p, ir_sdlng_emerg_smp_pa,io_idx_co_1st)
+             enddo
 
              ! set cohorts per patch for IO
              
