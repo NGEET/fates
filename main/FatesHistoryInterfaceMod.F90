@@ -464,8 +464,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_sflc_scpf                     
   integer :: ih_lflc_scpf                   
   integer :: ih_btran_scpf
-  integer :: ih_hard_level_cacls !marius
-  integer :: ih_hard_GRF_cacls   !marius
+  integer :: ih_hard_level_capf !marius
+  integer :: ih_hard_GRF_capf   !marius
   
   ! Hydro: Soil water states
   integer :: ih_rootwgt_soilvwc_si
@@ -1822,9 +1822,8 @@ end subroutine flush_hvars
                hio_m10_si_scpf         => this%hvars(ih_m10_si_scpf)%r82d, &
                hio_m10_si_capf         => this%hvars(ih_m10_si_capf)%r82d, &
 
-               hio_hard_level_cacls   => this%hvars(ih_hard_level_cacls)%r82d, & !marius
-               hio_hard_GRF_cacls     => this%hvars(ih_hard_GRF_cacls)%r82d, &   !marius
-
+               hio_hard_level_capf   => this%hvars(ih_hard_level_capf)%r82d, & !marius
+               hio_hard_GRF_capf     => this%hvars(ih_hard_GRF_capf)%r82d, &   !marius
                hio_crownfiremort_si_scpf     => this%hvars(ih_crownfiremort_si_scpf)%r82d, &
                hio_cambialfiremort_si_scpf   => this%hvars(ih_cambialfiremort_si_scpf)%r82d, &
 
@@ -2327,13 +2326,7 @@ end subroutine flush_hvars
                     else
                        hio_c13disc_si_scpf(io_si,scpf) = 0.0_r8
                     endif
-		    
-                    ! Hardening
-		    hio_hard_level_cacls(io_si,cacls)    =   ccohort%hard_level !marius
-      			                  
-		    hio_hard_GRF_cacls(io_si,cacls)    =   ccohort%hard_GRF !marius
                         
-
                     ! number density [/ha]
                     hio_nplant_si_scpf(io_si,scpf) = hio_nplant_si_scpf(io_si,scpf) + ccohort%n
 
@@ -2342,7 +2335,11 @@ end subroutine flush_hvars
                        hio_nplant_si_capf(io_si,capf) = hio_nplant_si_capf(io_si,capf) + ccohort%n
                        hio_nplant_si_cacls(io_si,cacls) = hio_nplant_si_cacls(io_si,cacls)+ccohort%n
                     end if
-                    
+		    hio_hard_level_capf(io_si,capf)=0
+                    hio_hard_GRF_capf(io_si,capf)=0
+		    hio_hard_level_capf(io_si,capf) = hio_hard_level_capf(io_si,capf) + ccohort%hard_level !marius
+      		    hio_hard_GRF_capf(io_si,capf)   = hio_hard_GRF_capf(io_si,capf) + ccohort%hard_GRF !marius
+
                     ! number density by size and biomass
                     hio_agb_si_scls(io_si,scls) = hio_agb_si_scls(io_si,scls) + &
                          total_c * ccohort%n * EDPftvarcon_inst%allom_agb_frac(ccohort%pft) * AREA_INV
@@ -2605,7 +2602,7 @@ end subroutine flush_hvars
                
                ccohort => ccohort%taller
             enddo ! cohort loop
-            
+
             ! Patch specific variables that are already calculated
             ! These things are all duplicated. Should they all be converted to LL or array structures RF? 
             ! define scalar to counteract the patch albedo scaling logic for conserved quantities
@@ -4858,12 +4855,12 @@ end subroutine flush_hvars
     call this%set_history_var(vname='HARDINESS',  units='°C',            &
          long='Hardiness level of vegetation', use_default='active',       &
          avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, & !marius
-         ivar=ivar, initialize=initialize_variables, index = ih_hard_level_cacls )
+         ivar=ivar, initialize=initialize_variables, index = ih_hard_level_capf )
 
     call this%set_history_var(vname='HARD_GRF',  units='-',            &
          long='Growth reducing factor fram hardiness', use_default='active',       &
          avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, & !marius
-         ivar=ivar, initialize=initialize_variables, index = ih_hard_GRF_cacls )
+         ivar=ivar, initialize=initialize_variables, index = ih_hard_GRF_capf )
 
     ! size-class only variables
 
