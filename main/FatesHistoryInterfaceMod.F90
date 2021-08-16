@@ -2335,8 +2335,6 @@ end subroutine flush_hvars
                        hio_nplant_si_capf(io_si,capf) = hio_nplant_si_capf(io_si,capf) + ccohort%n
                        hio_nplant_si_cacls(io_si,cacls) = hio_nplant_si_cacls(io_si,cacls)+ccohort%n
                     end if
-		    hio_hard_level_capf(io_si,capf)=0
-                    hio_hard_GRF_capf(io_si,capf)=0
 		    hio_hard_level_capf(io_si,capf) = hio_hard_level_capf(io_si,capf) + ccohort%hard_level !marius
       		    hio_hard_GRF_capf(io_si,capf)   = hio_hard_GRF_capf(io_si,capf) + ccohort%hard_GRF !marius
 
