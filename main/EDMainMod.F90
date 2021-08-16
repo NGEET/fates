@@ -119,7 +119,7 @@ module EDMainMod
 contains
 
   !-------------------------------------------------------------------------------!
-  subroutine ed_ecosystem_dynamics(currentSite, bc_in)
+  subroutine ed_ecosystem_dynamics(currentSite, bc_in) 
     !
     ! !DESCRIPTION:
     !  Core of ed model, calling all subsequent vegetation dynamics routines         

@@ -214,6 +214,7 @@ contains
                                               ! bogus value for the time being (RGK-012017)
     new_cohort%hard_level  = -2._r8 !marius
     new_cohort%hard_GRF    = 0._r8
+    new_cohort%aggd5       = 0._r8
 
     new_cohort%patchptr     => patchptr
 

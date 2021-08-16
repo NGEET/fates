@@ -2352,7 +2352,6 @@ contains
              write(fates_log(),*) 'gscan_patch: ',gscan_patch
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
-          
           ccohort=>cpatch%tallest
           do while(associated(ccohort))
 
@@ -3408,8 +3407,9 @@ contains
                     kmax_dn = 1._r8/(1._r8/cohort_hydr%kmax_aroot_lower(ilayer) + & 
                               1._r8/cohort_hydr%kmax_aroot_radial_out(ilayer))
                 end if
+                !write(fates_log(),*) "hardcheck2",cohort%hard_level
 	        if (cohort%hard_level < -2.0_r8) then  !Marius
-		   kmax_dn=((cohort%hard_level + 30.0_r8)/28.0_r8)*kmax_dn
+		   kmax_dn=((cohort%hard_level + 35.0_r8)/33.0_r8)*kmax_dn
 	        end if
 
                 kmax_up = site_hydr%kmax_upper_shell(ilayer,1)*aroot_frac_plant

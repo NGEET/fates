@@ -339,6 +339,7 @@ module EDTypesMod
 
      real(r8) ::  hard_level                             ! Hardiness state (K) (marius)
      real(r8) ::  hard_GRF                               ! Growth reducing factor due to frost if not hardened (marius)
+     real(r8) ::  aggd5                                  ! growing degree days 5 C from beginning of year (marius)
 
      ! NITROGEN POOLS      
      ! ----------------------------------------------------------------------------------
@@ -1025,6 +1026,7 @@ module EDTypesMod
      write(fates_log(),*) 'co%asmort                 = ', ccohort%asmort
      write(fates_log(),*) 'co%hard_level             = ', ccohort%hard_level !marius
      write(fates_log(),*) 'co%hard_GRF               = ', ccohort%hard_GRF   !marius
+     write(fates_log(),*) 'co%aggd5                  = ', ccohort%aggd5      !marius
      write(fates_log(),*) 'co%isnew                  = ', ccohort%isnew
      write(fates_log(),*) 'co%dndt                   = ', ccohort%dndt
      write(fates_log(),*) 'co%dhdt                   = ', ccohort%dhdt

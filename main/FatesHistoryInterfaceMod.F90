@@ -464,8 +464,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_sflc_scpf                     
   integer :: ih_lflc_scpf                   
   integer :: ih_btran_scpf
-  integer :: ih_hard_level_scpf !marius
-  integer :: ih_hard_GRF_scpf   !marius
+  integer :: ih_hard_level_cacls !marius
+  integer :: ih_hard_GRF_cacls   !marius
   
   ! Hydro: Soil water states
   integer :: ih_rootwgt_soilvwc_si
@@ -1822,8 +1822,8 @@ end subroutine flush_hvars
                hio_m10_si_scpf         => this%hvars(ih_m10_si_scpf)%r82d, &
                hio_m10_si_capf         => this%hvars(ih_m10_si_capf)%r82d, &
 
-               hio_hard_level_scpf   => this%hvars(ih_hard_level_scpf)%r82d, & !marius
-               hio_hard_GRF_scpf     => this%hvars(ih_hard_GRF_scpf)%r82d, &   !marius
+               hio_hard_level_cacls   => this%hvars(ih_hard_level_cacls)%r82d, & !marius
+               hio_hard_GRF_cacls     => this%hvars(ih_hard_GRF_cacls)%r82d, &   !marius
 
                hio_crownfiremort_si_scpf     => this%hvars(ih_crownfiremort_si_scpf)%r82d, &
                hio_cambialfiremort_si_scpf   => this%hvars(ih_cambialfiremort_si_scpf)%r82d, &
@@ -2329,9 +2329,9 @@ end subroutine flush_hvars
                     endif
 		    
                     ! Hardening
-		    hio_hard_level_scpf(io_si,scpf)    =   ccohort%hard_level !marius
-                        
-		    hio_hard_GRF_scpf(io_si,scpf)    =   ccohort%hard_GRF !marius
+		    hio_hard_level_cacls(io_si,cacls)    =   ccohort%hard_level !marius
+      			                  
+		    hio_hard_GRF_cacls(io_si,cacls)    =   ccohort%hard_GRF !marius
                         
 
                     ! number density [/ha]
@@ -4858,12 +4858,12 @@ end subroutine flush_hvars
     call this%set_history_var(vname='HARDINESS',  units='°C',            &
          long='Hardiness level of vegetation', use_default='active',       &
          avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, & !marius
-         ivar=ivar, initialize=initialize_variables, index = ih_hard_level_scpf )
+         ivar=ivar, initialize=initialize_variables, index = ih_hard_level_cacls )
 
     call this%set_history_var(vname='HARD_GRF',  units='-',            &
          long='Growth reducing factor fram hardiness', use_default='active',       &
          avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, & !marius
-         ivar=ivar, initialize=initialize_variables, index = ih_hard_GRF_scpf )
+         ivar=ivar, initialize=initialize_variables, index = ih_hard_GRF_cacls )
 
     ! size-class only variables
 
