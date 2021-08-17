@@ -464,8 +464,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_sflc_scpf                     
   integer :: ih_lflc_scpf                   
   integer :: ih_btran_scpf
-  integer :: ih_hard_level_capf !marius
-  integer :: ih_hard_GRF_capf   !marius
+  integer :: ih_hard_level_scagpft !marius
+  integer :: ih_hard_GRF_scagpft   !marius
   
   ! Hydro: Soil water states
   integer :: ih_rootwgt_soilvwc_si
@@ -1822,8 +1822,9 @@ end subroutine flush_hvars
                hio_m10_si_scpf         => this%hvars(ih_m10_si_scpf)%r82d, &
                hio_m10_si_capf         => this%hvars(ih_m10_si_capf)%r82d, &
 
-               hio_hard_level_capf   => this%hvars(ih_hard_level_capf)%r82d, & !marius
-               hio_hard_GRF_capf     => this%hvars(ih_hard_GRF_capf)%r82d, &   !marius
+               hio_hard_level_scagpft   => this%hvars(ih_hard_level_scagpft)%r82d, & !marius
+               hio_hard_GRF_scagpft     => this%hvars(ih_hard_GRF_scagpft)%r82d, &   !marius
+
                hio_crownfiremort_si_scpf     => this%hvars(ih_crownfiremort_si_scpf)%r82d, &
                hio_cambialfiremort_si_scpf   => this%hvars(ih_cambialfiremort_si_scpf)%r82d, &
 
@@ -2335,8 +2336,6 @@ end subroutine flush_hvars
                        hio_nplant_si_capf(io_si,capf) = hio_nplant_si_capf(io_si,capf) + ccohort%n
                        hio_nplant_si_cacls(io_si,cacls) = hio_nplant_si_cacls(io_si,cacls)+ccohort%n
                     end if
-		    hio_hard_level_capf(io_si,capf) = hio_hard_level_capf(io_si,capf) + ccohort%hard_level !marius
-      		    hio_hard_GRF_capf(io_si,capf)   = hio_hard_GRF_capf(io_si,capf) + ccohort%hard_GRF !marius
 
                     ! number density by size and biomass
                     hio_agb_si_scls(io_si,scls) = hio_agb_si_scls(io_si,scls) + &
@@ -2362,6 +2361,9 @@ end subroutine flush_hvars
                     iscagpft = get_sizeagepft_class_index(ccohort%dbh,cpatch%age,ccohort%pft)
                     
                     hio_nplant_si_scagpft(io_si,iscagpft) = hio_nplant_si_scagpft(io_si,iscagpft) + ccohort%n
+
+		    hio_hard_level_scagpft(io_si,iscagpft) =  ccohort%hard_level !marius
+      		    hio_hard_GRF_scagpft(io_si,iscagpft)   =  ccohort%hard_GRF !marius
 
                     ! update age and PFT - indexed quantities
 
@@ -4536,6 +4538,16 @@ end subroutine flush_hvars
           avgflag='A', vtype=site_scagpft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_nplant_si_scagpft )
 
+    call this%set_history_var(vname='HARDINESS',  units='°C',            &
+         long='Hardiness level of vegetation', use_default='active',       &
+         avgflag='A', vtype=site_scagpft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, & !marius
+         ivar=ivar, initialize=initialize_variables, index = ih_hard_level_scagpft )
+
+    call this%set_history_var(vname='HARD_GRF',  units='-',            &
+         long='Growth reducing factor fram hardiness', use_default='active',       &
+         avgflag='A', vtype=site_scagpft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, & !marius
+         ivar=ivar, initialize=initialize_variables, index = ih_hard_GRF_scagpft )
+
     ! age x pft dimensioned
     call this%set_history_var(vname='NPP_AGEPFT',units = 'kgC/m2/yr',               &
           long='NPP per PFT in each age bin', use_default='inactive',   &
@@ -4850,15 +4862,7 @@ end subroutine flush_hvars
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_ar_frootm_si_scpf )
 
-    call this%set_history_var(vname='HARDINESS',  units='°C',            &
-         long='Hardiness level of vegetation', use_default='active',       &
-         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, & !marius
-         ivar=ivar, initialize=initialize_variables, index = ih_hard_level_capf )
 
-    call this%set_history_var(vname='HARD_GRF',  units='-',            &
-         long='Growth reducing factor fram hardiness', use_default='active',       &
-         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, & !marius
-         ivar=ivar, initialize=initialize_variables, index = ih_hard_GRF_capf )
 
     ! size-class only variables
 

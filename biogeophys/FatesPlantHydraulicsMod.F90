@@ -3407,7 +3407,7 @@ contains
                     kmax_dn = 1._r8/(1._r8/cohort_hydr%kmax_aroot_lower(ilayer) + & 
                               1._r8/cohort_hydr%kmax_aroot_radial_out(ilayer))
                 end if
-                write(fates_log(),*) "check",cohort%coage,cohort%indexnumber,cohort%hard_level
+                !write(fates_log(),*) "check",cohort%hard_level
 	        if (cohort%hard_level < -2.0_r8) then  !Marius
 		   kmax_dn=((cohort%hard_level + 35.0_r8)/33.0_r8)*kmax_dn
 	        end if

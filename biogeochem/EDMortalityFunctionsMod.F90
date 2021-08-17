@@ -283,7 +283,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     !
     ! !DESCRIPTION:
     ! Hardening module from Rammig et al. 2010. 
-    ! Implemented for evergreen trees --> Norway spruce
+    ! Implemented for evergreen trees 
     ! Controls the unrealistic root water release by reducing root confuctivity to efflux
     ! and causes a reduction of growing through gfday.
 
@@ -374,7 +374,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     !else if (hard_level_prev < target_h) then
     !   cohort_in%hard_level = hard_level_prev + rate_dh
     !end if
-    if (cohort_in%hard_level> min_h) then
+    if (cohort_in%hard_level > min_h) then
        cohort_in%hard_level = min_h
     end if
     if (cohort_in%hard_level < max_h) then
@@ -384,7 +384,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     hard_diff=hard_level_prev-Tmin
     !Calculation of the growth reducing factor
     cohort_in%hard_GRF=(1.0_r8/(1.0_r8+exp(b*(hard_diff-LT50))))
-    !write(fates_log(),*) "hardcheck1",cohort_in%hard_level
+    write(fates_log(),*) "check1",cohort_in%hard_level
     return
 
   end subroutine Hardening_scheme

@@ -212,7 +212,7 @@ contains
 
     new_cohort%indexnumber  = fates_unset_int ! Cohort indexing was not thread-safe, setting
                                               ! bogus value for the time being (RGK-012017)
-    new_cohort%hard_level  = -30._r8 !marius
+    new_cohort%hard_level  = -2._r8 !marius
     new_cohort%hard_GRF    = 0._r8
     new_cohort%aggd5       = 0._r8
 
