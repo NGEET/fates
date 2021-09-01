@@ -1555,7 +1555,7 @@ contains
     end if !small error
 
     if(init.eq.ifalse)then
-       call SetState(currentCohort%prt,leaf_organ,1,leaf_c,1)
+       call SetState(currentCohort%prt, leaf_organ, carbon12_element, leaf_c, 1)
     endif
 
     ! assert sai
