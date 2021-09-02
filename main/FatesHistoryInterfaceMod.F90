@@ -505,6 +505,7 @@ module FatesHistoryInterfaceMod
   ! indices to (site x pft) variables
   integer :: ih_biomass_si_pft
   integer :: ih_leafbiomass_si_pft
+  integer :: ih_splai_si_pft
   integer :: ih_storebiomass_si_pft
   integer :: ih_nindivs_si_pft
   integer :: ih_recruitment_si_pft
@@ -1792,6 +1793,7 @@ end subroutine flush_hvars
                hio_canopy_spread_si    => this%hvars(ih_canopy_spread_si)%r81d, &
                hio_biomass_si_pft      => this%hvars(ih_biomass_si_pft)%r82d, &
                hio_leafbiomass_si_pft  => this%hvars(ih_leafbiomass_si_pft)%r82d, &
+               hio_splai_si_pft  => this%hvars(ih_splai_si_pft)%r82d, &
                hio_storebiomass_si_pft => this%hvars(ih_storebiomass_si_pft)%r82d, &
                hio_nindivs_si_pft      => this%hvars(ih_nindivs_si_pft)%r82d, &
                hio_recruitment_si_pft  => this%hvars(ih_recruitment_si_pft)%r82d, &
@@ -2130,6 +2132,11 @@ end subroutine flush_hvars
          hio_potential_disturbance_rate_si(io_si) = sum(sites(s)%potential_disturbance_rates(1:N_DIST_TYPES))
 
          hio_harvest_carbonflux_si(io_si) = sites(s)%harvest_carbon_flux
+
+         do i_pft = 1,numpft
+            hio_splai_si_pft(io_si,i_pft) = sites(s)%sp_tlai(i_pft)
+         end do
+   
 
          ipa = 0
          cpatch => sites(s)%oldest_patch
@@ -4336,6 +4343,11 @@ end subroutine update_history_hifrq
          long='total PFT level leaf biomass', use_default='active',                &
          avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_leafbiomass_si_pft )
+
+    call this%set_history_var(vname='PFT_SP_LAI', units='m2/m2',              &
+         long='total PFT-level LAI', use_default='active',                &
+         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_splai_si_pft )
 
     call this%set_history_var(vname='PFTstorebiomass',  units='gC/m2',            &
          long='total PFT level stored biomass', use_default='active',              &
