@@ -325,6 +325,8 @@ module FatesInterfaceMod
       real(r8)             :: t_ref2m_24_si  !marius
       real(r8)             :: t_ref2m_min_si !marius
       real(r8)             :: t_ref2m_max_si !marius
+      real(r8)             :: dayl_si !marius
+      real(r8)             :: prev_dayl_si !marius
 
       ! Patch 24 hour vegetation temperature [K]
       real(r8),allocatable :: t_veg24_pa(:)  
@@ -897,6 +899,9 @@ contains
       this%bc_in(s)%t_ref2m_24_si  = 0.0_r8 !marius
       this%bc_in(s)%t_ref2m_min_si = 0.0_r8 !marius
       this%bc_in(s)%t_ref2m_max_si = 0.0_r8 !marius
+      this%bc_in(s)%dayl_si        = 0.0_r8 !marius
+      this%bc_in(s)%prev_dayl_si   = 0.0_r8 !marius
+
       this%bc_in(s)%t_veg24_pa(:)  = 0.0_r8
       this%bc_in(s)%precip24_pa(:) = 0.0_r8
       this%bc_in(s)%relhumid24_pa(:) = 0.0_r8

@@ -2352,6 +2352,7 @@ contains
              write(fates_log(),*) 'gscan_patch: ',gscan_patch
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
+          
           ccohort=>cpatch%tallest
           do while(associated(ccohort))
 
@@ -2430,7 +2431,7 @@ contains
                 !             layers have transporting-to-absorbing root water potential gradients of opposite sign
                 ! -----------------------------------------------------------------------------------
                 
-                call OrderLayersForSolve1D(site_hydr, ccohort, ccohort_hydr, ordered, kbg_layer)
+                call OrderLayersForSolve1D(site_hydr, ccohort, ccohort_hydr, ordered, kbg_layer,bc_in(s))
                 
                 call ImTaylorSolve1D(site_hydr,ccohort,ccohort_hydr, &
                                      dtime,qflx_tran_veg_indiv,ordered, kbg_layer, & 
@@ -2880,9 +2881,10 @@ contains
 
   ! ===================================================================================
 
-  subroutine OrderLayersForSolve1D(site_hydr,cohort,cohort_hydr,ordered, kbg_layer)
-
+  subroutine OrderLayersForSolve1D(site_hydr,cohort,cohort_hydr,ordered, kbg_layer,bc_in)
+    
     ! Arguments (IN)
+    type(bc_in_type), intent(in)                 :: bc_in
     type(ed_site_hydr_type), intent(in),target   :: site_hydr
     type(ed_cohort_type), intent(in),target      :: cohort
     type(ed_cohort_hydr_type),intent(in),target  :: cohort_hydr
@@ -2893,6 +2895,7 @@ contains
     real(r8), intent(out)                        :: kbg_layer(:)
     
     ! Locals
+    
     real(r8) :: kbg_tot                    ! total absorbing root & rhizosphere conductance (over all shells and soil layers  [MPa]
     real(r8) :: psi_inner_shell            ! matric potential of the inner shell, used for calculating
                                            ! which kmax to use when forecasting uptake layer ordering [MPa]
@@ -2943,7 +2946,7 @@ contains
        ! Calculate total effective conductance over path  [kg s-1 MPa-1]
        ! from absorbing root node to 1st rhizosphere shell
        r_bg = 1._r8/(kmax_aroot*ftc_aroot)
-
+       
        ! Path is across the upper an lower rhizosphere comparment
        ! on each side of the nodes. Since there is no flow across the outer
        ! node to the edge, we ignore that last half compartment
@@ -2964,9 +2967,11 @@ contains
        
        !! upper bound limited to size()-1 b/c of zero-flux outer boundary condition
        kbg_layer(j)        = 1._r8/r_bg
+
        kbg_tot             = kbg_tot + kbg_layer(j)
 
     enddo !soil layer
+
     
     kbg_layer = kbg_layer/kbg_tot
 
@@ -3279,6 +3284,11 @@ contains
                     ! 1) Assume that water potential does not effect conductance
                     ! 2) The standard FTC function applies
 
+                    !if(cohort%hard_level<-2.5_r8 )then                 !Marius
+                    !   ftc_node(i)=((cohort%hard_level+30.1_r8)/27.6_r8)*ftc_node(i)
+                    !   dftc_dtheta_node(i) = 0.0_r8
+                    !end if
+
                     if(i==n_hypool_ag+2)then
                         if(no_ftc_radialk) then
                             ftc_node(i)         = 1.0_r8
@@ -3407,13 +3417,20 @@ contains
                     kmax_dn = 1._r8/(1._r8/cohort_hydr%kmax_aroot_lower(ilayer) + & 
                               1._r8/cohort_hydr%kmax_aroot_radial_out(ilayer))
                 end if
-                !write(fates_log(),*) "check",cohort%hard_level
-	        if (cohort%hard_level < -2.0_r8) then  !Marius
-		   kmax_dn=((cohort%hard_level + 35.0_r8)/33.0_r8)*kmax_dn
-	        end if
+
+                if(cohort%hard_level<-2.5_r8 )then                 !Marius
+                   kmax_dn=((cohort%hard_level+30.1_r8)/27.6_r8)*kmax_dn
+                end if
 
                 kmax_up = site_hydr%kmax_upper_shell(ilayer,1)*aroot_frac_plant
 
+                !if(cohort%hard_level<-2.5_r8 )then                 !Marius
+                !   kmax_up=((cohort%hard_level+30.1_r8)/27.6_r8)*kmax_up
+                !end if
+
+                !if(cohort%hard_level<-2.5_r8 .and. jj==1 .and. istep==1)then                 !Marius
+                !   write(fates_log(),*) 'kup',kmax_up,'kdn',kmax_dn,'fup',ftc_node(i_up),'fdn',ftc_node(i_dn)
+                !end if
                 call GetImTaylorKAB(kmax_up,kmax_dn,        &
                       ftc_node(i_up),ftc_node(i_dn),        & 
                       h_node(i_up),h_node(i_dn),            & 
@@ -3422,7 +3439,9 @@ contains
                       k_eff(j),                         &
                       A_term(j),                        & 
                       B_term(j))
-
+                !if(cohort%hard_level<-2.5_r8 .and. jj==1 .and. istep==1)then                 !Marius
+                !    write(fates_log(),*) 'k_eff',k_eff
+                !end if
                 ! Path is between rhizosphere shells
 
                 do j = n_hypool_ag+3,n_hypool_tot-1

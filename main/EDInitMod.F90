@@ -255,6 +255,7 @@ contains
     site_in%cstatus          = fates_unset_int    ! are leaves in this pixel on or off?
     site_in%dstatus          = fates_unset_int
     site_in%grow_deg_days    = nan  ! growing degree days
+    site_in%gdd5             = 0.0_r8  ! marius
     site_in%nchilldays       = fates_unset_int
     site_in%ncolddays        = fates_unset_int
     site_in%cleafondate      = fates_unset_int  ! doy of leaf on
@@ -366,6 +367,7 @@ contains
           sites(s)%dleafoffdate  = dleafoff
           sites(s)%dleafondate   = dleafon
           sites(s)%grow_deg_days = GDD
+          sites(s)%gdd5 = 0.0_r8 !marius
           
           sites(s)%water_memory(1:numWaterMem) = watermem
           sites(s)%vegtemp_memory(1:num_vegtemp_mem) = 0._r8

@@ -981,7 +981,8 @@ contains
     !     = pino * (th_sat*rwc_ft - th_res)/(th - th_res)
     ! -----------------------------------------------------------------------------------
     
-    psi = pinot * (th_sat*rwc_ft - th_res) / (th - th_res)
+    psi = pinot * (th_sat*rwc_ft - th_res) / (th - th_res) 
+    !psi = pinot * ((th_sat*rwc_ft - th_res) / (th - th_res)) * cohort%hard_level !marius
 
     return
   end subroutine solutepsi
@@ -1008,8 +1009,9 @@ contains
     ! psi      =  pinot * (th_sat*rwc_ft - th_res) * (th - th_res)^-1
     ! dpsi_dth = -pinot * (th_sat*rwc_ft - th_res) * (th - th_res)^-2
     ! -----------------------------------------------------------------------------------
-    
+
     dpsi_dth = -1._r8*pinot*(th_sat*rwc_ft - th_res )*(th - th_res)**(-2._r8)
+    !dpsi_dth = -1._r8*pinot*cohort%hard_level*(th_sat*rwc_ft - th_res )*(th - th_res)**(-2._r8) !marius
 
     return
   end subroutine dsolutepsidth

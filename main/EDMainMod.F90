@@ -22,6 +22,7 @@ module EDMainMod
   use FatesInterfaceMod        , only : bc_in_type
   use FatesInterfaceMod        , only : hlm_masterproc
   use FatesInterfaceMod        , only : numpft
+  use FatesInterfaceMod        , only : hlm_day_of_year
   use EDCohortDynamicsMod      , only : terminate_cohorts
   use EDCohortDynamicsMod      , only : fuse_cohorts
   use EDCohortDynamicsMod      , only : sort_cohorts
@@ -309,11 +310,15 @@ contains
 
     ! Set a pointer to this sites carbon12 mass balance
     site_cmass => currentSite%mass_balance(element_pos(carbon12_element))
+    if ((hlm_day_of_year==1 .and. currentSite%lat>=0) .or. (hlm_day_of_year==170 .and. currentSite%lat<=0))  then
+       currentSite%gdd5=0.0_r8
+    else
+       currentSite%gdd5= currentSite%gdd5 + max(0.0_r8,bc_in%t_ref2m_24_si-273.15_r8-5.0_r8)
+    end if
 
     currentPatch => currentSite%youngest_patch
 
     do while(associated(currentPatch))
-
 
        currentPatch%age = currentPatch%age + hlm_freq_day
        ! FIX(SPM,032414) valgrind 'Conditional jump or move depends on uninitialised value'
@@ -340,7 +345,7 @@ contains
 
           ! Calculate the mortality derivatives
           call Mortality_Derivative( currentSite, currentCohort, bc_in )
-	  call Hardening_scheme( currentCohort, bc_in ) !hard_level and hard_GRF will be updated, ED_ecosystem_dynamics is called once a day at beginning of day Marius
+	  call Hardening_scheme( currentSite, currentPatch, currentCohort, bc_in ) !hard_level and hard_GRF will be updated, ED_ecosystem_dynamics is called once a day at beginning of day Marius
 
           ! -----------------------------------------------------------------------------
           ! Apply Plant Allocation and Reactive Transport

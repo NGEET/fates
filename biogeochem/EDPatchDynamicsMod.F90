@@ -591,6 +591,7 @@ contains
                  call InitPRTObject(nc%prt)
                  call InitPRTBoundaryConditions(nc)
                  
+                 !write(fates_log(),*) 'Check4: Call zero_cohort when merging patches' !marius
                  call zero_cohort(nc)
 
                  ! nc is the new cohort that goes in the disturbed patch (new_patch)... currentCohort

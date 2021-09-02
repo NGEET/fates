@@ -1464,6 +1464,7 @@ contains
     !----------------------------------------------------------------------
 
     allocate(temp_cohort) ! create temporary cohort
+    !write(fates_log(),*) 'Check3: Call zero_cohort when creating a temporary cohort' !marius
     call zero_cohort(temp_cohort)
 
     do ft = 1,numpft
