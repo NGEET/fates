@@ -134,9 +134,9 @@ contains
     allocate(site_in%z_soil(site_in%nlevsoil))
 
     if (hlm_use_nocomp .eq. itrue) then
-       allocate(site_in%area_pft(1:numpft))
+       allocate(site_in%area_pft(0:numpft))
     else  ! SP and nocomp require a bare-ground patch.
-       allocate(site_in%area_pft(0:numpft))  
+       allocate(site_in%area_pft(1:numpft))  
     endif
 
     allocate(site_in%use_this_pft(1:numpft))
