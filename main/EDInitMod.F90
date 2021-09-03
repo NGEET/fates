@@ -133,7 +133,12 @@ contains
     allocate(site_in%dz_soil(site_in%nlevsoil))
     allocate(site_in%z_soil(site_in%nlevsoil))
 
-    allocate(site_in%area_pft(1:numpft))      ! Changing to zero indexing
+    if (hlm_use_nocomp .eq. itrue) then
+       allocate(site_in%area_pft(1:numpft))
+    else  ! SP and nocomp require a bare-ground patch.
+       allocate(site_in%area_pft(0:numpft))  
+    endif
+
     allocate(site_in%use_this_pft(1:numpft))
 
     ! SP mode
@@ -331,7 +336,7 @@ contains
                    write(fates_log(),*)  'removing small pft patches',s,ft,sites(s)%area_pft(ft)
                    sites(s)%area_pft(ft)=0.0_r8
                    ! remove tiny patches to prevent numerical errors in terminate patches
-              endif
+                endif
                 if(sites(s)%area_pft(ft).lt.0._r8)then
                    write(fates_log(),*) 'negative area',s,ft,sites(s)%area_pft(ft)
                    call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -344,8 +349,9 @@ contains
              ! the bare ground will no longer be proscribed and should emerge from FATES
              ! this may or may not be the right way to deal with this?
 
-             if(hlm_use_sp.eq.ifalse)then ! when not in SP mode, subsume bare ground evenly into the existing patches.
-                !n.b. that it might be better if nocomp mode used the same bare groud logic as SP mode.
+             if(hlm_use_nocomp.eq.ifalse)then ! when not in nocomp (i.e. or SP) mode, 
+                ! subsume bare ground evenly into the existing patches.
+
                 sumarea = sum(sites(s)%area_pft(1:numpft))
                 do ft =  1,numpft
                    if(sumarea.gt.0._r8)then
@@ -356,23 +362,23 @@ contains
                       ! all pfts and let the model figure out whether land should be bare or not.
                    end if
                 end do !ft
-             else ! for sp mode, assert a bare ground patch
+             else ! for sp and nocomp mode, assert a bare ground patch if needed
                 sumarea = sum(sites(s)%area_pft(1:numpft))
 
                ! In all the other FATES modes, bareground is the area in which plants
-               ! do not grow of their own accord. In SP mod wweassert that the  canopy is full for
-               ! each PFT patche. Thus,  we also need to assert a bare ground area in
-               !  order to not have all of the ground filled by leaves.
+               ! do not grow of their own accord. In SP mode we assert that the canopy is full for
+               ! each PFT patch. Thus, we also need to assert a bare ground area in
+               ! order to not have all of the ground filled by leaves.
 
                ! Further to that, one could calculate bare ground as the remaining area when
                ! all fhe canopies are accounted for, but this means we don't pass balance checks
-               !  on canopy are inside FATES, and so in SP mode, we define the bare groud
+               ! on canopy are inside FATES, and so in SP mode, we define the bare groud
                ! patch as having a PFT identifier as zero.
 
                 if(sumarea.lt.area)then !make some bare ground
-                   sites(s)%area_bareground = area - sumarea
+                   sites(s)%area_pft(0) = area - sumarea
                 else
-                   sites(s)%area_bareground = 0.0_r8
+                   sites(s)%area_pft(0) = 0.0_r8
                 end if
              end if !sp mode
           end if !fixed biogeog
@@ -515,11 +521,6 @@ contains
              else  ! The default case is initialized w/ one patch with the area of the whole site.
                 newparea = area
              end if  !nocomp mode
-
-             if(hlm_use_sp.eq.itrue.and.n.eq.0)then ! bare ground patch
-                newparea = sites(s)%area_bareground
-                nocomp_pft = 0
-             end if
 
              if(newparea.gt.0._r8)then ! Stop patches being initilialized when PFT not present in nocomop mode
                 allocate(newp)
