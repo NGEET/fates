@@ -1447,8 +1447,7 @@ contains
           end if
 
           ! Call routine to invert SP drivers into cohort properites.
-          call assign_cohort_SP_properties(currentCohort, currentSite%sp_htop(fates_pft), currentSite%sp_tlai(fates_pft), &
-               currentSite%sp_tsai(fates_pft), currentPatch%area)
+          call assign_cohort_SP_properties(currentCohort, currentSite%sp_htop(fates_pft), currentSite%sp_tlai(fates_pft)     , currentSite%sp_tsai(fates_pft),currentPatch%area,ifalse,leaf_c)
 
           currentCohort => currentCohort%shorter
        end do !cohort loop
@@ -1459,7 +1458,7 @@ contains
 
   ! =====================================================================================
 
-  subroutine assign_cohort_SP_properties(currentCohort,htop,tlai,tsai,parea)
+  subroutine assign_cohort_SP_properties(currentCohort,htop,tlai,tsai,parea,init,leaf_c)
 
     ! -----------------------------------------------------------------------------------!
     ! Takes the daily inputs of leaf area index, stem area index and canopy height and
@@ -1474,8 +1473,9 @@ contains
     real(r8), intent(in) :: tsai ! target stem area index from SP inputs
     real(r8), intent(in) :: htop ! target tree height from SP inputs
     real(r8), intent(in) :: parea ! patch area for this PFT
+    integer, intent(in)  :: init ! are we in the initialization routine? if so do not set leaf_c
+    real(r8), intent(out) ::  leaf_c        ! leaf carbon estimated to generate target tlai
 
-    real(r8) :: leaf_c        ! leaf carbon estimated to generate target tlai
     real(r8) :: dummy_n       ! set cohort n to a dummy value of 1.0
     integer  :: fates_pft     ! fates pft numer for weighting loop
     real(r8) :: spread        ! dummy value of canopy spread to estimate c_area
@@ -1551,12 +1551,13 @@ contains
           end if
        else
           write(fates_log(),*) 'SPassign, big error in c_area',currentCohort%c_area-parea,currentCohort%pft
-          call endrun(msg=errMsg(sourcefile, __LINE__))
        end if ! still broken
     end if !small error
 
-    call SetState(currentCohort%prt, leaf_organ, carbon12_element, leaf_c, 1)
-    
+    if(init.eq.ifalse)then
+       call SetState(currentCohort%prt, leaf_organ, carbon12_element, leaf_c, 1)
+    endif
+
     ! assert sai
     currentCohort%treesai = tsai
 

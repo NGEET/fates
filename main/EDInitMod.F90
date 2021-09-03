@@ -739,13 +739,11 @@ contains
              !  h,dbh,leafc,n from SP values or from small initial size.
 
              if(hlm_use_sp.eq.itrue)then
-
+                init = itrue
                 ! At this point, we do not know the bc_in values of tlai tsai and htop,
                 ! so this is initializing to an arbitrary value for the very first timestep.
                 ! Not sure if there's a way around this or not.
-                call assign_cohort_SP_properties(temp_cohort, 0.5_r8,0.2_r8, 0.1_r8,patch_in%area)
-                
-                c_leaf   = temp_cohort%prt%GetState(leaf_organ, carbon12_element)
+                call assign_cohort_SP_properties(temp_cohort, 0.5_r8,0.2_r8, 0.1_r8,patch_in%area,init,c_leaf)
 
              else
                 temp_cohort%hite        = EDPftvarcon_inst%hgt_min(pft)
