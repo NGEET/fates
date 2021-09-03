@@ -488,7 +488,6 @@ contains
           if(hlm_use_nocomp.eq.itrue)then
              num_new_patches = numpft
              if(hlm_use_sp.eq.itrue)then
-                num_new_patches = numpft + 1 ! bare ground patch in SP mode.
                 start_patch = 0 ! start at the bare ground patch
              endif
              !           allocate(newppft(numpft))
