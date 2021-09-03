@@ -1925,9 +1925,9 @@ contains
        c = fcolumn(s)
        do while(associated(currentPatch))
 
-          ifp = ifp+1
-
           if(currentPatch%nocomp_pft_label.ne.0)then  ! ignore the bare-ground-PFT patch entirely for these BC outs
+
+             ifp = ifp+1
 
              if ( currentPatch%total_canopy_area-currentPatch%area > 0.000001_r8 ) then
                 write(fates_log(),*) 'ED: canopy area bigger than area',currentPatch%total_canopy_area ,currentPatch%area
@@ -2040,10 +2040,7 @@ contains
              if(currentPatch%nocomp_pft_label.ne.0)then ! for vegetated patches only
                 ifp = ifp+1
                 bc_out(s)%canopy_fraction_pa(ifp) = bc_out(s)%canopy_fraction_pa(ifp)/total_patch_area
-             else ! for the bareground patch (in SP mode).
-                bc_out(s)%canopy_fraction_pa(ifp) =0.0_r8
              endif ! veg patch
-
 
              currentPatch => currentPatch%younger
           end do
