@@ -734,11 +734,10 @@ contains
 
   ! =====================================================================================
 
-  function psi_from_th_tfs(this,th,hard_factor) result(psi) !marius
+  function psi_from_th_tfs(this,th) result(psi) 
 
     class(wrf_type_tfs)  :: this
     real(r8),intent(in)  :: th
-    real(r8),intent(in)  :: hard_factor !marius
     real(r8)             :: psi
 
     ! locals
@@ -772,7 +771,7 @@ contains
        ! the elastic and capilary, and then smooth their
        ! combined with the caviation
        
-       call solutepsi(th_corr,this%rwc_ft,this%th_sat,this%th_res,this%pinot,psi_sol,hard_factor) !marius
+       call solutepsi(th_corr,this%rwc_ft,this%th_sat,this%th_res,this%pinot,psi_sol) 
        call pressurepsi(th_corr,this%rwc_ft,this%th_sat,this%th_res,this%pinot,this%epsil,psi_press)
        
        psi_elastic = psi_sol + psi_press
@@ -809,11 +808,10 @@ contains
 
   ! =====================================================================================
 
-  function dpsidth_from_th_tfs(this,th,hard_factor) result(dpsidth) !marius
+  function dpsidth_from_th_tfs(this,th) result(dpsidth)
 
     class(wrf_type_tfs) :: this
     real(r8),intent(in) :: th
-    real(r8),intent(in) :: hard_factor !marius
     real(r8)            :: dpsidth
 
 
@@ -851,10 +849,10 @@ contains
        ! the elastic and capilary, and then smooth their
        ! combined with the caviation
        
-       call solutepsi(th_corr,this%rwc_ft,this%th_sat,this%th_res,this%pinot,psi_sol,hard_factor) !marius
+       call solutepsi(th_corr,this%rwc_ft,this%th_sat,this%th_res,this%pinot,psi_sol)
        call pressurepsi(th_corr,this%rwc_ft,this%th_sat,this%th_res,this%pinot,this%epsil,psi_press)
        
-       call dsolutepsidth(th,this%th_sat,this%th_res,this%rwc_ft,this%pinot,dsol_dth,hard_factor) !marius
+       call dsolutepsidth(th,this%th_sat,this%th_res,this%rwc_ft,this%pinot,dsol_dth) 
        call dpressurepsidth(this%th_sat,this%th_res,this%rwc_ft,this%epsil,dpress_dth)
        
        delast_dth = dsol_dth + dpress_dth
@@ -955,7 +953,7 @@ contains
 
   ! =====================================================================================
 
-  subroutine solutepsi(th,rwc_ft,th_sat,th_res,pinot,psi,hard_factor)
+  subroutine solutepsi(th,rwc_ft,th_sat,th_res,pinot,psi)
     !
     ! !DESCRIPTION: computes solute water potential (negative) as a function of
     !  water content for the plant PV curve.
@@ -965,7 +963,6 @@ contains
     ! !ARGUMENTS
 
     real(r8)      , intent(in)     :: th          ! vol wc       [m3 m-3]
-    real(r8)      , intent(in)     :: hard_factor !marius
     real(r8)      , intent(in)     :: rwc_ft
     real(r8)      , intent(in)     :: th_sat
     real(r8)      , intent(in)     :: th_res
@@ -985,14 +982,14 @@ contains
     ! -----------------------------------------------------------------------------------
     
     !psi = pinot * (th_sat*rwc_ft - th_res) / (th - th_res) 
-    psi = pinot * ((th_sat*rwc_ft - th_res) / (th - th_res)) * hard_factor !marius
+    psi = pinot * ((th_sat*rwc_ft - th_res) / (th - th_res)) 
 
     return
   end subroutine solutepsi
 
   ! ====================================================================================
 
-  subroutine dsolutepsidth(th,th_sat,th_res,rwc_ft,pinot,dpsi_dth,hard_factor) !marius
+  subroutine dsolutepsidth(th,th_sat,th_res,rwc_ft,pinot,dpsi_dth)
 
     !
     ! !DESCRIPTION: returns derivative of solutepsi() wrt theta
@@ -1001,7 +998,6 @@ contains
     !
     ! !ARGUMENTS
     real(r8)      , intent(in)     :: th
-    real(r8)      , intent(in)     :: hard_factor !marius
     real(r8)      , intent(in)     :: th_sat
     real(r8)      , intent(in)     :: th_res
     real(r8)      , intent(in)     :: rwc_ft
@@ -1015,7 +1011,7 @@ contains
     ! -----------------------------------------------------------------------------------
 
     !dpsi_dth = -1._r8*pinot*(th_sat*rwc_ft - th_res )*(th - th_res)**(-2._r8)
-    dpsi_dth = -1._r8*pinot*hard_factor*(th_sat*rwc_ft - th_res )*(th - th_res)**(-2._r8) !marius
+    dpsi_dth = -1._r8*pinot*(th_sat*rwc_ft - th_res )*(th - th_res)**(-2._r8) 
 
     return
   end subroutine dsolutepsidth

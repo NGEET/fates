@@ -367,7 +367,13 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     if (cohort_in%hard_level < max_h) then
        cohort_in%hard_level = max_h
     end if    
-    
+    if(cohort_in%hard_level<-2.5_r8 )then                
+        cohort_in%hard_rate=(cohort_in%hard_level+31._r8)/28.5_r8 
+    else
+        cohort_in%hard_rate= 1._r8
+    end if
+
+
     hard_diff=hard_level_prev-Tmin
     !Calculation of the growth reducing factor
     cohort_in%hard_GRF=(1.0_r8/(1.0_r8+exp(b*(hard_diff-LT50))))

@@ -535,7 +535,7 @@ contains
        cohort_hydr%th_ag(k) = wrf_plant(site_hydr%pm_node(k),ft)%p%th_from_psi(cohort_hydr%psi_ag(k))
        cohort_hydr%ftc_ag(k) = wkf_plant(site_hydr%pm_node(k),ft)%p%ftc_from_psi(cohort_hydr%psi_ag(k))
     end do
-
+    
     cohort_hydr%errh2o_growturn_ag(:)    = 0.0_r8
     cohort_hydr%errh2o_growturn_troot    = 0.0_r8
     cohort_hydr%errh2o_growturn_aroot    = 0.0_r8
@@ -590,6 +590,7 @@ contains
     
     ! Update Psi and FTC in above-ground compartments
     ! -----------------------------------------------------------------------------------
+
     do k = 1,n_hypool_leaf
         ccohort_hydr%psi_ag(k) = wrf_plant(leaf_p_media,ft)%p%psi_from_th(ccohort_hydr%th_ag(k)) 
         ccohort_hydr%ftc_ag(k) = wkf_plant(leaf_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_ag(k))
@@ -609,6 +610,7 @@ contains
        ccohort_hydr%psi_aroot(j) = wrf_plant(aroot_p_media,ft)%p%psi_from_th(ccohort_hydr%th_aroot(j)) 
        ccohort_hydr%ftc_aroot(j) = wkf_plant(aroot_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_aroot(j))
     end do
+
 
     return
   end subroutine UpdatePlantPsiFTCFromTheta
@@ -1174,8 +1176,6 @@ contains
     do j=1,site_hydr%nlevrhiz
        ccohort_hydr%psi_aroot(j) = wrf_plant(aroot_p_media,ft)%p%psi_from_th(ccohort_hydr%th_aroot(j)) 
        ccohort_hydr%ftc_aroot(j) = wkf_plant(aroot_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_aroot(j))
-    end do
-
 
     ccohort_hydr%btran = wkf_plant(stomata_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_ag(1))
 
@@ -2887,7 +2887,7 @@ contains
     type(bc_in_type), intent(in)                 :: bc_in
     type(ed_site_hydr_type), intent(in),target   :: site_hydr
     type(ed_cohort_type), intent(in),target      :: cohort
-    type(ed_cohort_hydr_type),intent(in),target  :: cohort_hydr
+    type(ed_cohort_hydr_type),intent(inout),target  :: cohort_hydr
 
 
     ! Arguments (INOUT)
@@ -2938,11 +2938,12 @@ contains
        end if
        
        ! Get matric potential [Mpa] of the absorbing root
+
        psi_aroot = wrf_plant(aroot_p_media,ft)%p%psi_from_th(cohort_hydr%th_aroot(j))
        
        ! Get Fraction of Total Conductivity [-] of the absorbing root
        ftc_aroot = wkf_plant(aroot_p_media,ft)%p%ftc_from_psi(cohort_hydr%psi_aroot(j))
-
+      
        ! Calculate total effective conductance over path  [kg s-1 MPa-1]
        ! from absorbing root node to 1st rhizosphere shell
        r_bg = 1._r8/(kmax_aroot*ftc_aroot)
@@ -3014,7 +3015,6 @@ contains
 
     ! Arguments (IN)
     type(ed_cohort_type),intent(in),target       :: cohort
-    type(ed_cohort_hydr_type),intent(inout),target  :: cohort_hydr
     type(ed_site_hydr_type), intent(in),target   :: site_hydr
     real(r8), intent(in)                         :: dtime
     real(r8), intent(in)                         :: q_top        ! transpiration flux rate at upper boundary [kg -s]
@@ -3263,31 +3263,29 @@ contains
                 do i = 1,n_hypool_plant
 
                     ! Get matric potential [Mpa]
+                    
                     psi_node(i) = wrf_plant(pm_node(i),ft)%p%psi_from_th(th_node(i))
+
 
                     ! Get total potential [Mpa]
                     h_node(i) =  mpa_per_pa*denh2o*grav_earth*z_node(i) + psi_node(i)
 
                     ! Get Fraction of Total Conductivity [-]
                     ftc_node(i) = wkf_plant(pm_node(i),ft)%p%ftc_from_psi(psi_node(i))
+                    ftc_node(i) = ftc_node(i) * cohort%hard_rate !marius
 
                     ! deriv psi wrt theta
                     dpsi_dtheta_node(i) = wrf_plant(pm_node(i),ft)%p%dpsidth_from_th(th_node(i))
-
+                    
                     ! deriv ftc wrt psi
 
                     dftc_dpsi = wkf_plant(pm_node(i),ft)%p%dftcdpsi_from_psi(psi_node(i))
 
                     dftc_dtheta_node(i) = dftc_dpsi * dpsi_dtheta_node(i) 
-
+                    dftc_dtheta_node(i) = 0.0_r8 !marius
                     ! We have two ways to calculate radial absorbing root conductance
                     ! 1) Assume that water potential does not effect conductance
                     ! 2) The standard FTC function applies
-
-                    !if(cohort%hard_level<-2.5_r8 )then                 !Marius
-                    !   ftc_node(i)=((cohort%hard_level+30.1_r8)/27.6_r8)*ftc_node(i)
-                    !   dftc_dtheta_node(i) = 0.0_r8
-                    !end if
 
                     if(i==n_hypool_ag+2)then
                         if(no_ftc_radialk) then
@@ -3323,7 +3321,8 @@ contains
                 i_dn     = 1   ! downstream node index
                 kmax_dn  = rootfr_scaler*cohort_hydr%kmax_petiole_to_leaf
                 kmax_up  = rootfr_scaler*cohort_hydr%kmax_stem_upper(1)
-
+                kmax_dn=kmax_dn*cohort%hard_rate !marius
+                kmax_up=kmax_up*cohort%hard_rate !marius
                 call GetImTaylorKAB(kmax_up,kmax_dn,        &
                       ftc_node(i_up),ftc_node(i_dn),        & 
                       h_node(i_up),h_node(i_dn),            & 
@@ -3351,7 +3350,8 @@ contains
 
                     kmax_dn  = rootfr_scaler*cohort_hydr%kmax_stem_lower(i_dn-n_hypool_leaf)
                     kmax_up  = rootfr_scaler*cohort_hydr%kmax_stem_upper(i_up-n_hypool_leaf)
-
+                    kmax_dn=kmax_dn*cohort%hard_rate !marius
+                    kmax_up=kmax_up*cohort%hard_rate !marius
                     call GetImTaylorKAB(kmax_up,kmax_dn,        &
                           ftc_node(i_up),ftc_node(i_dn),        & 
                           h_node(i_up),h_node(i_dn),            & 
@@ -3371,7 +3371,8 @@ contains
                 i_dn  = j
                 kmax_dn  = rootfr_scaler*cohort_hydr%kmax_stem_lower(n_hypool_stem)
                 kmax_up  = rootfr_scaler*cohort_hydr%kmax_troot_upper
-
+                kmax_dn=kmax_dn*cohort%hard_rate !marius
+                kmax_up=kmax_up*cohort%hard_rate !marius
                 call GetImTaylorKAB(kmax_up,kmax_dn,        &
                       ftc_node(i_up),ftc_node(i_dn),        & 
                       h_node(i_up),h_node(i_dn),            & 
@@ -3391,7 +3392,8 @@ contains
                 i_dn    = j
                 kmax_dn = cohort_hydr%kmax_troot_lower(ilayer) 
                 kmax_up = cohort_hydr%kmax_aroot_upper(ilayer)
-
+                kmax_dn=kmax_dn*cohort%hard_rate !marius
+                kmax_up=kmax_up*cohort%hard_rate !marius
                 call GetImTaylorKAB(kmax_up,kmax_dn,        &
                       ftc_node(i_up),ftc_node(i_dn),        & 
                       h_node(i_up),h_node(i_dn),            & 
@@ -3417,20 +3419,12 @@ contains
                     kmax_dn = 1._r8/(1._r8/cohort_hydr%kmax_aroot_lower(ilayer) + & 
                               1._r8/cohort_hydr%kmax_aroot_radial_out(ilayer))
                 end if
+                kmax_dn=kmax_dn*cohort%hard_rate !marius
 
-                if(cohort%hard_level<-2.5_r8 )then                 !Marius
-                   kmax_dn=((cohort%hard_level+30.1_r8)/27.6_r8)*kmax_dn
-                end if
 
                 kmax_up = site_hydr%kmax_upper_shell(ilayer,1)*aroot_frac_plant
+                kmax_up=kmax_up*cohort%hard_rate !marius
 
-                !if(cohort%hard_level<-2.5_r8 )then                 !Marius
-                !   kmax_up=((cohort%hard_level+30.1_r8)/27.6_r8)*kmax_up
-                !end if
-
-                !if(cohort%hard_level<-2.5_r8 .and. jj==1 .and. istep==1)then                 !Marius
-                !   write(fates_log(),*) 'kup',kmax_up,'kdn',kmax_dn,'fup',ftc_node(i_up),'fdn',ftc_node(i_dn)
-                !end if
                 call GetImTaylorKAB(kmax_up,kmax_dn,        &
                       ftc_node(i_up),ftc_node(i_dn),        & 
                       h_node(i_up),h_node(i_dn),            & 
@@ -3439,9 +3433,6 @@ contains
                       k_eff(j),                         &
                       A_term(j),                        & 
                       B_term(j))
-                !if(cohort%hard_level<-2.5_r8 .and. jj==1 .and. istep==1)then                 !Marius
-                !    write(fates_log(),*) 'k_eff',k_eff
-                !end if
                 ! Path is between rhizosphere shells
 
                 do j = n_hypool_ag+3,n_hypool_tot-1
@@ -3701,7 +3692,6 @@ contains
     integer, intent(in)                         :: ilayer           ! soil layer index of interest
     real(r8), intent(in)                        :: z_node(:)        ! elevation of nodes
     real(r8), intent(in)                        :: v_node(:)        ! volume of nodes
-    real(r8), intent(in)                        :: th_node(:)       ! water content of node
     real(r8), intent(in)                        :: dt_step          ! time [seconds] over-which to calculate solution
     real(r8), intent(in)                        :: q_top_eff        ! transpiration flux rate at upper boundary [kg -s]
     real(r8), intent(in)                        :: w_tot_beg        ! total water mass at beginning of step [kg]
