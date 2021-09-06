@@ -1176,6 +1176,7 @@ contains
     do j=1,site_hydr%nlevrhiz
        ccohort_hydr%psi_aroot(j) = wrf_plant(aroot_p_media,ft)%p%psi_from_th(ccohort_hydr%th_aroot(j)) 
        ccohort_hydr%ftc_aroot(j) = wkf_plant(aroot_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_aroot(j))
+    end do
 
     ccohort_hydr%btran = wkf_plant(stomata_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_ag(1))
 
@@ -3282,7 +3283,9 @@ contains
                     dftc_dpsi = wkf_plant(pm_node(i),ft)%p%dftcdpsi_from_psi(psi_node(i))
 
                     dftc_dtheta_node(i) = dftc_dpsi * dpsi_dtheta_node(i) 
-                    dftc_dtheta_node(i) = 0.0_r8 !marius
+                    if(cohort_in%hard_level<-2.5_r8 )then  !marius
+                        dftc_dtheta_node(i) = 0.0_r8
+                    end if
                     ! We have two ways to calculate radial absorbing root conductance
                     ! 1) Assume that water potential does not effect conductance
                     ! 2) The standard FTC function applies
