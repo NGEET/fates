@@ -3016,6 +3016,7 @@ contains
 
     ! Arguments (IN)
     type(ed_cohort_type),intent(in),target       :: cohort
+    type(ed_cohort_hydr_type),intent(inout),target :: ccohort_hydr 
     type(ed_site_hydr_type), intent(in),target   :: site_hydr
     real(r8), intent(in)                         :: dtime
     real(r8), intent(in)                         :: q_top        ! transpiration flux rate at upper boundary [kg -s]
