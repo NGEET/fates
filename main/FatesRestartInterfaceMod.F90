@@ -36,6 +36,7 @@ module FatesRestartInterfaceMod
   use FatesLitterMod,          only : litter_type
   use FatesLitterMod,          only : ncwd
   use FatesLitterMod,          only : ndcmpy
+  use EDTypesMod,              only : nfsc
   use PRTGenericMod,           only : prt_global
   use PRTGenericMod,           only : num_elements
 
@@ -174,6 +175,8 @@ module FatesRestartInterfaceMod
   integer :: ir_lfines_frag_litt
   integer :: ir_rfines_frag_litt
 
+  integer :: ir_scorch_ht_pa_pft
+  integer :: ir_litter_moisture_pa_nfsc
 
   ! Site level
   integer :: ir_watermem_siwm
@@ -920,6 +923,13 @@ contains
          long_name='are of the ED patch', units='m2', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_area_pa )
 
+    call this%set_restart_var(vname='fates_scorch_ht_pa_pft', vtype=cohort_r8, &
+         long_name='scorch height', units='m', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_scorch_ht_pa_pft)
+
+    call this%set_restart_var(vname='fates_litter_moisture_pa_nfsc', vtype=cohort_r8, &
+         long_name='scorch height', units='m', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_litter_moisture_pa_nfsc)
 
     ! Site Level Diagnostics over multiple nutrients
 
@@ -1974,6 +1984,18 @@ contains
                       ,io_idx_co,cohortsperpatch
              endif
 
+             io_idx_pa_pft  = io_idx_co_1st
+             do i = 1,numpft
+                this%rvars(ir_scorch_ht_pa_pft)%r81d(io_idx_pa_pft) = cpatch%scorch_ht(i)
+                io_idx_pa_pft      = io_idx_pa_pft + 1
+             end do
+
+             io_idx_pa_cwd  = io_idx_co_1st
+             do i = 1,nfsc
+                this%rvars(ir_litter_moisture_pa_nfsc)%r81d(io_idx_pa_cwd) = cpatch%litter_moisture(i)
+                io_idx_pa_cwd      = io_idx_pa_cwd + 1
+             end do
+
              ! --------------------------------------------------------------------------
              ! Send litter to the restart arrays
              ! Each element has its own variable, so we have to make sure
@@ -2760,6 +2782,18 @@ contains
                 write(fates_log(),*) 'CVTL III ' &
                      ,io_idx_co,cohortsperpatch
              endif
+
+             io_idx_pa_pft  = io_idx_co_1st
+             do i = 1,numpft
+                cpatch%scorch_ht(i) = this%rvars(ir_scorch_ht_pa_pft)%r81d(io_idx_pa_pft)
+                io_idx_pa_pft      = io_idx_pa_pft + 1
+             end do
+
+             io_idx_pa_cwd  = io_idx_co_1st
+             do i = 1,nfsc
+                cpatch%litter_moisture(i) = this%rvars(ir_litter_moisture_pa_nfsc)%r81d(io_idx_pa_cwd)
+                io_idx_pa_cwd      = io_idx_pa_cwd + 1
+             end do
 
              ! --------------------------------------------------------------------------
              ! Pull litter from the restart arrays
