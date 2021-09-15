@@ -774,7 +774,7 @@ contains
          long_name='fates cohort- daily ammonium [NH4] uptake', &
          units='kg/plant/day', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_nh4_uptake_co )
-    
+
     call this%set_restart_var(vname='fates_daily_no3_uptake', vtype=cohort_r8, &
          long_name='fates cohort- daily ammonium [NO3] uptake', &
          units='kg/plant/day', flushval = flushzero, &
@@ -976,7 +976,7 @@ contains
            long_name_base='seed bank fragmentation flux (germinated)',  &
            units='kg/m2', veclength=num_elements, flushval = flushzero, &
            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seedgerm_decay_litt)
-    
+
     call this%RegisterCohortVector(symbol_base='fates_ag_cwd_frag', vtype=cohort_r8, &
             long_name_base='above ground CWD frag flux',  &
             units='kg/m2/day', veclength=num_elements, flushval = flushzero, &
@@ -1132,7 +1132,7 @@ contains
             units='kg/indiv', flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hydro_errh2o )
 
-       
+
     end if
 
 
@@ -1752,7 +1752,7 @@ contains
           io_idx_pa_ib   = io_idx_co_1st
           io_idx_si_wmem = io_idx_co_1st
           io_idx_si_vtmem = io_idx_co_1st
-
+          io_idx_pa_ncl   = io_idx_co_1st
 
           ! Hydraulics counters  lyr = hydraulic layer, shell = rhizosphere shell
           io_idx_si_lyr_shell = io_idx_co_1st
@@ -2009,7 +2009,6 @@ contains
                  io_idx_pa_cwsl = io_idx_co_1st
                  io_idx_pa_dcsl = io_idx_co_1st
                  io_idx_pa_dc   = io_idx_co_1st
-                 io_idx_pa_ncl   = io_idx_co_1st
 
                  litt => cpatch%litter(el+1)
 
@@ -2179,7 +2178,7 @@ contains
 
    ! ====================================================================================
 
-   subroutine create_patchcohort_structure(this, nc, nsites, sites, bc_in, bc_out) 
+   subroutine create_patchcohort_structure(this, nc, nsites, sites, bc_in, bc_out)
 
      ! ----------------------------------------------------------------------------------
      ! This subroutine takes a peak at the restart file to determine how to allocate
@@ -2493,7 +2492,7 @@ contains
           rio_hmort_co                => this%rvars(ir_hmort_co)%r81d, &
           rio_cmort_co                => this%rvars(ir_cmort_co)%r81d, &
           rio_daily_nh4_uptake_co     => this%rvars(ir_daily_nh4_uptake_co)%r81d, &
-          rio_daily_no3_uptake_co     => this%rvars(ir_daily_no3_uptake_co)%r81d, & 
+          rio_daily_no3_uptake_co     => this%rvars(ir_daily_no3_uptake_co)%r81d, &
           rio_daily_p_uptake_co       => this%rvars(ir_daily_p_uptake_co)%r81d, &
           rio_daily_c_efflux_co       => this%rvars(ir_daily_c_efflux_co)%r81d, &
           rio_daily_n_efflux_co       => this%rvars(ir_daily_n_efflux_co)%r81d, &
