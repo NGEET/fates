@@ -3627,7 +3627,8 @@ end subroutine flush_hvars
                   ! scale cohorts to mean quantity
                   number_fraction = (ccohort%n / ncohort_scpf(iscpf))
                   number_fraction_pft = (ccohort%n / ncohort_pft(ipft)) !marius
-                  
+                  !write(fates_log(),*) 'check1',ccohort%n,ncohort_pft(ipft)
+                  !write(fates_log(),*) 'check2',ccohort%hard_level ,hio_hard_level_pft(io_si,ipft)
                   hio_errh2o_scpf(io_si,iscpf) = hio_errh2o_scpf(io_si,iscpf) + &
                         ccohort_hydr%errh2o * number_fraction_rate ! [kg/indiv/s]
                   
@@ -3704,7 +3705,6 @@ end subroutine flush_hvars
 
       		  hio_hard_GRF_pft(io_si,ipft)   =  hio_hard_GRF_pft(io_si,ipft) + &
                         ccohort%hard_GRF * number_fraction_pft !marius
-
                endif
                
                ccohort => ccohort%taller
@@ -5335,12 +5335,12 @@ end subroutine flush_hvars
        
        call this%set_history_var(vname='HARDINESS',  units='°C',            &
             long='Hardiness level of vegetation', use_default='active',       &
-            avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=4, & !marius
+            avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=4, & !marius
             ivar=ivar, initialize=initialize_variables, index = ih_hard_level_pft)
 
        call this%set_history_var(vname='HARD_GRF',  units='-',            &
             long='Growth reducing factor fram hardiness', use_default='active',       &
-            avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=4, & !marius
+            avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=4, & !marius
             ivar=ivar, initialize=initialize_variables, index = ih_hard_GRF_pft )
  
        call this%set_history_var(vname='FATES_ERRH2O_SCPF', units='kg/indiv/s', &

@@ -15,6 +15,7 @@ module EDMainMod
   use FatesInterfaceMod        , only : hlm_current_month
   use FatesInterfaceMod        , only : hlm_current_day 
   use FatesInterfaceMod        , only : hlm_use_planthydro 
+  use FatesInterfaceMod        , only : hlm_use_hardening !marius
   use FatesInterfaceMod        , only : hlm_use_cohort_age_tracking
   use FatesInterfaceMod        , only : hlm_reference_date
   use FatesInterfaceMod        , only : hlm_use_ed_prescribed_phys
@@ -345,8 +346,9 @@ contains
 
           ! Calculate the mortality derivatives
           call Mortality_Derivative( currentSite, currentCohort, bc_in )
-	  call Hardening_scheme( currentSite, currentPatch, currentCohort, bc_in ) !hard_level and hard_GRF will be updated, ED_ecosystem_dynamics is called once a day at beginning of day Marius
-
+          if (hlm_use_hardening.eq.itrue) then
+	      call Hardening_scheme( currentSite, currentPatch, currentCohort, bc_in ) !hard_level and hard_GRF will be updated, ED_ecosystem_dynamics is called once a day at beginning of day Marius
+          endif
           ! -----------------------------------------------------------------------------
           ! Apply Plant Allocation and Reactive Transport
           ! -----------------------------------------------------------------------------

@@ -130,6 +130,10 @@ module FatesInterfaceMod
                                                        ! plant hydraulics (bchristo/xu methods)
                                                        ! 1 = TRUE, 0 = FALSE
                                                        ! THIS IS CURRENTLY NOT SUPPORTED 
+   integer, public, protected :: hlm_use_hardening     ! This flag signals whether or not to use
+                                                       ! plant hardening (bchristo/xu methods)
+                                                       ! 1 = TRUE, 0 = FALSE
+                                                       ! THIS IS CURRENTLY NOT SUPPORTED marius
 
    integer, public, protected :: hlm_use_cohort_age_tracking ! This flag signals whether or not to use
                                                              ! cohort age tracking. 1 = TRUE, 0 = FALSE
@@ -1527,6 +1531,19 @@ contains
                write(fates_log(), *) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
          end if
 
+         if (  .not.((hlm_use_hardening.eq.1).or.(hlm_use_hardening.eq.0))    ) then !marius
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'The FATES namelist hardening flag must be 0 or 1, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         elseif (hlm_use_hardening.eq.1 ) then
+               write(fates_log(), *) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+               write(fates_log(), *) ''
+               write(fates_log(), *) ' use_fates_hardening is an      EXPERIMENTAL FEATURE        '
+               write(fates_log(), *) ''
+               write(fates_log(), *) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+         end if
+
          if ( .not.((hlm_use_logging .eq.1).or.(hlm_use_logging.eq.0))    ) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'The FATES namelist use_logging flag must be 0 or 1, exiting'
@@ -1768,6 +1785,12 @@ contains
                hlm_use_planthydro = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_planthydro= ',ival,' to FATES'
+               end if
+
+            case('use_hardening') !marius
+               hlm_use_hardening = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_hardening= ',ival,' to FATES'
                end if
 
             case('use_cohort_age_tracking')

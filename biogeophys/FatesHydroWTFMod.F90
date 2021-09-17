@@ -759,10 +759,9 @@ contains
             (th-(max_sf_interp*(this%th_sat-this%th_res)+this%th_res))
        
     elseif(satfrac<min_sf_interp) then
-       
        psi = this%psi_min + this%dpsidth_min * &
               (th-(min_sf_interp*(this%th_sat-this%th_res)+this%th_res))
-       
+       !write(fates_log(),*) 'CHECK1 :', psi, satfrac
     else
        
        th_corr = th * this%cap_corr

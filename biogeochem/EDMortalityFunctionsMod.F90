@@ -334,13 +334,14 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     end if
 
     !Calculation of the dehardening rate
-    if (Tmean <= 4_r8) then
+    if (Tmean <= 0_r8) then
        rate_dh=0.0_r8
-    else if (Tmean >= 16.0_r8) then
+    else if (Tmean >= 15.0_r8) then
        rate_dh=5.0_r8
     else
        !rate_dh=(0.3703704_r8*Tmean - 1.296296_r8) 
-       rate_dh =-5._r8+15._r8/(1._r8+exp(-0.1_r8*(Tmean-10._r8))) 
+       !rate_dh =-5._r8+15._r8/(1._r8+exp(-0.1_r8*(Tmean-10._r8))) 
+        rate_dh = 0.333333_r8*Tmean
     end if
  
     !================================================    
@@ -349,7 +350,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     gdd_threshold = ED_val_phen_a + ED_val_phen_b*exp(ED_val_phen_c*real(currentSite%nchilldays,r8))
     if (currentSite%grow_deg_days > gdd_threshold .or. (hard_level_prev + rate_dh > min_h) )  then
        cohort_in%hard_level = min_h
-    else if (bc_in%dayl_si >= bc_in%prev_dayl_si .or. (bc_in%dayl_si < bc_in%prev_dayl_si .and. bc_in%dayl_si > 63840._r8) ) then
+    else ! if (bc_in%dayl_si >= bc_in%prev_dayl_si .or. (bc_in%dayl_si < bc_in%prev_dayl_si .and. bc_in%dayl_si > 63840._r8) ) then
        if (hard_level_prev + rate_dh > min_h) then
           cohort_in%hard_level = min_h
        else if (hard_level_prev >= target_h) then
@@ -358,7 +359,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
           cohort_in%hard_level = hard_level_prev + rate_dh
        end if
     end if
-    if (bc_in%dayl_si <= 46260._r8 .and. bc_in%dayl_si < bc_in%prev_dayl_si) then
+    if (bc_in%dayl_si <= 42000._r8 .and. bc_in%dayl_si < bc_in%prev_dayl_si) then ! prev: 46260._r8
        cohort_in%hard_level = hard_level_prev - rate_h
     end if
     if (cohort_in%hard_level > min_h) then
@@ -369,8 +370,10 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     end if    
     if(cohort_in%hard_level<-2.5_r8 )then                
         cohort_in%hard_rate=(cohort_in%hard_level+31._r8)/28.5_r8 
+    !else if (cohort_in%hard_level<-29.5_r8 ) then
+    !    cohort_in%hard_rate= 0.0001_r8
     else
-        cohort_in%hard_rate= 1._r8
+        cohort_in%hard_rate= 1.0_r8
     end if
 
 
@@ -378,7 +381,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     !Calculation of the growth reducing factor
     cohort_in%hard_GRF=(1.0_r8/(1.0_r8+exp(b*(hard_diff-LT50))))
     !write(fates_log(),*) "check1:",hlm_day_of_year,bc_in%dayl_si,bc_in%prev_dayl_si
-    !write(fates_log(),*) "check2:",cohort_in%hard_level,target_h,rate_dh,rate_h
+    !write(fates_log(),*) "check2:",cohort_in%hard_level
     return
 
   end subroutine Hardening_scheme

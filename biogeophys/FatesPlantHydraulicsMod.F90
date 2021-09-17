@@ -58,6 +58,7 @@ module FatesPlantHydraulicsMod
   use FatesInterfaceMod  , only : bc_in_type
   use FatesInterfaceMod  , only : bc_out_type
   use FatesInterfaceMod  , only : hlm_use_planthydro
+  use FatesInterfaceMod  , only : hlm_use_hardening !marius
   use FatesInterfaceMod  , only : hlm_ipedof
   use FatesInterfaceMod  , only : numpft
   use FatesInterfaceMod  , only : nlevsclass
@@ -3016,7 +3017,7 @@ contains
 
     ! Arguments (IN)
     type(ed_cohort_type),intent(in),target       :: cohort
-    type(ed_cohort_hydr_type),intent(inout),target :: ccohort_hydr 
+    type(ed_cohort_hydr_type),intent(inout),target :: cohort_hydr 
     type(ed_site_hydr_type), intent(in),target   :: site_hydr
     real(r8), intent(in)                         :: dtime
     real(r8), intent(in)                         :: q_top        ! transpiration flux rate at upper boundary [kg -s]
@@ -3274,8 +3275,9 @@ contains
 
                     ! Get Fraction of Total Conductivity [-]
                     ftc_node(i) = wkf_plant(pm_node(i),ft)%p%ftc_from_psi(psi_node(i))
-                    ftc_node(i) = ftc_node(i) * cohort%hard_rate !marius
-
+                    if (hlm_use_hardening.eq.itrue) then
+                       ftc_node(i) = ftc_node(i) * cohort%hard_rate !marius
+                    endif
                     ! deriv psi wrt theta
                     dpsi_dtheta_node(i) = wrf_plant(pm_node(i),ft)%p%dpsidth_from_th(th_node(i))
                     
@@ -3284,9 +3286,7 @@ contains
                     dftc_dpsi = wkf_plant(pm_node(i),ft)%p%dftcdpsi_from_psi(psi_node(i))
 
                     dftc_dtheta_node(i) = dftc_dpsi * dpsi_dtheta_node(i) 
-                    if(cohort_in%hard_level<-2.5_r8 )then  !marius
-                        dftc_dtheta_node(i) = 0.0_r8
-                    end if
+
                     ! We have two ways to calculate radial absorbing root conductance
                     ! 1) Assume that water potential does not effect conductance
                     ! 2) The standard FTC function applies
@@ -3325,8 +3325,10 @@ contains
                 i_dn     = 1   ! downstream node index
                 kmax_dn  = rootfr_scaler*cohort_hydr%kmax_petiole_to_leaf
                 kmax_up  = rootfr_scaler*cohort_hydr%kmax_stem_upper(1)
-                kmax_dn=kmax_dn*cohort%hard_rate !marius
-                kmax_up=kmax_up*cohort%hard_rate !marius
+                if (hlm_use_hardening.eq.itrue) then
+                   kmax_dn=kmax_dn*cohort%hard_rate !marius
+                   kmax_up=kmax_up*cohort%hard_rate !marius
+                endif
                 call GetImTaylorKAB(kmax_up,kmax_dn,        &
                       ftc_node(i_up),ftc_node(i_dn),        & 
                       h_node(i_up),h_node(i_dn),            & 
@@ -3354,8 +3356,10 @@ contains
 
                     kmax_dn  = rootfr_scaler*cohort_hydr%kmax_stem_lower(i_dn-n_hypool_leaf)
                     kmax_up  = rootfr_scaler*cohort_hydr%kmax_stem_upper(i_up-n_hypool_leaf)
-                    kmax_dn=kmax_dn*cohort%hard_rate !marius
-                    kmax_up=kmax_up*cohort%hard_rate !marius
+                    if (hlm_use_hardening.eq.itrue) then
+                       kmax_dn=kmax_dn*cohort%hard_rate !marius
+                       kmax_up=kmax_up*cohort%hard_rate !marius
+                    endif
                     call GetImTaylorKAB(kmax_up,kmax_dn,        &
                           ftc_node(i_up),ftc_node(i_dn),        & 
                           h_node(i_up),h_node(i_dn),            & 
@@ -3375,8 +3379,10 @@ contains
                 i_dn  = j
                 kmax_dn  = rootfr_scaler*cohort_hydr%kmax_stem_lower(n_hypool_stem)
                 kmax_up  = rootfr_scaler*cohort_hydr%kmax_troot_upper
-                kmax_dn=kmax_dn*cohort%hard_rate !marius
-                kmax_up=kmax_up*cohort%hard_rate !marius
+                if (hlm_use_hardening.eq.itrue) then
+                   kmax_dn=kmax_dn*cohort%hard_rate !marius
+                   kmax_up=kmax_up*cohort%hard_rate !marius
+                endif
                 call GetImTaylorKAB(kmax_up,kmax_dn,        &
                       ftc_node(i_up),ftc_node(i_dn),        & 
                       h_node(i_up),h_node(i_dn),            & 
@@ -3396,8 +3402,10 @@ contains
                 i_dn    = j
                 kmax_dn = cohort_hydr%kmax_troot_lower(ilayer) 
                 kmax_up = cohort_hydr%kmax_aroot_upper(ilayer)
-                kmax_dn=kmax_dn*cohort%hard_rate !marius
-                kmax_up=kmax_up*cohort%hard_rate !marius
+                if (hlm_use_hardening.eq.itrue) then
+                   kmax_dn=kmax_dn*cohort%hard_rate !marius
+                   kmax_up=kmax_up*cohort%hard_rate !marius
+                endif
                 call GetImTaylorKAB(kmax_up,kmax_dn,        &
                       ftc_node(i_up),ftc_node(i_dn),        & 
                       h_node(i_up),h_node(i_dn),            & 
@@ -3423,11 +3431,13 @@ contains
                     kmax_dn = 1._r8/(1._r8/cohort_hydr%kmax_aroot_lower(ilayer) + & 
                               1._r8/cohort_hydr%kmax_aroot_radial_out(ilayer))
                 end if
-                kmax_dn=kmax_dn*cohort%hard_rate !marius
 
 
                 kmax_up = site_hydr%kmax_upper_shell(ilayer,1)*aroot_frac_plant
-                kmax_up=kmax_up*cohort%hard_rate !marius
+                if (hlm_use_hardening.eq.itrue) then
+                   kmax_dn=kmax_dn*cohort%hard_rate !marius
+                   kmax_up=kmax_up*cohort%hard_rate !marius
+                endif
 
                 call GetImTaylorKAB(kmax_up,kmax_dn,        &
                       ftc_node(i_up),ftc_node(i_dn),        & 
@@ -3696,6 +3706,7 @@ contains
     integer, intent(in)                         :: ilayer           ! soil layer index of interest
     real(r8), intent(in)                        :: z_node(:)        ! elevation of nodes
     real(r8), intent(in)                        :: v_node(:)        ! volume of nodes
+    real(r8), intent(in)                        :: th_node(:)       ! water content of node
     real(r8), intent(in)                        :: dt_step          ! time [seconds] over-which to calculate solution
     real(r8), intent(in)                        :: q_top_eff        ! transpiration flux rate at upper boundary [kg -s]
     real(r8), intent(in)                        :: w_tot_beg        ! total water mass at beginning of step [kg]
@@ -4699,7 +4710,6 @@ contains
          ! because of the root-soil radial conductance.
 
          call SetMaxCondConnections(site_hydr, cohort_hydr, h_node, kmax_dn, kmax_up)
-         
          ! calculate boundary fluxes     
          do icnx=1,site_hydr%num_connections
 
@@ -4714,7 +4724,10 @@ contains
 
             ! This will get the effective K, and may modify FTC depending
             ! on the flow direction
-
+            if (hlm_use_hardening.eq.itrue) then
+               kmax_dn(icnx)=kmax_dn(icnx)*cohort%hard_rate !marius
+               kmax_up(icnx)=kmax_up(icnx)*cohort%hard_rate !marius
+            endif
             call GetKAndDKDPsi(kmax_dn(icnx), &
                                kmax_up(icnx), &
                                h_node(id_dn), &
