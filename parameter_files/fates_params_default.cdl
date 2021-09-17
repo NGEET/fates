@@ -1,4 +1,4 @@
-netcdf fates_params_default {
+netcdf fates_params_default.c210629_sorted {
 dimensions:
 	fates_NCWD = 4 ;
 	fates_history_age_bins = 7 ;
@@ -11,6 +11,7 @@ dimensions:
 	fates_pft = 12 ;
 	fates_prt_organs = 4 ;
 	fates_string_length = 60 ;
+	fates_hlm_pftno = 14 ;
 variables:
 	double fates_history_ageclass_bin_edges(fates_history_age_bins) ;
 		fates_history_ageclass_bin_edges:units = "yr" ;
@@ -24,15 +25,25 @@ variables:
 	double fates_history_sizeclass_bin_edges(fates_history_size_bins) ;
 		fates_history_sizeclass_bin_edges:units = "cm" ;
 		fates_history_sizeclass_bin_edges:long_name = "Lower edges for DBH size class bins used in size-resolved cohort history output" ;
+	double fates_hydr_htftype_node(fates_hydr_organs) ;
+		fates_hydr_htftype_node:units = "unitless" ;
+		fates_hydr_htftype_node:long_name = "Switch that defines the hydraulic transfer functions for each organ." ;
+		fates_hydr_htftype_node:possible_values = "1: Christofferson et al. 2016 (TFS); 2: Van Genuchten 1980" ;
+	double fates_prt_organ_id(fates_prt_organs) ;
+		fates_prt_organ_id:units = "index, unitless" ;
+		fates_prt_organ_id:long_name = "This is the global index the organ in this file is associated with in PRTGenericMod.F90" ;
 	char fates_pftname(fates_pft, fates_string_length) ;
 		fates_pftname:units = "unitless - string" ;
 		fates_pftname:long_name = "Description of plant type" ;
+	char fates_hydr_organname_node(fates_hydr_organs, fates_string_length) ;
+		fates_hydr_organname_node:units = "unitless - string" ;
+		fates_hydr_organname_node:long_name = "Name of plant hydraulics organs (DONT CHANGE, order matches media list in FatesHydraulicsMemMod.F90)" ;
+	char fates_litterclass_name(fates_litterclass, fates_string_length) ;
+		fates_litterclass_name:units = "unitless - string" ;
+		fates_litterclass_name:long_name = "Name of the litter classes, for variables associated with dimension fates_litterclass" ;
 	char fates_prt_organ_name(fates_prt_organs, fates_string_length) ;
 		fates_prt_organ_name:units = "unitless - string" ;
 		fates_prt_organ_name:long_name = "Name of plant organs (order must match PRTGenericMod.F90)" ;
-   double fates_prt_organ_id(fates_prt_organs) ;
-	   fates_prt_organ_id:units = "index, unitless" ;
-		fates_prt_organ_id:long_name = "This is the global index the organ in this file is associated with in PRTGenericMod.F90" ;
 	double fates_alloc_storage_cushion(fates_pft) ;
 		fates_alloc_storage_cushion:units = "fraction" ;
 		fates_alloc_storage_cushion:long_name = "maximum size of storage C pool, relative to maximum size of leaf C pool" ;
@@ -124,12 +135,30 @@ variables:
 		fates_allom_stmode:units = "index" ;
 		fates_allom_stmode:long_name = "storage allometry function index." ;
 		fates_allom_stmode:possible_values = "1: target storage proportional to trimmed maximum leaf biomass." ;
+	double fates_allom_zroot_k(fates_pft) ;
+		fates_allom_zroot_k:units = "unitless" ;
+		fates_allom_zroot_k:long_name = "scale coefficient of logistic rooting depth model (NOT USED)" ;
+	double fates_allom_zroot_max_dbh(fates_pft) ;
+		fates_allom_zroot_max_dbh:units = "cm" ;
+		fates_allom_zroot_max_dbh:long_name = "dbh at which a plant reaches the maximum value for its maximum rooting depth (NOT USED)" ;
+	double fates_allom_zroot_max_z(fates_pft) ;
+		fates_allom_zroot_max_z:units = "m" ;
+		fates_allom_zroot_max_z:long_name = "the maximum rooting depth defined at dbh = fates_allom_zroot_max_dbh (NOT USED). note: max_z=min_z=large, sets rooting depth to soil depth" ;
+	double fates_allom_zroot_min_dbh(fates_pft) ;
+		fates_allom_zroot_min_dbh:units = "cm" ;
+		fates_allom_zroot_min_dbh:long_name = "dbh at which the maximum rooting depth for a recruit is defined (NOT USED)" ;
+	double fates_allom_zroot_min_z(fates_pft) ;
+		fates_allom_zroot_min_z:units = "m" ;
+		fates_allom_zroot_min_z:long_name = "the maximum rooting depth defined at dbh = fates_allom_zroot_min_dbh (NOT USED) note: max_z=min_z=large, sets rooting depth to soil depth" ;
 	double fates_branch_turnover(fates_pft) ;
 		fates_branch_turnover:units = "yr" ;
 		fates_branch_turnover:long_name = "turnover time of branches" ;
 	double fates_c2b(fates_pft) ;
 		fates_c2b:units = "ratio" ;
 		fates_c2b:long_name = "Carbon to biomass multiplier of bulk structural tissues" ;
+	double fates_dev_arbitrary_pft(fates_pft) ;
+		fates_dev_arbitrary_pft:units = "unknown" ;
+		fates_dev_arbitrary_pft:long_name = "Unassociated pft dimensioned free parameter that developers can use for testing arbitrary new hypotheses" ;
 	double fates_displar(fates_pft) ;
 		fates_displar:units = "unitless" ;
 		fates_displar:long_name = "Ratio of displacement height to canopy top height" ;
@@ -211,6 +240,10 @@ variables:
 	double fates_hydr_fcap_node(fates_hydr_organs, fates_pft) ;
 		fates_hydr_fcap_node:units = "unitless" ;
 		fates_hydr_fcap_node:long_name = "fraction of non-residual water that is capillary in source" ;
+	double fates_hydr_k_lwp(fates_pft) ;
+		fates_hydr_k_lwp:units = "unitless" ;
+		fates_hydr_k_lwp:long_name = "inner leaf humidity scaling coefficient" ;
+		fates_hydr_k_lwp:possible_values = "0: turns off leaf humidity effects on conductance. 1-10 activates humidity effects" ;
 	double fates_hydr_kmax_node(fates_hydr_organs, fates_pft) ;
 		fates_hydr_kmax_node:units = "kg/MPa/m/s" ;
 		fates_hydr_kmax_node:long_name = "maximum xylem conductivity per unit conducting xylem area" ;
@@ -244,6 +277,15 @@ variables:
 	double fates_hydr_thetas_node(fates_hydr_organs, fates_pft) ;
 		fates_hydr_thetas_node:units = "cm3/cm3" ;
 		fates_hydr_thetas_node:long_name = "saturated water content" ;
+	double fates_hydr_vg_alpha_node(fates_hydr_organs, fates_pft) ;
+		fates_hydr_vg_alpha_node:units = "MPa-1" ;
+		fates_hydr_vg_alpha_node:long_name = "(used if hydr_htftype_node = 2), capillary length parameter in van Genuchten model" ;
+	double fates_hydr_vg_m_node(fates_hydr_organs, fates_pft) ;
+		fates_hydr_vg_m_node:units = "unitless" ;
+		fates_hydr_vg_m_node:long_name = "(used if hydr_htftype_node = 2),m in van Genuchten 1980 model, 2nd pore size distribution parameter" ;
+	double fates_hydr_vg_n_node(fates_hydr_organs, fates_pft) ;
+		fates_hydr_vg_n_node:units = "unitless" ;
+		fates_hydr_vg_n_node:long_name = "(used if hydr_htftype_node = 2),n in van Genuchten 1980 model, pore size distribution parameter" ;
 	double fates_leaf_c3psn(fates_pft) ;
 		fates_leaf_c3psn:units = "flag" ;
 		fates_leaf_c3psn:long_name = "Photosynthetic pathway (1=c3, 0=c4)" ;
@@ -352,6 +394,9 @@ variables:
 	double fates_nfix2(fates_pft) ;
 		fates_nfix2:units = "NA" ;
 		fates_nfix2:long_name = "place-holder for future n-fixation parameter (NOT IMPLEMENTED)" ;
+	double fates_nitr_store_ratio(fates_pft) ;
+		fates_nitr_store_ratio:units = "(gN/gN)" ;
+		fates_nitr_store_ratio:long_name = "ratio of storeable N, to functional N bound in cell structures of leaf,root,sap" ;
 	double fates_phen_cold_size_threshold(fates_pft) ;
 		fates_phen_cold_size_threshold:units = "cm" ;
 		fates_phen_cold_size_threshold:long_name = "the dbh size above which will lead to phenology-related stem and leaf drop" ;
@@ -370,6 +415,9 @@ variables:
 	double fates_phenflush_fraction(fates_pft) ;
 		fates_phenflush_fraction:units = "fraction" ;
 		fates_phenflush_fraction:long_name = "Upon bud-burst, the maximum fraction of storage carbon used for flushing leaves" ;
+	double fates_phos_store_ratio(fates_pft) ;
+		fates_phos_store_ratio:units = "(gP/gP)" ;
+		fates_phos_store_ratio:long_name = "ratio of storeable P, to functional P bound in cell structures of leaf,root,sap" ;
 	double fates_prescribed_mortality_canopy(fates_pft) ;
 		fates_prescribed_mortality_canopy:units = "1/yr" ;
 		fates_prescribed_mortality_canopy:long_name = "mortality rate of canopy trees for prescribed physiology mode" ;
@@ -383,7 +431,7 @@ variables:
 		fates_prescribed_npp_understory:units = "kgC / m^2 / yr" ;
 		fates_prescribed_npp_understory:long_name = "NPP per unit crown area of understory trees for prescribed physiology mode" ;
 	double fates_prescribed_nuptake(fates_pft) ;
-	   fates_prescribed_nuptake:units = "fraction" ;
+	    fates_prescribed_nuptake:units = "fraction" ;
 		fates_prescribed_nuptake:long_name = "Prescribed N uptake flux. 0=fully coupled simulation >0=prescribed (experimental)" ;
 	double fates_prescribed_puptake(fates_pft) ;
     	fates_prescribed_puptake:units = "fraction" ;
@@ -406,13 +454,6 @@ variables:
 	double fates_prt_phos_stoich_p2(fates_prt_organs, fates_pft) ;
 		fates_prt_phos_stoich_p2:units = "(gP/gC)" ;
 		fates_prt_phos_stoich_p2:long_name = "phosphorous stoichiometry, parameter 2" ;
-	double fates_nitr_store_ratio(fates_pft) ;	  
-		fates_nitr_store_ratio:units = "(gN/gN)" ;
-		fates_nitr_store_ratio:long_name = "ratio of storeable N, to functional N bound in cell structures of leaf,root,sap" ;
-	double fates_phos_store_ratio(fates_pft) ;	  
-		fates_phos_store_ratio:units = "(gP/gP)" ;
-		fates_phos_store_ratio:long_name = "ratio of storeable P, to functional P bound in cell structures of leaf,root,sap" ;
-		
 	double fates_recruit_hgt_min(fates_pft) ;
 		fates_recruit_hgt_min:units = "m" ;
 		fates_recruit_hgt_min:long_name = "the minimum height (ie starting height) of a newly recruited plant" ;
@@ -501,6 +542,9 @@ variables:
 	double fates_z0mr(fates_pft) ;
 		fates_z0mr:units = "unitless" ;
 		fates_z0mr:long_name = "Ratio of momentum roughness length to canopy top height" ;
+        double fates_hlm_pft_map(fates_hlm_pftno, fates_pft) ;
+                fates_hlm_pft_map:units = "area fraction" ;
+                fates_hlm_pft_map:long_name = "In fixed biogeog mode, fraction of HLM area associated with each FATES PFT" ;
 	double fates_fire_FBD(fates_litterclass) ;
 		fates_fire_FBD:units = "kg Biomass/m3" ;
 		fates_fire_FBD:long_name = "fuel bulk density" ;
@@ -552,6 +596,9 @@ variables:
 	double fates_cwd_flig ;
 		fates_cwd_flig:units = "unitless" ;
 		fates_cwd_flig:long_name = "Lignin fraction of coarse woody debris" ;
+	double fates_dev_arbitrary ;
+		fates_dev_arbitrary:units = "unknown" ;
+		fates_dev_arbitrary:long_name = "Unassociated free parameter that developers can use for testing arbitrary new hypotheses" ;
 	double fates_eca_plant_escalar ;
 		fates_eca_plant_escalar:units = "" ;
 		fates_eca_plant_escalar:long_name = "scaling factor for plant fine root biomass to calculate nutrient carrier enzyme abundance (ECA)" ;
@@ -642,6 +689,9 @@ variables:
 	double fates_logging_mechanical_frac ;
 		fates_logging_mechanical_frac:units = "fraction" ;
 		fates_logging_mechanical_frac:long_name = "Fraction of stems killed due infrastructure an other mechanical means" ;
+	double fates_maintresp_model ;
+		fates_maintresp_model:units = "unitless" ;
+		fates_maintresp_model:long_name = "switch for choosing between maintenance respiration models. 1=Ryan (1991) (NOT USED)" ;
 	double fates_mort_disturb_frac ;
 		fates_mort_disturb_frac:units = "fraction" ;
 		fates_mort_disturb_frac:long_name = "fraction of canopy mortality that results in disturbance (i.e. transfer of area from new to old patch)" ;
@@ -678,6 +728,12 @@ variables:
 	double fates_phen_ncolddayslim ;
 		fates_phen_ncolddayslim:units = "days" ;
 		fates_phen_ncolddayslim:long_name = "day threshold exceedance for temperature leaf-drop" ;
+	double fates_photo_temp_acclim_timescale ;
+		fates_photo_temp_acclim_timescale:units = "days" ;
+		fates_photo_temp_acclim_timescale:long_name = "Length of the window for the exponential moving average (ema) of vegetation temperature used in photosynthesis temperature acclimation (NOT USED)" ;
+	double fates_photo_tempsens_model ;
+		fates_photo_tempsens_model:units = "unitless" ;
+		fates_photo_tempsens_model:long_name = "switch for choosing the model that defines the temperature sensitivity of photosynthetic parameters (vcmax, jmax). 1=non-acclimating (NOT USED)" ;
 	double fates_q10_froz ;
 		fates_q10_froz:units = "unitless" ;
 		fates_q10_froz:long_name = "Q10 for frozen-soil respiration rates" ;
@@ -687,12 +743,18 @@ variables:
 	double fates_soil_salinity ;
 		fates_soil_salinity:units = "ppt" ;
 		fates_soil_salinity:long_name = "soil salinity used for model when not coupled to dynamic soil salinity" ;
+	double fates_theta_cj_c3 ;
+		fates_theta_cj_c3:units = "unitless" ;
+		fates_theta_cj_c3:long_name = "Empirical curvature parameter for ac, aj photosynthesis co-limitation in c3 plants" ;
+	double fates_theta_cj_c4 ;
+		fates_theta_cj_c4:units = "unitless" ;
+		fates_theta_cj_c4:long_name = "Empirical curvature parameter for ac, aj photosynthesis co-limitation in c4 plants" ;
 	double fates_vai_top_bin_width ;
-		fates_vai_top_bin_width:units = "unitless" ;
-		fates_vai_top_bin_width:long_name = "width in VAI units of uppermost leaf+stem layer scattering element in each canopy layer" ;
+		fates_vai_top_bin_width:units = "m2/m2" ;
+		fates_vai_top_bin_width:long_name = "width in VAI units of uppermost leaf+stem layer scattering element in each canopy layer (NOT USED)" ;
 	double fates_vai_width_increase_factor ;
 		fates_vai_width_increase_factor:units = "unitless" ;
-		fates_vai_width_increase_factor:long_name = "factor by which each leaf+stem scattering element increases in VAI width (1 = uniform spacing)" ;
+		fates_vai_width_increase_factor:long_name = "factor by which each leaf+stem scattering element increases in VAI width (1 = uniform spacing) (NOT USED)" ;
 
 // global attributes:
 		:history = "This parameter file is maintained in version control\nSee https://github.com/NGEET/fates/blob/master/parameter_files/fates_params_default.cdl \nFor changes, use git blame \n" ;
@@ -704,8 +766,12 @@ data:
 
  fates_history_height_bin_edges = 0, 0.1, 0.3, 1, 3, 10 ;
 
- fates_history_sizeclass_bin_edges = 0, 5, 10, 15, 20, 30, 40, 50, 60, 70, 
+ fates_history_sizeclass_bin_edges = 0, 5, 10, 15, 20, 30, 40, 50, 60, 70,
     80, 90, 100 ;
+
+ fates_hydr_htftype_node = 1, 1, 1, 1 ;
+
+ fates_prt_organ_id = 1, 2, 3, 6 ;
 
  fates_pftname =
   "broadleaf_evergreen_tropical_tree          ",
@@ -721,30 +787,42 @@ data:
   "cool_c3_grass                              ",
   "c4_grass                                   " ;
 
+ fates_hydr_organname_node =
+  "leaf                                             ",
+  "stem                                             ",
+  "transporting root                                ",
+  "absorbing root                                   " ;
+
+ fates_litterclass_name =
+  "twig                                             ",
+  "small branch                                     ",
+  "large branch                                     ",
+  "trunk                                            ",
+  "dead leaves                                      ",
+  "live grass                                       " ;
+
  fates_prt_organ_name =
   "leaf                                             ",
   "fine root                                        ",
   "sapwood                                          ",
   "structure                                        " ;
 
- fates_prt_organ_id = 1, 2, 3, 6 ;
-
- fates_alloc_storage_cushion = 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 
+ fates_alloc_storage_cushion = 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2,
     1.2, 1.2, 1.2 ;
 
- fates_allom_agb1 = 0.06896, 0.06896, 0.06896, 0.06896, 0.06896, 0.06896, 
+ fates_allom_agb1 = 0.06896, 0.06896, 0.06896, 0.06896, 0.06896, 0.06896,
     0.06896, 0.06896, 0.06896, 0.01, 0.01, 0.01 ;
 
- fates_allom_agb2 = 0.572, 0.572, 0.572, 0.572, 0.572, 0.572, 0.572, 0.572, 
+ fates_allom_agb2 = 0.572, 0.572, 0.572, 0.572, 0.572, 0.572, 0.572, 0.572,
     0.572, 0.572, 0.572, 0.572 ;
 
- fates_allom_agb3 = 1.94, 1.94, 1.94, 1.94, 1.94, 1.94, 1.94, 1.94, 1.94, 
+ fates_allom_agb3 = 1.94, 1.94, 1.94, 1.94, 1.94, 1.94, 1.94, 1.94, 1.94,
     1.94, 1.94, 1.94 ;
 
- fates_allom_agb4 = 0.931, 0.931, 0.931, 0.931, 0.931, 0.931, 0.931, 0.931, 
+ fates_allom_agb4 = 0.931, 0.931, 0.931, 0.931, 0.931, 0.931, 0.931, 0.931,
     0.931, 0.931, 0.931, 0.931 ;
 
- fates_allom_agb_frac = 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 
+ fates_allom_agb_frac = 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6,
     0.6, 0.6 ;
 
  fates_allom_amode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
@@ -753,30 +831,30 @@ data:
 
  fates_allom_cmode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
- fates_allom_d2bl1 = 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 
+ fates_allom_d2bl1 = 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07,
     0.07, 0.07, 0.07 ;
 
- fates_allom_d2bl2 = 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 
+ fates_allom_d2bl2 = 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3,
     1.3 ;
 
- fates_allom_d2bl3 = 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 
+ fates_allom_d2bl3 = 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55,
     0.55, 0.55, 0.55 ;
 
- fates_allom_d2ca_coefficient_max = 0.6568464, 0.6568464, 0.6568464, 
-    0.6568464, 0.6568464, 0.6568464, 0.6568464, 0.6568464, 0.6568464, 
+ fates_allom_d2ca_coefficient_max = 0.6568464, 0.6568464, 0.6568464,
+    0.6568464, 0.6568464, 0.6568464, 0.6568464, 0.6568464, 0.6568464,
     0.6568464, 0.6568464, 0.6568464 ;
 
- fates_allom_d2ca_coefficient_min = 0.3381119, 0.3381119, 0.3381119, 
-    0.3381119, 0.3381119, 0.3381119, 0.3381119, 0.3381119, 0.3381119, 
+ fates_allom_d2ca_coefficient_min = 0.3381119, 0.3381119, 0.3381119,
+    0.3381119, 0.3381119, 0.3381119, 0.3381119, 0.3381119, 0.3381119,
     0.3381119, 0.3381119, 0.3381119 ;
 
- fates_allom_d2h1 = 0.64, 0.64, 0.64, 0.64, 0.64, 0.64, 0.64, 0.64, 0.64, 
+ fates_allom_d2h1 = 0.64, 0.64, 0.64, 0.64, 0.64, 0.64, 0.64, 0.64, 0.64,
     0.64, 0.64, 0.64 ;
 
- fates_allom_d2h2 = 0.37, 0.37, 0.37, 0.37, 0.37, 0.37, 0.37, 0.37, 0.37, 
+ fates_allom_d2h2 = 0.37, 0.37, 0.37, 0.37, 0.37, 0.37, 0.37, 0.37, 0.37,
     0.37, 0.37, 0.37 ;
 
- fates_allom_d2h3 = -999.9, -999.9, -999.9, -999.9, -999.9, -999.9, -999.9, 
+ fates_allom_d2h3 = -999.9, -999.9, -999.9, -999.9, -999.9, -999.9, -999.9,
     -999.9, -999.9, -999.9, -999.9, -999.9 ;
 
  fates_allom_dbh_maxheight = 90, 90, 90, 90, 90, 90, 3, 3, 2, 0.35, 0.35, 0.35 ;
@@ -789,37 +867,52 @@ data:
 
  fates_allom_l2fr = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
- fates_allom_la_per_sa_int = 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 
+ fates_allom_la_per_sa_int = 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8,
     0.8, 0.8, 0.8 ;
 
  fates_allom_la_per_sa_slp = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
  fates_allom_lmode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
- fates_allom_sai_scaler = 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 
+ fates_allom_sai_scaler = 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
     0.1, 0.1 ;
 
  fates_allom_smode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
  fates_allom_stmode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
+ fates_allom_zroot_k = 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10 ;
+
+ fates_allom_zroot_max_dbh = 100, 100, 100, 100, 100, 100, 2, 2, 2, 2, 2, 2 ;
+
+ fates_allom_zroot_max_z = 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
+    100, 100 ;
+
+ fates_allom_zroot_min_dbh = 1, 1, 1, 2.5, 2.5, 2.5, 0.1, 0.1, 0.1, 0.1, 0.1,
+    0.1 ;
+
+ fates_allom_zroot_min_z = 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
+    100, 100 ;
+
  fates_branch_turnover = 150, 150, 150, 150, 150, 150, 150, 150, 150, 0, 0, 0 ;
 
  fates_c2b = 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ;
 
- fates_displar = 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 
+ fates_dev_arbitrary_pft = _, _, _, _, _, _, _, _, _, _, _, _ ;
+
+ fates_displar = 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 0.67,
     0.67, 0.67 ;
 
- fates_eca_alpha_ptase = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
+ fates_eca_alpha_ptase = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
     0.5, 0.5 ;
 
- fates_eca_decompmicc = 280, 280, 280, 280, 280, 280, 280, 280, 280, 280, 
+ fates_eca_decompmicc = 280, 280, 280, 280, 280, 280, 280, 280, 280, 280,
     280, 280 ;
 
- fates_eca_km_nh4 = 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 
+ fates_eca_km_nh4 = 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 0.14,
     0.14, 0.14, 0.14 ;
 
- fates_eca_km_no3 = 0.27, 0.27, 0.27, 0.27, 0.27, 0.27, 0.27, 0.27, 0.27, 
+ fates_eca_km_no3 = 0.27, 0.27, 0.27, 0.27, 0.27, 0.27, 0.27, 0.27, 0.27,
     0.27, 0.27, 0.27 ;
 
  fates_eca_km_p = 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1 ;
@@ -828,28 +921,28 @@ data:
 
  fates_eca_lambda_ptase = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
- fates_eca_vmax_nh4 = 1.5e-07, 1.5e-07, 1.5e-07, 1.5e-07, 1.5e-07, 1.5e-07, 
+ fates_eca_vmax_nh4 = 1.5e-07, 1.5e-07, 1.5e-07, 1.5e-07, 1.5e-07, 1.5e-07,
     1.5e-07, 1.5e-07, 1.5e-07, 1.5e-07, 1.5e-07, 1.5e-07 ;
 
- fates_eca_vmax_no3 = 1.5e-08, 1.5e-08, 1.5e-08, 1.5e-08, 1.5e-08, 1.5e-08, 
+ fates_eca_vmax_no3 = 1.5e-08, 1.5e-08, 1.5e-08, 1.5e-08, 1.5e-08, 1.5e-08,
     1.5e-08, 1.5e-08, 1.5e-08, 1.5e-08, 1.5e-08, 1.5e-08 ;
 
- fates_eca_vmax_p = 1.5e-09, 1.5e-09, 1.5e-09, 1.5e-09, 1.5e-09, 1.5e-09, 
+ fates_eca_vmax_p = 1.5e-09, 1.5e-09, 1.5e-09, 1.5e-09, 1.5e-09, 1.5e-09,
     1.5e-09, 1.5e-09, 1.5e-09, 1.5e-09, 1.5e-09, 1.5e-09 ;
 
- fates_eca_vmax_ptase = 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 
+ fates_eca_vmax_ptase = 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09,
     5e-09, 5e-09, 5e-09, 5e-09, 5e-09 ;
 
- fates_fire_alpha_SH = 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 
+ fates_fire_alpha_SH = 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2,
     0.2 ;
 
- fates_fire_bark_scaler = 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 
+ fates_fire_bark_scaler = 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07,
     0.07, 0.07, 0.07, 0.07 ;
 
- fates_fire_crown_depth_frac = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.95, 0.95, 
+ fates_fire_crown_depth_frac = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.95, 0.95,
     0.95, 1, 1, 1 ;
 
- fates_fire_crown_kill = 0.775, 0.775, 0.775, 0.775, 0.775, 0.775, 0.775, 
+ fates_fire_crown_kill = 0.775, 0.775, 0.775, 0.775, 0.775, 0.775, 0.775,
     0.775, 0.775, 0.775, 0.775, 0.775 ;
 
  fates_fnrt_prof_a = 7, 7, 7, 7, 6, 6, 7, 7, 7, 11, 11, 11 ;
@@ -860,16 +953,16 @@ data:
 
  fates_fr_fcel = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5 ;
 
- fates_fr_flab = 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 
+ fates_fr_flab = 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25,
     0.25, 0.25 ;
 
- fates_fr_flig = 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 
+ fates_fr_flig = 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25,
     0.25, 0.25 ;
 
- fates_grperc = 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 
+ fates_grperc = 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11,
     0.11, 0.11 ;
 
- fates_hydr_avuln_gs = 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 
+ fates_hydr_avuln_gs = 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5,
     2.5 ;
 
  fates_hydr_avuln_node =
@@ -890,40 +983,42 @@ data:
   0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
+ fates_hydr_k_lwp = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+
  fates_hydr_kmax_node =
   -999, -999, -999, -999, -999, -999, -999, -999, -999, -999, -999, -999,
   3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
   -999, -999, -999, -999, -999, -999, -999, -999, -999, -999, -999, -999,
   -999, -999, -999, -999, -999, -999, -999, -999, -999, -999, -999, -999 ;
 
- fates_hydr_p50_gs = -1.5, -1.5, -1.5, -1.5, -1.5, -1.5, -1.5, -1.5, -1.5, 
+ fates_hydr_p50_gs = -1.5, -1.5, -1.5, -1.5, -1.5, -1.5, -1.5, -1.5, -1.5,
     -1.5, -1.5, -1.5 ;
 
  fates_hydr_p50_node =
-  -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, 
+  -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25,
     -2.25, -2.25,
-  -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, 
+  -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25,
     -2.25, -2.25,
-  -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, 
+  -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25,
     -2.25, -2.25,
-  -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, 
+  -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25,
     -2.25, -2.25 ;
 
- fates_hydr_p_taper = 0.333, 0.333, 0.333, 0.333, 0.333, 0.333, 0.333, 0.333, 
+ fates_hydr_p_taper = 0.333, 0.333, 0.333, 0.333, 0.333, 0.333, 0.333, 0.333,
     0.333, 0.333, 0.333, 0.333 ;
 
  fates_hydr_pinot_node =
-  -1.465984, -1.465984, -1.465984, -1.465984, -1.465984, -1.465984, 
+  -1.465984, -1.465984, -1.465984, -1.465984, -1.465984, -1.465984,
     -1.465984, -1.465984, -1.465984, -1.465984, -1.465984, -1.465984,
-  -1.22807, -1.22807, -1.22807, -1.22807, -1.22807, -1.22807, -1.22807, 
+  -1.22807, -1.22807, -1.22807, -1.22807, -1.22807, -1.22807, -1.22807,
     -1.22807, -1.22807, -1.22807, -1.22807, -1.22807,
-  -1.22807, -1.22807, -1.22807, -1.22807, -1.22807, -1.22807, -1.22807, 
+  -1.22807, -1.22807, -1.22807, -1.22807, -1.22807, -1.22807, -1.22807,
     -1.22807, -1.22807, -1.22807, -1.22807, -1.22807,
-  -1.043478, -1.043478, -1.043478, -1.043478, -1.043478, -1.043478, 
+  -1.043478, -1.043478, -1.043478, -1.043478, -1.043478, -1.043478,
     -1.043478, -1.043478, -1.043478, -1.043478, -1.043478, -1.043478 ;
 
  fates_hydr_pitlp_node =
-  -1.67, -1.67, -1.67, -1.67, -1.67, -1.67, -1.67, -1.67, -1.67, -1.67, 
+  -1.67, -1.67, -1.67, -1.67, -1.67, -1.67, -1.67, -1.67, -1.67, -1.67,
     -1.67, -1.67,
   -1.4, -1.4, -1.4, -1.4, -1.4, -1.4, -1.4, -1.4, -1.4, -1.4, -1.4, -1.4,
   -1.4, -1.4, -1.4, -1.4, -1.4, -1.4, -1.4, -1.4, -1.4, -1.4, -1.4, -1.4,
@@ -935,10 +1030,10 @@ data:
   0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21,
   0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11 ;
 
- fates_hydr_rfrac_stem = 0.625, 0.625, 0.625, 0.625, 0.625, 0.625, 0.625, 
+ fates_hydr_rfrac_stem = 0.625, 0.625, 0.625, 0.625, 0.625, 0.625, 0.625,
     0.625, 0.625, 0.625, 0.625, 0.625 ;
 
- fates_hydr_rs2 = 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 
+ fates_hydr_rs2 = 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001,
     0.0001, 0.0001, 0.0001, 0.0001, 0.0001 ;
 
  fates_hydr_srl = 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25 ;
@@ -949,81 +1044,103 @@ data:
   0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65,
   0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75 ;
 
+ fates_hydr_vg_alpha_node =
+  0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.005, 0.005, 0.005, 0.005, 0.005,
+    0.005, 0.005,
+  0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.005, 0.005, 0.005, 0.005, 0.005,
+    0.005, 0.005,
+  0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.005, 0.005, 0.005, 0.005, 0.005,
+    0.005, 0.005,
+  0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.005, 0.005, 0.005, 0.005, 0.005,
+    0.005, 0.005 ;
+
+ fates_hydr_vg_m_node =
+  0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
+  0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
+  0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
+  0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5 ;
+
+ fates_hydr_vg_n_node =
+  2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+  2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+  2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+  2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ;
+
  fates_leaf_c3psn = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 ;
 
- fates_leaf_clumping_index = 0.85, 0.85, 0.8, 0.85, 0.85, 0.9, 0.85, 0.9, 
+ fates_leaf_clumping_index = 0.85, 0.85, 0.8, 0.85, 0.85, 0.9, 0.85, 0.9,
     0.9, 0.75, 0.75, 0.75 ;
 
- fates_leaf_diameter = 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 
+ fates_leaf_diameter = 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04,
     0.04, 0.04, 0.04 ;
 
- fates_leaf_jmaxha = 43540, 43540, 43540, 43540, 43540, 43540, 43540, 43540, 
+ fates_leaf_jmaxha = 43540, 43540, 43540, 43540, 43540, 43540, 43540, 43540,
     43540, 43540, 43540, 43540 ;
 
- fates_leaf_jmaxhd = 152040, 152040, 152040, 152040, 152040, 152040, 152040, 
+ fates_leaf_jmaxhd = 152040, 152040, 152040, 152040, 152040, 152040, 152040,
     152040, 152040, 152040, 152040, 152040 ;
 
- fates_leaf_jmaxse = 495, 495, 495, 495, 495, 495, 495, 495, 495, 495, 495, 
+ fates_leaf_jmaxse = 495, 495, 495, 495, 495, 495, 495, 495, 495, 495, 495,
     495 ;
 
  fates_leaf_long =
   1.5, 4, 1, 1.5, 1, 1, 1.5, 1, 1, 1, 1, 1 ;
 
- fates_leaf_slamax = 0.0954, 0.0954, 0.0954, 0.0954, 0.0954, 0.0954, 0.012, 
+ fates_leaf_slamax = 0.0954, 0.0954, 0.0954, 0.0954, 0.0954, 0.0954, 0.012,
     0.03, 0.03, 0.03, 0.03, 0.03 ;
 
- fates_leaf_slatop = 0.012, 0.01, 0.024, 0.012, 0.03, 0.03, 0.012, 0.03, 
+ fates_leaf_slatop = 0.012, 0.01, 0.024, 0.012, 0.03, 0.03, 0.012, 0.03,
     0.03, 0.03, 0.03, 0.03 ;
 
- fates_leaf_stomatal_intercept = 10000, 10000, 10000, 10000, 10000, 10000, 
+ fates_leaf_stomatal_intercept = 10000, 10000, 10000, 10000, 10000, 10000,
     10000, 10000, 10000, 10000, 10000, 40000 ;
 
  fates_leaf_stomatal_slope_ballberry = 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8 ;
 
- fates_leaf_stomatal_slope_medlyn = 4.1, 2.3, 2.3, 4.1, 4.4, 4.4, 4.7, 4.7, 
+ fates_leaf_stomatal_slope_medlyn = 4.1, 2.3, 2.3, 4.1, 4.4, 4.4, 4.7, 4.7,
     4.7, 2.2, 5.3, 1.6 ;
 
- fates_leaf_stor_priority = 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 
+ fates_leaf_stor_priority = 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8,
     0.8, 0.8 ;
 
  fates_leaf_vcmax25top =
   50, 65, 39, 62, 41, 58, 62, 54, 54, 78, 78, 78 ;
 
- fates_leaf_vcmaxha = 65330, 65330, 65330, 65330, 65330, 65330, 65330, 65330, 
+ fates_leaf_vcmaxha = 65330, 65330, 65330, 65330, 65330, 65330, 65330, 65330,
     65330, 65330, 65330, 65330 ;
 
- fates_leaf_vcmaxhd = 149250, 149250, 149250, 149250, 149250, 149250, 149250, 
+ fates_leaf_vcmaxhd = 149250, 149250, 149250, 149250, 149250, 149250, 149250,
     149250, 149250, 149250, 149250, 149250 ;
 
- fates_leaf_vcmaxse = 485, 485, 485, 485, 485, 485, 485, 485, 485, 485, 485, 
+ fates_leaf_vcmaxse = 485, 485, 485, 485, 485, 485, 485, 485, 485, 485, 485,
     485 ;
 
- fates_leaf_xl = 0.1, 0.01, 0.01, 0.1, 0.01, 0.25, 0.01, 0.25, 0.25, -0.3, 
+ fates_leaf_xl = 0.1, 0.01, 0.01, 0.1, 0.01, 0.25, 0.01, 0.25, 0.25, -0.3,
     -0.3, -0.3 ;
 
  fates_lf_fcel = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5 ;
 
- fates_lf_flab = 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 
+ fates_lf_flab = 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25,
     0.25, 0.25 ;
 
- fates_lf_flig = 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 
+ fates_lf_flig = 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25,
     0.25, 0.25 ;
 
- fates_maintresp_reduction_curvature = 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 
+ fates_maintresp_reduction_curvature = 0.01, 0.01, 0.01, 0.01, 0.01, 0.01,
     0.01, 0.01, 0.01, 0.01, 0.01, 0.01 ;
 
- fates_maintresp_reduction_intercept = 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1 ;
+ fates_maintresp_reduction_intercept = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
- fates_mort_bmort = 0.014, 0.014, 0.014, 0.014, 0.014, 0.014, 0.014, 0.014, 
+ fates_mort_bmort = 0.014, 0.014, 0.014, 0.014, 0.014, 0.014, 0.014, 0.014,
     0.014, 0.014, 0.014, 0.014 ;
 
- fates_mort_freezetol = 2.5, -55, -80, -30, 2.5, -30, -60, -10, -80, -80, 
+ fates_mort_freezetol = 2.5, -55, -80, -30, 2.5, -30, -60, -10, -80, -80,
     -20, 2.5 ;
 
- fates_mort_hf_flc_threshold = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
+ fates_mort_hf_flc_threshold = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
     0.5, 0.5, 0.5 ;
 
- fates_mort_hf_sm_threshold = 1e-06, 1e-06, 1e-06, 1e-06, 1e-06, 1e-06, 
+ fates_mort_hf_sm_threshold = 1e-06, 1e-06, 1e-06, 1e-06, 1e-06, 1e-06,
     1e-06, 1e-06, 1e-06, 1e-06, 1e-06, 1e-06 ;
 
  fates_mort_ip_age_senescence = _, _, _, _, _, _, _, _, _, _, _, _ ;
@@ -1036,15 +1153,18 @@ data:
 
  fates_mort_scalar_coldstress = 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 ;
 
- fates_mort_scalar_cstarvation = 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 
+ fates_mort_scalar_cstarvation = 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6,
     0.6, 0.6, 0.6 ;
 
- fates_mort_scalar_hydrfailure = 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 
+ fates_mort_scalar_hydrfailure = 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6,
     0.6, 0.6, 0.6 ;
 
  fates_nfix1 = _, _, _, _, _, _, _, _, _, _, _, _ ;
 
  fates_nfix2 = _, _, _, _, _, _, _, _, _, _, _, _ ;
+
+ fates_nitr_store_ratio = 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5,
+    1.5, 1.5 ;
 
  fates_phen_cold_size_threshold = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
@@ -1058,23 +1178,26 @@ data:
 
  fates_phenflush_fraction = _, _, 0.5, _, 0.5, 0.5, _, 0.5, 0.5, 0.5, 0.5, 0.5 ;
 
- fates_prescribed_mortality_canopy = 0.0194, 0.0194, 0.0194, 0.0194, 0.0194, 
+ fates_phos_store_ratio = 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5,
+    1.5, 1.5 ;
+
+ fates_prescribed_mortality_canopy = 0.0194, 0.0194, 0.0194, 0.0194, 0.0194,
     0.0194, 0.0194, 0.0194, 0.0194, 0.0194, 0.0194, 0.0194 ;
 
- fates_prescribed_mortality_understory = 0.025, 0.025, 0.025, 0.025, 0.025, 
+ fates_prescribed_mortality_understory = 0.025, 0.025, 0.025, 0.025, 0.025,
     0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025 ;
 
- fates_prescribed_npp_canopy = 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 
+ fates_prescribed_npp_canopy = 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4,
     0.4, 0.4, 0.4 ;
 
- fates_prescribed_npp_understory = 0.03125, 0.03125, 0.03125, 0.03125, 
+ fates_prescribed_npp_understory = 0.03125, 0.03125, 0.03125, 0.03125,
     0.03125, 0.03125, 0.03125, 0.03125, 0.03125, 0.03125, 0.03125, 0.03125 ;
 
- fates_prescribed_nuptake = 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ;
+ fates_prescribed_nuptake = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
- fates_prescribed_puptake = 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ;
+ fates_prescribed_puptake = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
- fates_prescribed_recruitment = 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 
+ fates_prescribed_recruitment = 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02,
     0.02, 0.02, 0.02, 0.02, 0.02 ;
 
  fates_prt_alloc_priority =
@@ -1085,61 +1208,57 @@ data:
 
  fates_prt_nitr_stoich_p1 =
   0.033, 0.029, 0.04, 0.033, 0.04, 0.04, 0.033, 0.04, 0.04, 0.04, 0.04, 0.04,
-  0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 
+  0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024,
     0.024, 0.024,
-  1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 
+  1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08,
     1e-08, 1e-08,
-  0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 
+  0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047,
     0.0047, 0.0047, 0.0047 ;
 
  fates_prt_nitr_stoich_p2 =
   0.033, 0.029, 0.04, 0.033, 0.04, 0.04, 0.033, 0.04, 0.04, 0.04, 0.04, 0.04,
-  0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 
+  0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024,
     0.024, 0.024,
-  1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 
+  1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08,
     1e-08, 1e-08,
-  0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 
+  0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047,
     0.0047, 0.0047, 0.0047 ;
 
  fates_prt_phos_stoich_p1 =
-  0.0033, 0.0029, 0.004, 0.0033, 0.004, 0.004, 0.0033, 0.004, 0.004, 0.004, 
+  0.0033, 0.0029, 0.004, 0.0033, 0.004, 0.004, 0.0033, 0.004, 0.004, 0.004,
     0.004, 0.004,
-  0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 
+  0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024,
     0.0024, 0.0024, 0.0024,
-  1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 
+  1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09,
     1e-09, 1e-09,
-  0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 
+  0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047,
     0.00047, 0.00047, 0.00047, 0.00047 ;
 
  fates_prt_phos_stoich_p2 =
-  0.0033, 0.0029, 0.004, 0.0033, 0.004, 0.004, 0.0033, 0.004, 0.004, 0.004, 
+  0.0033, 0.0029, 0.004, 0.0033, 0.004, 0.004, 0.0033, 0.004, 0.004, 0.004,
     0.004, 0.004,
-  0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 
+  0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024,
     0.0024, 0.0024, 0.0024,
-  1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 
+  1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09,
     1e-09, 1e-09,
-  0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 
+  0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047,
     0.00047, 0.00047, 0.00047, 0.00047 ;
 
- fates_nitr_store_ratio = 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5;
-
- fates_phos_store_ratio = 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5;
-
- fates_recruit_hgt_min = 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 0.75, 0.75, 0.75, 
+ fates_recruit_hgt_min = 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 0.75, 0.75, 0.75,
     0.125, 0.125, 0.125 ;
 
- fates_recruit_initd = 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 
+ fates_recruit_initd = 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2,
     0.2 ;
 
- fates_rholnir = 0.45, 0.35, 0.35, 0.45, 0.45, 0.45, 0.35, 0.45, 0.45, 0.35, 
+ fates_rholnir = 0.45, 0.35, 0.35, 0.45, 0.45, 0.45, 0.35, 0.45, 0.45, 0.35,
     0.35, 0.35 ;
 
  fates_rholvis = 0.1, 0.07, 0.07, 0.1, 0.1, 0.1, 0.07, 0.1, 0.1, 0.1, 0.1, 0.1 ;
 
- fates_rhosnir = 0.39, 0.39, 0.39, 0.39, 0.39, 0.39, 0.39, 0.39, 0.39, 0.53, 
+ fates_rhosnir = 0.39, 0.39, 0.39, 0.39, 0.39, 0.39, 0.39, 0.39, 0.39, 0.53,
     0.53, 0.53 ;
 
- fates_rhosvis = 0.16, 0.16, 0.16, 0.16, 0.16, 0.16, 0.16, 0.16, 0.16, 0.31, 
+ fates_rhosvis = 0.16, 0.16, 0.16, 0.16, 0.16, 0.16, 0.16, 0.16, 0.16, 0.31,
     0.31, 0.31 ;
 
  fates_root_long = 1, 2, 1, 1.5, 1, 1, 1.5, 1, 1, 1, 1, 1 ;
@@ -1148,38 +1267,38 @@ data:
 
  fates_seed_alloc_mature = 0, 0, 0, 0, 0, 0, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9 ;
 
- fates_seed_dbh_repro_threshold = 150, 90, 90, 90, 90, 90, 3, 3, 2, 1.47, 
+ fates_seed_dbh_repro_threshold = 150, 90, 90, 90, 90, 90, 3, 3, 2, 1.47,
     1.47, 1.47 ;
 
- fates_seed_decay_rate = 0.51, 0.51, 0.51, 0.51, 0.51, 0.51, 0.51, 0.51, 
+ fates_seed_decay_rate = 0.51, 0.51, 0.51, 0.51, 0.51, 0.51, 0.51, 0.51,
     0.51, 0.51, 0.51, 0.51 ;
 
- fates_seed_germination_rate = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
+ fates_seed_germination_rate = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
     0.5, 0.5, 0.5 ;
 
  fates_seed_suppl = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
  fates_senleaf_long_fdrought = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
- fates_smpsc = -255000, -255000, -255000, -255000, -255000, -255000, -255000, 
+ fates_smpsc = -255000, -255000, -255000, -255000, -255000, -255000, -255000,
     -255000, -255000, -255000, -255000, -255000 ;
 
- fates_smpso = -66000, -66000, -66000, -66000, -66000, -66000, -66000, 
+ fates_smpso = -66000, -66000, -66000, -66000, -66000, -66000, -66000,
     -66000, -66000, -66000, -66000, -66000 ;
 
- fates_taulnir = 0.25, 0.1, 0.1, 0.25, 0.25, 0.25, 0.1, 0.25, 0.25, 0.34, 
+ fates_taulnir = 0.25, 0.1, 0.1, 0.25, 0.25, 0.25, 0.1, 0.25, 0.25, 0.34,
     0.34, 0.34 ;
 
- fates_taulvis = 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 
+ fates_taulvis = 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05,
     0.05, 0.05 ;
 
- fates_tausnir = 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 
+ fates_tausnir = 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001,
     0.001, 0.25, 0.25, 0.25 ;
 
- fates_tausvis = 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 
+ fates_tausvis = 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001,
     0.001, 0.12, 0.12, 0.12 ;
 
- fates_trim_inc = 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 
+ fates_trim_inc = 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03,
     0.03, 0.03 ;
 
  fates_trim_limit = 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3 ;
@@ -1204,13 +1323,29 @@ data:
 
  fates_turnover_retrans_mode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
- fates_wood_density = 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 
+ fates_wood_density = 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7,
     0.7 ;
 
  fates_woody = 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0 ;
 
- fates_z0mr = 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 
+ fates_z0mr = 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055,
     0.055, 0.055, 0.055 ;
+
+ fates_hlm_pft_map =
+ 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+ 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+ 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+ 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+ 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+ 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
+ 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
+ 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
+ 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
+ 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
+ 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
+ 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0,
+ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 ;
 
  fates_fire_FBD = 15.4, 16.8, 19.6, 999, 4, 4 ;
 
@@ -1245,6 +1380,8 @@ data:
  fates_cwd_fcel = 0.76 ;
 
  fates_cwd_flig = 0.24 ;
+
+ fates_dev_arbitrary = _ ;
 
  fates_eca_plant_escalar = 1.25e-05 ;
 
@@ -1306,6 +1443,8 @@ data:
 
  fates_logging_mechanical_frac = 0.05 ;
 
+ fates_maintresp_model = 1 ;
+
  fates_mort_disturb_frac = 1 ;
 
  fates_mort_understorey_death = 0.55983 ;
@@ -1330,13 +1469,21 @@ data:
 
  fates_phen_ncolddayslim = 5 ;
 
+ fates_photo_temp_acclim_timescale = 30 ;
+
+ fates_photo_tempsens_model = 1 ;
+
  fates_q10_froz = 1.5 ;
 
  fates_q10_mr = 1.5 ;
 
  fates_soil_salinity = 0.4 ;
 
- fates_vai_top_bin_width = 1.0 ;
+ fates_theta_cj_c3 = 0.999 ;
 
- fates_vai_width_increase_factor = 1.0 ;
+ fates_theta_cj_c4 = 0.999 ;
+
+ fates_vai_top_bin_width = 1 ;
+
+ fates_vai_width_increase_factor = 1 ;
 }
