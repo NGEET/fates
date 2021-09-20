@@ -10,7 +10,7 @@ module FatesHydraulicsMemMod
    implicit none
    private
 
-   logical, parameter, public :: use_2d_hydrosolve = .false.
+   logical, parameter, public :: use_2d_hydrosolve = .false. !marius
    
    
    ! Number of soil layers for indexing cohort fine root quanitities
@@ -263,8 +263,7 @@ module FatesHydraulicsMemMod
      ! State variable, relative water content by volume (i.e. "theta")
      real(r8) :: th_ag(n_hypool_ag)              ! water in aboveground compartments                                 [kgh2o/indiv]
      real(r8) :: th_troot                        ! water in belowground compartments                                 [kgh2o/indiv]
-     real(r8),allocatable :: th_aroot(:)          ! water in absorbing roots                                          [kgh2o/indiv]
-    
+     real(r8),allocatable :: th_aroot(:)         ! water in absorbing roots                                          [kgh2o/indiv]    
 
      ! Diagnostic, water potential
      real(r8) :: psi_ag(n_hypool_ag)             ! water potential in aboveground compartments                       [MPa]

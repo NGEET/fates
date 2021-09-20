@@ -1,5 +1,5 @@
 module FatesInterfaceTypesMod
-  
+
   use FatesConstantsMod   , only : r8 => fates_r8
   use FatesConstantsMod   , only : itrue,ifalse
   use FatesGlobals        , only : fates_global_verbose
@@ -457,6 +457,12 @@ module FatesInterfaceTypesMod
 
       real(r8) :: snow_depth_si    ! Depth of snow in snowy areas of site (m)
       real(r8) :: frac_sno_eff_si  ! Fraction of ground covered by snow (0-1)
+      
+      real(r8)             :: t_ref2m_24_si  !marius
+      real(r8)             :: t_ref2m_min_si !marius
+      real(r8)             :: t_ref2m_max_si !marius
+      real(r8)             :: dayl_si !marius
+      real(r8)             :: prev_dayl_si !marius
 
       ! Hydrology variables for BTRAN
       ! ---------------------------------------------------------------------------------

@@ -203,6 +203,7 @@ contains
     
     allocate(new_cohort)
 
+    !write(fates_log(),*) 'check3: Call zero_cohort before new cohort' !marius
     call nan_cohort(new_cohort)  ! Make everything in the cohort not-a-number
     call zero_cohort(new_cohort) ! Zero things that need to be zeroed. 
 
@@ -219,7 +220,7 @@ contains
     !**********************/
 
     new_cohort%indexnumber  = fates_unset_int ! Cohort indexing was not thread-safe, setting
-                                              ! bogus value for the time being (RGK-012017)
+                                              ! bogus value for the time being (RGK-012017
 
     new_cohort%patchptr     => patchptr
 
@@ -352,7 +353,6 @@ contains
     
     call insert_cohort(new_cohort, patchptr%tallest, patchptr%shortest, tnull, snull, &
          storebigcohort, storesmallcohort)
-
     patchptr%tallest  => storebigcohort 
     patchptr%shortest => storesmallcohort
 
@@ -630,7 +630,9 @@ contains
     !----------------------------------------------------------------------
 
     currentCohort => cc_p
-
+    currentCohort%hard_level         = -2._r8 !marius
+    currentCohort%hard_rate          = 1._r8 !marius
+    currentCohort%hard_GRF           = 0._r8
     currentCohort%NV                 = 0    
     currentCohort%status_coh         = 0    
     currentCohort%rdark              = 0._r8
@@ -1135,7 +1137,6 @@ contains
                                    newn = currentCohort%n + nextc%n
 
                                    fusion_took_place = 1         
-
                                    if ( fuse_debug .and. currentCohort%isnew ) then
                                       write(fates_log(),*) 'Fusing Two Cohorts'
                                       write(fates_log(),*) 'newn: ',newn
@@ -1357,6 +1358,11 @@ contains
                                    ! their initization values, which should be the same for each
 
                                    if ( .not.currentCohort%isnew) then
+                                      !write(fates_log(),*) 'check5 Fusing Two Cohorts: ',currentCohort%n,currentCohort%hard_level,nextc%n,nextc%hard_level
+				      currentCohort%hard_level = (currentCohort%n*currentCohort%hard_level + nextc%n*nextc%hard_level)/newn !marius
+                                      currentCohort%hard_rate = (currentCohort%n*currentCohort%hard_rate + nextc%n*nextc%hard_rate)/newn !marius
+				      currentCohort%hard_GRF   = (currentCohort%n*currentCohort%hard_GRF + nextc%n*nextc%hard_GRF)/newn     !marius
+				      !write(fates_log(),*) 'check5 Fusing Two Cohorts: ',currentCohort%hard_level
                                       currentCohort%seed_prod      = (currentCohort%n*currentCohort%seed_prod + &
                                            nextc%n*nextc%seed_prod)/newn
                                       currentCohort%gpp_acc        = (currentCohort%n*currentCohort%gpp_acc     + &
@@ -1858,6 +1864,10 @@ contains
     n%asmort = o%asmort
     n%frmort = o%frmort
 
+    n%hard_level = o%hard_level !marius
+    n%hard_rate = o%hard_rate !marius
+    n%hard_GRF = o%hard_GRF 
+
     ! logging mortalities, Yi Xu
     n%lmort_direct     =o%lmort_direct
     n%lmort_collateral =o%lmort_collateral
@@ -1879,7 +1889,7 @@ contains
     n%cambial_mort          = o%cambial_mort
 
     ! Plant Hydraulics
-    
+    !write(fates_log(),*) 'Check4: Copy cohort'
     if( hlm_use_planthydro.eq.itrue ) then
       call CopyCohortHydraulics(n,o)
     endif

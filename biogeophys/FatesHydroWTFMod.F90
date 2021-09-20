@@ -876,7 +876,7 @@ contains
 
   ! =====================================================================================
 
-  function psi_from_th_tfs(this,th) result(psi)
+  function psi_from_th_tfs(this,th) result(psi) 
 
     class(wrf_type_tfs)  :: this
     real(r8),intent(in)  :: th
@@ -899,7 +899,7 @@ contains
 
         psi = this%psi_linear_sat(th)
 
-   elseif(th<this%th_min)then
+    elseif(th<this%th_min)then
 
        psi = this%psi_linear_res(th)
 
@@ -911,7 +911,7 @@ contains
        ! the elastic and capilary, and then smooth their
        ! combined with the caviation
        
-       call solutepsi(th_corr,this%rwc_ft,this%th_sat,this%th_res,this%pinot,psi_sol)
+       call solutepsi(th_corr,this%rwc_ft,this%th_sat,this%th_res,this%pinot,psi_sol) 
        call pressurepsi(th_corr,this%rwc_ft,this%th_sat,this%th_res,this%pinot,this%epsil,psi_press)
        
        psi_elastic = psi_sol + psi_press
@@ -990,7 +990,7 @@ contains
        call solutepsi(th_corr,this%rwc_ft,this%th_sat,this%th_res,this%pinot,psi_sol)
        call pressurepsi(th_corr,this%rwc_ft,this%th_sat,this%th_res,this%pinot,this%epsil,psi_press)
        
-       call dsolutepsidth(th,this%th_sat,this%th_res,this%rwc_ft,this%pinot,dsol_dth)
+       call dsolutepsidth(th,this%th_sat,this%th_res,this%rwc_ft,this%pinot,dsol_dth) 
        call dpressurepsidth(this%th_sat,this%th_res,this%rwc_ft,this%epsil,dpress_dth)
        
        delast_dth = dsol_dth + dpress_dth
@@ -1119,7 +1119,8 @@ contains
     !     = pino * (th_sat*rwc_ft - th_res)/(th - th_res)
     ! -----------------------------------------------------------------------------------
     
-    psi = pinot * (th_sat*rwc_ft - th_res) / (th - th_res)
+    !psi = pinot * (th_sat*rwc_ft - th_res) / (th - th_res) 
+    psi = pinot * ((th_sat*rwc_ft - th_res) / (th - th_res)) 
 
     return
   end subroutine solutepsi
@@ -1146,8 +1147,9 @@ contains
     ! psi      =  pinot * (th_sat*rwc_ft - th_res) * (th - th_res)^-1
     ! dpsi_dth = -pinot * (th_sat*rwc_ft - th_res) * (th - th_res)^-2
     ! -----------------------------------------------------------------------------------
-    
-    dpsi_dth = -1._r8*pinot*(th_sat*rwc_ft - th_res )*(th - th_res)**(-2._r8)
+
+    !dpsi_dth = -1._r8*pinot*(th_sat*rwc_ft - th_res )*(th - th_res)**(-2._r8)
+    dpsi_dth = -1._r8*pinot*(th_sat*rwc_ft - th_res )*(th - th_res)**(-2._r8) 
 
     return
   end subroutine dsolutepsidth

@@ -8,6 +8,7 @@ module EDMainMod
   use shr_kind_mod             , only : r8 => shr_kind_r8
   
   use FatesGlobals             , only : fates_log
+<<<<<<< HEAD
   use FatesInterfaceTypesMod        , only : hlm_freq_day
   use FatesInterfaceTypesMod        , only : hlm_day_of_year
   use FatesInterfaceTypesMod        , only : hlm_days_per_year
@@ -24,6 +25,7 @@ module EDMainMod
   use FatesInterfaceTypesMod        , only : bc_out_type
   use FatesInterfaceTypesMod        , only : hlm_masterproc
   use FatesInterfaceTypesMod        , only : numpft
+  use FatesInterfaceTypesMod        , only : hlm_use_hardening !marius
   use PRTGenericMod            , only : prt_carbon_allom_hyp
   use PRTGenericMod            , only : prt_cnp_flex_allom_hyp
   use PRTGenericMod            , only : nitrogen_element
@@ -80,6 +82,8 @@ module EDMainMod
   use ChecksBalancesMod        , only : SiteMassStock
   use EDMortalityFunctionsMod  , only : Mortality_Derivative
   use EDTypesMod               , only : AREA_INV
+  use EDMortalityFunctionsMod  , only : Hardening_scheme !Marius
+
   use PRTGenericMod,          only : carbon12_element
   use PRTGenericMod,          only : all_carbon_elements
   use PRTGenericMod,          only : leaf_organ
@@ -329,11 +333,15 @@ contains
 
     ! Set a pointer to this sites carbon12 mass balance
     site_cmass => currentSite%mass_balance(element_pos(carbon12_element))
+    if ((hlm_day_of_year==1 .and. currentSite%lat>=0) .or. (hlm_day_of_year==170 .and. currentSite%lat<=0))  then
+       currentSite%gdd5=0.0_r8
+    else
+       currentSite%gdd5= currentSite%gdd5 + max(0.0_r8,bc_in%t_ref2m_24_si-273.15_r8-5.0_r8)
+    end if
 
     currentPatch => currentSite%youngest_patch
 
     do while(associated(currentPatch))
-
 
        currentPatch%age = currentPatch%age + hlm_freq_day
        ! FIX(SPM,032414) valgrind 'Conditional jump or move depends on uninitialised value'
@@ -359,8 +367,12 @@ contains
           ft = currentCohort%pft
 
           ! Calculate the mortality derivatives
+
           call Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary )
 
+          if (hlm_use_hardening.eq.itrue) then
+	      call Hardening_scheme( currentSite, currentPatch, currentCohort, bc_in ) !hard_level and hard_GRF will be updated, ED_ecosystem_dynamics is called once a day at beginning of day Marius
+          endif
           ! -----------------------------------------------------------------------------
           ! Apply Plant Allocation and Reactive Transport
           ! -----------------------------------------------------------------------------
@@ -844,7 +856,7 @@ contains
                 currentPatch => currentPatch%younger
              enddo !end patch loop
              write(fates_log(),*) 'aborting on date:',hlm_current_year,hlm_current_month,hlm_current_day
-             call endrun(msg=errMsg(sourcefile, __LINE__))
+             !call endrun(msg=errMsg(sourcefile, __LINE__))
          !end if
           
       endif

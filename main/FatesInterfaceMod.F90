@@ -197,6 +197,11 @@ contains
     ! Input boundaries
     
     fates%bc_in(s)%t_veg24_pa(:)  = 0.0_r8
+    fates%bc_in(s)%t_ref2m_24_si  = 0.0_r8 !marius
+    fates%bc_in(s)%t_ref2m_min_si = 0.0_r8 !marius
+    fates%bc_in(s)%t_ref2m_max_si = 0.0_r8 !marius
+    fates%bc_in(s)%dayl_si        = 0.0_r8 !marius
+    fates%bc_in(s)%prev_dayl_si   = 0.0_r8 !marius
     fates%bc_in(s)%precip24_pa(:) = 0.0_r8
     fates%bc_in(s)%relhumid24_pa(:) = 0.0_r8
     fates%bc_in(s)%wind24_pa(:)     = 0.0_r8
@@ -1167,6 +1172,7 @@ contains
          hlm_sf_successful_ignitions_def = unset_int
          hlm_sf_anthro_ignitions_def = unset_int
          hlm_use_planthydro = unset_int
+         hlm_use_hardening = unset_int !marius
          hlm_use_lu_harvest   = unset_int
          hlm_num_lu_harvest_cats   = unset_int
          hlm_use_cohort_age_tracking = unset_int
@@ -1234,6 +1240,17 @@ contains
                write(fates_log(), *) 'The FATES number of hlm harvest cats must be >= 0, exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
+         if (  .not.((hlm_use_hardening.eq.1).or.(hlm_use_hardening.eq.0))    ) then !marius
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'The FATES namelist hardening flag must be 0 or 1, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         elseif (hlm_use_hardening.eq.1 ) then
+               write(fates_log(), *) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+               write(fates_log(), *) ''
+               write(fates_log(), *) ' use_fates_hardening is an      EXPERIMENTAL FEATURE        '
+               write(fates_log(), *) ''
+               write(fates_log(), *) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
          end if
 
          if ( .not.((hlm_use_logging .eq.1).or.(hlm_use_logging.eq.0))    ) then
@@ -1612,6 +1629,11 @@ contains
                hlm_num_lu_harvest_cats = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_num_lu_harvest_cats= ',ival,' to FATES'
+                  
+            case('use_hardening') !marius
+               hlm_use_hardening = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_hardening= ',ival,' to FATES'
                end if
 
             case('use_cohort_age_tracking')

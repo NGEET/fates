@@ -61,6 +61,7 @@ module FatesPlantHydraulicsMod
   use FatesInterfaceTypesMod  , only : hlm_ipedof
   use FatesInterfaceTypesMod  , only : numpft
   use FatesInterfaceTypesMod  , only : nlevsclass
+  use FatesInterfaceTypesMod  , only : hlm_use_hardening !marius
 
   use FatesAllometryMod, only    : bleaf
   use FatesAllometryMod, only    : bsap_allom
@@ -553,7 +554,7 @@ contains
        cohort_hydr%th_ag(k) = wrf_plant(site_hydr%pm_node(k),ft)%p%th_from_psi(cohort_hydr%psi_ag(k))
        cohort_hydr%ftc_ag(k) = wkf_plant(site_hydr%pm_node(k),ft)%p%ftc_from_psi(cohort_hydr%psi_ag(k))
     end do
-
+    
     cohort_hydr%errh2o_growturn_ag(:)    = 0.0_r8
     cohort_hydr%errh2o_growturn_troot    = 0.0_r8
     cohort_hydr%errh2o_growturn_aroot    = 0.0_r8
@@ -608,6 +609,7 @@ contains
     
     ! Update Psi and FTC in above-ground compartments
     ! -----------------------------------------------------------------------------------
+
     do k = 1,n_hypool_leaf
         ccohort_hydr%psi_ag(k) = wrf_plant(leaf_p_media,ft)%p%psi_from_th(ccohort_hydr%th_ag(k)) 
         ccohort_hydr%ftc_ag(k) = wkf_plant(leaf_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_ag(k))
@@ -627,6 +629,7 @@ contains
        ccohort_hydr%psi_aroot(j) = wrf_plant(aroot_p_media,ft)%p%psi_from_th(ccohort_hydr%th_aroot(j)) 
        ccohort_hydr%ftc_aroot(j) = wkf_plant(aroot_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_aroot(j))
     end do
+
 
     return
   end subroutine UpdatePlantPsiFTCFromTheta
@@ -1191,7 +1194,6 @@ contains
        ccohort_hydr%psi_aroot(j) = wrf_plant(aroot_p_media,ft)%p%psi_from_th(ccohort_hydr%th_aroot(j)) 
        ccohort_hydr%ftc_aroot(j) = wkf_plant(aroot_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_aroot(j))
     end do
-
 
     ccohort_hydr%btran = wkf_plant(stomata_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_ag(1))
 
@@ -2433,7 +2435,7 @@ contains
                 !             layers have transporting-to-absorbing root water potential gradients of opposite sign
                 ! -----------------------------------------------------------------------------------
                 
-                call OrderLayersForSolve1D(site_hydr, ccohort, ccohort_hydr, ordered, kbg_layer)
+                call OrderLayersForSolve1D(site_hydr, ccohort, ccohort_hydr, ordered, kbg_layer,bc_in(s))
                 
                 call ImTaylorSolve1D(site_hydr,ccohort,ccohort_hydr, &
                                      dtime,qflx_tran_veg_indiv,ordered, kbg_layer, & 
@@ -2877,12 +2879,13 @@ contains
 
   ! ===================================================================================
 
-  subroutine OrderLayersForSolve1D(site_hydr,cohort,cohort_hydr,ordered, kbg_layer)
+  subroutine OrderLayersForSolve1D(site_hydr,cohort,cohort_hydr,ordered, kbg_layer,bc_in)
     
     ! Arguments (IN)
+    type(bc_in_type), intent(in)                 :: bc_in
     type(ed_site_hydr_type), intent(in),target   :: site_hydr
     type(ed_cohort_type), intent(in),target      :: cohort
-    type(ed_cohort_hydr_type),intent(in),target  :: cohort_hydr
+    type(ed_cohort_hydr_type),intent(inout),target  :: cohort_hydr
 
 
     ! Arguments (INOUT)
@@ -2911,7 +2914,6 @@ contains
     
     kbg_tot      = 0._r8
     kbg_layer(:) = 0._r8
-
     ft = cohort%pft
     
     do j=1,site_hydr%nlevrhiz
@@ -2934,11 +2936,12 @@ contains
        end if
        
        ! Get matric potential [Mpa] of the absorbing root
+
        psi_aroot = wrf_plant(aroot_p_media,ft)%p%psi_from_th(cohort_hydr%th_aroot(j))
        
        ! Get Fraction of Total Conductivity [-] of the absorbing root
        ftc_aroot = wkf_plant(aroot_p_media,ft)%p%ftc_from_psi(cohort_hydr%psi_aroot(j))
-
+      
        ! Calculate total effective conductance over path  [kg s-1 MPa-1]
        ! from absorbing root node to 1st rhizosphere shell
        r_bg = 1._r8/(kmax_aroot*ftc_aroot)
@@ -2963,6 +2966,7 @@ contains
        
        !! upper bound limited to size()-1 b/c of zero-flux outer boundary condition
        kbg_layer(j)        = 1._r8/r_bg
+
        kbg_tot             = kbg_tot + kbg_layer(j)
 
     enddo !soil layer
@@ -3009,7 +3013,7 @@ contains
 
     ! Arguments (IN)
     type(ed_cohort_type),intent(in),target       :: cohort
-    type(ed_cohort_hydr_type),intent(inout),target  :: cohort_hydr
+    type(ed_cohort_hydr_type),intent(inout),target :: cohort_hydr 
     type(ed_site_hydr_type), intent(in),target   :: site_hydr
     real(r8), intent(in)                         :: dtime
     real(r8), intent(in)                         :: q_top        ! transpiration flux rate at upper boundary [kg -s]
@@ -3257,17 +3261,21 @@ contains
                 do i = 1,n_hypool_plant
 
                     ! Get matric potential [Mpa]
+                    
                     psi_node(i) = wrf_plant(pm_node(i),ft)%p%psi_from_th(th_node(i))
+
 
                     ! Get total potential [Mpa]
                     h_node(i) =  mpa_per_pa*denh2o*grav_earth*z_node(i) + psi_node(i)
 
                     ! Get Fraction of Total Conductivity [-]
                     ftc_node(i) = wkf_plant(pm_node(i),ft)%p%ftc_from_psi(psi_node(i))
-
+                    if (hlm_use_hardening.eq.itrue) then
+                       ftc_node(i) = ftc_node(i) * cohort%hard_rate !marius
+                    endif
                     ! deriv psi wrt theta
                     dpsi_dtheta_node(i) = wrf_plant(pm_node(i),ft)%p%dpsidth_from_th(th_node(i))
-
+                    
                     ! deriv ftc wrt psi
 
                     dftc_dpsi = wkf_plant(pm_node(i),ft)%p%dftcdpsi_from_psi(psi_node(i))
@@ -3312,7 +3320,10 @@ contains
                 i_dn     = 1   ! downstream node index
                 kmax_dn  = rootfr_scaler*cohort_hydr%kmax_petiole_to_leaf
                 kmax_up  = rootfr_scaler*cohort_hydr%kmax_stem_upper(1)
-
+                if (hlm_use_hardening.eq.itrue) then
+                   kmax_dn=kmax_dn*cohort%hard_rate !marius
+                   kmax_up=kmax_up*cohort%hard_rate !marius
+                endif
                 call GetImTaylorKAB(kmax_up,kmax_dn,        &
                       ftc_node(i_up),ftc_node(i_dn),        & 
                       h_node(i_up),h_node(i_dn),            & 
@@ -3340,7 +3351,10 @@ contains
 
                     kmax_dn  = rootfr_scaler*cohort_hydr%kmax_stem_lower(i_dn-n_hypool_leaf)
                     kmax_up  = rootfr_scaler*cohort_hydr%kmax_stem_upper(i_up-n_hypool_leaf)
-
+                    if (hlm_use_hardening.eq.itrue) then
+                       kmax_dn=kmax_dn*cohort%hard_rate !marius
+                       kmax_up=kmax_up*cohort%hard_rate !marius
+                    endif
                     call GetImTaylorKAB(kmax_up,kmax_dn,        &
                           ftc_node(i_up),ftc_node(i_dn),        & 
                           h_node(i_up),h_node(i_dn),            & 
@@ -3360,7 +3374,10 @@ contains
                 i_dn  = j
                 kmax_dn  = rootfr_scaler*cohort_hydr%kmax_stem_lower(n_hypool_stem)
                 kmax_up  = rootfr_scaler*cohort_hydr%kmax_troot_upper
-
+                if (hlm_use_hardening.eq.itrue) then
+                   kmax_dn=kmax_dn*cohort%hard_rate !marius
+                   kmax_up=kmax_up*cohort%hard_rate !marius
+                endif
                 call GetImTaylorKAB(kmax_up,kmax_dn,        &
                       ftc_node(i_up),ftc_node(i_dn),        & 
                       h_node(i_up),h_node(i_dn),            & 
@@ -3380,7 +3397,10 @@ contains
                 i_dn    = j
                 kmax_dn = cohort_hydr%kmax_troot_lower(ilayer) 
                 kmax_up = cohort_hydr%kmax_aroot_upper(ilayer)
-
+                if (hlm_use_hardening.eq.itrue) then
+                   kmax_dn=kmax_dn*cohort%hard_rate !marius
+                   kmax_up=kmax_up*cohort%hard_rate !marius
+                endif
                 call GetImTaylorKAB(kmax_up,kmax_dn,        &
                       ftc_node(i_up),ftc_node(i_dn),        & 
                       h_node(i_up),h_node(i_dn),            & 
@@ -3407,7 +3427,12 @@ contains
                               1._r8/cohort_hydr%kmax_aroot_radial_out(ilayer))
                 end if
 
+
                 kmax_up = site_hydr%kmax_upper_shell(ilayer,1)*aroot_frac_plant
+                if (hlm_use_hardening.eq.itrue) then
+                   kmax_dn=kmax_dn*cohort%hard_rate !marius
+                   kmax_up=kmax_up*cohort%hard_rate !marius
+                endif
 
                 call GetImTaylorKAB(kmax_up,kmax_dn,        &
                       ftc_node(i_up),ftc_node(i_dn),        & 
@@ -3417,7 +3442,6 @@ contains
                       k_eff(j),                         &
                       A_term(j),                        & 
                       B_term(j))
-
                 ! Path is between rhizosphere shells
 
                 do j = n_hypool_ag+3,n_hypool_tot-1
@@ -4681,7 +4705,6 @@ contains
               call endrun(msg=errMsg(sourcefile, __LINE__))
               
           endif
-
 
          ! This is the newton search loop
 

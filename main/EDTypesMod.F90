@@ -359,7 +359,11 @@ module EDTypesMod
                                                          ! (i.e. they are moved to newly-anthro-disturbed secondary 
                                                          !  forest patch).  fraction /per logging activity
 
-     real(r8) :: seed_prod                               ! diagnostic seed production rate [kgC/plant/day]
+     real(r8) ::  seed_prod                              ! diagnostic seed production rate [kgC/plant/day]
+
+     real(r8) ::  hard_level                             ! Hardiness state (K) (marius)
+     real(r8) ::  hard_rate                              ! Hardiness level rate btw 0 and 1 (marius)
+     real(r8) ::  hard_GRF                               ! Growth reducing factor due to frost if not hardened (marius)
 
      ! NITROGEN POOLS      
      ! ----------------------------------------------------------------------------------
@@ -730,6 +734,7 @@ module EDTypesMod
      real(r8) ::  acc_ni                                       ! daily nesterov index accumulating over time.
      real(r8) ::  fdi                                          ! daily probability an ignition event will start a fire
      real(r8) ::  NF                                           ! daily ignitions in km2
+     real(r8) ::  gdd5                                         ! marius
      real(r8) ::  frac_burnt                                   ! fraction of area burnt in this day.
 
      ! PLANT HYDRAULICS
@@ -1075,6 +1080,9 @@ module EDTypesMod
      write(fates_log(),*) 'co%hmort                  = ', ccohort%hmort
      write(fates_log(),*) 'co%frmort                 = ', ccohort%frmort
      write(fates_log(),*) 'co%asmort                 = ', ccohort%asmort
+     write(fates_log(),*) 'co%hard_level             = ', ccohort%hard_level !marius
+     write(fates_log(),*) 'co%hard_rate              = ', ccohort%hard_rate  !marius
+     write(fates_log(),*) 'co%hard_GRF               = ', ccohort%hard_GRF   !marius
      write(fates_log(),*) 'co%isnew                  = ', ccohort%isnew
      write(fates_log(),*) 'co%dndt                   = ', ccohort%dndt
      write(fates_log(),*) 'co%dhdt                   = ', ccohort%dhdt
