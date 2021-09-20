@@ -591,7 +591,7 @@ contains
 
     currentCohort => cc_p
     currentCohort%hard_level         = -2._r8 !marius
-    currentCohort%hard_rate         =  1._r8 !marius
+    currentCohort%hard_rate          = 1._r8 !marius
     currentCohort%hard_GRF           = 0._r8
     currentCohort%NV                 = 0    
     currentCohort%status_coh         = 0    

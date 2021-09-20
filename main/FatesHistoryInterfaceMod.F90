@@ -3445,6 +3445,7 @@ end subroutine flush_hvars
     real(r8) :: mean_aroot
     real(r8) :: mean_aroot2
     real(r8) :: mean_aroot4
+    real(r8) :: hard_level !marius
     integer  :: ipa2     ! patch incrementer
     integer  :: iscpf    ! index of the scpf group
     integer  :: ipft     ! index of the pft loop
@@ -3602,6 +3603,7 @@ end subroutine flush_hvars
             ccohort => cpatch%shortest
 	    mean_aroot2=0
 	    mean_aroot4=0
+            hard_level=0
             do while(associated(ccohort))
 
                ccohort_hydr => ccohort%co_hydr
@@ -3627,8 +3629,7 @@ end subroutine flush_hvars
                   ! scale cohorts to mean quantity
                   number_fraction = (ccohort%n / ncohort_scpf(iscpf))
                   number_fraction_pft = (ccohort%n / ncohort_pft(ipft)) !marius
-                  !write(fates_log(),*) 'check1',ccohort%n,ncohort_pft(ipft)
-                  !write(fates_log(),*) 'check2',ccohort%hard_level ,hio_hard_level_pft(io_si,ipft)
+
                   hio_errh2o_scpf(io_si,iscpf) = hio_errh2o_scpf(io_si,iscpf) + &
                         ccohort_hydr%errh2o * number_fraction_rate ! [kg/indiv/s]
                   
@@ -3656,11 +3657,8 @@ end subroutine flush_hvars
                   hio_lth_scpf(io_si,iscpf)             =  hio_lth_scpf(io_si,iscpf) + &
                         ccohort_hydr%th_ag(1)  * number_fraction        ! [m3 m-3]
 
-                  mean_aroot2 = (ccohort_hydr%psi_aroot(2)*ccohort_hydr%v_aroot_layer(2)) / &
-                       (ccohort_hydr%v_aroot_layer(2))
-
-                  mean_aroot4 = (ccohort_hydr%psi_aroot(4)*ccohort_hydr%v_aroot_layer(4)) / &
-                       (ccohort_hydr%v_aroot_layer(4))
+                  mean_aroot2 = ccohort_hydr%psi_aroot(2) 
+                  mean_aroot4 = ccohort_hydr%psi_aroot(4)
 
                   hio_awp_sl2(io_si,iscpf)             = hio_awp_sl2(io_si,iscpf) + & !marius
                        mean_aroot2 * number_fraction     ! [MPa]
@@ -3705,6 +3703,8 @@ end subroutine flush_hvars
 
       		  hio_hard_GRF_pft(io_si,ipft)   =  hio_hard_GRF_pft(io_si,ipft) + &
                         ccohort%hard_GRF * number_fraction_pft !marius
+                  write(fates_log(),*) 'check1',number_fraction_pft
+                  write(fates_log(),*) 'check2',ccohort%hard_level ,hio_hard_level_pft(io_si,ipft)
                endif
                
                ccohort => ccohort%taller
@@ -5335,12 +5335,12 @@ end subroutine flush_hvars
        
        call this%set_history_var(vname='HARDINESS',  units='°C',            &
             long='Hardiness level of vegetation', use_default='active',       &
-            avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=4, & !marius
+            avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=4, & !marius
             ivar=ivar, initialize=initialize_variables, index = ih_hard_level_pft)
 
        call this%set_history_var(vname='HARD_GRF',  units='-',            &
             long='Growth reducing factor fram hardiness', use_default='active',       &
-            avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=4, & !marius
+            avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=4, & !marius
             ivar=ivar, initialize=initialize_variables, index = ih_hard_GRF_pft )
  
        call this%set_history_var(vname='FATES_ERRH2O_SCPF', units='kg/indiv/s', &
