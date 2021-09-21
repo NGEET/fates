@@ -8,7 +8,6 @@ module EDMainMod
   use shr_kind_mod             , only : r8 => shr_kind_r8
   
   use FatesGlobals             , only : fates_log
-<<<<<<< HEAD
   use FatesInterfaceTypesMod        , only : hlm_freq_day
   use FatesInterfaceTypesMod        , only : hlm_day_of_year
   use FatesInterfaceTypesMod        , only : hlm_days_per_year

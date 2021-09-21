@@ -1240,6 +1240,8 @@ contains
                write(fates_log(), *) 'The FATES number of hlm harvest cats must be >= 0, exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         
          if (  .not.((hlm_use_hardening.eq.1).or.(hlm_use_hardening.eq.0))    ) then !marius
             if (fates_global_verbose()) then
                write(fates_log(), *) 'The FATES namelist hardening flag must be 0 or 1, exiting'
@@ -1488,7 +1490,6 @@ contains
          if (fates_global_verbose()) then
             write(fates_log(), *) 'Checked. All control parameters sent to FATES.'
          end if
-
          
       case default
 
@@ -1536,7 +1537,7 @@ contains
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_ipedof = ',ival,' to FATES'
                end if
-
+            
             case('nitrogen_spec')
                hlm_nitrogen_spec = ival
                if (fates_global_verbose()) then
@@ -1618,6 +1619,12 @@ contains
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_planthydro= ',ival,' to FATES'
                end if
+               
+            case('use_hardening')
+               hlm_use_hardening = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_hardening= ',ival,' to FATES'
+               end if
 
             case('use_lu_harvest')
                hlm_use_lu_harvest = ival
@@ -1629,11 +1636,6 @@ contains
                hlm_num_lu_harvest_cats = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_num_lu_harvest_cats= ',ival,' to FATES'
-                  
-            case('use_hardening') !marius
-               hlm_use_hardening = ival
-               if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_use_hardening= ',ival,' to FATES'
                end if
 
             case('use_cohort_age_tracking')

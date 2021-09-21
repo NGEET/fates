@@ -4767,9 +4767,15 @@ contains
              ! because of the root-soil radial conductance.
              
              call SetMaxCondConnections(site_hydr, cohort_hydr, h_node, kmax_dn, kmax_up)
-             
+                
              ! calculate boundary fluxes     
              do icnx=1,site_hydr%num_connections
+                 if (hlm_use_hardening.eq.itrue) then
+                    if (icnx <= n_hypool_plant) then
+                       kmax_dn(icnx)=kmax_dn(icnx)*cohort%hard_rate !marius
+                       kmax_up(icnx)=kmax_up(icnx)*cohort%hard_rate !marius
+                    endif
+                 endif
                  
                  id_dn = conn_dn(icnx)
                  id_up = conn_up(icnx)

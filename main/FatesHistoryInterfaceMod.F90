@@ -4095,8 +4095,8 @@ end subroutine update_history_hifrq
 
       		  hio_hard_GRF_pft(io_si,ipft)   =  hio_hard_GRF_pft(io_si,ipft) + &
                         ccohort%hard_GRF * number_fraction_pft !marius
-                  write(fates_log(),*) 'check1',number_fraction_pft
-                  write(fates_log(),*) 'check2',ccohort%hard_level ,hio_hard_level_pft(io_si,ipft)
+                  !write(fates_log(),*) 'check1',number_fraction_pft
+                  !write(fates_log(),*) 'check2',ccohort%hard_level ,hio_hard_level_pft(io_si,ipft)
                endif
                
                ccohort => ccohort%taller
