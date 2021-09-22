@@ -91,7 +91,7 @@ def main():
                 npft_file = var.shape[i]
                 pftdim = i
                 otherdimpresent = False
-            elif var.dimensions[i] in ['fates_history_age_bins','fates_history_size_bins','fates_history_coage_bins','fates_history_height_bins','fates_NCWD','fates_litterclass','fates_leafage_class','fates_prt_organs','fates_hydr_organs','fates_variants']:
+            elif var.dimensions[i] in ['fates_history_age_bins','fates_history_size_bins','fates_history_coage_bins','fates_history_height_bins','fates_NCWD','fates_litterclass','fates_leafage_class','fates_prt_organs','fates_hydr_organs','fates_variants','fates_hlm_pftno']:
                 otherdimpresent = True
                 otherdimname = var.dimensions[i]
                 otherdimlength = var.shape[i]

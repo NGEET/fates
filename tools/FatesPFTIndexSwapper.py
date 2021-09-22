@@ -207,13 +207,15 @@ def main(argv):
             out_var[:] = np.empty([num_pft_out,dim2_len], dtype="S{}".format(dim2_len))
             for id,ipft in enumerate(donor_pft_indices):
                 out_var[id] = fp_in.variables.get(key).data[ipft-1]
-
-
+                
         elif( (prt_dim_found==0) & (pft_dim_len==2) ):          # fates_prt_organs - string_length
             out_var = fp_out.createVariable(key,'c',(fp_in.variables.get(key).dimensions))
             out_var[:] = in_var[:]
 
-
+        elif( prt_dim_found==0 ):
+            out_var = fp_out.createVariable(key,'d',(fp_in.variables.get(key).dimensions))
+            out_var[:] = in_var[:]
+            
         else:
             print('This variable has a dimensioning that we have not considered yet.')
             print('Please add this condition to the logic above this statement.')
