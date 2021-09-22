@@ -93,7 +93,6 @@ def main():
         ### check to make sure that, if a PFT is specified, the variable has a PFT dimension,
         ### and if not, then it doesn't. and also that shape is reasonable.
         ndim_file = len(var.dimensions)
-
         
         if args.varall:
 
@@ -119,6 +118,7 @@ def main():
                     var[i] = outputval[i]
             elif(ndim_file==0):
                 var.assignValue(outputval[0])
+
             else:
                 print("Unhandled dimension size in modify_fates_paramfile.py")
                 print("using --all flag")
@@ -139,7 +139,7 @@ def main():
                 elif var.dimensions[i] in ['fates_history_age_bins','fates_history_size_bins', \
                                            'fates_history_coage_bins','fates_history_height_bins', \
                                            'fates_NCWD','fates_litterclass','fates_leafage_class', \
-                                           'fates_prt_organs','fates_hydr_organs','fates_variants']:
+                                           'fates_prt_organs','fates_hydr_organs','fates_hlm_pftno']:
                     otherdimpresent = True
                     otherdimname = var.dimensions[i]
                     otherdimlength = var.shape[i]
@@ -148,7 +148,7 @@ def main():
                     otherdimname = var.dimensions[i]
                     otherdimlength = var.shape[i]
                 else:
-                    raise ValueError('variable is not on either the PFT or scalar dimension')
+                    raise ValueError('variable dimension not handled in this script')
 
             #
             if args.changeshape:
