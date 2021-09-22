@@ -3320,10 +3320,6 @@ contains
                 i_dn     = 1   ! downstream node index
                 kmax_dn  = rootfr_scaler*cohort_hydr%kmax_petiole_to_leaf
                 kmax_up  = rootfr_scaler*cohort_hydr%kmax_stem_upper(1)
-                if (hlm_use_hardening.eq.itrue) then
-                   kmax_dn=kmax_dn*cohort%hard_rate !marius
-                   kmax_up=kmax_up*cohort%hard_rate !marius
-                endif
                 call GetImTaylorKAB(kmax_up,kmax_dn,        &
                       ftc_node(i_up),ftc_node(i_dn),        & 
                       h_node(i_up),h_node(i_dn),            & 
@@ -3351,10 +3347,7 @@ contains
 
                     kmax_dn  = rootfr_scaler*cohort_hydr%kmax_stem_lower(i_dn-n_hypool_leaf)
                     kmax_up  = rootfr_scaler*cohort_hydr%kmax_stem_upper(i_up-n_hypool_leaf)
-                    if (hlm_use_hardening.eq.itrue) then
-                       kmax_dn=kmax_dn*cohort%hard_rate !marius
-                       kmax_up=kmax_up*cohort%hard_rate !marius
-                    endif
+   
                     call GetImTaylorKAB(kmax_up,kmax_dn,        &
                           ftc_node(i_up),ftc_node(i_dn),        & 
                           h_node(i_up),h_node(i_dn),            & 
@@ -3374,10 +3367,7 @@ contains
                 i_dn  = j
                 kmax_dn  = rootfr_scaler*cohort_hydr%kmax_stem_lower(n_hypool_stem)
                 kmax_up  = rootfr_scaler*cohort_hydr%kmax_troot_upper
-                if (hlm_use_hardening.eq.itrue) then
-                   kmax_dn=kmax_dn*cohort%hard_rate !marius
-                   kmax_up=kmax_up*cohort%hard_rate !marius
-                endif
+
                 call GetImTaylorKAB(kmax_up,kmax_dn,        &
                       ftc_node(i_up),ftc_node(i_dn),        & 
                       h_node(i_up),h_node(i_dn),            & 
@@ -3397,10 +3387,7 @@ contains
                 i_dn    = j
                 kmax_dn = cohort_hydr%kmax_troot_lower(ilayer) 
                 kmax_up = cohort_hydr%kmax_aroot_upper(ilayer)
-                if (hlm_use_hardening.eq.itrue) then
-                   kmax_dn=kmax_dn*cohort%hard_rate !marius
-                   kmax_up=kmax_up*cohort%hard_rate !marius
-                endif
+
                 call GetImTaylorKAB(kmax_up,kmax_dn,        &
                       ftc_node(i_up),ftc_node(i_dn),        & 
                       h_node(i_up),h_node(i_dn),            & 
@@ -3429,10 +3416,6 @@ contains
 
 
                 kmax_up = site_hydr%kmax_upper_shell(ilayer,1)*aroot_frac_plant
-                if (hlm_use_hardening.eq.itrue) then
-                   kmax_dn=kmax_dn*cohort%hard_rate !marius
-                   kmax_up=kmax_up*cohort%hard_rate !marius
-                endif
 
                 call GetImTaylorKAB(kmax_up,kmax_dn,        &
                       ftc_node(i_up),ftc_node(i_dn),        & 
