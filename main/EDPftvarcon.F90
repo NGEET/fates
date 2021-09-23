@@ -1374,9 +1374,9 @@ contains
         write(fates_log(),fmt0) 'vcmaxse = ',EDPftvarcon_inst%vcmaxse
         write(fates_log(),fmt0) 'jmaxse = ',EDPftvarcon_inst%jmaxse
         write(fates_log(),fmt0) 'vcmax_np1 = ',EDPftvarcon_inst%vcmax_np1
-        write(fates_log(),fmt0) 'vcmax_np1 = ',EDPftvarcon_inst%vcmax_np2
-        write(fates_log(),fmt0) 'vcmax_np1 = ',EDPftvarcon_inst%vcmax_np3
-        write(fates_log(),fmt0) 'vcmax_np1 = ',EDPftvarcon_inst%vcmax_np4
+        write(fates_log(),fmt0) 'vcmax_np2 = ',EDPftvarcon_inst%vcmax_np2
+        write(fates_log(),fmt0) 'vcmax_np3 = ',EDPftvarcon_inst%vcmax_np3
+        write(fates_log(),fmt0) 'vcmax_np4 = ',EDPftvarcon_inst%vcmax_np4
         write(fates_log(),fmt0) 'germination_timescale = ',EDPftvarcon_inst%germination_rate
         write(fates_log(),fmt0) 'seed_decay_turnover = ',EDPftvarcon_inst%seed_decay_rate
         write(fates_log(),fmt0) 'trim_limit = ',EDPftvarcon_inst%trim_limit

@@ -1975,18 +1975,18 @@ contains
               ! Calculating jmax25top here b/c need temp_a10, but still need
               ! vcmax25top_prt_ft from above.
               ! Approach taken from ELM photosynthesis code (Q. Zhu)
+              ! dayl_factor is a photoperiod acclimation correction term from Bauerle et al. 2012
               jmax25top_prt_c = (2.59_r8 - 0.035_r8*min(max((temp_a10-tfrz),11._r8),35._r8)) * &
                       (vcmax25top_prt_ft * dayl_factor)
               vcmax25 = vcmax25top_prt_ft * nscaler_prt
               jmax25  = jmax25top_prt_c * nscaler_prt
-              co2_rcurve_islope25 = 20000._r8 * vcmax25top_prt_ft * nscaler_prt
 
          case (prt_cnp_flex_allom_hyp)
 
               ! Using the newly calculated top of the canopy vcmax and jmax, not the parameter file values
+              ! dayl_factor is a photoperiod acclimation correction term from Bauerle et al. 2012
               vcmax25 = vcmax25top_prt_ft * dayl_factor * nscaler_prt
               jmax25  = jmax25top_prt_ft * dayl_factor * nscaler_prt
-              co2_rcurve_islope25 = 20000._r8 * vcmax25top_prt_ft * nscaler_prt
          
          end select
 
