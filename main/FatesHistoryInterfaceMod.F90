@@ -557,8 +557,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_sflc_scpf                     
   integer :: ih_lflc_scpf                   
   integer :: ih_btran_scpf
-  integer :: ih_hard_level_pft !marius
-  integer :: ih_hard_GRF_pft   !marius
+  integer :: ih_hardlevel_si_pft !marius
+  integer :: ih_hardGRF_si_pft   !marius
   
   ! Hydro: Soil water states
   integer :: ih_rootwgt_soilvwc_si
@@ -1759,7 +1759,6 @@ end subroutine flush_hvars
     integer  :: model_day_int ! integer model day from reference 
     integer  :: ageclass_since_anthrodist  ! what is the equivalent age class for
                                            ! time-since-anthropogenic-disturbance of secondary forest
-    integer  :: ipft                !marius
     real(r8) :: number_fraction_pft !marius
     real(r8) :: ncohort_pft(maxpft) !marius
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
@@ -2036,8 +2035,8 @@ end subroutine flush_hvars
                hio_site_dstatus_si                  => this%hvars(ih_site_dstatus_si)%r81d, &
                hio_gdd_si                           => this%hvars(ih_gdd_si)%r81d, &
                hio_gdd5_si                          => this%hvars(ih_gdd5_si)%r81d, &        !marius
-               hio_hard_level_pft                   => this%hvars(ih_hard_level_pft)%r82d, & !marius
-               hio_hard_GRF_pft                     => this%hvars(ih_hard_GRF_pft)%r82d, &   !marius  
+               hio_hardlevel_si_pft                 => this%hvars(ih_hardlevel_si_pft)%r82d, & !marius
+               hio_hardGRF_si_pft                   => this%hvars(ih_hardGRF_si_pft)%r82d, &   !marius  
                hio_site_ncolddays_si                => this%hvars(ih_site_ncolddays_si)%r81d, &
                hio_site_nchilldays_si               => this%hvars(ih_site_nchilldays_si)%r81d, &
                hio_cleafoff_si                      => this%hvars(ih_cleafoff_si)%r81d, &
@@ -2157,8 +2156,7 @@ end subroutine flush_hvars
 
          hio_harvest_carbonflux_si(io_si) = sites(s)%harvest_carbon_flux
          
-         !========================================================marius hardening
-         ipft = ccohort%pft             
+         !========================================================marius hardening           
          ncohort_pft(:) = 0.0_r8 
          ! Normalization counters
          cpatch => sites(s)%oldest_patch
@@ -2166,8 +2164,8 @@ end subroutine flush_hvars
             ccohort => cpatch%shortest
             do while(associated(ccohort))
                if ( .not. ccohort%isnew ) then
-                  ipft = ccohort%pft                            
-                  ncohort_pft(ipft) = ncohort_pft(ipft) + ccohort%n
+                  ft = ccohort%pft                            
+                  ncohort_pft(ft) = ncohort_pft(ft) + ccohort%n
                end if
                ccohort => ccohort%taller
             enddo ! cohort loop
@@ -2419,17 +2417,17 @@ end subroutine flush_hvars
                ! have any meaning, otherwise they are just inialization values
                if( .not.(ccohort%isnew) ) then
        
-                  ipft = ccohort%pft                                                         !marius
-                  number_fraction_pft = (ccohort%n / ncohort_pft(ipft))                      !marius
+                  ft = ccohort%pft                                                         !marius
+                  number_fraction_pft = (ccohort%n / ncohort_pft(ft))                      !marius
 
-                  hio_hard_level_pft(io_si,ipft) =  hio_hard_level_pft(io_si,ipft) + &
+                  hio_hardlevel_si_pft(io_si,ft) =  hio_hardlevel_si_pft(io_si,ft) + &
                         ccohort%hard_level * number_fraction_pft                             !marius
 
-      		  hio_hard_GRF_pft(io_si,ipft)   =  hio_hard_GRF_pft(io_si,ipft) + &
+      		  hio_hardGRF_si_pft(io_si,ft)   =  hio_hardGRF_si_pft(io_si,ft) + &
                         ccohort%hard_GRF * number_fraction_pft                               !marius
 
                   write(fates_log(),*) 'check1',number_fraction_pft
-                  write(fates_log(),*) 'check2',ccohort%hard_level ,hio_hard_level_pft(io_si,ipft)
+                  write(fates_log(),*) 'check2',ccohort%hard_level ,hio_hardlevel_si_pft(io_si,ft)
 
                   ! Turnover pools [kgC/day] * [day/yr] = [kgC/yr]
                   sapw_m_turnover   = ccohort%prt%GetTurnover(sapw_organ, carbon12_element) * days_per_year
@@ -4283,15 +4281,16 @@ end subroutine update_history_hifrq
          use_default='active',                                                 &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_gdd5_si)
-    call this%set_history_var(vname='HARDINESS',  units='°C',            &
+
+    call this%set_history_var(vname='PFThardiness',  units='degC',            &
          long='Hardiness level of vegetation', use_default='active',       &
          avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, & !marius
-         ivar=ivar, initialize=initialize_variables, index = ih_hard_level_pft)
+         ivar=ivar, initialize=initialize_variables, index = ih_hardlevel_si_pft)
 
-    call this%set_history_var(vname='HARD_GRF',  units='-',            &
+    call this%set_history_var(vname='PFTHARDGRF',  units='-',            &
          long='Growth reducing factor fram hardiness', use_default='active',       &
          avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, & !marius
-         ivar=ivar, initialize=initialize_variables, index = ih_hard_GRF_pft )
+         ivar=ivar, initialize=initialize_variables, index = ih_hardGRF_si_pft )
     
     call this%set_history_var(vname='SITE_NCHILLDAYS', units = 'days', &
          long='site level number of chill days', &
