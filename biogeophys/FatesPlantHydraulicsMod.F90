@@ -1608,7 +1608,6 @@ contains
     ! Note, this routine is not accounting for the normal water uptake of new plants
     ! going forward, this routine accounts for the water that needs to be accounted for
     ! as the plants pop into existance.  
-    ! Notes by Junyan,  July 16. 2020
     !   modify the accessable soil layer equal to z_fr_0
     ! 
     ! ----------------------------------------------------------------------------------
