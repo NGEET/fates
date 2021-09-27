@@ -3351,7 +3351,6 @@ contains
         ! cohort_hydr%l_aroot_layer(ilayer) is units [m/plant]
         ! site_hydr%l_aroot_layer(ilayer) is units [m/site]
  
-        ! Junyan added if statement to handle zero l_aroot_layer condition
         if (site_hydr%l_aroot_layer(ilayer)<nearzero) then
            l_aroot_layer = 2*nearzero
         else 
