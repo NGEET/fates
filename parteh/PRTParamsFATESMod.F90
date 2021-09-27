@@ -331,6 +331,26 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_allom_zroot_max_dbh'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_allom_zroot_max_z'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_allom_zroot_min_dbh'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_allom_zroot_min_z'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_allom_zroot_k'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+        
     name = 'fates_turnover_retrans_mode'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -554,7 +574,27 @@ contains
     name = 'fates_allom_agb4'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=prt_params%allom_agb4)
-	 
+
+    name = 'fates_allom_zroot_max_dbh'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=prt_params%allom_zroot_max_dbh)
+    
+    name = 'fates_allom_zroot_max_z'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=prt_params%allom_zroot_max_z)
+    
+    name = 'fates_allom_zroot_min_dbh'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=prt_params%allom_zroot_min_dbh)
+    
+    name = 'fates_allom_zroot_min_z'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=prt_params%allom_zroot_min_z)
+    
+    name = 'fates_allom_zroot_k'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=prt_params%allom_zroot_k)
+    
     name = 'fates_branch_turnover'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=prt_params%branch_long)
@@ -850,6 +890,13 @@ contains
         write(fates_log(),fmt0) 'allom_agb2 = ',prt_params%allom_agb2
         write(fates_log(),fmt0) 'allom_agb3 = ',prt_params%allom_agb3
         write(fates_log(),fmt0) 'allom_agb4 = ',prt_params%allom_agb4
+
+        write(fates_log(),fmt0) 'allom_zroot_max_dbh = ',prt_params%allom_zroot_max_dbh
+        write(fates_log(),fmt0) 'allom_zroot_max_z = ',prt_params%allom_zroot_max_z
+        write(fates_log(),fmt0) 'allom_zroot_min_dbh = ',prt_params%allom_zroot_min_dbh
+        write(fates_log(),fmt0) 'allom_zroot_min_z = ',prt_params%allom_zroot_min_z
+        write(fates_log(),fmt0) 'allom_zroot_k = ',prt_params%allom_zroot_k
+        
         write(fates_log(),fmt0) 'prt_nitr_stoich_p1 = ',prt_params%nitr_stoich_p1
         write(fates_log(),fmt0) 'prt_nitr_stoich_p2 = ',prt_params%nitr_stoich_p2
         write(fates_log(),fmt0) 'prt_phos_stoich_p1 = ',prt_params%phos_stoich_p1

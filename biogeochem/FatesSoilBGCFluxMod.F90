@@ -997,9 +997,9 @@ contains
        
        select case (element_list(el))
        case (carbon12_element)
-          bc_out%litt_flux_cel_c_si(:) = 0._r8
-          bc_out%litt_flux_lig_c_si(:) = 0._r8
-          bc_out%litt_flux_lab_c_si(:) = 0._r8
+          bc_out%litt_flux_cel_c_si(:) = 0.0_r8
+          bc_out%litt_flux_lig_c_si(:) = 0.0_r8
+          bc_out%litt_flux_lab_c_si(:) = 0.0_r8
           flux_cel_si => bc_out%litt_flux_cel_c_si(:)
           flux_lab_si => bc_out%litt_flux_lab_c_si(:)
           flux_lig_si => bc_out%litt_flux_lig_c_si(:)
@@ -1022,13 +1022,12 @@ contains
           
        end select
 
-       
        currentPatch => csite%oldest_patch
        do while (associated(currentPatch))
 
           ! If there is any efflux (from stores overflowing)
           ! than pass that to the labile litter pool
-
+          
           currentCohort => currentPatch%tallest
           do while(associated(currentCohort))
              if(.not.currentCohort%isnew)then
@@ -1039,7 +1038,7 @@ contains
                 elseif(element_list(el).eq.phosphorus_element) then
                    efflux_ptr => currentCohort%daily_p_efflux
                 end if
-
+                
                 ! Unit conversion
                 ! kg/plant/day * plant/ha * ha/m2 -> kg/m2/day
                 
@@ -1050,7 +1049,8 @@ contains
              end if
              currentCohort => currentCohort%shorter
           end do
-          
+
+
           ! Set a pointer to the litter object
           ! for the current element on the current
           ! patch

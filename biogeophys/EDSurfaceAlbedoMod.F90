@@ -100,6 +100,10 @@ contains
            ifp = 0
            currentpatch => sites(s)%oldest_patch
            do while (associated(currentpatch))  
+          if(currentpatch%nocomp_pft_label.ne.0)then 
+             ! do not do albedo calculations for bare ground patch in SP mode 
+             ! and (more impotantly) do not iterate ifp or it will mess up the indexing wherein 
+             ! ifp=1 is the first vegetated patch. 
               ifp = ifp+1
               
               currentPatch%f_sun      (:,:,:) = 0._r8
@@ -141,7 +145,8 @@ contains
                        bc_out(s)%albd_parb(ifp,ib) = bc_in(s)%albgr_dir_rb(ib)
                        bc_out(s)%albi_parb(ifp,ib) = bc_in(s)%albgr_dif_rb(ib)
                        bc_out(s)%ftdd_parb(ifp,ib)= 1.0_r8
-                       bc_out(s)%ftid_parb(ifp,ib)= 1.0_r8
+                      !bc_out(s)%ftid_parb(ifp,ib)= 1.0_r8
+                      bc_out(s)%ftid_parb(ifp,ib)= 0.0_r8
                        bc_out(s)%ftii_parb(ifp,ib)= 1.0_r8
                     enddo
 
@@ -160,6 +165,7 @@ contains
                  endif ! is there vegetation? 
                  
               end if    ! if the vegetation and zenith filter is active
+          endif ! not bare ground
               currentPatch => currentPatch%younger
            end do       ! Loop linked-list patches
         enddo           ! Loop Sites
@@ -1075,11 +1081,11 @@ contains
       
     end associate
     return
-  end subroutine PatchNormanRadiation
+end subroutine PatchNormanRadiation
 
- ! ======================================================================================
+! ======================================================================================
 
- subroutine ED_SunShadeFracs(nsites, sites,bc_in,bc_out)
+subroutine ED_SunShadeFracs(nsites, sites,bc_in,bc_out)
     
     implicit none
 
@@ -1108,7 +1114,10 @@ contains
        cpatch => sites(s)%oldest_patch
 
        do while (associated(cpatch))                 
-          
+        if(cpatch%nocomp_pft_label.ne.0)then !only for veg patches
+           ! do not do albedo calculations for bare ground patch in SP mode                                  
+           ! and (more impotantly) do not iterate ifp or it will mess up the indexing wherein  
+           ! ifp=1 is the first vegetated patch.
           ifp=ifp+1
           
           if( debug ) write(fates_log(),*) 'edsurfRad_5600',ifp,s,cpatch%NCL_p,numpft
@@ -1247,7 +1256,7 @@ contains
                     cpatch%nrmlzd_parprof_dif_z(idiffuse,CL,iv))
             end do    ! iv
          end do       ! CL
-         
+        endif ! not bareground patch         
          cpatch => cpatch%younger
       enddo
       
