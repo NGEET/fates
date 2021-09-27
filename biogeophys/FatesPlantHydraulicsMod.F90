@@ -836,7 +836,6 @@ contains
     real(r8) :: norm                         ! total root fraction used <1
     integer  :: nlevrhiz                     ! number of rhizosphere levels
 
-    ! added by Junyan May 29, 2020
     real(r8) :: dbh                          ! the dbh of current cohort                                             [m]   
     real(r8) :: dbh_0                        ! the dbh of the sappling at recuitment                                 [m]
 
