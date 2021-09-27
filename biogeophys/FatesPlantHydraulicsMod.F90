@@ -4457,7 +4457,7 @@ contains
      ! r_node_shell(1:nshells) = 0
      ! v_shell(1:k) = 0 
 
-    end if ! end line 4439
+    end if 
 
     return
   end subroutine shellGeom
