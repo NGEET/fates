@@ -1627,7 +1627,7 @@ contains
     integer :: s, j, ft
     integer :: nstep !number of time steps 
     real(r8) :: roota !root distribution parameter a
-    real(r8) :: rootb !root distriubiton parameter b
+    real(r8) :: rootb !root distribution parameter b
     real(r8) :: rootfr !fraction of root in different soil layer
     real(r8) :: recruitw !water for newly recruited cohorts (kg water/m2/s)
     real(r8) :: recruitw_total ! total water for newly recruited cohorts (kg water/m2/s)
