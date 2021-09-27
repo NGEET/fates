@@ -4370,7 +4370,7 @@ contains
 
     if(present(z_max))then
        ! If the soil depth is larger than the maximum rooting depth of the cohort, 
-       ! then the cumulative root frection of that layer equals that of the maximum rooting depth  
+       ! then the cumulative root fraction of that layer equals that of the maximum rooting depth  
        crootfr      = 1._r8 - .5_r8*(exp(-a*min(z,z_max)) + exp(-b*min(z,z_max)))     
        ! end of Junyan addition
        crootfr_max = 1._r8 - .5_r8*(exp(-a*z_max) + exp(-b*z_max))
