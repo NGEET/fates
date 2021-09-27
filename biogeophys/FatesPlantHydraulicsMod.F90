@@ -992,7 +992,7 @@ contains
               zeng2001_crootfr(roota, rootb, site_hydr%zi_rhiz(j)-site_hydr%dz_rhiz(j),z_fr))
         
         if(debug)then
-            write(fates_log(),*) 'check rooting depth of cohort - Junyan, line 987'
+            write(fates_log(),*) 'check rooting depth of cohort '
             write(fates_log(),*) 'dbh: ',ccohort%dbh,' sice class: ',ccohort%size_class
             write(fates_log(),*) 'site_hydr%dz_rhiz(j) is: ', site_hydr%dz_rhiz(j)
             write(fates_log(),*) 'z_max cohort: ',z_fr
