@@ -849,7 +849,6 @@ contains
     real(r8) :: frk                          ! the exponent parameter of the cohort rooting depth function, a PFT based parameter 
  
   
-    ! end of Junyan's addition    
 
 
     ! We allow the transporting root to donate a fraction of its volume to the absorbing
