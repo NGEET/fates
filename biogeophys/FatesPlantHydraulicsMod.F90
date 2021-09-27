@@ -969,7 +969,7 @@ contains
     ! to the layer-by-layer absorbing root (which is now a hybrid compartment)
     ! ------------------------------------------------------------------------------
     ccohort_hydr%v_troot = (1._r8-t2aroot_vol_donate_frac) * v_troot
-    ! modified by Junyan May 29, 2020     
+
     ! Partition the total absorbing root lengths and volumes into the active soil layers
     ! We have a condition, where we may ignore the first layer
     ! ------------------------------------------------------------------------------
