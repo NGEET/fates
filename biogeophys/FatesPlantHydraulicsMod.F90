@@ -1626,7 +1626,7 @@ contains
     type(ed_site_hydr_type), pointer :: csite_hydr
     integer :: s, j, ft
     integer :: nstep !number of time steps 
-    real(r8) :: roota !root distriubiton parameter a
+    real(r8) :: roota !root distribution parameter a
     real(r8) :: rootb !root distriubiton parameter b
     real(r8) :: rootfr !fraction of root in different soil layer
     real(r8) :: recruitw !water for newly recruited cohorts (kg water/m2/s)
