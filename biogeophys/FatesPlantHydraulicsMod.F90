@@ -974,7 +974,6 @@ contains
     ! We have a condition, where we may ignore the first layer
     ! ------------------------------------------------------------------------------
 
-    ! norm = 1._r8 - &
     !      zeng2001_crootfr(roota, rootb,site_hydr%zi_rhiz(1)-site_hydr%dz_rhiz(1), site_hydr%zi_rhiz(nlevrhiz))
  
    
