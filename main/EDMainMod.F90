@@ -95,7 +95,7 @@ module EDMainMod
   use FatesHistoryInterfaceMod, only : ih_nh4uptake_si, ih_no3uptake_si, ih_puptake_si
   use FatesHistoryInterfaceMod, only : ih_nh4uptake_scpf, ih_no3uptake_scpf, ih_puptake_scpf
   use FatesHistoryInterfaceMod, only : fates_hist
-  
+
   ! CIME Globals
   use shr_log_mod         , only : errMsg => shr_log_errMsg
   use shr_infnan_mod      , only : nan => shr_infnan_nan, assignment(=)
@@ -584,7 +584,8 @@ contains
     ! we will calculate this as a group
 
     call SeedIn(currentSite,bc_in)
-    
+   
+
     ! Calculate all other litter fluxes
     ! -----------------------------------------------------------------------------------
 
@@ -655,6 +656,8 @@ contains
 
     call TotalBalanceCheck(currentSite,final_check_id)
 
+    currentSite%area_by_age(:) = 0._r8
+    
     currentPatch => currentSite%oldest_patch
     do while(associated(currentPatch))
         
@@ -666,7 +669,10 @@ contains
         ! This cohort count is used in the photosynthesis loop
         call count_cohorts(currentPatch)
 
-
+        ! Update the total area of by patch age class array 
+        currentSite%area_by_age(currentPatch%age_class) = &
+             currentSite%area_by_age(currentPatch%age_class) + currentPatch%area
+        
         currentPatch => currentPatch%younger    
     enddo
 

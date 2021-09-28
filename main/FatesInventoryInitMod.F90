@@ -62,6 +62,7 @@ module FatesInventoryInitMod
    use PRTGenericMod,          only : phosphorus_element
    use PRTGenericMod,          only : SetState
    use FatesConstantsMod, only : primaryforest
+   use FatesRunningMeanMod       , only : ema_lpa
    use PRTGenericMod,    only : StorageNutrientTarget
    
    implicit none
@@ -1042,7 +1043,7 @@ contains
          temp_cohort%structmemory = 0._r8	 
          cstatus = leaves_on
          
-	 stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(temp_cohort%pft)
+         stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(temp_cohort%pft)
 
          if( prt_params%season_decid(temp_cohort%pft) == itrue .and. &
               any(csite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
@@ -1069,6 +1070,10 @@ contains
          prt_obj => null()
          call InitPRTObject(prt_obj)
 
+         ! Allocate running mean functions
+         allocate(temp_cohort%tveg_lpa)
+         call temp_cohort%tveg_lpa%InitRMean(ema_lpa,init_value=cpatch%tveg_lpa%GetMean())
+         
          do el = 1,num_elements
 
             element_id = element_list(el)

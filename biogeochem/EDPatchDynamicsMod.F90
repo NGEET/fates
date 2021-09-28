@@ -45,9 +45,11 @@ module EDPatchDynamicsMod
   use FatesInterfaceTypesMod    , only : bc_in_type
   use FatesInterfaceTypesMod    , only : hlm_days_per_year
   use FatesInterfaceTypesMod    , only : numpft
+  use FatesInterfaceTypesMod    , only : hlm_stepsize
   use FatesGlobals         , only : endrun => fates_endrun
   use FatesConstantsMod    , only : r8 => fates_r8
   use FatesConstantsMod    , only : itrue, ifalse
+  use FatesConstantsMod    , only : t_water_freeze_k_1atm
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesPlantHydraulicsMod, only : AccumulateMortalityWaterStorage
   use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
@@ -84,7 +86,9 @@ module EDPatchDynamicsMod
   use SFParamsMod,            only : SF_VAL_CWD_FRAC
   use EDParamsMod,            only : logging_event_code
   use EDParamsMod,            only : logging_export_frac
-
+  use FatesRunningMeanMod,    only : ema_24hr, fixed_24hr, ema_lpa, ema_sdlng_mdd
+  use FatesRunningMeanMod,    only : ema_sdlng_emerg_h2o, ema_sdlng_mort_par, ema_sdlng2sap_par
+  
   ! CIME globals
   use shr_infnan_mod       , only : nan => shr_infnan_nan, assignment(=)
   use shr_log_mod          , only : errMsg => shr_log_errMsg
@@ -469,6 +473,7 @@ contains
     real(r8) :: patch_site_areadis           ! total area disturbed in m2 per patch per day
     real(r8) :: age                          ! notional age of this patch in years
     integer  :: el                           ! element loop index
+    integer  :: pft                          ! pft loop index
     integer  :: tnull                        ! is there a tallest cohort?
     integer  :: snull                        ! is there a shortest cohort?
     integer  :: levcan                       ! canopy level
@@ -561,7 +566,7 @@ contains
           allocate(new_patch_primary)
 
           call create_patch(currentSite, new_patch_primary, age, &
-                site_areadis_primary, primaryforest)
+                site_areadis_primary, primaryforest )
           
           ! Initialize the litter pools to zero, these
           ! pools will be populated by looping over the existing patches
@@ -578,7 +583,6 @@ contains
           new_patch_primary%shortest => null()
 
        endif
-
 
        ! next create patch to receive secondary forest area
        if ( site_areadis_secondary .gt. nearzero) then
@@ -670,6 +674,23 @@ contains
                      new_patch, patch_site_areadis,bc_in)
              endif
 
+
+             ! Copy any means or timers from the original patch to the new patch
+             ! These values will inherit all info from the original patch
+             ! --------------------------------------------------------------------------
+             call new_patch%tveg24%CopyFromDonor(currentPatch%tveg24)
+             call new_patch%tveg_lpa%CopyFromDonor(currentPatch%tveg_lpa)
+             call new_patch%seedling_layer_par24%CopyFromDonor(currentPatch%seedling_layer_par24) 
+             call new_patch%sdlng_mort_par%CopyFromDonor(currentPatch%sdlng_mort_par) 
+             call new_patch%sdlng2sap_par%CopyFromDonor(currentPatch%sdlng2sap_par) 
+             
+
+             do pft = 1,maxpft
+                call new_patch%sdlng_emerg_smp(pft)%p%CopyFromDonor(currentPatch%sdlng_emerg_smp(pft)%p) !ahb
+                call new_patch%sdlng_mdd(pft)%p%CopyFromDonor(currentPatch%sdlng_mdd(pft)%p) !ahb
+             enddo
+
+
              ! --------------------------------------------------------------------------
              ! The newly formed patch from disturbance (new_patch), has now been given 
              ! some litter from dead plants and pre-existing litter from the donor patches.
@@ -689,7 +710,10 @@ contains
                  nc%prt => null()
                  call InitPRTObject(nc%prt)
                  call InitPRTBoundaryConditions(nc)
-                 
+                 ! Allocate running mean functions
+                 allocate(nc%tveg_lpa)
+                 call nc%tveg_lpa%InitRMean(ema_lpa,init_value=new_patch%tveg_lpa%GetMean())
+
                  call zero_cohort(nc)
 
                  ! nc is the new cohort that goes in the disturbed patch (new_patch)... currentCohort
@@ -1971,6 +1995,8 @@ contains
 
   subroutine create_patch(currentSite, new_patch, age, areap, label)
 
+    use FatesInterfaceTypesMod, only : hlm_current_tod,hlm_current_date,hlm_reference_date
+    
     !
     ! !DESCRIPTION:
     !  Set default values for creating a new patch
@@ -1983,6 +2009,15 @@ contains
     real(r8), intent(in) :: age                  ! notional age of this patch in years
     real(r8), intent(in) :: areap                ! initial area of this patch in m2. 
     integer, intent(in)  :: label                ! anthropogenic disturbance label
+
+    ! Until bc's are pointed to by sites give veg temp a default temp [K]
+    real(r8), parameter :: temp_init_veg = 15._r8+t_water_freeze_k_1atm 
+    
+    real(r8), parameter :: init_seedling_par = 5.0_r8                      !arbtrary initialization, ahb
+
+    real(r8), parameter :: init_seedling_smp = -26652.0_r8                 !mean smp (mm) from prior ED2
+                                                                           !simulation at BCI (arbitrary)
+    integer             :: pft                                             !pft index
 
     ! !LOCAL VARIABLES:
     !---------------------------------------------------------------------
@@ -1999,6 +2034,28 @@ contains
     allocate(new_patch%sabs_dif(hlm_numSWb))
     allocate(new_patch%fragmentation_scaler(currentSite%nlevsoil))
 
+    allocate(new_patch%tveg24)
+    call new_patch%tveg24%InitRMean(fixed_24hr,init_value=temp_init_veg,init_offset=real(hlm_current_tod,r8) )
+    allocate(new_patch%tveg_lpa)
+    call new_patch%tveg_lpa%InitRmean(ema_lpa,init_value=temp_init_veg)
+    allocate(new_patch%seedling_layer_par24)
+    call new_patch%seedling_layer_par24%InitRMean(fixed_24hr,init_value=init_seedling_par, init_offset=real(hlm_current_tod,r8))
+    allocate(new_patch%sdlng_mort_par)
+    call new_patch%sdlng_mort_par%InitRMean(ema_sdlng_mort_par,init_value=temp_init_veg)
+    allocate(new_patch%sdlng2sap_par)
+    call new_patch%sdlng2sap_par%InitRMean(ema_sdlng2sap_par,init_value=init_seedling_par)
+    
+    allocate(new_patch%sdlng_mdd(maxpft))
+    allocate(new_patch%sdlng_emerg_smp(maxpft))
+
+    do pft = 1,maxpft
+      allocate(new_patch%sdlng_mdd(pft)%p)
+      call new_patch%sdlng_mdd(pft)%p%InitRMean(ema_sdlng_mdd, init_value=0.0_r8)
+      allocate(new_patch%sdlng_emerg_smp(pft)%p)
+      call new_patch%sdlng_emerg_smp(pft)%p%InitRMean(ema_sdlng_emerg_h2o,init_value=init_seedling_smp)
+    enddo
+
+    
 
     ! Litter
     ! Allocate, Zero Fluxes, and Initialize to "unset" values
@@ -2474,7 +2531,7 @@ contains
     type (ed_cohort_type), pointer :: nextc         ! Remembers next cohort in list 
     type (ed_cohort_type), pointer :: storesmallcohort
     type (ed_cohort_type), pointer :: storebigcohort  
-    integer                        :: c,p          !counters for pft and litter size class. 
+    integer                        :: c,p,pft      !counters for pft and litter size class. ahb added pft here.
     integer                        :: tnull,snull  ! are the tallest and shortest cohorts associated?
     integer                        :: el           ! loop counting index for elements
     type(ed_patch_type), pointer   :: youngerp     ! pointer to the patch younger than donor
@@ -2500,7 +2557,20 @@ contains
        write(fates_log(),*) 'trying to fuse patches with different anthro_disturbance_label values'
        call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
+
+    ! Weighted mean of the running means
+    call rp%tveg24%FuseRMean(dp%tveg24,rp%area*inv_sum_area)
+    call rp%tveg_lpa%FuseRMean(dp%tveg_lpa,rp%area*inv_sum_area)
+    call rp%seedling_layer_par24%FuseRMean(dp%seedling_layer_par24,rp%area*inv_sum_area) !ahb
     
+    do pft = 1,maxpft
+    call rp%sdlng_emerg_smp(pft)%p%FuseRMean(dp%sdlng_emerg_smp(pft)%p,rp%area*inv_sum_area) !ahb
+    call rp%sdlng_mdd(pft)%p%FuseRMean(dp%sdlng_mdd(pft)%p,rp%area*inv_sum_area) !ahb
+    enddo
+
+    call rp%sdlng_mort_par%FuseRMean(dp%sdlng_mort_par,rp%area*inv_sum_area) !ahb
+    call rp%sdlng2sap_par%FuseRMean(dp%sdlng2sap_par,rp%area*inv_sum_area) !ahb
+
     rp%fuel_eff_moist       = (dp%fuel_eff_moist*dp%area + rp%fuel_eff_moist*rp%area) * inv_sum_area
     rp%livegrass            = (dp%livegrass*dp%area + rp%livegrass*rp%area) * inv_sum_area
     rp%sum_fuel             = (dp%sum_fuel*dp%area + rp%sum_fuel*rp%area) * inv_sum_area
@@ -2804,7 +2874,7 @@ contains
 
     type(ed_cohort_type), pointer :: ccohort  ! current
     type(ed_cohort_type), pointer :: ncohort  ! next
-    integer                       :: el       ! loop counter for elements
+    integer                       :: el,pft       ! loop counter for elements and pfts
     
     ! First Deallocate the cohort space
     ! -----------------------------------------------------------------------------------
@@ -2836,8 +2906,23 @@ contains
        deallocate(cpatch%sabs_dir)
        deallocate(cpatch%sabs_dif)
        deallocate(cpatch%fragmentation_scaler)
-      
     end if
+
+    
+    ! Deallocate any running means
+    deallocate(cpatch%tveg24)
+    deallocate(cpatch%tveg_lpa)
+    deallocate(cpatch%seedling_layer_par24)
+    deallocate(cpatch%sdlng_mort_par)
+    deallocate(cpatch%sdlng2sap_par)
+
+    do pft = 1, maxpft
+     deallocate(cpatch%sdlng_mdd(pft)%p)
+     deallocate(cpatch%sdlng_emerg_smp(pft)%p)
+    enddo
+    
+    deallocate(cpatch%sdlng_mdd)
+    deallocate(cpatch%sdlng_emerg_smp)
 
     return
   end subroutine dealloc_patch

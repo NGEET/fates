@@ -41,6 +41,7 @@ module EDCanopyStructureMod
   use PRTGenericMod,          only : repro_organ
   use PRTGenericMod,          only : struct_organ
   use PRTGenericMod,          only : SetState
+  use FatesRunningMeanMod,    only : ema_lpa
 
 
   ! CIME Globals
@@ -671,6 +672,11 @@ contains
                      call InitHydrCohort(currentSite,copyc)
                   endif
 
+                  ! Initialize running means
+                  allocate(copyc%tveg_lpa)
+                  call copyc%tveg_lpa%InitRMean(ema_lpa,&
+                       init_value=currentPatch%tveg_lpa%GetMean())
+                  
                   call copy_cohort(currentCohort, copyc)
 
                   newarea = currentCohort%c_area - cc_loss
@@ -1123,6 +1129,12 @@ contains
                      if( hlm_use_planthydro.eq.itrue ) then
                         call InitHydrCohort(CurrentSite,copyc)
                      endif
+
+                     ! Initialize running means
+                     allocate(copyc%tveg_lpa)
+                     call copyc%tveg_lpa%InitRMean(ema_lpa,&
+                          init_value=currentPatch%tveg_lpa%GetMean())
+                     
                      call copy_cohort(currentCohort, copyc) !makes an identical copy...
 		                          
                      newarea = currentCohort%c_area - cc_gain !new area of existing cohort

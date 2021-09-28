@@ -21,9 +21,14 @@ module FatesInterfaceMod
    use EDTypesMod                , only : do_fates_salinity
    use EDTypesMod                , only : numWaterMem
    use EDTypesMod                , only : numlevsoil_max
+   use EDTypesMod                , only : ed_site_type
+   use EDTypesMod                , only : ed_patch_type
+   use EDTypesMod                , only : ed_cohort_type
+   use EDTypesMod                , only : area_inv
    use FatesConstantsMod         , only : r8 => fates_r8
    use FatesConstantsMod         , only : itrue,ifalse
    use FatesConstantsMod         , only : nearzero
+   use FatesConstantsMod         , only : sec_per_day
    use FatesGlobals              , only : fates_global_verbose
    use FatesGlobals              , only : fates_log
    use FatesGlobals              , only : endrun => fates_endrun
@@ -36,6 +41,11 @@ module FatesInterfaceMod
    use EDParamsMod               , only : FatesReportParams
    use EDParamsMod               , only : bgc_soil_salinity
    use FatesPlantHydraulicsMod   , only : InitHydroGlobals
+   use EDParamsMod               , only : photo_temp_acclim_timescale
+   use EDParamsMod               , only : sdlng_emerg_h2o_timescale
+   use EDParamsMod               , only : sdlng_mort_par_timescale
+   use EDParamsMod               , only : sdlng2sap_par_timescale
+   use EDParamsMod               , only : sdlng_mdd_timescale
    use EDParamsMod               , only : ED_val_history_sizeclass_bin_edges
    use EDParamsMod               , only : ED_val_history_ageclass_bin_edges
    use EDParamsMod               , only : ED_val_history_height_bin_edges
@@ -67,8 +77,16 @@ module FatesInterfaceMod
    use PRTInitParamsFatesMod     , only : PRTCheckParams, PRTDerivedParams
    use PRTAllometricCarbonMod    , only : InitPRTGlobalAllometricCarbon
    use PRTAllometricCNPMod       , only : InitPRTGlobalAllometricCNP
-
-
+   use FatesRunningMeanMod       , only : ema_24hr
+   use FatesRunningMeanMod       , only : ema_sdlng_emerg_h2o, ema_sdlng_mort_par
+   use FatesRunningMeanMod       , only : ema_sdlng_mdd, ema_sdlng2sap_par
+   use FatesRunningMeanMod       , only : fixed_24hr
+   use FatesRunningMeanMod       , only : ema_lpa
+   use FatesRunningMeanMod       , only : moving_ema_window
+   use FatesRunningMeanMod       , only : fixed_window
+   use FatesHistoryInterfaceMod  , only : fates_hist
+   use FatesHistoryInterfaceMod  , only : ih_tveglpa_si_age,ih_tveglpa_si
+   
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
    use shr_infnan_mod            , only : nan => shr_infnan_nan, assignment(=)
@@ -134,7 +152,8 @@ module FatesInterfaceMod
    public :: set_bcpconst
    public :: zero_bcs
    public :: set_bcs
-
+   public :: UpdateFatesRMeansTStep
+   
 contains
 
   ! ====================================================================================
@@ -234,13 +253,12 @@ contains
     
     ! Input boundaries
     
-    fates%bc_in(s)%t_veg24_pa(:)  = 0.0_r8
-    fates%bc_in(s)%precip24_pa(:) = 0.0_r8
-    fates%bc_in(s)%relhumid24_pa(:) = 0.0_r8
-    fates%bc_in(s)%wind24_pa(:)     = 0.0_r8
-
     fates%bc_in(s)%lightning24(:)      = 0.0_r8
     fates%bc_in(s)%pop_density(:)      = 0.0_r8
+    fates%bc_in(s)%precip24_pa(:)      = 0.0_r8
+    fates%bc_in(s)%relhumid24_pa(:)    = 0.0_r8
+    fates%bc_in(s)%wind24_pa(:)        = 0.0_r8
+     
     fates%bc_in(s)%solad_parb(:,:)     = 0.0_r8
     fates%bc_in(s)%solai_parb(:,:)     = 0.0_r8
     fates%bc_in(s)%smp_sl(:)           = 0.0_r8
@@ -445,12 +463,9 @@ contains
       allocate(bc_in%t_scalar_sisl(nlevsoil_in))
 
       ! Lightning (or successful ignitions) and population density
+      ! Fire related variables
       allocate(bc_in%lightning24(maxPatchesPerSite))
       allocate(bc_in%pop_density(maxPatchesPerSite))
-
-      ! Vegetation Dynamics
-      allocate(bc_in%t_veg24_pa(maxPatchesPerSite))
-
       allocate(bc_in%wind24_pa(maxPatchesPerSite))
       allocate(bc_in%relhumid24_pa(maxPatchesPerSite))
       allocate(bc_in%precip24_pa(maxPatchesPerSite))
@@ -471,6 +486,8 @@ contains
          allocate(bc_in%salinity_sl(nlevsoil_in))
       endif
 
+      
+      
       ! Photosynthesis
       allocate(bc_in%filter_photo_pa(maxPatchesPerSite))
       allocate(bc_in%dayl_factor_pa(maxPatchesPerSite))
@@ -852,6 +869,29 @@ contains
          ! These will not be used if use_ed or use_fates is false
          call fates_history_maps()
 
+         
+         ! Instantiate the time-averaging method globals
+         allocate(ema_24hr)
+         call ema_24hr%define(sec_per_day, hlm_stepsize, moving_ema_window)
+         allocate(fixed_24hr)
+         call fixed_24hr%define(sec_per_day, hlm_stepsize, fixed_window)
+         allocate(ema_lpa)
+         call ema_lpa%define(photo_temp_acclim_timescale*sec_per_day, &
+              hlm_stepsize,moving_ema_window)
+         allocate(ema_sdlng_emerg_h2o)
+         call ema_sdlng_emerg_h2o%define(sdlng_emerg_h2o_timescale*sec_per_day, &
+              hlm_stepsize,moving_ema_window)
+         allocate(ema_sdlng_mort_par)
+         call ema_sdlng_mort_par%define(sdlng_mort_par_timescale*sec_per_day, &
+              hlm_stepsize,moving_ema_window)
+         allocate(ema_sdlng2sap_par)
+         call ema_sdlng2sap_par%define(sdlng2sap_par_timescale*sec_per_day, &
+              hlm_stepsize,moving_ema_window)
+         allocate(ema_sdlng_mdd)
+         call ema_sdlng_mdd%define(sdlng_mdd_timescale*sec_per_day, &
+              hlm_stepsize,moving_ema_window)
+
+
 
       else
          ! If we are not using FATES, the cohort dimension is still
@@ -1211,6 +1251,7 @@ contains
          hlm_numlevgrnd   = unset_int
          hlm_name         = 'unset'
          hlm_hio_ignore_val   = unset_double
+         hlm_stepsize     = unset_double
          hlm_masterproc   = unset_int
          hlm_ipedof       = unset_int
          hlm_nu_com      = 'unset'
@@ -1419,6 +1460,14 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if( abs(hlm_stepsize-unset_double)<nearzero) then
+            if (fates_global_verbose()) then
+               write(fates_log(),*) 'FATES parameters unset: hlm_stepsize, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         
+         
          if( abs(hlm_hio_ignore_val-unset_double)<1e-10 ) then
             if (fates_global_verbose()) then
                write(fates_log(),*) 'FATES dimension/parameter unset: hio_ignore'
@@ -1733,6 +1782,11 @@ contains
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hio_ignore_val = ',rval,' to FATES'
                end if
+            case('stepsize')
+               hlm_stepsize = rval
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering stepsize = ',rval,' to FATES'
+               end if
             case default
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'tag not recognized:',trim(tag)
@@ -1798,9 +1852,159 @@ contains
       return
    end subroutine FatesReportParameters
 
-  ! =====================================================================================
+   ! =====================================================================================
+
+   subroutine UpdateFatesRMeansTStep(sites,bc_in)
+
+     ! In this routine, we update any FATES buffers where
+     ! we calculate running means. It is assumed that this buffer is updated
+     ! on the model time-step.
+
+     type(ed_site_type), intent(inout) :: sites(:)
+     type(bc_in_type), intent(in)      :: bc_in(:)
+     
+     type(ed_patch_type),  pointer :: cpatch
+     type(ed_cohort_type), pointer :: ccohort
+     integer :: s, ifp, io_si, pft 
+     real(r8) :: new_seedling_layer_par                !seedling layer par in the current timestep
+     real(r8) :: new_seedling_layer_smp(maxpft)        !seedling layer smp in the current timestep
+     real(r8) :: new_seedling_mdd(maxpft)              !seedling layer moisture deficit days in the current timestep
+     
+     real(r8), parameter :: seedling_smp_crit = -175912.9_r8 !seedling soil moisture stress 
+                                                             !threshold at which point
+                                                             !the seedling layer starts accumulating moisture
+                                                             !deficit days; move to pft-specific param if works
+     integer  :: ilayer_seedling_root(maxpft)                !the soil layer at seedling rooting depth
+     integer :: n_leaf                  !number of leaf layers per canopy layer in patch
+     real(r8) :: lai_sun_frac
+     real(r8) :: lai_shade_frac
+     integer,parameter :: ipar = 1      !solar radiation in the shortwave band (i.e. par)
+
+     do s = 1,size(sites,dim=1)
+
+        ifp=0
+        cpatch => sites(s)%oldest_patch
+        do while(associated(cpatch))
+           ifp=ifp+1
+           call cpatch%tveg24%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
+           call cpatch%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
+           
+           !updating seedling layer par, soil matric potential and 
+           !moisture deficit days (mdd) in the seedling layer; ahb, August 2021
+           !---------------------------------------------------------------------------------------
+
+           n_leaf = maxval(cpatch%ncan(cpatch%ncl_p,:)) !calculating the number of leaf layers
+                                                        !in the lowest canopy layer
+           
+           !calculating the fraction of total lai (summed across pfts) in sun vs. shade
+           !at the lowest leaf level of the lowest canopy level           
+           lai_sun_frac = sum(cpatch%ed_laisun_z(cpatch%ncl_p,:,n_leaf)) &
+            / ( sum(cpatch%ed_laisun_z(cpatch%ncl_p,:,n_leaf)) + &   !summed across pfts  
+                sum(cpatch%ed_laisha_z(cpatch%ncl_p,:,n_leaf)) )    !summed across pfts
+           
+           lai_shade_frac = 1.0_r8 - lai_sun_frac     
+           
+           !calculating seedling layer par for the current time step
+           !using the weighted average of direct and diffuse par profiles 
+          
+           new_seedling_layer_par = & 
+             (cpatch%parprof_dir_z(cpatch%ncl_p,n_leaf) * lai_sun_frac) + &
+             (cpatch%parprof_dif_z(cpatch%ncl_p,n_leaf) * (1.0_r8 - lai_sun_frac))
+           
+           ! if there is no lai in the patch (i.e. no vegetation) then the lai_sun_frac 
+           ! and lai_shade frac vars become nan, causing seedling layer par to be nan.
+           ! which messes up the running means. This say's that if there is no lai, the
+           ! par at the seedling layer is taken from the ctsm boundary conditions
+           if (new_seedling_layer_par /= new_seedling_layer_par) then
+                   new_seedling_layer_par = bc_in(s)%solad_parb(ifp,ipar) + bc_in(s)%solai_parb(ifp,ipar)
+           end if
+
+           ! update the par running means
+           call cpatch%seedling_layer_par24%UpdateRMean(new_seedling_layer_par)
+           call cpatch%sdlng_mort_par%UpdateRMean(new_seedling_layer_par)
+           call cpatch%sdlng2sap_par%UpdateRMean(new_seedling_layer_par)
+
+           !write(fates_log(),*) 'patchno', cpatch%patchno
+           !write(fates_log(),*) 'patcharea', cpatch%area
+           !write(fates_log(),*) 'laiSun',sum(cpatch%ed_laisun_z(cpatch%ncl_p,:,n_leaf))
+           !write(fates_log(),*) 'laiShade',sum(cpatch%ed_laisha_z(cpatch%ncl_p,:,n_leaf))
+           !write(fates_log(),*) 'patchlaiSunFrac', lai_sun_frac
+           !write(fates_log(),*) 'patchlaiShadeFrac', lai_shade_frac
+           !write(fates_log(),*) 'parprof_dir', cpatch%parprof_dir_z(cpatch%ncl_p,n_leaf)
+           !write(fates_log(),*) 'parprof_dif', cpatch%parprof_dif_z(cpatch%ncl_p,n_leaf)
+           !write(fates_log(),*) 'bc_in par d', bc_in(s)%solad_parb(ifp,ipar)
+           !write(fates_log(),*) 'bc_in par i', bc_in(s)%solad_parb(ifp,ipar)
+           !write(fates_log(),*) 'new_seedling_layer_par', new_seedling_layer_par
+           !write(fates_log(),*) 'par24', cpatch%seedling_layer_par24%GetMean()
+           !write(fates_log(),*) 'parMort', cpatch%sdlng_mort_par%GetMean()
 
 
+           do pft = 1,numpft
+           !calculate the soil moisture at the seedling rooting depth for each pft
+
+           ilayer_seedling_root(pft) = minloc(abs(bc_in(s)%z_sisl(:)-EDPftvarcon_inst%seedling_root_depth(pft)),dim=1)
+           new_seedling_layer_smp(pft) = bc_in(s)%smp_sl(ilayer_seedling_root(pft))
+
+           !calculate the new moisture deficit day (mdd) value for each pft
+           new_seedling_mdd(pft) = (abs(seedling_smp_crit) - abs(new_seedling_layer_smp(pft))) * (-1.0_r8)
+           
+           ! if mdds are negative then it means that soil is wetter than smp_crit and the moisture
+           ! deficit is 0  
+           if (new_seedling_mdd(pft) < 0.0_r8) then
+                  new_seedling_mdd(pft) = 0.0_r8
+           endif 
+
+           !update the smp and mdd running means
+           call cpatch%sdlng_emerg_smp(pft)%p%UpdateRMean(new_seedling_layer_smp(pft))
+           call cpatch%sdlng_mdd(pft)%p%UpdateRMean(new_seedling_mdd(pft))
+           
+           
+           !write(fates_log(),*) 'new_seedling_layer_smp', new_seedling_layer_smp(pft)
+           !write(fates_log(),*) 'smpEmerg', cpatch%sdlng_emerg_smp(pft)%p%GetMean()
+           !write(fates_log(),*) 'new_sdling_mdd', new_seedling_mdd(pft)
+           !write(fates_log(),*) 'sdling_mdd', cpatch%sdlng_mdd(pft)%p%GetMean()
+           
+           enddo
+           !END ahb's changes 
+           !---------------------------------------------------------------------------------------
 
 
-end module FatesInterfaceMod
+           ccohort => cpatch%tallest
+    
+           do while (associated(ccohort))
+              call ccohort%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
+              ccohort => ccohort%shorter
+           end do
+
+           
+           cpatch => cpatch%younger
+        enddo
+     end do
+
+     ! Update running mean history variables
+     ! -------------------------------------------------------------------------------
+     associate(hio_tveglpa_si_age => fates_hist%hvars(ih_tveglpa_si_age)%r82d, &
+               hio_tveglpa_si     => fates_hist%hvars(ih_tveglpa_si)%r81d)
+
+       do s = 1,size(sites,dim=1)
+
+          io_si  = sites(s)%h_gid
+          hio_tveglpa_si_age(io_si,:) = 0._r8
+          hio_tveglpa_si(io_si)       = 0._r8
+          
+          cpatch => sites(s)%oldest_patch
+          do while(associated(cpatch))
+             hio_tveglpa_si_age(io_si,cpatch%age_class) = &
+                  hio_tveglpa_si_age(io_si,cpatch%age_class) + &
+                  cpatch%tveg_lpa%GetMean()*cpatch%area/sites(s)%area_by_age(cpatch%age_class)
+             hio_tveglpa_si(io_si) = hio_tveglpa_si(io_si) + &
+                  cpatch%tveg_lpa%GetMean()*cpatch%area*area_inv
+             cpatch => cpatch%younger
+          enddo
+       end do
+     end associate
+          
+     return
+   end subroutine UpdateFatesRMeansTStep
+      
+ end module FatesInterfaceMod

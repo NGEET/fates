@@ -31,6 +31,17 @@ module EDParamsMod
                                                              ! of vegetation temperature used in photosynthesis
                                                              ! temperature acclimation (NOT YET IMPLEMENTED)
 
+   real(r8),protected, public :: sdlng_emerg_h2o_timescale !Length of the window for the exponential moving
+                                                                 !average of smp used to calculate seedling emergence
+   real(r8),protected, public :: sdlng_mort_par_timescale !Length of the window for the exponential moving average 
+                                                                !of par at the seedling layer used to calculate 
+                                                                !seedling mortality
+   real(r8),protected, public :: sdlng_mdd_timescale !Length of the window for the exponential moving average
+                                                           ! of moisture deficit days used to calculate seedling mortality
+   real(r8),protected, public :: sdlng2sap_par_timescale !Length of the window for the exponential 
+                                                               !moving average of par at the seedling layer used to 
+                                                               !calculate seedling to sapling transition rates
+  
    integer,protected, public :: maintresp_model       ! switch for choosing between leaf maintenance
                                                       ! respiration model. 1=Ryan (1991) (NOT YET IMPLEMENTED)
    integer,protected, public :: photo_tempsens_model  ! switch for choosing the model that defines the temperature
@@ -94,6 +105,10 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_vai_top_bin_width = "fates_vai_top_bin_width"
    character(len=param_string_length),parameter,public :: ED_name_vai_width_increase_factor = "fates_vai_width_increase_factor"
    character(len=param_string_length),parameter,public :: ED_name_photo_temp_acclim_timescale = "fates_photo_temp_acclim_timescale"
+   character(len=param_string_length),parameter,public :: ED_name_sdlng_emerg_h2o_timescale = "fates_sdlng_emerg_h2o_timescale"
+   character(len=param_string_length),parameter,public :: ED_name_sdlng_mort_par_timescale = "fates_sdlng_mort_par_timescale"
+   character(len=param_string_length),parameter,public :: ED_name_sdlng_mdd_timescale = "fates_sdlng_mdd_timescale"
+   character(len=param_string_length),parameter,public :: ED_name_sdlng2sap_par_timescale = "fates_sdlng2sap_par_timescale"
    character(len=param_string_length),parameter,public :: name_photo_tempsens_model = "fates_photo_tempsens_model"
    character(len=param_string_length),parameter,public :: name_maintresp_model = "fates_maintresp_model"
    character(len=param_string_length),parameter,public :: ED_name_hydr_htftype_node = "fates_hydr_htftype_node"
@@ -212,6 +227,10 @@ contains
     vai_top_bin_width                     = nan
     vai_width_increase_factor             = nan
     photo_temp_acclim_timescale           = nan
+    sdlng_emerg_h2o_timescale             = nan
+    sdlng_mort_par_timescale              = nan
+    sdlng_mdd_timescale                   = nan
+    sdlng2sap_par_timescale               = nan
     photo_tempsens_model                  = -9
     maintresp_model                       = -9
     fates_mortality_disturbance_fraction  = nan
@@ -290,6 +309,18 @@ contains
          dimension_names=dim_names_scalar)
     
     call fates_params%RegisterParameter(name=ED_name_photo_temp_acclim_timescale, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=ED_name_sdlng_emerg_h2o_timescale, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=ED_name_sdlng_mort_par_timescale, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=ED_name_sdlng_mdd_timescale, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=ED_name_sdlng2sap_par_timescale, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=name_photo_tempsens_model,dimension_shape=dimension_shape_scalar, &
@@ -472,6 +503,18 @@ contains
     call fates_params%RetreiveParameter(name=ED_name_photo_temp_acclim_timescale, &
          data=photo_temp_acclim_timescale)
 
+    call fates_params%RetreiveParameter(name=ED_name_sdlng_emerg_h2o_timescale, &
+         data=sdlng_emerg_h2o_timescale)
+
+    call fates_params%RetreiveParameter(name=ED_name_sdlng_mort_par_timescale, &
+         data=sdlng_mort_par_timescale)
+
+    call fates_params%RetreiveParameter(name=ED_name_sdlng_mdd_timescale, &
+         data=sdlng_mdd_timescale)
+
+    call fates_params%RetreiveParameter(name=ED_name_sdlng2sap_par_timescale, &
+         data=sdlng2sap_par_timescale)
+
     call fates_params%RetreiveParameter(name=name_photo_tempsens_model, &
          data=tmpreal)
     photo_tempsens_model = nint(tmpreal)
@@ -651,6 +694,10 @@ contains
         write(fates_log(),fmt0) 'vai_top_bin_width = ',vai_top_bin_width
         write(fates_log(),fmt0) 'vai_width_increase_factor = ',vai_width_increase_factor
         write(fates_log(),fmt0) 'photo_temp_acclim_timescale = ',photo_temp_acclim_timescale
+        write(fates_log(),fmt0) 'sdlng_emerg_h2o_timescale = ', sdlng_emerg_h2o_timescale
+        write(fates_log(),fmt0) 'sdlng_mort_par_timescale = ', sdlng_mort_par_timescale
+        write(fates_log(),fmt0) 'sdlng_mdd_timescale = ', sdlng_mdd_timescale
+        write(fates_log(),fmt0) 'sdlng2sap_par_timescale = ', sdlng2sap_par_timescale
         write(fates_log(),fmti) 'hydr_htftype_node = ',hydr_htftype_node
         write(fates_log(),fmt0) 'fates_mortality_disturbance_fraction = ',fates_mortality_disturbance_fraction
         write(fates_log(),fmt0) 'ED_val_comp_excln = ',ED_val_comp_excln
