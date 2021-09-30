@@ -46,8 +46,8 @@ module FatesHistoryInterfaceMod
   use FatesInterfaceTypesMod        , only : bc_in_type
   use FatesInterfaceTypesMod        , only : hlm_model_day
   use FatesInterfaceTypesMod        , only : nlevcoage
-
-  ! FIXME(bja, 2016-10) need to remove CLM dependancy 
+  use FatesAllometryMod             , only : CrownDepth
+  
   use EDPftvarcon              , only : EDPftvarcon_inst
   use PRTParametersMod         , only : prt_params
   
@@ -2219,8 +2219,9 @@ end subroutine flush_hvars
                     + ccohort%c_area * AREA_INV
 
                ! calculate leaf height distribution, assuming leaf area is evenly distributed thru crown depth
+               call CrownDepth(ccohort%hite,ft,crown_depth)
                height_bin_max = get_height_index(ccohort%hite)
-               height_bin_min = get_height_index(ccohort%hite * (1._r8 - EDPftvarcon_inst%crown(ft)))
+               height_bin_min = get_height_index(ccohort%hite - crown_depth)
                do i_heightbin = height_bin_min, height_bin_max
                   binbottom = ED_val_history_height_bin_edges(i_heightbin)
                   if (i_heightbin .eq. nlevheight) then
