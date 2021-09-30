@@ -427,6 +427,7 @@ contains
     real(r8) :: initial_laimem            ! Initial laimemory
     real(r8) :: optimum_laimem            ! Optimum laimemory
 
+    real(r8) :: target_c_area
     !----------------------------------------------------------------------
 
     ipatch = 1 ! Start counting patches
@@ -458,18 +459,25 @@ contains
 
           trimmed = .false.
           ipft = currentCohort%pft
-          call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,currentCohort%c_area)
+          call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,&
+               currentCohort%crowndamage, currentCohort%c_area)
 
+          
           leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
 
           currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, &
                currentCohort%n, currentCohort%canopy_layer,               &
                currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )
 
-          currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
-               currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
+          call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,&
+               1, target_c_area)
+
+          currentCohort%treesai = tree_sai(currentCohort%pft, &
+               currentCohort%dbh, &
+               currentSite%spread, currentCohort%canopy_trim, &
+               target_c_area, currentCohort%n,currentCohort%canopy_layer,& 
                currentPatch%canopy_layer_tlai, currentCohort%treelai, &
-               currentCohort%vcmax25top,0 )
+               currentCohort%vcmax25top,0 )  
 
           currentCohort%nv      = ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)
 
@@ -480,7 +488,8 @@ contains
              call endrun(msg=errMsg(sourcefile, __LINE__))
           endif
 
-          call bleaf(currentcohort%dbh,ipft,currentcohort%canopy_trim,tar_bl)
+          call bleaf(currentcohort%dbh,ipft,&
+               currentCohort%crowndamage, currentcohort%canopy_trim,tar_bl)
 
           if ( int(prt_params%allom_fmode(ipft)) .eq. 1 ) then
              ! only query fine root biomass if using a fine root allometric model that takes leaf trim into account
@@ -1504,7 +1513,8 @@ contains
     spread = 1.0_r8  ! fix this to 0 to remove dynamics of canopy closure, assuming a closed canopy.
     ! n.b. the value of this will only affect 'n', which isn't/shouldn't be a diagnostic in
     ! SP mode.
-    call carea_allom(currentCohort%dbh,dummy_n,spread,currentCohort%pft,currentCohort%c_area)
+    call carea_allom(currentCohort%dbh,dummy_n,spread,currentCohort%pft,&
+         currentCohort%crowndamage,currentCohort%c_area)
 
     !------------------------------------------
     !  Calculate canopy N assuming patch area is full
@@ -1512,7 +1522,8 @@ contains
     currentCohort%n = parea / currentCohort%c_area
 
     ! correct c_area for the new nplant
-    call carea_allom(currentCohort%dbh,currentCohort%n,spread,currentCohort%pft,currentCohort%c_area)
+    call carea_allom(currentCohort%dbh,currentCohort%n,spread,currentCohort%pft,&
+         currentCohort%crowndamage,currentCohort%c_area)
 
     ! ------------------------------------------
     ! Calculate leaf carbon from target treelai
@@ -1808,6 +1819,8 @@ contains
     !
     ! !USES:
     use FatesInterfaceTypesMod, only : hlm_use_ed_prescribed_phys
+    use FatesLitterMod   , only : ncwd
+    use SFParamsMod      , only : SF_val_CWD_frac
     !
     ! !ARGUMENTS
     type(ed_site_type), intent(inout), target   :: currentSite
@@ -1817,6 +1830,7 @@ contains
     ! !LOCAL VARIABLES:
     class(prt_vartypes), pointer :: prt
     integer :: ft
+    integer :: c 
     type (ed_cohort_type) , pointer :: temp_cohort
     type (litter_type), pointer     :: litt          ! The litter object (carbon right now)
     type(site_massbal_type), pointer :: site_mass    ! For accounting total in-out mass fluxes
@@ -1824,6 +1838,7 @@ contains
     integer :: el          ! loop counter for element
     integer :: element_id  ! element index consistent with definitions in PRTGenericMod
     integer :: iage        ! age loop counter for leaf age bins
+    integer :: crowndamage
     integer,parameter :: recruitstatus = 1 !weather it the new created cohorts is recruited or initialized
     real(r8) :: c_leaf      ! target leaf biomass [kgC]
     real(r8) :: c_fnrt      ! target fine root biomass [kgC]
@@ -1854,7 +1869,8 @@ contains
 
     do ft = 1,numpft
        if(currentSite%use_this_pft(ft).eq.itrue)then
-       temp_cohort%canopy_trim = init_recruit_trim
+          temp_cohort%canopy_trim = init_recruit_trim
+          temp_cohort%crowndamage = 1       ! new recruits are undamaged
           temp_cohort%pft         = ft
           temp_cohort%hite        = EDPftvarcon_inst%hgt_min(ft)
           temp_cohort%coage       = 0.0_r8
@@ -1862,14 +1878,23 @@ contains
 
           call h2d_allom(temp_cohort%hite,ft,temp_cohort%dbh)
 
+          temp_cohort%branch_frac = 0.0_r8
+          do c = 1, (ncwd-1)
+             temp_cohort%branch_frac = temp_cohort%branch_frac + &
+                  SF_val_CWD_frac(c)
+          end do
+
           ! Initialize live pools
-          call bleaf(temp_cohort%dbh,ft,temp_cohort%canopy_trim,c_leaf)
+          call bleaf(temp_cohort%dbh,ft,temp_cohort%crowndamage,&
+               temp_cohort%canopy_trim,c_leaf)
           call bfineroot(temp_cohort%dbh,ft,temp_cohort%canopy_trim,c_fnrt)
-          call bsap_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,a_sapw, c_sapw)
-          call bagw_allom(temp_cohort%dbh,ft,c_agw)
+          call bsap_allom(temp_cohort%dbh,ft,temp_cohort%crowndamage, temp_cohort%branch_frac, &
+               temp_cohort%canopy_trim,a_sapw, c_sapw)
+          call bagw_allom(temp_cohort%dbh,ft,temp_cohort%crowndamage, temp_cohort%branch_frac, c_agw)
           call bbgw_allom(temp_cohort%dbh,ft,c_bgw)
           call bdead_allom(c_agw,c_bgw,c_sapw,ft,c_struct)
-          call bstore_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,c_store)
+          call bstore_allom(temp_cohort%dbh,ft, temp_cohort%crowndamage, &
+               temp_cohort%canopy_trim,c_store)
 
           ! Default assumption is that leaves are on
           cohortstatus = leaves_on
@@ -2084,12 +2109,14 @@ contains
 
              call prt%CheckInitialConditions()
              ! This initializes the cohort
-             call create_cohort(currentSite,currentPatch, temp_cohort%pft, temp_cohort%n, &
-                  temp_cohort%hite, temp_cohort%coage, temp_cohort%dbh, prt, &
+             call create_cohort(currentSite,currentPatch, temp_cohort%pft, temp_cohort%n, & 
+                  temp_cohort%hite,temp_cohort%coage, temp_cohort%dbh, prt, & 
                   temp_cohort%laimemory, temp_cohort%sapwmemory, temp_cohort%structmemory, &
                   cohortstatus, recruitstatus, &
                   temp_cohort%canopy_trim,temp_cohort%c_area, &
-                  currentPatch%NCL_p, currentSite%spread, bc_in)
+                  currentPatch%NCL_p, &
+                  temp_cohort%crowndamage, temp_cohort%branch_frac, &
+                  currentSite%spread, bc_in)
 
              ! Note that if hydraulics is on, the number of cohorts may had
              ! changed due to hydraulic constraints.

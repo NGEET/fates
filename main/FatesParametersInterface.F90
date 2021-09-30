@@ -31,6 +31,7 @@ module FatesParametersInterface
   character(len=*), parameter, public :: dimension_name_hydr_organs = 'fates_hydr_organs'
   character(len=*), parameter, public :: dimension_name_prt_organs = 'fates_prt_organs'
   character(len=*), parameter, public :: dimension_name_leaf_age = 'fates_leafage_class'
+  character(len=*), parameter, public :: dimension_name_damage = 'fates_damage_class'
   character(len=*), parameter, public :: dimension_name_history_size_bins = 'fates_history_size_bins'
   character(len=*), parameter, public :: dimension_name_history_age_bins = 'fates_history_age_bins'
   character(len=*), parameter, public :: dimension_name_history_height_bins = 'fates_history_height_bins'

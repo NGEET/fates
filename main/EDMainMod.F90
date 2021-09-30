@@ -19,6 +19,8 @@ module EDMainMod
   use FatesInterfaceTypesMod        , only : hlm_use_cohort_age_tracking
   use FatesInterfaceTypesMod        , only : hlm_reference_date
   use FatesInterfaceTypesMod        , only : hlm_use_ed_prescribed_phys
+  use FatesInterfaceTypesMod        , only : hlm_use_canopy_damage
+  use FatesInterfaceTypesMod        , only : hlm_use_understory_damage
   use FatesInterfaceTypesMod        , only : hlm_use_ed_st3
   use FatesInterfaceTypesMod        , only : hlm_use_sp
   use FatesInterfaceTypesMod        , only : bc_in_type
@@ -79,6 +81,7 @@ module EDMainMod
   use FatesAllometryMod        , only : h_allom,tree_sai,tree_lai
   use FatesPlantHydraulicsMod  , only : UpdateSizeDepRhizHydStates
   use EDLoggingMortalityMod    , only : IsItLoggingTime
+  use DamageMainMod            , only : is_it_damage_time
   use EDPatchDynamicsMod       , only : get_frac_site_primary
   use FatesGlobals             , only : endrun => fates_endrun
   use ChecksBalancesMod        , only : SiteMassStock
@@ -143,11 +146,12 @@ contains
     !
     ! !LOCAL VARIABLES:
     type(ed_patch_type), pointer :: currentPatch
-    integer :: el                ! Loop counter for elements
+    integer :: el                ! Loop counter for variables 
     integer :: do_patch_dynamics ! for some modes, we turn off patch dynamics
-
+    
     !-----------------------------------------------------------------------
 
+    
     if ( hlm_masterproc==itrue ) write(fates_log(),'(A,I4,A,I2.2,A,I2.2)') 'FATES Dynamics: ',&
           hlm_current_year,'-',hlm_current_month,'-',hlm_current_day
 
@@ -162,6 +166,11 @@ contains
     ! Call a routine that simply identifies if logging should occur
     ! This is limited to a global event until more structured event handling is enabled
     call IsItLoggingTime(hlm_masterproc,currentSite)
+
+    ! Call a routine that identifies if damage should occur
+    if(hlm_use_canopy_damage .eq. itrue .or. hlm_use_understory_damage .eq. itrue) then
+       call is_it_damage_time(hlm_masterproc, currentSite)
+    end if
 
     !**************************************************************************
     ! Fire, growth, biogeochemistry.
@@ -292,7 +301,7 @@ contains
     end if
 
     call TotalBalanceCheck(currentSite,5)
-
+    
   end subroutine ed_ecosystem_dynamics
 
   !-------------------------------------------------------------------------------!
@@ -303,8 +312,30 @@ contains
     ! FIX(SPM,032414) refactor so everything goes through interface
     !
     ! !USES:
+    use FatesInterfaceTypesMod, only : ncrowndamage
+    use FatesAllometryMod    , only : bleaf
+    use FatesAllometryMod    , only : carea_allom
+    use PRTGenericMod        , only : leaf_organ
+    use PRTGenericMod        , only : repro_organ
+    use PRTGenericMod        , only : sapw_organ
+    use PRTGenericMod        , only : struct_organ
+    use PRTGenericMod        , only : store_organ
+    use PRTGenericMod        , only : fnrt_organ
     use FatesInterfaceTypesMod, only : hlm_use_cohort_age_tracking
     use FatesConstantsMod, only : itrue
+    use PRTGenericMod        , only : all_carbon_elements
+    use DamageMainMod        , only : damage_time
+    use EDCohortDynamicsMod   , only : zero_cohort, copy_cohort, insert_cohort
+    use EDCohortDynamicsMod   , only : DeallocateCohort
+    use FatesPlantHydraulicsMod, only : InitHydrCohort
+    use EDCohortDynamicsMod   , only : InitPRTObject
+    use EDCohortDynamicsMod   , only : InitPRTBoundaryConditions
+    use FatesConstantsMod     , only : nearzero
+    use EDCanopyStructureMod  , only : canopy_structure
+    use PRTLossFluxesMod      , only : PRTDamageRecoveryFluxes
+    use PRTGenericMod         , only : max_nleafage
+    use PRTGenericMod         , only : prt_global
+    
     ! !ARGUMENTS:
 
     type(ed_site_type)     , intent(inout) :: currentSite
@@ -316,6 +347,12 @@ contains
     type(site_massbal_type), pointer :: site_cmass
     type(ed_patch_type)  , pointer :: currentPatch
     type(ed_cohort_type) , pointer :: currentCohort
+    type(ed_cohort_type) , pointer :: nc
+    type(ed_cohort_type) , pointer :: storesmallcohort
+    type(ed_cohort_type) , pointer :: storebigcohort
+    
+    integer :: snull
+    integer :: tnull 
 
     integer  :: c                     ! Counter for litter size class
     integer  :: ft                    ! Counter for PFT
@@ -328,12 +365,45 @@ contains
     logical  :: is_drought            ! logical for if the plant (site) is in a drought state
     real(r8) :: delta_dbh             ! correction for dbh
     real(r8) :: delta_hite            ! correction for hite
-
     real(r8) :: current_npp           ! place holder for calculating npp each year in prescribed physiology mode
-    !-----------------------------------------------------------------------
+
+    real(r8) :: target_leaf_c
     real(r8) :: frac_site_primary
 
+    real(r8) :: n_old
+    real(r8) :: n_recover
+    integer  :: nleafage
+    real(r8) :: sapw_c
+    real(r8) :: leaf_c
+    real(r8) :: fnrt_c
+    real(r8) :: struct_c
+    real(r8) :: repro_c
+    real(r8) :: total_c
+    real(r8) :: store_c
 
+    real(r8) :: cc_leaf_c
+    real(r8) :: cc_fnrt_c
+    real(r8) :: cc_struct_c
+    real(r8) :: cc_repro_c
+    real(r8) :: cc_store_c
+    real(r8) :: cc_sapw_c
+    
+    real(r8) :: sapw_c0
+    real(r8) :: leaf_c0
+    real(r8) :: fnrt_c0
+    real(r8) :: struct_c0
+    real(r8) :: repro_c0
+    real(r8) :: store_c0
+    real(r8) :: total_c0
+    real(r8) :: nc_carbon
+    real(r8) :: cc_carbon
+    
+    integer,parameter :: leaf_c_id = 1
+    
+    !-----------------------------------------------------------------------
+    nleafage = prt_global%state_descriptor(leaf_c_id)%num_pos
+
+    
     call get_frac_site_primary(currentSite, frac_site_primary)
 
     ! Set a pointer to this sites carbon12 mass balance
@@ -360,13 +430,13 @@ contains
        ! check to see if the patch has moved to the next age class
        currentPatch%age_class = get_age_class_index(currentPatch%age)
 
+
        ! Update Canopy Biomass Pools
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort))
 
-
           ft = currentCohort%pft
-
+ 
           ! Calculate the mortality derivatives
           call Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary )
 
@@ -420,6 +490,7 @@ contains
           else
              is_drought = .true.
           end if
+
           call PRTMaintTurnover(currentCohort%prt,ft,is_drought)
 
           ! If the current diameter of a plant is somehow less than what is consistent
@@ -435,9 +506,124 @@ contains
           ! Growth and Allocation (PARTEH)
           ! -----------------------------------------------------------------------------
 
+          ! cohorts will be split during this phase to allow some fraction to recover
+          ! keep track of starting population
+          n_old = currentCohort%n
+
+          ! track initial carbon pools
+       
+          leaf_c0   = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+          fnrt_c0   = currentCohort%prt%GetState(fnrt_organ, all_carbon_elements)
+          sapw_c0   = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
+          struct_c0 = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
+          store_c0  = currentCohort%prt%GetState(store_organ, all_carbon_elements)
+          repro_c0 = currentCohort%prt%GetState(repro_organ, all_carbon_elements)
+
+          total_c0 = sapw_c0 + struct_c0 + leaf_c0 + fnrt_c0 + store_c0 + repro_c0
+          cc_carbon = 0.0_r8 ! need to set it here to avoid nan errors if conditions aren't met below
+          
           call currentCohort%prt%DailyPRT()
 
+          
+          if(hlm_use_canopy_damage .eq. itrue .or. hlm_use_understory_damage .eq. itrue) then
 
+             if(currentCohort%crowndamage > 1) then
+  
+                ! N is inout boundary condition so has now been updated. The difference must
+                ! go to a new cohort
+                n_recover = n_old - currentCohort%n
+
+                if(n_recover > nearzero) then
+
+                   allocate(nc)
+                   if(hlm_use_planthydro .eq. itrue) call InitHydrCohort(CurrentSite,nc)
+                   ! Initialize the PARTEH object and point to the
+                   ! correct boundary condition fields
+                   nc%prt => null()
+                   call InitPRTObject(nc%prt)
+                   call InitPRTBoundaryConditions(nc)          
+                   !    call zero_cohort(nc)  
+                   call copy_cohort(currentCohort, nc)
+
+                   nc%n = n_recover
+                   nc%crowndamage = currentCohort%crowndamage - 1
+
+                   ! Need to adjust the crown area which is NOT on a per individual basis
+                   nc%c_area = nc%n/n_old * currentCohort%c_area
+                   currentCohort%c_area = currentCohort%c_area - nc%c_area
+
+                   ! This new cohort spends carbon balance on growing out pools
+                   ! (but not dbh) to reach new allometric targets
+                   ! This was already calculated within parteh - this cohort should just
+                   ! be able to hit allometric targets of one damage class down
+                   call nc%prt%DamageRecovery()
+
+                   ! at this point we need to update fluxes or this cohort will
+                   ! fail its mass conservation checks
+
+                   sapw_c   = nc%prt%GetState(sapw_organ, all_carbon_elements)
+                   struct_c = nc%prt%GetState(struct_organ, all_carbon_elements)
+                   leaf_c   = nc%prt%GetState(leaf_organ, all_carbon_elements)
+                   fnrt_c   = nc%prt%GetState(fnrt_organ, all_carbon_elements)
+                   store_c  = nc%prt%GetState(store_organ, all_carbon_elements)
+                   repro_c  = nc%prt%GetState(repro_organ, all_carbon_elements)
+                   nc_carbon = sapw_c + struct_c + leaf_c + fnrt_c + store_c + repro_c
+
+                   cc_sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
+                   cc_struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
+                   cc_leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+                   cc_fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_elements)
+                   cc_store_c  = currentCohort%prt%GetState(store_organ, all_carbon_elements)
+                   cc_repro_c  = currentCohort%prt%GetState(repro_organ, all_carbon_elements)
+                   cc_carbon = cc_sapw_c + cc_struct_c + cc_leaf_c + cc_fnrt_c + cc_store_c + cc_repro_c
+
+
+                   call PRTDamageRecoveryFluxes(nc%prt, leaf_organ, leaf_c0, leaf_c, cc_leaf_c)
+                   call PRTDamageRecoveryFluxes(nc%prt, repro_organ, repro_c0, repro_c, cc_repro_c)
+                   call PRTDamageRecoveryFluxes(nc%prt, sapw_organ, sapw_c0, sapw_c, cc_sapw_c)
+                   call PRTDamageRecoveryFluxes(nc%prt, struct_organ, struct_c0, struct_c, cc_struct_c)
+                   call PRTDamageRecoveryFluxes(nc%prt, store_organ, store_c0, store_c, cc_store_c)
+                   call PRTDamageRecoveryFluxes(nc%prt, fnrt_organ, fnrt_c0, fnrt_c, cc_fnrt_c)
+
+                   ! update crown area
+                   call carea_allom(nc%dbh, nc%n, currentSite%spread, nc%pft, nc%crowndamage, nc%c_area)
+                   call carea_allom(currentCohort%dbh, currentCohort%n, currentSite%spread, &
+                        currentCohort%pft, currentCohort%crowndamage, currentCohort%c_area)
+
+
+                   currentSite%recovery_rate(currentCohort%crowndamage, nc%crowndamage) = &
+                        currentSite%recovery_rate(currentCohort%crowndamage, nc%crowndamage) + nc%n
+                   currentSite%recovery_cflux(currentCohort%crowndamage, nc%crowndamage) = &
+                        currentSite%recovery_cflux(currentCohort%crowndamage, nc%crowndamage) + &
+                        nc%n * nc_carbon
+
+                   !----------- Insert copy into linked list ----------------------! 
+                   nc%shorter => currentCohort
+                   if(associated(currentCohort%taller))then
+                      nc%taller => currentCohort%taller
+                      currentCohort%taller%shorter => nc
+                   else
+                      currentPatch%tallest => nc    
+                      nc%taller => null()
+                   endif
+                   currentCohort%taller => nc
+
+                end if ! end if greater than nearzero
+                
+             end if ! end if crowndamage > 1
+
+             
+             ! fill in the diagonals - i.e. those that did not recover 
+             currentSite%recovery_rate(currentCohort%crowndamage, currentCohort%crowndamage) = &
+                  currentSite%recovery_rate(currentCohort%crowndamage, currentCohort%crowndamage) +&
+                  currentCohort%n
+             currentSite%recovery_cflux(currentCohort%crowndamage, currentCohort%crowndamage) = &
+                  currentSite%recovery_cflux(currentCohort%crowndamage, currentCohort%crowndamage) + &
+                  currentCohort%n * cc_carbon
+
+          end if ! end if crowndamage is on
+
+   
           ! Update the mass balance tracking for the daily nutrient uptake flux
           ! Then zero out the daily uptakes, they have been used
           ! -----------------------------------------------------------------------------
@@ -567,15 +753,16 @@ contains
                   currentCohort%coage_class,currentCohort%coage_by_pft_class)
           end if
 
-
+        
           currentCohort => currentCohort%taller
-      end do
+
+         
+       end do
 
        currentPatch => currentPatch%older
    end do
 
-
-    ! When plants die, the water goes with them.  This effects
+   ! When plants die, the water goes with them.  This effects
     ! the water balance.
 
     if( hlm_use_planthydro == itrue ) then
@@ -682,9 +869,8 @@ contains
         ! This cohort count is used in the photosynthesis loop
         call count_cohorts(currentPatch)
 
-
         currentPatch => currentPatch%younger
-    enddo
+     enddo
 
     ! The HLMs need to know about nutrient demand, and/or
     ! root mass and affinities
@@ -931,6 +1117,7 @@ contains
           currentCohort%frmort = 0.0_r8
           currentCohort%smort = 0.0_r8
           currentCohort%asmort = 0.0_r8
+          currentCohort%dgmort = 0.0_r8
 
           currentCohort%dndt      = 0.0_r8
           currentCohort%dhdt      = 0.0_r8

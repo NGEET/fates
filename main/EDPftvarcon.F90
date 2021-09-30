@@ -109,6 +109,12 @@ module EDPftvarcon
      real(r8), allocatable :: taul(:, :)
      real(r8), allocatable :: taus(:, :)
 
+
+     ! Damage parameters
+     real(r8), allocatable :: damage_frac(:)             ! Fraction of each cohort damaged per year
+     real(r8), allocatable :: damage_mort_p1(:)          ! Inflection point for damage mortality function
+     real(r8), allocatable :: damage_mort_p2(:)          ! Rate parameter for damage mortality function
+     
      ! Fire Parameters (No PFT vector capabilities in their own routines)
      ! See fire/SFParamsMod.F90 for bulk of fire parameters
      ! -------------------------------------------------------------------------------------------
@@ -117,7 +123,6 @@ module EDPftvarcon
 
      ! Non-PARTEH Allometry Parameters
      ! --------------------------------------------------------------------------------------------
-
 
      real(r8), allocatable :: allom_frbstor_repro(:)  ! fraction of bstrore for reproduction after mortality
 
@@ -296,8 +301,7 @@ contains
     call this%Receive_PFT_numrad(fates_params)
     call this%Receive_PFT_hydr_organs(fates_params)
     call this%Receive_PFT_leafage(fates_params)
-
-  end subroutine Receive
+   end subroutine Receive
 
   !-----------------------------------------------------------------------
   subroutine Register_PFT(this, fates_params)
@@ -541,6 +545,18 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_seed_decay_rate'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_damage_frac'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_damage_mort_p1'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_damage_mort_p2'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -890,6 +906,18 @@ contains
     name = 'fates_seed_decay_rate'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%seed_decay_rate)
+
+    name = 'fates_damage_frac'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%damage_frac)
+
+    name = 'fates_damage_mort_p1'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%damage_mort_p1)
+
+    name = 'fates_damage_mort_p2'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%damage_mort_p2)
 
     name = 'fates_trim_limit'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1430,6 +1458,9 @@ contains
         write(fates_log(),fmt0) 'jmaxhd = ',EDPftvarcon_inst%jmaxhd
         write(fates_log(),fmt0) 'vcmaxse = ',EDPftvarcon_inst%vcmaxse
         write(fates_log(),fmt0) 'jmaxse = ',EDPftvarcon_inst%jmaxse
+        write(fates_log(),fmt0) 'damage_frac = ',EDPftvarcon_inst%damage_frac
+        write(fates_log(),fmt0) 'damage_mort_p1 = ',EDPftvarcon_inst%damage_mort_p1
+        write(fates_log(),fmt0) 'damage_mort_p2 = ',EDPftvarcon_inst%damage_mort_p2
         write(fates_log(),fmt0) 'germination_timescale = ',EDPftvarcon_inst%germination_rate
         write(fates_log(),fmt0) 'seed_decay_turnover = ',EDPftvarcon_inst%seed_decay_rate
         write(fates_log(),fmt0) 'trim_limit = ',EDPftvarcon_inst%trim_limit
@@ -1506,7 +1537,6 @@ contains
      npft = size(EDPftvarcon_inst%freezetol,1)
 
      if(.not.is_master) return
-
 
      if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
 
@@ -1731,6 +1761,7 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
 
         end if
+
 
 
         ! Check if photosynthetic pathway is neither C3/C4

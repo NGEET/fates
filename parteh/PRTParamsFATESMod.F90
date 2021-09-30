@@ -359,8 +359,10 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-   
-
+    name = 'fates_damage_recovery_scalar'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+ 
     name = 'fates_nitr_store_ratio'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -368,7 +370,7 @@ contains
     name = 'fates_phos_store_ratio'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-    
+
   end subroutine PRTRegisterPFT
   
   !-----------------------------------------------------------------------
@@ -603,6 +605,10 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
           data=prt_params%turnover_retrans_mode)
 
+    name = 'fates_damage_recovery_scalar'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+          data=prt_params%damage_recovery_scalar)
+
     name = 'fates_nitr_store_ratio'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=prt_params%nitr_store_ratio)
@@ -610,8 +616,7 @@ contains
     name = 'fates_phos_store_ratio'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=prt_params%phos_store_ratio)
-    
-    
+
   end subroutine PRTReceivePFT
 
   !-----------------------------------------------------------------------
@@ -867,6 +872,7 @@ contains
         write(fates_log(),fmt0) 'grperc = ',prt_params%grperc
         write(fates_log(),fmt0) 'c2b = ',prt_params%c2b
         write(fates_log(),fmt0) 'branch_turnover = ',prt_params%branch_long
+        write(fates_log(),fmt0) 'damage_recovery_scalar = ', prt_params%damage_recovery_scalar
         write(fates_log(),fmt0) 'allom_hmode = ',prt_params%allom_hmode
         write(fates_log(),fmt0) 'allom_lmode = ',prt_params%allom_lmode
         write(fates_log(),fmt0) 'allom_fmode = ',prt_params%allom_fmode
@@ -1436,6 +1442,7 @@ contains
 
      integer,intent(in) :: ft
      integer,intent(in) :: element_id
+
      real(r8)           :: recruit_stoich  ! nutrient to carbon ratio of recruit
 
      real(r8) :: dbh         ! dbh of the new recruit [cm]
@@ -1449,15 +1456,18 @@ contains
      real(r8) :: c_store     ! target Storage biomass [kgC]
      real(r8) :: c_total     ! total target carbon
      real(r8) :: nutr_total  ! total target nutrient
-
+    
+    
+     ! Since recruits have no damage we can put 1 for crown damage class and
+     ! branch fraction 
      call h2d_allom(EDPftvarcon_inst%hgt_min(ft),ft,dbh)
-     call bleaf(dbh,ft,init_recruit_trim,c_leaf)
+     call bleaf(dbh,ft,1, init_recruit_trim,c_leaf)
      call bfineroot(dbh,ft,init_recruit_trim,c_fnrt)
-     call bsap_allom(dbh,ft,init_recruit_trim,a_sapw, c_sapw)
-     call bagw_allom(dbh,ft,c_agw)
+     call bsap_allom(dbh,ft,1,1.0_r8,init_recruit_trim,a_sapw, c_sapw)
+     call bagw_allom(dbh,ft,1,1.0_r8,c_agw)
      call bbgw_allom(dbh,ft,c_bgw)
      call bdead_allom(c_agw,c_bgw,c_sapw,ft,c_struct)
-     call bstore_allom(dbh,ft,init_recruit_trim,c_store)
+     call bstore_allom(dbh,ft,1,init_recruit_trim,c_store)
 
      ! Total carbon in a newly recruited plant
      c_total = c_leaf + c_fnrt + c_sapw + c_struct + c_store

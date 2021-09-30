@@ -26,6 +26,7 @@ module PRTParametersMod
                                                          ! one class to the next [yr]
      real(r8), allocatable :: root_long(:)               ! root turnover time (longevity) (pft)             [yr]
      real(r8), allocatable :: branch_long(:)             ! Turnover time for branchfall on live trees (pft) [yr]
+     real(r8), allocatable :: damage_recovery_scalar(:)  ! what fraction of cohort gets to recover
      real(r8), allocatable :: turnover_retrans_mode(:)   ! Retranslocation method (pft)
      real(r8), allocatable :: turnover_carb_retrans(:,:) ! carbon re-translocation fraction (pft x organ)
      real(r8), allocatable :: turnover_nitr_retrans(:,:) ! nitrogen re-translocation fraction (pft x organ)

@@ -7,7 +7,7 @@ dimensions:
 	fates_history_coage_bins = 2 ;
 	fates_hydr_organs = 4 ;
 	fates_leafage_class = 1 ;
-	fates_litterclass = 6 ;
+	fates_litterclass = 6 ; 
 	fates_pft = 12 ;
 	fates_prt_organs = 4 ;
 	fates_string_length = 60 ;
@@ -153,7 +153,22 @@ variables:
 	double fates_branch_turnover(fates_pft) ;
 		fates_branch_turnover:units = "yr" ;
 		fates_branch_turnover:long_name = "turnover time of branches" ;
-	double fates_c2b(fates_pft) ;
+        double fates_damage_frac(fates_pft) ;
+                fates_damage_frac:units = "fraction";         
+                fates_damage_frac:long_name = "fraction of cohort damaged in each damage event";
+        double fates_damage_mort_p1(fates_pft) ;
+               fates_damage_mort_p1:units = "fraction crown loss - a value of 0.8 means 50% mortality with 80% loss of crown";
+               fates_damage_mort_p1:long_name = "inflection point of damage mortality function - to turn off damage mortality set this to a large number" ;
+        double fates_damage_mort_p2(fates_pft) ;
+                fates_damage_mort_p2:units = "unitless";
+                fates_damage_mort_p2:long_name = "rate of mortality increase with damage";
+        double fates_damage_recovery_scalar(fates_pft) ;
+                fates_damage_recovery_scalar:units = "unitless";
+                fates_damage_recovery_scalar:long_name = "fraction of cohort that recovers from damage";
+        double fates_ncrowndamage ;
+                fates_ncrowndamage: units = "unitless" ; 
+                fates_ncrowndamage: long_name = "number of crowndamage classes" ;  
+        double fates_c2b(fates_pft) ;
 		fates_c2b:units = "ratio" ;
 		fates_c2b:long_name = "Carbon to biomass multiplier of bulk structural tissues" ;
 	double fates_dev_arbitrary_pft(fates_pft) ;
@@ -895,6 +910,19 @@ data:
     100, 100 ;
 
  fates_branch_turnover = 150, 150, 150, 150, 150, 150, 150, 150, 150, 0, 0, 0 ;
+
+ fates_damage_frac = 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01,
+    0.01, 0.01, 0.01, 0.01 ;
+    
+ fates_damage_mort_p1 = 0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9 ;        
+
+ fates_damage_mort_p2 = 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5,
+  5.5, 5.5 ;                                    
+
+ fates_damage_recovery_scalar = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+ 0.0, 0.0, 0.0, 0.0  ;                                    
+
+ fates_ncrowndamage = 5 ;    
 
  fates_c2b = 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ;
 

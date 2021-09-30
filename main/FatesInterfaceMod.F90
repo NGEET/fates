@@ -40,6 +40,7 @@ module FatesInterfaceMod
    use EDParamsMod               , only : ED_val_history_ageclass_bin_edges
    use EDParamsMod               , only : ED_val_history_height_bin_edges
    use EDParamsMod               , only : ED_val_history_coageclass_bin_edges
+   use EDParamsMod               , only : ED_val_ncrowndamage
    use CLMFatesParamInterfaceMod , only : FatesReadParameters
    use EDTypesMod                , only : p_uptake_mode
    use EDTypesMod                , only : n_uptake_mode
@@ -135,7 +136,7 @@ module FatesInterfaceMod
    public :: zero_bcs
    public :: set_bcs
 
-contains
+ contains
 
   ! ====================================================================================
   subroutine FatesInterfaceInit(log_unit,global_verbose)
@@ -711,10 +712,14 @@ contains
        !
        ! --------------------------------------------------------------------------------
 
+      use EDParamsMod, only : ED_val_ncrowndamage
+
 
       implicit none
+
       
       logical,intent(in) :: use_fates    ! Is fates turned on?
+
       integer :: i
       
       if (use_fates) then
@@ -753,6 +758,10 @@ contains
             nleafage = size(prt_params%leaf_long,dim=2)
          end if
 
+          ! Identify the number of damage classes
+         ncrowndamage = ED_val_ncrowndamage
+
+         
          ! These values are used to define the restart file allocations and general structure
          ! of memory for the cohort arrays
 
@@ -804,6 +813,7 @@ contains
          nlevheight = size(ED_val_history_height_bin_edges,dim=1)
          nlevcoage = size(ED_val_history_coageclass_bin_edges,dim=1)
 
+         
          ! do some checks on the size, age, and height bin arrays to make sure they make sense:
          ! make sure that all start at zero, and that both are monotonically increasing
          if ( ED_val_history_sizeclass_bin_edges(1) .ne. 0._r8 ) then
@@ -931,6 +941,7 @@ contains
        
        use EDTypesMod, only : NFSC
        use EDTypesMod, only : nclmax
+       use FatesInterfaceTypesMod, only : ncrowndamage
        use EDTypesMod, only : nlevleaf
        use EDParamsMod, only : ED_val_history_sizeclass_bin_edges
        use EDParamsMod, only : ED_val_history_ageclass_bin_edges
@@ -951,6 +962,8 @@ contains
        integer :: icwd
        integer :: ifuel
        integer :: ican
+       integer :: icdam
+       integer :: icdcd
        integer :: ileaf
        integer :: iage
        integer :: iheight
@@ -968,6 +981,15 @@ contains
        allocate( fates_hdim_levcoage(1:nlevcoage ))
        allocate( fates_hdim_pfmap_levcapf(1:nlevcoage*numpft))
        allocate( fates_hdim_camap_levcapf(1:nlevcoage*numpft))
+
+       allocate( fates_hdim_levcdam(ncrowndamage ))
+       allocate( fates_hdim_cdimap_levcdcd(ncrowndamage*(ncrowndamage+1)))
+       allocate( fates_hdim_cdjmap_levcdcd(ncrowndamage*(ncrowndamage+1)))
+       allocate( fates_hdim_scmap_levcdsc(nlevsclass*ncrowndamage))
+       allocate( fates_hdim_cdmap_levcdsc(nlevsclass*ncrowndamage))
+       allocate( fates_hdim_scmap_levcdpf(nlevsclass*ncrowndamage * numpft))
+       allocate( fates_hdim_cdmap_levcdpf(nlevsclass*ncrowndamage * numpft))
+       allocate( fates_hdim_pftmap_levcdpf(nlevsclass*ncrowndamage * numpft))
 
        allocate( fates_hdim_levcan(nclmax))
        allocate( fates_hdim_levelem(num_elements))
@@ -1019,6 +1041,12 @@ contains
        do ican = 1,nclmax
           fates_hdim_levcan(ican) = ican
        end do
+
+       ! make damage array
+       do icdam = 1,ncrowndamage
+          fates_hdim_levcdam(icdam) = icdam
+       end do
+      
 
        ! Make an element array, each index is the PARTEH global identifier index
 
@@ -1091,6 +1119,25 @@ contains
        end do
 
        i=0
+       do icdam=1,ncrowndamage
+          do isc=1,nlevsclass
+             i=i+1
+             fates_hdim_scmap_levcdsc(i) = isc
+             fates_hdim_cdmap_levcdsc(i) = icdam
+          end do
+       end do
+
+        i=0
+       do icdam=1,ncrowndamage
+          do icdcd=1,ncrowndamage+1
+             i=i+1
+             fates_hdim_cdimap_levcdcd(i) = icdcd
+             fates_hdim_cdjmap_levcdcd(i) = icdam
+          end do
+       end do
+
+
+       i=0
        do ipft=1,numpft
           do ican=1,nclmax
              do ileaf=1,nlevleaf
@@ -1110,6 +1157,18 @@ contains
                 fates_hdim_scmap_levscagpft(i) = isc
                 fates_hdim_agmap_levscagpft(i) = iage
                 fates_hdim_pftmap_levscagpft(i) = ipft
+             end do
+          end do
+       end do
+
+        i=0
+       do ipft=1,numpft
+          do icdam=1,ncrowndamage
+             do isc=1,nlevsclass
+                i=i+1
+                fates_hdim_scmap_levcdpf(i) = isc
+                fates_hdim_cdmap_levcdpf(i) = icdam
+                fates_hdim_pftmap_levcdpf(i) = ipft
              end do
           end do
        end do
@@ -1239,6 +1298,8 @@ contains
          hlm_use_lu_harvest   = unset_int
          hlm_num_lu_harvest_cats   = unset_int
          hlm_use_cohort_age_tracking = unset_int
+         hlm_use_understory_damage = unset_int
+         hlm_use_canopy_damage = unset_int
          hlm_use_logging   = unset_int
          hlm_use_ed_st3    = unset_int
          hlm_use_ed_prescribed_phys = unset_int
@@ -1551,6 +1612,20 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_use_understory_damage .eq. unset_int) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'switch for understory damage unset: hlm_use_understory_damage, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+          if(hlm_use_canopy_damage .eq. unset_int) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'switch for canopy damage unset: hlm_use_canopy_damage, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
          if(hlm_use_sp.eq.itrue.and.hlm_use_nocomp.eq.ifalse)then
             write(fates_log(), *) 'SP cannot be on if nocomp mode is off. Exiting. '
             call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1722,6 +1797,18 @@ contains
                hlm_use_cohort_age_tracking = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_cohort_age_tracking= ',ival,' to FATES'
+               end if
+               
+            case('use_understory_damage')
+               hlm_use_understory_damage = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_understory_damage= ',ival,' to FATES'
+               end if
+
+            case('use_canopy_damage')
+               hlm_use_canopy_damage = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_canopy_damage= ',ival,' to FATES'
                end if
 
             case('use_logging')

@@ -789,7 +789,7 @@ contains
       currentCohort => newPatch%shortest
       do while(associated(currentCohort))
          call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
-               currentCohort%pft,currentCohort%c_area)
+               currentCohort%pft,currentCohort%crowndamage,currentCohort%c_area)
          currentCohort => currentCohort%taller
       enddo
       

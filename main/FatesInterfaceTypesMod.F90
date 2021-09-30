@@ -150,6 +150,14 @@ module FatesInterfaceTypesMod
    integer, public :: hlm_use_cohort_age_tracking ! This flag signals whether or not to use
                                                              ! cohort age tracking. 1 = TRUE, 0 = FALSE
 
+
+   integer, public :: hlm_use_canopy_damage ! This flag signals whether or not to use
+                                                             ! the canopy damage module. 1 = TRUE, 0 = FALSE
+
+   integer, public :: hlm_use_understory_damage ! This flag signals whether or not to use
+                                                             ! understory damage. 1 = TRUE, 0 = FALSE
+
+   
    integer, public :: hlm_use_ed_st3        ! This flag signals whether or not to use
                                                        ! (ST)atic (ST)and (ST)ructure mode (ST3)
                                                        ! Essentially, this gives us the ability
@@ -231,6 +239,15 @@ module FatesInterfaceTypesMod
    real(r8), public, allocatable :: fates_hdim_levsclass(:)        ! plant size class lower bound dimension
    integer , public, allocatable :: fates_hdim_pfmap_levscpf(:)    ! map of pfts into size-class x pft dimension
    integer , public, allocatable :: fates_hdim_scmap_levscpf(:)    ! map of size-class into size-class x pft dimension
+   integer , public, allocatable :: fates_hdim_levcdam(:)          ! crown damage dimension
+   integer , public, allocatable :: fates_hdim_pftmap_levcdpf(:)   ! map of pfts into size x crowndamage x pft dimension
+   integer , public, allocatable :: fates_hdim_cdmap_levcdpf(:)    ! map of crowndamage into size x crowndamage x pft
+   integer , public, allocatable :: fates_hdim_scmap_levcdpf(:)    ! map of size into size x crowndamage x pft
+   integer , public, allocatable :: fates_hdim_cdmap_levcdsc(:)    ! map of crowndamage into size x crowndamage
+   integer , public, allocatable :: fates_hdim_scmap_levcdsc(:)    ! map of size into size x crowndamage
+   integer , public, allocatable :: fates_hdim_cdimap_levcdcd(:)   ! map of current damage into damage x damage + mortality
+   integer , public, allocatable :: fates_hdim_cdjmap_levcdcd(:)   ! map of new damage into damage x damage + mortality
+   
    real(r8), public, allocatable :: fates_hdim_levage(:)           ! patch age lower bound dimension
    real(r8), public, allocatable :: fates_hdim_levheight(:)        ! height lower bound dimension
    integer , public, allocatable :: fates_hdim_levpft(:)           ! plant pft dimension
@@ -296,7 +313,8 @@ module FatesInterfaceTypesMod
    integer, public :: nlevheight       ! The total number of height bins output to history
    integer, public :: nlevcoage        ! The total number of cohort age bins output to history 
    integer, public :: nleafage         ! The total number of leaf age classes
-
+   integer, public :: ncrowndamage     ! The total number of damage classes
+   
    ! -------------------------------------------------------------------------------------
    ! Structured Boundary Conditions (SITE/PATCH SCALE)
    ! For floating point arrays, it is sometimes the convention to define the arrays as

@@ -42,6 +42,7 @@ module EDParamsMod
    real(r8),protected, public :: ED_val_init_litter
    real(r8),protected, public :: ED_val_nignitions
    real(r8),protected, public :: ED_val_understorey_death
+   real(r8),protected, public :: ED_val_ncrowndamage
    real(r8),protected, public :: ED_val_cwd_fcel
    real(r8),protected, public :: ED_val_cwd_flig
    real(r8),protected, public :: ED_val_base_mr_20
@@ -102,6 +103,7 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_init_litter = "fates_init_litter"
    character(len=param_string_length),parameter,public :: ED_name_nignitions = "fates_fire_nignitions"
    character(len=param_string_length),parameter,public :: ED_name_understorey_death = "fates_mort_understorey_death"
+   character(len=param_string_length),parameter,public :: ED_name_ncrowndamage = 'fates_ncrowndamage'
    character(len=param_string_length),parameter,public :: ED_name_cwd_fcel= "fates_cwd_fcel"   
    character(len=param_string_length),parameter,public :: ED_name_cwd_flig= "fates_cwd_flig"   
    character(len=param_string_length),parameter,public :: ED_name_base_mr_20= "fates_base_mr_20"   
@@ -130,7 +132,9 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_history_sizeclass_bin_edges= "fates_history_sizeclass_bin_edges"      
    character(len=param_string_length),parameter,public :: ED_name_history_ageclass_bin_edges= "fates_history_ageclass_bin_edges"      
    character(len=param_string_length),parameter,public :: ED_name_history_height_bin_edges= "fates_history_height_bin_edges"
+  
    character(len=param_string_length),parameter,public :: ED_name_history_coageclass_bin_edges = "fates_history_coageclass_bin_edges"
+
 
    ! Hydraulics Control Parameters (ONLY RELEVANT WHEN USE_FATES_HYDR = TRUE)
    ! ----------------------------------------------------------------------------------------------
@@ -152,7 +156,8 @@ module EDParamsMod
    ! ----------------------------------------------------------------------------------------------
    real(r8),protected,public :: bgc_soil_salinity ! site-level soil salinity for FATES when not coupled to dynamic soil BGC of salinity
    character(len=param_string_length),parameter,public :: bgc_name_soil_salinity= "fates_soil_salinity"      
-   
+
+  
    ! Logging Control Parameters (ONLY RELEVANT WHEN USE_FATES_LOGGING = TRUE)
    ! ----------------------------------------------------------------------------------------------
 
@@ -219,6 +224,7 @@ contains
     ED_val_init_litter                    = nan
     ED_val_nignitions                     = nan
     ED_val_understorey_death              = nan
+    ED_val_ncrowndamage                   = nan
     ED_val_cwd_fcel                       = nan
     ED_val_cwd_flig                       = nan
     ED_val_base_mr_20                     = nan
@@ -269,7 +275,6 @@ contains
     use FatesParametersInterface, only : dimension_name_history_coage_bins
     use FatesParametersInterface, only : dimension_shape_scalar
 
-
     implicit none
 
     class(fates_parameters_type), intent(inout) :: fates_params
@@ -319,6 +324,9 @@ contains
     call fates_params%RegisterParameter(name=ED_name_understorey_death, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
+    call fates_params%RegisterParameter(name=ED_name_ncrowndamage, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+    
     call fates_params%RegisterParameter(name=ED_name_cwd_fcel, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
@@ -384,7 +392,7 @@ contains
 
     call fates_params%RegisterParameter(name=bgc_name_soil_salinity, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar) 
-
+ 
     call fates_params%RegisterParameter(name=logging_name_dbhmin, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
@@ -462,7 +470,7 @@ contains
 
     real(r8) :: tmpreal ! local real variable for changing type on read
     real(r8), allocatable :: hydr_htftype_real(:)
-    
+
     call fates_params%RetreiveParameter(name=ED_name_vai_top_bin_width, &
          data=vai_top_bin_width)
 
@@ -494,6 +502,9 @@ contains
 
     call fates_params%RetreiveParameter(name=ED_name_understorey_death, &
          data=ED_val_understorey_death)
+
+    call fates_params%RetreiveParameter(name=ED_name_ncrowndamage, &
+         data=ED_val_ncrowndamage)
 
     call fates_params%RetreiveParameter(name=ED_name_cwd_fcel, &
          data=ED_val_cwd_fcel)
@@ -560,7 +571,7 @@ contains
           data=hydr_psicap)
 	  
     call fates_params%RetreiveParameter(name=bgc_name_soil_salinity, &
-          data=bgc_soil_salinity)	  
+         data=bgc_soil_salinity)
 
     call fates_params%RetreiveParameter(name=logging_name_dbhmin, &
           data=logging_dbhmin)
@@ -623,7 +634,7 @@ contains
 
     call fates_params%RetreiveParameterAllocate(name=ED_name_history_height_bin_edges, &
           data=ED_val_history_height_bin_edges)
-
+    
     call fates_params%RetreiveParameterAllocate(name=ED_name_history_coageclass_bin_edges, &
          data=ED_val_history_coageclass_bin_edges)
 
@@ -657,6 +668,7 @@ contains
         write(fates_log(),fmt0) 'ED_val_init_litter = ',ED_val_init_litter
         write(fates_log(),fmt0) 'ED_val_nignitions = ',ED_val_nignitions
         write(fates_log(),fmt0) 'ED_val_understorey_death = ',ED_val_understorey_death
+        write(fates_log(),fmt0) 'ED_val_ncrowndamage = ', ED_val_ncrowndamage
         write(fates_log(),fmt0) 'ED_val_cwd_fcel = ',ED_val_cwd_fcel
         write(fates_log(),fmt0) 'ED_val_cwd_flig = ',ED_val_cwd_flig
         write(fates_log(),fmt0) 'ED_val_base_mr_20 = ', ED_val_base_mr_20

@@ -1,4 +1,4 @@
-module EDCohortDynamicsMod
+Module EDCohortDynamicsMod
   !
   ! !DESCRIPTION:
   ! Cohort stuctures in ED.
@@ -85,6 +85,9 @@ module EDCohortDynamicsMod
   use PRTAllometricCarbonMod, only : callom_prt_vartypes
   use PRTAllometricCarbonMod, only : ac_bc_inout_id_netdc
   use PRTAllometricCarbonMod, only : ac_bc_in_id_pft
+  use PRTAllometricCarbonMod, only : ac_bc_inout_id_cdamage
+  use PRTAllometricCarbonMod, only : ac_bc_in_id_branch_frac
+  use PRTAllometricCarbonMod, only : ac_bc_inout_id_n
   use PRTAllometricCarbonMod, only : ac_bc_in_id_ctrim
   use PRTAllometricCarbonMod, only : ac_bc_inout_id_dbh
   use PRTAllometricCarbonMod, only : ac_bc_in_id_lstat
@@ -122,7 +125,7 @@ module EDCohortDynamicsMod
   public :: UpdateCohortBioPhysRates
   public :: DeallocateCohort
   public :: EvaluateAndCorrectDBH
-
+ 
   logical, parameter :: debug  = .false. ! local debug flag
 
   character(len=*), parameter, private :: sourcefile = &
@@ -140,12 +143,11 @@ module EDCohortDynamicsMod
 contains
 
   !-------------------------------------------------------------------------------------!
-
-
-
   subroutine create_cohort(currentSite, patchptr, pft, nn, hite, coage, dbh,   &
-                           prt, laimemory, sapwmemory, structmemory, &
-                           status, recruitstatus,ctrim, carea, clayer, spread, bc_in)
+       prt, laimemory, sapwmemory, structmemory, &
+       status, recruitstatus,ctrim,carea, &
+       clayer, crowndamage,branch_frac, spread, bc_in)
+    
     !
     ! !DESCRIPTION:
     ! create new cohort
@@ -165,7 +167,9 @@ contains
     type(ed_patch_type), intent(inout), pointer :: patchptr
 
     integer,  intent(in)      :: pft              ! Cohort Plant Functional Type
-    integer,  intent(in)      :: clayer           ! canopy status of cohort
+    integer,  intent(in)      :: crowndamage      ! Cohort damage class
+    real(r8), intent(in)      :: branch_frac      ! Fraction of biomass in branches
+    integer,  intent(in)      :: clayer           ! canopy status of cohort 
                                                   ! (1 = canopy, 2 = understorey, etc.)
     integer,  intent(in)      :: status           ! growth status of plant
                                                   ! (2 = leaves on , 1 = leaves off)
@@ -200,7 +204,7 @@ contains
     real(r8) :: leaf_c                         ! total leaf carbon
     integer  :: tnull,snull                    ! are the tallest and shortest cohorts allocate
     integer  :: nlevrhiz                       ! number of rhizosphere layers
-
+    
     !----------------------------------------------------------------------
 
     allocate(new_cohort)
@@ -226,6 +230,8 @@ contains
     new_cohort%patchptr     => patchptr
 
     new_cohort%pft          = pft
+    new_cohort%crowndamage  = crowndamage
+    new_cohort%branch_frac  = branch_frac
     new_cohort%status_coh   = status
     new_cohort%n            = nn
     new_cohort%hite         = hite
@@ -266,26 +272,26 @@ contains
 
     ! Assign canopy extent and depth
     if(hlm_use_sp.eq.ifalse)then
-      call carea_allom(new_cohort%dbh,new_cohort%n,spread,new_cohort%pft,new_cohort%c_area)
+       call carea_allom(new_cohort%dbh,new_cohort%n,spread,new_cohort%pft, &
+            new_cohort%crowndamage,new_cohort%c_area)
     else
       new_cohort%c_area = carea ! set this from previously precision-controlled value in SP mode
     endif
     ! Query PARTEH for the leaf carbon [kg]
     leaf_c = new_cohort%prt%GetState(leaf_organ,carbon12_element)
 
-
     new_cohort%treelai = tree_lai(leaf_c, new_cohort%pft, new_cohort%c_area,    &
                                   new_cohort%n, new_cohort%canopy_layer,               &
                                   patchptr%canopy_layer_tlai,new_cohort%vcmax25top )
 
     if(hlm_use_sp.eq.ifalse)then
-    new_cohort%treesai = tree_sai(new_cohort%pft, new_cohort%dbh, new_cohort%canopy_trim,   &
-                                  new_cohort%c_area, new_cohort%n, new_cohort%canopy_layer, &
-                                  patchptr%canopy_layer_tlai, new_cohort%treelai,new_cohort%vcmax25top,2 )
+       new_cohort%treesai = tree_sai(new_cohort%pft, new_cohort%dbh, currentSite%spread, &
+            new_cohort%canopy_trim,   &
+            new_cohort%c_area, new_cohort%n, new_cohort%canopy_layer, &
+            patchptr%canopy_layer_tlai, new_cohort%treelai,new_cohort%vcmax25top,2 )
     end if
 
     new_cohort%lai     = new_cohort%treelai * new_cohort%c_area/patchptr%area
-
 
     ! Put cohort at the right place in the linked list
     storebigcohort   => patchptr%tallest
@@ -397,10 +403,13 @@ contains
 
        call new_cohort%prt%RegisterBCInOut(ac_bc_inout_id_dbh,bc_rval = new_cohort%dbh)
        call new_cohort%prt%RegisterBCInOut(ac_bc_inout_id_netdc,bc_rval = new_cohort%npp_acc)
+       call new_cohort%prt%RegisterBCInOut(ac_bc_inout_id_n,bc_rval = new_cohort%n)
+       call new_cohort%prt%RegisterBCInOut(ac_bc_inout_id_cdamage,bc_ival = new_cohort%crowndamage)
        call new_cohort%prt%RegisterBCIn(ac_bc_in_id_pft,bc_ival = new_cohort%pft)
        call new_cohort%prt%RegisterBCIn(ac_bc_in_id_ctrim,bc_rval = new_cohort%canopy_trim)
        call new_cohort%prt%RegisterBCIn(ac_bc_in_id_lstat,bc_ival = new_cohort%status_coh)
-
+       call new_cohort%prt%RegisterBCIn(ac_bc_in_id_branch_frac,bc_rval = new_cohort%branch_frac) 
+       
     case (prt_cnp_flex_allom_hyp)
 
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_pft,bc_ival = new_cohort%pft)
@@ -517,6 +526,7 @@ contains
 
     ! VEGETATION STRUCTURE
     currentCohort%pft                = fates_unset_int  ! pft number
+    currentCohort%crowndamage        = fates_unset_int  ! Crown damage class
     currentCohort%indexnumber        = fates_unset_int  ! unique number for each cohort. (within clump?)
     currentCohort%canopy_layer       = fates_unset_int  ! canopy status of cohort (1 = canopy, 2 = understorey, etc.)
     currentCohort%canopy_layer_yesterday       = nan  ! recent canopy status of cohort (1 = canopy, 2 = understorey, etc.)
@@ -708,7 +718,9 @@ contains
     ! terminates cohorts when they get too small
     !
     ! !USES:
-
+    use FatesInterfaceTypesMod   , only : hlm_use_canopy_damage
+    use FatesInterfaceTypesMod   , only : hlm_use_understory_damage
+    
     !
     ! !ARGUMENTS
     type (ed_site_type) , intent(inout), target :: currentSite
@@ -816,15 +828,41 @@ contains
           if(levcan==ican_upper) then
              currentSite%term_nindivs_canopy(currentCohort%size_class,currentCohort%pft) = &
                    currentSite%term_nindivs_canopy(currentCohort%size_class,currentCohort%pft) + currentCohort%n
-
              currentSite%term_carbonflux_canopy = currentSite%term_carbonflux_canopy + &
                    currentCohort%n * (struct_c+sapw_c+leaf_c+fnrt_c+store_c+repro_c)
+
+             currentSite%term_crownarea_canopy = currentSite%term_crownarea_canopy + &
+                   currentCohort%c_area
+         
           else
              currentSite%term_nindivs_ustory(currentCohort%size_class,currentCohort%pft) = &
                    currentSite%term_nindivs_ustory(currentCohort%size_class,currentCohort%pft) + currentCohort%n
-
              currentSite%term_carbonflux_ustory = currentSite%term_carbonflux_ustory + &
                    currentCohort%n * (struct_c+sapw_c+leaf_c+fnrt_c+store_c+repro_c)
+
+             currentSite%term_crownarea_ustory = currentSite%term_crownarea_ustory + &
+                  currentCohort%c_area
+        
+          end if
+
+          if(hlm_use_canopy_damage .eq. itrue .or. hlm_use_understory_damage .eq. itrue) then 
+             if( levcan==ican_upper) then
+                currentSite%term_nindivs_canopy_damage(currentCohort%crowndamage, &
+                     currentCohort%size_class, currentCohort%pft) = &
+                     currentSite%term_nindivs_canopy_damage(currentCohort%crowndamage,&
+                     currentCohort%size_class, currentCohort%pft) + currentCohort%n
+                currentSite%term_cflux_canopy_damage(currentCohort%crowndamage, currentCohort%size_class) = &
+                     currentSite%term_cflux_canopy_damage(currentCohort%crowndamage, currentCohort%size_class) + &
+                     currentCohort%n * (struct_c+sapw_c+leaf_c+fnrt_c+store_c+repro_c)
+             else
+                currentSite%term_nindivs_ustory_damage(currentCohort%crowndamage,&
+                     currentCohort%size_class, currentCohort%pft) = &
+                     currentSite%term_nindivs_ustory_damage(currentCohort%crowndamage,&
+                     currentCohort%size_class, currentCohort%pft) + currentCohort%n
+                currentSite%term_cflux_ustory_damage(currentCohort%crowndamage, currentCohort%size_class) = &
+                     currentSite%term_cflux_ustory_damage(currentCohort%crowndamage, currentCohort%size_class) + &
+                     currentCohort%n * (struct_c+sapw_c+leaf_c+fnrt_c+store_c+repro_c)
+             end if
           end if
 
           ! put the litter from the terminated cohorts
@@ -861,7 +899,7 @@ contains
        endif
        currentCohort => tallerCohort
     enddo
-
+    
   end subroutine terminate_cohorts
 
   ! =====================================================================================
@@ -906,6 +944,7 @@ contains
     integer  :: el        ! loop index for elements
     integer  :: c         ! loop index for CWD
     integer  :: pft       ! pft index of the cohort
+    integer  :: crowndamage ! the crown damage class of the cohort
     integer  :: sl        ! loop index for soil layers
     integer  :: dcmpy     ! loop index for decomposability
 
@@ -1011,7 +1050,6 @@ contains
      return
   end subroutine DeallocateCohort
 
-
   subroutine fuse_cohorts(currentSite, currentPatch, bc_in)
 
      !
@@ -1025,7 +1063,7 @@ contains
      use FatesConstantsMod , only : itrue
      use FatesConstantsMod, only : days_per_year
      use EDTypesMod  , only : maxCohortsPerPatch
-
+     use DamageMainMod, only : get_crown_reduction
      !
      ! !ARGUMENTS
      type (ed_site_type), intent(inout),  target :: currentSite
@@ -1055,11 +1093,13 @@ contains
      real(r8) :: dynamic_age_fusion_tolerance
      real(r8) :: dbh
      real(r8) :: leaf_c             ! leaf carbon [kg]
+     real(r8) :: target_c_area
 
      integer  :: largersc, smallersc, sc_i        ! indices for tracking the growth flux caused by fusion
      real(r8) :: larger_n, smaller_n
      integer  :: oldercacls, youngercacls, cacls_i ! indices for tracking the age flux caused by fusion
      real(r8) :: older_n, younger_n
+     real(r8) :: crown_reduction
 
      logical, parameter :: fuse_debug = .false.   ! This debug is over-verbose
                                                  ! and gets its own flag
@@ -1085,7 +1125,7 @@ contains
      !---------------------------------------------------------------------!
      !  Keep doing this until nocohorts <= maxcohorts                         !
      !---------------------------------------------------------------------!
-
+     
      if (associated(currentPatch%shortest)) then
         do while(iterate == 1)
 
@@ -1126,6 +1166,9 @@ contains
 
                           if (currentCohort%pft == nextc%pft) then
 
+                             ! check cohorts have same damage class before fusing
+                             if (currentCohort%crowndamage == nextc%crowndamage) then
+
                              ! check cohorts in same c. layer. before fusing
 
                              if (currentCohort%canopy_layer == nextc%canopy_layer) then
@@ -1153,6 +1196,7 @@ contains
                                       write(fates_log(),*) 'coage:',currentCohort%coage,nextc%coage
                                       write(fates_log(),*) 'dbh:',currentCohort%dbh,nextc%dbh
                                       write(fates_log(),*) 'pft:',currentCohort%pft,nextc%pft
+                                      write(fates_log(),*) 'crowndamage:',currentCohort%crowndamage,nextc%crowndamage
                                       write(fates_log(),*) 'canopy_trim:',currentCohort%canopy_trim,nextc%canopy_trim
                                       write(fates_log(),*) 'canopy_layer_yesterday:', &
                                            currentCohort%canopy_layer_yesterday,nextc%canopy_layer_yesterday
@@ -1230,10 +1274,12 @@ contains
 
                                       call carea_allom(currentCohort%dbh,currentCohort%n, &
                                            currentSite%spread,currentCohort%pft,&
+                                           currentCohort%crowndamage, &
                                            currentCohort%c_area,inverse=.false.)
 
                                       call carea_allom(nextc%dbh,nextc%n, &
                                            currentSite%spread,nextc%pft,&
+                                           nextc%crowndamage, &
                                            nextc%c_area,inverse=.false.)
 
                                       currentCohort%c_area = currentCohort%c_area + nextc%c_area
@@ -1241,7 +1287,7 @@ contains
                                       !
                                       dbh = currentCohort%dbh
                                       call carea_allom(dbh,newn,currentSite%spread,currentCohort%pft,&
-                                           currentCohort%c_area,inverse=.true.)
+                                           currentCohort%crowndamage,currentCohort%c_area,inverse=.true.)
                                       !
                                       if (abs(dbh-fates_unset_r8)<nearzero) then
                                          currentCohort%dbh = (currentCohort%n*currentCohort%dbh         &
@@ -1251,12 +1297,14 @@ contains
 
                                             call ForceDBH( currentCohort%pft, currentCohort%canopy_trim, &
                                                  currentCohort%dbh, currentCohort%hite, &
-                                                 bdead = currentCohort%prt%GetState(struct_organ,all_carbon_elements))
+                                                 bdead = currentCohort%prt%GetState(struct_organ,all_carbon_elements), &
+                                                 crowndamage = currentCohort%crowndamage, &
+                                                 branch_frac = currentCohort%branch_frac)
 
                                          end if
                                          !
                                          call carea_allom(currentCohort%dbh,newn,currentSite%spread,currentCohort%pft,&
-                                              currentCohort%c_area,inverse=.false.)
+                                              currentCohort%crowndamage, currentCohort%c_area,inverse=.false.)
 
                                       else
                                          currentCohort%dbh = dbh
@@ -1288,12 +1336,14 @@ contains
                                       if( prt_params%woody(currentCohort%pft) == itrue ) then
                                          call ForceDBH( currentCohort%pft, currentCohort%canopy_trim, &
                                               currentCohort%dbh, currentCohort%hite, &
-                                              bdead = currentCohort%prt%GetState(struct_organ,all_carbon_elements))
+                                              bdead = currentCohort%prt%GetState(struct_organ,all_carbon_elements),&
+                                              crowndamage = currentCohort%crowndamage, &
+                                              branch_frac = currentCohort%branch_frac)
 
                                       end if
                                       !
                                       call carea_allom(currentCohort%dbh,newn,currentSite%spread,currentCohort%pft,&
-                                           currentCohort%c_area,inverse=.false.)
+                                           currentCohort%crowndamage, currentCohort%c_area,inverse=.false.)
                                       !
                                    case default
                                       write(fates_log(),*) 'FATES: Invalid choice for cohort_fusion_conservation_method'
@@ -1306,7 +1356,9 @@ contains
                                         currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, &
                                         currentCohort%vcmax25top)
 
-                                   currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
+
+                                   currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh,&
+                                        currentSite%spread, currentCohort%canopy_trim, &
                                         currentCohort%c_area, newn, currentCohort%canopy_layer, &
                                         currentPatch%canopy_layer_tlai, currentCohort%treelai,currentCohort%vcmax25top,1 )
 
@@ -1480,7 +1532,7 @@ contains
                                    ! deallocate the hydro structure of nextc
                                    if (hlm_use_planthydro.eq.itrue) then
                                       call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
-                                           currentCohort%pft,currentCohort%c_area)
+                                           currentCohort%pft,currentCohort%crowndamage, currentCohort%c_area)
                                       leaf_c   = currentCohort%prt%GetState(leaf_organ, carbon12_element)
                                       currentCohort%treelai = tree_lai(leaf_c,             &
                                            currentCohort%pft, currentCohort%c_area, currentCohort%n, &
@@ -1496,6 +1548,7 @@ contains
 
                                 endif ! if( currentCohort%isnew.eqv.nextc%isnew ) then
                              endif !canopy layer
+                             endif ! crowndamage 
                           endif !pft
                        endif  !index no.
                     endif  ! cohort age diff
@@ -1771,6 +1824,8 @@ contains
 
     ! VEGETATION STRUCTURE
     n%pft             = o%pft
+    n%crowndamage     = o%crowndamage
+    n%branch_frac     = o%branch_frac
     n%n               = o%n
     n%dbh             = o%dbh
     n%coage           = o%coage
@@ -1860,7 +1915,8 @@ contains
     n%smort = o%smort
     n%asmort = o%asmort
     n%frmort = o%frmort
-
+    n%dgmort = o%dgmort
+    
     ! logging mortalities, Yi Xu
     n%lmort_direct     =o%lmort_direct
     n%lmort_collateral =o%lmort_collateral
@@ -2014,7 +2070,8 @@ contains
     ! consistent with stuctural biomass (or, in the case of grasses, leaf biomass)
     ! then correct (increase) the dbh to match that.
     ! -----------------------------------------------------------------------------------
-
+    use DamageMainMod, only : get_crown_reduction
+    
     ! argument
     type(ed_cohort_type),intent(inout) :: currentCohort
     real(r8),intent(out)               :: delta_dbh
@@ -2024,6 +2081,8 @@ contains
     real(r8) :: dbh
     real(r8) :: canopy_trim
     integer  :: ipft
+    integer  :: icrowndamage
+    real(r8) :: branch_frac
     real(r8) :: sapw_area
     real(r8) :: target_sapw_c
     real(r8) :: target_agw_c
@@ -2033,9 +2092,12 @@ contains
     real(r8) :: struct_c
     real(r8) :: hite_out
     real(r8) :: leaf_c
-
+    real(r8) :: crown_reduction
+    
     dbh  = currentCohort%dbh
     ipft = currentCohort%pft
+    icrowndamage = currentCohort%crowndamage
+    branch_frac = currentCohort%branch_frac
     canopy_trim = currentCohort%canopy_trim
 
     delta_dbh   = 0._r8
@@ -2046,12 +2108,12 @@ contains
        struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
 
        ! Target sapwood biomass according to allometry and trimming [kgC]
-       call bsap_allom(dbh,ipft,canopy_trim,sapw_area,target_sapw_c)
-
+       call bsap_allom(dbh,ipft,icrowndamage, branch_frac, canopy_trim,sapw_area,target_sapw_c)
+       
        ! Target total above ground biomass in woody/fibrous tissues  [kgC]
-       call bagw_allom(dbh,ipft,target_agw_c)
-
-       ! Target total below ground biomass in woody/fibrous tissues [kgC]
+       call bagw_allom(dbh,ipft, icrowndamage, branch_frac, target_agw_c)
+       
+       ! Target total below ground biomass in woody/fibrous tissues [kgC] 
        call bbgw_allom(dbh,ipft,target_bgw_c)
 
        ! Target total dead (structrual) biomass [kgC]
@@ -2064,8 +2126,11 @@ contains
        ! -----------------------------------------------------------------------------------
 
        if( (struct_c - target_struct_c ) > calloc_abs_error ) then
-          call ForceDBH( ipft, canopy_trim, dbh, hite_out, bdead=struct_c )
-          delta_dbh = dbh - currentCohort%dbh
+
+          call ForceDBH( ipft,canopy_trim, dbh, hite_out, bdead=struct_c, &
+               crowndamage = icrowndamage, branch_frac = branch_frac)
+
+          delta_dbh = dbh - currentCohort%dbh 
           delta_hite = hite_out - currentCohort%hite
           currentCohort%dbh  = dbh
           currentCohort%hite = hite_out
@@ -2077,7 +2142,7 @@ contains
        leaf_c  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
 
        ! Target leaf biomass according to allometry and trimming
-       call bleaf(dbh,ipft,canopy_trim,target_leaf_c)
+       call bleaf(dbh,ipft,icrowndamage, canopy_trim,target_leaf_c)
 
        if( ( leaf_c - target_leaf_c ) > calloc_abs_error ) then
           call ForceDBH( ipft, canopy_trim, dbh, hite_out, bl=leaf_c )
@@ -2090,6 +2155,8 @@ contains
     end if
     return
   end subroutine EvaluateAndCorrectDBH
+
+  !------------------------------------------------------------------------------------
 
 
 end module EDCohortDynamicsMod

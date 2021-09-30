@@ -111,6 +111,11 @@ contains
     use FatesAllometryMod, only : set_root_fraction
     use FatesAllometryMod, only : decay_coeff_kn
 
+    use DamageMainMod, only : get_crown_reduction
+
+    use FatesInterfaceTypesMod, only : hlm_use_canopy_damage
+    use FatesInterfaceTypesMod, only : hlm_use_understory_damage
+    
     ! ARGUMENTS:
     ! -----------------------------------------------------------------------------------
     integer,intent(in)                      :: nsites
@@ -216,6 +221,13 @@ contains
 
     real(r8), allocatable :: rootfr_ft(:,:)  ! Root fractions per depth and PFT
 
+    real(r8) :: branch_frac
+    real(r8) :: agb_frac
+    real(r8) :: crown_reduction
+    real(r8) :: sapw_c_predamage
+    real(r8) :: sapw_n
+    real(r8) :: sapw_n_predamage
+    
     ! -----------------------------------------------------------------------------------
     ! Keeping these two definitions in case they need to be added later
     !
@@ -362,7 +374,8 @@ contains
                       ft = currentCohort%pft
                       cl = currentCohort%canopy_layer
 
-                      call bleaf(currentCohort%dbh,currentCohort%pft,currentCohort%canopy_trim,store_c_target)
+                      call bleaf(currentCohort%dbh,currentCohort%pft,&
+                           currentCohort%crowndamage,currentCohort%canopy_trim,store_c_target)
                       !                     call bstore_allom(currentCohort%dbh,currentCohort%pft, &
                       !                                       currentCohort%canopy_trim,store_c_target)
 
@@ -607,7 +620,19 @@ contains
 
                       sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
                       fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_elements)
+                      
+                      if (hlm_use_canopy_damage .eq. itrue .or. hlm_use_understory_damage .eq. itrue) then
 
+                         agb_frac = prt_params%allom_agb_frac(currentCohort%pft)
+                         branch_frac = currentCohort%branch_frac
+                         call get_crown_reduction(currentCohort%crowndamage, crown_reduction)
+
+                         ! need the undamaged version if using ratios with roots
+                         sapw_c = sapw_c / &
+                              (1.0_r8 - (agb_frac * branch_frac * (1.0_r8-crown_reduction)))
+                      end if
+                     
+   
                       select case(hlm_parteh_mode)
                       case (prt_carbon_allom_hyp)
 
@@ -617,7 +642,7 @@ contains
                          live_croot_n = (1.0_r8-prt_params%allom_agb_frac(currentCohort%pft)) * &
                               sapw_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ))
 
-                        fnrt_n = fnrt_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(fnrt_organ))
+                         fnrt_n = fnrt_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(fnrt_organ))
 
                       case(prt_cnp_flex_allom_hyp)
 
@@ -633,10 +658,10 @@ contains
                          ! use the stoichiometry parameter
                          !
                          ! live_stem_n = prt_params%allom_agb_frac(currentCohort%pft) * &
-                        !               sapw_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ))
+                         !               sapw_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ))
                          ! live_croot_n = (1.0_r8-prt_params%allom_agb_frac(currentCohort%pft)) * &
-                        !               sapw_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ))
-                        ! fnrt_n = fnrt_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(fnrt_organ))
+                         !               sapw_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ))
+                         ! fnrt_n = fnrt_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(fnrt_organ))
 
 
                       case default
