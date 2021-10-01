@@ -350,7 +350,7 @@ contains
              ccohort_hydr => ccohort%co_hydr
 
              ! This calculates node heights
-             call UpdatePlantHydrNodes(ccohort_hydr,ccohort%pft,ccohort%hite, &
+             call UpdatePlantHydrNodes(ccohort,ccohort%pft,ccohort%hite, &
                   sites(s)%si_hydr)
 
              ! This calculates volumes and lengths
@@ -651,7 +651,7 @@ contains
   ! =====================================================================================
 
 
-  subroutine UpdatePlantHydrNodes(ccohort_hydr,ft,plant_height,csite_hydr)
+  subroutine UpdatePlantHydrNodes(ccohort,ft,plant_height,csite_hydr)
 
     ! --------------------------------------------------------------------------------
     ! This subroutine calculates the nodal heights critical to hydraulics in the plant
@@ -668,13 +668,14 @@ contains
     ! --------------------------------------------------------------------------------
 
     ! Arguments
-    type(ed_cohort_hydr_type), intent(inout) :: ccohort_hydr
-    integer,intent(in)                       :: ft            ! plant functional type index
-    real(r8), intent(in)                     :: plant_height  ! [m]
-    type(ed_site_hydr_type), intent(in)      :: csite_hydr
+    type(ed_cohort_type), intent(inout) :: ccohort
+    integer,intent(in)                  :: ft            ! plant functional type index
+    real(r8), intent(in)                :: plant_height  ! [m]
+    type(ed_site_hydr_type), intent(in) :: csite_hydr
 
 
     ! Locals
+    type(ed_cohort_hydr_type), pointer :: ccohort_hydr
     integer  :: nlevrhiz      ! number of rhizosphere layers
     real(r8) :: roota         ! root profile parameter a zeng2001_crootfr
     real(r8) :: rootb         ! root profile parameter b zeng2001_crootfr
@@ -686,7 +687,11 @@ contains
     real(r8) :: cumul_rf      ! cumulative root distribution where depth is determined [-]
     real(r8) :: z_cumul_rf    ! depth at which cumul_rf occurs                         [m]
     integer  :: k             ! Loop counter for compartments
+    real(r8) :: z_fr          ! Maximum rooting depth of the plant [m]
 
+    ccohort_hydr => ccohort%co_hydr
+    
+    
     ! Crown Nodes
     ! in special case where n_hypool_leaf = 1, the node height of the canopy
     ! water pool is 1/2 the distance from the bottom of the canopy to the top of the tree
@@ -694,8 +699,9 @@ contains
     rootb                      = prt_params%fnrt_prof_b(ft)
     nlevrhiz                   = csite_hydr%nlevrhiz
 
-    call CrownDepth(plant_height,ft,crown_depth)
-
+    !call CrownDepth(plant_height,ft,crown_depth)
+    crown_depth               = min(plant_height,0.1_r8)
+    
     dz_canopy                  = crown_depth / real(n_hypool_leaf,r8)
     do k=1,n_hypool_leaf
        ccohort_hydr%z_lower_ag(k)   = plant_height - dz_canopy*real(k,r8)
@@ -715,10 +721,18 @@ contains
        ccohort_hydr%z_lower_ag(k)   = ccohort_hydr%z_upper_ag(k) - dz_stem
     enddo
 
+    call MaximumRootingDepth(ccohort%dbh,ft,csite_hydr%zi_rhiz(nlevrhiz),z_fr)
+    
     ! Transporting Root Node depth [m] (negative from surface)
 
-    call bisect_rootfr(roota, rootb, 0._r8, 1.E10_r8, &
+    call bisect_rootfr(roota, rootb, z_fr, 0._r8, 1.E10_r8, &
          0.001_r8, 0.001_r8, 0.5_r8, z_cumul_rf)
+    
+    if(z_cumul_rf > csite_hydr%zi_rhiz(nlevrhiz) ) then
+       print*,"z_cumul_rf > zi_rhiz(nlevrhiz)?",z_cumul_rf,csite_hydr%zi_rhiz(nlevrhiz)
+       stop
+    end if
+    
     z_cumul_rf =  min(z_cumul_rf, abs(csite_hydr%zi_rhiz(nlevrhiz)))
     ccohort_hydr%z_node_troot = -z_cumul_rf
 
@@ -775,7 +789,7 @@ contains
     call SavePreviousCompartmentVolumes(ccohort_hydr)
 
     ! This updates all of the z_node positions
-    call UpdatePlantHydrNodes(ccohort_hydr,ft,ccohort%hite,currentSite%si_hydr)
+    call UpdatePlantHydrNodes(ccohort,ft,ccohort%hite,currentSite%si_hydr)
 
     ! This updates plant compartment volumes, lengths and
     ! maximum conductances. Make sure for already
@@ -862,13 +876,7 @@ contains
     struct_c     = ccohort%prt%GetState(struct_organ, carbon12_element)
     roota        = prt_params%fnrt_prof_a(ft)
     rootb        = prt_params%fnrt_prof_b(ft)
-    dbh_max      = prt_params%allom_zroot_max_dbh(ft)
-    dbh_0        = prt_params%allom_zroot_min_dbh(ft)
-    z_fr_max     = prt_params%allom_zroot_max_z(ft)
-    z_fr_0       = prt_params%allom_zroot_min_z(ft)
-    frk          = prt_params%allom_zroot_k(ft)
-    dbh          = ccohort%dbh
-    dbh_rev      = (dbh - dbh_0)/(dbh_max - dbh_0)
+
 
     
     ! Leaf Volumes
@@ -926,7 +934,8 @@ contains
     ! alternative cross section calculation
     ! a_sapwood    = a_leaf_tot / ( 0.001_r8 + 0.025_r8 * ccohort%hite ) * 1.e-4_r8
 
-    call CrownDepth(ccohort%hite,ft,crown_depth)
+    !call CrownDepth(ccohort%hite,ft,crown_depth)
+    crown_depth  = min(ccohort%hite,0.1_r8)
     z_stem       = ccohort%hite - crown_depth
     v_sapwood    = a_sapwood * z_stem    ! + 0.333_r8*a_sapwood*crown_depth
     ccohort_hydr%v_ag(n_hypool_leaf+1:n_hypool_ag) = v_sapwood / n_hypool_stem
@@ -962,14 +971,12 @@ contains
     ! We have a condition, where we may ignore the first layer
     ! ------------------------------------------------------------------------------
     ! Further, incorporate maximum rooting depth parameterization into these
-    ! calculations. set the rooting depth of the cohort, using the logistic functionbelow:
-    ! Junyan Ding 2021
-    !    z_fr_max/(1 + ((z_fr_max-z_fr_0)/z_fr_0)*exp(-frk*dbh_rev))
-    !  which is constrained by the maximum soil depth:  site_hydr%zi_rhiz(nlevrhiz)
+    ! calculations.
 
-    ! The dynamic root growth model by Junyan Ding, June 9, 2021
-    z_fr = min(site_hydr%zi_rhiz(nlevrhiz), z_fr_max/(1 + ((z_fr_max-z_fr_0)/z_fr_0)*exp(-frk*dbh_rev)))
+
+    call MaximumRootingDepth(ccohort%dbh,ft,site_hydr%zi_rhiz(nlevrhiz),z_fr)
     
+
     norm = 1._r8 - &
          zeng2001_crootfr(roota, rootb,site_hydr%zi_rhiz(1)-site_hydr%dz_rhiz(1), z_fr )
 
@@ -1210,7 +1217,7 @@ subroutine FuseCohortHydraulics(currentSite,currentCohort, nextCohort, bc_in, ne
    call SavePreviousCompartmentVolumes(ccohort_hydr)
 
    ! This updates all of the z_node positions
-   call UpdatePlantHydrNodes(ccohort_hydr,ft,currentCohort%hite,site_hydr)
+   call UpdatePlantHydrNodes(currentCohort,ft,currentCohort%hite,site_hydr)
 
    ! This updates plant compartment volumes, lengths and
    ! maximum conductances. Make sure for already
@@ -4238,7 +4245,43 @@ end subroutine RecruitWaterStorage
 ! Utility Functions
 ! =====================================================================================
 
-subroutine bisect_rootfr(a, b, lower_init, upper_init, xtol, ytol, crootfr, x_new)
+subroutine MaximumRootingDepth(dbh,ft,z_max_soil,z_fr)
+
+  ! ---------------------------------------------------------------------------------
+  ! Calculate the maximum rooting depth of the plant.
+  !
+  ! This is an exponential which is constrained by the maximum soil depth:
+  ! site_hydr%zi_rhiz(nlevrhiz)
+  ! The dynamic root growth model by Junyan Ding, June 9, 2021
+  ! ---------------------------------------------------------------------------------
+
+  real(r8),intent(in)  :: dbh               ! Plant dbh
+  integer,intent(in)   :: ft                ! Funtional type index
+  real(r8),intent(in)  :: z_max_soil        ! Maximum depth of soil (pos convention) [m]
+  real(r8),intent(out) :: z_fr              ! Maximum depth of plant's roots
+                                            ! (pos convention) [m]
+
+  real(r8) :: dbh_rel   ! Relative dbh of plant between the diameter at which we
+                        ! define the shallowest rooting depth (dbh_0) and the diameter
+                        ! at which we define the deepest rooting depth (dbh_max)
+
+  associate( &
+       dbh_max      => prt_params%allom_zroot_max_dbh(ft), &
+       dbh_0        => prt_params%allom_zroot_min_dbh(ft), &
+       z_fr_max     => prt_params%allom_zroot_max_z(ft), &
+       z_fr_0       => prt_params%allom_zroot_min_z(ft), &
+       frk          => prt_params%allom_zroot_k(ft))
+
+    dbh_rel      = min(1._r8,(max(dbh,dbh_0) - dbh_0)/(dbh_max - dbh_0))
+
+    z_fr = min(z_max_soil, z_fr_max/(1._r8 + ((z_fr_max-z_fr_0)/z_fr_0)*exp(-frk*dbh_rel)))
+
+  end associate
+  return
+end subroutine MaximumRootingDepth
+
+
+subroutine bisect_rootfr(a, b, z_max, lower_init, upper_init, xtol, ytol, crootfr, x_new)
   !
   ! !DESCRIPTION: Bisection routine for getting the inverse of the cumulative root
   !  distribution. No analytical soln bc crootfr ~ exp(ax) + exp(bx).
@@ -4246,7 +4289,8 @@ subroutine bisect_rootfr(a, b, lower_init, upper_init, xtol, ytol, crootfr, x_ne
   ! !USES:
   !
   ! !ARGUMENTS
-   real(r8)      , intent(in)     :: a, b        ! pft root distribution constants
+  real(r8)      , intent(in)     :: a, b        ! pft root distribution constants
+  real(r8)      , intent(in)     :: z_max       ! maximum rooting depth
    real(r8)      , intent(in)     :: lower_init  ! lower bound of initial x estimate [m]
    real(r8)      , intent(in)     :: upper_init  ! upper bound of initial x estimate [m]
    real(r8)      , intent(in)     :: xtol        ! error tolerance for x_new         [m]
@@ -4268,12 +4312,12 @@ subroutine bisect_rootfr(a, b, lower_init, upper_init, xtol, ytol, crootfr, x_ne
 
    lower = lower_init
    upper = upper_init
-   f_lo  = zeng2001_crootfr(a, b, lower) - crootfr
-   f_hi  = zeng2001_crootfr(a, b, upper) - crootfr
+   f_lo  = zeng2001_crootfr(a, b, lower, z_max) - crootfr
+   f_hi  = zeng2001_crootfr(a, b, upper, z_max) - crootfr
    chg   = upper - lower
    do while(abs(chg) .gt. xtol)
       x_new = 0.5_r8*(lower + upper)
-      f_new = zeng2001_crootfr(a, b, x_new) - crootfr
+      f_new = zeng2001_crootfr(a, b, x_new, z_max) - crootfr
       if(abs(f_new) .le. ytol) then
          EXIT
       end if
