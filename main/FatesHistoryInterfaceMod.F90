@@ -1775,6 +1775,7 @@ end subroutine flush_hvars
     real(r8) :: struct_m_net_alloc
     real(r8) :: repro_m_net_alloc
     real(r8) :: area_frac
+    real(r8) :: crown_depth
 
     type(ed_patch_type),pointer  :: cpatch
     type(ed_cohort_type),pointer :: ccohort
@@ -2231,8 +2232,8 @@ end subroutine flush_hvars
                   endif
                   ! what fraction of a cohort's crown is in this height bin?
                   frac_canopy_in_bin = (min(bintop,ccohort%hite) - &
-                       max(binbottom,ccohort%hite * (1._r8 - EDPftvarcon_inst%crown(ft)))) / &
-                       (ccohort%hite * EDPftvarcon_inst%crown(ft))
+                       max(binbottom,ccohort%hite-crown_depth)) / &
+                       (crown_depth)
                   !
                   hio_leaf_height_dist_si_height(io_si,i_heightbin) = &
                        hio_leaf_height_dist_si_height(io_si,i_heightbin) + &

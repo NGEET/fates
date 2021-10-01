@@ -2005,7 +2005,7 @@ contains
     ! Original FATES crown depth heigh used for hydraulics
     ! crown_depth               = min(height,0.1_r8)
 
-    crown_depth = prt_params%crown(ft) * plant_height
+    crown_depth = prt_params%crown(ft) * height
 
     
     return

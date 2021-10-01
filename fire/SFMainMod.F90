@@ -937,7 +937,7 @@ contains
                         (currentCohort%hite-crown_depth))) then 
 
                         currentCohort%fraction_crown_burned = (currentPatch%Scorch_ht(currentCohort%pft) - &
-                             (currentCohort%hite - crown_depth)/crown_depth
+                             (currentCohort%hite - crown_depth))/crown_depth
 
                    else 
                       ! Flames over top of canopy. 

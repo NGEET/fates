@@ -85,8 +85,6 @@ module FatesPlantHydraulicsMod
   use FatesHydraulicsMemMod, only: aroot_p_media
   use FatesHydraulicsMemMod, only: rhiz_p_media
   use FatesHydraulicsMemMod, only: nlevsoi_hyd_max
-!  use FatesHydraulicsMemMod, only: cohort_recruit_water_layer
-!  use FatesHydraulicsMemMod, only: recruit_water_avail_layer
   use FatesHydraulicsMemMod, only: rwccap, rwcft
   use FatesHydraulicsMemMod, only: ignore_layer1
 
@@ -1707,8 +1705,6 @@ subroutine ConstrainRecruitNumber(csite,ccohort, bc_in)
   integer :: element_id                 ! global element identifier index
   real(r8) :: leaf_m, store_m, sapw_m   ! Element mass in organ tissues
   real(r8) :: fnrt_m, struct_m, repro_m ! Element mass in organ tissues
-  real(r8) :: cohort_recruit_water_layer(csite_hydr%nlevrhiz)
-  real(r8) :: recruit_water_avail_layer(csite_hydr%nlevrhiz)
 
   cpatch => ccohort%patchptr
   csite_hydr => csite%si_hydr
@@ -1720,10 +1716,8 @@ subroutine ConstrainRecruitNumber(csite,ccohort, bc_in)
   
   sum_l_aroot = sum(ccohort_hydr%l_aroot_layer(:))
   do j=1,csite_hydr%nlevrhiz
-     cohort_recruit_water_layer(j) = recruitw*ccohort_hydr%l_aroot_layer(j)/sum_l_aroot
+     csite_hydr%cohort_recruit_water_layer(j) = recruitw*ccohort_hydr%l_aroot_layer(j)/sum_l_aroot
   end do
-
-  recruit_water_avail_layer(:) = 0._r8
 
   do j=1,csite_hydr%nlevrhiz
 
@@ -1733,14 +1727,14 @@ subroutine ConstrainRecruitNumber(csite,ccohort, bc_in)
      total_water_min = sum(csite_hydr%v_shell(j,:)*watres_local)
      
      !assumes that only 50% is available for recruit water....
-     recruit_water_avail_layer(j)=0.5_r8*max(0.0_r8,total_water-total_water_min)
+     csite_hydr%recruit_water_avail_layer(j)=0.5_r8*max(0.0_r8,total_water-total_water_min)
      
   end do
   
   nmin  = 1.0e+36
   do j=1,csite_hydr%nlevrhiz
-     if(cohort_recruit_water_layer(j)>nearzero) then
-        n = recruit_water_avail_layer(j)/cohort_recruit_water_layer(j)
+     if(csite_hydr%cohort_recruit_water_layer(j)>nearzero) then
+        n = csite_hydr%recruit_water_avail_layer(j)/csite_hydr%cohort_recruit_water_layer(j)
         nmin = min(n, nmin)
      endif
   end do
@@ -4315,7 +4309,7 @@ function zeng2001_crootfr(a, b, z, z_max) result(crootfr)
    if(present(z_max))then
       ! If the soil depth is larger than the maximum rooting depth of the cohort,
       ! then the cumulative root fraction of that layer equals that of the maximum rooting depth
-      crootfr      = 1._r8 - .5_r8*(exp(-a*min(z,z_max)) + exp(-b*min(z,z_max))
+      crootfr      = 1._r8 - .5_r8*(exp(-a*min(z,z_max)) + exp(-b*min(z,z_max)))
       crootfr_max = 1._r8 - .5_r8*(exp(-a*z_max) + exp(-b*z_max))
       crootfr = crootfr/crootfr_max
    end if
@@ -4337,7 +4331,7 @@ end function zeng2001_crootfr
 
 ! =====================================================================================
 
-subroutine shellGeom(l_aroot, rs1, area_site, dz, r_out_shell, r_node_shell, v_shell)
+subroutine shellGeom(l_aroot_in, rs1_in, area_site, dz, r_out_shell, r_node_shell, v_shell)
   !
   ! !DESCRIPTION: Updates size of 'representative' rhizosphere -- node radii, volumes.
   ! As fine root biomass (and thus absorbing root length) increases, this characteristic
@@ -4364,11 +4358,11 @@ subroutine shellGeom(l_aroot, rs1, area_site, dz, r_out_shell, r_node_shell, v_s
    integer                        :: k            ! rhizosphere shell indicies
    integer                        :: nshells      ! We don't use the global because of unit testing
 
-   ! When we have no roots, we use a nominal
+   
+   ! When we have no roots, we may choose to use a nominal
    ! value of 1cm per cubic meter to define the rhizosphere shells
    ! this "should" help with the transition when roots grow into a layer
-
-   real(r8), parameter :: nominal_l_aroot = 0.01_r8   ! m/m3
+   ! real(r8), parameter :: nominal_l_aroot = 0.01_r8   ! m/m3
 
    
    !-----------------------------------------------------------------------
