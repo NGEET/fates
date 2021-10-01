@@ -1790,7 +1790,7 @@ contains
             write(fates_log(),*) 'Error is:',sumarea-1.0_r8
             write(fates_log(),*) 'and the hlm_pft_map is:', EDPftvarcon_inst%hlm_pft_map(1:npft,hlm_pft)
             write(fates_log(),*) 'Aborting'
-!            call endrun(msg=errMsg(sourcefile, __LINE__))
+            call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
          end do !hlm_pft
        end do !ipft
