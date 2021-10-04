@@ -337,6 +337,7 @@ contains
     fates%bc_out(s)%displa_pa(:) = 0.0_r8
     fates%bc_out(s)%z0m_pa(:)    = 0.0_r8
     fates%bc_out(s)%dleaf_pa(:)   = 0.0_r8
+    fates%bc_out(s)%nocomp_pft_label_pa(:) = 0
     
     fates%bc_out(s)%canopy_fraction_pa(:) = 0.0_r8
     fates%bc_out(s)%frac_veg_nosno_alb_pa(:) = 0.0_r8
@@ -437,6 +438,7 @@ contains
          allocate(bc_in%plant_p_uptake_flux(1,1))
       end if
 
+
       allocate(bc_in%zi_sisl(0:nlevsoil_in))
       allocate(bc_in%dz_sisl(nlevsoil_in))
       allocate(bc_in%z_sisl(nlevsoil_in))
@@ -518,8 +520,14 @@ contains
          allocate(bc_in%hlm_harvest_catnames(0))
       end if
 
-      allocate(bc_in%pft_areafrac(maxpft))
+      allocate(bc_in%pft_areafrac(0:maxpft))
 
+      ! Variables for SP mode. 
+      if(hlm_use_sp.eq.itrue) then
+        allocate(bc_in%hlm_sp_tlai(0:maxpft))
+        allocate(bc_in%hlm_sp_tsai(0:maxpft))     
+        allocate(bc_in%hlm_sp_htop(0:maxpft))
+      end if 
       return
    end subroutine allocate_bcin
 
@@ -644,6 +652,8 @@ contains
 
       allocate(bc_out%canopy_fraction_pa(maxPatchesPerSite))
       allocate(bc_out%frac_veg_nosno_alb_pa(maxPatchesPerSite))
+
+      allocate(bc_out%nocomp_pft_label_pa(maxPatchesPerSite))
 
       ! Plant-Hydro BC's
       if (hlm_use_planthydro.eq.itrue) then
@@ -1235,7 +1245,8 @@ contains
          hlm_use_ed_st3    = unset_int
          hlm_use_ed_prescribed_phys = unset_int
          hlm_use_fixed_biogeog = unset_int
-         !hlm_use_nocomp = unset_int    ! future reduced complexity mode
+         hlm_use_nocomp = unset_int   
+         hlm_use_sp = unset_int
          hlm_use_inventory_init = unset_int
          hlm_inventory_ctrl_file = 'unset'
 
@@ -1513,6 +1524,7 @@ contains
             end if
          end if
          
+         
         if(hlm_use_fixed_biogeog.eq.unset_int) then
            if(fates_global_verbose()) then
              write(fates_log(), *) 'switch for fixed biogeog unset: him_use_fixed_biogeog, exiting'
@@ -1520,13 +1532,19 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-        ! Future reduced complexity mode   
-        !if(hlm_use_nocomp.eq.unset_int) then
-        !      if(fates_global_verbose()) then
-        !     write(fates_log(), *) 'switch for no competition mode. '
-        !    end if
-        !   call endrun(msg=errMsg(sourcefile, __LINE__))
-        ! end if
+         if(hlm_use_nocomp.eq.unset_int) then
+              if(fates_global_verbose()) then
+             write(fates_log(), *) 'switch for no competition mode. '
+            end if
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(hlm_use_sp.eq.unset_int) then
+              if(fates_global_verbose()) then
+             write(fates_log(), *) 'switch for SP mode. '
+            end if
+	       call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
 
          if(hlm_use_cohort_age_tracking .eq. unset_int) then
             if (fates_global_verbose()) then
@@ -1535,6 +1553,16 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_use_sp.eq.itrue.and.hlm_use_nocomp.eq.ifalse)then
+            write(fates_log(), *) 'SP cannot be on if nocomp mode is off. Exiting. '
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+
+         if(hlm_use_sp.eq.itrue.and.hlm_use_fixed_biogeog.eq.ifalse)then
+            write(fates_log(), *) 'SP cannot be on if fixed biogeog mode is off. Exiting. '
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
          
          if (fates_global_verbose()) then
             write(fates_log(), *) 'Checked. All control parameters sent to FATES.'
@@ -1662,13 +1690,17 @@ contains
                    write(fates_log(),*) 'Transfering hlm_use_fixed_biogeog= ',ival,' to FATES'
                end if
             
-            ! Future reduced complexity mode   
-            !case('use_nocomp')
-            !    hlm_use_nocomp = ival
-            !   if (fates_global_verbose()) then
-            !       write(fates_log(),*) 'Transfering hlm_use_nocomp= ',ival,' to FATES'
-            !   end if
+            case('use_nocomp')
+                hlm_use_nocomp = ival
+               if (fates_global_verbose()) then
+                   write(fates_log(),*) 'Transfering hlm_use_nocomp= ',ival,' to FATES'
+               end if
 
+            case('use_sp')
+            hlm_use_sp = ival
+            if (fates_global_verbose()) then
+                   write(fates_log(),*) 'Transfering hlm_use_sp= ',ival,' to FATES'
+            end if
 
             case('use_planthydro')
                hlm_use_planthydro = ival

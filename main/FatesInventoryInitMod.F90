@@ -3,7 +3,7 @@ module FatesInventoryInitMod
    !-----------------------------------------------------------------------------------------------
    ! This module contains the majority of the code used to read forest inventory data and
    ! initialize a simulation from that data.  Some important points:
-   ! - This procedure is called through the host model's "cold-start" initialization and not a 
+   ! - This procedure is called through the host model's "cold-start" initialization and not a
    !   restart type of simulation.
    ! - This procedure, if called from a massive grid, is both probably inappropriate, and probably
    !   time consuming.
@@ -34,7 +34,7 @@ module FatesInventoryInitMod
    use FatesLitterMod   , only : litter_type
    use EDTypesMod       , only : ed_site_type
    use EDTypesMod       , only : ed_patch_type
-   use EDTypesMod       , only : ed_cohort_type 
+   use EDTypesMod       , only : ed_cohort_type
    use EDTypesMod       , only : area
    use EDTypesMod       , only : leaves_on
    use EDTypesMod       , only : leaves_off
@@ -61,9 +61,10 @@ module FatesInventoryInitMod
    use PRTGenericMod,          only : nitrogen_element
    use PRTGenericMod,          only : phosphorus_element
    use PRTGenericMod,          only : SetState
-   use FatesConstantsMod, only : primaryforest
-   use PRTGenericMod,    only : StorageNutrientTarget
-   
+   use FatesConstantsMod,      only : primaryforest
+   use FatesConstantsMod,      only : fates_unset_int
+   use PRTGenericMod,          only : StorageNutrientTarget
+
    implicit none
    private
 
@@ -81,7 +82,7 @@ module FatesInventoryInitMod
    logical, parameter :: debug_inv = .false.       ! Debug flag for devs
 
    ! String length specifiers
-   integer, parameter :: patchname_strlen = 64   
+   integer, parameter :: patchname_strlen = 64
    integer, parameter :: cohortname_strlen = 64
    integer, parameter :: line_strlen = 512
    integer, parameter :: path_strlen = 256
@@ -143,10 +144,10 @@ contains
       integer,                         allocatable :: inv_format_list(:)   ! list of format specs
       character(len=path_strlen),      allocatable :: inv_css_list(:)      ! list of css file names
       character(len=path_strlen),      allocatable :: inv_pss_list(:)      ! list of pss file names
- 
+
       real(r8),                        allocatable :: inv_lat_list(:)      ! list of lat coords
       real(r8),                        allocatable :: inv_lon_list(:)      ! list of lon coords
-      integer                                      :: invsite              ! index of inventory site 
+      integer                                      :: invsite              ! index of inventory site
                                                                            ! closest to actual site
       integer                                      :: el                   ! loop counter for number of elements
       character(len=patchname_strlen)              :: patch_name           ! patch ID string in the file
@@ -160,7 +161,7 @@ contains
       ! ------------------------------------------------------------------------------------------
 
       sitelist_file_unit = shr_file_getUnit()
-     
+
 
       inquire(file=trim(hlm_inventory_ctrl_file),exist=lexist,opened=lopen)
       if( .not.lexist ) then   ! The inventory file list DNE
@@ -271,13 +272,13 @@ contains
 
             ! This call doesn't do much asside from initializing the patch with
             ! nominal values, NaNs, zero's and allocating some vectors. We should
-            ! be able to get the following values from the patch files. But on 
+            ! be able to get the following values from the patch files. But on
             ! the patch creation step, we don't have that information.
 
             age_init            = 0.0_r8
-            area_init           = 0.0_r8 
+            area_init           = 0.0_r8
 
-            call create_patch(sites(s), newpatch, age_init, area_init, primaryforest )
+            call create_patch(sites(s), newpatch, age_init, area_init, primaryforest, fates_unset_int )
 
 
             if( inv_format_list(invsite) == 1 ) then
@@ -353,7 +354,7 @@ contains
                currentPatch => currentpatch%older
             enddo
          end if
-         
+
          ! OPEN THE CSS FILE
          ! ---------------------------------------------------------------------------------------
          css_file_unit = shr_file_getUnit()
@@ -365,7 +366,7 @@ contains
          ! Read in each cohort line. Each line is associated with a patch from the PSS
          ! file via a patch name identification string.  We pass the whole site pointer
          ! to this routine, because inside the routine we identify the patch by making
-         ! comparisons with patch_name_vec and identifying the patch pointer 
+         ! comparisons with patch_name_vec and identifying the patch pointer
          ! from patch_pointer_vec
 
          invcohortloop: do
@@ -415,7 +416,7 @@ contains
 
                ! first keep track of the next patch in the old (unsorted) linked list
                next_in_unsorted_patch_list => head_of_unsorted_patch_list%older
-               
+
                ! check the two end-cases
 
                ! Youngest Patch
@@ -463,7 +464,7 @@ contains
                head_of_unsorted_patch_list => next_in_unsorted_patch_list
             end do
          endif
-         
+
          ! Report Basal Area (as a check on if things were read in)
          ! ------------------------------------------------------------------------------
          basal_area_pref = 0.0_r8
@@ -492,7 +493,7 @@ contains
          do while(associated(currentpatch))
             currentpatch%patchno = ipa
             ipa=ipa+1
-            
+
             ! Perform Cohort Fusion
             call fuse_cohorts(sites(s), currentpatch,bc_in(s))
             call sort_cohorts(currentpatch)
@@ -512,7 +513,7 @@ contains
 
          ! Fuse patches
          ! ----------------------------------------------------------------------------------------
-         call fuse_patches(sites(s), bc_in(s) ) 
+         call fuse_patches(sites(s), bc_in(s) )
 
          ! Report Basal Area (as a check on if things were read in)
          ! ----------------------------------------------------------------------------------------
@@ -527,13 +528,13 @@ contains
             end do
             currentPatch => currentpatch%older
          enddo
-         
+
          write(fates_log(),*) '-------------------------------------------------------'
          write(fates_log(),*) 'Basal Area from inventory, AFTER fusion'
          write(fates_log(),*) 'Lat: ',sites(s)%lat,' Lon: ',sites(s)%lon
          write(fates_log(),*) basal_area_postf,' [m2/ha]'
          write(fates_log(),*) '-------------------------------------------------------'
-         
+
          ! If this is flagged as true, the post-fusion inventory will be written to file
          ! in the run directory.
          if(do_inventory_out)then
@@ -600,10 +601,10 @@ contains
       ! <short-name>    <value-kind>     <description>
       !
       ! type            integer          We will accomodate different file format with different
-      !                                  field values as the need arises. format 1 will read in 
-      !                                  datasets via "set_inventory_edpatch_type1()", 
+      !                                  field values as the need arises. format 1 will read in
+      !                                  datasets via "set_inventory_edpatch_type1()",
       !                                  "set_inventory_edcohort_type1()"
-      ! 
+      !
       ! latitude        float            The geographic latitude coordinate of the site
       ! longitude       float            The geogarphic longitude coordinate of the site
       ! pss-name        string           The full path to the patch descriptor file (PSS)
@@ -720,7 +721,7 @@ contains
       ! This subroutine reads in a line of an inventory patch file (pss)
       ! And populates a new patch with that information.
       ! This routine specifically reads PSS files that are "Type 1" formatted
-      ! 
+      !
       ! The file is formatted text, which contains 1 header line to label columns
       ! and then 1 line for each patch containing the following fields:
       !
@@ -813,14 +814,14 @@ contains
 
       do el=1,num_elements
          litt => newpatch%litter(el)
-      
+
          call litt%InitConditions(init_leaf_fines=0._r8, &
               init_root_fines=0._r8, &
               init_ag_cwd=0._r8,     &
               init_bg_cwd=0._r8,     &
               init_seed=0._r8,   &
               init_seed_germ=0._r8)
-         
+
       end do
 
       return
@@ -836,10 +837,10 @@ contains
       ! This subroutine reads in a line of an inventory cohort file (css)
       ! And populates a new cohort with that information.
       ! This routine specifically reads CSS files that are "Type 1" formatted
-      ! 
+      !
       ! The file formatted text, which contains 1 header line to label columns
       ! and then 1 line for each cohort containing the following fields:
-      ! 
+      !
       ! FILE FORMAT:
       ! time	(year)     year of measurement
       ! patch	(string)   patch id string associated with this cohort
@@ -874,7 +875,7 @@ contains
       type(pp_array), intent(in)                  :: patch_pointer_vec(npatches)
       character(len=patchname_strlen), intent(in) :: patch_name_vec(npatches)
       integer,intent(out)                         :: ios           ! Return flag
-      
+
       ! Locals
       class(prt_vartypes), pointer                :: prt_obj
       real(r8)                                    :: c_time        ! Time patch was recorded
@@ -925,7 +926,7 @@ contains
 
       read(css_file_unit,fmt=*,iostat=ios) c_time, p_name, c_name, c_dbh, c_height, &
             c_pft, c_nplant, c_bdead, c_balive, c_avgRG
-      
+
       if( debug_inv) then
          write(*,fmt=wr_fmt) &
               c_time, p_name, c_name, c_dbh, c_height, &
@@ -973,7 +974,7 @@ contains
          write(fates_log(), *) 'The inventory produced a cohort with <= 0 dbh'
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
-      
+
       if (c_dbh > abnormal_large_dbh ) then
          write(fates_log(), *) 'inventory dbh: ', c_nplant
          write(fates_log(), *) 'The inventory produced a cohort with very large diameter [cm]'
@@ -1011,7 +1012,7 @@ contains
              ! special case, make an identical cohort for each PFT
              temp_cohort%pft         = i_pft
          endif
-         
+
          temp_cohort%n           = c_nplant * cpatch%area / real(ncohorts_to_create,r8)
          temp_cohort%dbh         = c_dbh
 
@@ -1022,33 +1023,33 @@ contains
          call bagw_allom(temp_cohort%dbh,temp_cohort%pft,c_agw)
          ! Calculate coarse root biomass from allometry
          call bbgw_allom(temp_cohort%dbh,temp_cohort%pft,c_bgw)
-         
+
          ! Calculate the leaf biomass (calculates a maximum first, then applies canopy trim
          ! and sla scaling factors)
          call bleaf(temp_cohort%dbh,temp_cohort%pft,temp_cohort%canopy_trim,c_leaf)
-         
+
          ! Calculate fine root biomass
          call bfineroot(temp_cohort%dbh,temp_cohort%pft,temp_cohort%canopy_trim,c_fnrt)
-         
+
          ! Calculate sapwood biomass
          call bsap_allom(temp_cohort%dbh,temp_cohort%pft,temp_cohort%canopy_trim, a_sapw, c_sapw)
-         
+
          call bdead_allom( c_agw, c_bgw, c_sapw, temp_cohort%pft, c_struct )
-         
+
          call bstore_allom(temp_cohort%dbh, temp_cohort%pft, temp_cohort%canopy_trim, c_store)
-      
+
          temp_cohort%laimemory = 0._r8
          temp_cohort%sapwmemory = 0._r8
-         temp_cohort%structmemory = 0._r8	 
+         temp_cohort%structmemory = 0._r8
          cstatus = leaves_on
-         
+
 	 stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(temp_cohort%pft)
 
          if( prt_params%season_decid(temp_cohort%pft) == itrue .and. &
               any(csite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
             temp_cohort%laimemory = c_leaf
             temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
-            temp_cohort%structmemory = c_struct * stem_drop_fraction	    
+            temp_cohort%structmemory = c_struct * stem_drop_fraction
             c_leaf  = 0._r8
 	         c_sapw = (1._r8 - stem_drop_fraction) * c_sapw
 	         c_struct  = (1._r8 - stem_drop_fraction) * c_struct
@@ -1059,13 +1060,13 @@ contains
               any(csite%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff])) then
             temp_cohort%laimemory = c_leaf
             temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
-            temp_cohort%structmemory = c_struct * stem_drop_fraction	    
+            temp_cohort%structmemory = c_struct * stem_drop_fraction
             c_leaf  = 0._r8
 	         c_sapw = (1._r8 - stem_drop_fraction) * c_sapw
-	         c_struct  = (1._r8 - stem_drop_fraction) * c_struct	    
+	         c_struct  = (1._r8 - stem_drop_fraction) * c_struct
             cstatus = leaves_off
          endif
-         
+
          prt_obj => null()
          call InitPRTObject(prt_obj)
 
@@ -1091,15 +1092,15 @@ contains
                m_struct = c_struct * 0.5_r8 * &
                     (prt_params%nitr_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(struct_organ)) + &
                     prt_params%nitr_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(struct_organ)))
-               
+
                m_leaf   = c_leaf * 0.5_r8 * &
                     (prt_params%nitr_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(leaf_organ)) + &
                     prt_params%nitr_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(leaf_organ)))
-               
+
                m_fnrt   = c_fnrt * 0.5_r8 * &
                     (prt_params%nitr_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(fnrt_organ)) + &
                     prt_params%nitr_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(fnrt_organ)))
-               
+
                m_sapw   = c_sapw * 0.5_r8 * &
                     (prt_params%nitr_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(sapw_organ)) + &
                     prt_params%nitr_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(sapw_organ)))
@@ -1109,19 +1110,19 @@ contains
                m_store = StorageNutrientTarget(temp_cohort%pft, element_id, m_leaf, m_fnrt, m_sapw, m_struct)
 
             case(phosphorus_element)
-               
+
                m_struct = c_struct * 0.5_r8 * &
                     (prt_params%phos_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(struct_organ)) + &
                     prt_params%phos_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(struct_organ)))
-               
+
                m_leaf   = c_leaf * 0.5_r8 * &
                     (prt_params%phos_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(leaf_organ)) + &
                     prt_params%phos_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(leaf_organ)))
-               
+
                m_fnrt   = c_fnrt * 0.5_r8 * &
                     (prt_params%phos_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(fnrt_organ)) + &
                     prt_params%phos_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(fnrt_organ)))
-               
+
                m_sapw   = c_sapw * 0.5_r8 * &
                     (prt_params%phos_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(sapw_organ)) + &
                     prt_params%phos_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(sapw_organ)))
@@ -1129,7 +1130,7 @@ contains
                m_repro  = 0._r8
 
                m_store = StorageNutrientTarget(temp_cohort%pft, element_id, m_leaf, m_fnrt, m_sapw, m_struct)
-             
+
             end select
 
             select case(hlm_parteh_mode)
@@ -1161,7 +1162,7 @@ contains
          call create_cohort(csite, cpatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, &
               temp_cohort%coage, temp_cohort%dbh, &
               prt_obj, temp_cohort%laimemory,temp_cohort%sapwmemory, temp_cohort%structmemory, &
-              cstatus, rstatus, temp_cohort%canopy_trim, &
+              cstatus, rstatus, temp_cohort%canopy_trim,temp_cohort%c_area, &
               1, csite%spread, bc_in)
 
          deallocate(temp_cohort) ! get rid of temporary cohort
@@ -1186,14 +1187,14 @@ contains
 
        use shr_file_mod, only        : shr_file_getUnit
        use shr_file_mod, only        : shr_file_freeUnit
-       
+
        ! Arguments
        type(ed_site_type), target :: currentSite
-       
+
        ! Locals
        type(ed_patch_type), pointer          :: currentpatch
        type(ed_cohort_type), pointer         :: currentcohort
-       
+
        character(len=128)                    :: pss_name_out         ! output file string
        character(len=128)                    :: css_name_out         ! output file string
        integer                               :: pss_file_out
@@ -1211,7 +1212,7 @@ contains
        ilat_dec = int(100000*(abs(currentSite%lat) - real(ilat_int,r8)))
        ilon_int = abs(int(currentSite%lon))
        ilon_dec = int(100000*(abs(currentSite%lon) - real(ilon_int,r8)))
-       
+
        if(currentSite%lat>=0._r8)then
            ilat_sign = 'N'
        else
@@ -1230,23 +1231,23 @@ contains
 
        pss_file_out       = shr_file_getUnit()
        css_file_out       = shr_file_getUnit()
-       
+
        open(unit=pss_file_out,file=trim(pss_name_out), status='UNKNOWN',action='WRITE',form='FORMATTED')
        open(unit=css_file_out,file=trim(css_name_out), status='UNKNOWN',action='WRITE',form='FORMATTED')
-       
+
        write(pss_file_out,*) 'time patch trk age area water fsc stsc stsl ssc psc msn fsn'
        write(css_file_out,*) 'time patch cohort dbh hite pft nplant bdead alive Avgrg'
-             
+
        ipatch=0
        currentpatch => currentSite%youngest_patch
        do while(associated(currentpatch))
            ipatch=ipatch+1
-           
+
            write(patch_str,'(A7,i4.4,A)') '<patch_',ipatch,'>'
-           
+
            write(pss_file_out,*) '0000 ',trim(patch_str),' 2 ',currentPatch%age,currentPatch%area/AREA, &
                  '0.0000    0.0000    0.0000    0.0000    0.0000    0.0000    0.0000    0.0000'
-           
+
            icohort=0
            currentcohort => currentpatch%tallest
            do while(associated(currentcohort))
@@ -1254,18 +1255,18 @@ contains
                write(cohort_str,'(A7,i4.4,A)') '<coh_',icohort,'>'
                write(css_file_out,*) '0000 ',trim(patch_str),' ',trim(cohort_str), &
                      currentCohort%dbh,0.0,currentCohort%pft,currentCohort%n/currentPatch%area,0.0,0.0,0.0
-               
+
                currentcohort => currentcohort%shorter
            end do
            currentPatch => currentpatch%older
        enddo
-       
+
        close(css_file_out)
        close(pss_file_out)
-       
+
        call shr_file_freeUnit(css_file_out)
        call shr_file_freeUnit(pss_file_out)
-       
+
    end subroutine write_inventory_type1
 
 end module FatesInventoryInitMod
