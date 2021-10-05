@@ -23,7 +23,8 @@ module EDMortalityFunctionsMod
    use PRTGenericMod,          only : store_organ
    use FatesInterfaceTypesMod, only    : hlm_model_day !marius
    use PRTParametersMod , only    : prt_params !marius
-
+   use EDParamsMod           , only : ED_val_phen_a, ED_val_phen_b, ED_val_phen_c !marius
+  use EDTypesMod          , only : leaves_on !marius
    implicit none
    private
    
@@ -316,6 +317,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     real(r8) :: hard_level_prev         ! Temporary variable for the previous time-step hardiness level
     real(r8) :: hard_diff            	! Daily difference between Hday and Tmin (°C)
     real(r8) :: gdd_threshold     ! GDD accumulation function,
+    integer  :: ipft                  ! pft index
 
     Tmean=bc_in%t_ref2m_24_si-273.15_r8
     Tmin=bc_in%t_ref2m_min_si-273.15_r8

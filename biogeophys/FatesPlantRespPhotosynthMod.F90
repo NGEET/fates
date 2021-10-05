@@ -63,7 +63,7 @@ module FATESPlantRespPhotosynthMod
    !-------------------------------------------------------------------------------------
    
    ! maximum stomatal resistance [s/m] (used across several procedures)
-   real(r8),parameter :: rsmax0 = 2.e8_r8                    
+   real(r8),parameter :: rsmax0 = 2.e16_r8  ! 2.e8_r8    Marius               
    
    logical   ::  debug = .false.
    !-------------------------------------------------------------------------------------
