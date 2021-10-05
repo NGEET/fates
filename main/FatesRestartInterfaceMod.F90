@@ -138,6 +138,7 @@ module FatesRestartInterfaceMod
   integer :: ir_lmort_infra_co
 
   ! Radiation
+  integer :: ir_fcansno_pa
   integer :: ir_solar_zenith_flag_pa
   integer :: ir_solar_zenith_angle_pa
   integer :: ir_gnd_alb_dif_pasb
@@ -653,6 +654,10 @@ contains
     call this%set_restart_var(vname='fates_CohortsPerPatch', vtype=cohort_int, &
          long_name='the number of cohorts per patch', units='unitless', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_ncohort_pa )
+
+    call this%set_restart_var(vname='fates_fcansno_pa', vtype=cohort_r8, &
+         long_name='Fraction of canopy covered in snow', units='unitless', flushval = flushinvalid, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fcansno_pa )
 
     call this%set_restart_var(vname='fates_solar_zenith_flag_pa', vtype=cohort_int, &
          long_name='switch specifying if zenith is positive', units='unitless', flushval = flushinvalid, &
@@ -1651,6 +1656,7 @@ contains
            rio_snow_depth_si           => this%rvars(ir_snow_depth_si)%r81d, &
            rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
            rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
+           rio_fcansno_pa              => this%rvars(ir_fcansno_pa)%r81d, &
            rio_solar_zenith_flag_pa    => this%rvars(ir_solar_zenith_flag_pa)%int1d, &
            rio_solar_zenith_angle_pa   => this%rvars(ir_solar_zenith_angle_pa)%r81d, &
            rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%int1d, &
@@ -1970,6 +1976,8 @@ contains
 
              ! set cohorts per patch for IO
              rio_ncohort_pa( io_idx_co_1st )   = cohortsperpatch
+
+             rio_fcansno_pa( io_idx_co_1st )   = cpatch%fcansno
 
              ! Set zenith angle info
              if ( cpatch%solar_zenith_flag ) then
@@ -2466,6 +2474,7 @@ contains
           rio_snow_depth_si           => this%rvars(ir_snow_depth_si)%r81d, &
           rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
           rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
+          rio_fcansno_pa              => this%rvars(ir_fcansno_pa)%r81d, &
           rio_solar_zenith_flag_pa    => this%rvars(ir_solar_zenith_flag_pa)%int1d, &
           rio_solar_zenith_angle_pa   => this%rvars(ir_solar_zenith_angle_pa)%r81d, &
           rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%int1d, &
@@ -2770,6 +2779,7 @@ contains
              cpatch%nocomp_pft_label               = rio_nocomp_pft_label_pa(io_idx_co_1st)
              cpatch%area               = rio_area_pa(io_idx_co_1st)
              cpatch%age_class          = get_age_class_index(cpatch%age)
+             cpatch%fcansno            = rio_fcansno_pa(io_idx_co_1st)
 
              ! Set zenith angle info
              cpatch%solar_zenith_flag  = ( rio_solar_zenith_flag_pa(io_idx_co_1st) .eq. itrue )
