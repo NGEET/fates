@@ -33,6 +33,7 @@ module FatesHistoryInterfaceMod
   use FatesHistoryVariableType , only : fates_history_variable_type
   use FatesInterfaceTypesMod        , only : hlm_hio_ignore_val
   use FatesInterfaceTypesMod        , only : hlm_use_planthydro
+  use FatesInterfaceTypesMod        , only : hlm_use_hardening !marius
   use FatesInterfaceTypesMod        , only : hlm_use_ed_st3
   use FatesInterfaceTypesMod        , only : hlm_use_cohort_age_tracking
   use FatesInterfaceTypesMod        , only : numpft
@@ -2156,27 +2157,29 @@ end subroutine flush_hvars
 
          hio_harvest_carbonflux_si(io_si) = sites(s)%harvest_carbon_flux
          
-         !========================================================marius hardening           
-         ncohort_pft(:) = 0.0_r8 
-         ! Normalization counters
-         cpatch => sites(s)%oldest_patch
-         do while(associated(cpatch))
-            ccohort => cpatch%shortest
-            do while(associated(ccohort))
-               if ( .not. ccohort%isnew ) then
-                  ft = ccohort%pft                            
-                  ncohort_pft(ft) = ncohort_pft(ft) + ccohort%n
-               end if
-               ccohort => ccohort%taller
-            enddo ! cohort loop
-            cpatch => cpatch%younger
-         end do !patch loop
-         do ft = 1, numpft
-           if (ncohort_pft(ft)>0._r8)then
-              hio_hardlevel_si_pft(io_si,ft)=0._r8
-              hio_hardGRF_si_pft(io_si,ft)=0._r8
-           endif
-         enddo
+         !========================================================marius hardening   
+         if (hlm_use_hardening.eq.itrue) then        
+           ncohort_pft(:) = 0.0_r8 
+           ! Normalization counters
+           cpatch => sites(s)%oldest_patch
+           do while(associated(cpatch))
+              ccohort => cpatch%shortest
+              do while(associated(ccohort))
+                 if ( .not. ccohort%isnew ) then
+                    ft = ccohort%pft                            
+                    ncohort_pft(ft) = ncohort_pft(ft) + ccohort%n
+                 end if
+                 ccohort => ccohort%taller
+              enddo ! cohort loop
+              cpatch => cpatch%younger
+           end do !patch loop
+           do ft = 1, numpft
+             if (ncohort_pft(ft)>0._r8)then
+                hio_hardlevel_si_pft(io_si,ft)=0._r8
+                hio_hardGRF_si_pft(io_si,ft)=0._r8
+             endif
+           enddo
+         end if
          !=======================================================marius
          ipa = 0  
          cpatch => sites(s)%oldest_patch
@@ -2422,15 +2425,19 @@ end subroutine flush_hvars
                ! Flux Variables (cohorts must had experienced a day before any of these values
                ! have any meaning, otherwise they are just inialization values
                if( .not.(ccohort%isnew) ) then
-       
-                  ft = ccohort%pft                                                         !marius
-                  number_fraction_pft = (ccohort%n / ncohort_pft(ft))                      !marius
+                  if (hlm_use_hardening.eq.itrue) then
+                    ft = ccohort%pft                                                         !marius
+                    number_fraction_pft = (ccohort%n / ncohort_pft(ft))                      !marius
 
-                  hio_hardlevel_si_pft(io_si,ft) =  hio_hardlevel_si_pft(io_si,ft) + &
+                    hio_hardlevel_si_pft(io_si,ft) =  hio_hardlevel_si_pft(io_si,ft) + &
                         ccohort%hard_level * number_fraction_pft                             !marius
 
-      		  hio_hardGRF_si_pft(io_si,ft)   =  hio_hardGRF_si_pft(io_si,ft) + &
+      		    hio_hardGRF_si_pft(io_si,ft)   =  hio_hardGRF_si_pft(io_si,ft) + &
                         ccohort%hard_GRF * number_fraction_pft                               !marius
+                  else
+                    hio_hardlevel_si_pft(io_si,ft) = -2._r8
+                    hio_hardGRF_si_pft(io_si,ft)   = 0._r8
+                  end if
 
                   !write(fates_log(),*) 'check1',number_fraction_pft
                   !write(fates_log(),*) 'check2',ccohort%hard_level ,hio_hardlevel_si_pft(io_si,ft)

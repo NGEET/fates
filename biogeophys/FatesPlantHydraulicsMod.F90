@@ -3270,6 +3270,7 @@ contains
 
                     ! Get Fraction of Total Conductivity [-]
                     ftc_node(i) = wkf_plant(pm_node(i),ft)%p%ftc_from_psi(psi_node(i))
+
                     ! deriv psi wrt theta
                     dpsi_dtheta_node(i) = wrf_plant(pm_node(i),ft)%p%dpsidth_from_th(th_node(i))
                     
@@ -3317,6 +3318,7 @@ contains
                 i_dn     = 1   ! downstream node index
                 kmax_dn  = rootfr_scaler*cohort_hydr%kmax_petiole_to_leaf
                 kmax_up  = rootfr_scaler*cohort_hydr%kmax_stem_upper(1)
+
                 call GetImTaylorKAB(kmax_up,kmax_dn,        &
                       ftc_node(i_up),ftc_node(i_dn),        & 
                       h_node(i_up),h_node(i_dn),            & 
@@ -3344,7 +3346,7 @@ contains
 
                     kmax_dn  = rootfr_scaler*cohort_hydr%kmax_stem_lower(i_dn-n_hypool_leaf)
                     kmax_up  = rootfr_scaler*cohort_hydr%kmax_stem_upper(i_up-n_hypool_leaf)
-   
+
                     call GetImTaylorKAB(kmax_up,kmax_dn,        &
                           ftc_node(i_up),ftc_node(i_dn),        & 
                           h_node(i_up),h_node(i_dn),            & 
@@ -4458,7 +4460,7 @@ contains
     
     real(r8) :: rsdx             ! Temporary residual while determining max value
 
-
+    real(r8) :: kmarius !marius
     real(r8) :: rlfx_soil        ! Pressure update reduction factor for soil compartments
     real(r8) :: rlfx_plnt        ! Pressure update reduction factor for plant comparmtents
     real(r8) :: rlfx_soil0       ! Base relaxation factor for the current iteration round
@@ -4503,7 +4505,7 @@ contains
 
 
     ! Maximum number of Newton iterations in each round
-    integer, parameter :: max_newton_iter = 1000  !marius 1000
+    integer, parameter :: max_newton_iter = 300
 
     ! Flag definitions for convergence flag (icnv)
     ! icnv = 1 fail the round due to either wacky math, or
@@ -4724,7 +4726,6 @@ contains
                      h_node(k) =  mpa_per_pa*denh2o*grav_earth*z_node(k) + psi_node(k)
                      ! Get Fraction of Total Conductivity [-]
                      ftc_node(k) = wkf_plant(pm_node(k),ft)%p%ftc_from_psi(psi_node(k))
-                 
                      ! deriv ftc wrt psi
                      dftc_dpsi_node(k)   = wkf_plant(pm_node(k),ft)%p%dftcdpsi_from_psi(psi_node(k))
                      
@@ -4746,19 +4747,12 @@ contains
              ! Calculations of maximum conductance for upstream and downstream sides
              ! of each connection.  This IS dependant on total potential h_node
              ! because of the root-soil radial conductance.
-             
-             call SetMaxCondConnections(site_hydr, cohort_hydr, h_node, kmax_dn, kmax_up)
+
+             kmarius=1.e-10_r8 !marius
+             call SetMaxCondConnections(site_hydr, cohort_hydr, h_node, kmax_dn, kmax_up, cohort%hard_rate, kmarius)
                 
              ! calculate boundary fluxes     
              do icnx=1,site_hydr%num_connections
-                 if (hlm_use_hardening.eq.itrue) then
-                    if (icnx <= n_hypool_plant) then
-                       if (cohort%hard_rate < 0.5_r8) then
-                          kmax_dn(icnx)=1.e-13_r8  !marius
-                          kmax_up(icnx)=1.e-13_r8  !marius
-                       endif
-                    endif
-                 endif
                  
                  id_dn = conn_dn(icnx)
                  id_up = conn_up(icnx)
@@ -5149,7 +5143,7 @@ contains
   
   ! =====================================================================================
   
-  subroutine SetMaxCondConnections(site_hydr, cohort_hydr, h_node, kmax_dn, kmax_up)
+  subroutine SetMaxCondConnections(site_hydr, cohort_hydr, h_node, kmax_dn, kmax_up, hard_rate, kmarius)
     
     ! -------------------------------------------------------------------------------
     ! This subroutine sets the maximum conductances
@@ -5160,12 +5154,14 @@ contains
     ! dependent on the updating potential in the system, and not just a function
     ! of plant geometry and material properties.
     ! -------------------------------------------------------------------------------
-    
+
     type(ed_site_hydr_type), intent(in),target   :: site_hydr
     type(ed_cohort_hydr_type), intent(in),target :: cohort_hydr
     real(r8),intent(in)  :: h_node(:)        ! Total (matric+height) potential at each node (Mpa)
     real(r8),intent(out) :: kmax_dn(:)       ! Max conductance of downstream sides of connections (kg s-1 MPa-1)
     real(r8),intent(out) :: kmax_up(:)       ! Max conductance of upstream sides of connections   (kg s-1 MPa-1)
+    real(r8),intent(in)  :: kmarius
+    real(r8),intent(in)  :: hard_rate
 
     real(r8):: aroot_frac_plant ! Fraction of the cohort's fine-roots
                                 ! out of the total in the current layer
@@ -5185,18 +5181,30 @@ contains
     icnx  = 1
     kmax_dn(icnx) = cohort_hydr%kmax_petiole_to_leaf
     kmax_up(icnx) = cohort_hydr%kmax_stem_upper(1)
+    if (hlm_use_hardening .eq. itrue .and. hard_rate<0.5_r8) then
+       kmax_dn(icnx)=kmarius !marius
+       kmax_up(icnx)=kmarius !marius
+    endif
 
     ! Stem to stem connections
     do istem = 1,n_hypool_stem-1
        icnx = icnx + 1
        kmax_dn(icnx) = cohort_hydr%kmax_stem_lower(istem)
        kmax_up(icnx) = cohort_hydr%kmax_stem_upper(istem+1)
+       if (hlm_use_hardening .eq. itrue .and. hard_rate<0.5_r8) then
+          kmax_dn(icnx)=kmarius !marius
+          kmax_up(icnx)=kmarius !marius
+       endif
     enddo
 
     ! Path is between lowest stem and transporting root
     icnx  = icnx + 1
     kmax_dn(icnx) = cohort_hydr%kmax_stem_lower(n_hypool_stem)
     kmax_up(icnx) = cohort_hydr%kmax_troot_upper
+    if (hlm_use_hardening .eq. itrue .and. hard_rate<0.5_r8) then
+       kmax_dn(icnx)=kmarius !marius
+       kmax_up(icnx)=kmarius !marius
+    endif
 
     ! Path is between the transporting root and the absorbing roots
     inode = n_hypool_ag
@@ -5210,7 +5218,10 @@ contains
           if( k == 1 ) then !troot-aroot
              kmax_dn(icnx) = cohort_hydr%kmax_troot_lower(j) 
              kmax_up(icnx) = cohort_hydr%kmax_aroot_upper(j)
-
+             if (hlm_use_hardening .eq. itrue .and. hard_rate<0.5_r8) then
+                kmax_dn(icnx)=kmarius !marius
+                kmax_up(icnx)=kmarius !marius
+             endif
           elseif( k == 2) then ! aroot-soil
 
              ! Special case. Maximum conductance depends on the 
@@ -5224,7 +5235,10 @@ contains
                      1._r8/cohort_hydr%kmax_aroot_radial_out(j))
              end if
              kmax_up(icnx) = site_hydr%kmax_upper_shell(j,1)*aroot_frac_plant
-
+             if (hlm_use_hardening .eq. itrue .and. hard_rate<0.5_r8) then
+                kmax_dn(icnx)=kmarius !marius
+                kmax_up(icnx)=kmarius !marius
+             endif
           else                 ! soil - soil
              kmax_dn(icnx) = site_hydr%kmax_lower_shell(j,k-2)*aroot_frac_plant
              kmax_up(icnx) = site_hydr%kmax_upper_shell(j,k-1)*aroot_frac_plant

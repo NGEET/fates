@@ -19,9 +19,10 @@ module EDMortalityFunctionsMod
    use FatesInterfaceTypesMod     , only : hlm_use_planthydro
    use EDLoggingMortalityMod , only : LoggingMortality_frac
    use EDParamsMod           , only : fates_mortality_disturbance_fraction
-   use EDParamsMod           , only : ED_val_phen_a, ED_val_phen_b, ED_val_phen_c !marius
    use PRTGenericMod,          only : all_carbon_elements
    use PRTGenericMod,          only : store_organ
+   use FatesInterfaceTypesMod, only    : hlm_model_day !marius
+   use PRTParametersMod , only    : prt_params !marius
 
    implicit none
    private
@@ -375,8 +376,12 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     end if
     if (cohort_in%hard_level < max_h) then
        cohort_in%hard_level = max_h
-    end if          
-        
+    end if 
+    ipft = cohort_in%pft
+    if (prt_params%season_decid(ipft) == itrue .and. cohort_in%status_coh = leaves_on .and. &
+        (nint(hlm_model_day) >= currentSite%cleafondate .or. nint(hlm_model_day) >= currentSite%dleafondate)) then         
+       cohort_in%hard_level = min_h
+    end if
     if (cohort_in%hard_level<-3.0_r8 ) then
         cohort_in%hard_rate= 0.0_r8
     else 
