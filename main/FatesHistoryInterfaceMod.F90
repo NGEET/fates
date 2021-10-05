@@ -2171,8 +2171,14 @@ end subroutine flush_hvars
             enddo ! cohort loop
             cpatch => cpatch%younger
          end do !patch loop
+         do ft = 1, numpft
+           if (ncohort_pft(ft)>0._r8)then
+              hio_hardlevel_si_pft(io_si,ft)=0._r8
+              hio_hardGRF_si_pft(io_si,ft)=0._r8
+           endif
+         enddo
          !=======================================================marius
-         ipa = 0
+         ipa = 0  
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
             
@@ -2426,8 +2432,8 @@ end subroutine flush_hvars
       		  hio_hardGRF_si_pft(io_si,ft)   =  hio_hardGRF_si_pft(io_si,ft) + &
                         ccohort%hard_GRF * number_fraction_pft                               !marius
 
-                  write(fates_log(),*) 'check1',number_fraction_pft
-                  write(fates_log(),*) 'check2',ccohort%hard_level ,hio_hardlevel_si_pft(io_si,ft)
+                  !write(fates_log(),*) 'check1',number_fraction_pft
+                  !write(fates_log(),*) 'check2',ccohort%hard_level ,hio_hardlevel_si_pft(io_si,ft)
 
                   ! Turnover pools [kgC/day] * [day/yr] = [kgC/yr]
                   sapw_m_turnover   = ccohort%prt%GetTurnover(sapw_organ, carbon12_element) * days_per_year
@@ -4284,12 +4290,12 @@ end subroutine update_history_hifrq
 
     call this%set_history_var(vname='PFThardiness',  units='degC',            &
          long='Hardiness level of vegetation', use_default='active',       &
-         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, & !marius
+         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, & !marius
          ivar=ivar, initialize=initialize_variables, index = ih_hardlevel_si_pft)
 
     call this%set_history_var(vname='PFTHARDGRF',  units='-',            &
          long='Growth reducing factor fram hardiness', use_default='active',       &
-         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, & !marius
+         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, & !marius
          ivar=ivar, initialize=initialize_variables, index = ih_hardGRF_si_pft )
     
     call this%set_history_var(vname='SITE_NCHILLDAYS', units = 'days', &

@@ -3270,9 +3270,6 @@ contains
 
                     ! Get Fraction of Total Conductivity [-]
                     ftc_node(i) = wkf_plant(pm_node(i),ft)%p%ftc_from_psi(psi_node(i))
-                    if (hlm_use_hardening.eq.itrue) then
-                       ftc_node(i) = ftc_node(i) * cohort%hard_rate !marius
-                    endif
                     ! deriv psi wrt theta
                     dpsi_dtheta_node(i) = wrf_plant(pm_node(i),ft)%p%dpsidth_from_th(th_node(i))
                     
@@ -4506,7 +4503,7 @@ contains
 
 
     ! Maximum number of Newton iterations in each round
-    integer, parameter :: max_newton_iter = 100
+    integer, parameter :: max_newton_iter = 1000  !marius 1000
 
     ! Flag definitions for convergence flag (icnv)
     ! icnv = 1 fail the round due to either wacky math, or
@@ -4727,6 +4724,7 @@ contains
                      h_node(k) =  mpa_per_pa*denh2o*grav_earth*z_node(k) + psi_node(k)
                      ! Get Fraction of Total Conductivity [-]
                      ftc_node(k) = wkf_plant(pm_node(k),ft)%p%ftc_from_psi(psi_node(k))
+                 
                      ! deriv ftc wrt psi
                      dftc_dpsi_node(k)   = wkf_plant(pm_node(k),ft)%p%dftcdpsi_from_psi(psi_node(k))
                      
@@ -4755,8 +4753,10 @@ contains
              do icnx=1,site_hydr%num_connections
                  if (hlm_use_hardening.eq.itrue) then
                     if (icnx <= n_hypool_plant) then
-                       kmax_dn(icnx)=kmax_dn(icnx)*cohort%hard_rate !marius
-                       kmax_up(icnx)=kmax_up(icnx)*cohort%hard_rate !marius
+                       if (cohort%hard_rate < 0.5_r8) then
+                          kmax_dn(icnx)=1.e-13_r8  !marius
+                          kmax_up(icnx)=1.e-13_r8  !marius
+                       endif
                     endif
                  endif
                  

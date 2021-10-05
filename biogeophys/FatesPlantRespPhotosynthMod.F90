@@ -48,6 +48,7 @@ module FATESPlantRespPhotosynthMod
    use PRTGenericMod,     only : struct_organ
    use EDParamsMod,       only : ED_val_base_mr_20, stomatal_model
    use PRTParametersMod,  only : prt_params
+   use FatesInterfaceTypesMod  , only : hlm_use_hardening !marius
 
    ! CIME Globals
    use shr_log_mod , only      : errMsg => shr_log_errMsg
@@ -62,7 +63,7 @@ module FATESPlantRespPhotosynthMod
    !-------------------------------------------------------------------------------------
    
    ! maximum stomatal resistance [s/m] (used across several procedures)
-   real(r8),parameter :: rsmax0 =  2.e8_r8                    
+   real(r8),parameter :: rsmax0 = 2.e8_r8                    
    
    logical   ::  debug = .false.
    !-------------------------------------------------------------------------------------
@@ -399,7 +400,11 @@ contains
                                  (hlm_parteh_mode .ne. prt_carbon_allom_hyp )   ) then
                                
                                if (hlm_use_planthydro.eq.itrue ) then
-                                   
+                                 if (hlm_use_hardening.eq.itrue) then
+                                   if (currentCohort%hard_rate < 0.5_r8) then
+                                     stomatal_intercept(ft)=1._r8 !marius
+                                   endif
+                                 end if
                                  stomatal_intercept_btran = max( cf/rsmax0,stomatal_intercept(ft)*currentCohort%co_hydr%btran )
                                  btran_eff = currentCohort%co_hydr%btran 
                                  
