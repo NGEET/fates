@@ -1212,6 +1212,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
            if (abs(gs_mol-gs_mol_err) > 1.e-01_r8) then
               write (fates_log(),*) 'Stomatal model error check - stomatal conductance error:'
               write (fates_log(),*) gs_mol, gs_mol_err
+              call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
 
         enddo !sunsha loop

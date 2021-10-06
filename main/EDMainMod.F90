@@ -349,6 +349,7 @@ contains
        if( currentPatch%age  <  0._r8 )then
           write(fates_log(),*) 'negative patch age?',currentPatch%age, &
                currentPatch%patchno,currentPatch%area
+          call endrun(msg=errMsg(sourcefile, __LINE__))
        endif
 
        ! add age increment to secondary forest patches as well
@@ -560,6 +561,7 @@ contains
              currentCohort%coage = currentCohort%coage + hlm_freq_day
              if(currentCohort%coage < 0.0_r8)then
                 write(fates_log(),*) 'negative cohort age?',currentCohort%coage
+                call endrun(msg=errMsg(sourcefile, __LINE__))
              end if
 
              ! update cohort age class and age x pft class

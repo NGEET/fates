@@ -410,8 +410,7 @@ contains
        write(fates_log(), *) 'Trying to define dimension size to a dim-type structure'
        write(fates_log(), *) 'but the dimension index does not exist'
        write(fates_log(), *) 'type: ',dk_name,' ndims: ',this%dim_kinds(ityp)%ndims,' input dim:',idim
-       stop
-       !end_run
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
     if (idim == 1) then

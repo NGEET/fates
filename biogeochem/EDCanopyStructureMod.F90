@@ -1930,7 +1930,10 @@ contains
              ifp = ifp+1
 
              if ( currentPatch%total_canopy_area-currentPatch%area > 0.000001_r8 ) then
-                write(fates_log(),*) 'ED: canopy area bigger than area',currentPatch%total_canopy_area ,currentPatch%area
+                if(debug)then
+                   write(fates_log(),*) 'ED: canopy area bigger than area', &
+                        currentPatch%total_canopy_area ,currentPatch%area
+                end if
                 currentPatch%total_canopy_area = currentPatch%area
              endif
 
@@ -2219,7 +2222,9 @@ contains
        if(arealayer > currentPatch%area)then
           z = z + 1
           if(hlm_use_sp.eq.itrue)then
-             write(fates_log(),*) 'SPmode, canopy_layer full:',arealayer,currentPatch%area
+             if(debug)then
+                write(fates_log(),*) 'SPmode, canopy_layer full:',arealayer,currentPatch%area
+             end if
           end if
 
        endif

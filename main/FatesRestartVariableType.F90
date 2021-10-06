@@ -3,10 +3,16 @@ module FatesRestartVariableMod
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesGlobals, only : fates_log
   use FatesIOVariableKindMod, only : fates_io_variable_kind_type
-
+  use FatesGlobals          , only : endrun => fates_endrun
+  use shr_log_mod           , only : errMsg => shr_log_errMsg
+  
   implicit none
   private ! Modules are private by default
 
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
+  
   ! This type is instanteated in the HLM-FATES interface (clmfates_interfaceMod.F90)
   
   type, public :: fates_restart_variable_type
@@ -108,8 +114,7 @@ contains
     case default
        write(fates_log(),*) 'Incompatible vtype passed to set_restart_var'
        write(fates_log(),*) 'vtype = ',trim(vtype),' ?'
-       stop
-       ! end_run
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     end select
     
   end subroutine Init
@@ -200,8 +205,7 @@ contains
        
     case default
        write(fates_log(),*) 'fates history variable type undefined while flushing history variables'
-       stop
-       !end_run
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     end select
     
  end subroutine Flush

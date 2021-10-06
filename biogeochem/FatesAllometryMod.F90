@@ -2448,9 +2448,12 @@ contains
      end if
 
      call h_allom(d,ipft,h)
-     if(counter>10)then
-        write(fates_log(),*) 'dbh counter: ',counter,' is woody: ',&
-             int(prt_params%woody(ipft))==itrue
+
+     if(debug) then
+        if(counter>10)then
+           write(fates_log(),*) 'dbh counter: ',counter,' is woody: ',&
+                int(prt_params%woody(ipft))==itrue
+        end if
      end if
 
      

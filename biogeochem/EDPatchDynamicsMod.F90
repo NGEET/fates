@@ -335,8 +335,8 @@ contains
        ! Fires can't burn the whole patch, as this causes /0 errors. 
        if (debug) then
           if (currentPatch%disturbance_rates(dtype_ifire) > 0.98_r8)then
-          write(fates_log(),*) 'very high fire areas', &
-               currentPatch%disturbance_rates(dtype_ifire),currentPatch%frac_burnt
+             write(fates_log(),*) 'very high fire areas', &
+                  currentPatch%disturbance_rates(dtype_ifire),currentPatch%frac_burnt
           endif
        endif
 
@@ -2295,7 +2295,8 @@ contains
              do while(associated(tpp))
 
                 if(.not.associated(currentPatch))then
-                   write(fates_log(),*) 'ED: issue with currentPatch'
+                   write(fates_log(),*) 'FATES fuse_patches(): currentPatch is not associated?'
+                   call endrun(msg=errMsg(sourcefile, __LINE__))
                 endif
 
                 if(associated(tpp).and.associated(currentPatch))then
@@ -2414,9 +2415,7 @@ contains
                             !------------------------------------------------------------------------!
 
                             profiletol = ED_val_patch_fusion_tol
-                            
-                         else
-                            ! write(fates_log(),*) 'patches not fused'
+
                          endif
                       endif  !are both patches the same anthropogenic disturbance category as the disturbance type loop iterator?
                    endif  !are both patches associated?        
