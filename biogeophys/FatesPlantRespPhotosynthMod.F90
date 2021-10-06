@@ -398,16 +398,9 @@ contains
                                  (hlm_use_planthydro.eq.itrue) .or. &
                                  (nleafage > 1) .or. &
                                  (hlm_parteh_mode .ne. prt_carbon_allom_hyp )   ) then
-                               
-                               if (hlm_use_planthydro.eq.itrue ) then
-                                 if (hlm_use_hardening.eq.itrue) then
-                                   if (currentCohort%hard_rate < 1._r8) then
-                                      stomatal_intercept_btran = max( cf/(rsmax0*currentCohort%hard_rate), &
-                                      stomatal_intercept(ft)*currentCohort%hard_rate*currentCohort%co_hydr%btran )
-                                   endif
-                                 else
-                                    stomatal_intercept_btran = max( cf/rsmax0,stomatal_intercept(ft)*currentCohort%co_hydr%btran ) !Marius
-                                 end if
+                                 
+                              if (hlm_use_planthydro.eq.itrue ) then
+                                 stomatal_intercept_btran = max( cf/rsmax0,stomatal_intercept(ft)*currentCohort%co_hydr%btran )
                                  
                                  btran_eff = currentCohort%co_hydr%btran 
                                  
@@ -522,7 +515,8 @@ contains
                               ! Part IX: This call calculates the actual photosynthesis for the 
                               ! leaf layer, as well as the stomatal resistance and the net assimilated carbon.
 
-                              call LeafLayerPhotosynthesis(currentPatch%f_sun(cl,ft,iv),    &  ! in
+                              call LeafLayerPhotosynthesis(currentCohort%hard_rate,         &  ! in marius
+                                                        currentPatch%f_sun(cl,ft,iv),       &  ! in
                                                         currentPatch%ed_parsun_z(cl,ft,iv), &  ! in
                                                         currentPatch%ed_parsha_z(cl,ft,iv), &  ! in
                                                         currentPatch%ed_laisun_z(cl,ft,iv), &  ! in
@@ -838,7 +832,8 @@ contains
   
   ! =======================================================================================
   
-  subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
+  subroutine LeafLayerPhotosynthesis(hard_rate,         &  ! in marius
+                                     f_sun_lsl,         &  ! in
                                      parsun_lsl,        &  ! in
                                      parsha_lsl,        &  ! in
                                      laisun_lsl,        &  ! in
@@ -954,7 +949,7 @@ contains
    real(r8) :: init_co2_inter_c  ! First guess intercellular co2 specific to C path
    real(r8) :: term                 ! intermediate variable in Medlyn stomatal conductance model
    real(r8) :: vpd                  ! water vapor deficit in Medlyn stomatal model (KPa)
-
+   real(r8) :: hard_rate !marius
 
    ! Parameters
    ! ------------------------------------------------------------------------
@@ -1151,6 +1146,13 @@ contains
 
                  call quadratic_f (aquad, bquad, cquad, r1, r2)
                  gs_mol = max(r1,r2)
+                 
+                 if (hlm_use_hardening.eq.itrue) then !marius
+                   if (hard_rate < 1._r8) then
+                      gs_mol =gs_mol*hard_rate
+                   endif
+                 end if
+                 
                  end if 
                  ! Derive new estimate for co2_inter_c
                  co2_inter_c = can_co2_ppress - anet * can_press * &
@@ -1171,6 +1173,11 @@ contains
               ! gs_mol =stomatal_intercept_btran 
               if (anet < 0._r8) then
                   gs_mol = stomatal_intercept_btran
+                  if (hlm_use_hardening.eq.itrue) then !marius
+                    if (hard_rate < 1._r8) then
+                       gs_mol =gs_mol*hard_rate
+                    endif
+                 end if
               end if
               
               ! Final estimates for leaf_co2_ppress and co2_inter_c 
@@ -1223,10 +1230,10 @@ contains
                  gs_mol_err = bb_slope(ft)*max(anet, 0._r8)*hs/leaf_co2_ppress*can_press + stomatal_intercept_btran
               end if
 
-              if (abs(gs_mol-gs_mol_err) > 1.e-01_r8) then
-                 write (fates_log(),*) 'Stomatal model error check - stomatal conductance error:'
-                 write (fates_log(),*) gs_mol, gs_mol_err
-              end if
+              !if (abs(gs_mol-gs_mol_err) > 1.e-01_r8) then
+              !   write (fates_log(),*) 'Stomatal model error check - stomatal conductance error:'
+              !   write (fates_log(),*) gs_mol, gs_mol_err
+              !end if
               
            enddo !sunsha loop
 

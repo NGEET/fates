@@ -4504,7 +4504,7 @@ contains
 
 
     ! Maximum number of Newton iterations in each round
-    integer, parameter :: max_newton_iter = 300 !marius
+    integer, parameter :: max_newton_iter = 600 !marius
 
     ! Flag definitions for convergence flag (icnv)
     ! icnv = 1 fail the round due to either wacky math, or
