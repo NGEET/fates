@@ -677,7 +677,7 @@ contains
                 
                 bc_out%veg_rootc(icomp,id) = bc_out%veg_rootc(icomp,id) + veg_rootc
 
-                ! We use a 3 parameter exponential attenuation function to estimate decomposer biomass
+                ! We use a 2 parameter exponential attenuation function to estimate decomposer biomass
                 ! The parameter EDPftvarcon_inst%decompmicc(pft) is the maximum amount found at depth
                 ! decompmicc_zmax, and the profile attenuates with strength lambda
                 
