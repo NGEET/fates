@@ -318,15 +318,16 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     real(r8) :: hard_diff            	! Daily difference between Hday and Tmin (°C)
     real(r8) :: gdd_threshold     ! GDD accumulation function,
     integer  :: ipft                  ! pft index
-
+    real(r8) :: hard_rate_temporary
+    
     Tmean=bc_in%t_ref2m_24_si-273.15_r8
     Tmin=bc_in%t_ref2m_min_si-273.15_r8
 
     !Calculation of the target hardiness
-    if (Tmean <= -15.0_r8) then !
-       target_h=-30.0_r8
+    if (Tmean <= max_h/2._r8) then !
+       target_h=max_h
     else if (Tmean>= 10.0_r8) then
-       target_h=-2.0_r8
+       target_h=min_h
     else
        !target_h=-6.484127_r8 + 1.047831_r8*Tmean - 0.07661111_r8*Tmean**2.0_r8 + &
        !         0.00008148_r8*Tmean**3.0_r8 + 0.00018_r8*Tmean**4.0_r8
@@ -379,15 +380,21 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     if (cohort_in%hard_level < max_h) then
        cohort_in%hard_level = max_h
     end if 
+    
     ipft = cohort_in%pft
-    if (prt_params%season_decid(ipft) == itrue .and. cohort_in%status_coh = leaves_on .and. &
+    if (prt_params%season_decid(ipft) == itrue .and. cohort_in%status_coh == leaves_on .and. &
         (nint(hlm_model_day) >= currentSite%cleafondate .or. nint(hlm_model_day) >= currentSite%dleafondate)) then         
        cohort_in%hard_level = min_h
     end if
-    if (cohort_in%hard_level<-3.0_r8 ) then
-        cohort_in%hard_rate= 0.0_r8
-    else 
+    
+    hard_rate_temporary=(cohort_in%hard_level-max_h)/(min_h-max_h)
+    
+    if (hard_rate_temporary>0.15_r8 .and. hard_rate_temporary<1._r8) then
+        cohort_in%hard_rate= 4535383000*exp(-(hard_rate_temporary- 5.25848)**2/(2*0.6385813**2))
+    else if (hard_rate_temporary>=1._r8) then
         cohort_in%hard_rate= 1.0_r8 
+    else 
+        cohort_in%hard_rate= 1.e-9_r8 
     end if
     
 

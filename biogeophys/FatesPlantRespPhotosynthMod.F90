@@ -63,7 +63,7 @@ module FATESPlantRespPhotosynthMod
    !-------------------------------------------------------------------------------------
    
    ! maximum stomatal resistance [s/m] (used across several procedures)
-   real(r8),parameter :: rsmax0 = 2.e16_r8  ! 2.e8_r8    Marius               
+   real(r8),parameter :: rsmax0 = 2.e8_r8               
    
    logical   ::  debug = .false.
    !-------------------------------------------------------------------------------------
@@ -401,11 +401,14 @@ contains
                                
                                if (hlm_use_planthydro.eq.itrue ) then
                                  if (hlm_use_hardening.eq.itrue) then
-                                   if (currentCohort%hard_rate < 0.5_r8) then
-                                     stomatal_intercept(ft)=1._r8 !marius
+                                   if (currentCohort%hard_rate < 1._r8) then
+                                      stomatal_intercept_btran = max( cf/(rsmax0*currentCohort%hard_rate), &
+                                      stomatal_intercept(ft)*currentCohort%hard_rate*currentCohort%co_hydr%btran )
                                    endif
+                                 else
+                                    stomatal_intercept_btran = max( cf/rsmax0,stomatal_intercept(ft)*currentCohort%co_hydr%btran ) !Marius
                                  end if
-                                 stomatal_intercept_btran = max( cf/rsmax0,stomatal_intercept(ft)*currentCohort%co_hydr%btran )
+                                 
                                  btran_eff = currentCohort%co_hydr%btran 
                                  
                                  ! dinc_ed is the total vegetation area index of each "leaf" layer
