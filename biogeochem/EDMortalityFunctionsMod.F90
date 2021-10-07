@@ -389,14 +389,14 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     
     hard_rate_temporary=(cohort_in%hard_level-max_h)/(min_h-max_h)
     
-    if (hard_rate_temporary>0.15_r8 .and. hard_rate_temporary<1._r8) then
-        cohort_in%hard_rate= 4535383000*exp(-(hard_rate_temporary- 5.25848)**2/(2*0.6385813**2))
+    if (hard_rate_temporary>0.1_r8 .and. hard_rate_temporary<1._r8) then
+        cohort_in%hard_rate= 1.e(-1/hard_rate_temporary))
     else if (hard_rate_temporary>=1._r8) then
         cohort_in%hard_rate= 1.0_r8 
     else 
-        cohort_in%hard_rate= 1.e-9_r8 
+        cohort_in%hard_rate= 1.e-10_r8 
     end if
-    
+    max(yournumber,
 
 
     hard_diff=hard_level_prev-Tmin
