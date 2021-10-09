@@ -467,29 +467,35 @@ contains
 
              io_si  = currentSite%h_gid
 
-             fates_hist%hvars(ih_nh4uptake_scpf)%r82d(io_si,iscpf) = &
-                  fates_hist%hvars(ih_nh4uptake_scpf)%r82d(io_si,iscpf) + &
-                  currentCohort%daily_nh4_uptake*currentCohort%n
+             fates_hist%hvars(ih_nh4uptake_scpf)%r82d(io_si,iscpf) =           &
+                  fates_hist%hvars(ih_nh4uptake_scpf)%r82d(io_si,iscpf) +      &
+                  currentCohort%daily_nh4_uptake*currentCohort%n /             &
+                  m2_per_ha / sec_per_day
 
-             fates_hist%hvars(ih_no3uptake_scpf)%r82d(io_si,iscpf) = &
-                  fates_hist%hvars(ih_no3uptake_scpf)%r82d(io_si,iscpf) + &
-                  currentCohort%daily_no3_uptake*currentCohort%n
+             fates_hist%hvars(ih_no3uptake_scpf)%r82d(io_si,iscpf) =           &
+                  fates_hist%hvars(ih_no3uptake_scpf)%r82d(io_si,iscpf) +      &
+                  currentCohort%daily_no3_uptake*currentCohort%n /             &
+                  m2_per_ha / sec_per_day
 
-             fates_hist%hvars(ih_puptake_scpf)%r82d(io_si,iscpf) = &
-                  fates_hist%hvars(ih_puptake_scpf)%r82d(io_si,iscpf) + &
-                  currentCohort%daily_p_uptake*currentCohort%n
+             fates_hist%hvars(ih_puptake_scpf)%r82d(io_si,iscpf) =             &
+                  fates_hist%hvars(ih_puptake_scpf)%r82d(io_si,iscpf) +        &
+                  currentCohort%daily_p_uptake*currentCohort%n /               &
+                  m2_per_ha / sec_per_day
 
-             fates_hist%hvars(ih_nh4uptake_si)%r81d(io_si) = &
-                  fates_hist%hvars(ih_nh4uptake_si)%r81d(io_si)  + &
-                  currentCohort%daily_nh4_uptake*currentCohort%n
+             fates_hist%hvars(ih_nh4uptake_si)%r81d(io_si) =                   &
+                  fates_hist%hvars(ih_nh4uptake_si)%r81d(io_si)  +             &
+                  currentCohort%daily_nh4_uptake*currentCohort%n /             &
+                  m2_per_ha / sec_per_day
 
-             fates_hist%hvars(ih_no3uptake_si)%r81d(io_si) = &
-                  fates_hist%hvars(ih_no3uptake_si)%r81d(io_si)  + &
-                  currentCohort%daily_no3_uptake*currentCohort%n
+             fates_hist%hvars(ih_no3uptake_si)%r81d(io_si) =                   &
+                  fates_hist%hvars(ih_no3uptake_si)%r81d(io_si)  +             &
+                  currentCohort%daily_no3_uptake*currentCohort%n /             &
+                  m2_per_ha / sec_per_day
 
-             fates_hist%hvars(ih_puptake_si)%r81d(io_si) = &
-                  fates_hist%hvars(ih_puptake_si)%r81d(io_si)  + &
-                  currentCohort%daily_p_uptake*currentCohort%n
+             fates_hist%hvars(ih_puptake_si)%r81d(io_si) =                     &
+                  fates_hist%hvars(ih_puptake_si)%r81d(io_si)  +               &
+                  currentCohort%daily_p_uptake*currentCohort%n /               &
+                  m2_per_ha / sec_per_day
 
 
              ! Diagnostics on efflux, size and pft [kgX/ha/day]
@@ -948,7 +954,3 @@ contains
  end subroutine bypass_dynamics
 
 end module EDMainMod
-
-
-
-
