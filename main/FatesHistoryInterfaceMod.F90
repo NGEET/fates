@@ -2033,24 +2033,24 @@ end subroutine flush_hvars
 
          io_si  = sites(s)%h_gid
 
-         ! Total carbon model error [kgC/day -> mgC/day]
+         ! Total carbon model error [kgC/day -> kgC/s]
          hio_cbal_err_fates_si(io_si) = &
-               sites(s)%mass_balance(element_pos(carbon12_element))%err_fates * mg_per_kg
+               sites(s)%mass_balance(element_pos(carbon12_element))%err_fates / sec_per_day
 
-         ! Total carbon lost to atmosphere from burning (kgC/site/day -> gC/m2/s)
+         ! Total carbon lost to atmosphere from burning (kgC/site/day -> kgC/m2/s)
          hio_fire_c_to_atm_si(io_si) = &
               sites(s)%mass_balance(element_pos(carbon12_element))%burn_flux_to_atm * &
-              g_per_kg * ha_per_m2 * days_per_sec
+              ha_per_m2 * days_per_sec
 
-         ! Total model error [kg/day -> mg/day]  (all elements)
+         ! Total model error [kg/day -> kg/s]  (all elements)
          do el = 1, num_elements
 
-             hio_err_fates_si(io_si,el) = sites(s)%mass_balance(el)%err_fates * mg_per_kg
+             hio_err_fates_si(io_si,el) = sites(s)%mass_balance(el)%err_fates / sec_per_day
 
              ! Total element lost to atmosphere from burning (kg/site/day -> g/m2/s)
              hio_burn_flux_elem(io_si,el) = &
                   sites(s)%mass_balance(el)%burn_flux_to_atm * &
-                  g_per_kg * ha_per_m2 * days_per_sec
+                  ha_per_m2 * days_per_sec
 
          end do
 
@@ -2389,14 +2389,22 @@ end subroutine flush_hvars
                   repro_m_net_alloc  = ccohort%prt%GetNetAlloc(repro_organ, carbon12_element) * days_per_year
 
                   ! ecosystem-level, organ-partitioned NPP/allocation fluxes
-                  hio_npp_leaf_si(io_si) = hio_npp_leaf_si(io_si) + leaf_m_net_alloc * n_perm2
-                  hio_npp_seed_si(io_si) = hio_npp_seed_si(io_si) + repro_m_net_alloc * n_perm2
-                  hio_npp_stem_si(io_si) = hio_npp_stem_si(io_si) + (sapw_m_net_alloc + struct_m_net_alloc) * n_perm2 * &
-                       (prt_params%allom_agb_frac(ccohort%pft))
-                  hio_npp_froot_si(io_si) = hio_npp_froot_si(io_si) + fnrt_m_net_alloc * n_perm2
-                  hio_npp_croot_si(io_si) = hio_npp_croot_si(io_si) + (sapw_m_net_alloc + struct_m_net_alloc) * n_perm2 * &
-                       (1._r8-prt_params%allom_agb_frac(ccohort%pft))
-                  hio_npp_stor_si(io_si) = hio_npp_stor_si(io_si) + store_m_net_alloc * n_perm2
+                  hio_npp_leaf_si(io_si) = hio_npp_leaf_si(io_si) +            &
+                       leaf_m_net_alloc * n_perm2 / days_per_year / sec_per_day
+                  hio_npp_seed_si(io_si) = hio_npp_seed_si(io_si) +            &
+                       repro_m_net_alloc * n_perm2 / days_per_year / sec_per_day
+                  hio_npp_stem_si(io_si) = hio_npp_stem_si(io_si) +            &
+                       (sapw_m_net_alloc + struct_m_net_alloc) * n_perm2 *     &
+                       (prt_params%allom_agb_frac(ccohort%pft)) /              &
+                       days_per_year / sec_per_day
+                  hio_npp_froot_si(io_si) = hio_npp_froot_si(io_si) +          &
+                       fnrt_m_net_alloc * n_perm2 / days_per_year / sec_per_day
+                  hio_npp_croot_si(io_si) = hio_npp_croot_si(io_si) +          &
+                       (sapw_m_net_alloc + struct_m_net_alloc) * n_perm2 *     &
+                       (1._r8-prt_params%allom_agb_frac(ccohort%pft)) /        &
+                       days_per_year / sec_per_day
+                  hio_npp_stor_si(io_si) = hio_npp_stor_si(io_si) +            &
+                       store_m_net_alloc * n_perm2 / days_per_year / sec_per_day
 
                   associate( scpf => ccohort%size_by_pft_class, &
 
@@ -2411,7 +2419,7 @@ end subroutine flush_hvars
                                                        n_perm2*ccohort%gpp_acc_hold /     &
                                                        days_per_year / sec_per_day  ! [kgC/m2/s]
                     hio_npp_totl_si_scpf(io_si,scpf) = hio_npp_totl_si_scpf(io_si,scpf) + &
-                                                       ccohort%npp_acc_hold *n_perm2 / &
+                                                       ccohort%npp_acc_hold * n_perm2 / &
                                                        days_per_year / sec_per_day
 
 
@@ -2595,7 +2603,7 @@ end subroutine flush_hvars
                        hio_trimming_canopy_si_scls(io_si,scls) = hio_trimming_canopy_si_scls(io_si,scls) + &
                             ccohort%n * ccohort%canopy_trim
                        hio_crown_area_canopy_si_scls(io_si,scls) = hio_crown_area_canopy_si_scls(io_si,scls) + &
-                            ccohort%c_area
+                            ccohort%c_area / m2_per_ha
                        hio_gpp_canopy_si_scpf(io_si,scpf) = hio_gpp_canopy_si_scpf(io_si,scpf) +  &
                             n_perm2*ccohort%gpp_acc_hold / days_per_year / sec_per_day
                        hio_ar_canopy_si_scpf(io_si,scpf)      = hio_ar_canopy_si_scpf(io_si,scpf)      + &
@@ -2623,34 +2631,34 @@ end subroutine flush_hvars
 
 
                        hio_carbon_balance_canopy_si_scls(io_si,scls) = hio_carbon_balance_canopy_si_scls(io_si,scls) + &
-                             ccohort%n * ccohort%npp_acc_hold
+                             ccohort%n * ccohort%npp_acc_hold / m2_per_ha / days_per_year / sec_per_day
 
 
                        hio_leaf_md_canopy_si_scls(io_si,scls) = hio_leaf_md_canopy_si_scls(io_si,scls) + &
-                             leaf_m_turnover * ccohort%n
+                             leaf_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
                        hio_root_md_canopy_si_scls(io_si,scls) = hio_root_md_canopy_si_scls(io_si,scls) + &
-                             fnrt_m_turnover * ccohort%n
+                             fnrt_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
                        hio_bsw_md_canopy_si_scls(io_si,scls) = hio_bsw_md_canopy_si_scls(io_si,scls) + &
-                             sapw_m_turnover * ccohort%n
+                             sapw_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
                        hio_bstore_md_canopy_si_scls(io_si,scls) = hio_bstore_md_canopy_si_scls(io_si,scls) + &
-                             store_m_turnover * ccohort%n
+                             store_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
                        hio_bdead_md_canopy_si_scls(io_si,scls) = hio_bdead_md_canopy_si_scls(io_si,scls) + &
-                             struct_m_turnover * ccohort%n
+                             struct_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
                        hio_seed_prod_canopy_si_scls(io_si,scls) = hio_seed_prod_canopy_si_scls(io_si,scls) + &
-                             ccohort%seed_prod * ccohort%n
+                             ccohort%seed_prod * ccohort%n / m2_per_ha / days_per_year / sec_per_day
 
                        hio_npp_leaf_canopy_si_scls(io_si,scls) = hio_npp_leaf_canopy_si_scls(io_si,scls) + &
-                             leaf_m_net_alloc * ccohort%n
+                             leaf_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
                        hio_npp_fnrt_canopy_si_scls(io_si,scls) = hio_npp_fnrt_canopy_si_scls(io_si,scls) + &
-                             fnrt_m_net_alloc * ccohort%n
+                             fnrt_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
                        hio_npp_sapw_canopy_si_scls(io_si,scls) = hio_npp_sapw_canopy_si_scls(io_si,scls) + &
-                             sapw_m_net_alloc * ccohort%n
+                             sapw_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
                        hio_npp_dead_canopy_si_scls(io_si,scls) = hio_npp_dead_canopy_si_scls(io_si,scls) + &
-                             struct_m_net_alloc * ccohort%n
+                             struct_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
                        hio_npp_seed_canopy_si_scls(io_si,scls) = hio_npp_seed_canopy_si_scls(io_si,scls) + &
-                             repro_m_net_alloc * ccohort%n
+                             repro_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
                        hio_npp_stor_canopy_si_scls(io_si,scls) = hio_npp_stor_canopy_si_scls(io_si,scls) + &
-                             store_m_net_alloc * ccohort%n
+                             store_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
 
                        hio_yesterdaycanopylevel_canopy_si_scls(io_si,scls) = &
                             hio_yesterdaycanopylevel_canopy_si_scls(io_si,scls) + &
@@ -2688,7 +2696,7 @@ end subroutine flush_hvars
                        hio_trimming_understory_si_scls(io_si,scls) = hio_trimming_understory_si_scls(io_si,scls) + &
                             ccohort%n * ccohort%canopy_trim
                        hio_crown_area_understory_si_scls(io_si,scls) = hio_crown_area_understory_si_scls(io_si,scls) + &
-                            ccohort%c_area
+                            ccohort%c_area / m2_per_ha
                        hio_gpp_understory_si_scpf(io_si,scpf)      = hio_gpp_understory_si_scpf(io_si,scpf)      + &
                             n_perm2*ccohort%gpp_acc_hold / days_per_year / sec_per_day
                        hio_ar_understory_si_scpf(io_si,scpf)      = hio_ar_understory_si_scpf(io_si,scpf)      + &
@@ -2706,7 +2714,7 @@ end subroutine flush_hvars
                              (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
                              ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n + &
                              (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
-                             ccohort%n * sec_per_day * days_per_year
+                             ccohort%n * sec_per_day * days_per_year / m2_per_ha
 
                        hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
                              (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
@@ -2716,33 +2724,33 @@ end subroutine flush_hvars
                              ccohort%n * g_per_kg * ha_per_m2
 
                        hio_carbon_balance_understory_si_scls(io_si,scls) = hio_carbon_balance_understory_si_scls(io_si,scls) + &
-                             ccohort%npp_acc_hold * ccohort%n
+                             ccohort%npp_acc_hold * ccohort%n / m2_per_ha
 
                        hio_leaf_md_understory_si_scls(io_si,scls) = hio_leaf_md_understory_si_scls(io_si,scls) + &
-                            leaf_m_turnover * ccohort%n
+                            leaf_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
                        hio_root_md_understory_si_scls(io_si,scls) = hio_root_md_understory_si_scls(io_si,scls) + &
-                            fnrt_m_turnover * ccohort%n
+                            fnrt_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
                        hio_bsw_md_understory_si_scls(io_si,scls) = hio_bsw_md_understory_si_scls(io_si,scls) + &
-                             sapw_m_turnover * ccohort%n
+                             sapw_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
                        hio_bstore_md_understory_si_scls(io_si,scls) = hio_bstore_md_understory_si_scls(io_si,scls) + &
-                             store_m_turnover * ccohort%n
+                             store_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
                        hio_bdead_md_understory_si_scls(io_si,scls) = hio_bdead_md_understory_si_scls(io_si,scls) + &
-                             struct_m_turnover * ccohort%n
+                             struct_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
                        hio_seed_prod_understory_si_scls(io_si,scls) = hio_seed_prod_understory_si_scls(io_si,scls) + &
-                            ccohort%seed_prod * ccohort%n
+                            ccohort%seed_prod * ccohort%n / m2_per_ha / days_per_year / sec_per_day
 
                        hio_npp_leaf_understory_si_scls(io_si,scls) = hio_npp_leaf_understory_si_scls(io_si,scls) + &
-                             leaf_m_net_alloc * ccohort%n
+                             leaf_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
                        hio_npp_fnrt_understory_si_scls(io_si,scls) = hio_npp_fnrt_understory_si_scls(io_si,scls) + &
-                             fnrt_m_net_alloc * ccohort%n
+                             fnrt_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
                        hio_npp_sapw_understory_si_scls(io_si,scls) = hio_npp_sapw_understory_si_scls(io_si,scls) + &
-                             sapw_m_net_alloc * ccohort%n
+                             sapw_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
                        hio_npp_dead_understory_si_scls(io_si,scls) = hio_npp_dead_understory_si_scls(io_si,scls) + &
-                             struct_m_net_alloc * ccohort%n
+                             struct_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
                        hio_npp_seed_understory_si_scls(io_si,scls) = hio_npp_seed_understory_si_scls(io_si,scls) + &
-                             repro_m_net_alloc * ccohort%n
+                             repro_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
                        hio_npp_stor_understory_si_scls(io_si,scls) = hio_npp_stor_understory_si_scls(io_si,scls) + &
-                             store_m_net_alloc * ccohort%n
+                             store_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
 
                        hio_yesterdaycanopylevel_understory_si_scls(io_si,scls) = &
                             hio_yesterdaycanopylevel_understory_si_scls(io_si,scls) + &
@@ -2895,7 +2903,7 @@ end subroutine flush_hvars
                     sites(s)%term_nindivs_canopy(i_scls,i_pft) * days_per_year
 
                hio_mortality_understory_si_scls(io_si,i_scls) = hio_mortality_understory_si_scls(io_si,i_scls) + &
-                    sites(s)%term_nindivs_ustory(i_scls,i_pft) * days_per_year
+                    sites(s)%term_nindivs_ustory(i_scls,i_pft) * days_per_year / m2_per_ha
 
                hio_mortality_canopy_si_scpf(io_si,i_scpf) = hio_mortality_canopy_si_scpf(io_si,i_scpf) + &
                      sites(s)%term_nindivs_canopy(i_scls,i_pft) * days_per_year
@@ -2914,7 +2922,7 @@ end subroutine flush_hvars
                hio_mortality_understory_si_scpf(io_si,i_scpf) = hio_mortality_understory_si_scpf(io_si,i_scpf) + &
                     sites(s)%imort_rate(i_scls, i_pft)
                hio_mortality_understory_si_scls(io_si,i_scls) = hio_mortality_understory_si_scls(io_si,i_scls) + &
-                    sites(s)%imort_rate(i_scls, i_pft)
+                    sites(s)%imort_rate(i_scls, i_pft) / m2_per_ha
                !
                iscag = i_scls ! since imort is by definition something that only happens in newly disturbed patches, treat as such
                hio_mortality_understory_si_scag(io_si,iscag) = hio_mortality_understory_si_scag(io_si,iscag) + &
@@ -2942,7 +2950,7 @@ end subroutine flush_hvars
                      sites(s)%fmort_rate_ustory(i_scls, i_pft)
 
                hio_mortality_understory_si_scls(io_si,i_scls) = hio_mortality_understory_si_scls(io_si,i_scls) + &
-                     sites(s)%fmort_rate_ustory(i_scls, i_pft)
+                     sites(s)%fmort_rate_ustory(i_scls, i_pft) / m2_per_ha
 
                !
                ! carbon flux associated with mortality of trees dying by fire
@@ -3099,7 +3107,8 @@ end subroutine flush_hvars
                this%hvars(ih_reproc_scpf)%r82d(io_si,:)  = 0._r8
 
                this%hvars(ih_cefflux_scpf)%r82d(io_si,:) = &
-                    sites(s)%flux_diags(el)%nutrient_efflux_scpf(:)
+                    sites(s)%flux_diags(el)%nutrient_efflux_scpf(:) /          &
+                    m2_per_ha / sec_per_day
 
                this%hvars(ih_cefflux_si)%r81d(io_si) = &
                     sum(sites(s)%flux_diags(el)%nutrient_efflux_scpf(:),dim=1) / &
@@ -3117,10 +3126,12 @@ end subroutine flush_hvars
                this%hvars(ih_repron_scpf)%r82d(io_si,:)  = 0._r8
 
                this%hvars(ih_nefflux_scpf)%r82d(io_si,:) = &
-                    sites(s)%flux_diags(el)%nutrient_efflux_scpf(:)
+                    sites(s)%flux_diags(el)%nutrient_efflux_scpf(:) /          &
+                    m2_per_ha / sec_per_day
 
                this%hvars(ih_nneed_scpf)%r82d(io_si,:) = &
-                    sites(s)%flux_diags(el)%nutrient_need_scpf(:)
+                    sites(s)%flux_diags(el)%nutrient_need_scpf(:) /            &
+                    m2_per_ha / sec_per_day
 
                this%hvars(ih_nneed_si)%r81d(io_si) = &
                     sum(sites(s)%flux_diags(el)%nutrient_need_scpf(:),dim=1) / &
@@ -3141,10 +3152,12 @@ end subroutine flush_hvars
                this%hvars(ih_storeptfrac_understory_scpf)%r82d(io_si,:) = 0._r8
                this%hvars(ih_reprop_scpf)%r82d(io_si,:)  = 0._r8
                this%hvars(ih_pefflux_scpf)%r82d(io_si,:) = &
-                    sites(s)%flux_diags(el)%nutrient_efflux_scpf(:)
+                    sites(s)%flux_diags(el)%nutrient_efflux_scpf(:) /          &
+                    m2_per_ha / sec_per day
 
                this%hvars(ih_pneed_scpf)%r82d(io_si,:) = &
-                    sites(s)%flux_diags(el)%nutrient_need_scpf(:)
+                    sites(s)%flux_diags(el)%nutrient_need_scpf(:) /            &
+                    m2_per_ha / sec_per_day
 
                this%hvars(ih_pneed_si)%r81d(io_si) = &
                     sum(sites(s)%flux_diags(el)%nutrient_need_scpf(:),dim=1) / &
@@ -3192,21 +3205,22 @@ end subroutine flush_hvars
 
                ! Litter State Variables
                hio_cwd_ag_elem(io_si,el) = hio_cwd_ag_elem(io_si,el) + &
-                     sum(litt%ag_cwd(:)) * cpatch%area
+                     sum(litt%ag_cwd(:)) * cpatch%area / m2_per_ha
 
                hio_cwd_bg_elem(io_si,el) = hio_cwd_bg_elem(io_si,el) + &
-                     sum(litt%bg_cwd(:,:)) * cpatch%area
+                     sum(litt%bg_cwd(:,:)) * cpatch%area / m2_per_ha
 
                hio_fines_ag_elem(io_si,el) = hio_fines_ag_elem(io_si,el) + &
-                     sum(litt%leaf_fines(:)) * cpatch%area
+                     sum(litt%leaf_fines(:)) * cpatch%area / m2_per_ha
 
                hio_fines_bg_elem(io_si,el) = hio_fines_bg_elem(io_si,el) + &
-                     sum(litt%root_fines(:,:)) * cpatch%area
+                     sum(litt%root_fines(:,:)) * cpatch%area / m2_per_ha
 
                do cwd=1,ncwd
                    elcwd = (el-1)*ncwd+cwd
-                   hio_cwd_elcwd(io_si,elcwd) = hio_cwd_elcwd(io_si,elcwd) + &
-                         (litt%ag_cwd(cwd) + sum(litt%bg_cwd(cwd,:))) * cpatch%area
+                   hio_cwd_elcwd(io_si,elcwd) = hio_cwd_elcwd(io_si,elcwd) +   &
+                         (litt%ag_cwd(cwd) + sum(litt%bg_cwd(cwd,:))) *        &
+                         cpatch%area / m2_per_ha
 
                end do
 
@@ -3226,34 +3240,46 @@ end subroutine flush_hvars
                   i_scpf = ccohort%size_by_pft_class
 
                   if(element_list(el).eq.carbon12_element)then
-                     this%hvars(ih_totvegc_scpf)%r82d(io_si,i_scpf) = &
-                          this%hvars(ih_totvegc_scpf)%r82d(io_si,i_scpf) + total_m * ccohort%n
-                     this%hvars(ih_leafc_scpf)%r82d(io_si,i_scpf) = &
-                          this%hvars(ih_leafc_scpf)%r82d(io_si,i_scpf) + leaf_m * ccohort%n
-                     this%hvars(ih_fnrtc_scpf)%r82d(io_si,i_scpf) = &
-                          this%hvars(ih_fnrtc_scpf)%r82d(io_si,i_scpf) + fnrt_m * ccohort%n
-                     this%hvars(ih_sapwc_scpf)%r82d(io_si,i_scpf) = &
-                          this%hvars(ih_sapwc_scpf)%r82d(io_si,i_scpf) + sapw_m * ccohort%n
-                     this%hvars(ih_storec_scpf)%r82d(io_si,i_scpf) = &
-                          this%hvars(ih_storec_scpf)%r82d(io_si,i_scpf) + store_m * ccohort%n
-                     this%hvars(ih_reproc_scpf)%r82d(io_si,i_scpf) = &
-                          this%hvars(ih_reproc_scpf)%r82d(io_si,i_scpf) + repro_m * ccohort%n
+                     this%hvars(ih_totvegc_scpf)%r82d(io_si,i_scpf) =          &
+                          this%hvars(ih_totvegc_scpf)%r82d(io_si,i_scpf) +     &
+                          total_m * ccohort%n / m2_per_ha
+                     this%hvars(ih_leafc_scpf)%r82d(io_si,i_scpf) =            &
+                          this%hvars(ih_leafc_scpf)%r82d(io_si,i_scpf) +       &
+                          leaf_m * ccohort%n / m2_per_ha
+                     this%hvars(ih_fnrtc_scpf)%r82d(io_si,i_scpf) =            &
+                          this%hvars(ih_fnrtc_scpf)%r82d(io_si,i_scpf) +       &
+                          fnrt_m * ccohort%n / m2_per_ha
+                     this%hvars(ih_sapwc_scpf)%r82d(io_si,i_scpf) =            &
+                          this%hvars(ih_sapwc_scpf)%r82d(io_si,i_scpf) +       &
+                          sapw_m * ccohort%n / m2_per_ha
+                     this%hvars(ih_storec_scpf)%r82d(io_si,i_scpf) =           &
+                          this%hvars(ih_storec_scpf)%r82d(io_si,i_scpf) +      &
+                          store_m * ccohort%n / m2_per_ha
+                     this%hvars(ih_reproc_scpf)%r82d(io_si,i_scpf) =           &
+                          this%hvars(ih_reproc_scpf)%r82d(io_si,i_scpf) +      &
+                          repro_m * ccohort%n / m2_per_ha
                   elseif(element_list(el).eq.nitrogen_element)then
 
                      store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ)
 
-                     this%hvars(ih_totvegn_scpf)%r82d(io_si,i_scpf) = &
-                          this%hvars(ih_totvegn_scpf)%r82d(io_si,i_scpf) + total_m * ccohort%n
-                     this%hvars(ih_leafn_scpf)%r82d(io_si,i_scpf) = &
-                          this%hvars(ih_leafn_scpf)%r82d(io_si,i_scpf) + leaf_m * ccohort%n
-                     this%hvars(ih_fnrtn_scpf)%r82d(io_si,i_scpf) = &
-                          this%hvars(ih_fnrtn_scpf)%r82d(io_si,i_scpf) + fnrt_m * ccohort%n
-                     this%hvars(ih_sapwn_scpf)%r82d(io_si,i_scpf) = &
-                          this%hvars(ih_sapwn_scpf)%r82d(io_si,i_scpf) + sapw_m * ccohort%n
-                     this%hvars(ih_storen_scpf)%r82d(io_si,i_scpf) = &
-                          this%hvars(ih_storen_scpf)%r82d(io_si,i_scpf) + store_m * ccohort%n
-                     this%hvars(ih_repron_scpf)%r82d(io_si,i_scpf) = &
-                          this%hvars(ih_repron_scpf)%r82d(io_si,i_scpf) + repro_m * ccohort%n
+                     this%hvars(ih_totvegn_scpf)%r82d(io_si,i_scpf) =          &
+                          this%hvars(ih_totvegn_scpf)%r82d(io_si,i_scpf) +     &
+                          total_m * ccohort%n / m2_per_ha
+                     this%hvars(ih_leafn_scpf)%r82d(io_si,i_scpf) =            &
+                          this%hvars(ih_leafn_scpf)%r82d(io_si,i_scpf) +       &
+                          leaf_m * ccohort%n / m2_per_ha
+                     this%hvars(ih_fnrtn_scpf)%r82d(io_si,i_scpf) =            &
+                          this%hvars(ih_fnrtn_scpf)%r82d(io_si,i_scpf) +       &
+                          fnrt_m * ccohort%n / m2_per_ha
+                     this%hvars(ih_sapwn_scpf)%r82d(io_si,i_scpf) =            &
+                          this%hvars(ih_sapwn_scpf)%r82d(io_si,i_scpf) +       &
+                          sapw_m * ccohort%n / m2_per_ha
+                     this%hvars(ih_storen_scpf)%r82d(io_si,i_scpf) =           &
+                          this%hvars(ih_storen_scpf)%r82d(io_si,i_scpf) +      &
+                          store_m * ccohort%n / m2_per_ha
+                     this%hvars(ih_repron_scpf)%r82d(io_si,i_scpf) =           &
+                          this%hvars(ih_repron_scpf)%r82d(io_si,i_scpf) +      &
+                          repro_m * ccohort%n / m2_per_ha
 
                      if (ccohort%canopy_layer .eq. 1) then
                         this%hvars(ih_storentfrac_canopy_scpf)%r82d(io_si,i_scpf) = &
@@ -3267,18 +3293,24 @@ end subroutine flush_hvars
 
                      store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ)
 
-                     this%hvars(ih_totvegp_scpf)%r82d(io_si,i_scpf) = &
-                          this%hvars(ih_totvegp_scpf)%r82d(io_si,i_scpf) + total_m * ccohort%n
-                     this%hvars(ih_leafp_scpf)%r82d(io_si,i_scpf) = &
-                          this%hvars(ih_leafp_scpf)%r82d(io_si,i_scpf) + leaf_m * ccohort%n
-                     this%hvars(ih_fnrtp_scpf)%r82d(io_si,i_scpf) = &
-                          this%hvars(ih_fnrtp_scpf)%r82d(io_si,i_scpf) + fnrt_m * ccohort%n
-                     this%hvars(ih_sapwp_scpf)%r82d(io_si,i_scpf) = &
-                          this%hvars(ih_sapwp_scpf)%r82d(io_si,i_scpf) + sapw_m * ccohort%n
-                     this%hvars(ih_storep_scpf)%r82d(io_si,i_scpf) = &
-                          this%hvars(ih_storep_scpf)%r82d(io_si,i_scpf) + store_m * ccohort%n
-                     this%hvars(ih_reprop_scpf)%r82d(io_si,i_scpf) = &
-                          this%hvars(ih_reprop_scpf)%r82d(io_si,i_scpf) + repro_m * ccohort%n
+                     this%hvars(ih_totvegp_scpf)%r82d(io_si,i_scpf) =          &
+                          this%hvars(ih_totvegp_scpf)%r82d(io_si,i_scpf) +     &
+                          total_m * ccohort%n / m2_per_ha
+                     this%hvars(ih_leafp_scpf)%r82d(io_si,i_scpf) =            &
+                          this%hvars(ih_leafp_scpf)%r82d(io_si,i_scpf) +       &
+                          leaf_m * ccohort%n / m2_per_ha
+                     this%hvars(ih_fnrtp_scpf)%r82d(io_si,i_scpf) =            &
+                          this%hvars(ih_fnrtp_scpf)%r82d(io_si,i_scpf) +       &
+                          fnrt_m * ccohort%n / m2_per_ha
+                     this%hvars(ih_sapwp_scpf)%r82d(io_si,i_scpf) =            &
+                          this%hvars(ih_sapwp_scpf)%r82d(io_si,i_scpf) +       &
+                          sapw_m * ccohort%n / m2_per_ha
+                     this%hvars(ih_storep_scpf)%r82d(io_si,i_scpf) =           &
+                          this%hvars(ih_storep_scpf)%r82d(io_si,i_scpf) +      &
+                          store_m * ccohort%n / m2_per_ha
+                     this%hvars(ih_reprop_scpf)%r82d(io_si,i_scpf) =           &
+                          this%hvars(ih_reprop_scpf)%r82d(io_si,i_scpf) +      &
+                          repro_m * ccohort%n / m2_per_ha
 
                      if (ccohort%canopy_layer .eq. 1) then
                         this%hvars(ih_storeptfrac_canopy_scpf)%r82d(io_si,i_scpf) = &
@@ -3516,8 +3548,8 @@ end subroutine flush_hvars
 
          io_si  = sites(s)%h_gid
 
-         hio_nep_si(io_si) = -bc_in(s)%tot_het_resp ! (gC/m2/s)
-         hio_hr_si(io_si)  =  bc_in(s)%tot_het_resp
+         hio_nep_si(io_si) = -bc_in(s)%tot_het_resp / g_per_kg ! (kgC/m2/s)
+         hio_hr_si(io_si)  =  bc_in(s)%tot_het_resp / g_per_kg
 
          ipa = 0
          cpatch => sites(s)%oldest_patch
@@ -3577,19 +3609,19 @@ end subroutine flush_hvars
                         ccohort%resp_m * n_perm2 * per_dt_tstep
 
                   ! Add up the total Net Ecosystem Production
-                  ! for this timestep.  [gC/m2/s]
+                  ! for this timestep.  [kgC/m2/s]
                   hio_nep_si(io_si) = hio_nep_si(io_si) + &
-                       npp * g_per_kg * n_perm2 * per_dt_tstep
+                       npp * n_perm2 * per_dt_tstep
 
                   ! aggregate MR fluxes to the site level
                   hio_leaf_mr_si(io_si) = hio_leaf_mr_si(io_si) + ccohort%rdark &
-                       * n_perm2 *  sec_per_day * days_per_year
+                       * n_perm2
                   hio_froot_mr_si(io_si) = hio_froot_mr_si(io_si) + ccohort%froot_mr &
-                       * n_perm2 *  sec_per_day * days_per_year
+                       * n_perm2
                   hio_livecroot_mr_si(io_si) = hio_livecroot_mr_si(io_si) + ccohort%livecroot_mr &
-                       * n_perm2 *  sec_per_day * days_per_year
+                       * n_perm2
                   hio_livestem_mr_si(io_si) = hio_livestem_mr_si(io_si) + ccohort%livestem_mr &
-                       * n_perm2 *  sec_per_day * days_per_year
+                       * n_perm2
 
                   ! Total AR (kgC/m2/s) = (kgC/plant/step) / (s/step) * (plant/m2)
                   hio_ar_si_scpf(io_si,scpf)    =   hio_ar_si_scpf(io_si,scpf) + &
@@ -3637,19 +3669,20 @@ end subroutine flush_hvars
                           aresp * n_perm2 * per_dt_tstep
 
                      !
-                     ! size-resolved respiration fluxes are in kg C / ha / yr
+                     ! size-resolved respiration fluxes are in kg C / m2 / s
                      hio_rdark_canopy_si_scls(io_si,scls) = hio_rdark_canopy_si_scls(io_si,scls) + &
-                          ccohort%rdark  * ccohort%n * sec_per_day * days_per_year
+                          ccohort%rdark  * ccohort%n / m2_per_ha
                      hio_livestem_mr_canopy_si_scls(io_si,scls) = hio_livestem_mr_canopy_si_scls(io_si,scls) + &
-                          ccohort%livestem_mr  * ccohort%n * sec_per_day * days_per_year
+                          ccohort%livestem_mr  * ccohort%n / m2_per_ha
                      hio_livecroot_mr_canopy_si_scls(io_si,scls) = hio_livecroot_mr_canopy_si_scls(io_si,scls) + &
-                          ccohort%livecroot_mr  * ccohort%n * sec_per_day * days_per_year
+                          ccohort%livecroot_mr  * ccohort%n / m2_per_ha
                      hio_froot_mr_canopy_si_scls(io_si,scls) = hio_froot_mr_canopy_si_scls(io_si,scls) + &
-                          ccohort%froot_mr  * ccohort%n * sec_per_day * days_per_year
+                          ccohort%froot_mr  * ccohort%n / m2_per_ha
+
                      hio_resp_g_canopy_si_scls(io_si,scls) = hio_resp_g_canopy_si_scls(io_si,scls) + &
-                          resp_g  * ccohort%n * sec_per_day * days_per_year * per_dt_tstep
+                          resp_g  * ccohort%n * per_dt_tstep / m2_per_ha
                      hio_resp_m_canopy_si_scls(io_si,scls) = hio_resp_m_canopy_si_scls(io_si,scls) + &
-                          ccohort%resp_m  * ccohort%n * sec_per_day * days_per_year * per_dt_tstep
+                          ccohort%resp_m  * ccohort%n * per_dt_tstep / m2_per_ha
                   else
                      !
                      ! bulk fluxes are in gC / m2 / s
@@ -3659,19 +3692,19 @@ end subroutine flush_hvars
                           aresp * n_perm2 * per_dt_tstep
 
                      !
-                     ! size-resolved respiration fluxes are in kg C / ha / yr
+                     ! size-resolved respiration fluxes are in kg C / m2 / s
                      hio_rdark_understory_si_scls(io_si,scls) = hio_rdark_understory_si_scls(io_si,scls) + &
-                          ccohort%rdark  * ccohort%n * sec_per_day * days_per_year
+                          ccohort%rdark  * ccohort%n / m2_per_ha
                      hio_livestem_mr_understory_si_scls(io_si,scls) = hio_livestem_mr_understory_si_scls(io_si,scls) + &
-                          ccohort%livestem_mr  * ccohort%n * sec_per_day * days_per_year
+                          ccohort%livestem_mr  * ccohort%n  / m2_per_ha
                      hio_livecroot_mr_understory_si_scls(io_si,scls) = hio_livecroot_mr_understory_si_scls(io_si,scls) + &
-                          ccohort%livecroot_mr  * ccohort%n * sec_per_day * days_per_year
+                          ccohort%livecroot_mr  * ccohort%n  / m2_per_ha
                      hio_froot_mr_understory_si_scls(io_si,scls) = hio_froot_mr_understory_si_scls(io_si,scls) + &
-                          ccohort%froot_mr  * ccohort%n * sec_per_day * days_per_year
+                          ccohort%froot_mr  * ccohort%n  / m2_per_ha
                      hio_resp_g_understory_si_scls(io_si,scls) = hio_resp_g_understory_si_scls(io_si,scls) + &
-                          resp_g  * ccohort%n * sec_per_day * days_per_year * per_dt_tstep
+                          resp_g  * ccohort%n * per_dt_tstep  / m2_per_ha
                      hio_resp_m_understory_si_scls(io_si,scls) = hio_resp_m_understory_si_scls(io_si,scls) + &
-                          ccohort%resp_m  * ccohort%n * sec_per_day * days_per_year * per_dt_tstep
+                          ccohort%resp_m  * ccohort%n * per_dt_tstep  / m2_per_ha
                   endif
                 end associate
                endif
@@ -4254,7 +4287,7 @@ end subroutine update_history_hifrq
          index=ih_ncohorts_si)
 
     ! Patch variables
-    call this%set_history_var(vname='FATES_TRIMMING', units='',                &
+    call this%set_history_var(vname='FATES_TRIMMING', units='1',               &
          long='degree to which canopy expansion is limited by leaf economics (0-1)', &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
@@ -4547,13 +4580,13 @@ end subroutine update_history_hifrq
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_fire_intensity_area_product_si)
 
-    call this%set_history_var(vname='FATES_BURNFRAC', units='1 s-1',           &
+    call this%set_history_var(vname='FATES_BURNFRAC', units='s-1',             &
          long='burned area fraction per second', use_default='active',         &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_fire_area_si)
 
-    call this%set_history_var(vname='FATES_FUEL_MEF', units='1',               &
+    call this%set_history_var(vname='FATES_FUEL_MEF', units='m3 m-3',          &
          long='fuel moisture of extinction (volumetric)',                      &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
@@ -4565,7 +4598,7 @@ end subroutine update_history_hifrq
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_fire_fuel_bulkd_si )
 
-    call this%set_history_var(vname='FATES_FUEL_EFF_MOIST', units='1',         &
+    call this%set_history_var(vname='FATES_FUEL_EFF_MOIST', units='m3 m-3',    &
          long='spitfire fuel moisture (volumetric)', use_default='active',     &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1, ivar=ivar,      &
          initialize=initialize_variables, index = ih_fire_fuel_eff_moist_si)
@@ -4588,7 +4621,7 @@ end subroutine update_history_hifrq
          hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
          index = ih_fragmentation_scaler_sl)
 
-    call this%set_history_var(vname='FATES_FUEL_MOISTURE_FC', units='1',       &
+    call this%set_history_var(vname='FATES_FUEL_MOISTURE_FC', units='m3 m-3',  &
          long='spitfire fuel class-level fuel moisture (volumetric)',          &
          use_default='active', avgflag='A', vtype=site_fuel_r8,                &
          hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
@@ -4606,7 +4639,7 @@ end subroutine update_history_hifrq
          hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
          index = ih_fuel_amount_age_fuel)
 
-    call this%set_history_var(vname='FATES_BURNFRAC_AP', units='1 s-1',        &
+    call this%set_history_var(vname='FATES_BURNFRAC_AP', units='s-1',          &
          long='spitfire fraction area burnt (per second) by patch age',        &
          use_default='active', avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
@@ -4726,7 +4759,7 @@ end subroutine update_history_hifrq
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_leafc_si)
 
-    call this%set_history_var(vname='FATES_FINEROOTC', units='kg m-2',         &
+    call this%set_history_var(vname='FATES_FROOTC', units='kg m-2',            &
          long='total biomass in live plant fine roots in kg carbon per m2',    &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
@@ -4771,7 +4804,7 @@ end subroutine update_history_hifrq
             avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1, ivar=ivar,   &
             initialize=initialize_variables, index = ih_leafn_si)
 
-       call this%set_history_var(vname='FATES_FINEROOTN', units='kg m-2',      &
+       call this%set_history_var(vname='FATES_FROOTN', units='kg m-2',         &
             long='total nitrogen in live plant fine-roots',                    &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',  &
             upfreq=1, ivar=ivar, initialize=initialize_variables,              &
@@ -4839,7 +4872,7 @@ end subroutine update_history_hifrq
             upfreq=1, ivar=ivar, initialize=initialize_variables,              &
             index = ih_leafp_si)
 
-       call this%set_history_var(vname='FATES_FINEROOTP', units='kg m-2',      &
+       call this%set_history_var(vname='FATES_FROOTP', units='kg m-2',         &
             long='total phosphorus in live plant fine roots',                  &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',  &
             upfreq=1, ivar=ivar, initialize=initialize_variables,              &
@@ -5415,7 +5448,7 @@ end subroutine update_history_hifrq
          hlms='CLM:ALM', upfreq=1, ivar=ivar,                                  &
          initialize=initialize_variables, index = ih_npp_seed_si_scpf)
 
-   call this%set_history_var(vname='FATES_NPP_FINEROOT_SZPF',                  &
+   call this%set_history_var(vname='FATES_NPP_FROOT_SZPF',                     &
          units='kg m-2 s-1',                                                   &
          long='NPP flux into fine roots by pft/size in kg carbon per m2 per second', &
          use_default='inactive', avgflag='A', vtype=site_size_pft_r8,          &
@@ -5955,20 +5988,27 @@ end subroutine update_history_hifrq
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_m10_si_cacls)
 
-    call this%set_history_var(vname='FATES_CARBON_BALANCE_CANOPY_SZ', units = 'kg C / ha / yr', &
-          long='CARBON_BALANCE for canopy plants by size class', use_default='inactive',    &
-          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_carbon_balance_canopy_si_scls )
+    call this%set_history_var(vname='FATES_NPP_CANOPY_SZ', units = 'kg m-2 s-1', &
+          long='NPP of canopy plants by size class in kg carbon per m2 per second', &
+          use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+          hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
+          initialize=initialize_variables,                                     &
+          index = ih_carbon_balance_canopy_si_scls)
 
-    call this%set_history_var(vname='CARBON_BALANCE_UNDERSTORY_SCLS', units = 'kg C / ha / yr', &
-          long='CARBON_BALANCE for understory plants by size class', use_default='inactive',    &
-          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_carbon_balance_understory_si_scls )
+    call this%set_history_var(vname='FATES_NPP_UNDERSTORY_SZ', units = 'kg m-2 s-1', &
+          long='NPP of understory plants by size class in kg carbon per m2 per second', &
+          use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+          hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
+          initialize=initialize_variables,                                     &
+          index = ih_carbon_balance_understory_si_scls)
 
-    call this%set_history_var(vname='MORTALITY_UNDERSTORY_SCLS', units = 'indiv/ha/yr',               &
-          long='total mortality of understory trees by size class', use_default='active',   &
-          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_mortality_understory_si_scls )
+    call this%set_history_var(vname='FATES_MORTALITY_UNDERSTORY_SZ',           &
+          units = 'm-2 yr-1',                                                  &
+          long='total mortality of understory trees by size class in individuals per m2 per year', &
+          use_default='active', avgflag='A', vtype=site_size_r8,               &
+          hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
+          initialize=initialize_variables,                                     &
+          index = ih_mortality_understory_si_scls)
 
     call this%set_history_var(vname='TRIMMING_CANOPY_SCLS', units = 'indiv/ha',               &
           long='trimming term of canopy plants by size class', use_default='inactive',   &
@@ -5980,464 +6020,618 @@ end subroutine update_history_hifrq
           avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_trimming_understory_si_scls )
 
-    call this%set_history_var(vname='CROWN_AREA_CANOPY_SCLS', units = 'm2/ha',               &
-          long='total crown area of canopy plants by size class', use_default='inactive',   &
-          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_crown_area_canopy_si_scls )
+    call this%set_history_var(vname='FATES_CROWNAREA_CANOPY_SZ', units = 'm2 m-2', &
+          long='total crown area of canopy plants by size class',              &
+          use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+          hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
+          initialize=initialize_variables, index = ih_crown_area_canopy_si_scls)
 
-    call this%set_history_var(vname='CROWN_AREA_UNDERSTORY_SCLS', units = 'm2/ha',               &
-          long='total crown area of understory plants by size class', use_default='inactive',   &
-          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_crown_area_understory_si_scls )
+    call this%set_history_var(vname='FATES_CROWNAREA_UNDERSTORY_SZ', units = 'm2 m-2', &
+          long='total crown area of understory plants by size class',          &
+          use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+          hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
+          initialize=initialize_variables, index = ih_crown_area_understory_si_scls)
 
-    call this%set_history_var(vname='LEAF_MD_CANOPY_SCLS', units = 'kg C / ha / yr',               &
-          long='LEAF_MD for canopy plants by size class', use_default='inactive',   &
-          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_leaf_md_canopy_si_scls )
+    call this%set_history_var(vname='FATES_LEAFCTURNOVER_CANOPY_SZ',            &
+          units = 'kg m-2 s-1',                                                &
+          long='leaf turnover for canopy plants by size class in kg carbon per m2 per second', &
+          use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+          hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
+          initialize=initialize_variables, index = ih_leaf_md_canopy_si_scls)
 
-    call this%set_history_var(vname='ROOT_MD_CANOPY_SCLS', units = 'kg C / ha / yr',               &
-          long='ROOT_MD for canopy plants by size class', use_default='inactive',   &
-          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_root_md_canopy_si_scls )
+    call this%set_history_var(vname='FATES_FROOTCTURNOVER_CANOPY_SZ',          &
+          units = 'kg m-2 s-1',                                                &
+          long='fine root turnover for canopy plants by size class in kg carbon per m2 per second', &
+          use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+          hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
+          initialize=initialize_variables, index = ih_root_md_canopy_si_scls)
 
-    call this%set_history_var(vname='BSTORE_MD_CANOPY_SCLS', units = 'kg C / ha / yr',               &
-          long='BSTORE_MD for canopy plants by size class', use_default='inactive',   &
-          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_bstore_md_canopy_si_scls )
+    call this%set_history_var(vname='FATES_STORECTURNOVER_CANOPY_SZ',          &
+          units = 'kg m-2 s-1',                                                &
+          long='storage turnover for canopy plants by size class in kg carbon per m2 per second', &
+          use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+          hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
+          initialize=initialize_variables, index = ih_bstore_md_canopy_si_scls)
 
-    call this%set_history_var(vname='BDEAD_MD_CANOPY_SCLS', units = 'kg C / ha / yr',               &
-          long='BDEAD_MD for canopy plants by size class', use_default='inactive',   &
-          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_bdead_md_canopy_si_scls )
+    call this%set_history_var(vname='FATES_STRUCTCTURNOVER_CANOPY_SZ',         &
+          units = 'kg m-2 s-1',                                                &
+          long='structural C turnover for canopy plants by size class in kg carbon per m2 per second', &
+          use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+          hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
+          initialize=initialize_variables, index = ih_bdead_md_canopy_si_scls)
 
-    call this%set_history_var(vname='BSW_MD_CANOPY_SCLS', units = 'kg C / ha / yr',               &
-          long='BSW_MD for canopy plants by size class', use_default='inactive',   &
-          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_bsw_md_canopy_si_scls )
+    call this%set_history_var(vname='FATES_SAPWOODCTURNOVER_CANOPY_SZ',        &
+          units = 'kg m-2 s-1',                                                &
+          long='sapwood turnover for canopy plants by size class in kg carbon per m2 per second', &
+          use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+          hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
+          initialize=initialize_variables, index = ih_bsw_md_canopy_si_scls)
 
-    call this%set_history_var(vname='SEED_PROD_CANOPY_SCLS', units = 'kg C / ha / yr',               &
-          long='SEED_PROD for canopy plants by size class', use_default='inactive',   &
-          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_seed_prod_canopy_si_scls )
+    call this%set_history_var(vname='FATES_SEED_PROD_CANOPY_SZ',               &
+          units = 'kg m-2 s-1',                                                &
+          long='seed production of canopy plants by size class in kg carbon per m2 per second', &
+          use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+          hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
+          initialize=initialize_variables, index = ih_seed_prod_canopy_si_scls)
 
-   call this%set_history_var(vname='NPP_LEAF_CANOPY_SCLS', units = 'kg C / ha / yr',               &
-         long='NPP_LEAF for canopy plants by size class', use_default='inactive',   &
-         avgflag='A', vtype=site_size_r8, hlms='CLM:ALM', &
-         upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_leaf_canopy_si_scls )
+   call this%set_history_var(vname='FATES_NPP_LEAF_CANOPY_SZ',                 &
+         units = 'kg m-2 s-1',                                                 &
+         long='NPP flux into leaves for canopy plants by size class in kg carbon per m2 per second', &
+         use_default='inactive', avgflag='A', vtype=site_size_r8,              &
+         hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
+         index = ih_npp_leaf_canopy_si_scls)
 
-   call this%set_history_var(vname='NPP_FROOT_CANOPY_SCLS', units = 'kg C / ha / yr',               &
-         long='NPP_FROOT for canopy plants by size class', use_default='inactive',   &
-         avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_fnrt_canopy_si_scls )
+   call this%set_history_var(vname='FATES_NPP_FROOT_CANOPY_SZ',                &
+         units = 'kg m-2 s-1',                                                 &
+         long='NPP flux into fine root C for canopy plants by size class in kg carbon per m2 per second', &
+         use_default='inactive', avgflag='A', vtype=site_size_r8,              &
+         hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
+         index = ih_npp_fnrt_canopy_si_scls)
 
-   call this%set_history_var(vname='NPP_BSW_CANOPY_SCLS', units = 'kg C / ha / yr',               &
-         long='NPP_BSW for canopy plants by size class', use_default='inactive',   &
-         avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_sapw_canopy_si_scls )
+   call this%set_history_var(vname='FATES_NPP_SAPWOOD_CANOPY_SZ',              &
+         units = 'kg m-2 s-1',                                                 &
+         long='NPP flux into sapwood C for canopy plants by size class in kg carbon per m2 per second', &
+         use_default='inactive', avgflag='A', vtype=site_size_r8,              &
+         hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
+         index = ih_npp_sapw_canopy_si_scls)
 
-   call this%set_history_var(vname='NPP_BDEAD_CANOPY_SCLS', units = 'kg C / ha / yr',               &
-         long='NPP_BDEAD for canopy plants by size class', use_default='inactive',   &
-         avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_dead_canopy_si_scls )
+   call this%set_history_var(vname='FATES_NPP_STRUCT_CANOPY_SZ',               &
+         units = 'kg m-2 s-1',                                                 &
+         long='NPP flux into structural C for canopy plants by size class in kg carbon per m2 per second', &
+         use_default='inactive', avgflag='A', vtype=site_size_r8,              &
+         hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
+         index = ih_npp_dead_canopy_si_scls)
 
-   call this%set_history_var(vname='NPP_BSEED_CANOPY_SCLS', units = 'kg C / ha / yr',               &
-         long='NPP_BSEED for canopy plants by size class', use_default='inactive',   &
-         avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_seed_canopy_si_scls )
+   call this%set_history_var(vname='FATES_NPP_SEED_CANOPY_SZ',                 &
+         units = 'kg m-2 s-1',                                                 &
+         long='NPP flux into reproductive C for canopy plants by size class in kg carbon per m2 per second', &
+         use_default='inactive', avgflag='A', vtype=site_size_r8,              &
+         hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
+         index = ih_npp_seed_canopy_si_scls)
 
-   call this%set_history_var(vname='NPP_STORE_CANOPY_SCLS', units = 'kg C / ha / yr',               &
-         long='NPP_STORE for canopy plants by size class', use_default='inactive',   &
-         avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_stor_canopy_si_scls )
+   call this%set_history_var(vname='FATES_NPP_STORE_CANOPY_SZ',                &
+         units = 'kg m-2 s-1',                                                 &
+         long='NPP flux into storage C for canopy plants by size class in kg carbon per m2 per second', &
+         use_default='inactive', avgflag='A', vtype=site_size_r8,              &
+         hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
+         index = ih_npp_stor_canopy_si_scls)
 
-    call this%set_history_var(vname='LEAF_MR', units = 'kg C / m2 / yr',               &
-          long='RDARK (leaf maintenance respiration)', use_default='active',   &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_leaf_mr_si )
+    call this%set_history_var(vname='FATES_AUTO_RESP_LEAFMAINT',               &
+          units = 'kg m-2 s-1',                                                &
+          long='leaf maintenance autotrophic respiration in kg carbon per m2 per second', &
+          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
+          upfreq=2, ivar=ivar, initialize=initialize_variables,                &
+          index = ih_leaf_mr_si)
 
-    call this%set_history_var(vname='FROOT_MR', units = 'kg C / m2 / yr',               &
-          long='fine root maintenance respiration)', use_default='active',   &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_froot_mr_si )
+    call this%set_history_var(vname='FATES_AUTO_RESP_FROOTMAINT',              &
+          units = 'kg m-2 s-1',                                                &
+          long='fine root maintenance autotrophic respiration in kg carbon per m2 per second', &
+          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
+          upfreq=2, ivar=ivar, initialize=initialize_variables,                &
+          index = ih_froot_mr_si)
 
-    call this%set_history_var(vname='LIVECROOT_MR', units = 'kg C / m2 / yr',               &
-          long='live coarse root maintenance respiration)', use_default='active',   &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_livecroot_mr_si )
+    call this%set_history_var(vname='FATES_AUTO_RESP_CROOTMAINT',              &
+          units = 'kg m-2 s-1',                                                &
+          long='live coarse root maintenance autotrophic respiration in kg carbon per m2 per second', &
+          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
+          upfreq=2, ivar=ivar, initialize=initialize_variables,                &
+          index = ih_livecroot_mr_si)
 
-    call this%set_history_var(vname='LIVESTEM_MR', units = 'kg C / m2 / yr',               &
-          long='live stem maintenance respiration)', use_default='active',   &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_livestem_mr_si )
+    call this%set_history_var(vname='FATES_AUTO_RESP_LIVESTEMMAINT',           &
+          units = 'kg m-2 s-1',                                                &
+          long='live stem maintenance autotrophic respiration in kg carbon per m2 per second', &
+          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
+          upfreq=2, ivar=ivar, initialize=initialize_variables,                &
+          index = ih_livestem_mr_si)
 
-    call this%set_history_var(vname='RDARK_CANOPY_SCLS', units = 'kg C / ha / yr',               &
-          long='RDARK for canopy plants by size class', use_default='inactive',   &
-          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_rdark_canopy_si_scls )
+    call this%set_history_var(vname='FATES_AUTO_RESP_MAINT_CANOPY_SZ',         &
+          units = 'kg m-2 s-1',                                                &
+          long='maintenance autotrophic respiration for canopy plants in kg carbon per m2 per second by size', &
+          use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+          hlms='CLM:ALM', upfreq=2, ivar=ivar,                                 &
+          initialize=initialize_variables, index = ih_rdark_canopy_si_scls)
 
-    call this%set_history_var(vname='LIVESTEM_MR_CANOPY_SCLS', units = 'kg C / ha / yr',               &
-          long='LIVESTEM_MR for canopy plants by size class', use_default='inactive',   &
-          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_livestem_mr_canopy_si_scls )
+    call this%set_history_var(vname='FATES_AUTO_RESP_LIVESTEMMAINT_CANOPY_SZ', &
+          units = 'kg m-2 s-1',                                                &
+          long='live stem maintenance autotrophic respiration for canopy plants in kg carbon per m2 per second by size', &
+          use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+          hlms='CLM:ALM', upfreq=2, ivar=ivar,                                 &
+          initialize=initialize_variables,                                     &
+          index = ih_livestem_mr_canopy_si_scls)
 
-    call this%set_history_var(vname='LIVECROOT_MR_CANOPY_SCLS', units = 'kg C / ha / yr',               &
-          long='LIVECROOT_MR for canopy plants by size class', use_default='inactive',   &
-          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_livecroot_mr_canopy_si_scls )
+    call this%set_history_var(vname='FATES_AUTO_RESP_CROOTMAINT_CANOPY_SZ',    &
+          units = 'kg m-2 s-1',                                                &
+          long='live coarse root maintenance autotrophic respiration for canopy plants in kg carbon per m2 per second by size', &
+          use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+          hlms='CLM:ALM', upfreq=2, ivar=ivar,                                 &
+          initialize=initialize_variables,                                     &
+          index = ih_livecroot_mr_canopy_si_scls)
 
-    call this%set_history_var(vname='FROOT_MR_CANOPY_SCLS', units = 'kg C / ha / yr',               &
-          long='FROOT_MR for canopy plants by size class', use_default='inactive',   &
-          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_froot_mr_canopy_si_scls )
+    call this%set_history_var(vname='FATES_AUTO_RESP_FROOTMAINT_CANOPY_SZ',    &
+          units = 'kg m-2 s-1',                                                &
+          long='live coarse root maintenance autotrophic respiration for canopy plants in kg carbon per m2 per second by size', &
+          use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+          hlms='CLM:ALM', upfreq=2, ivar=ivar,                                 &
+          initialize=initialize_variables, index = ih_froot_mr_canopy_si_scls)
 
-    call this%set_history_var(vname='RESP_G_CANOPY_SCLS', units = 'kg C / ha / yr',               &
-          long='RESP_G for canopy plants by size class', use_default='inactive',   &
-          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_resp_g_canopy_si_scls )
+    call this%set_history_var(vname='FATES_AUTO_RESP_GROW_CANOPY_SZ',          &
+         units = 'kg m-2 s-1',                                                 &
+          long='growth autotrophic respiration of canopy plants in kg carbon per m2 per second by size', &
+          use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+          hlms='CLM:ALM', upfreq=2, ivar=ivar,                                 &
+          initialize=initialize_variables, index = ih_resp_g_canopy_si_scls)
 
-    call this%set_history_var(vname='RESP_M_CANOPY_SCLS', units = 'kg C / ha / yr',               &
-          long='RESP_M for canopy plants by size class', use_default='inactive',   &
-          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_resp_m_canopy_si_scls )
+    call this%set_history_var(vname='FATES_AUTO_RESP_MAINT_CANOPY_SZ',         &
+          units = 'kg m-2 s-1',                                                &
+          long='maintenance autotrophic respiration of canopy plants in kg carbon per m2 per second by size', &
+          use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+          hlms='CLM:ALM', upfreq=2, ivar=ivar,                                 &
+          initialize=initialize_variables, index = ih_resp_m_canopy_si_scls)
 
-    call this%set_history_var(vname='LEAF_MD_UNDERSTORY_SCLS', units = 'kg C / ha / yr',               &
-          long='LEAF_MD for understory plants by size class', use_default='inactive',   &
-          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_leaf_md_understory_si_scls )
+    call this%set_history_var(vname='FATES_LEAFCTURNOVER_UNDERSTORY_SZ',       &
+         units = 'kg m-2 s-1',                                                 &
+          long='leaf turnover for understory plants by size class in kg carbon per m2 per second', &
+          use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+          hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
+          initialize=initialize_variables,                                     &
+          index = ih_leaf_md_understory_si_scls)
 
-    call this%set_history_var(vname='ROOT_MD_UNDERSTORY_SCLS', units = 'kg C / ha / yr',               &
-          long='ROOT_MD for understory plants by size class', use_default='inactive',   &
-          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_root_md_understory_si_scls )
+    call this%set_history_var(vname='FATES_FROOTCTURNOVER_UNDERSTORY_SZ',      &
+          units = 'kg m-2 s-1',                                                &
+          long='fine root turnover for understory plants by size class in kg carbon per m2 per second', &
+          use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+          hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
+          initialize=initialize_variables,                                     &
+          index = ih_root_md_understory_si_scls)
 
-    call this%set_history_var(vname='BSTORE_MD_UNDERSTORY_SCLS', units = 'kg C / ha / yr',               &
-          long='BSTORE_MD for understory plants by size class', use_default='inactive',   &
-          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_bstore_md_understory_si_scls )
+    call this%set_history_var(vname='FATES_STORECTURNOVER_UNDERSTORY_SZ',      &
+          units = 'kg m-2 s-1',                                                &
+          long='storage C turnover for understory plants by size class in kg carbon per m2 per second', &
+          use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+          hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
+          initialize=initialize_variables,                                     &
+          index = ih_bstore_md_understory_si_scls)
 
-    call this%set_history_var(vname='BDEAD_MD_UNDERSTORY_SCLS', units = 'kg C / ha / yr',               &
-          long='BDEAD_MD for understory plants by size class', use_default='inactive',   &
-          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_bdead_md_understory_si_scls )
+    call this%set_history_var(vname='FATES_STRUCTCTURNOVER_UNDERSTORY_SZ',     &
+          units = 'kg m-2 s-1',                                                &
+          long='structural C turnover for understory plants by size class in kg carbon per m2 per second', &
+          use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+          hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
+          initialize=initialize_variables,                                     &
+          index = ih_bdead_md_understory_si_scls)
 
-    call this%set_history_var(vname='BSW_MD_UNDERSTORY_SCLS', units = 'kg C / ha / yr',               &
-          long='BSW_MD for understory plants by size class', use_default='inactive',   &
-          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_bsw_md_understory_si_scls )
+    call this%set_history_var(vname='FATES_SAPWOODCTURNOVER_UNDERSTORY_SZ',    &
+          units = 'kg m-2 s-1',                                                &
+          long='sapwood C turnover for understory plants by size class in kg carbon per m2 per second', &
+          use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+          hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
+          initialize=initialize_variables, index = ih_bsw_md_understory_si_scls)
 
-    call this%set_history_var(vname='SEED_PROD_UNDERSTORY_SCLS', units = 'kg C / ha / yr',               &
-          long='SEED_PROD for understory plants by size class', use_default='inactive',   &
-          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_seed_prod_understory_si_scls )
+    call this%set_history_var(vname='FATES_SEED_PROD_UNDERSTORY_SZ',           &
+          units = 'kg m-2 s-1',                                                &
+          long='seed production of understory plants by size class in kg carbon per m2 per second', &
+          use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+          hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
+          initialize=initialize_variables,                                     &
+          index = ih_seed_prod_understory_si_scls)
 
-   call this%set_history_var(vname='NPP_LEAF_UNDERSTORY_SCLS', units = 'kg C / ha / yr',               &
-         long='NPP_LEAF for understory plants by size class', use_default='inactive',   &
-         avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_leaf_understory_si_scls )
+   call this%set_history_var(vname='FATES_NPP_LEAF_UNDERSTORY_SZ',             &
+         units = 'kg m-2 s-1',                                                 &
+         long='NPP flux into leaves for understory plants by size class in kg carbon per m2 per second', &
+         use_default='inactive', avgflag='A', vtype=site_size_r8,              &
+         hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
+         index = ih_npp_leaf_understory_si_scls)
 
-   call this%set_history_var(vname='NPP_FROOT_UNDERSTORY_SCLS', units = 'kg C / ha / yr',               &
-         long='NPP_FROOT for understory plants by size class', use_default='inactive',   &
-         avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_fnrt_understory_si_scls )
+   call this%set_history_var(vname='FATES_NPP_FROOT_UNDERSTORY_SZ',            &
+         units = 'kg m-2 s-1',                                                 &
+         long='NPP flux into fine roots for understory plants by size class in kg carbon per m2 per second', &
+         use_default='inactive', avgflag='A', vtype=site_size_r8,              &
+         hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
+         index = ih_npp_fnrt_understory_si_scls)
 
-   call this%set_history_var(vname='NPP_BSW_UNDERSTORY_SCLS', units = 'kg C / ha / yr',               &
-         long='NPP_BSW for understory plants by size class', use_default='inactive',   &
-         avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_sapw_understory_si_scls )
+   call this%set_history_var(vname='FATES_NPP_SAPWOOD_UNDERSTORY_SZ',          &
+         units = 'kg m-2 s-1',                                                 &
+         long='NPP flux into sapwood C for understory plants by size class in kg carbon per m2 per second', &
+         use_default='inactive', avgflag='A', vtype=site_size_r8,              &
+         hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
+         index = ih_npp_sapw_understory_si_scls)
 
-   call this%set_history_var(vname='NPP_BDEAD_UNDERSTORY_SCLS', units = 'kg C / ha / yr',               &
-         long='NPP_BDEAD for understory plants by size class', use_default='inactive',   &
-         avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_dead_understory_si_scls )
+   call this%set_history_var(vname='FATES_NPP_STRUCT_UNDERSTORY_SZ',           &
+         units = 'kg m-2 s-1',                                                 &
+         long='NPP flux into structural C for understory plants by size class in kg carbon per m2 per second', &
+         use_default='inactive', avgflag='A', vtype=site_size_r8,              &
+         hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
+         index = ih_npp_dead_understory_si_scls)
 
-   call this%set_history_var(vname='NPP_BSEED_UNDERSTORY_SCLS', units = 'kg C / ha / yr',               &
-         long='NPP_BSEED for understory plants by size class', use_default='inactive',   &
-         avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_seed_understory_si_scls )
+   call this%set_history_var(vname='FATES_NPP_SEED_UNDERSTORY_SZ',             &
+         units = 'kg m-2 s-1',                                                 &
+         long='NPP flux into reproductive C for understory plants by size class in kg carbon per m2 per second', &
+         use_default='inactive', avgflag='A', vtype=site_size_r8,              &
+         hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
+         index = ih_npp_seed_understory_si_scls)
 
-   call this%set_history_var(vname='NPP_STORE_UNDERSTORY_SCLS', units = 'kg C / ha / yr',               &
-         long='NPP_STORE for understory plants by size class', use_default='inactive',   &
-         avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_stor_understory_si_scls )
+   call this%set_history_var(vname='FATES_NPP_STORE_UNDERSTORY_SCLS',          &
+         units = 'kg m-2 s-1',                                                 &
+         long='NPP flux into storage C for understory plants by size class in kg carbon per m2 per second', &
+         use_default='inactive', avgflag='A', vtype=site_size_r8,              &
+         hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
+         index = ih_npp_stor_understory_si_scls)
 
-    call this%set_history_var(vname='RDARK_UNDERSTORY_SCLS', units = 'kg C / ha / yr',               &
-          long='RDARK for understory plants by size class', use_default='inactive',   &
-          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_rdark_understory_si_scls )
+    call this%set_history_var(vname='FATES_AUTO_RESP_MAINT_UNDERSTORY_SZ',     &
+          units = 'kg m-2 s-1',                                                &
+          long='maintenance autotrophic respiration for understory plants in kg carbon per m2 per second by size', &
+          use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+          hlms='CLM:ALM', upfreq=2, ivar=ivar,                                 &
+          initialize=initialize_variables, index = ih_rdark_understory_si_scls)
 
-    call this%set_history_var(vname='LIVESTEM_MR_UNDERSTORY_SCLS', units = 'kg C / ha / yr',               &
-          long='LIVESTEM_MR for understory plants by size class', use_default='inactive',   &
-          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_livestem_mr_understory_si_scls )
+    call this%set_history_var(vname='FATES_AUTO_RESP_LIVESTEMMAINT_UNDERSTORY_SZ', &
+          units = 'kg m-2 s-1',                                                &
+          long='live stem maintenance autotrophic respiration for understory plants in kg carbon per m2 per second by size', &
+          use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+          hlms='CLM:ALM', upfreq=2, ivar=ivar,                                 &
+          initialize=initialize_variables,                                     &
+          index = ih_livestem_mr_understory_si_scls)
 
-    call this%set_history_var(vname='LIVECROOT_MR_UNDERSTORY_SCLS', units = 'kg C / ha / yr',               &
-          long='LIVECROOT_MR for understory plants by size class', use_default='inactive',   &
-          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_livecroot_mr_understory_si_scls )
+    call this%set_history_var(vname='FATES_AUTO_RESP_CROOTMAINT_UNDERSTORY_SZ', &
+          units = 'kg m-2 s-1',                                                &
+          long='live coarse root maintenance autotrophic respiration for understory plants in kg carbon per m2 per second by size', &
+          use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+          hlms='CLM:ALM', upfreq=2, ivar=ivar,                                 &
+          initialize=initialize_variables,                                     &
+          index = ih_livecroot_mr_understory_si_scls)
 
-    call this%set_history_var(vname='FROOT_MR_UNDERSTORY_SCLS', units = 'kg C / ha / yr',               &
-          long='FROOT_MR for understory plants by size class', use_default='inactive',   &
-          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_froot_mr_understory_si_scls )
+    call this%set_history_var(vname='FATES_AUTO_RESP_FROOTMAINT_UNDERSTORY_SZ', &
+          units = 'kg m-2 s-1',                                                &
+          long='fine root maintenance autotrophic respiration for understory plants in kg carbon per m2 per second by size', &
+          use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+          hlms='CLM:ALM', upfreq=2, ivar=ivar,                                 &
+          initialize=initialize_variables,                                     &
+          index = ih_froot_mr_understory_si_scls)
 
-    call this%set_history_var(vname='RESP_G_UNDERSTORY_SCLS', units = 'kg C / ha / yr',               &
-          long='RESP_G for understory plants by size class', use_default='inactive',   &
-          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_resp_g_understory_si_scls )
+    call this%set_history_var(vname='FATES_AUTO_RESP_GROW_UNDERSTORY_SZ',      &
+          units = 'kg m-2 s-1',                                                &
+          long='growth autotrophic respiration of understory plants in kg carbon per m2 per second by size', &
+          use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+          hlms='CLM:ALM', upfreq=2, ivar=ivar,                                 &
+          initialize=initialize_variables, index = ih_resp_g_understory_si_scls)
 
-    call this%set_history_var(vname='RESP_M_UNDERSTORY_SCLS', units = 'kg C / ha / yr',               &
-          long='RESP_M for understory plants by size class', use_default='inactive',   &
-          avgflag='A', vtype=site_size_r8, hlms='CLM:ALM',     &
-          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_resp_m_understory_si_scls )
+    call this%set_history_var(vname='FATES_AUTO_RESP_MAINT_UNDERSTORY_SZ',     &
+          units = 'kg m-2 s-1',                                                &
+          long='maintenance autotrophic respiration of understory plants in kg carbon per m2 per second by size', &
+          use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+          hlms='CLM:ALM',                                                      &
+          upfreq=2, ivar=ivar, initialize=initialize_variables,                &
+          index = ih_resp_m_understory_si_scls)
 
 
     ! CARBON BALANCE VARIABLES THAT DEPEND ON HLM BGC INPUTS
 
-    call this%set_history_var(vname='NEP', units='gC/m^2/s', &
-          long='net ecosystem production', use_default='active', &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_nep_si )
+    call this%set_history_var(vname='FATES_NEP', units='kg m-2 s-1',           &
+          long='net ecosystem production in kg carbon per m2 per second',      &
+          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
+          upfreq=2, ivar=ivar, initialize=initialize_variables,                &
+          index = ih_nep_si)
 
-    call this%set_history_var(vname='FATES_HR', units='gC/m^2/s', &
-         long='heterotrophic respiration', use_default='active', &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-         upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_hr_si )
+    call this%set_history_var(vname='FATES_HET_RESP', units='kg m-2 s-1',      &
+         long='heterotrophic respiration in kg carbon per m2 per second',      &
+         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+         upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_hr_si)
 
-    call this%set_history_var(vname='Fire_Closs', units='gC/m^2/s', &
-          long='ED/SPitfire Carbon loss to atmosphere', use_default='active', &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fire_c_to_atm_si )
+    call this%set_history_var(vname='FATES_FIRE_CLOSS', units='kg m-2 s-1',    &
+          long='carbon loss to atmosphere from fire in kg carbon per m2 per second', &
+          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables,                &
+          index = ih_fire_c_to_atm_si)
 
-    call this%set_history_var(vname='FIRE_FLUX', units='g/m^2/s', &
-          long='ED-spitfire loss to atmosphere of elements', use_default='active', &
-          avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM',     &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_burn_flux_elem )
+    call this%set_history_var(vname='FATES_FIRE_FLUX_EL', units='kg m-2 s-1',  &
+          long='loss to atmosphere from fire by element in kg element per m2 per s', &
+          use_default='active', avgflag='A', vtype=site_elem_r8,               &
+          hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
+          initialize=initialize_variables, index = ih_burn_flux_elem)
 
-    call this%set_history_var(vname='CBALANCE_ERROR_FATES', units='mgC/day',  &
-         long='total carbon error, FATES', use_default='active', &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cbal_err_fates_si )
+    call this%set_history_var(vname='FATES_CBALANCE_ERROR',                    &
+         units='kg s-1',                                                       &
+         long='total carbon error in kg carbon per second',                    &
+         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+         index = ih_cbal_err_fates_si)
 
-    call this%set_history_var(vname='ERROR_FATES', units='mg/day',  &
-         long='total error, FATES mass-balance', use_default='active', &
-         avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_err_fates_si )
+    call this%set_history_var(vname='FATES_ERROR_EL', units='kg s-1',          &
+         long='total mass-balance error in kg per second by element',          &
+         use_default='active', avgflag='A', vtype=site_elem_r8,                &
+         hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
+         index = ih_err_fates_si)
 
-    call this%set_history_var(vname='LITTER_FINES_AG_ELEM', units='kg ha-1', &
-          long='mass of above ground  litter in fines (leaves,nonviable seed)', use_default='active', &
-          avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM',     &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fines_ag_elem )
+    call this%set_history_var(vname='FATES_LITTER_AG_FINE_EL', units='kg m-2', &
+          long='mass of aboveground litter in fines (leaves, nonviable seed) by element', &
+          use_default='active', avgflag='A', vtype=site_elem_r8,               &
+          hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
+          initialize=initialize_variables, index = ih_fines_ag_elem)
 
-    call this%set_history_var(vname='LITTER_FINES_BG_ELEM', units='kg ha-1', &
-          long='mass of below ground litter in fines (fineroots)', use_default='active', &
-          avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM',     &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fines_bg_elem )
+    call this%set_history_var(vname='FATES_LITTER_BG_FINE_EL', units='kg m-2', &
+          long='mass of belowground litter in fines (fineroots) by element',   &
+          use_default='active', avgflag='A', vtype=site_elem_r8,               &
+          hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
+          initialize=initialize_variables, index = ih_fines_bg_elem)
 
-    call this%set_history_var(vname='LITTER_CWD_BG_ELEM', units='kg ha-1', &
-          long='mass of below ground litter in CWD (coarse roots)', use_default='active', &
-          avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM',     &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_bg_elem )
+    call this%set_history_var(vname='FATES_LITTER_BG_CWD_EL', units='kg m-2',  &
+          long='mass of belowground litter in coarse woody debris (coarse roots) by element', &
+          use_default='active', avgflag='A', vtype=site_elem_r8,               &
+          hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
+          initialize=initialize_variables, index = ih_cwd_bg_elem)
 
-    call this%set_history_var(vname='LITTER_CWD_AG_ELEM', units='kg ha-1', &
-          long='mass of above ground litter in CWD (trunks/branches/twigs)', use_default='active', &
-          avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM',     &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_ag_elem )
+    call this%set_history_var(vname='FATES_LITTER_AG_CWD_EL', units='kg m-2',  &
+          long='mass of aboveground litter in coarse woody debris (trunks/branches/twigs) by element', &
+          use_default='active', avgflag='A', vtype=site_elem_r8,               &
+          hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
+          initialize=initialize_variables, index = ih_cwd_ag_elem)
 
-    call this%set_history_var(vname='LITTER_CWD', units='kg ha-1', &
-          long='total mass of litter in CWD', use_default='active', &
-          avgflag='A', vtype=site_elcwd_r8, hlms='CLM:ALM',     &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cwd_elcwd )
+    call this%set_history_var(vname='FATES_LITTER_CWD_ELDC', units='kg m-2',   &
+          long='total mass of litter in coarse woody debris by element and coarse woody debris size', &
+          use_default='active', avgflag='A', vtype=site_elcwd_r8,              &
+          hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
+          initialize=initialize_variables, index = ih_cwd_elcwd)
 
     ! Mass states C/N/P SCPF dimensions
     ! CARBON
-    call this%set_history_var(vname='TOTVEGC_SCPF', units='kgC/ha', &
-         long='total vegetation carbon mass in live plants by size-class x pft', use_default='inactive', &
-         avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_totvegc_scpf )
+    call this%set_history_var(vname='FATES_VEGC_SZPF', units='kg m-2',         &
+         long='total vegetation biomass in live plants by size-class x pft in kg carbon per m2', &
+         use_default='inactive', avgflag='A', vtype=site_size_pft_r8,          &
+         hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
+         index = ih_totvegc_scpf)
 
-    call this%set_history_var(vname='LEAFC_SCPF', units='kgC/ha', &
-         long='leaf carbon mass by size-class x pft', use_default='inactive', &
-         avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_leafc_scpf )
+    call this%set_history_var(vname='FATES_LEAFC_SZPF', units='kg m-2',        &
+         long='leaf carbon mass by size-class x pft in kg carbon per m2',      &
+         use_default='inactive', avgflag='A', vtype=site_size_pft_r8,          &
+         hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
+         index = ih_leafc_scpf)
 
-    call this%set_history_var(vname='FNRTC_SCPF', units='kgC/ha', &
-         long='fine-root carbon mass by size-class x pft', use_default='inactive', &
-         avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fnrtc_scpf )
+    call this%set_history_var(vname='FATES_FROOTC_SZPF', units='kg m-2',       &
+         long='fine-root carbon mass by size-class x pft in kg carbon per m2', &
+         use_default='inactive', avgflag='A', vtype=site_size_pft_r8,          &
+         hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
+         index = ih_fnrtc_scpf)
 
-    call this%set_history_var(vname='SAPWC_SCPF', units='kgC/ha', &
-         long='sapwood carbon mass by size-class x pft', use_default='inactive', &
-         avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_sapwc_scpf )
+    call this%set_history_var(vname='FATES_SAPWOODC_SZPF', units='kg m-2',     &
+         long='sapwood carbon mass by size-class x pft in kg carbon per m2',   &
+         use_default='inactive', avgflag='A', vtype=site_size_pft_r8,          &
+         hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
+         index = ih_sapwc_scpf)
 
-    call this%set_history_var(vname='STOREC_SCPF', units='kgC/ha', &
-         long='storage carbon mass by size-class x pft', use_default='inactive', &
-         avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_storec_scpf )
+    call this%set_history_var(vname='FATES_STOREC_SZPF', units='kg m-2',       &
+         long='storage carbon mass by size-class x pft in kg carbon per m2',   &
+         use_default='inactive', avgflag='A', vtype=site_size_pft_r8,          &
+         hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
+         index = ih_storec_scpf)
 
-    call this%set_history_var(vname='REPROC_SCPF', units='kgC/ha', &
-         long='reproductive carbon mass (on plant) by size-class x pft', use_default='inactive', &
-         avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_reproc_scpf )
+    call this%set_history_var(vname='FATES_REPROC_SZPF', units='kg m-2',       &
+         long='reproductive carbon mass (on plant) by size-class x pft in kg carbon per m2', &
+         use_default='inactive', avgflag='A', vtype=site_size_pft_r8,          &
+         hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
+         index = ih_reproc_scpf)
 
-    call this%set_history_var(vname='CEFFLUX_SCPF', units='kg/ha/day', &
-         long='carbon efflux, root to soil, by size-class x pft', use_default='inactive', &
-         avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cefflux_scpf )
+    call this%set_history_var(vname='FATES_CEFFLUX_SZPF', units='kg m-2 s-1',  &
+         long='carbon efflux, root to soil, by size-class x pft in kg carbon per m2 per second', &
+         use_default='inactive', avgflag='A', vtype=site_size_pft_r8,          &
+         hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
+         index = ih_cefflux_scpf)
 
     ! NITROGEN
+
     nitrogen_active_if2: if(any(element_list(:)==nitrogen_element)) then
-       call this%set_history_var(vname='TOTVEGN_SCPF', units='kgN/ha', &
-            long='total (live) vegetation nitrogen mass by size-class x pft', use_default='inactive', &
-            avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
-            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_totvegn_scpf )
 
-       call this%set_history_var(vname='LEAFN_SCPF', units='kgN/ha', &
-            long='leaf nitrogen mass by size-class x pft', use_default='inactive', &
-            avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
-            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_leafn_scpf )
+       call this%set_history_var(vname='FATES_VEGN_SZPF', units='kg m-2',      &
+            long='total (live) vegetation nitrogen mass by size-class x pft in kg N per m2', &
+            use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
+            hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
+            initialize=initialize_variables, index = ih_totvegn_scpf)
 
-       call this%set_history_var(vname='FNRTN_SCPF', units='kgN/ha', &
-            long='fine-root nitrogen mass by size-class x pft', use_default='inactive', &
-            avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
-            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fnrtn_scpf )
+       call this%set_history_var(vname='FATES_LEAFN_SZPF', units='kg m-2',     &
+            long='leaf nitrogen mass by size-class x pft in kg N per m2',      &
+            use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
+            hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
+            initialize=initialize_variables, index = ih_leafn_scpf)
 
-       call this%set_history_var(vname='SAPWN_SCPF', units='kgN/ha', &
-            long='sapwood nitrogen mass by size-class x pft', use_default='inactive', &
-            avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
-            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_sapwn_scpf )
+       call this%set_history_var(vname='FATES_FROOTN_SZPF', units='kg m-2',    &
+            long='fine-root nitrogen mass by size-class x pft in kg N per m2', &
+            use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
+            hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
+            initialize=initialize_variables, index = ih_fnrtn_scpf)
 
-       call this%set_history_var(vname='STOREN_SCPF', units='kgN/ha', &
-            long='storage nitrogen mass by size-class x pft', use_default='inactive', &
-            avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
-            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_storen_scpf )
+       call this%set_history_var(vname='FATES_SAPWOODN_SZPF', units='kg m-2',  &
+            long='sapwood nitrogen mass by size-class x pft in kg N per m2',   &
+            use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
+            hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
+            initialize=initialize_variables, index = ih_sapwn_scpf)
 
-       call this%set_history_var(vname='STOREN_TFRAC_CANOPY_SCPF', units='kgN/ha', &
-            long='storage nitrogen fraction of target,in canopy, by size-class x pft', use_default='inactive', &
-            avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
-            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_storentfrac_canopy_scpf )
+       call this%set_history_var(vname='FATES_STOREN_SZPF', units='kg m-2',    &
+            long='storage nitrogen mass by size-class x pft in kg N per m2',   &
+            use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
+            hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
+            initialize=initialize_variables, index = ih_storen_scpf)
 
-       call this%set_history_var(vname='STOREN_TFRAC_UNDERSTORY_SCPF', units='kgN/ha', &
-            long='storage nitrogen fraction of target,in understory, by size-class x pft', use_default='inactive', &
-            avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
-            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_storentfrac_understory_scpf )
+       call this%set_history_var(vname='FATES_STOREN_TFRAC_CANOPY_SZPF',       &
+            units='1',                                                         &
+            long='storage nitrogen fraction (0-1) of target, in canopy, by size-class x pft', &
+            use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
+            hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
+            initialize=initialize_variables, index = ih_storentfrac_canopy_scpf)
 
-       call this%set_history_var(vname='REPRON_SCPF', units='kgN/ha', &
-            long='reproductive nitrogen mass (on plant) by size-class x pft', use_default='inactive', &
-            avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
-            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_repron_scpf )
+       call this%set_history_var(vname='FATES_STOREN_TFRAC_UNDERSTORY_SZPF',   &
+            units='1',                                                         &
+            long='storage nitrogen fraction (0-1) of target, in understory, by size-class x pft', &
+            use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
+            hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
+            initialize=initialize_variables,                                   &
+            index = ih_storentfrac_understory_scpf)
 
-       call this%set_history_var(vname='NH4UPTAKE_SCPF', units='kgN d-1 ha-1', &
-            long='Ammonium uptake rate by plants, size-class x pft', use_default='inactive', &
-            avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
-            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_nh4uptake_scpf )
+       call this%set_history_var(vname='FATES_REPRON_SZPF', units='kg m-2',    &
+            long='reproductive nitrogen mass (on plant) by size-class x pft in kg N per m2', &
+            use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
+            hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
+            initialize=initialize_variables, index = ih_repron_scpf)
 
-       call this%set_history_var(vname='NO3UPTAKE_SCPF', units='kgN d-1 ha-1', &
-            long='Nitrate uptake rate by plants, size-class x pft', use_default='inactive', &
-            avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
-            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_no3uptake_scpf )
+       call this%set_history_var(vname='FATES_NH4UPTAKE_SZPF',                 &
+            units='kg m-2 s-1',                                                &
+            long='ammonium uptake rate by plants by size-class x pft in kg NH4 per m2 per second', &
+            use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
+            hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
+            initialize=initialize_variables, index = ih_nh4uptake_scpf)
 
-       call this%set_history_var(vname='NEFFLUX_SCPF', units='kgN d-1 ha-1', &
-            long='nitrogen efflux, root to soil, by size-class x pft', use_default='inactive', &
-            avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
-            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_nefflux_scpf )
+       call this%set_history_var(vname='FATES_NO3UPTAKE_SZPF',                 &
+            units='kg m-2 s-1',                                                &
+            long='nitrate uptake rate by plants by size-class x pft in kg NO3 per m2 per second', &
+            use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
+            hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
+            initialize=initialize_variables, index = ih_no3uptake_scpf)
 
-       call this%set_history_var(vname='NNEED_SCPF', units='kgN d-1 ha-1', &
-            long='plant N need (algorithm dependent), by size-class x pft', use_default='inactive', &
-            avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
-            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_nneed_scpf )
+       call this%set_history_var(vname='FATES_NEFFLUX_SZPF', units='kg m-2 s-1', &
+            long='nitrogen efflux, root to soil, by size-class x pft in kg N per m2 per second', &
+            use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
+            hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
+            initialize=initialize_variables, index = ih_nefflux_scpf)
+
+       call this%set_history_var(vname='FATES_NNEED_SZPF', units='kg m-2 s-1', &
+            long='plant N need (algorithm dependent), by size-class x pft in kg N per m2 per second', &
+            use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
+            hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
+            initialize=initialize_variables, index = ih_nneed_scpf)
 
     end if nitrogen_active_if2
 
     ! PHOSPHORUS
-    phosphorus_active_if2: if(any(element_list(:)==phosphorus_element))then
-       call this%set_history_var(vname='TOTVEGP_SCPF', units='kgP/ha', &
-            long='total (live) vegetation phosphorus mass by size-class x pft', use_default='inactive', &
-            avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
-            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_totvegp_scpf )
 
-       call this%set_history_var(vname='LEAFP_SCPF', units='kgP/ha', &
+    phosphorus_active_if2: if(any(element_list(:)==phosphorus_element))then
+
+       call this%set_history_var(vname='FATES_VEGP_SZPF', units='kg m-2',      &
+            long='total (live) vegetation phosphorus mass by size-class x pft in kg P per m2', &
+            use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
+            hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
+            initialize=initialize_variables, index = ih_totvegp_scpf)
+
+       call this%set_history_var(vname='FATES_LEAFP_SZPF', units='kg m-2', &
             long='leaf phosphorus mass by size-class x pft', use_default='inactive', &
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_leafp_scpf )
 
-       call this%set_history_var(vname='FNRTP_SCPF', units='kgP/ha', &
-            long='fine-root phosphorus mass by size-class x pft', use_default='inactive', &
-            avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
-            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_fnrtp_scpf )
+       call this%set_history_var(vname='FATES_FROOTP_SZPF', units='kg m-2',    &
+            long='fine-root phosphorus mass by size-class x pft in kg P per m2', &
+            use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
+            hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
+            initialize=initialize_variables, index = ih_fnrtp_scpf)
 
-       call this%set_history_var(vname='SAPWP_SCPF', units='kgP/ha', &
-            long='sapwood phosphorus mass by size-class x pft', use_default='inactive', &
-            avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
-            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_sapwp_scpf )
+       call this%set_history_var(vname='FATES_SAPWOODP_SZPF', units='kg m-2',  &
+            long='sapwood phosphorus mass by size-class x pft in kg P per m2', &
+            use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
+            hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
+            initialize=initialize_variables, index = ih_sapwp_scpf)
 
-       call this%set_history_var(vname='STOREP_SCPF', units='kgP/ha', &
-            long='storage phosphorus mass by size-class x pft', use_default='inactive', &
-            avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
-            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_storep_scpf )
+       call this%set_history_var(vname='FATES_STOREP_SZPF', units='kg m-2',    &
+            long='storage phosphorus mass by size-class x pft in kg P per m2', &
+            use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
+            hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
+            initialize=initialize_variables, index = ih_storep_scpf)
 
-       call this%set_history_var(vname='STOREP_TFRAC_CANOPY_SCPF', units='kgN/ha', &
-            long='storage phosphorus fraction of target,in canopy, by size-class x pft', use_default='inactive', &
-            avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
-            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_storeptfrac_canopy_scpf )
+       call this%set_history_var(vname='FATES_STOREP_TFRAC_CANOPY_SZPF',       &
+            units='1',                                                         &
+            long='storage phosphorus fraction (0-1) of target, in canopy, by size-class x pft', &
+            use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
+            hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
+            initialize=initialize_variables, index = ih_storeptfrac_canopy_scpf)
 
-       call this%set_history_var(vname='STOREP_TFRAC_UNDERSTORY_SCPF', units='kgN/ha', &
-            long='storage phosphorus fraction of target,in understory, by size-class x pft', use_default='inactive', &
-            avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
-            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_storeptfrac_understory_scpf )
+       call this%set_history_var(vname='FATES_STOREP_TFRAC_UNDERSTORY_SZPF',   &
+            units='1',                                                         &
+            long='storage phosphorus fraction (0-1) of target, in understory, by size-class x pft', &
+            use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
+            hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
+            initialize=initialize_variables,                                   &
+            index = ih_storeptfrac_understory_scpf)
 
-       call this%set_history_var(vname='REPROP_SCPF', units='kgP/ha', &
-            long='reproductive phosphorus mass (on plant) by size-class x pft', use_default='inactive', &
-            avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
-            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_reprop_scpf )
+       call this%set_history_var(vname='FATES_REPROP_SZPF', units='kg m-2',    &
+            long='reproductive phosphorus mass (on plant) by size-class x pft in kg P per m2', &
+            use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
+            hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
+            initialize=initialize_variables, index = ih_reprop_scpf)
 
-       call this%set_history_var(vname='PUPTAKE_SCPF', units='kg/ha/day', &
-            long='phosphorus uptake rate by plants, by size-class x pft', use_default='inactive', &
-            avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
-            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_puptake_scpf )
+       call this%set_history_var(vname='FATES_PUPTAKE_SZPF',                   &
+            units='kg m-2 s-1',                                                &
+            long='phosphorus uptake rate by plants, by size-class x pft in kg P per m2 per second', &
+            use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
+            hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
+            initialize=initialize_variables, index = ih_puptake_scpf)
 
-       call this%set_history_var(vname='PEFFLUX_SCPF', units='kg/ha/day', &
-            long='phosphorus efflux, root to soil, by size-class x pft', use_default='inactive', &
-            avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
-            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_pefflux_scpf )
+       call this%set_history_var(vname='FATES_PEFFLUX_SZPF',                   &
+            units='kg m-2 s-1',                                                &
+            long='phosphorus efflux, root to soil, by size-class x pft in kg P per m2 per second', &
+            use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
+            hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
+            initialize=initialize_variables, index = ih_pefflux_scpf)
 
-       call this%set_history_var(vname='PNEED_SCPF', units='kg/ha/day', &
-            long='plant P need (algorithm dependent), by size-class x pft', use_default='inactive', &
-            avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
-            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_pneed_scpf )
+       call this%set_history_var(vname='FATES_PNEED_SZPF', units='kg m-2 s-1', &
+            long='plant P need (algorithm dependent), by size-class x pft in kg P per m2 per second', &
+            use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
+            hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
+            initialize=initialize_variables, index = ih_pneed_scpf)
 
     end if phosphorus_active_if2
 
     ! organ-partitioned NPP / allocation fluxes
-    call this%set_history_var(vname='NPP_LEAF', units='kgC/m2/yr',       &
-          long='NPP flux into leaves', use_default='active',               &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_leaf_si )
 
-    call this%set_history_var(vname='NPP_SEED', units='kgC/m2/yr',       &
-          long='NPP flux into seeds', use_default='active',               &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_seed_si )
+    call this%set_history_var(vname='FATES_NPP_LEAF', units='kg m-2 s-1',      &
+          long='NPP flux into leaves in kg carbon per m2 per second',          &
+          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables,                &
+          index = ih_npp_leaf_si)
 
-    call this%set_history_var(vname='NPP_STEM', units='kgC/m2/yr',       &
-          long='NPP flux into stem', use_default='active',               &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_stem_si )
+    call this%set_history_var(vname='FATES_NPP_SEED', units='kg m-2 s-1',      &
+          long='NPP flux into seeds in kg carbon per m2 per second',           &
+          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables,                &
+          index = ih_npp_seed_si)
 
-    call this%set_history_var(vname='NPP_FROOT', units='kgC/m2/yr',       &
-          long='NPP flux into fine roots', use_default='active',               &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_froot_si )
+    call this%set_history_var(vname='FATES_NPP_STEM', units='kg m-2 s-1',      &
+          long='NPP flux into stem in kg carbon per m2 per second',            &
+          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables,                &
+          index = ih_npp_stem_si)
 
-    call this%set_history_var(vname='NPP_CROOT', units='kgC/m2/yr',       &
-          long='NPP flux into coarse roots', use_default='active',               &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_croot_si )
+    call this%set_history_var(vname='FATES_NPP_FROOT', units='kg m-2 s-1',     &
+          long='NPP flux into fine roots in kg carbon per m2 per second',      &
+          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables,                &
+          index = ih_npp_froot_si)
 
-    call this%set_history_var(vname='NPP_STOR', units='kgC/m2/yr',       &
-          long='NPP flux into storage tissues', use_default='active',               &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_npp_stor_si )
+    call this%set_history_var(vname='FATES_NPP_CROOT', units='kg m-2 s-1',     &
+          long='NPP flux into coarse roots in kg carbon per m2 per second',    &
+          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables,                &
+          index = ih_npp_croot_si)
+
+    call this%set_history_var(vname='FATES_NPP_STORE', units='kg m-2 s-1',     &
+          long='NPP flux into storage tissues in kg carbon per m2 per second', &
+          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables,                &
+          index = ih_npp_stor_si)
 
 
     ! PLANT HYDRAULICS
