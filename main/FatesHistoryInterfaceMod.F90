@@ -2047,7 +2047,7 @@ end subroutine flush_hvars
 
              hio_err_fates_si(io_si,el) = sites(s)%mass_balance(el)%err_fates / sec_per_day
 
-             ! Total element lost to atmosphere from burning (kg/site/day -> g/m2/s)
+             ! Total element lost to atmosphere from burning (kg/site/day -> kg/m2/s)
              hio_burn_flux_elem(io_si,el) = &
                   sites(s)%mass_balance(el)%burn_flux_to_atm * &
                   ha_per_m2 * days_per_sec
@@ -4019,7 +4019,7 @@ end subroutine update_history_hifrq
          hio_rootuptake_sl(io_si,:) = 0._r8
          hio_rootuptake_sl(io_si,jr1:jr2) = site_hydr%rootuptake_sl(1:nlevrhiz) /
               m2_per_ha
-         hio_rootuptake_si(io_si) = sum(site_hydr%sapflow_scpf) / m2_per_ha
+         hio_sapflow_si(io_si) = sum(site_hydr%sapflow_scpf) / m2_per_ha
 
          ! Normalization counters
          nplant_scpf(:) = 0._r8
@@ -4498,8 +4498,8 @@ end subroutine update_history_hifrq
     call this%set_history_var(vname='FATES_SECONDARY_FOREST_FRACTION',         &
          units='m2 m-2', long='secondary forest fraction',                     &
          use_default='inactive', avgflag='A', vtype=site_r8, hlms='CLM:ALM',   &
-         flushval=hlm_hio_ignore_val, upfreq=1, ivar=ivar,                     &
-         initialize=initialize_variables, index=ih_fraction_secondary_forest_si)
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+         index=ih_fraction_secondary_forest_si)
 
     call this%set_history_var(vname='FATES_WOOD_PRODUCT', units='kg m-2',      &
          long='total wood product from logging in kg carbon per m2 land area', &
