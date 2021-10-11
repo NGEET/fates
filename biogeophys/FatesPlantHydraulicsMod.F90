@@ -4504,7 +4504,7 @@ contains
 
 
     ! Maximum number of Newton iterations in each round
-    integer, parameter :: max_newton_iter = 600 !marius
+    integer, parameter :: max_newton_iter = 1000 !marius
 
     ! Flag definitions for convergence flag (icnv)
     ! icnv = 1 fail the round due to either wacky math, or
@@ -5178,9 +5178,9 @@ contains
     icnx  = 1
     kmax_dn(icnx) = cohort_hydr%kmax_petiole_to_leaf
     kmax_up(icnx) = cohort_hydr%kmax_stem_upper(1)
-    if (hlm_use_hardening .eq. itrue .and. hard_rate<1._r8) then
-       kmax_dn(icnx)=kmax_dn(icnx)*hard_rate !marius
-       kmax_up(icnx)=kmax_up(icnx)*hard_rate !marius
+    if (hlm_use_hardening .eq. itrue .and. hard_rate<0.98_r8) then
+       kmax_dn(icnx)=kmax_dn(icnx)*hard_rate*5e-2 !marius
+       kmax_up(icnx)=kmax_up(icnx)*hard_rate*5e-2 !marius
     endif
 
     ! Stem to stem connections
@@ -5188,9 +5188,9 @@ contains
        icnx = icnx + 1
        kmax_dn(icnx) = cohort_hydr%kmax_stem_lower(istem)
        kmax_up(icnx) = cohort_hydr%kmax_stem_upper(istem+1)
-       if (hlm_use_hardening .eq. itrue .and. hard_rate<1._r8) then
-          kmax_dn(icnx)=kmax_dn(icnx)*hard_rate !marius
-          kmax_up(icnx)=kmax_up(icnx)*hard_rate !marius
+       if (hlm_use_hardening .eq. itrue .and. hard_rate<0.98_r8) then
+          kmax_dn(icnx)=kmax_dn(icnx)*hard_rate*5e-2 !marius
+          kmax_up(icnx)=kmax_up(icnx)*hard_rate*5e-2 !marius
        endif
     enddo
 
@@ -5198,9 +5198,9 @@ contains
     icnx  = icnx + 1
     kmax_dn(icnx) = cohort_hydr%kmax_stem_lower(n_hypool_stem)
     kmax_up(icnx) = cohort_hydr%kmax_troot_upper
-    if (hlm_use_hardening .eq. itrue .and. hard_rate<1._r8) then
-       kmax_dn(icnx)=kmax_dn(icnx)*hard_rate !marius
-       kmax_up(icnx)=kmax_up(icnx)*hard_rate !marius
+    if (hlm_use_hardening .eq. itrue .and. hard_rate<0.98_r8) then
+       kmax_dn(icnx)=kmax_dn(icnx)*hard_rate*5e-2 !marius
+       kmax_up(icnx)=kmax_up(icnx)*hard_rate*5e-2 !marius
     endif
 
     ! Path is between the transporting root and the absorbing roots
@@ -5215,9 +5215,9 @@ contains
           if( k == 1 ) then !troot-aroot
              kmax_dn(icnx) = cohort_hydr%kmax_troot_lower(j) 
              kmax_up(icnx) = cohort_hydr%kmax_aroot_upper(j)
-             if (hlm_use_hardening .eq. itrue .and. hard_rate<1._r8) then
-                kmax_dn(icnx)=kmax_dn(icnx)*hard_rate !marius
-                kmax_up(icnx)=kmax_up(icnx)*hard_rate !marius
+             if (hlm_use_hardening .eq. itrue .and. hard_rate<0.98_r8) then
+                kmax_dn(icnx)=kmax_dn(icnx)*hard_rate*5e-2 !marius
+                kmax_up(icnx)=kmax_up(icnx)*hard_rate*5e-2 !marius
              endif
           elseif( k == 2) then ! aroot-soil
 
@@ -5232,9 +5232,9 @@ contains
                      1._r8/cohort_hydr%kmax_aroot_radial_out(j))
              end if
              kmax_up(icnx) = site_hydr%kmax_upper_shell(j,1)*aroot_frac_plant
-             if (hlm_use_hardening .eq. itrue .and. hard_rate<1._r8) then
-                kmax_dn(icnx)=kmax_dn(icnx)*hard_rate !marius
-                kmax_up(icnx)=kmax_up(icnx)*hard_rate !marius
+             if (hlm_use_hardening .eq. itrue .and. hard_rate<0.98_r8) then
+                kmax_dn(icnx)=kmax_dn(icnx)*hard_rate*5e-2 !marius
+                kmax_up(icnx)=kmax_up(icnx)*hard_rate*5e-2 !marius
              endif
           else                 ! soil - soil
              kmax_dn(icnx) = site_hydr%kmax_lower_shell(j,k-2)*aroot_frac_plant
