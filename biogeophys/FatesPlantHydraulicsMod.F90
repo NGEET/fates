@@ -232,7 +232,7 @@ module FatesPlantHydraulicsMod
 
   ! The maximum allowable water balance error over a plant-soil continuum
   ! for a given step [kgs] (0.1 mg)
-  real(r8), parameter :: max_wb_step_err = 1.e-7_r8   ! original is 1.e-7_r8, Junyan changed to 2.e-7_r8
+  real(r8), parameter :: max_wb_step_err = 2.e-7_r8   ! original is 1.e-7_r8, Junyan changed to 2.e-7_r8
  
   !
   ! !PUBLIC MEMBER FUNCTIONS:
@@ -849,13 +849,7 @@ contains
     real(r8) :: norm                         ! total root fraction used <1
     integer  :: nlevrhiz                     ! number of rhizosphere levels
     real(r8) :: dbh                          ! the dbh of current cohort                                             [cm]   
-    real(r8) :: dbh_0                        ! the dbh of the sappling at recuitment                                 [cm]
-    real(r8) :: dbh_max                      ! the dbh upon which the plant reaches maximum rooting depth            [cm]
-    real(r8) :: dbh_rev                      ! the dbh represented as a linear fraction between dbh_0 and dbh_max
     real(r8) :: z_fr                         ! rooting depth of a cohort                                             [cm]
-    real(r8) :: z_fr_0                       ! the rooting depth of of the sappling, corresponding to dbh_0          [cm]
-    real(r8) :: z_fr_max                     ! the maximum rooting depth of a PFT                                    [cm]
-    real(r8) :: frk                          ! the exponent parameter of the cohort rooting depth function, a PFT based parameter
     
     ! We allow the transporting root to donate a fraction of its volume to the absorbing
     ! roots to help mitigate numerical issues due to very small volumes. This is the
