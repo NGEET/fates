@@ -3152,7 +3152,7 @@ end subroutine flush_hvars
                this%hvars(ih_reprop_scpf)%r82d(io_si,:)  = 0._r8
                this%hvars(ih_pefflux_scpf)%r82d(io_si,:) = &
                     sites(s)%flux_diags(el)%nutrient_efflux_scpf(:) /          &
-                    m2_per_ha / sec_per day
+                    m2_per_ha / sec_per_day
 
                this%hvars(ih_pneed_scpf)%r82d(io_si,:) = &
                     sites(s)%flux_diags(el)%nutrient_need_scpf(:) /            &
@@ -4623,7 +4623,7 @@ end subroutine update_history_hifrq
          index = ih_litter_moisture_si_fuel)
 
     call this%set_history_var(vname='FATES_FUEL_AMOUNT_FC', units='kg m-2',    &
-         long='spitfire fuel-class level fuel amount in kg carbon per m2 land area',
+         long='spitfire fuel-class level fuel amount in kg carbon per m2 land area', &
          use_default='active', avgflag='A', vtype=site_fuel_r8,                &
          hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
          index = ih_fuel_amount_si_fuel)
@@ -5073,8 +5073,8 @@ end subroutine update_history_hifrq
          units='kg m-2 s-1',                                                   &
          long='autotrophic respiration of canopy plants in kg carbon per m2 per second', &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-         upfreq=2, ivar=ivar, initialize=initialize_variables, i               &
-         ndex = ih_ar_canopy_si)
+         upfreq=2, ivar=ivar, initialize=initialize_variables,                 &
+         index = ih_ar_canopy_si)
 
     call this%set_history_var(vname='FATES_GPP_UNDERSTORY',                    &
          units='kg m-2 s-1',                                                   &
@@ -5354,7 +5354,7 @@ end subroutine update_history_hifrq
 
     call this%set_history_var(vname='FATES_MORTALITY_UNDERSTORY_APSZ',         &
           units = 'm-2 yr-1',                                                  &
-          long='mortality rate of understory plants in number of plants per m2 per year in each size x age class',
+          long='mortality rate of understory plants in number of plants per m2 per year in each size x age class', &
           use_default='inactive', avgflag='A', vtype=site_scag_r8,             &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_mortality_understory_si_scag)
@@ -5399,7 +5399,7 @@ end subroutine update_history_hifrq
 
     call this%set_history_var(vname='FATES_GPP_CANOPY_SZPF',                   &
           units='kg m-2 s-1',                                                  &
-          long='gross primary production of canopy plants by pft/size in kg carbon per m2 per second',
+          long='gross primary production of canopy plants by pft/size in kg carbon per m2 per second', &
           use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_gpp_canopy_si_scpf)
@@ -5413,7 +5413,7 @@ end subroutine update_history_hifrq
 
     call this%set_history_var(vname='FATES_GPP_UNDERSTORY_SZPF',               &
           units='kg m-2 s-1',                                                  &
-          long='gross primary production of understory plants by pft/size in kg carbon per m2 per second',
+          long='gross primary production of understory plants by pft/size in kg carbon per m2 per second', &
           use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_gpp_understory_si_scpf)
@@ -5472,7 +5472,7 @@ end subroutine update_history_hifrq
 
    call this%set_history_var(vname = 'FATES_NPP_AGSTRUCT_SZPF',                &
          units='kg m-2 s-1',                                                   &
-         long='NPP flux into above-ground structural (deadwood) by pft/size in kg carbon per m2 per second',
+         long='NPP flux into above-ground structural (deadwood) by pft/size in kg carbon per m2 per second', &
          use_default='inactive', avgflag='A', vtype=site_size_pft_r8,          &
          hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
          index = ih_npp_agdw_si_scpf)
