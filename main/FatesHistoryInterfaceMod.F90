@@ -1513,7 +1513,7 @@ end subroutine flush_hvars
     real(r8), :: flushval
     logical   :: write_var
 
-    flushval = hlm_hio_ignore_val !for now do this (ACF 09/27/21)
+    flushval = 0.0_r8 !for now do this (ACF 09/27/21)
     ! we need to flush this to 0.0 in FATES
 
     write_var = check_hlm_list(trim(hlms), trim(hlm_name))
@@ -3795,7 +3795,7 @@ end subroutine flush_hvars
             ! PFT-mean radiation profiles
             do ican = 1, cpatch%ncl_p
                do ileaf = 1, maxval(cpatch%nrad(ican,:))
-                  
+
                   ! calculate where we are on multiplexed dimensions
                   cnlf_indx = ileaf + (ican-1) * nlevleaf
                   !
@@ -6144,9 +6144,9 @@ end subroutine update_history_hifrq
           upfreq=2, ivar=ivar, initialize=initialize_variables,                &
           index = ih_livestem_mr_si)
 
-    call this%set_history_var(vname='FATES_AUTO_RESP_MAINT_CANOPY_SZ',         &
+    call this%set_history_var(vname='FATES_AUTO_RESP_DARK_CANOPY_SZ',          &
           units = 'kg m-2 s-1',                                                &
-          long='maintenance autotrophic respiration for canopy plants in kg carbon per m2 per second by size', &
+          long='dark respiration for canopy plants in kg carbon per m2 per second by size', &
           use_default='inactive', avgflag='A', vtype=site_size_r8,             &
           hlms='CLM:ALM', upfreq=2, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_rdark_canopy_si_scls)
@@ -6277,9 +6277,9 @@ end subroutine update_history_hifrq
          hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
          index = ih_npp_stor_understory_si_scls)
 
-    call this%set_history_var(vname='FATES_AUTO_RESP_MAINT_UNDERSTORY_SZ',     &
+    call this%set_history_var(vname='FATES_AUTO_RESP_DARK_UNDERSTORY_SZ',      &
           units = 'kg m-2 s-1',                                                &
-          long='maintenance autotrophic respiration for understory plants in kg carbon per m2 per second by size', &
+          long='dark respiration for understory plants in kg carbon per m2 per second by size', &
           use_default='inactive', avgflag='A', vtype=site_size_r8,             &
           hlms='CLM:ALM', upfreq=2, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_rdark_understory_si_scls)
@@ -6668,7 +6668,7 @@ end subroutine update_history_hifrq
              avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_iterh1_scpf )
 
-       call this%set_history_var(vname='FATES_ITERH2_SCPF', units='count/indiv/step', &
+       call this%set_history_var(vname='FATES_ITERH2_SZPF', units='count/indiv/step', &
              long='water balance error iteration diagnostic 2', &
              use_default='inactive', &
              avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
