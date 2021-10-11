@@ -4515,14 +4515,14 @@ end subroutine update_history_hifrq
          hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
          index=ih_biomass_secondary_forest_si)
 
-    call this%set_history_var(vname='FATES_SECONDARY_AREA_ANTHRO_DIST_AP',     &
+    call this%set_history_var(vname='FATES_SECONDAREA_ANTHRODIST_AP',          &
          units='m2 m-2',                                                       &
          long='secondary forest patch area age distribution since anthropgenic disturbance', &
          use_default='inactive', avgflag='A', vtype=site_age_r8,               &
          hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
          index=ih_agesince_anthrodist_si_age)
 
-    call this%set_history_var(vname='FATES_SECONDARY_AREA_DIST_AP',            &
+    call this%set_history_var(vname='FATES_SECONDAREA_DIST_AP',                &
          units='m2 m-2',                                                       &
          long='secondary forest patch area age distribution since any kind of disturbance', &
          use_default='inactive', avgflag='A', vtype=site_age_r8,               &
@@ -4786,7 +4786,7 @@ end subroutine update_history_hifrq
             avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1,              &
             ivar=ivar, initialize=initialize_variables, index = ih_storen_si)
 
-       call this%set_history_var(vname='FATES_STOREN_TFRAC', units='1',        &
+       call this%set_history_var(vname='FATES_STOREN_TF', units='1',           &
             long='storage N fraction of target', use_default='active',         &
             avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1, ivar=ivar,   &
             initialize=initialize_variables, index = ih_storentfrac_si)
@@ -4852,7 +4852,7 @@ end subroutine update_history_hifrq
             upfreq=1, ivar=ivar, initialize=initialize_variables,              &
             index = ih_storep_si)
 
-       call this%set_history_var(vname='FATES_STOREP_TFRAC', units='1',        &
+       call this%set_history_var(vname='FATES_STOREP_TF', units='1',           &
             long='storage P fraction of target', use_default='active',         &
             avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1,              &
             ivar=ivar, initialize=initialize_variables,                        &
@@ -4938,7 +4938,7 @@ end subroutine update_history_hifrq
 
     ! disturbance rates
 
-    call this%set_history_var(vname='FATES_PRIMARYLAND_PATCHFUSION_ERROR',     &
+    call this%set_history_var(vname='FATES_PRIMARY_PATCHFUSION_ERR',           &
          units='m2 m-2 yr-1',                                                  &
          long='error in total primary lands associated with patch fusion',     &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
@@ -5024,7 +5024,7 @@ end subroutine update_history_hifrq
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_gpp_si)
 
-    call this%set_history_var(vname='FATES_AUTO_RESP', units='kg m-2 s-1',     &
+    call this%set_history_var(vname='FATES_AUTORESP', units='kg m-2 s-1',     &
          long='autotrophic respiration in kg carbon per m2 per second',        &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=2, ivar=ivar, initialize=initialize_variables, index = ih_aresp_si)
@@ -5076,7 +5076,7 @@ end subroutine update_history_hifrq
          upfreq=2, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_gpp_canopy_si)
 
-    call this%set_history_var(vname='FATES_AUTO_RESP_CANOPY',                  &
+    call this%set_history_var(vname='FATES_AUTORESP_CANOPY',                  &
          units='kg m-2 s-1',                                                   &
          long='autotrophic respiration of canopy plants in kg carbon per m2 per second', &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
@@ -5090,8 +5090,8 @@ end subroutine update_history_hifrq
          upfreq=2, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_gpp_understory_si)
 
-    call this%set_history_var(vname='FATES_AUTO_RESP_UNDERSTORY',              &
-         units='kg m-2 s-1',                 &
+    call this%set_history_var(vname='FATES_AUTORESP_UNDERSTORY',               &
+         units='kg m-2 s-1',                                                   &
          long='autotrophic respiration of understory plants in kg carbon per m2 per second', &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=2, ivar=ivar, initialize=initialize_variables,                 &
@@ -5303,14 +5303,14 @@ end subroutine update_history_hifrq
           upfreq=1, ivar=ivar, initialize=initialize_variables,                &
           index = ih_promotion_carbonflux_si)
 
-    call this%set_history_var(vname='FATES_MORTALITY_CARBONFLUX_CANOPY',       &
+    call this%set_history_var(vname='FATES_MORTALITY_CFLUX_CANOPY',            &
           units = 'kg m-2 s-1',                                                &
           long='flux of biomass carbon from live to dead pools from mortality of canopy plants in kg carbon per m2 per second', &
           use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
           upfreq=1, ivar=ivar, initialize=initialize_variables,                &
           index = ih_canopy_mortality_carbonflux_si)
 
-    call this%set_history_var(vname='FATES_MORTALITY_CARBONFLUX_UNDERSTORY',   &
+    call this%set_history_var(vname='FATES_MORTALITY_CFLUX_UNDERSTORY',        &
           units = 'kg m-2 s-1',                                                &
           long='flux of biomass carbon from live to dead pools from mortality of understory plants in kg carbon per m2 per second', &
           use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
@@ -5411,7 +5411,7 @@ end subroutine update_history_hifrq
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_gpp_canopy_si_scpf)
 
-    call this%set_history_var(vname='FATES_AUTO_RESP_CANOPY_SZPF',             &
+    call this%set_history_var(vname='FATES_AUTORESP_CANOPY_SZPF',             &
           units='kg m-2 s-1',                                                  &
           long='autotrophic respiration of canopy plants by pft/size in kg carbon per m2 per second', &
           use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
@@ -5425,7 +5425,7 @@ end subroutine update_history_hifrq
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_gpp_understory_si_scpf)
 
-    call this%set_history_var(vname='FATES_AUTO_RESP_UNDERSTORY_SZPF',         &
+    call this%set_history_var(vname='FATES_AUTORESP_UNDERSTORY_SZPF',         &
           units='kg m-2 s-1',                                                  &
           long='autotrophic respiration of understory plants by pft/size in kg carbon per m2 per second', &
           use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
@@ -5626,14 +5626,14 @@ end subroutine update_history_hifrq
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_m9_si_scpf)
 
-    call this%set_history_var(vname='FATES_MORTALITY_AGESCENESCENCE_SZPF',     &
+    call this%set_history_var(vname='FATES_MORTALITY_AGESCEN_SZPF',            &
          units = 'm-2 yr-1',                                                   &
          long='age senescence mortality by pft/size in number of plants per m2 per year', &
          use_default='inactive', avgflag='A', vtype =site_size_pft_r8,         &
          hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
          index = ih_m10_si_scpf)
 
-    call this%set_history_var(vname='FATES_MORTALITY_AGESCENESCENCE_ACPF',     &
+    call this%set_history_var(vname='FATES_MORTALITY_AGESCEN_ACPF',            &
          units='m-2 yr-1',                                                     &
          long='age senescence mortality by pft/cohort age in number of plants per m2 per year', &
          use_default='inactive', avgflag='A', vtype =site_coage_pft_r8,        &
@@ -5744,49 +5744,49 @@ end subroutine update_history_hifrq
 
     ! Size structured diagnostics that require rapid updates (upfreq=2)
 
-    call this%set_history_var(vname='FATES_AUTO_RESP_SZPF',                    &
+    call this%set_history_var(vname='FATES_AUTORESP_SZPF',                     &
           units = 'kg m-2 s-1',                                                &
           long='total autotrophic respiration in kg carbon per m2 per second by pft/size', &
           use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
           hlms='CLM:ALM', upfreq=2, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_ar_si_scpf)
 
-    call this%set_history_var(vname='FATES_AUTO_RESP_GROW_SZPF',               &
+    call this%set_history_var(vname='FATES_GROWAR_SZPF',                       &
           units = 'kg m-2 s-1',                                                &
           long='growth autotrophic respiration in kg carbon per m2 per second by pft/size', &
           use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
           hlms='CLM:ALM', upfreq=2, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_ar_grow_si_scpf)
 
-    call this%set_history_var(vname='FATES_AUTO_RESP_MAINT_SZPF',              &
+    call this%set_history_var(vname='FATES_MAINTAR_SZPF',                      &
           units = 'kg m-2 s-1',          &
           long='maintenance autotrophic respiration in kg carbon per m2 per second by pft/size', &
           use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
           hlms='CLM:ALM', upfreq=2, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_ar_maint_si_scpf)
 
-    call this%set_history_var(vname='FATES_AUTO_RESP_DARKMAINT_SZPF',          &
+    call this%set_history_var(vname='FATES_RDARK_SZPF',                        &
           units = 'kg m-2 s-1',                                                &
           long='dark portion of maintenance autotrophic respiration in kg carbon per m2 per second by pft/size', &
           use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
           hlms='CLM:ALM', upfreq=2, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_ar_darkm_si_scpf)
 
-    call this%set_history_var(vname='FATES_AUTO_RESP_AGSAPMAINT_SZPF',         &
+    call this%set_history_var(vname='FATES_AGSAPMAINTAR_SZPF',                 &
           units = 'kg m-2 s-1',                                                &
           long='above-ground sapwood maintenance autotrophic respiration in kg carbon per m2 per second by pft/size', &
           use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
           hlms='CLM:ALM', upfreq=2, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_ar_agsapm_si_scpf)
 
-    call this%set_history_var(vname='FATES_AUTO_RESP_BGSAPMAINT_SZPF',         &
+    call this%set_history_var(vname='FATES_BGSAPMAINTAR_SZPF',                 &
           units = 'kg m-2 s-1',                                                &
           long='below-ground sapwood maintenance autotrophic respiration in kg carbon per m2 per second by pft/size', &
           use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
           hlms='CLM:ALM', upfreq=2, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_ar_crootm_si_scpf)
 
-    call this%set_history_var(vname='FATES_AUTO_RESP_FROOTMAINT_SZPF',         &
+    call this%set_history_var(vname='FATES_FROOTMAINTAR_SZPF',                 &
           units = 'kg m-2 s-1',                                                &
           long='fine root maintenance autotrophic respiration in kg carbon per m2 per second by pft/size', &
           use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
@@ -5807,7 +5807,7 @@ end subroutine update_history_hifrq
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_ddbh_understory_si_scls)
 
-    call this%set_history_var(vname='FATES_YESTERDAYCANLEV_CANOPY_SZ',         &
+    call this%set_history_var(vname='FATES_YESTCANLEV_CANOPY_SZ',              &
           units = 'm-2',                                                       &
           long='yesterdays canopy level for canopy plants by size class in number of plants per m2', &
           use_default='inactive', avgflag='A', vtype=site_size_r8,             &
@@ -5815,7 +5815,7 @@ end subroutine update_history_hifrq
           initialize=initialize_variables,                                     &
           index = ih_yesterdaycanopylevel_canopy_si_scls)
 
-    call this%set_history_var(vname='FATES_YESTERDAYCANLEV_UNDERSTORY_SZ',     &
+    call this%set_history_var(vname='FATES_YESTCANLEV_UNDERSTORY_SZ',          &
           units = 'm-2',                                                       &
           long='yesterdays canopy level for understory plants by size class in number of plants per m2', &
           use_default='inactive', avgflag='A', vtype=site_size_r8,             &
@@ -5976,14 +5976,14 @@ end subroutine update_history_hifrq
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_m9_si_scls)
 
-    call this%set_history_var(vname='FATES_MORTALITY_AGESCENESCENCE_SZ',       &
+    call this%set_history_var(vname='FATES_MORTALITY_AGESCEN_SZ',              &
           units = 'm-2 yr-1',                                                  &
           long='age senescence mortality by size in number of plants per m2 per year', &
           use_default='active', avgflag='A', vtype=site_size_r8,               &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_m10_si_scls)
 
-    call this%set_history_var(vname='FATES_MORTALITY_AGESCENESCENCE_AC',       &
+    call this%set_history_var(vname='FATES_MORTALITY_AGESCEN_AC',              &
           units = 'm-2 yr-1',                                                  &
           long='age senescence mortality by cohort age in number of plants per m2 per year', &
           use_default='active', avgflag='A', vtype=site_coage_r8,              &
@@ -6038,37 +6038,37 @@ end subroutine update_history_hifrq
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_crown_area_understory_si_scls)
 
-    call this%set_history_var(vname='FATES_LEAFCTURNOVER_CANOPY_SZ',            &
+    call this%set_history_var(vname='FATES_LEAFCTURN_CANOPY_SZ',               &
           units = 'kg m-2 s-1',                                                &
-          long='leaf turnover for canopy plants by size class in kg carbon per m2 per second', &
+          long='leaf turnover (non-mortal) for canopy plants by size class in kg carbon per m2 per second', &
           use_default='inactive', avgflag='A', vtype=site_size_r8,             &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_leaf_md_canopy_si_scls)
 
-    call this%set_history_var(vname='FATES_FROOTCTURNOVER_CANOPY_SZ',          &
+    call this%set_history_var(vname='FATES_FROOTCTURN_CANOPY_SZ',              &
           units = 'kg m-2 s-1',                                                &
-          long='fine root turnover for canopy plants by size class in kg carbon per m2 per second', &
+          long='fine root turnover (non-mortal) for canopy plants by size class in kg carbon per m2 per second', &
           use_default='inactive', avgflag='A', vtype=site_size_r8,             &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_root_md_canopy_si_scls)
 
-    call this%set_history_var(vname='FATES_STORECTURNOVER_CANOPY_SZ',          &
+    call this%set_history_var(vname='FATES_STORECTURN_CANOPY_SZ',              &
           units = 'kg m-2 s-1',                                                &
-          long='storage turnover for canopy plants by size class in kg carbon per m2 per second', &
+          long='storage turnover (non-mortal) for canopy plants by size class in kg carbon per m2 per second', &
           use_default='inactive', avgflag='A', vtype=site_size_r8,             &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_bstore_md_canopy_si_scls)
 
-    call this%set_history_var(vname='FATES_STRUCTCTURNOVER_CANOPY_SZ',         &
+    call this%set_history_var(vname='FATES_STRUCTCTURN_CANOPY_SZ',             &
           units = 'kg m-2 s-1',                                                &
-          long='structural C turnover for canopy plants by size class in kg carbon per m2 per second', &
+          long='structural C turnover (non-mortal) for canopy plants by size class in kg carbon per m2 per second', &
           use_default='inactive', avgflag='A', vtype=site_size_r8,             &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_bdead_md_canopy_si_scls)
 
-    call this%set_history_var(vname='FATES_SAPWOODCTURNOVER_CANOPY_SZ',        &
+    call this%set_history_var(vname='FATES_SAPWOODCTURN_CANOPY_SZ',            &
           units = 'kg m-2 s-1',                                                &
-          long='sapwood turnover for canopy plants by size class in kg carbon per m2 per second', &
+          long='sapwood turnover (non-mortal) for canopy plants by size class in kg carbon per m2 per second', &
           use_default='inactive', avgflag='A', vtype=site_size_r8,             &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_bsw_md_canopy_si_scls)
@@ -6122,42 +6122,42 @@ end subroutine update_history_hifrq
          hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
          index = ih_npp_stor_canopy_si_scls)
 
-    call this%set_history_var(vname='FATES_AUTO_RESP_LEAFMAINT',               &
+    call this%set_history_var(vname='FATES_LEAFMAINTAR',                       &
           units = 'kg m-2 s-1',                                                &
           long='leaf maintenance autotrophic respiration in kg carbon per m2 per second', &
           use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
           upfreq=2, ivar=ivar, initialize=initialize_variables,                &
           index = ih_leaf_mr_si)
 
-    call this%set_history_var(vname='FATES_AUTO_RESP_FROOTMAINT',              &
+    call this%set_history_var(vname='FATES_FROOTMAINTAR',                      &
           units = 'kg m-2 s-1',                                                &
           long='fine root maintenance autotrophic respiration in kg carbon per m2 per second', &
           use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
           upfreq=2, ivar=ivar, initialize=initialize_variables,                &
           index = ih_froot_mr_si)
 
-    call this%set_history_var(vname='FATES_AUTO_RESP_CROOTMAINT',              &
+    call this%set_history_var(vname='FATES_CROOTMAINTAR',                      &
           units = 'kg m-2 s-1',                                                &
           long='live coarse root maintenance autotrophic respiration in kg carbon per m2 per second', &
           use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
           upfreq=2, ivar=ivar, initialize=initialize_variables,                &
           index = ih_livecroot_mr_si)
 
-    call this%set_history_var(vname='FATES_AUTO_RESP_LIVESTEMMAINT',           &
+    call this%set_history_var(vname='FATES_LSTEMMAINTAR',                      &
           units = 'kg m-2 s-1',                                                &
           long='live stem maintenance autotrophic respiration in kg carbon per m2 per second', &
           use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
           upfreq=2, ivar=ivar, initialize=initialize_variables,                &
           index = ih_livestem_mr_si)
 
-    call this%set_history_var(vname='FATES_AUTO_RESP_DARK_CANOPY_SZ',          &
+    call this%set_history_var(vname='FATES_RDARK_CANOPY_SZ',                   &
           units = 'kg m-2 s-1',                                                &
           long='dark respiration for canopy plants in kg carbon per m2 per second by size', &
           use_default='inactive', avgflag='A', vtype=site_size_r8,             &
           hlms='CLM:ALM', upfreq=2, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_rdark_canopy_si_scls)
 
-    call this%set_history_var(vname='FATES_AUTO_RESP_LIVESTEMMAINT_CANOPY_SZ', &
+    call this%set_history_var(vname='FATES_LSTEMMAINTAR_CANOPY_SZ',            &
           units = 'kg m-2 s-1',                                                &
           long='live stem maintenance autotrophic respiration for canopy plants in kg carbon per m2 per second by size', &
           use_default='inactive', avgflag='A', vtype=site_size_r8,             &
@@ -6165,7 +6165,7 @@ end subroutine update_history_hifrq
           initialize=initialize_variables,                                     &
           index = ih_livestem_mr_canopy_si_scls)
 
-    call this%set_history_var(vname='FATES_AUTO_RESP_CROOTMAINT_CANOPY_SZ',    &
+    call this%set_history_var(vname='FATES_CROOTMAINTAR_CANOPY_SZ',            &
           units = 'kg m-2 s-1',                                                &
           long='live coarse root maintenance autotrophic respiration for canopy plants in kg carbon per m2 per second by size', &
           use_default='inactive', avgflag='A', vtype=site_size_r8,             &
@@ -6173,62 +6173,62 @@ end subroutine update_history_hifrq
           initialize=initialize_variables,                                     &
           index = ih_livecroot_mr_canopy_si_scls)
 
-    call this%set_history_var(vname='FATES_AUTO_RESP_FROOTMAINT_CANOPY_SZ',    &
+    call this%set_history_var(vname='FATES_FROOTMAINTAR_CANOPY_SZ',            &
           units = 'kg m-2 s-1',                                                &
           long='live coarse root maintenance autotrophic respiration for canopy plants in kg carbon per m2 per second by size', &
           use_default='inactive', avgflag='A', vtype=site_size_r8,             &
           hlms='CLM:ALM', upfreq=2, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_froot_mr_canopy_si_scls)
 
-    call this%set_history_var(vname='FATES_AUTO_RESP_GROW_CANOPY_SZ',          &
+    call this%set_history_var(vname='FATES_GROWAR_CANOPY_SZ',                  &
          units = 'kg m-2 s-1',                                                 &
           long='growth autotrophic respiration of canopy plants in kg carbon per m2 per second by size', &
           use_default='inactive', avgflag='A', vtype=site_size_r8,             &
           hlms='CLM:ALM', upfreq=2, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_resp_g_canopy_si_scls)
 
-    call this%set_history_var(vname='FATES_AUTO_RESP_MAINT_CANOPY_SZ',         &
+    call this%set_history_var(vname='FATES_MAINTAR_CANOPY_SZ',                 &
           units = 'kg m-2 s-1',                                                &
           long='maintenance autotrophic respiration of canopy plants in kg carbon per m2 per second by size', &
           use_default='inactive', avgflag='A', vtype=site_size_r8,             &
           hlms='CLM:ALM', upfreq=2, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_resp_m_canopy_si_scls)
 
-    call this%set_history_var(vname='FATES_LEAFCTURNOVER_UNDERSTORY_SZ',       &
+    call this%set_history_var(vname='FATES_LEAFCTURN_UNDERSTORY_SZ',           &
          units = 'kg m-2 s-1',                                                 &
-          long='leaf turnover for understory plants by size class in kg carbon per m2 per second', &
+          long='leaf turnover (non-mortal) for understory plants by size class in kg carbon per m2 per second', &
           use_default='inactive', avgflag='A', vtype=site_size_r8,             &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables,                                     &
           index = ih_leaf_md_understory_si_scls)
 
-    call this%set_history_var(vname='FATES_FROOTCTURNOVER_UNDERSTORY_SZ',      &
+    call this%set_history_var(vname='FATES_FROOTCTURN_UNDERSTORY_SZ',          &
           units = 'kg m-2 s-1',                                                &
-          long='fine root turnover for understory plants by size class in kg carbon per m2 per second', &
+          long='fine root turnover (non-mortal) for understory plants by size class in kg carbon per m2 per second', &
           use_default='inactive', avgflag='A', vtype=site_size_r8,             &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables,                                     &
           index = ih_root_md_understory_si_scls)
 
-    call this%set_history_var(vname='FATES_STORECTURNOVER_UNDERSTORY_SZ',      &
+    call this%set_history_var(vname='FATES_STORECTUR_UNDERSTORY_SZ',           &
           units = 'kg m-2 s-1',                                                &
-          long='storage C turnover for understory plants by size class in kg carbon per m2 per second', &
+          long='storage C turnover (non-mortal) for understory plants by size class in kg carbon per m2 per second', &
           use_default='inactive', avgflag='A', vtype=site_size_r8,             &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables,                                     &
           index = ih_bstore_md_understory_si_scls)
 
-    call this%set_history_var(vname='FATES_STRUCTCTURNOVER_UNDERSTORY_SZ',     &
+    call this%set_history_var(vname='FATES_STRUCTCTURN_UNDERSTORY_SZ',         &
           units = 'kg m-2 s-1',                                                &
-          long='structural C turnover for understory plants by size class in kg carbon per m2 per second', &
+          long='structural C turnover (non-mortal) for understory plants by size class in kg carbon per m2 per second', &
           use_default='inactive', avgflag='A', vtype=site_size_r8,             &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables,                                     &
           index = ih_bdead_md_understory_si_scls)
 
-    call this%set_history_var(vname='FATES_SAPWOODCTURNOVER_UNDERSTORY_SZ',    &
+    call this%set_history_var(vname='FATES_SAPWOODCTURN_UNDERSTORY_SZ',        &
           units = 'kg m-2 s-1',                                                &
-          long='sapwood C turnover for understory plants by size class in kg carbon per m2 per second', &
+          long='sapwood C turnover (non-mortal) for understory plants by size class in kg carbon per m2 per second', &
           use_default='inactive', avgflag='A', vtype=site_size_r8,             &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_bsw_md_understory_si_scls)
@@ -6283,14 +6283,14 @@ end subroutine update_history_hifrq
          hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
          index = ih_npp_stor_understory_si_scls)
 
-    call this%set_history_var(vname='FATES_AUTO_RESP_DARK_UNDERSTORY_SZ',      &
+    call this%set_history_var(vname='FATES_RDARK_UNDERSTORY_SZ',               &
           units = 'kg m-2 s-1',                                                &
           long='dark respiration for understory plants in kg carbon per m2 per second by size', &
           use_default='inactive', avgflag='A', vtype=site_size_r8,             &
           hlms='CLM:ALM', upfreq=2, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_rdark_understory_si_scls)
 
-    call this%set_history_var(vname='FATES_AUTO_RESP_LIVESTEMMAINT_UNDERSTORY_SZ', &
+    call this%set_history_var(vname='FATES_LSTEMMAINTAR_UNDERSTORY_SZ',        &
           units = 'kg m-2 s-1',                                                &
           long='live stem maintenance autotrophic respiration for understory plants in kg carbon per m2 per second by size', &
           use_default='inactive', avgflag='A', vtype=site_size_r8,             &
@@ -6298,7 +6298,7 @@ end subroutine update_history_hifrq
           initialize=initialize_variables,                                     &
           index = ih_livestem_mr_understory_si_scls)
 
-    call this%set_history_var(vname='FATES_AUTO_RESP_CROOTMAINT_UNDERSTORY_SZ', &
+    call this%set_history_var(vname='FATES_CROOTMAINTAR_UNDERSTORY_SZ',        &
           units = 'kg m-2 s-1',                                                &
           long='live coarse root maintenance autotrophic respiration for understory plants in kg carbon per m2 per second by size', &
           use_default='inactive', avgflag='A', vtype=site_size_r8,             &
@@ -6306,7 +6306,7 @@ end subroutine update_history_hifrq
           initialize=initialize_variables,                                     &
           index = ih_livecroot_mr_understory_si_scls)
 
-    call this%set_history_var(vname='FATES_AUTO_RESP_FROOTMAINT_UNDERSTORY_SZ', &
+    call this%set_history_var(vname='FATES_FROOTMAINTAR_UNDERSTORY_SZ',        &
           units = 'kg m-2 s-1',                                                &
           long='fine root maintenance autotrophic respiration for understory plants in kg carbon per m2 per second by size', &
           use_default='inactive', avgflag='A', vtype=site_size_r8,             &
@@ -6314,14 +6314,14 @@ end subroutine update_history_hifrq
           initialize=initialize_variables,                                     &
           index = ih_froot_mr_understory_si_scls)
 
-    call this%set_history_var(vname='FATES_AUTO_RESP_GROW_UNDERSTORY_SZ',      &
+    call this%set_history_var(vname='FATES_GROWAR_UNDERSTORY_SZ',              &
           units = 'kg m-2 s-1',                                                &
           long='growth autotrophic respiration of understory plants in kg carbon per m2 per second by size', &
           use_default='inactive', avgflag='A', vtype=site_size_r8,             &
           hlms='CLM:ALM', upfreq=2, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_resp_g_understory_si_scls)
 
-    call this%set_history_var(vname='FATES_AUTO_RESP_MAINT_UNDERSTORY_SZ',     &
+    call this%set_history_var(vname='FATES_MAINTAR_UNDERSTORY_SZ',             &
           units = 'kg m-2 s-1',                                                &
           long='maintenance autotrophic respiration of understory plants in kg carbon per m2 per second by size', &
           use_default='inactive', avgflag='A', vtype=site_size_r8,             &
@@ -6476,14 +6476,14 @@ end subroutine update_history_hifrq
             hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
             initialize=initialize_variables, index = ih_storen_scpf)
 
-       call this%set_history_var(vname='FATES_STOREN_TFRAC_CANOPY_SZPF',       &
+       call this%set_history_var(vname='FATES_STOREN_TF_CANOPY_SZPF',          &
             units='1',                                                         &
             long='storage nitrogen fraction (0-1) of target, in canopy, by size-class x pft', &
             use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
             hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
             initialize=initialize_variables, index = ih_storentfrac_canopy_scpf)
 
-       call this%set_history_var(vname='FATES_STOREN_TFRAC_UNDERSTORY_SZPF',   &
+       call this%set_history_var(vname='FATES_STOREN_TF_UNDERSTORY_SZPF',      &
             units='1',                                                         &
             long='storage nitrogen fraction (0-1) of target, in understory, by size-class x pft', &
             use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
@@ -6558,14 +6558,14 @@ end subroutine update_history_hifrq
             hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
             initialize=initialize_variables, index = ih_storep_scpf)
 
-       call this%set_history_var(vname='FATES_STOREP_TFRAC_CANOPY_SZPF',       &
+       call this%set_history_var(vname='FATES_STOREP_TF_CANOPY_SZPF',          &
             units='1',                                                         &
             long='storage phosphorus fraction (0-1) of target, in canopy, by size-class x pft', &
             use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
             hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
             initialize=initialize_variables, index = ih_storeptfrac_canopy_scpf)
 
-       call this%set_history_var(vname='FATES_STOREP_TFRAC_UNDERSTORY_SZPF',   &
+       call this%set_history_var(vname='FATES_STOREP_TF_UNDERSTORY_SZPF',      &
             units='1',                                                         &
             long='storage phosphorus fraction (0-1) of target, in understory, by size-class x pft', &
             use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
