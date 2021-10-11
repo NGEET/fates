@@ -61,7 +61,6 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : days_per_year
   use FatesConstantsMod        , only : years_per_day
   use FatesConstantsMod        , only : m2_per_km2
-  use FatesConstantsMod        , only : s_per_day
   use FatesConstantsMod        , only : J_per_kJ
   use FatesConstantsMod        , only : m2_per_ha
   use FatesConstantsMod        , only : m_per_cm
@@ -2179,7 +2178,7 @@ end subroutine flush_hvars
             end do
 
             hio_area_burnt_si_age(io_si,cpatch%age_class) = hio_area_burnt_si_age(io_si,cpatch%age_class) + &
-                 cpatch%frac_burnt * cpatch%area * AREA_INV / s_per_day
+                 cpatch%frac_burnt * cpatch%area * AREA_INV / sec_per_day
 
             ! hio_fire_rate_of_spread_front_si_age(io_si, cpatch%age_class) = hio_fire_rate_of_spread_si_age(io_si, cpatch%age_class) + &
             !      cpatch%ros_front * cpatch*frac_burnt * cpatch%area * AREA_INV
