@@ -4011,7 +4011,7 @@ end subroutine update_history_hifrq
 
          hio_rootuptake_si(io_si) = sum(site_hydr%rootuptake_sl,dim=1) / m2_per_ha
          hio_rootuptake_sl(io_si,:) = 0._r8
-         hio_rootuptake_sl(io_si,jr1:jr2) = site_hydr%rootuptake_sl(1:nlevrhiz) /
+         hio_rootuptake_sl(io_si,jr1:jr2) = site_hydr%rootuptake_sl(1:nlevrhiz) / &
               m2_per_ha
          hio_sapflow_si(io_si) = sum(site_hydr%sapflow_scpf) / m2_per_ha
 
