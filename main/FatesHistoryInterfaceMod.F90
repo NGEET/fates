@@ -1514,7 +1514,7 @@ end subroutine flush_hvars
     logical   :: write_var
 
     flushval = 0.0_r8 !for now do this (ACF 09/27/21)
-    ! we need to flush this to 0.0 in FATES
+    ! we need to flush this to 0.0 in FATESs
 
     write_var = check_hlm_list(trim(hlms), trim(hlm_name))
     if( write_var ) then
