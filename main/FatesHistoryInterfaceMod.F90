@@ -60,6 +60,14 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : sec_per_day
   use FatesConstantsMod        , only : days_per_year
   use FatesConstantsMod        , only : years_per_day
+  use FatesConstantsMod        , only : m2_per_km2
+  use FatesConstantsMod        , only : s_per_day
+  use FatesConstantsMod        , only : J_per_kJ
+  use FatesConstantsMod        , only : m2_per_ha
+  use FatesConstantsMod        , only : m_per_cm
+  use FatesConstantsMod        , only : sec_per_min
+  use FatesConstantsMod        , only : umol_per_mol
+  use FatesConstantsMod        , only : pa_per_mpa
   use FatesLitterMod           , only : litter_type
   use FatesConstantsMod        , only : secondaryforest
 
