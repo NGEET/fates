@@ -729,6 +729,7 @@ module FatesHistoryInterfaceMod
      procedure, private :: set_levelage_index
 
      procedure, public :: flush_hvars
+     procedure, public :: zero_site_hvars
 
   end type fates_history_interface_type
 
@@ -1461,6 +1462,59 @@ end function levcapf_index
 
    ! ======================================================================================
 
+
+   subroutine zero_site_hvars(this,nc,sites,upfreq_in)
+
+
+     ! This routine zero's a history diagnostic variable
+     ! but only zero's on fates sites
+     ! This should be called prior to filling the variable
+     ! and after they have been flushed to the ignore value
+     
+     class(fates_history_interface_type)    :: this
+     integer,intent(in)                     :: nc
+     integer,intent(in)                     :: upfreq_in
+     type(ed_site_type),intent(in)          :: sites(:)
+
+     integer :: ivar
+     integer :: nsites
+     integer :: s        ! fates site index (1:nsites)
+     integer :: ndims    ! number of dimensions 
+     
+     nsites = ubound(sites,1)
+     
+     do ivar=1,ubound(this%hvars,1)
+        if (this%hvars(ivar)%upfreq == upfreq_in) then ! Only flush variables with update on dynamics step
+           call this%hvars(ivar)%flush(nc, this%dim_bounds, this%dim_kinds)
+
+           ndims = this%dim_kinds(this%hvars(ivar)%dim_kinds_index)%ndims
+          
+           if(trim(this%dim_kinds(this%hvars(ivar)%dim_kinds_index)%name) == site_int)then 
+              write(fates_log(),*)'add in zeroing provision for SI_INT'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+
+           if(ndims==1) then
+              do s = 1,nsites
+                 this%hvars(ivar)%r81d(sites(s)%h_gid) = 0._r8
+              end do
+           elseif(ndims==2) then
+              do s = 1,nsites
+                 this%hvars(ivar)%r82d(sites(s)%h_gid,:) = 0._r8
+              end do
+           elseif(ndims==3) then
+              do s = 1,nsites
+                 this%hvars(ivar)%r83d(sites(s)%h_gid,:,:) = 0._r8
+              end do
+           end if
+        end if
+     end do
+     
+     return
+   end subroutine zero_site_hvars
+
+
+   
  subroutine flush_hvars(this,nc,upfreq_in)
 
    class(fates_history_interface_type)        :: this
@@ -1510,11 +1564,15 @@ end subroutine flush_hvars
     ! locals
     integer   :: ub1, lb1, ub2, lb2    ! Bounds for allocating the var
     integer   :: ityp
-    real(r8), :: flushval
+    real(r8)  :: flushval
     logical   :: write_var
 
-    flushval = 0.0_r8 !for now do this (ACF 09/27/21)
-    ! we need to flush this to 0.0 in FATES
+
+    ! Flushing to the ignore val coerces all FATES diagnostics to be
+    ! relevant only on FATES sites. This way we do not average zero's
+    ! at locations not on FATES columns
+    
+    flushval = hlm_hio_ignore_val !for now do this (ACF 09/27/21)
 
     write_var = check_hlm_list(trim(hlms), trim(hlm_name))
     if( write_var ) then
@@ -3151,6 +3209,7 @@ end subroutine flush_hvars
                this%hvars(ih_storeptfrac_canopy_scpf)%r82d(io_si,:)     = 0._r8
                this%hvars(ih_storeptfrac_understory_scpf)%r82d(io_si,:) = 0._r8
                this%hvars(ih_reprop_scpf)%r82d(io_si,:)  = 0._r8
+               
                this%hvars(ih_pefflux_scpf)%r82d(io_si,:) = &
                     sites(s)%flux_diags(el)%nutrient_efflux_scpf(:) /          &
                     m2_per_ha / sec_per day
@@ -3535,7 +3594,8 @@ end subroutine flush_hvars
 
       ! Flush the relevant history variables
       call this%flush_hvars(nc,upfreq_in=2)
-
+      call this%zero_site_hvars(nc,sites,upfreq_in=2)
+      
       per_dt_tstep = 1.0_r8/dt_tstep
 
       do s = 1,nsites
@@ -3959,7 +4019,8 @@ end subroutine update_history_hifrq
 
       ! Flush the relevant history variables
       call this%flush_hvars(nc,upfreq_in=4)
-
+      call this%zero_site_hvars(nc,sites,upfreq_in=4)
+      
       if(print_iterations) then
           do iscpf = 1,iterh2_nhist
               iterh2_histx(iscpf) = iterh2_dx*real(iscpf-1,r8)
