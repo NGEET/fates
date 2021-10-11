@@ -1510,7 +1510,7 @@ end subroutine flush_hvars
     ! locals
     integer   :: ub1, lb1, ub2, lb2    ! Bounds for allocating the var
     integer   :: ityp
-    real(r8), :: flushval
+    real(r8)  :: flushval
     logical   :: write_var
 
     flushval = 0.0_r8 !for now do this (ACF 09/27/21)
