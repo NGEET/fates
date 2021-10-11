@@ -1514,7 +1514,6 @@ end subroutine flush_hvars
     logical   :: write_var
 
     flushval = 0.0_r8 !for now do this (ACF 09/27/21)
-    ! we need to flush this to 0.0 in FATESs
 
     write_var = check_hlm_list(trim(hlms), trim(hlm_name))
     if( write_var ) then
@@ -2590,9 +2589,9 @@ end subroutine flush_hvars
                        hio_mortality_canopy_si_scpf(io_si,scpf) = hio_mortality_canopy_si_scpf(io_si,scpf)+ &
 
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%frmort + &
-                            ccohort%smort + ccohort%asmort) * ccohort%n + &
+                            ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha + &
                             (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
-                            ccohort%n * sec_per_day * days_per_year / m2_per_ha
+                            ccohort%n * days_per_year / m2_per_ha
 
                        hio_nplant_canopy_si_scpf(io_si,scpf) = hio_nplant_canopy_si_scpf(io_si,scpf) + ccohort%n / m2_per_ha
                        hio_nplant_canopy_si_scls(io_si,scls) = hio_nplant_canopy_si_scls(io_si,scls) + ccohort%n / m2_per_ha
@@ -2620,7 +2619,7 @@ end subroutine flush_hvars
                              (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
                              ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n + &
                              (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
-                             ccohort%n * sec_per_day * days_per_year / m2_per_ha
+                             ccohort%n * days_per_year / m2_per_ha
 
                        hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
@@ -2683,9 +2682,9 @@ end subroutine flush_hvars
 
                        hio_mortality_understory_si_scpf(io_si,scpf) = hio_mortality_understory_si_scpf(io_si,scpf)+ &
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
-                            ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n + &
+                            ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha + &
                             (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
-                            ccohort%n * sec_per_day * days_per_year / m2_per_ha
+                            ccohort%n * days_per_year / m2_per_ha
 
                        hio_nplant_understory_si_scpf(io_si,scpf) = hio_nplant_understory_si_scpf(io_si,scpf) + ccohort%n / m2_per_ha
                        hio_nplant_understory_si_scls(io_si,scls) = hio_nplant_understory_si_scls(io_si,scls) + ccohort%n / m2_per_ha
@@ -2714,7 +2713,7 @@ end subroutine flush_hvars
                              (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
                              ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n + &
                              (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
-                             ccohort%n * sec_per_day * days_per_year / m2_per_ha
+                             ccohort%n * days_per_year / m2_per_ha
 
                        hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
                              (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
@@ -5600,7 +5599,7 @@ end subroutine update_history_hifrq
           initialize=initialize_variables, index = ih_m6_si_scpf)
 
     call this%set_history_var(vname='FATES_MORTALITY_LOGGING_SZPF',            &
-          units = 'm-2 event-1',                                               &
+          units = 'm-2 yr-1',                                                  &
           long='logging mortality by pft/size in number of plants per m2 per ', &
           use_default='inactive',           &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', upfreq=1,       &
@@ -5950,7 +5949,7 @@ end subroutine update_history_hifrq
           initialize=initialize_variables, index = ih_m6_si_scls)
 
     call this%set_history_var(vname='FATES_MORTALITY_LOGGING_SZ',              &
-          units = 'm-2 event-1',                                               &
+          units = 'm-2 yr-1',                                                  &
           long='logging mortality by size in number of plants per m2 per event', &
           use_default='active', avgflag='A', vtype=site_size_r8,               &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
@@ -6662,13 +6661,13 @@ end subroutine update_history_hifrq
              upfreq=4, ivar=ivar, initialize=initialize_variables,             &
              index = ih_sapflow_si)
 
-       call this%set_history_var(vname='FATES_ITERH1_SZPF', units='count/indiv/step', &
+       call this%set_history_var(vname='FATES_ITERH1_SZPF', units='count indiv-1 step-1', &
              long='water balance error iteration diagnostic 1', &
              use_default='inactive', &
              avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_iterh1_scpf )
 
-       call this%set_history_var(vname='FATES_ITERH2_SZPF', units='count/indiv/step', &
+       call this%set_history_var(vname='FATES_ITERH2_SZPF', units='count indiv-1 step-1', &
              long='water balance error iteration diagnostic 2', &
              use_default='inactive', &
              avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
