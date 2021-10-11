@@ -1463,7 +1463,7 @@ end function levcapf_index
    ! ======================================================================================
 
 
-   subroutine zero_site_hvars(this,nc,sites,upfreq_in)
+   subroutine zero_site_hvars(this,sites,upfreq_in)
 
 
      ! This routine zero's a history diagnostic variable
@@ -1472,7 +1472,6 @@ end function levcapf_index
      ! and after they have been flushed to the ignore value
      
      class(fates_history_interface_type)    :: this
-     integer,intent(in)                     :: nc
      integer,intent(in)                     :: upfreq_in
      type(ed_site_type),intent(in)          :: sites(:)
 
@@ -1485,7 +1484,6 @@ end function levcapf_index
      
      do ivar=1,ubound(this%hvars,1)
         if (this%hvars(ivar)%upfreq == upfreq_in) then ! Only flush variables with update on dynamics step
-           call this%hvars(ivar)%flush(nc, this%dim_bounds, this%dim_kinds)
 
            ndims = this%dim_kinds(this%hvars(ivar)%dim_kinds_index)%ndims
           
@@ -2534,9 +2532,11 @@ end subroutine flush_hvars
                          ccohort%hmort*ccohort%n / m2_per_ha
                     hio_m3_si_scpf(io_si,scpf) = hio_m3_si_scpf(io_si,scpf) +  &
                          ccohort%cmort*ccohort%n / m2_per_ha
+
                     hio_m7_si_scpf(io_si,scpf) = hio_m7_si_scpf(io_si,scpf) +  &
                          (ccohort%lmort_direct + ccohort%lmort_collateral +    &
                          ccohort%lmort_infra) * ccohort%n / m2_per_ha
+                    
                     hio_m8_si_scpf(io_si,scpf) = hio_m8_si_scpf(io_si,scpf) +  &
                          ccohort%frmort*ccohort%n / m2_per_ha
                     hio_m9_si_scpf(io_si,scpf) = hio_m9_si_scpf(io_si,scpf) +  &
@@ -2646,7 +2646,6 @@ end subroutine flush_hvars
                        ! ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n
 
                        hio_mortality_canopy_si_scpf(io_si,scpf) = hio_mortality_canopy_si_scpf(io_si,scpf)+ &
-
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%frmort + &
                             ccohort%smort + ccohort%asmort) * ccohort%n + &
                             (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
@@ -3594,7 +3593,7 @@ end subroutine flush_hvars
 
       ! Flush the relevant history variables
       call this%flush_hvars(nc,upfreq_in=2)
-      call this%zero_site_hvars(nc,sites,upfreq_in=2)
+      call this%zero_site_hvars(sites,upfreq_in=2)
       
       per_dt_tstep = 1.0_r8/dt_tstep
 
@@ -4019,7 +4018,7 @@ end subroutine update_history_hifrq
 
       ! Flush the relevant history variables
       call this%flush_hvars(nc,upfreq_in=4)
-      call this%zero_site_hvars(nc,sites,upfreq_in=4)
+      call this%zero_site_hvars(sites,upfreq_in=4)
       
       if(print_iterations) then
           do iscpf = 1,iterh2_nhist
