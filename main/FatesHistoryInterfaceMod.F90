@@ -6210,7 +6210,7 @@ end subroutine update_history_hifrq
           initialize=initialize_variables,                                     &
           index = ih_root_md_understory_si_scls)
 
-    call this%set_history_var(vname='FATES_STORECTUR_USTORY_SZ',           &
+    call this%set_history_var(vname='FATES_STORECTURN_USTORY_SZ',              &
           units = 'kg m-2 s-1',                                                &
           long='storage C turnover (non-mortal) for understory plants by size class in kg carbon per m2 per second', &
           use_default='inactive', avgflag='A', vtype=site_size_r8,             &
