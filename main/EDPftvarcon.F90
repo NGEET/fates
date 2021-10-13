@@ -46,9 +46,7 @@ module EDPftvarcon
      real(r8), allocatable :: hgt_min(:)             ! sapling height m
      real(r8), allocatable :: dleaf(:)               ! leaf characteristic dimension length (m)
      real(r8), allocatable :: z0mr(:)                ! ratio of roughness length of vegetation to height (-)
-     real(r8), allocatable :: displar(:)             ! ratio of displacement height to canopy top height (-)
-     real(r8), allocatable :: crown(:)               ! fraction of the height of the plant
-                                                     ! that is occupied by crown. For fire model.
+     real(r8), allocatable :: displar(:)             ! ratio of displacement height to canopy top height
      real(r8), allocatable :: bark_scaler(:)         ! scaler from dbh to bark thickness. For fire model.
      real(r8), allocatable :: crown_kill(:)          ! scaler on fire death. For fire model.
      real(r8), allocatable :: initd(:)               ! initial seedling density
@@ -328,10 +326,6 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_recruit_hgt_min'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_fire_crown_depth_frac'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -668,10 +662,6 @@ contains
     name = 'fates_recruit_hgt_min'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%hgt_min)
-
-    name = 'fates_fire_crown_depth_frac'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%crown)
 
     name = 'fates_fire_bark_scaler'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1394,7 +1384,6 @@ contains
         write(fates_log(),fmt0) 'dleaf = ',EDPftvarcon_inst%dleaf
         write(fates_log(),fmt0) 'z0mr = ',EDPftvarcon_inst%z0mr
         write(fates_log(),fmt0) 'displar = ',EDPftvarcon_inst%displar
-        write(fates_log(),fmt0) 'crown = ',EDPftvarcon_inst%crown
         write(fates_log(),fmt0) 'bark_scaler = ',EDPftvarcon_inst%bark_scaler
         write(fates_log(),fmt0) 'crown_kill = ',EDPftvarcon_inst%crown_kill
         write(fates_log(),fmt0) 'initd = ',EDPftvarcon_inst%initd

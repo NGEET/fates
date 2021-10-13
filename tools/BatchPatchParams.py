@@ -51,8 +51,11 @@ def parse_syscall_str(fnamein,fnameout,param_name,param_val):
 
     sys_call_str = "../tools/modify_fates_paramfile.py"+" --fin " + fnamein + \
                    " --fout " + fnameout + " --var " + param_name + " --silent " +\
-                   " --val " + param_val + " --overwrite --all"
+                   " --val " + "\" "+param_val+"\"" + " --overwrite --all"
 
+
+    print(sys_call_str)
+    
     return(sys_call_str)
 
 
