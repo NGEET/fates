@@ -2289,7 +2289,7 @@ end subroutine flush_hvars
                            (ccohort%n * AREA_INV) * leaf_m
 
                      hio_storebiomass_si_pft(io_si,ft) = hio_storebiomass_si_pft(io_si,ft) + &
-                           (ccohort%n * AREA_INV) * store_m   * g_per_kg
+                           (ccohort%n * AREA_INV) * store_m
 
                      hio_nindivs_si_pft(io_si,ft) = hio_nindivs_si_pft(io_si,ft) + &
                            ccohort%n * AREA_INV
@@ -2472,7 +2472,7 @@ end subroutine flush_hvars
 
                        ! growth increment
                        hio_ddbh_si_scpf(io_si,scpf) = hio_ddbh_si_scpf(io_si,scpf) + &
-                            ccohort%ddbhdt*ccohort%n / m2_per_ha
+                            ccohort%ddbhdt*ccohort%n / m2_per_ha * m_per_cm
 
                     end if
 
@@ -2618,7 +2618,7 @@ end subroutine flush_hvars
                        hio_ddbh_canopy_si_scpf(io_si,scpf) = hio_ddbh_canopy_si_scpf(io_si,scpf) + &
                             ccohort%ddbhdt*ccohort%n * m_per_cm / m2_per_ha
                        hio_ddbh_canopy_si_scls(io_si,scls) = hio_ddbh_canopy_si_scls(io_si,scls) + &
-                            ccohort%ddbhdt*ccohort%n
+                            ccohort%ddbhdt*ccohort%n * m_per_cm / m2_per_ha
 
                        ! sum of all mortality
                        hio_mortality_canopy_si_scls(io_si,scls) = hio_mortality_canopy_si_scls(io_si,scls) + &
@@ -2712,7 +2712,7 @@ end subroutine flush_hvars
                        hio_ddbh_understory_si_scpf(io_si,scpf) = hio_ddbh_understory_si_scpf(io_si,scpf) + &
                             ccohort%ddbhdt*ccohort%n * m_per_cm / m2_per_ha
                        hio_ddbh_understory_si_scls(io_si,scls) = hio_ddbh_understory_si_scls(io_si,scls) + &
-                            ccohort%ddbhdt*ccohort%n
+                            ccohort%ddbhdt*ccohort%n * m_per_cm / m2_per_ha
 
                        ! sum of all mortality
                        hio_mortality_understory_si_scls(io_si,scls) = hio_mortality_understory_si_scls(io_si,scls) + &
@@ -2730,7 +2730,7 @@ end subroutine flush_hvars
                              ccohort%n * ha_per_m2
 
                        hio_carbon_balance_understory_si_scls(io_si,scls) = hio_carbon_balance_understory_si_scls(io_si,scls) + &
-                             ccohort%npp_acc_hold * ccohort%n / m2_per_ha
+                             ccohort%npp_acc_hold * ccohort%n / m2_per_ha / days_per_year / sec_per_day
 
                        hio_leaf_md_understory_si_scls(io_si,scls) = hio_leaf_md_understory_si_scls(io_si,scls) + &
                             leaf_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
@@ -2760,7 +2760,7 @@ end subroutine flush_hvars
 
                        hio_yesterdaycanopylevel_understory_si_scls(io_si,scls) = &
                             hio_yesterdaycanopylevel_understory_si_scls(io_si,scls) + &
-                            ccohort%canopy_layer_yesterday * ccohort%n
+                            ccohort%canopy_layer_yesterday * ccohort%n / m2_per_ha
                     endif
                     !
                     !
@@ -2772,7 +2772,7 @@ end subroutine flush_hvars
                        do i_scls = ccohort%size_class_lasttimestep + 1, scls
                           i_scpf = (ccohort%pft-1)*nlevsclass+i_scls
                           hio_growthflux_si_scpf(io_si,i_scpf) = hio_growthflux_si_scpf(io_si,i_scpf) + &
-                               ccohort%n * days_per_year
+                               ccohort%n / m2_per_ha
                        end do
                     end if
                     ccohort%size_class_lasttimestep = scls
@@ -2784,7 +2784,7 @@ end subroutine flush_hvars
                   !
                   ! if cohort is new, track its growth flux into the first size bin
                   i_scpf = (ccohort%pft-1)*nlevsclass+1
-                  hio_growthflux_si_scpf(io_si,i_scpf) = hio_growthflux_si_scpf(io_si,i_scpf) + ccohort%n * days_per_year
+                  hio_growthflux_si_scpf(io_si,i_scpf) = hio_growthflux_si_scpf(io_si,i_scpf) + ccohort%n / m2_per_ha
                   ccohort%size_class_lasttimestep = 1
 
                end if
@@ -3085,10 +3085,10 @@ end subroutine flush_hvars
 
             ! Sum up all input litter fluxes (above below, fines, cwd) [kg/ha/day]
             hio_litter_in_elem(io_si, el) =  &
-                 sum(flux_diags%cwd_ag_input(:)) + &
+                 (sum(flux_diags%cwd_ag_input(:)) + &
                  sum(flux_diags%cwd_bg_input(:)) + &
                  sum(flux_diags%leaf_litter_input(:)) + &
-                 sum(flux_diags%root_litter_input(:)) / m2_per_ha / sec_per_day
+                 sum(flux_diags%root_litter_input(:))) / m2_per_ha / sec_per_day
 
             hio_cwd_ag_elem(io_si,el)         = 0._r8
             hio_cwd_bg_elem(io_si,el)         = 0._r8
@@ -3201,7 +3201,8 @@ end subroutine flush_hvars
                     sum(litt%seed_germ(:)) *  cpatch%area / m2_per_ha / sec_per_day
 
                hio_seed_decay_elem(io_si,el) = hio_seed_decay_elem(io_si,el) + &
-                    sum(litt%seed_decay(:) + litt%seed_germ_decay(:) ) * cpatch%area
+                    sum(litt%seed_decay(:) + litt%seed_germ_decay(:) ) *       &
+                    cpatch%area / m2_per_ha / sec_per_day
 
                hio_seeds_in_local_elem(io_si,el) = hio_seeds_in_local_elem(io_si,el) + &
                     sum(litt%seed_in_local(:)) *  cpatch%area / m2_per_ha / sec_per_day
@@ -4733,7 +4734,7 @@ end subroutine update_history_hifrq
          long='seed mass decay (germinated and un-germinated) in kg element per m2 per second', &
          use_default='active', avgflag='A', vtype=site_elem_r8,                &
          hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
-         index = ih_seed_decay_elem )
+         index = ih_seed_decay_elem)
 
     ! SITE LEVEL CARBON STATE VARIABLES
 
