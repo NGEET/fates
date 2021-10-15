@@ -4533,9 +4533,9 @@ contains
                                                   ! will be subject to a capping routine
     real(r8), parameter :: dpsi_pcap = 0.3        ! Change sin psi (for plants) larger than this
                                                   ! will be subject to a capping routine
-    real(r8), parameter :: rlfx_plnt_shrink = 1.0 ! Shrink the starting plant relaxtion factor
+    real(r8), parameter :: rlfx_plnt_shrink = 1 ! Shrink the starting plant relaxtion factor
                                                   ! by this multipliler each round
-    real(r8), parameter :: rlfx_soil_shrink = 1.0 ! Shrink the starting soil relaxtion factor
+    real(r8), parameter :: rlfx_soil_shrink = 1 ! Shrink the starting soil relaxtion factor
                                                   ! by this multipliler each round
     logical, parameter :: reset_on_fail = .false. ! If a round of Newton iterations is unable
                                                   ! to find a solution, you can either reset
@@ -5178,30 +5178,18 @@ contains
     icnx  = 1
     kmax_dn(icnx) = cohort_hydr%kmax_petiole_to_leaf
     kmax_up(icnx) = cohort_hydr%kmax_stem_upper(1)
-    if (hlm_use_hardening .eq. itrue .and. hard_rate<0.98_r8) then
-       kmax_dn(icnx)=kmax_dn(icnx)*hard_rate*5e-2 !marius
-       kmax_up(icnx)=kmax_up(icnx)*hard_rate*5e-2 !marius
-    endif
 
     ! Stem to stem connections
     do istem = 1,n_hypool_stem-1
        icnx = icnx + 1
        kmax_dn(icnx) = cohort_hydr%kmax_stem_lower(istem)
        kmax_up(icnx) = cohort_hydr%kmax_stem_upper(istem+1)
-       if (hlm_use_hardening .eq. itrue .and. hard_rate<0.98_r8) then
-          kmax_dn(icnx)=kmax_dn(icnx)*hard_rate*5e-2 !marius
-          kmax_up(icnx)=kmax_up(icnx)*hard_rate*5e-2 !marius
-       endif
     enddo
 
     ! Path is between lowest stem and transporting root
     icnx  = icnx + 1
     kmax_dn(icnx) = cohort_hydr%kmax_stem_lower(n_hypool_stem)
     kmax_up(icnx) = cohort_hydr%kmax_troot_upper
-    if (hlm_use_hardening .eq. itrue .and. hard_rate<0.98_r8) then
-       kmax_dn(icnx)=kmax_dn(icnx)*hard_rate*5e-2 !marius
-       kmax_up(icnx)=kmax_up(icnx)*hard_rate*5e-2 !marius
-    endif
 
     ! Path is between the transporting root and the absorbing roots
     inode = n_hypool_ag
@@ -5215,10 +5203,6 @@ contains
           if( k == 1 ) then !troot-aroot
              kmax_dn(icnx) = cohort_hydr%kmax_troot_lower(j) 
              kmax_up(icnx) = cohort_hydr%kmax_aroot_upper(j)
-             if (hlm_use_hardening .eq. itrue .and. hard_rate<0.98_r8) then
-                kmax_dn(icnx)=kmax_dn(icnx)*hard_rate*5e-2 !marius
-                kmax_up(icnx)=kmax_up(icnx)*hard_rate*5e-2 !marius
-             endif
           elseif( k == 2) then ! aroot-soil
 
              ! Special case. Maximum conductance depends on the 
@@ -5233,8 +5217,8 @@ contains
              end if
              kmax_up(icnx) = site_hydr%kmax_upper_shell(j,1)*aroot_frac_plant
              if (hlm_use_hardening .eq. itrue .and. hard_rate<0.98_r8) then
-                kmax_dn(icnx)=kmax_dn(icnx)*hard_rate*5e-2 !marius
-                kmax_up(icnx)=kmax_up(icnx)*hard_rate*5e-2 !marius
+                kmax_dn(icnx)=kmax_dn(icnx)*hard_rate !marius
+                kmax_up(icnx)=kmax_up(icnx)*hard_rate !marius
              endif
           else                 ! soil - soil
              kmax_dn(icnx) = site_hydr%kmax_lower_shell(j,k-2)*aroot_frac_plant

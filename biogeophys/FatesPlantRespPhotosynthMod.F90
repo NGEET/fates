@@ -1002,11 +1002,8 @@ contains
 
         ! The cuticular conductance already factored in maximum resistance as a bound
         ! no need to re-bound it
-        if (hlm_use_hardening.eq.itrue .and. hard_rate < 0.98_r8) then !marius
-           rstoma_out = cf/(stomatal_intercept_btran*hard_rate)
-        else
-           rstoma_out = cf/stomatal_intercept_btran
-        end if
+
+        rstoma_out = cf/stomatal_intercept_btran
         
         c13disc_z = 0.0_r8    !carbon 13 discrimination in night time carbon flux, note value of 1.0 is used in CLM
         
@@ -1150,12 +1147,6 @@ contains
                  call quadratic_f (aquad, bquad, cquad, r1, r2)
                  gs_mol = max(r1,r2)
                  
-                 if (hlm_use_hardening.eq.itrue) then !marius
-                    if (hard_rate < 0.98_r8) then
-                       gs_mol =gs_mol*hard_rate
-                    endif
-                 end if
-                 
                  end if 
                  ! Derive new estimate for co2_inter_c
                  co2_inter_c = can_co2_ppress - anet * can_press * &
@@ -1176,11 +1167,6 @@ contains
               ! gs_mol =stomatal_intercept_btran 
               if (anet < 0._r8) then
                   gs_mol = stomatal_intercept_btran
-                  if (hlm_use_hardening.eq.itrue) then !marius
-                     if (hard_rate < 0.98_r8) then
-                        gs_mol =gs_mol*hard_rate
-                     endif
-                  end if
               end if
               
               ! Final estimates for leaf_co2_ppress and co2_inter_c 
@@ -1252,12 +1238,7 @@ contains
 
            psn_out     = 0._r8
            anet_av_out = 0._r8
-           if (hlm_use_hardening.eq.itrue .and. hard_rate < 0.98_r8) then !marius
-              rstoma_out  = min(rsmax0,cf/(stem_cuticle_loss_frac*hard_rate*stomatal_intercept(ft)))
-           else
-              rstoma_out  = min(rsmax0,cf/(stem_cuticle_loss_frac*stomatal_intercept(ft)))
-           end if
-           
+           rstoma_out  = min(rsmax0,cf/(stem_cuticle_loss_frac*stomatal_intercept(ft)))
            c13disc_z = 0.0_r8
            
        end if !is there leaf area? 

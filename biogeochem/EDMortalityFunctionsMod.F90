@@ -324,14 +324,14 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     Tmin=bc_in%t_ref2m_min_si-273.15_r8
 
     !Calculation of the target hardiness
-    if (Tmean <= max_h/2._r8) then !
+    if (Tmean <= -15._r8) then !
        target_h=max_h
     else if (Tmean>= 10.0_r8) then
        target_h=min_h
     else
        !target_h=-6.484127_r8 + 1.047831_r8*Tmean - 0.07661111_r8*Tmean**2.0_r8 + &
        !         0.00008148_r8*Tmean**3.0_r8 + 0.00018_r8*Tmean**4.0_r8
-       target_h = -35.0_r8 + 33.0_r8/(0.97_r8+exp(-0.22_r8*(Tmean+7._r8)))
+       target_h = max_h*7._r8/6._r8 + (min_h-max_h-max_h/6._r8)/(0.97_r8+exp(-0.22_r8*(Tmean+7._r8)))
     end if
     !Calculation of the hardening rate
     if (Tmean <= -15.0_r8) then
@@ -347,13 +347,14 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     !Calculation of the dehardening rate
     if (Tmean <= 0.0_r8) then
        rate_dh=0.0_r8
-    else if (Tmean >= 15.0_r8) then
+    else if (Tmean >= 10.0_r8) then
        rate_dh=5.0_r8
     else
        !rate_dh=(0.3703704_r8*Tmean - 1.296296_r8) 
        !rate_dh =-5._r8+15._r8/(1._r8+exp(-0.1_r8*(Tmean-10._r8))) 
        !rate_dh = 1.25_r8+0.25_r8*Tmean
-       rate_dh = 0.333333_r8*Tmean
+       rate_dh = 0.5_r8*Tmean
+       !rate_dh = -2.5_r8+0.5_r8*Tmean
     end if
  
     !================================================    
@@ -374,18 +375,17 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     if (bc_in%dayl_si <= 42000.0_r8 .and. bc_in%dayl_si < bc_in%prev_dayl_si) then ! prev: 46260._r8
        cohort_in%hard_level = hard_level_prev - rate_h
     end if
+    ipft = cohort_in%pft
+    if (prt_params%season_decid(ipft) == itrue .and. cohort_in%status_coh == leaves_on .and. &
+        (nint(hlm_model_day) >= currentSite%cleafondate .or. nint(hlm_model_day) >= currentSite%dleafondate)) then         
+       cohort_in%hard_level = min_h
+    end if
     if (cohort_in%hard_level > min_h) then
        cohort_in%hard_level = min_h
     end if
     if (cohort_in%hard_level < max_h) then
        cohort_in%hard_level = max_h
     end if 
-    
-    ipft = cohort_in%pft
-    if (prt_params%season_decid(ipft) == itrue .and. cohort_in%status_coh == leaves_on .and. &
-        (nint(hlm_model_day) >= currentSite%cleafondate .or. nint(hlm_model_day) >= currentSite%dleafondate)) then         
-       cohort_in%hard_level = min_h
-    end if
     
     hard_rate_temporary=(cohort_in%hard_level-max_h)/(min_h-max_h)
     
