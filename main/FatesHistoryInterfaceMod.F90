@@ -736,6 +736,7 @@ module FatesHistoryInterfaceMod
      procedure, private :: set_levelage_index
 
      procedure, public :: flush_hvars
+     procedure, public :: zero_site_hvars
 
   end type fates_history_interface_type
 
@@ -1468,6 +1469,57 @@ end function levcapf_index
 
    ! ======================================================================================
 
+
+   subroutine zero_site_hvars(this,sites,upfreq_in)
+
+
+     ! This routine zero's a history diagnostic variable
+     ! but only zero's on fates sites
+     ! This should be called prior to filling the variable
+     ! and after they have been flushed to the ignore value
+
+     class(fates_history_interface_type)    :: this
+     integer,intent(in)                     :: upfreq_in
+     type(ed_site_type),intent(in)          :: sites(:)
+
+     integer :: ivar
+     integer :: nsites
+     integer :: s        ! fates site index (1:nsites)
+     integer :: ndims    ! number of dimensions
+
+     nsites = ubound(sites,1)
+
+     do ivar=1,ubound(this%hvars,1)
+        if (this%hvars(ivar)%upfreq == upfreq_in) then ! Only flush variables with update on dynamics step
+
+           ndims = this%dim_kinds(this%hvars(ivar)%dim_kinds_index)%ndims
+
+           if(trim(this%dim_kinds(this%hvars(ivar)%dim_kinds_index)%name) == site_int)then
+              write(fates_log(),*)'add in zeroing provision for SI_INT'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+
+           if(ndims==1) then
+              do s = 1,nsites
+                 this%hvars(ivar)%r81d(sites(s)%h_gid) = 0._r8
+              end do
+           elseif(ndims==2) then
+              do s = 1,nsites
+                 this%hvars(ivar)%r82d(sites(s)%h_gid,:) = 0._r8
+              end do
+           elseif(ndims==3) then
+              do s = 1,nsites
+                 this%hvars(ivar)%r83d(sites(s)%h_gid,:,:) = 0._r8
+              end do
+           end if
+        end if
+     end do
+
+     return
+   end subroutine zero_site_hvars
+
+
+
  subroutine flush_hvars(this,nc,upfreq_in)
 
    class(fates_history_interface_type)        :: this
@@ -1520,7 +1572,12 @@ end subroutine flush_hvars
     real(r8)  :: flushval
     logical   :: write_var
 
-    flushval = 0.0_r8 !for now do this (ACF 09/27/21)
+
+    ! Flushing to the ignore val coerces all FATES diagnostics to be
+    ! relevant only on FATES sites. This way we do not average zero's
+    ! at locations not on FATES columns
+
+    flushval = hlm_hio_ignore_val !for now do this (ACF 09/27/21)
 
     write_var = check_hlm_list(trim(hlms), trim(hlm_name))
     if( write_var ) then
@@ -2483,9 +2540,11 @@ end subroutine flush_hvars
                          ccohort%hmort*ccohort%n / m2_per_ha
                     hio_m3_si_scpf(io_si,scpf) = hio_m3_si_scpf(io_si,scpf) +  &
                          ccohort%cmort*ccohort%n / m2_per_ha
+
                     hio_m7_si_scpf(io_si,scpf) = hio_m7_si_scpf(io_si,scpf) +  &
                          (ccohort%lmort_direct + ccohort%lmort_collateral +    &
                          ccohort%lmort_infra) * ccohort%n / m2_per_ha
+
                     hio_m8_si_scpf(io_si,scpf) = hio_m8_si_scpf(io_si,scpf) +  &
                          ccohort%frmort*ccohort%n / m2_per_ha
                     hio_m9_si_scpf(io_si,scpf) = hio_m9_si_scpf(io_si,scpf) +  &
@@ -2595,7 +2654,6 @@ end subroutine flush_hvars
                        ! ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n
 
                        hio_mortality_canopy_si_scpf(io_si,scpf) = hio_mortality_canopy_si_scpf(io_si,scpf)+ &
-
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%frmort + &
                             ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha + &
                             (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
@@ -3160,6 +3218,7 @@ end subroutine flush_hvars
                this%hvars(ih_storeptfrac_canopy_scpf)%r82d(io_si,:)     = 0._r8
                this%hvars(ih_storeptfrac_understory_scpf)%r82d(io_si,:) = 0._r8
                this%hvars(ih_reprop_scpf)%r82d(io_si,:)  = 0._r8
+
                this%hvars(ih_pefflux_scpf)%r82d(io_si,:) = &
                     sites(s)%flux_diags(el)%nutrient_efflux_scpf(:) /          &
                     m2_per_ha / sec_per_day
@@ -3545,6 +3604,7 @@ end subroutine flush_hvars
 
       ! Flush the relevant history variables
       call this%flush_hvars(nc,upfreq_in=2)
+      call this%zero_site_hvars(sites,upfreq_in=2)
 
       per_dt_tstep = 1.0_r8/dt_tstep
 
@@ -3969,6 +4029,7 @@ end subroutine update_history_hifrq
 
       ! Flush the relevant history variables
       call this%flush_hvars(nc,upfreq_in=4)
+      call this%zero_site_hvars(sites,upfreq_in=4)
 
       if(print_iterations) then
           do iscpf = 1,iterh2_nhist
