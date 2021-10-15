@@ -345,23 +345,23 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     end if
 
     !Calculation of the dehardening rate
-    if (Tmean <= 0.0_r8) then
+    if (Tmean <= 5.0_r8) then
        rate_dh=0.0_r8
-    else if (Tmean >= 10.0_r8) then
+    else if (Tmean >= 15.0_r8) then
        rate_dh=5.0_r8
     else
        !rate_dh=(0.3703704_r8*Tmean - 1.296296_r8) 
        !rate_dh =-5._r8+15._r8/(1._r8+exp(-0.1_r8*(Tmean-10._r8))) 
        !rate_dh = 1.25_r8+0.25_r8*Tmean
-       rate_dh = 0.5_r8*Tmean
-       !rate_dh = -2.5_r8+0.5_r8*Tmean
+       !rate_dh = 0.5_r8*Tmean
+       rate_dh = -2.5_r8+0.5_r8*Tmean
     end if
  
     !================================================    
     !Hardening calculation
     hard_level_prev = cohort_in%hard_level
     gdd_threshold = ED_val_phen_a + ED_val_phen_b*exp(ED_val_phen_c*real(currentSite%nchilldays,r8))
-    if (currentSite%grow_deg_days > gdd_threshold .or. (hard_level_prev + rate_dh > min_h) )  then
+    if (currentSite%grow_deg_days > gdd_threshold)  then
        cohort_in%hard_level = min_h
     else ! if (bc_in%dayl_si >= bc_in%prev_dayl_si .or. (bc_in%dayl_si < bc_in%prev_dayl_si .and. bc_in%dayl_si > 63840._r8) ) then
        if (hard_level_prev + rate_dh > min_h) then

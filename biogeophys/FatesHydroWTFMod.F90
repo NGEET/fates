@@ -13,7 +13,8 @@ module FatesHydroWTFMod
   use FatesGlobals     , only : endrun => fates_endrun
   use FatesGlobals     , only : fates_log
   use shr_log_mod      , only : errMsg => shr_log_errMsg
-
+  use FatesInterfaceTypesMod  , only : hlm_use_hardening !marius
+  
   implicit none
   private
 
@@ -64,7 +65,7 @@ module FatesHydroWTFMod
       real(r8) :: dpsidth_min ! dpsi_dth where we start min interp
       real(r8) :: th_min      ! vwc matching min_sf_interp where we start linear interp
       real(r8) :: th_max      ! vwc matching max_sf_interp where we start linear interp
-      
+            
   contains
       
      procedure :: th_from_psi     => th_from_psi_base
@@ -72,7 +73,7 @@ module FatesHydroWTFMod
      procedure :: dpsidth_from_th => dpsidth_from_th_base
      procedure :: set_wrf_param   => set_wrf_param_base
      procedure :: get_thsat       => get_thsat_base
-
+    
      ! All brands of WRFs have access to these tools to operate
      ! above and below sat and residual, should they want to
      procedure, non_overridable :: psi_linear_sat
@@ -180,6 +181,7 @@ module FatesHydroWTFMod
      real(r8) :: cap_int  ! intercept of capillary region of curve
      real(r8) :: cap_slp  ! slope of capillary region of curve
      integer  :: pmedia   ! self describing porous media index
+     real(r8) :: hard_rate ! time-varying cohort-level cold 'hardening'. Changes PV curve. 
    contains
      procedure :: th_from_psi     => th_from_psi_tfs
      procedure :: psi_from_th     => psi_from_th_tfs
@@ -187,6 +189,7 @@ module FatesHydroWTFMod
      procedure :: set_wrf_param   => set_wrf_param_tfs
      procedure :: get_thsat       => get_thsat_tfs
      procedure :: bisect_pv
+     procedure :: set_wrf_hard  => set_wrf_cohort_hardening !marius
   end type wrf_type_tfs
 
   ! Water Conductivity Function
@@ -368,6 +371,22 @@ contains
     call endrun(msg=errMsg(sourcefile, __LINE__))
   end function dftcdpsi_from_psi_base
 
+
+  ! =====================================================================================
+  ! Set the hardening variable in wrf module per cohhort !marius
+  ! This will vary in time! , but not with Vg/CH water retention function.  
+  ! =====================================================================================
+
+  subroutine set_wrf_cohort_hardening(this,params_in)
+
+  class(wrf_type_tfs) :: this
+  real(r8), intent(in) :: params_in(:)
+
+  this%hard_rate    = params_in(1)
+
+  return
+  end subroutine set_wrf_cohort_hardening
+  
   ! =====================================================================================
   ! Van Genuchten Functions are defined here
   ! =====================================================================================
@@ -698,6 +717,7 @@ contains
     else
         th = this%th_sat*(psi/this%psi_sat)**(-1.0_r8/this%beta)
     end if
+    
     return
   end function th_from_psi_cch
 
@@ -892,7 +912,12 @@ contains
     real(r8) :: psi_cavitation ! press from cavitation
     real(r8) :: b,c            ! quadratic smoothing terms
     real(r8) :: satfrac        ! saturated fraction (between res and sat)
+    real(r8) :: satfrac        ! saturated fraction (between res and sat)
 
+    if (hlm_use_hardening .eq. itrue .and. this%hard_rate<0.98_r8) then
+       write(fates_log(),*) this%hard_rate
+    end if
+    
     satfrac = (th-this%th_res)/(this%th_sat-this%th_res)
 
     if(th>this%th_max)then

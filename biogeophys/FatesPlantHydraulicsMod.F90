@@ -490,6 +490,7 @@ contains
     if(init_mode == 2) then
        
 !       h_aroot_mean = 0._r8
+       call set_wrf_hard(1.0_r8) !cold start hardening is off. Does this need setting twice? Marius
 
        do j=1, site_hydr%nlevrhiz
           
@@ -2363,7 +2364,9 @@ contains
           
           ccohort=>cpatch%tallest
           do while(associated(ccohort))
-
+             !update hardening for each cohort in BC hydraulics loop. Marius
+             call wrf_plant%set_wrf_hard(cohort%hard_rate)
+             
              ccohort_hydr => ccohort%co_hydr
              ft       = ccohort%pft
 
@@ -5316,7 +5319,9 @@ contains
                                           cap_slp,real(pm,r8)])
            end do
         end do
-
+        !initialize hardening value in wrf once case is selected.  
+        wrf_plant%set_wrf_hard([1.0_r8]) ! cold start has no hardening. marius
+     
     end select
 
     ! -----------------------------------------------------------------------------------
