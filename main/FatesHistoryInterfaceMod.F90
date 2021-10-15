@@ -2419,7 +2419,8 @@ end subroutine flush_hvars
                        capf => ccohort%coage_by_pft_class)
 
 
-                    gpp_cached = hio_gpp_si_scpf(io_si,scpf)
+                    gpp_cached = (hio_gpp_si_scpf(io_si,scpf)) *               &
+                       days_per_year * sec_per_day
 
                     hio_gpp_si_scpf(io_si,scpf)      = hio_gpp_si_scpf(io_si,scpf)      + &
                                                        n_perm2*ccohort%gpp_acc_hold /     &
@@ -2772,7 +2773,7 @@ end subroutine flush_hvars
                        do i_scls = ccohort%size_class_lasttimestep + 1, scls
                           i_scpf = (ccohort%pft-1)*nlevsclass+i_scls
                           hio_growthflux_si_scpf(io_si,i_scpf) = hio_growthflux_si_scpf(io_si,i_scpf) + &
-                               ccohort%n / m2_per_ha
+                               ccohort%n * days_per_year / m2_per_ha
                        end do
                     end if
                     ccohort%size_class_lasttimestep = scls
@@ -2784,7 +2785,9 @@ end subroutine flush_hvars
                   !
                   ! if cohort is new, track its growth flux into the first size bin
                   i_scpf = (ccohort%pft-1)*nlevsclass+1
-                  hio_growthflux_si_scpf(io_si,i_scpf) = hio_growthflux_si_scpf(io_si,i_scpf) + ccohort%n / m2_per_ha
+                  hio_growthflux_si_scpf(io_si,i_scpf) =                       &
+                       hio_growthflux_si_scpf(io_si,i_scpf) + ccohort%n *      &
+                       days_per_year / m2_per_ha
                   ccohort%size_class_lasttimestep = 1
 
                end if
