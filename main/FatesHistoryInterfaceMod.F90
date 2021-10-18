@@ -3593,11 +3593,12 @@ end subroutine flush_hvars
 
       ! Flush the relevant history variables
       call this%flush_hvars(nc,upfreq_in=2)
-      call this%zero_site_hvars(sites,upfreq_in=2)
 
       per_dt_tstep = 1.0_r8/dt_tstep
 
       do s = 1,nsites
+
+        call this%zero_site_hvars(sites(s), upfreq_in=2)
 
          io_si  = sites(s)%h_gid
 
@@ -4018,7 +4019,6 @@ end subroutine update_history_hifrq
 
       ! Flush the relevant history variables
       call this%flush_hvars(nc,upfreq_in=4)
-      call this%zero_site_hvars(sites,upfreq_in=4)
 
       if(print_iterations) then
           do iscpf = 1,iterh2_nhist
@@ -4026,6 +4026,8 @@ end subroutine update_history_hifrq
           end do
       end if
       do s = 1,nsites
+
+        call this%zero_site_hvars(sites(s),upfreq_in=4)
 
          site_hydr => sites(s)%si_hydr
          nlevrhiz = site_hydr%nlevrhiz
