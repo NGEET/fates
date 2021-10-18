@@ -3,7 +3,8 @@ module EDPatchDynamicsMod
   ! ============================================================================
   ! Controls formation, creation, fusing and termination of patch level processes. 
   ! ============================================================================
-  use FatesGlobals         , only : fates_log 
+  use FatesGlobals         , only : fates_log
+  use FatesGlobals         , only : FatesWarn,N2S,A2S
   use FatesInterfaceTypesMod    , only : hlm_freq_day
   use EDPftvarcon          , only : EDPftvarcon_inst
   use EDPftvarcon          , only : GetDecompyFrac
@@ -132,7 +133,8 @@ module EDPatchDynamicsMod
   real(r8), parameter :: treefall_localization = 0.0_r8
   real(r8), parameter :: burn_localization = 0.0_r8
 
-
+  character(len=512) :: msg  ! Message string for warnings and logging
+  
   ! 10/30/09: Created by Rosie Fisher
   ! ============================================================================
 
@@ -333,12 +335,12 @@ contains
        end do
 
        ! Fires can't burn the whole patch, as this causes /0 errors. 
-       if (debug) then
-          if (currentPatch%disturbance_rates(dtype_ifire) > 0.98_r8)then
-             write(fates_log(),*) 'very high fire areas', &
-                  currentPatch%disturbance_rates(dtype_ifire),currentPatch%frac_burnt
-          endif
+       !if (currentPatch%disturbance_rates(dtype_ifire) > 0.98_r8)then
+       if(.true.)then  
+          msg = 'very high fire areas'//trim(A2S(currentPatch%disturbance_rates(:)))//trim(N2S(currentPatch%frac_burnt))
+          call FatesWarn(msg,index=2)
        endif
+
 
 
 
