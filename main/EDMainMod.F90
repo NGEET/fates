@@ -25,6 +25,7 @@ module EDMainMod
   use FatesInterfaceTypesMod        , only : hlm_masterproc
   use FatesInterfaceTypesMod        , only : numpft
   use FatesInterfaceTypesMod        , only : hlm_use_hardening !marius
+  use FatesHydroWTFMod              , only : wrf_type, wrf_type_tfs
   use PRTGenericMod            , only : prt_carbon_allom_hyp
   use PRTGenericMod            , only : prt_cnp_flex_allom_hyp
   use PRTGenericMod            , only : nitrogen_element
@@ -302,10 +303,11 @@ contains
     use FatesConstantsMod, only : itrue
     ! !ARGUMENTS:
     
+
     type(ed_site_type)     , intent(inout) :: currentSite
     type(bc_in_type)        , intent(in)   :: bc_in
     type(bc_out_type)       , intent(inout)  :: bc_out
-
+    class(wrf_type_tfs), pointer :: wrf_tfs !marius
     !
     ! !LOCAL VARIABLES:
     type(site_massbal_type), pointer :: site_cmass
@@ -371,6 +373,8 @@ contains
 
           if (hlm_use_hardening.eq.itrue) then
 	      call Hardening_scheme( currentSite, currentPatch, currentCohort, bc_in ) !hard_level and hard_GRF will be updated, ED_ecosystem_dynamics is called once a day at beginning of day Marius
+              write(fates_log(),*) 'CHECK EDmainMod' !marius
+              call wrf_tfs%set_wrf_hard([currentCohort%hard_rate])
           endif
           ! -----------------------------------------------------------------------------
           ! Apply Plant Allocation and Reactive Transport

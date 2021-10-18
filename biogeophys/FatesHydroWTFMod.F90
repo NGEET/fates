@@ -13,7 +13,6 @@ module FatesHydroWTFMod
   use FatesGlobals     , only : endrun => fates_endrun
   use FatesGlobals     , only : fates_log
   use shr_log_mod      , only : errMsg => shr_log_errMsg
-  use FatesInterfaceTypesMod  , only : hlm_use_hardening !marius
   
   implicit none
   private
@@ -72,6 +71,7 @@ module FatesHydroWTFMod
      procedure :: psi_from_th     => psi_from_th_base
      procedure :: dpsidth_from_th => dpsidth_from_th_base
      procedure :: set_wrf_param   => set_wrf_param_base
+     procedure :: set_wrf_hard    => set_wrf_hard_base!marius
      procedure :: get_thsat       => get_thsat_base
     
      ! All brands of WRFs have access to these tools to operate
@@ -295,7 +295,15 @@ contains
   end function th_linear_res
   
   ! ===========================================================================
-  
+
+  subroutine set_wrf_hard_base(this,params_in) !marius
+    class(wrf_type)     :: this
+    real(r8),intent(in) :: params_in(:)
+    write(fates_log(),*) 'The base water retention function'
+    write(fates_log(),*) 'should never be actualized'
+    write(fates_log(),*) 'check how the class pointer was setup'
+    call endrun(msg=errMsg(sourcefile, __LINE__))
+  end subroutine set_wrf_hard_base  
   subroutine set_wrf_param_base(this,params_in)
     class(wrf_type)     :: this
     real(r8),intent(in) :: params_in(:)
@@ -382,6 +390,7 @@ contains
   class(wrf_type_tfs) :: this
   real(r8), intent(in) :: params_in(:)
 
+  write(fates_log(),*) 'CHECK: WTFMod 1'!marius
   this%hard_rate    = params_in(1)
 
   return
@@ -912,11 +921,9 @@ contains
     real(r8) :: psi_cavitation ! press from cavitation
     real(r8) :: b,c            ! quadratic smoothing terms
     real(r8) :: satfrac        ! saturated fraction (between res and sat)
-    real(r8) :: satfrac        ! saturated fraction (between res and sat)
 
-    if (hlm_use_hardening .eq. itrue .and. this%hard_rate<0.98_r8) then
-       write(fates_log(),*) this%hard_rate
-    end if
+    write(fates_log(),*) 'CHECK: WTFMod',this%hard_rate !marius
+
     
     satfrac = (th-this%th_res)/(this%th_sat-this%th_res)
 
