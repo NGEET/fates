@@ -1470,25 +1470,19 @@ end function levcapf_index
 
    ! ======================================================================================
 
-
-   subroutine zero_site_hvars(this,sites,upfreq_in)
-
+   subroutine zero_site_hvars(this, currentSite, upfreq_in)
 
      ! This routine zero's a history diagnostic variable
      ! but only zero's on fates sites
      ! This should be called prior to filling the variable
      ! and after they have been flushed to the ignore value
 
-     class(fates_history_interface_type)    :: this
-     integer,intent(in)                     :: upfreq_in
-     type(ed_site_type),intent(in)          :: sites(:)
+     class(fates_history_interface_type)    :: this        ! hvars_interface instance
+     integer, intent(in)                    :: upfreq_in   !
+     type(ed_site_type), intent(in), target :: currentSite ! site instance
 
-     integer :: ivar
-     integer :: nsites
-     integer :: s        ! fates site index (1:nsites)
+     integer :: ivar     ! history variable index
      integer :: ndims    ! number of dimensions
-
-     nsites = ubound(sites,1)
 
      do ivar=1,ubound(this%hvars,1)
         if (this%hvars(ivar)%upfreq == upfreq_in) then ! Only flush variables with update on dynamics step
@@ -1501,17 +1495,11 @@ end function levcapf_index
            end if
 
            if(ndims==1) then
-              do s = 1,nsites
-                 this%hvars(ivar)%r81d(sites(s)%h_gid) = 0._r8
-              end do
+               this%hvars(ivar)%r81d(currentSite%h_gid) = 0._r8
            elseif(ndims==2) then
-              do s = 1,nsites
-                 this%hvars(ivar)%r82d(sites(s)%h_gid,:) = 0._r8
-              end do
+               this%hvars(ivar)%r82d(currentSite%h_gid,:) = 0._r8
            elseif(ndims==3) then
-              do s = 1,nsites
-                 this%hvars(ivar)%r83d(sites(s)%h_gid,:,:) = 0._r8
-              end do
+               this%hvars(ivar)%r83d(currentSite%h_gid,:,:) = 0._r8
            end if
         end if
      end do
@@ -1519,7 +1507,7 @@ end function levcapf_index
      return
    end subroutine zero_site_hvars
 
-
+   ! ======================================================================================
 
  subroutine flush_hvars(this,nc,upfreq_in)
 
