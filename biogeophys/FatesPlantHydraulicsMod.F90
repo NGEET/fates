@@ -455,7 +455,6 @@ contains
     ! !ARGUMENTS:
     type(ed_site_type), intent(inout), target   :: site   ! current site pointer
     type(ed_cohort_type), intent(inout), target :: cohort ! current cohort pointer
-    class(wrf_type_tfs), pointer :: wrf_tfs !marius
     !
     ! !LOCAL VARIABLES:
     type(ed_site_hydr_type), pointer   :: site_hydr
@@ -491,8 +490,6 @@ contains
     if(init_mode == 2) then
        
 !       h_aroot_mean = 0._r8
-       write(fates_log(),*) 'CHECK5:' !marius
-       !call wrfa%set_wrf_hard([1.0_r8]) !cold start hardening is off. Does this need setting twice? Marius
 
        do j=1, site_hydr%nlevrhiz
           
@@ -2371,18 +2368,11 @@ contains
              ft       = ccohort%pft
 
              !update hardening for each cohort in BC hydraulics loop. Marius
-             write(fates_log(),*) 'CHECK6',ccohort%hard_rate !marius
-             write(fates_log(),*) 'CHECK6 coming'
              if (hlm_use_hardening .eq. itrue) then
-                select case(plant_wrf_type)
-                case(tfs_type)
-                   do pm = 1,n_plant_media
-                      wrf_plant(pm,ft)%p => wrf_tfs
-                      call wrf_tfs%set_wrf_hard([ccohort%hard_rate])
-                   end do 
-                end select
+                do pm = 1,n_hypool_plant
+                   call wrf_plant(pm,ft)%p%set_wrf_hard([ccohort%hard_rate])
+                end do 
              end if
-             write(fates_log(),*) 'CHECK6 finished'
              ! Relative transpiration of this cohort from the whole patch
              ! Note that g_sb_laweight / gscan_patch is the weighting that gives cohort contribution per area
              ! [mm H2O/plant/s]  = [mm H2O/ m2 / s] * [m2 / patch] * [cohort/plant] * [patch/cohort]
@@ -5311,6 +5301,8 @@ contains
            do pm = 1,n_plant_media
               allocate(wrf_tfs)
               wrf_plant(pm,ft)%p => wrf_tfs
+              !initialize hardening value in wrf once case is selected.  
+              call wrf_tfs%set_wrf_hard([1.0_r8]) ! cold start has no hardening. marius
 
               if (pm.eq.leaf_p_media) then   ! Leaf tissue
                  cap_slp    = 0.0_r8
@@ -5330,13 +5322,9 @@ contains
                                           cap_corr, &
                                           cap_int, &
                                           cap_slp,real(pm,r8)])
-              !initialize hardening value in wrf once case is selected.  
-              write(fates_log(),*) 'CHECK: InitHydroGlobals' !marius
-              call wrf_tfs%set_wrf_hard([1.0_r8]) ! cold start has no hardening. marius
         
            end do
         end do
-     
     end select
 
     ! -----------------------------------------------------------------------------------
