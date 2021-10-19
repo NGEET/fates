@@ -455,7 +455,7 @@ contains
     ! !ARGUMENTS:
     type(ed_site_type), intent(inout), target   :: site   ! current site pointer
     type(ed_cohort_type), intent(inout), target :: cohort ! current cohort pointer
-    !class(wrf_type_tfs), pointer :: wrf_tfs !marius
+    class(wrf_type_tfs), pointer :: wrf_tfs !marius
     !
     ! !LOCAL VARIABLES:
     type(ed_site_hydr_type), pointer   :: site_hydr
@@ -492,7 +492,7 @@ contains
        
 !       h_aroot_mean = 0._r8
        write(fates_log(),*) 'CHECK5:' !marius
-       !call wrf_tfs%set_wrf_hard([1.0_r8]) !cold start hardening is off. Does this need setting twice? Marius
+       !call wrfa%set_wrf_hard([1.0_r8]) !cold start hardening is off. Does this need setting twice? Marius
 
        do j=1, site_hydr%nlevrhiz
           
@@ -2244,6 +2244,7 @@ contains
 
     !----------------------------------------------------------------------
     class(wrf_type_tfs), pointer :: wrf_tfs !marius
+    integer :: pm            ! plant media index marius
     type (ed_patch_type),  pointer     :: cpatch       ! current patch pointer
     type (ed_cohort_type), pointer     :: ccohort      ! current cohort pointer
     type(ed_site_hydr_type), pointer   :: site_hydr    ! site hydraulics pointer
@@ -2370,11 +2371,18 @@ contains
              ft       = ccohort%pft
 
              !update hardening for each cohort in BC hydraulics loop. Marius
-             !write(fates_log(),*) 'CHECK6:' !marius
-             !if (hlm_use_hardening .eq. itrue) then
-             !   call wrf_tfs%set_wrf_hard([ccohort%hard_rate])
-             !end if
-
+             write(fates_log(),*) 'CHECK6',ccohort%hard_rate !marius
+             write(fates_log(),*) 'CHECK6 coming'
+             if (hlm_use_hardening .eq. itrue) then
+                select case(plant_wrf_type)
+                case(tfs_type)
+                   do pm = 1,n_plant_media
+                      wrf_plant(pm,ft)%p => wrf_tfs
+                      call wrf_tfs%set_wrf_hard([ccohort%hard_rate])
+                   end do 
+                end select
+             end if
+             write(fates_log(),*) 'CHECK6 finished'
              ! Relative transpiration of this cohort from the whole patch
              ! Note that g_sb_laweight / gscan_patch is the weighting that gives cohort contribution per area
              ! [mm H2O/plant/s]  = [mm H2O/ m2 / s] * [m2 / patch] * [cohort/plant] * [patch/cohort]
@@ -5224,10 +5232,10 @@ contains
                      1._r8/cohort_hydr%kmax_aroot_radial_out(j))
              end if
              kmax_up(icnx) = site_hydr%kmax_upper_shell(j,1)*aroot_frac_plant
-             if (hlm_use_hardening .eq. itrue .and. hard_rate<0.98_r8) then
-                kmax_dn(icnx)=kmax_dn(icnx)*hard_rate !marius
-                kmax_up(icnx)=kmax_up(icnx)*hard_rate !marius
-             endif
+             !if (hlm_use_hardening .eq. itrue .and. hard_rate<0.98_r8) then
+             !   kmax_dn(icnx)=kmax_dn(icnx)*hard_rate !marius
+             !   kmax_up(icnx)=kmax_up(icnx)*hard_rate !marius
+             !endif
           else                 ! soil - soil
              kmax_dn(icnx) = site_hydr%kmax_lower_shell(j,k-2)*aroot_frac_plant
              kmax_up(icnx) = site_hydr%kmax_upper_shell(j,k-1)*aroot_frac_plant
@@ -5322,11 +5330,12 @@ contains
                                           cap_corr, &
                                           cap_int, &
                                           cap_slp,real(pm,r8)])
+              !initialize hardening value in wrf once case is selected.  
+              write(fates_log(),*) 'CHECK: InitHydroGlobals' !marius
+              call wrf_tfs%set_wrf_hard([1.0_r8]) ! cold start has no hardening. marius
+        
            end do
         end do
-        !initialize hardening value in wrf once case is selected.  
-        write(fates_log(),*) 'CHECK: InitHydroGlobals' !marius
-        call wrf_tfs%set_wrf_hard([1.0_r8]) ! cold start has no hardening. marius
      
     end select
 

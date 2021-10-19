@@ -374,7 +374,6 @@ contains
           if (hlm_use_hardening.eq.itrue) then
 	      call Hardening_scheme( currentSite, currentPatch, currentCohort, bc_in ) !hard_level and hard_GRF will be updated, ED_ecosystem_dynamics is called once a day at beginning of day Marius
               write(fates_log(),*) 'CHECK EDmainMod' !marius
-              call wrf_tfs%set_wrf_hard([currentCohort%hard_rate])
           endif
           ! -----------------------------------------------------------------------------
           ! Apply Plant Allocation and Reactive Transport

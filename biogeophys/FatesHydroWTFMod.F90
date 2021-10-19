@@ -390,7 +390,7 @@ contains
   class(wrf_type_tfs) :: this
   real(r8), intent(in) :: params_in(:)
 
-  write(fates_log(),*) 'CHECK: WTFMod 1'!marius
+  write(fates_log(),*) 'CHECK: WTFMod hard function' !marius
   this%hard_rate    = params_in(1)
 
   return
