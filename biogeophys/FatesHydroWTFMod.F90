@@ -390,7 +390,6 @@ contains
   class(wrf_type_tfs) :: this
   real(r8), intent(in) :: params_in(:)
 
-  write(fates_log(),*) 'CHECK: WTFMod hard function' !marius
   this%hard_rate    = params_in(1)
 
   return
@@ -905,7 +904,7 @@ contains
 
   ! =====================================================================================
 
-  function psi_from_th_tfs(this,th) result(psi) 
+  function psi_from_th_tfs(this,th) result(psi) !marius
 
     class(wrf_type_tfs)  :: this
     real(r8),intent(in)  :: th
@@ -921,15 +920,12 @@ contains
     real(r8) :: psi_cavitation ! press from cavitation
     real(r8) :: b,c            ! quadratic smoothing terms
     real(r8) :: satfrac        ! saturated fraction (between res and sat)
-
-    write(fates_log(),*) 'CHECK: WTFMod',this%hard_rate !marius
-
     
     satfrac = (th-this%th_res)/(this%th_sat-this%th_res)
 
     if(th>this%th_max)then
 
-        psi = this%psi_linear_sat(th)
+       psi = this%psi_linear_sat(th)
 
     elseif(th<this%th_min)then
 

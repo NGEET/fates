@@ -129,7 +129,7 @@ class cch_wkf:
 
 
 class tfs_wrf:
-    def __init__(self,index,th_sat,th_res,pinot,epsil,rwc_fd,cap_corr,cap_int,cap_slp,pmedia):
+    def __init__(self,index,th_sat,th_res,pinot,epsil,rwc_fd,cap_corr,cap_int,cap_slp,pmedia,hard_rate):
         self.th_sat = th_sat
         self.th_res = th_res
         self.pinot  = pinot
@@ -139,7 +139,8 @@ class tfs_wrf:
         self.cap_int  = cap_int
         self.cap_slp  = cap_slp
         self.pmedia   = pmedia
-        init_wrf_args = [self.th_sat,self.th_res,self.pinot,self.epsil,self.rwc_fd,self.cap_corr,self.cap_int,self.cap_slp,self.pmedia]
+        self.hard_rate   = hard_rate
+        init_wrf_args = [self.th_sat,self.th_res,self.pinot,self.epsil,self.rwc_fd,self.cap_corr,self.cap_int,self.cap_slp,self.pmedia,self.hard_rate]
         iret = setwrf(ci(index),ci(tfs_type),ci(len(init_wrf_args)),c8_arr(init_wrf_args))
 
 class tfs_wkf:
@@ -199,8 +200,9 @@ def main(argv):
     cap_int = []
     cap_corr= []
     hydr_psi0 = 0.0
-    hydr_psicap = -0.6
-
+    hydr_psicap = -0.6     
+    hard_rate = [1.0] #marius
+    print('hard rate',hard_rate[0])
     for pm in range(4):
         if (pm == 0):
             cap_slp.append(0.0)
@@ -221,33 +223,37 @@ def main(argv):
 #    vg_wrf(1,alpha=1.0,psd=2.7,th_sat=0.55,th_res=0.1)
 #    vg_wkf(1,alpha=1.0,psd=2.7,th_sat=0.55,th_res=0.1,tort=0.5)
 
-    cch_wrf(1,th_sat=0.55, psi_sat=-1.56e-3, beta=6)
-    cch_wkf(1,th_sat=0.55, psi_sat=-1.56e-3, beta=6)
+    cch_wrf(1,th_sat=0.7, psi_sat=-1.56e-3, beta=6)
+    cch_wkf(1,th_sat=0.7, psi_sat=-1.56e-3, beta=6)
 
 #    cch_wrf(3,th_sat=0.55, psi_sat=-1.56e-3, beta=6)
 #    tfs_wkf(3,p50=-2.25, avuln=2.0)
 
-    names=['Soil','ARoot','Stem','Leaf']
+    names=['Soil','ARoot','Stem','Leaf'] #ref
 
-    theta_sat = [0.55,0.65,0.65,0.75]
-    theta_res = [0.15,0.16,0.21,0.11]
+    theta_sat = [0.55,0.65,0.65,0.75] #ref
+    theta_sat = [0.60,0.75,0.65,0.65]
+    theta_res = [0.15,0.16,0.21,0.11] #ref
+    theta_res = [0.15,0.11,0.21,0.16] 
+
 
     # Absorbing root
     tfs_wrf(2,th_sat=theta_sat[1],th_res=theta_res[1],pinot=-1.043478, \
             epsil=8,rwc_fd=rwc_fd[3],cap_corr=cap_corr[3], \
-            cap_int=cap_int[3],cap_slp=cap_slp[3],pmedia=4)
+            cap_int=cap_int[3],cap_slp=cap_slp[3],pmedia=4,hard_rate=hard_rate[0]) # mar
     tfs_wkf(2,p50=-2.25, avuln=2.0)
 
     # Stem
-    tfs_wrf(3,th_sat=theta_sat[2],th_res=theta_res[2],pinot=-1.22807, \
+    tfs_wrf(3,th_sat=theta_sat[2],th_res=theta_res[2],pinot=-1.72807, \
             epsil=10,rwc_fd=rwc_fd[2],cap_corr=cap_corr[2], \
-            cap_int=cap_int[2],cap_slp=cap_slp[2],pmedia=2)
+            cap_int=cap_int[2],cap_slp=cap_slp[2],pmedia=2,hard_rate=hard_rate[0]) # mar
     tfs_wkf(3,p50=-2.25, avuln=4.0)
-
+    
     # Leaf
+
     tfs_wrf(4,th_sat=theta_sat[3],th_res=theta_res[3],pinot=-1.465984, \
             epsil=12,rwc_fd=rwc_fd[0],cap_corr=cap_corr[0], \
-            cap_int=cap_int[0],cap_slp=cap_slp[0],pmedia=1)
+            cap_int=cap_int[0],cap_slp=cap_slp[0],pmedia=1,hard_rate=hard_rate[0]) # mar
     tfs_wkf(4,p50=-2.25, avuln=2.0)
 
     print('initialized WRF')
@@ -273,11 +279,12 @@ def main(argv):
     for ic in range(ncomp):
         ax1.plot(theta[ic,:],psi[ic,:],label='{}'.format(names[ic]))
 
-    ax1.set_ylim((-10,1))
+    ax1.set_ylim((-15,2))
     ax1.set_ylabel('Psi [MPa]')
     ax1.set_xlabel('VWC [m3/m3]')
     ax1.legend(loc='lower right')
-
+    plt.savefig('pv_sensitivity/0_theta_psi.png',dpi=200,bbox_inches='tight')
+    
     for ic in range(ncomp):
         for i in range(npts):
             dpsidth[ic,i]  = dpsidth_from_th(ci(ic+1),c8(theta[ic,i]))
