@@ -7,7 +7,6 @@ module FatesInterfaceTypesMod
   use FatesGlobals        , only : endrun => fates_endrun
   use shr_log_mod         , only : errMsg => shr_log_errMsg
   use shr_infnan_mod      , only : nan => shr_infnan_nan, assignment(=)
-  use EDTypesMod          , only : ed_site_type
   
   implicit none
 
@@ -101,6 +100,10 @@ module FatesInterfaceTypesMod
                                                    ! Transport (exensible) Hypothesis (PARTEH) to use
 
 
+   integer, public :: hlm_use_ch4       ! This flag signals whether the methane model in ELM/CLM is
+                                        ! active, and therefore whether or not boundary conditions
+                                        ! need to be prepped
+   
    integer, public :: hlm_use_vertsoilc ! This flag signals whether or not the 
                                                    ! host model is using vertically discretized
                                                    ! soil carbon
@@ -188,6 +191,11 @@ module FatesInterfaceTypesMod
   integer, public ::  hlm_use_fixed_biogeog                         !  Flag to use FATES fixed biogeography mode
                                                                     !  1 = TRUE, 0 = FALSE 
 
+  integer, public ::  hlm_use_nocomp                                !  Flag to use FATES no competition mode
+                                                                    !  1 = TRUE, 0 = FALSE
+
+  integer, public ::  hlm_use_sp                                    !  Flag to use FATES satellite phenology (LAI) mode
+                                                                    !  1 = TRUE, 0 = FALSE
    ! -------------------------------------------------------------------------------------
    ! Parameters that are dictated by FATES and known to be required knowledge
    !  needed by the HLMs
@@ -382,8 +390,12 @@ module FatesInterfaceTypesMod
       ! Note 1: If these are indexed by COHORT, they don't also need to be indexed
       !         by decomposition layer. So it is allocated with 2nd dim=1.
       ! Note 2: Has it's own zero'ing call
-      real(r8), pointer :: plant_n_uptake_flux(:,:)   ! Nitrogen input flux for
+      real(r8), pointer :: plant_nh4_uptake_flux(:,:) ! Ammonium uptake flux for
                                                       ! each competitor [gN/m2/day]
+
+      real(r8), pointer :: plant_no3_uptake_flux(:,:) ! Nitrate uptake flux for
+                                                      ! each competitor [gN/m2/day]
+      
       real(r8), pointer :: plant_p_uptake_flux(:,:)   ! Phosphorus input flux for
                                                       ! each competitor [gP/m2/day]
 
@@ -397,7 +409,7 @@ module FatesInterfaceTypesMod
       ! 2 = patch is currently marked for photosynthesis
       ! 3 = patch has been called for photosynthesis at least once
       integer, allocatable  :: filter_photo_pa(:)
-
+     
       ! atmospheric pressure (Pa)
       real(r8)              :: forc_pbot             
 
@@ -522,6 +534,12 @@ module FatesInterfaceTypesMod
       ! Fixed biogeography mode 
       real(r8), allocatable :: pft_areafrac(:)     ! Fractional area of the FATES column occupied by each PFT  
     
+     ! Satellite Phenology (SP) input variables.  (where each patch only has one PFT)
+     ! ---------------------------------------------------------------------------------
+     real(r8),allocatable :: hlm_sp_tlai(:)  ! Interpolated daily total LAI (leaf area index) input from HLM per patch/pft 
+     real(r8),allocatable :: hlm_sp_tsai(:)  ! Interpolated sailt total SAI (stem area index) input from HLM per patch/pft
+     real(r8),allocatable :: hlm_sp_htop(:)  ! Interpolated daily canopy vegetation height    input from HLM per patch/pft
+
    end type bc_in_type
 
 
@@ -629,7 +647,7 @@ module FatesInterfaceTypesMod
 
 
 
-      ! CTC/RD Nutrient Boundary Conditions
+      ! RD Nutrient Boundary Conditions
       ! ---------------------------------------------------------------------------------
 
       real(r8), pointer :: n_demand(:)       ! Nitrogen demand from each competitor
@@ -638,8 +656,16 @@ module FatesInterfaceTypesMod
                                              ! for use in ELMs CTC/RD [g/m2/s] 
 
 
-      
-
+      ! CH4 Boundary Conditions
+      ! -----------------------------------------------------------------------------------
+      real(r8), pointer :: annavg_agnpp_pa(:)    ! annual average patch npp above ground (gC/m2/s)
+      real(r8), pointer :: annavg_bgnpp_pa(:)    ! annual average patch npp below ground (gC/m2/s)
+      real(r8), pointer :: annsum_npp_pa(:)      ! annual sum patch npp (gC/m2/yr)
+      real(r8), pointer :: frootc_pa(:)          ! Carbon in fine roots (gC/m2)
+      real(r8), pointer :: root_resp(:)          ! (gC/m2/s) root respiration (fine root MR + total root GR)
+      real(r8), pointer :: rootfr_pa(:,:)        ! Rooting fraction with depth
+      real(r8), pointer :: woody_frac_aere_pa(:) ! Woody plant fraction (by crown area) of all plants
+                                                 ! used for calculating patch-level aerenchyma porosity
       
       ! Canopy Structure
 
@@ -664,7 +690,9 @@ module FatesInterfaceTypesMod
                                                         ! vegetation in the patch is exposed.
                                                         ! [0,1]
 
-      ! FATES Hydraulics
+     integer, allocatable :: nocomp_pft_label_pa(:) ! in nocomp and SP mode, each patch has a PFT identity. 
+
+       ! FATES Hydraulics
 
 
       
@@ -719,42 +747,6 @@ module FatesInterfaceTypesMod
 
    end type bc_pconst_type
    
-
-   type, public :: fates_interface_type
-      
-      ! This is the root of the ED/FATES hierarchy of instantaneous state variables
-      ! ie the root of the linked lists. Each path list is currently associated with a 
-      ! grid-cell, this is intended to be migrated to columns 
-
-      integer                         :: nsites
-
-      type(ed_site_type), pointer :: sites(:)
-
-      ! These are boundary conditions that the FATES models are required to be filled.  
-      ! These values are filled by the driver or HLM.  Once filled, these have an 
-      ! intent(in) status.  Each site has a derived type structure, which may include 
-      ! a scalar for site level data, a patch vector, potentially cohort vectors (but 
-      ! not yet atm) and other dimensions such as soil-depth or pft.  These vectors 
-      ! are initialized by maximums, and the allocations are static in time to avoid
-      ! having to allocate/de-allocate memory
-
-      type(bc_in_type), allocatable   :: bc_in(:)
-
-      ! These are the boundary conditions that the FATES model returns to its HLM or 
-      ! driver. It has the same allocation strategy and similar vector types.
-      
-      type(bc_out_type), allocatable  :: bc_out(:)
-
-
-      ! These are parameter constants that FATES may need to provide a host model
-      ! We have other methods of reading in input parameters. Since these
-      ! are parameter constants, we don't need them allocated over every site,one
-      ! instance is fine.
-      
-      type(bc_pconst_type) :: bc_pconst
-      
-
-   end type fates_interface_type
 
 
  contains
