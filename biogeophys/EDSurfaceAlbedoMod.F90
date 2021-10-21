@@ -328,9 +328,6 @@ contains
                    endif
                    !frac_lai = 1.0_r8 ! make the same as previous codebase, in theory.
                    frac_sai = 1.0_r8 - frac_lai
-                   f_abs(L,ft,iv,ib) = 1.0_r8 - (frac_lai*(rhol(ft,ib) + taul(ft,ib))+&
-                        frac_sai*(rhos(ft,ib) + taus(ft,ib)))
-                   f_abs_leaf(L,ft,iv,ib) = frac_lai*(1.0_r8 - rhol(ft,ib) - taul(ft,ib))/f_abs(L,ft,iv,ib)
 
                    rho_layer(L,ft,iv,ib)=frac_lai*rhol(ft,ib)+frac_sai*rhos(ft,ib)
                    tau_layer(L,ft,iv,ib)=frac_lai*taul(ft,ib)+frac_sai*taus(ft,ib)
@@ -340,6 +337,14 @@ contains
                         + rho_snow(ib) * currentPatch%fcansno
                    tau_layer(L,ft,iv,ib)=tau_layer(L,ft,iv,ib)*(1.0_r8- currentPatch%fcansno) &
                         + tau_snow(ib) * currentPatch%fcansno
+
+                   ! fraction of incoming light absorbed by leaves or stems. 
+                   f_abs(L,ft,iv,ib) = 1.0_r8 - tau_layer(L,ft,iv,ib) - rho_layer(L,ft,iv,ib)
+
+                   ! the fraction of the vegetation absorbed light which is absorbed by leaves
+                   f_abs_leaf(L,ft,iv,ib) = (1.0_r8- currentPatch%fcansno) * frac_lai* &
+                   (1.0_r8 - rhol(ft,ib) - taul(ft,ib))/f_abs(L,ft,iv,ib)
+
                 end do !ib
              endif
           end do !iv
