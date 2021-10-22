@@ -529,8 +529,6 @@ module EDTypesMod
 
      real(r8),allocatable :: fragmentation_scaler(:)            ! Scale rate of litter fragmentation based on soil layer. 0 to 1.
 
-     real(r8) ::  repro(maxpft)                                 ! allocation to reproduction per PFT : KgC/m2
-
      !FUEL CHARECTERISTICS
      real(r8) ::  sum_fuel                                         ! total ground fuel related to ros (omits 1000hr fuels): KgC/m2
      real(r8) ::  fuel_frac(nfsc)                                  ! fraction of each litter class in the ros_fuel:-.  
