@@ -310,8 +310,10 @@ contains
 
 
     ! Allocate running mean functions
-    allocate(new_cohort%tveg_lpa)
-    call new_cohort%tveg_lpa%InitRMean(ema_lpa,init_value=patchptr%tveg_lpa%GetMean())
+
+    !  (Keeping as an example)
+    !! allocate(new_cohort%tveg_lpa)
+    !! call new_cohort%tveg_lpa%InitRMean(ema_lpa,init_value=patchptr%tveg_lpa%GetMean())
 
     
     ! Recuits do not have mortality rates, nor have they moved any
@@ -1004,8 +1006,9 @@ contains
 
      type(ed_cohort_type),intent(inout) :: currentCohort
 
+     !  (Keeping as an example)
      ! Remove the running mean structure
-     deallocate(currentCohort%tveg_lpa)
+     ! deallocate(currentCohort%tveg_lpa)
 
      ! At this point, nothing should be pointing to current Cohort
      if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(currentCohort)
@@ -1170,9 +1173,10 @@ contains
                                       end do
                                    end if
 
+                                   !  (Keeping as an example)
                                    ! Running mean fuses based on number density fraction just
                                    ! like other variables
-                                   call currentCohort%tveg_lpa%FuseRMean(nextc%tveg_lpa,currentCohort%n/newn)
+                                   !!call currentCohort%tveg_lpa%FuseRMean(nextc%tveg_lpa,currentCohort%n/newn)
                                    
                                    ! new cohort age is weighted mean of two cohorts
                                    currentCohort%coage = &
@@ -1816,8 +1820,9 @@ contains
     n%tpu25top   = o%tpu25top
     n%kp25top    = o%kp25top
 
+    !  (Keeping as an example)
     ! Copy over running means
-    call n%tveg_lpa%CopyFromDonor(o%tveg_lpa)
+    ! call n%tveg_lpa%CopyFromDonor(o%tveg_lpa)
     
     ! CARBON FLUXES
     n%gpp_acc_hold    = o%gpp_acc_hold

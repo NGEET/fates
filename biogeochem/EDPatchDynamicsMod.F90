@@ -703,9 +703,11 @@ contains
                  nc%prt => null()
                  call InitPRTObject(nc%prt)
                  call InitPRTBoundaryConditions(nc)
+
+                 !  (Keeping as an example)
                  ! Allocate running mean functions
-                 allocate(nc%tveg_lpa)
-                 call nc%tveg_lpa%InitRMean(ema_lpa,init_value=new_patch%tveg_lpa%GetMean())
+                 !allocate(nc%tveg_lpa)
+                 !call nc%tveg_lpa%InitRMean(ema_lpa,init_value=new_patch%tveg_lpa%GetMean())
 
                  call zero_cohort(nc)
 

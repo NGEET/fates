@@ -389,8 +389,10 @@ module EDTypesMod
 
 
      ! Running means
-     class(rmean_type), pointer :: tveg_lpa              ! exponential moving average of leaf temperature at the
-                                                         ! leaf photosynthetic acclimation time-scale [K]
+
+     ! (keeping this in-code as an example)
+     !class(rmean_type), pointer :: tveg_lpa              ! exponential moving average of leaf temperature at the
+                                                          ! leaf photosynthetic acclimation time-scale [K]
 
      
   end type ed_cohort_type

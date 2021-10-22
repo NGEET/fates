@@ -669,10 +669,11 @@ contains
                    call InitHydrCohort(currentSite,copyc)
                 endif
 
+                ! (keep as an example)
                 ! Initialize running means
-                allocate(copyc%tveg_lpa)
-                call copyc%tveg_lpa%InitRMean(ema_lpa, &
-                     init_value=currentPatch%tveg_lpa%GetMean())
+                !allocate(copyc%tveg_lpa)
+                !call copyc%tveg_lpa%InitRMean(ema_lpa, &
+                !     init_value=currentPatch%tveg_lpa%GetMean())
                 
                 call copy_cohort(currentCohort, copyc)
 
@@ -1127,10 +1128,11 @@ contains
                       call InitHydrCohort(CurrentSite,copyc)
                    endif
 
+                   ! (keep as an example)
                    ! Initialize running means
-                   allocate(copyc%tveg_lpa)
-                   call copyc%tveg_lpa%InitRMean(ema_lpa,&
-                        init_value=currentPatch%tveg_lpa%GetMean())
+                   !allocate(copyc%tveg_lpa)
+                   !call copyc%tveg_lpa%InitRMean(ema_lpa,&
+                   !     init_value=currentPatch%tveg_lpa%GetMean())
                    
                    call copy_cohort(currentCohort, copyc) !makes an identical copy...
 

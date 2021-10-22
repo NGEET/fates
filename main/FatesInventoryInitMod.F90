@@ -1071,9 +1071,10 @@ contains
          prt_obj => null()
          call InitPRTObject(prt_obj)
 
+         !  (Keeping as an example)
          ! Allocate running mean functions
-         allocate(temp_cohort%tveg_lpa)
-         call temp_cohort%tveg_lpa%InitRMean(ema_lpa,init_value=cpatch%tveg_lpa%GetMean())
+         !allocate(temp_cohort%tveg_lpa)
+         !call temp_cohort%tveg_lpa%InitRMean(ema_lpa,init_value=cpatch%tveg_lpa%GetMean())
          
          do el = 1,num_elements
 

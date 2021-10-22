@@ -147,6 +147,7 @@ module FatesInterfaceMod
    public :: zero_bcs
    public :: set_bcs
    public :: UpdateFatesRMeansTStep
+   public :: InitTimeAveragingGlobals
    
 contains
 
@@ -730,7 +731,7 @@ contains
       
       if (use_fates) then
          
-         ! first read the non-PFT parameters
+         ! Self explanatory, read the fates parameter file
          call FatesReadParameters()
 
          ! Identify the number of PFTs by evaluating a pft array
@@ -873,15 +874,7 @@ contains
          ! These will not be used if use_ed or use_fates is false
          call fates_history_maps()
 
-         
-         ! Instantiate the time-averaging method globals
-         allocate(ema_24hr)
-         call ema_24hr%define(sec_per_day, hlm_stepsize, moving_ema_window)
-         allocate(fixed_24hr)
-         call fixed_24hr%define(sec_per_day, hlm_stepsize, fixed_window)
-         allocate(ema_lpa)
-         call ema_lpa%define(photo_temp_acclim_timescale*sec_per_day, &
-              hlm_stepsize,moving_ema_window)
+       
 
       else
          ! If we are not using FATES, the cohort dimension is still
@@ -898,6 +891,27 @@ contains
 
     end subroutine SetFatesGlobalElements
 
+    ! ======================================================================
+
+    subroutine InitTimeAveragingGlobals()
+      
+      ! Instantiate the time-averaging method globals
+      ! NOTE: It may be possible in the future that the HLM model timesteps
+      ! are dynamic in time or space, in that case, these would no longer
+      ! be global constants.
+
+      allocate(ema_24hr)
+      call ema_24hr%define(sec_per_day, hlm_stepsize, moving_ema_window)
+      allocate(fixed_24hr)
+      call fixed_24hr%define(sec_per_day, hlm_stepsize, fixed_window)
+      allocate(ema_lpa)
+      call ema_lpa%define(photo_temp_acclim_timescale*sec_per_day, &
+           hlm_stepsize,moving_ema_window)
+
+      return
+    end subroutine InitTimeAveragingGlobals
+
+      
     ! ======================================================================
     
     subroutine InitPARTEHGlobals()
@@ -1241,7 +1255,6 @@ contains
          hlm_numlevgrnd   = unset_int
          hlm_name         = 'unset'
          hlm_hio_ignore_val   = unset_double
-         hlm_stepsize     = unset_double
          hlm_masterproc   = unset_int
          hlm_ipedof       = unset_int
          hlm_nu_com      = 'unset'
@@ -1451,14 +1464,6 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if( abs(hlm_stepsize-unset_double)<nearzero) then
-            if (fates_global_verbose()) then
-               write(fates_log(),*) 'FATES parameters unset: hlm_stepsize, exiting'
-            end if
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
-         
-         
          if( abs(hlm_hio_ignore_val-unset_double)<1e-10 ) then
             if (fates_global_verbose()) then
                write(fates_log(),*) 'FATES dimension/parameter unset: hio_ignore'
@@ -1794,11 +1799,6 @@ contains
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hio_ignore_val = ',rval,' to FATES'
                end if
-            case('stepsize')
-               hlm_stepsize = rval
-               if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering stepsize = ',rval,' to FATES'
-               end if
             case default
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'tag not recognized:',trim(tag)
@@ -1888,11 +1888,12 @@ contains
            call cpatch%tveg24%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            call cpatch%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
 
-           ccohort => cpatch%tallest
-           do while (associated(ccohort))
-              call ccohort%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
-              ccohort => ccohort%shorter
-           end do
+           !  (Keeping as an example)
+           !ccohort => cpatch%tallest
+           !do while (associated(ccohort))
+           !   call ccohort%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
+           !   ccohort => ccohort%shorter
+           !end do
            
            cpatch => cpatch%younger
         enddo

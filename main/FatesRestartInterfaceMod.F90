@@ -147,7 +147,9 @@ module FatesRestartInterfaceMod
   ! Running Means
   integer :: ir_tveg24_pa
   integer :: ir_tveglpa_pa
-  integer :: ir_tveglpa_co
+
+  !  (Keeping as an example)
+  !!integer :: ir_tveglpa_co
   
   integer :: ir_ddbhdt_co
   integer :: ir_resp_tstep_co
@@ -591,6 +593,10 @@ contains
 
     ivar=0
 
+    print*,"ABOUT TO DEFINE RESTARTS"
+    stop
+
+    
     ! -----------------------------------------------------------------------------------
     ! Site level variables
     ! -----------------------------------------------------------------------------------
@@ -1266,10 +1272,11 @@ contains
    call this%DefineRMeanRestartVar(vname='fates_tveglpapatch',vtype=cohort_r8, &
         long_name='running average (EMA) of patch veg temp for photo acclim', &
         units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveglpa_pa)
-   
-   call this%DefineRMeanRestartVar(vname='fates_tveglpacohort',vtype=cohort_r8, &
-        long_name='running average (EMA) of cohort veg temp for photo acclim', &
-        units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveglpa_co)
+
+   !  (Keeping as an example)
+   !call this%DefineRMeanRestartVar(vname='fates_tveglpacohort',vtype=cohort_r8, &
+   !     long_name='running average (EMA) of cohort veg temp for photo acclim', &
+   !     units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveglpa_co)
    
 
     ! Register all of the PRT states and fluxes
@@ -2050,7 +2057,8 @@ contains
                          cohortsperpatch
                 endif
 
-                call this%SetRMeanRestartVar(ccohort%tveg_lpa, ir_tveglpa_co, io_idx_co)
+                !  (Keeping as an example)
+                ! call this%SetRMeanRestartVar(ccohort%tveg_lpa, ir_tveglpa_co, io_idx_co)
 
                 io_idx_co = io_idx_co + 1
 
@@ -2431,9 +2439,10 @@ contains
                    call InitHydrCohort(sites(s),new_cohort)
                 end if
 
+                !  (Keeping as an example)
                 ! Allocate running mean functions
-                allocate(new_cohort%tveg_lpa)
-                call new_cohort%tveg_lpa%InitRMean(ema_lpa)
+                !allocate(new_cohort%tveg_lpa)
+                !call new_cohort%tveg_lpa%InitRMean(ema_lpa)
 
                 
                 ! Update the previous
@@ -2851,7 +2860,8 @@ contains
 
                 end if
 
-                call this%GetRMeanRestartVar(ccohort%tveg_lpa, ir_tveglpa_co, io_idx_co)
+                !  (Keeping as an example)
+                !call this%GetRMeanRestartVar(ccohort%tveg_lpa, ir_tveglpa_co, io_idx_co)
                 
                 if (hlm_use_sp .eq. itrue) then
                     ccohort%c_area = this%rvars(ir_c_area_co)%r81d(io_idx_co)
