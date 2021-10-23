@@ -2402,7 +2402,8 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
   real(r8) :: sumcheck            ! used to debug mass balance in soil horizon diagnostics
   integer  :: nlevrhiz            ! local for number of rhizosphere levels
   integer  :: sc                  ! size class index
-
+  real(r8) :: pinot_hard          ! marius
+  real(r8) :: epsil_hard          ! marius
 
 
   ! ----------------------------------------------------------------------------------
@@ -2497,9 +2498,12 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
               ft       = ccohort%pft
 
               !update hardening for each cohort in BC hydraulics loop. Marius
-              if (hlm_use_hardening .eq. itrue) then
+              if (hlm_use_hardening .eq. itrue .and. ccohort%hard_rate < 0.98) then
                  do pm = 1,n_hypool_plant
-                    call wrf_plant(pm,ft)%p%set_wrf_hard([ccohort%hard_rate])
+                    pinot_hard=EDPftvarcon_inst%hydr_pinot_node(ft,pm)-(1._r8-ccohort%hard_rate)*0.7_r8
+	            epsil_hard=EDPftvarcon_inst%hydr_epsil_node(ft,pm)+(1._r8-ccohort%hard_rate)*10._r8
+                    call wrf_plant(pm,ft)%p%set_wrf_hard([pinot_hard, &
+                                                          epsil_hard])
                  end do 
               end if
              
@@ -4730,7 +4734,7 @@ subroutine MatSolve2D(bc_in,site_hydr,cohort,cohort_hydr, &
 
 
    ! Maximum number of Newton iterations in each round
-   integer, parameter :: max_newton_iter = 100
+   integer, parameter :: max_newton_iter = 1000 !marius 100 default
 
    ! Flag definitions for convergence flag (icnv)
    ! icnv = 1 fail the round due to either wacky math, or
@@ -5369,7 +5373,7 @@ end function SumBetweenDepths
 
 ! =====================================================================================
 
-subroutine SetMaxCondConnections(site_hydr, cohort_hydr, h_node, kmax_dn, kmax_up)
+subroutine SetMaxCondConnections(site_hydr, cohort_hydr, h_node, kmax_dn, kmax_up, hard_rate)
 
   ! -------------------------------------------------------------------------------
   ! This subroutine sets the maximum conductances
@@ -5388,6 +5392,7 @@ subroutine SetMaxCondConnections(site_hydr, cohort_hydr, h_node, kmax_dn, kmax_u
    real(r8),intent(out) :: kmax_up(:)       ! Max conductance of upstream sides of connections   (kg s-1 MPa-1)
 
    real(r8):: aroot_frac_plant ! Fraction of the cohort's fine-roots
+   real(r8):: hard_rate ! marius
    ! out of the total in the current layer
    integer :: icnx  ! connection index
    integer :: inode ! node index
@@ -5444,10 +5449,12 @@ subroutine SetMaxCondConnections(site_hydr, cohort_hydr, h_node, kmax_dn, kmax_u
                   1._r8/cohort_hydr%kmax_aroot_radial_out(j))
          end if
          kmax_up(icnx) = site_hydr%kmax_upper_shell(j,1)*aroot_frac_plant
-
-             !if (hlm_use_hardening .eq. itrue .and. hard_rate<0.98_r8) then
-             !   kmax_dn(icnx)=kmax_dn(icnx)*hard_rate !marius
-             !   kmax_up(icnx)=kmax_up(icnx)*hard_rate !marius
+             !if (hlm_use_hardening .eq. itrue .and. hard_rate<0.98_r8 .and. hard_rate>0.1_r8) then
+             !   kmax_dn(icnx)=kmax_dn(icnx)*10*10**(-1/hard_rate) !marius
+             !   kmax_up(icnx)=kmax_up(icnx)*10*10**(-1/hard_rate) !marius
+             !else if (hard_rate<0.1_r8) then
+             !   kmax_dn(icnx)=kmax_dn(icnx)*1.e-10_r8  !marius
+             !   kmax_up(icnx)=kmax_up(icnx)*1.e-10_r8  !marius
              !endif
       else                 ! soil - soil
          kmax_dn(icnx) = site_hydr%kmax_lower_shell(j,k-2)*aroot_frac_plant
@@ -5516,7 +5523,8 @@ subroutine InitHydroGlobals()
             allocate(wrf_tfs)
             wrf_plant(pm,ft)%p => wrf_tfs
             !initialize hardening value in wrf once case is selected.  
-            call wrf_tfs%set_wrf_hard([1.0_r8]) ! cold start has no hardening. marius
+            call wrf_tfs%set_wrf_hard([EDPftvarcon_inst%hydr_pinot_node(ft,pm), &
+                                       EDPftvarcon_inst%hydr_epsil_node(ft,pm)]) ! marius
             if (pm.eq.leaf_p_media) then   ! Leaf tissue
                cap_slp    = 0.0_r8
                cap_int    = 0.0_r8
@@ -5527,13 +5535,11 @@ subroutine InitHydroGlobals()
                cap_corr   = -cap_int/cap_slp
             end if
             call wrf_tfs%set_wrf_param([EDPftvarcon_inst%hydr_thetas_node(ft,pm), &
-                  EDPftvarcon_inst%hydr_resid_node(ft,pm), &
-                  EDPftvarcon_inst%hydr_pinot_node(ft,pm), &
-                  EDPftvarcon_inst%hydr_epsil_node(ft,pm), &
-                  rwcft(pm), &
-                  cap_corr, &
-                  cap_int, &
-                  cap_slp,real(pm,r8)])
+                                        EDPftvarcon_inst%hydr_resid_node(ft,pm), &
+                                        rwcft(pm), &
+                                        cap_corr, &
+                                        cap_int, &
+                                        cap_slp,real(pm,r8)])
          end do
       end select
    end do

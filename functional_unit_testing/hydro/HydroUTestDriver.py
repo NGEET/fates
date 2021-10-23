@@ -230,31 +230,61 @@ def main(argv):
 #    tfs_wkf(3,p50=-2.25, avuln=2.0)
 
     names=['Soil','ARoot','Stem','Leaf'] #ref
+    names=['Soil','stem default','stem Pinot -0.5','stem Epsil +10, Pinot -0.5'] #ref
+    names=['Soil','leaf default','leaf Pinot -0.5','leaf Epsil +10, Pinot -0.5'] #ref
+    names=['Soil','ARoot default','ARoot Pinot -0.7','ARoot Epsil +10, Pinot -0.7'] #ref
 
     theta_sat = [0.55,0.65,0.65,0.75] #ref
     theta_sat = [0.60,0.75,0.65,0.65]
     theta_res = [0.15,0.16,0.21,0.11] #ref
     theta_res = [0.15,0.11,0.21,0.16] 
-
+    pi=-0.7
+    ep=10
+    
 
     # Absorbing root
     tfs_wrf(2,th_sat=theta_sat[1],th_res=theta_res[1],pinot=-1.043478, \
             epsil=8,rwc_fd=rwc_fd[3],cap_corr=cap_corr[3], \
             cap_int=cap_int[3],cap_slp=cap_slp[3],pmedia=4,hard_rate=hard_rate[0]) # mar
     tfs_wkf(2,p50=-2.25, avuln=2.0)
-
+    tfs_wrf(3,th_sat=theta_sat[1],th_res=theta_res[1],pinot=-1.043478+pi, \
+            epsil=8+ep,rwc_fd=rwc_fd[3],cap_corr=cap_corr[3], \
+            cap_int=cap_int[3],cap_slp=cap_slp[3],pmedia=4,hard_rate=hard_rate[0]) # mar
+    tfs_wkf(3,p50=-2.25, avuln=2.0)
+    tfs_wrf(4,th_sat=theta_sat[1],th_res=theta_res[1]+0.1,pinot=-1.043478+pi, \
+            epsil=8+ep,rwc_fd=rwc_fd[3],cap_corr=cap_corr[3], \
+            cap_int=cap_int[3],cap_slp=cap_slp[3],pmedia=4,hard_rate=hard_rate[0]) # mar
+    tfs_wkf(4,p50=-2.25, avuln=2.0)
     # Stem
-    tfs_wrf(3,th_sat=theta_sat[2],th_res=theta_res[2],pinot=-1.72807, \
-            epsil=10,rwc_fd=rwc_fd[2],cap_corr=cap_corr[2], \
-            cap_int=cap_int[2],cap_slp=cap_slp[2],pmedia=2,hard_rate=hard_rate[0]) # mar
-    tfs_wkf(3,p50=-2.25, avuln=4.0)
+    #tfs_wrf(2,th_sat=theta_sat[2],th_res=theta_res[2],pinot=-1.22807, \
+    #        epsil=10,rwc_fd=rwc_fd[2],cap_corr=cap_corr[2], \
+    #        cap_int=cap_int[2],cap_slp=cap_slp[2],pmedia=2,hard_rate=hard_rate[0]) # mar
+    #tfs_wkf(2,p50=-2.25, avuln=4.0)
+    
+    #tfs_wrf(3,th_sat=theta_sat[2],th_res=theta_res[2],pinot=-1.22807+pi, \
+    #        epsil=10,rwc_fd=rwc_fd[2],cap_corr=cap_corr[2], \
+    #        cap_int=cap_int[2],cap_slp=cap_slp[2],pmedia=2,hard_rate=hard_rate[0]) # mar
+    #tfs_wkf(3,p50=-2.25, avuln=4.0)
+    
+    #tfs_wrf(4,th_sat=theta_sat[2],th_res=theta_res[2],pinot=-1.22807+pi, \
+    #        epsil=10+ep,rwc_fd=rwc_fd[2],cap_corr=cap_corr[2], \
+    #        cap_int=cap_int[2],cap_slp=cap_slp[2],pmedia=2,hard_rate=hard_rate[0]) # mar
+    #tfs_wkf(4,p50=-2.25, avuln=4.0)
     
     # Leaf
 
-    tfs_wrf(4,th_sat=theta_sat[3],th_res=theta_res[3],pinot=-1.465984, \
-            epsil=12,rwc_fd=rwc_fd[0],cap_corr=cap_corr[0], \
-            cap_int=cap_int[0],cap_slp=cap_slp[0],pmedia=1,hard_rate=hard_rate[0]) # mar
-    tfs_wkf(4,p50=-2.25, avuln=2.0)
+    #tfs_wrf(2,th_sat=theta_sat[3],th_res=theta_res[3],pinot=-1.465984, \
+    #        epsil=12,rwc_fd=rwc_fd[0],cap_corr=cap_corr[0], \
+    #        cap_int=cap_int[0],cap_slp=cap_slp[0],pmedia=1,hard_rate=hard_rate[0]) # mar
+    #tfs_wkf(2,p50=-2.25, avuln=2.0)
+    #tfs_wrf(3,th_sat=theta_sat[3],th_res=theta_res[3],pinot=-1.465984+pi, \
+    #        epsil=12,rwc_fd=rwc_fd[0],cap_corr=cap_corr[0], \
+    #        cap_int=cap_int[0],cap_slp=cap_slp[0],pmedia=1,hard_rate=hard_rate[0]) # mar
+    #tfs_wkf(3,p50=-2.25, avuln=2.0)
+    #tfs_wrf(4,th_sat=theta_sat[3],th_res=theta_res[3],pinot=-1.465984+pi, \
+    #        epsil=12+ep,rwc_fd=rwc_fd[0],cap_corr=cap_corr[0], \
+    #        cap_int=cap_int[0],cap_slp=cap_slp[0],pmedia=1,hard_rate=hard_rate[0]) # mar
+    #tfs_wkf(4,p50=-2.25, avuln=2.0)
 
     print('initialized WRF')
 

@@ -305,7 +305,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     real(r8) :: Tmean ! daily average temperature °C
     real(r8) :: Tmin
     real(r8), parameter :: min_h = -2.0_r8  	! Minimum hardiness level from Bigras for Picea abies (°C)
-    real(r8), parameter :: max_h = -30.0_r8 	! Maximum hardiness level from Bigras for Picea abies (°C)
+    real(r8), parameter :: max_h = -40.0_r8 	! Maximum hardiness level from Bigras for Picea abies (°C)
     real(r8), parameter :: LT50 = 20.0_r8  	! Lethal temperature difference between the hardiness level and the minimum temperature” 
                                         ! at which 50% of the trees are damaged (°C)
                                         ! and determines the inflection-point of the curve, depending on the Dday
@@ -388,14 +388,8 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     end if 
     
     hard_rate_temporary=(cohort_in%hard_level-max_h)/(min_h-max_h)
-    
-    if (hard_rate_temporary>0.1_r8 .and. hard_rate_temporary<0.98_r8) then
-        cohort_in%hard_rate= 10*10**(-1/hard_rate_temporary)
-    else if (hard_rate_temporary>=0.98_r8) then
-        cohort_in%hard_rate= 1.0_r8 
-    else 
-        cohort_in%hard_rate= 1.e-10_r8 
-    end if
+    cohort_in%hard_rate=hard_rate_temporary
+
 
 
     hard_diff=hard_level_prev-Tmin

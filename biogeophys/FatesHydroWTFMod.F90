@@ -179,8 +179,7 @@ module FatesHydroWTFMod
      real(r8) :: cap_corr ! correction for nonzero psi0x
      real(r8) :: cap_int  ! intercept of capillary region of curve
      real(r8) :: cap_slp  ! slope of capillary region of curve
-     integer  :: pmedia   ! self describing porous media index
-     real(r8) :: hard_rate ! time-varying cohort-level cold 'hardening'. Changes PV curve. 
+     integer  :: pmedia   ! self describing porous media index 
    contains
      procedure :: th_from_psi     => th_from_psi_tfs
      procedure :: psi_from_th     => psi_from_th_tfs
@@ -378,22 +377,6 @@ contains
     write(fates_log(),*) 'check how the class pointer was setup'
     call endrun(msg=errMsg(sourcefile, __LINE__))
   end function dftcdpsi_from_psi_base
-
-
-  ! =====================================================================================
-  ! Set the hardening variable in wrf module per cohhort !marius
-  ! This will vary in time! , but not with Vg/CH water retention function.  
-  ! =====================================================================================
-
-  subroutine set_wrf_cohort_hardening(this,params_in)
-
-  class(wrf_type_tfs) :: this
-  real(r8), intent(in) :: params_in(:)
-
-  this%hard_rate    = params_in(1)
-
-  return
-  end subroutine set_wrf_cohort_hardening
   
   ! =====================================================================================
   ! Van Genuchten Functions are defined here
@@ -831,19 +814,30 @@ contains
 
     this%th_sat   = params_in(1)
     this%th_res   = params_in(2)
-    this%pinot    = params_in(3)
-    this%epsil    = params_in(4)
-    this%rwc_ft   = params_in(5)
-    this%cap_corr = params_in(6)
-    this%cap_int  = params_in(7)
-    this%cap_slp  = params_in(8)
-    this%pmedia   = int(params_in(9))
+    this%rwc_ft   = params_in(3)
+    this%cap_corr = params_in(4)
+    this%cap_int  = params_in(5)
+    this%cap_slp  = params_in(6)
+    this%pmedia   = int(params_in(7))
 
+    
     call this%set_min_max(this%th_res,this%th_sat)
 
     return
   end subroutine set_wrf_param_tfs
+  ! =====================================================================================
+  ! Set the hardening changed variables in wrf !marius
 
+  subroutine set_wrf_cohort_hardening(this,params_in)
+
+    class(wrf_type_tfs) :: this
+    real(r8), intent(in) :: params_in(:)
+
+    this%pinot    = params_in(1)
+    this%epsil    = params_in(2)
+
+    return
+  end subroutine set_wrf_cohort_hardening
   ! =====================================================================================
 
   function get_thsat_tfs(this) result(th_sat)
