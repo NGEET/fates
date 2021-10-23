@@ -814,12 +814,13 @@ contains
 
     this%th_sat   = params_in(1)
     this%th_res   = params_in(2)
-    this%rwc_ft   = params_in(3)
-    this%cap_corr = params_in(4)
-    this%cap_int  = params_in(5)
-    this%cap_slp  = params_in(6)
-    this%pmedia   = int(params_in(7))
-
+    this%pinot    = params_in(3)
+    this%epsil    = params_in(4)
+    this%rwc_ft   = params_in(5)
+    this%cap_corr = params_in(6)
+    this%cap_int  = params_in(7)
+    this%cap_slp  = params_in(8)
+    this%pmedia   = int(params_in(9))
     
     call this%set_min_max(this%th_res,this%th_sat)
 

@@ -2504,6 +2504,7 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
 	            epsil_hard=EDPftvarcon_inst%hydr_epsil_node(ft,pm)+(1._r8-ccohort%hard_rate)*10._r8
                     call wrf_plant(pm,ft)%p%set_wrf_hard([pinot_hard, &
                                                           epsil_hard])
+
                  end do 
               end if
              
@@ -5522,9 +5523,6 @@ subroutine InitHydroGlobals()
          do ft = 1,numpft
             allocate(wrf_tfs)
             wrf_plant(pm,ft)%p => wrf_tfs
-            !initialize hardening value in wrf once case is selected.  
-            call wrf_tfs%set_wrf_hard([EDPftvarcon_inst%hydr_pinot_node(ft,pm), &
-                                       EDPftvarcon_inst%hydr_epsil_node(ft,pm)]) ! marius
             if (pm.eq.leaf_p_media) then   ! Leaf tissue
                cap_slp    = 0.0_r8
                cap_int    = 0.0_r8
@@ -5534,8 +5532,10 @@ subroutine InitHydroGlobals()
                cap_int    = -cap_slp + hydr_psi0
                cap_corr   = -cap_int/cap_slp
             end if
-            call wrf_tfs%set_wrf_param([EDPftvarcon_inst%hydr_thetas_node(ft,pm), &
+            call wrf_tfs%set_wrf_param([EDPftvarcon_inst%hydr_thetas_node(ft,pm), & !marius
                                         EDPftvarcon_inst%hydr_resid_node(ft,pm), &
+                                        EDPftvarcon_inst%hydr_pinot_node(ft,pm), &
+                                        EDPftvarcon_inst%hydr_epsil_node(ft,pm), &
                                         rwcft(pm), &
                                         cap_corr, &
                                         cap_int, &
