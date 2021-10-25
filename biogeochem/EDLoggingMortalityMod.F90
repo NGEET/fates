@@ -40,6 +40,7 @@ module EDLoggingMortalityMod
    use EDParamsMod       , only : logging_mechanical_frac 
    use EDParamsMod       , only : logging_coll_under_frac 
    use EDParamsMod       , only : logging_dbhmax_infra
+   use FatesInterfaceTypesMod , only : bc_in_type
    use FatesInterfaceTypesMod , only : hlm_current_year
    use FatesInterfaceTypesMod , only : hlm_current_month
    use FatesInterfaceTypesMod , only : hlm_current_day
@@ -394,7 +395,7 @@ contains
 
    ! ============================================================================
 
-   subroutine logging_litter_fluxes(currentSite, currentPatch, newPatch, patch_site_areadis)
+   subroutine logging_litter_fluxes(currentSite, currentPatch, newPatch, patch_site_areadis, bc_in)
 
       ! -------------------------------------------------------------------------------------------
       !
@@ -440,6 +441,8 @@ contains
       type(ed_patch_type) , intent(inout), target  :: currentPatch
       type(ed_patch_type) , intent(inout), target  :: newPatch
       real(r8)            , intent(in)             :: patch_site_areadis
+      type(bc_in_type)    , intent(in)             :: bc_in
+
 
       !LOCAL VARIABLES:
       type(ed_cohort_type), pointer      :: currentCohort
@@ -567,7 +570,9 @@ contains
             ! derived from the current patch, so we need to multiply by patch_areadis/np%area
             ! ----------------------------------------------------------------------------------------
 
-            call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil)
+            call set_root_fraction(currentSite%rootfrac_scr, pft, &
+                 currentSite%zi_soil, &
+                 bc_in%max_rooting_depth_index_col)
          
             ag_wood = (direct_dead+indirect_dead) * (struct_m + sapw_m ) * &
                   prt_params%allom_agb_frac(currentCohort%pft)

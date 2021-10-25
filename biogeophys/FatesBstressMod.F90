@@ -63,12 +63,12 @@ contains
            cpatch => sites(s)%oldest_patch
            do while (associated(cpatch))                 
               
-              ! THIS SHOULD REALLY BE A COHORT LOOP ONCE WE HAVE rootfr_ft FOR COHORTS (RGK)
-              
               do ft = 1,numpft
                  cpatch%bstress_sal_ft(ft) = 0.0_r8
 
-                 call set_root_fraction(sites(s)%rootfrac_scr, ft, sites(s)%zi_soil )
+                 call set_root_fraction(sites(s)%rootfrac_scr, ft, &
+                      sites(s)%zi_soil, &
+                      bc_in(s)%max_rooting_depth_index_col )
 
                  do j = 1,bc_in(s)%nlevsoil
                     

@@ -123,10 +123,13 @@ module FatesAllometryMod
   public :: CrownDepth
   public :: set_root_fraction  ! Generic wrapper to calculate normalized
                                ! root profiles
+  public :: leafc_from_treelai ! Calculate target leaf carbon for a given treelai for SP mode
 
   logical         , parameter :: verbose_logging = .false.
   character(len=*), parameter :: sourcefile = __FILE__
 
+  
+  logical, parameter :: debug = .false.
   
   ! If testing b4b with older versions, do not remove sapwood
   ! Our old methods with saldarriaga did not remove sapwood from the
@@ -757,6 +760,95 @@ contains
     return
   end function tree_sai
   
+! =====================================================================================
+ 
+  real(r8) function leafc_from_treelai( treelai, pft, c_area, nplant, cl, vcmax25top)
+ 
+    ! -----------------------------------------------------------------------------------
+    ! Calculates the amount of leaf carbon which is needed to generate a given treelai. 
+    ! iss the inverse of the 'tree_lai function. 
+    ! ----------------------------------------------------------------------------------
+ 
+    ! !ARGUMENTS
+    real(r8), intent(in) :: treelai                    ! desired tree lai m2/m2
+    integer, intent(in)  :: pft                       ! Plant Functional Type index
+    real(r8), intent(in) :: c_area                    ! areal extent of canopy (m2)
+    real(r8), intent(in) :: nplant                    ! number of individuals in cohort per ha
+    integer, intent(in)  :: cl                        ! canopy layer index
+    real(r8), intent(in) :: vcmax25top                ! maximum carboxylation rate at canopy
+                                                      ! top, ref 25C
+ 
+    ! !LOCAL VARIABLES:
+    real(r8) :: leaf_c                    ! plant leaf carbon [kg]
+    real(r8) :: leafc_per_unitarea ! KgC of leaf per m2 area of ground.
+    real(r8) :: slat               ! the sla of the top leaf layer. m2/kgC
+    real(r8) :: vai_per_lai        ! ratio of vegetation area index (ie. sai+lai)
+                                   ! to lai for individual tree
+    real(r8) :: kn                 ! coefficient for exponential decay of 1/sla and
+                                   ! vcmax with canopy depth
+    real(r8) :: sla_max            ! Observational constraint on how large sla
+                                   ! (m2/gC) can become
+    real(r8) :: leafc_slamax       ! Leafc_per_unitarea at which sla_max is reached
+    real(r8) :: clim               ! Upper limit for leafc_per_unitarea in exponential
+                                   ! tree_lai function
+    real(r8) :: tree_lai_at_slamax ! lai at which we reach the maximum sla value.
+    real(r8) :: leafc_linear_phase ! amount of leaf carbon needed to get to the target treelai
+                                   ! when the slamax value has been reached (i.e. deep layers with unchanging sla)
+
+    !----------------------------------------------------------------------
+ 
+    if( treelai  < 0._r8.or. pft  ==  0 ) then
+       write(fates_log(),*) 'negative tree lai in leafc_from_treelai?'
+       write(fates_log(),*) 'or.. pft was zero?'
+       write(fates_log(),*) 'problem in leafc_from_treelai',treelai,pft
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    endif
+ 
+    if(cl>1)then
+      write(fates_log(),*) 'in sub-canopy layer in leafc_from_treelai'
+      write(fates_log(),*) 'this is not set up to work for lower canopy layers.'
+      write(fates_log(),*) 'problem in leafc_from_treelai',cl,pft
+      call endrun(msg=errMsg(sourcefile, __LINE__))
+    endif
+
+    ! convert PFT-level canopy top and maximum SLA values and convert from m2/gC to m2/kgC
+    slat = g_per_kg * prt_params%slatop(pft)
+    sla_max = g_per_kg * prt_params%slamax(pft)
+    ! Coefficient for exponential decay of 1/sla with canopy depth:
+     kn = decay_coeff_kn(pft,vcmax25top)
+
+    if(treelai > 0.0_r8)then 
+       ! Leafc_per_unitarea at which sla_max is reached due to exponential sla profile in canopy:
+       leafc_slamax = max(0.0_r8,(slat - sla_max) / (-1.0_r8 * kn * slat * sla_max))
+
+       ! treelai at which we reach maximum sla.
+       tree_lai_at_slamax = (log( 1.0_r8- kn * slat * leafc_slamax)) / (-1.0_r8 * kn)
+
+       if(treelai < tree_lai_at_slamax)then
+         ! Inversion of the exponential phase calculation of treelai for a given leafc_per_unitarea
+         leafc_per_unitarea = (1.0_r8-exp(treelai*(-1.0_r8 * kn)))/(kn*slat)
+       else ! we exceed the maxumum sla
+ 
+        ! Add exponential and linear portions of tree_lai
+        ! Exponential term for leafc = leafc_slamax;
+         leafc_linear_phase = (treelai-tree_lai_at_slamax)/sla_max
+         leafc_per_unitarea = leafc_slamax + leafc_linear_phase
+       end if
+       leafc_from_treelai = leafc_per_unitarea*(c_area/nplant)
+    else
+       leafc_from_treelai = 0.0_r8 
+    endif ! (leafc_per_unitarea > 0.0_r8)
+ 
+    return
+  end function leafc_from_treelai
+ 
+  ! =====================================================================================
+
+
+
+
+
+
   ! ============================================================================
   ! Generic sapwood biomass interface
   ! ============================================================================
@@ -1891,7 +1983,7 @@ contains
   ! =====================================================================================
 
 
-  subroutine CrownDepth(height,crown_depth)
+  subroutine CrownDepth(height,ft,crown_depth)
 
     ! -----------------------------------------------------------------------------------
     ! This routine returns the depth of a plant's crown.  Which is the length
@@ -1901,14 +1993,20 @@ contains
     ! optioned.
     ! -----------------------------------------------------------------------------------
     
-    real(r8),intent(in)  :: height   ! The height of the plant   [m]
+    real(r8),intent(in)  :: height      ! The height of the plant   [m]
+    integer,intent(in)   :: ft          ! functional type index
     real(r8),intent(out) :: crown_depth ! The depth of the crown [m]
-    
+
     ! Alternative Hypothesis:
     ! crown depth from Poorter, Bongers & Bongers
     ! crown_depth = exp(-1.169_r8)*cCohort%hite**1.098_r8   
-    
-    crown_depth               = min(height,0.1_r8)
+
+    ! Alternative Hypothesis:
+    ! Original FATES crown depth heigh used for hydraulics
+    ! crown_depth               = min(height,0.1_r8)
+
+    crown_depth = prt_params%crown(ft) * height
+
     
     return
  end subroutine CrownDepth
@@ -1968,7 +2066,7 @@ contains
   
   ! =========================================================================
 
-  subroutine set_root_fraction(root_fraction, ft, zi)
+  subroutine set_root_fraction(root_fraction, ft, zi, max_nlevroot)
 
     !
     ! !DESCRIPTION:
@@ -1985,6 +2083,11 @@ contains
     integer, intent(in)    :: ft               ! functional typpe
     real(r8),intent(in)    :: zi(0:)            ! Center of depth [m]
 
+    ! The soil may not be active over the soil whole column due to things
+    ! like permafrost. If so, compress profile over the maximum depth
+    integer,optional, intent(in)   :: max_nlevroot  
+
+    
     ! locals
     real(r8) :: a_par  ! local temporary for "a" parameter
     real(r8) :: b_par  ! ""  "b" parameter
@@ -2011,6 +2114,7 @@ contains
     integer :: root_profile_type
     integer :: corr_id(1)        ! This is the bin with largest fraction
                                  ! add/subtract any corrections there
+    integer :: nlevroot
     real(r8) :: correction       ! This correction ensures that root fractions
                                  ! sum to 1.0
 
@@ -2022,13 +2126,27 @@ contains
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
+    nlevroot = ubound(zi,1)
+    
+    ! Set root fraction to zero in all layers, as some may be inactive
+    ! and we will only calculate the profiles over those 
+    root_fraction(:) = 0._r8
+
+    if(present(max_nlevroot))then
+       if(debug .and. max_nlevroot<0)then
+          write(fates_log(),*) 'A maximum rooting layer depth <0 was specified'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+       nlevroot = min(max_nlevroot,nlevroot)
+    end if
+    
     select case(nint(prt_params%fnrt_prof_mode(ft)))
     case ( exponential_1p_profile_type ) 
-       call exponential_1p_root_profile(root_fraction, zi, prt_params%fnrt_prof_a(ft)) 
+       call exponential_1p_root_profile(root_fraction(1:nlevroot), zi(0:nlevroot), prt_params%fnrt_prof_a(ft)) 
     case ( jackson_beta_profile_type )
-       call jackson_beta_root_profile(root_fraction, zi, prt_params%fnrt_prof_a(ft))
+       call jackson_beta_root_profile(root_fraction(1:nlevroot), zi(0:nlevroot), prt_params%fnrt_prof_a(ft))
     case ( exponential_2p_profile_type ) 
-       call exponential_2p_root_profile(root_fraction, zi, & 
+       call exponential_2p_root_profile(root_fraction(1:nlevroot), zi(0:nlevroot), & 
              prt_params%fnrt_prof_a(ft),prt_params%fnrt_prof_b(ft))
 
     case default
