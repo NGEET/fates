@@ -2646,7 +2646,7 @@ end subroutine flush_hvars
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%frmort + &
                             ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha + &
                             (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
-                            ccohort%n * days_per_year / m2_per_ha
+                            ccohort%n * sec_per_day * days_per_year / m2_per_ha
 
                        hio_nplant_canopy_si_scpf(io_si,scpf) = hio_nplant_canopy_si_scpf(io_si,scpf) + ccohort%n / m2_per_ha
                        hio_nplant_canopy_si_scls(io_si,scls) = hio_nplant_canopy_si_scls(io_si,scls) + ccohort%n / m2_per_ha
@@ -2674,7 +2674,7 @@ end subroutine flush_hvars
                              (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
                              ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n + &
                              (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
-                             ccohort%n * days_per_year / m2_per_ha
+                             ccohort%n * sec_per_day * days_per_year / m2_per_ha
 
                        hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
@@ -2739,7 +2739,7 @@ end subroutine flush_hvars
                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
                             ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha + &
                             (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
-                            ccohort%n * days_per_year / m2_per_ha
+                            ccohort%n * sec_per_day * days_per_year / m2_per_ha
 
                        hio_nplant_understory_si_scpf(io_si,scpf) = hio_nplant_understory_si_scpf(io_si,scpf) + ccohort%n / m2_per_ha
                        hio_nplant_understory_si_scls(io_si,scls) = hio_nplant_understory_si_scls(io_si,scls) + ccohort%n / m2_per_ha
@@ -2768,7 +2768,7 @@ end subroutine flush_hvars
                              (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
                              ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n + &
                              (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
-                             ccohort%n * days_per_year / m2_per_ha
+                             ccohort%n * sec_per_day * days_per_year / m2_per_ha
 
                        hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
                              (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
@@ -3403,13 +3403,13 @@ end subroutine flush_hvars
                      if(  hio_nplant_canopy_si_scpf(io_si,i_scpf)>nearzero ) then
                         this%hvars(ih_storentfrac_canopy_scpf)%r82d(io_si,i_scpf) = &
                              this%hvars(ih_storentfrac_canopy_scpf)%r82d(io_si,i_scpf) / &
-                             hio_nplant_canopy_si_scpf(io_si,i_scpf)
+                             (hio_nplant_canopy_si_scpf(io_si,i_scpf)*m2_per_ha)
                      end if
 
                      if( hio_nplant_understory_si_scpf(io_si,i_scpf)>nearzero ) then
                         this%hvars(ih_storentfrac_understory_scpf)%r82d(io_si,i_scpf) = &
                              this%hvars(ih_storentfrac_understory_scpf)%r82d(io_si,i_scpf) / &
-                             hio_nplant_understory_si_scpf(io_si,i_scpf)
+                             (hio_nplant_understory_si_scpf(io_si,i_scpf)*m2_per_ha)
                      end if
 
                   end do
