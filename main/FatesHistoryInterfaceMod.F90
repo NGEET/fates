@@ -5227,7 +5227,7 @@ end subroutine update_history_hifrq
          hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
          index = ih_laisha_top_si_can)
 
-    call this%set_history_var(vname='ih_fabd_sun_si_cnlfpft', units='1',        &
+    call this%set_history_var(vname='FATES_FABD_SUN_CLLLPF', units='1',        &
          long='sun fraction of direct light absorbed by each canopy, leaf, and PFT', &
          use_default='inactive', avgflag='A', vtype=site_cnlfpft_r8,           &
          hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
