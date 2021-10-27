@@ -1266,20 +1266,12 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
         enddo !sunsha loop
 
         ! Stomatal resistance of the leaf-layer
-
-        
-        
-        if (.not. (hlm_use_planthydro.eq.itrue .and. EDPftvarcon_inst%hydr_k_lwp(ft)>nearzero) ) then
-
-           rstoma_out = 1._r8/gstoma
-
-        else
-
+        if ( (hlm_use_planthydro.eq.itrue .and. EDPftvarcon_inst%hydr_k_lwp(ft)>nearzero) ) then
            rstoma_out = LeafHumidityStomaResis(leaf_psi, veg_tempk, ceair, can_press, veg_esat, &
                                                rb, gstoma, ft)
-       
-                  
-         end if
+        else
+           rstoma_out = 1._r8/gstoma
+        end if
            
         
      else
