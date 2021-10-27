@@ -4216,7 +4216,8 @@ end subroutine update_history_hifrq
 
          if(hlm_use_ed_st3.eq.ifalse) then
             do iscpf=1,nlevsclass*numpft
-               if( abs(hio_nplant_si_scpf(io_si, iscpf)-(nplant_scpf(iscpf)/m2_per_ha)) > 1.0E-8_r8 ) then
+               if ((abs(hio_nplant_si_scpf(io_si, iscpf)-(nplant_scpf(iscpf)/m2_per_ha)) > 1.0E-8_r8) .and. &
+               (hio_nplant_si_scpf(io_si, iscpf) .ne. hlm_hio_ignore_val)) then
                   write(fates_log(),*) 'numpft:',numpft
                   write(fates_log(),*) 'nlevsclass:',nlevsclass
                   write(fates_log(),*) 'scpf:',iscpf
