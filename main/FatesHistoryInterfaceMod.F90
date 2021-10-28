@@ -2069,8 +2069,8 @@ end subroutine flush_hvars
                hio_err_fates_si                     => this%hvars(ih_err_fates_si)%r82d )
 
 
-
-
+     ! Flush the relevant history variables
+     call this%flush_hvars(nc,upfreq_in=1)
 
       ! If we don't have dynamics turned on, we just abort these diagnostics
       if (hlm_use_ed_st3.eq.itrue) return
@@ -2082,6 +2082,8 @@ end subroutine flush_hvars
       ! ---------------------------------------------------------------------------------
 
       do s = 1,nsites
+
+        call this%zero_site_hvars(sites(s), upfreq_in=1)
 
          io_si  = sites(s)%h_gid
 
@@ -2672,7 +2674,7 @@ end subroutine flush_hvars
                        hio_mortality_canopy_si_scls(io_si,scls) = hio_mortality_canopy_si_scls(io_si,scls) + &
 
                              (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
-                             ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n + &
+                             ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha + &
                              (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
                              ccohort%n * sec_per_day * days_per_year / m2_per_ha
 
@@ -3426,13 +3428,13 @@ end subroutine flush_hvars
                      if( hio_nplant_canopy_si_scpf(io_si,i_scpf)>nearzero ) then
                         this%hvars(ih_storeptfrac_canopy_scpf)%r82d(io_si,i_scpf) = &
                              this%hvars(ih_storeptfrac_canopy_scpf)%r82d(io_si,i_scpf) /&
-                             hio_nplant_canopy_si_scpf(io_si,i_scpf)
+                             (hio_nplant_canopy_si_scpf(io_si,i_scpf)*m2_per_ha)
 
                      end if
                      if( hio_nplant_understory_si_scpf(io_si,i_scpf)>nearzero ) then
                         this%hvars(ih_storeptfrac_understory_scpf)%r82d(io_si,i_scpf) = &
                              this%hvars(ih_storeptfrac_understory_scpf)%r82d(io_si,i_scpf) /&
-                             hio_nplant_understory_si_scpf(io_si,i_scpf)
+                             (hio_nplant_understory_si_scpf(io_si,i_scpf)*m2_per_ha)
                      end if
 
                   end do
