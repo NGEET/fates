@@ -311,7 +311,9 @@ module EDTypesMod
      real(r8) :: daily_n_demand ! The daily amount of N demanded by the plant [kgN/plant/day]
      real(r8) :: daily_p_demand ! The daily amount of P demanded by the plant [kgN/plant/day]
 
-     
+     ! N fixation rate
+     real(r8) :: n_fixation           ! Rate of N fixation from the roots [kgN/indiv/s]
+
      ! The following four biophysical rates are assumed to be
      ! at the canopy top, at reference temp 25C, and based on the 
      ! leaf age weighted average of the PFT parameterized values. The last

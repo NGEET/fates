@@ -237,6 +237,9 @@ contains
     real(r8) :: lai_current        ! the LAI in the current leaf layer
     real(r8) :: cumulative_lai     ! the cumulative LAI, top down, to the leaf layer of interest
     real(r8) :: leaf_psi           ! leaf xylem matric potential [MPa] (only meaningful/used w/ hydro)
+    real(r8) :: fnrt_mr_layer      ! fine root maintenance respiation per layer [kgC/plant/s]
+    real(r8) :: c_cost_nfix        ! carbon cost of N fixation [kgC/kgN]
+
     real(r8), allocatable :: rootfr_ft(:,:)  ! Root fractions per depth and PFT
 
     ! -----------------------------------------------------------------------------------
@@ -263,6 +266,11 @@ contains
     ! (gC/gN/s)
     ! ------------------------------------------------------------------------
 
+    ! N fixation parameters from Houlton et al (2008) and Fisher et al (2010)
+    real(r8), parameter :: s_fix = -6.25_r8 ! s parameter from FUN model (fisher et al 2010)
+    real(r8), parameter :: a_fix = -3.62_r8 ! a parameter from Houlton et al. 2010 (a = -3.62 +/- 0.52)
+    real(r8), parameter :: b_fix = 0.27_r8  ! b parameter from Houlton et al. 2010 (b = 0.27 +/-0.04)
+    real(r8), parameter :: c_fix = 25.15_r8 ! c parameter from Houlton et al. 2010 (c = 25.15 +/- 0.66)
     ! -----------------------------------------------------------------------------------
     ! Photosynthesis and stomatal conductance parameters, from:
     ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593
@@ -695,12 +703,28 @@ contains
 
 
                       ! Fine Root MR  (kgC/plant/s)
+                      ! and calculate the N fixation rate as a function of the fixation-specific root respiration
+                      ! for now use dev_arbitrary_pft as scaling term between 0 and 1 as additional increment of root respiration used for N fixation
                       ! ------------------------------------------------------------------
                       currentCohort%froot_mr = 0._r8
+
+                      ! n_fixation is integrated over the course of the day
+                      currentCohort%n_fixation = 0._r8
+
                       do j = 1,bc_in(s)%nlevsoil
                          tcsoi  = q10_mr**((bc_in(s)%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
-                         currentCohort%froot_mr = currentCohort%froot_mr + &
-                              fnrt_n * ED_val_base_mr_20 * tcsoi * rootfr_ft(ft,j) * maintresp_reduction_factor
+                         
+                         fnrt_mr_layer = fnrt_n * ED_val_base_mr_20 * tcsoi * rootfr_ft(ft,j) * maintresp_reduction_factor
+
+                         currentCohort%froot_mr = currentCohort%froot_mr + fnrt_mr_layer * (1._r8 + EDPftvarcon_inst%dev_arbitrary_pft(ft))
+
+                         ! calculate the cost of carbon for N fixation in each soil layer and calculate N fixation rate based on that [kgC / kgN]
+
+                         c_cost_nfix = s_fix * (exp(a_fix + b_fix * (bc_in(s)%t_soisno_sl(j)-tfrz) &
+                              * (1._r8 - 0.5_r8 * (bc_in(s)%t_soisno_sl(j)-tfrz) / c_fix)) - 2._r8)
+                         
+                         currentCohort%n_fixation = currentCohort%n_fixation + fnrt_mr_layer * EDPftvarcon_inst%dev_arbitrary_pft / c_cost_nfix
+
                       enddo
 
                       ! Coarse Root MR (kgC/plant/s) (below ground sapwood)
@@ -1434,14 +1458,14 @@ subroutine ScaleLeafLayerFluxToCohort(nv,          & ! in   currentCohort%nv
    real(r8), intent(in) :: nplant           ! indiv/m2
    real(r8), intent(in) :: rb               ! leaf boundary layer resistance (s/m)
    real(r8), intent(in) :: maintresp_reduction_factor  ! factor by which to reduce maintenance respiration
-   real(r8), intent(out) :: g_sb_laweight      ! Combined conductance (stomatal + boundary layer) for the cohort
-                                               ! weighted by leaf area [m/s]*[m2]
-   real(r8), intent(out) :: gpp        ! GPP (kgC/indiv/s)
-   real(r8), intent(out) :: rdark      ! Dark Leaf Respiration (kgC/indiv/s)
-   real(r8), intent(out) :: cohort_eleaf_area  ! Effective leaf area of the cohort [m2]
-   real(r8), intent(out) :: c13disc_clm     ! unpacked Cohort level c13 discrimination
-   real(r8)              :: sum_weight      ! sum of weight for unpacking d13c flux (c13disc_z) from
-   ! (canopy_layer, pft, leaf_layer) matrix to cohort (c13disc_clm)
+   real(r8), intent(out) :: g_sb_laweight     ! Combined conductance (stomatal + boundary layer) for the cohort
+                                              ! weighted by leaf area [m/s]*[m2]
+   real(r8), intent(out) :: gpp               ! GPP (kgC/indiv/s)
+   real(r8), intent(out) :: rdark             ! Dark Leaf Respiration (kgC/indiv/s)
+   real(r8), intent(out) :: cohort_eleaf_area ! Effective leaf area of the cohort [m2]
+   real(r8), intent(out) :: c13disc_clm       ! unpacked Cohort level c13 discrimination
+   real(r8)              :: sum_weight        ! sum of weight for unpacking d13c flux (c13disc_z) from
+                                              ! (canopy_layer, pft, leaf_layer) matrix to cohort (c13disc_clm)
 
    ! GPP IN THIS SUBROUTINE IS A RATE. THE CALLING ARGUMENT IS GPP_TSTEP. AFTER THIS
    ! CALL THE RATE WILL BE MULTIPLIED BY THE INTERVAL TO GIVE THE INTEGRATED QUANT.
