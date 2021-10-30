@@ -83,7 +83,8 @@ def main():
     #
     #Copy dimensions
     for dname, the_dim in dsin.dimensions.items():
-        print(dname, the_dim.size)
+        if args.debug:
+            print(dname, the_dim.size)
         dsout.createDimension(dname, the_dim.size )
     #
     print()
@@ -100,7 +101,8 @@ def main():
         v_name = varnames_list_sorted[i]
         varin = dsin.variables[v_name]
         outVar = dsout.createVariable(v_name, varin.datatype, varin.dimensions)
-        print(v_name)
+        if args.debug:
+            print(v_name)
         #
         outVar.setncatts({k: varin.getncattr(k) for k in varin.ncattrs()})
         outVar[:] = varin[:]
