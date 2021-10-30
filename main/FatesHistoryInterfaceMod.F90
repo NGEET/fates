@@ -2067,10 +2067,6 @@ end subroutine flush_hvars
                hio_cbal_err_fates_si                => this%hvars(ih_cbal_err_fates_si)%r81d, &
                hio_err_fates_si                     => this%hvars(ih_err_fates_si)%r82d )
 
-
-     ! Flush the relevant history variables
-     !call this%flush_hvars(nc,upfreq_in=1)
-
       ! If we don't have dynamics turned on, we just abort these diagnostics
       if (hlm_use_ed_st3.eq.itrue) return
 
@@ -2082,12 +2078,7 @@ end subroutine flush_hvars
 
       do s = 1,nsites
 
-        !call this%zero_site_hvars(sites(s), upfreq_in=1)
-
-
          io_si  = sites(s)%h_gid
-         ! Doing a check here
-         hio_mortality_si_pft(io_si,:) = 0.0
 
          ! Total carbon model error [kgC/day -> kgC/s]
          hio_cbal_err_fates_si(io_si) = &
@@ -3062,6 +3053,7 @@ end subroutine flush_hvars
          end do
          sites(s)%recruitment_rate(:) = 0._r8
 
+         hio_mortality_si_pft(io_si,:) = 0.0_r8
          ! summarize all of the mortality fluxes by PFT
          do i_pft = 1, numpft
             do i_scls = 1,nlevsclass
