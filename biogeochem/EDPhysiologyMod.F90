@@ -45,6 +45,8 @@ module EDPhysiologyMod
   use EDTypesMod          , only : num_vegtemp_mem
   use EDTypesMod          , only : maxpft
   use EDTypesMod          , only : ed_site_type, ed_patch_type, ed_cohort_type
+  use EDTypesMod          , only : phen_ref_liqvol
+  use EDTypesMod          , only : phen_ref_smp
   use EDTypesMod          , only : leaves_on
   use EDTypesMod          , only : leaves_off
   use EDTypesMod          , only : min_n_safemath
@@ -231,7 +233,7 @@ contains
        ! Calculate seed germination rate, the status flags prevent
        ! germination from occuring when the site is in a drought 
        ! (for drought deciduous) or too cold (for cold deciduous)
-       call SeedGermination(litt, currentSite%cstatus, currentSite%dstatus)
+       call SeedGermination(litt, currentSite%cstatus, currentSite%dstatus(1:numpft))
        
        ! Send fluxes from newly created litter into the litter pools
        ! This litter flux is from non-disturbance inducing mortality, as well
@@ -422,8 +424,8 @@ contains
 
     real(r8) :: initial_trim              ! Initial trim
     real(r8) :: optimum_trim              ! Optimum trim value 
-    real(r8) :: initial_leafmem           ! Initial leafmemory
-    real(r8) :: optimum_leafmem           ! Optimum leafmemory
+    real(r8) :: initial_leafmem           ! Initial leaf memory
+    real(r8) :: optimum_leafmem           ! Optimum leaf memory
 
     !----------------------------------------------------------------------
 
@@ -711,22 +713,21 @@ contains
     integer  :: ncolddays         ! no days underneath the threshold for leaf drop
     integer  :: i_wmem            ! Loop counter for water mem days
     integer  :: i_tmem            ! Loop counter for veg temp mem days
-    integer  :: dayssincedleafon  ! Days since drought-decid leaf-on started
-    integer  :: dayssincedleafoff ! Days since drought-decid leaf-off started
-    integer  :: dayssincecleafon  ! Days since cold-decid leaf-on started
-    integer  :: dayssincecleafoff ! Days since cold-decid leaf-off started
-    real(r8) :: mean_10day_liqvol ! mean liquid volume (m3/m3) over last 10 days
+    integer  :: ft                ! plant functional type index
+    real(r8) :: mean_10day_liqvol ! mean soil liquid water volume over last 10 days
+    real(r8) :: mean_10day_smp    ! mean soil matric potential over last 10 days
     real(r8) :: leaf_c            ! leaf carbon [kg]
     real(r8) :: fnrt_c            ! fineroot carbon [kg]
     real(r8) :: sapw_c            ! sapwood carbon [kg]
     real(r8) :: store_c           ! storage carbon [kg]
     real(r8) :: struct_c          ! structure carbon [kg]
     real(r8) :: gdd_threshold     ! GDD accumulation function,
-    integer  :: ilayer_swater     ! Layer index for soil water
-                                  ! which also depends on chilling days.
     integer  :: ncdstart          ! beginning of counting period for chilling degree days.
     integer  :: gddstart          ! beginning of counting period for growing degree days.
-    real(r8) :: temp_in_C         ! daily averaged temperature in celcius
+    integer  :: nlevroot          ! Number of rooting levels to consider
+    real(r8) :: temp_in_C         ! daily averaged temperature in celsius
+
+    logical  :: smoist_below_threshold ! Is Soil moisture below threshold?
 
     integer, parameter :: canopy_leaf_lifespan = 365    ! Maximum lifespan of drought decid leaves
 
@@ -737,17 +738,16 @@ contains
                                                         ! drought deciduous in perennially wet environments
                                                         ! that have been forced to drop their leaves, from
                                                         ! flushing them back immediately.
-
-    real(r8),parameter :: dphen_soil_depth = 0.1        ! Use liquid soil water that is
-                                                        ! closest to this depth [m]
- 
+    integer, parameter  :: dd_offon_toler = 30          ! When flushing or shedding leaves, we check that
+                                                        ! the dates are near last year's dates. This controls
+                                                        ! the tolerance for deviating from last year.
+    real(r8), parameter :: smp_off = -0.001_r8          ! Offset to be applied to soil matric potential when
+                                                        ! taking the log-averages. This avoids FPE in the
+                                                        ! unlikely case that SMP = 0. (which may occur
+                                                        ! depending on the hydrology formulation).
     ! This is the integer model day. The first day of the simulation is 1, and it
     ! continues monotonically, indefinitely
     model_day_int = nint(hlm_model_day)
-
-
-    ! Use the following layer index to calculate drought conditions
-    ilayer_swater = minloc(abs(bc_in%z_sisl(:)-dphen_soil_depth),dim=1)
 
 
     ! Parameter of drought decid leaf loss in mm in top layer...FIX(RF,032414) 
@@ -842,15 +842,15 @@ contains
     ! not had occured yet, so set it to last year to get things rolling
 
     if (model_day_int < currentSite%cleafoffdate) then
-       dayssincecleafoff = model_day_int - (currentSite%cleafoffdate - 365)
+       currentSite%cndaysleafoff = model_day_int - (currentSite%cleafoffdate - 365)
     else
-       dayssincecleafoff = model_day_int - currentSite%cleafoffdate
+       currentSite%cndaysleafoff = model_day_int - currentSite%cleafoffdate
     end if
 
     if (model_day_int < currentSite%cleafondate) then
-       dayssincecleafon = model_day_int - (currentSite%cleafondate-365)
+       currentSite%cndaysleafon = model_day_int - (currentSite%cleafondate-365)
     else
-       dayssincecleafon = model_day_int - currentSite%cleafondate
+       currentSite%cndaysleafon = model_day_int - currentSite%cleafondate
     end if
 
 
@@ -866,11 +866,11 @@ contains
     if ( (currentSite%cstatus == phen_cstat_iscold .or. &
           currentSite%cstatus == phen_cstat_nevercold) .and. &
          (currentSite%grow_deg_days > gdd_threshold) .and. &
-         (dayssincecleafoff > ED_val_phen_mindayson) .and. &
+         (currentSite%cndaysleafoff > ED_val_phen_mindayson) .and. &
          (currentSite%nchilldays >= 1)) then
        currentSite%cstatus = phen_cstat_notcold  ! Set to not-cold status (leaves can come on)
        currentSite%cleafondate = model_day_int  
-       dayssincecleafon = 0 
+       currentSite%cndaysleafon = 0
        currentSite%grow_deg_days = 0._r8 ! zero GDD for the rest of the year until counting season begins. 
        if ( debug ) write(fates_log(),*) 'leaves on'
     endif !GDD
@@ -889,7 +889,7 @@ contains
     if ( (currentSite%cstatus == phen_cstat_notcold) .and. &
          (model_day_int > num_vegtemp_mem)      .and. &
          (ncolddays > ED_val_phen_ncolddayslim) .and. &
-         (dayssincecleafon > ED_val_phen_mindayson) )then
+         (currentSite%cndaysleafon > ED_val_phen_mindayson) )then
        
        currentSite%grow_deg_days  = 0._r8          ! The equations for Botta et al
                                                  ! are for calculations of 
@@ -897,7 +897,8 @@ contains
                                                  ! clear this value, it will cause
                                                  ! leaves to flush later in the year
        currentSite%cstatus       = phen_cstat_iscold  ! alter status of site to 'leaves off'
-       currentSite%cleafoffdate = model_day_int       ! record leaf off date   
+       currentSite%cleafoffdate  = model_day_int       ! record leaf off date
+       currentSite%cndaysleafoff = 0
 
        if ( debug ) write(fates_log(),*) 'leaves off'
     endif
@@ -909,7 +910,7 @@ contains
     ! plants from re-emerging in areas without at least some cold days
 
     if( (currentSite%cstatus == phen_cstat_notcold)  .and. &
-        (dayssincecleafoff > 400)) then           ! remove leaves after a whole year 
+        (currentSite%cndaysleafoff > 400)) then           ! remove leaves after a whole year
                                                   ! when there is no 'off' period.  
        currentSite%grow_deg_days  = 0._r8
 
@@ -917,6 +918,7 @@ contains
                                                    ! site is never really cold enough
                                                    ! for cold deciduous
        currentSite%cleafoffdate = model_day_int    ! record leaf off date   
+       currentSite%cndaysleafoff = 0
        
        if ( debug ) write(fates_log(),*) 'leaves off'
     endif
@@ -949,114 +951,154 @@ contains
     ! Why don't the drought deciduous trees grow in the North? 
     ! Is cold decidousness maybe even the same as drought deciduosness there (and so does this 
     ! distinction actually matter??).... 
+    !     MLO. They are probably not the same: unlike cold deciduous temperatures are high when
+    !     drought deciduous leaves are off, which means that their maintenance respiration is high
+    !     during the leaf-off season.  For them to be viable, we may need different allocation
+    !     strategies so they don't exhaust their storage to maintain fine roots and sapwood.
 
-    ! Accumulate surface water memory of last 10 days.
-    ! Liquid volume in ground layer (m3/m3)
-    do i_wmem = 1,numWaterMem-1 !shift memory along one
-       currentSite%water_memory(numWaterMem+1-i_wmem) = currentSite%water_memory(numWaterMem-i_wmem)
-    enddo
-    currentSite%water_memory(1) = bc_in%h2o_liqvol_sl(ilayer_swater) 
+    ! Add PFT look to account for different PFT rooting depth profiles.
+    pft_drgt_loop: do ft=1,numpft
 
-    ! Calculate the mean water content over the last 10 days (m3/m3)
-    mean_10day_liqvol = sum(currentSite%water_memory(1:numWaterMem))/real(numWaterMem,r8)
+       ! Update soil moisture information memory (we always track the last 10 days)
+       do i_wmem = numWaterMem,2,-1 !shift memory along one
+          currentSite%liqvol_memory(i_wmem,ft) = currentSite%liqvol_memory(i_wmem-1,ft)
+          currentSite%smp_memory   (i_wmem,ft) = currentSite%smp_memory   (i_wmem-1,ft)
+       end do
 
-    ! In drought phenology, we often need to force the leaves to stay 
-    ! on or off as moisture fluctuates...     
+       ! Find the rooting depth distribution for PFT
+       call set_root_fraction( currentSite%rootfrac_scr, ft, currentSite%zi_soil, &
+                               bc_in%max_rooting_depth_index_col )
+       nlevroot = min(ubound(currentSite%zi_soil,1),bc_in%max_rooting_depth_index_col)
 
-    ! Calculate days since leaves have come off, but make a provision
-    ! for the first year of simulation, we have to assume a leaf drop
-    ! date to start, so if that is in the future, set it to last year
+       ! Set the memory to be the weighted average of the soil properties, using the
+       ! root fraction of each layer as the weighting factor.  Because soil matric potential
+       ! has a very skewed vertical distribution, we average the logarithm of -1*SMP.
+       ! It is unlike, but SMP can be zero under saturated conditions depending on the hydrological
+       ! model. To reduce risks of FPE, we include a small offset to SMP before applying log averages.
+       ! This will bias the average, but the bias should be negligible as long as smp_off is much
+       ! smaller than the typical values.
+       currentSite%liqvol_memory(1,ft) = sum( bc_in%h2o_liqvol_sl     (1:nlevroot) * &
+                                              currentSite%rootfrac_scr(1:nlevroot) )
+       currentSite%smp_memory   (1,ft) = -exp( sum( log(-(bc_in%smp_sl (1:nlevroot)+smp_off)) * &
+                                                   currentSite%rootfrac_scr(1:nlevroot) )) - smp_off
 
-    if (model_day_int < currentSite%dleafoffdate) then
-       dayssincedleafoff = model_day_int - (currentSite%dleafoffdate-365)
-    else
-       dayssincedleafoff = model_day_int - currentSite%dleafoffdate
-    endif
-    
-    ! the leaves are on. How long have they been on? 
-    if (model_day_int < currentSite%dleafondate) then
-       dayssincedleafon = model_day_int - (currentSite%dleafondate-365)
-    else
-       dayssincedleafon = model_day_int - currentSite%dleafondate 
-    endif
+       ! Calculate the mean soil moisture ( liquid volume (m3/m3) and matric potential (mm))
+       !    over the last 10 days
+       mean_10day_liqvol = sum(currentSite%liqvol_memory(1:numWaterMem,ft))/real(numWaterMem,r8)
+       mean_10day_smp    = sum(currentSite%smp_memory   (1:numWaterMem,ft))/real(numWaterMem,r8)
 
-    ! LEAF ON: DROUGHT DECIDUOUS WETNESS
-    ! Here, we used a window of oppurtunity to determine if we are 
-    ! close to the time when then leaves came on last year
-    
-    ! Has it been ...
-    ! a) a year, plus or minus 1 month since we last had leaf-on? 
-    ! b) Has there also been at least a nominaly short amount of "leaf-off"
-    ! c) is the model day at least > 10 (let soil water spin-up)
-    ! Note that cold-starts begin in the "leaf-on"
-    ! status
-    if ( (currentSite%dstatus == phen_dstat_timeoff .or. &
-          currentSite%dstatus == phen_dstat_moistoff) .and. &
-          (model_day_int > numWaterMem) .and. &
-          (dayssincedleafon >= 365-30 .and. dayssincedleafon <= 365+30 ) .and. &
-          (dayssincedleafoff > ED_val_phen_doff_time) ) then
+       ! Compare the moisture with the threshold.
+       if ( ED_val_phen_drought_threshold >= 0. ) then
+          ! Liquid volume in reference layer (m3/m3)
+          smoist_below_threshold = mean_10day_liqvol < ED_val_phen_drought_threshold
+       else
+          ! Soil matric potential in reference layer (mm)
+          smoist_below_threshold = mean_10day_smp    < ED_val_phen_drought_threshold
+       end if
 
-       ! If leaves are off, and have been off for at least a few days
-       ! and the time is consistent with the correct
-       ! time window... test if the moisture conditions allow for leaf-on
-       
-       if ( mean_10day_liqvol >= ED_val_phen_drought_threshold ) then
-          currentSite%dstatus     = phen_dstat_moiston  ! set status to leaf-on
-          currentSite%dleafondate = model_day_int       ! save the model day we start flushing
-          dayssincedleafon        = 0
+
+       ! In drought phenology, we often need to force the leaves to stay
+       ! on or off as moisture fluctuates...
+
+       ! Calculate days since leaves have come off, but make a provision
+       ! for the first year of simulation, we have to assume a leaf drop
+       ! date to start, so if that is in the future, set it to last year
+
+       if (model_day_int < currentSite%dleafoffdate(ft)) then
+          currentSite%dndaysleafoff(ft) = model_day_int - (currentSite%dleafoffdate(ft)-365)
+       else
+          currentSite%dndaysleafoff(ft) = model_day_int - currentSite%dleafoffdate(ft)
        endif
-    endif
 
-    ! LEAF ON: DROUGHT DECIDUOUS TIME EXCEEDANCE
-    ! If we still haven't done budburst by end of window, then force it
+       ! the leaves are on. How long have they been on?
+       if (model_day_int < currentSite%dleafondate(ft)) then
+          currentSite%dndaysleafon(ft) = model_day_int - (currentSite%dleafondate(ft)-365)
+       else
+          currentSite%dndaysleafon(ft) = model_day_int - currentSite%dleafondate(ft)
+       endif
 
-    ! If the status is "phen_dstat_moistoff", it means this site currently has 
-    ! leaves off due to actual moisture limitations. 
-    ! So we trigger bud-burst at the end of the month since 
-    ! last year's bud-burst.  If this is imposed, then we set the new
-    ! status to indicate bud-burst was forced by timing
 
-    if( currentSite%dstatus == phen_dstat_moistoff ) then
-       if ( dayssincedleafon > 365+30 ) then
-          currentSite%dstatus     = phen_dstat_timeon ! force budburst!
-          currentSite%dleafondate = model_day_int     ! record leaf on date
-          dayssincedleafon        = 0
+       ! LEAF ON: DROUGHT DECIDUOUS WETNESS
+       ! Here, we used a window of oppurtunity to determine if we are
+       ! close to the time when then leaves came on last year
+
+       ! Has it been ...
+       ! a) a year, plus or minus 1 month since we last had leaf-on?
+       ! b) Has there also been at least a nominaly short amount of "leaf-off"
+       ! c) is the model day at least > 10 (let soil water spin-up)
+       ! Note that cold-starts begin in the "leaf-on"
+       ! status
+       if ( (currentSite%dstatus(ft) == phen_dstat_timeoff .or. &
+             currentSite%dstatus(ft) == phen_dstat_moistoff) .and. &
+             (model_day_int > numWaterMem) .and. &
+             (currentSite%dndaysleafon(ft) >= 365-dd_offon_toler .and. &
+              currentSite%dndaysleafon(ft) <= 365+dd_offon_toler ) .and. &
+             (currentSite%dndaysleafoff(ft) > ED_val_phen_doff_time) ) then
+
+          ! If leaves are off, and have been off for at least a few days
+          ! and the time is consistent with the correct
+          ! time window... test if the moisture conditions allow for leaf-on
+          if ( .not. smoist_below_threshold ) then
+             currentSite%dstatus(ft)     = phen_dstat_moiston  ! set status to leaf-on
+             currentSite%dleafondate(ft) = model_day_int       ! save the model day we start flushing
+             currentSite%dndaysleafon(ft) = 0
+          endif
+       endif
+
+       ! LEAF ON: DROUGHT DECIDUOUS TIME EXCEEDANCE
+       ! If we still haven't done budburst by end of window, then force it
+
+       ! If the status is "phen_dstat_moistoff", it means this site currently has
+       ! leaves off due to actual moisture limitations.
+       ! So we trigger bud-burst at the end of the month since
+       ! last year's bud-burst.  If this is imposed, then we set the new
+       ! status to indicate bud-burst was forced by timing
+
+       if( currentSite%dstatus(ft) == phen_dstat_moistoff ) then
+          if ( currentSite%dndaysleafon(ft) > 365+dd_offon_toler ) then
+             currentSite%dstatus(ft)      = phen_dstat_timeon ! force budburst!
+             currentSite%dleafondate(ft)  = model_day_int     ! record leaf on date
+             currentSite%dndaysleafon(ft) = 0
+          end if
        end if
-    end if
 
-    ! But if leaves are off due to time, then we enforce
-    ! a longer cool-down (because this is a perrenially wet system)
+       ! But if leaves are off due to time, then we enforce
+       ! a longer cool-down (because this is a perrenially wet system)
 
-    if(currentSite%dstatus == phen_dstat_timeoff ) then
-       if (dayssincedleafoff > min_daysoff_dforcedflush) then
-          currentSite%dstatus     = phen_dstat_timeon    ! force budburst!
-          currentSite%dleafondate = model_day_int        ! record leaf on date
-          dayssincedleafon        = 0
+       if(currentSite%dstatus(ft) == phen_dstat_timeoff ) then
+          if (currentSite%dndaysleafoff(ft) > min_daysoff_dforcedflush) then
+             currentSite%dstatus(ft)      = phen_dstat_timeon    ! force budburst!
+             currentSite%dleafondate(ft)  = model_day_int        ! record leaf on date
+             currentSite%dndaysleafon(ft) = 0
+          end if
        end if
-    end if
 
-    ! LEAF OFF: DROUGHT DECIDUOUS LIFESPAN - if the leaf gets to 
-    ! the end of its useful life. A*, E*  
-    ! i.e. Are the leaves rouhgly at the end of their lives? 
+       ! LEAF OFF: DROUGHT DECIDUOUS LIFESPAN - if the leaf gets to
+       ! the end of its useful life. A*, E*
+       ! i.e. Are the leaves rouhgly at the end of their lives?
 
-    if ( (currentSite%dstatus == phen_dstat_moiston .or. &
-          currentSite%dstatus == phen_dstat_timeon ) .and. & 
-         (dayssincedleafon > canopy_leaf_lifespan) )then 
-          currentSite%dstatus      = phen_dstat_timeoff    !alter status of site to 'leaves off'
-          currentSite%dleafoffdate = model_day_int         !record leaf on date          
-    endif
+       if ( (currentSite%dstatus(ft) == phen_dstat_moiston .or. &
+             currentSite%dstatus(ft) == phen_dstat_timeon ) .and. &
+            (currentSite%dndaysleafon(ft) > canopy_leaf_lifespan) )then
+             currentSite%dstatus(ft)      = phen_dstat_timeoff    !alter status of site to 'leaves off'
+             currentSite%dleafoffdate(ft) = model_day_int         !record leaf on date
+             currentSite%dndaysleafoff(ft) = 0
+       endif
 
-    ! LEAF OFF: DROUGHT DECIDUOUS DRYNESS - if the soil gets too dry, 
-    ! and the leaves have already been on a while... 
+       ! LEAF OFF: DROUGHT DECIDUOUS DRYNESS - if the soil gets too dry,
+       ! and the leaves have already been on a while...
 
-    if ( (currentSite%dstatus == phen_dstat_moiston .or. &
-          currentSite%dstatus == phen_dstat_timeon ) .and. &
-         (model_day_int > numWaterMem) .and. &
-         (mean_10day_liqvol <= ED_val_phen_drought_threshold) .and. &
-         (dayssincedleafon > dleafon_drycheck ) ) then 
-       currentSite%dstatus = phen_dstat_moistoff     ! alter status of site to 'leaves off'
-       currentSite%dleafoffdate = model_day_int      ! record leaf on date           
-    endif
+       if ( (currentSite%dstatus(ft) == phen_dstat_moiston .or. &
+             currentSite%dstatus(ft) == phen_dstat_timeon ) .and. &
+            (model_day_int > numWaterMem) .and. &
+            smoist_below_threshold .and. &
+            (currentSite%dndaysleafon(ft) > dleafon_drycheck ) ) then
+          currentSite%dstatus(ft) = phen_dstat_moistoff     ! alter status of site to 'leaves off'
+          currentSite%dleafoffdate(ft) = model_day_int      ! record leaf on date
+          currentSite%dndaysleafoff(ft) = 0
+       endif
+
+    end do pft_drgt_loop
 
     call phenology_leafonoff(currentSite)
 
@@ -1078,22 +1120,34 @@ contains
     type(ed_cohort_type), pointer :: currentCohort  
 
     real(r8) :: leaf_c                 ! leaf carbon [kg]
+    real(r8) :: fnrt_c                 ! fine root carbon [kg]
     real(r8) :: sapw_c                 ! sapwood carbon [kg]
     real(r8) :: struct_c               ! structural wood carbon [kg]
+
+    real(r8) :: leaf_deficit           ! leaf carbon deficit (to be back on allometry) [kg]
+    real(r8) :: fnrt_deficit           ! fine root carbon (to be back on allometry) [kg]
+    real(r8) :: sapw_deficit           ! sapwood carbon (to be back on allometry) [kg]
+    real(r8) :: struct_deficit         ! structural wood carbon (to be back on allometry) [kg]
+    real(r8) :: total_deficit          ! total carbon deficit (to be back on allometry) [kg]
+
     real(r8) :: store_c                ! storage carbon [kg]
     real(r8) :: store_c_transfer_frac  ! Fraction of storage carbon used to flush leaves
     real(r8) :: totalmemory            ! total memory of carbon [kg]
+    logical  :: is_flushing_time       ! Time to flush leaves
+    logical  :: is_shedding_time       ! Time to shed leaves
     integer  :: ipft
     real(r8), parameter :: leaf_drop_fraction = 1.0_r8
     real(r8), parameter :: carbon_store_buffer = 0.10_r8
     real(r8) :: stem_drop_fraction
+
+    logical, parameter  :: debug = .true. ! Print debug info?
     !------------------------------------------------------------------------
 
     currentPatch => CurrentSite%oldest_patch   
 
-    do while(associated(currentPatch))    
+    patch_loop: do while(associated(currentPatch))
        currentCohort => currentPatch%tallest
-       do while(associated(currentCohort))        
+       cohort_loop: do while(associated(currentCohort))
 
           ipft = currentCohort%pft
 
@@ -1103,229 +1157,159 @@ contains
 
           store_c = currentCohort%prt%GetState(store_organ, all_carbon_elements)
           leaf_c  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+          fnrt_c  = currentCohort%prt%GetState(fnrt_organ, all_carbon_elements)
           sapw_c  = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
           struct_c  = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
-	  
+
           stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(ipft)
-	  
-          ! COLD LEAF ON
-          ! The site level flags signify that it is no-longer too cold
-          ! for leaves. Time to signal flushing
 
-          if (prt_params%season_decid(ipft) == itrue)then
-             if ( currentSite%cstatus == phen_cstat_notcold  )then                ! we have just moved to leaves being on . 
-                if (currentCohort%status_coh == leaves_off)then ! Are the leaves currently off?        
-                   currentCohort%status_coh = leaves_on         ! Leaves are on, so change status to 
-                                                                ! stop flow of carbon out of bstore. 
+
+          ! MLO. Sanity check. If this is a deciduous PFT, then leaf status ought to
+          !      be on or off. If it is something else, stop the run.
+          if ( prt_params%season_decid(ipft) == itrue .or. &
+               prt_params%stress_decid(ipft) == itrue ) then
+             select case(currentCohort%status_coh)
+             case (leaves_off,leaves_on)
+                continue
+             case default
+                write(fates_log(),'(a)') '---------------------------------------------'
+                write(fates_log(),'(a)') ' Odd leaf status - Leaves are not off or on. '
+                write(fates_log(),'(a)') '---------------------------------------------'
+                write(fates_log(),'(a,1x,i5)'   ) ' PFT = ',ipft
+                write(fates_log(),'(a,1x,i5)'   ) ' Season deciduous = ',prt_params%season_decid(ipft)
+                write(fates_log(),'(a,1x,i5)'   ) ' Stress deciduous = ',prt_params%stress_decid(ipft)
+                write(fates_log(),'(a,1x,i5)'   ) ' Site status      = ',currentSite%cstatus
+                write(fates_log(),'(a,1x,i5)'   ) ' Cohort status    = ',currentCohort%status_coh
+                write(fates_log(),'(a,1x,f12.5)') ' DBH              = ',currentCohort%dbh
+                write(fates_log(),'(a,1x,f12.5)') ' Leaf_c           = ',leaf_c
+                write(fates_log(),'(a,1x,f12.5)') ' Store_c          = ',store_c
+                write(fates_log(),'(a,1x,f12.5)') ' Fnrt_c           = ',fnrt_c
+                write(fates_log(),'(a,1x,f12.5)') ' Sapw_c           = ',sapw_c
+                write(fates_log(),'(a,1x,f12.5)') ' Struct_c         = ',struct_c
+                write(fates_log(),'(a)') '---------------------------------------------'
+                write(fates_log(),'(a)') ''
+                write(fates_log(),'(a)') ''
+                call endrun(msg=errMsg(sourcefile, __LINE__))
+             end select
+          end if
+
+
+          ! MLO. To avoid duplicating code for drought and cold deciduous PFTs, we first
+          !      check whether or not it's time to flush or time to shed leaves, then
+          !      use a common code for flushing or shedding leaves.
+          if (prt_params%season_decid(ipft) == itrue) then ! Cold deciduous
+             ! A. Is this the time for COLD LEAVES to switch to ON?
+             is_flushing_time = ( currentSite%cstatus      == phen_cstat_notcold .and. & ! We just moved to leaves being on
+                                  currentCohort%status_coh == leaves_off         )        ! Leaves are currently off
+             ! B. Is this the time for COLD LEAVES to switch to OFF?
+             is_shedding_time = ( currentSite%cstatus == phen_cstat_nevercold  .or.  & ! Past leaf drop day or...
+                                  currentSite%cstatus == phen_cstat_iscold   ) .and. & ! Too cold?
+                                currentCohort%status_coh == leaves_on          .and. & ! Leaves have not dropped yet
+                                ( currentCohort%dbh > EDPftvarcon_inst%phen_cold_size_threshold(ipft) .or. & ! Grasses are big enough or...
+                                  prt_params%woody(ipft) == itrue                                     )      ! this is a woody PFT.
+
+          elseif (prt_params%stress_decid(ipft) == itrue ) then ! Drought deciduous
+             ! A. Is this the time for DROUGHT LEAVES to switch to ON?
+             is_flushing_time = ( currentSite%dstatus(ipft) == phen_dstat_moiston  .or.  & ! Conditions are sufficiently moist
+                                  currentSite%dstatus(ipft) == phen_dstat_timeon ) .and. & ! Time to for leaf flushing
+                                currentCohort%status_coh == leaves_off
+             ! B. Is this the time for DROUGHT LEAVES to switch to OFF?
+             is_shedding_time = ( currentSite%dstatus(ipft) == phen_dstat_moistoff  .or.  & ! Too dry or...
+                                  currentSite%dstatus(ipft) == phen_dstat_timeoff ) .and. & ! Past leaf drop day.
+                                currentCohort%status_coh == leaves_on               ! ! Leaves have not dropped yet
+          else
+             ! This PFT is not deciduous.
+             is_flushing_time = .false.
+             is_shedding_time = .false.
+          end if ! (prt_params%season_decid(ipft) == itrue)
+
+
+          ! A.  This is time to switch to (COLD or DROUGHT) LEAF ON
+          flush_block: if (is_flushing_time) then
+             currentCohort%status_coh = leaves_on ! Leaves are on, so change status to
+                                                  ! stop flow of carbon out of bstore.
+
+             ! Transfer carbon from storage to living tissues (only if there is any carbon in storage)
+             transf_block: if ( store_c > nearzero ) then
+                ! Find the total deficit.  We no longer distinguish between woody and non-woody
+                ! PFTs here (as sapwmemory is be the same as sapw_c if this is a woody tissue).
+                leaf_deficit   = max(0.0_r8, currentCohort%leafmemory   - leaf_c  )
+                fnrt_deficit   = max(0.0_r8, currentCohort%fnrtmemory   - fnrt_c  )
+                sapw_deficit   = max(0.0_r8, currentCohort%sapwmemory   - sapw_c  )
+                struct_deficit = max(0.0_r8, currentCohort%structmemory - struct_c)
+                total_deficit  = leaf_deficit + fnrt_deficit + sapw_deficit + struct_deficit
+
+                ! Flush either the amount required from the memory, or -most- of the storage pool
+                ! RF: added a criterion to stop the entire store pool emptying and triggering termination mortality
+                ! n.b. this might not be necessary if we adopted a more gradual approach to leaf flushing...
+                store_c_transfer_frac = min( EDPftvarcon_inst%phenflush_fraction(ipft) * total_deficit / store_c, &
+                                             1.0_r8 - carbon_store_buffer )
+
+                ! This call will request that storage carbon will be transferred to
+                ! each tissue. It is specified as a fraction of the available storage
+                ! MLO - Just to be safe, skip steps in the unlikely case total_deficit is zero, to avoid FPE errors.
+                if (total_deficit > nearzero) then
+                   call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, &
+                                          store_c_transfer_frac*leaf_deficit/total_deficit)
+                   call PRTPhenologyFlush(currentCohort%prt, ipft, fnrt_organ, &
+                                          store_c_transfer_frac*fnrt_deficit/total_deficit)
                    
-                   if(store_c>nearzero) then
-                   ! flush either the amount required from the leafmemory, or -most- of the storage pool
-                   ! RF: added a criterion to stop the entire store pool emptying and triggering termination mortality
-                   ! n.b. this might not be necessary if we adopted a more gradual approach to leaf flushing... 
-                     store_c_transfer_frac =  min((EDPftvarcon_inst%phenflush_fraction(ipft)* &
-                     currentCohort%leafmemory)/store_c,(1.0_r8-carbon_store_buffer))
-
-                     if(prt_params%woody(ipft).ne.itrue)then
-                        totalmemory=currentCohort%leafmemory+currentCohort%sapwmemory+currentCohort%structmemory
-                        store_c_transfer_frac = min((EDPftvarcon_inst%phenflush_fraction(ipft)* &
-                                                totalmemory)/store_c, (1.0_r8-carbon_store_buffer))
-                     endif
-		     
-                   else
-                      store_c_transfer_frac = 0.0_r8
+                   if ( nint(prt_params%woody(ipft)) == ifalse ) then
+                      call PRTPhenologyFlush(currentCohort%prt, ipft, sapw_organ, &
+                                             store_c_transfer_frac*sapw_deficit/total_deficit)
+                      call PRTPhenologyFlush(currentCohort%prt, ipft, struct_organ, &
+                                             store_c_transfer_frac*struct_deficit/total_deficit)
                    end if
+                end if
 
-                   ! This call will request that storage carbon will be transferred to 
-                   ! leaf tissues. It is specified as a fraction of the available storage
-                  if(prt_params%woody(ipft) == itrue) then
+                ! Reset memory to ensure we don't add more carbon than needed
+                currentCohort%leafmemory   = 0.0_r8
+                currentCohort%fnrtmemory   = 0.0_r8
+                currentCohort%sapwmemory   = 0.0_r8
+                currentCohort%structmemory = 0.0_r8
+             else
+                ! Not enough carbon to flush any living tissue.
+                store_c_transfer_frac = 0.0_r8
+             end if transf_block
+          end if flush_block
 
-                     call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, store_c_transfer_frac)
-                     currentCohort%leafmemory = 0.0_r8		   
 
-                  else
-                  
-                     ! Check that the stem drop fraction is set to non-zero amount otherwise flush all carbon store to leaves
-                     if (stem_drop_fraction .gt. 0.0_r8) then
 
-                        call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, &
-                        store_c_transfer_frac*currentCohort%leafmemory/totalmemory)		   
+          ! B.  This is time to switch to (COLD or DROUGHT) LEAF OFF
+          shed_block: if (is_shedding_time) then
+             ! This sets the cohort to the "leaves off" flag
+             currentCohort%status_coh  = leaves_off
 
-                        call PRTPhenologyFlush(currentCohort%prt, ipft, sapw_organ, &
-                        store_c_transfer_frac*currentCohort%sapwmemory/totalmemory)
+             ! Set memory for all tissues as the current biomass
+             currentCohort%leafmemory    = leaf_c
+             currentCohort%fnrtmemory    = fnrt_c
+             currentCohort%sapwmemory    = sapw_c
+             currentCohort%structmemory  = struct_c
 
-                        call PRTPhenologyFlush(currentCohort%prt, ipft, struct_organ, & 
-                        store_c_transfer_frac*currentCohort%structmemory/totalmemory)
+             ! Drop leaves
+             call PRTDeciduousTurnover(currentCohort%prt,ipft, leaf_organ, leaf_drop_fraction)
 
-                     else 
+             ! For now we don't drop fine roots. They may decay during the leaf off period.  We may revisit this
+             ! in case we have evidence that deciduous PFTs actively shed fine roots too.
 
-                        call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, &
-                        store_c_transfer_frac)                        
+             ! If plant is not woody, shed sapwood and heartwood (they may have a minimum amount of woody tissues for
+             ! running plant hydraulics, and it makes sense to shed them along with leaves when they should be off).
+             ! MLO - stem_drop_fraction is a PFT parameter, do we really need this check for woody/non-woody PFT?
+             if ( nint(prt_params%woody(ipft)) == ifalse ) then
+                ! Shed sapwood and heartwood.
+                call PRTDeciduousTurnover(currentCohort%prt,ipft,sapw_organ  , stem_drop_fraction)
+                call PRTDeciduousTurnover(currentCohort%prt,ipft,struct_organ, stem_drop_fraction)
+             end if
+          end if shed_block
 
-                     end if
-               
-                     currentCohort%leafmemory = 0.0_r8
-                     currentCohort%structmemory = 0.0_r8
-                     currentCohort%sapwmemory = 0.0_r8
-                  
-                  endif		   
-                endif !pft phenology
-             endif ! growing season 
+          if(debug) call currentCohort%prt%CheckMassConservation(ipft,1)
 
-             !COLD LEAF OFF
-             if (currentSite%cstatus == phen_cstat_nevercold .or. &
-                 currentSite%cstatus == phen_cstat_iscold) then ! past leaf drop day? Leaves still on tree?  
+          currentCohort => currentCohort%shorter
+       end do cohort_loop
 
-                if (currentCohort%status_coh == leaves_on) then ! leaves have not dropped
+       currentPatch => currentPatch%younger
 
-		            ! leaf off occur on individuals bigger than specific size for grass
-                  if (currentCohort%dbh > EDPftvarcon_inst%phen_cold_size_threshold(ipft) &
-                  .or. prt_params%woody(ipft)==itrue) then 
-                     
-                     ! This sets the cohort to the "leaves off" flag
-                     currentCohort%status_coh  = leaves_off
-
-                     ! Remember what the lai was (leaf mass actually) was for next year
-                     ! the same amount back on in the spring...
-
-                     currentCohort%leafmemory   = leaf_c
-
-                     ! Drop Leaves (this routine will update the leaf state variables,
-                     ! for carbon and any other element that are prognostic. It will
-                     ! also track the turnover masses that will be sent to litter later on)
-
-                     call PRTDeciduousTurnover(currentCohort%prt,ipft, &
-                        leaf_organ, leaf_drop_fraction)
-         
-                     if(prt_params%woody(ipft).ne.itrue)then
-               
-                           currentCohort%sapwmemory   = sapw_c * stem_drop_fraction
-               
-                           currentCohort%structmemory   = struct_c * stem_drop_fraction			 
-
-                           call PRTDeciduousTurnover(currentCohort%prt,ipft, &
-                              sapw_organ, stem_drop_fraction)
-
-                           call PRTDeciduousTurnover(currentCohort%prt,ipft, &
-                              struct_organ, stem_drop_fraction)
-
-                     endif	! woody plant check
-                  endif ! individual dbh size check
-               endif !leaf status
-            endif !currentSite status
-         endif  !season_decid
-
-          ! DROUGHT LEAF ON
-          ! Site level flag indicates it is no longer in drought condition
-          ! deciduous plants can flush
-
-          if (prt_params%stress_decid(ipft) == itrue )then
-             
-            if (currentSite%dstatus == phen_dstat_moiston .or. &
-                 currentSite%dstatus == phen_dstat_timeon )then 
-
-               ! we have just moved to leaves being on . 
-               if (currentCohort%status_coh == leaves_off)then    
-
-                   !is it the leaf-on day? Are the leaves currently off?    
-
-                  currentCohort%status_coh = leaves_on    ! Leaves are on, so change status to 
-                                                           ! stop flow of carbon out of bstore. 
-
-                  if(store_c>nearzero) then
-
-                     store_c_transfer_frac = & 
-                          min((EDPftvarcon_inst%phenflush_fraction(ipft)*currentCohort%leafmemory)/store_c, &
-                          (1.0_r8-carbon_store_buffer))
-
-                     if(prt_params%woody(ipft).ne.itrue)then
-                     
-                        totalmemory=currentCohort%leafmemory+currentCohort%sapwmemory+currentCohort%structmemory
-                        store_c_transfer_frac = min(EDPftvarcon_inst%phenflush_fraction(ipft)*totalmemory/store_c, &
-                             (1.0_r8-carbon_store_buffer))
-
-                     endif
-
-                  else
-                     store_c_transfer_frac = 0.0_r8
-                  endif
-                   
-                   ! This call will request that storage carbon will be transferred to 
-                   ! leaf tissues. It is specified as a fraction of the available storage
-                  if(prt_params%woody(ipft) == itrue) then
-                  
-                     call PRTPhenologyFlush(currentCohort%prt, ipft, &
-                        leaf_organ, store_c_transfer_frac)
-
-                     currentCohort%leafmemory = 0.0_r8
-               
-                  else
-
-                     ! Check that the stem drop fraction is set to non-zero amount otherwise flush all carbon store to leaves
-                     if (stem_drop_fraction .gt. 0.0_r8) then
-
-                        call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, &
-                        store_c_transfer_frac*currentCohort%leafmemory/totalmemory)		   
-
-                        call PRTPhenologyFlush(currentCohort%prt, ipft, sapw_organ, &
-                        store_c_transfer_frac*currentCohort%sapwmemory/totalmemory)
-
-                        call PRTPhenologyFlush(currentCohort%prt, ipft, struct_organ, & 
-                        store_c_transfer_frac*currentCohort%structmemory/totalmemory)
-
-                     else
-
-                        call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, &
-                        store_c_transfer_frac)	
-
-                     end if
-                        
-                     currentCohort%leafmemory = 0.0_r8
-                     currentCohort%structmemory = 0.0_r8
-                     currentCohort%sapwmemory = 0.0_r8
-		     
-		            endif ! woody plant check
-               endif !currentCohort status again?
-            endif   !currentSite status
-
-            !DROUGHT LEAF OFF
-            if (currentSite%dstatus == phen_dstat_moistoff .or. &
-               currentSite%dstatus == phen_dstat_timeoff) then        
-
-               if (currentCohort%status_coh == leaves_on) then ! leaves have not dropped
-
-                  ! This sets the cohort to the "leaves off" flag
-                  currentCohort%status_coh      = leaves_off
-                  
-                  ! Remember what the lai (leaf mass actually) was for next year
-                  currentCohort%leafmemory   = leaf_c
-      
-                  call PRTDeciduousTurnover(currentCohort%prt,ipft, &
-                        leaf_organ, leaf_drop_fraction)
-			 
-                  if(prt_params%woody(ipft).ne.itrue)then
-            
-                     currentCohort%sapwmemory   = sapw_c * stem_drop_fraction
-                     currentCohort%structmemory   = struct_c * stem_drop_fraction			 
-
-                     call PRTDeciduousTurnover(currentCohort%prt,ipft, &
-                        sapw_organ, stem_drop_fraction)
-
-                     call PRTDeciduousTurnover(currentCohort%prt,ipft, &
-                        struct_organ, stem_drop_fraction)
-                  endif			 			 
-
-               endif
-            endif !status
-         endif !drought dec.
-
-         if(debug) call currentCohort%prt%CheckMassConservation(ipft,1)
-
-            currentCohort => currentCohort%shorter
-      enddo !currentCohort
-
-      currentPatch => currentPatch%younger
-
-   enddo !currentPatch
+    end do patch_loop
 
   end subroutine phenology_leafonoff
 
@@ -1519,7 +1503,7 @@ contains
     ! !ARGUMENTS
     type(litter_type) :: litt  
     integer, intent(in) :: cold_stat    ! Is the site in cold leaf-off status?
-    integer, intent(in) :: drought_stat ! Is the site in drought leaf-off status?
+    integer, dimension(numpft), intent(in) :: drought_stat ! Is the site in drought leaf-off status?
     !
     ! !LOCAL VARIABLES:
     integer :: pft
@@ -1551,7 +1535,7 @@ contains
            litt%seed_germ_in(pft) = 0.0_r8
        endif
        if ((prt_params%stress_decid(pft) == itrue ) .and. &
-             (any(drought_stat == [phen_dstat_timeoff,phen_dstat_moistoff]))) then
+             (any(drought_stat(pft) == [phen_dstat_timeoff,phen_dstat_moistoff]))) then
            litt%seed_germ_in(pft) = 0.0_r8
        end if
 
@@ -1640,9 +1624,9 @@ contains
 
        ! Default assumption is that leaves are on
        cohortstatus = leaves_on
-       temp_cohort%leafmemory = 0.0_r8     
-       temp_cohort%sapwmemory = 0.0_r8     
-       temp_cohort%structmemory = 0.0_r8     
+       temp_cohort%leafmemory = 0.0_r8
+       temp_cohort%sapwmemory = 0.0_r8
+       temp_cohort%structmemory = 0.0_r8
 
        
        ! But if the plant is seasonally (cold) deciduous, and the site status is flagged
@@ -1666,7 +1650,7 @@ contains
        ! "in a drought", then likewise, set the cohort's status to leaves_off, and remember leaf
        ! biomass
        if ((prt_params%stress_decid(ft) == itrue) .and. &
-             (any(currentSite%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff]))) then
+             (any(currentSite%dstatus(ft) == [phen_dstat_timeoff,phen_dstat_moistoff]))) then
          temp_cohort%leafmemory = c_leaf
          c_leaf = 0.0_r8
 
@@ -1854,8 +1838,8 @@ contains
            ! This initializes the cohort
            call create_cohort(currentSite,currentPatch, temp_cohort%pft, temp_cohort%n, & 
                 temp_cohort%hite, temp_cohort%coage, temp_cohort%dbh, prt, & 
-                temp_cohort%leafmemory, temp_cohort%sapwmemory, temp_cohort%structmemory, &
-                cohortstatus, recruitstatus, &
+                temp_cohort%leafmemory, temp_cohort%fnrtmemory, temp_cohort%sapwmemory, &
+                temp_cohort%structmemory, cohortstatus, recruitstatus, &
                 temp_cohort%canopy_trim, currentPatch%NCL_p, currentSite%spread, bc_in)
            
            ! Note that if hydraulics is on, the number of cohorts may had

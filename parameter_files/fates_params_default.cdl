@@ -720,8 +720,8 @@ variables:
 		fates_phen_doff_time:units = "days" ;
 		fates_phen_doff_time:long_name = "day threshold compared against days since leaves became off-allometry" ;
 	double fates_phen_drought_threshold ;
-		fates_phen_drought_threshold:units = "m3/m3" ;
-		fates_phen_drought_threshold:long_name = "liquid volume in soil layer, threashold for drought phenology" ;
+		fates_phen_drought_threshold:units = "m3/m3 or mm" ;
+		fates_phen_drought_threshold:long_name = "threshold for drought phenology; the quantity depends on the sign: if positive, the threshold is volumetric soil moisture (m3/m3). If negative, the threshold is soil matric potentical (mm)." ;
 	double fates_phen_mindayson ;
 		fates_phen_mindayson:units = "days" ;
 		fates_phen_mindayson:long_name = "day threshold compared against days since leaves became on-allometry" ;
@@ -1463,7 +1463,7 @@ data:
 
  fates_phen_doff_time = 100 ;
 
- fates_phen_drought_threshold = 0.15 ;
+ fates_phen_drought_threshold = -140000. ;
 
  fates_phen_mindayson = 90 ;
 

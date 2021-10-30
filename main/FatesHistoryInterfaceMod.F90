@@ -341,15 +341,11 @@ module FatesHistoryInterfaceMod
   integer :: ih_h2oveg_hydro_err_si
   
   integer :: ih_site_cstatus_si
-  integer :: ih_site_dstatus_si
   integer :: ih_gdd_si
   integer :: ih_site_nchilldays_si
   integer :: ih_site_ncolddays_si
   integer :: ih_cleafoff_si
   integer :: ih_cleafon_si
-  integer :: ih_dleafoff_si
-  integer :: ih_dleafon_si
-  integer :: ih_meanliqvol_si
 
   integer :: ih_nesterov_fire_danger_si
   integer :: ih_fire_nignitions_si
@@ -516,6 +512,12 @@ module FatesHistoryInterfaceMod
   integer :: ih_canopycrownarea_si_pft
   integer :: ih_gpp_si_pft
   integer :: ih_npp_si_pft
+  integer :: ih_site_dstatus_si_pft
+  integer :: ih_dleafoff_si_pft
+  integer :: ih_dleafon_si_pft
+  integer :: ih_meanliqvol_si_pft
+  integer :: ih_meansmp_si_pft
+
 
   ! indices to (site x patch-age) variables
   integer :: ih_area_si_age
@@ -2022,15 +2024,16 @@ end subroutine flush_hvars
                hio_mortality_canopy_si_scag         => this%hvars(ih_mortality_canopy_si_scag)%r82d, &
                hio_mortality_understory_si_scag     => this%hvars(ih_mortality_understory_si_scag)%r82d, &
                hio_site_cstatus_si                  => this%hvars(ih_site_cstatus_si)%r81d, &
-               hio_site_dstatus_si                  => this%hvars(ih_site_dstatus_si)%r81d, &
                hio_gdd_si                           => this%hvars(ih_gdd_si)%r81d, &
                hio_site_ncolddays_si                => this%hvars(ih_site_ncolddays_si)%r81d, &
                hio_site_nchilldays_si               => this%hvars(ih_site_nchilldays_si)%r81d, &
                hio_cleafoff_si                      => this%hvars(ih_cleafoff_si)%r81d, &
                hio_cleafon_si                       => this%hvars(ih_cleafon_si)%r81d, &
-               hio_dleafoff_si                      => this%hvars(ih_dleafoff_si)%r81d, &
-               hio_dleafon_si                       => this%hvars(ih_dleafoff_si)%r81d, &
-               hio_meanliqvol_si                    => this%hvars(ih_meanliqvol_si)%r81d, &
+               hio_site_dstatus_si_pft              => this%hvars(ih_site_dstatus_si_pft)%r82d, &
+               hio_dleafoff_si_pft                  => this%hvars(ih_dleafoff_si_pft)%r82d, &
+               hio_dleafon_si_pft                   => this%hvars(ih_dleafon_si_pft)%r82d, &
+               hio_meanliqvol_si_pft                => this%hvars(ih_meanliqvol_si_pft)%r82d, &
+               hio_meansmp_si_pft                   => this%hvars(ih_meansmp_si_pft)%r82d, &
                hio_cbal_err_fates_si                => this%hvars(ih_cbal_err_fates_si)%r81d, &
                hio_err_fates_si                     => this%hvars(ih_err_fates_si)%r82d )
 
@@ -2074,9 +2077,8 @@ end subroutine flush_hvars
 
          hio_canopy_spread_si(io_si)        = sites(s)%spread
 
-         ! Update the site statuses (stati?)
+         ! Update the site status for cold deciduous (drought-deciduous is now PFT dependent)
          hio_site_cstatus_si(io_si)   = real(sites(s)%cstatus,r8)
-         hio_site_dstatus_si(io_si)   = real(sites(s)%dstatus,r8)
 
          !count number of days for leaves off
          hio_site_nchilldays_si(io_si) = real(sites(s)%nchilldays,r8)
@@ -2084,15 +2086,22 @@ end subroutine flush_hvars
 
             
          hio_gdd_si(io_si)      = sites(s)%grow_deg_days
-         hio_cleafoff_si(io_si) = real(model_day_int - sites(s)%cleafoffdate,r8)
-         hio_cleafon_si(io_si)  = real(model_day_int - sites(s)%cleafondate,r8)
-         hio_dleafoff_si(io_si) = real(model_day_int - sites(s)%dleafoffdate,r8)
-         hio_dleafon_si(io_si)  = real(model_day_int - sites(s)%dleafondate,r8)
+         hio_cleafoff_si(io_si) = real(sites(s)%cndaysleafon ,r8)
+         hio_cleafon_si(io_si)  = real(sites(s)%cndaysleafoff,r8)
 
-         if(model_day_int>numWaterMem)then
-            hio_meanliqvol_si(io_si) = &
-                 sum(sites(s)%water_memory(1:numWaterMem))/real(numWaterMem,r8)
-         end if
+         ! Update drought deciduous information (now separated by PFT).
+         do i_pft = 1,numpft
+            hio_site_dstatus_si_pft(io_si,i_pft) = real(sites(s)%dstatus(i_pft),r8)
+            hio_dleafoff_si_pft(io_si,i_pft)     = real(sites(s)%dndaysleafon (i_pft),r8)
+            hio_dleafon_si_pft(io_si,i_pft)      = real(sites(s)%dndaysleafoff(i_pft),r8)
+
+            if(model_day_int>numWaterMem)then
+               hio_meanliqvol_si_pft(io_si,i_pft) = &
+                    sum(sites(s)%liqvol_memory(1:numWaterMem,i_pft))/real(numWaterMem,r8)
+               hio_meansmp_si_pft(io_si,i_pft) = &
+                    sum(sites(s)%smp_memory(1:numWaterMem,i_pft))/real(numWaterMem,r8)
+            end if
+         end do
 
          ! track total wood product accumulation at the site level
          hio_woodproduct_si(io_si)          = sites(s)%resources_management%trunk_product_site &
@@ -4276,12 +4285,6 @@ end subroutine update_history_hifrq
           avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
           ivar=ivar, initialize=initialize_variables, index = ih_site_cstatus_si )
 
-    call this%set_history_var(vname='SITE_DROUGHT_STATUS', units='0,1,2,3', &
-          long='Site level drought status, <2 too dry for leaves, >=2 not-too dry', &
-          use_default='active',                                                  &
-          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
-          ivar=ivar, initialize=initialize_variables, index = ih_site_dstatus_si)
-
     call this%set_history_var(vname='SITE_GDD', units='degC',  &
          long='site level growing degree days',                &
          use_default='active',                                                 &
@@ -4312,29 +4315,42 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_cleafon_si) 
 
-    call this%set_history_var(vname='SITE_DAYSINCE_DROUGHTLEAFOFF', units='days', &
-         long='site level days elapsed since drought leaf drop', &
-         use_default='active',                                                  &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
-         ivar=ivar, initialize=initialize_variables, index = ih_dleafoff_si)
-    
-    call this%set_history_var(vname='SITE_DAYSINCE_DROUGHTLEAFON', units='days', &
-         long='site level days elapsed since drought leaf flush', &
-         use_default='active',                                                  &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
-         ivar=ivar, initialize=initialize_variables, index = ih_dleafon_si)
-
-    call this%set_history_var(vname='SITE_MEANLIQVOL_DROUGHTPHEN', units='m3/m3', &
-         long='site level mean liquid water volume for drought phen', &
-         use_default='active',                                                  &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
-         ivar=ivar, initialize=initialize_variables, index = ih_meanliqvol_si)
-
     call this%set_history_var(vname='CANOPY_SPREAD', units='0-1',               &
          long='Scaling factor between tree basal area and canopy area',         &
          use_default='active',                                                  &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,    &
          ivar=ivar, initialize=initialize_variables, index = ih_canopy_spread_si)
+
+    !MLO - Moved these to here because they are now PFT variables.
+    call this%set_history_var(vname='SITE_DROUGHT_STATUS', units='0,1,2,3', &
+          long='Site level drought status by PFT, <2 too dry for leaves, >=2 not-too dry', &
+          use_default='active',                                                  &
+          avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
+          ivar=ivar, initialize=initialize_variables, index = ih_site_dstatus_si_pft)
+
+    call this%set_history_var(vname='SITE_DAYSINCE_DROUGHTLEAFOFF', units='days', &
+         long='site level days elapsed since drought leaf drop by PFT', &
+         use_default='active',                                                  &
+         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_dleafoff_si_pft)
+    
+    call this%set_history_var(vname='SITE_DAYSINCE_DROUGHTLEAFON', units='days', &
+         long='site level days elapsed since drought leaf flush by PFT', &
+         use_default='active',                                                  &
+         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_dleafon_si_pft)
+
+    call this%set_history_var(vname='SITE_MEANLIQVOL_DROUGHTPHEN', units='m3/m3', &
+         long='site level mean liquid water volume for drought phen by PFT', &
+         use_default='active',                                                  &
+         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_meanliqvol_si_pft)
+
+    call this%set_history_var(vname='SITE_MEANSMP_DROUGHTPHEN', units='mm', &
+         long='site level mean soil matric potential for drought phen by PFT', &
+         use_default='active',                                                  &
+         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_meansmp_si_pft)
 
     call this%set_history_var(vname='PFTbiomass', units='gC/m2',                   &
          long='total PFT level biomass', use_default='active',                     &

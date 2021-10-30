@@ -30,7 +30,7 @@ module EDTypesMod
                                                      (/ 10, 4 /)  !!! MUST SUM TO maxPatchesPerSite !!!
   integer,  public :: maxCohortsPerPatch = 100            ! maximum number of cohorts per patch
   
-  integer, parameter, public :: nclmax = 2                ! Maximum number of canopy layers
+  integer, parameter, public :: nclmax = 3                ! Maximum number of canopy layers
   integer, parameter, public :: ican_upper = 1            ! Nominal index for the upper canopy
   integer, parameter, public :: ican_ustory = 2           ! Nominal index for diagnostics that refer
                                                           ! to understory layers (all layers that
@@ -89,6 +89,14 @@ module EDTypesMod
   integer, parameter, public :: leaves_off = 1  ! Flag specifying that a deciduous plant has dropped
                                                 ! its leaves and should not be trying to allocate
                                                 ! towards any growth.
+
+
+  integer, parameter, public :: phen_ref_smp  = 2    ! Flag specifying that a drought deciduous plant
+                                                     ! uses a soil matric potential threshold to
+                                                     ! decide when to shed or flush leaves
+  integer, parameter, public :: phen_ref_liqvol = 1  ! Flag specifying that a drought deciduous plant
+                                                     ! uses a soil moisture (liquid water volume) threshold to
+                                                     ! decide when to shed or flush leaves
 
   ! Flag to turn on/off salinity effects on the effective "btran"
   ! btran stress function.
@@ -217,6 +225,7 @@ module EDTypesMod
      real(r8) ::  hite                                   ! height: meters
      integer  ::  indexnumber                            ! unique number for each cohort. (within clump?)
      real(r8) ::  leafmemory                             ! target leaf biomass- set from previous year: kGC per indiv
+     real(r8) ::  fnrtmemory                             ! target fine-root biomass- set from previous year: kGC per indiv
      real(r8) ::  sapwmemory                             ! target sapwood biomass- set from previous year: kGC per indiv
      real(r8) ::  structmemory                           ! target structural biomass- set from previous year: kGC per indiv
      integer  ::  canopy_layer                           ! canopy status of cohort (1 = canopy, 2 = understorey, etc.)
@@ -713,7 +722,7 @@ module EDTypesMod
                                                                !     400 days, leaves are dropped and flagged as non-cold region
                                                                ! 1 = this site is in a cold-state where leaves should have fallen
                                                                ! 2 = this site is in a warm-state where leaves are allowed to flush
-     integer  ::  dstatus                                      ! are leaves in this pixel on or off for drought decid
+     integer  ::  dstatus(maxpft)                              ! are leaves in this pixel on or off for drought decid
                                                                ! 0 = leaves off due to time exceedance
                                                                ! 1 = leaves off due to moisture avail
                                                                ! 2 = leaves on due to moisture avail
@@ -723,10 +732,15 @@ module EDTypesMod
      real(r8) ::  vegtemp_memory(num_vegtemp_mem)              ! record of last 10 days temperature for senescence model. deg C
      integer  ::  cleafondate                                  ! model date (day integer) of leaf on (cold):-
      integer  ::  cleafoffdate                                 ! model date (day integer) of leaf off (cold):-
-     integer  ::  dleafondate                                  ! model date (day integer) of leaf on drought:-
-     integer  ::  dleafoffdate                                 ! model date (day integer) of leaf off drought:-
+     integer  ::  cndaysleafon                                 ! number of days since leaf on period started (cold)
+     integer  ::  cndaysleafoff                                ! number of days since leaf off period started (cold)
+     integer  ::  dleafondate(maxpft)                          ! model date (day integer) of leaf on drought:-
+     integer  ::  dleafoffdate(maxpft)                         ! model date (day integer) of leaf off drought:-
+     integer  ::  dndaysleafon(maxpft)                         ! number of days since leaf on period started (drought)
+     integer  ::  dndaysleafoff(maxpft)                        ! number of days since leaf off period started (drought)
 
-     real(r8) ::  water_memory(numWaterMem)                             ! last 10 days of soil moisture memory...
+     real(r8) ::  liqvol_memory(numWaterMem,maxpft)            ! last 10 days of soil liquid water volume (drought phenology)
+     real(r8) ::  smp_memory(numWaterMem,maxpft)               ! last 10 days of soil matric potential (drought phenology)
 
 
      ! FIRE
@@ -1026,6 +1040,7 @@ module EDTypesMod
      write(fates_log(),*) 'co%hite                   = ', ccohort%hite
      write(fates_log(),*) 'co%coage                  = ', ccohort%coage
      write(fates_log(),*) 'co%leafmemory             = ', ccohort%leafmemory
+     write(fates_log(),*) 'co%fnrtmemory             = ', ccohort%fnrtmemory
      write(fates_log(),*) 'co%sapwmemory             = ', ccohort%sapwmemory
      write(fates_log(),*) 'co%structmemory           = ', ccohort%structmemory
      

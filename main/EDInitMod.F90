@@ -170,16 +170,22 @@ contains
     ! PHENOLOGY 
 
     site_in%cstatus          = fates_unset_int    ! are leaves in this pixel on or off?
-    site_in%dstatus          = fates_unset_int
+    site_in%dstatus(:)       = fates_unset_int
     site_in%grow_deg_days    = nan  ! growing degree days
     site_in%snow_depth       = nan
     site_in%nchilldays       = fates_unset_int
     site_in%ncolddays        = fates_unset_int
-    site_in%cleafondate      = fates_unset_int  ! doy of leaf on
-    site_in%cleafoffdate     = fates_unset_int  ! doy of leaf off
-    site_in%dleafondate      = fates_unset_int  ! doy of leaf on drought
-    site_in%dleafoffdate     = fates_unset_int  ! doy of leaf on drought
-    site_in%water_memory(:)  = nan
+    site_in%cleafondate      = fates_unset_int  ! doy of leaf on (cold)
+    site_in%cleafoffdate     = fates_unset_int  ! doy of leaf off (cold)
+    site_in%dleafondate(:)   = fates_unset_int  ! doy of leaf on (drought)
+    site_in%dleafoffdate(:)  = fates_unset_int  ! doy of leaf off (drought)
+    site_in%cndaysleafon     = fates_unset_int  ! days since leaf on (cold)
+    site_in%cndaysleafoff    = fates_unset_int  ! days since leaf off (cold)
+    site_in%dndaysleafon(:)  = fates_unset_int  ! days since leaf on (drought)
+    site_in%dndaysleafoff(:) = fates_unset_int  ! days since leaf off (drought)
+
+    site_in%liqvol_memory(:,:)  = nan
+    site_in%smp_memory(:,:)  = nan
     site_in%vegtemp_memory(:) = nan              ! record of last 10 days temperature for senescence model.
 
 
@@ -249,11 +255,16 @@ contains
     real(r8) :: GDD
     integer  :: dstat      ! drought status phenology flag
     real(r8) :: acc_NI
-    real(r8) :: watermem 
+    real(r8) :: liqvolmem
+    real(r8) :: smpmem
     integer  :: cleafon    ! DOY for cold-decid leaf-on, initial guess
     integer  :: cleafoff   ! DOY for cold-decid leaf-off, initial guess
     integer  :: dleafoff   ! DOY for drought-decid leaf-off, initial guess
     integer  :: dleafon    ! DOY for drought-decid leaf-on, initial guess
+    integer  :: cndleafon  ! days since leaf on  (cold), initial guess
+    integer  :: cndleafoff ! days since leaf off  (cold), initial guess
+    integer  :: dndleafon  ! days since leaf on  (drought), initial guess
+    integer  :: dndleafoff ! days since leaf off (drought), initial guess
     integer  :: ft         ! PFT loop
     !----------------------------------------------------------------------
 
@@ -267,13 +278,18 @@ contains
 
        GDD      = 30.0_r8
        cleafon  = 100
-       cleafoff = 300 
+       cleafoff = 300
+       cndleafon  = 0
+       cndleafoff = 0
        cstat    = phen_cstat_notcold     ! Leaves are on
        acc_NI   = 0.0_r8
        dstat    = phen_dstat_moiston     ! Leaves are on
-       dleafoff = 300
        dleafon  = 100
-       watermem = 0.5_r8
+       dleafoff = 300
+       dndleafon  = 0
+       dndleafoff = 0
+       liqvolmem  = 0.5_r8 
+       smpmem     = 0._r8
 
        do s = 1,nsites
           sites(s)%nchilldays    = 0
@@ -284,15 +300,20 @@ contains
 
           sites(s)%cleafondate   = cleafon
           sites(s)%cleafoffdate  = cleafoff
-          sites(s)%dleafoffdate  = dleafoff
-          sites(s)%dleafondate   = dleafon
+          sites(s)%cndaysleafon  = cndleafon
+          sites(s)%cndaysleafoff = cndleafoff
+          sites(s)%dleafoffdate(1:numpft)  = dleafoff
+          sites(s)%dleafondate(1:numpft)   = dleafon
+          sites(s)%dndaysleafon(1:numpft)  = dndleafon
+          sites(s)%dndaysleafoff(1:numpft) = dndleafoff
           sites(s)%grow_deg_days = GDD
           
-          sites(s)%water_memory(1:numWaterMem) = watermem
+          sites(s)%liqvol_memory(1:numWaterMem,1:numpft) = liqvolmem
+          sites(s)%smp_memory(1:numWaterMem,1:numpft) = smpmem
           sites(s)%vegtemp_memory(1:num_vegtemp_mem) = 0._r8
           
           sites(s)%cstatus = cstat
-          sites(s)%dstatus = dstat
+          sites(s)%dstatus(1:numpft) = dstat
           
           sites(s)%acc_NI     = acc_NI
           sites(s)%NF         = 0.0_r8         
@@ -561,6 +582,7 @@ contains
        call bstore_allom(temp_cohort%dbh, pft, temp_cohort%canopy_trim, c_store)
 
        temp_cohort%leafmemory = 0._r8
+       temp_cohort%fnrtmemory = 0._r8
        temp_cohort%sapwmemory = 0._r8
        temp_cohort%structmemory = 0._r8
        cstatus = leaves_on
@@ -569,22 +591,30 @@ contains
        
        if( prt_params%season_decid(pft) == itrue .and. &
             any(site_in%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
-          
-         temp_cohort%leafmemory = c_leaf
-         temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
-         temp_cohort%structmemory = c_struct * stem_drop_fraction
+         ! MLO update: sapwmemory and structmemory used to be deficit, despite the
+         !             name.  The code has been updated elsewhere to use these
+         !             variables as memory variables.
+         temp_cohort%leafmemory = c_leaf  ! Leaf biomass memory
+         temp_cohort%fnrtmemory = c_fnrt ! Fine root memory
+         temp_cohort%sapwmemory = c_sapw  ! Sapwood memory
+         temp_cohort%structmemory = c_struct ! Heartwood memory
          c_leaf = 0._r8
+         !c_fnrt = c_fnrt... Do not change fine root, if leaves are off
+                             ! it may steadily decline.
          c_sapw = (1.0_r8-stem_drop_fraction) * c_sapw
          c_struct  = (1.0_r8-stem_drop_fraction) * c_struct
          cstatus = leaves_off
        endif
 
        if ( prt_params%stress_decid(pft) == itrue .and. &
-            any(site_in%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff])) then
-          temp_cohort%leafmemory = c_leaf
-          temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
-          temp_cohort%structmemory = c_struct * stem_drop_fraction
+            any(site_in%dstatus(pft) == [phen_dstat_timeoff,phen_dstat_moistoff])) then
+          temp_cohort%leafmemory    = c_leaf  ! Leaf biomass memory
+           temp_cohort%fnrtmemory  = c_fnrt ! Fine root memory
+          temp_cohort%sapwmemory   = c_sapw  ! Sapwood memory
+          temp_cohort%structmemory = c_struct ! Heartwood memory
           c_leaf = 0._r8
+          !c_fnrt = c_fnrt... Do not change fine root, if leaves are off
+                             ! it may steadily decline.
           c_sapw = (1.0_r8-stem_drop_fraction) * c_sapw
           c_struct  = (1.0_r8-stem_drop_fraction) * c_struct
           cstatus = leaves_off
@@ -664,8 +694,8 @@ contains
 
        call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, &
             temp_cohort%coage, temp_cohort%dbh, prt_obj, temp_cohort%leafmemory, &
-            temp_cohort%sapwmemory, temp_cohort%structmemory, cstatus, rstatus,        &
-             temp_cohort%canopy_trim, 1, site_in%spread, bc_in)
+            temp_cohort%fnrtmemory, temp_cohort%sapwmemory, temp_cohort%structmemory, &
+            cstatus, rstatus, temp_cohort%canopy_trim, 1, site_in%spread, bc_in)
 
        deallocate(temp_cohort) ! get rid of temporary cohort
 

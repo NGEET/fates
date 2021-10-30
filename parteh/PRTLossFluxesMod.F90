@@ -109,8 +109,9 @@ contains
      ! those parameters and clauses need to be added
 
      !if(organ_id .ne. leaf_organ) then
-     if(organ_id .ne. leaf_organ .AND. prt_params%woody(ipft) == itrue) then
-        write(fates_log(),*) 'Deciduous drop and re-flushing only allowed in leaves'
+     if( organ_id /= leaf_organ  .and. organ_id /= fnrt_organ .AND. &
+         prt_params%woody(ipft) == itrue ) then
+        write(fates_log(),*) 'Deciduous drop and re-flushing only allowed in leaves and fine roots'
         write(fates_log(),*) ' leaf_organ: ',leaf_organ
         write(fates_log(),*) ' organ: ',organ_id
         write(fates_log(),*) 'Exiting'
@@ -424,8 +425,9 @@ contains
      ! those parameters and clauses need to be added
      
      !if(organ_id .ne. leaf_organ) then
-     if(organ_id .ne. leaf_organ .AND. prt_params%woody(ipft) == itrue) then
-        write(fates_log(),*) 'Deciduous drop and re-flushing only allowed in leaves'
+     if( organ_id /= leaf_organ .and. organ_id /= fnrt_organ .AND. &
+        prt_params%woody(ipft) == itrue) then
+        write(fates_log(),*) 'Deciduous drop and re-flushing only allowed in leaves and fine roots'
         write(fates_log(),*) ' leaf_organ: ',leaf_organ
         write(fates_log(),*) ' organ: ',organ_id
         write(fates_log(),*) 'Exiting'

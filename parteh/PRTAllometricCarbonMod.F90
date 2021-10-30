@@ -342,6 +342,9 @@ contains
     real(r8) :: repro_c0              ! ""
     real(r8) :: struct_c0             ! ""
 
+    logical  :: is_hydecid_dormant    ! Flag to signal that the cohort is drought deciduous and dormant
+    logical  :: is_deciduous          ! Flag to signal this is a deciduous PFT
+
     logical  :: grow_struct
     logical  :: grow_leaf             ! Are leaves at allometric target and should be grown?
     logical  :: grow_fnrt             ! Are fine-roots at allometric target and should be grown?
@@ -411,7 +414,12 @@ contains
     intgr_params(ac_bc_in_id_ctrim) = this%bc_in(ac_bc_in_id_ctrim)%rval
     intgr_params(ac_bc_in_id_pft)   = real(this%bc_in(ac_bc_in_id_pft)%ival)
     
-    
+    ! Set some logical flags to simplify "if" blocks
+    is_hydecid_dormant = ( prt_params%stress_decid(ipft) == 1 ) .and. &
+                         ( leaf_status == leaves_off )
+    is_deciduous       = ( prt_params%stress_decid(ipft) == 1 ) .or.  &
+                         ( prt_params%season_decid(ipft) == 1 )
+
 
     nleafage = prt_global%state_descriptor(leaf_c_id)%num_pos ! Number of leaf age class
 
@@ -441,7 +449,7 @@ contains
     ! -----------------------------------------------------------------------------------
     ! II. Calculate target size of the biomass compartment for a given dbh.   
     ! -----------------------------------------------------------------------------------
-    
+
     ! Target sapwood biomass according to allometry and trimming [kgC]
     call bsap_allom(dbh,ipft,canopy_trim,sapw_area,target_sapw_c)
     
@@ -455,13 +463,8 @@ contains
     call bdead_allom( target_agw_c, target_bgw_c, target_sapw_c, ipft, target_struct_c)
     
     ! Target leaf biomass according to allometry and trimming
-    select case (leaf_status)
-    case (leaves_on)
-        call bleaf(dbh,ipft,canopy_trim,target_leaf_c)
-    case (leaves_off)
-        target_leaf_c = 0._r8
-    end select
-    
+    call bleaf(dbh,ipft,canopy_trim,target_leaf_c)
+
     ! Target fine-root biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
     call bfineroot(dbh,ipft,canopy_trim,target_fnrt_c)
     
@@ -469,25 +472,64 @@ contains
     call bstore_allom(dbh,ipft,canopy_trim,target_store_c)
 
 
+
+    ! -----------------------------------------------------------------------------------
+    ! II 1/2. For drougth-deciduous plants, we assume that plants in LEAVES OFF status 
+    !         do not rebuild any tissues lost to turnover.  Any excess carbon balance
+    !         that they might have goes to storage (n.b. probably overly cautious, 
+    !         because plants with no leaves should have zero or negative carbon balance,
+    !         unless there is some shady carbon market going on across cohorts...).
+    ! -----------------------------------------------------------------------------------
+    if ( is_hydecid_dormant ) then
+       ! Drought deciduous, leaves off. Target is zero for all active tissues
+       target_leaf_c   = 0.0_r8
+       target_fnrt_c   = 0.0_r8
+       target_sapw_c   = 0.0_r8
+
+    elseif ( leaf_status == leaves_off ) then
+       ! Cold deciduous. For now we let them rebuild fine root and sapwood. Note that
+       ! this assumption is less of an issue for cold deciduous because turnover rates
+       ! are lower during winter.
+       target_leaf_c   = 0.0_r8
+    end if
+
+
+
     ! -----------------------------------------------------------------------------------
     ! III.  Prioritize some amount of carbon to replace leaf/root turnover
     !         Make sure it isnt a negative payment, and either pay what is available
     !         or forcefully pay from storage. 
+    ! MLO.  Added a few conditions to decide what to do in case plants are deciduous.
+    !       Specifically, drought deciduous with leaves off should not replace fine
+    !       roots. They will be in negative carbon balance, and unlike cold deciduous,
+    !       the turnover rates will be high during the dry season (turnover is 
+    !       temperature-dependent, but not moisture-dependent).  Allocating carbon
+    !       to high-maintanence tissues will drain the storage with little benefit for
+    !       these plants.
     ! -----------------------------------------------------------------------------------
-    
-    if( prt_params%evergreen(ipft) ==1 ) then
+    if ( is_hydecid_dormant ) then
+       ! Drought deciduous, dormant state. Set demands to both leaves and roots to zero.
+       leaf_c_demand = 0.0_r8
+       fnrt_c_demand = 0.0_r8
+    elseif ( is_deciduous ) then
+       ! Either cold deciduous plant, or drought deciduous with leaves on. Maintain roots.
+       leaf_c_demand = 0.0_r8
+       fnrt_c_demand = max(0.0_r8, &
+             prt_params%leaf_stor_priority(ipft)*this%variables(fnrt_c_id)%turnover(icd))
+    else
+       ! Evergreen PFT. Try to meet demands for both leaves and fine roots.
+       ! If this is not evergreen, this PFT isn't expected by FATES, and we assume
+       ! evergreen.
        leaf_c_demand   = max(0.0_r8, &
              prt_params%leaf_stor_priority(ipft)*sum(this%variables(leaf_c_id)%turnover(:)))
-    else
-       leaf_c_demand   = 0.0_r8
+       fnrt_c_demand   = max(0.0_r8, &
+             prt_params%leaf_stor_priority(ipft)*this%variables(fnrt_c_id)%turnover(icd))
     end if
-    
-    fnrt_c_demand   = max(0.0_r8, &
-          prt_params%leaf_stor_priority(ipft)*this%variables(fnrt_c_id)%turnover(icd))
 
     total_c_demand = leaf_c_demand + fnrt_c_demand
-    
-    if (total_c_demand> nearzero ) then
+
+
+    if ( total_c_demand > nearzero ) then
 
        ! We pay this even if we don't have the carbon
        ! Just don't pay so much carbon that storage+carbon_balance can't pay for it
@@ -495,13 +537,13 @@ contains
        !      subtract leaf flux from carbon balance before estimating the fine root flux,
        !      potentially allowing less fluxes to fine roots than possible.
        leaf_c_flux = min(leaf_c_demand, &
-                         max(0.0_r8,(store_c+carbon_balance)* &
-                         (leaf_c_demand/total_c_demand)))
+                         max(0.0_r8,    &
+                         (store_c+carbon_balance)*leaf_c_demand/total_c_demand))
        ! If we are testing b4b, then we pay this even if we don't have the carbon
        fnrt_c_flux = min(fnrt_c_demand, &
-                         max(0.0_r8, (store_c+carbon_balance)* &
-                         (fnrt_c_demand/total_c_demand)))
-       
+                         max(0.0_r8,    &
+                         (store_c+carbon_balance)*fnrt_c_demand/total_c_demand))
+
        ! Add carbon to the youngest age pool (i.e iexp_leaf = index 1) and fine roots
        leaf_c(iexp_leaf) = leaf_c(iexp_leaf) + leaf_c_flux
        fnrt_c            = fnrt_c + fnrt_c_flux
@@ -518,7 +560,7 @@ contains
     ! -----------------------------------------------------------------------------------
 
     if( carbon_balance < 0.0_r8 ) then
-       
+
        ! Store_c_flux will be negative, so store_c will be depleted
        store_c_flux           = carbon_balance
        carbon_balance         = carbon_balance - store_c_flux
@@ -1099,18 +1141,36 @@ contains
     call bdead_allom( target_agw_c, target_bgw_c, target_sapw_c, ipft, target_struct_c)
 
     ! Target leaf biomass according to allometry and trimming
-    select case (leaf_status)
-    case (leaves_on)
-       call bleaf(dbh,ipft,canopy_trim,target_leaf_c)
-    case (leaves_off)
-       target_leaf_c   = 0.0_r8
-    end select
+    call bleaf(dbh,ipft,canopy_trim,target_leaf_c)
 
     ! Target fine-root biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
     call bfineroot(dbh,ipft,canopy_trim,target_fnrt_c)
 
     ! Target storage carbon [kgC,kgC/cm]
     call bstore_allom(dbh,ipft,canopy_trim,target_store_c)
+
+
+
+    ! -----------------------------------------------------------------------------------
+    ! II 1/2. For drougth-deciduous plants, we assume that plants in LEAVES OFF status
+    !         do not rebuild any tissues lost to turnover.
+    ! -----------------------------------------------------------------------------------
+    if ( is_hydecid_dormant ) then
+       ! Drought deciduous, leaves off. Do not try to get back on allometry.
+       target_leaf_c   = 0.0_r8
+       target_fnrt_c   = 0.0_r8
+       target_sapw_c   = 0.0_r8
+       target_agw_c    = 0.0_r8
+       target_bgw_c    = 0.0_r8
+       target_struct_c = 0.0_r8
+       target_store_c  = 0.0_r8
+
+    elseif ( leaf_status == leaves_off ) then
+       ! Cold deciduous. For now we let them rebuild fine root and sapwood. Note that
+       ! this assumption is less of an issue for cold deciduous because turnover rates
+       ! are lower during winter.
+       target_leaf_c   = 0.0_r8
+    end if
 
 
     ! -----------------------------------------------------------------------------------
@@ -1435,7 +1495,8 @@ contains
   end subroutine DailyPRTAllometricCarbonSimpler
 
   ! =====================================================================================
-  
+
+
   function AllomCGrowthDeriv(c_pools,c_mask,cbalance,intgr_params) result(dCdx)
 
       ! ---------------------------------------------------------------------------------
