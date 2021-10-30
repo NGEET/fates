@@ -1520,7 +1520,6 @@ end function levcapf_index
    do ivar=1,ubound(this%hvars,1)
       if (this%hvars(ivar)%upfreq == upfreq_in) then ! Only flush variables with update on dynamics step
          call this%hvars(ivar)%flush(nc, this%dim_bounds, this%dim_kinds)
-
       end if
    end do
 
@@ -2085,7 +2084,10 @@ end subroutine flush_hvars
 
         !call this%zero_site_hvars(sites(s), upfreq_in=1)
 
+
          io_si  = sites(s)%h_gid
+         ! Doing a check here
+         hio_mortality_si_pft(io_si,:) = 0.0
 
          ! Total carbon model error [kgC/day -> kgC/s]
          hio_cbal_err_fates_si(io_si) = &
