@@ -167,6 +167,9 @@ module PRTAllometricCNPMod
   integer, parameter         :: num_bc_out                = 5  ! Total number of
 
 
+  
+  real(r8), parameter :: min_stf_growth = 0.9_r8  ! Plants are only allowed to increase in stature
+                                                  ! if they have more than 90% of their stores full
 
   
   ! -------------------------------------------------------------------------------------
@@ -374,6 +377,14 @@ contains
     real(r8) :: p_gain0
     real(r8) :: maint_r_def0
 
+    ! Knowing the stored N and P helps
+    ! to identify if the plant is net
+    ! gaining nutrients after replacement
+    real(r8) :: n_store0
+    real(r8) :: p_store0
+    real(r8) :: net_n_gain
+    real(r8) :: net_p_gain
+
     ! Used for mass checking, total mass allocated based
     ! on change in the states, should match gain0's
     real(r8) :: allocated_c
@@ -470,10 +481,12 @@ contains
 
     i_var = prt_global%sp_organ_map(store_organ,nitrogen_element)
     n_gain = n_gain + sum(this%variables(i_var)%val(:))
+    net_n_gain = - sum(this%variables(i_var)%val(:))
     this%variables(i_var)%val(:) = 0._r8
 
     i_var = prt_global%sp_organ_map(store_organ,phosphorus_element)
     p_gain = p_gain + sum(this%variables(i_var)%val(:))
+    net_p_gain = - sum(this%variables(i_var)%val(:))
     this%variables(i_var)%val(:) = 0._r8
     
     ! ===================================================================================
@@ -484,6 +497,7 @@ contains
     call this%CNPPrioritizedReplacement(maint_r_def, c_gain, n_gain, p_gain, &
              state_c, state_n, state_p, target_c)
 
+    
     sum_c = 0._r8
     do i_org = 1,num_organs
        sum_c = sum_c+state_c(i_org)%ptr
@@ -504,8 +518,12 @@ contains
     ! Attempts have been made to get all pools and species closest to allometric
     ! targets based on prioritized relative demand and allometry functions.
     ! ===================================================================================
+
+    net_n_gain = net_n_gain + n_gain
+    net_p_gain = net_p_gain + p_gain
     
-    call this%CNPStatureGrowth(c_gain, n_gain, p_gain,  &
+    call this%CNPStatureGrowth(c_gain, n_gain, p_gain, &
+         net_n_gain, net_p_gain,  &
          state_c, state_n, state_p, target_c, target_dcdd, cnp_limiter)
     
     sum_c = 0._r8
@@ -626,7 +644,7 @@ contains
     real(r8), intent(inout) :: c_gain
     real(r8), intent(inout) :: n_gain
     real(r8), intent(inout) :: p_gain
-    real(r8), intent(inout) :: maint_r_deficit
+    real(r8), intent(inout) :: maint_r_deficit  ! Not currently used
     type(parray_type) :: state_c(:)     ! State array for carbon, by organ [kg]
     type(parray_type) :: state_n(:)     ! State array for N, by organ [kg]
     type(parray_type) :: state_p(:)     ! State array for P, by organ [kg]
@@ -989,16 +1007,21 @@ contains
   
   ! =====================================================================================
     
-  subroutine CNPStatureGrowth(this,c_gain, n_gain, p_gain,  &
+  subroutine CNPStatureGrowth(this,c_gain, n_gain, p_gain, net_n_gain, net_p_gain,  &
                               state_c, state_n, state_p,           &
                               target_c, target_dcdd, cnp_limiter)
     
     
     class(cnp_allom_prt_vartypes) :: this
-    real(r8), intent(inout) :: c_gain
-    real(r8), intent(inout) :: n_gain
-    real(r8), intent(inout) :: p_gain
-    real(r8), pointer :: maint_r_deficit
+    real(r8), intent(inout) :: c_gain      ! Total daily C gain that remains to be used
+    real(r8), intent(inout) :: n_gain      ! Total N available for allocation
+                                           ! (new uptake + storage)
+    real(r8), intent(inout) :: p_gain      ! Total P available for allocation
+                                           ! (new uptake + storage)
+    real(r8), intent(in)    :: net_n_gain  ! How much N was gained or lost in the 
+                                           ! process of net uptake and turnover replacment
+    real(r8), intent(in)    :: net_p_gain  ! How much P was gained or lost in the 
+                                           ! process of net uptake and turnover replacment
     type(parray_type) :: state_c(:)       ! State array for carbon, by organ [kg]
     type(parray_type) :: state_n(:)       ! State array for N, by organ [kg]
     type(parray_type) :: state_p(:)       ! State array for P, by organ [kg]
@@ -1028,6 +1051,8 @@ contains
     real(r8) :: sum_c_flux                       ! Sum of the carbon allocated, as reported
                                                  ! by the ODE solver. [kg]
     real(r8) :: np_limit
+    real(r8) :: n_stf                            ! nitrogen storage target fraction (stf) [-]
+    real(r8) :: p_stf                            ! phosphorus storage target fraction (stf) [-]
     real(r8) :: n_match
     real(r8) :: p_match
     real(r8) :: c_flux_adj                       ! Adjustment to total carbon flux during stature growth
@@ -1086,6 +1111,7 @@ contains
     integer, parameter  :: c_limited = 1
     integer, parameter  :: n_limited = 2
     integer, parameter  :: p_limited = 3
+    
 
     leaf_status = this%bc_in(acnp_bc_in_id_lstat)%ival
     dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval
@@ -1101,11 +1127,21 @@ contains
     ! a plant had a productive last day before the phenology scheme
     ! signaled a drop. If this is the case, we can't grow stature
     ! cause that would force the leaves back on, so just leave.
+
+
+    target_n = this%GetNutrientTarget(nitrogen_element,store_organ,stoich_growth_min)
+    n_stf  = max(state_n(store_id)%ptr/target_n,0._r8)
+
+    target_p = this%GetNutrientTarget(phosphorus_element,store_organ,stoich_growth_min)
+    p_stf  = max(state_p(store_id)%ptr/target_p,0._r8)
     
-    if( c_gain <= calloc_abs_error .or. &
-        n_gain <= 0.1_r8*calloc_abs_error .or. &
-        p_gain <= 0.02_r8*calloc_abs_error .or. &
-        leaf_status.eq.leaves_off ) then
+    if( c_gain <= calloc_abs_error  .or. &
+        net_n_gain < 0._r8 .or. &
+        net_p_gain < 0._r8 .or. &
+        leaf_status.eq.leaves_off .or. &
+        n_stf < min_stf_growth .or. &
+        p_stf < min_stf_growth &
+        ) then
        return
     end if
     
@@ -1230,82 +1266,13 @@ contains
        end if
     end if
 
-
-    select case(grow_lim_type)
-    case(1)
-
+       
+    ! No mathematical co-limitation of growth
+    ! This assumes that limitations will prevent
+    ! organs from allowing the growth step to even occur
+    ! and thus from an algorithmic level limit growth
     
-       ! Calculate an approximation of the total amount of carbon that would be needed
-       ! to match the amount of each nutrient used.  We also add in the amount of nutrient
-       ! that may or may-not exist above each pool's minimum stoichiometry...
-       ! --------------------------------------------------------------------------------
-       
-       grow_c_from_c = 0._r8
-       grow_c_from_n = 0._r8
-       grow_c_from_p = 0._r8
-       
-       do ii = 1, n_mask_organs
-          i = mask_organs(ii)
-          if(organ_list(i).ne.store_organ)then
-             call this%GrowEquivC(c_gain,n_gain,p_gain, &
-                  frac_c(i),ipft,organ_list(i), &
-                  grow_c_from_c,grow_c_from_n,grow_c_from_p)
-          end if
-       end do
-       
-       ! --------------------------------------------------------------------------------
-       ! We limit growth to align with the species would motivate the least flux of
-       ! carbon into growing tissues to match.  This is only an approximation of how much
-       ! growth we get out of each, and they don't have to be perfect.  As long as we
-       ! don't use more carbon than we have (we wont) and if we use the actual numerical
-       ! integrator in the trasfer step, the nutrients will be transferred linearly in
-       ! the next step. if they dip slightly above or below their target allometries,
-       ! its no big deal.
-       ! --------------------------------------------------------------------------------
-    
-       if(grow_c_from_c > nearzero) then
-          c_gstature = c_gain * min(grow_c_from_c, grow_c_from_n, grow_c_from_p)/grow_c_from_c
-       else
-          write(fates_log(),*) 'Somehow grow_c_from_c is near zero',grow_c_from_c
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       end if
-   case(2)
-       
-       n_match = 0._r8
-       p_match = 0._r8
-       do ii = 1, n_mask_organs
-          i = mask_organs(ii)
-          if(organ_list(i).ne.store_organ)then
-             call this%NAndPToMatchC(c_gain*frac_c(i),target_dcdd(i), &
-                  ipft,organ_list(i),n_match,p_match)
-          end if
-       end do
-
-       np_limit = min(min(1._r8, n_gain/n_match), min(1._r8, p_gain/p_match))
-
-       if( (n_gain/n_match)>1._r8 .and. (p_gain/p_match)>1._r8 ) then
-          cnp_limiter = c_limited
-       else
-          if( n_gain/n_match < p_gain/p_match ) then
-             cnp_limiter = n_limited
-          else
-             cnp_limiter = p_limited
-          end if
-       end if
-       
-       c_gstature = c_gain * np_limit
-
-    case(3)
-       
-       ! No mathematical co-limitation of growth
-       ! This assumes that limitations will prevent
-       ! organs from allowing the growth step to even occur
-       ! and thus from an algorithmic level limit growth
-       
-       c_gstature = c_gain
-       
-       
-   end select
+    c_gstature = c_gain
 
     
    if_stature_growth: if(c_gstature > nearzero) then
