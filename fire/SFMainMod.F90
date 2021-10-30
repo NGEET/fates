@@ -46,6 +46,7 @@
   use PRTGenericMod,          only : struct_organ
   use PRTGenericMod,          only : SetState
   use FatesInterfaceTypesMod     , only : numpft
+  use FatesAllometryMod,      only : CrownDepth
 
   implicit none
   private
@@ -908,7 +909,8 @@ contains
 
     type(ed_patch_type) , pointer :: currentPatch
     type(ed_cohort_type), pointer :: currentCohort
-
+    real(r8)                      :: crown_depth    ! Depth of crown in meters
+    
     currentPatch => currentSite%oldest_patch
 
     do while(associated(currentPatch)) 
@@ -921,20 +923,21 @@ contains
              if ( int(prt_params%woody(currentCohort%pft)) == itrue) then !trees only
                 ! Flames lower than bottom of canopy. 
                 ! c%hite is height of cohort
+
+                call CrownDepth(currentCohort%hite,currentCohort%pft,crown_depth)
+                
                 if (currentPatch%Scorch_ht(currentCohort%pft) < &
-                     (currentCohort%hite-currentCohort%hite*EDPftvarcon_inst%crown(currentCohort%pft))) then 
+                     (currentCohort%hite-crown_depth)) then 
                    currentCohort%fraction_crown_burned = 0.0_r8
                 else
                    ! Flames part of way up canopy. 
                    ! Equation 17 in Thonicke et al. 2010. 
                    ! flames over bottom of canopy but not over top.
                    if ((currentCohort%hite > 0.0_r8).and.(currentPatch%Scorch_ht(currentCohort%pft) >=  &
-                        (currentCohort%hite-currentCohort%hite*EDPftvarcon_inst%crown(currentCohort%pft)))) then 
+                        (currentCohort%hite-crown_depth))) then 
 
                         currentCohort%fraction_crown_burned = (currentPatch%Scorch_ht(currentCohort%pft) - &
-                                currentCohort%hite*(1.0_r8 - &
-                                EDPftvarcon_inst%crown(currentCohort%pft)))/(currentCohort%hite* &
-                                EDPftvarcon_inst%crown(currentCohort%pft)) 
+                             (currentCohort%hite - crown_depth))/crown_depth
 
                    else 
                       ! Flames over top of canopy. 

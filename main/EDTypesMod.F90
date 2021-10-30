@@ -411,7 +411,7 @@ module EDTypesMod
      integer  ::  ncl_p                                            ! Number of occupied canopy layers
      integer  ::  anthro_disturbance_label                         ! patch label for anthropogenic disturbance classification
      real(r8) ::  age_since_anthro_disturbance                     ! average age for secondary forest since last anthropogenic disturbance
-
+     integer  ::  nocomp_pft_label                                 ! where nocomp is active, use this label for patch ID.   
      ! LEAF ORGANIZATION
      real(r8) ::  pft_agb_profile(maxpft,n_dbh_bins)            ! binned above ground biomass, for patch fusion: KgC/m2
      real(r8) ::  canopy_layer_tlai(nclmax)                     ! total leaf area index of each canopy layer
@@ -528,8 +528,6 @@ module EDTypesMod
      type(litter_type), pointer :: litter(:)  ! Litter (leaf,fnrt,CWD and seeds) for different elements
 
      real(r8),allocatable :: fragmentation_scaler(:)            ! Scale rate of litter fragmentation based on soil layer. 0 to 1.
-
-     real(r8) ::  repro(maxpft)                                 ! allocation to reproduction per PFT : KgC/m2
 
      !FUEL CHARECTERISTICS
      real(r8) ::  sum_fuel                                         ! total ground fuel related to ros (omits 1000hr fuels): KgC/m2
@@ -663,7 +661,7 @@ module EDTypesMod
      procedure :: ZeroMassBalFlux
      
   end type site_massbal_type
-  
+
 
   !************************************
   !** Site type structure           **
@@ -687,7 +685,7 @@ module EDTypesMod
      ! Global index of this site in the history output file
      integer :: h_gid
      
-     
+
      ! INDICES 
      real(r8) ::  lat                                          ! latitude:  degrees 
      real(r8) ::  lon                                          ! longitude: degrees 
@@ -696,6 +694,11 @@ module EDTypesMod
      real(r8), allocatable :: area_PFT(:)                      ! Area allocated to individual PFTs    
      integer, allocatable  :: use_this_pft(:)                  ! Is area_PFT > 0 ? (1=yes, 0=no)
  
+     ! SP mode target PFT level variables
+     real(r8), allocatable :: sp_tlai(:)                      ! target TLAI per FATES pft
+     real(r8), allocatable :: sp_tsai(:)                      ! target TSAI per FATES pft
+     real(r8), allocatable :: sp_htop(:)                      ! target HTOP per FATES pft
+     
      ! Mass Balance (allocation for each element)
 
      type(site_massbal_type), pointer :: mass_balance(:)

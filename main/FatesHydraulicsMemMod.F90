@@ -70,9 +70,7 @@ module FatesHydraulicsMemMod
    ! ----------------------------------------------------------------------------------------------
    
    !temporatory variables
-   real(r8), public :: cohort_recruit_water_layer(nlevsoi_hyd_max)   ! the recruit water requirement for a 
-                                                             ! single individual at different layer (kg H2o/m2)
-   real(r8), public :: recruit_water_avail_layer(nlevsoi_hyd_max)    ! the recruit water avaibility from soil (kg H2o/m2)
+
 
    type, public :: ed_site_hydr_type
 
@@ -185,10 +183,12 @@ module FatesHydraulicsMemMod
      real(r8), allocatable :: q_flux(:)
      real(r8), allocatable :: dftc_dpsi_node(:)
      real(r8), allocatable :: ftc_node(:)
-     
-
      real(r8), allocatable :: kmax_up(:)
      real(r8), allocatable :: kmax_dn(:)
+
+     ! Scratch arrays 
+     real(r8) :: cohort_recruit_water_layer(nlevsoi_hyd_max)   ! the recruit water requirement for a 
+     real(r8) :: recruit_water_avail_layer(nlevsoi_hyd_max)    ! the recruit water avaibility from soil (kg H2o/m2)
      
      
   contains
@@ -495,6 +495,9 @@ module FatesHydraulicsMemMod
     ! ===================================================================================
 
     subroutine SetConnections(this)
+      
+     ! This routine should be updated
+     ! when new layers are added as plants grow into them?
       
      class(ed_site_hydr_type),intent(inout) :: this
       
