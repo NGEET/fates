@@ -100,6 +100,8 @@ module PRTParametersMod
 
      real(r8), allocatable :: c2b(:)                        ! Carbon to biomass multiplier [kg/kgC]
      real(r8), allocatable :: wood_density(:)               ! wood density  g cm^-3  ...
+
+     ! MLO - Shouldn't this be an integer?
      real(r8), allocatable :: woody(:)                      ! Does the plant have wood?      (1=yes, 0=no)
  
      real(r8), allocatable :: slamax(:)                     ! Maximum specific leaf area of plant (at bottom) [m2/gC]

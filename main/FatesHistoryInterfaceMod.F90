@@ -3966,7 +3966,7 @@ end subroutine update_history_hifrq
             
             jsoil = jrhiz + jr1-1
             vwc     = bc_in(s)%h2o_liqvol_sl(jsoil)
-            psi     = site_hydr%wrf_soil(jrhiz)%p%psi_from_th(vwc)
+            psi     = site_hydr%wrf_soil(jrhiz)%p%psi_from_th(vwc) ! MLO: Any reason for not using smp_sl?
             vwc_sat = bc_in(s)%watsat_sl(jsoil)
             layer_areaweight = site_hydr%l_aroot_layer(jrhiz)*pi_const*site_hydr%rs1(jrhiz)**2.0
             mean_soil_vwc    = mean_soil_vwc + vwc*layer_areaweight
