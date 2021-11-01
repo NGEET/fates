@@ -2083,9 +2083,9 @@ end subroutine flush_hvars
       hio_m1_si_scpf(io_si, :) = 0.0_r8
       hio_m2_si_scpf(io_si, :) = 0.0_r8
       hio_m3_si_scpf(io_si, :) = 0.0_r8
-      !hio_m4_si_scpf(io_si, :) = 0.0_r8
-      !hio_m5_si_scpf(io_si, :) = 0.0_r8
-      !hio_m6_si_scpf(io_si, :) = 0.0_r8
+      hio_m4_si_scpf(io_si, :) = 0.0_r8
+      hio_m5_si_scpf(io_si, :) = 0.0_r8
+      hio_m6_si_scpf(io_si, :) = 0.0_r8
       hio_m7_si_scpf(io_si, :) = 0.0_r8
       hio_m8_si_scpf(io_si, :) = 0.0_r8
       hio_m9_si_scpf(io_si, :) = 0.0_r8
