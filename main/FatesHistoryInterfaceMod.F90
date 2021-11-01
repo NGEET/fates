@@ -1565,7 +1565,7 @@ end subroutine flush_hvars
     ! relevant only on FATES sites. This way we do not average zero's
     ! at locations not on FATES columns
 
-    flushval = hlm_hio_ignore_val !for now do this (ACF 09/27/21)
+    flushval = hlm_hio_ignore_val
 
     write_var = check_hlm_list(trim(hlms), trim(hlm_name))
     if( write_var ) then
@@ -2067,1414 +2067,1422 @@ end subroutine flush_hvars
                hio_cbal_err_fates_si                => this%hvars(ih_cbal_err_fates_si)%r81d, &
                hio_err_fates_si                     => this%hvars(ih_err_fates_si)%r82d )
 
-      ! If we don't have dynamics turned on, we just abort these diagnostics
-      if (hlm_use_ed_st3.eq.itrue) return
+   ! If we don't have dynamics turned on, we just abort these diagnostics
+   if (hlm_use_ed_st3.eq.itrue) return
 
-      model_day_int = nint(hlm_model_day)
+   model_day_int = nint(hlm_model_day)
 
-      ! ---------------------------------------------------------------------------------
-      ! Loop through the FATES scale hierarchy and fill the history IO arrays
-      ! ---------------------------------------------------------------------------------
+   ! ---------------------------------------------------------------------------------
+   ! Loop through the FATES scale hierarchy and fill the history IO arrays
+   ! ---------------------------------------------------------------------------------
 
-      do s = 1,nsites
+   siteloop: do s = 1,nsites
 
-         io_si  = sites(s)%h_gid
+      io_si  = sites(s)%h_gid
 
-         ! Total carbon model error [kgC/day -> kgC/s]
-         hio_cbal_err_fates_si(io_si) = &
-               sites(s)%mass_balance(element_pos(carbon12_element))%err_fates / sec_per_day
+      ! Total carbon model error [kgC/day -> kgC/s]
+      hio_cbal_err_fates_si(io_si) = &
+         sites(s)%mass_balance(element_pos(carbon12_element))%err_fates / sec_per_day
 
-         ! Total carbon lost to atmosphere from burning (kgC/site/day -> kgC/m2/s)
-         hio_fire_c_to_atm_si(io_si) = &
-              sites(s)%mass_balance(element_pos(carbon12_element))%burn_flux_to_atm * &
-              ha_per_m2 * days_per_sec
+      ! Total carbon lost to atmosphere from burning (kgC/site/day -> kgC/m2/s)
+      hio_fire_c_to_atm_si(io_si) = &
+         sites(s)%mass_balance(element_pos(carbon12_element))%burn_flux_to_atm * &
+      ha_per_m2 * days_per_sec
+
+      do el = 1, num_elements
 
          ! Total model error [kg/day -> kg/s]  (all elements)
-         do el = 1, num_elements
+         hio_err_fates_si(io_si,el) = sites(s)%mass_balance(el)%err_fates / sec_per_day
 
-             hio_err_fates_si(io_si,el) = sites(s)%mass_balance(el)%err_fates / sec_per_day
+         ! Total element lost to atmosphere from burning (kg/site/day -> kg/m2/s)
+         hio_burn_flux_elem(io_si,el) = &
+            sites(s)%mass_balance(el)%burn_flux_to_atm * ha_per_m2 *           &
+            days_per_sec
 
-             ! Total element lost to atmosphere from burning (kg/site/day -> kg/m2/s)
-             hio_burn_flux_elem(io_si,el) = &
-                  sites(s)%mass_balance(el)%burn_flux_to_atm * &
-                  ha_per_m2 * days_per_sec
+      end do
 
+      ! Canopy spread index (0-1)
+      hio_canopy_spread_si(io_si) = sites(s)%spread
+
+      ! Site statuses (stati?) for cold deciduous and drought
+      ! deciduous
+      hio_site_cstatus_si(io_si) = real(sites(s)%cstatus,r8)
+      hio_site_dstatus_si(io_si) = real(sites(s)%dstatus,r8)
+
+      ! Number of chill days and cold days
+      hio_site_nchilldays_si(io_si) = real(sites(s)%nchilldays,r8)
+      hio_site_ncolddays_si(io_si)  = real(sites(s)%ncolddays,r8)
+
+      ! Growing degree-days
+      hio_gdd_si(io_si) = sites(s)%grow_deg_days
+
+      ! Model days elapsed since leaf on/off for cold- and drought-deciduous
+      hio_cleafoff_si(io_si) = real(model_day_int - sites(s)%cleafoffdate,r8)
+      hio_cleafon_si(io_si)  = real(model_day_int - sites(s)%cleafondate,r8)
+      hio_dleafoff_si(io_si) = real(model_day_int - sites(s)%dleafoffdate,r8)
+      hio_dleafon_si(io_si)  = real(model_day_int - sites(s)%dleafondate,r8)
+
+      ! Mean liquid water content (m3/m3) used for drought phenology
+      if(model_day_int>numWaterMem)then
+         hio_meanliqvol_si(io_si) = &
+         sum(sites(s)%water_memory(1:numWaterMem))/real(numWaterMem,r8)
+      end if
+
+      ! track total wood product accumulation at the site level
+      hio_woodproduct_si(io_si) = sites(s)%resources_management%trunk_product_site &
+         * AREA_INV
+
+      ! site-level fire variables:
+
+      ! Nesterov index (unitless)
+      hio_nesterov_fire_danger_si(io_si) = sites(s)%acc_NI
+
+      ! number of ignitions [#/km2/day -> #/m2/s]
+      hio_fire_nignitions_si(io_si) = sites(s)%NF_successful / m2_per_km2 /  &
+         sec_per_day
+
+      ! Fire danger index (FDI) (0-1)
+      hio_fire_fdi_si(io_si) = sites(s)%FDI
+
+      ! If hydraulics are turned on, track the error terms associated with
+      ! dynamics [kg/m2]
+      if(hlm_use_planthydro.eq.itrue)then
+         this%hvars(ih_h2oveg_dead_si)%r81d(io_si)         = sites(s)%si_hydr%h2oveg_dead
+         this%hvars(ih_h2oveg_recruit_si)%r81d(io_si)      = sites(s)%si_hydr%h2oveg_recruit
+         this%hvars(ih_h2oveg_growturn_err_si)%r81d(io_si) = sites(s)%si_hydr%h2oveg_growturn_err
+      end if
+
+      ! error in primary lands from patch fusion [m2 m-2 day-1] -> [m2 m-2 yr-1]
+      hio_primaryland_fusion_error_si(io_si) = sites(s)%primary_land_patchfusion_error * days_per_year
+
+      ! output site-level disturbance rates [m2 m-2 day-1] -> [m2 m-2 yr-1]
+      hio_disturbance_rate_p2p_si(io_si) = sum(sites(s)%disturbance_rates_primary_to_primary(1:N_DIST_TYPES)) * days_per_year
+      hio_disturbance_rate_p2s_si(io_si) = sum(sites(s)%disturbance_rates_primary_to_secondary(1:N_DIST_TYPES)) * days_per_year
+      hio_disturbance_rate_s2s_si(io_si) = sum(sites(s)%disturbance_rates_secondary_to_secondary(1:N_DIST_TYPES)) * days_per_year
+
+      hio_fire_disturbance_rate_si(io_si) = (sites(s)%disturbance_rates_primary_to_primary(dtype_ifire) + &
+         sites(s)%disturbance_rates_primary_to_secondary(dtype_ifire) +        &
+         sites(s)%disturbance_rates_secondary_to_secondary(dtype_ifire)) *     &
+         days_per_year
+
+      hio_logging_disturbance_rate_si(io_si) = (sites(s)%disturbance_rates_primary_to_primary(dtype_ilog) + &
+         sites(s)%disturbance_rates_primary_to_secondary(dtype_ilog) +         &
+         sites(s)%disturbance_rates_secondary_to_secondary(dtype_ilog)) *      &
+         days_per_year
+
+      hio_fall_disturbance_rate_si(io_si) = (sites(s)%disturbance_rates_primary_to_primary(dtype_ifall) + &
+         sites(s)%disturbance_rates_primary_to_secondary(dtype_ifall) +     &
+         sites(s)%disturbance_rates_secondary_to_secondary(dtype_ifall)) *  &
+         days_per_year
+
+      hio_potential_disturbance_rate_si(io_si) = sum(sites(s)%potential_disturbance_rates(1:N_DIST_TYPES)) * days_per_year
+
+      ! harvest carbon flux in [kgC/m2/d] -> [kgC/m2/yr]
+      hio_harvest_carbonflux_si(io_si) = sites(s)%harvest_carbon_flux *      &
+         days_per_year
+
+      ! Loop through patches to sum up diagonistics
+      ipa = 0
+      cpatch => sites(s)%oldest_patch
+      patchloop: do while(associated(cpatch))
+
+         ! Increment the number of patches per site
+         hio_npatches_si(io_si) = hio_npatches_si(io_si) + 1._r8
+
+         cpatch%age_class  = get_age_class_index(cpatch%age)
+
+         ! Increment the fractional area in each age class bin
+         hio_area_si_age(io_si,cpatch%age_class) = hio_area_si_age(io_si,cpatch%age_class) &
+            + cpatch%area * AREA_INV
+
+         ! Increment some patch-age-resolved diagnostics
+
+         hio_lai_si_age(io_si,cpatch%age_class) = hio_lai_si_age(io_si,cpatch%age_class) &
+            + sum(cpatch%tlai_profile(:,:,:)) * cpatch%area
+         hio_ncl_si_age(io_si,cpatch%age_class) = hio_ncl_si_age(io_si,cpatch%age_class) &
+            + cpatch%ncl_p * cpatch%area
+         hio_npatches_si_age(io_si,cpatch%age_class) = hio_npatches_si_age(io_si,cpatch%age_class) + 1._r8
+
+         if ( ED_val_comp_excln .lt. 0._r8 ) then ! only valid when "strict ppa" enabled
+            hio_zstar_si_age(io_si,cpatch%age_class) = hio_zstar_si_age(io_si,cpatch%age_class) &
+               + cpatch%zstar * cpatch%area * AREA_INV
+         endif
+
+         ! some diagnostics on secondary forest area and its age distribution
+         if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+            hio_fraction_secondary_forest_si(io_si) = hio_fraction_secondary_forest_si(io_si) + &
+               cpatch%area * AREA_INV
+
+            ageclass_since_anthrodist = get_age_class_index(cpatch%age_since_anthro_disturbance)
+
+            hio_agesince_anthrodist_si_age(io_si,ageclass_since_anthrodist) = &
+               hio_agesince_anthrodist_si_age(io_si,ageclass_since_anthrodist)  &
+               + cpatch%area * AREA_INV
+
+            hio_secondaryforest_area_si_age(io_si,cpatch%age_class) = &
+               hio_secondaryforest_area_si_age(io_si,cpatch%age_class)  &
+               + cpatch%area * AREA_INV
+         endif
+
+         ! patch-age-resolved fire variables
+         do i_pft = 1,numpft
+            ! for scorch height, weight the value by patch area within any
+            ! given age class - in the event that there is more than one
+            ! patch per age class.
+            iagepft = cpatch%age_class + (i_pft-1) * nlevage
+            hio_scorch_height_si_agepft(io_si,iagepft) = hio_scorch_height_si_agepft(io_si,iagepft) + &
+               cpatch%Scorch_ht(i_pft) * cpatch%area
          end do
 
-         hio_canopy_spread_si(io_si)        = sites(s)%spread
+         ! fractional area burnt [frac/day] -> [frac/sec]
+         hio_area_burnt_si_age(io_si,cpatch%age_class) = hio_area_burnt_si_age(io_si,cpatch%age_class) + &
+            cpatch%frac_burnt * cpatch%area * AREA_INV / sec_per_day
 
-         ! Update the site statuses (stati?)
-         hio_site_cstatus_si(io_si)   = real(sites(s)%cstatus,r8)
-         hio_site_dstatus_si(io_si)   = real(sites(s)%dstatus,r8)
+         ! hio_fire_rate_of_spread_front_si_age(io_si, cpatch%age_class) = hio_fire_rate_of_spread_si_age(io_si, cpatch%age_class) + &
+         !    cpatch%ros_front * cpatch*frac_burnt * cpatch%area * AREA_INV
 
-         !count number of days for leaves off
-         hio_site_nchilldays_si(io_si) = real(sites(s)%nchilldays,r8)
-         hio_site_ncolddays_si(io_si)  = real(sites(s)%ncolddays,r8)
+         ! Fire intensity weighted by burned fraction [kJ/m/s] -> [J/m/s]
+         hio_fire_intensity_si_age(io_si, cpatch%age_class) = hio_fire_intensity_si_age(io_si, cpatch%age_class) + &
+            cpatch%FI * cpatch%frac_burnt * cpatch%area * AREA_INV * J_per_kJ
 
+         ! Fuel sum [kg/m2]
+         hio_fire_sum_fuel_si_age(io_si, cpatch%age_class) = hio_fire_sum_fuel_si_age(io_si, cpatch%age_class) +  &
+            cpatch%sum_fuel * cpatch%area * AREA_INV
 
-         hio_gdd_si(io_si)      = sites(s)%grow_deg_days
-         hio_cleafoff_si(io_si) = real(model_day_int - sites(s)%cleafoffdate,r8)
-         hio_cleafon_si(io_si)  = real(model_day_int - sites(s)%cleafondate,r8)
-         hio_dleafoff_si(io_si) = real(model_day_int - sites(s)%dleafoffdate,r8)
-         hio_dleafon_si(io_si)  = real(model_day_int - sites(s)%dleafondate,r8)
+         ! Canopy trimming - degree to which canopy expansion is limited by leaf economics (0-1)
+         if(associated(cpatch%tallest))then
+            hio_trimming_si(io_si) = hio_trimming_si(io_si) + cpatch%tallest%canopy_trim * cpatch%area * AREA_INV
+         endif
 
-         if(model_day_int>numWaterMem)then
-            hio_meanliqvol_si(io_si) = &
-                 sum(sites(s)%water_memory(1:numWaterMem))/real(numWaterMem,r8)
-         end if
+         ! area occupied by plants and trees [m2/m2]
+         hio_area_plant_si(io_si) = hio_area_plant_si(io_si) + min(cpatch%total_canopy_area,cpatch%area) * AREA_INV
+         hio_area_trees_si(io_si) = hio_area_trees_si(io_si) + min(cpatch%total_tree_area,cpatch%area) * AREA_INV
 
-         ! track total wood product accumulation at the site level
-         hio_woodproduct_si(io_si)          = sites(s)%resources_management%trunk_product_site &
-              * AREA_INV
+         ! loop through cohorts on patch
+         ccohort => cpatch%shortest
+         cohortloop: do while(associated(ccohort))
 
-         ! site-level fire variables
-         hio_nesterov_fire_danger_si(io_si) = sites(s)%acc_NI
-         hio_fire_nignitions_si(io_si) = sites(s)%NF_successful / m2_per_km2 / sec_per_day
-         hio_fire_fdi_si(io_si) = sites(s)%FDI
+            ft = ccohort%pft
 
-         ! If hydraulics are turned on, track the error terms
-         ! associated with dynamics
+            ! get indices for size class x pft and cohort age x pft
+            ! size class is the fastest changing dimension
+            call sizetype_class_index(ccohort%dbh, ccohort%pft,                &
+               ccohort%size_class, ccohort%size_by_pft_class)
+            ! cohort age is the fastest changing dimension
+            call coagetype_class_index(ccohort%coage, ccohort%pft,             &
+               ccohort%coage_class, ccohort%coage_by_pft_class)
 
-         if(hlm_use_planthydro.eq.itrue)then
-            this%hvars(ih_h2oveg_dead_si)%r81d(io_si)         = sites(s)%si_hydr%h2oveg_dead
-            this%hvars(ih_h2oveg_recruit_si)%r81d(io_si)      = sites(s)%si_hydr%h2oveg_recruit
-            this%hvars(ih_h2oveg_growturn_err_si)%r81d(io_si) = sites(s)%si_hydr%h2oveg_growturn_err
-         end if
+            ! Increment the number of cohorts per site
+            hio_ncohorts_si(io_si) = hio_ncohorts_si(io_si) + 1._r8
 
-         ! error in primary lands from patch fusion
-         hio_primaryland_fusion_error_si(io_si) = sites(s)%primary_land_patchfusion_error * days_per_year
+            n_perm2 = ccohort%n * AREA_INV
 
-         ! output site-level disturbance rates
-         hio_disturbance_rate_p2p_si(io_si) = sum(sites(s)%disturbance_rates_primary_to_primary(1:N_DIST_TYPES)) * days_per_year
-         hio_disturbance_rate_p2s_si(io_si) = sum(sites(s)%disturbance_rates_primary_to_secondary(1:N_DIST_TYPES)) * days_per_year
-         hio_disturbance_rate_s2s_si(io_si) = sum(sites(s)%disturbance_rates_secondary_to_secondary(1:N_DIST_TYPES)) * days_per_year
+            hio_canopy_area_si_age(io_si,cpatch%age_class) = hio_canopy_area_si_age(io_si,cpatch%age_class) &
+               + ccohort%c_area * AREA_INV
 
-         hio_fire_disturbance_rate_si(io_si) = (sites(s)%disturbance_rates_primary_to_primary(dtype_ifire) + &
-              sites(s)%disturbance_rates_primary_to_secondary(dtype_ifire) + &
-              sites(s)%disturbance_rates_secondary_to_secondary(dtype_ifire)) *  &
-              days_per_year
+            ! calculate leaf height distribution, assuming leaf area is evenly distributed thru crown depth
+            height_bin_max = get_height_index(ccohort%hite)
+            height_bin_min = get_height_index(ccohort%hite * (1._r8 - EDPftvarcon_inst%crown(ft)))
+            do i_heightbin = height_bin_min, height_bin_max
+               binbottom = ED_val_history_height_bin_edges(i_heightbin)
+               if (i_heightbin .eq. nlevheight) then
+                  bintop = reallytalltrees
+               else
+                  bintop = ED_val_history_height_bin_edges(i_heightbin+1)
+               endif
+               ! what fraction of a cohort's crown is in this height bin?
+               frac_canopy_in_bin = (min(bintop,ccohort%hite) -                &
+                  max(binbottom,ccohort%hite * (1._r8 - EDPftvarcon_inst%crown(ft)))) / &
+                  (ccohort%hite * EDPftvarcon_inst%crown(ft))
 
-         hio_logging_disturbance_rate_si(io_si) = (sites(s)%disturbance_rates_primary_to_primary(dtype_ilog) + &
-              sites(s)%disturbance_rates_primary_to_secondary(dtype_ilog) + &
-              sites(s)%disturbance_rates_secondary_to_secondary(dtype_ilog)) * &
-              days_per_year
+               hio_leaf_height_dist_si_height(io_si,i_heightbin) = &
+                  hio_leaf_height_dist_si_height(io_si,i_heightbin) + &
+                  ccohort%c_area * AREA_INV * ccohort%treelai * frac_canopy_in_bin
 
-         hio_fall_disturbance_rate_si(io_si) = (sites(s)%disturbance_rates_primary_to_primary(dtype_ifall) + &
-              sites(s)%disturbance_rates_primary_to_secondary(dtype_ifall) + &
-              sites(s)%disturbance_rates_secondary_to_secondary(dtype_ifall)) * &
-              days_per_year
-
-         hio_potential_disturbance_rate_si(io_si) = sum(sites(s)%potential_disturbance_rates(1:N_DIST_TYPES)) * days_per_year
-
-         hio_harvest_carbonflux_si(io_si) = sites(s)%harvest_carbon_flux
-
-         ipa = 0
-         cpatch => sites(s)%oldest_patch
-         do while(associated(cpatch))
-
-            ! Increment the number of patches per site
-            hio_npatches_si(io_si) = hio_npatches_si(io_si) + 1._r8
-
-            cpatch%age_class  = get_age_class_index(cpatch%age)
-
-            ! Increment the fractional area in each age class bin
-            hio_area_si_age(io_si,cpatch%age_class) = hio_area_si_age(io_si,cpatch%age_class) &
-                 + cpatch%area * AREA_INV
-
-            ! Increment some patch-age-resolved diagnostics
-            hio_lai_si_age(io_si,cpatch%age_class) = hio_lai_si_age(io_si,cpatch%age_class) &
-                  + sum(cpatch%tlai_profile(:,:,:)) * cpatch%area
-
-            hio_ncl_si_age(io_si,cpatch%age_class) = hio_ncl_si_age(io_si,cpatch%age_class) &
-                  + cpatch%ncl_p * cpatch%area
-            hio_npatches_si_age(io_si,cpatch%age_class) = hio_npatches_si_age(io_si,cpatch%age_class) + 1._r8
-            if ( ED_val_comp_excln .lt. 0._r8 ) then ! only valid when "strict ppa" enabled
-               hio_zstar_si_age(io_si,cpatch%age_class) = hio_zstar_si_age(io_si,cpatch%age_class) &
-                    + cpatch%zstar * cpatch%area * AREA_INV
-            endif
-
-            ! some diagnostics on secondary forest area and its age distribution
-            if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
-               hio_fraction_secondary_forest_si(io_si) = hio_fraction_secondary_forest_si(io_si) + &
-                    cpatch%area * AREA_INV
-
-               ageclass_since_anthrodist = get_age_class_index(cpatch%age_since_anthro_disturbance)
-
-               hio_agesince_anthrodist_si_age(io_si,ageclass_since_anthrodist) = &
-                    hio_agesince_anthrodist_si_age(io_si,ageclass_since_anthrodist)  &
-                    + cpatch%area * AREA_INV
-
-               hio_secondaryforest_area_si_age(io_si,cpatch%age_class) = &
-                    hio_secondaryforest_area_si_age(io_si,cpatch%age_class)  &
-                    + cpatch%area * AREA_INV
-            endif
-
-            !!! patch-age-resolved fire variables
-            do i_pft = 1,numpft
-               ! for scorch height, weight the value by patch area within any given age calss (in the event that there is
-               ! more than one patch per age class.
-               iagepft = cpatch%age_class + (i_pft-1) * nlevage
-               hio_scorch_height_si_agepft(io_si,iagepft) = hio_scorch_height_si_agepft(io_si,iagepft) + &
-                    cpatch%Scorch_ht(i_pft) * cpatch%area
+               ! if ( ( ccohort%c_area * AREA_INV * ccohort%treelai * frac_canopy_in_bin) .lt. 0._r8) then
+               !    write(fates_log(),*) ' negative hio_leaf_height_dist_si_height:'
+               !    write(fates_log(),*) '   c_area, treelai, frac_canopy_in_bin:', ccohort%c_area, ccohort%treelai, frac_canopy_in_bin
+               ! endif
             end do
 
-            hio_area_burnt_si_age(io_si,cpatch%age_class) = hio_area_burnt_si_age(io_si,cpatch%age_class) + &
-                 cpatch%frac_burnt * cpatch%area * AREA_INV / sec_per_day
-
-            ! hio_fire_rate_of_spread_front_si_age(io_si, cpatch%age_class) = hio_fire_rate_of_spread_si_age(io_si, cpatch%age_class) + &
-            !      cpatch%ros_front * cpatch*frac_burnt * cpatch%area * AREA_INV
-
-            hio_fire_intensity_si_age(io_si, cpatch%age_class) = hio_fire_intensity_si_age(io_si, cpatch%age_class) + &
-                 cpatch%FI * cpatch%frac_burnt * cpatch%area * AREA_INV * J_per_kJ
-
-            hio_fire_sum_fuel_si_age(io_si, cpatch%age_class) = hio_fire_sum_fuel_si_age(io_si, cpatch%age_class) + &
-                 cpatch%sum_fuel * cpatch%area * AREA_INV
-
-            if(associated(cpatch%tallest))then
-               hio_trimming_si(io_si) = hio_trimming_si(io_si) + cpatch%tallest%canopy_trim * cpatch%area * AREA_INV
+            if (ccohort%canopy_layer .eq. 1) then
+               ! calculate the area of canopy that is within each height bin
+               hio_canopy_height_dist_si_height(io_si,height_bin_max) = &
+               hio_canopy_height_dist_si_height(io_si,height_bin_max) + ccohort%c_area * AREA_INV
             endif
 
-            hio_area_plant_si(io_si) = hio_area_plant_si(io_si) + min(cpatch%total_canopy_area,cpatch%area) * AREA_INV
+            ! Update biomass components
+            ! Mass pools [kg]
+            elloop: do el = 1, num_elements
 
-            hio_area_trees_si(io_si) = hio_area_trees_si(io_si) + min(cpatch%total_tree_area,cpatch%area) * AREA_INV
+               sapw_m   = ccohort%prt%GetState(sapw_organ, element_list(el))
+               struct_m = ccohort%prt%GetState(struct_organ, element_list(el))
+               leaf_m   = ccohort%prt%GetState(leaf_organ, element_list(el))
+               fnrt_m   = ccohort%prt%GetState(fnrt_organ, element_list(el))
+               store_m  = ccohort%prt%GetState(store_organ, element_list(el))
+               repro_m  = ccohort%prt%GetState(repro_organ, element_list(el))
 
-            ccohort => cpatch%shortest
-            do while(associated(ccohort))
+               alive_m  = leaf_m + fnrt_m + sapw_m
+               total_m  = alive_m + store_m + struct_m
 
-               ft = ccohort%pft
+               ! Plant multi-element states and fluxes
+               ! Zero states, and set the fluxes
+               if( element_list(el).eq.carbon12_element )then
 
-               call sizetype_class_index(ccohort%dbh, ccohort%pft, ccohort%size_class, ccohort%size_by_pft_class)
-               call coagetype_class_index(ccohort%coage, ccohort%pft, &
-                                          ccohort%coage_class, ccohort%coage_by_pft_class)
+                  ! mass in different tissues [kg/ha] -> [kg/m2]
+                  this%hvars(ih_storec_si)%r81d(io_si) =                       &
+                     this%hvars(ih_storec_si)%r81d(io_si) + ccohort%n *        &
+                     store_m / m2_per_ha
+                  this%hvars(ih_leafc_si)%r81d(io_si) =                        &
+                     this%hvars(ih_leafc_si)%r81d(io_si) + ccohort%n *         &
+                     leaf_m / m2_per_ha
+                  this%hvars(ih_fnrtc_si)%r81d(io_si) =                        &
+                     this%hvars(ih_fnrtc_si)%r81d(io_si) + ccohort%n *         &
+                     fnrt_m / m2_per_ha
+                  this%hvars(ih_reproc_si)%r81d(io_si) =                       &
+                     this%hvars(ih_reproc_si)%r81d(io_si)+ ccohort%n *         &
+                     repro_m / m2_per_ha
+                  this%hvars(ih_sapwc_si)%r81d(io_si) =                        &
+                     this%hvars(ih_sapwc_si)%r81d(io_si) + ccohort%n *         &
+                     sapw_m / m2_per_ha
+                  this%hvars(ih_totvegc_si)%r81d(io_si) =                      &
+                     this%hvars(ih_totvegc_si)%r81d(io_si)+ ccohort%n *        &
+                     total_m / m2_per_ha
 
-               ! Increment the number of cohorts per site
-               hio_ncohorts_si(io_si) = hio_ncohorts_si(io_si) + 1._r8
+                  hio_bdead_si(io_si) = hio_bdead_si(io_si)  + n_perm2 * struct_m
+                  hio_balive_si(io_si) = hio_balive_si(io_si) + n_perm2 * alive_m
 
-               n_perm2   = ccohort%n * AREA_INV
+                  hio_agb_si(io_si) = hio_agb_si(io_si) + n_perm2 *            &
+                  ( leaf_m + (sapw_m + struct_m + store_m) * prt_params%allom_agb_frac(ccohort%pft) )
 
-               hio_canopy_area_si_age(io_si,cpatch%age_class) = hio_canopy_area_si_age(io_si,cpatch%age_class) &
-                    + ccohort%c_area * AREA_INV
 
-               ! calculate leaf height distribution, assuming leaf area is evenly distributed thru crown depth
-               height_bin_max = get_height_index(ccohort%hite)
-               height_bin_min = get_height_index(ccohort%hite * (1._r8 - EDPftvarcon_inst%crown(ft)))
-               do i_heightbin = height_bin_min, height_bin_max
-                  binbottom = ED_val_history_height_bin_edges(i_heightbin)
-                  if (i_heightbin .eq. nlevheight) then
-                     bintop = reallytalltrees
-                  else
-                     bintop = ED_val_history_height_bin_edges(i_heightbin+1)
+                  ! Update PFT partitioned biomass components
+                  hio_leafbiomass_si_pft(io_si,ft) = hio_leafbiomass_si_pft(io_si,ft) + &
+                     (ccohort%n * AREA_INV) * leaf_m
+
+                  hio_storebiomass_si_pft(io_si,ft) = hio_storebiomass_si_pft(io_si,ft) + &
+                     (ccohort%n * AREA_INV) * store_m
+
+                  hio_nindivs_si_pft(io_si,ft) = hio_nindivs_si_pft(io_si,ft) + &
+                     ccohort%n * AREA_INV
+
+                  hio_biomass_si_pft(io_si, ft) = hio_biomass_si_pft(io_si, ft) + &
+                     (ccohort%n * AREA_INV) * total_m
+
+                  ! update total biomass per age bin
+                  hio_biomass_si_age(io_si,cpatch%age_class) = hio_biomass_si_age(io_si,cpatch%age_class) &
+                     + total_m * ccohort%n * AREA_INV
+
+                  ! track the total biomass on all secondary lands
+                  if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+                     hio_biomass_secondary_forest_si(io_si) = hio_biomass_secondary_forest_si(io_si) + &
+                     total_m * ccohort%n * AREA_INV
                   endif
-                  ! what fraction of a cohort's crown is in this height bin?
-                  frac_canopy_in_bin = (min(bintop,ccohort%hite) - &
-                       max(binbottom,ccohort%hite * (1._r8 - EDPftvarcon_inst%crown(ft)))) / &
-                       (ccohort%hite * EDPftvarcon_inst%crown(ft))
-                  !
-                  hio_leaf_height_dist_si_height(io_si,i_heightbin) = &
-                       hio_leaf_height_dist_si_height(io_si,i_heightbin) + &
-                       ccohort%c_area * AREA_INV * ccohort%treelai * frac_canopy_in_bin
 
-                  ! if ( ( ccohort%c_area * AREA_INV * ccohort%treelai * frac_canopy_in_bin) .lt. 0._r8) then
-                  !    write(fates_log(),*) ' negative hio_leaf_height_dist_si_height:'
-                  !    write(fates_log(),*) '   c_area, treelai, frac_canopy_in_bin:', ccohort%c_area, ccohort%treelai, frac_canopy_in_bin
-                  ! endif
-               end do
+               elseif(element_list(el).eq.nitrogen_element)then
 
-               if (ccohort%canopy_layer .eq. 1) then
-                  ! calculate the area of canopy that is within each height bin
-                  hio_canopy_height_dist_si_height(io_si,height_bin_max) = &
-                       hio_canopy_height_dist_si_height(io_si,height_bin_max) + ccohort%c_area * AREA_INV
+                  store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ)
+
+                  this%hvars(ih_storen_si)%r81d(io_si)  =                      &
+                     this%hvars(ih_storen_si)%r81d(io_si) + ccohort%n *        &
+                     store_m / m2_per_ha
+                  this%hvars(ih_storentfrac_si)%r81d(io_si)  =                 &
+                     this%hvars(ih_storentfrac_si)%r81d(io_si) + ccohort%n *   &
+                     store_max / m2_per_ha
+                  this%hvars(ih_leafn_si)%r81d(io_si)   =                      &
+                     this%hvars(ih_leafn_si)%r81d(io_si) + ccohort%n *         &
+                     leaf_m / m2_per_ha
+                  this%hvars(ih_fnrtn_si)%r81d(io_si)   =                      &
+                     this%hvars(ih_fnrtn_si)%r81d(io_si) + ccohort%n *         &
+                     fnrt_m / m2_per_ha
+                  this%hvars(ih_repron_si)%r81d(io_si)  =                      &
+                     this%hvars(ih_repron_si)%r81d(io_si) + ccohort%n *        &
+                     repro_m / m2_per_ha
+                  this%hvars(ih_sapwn_si)%r81d(io_si)   =                      &
+                     this%hvars(ih_sapwn_si)%r81d(io_si) + ccohort%n *         &
+                     sapw_m / m2_per_ha
+                  this%hvars(ih_totvegn_si)%r81d(io_si) =                      &
+                     this%hvars(ih_totvegn_si)%r81d(io_si) + ccohort%n *       &
+                     total_m / m2_per_ha
+
+               elseif(element_list(el).eq.phosphorus_element) then
+
+                  store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ)
+
+                  this%hvars(ih_storep_si)%r81d(io_si)  =                      &
+                     this%hvars(ih_storep_si)%r81d(io_si) + ccohort%n *        &
+                     store_m / m2_per_ha
+                  this%hvars(ih_storeptfrac_si)%r81d(io_si)  =                 &
+                     this%hvars(ih_storeptfrac_si)%r81d(io_si) + ccohort%n *   &
+                     store_max / m2_per_ha
+                  this%hvars(ih_leafp_si)%r81d(io_si)   =                      &
+                     this%hvars(ih_leafp_si)%r81d(io_si) + ccohort%n *         &
+                     leaf_m / m2_per_ha
+                  this%hvars(ih_fnrtp_si)%r81d(io_si)   =                      &
+                     this%hvars(ih_fnrtp_si)%r81d(io_si) + ccohort%n *         &
+                     fnrt_m / m2_per_ha
+                  this%hvars(ih_reprop_si)%r81d(io_si)  =                      &
+                     this%hvars(ih_reprop_si)%r81d(io_si) + ccohort%n *        &
+                     repro_m / m2_per_ha
+                  this%hvars(ih_sapwp_si)%r81d(io_si)   =                      &
+                     this%hvars(ih_sapwp_si)%r81d(io_si) + ccohort%n *         &
+                     sapw_m / m2_per_ha
+                  this%hvars(ih_totvegp_si)%r81d(io_si) =                      &
+                     this%hvars(ih_totvegp_si)%r81d(io_si)+ ccohort%n *        &
+                     total_m / m2_per_ha
+
+               end if
+
+            end do elloop
+
+            ! Update PFT crown area
+            hio_crownarea_si_pft(io_si, ft) = hio_crownarea_si_pft(io_si, ft) + &
+               ccohort%c_area * AREA_INV
+
+            if (ccohort%canopy_layer .eq. 1) then
+               ! Update PFT canopy crown area
+               hio_canopycrownarea_si_pft(io_si, ft) = hio_canopycrownarea_si_pft(io_si, ft) + &
+                  ccohort%c_area * AREA_INV
+            end if
+
+            ! update pft-resolved NPP and GPP fluxes
+            hio_gpp_si_pft(io_si, ft) = hio_gpp_si_pft(io_si, ft) + &
+               ccohort%gpp_acc_hold * n_perm2 / days_per_year / sec_per_day
+
+            hio_npp_si_pft(io_si, ft) = hio_npp_si_pft(io_si, ft) + &
+               ccohort%npp_acc_hold * n_perm2 / days_per_year / sec_per_day
+
+            ! Site by Size-Class x PFT (SCPF)
+            ! ------------------------------------------------------------------------
+
+            dbh = ccohort%dbh !-0.5*(1./365.25)*ccohort%ddbhdt
+
+            ! Flux Variables (cohorts must had experienced a day before any of these values
+            ! have any meaning, otherwise they are just inialization values
+            notnew: if( .not.(ccohort%isnew) ) then
+
+               ! Turnover pools [kgC/day] * [day/yr] = [kgC/yr]
+               sapw_m_turnover   = ccohort%prt%GetTurnover(sapw_organ, carbon12_element) * days_per_year
+               store_m_turnover  = ccohort%prt%GetTurnover(store_organ, carbon12_element) * days_per_year
+               leaf_m_turnover   = ccohort%prt%GetTurnover(leaf_organ, carbon12_element) * days_per_year
+               fnrt_m_turnover   = ccohort%prt%GetTurnover(fnrt_organ, carbon12_element) * days_per_year
+               struct_m_turnover = ccohort%prt%GetTurnover(struct_organ, carbon12_element) * days_per_year
+
+               ! Net change from allocation and transport [kgC/day] * [day/yr] = [kgC/yr]
+               sapw_m_net_alloc   = ccohort%prt%GetNetAlloc(sapw_organ, carbon12_element) * days_per_year
+               store_m_net_alloc  = ccohort%prt%GetNetAlloc(store_organ, carbon12_element) * days_per_year
+               leaf_m_net_alloc   = ccohort%prt%GetNetAlloc(leaf_organ, carbon12_element) * days_per_year
+               fnrt_m_net_alloc   = ccohort%prt%GetNetAlloc(fnrt_organ, carbon12_element) * days_per_year
+               struct_m_net_alloc = ccohort%prt%GetNetAlloc(struct_organ, carbon12_element) * days_per_year
+               repro_m_net_alloc  = ccohort%prt%GetNetAlloc(repro_organ, carbon12_element) * days_per_year
+
+               ! ecosystem-level, organ-partitioned NPP/allocation fluxes
+               ! [kgC/yr] -> [kgC/sec]
+               hio_npp_leaf_si(io_si) = hio_npp_leaf_si(io_si) +               &
+                  leaf_m_net_alloc * n_perm2 / days_per_year / sec_per_day
+               hio_npp_seed_si(io_si) = hio_npp_seed_si(io_si) +               &
+                  repro_m_net_alloc * n_perm2 / days_per_year / sec_per_day
+               hio_npp_stem_si(io_si) = hio_npp_stem_si(io_si) +               &
+                  (sapw_m_net_alloc + struct_m_net_alloc) * n_perm2 *          &
+                  (prt_params%allom_agb_frac(ccohort%pft)) /                   &
+                  days_per_year / sec_per_day
+               hio_npp_froot_si(io_si) = hio_npp_froot_si(io_si) +             &
+                  fnrt_m_net_alloc * n_perm2 / days_per_year / sec_per_day
+               hio_npp_croot_si(io_si) = hio_npp_croot_si(io_si) +             &
+                  (sapw_m_net_alloc + struct_m_net_alloc) * n_perm2 *          &
+                  (1._r8-prt_params%allom_agb_frac(ccohort%pft)) /             &
+                  days_per_year / sec_per_day
+               hio_npp_stor_si(io_si) = hio_npp_stor_si(io_si) +               &
+                  store_m_net_alloc * n_perm2 / days_per_year / sec_per_day
+
+               associate( scpf => ccohort%size_by_pft_class,                   &
+                          scls => ccohort%size_class,                          &
+                          cacls => ccohort%coage_class,                        &
+                          capf => ccohort%coage_by_pft_class)
+
+               gpp_cached = (hio_gpp_si_scpf(io_si,scpf)) *                    &
+                  days_per_year * sec_per_day
+
+               ! [kgC/m2/s]
+               hio_gpp_si_scpf(io_si,scpf) = hio_gpp_si_scpf(io_si,scpf) +     &
+                  n_perm2*ccohort%gpp_acc_hold / days_per_year / sec_per_day
+               hio_npp_totl_si_scpf(io_si,scpf) = hio_npp_totl_si_scpf(io_si,scpf) + &
+                  ccohort%npp_acc_hold * n_perm2 / days_per_year / sec_per_day
+
+               hio_npp_leaf_si_scpf(io_si,scpf) = hio_npp_leaf_si_scpf(io_si,scpf) + &
+                  leaf_m_net_alloc*n_perm2 / days_per_year / sec_per_day
+               hio_npp_fnrt_si_scpf(io_si,scpf) = hio_npp_fnrt_si_scpf(io_si,scpf) + &
+                  fnrt_m_net_alloc*n_perm2 / days_per_year / sec_per_day
+               hio_npp_bgsw_si_scpf(io_si,scpf) = hio_npp_bgsw_si_scpf(io_si,scpf) + &
+                  sapw_m_net_alloc*n_perm2*(1._r8-prt_params%allom_agb_frac(ccohort%pft)) / &
+                  days_per_year / sec_per_day
+               hio_npp_agsw_si_scpf(io_si,scpf) = hio_npp_agsw_si_scpf(io_si,scpf) + &
+                  sapw_m_net_alloc*n_perm2*prt_params%allom_agb_frac(ccohort%pft) / &
+                  days_per_year / sec_per_day
+               hio_npp_bgdw_si_scpf(io_si,scpf) = hio_npp_bgdw_si_scpf(io_si,scpf) + &
+                  struct_m_net_alloc*n_perm2*(1._r8-prt_params%allom_agb_frac(ccohort%pft)) / &
+                  days_per_year / sec_per_day
+               hio_npp_agdw_si_scpf(io_si,scpf) = hio_npp_agdw_si_scpf(io_si,scpf) + &
+                  struct_m_net_alloc*n_perm2*prt_params%allom_agb_frac(ccohort%pft) / &
+                  days_per_year / sec_per_day
+               hio_npp_seed_si_scpf(io_si,scpf) = hio_npp_seed_si_scpf(io_si,scpf) + &
+                  repro_m_net_alloc*n_perm2 / days_per_year / sec_per_day
+               hio_npp_stor_si_scpf(io_si,scpf) = hio_npp_stor_si_scpf(io_si,scpf) + &
+                  store_m_net_alloc*n_perm2 / days_per_year / sec_per_day
+
+               ! Woody State Variables (basal area growth increment)
+               if ( int(prt_params%woody(ft)) == itrue) then
+
+                  ! basal area  [m2/m2]
+                  hio_ba_si_scpf(io_si,scpf) = hio_ba_si_scpf(io_si,scpf) + &
+                     0.25_r8*3.14159_r8*((dbh/100.0_r8)**2.0_r8)*ccohort%n / m2_per_ha
+
+                  ! also by size class only
+                  hio_ba_si_scls(io_si,scls) = hio_ba_si_scls(io_si,scls) + &
+                     0.25_r8*3.14159_r8*((dbh/100.0_r8)**2.0_r8)*       &
+                     ccohort%n / m2_per_ha
+
+                  ! growth increment
+                  hio_ddbh_si_scpf(io_si,scpf) = hio_ddbh_si_scpf(io_si,scpf) + &
+                     ccohort%ddbhdt*ccohort%n / m2_per_ha * m_per_cm
+
+               end if
+
+               ! mortality sums [#/m2]
+               hio_m1_si_scpf(io_si,scpf) = hio_m1_si_scpf(io_si,scpf) +       &
+                  ccohort%bmort*ccohort%n / m2_per_ha
+               hio_m2_si_scpf(io_si,scpf) = hio_m2_si_scpf(io_si,scpf) +       &
+                  ccohort%hmort*ccohort%n / m2_per_ha
+               hio_m3_si_scpf(io_si,scpf) = hio_m3_si_scpf(io_si,scpf) +       &
+                  ccohort%cmort*ccohort%n / m2_per_ha
+
+               hio_m7_si_scpf(io_si,scpf) = hio_m7_si_scpf(io_si,scpf) +       &
+                  (ccohort%lmort_direct + ccohort%lmort_collateral +           &
+                  ccohort%lmort_infra) * ccohort%n / m2_per_ha
+
+               hio_m8_si_scpf(io_si,scpf) = hio_m8_si_scpf(io_si,scpf) +       &
+                  ccohort%frmort*ccohort%n / m2_per_ha
+               hio_m9_si_scpf(io_si,scpf) = hio_m9_si_scpf(io_si,scpf) +       &
+                  ccohort%smort*ccohort%n / m2_per_ha
+
+               if (hlm_use_cohort_age_tracking .eq.itrue) then
+                  hio_m10_si_scpf(io_si,scpf) = hio_m10_si_scpf(io_si,scpf) +  &
+                     ccohort%asmort*ccohort%n / m2_per_ha
+                  hio_m10_si_capf(io_si,capf) = hio_m10_si_capf(io_si,capf) +  &
+                     ccohort%asmort*ccohort%n / m2_per_ha
+                  hio_m10_si_scls(io_si,scls) = hio_m10_si_scls(io_si,scls) +  &
+                     ccohort%asmort*ccohort%n / m2_per_ha
+                  hio_m10_si_cacls(io_si,cacls) = hio_m10_si_cacls(io_si,cacls)+ &
+                     ccohort%asmort*ccohort%n / m2_per_ha
+               end if
+
+               hio_m1_si_scls(io_si,scls) = hio_m1_si_scls(io_si,scls) + ccohort%bmort*ccohort%n / m2_per_ha
+               hio_m2_si_scls(io_si,scls) = hio_m2_si_scls(io_si,scls) + ccohort%hmort*ccohort%n / m2_per_ha
+               hio_m3_si_scls(io_si,scls) = hio_m3_si_scls(io_si,scls) + ccohort%cmort*ccohort%n / m2_per_ha
+               hio_m7_si_scls(io_si,scls) = hio_m7_si_scls(io_si,scls) + &
+                  (ccohort%lmort_direct+ccohort%lmort_collateral+ccohort%lmort_infra) * ccohort%n / m2_per_ha
+               hio_m8_si_scls(io_si,scls) = hio_m8_si_scls(io_si,scls) + &
+                  ccohort%frmort*ccohort%n / m2_per_ha
+               hio_m9_si_scls(io_si,scls) = hio_m9_si_scls(io_si,scls) + ccohort%smort*ccohort%n / m2_per_ha
+
+               !C13 discrimination
+               if(gpp_cached + ccohort%gpp_acc_hold > 0.0_r8)then
+                  hio_c13disc_si_scpf(io_si,scpf) = ((hio_c13disc_si_scpf(io_si,scpf) * gpp_cached) + &
+                     (ccohort%c13disc_acc * ccohort%gpp_acc_hold)) / (gpp_cached + ccohort%gpp_acc_hold)
+               else
+                  hio_c13disc_si_scpf(io_si,scpf) = 0.0_r8
                endif
 
-               ! Update biomass components
-               ! Mass pools [kgC]
-               do el = 1, num_elements
+               ! number density [/m2]
+               hio_nplant_si_scpf(io_si,scpf) = hio_nplant_si_scpf(io_si,scpf) + ccohort%n / m2_per_ha
 
-                  sapw_m   = ccohort%prt%GetState(sapw_organ, element_list(el))
-                  struct_m = ccohort%prt%GetState(struct_organ, element_list(el))
-                  leaf_m   = ccohort%prt%GetState(leaf_organ, element_list(el))
-                  fnrt_m   = ccohort%prt%GetState(fnrt_organ, element_list(el))
-                  store_m  = ccohort%prt%GetState(store_organ, element_list(el))
-                  repro_m  = ccohort%prt%GetState(repro_organ, element_list(el))
-
-
-                  alive_m  = leaf_m + fnrt_m + sapw_m
-                  total_m  = alive_m + store_m + struct_m
-
-                  ! Plant multi-element states and fluxes
-                  ! Zero states, and set the fluxes
-                  if( element_list(el).eq.carbon12_element )then
-
-                     this%hvars(ih_storec_si)%r81d(io_si)  = &
-                          this%hvars(ih_storec_si)%r81d(io_si) + ccohort%n * store_m / m2_per_ha
-                     this%hvars(ih_leafc_si)%r81d(io_si)   = &
-                          this%hvars(ih_leafc_si)%r81d(io_si) + ccohort%n * leaf_m / m2_per_ha
-                     this%hvars(ih_fnrtc_si)%r81d(io_si)   = &
-                          this%hvars(ih_fnrtc_si)%r81d(io_si) + ccohort%n * fnrt_m / m2_per_ha
-                     this%hvars(ih_reproc_si)%r81d(io_si)  = &
-                          this%hvars(ih_reproc_si)%r81d(io_si)+ ccohort%n * repro_m / m2_per_ha
-                     this%hvars(ih_sapwc_si)%r81d(io_si)   = &
-                          this%hvars(ih_sapwc_si)%r81d(io_si)+ ccohort%n * sapw_m / m2_per_ha
-                     this%hvars(ih_totvegc_si)%r81d(io_si) = &
-                          this%hvars(ih_totvegc_si)%r81d(io_si)+ ccohort%n * total_m / m2_per_ha
-
-                     hio_bdead_si(io_si)     = hio_bdead_si(io_si)  + n_perm2 * struct_m
-                     hio_balive_si(io_si)    = hio_balive_si(io_si) + n_perm2 * alive_m
-
-                     hio_agb_si(io_si)       = hio_agb_si(io_si) + n_perm2 *   &
-                           ( leaf_m + (sapw_m + struct_m + store_m) * prt_params%allom_agb_frac(ccohort%pft) )
-
-
-                     ! Update PFT partitioned biomass components
-                     hio_leafbiomass_si_pft(io_si,ft) = hio_leafbiomass_si_pft(io_si,ft) + &
-                           (ccohort%n * AREA_INV) * leaf_m
-
-                     hio_storebiomass_si_pft(io_si,ft) = hio_storebiomass_si_pft(io_si,ft) + &
-                           (ccohort%n * AREA_INV) * store_m
-
-                     hio_nindivs_si_pft(io_si,ft) = hio_nindivs_si_pft(io_si,ft) + &
-                           ccohort%n * AREA_INV
-
-                     hio_biomass_si_pft(io_si, ft) = hio_biomass_si_pft(io_si, ft) + &
-                           (ccohort%n * AREA_INV) * total_m
-
-                     ! update total biomass per age bin
-                     hio_biomass_si_age(io_si,cpatch%age_class) = hio_biomass_si_age(io_si,cpatch%age_class) &
-                           + total_m * ccohort%n * AREA_INV
-
-                     ! track the total biomass on all secondary lands
-                     if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
-                         hio_biomass_secondary_forest_si(io_si) = hio_biomass_secondary_forest_si(io_si) + &
-                               total_m * ccohort%n * AREA_INV
-                     endif
-
-                  elseif(element_list(el).eq.nitrogen_element)then
-
-                     store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ)
-
-                     this%hvars(ih_storen_si)%r81d(io_si)  = &
-                          this%hvars(ih_storen_si)%r81d(io_si) + ccohort%n * store_m / m2_per_ha
-                     this%hvars(ih_storentfrac_si)%r81d(io_si)  = &
-                          this%hvars(ih_storentfrac_si)%r81d(io_si) + ccohort%n * store_max / m2_per_ha
-                     this%hvars(ih_leafn_si)%r81d(io_si)   = &
-                          this%hvars(ih_leafn_si)%r81d(io_si) + ccohort%n * leaf_m / m2_per_ha
-                     this%hvars(ih_fnrtn_si)%r81d(io_si)   = &
-                          this%hvars(ih_fnrtn_si)%r81d(io_si) + ccohort%n * fnrt_m / m2_per_ha
-                     this%hvars(ih_repron_si)%r81d(io_si)  = &
-                          this%hvars(ih_repron_si)%r81d(io_si) + ccohort%n * repro_m / m2_per_ha
-                     this%hvars(ih_sapwn_si)%r81d(io_si)   = &
-                          this%hvars(ih_sapwn_si)%r81d(io_si) + ccohort%n * sapw_m / m2_per_ha
-                     this%hvars(ih_totvegn_si)%r81d(io_si) = &
-                          this%hvars(ih_totvegn_si)%r81d(io_si) + ccohort%n * total_m / m2_per_ha
-
-
-                  elseif(element_list(el).eq.phosphorus_element) then
-
-                     store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ)
-
-                     this%hvars(ih_storep_si)%r81d(io_si)  = &
-                          this%hvars(ih_storep_si)%r81d(io_si) + ccohort%n * store_m / m2_per_ha
-                     this%hvars(ih_storeptfrac_si)%r81d(io_si)  = &
-                          this%hvars(ih_storeptfrac_si)%r81d(io_si) + ccohort%n * store_max / m2_per_ha
-                     this%hvars(ih_leafp_si)%r81d(io_si)   = &
-                          this%hvars(ih_leafp_si)%r81d(io_si) + ccohort%n * leaf_m / m2_per_ha
-                     this%hvars(ih_fnrtp_si)%r81d(io_si)   = &
-                          this%hvars(ih_fnrtp_si)%r81d(io_si) + ccohort%n * fnrt_m / m2_per_ha
-                     this%hvars(ih_reprop_si)%r81d(io_si)  = &
-                          this%hvars(ih_reprop_si)%r81d(io_si) + ccohort%n * repro_m / m2_per_ha
-                     this%hvars(ih_sapwp_si)%r81d(io_si)   = &
-                          this%hvars(ih_sapwp_si)%r81d(io_si) + ccohort%n * sapw_m / m2_per_ha
-                     this%hvars(ih_totvegp_si)%r81d(io_si) = &
-                          this%hvars(ih_totvegp_si)%r81d(io_si)+ ccohort%n * total_m / m2_per_ha
-
-                  end if
-
-               end do
-
-
-
-               ! Update PFT crown area
-               hio_crownarea_si_pft(io_si, ft) = hio_crownarea_si_pft(io_si, ft) + &
-                    ccohort%c_area * AREA_INV
-
-               if (ccohort%canopy_layer .eq. 1) then
-                  ! Update PFT canopy crown area
-                  hio_canopycrownarea_si_pft(io_si, ft) = hio_canopycrownarea_si_pft(io_si, ft) + &
-                       ccohort%c_area * AREA_INV
+               ! number density along the cohort age dimension
+               if (hlm_use_cohort_age_tracking .eq.itrue) then
+                  hio_nplant_si_capf(io_si,capf) = hio_nplant_si_capf(io_si,capf) + ccohort%n / m2_per_ha
+                  hio_nplant_si_cacls(io_si,cacls) = hio_nplant_si_cacls(io_si,cacls)+ccohort%n / m2_per_ha
                end if
 
-               ! update pft-resolved NPP and GPP fluxes
-               hio_gpp_si_pft(io_si, ft) = hio_gpp_si_pft(io_si, ft) + &
-                    ccohort%gpp_acc_hold * n_perm2 / days_per_year / sec_per_day
-
-               hio_npp_si_pft(io_si, ft) = hio_npp_si_pft(io_si, ft) + &
-                    ccohort%npp_acc_hold * n_perm2 / days_per_year / sec_per_day
-
-
-               ! Site by Size-Class x PFT (SCPF)
-               ! ------------------------------------------------------------------------
-
-               dbh = ccohort%dbh !-0.5*(1./365.25)*ccohort%ddbhdt
-
-               ! Flux Variables (cohorts must had experienced a day before any of these values
-               ! have any meaning, otherwise they are just inialization values
-               if( .not.(ccohort%isnew) ) then
-
-                  ! Turnover pools [kgC/day] * [day/yr] = [kgC/yr]
-                  sapw_m_turnover   = ccohort%prt%GetTurnover(sapw_organ, carbon12_element) * days_per_year
-                  store_m_turnover  = ccohort%prt%GetTurnover(store_organ, carbon12_element) * days_per_year
-                  leaf_m_turnover   = ccohort%prt%GetTurnover(leaf_organ, carbon12_element) * days_per_year
-                  fnrt_m_turnover   = ccohort%prt%GetTurnover(fnrt_organ, carbon12_element) * days_per_year
-                  struct_m_turnover = ccohort%prt%GetTurnover(struct_organ, carbon12_element) * days_per_year
-
-                  ! Net change from allocation and transport [kgC/day] * [day/yr] = [kgC/yr]
-                  sapw_m_net_alloc   = ccohort%prt%GetNetAlloc(sapw_organ, carbon12_element) * days_per_year
-                  store_m_net_alloc  = ccohort%prt%GetNetAlloc(store_organ, carbon12_element) * days_per_year
-                  leaf_m_net_alloc   = ccohort%prt%GetNetAlloc(leaf_organ, carbon12_element) * days_per_year
-                  fnrt_m_net_alloc   = ccohort%prt%GetNetAlloc(fnrt_organ, carbon12_element) * days_per_year
-                  struct_m_net_alloc = ccohort%prt%GetNetAlloc(struct_organ, carbon12_element) * days_per_year
-                  repro_m_net_alloc  = ccohort%prt%GetNetAlloc(repro_organ, carbon12_element) * days_per_year
-
-                  ! ecosystem-level, organ-partitioned NPP/allocation fluxes
-                  hio_npp_leaf_si(io_si) = hio_npp_leaf_si(io_si) +            &
-                       leaf_m_net_alloc * n_perm2 / days_per_year / sec_per_day
-                  hio_npp_seed_si(io_si) = hio_npp_seed_si(io_si) +            &
-                       repro_m_net_alloc * n_perm2 / days_per_year / sec_per_day
-                  hio_npp_stem_si(io_si) = hio_npp_stem_si(io_si) +            &
-                       (sapw_m_net_alloc + struct_m_net_alloc) * n_perm2 *     &
-                       (prt_params%allom_agb_frac(ccohort%pft)) /              &
-                       days_per_year / sec_per_day
-                  hio_npp_froot_si(io_si) = hio_npp_froot_si(io_si) +          &
-                       fnrt_m_net_alloc * n_perm2 / days_per_year / sec_per_day
-                  hio_npp_croot_si(io_si) = hio_npp_croot_si(io_si) +          &
-                       (sapw_m_net_alloc + struct_m_net_alloc) * n_perm2 *     &
-                       (1._r8-prt_params%allom_agb_frac(ccohort%pft)) /        &
-                       days_per_year / sec_per_day
-                  hio_npp_stor_si(io_si) = hio_npp_stor_si(io_si) +            &
-                       store_m_net_alloc * n_perm2 / days_per_year / sec_per_day
-
-                  associate( scpf => ccohort%size_by_pft_class, &
-
-                       scls => ccohort%size_class, &
-                       cacls => ccohort%coage_class, &
-                       capf => ccohort%coage_by_pft_class)
-
-
-                    gpp_cached = (hio_gpp_si_scpf(io_si,scpf)) *               &
-                       days_per_year * sec_per_day
-
-                    hio_gpp_si_scpf(io_si,scpf)      = hio_gpp_si_scpf(io_si,scpf)      + &
-                                                       n_perm2*ccohort%gpp_acc_hold /     &
-                                                       days_per_year / sec_per_day  ! [kgC/m2/s]
-                    hio_npp_totl_si_scpf(io_si,scpf) = hio_npp_totl_si_scpf(io_si,scpf) + &
-                                                       ccohort%npp_acc_hold * n_perm2 / &
-                                                       days_per_year / sec_per_day
-
-
-                    hio_npp_leaf_si_scpf(io_si,scpf) = hio_npp_leaf_si_scpf(io_si,scpf) + &
-                                                       leaf_m_net_alloc*n_perm2 / &
-                                                       days_per_year / sec_per_day
-                    hio_npp_fnrt_si_scpf(io_si,scpf) = hio_npp_fnrt_si_scpf(io_si,scpf) + &
-                                                       fnrt_m_net_alloc*n_perm2 / &
-                                                       days_per_year / sec_per_day
-                    hio_npp_bgsw_si_scpf(io_si,scpf) = hio_npp_bgsw_si_scpf(io_si,scpf) + &
-                                                       sapw_m_net_alloc*n_perm2*           &
-                                                       (1._r8-prt_params%allom_agb_frac(ccohort%pft)) / &
-                                                       days_per_year / sec_per_day
-                    hio_npp_agsw_si_scpf(io_si,scpf) = hio_npp_agsw_si_scpf(io_si,scpf) + &
-                                                       sapw_m_net_alloc*n_perm2*           &
-                                                       prt_params%allom_agb_frac(ccohort%pft) / &
-                                                       days_per_year / sec_per_day
-                    hio_npp_bgdw_si_scpf(io_si,scpf) = hio_npp_bgdw_si_scpf(io_si,scpf) + &
-                                                       struct_m_net_alloc*n_perm2*         &
-                                                       (1._r8-prt_params%allom_agb_frac(ccohort%pft)) / &
-                                                       days_per_year / sec_per_day
-                    hio_npp_agdw_si_scpf(io_si,scpf) = hio_npp_agdw_si_scpf(io_si,scpf) + &
-                                                       struct_m_net_alloc*n_perm2*         &
-                                                       prt_params%allom_agb_frac(ccohort%pft) / &
-                                                       days_per_year / sec_per_day
-                    hio_npp_seed_si_scpf(io_si,scpf) = hio_npp_seed_si_scpf(io_si,scpf) + &
-                                                       repro_m_net_alloc*n_perm2 / &
-                                                       days_per_year / sec_per_day
-                    hio_npp_stor_si_scpf(io_si,scpf) = hio_npp_stor_si_scpf(io_si,scpf) + &
-                                                       store_m_net_alloc*n_perm2 / &
-                                                       days_per_year / sec_per_day
-
-                    ! Woody State Variables (basal area growth increment)
-                    if ( int(prt_params%woody(ft)) == itrue) then
-
-                       ! basal area  [m2/m2]
-                       hio_ba_si_scpf(io_si,scpf) = hio_ba_si_scpf(io_si,scpf) + &
-                            0.25_r8*3.14159_r8*((dbh/100.0_r8)**2.0_r8)*ccohort%n / m2_per_ha
-
-                       ! also by size class only
-                       hio_ba_si_scls(io_si,scls) = hio_ba_si_scls(io_si,scls) + &
-                            0.25_r8*3.14159_r8*((dbh/100.0_r8)**2.0_r8)*       &
-                            ccohort%n / m2_per_ha
-
-                       ! growth increment
-                       hio_ddbh_si_scpf(io_si,scpf) = hio_ddbh_si_scpf(io_si,scpf) + &
-                            ccohort%ddbhdt*ccohort%n / m2_per_ha * m_per_cm
-
-                    end if
-
-                    hio_m1_si_scpf(io_si,scpf) = hio_m1_si_scpf(io_si,scpf) +  &
-                         ccohort%bmort*ccohort%n / m2_per_ha
-                    hio_m2_si_scpf(io_si,scpf) = hio_m2_si_scpf(io_si,scpf) +  &
-                         ccohort%hmort*ccohort%n / m2_per_ha
-                    hio_m3_si_scpf(io_si,scpf) = hio_m3_si_scpf(io_si,scpf) +  &
-                         ccohort%cmort*ccohort%n / m2_per_ha
-
-                    hio_m7_si_scpf(io_si,scpf) = hio_m7_si_scpf(io_si,scpf) +  &
-                         (ccohort%lmort_direct + ccohort%lmort_collateral +    &
-                         ccohort%lmort_infra) * ccohort%n / m2_per_ha
-
-                    hio_m8_si_scpf(io_si,scpf) = hio_m8_si_scpf(io_si,scpf) +  &
-                         ccohort%frmort*ccohort%n / m2_per_ha
-                    hio_m9_si_scpf(io_si,scpf) = hio_m9_si_scpf(io_si,scpf) +  &
-                         ccohort%smort*ccohort%n / m2_per_ha
-
-                    if (hlm_use_cohort_age_tracking .eq.itrue) then
-                       hio_m10_si_scpf(io_si,scpf) = hio_m10_si_scpf(io_si,scpf) + ccohort%asmort*ccohort%n / m2_per_ha
-                       hio_m10_si_capf(io_si,capf) = hio_m10_si_capf(io_si,capf) + ccohort%asmort*ccohort%n / m2_per_ha
-                       hio_m10_si_scls(io_si,scls) = hio_m10_si_scls(io_si,scls) + ccohort%asmort*ccohort%n / m2_per_ha
-                       hio_m10_si_cacls(io_si,cacls) = hio_m10_si_cacls(io_si,cacls)+ &
-                            ccohort%asmort*ccohort%n / m2_per_ha
-                    end if
-
-                    hio_m1_si_scls(io_si,scls) = hio_m1_si_scls(io_si,scls) + ccohort%bmort*ccohort%n / m2_per_ha
-                    hio_m2_si_scls(io_si,scls) = hio_m2_si_scls(io_si,scls) + ccohort%hmort*ccohort%n / m2_per_ha
-                    hio_m3_si_scls(io_si,scls) = hio_m3_si_scls(io_si,scls) + ccohort%cmort*ccohort%n / m2_per_ha
-                    hio_m7_si_scls(io_si,scls) = hio_m7_si_scls(io_si,scls) + &
-                         (ccohort%lmort_direct+ccohort%lmort_collateral+ccohort%lmort_infra) * ccohort%n / m2_per_ha
-                    hio_m8_si_scls(io_si,scls) = hio_m8_si_scls(io_si,scls) + &
-                         ccohort%frmort*ccohort%n / m2_per_ha
-                    hio_m9_si_scls(io_si,scls) = hio_m9_si_scls(io_si,scls) + ccohort%smort*ccohort%n / m2_per_ha
-
-
-
-                    !C13 discrimination
-                    if(gpp_cached + ccohort%gpp_acc_hold > 0.0_r8)then
-                       hio_c13disc_si_scpf(io_si,scpf) = ((hio_c13disc_si_scpf(io_si,scpf) * gpp_cached) + &
-                            (ccohort%c13disc_acc * ccohort%gpp_acc_hold)) / (gpp_cached + ccohort%gpp_acc_hold)
-                    else
-                       hio_c13disc_si_scpf(io_si,scpf) = 0.0_r8
-                    endif
-
-                    ! number density [/ha]
-                    hio_nplant_si_scpf(io_si,scpf) = hio_nplant_si_scpf(io_si,scpf) + ccohort%n / m2_per_ha
-
-                    ! number density along the cohort age dimension
-                    if (hlm_use_cohort_age_tracking .eq.itrue) then
-                       hio_nplant_si_capf(io_si,capf) = hio_nplant_si_capf(io_si,capf) + ccohort%n / m2_per_ha
-                       hio_nplant_si_cacls(io_si,cacls) = hio_nplant_si_cacls(io_si,cacls)+ccohort%n / m2_per_ha
-                    end if
-
-
-                    ! Carbon only metrics
-                    sapw_m   = ccohort%prt%GetState(sapw_organ, carbon12_element)
-                    struct_m = ccohort%prt%GetState(struct_organ, carbon12_element)
-                    leaf_m   = ccohort%prt%GetState(leaf_organ, carbon12_element)
-                    fnrt_m   = ccohort%prt%GetState(fnrt_organ, carbon12_element)
-                    store_m  = ccohort%prt%GetState(store_organ, carbon12_element)
-                    repro_m  = ccohort%prt%GetState(repro_organ, carbon12_element)
-                    alive_m  = leaf_m + fnrt_m + sapw_m
-                    total_m  = alive_m + store_m + struct_m
-
-
-                    ! number density by size and biomass
-                    hio_agb_si_scls(io_si,scls) = hio_agb_si_scls(io_si,scls) + &
-                          total_m * ccohort%n * prt_params%allom_agb_frac(ccohort%pft) * AREA_INV
-
-                    hio_agb_si_scpf(io_si,scpf) = hio_agb_si_scpf(io_si,scpf) + &
-                         total_m * ccohort%n * prt_params%allom_agb_frac(ccohort%pft) * AREA_INV
-
-
-                    hio_biomass_si_scls(io_si,scls) = hio_biomass_si_scls(io_si,scls) + &
-                          total_m * ccohort%n * AREA_INV
-
-                    ! update size-class x patch-age related quantities
-
-                    iscag = get_sizeage_class_index(ccohort%dbh,cpatch%age)
-
-                    hio_nplant_si_scag(io_si,iscag) = hio_nplant_si_scag(io_si,iscag) + ccohort%n / m2_per_ha
-
-                    hio_nplant_si_scls(io_si,scls) = hio_nplant_si_scls(io_si,scls) + ccohort%n / m2_per_ha
-
-
-                    ! update size, age, and PFT - indexed quantities
-
-                    iscagpft = get_sizeagepft_class_index(ccohort%dbh,cpatch%age,ccohort%pft)
-
-                    hio_nplant_si_scagpft(io_si,iscagpft) = hio_nplant_si_scagpft(io_si,iscagpft) + ccohort%n / m2_per_ha
-
-                    ! update age and PFT - indexed quantities
-
-                    iagepft = get_agepft_class_index(cpatch%age,ccohort%pft)
-
-                    hio_npp_si_agepft(io_si,iagepft) = hio_npp_si_agepft(io_si,iagepft) + &
-                         ccohort%n * ccohort%npp_acc_hold * AREA_INV / days_per_year / sec_per_day
-
-                    hio_biomass_si_agepft(io_si,iagepft) = hio_biomass_si_agepft(io_si,iagepft) + &
-                          total_m * ccohort%n * AREA_INV
-
-                    ! update SCPF/SCLS- and canopy/subcanopy- partitioned quantities
-                    if (ccohort%canopy_layer .eq. 1) then
-                       hio_nplant_canopy_si_scag(io_si,iscag) = hio_nplant_canopy_si_scag(io_si,iscag) + ccohort%n / m2_per_ha
-                       hio_mortality_canopy_si_scag(io_si,iscag) = hio_mortality_canopy_si_scag(io_si,iscag) + &
-                            (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
-                            ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha
-                       hio_ddbh_canopy_si_scag(io_si,iscag) = hio_ddbh_canopy_si_scag(io_si,iscag) + &
-                            ccohort%ddbhdt*ccohort%n * m_per_cm / m2_per_ha
-                       hio_bstor_canopy_si_scpf(io_si,scpf) = hio_bstor_canopy_si_scpf(io_si,scpf) + &
-                             store_m * ccohort%n / m2_per_ha
-                       hio_bleaf_canopy_si_scpf(io_si,scpf) = hio_bleaf_canopy_si_scpf(io_si,scpf) + &
-                             leaf_m * ccohort%n / m2_per_ha
-
-                       hio_canopy_biomass_si(io_si) = hio_canopy_biomass_si(io_si) + n_perm2 * total_m
-
-                       !hio_mortality_canopy_si_scpf(io_si,scpf) = hio_mortality_canopy_si_scpf(io_si,scpf)+ &
-                       !    (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
-                       ! ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n
-
-                       hio_mortality_canopy_si_scpf(io_si,scpf) = hio_mortality_canopy_si_scpf(io_si,scpf)+ &
-                            (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%frmort + &
-                            ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha + &
-                            (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
-                            ccohort%n * sec_per_day * days_per_year / m2_per_ha
-
-                       hio_nplant_canopy_si_scpf(io_si,scpf) = hio_nplant_canopy_si_scpf(io_si,scpf) + ccohort%n / m2_per_ha
-                       hio_nplant_canopy_si_scls(io_si,scls) = hio_nplant_canopy_si_scls(io_si,scls) + ccohort%n / m2_per_ha
-                       hio_lai_canopy_si_scls(io_si,scls) = hio_lai_canopy_si_scls(io_si,scls) + &
-                                                            ccohort%treelai*ccohort%c_area * AREA_INV
-                       hio_sai_canopy_si_scls(io_si,scls) = hio_sai_canopy_si_scls(io_si,scls) + &
-                                                            ccohort%treesai*ccohort%c_area * AREA_INV
-                       hio_trimming_canopy_si_scls(io_si,scls) = hio_trimming_canopy_si_scls(io_si,scls) + &
-                            ccohort%n * ccohort%canopy_trim / m2_per_ha
-                       hio_crown_area_canopy_si_scls(io_si,scls) = hio_crown_area_canopy_si_scls(io_si,scls) + &
-                            ccohort%c_area / m2_per_ha
-                       hio_gpp_canopy_si_scpf(io_si,scpf) = hio_gpp_canopy_si_scpf(io_si,scpf) +  &
-                            n_perm2*ccohort%gpp_acc_hold / days_per_year / sec_per_day
-                       hio_ar_canopy_si_scpf(io_si,scpf)      = hio_ar_canopy_si_scpf(io_si,scpf)      + &
-                            n_perm2*ccohort%resp_acc_hold / days_per_year / sec_per_day
-                       ! growth increment
-                       hio_ddbh_canopy_si_scpf(io_si,scpf) = hio_ddbh_canopy_si_scpf(io_si,scpf) + &
-                            ccohort%ddbhdt*ccohort%n * m_per_cm / m2_per_ha
-                       hio_ddbh_canopy_si_scls(io_si,scls) = hio_ddbh_canopy_si_scls(io_si,scls) + &
-                            ccohort%ddbhdt*ccohort%n * m_per_cm / m2_per_ha
-
-                       ! sum of all mortality
-                       hio_mortality_canopy_si_scls(io_si,scls) = hio_mortality_canopy_si_scls(io_si,scls) + &
-
-                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
-                             ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha + &
-                             (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
-                             ccohort%n * sec_per_day * days_per_year / m2_per_ha
-
-                       hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
-                            (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
-                            ccohort%frmort + ccohort%smort + ccohort%asmort) * &
-                            total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2 + &
-                            (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * total_m * &
-                            ccohort%n * ha_per_m2
-
-
-                       hio_carbon_balance_canopy_si_scls(io_si,scls) = hio_carbon_balance_canopy_si_scls(io_si,scls) + &
-                             ccohort%n * ccohort%npp_acc_hold / m2_per_ha / days_per_year / sec_per_day
-
-
-                       hio_leaf_md_canopy_si_scls(io_si,scls) = hio_leaf_md_canopy_si_scls(io_si,scls) + &
-                             leaf_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
-                       hio_root_md_canopy_si_scls(io_si,scls) = hio_root_md_canopy_si_scls(io_si,scls) + &
-                             fnrt_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
-                       hio_bsw_md_canopy_si_scls(io_si,scls) = hio_bsw_md_canopy_si_scls(io_si,scls) + &
-                             sapw_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
-                       hio_bstore_md_canopy_si_scls(io_si,scls) = hio_bstore_md_canopy_si_scls(io_si,scls) + &
-                             store_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
-                       hio_bdead_md_canopy_si_scls(io_si,scls) = hio_bdead_md_canopy_si_scls(io_si,scls) + &
-                             struct_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
-                       hio_seed_prod_canopy_si_scls(io_si,scls) = hio_seed_prod_canopy_si_scls(io_si,scls) + &
-                             ccohort%seed_prod * ccohort%n / m2_per_ha / days_per_year / sec_per_day
-
-                       hio_npp_leaf_canopy_si_scls(io_si,scls) = hio_npp_leaf_canopy_si_scls(io_si,scls) + &
-                             leaf_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
-                       hio_npp_fnrt_canopy_si_scls(io_si,scls) = hio_npp_fnrt_canopy_si_scls(io_si,scls) + &
-                             fnrt_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
-                       hio_npp_sapw_canopy_si_scls(io_si,scls) = hio_npp_sapw_canopy_si_scls(io_si,scls) + &
-                             sapw_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
-                       hio_npp_dead_canopy_si_scls(io_si,scls) = hio_npp_dead_canopy_si_scls(io_si,scls) + &
-                             struct_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
-                       hio_npp_seed_canopy_si_scls(io_si,scls) = hio_npp_seed_canopy_si_scls(io_si,scls) + &
-                             repro_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
-                       hio_npp_stor_canopy_si_scls(io_si,scls) = hio_npp_stor_canopy_si_scls(io_si,scls) + &
-                             store_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
-
-                       hio_yesterdaycanopylevel_canopy_si_scls(io_si,scls) = &
-                            hio_yesterdaycanopylevel_canopy_si_scls(io_si,scls) + &
-                            ccohort%canopy_layer_yesterday * ccohort%n / m2_per_ha
-                    else
-                       hio_nplant_understory_si_scag(io_si,iscag) = hio_nplant_understory_si_scag(io_si,iscag) + ccohort%n / m2_per_ha
-                       hio_mortality_understory_si_scag(io_si,iscag) = hio_mortality_understory_si_scag(io_si,iscag) + &
-                            (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
-                            ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha
-                       hio_ddbh_understory_si_scag(io_si,iscag) = hio_ddbh_understory_si_scag(io_si,iscag) + &
-                            ccohort%ddbhdt*ccohort%n * m_per_cm / m2_per_ha
-                       hio_bstor_understory_si_scpf(io_si,scpf) = hio_bstor_understory_si_scpf(io_si,scpf) + &
-                             store_m * ccohort%n / m2_per_ha
-                       hio_bleaf_understory_si_scpf(io_si,scpf) = hio_bleaf_understory_si_scpf(io_si,scpf) + &
-                             leaf_m  * ccohort%n / m2_per_ha
-                       hio_understory_biomass_si(io_si) = hio_understory_biomass_si(io_si) + &
-                             n_perm2 * total_m
-
-                       !hio_mortality_understory_si_scpf(io_si,scpf) = hio_mortality_understory_si_scpf(io_si,scpf)+ &
-                        !    (ccohort%bmort + ccohort%hmort + ccohort%cmort +
-                       !      ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n
-
-                       hio_mortality_understory_si_scpf(io_si,scpf) = hio_mortality_understory_si_scpf(io_si,scpf)+ &
-                            (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
-                            ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha + &
-                            (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
-                            ccohort%n * sec_per_day * days_per_year / m2_per_ha
-
-                       hio_nplant_understory_si_scpf(io_si,scpf) = hio_nplant_understory_si_scpf(io_si,scpf) + ccohort%n / m2_per_ha
-                       hio_nplant_understory_si_scls(io_si,scls) = hio_nplant_understory_si_scls(io_si,scls) + ccohort%n / m2_per_ha
-                       hio_lai_understory_si_scls(io_si,scls) = hio_lai_understory_si_scls(io_si,scls) + &
-                                                                ccohort%treelai*ccohort%c_area  * AREA_INV
-                       hio_sai_understory_si_scls(io_si,scls) = hio_sai_understory_si_scls(io_si,scls) + &
-                                                                ccohort%treelai*ccohort%c_area  * AREA_INV
-                       hio_trimming_understory_si_scls(io_si,scls) = hio_trimming_understory_si_scls(io_si,scls) + &
-                            ccohort%n * ccohort%canopy_trim / m2_per_ha
-                       hio_crown_area_understory_si_scls(io_si,scls) = hio_crown_area_understory_si_scls(io_si,scls) + &
-                            ccohort%c_area / m2_per_ha
-                       hio_gpp_understory_si_scpf(io_si,scpf)      = hio_gpp_understory_si_scpf(io_si,scpf)      + &
-                            n_perm2*ccohort%gpp_acc_hold / days_per_year / sec_per_day
-                       hio_ar_understory_si_scpf(io_si,scpf)      = hio_ar_understory_si_scpf(io_si,scpf)      + &
-                            n_perm2*ccohort%resp_acc_hold / days_per_year / sec_per_day
-
-                       ! growth increment
-                       hio_ddbh_understory_si_scpf(io_si,scpf) = hio_ddbh_understory_si_scpf(io_si,scpf) + &
-                            ccohort%ddbhdt*ccohort%n * m_per_cm / m2_per_ha
-                       hio_ddbh_understory_si_scls(io_si,scls) = hio_ddbh_understory_si_scls(io_si,scls) + &
-                            ccohort%ddbhdt*ccohort%n * m_per_cm / m2_per_ha
-
-                       ! sum of all mortality
-                       hio_mortality_understory_si_scls(io_si,scls) = hio_mortality_understory_si_scls(io_si,scls) + &
-
-                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
-                             ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha + &
-                             (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
-                             ccohort%n * sec_per_day * days_per_year / m2_per_ha
-
-                       hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
-                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
-                             ccohort%frmort + ccohort%smort + ccohort%asmort) * &
-                             total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2 + &
-                             (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * total_m * &
-                             ccohort%n * ha_per_m2
-
-                       hio_carbon_balance_understory_si_scls(io_si,scls) = hio_carbon_balance_understory_si_scls(io_si,scls) + &
-                             ccohort%npp_acc_hold * ccohort%n / m2_per_ha / days_per_year / sec_per_day
-
-                       hio_leaf_md_understory_si_scls(io_si,scls) = hio_leaf_md_understory_si_scls(io_si,scls) + &
-                            leaf_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
-                       hio_root_md_understory_si_scls(io_si,scls) = hio_root_md_understory_si_scls(io_si,scls) + &
-                            fnrt_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
-                       hio_bsw_md_understory_si_scls(io_si,scls) = hio_bsw_md_understory_si_scls(io_si,scls) + &
-                             sapw_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
-                       hio_bstore_md_understory_si_scls(io_si,scls) = hio_bstore_md_understory_si_scls(io_si,scls) + &
-                             store_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
-                       hio_bdead_md_understory_si_scls(io_si,scls) = hio_bdead_md_understory_si_scls(io_si,scls) + &
-                             struct_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
-                       hio_seed_prod_understory_si_scls(io_si,scls) = hio_seed_prod_understory_si_scls(io_si,scls) + &
-                            ccohort%seed_prod * ccohort%n / m2_per_ha / days_per_year / sec_per_day
-
-                       hio_npp_leaf_understory_si_scls(io_si,scls) = hio_npp_leaf_understory_si_scls(io_si,scls) + &
-                             leaf_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
-                       hio_npp_fnrt_understory_si_scls(io_si,scls) = hio_npp_fnrt_understory_si_scls(io_si,scls) + &
-                             fnrt_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
-                       hio_npp_sapw_understory_si_scls(io_si,scls) = hio_npp_sapw_understory_si_scls(io_si,scls) + &
-                             sapw_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
-                       hio_npp_dead_understory_si_scls(io_si,scls) = hio_npp_dead_understory_si_scls(io_si,scls) + &
-                             struct_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
-                       hio_npp_seed_understory_si_scls(io_si,scls) = hio_npp_seed_understory_si_scls(io_si,scls) + &
-                             repro_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
-                       hio_npp_stor_understory_si_scls(io_si,scls) = hio_npp_stor_understory_si_scls(io_si,scls) + &
-                             store_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
-
-                       hio_yesterdaycanopylevel_understory_si_scls(io_si,scls) = &
-                            hio_yesterdaycanopylevel_understory_si_scls(io_si,scls) + &
-                            ccohort%canopy_layer_yesterday * ccohort%n / m2_per_ha
-                    endif
-                    !
-                    !
-                    ccohort%canopy_layer_yesterday = real(ccohort%canopy_layer, r8)
-                    !
-                    ! growth flux of individuals into a given bin
-                    ! track the actual growth here, the virtual growth from fusion lower down
-                    if ( (scls - ccohort%size_class_lasttimestep ) .gt. 0) then
-                       do i_scls = ccohort%size_class_lasttimestep + 1, scls
-                          i_scpf = (ccohort%pft-1)*nlevsclass+i_scls
-                          hio_growthflux_si_scpf(io_si,i_scpf) = hio_growthflux_si_scpf(io_si,i_scpf) + &
-                               ccohort%n * days_per_year / m2_per_ha
-                       end do
-                    end if
-                    ccohort%size_class_lasttimestep = scls
-
-
-                    !
-                  end associate
-               else  ! i.e. cohort%isnew
-                  !
-                  ! if cohort is new, track its growth flux into the first size bin
-                  i_scpf = (ccohort%pft-1)*nlevsclass+1
-                  hio_growthflux_si_scpf(io_si,i_scpf) =                       &
-                       hio_growthflux_si_scpf(io_si,i_scpf) + ccohort%n *      &
-                       days_per_year / m2_per_ha
-                  ccohort%size_class_lasttimestep = 1
-
+               ! Carbon only metrics
+               sapw_m   = ccohort%prt%GetState(sapw_organ, carbon12_element)
+               struct_m = ccohort%prt%GetState(struct_organ, carbon12_element)
+               leaf_m   = ccohort%prt%GetState(leaf_organ, carbon12_element)
+               fnrt_m   = ccohort%prt%GetState(fnrt_organ, carbon12_element)
+               store_m  = ccohort%prt%GetState(store_organ, carbon12_element)
+               repro_m  = ccohort%prt%GetState(repro_organ, carbon12_element)
+               alive_m  = leaf_m + fnrt_m + sapw_m
+               total_m  = alive_m + store_m + struct_m
+
+
+               ! number density by size and biomass
+               hio_agb_si_scls(io_si,scls) = hio_agb_si_scls(io_si,scls) + &
+                  total_m * ccohort%n * prt_params%allom_agb_frac(ccohort%pft) * AREA_INV
+
+               hio_agb_si_scpf(io_si,scpf) = hio_agb_si_scpf(io_si,scpf) + &
+                  total_m * ccohort%n * prt_params%allom_agb_frac(ccohort%pft) * AREA_INV
+
+               hio_biomass_si_scls(io_si,scls) = hio_biomass_si_scls(io_si,scls) + &
+                  total_m * ccohort%n * AREA_INV
+
+               ! update size-class x patch-age related quantities
+
+               iscag = get_sizeage_class_index(ccohort%dbh,cpatch%age)
+
+               hio_nplant_si_scag(io_si,iscag) = hio_nplant_si_scag(io_si,iscag) + ccohort%n / m2_per_ha
+
+               hio_nplant_si_scls(io_si,scls) = hio_nplant_si_scls(io_si,scls) + ccohort%n / m2_per_ha
+
+
+               ! update size, age, and PFT - indexed quantities
+               iscagpft = get_sizeagepft_class_index(ccohort%dbh,cpatch%age,ccohort%pft)
+
+               hio_nplant_si_scagpft(io_si,iscagpft) = hio_nplant_si_scagpft(io_si,iscagpft) + ccohort%n / m2_per_ha
+
+               ! update age and PFT - indexed quantities
+               iagepft = get_agepft_class_index(cpatch%age,ccohort%pft)
+
+               hio_npp_si_agepft(io_si,iagepft) = hio_npp_si_agepft(io_si,iagepft) + &
+                  ccohort%n * ccohort%npp_acc_hold * AREA_INV / days_per_year / sec_per_day
+
+               hio_biomass_si_agepft(io_si,iagepft) = hio_biomass_si_agepft(io_si,iagepft) + &
+                  total_m * ccohort%n * AREA_INV
+
+               ! update SCPF/SCLS- and canopy/subcanopy- partitioned quantities
+               canlayer: if (ccohort%canopy_layer .eq. 1) then
+                  hio_nplant_canopy_si_scag(io_si,iscag) = hio_nplant_canopy_si_scag(io_si,iscag) + ccohort%n / m2_per_ha
+                  hio_mortality_canopy_si_scag(io_si,iscag) = hio_mortality_canopy_si_scag(io_si,iscag) + &
+                     (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
+                     ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha
+                  hio_ddbh_canopy_si_scag(io_si,iscag) = hio_ddbh_canopy_si_scag(io_si,iscag) + &
+                     ccohort%ddbhdt*ccohort%n * m_per_cm / m2_per_ha
+                  hio_bstor_canopy_si_scpf(io_si,scpf) = hio_bstor_canopy_si_scpf(io_si,scpf) + &
+                     store_m * ccohort%n / m2_per_ha
+                  hio_bleaf_canopy_si_scpf(io_si,scpf) = hio_bleaf_canopy_si_scpf(io_si,scpf) + &
+                     leaf_m * ccohort%n / m2_per_ha
+
+                  hio_canopy_biomass_si(io_si) = hio_canopy_biomass_si(io_si) + n_perm2 * total_m
+
+                  !hio_mortality_canopy_si_scpf(io_si,scpf) = hio_mortality_canopy_si_scpf(io_si,scpf)+ &
+                  !    (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
+                  !     ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n
+
+                  hio_mortality_canopy_si_scpf(io_si,scpf) = hio_mortality_canopy_si_scpf(io_si,scpf)+ &
+                     (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%frmort + &
+                  ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha + &
+                     (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
+                     ccohort%n * sec_per_day * days_per_year / m2_per_ha
+
+                  hio_nplant_canopy_si_scpf(io_si,scpf) = hio_nplant_canopy_si_scpf(io_si,scpf) + ccohort%n / m2_per_ha
+                  hio_nplant_canopy_si_scls(io_si,scls) = hio_nplant_canopy_si_scls(io_si,scls) + ccohort%n / m2_per_ha
+                  hio_lai_canopy_si_scls(io_si,scls) = hio_lai_canopy_si_scls(io_si,scls) + &
+                     ccohort%treelai*ccohort%c_area * AREA_INV
+                  hio_sai_canopy_si_scls(io_si,scls) = hio_sai_canopy_si_scls(io_si,scls) + &
+                     ccohort%treesai*ccohort%c_area * AREA_INV
+                  hio_trimming_canopy_si_scls(io_si,scls) = hio_trimming_canopy_si_scls(io_si,scls) + &
+                     ccohort%n * ccohort%canopy_trim / m2_per_ha
+                  hio_crown_area_canopy_si_scls(io_si,scls) = hio_crown_area_canopy_si_scls(io_si,scls) + &
+                     ccohort%c_area / m2_per_ha
+                  hio_gpp_canopy_si_scpf(io_si,scpf) = hio_gpp_canopy_si_scpf(io_si,scpf) +  &
+                     n_perm2*ccohort%gpp_acc_hold / days_per_year / sec_per_day
+                  hio_ar_canopy_si_scpf(io_si,scpf) = hio_ar_canopy_si_scpf(io_si,scpf) + &
+                     n_perm2*ccohort%resp_acc_hold / days_per_year / sec_per_day
+                  ! growth increment
+                  hio_ddbh_canopy_si_scpf(io_si,scpf) = hio_ddbh_canopy_si_scpf(io_si,scpf) + &
+                     ccohort%ddbhdt*ccohort%n * m_per_cm / m2_per_ha
+                  hio_ddbh_canopy_si_scls(io_si,scls) = hio_ddbh_canopy_si_scls(io_si,scls) + &
+                     ccohort%ddbhdt*ccohort%n * m_per_cm / m2_per_ha
+
+                  ! sum of all mortality
+                  hio_mortality_canopy_si_scls(io_si,scls) = hio_mortality_canopy_si_scls(io_si,scls) + &
+                     (ccohort%bmort + ccohort%hmort + ccohort%cmort +   &
+                  ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha + &
+                     (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
+                     ccohort%n * sec_per_day * days_per_year / m2_per_ha
+
+                  hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
+                     (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
+                     ccohort%frmort + ccohort%smort + ccohort%asmort) * &
+                  total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2 + &
+                     (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * total_m * &
+                     ccohort%n * ha_per_m2
+
+
+                  hio_carbon_balance_canopy_si_scls(io_si,scls) = hio_carbon_balance_canopy_si_scls(io_si,scls) + &
+                     ccohort%n * ccohort%npp_acc_hold / m2_per_ha / days_per_year / sec_per_day
+
+                  hio_leaf_md_canopy_si_scls(io_si,scls) = hio_leaf_md_canopy_si_scls(io_si,scls) + &
+                     leaf_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
+                  hio_root_md_canopy_si_scls(io_si,scls) = hio_root_md_canopy_si_scls(io_si,scls) + &
+                     fnrt_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
+                  hio_bsw_md_canopy_si_scls(io_si,scls) = hio_bsw_md_canopy_si_scls(io_si,scls) + &
+                     sapw_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
+                  hio_bstore_md_canopy_si_scls(io_si,scls) = hio_bstore_md_canopy_si_scls(io_si,scls) + &
+                     store_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
+                  hio_bdead_md_canopy_si_scls(io_si,scls) = hio_bdead_md_canopy_si_scls(io_si,scls) + &
+                     struct_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
+                  hio_seed_prod_canopy_si_scls(io_si,scls) = hio_seed_prod_canopy_si_scls(io_si,scls) + &
+                     ccohort%seed_prod * ccohort%n / m2_per_ha / days_per_year / sec_per_day
+
+                  hio_npp_leaf_canopy_si_scls(io_si,scls) = hio_npp_leaf_canopy_si_scls(io_si,scls) + &
+                     leaf_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
+                  hio_npp_fnrt_canopy_si_scls(io_si,scls) = hio_npp_fnrt_canopy_si_scls(io_si,scls) + &
+                     fnrt_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
+                  hio_npp_sapw_canopy_si_scls(io_si,scls) = hio_npp_sapw_canopy_si_scls(io_si,scls) + &
+                     sapw_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
+                  hio_npp_dead_canopy_si_scls(io_si,scls) = hio_npp_dead_canopy_si_scls(io_si,scls) + &
+                     struct_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
+                  hio_npp_seed_canopy_si_scls(io_si,scls) = hio_npp_seed_canopy_si_scls(io_si,scls) + &
+                     repro_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
+                  hio_npp_stor_canopy_si_scls(io_si,scls) = hio_npp_stor_canopy_si_scls(io_si,scls) + &
+                     store_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
+
+                  hio_yesterdaycanopylevel_canopy_si_scls(io_si,scls) = &
+                  hio_yesterdaycanopylevel_canopy_si_scls(io_si,scls) + &
+                  ccohort%canopy_layer_yesterday * ccohort%n / m2_per_ha
+               else canlayer
+                  hio_nplant_understory_si_scag(io_si,iscag) = hio_nplant_understory_si_scag(io_si,iscag) + ccohort%n / m2_per_ha
+                  hio_mortality_understory_si_scag(io_si,iscag) = hio_mortality_understory_si_scag(io_si,iscag) + &
+                     (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
+                     ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha
+                  hio_ddbh_understory_si_scag(io_si,iscag) = hio_ddbh_understory_si_scag(io_si,iscag) + &
+                     ccohort%ddbhdt*ccohort%n * m_per_cm / m2_per_ha
+                  hio_bstor_understory_si_scpf(io_si,scpf) = hio_bstor_understory_si_scpf(io_si,scpf) + &
+                     store_m * ccohort%n / m2_per_ha
+                  hio_bleaf_understory_si_scpf(io_si,scpf) = hio_bleaf_understory_si_scpf(io_si,scpf) + &
+                     leaf_m  * ccohort%n / m2_per_ha
+                  hio_understory_biomass_si(io_si) = hio_understory_biomass_si(io_si) + &
+                     n_perm2 * total_m
+
+                  !hio_mortality_understory_si_scpf(io_si,scpf) = hio_mortality_understory_si_scpf(io_si,scpf)+ &
+                  !    (ccohort%bmort + ccohort%hmort + ccohort%cmort +
+                  !      ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n
+
+                  hio_mortality_understory_si_scpf(io_si,scpf) = hio_mortality_understory_si_scpf(io_si,scpf)+ &
+                     (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
+                  ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha + &
+                     (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
+                     ccohort%n * sec_per_day * days_per_year / m2_per_ha
+
+                  hio_nplant_understory_si_scpf(io_si,scpf) = hio_nplant_understory_si_scpf(io_si,scpf) + ccohort%n / m2_per_ha
+                  hio_nplant_understory_si_scls(io_si,scls) = hio_nplant_understory_si_scls(io_si,scls) + ccohort%n / m2_per_ha
+                  hio_lai_understory_si_scls(io_si,scls) = hio_lai_understory_si_scls(io_si,scls) + &
+                     ccohort%treelai*ccohort%c_area  * AREA_INV
+                  hio_sai_understory_si_scls(io_si,scls) = hio_sai_understory_si_scls(io_si,scls) + &
+                     ccohort%treelai*ccohort%c_area  * AREA_INV
+                  hio_trimming_understory_si_scls(io_si,scls) = hio_trimming_understory_si_scls(io_si,scls) + &
+                     ccohort%n * ccohort%canopy_trim / m2_per_ha
+                  hio_crown_area_understory_si_scls(io_si,scls) = hio_crown_area_understory_si_scls(io_si,scls) + &
+                     ccohort%c_area / m2_per_ha
+                  hio_gpp_understory_si_scpf(io_si,scpf)      = hio_gpp_understory_si_scpf(io_si,scpf)      + &
+                     n_perm2*ccohort%gpp_acc_hold / days_per_year / sec_per_day
+                  hio_ar_understory_si_scpf(io_si,scpf)      = hio_ar_understory_si_scpf(io_si,scpf)      + &
+                     n_perm2*ccohort%resp_acc_hold / days_per_year / sec_per_day
+
+                  ! growth increment
+                  hio_ddbh_understory_si_scpf(io_si,scpf) = hio_ddbh_understory_si_scpf(io_si,scpf) + &
+                     ccohort%ddbhdt*ccohort%n * m_per_cm / m2_per_ha
+                  hio_ddbh_understory_si_scls(io_si,scls) = hio_ddbh_understory_si_scls(io_si,scls) + &
+                     ccohort%ddbhdt*ccohort%n * m_per_cm / m2_per_ha
+
+                  ! sum of all mortality
+                  hio_mortality_understory_si_scls(io_si,scls) = hio_mortality_understory_si_scls(io_si,scls) + &
+                     (ccohort%bmort + ccohort%hmort + ccohort%cmort +   &
+                     ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha + &
+                     (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
+                     ccohort%n * sec_per_day * days_per_year / m2_per_ha
+
+                  hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
+                     (ccohort%bmort + ccohort%hmort + ccohort%cmort +   &
+                     ccohort%frmort + ccohort%smort + ccohort%asmort) * &
+                  total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2 + &
+                     (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * total_m * &
+                     ccohort%n * ha_per_m2
+
+                  hio_carbon_balance_understory_si_scls(io_si,scls) = hio_carbon_balance_understory_si_scls(io_si,scls) + &
+                     ccohort%npp_acc_hold * ccohort%n / m2_per_ha / days_per_year / sec_per_day
+
+                  hio_leaf_md_understory_si_scls(io_si,scls) = hio_leaf_md_understory_si_scls(io_si,scls) + &
+                     leaf_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
+                  hio_root_md_understory_si_scls(io_si,scls) = hio_root_md_understory_si_scls(io_si,scls) + &
+                     fnrt_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
+                  hio_bsw_md_understory_si_scls(io_si,scls) = hio_bsw_md_understory_si_scls(io_si,scls) + &
+                     sapw_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
+                  hio_bstore_md_understory_si_scls(io_si,scls) = hio_bstore_md_understory_si_scls(io_si,scls) + &
+                     store_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
+                  hio_bdead_md_understory_si_scls(io_si,scls) = hio_bdead_md_understory_si_scls(io_si,scls) + &
+                     struct_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
+                  hio_seed_prod_understory_si_scls(io_si,scls) = hio_seed_prod_understory_si_scls(io_si,scls) + &
+                     ccohort%seed_prod * ccohort%n / m2_per_ha / days_per_year / sec_per_day
+
+                  hio_npp_leaf_understory_si_scls(io_si,scls) = hio_npp_leaf_understory_si_scls(io_si,scls) + &
+                     leaf_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
+                  hio_npp_fnrt_understory_si_scls(io_si,scls) = hio_npp_fnrt_understory_si_scls(io_si,scls) + &
+                     fnrt_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
+                  hio_npp_sapw_understory_si_scls(io_si,scls) = hio_npp_sapw_understory_si_scls(io_si,scls) + &
+                     sapw_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
+                  hio_npp_dead_understory_si_scls(io_si,scls) = hio_npp_dead_understory_si_scls(io_si,scls) + &
+                     struct_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
+                  hio_npp_seed_understory_si_scls(io_si,scls) = hio_npp_seed_understory_si_scls(io_si,scls) + &
+                     repro_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
+                  hio_npp_stor_understory_si_scls(io_si,scls) = hio_npp_stor_understory_si_scls(io_si,scls) + &
+                     store_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
+
+                  hio_yesterdaycanopylevel_understory_si_scls(io_si,scls) = &
+                     hio_yesterdaycanopylevel_understory_si_scls(io_si,scls) + &
+                     ccohort%canopy_layer_yesterday * ccohort%n / m2_per_ha
+               endif canlayer
+               !
+               !
+               ccohort%canopy_layer_yesterday = real(ccohort%canopy_layer, r8)
+               !
+               ! growth flux of individuals into a given bin
+               ! track the actual growth here, the virtual growth from fusion lower down
+               if ( (scls - ccohort%size_class_lasttimestep ) .gt. 0) then
+                  do i_scls = ccohort%size_class_lasttimestep + 1, scls
+                     i_scpf = (ccohort%pft-1)*nlevsclass+i_scls
+                     hio_growthflux_si_scpf(io_si,i_scpf) = hio_growthflux_si_scpf(io_si,i_scpf) + &
+                        ccohort%n * days_per_year / m2_per_ha
+                  end do
                end if
+               ccohort%size_class_lasttimestep = scls
 
-               ! resolve some canopy area profiles, both total and of occupied leaves
-               ican = ccohort%canopy_layer
+               end associate
+            else notnew ! i.e. cohort%isnew
                !
-               hio_crownarea_si_can(io_si, ican) = hio_crownarea_si_can(io_si, ican) + ccohort%c_area / AREA
-               !
-               do ileaf=1,ccohort%nv
-                  cnlf_indx = ileaf + (ican-1) * nlevleaf
-                  hio_crownarea_si_cnlf(io_si, cnlf_indx) = hio_crownarea_si_cnlf(io_si, cnlf_indx) + &
-                       ccohort%c_area / AREA
-               end do
+               ! if cohort is new, track its growth flux into the first size bin
+               i_scpf = (ccohort%pft-1)*nlevsclass+1
+               hio_growthflux_si_scpf(io_si,i_scpf) =                          &
+                  hio_growthflux_si_scpf(io_si,i_scpf) + ccohort%n *           &
+                  days_per_year / m2_per_ha
+               ccohort%size_class_lasttimestep = 1
 
-               ccohort => ccohort%taller
-            enddo ! cohort loop
+            end if notnew
 
-            ! Patch specific variables that are already calculated
-            ! These things are all duplicated. Should they all be converted to LL or array structures RF?
-            ! define scalar to counteract the patch albedo scaling logic for conserved quantities
-
-            ! Update Fire Variables
-            hio_spitfire_ros_si(io_si)         = hio_spitfire_ros_si(io_si) + cpatch%ROS_front * cpatch%area * AREA_INV / sec_per_min
-            hio_effect_wspeed_si(io_si)        = hio_effect_wspeed_si(io_si) + cpatch%effect_wspeed * cpatch%area * AREA_INV / sec_per_min
-            hio_tfc_ros_si(io_si)              = hio_tfc_ros_si(io_si) + cpatch%TFC_ROS * cpatch%area * AREA_INV
-            hio_fire_intensity_si(io_si)       = hio_fire_intensity_si(io_si) + cpatch%FI * cpatch%area * AREA_INV * J_per_kJ
-            hio_fire_area_si(io_si)            = hio_fire_area_si(io_si) + cpatch%frac_burnt * cpatch%area * AREA_INV / sec_per_day
-            hio_fire_fuel_bulkd_si(io_si)      = hio_fire_fuel_bulkd_si(io_si) + cpatch%fuel_bulkd * cpatch%area * AREA_INV
-            hio_fire_fuel_eff_moist_si(io_si)  = hio_fire_fuel_eff_moist_si(io_si) + cpatch%fuel_eff_moist * cpatch%area * AREA_INV
-            hio_fire_fuel_sav_si(io_si)        = hio_fire_fuel_sav_si(io_si) + cpatch%fuel_sav * cpatch%area * AREA_INV / m_per_cm
-            hio_fire_fuel_mef_si(io_si)        = hio_fire_fuel_mef_si(io_si) + cpatch%fuel_mef * cpatch%area * AREA_INV
-            hio_sum_fuel_si(io_si)             = hio_sum_fuel_si(io_si) + cpatch%sum_fuel * cpatch%area * AREA_INV
-
-            do ilyr = 1,sites(s)%nlevsoil
-                 hio_fragmentation_scaler_sl(io_si,ilyr) = hio_fragmentation_scaler_sl(io_si,ilyr) + cpatch%fragmentation_scaler(ilyr) * cpatch%area * AREA_INV
+            ! resolve some canopy area profiles, both total and of occupied leaves
+            ican = ccohort%canopy_layer
+            !
+            hio_crownarea_si_can(io_si, ican) = hio_crownarea_si_can(io_si, ican) + ccohort%c_area / AREA
+            !
+            do ileaf=1,ccohort%nv
+               cnlf_indx = ileaf + (ican-1) * nlevleaf
+               hio_crownarea_si_cnlf(io_si, cnlf_indx) = hio_crownarea_si_cnlf(io_si, cnlf_indx) + &
+                  ccohort%c_area / AREA
             end do
 
-            do i_fuel = 1,nfsc
+            ccohort => ccohort%taller
+         enddo cohortloop ! cohort loop
 
-               i_agefuel = get_agefuel_class_index(cpatch%age,i_fuel)
-               hio_fuel_amount_age_fuel(io_si,i_agefuel) = hio_fuel_amount_age_fuel(io_si,i_agefuel) + &
-                    cpatch%fuel_frac(i_fuel) * cpatch%sum_fuel * cpatch%area * AREA_INV
+         ! Patch specific variables that are already calculated
+         ! These things are all duplicated. Should they all be converted to LL or array structures RF?
+         ! define scalar to counteract the patch albedo scaling logic for conserved quantities
 
-               hio_litter_moisture_si_fuel(io_si, i_fuel) = hio_litter_moisture_si_fuel(io_si, i_fuel) + &
-                    cpatch%litter_moisture(i_fuel) * cpatch%area * AREA_INV
+         ! Update Fire Variables
+         hio_spitfire_ros_si(io_si)         = hio_spitfire_ros_si(io_si) + cpatch%ROS_front * cpatch%area * AREA_INV / sec_per_min
+         hio_effect_wspeed_si(io_si)        = hio_effect_wspeed_si(io_si) + cpatch%effect_wspeed * cpatch%area * AREA_INV / sec_per_min
+         hio_tfc_ros_si(io_si)              = hio_tfc_ros_si(io_si) + cpatch%TFC_ROS * cpatch%area * AREA_INV
+         hio_fire_intensity_si(io_si)       = hio_fire_intensity_si(io_si) + cpatch%FI * cpatch%area * AREA_INV * J_per_kJ
+         hio_fire_area_si(io_si)            = hio_fire_area_si(io_si) + cpatch%frac_burnt * cpatch%area * AREA_INV / sec_per_day
+         hio_fire_fuel_bulkd_si(io_si)      = hio_fire_fuel_bulkd_si(io_si) + cpatch%fuel_bulkd * cpatch%area * AREA_INV
+         hio_fire_fuel_eff_moist_si(io_si)  = hio_fire_fuel_eff_moist_si(io_si) + cpatch%fuel_eff_moist * cpatch%area * AREA_INV
+         hio_fire_fuel_sav_si(io_si)        = hio_fire_fuel_sav_si(io_si) + cpatch%fuel_sav * cpatch%area * AREA_INV / m_per_cm
+         hio_fire_fuel_mef_si(io_si)        = hio_fire_fuel_mef_si(io_si) + cpatch%fuel_mef * cpatch%area * AREA_INV
+         hio_sum_fuel_si(io_si)             = hio_sum_fuel_si(io_si) + cpatch%sum_fuel * cpatch%area * AREA_INV
 
-               hio_fuel_amount_si_fuel(io_si, i_fuel) = hio_fuel_amount_si_fuel(io_si, i_fuel) + &
-                    cpatch%fuel_frac(i_fuel) * cpatch%sum_fuel * cpatch%area * AREA_INV
+         do ilyr = 1,sites(s)%nlevsoil
+            hio_fragmentation_scaler_sl(io_si,ilyr) = hio_fragmentation_scaler_sl(io_si,ilyr) + cpatch%fragmentation_scaler(ilyr) * cpatch%area * AREA_INV
+         end do
 
-               hio_burnt_frac_litter_si_fuel(io_si, i_fuel) = hio_burnt_frac_litter_si_fuel(io_si, i_fuel) + &
-                    cpatch%burnt_frac_litter(i_fuel) * cpatch%frac_burnt * cpatch%area * AREA_INV
-            end do
+         do i_fuel = 1,nfsc
+
+            i_agefuel = get_agefuel_class_index(cpatch%age,i_fuel)
+            hio_fuel_amount_age_fuel(io_si,i_agefuel) = hio_fuel_amount_age_fuel(io_si,i_agefuel) + &
+               cpatch%fuel_frac(i_fuel) * cpatch%sum_fuel * cpatch%area * AREA_INV
+
+            hio_litter_moisture_si_fuel(io_si, i_fuel) = hio_litter_moisture_si_fuel(io_si, i_fuel) + &
+               cpatch%litter_moisture(i_fuel) * cpatch%area * AREA_INV
+
+            hio_fuel_amount_si_fuel(io_si, i_fuel) = hio_fuel_amount_si_fuel(io_si, i_fuel) + &
+               cpatch%fuel_frac(i_fuel) * cpatch%sum_fuel * cpatch%area * AREA_INV
+
+            hio_burnt_frac_litter_si_fuel(io_si, i_fuel) = hio_burnt_frac_litter_si_fuel(io_si, i_fuel) + &
+               cpatch%burnt_frac_litter(i_fuel) * cpatch%frac_burnt * cpatch%area * AREA_INV
+         end do
 
 
-            hio_fire_intensity_area_product_si(io_si) = hio_fire_intensity_area_product_si(io_si) + &
-                 cpatch%FI * cpatch%frac_burnt * cpatch%area * AREA_INV * J_per_kJ
+         hio_fire_intensity_area_product_si(io_si) = hio_fire_intensity_area_product_si(io_si) + &
+            cpatch%FI * cpatch%frac_burnt * cpatch%area * AREA_INV * J_per_kJ
 
-            ! Update Litter Flux Variables
+         ! Update Litter Flux Variables
 
-            litt_c       => cpatch%litter(element_pos(carbon12_element))
-            flux_diags_c => sites(s)%flux_diags(element_pos(carbon12_element))
+         litt_c       => cpatch%litter(element_pos(carbon12_element))
+         flux_diags_c => sites(s)%flux_diags(element_pos(carbon12_element))
 
-            do i_cwd = 1, ncwd
+         do i_cwd = 1, ncwd
 
-                hio_cwd_ag_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_si_cwdsc(io_si, i_cwd) + &
-                      litt_c%ag_cwd(i_cwd)*cpatch%area * AREA_INV
-                hio_cwd_bg_si_cwdsc(io_si, i_cwd) = hio_cwd_bg_si_cwdsc(io_si, i_cwd) + &
-                      sum(litt_c%bg_cwd(i_cwd,:)) * cpatch%area * AREA_INV
+            hio_cwd_ag_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_si_cwdsc(io_si, i_cwd) + &
+               litt_c%ag_cwd(i_cwd)*cpatch%area * AREA_INV
+            hio_cwd_bg_si_cwdsc(io_si, i_cwd) = hio_cwd_bg_si_cwdsc(io_si, i_cwd) + &
+               sum(litt_c%bg_cwd(i_cwd,:)) * cpatch%area * AREA_INV
 
-                hio_cwd_ag_out_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_out_si_cwdsc(io_si, i_cwd) + &
-                      litt_c%ag_cwd_frag(i_cwd)*cpatch%area * AREA_INV /       &
-                      days_per_year / sec_per_day
+            hio_cwd_ag_out_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_out_si_cwdsc(io_si, i_cwd) + &
+               litt_c%ag_cwd_frag(i_cwd)*cpatch%area * AREA_INV /              &
+               days_per_year / sec_per_day
 
-                hio_cwd_bg_out_si_cwdsc(io_si, i_cwd) = hio_cwd_bg_out_si_cwdsc(io_si, i_cwd) + &
-                      sum(litt_c%bg_cwd_frag(i_cwd,:)) * cpatch%area * AREA_INV / &
-                      days_per_year / sec_per_day
+            hio_cwd_bg_out_si_cwdsc(io_si, i_cwd) = hio_cwd_bg_out_si_cwdsc(io_si, i_cwd) + &
+               sum(litt_c%bg_cwd_frag(i_cwd,:)) * cpatch%area * AREA_INV / &
+               days_per_year / sec_per_day
 
-            end do
+         end do
 
-            ipa = ipa + 1
-            cpatch => cpatch%younger
-         end do !patch loop
+         ipa = ipa + 1
+         cpatch => cpatch%younger
+      end do patchloop !patch loop
 
-         ! divide so-far-just-summed but to-be-averaged patch-age-class variables by patch-age-class area to get mean values
-         do ipa2 = 1, nlevage
-            if (hio_area_si_age(io_si, ipa2) .gt. tiny) then
+      ! divide so-far-just-summed but to-be-averaged patch-age-class variables by patch-age-class area to get mean values
+      do ipa2 = 1, nlevage
+         if (hio_area_si_age(io_si, ipa2) .gt. tiny) then
                hio_lai_si_age(io_si, ipa2) = hio_lai_si_age(io_si, ipa2) / (hio_area_si_age(io_si, ipa2)*AREA)
                hio_ncl_si_age(io_si, ipa2) = hio_ncl_si_age(io_si, ipa2) / (hio_area_si_age(io_si, ipa2)*AREA)
-               do i_pft = 1, numpft
-                  iagepft = ipa2 + (i_pft-1) * nlevage
-                  hio_scorch_height_si_agepft(io_si, iagepft) = &
-                       hio_scorch_height_si_agepft(io_si, iagepft) / (hio_area_si_age(io_si, ipa2)*AREA)
-               enddo
-            else
-               hio_lai_si_age(io_si, ipa2) = 0._r8
-               hio_ncl_si_age(io_si, ipa2) = 0._r8
-            endif
+            do i_pft = 1, numpft
+               iagepft = ipa2 + (i_pft-1) * nlevage
+               hio_scorch_height_si_agepft(io_si, iagepft) = &
+               hio_scorch_height_si_agepft(io_si, iagepft) / (hio_area_si_age(io_si, ipa2)*AREA)
+            enddo
+         else
+            hio_lai_si_age(io_si, ipa2) = 0._r8
+            hio_ncl_si_age(io_si, ipa2) = 0._r8
+         endif
+      end do
+
+      ! pass the cohort termination mortality as a flux to the history, and then reset the termination mortality buffer
+      ! note there are various ways of reporting the total mortality, so pass to these as well
+      do i_pft = 1, numpft
+         do i_scls = 1,nlevsclass
+            i_scpf = (i_pft-1)*nlevsclass + i_scls
+            !
+            ! termination mortality. sum of canopy and understory indices
+            hio_m6_si_scpf(io_si,i_scpf) = (sites(s)%term_nindivs_canopy(i_scls,i_pft) + &
+               sites(s)%term_nindivs_ustory(i_scls,i_pft)) *              &
+               days_per_year / m2_per_ha
+
+            hio_m6_si_scls(io_si,i_scls) = hio_m6_si_scls(io_si,i_scls) +  &
+               (sites(s)%term_nindivs_canopy(i_scls,i_pft) +              &
+               sites(s)%term_nindivs_ustory(i_scls,i_pft)) *              &
+               days_per_year / m2_per_ha
+            !
+            ! add termination mortality to canopy and understory mortality
+            hio_mortality_canopy_si_scls(io_si,i_scls) = hio_mortality_canopy_si_scls(io_si,i_scls) + &
+               sites(s)%term_nindivs_canopy(i_scls,i_pft) * days_per_year / m2_per_ha
+
+            hio_mortality_understory_si_scls(io_si,i_scls) = hio_mortality_understory_si_scls(io_si,i_scls) + &
+               sites(s)%term_nindivs_ustory(i_scls,i_pft) * days_per_year / m2_per_ha
+
+            hio_mortality_canopy_si_scpf(io_si,i_scpf) = hio_mortality_canopy_si_scpf(io_si,i_scpf) + &
+               sites(s)%term_nindivs_canopy(i_scls,i_pft) * days_per_year / m2_per_ha
+
+            hio_mortality_understory_si_scpf(io_si,i_scpf) = hio_mortality_understory_si_scpf(io_si,i_scpf) + &
+               sites(s)%term_nindivs_ustory(i_scls,i_pft) * days_per_year / m2_per_ha
+
+            !
+            ! imort on its own
+            hio_m4_si_scpf(io_si,i_scpf) = sites(s)%imort_rate(i_scls, i_pft) / m2_per_ha
+            hio_m4_si_scls(io_si,i_scls) = hio_m4_si_scls(io_si,i_scls) + sites(s)%imort_rate(i_scls, i_pft) / m2_per_ha
+            !
+            ! add imort to other mortality terms. consider imort as understory mortality even if it happens in
+            ! cohorts that may have been promoted as part of the patch creation, and use the pre-calculated site-level
+            ! values to avoid biasing the results by the dramatically-reduced number densities in cohorts that are subject to imort
+            hio_mortality_understory_si_scpf(io_si,i_scpf) = hio_mortality_understory_si_scpf(io_si,i_scpf) + &
+               sites(s)%imort_rate(i_scls, i_pft) / m2_per_ha
+            hio_mortality_understory_si_scls(io_si,i_scls) = hio_mortality_understory_si_scls(io_si,i_scls) + &
+               sites(s)%imort_rate(i_scls, i_pft) / m2_per_ha
+            !
+            iscag = i_scls ! since imort is by definition something that only happens in newly disturbed patches, treat as such
+            hio_mortality_understory_si_scag(io_si,iscag) = hio_mortality_understory_si_scag(io_si,iscag) + &
+               sites(s)%imort_rate(i_scls, i_pft) / m2_per_ha
+
+            ! fire mortality from the site-level diagnostic rates
+            hio_m5_si_scpf(io_si,i_scpf) = (sites(s)%fmort_rate_canopy(i_scls, i_pft) + &
+               sites(s)%fmort_rate_ustory(i_scls, i_pft)) / m2_per_ha
+            hio_m5_si_scls(io_si,i_scls) = hio_m5_si_scls(io_si,i_scls) + &
+               (sites(s)%fmort_rate_canopy(i_scls, i_pft) +              &
+               sites(s)%fmort_rate_ustory(i_scls, i_pft)) / m2_per_ha
+            !
+            hio_crownfiremort_si_scpf(io_si,i_scpf) = sites(s)%fmort_rate_crown(i_scls, i_pft) / m2_per_ha
+            hio_cambialfiremort_si_scpf(io_si,i_scpf) = sites(s)%fmort_rate_cambial(i_scls, i_pft) / m2_per_ha
+            !
+            ! fire components of overall canopy and understory mortality
+            hio_mortality_canopy_si_scpf(io_si,i_scpf) = hio_mortality_canopy_si_scpf(io_si,i_scpf) + &
+               sites(s)%fmort_rate_canopy(i_scls, i_pft) / m2_per_ha
+            hio_mortality_canopy_si_scls(io_si,i_scls) = hio_mortality_canopy_si_scls(io_si,i_scls) + &
+               sites(s)%fmort_rate_canopy(i_scls, i_pft) / m2_per_ha
+
+            ! the fire mortality rates for each layer are total dead, since the usable
+            ! output will then normalize by the counts, we are allowed to sum over layers
+            hio_mortality_understory_si_scpf(io_si,i_scpf) = hio_mortality_understory_si_scpf(io_si,i_scpf) + &
+               sites(s)%fmort_rate_ustory(i_scls, i_pft) / m2_per_ha
+
+            hio_mortality_understory_si_scls(io_si,i_scls) = hio_mortality_understory_si_scls(io_si,i_scls) + &
+               sites(s)%fmort_rate_ustory(i_scls, i_pft) / m2_per_ha
+
+            !
+            ! carbon flux associated with mortality of trees dying by fire
+            hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
+               sites(s)%fmort_carbonflux_canopy / g_per_kg
+
+            hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
+               sites(s)%fmort_carbonflux_ustory / g_per_kg
+
+            !
+            ! for scag variables, also treat as happening in the newly-disurbed patch
+
+            hio_mortality_canopy_si_scag(io_si,iscag) = hio_mortality_canopy_si_scag(io_si,iscag) + &
+               sites(s)%fmort_rate_canopy(i_scls, i_pft) / m2_per_ha
+            hio_mortality_understory_si_scag(io_si,iscag) = hio_mortality_understory_si_scag(io_si,iscag) + &
+               sites(s)%fmort_rate_ustory(i_scls, i_pft) / m2_per_ha
+
+            ! while in this loop, pass the fusion-induced growth rate flux to history
+            hio_growthflux_fusion_si_scpf(io_si,i_scpf) = hio_growthflux_fusion_si_scpf(io_si,i_scpf) + &
+               sites(s)%growthflux_fusion(i_scls, i_pft) * days_per_year / m2_per_ha
 
          end do
+      end do
 
-         ! pass the cohort termination mortality as a flux to the history, and then reset the termination mortality buffer
-         ! note there are various ways of reporting the total mortality, so pass to these as well
-         do i_pft = 1, numpft
-            do i_scls = 1,nlevsclass
-               i_scpf = (i_pft-1)*nlevsclass + i_scls
-               !
-               ! termination mortality. sum of canopy and understory indices
-               hio_m6_si_scpf(io_si,i_scpf) = (sites(s)%term_nindivs_canopy(i_scls,i_pft) + &
-                                               sites(s)%term_nindivs_ustory(i_scls,i_pft)) * &
-                                               days_per_year / m2_per_ha
+      ! treat carbon flux from imort the same way
+      hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
+         sites(s)%imort_carbonflux / g_per_kg
+      !
+      sites(s)%term_nindivs_canopy(:,:) = 0._r8
+      sites(s)%term_nindivs_ustory(:,:) = 0._r8
+      sites(s)%imort_carbonflux = 0._r8
+      sites(s)%imort_rate(:,:) = 0._r8
+      sites(s)%fmort_rate_canopy(:,:) = 0._r8
+      sites(s)%fmort_rate_ustory(:,:) = 0._r8
+      sites(s)%fmort_carbonflux_canopy = 0._r8
+      sites(s)%fmort_carbonflux_ustory = 0._r8
+      sites(s)%fmort_rate_cambial(:,:) = 0._r8
+      sites(s)%fmort_rate_crown(:,:) = 0._r8
+      sites(s)%growthflux_fusion(:,:) = 0._r8
 
-               hio_m6_si_scls(io_si,i_scls) = hio_m6_si_scls(io_si,i_scls) +   &
-                     (sites(s)%term_nindivs_canopy(i_scls,i_pft) +             &
-                      sites(s)%term_nindivs_ustory(i_scls,i_pft)) *            &
-                      days_per_year / m2_per_ha
+      ! pass the recruitment rate as a flux to the history, and then reset the recruitment buffer
+      do i_pft = 1, numpft
+         hio_recruitment_si_pft(io_si,i_pft) = sites(s)%recruitment_rate(i_pft) * days_per_year / m2_per_ha
+      end do
+      sites(s)%recruitment_rate(:) = 0._r8
 
+      ! summarize all of the mortality fluxes by PFT
+      do i_pft = 1, numpft
+         do i_scls = 1,nlevsclass
+            i_scpf = (i_pft-1)*nlevsclass + i_scls
 
-               !
-               ! add termination mortality to canopy and understory mortality
-               hio_mortality_canopy_si_scls(io_si,i_scls) = hio_mortality_canopy_si_scls(io_si,i_scls) + &
-                    sites(s)%term_nindivs_canopy(i_scls,i_pft) * days_per_year / m2_per_ha
+            hio_mortality_si_pft(io_si,i_pft) = hio_mortality_si_pft(io_si,i_pft) + &
+               hio_m1_si_scpf(io_si,i_scpf) + &
+               hio_m2_si_scpf(io_si,i_scpf) + &
+               hio_m3_si_scpf(io_si,i_scpf) + &
+               hio_m4_si_scpf(io_si,i_scpf) + &
+               hio_m5_si_scpf(io_si,i_scpf) + &
+               hio_m6_si_scpf(io_si,i_scpf) + &
+               hio_m7_si_scpf(io_si,i_scpf) + &
+               hio_m8_si_scpf(io_si,i_scpf) + &
+               hio_m9_si_scpf(io_si,i_scpf) + &
+               hio_m10_si_scpf(io_si,i_scpf)
 
-               hio_mortality_understory_si_scls(io_si,i_scls) = hio_mortality_understory_si_scls(io_si,i_scls) + &
-                    sites(s)%term_nindivs_ustory(i_scls,i_pft) * days_per_year / m2_per_ha
-
-               hio_mortality_canopy_si_scpf(io_si,i_scpf) = hio_mortality_canopy_si_scpf(io_si,i_scpf) + &
-                     sites(s)%term_nindivs_canopy(i_scls,i_pft) * days_per_year / m2_per_ha
-
-               hio_mortality_understory_si_scpf(io_si,i_scpf) = hio_mortality_understory_si_scpf(io_si,i_scpf) + &
-                     sites(s)%term_nindivs_ustory(i_scls,i_pft) * days_per_year / m2_per_ha
-
-               !
-               ! imort on its own
-               hio_m4_si_scpf(io_si,i_scpf) = sites(s)%imort_rate(i_scls, i_pft) / m2_per_ha
-               hio_m4_si_scls(io_si,i_scls) = hio_m4_si_scls(io_si,i_scls) + sites(s)%imort_rate(i_scls, i_pft) / m2_per_ha
-               !
-               ! add imort to other mortality terms. consider imort as understory mortality even if it happens in
-               ! cohorts that may have been promoted as part of the patch creation, and use the pre-calculated site-level
-               ! values to avoid biasing the results by the dramatically-reduced number densities in cohorts that are subject to imort
-               hio_mortality_understory_si_scpf(io_si,i_scpf) = hio_mortality_understory_si_scpf(io_si,i_scpf) + &
-                    sites(s)%imort_rate(i_scls, i_pft) / m2_per_ha
-               hio_mortality_understory_si_scls(io_si,i_scls) = hio_mortality_understory_si_scls(io_si,i_scls) + &
-                    sites(s)%imort_rate(i_scls, i_pft) / m2_per_ha
-               !
-               iscag = i_scls ! since imort is by definition something that only happens in newly disturbed patches, treat as such
-               hio_mortality_understory_si_scag(io_si,iscag) = hio_mortality_understory_si_scag(io_si,iscag) + &
-                    sites(s)%imort_rate(i_scls, i_pft) / m2_per_ha
-
-               ! fire mortality from the site-level diagnostic rates
-               hio_m5_si_scpf(io_si,i_scpf) = (sites(s)%fmort_rate_canopy(i_scls, i_pft) + &
-                     sites(s)%fmort_rate_ustory(i_scls, i_pft)) / m2_per_ha
-               hio_m5_si_scls(io_si,i_scls) = hio_m5_si_scls(io_si,i_scls) + &
-                     (sites(s)%fmort_rate_canopy(i_scls, i_pft) +              &
-                     sites(s)%fmort_rate_ustory(i_scls, i_pft)) / m2_per_ha
-               !
-               hio_crownfiremort_si_scpf(io_si,i_scpf) = sites(s)%fmort_rate_crown(i_scls, i_pft) / m2_per_ha
-               hio_cambialfiremort_si_scpf(io_si,i_scpf) = sites(s)%fmort_rate_cambial(i_scls, i_pft) / m2_per_ha
-               !
-               ! fire components of overall canopy and understory mortality
-               hio_mortality_canopy_si_scpf(io_si,i_scpf) = hio_mortality_canopy_si_scpf(io_si,i_scpf) + &
-                    sites(s)%fmort_rate_canopy(i_scls, i_pft) / m2_per_ha
-               hio_mortality_canopy_si_scls(io_si,i_scls) = hio_mortality_canopy_si_scls(io_si,i_scls) + &
-                    sites(s)%fmort_rate_canopy(i_scls, i_pft) / m2_per_ha
-
-               ! the fire mortality rates for each layer are total dead, since the usable
-               ! output will then normalize by the counts, we are allowed to sum over layers
-               hio_mortality_understory_si_scpf(io_si,i_scpf) = hio_mortality_understory_si_scpf(io_si,i_scpf) + &
-                     sites(s)%fmort_rate_ustory(i_scls, i_pft) / m2_per_ha
-
-               hio_mortality_understory_si_scls(io_si,i_scls) = hio_mortality_understory_si_scls(io_si,i_scls) + &
-                     sites(s)%fmort_rate_ustory(i_scls, i_pft) / m2_per_ha
-
-               !
-               ! carbon flux associated with mortality of trees dying by fire
-               hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
-                     sites(s)%fmort_carbonflux_canopy / g_per_kg
-
-               hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
-                     sites(s)%fmort_carbonflux_ustory / g_per_kg
-
-               !
-               ! for scag variables, also treat as happening in the newly-disurbed patch
-
-               hio_mortality_canopy_si_scag(io_si,iscag) = hio_mortality_canopy_si_scag(io_si,iscag) + &
-                    sites(s)%fmort_rate_canopy(i_scls, i_pft) / m2_per_ha
-               hio_mortality_understory_si_scag(io_si,iscag) = hio_mortality_understory_si_scag(io_si,iscag) + &
-                    sites(s)%fmort_rate_ustory(i_scls, i_pft) / m2_per_ha
-
-               ! while in this loop, pass the fusion-induced growth rate flux to history
-               hio_growthflux_fusion_si_scpf(io_si,i_scpf) = hio_growthflux_fusion_si_scpf(io_si,i_scpf) + &
-                    sites(s)%growthflux_fusion(i_scls, i_pft) * days_per_year / m2_per_ha
-
-
-
-
-
-            end do
          end do
-         !
+      end do
 
-         ! treat carbon flux from imort the same way
-         hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
-              sites(s)%imort_carbonflux / g_per_kg
-         !
-         sites(s)%term_nindivs_canopy(:,:) = 0._r8
-         sites(s)%term_nindivs_ustory(:,:) = 0._r8
-         sites(s)%imort_carbonflux = 0._r8
-         sites(s)%imort_rate(:,:) = 0._r8
-         sites(s)%fmort_rate_canopy(:,:) = 0._r8
-         sites(s)%fmort_rate_ustory(:,:) = 0._r8
-         sites(s)%fmort_carbonflux_canopy = 0._r8
-         sites(s)%fmort_carbonflux_ustory = 0._r8
-         sites(s)%fmort_rate_cambial(:,:) = 0._r8
-         sites(s)%fmort_rate_crown(:,:) = 0._r8
-         sites(s)%growthflux_fusion(:,:) = 0._r8
+      ! ------------------------------------------------------------------------------
+      ! Some carbon only litter diagnostics (legacy)
+      ! ------------------------------------------------------------------------------
 
-         ! pass the recruitment rate as a flux to the history, and then reset the recruitment buffer
-         do i_pft = 1, numpft
-            hio_recruitment_si_pft(io_si,i_pft) = sites(s)%recruitment_rate(i_pft) * days_per_year / m2_per_ha
-         end do
-         sites(s)%recruitment_rate(:) = 0._r8
+      flux_diags => sites(s)%flux_diags(element_pos(carbon12_element))
 
-         hio_mortality_si_pft(io_si,:) = 0.0_r8
-         ! summarize all of the mortality fluxes by PFT
-         do i_pft = 1, numpft
-            do i_scls = 1,nlevsclass
-               i_scpf = (i_pft-1)*nlevsclass + i_scls
+      hio_litter_in_si(io_si) = (sum(flux_diags%cwd_ag_input(:)) + &
+         sum(flux_diags%cwd_bg_input(:)) + &
+         sum(flux_diags%leaf_litter_input(:)) + &
+         sum(flux_diags%root_litter_input(:))) * &
+         AREA_INV * days_per_sec
 
-               hio_mortality_si_pft(io_si,i_pft) = (hio_mortality_si_pft(io_si,i_pft) + &
-                    hio_m1_si_scpf(io_si,i_scpf) + &
-                    hio_m2_si_scpf(io_si,i_scpf) + &
-                    hio_m3_si_scpf(io_si,i_scpf) + &
-                    hio_m4_si_scpf(io_si,i_scpf) + &
-                    hio_m5_si_scpf(io_si,i_scpf) + &
-                    hio_m6_si_scpf(io_si,i_scpf) + &
-		                hio_m7_si_scpf(io_si,i_scpf) + &
-                    hio_m8_si_scpf(io_si,i_scpf) + &
-                    hio_m9_si_scpf(io_si,i_scpf) + &
-                    hio_m10_si_scpf(io_si,i_scpf))
+      hio_litter_out_si(io_si) = 0._r8
+      hio_seed_bank_si(io_si)  = 0._r8
+      hio_seeds_in_si(io_si)   = 0._r8
 
-            end do
-         end do
+      cpatch => sites(s)%oldest_patch
+      do while(associated(cpatch))
 
-         ! ------------------------------------------------------------------------------
-         ! Some carbon only litter diagnostics (legacy)
-         ! ------------------------------------------------------------------------------
+         litt => cpatch%litter(element_pos(carbon12_element))
 
-         flux_diags => sites(s)%flux_diags(element_pos(carbon12_element))
+         area_frac = cpatch%area * AREA_INV
 
-         hio_litter_in_si(io_si) = (sum(flux_diags%cwd_ag_input(:)) + &
-              sum(flux_diags%cwd_bg_input(:)) + &
-              sum(flux_diags%leaf_litter_input(:)) + &
-              sum(flux_diags%root_litter_input(:))) * &
-              AREA_INV * days_per_sec
+         ! Sum up all output fluxes (fragmentation) kgC/m2/day -> gC/m2/s
+         hio_litter_out_si(io_si) = hio_litter_out_si(io_si) + &
+            (sum(litt%leaf_fines_frag(:)) + &
+            sum(litt%root_fines_frag(:,:)) + &
+            sum(litt%ag_cwd_frag(:)) + &
+            sum(litt%bg_cwd_frag(:,:))) * &
+            area_frac * days_per_sec
 
-         hio_litter_out_si(io_si) = 0._r8
-         hio_seed_bank_si(io_si)  = 0._r8
-         hio_seeds_in_si(io_si)   = 0._r8
+         ! Sum up total seed bank (germinated and ungerminated)
+         hio_seed_bank_si(io_si) = hio_seed_bank_si(io_si) + &
+            (sum(litt%seed(:))+sum(litt%seed_germ(:))) * &
+            area_frac * days_per_sec
+
+         ! Sum up the input flux into the seed bank (local and external)
+         hio_seeds_in_si(io_si) = hio_seeds_in_si(io_si) + &
+            (sum(litt%seed_in_local(:)) + sum(litt%seed_in_extern(:))) * &
+            area_frac * days_per_sec
+
+         cpatch => cpatch%younger
+      end do
+
+      ! ------------------------------------------------------------------------------
+      ! Diagnostics discretized by element type
+      ! ------------------------------------------------------------------------------
+
+      hio_cwd_elcwd(io_si,:)   = 0._r8
+
+      do el = 1, num_elements
+
+         flux_diags => sites(s)%flux_diags(el)
+
+         ! Sum up all input litter fluxes (above below, fines, cwd) [kg/ha/day]
+         hio_litter_in_elem(io_si, el) = (sum(flux_diags%cwd_ag_input(:)) +    &
+            sum(flux_diags%cwd_bg_input(:)) + sum(flux_diags%leaf_litter_input(:)) + &
+            sum(flux_diags%root_litter_input(:))) / m2_per_ha / sec_per_day
+
+         hio_cwd_ag_elem(io_si,el)         = 0._r8
+         hio_cwd_bg_elem(io_si,el)         = 0._r8
+         hio_fines_ag_elem(io_si,el)       = 0._r8
+         hio_fines_bg_elem(io_si,el)       = 0._r8
+
+         hio_seed_bank_elem(io_si,el)      = 0._r8
+         hio_seed_germ_elem(io_si,el)      = 0._r8
+         hio_seed_decay_elem(io_si,el)     = 0._r8
+         hio_seeds_in_local_elem(io_si,el) = 0._r8
+         hio_seed_in_extern_elem(io_si,el) = 0._r8
+         hio_litter_out_elem(io_si,el)     = 0._r8
+
+         ! Plant multi-element states and fluxes
+         ! Zero states, and set the fluxes
+         if(element_list(el).eq.carbon12_element)then
+            this%hvars(ih_totvegc_scpf)%r82d(io_si,:) = 0._r8
+            this%hvars(ih_leafc_scpf)%r82d(io_si,:)   = 0._r8
+            this%hvars(ih_fnrtc_scpf)%r82d(io_si,:)   = 0._r8
+            this%hvars(ih_sapwc_scpf)%r82d(io_si,:)   = 0._r8
+            this%hvars(ih_storec_scpf)%r82d(io_si,:)  = 0._r8
+            this%hvars(ih_reproc_scpf)%r82d(io_si,:)  = 0._r8
+
+            this%hvars(ih_cefflux_scpf)%r82d(io_si,:) = &
+               sites(s)%flux_diags(el)%nutrient_efflux_scpf(:) /            &
+               m2_per_ha / sec_per_day
+
+            this%hvars(ih_cefflux_si)%r81d(io_si) = &
+               sum(sites(s)%flux_diags(el)%nutrient_efflux_scpf(:),dim=1) / &
+               m2_per_ha / sec_per_day
+
+         elseif(element_list(el).eq.nitrogen_element)then
+
+            this%hvars(ih_totvegn_scpf)%r82d(io_si,:) = 0._r8
+            this%hvars(ih_leafn_scpf)%r82d(io_si,:)   = 0._r8
+            this%hvars(ih_fnrtn_scpf)%r82d(io_si,:)   = 0._r8
+            this%hvars(ih_sapwn_scpf)%r82d(io_si,:)   = 0._r8
+            this%hvars(ih_storen_scpf)%r82d(io_si,:)  = 0._r8
+            this%hvars(ih_storentfrac_canopy_scpf)%r82d(io_si,:)  = 0._r8
+            this%hvars(ih_storentfrac_understory_scpf)%r82d(io_si,:)  = 0._r8
+            this%hvars(ih_repron_scpf)%r82d(io_si,:)  = 0._r8
+
+            this%hvars(ih_nefflux_scpf)%r82d(io_si,:) = &
+               sites(s)%flux_diags(el)%nutrient_efflux_scpf(:) /          &
+               m2_per_ha / sec_per_day
+
+            this%hvars(ih_nneed_scpf)%r82d(io_si,:) = &
+               sites(s)%flux_diags(el)%nutrient_need_scpf(:) /            &
+               m2_per_ha / sec_per_day
+
+            this%hvars(ih_nneed_si)%r81d(io_si) = &
+               sum(sites(s)%flux_diags(el)%nutrient_need_scpf(:),dim=1) / &
+               m2_per_ha / sec_per_day
+
+            this%hvars(ih_nefflux_si)%r81d(io_si) = &
+               sum(sites(s)%flux_diags(el)%nutrient_efflux_scpf(:),dim=1) / &
+               m2_per_ha / sec_per_day
+
+
+         elseif(element_list(el).eq.phosphorus_element)then
+            this%hvars(ih_totvegp_scpf)%r82d(io_si,:) = 0._r8
+            this%hvars(ih_leafp_scpf)%r82d(io_si,:)   = 0._r8
+            this%hvars(ih_fnrtp_scpf)%r82d(io_si,:)   = 0._r8
+            this%hvars(ih_sapwp_scpf)%r82d(io_si,:)   = 0._r8
+            this%hvars(ih_storep_scpf)%r82d(io_si,:)  = 0._r8
+            this%hvars(ih_storeptfrac_canopy_scpf)%r82d(io_si,:)     = 0._r8
+            this%hvars(ih_storeptfrac_understory_scpf)%r82d(io_si,:) = 0._r8
+            this%hvars(ih_reprop_scpf)%r82d(io_si,:)  = 0._r8
+
+            this%hvars(ih_pefflux_scpf)%r82d(io_si,:) = &
+               sites(s)%flux_diags(el)%nutrient_efflux_scpf(:) /          &
+               m2_per_ha / sec_per_day
+
+            this%hvars(ih_pneed_scpf)%r82d(io_si,:) = &
+               sites(s)%flux_diags(el)%nutrient_need_scpf(:) /            &
+               m2_per_ha / sec_per_day
+
+            this%hvars(ih_pneed_si)%r81d(io_si) = &
+               sum(sites(s)%flux_diags(el)%nutrient_need_scpf(:),dim=1) / &
+               m2_per_ha / sec_per_day
+
+            this%hvars(ih_pefflux_si)%r81d(io_si) = &
+               sum(sites(s)%flux_diags(el)%nutrient_efflux_scpf(:),dim=1) / &
+               m2_per_ha / sec_per_day
+
+         end if
 
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
 
-            litt => cpatch%litter(element_pos(carbon12_element))
+            litt => cpatch%litter(el)
 
             area_frac = cpatch%area * AREA_INV
 
-            ! Sum up all output fluxes (fragmentation) kgC/m2/day -> gC/m2/s
-            hio_litter_out_si(io_si) = hio_litter_out_si(io_si) + &
-                 (sum(litt%leaf_fines_frag(:)) + &
-                 sum(litt%root_fines_frag(:,:)) + &
-                 sum(litt%ag_cwd_frag(:)) + &
-                 sum(litt%bg_cwd_frag(:,:))) * &
-                 area_frac * days_per_sec
+            ! Sum up all output fluxes (fragmentation)
+            hio_litter_out_elem(io_si,el) = hio_litter_out_elem(io_si,el) + &
+               (sum(litt%leaf_fines_frag(:)) + &
+               sum(litt%root_fines_frag(:,:)) + &
+               sum(litt%ag_cwd_frag(:)) + &
+               sum(litt%bg_cwd_frag(:,:)) + &
+               sum(litt%seed_decay(:)) + &
+               sum(litt%seed_germ_decay(:))) * cpatch%area / m2_per_ha / sec_per_day
 
-            ! Sum up total seed bank (germinated and ungerminated)
-            hio_seed_bank_si(io_si) = hio_seed_bank_si(io_si) + &
-                 (sum(litt%seed(:))+sum(litt%seed_germ(:))) * &
-                 area_frac * days_per_sec
+            hio_seed_bank_elem(io_si,el) = hio_seed_bank_elem(io_si,el) + &
+               sum(litt%seed(:)) * cpatch%area / m2_per_ha
 
-            ! Sum up the input flux into the seed bank (local and external)
-            hio_seeds_in_si(io_si) = hio_seeds_in_si(io_si) + &
-                 (sum(litt%seed_in_local(:)) + sum(litt%seed_in_extern(:))) * &
-                 area_frac * days_per_sec
+            hio_seed_germ_elem(io_si,el) = hio_seed_germ_elem(io_si,el) + &
+               sum(litt%seed_germ(:)) *  cpatch%area / m2_per_ha / sec_per_day
 
-            cpatch => cpatch%younger
-         end do
+            hio_seed_decay_elem(io_si,el) = hio_seed_decay_elem(io_si,el) + &
+               sum(litt%seed_decay(:) + litt%seed_germ_decay(:) ) *       &
+               cpatch%area / m2_per_ha / sec_per_day
 
+            hio_seeds_in_local_elem(io_si,el) = hio_seeds_in_local_elem(io_si,el) + &
+               sum(litt%seed_in_local(:)) *  cpatch%area / m2_per_ha / sec_per_day
 
-         ! ------------------------------------------------------------------------------
-         ! Diagnostics discretized by element type
-         ! ------------------------------------------------------------------------------
+            hio_seed_in_extern_elem(io_si,el) = hio_seed_in_extern_elem(io_si,el) + &
+               sum(litt%seed_in_extern(:)) * cpatch%area / m2_per_ha / sec_per_day
 
-         hio_cwd_elcwd(io_si,:)   = 0._r8
+            ! Litter State Variables
+            hio_cwd_ag_elem(io_si,el) = hio_cwd_ag_elem(io_si,el) + &
+               sum(litt%ag_cwd(:)) * cpatch%area / m2_per_ha
 
-         do el = 1, num_elements
+            hio_cwd_bg_elem(io_si,el) = hio_cwd_bg_elem(io_si,el) + &
+               sum(litt%bg_cwd(:,:)) * cpatch%area / m2_per_ha
 
-            flux_diags => sites(s)%flux_diags(el)
+            hio_fines_ag_elem(io_si,el) = hio_fines_ag_elem(io_si,el) + &
+               sum(litt%leaf_fines(:)) * cpatch%area / m2_per_ha
 
-            ! Sum up all input litter fluxes (above below, fines, cwd) [kg/ha/day]
-            hio_litter_in_elem(io_si, el) =  &
-                 (sum(flux_diags%cwd_ag_input(:)) + &
-                 sum(flux_diags%cwd_bg_input(:)) + &
-                 sum(flux_diags%leaf_litter_input(:)) + &
-                 sum(flux_diags%root_litter_input(:))) / m2_per_ha / sec_per_day
+            hio_fines_bg_elem(io_si,el) = hio_fines_bg_elem(io_si,el) + &
+               sum(litt%root_fines(:,:)) * cpatch%area / m2_per_ha
 
-            hio_cwd_ag_elem(io_si,el)         = 0._r8
-            hio_cwd_bg_elem(io_si,el)         = 0._r8
-            hio_fines_ag_elem(io_si,el)       = 0._r8
-            hio_fines_bg_elem(io_si,el)       = 0._r8
+            do cwd=1,ncwd
+               elcwd = (el-1)*ncwd+cwd
+               hio_cwd_elcwd(io_si,elcwd) = hio_cwd_elcwd(io_si,elcwd) +   &
+                  (litt%ag_cwd(cwd) + sum(litt%bg_cwd(cwd,:))) *        &
+                  cpatch%area / m2_per_ha
 
-            hio_seed_bank_elem(io_si,el)      = 0._r8
-            hio_seed_germ_elem(io_si,el)      = 0._r8
-            hio_seed_decay_elem(io_si,el)     = 0._r8
-            hio_seeds_in_local_elem(io_si,el) = 0._r8
-            hio_seed_in_extern_elem(io_si,el) = 0._r8
-            hio_litter_out_elem(io_si,el)     = 0._r8
-
-            ! Plant multi-element states and fluxes
-            ! Zero states, and set the fluxes
-            if(element_list(el).eq.carbon12_element)then
-               this%hvars(ih_totvegc_scpf)%r82d(io_si,:) = 0._r8
-               this%hvars(ih_leafc_scpf)%r82d(io_si,:)   = 0._r8
-               this%hvars(ih_fnrtc_scpf)%r82d(io_si,:)   = 0._r8
-               this%hvars(ih_sapwc_scpf)%r82d(io_si,:)   = 0._r8
-               this%hvars(ih_storec_scpf)%r82d(io_si,:)  = 0._r8
-               this%hvars(ih_reproc_scpf)%r82d(io_si,:)  = 0._r8
-
-               this%hvars(ih_cefflux_scpf)%r82d(io_si,:) = &
-                    sites(s)%flux_diags(el)%nutrient_efflux_scpf(:) /          &
-                    m2_per_ha / sec_per_day
-
-               this%hvars(ih_cefflux_si)%r81d(io_si) = &
-                    sum(sites(s)%flux_diags(el)%nutrient_efflux_scpf(:),dim=1) / &
-                    m2_per_ha / sec_per_day
-
-            elseif(element_list(el).eq.nitrogen_element)then
-
-               this%hvars(ih_totvegn_scpf)%r82d(io_si,:) = 0._r8
-               this%hvars(ih_leafn_scpf)%r82d(io_si,:)   = 0._r8
-               this%hvars(ih_fnrtn_scpf)%r82d(io_si,:)   = 0._r8
-               this%hvars(ih_sapwn_scpf)%r82d(io_si,:)   = 0._r8
-               this%hvars(ih_storen_scpf)%r82d(io_si,:)  = 0._r8
-               this%hvars(ih_storentfrac_canopy_scpf)%r82d(io_si,:)  = 0._r8
-               this%hvars(ih_storentfrac_understory_scpf)%r82d(io_si,:)  = 0._r8
-               this%hvars(ih_repron_scpf)%r82d(io_si,:)  = 0._r8
-
-               this%hvars(ih_nefflux_scpf)%r82d(io_si,:) = &
-                    sites(s)%flux_diags(el)%nutrient_efflux_scpf(:) /          &
-                    m2_per_ha / sec_per_day
-
-               this%hvars(ih_nneed_scpf)%r82d(io_si,:) = &
-                    sites(s)%flux_diags(el)%nutrient_need_scpf(:) /            &
-                    m2_per_ha / sec_per_day
-
-               this%hvars(ih_nneed_si)%r81d(io_si) = &
-                    sum(sites(s)%flux_diags(el)%nutrient_need_scpf(:),dim=1) / &
-                    m2_per_ha / sec_per_day
-
-               this%hvars(ih_nefflux_si)%r81d(io_si) = &
-                    sum(sites(s)%flux_diags(el)%nutrient_efflux_scpf(:),dim=1) / &
-                    m2_per_ha / sec_per_day
-
-
-            elseif(element_list(el).eq.phosphorus_element)then
-               this%hvars(ih_totvegp_scpf)%r82d(io_si,:) = 0._r8
-               this%hvars(ih_leafp_scpf)%r82d(io_si,:)   = 0._r8
-               this%hvars(ih_fnrtp_scpf)%r82d(io_si,:)   = 0._r8
-               this%hvars(ih_sapwp_scpf)%r82d(io_si,:)   = 0._r8
-               this%hvars(ih_storep_scpf)%r82d(io_si,:)  = 0._r8
-               this%hvars(ih_storeptfrac_canopy_scpf)%r82d(io_si,:)     = 0._r8
-               this%hvars(ih_storeptfrac_understory_scpf)%r82d(io_si,:) = 0._r8
-               this%hvars(ih_reprop_scpf)%r82d(io_si,:)  = 0._r8
-
-               this%hvars(ih_pefflux_scpf)%r82d(io_si,:) = &
-                    sites(s)%flux_diags(el)%nutrient_efflux_scpf(:) /          &
-                    m2_per_ha / sec_per_day
-
-               this%hvars(ih_pneed_scpf)%r82d(io_si,:) = &
-                    sites(s)%flux_diags(el)%nutrient_need_scpf(:) /            &
-                    m2_per_ha / sec_per_day
-
-               this%hvars(ih_pneed_si)%r81d(io_si) = &
-                    sum(sites(s)%flux_diags(el)%nutrient_need_scpf(:),dim=1) / &
-                    m2_per_ha / sec_per_day
-
-               this%hvars(ih_pefflux_si)%r81d(io_si) = &
-                    sum(sites(s)%flux_diags(el)%nutrient_efflux_scpf(:),dim=1) / &
-                    m2_per_ha / sec_per_day
-
-            end if
-
-
-            cpatch => sites(s)%oldest_patch
-            do while(associated(cpatch))
-
-               litt => cpatch%litter(el)
-
-               area_frac = cpatch%area * AREA_INV
-
-
-
-               ! Sum up all output fluxes (fragmentation)
-               hio_litter_out_elem(io_si,el) = hio_litter_out_elem(io_si,el) + &
-                    (sum(litt%leaf_fines_frag(:)) + &
-                     sum(litt%root_fines_frag(:,:)) + &
-                     sum(litt%ag_cwd_frag(:)) + &
-                     sum(litt%bg_cwd_frag(:,:)) + &
-                     sum(litt%seed_decay(:)) + &
-                     sum(litt%seed_germ_decay(:))) * cpatch%area / m2_per_ha / sec_per_day
-
-               hio_seed_bank_elem(io_si,el) = hio_seed_bank_elem(io_si,el) + &
-                    sum(litt%seed(:)) * cpatch%area / m2_per_ha
-
-               hio_seed_germ_elem(io_si,el) = hio_seed_germ_elem(io_si,el) + &
-                    sum(litt%seed_germ(:)) *  cpatch%area / m2_per_ha / sec_per_day
-
-               hio_seed_decay_elem(io_si,el) = hio_seed_decay_elem(io_si,el) + &
-                    sum(litt%seed_decay(:) + litt%seed_germ_decay(:) ) *       &
-                    cpatch%area / m2_per_ha / sec_per_day
-
-               hio_seeds_in_local_elem(io_si,el) = hio_seeds_in_local_elem(io_si,el) + &
-                    sum(litt%seed_in_local(:)) *  cpatch%area / m2_per_ha / sec_per_day
-
-               hio_seed_in_extern_elem(io_si,el) = hio_seed_in_extern_elem(io_si,el) + &
-                    sum(litt%seed_in_extern(:)) * cpatch%area / m2_per_ha / sec_per_day
-
-               ! Litter State Variables
-               hio_cwd_ag_elem(io_si,el) = hio_cwd_ag_elem(io_si,el) + &
-                     sum(litt%ag_cwd(:)) * cpatch%area / m2_per_ha
-
-               hio_cwd_bg_elem(io_si,el) = hio_cwd_bg_elem(io_si,el) + &
-                     sum(litt%bg_cwd(:,:)) * cpatch%area / m2_per_ha
-
-               hio_fines_ag_elem(io_si,el) = hio_fines_ag_elem(io_si,el) + &
-                     sum(litt%leaf_fines(:)) * cpatch%area / m2_per_ha
-
-               hio_fines_bg_elem(io_si,el) = hio_fines_bg_elem(io_si,el) + &
-                     sum(litt%root_fines(:,:)) * cpatch%area / m2_per_ha
-
-               do cwd=1,ncwd
-                   elcwd = (el-1)*ncwd+cwd
-                   hio_cwd_elcwd(io_si,elcwd) = hio_cwd_elcwd(io_si,elcwd) +   &
-                         (litt%ag_cwd(cwd) + sum(litt%bg_cwd(cwd,:))) *        &
-                         cpatch%area / m2_per_ha
-
-               end do
-
-               ! Load Mass States
-               ccohort => cpatch%tallest
-               do while(associated(ccohort))
-
-                  sapw_m   = ccohort%prt%GetState(sapw_organ, element_list(el))
-                  struct_m = ccohort%prt%GetState(struct_organ, element_list(el))
-                  leaf_m   = ccohort%prt%GetState(leaf_organ, element_list(el))
-                  fnrt_m   = ccohort%prt%GetState(fnrt_organ, element_list(el))
-                  store_m  = ccohort%prt%GetState(store_organ, element_list(el))
-                  repro_m  = ccohort%prt%GetState(repro_organ, element_list(el))
-                  total_m  = sapw_m+struct_m+leaf_m+fnrt_m+store_m+repro_m
-
-
-                  i_scpf = ccohort%size_by_pft_class
-
-                  if(element_list(el).eq.carbon12_element)then
-                     this%hvars(ih_totvegc_scpf)%r82d(io_si,i_scpf) =          &
-                          this%hvars(ih_totvegc_scpf)%r82d(io_si,i_scpf) +     &
-                          total_m * ccohort%n / m2_per_ha
-                     this%hvars(ih_leafc_scpf)%r82d(io_si,i_scpf) =            &
-                          this%hvars(ih_leafc_scpf)%r82d(io_si,i_scpf) +       &
-                          leaf_m * ccohort%n / m2_per_ha
-                     this%hvars(ih_fnrtc_scpf)%r82d(io_si,i_scpf) =            &
-                          this%hvars(ih_fnrtc_scpf)%r82d(io_si,i_scpf) +       &
-                          fnrt_m * ccohort%n / m2_per_ha
-                     this%hvars(ih_sapwc_scpf)%r82d(io_si,i_scpf) =            &
-                          this%hvars(ih_sapwc_scpf)%r82d(io_si,i_scpf) +       &
-                          sapw_m * ccohort%n / m2_per_ha
-                     this%hvars(ih_storec_scpf)%r82d(io_si,i_scpf) =           &
-                          this%hvars(ih_storec_scpf)%r82d(io_si,i_scpf) +      &
-                          store_m * ccohort%n / m2_per_ha
-                     this%hvars(ih_reproc_scpf)%r82d(io_si,i_scpf) =           &
-                          this%hvars(ih_reproc_scpf)%r82d(io_si,i_scpf) +      &
-                          repro_m * ccohort%n / m2_per_ha
-                  elseif(element_list(el).eq.nitrogen_element)then
-
-                     store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ)
-
-                     this%hvars(ih_totvegn_scpf)%r82d(io_si,i_scpf) =          &
-                          this%hvars(ih_totvegn_scpf)%r82d(io_si,i_scpf) +     &
-                          total_m * ccohort%n / m2_per_ha
-                     this%hvars(ih_leafn_scpf)%r82d(io_si,i_scpf) =            &
-                          this%hvars(ih_leafn_scpf)%r82d(io_si,i_scpf) +       &
-                          leaf_m * ccohort%n / m2_per_ha
-                     this%hvars(ih_fnrtn_scpf)%r82d(io_si,i_scpf) =            &
-                          this%hvars(ih_fnrtn_scpf)%r82d(io_si,i_scpf) +       &
-                          fnrt_m * ccohort%n / m2_per_ha
-                     this%hvars(ih_sapwn_scpf)%r82d(io_si,i_scpf) =            &
-                          this%hvars(ih_sapwn_scpf)%r82d(io_si,i_scpf) +       &
-                          sapw_m * ccohort%n / m2_per_ha
-                     this%hvars(ih_storen_scpf)%r82d(io_si,i_scpf) =           &
-                          this%hvars(ih_storen_scpf)%r82d(io_si,i_scpf) +      &
-                          store_m * ccohort%n / m2_per_ha
-                     this%hvars(ih_repron_scpf)%r82d(io_si,i_scpf) =           &
-                          this%hvars(ih_repron_scpf)%r82d(io_si,i_scpf) +      &
-                          repro_m * ccohort%n / m2_per_ha
-
-                     if (ccohort%canopy_layer .eq. 1) then
-                        this%hvars(ih_storentfrac_canopy_scpf)%r82d(io_si,i_scpf) = &
-                             this%hvars(ih_storentfrac_canopy_scpf)%r82d(io_si,i_scpf) + store_m/store_max * ccohort%n
-                     else
-                        this%hvars(ih_storentfrac_understory_scpf)%r82d(io_si,i_scpf) = &
-                             this%hvars(ih_storentfrac_understory_scpf)%r82d(io_si,i_scpf) + store_m/store_max * ccohort%n
-                     end if
-
-                  elseif(element_list(el).eq.phosphorus_element)then
-
-                     store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ)
-
-                     this%hvars(ih_totvegp_scpf)%r82d(io_si,i_scpf) =          &
-                          this%hvars(ih_totvegp_scpf)%r82d(io_si,i_scpf) +     &
-                          total_m * ccohort%n / m2_per_ha
-                     this%hvars(ih_leafp_scpf)%r82d(io_si,i_scpf) =            &
-                          this%hvars(ih_leafp_scpf)%r82d(io_si,i_scpf) +       &
-                          leaf_m * ccohort%n / m2_per_ha
-                     this%hvars(ih_fnrtp_scpf)%r82d(io_si,i_scpf) =            &
-                          this%hvars(ih_fnrtp_scpf)%r82d(io_si,i_scpf) +       &
-                          fnrt_m * ccohort%n / m2_per_ha
-                     this%hvars(ih_sapwp_scpf)%r82d(io_si,i_scpf) =            &
-                          this%hvars(ih_sapwp_scpf)%r82d(io_si,i_scpf) +       &
-                          sapw_m * ccohort%n / m2_per_ha
-                     this%hvars(ih_storep_scpf)%r82d(io_si,i_scpf) =           &
-                          this%hvars(ih_storep_scpf)%r82d(io_si,i_scpf) +      &
-                          store_m * ccohort%n / m2_per_ha
-                     this%hvars(ih_reprop_scpf)%r82d(io_si,i_scpf) =           &
-                          this%hvars(ih_reprop_scpf)%r82d(io_si,i_scpf) +      &
-                          repro_m * ccohort%n / m2_per_ha
-
-                     if (ccohort%canopy_layer .eq. 1) then
-                        this%hvars(ih_storeptfrac_canopy_scpf)%r82d(io_si,i_scpf) = &
-                             this%hvars(ih_storeptfrac_canopy_scpf)%r82d(io_si,i_scpf) + store_m/store_max * ccohort%n
-                     else
-                        this%hvars(ih_storeptfrac_understory_scpf)%r82d(io_si,i_scpf) = &
-                             this%hvars(ih_storeptfrac_understory_scpf)%r82d(io_si,i_scpf) + store_m/store_max * ccohort%n
-                     end if
-
-                  end if
-
-                  ccohort => ccohort%shorter
-               end do
-
-               cpatch => cpatch%younger
             end do
 
-         end do
+            ! Load Mass States
+            ccohort => cpatch%tallest
+            do while(associated(ccohort))
 
-         ! Normalize nutrient storage fractions
+               sapw_m   = ccohort%prt%GetState(sapw_organ, element_list(el))
+               struct_m = ccohort%prt%GetState(struct_organ, element_list(el))
+               leaf_m   = ccohort%prt%GetState(leaf_organ, element_list(el))
+               fnrt_m   = ccohort%prt%GetState(fnrt_organ, element_list(el))
+               store_m  = ccohort%prt%GetState(store_organ, element_list(el))
+               repro_m  = ccohort%prt%GetState(repro_organ, element_list(el))
+               total_m  = sapw_m+struct_m+leaf_m+fnrt_m+store_m+repro_m
 
-         do el = 1, num_elements
-            if(element_list(el).eq.nitrogen_element)then
-               if( this%hvars(ih_storentfrac_si)%r81d(io_si)>nearzero ) then
-                  this%hvars(ih_storentfrac_si)%r81d(io_si)  = this%hvars(ih_storen_si)%r81d(io_si) / &
-                       this%hvars(ih_storentfrac_si)%r81d(io_si)
+
+               i_scpf = ccohort%size_by_pft_class
+
+               if(element_list(el).eq.carbon12_element)then
+                  this%hvars(ih_totvegc_scpf)%r82d(io_si,i_scpf) =             &
+                     this%hvars(ih_totvegc_scpf)%r82d(io_si,i_scpf) +          &
+                     total_m * ccohort%n / m2_per_ha
+                  this%hvars(ih_leafc_scpf)%r82d(io_si,i_scpf) =               &
+                     this%hvars(ih_leafc_scpf)%r82d(io_si,i_scpf) +            &
+                     leaf_m * ccohort%n / m2_per_ha
+                  this%hvars(ih_fnrtc_scpf)%r82d(io_si,i_scpf) =               &
+                     this%hvars(ih_fnrtc_scpf)%r82d(io_si,i_scpf) +            &
+                     fnrt_m * ccohort%n / m2_per_ha
+                  this%hvars(ih_sapwc_scpf)%r82d(io_si,i_scpf) =               &
+                     this%hvars(ih_sapwc_scpf)%r82d(io_si,i_scpf) +            &
+                     sapw_m * ccohort%n / m2_per_ha
+                  this%hvars(ih_storec_scpf)%r82d(io_si,i_scpf) =              &
+                     this%hvars(ih_storec_scpf)%r82d(io_si,i_scpf) +           &
+                     store_m * ccohort%n / m2_per_ha
+                  this%hvars(ih_reproc_scpf)%r82d(io_si,i_scpf) =              &
+                     this%hvars(ih_reproc_scpf)%r82d(io_si,i_scpf) +           &
+                     repro_m * ccohort%n / m2_per_ha
+               elseif(element_list(el).eq.nitrogen_element)then
+
+                  store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ)
+
+                  this%hvars(ih_totvegn_scpf)%r82d(io_si,i_scpf) =             &
+                     this%hvars(ih_totvegn_scpf)%r82d(io_si,i_scpf) +          &
+                     total_m * ccohort%n / m2_per_ha
+                  this%hvars(ih_leafn_scpf)%r82d(io_si,i_scpf) =               &
+                     this%hvars(ih_leafn_scpf)%r82d(io_si,i_scpf) +            &
+                     leaf_m * ccohort%n / m2_per_ha
+                  this%hvars(ih_fnrtn_scpf)%r82d(io_si,i_scpf) =               &
+                     this%hvars(ih_fnrtn_scpf)%r82d(io_si,i_scpf) +            &
+                     fnrt_m * ccohort%n / m2_per_ha
+                  this%hvars(ih_sapwn_scpf)%r82d(io_si,i_scpf) =               &
+                     this%hvars(ih_sapwn_scpf)%r82d(io_si,i_scpf) +            &
+                     sapw_m * ccohort%n / m2_per_ha
+                  this%hvars(ih_storen_scpf)%r82d(io_si,i_scpf) =              &
+                     this%hvars(ih_storen_scpf)%r82d(io_si,i_scpf) +           &
+                     store_m * ccohort%n / m2_per_ha
+                  this%hvars(ih_repron_scpf)%r82d(io_si,i_scpf) =              &
+                     this%hvars(ih_repron_scpf)%r82d(io_si,i_scpf) +           &
+                     repro_m * ccohort%n / m2_per_ha
+
+                  if (ccohort%canopy_layer .eq. 1) then
+                     this%hvars(ih_storentfrac_canopy_scpf)%r82d(io_si,i_scpf) = &
+                        this%hvars(ih_storentfrac_canopy_scpf)%r82d(io_si,i_scpf) + store_m/store_max * ccohort%n
+                  else
+                     this%hvars(ih_storentfrac_understory_scpf)%r82d(io_si,i_scpf) = &
+                        this%hvars(ih_storentfrac_understory_scpf)%r82d(io_si,i_scpf) + store_m/store_max * ccohort%n
+                  end if
+
+               elseif(element_list(el).eq.phosphorus_element)then
+
+                  store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ)
+
+                  this%hvars(ih_totvegp_scpf)%r82d(io_si,i_scpf) =             &
+                     this%hvars(ih_totvegp_scpf)%r82d(io_si,i_scpf) +          &
+                     total_m * ccohort%n / m2_per_ha
+                  this%hvars(ih_leafp_scpf)%r82d(io_si,i_scpf) =               &
+                     this%hvars(ih_leafp_scpf)%r82d(io_si,i_scpf) +            &
+                     leaf_m * ccohort%n / m2_per_ha
+                  this%hvars(ih_fnrtp_scpf)%r82d(io_si,i_scpf) =               &
+                     this%hvars(ih_fnrtp_scpf)%r82d(io_si,i_scpf) +            &
+                     fnrt_m * ccohort%n / m2_per_ha
+                  this%hvars(ih_sapwp_scpf)%r82d(io_si,i_scpf) =               &
+                     this%hvars(ih_sapwp_scpf)%r82d(io_si,i_scpf) +            &
+                     sapw_m * ccohort%n / m2_per_ha
+                  this%hvars(ih_storep_scpf)%r82d(io_si,i_scpf) =              &
+                     this%hvars(ih_storep_scpf)%r82d(io_si,i_scpf) +           &
+                     store_m * ccohort%n / m2_per_ha
+                  this%hvars(ih_reprop_scpf)%r82d(io_si,i_scpf) =              &
+                     this%hvars(ih_reprop_scpf)%r82d(io_si,i_scpf) +           &
+                     repro_m * ccohort%n / m2_per_ha
+
+                  if (ccohort%canopy_layer .eq. 1) then
+                     this%hvars(ih_storeptfrac_canopy_scpf)%r82d(io_si,i_scpf) = &
+                        this%hvars(ih_storeptfrac_canopy_scpf)%r82d(io_si,i_scpf) + store_m/store_max * ccohort%n
+                  else
+                     this%hvars(ih_storeptfrac_understory_scpf)%r82d(io_si,i_scpf) = &
+                        this%hvars(ih_storeptfrac_understory_scpf)%r82d(io_si,i_scpf) + store_m/store_max * ccohort%n
+                  end if
+
                end if
-               do i_pft = 1, numpft
-                  do i_scls = 1,nlevsclass
-                     i_scpf = (i_pft-1)*nlevsclass + i_scls
 
-                     if(  hio_nplant_canopy_si_scpf(io_si,i_scpf)>nearzero ) then
-                        this%hvars(ih_storentfrac_canopy_scpf)%r82d(io_si,i_scpf) = &
-                             this%hvars(ih_storentfrac_canopy_scpf)%r82d(io_si,i_scpf) / &
-                             (hio_nplant_canopy_si_scpf(io_si,i_scpf)*m2_per_ha)
-                     end if
+               ccohort => ccohort%shorter
+            end do ! end cohort loop
 
-                     if( hio_nplant_understory_si_scpf(io_si,i_scpf)>nearzero ) then
-                        this%hvars(ih_storentfrac_understory_scpf)%r82d(io_si,i_scpf) = &
-                             this%hvars(ih_storentfrac_understory_scpf)%r82d(io_si,i_scpf) / &
-                             (hio_nplant_understory_si_scpf(io_si,i_scpf)*m2_per_ha)
-                     end if
+            cpatch => cpatch%younger
+         end do ! end patch loop
 
-                  end do
-               end do
-            elseif(element_list(el).eq.phosphorus_element)then
-               if( this%hvars(ih_storeptfrac_si)%r81d(io_si)>nearzero ) then
-                  this%hvars(ih_storeptfrac_si)%r81d(io_si) = this%hvars(ih_storep_si)%r81d(io_si) / &
-                       this%hvars(ih_storeptfrac_si)%r81d(io_si)
-               end if
-               do i_pft = 1, numpft
-                  do i_scls = 1,nlevsclass
-                     i_scpf = (i_pft-1)*nlevsclass + i_scls
+      end do ! end element loop
 
-                     if( hio_nplant_canopy_si_scpf(io_si,i_scpf)>nearzero ) then
-                        this%hvars(ih_storeptfrac_canopy_scpf)%r82d(io_si,i_scpf) = &
-                             this%hvars(ih_storeptfrac_canopy_scpf)%r82d(io_si,i_scpf) /&
-                             (hio_nplant_canopy_si_scpf(io_si,i_scpf)*m2_per_ha)
+      ! Normalize nutrient storage fractions
 
-                     end if
-                     if( hio_nplant_understory_si_scpf(io_si,i_scpf)>nearzero ) then
-                        this%hvars(ih_storeptfrac_understory_scpf)%r82d(io_si,i_scpf) = &
-                             this%hvars(ih_storeptfrac_understory_scpf)%r82d(io_si,i_scpf) /&
-                             (hio_nplant_understory_si_scpf(io_si,i_scpf)*m2_per_ha)
-                     end if
-
-                  end do
-               end do
+      do el = 1, num_elements
+         if(element_list(el).eq.nitrogen_element)then
+            if( this%hvars(ih_storentfrac_si)%r81d(io_si)>nearzero ) then
+               this%hvars(ih_storentfrac_si)%r81d(io_si)  = this%hvars(ih_storen_si)%r81d(io_si) / &
+                  this%hvars(ih_storentfrac_si)%r81d(io_si)
             end if
-         end do
+            do i_pft = 1, numpft
+               do i_scls = 1,nlevsclass
+                  i_scpf = (i_pft-1)*nlevsclass + i_scls
 
-         ! pass demotion rates and associated carbon fluxes to history
-         do i_scls = 1,nlevsclass
-            hio_demotion_rate_si_scls(io_si,i_scls) = sites(s)%demotion_rate(i_scls) * days_per_year / m2_per_ha
-            hio_promotion_rate_si_scls(io_si,i_scls) = sites(s)%promotion_rate(i_scls) * days_per_year / m2_per_ha
-         end do
-         !
-         ! convert kg C / ha / day to kgc / m2 / sec
-         hio_demotion_carbonflux_si(io_si) = sites(s)%demotion_carbonflux * ha_per_m2 * days_per_sec
-         hio_promotion_carbonflux_si(io_si) = sites(s)%promotion_carbonflux * ha_per_m2 * days_per_sec
-         !
-         ! mortality-associated carbon fluxes
+                  if(  hio_nplant_canopy_si_scpf(io_si,i_scpf)>nearzero ) then
+                     this%hvars(ih_storentfrac_canopy_scpf)%r82d(io_si,i_scpf) = &
+                        this%hvars(ih_storentfrac_canopy_scpf)%r82d(io_si,i_scpf) / &
+                        (hio_nplant_canopy_si_scpf(io_si,i_scpf)*m2_per_ha)
+                  end if
 
-         hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
-               sites(s)%term_carbonflux_canopy * days_per_sec * ha_per_m2
+                  if( hio_nplant_understory_si_scpf(io_si,i_scpf)>nearzero ) then
+                     this%hvars(ih_storentfrac_understory_scpf)%r82d(io_si,i_scpf) = &
+                        this%hvars(ih_storentfrac_understory_scpf)%r82d(io_si,i_scpf) / &
+                        (hio_nplant_understory_si_scpf(io_si,i_scpf)*m2_per_ha)
+                  end if
 
-         hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
-               sites(s)%term_carbonflux_ustory * days_per_sec * ha_per_m2
+               end do
+            end do
+         elseif(element_list(el).eq.phosphorus_element)then
+            if( this%hvars(ih_storeptfrac_si)%r81d(io_si)>nearzero ) then
+               this%hvars(ih_storeptfrac_si)%r81d(io_si) = this%hvars(ih_storep_si)%r81d(io_si) / &
+                  this%hvars(ih_storeptfrac_si)%r81d(io_si)
+            end if
+            do i_pft = 1, numpft
+               do i_scls = 1,nlevsclass
+                  i_scpf = (i_pft-1)*nlevsclass + i_scls
 
-         ! and zero the site-level termination carbon flux variable
-         sites(s)%term_carbonflux_canopy = 0._r8
-         sites(s)%term_carbonflux_ustory = 0._r8
-         !
+                  if( hio_nplant_canopy_si_scpf(io_si,i_scpf)>nearzero ) then
+                     this%hvars(ih_storeptfrac_canopy_scpf)%r82d(io_si,i_scpf) = &
+                        this%hvars(ih_storeptfrac_canopy_scpf)%r82d(io_si,i_scpf) /&
+                        (hio_nplant_canopy_si_scpf(io_si,i_scpf)*m2_per_ha)
 
-         ! add the site-level disturbance-associated cwd and litter input fluxes to thir respective flux fields
+                  end if
+                  if( hio_nplant_understory_si_scpf(io_si,i_scpf)>nearzero ) then
+                     this%hvars(ih_storeptfrac_understory_scpf)%r82d(io_si,i_scpf) = &
+                        this%hvars(ih_storeptfrac_understory_scpf)%r82d(io_si,i_scpf) /&
+                        (hio_nplant_understory_si_scpf(io_si,i_scpf)*m2_per_ha)
+                  end if
 
-         do i_cwd = 1, ncwd
-             hio_cwd_ag_in_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_in_si_cwdsc(io_si, i_cwd) + &
-                   flux_diags_c%cwd_ag_input(i_cwd) / days_per_year / sec_per_day
+               end do
+            end do
+         end if
+      end do
 
-             hio_cwd_bg_in_si_cwdsc(io_si, i_cwd) = hio_cwd_bg_in_si_cwdsc(io_si, i_cwd) + &
-                   flux_diags_c%cwd_bg_input(i_cwd) / days_per_year / sec_per_day
+      ! pass demotion rates and associated carbon fluxes to history
+      do i_scls = 1,nlevsclass
+         hio_demotion_rate_si_scls(io_si,i_scls) = sites(s)%demotion_rate(i_scls) * days_per_year / m2_per_ha
+         hio_promotion_rate_si_scls(io_si,i_scls) = sites(s)%promotion_rate(i_scls) * days_per_year / m2_per_ha
+      end do
+      !
+      ! convert kg C / ha / day to kgc / m2 / sec
+      hio_demotion_carbonflux_si(io_si) = sites(s)%demotion_carbonflux * ha_per_m2 * days_per_sec
+      hio_promotion_carbonflux_si(io_si) = sites(s)%promotion_carbonflux * ha_per_m2 * days_per_sec
+      !
+      ! mortality-associated carbon fluxes
 
-         end do
+      hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
+         sites(s)%term_carbonflux_canopy * days_per_sec * ha_per_m2
 
-      enddo ! site loop
+      hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
+         sites(s)%term_carbonflux_ustory * days_per_sec * ha_per_m2
 
-    end associate
+      ! and zero the site-level termination carbon flux variable
+      sites(s)%term_carbonflux_canopy = 0._r8
+      sites(s)%term_carbonflux_ustory = 0._r8
+      !
 
-    return
+      ! add the site-level disturbance-associated cwd and litter input fluxes to thir respective flux fields
+
+      do i_cwd = 1, ncwd
+         hio_cwd_ag_in_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_in_si_cwdsc(io_si, i_cwd) + &
+            flux_diags_c%cwd_ag_input(i_cwd) / days_per_year / sec_per_day
+
+         hio_cwd_bg_in_si_cwdsc(io_si, i_cwd) = hio_cwd_bg_in_si_cwdsc(io_si, i_cwd) + &
+            flux_diags_c%cwd_bg_input(i_cwd) / days_per_year / sec_per_day
+
+      end do
+
+   enddo siteloop ! site loop
+
+   end associate
+
+   return
   end subroutine update_history_dyn
 
   subroutine update_history_hifrq(this,nc,nsites,sites,bc_in,dt_tstep)
@@ -4349,12 +4357,12 @@ end subroutine update_history_hifrq
          index=ih_trimming_si)
 
     call this%set_history_var(vname='FATES_AREA_PLANTS', units='m2 m-2',       &
-         long='area occupied by all plants', use_default='active',             &
+         long='area occupied by all plants per m2 land area', use_default='active', &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1, ivar=ivar,      &
          initialize=initialize_variables, index=ih_area_plant_si)
 
     call this%set_history_var(vname='FATES_AREA_TREES', units='m2 m-2',        &
-         long='area occupied by woody plants', use_default='active',           &
+         long='area occupied by woody plants per m2 land area', use_default='active', &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_area_trees_si)
@@ -4416,7 +4424,7 @@ end subroutine update_history_hifrq
 
     call this%set_history_var(vname='FATES_MEANLIQVOL_DROUGHTPHEN',            &
          units='m3 m-3',                                                       &
-         long='site-level mean liquid water volume for drought phen',          &
+         long='site-level mean liquid water volume for drought phenolgy',      &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_meanliqvol_si)
@@ -4702,7 +4710,7 @@ end subroutine update_history_hifrq
 
     call this%set_history_var(vname='FATES_FIRE_INTENSITY_BURNFRAC_AP',        &
          units='J m-1 s-1', &
-         long='product of fire intensity and burned area, resolved by patch age (so divide by FATES_BURNFRAC_AP to get burned-area-weighted-average intensity)', &
+         long='product of fire intensity and burned fraction, resolved by patch age (so divide by FATES_BURNFRAC_AP to get burned-area-weighted-average intensity)', &
          use_default='active', avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_fire_intensity_si_age)
