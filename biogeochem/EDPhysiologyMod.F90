@@ -1836,73 +1836,78 @@ contains
 
 
     do ft = 1,numpft
-       if(currentSite%use_this_pft(ft).eq.itrue)then
-          temp_cohort%canopy_trim = init_recruit_trim
-          temp_cohort%pft         = ft
-          temp_cohort%hite        = EDPftvarcon_inst%hgt_min(ft)
-          temp_cohort%coage       = 0.0_r8
-          stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(ft)
+      if(currentSite%use_this_pft(ft).eq.itrue)then
+       temp_cohort%canopy_trim = init_recruit_trim
+       temp_cohort%pft         = ft
+       temp_cohort%hite        = EDPftvarcon_inst%hgt_min(ft)
+       temp_cohort%coage       = 0.0_r8
+       stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(ft)
 
-          call h2d_allom(temp_cohort%hite,ft,temp_cohort%dbh)
+       call h2d_allom(temp_cohort%hite,ft,temp_cohort%dbh)
 
-          ! Initialize live pools
-          call bleaf(temp_cohort%dbh,ft,temp_cohort%canopy_trim,c_leaf)
-          call bfineroot(temp_cohort%dbh,ft,temp_cohort%canopy_trim,c_fnrt)
-          call bsap_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,a_sapw, c_sapw)
-          call bagw_allom(temp_cohort%dbh,ft,c_agw)
-          call bbgw_allom(temp_cohort%dbh,ft,c_bgw)
-          call bdead_allom(c_agw,c_bgw,c_sapw,ft,c_struct)
-          call bstore_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,c_store)
+       ! Initialize live pools
+       call bleaf(temp_cohort%dbh,ft,temp_cohort%canopy_trim,c_leaf)
+       call bfineroot(temp_cohort%dbh,ft,temp_cohort%canopy_trim,c_fnrt)
+       call bsap_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,a_sapw, c_sapw)
+       call bagw_allom(temp_cohort%dbh,ft,c_agw)
+       call bbgw_allom(temp_cohort%dbh,ft,c_bgw)
+       call bdead_allom(c_agw,c_bgw,c_sapw,ft,c_struct)
+       call bstore_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,c_store)
 
-          ! Default assumption is that leaves are on
-          cohortstatus = leaves_on
-          temp_cohort%leafmemory = 0.0_r8
-          temp_cohort%fnrtmemory = 0.0_r8
-          temp_cohort%sapwmemory = 0.0_r8
-          temp_cohort%structmemory = 0.0_r8
+       ! Default assumption is that leaves are on
+       cohortstatus = leaves_on
+       temp_cohort%leafmemory = 0.0_r8
+       temp_cohort%sapwmemory = 0.0_r8
+       temp_cohort%sapwmemory = 0.0_r8
+       temp_cohort%structmemory = 0.0_r8
+
+       
+       ! But if the plant is seasonally (cold) deciduous, and the site status is flagged
+       ! as "cold", then set the cohort's status to leaves_off, and remember the leaf biomass
+       if ((prt_params%season_decid(ft) == itrue) .and. &
+             (any(currentSite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold]))) then
+         temp_cohort%leafmemory = c_leaf
+         temp_cohort%fnrtmemory = c_fnrt
+         c_leaf = 0.0_r8
+         !c_fnrt = c_fnrt ! For now we do not drop fine roots, but keep memory.
 
 
-          ! But if the plant is seasonally (cold) deciduous, and the site status is flagged
-          ! as "cold", then set the cohort's status to leaves_off, and remember the leaf biomass
-          if ((prt_params%season_decid(ft) == itrue) .and. &
-               (any(currentSite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold]))) then
-             temp_cohort%leafmemory = c_leaf
-             c_leaf = 0.0_r8
 
-             ! Store fine root, as it may decay
-             temp_cohort%fnrtmemory = c_fnrt
+         ! If plant is not woody then set sapwood and structural biomass as well
+         if (prt_params%woody(ft).ne.itrue) then
+            ! MLO update: sapwmemory and structmemory used to be deficit, despite the
+            !             name.  The code has been updated elsewhere to use these
+            !             variables as memory variables.
+            temp_cohort%sapwmemory = c_sapw
+            temp_cohort%structmemory = c_struct
+            c_sapw = (1.0_r8 - stem_drop_fraction) * c_sapw 
+            c_struct = (1.0_r8 - stem_drop_fraction) * c_struct
+         endif
+         cohortstatus = leaves_off
+       endif
+       
+       ! Or.. if the plant is drought deciduous, and the site status is flagged as 
+       ! "in a drought", then likewise, set the cohort's status to leaves_off, and remember leaf
+       ! biomass
+       if ((prt_params%stress_decid(ft) == itrue) .and. &
+             (any(currentSite%dstatus(ft) == [phen_dstat_timeoff,phen_dstat_moistoff]))) then
+         temp_cohort%leafmemory = c_leaf
+         temp_cohort%fnrtmemory = c_fnrt
+         c_leaf = 0.0_r8
+         !c_fnrt = c_fnrt ! For now we do not drop fine roots, but keep memory.
 
-             ! If plant is not woody then set sapwood and structural biomass as well
-             if (prt_params%woody(ft).ne.itrue) then
-                temp_cohort%sapwmemory   = c_sapw
-                temp_cohort%structmemory = c_struct
-                c_sapw = (1.0_r8 - stem_drop_fraction) * c_sapw
-                c_struct = (1.0_r8 - stem_drop_fraction) * c_struct
-             endif
-             cohortstatus = leaves_off
-          endif
-
-          ! Or.. if the plant is drought deciduous, and the site status is flagged as
-          ! "in a drought", then likewise, set the cohort's status to leaves_off, and remember leaf
-          ! biomass
-          if ((prt_params%stress_decid(ft) == itrue) .and. &
-               (any(currentSite%dstatus(ft) == [phen_dstat_timeoff,phen_dstat_moistoff]))) then
-             temp_cohort%leafmemory = c_leaf
-             c_leaf = 0.0_r8
-
-             ! Store fine root, as it may decay
-             temp_cohort%fnrtmemory = c_fnrt
-
-             ! If plant is not woody then set sapwood and structural biomass as well
-             if(prt_params%woody(ft).ne.itrue)then
-                temp_cohort%sapwmemory = c_sapw
-                temp_cohort%structmemory = c_struct
-                c_sapw = (1.0_r8 - stem_drop_fraction) * c_sapw
-                c_struct = (1.0_r8 - stem_drop_fraction) * c_struct
-             endif
-             cohortstatus = leaves_off
-          endif
-
+         ! If plant is not woody then set sapwood and structural biomass as well
+         if(prt_params%woody(ft).ne.itrue)then
+            ! MLO update: sapwmemory and structmemory used to be deficit, despite the
+            !             name.  The code has been updated elsewhere to use these
+            !             variables as memory variables.
+            temp_cohort%sapwmemory = c_sapw
+            temp_cohort%structmemory = c_struct
+            c_sapw = (1.0_r8 - stem_drop_fraction) * c_sapw 
+            c_struct = (1.0_r8 - stem_drop_fraction) * c_struct
+         endif
+         cohortstatus = leaves_off
+       endif
 
           ! Cycle through available carbon and nutrients, find the limiting element
           ! to dictate the total number of plants that can be generated
