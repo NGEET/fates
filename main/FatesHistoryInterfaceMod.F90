@@ -2080,6 +2080,17 @@ end subroutine flush_hvars
 
       io_si  = sites(s)%h_gid
 
+      hio_m1_si_scpf(io_si, :) = 0.0_r8
+      hio_m2_si_scpf(io_si, :) = 0.0_r8
+      hio_m3_si_scpf(io_si, :) = 0.0_r8
+      !hio_m4_si_scpf(io_si, :) = 0.0_r8
+      !hio_m5_si_scpf(io_si, :) = 0.0_r8
+      !hio_m6_si_scpf(io_si, :) = 0.0_r8
+      hio_m7_si_scpf(io_si, :) = 0.0_r8
+      hio_m8_si_scpf(io_si, :) = 0.0_r8
+      hio_m9_si_scpf(io_si, :) = 0.0_r8
+      hio_m10_si_scpf(io_si, :) = 0.0_r8
+
       ! Total carbon model error [kgC/day -> kgC/s]
       hio_cbal_err_fates_si(io_si) = &
          sites(s)%mass_balance(element_pos(carbon12_element))%err_fates / sec_per_day
