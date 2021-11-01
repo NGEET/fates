@@ -1626,6 +1626,7 @@ contains
        cohortstatus = leaves_on
        temp_cohort%leafmemory = 0.0_r8
        temp_cohort%sapwmemory = 0.0_r8
+       temp_cohort%sapwmemory = 0.0_r8
        temp_cohort%structmemory = 0.0_r8
 
        
@@ -1634,12 +1635,19 @@ contains
        if ((prt_params%season_decid(ft) == itrue) .and. &
              (any(currentSite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold]))) then
          temp_cohort%leafmemory = c_leaf
+         temp_cohort%fnrtmemory = c_fnrt
          c_leaf = 0.0_r8
+         !c_fnrt = c_fnrt ! For now we do not drop fine roots, but keep memory.
+
+
 
          ! If plant is not woody then set sapwood and structural biomass as well
          if (prt_params%woody(ft).ne.itrue) then
-            temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
-            temp_cohort%structmemory = c_struct * stem_drop_fraction
+            ! MLO update: sapwmemory and structmemory used to be deficit, despite the
+            !             name.  The code has been updated elsewhere to use these
+            !             variables as memory variables.
+            temp_cohort%sapwmemory = c_sapw
+            temp_cohort%structmemory = c_struct
             c_sapw = (1.0_r8 - stem_drop_fraction) * c_sapw 
             c_struct = (1.0_r8 - stem_drop_fraction) * c_struct
          endif
@@ -1652,12 +1660,17 @@ contains
        if ((prt_params%stress_decid(ft) == itrue) .and. &
              (any(currentSite%dstatus(ft) == [phen_dstat_timeoff,phen_dstat_moistoff]))) then
          temp_cohort%leafmemory = c_leaf
+         temp_cohort%fnrtmemory = c_fnrt
          c_leaf = 0.0_r8
+         !c_fnrt = c_fnrt ! For now we do not drop fine roots, but keep memory.
 
          ! If plant is not woody then set sapwood and structural biomass as well
          if(prt_params%woody(ft).ne.itrue)then
-            temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
-            temp_cohort%structmemory = c_struct * stem_drop_fraction
+            ! MLO update: sapwmemory and structmemory used to be deficit, despite the
+            !             name.  The code has been updated elsewhere to use these
+            !             variables as memory variables.
+            temp_cohort%sapwmemory = c_sapw
+            temp_cohort%structmemory = c_struct
             c_sapw = (1.0_r8 - stem_drop_fraction) * c_sapw 
             c_struct = (1.0_r8 - stem_drop_fraction) * c_struct
          endif
