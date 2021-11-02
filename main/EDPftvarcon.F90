@@ -46,9 +46,7 @@ module EDPftvarcon
      real(r8), allocatable :: hgt_min(:)             ! sapling height m
      real(r8), allocatable :: dleaf(:)               ! leaf characteristic dimension length (m)
      real(r8), allocatable :: z0mr(:)                ! ratio of roughness length of vegetation to height (-)
-     real(r8), allocatable :: displar(:)             ! ratio of displacement height to canopy top height (-)
-     real(r8), allocatable :: crown(:)               ! fraction of the height of the plant
-                                                     ! that is occupied by crown. For fire model.
+     real(r8), allocatable :: displar(:)             ! ratio of displacement height to canopy top height
      real(r8), allocatable :: bark_scaler(:)         ! scaler from dbh to bark thickness. For fire model.
      real(r8), allocatable :: crown_kill(:)          ! scaler on fire death. For fire model.
      real(r8), allocatable :: initd(:)               ! initial seedling density
@@ -328,10 +326,6 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_recruit_hgt_min'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_fire_crown_depth_frac'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -668,10 +662,6 @@ contains
     name = 'fates_recruit_hgt_min'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%hgt_min)
-
-    name = 'fates_fire_crown_depth_frac'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%crown)
 
     name = 'fates_fire_bark_scaler'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1394,7 +1384,6 @@ contains
         write(fates_log(),fmt0) 'dleaf = ',EDPftvarcon_inst%dleaf
         write(fates_log(),fmt0) 'z0mr = ',EDPftvarcon_inst%z0mr
         write(fates_log(),fmt0) 'displar = ',EDPftvarcon_inst%displar
-        write(fates_log(),fmt0) 'crown = ',EDPftvarcon_inst%crown
         write(fates_log(),fmt0) 'bark_scaler = ',EDPftvarcon_inst%bark_scaler
         write(fates_log(),fmt0) 'crown_kill = ',EDPftvarcon_inst%crown_kill
         write(fates_log(),fmt0) 'initd = ',EDPftvarcon_inst%initd
@@ -1749,21 +1738,23 @@ contains
 
         end if
 
-        ! check that the host-fates PFT map adds to one along HLM dimension so that all the HLM area
-        ! goes to a FATES PFT.  Each FATES PFT can get < or > 1 of an HLM PFT.
-        do hlm_pft = 1,size( EDPftvarcon_inst%hlm_pft_map,2)
-          sumarea = sum(EDPftvarcon_inst%hlm_pft_map(1:npft,hlm_pft))
-          if(abs(sumarea-1.0_r8).gt.nearzero)then
-            write(fates_log(),*) 'The distribution of this host land model PFT :',hlm_pft
-            write(fates_log(),*) 'into FATES PFTs, does not add up to 1.0.'
-            write(fates_log(),*) 'Error is:',sumarea-1.0_r8
-            write(fates_log(),*) 'and the hlm_pft_map is:', EDPftvarcon_inst%hlm_pft_map(1:npft,hlm_pft)
-            write(fates_log(),*) 'Aborting'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-           end if
-         end do !hlm_pft
-       end do !ipft
-
+        if( hlm_use_fixed_biogeog .eq. itrue ) then
+           ! check that the host-fates PFT map adds to one along HLM dimension so that all the HLM area
+           ! goes to a FATES PFT.  Each FATES PFT can get < or > 1 of an HLM PFT.
+           do hlm_pft = 1,size( EDPftvarcon_inst%hlm_pft_map,2)
+              sumarea = sum(EDPftvarcon_inst%hlm_pft_map(1:npft,hlm_pft))
+              if(abs(sumarea-1.0_r8).gt.nearzero)then
+                 write(fates_log(),*) 'The distribution of this host land model PFT :',hlm_pft
+                 write(fates_log(),*) 'into FATES PFTs, does not add up to 1.0.'
+                 write(fates_log(),*) 'Error is:',sumarea-1.0_r8
+                 write(fates_log(),*) 'and the hlm_pft_map is:', EDPftvarcon_inst%hlm_pft_map(1:npft,hlm_pft)
+                 write(fates_log(),*) 'Aborting'
+                 call endrun(msg=errMsg(sourcefile, __LINE__))
+              end if
+           end do !hlm_pft
+        end if
+        
+     end do !ipft
 
 !!    ! Checks for HYDRO
 !!    if( hlm_use_planthydro == itrue ) then

@@ -46,8 +46,8 @@ module FatesHistoryInterfaceMod
   use FatesInterfaceTypesMod        , only : bc_in_type
   use FatesInterfaceTypesMod        , only : hlm_model_day
   use FatesInterfaceTypesMod        , only : nlevcoage
-
-  ! FIXME(bja, 2016-10) need to remove CLM dependancy 
+  use FatesAllometryMod             , only : CrownDepth
+  
   use EDPftvarcon              , only : EDPftvarcon_inst
   use PRTParametersMod         , only : prt_params
   
@@ -1775,6 +1775,7 @@ end subroutine flush_hvars
     real(r8) :: struct_m_net_alloc
     real(r8) :: repro_m_net_alloc
     real(r8) :: area_frac
+    real(r8) :: crown_depth
 
     type(ed_patch_type),pointer  :: cpatch
     type(ed_cohort_type),pointer :: ccohort
@@ -2219,8 +2220,9 @@ end subroutine flush_hvars
                     + ccohort%c_area * AREA_INV
 
                ! calculate leaf height distribution, assuming leaf area is evenly distributed thru crown depth
+               call CrownDepth(ccohort%hite,ft,crown_depth)
                height_bin_max = get_height_index(ccohort%hite)
-               height_bin_min = get_height_index(ccohort%hite * (1._r8 - EDPftvarcon_inst%crown(ft)))
+               height_bin_min = get_height_index(ccohort%hite - crown_depth)
                do i_heightbin = height_bin_min, height_bin_max
                   binbottom = ED_val_history_height_bin_edges(i_heightbin)
                   if (i_heightbin .eq. nlevheight) then
@@ -2230,8 +2232,8 @@ end subroutine flush_hvars
                   endif
                   ! what fraction of a cohort's crown is in this height bin?
                   frac_canopy_in_bin = (min(bintop,ccohort%hite) - &
-                       max(binbottom,ccohort%hite * (1._r8 - EDPftvarcon_inst%crown(ft)))) / &
-                       (ccohort%hite * EDPftvarcon_inst%crown(ft))
+                       max(binbottom,ccohort%hite-crown_depth)) / &
+                       (crown_depth)
                   !
                   hio_leaf_height_dist_si_height(io_si,i_heightbin) = &
                        hio_leaf_height_dist_si_height(io_si,i_heightbin) + &
@@ -3377,12 +3379,6 @@ end subroutine flush_hvars
 
          end do
 
-         ! and reset the disturbance-related field buffers
-
-         do el = 1, num_elements
-             call sites(s)%flux_diags(el)%ZeroFluxDiags()
-         end do
-
       enddo ! site loop
       
     end associate
@@ -3682,8 +3678,8 @@ end subroutine flush_hvars
 
             ! summarize radiation profiles through the canopy
             do ipft=1,numpft
-               do ican=1,nclmax         !  cpatch%ncl_p  ?
-                  do ileaf=1,nlevleaf   !  cpatch%ncan(ican,ipft) ?
+               do ican=1,cpatch%ncl_p
+                  do ileaf=1,cpatch%ncan(ican,ipft)
                      ! calculate where we are on multiplexed dimensions
                      cnlfpft_indx = ileaf + (ican-1) * nlevleaf + (ipft-1) * nlevleaf * nclmax 
                      cnlf_indx = ileaf + (ican-1) * nlevleaf
@@ -3756,11 +3752,12 @@ end subroutine flush_hvars
                        cpatch%fabi_sha_z(ican,ipft,1) * cpatch%area * AREA_INV
                   !
                end do
-           end do
+            end do
 
             ! PFT-mean radiation profiles
-            do ican=1,nclmax
-               do ileaf=1,nlevleaf
+            do ican = 1, cpatch%ncl_p
+               do ileaf = 1, maxval(cpatch%nrad(ican,:))
+                  
                   ! calculate where we are on multiplexed dimensions
                   cnlf_indx = ileaf + (ican-1) * nlevleaf
                   !
