@@ -1349,7 +1349,7 @@ function LeafHumidityStomaResis(leaf_psi, veg_tempk, ceair, can_press, veg_esat,
                          ! for inner leaf humidity, 0 means total dehydroted
                          ! leaf, 1 means total saturated leaf
   
-  ! Note: to disable this control, set k_lwp to zero, LWP_star will be 1, see code (line 1308) below 
+  ! Note: to disable this control, set k_lwp to zero, LWP_star will be 1
   k_lwp = EDPftvarcon_inst%hydr_k_lwp(ft)
   if (leaf_psi<0._r8) then
      lwp_star = exp(k_lwp*leaf_psi*molar_mass_water/(rgas_J_K_mol *veg_tempk))
@@ -1358,7 +1358,7 @@ function LeafHumidityStomaResis(leaf_psi, veg_tempk, ceair, can_press, veg_esat,
   end if
 
   ! compute specific humidity from vapor pressure
-  ! q = 0.622*e/(can_press - 0.378*e) 
+  ! q = molar_mass_ratio_vapdry*e/(can_press - (1-molar_mass_ratio_vapdry)*e) 
   ! source https://cran.r-project.org/web/packages/humidity/vignettes/humidity-measures.html
   ! now adjust inner leaf humidity by LWP_star
 
@@ -1372,7 +1372,7 @@ function LeafHumidityStomaResis(leaf_psi, veg_tempk, ceair, can_press, veg_esat,
 
      ! if inner leaf vapor pressure is less then or equal to that at leaf surface
      ! then set stomata resistance to be very large to stop the transpiration or back flow of vapor
-     rstoma_out = rsmax0*100._r8
+     rstoma_out = rsmax0
      
   else
 
