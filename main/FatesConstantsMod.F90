@@ -183,6 +183,9 @@ module FatesConstantsMod
   ! universal gas constant [J/K/kmol]
   real(fates_r8), parameter, public :: rgas_J_K_kmol          = 8314.4598_fates_r8
 
+  ! universal gas constant [J/k/mol]
+  real(fates_r8), parameter, public :: rgas_J_K_mol           = 8.3144598_fates_r8
+
   ! freezing point of water at 1 atm (K)
   real(fates_r8), parameter, public :: t_water_freeze_k_1atm   = 273.15_fates_r8     
 
@@ -192,6 +195,12 @@ module FatesConstantsMod
   ! Density of fresh liquid water (kg/m3)
   real(fates_r8), parameter, public :: dens_fresh_liquid_water = 1.0E3_fates_r8
 
+  ! Molar mass of water (g/mol)
+  real(fates_r8), parameter, public :: molar_mass_water = 18.0_fates_r8
+
+  ! Approximate molar mass of water vapor to dry air (-)
+  real(fates_r8), parameter, public :: molar_mass_ratio_vapdry= 0.622_fates_r8
+  
   ! Gravity constant on earth [m/s]
   real(fates_r8), parameter, public :: grav_earth = 9.8_fates_r8
 
