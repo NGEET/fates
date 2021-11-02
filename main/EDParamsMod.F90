@@ -93,8 +93,6 @@ module EDParamsMod
    ! 1  = Christofferson et al. 2016 (TFS),   2 = Van Genuchten 1980
    integer, protected,allocatable,public :: hydr_htftype_node(:) 
    
-   character(len=param_string_length),parameter,public :: ED_name_vai_top_bin_width = "fates_vai_top_bin_width"
-   character(len=param_string_length),parameter,public :: ED_name_vai_width_increase_factor = "fates_vai_width_increase_factor"
    character(len=param_string_length),parameter,public :: ED_name_photo_temp_acclim_timescale = "fates_photo_temp_acclim_timescale"
    character(len=param_string_length),parameter,public :: name_photo_tempsens_model = "fates_photo_tempsens_model"
    character(len=param_string_length),parameter,public :: name_maintresp_model = "fates_maintresp_model"
@@ -289,12 +287,6 @@ contains
        
     call FatesParamsInit()
 
-    call fates_params%RegisterParameter(name=ED_name_vai_top_bin_width, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=ED_name_vai_width_increase_factor, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-    
     call fates_params%RegisterParameter(name=ED_name_photo_temp_acclim_timescale, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
@@ -475,12 +467,6 @@ contains
     real(r8) :: tmpreal ! local real variable for changing type on read
     real(r8), allocatable :: hydr_htftype_real(:)
     
-    call fates_params%RetreiveParameter(name=ED_name_vai_top_bin_width, &
-         data=vai_top_bin_width)
-
-    call fates_params%RetreiveParameter(name=ED_name_vai_width_increase_factor, &
-         data=vai_width_increase_factor)
-
     call fates_params%RetreiveParameter(name=ED_name_photo_temp_acclim_timescale, &
          data=photo_temp_acclim_timescale)
 
