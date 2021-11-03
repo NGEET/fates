@@ -1132,8 +1132,6 @@ contains
         ! -------------------------------------------------------------------
         select case (hlm_parteh_mode)
         case (prt_csimpler_allom_hyp,prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp)
-        if ((hlm_parteh_mode .eq. ) .or. &
-             (hlm_parteh_mode .eq. ) ) then
 
            do i = 1,norgans
               io = prt_params%organ_id(i)
