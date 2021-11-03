@@ -612,7 +612,7 @@ contains
                       fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_elements)
 
                       select case(hlm_parteh_mode)
-                      case (prt_carbon_allom_hyp)
+                      case (prt_csimpler_allom_hyp,prt_carbon_allom_hyp)
 
                          live_stem_n = prt_params%allom_agb_frac(currentCohort%pft) * &
                               sapw_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ))
