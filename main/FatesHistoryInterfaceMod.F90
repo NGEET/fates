@@ -68,6 +68,7 @@ module FatesHistoryInterfaceMod
   use PRTGenericMod            , only : all_carbon_elements
   use PRTGenericMod            , only : carbon12_element
   use PRTGenericMod            , only : nitrogen_element, phosphorus_element
+  use PRTGenericMod            , only : prt_csimpler_allom_hyp
   use PRTGenericMod            , only : prt_carbon_allom_hyp
 
   implicit none

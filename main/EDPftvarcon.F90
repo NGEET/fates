@@ -17,7 +17,9 @@ module EDPftvarcon
   use FatesLitterMod, only : ilabile,icellulose,ilignin
   use PRTGenericMod,  only : leaf_organ, fnrt_organ, store_organ
   use PRTGenericMod,  only : sapw_organ, struct_organ, repro_organ
-  use PRTGenericMod,  only : prt_cnp_flex_allom_hyp,prt_carbon_allom_hyp
+  use PRTGenericMod,  only : prt_csimpler_allom_hyp
+  use PRTGenericMod,  only : prt_carbon_allom_hyp
+  use PRTGenericMod,  only : prt_cnp_flex_allom_hyp
   use FatesInterfaceTypesMod, only : hlm_nitrogen_spec, hlm_phosphorus_spec
   use FatesInterfaceTypesMod, only : hlm_parteh_mode
   use FatesInterfaceTypesMod, only : hlm_nu_com
@@ -1501,8 +1503,9 @@ contains
      if(.not.is_master) return
 
 
-     if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-        
+     select case (hlm_parteh_mode)
+     case (prt_cnp_flex_allom_hyp)
+
         ! Check to see if either RD/ECA/MIC is turned on
         
         if (.not.( (trim(hlm_nu_com).eq.'RD') .or. (trim(hlm_nu_com).eq.'ECA'))) then
@@ -1537,14 +1540,19 @@ contains
            end if
         end if
         
-     elseif (hlm_parteh_mode .ne. prt_carbon_allom_hyp) then
-        
+     case (prt_carbon_allom_hyp,prt_carbon_allom_hyp)
+        ! No additional checks needed for now.
+        continue
+
+     case default
+
         write(fates_log(),*) 'FATES Plant Allocation and Reactive Transport has'
-        write(fates_log(),*) 'only 2 modules supported, allometric carbon and CNP.'
-        write(fates_log(),*) 'fates_parteh_mode must be set to 1 or 2 in the namelist'
+        write(fates_log(),*) 'only 3 modules supported, simpler allometric carbon,'
+        write(fates_log(),*) 'default allometric carbon, and CNP.'
+        write(fates_log(),*) 'fates_parteh_mode must be set to 0, 1 or 2 in the namelist'
         write(fates_log(),*) 'Aborting'
         call endrun(msg=errMsg(sourcefile, __LINE__))
-     end if
+     end select
 
      ! If any PFTs are specified as either prescribed N or P uptake
      ! then they all must be !

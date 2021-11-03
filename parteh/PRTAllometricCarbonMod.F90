@@ -117,16 +117,24 @@ module PRTAllometricCarbonMod
   ! -------------------------------------------------------------------------------------
 
 
-  type, public, extends(prt_vartypes) :: callom_prt_vartypes
+   type, public, extends(prt_vartypes) :: callom_prt_vartypes
 
-   contains
+      contains
 
-     procedure :: DailyPRT     => DailyPRTAllometricCarbon
-     ! procedure :: DailyPRT     => DailyPRTAllometricCarbonSimpler
-     procedure :: FastPRT      => FastPRTAllometricCarbon
+      procedure :: DailyPRT     => DailyPRTAllometricCarbon
+      procedure :: FastPRT      => FastPRTAllometricCarbon
 
    end type callom_prt_vartypes
-   
+
+   type, public, extends(prt_vartypes) :: csimpler_allom_prt_vartypes
+
+      contains
+
+      procedure :: DailyPRT     => DailyPRTAllometricCarbonSimpler
+      procedure :: FastPRT      => FastPRTAllometricCarbonSimpler
+
+   end type csimpler_allom_prt_vartypes
+
    ! ------------------------------------------------------------------------------------
    !
    ! This next class is an extention of the base instance that maps state variables
@@ -926,7 +934,7 @@ contains
 
 
     ! The class is the only argument
-    class(callom_prt_vartypes)   :: this          ! this class
+    class(csimpler_allom_prt_vartypes)   :: this          ! this class
 
     ! -----------------------------------------------------------------------------------
     ! These are local copies of the in/out boundary condition structure
@@ -1672,6 +1680,21 @@ contains
       return
    end subroutine FastPRTAllometricCarbon
 
+
+   ! =====================================================================================
+
+   subroutine FastPRTAllometricCarbonSimpler(this)
+      
+      implicit none
+      class(csimpler_allom_prt_vartypes) :: this     ! this class
+      
+      ! This routine does nothing, because in the carbon only allometric RT model
+      ! we currently don't have any fast-timestep processes
+      ! Think of this as a stub.
+
+
+      return
+   end subroutine FastPRTAllometricCarbonSimpler
 
 end module PRTAllometricCarbonMod
   
