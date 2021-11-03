@@ -1136,12 +1136,9 @@ contains
     p_stf  = max(state_p(store_id)%ptr/target_p,0._r8)
     
     if( c_gain <= calloc_abs_error  .or. &
-        net_n_gain < 0._r8 .or. &
-        net_p_gain < 0._r8 .or. &
         leaf_status.eq.leaves_off .or. &
-        n_stf < min_stf_growth .or. &
-        p_stf < min_stf_growth &
-        ) then
+        (n_stf < min_stf_growth .and. net_n_gain < 0._r8) .or. &
+        (p_stf < min_stf_growth .and. net_p_gain < 0._r8) ) then
        return
     end if
     
