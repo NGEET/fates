@@ -61,6 +61,7 @@ module EDInitMod
   use FatesAllometryMod         , only : bstore_allom
   use PRTGenericMod             , only : StorageNutrientTarget
   use FatesInterfaceTypesMod,      only : hlm_parteh_mode
+  use PRTGenericMod,          only : prt_csimpler_allom_hyp
   use PRTGenericMod,          only : prt_carbon_allom_hyp
   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
   use PRTGenericMod,          only : prt_vartypes
@@ -889,7 +890,7 @@ contains
                 end select
 
                 select case(hlm_parteh_mode)
-                case (prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp )
+                case (prt_csimpler_allom_hyp,prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp )
 
                    ! Put all of the leaf mass into the first bin
                    call SetState(prt_obj,leaf_organ, element_id,m_leaf,1)

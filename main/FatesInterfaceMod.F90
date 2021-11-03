@@ -55,6 +55,7 @@ module FatesInterfaceMod
    use PRTGenericMod             , only : element_list
    use PRTGenericMod             , only : element_pos
    use EDParamsMod               , only : eca_plant_escalar
+   use PRTGenericMod             , only : prt_csimpler_allom_hyp
    use PRTGenericMod             , only : prt_carbon_allom_hyp
    use PRTGenericMod             , only : prt_cnp_flex_allom_hyp
    use PRTGenericMod             , only : carbon12_element
@@ -288,7 +289,7 @@ contains
 
     ! Fates -> BGC fragmentation mass fluxes
     select case(hlm_parteh_mode) 
-    case(prt_carbon_allom_hyp)
+    case(prt_csimpler_allom_hyp,prt_carbon_allom_hyp)
        fates%bc_out(s)%litt_flux_cel_c_si(:) = 0._r8
        fates%bc_out(s)%litt_flux_lig_c_si(:) = 0._r8
        fates%bc_out(s)%litt_flux_lab_c_si(:) = 0._r8
@@ -609,7 +610,7 @@ contains
       
       ! Fates -> BGC fragmentation mass fluxes
       select case(hlm_parteh_mode) 
-      case(prt_carbon_allom_hyp)
+      case(prt_csimpler_allom_hyp,prt_carbon_allom_hyp)
          allocate(bc_out%litt_flux_cel_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lig_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lab_c_si(nlevdecomp_in))
@@ -890,7 +891,7 @@ contains
      ! automatically.
      
      select case(hlm_parteh_mode)
-     case(prt_carbon_allom_hyp)
+     case(prt_csimpler_allom_hyp,prt_carbon_allom_hyp)
 
         num_elements = 1
         allocate(element_list(num_elements))
