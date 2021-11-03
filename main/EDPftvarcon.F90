@@ -1536,7 +1536,7 @@ contains
            end if
         end if
 
-     case (prt_carbon_allom_hyp,prt_carbon_allom_hyp)
+     case (prt_csimpler_allom_hyp,prt_carbon_allom_hyp)
         ! No additional checks needed for now.
         continue
 
