@@ -1166,10 +1166,11 @@ contains
               end if
 
            end do
-        end if
-        
-        if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-           
+        end select
+
+        select case (hlm_parteh_mode)
+        case (prt_cnp_flex_allom_hyp)
+
            ! Make sure nutrient storage fractions are positive
            if( prt_params%nitr_store_ratio(ipft) < 0._r8  ) then
               write(fates_log(),*) 'With parteh allometric CNP hypothesis'
@@ -1236,9 +1237,8 @@ contains
               end if
 
            end do
-           
-        end if
-        
+
+        end select
 
         ! Growth respiration
         !        if (parteh_mode .eq. prt_carbon_allom_hyp) then
@@ -1272,7 +1272,8 @@ contains
            end if
         end select
 
-        if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
+        select case (hlm_parteh_mode)
+        case (prt_cnp_flex_allom_hyp)
 
            do i = 1,norgans
               if ( (prt_params%nitr_stoich_p1(ipft,i) < 0._r8) .or. &
@@ -1310,7 +1311,7 @@ contains
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
 
-        end if
+        end select
 
 
         ! Check turnover time-scales
