@@ -856,7 +856,7 @@ contains
                 end select
 
                 select case(hlm_parteh_mode)
-                case (prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp )
+                case (prt_csimpler_allom_hyp,prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp )
 
                    ! Put all of the leaf mass into the first bin
                    call SetState(prt_obj,leaf_organ, element_id,m_leaf,1)
@@ -875,64 +875,6 @@ contains
                    call endrun(msg=errMsg(sourcefile, __LINE__))
                 end select
 
-<<<<<<< HEAD
-       if ( debug ) write(fates_log(),*) 'EDInitMod.F90 call create_cohort '
-
-       temp_cohort%coage = 0.0_r8
-       
-       
-       ! --------------------------------------------------------------------------------
-       ! Initialize the mass of every element in every organ of the organ
-       ! --------------------------------------------------------------------------------
-
-       prt_obj => null()
-       call InitPRTObject(prt_obj)
-
-       do el = 1,num_elements
-
-          element_id = element_list(el)
-          
-          ! If this is carbon12, then the initialization is straight forward
-          ! otherwise, we use stoichiometric ratios
-          select case(element_id)
-          case(carbon12_element)
-             
-             m_struct = c_struct
-             m_leaf   = c_leaf
-             m_fnrt   = c_fnrt
-             m_sapw   = c_sapw
-             m_store  = c_store
-             m_repro  = 0._r8
-             
-          case(nitrogen_element)
-             
-             m_struct = c_struct*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(struct_organ))
-             m_leaf   = c_leaf*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(leaf_organ))
-             m_fnrt   = c_fnrt*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(fnrt_organ))
-             m_sapw   = c_sapw*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(sapw_organ))
-             m_repro  = 0._r8
-             m_store = StorageNutrientTarget(pft,element_id,m_leaf,m_fnrt,m_sapw,m_struct)
-             
-          case(phosphorus_element)
-
-             m_struct = c_struct*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(struct_organ))
-             m_leaf   = c_leaf*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(leaf_organ))
-             m_fnrt   = c_fnrt*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(fnrt_organ))
-             m_sapw   = c_sapw*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(sapw_organ))
-             m_repro  = 0._r8
-             m_store = StorageNutrientTarget(pft,element_id,m_leaf,m_fnrt,m_sapw,m_struct)
-             
-          end select
-
-          select case(hlm_parteh_mode)
-          case (prt_csimpler_allom_hyp,prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp )
-
-             ! Put all of the leaf mass into the first bin
-             call SetState(prt_obj,leaf_organ, element_id,m_leaf,1)
-             do iage = 2,nleafage
-                call SetState(prt_obj,leaf_organ, element_id,0._r8,iage)
-=======
->>>>>>> 3ebf2b925bd652d9ff8a18781693b5aed1e61154
              end do
 
              call prt_obj%CheckInitialConditions()
