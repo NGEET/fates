@@ -999,11 +999,13 @@ contains
           if (radtype == idirect)then
              error = (forc_dir(radtype) + forc_dif(radtype)) - &
                   (fabd_parb_out(ib)  + albd_parb_out(ib) + currentPatch%sabs_dir(ib))
-             currentPatch%radiation_error = currentPatch%radiation_error + error
+             currentPatch%radiation_error = currentPatch%radiation_error + error &
+                  * currentPatch%total_canopy_area / currentPatch%area
           else
              error = (forc_dir(radtype) + forc_dif(radtype)) - &
                   (fabi_parb_out(ib)  + albi_parb_out(ib) + currentPatch%sabs_dif(ib))
-             currentPatch%radiation_error = currentPatch%radiation_error + error
+             currentPatch%radiation_error = currentPatch%radiation_error + error &
+                  * currentPatch%total_canopy_area / currentPatch%area
           endif
           lai_reduction(:) = 0.0_r8
           do L = 1, currentPatch%NCL_p
