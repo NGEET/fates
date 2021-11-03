@@ -61,6 +61,7 @@ module EDInitMod
   use FatesAllometryMod         , only : bstore_allom
   use PRTGenericMod             , only : StorageNutrientTarget
   use FatesInterfaceTypesMod,      only : hlm_parteh_mode
+  use PRTGenericMod,          only : prt_csimpler_allom_hyp
   use PRTGenericMod,          only : prt_carbon_allom_hyp
   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
   use PRTGenericMod,          only : prt_vartypes
@@ -809,13 +810,13 @@ contains
                    ! MLO update: sapwmemory and structmemory used to be deficit, despite the
                    !             name.  The code has been updated elsewhere to use these
                    !             variables as memory variables.
-                   temp_cohort%leafmemory = c_leaf  ! Leaf biomass memory
-                   temp_cohort%fnrtmemory = c_fnrt ! Fine root memory
-                   temp_cohort%sapwmemory = c_sapw  ! Sapwood memory
+                   temp_cohort%leafmemory   = c_leaf   ! Leaf biomass memory
+                   temp_cohort%fnrtmemory   = c_fnrt   ! Fine root memory
+                   temp_cohort%sapwmemory   = c_sapw   ! Sapwood memory
                    temp_cohort%structmemory = c_struct ! Heartwood memory
                    c_leaf = 0._r8
                    !c_fnrt = c_fnrt... Do not change fine root, if leaves are off
-                                       ! it may steadily decline.
+                                     ! it may steadily decline.
                    c_sapw = (1.0_r8-stem_drop_fraction) * c_sapw
                    c_struct  = (1.0_r8-stem_drop_fraction) * c_struct
                    cstatus = leaves_off
@@ -823,13 +824,16 @@ contains
 
                 if ( prt_params%stress_decid(pft) == itrue .and. &
                      any(site_in%dstatus(pft) == [phen_dstat_timeoff,phen_dstat_moistoff])) then
-                   temp_cohort%leafmemory   = c_leaf  ! Leaf biomass memory
-                   temp_cohort%fnrtmemory   = c_fnrt ! Fine root memory
-                   temp_cohort%sapwmemory   = c_sapw  ! Sapwood memory
+                   ! MLO update: sapwmemory and structmemory used to be deficit, despite the
+                   !             name.  The code has been updated elsewhere to use these
+                   !             variables as memory variables.
+                   temp_cohort%leafmemory   = c_leaf   ! Leaf biomass memory
+                   temp_cohort%fnrtmemory   = c_fnrt   ! Fine root memory
+                   temp_cohort%sapwmemory   = c_sapw   ! Sapwood memory
                    temp_cohort%structmemory = c_struct ! Heartwood memory
                    c_leaf = 0._r8
                    !c_fnrt = c_fnrt... Do not change fine root, if leaves are off
-                                      ! it may steadily decline.
+                                     ! it may steadily decline.
                    c_sapw = (1.0_r8-stem_drop_fraction) * c_sapw
                    c_struct = (1.0_r8-stem_drop_fraction) * c_struct
                    cstatus = leaves_off
@@ -886,7 +890,7 @@ contains
                 end select
 
                 select case(hlm_parteh_mode)
-                case (prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp )
+                case (prt_csimpler_allom_hyp,prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp )
 
                    ! Put all of the leaf mass into the first bin
                    call SetState(prt_obj,leaf_organ, element_id,m_leaf,1)
@@ -911,7 +915,7 @@ contains
 
              call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, &
                   temp_cohort%coage, temp_cohort%dbh, prt_obj, temp_cohort%leafmemory, &
-                  temp_cohort%fnrtmemory, temp_cohort%sapwmemory, temp_cohort%structmemory, &
+                  temp_cohort%fnrtmemory,  temp_cohort%sapwmemory, temp_cohort%structmemory, &
                   cstatus, rstatus, temp_cohort%canopy_trim, temp_cohort%c_area,1, &
                   site_in%spread, bc_in)
 

@@ -17,7 +17,9 @@ module PRTInitParamsFatesMod
   use FatesGlobals,      only : fates_log 
   use shr_log_mod,       only : errMsg => shr_log_errMsg
   use EDPftvarcon,       only : EDPftvarcon_inst
-  use PRTGenericMod,     only : prt_cnp_flex_allom_hyp,prt_carbon_allom_hyp
+  use PRTGenericMod,     only : prt_cnp_flex_allom_hyp
+  use PRTGenericMod,     only : prt_carbon_allom_hyp
+  use PRTGenericMod,     only : prt_csimpler_allom_hyp
   use FatesAllometryMod  , only : h_allom
   use FatesAllometryMod  , only : h2d_allom
   use FatesAllometryMod  , only : bagw_allom
@@ -1014,12 +1016,12 @@ contains
 
      ! Check to make sure the organ ids are valid if this is the
      ! cnp_flex_allom_hypothesis
-     if ((hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) .or. &
-         (hlm_parteh_mode .eq. prt_carbon_allom_hyp) ) then
+     select case (hlm_parteh_mode)
+     case (prt_csimpler_allom_hyp,prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp)
 
          do io = 1,norgans
            if(prt_params%organ_id(io) == repro_organ) then
-              write(fates_log(),*) 'with flexible cnp or c-only alloc hypothesese'
+              write(fates_log(),*) 'with flexible cnp or c-only alloc hypotheses'
               write(fates_log(),*) 'reproductive tissues are a special case'
               write(fates_log(),*) 'and therefore should not be included in'
               write(fates_log(),*) 'the parameter file organ list'
@@ -1036,7 +1038,7 @@ contains
            end if
            
         end do
-     end if
+     end select
      
      pftloop: do ipft = 1,npft
 
@@ -1128,9 +1130,10 @@ contains
         ! should not be re-translocating mass upon turnover.
         ! Note to advanced users. Feel free to remove these checks...
         ! -------------------------------------------------------------------
-
-        if ((hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) .or. &
-             (hlm_parteh_mode .eq. prt_carbon_allom_hyp) ) then
+        select case (hlm_parteh_mode)
+        case (prt_csimpler_allom_hyp,prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp)
+        if ((hlm_parteh_mode .eq. ) .or. &
+             (hlm_parteh_mode .eq. ) ) then
 
            do i = 1,norgans
               io = prt_params%organ_id(i)
@@ -1258,8 +1261,8 @@ contains
 !           end if
 !        end if
 
-        if ((hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) .or. &
-             (hlm_parteh_mode .eq. prt_carbon_allom_hyp) ) then
+        select case (hlm_parteh_mode)
+        case (prt_csimpler_allom_hyp,prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp)
            ! The first nitrogen stoichiometry is used in all cases
            if ( (any(prt_params%nitr_stoich_p1(ipft,:) < 0.0_r8)) .or. &
                 (any(prt_params%nitr_stoich_p1(ipft,:) >= 1.0_r8))) then
@@ -1269,7 +1272,7 @@ contains
               write(fates_log(),*) ' Aborting'
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
-        end if
+        end select
 
         if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
 

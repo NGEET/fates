@@ -88,6 +88,7 @@ module EDPhysiologyMod
   use FatesAllometryMod  , only : carea_allom
   use FatesAllometryMod  , only : CheckIntegratedAllometries
   use FatesAllometryMod, only : set_root_fraction
+  use PRTGenericMod, only : prt_csimpler_allom_hyp
   use PRTGenericMod, only : prt_carbon_allom_hyp
   use PRTGenericMod, only : prt_cnp_flex_allom_hyp
   use PRTGenericMod, only : prt_vartypes
@@ -447,15 +448,15 @@ contains
        currentCohort => currentPatch%tallest
        do while (associated(currentCohort))
 
-         ! Save off the incoming trim and leafmemory
-         initial_trim = currentCohort%canopy_trim
-         initial_leafmem = currentCohort%leafmemory
+          ! Save off the incoming trim and leafmemory
+          initial_trim = currentCohort%canopy_trim
+          initial_leafmem = currentCohort%leafmemory
 
           ! Add debug diagnstic output to determine which cohort
           if (debug) then
-            write(fates_log(),*) 'Current cohort:', icohort
-            write(fates_log(),*) 'Starting canopy trim:', initial_trim
-            write(fates_log(),*) 'Starting leafmemory:', currentCohort%leafmemory
+             write(fates_log(),*) 'Current cohort:', icohort
+             write(fates_log(),*) 'Starting canopy trim:', initial_trim
+             write(fates_log(),*) 'Starting leafmemory:', currentCohort%leafmemory
           endif
 
           trimmed = .false.
@@ -603,7 +604,7 @@ contains
                               EDPftvarcon_inst%trim_inc(ipft)
                          if (prt_params%evergreen(ipft) /= 1)then
                             currentCohort%leafmemory = currentCohort%leafmemory * &
-                                  (1.0_r8 - EDPftvarcon_inst%trim_inc(ipft))
+                                 (1.0_r8 - EDPftvarcon_inst%trim_inc(ipft))
                          endif
 
                          trimmed = .true.
@@ -733,7 +734,7 @@ contains
 
     integer, parameter :: canopy_leaf_lifespan = 365    ! Maximum lifespan of drought decid leaves
 
-    integer, parameter :: min_daysoff_dforcedflush = 30 ! THis is the number of days that must had elapsed
+    integer, parameter :: min_daysoff_dforcedflush = 30 ! This is the number of days that must had elapsed
                                                         ! since leaves had dropped, in order to forcably
                                                         ! flush leaves again.  This does not impact flushing
                                                         ! due to real moisture constraints, and will prevent
@@ -752,6 +753,7 @@ contains
     model_day_int = nint(hlm_model_day)
 
 
+    ! Parameter of drought decid leaf loss in mm in top layer...FIX(RF,032414) 
     ! - this is arbitrary and poorly understood. Needs work. ED_
     !Parameters: defaults from Botta et al. 2000 GCB,6 709-725
     !Parameters, default from from SDGVM model of senesence
@@ -1004,7 +1006,6 @@ contains
        ! Calculate days since leaves have come off, but make a provision
        ! for the first year of simulation, we have to assume a leaf drop
        ! date to start, so if that is in the future, set it to last year
-
        if (model_day_int < currentSite%dleafoffdate(ft)) then
           currentSite%dndaysleafoff(ft) = model_day_int - (currentSite%dleafoffdate(ft)-365)
        else
@@ -1838,76 +1839,75 @@ contains
     do ft = 1,numpft
       if(currentSite%use_this_pft(ft).eq.itrue)then
        temp_cohort%canopy_trim = init_recruit_trim
-       temp_cohort%pft         = ft
-       temp_cohort%hite        = EDPftvarcon_inst%hgt_min(ft)
-       temp_cohort%coage       = 0.0_r8
-       stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(ft)
+          temp_cohort%pft         = ft
+          temp_cohort%hite        = EDPftvarcon_inst%hgt_min(ft)
+          temp_cohort%coage       = 0.0_r8
+          stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(ft)
 
-       call h2d_allom(temp_cohort%hite,ft,temp_cohort%dbh)
+          call h2d_allom(temp_cohort%hite,ft,temp_cohort%dbh)
 
-       ! Initialize live pools
-       call bleaf(temp_cohort%dbh,ft,temp_cohort%canopy_trim,c_leaf)
-       call bfineroot(temp_cohort%dbh,ft,temp_cohort%canopy_trim,c_fnrt)
-       call bsap_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,a_sapw, c_sapw)
-       call bagw_allom(temp_cohort%dbh,ft,c_agw)
-       call bbgw_allom(temp_cohort%dbh,ft,c_bgw)
-       call bdead_allom(c_agw,c_bgw,c_sapw,ft,c_struct)
-       call bstore_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,c_store)
+          ! Initialize live pools
+          call bleaf(temp_cohort%dbh,ft,temp_cohort%canopy_trim,c_leaf)
+          call bfineroot(temp_cohort%dbh,ft,temp_cohort%canopy_trim,c_fnrt)
+          call bsap_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,a_sapw, c_sapw)
+          call bagw_allom(temp_cohort%dbh,ft,c_agw)
+          call bbgw_allom(temp_cohort%dbh,ft,c_bgw)
+          call bdead_allom(c_agw,c_bgw,c_sapw,ft,c_struct)
+          call bstore_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,c_store)
 
-       ! Default assumption is that leaves are on
-       cohortstatus = leaves_on
-       temp_cohort%leafmemory = 0.0_r8
-       temp_cohort%sapwmemory = 0.0_r8
-       temp_cohort%sapwmemory = 0.0_r8
-       temp_cohort%structmemory = 0.0_r8
-
-       
-       ! But if the plant is seasonally (cold) deciduous, and the site status is flagged
-       ! as "cold", then set the cohort's status to leaves_off, and remember the leaf biomass
-       if ((prt_params%season_decid(ft) == itrue) .and. &
-             (any(currentSite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold]))) then
-         temp_cohort%leafmemory = c_leaf
-         temp_cohort%fnrtmemory = c_fnrt
-         c_leaf = 0.0_r8
-         !c_fnrt = c_fnrt ! For now we do not drop fine roots, but keep memory.
+          ! Default assumption is that leaves are on
+          cohortstatus = leaves_on
+          temp_cohort%leafmemory = 0.0_r8
+          temp_cohort%fnrtmemory = 0.0_r8
+          temp_cohort%sapwmemory = 0.0_r8
+          temp_cohort%structmemory = 0.0_r8
 
 
+          ! But if the plant is seasonally (cold) deciduous, and the site status is flagged
+          ! as "cold", then set the cohort's status to leaves_off, and remember the leaf biomass
+          if ((prt_params%season_decid(ft) == itrue) .and. &
+               (any(currentSite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold]))) then
+             temp_cohort%leafmemory = c_leaf
+             temp_cohort%fnrtmemory = c_fnrt
+             c_leaf = 0.0_r8
+             !c_fnrt = c_fnrt ! For now we do not drop fine roots, but keep memory.
 
-         ! If plant is not woody then set sapwood and structural biomass as well
-         if (prt_params%woody(ft).ne.itrue) then
-            ! MLO update: sapwmemory and structmemory used to be deficit, despite the
-            !             name.  The code has been updated elsewhere to use these
-            !             variables as memory variables.
-            temp_cohort%sapwmemory = c_sapw
-            temp_cohort%structmemory = c_struct
-            c_sapw = (1.0_r8 - stem_drop_fraction) * c_sapw 
-            c_struct = (1.0_r8 - stem_drop_fraction) * c_struct
-         endif
-         cohortstatus = leaves_off
-       endif
-       
-       ! Or.. if the plant is drought deciduous, and the site status is flagged as 
-       ! "in a drought", then likewise, set the cohort's status to leaves_off, and remember leaf
-       ! biomass
-       if ((prt_params%stress_decid(ft) == itrue) .and. &
-             (any(currentSite%dstatus(ft) == [phen_dstat_timeoff,phen_dstat_moistoff]))) then
-         temp_cohort%leafmemory = c_leaf
-         temp_cohort%fnrtmemory = c_fnrt
-         c_leaf = 0.0_r8
-         !c_fnrt = c_fnrt ! For now we do not drop fine roots, but keep memory.
+             ! If plant is not woody then set sapwood and structural biomass as well
+             if (prt_params%woody(ft).ne.itrue) then
+                ! MLO update: sapwmemory and structmemory used to be deficit, despite the
+                !             name.  The code has been updated elsewhere to use these
+                !             variables as memory variables.
+                temp_cohort%sapwmemory = c_sapw
+                temp_cohort%structmemory = c_struct
+                c_sapw = (1.0_r8 - stem_drop_fraction) * c_sapw
+                c_struct = (1.0_r8 - stem_drop_fraction) * c_struct
+             endif
+             cohortstatus = leaves_off
+          endif
 
-         ! If plant is not woody then set sapwood and structural biomass as well
-         if(prt_params%woody(ft).ne.itrue)then
-            ! MLO update: sapwmemory and structmemory used to be deficit, despite the
-            !             name.  The code has been updated elsewhere to use these
-            !             variables as memory variables.
-            temp_cohort%sapwmemory = c_sapw
-            temp_cohort%structmemory = c_struct
-            c_sapw = (1.0_r8 - stem_drop_fraction) * c_sapw 
-            c_struct = (1.0_r8 - stem_drop_fraction) * c_struct
-         endif
-         cohortstatus = leaves_off
-       endif
+          ! Or.. if the plant is drought deciduous, and the site status is flagged as
+          ! "in a drought", then likewise, set the cohort's status to leaves_off, and remember leaf
+          ! biomass
+          if ((prt_params%stress_decid(ft) == itrue) .and. &
+               (any(currentSite%dstatus(ft) == [phen_dstat_timeoff,phen_dstat_moistoff]))) then
+             temp_cohort%leafmemory = c_leaf
+             temp_cohort%fnrtmemory = c_fnrt
+             c_leaf = 0.0_r8
+             !c_fnrt = c_fnrt ! For now we do not drop fine roots, but keep memory.
+
+             ! If plant is not woody then set sapwood and structural biomass as well
+             if(prt_params%woody(ft).ne.itrue)then
+                ! MLO update: sapwmemory and structmemory used to be deficit, despite the
+                !             name.  The code has been updated elsewhere to use these
+                !             variables as memory variables.
+                temp_cohort%sapwmemory = c_sapw
+                temp_cohort%structmemory = c_struct
+                c_sapw = (1.0_r8 - stem_drop_fraction) * c_sapw
+                c_struct = (1.0_r8 - stem_drop_fraction) * c_struct
+             endif
+             cohortstatus = leaves_off
+          endif
+
 
           ! Cycle through available carbon and nutrients, find the limiting element
           ! to dictate the total number of plants that can be generated
@@ -2022,7 +2022,7 @@ contains
                 end select
 
                 select case(hlm_parteh_mode)
-                case (prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp )
+                case (prt_csimpler_allom_hyp,prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp )
 
                    ! Put all of the leaf mass into the first bin
                    call SetState(prt,leaf_organ, element_id,m_leaf,1)

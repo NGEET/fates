@@ -68,6 +68,7 @@ module EDCohortDynamicsMod
   use FatesAllometryMod  , only : tree_lai, tree_sai
   use FatesAllometryMod    , only : set_root_fraction
   use PRTGenericMod,          only : prt_carbon_allom_hyp
+  use PRTGenericMod,          only : prt_csimpler_allom_hyp
   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
   use PRTGenericMod,          only : prt_vartypes
   use PRTGenericMod,          only : all_carbon_elements
@@ -83,6 +84,7 @@ module EDCohortDynamicsMod
   use PRTGenericMod,          only : SetState
 
   use PRTAllometricCarbonMod, only : callom_prt_vartypes
+  use PRTAllometricCarbonMod, only : csimpler_allom_prt_vartypes
   use PRTAllometricCarbonMod, only : ac_bc_inout_id_netdc
   use PRTAllometricCarbonMod, only : ac_bc_in_id_pft
   use PRTAllometricCarbonMod, only : ac_bc_in_id_ctrim
@@ -394,7 +396,7 @@ contains
 
 
     select case(hlm_parteh_mode)
-    case (prt_carbon_allom_hyp)
+    case (prt_csimpler_allom_hyp,prt_carbon_allom_hyp)
 
        ! Register boundary conditions for the Carbon Only Allometric Hypothesis
 
@@ -457,10 +459,16 @@ contains
 
     ! Potential Extended types
     class(callom_prt_vartypes), pointer :: c_allom_prt
+    class(csimpler_allom_prt_vartypes), pointer :: csimpler_allom_prt
     class(cnp_allom_prt_vartypes), pointer :: cnp_allom_prt
 
 
     select case(hlm_parteh_mode)
+    case (prt_csimpler_allom_hyp)
+
+        allocate(csimpler_allom_prt)
+        prt => csimpler_allom_prt
+
     case (prt_carbon_allom_hyp)
 
         allocate(c_allom_prt)

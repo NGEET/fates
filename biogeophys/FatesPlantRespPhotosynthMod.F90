@@ -39,8 +39,9 @@ module FATESPlantRespPhotosynthMod
   use PRTGenericMod,     only : max_nleafage
   use EDTypesMod,        only : do_fates_salinity
   use EDParamsMod,       only : q10_mr
+  use PRTGenericMod,     only : prt_csimpler_allom_hyp
   use PRTGenericMod,     only : prt_carbon_allom_hyp
-  use PRTGenericMod,     only : prt_cnp_flex_allom_hyp
+  use PRTGenericMod,     only : prt_cnp_flex_allom_hyp 
   use PRTGenericMod,     only : all_carbon_elements
   use PRTGenericMod,     only : nitrogen_element
   use PRTGenericMod,     only : leaf_organ
@@ -416,7 +417,8 @@ contains
                             if ( .not.rate_mask_z(iv,ft,cl) .or. &
                                  (hlm_use_planthydro.eq.itrue) .or. &
                                  (nleafage > 1) .or. &
-                                 (hlm_parteh_mode .ne. prt_carbon_allom_hyp )   ) then
+                                 (hlm_parteh_mode .ne. prt_csimpler_allom_hyp .and. &
+                                  hlm_parteh_mode .ne. prt_carbon_allom_hyp)   ) then
 
                                if (hlm_use_planthydro.eq.itrue ) then
 
@@ -477,7 +479,7 @@ contains
                                ! Then scale this value at the top of the canopy for canopy depth
                                ! Leaf nitrogen concentration at the top of the canopy (g N leaf / m**2 leaf)
                                select case(hlm_parteh_mode)
-                               case (prt_carbon_allom_hyp)
+                               case (prt_csimpler_allom_hyp,prt_carbon_allom_hyp)
 
                                  lnc_top  = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/slatop(ft)
 
