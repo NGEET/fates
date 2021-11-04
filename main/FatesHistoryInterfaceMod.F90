@@ -47,8 +47,8 @@ module FatesHistoryInterfaceMod
   use FatesInterfaceTypesMod        , only : bc_in_type
   use FatesInterfaceTypesMod        , only : hlm_model_day
   use FatesInterfaceTypesMod        , only : nlevcoage
+  use FatesAllometryMod             , only : CrownDepth
 
-  ! FIXME(bja, 2016-10) need to remove CLM dependancy
   use EDPftvarcon              , only : EDPftvarcon_inst
   use PRTParametersMod         , only : prt_params
 
@@ -1820,6 +1820,7 @@ end subroutine flush_hvars
     real(r8) :: struct_m_net_alloc
     real(r8) :: repro_m_net_alloc
     real(r8) :: area_frac
+    real(r8) :: crown_depth
 
     type(ed_patch_type),pointer  :: cpatch
     type(ed_cohort_type),pointer :: ccohort
@@ -2080,6 +2081,8 @@ end subroutine flush_hvars
 
       io_si  = sites(s)%h_gid
 
+      ! We have to do this right now because we access them below
+      ! (outside of the cohort loop)
       hio_m1_si_scpf(io_si, :) = 0.0_r8
       hio_m2_si_scpf(io_si, :) = 0.0_r8
       hio_m3_si_scpf(io_si, :) = 0.0_r8
@@ -2098,7 +2101,7 @@ end subroutine flush_hvars
       ! Total carbon lost to atmosphere from burning (kgC/site/day -> kgC/m2/s)
       hio_fire_c_to_atm_si(io_si) = &
          sites(s)%mass_balance(element_pos(carbon12_element))%burn_flux_to_atm * &
-      ha_per_m2 * days_per_sec
+         ha_per_m2 * days_per_sec
 
       do el = 1, num_elements
 
@@ -2292,8 +2295,9 @@ end subroutine flush_hvars
                + ccohort%c_area * AREA_INV
 
             ! calculate leaf height distribution, assuming leaf area is evenly distributed thru crown depth
+            call CrownDepth(ccohort%hite,ft,crown_depth)
             height_bin_max = get_height_index(ccohort%hite)
-            height_bin_min = get_height_index(ccohort%hite * (1._r8 - EDPftvarcon_inst%crown(ft)))
+            height_bin_min = get_height_index(ccohort%hite - crown_depth)
             do i_heightbin = height_bin_min, height_bin_max
                binbottom = ED_val_history_height_bin_edges(i_heightbin)
                if (i_heightbin .eq. nlevheight) then
@@ -2302,9 +2306,9 @@ end subroutine flush_hvars
                   bintop = ED_val_history_height_bin_edges(i_heightbin+1)
                endif
                ! what fraction of a cohort's crown is in this height bin?
-               frac_canopy_in_bin = (min(bintop,ccohort%hite) -                &
-                  max(binbottom,ccohort%hite * (1._r8 - EDPftvarcon_inst%crown(ft)))) / &
-                  (ccohort%hite * EDPftvarcon_inst%crown(ft))
+               frac_canopy_in_bin = (min(bintop,ccohort%hite) - &
+                    max(binbottom,ccohort%hite-crown_depth)) / &
+                    (crown_depth)
 
                hio_leaf_height_dist_si_height(io_si,i_heightbin) = &
                   hio_leaf_height_dist_si_height(io_si,i_heightbin) + &
@@ -2319,7 +2323,7 @@ end subroutine flush_hvars
             if (ccohort%canopy_layer .eq. 1) then
                ! calculate the area of canopy that is within each height bin
                hio_canopy_height_dist_si_height(io_si,height_bin_max) = &
-               hio_canopy_height_dist_si_height(io_si,height_bin_max) + ccohort%c_area * AREA_INV
+                  hio_canopy_height_dist_si_height(io_si,height_bin_max) + ccohort%c_area * AREA_INV
             endif
 
             ! Update biomass components
@@ -2443,8 +2447,9 @@ end subroutine flush_hvars
                      total_m / m2_per_ha
 
                end if
-
             end do elloop
+
+            hio_area_trees_si(io_si) = hio_area_trees_si(io_si) + min(cpatch%total_tree_area,cpatch%area) * AREA_INV
 
             ! Update PFT crown area
             hio_crownarea_si_pft(io_si, ft) = hio_crownarea_si_pft(io_si, ft) + &
