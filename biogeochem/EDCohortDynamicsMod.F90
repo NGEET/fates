@@ -324,7 +324,7 @@ contains
        call InitHydrCohort(currentSite,new_cohort)
 
        ! This calculates node heights
-       call UpdatePlantHydrNodes(new_cohort%co_hydr,new_cohort%pft, &
+       call UpdatePlantHydrNodes(new_cohort,new_cohort%pft, &
                                 new_cohort%hite,currentSite%si_hydr)
 
        ! This calculates volumes and lengths

@@ -196,7 +196,7 @@ contains
 
           ! Its possible that before we even enter this scheme
           ! some cohort numbers are very low.  Terminate them.
-            call terminate_cohorts(currentSite, currentPatch, 1, 12, bc_in)
+          call terminate_cohorts(currentSite, currentPatch, 1, 12, bc_in)
 
           ! Calculate how many layers we have in this canopy
           ! This also checks the understory to see if its crown
@@ -204,17 +204,17 @@ contains
           z = NumPotentialCanopyLayers(currentPatch,currentSite%spread,include_substory=.false.)
 
           do i_lyr = 1,z ! Loop around the currently occupied canopy layers.
-               call DemoteFromLayer(currentSite, currentPatch, i_lyr, bc_in)
+             call DemoteFromLayer(currentSite, currentPatch, i_lyr, bc_in)
           end do
 
           ! After demotions, we may then again have cohorts that are very very
           ! very sparse, remove them
-            call terminate_cohorts(currentSite, currentPatch, 1,13,bc_in)
+          call terminate_cohorts(currentSite, currentPatch, 1,13,bc_in)
 
           call fuse_cohorts(currentSite, currentPatch, bc_in)
 
           ! Remove cohorts for various other reasons
-            call terminate_cohorts(currentSite, currentPatch, 2,13,bc_in)
+          call terminate_cohorts(currentSite, currentPatch, 2,13,bc_in)
 
 
           ! ---------------------------------------------------------------------------------------
@@ -233,12 +233,12 @@ contains
              end do
 
              ! Remove cohorts that are incredibly sparse
-               call terminate_cohorts(currentSite, currentPatch, 1,14,bc_in)
+             call terminate_cohorts(currentSite, currentPatch, 1,14,bc_in)
 
              call fuse_cohorts(currentSite, currentPatch, bc_in)
 
              ! Remove cohorts for various other reasons
-               call terminate_cohorts(currentSite, currentPatch, 2,14,bc_in)
+             call terminate_cohorts(currentSite, currentPatch, 2,14,bc_in)
 
           end if
 
@@ -331,7 +331,7 @@ contains
   ! ==============================================================================================
 
 
-   subroutine DemoteFromLayer(currentSite,currentPatch,i_lyr,bc_in)
+  subroutine DemoteFromLayer(currentSite,currentPatch,i_lyr,bc_in)
 
     use EDParamsMod, only : ED_val_comp_excln
     use SFParamsMod, only : SF_val_CWD_frac
@@ -340,7 +340,7 @@ contains
     type(ed_site_type), intent(inout), target  :: currentSite
     type(ed_patch_type), intent(inout), target :: currentPatch
     integer, intent(in)                        :: i_lyr   ! Current canopy layer of interest
-      type(bc_in_type), intent(in)               :: bc_in
+    type(bc_in_type), intent(in)               :: bc_in
 
     ! !LOCAL VARIABLES:
     type(ed_cohort_type), pointer :: currentCohort
@@ -718,7 +718,7 @@ contains
                 ! put the litter from the terminated cohorts
                 ! straight into the fragmenting pools
                 call SendCohortToLitter(currentSite,currentPatch, &
-                       currentCohort,currentCohort%n,bc_in)
+                     currentCohort,currentCohort%n,bc_in)
 
                 currentCohort%n            = 0.0_r8
                 currentCohort%c_area       = 0.0_r8
@@ -1433,7 +1433,7 @@ contains
 
   ! =====================================================================================
 
- subroutine leaf_area_profile( currentSite )
+  subroutine leaf_area_profile( currentSite )
 
     ! -----------------------------------------------------------------------------------
     ! This subroutine calculates how leaf and stem areas are distributed
@@ -1555,12 +1555,12 @@ contains
                   currentCohort%n, currentCohort%canopy_layer,               &
                   currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )
 
-            if (hlm_use_sp .eq. ifalse) then
-             currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
-                  currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
-                  currentPatch%canopy_layer_tlai, currentCohort%treelai , &
-                  currentCohort%vcmax25top,4)
-            end if
+             if (hlm_use_sp .eq. ifalse) then
+                currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
+                     currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
+                     currentPatch%canopy_layer_tlai, currentCohort%treelai , &
+                     currentCohort%vcmax25top,4)
+             end if
 
              currentCohort%lai =  currentCohort%treelai *currentCohort%c_area/currentPatch%total_canopy_area
              currentCohort%sai =  currentCohort%treesai *currentCohort%c_area/currentPatch%total_canopy_area
@@ -1601,19 +1601,19 @@ contains
              currentCohort => currentPatch%shortest
              do while(associated(currentCohort))
                 ft = currentCohort%pft
-                min_chite = currentCohort%hite - currentCohort%hite * EDPftvarcon_inst%crown(ft)
+                min_chite = currentCohort%hite - currentCohort%hite * prt_params%crown(ft)
                 max_chite = currentCohort%hite
                 do iv = 1,N_HITE_BINS
                    frac_canopy(iv) = 0.0_r8
                    ! this layer is in the middle of the canopy
                    if(max_chite > maxh(iv).and.min_chite < minh(iv))then
-                      frac_canopy(iv)= min(1.0_r8,dh / (currentCohort%hite*EDPftvarcon_inst%crown(ft)))
+                      frac_canopy(iv)= min(1.0_r8,dh / (currentCohort%hite*prt_params%crown(ft)))
                       ! this is the layer with the bottom of the canopy in it.
                    elseif(min_chite < maxh(iv).and.min_chite > minh(iv).and.max_chite > maxh(iv))then
-                      frac_canopy(iv) = (maxh(iv) -min_chite ) / (currentCohort%hite*EDPftvarcon_inst%crown(ft))
+                      frac_canopy(iv) = (maxh(iv) -min_chite ) / (currentCohort%hite*prt_params%crown(ft))
                       ! this is the layer with the top of the canopy in it.
                    elseif(max_chite > minh(iv).and.max_chite < maxh(iv).and.min_chite < minh(iv))then
-                      frac_canopy(iv) = (max_chite - minh(iv)) / (currentCohort%hite*EDPftvarcon_inst%crown(ft))
+                      frac_canopy(iv) = (max_chite - minh(iv)) / (currentCohort%hite*prt_params%crown(ft))
                    elseif(max_chite < maxh(iv).and.min_chite > minh(iv))then !the whole cohort is within this layer.
                       frac_canopy(iv) = 1.0_r8
                    endif
@@ -1632,7 +1632,7 @@ contains
                       fraction_exposed = 1._r8
                    endif
                    if(currentSite%snow_depth >= minh(iv) .and. currentSite%snow_depth <= maxh(iv)) then !only partly hidden...
-                   fraction_exposed = 1._r8 - max(0._r8,(min(1.0_r8,(currentSite%snow_depth-minh(iv))/dh)))
+                      fraction_exposed = 1._r8 - max(0._r8,(min(1.0_r8,(currentSite%snow_depth-minh(iv))/dh)))
                    endif
 
                    currentPatch%elai_profile(1,ft,iv) = currentPatch%tlai_profile(1,ft,iv) * fraction_exposed
@@ -1709,11 +1709,11 @@ contains
 
                    layer_top_hite = currentCohort%hite - &
                         ( real(iv-1,r8)/currentCohort%NV * currentCohort%hite *  &
-                        EDPftvarcon_inst%crown(currentCohort%pft) )
+                        prt_params%crown(currentCohort%pft) )
 
                    layer_bottom_hite = currentCohort%hite - &
                         ( real(iv,r8)/currentCohort%NV * currentCohort%hite * &
-                        EDPftvarcon_inst%crown(currentCohort%pft) )
+                        prt_params%crown(currentCohort%pft) )
 
                    fraction_exposed = 1.0_r8
                    if(currentSite%snow_depth  > layer_top_hite)then
@@ -1913,6 +1913,7 @@ contains
     real(r8) :: bare_frac_area
     real(r8) :: total_patch_area
     real(r8) :: total_canopy_area
+    real(r8) :: total_patch_leaf_stem_area
     real(r8) :: weight  ! Weighting for cohort variables in patch
 
     do s = 1,nsites
@@ -1921,6 +1922,9 @@ contains
        total_patch_area = 0._r8
        total_canopy_area = 0._r8
        bc_out(s)%canopy_fraction_pa(:) = 0._r8
+       bc_out(s)%dleaf_pa(:) = 0._r8
+       bc_out(s)%z0m_pa(:) = 0._r8
+       bc_out(s)%displa_pa(:) = 0._r8
        currentPatch => sites(s)%oldest_patch
        c = fcolumn(s)
        do while(associated(currentPatch))
@@ -1943,28 +1947,68 @@ contains
 
              bc_out(s)%hbot_pa(ifp) = max(0._r8, min(0.2_r8, bc_out(s)%htop_pa(ifp)- 1.0_r8))
 
-             ! Use leaf area weighting for all cohorts in the patch to define the characteristic
-             ! leaf width used by the HLM
+             ! Use canopy-only crown area weighting for all cohorts in the patch to define the characteristic
+             ! Roughness length and displacement height used by the HLM
+             ! use total LAI + SAI to weight the leaft characteristic dimension
              ! ----------------------------------------------------------------------------
-             !           bc_out(s)%dleaf_pa(ifp) = 0.0_r8
-             !           if(currentPatch%lai>1.0e-9_r8) then
-             !              currentCohort => currentPatch%shortest
-             !              do while(associated(currentCohort))
-             !                 weight = min(1.0_r8,currentCohort%lai/currentPatch%lai)
-             !                 bc_out(s)%dleaf_pa(ifp) = bc_out(s)%dleaf_pa(ifp) + &
-             !                       EDPftvarcon_inst%dleaf(currentCohort%pft)*weight
-             !                 currentCohort => currentCohort%taller
-             !              enddo
-             !           end if
 
-             ! Roughness length and displacement height are not PFT properties, they are
-             ! properties of the canopy assemblage.  Defining this needs an appropriate model.
-             ! Right now z0 and d are pft level parameters.  For the time being we will just
-             ! use the 1st index until a suitable model is defined. (RGK 04-2017)
+             if (currentPatch%total_canopy_area > nearzero) then
+                currentCohort => currentPatch%shortest
+                do while(associated(currentCohort))
+                   if (currentCohort%canopy_layer .eq. 1) then
+                      weight = min(1.0_r8,currentCohort%c_area/currentPatch%total_canopy_area)
+                      bc_out(s)%z0m_pa(ifp) = bc_out(s)%z0m_pa(ifp) + &
+                           EDPftvarcon_inst%z0mr(currentCohort%pft) * currentCohort%hite * weight
+                      bc_out(s)%displa_pa(ifp) = bc_out(s)%displa_pa(ifp) + &
+                           EDPftvarcon_inst%displar(currentCohort%pft) * currentCohort%hite * weight
+                   endif
+                   currentCohort => currentCohort%taller
+                end do
+
+                ! for lai, scale to total LAI + SAI in patch.  first add up all the LAI and SAI in the patch
+                total_patch_leaf_stem_area = 0._r8
+                currentCohort => currentPatch%shortest
+                do while(associated(currentCohort))
+
+                   ! mkae sure that allometries are correct
+                   call carea_allom(currentCohort%dbh,currentCohort%n,sites(s)%spread,&
+                        currentCohort%pft,currentCohort%c_area)
+
+                   currentCohort%treelai = tree_lai(currentCohort%prt%GetState(leaf_organ, all_carbon_elements),  &
+                        currentCohort%pft, currentCohort%c_area, currentCohort%n, &
+                        currentCohort%canopy_layer, currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )
+
+                   currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
+                        currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
+                        currentPatch%canopy_layer_tlai, currentCohort%treelai , &
+                        currentCohort%vcmax25top,4)
+
+                   total_patch_leaf_stem_area = total_patch_leaf_stem_area + &
+                        (currentCohort%treelai + currentCohort%treesai) * currentCohort%c_area
+                   currentCohort => currentCohort%taller
+                end do
+
+                ! make sure there is some leaf and stem area
+                if (total_patch_leaf_stem_area > nearzero) then
+                   currentCohort => currentPatch%shortest
+                   do while(associated(currentCohort))
+                      ! weight dleaf by the relative totals of leaf and stem area
+                      weight = (currentCohort%treelai + currentCohort%treesai) * currentCohort%c_area / total_patch_leaf_stem_area
+                      bc_out(s)%dleaf_pa(ifp) = bc_out(s)%dleaf_pa(ifp) + &
+                           EDPftvarcon_inst%dleaf(currentCohort%pft) * weight
+                      currentCohort => currentCohort%taller
+                   end do
+                else
+                   ! dummy case
+                   bc_out(s)%dleaf_pa(ifp)  = EDPftvarcon_inst%dleaf(1)
+                endif
+             else
+                ! if no canopy, then use dummy values (first PFT) of aerodynamic properties
+                bc_out(s)%z0m_pa(ifp)    = EDPftvarcon_inst%z0mr(1) * bc_out(s)%htop_pa(ifp)
+                bc_out(s)%displa_pa(ifp) = EDPftvarcon_inst%displar(1) * bc_out(s)%htop_pa(ifp)
+                bc_out(s)%dleaf_pa(ifp)  = EDPftvarcon_inst%dleaf(1)
+             endif
              ! -----------------------------------------------------------------------------
-             bc_out(s)%z0m_pa(ifp)    = EDPftvarcon_inst%z0mr(1) * bc_out(s)%htop_pa(ifp)
-             bc_out(s)%displa_pa(ifp) = EDPftvarcon_inst%displar(1) * bc_out(s)%htop_pa(ifp)
-             bc_out(s)%dleaf_pa(ifp)  = EDPftvarcon_inst%dleaf(1)
 
              ! We are assuming here that grass is all located underneath tree canopies.
              ! The alternative is to assume it is all spatial distinct from tree canopies.
@@ -2012,9 +2056,9 @@ contains
              end if
 
           else  ! nocomp or SP, and currentPatch%nocomp_pft_label .eq. 0
-             
+
              total_patch_area = total_patch_area + currentPatch%area/AREA
-             
+
           end if
           currentPatch => currentPatch%younger
        end do
@@ -2047,26 +2091,26 @@ contains
 
        endif
 
-        ! If running hydro, perform a final check to make sure that we
-        ! have conserved water. Since this is the very end of the dynamics
-        ! cycle. No water should had been added or lost to the site during dynamics.
-        ! With growth and death, we may have shuffled it around.
-        ! For recruitment, we initialized their water, but flagged them
-        ! to not be included in the site level balance yet, for they
-        ! will demand the water for their initialization on the first hydraulics time-step
+       ! If running hydro, perform a final check to make sure that we
+       ! have conserved water. Since this is the very end of the dynamics
+       ! cycle. No water should had been added or lost to the site during dynamics.
+       ! With growth and death, we may have shuffled it around.
+       ! For recruitment, we initialized their water, but flagged them
+       ! to not be included in the site level balance yet, for they
+       ! will demand the water for their initialization on the first hydraulics time-step
 
-        if (hlm_use_planthydro.eq.itrue) then
-           call UpdateH2OVeg(sites(s),bc_out(s),bc_out(s)%plant_stored_h2o_si,1)
-        end if
+       if (hlm_use_planthydro.eq.itrue) then
+          call UpdateH2OVeg(sites(s),bc_out(s),bc_out(s)%plant_stored_h2o_si,1)
+       end if
 
     end do
 
-     ! This call to RecruitWaterStorage() makes an accounting of
-     ! how much water is used to intialize newly recruited plants.
-     ! However, it does not actually move water from the soil or create
-     ! a flux, it is just accounting for diagnostics purposes.  The water
-     ! will not actually be moved until the beginning of the first hydraulics
-     ! call during the fast timestep sequence
+    ! This call to RecruitWaterStorage() makes an accounting of
+    ! how much water is used to intialize newly recruited plants.
+    ! However, it does not actually move water from the soil or create
+    ! a flux, it is just accounting for diagnostics purposes.  The water
+    ! will not actually be moved until the beginning of the first hydraulics
+    ! call during the fast timestep sequence
 
     if (hlm_use_planthydro.eq.itrue) then
        call RecruitWaterStorage(nsites,sites,bc_out)
