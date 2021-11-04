@@ -141,9 +141,8 @@ contains
                    ! no radiation is absorbed
                    bc_out(s)%fabd_parb(ifp,:) = 0.0_r8
                    bc_out(s)%fabi_parb(ifp,:) = 0.0_r8
-                   
-                   ! Zero out the radiation error to avoid 
                    currentPatch%radiation_error = 0.0_r8
+                   
                    do ib = 1,hlm_numSWb
                       bc_out(s)%albd_parb(ifp,ib) = bc_in(s)%albgr_dir_rb(ib)
                       bc_out(s)%albi_parb(ifp,ib) = bc_in(s)%albgr_dif_rb(ib)
@@ -595,7 +594,10 @@ contains
              endif ! currentPatch%canopy_mask
           end do!ft
        end do!L
+       
+       ! Zero out the radiation error for the current patch before conducting the conservation check
        currentPatch%radiation_error = 0.0_r8
+       
        do ib = 1,hlm_numSWb
           Dif_dn(:,:,:) = 0.00_r8
           Dif_up(:,:,:) = 0.00_r8
@@ -1007,7 +1009,7 @@ contains
                   (fabi_parb_out(ib)  + albi_parb_out(ib) + currentPatch%sabs_dif(ib))
           endif
 
-          ! ignore the currentPatch%radiation_error if the veg-covered fraction of the patch is really small
+          ! ignore the current patch radiation error if the veg-covered fraction of the patch is really small
           if ( (currentPatch%total_canopy_area / currentPatch%area) .gt. tolerance ) then
              ! normalize rad error by the veg-covered fraction of the patch because that is 
              ! the only part that this code applies to
@@ -1240,10 +1242,12 @@ subroutine ED_SunShadeFracs(nsites, sites,bc_in,bc_out)
                  end do !iv
               end do !FT
            end do !CL
-           cpatch%radiation_error = cpatch%radiation_error * (bc_in(s)%solad_parb(ifp,ipar)+ &
+           
+           ! Convert normalized radiation error units from fraction of radiation to W/m2 
+           cpatch%radiation_error = cpatch%radiation_error * (bc_in(s)%solad_parb(ifp,ipar) + &
                 bc_in(s)%solai_parb(ifp,ipar))
+                
            ! output the actual PAR profiles through the canopy for diagnostic purposes
-
            do CL = 1, cpatch%NCL_p
               do FT = 1,numpft
                  do iv = 1, cpatch%nrad(CL,ft)
