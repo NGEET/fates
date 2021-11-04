@@ -141,6 +141,9 @@ contains
                    ! no radiation is absorbed
                    bc_out(s)%fabd_parb(ifp,:) = 0.0_r8
                    bc_out(s)%fabi_parb(ifp,:) = 0.0_r8
+                   
+                   ! Zero out the radiation error to avoid 
+                   currentPatch%radiation_error = 0.0_r8
                    do ib = 1,hlm_numSWb
                       bc_out(s)%albd_parb(ifp,ib) = bc_in(s)%albgr_dir_rb(ib)
                       bc_out(s)%albi_parb(ifp,ib) = bc_in(s)%albgr_dif_rb(ib)
