@@ -1185,13 +1185,13 @@ contains
     integer, parameter :: downreg_type = downreg_linear
 
     
-    real(r8), parameter :: logi_k   = 25.0_r8         ! logistic function k
-    real(r8), parameter :: store_x0 = 1.0_r8          ! storage fraction inflection point
+    real(r8), parameter :: logi_k   = 30.0_r8         ! logistic function k
+    real(r8), parameter :: store_x0 = 0.9_r8          ! storage fraction inflection point
     real(r8), parameter :: logi_min = 0.0_r8          ! minimum cn_scalar for logistic
 
     ! This is the storage fraction where downregulation starts if using
     ! a linear function
-    real(r8), parameter :: store_frac0 = 0.5_r8
+    real(r8), parameter :: store_frac0 = 0.85_r8
 
     real(r8), parameter :: c_max = 1.0_r8
     real(r8), parameter :: c_min = 1.e-3_r8

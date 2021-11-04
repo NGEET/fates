@@ -168,8 +168,8 @@ module PRTAllometricCNPMod
 
 
   
-  real(r8), parameter :: min_stf_growth = 0.9_r8  ! Plants are only allowed to increase in stature
-                                                  ! if they have more than 90% of their stores full
+  real(r8), parameter :: min_stf_growth = 0.8_r8  ! Plants are only allowed to increase in stature
+                                                  ! if they have more than 80% of their stores full
 
   
   ! -------------------------------------------------------------------------------------
@@ -1137,8 +1137,8 @@ contains
     
     if( c_gain <= calloc_abs_error  .or. &
         leaf_status.eq.leaves_off .or. &
-        (n_stf < min_stf_growth .and. net_n_gain < 0._r8) .or. &
-        (p_stf < min_stf_growth .and. net_p_gain < 0._r8) ) then
+        (n_stf < min_stf_growth ) .or. & !.and. net_n_gain < 0._r8) .or. &
+        (p_stf < min_stf_growth ) ) then !.and. net_p_gain < 0._r8) ) then
        return
     end if
     
