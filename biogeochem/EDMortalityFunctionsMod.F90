@@ -13,6 +13,7 @@ module EDMortalityFunctionsMod
    use FatesConstantsMod     , only : itrue,ifalse
    use FatesAllometryMod     , only : bleaf
    use FatesAllometryMod     , only : storage_fraction_of_target
+   use FatesInterfaceTypesMod     , only : hlm_model_day
    use FatesInterfaceTypesMod     , only : bc_in_type
    use FatesInterfaceTypesMod     , only : hlm_use_ed_prescribed_phys
    use FatesInterfaceTypesMod     , only : hlm_freq_day
@@ -62,6 +63,7 @@ contains
     real(r8),intent(out) :: asmort ! age dependent senescence term 
 
     integer  :: ifp
+    integer  :: model_day_int     ! integer model day 1 - inf
     real(r8) :: frac  ! relativised stored carbohydrate
     real(r8) :: leaf_c_target      ! target leaf biomass kgC
     real(r8) :: store_c
@@ -82,8 +84,13 @@ contains
     logical, parameter :: test_zero_mortality = .false. ! Developer test which
                                                         ! may help to debug carbon imbalances
                                                         ! and the like
-     
-   ! Size Dependent Senescence
+
+
+    ! This is the integer model day. The first day of the simulation is 1, and it
+    ! continues monotonically, indefinitely
+    model_day_int = nint(hlm_model_day)
+
+    ! Size Dependent Senescence
     ! rate (r) and inflection point (ip) define the increase in mortality rate with dbh
     mort_r_size_senescence = EDPftvarcon_inst%mort_r_size_senescence(cohort_in%pft)
     mort_ip_size_senescence = EDPftvarcon_inst%mort_ip_size_senescence(cohort_in%pft)
@@ -171,13 +178,19 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     !           of land-use change, CO2 fertilization, and climate variability to the    
     !           Eastern US carbon sink.  Glob. Change Biol., 12, 2370-2390,              
     !           doi: 10.1111/j.1365-2486.2006.01254.x                                    
-
-    ifp = cohort_in%patchptr%patchno
-    temp_in_C = bc_in%t_veg24_pa(ifp) - tfrz
-    temp_dep_fraction  = max(0.0_r8, min(1.0_r8, 1.0_r8 - (temp_in_C - &
-                         EDPftvarcon_inst%freezetol(cohort_in%pft))/frost_mort_buffer) )
-    frmort    = EDPftvarcon_inst%mort_scalar_coldstress(cohort_in%pft) * temp_dep_fraction
-
+    ! MLo - Add if statement to skip mortality calculation before the second day.
+    !       During the first day, t_veg24_pa may have a mix of 0 and actual values,
+    !       which causes excessive mortality, as zeroes are interpreted as 0 Kelvin.
+    select case (model_day_int)
+    case (:1)
+       frmort    = 0._r8
+    case default
+       ifp = cohort_in%patchptr%patchno
+       temp_in_C = bc_in%t_veg24_pa(ifp) - tfrz
+       temp_dep_fraction  = max(0.0_r8, min(1.0_r8, 1.0_r8 - (temp_in_C - &
+                            EDPftvarcon_inst%freezetol(cohort_in%pft))/frost_mort_buffer) )
+       frmort    = EDPftvarcon_inst%mort_scalar_coldstress(cohort_in%pft) * temp_dep_fraction
+    end select
 
     !mortality_rates = bmort + hmort + cmort
 
