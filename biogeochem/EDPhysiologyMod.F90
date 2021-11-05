@@ -16,6 +16,7 @@ module EDPhysiologyMod
   use FatesInterfaceTypesMod, only    : hlm_use_planthydro
   use FatesInterfaceTypesMod, only    : hlm_parteh_mode
   use FatesInterfaceTypesMod, only    : hlm_use_fixed_biogeog
+  use FatesInterfaceTypesMod, only    : hlm_use_nocomp
   use FatesInterfaceTypesMod, only    : hlm_nitrogen_spec
   use FatesInterfaceTypesMod, only    : hlm_phosphorus_spec
   use FatesConstantsMod, only    : r8 => fates_r8
@@ -1853,8 +1854,10 @@ contains
 
 
     do ft = 1,numpft
-       if(currentSite%use_this_pft(ft).eq.itrue)then
-       temp_cohort%canopy_trim = init_recruit_trim
+       if(currentSite%use_this_pft(ft).eq.itrue &
+            .and. ((hlm_use_nocomp .eq. ifalse) .or. (ft .eq. currentPatch%nocomp_pft_label)))then
+
+          temp_cohort%canopy_trim = init_recruit_trim
           temp_cohort%pft         = ft
           temp_cohort%hite        = EDPftvarcon_inst%hgt_min(ft)
           temp_cohort%coage       = 0.0_r8
