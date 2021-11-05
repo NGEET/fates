@@ -487,7 +487,7 @@ contains
           start_patch = 1   ! start at the first vegetated patch
           if(hlm_use_nocomp.eq.itrue)then
              num_new_patches = numpft
-             if( (hlm_use_sp.eq.itrue) .or. (hlm_use_fixed_biogeog .eq.itrue) )then
+             if( hlm_use_fixed_biogeog .eq.itrue )then
                 start_patch = 0 ! start at the bare ground patch
              endif
              !           allocate(newppft(numpft))
