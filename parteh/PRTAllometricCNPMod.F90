@@ -124,7 +124,7 @@ module PRTAllometricCNPMod
 
   integer, parameter :: num_intgr_vars = 7
 
-
+  
   ! -------------------------------------------------------------------------------------
   ! Input/Output Boundary Indices (These are public, and therefore
   !       each boundary condition across all modules must
@@ -137,7 +137,9 @@ module PRTAllometricCNPMod
   integer, public, parameter :: acnp_bc_inout_id_dbh        = 1  ! Plant DBH
   integer, public, parameter :: acnp_bc_inout_id_rmaint_def = 2  ! Index for any accumulated
                                                                  ! maintenance respiration deficit
-  integer, public, parameter :: num_bc_inout                = 2
+  integer, public, parameter :: acnp_bc_inout_id_l2fr       = 3  ! leaf 2 fineroot scalar, this
+                                                                 ! is dynamic with CNP
+  integer, public, parameter :: num_bc_inout                = 3
 
   ! -------------------------------------------------------------------------------------
   ! Input only Boundary Indices (These are public)
@@ -167,6 +169,12 @@ module PRTAllometricCNPMod
   integer, parameter         :: num_bc_out                = 5  ! Total number of
 
 
+  ! Indices for parameters passed to the integrator
+  integer,private, parameter :: intgr_parm_ctrim = 1
+  integer,private, parameter :: intgr_parm_pft   = 2
+  integer,private, parameter :: intgr_parm_l2fr  = 3
+  integer,private, parameter :: num_intgr_parm   = 3
+  
   
   real(r8), parameter :: min_stf_growth = 0.8_r8  ! Plants are only allowed to increase in stature
                                                   ! if they have more than 80% of their stores full
@@ -192,8 +200,14 @@ module PRTAllometricCNPMod
   ! in the same priority group as fineroots.
 
   logical, parameter :: reproduce_conly = .false.
-  
 
+  ! Definitions for the regulation functions. These typically translate
+  ! a storage fraction into a scalar used to regulate resources somehow
+  
+  integer, parameter :: regulate_linear = 1
+  integer, parameter :: regulate_logi   = 2
+  integer, parameter :: regulate_CN_logi = 3
+     
   ! Array of pointers are difficult in F90
   ! This structure is a necessary intermediate 
   type :: parray_type
@@ -217,10 +231,12 @@ module PRTAllometricCNPMod
      ! Extended functions specific to Allometric CNP
      procedure :: CNPPrioritizedReplacement
      procedure :: CNPStatureGrowth
+     procedure :: CNPAdjustFRootTargets
      procedure :: CNPAllocateRemainder
      procedure :: GetDeficit
      procedure :: GrowEquivC
      procedure :: NAndPToMatchC
+     procedure :: StorageRegulator
   end type cnp_allom_prt_vartypes
 
 
@@ -330,6 +346,7 @@ contains
     ! Pointers to in-out bcs
     real(r8),pointer :: dbh          ! Diameter at breast height [cm]
     real(r8),pointer :: maint_r_def  ! Current maintenance respiration deficit [kgC]
+    real(r8),pointer :: l2fr         ! Leaf to fineroot ratio of target biomass
     
     ! Input only bcs
     integer  :: ipft        ! Plant Functional Type index
@@ -415,11 +432,10 @@ contains
     n_need      => this%bc_out(acnp_bc_out_id_nneed)%rval;    n_need = fates_unset_r8
     p_need      => this%bc_out(acnp_bc_out_id_pneed)%rval;    p_need = fates_unset_r8
 
-    
     ! In/out boundary conditions
     maint_r_def => this%bc_inout(acnp_bc_inout_id_rmaint_def)%rval; maint_r_def0 = maint_r_def
     dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval;        dbh0         = dbh
-    
+    l2fr        => this%bc_out(acnp_bc_inout_id_l2fr)%rval
     
     
     ! If more than 1 leaf age bin is present, this
@@ -447,7 +463,7 @@ contains
     call bdead_allom(agw_c_target,bgw_c_target, target_c(sapw_id), ipft, target_c(struct_id), &
                      agw_dcdd_target, bgw_dcdd_target, target_dcdd(sapw_id), target_dcdd(struct_id))
     call bleaf(dbh,ipft,canopy_trim, target_c(leaf_id), target_dcdd(leaf_id))
-    call bfineroot(dbh,ipft,canopy_trim, target_c(fnrt_id), target_dcdd(fnrt_id))
+    call bfineroot(dbh,ipft,canopy_trim, l2fr, target_c(fnrt_id), target_dcdd(fnrt_id))
     call bstore_allom(dbh,ipft,canopy_trim, target_c(store_id), target_dcdd(store_id))
     target_c(repro_id) = 0._r8
     target_dcdd(repro_id) = 0._r8
@@ -488,9 +504,22 @@ contains
     p_gain = p_gain + sum(this%variables(i_var)%val(:))
     net_p_gain = - sum(this%variables(i_var)%val(:))
     this%variables(i_var)%val(:) = 0._r8
+
+
+    ! ===================================================================================
+    ! Step 1: Evaluate nutrient storage in the plant. Depending on how low
+    ! these stores are, we will move proportionally more or less of the daily carbon
+    ! gain to increase the target fine-root biomass, fill up to target
+    ! and then attempt to get them up to stoichiometry targets.
+    ! ===================================================================================
+
+    ! This routine actually just updates the l2fr variable
+    call this%CNPAdjustFRootTargets()
+    
+    call bfineroot(dbh,ipft,canopy_trim, l2fr, target_c(fnrt_id), target_dcdd(fnrt_id))
     
     ! ===================================================================================
-    ! Step 1.  Prioritized allocation to replace tissues from turnover, and/or pay
+    ! Step 2.  Prioritized allocation to replace tissues from turnover, and/or pay
     ! any un-paid maintenance respiration from storage.
     ! ===================================================================================
     
@@ -513,7 +542,7 @@ contains
     end if
     
     ! ===================================================================================
-    ! Step 2. Grow out the stature of the plant by allocating to tissues beyond
+    ! Step 3. Grow out the stature of the plant by allocating to tissues beyond
     ! current targets. 
     ! Attempts have been made to get all pools and species closest to allometric
     ! targets based on prioritized relative demand and allometry functions.
@@ -521,7 +550,7 @@ contains
 
     net_n_gain = net_n_gain + n_gain
     net_p_gain = net_p_gain + p_gain
-    
+
     call this%CNPStatureGrowth(c_gain, n_gain, p_gain, &
          net_n_gain, net_p_gain,  &
          state_c, state_n, state_p, target_c, target_dcdd, cnp_limiter)
@@ -629,7 +658,61 @@ contains
   end subroutine DailyPRTAllometricCNP
 
   ! =====================================================================================
-  
+  subroutine CNPAdjustFRootTargets(this)
+
+    class(cnp_allom_prt_vartypes) :: this
+
+    real(r8), pointer :: l2fr           ! leaf to fineroot target biomass scaler
+    integer           :: ipft           ! PFT index
+
+    real(r8) :: n_regulator  ! Nitrogen storage regulation function scaler
+    real(r8) :: p_regulator  ! Phosphorus storage regulation function scaler
+    real(r8) :: np_regulator ! Combined NP storage regulation function scaler
+
+
+    ipft         =  this%bc_in(acnp_bc_in_id_pft)%ival
+    l2fr         => this%bc_inout(acnp_bc_inout_id_l2fr)%rval
+
+    associate( l2fr_min => prt_params%allom_l2fr_min(ipft), &
+         l2fr_max => prt_params%allom_l2fr_max(ipft))
+
+      n_regulator = this%StorageRegulator(nitrogen_element, regulate_logi)
+      p_regulator = this%StorageRegulator(phosphorus_element, regulate_logi)
+
+      ! We take the maximum here, because the maximum is reflective of the
+      ! element with the lowest storage, which is the limiting element
+      
+      np_regulator = max(n_regulator,p_regulator)
+
+      ! Update the leaf-to-fineroot ratio used
+      ! to set fine-root biomass allometry
+      l2fr = l2fr_min + np_regulator*(l2fr_max-l2fr_min)
+
+      ! Find the updated target fineroot biomass
+      ! call bfineroot(dbh,ipft,canopy_trim, l2fr, target_fnrt)
+
+      ! Consider removing biomass immediately too...
+      ! we could send it to the turnover flux
+      ! c_to_froot = max(0._r8,target_fnrt - state_c(fnrt_id)%ptr)
+
+      ! Update the actual carbon
+      ! state_c(fnrt_id)%ptr = state_c(fnrt_id)%ptr + c_to_froot
+
+      ! Push nitrogen into fineroots to get to stoichiometry
+      ! call ProportionalNutrAllocation(state_n, deficit_n, &
+      ! n_gain, nitrogen_element, fnrt_id)
+
+      ! Push phos into fineroots to get to stoichiometry
+      ! call ProportionalNutrAllocation(state_p, deficit_p, &
+      !     p_gain, phosphorus_element, fnrt_id)
+
+    end associate
+
+    return
+  end subroutine CNPAdjustFRootTargets
+
+  ! =====================================================================================
+    
   subroutine CNPPrioritizedReplacement(this, & 
        maint_r_deficit, c_gain, n_gain, p_gain, &
        state_c, state_n, state_p, target_c)
@@ -1033,6 +1116,7 @@ contains
     integer           :: ipft
     real(r8)          :: canopy_trim
     real(r8)          :: leaf_status
+    real(r8)          :: l2fr
     
     integer  :: i, ii                            ! organ index loops (masked and unmasked)
     integer  :: istep                            ! outer step iteration loop
@@ -1100,7 +1184,8 @@ contains
     integer , parameter :: max_substeps = 300            ! Maximum allowable iterations
     real(r8), parameter :: max_trunc_error = 1.0_r8        ! Maximum allowable truncation error
     integer,  parameter :: ODESolve = 2                    ! 1=RKF45,  2=Euler
-    real(r8)            :: intgr_params(num_bc_in)
+
+    real(r8)            :: intgr_params(num_intgr_parm)
 
     integer, parameter  :: grow_lim_type = 3 ! Dev flag for growth limitation algorithm
                                              ! 1 = tries to calculate equivalent carbon
@@ -1117,7 +1202,9 @@ contains
     dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval
     ipft        = this%bc_in(acnp_bc_in_id_pft)%ival
     canopy_trim = this%bc_in(acnp_bc_in_id_ctrim)%rval
-
+    l2fr        = this%bc_inout(acnp_bc_inout_id_l2fr)%rval ! This variable is not updated in this
+                                                            ! routine, and is therefore not a pointer
+    
     cnp_limiter = 0
     
     ! If any of these resources is essentially tapped out,
@@ -1143,10 +1230,10 @@ contains
     end if
     
        
-    intgr_params(:)                   = fates_unset_r8
-    intgr_params(acnp_bc_in_id_ctrim) = this%bc_in(acnp_bc_in_id_ctrim)%rval
-    intgr_params(acnp_bc_in_id_pft)   = real(this%bc_in(acnp_bc_in_id_pft)%ival)
-    
+    intgr_params(:)              = fates_unset_r8
+    intgr_params(intgr_parm_ctrim) = this%bc_in(acnp_bc_in_id_ctrim)%rval
+    intgr_params(intgr_parm_pft)   = real(this%bc_in(acnp_bc_in_id_pft)%ival)
+    intgr_params(intgr_parm_l2fr)  = this%bc_in(acnp_bc_inout_id_l2fr)%rval
     
     state_mask(:) = .false.
     mask_organs(:) = fates_unset_int
@@ -1321,7 +1408,7 @@ contains
                leafc_tp1 = leafc_tp1 + this%variables(i_var)%val(i)
             end do
             
-            call CheckIntegratedAllometries(state_array_out(dbh_id),ipft,canopy_trim,  &
+            call CheckIntegratedAllometries(state_array_out(dbh_id),ipft,canopy_trim, l2fr,  &
                  leafc_tp1, state_array_out(fnrt_id), state_array_out(sapw_id), &
                  state_array_out(store_id), state_array_out(struct_id), &
                  state_mask(leaf_id), state_mask(fnrt_id), state_mask(sapw_id), &
@@ -1412,7 +1499,7 @@ contains
                structc_tp1 = state_array_out(struct_id)
                
                call bleaf(dbh_tp1,ipft,canopy_trim,leaf_c_target_tp1)
-               call bfineroot(dbh_tp1,ipft,canopy_trim,fnrt_c_target_tp1)
+               call bfineroot(dbh_tp1,ipft,canopy_trim,l2fr,fnrt_c_target_tp1)
                call bsap_allom(dbh_tp1,ipft,canopy_trim,sapw_area,sapw_c_target_tp1)
                call bagw_allom(dbh_tp1,ipft,agw_c_target_tp1)
                call bbgw_allom(dbh_tp1,ipft,bgw_c_target_tp1)
@@ -1668,20 +1755,19 @@ contains
     real(r8)         :: target_c
     real(r8),pointer :: dbh
     real(r8)         :: canopy_trim
+    real(r8)         :: l2fr
     integer          :: ipft
     integer          :: i_cvar
     real(r8)         :: sapw_area
     real(r8)         :: leaf_c_target,fnrt_c_target
     real(r8)         :: sapw_c_target,agw_c_target
     real(r8)         :: bgw_c_target,struct_c_target
-
-  
-    
     
     dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval
     canopy_trim = this%bc_in(acnp_bc_in_id_ctrim)%rval
     ipft        = this%bc_in(acnp_bc_in_id_pft)%ival
     i_cvar      = prt_global%sp_organ_map(organ_id,carbon12_element)
+    l2fr        = this%bc_inout(acnp_bc_inout_id_l2fr)%rval
     
     ! Storage of nutrients are assumed to have different compartments than
     ! for carbon, and thus their targets are not associated with a tissue
@@ -1691,7 +1777,7 @@ contains
     if(organ_id == store_organ) then
 
        call bleaf(dbh,ipft,canopy_trim,leaf_c_target)
-       call bfineroot(dbh,ipft,canopy_trim,fnrt_c_target)
+       call bfineroot(dbh,ipft,canopy_trim,l2fr,fnrt_c_target)
        call bsap_allom(dbh,ipft,canopy_trim,sapw_area,sapw_c_target)
        call bagw_allom(dbh,ipft,agw_c_target)
        call bbgw_allom(dbh,ipft,bgw_c_target)
@@ -2048,6 +2134,7 @@ contains
       ! locals
       integer  :: ipft             ! PFT index
       real(r8) :: canopy_trim      ! Canopy trimming function (boundary condition [0-1]
+      real(r8) :: l2fr             ! leaf to fineroot biomass multiplier 
       real(r8) :: leaf_c_target    ! target leaf biomass, dummy var (kgC)
       real(r8) :: fnrt_c_target    ! target fine-root biomass, dummy var (kgC)
       real(r8) :: sapw_c_target    ! target sapwood biomass, dummy var (kgC)
@@ -2083,12 +2170,12 @@ contains
                  mask_struct => l_state_mask(struct_id),  &
                  mask_repro  => l_state_mask(repro_id) )
 
-
-        canopy_trim = intgr_params(acnp_bc_in_id_ctrim)
-        ipft        = int(intgr_params(acnp_bc_in_id_pft))
+        canopy_trim = intgr_params(intgr_parm_ctrim)
+        ipft        = int(intgr_params(intgr_parm_pft))
+        l2fr        = intgr_params(intgr_parm_l2fr)
 
         call bleaf(dbh,ipft,canopy_trim,leaf_c_target,leaf_dcdd_target)
-        call bfineroot(dbh,ipft,canopy_trim,fnrt_c_target,fnrt_dcdd_target)
+        call bfineroot(dbh,ipft,canopy_trim,l2fr,fnrt_c_target,fnrt_dcdd_target)
         call bsap_allom(dbh,ipft,canopy_trim,sapw_area,sapw_c_target,sapw_dcdd_target)
         call bagw_allom(dbh,ipft,agw_c_target,agw_dcdd_target)
         call bbgw_allom(dbh,ipft,bgw_c_target,bgw_dcdd_target)
@@ -2255,7 +2342,105 @@ contains
    end subroutine TargetAllometryCheck
 
    
+   ! =====================================================================================
+   
+   
+   function StorageRegulator(this,element_id,regulate_type) result(c_scalar)
 
-   
-   
+     ! -----------------------------------------------------------------------------------
+     ! This function returns the cn_scalar or cp_scalar term
+     ! described in:
+     ! Zhu, Q et al. Representing Nitrogen, Phosphorus and Carbon
+     ! interactions in the E3SM land model: Development and Global benchmarking.
+     ! Journal of Advances in Modeling Earth Systems, 11, 2238-2258, 2019.
+     ! https://doi.org/10.1029/2018MS001571
+     !
+     ! In the manuscript c_scalar is described as: "f(CN) and f(CP) account for the
+     ! regulation of plant nutritional level on nutrient carrier enzyme activity"
+     ! Also, see equations 4 and 5.
+     ! -----------------------------------------------------------------------------------
+
+
+     ! Arguments (in)
+     class(cnp_allom_prt_vartypes) :: this
+     integer,intent(in)  :: element_id              ! element id consistent with parteh/PRTGenericMod.F90
+     integer,intent(in)  :: regulate_type
+
+
+     ! Arguments (out)
+     real(r8) :: c_scalar
+
+     ! Locals
+     real(r8) :: store_frac                         ! Current nutrient storage relative to max
+     real(r8) :: store_max                          ! Maximum nutrient storable by plant
+     real(r8) :: store_c                            ! Current storage carbon
+     real(r8) :: store_c_max                        ! Current maximum storage carbon
+     integer  :: icode                              ! real variable checking code
+
+     real(r8), parameter :: logi_k   = 30.0_r8         ! logistic function k
+     real(r8), parameter :: store_x0 = 0.7_r8          ! storage fraction inflection point
+     real(r8), parameter :: logi_min = 0.0_r8          ! minimum cn_scalar for logistic
+
+     ! This is the storage fraction where downregulation starts if using
+     ! a linear function
+     real(r8), parameter :: store_frac0 = 0.85_r8
+
+     real(r8), parameter :: c_max = 1.0_r8   ! Maximum allowable result of the function
+     real(r8), parameter :: c_min = 0.0_r8   ! Minimum allowable result of the function
+
+     associate(dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval, & 
+               canopy_trim => this%bc_in(acnp_bc_in_id_ctrim)%rval, &
+               ipft        => this%bc_in(acnp_bc_in_id_pft)%ival)
+
+       store_max = this%GetNutrientTarget(element_id,store_organ,stoich_max)
+
+       ! Storage fractions could more than the target, depending on the
+       ! hypothesis and functions involved, but should typically be 0-1
+       ! The cap of 2 is for numerics and preventing weird math
+       store_frac = min(2.0_r8,this%GetState(store_organ, element_id)/store_max)
+
+       if(regulate_type == regulate_linear) then
+
+          c_scalar = min(c_max,max(c_min,1.0 - (store_frac - store_frac0)/(1.0_r8-store_frac0)))
+
+       elseif(regulate_type == regulate_logi) then
+
+          ! In this method, we define the c_scalar term
+          ! with a logistic function that goes to 1 (full need)
+          ! as the plant's nutrien storage hits a low threshold
+          ! and goes to 0, no demand, as the plant's nutrient
+          ! storage approaches it's maximum holding capacity
+
+          c_scalar = max(c_min,min(c_max,logi_min + (1.0_r8-logi_min)/(1.0_r8 + exp(logi_k*(store_frac-store_x0)))))
+
+          !call check_var_real(c_scalar,'c_scalar',icode)
+          !if (icode .ne. 0) then
+          !   write(fates_log(),*) 'c_scalar is invalid, element: ',element_id
+          !   write(fates_log(),*) 'ending'
+          !   call endrun(msg=errMsg(sourcefile, __LINE__))
+          !endif
+
+       else
+
+          store_c = this%GetState(store_organ, carbon12_element)
+          call bstore_allom(dbh,ipft,canopy_trim,store_c_max)
+
+          ! Fraction of N per fraction of C
+          ! If this is greater than 1, then we have more N in storage than
+          ! we have C, so we downregulate. If this is less than 1, then
+          ! we have less N in storage than we have C, so up-regulate
+
+          store_frac = store_frac / (store_c/store_c_max)
+
+          c_scalar = max(c_min,min(c_max,logi_min + (1.0_r8-logi_min)/(1.0_r8 + exp(logi_k*(store_frac-store_x0)))))
+
+       end if
+
+     end associate
+
+
+   end function StorageRegulator
+
+
+
 end module PRTAllometricCNPMod

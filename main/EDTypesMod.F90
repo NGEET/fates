@@ -209,6 +209,14 @@ module EDTypesMod
 
      class(prt_vartypes), pointer :: prt
 
+     real(r8) :: l2fr                                    ! leaf to fineroot biomass ratio (this is constant
+                                                         !      in carbon only simulations, and is set by the
+                                                         !      allom_l2fr_min parameter.  In nutrient
+                                                         !      enabled simulations, this is dynamic, will
+                                                         !      vary between allom_l2fr_min and allom_l2fr_max
+                                                         !      parameters, with a tendency driven by
+                                                         !      nutrient storage)
+
      ! VEGETATION STRUCTURE
      integer  ::  pft                                    ! pft number
      real(r8) ::  n                                      ! number of individuals in cohort per 'area' (10000m2 default)
@@ -1028,6 +1036,7 @@ module EDTypesMod
      write(fates_log(),*) 'co%laimemory              = ', ccohort%laimemory
      write(fates_log(),*) 'co%sapwmemory             = ', ccohort%sapwmemory
      write(fates_log(),*) 'co%structmemory           = ', ccohort%structmemory
+     write(fates_log(),*) 'co%l2fr                   = ', ccohort%l2fr
      
      write(fates_log(),*) 'leaf carbon               = ', ccohort%prt%GetState(leaf_organ,all_carbon_elements) 
      write(fates_log(),*) 'fineroot carbon           = ', ccohort%prt%GetState(fnrt_organ,all_carbon_elements) 

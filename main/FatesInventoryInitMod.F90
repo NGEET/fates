@@ -1028,7 +1028,8 @@ contains
          call bleaf(temp_cohort%dbh,temp_cohort%pft,temp_cohort%canopy_trim,c_leaf)
          
          ! Calculate fine root biomass
-         call bfineroot(temp_cohort%dbh,temp_cohort%pft,temp_cohort%canopy_trim,c_fnrt)
+         temp_cohort%l2fr = prt_params%allom_l2fr_min(temp_cohort%pft)
+         call bfineroot(temp_cohort%dbh,temp_cohort%pft,temp_cohort%canopy_trim,temp_cohort%l2fr,c_fnrt)
          
          ! Calculate sapwood biomass
          call bsap_allom(temp_cohort%dbh,temp_cohort%pft,temp_cohort%canopy_trim, a_sapw, c_sapw)
@@ -1042,7 +1043,7 @@ contains
          temp_cohort%structmemory = 0._r8	 
          cstatus = leaves_on
          
-	 stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(temp_cohort%pft)
+         stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(temp_cohort%pft)
 
          if( prt_params%season_decid(temp_cohort%pft) == itrue .and. &
               any(csite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then

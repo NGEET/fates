@@ -482,7 +482,7 @@ contains
 
           if ( int(prt_params%allom_fmode(ipft)) .eq. 1 ) then
              ! only query fine root biomass if using a fine root allometric model that takes leaf trim into account
-             call bfineroot(currentcohort%dbh,ipft,currentcohort%canopy_trim,tar_bfr)
+             call bfineroot(currentcohort%dbh,ipft,currentcohort%canopy_trim,currentcohort%l2fr,tar_bfr)
              bfr_per_bleaf = tar_bfr/tar_bl
           endif
 
@@ -1625,13 +1625,14 @@ contains
        temp_cohort%pft         = ft
        temp_cohort%hite        = EDPftvarcon_inst%hgt_min(ft)
        temp_cohort%coage       = 0.0_r8
+       temp_cohort%l2fr        = prt_params%allom_l2fr_min(ft)
        stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(ft)
 
        call h2d_allom(temp_cohort%hite,ft,temp_cohort%dbh)
 
        ! Initialize live pools
        call bleaf(temp_cohort%dbh,ft,temp_cohort%canopy_trim,c_leaf)
-       call bfineroot(temp_cohort%dbh,ft,temp_cohort%canopy_trim,c_fnrt)
+       call bfineroot(temp_cohort%dbh,ft,temp_cohort%canopy_trim,temp_cohort%l2fr,c_fnrt)
        call bsap_allom(temp_cohort%dbh,ft,temp_cohort%canopy_trim,a_sapw, c_sapw)
        call bagw_allom(temp_cohort%dbh,ft,c_agw)
        call bbgw_allom(temp_cohort%dbh,ft,c_bgw)

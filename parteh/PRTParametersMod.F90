@@ -118,7 +118,10 @@ module PRTParametersMod
                                                             ! (sapwood area / leaf area) [cm2/m2]
      real(r8), allocatable :: allom_la_per_sa_slp(:)        ! Leaf area to sap area conversion, slope 
                                                             ! (sapwood area / leaf area / diameter) [cm2/m2/cm]
-     real(r8), allocatable :: allom_l2fr(:)                 ! Fine root biomass per leaf biomass ratio [kgC/kgC]
+     real(r8), allocatable :: allom_l2fr_min(:)             ! Minimum fine root biomass per leaf biomass ratio [kgC/kgC]
+                                                            ! FOR C-ONLY, THIS IS THE ONLY AND STATIC L2FR
+     real(r8), allocatable :: allom_l2fr_max(:)             ! Maximum fine root biomass per leaf biomass ratio [kgC/kgC]
+                                                            ! for nutrient enabled runs
      real(r8), allocatable :: allom_agb_frac(:)             ! Fraction of stem above ground [-]
      real(r8), allocatable :: allom_d2h1(:)                 ! Parameter 1 for d2h allometry (intercept, or "c")
      real(r8), allocatable :: allom_d2h2(:)                 ! Parameter 2 for d2h allometry (slope, or "m")

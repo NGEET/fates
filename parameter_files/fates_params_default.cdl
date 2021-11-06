@@ -100,9 +100,12 @@ variables:
 		fates_allom_hmode:units = "index" ;
 		fates_allom_hmode:long_name = "height allometry function index." ;
 		fates_allom_hmode:possible_values = "1: OBrien 1995; 2: Poorter 2006; 3: 2 parameter power law; 4: Chave 2014; 5: Martinez-Cano 2019." ;
-	double fates_allom_l2fr(fates_pft) ;
-		fates_allom_l2fr:units = "gC/gC" ;
-		fates_allom_l2fr:long_name = "Allocation parameter: fine root C per leaf C" ;
+	double fates_allom_l2fr_min(fates_pft) ;
+		fates_allom_l2fr_min:units = "gC/gC" ;
+		fates_allom_l2fr_min:long_name = "Allocation parameter: minimum fine root C per leaf C (definitive l2fr for Carbon-only)" ;
+	double fates_allom_l2fr_max(fates_pft) ;
+		fates_allom_l2fr_max:units = "gC/gC" ;
+		fates_allom_l2fr_max:long_name = "Allocation parameter: maximum fine root C per leaf C (NOT USED IN Carbon-only, only CNP)" ;	
 	double fates_allom_la_per_sa_int(fates_pft) ;
 		fates_allom_la_per_sa_int:units = "m2/cm2" ;
 		fates_allom_la_per_sa_int:long_name = "Leaf area per sapwood area, intercept" ;
@@ -781,7 +784,9 @@ data:
 
  fates_allom_hmode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
- fates_allom_l2fr = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
+ fates_allom_l2fr_min = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
+
+ fates_allom_l2fr_max = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
  fates_allom_la_per_sa_int = 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 
     0.8, 0.8, 0.8 ;

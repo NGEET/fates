@@ -38,7 +38,6 @@ module FatesSoilBGCFluxMod
   use FatesAllometryMod , only : bagw_allom
   use FatesAllometryMod , only : bsap_allom
   use FatesAllometryMod , only : bleaf
-  use FatesAllometryMod , only : bfineroot
   use FatesAllometryMod , only : bdead_allom
   use FatesAllometryMod , only : bstore_allom
   use FatesAllometryMod , only : bbgw_allom
@@ -724,8 +723,8 @@ contains
                    icomp = pft
                 end if
 
-                bc_out%cn_scalar(icomp) = bc_out%cn_scalar(icomp) + &
-                     ECACScalar(ccohort, nitrogen_element)
+                bc_out%cn_scalar(icomp) = 1.0_r8
+                
                 
                 ccohort => ccohort%shorter
              end do
@@ -763,8 +762,7 @@ contains
                    icomp = pft
                 end if
                 
-                bc_out%cp_scalar(icomp) = bc_out%cp_scalar(icomp) + &
-                     ECACScalar(ccohort, phosphorus_element)
+                bc_out%cp_scalar(icomp) = 1.0_r8
                 
                 ccohort => ccohort%shorter
              end do
@@ -1146,104 +1144,7 @@ contains
     return
   end subroutine FluxIntoLitterPools
 
-  ! =====================================================================================
-  
-  function ECACScalar(ccohort, element_id) result(c_scalar)
 
-    ! -----------------------------------------------------------------------------------
-    ! This function returns the cn_scalar or cp_scalar term
-    ! described in:
-    ! Zhu, Q et al. Representing Nitrogen, Phosphorus and Carbon
-    ! interactions in the E3SM land model: Development and Global benchmarking.
-    ! Journal of Advances in Modeling Earth Systems, 11, 2238-2258, 2019.
-    ! https://doi.org/10.1029/2018MS001571
-    !
-    ! In the manuscript c_scalar is described as: "f(CN) and f(CP) account for the
-    ! regulation of plant nutritional level on nutrient carrier enzyme activity"
-    ! Also, see equations 4 and 5.
-    ! -----------------------------------------------------------------------------------
-    
-    
-    ! Arguments (in)
-    type(ed_cohort_type), pointer :: ccohort       ! current cohort pointer
-    integer  :: element_id                         ! element id consistent with parteh/PRTGenericMod.F90
-
-    ! Arguments (out)
-    real(r8) :: c_scalar
-
-    ! Locals
-    real(r8) :: store_frac                         ! Current nutrient storage relative to max
-    real(r8) :: store_max                          ! Maximum nutrient storable by plant
-    real(r8) :: store_c                            ! Current storage carbon
-    real(r8) :: store_c_max                        ! Current maximum storage carbon
-    integer  :: icode                              ! real variable checking code
-    
-    integer, parameter :: downreg_linear = 1
-    integer, parameter :: downreg_logi   = 2
-    integer, parameter :: downreg_CN_logi = 3
-    
-    integer, parameter :: downreg_type = downreg_linear
-
-    
-    real(r8), parameter :: logi_k   = 30.0_r8         ! logistic function k
-    real(r8), parameter :: store_x0 = 0.9_r8          ! storage fraction inflection point
-    real(r8), parameter :: logi_min = 0.0_r8          ! minimum cn_scalar for logistic
-
-    ! This is the storage fraction where downregulation starts if using
-    ! a linear function
-    real(r8), parameter :: store_frac0 = 0.85_r8
-
-    real(r8), parameter :: c_max = 1.0_r8
-    real(r8), parameter :: c_min = 1.e-3_r8
-    
-    
-    store_max = ccohort%prt%GetNutrientTarget(element_id,store_organ,stoich_max)
-    store_frac = min(2.0_r8,ccohort%prt%GetState(store_organ, element_id)/store_max)
-    
-    if(downreg_type == downreg_linear) then
-
-       c_scalar = min(c_max,max(c_min,1.0 - (store_frac - store_frac0)/(1.0_r8-store_frac0)))
-       
-    elseif(downreg_type == downreg_logi) then
-       
-       ! In this method, we define the c_scalar term
-       ! with a logistic function that goes to 1 (full need)
-       ! as the plant's nutrien storage hits a low threshold
-       ! and goes to 0, no demand, as the plant's nutrient
-       ! storage approaches it's maximum holding capacity
-
-       
-       
-       c_scalar = max(c_min,min(c_max,logi_min + (1.0_r8-logi_min)/(1.0_r8 + exp(logi_k*(store_frac-store_x0)))))
-
-       call check_var_real(c_scalar,'c_scalar',icode)
-       if (icode .ne. 0) then
-          write(fates_log(),*) 'c_scalar is invalid, element: ',element_id
-          write(fates_log(),*) 'ending'
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       endif
-
-    else
-
-       store_c = ccohort%prt%GetState(store_organ, carbon12_element)
-       call bstore_allom(ccohort%dbh,ccohort%pft,ccohort%canopy_trim,store_c_max)
-
-       ! Fraction of N per fraction of C
-       ! If this is greater than 1, then we have more N in storage than
-       ! we have C, so we downregulate. If this is less than 1, then
-       ! we have less N in storage than we have C, so up-regulate
-       
-       store_frac = store_frac / (store_c/store_c_max)
-
-       c_scalar = max(c_min,min(c_max,logi_min + (1.0_r8-logi_min)/(1.0_r8 + exp(logi_k*(store_frac-store_x0)))))
-
-       
-       
-       
-    end if
-    
-
-  end function ECACScalar
 
 
 end module FatesSoilBGCFluxMod

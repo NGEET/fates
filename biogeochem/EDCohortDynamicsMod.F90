@@ -90,6 +90,7 @@ module EDCohortDynamicsMod
   use PRTAllometricCNPMod,    only : cnp_allom_prt_vartypes
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_pft, acnp_bc_in_id_ctrim
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_lstat, acnp_bc_inout_id_dbh
+  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_l2fr
   use PRTAllometricCNPMod,    only : acnp_bc_inout_id_rmaint_def, acnp_bc_in_id_netdc
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_netdnh4, acnp_bc_in_id_netdno3, acnp_bc_in_id_netdp
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_cefflux, acnp_bc_out_id_nefflux
@@ -236,6 +237,16 @@ contains
     new_cohort%sapwmemory   = sapwmemory
     new_cohort%structmemory = structmemory
 
+    ! Initialize the leaf to fineroot biomass ratio
+    ! for C-only, this will stay constant, for nutrient enabled
+    ! this will be dynamic.  In both cases, new cohorts are
+    ! initialized with the minimum. This works in the nutrient
+    ! enabled case, because cohorts are also initialized with
+    ! full stores, which match with minimum fr biomass
+
+    new_cohort%l2fr = prt_params%allom_l2fr_min(pft)
+
+    
     ! This sets things like vcmax25top, that depend on the
     ! leaf age fractions (which are defined by PARTEH)
     call UpdateCohortBioPhysRates(new_cohort)
@@ -393,7 +404,7 @@ contains
        call new_cohort%prt%RegisterBCIn(ac_bc_in_id_pft,bc_ival = new_cohort%pft)
        call new_cohort%prt%RegisterBCIn(ac_bc_in_id_ctrim,bc_rval = new_cohort%canopy_trim)
        call new_cohort%prt%RegisterBCIn(ac_bc_in_id_lstat,bc_ival = new_cohort%status_coh)
-
+       
     case (prt_cnp_flex_allom_hyp)
 
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_pft,bc_ival = new_cohort%pft)
@@ -406,6 +417,7 @@ contains
        
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_dbh,bc_rval = new_cohort%dbh)
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_rmaint_def,bc_rval = new_cohort%resp_m_def)
+       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_l2fr,bc_rval = new_cohort%l2fr)
 
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_cefflux, bc_rval = new_cohort%daily_c_efflux)
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_nefflux, bc_rval = new_cohort%daily_n_efflux)
@@ -1173,7 +1185,10 @@ contains
                                    ! Leaf biophysical rates (use leaf mass weighting)
                                    ! -----------------------------------------------------------------
                                    call UpdateCohortBioPhysRates(currentCohort)
-
+                                   
+                                   currentCohort%l2fr = (currentCohort%n*currentCohort%l2fr&
+                                        + nextc%n*nextc%l2fr)/newn
+                                   
                                    currentCohort%laimemory   = (currentCohort%n*currentCohort%laimemory   &
                                         + nextc%n*nextc%laimemory)/newn
 
@@ -1788,7 +1803,8 @@ contains
     n%coage_by_pft_class = o%coage_by_pft_class
     ! This transfers the PRT objects over.
     call n%prt%CopyPRTVartypes(o%prt)
-
+    n%l2fr       = o%l2fr
+    
     ! Leaf biophysical rates
     n%vcmax25top = o%vcmax25top
     n%jmax25top  = o%jmax25top

@@ -529,11 +529,11 @@ contains
 
        allocate(temp_cohort) ! temporary cohort
 
-       temp_cohort%pft         = pft
-       temp_cohort%n           = EDPftvarcon_inst%initd(pft) * patch_in%area
-       temp_cohort%hite        = EDPftvarcon_inst%hgt_min(pft)
+       temp_cohort%pft  = pft
+       temp_cohort%n    = EDPftvarcon_inst%initd(pft) * patch_in%area
+       temp_cohort%hite = EDPftvarcon_inst%hgt_min(pft)
+       temp_cohort%l2fr = prt_params%allom_l2fr_min(pft)
        
-
        ! Calculate the plant diameter from height
        call h2d_allom(temp_cohort%hite,pft,temp_cohort%dbh)
 
@@ -551,7 +551,7 @@ contains
 
        ! Calculate fine root biomass from allometry
        ! (calculates a maximum and then trimming value)
-       call bfineroot(temp_cohort%dbh,pft,temp_cohort%canopy_trim,c_fnrt)
+       call bfineroot(temp_cohort%dbh,pft,temp_cohort%canopy_trim,temp_cohort%l2fr,c_fnrt)
 
        ! Calculate sapwood biomass
        call bsap_allom(temp_cohort%dbh,pft,temp_cohort%canopy_trim,a_sapw,c_sapw)
@@ -665,7 +665,7 @@ contains
        call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, &
             temp_cohort%coage, temp_cohort%dbh, prt_obj, temp_cohort%laimemory, &
             temp_cohort%sapwmemory, temp_cohort%structmemory, cstatus, rstatus,        &
-             temp_cohort%canopy_trim, 1, site_in%spread, bc_in)
+            temp_cohort%canopy_trim, 1, site_in%spread, bc_in)
 
        deallocate(temp_cohort) ! get rid of temporary cohort
 
