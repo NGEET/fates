@@ -2449,8 +2449,6 @@ end subroutine flush_hvars
                end if
             end do elloop
 
-            hio_area_trees_si(io_si) = hio_area_trees_si(io_si) + min(cpatch%total_tree_area,cpatch%area) * AREA_INV
-
             ! Update PFT crown area
             hio_crownarea_si_pft(io_si, ft) = hio_crownarea_si_pft(io_si, ft) + &
                ccohort%c_area * AREA_INV
@@ -4471,13 +4469,13 @@ end subroutine update_history_hifrq
 
     call this%set_history_var(vname='FATES_CROWNAREA_PF',  units='m2 m-2',     &
          long='total PFT-level crown area per m2 land area',                   &
-         use_default='inactive', avgflag='A', vtype=site_pft_r8,               &
+         use_default='active', avgflag='A', vtype=site_pft_r8,               &
          hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
          index=ih_crownarea_si_pft)
 
     call this%set_history_var(vname='FATES_CANOPYCROWNAREA_PF',                &
          units='m2 m-2', long='total PFT-level canopy-layer crown area per m2 land area', &
-         use_default='inactive', avgflag='A', vtype=site_pft_r8,               &
+         use_default='active', avgflag='A', vtype=site_pft_r8,               &
          hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
          index=ih_canopycrownarea_si_pft)
 
