@@ -198,6 +198,13 @@ contains
     site_in%water_memory(:)  = nan
     site_in%vegtemp_memory(:) = nan              ! record of last 10 days temperature for senescence model.
 
+    ! Disturbance rates tracking
+    site_in%primary_land_patchfusion_error = 0.0_r8
+    site_in%harvest_carbon_flux = 0.0_r8
+    site_in%potential_disturbance_rates(:) = 0.0_r8
+    site_in%disturbance_rates_secondary_to_secondary(:) = 0.0_r8
+    site_in%disturbance_rates_primary_to_secondary(:) = 0.0_r8
+    site_in%disturbance_rates_primary_to_primary(:) = 0.0_r8
 
     ! FIRE
     site_in%acc_ni           = 0.0_r8     ! daily nesterov index accumulating over time. time unlimited theoretically.
