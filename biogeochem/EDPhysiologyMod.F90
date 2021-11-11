@@ -725,6 +725,7 @@ contains
     real(r8) :: store_c           ! storage carbon [kg]
     real(r8) :: struct_c          ! structure carbon [kg]
     real(r8) :: gdd_threshold     ! GDD accumulation function,
+    real(r8) :: rootfrac_notop    ! Total rooting fraction excluding the top soil layer
     integer  :: ncdstart          ! beginning of counting period for chilling degree days.
     integer  :: gddstart          ! beginning of counting period for growing degree days.
     integer  :: nlevroot          ! Number of rooting levels to consider
@@ -744,10 +745,6 @@ contains
     integer, parameter  :: dd_offon_toler = 30          ! When flushing or shedding leaves, we check that
                                                         ! the dates are near last year's dates. This controls
                                                         ! the tolerance for deviating from last year.
-    real(r8), parameter :: smp_off = -0.001_r8          ! Offset to be applied to soil matric potential when
-                                                        ! taking the log-averages. This avoids FPE in the
-                                                        ! unlikely case that SMP = 0. (which may occur
-                                                        ! depending on the hydrology formulation).
     ! This is the integer model day. The first day of the simulation is 1, and it
     ! continues monotonically, indefinitely
     model_day_int = nint(hlm_model_day)
@@ -963,7 +960,7 @@ contains
     pft_drgt_loop: do ft=1,numpft
 
        ! Update soil moisture information memory (we always track the last 10 days)
-       do i_wmem = numWaterMem,2,-1 !shift memory along one
+       do i_wmem = numWaterMem,2,-1 !shift memory to previous day, to make room for current day
           currentSite%liqvol_memory(i_wmem,ft) = currentSite%liqvol_memory(i_wmem-1,ft)
           currentSite%smp_memory   (i_wmem,ft) = currentSite%smp_memory   (i_wmem-1,ft)
        end do
@@ -971,19 +968,27 @@ contains
        ! Find the rooting depth distribution for PFT
        call set_root_fraction( currentSite%rootfrac_scr, ft, currentSite%zi_soil, &
                                bc_in%max_rooting_depth_index_col )
-       nlevroot = min(ubound(currentSite%zi_soil,1),bc_in%max_rooting_depth_index_col)
+       nlevroot = max(2,min(ubound(currentSite%zi_soil,1),bc_in%max_rooting_depth_index_col))
+
+       ! The top most layer is typically very thin (~ 2cm) and dries rather quickly. Despite
+       ! being thin, it can have a non-negligible rooting fraction (e.g., using 
+       ! exponential_2p_root_profile with default parameters make the top layer to contain
+       ! about 7% of the total fine root density).  To avoid overestimating dryness, we 
+       ! ignore the top layer when calculating the memory.
+       rootfrac_notop = sum(currentSite%rootfrac_scr(2:nlevroot))
+       if ( rootfrac_notop <= nearzero ) then
+          ! Unlikely, but just in case all roots are in the first layer, we use the second
+          ! layer the second layer (to avoid FPE issues).
+          currentSite%rootfrac_scr(2) = 1.0_r8
+          rootfrac_notop              = 1.0_r8
+       end if
 
        ! Set the memory to be the weighted average of the soil properties, using the
-       ! root fraction of each layer as the weighting factor.  Because soil matric potential
-       ! has a very skewed vertical distribution, we average the logarithm of -1*SMP.
-       ! It is unlike, but SMP can be zero under saturated conditions depending on the hydrological
-       ! model. To reduce risks of FPE, we include a small offset to SMP before applying log averages.
-       ! This will bias the average, but the bias should be negligible as long as smp_off is much
-       ! smaller than the typical values.
-       currentSite%liqvol_memory(1,ft) = sum( bc_in%h2o_liqvol_sl     (1:nlevroot) * &
-                                              currentSite%rootfrac_scr(1:nlevroot) )
-       currentSite%smp_memory   (1,ft) = -exp( sum( log(-(bc_in%smp_sl (1:nlevroot)+smp_off)) * &
-                                                   currentSite%rootfrac_scr(1:nlevroot) )) - smp_off
+       ! root fraction of each layer (except the topmost one) as the weighting factor.
+       currentSite%liqvol_memory(1,ft) = sum( bc_in%h2o_liqvol_sl     (2:nlevroot) * &
+                                              currentSite%rootfrac_scr(2:nlevroot) ) / rootfrac_notop
+       currentSite%smp_memory   (1,ft) = sum( bc_in%smp_sl            (2:nlevroot) * &
+                                              currentSite%rootfrac_scr(2:nlevroot) ) / rootfrac_notop
 
        ! Calculate the mean soil moisture ( liquid volume (m3/m3) and matric potential (mm))
        !    over the last 10 days
