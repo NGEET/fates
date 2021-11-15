@@ -5381,47 +5381,47 @@ end subroutine update_history_hifrq
 
     ! size class by age dimensioned variables
 
-    call this%set_history_var(vname='FATES_NPLANT_APSZ', units = 'm-2',        &
+    call this%set_history_var(vname='FATES_NPLANT_SZAP', units = 'm-2',        &
           long='number of plants per m2 in each size x age class',             &
           use_default='inactive', avgflag='A', vtype=site_scag_r8,             &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_nplant_si_scag)
 
-    call this%set_history_var(vname='FATES_NPLANT_CANOPY_APSZ', units = 'm-2', &
+    call this%set_history_var(vname='FATES_NPLANT_CANOPY_SZAP', units = 'm-2', &
           long='number of plants per m2 in canopy in each size x age class',   &
           use_default='inactive', avgflag='A', vtype=site_scag_r8,             &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_nplant_canopy_si_scag)
 
-    call this%set_history_var(vname='FATES_NPLANT_USTORY_APSZ',                &
+    call this%set_history_var(vname='FATES_NPLANT_USTORY_SZAP',                &
           units = 'm-2',                                                       &
           long='number of plants per m2 in understory in each size x age class', &
           use_default='inactive', avgflag='A', vtype=site_scag_r8,             &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_nplant_understory_si_scag)
 
-    call this%set_history_var(vname='FATES_DDBH_CANOPY_APSZ',                  &
+    call this%set_history_var(vname='FATES_DDBH_CANOPY_SZAP',                  &
           units = 'm m-2 yr-1',                                                &
           long='growth rate of canopy plants in meters DBH per m2 per year in canopy in each size x age class', &
           use_default='inactive', avgflag='A', vtype=site_scag_r8,             &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_ddbh_canopy_si_scag)
 
-    call this%set_history_var(vname='FATES_DDBH_USTORY_APSZ',                  &
+    call this%set_history_var(vname='FATES_DDBH_USTORY_SZAP',                  &
           units = 'm m-2 yr-1',                                                &
           long='growth rate of understory plants in meters DBH per m2 per year in each size x age class', &
           use_default='inactive', avgflag='A', vtype=site_scag_r8,             &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_ddbh_understory_si_scag)
 
-    call this%set_history_var(vname='FATES_MORTALITY_CANOPY_APSZ',             &
+    call this%set_history_var(vname='FATES_MORTALITY_CANOPY_SZAP',             &
           units = 'm-2 yr-1',                                                  &
           long='mortality rate of canopy plants in number of plants per m2 per year in each size x age class', &
           use_default='inactive', avgflag='A', vtype=site_scag_r8,             &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_mortality_canopy_si_scag)
 
-    call this%set_history_var(vname='FATES_MORTALITY_USTORY_APSZ',             &
+    call this%set_history_var(vname='FATES_MORTALITY_USTORY_SZAP',             &
           units = 'm-2 yr-1',                                                  &
           long='mortality rate of understory plants in number of plants per m2 per year in each size x age class', &
           use_default='inactive', avgflag='A', vtype=site_scag_r8,             &
@@ -5430,7 +5430,7 @@ end subroutine update_history_hifrq
 
     ! size x age x pft dimensioned
 
-    call this%set_history_var(vname='FATES_NPLANT_APSZPF',units = 'm-2',       &
+    call this%set_history_var(vname='FATES_NPLANT_SZAPPF',units = 'm-2',       &
           long='number of plants per m2 in each size x age x pft class',       &
           use_default='inactive', avgflag='A', vtype=site_scagpft_r8,          &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
