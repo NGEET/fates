@@ -28,8 +28,9 @@ module FatesHydroWTFMod
        __FILE__
 
 
-  real(r8), parameter :: min_ftc = 0.0005_r8   ! Minimum allowed fraction of total conductance
-                                               
+  real(r8), parameter :: min_ftc = 0.00001_r8   ! Minimum allowed fraction of total conductance
+
+  
   ! Bounds on saturated fraction, outside of which we use linear PV or stop flow
   ! In this context, the saturated fraction is defined by the volumetric WC "th"
   ! and the volumetric residual and saturation "th_res" and "th_sat": (th-th_r)/(th_sat-th_res)
@@ -43,8 +44,7 @@ module FatesHydroWTFMod
   real(r8), parameter :: quad_a2 = 0.99_r8  ! Smoothing factor or "A" term in
                                             ! elastic-caviation region
 
-  logical   ::  use_linear_interp = .false.  ! parameter used to control whether to use 
-                                            ! linear interprotation in vg water retention function
+
   ! Generic class that can be extended to describe
   ! specific water retention functions
 
@@ -58,15 +58,16 @@ module FatesHydroWTFMod
       ! into these linear regions, and they only exist reall to handle
       ! strange cases where the solvers overshoot and predict above and below
       ! saturation and residual respectively.
-      
+
       real(r8) :: psi_max     ! psi matching max_sf_interp where we start linear interp
       real(r8) :: psi_min     ! psi matching min_sf_interp
       real(r8) :: dpsidth_max ! dpsi_dth where we start linear interp
       real(r8) :: dpsidth_min ! dpsi_dth where we start min interp
       real(r8) :: th_min      ! vwc matching min_sf_interp where we start linear interp
       real(r8) :: th_max      ! vwc matching max_sf_interp where we start linear interp
- 
-   contains
+
+  contains
+
      procedure :: th_from_psi     => th_from_psi_base
      procedure :: psi_from_th     => psi_from_th_base
      procedure :: dpsidth_from_th => dpsidth_from_th_base
@@ -80,7 +81,7 @@ module FatesHydroWTFMod
      procedure, non_overridable :: th_linear_sat
      procedure, non_overridable :: th_linear_res
      procedure, non_overridable :: set_min_max
-        
+
   end type wrf_type
 
 
@@ -99,14 +100,11 @@ module FatesHydroWTFMod
 
   type, public :: wrf_arr_type
      class(wrf_type), pointer :: p
-     real(r8) :: th_sat
-     real(r8) :: psi_sat
   end type wrf_arr_type
 
   type, public :: wkf_arr_type
       class(wkf_type), pointer :: p
   end type wkf_arr_type
-
 
   ! =====================================================================================
   ! Van Genuchten WTF Definitions
@@ -116,10 +114,9 @@ module FatesHydroWTFMod
   type, public, extends(wrf_type) :: wrf_type_vg
      real(r8) :: alpha   ! Inverse air entry parameter         [m3/Mpa]
      real(r8) :: n_vg    ! pore size distribution parameter, psd in original code
-     real(r8) :: m_vg    ! m in van Genuchten 1980, also a pore size distribtion parameter , 1-m in original code   
+     real(r8) :: m_vg    ! m in van Genuchten 1980, also a pore size distribtion parameter , 1-m in original code
      real(r8) :: th_sat  ! Saturation volumetric water content [m3/m3]
      real(r8) :: th_res  ! Residual volumetric water content   [m3/m3]
-
    contains
      procedure :: th_from_psi     => th_from_psi_vg
      procedure :: psi_from_th     => psi_from_th_vg
@@ -132,7 +129,7 @@ module FatesHydroWTFMod
   type, public, extends(wkf_type) :: wkf_type_vg
      real(r8) :: alpha   ! Inverse air entry parameter         [m3/Mpa]
      real(r8) :: n_vg    ! pore size distribution parameter
-     real(r8) :: m_vg    ! m in van Genuchten 1980, also a pore size distribtion parameter ,      
+     real(r8) :: m_vg    ! m in van Genuchten 1980, also a pore size distribtion parameter
      real(r8) :: tort    ! Tortuosity parameter (sometimes "l")
      real(r8) :: th_sat  ! Saturation volumetric water content [m3/m3]
      real(r8) :: th_res  ! Residual volumetric water content   [m3/m3]
@@ -151,7 +148,6 @@ module FatesHydroWTFMod
      real(r8) :: th_sat   ! Saturation volumetric water content         [m3/m3]
      real(r8) :: psi_sat  ! Bubbling pressure (potential at saturation) [Mpa]
      real(r8) :: beta     ! Clapp-Hornberger "beta" parameter           [-]
-
    contains
      procedure :: th_from_psi     => th_from_psi_cch
      procedure :: psi_from_th     => psi_from_th_cch
@@ -183,19 +179,16 @@ module FatesHydroWTFMod
      real(r8) :: pinot    ! osmotic potential at full turger            [MPa]
      real(r8) :: epsil    ! bulk elastic modulus                        [MPa]
      real(r8) :: rwc_ft   ! RWC @ full turgor, (elastic drainage begins)[-]
-     real(r8) :: psicap   ! xylem water potential where capilary source is exhausted [Mpa] 
      real(r8) :: cap_corr ! correction for nonzero psi0x
      real(r8) :: cap_int  ! intercept of capillary region of curve
      real(r8) :: cap_slp  ! slope of capillary region of curve
      integer  :: pmedia   ! self describing porous media index
-
-
    contains
      procedure :: th_from_psi     => th_from_psi_tfs
      procedure :: psi_from_th     => psi_from_th_tfs
      procedure :: dpsidth_from_th => dpsidth_from_th_tfs
      procedure :: set_wrf_param   => set_wrf_param_tfs
-     procedure :: get_thsat       => get_thsat_tfs    
+     procedure :: get_thsat       => get_thsat_tfs
      procedure :: bisect_pv
   end type wrf_type_tfs
 
@@ -218,82 +211,90 @@ contains
   ! Functional definitions follow here
   ! Start off by writing the base types, which ultimately should never be pointed to.
   ! =====================================================================================
-  
+
+  ! Generic Functions usable by all
+  ! Note that these are linear extrapolations.
+  ! They should only be used with the expectation that they will allow
+  ! for solutions outside the expected range, with the understanding these
+  ! are temporary pertubations, probably through fluctuations in precision
+  ! of numerical integration.
+  ! ============================================================================
+
   subroutine set_min_max(this,th_res,th_sat)
 
       ! This routine uses max_sf_interp and min_sft_interp
       ! to define the bounds of where the linear ranges start and stop
-      
+
       class(wrf_type)   :: this
       real(r8),intent(in) :: th_res
       real(r8),intent(in) :: th_sat
-      
+
       this%th_max      = max_sf_interp*(th_sat-th_res)+th_res
       this%th_min      = min_sf_interp*(th_sat-th_res)+th_res
       this%psi_max     = this%psi_from_th(this%th_max-tiny(this%th_max))
       this%dpsidth_max = this%dpsidth_from_th(this%th_max-tiny(this%th_max))
       this%psi_min     = this%psi_from_th(this%th_min+tiny(this%th_min))
       this%dpsidth_min = this%dpsidth_from_th(this%th_min+tiny(this%th_min))
-      
+
   end subroutine set_min_max
-      
+
   ! ============================================================================
-  
+
   function psi_linear_res(this,th) result(psi)
 
       ! Calculate psi in linear range below residual
-      
+
       class(wrf_type)   :: this
       real(r8),intent(in)  :: th    ! vol. wat. cont   [m3/m3]
       real(r8)             :: psi   ! Matric potential [MPa]
-      
+
       psi = this%psi_min + this%dpsidth_min * (th-this%th_min)
-      
+
   end function psi_linear_res
-  
+
   ! ===========================================================================
-  
+
   function psi_linear_sat(this,th) result(psi)
 
       ! Calculate psi in linear range above saturation
-      
+
       class(wrf_type)   :: this
       real(r8),intent(in)  :: th    ! vol. wat. cont   [m3/m3]
       real(r8)             :: psi   ! Matric potential [MPa]
-            
-      psi = this%psi_max + this%dpsidth_max * (th-this%th_max) 
-      
+
+      psi = this%psi_max + this%dpsidth_max * (th-this%th_max)
+
   end function psi_linear_sat
 
   ! ===========================================================================
-  
+
   function th_linear_sat(this,psi) result(th)
 
       ! Calculate th from psi in linear range above saturation
-      
+
       class(wrf_type)   :: this
       real(r8),intent(in)   :: psi   ! Matric potential [MPa]
       real(r8)              :: th    ! vol. wat. cont   [m3/m3]
-     
-      th = this%th_max + (psi-this%psi_max)/this%dpsidth_max
 
+      th = this%th_max + (psi-this%psi_max)/this%dpsidth_max
   end function th_linear_sat
 
   ! ===========================================================================
-  
+
   function th_linear_res(this,psi) result(th)
 
       ! Calculate th from psi in linear range above saturation
-      
+
       class(wrf_type)   :: this
       real(r8),intent(in)   :: psi   ! Matric potential [MPa]
       real(r8)              :: th    ! vol. wat. cont   [m3/m3]
-     
+
       th = this%th_min + (psi-this%psi_min)/this%dpsidth_min
 
   end function th_linear_res
 
-  !======================================================================================
+  ! ===========================================================================
+
   subroutine set_wrf_param_base(this,params_in)
     class(wrf_type)     :: this
     real(r8),intent(in) :: params_in(:)
@@ -302,15 +303,15 @@ contains
     write(fates_log(),*) 'check how the class pointer was setup'
     call endrun(msg=errMsg(sourcefile, __LINE__))
   end subroutine set_wrf_param_base
-  
   function get_thsat_base(this) result(th_sat)
     class(wrf_type)     :: this
     real(r8)            :: th_sat
+    th_sat = 0._r8
     write(fates_log(),*) 'The base thsat call'
     write(fates_log(),*) 'should never be actualized'
     write(fates_log(),*) 'check how the class pointer was setup'
     call endrun(msg=errMsg(sourcefile, __LINE__))
-  end function get_thsat_base   
+  end function get_thsat_base
   subroutine set_wkf_param_base(this,params_in)
     class(wkf_type)     :: this
     real(r8),intent(in) :: params_in(:)
@@ -323,6 +324,7 @@ contains
     class(wrf_type)     :: this
     real(r8),intent(in) :: psi
     real(r8)            :: th
+    th = 0._r8
     write(fates_log(),*) 'The base water retention function'
     write(fates_log(),*) 'should never be actualized'
     write(fates_log(),*) 'check how the class pointer was setup'
@@ -332,6 +334,7 @@ contains
     class(wrf_type)     :: this
     real(r8),intent(in) :: th
     real(r8)            :: psi
+    psi = 0._r8
     write(fates_log(),*) 'The base water retention function'
     write(fates_log(),*) 'should never be actualized'
     write(fates_log(),*) 'check how the class pointer was setup'
@@ -341,6 +344,7 @@ contains
     class(wrf_type)     :: this
     real(r8),intent(in) :: th
     real(r8)            :: dpsidth
+    dpsidth = 0._r8
     write(fates_log(),*) 'The base water retention function'
     write(fates_log(),*) 'should never be actualized'
     write(fates_log(),*) 'check how the class pointer was setup'
@@ -350,6 +354,7 @@ contains
     class(wkf_type)     :: this
     real(r8),intent(in) :: psi
     real(r8)            :: ftc
+    ftc = 0._r8
     write(fates_log(),*) 'The base water retention function'
     write(fates_log(),*) 'should never be actualized'
     write(fates_log(),*) 'check how the class pointer was setup'
@@ -359,6 +364,7 @@ contains
     class(wkf_type)     :: this
     real(r8),intent(in) :: psi
     real(r8)            :: dftcdpsi
+    dftcdpsi = 0._r8
     write(fates_log(),*) 'The base water retention function'
     write(fates_log(),*) 'should never be actualized'
     write(fates_log(),*) 'check how the class pointer was setup'
@@ -375,14 +381,12 @@ contains
     real(r8), intent(in) :: params_in(:)
 
     this%alpha  = params_in(1)
-    this%n_vg    = params_in(2)
-    this%m_vg    = params_in(3)    
+    this%n_vg   = params_in(2)
+    this%m_vg   = params_in(3)    
     this%th_sat = params_in(4)
     this%th_res = params_in(5)
 
-    write(fates_log(),*) 'set_wrf_param_vg'
-    write(fates_log(),*) 'th_sat:',this%th_sat, 'th_res: ', this%th_res
-    write(fates_log(),*) 'alpha:',     this%alpha, 'm: ',  this%m_vg, 'n: ',  this%n_vg
+    call this%set_min_max(this%th_res,this%th_sat)
 
     return
   end subroutine set_wrf_param_vg
@@ -401,9 +405,6 @@ contains
     this%th_res = params_in(5)
     this%tort   = params_in(6)
 
-   ! write(fates_log(),*) 'set_wkf_param_vg'
-   ! write(fates_log(),*) 'th_sat:',this%th_sat, 'th_res: ', this%th_res
-   ! write(fates_log(),*) 'alpha:',     this%alpha, 'm: ',  this%m_vg, 'n: ',     this%n_vg
     return
   end subroutine set_wkf_param_vg
 
@@ -412,10 +413,11 @@ contains
   function get_thsat_vg(this) result(th_sat)
       class(wrf_type_vg)   :: this
       real(r8) :: th_sat
-      
+
       th_sat = this%th_sat
-      
+
   end function get_thsat_vg
+
   ! =====================================================================================
 
   function th_from_psi_vg(this,psi) result(th)
@@ -424,52 +426,36 @@ contains
     ! from matric potential.
 
     class(wrf_type_vg)   :: this
-    real(r8), intent(in) :: psi           ! Matric potential [MPa]
-    real(r8)             :: satfrac       ! Saturated fraction [-]
-    real(r8)             :: th            ! Volumetric Water Cont [m3/m3]
-
-    real(r8)             :: psi_interp      ! psi where we start lin interp [Mpa]
-    real(r8)             :: th_interp       ! th where we start lin interp
-    real(r8)             :: dpsidth_interp  ! change in psi during lin interp (slope)
-    real(r8)             :: m               ! pore size distribution param 1
-    real(r8)             :: n               ! pore size distribution param 2    
+    real(r8), intent(in) :: psi            ! Matric potential [MPa]
+    real(r8)             :: satfrac        ! Saturated fraction [-]
+    real(r8)             :: th             ! Volumetric Water Cont [m3/m3]
+    real(r8)             :: dpsidth_interp ! change in psi during lin interp (slope)
+    real(r8)             :: m              ! pore size distribution param 1
+    real(r8)             :: n              ! pore size distribution param 2
 
     m = this%m_vg
     n = this%n_vg
+    
+    if(psi>this%psi_max) then
 
-    if (use_linear_interp) then
-       pressure above which we use a linear function, 
-       psi_interp = -(1._r8/this%alpha)*(max_sf_interp**(1._r8/(-m)) - 1._r8 )**(1/n)
+        ! Linear range for extreme values
+        th = this%th_linear_sat(psi)
+
+    elseif(psi<this%psi_min) then
+
+        ! Linear range for extreme values
+        th = this%th_linear_res(psi)
+
     else
-     ! Junyan modified to get rid of the linear interperation
-       psi_interp = 0
-    end if 
-    
-    
-    if(psi<psi_interp) then
 
        ! Saturation fraction
        satfrac = (1._r8 + (-this%alpha*psi)**n)**(-m)
-
+       
        ! convert to volumetric water content
        th = satfrac*(this%th_sat-this%th_res) + this%th_res
 
-    else
-      if (use_linear_interp) then
-         th_interp = max_sf_interp * (this%th_sat-this%th_res) + this%th_res
-         dpsidth_interp = this%dpsidth_from_th(th_interp)
-  
-         th = th_interp + (psi-psi_interp)/dpsidth_interp
-       !write(fates_log(),*) 'linear interpreation ', 'th_interp: ', th_interp   
-       !write(fates_log(),*) 'linear interpreation ', 'psi_interp: ', psi_interp            
-       else
-          th = this%th_sat
 
-       end if
     end if
-
-    !write(fates_log(),*) 'm:',m, 'n: ',n 
-    !write(fates_log(),*) 'th_from_psi_vg ','th:', th, 'psi:',psi
 
   end function th_from_psi_vg
 
@@ -483,8 +469,8 @@ contains
     class(wrf_type_vg)   :: this
     real(r8),intent(in)  :: th
     real(r8)             :: psi            ! matric potential [MPa]
-    real(r8)             :: m              ! 
-    real(r8)             :: n              ! 
+    real(r8)             :: m
+    real(r8)             :: n              
     real(r8)             :: satfrac        ! saturated fraction
     real(r8)             :: th_interp      ! theta where we start interpolation
     real(r8)             :: psi_interp     ! psi at interpolation point
@@ -501,29 +487,23 @@ contains
     ! *also modified to accomodate linear pressure regime for super-saturation
     ! -----------------------------------------------------------------------------------
 
-     m = this%m_vg
-     n = this%n_vg
-    satfrac = (th-this%th_res)/(this%th_sat-this%th_res)
-    
-    ! Junyan disable the linear interperation below
-    if (satfrac>1) then                        
-      if (use_linear_interp) then       
-          th_interp = max_sf_interp * (this%th_sat-this%th_res) + this%th_res
-          dpsidth_interp = this%dpsidth_from_th(th_interp)
-          psi_interp = -(1._r8/this%alpha)*(max_sf_interp**(1._r8/(-m)) - 1._r8 )**(1/n)
-          psi = psi_interp + dpsidth_interp*(th-th_interp)
-      else  
-         psi = 0
-      end if
-       !write(fates_log(),*) 'cap psi, th: ', th, 'th_sat: ',this%th_sat 
+
+    if(th>this%th_max)then
+
+        psi = this%psi_linear_sat(th)
+
+    elseif(th<this%th_min)then
+
+        psi = this%psi_linear_res(th)
+
     else
-       
+       m = this%m_vg
+       n = this%n_vg
+       satfrac = (th-this%th_res)/(this%th_sat-this%th_res)
        psi = -(1._r8/this%alpha)*(satfrac**(1._r8/(-m)) - 1._r8 )**(1/n)
 
-
     end if
-    !write(fates_log(),*) 'psi_from_th_vg ','th:', th, 'psi:',psi
-    !write(fates_log(),*) 'psi_from_th_vg ','satfrac:', satfrac     
+
   end function psi_from_th_vg
 
   ! =====================================================================================
@@ -544,30 +524,28 @@ contains
     m1 = 1._r8/this%n_vg
     m2 = -1._r8/this%m_vg
 
-     th_interp = max_sf_interp * (this%th_sat-this%th_res) + this%th_res
-    !  th_interp = this%th_sat
-    ! Since we apply linear interpolation beyond the max and min saturated fractions
-    ! we just cap satfrac at those values and calculate the derivative there
-    !!    satfrac = max(min(max_sf_interp,(th-this%th_res)/(this%th_sat-this%th_res)),min_sf_interp)
+    if(th > this%th_max) then
 
-    if(th>th_interp) then
-       satfrac = max_sf_interp
+        dpsidth = this%dpsidth_max
+
+    elseif(th<this%th_min) then
+
+        dpsidth = this%dpsidth_min
+
     else
-       satfrac = (th-this%th_res)/(this%th_sat-this%th_res)
+
+        satfrac = (th-this%th_res)/(this%th_sat-this%th_res)
+        dsatfrac_dth = 1._r8/(this%th_sat-this%th_res)
+
+        ! psi = -(1._r8/this%alpha)*(satfrac**(1._r8/(-m)) - 1._r8 )**(1/n)
+        ! psi = -a1 * (satfrac**m2 - 1)** m1
+        ! dpsi dth = -(m1)*a1*(satfrac**m2-1)**(m1-1) * m2*(satfrac)**(m2-1)*dsatfracdth
+        ! f(x) = satfrac**m2 -1
+        ! g(x) = a1*f(x)**m1
+        ! dpsidth = g'(f(x)) f'(x)
+        dpsidth = -m1*a1*(satfrac**m2 - 1._r8)**(m1-1._r8) * m2*satfrac**(m2-1._r8)*dsatfrac_dth
+        
     end if
-
-    dsatfrac_dth = 1._r8/(this%th_sat-this%th_res)
-
-    ! psi = -(1._r8/this%alpha)*(satfrac**(1._r8/(-m)) - 1._r8 )**(1/n)
-    ! psi = -a1 * (satfrac**m2 - 1)** m1
-    ! dpsi dth = -(m1)*a1*(satfrac**m2-1)**(m1-1) * m2*(satfrac)**(m2-1)*dsatfracdth
-
-    ! f(x) = satfrac**m2 -1
-    ! g(x) = a1*f(x)**m1
-    ! dpsidth = g'(f(x)) f'(x)
-
-    dpsidth = -m1*a1*(satfrac**m2 - 1._r8)**(m1-1._r8) * m2*satfrac**(m2-1._r8)*dsatfrac_dth
-
 
   end function dpsidth_from_th_vg
 
@@ -583,14 +561,14 @@ contains
     real(r8)            :: psi_eff
     real(r8)            :: m          ! pore size distribution param ()
     real(r8)            :: n          ! pore size distribution param (psd)
+
     n   = this%n_vg
     m   = this%m_vg
-    
+
     if(psi<0._r8) then
 
        ! VG 1980 assumes a postive pressure convention...
        psi_eff = -psi
-
        num = (1._r8 - ((this%alpha*psi_eff)**(n) / &
             (1._r8 + (this%alpha*psi_eff)**n))**m)**2._r8
        den = (1._r8 + (this%alpha*psi_eff)**n)**(this%tort*(m))
@@ -598,13 +576,11 @@ contains
        ! Make sure this is well behaved
        ftc = min(1._r8,max(min_ftc,num/den))
 
-
     else
        ftc = 1._r8
 
     end if
-   ! write(fates_log(),*) 'ftc_from_psi_vg ', 'psi:',psi,'ftc:', ftc
-   ! write(fates_log(),*) 'ftc_from_psi_vg ', 'num: ', num, 'den: ', den    
+
   end function ftc_from_psi_vg
 
   ! ====================================================================================
@@ -631,23 +607,18 @@ contains
 
     n   =this%n_vg
     m   =this%m_vg
-    !m   = 1._r8/this%psd  m = 1/n
 
     if(psi>=0._r8) then
        dftcdpsi = 0._r8
     else
-      psi_eff = -psi  ! switch VG 1980 convention
+       psi_eff = -psi  ! switch VG 1980 convention
 
        ftc = this%ftc_from_psi(psi)
 
        if(ftc<=min_ftc) then
           dftcdpsi = 0._r8   ! We cap ftc, so derivative is zero
        else
-          ! Old modification, incorrect, missed m in the formula
-          ! t1  = (this%alpha*psi_eff)**n
-          ! dt1 = this%alpha*(n)*(this%alpha*psi_eff)**(n-1._r8)
-          
-          ! Corrected on Jan 06, 2021
+
           t1  = (this%alpha*psi_eff)**(n*m)
           dt1 = this%alpha*(n*m)*(this%alpha*psi_eff)**(n*m-1._r8)
 
@@ -660,7 +631,7 @@ contains
           dt3 = this%tort*(m) * &
                (1._r8 + (this%alpha*psi_eff)**n )**(this%tort*(m)-1._r8) * &
                n * (this%alpha*psi_eff)**(n-1._r8) * this%alpha
-
+          
           dftcdpsi = 2._r8*(1._r8-t1*t2)*(t1*dt2 + t2*dt1)/t3 - &
                t3**(-2._r8)*dt3*(1._r8-t1*t2)**2._r8
        end if
@@ -687,9 +658,12 @@ contains
 
     ! Set DERIVED constants
     ! used for interpolating in extreme ranges
-    th_max           = max_sf_interp*this%th_sat-1.e-9_r8
-    this%psi_max     = this%psi_from_th(th_max)
-    this%dpsidth_max = this%dpsidth_from_th(th_max)
+    this%th_max      = max_sf_interp*this%th_sat
+    this%psi_max     = this%psi_from_th(this%th_max-tiny(this%th_max))
+    this%dpsidth_max = this%dpsidth_from_th(this%th_max-tiny(this%th_max))
+    this%th_min      = fates_unset_r8
+    this%psi_min     = fates_unset_r8
+    this%dpsidth_min = fates_unset_r8
 
     return
   end subroutine set_wrf_param_cch
@@ -706,15 +680,17 @@ contains
     this%beta    = params_in(3)
     return
   end subroutine set_wkf_param_cch
+
   ! =====================================================================================
 
   function get_thsat_cch(this) result(th_sat)
       class(wrf_type_cch)   :: this
       real(r8) :: th_sat
-      
+
       th_sat = this%th_sat
-      
+
   end function get_thsat_cch
+
   ! =====================================================================================
 
   function th_from_psi_cch(this,psi) result(th)
@@ -722,11 +698,10 @@ contains
     class(wrf_type_cch)  :: this
     real(r8), intent(in) :: psi
     real(r8)             :: th
-    real(r8)             :: satfrac
 
     if(psi>this%psi_max) then
         ! Linear range for extreme values
-        th = max_sf_interp*this%th_sat + (psi-this%psi_max)/this%dpsidth_max
+        th = this%th_max + (psi-this%psi_max)/this%dpsidth_max
     else
         th = this%th_sat*(psi/this%psi_sat)**(-1.0_r8/this%beta)
     end if
@@ -740,10 +715,8 @@ contains
     class(wrf_type_cch)  :: this
     real(r8),intent(in)  :: th
     real(r8)             :: psi
-    real(r8)             :: satfrac
 
-    satfrac = th/this%th_sat
-    if(satfrac>max_sf_interp) then
+    if(th>this%th_max) then
         psi = this%psi_max + this%dpsidth_max*(th-max_sf_interp*this%th_sat)
     else
         psi = this%psi_sat*(th/this%th_sat)**(-this%beta)
@@ -760,10 +733,11 @@ contains
     real(r8)            :: dpsidth
 
     ! Differentiate:
-    ! psi = this%psi_sat*(th/this%th_sat)**(-this%beta)
-
-    dpsidth = -this%beta*this%psi_sat/this%th_sat * (th/this%th_sat)**(-this%beta-1._r8)
-
+    if(th>this%th_max) then
+        dpsidth = this%dpsidth_max
+    else
+        dpsidth = -this%beta*this%psi_sat/this%th_sat * (th/this%th_sat)**(-this%beta-1._r8)
+    end if
 
   end function dpsidth_from_th_cch
 
@@ -776,10 +750,12 @@ contains
     real(r8)            :: psi_eff
     real(r8)            :: ftc
 
-    ! ftc = (th/th_sat)**(2*b+3)
-    !     = (th_sat*(psi/psi_sat)**(-1/b)/th_sat)**(2*b+3)
-    !     = ((psi/psi_sat)**(-1/b))**(2*b+3)
-    !     = (psi/psi_sat)**(-2-3/b)
+    ! th = th_sat * (psi/psi_sat)^(-1/b)
+
+    ! ftc = (th/th_sat)^(2*b+3)
+    ! ftc = ( th_sat * (psi/psi_sat)^(-1/b) / th_sat) ^(2*b+3)
+    !     = ((psi/psi_sat)^(-1/b))^(2*b+3)
+    !     = (psi/psi_sat)^(-2-3/b)
 
 
     psi_eff = min(psi,this%psi_sat)
@@ -831,42 +807,32 @@ contains
 
     class(wrf_type_tfs)  :: this
     real(r8), intent(in) :: params_in(:)
-    real(r8) :: th_max
-    real(r8) :: th_min
 
     this%th_sat   = params_in(1)
     this%th_res   = params_in(2)
     this%pinot    = params_in(3)
     this%epsil    = params_in(4)
     this%rwc_ft   = params_in(5)
-    this%psicap   = params_in(6)
-    this%cap_corr = params_in(7)
-    this%cap_int  = params_in(8)
-    this%cap_slp  = params_in(9)
-    this%pmedia   = int(params_in(10))
+    this%cap_corr = params_in(6)
+    this%cap_int  = params_in(7)
+    this%cap_slp  = params_in(8)
+    this%pmedia   = int(params_in(9))
 
-    ! Set DERIVED constants
-    ! used for interpolating in extreme ranges
-    th_max=max_sf_interp*(this%th_sat-this%th_res)+this%th_res-1.e-9_r8
-    th_min=min_sf_interp*(this%th_sat-this%th_res)+this%th_res+1.e-9_r8
-    this%psi_max     = this%psi_from_th(th_max)
-    this%dpsidth_max = this%dpsidth_from_th(th_max)
-    this%psi_min     = this%psi_from_th(th_min)
-    this%dpsidth_min = this%dpsidth_from_th(th_min)
-
+    call this%set_min_max(this%th_res,this%th_sat)
 
     return
   end subroutine set_wrf_param_tfs
+
   ! =====================================================================================
 
   function get_thsat_tfs(this) result(th_sat)
       class(wrf_type_tfs)   :: this
       real(r8) :: th_sat
-      
+
       th_sat = this%th_sat
-      
+
   end function get_thsat_tfs
-  
+
   ! =====================================================================================
 
   function th_from_psi_tfs(this,psi) result(th)
@@ -888,21 +854,20 @@ contains
     if(psi>this%psi_max) then
 
         ! Linear range for extreme values
-        th = this%th_res+max_sf_interp*(this%th_sat-this%th_res) + &
-              (psi-this%psi_max)/this%dpsidth_max
+
+        th = this%th_linear_sat(psi)
 
     elseif(psi<this%psi_min) then
 
         ! Linear range for extreme values
-        th = this%th_res+min_sf_interp*(this%th_sat-this%th_res) + &
-              (psi-this%psi_min)/this%dpsidth_min
+        th = this%th_linear_res(psi)
 
     else
 
        ! The bisection scheme performs a search via method of bisection,
        ! we need to define bounds with which to start
-       lower  = this%th_res+min_sf_interp*(this%th_sat-this%th_res)-1.e-9_r8
-       upper  = this%th_res+max_sf_interp*(this%th_sat-this%th_res)+1.e-9_r8
+       lower  = this%th_min-1.e-9_r8
+       upper  = this%th_max+1.e-9_r8
 
        call this%bisect_pv(lower, upper, psi, th)
        psi_check = this%psi_from_th(th)
@@ -936,56 +901,54 @@ contains
 
     satfrac = (th-this%th_res)/(this%th_sat-this%th_res)
 
-    if(satfrac>max_sf_interp) then
+    if(th>this%th_max)then
 
-       psi = this%psi_max + this%dpsidth_max * &
-            (th-(max_sf_interp*(this%th_sat-this%th_res)+this%th_res))
-       
-    elseif(satfrac<min_sf_interp) then
-       
-       psi = this%psi_min + this%dpsidth_min * &
-              (th-(min_sf_interp*(this%th_sat-this%th_res)+this%th_res))
-       
+        psi = this%psi_linear_sat(th)
+
+   elseif(th<this%th_min)then
+
+       psi = this%psi_linear_res(th)
+
     else
-       
+
        th_corr = th * this%cap_corr
-       
+
        ! Perform two rounds of quadratic smoothing, 1st smooth
        ! the elastic and capilary, and then smooth their
        ! combined with the caviation
-       
+
        call solutepsi(th_corr,this%rwc_ft,this%th_sat,this%th_res,this%pinot,psi_sol)
        call pressurepsi(th_corr,this%rwc_ft,this%th_sat,this%th_res,this%pinot,this%epsil,psi_press)
-       
+
        psi_elastic = psi_sol + psi_press
-       
+
        if(this%pmedia == 1) then            ! leaves have no capillary region in their PV curves
-          
+
           psi_capelast = psi_elastic
-          
+
        else if(this%pmedia <= 4) then       ! sapwood has a capillary region
-          
+
           call capillarypsi(th_corr,this%th_sat,this%cap_int,this%cap_slp,psi_capillary)
-          
+
           b = -1._r8*(psi_capillary + psi_elastic)
           c = psi_capillary*psi_elastic
           psi_capelast = (-b - sqrt(b*b - 4._r8*quad_a1*c))/(2._r8*quad_a1)
-          
+
        else
           write(fates_log(),*) 'TFS WRF was called for an inelligable porous media'
           call endrun(msg=errMsg(sourcefile, __LINE__))
-          
+
        end if !porous media
-       
+
        ! Now lets smooth the result of capilary elastic with cavitation
-       
+
        psi_cavitation = psi_sol
        b = -1._r8*(psi_capelast + psi_cavitation)
        c = psi_capelast*psi_cavitation
-       
+
        psi = (-b + sqrt(b*b - 4._r8*quad_a2*c))/(2._r8*quad_a2)
     end if
- 
+
     return
   end function psi_from_th_tfs
 
@@ -1000,7 +963,6 @@ contains
 
     ! locals
     real(r8) :: th_corr        ! corrected vol wc [m3/m3]
-    real(r8) :: satfrac        ! saturated fraction (between res and sat)
     real(r8) :: psi_sol
     real(r8) :: psi_press
     real(r8) :: psi_elastic    ! press from elastic
@@ -1016,73 +978,72 @@ contains
     real(r8) :: dcapelast_dth
     real(r8) :: dcav_dth
 
-    satfrac = (th-this%th_res)/(this%th_sat-this%th_res)
-    if(satfrac>max_sf_interp) then
+    if(th > this%th_max) then
 
         dpsidth = this%dpsidth_max
 
-    elseif(satfrac<min_sf_interp) then
+    elseif(th<this%th_min) then
 
         dpsidth = this%dpsidth_min
 
     else
        th_corr = th*this%cap_corr
-       
+
        ! Perform two rounds of quadratic smoothing, 1st smooth
        ! the elastic and capilary, and then smooth their
        ! combined with the caviation
-       
+
        call solutepsi(th_corr,this%rwc_ft,this%th_sat,this%th_res,this%pinot,psi_sol)
        call pressurepsi(th_corr,this%rwc_ft,this%th_sat,this%th_res,this%pinot,this%epsil,psi_press)
-       
+
        call dsolutepsidth(th,this%th_sat,this%th_res,this%rwc_ft,this%pinot,dsol_dth)
        call dpressurepsidth(this%th_sat,this%th_res,this%rwc_ft,this%epsil,dpress_dth)
-       
+
        delast_dth = dsol_dth + dpress_dth
        psi_elastic = psi_sol + psi_press
-       
-       
+
+
        if(this%pmedia == 1) then         ! leaves have no capillary region in their PV curves
-          
+
           psi_capelast = psi_elastic
           dcapelast_dth = delast_dth
-          
+
        else if(this%pmedia <= 4) then    ! sapwood has a capillary region
-          
+
           call capillarypsi(th,this%th_sat,this%cap_int,this%cap_slp,psi_capillary)
-          
+
           b = -1._r8*(psi_capillary + psi_elastic)
           c = psi_capillary*psi_elastic
           psi_capelast = (-b - sqrt(b*b - 4._r8*quad_a1*c))/(2._r8*quad_a1)
-          
+
           call dcapillarypsidth(this%cap_slp,this%th_sat,dcap_dth)
-          
+
           dbdth = -1._r8*(delast_dth + dcap_dth)
           dcdth = psi_elastic*dcap_dth + delast_dth*psi_capillary
-          
-          
+
+
           dcapelast_dth = 1._r8/(2._r8*quad_a1) * &
                (-dbdth - 0.5_r8*((b*b - 4._r8*quad_a1*c)**(-0.5_r8)) * &
                (2._r8*b*dbdth - 4._r8*quad_a1*dcdth))
-          
+
        else
           write(fates_log(),*) 'TFS WRF was called for an ineligible porous media'
           call endrun(msg=errMsg(sourcefile, __LINE__))
-          
+
        end if !porous media
-       
+
        ! Now lets smooth the result of capilary elastic with cavitation
-       
+
        psi_cavitation = psi_sol
-       
+
        b = -1._r8*(psi_capelast + psi_cavitation)
        c = psi_capelast*psi_cavitation
-       
+
        dcav_dth = dsol_dth
-       
+
        dbdth = -1._r8*(dcapelast_dth + dcav_dth)
        dcdth = psi_capelast*dcav_dth + dcapelast_dth*psi_cavitation
-       
+
        dpsidth = 1._r8/(2._r8*quad_a2)*(-dbdth + 0.5_r8*((b*b - 4._r8*quad_a2*c)**(-0.5_r8)) * &
             (2._r8*b*dbdth - 4._r8*quad_a2*dcdth))
     end if
@@ -1099,7 +1060,7 @@ contains
     real(r8)            :: ftc
     real(r8)            :: psi_eff
 
-    psi_eff = min(0._r8,psi)
+    psi_eff = min(-nearzero,psi)
 
     ftc = max(min_ftc,1._r8/(1._r8 + (psi_eff/this%p50)**this%avuln))
 
@@ -1163,7 +1124,7 @@ contains
     !     = pinot * (rwc_ft - th_res/th_sat)/(th/th_sat - th_res/th_sat )
     !     = pinot * (th_sat*rwc_ft - th_res)/(th - th_res)
     ! -----------------------------------------------------------------------------------
-    
+
     psi = pinot * (th_sat*rwc_ft - th_res) / (th - th_res)
 
     return
@@ -1191,7 +1152,7 @@ contains
     ! psi      =  pinot * (th_sat*rwc_ft - th_res) * (th - th_res)^-1
     ! dpsi_dth = -pinot * (th_sat*rwc_ft - th_res) * (th - th_res)^-2
     ! -----------------------------------------------------------------------------------
-    
+
     dpsi_dth = -1._r8*pinot*(th_sat*rwc_ft - th_res )*(th - th_res)**(-2._r8)
 
     return
@@ -1280,7 +1241,7 @@ contains
   end subroutine dcapillarypsidth
 
   ! =====================================================================================
-  
+
   subroutine bisect_pv(this,lower, upper, psi, th)
     !
     ! !DESCRIPTION: Bisection routine for getting the inverse of the plant PV curve.
