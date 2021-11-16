@@ -4337,6 +4337,34 @@ end subroutine update_history_hifrq
 
     ivar=0
 
+    ! Variable names should start with the 'FATES_' prefix and end with a suffix
+    ! depending on how it is indexed (i.e. the dimension):
+    ! site                     (site_r8)        : no suffix
+    ! cohort age               (site_coage_r8)  : AC
+    ! patch age                (site_age_r8)    : AP
+    ! canopy layer             (site_can_r8)    : CL
+    ! coarse woody debris size (site_cwdsc_r8)  : DC
+    ! element                  (site_elem_r8)   : EL
+    ! leaf layer                                : LL
+    ! fuel class               (site_fuel_r8)   : FC
+    ! height                   (site_height_r8) : HT
+    ! plant functional type    (site_pft_r8)    : PF
+    ! soil layer               (site_ground_r8) : SL
+    ! cohort size              (site_size_r8)   : SZ
+
+    ! Multiple dimensions should have multiple two-code suffixes:
+    ! cohort age x pft                (site_cooage_r8)   : ACPF 
+    ! patch age x fuel class          (site_agefuel_r8)  : APFC
+    ! patch age x pft                 (site_agepft_r8)   : APPF
+    ! canopy layer x leaf layer       (site_cnlf_r8)     : CLLL
+    ! canopy layer x leaf layer x pft (site_cnlfpft_r8)  : CLLLPF
+    ! element x cwd size              (site_elcwd_r8)    : ELDC
+    ! cohort size x patch age         (site_scag_r8)     : SZAP
+    ! cohort size x patch age x pft   (site_scagpft_r8)  : SZAPPF
+    ! cohort size x pft               (site_size_pft_r8) : SZPF
+
+
+
     ! Site level counting variables
     call this%set_history_var(vname='FATES_NPATCHES', units='',                &
          long='total number of patches per site', use_default='active',        &

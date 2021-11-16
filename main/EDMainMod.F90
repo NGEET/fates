@@ -161,7 +161,7 @@ contains
        call currentSite%flux_diags(el)%ZeroFluxDiags()
     end do
 
-
+    ! zero dynamics (upfreq_in = 1) output history variables
     call fates_hist%zero_site_hvars(currentSite,upfreq_in=1)
 
 
