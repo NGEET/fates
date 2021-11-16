@@ -45,6 +45,9 @@ module EDPatchDynamicsMod
   use FatesInterfaceTypesMod    , only : bc_in_type
   use FatesInterfaceTypesMod    , only : hlm_days_per_year
   use FatesInterfaceTypesMod    , only : numpft
+  use FatesInterfaceTypesMod    , only : hlm_use_sp
+  use FatesInterfaceTypesMod    , only : hlm_use_nocomp
+  use FatesInterfaceTypesMod    , only : hlm_use_fixed_biogeog
   use FatesGlobals         , only : endrun => fates_endrun
   use FatesConstantsMod    , only : r8 => fates_r8
   use FatesConstantsMod    , only : itrue, ifalse
@@ -427,8 +430,9 @@ contains
     enddo !patch loop 
 
   end subroutine disturbance_rates
-
+  
     ! ============================================================================
+
   subroutine spawn_patches( currentSite, bc_in)
     !
     ! !DESCRIPTION:
@@ -448,6 +452,7 @@ contains
     
     use EDParamsMod         , only : ED_val_understorey_death, logging_coll_under_frac
     use EDCohortDynamicsMod , only : zero_cohort, copy_cohort, terminate_cohorts 
+    use FatesConstantsMod   , only : rsnbl_math_prec
 
     !
     ! !ARGUMENTS:
@@ -500,7 +505,7 @@ contains
     do while(associated(currentPatch))
 
     
-       if(currentPatch%disturbance_rate>1.0_r8) then
+       if(currentPatch%disturbance_rate > (1.0_r8 + rsnbl_math_prec)) then
           write(fates_log(),*) 'patch disturbance rate > 1 ?',currentPatch%disturbance_rate
           call dump_patch(currentPatch)
           call endrun(msg=errMsg(sourcefile, __LINE__))          
@@ -560,7 +565,7 @@ contains
           allocate(new_patch_primary)
 
           call create_patch(currentSite, new_patch_primary, age, &
-                site_areadis_primary, primaryforest)
+                site_areadis_primary, primaryforest,fates_unset_int)
           
           ! Initialize the litter pools to zero, these
           ! pools will be populated by looping over the existing patches
@@ -583,7 +588,7 @@ contains
        if ( site_areadis_secondary .gt. nearzero) then
           allocate(new_patch_secondary)
           call create_patch(currentSite, new_patch_secondary, age, &
-                site_areadis_secondary, secondaryforest)
+                site_areadis_secondary, secondaryforest,fates_unset_int)
           
           ! Initialize the litter pools to zero, these
           ! pools will be populated by looping over the existing patches
@@ -659,11 +664,14 @@ contains
              ! Transfer in litter fluxes from plants in various contexts of death and destruction
 
              if(currentPatch%disturbance_mode .eq. dtype_ilog) then
-                call logging_litter_fluxes(currentSite, currentPatch, new_patch, patch_site_areadis)
+                call logging_litter_fluxes(currentSite, currentPatch, &
+                     new_patch, patch_site_areadis,bc_in)
              elseif(currentPatch%disturbance_mode .eq. dtype_ifire) then
-                call fire_litter_fluxes(currentSite, currentPatch, new_patch, patch_site_areadis)  
+                call fire_litter_fluxes(currentSite, currentPatch, &
+                     new_patch, patch_site_areadis,bc_in)  
              else
-                call mortality_litter_fluxes(currentSite, currentPatch, new_patch, patch_site_areadis)
+                call mortality_litter_fluxes(currentSite, currentPatch, &
+                     new_patch, patch_site_areadis,bc_in)
              endif
 
              ! --------------------------------------------------------------------------
@@ -1079,9 +1087,9 @@ contains
              ! the first call to terminate cohorts removes sparse number densities,
              ! the second call removes for all other reasons (sparse culling must happen
              ! before fusion)
-             call terminate_cohorts(currentSite, currentPatch, 1,16)
+             call terminate_cohorts(currentSite, currentPatch, 1,16,bc_in)
              call fuse_cohorts(currentSite,currentPatch, bc_in)
-             call terminate_cohorts(currentSite, currentPatch, 2,16)
+             call terminate_cohorts(currentSite, currentPatch, 2,16,bc_in)
              call sort_cohorts(currentPatch)
 
           end if    ! if ( new_patch%area > nearzero ) then 
@@ -1153,16 +1161,16 @@ contains
        ! before fusion)
 
        if ( site_areadis_primary .gt. nearzero) then
-          call terminate_cohorts(currentSite, new_patch_primary, 1,17)
+          call terminate_cohorts(currentSite, new_patch_primary, 1,17, bc_in)
           call fuse_cohorts(currentSite,new_patch_primary, bc_in)
-          call terminate_cohorts(currentSite, new_patch_primary, 2,17)
+          call terminate_cohorts(currentSite, new_patch_primary, 2,17, bc_in)
           call sort_cohorts(new_patch_primary)
        endif
        
        if ( site_areadis_secondary .gt. nearzero) then
-          call terminate_cohorts(currentSite, new_patch_secondary, 1,18)
+          call terminate_cohorts(currentSite, new_patch_secondary, 1,18,bc_in)
           call fuse_cohorts(currentSite,new_patch_secondary, bc_in)
-          call terminate_cohorts(currentSite, new_patch_secondary, 2,18)
+          call terminate_cohorts(currentSite, new_patch_secondary, 2,18,bc_in)
           call sort_cohorts(new_patch_secondary)
        endif
        
@@ -1224,7 +1232,7 @@ contains
        end if
 
        if(debug) then
-          write(fates_log(),*) 'Total patch area precision being fixed, adjusting'
+          write(fates_log(),*) 'Total patch area precision being fixed, adjusting',(areatot-area_site)
           write(fates_log(),*) 'largest patch. This may have slight impacts on carbon balance.'
        end if
        
@@ -1271,6 +1279,22 @@ contains
        patchno = patchno + 1
        currentPatch => currentPatch%younger
     enddo
+
+    if(hlm_use_sp.eq.itrue)then
+      patchno = 1
+      currentPatch => currentSite%oldest_patch
+      do while(associated(currentPatch))
+        if(currentPatch%nocomp_pft_label.eq.0)then
+         ! for bareground patch, we make the patch number 0
+         ! we also do not count this in the veg. patch numbering scheme.
+          currentPatch%patchno = 0
+        else
+         currentPatch%patchno = patchno
+         patchno = patchno + 1
+        endif
+        currentPatch => currentPatch%younger
+       enddo
+    endif
 
   end subroutine set_patchno
 
@@ -1382,6 +1406,16 @@ contains
           end do
           
        enddo
+
+       do pft = 1,numpft
+          
+          new_litt%seed_decay(pft) = new_litt%seed_decay(pft) + &
+               curr_litt%seed_decay(pft)*patch_site_areadis/newPatch%area
+
+          new_litt%seed_germ_decay(pft) = new_litt%seed_germ_decay(pft) + &
+               curr_litt%seed_germ_decay(pft)*patch_site_areadis/newPatch%area
+          
+       end do
 
        ! -----------------------------------------------------------------------------
        ! Distribute the existing litter that was already in place on the donor
@@ -1510,7 +1544,8 @@ contains
 
   ! ============================================================================
 
-  subroutine fire_litter_fluxes(currentSite, currentPatch, newPatch, patch_site_areadis)
+  subroutine fire_litter_fluxes(currentSite, currentPatch, &
+       newPatch, patch_site_areadis, bc_in)
     !
     ! !DESCRIPTION:
     !  CWD pool burned by a fire. 
@@ -1529,7 +1564,8 @@ contains
     type(ed_patch_type) , intent(inout), target :: currentPatch   ! Donor Patch
     type(ed_patch_type) , intent(inout), target :: newPatch   ! New Patch
     real(r8)            , intent(in)            :: patch_site_areadis ! Area being donated
-                                                                      ! by current patch
+    type(bc_in_type)    , intent(in)            :: bc_in
+    
     !
     ! !LOCAL VARIABLES:
 
@@ -1658,7 +1694,8 @@ contains
 
              site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
-             call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil)
+             call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
+                  bc_in%max_rooting_depth_index_col)
 
              ! Contribution of dead trees to root litter (no root burn flux to atm)
              do dcmpy=1,ndcmpy
@@ -1730,7 +1767,8 @@ contains
 
   ! ============================================================================
 
-  subroutine mortality_litter_fluxes(currentSite, currentPatch, newPatch, patch_site_areadis)
+  subroutine mortality_litter_fluxes(currentSite, currentPatch, &
+       newPatch, patch_site_areadis,bc_in)
     !
     ! !DESCRIPTION:
     ! Carbon going from mortality associated with disturbance into CWD pools. 
@@ -1752,7 +1790,7 @@ contains
     type(ed_patch_type) , intent(inout), target :: currentPatch
     type(ed_patch_type) , intent(inout), target :: newPatch
     real(r8)            , intent(in)            :: patch_site_areadis
-
+    type(bc_in_type)    , intent(in)            :: bc_in
     !
     ! !LOCAL VARIABLES:
     type(ed_cohort_type), pointer      :: currentCohort
@@ -1867,7 +1905,8 @@ contains
           ag_wood = num_dead * (struct_m + sapw_m) * prt_params%allom_agb_frac(pft)
           bg_wood = num_dead * (struct_m + sapw_m) * (1.0_r8-prt_params%allom_agb_frac(pft))
           
-          call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil)
+          call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
+               bc_in%max_rooting_depth_index_col)
 
 
           do c=1,ncwd
@@ -1947,7 +1986,7 @@ contains
 
   ! ============================================================================
 
-  subroutine create_patch(currentSite, new_patch, age, areap, label)
+  subroutine create_patch(currentSite, new_patch, age, areap, label,nocomp_pft)
 
     !
     ! !DESCRIPTION:
@@ -1961,7 +2000,7 @@ contains
     real(r8), intent(in) :: age                  ! notional age of this patch in years
     real(r8), intent(in) :: areap                ! initial area of this patch in m2. 
     integer, intent(in)  :: label                ! anthropogenic disturbance label
-
+    integer, intent(in)  :: nocomp_pft
     ! !LOCAL VARIABLES:
     !---------------------------------------------------------------------
     integer :: el                                ! element loop index
@@ -2013,6 +2052,7 @@ contains
     else
        new_patch%age_since_anthro_disturbance = fates_unset_r8
     endif
+    new_patch%nocomp_pft_label = nocomp_pft
 
     ! This new value will be generated when the calculate disturbance
     ! rates routine is called. This does not need to be remembered or in the restart file.
@@ -2161,6 +2201,12 @@ contains
     currentPatch%c_stomata                  = 0.0_r8 ! This is calculated immediately before use
     currentPatch%c_lblayer                  = 0.0_r8
     currentPatch%fragmentation_scaler(:)    = 0.0_r8
+
+    ! diagnostic radiation profiles
+    currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
+    currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
+    currentPatch%nrmlzd_parprof_dir_z(:,:,:)       = 0._r8
+    currentPatch%nrmlzd_parprof_dif_z(:,:,:)       = 0._r8
 
     currentPatch%solar_zenith_flag          = .false.
     currentPatch%solar_zenith_angle         = nan
@@ -2338,6 +2384,12 @@ contains
                             endif ! sum(biomass(:,:) .gt. force_patchfuse_min_biomass 
                          endif ! maxage
 
+
+                         ! Do not fuse patches that have different PFT labels in nocomp mode
+                         if(hlm_use_nocomp.eq.itrue.and. &
+                            tpp%nocomp_pft_label.ne.currentPatch%nocomp_pft_label)then
+                            fuse_flag = 0 
+                         end if
                          !-------------------------------------------------------------------------!
                          ! Call the patch fusion routine if there is not a meaningful difference   !
                          ! any of the pft x height categories                                      !
@@ -2345,7 +2397,7 @@ contains
                          !-------------------------------------------------------------------------!
 
                          if(fuse_flag  ==  1)then
-                            
+
                             !-----------------------!
                             ! fuse the two patches  !
                             !-----------------------!
@@ -2622,9 +2674,10 @@ contains
 
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch)) 
-       
+
        if(currentPatch%area <= min_patch_area)then
-          
+
+         
           ! Even if the patch area is small, avoid fusing it into its neighbor
           ! if it is the youngest of all patches. We do this in attempts to maintain
           ! a discrete patch for very young patches
@@ -2659,7 +2712,7 @@ contains
                    ! patch. As mentioned earlier, we try not to fuse it.
                    
                    gotfused = .true.
-                else
+                else !anthro labels of two patches are not the same
                    if (count_cycles .gt. 0) then
                       ! if we're having an incredibly hard time fusing patches because of their differing anthropogenic disturbance labels, 
                       ! since the size is so small, let's sweep the problem under the rug and change the tiny patch's label to that of its older sibling
@@ -2667,9 +2720,9 @@ contains
                       currentPatch%anthro_disturbance_label = olderPatch%anthro_disturbance_label
                       call fuse_2_patches(currentSite, olderPatch, currentPatch)
                       gotfused = .true.
-                   endif
-                endif
-             endif
+                   endif !countcycles
+                endif !distlabel
+             endif !older patch
 
              if( .not. gotfused .and. associated(currentPatch%younger) ) then
                 
@@ -2692,12 +2745,11 @@ contains
                       currentPatch%anthro_disturbance_label = youngerPatch%anthro_disturbance_label
                       call fuse_2_patches(currentSite, youngerPatch, currentPatch)
                       gotfused = .true.
-                   endif
-                endif
-             endif
-          endif
-       endif
-       
+                   endif ! count cycles
+                 endif     ! anthro labels
+             endif ! has an older patch
+          endif ! is not the youngest patch  
+       endif ! very small patch
        ! It is possible that an incredibly small patch just fused into another incredibly
        ! small patch, resulting in an incredibly small patch.  It is also possible that this
        ! resulting incredibly small patch is the oldest patch.  If this was true than
@@ -2707,6 +2759,7 @@ contains
 
        if(currentPatch%area > min_patch_area_forced)then
           currentPatch => currentPatch%older
+         
           count_cycles = 0
        else
           count_cycles = count_cycles + 1
@@ -2727,9 +2780,9 @@ contains
           ! an infinite loop.
           currentPatch => currentPatch%older
           count_cycles = 0
-       end if
+       end if  !count cycles
 
-    enddo
+    enddo ! current patch loop
     
     !check area is not exceeded
     call check_patch_area( currentSite )

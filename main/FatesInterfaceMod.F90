@@ -43,6 +43,7 @@ module FatesInterfaceMod
    use CLMFatesParamInterfaceMod , only : FatesReadParameters
    use EDTypesMod                , only : p_uptake_mode
    use EDTypesMod                , only : n_uptake_mode
+   use EDTypesMod                , only : ed_site_type
    use FatesConstantsMod         , only : prescribed_p_uptake
    use FatesConstantsMod         , only : prescribed_n_uptake
    use FatesConstantsMod         , only : coupled_p_uptake
@@ -63,7 +64,7 @@ module FatesInterfaceMod
    use PRTGenericMod             , only : leaf_organ, fnrt_organ, store_organ
    use PRTGenericMod             , only : sapw_organ, struct_organ, repro_organ
    use PRTParametersMod          , only : prt_params
-   use PRTInitParamsFatesMod     , only : PRTCheckParams
+   use PRTInitParamsFatesMod     , only : PRTCheckParams, PRTDerivedParams
    use PRTAllometricCarbonMod    , only : InitPRTGlobalAllometricCarbon
    use PRTAllometricCNPMod       , only : InitPRTGlobalAllometricCNP
 
@@ -76,10 +77,47 @@ module FatesInterfaceMod
    ! its sister code
    use FatesInterfaceTypesMod
 
-
    implicit none
 
    private
+
+   type, public :: fates_interface_type
+      
+      ! This is the root of the ED/FATES hierarchy of instantaneous state variables
+      ! ie the root of the linked lists. Each path list is currently associated with a 
+      ! grid-cell, this is intended to be migrated to columns 
+
+      integer                         :: nsites
+
+      type(ed_site_type), pointer :: sites(:)
+
+      ! These are boundary conditions that the FATES models are required to be filled.  
+      ! These values are filled by the driver or HLM.  Once filled, these have an 
+      ! intent(in) status.  Each site has a derived type structure, which may include 
+      ! a scalar for site level data, a patch vector, potentially cohort vectors (but 
+      ! not yet atm) and other dimensions such as soil-depth or pft.  These vectors 
+      ! are initialized by maximums, and the allocations are static in time to avoid
+      ! having to allocate/de-allocate memory
+
+      type(bc_in_type), allocatable   :: bc_in(:)
+
+      ! These are the boundary conditions that the FATES model returns to its HLM or 
+      ! driver. It has the same allocation strategy and similar vector types.
+      
+      type(bc_out_type), allocatable  :: bc_out(:)
+
+
+      ! These are parameter constants that FATES may need to provide a host model
+      ! We have other methods of reading in input parameters. Since these
+      ! are parameter constants, we don't need them allocated over every site,one
+      ! instance is fine.
+      
+      type(bc_pconst_type) :: bc_pconst
+      
+
+   end type fates_interface_type
+   
+   
 
    character(len=*), parameter :: sourcefile = &
         __FILE__
@@ -256,7 +294,8 @@ contains
        fates%bc_out(s)%litt_flux_lab_c_si(:) = 0._r8
     case(prt_cnp_flex_allom_hyp) 
        
-       fates%bc_in(s)%plant_n_uptake_flux(:,:) = 0._r8
+       fates%bc_in(s)%plant_nh4_uptake_flux(:,:) = 0._r8
+       fates%bc_in(s)%plant_no3_uptake_flux(:,:) = 0._r8
        fates%bc_in(s)%plant_p_uptake_flux(:,:) = 0._r8
        fates%bc_out(s)%source_p(:)           = 0._r8
        fates%bc_out(s)%source_nh4(:)         = 0._r8
@@ -297,7 +336,8 @@ contains
     fates%bc_out(s)%displa_pa(:) = 0.0_r8
     fates%bc_out(s)%z0m_pa(:)    = 0.0_r8
     fates%bc_out(s)%dleaf_pa(:)   = 0.0_r8
-    
+    fates%bc_out(s)%nocomp_pft_label_pa(:) = 0
+
     fates%bc_out(s)%canopy_fraction_pa(:) = 0.0_r8
     fates%bc_out(s)%frac_veg_nosno_alb_pa(:) = 0.0_r8
     
@@ -383,16 +423,20 @@ contains
 
       if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
          if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
-            allocate(bc_in%plant_n_uptake_flux(max_comp_per_site,1))
+            allocate(bc_in%plant_nh4_uptake_flux(max_comp_per_site,1))
+            allocate(bc_in%plant_no3_uptake_flux(max_comp_per_site,1))
             allocate(bc_in%plant_p_uptake_flux(max_comp_per_site,1))
          else
-            allocate(bc_in%plant_n_uptake_flux(max_comp_per_site,bc_in%nlevdecomp))
+            allocate(bc_in%plant_nh4_uptake_flux(max_comp_per_site,bc_in%nlevdecomp))
+            allocate(bc_in%plant_no3_uptake_flux(max_comp_per_site,bc_in%nlevdecomp))
             allocate(bc_in%plant_p_uptake_flux(max_comp_per_site,bc_in%nlevdecomp))
          end if
       else
-         allocate(bc_in%plant_n_uptake_flux(1,1))
+         allocate(bc_in%plant_nh4_uptake_flux(1,1))
+         allocate(bc_in%plant_no3_uptake_flux(1,1))
          allocate(bc_in%plant_p_uptake_flux(1,1))
       end if
+
 
       allocate(bc_in%zi_sisl(0:nlevsoil_in))
       allocate(bc_in%dz_sisl(nlevsoil_in))
@@ -474,8 +518,14 @@ contains
          allocate(bc_in%hlm_harvest_catnames(0))
       end if
 
-      allocate(bc_in%pft_areafrac(maxpft))
+      allocate(bc_in%pft_areafrac(0:maxpft))
 
+      ! Variables for SP mode. 
+      if(hlm_use_sp.eq.itrue) then
+        allocate(bc_in%hlm_sp_tlai(0:maxpft))
+        allocate(bc_in%hlm_sp_tsai(0:maxpft))     
+        allocate(bc_in%hlm_sp_htop(0:maxpft))
+      end if 
       return
    end subroutine allocate_bcin
 
@@ -540,6 +590,22 @@ contains
          allocate(bc_out%cp_scalar(max_comp_per_site))
       end if
 
+      ! Include the bare-ground patch for these patch-level boundary conditions
+      ! (it will always be zero for all of these)
+      if(hlm_use_ch4.eq.itrue) then
+         allocate(bc_out%annavg_agnpp_pa(0:maxPatchesPerSite));bc_out%annavg_agnpp_pa(:)=nan
+         allocate(bc_out%annavg_bgnpp_pa(0:maxPatchesPerSite));bc_out%annavg_bgnpp_pa(:)=nan
+         allocate(bc_out%annsum_npp_pa(0:maxPatchesPerSite));bc_out%annsum_npp_pa(:)=nan
+         allocate(bc_out%frootc_pa(0:maxPatchesPerSite));bc_out%frootc_pa(:)=nan
+         allocate(bc_out%root_resp(nlevsoil_in));bc_out%root_resp(:)=nan
+         allocate(bc_out%woody_frac_aere_pa(0:maxPatchesPerSite));bc_out%woody_frac_aere_pa(:)=nan
+         allocate(bc_out%rootfr_pa(0:maxPatchesPerSite,nlevsoil_in))
+         bc_out%rootfr_pa(:,:)=nan
+
+         ! Give the bare-ground root fractions a nominal fraction of unity over depth
+         bc_out%rootfr_pa(0,1:nlevsoil_in)=1._r8/real(nlevsoil_in,r8)
+      end if
+
       
       ! Fates -> BGC fragmentation mass fluxes
       select case(hlm_parteh_mode) 
@@ -584,6 +650,8 @@ contains
 
       allocate(bc_out%canopy_fraction_pa(maxPatchesPerSite))
       allocate(bc_out%frac_veg_nosno_alb_pa(maxPatchesPerSite))
+     
+      allocate(bc_out%nocomp_pft_label_pa(maxPatchesPerSite))
 
       ! Plant-Hydro BC's
       if (hlm_use_planthydro.eq.itrue) then
@@ -1159,6 +1227,7 @@ contains
          hlm_nitrogen_spec = unset_int
          hlm_phosphorus_spec = unset_int
          hlm_max_patch_per_site = unset_int
+         hlm_use_ch4       = unset_int
          hlm_use_vertsoilc = unset_int
          hlm_parteh_mode   = unset_int
          hlm_spitfire_mode = unset_int
@@ -1174,7 +1243,8 @@ contains
          hlm_use_ed_st3    = unset_int
          hlm_use_ed_prescribed_phys = unset_int
          hlm_use_fixed_biogeog = unset_int
-         !hlm_use_nocomp = unset_int    ! future reduced complexity mode
+         hlm_use_nocomp = unset_int   
+         hlm_use_sp = unset_int
          hlm_use_inventory_init = unset_int
          hlm_inventory_ctrl_file = 'unset'
 
@@ -1397,6 +1467,13 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_use_ch4 .eq. unset_int) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'switch for the HLMs CH4 module unset: hlm_use_ch4, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         
          if(hlm_use_vertsoilc .eq. unset_int) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'switch for the HLMs soil carbon discretization unset: hlm_use_vertsoilc, exiting'
@@ -1444,21 +1521,28 @@ contains
                call endrun(msg=errMsg(sourcefile, __LINE__))
             end if
          end if
+
          
-        if(hlm_use_fixed_biogeog.eq.unset_int) then
+         if(hlm_use_fixed_biogeog.eq.unset_int) then
            if(fates_global_verbose()) then
              write(fates_log(), *) 'switch for fixed biogeog unset: him_use_fixed_biogeog, exiting'
            end if
            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-        ! Future reduced complexity mode   
-        !if(hlm_use_nocomp.eq.unset_int) then
-        !      if(fates_global_verbose()) then
-        !     write(fates_log(), *) 'switch for no competition mode. '
-        !    end if
-        !   call endrun(msg=errMsg(sourcefile, __LINE__))
-        ! end if
+         if(hlm_use_nocomp.eq.unset_int) then
+              if(fates_global_verbose()) then
+             write(fates_log(), *) 'switch for no competition mode. '
+            end if
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(hlm_use_sp.eq.unset_int) then
+              if(fates_global_verbose()) then
+             write(fates_log(), *) 'switch for SP mode. '
+            end if
+	       call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
 
          if(hlm_use_cohort_age_tracking .eq. unset_int) then
             if (fates_global_verbose()) then
@@ -1467,6 +1551,16 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_use_sp.eq.itrue.and.hlm_use_nocomp.eq.ifalse)then
+            write(fates_log(), *) 'SP cannot be on if nocomp mode is off. Exiting. '
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+
+         if(hlm_use_sp.eq.itrue.and.hlm_use_fixed_biogeog.eq.ifalse)then
+            write(fates_log(), *) 'SP cannot be on if fixed biogeog mode is off. Exiting. '
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
          
          if (fates_global_verbose()) then
             write(fates_log(), *) 'Checked. All control parameters sent to FATES.'
@@ -1539,6 +1633,12 @@ contains
                   write(fates_log(),*) 'Transfering hlm_max_patch_per_site = ',ival,' to FATES'
                end if
 
+            case('use_ch4')
+               hlm_use_ch4 = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_ch4 = ',ival,' to FATES'
+               end if
+               
             case('use_vertsoilc')
                hlm_use_vertsoilc = ival
                if (fates_global_verbose()) then
@@ -1588,13 +1688,17 @@ contains
                    write(fates_log(),*) 'Transfering hlm_use_fixed_biogeog= ',ival,' to FATES'
                end if
             
-            ! Future reduced complexity mode   
-            !case('use_nocomp')
-            !    hlm_use_nocomp = ival
-            !   if (fates_global_verbose()) then
-            !       write(fates_log(),*) 'Transfering hlm_use_nocomp= ',ival,' to FATES'
-            !   end if
+            case('use_nocomp')
+                hlm_use_nocomp = ival
+               if (fates_global_verbose()) then
+                   write(fates_log(),*) 'Transfering hlm_use_nocomp= ',ival,' to FATES'
+               end if
 
+            case('use_sp')
+            hlm_use_sp = ival
+            if (fates_global_verbose()) then
+                   write(fates_log(),*) 'Transfering hlm_use_sp= ',ival,' to FATES'
+            end if
 
             case('use_planthydro')
                hlm_use_planthydro = ival
@@ -1717,9 +1821,12 @@ contains
       call FatesReportPFTParams(masterproc)
       call FatesReportParams(masterproc)
       call FatesCheckParams(masterproc)    ! Check general fates parameters
+      call PRTDerivedParams()              ! Update PARTEH derived constants
       call PRTCheckParams(masterproc)      ! Check PARTEH parameters
       call SpitFireCheckParams(masterproc)
 
+
+      
       return
    end subroutine FatesReportParameters
 

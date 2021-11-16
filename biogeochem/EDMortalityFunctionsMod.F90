@@ -19,7 +19,6 @@ module EDMortalityFunctionsMod
    use FatesInterfaceTypesMod     , only : hlm_use_planthydro
    use EDLoggingMortalityMod , only : LoggingMortality_frac
    use EDParamsMod           , only : fates_mortality_disturbance_fraction
-   use FatesInterfaceTypesMod     , only : bc_in_type
 
    use PRTGenericMod,          only : all_carbon_elements
    use PRTGenericMod,          only : store_organ
