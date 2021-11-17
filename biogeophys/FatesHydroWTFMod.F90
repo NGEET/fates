@@ -35,8 +35,8 @@ module FatesHydroWTFMod
   ! In this context, the saturated fraction is defined by the volumetric WC "th"
   ! and the volumetric residual and saturation "th_res" and "th_sat": (th-th_r)/(th_sat-th_res)
 
-  real(r8), parameter :: min_sf_interp = 0.01 ! Linear interpolation below this saturated frac
-  real(r8), parameter :: max_sf_interp = 0.98 ! Linear interpolation above this saturated frac
+  real(r8), parameter :: min_sf_interp = 0.01  ! Linear interpolation below this saturated frac
+  real(r8), parameter :: max_sf_interp = 0.998 ! Linear interpolation above this saturated frac
 
   real(r8), parameter :: quad_a1 = 0.80_r8  ! smoothing factor "A" term
                                             ! in the capillary-elastic region
