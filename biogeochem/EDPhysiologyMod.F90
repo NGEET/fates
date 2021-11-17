@@ -1854,6 +1854,12 @@ contains
 
 
     do ft = 1,numpft
+
+       ! The following if block is for the prescribed biogeography and/or nocomp modes.
+       ! Since currentSite%use_this_pft is a site-level quantity and thus only limits whether a given PFT
+       ! is permitted on a given gridcell or not, it applies to the prescribed biogeography case only.
+       ! If nocomp is enabled, then we must determine whether a given PFT is allowed on a given patch or not.
+
        if(currentSite%use_this_pft(ft).eq.itrue &
             .and. ((hlm_use_nocomp .eq. ifalse) .or. (ft .eq. currentPatch%nocomp_pft_label)))then
 
