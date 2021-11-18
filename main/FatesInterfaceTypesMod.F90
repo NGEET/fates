@@ -628,10 +628,10 @@ module FatesInterfaceTypesMod
       ! RD Nutrient Boundary Conditions
       ! ---------------------------------------------------------------------------------
 
-      real(r8), pointer :: n_demand(:)       ! Nitrogen demand from each competitor
-                                             ! for use in ELMs CTC/RD [g/m2/s] 
-      real(r8), pointer :: p_demand(:)       ! Phosophorus demand from each competitor
-                                             ! for use in ELMs CTC/RD [g/m2/s] 
+      !real(r8), pointer :: n_demand(:)       ! Nitrogen demand from each competitor
+      !                                       ! for use in ELMs CTC/RD [g/m2/s] 
+      !real(r8), pointer :: p_demand(:)       ! Phosophorus demand from each competitor
+      !                                       ! for use in ELMs CTC/RD [g/m2/s] 
 
 
       ! CH4 Boundary Conditions

@@ -1462,9 +1462,6 @@ contains
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
-        n_uptake_mode = prescribed_n_uptake
-     else
-        n_uptake_mode = coupled_n_uptake
      end if
 
      ! logging parameters, make sure they make sense
@@ -1494,12 +1491,7 @@ contains
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
-        p_uptake_mode = prescribed_p_uptake
-     else
-        p_uptake_mode = coupled_p_uptake
      end if
-     
-
      
      do ipft = 1,npft
         

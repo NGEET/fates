@@ -62,8 +62,7 @@ module FatesSoilBGCFluxMod
   use FatesConstantsMod, only    : g_per_kg
   use FatesConstantsMod, only    : kg_per_g
   use FatesConstantsMod, only    : fates_np_comp_scaling
-  use FatesConstantsMod, only    : cohort_np_comp_scaling
-  use FatesConstantsMod, only    : pft_np_comp_scaling
+  use FatesConstantsMod, only    : coupled_np_comp_scaling
   use FatesConstantsMod, only    : trivial_np_comp_scaling
   use FatesConstantsMod, only    : rsnbl_math_prec
   use FatesConstantsMod, only    : days_per_year
@@ -196,27 +195,9 @@ contains
     type(ed_patch_type), pointer  :: cpatch        ! current patch pointer
     type(ed_cohort_type), pointer :: ccohort       ! current cohort pointer
     real(r8) :: fnrt_c                             ! fine-root carbon [kg]
-    real(r8) :: fnrt_c_pft(numpft)                ! total mass of root for each PFT [kgC]
 
     nsites = size(sites,dim=1)
 
-    
-    ! Zero the uptake rates
-    do s = 1, nsites
-       cpatch => sites(s)%oldest_patch
-       do while (associated(cpatch))
-          ccohort => cpatch%tallest
-          do while (associated(ccohort))
-             ccohort%daily_nh4_uptake = 0._r8
-             ccohort%daily_no3_uptake = 0._r8
-             ccohort%daily_p_uptake = 0._r8
-             ccohort => ccohort%shorter
-          end do
-          cpatch => cpatch%younger
-       end do
-       
-    end do
-    
     ! We can exit if this is a c-only simulation
     if(hlm_parteh_mode.eq.prt_carbon_allom_hyp) then
        ! These can now be zero'd
@@ -238,20 +219,39 @@ contains
        ! the plant demand.
 
        if (n_uptake_mode.eq.prescribed_n_uptake) then
+
           cpatch => sites(s)%oldest_patch
           do while (associated(cpatch))
              ccohort => cpatch%tallest
              do while (associated(ccohort))
                 pft = ccohort%pft
-
                 ccohort%daily_n_demand = GetPlantDemand(ccohort,nitrogen_element)
                 ccohort%daily_nh4_uptake = EDPftvarcon_inst%prescribed_nuptake(pft) * ccohort%daily_n_demand
                 ccohort%daily_no3_uptake = 0._r8
-                
                 ccohort => ccohort%shorter
              end do
              cpatch => cpatch%younger
           end do
+
+       elseif(n_uptake_mode.eq.coupled_n_uptake) then
+          
+          icomp = 0
+          cpatch => sites(s)%oldest_patch
+          do while (associated(cpatch))
+             ccohort => cpatch%tallest
+             do while (associated(ccohort))
+                icomp = icomp+1
+                fnrt_c = ccohort%prt%GetState(fnrt_organ, carbon12_element)
+                ccohort%daily_n_demand = fnrt_c * ccohort%n * AREA_INV * &
+                     EDPftvarcon_inst%eca_vmax_nh4(ccohort%pft) * sec_per_day
+                ! N Uptake:  Convert g/m2/day -> kg/plant/day
+                ccohort%daily_nh4_uptake = bc_in(s)%plant_nh4_uptake_flux(icomp,1)*kg_per_g*AREA/ccohort%n
+                ccohort%daily_no3_uptake = bc_in(s)%plant_no3_uptake_flux(icomp,1)*kg_per_g*AREA/ccohort%n
+                ccohort => ccohort%shorter
+             end do
+             cpatch => cpatch%younger
+          end do
+             
        end if
        
        if (p_uptake_mode.eq.prescribed_p_uptake) then
@@ -260,151 +260,33 @@ contains
              ccohort => cpatch%tallest
              do while (associated(ccohort))
                 pft = ccohort%pft
-                
                 ccohort%daily_p_demand = GetPlantDemand(ccohort,phosphorus_element)
                 ccohort%daily_p_uptake = EDPftvarcon_inst%prescribed_puptake(pft) * ccohort%daily_p_demand
-                
                 ccohort => ccohort%shorter
              end do
              cpatch => cpatch%younger
           end do
-       end if
-       
-       
-       ! If nutrient competition is sent to the BGC model as PFTs
-       ! and not as individual cohorts, we need to unravel the input
-       ! boundary condition and send to cohort.  We do this downscaling
-       ! by finding each cohort's fraction of total fine-root for the group
-       
-       n_or_p_coupled_if: if(n_uptake_mode.eq.coupled_n_uptake .or. p_uptake_mode.eq.coupled_p_uptake)then
-
-          ! Note there are two scaling methods.  Either competition for
-          ! N and/or P was performed by cohorts acting individually
-          ! (cohort_np_comp_scaling) , or as PFTs (pft_np_comp_scaling)
-          ! If we opt for the latter, then we assume that the nutrient
-          ! uptake share of the cohort, matches the fraction of root
-          ! mass it contributes to the group (PFT).
           
-          if(fates_np_comp_scaling.eq.pft_np_comp_scaling) then
-             
-             ! *Currently, all cohorts in a PFT have the same root
-             ! fraction, so all we have to to is find its total mass fraction.
+       elseif(p_uptake_mode.eq.coupled_p_uptake) then
 
-             fnrt_c_pft(:) = 0._r8
-             cpatch => sites(s)%oldest_patch
-             do while (associated(cpatch))
-                ccohort => cpatch%tallest
-                do while (associated(ccohort))
-                   pft   = ccohort%pft
-                   fnrt_c_pft(pft) = fnrt_c_pft(pft) + &
-                        ccohort%prt%GetState(fnrt_organ, all_carbon_elements)*ccohort%n
-                   ccohort => ccohort%shorter
-                end do
-                cpatch => cpatch%younger
+          icomp = 0
+          cpatch => sites(s)%oldest_patch
+          do while (associated(cpatch))
+             ccohort => cpatch%tallest
+             do while (associated(ccohort))
+                icomp = icomp+1
+                fnrt_c = ccohort%prt%GetState(fnrt_organ, carbon12_element)
+                ccohort%daily_p_demand = fnrt_c * ccohort%n * AREA_INV * &
+                     EDPftvarcon_inst%eca_vmax_p(ccohort%pft) * sec_per_day
+                ! P Uptake:  Convert g/m2/day -> kg/plant/day
+                ccohort%daily_p_uptake = bc_in(s)%plant_p_uptake_flux(icomp,1)*kg_per_g*AREA/ccohort%n
+                ccohort => ccohort%shorter
              end do
-             
-          end if  ! end if(fates_np_comp_scaling.eq.pft_np_comp_scaling) then
+             cpatch => cpatch%younger
+          end do
           
-          ! --------------------------------------------------------------------------------
-          ! Now that we have the arrays ready for downscaling (if needed)
-          ! loop through all cohorts and acquire nutrient
-          ! --------------------------------------------------------------------------------
-
-          if(n_uptake_mode.eq.coupled_n_uptake) then
-
-             if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
-
-                icomp = 0
-                cpatch => sites(s)%oldest_patch
-                do while (associated(cpatch))
-                   ccohort => cpatch%tallest
-                   do while (associated(ccohort))
-                      icomp = icomp+1
-
-                      ! N Uptake:  Convert g/m2/day -> kg/plant/day
-
-                      ccohort%daily_nh4_uptake = sum(bc_in(s)%plant_nh4_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n
-                      ccohort%daily_no3_uptake = sum(bc_in(s)%plant_no3_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n
-
-                      ccohort => ccohort%shorter
-                   end do
-                   cpatch => cpatch%younger
-                end do
-                
-             else
-
-                cpatch => sites(s)%oldest_patch
-                do while (associated(cpatch))
-                   ccohort => cpatch%tallest
-                   do while (associated(ccohort))
-                      pft   = ccohort%pft
-
-                      ! Total fine-root carbon of the cohort [kgC/ha]
-                      fnrt_c   = ccohort%prt%GetState(fnrt_organ, all_carbon_elements)*ccohort%n
-                      
-                      ! Loop through soil layers, add up the uptake this cohort gets from each layer
-                      do id = 1,bc_in(s)%nlevdecomp
-                         ccohort%daily_nh4_uptake = ccohort%daily_nh4_uptake + & 
-                              bc_in(s)%plant_nh4_uptake_flux(pft,id) * &
-                              (fnrt_c/fnrt_c_pft(pft))*kg_per_g*AREA/ccohort%n
-                         ccohort%daily_no3_uptake = ccohort%daily_no3_uptake + & 
-                              bc_in(s)%plant_no3_uptake_flux(pft,id) * &
-                              (fnrt_c/fnrt_c_pft(pft))*kg_per_g*AREA/ccohort%n
-                      end do
-
-                      ccohort => ccohort%shorter
-                   end do
-                   cpatch => cpatch%younger
-                end do
-                
-             end if
-             
-          end if
-
-          if(p_uptake_mode.eq.coupled_p_uptake) then
-
-             if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
-
-                icomp = 0
-                cpatch => sites(s)%oldest_patch
-                do while (associated(cpatch))
-                   ccohort => cpatch%tallest
-                   do while (associated(ccohort))
-                      icomp = icomp+1
-                      ! P Uptake:  Convert g/m2/day -> kg/plant/day
-                      ccohort%daily_p_uptake = ccohort%daily_p_uptake + &
-                           sum(bc_in(s)%plant_p_uptake_flux(icomp,:))*kg_per_g*AREA/ccohort%n
-                      ccohort => ccohort%shorter
-                   end do
-                   cpatch => cpatch%younger
-                end do
-
-             else
-
-                cpatch => sites(s)%oldest_patch
-                do while (associated(cpatch))
-                   ccohort => cpatch%tallest
-                   do while (associated(ccohort))
-                      pft   = ccohort%pft
-                      ! Total fine-root carbon of the cohort [kgC/ha]
-                      fnrt_c   = ccohort%prt%GetState(fnrt_organ, all_carbon_elements)*ccohort%n
-                      ! Loop through soil layers, add up the uptake this cohort gets from each layer
-                      do id = 1,bc_in(s)%nlevdecomp
-                         ccohort%daily_p_uptake = ccohort%daily_p_uptake + & 
-                              bc_in(s)%plant_p_uptake_flux(pft,id) * &
-                              (fnrt_c/fnrt_c_pft(pft))*kg_per_g*AREA/ccohort%n
-                      end do
-                      ccohort => ccohort%shorter
-                   end do
-                   cpatch => cpatch%younger
-                end do
-                
-             end if
-
-          end if
-             
-       end if n_or_p_coupled_if
-       
+       end if
+          
        ! These can now be zero'd
        bc_in(s)%plant_nh4_uptake_flux(:,:) = 0._r8
        bc_in(s)%plant_no3_uptake_flux(:,:) = 0._r8
@@ -579,302 +461,106 @@ contains
     type(bc_out_type), intent(inout)  :: bc_out
 
     ! Locals
-    integer                       :: icomp         ! competitor index
-    integer                       :: j             ! soil layer index
-    integer                       :: id            ! decomp index (might == j)
-    integer                       :: pft           ! plant functional type
-    type(ed_patch_type), pointer  :: cpatch        ! current patch pointer
-    type(ed_cohort_type), pointer :: ccohort       ! current cohort pointer
-    real(r8) :: fnrt_c                             ! fine-root carbon [kg]
-    real(r8) :: veg_rootc                          ! fine root carbon in each layer [g/m3]
-    real(r8) :: dbh                                ! dbh (cm)
-    real(r8) :: npp_n_demand                       ! Nitrogen needed to keep up with NPP  [kgN]
-    real(r8) :: npp_p_demand                       ! Phosphorus needed to keep up with NPP [kgP]
-    real(r8) :: deficit_n_demand                   ! Nitrogen needed to get stoich back to
-                                                   ! optimal [kgN]
-    real(r8) :: deficit_p_demand                   ! Phosphorus needed to get stoich back to
-                                                   ! optimal [kgP]
-    real(r8) :: comp_per_pft(numpft) ! Competitors per PFT, used for averaging
-    real(r8) :: decompmicc_layer     ! Microbial dedcomposer biomass for current layer
-    integer :: comp_scaling          ! Flag that defines the boundary condition scaling method (includes trivial)
-    
-    real(r8), parameter :: decompmicc_lambda = 2.5_r8  ! Depth attenuation exponent for decomposer biomass
+    integer                       :: icomp   ! competitor index
+    integer                       :: j       ! soil layer index
+    integer                       :: id      ! decomp index (might == j)
+    integer                       :: pft     ! plant functional type
+    type(ed_patch_type), pointer  :: cpatch  ! current patch pointer
+    type(ed_cohort_type), pointer :: ccohort ! current cohort pointer
+    real(r8) :: fnrt_c                       ! fine-root carbon [kg]
+    real(r8) :: veg_rootc                    ! fine root carbon in each layer [g/m3]
+    real(r8) :: decompmicc_layer             ! Microbial dedcomposer biomass for current layer
+
+    real(r8), parameter :: decompmicc_lambda = 2.5_r8     ! Depth attenuation exponent for decomposer biomass
     real(r8), parameter :: decompmicc_zmax   = 7.0e-2_r8  ! Depth of maximum decomposer biomass
 
-    ! Determine the scaling approach
-    if((hlm_parteh_mode.eq.prt_cnp_flex_allom_hyp) .and. & 
-         ((n_uptake_mode.eq.coupled_n_uptake) .or. &
-          (p_uptake_mode.eq.coupled_p_uptake))) then
-       comp_scaling = fates_np_comp_scaling
-       
-    else
-       
-       comp_scaling = trivial_np_comp_scaling
-       
-       ! Note: With ECA, we still need to update the
-       ! decomp microbe density even if we are not
-       ! fully coupled, so can't exit yet
-       
-       if(trim(hlm_nu_com).eq.'RD') then
-          bc_out%num_plant_comps  = 1
-          bc_out%n_demand(1) = 0._r8
-          bc_out%p_demand(1) = 0._r8
-          return 
-       end if
-       
-    end if
-    
-    ! ECA Specific Parameters
-    ! --------------------------------------------------------------------------------
+
+    ! Whether this is a trivial or coupled run,
+    ! the following variables get initialized in the same way
+    bc_out%veg_rootc(:,:) = 0._r8
+    bc_out%ft_index(:)    = -1
     if(trim(hlm_nu_com).eq.'ECA')then
-       
-         bc_out%veg_rootc(:,:) = 0._r8  ! Zero this, it will be incremented
-         bc_out%decompmicc(:)  = 0._r8
-         bc_out%cn_scalar(:)   = 0._r8
-         bc_out%cp_scalar(:)   = 0._r8
-         bc_out%ft_index(:)    = -1
-         
-         ! Loop over all patches and sum up the seed input for each PFT
-         icomp = 0
-         comp_per_pft(:) = 0     ! This counts how many competitors per
-                                 ! pft, used for averaging
+       bc_out%decompmicc(:)  = 0._r8
+       bc_out%cn_scalar(:)   = 1._r8
+       bc_out%cp_scalar(:)   = 1._r8
+    end if
 
-         cpatch => csite%oldest_patch
-         do while (associated(cpatch))
-            
-          ccohort => cpatch%tallest
-          do while (associated(ccohort))
-             
-             pft   = ccohort%pft
+    if(fates_np_comp_scaling == trivial_np_comp_scaling) then
+       if(trim(hlm_nu_com).eq.'RD')then
+          bc_out%num_plant_comps = 1
+          bc_out%ft_index(1)    = 1
+          return
+       end if
+    end if
 
-             ! If we are not coupling plant uptake
-             ! with ECA, then we send 1 token
-             ! competitor with plant root biomass, but no
-             ! uptake affinity
+    ! For both the trivial case with ECA, and the coupled case
+    ! we still need to calculate the root biomass and decompmicc
+    ! arrays (the former for the latter when trivial). So we
+    ! don't differentiate
 
-             if(comp_scaling.eq.cohort_np_comp_scaling) then
-                icomp = icomp+1
-                bc_out%ft_index(icomp) = pft
-             else
-                icomp = pft
-                comp_per_pft(pft) = comp_per_pft(pft) + 1
-                bc_out%ft_index(icomp) = pft
-             end if
-             
-             call set_root_fraction(csite%rootfrac_scr, pft, csite%zi_soil, &
-                  bc_in%max_rooting_depth_index_col )
-             
-             fnrt_c   = ccohort%prt%GetState(fnrt_organ, carbon12_element)
-             
-             ! Map the soil layers to the decomposition layers
-             ! (which may be synonomous)
-             ! veg_rootc in units:  [g/m3] = [kgC/plant] * [plant/ha] * [ha/ 10k m2] * [1000 g / kg] * [1/m]
+    icomp = 0
+    cpatch => csite%oldest_patch
+    do while (associated(cpatch))
+       ccohort => cpatch%tallest
+       do while (associated(ccohort))
 
-             do j = 1, bc_in%nlevdecomp
-                id = bc_in%decomp_id(j)  ! Map from soil layer to decomp layer     
-                veg_rootc = fnrt_c * ccohort%n * csite%rootfrac_scr(j) * AREA_INV * g_per_kg / csite%dz_soil(j)
-                
-                bc_out%veg_rootc(icomp,id) = bc_out%veg_rootc(icomp,id) + veg_rootc
+          if(fates_np_comp_scaling .eq. coupled_np_comp_scaling) then
+             icomp = icomp+1
+          else
+             icomp = 1
+          end if
+
+          pft   = ccohort%pft
+          bc_out%ft_index(icomp) = pft
+           
+          call set_root_fraction(csite%rootfrac_scr, pft, csite%zi_soil, &
+               bc_in%max_rooting_depth_index_col )
+
+          fnrt_c   = ccohort%prt%GetState(fnrt_organ, carbon12_element)
+
+          ! Map the soil layers to the decomposition layers (which may be synonomous)
+          ! veg_rootc in units:  [gC/m3] = [kgC/plant] * [plant/ha] * [ha/ 10k m2] * [1000 g / kg] * [1/m]
+
+          do j = 1, bc_in%nlevdecomp
+             id = bc_in%decomp_id(j)  ! Map from soil layer to decomp layer     
+             veg_rootc = fnrt_c * ccohort%n * csite%rootfrac_scr(j) * AREA_INV * g_per_kg / csite%dz_soil(j)
+
+             bc_out%veg_rootc(icomp,id) = bc_out%veg_rootc(icomp,id) + veg_rootc
+
+             if(trim(hlm_nu_com).eq.'ECA')then
 
                 ! We use a 3 parameter exponential attenuation function to estimate decomposer biomass
                 ! The parameter EDPftvarcon_inst%decompmicc(pft) is the maximum amount found at depth
                 ! decompmicc_zmax, and the profile attenuates with strength lambda
-                
+
                 decompmicc_layer = EDPftvarcon_inst%decompmicc(pft) * &
                      exp(-decompmicc_lambda*abs(csite%z_soil(j)-decompmicc_zmax))
-                
+
+
                 bc_out%decompmicc(id) = bc_out%decompmicc(id) + decompmicc_layer * veg_rootc
-             end do
-             ccohort => ccohort%shorter
+             end if
+
           end do
-          
-          cpatch => cpatch%younger
+          ccohort => ccohort%shorter
        end do
 
-       ! We calculate the decomposer microbial biomass by weighting with the
-       ! root biomass. This is just the normalization step
+       cpatch => cpatch%younger
+    end do
+
+    ! We calculate the decomposer microbial biomass by weighting with the
+    ! root biomass. This is just the normalization step
+    if(trim(hlm_nu_com).eq.'ECA')then
        do id = 1,bc_in%nlevdecomp
           bc_out%decompmicc(id) = bc_out%decompmicc(id) / &
                max(nearzero,sum(bc_out%veg_rootc(:,id),dim=1))
        end do
-
-       if(comp_scaling.eq.cohort_np_comp_scaling) then
-          bc_out%num_plant_comps = icomp
-       elseif(comp_scaling.eq.pft_np_comp_scaling) then
-          bc_out%num_plant_comps = numpft
-       elseif(comp_scaling.eq.trivial_np_comp_scaling) then
-          bc_out%num_plant_comps = 1
-          ! Now that the microbial density is calculated
-          ! we can exit the trivial case
-          return
-       end if
-
-       coupled_n_if: if(n_uptake_mode.eq.coupled_n_uptake) then
-          icomp = 0
-          cpatch => csite%oldest_patch
-          do while (associated(cpatch))
-             ccohort => cpatch%tallest
-             do while (associated(ccohort))
-
-                pft   = ccohort%pft
-                if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
-                   icomp = icomp+1
-                else
-                   icomp = pft
-                end if
-
-                bc_out%cn_scalar(icomp) = 1.0_r8
-                
-                
-                ccohort => ccohort%shorter
-             end do
-             cpatch => cpatch%younger
-          end do
-
-          ! Normalize the sum to a mean, if this is a PFT scale
-          ! boundary flux
-          if(fates_np_comp_scaling.eq.pft_np_comp_scaling) then
-             do icomp = 1, numpft
-                bc_out%cn_scalar(icomp) = bc_out%cn_scalar(icomp)/real(comp_per_pft(icomp),r8)
-             end do
-          end if
-
-       else
-
-          ! If we are not coupling N, then make sure to set affinity of plants to 0
-          ! (it is possible to be here if P is coupled but N is not)
-          bc_out%cn_scalar(:) = 0._r8
-          
-       end if coupled_n_if
-       
-       coupled_p_if: if(p_uptake_mode.eq.coupled_p_uptake) then
-
-          icomp = 0
-          cpatch => csite%oldest_patch
-          do while (associated(cpatch))
-             ccohort => cpatch%tallest
-             do while (associated(ccohort))
-
-                pft   = ccohort%pft
-                if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
-                   icomp = icomp+1
-                else
-                   icomp = pft
-                end if
-                
-                bc_out%cp_scalar(icomp) = 1.0_r8
-                
-                ccohort => ccohort%shorter
-             end do
-             cpatch => cpatch%younger
-          end do
-          
-          if(fates_np_comp_scaling.eq.pft_np_comp_scaling) then
-             do icomp = 1, numpft
-                bc_out%cp_scalar(icomp) = bc_out%cp_scalar(icomp)/real(comp_per_pft(icomp),r8)
-             end do
-          end if
-       else
-          
-          ! If we are not coupling P, then make sure to set affinity of plants to 0
-          ! (it is possible to be here if N is coupled but P is not)
-          bc_out%cp_scalar(:) = 0._r8
-          
-       end if coupled_p_if
-       
-    elseif(trim(hlm_nu_com).eq.'RD') then
-
-       ! If we are using RD competition and coupling that into FATES,
-       ! we must update the plant's demand
-       ! (if this is un-coupled, the demand is handled completely in
-       ! the UnPack code)
-       ! -----------------------------------------------------------------------------------
-       
-       if(n_uptake_mode .eq. coupled_n_uptake ) then
-          cpatch => csite%oldest_patch
-          do while (associated(cpatch))
-             ccohort => cpatch%tallest
-             do while (associated(ccohort))
-                ccohort%daily_n_demand = GetPlantDemand(ccohort,nitrogen_element)
-                ccohort => ccohort%shorter
-             end do
-             cpatch => cpatch%younger
-          end do
-          
-       end if
-       
-       if(p_uptake_mode .eq. coupled_p_uptake ) then
-          cpatch => csite%oldest_patch
-          do while (associated(cpatch))
-             ccohort => cpatch%tallest
-             do while (associated(ccohort))
-                ccohort%daily_p_demand = GetPlantDemand(ccohort,phosphorus_element)
-                ccohort => ccohort%shorter
-             end do
-             cpatch => cpatch%younger
-          end do
-       end if
-       
-       ! --------------------------------------------------------------------------------
-       ! Units on demand:
-       ! [gX/m2/s]  convert [kgX/plant/day] * [plant/ha] * 
-       !                                      [ha/10000 m2] * [1000 g/kg] * [1 day /86400 sec]
-       ! --------------------------------------------------------------------------------
-       
-       bc_out%n_demand(:) = 0._r8
-       bc_out%p_demand(:) = 0._r8
-       
-       if(n_uptake_mode.eq.coupled_n_uptake) then
-          icomp = 0
-          cpatch => csite%oldest_patch
-          do while (associated(cpatch))
-             ccohort => cpatch%tallest
-             do while (associated(ccohort))
-                pft   = ccohort%pft
-                if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
-                   icomp = icomp+1
-                else
-                   icomp = pft
-                end if
-                bc_out%n_demand(icomp) = bc_out%n_demand(icomp) + &
-                     ccohort%daily_n_demand*ccohort%n*AREA_INV*g_per_kg*days_per_sec
-                     
-                ccohort => ccohort%shorter
-             end do
-             cpatch => cpatch%younger
-          end do
-       end if
-       
-       if(p_uptake_mode.eq.coupled_p_uptake) then
-          icomp = 0
-          cpatch => csite%oldest_patch
-          do while (associated(cpatch))
-             ccohort => cpatch%tallest
-             do while (associated(ccohort))
-                pft   = ccohort%pft
-                if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
-                   icomp = icomp+1
-                else
-                   icomp = pft
-                end if
-                bc_out%p_demand(icomp) = bc_out%p_demand(icomp) + & 
-                     ccohort%daily_p_demand*ccohort%n*AREA_INV*g_per_kg*days_per_sec
-                ccohort => ccohort%shorter
-             end do
-             cpatch => cpatch%younger
-          end do
-       end if
-
-       if(comp_scaling.eq.cohort_np_comp_scaling) then
-          bc_out%num_plant_comps = icomp
-       elseif(comp_scaling.eq.pft_np_comp_scaling) then
-          bc_out%num_plant_comps = numpft
-       else
-          bc_out%num_plant_comps = 1
-       end if
-       
     end if
-    
+
+    if(fates_np_comp_scaling == coupled_np_comp_scaling) then
+       bc_out%num_plant_comps = icomp
+    else
+       bc_out%num_plant_comps = 1
+    end if
     
     return
   end subroutine PrepNutrientAquisitionBCs

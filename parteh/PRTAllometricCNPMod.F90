@@ -394,14 +394,6 @@ contains
     real(r8) :: p_gain0
     real(r8) :: maint_r_def0
 
-    ! Knowing the stored N and P helps
-    ! to identify if the plant is net
-    ! gaining nutrients after replacement
-    real(r8) :: n_store0
-    real(r8) :: p_store0
-    real(r8) :: net_n_gain
-    real(r8) :: net_p_gain
-
     ! Used for mass checking, total mass allocated based
     ! on change in the states, should match gain0's
     real(r8) :: allocated_c
@@ -435,7 +427,7 @@ contains
     ! In/out boundary conditions
     maint_r_def => this%bc_inout(acnp_bc_inout_id_rmaint_def)%rval; maint_r_def0 = maint_r_def
     dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval;        dbh0         = dbh
-    l2fr        => this%bc_out(acnp_bc_inout_id_l2fr)%rval
+    l2fr        => this%bc_inout(acnp_bc_inout_id_l2fr)%rval
     
     
     ! If more than 1 leaf age bin is present, this
@@ -489,24 +481,6 @@ contains
     end do
 
     ! ===================================================================================
-    ! Step 0.  Transfer all stored nutrient into the daily uptake pool.
-    !          Storage in nutrients does not need to have a buffer like
-    !          carbon does, so we simply use it when we want it, and then
-    !          anything left at the end is added back (CNPAllocateRemainder())
-    ! ===================================================================================
-
-    i_var = prt_global%sp_organ_map(store_organ,nitrogen_element)
-    n_gain = n_gain + sum(this%variables(i_var)%val(:))
-    net_n_gain = - sum(this%variables(i_var)%val(:))
-    this%variables(i_var)%val(:) = 0._r8
-
-    i_var = prt_global%sp_organ_map(store_organ,phosphorus_element)
-    p_gain = p_gain + sum(this%variables(i_var)%val(:))
-    net_p_gain = - sum(this%variables(i_var)%val(:))
-    this%variables(i_var)%val(:) = 0._r8
-
-
-    ! ===================================================================================
     ! Step 1: Evaluate nutrient storage in the plant. Depending on how low
     ! these stores are, we will move proportionally more or less of the daily carbon
     ! gain to increase the target fine-root biomass, fill up to target
@@ -515,8 +489,24 @@ contains
 
     ! This routine actually just updates the l2fr variable
     call this%CNPAdjustFRootTargets()
-    
     call bfineroot(dbh,ipft,canopy_trim, l2fr, target_c(fnrt_id), target_dcdd(fnrt_id))
+    
+    ! ===================================================================================
+    ! Step 0.  Transfer all stored nutrient into the daily uptake pool.
+    !          Storage in nutrients does not need to have a buffer like
+    !          carbon does, so we simply use it when we want it, and then
+    !          anything left at the end is added back (CNPAllocateRemainder())
+    ! ===================================================================================
+
+    
+    
+    i_var = prt_global%sp_organ_map(store_organ,nitrogen_element)
+    n_gain = n_gain + sum(this%variables(i_var)%val(:))
+    this%variables(i_var)%val(:) = 0._r8
+
+    i_var = prt_global%sp_organ_map(store_organ,phosphorus_element)
+    p_gain = p_gain + sum(this%variables(i_var)%val(:))
+    this%variables(i_var)%val(:) = 0._r8
     
     ! ===================================================================================
     ! Step 2.  Prioritized allocation to replace tissues from turnover, and/or pay
@@ -548,11 +538,7 @@ contains
     ! targets based on prioritized relative demand and allometry functions.
     ! ===================================================================================
 
-    net_n_gain = net_n_gain + n_gain
-    net_p_gain = net_p_gain + p_gain
-
     call this%CNPStatureGrowth(c_gain, n_gain, p_gain, &
-         net_n_gain, net_p_gain,  &
          state_c, state_n, state_p, target_c, target_dcdd, cnp_limiter)
     
     sum_c = 0._r8
@@ -676,8 +662,8 @@ contains
     associate( l2fr_min => prt_params%allom_l2fr_min(ipft), &
          l2fr_max => prt_params%allom_l2fr_max(ipft))
 
-      n_regulator = this%StorageRegulator(nitrogen_element, regulate_logi)
-      p_regulator = this%StorageRegulator(phosphorus_element, regulate_logi)
+      call this%StorageRegulator(nitrogen_element, regulate_logi,n_regulator)
+      call this%StorageRegulator(phosphorus_element, regulate_logi,p_regulator)
 
       ! We take the maximum here, because the maximum is reflective of the
       ! element with the lowest storage, which is the limiting element
@@ -686,8 +672,9 @@ contains
 
       ! Update the leaf-to-fineroot ratio used
       ! to set fine-root biomass allometry
-      l2fr = l2fr_min + np_regulator*(l2fr_max-l2fr_min)
 
+      l2fr = l2fr_min + max(0._r8,min(1.0_r8,np_regulator))*(l2fr_max-l2fr_min)
+      
       ! Find the updated target fineroot biomass
       ! call bfineroot(dbh,ipft,canopy_trim, l2fr, target_fnrt)
 
@@ -1090,7 +1077,7 @@ contains
   
   ! =====================================================================================
     
-  subroutine CNPStatureGrowth(this,c_gain, n_gain, p_gain, net_n_gain, net_p_gain,  &
+  subroutine CNPStatureGrowth(this,c_gain, n_gain, p_gain, &
                               state_c, state_n, state_p,           &
                               target_c, target_dcdd, cnp_limiter)
     
@@ -1101,10 +1088,6 @@ contains
                                            ! (new uptake + storage)
     real(r8), intent(inout) :: p_gain      ! Total P available for allocation
                                            ! (new uptake + storage)
-    real(r8), intent(in)    :: net_n_gain  ! How much N was gained or lost in the 
-                                           ! process of net uptake and turnover replacment
-    real(r8), intent(in)    :: net_p_gain  ! How much P was gained or lost in the 
-                                           ! process of net uptake and turnover replacment
     type(parray_type) :: state_c(:)       ! State array for carbon, by organ [kg]
     type(parray_type) :: state_n(:)       ! State array for N, by organ [kg]
     type(parray_type) :: state_p(:)       ! State array for P, by organ [kg]
@@ -1223,9 +1206,9 @@ contains
     p_stf  = max(state_p(store_id)%ptr/target_p,0._r8)
     
     if( c_gain <= calloc_abs_error  .or. &
-        leaf_status.eq.leaves_off .or. &
-        (n_stf < min_stf_growth ) .or. & !.and. net_n_gain < 0._r8) .or. &
-        (p_stf < min_stf_growth ) ) then !.and. net_p_gain < 0._r8) ) then
+         leaf_status.eq.leaves_off  .or. &
+         n_gain <= 0.1_r8*calloc_abs_error .or. &
+         p_gain <= 0.02_r8*calloc_abs_error ) then
        return
     end if
     
@@ -1233,7 +1216,7 @@ contains
     intgr_params(:)              = fates_unset_r8
     intgr_params(intgr_parm_ctrim) = this%bc_in(acnp_bc_in_id_ctrim)%rval
     intgr_params(intgr_parm_pft)   = real(this%bc_in(acnp_bc_in_id_pft)%ival)
-    intgr_params(intgr_parm_l2fr)  = this%bc_in(acnp_bc_inout_id_l2fr)%rval
+    intgr_params(intgr_parm_l2fr)  = this%bc_inout(acnp_bc_inout_id_l2fr)%rval
     
     state_mask(:) = .false.
     mask_organs(:) = fates_unset_int
@@ -1652,11 +1635,11 @@ contains
 
     ! If any N or P is still hanging around, put it in storage
 
-    state_n(store_id)%ptr = state_n(store_id)%ptr + n_gain
-    state_p(store_id)%ptr = state_p(store_id)%ptr + p_gain
+    !state_n(store_id)%ptr = state_n(store_id)%ptr + n_gain
+    !state_p(store_id)%ptr = state_p(store_id)%ptr + p_gain
 
-    n_gain = 0._r8
-    p_gain = 0._r8
+    !n_gain = 0._r8
+    !p_gain = 0._r8
     
     
     ! -----------------------------------------------------------------------------------
@@ -1689,13 +1672,13 @@ contains
     ! -----------------------------------------------------------------------------------
 
     c_efflux = max(0.0_r8,c_gain)
-!    n_efflux = max(0.0_r8,n_gain)
-!    p_efflux = max(0.0_r8,p_gain)
+    n_efflux = max(0.0_r8,n_gain)
+    p_efflux = max(0.0_r8,p_gain)
 
 
     c_gain = 0.0_r8
-!    n_gain = 0.0_r8
-!    p_gain = 0.0_r8
+    n_gain = 0.0_r8
+    p_gain = 0.0_r8
 
     return
   end subroutine CNPAllocateRemainder
@@ -2345,7 +2328,7 @@ contains
    ! =====================================================================================
    
    
-   function StorageRegulator(this,element_id,regulate_type) result(c_scalar)
+   subroutine StorageRegulator(this,element_id,regulate_type,c_scalar)
 
      ! -----------------------------------------------------------------------------------
      ! This function returns the cn_scalar or cp_scalar term
@@ -2376,11 +2359,15 @@ contains
      real(r8) :: store_c                            ! Current storage carbon
      real(r8) :: store_c_max                        ! Current maximum storage carbon
      integer  :: icode                              ! real variable checking code
+     real(r8) :: store_x
+     integer  :: i_var
 
-     real(r8), parameter :: logi_k   = 30.0_r8         ! logistic function k
-     real(r8), parameter :: store_x0 = 0.7_r8          ! storage fraction inflection point
-     real(r8), parameter :: logi_min = 0.0_r8          ! minimum cn_scalar for logistic
+     ! For N/C logistic
+     real(r8) :: logi_k          ! logistic function k
+     real(r8) :: store_x0        ! storage fraction inflection point
+     real(r8) :: logi_min        ! minimum cn_scalar for logistic
 
+     
      ! This is the storage fraction where downregulation starts if using
      ! a linear function
      real(r8), parameter :: store_frac0 = 0.85_r8
@@ -2399,12 +2386,19 @@ contains
        ! The cap of 2 is for numerics and preventing weird math
        store_frac = min(2.0_r8,this%GetState(store_organ, element_id)/store_max)
 
+       i_var = prt_global%sp_organ_map(store_organ,element_id )
+       store_x = sum(this%variables(i_var)%val(:))
+       
        if(regulate_type == regulate_linear) then
 
           c_scalar = min(c_max,max(c_min,1.0 - (store_frac - store_frac0)/(1.0_r8-store_frac0)))
 
        elseif(regulate_type == regulate_logi) then
 
+          logi_k   = 30.0_r8
+          store_x0 = 0.7_r8
+          logi_min = 0.0_r8
+          
           ! In this method, we define the c_scalar term
           ! with a logistic function that goes to 1 (full need)
           ! as the plant's nutrien storage hits a low threshold
@@ -2422,6 +2416,10 @@ contains
 
        else
 
+          logi_k   = 30.0_r8
+          store_x0 = 1.0_r8
+          logi_min = 0.0_r8
+          
           store_c = this%GetState(store_organ, carbon12_element)
           call bstore_allom(dbh,ipft,canopy_trim,store_c_max)
 
@@ -2430,7 +2428,7 @@ contains
           ! we have C, so we downregulate. If this is less than 1, then
           ! we have less N in storage than we have C, so up-regulate
 
-          store_frac = store_frac / (store_c/store_c_max)
+          store_frac = max(0.1_r8,store_frac) / max(0.1_r8,(store_c/store_c_max))
 
           c_scalar = max(c_min,min(c_max,logi_min + (1.0_r8-logi_min)/(1.0_r8 + exp(logi_k*(store_frac-store_x0)))))
 
@@ -2439,7 +2437,7 @@ contains
      end associate
 
 
-   end function StorageRegulator
+   end subroutine StorageRegulator
 
 
 

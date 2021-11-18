@@ -170,6 +170,9 @@ module FatesHistoryInterfaceMod
   integer :: ih_reprop_si
   integer :: ih_totvegp_si
 
+  integer :: ih_l2fr_si
+  integer :: ih_l2fr_scpf
+
   integer,public :: ih_nh4uptake_si
   integer,public :: ih_no3uptake_si
   integer,public :: ih_puptake_si
@@ -1787,6 +1790,8 @@ end subroutine flush_hvars
     associate( hio_npatches_si         => this%hvars(ih_npatches_si)%r81d, &
                hio_ncohorts_si         => this%hvars(ih_ncohorts_si)%r81d, &
                hio_trimming_si         => this%hvars(ih_trimming_si)%r81d, &
+               hio_l2fr_si             => this%hvars(ih_l2fr_si)%r81d, &
+               hio_l2fr_scpf           => this%hvars(ih_l2fr_scpf)%r82d, &
                hio_area_plant_si       => this%hvars(ih_area_plant_si)%r81d, &
                hio_area_trees_si  => this%hvars(ih_area_trees_si)%r81d, & 
                hio_canopy_spread_si    => this%hvars(ih_canopy_spread_si)%r81d, &
@@ -2209,8 +2214,8 @@ end subroutine flush_hvars
                call sizetype_class_index(ccohort%dbh, ccohort%pft, ccohort%size_class, ccohort%size_by_pft_class)
                call coagetype_class_index(ccohort%coage, ccohort%pft, &
                                           ccohort%coage_class, ccohort%coage_by_pft_class)
-              
-               ! Increment the number of cohorts per site
+
+                ! Increment the number of cohorts per site
                hio_ncohorts_si(io_si) = hio_ncohorts_si(io_si) + 1._r8
                
                n_perm2   = ccohort%n * AREA_INV
@@ -2268,6 +2273,14 @@ end subroutine flush_hvars
                   ! Zero states, and set the fluxes
                   if( element_list(el).eq.carbon12_element )then
 
+
+                     ! These L2FR diagnostics are weighted by fineroot carbon biomass
+                     hio_l2fr_si(io_si) = hio_l2fr_si(io_si) + ccohort%n*fnrt_m*ccohort%l2fr
+                     
+                     hio_l2fr_scpf(io_si,ccohort%size_by_pft_class) = &
+                          hio_l2fr_scpf(io_si,ccohort%size_by_pft_class) + &
+                          ccohort%n*fnrt_m*ccohort%l2fr
+                     
                      this%hvars(ih_storec_si)%r81d(io_si)  = &
                           this%hvars(ih_storec_si)%r81d(io_si) + ccohort%n * store_m
                      this%hvars(ih_leafc_si)%r81d(io_si)   = &
@@ -2856,6 +2869,10 @@ end subroutine flush_hvars
             cpatch => cpatch%younger
          end do !patch loop
 
+         ! Normalize the l2fr value by total biomass
+         hio_l2fr_si(io_si) = hio_l2fr_si(io_si)/this%hvars(ih_fnrtc_si)%r81d(io_si)
+
+         
          ! divide so-far-just-summed but to-be-averaged patch-age-class variables by patch-age-class area to get mean values
          do ipa2 = 1, nlevage
             if (hio_area_si_age(io_si, ipa2) .gt. tiny) then
@@ -2878,6 +2895,9 @@ end subroutine flush_hvars
          do i_pft = 1, numpft
             do i_scls = 1,nlevsclass
                i_scpf = (i_pft-1)*nlevsclass + i_scls
+
+              
+               
                !
                ! termination mortality. sum of canopy and understory indices
                hio_m6_si_scpf(io_si,i_scpf) = (sites(s)%term_nindivs_canopy(i_scls,i_pft) + &
@@ -3004,7 +3024,7 @@ end subroutine flush_hvars
                     hio_m4_si_scpf(io_si,i_scpf) + &
                     hio_m5_si_scpf(io_si,i_scpf) + &
                     hio_m6_si_scpf(io_si,i_scpf) + &
-		    hio_m7_si_scpf(io_si,i_scpf) + &
+                    hio_m7_si_scpf(io_si,i_scpf) + &
                     hio_m8_si_scpf(io_si,i_scpf) + &
                     hio_m9_si_scpf(io_si,i_scpf) + &
                     hio_m10_si_scpf(io_si,i_scpf) 
@@ -3157,8 +3177,6 @@ end subroutine flush_hvars
 
                area_frac = cpatch%area * AREA_INV
 
-               
-               
                ! Sum up all output fluxes (fragmentation)
                hio_litter_out_elem(io_si,el) = hio_litter_out_elem(io_si,el) + &
                     (sum(litt%leaf_fines_frag(:)) + &
@@ -3302,7 +3320,12 @@ end subroutine flush_hvars
                do i_pft = 1, numpft
                   do i_scls = 1,nlevsclass
                      i_scpf = (i_pft-1)*nlevsclass + i_scls
-                     
+
+                     if(this%hvars(ih_fnrtc_scpf)%r82d(io_si,i_scpf)>nearzero)then
+                        hio_l2fr_scpf(io_si,i_scpf) = hio_l2fr_scpf(io_si,i_scpf) / &
+                             this%hvars(ih_fnrtc_scpf)%r82d(io_si,i_scpf)
+                     end if
+                        
                      if(  hio_nplant_canopy_si_scpf(io_si,i_scpf)>nearzero ) then
                         this%hvars(ih_storentfrac_canopy_scpf)%r82d(io_si,i_scpf) = &
                              this%hvars(ih_storentfrac_canopy_scpf)%r82d(io_si,i_scpf) / &
@@ -4244,12 +4267,23 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,    &
          ivar=ivar, initialize=initialize_variables, index = ih_ncohorts_si)
     
-    ! Patch variables
     call this%set_history_var(vname='TRIMMING', units='none',                   &
          long='Degree to which canopy expansion is limited by leaf economics',  & 
          use_default='active', &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,    &
          ivar=ivar, initialize=initialize_variables, index = ih_trimming_si)
+
+    call this%set_history_var(vname='LEAF2FNRT', units='none',                   &
+         long='The leaf to fineroot biomass multiplier for target allometry', & 
+         use_default='active', &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,    &
+         ivar=ivar, initialize=initialize_variables, index = ih_l2fr_si)
+    
+    call this%set_history_var(vname='LEAF2FNRT_SCPF', units='none',                   &
+         long='The leaf to fineroot biomass multiplier for target allometry', & 
+         use_default='active', &
+         avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,    &
+         ivar=ivar, initialize=initialize_variables, index = ih_l2fr_scpf)
     
     call this%set_history_var(vname='AREA_PLANT', units='m2/m2',                   &
          long='area occupied by all plants', use_default='active',              &
@@ -4592,6 +4626,8 @@ end subroutine update_history_hifrq
          ivar=ivar, initialize=initialize_variables, index = ih_burnt_frac_litter_si_fuel )
 
 
+    
+    
     ! Litter Variables
 
     call this%set_history_var(vname='LITTER_IN', units='gC m-2 s-1',           &

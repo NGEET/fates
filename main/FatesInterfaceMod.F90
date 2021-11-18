@@ -49,8 +49,8 @@ module FatesInterfaceMod
    use FatesConstantsMod         , only : coupled_p_uptake
    use FatesConstantsMod         , only : coupled_n_uptake
    use FatesConstantsMod         , only : fates_np_comp_scaling
-   use FatesConstantsMod         , only : cohort_np_comp_scaling
-   use FatesConstantsMod         , only : pft_np_comp_scaling
+   use FatesConstantsMod         , only : coupled_np_comp_scaling
+   use FatesConstantsMod         , only : trivial_np_comp_scaling
    use PRTGenericMod             , only : num_elements
    use PRTGenericMod             , only : element_list
    use PRTGenericMod             , only : element_pos
@@ -214,13 +214,6 @@ contains
     bc_pconst%eca_alpha_ptase(1:numpft)  = EDPftvarcon_inst%eca_alpha_ptase(1:numpft) 
     bc_pconst%eca_lambda_ptase(1:numpft) = EDPftvarcon_inst%eca_lambda_ptase(1:numpft)
     bc_pconst%eca_plant_escalar          = eca_plant_escalar
-    if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
-       bc_pconst%j_uptake(1:nlevdecomp)    = 1
-    else
-       do j=1,nlevdecomp
-          bc_pconst%j_uptake(j) = j
-       end do
-    end if
     
     return
   end subroutine set_bcpconst
@@ -421,15 +414,9 @@ contains
       ! Allocating differently could save a lot of memory and time
 
       if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-         if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
-            allocate(bc_in%plant_nh4_uptake_flux(max_comp_per_site,1))
-            allocate(bc_in%plant_no3_uptake_flux(max_comp_per_site,1))
-            allocate(bc_in%plant_p_uptake_flux(max_comp_per_site,1))
-         else
-            allocate(bc_in%plant_nh4_uptake_flux(max_comp_per_site,bc_in%nlevdecomp))
-            allocate(bc_in%plant_no3_uptake_flux(max_comp_per_site,bc_in%nlevdecomp))
-            allocate(bc_in%plant_p_uptake_flux(max_comp_per_site,bc_in%nlevdecomp))
-         end if
+         allocate(bc_in%plant_nh4_uptake_flux(max_comp_per_site,1))
+         allocate(bc_in%plant_no3_uptake_flux(max_comp_per_site,1))
+         allocate(bc_in%plant_p_uptake_flux(max_comp_per_site,1))
       else
          allocate(bc_in%plant_nh4_uptake_flux(1,1))
          allocate(bc_in%plant_no3_uptake_flux(1,1))
@@ -569,15 +556,17 @@ contains
       ! When FATES does not have nutrients enabled, these
       ! arrays are indexed by 1.
       
-      if(trim(hlm_nu_com).eq.'RD') then
-         allocate(bc_out%n_demand(max_comp_per_site))
-         allocate(bc_out%p_demand(max_comp_per_site))
-      end if
+      !if(trim(hlm_nu_com).eq.'RD') then
+      !   allocate(bc_out%n_demand(max_comp_per_site))
+      !   allocate(bc_out%p_demand(max_comp_per_site))
+      !end if
 
+      ! Used in both
+      allocate(bc_out%veg_rootc(max_comp_per_site,nlevdecomp_in))
+      allocate(bc_out%ft_index(max_comp_per_site))
+         
       if(trim(hlm_nu_com).eq.'ECA') then
-         allocate(bc_out%veg_rootc(max_comp_per_site,nlevdecomp_in))
          allocate(bc_out%decompmicc(nlevdecomp_in))
-         allocate(bc_out%ft_index(max_comp_per_site))
          allocate(bc_out%cn_scalar(max_comp_per_site))
          allocate(bc_out%cp_scalar(max_comp_per_site))
       end if
@@ -772,20 +761,33 @@ contains
          ! Note: since BGC code may be active even when no nutrients
          ! present, we still need to allocate things when no nutrients
 
+
+         if (any(abs(EDPftvarcon_inst%prescribed_nuptake(:)) > nearzero )) then
+            n_uptake_mode = prescribed_n_uptake
+         else
+            n_uptake_mode = coupled_n_uptake
+         end if
+
+         if (any(abs(EDPftvarcon_inst%prescribed_puptake(:)) > nearzero )) then
+            p_uptake_mode = prescribed_p_uptake
+         else
+            p_uptake_mode = coupled_p_uptake
+         end if
+         
          if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp ) then
-            if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
+
+            if((p_uptake_mode==coupled_p_uptake) .or. (n_uptake_mode==coupled_n_uptake))then
                max_comp_per_site = fates_maxElementsPerSite
-            elseif(fates_np_comp_scaling.eq.pft_np_comp_scaling) then
-               max_comp_per_site = numpft
+               fates_np_comp_scaling = coupled_np_comp_scaling
             else
-               write(fates_log(), *) 'An unknown nutrient competitor scaling method was chosen?'
-               call endrun(msg=errMsg(sourcefile, __LINE__))
+               max_comp_per_site = 1
+               fates_np_comp_scaling = trivial_np_comp_scaling
             end if
+
          else
             max_comp_per_site = 1
+            fates_np_comp_scaling = trivial_np_comp_scaling
          end if
-            
-
 
          ! Identify number of size and age class bins for history output
          ! assume these arrays are 1-indexed
