@@ -2203,6 +2203,12 @@ contains
     currentPatch%fragmentation_scaler(:)    = 0.0_r8
     currentPatch%radiation_error            = 0.0_r8
 
+    ! diagnostic radiation profiles
+    currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
+    currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
+    currentPatch%nrmlzd_parprof_dir_z(:,:,:)       = 0._r8
+    currentPatch%nrmlzd_parprof_dif_z(:,:,:)       = 0._r8
+
     currentPatch%solar_zenith_flag          = .false.
     currentPatch%solar_zenith_angle         = nan
     currentPatch%fcansno                    = nan
