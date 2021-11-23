@@ -404,7 +404,7 @@ module FatesInterfaceTypesMod
       ! 2 = patch is currently marked for photosynthesis
       ! 3 = patch has been called for photosynthesis at least once
       integer, allocatable  :: filter_photo_pa(:)
-     
+
       ! atmospheric pressure (Pa)
       real(r8)              :: forc_pbot             
 
@@ -447,7 +447,10 @@ module FatesInterfaceTypesMod
       !           I am leaving it at this scale for simplicity.  Patches should
       !           have no spacially variable information
       real(r8), allocatable :: coszen_pa(:)
-      
+
+      ! fraction of canopy that is covered in snow
+      real(r8), allocatable :: fcansno_pa(:)
+       
       ! Abledo of the ground for direct radiation, by site broadband (0-1)
       real(r8), allocatable :: albgr_dir_rb(:)
 
@@ -681,7 +684,7 @@ module FatesInterfaceTypesMod
 
      integer, allocatable :: nocomp_pft_label_pa(:) ! in nocomp and SP mode, each patch has a PFT identity. 
 
-       ! FATES Hydraulics
+      ! FATES Hydraulics
 
 
       
@@ -735,7 +738,7 @@ module FatesInterfaceTypesMod
                                                 ! increasing, or all 1s)
 
    end type bc_pconst_type
-   
+  
 
 
  contains

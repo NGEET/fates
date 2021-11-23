@@ -307,6 +307,7 @@ module FatesHistoryInterfaceMod
 
   integer :: ih_c_stomata_si
   integer :: ih_c_lblayer_si
+  integer :: ih_rad_error_si
 
   integer :: ih_fire_c_to_atm_si
 
@@ -3531,6 +3532,7 @@ end subroutine flush_hvars
                hio_growth_resp_si => this%hvars(ih_growth_resp_si)%r81d, &
                hio_c_stomata_si   => this%hvars(ih_c_stomata_si)%r81d, &
                hio_c_lblayer_si   => this%hvars(ih_c_lblayer_si)%r81d, &
+               hio_rad_error_si   => this%hvars(ih_rad_error_si)%r81d, &
                hio_nep_si         => this%hvars(ih_nep_si)%r81d, &
                hio_hr_si          => this%hvars(ih_hr_si)%r81d, &
                hio_ar_si_scpf     => this%hvars(ih_ar_si_scpf)%r82d, &
@@ -3638,6 +3640,9 @@ end subroutine flush_hvars
 
             hio_c_lblayer_si(io_si) = hio_c_lblayer_si(io_si) + &
                  cpatch%c_lblayer * cpatch%total_canopy_area / umol_per_mol
+
+          hio_rad_error_si(io_si) = hio_rad_error_si(io_si) + &
+                 cpatch%radiation_error * cpatch%area * AREA_INV
 
             ccohort => cpatch%shortest
             do while(associated(ccohort))
@@ -4353,7 +4358,7 @@ end subroutine update_history_hifrq
     ! cohort size              (site_size_r8)   : SZ
 
     ! Multiple dimensions should have multiple two-code suffixes:
-    ! cohort age x pft                (site_cooage_r8)   : ACPF 
+    ! cohort age x pft                (site_cooage_r8)   : ACPF
     ! patch age x fuel class          (site_agefuel_r8)  : APFC
     ! patch age x pft                 (site_agepft_r8)   : APPF
     ! canopy layer x leaf layer       (site_cnlf_r8)     : CLLL
@@ -5100,6 +5105,13 @@ end subroutine update_history_hifrq
          long='mean leaf boundary layer conductance', use_default='active',    &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM',  upfreq=2,                &
          ivar=ivar, initialize=initialize_variables, index = ih_c_lblayer_si)
+
+   ! radiation error
+
+   call this%set_history_var(vname='FATES_RAD_ERROR', units='W m-2 ',          &
+         long='radiation error in FATES RTM', use_default='active',            &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,                 &
+         ivar=ivar, initialize=initialize_variables, index = ih_rad_error_si)
 
 
     ! Ecosystem Carbon Fluxes (updated rapidly, upfreq=2)

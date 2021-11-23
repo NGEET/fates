@@ -430,7 +430,7 @@ module EDTypesMod
      real(r8) ::  elai_profile(nclmax,maxpft,nlevleaf)          ! exposed leaf area in each canopy layer, pft, and leaf layer
      real(r8) ::  tsai_profile(nclmax,maxpft,nlevleaf)          ! total   stem area in each canopy layer, pft, and leaf layer
      real(r8) ::  esai_profile(nclmax,maxpft,nlevleaf)          ! exposed stem area in each canopy layer, pft, and leaf layer
-
+     real(r8) ::  radiation_error                               ! radiation error (w/m2)
      real(r8) ::  layer_height_profile(nclmax,maxpft,nlevleaf)
      real(r8) ::  canopy_area_profile(nclmax,maxpft,nlevleaf)   ! fraction of crown area per canopy area in each layer
                                                                 ! they will sum to 1.0 in the fully closed canopy layers
@@ -444,6 +444,7 @@ module EDTypesMod
      integer  ::  ncan(nclmax,maxpft)                           ! number of total   leaf layers for each canopy layer and pft
 
      !RADIATION FLUXES      
+     real(r8) :: fcansno                                        ! Fraction of canopy covered in snow
 
      logical  ::  solar_zenith_flag                             ! integer flag specifying daylight (based on zenith angle)
      real(r8) ::  solar_zenith_angle                            ! solar zenith angle (radians)
@@ -661,7 +662,7 @@ module EDTypesMod
      procedure :: ZeroMassBalFlux
      
   end type site_massbal_type
-
+  
 
   !************************************
   !** Site type structure           **
@@ -685,7 +686,7 @@ module EDTypesMod
      ! Global index of this site in the history output file
      integer :: h_gid
      
-
+     
      ! INDICES 
      real(r8) ::  lat                                          ! latitude:  degrees 
      real(r8) ::  lon                                          ! longitude: degrees 
