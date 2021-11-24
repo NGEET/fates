@@ -62,13 +62,14 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : years_per_day
   use FatesLitterMod           , only : litter_type
   use FatesConstantsMod        , only : secondaryforest
-
+  use FatesAllometryMod        , only : bstore_allom
   use PRTGenericMod            , only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod            , only : struct_organ, store_organ, repro_organ
   use PRTGenericMod            , only : all_carbon_elements
   use PRTGenericMod            , only : carbon12_element
   use PRTGenericMod            , only : nitrogen_element, phosphorus_element
   use PRTGenericMod            , only : prt_carbon_allom_hyp
+  use PRTAllometricCNPMod      , only : stoich_max
 
   implicit none
   private          ! By default everything is private
@@ -148,6 +149,7 @@ module FatesHistoryInterfaceMod
   ! Indices to 1D Patch variables
 
   integer :: ih_storec_si
+  integer :: ih_storectfrac_si
   integer :: ih_leafc_si
   integer :: ih_sapwc_si
   integer :: ih_fnrtc_si
@@ -2283,6 +2285,12 @@ end subroutine flush_hvars
                      
                      this%hvars(ih_storec_si)%r81d(io_si)  = &
                           this%hvars(ih_storec_si)%r81d(io_si) + ccohort%n * store_m
+
+                     call bstore_allom(ccohort%dbh,ccohort%pft,ccohort%canopy_trim, store_max)
+                     this%hvars(ih_storectfrac_si)%r81d(io_si)  = &
+                          this%hvars(ih_storectfrac_si)%r81d(io_si) + ccohort%n * store_max
+
+                     
                      this%hvars(ih_leafc_si)%r81d(io_si)   = &
                           this%hvars(ih_leafc_si)%r81d(io_si) + ccohort%n * leaf_m
                      this%hvars(ih_fnrtc_si)%r81d(io_si)   = &
@@ -2332,7 +2340,7 @@ end subroutine flush_hvars
               
                   elseif(element_list(el).eq.nitrogen_element)then
 
-                     store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ)
+                     store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ,stoich_max)
 
                      this%hvars(ih_storen_si)%r81d(io_si)  = &
                           this%hvars(ih_storen_si)%r81d(io_si) + ccohort%n * store_m
@@ -2352,7 +2360,7 @@ end subroutine flush_hvars
                      
                   elseif(element_list(el).eq.phosphorus_element) then
 
-                     store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ)
+                     store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ,stoich_max)
                      
                      this%hvars(ih_storep_si)%r81d(io_si)  = &
                           this%hvars(ih_storep_si)%r81d(io_si) + ccohort%n * store_m
@@ -3251,7 +3259,7 @@ end subroutine flush_hvars
                           this%hvars(ih_reproc_scpf)%r82d(io_si,i_scpf) + repro_m * ccohort%n
                   elseif(element_list(el).eq.nitrogen_element)then
 
-                     store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ)
+                     store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ,stoich_max)
 
                      this%hvars(ih_totvegn_scpf)%r82d(io_si,i_scpf) = & 
                           this%hvars(ih_totvegn_scpf)%r82d(io_si,i_scpf) + total_m * ccohort%n
@@ -3276,7 +3284,7 @@ end subroutine flush_hvars
                         
                   elseif(element_list(el).eq.phosphorus_element)then
 
-                     store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ)
+                     store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ,stoich_max)
 
                      this%hvars(ih_totvegp_scpf)%r82d(io_si,i_scpf) = & 
                           this%hvars(ih_totvegp_scpf)%r82d(io_si,i_scpf) + total_m * ccohort%n
@@ -3312,7 +3320,14 @@ end subroutine flush_hvars
          ! Normalize nutrient storage fractions
 
          do el = 1, num_elements
-            if(element_list(el).eq.nitrogen_element)then
+
+            if(element_list(el).eq.carbon12_element)then
+               if( this%hvars(ih_storectfrac_si)%r81d(io_si)>nearzero ) then
+                  this%hvars(ih_storectfrac_si)%r81d(io_si) = this%hvars(ih_storec_si)%r81d(io_si) / &
+                       this%hvars(ih_storectfrac_si)%r81d(io_si)
+               end if
+               
+            elseif(element_list(el).eq.nitrogen_element)then
                if( this%hvars(ih_storentfrac_si)%r81d(io_si)>nearzero ) then
                   this%hvars(ih_storentfrac_si)%r81d(io_si)  = this%hvars(ih_storen_si)%r81d(io_si) / &
                        this%hvars(ih_storentfrac_si)%r81d(io_si)
@@ -4691,6 +4706,11 @@ end subroutine update_history_hifrq
          long='Total carbon in live plant storage', use_default='active',          &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_storec_si )
+
+    call this%set_history_var(vname='STOREC_TFRAC', units='-',                      &
+         long='Storage C fraction of target', use_default='active',          &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_storectfrac_si )
     
     call this%set_history_var(vname='TOTVEGC', units='kgC ha-1',                     &
          long='Total carbon in live plants', use_default='active',                 &
