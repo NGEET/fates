@@ -263,17 +263,17 @@ contains
        ! end of the averaging memory period, and
        ! we are not using an indefinite running
        ! average, then zero things out
+       
+       this%c_index = this%c_index + 1
+       wgt = this%def_type%up_period/this%def_type%mem_period
+       this%c_mean = this%c_mean + new_value*wgt
 
        if(this%c_index == this%def_type%n_mem) then
           this%l_mean  = this%c_mean
           this%c_mean  = 0._r8
           this%c_index = 0
-
        end if
-       
-       this%c_index = this%c_index + 1
-       wgt = this%def_type%up_period/this%def_type%mem_period
-       this%c_mean = this%c_mean + new_value*wgt
+
        
     end if
 
