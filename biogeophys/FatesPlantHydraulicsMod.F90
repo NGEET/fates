@@ -63,7 +63,7 @@ module FatesPlantHydraulicsMod
   use FatesInterfaceTypesMod  , only : numpft
   use FatesInterfaceTypesMod  , only : nlevsclass
   use FatesInterfaceTypesMod  , only : hlm_use_hardening !marius
-
+  use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm !marius
   use FatesAllometryMod, only    : bleaf
   use FatesAllometryMod, only    : bsap_allom
   use FatesAllometryMod, only    : CrownDepth
@@ -2497,16 +2497,18 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
               ccohort_hydr => ccohort%co_hydr
               ft       = ccohort%pft
 
-              !update hardening for each cohort in BC hydraulics loop. Marius
-              if (hlm_use_hardening .eq. itrue .and. ccohort%hard_rate < 0.98) then
-                 do pm = 1,n_hypool_plant
-                    pinot_hard=EDPftvarcon_inst%hydr_pinot_node(ft,pm)-(1._r8-ccohort%hard_rate)*0.7_r8
-	            epsil_hard=EDPftvarcon_inst%hydr_epsil_node(ft,pm)+(1._r8-ccohort%hard_rate)*10._r8
-                    call wrf_plant(pm,ft)%p%set_wrf_hard([pinot_hard, &
-                                                          epsil_hard])
-
-                 end do 
-              end if
+             !update hardening for each cohort in BC hydraulics loop. Marius
+             if (hlm_use_hardening .eq. itrue .and. ccohort%hard_level<-3._r8) then
+                !if (ccohort%hard_level .ne. ccohort%hard_level_prev) then
+                !   !write(fates_log(),*)'check1'
+                !    do pm = 1,n_hypool_plant
+                !      pinot_hard=EDPftvarcon_inst%hydr_pinot_node(ft,pm)-(1._r8-(ccohort%hard_level+70._r8)/67._r8)*1._r8 ! solute pinot max change if hardening is -1
+	        !      epsil_hard=EDPftvarcon_inst%hydr_epsil_node(ft,pm)+(1._r8-(ccohort%hard_level+70._r8)/67._r8)*15._r8! pressure epsil max change if hardening is +15
+                !      call wrf_plant(pm,ft)%p%set_wrf_hard([pinot_hard,epsil_hard])
+                !   end do 
+                !end if
+                !ccohort%hard_level_prev=ccohort%hard_level
+             end if
              
               ! Relative transpiration of this cohort from the whole patch
               ! Note that g_sb_laweight / gscan_patch is the weighting that gives cohort contribution per area
@@ -4735,7 +4737,7 @@ subroutine MatSolve2D(bc_in,site_hydr,cohort,cohort_hydr, &
 
 
    ! Maximum number of Newton iterations in each round
-   integer, parameter :: max_newton_iter = 1000 !marius 100 default
+   integer, parameter :: max_newton_iter = 10000 !marius 100 default
 
    ! Flag definitions for convergence flag (icnv)
    ! icnv = 1 fail the round due to either wacky math, or
@@ -4983,7 +4985,7 @@ subroutine MatSolve2D(bc_in,site_hydr,cohort,cohort_hydr, &
          ! of each connection.  This IS dependant on total potential h_node
          ! because of the root-soil radial conductance.
 
-         call SetMaxCondConnections(site_hydr, cohort_hydr, h_node, kmax_dn, kmax_up, cohort%hard_rate)
+         call SetMaxCondConnections(site_hydr, cohort_hydr, h_node, kmax_dn, kmax_up, cohort%hard_level, bc_in)
          ! calculate boundary fluxes
          do icnx=1,site_hydr%num_connections
 
@@ -5374,7 +5376,7 @@ end function SumBetweenDepths
 
 ! =====================================================================================
 
-subroutine SetMaxCondConnections(site_hydr, cohort_hydr, h_node, kmax_dn, kmax_up, hard_rate)
+subroutine SetMaxCondConnections(site_hydr, cohort_hydr, h_node, kmax_dn, kmax_up, hard_level,bc_in) !marius
 
   ! -------------------------------------------------------------------------------
   ! This subroutine sets the maximum conductances
@@ -5385,7 +5387,7 @@ subroutine SetMaxCondConnections(site_hydr, cohort_hydr, h_node, kmax_dn, kmax_u
   ! dependent on the updating potential in the system, and not just a function
   ! of plant geometry and material properties.
   ! -------------------------------------------------------------------------------
-
+   type(bc_in_type),intent(in) :: bc_in ! marius
    type(ed_site_hydr_type), intent(in),target   :: site_hydr
    type(ed_cohort_hydr_type), intent(in),target :: cohort_hydr
    real(r8),intent(in)  :: h_node(:)        ! Total (matric+height) potential at each node (Mpa)
@@ -5393,7 +5395,11 @@ subroutine SetMaxCondConnections(site_hydr, cohort_hydr, h_node, kmax_dn, kmax_u
    real(r8),intent(out) :: kmax_up(:)       ! Max conductance of upstream sides of connections   (kg s-1 MPa-1)
 
    real(r8):: aroot_frac_plant ! Fraction of the cohort's fine-roots
-   real(r8):: hard_rate ! marius
+   real(r8):: hard_level ! marius
+   real(r8):: k_factor
+   real(r8):: hard_rate_temporary
+   real(r8):: soil_rate_temporary
+   real(r8):: hard_max
    ! out of the total in the current layer
    integer :: icnx  ! connection index
    integer :: inode ! node index
@@ -5403,7 +5409,7 @@ subroutine SetMaxCondConnections(site_hydr, cohort_hydr, h_node, kmax_dn, kmax_u
 
    kmax_dn(:) = fates_unset_r8
    kmax_up(:) = fates_unset_r8
-
+   k_factor=12._r8 !marius
    ! Set leaf to stem connections (only 1 leaf layer
    ! this will break if we have multiple, as there would
    ! need to be assumptions about which compartment
@@ -5411,19 +5417,42 @@ subroutine SetMaxCondConnections(site_hydr, cohort_hydr, h_node, kmax_dn, kmax_u
    icnx  = 1
    kmax_dn(icnx) = cohort_hydr%kmax_petiole_to_leaf
    kmax_up(icnx) = cohort_hydr%kmax_stem_upper(1)
-
+   !-----------------------------------------------------------!marius
+   if (hlm_use_hardening .eq. itrue) then
+     if (hard_level<-3_r8) then
+       hard_rate_temporary=((hard_level+3._r8)/k_factor)
+       kmax_dn(icnx)=kmax_dn(icnx)*10**hard_rate_temporary 
+       kmax_up(icnx)=kmax_up(icnx)*10**hard_rate_temporary 
+     end if
+   end if
+   !--------------------------------------------------------
    ! Stem to stem connections
    do istem = 1,n_hypool_stem-1
    icnx = icnx + 1
    kmax_dn(icnx) = cohort_hydr%kmax_stem_lower(istem)
    kmax_up(icnx) = cohort_hydr%kmax_stem_upper(istem+1)
+   !-----------------------------------------------------------!marius
+   if (hlm_use_hardening .eq. itrue) then
+     if (hard_level<-3_r8) then
+        kmax_dn(icnx)=kmax_dn(icnx)*10**hard_rate_temporary 
+        kmax_up(icnx)=kmax_up(icnx)*10**hard_rate_temporary 
+     end if
+   end if
+   !--------------------------------------------------------
    enddo
 
    ! Path is between lowest stem and transporting root
    icnx  = icnx + 1
    kmax_dn(icnx) = cohort_hydr%kmax_stem_lower(n_hypool_stem)
    kmax_up(icnx) = cohort_hydr%kmax_troot_upper
-
+   !-----------------------------------------------------------!marius
+   if (hlm_use_hardening .eq. itrue) then
+     if (hard_level<-3_r8) then
+       kmax_dn(icnx)=kmax_dn(icnx)*10**hard_rate_temporary 
+       kmax_up(icnx)=kmax_up(icnx)*10**hard_rate_temporary 
+     end if
+   end if
+   !--------------------------------------------------------
    ! Path is between the transporting root and the absorbing roots
    inode = n_hypool_ag
    do j = 1,site_hydr%nlevrhiz
@@ -5436,7 +5465,14 @@ subroutine SetMaxCondConnections(site_hydr, cohort_hydr, h_node, kmax_dn, kmax_u
       if( k == 1 ) then !troot-aroot
          kmax_dn(icnx) = cohort_hydr%kmax_troot_lower(j)
          kmax_up(icnx) = cohort_hydr%kmax_aroot_upper(j)
-
+         !-----------------------------------------------------------!marius
+         if (hlm_use_hardening .eq. itrue) then
+           if (hard_level<-3_r8) then
+              kmax_dn(icnx)=kmax_dn(icnx)*10**hard_rate_temporary 
+              kmax_up(icnx)=kmax_up(icnx)*10**hard_rate_temporary 
+           end if
+         end if
+         !--------------------------------------------------------
       elseif( k == 2) then ! aroot-soil
 
          ! Special case. Maximum conductance depends on the
@@ -5450,13 +5486,19 @@ subroutine SetMaxCondConnections(site_hydr, cohort_hydr, h_node, kmax_dn, kmax_u
                   1._r8/cohort_hydr%kmax_aroot_radial_out(j))
          end if
          kmax_up(icnx) = site_hydr%kmax_upper_shell(j,1)*aroot_frac_plant
-             !if (hlm_use_hardening .eq. itrue .and. hard_rate<0.98_r8 .and. hard_rate>0.1_r8) then
-             !   kmax_dn(icnx)=kmax_dn(icnx)*10*10**(-1/hard_rate) !marius
-             !   kmax_up(icnx)=kmax_up(icnx)*10*10**(-1/hard_rate) !marius
-             !else if (hard_rate<0.1_r8) then
-             !   kmax_dn(icnx)=kmax_dn(icnx)*1.e-10_r8  !marius
-             !   kmax_up(icnx)=kmax_up(icnx)*1.e-10_r8  !marius
-             !endif
+         !-----------------------------------------------!marius
+         if (hlm_use_hardening .eq. itrue) then
+           if (hard_level<-3_r8) then
+             kmax_dn(icnx)=kmax_dn(icnx)*10**hard_rate_temporary 
+           end if
+              if ((bc_in%t_soisno_sl(j)-tfrz)<0._r8 .and. (bc_in%t_soisno_sl(j)-tfrz)>-15._r8) then
+                soil_rate_temporary=(((bc_in%t_soisno_sl(j)-tfrz))/2._r8)
+                kmax_up(icnx)=kmax_up(icnx)*10**hard_rate_temporary 
+              else if ((bc_in%t_soisno_sl(j)-tfrz)<=-15._r8) then 
+                kmax_up(icnx)=kmax_up(icnx)*10**-7.5
+              end if
+         endif
+         !---------------------------------------------------
       else                 ! soil - soil
          kmax_dn(icnx) = site_hydr%kmax_lower_shell(j,k-2)*aroot_frac_plant
          kmax_up(icnx) = site_hydr%kmax_upper_shell(j,k-1)*aroot_frac_plant
@@ -5532,7 +5574,7 @@ subroutine InitHydroGlobals()
                cap_int    = -cap_slp + hydr_psi0
                cap_corr   = -cap_int/cap_slp
             end if
-            call wrf_tfs%set_wrf_param([EDPftvarcon_inst%hydr_thetas_node(ft,pm), & !marius
+            call wrf_tfs%set_wrf_param([EDPftvarcon_inst%hydr_thetas_node(ft,pm), &
                                         EDPftvarcon_inst%hydr_resid_node(ft,pm), &
                                         EDPftvarcon_inst%hydr_pinot_node(ft,pm), &
                                         EDPftvarcon_inst%hydr_epsil_node(ft,pm), &

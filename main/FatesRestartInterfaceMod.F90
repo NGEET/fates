@@ -39,6 +39,7 @@ module FatesRestartInterfaceMod
   use EDTypesMod,              only : nfsc
   use PRTGenericMod,           only : prt_global
   use PRTGenericMod,           only : num_elements
+  use FatesInterfaceTypesMod  , only : hlm_use_hardening !marius
 
 
   ! CIME GLOBALS
@@ -89,6 +90,8 @@ module FatesRestartInterfaceMod
   integer :: ir_acc_ni_si
   integer :: ir_gdd_si
   integer :: ir_gdd5_si !marius
+  integer :: ir_hard_level_co !marius
+  integer :: ir_hard_level_prev_co !marius
   integer :: ir_snow_depth_si
   integer :: ir_trunk_product_si
   integer :: ir_ncohort_pa
@@ -672,6 +675,15 @@ contains
     ! 1D cohort Variables
     ! -----------------------------------------------------------------------------------
 
+    if  (hlm_use_hardening .eq. itrue) then !marius
+       call this%set_restart_var(vname='fates_hard_level', vtype=cohort_r8, &
+            long_name='hard_level', units='DegC', flushval = flushinvalid, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hard_level_co )
+       call this%set_restart_var(vname='fates_hard_level_prev', vtype=cohort_r8, &
+            long_name='hard_level', units='DegC', flushval = flushinvalid, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hard_level_prev_co )
+    end if
+    
     call this%set_restart_var(vname='fates_seed_prod', vtype=cohort_r8, &
          long_name='fates cohort - seed production', units='kgC/plant', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seed_prod_co )
@@ -1654,6 +1666,8 @@ contains
            rio_acc_ni_si               => this%rvars(ir_acc_ni_si)%r81d, &
            rio_gdd_si                  => this%rvars(ir_gdd_si)%r81d, &
            rio_gdd5_si                  => this%rvars(ir_gdd5_si)%r81d, & !marius
+           rio_hard_level_co            => this%rvars(ir_hard_level_co)%r81d, & !marius
+           rio_hard_level_prev_co            => this%rvars(ir_hard_level_prev_co)%r81d, & !marius
            rio_snow_depth_si           => this%rvars(ir_snow_depth_si)%r81d, &
            rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
            rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
@@ -2470,6 +2484,8 @@ contains
           rio_acc_ni_si               => this%rvars(ir_acc_ni_si)%r81d, &
           rio_gdd_si                  => this%rvars(ir_gdd_si)%r81d, &
           rio_gdd5_si                  => this%rvars(ir_gdd5_si)%r81d, & !marius
+          rio_hard_level_co            => this%rvars(ir_hard_level_co)%r81d, & !marius
+          rio_hard_level_prev_co            => this%rvars(ir_hard_level_prev_co)%r81d, & !marius
           rio_snow_depth_si           => this%rvars(ir_snow_depth_si)%r81d, &
           rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
           rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
@@ -2697,6 +2713,11 @@ contains
                 ccohort%resp_acc_hold = rio_resp_acc_hold_co(io_idx_co)
                 ccohort%npp_acc_hold = rio_npp_acc_hold_co(io_idx_co)
                 ccohort%resp_m_def   = rio_resp_m_def_co(io_idx_co)
+                
+                if (hlm_use_hardening .eq. itrue) then
+                   ccohort%hard_level   = rio_hard_level_co(io_idx_co) !marius
+                   ccohort%hard_level_prev   = rio_hard_level_prev_co(io_idx_co)
+                end if
 
                 ccohort%bmort        = rio_bmort_co(io_idx_co)
                 ccohort%hmort        = rio_hmort_co(io_idx_co)
