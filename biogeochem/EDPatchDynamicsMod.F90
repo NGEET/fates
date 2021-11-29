@@ -430,7 +430,7 @@ contains
     enddo !patch loop 
 
   end subroutine disturbance_rates
-  
+
     ! ============================================================================
 
   subroutine spawn_patches( currentSite, bc_in)
@@ -451,7 +451,7 @@ contains
     ! !USES:
     
     use EDParamsMod         , only : ED_val_understorey_death, logging_coll_under_frac
-    use EDCohortDynamicsMod , only : zero_cohort, copy_cohort, terminate_cohorts 
+    use EDCohortDynamicsMod , only : zero_cohort, copy_cohort, terminate_cohorts
     use FatesConstantsMod   , only : rsnbl_math_prec
 
     !
@@ -2201,9 +2201,17 @@ contains
     currentPatch%c_stomata                  = 0.0_r8 ! This is calculated immediately before use
     currentPatch%c_lblayer                  = 0.0_r8
     currentPatch%fragmentation_scaler(:)    = 0.0_r8
+    currentPatch%radiation_error            = 0.0_r8
+
+    ! diagnostic radiation profiles
+    currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
+    currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
+    currentPatch%nrmlzd_parprof_dir_z(:,:,:)       = 0._r8
+    currentPatch%nrmlzd_parprof_dif_z(:,:,:)       = 0._r8
 
     currentPatch%solar_zenith_flag          = .false.
     currentPatch%solar_zenith_angle         = nan
+    currentPatch%fcansno                    = nan
 
     currentPatch%gnd_alb_dir(:)             = nan
     currentPatch%gnd_alb_dif(:)             = nan
@@ -2391,7 +2399,7 @@ contains
                          !-------------------------------------------------------------------------!
 
                          if(fuse_flag  ==  1)then
-
+                            
                             !-----------------------!
                             ! fuse the two patches  !
                             !-----------------------!
@@ -2546,7 +2554,8 @@ contains
     rp%zstar                = (dp%zstar*dp%area + rp%zstar*rp%area) * inv_sum_area
     rp%c_stomata            = (dp%c_stomata*dp%area + rp%c_stomata*rp%area) * inv_sum_area
     rp%c_lblayer            = (dp%c_lblayer*dp%area + rp%c_lblayer*rp%area) * inv_sum_area
-    
+    rp%radiation_error      = (dp%radiation_error*dp%area + rp%radiation_error*rp%area) * inv_sum_area
+
     rp%area = rp%area + dp%area !THIS MUST COME AT THE END!
 
     !insert donor cohorts into recipient patch
@@ -2668,9 +2677,9 @@ contains
 
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch)) 
-
+       
        if(currentPatch%area <= min_patch_area)then
-
+          
          
           ! Even if the patch area is small, avoid fusing it into its neighbor
           ! if it is the youngest of all patches. We do this in attempts to maintain
