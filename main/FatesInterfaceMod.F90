@@ -79,7 +79,7 @@ module FatesInterfaceMod
    use FatesRunningMeanMod       , only : moving_ema_window
    use FatesRunningMeanMod       , only : fixed_window
    use FatesHistoryInterfaceMod  , only : fates_hist
-   use FatesHistoryInterfaceMod  , only : ih_tveglpa_si_age,ih_tveglpa_si
+
    
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg

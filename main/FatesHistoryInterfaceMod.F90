@@ -3643,7 +3643,7 @@ end subroutine flush_hvars
                  cpatch%radiation_error * cpatch%area * AREA_INV
             
             hio_tveg24(io_si) = hio_tveg24(io_si) + &
-                 (bc_in(s)%t_veg24_pa(cpatch%patchno)- t_water_freeze_k_1atm)*cpatch%area*area_inv 
+                 (cpatch%tveg24%GetMean()- t_water_freeze_k_1atm)*cpatch%area*area_inv 
             hio_tveg(io_si) = hio_tveg(io_si) + &
                  (bc_in(s)%t_veg_pa(cpatch%patchno) - t_water_freeze_k_1atm)*cpatch%area*area_inv
           
