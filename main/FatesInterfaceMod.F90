@@ -1901,29 +1901,6 @@ contains
         enddo
      end do
 
-     ! Update running mean history variables
-     ! -------------------------------------------------------------------------------
-     associate(hio_tveglpa_si_age => fates_hist%hvars(ih_tveglpa_si_age)%r82d, &
-               hio_tveglpa_si     => fates_hist%hvars(ih_tveglpa_si)%r81d)
-
-       do s = 1,size(sites,dim=1)
-
-          io_si  = sites(s)%h_gid
-          hio_tveglpa_si_age(io_si,:) = 0._r8
-          hio_tveglpa_si(io_si)       = 0._r8
-          
-          cpatch => sites(s)%oldest_patch
-          do while(associated(cpatch))
-             hio_tveglpa_si_age(io_si,cpatch%age_class) = &
-                  hio_tveglpa_si_age(io_si,cpatch%age_class) + &
-                  cpatch%tveg_lpa%GetMean()*cpatch%area/sites(s)%area_by_age(cpatch%age_class)
-             hio_tveglpa_si(io_si) = hio_tveglpa_si(io_si) + &
-                  cpatch%tveg_lpa%GetMean()*cpatch%area*area_inv
-             cpatch => cpatch%younger
-          enddo
-       end do
-     end associate
-          
      return
    end subroutine UpdateFatesRMeansTStep
       
