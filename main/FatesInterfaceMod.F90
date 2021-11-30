@@ -263,6 +263,7 @@ contains
     fates%bc_in(s)%h2o_liqvol_sl(:)    = 0.0_r8
     fates%bc_in(s)%filter_vegzen_pa(:) = .false.
     fates%bc_in(s)%coszen_pa(:)        = 0.0_r8
+    fates%bc_in(s)%fcansno_pa(:)       = 0.0_r8
     fates%bc_in(s)%albgr_dir_rb(:)     = 0.0_r8
     fates%bc_in(s)%albgr_dif_rb(:)     = 0.0_r8
     fates%bc_in(s)%max_rooting_depth_index_col = 0
@@ -350,7 +351,7 @@ contains
     fates%bc_out(s)%z0m_pa(:)    = 0.0_r8
     fates%bc_out(s)%dleaf_pa(:)   = 0.0_r8
     fates%bc_out(s)%nocomp_pft_label_pa(:) = 0
-
+    
     fates%bc_out(s)%canopy_fraction_pa(:) = 0.0_r8
     fates%bc_out(s)%frac_veg_nosno_alb_pa(:) = 0.0_r8
     
@@ -359,7 +360,7 @@ contains
        fates%bc_out(s)%qflx_ro_sisl(:)        = 0.0_r8
     end if
     fates%bc_out(s)%plant_stored_h2o_si = 0.0_r8
-    
+
     return
   end subroutine zero_bcs
 
@@ -500,6 +501,7 @@ contains
       ! Canopy Radiation
       allocate(bc_in%filter_vegzen_pa(maxPatchesPerSite))
       allocate(bc_in%coszen_pa(maxPatchesPerSite))
+      allocate(bc_in%fcansno_pa(maxPatchesPerSite))
       allocate(bc_in%albgr_dir_rb(hlm_numSWb))
       allocate(bc_in%albgr_dif_rb(hlm_numSWb))
 
@@ -618,7 +620,7 @@ contains
          bc_out%rootfr_pa(0,1:nlevsoil_in)=1._r8/real(nlevsoil_in,r8)
       end if
 
-      
+         
       ! Fates -> BGC fragmentation mass fluxes
       select case(hlm_parteh_mode) 
       case(prt_carbon_allom_hyp)
@@ -662,7 +664,7 @@ contains
 
       allocate(bc_out%canopy_fraction_pa(maxPatchesPerSite))
       allocate(bc_out%frac_veg_nosno_alb_pa(maxPatchesPerSite))
-     
+
       allocate(bc_out%nocomp_pft_label_pa(maxPatchesPerSite))
 
       ! Plant-Hydro BC's
@@ -1555,9 +1557,9 @@ contains
                call endrun(msg=errMsg(sourcefile, __LINE__))
             end if
          end if
-
          
-         if(hlm_use_fixed_biogeog.eq.unset_int) then
+         
+        if(hlm_use_fixed_biogeog.eq.unset_int) then
            if(fates_global_verbose()) then
              write(fates_log(), *) 'switch for fixed biogeog unset: him_use_fixed_biogeog, exiting'
            end if
@@ -1858,7 +1860,7 @@ contains
       call PRTDerivedParams()              ! Update PARTEH derived constants
       call PRTCheckParams(masterproc)      ! Check PARTEH parameters
       call SpitFireCheckParams(masterproc)
-
+      
 
       
       return
