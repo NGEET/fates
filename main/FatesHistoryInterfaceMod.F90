@@ -9,6 +9,7 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : mg_per_kg
   use FatesConstantsMod        , only : pi_const
   use FatesConstantsMod        , only : nearzero
+  use FatesConstantsMod        , only : t_water_freeze_k_1atm
   use FatesGlobals             , only : fates_log
   use FatesGlobals             , only : endrun => fates_endrun
   use EDTypesMod               , only : nclmax
@@ -254,10 +255,6 @@ module FatesHistoryInterfaceMod
   integer :: ih_pefflux_scpf
   integer :: ih_pneed_scpf
 
-  integer :: ih_daily_temp
-  integer :: ih_daily_rh
-  integer :: ih_daily_prec
-
   integer :: ih_bdead_si
   integer :: ih_balive_si
   integer :: ih_agb_si
@@ -301,7 +298,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_scorch_height_si_agepft
 
   ! Indices to (site) variables
-
+  integer :: ih_tveg24_si
+  integer :: ih_tveg_si
   integer :: ih_nep_si
   integer :: ih_hr_si
 
@@ -3594,10 +3592,10 @@ end subroutine flush_hvars
                hio_fabi_sun_top_si_can  => this%hvars(ih_fabi_sun_top_si_can)%r82d, &
                hio_fabi_sha_top_si_can  => this%hvars(ih_fabi_sha_top_si_can)%r82d, &
                hio_parsun_top_si_can     => this%hvars(ih_parsun_top_si_can)%r82d, &
-               hio_parsha_top_si_can     => this%hvars(ih_parsha_top_si_can)%r82d &
-               )
-
-
+               hio_parsha_top_si_can     => this%hvars(ih_parsha_top_si_can)%r82d, &
+               hio_tveg24 => this%hvars(ih_tveg24_si)%r81d, &
+               hio_tveg   => this%hvars(ih_tveg_si)%r81d)
+      
       ! Flush the relevant history variables
       call this%flush_hvars(nc,upfreq_in=2)
 
@@ -3641,9 +3639,14 @@ end subroutine flush_hvars
             hio_c_lblayer_si(io_si) = hio_c_lblayer_si(io_si) + &
                  cpatch%c_lblayer * cpatch%total_canopy_area / umol_per_mol
 
-          hio_rad_error_si(io_si) = hio_rad_error_si(io_si) + &
+            hio_rad_error_si(io_si) = hio_rad_error_si(io_si) + &
                  cpatch%radiation_error * cpatch%area * AREA_INV
-
+            
+            hio_tveg24(io_si) = hio_tveg24(io_si) + &
+                 (bc_in(s)%t_veg24_pa(cpatch%patchno)- t_water_freeze_k_1atm)*cpatch%area*area_inv 
+            hio_tveg(io_si) = hio_tveg(io_si) + &
+                 (bc_in(s)%t_veg_pa(cpatch%patchno) - t_water_freeze_k_1atm)*cpatch%area*area_inv
+          
             ccohort => cpatch%shortest
             do while(associated(ccohort))
 
@@ -5106,6 +5109,20 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_r8, hlms='CLM:ALM',  upfreq=2,                &
          ivar=ivar, initialize=initialize_variables, index = ih_c_lblayer_si)
 
+    ! Temperature
+    
+    call this%set_history_var(vname='FATES_TVEG24', units='degree_Celsius', &
+         long='fates 24-hr running mean vegetation temperature by site', &
+         use_default='active', &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2, &
+         ivar=ivar, initialize=initialize_variables, index = ih_tveg24_si )
+    
+    call this%set_history_var(vname='FATES_TVEG', units='degree_Celsius', &
+         long='fates instantaneous mean vegetation temperature by site', &
+         use_default='active', &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2, &
+         ivar=ivar, initialize=initialize_variables, index = ih_tveg_si )
+    
    ! radiation error
 
    call this%set_history_var(vname='FATES_RAD_ERROR', units='W m-2 ',          &
