@@ -186,12 +186,14 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
        frmort    = 0._r8
     case default
        ifp = cohort_in%patchptr%patchno
-       temp_in_C = bc_in%t_veg24_pa(ifp) - tfrz
+       temp_in_C = cohort_in%patchptr%tveg24%GetMean() - tfrz
        temp_dep_fraction  = max(0.0_r8, min(1.0_r8, 1.0_r8 - (temp_in_C - &
                             EDPftvarcon_inst%freezetol(cohort_in%pft))/frost_mort_buffer) )
        frmort    = EDPftvarcon_inst%mort_scalar_coldstress(cohort_in%pft) * temp_dep_fraction
     end select
 
+
+    
     !mortality_rates = bmort + hmort + cmort
 
  else ! i.e. hlm_use_ed_prescribed_phys is true 
