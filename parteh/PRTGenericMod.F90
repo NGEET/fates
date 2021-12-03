@@ -1425,10 +1425,10 @@ contains
      !   total nitrogen content of 1 or more sets of organs
      ! -------------------------------------------------------------------------------------
      
-     integer, parameter :: lfs_store_prop = 1  ! leaf-fnrt-sapw proportional storage
+     integer, parameter :: lfs_store_prop = 1  ! leaf-sapwood proportional storage
      integer, parameter :: lfss_store_prop = 2 ! leaf-fnrt-sapw-struct proportional storage
      integer, parameter :: fnrt_store_prop = 3 ! fineroot proportional storage
-     integer, parameter :: store_prop = fnrt_store_prop
+     integer, parameter :: store_prop = lfs_store_prop
 
      
      select case(element_id)
@@ -1441,7 +1441,7 @@ contains
         
         if (store_prop == lfs_store_prop) then
 
-           store_target  = prt_params%nitr_store_ratio(pft) * (leaf_target + fnrt_target + sapw_target)
+           store_target  = prt_params%nitr_store_ratio(pft) * (leaf_target + sapw_target)
 
         elseif(store_prop==lfss_store_prop) then
            

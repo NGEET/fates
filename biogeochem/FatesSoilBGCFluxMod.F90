@@ -121,7 +121,7 @@ contains
     real(r8)              :: plant_max_x  ! Maximum mass for element of interest [kg]
     integer               :: pft
     real(r8)              :: dbh
-    real(r8)              :: leafm,fnrtm,sapwm,structm,storem
+    real(r8)              :: fnrt_c
 
     real(r8), parameter :: smth_fac = 0.1_r8         ! Smoothing factor for updating
                                                      ! demand.
@@ -145,18 +145,19 @@ contains
        return
     end if
        
-
+    fnrt_c = ccohort%prt%GetState(fnrt_organ, carbon12_element)
+    
     ! If the plant is not a newly recruited plant
     ! We use other methods of specifying nutrient demand
     ! -----------------------------------------------------------------------------------
 
     if(element_id.eq.nitrogen_element) then
 
-       plant_demand = smth_fac*ccohort%daily_n_demand + (1._r8-smth_fac)*max(0._r8,ccohort%daily_n_need)
+       plant_demand = fnrt_c * EDPftvarcon_inst%eca_vmax_nh4(ccohort%pft) * sec_per_day
        
     elseif(element_id.eq.phosphorus_element) then
- 
-       plant_demand = smth_fac*ccohort%daily_p_demand + (1._r8-smth_fac)*max(0._r8,ccohort%daily_p_need)
+
+       plant_demand = fnrt_c * EDPftvarcon_inst%eca_vmax_p(ccohort%pft) * sec_per_day
        
     end if
 
@@ -241,9 +242,7 @@ contains
              ccohort => cpatch%tallest
              do while (associated(ccohort))
                 icomp = icomp+1
-                fnrt_c = ccohort%prt%GetState(fnrt_organ, carbon12_element)
-                ccohort%daily_n_demand = fnrt_c * ccohort%n * AREA_INV * &
-                     EDPftvarcon_inst%eca_vmax_nh4(ccohort%pft) * sec_per_day
+                ccohort%daily_n_demand = GetPlantDemand(ccohort,nitrogen_element)
                 ! N Uptake:  Convert g/m2/day -> kg/plant/day
                 ccohort%daily_nh4_uptake = bc_in(s)%plant_nh4_uptake_flux(icomp,1)*kg_per_g*AREA/ccohort%n
                 ccohort%daily_no3_uptake = bc_in(s)%plant_no3_uptake_flux(icomp,1)*kg_per_g*AREA/ccohort%n
@@ -275,9 +274,7 @@ contains
              ccohort => cpatch%tallest
              do while (associated(ccohort))
                 icomp = icomp+1
-                fnrt_c = ccohort%prt%GetState(fnrt_organ, carbon12_element)
-                ccohort%daily_p_demand = fnrt_c * ccohort%n * AREA_INV * &
-                     EDPftvarcon_inst%eca_vmax_p(ccohort%pft) * sec_per_day
+                ccohort%daily_p_demand =  GetPlantDemand(ccohort,phosphorus_element)
                 ! P Uptake:  Convert g/m2/day -> kg/plant/day
                 ccohort%daily_p_uptake = bc_in(s)%plant_p_uptake_flux(icomp,1)*kg_per_g*AREA/ccohort%n
                 ccohort => ccohort%shorter
@@ -596,7 +593,6 @@ contains
     ! -----------------------------------------------------------------------------------
 
     
-    use FatesConstantsMod, only : sec_per_day
     use FatesInterfaceTypesMod, only : bc_in_type, bc_out_type
     use FatesInterfaceTypesMod, only : hlm_use_vertsoilc
     use FatesInterfaceTypesMod, only : hlm_numlevgrnd

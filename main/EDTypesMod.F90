@@ -301,17 +301,8 @@ module EDTypesMod
      real(r8) :: daily_n_efflux   ! daily mean efflux of excess nitrogen from roots into labile pool [kg N/plant/day]
      real(r8) :: daily_p_efflux   ! daily mean efflux of excess phophorus from roots into labile pool [kg P/plant/day]
 
-     real(r8) :: daily_n_need     ! Generic Nitrogen need of the plant, (hypothesis dependent) [kgN/plant/day]
-     real(r8) :: daily_p_need     ! Generic Phosphorus need of the plant, (hypothesis dependent) [kgN/plant/day]
-
-
-     ! These two variables may use the previous "need" variables, by applying a smoothing function.
-     ! These variables are used in two scenarios. 1) They work with the prescribed uptake fraction
-     ! in un-coupled mode, and 2) They are the plant's demand subbmitted to the Relative-Demand
-     ! type soil BGC scheme.
-     
-     real(r8) :: daily_n_demand ! The daily amount of N demanded by the plant [kgN]
-     real(r8) :: daily_p_demand ! The daily amount of P demanded by the plant [kgN]
+     real(r8) :: daily_n_demand ! The daily amount of N demanded by the plant [kgN/plant/day]
+     real(r8) :: daily_p_demand ! The daily amount of P demanded by the plant [kgN/plant/day]
 
      
      ! The following four biophysical rates are assumed to be
@@ -611,7 +602,7 @@ module EDTypesMod
 
      real(r8),allocatable :: nutrient_uptake_scpf(:)
      real(r8),allocatable :: nutrient_efflux_scpf(:)
-     real(r8),allocatable :: nutrient_need_scpf(:)
+     real(r8),allocatable :: nutrient_demand_scpf(:)
      
    contains
 
@@ -847,7 +838,7 @@ module EDTypesMod
       this%root_litter_input(:) = 0._r8
       this%nutrient_uptake_scpf(:) = 0._r8
       this%nutrient_efflux_scpf(:) = 0._r8
-      this%nutrient_need_scpf(:)  = 0._r8
+      this%nutrient_demand_scpf(:)  = 0._r8
       
       return
     end subroutine ZeroFluxDiags

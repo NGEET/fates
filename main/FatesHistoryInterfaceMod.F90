@@ -181,8 +181,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_cefflux_si
   integer :: ih_nefflux_si
   integer :: ih_pefflux_si
-  integer :: ih_nneed_si
-  integer :: ih_pneed_si
+  integer :: ih_ndemand_si
+  integer :: ih_pdemand_si
   
   integer :: ih_trimming_si
   integer :: ih_area_plant_si
@@ -229,7 +229,7 @@ module FatesHistoryInterfaceMod
   integer,public :: ih_nh4uptake_scpf
   integer,public :: ih_no3uptake_scpf
   integer :: ih_nefflux_scpf
-  integer :: ih_nneed_scpf
+  integer :: ih_ndemand_scpf
 
   integer :: ih_totvegc_scpf
   integer :: ih_leafc_scpf
@@ -249,7 +249,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_sapwp_scpf
   integer,public :: ih_puptake_scpf
   integer :: ih_pefflux_scpf
-  integer :: ih_pneed_scpf
+  integer :: ih_pdemand_scpf
 
   integer :: ih_daily_temp
   integer :: ih_daily_rh
@@ -3144,11 +3144,11 @@ end subroutine flush_hvars
                this%hvars(ih_nefflux_scpf)%r82d(io_si,:) = &
                     sites(s)%flux_diags(el)%nutrient_efflux_scpf(:)
 
-               this%hvars(ih_nneed_scpf)%r82d(io_si,:) = &
-                    sites(s)%flux_diags(el)%nutrient_need_scpf(:)
+               this%hvars(ih_ndemand_scpf)%r82d(io_si,:) = &
+                    sites(s)%flux_diags(el)%nutrient_demand_scpf(:)
                
-               this%hvars(ih_nneed_si)%r81d(io_si) = &
-                    sum(sites(s)%flux_diags(el)%nutrient_need_scpf(:),dim=1)
+               this%hvars(ih_ndemand_si)%r81d(io_si) = &
+                    sum(sites(s)%flux_diags(el)%nutrient_demand_scpf(:),dim=1)
 
                this%hvars(ih_nefflux_si)%r81d(io_si) = & 
                     sum(sites(s)%flux_diags(el)%nutrient_efflux_scpf(:),dim=1)
@@ -3166,11 +3166,11 @@ end subroutine flush_hvars
                this%hvars(ih_pefflux_scpf)%r82d(io_si,:) = &
                     sites(s)%flux_diags(el)%nutrient_efflux_scpf(:)
                
-               this%hvars(ih_pneed_scpf)%r82d(io_si,:) = &
-                    sites(s)%flux_diags(el)%nutrient_need_scpf(:)
+               this%hvars(ih_pdemand_scpf)%r82d(io_si,:) = &
+                    sites(s)%flux_diags(el)%nutrient_demand_scpf(:)
 
-               this%hvars(ih_pneed_si)%r81d(io_si) = &
-                    sum(sites(s)%flux_diags(el)%nutrient_need_scpf(:),dim=1)
+               this%hvars(ih_pdemand_si)%r81d(io_si) = &
+                    sum(sites(s)%flux_diags(el)%nutrient_demand_scpf(:),dim=1)
                
                this%hvars(ih_pefflux_si)%r81d(io_si) = & 
                     sum(sites(s)%flux_diags(el)%nutrient_efflux_scpf(:),dim=1)
@@ -4797,7 +4797,7 @@ end subroutine update_history_hifrq
        call this%set_history_var(vname='NNEED', units='kgN d-1 ha-1',                          &
             long='Plant nitrogen need (algorithm dependent)', use_default='active', &
             avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,       &
-            ivar=ivar, initialize=initialize_variables, index = ih_nneed_si )
+            ivar=ivar, initialize=initialize_variables, index = ih_ndemand_si )
        
     end if nitrogen_active_if
 
@@ -4851,7 +4851,7 @@ end subroutine update_history_hifrq
        call this%set_history_var(vname='PNEED', units='kgP ha-1 d-1',                          &
             long='Plant phosphorus need (algorithm dependent)', use_default='active', &
             avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,       &
-            ivar=ivar, initialize=initialize_variables, index = ih_pneed_si )
+            ivar=ivar, initialize=initialize_variables, index = ih_pdemand_si )
 
     end if phosphorus_active_if
 
@@ -6141,10 +6141,10 @@ end subroutine update_history_hifrq
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_nefflux_scpf )
 
-       call this%set_history_var(vname='NNEED_SCPF', units='kgN d-1 ha-1', &
+       call this%set_history_var(vname='NDEMAND_SCPF', units='kgN d-1 ha-1', &
             long='plant N need (algorithm dependent), by size-class x pft', use_default='inactive', &
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_nneed_scpf )
+            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_ndemand_scpf )
        
     end if nitrogen_active_if2
 
@@ -6200,10 +6200,10 @@ end subroutine update_history_hifrq
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
             upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_pefflux_scpf )
 
-       call this%set_history_var(vname='PNEED_SCPF', units='kg/ha/day', &
+       call this%set_history_var(vname='PDEMAND_SCPF', units='kg/ha/day', &
             long='plant P need (algorithm dependent), by size-class x pft', use_default='inactive', &
             avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val,    &
-            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_pneed_scpf )
+            upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_pdemand_scpf )
        
     end if phosphorus_active_if2
 

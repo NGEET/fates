@@ -95,8 +95,6 @@ module EDCohortDynamicsMod
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_netdnh4, acnp_bc_in_id_netdno3, acnp_bc_in_id_netdp
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_cefflux, acnp_bc_out_id_nefflux
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_pefflux
-  use PRTAllometricCNPMod,    only : acnp_bc_out_id_nneed
-  use PRTAllometricCNPMod,    only : acnp_bc_out_id_pneed
  
   
   use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)  
@@ -422,8 +420,6 @@ contains
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_cefflux, bc_rval = new_cohort%daily_c_efflux)
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_nefflux, bc_rval = new_cohort%daily_n_efflux)
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_pefflux, bc_rval = new_cohort%daily_p_efflux)
-       call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_nneed, bc_rval = new_cohort%daily_n_need)
-       call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_pneed, bc_rval = new_cohort%daily_p_need)
        
        
     case DEFAULT
@@ -576,8 +572,6 @@ contains
     currentCohort%daily_c_efflux = nan
     currentCohort%daily_n_efflux = nan
     currentCohort%daily_p_efflux = nan
-    currentCohort%daily_n_need   = nan
-    currentCohort%daily_p_need   = nan
     currentCohort%daily_n_demand = nan
     currentCohort%daily_p_demand = nan
     
@@ -695,9 +689,6 @@ contains
     currentCohort%daily_c_efflux = 0._r8
     currentCohort%daily_n_efflux = 0._r8
     currentCohort%daily_p_efflux = 0._r8
-    
-    currentCohort%daily_n_need = 0._r8
-    currentCohort%daily_p_need = 0._r8
 
     ! Initialize these as negative
     currentCohort%daily_p_demand = -9._r8
@@ -1429,12 +1420,6 @@ contains
                                       currentCohort%daily_p_efflux = (currentCohort%n*currentCohort%daily_p_efflux + & 
                                            nextc%n*nextc%daily_p_efflux)/newn
                                       
-                                      currentCohort%daily_n_need = (currentCohort%n*currentCohort%daily_n_need + & 
-                                           nextc%n*nextc%daily_n_need)/newn
-                                      currentCohort%daily_p_need = (currentCohort%n*currentCohort%daily_p_need + & 
-                                           nextc%n*nextc%daily_p_need)/newn
-                                      
-                                      
                                       ! logging mortality, Yi Xu
                                       currentCohort%lmort_direct = (currentCohort%n*currentCohort%lmort_direct + &
                                            nextc%n*nextc%lmort_direct)/newn
@@ -1835,8 +1820,6 @@ contains
     n%daily_c_efflux = o%daily_c_efflux
     n%daily_n_efflux = o%daily_n_efflux
     n%daily_p_efflux = o%daily_p_efflux
-    n%daily_n_need   = o%daily_n_need
-    n%daily_p_need   = o%daily_p_need
     n%daily_n_demand = o%daily_n_demand
     n%daily_p_demand = o%daily_p_demand
     

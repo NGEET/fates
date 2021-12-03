@@ -163,8 +163,6 @@ module PRTAllometricCNPMod
   integer, public, parameter :: acnp_bc_out_id_cefflux = 1  ! Daily exudation of C  [kg]
   integer, public, parameter :: acnp_bc_out_id_nefflux = 2  ! Daily exudation of N  [kg]
   integer, public, parameter :: acnp_bc_out_id_pefflux = 3  ! Daily exudation of P  [kg]
-  integer, public, parameter :: acnp_bc_out_id_nneed   = 4  ! N need [kgN]
-  integer, public, parameter :: acnp_bc_out_id_pneed   = 5  ! P need [kgP]
   
   integer, parameter         :: num_bc_out                = 5  ! Total number of
 
@@ -189,6 +187,7 @@ module PRTAllometricCNPMod
 
   real(r8), parameter :: store_overflow_frac = 0.15      ! The fraction above target allowed in storage
 
+  logical, parameter :: force_store_c_overflow = .true.
 
   ! User may want to attempt matching results with the
   ! C-only allocation module. If so, then set reproduce_conly
@@ -297,8 +296,6 @@ contains
         call endrun(msg=errMsg(sourcefile, __LINE__))
      end if
 
-
-
      call prt_global_acnp%RegisterVarInGlobal(leaf_c_id,'Leaf Carbon','leaf_c',leaf_organ,carbon12_element,nleafage)
      call prt_global_acnp%RegisterVarInGlobal(fnrt_c_id,'Fine Root Carbon','fnrt_c',fnrt_organ,carbon12_element,icd)
      call prt_global_acnp%RegisterVarInGlobal(sapw_c_id,'Sapwood Carbon','sapw_c',sapw_organ,carbon12_element,icd)
@@ -357,8 +354,6 @@ contains
     real(r8),pointer :: c_efflux   ! Total plant efflux of carbon (kgC)
     real(r8),pointer :: n_efflux   ! Total plant efflux of nitrogen (kgN)
     real(r8),pointer :: p_efflux   ! Total plant efflux of phosphorus (kgP)
-    real(r8),pointer :: n_need     ! N need (algorithm dependant) (kgN)
-    real(r8),pointer :: p_need     ! P need (algorithm dependant) (kgP)
     real(r8),pointer :: growth_r   ! Total plant growth respiration this step (kgC)
 
     ! These are pointers to the state variables, rearranged in organ dimensioned
@@ -419,8 +414,6 @@ contains
     c_efflux    => this%bc_out(acnp_bc_out_id_cefflux)%rval;  c_efflux = 0._r8
     n_efflux    => this%bc_out(acnp_bc_out_id_nefflux)%rval;  n_efflux = 0._r8
     p_efflux    => this%bc_out(acnp_bc_out_id_pefflux)%rval;  p_efflux = 0._r8
-    n_need      => this%bc_out(acnp_bc_out_id_nneed)%rval;    n_need = fates_unset_r8
-    p_need      => this%bc_out(acnp_bc_out_id_pneed)%rval;    p_need = fates_unset_r8
 
     ! In/out boundary conditions
     maint_r_def => this%bc_inout(acnp_bc_inout_id_rmaint_def)%rval; maint_r_def0 = maint_r_def
@@ -630,9 +623,6 @@ contains
 
     target_n = this%GetNutrientTarget(nitrogen_element,store_organ,stoich_max)
     target_p = this%GetNutrientTarget(phosphorus_element,store_organ,stoich_max)
-    
-    n_need = target_n - state_n(store_id)%ptr
-    p_need = target_p - state_p(store_id)%ptr
     
     deallocate(state_c)
     deallocate(state_n)
@@ -1644,18 +1634,26 @@ contains
 
     if(c_gain>calloc_abs_error) then
 
-       ! Update carbon based allometric targets
-       call bstore_allom(dbh,ipft,canopy_trim, store_c_target)
-       
-       ! Estimate the overflow
-       store_c_target = store_c_target * (1.0_r8 + store_overflow_frac)
-       
-       total_c_flux = min(c_gain,max(0.0, (store_c_target - state_c(store_id)%ptr)))
-       
+
+       if(force_store_c_overflow)then
+
+          total_c_flux = c_gain
+       else
+          
+          ! Update carbon based allometric targets
+          call bstore_allom(dbh,ipft,canopy_trim, store_c_target)
+          
+          ! Estimate the overflow
+          store_c_target = store_c_target * (1.0_r8 + store_overflow_frac)
+          
+          total_c_flux = min(c_gain,max(0.0, (store_c_target - state_c(store_id)%ptr)))
+          
+       end if
        ! Transfer excess carbon into storage overflow
        state_c(store_id)%ptr = state_c(store_id)%ptr + total_c_flux
        c_gain              = c_gain - total_c_flux
-
+       
+          
 
     end if
 

@@ -493,13 +493,13 @@ contains
                   currentCohort%daily_c_efflux*currentCohort%n
 
              ! Diagnostics on plant nutrient need
-             currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_need_scpf(iscpf) = &
-                  currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_need_scpf(iscpf) + &
-                  currentCohort%daily_n_need*currentCohort%n
+             currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_demand_scpf(iscpf) = &
+                  currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_demand_scpf(iscpf) + &
+                  currentCohort%daily_n_demand*currentCohort%n
 
-             currentSite%flux_diags(element_pos(phosphorus_element))%nutrient_need_scpf(iscpf) = &
-                  currentSite%flux_diags(element_pos(phosphorus_element))%nutrient_need_scpf(iscpf) + &
-                  currentCohort%daily_p_need*currentCohort%n
+             currentSite%flux_diags(element_pos(phosphorus_element))%nutrient_demand_scpf(iscpf) = &
+                  currentSite%flux_diags(element_pos(phosphorus_element))%nutrient_demand_scpf(iscpf) + &
+                  currentCohort%daily_p_demand*currentCohort%n
 
           end if
 
