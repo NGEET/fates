@@ -74,7 +74,8 @@ module EDInitMod
   use PRTGenericMod,          only : nitrogen_element
   use PRTGenericMod,          only : phosphorus_element
   use PRTGenericMod,          only : SetState
-
+  use FatesSizeAgeTypeIndicesMod,only : get_age_class_index
+  
   ! CIME GLOBALS
   use shr_log_mod               , only : errMsg => shr_log_errMsg
 
@@ -140,7 +141,9 @@ contains
     endif
 
     allocate(site_in%use_this_pft(1:numpft))
+    allocate(site_in%area_by_age(1:nlevage))
 
+    
     ! SP mode
     allocate(site_in%sp_tlai(1:numpft))
     allocate(site_in%sp_tsai(1:numpft))
@@ -251,6 +254,8 @@ contains
 
     site_in%area_pft(:) = 0._r8
     site_in%use_this_pft(:) = fates_unset_int
+    site_in%area_by_age(:) = 0._r8
+    
   end subroutine zero_site
 
   ! ============================================================================
@@ -431,7 +436,8 @@ contains
     integer  :: s
     integer  :: el
     real(r8) :: age !notional age of this patch
-
+    integer  :: ageclass
+    
     ! dummy locals
     real(r8) :: biomass_stock
     real(r8) :: litter_stock
@@ -897,12 +903,13 @@ contains
        endif !use_this_pft
     enddo !numpft
 
-    ! Zero the mass flux pools of the new cohorts
-    !    temp_cohort => patch_in%tallest
-    !    do while(associated(temp_cohort))
-    !       call temp_cohort%prt%ZeroRates()
-    !       temp_cohort => temp_cohort%shorter
-    !    end do
+    ! (Keeping as an example)
+    ! Pass patch level temperature to the new cohorts (this is a nominal 15C right now)
+    !temp_cohort => patch_in%tallest
+    !do while(associated(temp_cohort))
+        !call temp_cohort%tveg_lpa%UpdateRmean(patch_in%tveg_lpa%GetMean())
+        !temp_cohort => temp_cohort%shorter
+    !end do
 
     call fuse_cohorts(site_in, patch_in,bc_in)
     call sort_cohorts(patch_in)

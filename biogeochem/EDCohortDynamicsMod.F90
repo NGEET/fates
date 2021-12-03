@@ -17,6 +17,7 @@ module EDCohortDynamicsMod
   use FatesConstantsMod     , only : fates_unset_r8
   use FatesConstantsMod     , only : nearzero
   use FatesConstantsMod     , only : calloc_abs_error
+  use FatesRunningMeanMod       , only : ema_lpa
   use FatesInterfaceTypesMod     , only : hlm_days_per_year
   use FatesInterfaceTypesMod     , only : nleafage
   use SFParamsMod           , only : SF_val_CWD_frac
@@ -308,7 +309,13 @@ contains
     call InitPRTBoundaryConditions(new_cohort)
 
 
+    ! Allocate running mean functions
 
+    !  (Keeping as an example)
+    !! allocate(new_cohort%tveg_lpa)
+    !! call new_cohort%tveg_lpa%InitRMean(ema_lpa,init_value=patchptr%tveg_lpa%GetMean())
+
+    
     ! Recuits do not have mortality rates, nor have they moved any
     ! carbon when they are created.  They will bias our statistics
     ! until they have experienced a full day.  We need a newly recruited flag.
@@ -999,6 +1006,10 @@ contains
 
      type(ed_cohort_type),intent(inout) :: currentCohort
 
+     !  (Keeping as an example)
+     ! Remove the running mean structure
+     ! deallocate(currentCohort%tveg_lpa)
+
      ! At this point, nothing should be pointing to current Cohort
      if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(currentCohort)
 
@@ -1162,6 +1173,11 @@ contains
                                       end do
                                    end if
 
+                                   !  (Keeping as an example)
+                                   ! Running mean fuses based on number density fraction just
+                                   ! like other variables
+                                   !!call currentCohort%tveg_lpa%FuseRMean(nextc%tveg_lpa,currentCohort%n/newn)
+                                   
                                    ! new cohort age is weighted mean of two cohorts
                                    currentCohort%coage = &
                                         (currentCohort%coage * (currentCohort%n/(currentCohort%n + nextc%n))) + &
@@ -1794,6 +1810,7 @@ contains
     n%size_by_pft_class = o%size_by_pft_class
     n%coage_class     = o%coage_class
     n%coage_by_pft_class = o%coage_by_pft_class
+
     ! This transfers the PRT objects over.
     call n%prt%CopyPRTVartypes(o%prt)
 
@@ -1803,6 +1820,10 @@ contains
     n%tpu25top   = o%tpu25top
     n%kp25top    = o%kp25top
 
+    !  (Keeping as an example)
+    ! Copy over running means
+    ! call n%tveg_lpa%CopyFromDonor(o%tveg_lpa)
+    
     ! CARBON FLUXES
     n%gpp_acc_hold    = o%gpp_acc_hold
     n%gpp_acc         = o%gpp_acc

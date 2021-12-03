@@ -1480,7 +1480,7 @@ contains
     use FatesConstantsMod  , only : fates_check_param_set
     use FatesConstantsMod  , only : itrue, ifalse
     use EDParamsMod        , only : logging_mechanical_frac, logging_collateral_frac, logging_direct_frac
-    use FatesInterfaceTypesMod         , only : hlm_use_fixed_biogeog
+    use FatesInterfaceTypesMod         , only : hlm_use_fixed_biogeog,hlm_use_sp
 
      ! Argument
      logical, intent(in) :: is_master    ! Only log if this is the master proc
@@ -1760,6 +1760,7 @@ contains
         end if
         
      end do !ipft
+
 
 !!    ! Checks for HYDRO
 !!    if( hlm_use_planthydro == itrue ) then
