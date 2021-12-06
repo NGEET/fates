@@ -279,6 +279,7 @@ contains
     integer  :: dleafon    ! DOY for drought-decid leaf-on, initial guess
     integer  :: ft         ! PFT loop
     real(r8) :: sumarea    ! area of PFTs in nocomp mode.
+    integer  :: nhlmpft    ! number of hlm pfts. 
     integer  :: hlm_pft    ! used in fixed biogeog mode
     integer  :: fates_pft  ! used in fixed biogeog mode
     !----------------------------------------------------------------------
@@ -300,6 +301,7 @@ contains
        dleafoff = 300
        dleafon  = 100
        watermem = 0.5_r8
+       nhlmpft = size( EDPftvarcon_inst%hlm_pft_map,2)
 
        do s = 1,nsites
           sites(s)%nchilldays    = 0
@@ -331,7 +333,7 @@ contains
              ! hlm_pft_map is the area of that land in each FATES PFT (from param file)
 
              sites(s)%area_pft(1:numpft) = 0._r8
-             do hlm_pft = 1,size( EDPftvarcon_inst%hlm_pft_map,2)
+             do hlm_pft = 1,nhlmpft
                 do fates_pft = 1,numpft ! loop round all fates pfts for all hlm pfts
                    sites(s)%area_pft(fates_pft) = sites(s)%area_pft(fates_pft) + &
                         EDPftvarcon_inst%hlm_pft_map(fates_pft,hlm_pft) * bc_in(s)%pft_areafrac(hlm_pft)
@@ -563,15 +565,7 @@ contains
                         init_seed_germ=0._r8)
                 end do
 
-                sitep => sites(s)
-                if(hlm_use_sp.eq.itrue)then
-                   if(nocomp_pft.ne.0)then !don't initialize cohorts for SP bare ground patch
-                      call init_cohorts(sitep, newp, bc_in(s))
-                   end if
-                else ! normal non SP case always call init cohorts
-                   call init_cohorts(sitep, newp, bc_in(s))
-                end if
-             end if
+             end if ! is there np area?
           end do !no new patches
 
           !check if the total area adds to the same as site area
@@ -599,6 +593,20 @@ contains
              endif  ! big error
           end if ! too much patch area
 
+         ! Initialize cohorts after patch areas have been precision checked. 
+          sitep => sites(s)
+          CurrentPatch => sites(s)%oldest_patch
+          do while (associated(CurrentPatch))
+             if(hlm_use_sp.eq.itrue)then !should this be a nocomp filter. Is it needed at all?
+                if(nocomp_pft.ne.0)then !don't initialize cohorts for SP bare ground patch
+                   call init_cohorts(sitep, CurrentPatch, bc_in(s))
+                end if
+             else ! normal non SP case always call init cohorts
+                call init_cohorts(sitep, CurrentPatch, bc_in(s))
+             end if
+             CurrentPatch => CurrentPatch%younger
+          end do
+ 
           ! For carbon balance checks, we need to initialize the
           ! total carbon stock
           do el=1,num_elements
