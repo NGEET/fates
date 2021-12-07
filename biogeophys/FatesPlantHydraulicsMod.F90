@@ -67,6 +67,9 @@ module FatesPlantHydraulicsMod
   use FatesAllometryMod, only    : CrownDepth
   use FatesAllometryMod , only   : set_root_fraction
   use FatesHydraulicsMemMod, only: use_2d_hydrosolve
+#if 1
+  use FatesHydraulicsMemMod, only: solver_1d2d
+#endif
   use FatesHydraulicsMemMod, only: ed_site_hydr_type
   use FatesHydraulicsMemMod, only: ed_cohort_hydr_type
   use FatesHydraulicsMemMod, only: n_hypool_plant
@@ -388,22 +391,14 @@ contains
        select case(soil_wrf_type)
        case(van_genuchten_type)
           do j=1,sites(s)%si_hydr%nlevrhiz
-             if(.not. aggregate_layers) then
-                j_bc=j+csite_hydr%i_rhiz_t-1
-             else
-                j_bc = csite_hydr%map_r2s(j,2) !assign bottom soil layer parameters to rhizosphere, not accurate, but ok for larger fraction
-             end if
+             j_bc = csite_hydr%map_r2s(j,2) !assign bottom soil layer parameters to rhizosphere, not accurate, but ok for larger fraction
              allocate(wrf_vg)
              sites(s)%si_hydr%wrf_soil(j)%p => wrf_vg
              call wrf_vg%set_wrf_param([alpha_vg, psd_vg, bc_in(s)%watsat_sisl(j_bc), th_res_vg])
           end do
        case(campbell_type)
           do j=1,sites(s)%si_hydr%nlevrhiz
-             if(.not. aggregate_layers) then
-                j_bc=j+csite_hydr%i_rhiz_t-1
-             else
-                j_bc = csite_hydr%map_r2s(j,2)
-             end if
+             j_bc = csite_hydr%map_r2s(j,2)
              allocate(wrf_cch)
              sites(s)%si_hydr%wrf_soil(j)%p => wrf_cch
              call wrf_cch%set_wrf_param([bc_in(s)%watsat_sisl(j_bc), &  
@@ -412,11 +407,7 @@ contains
           end do
        case(smooth1_campbell_type)
           do j=1,sites(s)%si_hydr%nlevrhiz
-             if(.not. aggregate_layers) then
-                j_bc=j+csite_hydr%i_rhiz_t-1
-             else
-                j_bc = csite_hydr%map_r2s(j,2)
-             end if
+             j_bc = csite_hydr%map_r2s(j,2)
              allocate(wrf_smooth_cch)
              sites(s)%si_hydr%wrf_soil(j)%p => wrf_smooth_cch
              call wrf_smooth_cch%set_wrf_param([bc_in(s)%watsat_sisl(j_bc), &  
@@ -425,11 +416,7 @@ contains
           end do
        case(smooth2_campbell_type)
           do j=1,sites(s)%si_hydr%nlevrhiz
-             if(.not. aggregate_layers) then
-                j_bc=j+csite_hydr%i_rhiz_t-1
-             else
-                j_bc = csite_hydr%map_r2s(j,2)
-             end if
+             j_bc = csite_hydr%map_r2s(j,2)
              allocate(wrf_smooth_cch)
              sites(s)%si_hydr%wrf_soil(j)%p => wrf_smooth_cch
              call wrf_smooth_cch%set_wrf_param([bc_in(s)%watsat_sisl(j_bc), &  
@@ -455,11 +442,7 @@ contains
           end do
        case(campbell_type)
           do j=1,sites(s)%si_hydr%nlevrhiz
-             if(.not. aggregate_layers) then
-                j_bc=j+csite_hydr%i_rhiz_t-1
-             else
-                j_bc = csite_hydr%map_r2s(j,2)
-             end if
+             j_bc = csite_hydr%map_r2s(j,2)
              allocate(wkf_cch)
              sites(s)%si_hydr%wkf_soil(j)%p => wkf_cch
              call wkf_cch%set_wkf_param([bc_in(s)%watsat_sisl(j_bc), &
@@ -468,11 +451,7 @@ contains
           end do
        case(smooth1_campbell_type)
           do j=1,sites(s)%si_hydr%nlevrhiz
-             if(.not. aggregate_layers) then
-                j_bc=j+csite_hydr%i_rhiz_t-1
-             else
-                j_bc = csite_hydr%map_r2s(j,2)
-             end if
+             j_bc = csite_hydr%map_r2s(j,2)
              allocate(wkf_smooth_cch)
              sites(s)%si_hydr%wkf_soil(j)%p => wkf_smooth_cch
              call wkf_smooth_cch%set_wkf_param([bc_in(s)%watsat_sisl(j_bc), &
@@ -481,11 +460,7 @@ contains
           end do
        case(smooth2_campbell_type)
           do j=1,sites(s)%si_hydr%nlevrhiz
-             if(.not. aggregate_layers) then
-                j_bc=j+csite_hydr%i_rhiz_t-1
-             else
-                j_bc = csite_hydr%map_r2s(j,2)
-             end if
+             j_bc = csite_hydr%map_r2s(j,2)
              allocate(wkf_smooth_cch)
              sites(s)%si_hydr%wkf_soil(j)%p => wkf_smooth_cch
              call wkf_smooth_cch%set_wkf_param([bc_in(s)%watsat_sisl(j_bc), &
@@ -1371,13 +1346,30 @@ contains
     integer :: j
     integer :: jj
     type(ed_site_hydr_type),pointer :: csite_hydr
+#if 1
+    integer :: my_2dn
+    integer :: my_toplayer
+#endif
 
 
 
     if ( hlm_use_planthydro.eq.ifalse ) return
 
     ! Initialize any derived hydraulics parameters
-
+#if 1
+    open(99010,file='my_param.txt',status='old')
+    read(99010,*) my_2dn,my_toplayer
+    if(my_2dn == 1) then !1d
+      solver_1d2d = 1 
+      use_2d_hydrosolve = .false.
+    elseif(my_2dn == 2) then !newton
+      solver_1d2d = 2 
+      use_2d_hydrosolve = .true.
+    elseif(my_2dn == 3) then !picard
+      solver_1d2d = 3 
+      use_2d_hydrosolve = .true.
+    endif
+#endif
     nsites = ubound(sites,1)
     do s=1,nsites
        allocate(csite_hydr)
@@ -1397,34 +1389,36 @@ contains
 !          csite_hydr%i_rhiz_t = 11 !one big layer 
 !          csite_hydr%i_rhiz_t = 6 !top 5 layer aggregate
           csite_hydr%i_rhiz_t = 2 !no aggregate
+#if 1
+          csite_hydr%i_rhiz_t = my_toplayer
+#endif
           csite_hydr%i_rhiz_b = bc_in(s)%nlevsoil
-          csite_hydr%nlevrhiz = csite_hydr%i_rhiz_b - csite_hydr%i_rhiz_t + 2 !ideally to be read in from the parameter file
 
        elseif(ignore_layer1) then
-          !csite_hydr%i_rhiz_t = 2
-          csite_hydr%i_rhiz_t = 6
+          csite_hydr%i_rhiz_t = 2
           csite_hydr%i_rhiz_b = bc_in(s)%nlevsoil
        else
           csite_hydr%i_rhiz_t = 1
           csite_hydr%i_rhiz_b = bc_in(s)%nlevsoil
        end if
 
-       if(.not. aggregate_layers) &             
-          csite_hydr%nlevrhiz = csite_hydr%i_rhiz_b-csite_hydr%i_rhiz_t+1
+       csite_hydr%nlevrhiz = csite_hydr%i_rhiz_b-csite_hydr%i_rhiz_t+1
        call sites(s)%si_hydr%InitHydrSite(numpft,nlevsclass)
 
        if(.not. aggregate_layers) then    
           jj=1
           do j=csite_hydr%i_rhiz_t,csite_hydr%i_rhiz_b
+             csite_hydr%map_r2s(1,1) = 1
+             csite_hydr%map_r2s(1,2) = csite_hydr%i_rhiz_t - 1
              csite_hydr%zi_rhiz(jj)  = bc_in(s)%zi_sisl(j)
              csite_hydr%dz_rhiz(jj) = bc_in(s)%dz_sisl(j) 
              jj=jj+1
           end do
        else
           csite_hydr%map_r2s(1,1) = 1
-          csite_hydr%map_r2s(1,2) = csite_hydr%i_rhiz_t - 1
+          csite_hydr%map_r2s(1,2) = csite_hydr%i_rhiz_t
           jj = 2 
-          do j = csite_hydr%i_rhiz_t,csite_hydr%i_rhiz_b
+          do j = csite_hydr%i_rhiz_t+1,csite_hydr%i_rhiz_b
              csite_hydr%map_r2s(jj,1:2) = j
              jj = jj + 1
           end do    
@@ -1435,6 +1429,7 @@ contains
        end if
        
    end do
+
 
   end subroutine InitHydrSites
 
@@ -1513,11 +1508,7 @@ contains
           end do
        case(campbell_type)
           do j=1,site_hydr%nlevrhiz
-             if(.not. aggregate_layers) then
-                j_bc=j+site_hydr%i_rhiz_t-1
-             else
-                j_bc = site_hydr%map_r2s(j,2) !assign bottom soil layer parameters to rhizosphere, not accurate, but ok for larger fraction
-             end if
+             j_bc = site_hydr%map_r2s(j,2) !assign bottom soil layer parameters to rhizosphere, not accurate, but ok for larger fraction
              allocate(wrf_cch)
              site_hydr%wrf_soil(j)%p => wrf_cch
              call wrf_cch%set_wrf_param([bc_in(s)%watsat_sisl(j_bc), &  
@@ -1526,11 +1517,7 @@ contains
           end do
        case(smooth1_campbell_type)
           do j=1,site_hydr%nlevrhiz
-             if(.not. aggregate_layers) then
-                j_bc=j+site_hydr%i_rhiz_t-1
-             else
-                j_bc = site_hydr%map_r2s(j,2)
-             end if
+             j_bc = site_hydr%map_r2s(j,2)
              allocate(wrf_smooth_cch)
              site_hydr%wrf_soil(j)%p => wrf_smooth_cch
              call wrf_smooth_cch%set_wrf_param([bc_in(s)%watsat_sisl(j_bc), &  
@@ -1539,11 +1526,7 @@ contains
           end do
        case(smooth2_campbell_type)
           do j=1,site_hydr%nlevrhiz
-             if(.not. aggregate_layers) then
-                j_bc=j+site_hydr%i_rhiz_t-1
-             else
-                j_bc = site_hydr%map_r2s(j,2)
-             end if
+             j_bc = site_hydr%map_r2s(j,2)
              allocate(wrf_smooth_cch)
              site_hydr%wrf_soil(j)%p => wrf_smooth_cch
              call wrf_smooth_cch%set_wrf_param([bc_in(s)%watsat_sisl(j_bc), &  
@@ -1568,11 +1551,7 @@ contains
            end do
         case(campbell_type)
            do j=1,sites(s)%si_hydr%nlevrhiz
-              if(.not. aggregate_layers) then
-                 j_bc=j+site_hydr%i_rhiz_t-1
-              else
-                 j_bc = site_hydr%map_r2s(j,2)
-              end if
+              j_bc = site_hydr%map_r2s(j,2)
               allocate(wkf_cch)
               site_hydr%wkf_soil(j)%p => wkf_cch
               call wkf_cch%set_wkf_param([bc_in(s)%watsat_sisl(j_bc), &
@@ -1581,11 +1560,7 @@ contains
            end do
         case(smooth1_campbell_type)
            do j=1,sites(s)%si_hydr%nlevrhiz
-              if(.not. aggregate_layers) then
-                 j_bc=j+site_hydr%i_rhiz_t-1
-              else
-                 j_bc = site_hydr%map_r2s(j,2)
-              end if
+              j_bc = site_hydr%map_r2s(j,2)
               allocate(wkf_smooth_cch)
               site_hydr%wkf_soil(j)%p => wkf_smooth_cch
               call wkf_smooth_cch%set_wkf_param([bc_in(s)%watsat_sisl(j_bc), &
@@ -1594,11 +1569,7 @@ contains
            end do
         case(smooth2_campbell_type)
            do j=1,sites(s)%si_hydr%nlevrhiz
-              if(.not. aggregate_layers) then
-                 j_bc=j+site_hydr%i_rhiz_t-1
-              else
-                 j_bc = site_hydr%map_r2s(j,2)
-              end if
+              j_bc = site_hydr%map_r2s(j,2)
               allocate(wkf_smooth_cch)
               site_hydr%wkf_soil(j)%p => wkf_smooth_cch
               call wkf_smooth_cch%set_wkf_param([bc_in(s)%watsat_sisl(j_bc), &
@@ -2044,11 +2015,7 @@ contains
 
 
     do j = 1,nlevrhiz
-       if(.not. aggregate_layers) then
-          j_bc=j+csite_hydr%i_rhiz_t-1
-       else
-          j_bc = csite_hydr%map_r2s(j,2)
-       end if
+       j_bc = csite_hydr%map_r2s(j,2)
 
        ! bc_in%hksat_sisl(j): hydraulic conductivity at saturation (mm H2O /s)
        !
@@ -2240,11 +2207,7 @@ contains
 
        ! 1st guess at new s based on interpolated psi
        do j = 1,csite_hydr%nlevrhiz
-          if(.not. aggregate_layers) then
-             j_bc=j+csite_hydr%i_rhiz_t-1
-          else
-             j_bc = csite_hydr%map_r2s(j,2)
-          end if
+          j_bc = csite_hydr%map_r2s(j,2)
                  
           ! proceed only if l_aroot_coh has changed
           if( csite_hydr%l_aroot_layer(j) /= csite_hydr%l_aroot_layer_init(j) ) then
@@ -2257,11 +2220,7 @@ contains
 
        ! accumlate water across shells for each layer (initial and interpolated)
        do j = 1,csite_hydr%nlevrhiz
-          if(.not. aggregate_layers) then
-             j_bc=j+csite_hydr%i_rhiz_t-1
-          else
-             j_bc = csite_hydr%map_r2s(j,2)
-          end if
+          j_bc = csite_hydr%map_r2s(j,2)
           ! proceed only if l_aroot_coh has changed
           if( csite_hydr%l_aroot_layer(j) /= csite_hydr%l_aroot_layer_init(j) ) then
              w_layer_init(j)      = 0._r8
@@ -2281,11 +2240,7 @@ contains
        ! estimate delta_s across all shells needed to ensure total water in each layer doesn't change
        ! BOC...FIX: need to handle special cases where delta_s causes s_shell to go above or below 1 or 0, respectively.
        do j = 1,csite_hydr%nlevrhiz
-          if(.not. aggregate_layers) then
-             j_bc=j+csite_hydr%i_rhiz_t-1
-          else
-             j_bc = csite_hydr%map_r2s(j,2)
-          end if
+          j_bc = csite_hydr%map_r2s(j,2)
           ! proceed only if l_aroot_coh has changed
           if( csite_hydr%l_aroot_layer(j) /= csite_hydr%l_aroot_layer_init(j) ) then
              delta_s(j) = (( w_layer_init(j) - w_layer_interp(j) )/( v_rhiz(j) * denh2o ) - bc_in%watres_sisl(j_bc)) / &
@@ -2295,11 +2250,7 @@ contains
 
        ! update h2osoi_liqvol_shell and h2osoi_liq_shell
        do j = 1,csite_hydr%nlevrhiz
-          if(.not. aggregate_layers) then
-             j_bc=j+csite_hydr%i_rhiz_t-1
-          else
-             j_bc = csite_hydr%map_r2s(j,2)
-          end if
+          j_bc = csite_hydr%map_r2s(j,2)
           ! proceed only if l_aroot_coh has changed
           if( csite_hydr%l_aroot_layer(j) /= csite_hydr%l_aroot_layer_init(j) ) then
              w_layer_new(j)                = 0._r8
@@ -2317,11 +2268,10 @@ contains
 
        ! balance check
        do j = 1,csite_hydr%nlevrhiz
+          j_bc = csite_hydr%map_r2s(j,2)
           if(.not. aggregate_layers) then
-             j_bc=j+csite_hydr%i_rhiz_t-1
              errh2o(j) = h2osoi_liq_col_new(j) - bc_in%h2o_liq_sisl(j_bc)
           else
-             j_bc = csite_hydr%map_r2s(j,2)
              errh2o(j) = h2osoi_liq_col_new(j) - sum(bc_in%h2o_liq_sisl(csite_hydr%map_r2s(j,1):csite_hydr%map_r2s(j,2)))
           end if
           if (abs(errh2o(j)) > 1.e-4_r8) then
@@ -2451,11 +2401,7 @@ contains
        ! patch without cohorts
        if( sum(csite_hydr%l_aroot_layer) == 0._r8 ) cycle
        do j = 1,csite_hydr%nlevrhiz
-          if(.not. aggregate_layers) then
-             j_bc=j+csite_hydr%i_rhiz_t-1
-          else
-             j_bc = csite_hydr%map_r2s(j,2)
-          end if
+          j_bc = csite_hydr%map_r2s(j,2)
 
           cumShellH2O=sum(csite_hydr%h2osoi_liqvol_shell(j,:) *csite_hydr%v_shell(j,:)) * denh2o*AREA_INV
           if(.not. aggregate_layers) then
@@ -2772,13 +2718,15 @@ contains
              !---------------------------------------------------------------------------
 
 
-             if(use_2d_hydrosolve) then
-#if 0
+!             if(use_2d_hydrosolve) then
+           if(solver_1d2d == 2) then
+#if 1 
                  call MatSolve2D(bc_in(s),site_hydr,ccohort,ccohort_hydr, &
                        dtime,qflx_tran_veg_indiv, &
                        sapflow,rootuptake(1:nlevrhiz),wb_err_plant,dwat_plant, &
                        dth_layershell_col)
 #endif
+           elseif(solver_1d2d == 3) then 
 #if 1 
                  call PicardSolve2D(bc_in(s),site_hydr,ccohort,ccohort_hydr, &
                        dtime,qflx_tran_veg_indiv, &
@@ -2886,11 +2834,7 @@ contains
 
        
        do j=1,site_hydr%nlevrhiz
-           if(.not. aggregate_layers) then
-              j_bc = j+site_hydr%i_rhiz_t-1
-           else
-              j_bc = site_hydr%map_r2s(j,2)
-           end if
+           j_bc = site_hydr%map_r2s(j,2)
           
            ! Update the site-level state variable 
            ! rhizosphere shell water content [m3/m3]
@@ -3923,14 +3867,21 @@ endif
                 !  write(fates_log(),*)'Grid with problem -',wb_step_err,q_top_eff,'th-',dth_node(1:5),'w_totb',w_tot_beg,w_tot_end
                 !endif 
                 !linear solver error cannot be avoided
-                !if(abs(wb_step_err)>1*max_wb_step_err .or. any(dth_node(:).ne.dth_node(:)) )then
-                if( any(dth_node(:).ne.dth_node(:)) )then
+                if(abs(wb_step_err)>1*max_wb_step_err .or. any(dth_node(:).ne.dth_node(:)) )then
+                !if( any(dth_node(:).ne.dth_node(:)) )then
                 !if(abs(wb_step_err)>1*max_wb_step_err .or. any(dth_node(:).ne.dth_node(:)) )then
                     !solution_found = .false.
-                    solution_found = .false.
-                    error_code = 1
-                    error_arr(:) = 0._r8
-                    exit
+                    if(max_iter .and. psi_node(1) < -10.0) then
+                      solution_found = .true.
+                      error_code = 0
+                      
+                    else
+                      solution_found = .false.
+                      error_code = 1
+                      error_arr(:) = 0._r8
+                    
+                      exit
+                    endif
                 else
                     ! Note: this is somewhat of a default true. And the sub-steps
                     ! will keep going unless its changed and broken out of
@@ -5443,18 +5394,18 @@ endif
 
                          if(pm_node(k) == rhiz_p_media) then
                              j = node_layer(k)
-                             if(abs(residual(k)) < dpsi_scap) then
+!                             if(abs(residual(k)) < dpsi_scap) then
                                psi_node(k) = psi_node(k) + residual(k) * rlfx_soil
-                             else
-                               psi_node(k) = psi_node(k) + 2._r8*sign(dpsi_scap,residual(k)) - dpsi_scap*dpsi_scap/residual(k)
-                             endif
+!                             else
+!                               psi_node(k) = psi_node(k) + 2._r8*sign(dpsi_scap,residual(k)) - dpsi_scap*dpsi_scap/residual(k)
+!                             endif
                              th_node(k)  = site_hydr%wrf_soil(j)%p%th_from_psi(psi_node(k))
                          else
-                             if(abs(residual(k)) < dpsi_pcap) then
+!                             if(abs(residual(k)) < dpsi_pcap) then
                                psi_node(k) = psi_node(k) + residual(k) * rlfx_plnt
-                             else
-                               psi_node(k) = psi_node(k) + 2._r8*sign(dpsi_pcap,residual(k)) - dpsi_pcap*dpsi_pcap/residual(k)
-                             endif
+!                             else
+!                               psi_node(k) = psi_node(k) + 2._r8*sign(dpsi_pcap,residual(k)) - dpsi_pcap*dpsi_pcap/residual(k)
+!                             endif
                              th_node(k)  = wrf_plant(pm_node(k),ft)%p%th_from_psi(psi_node(k))
                          endif
 
@@ -5664,7 +5615,7 @@ endif
     ! Maximum number of times we re-try a round of Picard
     ! iterations, each time decreasing the time-step and
     ! potentially reducing relaxation factors
-    integer, parameter :: max_picard_rounds = 10
+    integer, parameter :: max_picard_rounds = 100
     
     ! dtime will shrink at the following rate (halving) [s]: 
     ! 1800,900,450,225,112.5,56.25,28.125,14.0625,7.03125,3.515625,
@@ -5672,9 +5623,6 @@ endif
     ! 0.054931640625,0.0274658203125,0.01373291015625,0.006866455078125,
     ! 0.0034332275390625,0.00171661376953125,
 
-
-    ! Maximum number of Newton iterations in each round
-    integer, parameter :: max_newton_iter = 100
 
     ! Flag definitions for convergence flag (icnv)
     ! icnv = 1 fail the round due to either wacky math, or
@@ -5724,7 +5672,8 @@ endif
     real(r8) :: dftc_dtheta_node(nnode)  ! deriv FTC w.r.t. theta
     real(r8) :: dpsi_dtheta_node(nnode)  ! deriv psi w.r.t. theta
     real(r8) :: volx  !temporary volume
-    integer  :: picd_iter !picard iteration counter 
+    integer  :: picd_iter !picard iteration counter
+    real(r8) :: th_prev(nnode) !temporary for th from previous iteration 
     
     
     associate(conn_up      => site_hydr%conn_up, &
@@ -5837,7 +5786,7 @@ endif
          if(pm_node(k) == rhiz_p_media) then
                      
             j = node_layer(k)
-            psi_node(k) = max(-1e2_r8, site_hydr%wrf_soil(j)%p%psi_from_th(th_node(k)))
+            psi_node(k) = max(-1e5_r8, site_hydr%wrf_soil(j)%p%psi_from_th(th_node(k)))
                      
             ! Get total potential [Mpa]
             h_node(k) =  mpa_per_pa*denh2o*grav_earth*z_node(k) + psi_node(k)
@@ -5850,7 +5799,7 @@ endif
                      
          else
                      
-            psi_node(k) = max(-1e2_r8, wrf_plant(pm_node(k),ft)%p%psi_from_th(th_node(k)))
+            psi_node(k) = max(-1e5_r8, wrf_plant(pm_node(k),ft)%p%psi_from_th(th_node(k)))
             ! Get total potential [Mpa]
             h_node(k) =  mpa_per_pa*denh2o*grav_earth*z_node(k) + psi_node(k)
             ! Get Fraction of Total Conductivity [-]
@@ -5899,9 +5848,10 @@ endif
       !Calculate time step that meet cfl condition
       if(cfl_max > cfl) then
          nsteps = min(int(cfl_max/cfl) + 1, 20)
-         nsteps = 1 
          dtime = tmx/nsteps
       end if       
+
+      icnv = 0
       outerloop: do while( tm < tmx )
           
           ! The solve may reduce the time-step, the shorter
@@ -5914,9 +5864,6 @@ endif
 
           ! Advance time forward
           tm = tm + dtime
-          ! If we have not exceeded our max number
-          ! of retrying rounds of Newton iterations, reduce
-          ! time and try a new round
 
 
          ! This is the newton search loop
@@ -5932,6 +5879,7 @@ endif
              ! to be zerod.
              ajac(:,:)   = 0._r8
              residual(:) = 0._r8
+             th_prev(:) = th_node(:)
         
              do k=1,site_hydr%num_nodes
                  
@@ -6051,11 +5999,6 @@ endif
                      
              ! Update the water content
              th_node(:) = th_node(:) + residual(:)
-        
-#if 1 
-!             if(qtop > 0._r8) then
-!                print *
-!             end if
              ! constrain th
              do k=1,site_hydr%num_nodes
                  
@@ -6072,16 +6015,32 @@ endif
                  
                  
              enddo
-#endif
 
              wb_error = qtop*dtime - (sum( th_node_prev(:)*v_node(:) ) - sum( th_node(:)*v_node(:) ))*denh2o
              
-             ! Mass is conserved
-             if(abs(wb_error) < max_allowed_residual .or. maxval(abs(residual(:))) < 1.e-10_r8) exit picardloop
+             ! Mass is conserved or solver is converged
+             if(abs(wb_error) < max_allowed_residual .or. maxval(abs(residual(:))) < 1.e-3_r8 .or. maxval(abs(th_node(:) - th_prev(:))) < 1.e-3) exit picardloop
 
-             if(picd_iter > max_picard_rounds) continue_search = .false.
+             if(icnv == 1 ) then
+print *,'dtime-',dtime,tm
+                exit picardloop !explicit integration with small time step
+             end if
+
+             if(picd_iter > max_picard_rounds) then
+
+                 icnv = 1
+
+                 ! reset to initial condition
+                 tm  = 0._r8
+                 th_node(:)         = th_node_init(:)
+                 th_node_prev(:)    = th_node_init(:)
+
+                 cycle outerloop !do explicit integration
+        
+             endif
 
          end do picardloop
+
 
          ! If we are here, that means we succesfully finished
          ! a solve with minimal error. More substeps may be required though
@@ -6095,6 +6054,47 @@ endif
 
      end do outerloop
 
+     !update psi    
+     do k=1,site_hydr%num_nodes
+                 
+         if(pm_node(k) == rhiz_p_media) then
+                     
+             j = node_layer(k)
+             psi_node(k) = max(-1e2_r8, site_hydr%wrf_soil(j)%p%psi_from_th(th_node(k)))
+                     
+             ! Get total potential [Mpa]
+             h_node(k) =  mpa_per_pa*denh2o*grav_earth*z_node(k) + psi_node(k)
+             ! Get Fraction of Total Conductivity [-]
+             ftc_node(k) = site_hydr%wkf_soil(j)%p%ftc_from_psi(psi_node(k))
+         else
+                     
+             psi_node(k) = max(-1e2_r8, wrf_plant(pm_node(k),ft)%p%psi_from_th(th_node(k)))
+             ! Get total potential [Mpa]
+             h_node(k) =  mpa_per_pa*denh2o*grav_earth*z_node(k) + psi_node(k)
+             ! Get Fraction of Total Conductivity [-]
+             ftc_node(k) = wkf_plant(pm_node(k),ft)%p%ftc_from_psi(psi_node(k))
+                     
+         end if
+                 
+     enddo
+
+     ! update fluxes     
+     do icnx=1,site_hydr%num_connections
+                 
+         id_dn = conn_dn(icnx)
+         id_up = conn_up(icnx)
+                 
+         call GetImTaylorKAB(kmax_up(icnx),kmax_dn(icnx),        &
+               ftc_node(id_up),ftc_node(id_dn),        & 
+               h_node(id_up),h_node(id_dn),            & 
+               dftc_dtheta_node(id_up), dftc_dtheta_node(id_dn), &
+               dpsi_dtheta_node(id_up), dpsi_dtheta_node(id_dn), &
+               k_eff,                         &
+               A_term,                        & 
+               B_term)
+                 
+         q_flux(icnx) = k_eff*(h_node(id_up)-h_node(id_dn))
+     end do 
      ! Save flux diagnostics
      ! ------------------------------------------------------
      
