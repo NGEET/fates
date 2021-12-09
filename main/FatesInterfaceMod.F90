@@ -765,7 +765,8 @@ module FatesInterfaceMod
          ! These values are used to define the restart file allocations and general structure
          ! of memory for the cohort arrays
 
-         if ( hlm_use_cohort_age_tracking .eq. itrue) then
+         if ( hlm_use_cohort_age_tracking .eq. itrue .or. &
+              hlm_use_canopy_damage .eq. itrue .or. hlm_use_understory_damage .eq. itrue) then
             maxCohortsPerPatch = 300
          else
             maxCohortsPerPatch = 100

@@ -20,6 +20,7 @@ module EDTypesMod
   use FatesConstantsMod,     only : days_per_year
   use FatesInterfaceTypesMod,only : bc_in_type
   use FatesInterfaceTypesMod,only : bc_out_type
+  use FatesInterfaceTypesMod,only : hlm_use_canopy_damage, hlm_use_understory_damage
   
   implicit none
   private               ! By default everything is private
@@ -28,7 +29,7 @@ module EDTypesMod
   integer, parameter, public :: maxPatchesPerSite  = 14   ! maximum number of patches to live on a site
   integer, parameter, public :: maxPatchesPerSite_by_disttype(n_anthro_disturbance_categories)  = &
                                                      (/ 10, 4 /)  !!! MUST SUM TO maxPatchesPerSite !!!
-  integer,  public :: maxCohortsPerPatch = 300            ! maximum number of cohorts per patch
+  integer,  public :: maxCohortsPerPatch = 100            ! maximum number of cohorts per patch
   
   integer, parameter, public :: nclmax = 3                ! Maximum number of canopy layers
   integer, parameter, public :: ican_upper = 1            ! Nominal index for the upper canopy
