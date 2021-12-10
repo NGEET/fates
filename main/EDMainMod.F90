@@ -26,6 +26,7 @@ module EDMainMod
   use FatesInterfaceTypesMod        , only : hlm_masterproc
   use FatesInterfaceTypesMod        , only : numpft
   use FatesInterfaceTypesMod        , only : hlm_use_hardening !marius
+  use FatesInterfaceTypesMod        , only : hlm_model_day !marius
   use FatesHydroWTFMod              , only : wrf_type, wrf_type_tfs
   use FatesInterfaceTypesMod        , only : hlm_use_nocomp
   use PRTGenericMod            , only : prt_carbon_allom_hyp
@@ -346,7 +347,15 @@ contains
     else
        currentSite%gdd5= currentSite%gdd5 + max(0.0_r8,bc_in%t_ref2m_24_si-273.15_r8-5.0_r8)
     end if
-
+    if (hlm_use_hardening.eq.itrue) then
+      if (nint(hlm_model_day)>=366) then
+        write(fates_log(),*) '5yrmean was taken'
+        currentSite%hardtemp=bc_in%t_mean_5yr_si-273.15_r8
+      else if (nint(hlm_model_day)<366) then
+        write(fates_log(),*) 'minyrinst was taken'
+        currentSite%hardtemp=bc_in%t_min_yr_inst_si-273.15_r8
+      end if
+    end if
     currentPatch => currentSite%youngest_patch
 
     do while(associated(currentPatch))

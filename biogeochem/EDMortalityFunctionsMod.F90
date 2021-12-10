@@ -323,8 +323,8 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     ! !LOCAL VARIABLES:
     real(r8) :: Tmean ! daily average temperature °C
     real(r8) :: Tmin
-    real(r8) :: Tmean5yr
-    real(r8) :: Tmin1yrinst
+    !real(r8) :: Tmean5yr
+    !real(r8) :: Tmin1yrinst
     real(r8) :: max_h !maximum hardiness level
     real(r8) :: max_h_dehard !maximum hardiness level for dehardening function
     real(r8), parameter :: min_h = -2.0_r8  	! Minimum hardiness level from Bigras for Picea abies (°C)
@@ -343,33 +343,26 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
 
     Tmean=bc_in%t_ref2m_24_si-273.15_r8
     Tmin=bc_in%t_ref2m_min_si-273.15_r8
-    Tmean5yr=bc_in%t_mean_5yr_si-273.15_r8
-    Tmin1yrinst=bc_in%t_min_yr_inst_si-273.15_r8
+    !Tmean5yr=bc_in%t_mean_5yr_si-273.15_r8
+    !Tmin1yrinst=bc_in%t_min_yr_inst_si-273.15_r8
 
-
-    if (nint(hlm_model_day)>=366 .and. Tmean5yr<-1.334_r8 .and. Tmean5yr>-46.666_r8) then
-      max_h=Tmean5yr*1.5
-    else if (nint(hlm_model_day)>=366 .and. Tmean5yr<=-46.666_r8) then
-      max_h=-70._r8
-    else if (nint(hlm_model_day)<366 .and. Tmin1yrinst<-1.334_r8 .and. Tmin1yrinst>-46.666_r8) then
-      max_h=Tmin1yrinst*1.5
-    else if (nint(hlm_model_day)<366 .and. Tmin1yrinst<=-46.666_r8) then
+    if (currentSite%hardtemp<-1.334_r8 .and. currentSite%hardtemp>-46.666_r8) then
+      max_h=currentSite%hardtemp*1.5
+    else if (currentSite%hardtemp<=-46.666_r8) then
+    !if (currentSite%hardtemp<-1.6_r8 .and. currentSite%hardtemp>-56._r8) then
+    !  max_h=currentSite%hardtemp*1.25_r8
+    !else if (currentSite%hardtemp<=-56._r8) then
+    !if (currentSite%hardtemp<-1._r8 .and. currentSite%hardtemp>-35._r8) then
+    !  max_h=currentSite%hardtemp*2_r8
+    !else if (currentSite%hardtemp<=-35._r8) then
       max_h=-70._r8
     else 
       max_h=min_h
     end if
 
     !if (nint(hlm_model_day)>=366 .and. Tmean5yr<-1.667_r8 .and. Tmean5yr>-58.333_r8) then
-    !  max_h=Tmean5yr*1.5
-    !else if (nint(hlm_model_day)>=366 .and. Tmean5yr<=-58.333_r8) then
-    !  max_h=-70._r8
-    !else if (nint(hlm_model_day)<366 .and. Tmin1yrinst<-1.667_r8 .and. Tmin1yrinst>-58.333_r8) then
-    !  max_h=Tmin1yrinst*1.5
-    !else if (nint(hlm_model_day)<366 .and. Tmin1yrinst<=-58.333_r8) then
-    !  max_h=-70._r8
-    !else 
-    !  max_h=min_h
-    !end if
+    !  max_h=Tmean5yr*1.2
+
 
     !Calculation of the target hardiness
     if (Tmean <= max_h/2) then !
@@ -420,10 +413,10 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
        cohort_in%hard_level = cohort_in%hard_level_prev - rate_h
     end if
     ipft = cohort_in%pft
-    if (prt_params%season_decid(ipft) == itrue .and. cohort_in%status_coh == leaves_on .and. &
-        (nint(hlm_model_day) >= currentSite%cleafondate .or. nint(hlm_model_day) >= currentSite%dleafondate)) then         
-       cohort_in%hard_level = min_h
-    end if
+    !if (prt_params%season_decid(ipft) == itrue .and. cohort_in%status_coh == leaves_on .and. &
+    !    (nint(hlm_model_day) >= currentSite%cleafondate .or. nint(hlm_model_day) >= currentSite%dleafondate)) then         
+    !   cohort_in%hard_level = min_h
+    !end if
     if (cohort_in%hard_level > min_h) then
        cohort_in%hard_level = min_h
     end if

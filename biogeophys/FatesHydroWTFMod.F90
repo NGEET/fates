@@ -703,13 +703,13 @@ contains
     real(r8), intent(in) :: psi
     real(r8)             :: th
     real(r8)             :: thmin
-    thmin=this%th_sat*(-25._r8/this%psi_sat)**(-1.0_r8/this%beta)
+    thmin=this%th_sat*(-20._r8/this%psi_sat)**(-1.0_r8/this%beta)
 
     if(psi>this%psi_max) then
         ! Linear range for extreme values
         th = this%th_max + (psi-this%psi_max)/this%dpsidth_max
-    else if (psi<-25._r8)   then      ! marius
-        th = thmin + thmin/10._r8*(psi+25._r8)
+    else if (psi<-20._r8)   then      ! marius
+        th = thmin + thmin/5._r8*(psi+20._r8)
     else
         th = this%th_sat*(psi/this%psi_sat)**(-1.0_r8/this%beta)
     end if
@@ -725,12 +725,12 @@ contains
     real(r8),intent(in)  :: th
     real(r8)             :: psi
     real(r8)             :: thmin
-    thmin=this%th_sat*(-25._r8/this%psi_sat)**(-1.0_r8/this%beta)
+    thmin=this%th_sat*(-20._r8/this%psi_sat)**(-1.0_r8/this%beta)
     if(th>this%th_max) then
         psi = this%psi_max + this%dpsidth_max*(th-max_sf_interp*this%th_sat)
     else if (th < thmin)   then      ! marius
-        psi = -25._r8 - 10._r8 * (thmin-th)/thmin
-        write(fates_log(),*)'check1','psi',psi,'th',th,'thmin',thmin
+        psi = -20._r8 - 5._r8 * (thmin-th)/thmin
+        !write(fates_log(),*)'check1','psi',psi,'th',th,'thmin',thmin
     else
         psi = this%psi_sat*(th/this%th_sat)**(-this%beta)
     end if
@@ -744,13 +744,13 @@ contains
     real(r8),intent(in) :: th
     real(r8)            :: dpsidth
     real(r8)             :: thmin
-    thmin=this%th_sat*(-25._r8/this%psi_sat)**(-1.0_r8/this%beta)
+    thmin=this%th_sat*(-20._r8/this%psi_sat)**(-1.0_r8/this%beta)
 
     ! Differentiate:
     if(th>this%th_max) then
         dpsidth = this%dpsidth_max
     else if (th < thmin )   then      ! marius
-        dpsidth = 10._r8/thmin
+        dpsidth = 5._r8/thmin
     else
         dpsidth = -this%beta*this%psi_sat/this%th_sat * (th/this%th_sat)**(-this%beta-1._r8)
     end if

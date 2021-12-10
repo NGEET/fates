@@ -745,6 +745,7 @@ module EDTypesMod
      real(r8) ::  fdi                                          ! daily probability an ignition event will start a fire
      real(r8) ::  NF                                           ! daily ignitions in km2
      real(r8) ::  gdd5                                         ! marius
+     real(r8) ::  hardtemp                                         ! marius
      real(r8) ::  NF_successful                                ! daily ignitions in km2 that actually lead to fire
 
      ! PLANT HYDRAULICS

@@ -2499,15 +2499,15 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
 
              !update hardening for each cohort in BC hydraulics loop. Marius
              if (hlm_use_hardening .eq. itrue .and. ccohort%hard_level<-3._r8) then
-                !if (ccohort%hard_level .ne. ccohort%hard_level_prev) then
-                !   !write(fates_log(),*)'check1'
-                !    do pm = 1,n_hypool_plant
-                !      pinot_hard=EDPftvarcon_inst%hydr_pinot_node(ft,pm)-(1._r8-(ccohort%hard_level+70._r8)/67._r8)*1._r8 ! solute pinot max change if hardening is -1
-	        !      epsil_hard=EDPftvarcon_inst%hydr_epsil_node(ft,pm)+(1._r8-(ccohort%hard_level+70._r8)/67._r8)*15._r8! pressure epsil max change if hardening is +15
-                !      call wrf_plant(pm,ft)%p%set_wrf_hard([pinot_hard,epsil_hard])
-                !   end do 
-                !end if
-                !ccohort%hard_level_prev=ccohort%hard_level
+                if (ccohort%hard_level .ne. ccohort%hard_level_prev) then
+                   !write(fates_log(),*)'check1'
+                    do pm = 1,n_hypool_plant
+                      pinot_hard=EDPftvarcon_inst%hydr_pinot_node(ft,pm)-(1._r8-(ccohort%hard_level+70._r8)/67._r8)*0.5_r8 ! solute pinot max change if hardening is -1
+	              epsil_hard=EDPftvarcon_inst%hydr_epsil_node(ft,pm)+(1._r8-(ccohort%hard_level+70._r8)/67._r8)*10._r8! pressure epsil max change if hardening is +15
+                      call wrf_plant(pm,ft)%p%set_wrf_hard([pinot_hard,epsil_hard])
+                   end do 
+                end if
+                ccohort%hard_level_prev=ccohort%hard_level
              end if
              
               ! Relative transpiration of this cohort from the whole patch
@@ -5409,7 +5409,8 @@ subroutine SetMaxCondConnections(site_hydr, cohort_hydr, h_node, kmax_dn, kmax_u
 
    kmax_dn(:) = fates_unset_r8
    kmax_up(:) = fates_unset_r8
-   k_factor=12._r8 !marius
+   k_factor=9._r8 !marius
+   hard_level=0
    ! Set leaf to stem connections (only 1 leaf layer
    ! this will break if we have multiple, as there would
    ! need to be assumptions about which compartment

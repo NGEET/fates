@@ -567,6 +567,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_btran_scpf
   integer :: ih_hardlevel_si_pft !marius
   integer :: ih_hardGRF_si_pft   !marius
+  integer :: ih_hardtemp_si !marius
   
   ! Hydro: Soil water states
   integer :: ih_rootwgt_soilvwc_si
@@ -2031,7 +2032,8 @@ end subroutine flush_hvars
                hio_gdd_si                           => this%hvars(ih_gdd_si)%r81d, &
                hio_gdd5_si                          => this%hvars(ih_gdd5_si)%r81d, &        !marius
                hio_hardlevel_si_pft                 => this%hvars(ih_hardlevel_si_pft)%r82d, & !marius
-               hio_hardGRF_si_pft                   => this%hvars(ih_hardGRF_si_pft)%r82d, &   !marius  
+               hio_hardGRF_si_pft                   => this%hvars(ih_hardGRF_si_pft)%r82d, &   !marius 
+               hio_hardtemp_si                      => this%hvars(ih_hardtemp_si)%r81d, &   !marius   
                hio_site_ncolddays_si                => this%hvars(ih_site_ncolddays_si)%r81d, &
                hio_site_nchilldays_si               => this%hvars(ih_site_nchilldays_si)%r81d, &
                hio_cleafoff_si                      => this%hvars(ih_cleafoff_si)%r81d, &
@@ -2145,7 +2147,8 @@ end subroutine flush_hvars
          hio_harvest_carbonflux_si(io_si) = sites(s)%harvest_carbon_flux
          
          !========================================================marius hardening   
-         if (hlm_use_hardening.eq.itrue) then        
+         if (hlm_use_hardening.eq.itrue) then    
+           hio_hardtemp_si(io_si)   =  sites(s)%hardtemp        
            ncohort_pft(:) = 0.0_r8 
            ! Normalization counters
            cpatch => sites(s)%oldest_patch
@@ -2166,6 +2169,8 @@ end subroutine flush_hvars
                 hio_hardGRF_si_pft(io_si,ft)=0._r8
              endif
            enddo
+         else
+           hio_hardtemp_si(io_si)   = -2._r8
          end if
          !=======================================================marius
          ipa = 0  
@@ -4357,6 +4362,11 @@ end subroutine update_history_hifrq
          long='Growth reducing factor fram hardiness', use_default='active',       &
          avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, & !marius
          ivar=ivar, initialize=initialize_variables, index = ih_hardGRF_si_pft )
+
+    call this%set_history_var(vname='hardtemp',  units='DegC',            &
+         long='5yr running mean temperature for hardiness', use_default='active',       &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, & !marius
+         ivar=ivar, initialize=initialize_variables, index = ih_hardtemp_si )
     
     call this%set_history_var(vname='SITE_NCHILLDAYS', units = 'days', &
          long='site level number of chill days', &
