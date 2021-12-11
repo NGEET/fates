@@ -17,7 +17,8 @@ module EDMortalityFunctionsMod
    use FatesInterfaceTypesMod     , only : hlm_use_ed_prescribed_phys
    use FatesInterfaceTypesMod     , only : hlm_freq_day
    use FatesInterfaceTypesMod     , only : hlm_use_planthydro
-   use FatesInterfaceTypesMod     , only : hlm_use_hardening !marius
+   use FatesInterfaceTypesMod     , only : hlm_use_hydrohard !marius
+   use FatesInterfaceTypesMod     , only : hlm_use_frosthard !marius
    use EDLoggingMortalityMod , only : LoggingMortality_frac
    use EDParamsMod           , only : fates_mortality_disturbance_fraction
    use PRTGenericMod,          only : all_carbon_elements
@@ -139,7 +140,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
      flc = 1.0_r8-min_fmc
      if(flc >= hf_flc_threshold .and. hf_flc_threshold < 1.0_r8 )then 
        !--------------------marius
-       if (hlm_use_hardening .eq. itrue .and. cohort_in%hard_level < -3._r8) then
+       if (hlm_use_hydrohard .eq. itrue .and. cohort_in%hard_level < -3._r8) then
          hard_hydr=EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)*(cohort_in%hard_rate*0.5_r8+0.5_r8)
        else 
          hard_hydr=EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
@@ -168,7 +169,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
        call storage_fraction_of_target(leaf_c_target, store_c, frac)
        if( frac .lt. 1._r8) then
           !------------------------ marius
-          !if (hlm_use_hardening .eq. itrue .and. cohort_in%hard_level < -3._r8) then
+          !if (hlm_use_hydrohard .eq. itrue .and. cohort_in%hard_level < -3._r8) then
           !   hard_carb=EDPftvarcon_inst%mort_scalar_cstarvation(cohort_in%pft)*(cohort_in%hard_rate*0.5_r8+0.5_r8)
           !else 
           !   hard_carb=EDPftvarcon_inst%mort_scalar_cstarvation(cohort_in%pft)
@@ -194,9 +195,15 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     !           doi: 10.1111/j.1365-2486.2006.01254.x                                    
 
     ifp = cohort_in%patchptr%patchno
-    temp_in_C = bc_in%t_veg24_pa(ifp) - tfrz
-    temp_dep_fraction  = max(0.0_r8, min(1.0_r8, 1.0_r8 - (temp_in_C - &
-                         EDPftvarcon_inst%freezetol(cohort_in%pft))/frost_mort_buffer) )
+    if (hlm_use_frosthard .eq. itrue) then !marius implementation of frost 
+       Tmin=bc_in%t_ref2m_min_si-273.15_r8
+       temp_dep_fraction  = max(0.0_r8, min(1.0_r8, 1.0_r8 - (Tmin - &
+                            max(EDPftvarcon_inst%freezetol(cohort_in%pft),cohort_in%hard_level))/frost_mort_buffer) )
+    else
+       temp_in_C = bc_in%t_veg24_pa(ifp) - tfrz
+       temp_dep_fraction  = max(0.0_r8, min(1.0_r8, 1.0_r8 - (temp_in_C - &
+                            EDPftvarcon_inst%freezetol(cohort_in%pft))/frost_mort_buffer) )
+    endif
     frmort    = EDPftvarcon_inst%mort_scalar_coldstress(cohort_in%pft) * temp_dep_fraction
 
 

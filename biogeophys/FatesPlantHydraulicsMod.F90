@@ -62,7 +62,7 @@ module FatesPlantHydraulicsMod
   use FatesInterfaceTypesMod  , only : hlm_ipedof
   use FatesInterfaceTypesMod  , only : numpft
   use FatesInterfaceTypesMod  , only : nlevsclass
-  use FatesInterfaceTypesMod  , only : hlm_use_hardening !marius
+  use FatesInterfaceTypesMod  , only : hlm_use_hydrohard !marius
   use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm !marius
   use FatesAllometryMod, only    : bleaf
   use FatesAllometryMod, only    : bsap_allom
@@ -2498,7 +2498,7 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
               ft       = ccohort%pft
 
              !update hardening for each cohort in BC hydraulics loop. Marius
-             if (hlm_use_hardening .eq. itrue .and. ccohort%hard_level<-3._r8) then
+             if (hlm_use_hydrohard .eq. itrue .and. ccohort%hard_level<-3._r8) then
                 if (ccohort%hard_level .ne. ccohort%hard_level_prev) then
                    !write(fates_log(),*)'check1'
                     do pm = 1,n_hypool_plant
@@ -5410,7 +5410,6 @@ subroutine SetMaxCondConnections(site_hydr, cohort_hydr, h_node, kmax_dn, kmax_u
    kmax_dn(:) = fates_unset_r8
    kmax_up(:) = fates_unset_r8
    k_factor=9._r8 !marius
-   hard_level=0
    ! Set leaf to stem connections (only 1 leaf layer
    ! this will break if we have multiple, as there would
    ! need to be assumptions about which compartment
@@ -5419,7 +5418,7 @@ subroutine SetMaxCondConnections(site_hydr, cohort_hydr, h_node, kmax_dn, kmax_u
    kmax_dn(icnx) = cohort_hydr%kmax_petiole_to_leaf
    kmax_up(icnx) = cohort_hydr%kmax_stem_upper(1)
    !-----------------------------------------------------------!marius
-   if (hlm_use_hardening .eq. itrue) then
+   if (hlm_use_hydrohard .eq. itrue) then
      if (hard_level<-3_r8) then
        hard_rate_temporary=((hard_level+3._r8)/k_factor)
        kmax_dn(icnx)=kmax_dn(icnx)*10**hard_rate_temporary 
@@ -5433,7 +5432,7 @@ subroutine SetMaxCondConnections(site_hydr, cohort_hydr, h_node, kmax_dn, kmax_u
    kmax_dn(icnx) = cohort_hydr%kmax_stem_lower(istem)
    kmax_up(icnx) = cohort_hydr%kmax_stem_upper(istem+1)
    !-----------------------------------------------------------!marius
-   if (hlm_use_hardening .eq. itrue) then
+   if (hlm_use_hydrohard .eq. itrue) then
      if (hard_level<-3_r8) then
         kmax_dn(icnx)=kmax_dn(icnx)*10**hard_rate_temporary 
         kmax_up(icnx)=kmax_up(icnx)*10**hard_rate_temporary 
@@ -5447,7 +5446,7 @@ subroutine SetMaxCondConnections(site_hydr, cohort_hydr, h_node, kmax_dn, kmax_u
    kmax_dn(icnx) = cohort_hydr%kmax_stem_lower(n_hypool_stem)
    kmax_up(icnx) = cohort_hydr%kmax_troot_upper
    !-----------------------------------------------------------!marius
-   if (hlm_use_hardening .eq. itrue) then
+   if (hlm_use_hydrohard .eq. itrue) then
      if (hard_level<-3_r8) then
        kmax_dn(icnx)=kmax_dn(icnx)*10**hard_rate_temporary 
        kmax_up(icnx)=kmax_up(icnx)*10**hard_rate_temporary 
@@ -5467,7 +5466,7 @@ subroutine SetMaxCondConnections(site_hydr, cohort_hydr, h_node, kmax_dn, kmax_u
          kmax_dn(icnx) = cohort_hydr%kmax_troot_lower(j)
          kmax_up(icnx) = cohort_hydr%kmax_aroot_upper(j)
          !-----------------------------------------------------------!marius
-         if (hlm_use_hardening .eq. itrue) then
+         if (hlm_use_hydrohard .eq. itrue) then
            if (hard_level<-3_r8) then
               kmax_dn(icnx)=kmax_dn(icnx)*10**hard_rate_temporary 
               kmax_up(icnx)=kmax_up(icnx)*10**hard_rate_temporary 
@@ -5488,16 +5487,16 @@ subroutine SetMaxCondConnections(site_hydr, cohort_hydr, h_node, kmax_dn, kmax_u
          end if
          kmax_up(icnx) = site_hydr%kmax_upper_shell(j,1)*aroot_frac_plant
          !-----------------------------------------------!marius
-         if (hlm_use_hardening .eq. itrue) then
+         if (hlm_use_hydrohard .eq. itrue) then
            if (hard_level<-3_r8) then
              kmax_dn(icnx)=kmax_dn(icnx)*10**hard_rate_temporary 
            end if
-              if ((bc_in%t_soisno_sl(j)-tfrz)<0._r8 .and. (bc_in%t_soisno_sl(j)-tfrz)>-15._r8) then
-                soil_rate_temporary=(((bc_in%t_soisno_sl(j)-tfrz))/2._r8)
-                kmax_up(icnx)=kmax_up(icnx)*10**hard_rate_temporary 
-              else if ((bc_in%t_soisno_sl(j)-tfrz)<=-15._r8) then 
-                kmax_up(icnx)=kmax_up(icnx)*10**-7.5
-              end if
+              !if ((bc_in%t_soisno_sl(j)-tfrz)<0._r8 .and. (bc_in%t_soisno_sl(j)-tfrz)>-15._r8) then
+              !  soil_rate_temporary=(((bc_in%t_soisno_sl(j)-tfrz))/2._r8)
+              !  kmax_up(icnx)=kmax_up(icnx)*10**hard_rate_temporary 
+              !else if ((bc_in%t_soisno_sl(j)-tfrz)<=-15._r8) then 
+              !  kmax_up(icnx)=kmax_up(icnx)*10**-7.5
+              !end if
          endif
          !---------------------------------------------------
       else                 ! soil - soil

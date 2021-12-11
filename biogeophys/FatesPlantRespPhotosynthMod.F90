@@ -46,7 +46,7 @@ module FATESPlantRespPhotosynthMod
   use PRTGenericMod,     only : struct_organ
   use EDParamsMod,       only : ED_val_base_mr_20, stomatal_model
   use PRTParametersMod,  only : prt_params
-  use FatesInterfaceTypesMod  , only : hlm_use_hardening !marius
+  use FatesInterfaceTypesMod  , only : hlm_use_hydrohard !marius
   use FatesInterfaceTypesMod     , only : hlm_model_day !marius
   use PRTParametersMod           , only : prt_params !marius
   use EDTypesMod                 , only : leaves_on !marius
@@ -401,7 +401,7 @@ contains
                                  (hlm_parteh_mode .ne. prt_carbon_allom_hyp )   ) then
 
                                if (hlm_use_planthydro.eq.itrue ) then
-                                  if (hlm_use_hardening.eq.itrue .and. currentCohort%hard_level < -3._r8 ) then !marius
+                                  if (hlm_use_hydrohard.eq.itrue .and. currentCohort%hard_level < -3._r8 ) then !marius
                                     if (prt_params%season_decid(ft) == itrue .and. currentCohort%status_coh == leaves_on .and. &
                                        (nint(hlm_model_day) >= sites(s)%cleafondate .or. nint(hlm_model_day) >= sites(s)%dleafondate)) then         
                                     else
@@ -992,7 +992,7 @@ subroutine LeafLayerPhotosynthesis(hard_level,        &  ! in marius
   associate( bb_slope  => EDPftvarcon_inst%bb_slope      ,& ! slope of BB relationship, unitless
        medlyn_slope=> EDPftvarcon_inst%medlyn_slope          , & ! Slope for Medlyn stomatal conductance model method, the unit is KPa^0.5
        stomatal_intercept=> EDPftvarcon_inst%stomatal_intercept )  !Unstressed minimum stomatal conductance, the unit is umol/m**2/s
-  if (hlm_use_hardening.eq.itrue .and. hard_level < -3._r8 ) then !marius
+  if (hlm_use_hydrohard.eq.itrue .and. hard_level < -3._r8 ) then !marius
     if (prt_params%season_decid(ft) == itrue .and. status_coh == leaves_on .and. &
       (nint(hlm_model_day) >= cleafondate .or. nint(hlm_model_day) >= dleafondate)) then         
     else

@@ -1243,7 +1243,8 @@ contains
          hlm_sf_successful_ignitions_def = unset_int
          hlm_sf_anthro_ignitions_def = unset_int
          hlm_use_planthydro = unset_int
-         hlm_use_hardening = unset_int !marius
+         hlm_use_hydrohard = unset_int !marius
+         hlm_use_frosthard = unset_int !marius
          hlm_use_lu_harvest   = unset_int
          hlm_num_lu_harvest_cats   = unset_int
          hlm_use_cohort_age_tracking = unset_int
@@ -1314,15 +1315,28 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
          
-         if (  .not.((hlm_use_hardening.eq.1).or.(hlm_use_hardening.eq.0))    ) then !marius
+         if (  .not.((hlm_use_hydrohard.eq.1).or.(hlm_use_hydrohard.eq.0))    ) then !marius
             if (fates_global_verbose()) then
-               write(fates_log(), *) 'The FATES namelist hardening flag must be 0 or 1, exiting'
+               write(fates_log(), *) 'The FATES namelist hydrohard flag must be 0 or 1, exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
-         elseif (hlm_use_hardening.eq.1 ) then
+         elseif (hlm_use_hydrohard.eq.1 ) then
                write(fates_log(), *) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
                write(fates_log(), *) ''
-               write(fates_log(), *) ' use_fates_hardening is an      EXPERIMENTAL FEATURE        '
+               write(fates_log(), *) ' use_fates_hydrohard is an      EXPERIMENTAL FEATURE        '
+               write(fates_log(), *) ''
+               write(fates_log(), *) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+         end if
+
+         if (  .not.((hlm_use_frosthard.eq.1).or.(hlm_use_frosthard.eq.0))    ) then !marius
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'The FATES namelist frosthard flag must be 0 or 1, exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         elseif (hlm_use_frosthard.eq.1 ) then
+               write(fates_log(), *) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+               write(fates_log(), *) ''
+               write(fates_log(), *) ' use_fates_frosthard is an      EXPERIMENTAL FEATURE        '
                write(fates_log(), *) ''
                write(fates_log(), *) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
          end if
@@ -1726,10 +1740,16 @@ contains
                   write(fates_log(),*) 'Transfering hlm_use_planthydro= ',ival,' to FATES'
                end if
                
-            case('use_hardening')
-               hlm_use_hardening = ival
+            case('use_hydrohard')
+               hlm_use_hydrohard = ival
                if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_use_hardening= ',ival,' to FATES'
+                  write(fates_log(),*) 'Transfering hlm_use_hydrohard= ',ival,' to FATES'
+               end if
+
+            case('use_frosthard')
+               hlm_use_frosthard = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_frosthard= ',ival,' to FATES'
                end if
 
             case('use_lu_harvest')

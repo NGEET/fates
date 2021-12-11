@@ -147,7 +147,11 @@ module FatesInterfaceTypesMod
                                                        ! 1 = TRUE, 0 = FALSE
                                                        ! THIS IS CURRENTLY NOT SUPPORTED 
                                                        
-   integer, public :: hlm_use_hardening    ! This flag signals whether or not to use Marius
+   integer, public :: hlm_use_hydrohard    ! This flag signals whether or not to use Marius
+                                                       ! plant hydraulics (bchristo/xu methods)
+                                                       ! 1 = TRUE, 0 = FALSE
+                                                       ! THIS IS CURRENTLY NOT SUPPORTED 
+   integer, public :: hlm_use_frosthard    ! This flag signals whether or not to use Marius
                                                        ! plant hydraulics (bchristo/xu methods)
                                                        ! 1 = TRUE, 0 = FALSE
                                                        ! THIS IS CURRENTLY NOT SUPPORTED 

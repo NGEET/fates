@@ -25,7 +25,8 @@ module EDMainMod
   use FatesInterfaceTypesMod        , only : bc_out_type
   use FatesInterfaceTypesMod        , only : hlm_masterproc
   use FatesInterfaceTypesMod        , only : numpft
-  use FatesInterfaceTypesMod        , only : hlm_use_hardening !marius
+  use FatesInterfaceTypesMod        , only : hlm_use_hydrohard !marius
+  use FatesInterfaceTypesMod        , only : hlm_use_frosthard !marius
   use FatesInterfaceTypesMod        , only : hlm_model_day !marius
   use FatesHydroWTFMod              , only : wrf_type, wrf_type_tfs
   use FatesInterfaceTypesMod        , only : hlm_use_nocomp
@@ -347,7 +348,7 @@ contains
     else
        currentSite%gdd5= currentSite%gdd5 + max(0.0_r8,bc_in%t_ref2m_24_si-273.15_r8-5.0_r8)
     end if
-    if (hlm_use_hardening.eq.itrue) then
+    if (hlm_use_hydrohard.eq.itrue .or. hlm_use_frosthard.eq.itrue) then
       if (nint(hlm_model_day)>=366) then
         write(fates_log(),*) '5yrmean was taken'
         currentSite%hardtemp=bc_in%t_mean_5yr_si-273.15_r8
@@ -387,7 +388,7 @@ contains
 
           call Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary )
 
-          if (hlm_use_hardening.eq.itrue) then
+          if (hlm_use_hydrohard.eq.itrue .or. hlm_use_frosthard.eq.itrue) then
 	      call Hardening_scheme( currentSite, currentPatch, currentCohort, bc_in ) !hard_level and hard_GRF will be updated, ED_ecosystem_dynamics is called once a day at beginning of day Marius
               !write(fates_log(),*) 'CHECK EDmainMod' !marius
           endif

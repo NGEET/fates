@@ -39,7 +39,8 @@ module FatesRestartInterfaceMod
   use EDTypesMod,              only : nfsc
   use PRTGenericMod,           only : prt_global
   use PRTGenericMod,           only : num_elements
-  use FatesInterfaceTypesMod  , only : hlm_use_hardening !marius
+  use FatesInterfaceTypesMod  , only : hlm_use_hydrohard !marius
+  use FatesInterfaceTypesMod  , only : hlm_use_frosthard !marius
 
 
   ! CIME GLOBALS
@@ -675,7 +676,7 @@ contains
     ! 1D cohort Variables
     ! -----------------------------------------------------------------------------------
 
-    if  (hlm_use_hardening .eq. itrue) then !marius
+    if  (hlm_use_hydrohard .eq. itrue .or. hlm_use_frosthard .eq. itrue) then !marius
        call this%set_restart_var(vname='fates_hard_level', vtype=cohort_r8, &
             long_name='hard_level', units='DegC', flushval = flushinvalid, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hard_level_co )
@@ -2714,7 +2715,7 @@ contains
                 ccohort%npp_acc_hold = rio_npp_acc_hold_co(io_idx_co)
                 ccohort%resp_m_def   = rio_resp_m_def_co(io_idx_co)
                 
-                if (hlm_use_hardening .eq. itrue) then
+                if (hlm_use_hydrohard .eq. itrue .or. hlm_use_frosthard .eq. itrue) then
                    ccohort%hard_level   = rio_hard_level_co(io_idx_co) !marius
                    ccohort%hard_level_prev   = rio_hard_level_prev_co(io_idx_co)
                 end if

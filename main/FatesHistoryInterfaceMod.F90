@@ -34,7 +34,8 @@ module FatesHistoryInterfaceMod
   use FatesHistoryVariableType , only : fates_history_variable_type
   use FatesInterfaceTypesMod        , only : hlm_hio_ignore_val
   use FatesInterfaceTypesMod        , only : hlm_use_planthydro
-  use FatesInterfaceTypesMod        , only : hlm_use_hardening !marius
+  use FatesInterfaceTypesMod        , only : hlm_use_hydrohard !marius
+  use FatesInterfaceTypesMod        , only : hlm_use_frosthard !marius
   use FatesInterfaceTypesMod        , only : hlm_use_ed_st3
   use FatesInterfaceTypesMod        , only : hlm_use_cohort_age_tracking
   use FatesInterfaceTypesMod        , only : numpft
@@ -2147,7 +2148,7 @@ end subroutine flush_hvars
          hio_harvest_carbonflux_si(io_si) = sites(s)%harvest_carbon_flux
          
          !========================================================marius hardening   
-         if (hlm_use_hardening.eq.itrue) then    
+         if (hlm_use_hydrohard .eq. itrue .or. hlm_use_frosthard .eq. itrue) then    
            hio_hardtemp_si(io_si)   =  sites(s)%hardtemp        
            ncohort_pft(:) = 0.0_r8 
            ! Normalization counters
@@ -2431,7 +2432,7 @@ end subroutine flush_hvars
                ! Flux Variables (cohorts must had experienced a day before any of these values
                ! have any meaning, otherwise they are just inialization values
                if( .not.(ccohort%isnew) ) then
-                  if (hlm_use_hardening.eq.itrue) then
+                  if (hlm_use_hydrohard .eq. itrue .or. hlm_use_frosthard .eq. itrue) then
                     ft = ccohort%pft                                                         !marius
                     number_fraction_pft = (ccohort%n / ncohort_pft(ft))                      !marius
 
