@@ -27,7 +27,6 @@ module FatesIODimensionsMod
     character(*), parameter, public  :: levcan = 'fates_levcan'        ! matches histFileMod
     character(*), parameter, public  :: levcnlf = 'fates_levcnlf'      ! matches histFileMod
     character(*), parameter, public  :: levcnlfpft = 'fates_levcnlfpf' ! matches histFileMod
-    character(*), parameter, public  :: levcdcd = 'fates_levcdcd' ! matches histFileMod
     character(*), parameter, public  :: levcdsc = 'fates_levcdsc' ! matches histFileMod
     character(*), parameter, public  :: levcdpf = 'fates_levcdpf' ! matches histFileMod
     character(*), parameter, public  :: levagefuel = 'fates_levagefuel' ! matches histFileMod
@@ -82,9 +81,6 @@ module FatesIODimensionsMod
 
     ! levcnlfpft = This is a structure that records the boundaries for the
     ! number of canopy layer x leaf layer x pft dimension
-
-    ! levcdcd = This is a structure that records the boundaries for the
-    ! number of crown damage x crown damage classes - for diagnostic fluxes
 
     ! levcdsc = This is a structure that records the boundaries for the
     ! number of crown damage x size classes dimension
@@ -151,8 +147,6 @@ module FatesIODimensionsMod
        integer :: cnlfpft_end
        integer :: cdamage_begin
        integer :: cdamage_end
-       integer :: cdcd_begin
-       integer :: cdcd_end
        integer :: cdsc_begin
        integer :: cdsc_end
        integer :: cdpf_begin
