@@ -58,26 +58,12 @@ module FatesHydraulicsMemMod
    ! P-V curve: total RWC @ which capillary reserves exhausted (tfs)
    real(r8), parameter, public, dimension(n_plant_media) :: rwccap  = (/1.0_r8,0.947_r8,0.947_r8,0.947_r8/) 
    
-
-   ! mirror of nlevcan, hard-set for simplicity, remove nlevcan_hyd on a rainy day
-   ! Note (RGK): uscing nclmax causes annoying circular dependency (this needs EDTypes, EDTypes needs this)
-   ! way around that: dynamic allocation, or just keep this, but set the value high
-   integer, parameter, public                          :: nlevcan_hyd = 2                       
-                       
    ! Mean fine root radius expected in the bulk soil                
    real(r8), parameter, public                         :: fine_root_radius_const = 0.0001_r8
 
-   ! Should we ignore the first soil layer and have root layers start on the second?
-   logical, parameter, public :: ignore_layer1=.false.
-   logical, parameter, public :: aggregate_layers=.true.
-   
-   
-   ! Derived parameters
-   ! ----------------------------------------------------------------------------------------------
-   
-   !temporatory variables
 
 
+   
    type, public :: ed_site_hydr_type
 
       ! Plant Hydraulics

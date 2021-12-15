@@ -3934,7 +3934,6 @@ end subroutine update_history_hifrq
 
     use FatesHydraulicsMemMod, only : ed_cohort_hydr_type, nshell
     use FatesHydraulicsMemMod, only : ed_site_hydr_type
-    use FatesHydraulicsMemMod, only : aggregate_layers
     use EDTypesMod           , only : maxpft
 
 
