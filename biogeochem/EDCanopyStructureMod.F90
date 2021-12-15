@@ -1935,9 +1935,13 @@ contains
        total_patch_area = 0._r8
        total_canopy_area = 0._r8
        bc_out(s)%canopy_fraction_pa(:) = 0._r8
-       bc_out(s)%dleaf_pa(:) = 0._r8
-       bc_out(s)%z0m_pa(:) = 0._r8
-       bc_out(s)%displa_pa(:) = 0._r8
+       
+       if (hlm_use_sp.eq.ifalse) then
+          bc_out(s)%dleaf_pa(:) = 0._r8
+          bc_out(s)%z0m_pa(:) = 0._r8
+          bc_out(s)%displa_pa(:) = 0._r8
+       endif
+       
        currentPatch => sites(s)%oldest_patch
        c = fcolumn(s)
        do while(associated(currentPatch))
@@ -1963,9 +1967,10 @@ contains
              ! Use canopy-only crown area weighting for all cohorts in the patch to define the characteristic
              ! Roughness length and displacement height used by the HLM
              ! use total LAI + SAI to weight the leaft characteristic dimension
+             ! Avoid this if running in satellite phenology mode
              ! ----------------------------------------------------------------------------
 
-             if (currentPatch%total_canopy_area > nearzero) then
+             if (currentPatch%total_canopy_area > nearzero .and. hlm_use_sp.eq.ifalse) then
                 currentCohort => currentPatch%shortest
                 do while(associated(currentCohort))
                    if (currentCohort%canopy_layer .eq. 1) then
