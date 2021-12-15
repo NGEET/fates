@@ -6817,75 +6817,75 @@ end subroutine update_history_hifrq
              avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',     &
              upfreq=4, ivar=ivar, initialize=initialize_variables, index = ih_iterh2_scpf )
 
-       call this%set_history_var(vname='FATES_ROOTH2O_ABS_SZPF',               &
+       call this%set_history_var(vname='FATES_ABSROOT_H2O_SZPF',               &
              units='m3 m-3',                                                   &
              long='absorbing volumetric root water content by size class x pft', &
              use_default='inactive', avgflag='A', vtype=site_size_pft_r8,      &
              hlms='CLM:ALM', upfreq=4, ivar=ivar,                              &
              initialize=initialize_variables, index = ih_ath_scpf)
 
-       call this%set_history_var(vname='FATES_ROOTH2O_TRANS_SZPF',             &
+       call this%set_history_var(vname='FATES_TRANSROOT_H2O_SZPF',             &
              units='m3 m-3',                                                   &
              long='transporting volumetric root water content by size class x pft', &
              use_default='inactive', avgflag='A', vtype=site_size_pft_r8,      &
              hlms='CLM:ALM', upfreq=4, ivar=ivar,                              &
              initialize=initialize_variables, index =  ih_tth_scpf)
 
-       call this%set_history_var(vname='FATES_STEMH2O_SZPF', units='m3 m-3',   &
+       call this%set_history_var(vname='FATES_STEM_H2O_SZPF', units='m3 m-3',   &
              long='stem volumetric water content by size class x pft',         &
              use_default='inactive', avgflag='A', vtype=site_size_pft_r8,      &
              hlms='CLM:ALM', upfreq=4, ivar=ivar,                              &
              initialize=initialize_variables, index = ih_sth_scpf)
 
-       call this%set_history_var(vname='FATES_LEAFH2O_SZPF', units='m3 m-3',   &
+       call this%set_history_var(vname='FATES_LEAF_H2O_SZPF', units='m3 m-3',   &
              long='leaf volumetric water content by size class x pft',         &
              use_default='inactive', avgflag='A', vtype=site_size_pft_r8,      &
              hlms='CLM:ALM', upfreq=4, ivar=ivar,                              &
              initialize=initialize_variables, index = ih_lth_scpf)
 
-       call this%set_history_var(vname='FATES_ROOTH2O_POT_SZPF', units='Pa',   &
+       call this%set_history_var(vname='FATES_ABSROOT_H2OPOT_SZPF', units='Pa',   &
              long='absorbing root water potential by size class x pft',        &
              use_default='inactive', avgflag='A', vtype=site_size_pft_r8,      &
              hlms='CLM:ALM', upfreq=4, ivar=ivar,                              &
              initialize=initialize_variables, index = ih_awp_scpf)
 
-       call this%set_history_var(vname='FATES_ROOTH2O_TRANSPOT_SZPF',          &
+       call this%set_history_var(vname='FATES_TRANSROOT_H2OPOT_SZPF',          &
              units='Pa', long='transporting root water potential by size class x pft', &
              use_default='inactive', avgflag='A', vtype=site_size_pft_r8,      &
              hlms='CLM:ALM', upfreq=4, ivar=ivar,                              &
              initialize=initialize_variables, index = ih_twp_scpf)
 
-       call this%set_history_var(vname='FATES_STEMH2O_POT_SZPF', units='Pa',   &
+       call this%set_history_var(vname='FATES_STEM_H2OPOT_SZPF', units='Pa',   &
              long='stem water potential by size class x pft',                  &
              use_default='inactive', avgflag='A', vtype=site_size_pft_r8,      &
              hlms='CLM:ALM', upfreq=4, ivar=ivar,                              &
              initialize=initialize_variables, index = ih_swp_scpf)
 
-       call this%set_history_var(vname='FATES_LEAFH2O_POT_SZPF', units='Pa',   &
+       call this%set_history_var(vname='FATES_LEAF_H2OPOT_SZPF', units='Pa',   &
              long='leaf water potential by size class x pft',                  &
              use_default='inactive', avgflag='A', vtype=site_size_pft_r8,      &
              hlms='CLM:ALM', upfreq=4, ivar=ivar,                              &
              initialize=initialize_variables, index = ih_lwp_scpf)
 
-       call this%set_history_var(vname='FATES_ROOT_ABSFRAC_SZPF', units='1',   &
+       call this%set_history_var(vname='FATES_ABSROOT_CONDFRAC_SZPF', units='1',   &
              long='absorbing root fraction (0-1) of condutivity by size class x pft', &
              use_default='active', avgflag='A', vtype=site_size_pft_r8,        &
              hlms='CLM:ALM', upfreq=4, ivar=ivar,                              &
              initialize=initialize_variables, index = ih_aflc_scpf)
 
-       call this%set_history_var(vname='FATES_ROOT_TRANSFRAC_SZPF', units='1', &
+       call this%set_history_var(vname='FATES_TRANSROOT_CONDFRAC_SZPF', units='1', &
              long='transporting root fraction (0-1) of condutivity by size class x pft', &
              use_default='active', avgflag='A', vtype=site_size_pft_r8,        &
              hlms='CLM:ALM', upfreq=4, ivar=ivar,                              &
              initialize=initialize_variables, index = ih_tflc_scpf)
 
-       call this%set_history_var(vname='FATES_STEMH2O_FRAC_SZPF', units='1',   &
+       call this%set_history_var(vname='FATES_STEM_CONDFRAC_SZPF', units='1',   &
              long='stem water fraction (0-1) of condutivity by size class x pft', &
              use_default='active', avgflag='A', vtype=site_size_pft_r8,        &
              hlms='CLM:ALM', upfreq=4, ivar=ivar,                              &
              initialize=initialize_variables, index = ih_sflc_scpf)
 
-       call this%set_history_var(vname='FATES_LEAFH2O_FRAC_SZPF', units='1',   &
+       call this%set_history_var(vname='FATES_LEAF_CONDFRAC_SZPF', units='1',   &
              long='leaf water fraction (0-1) of condutivity by size class x pft', &
              use_default='active', avgflag='A', vtype=site_size_pft_r8,        &
              hlms='CLM:ALM', upfreq=4, ivar=ivar,                              &
