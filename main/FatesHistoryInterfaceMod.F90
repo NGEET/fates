@@ -3966,10 +3966,11 @@ end subroutine update_history_hifrq
     integer  :: ipft     ! index of the pft loop
     integer  :: iscls    ! index of the size-class loop
     integer  :: k        ! rhizosphere shell index
-    integer  :: jsoil    ! soil layer index
-    integer  :: jrhiz    ! rhizosphere layer index
-    integer  :: jr1, jr2 ! Rhizosphere top and bottom layers
+    integer  :: j        ! rhizosphere (ie root) layer index
+    integer  :: j_bc     ! Soil layer index (ie boundary condition grid index)
+    integer  :: j_t,j_b  ! top and bottom soil layer matching current rhiz layer
     integer  :: nlevrhiz ! number of rhizosphere layers
+    integer  :: nlevsoil ! number of soil layers
     real(r8) :: mean_soil_vwc    ! mean soil volumetric water content [m3/m3]
     real(r8) :: mean_soil_vwcsat ! mean soil saturated volumetric water content [m3/m3]
     real(r8) :: mean_soil_matpot ! mean soil water potential [MPa]
@@ -3978,6 +3979,7 @@ end subroutine update_history_hifrq
     real(r8) :: vwc              ! volumetric water content of layer [m3/m3] = theta
     real(r8) :: vwc_sat          ! saturated water content of layer [m3/m3]
     real(r8) :: psi              ! matric potential of soil layer
+    real(r8) :: depth_frac       ! fraction of rhizosphere layer depth occupied by current soil layer
     character(2) :: fmt_char
     type(ed_patch_type),pointer  :: cpatch
     type(ed_cohort_type),pointer :: ccohort
@@ -4047,17 +4049,15 @@ end subroutine update_history_hifrq
 
          site_hydr => sites(s)%si_hydr
          nlevrhiz = site_hydr%nlevrhiz
-         jr1 = site_hydr%i_rhiz_t
-         if(aggregate_layers) jr1 = jr1 -1
-         jr2 = site_hydr%i_rhiz_b
-
+         nlevsoil = bc_in(s)%nlevsoil
          io_si  = sites(s)%h_gid
 
          hio_h2oveg_si(io_si)              = site_hydr%h2oveg
          hio_h2oveg_hydro_err_si(io_si)    = site_hydr%h2oveg_hydro_err
 
-
-
+         hio_rootuptake_sl(io_si,1:nlevsoil) = site_hydr%rootuptake_sl(1:nlevsoil)
+         hio_rootuptake_si(io_si) = sum(site_hydr%rootuptake_sl,dim=1)
+         
          ! Get column means of some soil diagnostics, these are weighted
          ! by the amount of fine-root surface area in each layer
          ! --------------------------------------------------------------------
@@ -4067,55 +4067,48 @@ end subroutine update_history_hifrq
          mean_soil_vwcsat = 0._r8
          areaweight       = 0._r8
 
-         do jrhiz=1,nlevrhiz
+         do j=1,nlevrhiz
 
-            if(.not. aggregate_layers) then 
-               jsoil = jrhiz + jr1-1
-            else
-               jsoil = site_hydr%map_r2s(jrhiz,2)
-            end if
+            j_t = site_hydr%map_r2s(j,1) ! top soil layer matching rhiz layer
+            j_b = site_hydr%map_r2s(j,2) ! bottom soil layer matching rhiz layer
 
-            vwc     = bc_in(s)%h2o_liqvol_sl(jsoil)
-            psi     = site_hydr%wrf_soil(jrhiz)%p%psi_from_th(vwc)
-            !cap capillary pressure
-            psi = max(-1e5_r8,psi)
-            vwc_sat = bc_in(s)%watsat_sl(jsoil)
-            !patch with cohorts
-            if(site_hydr%l_aroot_layer(jrhiz) > 0._r8) then
-              layer_areaweight = site_hydr%l_aroot_layer(jrhiz)*pi_const*site_hydr%rs1(jrhiz)**2.0
-              mean_soil_vwc    = mean_soil_vwc + vwc*layer_areaweight
-              mean_soil_vwcsat = mean_soil_vwcsat + vwc_sat*layer_areaweight
-              mean_soil_matpot = mean_soil_matpot + psi*layer_areaweight
-              areaweight       = areaweight + layer_areaweight
-            endif
+            do j_bc = j_t,j_b
+            
+               vwc     = bc_in(s)%h2o_liqvol_sl(j_bc)
+               psi     = site_hydr%wrf_soil(j)%p%psi_from_th(vwc)
+               ! cap capillary pressure
+               ! psi = max(-1e5_r8,psi) Removing cap as that is inconstistent
+               !                        with model internals and physics. Should
+               !                        implement caps inside the functions
+               !                        if desired. (RGK 12-2021)
+               vwc_sat = bc_in(s)%watsat_sl(j_bc)
+               depth_frac = bc_in(s)%dz_sisl(j_bc)/site_hydr%dz_rhiz(j)
 
-            hio_soilmatpot_sl(io_si,jsoil) = psi * pa_per_mpa
-            hio_soilvwc_sl(io_si,jsoil)    = vwc
-            hio_soilvwcsat_sl(io_si,jsoil) = vwc_sat
+               ! If there are any roots, we use root weighting
+               if(sum(site_hydr%l_aroot_layer(:),dim=1) > nearzero) then
+                  layer_areaweight = site_hydr%l_aroot_layer(j)*depth_frac*pi_const*site_hydr%rs1(j)**2.0
 
+               ! If there are no roots, we use depth weighting
+               else
+                  layer_areaweight = bc_in(s)%dz_sisl(j_bc)
+               endif
+               
+               areaweight       = areaweight + layer_areaweight
+               mean_soil_vwc    = mean_soil_vwc + vwc*layer_areaweight
+               mean_soil_vwcsat = mean_soil_vwcsat + vwc_sat*layer_areaweight
+               mean_soil_matpot = mean_soil_matpot + psi*layer_areaweight
+               
+               hio_soilmatpot_sl(io_si,j_bc) = psi * pa_per_mpa
+               hio_soilvwc_sl(io_si,j_bc)    = vwc
+               hio_soilvwcsat_sl(io_si,j_bc) = vwc_sat
+               
+            end do
          end do
-
-         if(sum(site_hydr%l_aroot_layer) == 0._r8) then
-         !to avoid nan for patch without cohorts
-           hio_rootwgt_soilvwc_si(io_si)    = 0._r8
-           hio_rootwgt_soilvwcsat_si(io_si) = 0._r8
-           hio_rootwgt_soilmatpot_si(io_si) = 0._r8
          
-           hio_rootuptake_si(io_si) = 0._r8
-           hio_rootuptake_sl(io_si,:) = 0._r8
-           hio_rootuptake_sl(io_si,jr1:jr2) = 0._r8
-           hio_rootuptake_si(io_si) = 0._r8
-         else
-           hio_rootwgt_soilvwc_si(io_si)    = mean_soil_vwc/areaweight
-           hio_rootwgt_soilvwcsat_si(io_si) = mean_soil_vwcsat/areaweight
-           hio_rootwgt_soilmatpot_si(io_si) = mean_soil_matpot/areaweight  * pa_per_mpa
+         hio_rootwgt_soilvwc_si(io_si)    = mean_soil_vwc/areaweight
+         hio_rootwgt_soilvwcsat_si(io_si) = mean_soil_vwcsat/areaweight
+         hio_rootwgt_soilmatpot_si(io_si) = mean_soil_matpot/areaweight  * pa_per_mpa
          
-           hio_rootuptake_si(io_si) = sum(site_hydr%rootuptake_sl,dim=1) / m2_per_ha
-           hio_rootuptake_sl(io_si,:) = 0._r8
-           hio_rootuptake_sl(io_si,jr1:jr2) = site_hydr%rootuptake_sl(1:nlevrhiz) / &
-              m2_per_ha
-           hio_rootuptake_si(io_si) = sum(site_hydr%sapflow_scpf) / m2_per_ha
-         endif
 
          ! Normalization counters
          nplant_scpf(:) = 0._r8
