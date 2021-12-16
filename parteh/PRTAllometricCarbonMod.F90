@@ -944,10 +944,10 @@ contains
         
         
         !START ahb's changes
-        if ( regen_model == 1 .or. ipft > 6) then !the Tree Recruitment Scheme is not parameterized
+        if ( regen_model == 1 .or. ipft > 6) then !The Tree Recruitment Scheme is not parameterized
                 !to work with non-tree pfts
 
-        !original code
+        !Original code
         !-------------------------------------------------------------------------------------
         if (dbh <= prt_params%dbh_repro_threshold(ipft)) then ! cap on leaf biomass
            repro_fraction = prt_params%seed_alloc(ipft)
@@ -958,7 +958,7 @@ contains
         
         else if ( regen_model == 2 .and. ipft < 7) then !tree pfts only
 
-        !new regeneration code
+        !New regeneration code
         !-------------------------------------------------------------------------------------
         !This reproductive allocation function calculates the fraction of available carbon
         !allocated to reproductive tissue based on a cohort's size. This function is based on
