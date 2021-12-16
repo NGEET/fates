@@ -1342,8 +1342,13 @@ contains
                             end do ! end crowndamage loop
 
                             ! Reduce currentCohort%n now based on sum of all new damage classes  
-                            currentCohort%n = currentCohort%n - cd_n_total
+                            if(hlm_use_canopy_damage .eq. itrue) then
+                               currentCohort%n = currentCohort%n - cd_n_total
+                            else if(hlm_use_understory_damage .eq. itrue) then
+                               nc%n = nc%n - cd_n_total
+                            end if
 
+                            
                          end if ! end if not new
                       end if  ! end if canopy and woody              
                    end if ! end if damage time
