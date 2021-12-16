@@ -172,7 +172,7 @@ contains
 
      real(r8),intent(in) :: dbh    ! diameter of plant [cm]
      integer,intent(in)  :: ipft   ! plant functional type index
-     integer,intent(in)  :: crowndamage
+     integer,intent(in)  :: crowndamage ! crowndamage [1: undamaged, >1 damaged]
      real(r8),intent(in) :: branch_frac
      real(r8),intent(in) :: canopy_trim ! trimming function
      real(r8),intent(in) :: bl     ! integrated leaf biomass [kgC]
@@ -367,7 +367,7 @@ contains
 
     real(r8),intent(in)    :: d       ! plant diameter [cm]
     integer(i4),intent(in) :: ipft    ! PFT index
-    integer(i4),intent(in) :: crowndamage
+    integer(i4),intent(in) :: crowndamage ! crowndamage [1: undamaged, >1: damaged]
     real(r8),intent(in)    :: branch_frac
     real(r8),intent(out)   :: bagw    ! biomass above ground woody tissues
     real(r8),intent(out),optional :: dbagwdd  ! change in agbw per diameter [kgC/cm]
@@ -460,7 +460,7 @@ contains
      real(r8),intent(in)    :: site_spread  ! site level spread factor (crowdedness)
      real(r8),intent(in)    :: nplant       ! number of plants [1/ha]
      integer(i4),intent(in) :: ipft         ! PFT index
-     integer(i4),intent(in) :: crowndamage  ! crown damage class of the cohort
+     integer(i4),intent(in) :: crowndamage  ! crown damage class [1: undamaged, >1: damaged]
      real(r8),intent(inout) :: c_area       ! crown area per cohort (m2)
      logical,optional,intent(in) :: inverse ! if true, calculate dbh from crown area 
                                             ! instead of crown area from dbh
@@ -545,7 +545,7 @@ contains
     
     real(r8),intent(in)    :: d             ! plant diameter [cm]
     integer(i4),intent(in) :: ipft          ! PFT index
-    integer(i4),intent(in) :: crowndamage   ! crown damage class
+    integer(i4),intent(in) :: crowndamage   ! crown damage class [1: undamaged, >1: damaged]
     real(r8),intent(in)    :: canopy_trim   ! trimming function
     real(r8),intent(out)   :: bl            ! plant leaf biomass [kg]
     real(r8),intent(out),optional :: dbldd  ! change leaf bio per diameter [kgC/cm]
@@ -897,7 +897,7 @@ contains
     
     real(r8),intent(in)           :: d           ! plant diameter [cm]
     integer(i4),intent(in)        :: ipft        ! PFT index
-    integer(i4),intent(in)        :: crowndamage
+    integer(i4),intent(in)        :: crowndamage ! Crown damage class [1: undamaged, >1: damaged]
     real(r8),intent(in)           :: branch_frac
     real(r8),intent(in)           :: canopy_trim
     real(r8),intent(out)          :: sapw_area   ! cross section area of
@@ -1067,7 +1067,7 @@ contains
 
      real(r8),intent(in)           :: d            ! plant diameter [cm]
      integer(i4),intent(in)        :: ipft         ! PFT index
-     integer(i4),intent(in)        :: crowndamage  ! Crowndamage class
+     integer(i4),intent(in)        :: crowndamage  ! Crowndamage class [1: undamaged, >1: damaged]
      real(r8),intent(in)           :: canopy_trim  ! Crown trimming function [0-1]
      real(r8),intent(out)          :: bstore       ! allometric target storage [kgC]
      real(r8),intent(out),optional :: dbstoredd    ! change storage per cm [kgC/cm]
@@ -2089,7 +2089,7 @@ contains
      real(r8),intent(in) :: d2ca_max    ! maximum diameter to crown area scaling factor
      real(r8),intent(inout) :: c_area   ! crown area for one plant [m2]
      logical,intent(in)  :: inverse     ! if true, calculate dbh from crown area rather than its reverse
-     integer,intent(in)  :: crowndamage
+     integer,intent(in)  :: crowndamage ! crowndamage class [1: undamaged, >1: damaged]
      
      real(r8)            :: crown_area_to_dbh_exponent
      real(r8)            :: spreadterm  ! Effective 2bh to crown area scaling factor
@@ -2409,7 +2409,7 @@ subroutine ForceDBH( ipft, canopy_trim, d, h, bdead, bl, crowndamage, branch_fra
 
 
      integer(i4),intent(in)        :: ipft  ! PFT index
-     integer(i4),intent(in),optional :: crowndamage ! crowndamage 
+     integer(i4),intent(in),optional :: crowndamage ! crowndamage [1: undamaged, >1: damaged]
      real(r8),intent(in)           :: canopy_trim
      real(r8),intent(inout)        :: d     ! plant diameter [cm]
      real(r8),intent(out)          :: h     ! plant height
