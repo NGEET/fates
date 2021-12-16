@@ -1371,10 +1371,7 @@ contains
     real(r8) :: site_seed_rain(maxpft) ! This is the sum of seed-rain for the site [kg/site/day]
     real(r8) :: seed_in_external       ! Mass of externally generated seeds [kg/m2/day]
     real(r8) :: seed_stoich            ! Mass ratio of nutrient per C12 in seeds [kg/kg]
-    real(r8) :: repro_mass_prod        ! Mass of reproductive material produced [kg/day] ; added by ahb 7/8/2021
-    real(r8), parameter :: repro_frac_seed = 0.5        !added by ahb 7/12/2021; move this to param file
     real(r8) :: seed_prod              ! Seed produced in this dynamics step [kg/day]
-    real(r8) :: non_seed_repro_prod    ! Mass of non-seed reproductive material produced [kg/day] ; added by ahb 7/10/2021
     integer  :: n_litt_types           ! number of litter element types (c,n,p, etc)
     integer  :: el                     ! loop counter for litter element types
     integer  :: element_id             ! element id consistent with parteh/PRTGenericMod.F90
@@ -1452,10 +1449,10 @@ contains
              litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)/area
 
              !New regeneration code added by ahb on 7/15/2021
-             !The original code sends all reproductive tissue to seed
-             !This new code is designed to send some reproductive biomass 
-             !straight to the leaf litter pool to account for non-seed reproductive
-             !biomass. Also see small change to SeedDecay subroutine.
+             !The original code sent all reproductive carbon to seed
+             !The code below sends a fraction of reproductive carbon to the leaf litter pool
+             !to account for non-seed reproductive carbon (e.g. flower, fruit, etc.)
+             !PICK UP HERE WITH ADDING SWITCH
              !--------------------------------
              litt%seed_decay(pft) = litt%seed_in_local(pft) * (1.0_r8 - EDPftvarcon_inst%repro_frac_seed(pft)) !ahb
              !--------------------------------

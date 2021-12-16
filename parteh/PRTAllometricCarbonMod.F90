@@ -909,6 +909,7 @@ contains
       real(r8) :: ct_ddeaddd     ! target structural biomass derivative wrt diameter, (kgC/cm)
       real(r8) :: ct_dtotaldd    ! target total (not reproductive) biomass derivative wrt diameter, (kgC/cm)
       real(r8) :: repro_fraction ! fraction of carbon balance directed towards reproduction (kgC/kgC)
+      integer :: regen_model=2
 
       associate( dbh    => c_pools(dbh_id), &
                  cleaf  => c_pools(leaf_c_id), &
@@ -941,16 +942,22 @@ contains
         
         ! fraction of carbon going towards reproduction
         
+        
         !START ahb's changes
+        if ( regen_model == 1 .or. ipft > 6) then !the Tree Recruitment Scheme is not parameterized
+                !to work with non-tree pfts
+
         !original code
         !-------------------------------------------------------------------------------------
-        !if (dbh <= prt_params%dbh_repro_threshold(ipft)) then ! cap on leaf biomass
-        !   repro_fraction = prt_params%seed_alloc(ipft)
-        !else
-        !   repro_fraction = prt_params%seed_alloc(ipft) + prt_params%seed_alloc_mature(ipft)
-        !end if
+        if (dbh <= prt_params%dbh_repro_threshold(ipft)) then ! cap on leaf biomass
+           repro_fraction = prt_params%seed_alloc(ipft)
+        else
+           repro_fraction = prt_params%seed_alloc(ipft) + prt_params%seed_alloc_mature(ipft)
+        end if
         !-------------------------------------------------------------------------------------
         
+        else if ( regen_model == 2 .and. ipft < 7) then !tree pfts only
+
         !new regeneration code
         !-------------------------------------------------------------------------------------
         !This reproductive allocation function calculates the fraction of available carbon
@@ -963,9 +970,10 @@ contains
         !-------------------------------------------------------------------------------------
         repro_fraction = prt_params%seed_alloc(ipft) * &
         (exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm) / &
-        (1 + exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_b(ipft)*dbh*mm_per_cm)))
+        (1 + exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm)))
         !-------------------------------------------------------------------------------------!
 
+        end if !regen model switch
         !END ahb's changes
 
         dCdx = 0.0_r8
