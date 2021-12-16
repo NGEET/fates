@@ -167,7 +167,7 @@ variables:
                 fates_damage_recovery_scalar:long_name = "fraction of cohort that recovers from damage";
         double fates_ncrowndamage ;
                 fates_ncrowndamage: units = "unitless" ; 
-                fates_ncrowndamage: long_name = "number of crowndamage classes" ;  
+                fates_ncrowndamage: long_name = "number of crown damage classes" ;  
         double fates_c2b(fates_pft) ;
 		fates_c2b:units = "ratio" ;
 		fates_c2b:long_name = "Carbon to biomass multiplier of bulk structural tissues" ;
