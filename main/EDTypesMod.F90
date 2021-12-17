@@ -221,7 +221,7 @@ module EDTypesMod
      real(r8) ::  sapwmemory                             ! target sapwood biomass- set from previous year: kGC per indiv
      real(r8) ::  structmemory                           ! target structural biomass- set from previous year: kGC per indiv
      integer  ::  canopy_layer                           ! canopy status of cohort (1 = canopy, 2 = understorey, etc.)
-     integer  ::  crowndamage                            ! crown damage class of the cohort
+     integer  ::  crowndamage                            ! crown damage class of the cohort [1: undamaged, >1: damaged]
      real(r8) ::  canopy_layer_yesterday                 ! recent canopy status of cohort
                                                          ! (1 = canopy, 2 = understorey, etc.)  
                                                          ! real to be conservative during fusion
