@@ -21,9 +21,14 @@ module FatesInterfaceMod
    use EDTypesMod                , only : do_fates_salinity
    use EDTypesMod                , only : numWaterMem
    use EDTypesMod                , only : numlevsoil_max
+   use EDTypesMod                , only : ed_site_type
+   use EDTypesMod                , only : ed_patch_type
+   use EDTypesMod                , only : ed_cohort_type
+   use EDTypesMod                , only : area_inv
    use FatesConstantsMod         , only : r8 => fates_r8
    use FatesConstantsMod         , only : itrue,ifalse
    use FatesConstantsMod         , only : nearzero
+   use FatesConstantsMod         , only : sec_per_day
    use FatesGlobals              , only : fates_global_verbose
    use FatesGlobals              , only : fates_log
    use FatesGlobals              , only : endrun => fates_endrun
@@ -36,6 +41,7 @@ module FatesInterfaceMod
    use EDParamsMod               , only : FatesReportParams
    use EDParamsMod               , only : bgc_soil_salinity
    use FatesPlantHydraulicsMod   , only : InitHydroGlobals
+   use EDParamsMod               , only : photo_temp_acclim_timescale
    use EDParamsMod               , only : ED_val_history_sizeclass_bin_edges
    use EDParamsMod               , only : ED_val_history_ageclass_bin_edges
    use EDParamsMod               , only : ED_val_history_height_bin_edges
@@ -67,8 +73,14 @@ module FatesInterfaceMod
    use PRTInitParamsFatesMod     , only : PRTCheckParams, PRTDerivedParams
    use PRTAllometricCarbonMod    , only : InitPRTGlobalAllometricCarbon
    use PRTAllometricCNPMod       , only : InitPRTGlobalAllometricCNP
+   use FatesRunningMeanMod       , only : ema_24hr
+   use FatesRunningMeanMod       , only : fixed_24hr
+   use FatesRunningMeanMod       , only : ema_lpa
+   use FatesRunningMeanMod       , only : moving_ema_window
+   use FatesRunningMeanMod       , only : fixed_window
+   use FatesHistoryInterfaceMod  , only : fates_hist
 
-
+   
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
    use shr_infnan_mod            , only : nan => shr_infnan_nan, assignment(=)
@@ -134,7 +146,9 @@ module FatesInterfaceMod
    public :: set_bcpconst
    public :: zero_bcs
    public :: set_bcs
-
+   public :: UpdateFatesRMeansTStep
+   public :: InitTimeAveragingGlobals
+   
 contains
 
   ! ====================================================================================
@@ -234,13 +248,12 @@ contains
     
     ! Input boundaries
     
-    fates%bc_in(s)%t_veg24_pa(:)  = 0.0_r8
-    fates%bc_in(s)%precip24_pa(:) = 0.0_r8
-    fates%bc_in(s)%relhumid24_pa(:) = 0.0_r8
-    fates%bc_in(s)%wind24_pa(:)     = 0.0_r8
-
     fates%bc_in(s)%lightning24(:)      = 0.0_r8
     fates%bc_in(s)%pop_density(:)      = 0.0_r8
+    fates%bc_in(s)%precip24_pa(:)      = 0.0_r8
+    fates%bc_in(s)%relhumid24_pa(:)    = 0.0_r8
+    fates%bc_in(s)%wind24_pa(:)        = 0.0_r8
+     
     fates%bc_in(s)%solad_parb(:,:)     = 0.0_r8
     fates%bc_in(s)%solai_parb(:,:)     = 0.0_r8
     fates%bc_in(s)%smp_sl(:)           = 0.0_r8
@@ -250,6 +263,7 @@ contains
     fates%bc_in(s)%h2o_liqvol_sl(:)    = 0.0_r8
     fates%bc_in(s)%filter_vegzen_pa(:) = .false.
     fates%bc_in(s)%coszen_pa(:)        = 0.0_r8
+    fates%bc_in(s)%fcansno_pa(:)       = 0.0_r8
     fates%bc_in(s)%albgr_dir_rb(:)     = 0.0_r8
     fates%bc_in(s)%albgr_dif_rb(:)     = 0.0_r8
     fates%bc_in(s)%max_rooting_depth_index_col = 0
@@ -337,7 +351,7 @@ contains
     fates%bc_out(s)%z0m_pa(:)    = 0.0_r8
     fates%bc_out(s)%dleaf_pa(:)   = 0.0_r8
     fates%bc_out(s)%nocomp_pft_label_pa(:) = 0
-
+    
     fates%bc_out(s)%canopy_fraction_pa(:) = 0.0_r8
     fates%bc_out(s)%frac_veg_nosno_alb_pa(:) = 0.0_r8
     
@@ -346,7 +360,7 @@ contains
        fates%bc_out(s)%qflx_ro_sisl(:)        = 0.0_r8
     end if
     fates%bc_out(s)%plant_stored_h2o_si = 0.0_r8
-    
+
     return
   end subroutine zero_bcs
 
@@ -447,12 +461,9 @@ contains
       allocate(bc_in%t_scalar_sisl(nlevsoil_in))
 
       ! Lightning (or successful ignitions) and population density
+      ! Fire related variables
       allocate(bc_in%lightning24(maxPatchesPerSite))
       allocate(bc_in%pop_density(maxPatchesPerSite))
-
-      ! Vegetation Dynamics
-      allocate(bc_in%t_veg24_pa(maxPatchesPerSite))
-
       allocate(bc_in%wind24_pa(maxPatchesPerSite))
       allocate(bc_in%relhumid24_pa(maxPatchesPerSite))
       allocate(bc_in%precip24_pa(maxPatchesPerSite))
@@ -473,6 +484,8 @@ contains
          allocate(bc_in%salinity_sl(nlevsoil_in))
       endif
 
+      
+      
       ! Photosynthesis
       allocate(bc_in%filter_photo_pa(maxPatchesPerSite))
       allocate(bc_in%dayl_factor_pa(maxPatchesPerSite))
@@ -488,6 +501,7 @@ contains
       ! Canopy Radiation
       allocate(bc_in%filter_vegzen_pa(maxPatchesPerSite))
       allocate(bc_in%coszen_pa(maxPatchesPerSite))
+      allocate(bc_in%fcansno_pa(maxPatchesPerSite))
       allocate(bc_in%albgr_dir_rb(hlm_numSWb))
       allocate(bc_in%albgr_dif_rb(hlm_numSWb))
 
@@ -606,7 +620,7 @@ contains
          bc_out%rootfr_pa(0,1:nlevsoil_in)=1._r8/real(nlevsoil_in,r8)
       end if
 
-      
+         
       ! Fates -> BGC fragmentation mass fluxes
       select case(hlm_parteh_mode) 
       case(prt_carbon_allom_hyp)
@@ -650,7 +664,7 @@ contains
 
       allocate(bc_out%canopy_fraction_pa(maxPatchesPerSite))
       allocate(bc_out%frac_veg_nosno_alb_pa(maxPatchesPerSite))
-     
+
       allocate(bc_out%nocomp_pft_label_pa(maxPatchesPerSite))
 
       ! Plant-Hydro BC's
@@ -719,7 +733,7 @@ contains
       
       if (use_fates) then
          
-         ! first read the non-PFT parameters
+         ! Self explanatory, read the fates parameter file
          call FatesReadParameters()
 
          ! Identify the number of PFTs by evaluating a pft array
@@ -862,6 +876,7 @@ contains
          ! These will not be used if use_ed or use_fates is false
          call fates_history_maps()
 
+       
 
       else
          ! If we are not using FATES, the cohort dimension is still
@@ -878,6 +893,27 @@ contains
 
     end subroutine SetFatesGlobalElements
 
+    ! ======================================================================
+
+    subroutine InitTimeAveragingGlobals()
+      
+      ! Instantiate the time-averaging method globals
+      ! NOTE: It may be possible in the future that the HLM model timesteps
+      ! are dynamic in time or space, in that case, these would no longer
+      ! be global constants.
+
+      allocate(ema_24hr)
+      call ema_24hr%define(sec_per_day, hlm_stepsize, moving_ema_window)
+      allocate(fixed_24hr)
+      call fixed_24hr%define(sec_per_day, hlm_stepsize, fixed_window)
+      allocate(ema_lpa)
+      call ema_lpa%define(photo_temp_acclim_timescale*sec_per_day, &
+           hlm_stepsize,moving_ema_window)
+
+      return
+    end subroutine InitTimeAveragingGlobals
+
+      
     ! ======================================================================
     
     subroutine InitPARTEHGlobals()
@@ -1521,9 +1557,9 @@ contains
                call endrun(msg=errMsg(sourcefile, __LINE__))
             end if
          end if
-
          
-         if(hlm_use_fixed_biogeog.eq.unset_int) then
+         
+        if(hlm_use_fixed_biogeog.eq.unset_int) then
            if(fates_global_verbose()) then
              write(fates_log(), *) 'switch for fixed biogeog unset: him_use_fixed_biogeog, exiting'
            end if
@@ -1824,15 +1860,48 @@ contains
       call PRTDerivedParams()              ! Update PARTEH derived constants
       call PRTCheckParams(masterproc)      ! Check PARTEH parameters
       call SpitFireCheckParams(masterproc)
-
+      
 
       
       return
    end subroutine FatesReportParameters
 
-  ! =====================================================================================
+   ! =====================================================================================
 
+   subroutine UpdateFatesRMeansTStep(sites,bc_in)
 
+     ! In this routine, we update any FATES buffers where
+     ! we calculate running means. It is assumed that this buffer is updated
+     ! on the model time-step.
 
+     type(ed_site_type), intent(inout) :: sites(:)
+     type(bc_in_type), intent(in)      :: bc_in(:)
+     
+     type(ed_patch_type),  pointer :: cpatch
+     type(ed_cohort_type), pointer :: ccohort
+     integer :: s, ifp, io_si
 
-end module FatesInterfaceMod
+     do s = 1,size(sites,dim=1)
+
+        ifp=0
+        cpatch => sites(s)%oldest_patch
+        do while(associated(cpatch))
+           ifp=ifp+1
+           call cpatch%tveg24%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
+           call cpatch%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
+
+           !  (Keeping as an example)
+           !ccohort => cpatch%tallest
+           !do while (associated(ccohort))
+           !   call ccohort%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
+           !   ccohort => ccohort%shorter
+           !end do
+           
+           cpatch => cpatch%younger
+        enddo
+     end do
+
+     return
+   end subroutine UpdateFatesRMeansTStep
+      
+ end module FatesInterfaceMod

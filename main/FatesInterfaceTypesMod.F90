@@ -68,7 +68,9 @@ module FatesInterfaceTypesMod
                                                      ! 0: none
                                                      ! 1: p is on
 
-   
+   real(r8), public :: hlm_stepsize        ! The step-size of the host land model (s)
+                                           ! moreover, this is the shortest main-model timestep
+                                           ! at which fates will be called on the main model integration loop
   
    real(r8), public :: hlm_hio_ignore_val  ! This value can be flushed to history 
                                                       ! diagnostics, such that the
@@ -343,30 +345,22 @@ module FatesInterfaceTypesMod
       real(r8),allocatable :: w_scalar_sisl(:)   ! fraction by which decomposition is limited by moisture availability
       real(r8),allocatable :: t_scalar_sisl(:)   ! fraction by which decomposition is limited by temperature
       
-
-      ! Vegetation Dynamics
-      ! ---------------------------------------------------------------------------------
+      ! Fire Model
 
       ! 24-hour lightning or ignitions [#/km2/day]
       real(r8),allocatable :: lightning24(:)
 
       ! Population density [#/km2]
       real(r8),allocatable :: pop_density(:)
-
-      ! Patch 24 hour vegetation temperature [K]
-      real(r8),allocatable :: t_veg24_pa(:)  
       
-      ! Fire Model
-
       ! Average precipitation over the last 24 hours [mm/s]
       real(r8), allocatable :: precip24_pa(:)
-
+      
       ! Average relative humidity over past 24 hours [-]
       real(r8), allocatable :: relhumid24_pa(:)
 
       ! Patch 24-hour running mean of wind (m/s ?)
       real(r8), allocatable :: wind24_pa(:)
-
 
       ! Radiation variables for calculating sun/shade fractions
       ! ---------------------------------------------------------------------------------
@@ -404,7 +398,7 @@ module FatesInterfaceTypesMod
       ! 2 = patch is currently marked for photosynthesis
       ! 3 = patch has been called for photosynthesis at least once
       integer, allocatable  :: filter_photo_pa(:)
-     
+
       ! atmospheric pressure (Pa)
       real(r8)              :: forc_pbot             
 
@@ -447,7 +441,10 @@ module FatesInterfaceTypesMod
       !           I am leaving it at this scale for simplicity.  Patches should
       !           have no spacially variable information
       real(r8), allocatable :: coszen_pa(:)
-      
+
+      ! fraction of canopy that is covered in snow
+      real(r8), allocatable :: fcansno_pa(:)
+       
       ! Abledo of the ground for direct radiation, by site broadband (0-1)
       real(r8), allocatable :: albgr_dir_rb(:)
 
@@ -681,7 +678,7 @@ module FatesInterfaceTypesMod
 
      integer, allocatable :: nocomp_pft_label_pa(:) ! in nocomp and SP mode, each patch has a PFT identity. 
 
-       ! FATES Hydraulics
+      ! FATES Hydraulics
 
 
       
@@ -735,7 +732,7 @@ module FatesInterfaceTypesMod
                                                 ! increasing, or all 1s)
 
    end type bc_pconst_type
-   
+  
 
 
  contains
