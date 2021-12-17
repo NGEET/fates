@@ -70,6 +70,10 @@ module EDParamsMod
    real(r8),protected, public :: ED_val_patch_fusion_tol
    real(r8),protected, public :: ED_val_canopy_closure_thresh ! site-level canopy closure point where trees take on forest (narrow) versus savannah (wide) crown allometry
    integer,protected, public  :: stomatal_model  !switch for choosing between stomatal conductance models, 1 for Ball-Berry, 2 for Medlyn
+   integer,protected, public  :: regeneration_model  !switch for choosing between regeneration  models, 1 for Fates basic, 2 for the Tree Recruitment Scheme
+                                                     !Hanbury-Brown et al., 2022
+   
+   
    
    logical,protected, public :: active_crown_fire        ! flag, 1=active crown fire 0=no active crown fire
    character(len=param_string_length),parameter :: fates_name_active_crown_fire = "fates_fire_active_crown_fire"
@@ -134,6 +138,7 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_patch_fusion_tol= "fates_patch_fusion_tol"
    character(len=param_string_length),parameter,public :: ED_name_canopy_closure_thresh= "fates_canopy_closure_thresh"      
    character(len=param_string_length),parameter,public :: ED_name_stomatal_model= "fates_leaf_stomatal_model"
+   character(len=param_string_length),parameter,public :: ED_name_regeneration_model= "fates_regeneration_model"
 
    character(len=param_string_length),parameter,public :: name_theta_cj_c3 = "fates_theta_cj_c3"
    character(len=param_string_length),parameter,public :: name_theta_cj_c4 = "fates_theta_cj_c4"
@@ -255,6 +260,7 @@ contains
     ED_val_patch_fusion_tol               = nan
     ED_val_canopy_closure_thresh          = nan
     stomatal_model                        = -9
+    regeneration_model                    = -9
     hydr_kmax_rsurf1                      = nan
     hydr_kmax_rsurf2                      = nan
     hydr_psi0                             = nan
@@ -401,6 +407,9 @@ contains
     call fates_params%RegisterParameter(name=ED_name_stomatal_model, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 	 
+    call fates_params%RegisterParameter(name=ED_name_regeneration_model, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+    
     call fates_params%RegisterParameter(name=hydr_name_kmax_rsurf1, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
@@ -590,6 +599,10 @@ contains
          data=tmpreal)
     stomatal_model = nint(tmpreal)
 
+    call fates_params%RetreiveParameter(name=ED_name_regeneration_model, &
+         data=tmpreal)
+    regeneration_model = nint(tmpreal)
+    
     call fates_params%RetreiveParameter(name=hydr_name_kmax_rsurf1, &
           data=hydr_kmax_rsurf1)
 
@@ -721,6 +734,8 @@ contains
         write(fates_log(),fmt0) 'ED_val_patch_fusion_tol = ',ED_val_patch_fusion_tol
         write(fates_log(),fmt0) 'ED_val_canopy_closure_thresh = ',ED_val_canopy_closure_thresh
         write(fates_log(),fmt0) 'stomatal_model = ',stomatal_model      
+        write(fates_log(),fmt0) 'regeneration_model = ',regeneration_model      
+        write(fates_log(),fmt0) 'hydr_kmax_rsurf1 = ',hydr_kmax_rsurf1
         write(fates_log(),fmt0) 'hydr_kmax_rsurf1 = ',hydr_kmax_rsurf1
         write(fates_log(),fmt0) 'hydr_kmax_rsurf2 = ',hydr_kmax_rsurf2  
         write(fates_log(),fmt0) 'hydr_psi0 = ',hydr_psi0

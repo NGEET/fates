@@ -51,6 +51,7 @@ module PRTAllometricCarbonMod
   use FatesConstantsMod   , only : years_per_day
 
   use PRTParametersMod    , only : prt_params
+  use EDParamsMod         , only : regeneration_model
 
   implicit none
   private
@@ -909,7 +910,9 @@ contains
       real(r8) :: ct_ddeaddd     ! target structural biomass derivative wrt diameter, (kgC/cm)
       real(r8) :: ct_dtotaldd    ! target total (not reproductive) biomass derivative wrt diameter, (kgC/cm)
       real(r8) :: repro_fraction ! fraction of carbon balance directed towards reproduction (kgC/kgC)
-      integer :: regen_model=2
+      integer, parameter :: TRS = 2 !Switch option to use the Tree Recruitment Scheme
+      integer, parameter :: default_regeneration = 1 !Switch option to use the FATES's default regeneration scheme
+
 
       associate( dbh    => c_pools(dbh_id), &
                  cleaf  => c_pools(leaf_c_id), &
@@ -944,10 +947,10 @@ contains
         
         
         !START ahb's changes
-        if ( regen_model == 1 .or. ipft > 6) then !The Tree Recruitment Scheme is not parameterized
-                !to work with non-tree pfts
+        if ( regeneration_model == default_regeneration .or. ipft > 6) then !The Tree Recruitment Scheme 
+                                                                            !is only for tree pfts
 
-        !Original code
+        !Default reproductive allocation
         !-------------------------------------------------------------------------------------
         if (dbh <= prt_params%dbh_repro_threshold(ipft)) then ! cap on leaf biomass
            repro_fraction = prt_params%seed_alloc(ipft)
@@ -956,13 +959,14 @@ contains
         end if
         !-------------------------------------------------------------------------------------
         
-        else if ( regen_model == 2 .and. ipft < 7) then !tree pfts only
+        else if ( regeneration_model == TRS .and. ipft < 7) then
 
-        !New regeneration code
+        !Use Tree Recruitment Scheme's (TRS) approach to reproductive allocation
         !-------------------------------------------------------------------------------------
         !This reproductive allocation function calculates the fraction of available carbon
-        !allocated to reproductive tissue based on a cohort's size. This function is based on
-        !empirical data and analysis at BCI (Visser et al., 2016).
+        !allocated to reproductive tissue based on a cohort's dbh (mm). This function is based on
+        !empirical data and analysis at BCI (Visser et al., 2016). See Hanbury-Brown et al., 2022
+        !for more details.
 
         !Visser MD, Bruijning M, Wright SJ, Muller-Landau HC, Jongejans E, Comita LS, 
         !de Kroon H. 2016. Functional traits as predictors of vital rates across the life cycle 
@@ -973,7 +977,7 @@ contains
         (1 + exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm)))
         !-------------------------------------------------------------------------------------!
 
-        end if !regen model switch
+        end if !regeneration model switch
         !END ahb's changes
 
         dCdx = 0.0_r8
