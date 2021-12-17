@@ -85,7 +85,7 @@ module FatesInterfaceMod
    use FatesRunningMeanMod       , only : moving_ema_window
    use FatesRunningMeanMod       , only : fixed_window
    use FatesHistoryInterfaceMod  , only : fates_hist
-   use FatesHistoryInterfaceMod  , only : ih_tveglpa_si_age,ih_tveglpa_si
+
    
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -153,6 +153,7 @@ module FatesInterfaceMod
    public :: zero_bcs
    public :: set_bcs
    public :: UpdateFatesRMeansTStep
+   public :: InitTimeAveragingGlobals
    
 contains
 
@@ -268,6 +269,7 @@ contains
     fates%bc_in(s)%h2o_liqvol_sl(:)    = 0.0_r8
     fates%bc_in(s)%filter_vegzen_pa(:) = .false.
     fates%bc_in(s)%coszen_pa(:)        = 0.0_r8
+    fates%bc_in(s)%fcansno_pa(:)       = 0.0_r8
     fates%bc_in(s)%albgr_dir_rb(:)     = 0.0_r8
     fates%bc_in(s)%albgr_dif_rb(:)     = 0.0_r8
     fates%bc_in(s)%max_rooting_depth_index_col = 0
@@ -354,6 +356,7 @@ contains
     fates%bc_out(s)%displa_pa(:) = 0.0_r8
     fates%bc_out(s)%z0m_pa(:)    = 0.0_r8
     fates%bc_out(s)%dleaf_pa(:)   = 0.0_r8
+    fates%bc_out(s)%nocomp_pft_label_pa(:) = 0
     
     fates%bc_out(s)%canopy_fraction_pa(:) = 0.0_r8
     fates%bc_out(s)%frac_veg_nosno_alb_pa(:) = 0.0_r8
@@ -454,6 +457,7 @@ contains
          allocate(bc_in%plant_p_uptake_flux(1,1))
       end if
 
+
       allocate(bc_in%zi_sisl(0:nlevsoil_in))
       allocate(bc_in%dz_sisl(nlevsoil_in))
       allocate(bc_in%z_sisl(nlevsoil_in))
@@ -503,6 +507,7 @@ contains
       ! Canopy Radiation
       allocate(bc_in%filter_vegzen_pa(maxPatchesPerSite))
       allocate(bc_in%coszen_pa(maxPatchesPerSite))
+      allocate(bc_in%fcansno_pa(maxPatchesPerSite))
       allocate(bc_in%albgr_dir_rb(hlm_numSWb))
       allocate(bc_in%albgr_dif_rb(hlm_numSWb))
 
@@ -533,8 +538,14 @@ contains
          allocate(bc_in%hlm_harvest_catnames(0))
       end if
 
-      allocate(bc_in%pft_areafrac(maxpft))
+      allocate(bc_in%pft_areafrac(0:maxpft))
 
+      ! Variables for SP mode. 
+      if(hlm_use_sp.eq.itrue) then
+        allocate(bc_in%hlm_sp_tlai(0:maxpft))
+        allocate(bc_in%hlm_sp_tsai(0:maxpft))     
+        allocate(bc_in%hlm_sp_htop(0:maxpft))
+      end if 
       return
    end subroutine allocate_bcin
 
@@ -660,6 +671,8 @@ contains
       allocate(bc_out%canopy_fraction_pa(maxPatchesPerSite))
       allocate(bc_out%frac_veg_nosno_alb_pa(maxPatchesPerSite))
 
+      allocate(bc_out%nocomp_pft_label_pa(maxPatchesPerSite))
+
       ! Plant-Hydro BC's
       if (hlm_use_planthydro.eq.itrue) then
          allocate(bc_out%qflx_soil2root_sisl(nlevsoil_in))
@@ -726,7 +739,7 @@ contains
       
       if (use_fates) then
          
-         ! first read the non-PFT parameters
+         ! Self explanatory, read the fates parameter file
          call FatesReadParameters()
 
          ! Identify the number of PFTs by evaluating a pft array
@@ -892,6 +905,7 @@ contains
               hlm_stepsize,moving_ema_window)
 
 
+       
 
       else
          ! If we are not using FATES, the cohort dimension is still
@@ -908,6 +922,27 @@ contains
 
     end subroutine SetFatesGlobalElements
 
+    ! ======================================================================
+
+    subroutine InitTimeAveragingGlobals()
+      
+      ! Instantiate the time-averaging method globals
+      ! NOTE: It may be possible in the future that the HLM model timesteps
+      ! are dynamic in time or space, in that case, these would no longer
+      ! be global constants.
+
+      allocate(ema_24hr)
+      call ema_24hr%define(sec_per_day, hlm_stepsize, moving_ema_window)
+      allocate(fixed_24hr)
+      call fixed_24hr%define(sec_per_day, hlm_stepsize, fixed_window)
+      allocate(ema_lpa)
+      call ema_lpa%define(photo_temp_acclim_timescale*sec_per_day, &
+           hlm_stepsize,moving_ema_window)
+
+      return
+    end subroutine InitTimeAveragingGlobals
+
+      
     ! ======================================================================
     
     subroutine InitPARTEHGlobals()
@@ -1251,7 +1286,6 @@ contains
          hlm_numlevgrnd   = unset_int
          hlm_name         = 'unset'
          hlm_hio_ignore_val   = unset_double
-         hlm_stepsize     = unset_double
          hlm_masterproc   = unset_int
          hlm_ipedof       = unset_int
          hlm_nu_com      = 'unset'
@@ -1274,7 +1308,8 @@ contains
          hlm_use_ed_st3    = unset_int
          hlm_use_ed_prescribed_phys = unset_int
          hlm_use_fixed_biogeog = unset_int
-         !hlm_use_nocomp = unset_int    ! future reduced complexity mode
+         hlm_use_nocomp = unset_int   
+         hlm_use_sp = unset_int
          hlm_use_inventory_init = unset_int
          hlm_inventory_ctrl_file = 'unset'
 
@@ -1460,14 +1495,6 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if( abs(hlm_stepsize-unset_double)<nearzero) then
-            if (fates_global_verbose()) then
-               write(fates_log(),*) 'FATES parameters unset: hlm_stepsize, exiting'
-            end if
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
-         
-         
          if( abs(hlm_hio_ignore_val-unset_double)<1e-10 ) then
             if (fates_global_verbose()) then
                write(fates_log(),*) 'FATES dimension/parameter unset: hio_ignore'
@@ -1560,6 +1587,7 @@ contains
             end if
          end if
          
+         
         if(hlm_use_fixed_biogeog.eq.unset_int) then
            if(fates_global_verbose()) then
              write(fates_log(), *) 'switch for fixed biogeog unset: him_use_fixed_biogeog, exiting'
@@ -1567,13 +1595,19 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-        ! Future reduced complexity mode   
-        !if(hlm_use_nocomp.eq.unset_int) then
-        !      if(fates_global_verbose()) then
-        !     write(fates_log(), *) 'switch for no competition mode. '
-        !    end if
-        !   call endrun(msg=errMsg(sourcefile, __LINE__))
-        ! end if
+         if(hlm_use_nocomp.eq.unset_int) then
+              if(fates_global_verbose()) then
+             write(fates_log(), *) 'switch for no competition mode. '
+            end if
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(hlm_use_sp.eq.unset_int) then
+              if(fates_global_verbose()) then
+             write(fates_log(), *) 'switch for SP mode. '
+            end if
+	       call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
 
          if(hlm_use_cohort_age_tracking .eq. unset_int) then
             if (fates_global_verbose()) then
@@ -1582,6 +1616,16 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_use_sp.eq.itrue.and.hlm_use_nocomp.eq.ifalse)then
+            write(fates_log(), *) 'SP cannot be on if nocomp mode is off. Exiting. '
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+
+         if(hlm_use_sp.eq.itrue.and.hlm_use_fixed_biogeog.eq.ifalse)then
+            write(fates_log(), *) 'SP cannot be on if fixed biogeog mode is off. Exiting. '
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
          
          if (fates_global_verbose()) then
             write(fates_log(), *) 'Checked. All control parameters sent to FATES.'
@@ -1709,13 +1753,17 @@ contains
                    write(fates_log(),*) 'Transfering hlm_use_fixed_biogeog= ',ival,' to FATES'
                end if
             
-            ! Future reduced complexity mode   
-            !case('use_nocomp')
-            !    hlm_use_nocomp = ival
-            !   if (fates_global_verbose()) then
-            !       write(fates_log(),*) 'Transfering hlm_use_nocomp= ',ival,' to FATES'
-            !   end if
+            case('use_nocomp')
+                hlm_use_nocomp = ival
+               if (fates_global_verbose()) then
+                   write(fates_log(),*) 'Transfering hlm_use_nocomp= ',ival,' to FATES'
+               end if
 
+            case('use_sp')
+            hlm_use_sp = ival
+            if (fates_global_verbose()) then
+                   write(fates_log(),*) 'Transfering hlm_use_sp= ',ival,' to FATES'
+            end if
 
             case('use_planthydro')
                hlm_use_planthydro = ival
@@ -1781,11 +1829,6 @@ contains
                hlm_hio_ignore_val = rval
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hio_ignore_val = ',rval,' to FATES'
-               end if
-            case('stepsize')
-               hlm_stepsize = rval
-               if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering stepsize = ',rval,' to FATES'
                end if
             case default
                if (fates_global_verbose()) then
@@ -1969,41 +2012,17 @@ contains
            !---------------------------------------------------------------------------------------
 
 
-           ccohort => cpatch%tallest
-    
-           do while (associated(ccohort))
-              call ccohort%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
-              ccohort => ccohort%shorter
-           end do
-
+           !  (Keeping as an example)
+           !ccohort => cpatch%tallest
+           !do while (associated(ccohort))
+           !   call ccohort%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
+           !   ccohort => ccohort%shorter
+           !end do
            
            cpatch => cpatch%younger
         enddo
      end do
 
-     ! Update running mean history variables
-     ! -------------------------------------------------------------------------------
-     associate(hio_tveglpa_si_age => fates_hist%hvars(ih_tveglpa_si_age)%r82d, &
-               hio_tveglpa_si     => fates_hist%hvars(ih_tveglpa_si)%r81d)
-
-       do s = 1,size(sites,dim=1)
-
-          io_si  = sites(s)%h_gid
-          hio_tveglpa_si_age(io_si,:) = 0._r8
-          hio_tveglpa_si(io_si)       = 0._r8
-          
-          cpatch => sites(s)%oldest_patch
-          do while(associated(cpatch))
-             hio_tveglpa_si_age(io_si,cpatch%age_class) = &
-                  hio_tveglpa_si_age(io_si,cpatch%age_class) + &
-                  cpatch%tveg_lpa%GetMean()*cpatch%area/sites(s)%area_by_age(cpatch%age_class)
-             hio_tveglpa_si(io_si) = hio_tveglpa_si(io_si) + &
-                  cpatch%tveg_lpa%GetMean()*cpatch%area*area_inv
-             cpatch => cpatch%younger
-          enddo
-       end do
-     end associate
-          
      return
    end subroutine UpdateFatesRMeansTStep
       

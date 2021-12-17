@@ -188,6 +188,11 @@ module FatesInterfaceTypesMod
   integer, public ::  hlm_use_fixed_biogeog                         !  Flag to use FATES fixed biogeography mode
                                                                     !  1 = TRUE, 0 = FALSE 
 
+  integer, public ::  hlm_use_nocomp                                !  Flag to use FATES no competition mode
+                                                                    !  1 = TRUE, 0 = FALSE
+
+  integer, public ::  hlm_use_sp                                    !  Flag to use FATES satellite phenology (LAI) mode
+                                                                    !  1 = TRUE, 0 = FALSE
    ! -------------------------------------------------------------------------------------
    ! Parameters that are dictated by FATES and known to be required knowledge
    !  needed by the HLMs
@@ -436,7 +441,10 @@ module FatesInterfaceTypesMod
       !           I am leaving it at this scale for simplicity.  Patches should
       !           have no spacially variable information
       real(r8), allocatable :: coszen_pa(:)
-      
+
+      ! fraction of canopy that is covered in snow
+      real(r8), allocatable :: fcansno_pa(:)
+       
       ! Abledo of the ground for direct radiation, by site broadband (0-1)
       real(r8), allocatable :: albgr_dir_rb(:)
 
@@ -512,6 +520,12 @@ module FatesInterfaceTypesMod
       ! Fixed biogeography mode 
       real(r8), allocatable :: pft_areafrac(:)     ! Fractional area of the FATES column occupied by each PFT  
     
+     ! Satellite Phenology (SP) input variables.  (where each patch only has one PFT)
+     ! ---------------------------------------------------------------------------------
+     real(r8),allocatable :: hlm_sp_tlai(:)  ! Interpolated daily total LAI (leaf area index) input from HLM per patch/pft 
+     real(r8),allocatable :: hlm_sp_tsai(:)  ! Interpolated sailt total SAI (stem area index) input from HLM per patch/pft
+     real(r8),allocatable :: hlm_sp_htop(:)  ! Interpolated daily canopy vegetation height    input from HLM per patch/pft
+
    end type bc_in_type
 
 
@@ -661,6 +675,8 @@ module FatesInterfaceTypesMod
                                                         ! this is actually binary based on if any
                                                         ! vegetation in the patch is exposed.
                                                         ! [0,1]
+
+     integer, allocatable :: nocomp_pft_label_pa(:) ! in nocomp and SP mode, each patch has a PFT identity. 
 
       ! FATES Hydraulics
 

@@ -389,8 +389,10 @@ module EDTypesMod
 
 
      ! Running means
-     class(rmean_type), pointer :: tveg_lpa              ! exponential moving average of leaf temperature at the
-                                                         ! leaf photosynthetic acclimation time-scale [K]
+
+     ! (keeping this in-code as an example)
+     !class(rmean_type), pointer :: tveg_lpa              ! exponential moving average of leaf temperature at the
+                                                          ! leaf photosynthetic acclimation time-scale [K]
 
      
   end type ed_cohort_type
@@ -445,6 +447,7 @@ module EDTypesMod
                                                                  ! to sapling transition timescale 
                                                                  ! (sdlng2sap_par_timescale)
 
+     integer  ::  nocomp_pft_label                                 ! where nocomp is active, use this label for patch ID.   
 
      ! LEAF ORGANIZATION
      real(r8) ::  pft_agb_profile(maxpft,n_dbh_bins)            ! binned above ground biomass, for patch fusion: KgC/m2
@@ -464,7 +467,7 @@ module EDTypesMod
      real(r8) ::  elai_profile(nclmax,maxpft,nlevleaf)          ! exposed leaf area in each canopy layer, pft, and leaf layer
      real(r8) ::  tsai_profile(nclmax,maxpft,nlevleaf)          ! total   stem area in each canopy layer, pft, and leaf layer
      real(r8) ::  esai_profile(nclmax,maxpft,nlevleaf)          ! exposed stem area in each canopy layer, pft, and leaf layer
-
+     real(r8) ::  radiation_error                               ! radiation error (w/m2)
      real(r8) ::  layer_height_profile(nclmax,maxpft,nlevleaf)
      real(r8) ::  canopy_area_profile(nclmax,maxpft,nlevleaf)   ! fraction of crown area per canopy area in each layer
                                                                 ! they will sum to 1.0 in the fully closed canopy layers
@@ -478,6 +481,7 @@ module EDTypesMod
      integer  ::  ncan(nclmax,maxpft)                           ! number of total   leaf layers for each canopy layer and pft
 
      !RADIATION FLUXES      
+     real(r8) :: fcansno                                        ! Fraction of canopy covered in snow
 
      logical  ::  solar_zenith_flag                             ! integer flag specifying daylight (based on zenith angle)
      real(r8) ::  solar_zenith_angle                            ! solar zenith angle (radians)
@@ -562,8 +566,6 @@ module EDTypesMod
      type(litter_type), pointer :: litter(:)  ! Litter (leaf,fnrt,CWD and seeds) for different elements
 
      real(r8),allocatable :: fragmentation_scaler(:)            ! Scale rate of litter fragmentation based on soil layer. 0 to 1.
-
-     real(r8) ::  repro(maxpft)                                 ! allocation to reproduction per PFT : KgC/m2
 
      !FUEL CHARECTERISTICS
      real(r8) ::  sum_fuel                                         ! total ground fuel related to ros (omits 1000hr fuels): KgC/m2
@@ -731,6 +733,10 @@ module EDTypesMod
      ! Total area of patches in each age bin [m2]
      real(r8), allocatable :: area_by_age(:)
 
+     ! SP mode target PFT level variables
+     real(r8), allocatable :: sp_tlai(:)                      ! target TLAI per FATES pft
+     real(r8), allocatable :: sp_tsai(:)                      ! target TSAI per FATES pft
+     real(r8), allocatable :: sp_htop(:)                      ! target HTOP per FATES pft
      
      ! Mass Balance (allocation for each element)
 
