@@ -883,26 +883,6 @@ contains
          call fates_history_maps()
 
          
-         ! Instantiate the time-averaging method globals
-         allocate(ema_24hr)
-         call ema_24hr%define(sec_per_day, hlm_stepsize, moving_ema_window)
-         allocate(fixed_24hr)
-         call fixed_24hr%define(sec_per_day, hlm_stepsize, fixed_window)
-         allocate(ema_lpa)
-         call ema_lpa%define(photo_temp_acclim_timescale*sec_per_day, &
-              hlm_stepsize,moving_ema_window)
-         allocate(ema_sdlng_emerg_h2o)
-         call ema_sdlng_emerg_h2o%define(sdlng_emerg_h2o_timescale*sec_per_day, &
-              hlm_stepsize,moving_ema_window)
-         allocate(ema_sdlng_mort_par)
-         call ema_sdlng_mort_par%define(sdlng_mort_par_timescale*sec_per_day, &
-              hlm_stepsize,moving_ema_window)
-         allocate(ema_sdlng2sap_par)
-         call ema_sdlng2sap_par%define(sdlng2sap_par_timescale*sec_per_day, &
-              hlm_stepsize,moving_ema_window)
-         allocate(ema_sdlng_mdd)
-         call ema_sdlng_mdd%define(sdlng_mdd_timescale*sec_per_day, &
-              hlm_stepsize,moving_ema_window)
 
 
        
@@ -937,6 +917,18 @@ contains
       call fixed_24hr%define(sec_per_day, hlm_stepsize, fixed_window)
       allocate(ema_lpa)
       call ema_lpa%define(photo_temp_acclim_timescale*sec_per_day, &
+           hlm_stepsize,moving_ema_window)
+      allocate(ema_sdlng_emerg_h2o)
+      call ema_sdlng_emerg_h2o%define(sdlng_emerg_h2o_timescale*sec_per_day, &
+           hlm_stepsize,moving_ema_window)
+      allocate(ema_sdlng_mort_par)
+      call ema_sdlng_mort_par%define(sdlng_mort_par_timescale*sec_per_day, &
+           hlm_stepsize,moving_ema_window)
+      allocate(ema_sdlng2sap_par)
+      call ema_sdlng2sap_par%define(sdlng2sap_par_timescale*sec_per_day, &
+           hlm_stepsize,moving_ema_window)
+      allocate(ema_sdlng_mdd)
+      call ema_sdlng_mdd%define(sdlng_mdd_timescale*sec_per_day, &
            hlm_stepsize,moving_ema_window)
 
       return
