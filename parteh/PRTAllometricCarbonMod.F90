@@ -942,27 +942,25 @@ contains
         call bdead_allom(ct_agw,ct_bgw, ct_sap, ipft, ct_dead, &
                          ct_dagwdd, ct_dbgwdd, ct_dsapdd, ct_ddeaddd)
         call bstore_allom(dbh,ipft,canopy_trim,ct_store,ct_dstoredd)
-        
+       
+ 
         ! fraction of carbon going towards reproduction
-        
         
         !START ahb's changes
         if ( regeneration_model == default_regeneration .or. ipft > 6) then !The Tree Recruitment Scheme 
                                                                             !is only for tree pfts
 
         !Default reproductive allocation
-        !-------------------------------------------------------------------------------------
         if (dbh <= prt_params%dbh_repro_threshold(ipft)) then ! cap on leaf biomass
            repro_fraction = prt_params%seed_alloc(ipft)
         else
            repro_fraction = prt_params%seed_alloc(ipft) + prt_params%seed_alloc_mature(ipft)
         end if
-        !-------------------------------------------------------------------------------------
         
         else if ( regeneration_model == TRS .and. ipft < 7) then
 
-        !Use Tree Recruitment Scheme's (TRS) approach to reproductive allocation
         !-------------------------------------------------------------------------------------
+        !Use Tree Recruitment Scheme's (TRS) approach to reproductive allocation.
         !This reproductive allocation function calculates the fraction of available carbon
         !allocated to reproductive tissue based on a cohort's dbh (mm). This function is based on
         !empirical data and analysis at BCI (Visser et al., 2016). See Hanbury-Brown et al., 2022
@@ -972,10 +970,10 @@ contains
         !de Kroon H. 2016. Functional traits as predictors of vital rates across the life cycle 
         !of tropical trees. Functional Ecology 30: 168–180. 
         !-------------------------------------------------------------------------------------
+
         repro_fraction = prt_params%seed_alloc(ipft) * &
         (exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm) / &
         (1 + exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm)))
-        !-------------------------------------------------------------------------------------!
 
         end if !regeneration model switch
         !END ahb's changes

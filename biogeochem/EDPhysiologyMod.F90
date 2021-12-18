@@ -74,6 +74,7 @@ module EDPhysiologyMod
   use EDParamsMod           , only : q10_mr
   use EDParamsMod           , only : q10_froz
   use EDParamsMod           , only : logging_export_frac
+  use EDParamsMod           , only : regeneration_model
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
   use FatesConstantsMod     , only : itrue,ifalse
   use FatesConstantsMod     , only : calloc_abs_error
@@ -274,7 +275,6 @@ contains
   subroutine PreDisturbanceIntegrateLitter(currentPatch)
 
     ! -----------------------------------------------------------------------------------
-    !
     ! This step applies the litter fluxes to the prognostic state variables.
     ! This procedure is called in response to fluxes generated from:
     ! 1) seed rain,
@@ -1609,6 +1609,8 @@ contains
     integer  :: n_litt_types           ! number of litter element types (c,n,p, etc)
     integer  :: el                     ! loop counter for litter element types
     integer  :: element_id             ! element id consistent with parteh/PRTGenericMod.F90
+    integer, parameter :: TRS = 2      ! Switch option to use the Tree Recruitment Scheme
+    integer, parameter :: default_regeneration = 1 !Switch option to use FATES's default regeneration scheme
     !------------------------------------------------------------------------------------
 
     do el = 1, num_elements
@@ -1682,14 +1684,23 @@ contains
              ! Seed input from local sources (within site)
              litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)/area
 
-             !New regeneration code added by ahb on 7/15/2021
-             !The original code sent all reproductive carbon to seed
-             !The code below sends a fraction of reproductive carbon to the leaf litter pool
-             !to account for non-seed reproductive carbon (e.g. flower, fruit, etc.)
-             !PICK UP HERE WITH ADDING SWITCH
-             !--------------------------------
-             litt%seed_decay(pft) = litt%seed_in_local(pft) * (1.0_r8 - EDPftvarcon_inst%repro_frac_seed(pft)) !ahb
-             !--------------------------------
+             
+             !START ahb's changes
+             
+             if ( regeneration_model == TRS .and. pft < 7) then
+             
+             !Send a fraction of reproductive carbon to litter to account for 
+             !non-seed reproductive carbon (e.g. flowers, fruit, etc.)
+             !If using default_regeneration then all reproductive carbon becomes seed
+             !This process will be more important if/when FATES fixes the structural issue
+             !that all carbon used to make recruits comes from reproductive carbon.
+
+             litt%seed_decay(pft) = litt%seed_in_local(pft) * (1.0_r8 - EDPftvarcon_inst%repro_frac_seed(pft)) 
+             
+             end if
+
+             !Default regeneration scheme sends all reproductive carbon to seed
+             !END ahb's changes
 
              ! If there is forced external seed rain, we calculate the input mass flux
              ! from the different elements, usung the seed optimal stoichiometry
