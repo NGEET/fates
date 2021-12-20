@@ -42,7 +42,10 @@ module PRTAllometricCarbonMod
   use FatesConstantsMod   , only : r8 => fates_r8
   use FatesConstantsMod   , only : i4 => fates_int
   use FatesConstantsMod   , only : sec_per_day
-  use FatesConstantsMod   , only : mm_per_cm !ahb added this 7/7/2021
+  use FatesConstantsMod   , only : mm_per_cm !ahb
+  use FatesConstantsMod   , only : TRS        !ahb
+  use FatesConstantsMod   , only : default_regeneration !ahb
+  use FatesConstantsMod   , only : min_max_dbh_for_trees !ahb
   use FatesIntegratorsMod , only : RKF45
   use FatesIntegratorsMod , only : Euler
   use FatesConstantsMod   , only : calloc_abs_error
@@ -910,9 +913,6 @@ contains
       real(r8) :: ct_ddeaddd     ! target structural biomass derivative wrt diameter, (kgC/cm)
       real(r8) :: ct_dtotaldd    ! target total (not reproductive) biomass derivative wrt diameter, (kgC/cm)
       real(r8) :: repro_fraction ! fraction of carbon balance directed towards reproduction (kgC/kgC)
-      integer, parameter :: TRS = 2 !Switch option to use the Tree Recruitment Scheme
-      integer, parameter :: default_regeneration = 1 !Switch option to use the FATES's default regeneration scheme
-
 
       associate( dbh    => c_pools(dbh_id), &
                  cleaf  => c_pools(leaf_c_id), &
@@ -947,8 +947,9 @@ contains
         ! fraction of carbon going towards reproduction
         
         !START ahb's changes
-        if ( regeneration_model == default_regeneration .or. ipft > 6) then !The Tree Recruitment Scheme 
-                                                                            !is only for tree pfts
+        if ( regeneration_model == default_regeneration .or. &
+             prt_params%allom_dbh_maxheight(ipft) < min_max_dbh_for_trees ) then !The Tree Recruitment Scheme 
+                                                                                 !is only for tree pfts
 
         !Default reproductive allocation
         if (dbh <= prt_params%dbh_repro_threshold(ipft)) then ! cap on leaf biomass
@@ -957,7 +958,8 @@ contains
            repro_fraction = prt_params%seed_alloc(ipft) + prt_params%seed_alloc_mature(ipft)
         end if
         
-        else if ( regeneration_model == TRS .and. ipft < 7) then
+        else if ( regeneration_model == TRS .and. &
+                  prt_params%allom_dbh_maxheight(ipft) > min_max_dbh_for_trees ) then
 
         !-------------------------------------------------------------------------------------
         !Use Tree Recruitment Scheme's (TRS) approach to reproductive allocation.

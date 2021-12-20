@@ -22,6 +22,9 @@ module EDPhysiologyMod
   use FatesConstantsMod, only    : r8 => fates_r8
   use FatesConstantsMod, only    : nearzero
   use FatesConstantsMod, only    : sec_per_day
+  use FatesConstantsMod, only    : TRS
+  use FatesConstantsMod, only    : default_regeneration
+  use FatesConstantsMod, only    : min_max_dbh_for_trees
   use FatesConstantsMod, only    : megajoules_per_joule
   use FatesConstantsMod, only    : mpa_per_mm_suction
   use EDPftvarcon      , only    : EDPftvarcon_inst
@@ -1687,7 +1690,8 @@ contains
              
              !START ahb's changes
              
-             if ( regeneration_model == TRS .and. pft < 7) then
+             if ( regeneration_model == TRS .and. &
+                  prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees) then
              
              !Send a fraction of reproductive carbon to litter to account for 
              !non-seed reproductive carbon (e.g. flowers, fruit, etc.)
@@ -1699,7 +1703,7 @@ contains
              
              end if
 
-             !Default regeneration scheme sends all reproductive carbon to seed
+             !Default regeneration scheme sends all reproductive carbon to seed (i.e. do nothing here)
              !END ahb's changes
 
              ! If there is forced external seed rain, we calculate the input mass flux
@@ -1742,7 +1746,7 @@ contains
     !
     ! !DESCRIPTION:
     ! 1. Flux from seed pool into leaf litter pool
-    ! 2. Flux from seedling pool into leaf litter pool   
+    ! 2. (if TRS is on) Seedling mortality (i.e. flux from seedling pool into leaf litter pool)   
     !
     ! !ARGUMENTS
     type(litter_type) :: litt
@@ -1767,20 +1771,30 @@ contains
     ! Assume that decay rates are same for all chemical species
 
     ! START ahb's changes
+    !=====================================================================================
     do pft = 1,numpft 
-       litt%seed_decay(pft) = litt%seed(pft) * & 
-             EDPftvarcon_inst%seed_decay_rate(pft)*years_per_day  + & ! "+ &" added by ahb (7/10/2021)
-             litt%seed_decay(pft) ! line added by ahb so that the flux from non-seed reproductive
-                                  ! biomass (from SeedIn subroutine) is not lost  (7/10/2021)
- 
-    ! 2. Flux from seedling pool into leaf litter pool
- 
-    ! ORIGINAL CODE
-    !----------------------------------------------------------------------
+    
+    !If the TRS is switched off or the pft is not a tree then use the default
+    !regeneration scheme.
+    if ( regeneration_model == default_regeneration .or. &
+             prt_params%allom_dbh_maxheight(ipft) < min_max_dbh_for_trees )
+
+    !Default seed decay scheme (original code)
        litt%seed_germ_decay(pft) = litt%seed_germ(pft) * &
              EDPftvarcon_inst%seed_decay_rate(pft)*years_per_day
-    !----------------------------------------------------------------------
 
+    !If the TRS is switched on and the pft is a tree then use the TRS
+    else if ( regeneration_model == TRS .and. &
+                  prt_params%allom_dbh_maxheight(ipft) > min_max_dbh_for_trees ) then
+  
+    !----------------------------------------------------------------------
+    !With respect to seed decay, the only difference with the TRS here is adding the flux 
+    !from non-seed reproductive biomass (which was sent to litt%seed_decay in the SeedIn subroutine) 
+                                                     
+       litt%seed_decay(pft) = litt%seed_decay(pft) + &!from non-seed reproductive biomass; working?
+                              litt%seed(pft) * EDPftvarcon_inst%seed_decay_rate(pft)*years_per_day
+     
+    ! 2. Flux from seedling pool into leaf litter pool
     !----------------------------------------------------------------------
     !NEW CODE FOR ENVIRONMENTALLY SENSITIVE SEEDLING MORTALITY
     !Step 1. Calculate the daily seedling mortality rate from light stress

@@ -46,6 +46,14 @@ module FatesConstantsMod
   integer, public, parameter :: prescribed_n_uptake = 1
   integer, public, parameter :: coupled_n_uptake    = 2
 
+  !Flags specifying how tree regeneration works
+  integer, public, parameter :: TRS = 2 !Constant defining the Tree Recruitment Scheme switch
+  integer, public, parameter :: default_regeneration = 1 !Constant defining FATES's default regeneration scheme switch
+  real(fates_r8), public, parameter :: min_max_dbh_for_trees = 15._fates_r8 !cm; if pfts have a max dbh less 
+                                                      !than this value FATES 
+                                                      !will use the default regeneration scheme. This is to avoid
+                                                      !the TRS being used for shrubs and grasses.
+
 
   integer, public, parameter :: cohort_np_comp_scaling = 1  ! This flag definition indicates that EVERY cohort on
                                                             ! the column should compete independently in the soil
