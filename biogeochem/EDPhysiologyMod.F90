@@ -1904,13 +1904,14 @@ contains
        !FATES default germination scheme
        litt%seed_germ_in(pft) =  min(litt%seed(pft) * EDPftvarcon_inst%germination_rate(pft), &  
                                      max_germination)*years_per_day
-   
-       else if ( regeneration_model == TRS .and. &
-                  prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees ) then
-	    
+       !end FATES default germination scheme
+      
        !-------------------------------------------------------------------------------------------
        !The Tree Recruitment Scheme calculates seedling emergence (i.e. germination) as a pft-specific
        !function of understory light and soil moisture
+
+       else if ( regeneration_model == TRS .and. &
+                  prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees ) then	    
  
        !Step 1. Calculate how germination rate is modified by understory light.
        !        This applies to photoblastic germinators (e.g. many tropical pioneers) 
@@ -1939,12 +1940,18 @@ contains
 
        !Step 3. Calculate the seedling emergence rate based on soil moisture and germination
        ! rate modifier (i.e. Step 1). See eqn. 4 of Hanbury-Brown et al., 2022
-
+       
+       if ( seedling_layer_smp * mpa_per_mm_suction .GE. EDPftvarcon_inst%seedling_psi_emerg(pft) ) then
        seedling_emerg_rate = photoblastic_germ_modifier * EDPftvarcon_inst%a_emerg(pft) * &
                wetness_index**EDPftvarcon_inst%b_emerg(pft)
-     
-      !Step 4. Calculate the amount of carbon germinating out of the seed bank                                                                                
-      litt%seed_germ_in(pft) = litt%seed(pft) * seedling_emerg_rate
+       else 
+
+       seedling_emerg_rate = 0.0_r8
+
+       end if !soil-moisture based seedling emergence rate
+      
+       !Step 4. Calculate the amount of carbon germinating out of the seed bank                                                                                
+       litt%seed_germ_in(pft) = litt%seed(pft) * seedling_emerg_rate
       
       end if !regeneration model switch
       !--------------------------------------------------------------------------------------------

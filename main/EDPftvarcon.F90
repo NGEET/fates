@@ -104,6 +104,7 @@ module EDPftvarcon
      real(r8), allocatable :: a_emerg(:)                 !added by ahb 7/19/2021
      real(r8), allocatable :: b_emerg(:)                 !added by ahb 7/19/2021
      real(r8), allocatable :: par_crit_germ(:)           !added by ahb 7/19/2021
+     real(r8), allocatable :: seedling_psi_emerg(:)      !added by ahb 7/19/2021
      real(r8), allocatable :: seedling_root_depth(:)     !added by ahb 7/27/2021
      real(r8), allocatable :: seedling_light_mort_a(:)   !added by ahb on 7/27/2021
      real(r8), allocatable :: seedling_light_mort_b(:)   !added by ahb on 7/27/2021
@@ -559,6 +560,10 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_seedling_psi_emerg'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     name = 'fates_seedling_root_depth'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -937,6 +942,10 @@ contains
     name = 'fates_par_crit_germ'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%par_crit_germ)
+
+    name = 'fates_seedling_psi_emerg'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%seedling_psi_emerg)
 
     name = 'fates_seedling_root_depth'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1502,6 +1511,7 @@ contains
         write(fates_log(),fmt0) 'a_emerg = ',EDPftvarcon_inst%a_emerg
         write(fates_log(),fmt0) 'b_emerg = ',EDPftvarcon_inst%b_emerg
         write(fates_log(),fmt0) 'par_crit_germ = ',EDPftvarcon_inst%par_crit_germ
+        write(fates_log(),fmt0) 'seedling_psi_emerg = ',EDPftvarcon_inst%seedling_psi_emerg
         write(fates_log(),fmt0) 'seedling_root_depth = ',EDPftvarcon_inst%seedling_root_depth        
         write(fates_log(),fmt0) 'trim_limit = ',EDPftvarcon_inst%trim_limit
         write(fates_log(),fmt0) 'trim_inc = ',EDPftvarcon_inst%trim_inc
