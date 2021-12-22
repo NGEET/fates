@@ -78,6 +78,7 @@ module EDPhysiologyMod
   use EDParamsMod           , only : q10_froz
   use EDParamsMod           , only : logging_export_frac
   use EDParamsMod           , only : regeneration_model
+  use EDParamsMod           , only : sdlng_mort_par_timescale
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
   use FatesConstantsMod     , only : itrue,ifalse
   use FatesConstantsMod     , only : calloc_abs_error
@@ -1798,29 +1799,25 @@ contains
 
        ! 2. Seedling mortality (i.e. fluxes from seedling pool (seed_germ) to litter)
        !----------------------------------------------------------------------
-       !NEW CODE FOR ENVIRONMENTALLY SENSITIVE SEEDLING MORTALITY
        !Step 1. Calculate the daily seedling mortality rate from light stress
 
-       !ADD CODE FOR CUMULATIVE LIGHT
-       !seedling_layer_par = ( currentPatch%parprof_dir_z(currentPatch%ncl_p,max(currentPatch%ncan(currentPatch%ncl_p,:))) ) ! + &
-                              ! currentPatch%parprof_dif_z(currentPatch%ncl_p,max(currentPatch%ncan(currentPatch%ncl_p,:))) )
-                              ! * &
-                              ! megajoules_per_joule * sec_per_day * seedling_light_mort_window 
+       !Calculate the cumulative light at the seedling layer over a prior number of 
+       !days set by the "sdlng_mort_par_timescale" parameter
 
-       !seedling_light_mort_rate = exp(EDPftvarcon_inst%seedling_light_mort_a(pft) * &
-       !seedling_layer_par + EDPftvarcon_inst%seedling_light_mort_b(pft)) 
+       seedling_layer_par = currentPatch%sdlng_mort_par%GetMean() * megajoules_per_joule * & 
+        sec_per_day * sdlng_mort_par_timescale 
+
+       seedling_light_mort_rate = exp( EDPftvarcon_inst%seedling_light_mort_a(pft) * &
+       seedling_layer_par + EDPftvarcon_inst%seedling_light_mort_b(pft )) 
         
-
+       !TEMP
        !write(fates_log(),*) 'seedling layer par ', seedling_layer_par
        !write(fates_log(),*) 'seedling light mort rate ', seedling_light_mort_rate
 
-       !Step 2. Calculate the moisture deficit days !this code is a placeholder for now 
+       !Step 2. Calculate the seedling moisture deficit days  
 
-       !ilayer_swater_emerg = minloc(abs(bc_in%z_sisl(:)-emerg_soil_depth),dim=1)     !define soil layer
 
         
-       !moisture_def_days = abs(bc_in%smp_sl(ilayer_swater_emerg) * mpa_per_mm_suction) - &    !calculate smp (mm H20 suction?)
-       !                    abs(EDPftvarcon_inst%seedling_smp_crit(pft))
                              
        
        !Step 3. Calculate the daily seedling mortality rate from moisture stress
