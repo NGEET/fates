@@ -1981,8 +1981,9 @@ contains
            new_seedling_layer_smp(pft) = bc_in(s)%smp_sl(ilayer_seedling_root(pft))
 
            !calculate the new moisture deficit day (mdd) value for each pft
-           new_seedling_mdd(pft) = (abs(seedling_smp_crit) - abs(new_seedling_layer_smp(pft))) * (-1.0_r8)
-           
+           new_seedling_mdd(pft) = (abs(EDPftvarcon_inst%seedling_psi_crit(pft)) - abs(new_seedling_layer_smp(pft))) &
+                                   * (-1.0_r8) * sdlng_mdd_timescale
+          
            ! if mdds are negative then it means that soil is wetter than smp_crit and the moisture
            ! deficit is 0  
            if (new_seedling_mdd(pft) < 0.0_r8) then

@@ -1758,8 +1758,10 @@ contains
     integer  ::  pft
     real(r8) ::  seedling_layer_par          !cumulative light at the seedling layer (MJ) over prior window of days 
                                              !(defined by 'light_mort_window' param)
-    real(r8), parameter ::  seedling_light_mort_window = 64.0 !days; move to pft-level parameter
     real(r8) ::  seedling_light_mort_rate    !the daily seedling mortality rate from light stress
+    real(r8) ::  seedling_h2o_mort_rate      !the daily seedling mortality rate from moisture stress
+    real(r8) ::  seedling_mdds               !moisture deficit days accumulated in the seedling layer
+   
     !----------------------------------------------------------------------
 
     
@@ -1808,34 +1810,33 @@ contains
         sec_per_day * sdlng_mort_par_timescale 
 
        seedling_light_mort_rate = exp( EDPftvarcon_inst%seedling_light_mort_a(pft) * &
-       seedling_layer_par + EDPftvarcon_inst%seedling_light_mort_b(pft )) 
+                                       seedling_layer_par + EDPftvarcon_inst%seedling_light_mort_b(pft) ) 
         
        !TEMP
        !write(fates_log(),*) 'seedling layer par ', seedling_layer_par
        !write(fates_log(),*) 'seedling light mort rate ', seedling_light_mort_rate
-
-       !Step 2. Calculate the seedling moisture deficit days  
-
-
-        
                              
-       
        !Step 3. Calculate the daily seedling mortality rate from moisture stress
-           
-       !seedling_h2o_mort_rate = EDPftvarcon_inst%seedling_h2o_mort_a(pft) * moisture_def_days**2 + &
-       !                         EDPftvarcon_inst%seedling_h2o_mort_b(pft) * moisture_def_days + &
-       !                         EDPftvarcon_inst%seedling_h2o_mort_c(pft)
+       
+       !Get the current seedling moisture deficit days
+       !Calculated as (abs(seedling_psi_crit) - abs(seedling_layer_smp))* -1 * mddWindow
 
-       !if (moisture_def_days < EDPftvarcon_inst%moisture_dd_crit(pft) ) then
-       !     seedling_h2o_mort_rate = 0.0_r8
-       !end if
-     
+       seedling_mdds = currentPatch%sdlng_mdd(pft)%p%GetMean()     
     
-       !Step 4. Add background mortality and send seedling carbon to litter flux (i.e. to 'seed_germ_decay' flux)        
-        !litt%seed_germ_decay(pft) = (litt%seed_germ(pft) * seedling_light_mort_rate) !+ &
-                                    !(litt%seed_germ(pft) * seedling_h2o_mort_rate) + &
-                                    !(litt%seed_germ(pft) * EDPftvarcon_inst%background_seedling_mort(pft) &
-                                    !*years_per_day)
+       !Calculate seedling mortality as a function of moisture deficit days
+       seedling_h2o_mort_rate = EDPftvarcon_inst%seedling_h2o_mort_a(pft) * seedling_mdds**2 + &
+                                EDPftvarcon_inst%seedling_h2o_mort_b(pft) * seedling_mdds + &
+                                EDPftvarcon_inst%seedling_h2o_mort_c(pft)
+
+       if (seedling_mdds < EDPftvarcon_inst%seedling_mdd_crit(pft)) then
+           seedling_h2o_mort_rate = 0.0_r8
+       end if
+     
+       !Step 4. Add background mortality and send dead seedling carbon to litter (i.e. to seed_germ_decay flux)        
+       litt%seed_germ_decay(pft) = (litt%seed_germ(pft) * seedling_light_mort_rate) + &
+                                   (litt%seed_germ(pft) * seedling_h2o_mort_rate) + &
+                                   (litt%seed_germ(pft) * EDPftvarcon_inst%background_seedling_mort(pft) &
+                                                        * years_per_day)
                
     !-----------------------------------------------------------------------
     !END ahb's changes
@@ -1938,7 +1939,7 @@ contains
        !Step 3. Calculate the seedling emergence rate based on soil moisture and germination
        ! rate modifier (i.e. Step 1). See eqn. 4 of Hanbury-Brown et al., 2022
        
-       if ( seedling_layer_smp * mpa_per_mm_suction .GE. EDPftvarcon_inst%seedling_psi_emerg(pft) ) then
+       if ( seedling_layer_smp .GE. EDPftvarcon_inst%seedling_psi_emerg(pft) ) then
        seedling_emerg_rate = photoblastic_germ_modifier * EDPftvarcon_inst%a_emerg(pft) * &
                wetness_index**EDPftvarcon_inst%b_emerg(pft)
        else 
