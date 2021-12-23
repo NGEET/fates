@@ -2039,7 +2039,9 @@ contains
     real(r8) :: mass_demand ! Total mass demanded by the plant to achieve the stoichiometric targets
     ! of all the organs in the recruits. Used for both [kg per plant] and [kg per cohort]
     real(r8) :: stem_drop_fraction
-
+    real(r8) :: sdlng2sap_par ! running mean of par at the seedlng layer [MJ m-2 day-1]
+    real(r8) :: seedling_layer_smp !soil matric potential at seedling rooting depth [mm H20 suction]
+    integer  :: ilayer_seedling_root ! the soil layer at seedling rooting depth
     !----------------------------------------------------------------------
 
     allocate(temp_cohort) ! create temporary cohort
@@ -2163,8 +2165,37 @@ contains
                    call endrun(msg=errMsg(sourcefile, __LINE__))
                 end select
 
+                !START ahb's changes
+                !=================================================================================
+                if ( regeneration_model == default_regeneration .or. &
+                     prt_params%allom_dbh_maxheight(ft) < min_max_dbh_for_trees ) then
+
                 mass_avail = currentPatch%area * currentPatch%litter(el)%seed_germ(ft)
 
+                else if ( regeneration_model == TRS .and. &
+                          prt_params%allom_dbh_maxheight(ft) > min_max_dbh_for_trees ) then
+
+                sdlng2sap_par = currentPatch%sdlng2sap_par%GetMean() * sec_per_day * megajoules_per_joule
+
+                mass_avail = currentPatch%area * currentPatch%litter(el)%seed_germ(ft) * & 
+                              EDPftvarcon_inst%seedling_light_rec_a(ft) * &
+                              sdlng2sap_par**EDPftvarcon_inst%seedling_light_rec_b(ft) 
+              
+                !If soil moisture is below the moisture stress threshold recruitment does not occur
+                ilayer_seedling_root = minloc(abs(bc_in%z_sisl(:)-EDPftvarcon_inst%seedling_root_depth(ft)),dim=1)
+                
+                seedling_layer_smp = bc_in%smp_sl(ilayer_seedling_root)
+                
+                if ( seedling_layer_smp < EDPftvarcon_inst%seedling_psi_crit(ft) ) then
+                
+                mass_avail = 0.0_r8
+               
+                end if !check on soil moisture
+                
+                end if !regeneration model
+         
+                !==================================================================================  
+                !END ahb's changes
                 ! ------------------------------------------------------------------------
                 ! Update number density if this is the limiting mass
                 ! ------------------------------------------------------------------------

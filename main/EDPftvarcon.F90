@@ -106,6 +106,8 @@ module EDPftvarcon
      real(r8), allocatable :: par_crit_germ(:)           !added by ahb 7/19/2021
      real(r8), allocatable :: seedling_psi_emerg(:)      !added by ahb 7/19/2021
      real(r8), allocatable :: seedling_psi_crit(:)       !added by ahb 7/19/2021
+     real(r8), allocatable :: seedling_light_rec_a(:)       !added by ahb 7/19/2021
+     real(r8), allocatable :: seedling_light_rec_b(:)       !added by ahb 7/19/2021
      real(r8), allocatable :: seedling_mdd_crit(:)       !added by ahb 7/19/2021
      real(r8), allocatable :: seedling_h2o_mort_a(:)       !added by ahb 7/19/2021
      real(r8), allocatable :: seedling_h2o_mort_b(:)       !added by ahb 7/19/2021
@@ -573,6 +575,14 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
+    name = 'fates_seedling_light_rec_a'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_seedling_light_rec_b'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
     name = 'fates_seedling_mdd_crit'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -975,7 +985,15 @@ contains
     name = 'fates_seedling_psi_crit'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%seedling_psi_crit)
-   
+    
+    name = 'fates_seedling_light_rec_a'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%seedling_light_rec_a)
+    
+    name = 'fates_seedling_light_rec_b'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%seedling_light_rec_b)
+
     name = 'fates_seedling_mdd_crit'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%seedling_mdd_crit)
@@ -1559,6 +1577,8 @@ contains
         write(fates_log(),fmt0) 'seedling_psi_emerg = ',EDPftvarcon_inst%seedling_psi_emerg
         write(fates_log(),fmt0) 'seedling_psi_crit = ',EDPftvarcon_inst%seedling_psi_crit
         write(fates_log(),fmt0) 'seedling_mdd_crit = ',EDPftvarcon_inst%seedling_mdd_crit
+        write(fates_log(),fmt0) 'seedling_light_rec_a = ',EDPftvarcon_inst%seedling_light_rec_a
+        write(fates_log(),fmt0) 'seedling_light_rec_b = ',EDPftvarcon_inst%seedling_light_rec_b
         write(fates_log(),fmt0) 'background_seedling_mort = ',EDPftvarcon_inst%background_seedling_mort
         write(fates_log(),fmt0) 'seedling_root_depth = ',EDPftvarcon_inst%seedling_root_depth        
         write(fates_log(),fmt0) 'seedling_h2o_mort_a = ',EDPftvarcon_inst%seedling_h2o_mort_a        
