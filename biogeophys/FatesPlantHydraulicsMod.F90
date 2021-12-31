@@ -1458,7 +1458,7 @@ subroutine InitHydrSites(sites,bc_in)
      ! ----------------------------------------------------------------------------------
 
 
-     aggmeth = rhizlayer_aggmeth_none
+     aggmeth = rhizlayer_aggmeth_combine12
      aggN    = -9
      
      select case(aggmeth)

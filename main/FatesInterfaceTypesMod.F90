@@ -31,10 +31,8 @@ module FatesInterfaceTypesMod
    integer, public :: hlm_inir    ! The HLMs assumption of the array index associated with the 
                                              ! NIR portion of the spectrum in short-wave radiation arrays
 
+   integer, public :: hlm_maxlevsoil   ! Max number of soil layers
 
-   integer, public :: hlm_numlevgrnd   ! Number of ground layers
-                                                  ! NOTE! SOIL LAYERS ARE NOT A GLOBAL, THEY 
-                                                  ! ARE VARIABLE BY SITE
 
    integer, public :: hlm_is_restart   ! Is the HLM signalling that this is a restart
                                                   ! type simulation?
@@ -482,10 +480,10 @@ module FatesInterfaceTypesMod
       ! volumetric soil water at saturation (porosity)
       real(r8), allocatable :: watsat_sl(:)
 
-      ! Temperature of ground layers [K]
+      ! Temperature of soil layers [K]
       real(r8), allocatable :: tempk_sl(:)
 
-      ! Liquid volume in ground layer (m3/m3)
+      ! Liquid volume in soil layer (m3/m3)
       real(r8), allocatable :: h2o_liqvol_sl(:)
 
       ! Site level filter for uptake response functions
@@ -540,7 +538,7 @@ module FatesInterfaceTypesMod
       ! Shaded canopy LAI
       real(r8),allocatable :: laisha_pa(:)
       
-      ! Logical stating whether a ground layer can have water uptake by plants
+      ! Logical stating whether a soil layer can have water uptake by plants
       ! The only condition right now is that liquid water exists
       ! The name (suction) is used to indicate that soil suction should be calculated
       logical, allocatable :: active_suction_sl(:)

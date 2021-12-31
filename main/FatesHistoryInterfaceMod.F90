@@ -656,7 +656,7 @@ module FatesHistoryInterfaceMod
      type(fates_io_dimension_type) :: dim_bounds(fates_history_num_dimensions)
 
      !! THESE WERE EXPLICITLY PRIVATE WHEN TYPE WAS PUBLIC
-     integer, private :: patch_index_, column_index_, levgrnd_index_, levscpf_index_
+     integer, private :: column_index_, levsoil_index_, levscpf_index_
      integer, private :: levscls_index_, levpft_index_, levage_index_
      integer, private :: levfuel_index_, levcwdsc_index_, levscag_index_
      integer, private :: levcan_index_, levcnlf_index_, levcnlfpft_index_
@@ -681,9 +681,8 @@ module FatesHistoryInterfaceMod
      ! 'get' methods used by external callers to access private read only data
 
      procedure :: num_history_vars
-     procedure :: patch_index
      procedure :: column_index
-     procedure :: levgrnd_index
+     procedure :: levsoil_index
      procedure :: levscpf_index
      procedure :: levscls_index
      procedure :: levcapf_index
@@ -710,9 +709,8 @@ module FatesHistoryInterfaceMod
      procedure, private :: set_history_var
      procedure, private :: init_dim_kinds_maps
      procedure, private :: set_dim_indices
-     procedure, private :: set_patch_index
      procedure, private :: set_column_index
-     procedure, private :: set_levgrnd_index
+     procedure, private :: set_levsoil_index
      procedure, private :: set_levscpf_index
      procedure, private :: set_levcacls_index
      procedure, private :: set_levcapf_index
@@ -755,7 +753,7 @@ contains
 
   subroutine Init(this, num_threads, fates_bounds)
 
-    use FatesIODimensionsMod, only : patch, column, levgrnd, levscpf
+    use FatesIODimensionsMod, only : column, levsoil, levscpf
     use FatesIODimensionsMod, only : levscls, levpft, levage
     use FatesIODimensionsMod, only : levcacls, levcapf
     use FatesIODimensionsMod, only : levfuel, levcwdsc, levscag
@@ -775,19 +773,14 @@ contains
     integer :: dim_count = 0
 
     dim_count = dim_count + 1
-    call this%set_patch_index(dim_count)
-    call this%dim_bounds(dim_count)%Init(patch, num_threads, &
-         fates_bounds%patch_begin, fates_bounds%patch_end)
-
-    dim_count = dim_count + 1
     call this%set_column_index(dim_count)
     call this%dim_bounds(dim_count)%Init(column, num_threads, &
          fates_bounds%column_begin, fates_bounds%column_end)
 
     dim_count = dim_count + 1
-    call this%set_levgrnd_index(dim_count)
-    call this%dim_bounds(dim_count)%Init(levgrnd, num_threads, &
-         fates_bounds%ground_begin, fates_bounds%ground_end)
+    call this%set_levsoil_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levsoil, num_threads, &
+         fates_bounds%soil_begin, fates_bounds%soil_end)
 
     dim_count = dim_count + 1
     call this%set_levscpf_index(dim_count)
@@ -905,17 +898,13 @@ contains
 
     integer :: index
 
-    index = this%patch_index()
-    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
-         thread_bounds%patch_begin, thread_bounds%patch_end)
-
     index = this%column_index()
     call this%dim_bounds(index)%SetThreadBounds(thread_index, &
          thread_bounds%column_begin, thread_bounds%column_end)
 
-    index = this%levgrnd_index()
+    index = this%levsoil_index()
     call this%dim_bounds(index)%SetThreadBounds(thread_index, &
-         thread_bounds%ground_begin, thread_bounds%ground_end)
+         thread_bounds%soil_begin, thread_bounds%soil_end)
 
     index = this%levscpf_index()
     call this%dim_bounds(index)%SetThreadBounds(thread_index, &
@@ -1006,8 +995,7 @@ contains
   ! ===================================================================================
   subroutine assemble_history_output_types(this)
 
-    use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
-    use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8
+    use FatesIOVariableKindMod, only : site_r8, site_soil_r8, site_size_pft_r8
     use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
     use FatesIOVariableKindMod, only : site_coage_r8, site_coage_pft_r8
     use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
@@ -1023,18 +1011,10 @@ contains
 
     call this%init_dim_kinds_maps()
 
-    call this%set_dim_indices(patch_r8, 1, this%patch_index())
-
     call this%set_dim_indices(site_r8, 1, this%column_index())
 
-    call this%set_dim_indices(patch_ground_r8, 1, this%patch_index())
-    call this%set_dim_indices(patch_ground_r8, 2, this%levgrnd_index())
-
-    call this%set_dim_indices(site_ground_r8, 1, this%column_index())
-    call this%set_dim_indices(site_ground_r8, 2, this%levgrnd_index())
-
-    call this%set_dim_indices(patch_size_pft_r8, 1, this%patch_index())
-    call this%set_dim_indices(patch_size_pft_r8, 2, this%levscpf_index())
+    call this%set_dim_indices(site_soil_r8, 1, this%column_index())
+    call this%set_dim_indices(site_soil_r8, 2, this%levsoil_index())
 
     call this%set_dim_indices(site_size_pft_r8, 1, this%column_index())
     call this%set_dim_indices(site_size_pft_r8, 2, this%levscpf_index())
@@ -1141,20 +1121,6 @@ contains
  end subroutine set_dim_indices
 
  ! =======================================================================
- subroutine set_patch_index(this, index)
-   implicit none
-   class(fates_history_interface_type), intent(inout) :: this
-   integer, intent(in) :: index
-   this%patch_index_ = index
- end subroutine set_patch_index
-
- integer function patch_index(this)
-   implicit none
-   class(fates_history_interface_type), intent(in) :: this
-   patch_index = this%patch_index_
- end function patch_index
-
- ! =======================================================================
  subroutine set_column_index(this, index)
    implicit none
    class(fates_history_interface_type), intent(inout) :: this
@@ -1169,18 +1135,18 @@ contains
  end function column_index
 
  ! =======================================================================
- subroutine set_levgrnd_index(this, index)
+ subroutine set_levsoil_index(this, index)
    implicit none
    class(fates_history_interface_type), intent(inout) :: this
    integer, intent(in) :: index
-   this%levgrnd_index_ = index
- end subroutine set_levgrnd_index
+   this%levsoil_index_ = index
+ end subroutine set_levsoil_index
 
- integer function levgrnd_index(this)
+ integer function levsoil_index(this)
    implicit none
    class(fates_history_interface_type), intent(in) :: this
-   levgrnd_index = this%levgrnd_index_
- end function levgrnd_index
+   levsoil_index = this%levsoil_index_
+ end function levsoil_index
 
  ! =======================================================================
  subroutine set_levscpf_index(this, index)
@@ -1591,15 +1557,13 @@ end subroutine flush_hvars
     ! This subroutine simply initializes the structures that define the different
     ! array and type formats for different IO variables
     !
-    ! PA_R8   : 1D patch scale 8-byte reals
     ! SI_R8   : 1D site scale 8-byte reals
     !
     ! The allocation on the structures is not dynamic and should only add up to the
     ! number of entries listed here.
     !
     ! ----------------------------------------------------------------------------------
-    use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
-    use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8
+    use FatesIOVariableKindMod, only : site_r8, site_soil_r8, site_size_pft_r8
     use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
     use FatesIOVariableKindMod, only : site_coage_r8, site_coage_pft_r8
     use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
@@ -1617,25 +1581,13 @@ end subroutine flush_hvars
 
     integer :: index
 
-    ! 1d Patch
     index = 1
-    call this%dim_kinds(index)%Init(patch_r8, 1)
-
     ! 1d Site
-    index = index + 1
     call this%dim_kinds(index)%Init(site_r8, 1)
 
-    ! patch x ground
+    ! site x soil
     index = index + 1
-    call this%dim_kinds(index)%Init(patch_ground_r8, 2)
-
-    ! patch x size-class/pft
-    index = index + 1
-    call this%dim_kinds(index)%Init(patch_size_pft_r8, 2)
-
-    ! site x ground
-    index = index + 1
-    call this%dim_kinds(index)%Init(site_ground_r8, 2)
+    call this%dim_kinds(index)%Init(site_soil_r8, 2)
 
     ! site x size-class/pft
     index = index + 1
@@ -4339,8 +4291,7 @@ end subroutine update_history_hifrq
     ! a real.  The applied flush value will use the NINT() intrinsic function
     ! ---------------------------------------------------------------------------------
 
-    use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
-    use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8
+    use FatesIOVariableKindMod, only : site_r8, site_soil_r8, site_size_pft_r8
     use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
     use FatesIOVariableKindMod, only : site_coage_pft_r8, site_coage_r8
     use FatesIOVariableKindMod, only : site_height_r8, site_agefuel_r8
@@ -4375,7 +4326,7 @@ end subroutine update_history_hifrq
     ! fuel class               (site_fuel_r8)   : FC
     ! height                   (site_height_r8) : HT
     ! plant functional type    (site_pft_r8)    : PF
-    ! soil layer               (site_ground_r8) : SL
+    ! soil layer               (site_soil_r8)   : SL
     ! cohort size              (site_size_r8)   : SZ
 
     ! Multiple dimensions should have multiple two-code suffixes:
@@ -4735,7 +4686,7 @@ end subroutine update_history_hifrq
 
     call this%set_history_var(vname='FATES_FRAGMENTATION_SCALER_SL', units='', &
          long='factor (0-1) by which litter/cwd fragmentation proceeds relative to max rate by soil layer',  &
-         use_default='active', avgflag='A', vtype=site_ground_r8,              &
+         use_default='active', avgflag='A', vtype=site_soil_r8,              &
          hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
          index = ih_fragmentation_scaler_sl)
 
@@ -6918,19 +6869,19 @@ end subroutine update_history_hifrq
 
        call this%set_history_var(vname='FATES_SOILMATPOT_SL', units='Pa',      &
             long='soil water matric potenial by soil layer',                   &
-            use_default='inactive', avgflag='A', vtype=site_ground_r8,         &
+            use_default='inactive', avgflag='A', vtype=site_soil_r8,           &
             hlms='CLM:ALM', upfreq=4, ivar=ivar,                               &
             initialize=initialize_variables, index = ih_soilmatpot_sl)
 
        call this%set_history_var(vname='FATES_SOILVWC_SL', units='m3 m-3',     &
             long='soil volumetric water content by soil layer',                &
-            use_default='inactive', avgflag='A', vtype=site_ground_r8,         &
+            use_default='inactive', avgflag='A', vtype=site_soil_r8,           &
             hlms='CLM:ALM', upfreq=4, ivar=ivar,                               &
             initialize=initialize_variables, index = ih_soilvwc_sl)
 
        call this%set_history_var(vname='FATES_SOILVWCSAT_SL', units='m3 m-3',  &
             long='soil saturated volumetric water content by soil layer',      &
-            use_default='inactive', avgflag='A', vtype=site_ground_r8,         &
+            use_default='inactive', avgflag='A', vtype=site_soil_r8,           &
             hlms='CLM:ALM', upfreq=4, ivar=ivar,                               &
             initialize=initialize_variables, index = ih_soilvwcsat_sl)
 
@@ -6942,7 +6893,7 @@ end subroutine update_history_hifrq
        call this%set_history_var(vname='FATES_ROOTUPTAKE_SL',                  &
              units='kg m-2 s-1',                                               &
             long='root water uptake rate by soil layer',                       &
-            use_default='inactive', avgflag='A', vtype=site_ground_r8,         &
+            use_default='inactive', avgflag='A', vtype=site_soil_r8,           &
             hlms='CLM:ALM', upfreq=4, ivar=ivar,                               &
             initialize=initialize_variables, index = ih_rootuptake_sl)
 
