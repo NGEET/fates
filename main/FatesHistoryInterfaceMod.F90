@@ -63,6 +63,7 @@ module FatesHistoryInterfaceMod
   use FatesLitterMod           , only : litter_type
   use FatesConstantsMod        , only : secondaryforest
   use FatesAllometryMod        , only : bstore_allom
+  use FatesAllometryMod        , only : set_root_fraction
   use PRTGenericMod            , only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod            , only : struct_organ, store_organ, repro_organ
   use PRTGenericMod            , only : all_carbon_elements
@@ -153,6 +154,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_leafc_si
   integer :: ih_sapwc_si
   integer :: ih_fnrtc_si
+  integer :: ih_fnrtc_sl
   integer :: ih_reproc_si
   integer :: ih_totvegc_si
 
@@ -1688,7 +1690,7 @@ end subroutine flush_hvars
 
   ! ====================================================================================
   
-  subroutine update_history_dyn(this,nc,nsites,sites)
+  subroutine update_history_dyn(this,nc,nsites,sites,bc_in)
     
     ! ---------------------------------------------------------------------------------
     ! This is the call to update the history IO arrays that are expected to only change
@@ -1716,6 +1718,7 @@ end subroutine flush_hvars
     integer                 , intent(in)            :: nc   ! clump index
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
+    type(bc_in_type)        , intent(in)            :: bc_in(nsites)
     
     ! Locals
     type(litter_type), pointer         :: litt_c   ! Pointer to the carbon12 litter pool
@@ -2295,6 +2298,17 @@ end subroutine flush_hvars
                           this%hvars(ih_leafc_si)%r81d(io_si) + ccohort%n * leaf_m
                      this%hvars(ih_fnrtc_si)%r81d(io_si)   = &
                           this%hvars(ih_fnrtc_si)%r81d(io_si) + ccohort%n * fnrt_m
+
+                     ! Determine the root carbon biomass in kg/m3
+                     ! [kg/m3] = [kg/plant] * [plant/ha] / [m3/ha] * [fraction] / [m]
+                     
+                     call set_root_fraction(sites(s)%rootfrac_scr, ccohort%pft, sites(s)%zi_soil, &
+                          bc_in(s)%max_rooting_depth_index_col )
+                     do ilyr = 1,sites(s)%nlevsoil
+                        this%hvars(ih_fnrtc_sl)%r82d(io_si,ilyr) = this%hvars(ih_fnrtc_sl)%r82d(io_si,ilyr) + &
+                             fnrt_m * ccohort%n / area * sites(s)%rootfrac_scr(ilyr) / sites(s)%dz_soil(ilyr)
+                     end do
+                     
                      this%hvars(ih_reproc_si)%r81d(io_si)  = &
                           this%hvars(ih_reproc_si)%r81d(io_si)+ ccohort%n * repro_m
                      this%hvars(ih_sapwc_si)%r81d(io_si)   = &
@@ -2830,7 +2844,7 @@ end subroutine flush_hvars
             hio_sum_fuel_si(io_si)             = hio_sum_fuel_si(io_si) + cpatch%sum_fuel * g_per_kg * cpatch%area * AREA_INV
 
             do ilyr = 1,sites(s)%nlevsoil
-                 hio_fragmentation_scaler_sl(io_si,ilyr) = hio_fragmentation_scaler_sl(io_si,ilyr) + cpatch%fragmentation_scaler(ilyr) * cpatch%area * AREA_INV
+               hio_fragmentation_scaler_sl(io_si,ilyr) = hio_fragmentation_scaler_sl(io_si,ilyr) + cpatch%fragmentation_scaler(ilyr) * cpatch%area * AREA_INV
             end do
             
             do i_fuel = 1,nfsc
@@ -2903,8 +2917,6 @@ end subroutine flush_hvars
          do i_pft = 1, numpft
             do i_scls = 1,nlevsclass
                i_scpf = (i_pft-1)*nlevsclass + i_scls
-
-              
                
                !
                ! termination mortality. sum of canopy and understory indices
@@ -4732,6 +4744,11 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_fnrtc_si )
 
+    call this%set_history_var(vname='FNRTC_SL', units='kgC m-3',                        &
+         long='Total carbon in live plant fine-roots over depth', use_default='active', &
+         avgflag='A', vtype=site_ground_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,         &
+         ivar=ivar, initialize=initialize_variables, index = ih_fnrtc_sl )
+    
     call this%set_history_var(vname='REPROC', units='kgC ha-1',                          &
          long='Total carbon in live plant reproductive tissues', use_default='active', &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,       &
