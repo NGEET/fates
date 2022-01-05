@@ -504,6 +504,10 @@ module FatesHydraulicsMemMod
       integer  :: j
       integer  :: j_t,j_b
       real(r8) :: var_out
+
+      integer, parameter :: arithmetic_mean = 0
+      integer, parameter :: harmonic_mean = 1
+      integer, parameter :: mean_type = harmonic_mean
       
       ! This function aggregates properties on the soil layer to
       ! the root(rhiz) layer
@@ -511,7 +515,15 @@ module FatesHydraulicsMemMod
       j_t = this%map_r2s(j,1)
       j_b = this%map_r2s(j,2)
 
-      var_out = sum(var_in(j_t:j_b)*weight(j_t:j_b))/sum(weight(j_t:j_b))
+
+      if(mean_type.eq.arithmetic_mean) then
+         var_out = sum(var_in(j_t:j_b)*weight(j_t:j_b))/sum(weight(j_t:j_b))
+      else
+
+         var_out = sum(weight(j_t:j_b)) / sum( weight(j_t:j_b) / var_in(j_t:j_b) )
+         
+      end if
+         
       
     end function AggBCToRhiz
     
