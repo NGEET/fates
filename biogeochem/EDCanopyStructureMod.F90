@@ -1935,12 +1935,9 @@ contains
        total_patch_area = 0._r8
        total_canopy_area = 0._r8
        bc_out(s)%canopy_fraction_pa(:) = 0._r8
-       
-       if (hlm_use_sp.eq.ifalse) then
-          bc_out(s)%dleaf_pa(:) = 0._r8
-          bc_out(s)%z0m_pa(:) = 0._r8
-          bc_out(s)%displa_pa(:) = 0._r8
-       endif
+       bc_out(s)%dleaf_pa(:) = 0._r8
+       bc_out(s)%z0m_pa(:) = 0._r8
+       bc_out(s)%displa_pa(:) = 0._r8
        
        currentPatch => sites(s)%oldest_patch
        c = fcolumn(s)
@@ -1970,7 +1967,7 @@ contains
              ! Avoid this if running in satellite phenology mode
              ! ----------------------------------------------------------------------------
 
-             if (currentPatch%total_canopy_area > nearzero .and. hlm_use_sp.eq.ifalse) then
+             if (currentPatch%total_canopy_area > nearzero) then
                 currentCohort => currentPatch%shortest
                 do while(associated(currentCohort))
                    if (currentCohort%canopy_layer .eq. 1) then
@@ -1988,7 +1985,8 @@ contains
                 currentCohort => currentPatch%shortest
                 do while(associated(currentCohort))
 
-                   ! mkae sure that allometries are correct
+                   if (hlm_use_sp.eq.ifalse) then
+                   ! make sure that allometries are correct
                    call carea_allom(currentCohort%dbh,currentCohort%n,sites(s)%spread,&
                         currentCohort%pft,currentCohort%c_area)
 
@@ -2000,6 +1998,7 @@ contains
                         currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
                         currentPatch%canopy_layer_tlai, currentCohort%treelai , &
                         currentCohort%vcmax25top,4)
+                   endif
 
                    total_patch_leaf_stem_area = total_patch_leaf_stem_area + &
                         (currentCohort%treelai + currentCohort%treesai) * currentCohort%c_area
