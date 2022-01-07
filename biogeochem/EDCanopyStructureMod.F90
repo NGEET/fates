@@ -1289,7 +1289,6 @@ contains
     integer  :: ft               ! plant functional type
     integer  :: ifp              ! the number of the vegetated patch (1,2,3). In SP mode bareground patch is 0
     integer  :: patchn           ! identification number for each patch.
-    real(r8) :: canopy_leaf_area ! total amount of leaf area in the vegetated area. m2.
     real(r8) :: leaf_c           ! leaf carbon [kg]
     real(r8) :: fnrt_c           ! fineroot carbon [kg]
     real(r8) :: sapw_c           ! sapwood carbon [kg]
@@ -1318,7 +1317,6 @@ contains
           !zero cohort-summed variables.
           currentPatch%total_canopy_area = 0.0_r8
           currentPatch%total_tree_area = 0.0_r8
-          canopy_leaf_area = 0.0_r8
 
           !update cohort quantitie s
           currentCohort => currentPatch%shortest
@@ -1347,11 +1345,6 @@ contains
                 call carea_allom(currentCohort%dbh,currentCohort%n,sites(s)%spread,&
                      currentCohort%pft,currentCohort%c_area)
              endif
-             currentCohort%treelai = tree_lai(leaf_c,             &
-                  currentCohort%pft, currentCohort%c_area, currentCohort%n, &
-                  currentCohort%canopy_layer, currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )
-
-             canopy_leaf_area = canopy_leaf_area + currentCohort%treelai *currentCohort%c_area
 
              if(currentCohort%canopy_layer==1)then
                 currentPatch%total_canopy_area = currentPatch%total_canopy_area + currentCohort%c_area
