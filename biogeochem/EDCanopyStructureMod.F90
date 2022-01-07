@@ -42,7 +42,7 @@ module EDCanopyStructureMod
   use PRTGenericMod,          only : repro_organ
   use PRTGenericMod,          only : struct_organ
   use PRTGenericMod,          only : SetState
-
+  use FatesRunningMeanMod,    only : ema_lpa
 
   ! CIME Globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
@@ -196,7 +196,7 @@ contains
 
           ! Its possible that before we even enter this scheme
           ! some cohort numbers are very low.  Terminate them.
-            call terminate_cohorts(currentSite, currentPatch, 1, 12, bc_in)
+          call terminate_cohorts(currentSite, currentPatch, 1, 12, bc_in)
 
           ! Calculate how many layers we have in this canopy
           ! This also checks the understory to see if its crown
@@ -204,17 +204,17 @@ contains
           z = NumPotentialCanopyLayers(currentPatch,currentSite%spread,include_substory=.false.)
 
           do i_lyr = 1,z ! Loop around the currently occupied canopy layers.
-               call DemoteFromLayer(currentSite, currentPatch, i_lyr, bc_in)
+             call DemoteFromLayer(currentSite, currentPatch, i_lyr, bc_in)
           end do
 
           ! After demotions, we may then again have cohorts that are very very
           ! very sparse, remove them
-            call terminate_cohorts(currentSite, currentPatch, 1,13,bc_in)
+          call terminate_cohorts(currentSite, currentPatch, 1,13,bc_in)
 
           call fuse_cohorts(currentSite, currentPatch, bc_in)
 
           ! Remove cohorts for various other reasons
-            call terminate_cohorts(currentSite, currentPatch, 2,13,bc_in)
+          call terminate_cohorts(currentSite, currentPatch, 2,13,bc_in)
 
 
           ! ---------------------------------------------------------------------------------------
@@ -233,12 +233,12 @@ contains
              end do
 
              ! Remove cohorts that are incredibly sparse
-               call terminate_cohorts(currentSite, currentPatch, 1,14,bc_in)
+             call terminate_cohorts(currentSite, currentPatch, 1,14,bc_in)
 
              call fuse_cohorts(currentSite, currentPatch, bc_in)
 
              ! Remove cohorts for various other reasons
-               call terminate_cohorts(currentSite, currentPatch, 2,14,bc_in)
+             call terminate_cohorts(currentSite, currentPatch, 2,14,bc_in)
 
           end if
 
@@ -331,7 +331,7 @@ contains
   ! ==============================================================================================
 
 
-   subroutine DemoteFromLayer(currentSite,currentPatch,i_lyr,bc_in)
+  subroutine DemoteFromLayer(currentSite,currentPatch,i_lyr,bc_in)
 
     use EDParamsMod, only : ED_val_comp_excln
     use SFParamsMod, only : SF_val_CWD_frac
@@ -340,7 +340,7 @@ contains
     type(ed_site_type), intent(inout), target  :: currentSite
     type(ed_patch_type), intent(inout), target :: currentPatch
     integer, intent(in)                        :: i_lyr   ! Current canopy layer of interest
-      type(bc_in_type), intent(in)               :: bc_in
+    type(bc_in_type), intent(in)               :: bc_in
 
     ! !LOCAL VARIABLES:
     type(ed_cohort_type), pointer :: currentCohort
@@ -670,6 +670,12 @@ contains
                    call InitHydrCohort(currentSite,copyc)
                 endif
 
+                ! (keep as an example)
+                ! Initialize running means
+                !allocate(copyc%tveg_lpa)
+                !call copyc%tveg_lpa%InitRMean(ema_lpa, &
+                !     init_value=currentPatch%tveg_lpa%GetMean())
+                
                 call copy_cohort(currentCohort, copyc)
 
                 newarea = currentCohort%c_area - cc_loss
@@ -720,7 +726,7 @@ contains
                 ! put the litter from the terminated cohorts
                 ! straight into the fragmenting pools
                 call SendCohortToLitter(currentSite,currentPatch, &
-                       currentCohort,currentCohort%n,bc_in)
+                     currentCohort,currentCohort%n,bc_in)
 
                 currentCohort%n            = 0.0_r8
                 currentCohort%c_area       = 0.0_r8
@@ -1124,6 +1130,13 @@ contains
                    if( hlm_use_planthydro.eq.itrue ) then
                       call InitHydrCohort(CurrentSite,copyc)
                    endif
+
+                   ! (keep as an example)
+                   ! Initialize running means
+                   !allocate(copyc%tveg_lpa)
+                   !call copyc%tveg_lpa%InitRMean(ema_lpa,&
+                   !     init_value=currentPatch%tveg_lpa%GetMean())
+                   
                    call copy_cohort(currentCohort, copyc) !makes an identical copy...
 
                    newarea = currentCohort%c_area - cc_gain !new area of existing cohort
@@ -1439,7 +1452,7 @@ contains
 
   ! =====================================================================================
 
- subroutine leaf_area_profile( currentSite )
+  subroutine leaf_area_profile( currentSite )
 
     ! -----------------------------------------------------------------------------------
     ! This subroutine calculates how leaf and stem areas are distributed
@@ -1560,7 +1573,6 @@ contains
              currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, &
                   currentCohort%n, currentCohort%canopy_layer,               &
                   currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )
-             
              if (hlm_use_sp .eq. ifalse) then
                 currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh,&
                      currentSite%spread, currentCohort%canopy_trim, &
@@ -1608,19 +1620,19 @@ contains
              currentCohort => currentPatch%shortest
              do while(associated(currentCohort))
                 ft = currentCohort%pft
-                min_chite = currentCohort%hite - currentCohort%hite * EDPftvarcon_inst%crown(ft)
+                min_chite = currentCohort%hite - currentCohort%hite * prt_params%crown(ft)
                 max_chite = currentCohort%hite
                 do iv = 1,N_HITE_BINS
                    frac_canopy(iv) = 0.0_r8
                    ! this layer is in the middle of the canopy
                    if(max_chite > maxh(iv).and.min_chite < minh(iv))then
-                      frac_canopy(iv)= min(1.0_r8,dh / (currentCohort%hite*EDPftvarcon_inst%crown(ft)))
+                      frac_canopy(iv)= min(1.0_r8,dh / (currentCohort%hite*prt_params%crown(ft)))
                       ! this is the layer with the bottom of the canopy in it.
                    elseif(min_chite < maxh(iv).and.min_chite > minh(iv).and.max_chite > maxh(iv))then
-                      frac_canopy(iv) = (maxh(iv) -min_chite ) / (currentCohort%hite*EDPftvarcon_inst%crown(ft))
+                      frac_canopy(iv) = (maxh(iv) -min_chite ) / (currentCohort%hite*prt_params%crown(ft))
                       ! this is the layer with the top of the canopy in it.
                    elseif(max_chite > minh(iv).and.max_chite < maxh(iv).and.min_chite < minh(iv))then
-                      frac_canopy(iv) = (max_chite - minh(iv)) / (currentCohort%hite*EDPftvarcon_inst%crown(ft))
+                      frac_canopy(iv) = (max_chite - minh(iv)) / (currentCohort%hite*prt_params%crown(ft))
                    elseif(max_chite < maxh(iv).and.min_chite > minh(iv))then !the whole cohort is within this layer.
                       frac_canopy(iv) = 1.0_r8
                    endif
@@ -1639,7 +1651,7 @@ contains
                       fraction_exposed = 1._r8
                    endif
                    if(currentSite%snow_depth >= minh(iv) .and. currentSite%snow_depth <= maxh(iv)) then !only partly hidden...
-                   fraction_exposed = 1._r8 - max(0._r8,(min(1.0_r8,(currentSite%snow_depth-minh(iv))/dh)))
+                      fraction_exposed = 1._r8 - max(0._r8,(min(1.0_r8,(currentSite%snow_depth-minh(iv))/dh)))
                    endif
 
                    currentPatch%elai_profile(1,ft,iv) = currentPatch%tlai_profile(1,ft,iv) * fraction_exposed
@@ -1716,11 +1728,11 @@ contains
 
                    layer_top_hite = currentCohort%hite - &
                         ( real(iv-1,r8)/currentCohort%NV * currentCohort%hite *  &
-                        EDPftvarcon_inst%crown(currentCohort%pft) )
+                        prt_params%crown(currentCohort%pft) )
 
                    layer_bottom_hite = currentCohort%hite - &
                         ( real(iv,r8)/currentCohort%NV * currentCohort%hite * &
-                        EDPftvarcon_inst%crown(currentCohort%pft) )
+                        prt_params%crown(currentCohort%pft) )
 
                    fraction_exposed = 1.0_r8
                    if(currentSite%snow_depth  > layer_top_hite)then

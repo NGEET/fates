@@ -1022,34 +1022,18 @@ contains
           
        end select
 
+       
+       ! If there is any efflux (from stores overflowing)
+       ! than pass that to the labile litter pool
+       
+       do id = 1,nlev_eff_decomp
+          flux_lab_si(id) = flux_lab_si(id) + &
+               sum(csite%flux_diags(el)%nutrient_efflux_scpf(:)) * &
+               area_inv * surface_prof(id)
+       end do
+       
        currentPatch => csite%oldest_patch
        do while (associated(currentPatch))
-
-          ! If there is any efflux (from stores overflowing)
-          ! than pass that to the labile litter pool
-          
-          currentCohort => currentPatch%tallest
-          do while(associated(currentCohort))
-             if(.not.currentCohort%isnew)then
-                if(element_list(el).eq.carbon12_element) then
-                   efflux_ptr => currentCohort%daily_c_efflux
-                elseif(element_list(el).eq.nitrogen_element) then
-                   efflux_ptr => currentCohort%daily_n_efflux
-                elseif(element_list(el).eq.phosphorus_element) then
-                   efflux_ptr => currentCohort%daily_p_efflux
-                end if
-                
-                ! Unit conversion
-                ! kg/plant/day * plant/ha * ha/m2 -> kg/m2/day
-                
-                do id = 1,nlev_eff_decomp
-                   flux_lab_si(id) = flux_lab_si(id) + &
-                        efflux_ptr * currentCohort%n* AREA_INV * surface_prof(id)
-                end do
-             end if
-             currentCohort => currentCohort%shorter
-          end do
-
 
           ! Set a pointer to the litter object
           ! for the current element on the current

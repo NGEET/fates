@@ -46,12 +46,14 @@ module EDPatchDynamicsMod
   use FatesInterfaceTypesMod    , only : bc_in_type
   use FatesInterfaceTypesMod    , only : hlm_days_per_year
   use FatesInterfaceTypesMod    , only : numpft
+  use FatesInterfaceTypesMod    , only : hlm_stepsize
   use FatesInterfaceTypesMod    , only : hlm_use_sp
   use FatesInterfaceTypesMod    , only : hlm_use_nocomp
   use FatesInterfaceTypesMod    , only : hlm_use_fixed_biogeog
   use FatesGlobals         , only : endrun => fates_endrun
   use FatesConstantsMod    , only : r8 => fates_r8
   use FatesConstantsMod    , only : itrue, ifalse
+  use FatesConstantsMod    , only : t_water_freeze_k_1atm
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesPlantHydraulicsMod, only : AccumulateMortalityWaterStorage
   use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
@@ -89,7 +91,8 @@ module EDPatchDynamicsMod
   use SFParamsMod,            only : SF_VAL_CWD_FRAC
   use EDParamsMod,            only : logging_event_code
   use EDParamsMod,            only : logging_export_frac
-
+  use FatesRunningMeanMod,    only : ema_24hr, fixed_24hr, ema_lpa
+  
   ! CIME globals
   use shr_infnan_mod       , only : nan => shr_infnan_nan, assignment(=)
   use shr_log_mod          , only : errMsg => shr_log_errMsg
@@ -440,7 +443,7 @@ contains
     enddo !patch loop 
 
   end subroutine disturbance_rates
-  
+
     ! ============================================================================
 
   subroutine spawn_patches( currentSite, bc_in)
@@ -462,7 +465,8 @@ contains
     ! !USES:
     
     use EDParamsMod         , only : ED_val_understorey_death, logging_coll_under_frac
-    use EDCohortDynamicsMod , only : zero_cohort, copy_cohort, terminate_cohorts 
+    use EDCohortDynamicsMod , only : zero_cohort, copy_cohort, terminate_cohorts
+    use FatesConstantsMod   , only : rsnbl_math_prec
     use DamageMainMod       , only : get_crown_reduction
     use DamageMainMod       , only : get_damage_frac
     use PRTLossFluxesMod    , only : PRTDamageLosses
@@ -471,8 +475,7 @@ contains
     use FatesInterfaceTypesMod, only : hlm_use_canopy_damage
     use FatesInterfaceTypesMod, only : hlm_use_understory_damage
     use FatesInterfaceTypesMod, only : ncrowndamage
-    use EDCohortDynamicsMod , only : zero_cohort, copy_cohort, terminate_cohorts
-    use FatesConstantsMod   , only : rsnbl_math_prec
+
     !
     ! !ARGUMENTS:
     type (ed_site_type), intent(inout), target :: currentSite
@@ -622,7 +625,7 @@ contains
           allocate(new_patch_primary)
 
           call create_patch(currentSite, new_patch_primary, age, &
-                site_areadis_primary, primaryforest,fates_unset_int)
+                site_areadis_primary, primaryforest, fates_unset_int)
           
           ! Initialize the litter pools to zero, these
           ! pools will be populated by looping over the existing patches
@@ -639,7 +642,6 @@ contains
           new_patch_primary%shortest => null()
 
        endif
-
 
        ! next create patch to receive secondary forest area
        if ( site_areadis_secondary .gt. nearzero) then
@@ -744,6 +746,14 @@ contains
              ! in kg - for mass conservation checking
              total_litter_d = total_litter_d + patch_damage_litter
 
+
+             ! Copy any means or timers from the original patch to the new patch
+             ! These values will inherit all info from the original patch
+             ! --------------------------------------------------------------------------
+             call new_patch%tveg24%CopyFromDonor(currentPatch%tveg24)
+             call new_patch%tveg_lpa%CopyFromDonor(currentPatch%tveg_lpa)
+             
+             
              ! --------------------------------------------------------------------------
              ! The newly formed patch from disturbance (new_patch), has now been given 
              ! some litter from dead plants and pre-existing litter from the donor patches.
@@ -755,7 +765,22 @@ contains
 
              currentCohort => currentPatch%shortest
              do while(associated(currentCohort))       
+                 
+                 allocate(nc)
+                 if(hlm_use_planthydro.eq.itrue) call InitHydrCohort(CurrentSite,nc)
+                 
+                 ! Initialize the PARTEH object and point to the
+                 ! correct boundary condition fields
+                 nc%prt => null()
+                 call InitPRTObject(nc%prt)
+                 call InitPRTBoundaryConditions(nc)
 
+                 !  (Keeping as an example)
+                 ! Allocate running mean functions
+                 !allocate(nc%tveg_lpa)
+                 !call nc%tveg_lpa%InitRMean(ema_lpa,init_value=new_patch%tveg_lpa%GetMean())
+
+                 call zero_cohort(nc)
 
                 agb_frac = prt_params%allom_agb_frac(currentCohort%pft)
 
@@ -2563,6 +2588,8 @@ contains
 
   subroutine create_patch(currentSite, new_patch, age, areap, label,nocomp_pft)
 
+    use FatesInterfaceTypesMod, only : hlm_current_tod,hlm_current_date,hlm_reference_date
+    
     !
     ! !DESCRIPTION:
     !  Set default values for creating a new patch
@@ -2576,6 +2603,12 @@ contains
     real(r8), intent(in) :: areap                ! initial area of this patch in m2. 
     integer, intent(in)  :: label                ! anthropogenic disturbance label
     integer, intent(in)  :: nocomp_pft
+
+
+    ! Until bc's are pointed to by sites give veg a default temp [K]
+    real(r8), parameter :: temp_init_veg = 15._r8+t_water_freeze_k_1atm 
+    
+
     ! !LOCAL VARIABLES:
     !---------------------------------------------------------------------
     integer :: el                                ! element loop index
@@ -2591,7 +2624,11 @@ contains
     allocate(new_patch%sabs_dif(hlm_numSWb))
     allocate(new_patch%fragmentation_scaler(currentSite%nlevsoil))
 
-
+    allocate(new_patch%tveg24)
+    call new_patch%tveg24%InitRMean(fixed_24hr,init_value=temp_init_veg,init_offset=real(hlm_current_tod,r8) )
+    allocate(new_patch%tveg_lpa)
+    call new_patch%tveg_lpa%InitRmean(ema_lpa,init_value=temp_init_veg)
+    
     ! Litter
     ! Allocate, Zero Fluxes, and Initialize to "unset" values
 
@@ -2776,9 +2813,17 @@ contains
     currentPatch%c_stomata                  = 0.0_r8 ! This is calculated immediately before use
     currentPatch%c_lblayer                  = 0.0_r8
     currentPatch%fragmentation_scaler(:)    = 0.0_r8
+    currentPatch%radiation_error            = 0.0_r8
+
+    ! diagnostic radiation profiles
+    currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
+    currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
+    currentPatch%nrmlzd_parprof_dir_z(:,:,:)       = 0._r8
+    currentPatch%nrmlzd_parprof_dif_z(:,:,:)       = 0._r8
 
     currentPatch%solar_zenith_flag          = .false.
     currentPatch%solar_zenith_angle         = nan
+    currentPatch%fcansno                    = nan
 
     currentPatch%gnd_alb_dir(:)             = nan
     currentPatch%gnd_alb_dif(:)             = nan
@@ -2966,7 +3011,7 @@ contains
                          !-------------------------------------------------------------------------!
 
                          if(fuse_flag  ==  1)then
-
+                            
                             !-----------------------!
                             ! fuse the two patches  !
                             !-----------------------!
@@ -3099,6 +3144,10 @@ contains
        write(fates_log(),*) 'trying to fuse patches with different anthro_disturbance_label values'
        call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
+
+    ! Weighted mean of the running means
+    call rp%tveg24%FuseRMean(dp%tveg24,rp%area*inv_sum_area)
+    call rp%tveg_lpa%FuseRMean(dp%tveg_lpa,rp%area*inv_sum_area)
     
     rp%fuel_eff_moist       = (dp%fuel_eff_moist*dp%area + rp%fuel_eff_moist*rp%area) * inv_sum_area
     rp%livegrass            = (dp%livegrass*dp%area + rp%livegrass*rp%area) * inv_sum_area
@@ -3121,7 +3170,8 @@ contains
     rp%zstar                = (dp%zstar*dp%area + rp%zstar*rp%area) * inv_sum_area
     rp%c_stomata            = (dp%c_stomata*dp%area + rp%c_stomata*rp%area) * inv_sum_area
     rp%c_lblayer            = (dp%c_lblayer*dp%area + rp%c_lblayer*rp%area) * inv_sum_area
-    
+    rp%radiation_error      = (dp%radiation_error*dp%area + rp%radiation_error*rp%area) * inv_sum_area
+
     rp%area = rp%area + dp%area !THIS MUST COME AT THE END!
 
     !insert donor cohorts into recipient patch
@@ -3243,9 +3293,9 @@ contains
 
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch)) 
-
+       
        if(currentPatch%area <= min_patch_area)then
-
+          
          
           ! Even if the patch area is small, avoid fusing it into its neighbor
           ! if it is the youngest of all patches. We do this in attempts to maintain
@@ -3436,9 +3486,13 @@ contains
        deallocate(cpatch%sabs_dir)
        deallocate(cpatch%sabs_dif)
        deallocate(cpatch%fragmentation_scaler)
-      
     end if
 
+    
+    ! Deallocate any running means
+    deallocate(cpatch%tveg24)
+    deallocate(cpatch%tveg_lpa)
+    
     return
   end subroutine dealloc_patch
 

@@ -1392,16 +1392,15 @@ contains
     
     ! ======================================================================
     ! This is a power function for leaf biomass from plant diameter.
-    !
-    ! log(bl) = a2 + b2*log(h)
-    ! bl = exp(a2) * h**b2
     ! ======================================================================
     
+    ! p1 and p2 represent the parameters that govern total beaf dry biomass, 
+    ! and the output argument blmax is the leaf carbon only
     
     real(r8),intent(in)  :: d         ! plant diameter [cm]
     real(r8),intent(in)  :: p1        ! parameter 1  (slope)
     real(r8),intent(in)  :: p2        ! parameter 2  (curvature, exponent)
-    real(r8),intent(in)  :: c2b       ! carbon to biomass multiplier
+    real(r8),intent(in)  :: c2b       ! carbon to biomass multiplier (~2)
     
     real(r8),intent(out) :: blmax     ! plant leaf biomass [kgC]
     real(r8),intent(out),optional :: dblmaxdd  ! change leaf bio per diameter [kgC/cm]
@@ -1736,7 +1735,7 @@ contains
     real(r8),intent(in)  :: p2  ! allometry parameter 2
     real(r8),intent(in)  :: wood_density
     real(r8),intent(in)  :: c2b
-    real(r8),intent(out) :: bagw     ! plant height [m]
+    real(r8),intent(out) :: bagw     ! plant aboveground biomass [kgC]
     real(r8),intent(out),optional :: dbagwdd  ! change in agb per diameter [kgC/cm]
     
     real(r8) :: dbagwdd1,dbagwdd2,dbagwdd3
@@ -1792,10 +1791,10 @@ contains
 
     
     real(r8),intent(in)  :: d       ! plant diameter [cm]
-    real(r8),intent(in)  :: p1  ! allometry parameter 1
-    real(r8),intent(in)  :: p2  ! allometry parameter 2
+    real(r8),intent(in)  :: p1      ! allometry parameter 1
+    real(r8),intent(in)  :: p2      ! allometry parameter 2
     real(r8),intent(in)  :: c2b     ! carbon to biomass multiplier ~2
-    real(r8),intent(out) :: bagw     ! plant height [m]
+    real(r8),intent(out) :: bagw    ! plant aboveground biomass [kg C]
     real(r8),intent(out),optional :: dbagwdd  ! change in agb per diameter [kgC/cm]
     
     bagw    = (p1 * d**p2)/c2b
@@ -2045,7 +2044,7 @@ contains
   ! =====================================================================================
 
 
-  subroutine CrownDepth(height,crown_depth)
+  subroutine CrownDepth(height,ft,crown_depth)
 
     ! -----------------------------------------------------------------------------------
     ! This routine returns the depth of a plant's crown.  Which is the length
@@ -2055,14 +2054,20 @@ contains
     ! optioned.
     ! -----------------------------------------------------------------------------------
     
-    real(r8),intent(in)  :: height   ! The height of the plant   [m]
+    real(r8),intent(in)  :: height      ! The height of the plant   [m]
+    integer,intent(in)   :: ft          ! functional type index
     real(r8),intent(out) :: crown_depth ! The depth of the crown [m]
-    
+
     ! Alternative Hypothesis:
     ! crown depth from Poorter, Bongers & Bongers
     ! crown_depth = exp(-1.169_r8)*cCohort%hite**1.098_r8   
-    
-    crown_depth               = min(height,0.1_r8)
+
+    ! Alternative Hypothesis:
+    ! Original FATES crown depth heigh used for hydraulics
+    ! crown_depth               = min(height,0.1_r8)
+
+    crown_depth = prt_params%crown(ft) * height
+
     
     return
  end subroutine CrownDepth

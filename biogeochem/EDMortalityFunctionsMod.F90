@@ -65,7 +65,6 @@ contains
     real(r8),intent(out) :: asmort ! age dependent senescence term
     real(r8),intent(out) :: dgmort ! damage dependent mortality
 
-    integer  :: ifp
     real(r8) :: frac  ! relativised stored carbohydrate
     real(r8) :: leaf_c      ! leaf biomass kgC
     real(r8) :: store_c
@@ -181,12 +180,12 @@ contains
        !           Eastern US carbon sink.  Glob. Change Biol., 12, 2370-2390,              
        !           doi: 10.1111/j.1365-2486.2006.01254.x                                    
 
-       ifp = cohort_in%patchptr%patchno
-       temp_in_C = bc_in%t_veg24_pa(ifp) - tfrz
-       temp_dep_fraction  = max(0.0_r8, min(1.0_r8, 1.0_r8 - (temp_in_C - &
-            EDPftvarcon_inst%freezetol(cohort_in%pft))/frost_mort_buffer) )
-       frmort    = EDPftvarcon_inst%mort_scalar_coldstress(cohort_in%pft) * temp_dep_fraction
-
+    
+    temp_in_C = cohort_in%patchptr%tveg24%GetMean() - tfrz
+    
+    temp_dep_fraction  = max(0.0_r8, min(1.0_r8, 1.0_r8 - (temp_in_C - &
+                         EDPftvarcon_inst%freezetol(cohort_in%pft))/frost_mort_buffer) )
+    frmort    = EDPftvarcon_inst%mort_scalar_coldstress(cohort_in%pft) * temp_dep_fraction
 
        !mortality_rates = bmort + hmort + cmort
 

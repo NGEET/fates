@@ -72,6 +72,8 @@ module EDMainMod
   use FatesConstantsMod        , only : itrue,ifalse
   use FatesConstantsMod        , only : primaryforest, secondaryforest
   use FatesConstantsMod        , only : nearzero
+  use FatesConstantsMod        , only : m2_per_ha
+  use FatesConstantsMod        , only : sec_per_day
   use FatesPlantHydraulicsMod  , only : do_growthrecruiteffects
   use FatesPlantHydraulicsMod  , only : UpdateSizeDepPlantHydProps
   use FatesPlantHydraulicsMod  , only : UpdateSizeDepPlantHydStates
@@ -162,6 +164,10 @@ contains
        call currentSite%mass_balance(el)%ZeroMassBalFlux()
        call currentSite%flux_diags(el)%ZeroFluxDiags()
     end do
+
+    ! zero dynamics (upfreq_in = 1) output history variables
+    call fates_hist%zero_site_hvars(currentSite,upfreq_in=1)
+
 
     ! Call a routine that simply identifies if logging should occur
     ! This is limited to a global event until more structured event handling is enabled
@@ -653,29 +659,35 @@ contains
 
              io_si  = currentSite%h_gid
 
-             fates_hist%hvars(ih_nh4uptake_scpf)%r82d(io_si,iscpf) = &
-                  fates_hist%hvars(ih_nh4uptake_scpf)%r82d(io_si,iscpf) + &
-                  currentCohort%daily_nh4_uptake*currentCohort%n
+             fates_hist%hvars(ih_nh4uptake_scpf)%r82d(io_si,iscpf) =           &
+                  fates_hist%hvars(ih_nh4uptake_scpf)%r82d(io_si,iscpf) +      &
+                  currentCohort%daily_nh4_uptake*currentCohort%n /             &
+                  m2_per_ha / sec_per_day
 
-             fates_hist%hvars(ih_no3uptake_scpf)%r82d(io_si,iscpf) = &
-                  fates_hist%hvars(ih_no3uptake_scpf)%r82d(io_si,iscpf) + &
-                  currentCohort%daily_no3_uptake*currentCohort%n
+             fates_hist%hvars(ih_no3uptake_scpf)%r82d(io_si,iscpf) =           &
+                  fates_hist%hvars(ih_no3uptake_scpf)%r82d(io_si,iscpf) +      &
+                  currentCohort%daily_no3_uptake*currentCohort%n /             &
+                  m2_per_ha / sec_per_day
 
-             fates_hist%hvars(ih_puptake_scpf)%r82d(io_si,iscpf) = &
-                  fates_hist%hvars(ih_puptake_scpf)%r82d(io_si,iscpf) + &
-                  currentCohort%daily_p_uptake*currentCohort%n
+             fates_hist%hvars(ih_puptake_scpf)%r82d(io_si,iscpf) =             &
+                  fates_hist%hvars(ih_puptake_scpf)%r82d(io_si,iscpf) +        &
+                  currentCohort%daily_p_uptake*currentCohort%n /               &
+                  m2_per_ha / sec_per_day
 
-             fates_hist%hvars(ih_nh4uptake_si)%r81d(io_si) = &
-                  fates_hist%hvars(ih_nh4uptake_si)%r81d(io_si)  + &
-                  currentCohort%daily_nh4_uptake*currentCohort%n
+             fates_hist%hvars(ih_nh4uptake_si)%r81d(io_si) =                   &
+                  fates_hist%hvars(ih_nh4uptake_si)%r81d(io_si)  +             &
+                  currentCohort%daily_nh4_uptake*currentCohort%n /             &
+                  m2_per_ha / sec_per_day
 
-             fates_hist%hvars(ih_no3uptake_si)%r81d(io_si) = &
-                  fates_hist%hvars(ih_no3uptake_si)%r81d(io_si)  + &
-                  currentCohort%daily_no3_uptake*currentCohort%n
+             fates_hist%hvars(ih_no3uptake_si)%r81d(io_si) =                   &
+                  fates_hist%hvars(ih_no3uptake_si)%r81d(io_si)  +             &
+                  currentCohort%daily_no3_uptake*currentCohort%n /             &
+                  m2_per_ha / sec_per_day
 
-             fates_hist%hvars(ih_puptake_si)%r81d(io_si) = &
-                  fates_hist%hvars(ih_puptake_si)%r81d(io_si)  + &
-                  currentCohort%daily_p_uptake*currentCohort%n
+             fates_hist%hvars(ih_puptake_si)%r81d(io_si) =                     &
+                  fates_hist%hvars(ih_puptake_si)%r81d(io_si)  +               &
+                  currentCohort%daily_p_uptake*currentCohort%n /               &
+                  m2_per_ha / sec_per_day
 
 
              ! Diagnostics on efflux, size and pft [kgX/ha/day]
@@ -858,6 +870,8 @@ contains
 
     call TotalBalanceCheck(currentSite,final_check_id)
 
+    currentSite%area_by_age(:) = 0._r8
+    
     currentPatch => currentSite%oldest_patch
     do while(associated(currentPatch))
 
@@ -869,8 +883,13 @@ contains
         ! This cohort count is used in the photosynthesis loop
         call count_cohorts(currentPatch)
 
+        ! Update the total area of by patch age class array 
+        currentSite%area_by_age(currentPatch%age_class) = &
+             currentSite%area_by_age(currentPatch%age_class) + currentPatch%area
+        
         currentPatch => currentPatch%younger
-     enddo
+
+    enddo
 
     ! The HLMs need to know about nutrient demand, and/or
     ! root mass and affinities
@@ -1135,7 +1154,3 @@ contains
  end subroutine bypass_dynamics
 
 end module EDMainMod
-
-
-
-
