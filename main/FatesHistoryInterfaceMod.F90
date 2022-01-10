@@ -1791,11 +1791,10 @@ end subroutine flush_hvars
     index = index + 1
     call this%dim_kinds(index)%Init(site_cdpf_r8, 2)
 
-    ! site x crowndamage x size class
+    ! site x crown damage x size class
     index = index + 1
     call this%dim_kinds(index)%Init(site_cdsc_r8, 2)
 
-    
     ! site x size-class x age class
     index = index + 1
     call this%dim_kinds(index)%Init(site_scag_r8, 2)
@@ -1899,8 +1898,7 @@ end subroutine flush_hvars
     integer  :: iagepft     ! age x pft index
     integer  :: i_agefuel     ! age x fuel size class index
     integer  :: ican, ileaf, cnlf_indx  ! iterators for leaf and canopy level
-    integer  :: icdpf, icdsc, icdi, icdj, icdam, imcdam      ! iterators for the crown damage level
-    integer  :: cdpf, cdsc
+    integer  :: icdpf, icdsc, icdam, cdpf, cdsc  ! iterators for the crown damage level 
     integer  :: counter 
     integer  :: height_bin_max, height_bin_min   ! which height bin a given cohort's canopy is in
     integer  :: i_heightbin  ! iterator for height bins
@@ -1948,7 +1946,6 @@ end subroutine flush_hvars
 
     real(r8), parameter :: tiny = 1.e-5_r8      ! some small number
     real(r8), parameter :: reallytalltrees = 1000.   ! some large number (m)
-    real(r8) :: total_c ! for damage 
     
     integer :: tmp
 
@@ -2030,8 +2027,8 @@ end subroutine flush_hvars
                hio_bleaf_understory_si_scpf  => this%hvars(ih_bleaf_understory_si_scpf)%r82d, &
                hio_mortality_canopy_si_scpf         => this%hvars(ih_mortality_canopy_si_scpf)%r82d, &
                hio_mortality_understory_si_scpf     => this%hvars(ih_mortality_understory_si_scpf)%r82d, &
-               hio_m3_mortality_canopy_si_scpf       => this%hvars(ih_m3_mortality_canopy_si_scpf)%r82d, &
-               hio_m3_mortality_understory_si_scpf   => this%hvars(ih_m3_mortality_understory_si_scpf)%r82d, &
+               hio_m3_mortality_canopy_si_scpf      => this%hvars(ih_m3_mortality_canopy_si_scpf)%r82d, &
+               hio_m3_mortality_understory_si_scpf  => this%hvars(ih_m3_mortality_understory_si_scpf)%r82d, &
                hio_nplant_canopy_si_scpf     => this%hvars(ih_nplant_canopy_si_scpf)%r82d, &
                hio_nplant_understory_si_scpf => this%hvars(ih_nplant_understory_si_scpf)%r82d, &
                hio_ddbh_canopy_si_scpf       => this%hvars(ih_ddbh_canopy_si_scpf)%r82d, &
@@ -2920,6 +2917,13 @@ end subroutine flush_hvars
                      (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
                      ccohort%n * sec_per_day * days_per_year / m2_per_ha
 
+                  hio_canopy_mortality_crownarea_si(io_si) = hio_canopy_mortality_crownarea_si(io_si) + &
+                            (ccohort%bmort + ccohort%hmort + ccohort%cmort + & 
+                            ccohort%frmort + ccohort%smort + ccohort%asmort + ccohort%dgmort) * &
+                            ccohort%c_area  + &
+                            (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
+                            ccohort%c_area * sec_per_day * days_per_year
+                  
                   hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
                      (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
                      ccohort%frmort + ccohort%smort + ccohort%asmort + ccohort%dgmort) * &
@@ -3054,6 +3058,14 @@ end subroutine flush_hvars
                   total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2 + &
                      (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * total_m * &
                      ccohort%n * ha_per_m2
+                  
+                  hio_understory_mortality_crownarea_si(io_si) = hio_understory_mortality_crownarea_si(io_si) + &
+                       (ccohort%bmort + ccohort%hmort + ccohort%cmort + & 
+                       ccohort%frmort + ccohort%smort + ccohort%asmort + ccohort%dgmort) * &
+                       ccohort%c_area  + &
+                       (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
+                       ccohort%c_area * sec_per_day * days_per_year
+
 
                   hio_carbon_balance_understory_si_scls(io_si,scls) = hio_carbon_balance_understory_si_scls(io_si,scls) + &
                      ccohort%npp_acc_hold * ccohort%n / m2_per_ha / days_per_year / sec_per_day
@@ -3806,6 +3818,17 @@ end subroutine flush_hvars
 
       hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
          sites(s)%term_carbonflux_ustory * days_per_sec * ha_per_m2
+
+
+      ! add site level mortality counting to crownarea diagnostic
+      hio_canopy_mortality_crownarea_si(io_si) = hio_canopy_mortality_crownarea_si(io_si) + &
+           sites(s)%fmort_crownarea_canopy + &
+           sites(s)%term_crownarea_canopy * days_per_year
+
+      hio_understory_mortality_crownarea_si(io_si) = hio_understory_mortality_crownarea_si(io_si) + &
+           sites(s)%fmort_crownarea_ustory + &
+           sites(s)%term_crownarea_ustory * days_per_year + &
+           sites(s)%imort_crownarea
 
       ! and zero the site-level termination carbon flux variable
       sites(s)%term_carbonflux_canopy = 0._r8
@@ -5780,6 +5803,20 @@ end subroutine update_history_hifrq
           upfreq=1, ivar=ivar, initialize=initialize_variables,                &
           index = ih_understory_mortality_carbonflux_si)
 
+    call this%set_history_var(vname='MORTALITY_CROWNAREA_CANOPY',              &
+          units = 'm2/ha/year',                                                &
+          long='Crown area of canopy trees that died',                         &
+          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables,                &
+          index = ih_canopy_mortality_crownarea_si )
+
+    call this%set_history_var(vname='MORTALITY_CROWNAREA_UNDERSTORY',          &
+          units = 'm2/ha/year',                                                &
+          long='Crown aera of understory trees that died',                     &
+          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables,                &
+          index = ih_understory_mortality_crownarea_si )
+
     ! size class by age dimensioned variables
 
     call this%set_history_var(vname='FATES_NPLANT_SZAP', units = 'm-2',        &
@@ -6110,6 +6147,20 @@ end subroutine update_history_hifrq
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_mortality_canopy_si_scpf)
 
+    call this%set_history_var(vname='FATES_M3_MORTALITY_CANOPY_SZPF',          &
+          units = 'N/ha/yr',                                                   &
+          long='C starvation mortality of canopy plants by pft/size',          &
+          use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
+          hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
+          initialize=initialize_variables, index = ih_m3_mortality_canopy_si_scpf )
+
+    call this%set_history_var(vname='FATES_M3_MORTALITY_USTORY_SZPF',          &
+          units = 'N/ha/yr',                                                   &
+          long='C starvation mortality of understory plants by pft/size',      &
+          use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
+          hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
+          initialize=initialize_variables, index = ih_m3_mortality_understory_si_scpf )
+       
     call this%set_history_var(vname='FATES_C13DISC_SZPF', units = 'per mil',   &
          long='C13 discrimination by pft/size',use_default='inactive',         &
          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',                  &
@@ -6350,6 +6401,21 @@ end subroutine update_history_hifrq
           use_default='active', avgflag='A', vtype=site_size_r8,               &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_nplant_understory_si_scls)
+
+    call this%set_history_var(vname='FATES_M3_MORTALITY_CANOPY_SZ',            &
+          units = 'N/ha/yr',                                                   &
+          long='C starvation mortality of canopy plants by size',              &
+          use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+          hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
+          initialize=initialize_variables, index = ih_m3_mortality_canopy_si_scls )
+
+    call this%set_history_var(vname='FATES_M3_MORTALITY_USTORY_SZ',            &
+          units = 'N/ha/yr',                                                   &
+          long='C starvation mortality of understory plants by size',          &
+          use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+          hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
+          initialize=initialize_variables, index = ih_m3_mortality_understory_si_scls )
+    
 
     call this%set_history_var(vname='FATES_LAI_USTORY_SZ',                 &
           units = 'm2 m-2',                                                    &
