@@ -306,6 +306,9 @@ contains
        fates%bc_out(s)%qflx_ro_sisl(:)        = 0.0_r8
     end if
     fates%bc_out(s)%plant_stored_h2o_si = 0.0_r8
+
+    fates%bc_out(s)%hrv_deadstemc_to_prod10c = 0.0_r8
+    fates%bc_out(s)%hrv_deadstemc_to_prod100c = 0.0_r8
     
     return
   end subroutine zero_bcs

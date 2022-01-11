@@ -298,7 +298,7 @@ contains
        enddo !currentCohort
 
        ! for non-closed-canopy areas subject to logging, add an additional increment of area disturbed
-       ! equivalent to the fradction loged to account for transfer of interstitial ground area to new secondary lands
+       ! equivalent to the fradction logged to account for transfer of interstitial ground area to new secondary lands
        if ( logging_time .and. &
             (currentPatch%area - currentPatch%total_canopy_area) .gt. fates_tiny ) then
           ! The canopy is NOT closed. 

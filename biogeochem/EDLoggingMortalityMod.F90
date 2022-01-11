@@ -53,6 +53,7 @@ module EDLoggingMortalityMod
    use FatesConstantsMod , only : itrue,ifalse
    use FatesGlobals      , only : endrun => fates_endrun 
    use FatesGlobals      , only : fates_log
+   use FatesGlobals      , only : fates_global_verbose
    use shr_log_mod       , only : errMsg => shr_log_errMsg
    use FatesPlantHydraulicsMod, only : AccumulateMortalityWaterStorage
    use PRTGenericMod     , only : all_carbon_elements,carbon12_element
@@ -61,7 +62,7 @@ module EDLoggingMortalityMod
    use FatesAllometryMod , only : set_root_fraction
    use FatesConstantsMod , only : primaryforest, secondaryforest, secondary_age_threshold
    use FatesConstantsMod , only : fates_tiny
-   use FatesConstantsMod , only : months_per_year
+   use FatesConstantsMod , only : months_per_year, days_per_sec, years_per_day
    use FatesConstantsMod , only : hlm_harvest_area_fraction
    use FatesConstantsMod , only : hlm_harvest_carbon
    use FatesConstantsMod, only : fates_check_param_set
@@ -91,6 +92,7 @@ module EDLoggingMortalityMod
    public :: logging_time
    public :: IsItLoggingTime
    public :: get_harvest_rate_area
+   public :: UpdateHarvestC
 
 contains
 
@@ -248,9 +250,15 @@ contains
             call get_harvest_rate_area (patch_anthro_disturbance_label, hlm_harvest_catnames, &
                  hlm_harvest_rates, frac_site_primary, secondary_age, harvest_rate)
 
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'Successfully Read Harvest Rate from HLM.', hlm_harvest_rates(:), harvest_rate 
+            end if
+
          else if (hlm_use_lu_harvest == itrue .and. hlm_harvest_units == hlm_harvest_carbon) then
             ! 2=use carbon from hlm
             ! not implemented yet
+            ! Shijie: Shall call another function, which transfer biomass/carbon into fraction?
+            ! Is it the correct place to call the function?
             write(fates_log(),*) 'HLM harvest carbon data not implemented yet. Exiting.'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          endif
@@ -356,7 +364,7 @@ contains
 
      !  Normalize by site-level primary or secondary forest fraction
      !  since harvest_rate is specified as a fraction of the gridcell
-     ! also need to put a cap so as not to harvest more primary or secondary area than there is in a gridcell
+     !  also need to put a cap so as not to harvest more primary or secondary area than there is in a gridcell
      if (patch_anthro_disturbance_label .eq. primaryforest) then
         if (frac_site_primary .gt. fates_tiny) then
            harvest_rate = min((harvest_rate / frac_site_primary),frac_site_primary)
@@ -685,7 +693,7 @@ contains
             ! This is for checking the total mass balance [kg/site/day]
             site_mass%wood_product = site_mass%wood_product + &
                   ag_wood * logging_export_frac
-            
+
             new_litt%ag_cwd(ncwd) = new_litt%ag_cwd(ncwd) + ag_wood * &
                   (1._r8-logging_export_frac)*donate_frac/newPatch%area
             
@@ -790,5 +798,73 @@ contains
       
       return
    end subroutine logging_litter_fluxes
+
+  ! =====================================================================================
+
+   subroutine UpdateHarvestC(currentSite,bc_out)
+
+    ! ----------------------------------------------------------------------------------
+    ! Added by Shijie Shu.
+    ! This subroutine is called when logging is completed and need to update 
+    ! Harvested C flux in HLM.
+    ! ----------------------------------------------------------------------------------
+    use EDtypesMod             , only : ed_site_type
+    use FatesInterfaceTypesMod , only : bc_out_type
+    use PRTGenericMod          , only : num_elements
+    use pftvarcon              , only : pprodharv10
+
+    ! Arguments
+    type(ed_site_type), intent(inout), target :: currentSite     ! site structure
+    type(bc_out_type), intent(inout)          :: bc_out
+
+    integer :: el
+    integer :: icode
+    real(r8) :: unit_trans_factor
+
+    ! Flush the older value before update
+    if(logging_time) then
+       bc_out%hrv_deadstemc_to_prod10c = 0._r8
+       bc_out%hrv_deadstemc_to_prod100c = 0._r8
+    end if
+
+    ! First test tropic forest (PFT=1)
+    ! Calculate the unit transfer factor (from kgC m-2 day-1 to gC m-2 s-1)
+    ! for icode == 2, icode < 0, and icode > 10000 is one time harvest, thus
+    ! shall distribute into everyday
+    icode = int(logging_event_code)
+    if(icode .eq. 1) then
+       ! Logging is turned off
+       unit_trans_factor = 1._r8
+    else if(icode .eq. 3) then
+       ! Logging event every day - this may not work due to the mortality exclusivity
+       unit_trans_factor = 1000._r8 * days_per_sec
+    else if(icode .eq. 4) then
+       ! Logging event once a month
+       ! Shijie: Shall think about a better if expreession?
+       if ((hlm_current_month == 1) .or. (hlm_current_month == 3) .or. &
+           (hlm_current_month == 5) .or. (hlm_current_month == 7) .or. &
+           (hlm_current_month == 8) .or. (hlm_current_month == 10) .or. &
+           (hlm_current_month == 12)) then
+          unit_trans_factor = 1000._r8 * days_per_sec / 31._r8
+      else if((hlm_current_month == 4) .or. (hlm_current_month == 6) .or. &
+          (hlm_current_month == 9) .or. (hlm_current_month == 11)) then
+          unit_trans_factor = 1000._r8 * days_per_sec / 30._r8
+      else
+          unit_trans_factor = 1000._r8 * days_per_sec / 28._r8
+      end if
+    else
+       ! Logging event one time every year
+       unit_trans_factor = 1000._r8 * days_per_sec * years_per_day
+    end if
+
+    do el = 1,num_elements
+       bc_out%hrv_deadstemc_to_prod10c = bc_out%hrv_deadstemc_to_prod10c + &
+           currentSite%harvest_carbon_flux * pprodharv10(1) * unit_trans_factor
+       bc_out%hrv_deadstemc_to_prod100c = bc_out%hrv_deadstemc_to_prod100c + &
+           currentSite%harvest_carbon_flux * (1-pprodharv10(1)) * unit_trans_factor  
+    end do
+
+    return
+  end subroutine UpdateHarvestC
 
 end module EDLoggingMortalityMod

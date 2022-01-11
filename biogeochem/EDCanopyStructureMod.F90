@@ -24,6 +24,7 @@ module EDCanopyStructureMod
   use EDTypesMod            , only : nclmax
   use EDTypesMod            , only : nlevleaf
   use EDtypesMod            , only : AREA
+  use EDLoggingMortalityMod , only : UpdateHarvestC
   use FatesGlobals          , only : endrun => fates_endrun
   use FatesInterfaceTypesMod     , only : hlm_days_per_year
   use FatesInterfaceTypesMod     , only : hlm_use_planthydro
@@ -2023,6 +2024,9 @@ contains
         if (hlm_use_planthydro.eq.itrue) then
            call UpdateH2OVeg(sites(s),bc_out(s),bc_out(s)%plant_stored_h2o_si,1)
         end if
+
+        ! Pass FATES Harvested C to bc_out.
+        call UpdateHarvestC(sites(s),bc_out(s))
         
      end do
 
