@@ -2065,7 +2065,14 @@ contains
           stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(ft)
 
           call h2d_allom(temp_cohort%hite,ft,temp_cohort%dbh)
+          
+          !ahb diagnostic
+          if (hlm_day_of_year == 40) then
+              write(fates_log(),*) 'min_dbh:', temp_cohort%dbh
+          end if
+          !end ahb diagnostic
 
+  
           ! Initialize live pools
           call bleaf(temp_cohort%dbh,ft,temp_cohort%canopy_trim,c_leaf)
           call bfineroot(temp_cohort%dbh,ft,temp_cohort%canopy_trim,c_fnrt)
@@ -2133,6 +2140,12 @@ contains
                 case(carbon12_element)
 
                   mass_demand = c_struct+c_leaf+c_fnrt+c_sapw+c_store
+                  
+                  !ahb diagnostic
+                  if (hlm_day_of_year == 40) then
+                     write(fates_log(),*) 'mass demand:', mass_demand
+                  end if
+                  !end ahb diagnostic
 
                 case(nitrogen_element)
 
