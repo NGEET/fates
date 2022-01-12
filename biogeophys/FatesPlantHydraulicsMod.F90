@@ -1266,7 +1266,7 @@ subroutine FuseCohortHydraulics(currentSite,currentCohort, nextCohort, bc_in, ne
   type(ed_site_hydr_type), pointer :: csite_hydr
   type(ed_cohort_hydr_type), pointer :: ccohort_hydr  ! current cohort hydraulics derived type
   type(ed_cohort_hydr_type), pointer :: ncohort_hydr  ! donor (next) cohort hydraulics d type
-    real(r8) :: vol_c1,vol_c2  ! Total water volume in the each cohort
+  real(r8) :: vol_c1,vol_c2  ! Total water volume in the each cohort
   integer  :: j,k                                     ! indices
   integer  :: ft
 
@@ -1460,8 +1460,8 @@ subroutine InitHydrSites(sites,bc_in)
      ! ----------------------------------------------------------------------------------
 
 
-     aggmeth = rhizlayer_aggmeth_balN
-     aggN    = 10
+     aggmeth = rhizlayer_aggmeth_combine12
+     aggN    = -9
      
      select case(aggmeth)
         
@@ -2472,12 +2472,14 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
   real(r8) :: ftc_layer           ! fraction of maximum conductance [-]
   real(r8) :: weight              ! weighting function for each layer when disaggregating rhiz->soil
   real(r8) :: sumweight           ! sum of weighting functions for disaggregating rhiz -> soil
-
-
+  real(r8) :: sum_l_aroot         ! sum of root length of cohort, for disaggregation
+  real(r8) :: rootfr              ! fraction of root mass in soil layer, for disaggregation
+  real(r8) :: z_fr                ! Maximum fine root depth, used in disaggregation
+  
   integer, parameter :: soilz_disagg = 0   ! disaggregate rhizosphere layers based on depth
   integer, parameter :: soilk_disagg = 1   ! disaggregate rhizosphere layers based on conductance
 
-  integer, parameter :: rootflux_disagg = soilz_disagg
+  integer, parameter :: rootflux_disagg = soilk_disagg
 
   
   ! ----------------------------------------------------------------------------------
@@ -2717,7 +2719,7 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
 
               ccohort => ccohort%shorter
            enddo !cohort
-        endif ! not barground patch
+        endif ! not bareground patch
         cpatch => cpatch%younger
      enddo !patch
 
@@ -2742,7 +2744,33 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
      bc_out(s)%qflx_soil2root_sisl(:) = 0._r8
      bc_out(s)%qflx_ro_sisl(:) = 0._r8
 
-     
+     ! To disaggregate, we need the root density (length) on the soil layer
+     csite_hydr%rootfr_sl(:) = 0._r8
+     cpatch => sites(s)%oldest_patch
+     do while (associated(cpatch))
+        ccohort=>cpatch%tallest
+        do while(associated(ccohort))
+
+           sum_l_aroot = sum(ccohort_hydr%l_aroot_layer(:))
+           ft = ccohort%pft 
+           
+           call MaximumRootingDepth(ccohort%dbh,ft,bc_in(s)%zi_sisl(bc_in(s)%nlevsoil),z_fr)
+
+           do j_bc = 1,bc_in(s)%nlevsoil
+              
+              rootfr = zeng2001_crootfr(prt_params%fnrt_prof_a(ft),prt_params%fnrt_prof_b(ft),bc_in(s)%zi_sisl(j_bc),z_fr) - &
+                   zeng2001_crootfr(prt_params%fnrt_prof_a(ft),prt_params%fnrt_prof_b(ft), bc_in(s)%zi_sisl(j_bc)-bc_in(s)%dz_sisl(j_bc),z_fr)
+
+              csite_hydr%rootfr_sl(j_bc) = csite_hydr%rootfr_sl(j_bc) + sum_l_aroot*rootfr*ccohort%n
+              
+           end do
+              
+           ccohort => ccohort%shorter
+        enddo !cohort
+        cpatch => cpatch%younger
+     enddo !patch  
+           
+           
      do j=1,csite_hydr%nlevrhiz
 
 
@@ -2777,7 +2805,6 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
            j_t = csite_hydr%map_r2s(j,1)
            j_b = csite_hydr%map_r2s(j,2)
 
-           ! First pass, get sum of weighting factors for disaggregation
            sumweight = 0._r8
            do j_bc = j_t,j_b
               if(rootflux_disagg == soilk_disagg)then
@@ -2789,13 +2816,13 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
                     h2osoi_liqvol = min(eff_por, bc_in(s)%h2o_liq_sisl(j_bc)/(bc_in(s)%dz_sisl(j_bc)*denh2o))
                     psi_layer     = csite_hydr%wrf_soil(j)%p%psi_from_th(h2osoi_liqvol)
                     ftc_layer     = csite_hydr%wkf_soil(j)%p%ftc_from_psi(psi_layer)
-                    weight = bc_in(s)%hksat_sisl(j_bc)*ftc_layer*bc_in(s)%dz_sisl(j_bc)
+                    weight = bc_in(s)%hksat_sisl(j_bc)*ftc_layer*csite_hydr%rootfr_sl(j_bc)  !bc_in(s)%dz_sisl(j_bc)
                  else
-                    weight = bc_in(s)%dz_sisl(j_bc)
+                    weight = csite_hydr%rootfr_sl(j_bc)  !bc_in(s)%dz_sisl(j_bc)
                  end if
               elseif(rootflux_disagg == soilz_disagg) then
                  ! weight by depth
-                 weight = bc_in(s)%dz_sisl(j_bc)
+                 weight = csite_hydr%rootfr_sl(j_bc) !bc_in(s)%dz_sisl(j_bc)
               else
                  write(fates_log(),*) 'Unknown rhiz->soil disaggregation method',rootflux_disagg
                  call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -2811,12 +2838,12 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
                     h2osoi_liqvol = min(eff_por, bc_in(s)%h2o_liq_sisl(j_bc)/(bc_in(s)%dz_sisl(j_bc)*denh2o))
                     psi_layer     = csite_hydr%wrf_soil(j)%p%psi_from_th(h2osoi_liqvol)
                     ftc_layer     = csite_hydr%wkf_soil(j)%p%ftc_from_psi(psi_layer)
-                    weight = bc_in(s)%hksat_sisl(j_bc)*ftc_layer*bc_in(s)%dz_sisl(j_bc)
+                    weight = bc_in(s)%hksat_sisl(j_bc)*ftc_layer*csite_hydr%rootfr_sl(j_bc) !bc_in(s)%dz_sisl(j_bc)
                  else
-                    weight = bc_in(s)%dz_sisl(j_bc)
+                    weight = csite_hydr%rootfr_sl(j_bc) !bc_in(s)%dz_sisl(j_bc)
                  end if
               elseif(rootflux_disagg == soilz_disagg) then
-                 weight = bc_in(s)%dz_sisl(j_bc)
+                 weight = csite_hydr%rootfr_sl(j_bc) !bc_in(s)%dz_sisl(j_bc)
               end if
               
               ! Fill the output array to the HLM
