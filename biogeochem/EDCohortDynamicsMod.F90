@@ -733,6 +733,8 @@ contains
     integer :: terminate  ! do we terminate (itrue) or not (ifalse)
     integer :: c           ! counter for litter size class. 
     integer :: levcan      ! canopy level
+    integer :: istat       ! return status code
+    character(len=255) :: smsg
     !----------------------------------------------------------------------
 
     currentCohort => currentPatch%shortest
@@ -848,9 +850,12 @@ contains
           
 
           call DeallocateCohort(currentCohort)
-          deallocate(currentCohort)
-          nullify(currentCohort)
-          
+          deallocate(currentCohort, stat=istat, errmsg=smsg)
+          if (istat/=0) then
+             if (debug) write(fates_log(),*) 'warning: stat/=0 in deallocate(currentCohort):'//trim(smsg)
+             nullify(currentCohort)
+          endif
+
        endif
        currentCohort => tallerCohort
     enddo
@@ -991,6 +996,8 @@ contains
      ! ----------------------------------------------------------------------------------
      
      type(ed_cohort_type),intent(inout) :: currentCohort
+     integer                            :: istat         ! return status code
+     character(len=255)                 :: smsg
      
      ! At this point, nothing should be pointing to current Cohort
      if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(currentCohort)
@@ -999,7 +1006,11 @@ contains
      call currentCohort%prt%DeallocatePRTVartypes()
      
      ! Deallocate the PRT object
-     deallocate(currentCohort%prt)
+     deallocate(currentCohort%prt, stat=istat, errmsg=smsg)
+     if (istat/=0) then
+        if (debug) write(fates_log(),*) 'warning: stat/=0 in deallocate(currentCohort%prt):'//trim(smsg)
+        nullify(currentCohort%prt)
+     endif
      
      return
   end subroutine DeallocateCohort
@@ -1056,6 +1067,8 @@ contains
 
      logical, parameter :: fuse_debug = .false.   ! This debug is over-verbose
                                                  ! and gets its own flag
+     integer  :: istat         ! return status code
+     character(len=255) :: smsg
 
      !----------------------------------------------------------------------
 
@@ -1482,9 +1495,11 @@ contains
                                    endif
                                    
                                    call DeallocateCohort(nextc)
-                                   deallocate(nextc)
-                                   nullify(nextc)
-                                   
+                                   deallocate(nextc, stat=istat, errmsg=smsg)
+                                   if (istat/=0) then
+                                      if (debug) write(fates_log(),*) 'warning: stat/=0 on deallocate(nextc):'//trim(smsg)
+                                      nullify(nextc)
+                                   endif
 
                                 endif ! if( currentCohort%isnew.eqv.nextc%isnew ) then
                              endif !canopy layer

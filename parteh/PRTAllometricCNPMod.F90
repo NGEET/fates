@@ -254,10 +254,13 @@ contains
      ! waste memory on it.
      ! -----------------------------------------------------------------------------------
 
-     integer :: nleafage
+     integer :: nleafage, istat
+     character(len=255) :: smsg
 
-     allocate(prt_global_acnp)
-     allocate(prt_global_acnp%state_descriptor(num_vars))
+     allocate(prt_global_acnp, stat=istat)
+     if (istat/=0) call endrun(msg='allocate stat/=0:'//trim(smsg)//errMsg(sourcefile, __LINE__))
+     allocate(prt_global_acnp%state_descriptor(num_vars), stat=istat)
+     if (istat/=0) call endrun(msg='allocate stat/=0:'//trim(smsg)//errMsg(sourcefile, __LINE__))
 
      prt_global_acnp%hyp_name = 'Allometric Flexible C+N+P'
 
@@ -341,13 +344,12 @@ contains
     real(r8),pointer :: p_efflux   ! Total plant efflux of phosphorus (kgP)
     real(r8),pointer :: n_need     ! N need (algorithm dependant) (kgN)
     real(r8),pointer :: p_need     ! P need (algorithm dependant) (kgP)
-    real(r8),pointer :: growth_r   ! Total plant growth respiration this step (kgC)
 
     ! These are pointers to the state variables, rearranged in organ dimensioned
     ! arrays.  This is useful because we loop through organs so often
-    type(parray_type),pointer :: state_c(:)   ! State array for carbon, by organ [kg]
-    type(parray_type),pointer :: state_n(:)   ! State array for N, by organ [kg]
-    type(parray_type),pointer :: state_p(:)   ! State array for P, by organ [kg]
+    type(parray_type), dimension(num_organs) :: state_c   ! State array for carbon, by organ [kg]
+    type(parray_type), dimension(num_organs) :: state_n   ! State array for N, by organ [kg]
+    type(parray_type), dimension(num_organs) :: state_p   ! State array for P, by organ [kg]
 
     integer :: i_org   ! organ index
     integer :: i_var   ! variable index
@@ -422,10 +424,6 @@ contains
     ! Note: Since growth only happens in the 1st leaf bin, we only
     ! point to that bin.  However, we need to account for all bins
     ! when we calculate the deficit
-    
-    allocate(state_c(num_organs))
-    allocate(state_n(num_organs))
-    allocate(state_p(num_organs))
     
     ! Set carbon targets based on the plant's current stature
     target_c(:) = fates_unset_r8
@@ -603,9 +601,10 @@ contains
     n_need = target_n - state_n(store_id)%ptr
     p_need = target_p - state_p(store_id)%ptr
     
-    deallocate(state_c)
-    deallocate(state_n)
-    deallocate(state_p)
+    do i_org = 1,num_organs
+       nullify(state_c(i_org)%ptr, state_n(i_org)%ptr, state_p(i_org)%ptr)
+    end do
+    nullify(dbh, maint_r_def, c_efflux, n_efflux, p_efflux, n_need, p_need)
     
     return
   end subroutine DailyPRTAllometricCNP
@@ -998,7 +997,6 @@ contains
     real(r8), intent(inout) :: c_gain
     real(r8), intent(inout) :: n_gain
     real(r8), intent(inout) :: p_gain
-    real(r8), pointer :: maint_r_deficit
     type(parray_type) :: state_c(:)       ! State array for carbon, by organ [kg]
     type(parray_type) :: state_n(:)       ! State array for N, by organ [kg]
     type(parray_type) :: state_p(:)       ! State array for P, by organ [kg]
@@ -1528,6 +1526,8 @@ contains
        
        
     end if if_stature_growth
+
+    nullify(dbh)
     
     return
   end subroutine CNPStatureGrowth
@@ -1645,6 +1645,8 @@ contains
     c_gain = 0.0_r8
 !    n_gain = 0.0_r8
 !    p_gain = 0.0_r8
+
+    nullify(dbh)
 
     return
   end subroutine CNPAllocateRemainder
@@ -1795,7 +1797,9 @@ contains
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
     end if
-    
+
+    nullify(dbh)
+
     return
   end function GetNutrientTargetCNP
 
