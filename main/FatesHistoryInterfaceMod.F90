@@ -3151,7 +3151,7 @@ end subroutine flush_hvars
             (sum(litt%seed_in_local(:)) + sum(litt%seed_in_extern(:))) * &
             area_frac * days_per_sec
         
-         hio_seeds_in_si(io_si) = hio_seeds_in_si(io_si) + &
+         hio_seeds_in_local_si(io_si) = hio_seeds_in_local_si(io_si) + &
             sum(litt%seed_in_local(:)) * &
             area_frac * days_per_sec
 
@@ -4533,7 +4533,7 @@ end subroutine update_history_hifrq
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_gpp_si_pft)
 
-    call this%set_history_var(vname='FATES_NPP_PF', units='kg m-2 yr-1',       &
+    call this%set_history_var(vname='FATES_NPP_PF', units='kg m-2 s-1',       &
          long='total PFT-level NPP in kg carbon per m2 land area per second',  &
          use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
@@ -4816,7 +4816,7 @@ end subroutine update_history_hifrq
          index = ih_seed_bank_trs_si)
 
     call this%set_history_var(vname='FATES_SEEDLING_POOL_TRS', units='kg m-2',         &
-         long='total seed mass of all PFTs in kg carbon per m2 land area',     &
+         long='total seedling mass of all PFTs in kg carbon per m2 land area',     &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_seedling_pool_trs_si)
