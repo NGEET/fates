@@ -52,6 +52,8 @@ module PRTAllometricCarbonMod
   use FatesConstantsMod   , only : nearzero
   use FatesConstantsMod   , only : itrue
   use FatesConstantsMod   , only : years_per_day
+  use FatesInterfaceTypesMod, only    : hlm_day_of_year
+
 
   use PRTParametersMod    , only : prt_params
   use EDParamsMod         , only : regeneration_model
@@ -72,6 +74,7 @@ module PRTAllometricCarbonMod
   integer, parameter :: repro_c_id  = 5   ! Unique object index for reproductive carbon
   integer, parameter :: struct_c_id = 6   ! Unique object index for structural carbon
   integer, parameter :: num_vars = 6      ! THIS MUST MATCH THE LARGEST INDEX ABOVE
+  logical, parameter :: debug_trs  = .true. ! local debug flag
   
   
   ! For this hypothesis, we integrate dbh along with the other 6. Since this
@@ -976,6 +979,21 @@ contains
         repro_fraction = prt_params%seed_alloc(ipft) * &
         (exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm) / &
         (1 + exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm)))
+
+
+        !ahb diagnostic
+        if (debug_trs) then
+        if (hlm_day_of_year == 40 .OR. hlm_day_of_year == 270) then
+              
+              write(fates_log(),*) 'day_of_year:', hlm_day_of_year
+              write(fates_log(),*) 'pft:', ipft
+              write(fates_log(),*) 'dbh (cm):', dbh
+              write(fates_log(),*) 'repro_fraction:', repro_fraction
+        
+        end if !day condition
+        end if !debug condition
+        !end ahb diagnostic
+
 
         end if !regeneration model switch
         !END ahb's changes

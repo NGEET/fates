@@ -132,10 +132,11 @@ module EDPhysiologyMod
   public :: SeedIn
 
   logical, parameter :: debug  = .false. ! local debug flag
+  logical, parameter :: debug_trs  = .true. ! local debug flag
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
 
-  integer, parameter :: dleafon_drycheck = 100 ! Drought deciduous leaves max days on check parameter
+  integer, parameter :: dleafon_drycheck = 100 ! drought deciduous leaves max days on check parameter
 
 
   ! ============================================================================
@@ -1837,7 +1838,20 @@ contains
                                    (litt%seed_germ(pft) * seedling_h2o_mort_rate) + &
                                    (litt%seed_germ(pft) * EDPftvarcon_inst%background_seedling_mort(pft) &
                                                         * years_per_day)
-               
+        !ahb diagnostic
+          if (debug_trs) then
+          if (hlm_day_of_year == 40 .OR. hlm_day_of_year == 270) then
+              write(fates_log(),*) 'day_of_year:', hlm_day_of_year
+              write(fates_log(),*) 'patch_age:', currentPatch%age
+              write(fates_log(),*) 'pft', pft
+              write(fates_log(),*) 'seedling_light_mort_rate (day -1):', seedling_light_mort_rate
+              write(fates_log(),*) 'seedling_h2o_mort_rate (day -1):', seedling_h2o_mort_rate
+              write(fates_log(),*) 'seedling mdds ([0,1]):', seedling_mdds
+          end if
+
+          end if !debug flag
+         !end ahb diagnostic
+        
     !-----------------------------------------------------------------------
     !END ahb's changes
 
@@ -1919,7 +1933,7 @@ contains
        !to work with the TRS function.
  
        seedling_layer_par = currentPatch%seedling_layer_par24%GetMean() * sec_per_day * megajoules_per_joule
-       
+
        !Calculate the photoblastic germination rate modifier (see eqn. 3 of Hanbury-Brown et al., 2022) 
        photoblastic_germ_modifier = seedling_layer_par / &
                 (seedling_layer_par + EDPftvarcon_inst%par_crit_germ(pft))
@@ -1950,7 +1964,22 @@ contains
       
        !Step 4. Calculate the amount of carbon germinating out of the seed bank                                                                                
        litt%seed_germ_in(pft) = litt%seed(pft) * seedling_emerg_rate
-      
+     
+         !ahb diagnostic
+          if (debug_trs) then
+          if (hlm_day_of_year == 40 .OR. hlm_day_of_year == 270) then
+              write(fates_log(),*) 'day_of_year:', hlm_day_of_year
+              write(fates_log(),*) 'patch_age:', currentPatch%age
+              write(fates_log(),*) 'pft', pft
+              write(fates_log(),*) 'seedling_layer_par (MJ m-2 day-1):', seedling_layer_par
+              write(fates_log(),*) 'seedling_layer_smp (mm h2o suction):', seedling_layer_smp
+              write(fates_log(),*) 'photoblastic_germ_modifier ([0,1]):', photoblastic_germ_modifier
+              write(fates_log(),*) 'seedling_emerg_rate (day-1):', seedling_emerg_rate
+          end if
+
+          end if !debug flag
+         !end ahb diagnostic
+ 
       end if !regeneration model switch
       !--------------------------------------------------------------------------------------------
        !TEMP
@@ -2067,9 +2096,11 @@ contains
           call h2d_allom(temp_cohort%hite,ft,temp_cohort%dbh)
           
           !ahb diagnostic
-          if (hlm_day_of_year == 40) then
+          if (debug_trs) then
+          if (hlm_day_of_year == 40 .OR. hlm_day_of_year == 270) then
               write(fates_log(),*) 'min_dbh:', temp_cohort%dbh
-          end if
+          end if !day condition
+          end if !debug condition
           !end ahb diagnostic
 
   
@@ -2193,7 +2224,24 @@ contains
                 mass_avail = currentPatch%area * currentPatch%litter(el)%seed_germ(ft) * & 
                               EDPftvarcon_inst%seedling_light_rec_a(ft) * &
                               sdlng2sap_par**EDPftvarcon_inst%seedling_light_rec_b(ft) 
-              
+             
+
+                 !ahb diagnostic
+                  if (debug_trs) then
+                  if (hlm_day_of_year == 40 .OR. hlm_day_of_year == 270) then
+                      write(fates_log(),*) 'day_of_year:', hlm_day_of_year
+                      write(fates_log(),*) 'patch_age:', currentPatch%age
+                      write(fates_log(),*) 'pft', ft
+                      write(fates_log(),*) 'sdlng2sap_par (MJ m-2 day-1):', sdlng2sap_par
+                      write(fates_log(),*) 'seedling_2_sapling_transition_rate (day -1):', & 
+                              EDPftvarcon_inst%seedling_light_rec_a(ft) * &
+                              sdlng2sap_par**EDPftvarcon_inst%seedling_light_rec_b(ft)
+                  end if
+                  end if !debug flag
+                 !end ahb diagnostic
+
+
+ 
                 !If soil moisture is below the moisture stress threshold recruitment does not occur
                 ilayer_seedling_root = minloc(abs(bc_in%z_sisl(:)-EDPftvarcon_inst%seedling_root_depth(ft)),dim=1)
                 
