@@ -1476,8 +1476,8 @@ contains
 
     ! !USES:
 
-    use EDtypesMod           , only : area, dinc_ed, hitemax, n_hite_bins
-
+    use EDtypesMod           , only : area, dinc_vai, dlower_vai, hitemax, n_hite_bins
+  
     !
     ! !ARGUMENTS
     type(ed_site_type)     , intent(inout) :: currentSite
@@ -1507,8 +1507,6 @@ contains
     real(r8) :: leaf_c                   ! leaf carbon [kg]
 
     !----------------------------------------------------------------------
-
-
 
     smooth_leaf_distribution = 0
 
@@ -1572,7 +1570,7 @@ contains
              currentCohort%sai =  currentCohort%treesai *currentCohort%c_area/currentPatch%total_canopy_area
 
              ! Number of actual vegetation layers in this cohort's crown
-             currentCohort%nv =  ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)
+             currentCohort%nv =  count((currentCohort%treelai+currentCohort%treesai) .gt. dlower_vai(:)) + 1
 
              currentPatch%ncan(cl,ft) = max(currentPatch%ncan(cl,ft),currentCohort%NV)
 
@@ -1736,15 +1734,16 @@ contains
 
                    if(iv==currentCohort%NV) then
                       remainder = (currentCohort%treelai + currentCohort%treesai) - &
-                           (dinc_ed*real(currentCohort%nv-1,r8))
-                      if(remainder > dinc_ed )then
+                           (dlower_vai(iv) - dinc_vai(iv))
+                      if(remainder > dinc_vai(iv) )then
                          write(fates_log(), *)'ED: issue with remainder', &
-                              currentCohort%treelai,currentCohort%treesai,dinc_ed, &
+                              currentCohort%treelai,currentCohort%treesai,dinc_vai(iv), & 
                               currentCohort%NV,remainder
+
                          call endrun(msg=errMsg(sourcefile, __LINE__))
                       endif
                    else
-                      remainder = dinc_ed
+                      remainder = dinc_vai(iv)
                    end if
 
                    currentPatch%tlai_profile(cl,ft,iv) = currentPatch%tlai_profile(cl,ft,iv) + &
