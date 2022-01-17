@@ -5434,8 +5434,8 @@ subroutine SetMaxCondConnections(site_hydr, cohort_hydr, h_node, kmax_dn, kmax_u
    !-----------------------------------------------------------!marius
    if (hlm_use_hydrohard .eq. itrue) then
      if (hard_level<-3_r8) then
-        kmax_dn(icnx)=kmax_dn(icnx)*10**hard_rate_temporary 
-        kmax_up(icnx)=kmax_up(icnx)*10**hard_rate_temporary 
+        !kmax_dn(icnx)=kmax_dn(icnx)*10**hard_rate_temporary 
+        !kmax_up(icnx)=kmax_up(icnx)*10**hard_rate_temporary 
      end if
    end if
    !--------------------------------------------------------
@@ -5489,7 +5489,8 @@ subroutine SetMaxCondConnections(site_hydr, cohort_hydr, h_node, kmax_dn, kmax_u
          !-----------------------------------------------!marius
          if (hlm_use_hydrohard .eq. itrue) then
            if (hard_level<-3_r8) then
-             kmax_dn(icnx)=kmax_dn(icnx)*10**hard_rate_temporary 
+             kmax_dn(icnx)=kmax_dn(icnx)*10**hard_rate_temporary
+             kmax_up(icnx)=kmax_up(icnx)*10**hard_rate_temporary
            end if
               !if ((bc_in%t_soisno_sl(j)-tfrz)<0._r8 .and. (bc_in%t_soisno_sl(j)-tfrz)>-15._r8) then
               !  soil_rate_temporary=(((bc_in%t_soisno_sl(j)-tfrz))/2._r8)

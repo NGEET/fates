@@ -311,6 +311,7 @@ contains
     ! !USES:
     use FatesInterfaceTypesMod, only : hlm_use_cohort_age_tracking
     use FatesConstantsMod, only : itrue
+    use EDTypesMod          , only : maxpft !marius
     ! !ARGUMENTS:
     type(ed_site_type)     , intent(inout) :: currentSite
     type(bc_in_type)        , intent(in)   :: bc_in
@@ -322,6 +323,8 @@ contains
     type(ed_patch_type)  , pointer :: currentPatch
     type(ed_cohort_type) , pointer :: currentCohort
 
+    real(r8) :: ncohort_pft(maxpft)   !marius
+    real(r8) :: number_fraction_pft !marius
     integer  :: c                     ! Counter for litter size class
     integer  :: ft                    ! Counter for PFT
     integer  :: io_si                 ! global site index for history writing
@@ -338,16 +341,11 @@ contains
     !-----------------------------------------------------------------------
     real(r8) :: frac_site_primary
 
-
-    call get_frac_site_primary(currentSite, frac_site_primary)
-
-    ! Set a pointer to this sites carbon12 mass balance
-    site_cmass => currentSite%mass_balance(element_pos(carbon12_element))
-    if ((hlm_day_of_year==1 .and. currentSite%lat>=0) .or. (hlm_day_of_year==170 .and. currentSite%lat<=0))  then
-       currentSite%gdd5=0.0_r8
-    else
-       currentSite%gdd5= currentSite%gdd5 + max(0.0_r8,bc_in%t_ref2m_24_si-273.15_r8-5.0_r8)
-    end if
+    !if ((hlm_day_of_year==1 .and. currentSite%lat>=0) .or. (hlm_day_of_year==170 .and. currentSite%lat<=0))  then
+    !   currentSite%gdd5=0.0_r8
+    !else
+    !   currentSite%gdd5= currentSite%gdd5 + max(0.0_r8,bc_in%t_ref2m_24_si-273.15_r8-5.0_r8)
+    !end if
     if (hlm_use_hydrohard.eq.itrue .or. hlm_use_frosthard.eq.itrue) then
       if (nint(hlm_model_day)>=366) then
         write(fates_log(),*) '5yrmean was taken'
@@ -357,8 +355,34 @@ contains
         currentSite%hardtemp=bc_in%t_min_yr_inst_si-273.15_r8
       end if
     end if
-    currentPatch => currentSite%youngest_patch
+    !--------------- 
+    if (hlm_use_hydrohard.eq.itrue .or. hlm_use_frosthard.eq.itrue) then   
+       ncohort_pft(:) = 0.0_r8 
+       ! Normalization counters
+       currentPatch => currentSite%youngest_patch
+       do while(associated(currentPatch))
+          currentCohort => currentPatch%shortest
+          do while(associated(currentCohort)) 
+             ft = currentCohort%pft
+             ncohort_pft(ft) = ncohort_pft(ft) + currentCohort%n
+             currentCohort => currentCohort%taller
+          enddo ! cohort loop
+          currentPatch => currentPatch%older
+       end do !patch loop
+       do ft = 1, numpft
+          if (ncohort_pft(ft)>0._r8)then
+             currentSite%hard_level2(ft)=0._r8
+          endif
+       enddo
+    end if
+    !---------------
 
+    call get_frac_site_primary(currentSite, frac_site_primary)
+
+    ! Set a pointer to this sites carbon12 mass balance
+    site_cmass => currentSite%mass_balance(element_pos(carbon12_element))
+
+    currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
 
        currentPatch%age = currentPatch%age + hlm_freq_day
@@ -381,7 +405,6 @@ contains
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort))
 
-
           ft = currentCohort%pft
 
           ! Calculate the mortality derivatives
@@ -389,8 +412,11 @@ contains
           call Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary )
 
           if (hlm_use_hydrohard.eq.itrue .or. hlm_use_frosthard.eq.itrue) then
-	      call Hardening_scheme( currentSite, currentPatch, currentCohort, bc_in ) !hard_level and hard_GRF will be updated, ED_ecosystem_dynamics is called once a day at beginning of day Marius
-              !write(fates_log(),*) 'CHECK EDmainMod' !marius
+             !--------------------------------
+             call Hardening_scheme( currentSite, currentPatch, currentCohort, bc_in ) !hard_level and hard_GRF will be updated, ED_ecosystem_dynamics is called once a day at beginning of day Marius
+             number_fraction_pft = (currentCohort%n / ncohort_pft(ft))                      !marius
+             currentSite%hard_level2(ft) = currentSite%hard_level2(ft) + currentCohort%hard_level * number_fraction_pft        
+             !-----------------------------------------
           endif
           ! -----------------------------------------------------------------------------
           ! Apply Plant Allocation and Reactive Transport

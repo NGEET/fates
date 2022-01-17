@@ -201,7 +201,7 @@ contains
           ! Mortality for trees in the understorey.
           currentCohort%patchptr => currentPatch
 
-          call mortality_rates(currentCohort,bc_in,cmort,hmort,bmort,frmort,smort,asmort)
+          call mortality_rates(site_in,currentCohort,bc_in,cmort,hmort,bmort,frmort,smort,asmort)
           currentCohort%dmort  = cmort+hmort+bmort+frmort+smort+asmort
           call carea_allom(currentCohort%dbh,currentCohort%n,site_in%spread,currentCohort%pft, &
                currentCohort%c_area)

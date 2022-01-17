@@ -4,29 +4,31 @@ module EDMortalityFunctionsMod
   ! Functions that control mortality.
   ! ============================================================================
 
-   use FatesConstantsMod     , only : r8 => fates_r8
-   use FatesGlobals          , only : fates_log
-   use EDPftvarcon           , only : EDPftvarcon_inst
-   use EDTypesMod            , only : ed_cohort_type
-   use EDTypesMod            , only : ed_site_type
-   use EDTypesMod            , only : ed_patch_type
-   use FatesConstantsMod     , only : itrue,ifalse
-   use FatesAllometryMod     , only : bleaf
-   use FatesAllometryMod     , only : storage_fraction_of_target
+   use FatesConstantsMod          , only : r8 => fates_r8
+   use FatesGlobals               , only : fates_log
+   use EDPftvarcon                , only : EDPftvarcon_inst
+   use EDTypesMod                 , only : ed_cohort_type
+   use EDTypesMod                 , only : ed_site_type
+   use EDTypesMod                 , only : ed_patch_type
+   use FatesConstantsMod          , only : itrue,ifalse
+   use FatesAllometryMod          , only : bleaf
+   use FatesAllometryMod          , only : storage_fraction_of_target
    use FatesInterfaceTypesMod     , only : bc_in_type
    use FatesInterfaceTypesMod     , only : hlm_use_ed_prescribed_phys
    use FatesInterfaceTypesMod     , only : hlm_freq_day
    use FatesInterfaceTypesMod     , only : hlm_use_planthydro
-   use FatesInterfaceTypesMod     , only : hlm_use_hydrohard !marius
-   use FatesInterfaceTypesMod     , only : hlm_use_frosthard !marius
-   use EDLoggingMortalityMod , only : LoggingMortality_frac
-   use EDParamsMod           , only : fates_mortality_disturbance_fraction
-   use PRTGenericMod,          only : all_carbon_elements
-   use PRTGenericMod,          only : store_organ
-   use FatesInterfaceTypesMod, only    : hlm_model_day !marius
-   use PRTParametersMod , only    : prt_params !marius
-   use EDParamsMod           , only : ED_val_phen_a, ED_val_phen_b, ED_val_phen_c !marius
-  use EDTypesMod          , only : leaves_on !marius
+   use EDLoggingMortalityMod      , only : LoggingMortality_frac
+   use EDParamsMod                , only : fates_mortality_disturbance_fraction
+   use PRTGenericMod              , only : all_carbon_elements
+   use PRTGenericMod              , only : store_organ
+   use FatesInterfaceTypesMod     , only : hlm_model_day !marius
+   use PRTParametersMod           , only : prt_params !marius
+   use EDParamsMod                , only : ED_val_phen_a, ED_val_phen_b, ED_val_phen_c !marius
+   use EDTypesMod                 , only : leaves_on !marius
+   use FatesInterfaceTypesMod     , only : hlm_use_hydrohard,hlm_use_frosthard !marius
+   use FatesInterfaceTypesMod     , only : hlm_current_year
+   use FatesInterfaceTypesMod     , only : hlm_current_month
+   use FatesInterfaceTypesMod     , only : hlm_current_day
    implicit none
    private
    
@@ -45,7 +47,7 @@ contains
 
 
 
-  subroutine mortality_rates( cohort_in,bc_in,cmort,hmort,bmort,frmort,smort,asmort )
+  subroutine mortality_rates( currentSite,cohort_in,bc_in,cmort,hmort,bmort,frmort,smort,asmort )
 
     ! ============================================================================
     !  Calculate mortality rates from carbon storage, hydraulic cavitation, 
@@ -55,7 +57,7 @@ contains
     use FatesConstantsMod,  only : tfrz => t_water_freeze_k_1atm
     use FatesInterfaceTypesMod        , only : hlm_hio_ignore_val   
     use FatesConstantsMod,  only : fates_check_param_set
-    
+    type (ed_site_type), intent(inout), target  :: currentSite
     type (ed_cohort_type), intent(in) :: cohort_in 
     type (bc_in_type), intent(in) :: bc_in
     real(r8),intent(out) :: bmort  ! background mortality : Fraction per year
@@ -64,8 +66,7 @@ contains
     real(r8),intent(out) :: frmort ! freezing stress mortality
     real(r8),intent(out) :: smort  ! size dependent senescence term
     real(r8),intent(out) :: asmort ! age dependent senescence term 
-    real(r8) :: hard_hydr !marius
-    real(r8) :: hard_carb !marius
+
     integer  :: ifp
     real(r8) :: frac  ! relativised stored carbohydrate
     real(r8) :: leaf_c_target      ! target leaf biomass kgC
@@ -83,6 +84,10 @@ contains
     real(r8) :: min_fmc_ar         ! minimum fraction of maximum conductivity for absorbing root
     real(r8) :: min_fmc            ! minimum fraction of maximum conductivity for whole plant
     real(r8) :: flc                ! fractional loss of conductivity 
+    real(r8) :: hard_carb          ! reduced carb mortality if hardened 
+    real(r8) :: hard_hydr          ! reduced hydro mortality if hardened 
+    real(r8) :: max_h !marius
+    real(r8) :: Tmin  !marius
     real(r8), parameter :: frost_mort_buffer = 5.0_r8  ! 5deg buffer for freezing mortality
     logical, parameter :: test_zero_mortality = .false. ! Developer test which
                                                         ! may help to debug carbon imbalances
@@ -145,10 +150,9 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
        else 
          hard_hydr=EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
        end if
-       !--------------------
        hmort = (flc-hf_flc_threshold)/(1.0_r8-hf_flc_threshold) * hard_hydr
-       !hmort = (flc-hf_flc_threshold)/(1.0_r8-hf_flc_threshold) * &
-       !    EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
+       !--------------------
+       !hmort = (flc-hf_flc_threshold)/(1.0_r8-hf_flc_threshold) * EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
      else
        hmort = 0.0_r8
      endif      
@@ -169,13 +173,20 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
        call storage_fraction_of_target(leaf_c_target, store_c, frac)
        if( frac .lt. 1._r8) then
           !------------------------ marius
-          !if (hlm_use_hydrohard .eq. itrue .and. cohort_in%hard_level < -3._r8) then
-          !   hard_carb=EDPftvarcon_inst%mort_scalar_cstarvation(cohort_in%pft)*(cohort_in%hard_rate*0.5_r8+0.5_r8)
+          !if (currentSite%hardtemp<-1.334_r8 .and. currentSite%hardtemp>-46.666_r8) then
+          ! max_h=currentSite%hardtemp*1.5
+          !else if (currentSite%hardtemp<=-46.666_r8) then
+          !  max_h=-70._r8
+          !else 
+          !  max_h=-2._r8
+          !end if
+          !if (hlm_use_hydrohard .eq. itrue .and. max_h < -3._r8) then
+          !   hard_carb=EDPftvarcon_inst%mort_scalar_cstarvation(cohort_in%pft)*(((max_h+70._r8)/67._r8)*0.5_r8+0.5_r8)
           !else 
           !   hard_carb=EDPftvarcon_inst%mort_scalar_cstarvation(cohort_in%pft)
           !end if
           !cmort = max(0.0_r8,hard_carb * &
-          !(1.0_r8 - frac))
+          !     (1.0_r8 - frac))
           !-------------------------
           cmort = max(0.0_r8,EDPftvarcon_inst%mort_scalar_cstarvation(cohort_in%pft) * &
                (1.0_r8 - frac))
@@ -195,18 +206,23 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     !           doi: 10.1111/j.1365-2486.2006.01254.x                                    
 
     ifp = cohort_in%patchptr%patchno
+
     if (hlm_use_frosthard .eq. itrue) then !marius implementation of frost 
        Tmin=bc_in%t_ref2m_min_si-273.15_r8
-       temp_dep_fraction  = max(0.0_r8, min(1.0_r8, 1.0_r8 - (Tmin - &
-                            max(EDPftvarcon_inst%freezetol(cohort_in%pft),cohort_in%hard_level))/frost_mort_buffer) )
+       temp_dep_fraction  = max(0.0_r8, min(1.0_r8,(-Tmin + &
+                            max(EDPftvarcon_inst%freezetol(cohort_in%pft),currentSite%hard_level2(cohort_in%pft)))/frost_mort_buffer) )
+       write(fates_log(),*) hlm_current_year,'-',hlm_current_month,'-',hlm_current_day,'hard:',currentSite%hard_level2(cohort_in%pft),'temp:',Tmin
+       if (nint(hlm_model_day)<185) then
+          temp_dep_fraction=0._r8
+       endif
+       frmort    = EDPftvarcon_inst%mort_scalar_coldstress(cohort_in%pft)*temp_dep_fraction*5._r8
     else
        temp_in_C = bc_in%t_veg24_pa(ifp) - tfrz
        temp_dep_fraction  = max(0.0_r8, min(1.0_r8, 1.0_r8 - (temp_in_C - &
                             EDPftvarcon_inst%freezetol(cohort_in%pft))/frost_mort_buffer) )
+       frmort    = EDPftvarcon_inst%mort_scalar_coldstress(cohort_in%pft) * temp_dep_fraction
     endif
-    frmort    = EDPftvarcon_inst%mort_scalar_coldstress(cohort_in%pft) * temp_dep_fraction
-
-
+    
     !mortality_rates = bmort + hmort + cmort
 
  else ! i.e. hlm_use_ed_prescribed_phys is true 
@@ -268,7 +284,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     
     ! Mortality for trees in the understorey. 
     !if trees are in the canopy, then their death is 'disturbance'. This probably needs a different terminology
-    call mortality_rates(currentCohort,bc_in,cmort,hmort,bmort,frmort,smort, asmort)
+    call mortality_rates(currentSite, currentCohort,bc_in,cmort,hmort,bmort,frmort,smort, asmort)
     call LoggingMortality_frac(ipft, currentCohort%dbh, currentCohort%canopy_layer, &
                                currentCohort%lmort_direct,                       &
                                currentCohort%lmort_collateral,                    &
@@ -346,6 +362,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     real(r8) :: hard_level_prev         ! Temporary variable for the previous time-step hardiness level
     real(r8) :: hard_diff            	! Daily difference between Hday and Tmin (°C)
     real(r8) :: gdd_threshold           ! GDD accumulation function,
+    real(r8) :: dayl_thresh            
     integer  :: ipft                    ! pft index
 
     Tmean=bc_in%t_ref2m_24_si-273.15_r8
@@ -353,9 +370,12 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     !Tmean5yr=bc_in%t_mean_5yr_si-273.15_r8
     !Tmin1yrinst=bc_in%t_min_yr_inst_si-273.15_r8
 
-    if (currentSite%hardtemp<-1.334_r8 .and. currentSite%hardtemp>-46.666_r8) then
-      max_h=currentSite%hardtemp*1.5
-    else if (currentSite%hardtemp<=-46.666_r8) then
+    if (currentSite%hardtemp>-55._r8) then
+      max_h=currentSite%hardtemp-15._r8
+    else if (currentSite%hardtemp<=-55._r8) then
+    !if (currentSite%hardtemp<-1.334_r8 .and. currentSite%hardtemp>-46.666_r8) then
+    !  max_h=currentSite%hardtemp*1.5
+    !else if (currentSite%hardtemp<=-46.666_r8) then
     !if (currentSite%hardtemp<-1.6_r8 .and. currentSite%hardtemp>-56._r8) then
     !  max_h=currentSite%hardtemp*1.25_r8
     !else if (currentSite%hardtemp<=-56._r8) then
@@ -372,12 +392,12 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
 
 
     !Calculation of the target hardiness
-    if (Tmean <= max_h/2) then !
+    if (Tmean <= max_h/1.5_r8) then !
        target_h=max_h
-    else if (Tmean>= 10.0_r8) then
+    else if (Tmean>= (7.0_r8-max_h/14._r8)) then
        target_h=min_h
     else
-       target_h = -sin((3.14159_r8*(0.5_r8+(Tmean-max_h/2._r8)/(-max_h/2._r8+10._r8))))*(min_h-max_h)/2._r8-(min_h-max_h)/2._r8+min_h
+       target_h = -sin((3.14159_r8*(0.5_r8+(Tmean-max_h/1.5_r8)/(-max_h/1.5_r8+(7.0_r8-max_h/14._r8)))))*(min_h-max_h)/2._r8-(min_h-max_h)/2._r8+min_h
     end if
     !Calculation of the hardening rate
     if (Tmean <= max_h/2) then
@@ -401,6 +421,8 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
        rate_dh=(Tmean-2.5_r8)*((max_h_dehard-min_h)/-62.22_r8)
     end if
  
+    dayl_thresh= 42000._r8 + ((-20._r8-max(-60._r8,min(0._r8,currentSite%hardtemp)))/20._r8)*3000._r8
+
     !================================================    
     !Hardening calculation
     cohort_in%hard_level_prev = cohort_in%hard_level
@@ -408,17 +430,31 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     !if (currentSite%grow_deg_days > gdd_threshold)  then
     !   cohort_in%hard_level = min_h
     !else ! if (bc_in%dayl_si >= bc_in%prev_dayl_si .or. (bc_in%dayl_si < bc_in%prev_dayl_si .and. bc_in%dayl_si > 63840._r8) ) then
+       !if (Tmean > max(-max_h/6,2.5)) then
+       !   cohort_in%hard_level = min_h
+       !else 
        if (cohort_in%hard_level_prev + rate_dh > min_h) then
           cohort_in%hard_level = min_h
        else if (cohort_in%hard_level_prev >= target_h) then
           cohort_in%hard_level = cohort_in%hard_level_prev - rate_h
-       else if (cohort_in%hard_level_prev <= target_h) then
+       else if (cohort_in%hard_level_prev < target_h) then
           cohort_in%hard_level = cohort_in%hard_level_prev + rate_dh
        end if
     !end if
-    if (bc_in%dayl_si <= 42000.0_r8 .and. bc_in%dayl_si < bc_in%prev_dayl_si) then ! prev: 46260._r8
-       cohort_in%hard_level = cohort_in%hard_level_prev - rate_h
+    if (bc_in%dayl_si <= dayl_thresh .and. bc_in%dayl_si < bc_in%prev_dayl_si) then ! prev: 46260._r8
+    !if (Tmin<5._r8 .and. bc_in%dayl_si < bc_in%prev_dayl_si) then ! prev: 46260._r8
+       if (cohort_in%hard_level_prev >= target_h) then
+          cohort_in%hard_level = cohort_in%hard_level_prev - rate_h
+       else 
+          cohort_in%hard_level = cohort_in%hard_level_prev ! now dehardening is not possible in autumn but the hardiness level is also allowed to remain steady
+       end if
     end if
+    !if (Tmean > 10._r8 .and. bc_in%dayl_si > bc_in%prev_dayl_si) then
+    !    cohort_in%hard_level = min_h
+    !end if
+    !if (Tmin<0._r8 .and. Tmin-cohort_in%hard_level> 15._r8) then
+    !   cohort_in%hard_level = cohort_in%hard_level + 2._r8
+    !end if
     ipft = cohort_in%pft
     !if (prt_params%season_decid(ipft) == itrue .and. cohort_in%status_coh == leaves_on .and. &
     !    (nint(hlm_model_day) >= currentSite%cleafondate .or. nint(hlm_model_day) >= currentSite%dleafondate)) then         

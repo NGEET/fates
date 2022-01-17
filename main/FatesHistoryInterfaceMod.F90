@@ -507,6 +507,7 @@ module FatesHistoryInterfaceMod
 
   ! indices to (site x pft) variables
   integer :: ih_biomass_si_pft
+  integer :: ih_hard_level2_si_pft
   integer :: ih_leafbiomass_si_pft
   integer :: ih_storebiomass_si_pft
   integer :: ih_nindivs_si_pft
@@ -569,6 +570,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_hardlevel_si_pft !marius
   integer :: ih_hardGRF_si_pft   !marius
   integer :: ih_hardtemp_si !marius
+  integer :: ih_Tmin_24_fates_si !marius
   
   ! Hydro: Soil water states
   integer :: ih_rootwgt_soilvwc_si
@@ -1805,6 +1807,7 @@ end subroutine flush_hvars
                hio_biomass_si_pft      => this%hvars(ih_biomass_si_pft)%r82d, &
                hio_leafbiomass_si_pft  => this%hvars(ih_leafbiomass_si_pft)%r82d, &
                hio_storebiomass_si_pft => this%hvars(ih_storebiomass_si_pft)%r82d, &
+               hio_hard_level2_si_pft => this%hvars(ih_hard_level2_si_pft)%r82d, &
                hio_nindivs_si_pft      => this%hvars(ih_nindivs_si_pft)%r82d, &
                hio_recruitment_si_pft  => this%hvars(ih_recruitment_si_pft)%r82d, &
                hio_mortality_si_pft    => this%hvars(ih_mortality_si_pft)%r82d, &
@@ -2034,7 +2037,8 @@ end subroutine flush_hvars
                hio_gdd5_si                          => this%hvars(ih_gdd5_si)%r81d, &        !marius
                hio_hardlevel_si_pft                 => this%hvars(ih_hardlevel_si_pft)%r82d, & !marius
                hio_hardGRF_si_pft                   => this%hvars(ih_hardGRF_si_pft)%r82d, &   !marius 
-               hio_hardtemp_si                      => this%hvars(ih_hardtemp_si)%r81d, &   !marius   
+               hio_hardtemp_si                      => this%hvars(ih_hardtemp_si)%r81d, &   !marius  
+               hio_Tmin_24_fates_si                 => this%hvars(ih_Tmin_24_fates_si)%r81d, &   !marius 
                hio_site_ncolddays_si                => this%hvars(ih_site_ncolddays_si)%r81d, &
                hio_site_nchilldays_si               => this%hvars(ih_site_nchilldays_si)%r81d, &
                hio_cleafoff_si                      => this%hvars(ih_cleafoff_si)%r81d, &
@@ -2149,7 +2153,8 @@ end subroutine flush_hvars
          
          !========================================================marius hardening   
          if (hlm_use_hydrohard .eq. itrue .or. hlm_use_frosthard .eq. itrue) then    
-           hio_hardtemp_si(io_si)   =  sites(s)%hardtemp        
+           hio_hardtemp_si(io_si)   =  sites(s)%hardtemp   
+           hio_Tmin_24_fates_si(io_si)   =  sites(s)%Tmin_24_fates     
            ncohort_pft(:) = 0.0_r8 
            ! Normalization counters
            cpatch => sites(s)%oldest_patch
@@ -2171,6 +2176,7 @@ end subroutine flush_hvars
              endif
            enddo
          else
+           hio_Tmin_24_fates_si(io_si)   = 0.0_r8
            hio_hardtemp_si(io_si)   = -2._r8
          end if
          !=======================================================marius
@@ -2344,6 +2350,8 @@ end subroutine flush_hvars
                      
                      hio_storebiomass_si_pft(io_si,ft) = hio_storebiomass_si_pft(io_si,ft) + &
                            (ccohort%n * AREA_INV) * store_m   * g_per_kg
+
+                     hio_hard_level2_si_pft(io_si,ft) = sites(s)%hard_level2(ft)
                      
                      hio_nindivs_si_pft(io_si,ft) = hio_nindivs_si_pft(io_si,ft) + &
                            ccohort%n * AREA_INV
@@ -4367,7 +4375,12 @@ end subroutine update_history_hifrq
     call this%set_history_var(vname='hardtemp',  units='DegC',            &
          long='5yr running mean temperature for hardiness', use_default='active',       &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, & !marius
-         ivar=ivar, initialize=initialize_variables, index = ih_hardtemp_si )
+         ivar=ivar, initialize=initialize_variables, index = ih_hardtemp_si ) 
+
+    call this%set_history_var(vname='Tmin_24_fates',  units='DegC',            &
+         long='Tmin_24_fates', use_default='active',       &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, & !marius
+         ivar=ivar, initialize=initialize_variables, index = ih_Tmin_24_fates_si )
     
     call this%set_history_var(vname='SITE_NCHILLDAYS', units = 'days', &
          long='site level number of chill days', &
@@ -4429,8 +4442,13 @@ end subroutine update_history_hifrq
 
     call this%set_history_var(vname='PFTstorebiomass',  units='gC/m2',            &
          long='total PFT level stored biomass', use_default='active',              &
-         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_storebiomass_si_pft )
+
+    call this%set_history_var(vname='PFThardiness2',  units='gC/m2',            &
+         long='hardiness level2', use_default='active',              &
+         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_hard_level2_si_pft )
 
     call this%set_history_var(vname='PFTcrownarea',  units='m2/m2',            &
          long='total PFT level crown area', use_default='inactive',              &
@@ -5455,7 +5473,7 @@ end subroutine update_history_hifrq
          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_agb_si_scpf ) 
 
     call this%set_history_var(vname='NPLANT_SCPF', units = 'N/ha',         &
-          long='stem number density by pft/size', use_default='inactive', &
+          long='stem number density by pft/size', use_default='active', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_nplant_si_scpf )
 
@@ -5465,27 +5483,27 @@ end subroutine update_history_hifrq
          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_nplant_si_capf )
 
     call this%set_history_var(vname='M1_SCPF', units = 'N/ha/yr',          &
-          long='background mortality by pft/size', use_default='inactive', &
+          long='background mortality by pft/size', use_default='active', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m1_si_scpf )
     
     call this%set_history_var(vname='M2_SCPF', units = 'N/ha/yr',          &
-          long='hydraulic mortality by pft/size',use_default='inactive', &
+          long='hydraulic mortality by pft/size',use_default='active', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m2_si_scpf )
 
     call this%set_history_var(vname='M3_SCPF', units = 'N/ha/yr',          &
-          long='carbon starvation mortality by pft/size', use_default='inactive', &
+          long='carbon starvation mortality by pft/size', use_default='active', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m3_si_scpf )
 
     call this%set_history_var(vname='M4_SCPF', units = 'N/ha/yr',          &
-          long='impact mortality by pft/size',use_default='inactive', &
+          long='impact mortality by pft/size',use_default='active', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m4_si_scpf )
 
     call this%set_history_var(vname='M5_SCPF', units = 'N/ha/yr',          &
-          long='fire mortality by pft/size',use_default='inactive', &
+          long='fire mortality by pft/size',use_default='active', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m5_si_scpf )
 
@@ -5500,27 +5518,27 @@ end subroutine update_history_hifrq
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_cambialfiremort_si_scpf )
 
     call this%set_history_var(vname='M6_SCPF', units = 'N/ha/yr',          &
-          long='termination mortality by pft/size',use_default='inactive', &
+          long='termination mortality by pft/size',use_default='active', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m6_si_scpf )
 
     call this%set_history_var(vname='M7_SCPF', units = 'N/ha/event',               &
-          long='logging mortality by pft/size',use_default='inactive',           &
+          long='logging mortality by pft/size',use_default='active',           &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m7_si_scpf )
 
     call this%set_history_var(vname='M8_SCPF', units = 'N/ha/yr',          &
-          long='freezing mortality by pft/size',use_default='inactive', &
+          long='freezing mortality by pft/size',use_default='active', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m8_si_scpf )
 
     call this%set_history_var(vname='M9_SCPF', units = 'N/ha/yr',          &
-          long='senescence mortality by pft/size',use_default='inactive', &
+          long='senescence mortality by pft/size',use_default='active', &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,    &
           upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m9_si_scpf )
 
     call this%set_history_var(vname='M10_SCPF', units = 'N/ha/yr',         &
-         long='age senescence mortality by pft/size',use_default='inactive', &
+         long='age senescence mortality by pft/size',use_default='active', &
          avgflag='A', vtype =site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8,     &
          upfreq=1, ivar=ivar, initialize=initialize_variables, index = ih_m10_si_scpf )
     

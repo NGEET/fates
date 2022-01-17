@@ -190,6 +190,8 @@ contains
     site_in%grow_deg_days    = nan  ! growing degree days
     site_in%gdd5             = 0.0_r8  ! marius
     site_in%hardtemp         = -2._r8  ! marius
+    site_in%hard_level2(:)      = -2._r8  ! marius
+    site_in%Tmin_24_fates    = 0.0_r8  ! marius
     site_in%snow_depth       = nan
     site_in%nchilldays       = fates_unset_int
     site_in%ncolddays        = fates_unset_int
@@ -310,6 +312,8 @@ contains
           sites(s)%grow_deg_days = GDD
           sites(s)%gdd5 = 0.0_r8 !marius
           sites(s)%hardtemp = -2._r8 !marius
+          sites(s)%hard_level2(1:numpft) = -2._r8 !marius
+          sites(s)%Tmin_24_fates = 0.0_r8 !marius
           sites(s)%water_memory(1:numWaterMem) = watermem
           sites(s)%vegtemp_memory(1:num_vegtemp_mem) = 0._r8
 

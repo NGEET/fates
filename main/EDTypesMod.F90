@@ -746,6 +746,8 @@ module EDTypesMod
      real(r8) ::  NF                                           ! daily ignitions in km2
      real(r8) ::  gdd5                                         ! marius
      real(r8) ::  hardtemp                                         ! marius
+     real(r8) ::  Tmin_24_fates
+     real(r8) ::  hard_level2(1:maxpft)                                         ! marius
      real(r8) ::  NF_successful                                ! daily ignitions in km2 that actually lead to fire
 
      ! PLANT HYDRAULICS
