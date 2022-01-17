@@ -145,8 +145,8 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
      flc = 1.0_r8-min_fmc
      if(flc >= hf_flc_threshold .and. hf_flc_threshold < 1.0_r8 )then 
        !--------------------marius
-       if (hlm_use_hydrohard .eq. itrue .and. cohort_in%hard_level < -3._r8) then
-         hard_hydr=EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)*(cohort_in%hard_rate*0.5_r8+0.5_r8)
+       if (hlm_use_hydrohard .eq. itrue .and. currentSite%hard_level2(cohort_in%pft) < -3._r8) then
+         hard_hydr=EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)*(currentSite%hard_level2(cohort_in%pft)*0.5_r8+0.5_r8)
        else 
          hard_hydr=EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
        end if
@@ -211,7 +211,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
        Tmin=bc_in%t_ref2m_min_si-273.15_r8
        temp_dep_fraction  = max(0.0_r8, min(1.0_r8,(-Tmin + &
                             max(EDPftvarcon_inst%freezetol(cohort_in%pft),currentSite%hard_level2(cohort_in%pft)))/frost_mort_buffer) )
-       write(fates_log(),*) hlm_current_year,'-',hlm_current_month,'-',hlm_current_day,'hard:',currentSite%hard_level2(cohort_in%pft),'temp:',Tmin
+       !write(fates_log(),*) hlm_current_year,'-',hlm_current_month,'-',hlm_current_day,'hard:',currentSite%hard_level2(cohort_in%pft),'temp:',Tmin
        if (nint(hlm_model_day)<185) then
           temp_dep_fraction=0._r8
        endif
@@ -367,29 +367,8 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
 
     Tmean=bc_in%t_ref2m_24_si-273.15_r8
     Tmin=bc_in%t_ref2m_min_si-273.15_r8
-    !Tmean5yr=bc_in%t_mean_5yr_si-273.15_r8
-    !Tmin1yrinst=bc_in%t_min_yr_inst_si-273.15_r8
 
-    if (currentSite%hardtemp>-55._r8) then
-      max_h=currentSite%hardtemp-15._r8
-    else if (currentSite%hardtemp<=-55._r8) then
-    !if (currentSite%hardtemp<-1.334_r8 .and. currentSite%hardtemp>-46.666_r8) then
-    !  max_h=currentSite%hardtemp*1.5
-    !else if (currentSite%hardtemp<=-46.666_r8) then
-    !if (currentSite%hardtemp<-1.6_r8 .and. currentSite%hardtemp>-56._r8) then
-    !  max_h=currentSite%hardtemp*1.25_r8
-    !else if (currentSite%hardtemp<=-56._r8) then
-    !if (currentSite%hardtemp<-1._r8 .and. currentSite%hardtemp>-35._r8) then
-    !  max_h=currentSite%hardtemp*2_r8
-    !else if (currentSite%hardtemp<=-35._r8) then
-      max_h=-70._r8
-    else 
-      max_h=min_h
-    end if
-
-    !if (nint(hlm_model_day)>=366 .and. Tmean5yr<-1.667_r8 .and. Tmean5yr>-58.333_r8) then
-    !  max_h=Tmean5yr*1.2
-
+    max_h=min(max(currentSite%hardtemp,-55._r8)-15._r8,min_h)
 
     !Calculation of the target hardiness
     if (Tmean <= max_h/1.5_r8) then !
@@ -416,50 +395,39 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     if (Tmean <= 2.5_r8) then
        rate_dh=0.0_r8
     else if (Tmean >= 12.5_r8) then
-       rate_dh=5._r8*(max_h_dehard-min_h)/-31.11_r8
+       rate_dh=5.0_r8*(max_h_dehard-min_h)/-31.11_r8
     else
        rate_dh=(Tmean-2.5_r8)*((max_h_dehard-min_h)/-62.22_r8)
     end if
- 
-    dayl_thresh= 42000._r8 + ((-20._r8-max(-60._r8,min(0._r8,currentSite%hardtemp)))/20._r8)*3000._r8
 
+    dayl_thresh= 42000.0_r8 + ( (-20.0_r8 - max(-60.0_r8,min(0.0_r8,currentSite%hardtemp)) )/20.0_r8) * 3500.0_r8
     !================================================    
     !Hardening calculation
     cohort_in%hard_level_prev = cohort_in%hard_level
     gdd_threshold = ED_val_phen_a + ED_val_phen_b*exp(ED_val_phen_c*real(currentSite%nchilldays,r8))
-    !if (currentSite%grow_deg_days > gdd_threshold)  then
-    !   cohort_in%hard_level = min_h
-    !else ! if (bc_in%dayl_si >= bc_in%prev_dayl_si .or. (bc_in%dayl_si < bc_in%prev_dayl_si .and. bc_in%dayl_si > 63840._r8) ) then
-       !if (Tmean > max(-max_h/6,2.5)) then
-       !   cohort_in%hard_level = min_h
-       !else 
-       if (cohort_in%hard_level_prev + rate_dh > min_h) then
-          cohort_in%hard_level = min_h
-       else if (cohort_in%hard_level_prev >= target_h) then
-          cohort_in%hard_level = cohort_in%hard_level_prev - rate_h
-       else if (cohort_in%hard_level_prev < target_h) then
-          cohort_in%hard_level = cohort_in%hard_level_prev + rate_dh
-       end if
-    !end if
+
+    if (cohort_in%hard_level_prev + rate_dh > min_h) then
+       cohort_in%hard_level = min_h
+    else if (cohort_in%hard_level_prev >= target_h) then
+       cohort_in%hard_level = cohort_in%hard_level_prev - rate_h
+    else if (cohort_in%hard_level_prev < target_h) then
+       cohort_in%hard_level = cohort_in%hard_level_prev + rate_dh
+    end if
+
     if (bc_in%dayl_si <= dayl_thresh .and. bc_in%dayl_si < bc_in%prev_dayl_si) then ! prev: 46260._r8
-    !if (Tmin<5._r8 .and. bc_in%dayl_si < bc_in%prev_dayl_si) then ! prev: 46260._r8
        if (cohort_in%hard_level_prev >= target_h) then
           cohort_in%hard_level = cohort_in%hard_level_prev - rate_h
        else 
           cohort_in%hard_level = cohort_in%hard_level_prev ! now dehardening is not possible in autumn but the hardiness level is also allowed to remain steady
        end if
-    end if
-    !if (Tmean > 10._r8 .and. bc_in%dayl_si > bc_in%prev_dayl_si) then
-    !    cohort_in%hard_level = min_h
-    !end if
-    !if (Tmin<0._r8 .and. Tmin-cohort_in%hard_level> 15._r8) then
-    !   cohort_in%hard_level = cohort_in%hard_level + 2._r8
-    !end if
+    else if (bc_in%dayl_si > dayl_thresh .and. bc_in%dayl_si < bc_in%prev_dayl_si) then
+          cohort_in%hard_level = min_h
+    end if  
     ipft = cohort_in%pft
-    !if (prt_params%season_decid(ipft) == itrue .and. cohort_in%status_coh == leaves_on .and. &
-    !    (nint(hlm_model_day) >= currentSite%cleafondate .or. nint(hlm_model_day) >= currentSite%dleafondate)) then         
-    !   cohort_in%hard_level = min_h
-    !end if
+    if (prt_params%season_decid(ipft) == itrue .and. cohort_in%status_coh == leaves_on .and. bc_in%dayl_si > bc_in%prev_dayl_si .and. &
+        (nint(hlm_model_day) >= currentSite%cleafondate .or. nint(hlm_model_day) >= currentSite%dleafondate)) then         
+       cohort_in%hard_level = min_h
+    end if
     if (cohort_in%hard_level > min_h) then
        cohort_in%hard_level = min_h
     end if
@@ -469,10 +437,9 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     cohort_in%hard_rate=(cohort_in%hard_level-max_h)/(min_h-max_h)
 
     hard_diff=cohort_in%hard_level_prev-Tmin
-    !Calculation of the growth reducing factor
+
     cohort_in%hard_GRF=(1.0_r8/(1.0_r8+exp(b*(hard_diff-LT50))))
-    !write(fates_log(),*) "check1:",hlm_day_of_year,bc_in%dayl_si,bc_in%prev_dayl_si
-    !write(fates_log(),*) "check2:",cohort_in%hard_level
+
     return
 
   end subroutine Hardening_scheme

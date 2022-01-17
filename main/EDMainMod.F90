@@ -347,16 +347,14 @@ contains
     !   currentSite%gdd5= currentSite%gdd5 + max(0.0_r8,bc_in%t_ref2m_24_si-273.15_r8-5.0_r8)
     !end if
     if (hlm_use_hydrohard.eq.itrue .or. hlm_use_frosthard.eq.itrue) then
-      if (nint(hlm_model_day)>=366) then
-        write(fates_log(),*) '5yrmean was taken'
-        currentSite%hardtemp=bc_in%t_mean_5yr_si-273.15_r8
-      else if (nint(hlm_model_day)<366) then
-        write(fates_log(),*) 'minyrinst was taken'
-        currentSite%hardtemp=bc_in%t_min_yr_inst_si-273.15_r8
-      end if
-    end if
-    !--------------- 
-    if (hlm_use_hydrohard.eq.itrue .or. hlm_use_frosthard.eq.itrue) then   
+       currentSite%Tmin_24_fates=bc_in%t_ref2m_min_si-273.15_r8
+       if (nint(hlm_model_day)>=366) then
+         write(fates_log(),*) '5yrmean was taken'
+         currentSite%hardtemp=bc_in%t_mean_5yr_si-273.15_r8
+       else if (nint(hlm_model_day)<366) then
+         write(fates_log(),*) 'minyrinst was taken'
+         currentSite%hardtemp=bc_in%t_min_yr_inst_si-273.15_r8
+       end if   
        ncohort_pft(:) = 0.0_r8 
        ! Normalization counters
        currentPatch => currentSite%youngest_patch
@@ -374,6 +372,18 @@ contains
              currentSite%hard_level2(ft)=0._r8
           endif
        enddo
+       currentPatch => currentSite%youngest_patch
+       do while(associated(currentPatch))
+          currentCohort => currentPatch%shortest
+          do while(associated(currentCohort)) 
+             ft = currentCohort%pft
+             call Hardening_scheme( currentSite, currentPatch, currentCohort, bc_in ) !hard_level and hard_GRF will be updated, ED_ecosystem_dynamics is called once a day at beginning of day Marius
+             number_fraction_pft = (currentCohort%n / ncohort_pft(ft))                      !marius
+             currentSite%hard_level2(ft) = currentSite%hard_level2(ft) + currentCohort%hard_level * number_fraction_pft        
+             currentCohort => currentCohort%taller
+          enddo ! cohort loop
+          currentPatch => currentPatch%older
+       end do !patch loop
     end if
     !---------------
 
@@ -411,13 +421,6 @@ contains
 
           call Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary )
 
-          if (hlm_use_hydrohard.eq.itrue .or. hlm_use_frosthard.eq.itrue) then
-             !--------------------------------
-             call Hardening_scheme( currentSite, currentPatch, currentCohort, bc_in ) !hard_level and hard_GRF will be updated, ED_ecosystem_dynamics is called once a day at beginning of day Marius
-             number_fraction_pft = (currentCohort%n / ncohort_pft(ft))                      !marius
-             currentSite%hard_level2(ft) = currentSite%hard_level2(ft) + currentCohort%hard_level * number_fraction_pft        
-             !-----------------------------------------
-          endif
           ! -----------------------------------------------------------------------------
           ! Apply Plant Allocation and Reactive Transport
           ! -----------------------------------------------------------------------------
