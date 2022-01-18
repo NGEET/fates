@@ -479,13 +479,12 @@ module FatesInterfaceTypesMod
       real(r8) :: snow_depth_si    ! Depth of snow in snowy areas of site (m)
       real(r8) :: frac_sno_eff_si  ! Fraction of ground covered by snow (0-1)
       
-      real(r8)             :: t_ref2m_24_si  !marius
-      real(r8)             :: t_mean_5yr_si  !marius
-      real(r8)             :: t_min_yr_inst_si  !marius
-      real(r8)             :: t_ref2m_min_si !marius
-      real(r8)             :: t_ref2m_max_si !marius
-      real(r8)             :: dayl_si !marius
-      real(r8)             :: prev_dayl_si !marius
+      real(r8)             :: temp24_si       !marius
+      real(r8)             :: t_mean_5yr_si  
+      real(r8)             :: t_min_yr_inst_si  
+      real(r8)             :: tmin24_si 
+      real(r8)             :: dayl_si
+      real(r8)             :: prev_dayl_si 
 
       ! Hydrology variables for BTRAN
       ! ---------------------------------------------------------------------------------

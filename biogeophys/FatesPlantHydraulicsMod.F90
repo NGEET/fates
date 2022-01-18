@@ -2507,7 +2507,6 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
                       call wrf_plant(pm,ft)%p%set_wrf_hard([pinot_hard,epsil_hard])
                    end do 
                 end if
-                ccohort%hard_level_prev=ccohort%hard_level
              end if
              
               ! Relative transpiration of this cohort from the whole patch

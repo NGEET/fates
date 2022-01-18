@@ -342,7 +342,6 @@ module FatesHistoryInterfaceMod
   integer :: ih_site_cstatus_si
   integer :: ih_site_dstatus_si
   integer :: ih_gdd_si
-  integer :: ih_gdd5_si !marius
   integer :: ih_site_nchilldays_si
   integer :: ih_site_ncolddays_si
   integer :: ih_cleafoff_si
@@ -568,8 +567,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_lflc_scpf                   
   integer :: ih_btran_scpf
   integer :: ih_hardlevel_si_pft !marius
-  integer :: ih_hardGRF_si_pft   !marius
-  integer :: ih_hardtemp_si !marius
+  integer :: ih_hardtemp_si      !marius
   integer :: ih_Tmin_24_fates_si !marius
   
   ! Hydro: Soil water states
@@ -2034,11 +2032,9 @@ end subroutine flush_hvars
                hio_site_cstatus_si                  => this%hvars(ih_site_cstatus_si)%r81d, &
                hio_site_dstatus_si                  => this%hvars(ih_site_dstatus_si)%r81d, &
                hio_gdd_si                           => this%hvars(ih_gdd_si)%r81d, &
-               hio_gdd5_si                          => this%hvars(ih_gdd5_si)%r81d, &        !marius
                hio_hardlevel_si_pft                 => this%hvars(ih_hardlevel_si_pft)%r82d, & !marius
-               hio_hardGRF_si_pft                   => this%hvars(ih_hardGRF_si_pft)%r82d, &   !marius 
-               hio_hardtemp_si                      => this%hvars(ih_hardtemp_si)%r81d, &   !marius  
-               hio_Tmin_24_fates_si                 => this%hvars(ih_Tmin_24_fates_si)%r81d, &   !marius 
+               hio_hardtemp_si                      => this%hvars(ih_hardtemp_si)%r81d, &      !marius  
+               hio_Tmin_24_fates_si                 => this%hvars(ih_Tmin_24_fates_si)%r81d, & !marius 
                hio_site_ncolddays_si                => this%hvars(ih_site_ncolddays_si)%r81d, &
                hio_site_nchilldays_si               => this%hvars(ih_site_nchilldays_si)%r81d, &
                hio_cleafoff_si                      => this%hvars(ih_cleafoff_si)%r81d, &
@@ -2098,7 +2094,6 @@ end subroutine flush_hvars
 
             
          hio_gdd_si(io_si)      = sites(s)%grow_deg_days
-         hio_gdd5_si(io_si)      = sites(s)%gdd5 !marius
          hio_cleafoff_si(io_si) = real(model_day_int - sites(s)%cleafoffdate,r8)
          hio_cleafon_si(io_si)  = real(model_day_int - sites(s)%cleafondate,r8)
          hio_dleafoff_si(io_si) = real(model_day_int - sites(s)%dleafoffdate,r8)
@@ -2172,7 +2167,6 @@ end subroutine flush_hvars
            do ft = 1, numpft
              if (ncohort_pft(ft)>0._r8)then
                 hio_hardlevel_si_pft(io_si,ft)=0._r8
-                hio_hardGRF_si_pft(io_si,ft)=0._r8
              endif
            enddo
          else
@@ -2447,11 +2441,8 @@ end subroutine flush_hvars
                     hio_hardlevel_si_pft(io_si,ft) =  hio_hardlevel_si_pft(io_si,ft) + &
                         ccohort%hard_level * number_fraction_pft                             !marius
 
-      		    hio_hardGRF_si_pft(io_si,ft)   =  hio_hardGRF_si_pft(io_si,ft) + &
-                        ccohort%hard_GRF * number_fraction_pft                               !marius
                   else
                     hio_hardlevel_si_pft(io_si,ft) = -2._r8
-                    hio_hardGRF_si_pft(io_si,ft)   = 0._r8
                   end if
 
                   !write(fates_log(),*) 'check1',number_fraction_pft
@@ -4356,21 +4347,15 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_gdd_si)
 
-    call this%set_history_var(vname='SITE_GDD5', units='degC',  &                    !marius
-         long='site level growing degree days 5',                &
-         use_default='active',                                                 &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
-         ivar=ivar, initialize=initialize_variables, index = ih_gdd5_si)
+    call this%set_history_var(vname='PFThardiness2',  units='gC/m2',            &
+         long='hardiness level2', use_default='active',              &
+         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_hard_level2_si_pft )
 
     call this%set_history_var(vname='PFThardiness',  units='degC',            &
          long='Hardiness level of vegetation', use_default='active',       &
          avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, & !marius
          ivar=ivar, initialize=initialize_variables, index = ih_hardlevel_si_pft)
-
-    call this%set_history_var(vname='PFTHARDGRF',  units='-',            &
-         long='Growth reducing factor fram hardiness', use_default='active',       &
-         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, & !marius
-         ivar=ivar, initialize=initialize_variables, index = ih_hardGRF_si_pft )
 
     call this%set_history_var(vname='hardtemp',  units='DegC',            &
          long='5yr running mean temperature for hardiness', use_default='active',       &
@@ -4444,11 +4429,6 @@ end subroutine update_history_hifrq
          long='total PFT level stored biomass', use_default='active',              &
          avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_storebiomass_si_pft )
-
-    call this%set_history_var(vname='PFThardiness2',  units='gC/m2',            &
-         long='hardiness level2', use_default='active',              &
-         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1, &
-         ivar=ivar, initialize=initialize_variables, index = ih_hard_level2_si_pft )
 
     call this%set_history_var(vname='PFTcrownarea',  units='m2/m2',            &
          long='total PFT level crown area', use_default='inactive',              &

@@ -23,7 +23,6 @@ module EDMortalityFunctionsMod
    use PRTGenericMod              , only : store_organ
    use FatesInterfaceTypesMod     , only : hlm_model_day !marius
    use PRTParametersMod           , only : prt_params !marius
-   use EDParamsMod                , only : ED_val_phen_a, ED_val_phen_b, ED_val_phen_c !marius
    use EDTypesMod                 , only : leaves_on !marius
    use FatesInterfaceTypesMod     , only : hlm_use_hydrohard,hlm_use_frosthard !marius
    use FatesInterfaceTypesMod     , only : hlm_current_year
@@ -208,7 +207,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     ifp = cohort_in%patchptr%patchno
 
     if (hlm_use_frosthard .eq. itrue) then !marius implementation of frost 
-       Tmin=bc_in%t_ref2m_min_si-273.15_r8
+       Tmin=bc_in%tmin24_si-273.15_r8
        temp_dep_fraction  = max(0.0_r8, min(1.0_r8,(-Tmin + &
                             max(EDPftvarcon_inst%freezetol(cohort_in%pft),currentSite%hard_level2(cohort_in%pft)))/frost_mort_buffer) )
        !write(fates_log(),*) hlm_current_year,'-',hlm_current_month,'-',hlm_current_day,'hard:',currentSite%hard_level2(cohort_in%pft),'temp:',Tmin
@@ -346,27 +345,18 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     ! !LOCAL VARIABLES:
     real(r8) :: Tmean ! daily average temperature °C
     real(r8) :: Tmin
-    !real(r8) :: Tmean5yr
-    !real(r8) :: Tmin1yrinst
     real(r8) :: max_h !maximum hardiness level
     real(r8) :: max_h_dehard !maximum hardiness level for dehardening function
     real(r8), parameter :: min_h = -2.0_r8  	! Minimum hardiness level from Bigras for Picea abies (°C)
-    real(r8), parameter :: LT50 = 20.0_r8  	! Lethal temperature difference between the hardiness level and the minimum temperature” 
-                                        ! at which 50% of the trees are damaged (°C)
-                                        ! and determines the inflection-point of the curve, depending on the Dday
-    real(r8), parameter :: b = 0.2_r8      ! Slope parameter
-    real(r8) :: temp_hard_rate         	! temporary value to link hardiness and kmax change 
     real(r8) :: target_h         	! Target hardiness 
     real(r8) :: rate_h         		! Hardening rate     
     real(r8) :: rate_dh        		! Dehardening rate
     real(r8) :: hard_level_prev         ! Temporary variable for the previous time-step hardiness level
-    real(r8) :: hard_diff            	! Daily difference between Hday and Tmin (°C)
-    real(r8) :: gdd_threshold           ! GDD accumulation function,
     real(r8) :: dayl_thresh            
     integer  :: ipft                    ! pft index
 
-    Tmean=bc_in%t_ref2m_24_si-273.15_r8
-    Tmin=bc_in%t_ref2m_min_si-273.15_r8
+    Tmean=bc_in%temp24_si-273.15_r8
+    Tmin=bc_in%tmin24_si-273.15_r8
 
     max_h=min(max(currentSite%hardtemp,-55._r8)-15._r8,min_h)
 
@@ -404,7 +394,6 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     !================================================    
     !Hardening calculation
     cohort_in%hard_level_prev = cohort_in%hard_level
-    gdd_threshold = ED_val_phen_a + ED_val_phen_b*exp(ED_val_phen_c*real(currentSite%nchilldays,r8))
 
     if (cohort_in%hard_level_prev + rate_dh > min_h) then
        cohort_in%hard_level = min_h
@@ -434,11 +423,6 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     if (cohort_in%hard_level < max_h) then
        cohort_in%hard_level = max_h
     end if 
-    cohort_in%hard_rate=(cohort_in%hard_level-max_h)/(min_h-max_h)
-
-    hard_diff=cohort_in%hard_level_prev-Tmin
-
-    cohort_in%hard_GRF=(1.0_r8/(1.0_r8+exp(b*(hard_diff-LT50))))
 
     return
 

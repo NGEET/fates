@@ -338,16 +338,11 @@ contains
     real(r8) :: delta_hite            ! correction for hite
 
     real(r8) :: current_npp           ! place holder for calculating npp each year in prescribed physiology mode
-    !-----------------------------------------------------------------------
     real(r8) :: frac_site_primary
 
-    !if ((hlm_day_of_year==1 .and. currentSite%lat>=0) .or. (hlm_day_of_year==170 .and. currentSite%lat<=0))  then
-    !   currentSite%gdd5=0.0_r8
-    !else
-    !   currentSite%gdd5= currentSite%gdd5 + max(0.0_r8,bc_in%t_ref2m_24_si-273.15_r8-5.0_r8)
-    !end if
+    !-----------------------------------------------------------------------
     if (hlm_use_hydrohard.eq.itrue .or. hlm_use_frosthard.eq.itrue) then
-       currentSite%Tmin_24_fates=bc_in%t_ref2m_min_si-273.15_r8
+       currentSite%Tmin_24_fates=bc_in%tmin24_si-273.15_r8
        if (nint(hlm_model_day)>=366) then
          write(fates_log(),*) '5yrmean was taken'
          currentSite%hardtemp=bc_in%t_mean_5yr_si-273.15_r8
@@ -379,7 +374,18 @@ contains
              ft = currentCohort%pft
              call Hardening_scheme( currentSite, currentPatch, currentCohort, bc_in ) !hard_level and hard_GRF will be updated, ED_ecosystem_dynamics is called once a day at beginning of day Marius
              number_fraction_pft = (currentCohort%n / ncohort_pft(ft))                      !marius
-             currentSite%hard_level2(ft) = currentSite%hard_level2(ft) + currentCohort%hard_level * number_fraction_pft        
+             currentSite%hard_level2(ft) = currentSite%hard_level2(ft) + currentCohort%hard_level * number_fraction_pft   
+             write(fates_log(),*) 'hard_level2',currentSite%hard_level2(ft)     
+             currentCohort => currentCohort%taller
+          enddo ! cohort loop
+          currentPatch => currentPatch%older
+       end do !patch loop
+       do while(associated(currentPatch))
+          currentCohort => currentPatch%shortest
+          do while(associated(currentCohort)) 
+             ft = currentCohort%pft
+             currentCohort%hard_level = currentSite%hard_level2(ft)   
+             write(fates_log(),*) 'hard_level',currentCohort%hard_level
              currentCohort => currentCohort%taller
           enddo ! cohort loop
           currentPatch => currentPatch%older
