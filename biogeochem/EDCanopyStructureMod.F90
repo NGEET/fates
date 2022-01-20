@@ -1869,7 +1869,7 @@ contains
 
  ! ======================================================================================
 
-  subroutine update_hlm_dynamics(nsites,sites,fcolumn,bc_out)
+  subroutine update_hlm_dynamics(nsites,sites,fcolumn,bc_in,bc_out)
 
      ! ----------------------------------------------------------------------------------
      ! The purpose of this routine is to package output boundary conditions related
@@ -1878,13 +1878,14 @@ contains
 
      use EDTypesMod        , only : ed_patch_type, ed_cohort_type, &
                                     ed_site_type, AREA
-     use FatesInterfaceTypesMod , only : bc_out_type
+     use FatesInterfaceTypesMod , only : bc_in_type, bc_out_type
 
      !
      ! !ARGUMENTS    
      integer,            intent(in)            :: nsites
      type(ed_site_type), intent(inout), target :: sites(nsites)
      integer,            intent(in)            :: fcolumn(nsites)
+     type(bc_in_type),   intent(in)            :: bc_in(nsites)
      type(bc_out_type),  intent(inout)         :: bc_out(nsites)
 
      ! Locals
@@ -1912,14 +1913,13 @@ contains
               currentPatch%total_canopy_area = currentPatch%area
            endif
 
-
            if (associated(currentPatch%tallest)) then
               bc_out(s)%htop_pa(ifp) = currentPatch%tallest%hite
            else
               ! FIX(RF,040113) - should this be a parameter for the minimum possible vegetation height?
               bc_out(s)%htop_pa(ifp) = 0.1_r8
            endif
-           
+
            bc_out(s)%hbot_pa(ifp) = max(0._r8, min(0.2_r8, bc_out(s)%htop_pa(ifp)- 1.0_r8))
 
            ! Use leaf area weighting for all cohorts in the patch to define the characteristic
@@ -2026,7 +2026,7 @@ contains
         end if
 
         ! Pass FATES Harvested C to bc_out.
-        call UpdateHarvestC(sites(s),bc_out(s))
+        call UpdateHarvestC(sites(s),bc_in(s),bc_out(s))
         
      end do
 
