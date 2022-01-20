@@ -190,7 +190,9 @@ module EDTypesMod
 
   integer, public :: n_uptake_mode
   integer, public :: p_uptake_mode
+
   
+
   
   !************************************
   !** COHORT type structure          **
@@ -824,9 +826,33 @@ module EDTypesMod
   public :: dump_patch
   public :: dump_cohort
   public :: dump_cohort_hydr
-
+  public :: CanUpperUnder  
   contains
 
+    ! =====================================================================================
+
+    function CanUpperUnder(ccohort) result(can_position)
+
+      ! This simple function is used to determine if a
+      ! cohort's crown position is in the upper portion (ie the canopy)
+      ! or the understory.  This differentiation is only used for
+      ! diagnostic purposes.  Functionally, the model uses
+      ! the canopy layer position, which may have more than two layers
+      ! at any given time. Utlimately, every plant that is not in the
+      ! top layer (canopy), is considered understory.
+
+      type(ed_cohort_type) :: ccohort   ! Current cohort of interest
+      integer :: can_position
+      
+      if(ccohort%canopy_layer == 1)then
+         can_position = ican_upper
+      else
+         can_position = ican_ustory
+      end if
+      
+    end function CanUpperUnder
+      
+    ! =====================================================================================
 
     subroutine ZeroFluxDiags(this)
       

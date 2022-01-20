@@ -176,6 +176,8 @@ module FatesHistoryInterfaceMod
 
   integer :: ih_l2fr_si
   integer :: ih_l2fr_scpf
+  integer :: ih_l2fr_canopy_scpf
+  integer :: ih_l2fr_understory_scpf
 
   integer,public :: ih_nh4uptake_si
   integer,public :: ih_no3uptake_si
@@ -1797,6 +1799,8 @@ end subroutine flush_hvars
                hio_trimming_si         => this%hvars(ih_trimming_si)%r81d, &
                hio_l2fr_si             => this%hvars(ih_l2fr_si)%r81d, &
                hio_l2fr_scpf           => this%hvars(ih_l2fr_scpf)%r82d, &
+               hio_l2fr_canopy_scpf     => this%hvars(ih_l2fr_canopy_scpf)%r82d, &
+               hio_l2fr_understory_scpf => this%hvars(ih_l2fr_understory_scpf)%r82d, &
                hio_area_plant_si       => this%hvars(ih_area_plant_si)%r81d, &
                hio_area_trees_si  => this%hvars(ih_area_trees_si)%r81d, & 
                hio_canopy_spread_si    => this%hvars(ih_canopy_spread_si)%r81d, &
@@ -2282,6 +2286,10 @@ end subroutine flush_hvars
                      ! These L2FR diagnostics are weighted by fineroot carbon biomass
                      hio_l2fr_si(io_si) = hio_l2fr_si(io_si) + ccohort%n*fnrt_m*ccohort%l2fr
                      
+                     hio_l2fr_scpf(io_si,ccohort%size_by_pft_class) = &
+                          hio_l2fr_scpf(io_si,ccohort%size_by_pft_class) + &
+                          ccohort%n*fnrt_m*ccohort%l2fr
+
                      hio_l2fr_scpf(io_si,ccohort%size_by_pft_class) = &
                           hio_l2fr_scpf(io_si,ccohort%size_by_pft_class) + &
                           ccohort%n*fnrt_m*ccohort%l2fr
@@ -4311,6 +4319,18 @@ end subroutine update_history_hifrq
          use_default='active', &
          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,    &
          ivar=ivar, initialize=initialize_variables, index = ih_l2fr_scpf)
+
+    call this%set_history_var(vname='LEAF2FNRT_CANOPY_SCPF', units='none',                   &
+         long='The leaf to fineroot biomass multiplier for target allometry in canopy plants', & 
+         use_default='active', &
+         avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,    &
+         ivar=ivar, initialize=initialize_variables, index = ih_l2fr_canopy_scpf)
+
+    call this%set_history_var(vname='LEAF2FNRT_UNDERSTORY_SCPF', units='none',                   &
+         long='The leaf to fineroot biomass multiplier for target allometry in understory plants', & 
+         use_default='active', &
+         avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,    &
+         ivar=ivar, initialize=initialize_variables, index = ih_l2fr_understory_scpf)
     
     call this%set_history_var(vname='AREA_PLANT', units='m2/m2',                   &
          long='area occupied by all plants', use_default='active',              &

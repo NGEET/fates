@@ -718,14 +718,24 @@ contains
                 elseif(element_list(el).eq.phosphorus_element) then
                    efflux_ptr => currentCohort%daily_p_efflux
                 end if
+
+                call set_root_fraction(csite%rootfrac_scr, currentCohort%pft, csite%zi_soil, &
+                     bc_in%max_rooting_depth_index_col )
                 
                 ! Unit conversion
                 ! kg/plant/day * plant/ha * ha/m2 -> kg/m2/day
+                ! Also, lets efflux out through the roots
                 
-                do id = 1,nlev_eff_decomp
+                !do id = 1,nlev_eff_decomp
+                !   flux_lab_si(id) = flux_lab_si(id) + &
+                !        efflux_ptr * currentCohort%n* AREA_INV * surface_prof(id)
+                !end do
+
+                do id = 1,nlev_eff_soil
                    flux_lab_si(id) = flux_lab_si(id) + &
-                        efflux_ptr * currentCohort%n* AREA_INV * surface_prof(id)
+                        efflux_ptr * currentCohort%n* AREA_INV *csite%rootfrac_scr(id)
                 end do
+                
              end if
              currentCohort => currentCohort%shorter
           end do
