@@ -813,6 +813,7 @@ contains
 
       if (terminate == itrue) then
          call terminate_cohort(currentSite, currentPatch, currentCohort, bc_in)
+         deallocate(currentCohort)
       endif
       currentCohort => tallerCohort
     enddo
