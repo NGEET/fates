@@ -113,6 +113,7 @@ module EDCohortDynamicsMod
   public :: zero_cohort
   public :: nan_cohort
   public :: terminate_cohorts
+  public :: terminate_cohort
   public :: fuse_cohorts
   public :: insert_cohort
   public :: sort_cohorts
@@ -811,15 +812,15 @@ contains
       endif    !  if (.not.currentCohort%isnew .and. level == 2) then
 
       if (terminate == itrue) then
-         call terminate_cohort(currentSite, currentCohort, bc_in)
-       endif
-       currentCohort => tallerCohort
+         call terminate_cohort(currentSite, currentPatch, currentCohort, bc_in)
+      endif
+      currentCohort => tallerCohort
     enddo
 
   end subroutine terminate_cohorts
 
   !-------------------------------------------------------------------------------------!
-  subroutine terminate_cohort(currentSite, currentCohort, bc_in)
+  subroutine terminate_cohort(currentSite, currentPatch, currentCohort, bc_in)
    !
    ! !DESCRIPTION:
    ! Terminates an individual cohort and updates the site-level
@@ -829,13 +830,13 @@ contains
    !
    ! !ARGUMENTS
    type (ed_site_type)  , intent(inout), target :: currentSite
+   type (ed_patch_type) , intent(inout), target :: currentPatch
    type (ed_cohort_type), intent(inout), target :: currentCohort
    type(bc_in_type), intent(in)                :: bc_in
 
    ! !LOCAL VARIABLES:
    type (ed_cohort_type) , pointer :: shorterCohort
    type (ed_cohort_type) , pointer :: tallerCohort
-   type (ed_patch_type)  , pointer :: currentPatch
 
    real(r8) :: leaf_c    ! leaf carbon [kg]
    real(r8) :: store_c   ! storage carbon [kg]
@@ -848,8 +849,6 @@ contains
    integer :: levcan      ! canopy level
    !----------------------------------------------------------------------
 
-   currentCohort%patchptr => currentPatch
-   
    leaf_c  = currentCohort%prt%GetState(leaf_organ, carbon12_element)
    store_c = currentCohort%prt%GetState(store_organ, carbon12_element)
    sapw_c  = currentCohort%prt%GetState(sapw_organ, carbon12_element)
@@ -886,8 +885,9 @@ contains
            currentCohort,currentCohort%n,bc_in)
    end if
 
-   ! Set pointers and remove the current cohort from the list
+   ! Set pointers and deallocate the current cohort from the list
    shorterCohort => currentCohort%shorter
+   tallerCohort => currentCohort%taller
 
    if (.not. associated(tallerCohort)) then
       currentPatch%tallest => shorterCohort
@@ -903,10 +903,7 @@ contains
       shorterCohort%taller => tallerCohort
    endif
 
-
    call DeallocateCohort(currentCohort)
-   deallocate(currentCohort)
-   nullify(currentCohort)
 
  end subroutine terminate_cohort  
   
