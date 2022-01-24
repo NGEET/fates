@@ -487,8 +487,6 @@ contains
                                     lpc_top = leaf_p / (slatop(ft) * leaf_c )
                                     ! lnc_top = leaf_n / currentPatch%tlai_profile(cl,ft,iv) !testing with LAI method
                                     ! lpc_top = leaf_p / currentPatch%tlai_profile(cl,ft,iv) !testing with LAI method
-                                    lnc_top = min(max(lnc_top,0.25_r8),3.0_r8) !based on doi: 10.1002/ece3.1173
-                                    lpc_top = min(max(lpc_top,0.014_r8),0.85_r8) !based on doi: 10.1002/ece3.1173
                                  else
                                     lnc_top = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/slatop(ft)
                                     lpc_top = prt_params%phos_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/slatop(ft)
@@ -1955,8 +1953,6 @@ contains
       
       vcmaxse = EDPftvarcon_inst%vcmaxse(FT)
       jmaxse  = EDPftvarcon_inst%jmaxse(FT)
-      !vcmaxse = 668.39_r8 - 1.07_r8 * min(max((temp_a10-tfrz),11._r8),35._r8) !Kattge & Knorr 2007
-      !jmaxse  = 659.70_r8 - 0.75_r8 * min(max((temp_a10-tfrz),11._r8),35._r8) !Kattge & Knorr 2007
 
       vcmaxc = fth25_f(vcmaxhd, vcmaxse)
       jmaxc  = fth25_f(jmaxhd, jmaxse)
@@ -1978,7 +1974,7 @@ contains
               ! dayl_factor is a photoperiod acclimation correction term from Bauerle et al. 2012
               jmax25top_prt_c = (2.59_r8 - 0.035_r8*min(max((temp_a10-tfrz),11._r8),35._r8)) * &
                       (vcmax25top_prt_ft * dayl_factor)
-              vcmax25 = vcmax25top_prt_ft * nscaler_prt
+              vcmax25 = vcmax25top_prt_ft * dayl_factor * nscaler_prt
               jmax25  = jmax25top_prt_c * nscaler_prt
 
          case (prt_cnp_flex_allom_hyp)
@@ -2000,9 +1996,9 @@ contains
 
       end if !Loop for if using parteh 
    
-         print*,"vcmax25top, vcmax25top_prt, vcmax25: ",vcmax25top_ft,vcmax25top_prt_ft,vcmax25
-         print*,"nscaler, nscaler_prt, day_length : ",nscaler,nscaler_prt,dayl_factor
-         print*,"jmax25top, jmax25top_prt, jmax25: ",jmax25top_ft,jmax25top_prt_ft,jmax25
+         !print*,"vcmax25top, vcmax25top_prt, vcmax25: ",vcmax25top_ft,vcmax25top_prt_ft,vcmax25
+         !print*,"nscaler, nscaler_prt, day_length : ",nscaler,nscaler_prt,dayl_factor
+         !print*,"jmax25top, jmax25top_prt, jmax25: ",jmax25top_ft,jmax25top_prt_ft,jmax25
 
          ! Adjust for temperature
          vcmax = vcmax25 * ft1_f(veg_tempk, vcmaxha) * fth_f(veg_tempk, vcmaxhd, vcmaxse, vcmaxc)
