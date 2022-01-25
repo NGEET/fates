@@ -224,15 +224,17 @@ module FatesPlantHydraulicsMod
   ! unused unless van_genuchten_type is selected, also
   ! it would be much better to use the native parameters passed in
   ! from the HLM's soil model
-  real(r8), parameter :: alpha_vg  = 0.001_r8
-  real(r8), parameter :: th_sat_vg = 0.65_r8
-  real(r8), parameter :: th_res_vg = 0.15_r8
-  real(r8), parameter :: psd_vg    = 2.7_r8
-  real(r8), parameter :: tort_vg   = 0.5_r8
-
+  real(r8), parameter :: alpha_vg      = 0.001_r8
+  real(r8), parameter :: th_sat_vg     = 0.65_r8
+  real(r8), parameter :: th_res_vg     = 0.15_r8
+  real(r8), parameter :: psd_vg        = 2.7_r8
+  real(r8), parameter :: m_vg          = 0.62963_r8
+  real(r8), parameter :: soil_tort_vg  = 0.5_r8
+  real(r8), parameter :: plant_tort_vg = 0.0_r8
+  
   ! The maximum allowable water balance error over a plant-soil continuum
-  ! for a given step [kgs] (0.1 mg)
-  real(r8), parameter :: max_wb_step_err = 2.e-7_r8   ! original is 1.e-7_r8, Junyan changed to 2.e-7_r8
+  ! for a given step [kgs] (2 mg)
+  real(r8), parameter :: max_wb_step_err = 2.e-6_r8   ! original is 1.e-7_r8, Junyan changed to 2.e-6_r8
  
   !
   ! !PUBLIC MEMBER FUNCTIONS:
@@ -388,7 +390,7 @@ contains
              j_bc = j+csite_hydr%i_rhiz_t-1
              allocate(wrf_vg)
              sites(s)%si_hydr%wrf_soil(j)%p => wrf_vg
-             call wrf_vg%set_wrf_param([alpha_vg, psd_vg, bc_in(s)%watsat_sisl(j_bc), th_res_vg])
+             call wrf_vg%set_wrf_param([alpha_vg, psd_vg, m_vg, bc_in(s)%watsat_sisl(j_bc), th_res_vg])
           end do
        case(campbell_type)
           do j=1,sites(s)%si_hydr%nlevrhiz
@@ -414,7 +416,7 @@ contains
              j_bc = j+csite_hydr%i_rhiz_t-1
              allocate(wkf_vg)
              sites(s)%si_hydr%wkf_soil(j)%p => wkf_vg
-             call wkf_vg%set_wkf_param([alpha_vg, psd_vg, th_sat_vg, th_res_vg, tort_vg])
+             call wkf_vg%set_wkf_param([alpha_vg, psd_vg, m_vg, th_sat_vg, th_res_vg, soil_tort_vg])
           end do
        case(campbell_type)
           do j=1,sites(s)%si_hydr%nlevrhiz
@@ -941,7 +943,7 @@ contains
 
     woody_bg_c = (1.0_r8-prt_params%allom_agb_frac(ft)) * (sapw_c + struct_c)
 
-    v_troot                    = woody_bg_c * prt_params%c2b(ft) / &
+    v_troot = woody_bg_c * prt_params%c2b(ft) / &
          (prt_params%wood_density(ft)*kg_per_g*cm3_per_m3)
 
 
@@ -956,11 +958,14 @@ contains
     ! ------------------------------------------------------------------------------
     v_aroot_tot        = pi_const * (EDPftvarcon_inst%hydr_rs2(ft)**2._r8) * l_aroot_tot
 
-    ! The transporting root donates some of its volume
-    ! to the layer-by-layer absorbing root (which is now a hybrid compartment)
+    ! (old method) The transporting root donates some of its volume
+    ! to the layer-by-layer absorbing root
+    ! (new method) Each compartment (absorbing & transporting) get 50% of the sum of both
     ! ------------------------------------------------------------------------------
-    ccohort_hydr%v_troot = (1._r8-t2aroot_vol_donate_frac) * v_troot
+    !ccohort_hydr%v_troot = (1._r8-t2aroot_vol_donate_frac) * v_troot
 
+    ccohort_hydr%v_troot = 0.5_r8*(v_troot + v_aroot_tot)
+    
     ! Partition the total absorbing root lengths and volumes into the active soil layers
     ! We have a condition, where we may ignore the first layer
     ! ------------------------------------------------------------------------------
@@ -991,8 +996,9 @@ contains
        ccohort_hydr%l_aroot_layer(j) = rootfr*l_aroot_tot
 
        ! This is a hybrid absorbing root and transporting root volume
-       ccohort_hydr%v_aroot_layer(j) = rootfr*(v_aroot_tot + t2aroot_vol_donate_frac*v_troot)
-
+       ! ccohort_hydr%v_aroot_layer(j) = rootfr*(v_aroot_tot + t2aroot_vol_donate_frac*v_troot)
+       ccohort_hydr%v_aroot_layer(j) = rootfr*0.5_r8*(v_aroot_tot + v_troot)
+       
     end do
 
     return
@@ -1430,7 +1436,7 @@ subroutine HydrSiteColdStart(sites, bc_in )
            j_bc=j+site_hydr%i_rhiz_t-1
            allocate(wrf_vg)
            site_hydr%wrf_soil(j)%p => wrf_vg
-           call wrf_vg%set_wrf_param([alpha_vg, psd_vg, th_sat_vg, th_res_vg])
+           call wrf_vg%set_wrf_param([alpha_vg, psd_vg, m_vg, th_sat_vg, th_res_vg])
         end do
      case(campbell_type)
         do j=1,site_hydr%nlevrhiz
@@ -1455,7 +1461,7 @@ subroutine HydrSiteColdStart(sites, bc_in )
         do j=1,sites(s)%si_hydr%nlevrhiz
            allocate(wkf_vg)
            site_hydr%wkf_soil(j)%p => wkf_vg
-           call wkf_vg%set_wkf_param([alpha_vg, psd_vg, th_sat_vg, th_res_vg, tort_vg])
+           call wkf_vg%set_wkf_param([alpha_vg, psd_vg, m_vg, th_sat_vg, th_res_vg, soil_tort_vg])
         end do
      case(campbell_type)
         do j=1,sites(s)%si_hydr%nlevrhiz
@@ -1739,6 +1745,11 @@ subroutine ConstrainRecruitNumber(csite,ccohort, bc_in)
         nmin = min(n, nmin)
      endif
   end do
+
+  ! Prevent recruitment when temperatures are freezing or below
+  if (bc_in%t_veg_pa(1) <= 273.15_r8) then
+     nmin = 0._r8
+  end if
 
   ! If the minimum number of plants that are recruitable due to water
   ! limitations, is less than what is currently recruitable (due to
@@ -2398,7 +2409,7 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
   real(r8) :: sumcheck            ! used to debug mass balance in soil horizon diagnostics
   integer  :: nlevrhiz            ! local for number of rhizosphere levels
   integer  :: sc                  ! size class index
-
+  real(r8) :: lat,lon             ! latitude and longitude of site
 
 
   ! ----------------------------------------------------------------------------------
@@ -2423,6 +2434,9 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
 
      site_hydr => sites(s)%si_hydr
 
+     lat = sites(s)%lat
+     lon = sites(s)%lon
+     
      nlevrhiz = site_hydr%nlevrhiz
 
      ! AVERAGE ROOT WATER UPTAKE (BY RHIZOSPHERE SHELL) ACROSS ALL COHORTS WITHIN A COLUMN
@@ -2565,7 +2579,7 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
 
                  call OrderLayersForSolve1D(site_hydr, ccohort, ccohort_hydr, ordered, kbg_layer)
 
-                 call ImTaylorSolve1D(site_hydr,ccohort,ccohort_hydr, &
+                 call ImTaylorSolve1D(lat,lon,recruitflag,site_hydr,ccohort,ccohort_hydr, &
                       dtime,qflx_tran_veg_indiv,ordered, kbg_layer, &
                       sapflow,rootuptake(1:nlevrhiz), &
                       wb_err_plant,dwat_plant, &
@@ -3142,7 +3156,7 @@ end subroutine OrderLayersForSolve1D
 
 ! =================================================================================
 
-subroutine ImTaylorSolve1D(site_hydr,cohort,cohort_hydr,dtime,q_top, &
+subroutine ImTaylorSolve1D(slat, slon,recruitflag,site_hydr,cohort,cohort_hydr,dtime,q_top, &
      ordered,kbg_layer, sapflow,rootuptake,&
      wb_err_plant,dwat_plant,dth_layershell_col)
 
@@ -3162,6 +3176,9 @@ subroutine ImTaylorSolve1D(site_hydr,cohort,cohort_hydr,dtime,q_top, &
   ! -------------------------------------------------------------------------------
 
   ! Arguments (IN)
+  real(r8), intent(in)                         :: slat     ! latitidue of the site  
+  real(r8), intent(in)                         :: slon     ! longitidue of the site 
+  logical, intent(in)                          :: recruitflag
   type(ed_cohort_type),intent(in),target       :: cohort
   type(ed_cohort_hydr_type),intent(inout),target  :: cohort_hydr
   type(ed_site_hydr_type), intent(in),target   :: site_hydr
@@ -3249,7 +3266,7 @@ subroutine ImTaylorSolve1D(site_hydr,cohort,cohort_hydr,dtime,q_top, &
   ! by this much
   integer, parameter  :: max_iter = 20               ! Maximum number of iterations with which we reduce timestep
 
-  real(r8), parameter :: max_wb_err      = 1.e-5_r8  ! threshold for water balance error (stop model)   [kg h2o]
+  real(r8), parameter :: max_wb_err      = 2.e-5_r8  ! threshold for water balance error (stop model)   [kg h2o]
 
 
   logical, parameter :: no_ftc_radialk = .false.
@@ -3386,7 +3403,8 @@ subroutine ImTaylorSolve1D(site_hydr,cohort,cohort_hydr,dtime,q_top, &
         if(iter>max_iter)then
            call Report1DError(cohort,site_hydr,ilayer,z_node,v_node, &
                 th_node_init,q_top_eff,dt_step,w_tot_beg,w_tot_end,&
-                rootfr_scaler,aroot_frac_plant,error_code,error_arr)
+                rootfr_scaler,aroot_frac_plant,error_code,error_arr, &
+                slat, slon,recruitflag)
 
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
@@ -3776,6 +3794,8 @@ subroutine ImTaylorSolve1D(site_hydr,cohort,cohort_hydr,dtime,q_top, &
         write(fates_log(),*) 'dbh: ',cohort%dbh
         write(fates_log(),*) 'pft: ',cohort%pft
         write(fates_log(),*) 'tree lai: ',cohort%treelai,' m2/m2 crown'
+        write(fates_log(),*) 'recruitflag: ',recruitflag
+        write(fates_log(),*) 'lat:', slat, 'lon:', slon
         call endrun(msg=errMsg(sourcefile, __LINE__))
      end if
 
@@ -3846,7 +3866,7 @@ end subroutine ImTaylorSolve1D
 
 subroutine Report1DError(cohort, site_hydr, ilayer, z_node, v_node, &
    th_node, q_top_eff, dt_step, w_tot_beg, w_tot_end, &
-   rootfr_scaler, aroot_frac_plant, err_code, err_arr)
+   rootfr_scaler, aroot_frac_plant, err_code, err_arr,slat,slon, recruitflag)
 
   ! This routine reports what the initial condition to the 1D solve looks
   ! like, and then quits.
@@ -3867,6 +3887,9 @@ subroutine Report1DError(cohort, site_hydr, ilayer, z_node, v_node, &
    ! in the soil continuum is from current plant?
    integer, intent(in)                         :: err_code         ! error code
    real(r8), intent(in)                        :: err_arr(:)       ! error diagnostic
+   real(r8), intent(in)                        :: slat             ! site latitude 
+   real(r8), intent(in)                        :: slon             ! site longitude
+   logical,  intent(in)                        :: recruitflag
 
    type(ed_cohort_hydr_type),pointer  :: cohort_hydr
    integer :: i
@@ -3905,7 +3928,8 @@ subroutine Report1DError(cohort, site_hydr, ilayer, z_node, v_node, &
       cohort_hydr%v_ag(n_hypool_leaf+1:n_hypool_ag))*denh2o
    troot_water = (cohort_hydr%th_troot*cohort_hydr%v_troot) * denh2o
    aroot_water = sum(cohort_hydr%th_aroot(:)*cohort_hydr%v_aroot_layer(:)) * denh2o
-
+   write(fates_log(),*) 'lat: ',slat, 'longitidue:', slon 
+   write(fates_log(),*) 'is recruitment: ', recruitflag
    write(fates_log(),*) 'layer: ',ilayer
    write(fates_log(),*) 'wb_step_err = ',(q_top_eff*dt_step) - (w_tot_beg-w_tot_end)
    write(fates_log(),*) 'q_top_eff*dt_step = ',q_top_eff*dt_step 
@@ -3920,7 +3944,7 @@ subroutine Report1DError(cohort, site_hydr, ilayer, z_node, v_node, &
    write(fates_log(),*) 'pft: ',cohort%pft
    write(fates_log(),*) 'z nodes: ',z_node(:)
    write(fates_log(),*) 'psi_z: ',h_node(:)-psi_node(:)
-   write(fates_log(),*) 'vol,    theta,   H,      kmax-'
+   write(fates_log(),*) 'vol,    theta,   H,  Psi,     kmax-'
    write(fates_log(),*) 'flux:          ', q_top_eff*dt_step
    write(fates_log(),*) 'l:',v_node(1),th_node(1),h_node(1),psi_node(1)
    write(fates_log(),*) '                      ',cohort_hydr%kmax_stem_upper(1)*rootfr_scaler
@@ -5501,9 +5525,11 @@ subroutine InitHydroGlobals()
             allocate(wrf_vg)
             wrf_plant(pm,ft)%p => wrf_vg
             call wrf_vg%set_wrf_param([EDPftvarcon_inst%hydr_vg_alpha_node(ft,pm), &
+                                       EDPftvarcon_inst%hydr_vg_n_node(ft,pm), &
                                        EDPftvarcon_inst%hydr_vg_m_node(ft,pm), &
                                        EDPftvarcon_inst%hydr_thetas_node(ft,pm), &
                                        EDPftvarcon_inst%hydr_resid_node(ft,pm)])
+            
          end do
       case(tfs_type)
          do ft = 1,numpft
@@ -5541,10 +5567,11 @@ subroutine InitHydroGlobals()
             allocate(wkf_vg)
             wkf_plant(pm,ft)%p => wkf_vg
             call wkf_vg%set_wkf_param([EDPftvarcon_inst%hydr_vg_alpha_node(ft,pm), &
+                                       EDPftvarcon_inst%hydr_vg_n_node(ft,pm), &
                                        EDPftvarcon_inst%hydr_vg_m_node(ft,pm), &
                                        EDPftvarcon_inst%hydr_thetas_node(ft,pm), &
                                        EDPftvarcon_inst%hydr_resid_node(ft,pm), &
-                                       tort_vg])
+                                       plant_tort_vg])
          end do
       case(tfs_type)
          do ft = 1,numpft
