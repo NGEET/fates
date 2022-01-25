@@ -1461,7 +1461,7 @@ subroutine InitHydrSites(sites,bc_in)
 
 
      aggmeth = rhizlayer_aggmeth_combine12
-     aggN    = -9
+     aggN    = 10
      
      select case(aggmeth)
         
@@ -2410,18 +2410,14 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
 
   !
   ! !LOCAL VARIABLES:
-  integer :: iv    ! leaf layer
-  integer :: ifp   ! index of FATES patch
-  integer :: s     ! index of FATES site
-  integer :: i     ! shell index
-  integer :: j,jj  ! soil layer
-  integer :: j_bc  ! soil layer index for boundary conditions
-  integer :: j_b,j_t  ! bottom and top soil layers for the current rhiz layer
-  integer :: k     ! 1D plant-soil continuum array
-  integer :: ft    ! plant functional type index
-  integer :: sz    ! plant's size class index
-  integer :: t     ! previous timesteps (for lwp stability calculation)
-  integer :: nstep !number of time steps
+  integer :: s       ! index of FATES site
+  integer :: i       ! shell index
+  integer :: j       ! soil layer
+  integer :: ifp     ! boundary condition, patch index
+  integer :: j_bc    ! soil layer index for boundary conditions
+  integer :: j_b,j_t ! bottom and top soil layers for the current rhiz layer
+  integer :: k       ! 1D plant-soil continuum array
+  integer :: ft      ! plant functional type index
 
   !----------------------------------------------------------------------
 
@@ -2433,23 +2429,24 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
   ! Local arrays
 
   ! accumulated water content change over all cohorts in a column   [m3 m-3]
-  real(r8)            :: dth_layershell_col(nlevsoi_hyd_max,nshell)
+  real(r8) :: dth_layershell_col(nlevsoi_hyd_max,nshell)
 
   ! array of soil layer indices which have been ordered
-  integer             :: ordered(nlevsoi_hyd_max) = (/(j,j=1,nlevsoi_hyd_max,1)/)
+  integer  :: ordered(nlevsoi_hyd_max) = (/(j,j=1,nlevsoi_hyd_max,1)/)
 
+  real(r8) :: weight_sl(nlevsoi_hyd_max) ! Weighting factor for disaggregation
+                                        ! on the soil grid (not rhizoshere grid)
+  
   ! total absorbing root & rhizosphere conductance (over all shells) by soil layer   [MPa]
   real(r8) :: kbg_layer(nlevsoi_hyd_max)
-  real(r8) :: rootuptake(nlevsoi_hyd_max) ! mass-flux from 1st rhizosphere to absorbing roots            [kg/indiv/layer/step]
+  real(r8) :: rootuptake(nlevsoi_hyd_max) ! mass-flux from 1st rhizosphere to absorbing roots  [kg/indiv/layer/step]
 
   real(r8) :: site_runoff         ! If plants are pushing water into saturated soils, we create
-  ! runoff. This is either banked, or sent to the correct flux pool [kg/m2]
-  real(r8) :: aroot_frac_plant    ! The fraction of the total length of absorbing roots contained in one soil layer
-  ! that are devoted to a single plant
+                                  ! runoff. This is either banked, or sent to the correct flux pool [kg/m2]
   real(r8) :: wb_err_plant        ! Solve error for a single plant [kg]
   real(r8) :: wb_check_site       ! the water balance error we get from summing fluxes
-  ! and changes in storage
-  ! and is just a double check on our error accounting). [kg/m2]
+                                  ! and changes in storage
+                                  ! and is just a double check on our error accounting). [kg/m2]
   real(r8) :: dwat_plant          ! change in water mass in the whole plant [kg]
   real(r8) :: qflx_tran_veg_indiv ! individiual transpiration rate [kgh2o indiv-1 s-1]
   real(r8) :: qflx_soil2root_rhiz ! soil into root water flux at this rhiz layer 
@@ -2745,7 +2742,7 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
      bc_out(s)%qflx_ro_sisl(:) = 0._r8
 
      ! To disaggregate, we need the root density (length) on the soil layer
-     csite_hydr%rootfr_sl(:) = 0._r8
+     csite_hydr%rootl_sl(:) = 0._r8
      cpatch => sites(s)%oldest_patch
      do while (associated(cpatch))
         ccohort=>cpatch%tallest
@@ -2761,7 +2758,7 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
               rootfr = zeng2001_crootfr(prt_params%fnrt_prof_a(ft),prt_params%fnrt_prof_b(ft),bc_in(s)%zi_sisl(j_bc),z_fr) - &
                    zeng2001_crootfr(prt_params%fnrt_prof_a(ft),prt_params%fnrt_prof_b(ft), bc_in(s)%zi_sisl(j_bc)-bc_in(s)%dz_sisl(j_bc),z_fr)
 
-              csite_hydr%rootfr_sl(j_bc) = csite_hydr%rootfr_sl(j_bc) + sum_l_aroot*rootfr*ccohort%n
+              csite_hydr%rootl_sl(j_bc) = csite_hydr%rootl_sl(j_bc) + sum_l_aroot*rootfr*ccohort%n*prt_params%c2b(ft)*EDPftvarcon_inst%hydr_srl(ft)
               
            end do
               
@@ -2816,41 +2813,28 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
                     h2osoi_liqvol = min(eff_por, bc_in(s)%h2o_liq_sisl(j_bc)/(bc_in(s)%dz_sisl(j_bc)*denh2o))
                     psi_layer     = csite_hydr%wrf_soil(j)%p%psi_from_th(h2osoi_liqvol)
                     ftc_layer     = csite_hydr%wkf_soil(j)%p%ftc_from_psi(psi_layer)
-                    weight = bc_in(s)%hksat_sisl(j_bc)*ftc_layer*csite_hydr%rootfr_sl(j_bc)  !bc_in(s)%dz_sisl(j_bc)
+                    weight_sl(j_bc) = bc_in(s)%hksat_sisl(j_bc)*ftc_layer*csite_hydr%rootl_sl(j_bc)
                  else
-                    weight = csite_hydr%rootfr_sl(j_bc)  !bc_in(s)%dz_sisl(j_bc)
+                    weight_sl(j_bc) = csite_hydr%rootl_sl(j_bc)
                  end if
               elseif(rootflux_disagg == soilz_disagg) then
                  ! weight by depth
-                 weight = csite_hydr%rootfr_sl(j_bc) !bc_in(s)%dz_sisl(j_bc)
+                 weight_sl(j_bc) = csite_hydr%rootl_sl(j_bc)
               else
                  write(fates_log(),*) 'Unknown rhiz->soil disaggregation method',rootflux_disagg
                  call endrun(msg=errMsg(sourcefile, __LINE__))
               end if
-              sumweight     = sumweight + weight
+              sumweight     = sumweight + weight_sl(j_bc)
            end do
 
-           ! Second pass, apply weighting factors for fluxes
+           ! Second pass, apply normalized weighting factors for fluxes
            do j_bc = j_t,j_b
-              if(rootflux_disagg == soilk_disagg)then
-                 if(qflx_soil2root_rhiz>0._r8)then
-                    eff_por       = bc_in(s)%eff_porosity_sl(j_bc)
-                    h2osoi_liqvol = min(eff_por, bc_in(s)%h2o_liq_sisl(j_bc)/(bc_in(s)%dz_sisl(j_bc)*denh2o))
-                    psi_layer     = csite_hydr%wrf_soil(j)%p%psi_from_th(h2osoi_liqvol)
-                    ftc_layer     = csite_hydr%wkf_soil(j)%p%ftc_from_psi(psi_layer)
-                    weight = bc_in(s)%hksat_sisl(j_bc)*ftc_layer*csite_hydr%rootfr_sl(j_bc) !bc_in(s)%dz_sisl(j_bc)
-                 else
-                    weight = csite_hydr%rootfr_sl(j_bc) !bc_in(s)%dz_sisl(j_bc)
-                 end if
-              elseif(rootflux_disagg == soilz_disagg) then
-                 weight = csite_hydr%rootfr_sl(j_bc) !bc_in(s)%dz_sisl(j_bc)
-              end if
               
               ! Fill the output array to the HLM
-              bc_out(s)%qflx_soil2root_sisl(j_bc) = qflx_soil2root_rhiz * weight/sumweight
+              bc_out(s)%qflx_soil2root_sisl(j_bc) = qflx_soil2root_rhiz * weight_sl(j_bc)/sumweight
 
               ! Save root uptake for history diagnostics [kg/m/s]
-              csite_hydr%rootuptake_sl(j_bc) = qflx_soil2root_rhiz * weight/sumweight
+              csite_hydr%rootuptake_sl(j_bc) = qflx_soil2root_rhiz * weight_sl(j_bc)/sumweight
               
            end do
 
