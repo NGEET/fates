@@ -1520,6 +1520,10 @@ contains
     ! ------------------------------------------
     currentCohort%treelai = tlai
     canopylai(:) = 0._r8
+    ! If we are initializing, the canopy layer has not been set yet, so just set to 1
+    if(init.eq.itrue)then
+       currentCohort%canopy_layer = 1
+    endif
     leaf_c = leafc_from_treelai( currentCohort%treelai, currentCohort%pft, currentCohort%c_area,&
          currentCohort%n, currentCohort%canopy_layer, currentCohort%vcmax25top)
 
@@ -1532,6 +1536,8 @@ contains
 
     if( abs(currentCohort%treelai-check_treelai).gt.1.0e-12)then !this is not as precise as nearzero
        write(fates_log(),*) 'error in validate treelai',currentCohort%treelai,check_treelai,currentCohort%treelai-check_treelai
+       write(fates_log(),*) 'tree_lai inputs: ', currentCohort%pft, currentCohort%c_area, currentCohort%n, &
+               currentCohort%canopy_layer, currentCohort%vcmax25top
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
