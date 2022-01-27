@@ -2669,6 +2669,8 @@ end subroutine flush_hvars
                      store_m * ccohort%n / m2_per_ha
                   hio_bleaf_canopy_si_scpf(io_si,scpf) = hio_bleaf_canopy_si_scpf(io_si,scpf) + &
                      leaf_m * ccohort%n / m2_per_ha
+                  hio_lai_canopy_si_scpf(io_si,scpf) = hio_lai_canopy_si_scpf(io_si,scpf) + &
+                     ccohort%treelai*ccohort%c_area * AREA_INV
 
                   hio_canopy_biomass_si(io_si) = hio_canopy_biomass_si(io_si) + n_perm2 * total_m
 
@@ -2762,6 +2764,8 @@ end subroutine flush_hvars
                      leaf_m  * ccohort%n / m2_per_ha
                   hio_understory_biomass_si(io_si) = hio_understory_biomass_si(io_si) + &
                      n_perm2 * total_m
+                  hio_lai_understory_si_scpf(io_si,scpf) = hio_lai_understory_si_scpf(io_si,scpf) + &
+                     ccohort%treelai*ccohort%c_area  * AREA_INV
 
                   !hio_mortality_understory_si_scpf(io_si,scpf) = hio_mortality_understory_si_scpf(io_si,scpf)+ &
                   !    (ccohort%bmort + ccohort%hmort + ccohort%cmort +
@@ -5793,6 +5797,14 @@ end subroutine update_history_hifrq
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', upfreq=1,       &
           ivar=ivar, initialize=initialize_variables,                          &
           index = ih_bleaf_canopy_si_scpf)
+          
+    call this%set_history_var(vname='FATES_LAI_CANOPY_SZPF',                   &
+          units = 'm2 m-2',                                                     &
+          long='Leaf area index (LAI) of canopy plants by pft/size',           &
+          use_default='inactive', &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', upfreq=1,       &
+          ivar=ivar, initialize=initialize_variables,                          &
+          index = ih_lai_canopy_si_scpf )          
 
     call this%set_history_var(vname='FATES_NPLANT_CANOPY_SZPF', units = 'm-2', &
           long='number of canopy plants by size/pft per m2',                   &
@@ -5821,6 +5833,13 @@ end subroutine update_history_hifrq
           use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_bleaf_understory_si_scpf)
+    
+    call this%set_history_var(vname='FATES_LAI_UNDERSTORY_SZPF',               &
+          units = 'm2 m-2',                                                     &
+          long='Leaf area index (LAI) of understory plants by pft/size',       &
+          use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
+          hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
+          initialize=initialize_variables, index = ih_lai_understory_si_scpf )
 
     call this%set_history_var(vname='FATES_NPLANT_USTORY_SZPF',            &
           units = 'm-2',                                                       &
