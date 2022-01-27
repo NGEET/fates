@@ -42,7 +42,7 @@ module EDCanopyStructureMod
   use PRTGenericMod,          only : repro_organ
   use PRTGenericMod,          only : struct_organ
   use PRTGenericMod,          only : SetState
-
+  use FatesRunningMeanMod,    only : ema_lpa
 
   ! CIME Globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
@@ -669,6 +669,12 @@ contains
                    call InitHydrCohort(currentSite,copyc)
                 endif
 
+                ! (keep as an example)
+                ! Initialize running means
+                !allocate(copyc%tveg_lpa)
+                !call copyc%tveg_lpa%InitRMean(ema_lpa, &
+                !     init_value=currentPatch%tveg_lpa%GetMean())
+                
                 call copy_cohort(currentCohort, copyc)
 
                 newarea = currentCohort%c_area - cc_loss
@@ -1121,6 +1127,13 @@ contains
                    if( hlm_use_planthydro.eq.itrue ) then
                       call InitHydrCohort(CurrentSite,copyc)
                    endif
+
+                   ! (keep as an example)
+                   ! Initialize running means
+                   !allocate(copyc%tveg_lpa)
+                   !call copyc%tveg_lpa%InitRMean(ema_lpa,&
+                   !     init_value=currentPatch%tveg_lpa%GetMean())
+                   
                    call copy_cohort(currentCohort, copyc) !makes an identical copy...
 
                    newarea = currentCohort%c_area - cc_gain !new area of existing cohort
@@ -1276,7 +1289,6 @@ contains
     integer  :: ft               ! plant functional type
     integer  :: ifp              ! the number of the vegetated patch (1,2,3). In SP mode bareground patch is 0
     integer  :: patchn           ! identification number for each patch.
-    real(r8) :: canopy_leaf_area ! total amount of leaf area in the vegetated area. m2.
     real(r8) :: leaf_c           ! leaf carbon [kg]
     real(r8) :: fnrt_c           ! fineroot carbon [kg]
     real(r8) :: sapw_c           ! sapwood carbon [kg]
@@ -1305,7 +1317,6 @@ contains
           !zero cohort-summed variables.
           currentPatch%total_canopy_area = 0.0_r8
           currentPatch%total_tree_area = 0.0_r8
-          canopy_leaf_area = 0.0_r8
 
           !update cohort quantitie s
           currentCohort => currentPatch%shortest
@@ -1334,11 +1345,6 @@ contains
                 call carea_allom(currentCohort%dbh,currentCohort%n,sites(s)%spread,&
                      currentCohort%pft,currentCohort%c_area)
              endif
-             currentCohort%treelai = tree_lai(leaf_c,             &
-                  currentCohort%pft, currentCohort%c_area, currentCohort%n, &
-                  currentCohort%canopy_layer, currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )
-
-             canopy_leaf_area = canopy_leaf_area + currentCohort%treelai *currentCohort%c_area
 
              if(currentCohort%canopy_layer==1)then
                 currentPatch%total_canopy_area = currentPatch%total_canopy_area + currentCohort%c_area
@@ -1470,8 +1476,8 @@ contains
 
     ! !USES:
 
-    use EDtypesMod           , only : area, dinc_ed, hitemax, n_hite_bins
-
+    use EDtypesMod           , only : area, dinc_vai, dlower_vai, hitemax, n_hite_bins
+  
     !
     ! !ARGUMENTS
     type(ed_site_type)     , intent(inout) :: currentSite
@@ -1501,8 +1507,6 @@ contains
     real(r8) :: leaf_c                   ! leaf carbon [kg]
 
     !----------------------------------------------------------------------
-
-
 
     smooth_leaf_distribution = 0
 
@@ -1566,7 +1570,7 @@ contains
              currentCohort%sai =  currentCohort%treesai *currentCohort%c_area/currentPatch%total_canopy_area
 
              ! Number of actual vegetation layers in this cohort's crown
-             currentCohort%nv =  ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)
+             currentCohort%nv =  count((currentCohort%treelai+currentCohort%treesai) .gt. dlower_vai(:)) + 1
 
              currentPatch%ncan(cl,ft) = max(currentPatch%ncan(cl,ft),currentCohort%NV)
 
@@ -1730,15 +1734,16 @@ contains
 
                    if(iv==currentCohort%NV) then
                       remainder = (currentCohort%treelai + currentCohort%treesai) - &
-                           (dinc_ed*real(currentCohort%nv-1,r8))
-                      if(remainder > dinc_ed )then
+                           (dlower_vai(iv) - dinc_vai(iv))
+                      if(remainder > dinc_vai(iv) )then
                          write(fates_log(), *)'ED: issue with remainder', &
-                              currentCohort%treelai,currentCohort%treesai,dinc_ed, &
+                              currentCohort%treelai,currentCohort%treesai,dinc_vai(iv), & 
                               currentCohort%NV,remainder
+
                          call endrun(msg=errMsg(sourcefile, __LINE__))
                       endif
                    else
-                      remainder = dinc_ed
+                      remainder = dinc_vai(iv)
                    end if
 
                    currentPatch%tlai_profile(cl,ft,iv) = currentPatch%tlai_profile(cl,ft,iv) + &
@@ -1925,6 +1930,7 @@ contains
        bc_out(s)%dleaf_pa(:) = 0._r8
        bc_out(s)%z0m_pa(:) = 0._r8
        bc_out(s)%displa_pa(:) = 0._r8
+       
        currentPatch => sites(s)%oldest_patch
        c = fcolumn(s)
        do while(associated(currentPatch))
@@ -1950,6 +1956,7 @@ contains
              ! Use canopy-only crown area weighting for all cohorts in the patch to define the characteristic
              ! Roughness length and displacement height used by the HLM
              ! use total LAI + SAI to weight the leaft characteristic dimension
+             ! Avoid this if running in satellite phenology mode
              ! ----------------------------------------------------------------------------
 
              if (currentPatch%total_canopy_area > nearzero) then
@@ -1970,7 +1977,8 @@ contains
                 currentCohort => currentPatch%shortest
                 do while(associated(currentCohort))
 
-                   ! mkae sure that allometries are correct
+                   if (hlm_use_sp.eq.ifalse) then
+                   ! make sure that allometries are correct
                    call carea_allom(currentCohort%dbh,currentCohort%n,sites(s)%spread,&
                         currentCohort%pft,currentCohort%c_area)
 
@@ -1982,6 +1990,7 @@ contains
                         currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
                         currentPatch%canopy_layer_tlai, currentCohort%treelai , &
                         currentCohort%vcmax25top,4)
+                   endif
 
                    total_patch_leaf_stem_area = total_patch_leaf_stem_area + &
                         (currentCohort%treelai + currentCohort%treesai) * currentCohort%c_area
