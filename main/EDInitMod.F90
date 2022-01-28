@@ -725,7 +725,6 @@ contains
     ! initialize new cohorts on bare ground
     !
     ! !USES:
-    use FatesParameterDerivedMod , only : param_derived
     
     !
     ! !ARGUMENTS
@@ -739,7 +738,6 @@ contains
     integer  :: cstatus
     integer  :: pft
     integer  :: crowndamage ! which crown damage class
-    real     :: branch_frac ! fraction of biomass in branches
     integer  :: iage       ! index for leaf age loop
     integer  :: el         ! index for element loop
     integer  :: element_id ! element index consistent with defs in PRTGeneric
@@ -823,8 +821,7 @@ contains
 
              else
                 temp_cohort%hite        = EDPftvarcon_inst%hgt_min(pft)
-                temp_cohort%branch_frac = param_derived%branch_frac(pft)
-
+                
                 ! Assume no damage to begin with - since we assume no damage
                 ! we do not need to initialise branch frac just yet. 
                 temp_cohort%crowndamage = 1
@@ -839,8 +836,7 @@ contains
              end if  ! sp mode
 
              ! Calculate total above-ground biomass from allometry
-             call bagw_allom(temp_cohort%dbh,pft,temp_cohort%crowndamage, &
-                  1.0_r8, c_agw)
+             call bagw_allom(temp_cohort%dbh,pft,temp_cohort%crowndamage,c_agw)
 
              ! Calculate coarse root biomass from allometry
              call bbgw_allom(temp_cohort%dbh,pft,c_bgw)
@@ -850,7 +846,7 @@ contains
              call bfineroot(temp_cohort%dbh,pft,temp_cohort%canopy_trim,c_fnrt)
 
              ! Calculate sapwood biomass
-             call bsap_allom(temp_cohort%dbh,pft,temp_cohort%crowndamage, 1.0_r8, &
+             call bsap_allom(temp_cohort%dbh,pft,temp_cohort%crowndamage, &
                   temp_cohort%canopy_trim,a_sapw,c_sapw)
 
              call bdead_allom( c_agw, c_bgw, c_sapw, pft, c_struct )
@@ -967,7 +963,7 @@ contains
             temp_cohort%coage, temp_cohort%dbh, prt_obj, temp_cohort%laimemory,&
             temp_cohort%sapwmemory, temp_cohort%structmemory, cstatus, rstatus,        &
             temp_cohort%canopy_trim, temp_cohort%c_area, 1, temp_cohort%crowndamage,&
-            temp_cohort%branch_frac, site_in%spread, bc_in)
+            site_in%spread, bc_in)
 
 
              deallocate(temp_cohort) ! get rid of temporary cohort

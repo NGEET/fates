@@ -243,12 +243,12 @@ contains
     real(r8) :: leaf_psi           ! leaf xylem matric potential [MPa] (only meaningful/used w/ hydro)
     real(r8), allocatable :: rootfr_ft(:,:)  ! Root fractions per depth and PFT
 
-    real(r8) :: branch_frac
-    real(r8) :: agb_frac
-    real(r8) :: crown_reduction
-    real(r8) :: sapw_c_predamage
-    real(r8) :: sapw_n
-    real(r8) :: sapw_n_predamage
+    real(r8) :: agb_frac              ! fraction of biomass aboveground
+    real(r8) :: branch_frac           ! fraction of aboveground biomass in branches
+    real(r8) :: crown_reduction       ! reduction in crown biomass from damage
+    real(r8) :: sapw_c_predamage      ! pre damage sapwood
+    real(r8) :: sapw_n                ! sapwood n
+    real(r8) :: sapw_n_predamage      ! pre damage sapwood n
     
     ! -----------------------------------------------------------------------------------
     ! Keeping these two definitions in case they need to be added later
@@ -651,7 +651,7 @@ contains
                       if (hlm_use_canopy_damage .eq. itrue .or. hlm_use_understory_damage .eq. itrue) then
 
                          agb_frac = prt_params%allom_agb_frac(currentCohort%pft)
-                         branch_frac = currentCohort%branch_frac
+                         branch_frac = param_derived%branch_frac(currentCohort%pft)
                          call get_crown_reduction(currentCohort%crowndamage, crown_reduction)
 
                          ! need the undamaged version if using ratios with roots

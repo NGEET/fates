@@ -153,10 +153,9 @@ module PRTAllometricCNPMod
   integer, public, parameter :: acnp_bc_in_id_netdnh4 = 5 ! Index for the net daily NH4 input BC
   integer, public, parameter :: acnp_bc_in_id_netdno3 = 6 ! Index for the net daily NO3 input BC
   integer, public, parameter :: acnp_bc_in_id_netdp   = 7 ! Index for the net daily P input BC
-  integer, public, parameter :: acnp_bc_in_id_branch_frac = 8 ! Index for branch fraction
   
   ! 0=leaf off, 1=leaf on
-  integer, parameter         :: num_bc_in             = 8
+  integer, parameter         :: num_bc_in             = 7
 
   ! -------------------------------------------------------------------------------------
   ! Output Boundary Indices (These are public)
@@ -335,7 +334,6 @@ contains
     
     ! Input only bcs
     integer  :: ipft        ! Plant Functional Type index
-    real(r8) :: branch_frac ! fraction crown in branches
     real(r8) :: c_gain      ! Daily carbon balance for this cohort [kgC]
     real(r8) :: n_gain      ! Daily nitrogen uptake through fine-roots [kgN]
     real(r8) :: p_gain      ! Daily phosphorus uptake through fine-roots [kgN]
@@ -403,7 +401,6 @@ contains
     p_gain      = this%bc_in(acnp_bc_in_id_netdp)%rval; p_gain0      = p_gain
     canopy_trim = this%bc_in(acnp_bc_in_id_ctrim)%rval
     ipft        = this%bc_in(acnp_bc_in_id_pft)%ival
-    branch_frac = this%bc_in(acnp_bc_in_id_branch_frac)%rval
 
     ! Output only boundary conditions
     c_efflux    => this%bc_out(acnp_bc_out_id_cefflux)%rval;  c_efflux = 0._r8
@@ -439,9 +436,9 @@ contains
     ! Set carbon targets based on the plant's current stature
     target_c(:) = fates_unset_r8
     target_dcdd(:) = fates_unset_r8
-    call bsap_allom(dbh,ipft,cdamage, branch_frac, canopy_trim, &
+    call bsap_allom(dbh,ipft,cdamage, canopy_trim, &
          sapw_area,target_c(sapw_id),target_dcdd(sapw_id)  )
-    call bagw_allom(dbh,ipft,cdamage, branch_frac, agw_c_target,agw_dcdd_target)
+    call bagw_allom(dbh,ipft,cdamage, agw_c_target,agw_dcdd_target)
     call bbgw_allom(dbh,ipft,bgw_c_target,bgw_dcdd_target)
     call bdead_allom(agw_c_target,bgw_c_target, target_c(sapw_id), ipft, target_c(struct_id), &
                      agw_dcdd_target, bgw_dcdd_target, target_dcdd(sapw_id), target_dcdd(struct_id))
@@ -1020,7 +1017,6 @@ contains
     integer           :: ipft
     real(r8)          :: canopy_trim
     real(r8)          :: leaf_status
-    real(r8)          :: branch_frac
     integer           :: icrowndamage
     
     integer  :: i, ii                            ! organ index loops (masked and unmasked)
@@ -1104,8 +1100,7 @@ contains
     ipft        = this%bc_in(acnp_bc_in_id_pft)%ival
     canopy_trim = this%bc_in(acnp_bc_in_id_ctrim)%rval
     icrowndamage = this%bc_inout(acnp_bc_inout_id_cdamage)%ival
-    branch_frac = this%bc_in(acnp_bc_in_id_branch_frac)%rval
-
+   
     cnp_limiter = 0
     
     ! If any of these resources is essentially tapped out,
@@ -1372,7 +1367,7 @@ contains
             end do
             
             call CheckIntegratedAllometries(state_array_out(dbh_id),ipft, &
-                 icrowndamage, branch_frac, canopy_trim,  &
+                 icrowndamage, canopy_trim,  &
                  leafc_tp1, state_array_out(fnrt_id), state_array_out(sapw_id), &
                  state_array_out(store_id), state_array_out(struct_id), &
                  state_mask(leaf_id), state_mask(fnrt_id), state_mask(sapw_id), &
@@ -1464,8 +1459,8 @@ contains
                
                call bleaf(dbh_tp1,ipft,icrowndamage, canopy_trim,leaf_c_target_tp1)
                call bfineroot(dbh_tp1,ipft,canopy_trim,fnrt_c_target_tp1)
-               call bsap_allom(dbh_tp1,ipft,icrowndamage,branch_frac,canopy_trim,sapw_area,sapw_c_target_tp1)
-               call bagw_allom(dbh_tp1,ipft,icrowndamage, branch_frac, agw_c_target_tp1)
+               call bsap_allom(dbh_tp1,ipft,icrowndamage,canopy_trim,sapw_area,sapw_c_target_tp1)
+               call bagw_allom(dbh_tp1,ipft,icrowndamage, agw_c_target_tp1)
                call bbgw_allom(dbh_tp1,ipft,bgw_c_target_tp1)
                call bdead_allom(agw_c_target_tp1,bgw_c_target_tp1, sapw_c_target_tp1, ipft, struct_c_target_tp1)
                call bstore_allom(dbh_tp1,ipft,icrowndamage, canopy_trim,store_c_target_tp1)
@@ -1746,8 +1741,8 @@ contains
 
        call bleaf(dbh,ipft,1, canopy_trim,leaf_c_target)
        call bfineroot(dbh,ipft,canopy_trim,fnrt_c_target)
-       call bsap_allom(dbh,ipft,1, 1.0_r8, canopy_trim,sapw_area,sapw_c_target)
-       call bagw_allom(dbh,ipft,1, 1.0_r8, agw_c_target)
+       call bsap_allom(dbh,ipft,1, canopy_trim,sapw_area,sapw_c_target)
+       call bagw_allom(dbh,ipft,1, agw_c_target)
        call bbgw_allom(dbh,ipft,bgw_c_target)
        call bdead_allom(agw_c_target,bgw_c_target, sapw_c_target, ipft, struct_c_target)
 
@@ -2103,7 +2098,6 @@ contains
       integer  :: ipft             ! PFT index
       real(r8) :: canopy_trim      ! Canopy trimming function (boundary condition [0-1]
       integer  :: icrowndamage     ! crown damage index
-      real(r8) :: branch_frac
       real(r8) :: leaf_c_target    ! target leaf biomass, dummy var (kgC)
       real(r8) :: fnrt_c_target    ! target fine-root biomass, dummy var (kgC)
       real(r8) :: sapw_c_target    ! target sapwood biomass, dummy var (kgC)
@@ -2142,13 +2136,12 @@ contains
 
         canopy_trim = intgr_params(acnp_bc_in_id_ctrim)
         ipft        = int(intgr_params(acnp_bc_in_id_pft))
-        branch_frac = intgr_params(acnp_bc_in_id_branch_frac)
         icrowndamage = int(intgr_params(acnp_bc_inout_id_cdamage))
 
         call bleaf(dbh,ipft,icrowndamage, canopy_trim,leaf_c_target,leaf_dcdd_target)
         call bfineroot(dbh,ipft,canopy_trim,fnrt_c_target,fnrt_dcdd_target)
-        call bsap_allom(dbh,ipft,icrowndamage, branch_frac,canopy_trim,sapw_area,sapw_c_target,sapw_dcdd_target)
-        call bagw_allom(dbh,ipft,icrowndamage, branch_frac, agw_c_target,agw_dcdd_target)
+        call bsap_allom(dbh,ipft,icrowndamage, canopy_trim,sapw_area,sapw_c_target,sapw_dcdd_target)
+        call bagw_allom(dbh,ipft,icrowndamage, agw_c_target,agw_dcdd_target)
         call bbgw_allom(dbh,ipft,bgw_c_target,bgw_dcdd_target)
         call bdead_allom(agw_c_target,bgw_c_target, sapw_c_target, ipft, struct_c_target, &
                          agw_dcdd_target, bgw_dcdd_target, sapw_dcdd_target, struct_dcdd_target)

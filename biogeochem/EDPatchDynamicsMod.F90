@@ -475,7 +475,8 @@ contains
     use FatesInterfaceTypesMod, only : hlm_use_canopy_damage
     use FatesInterfaceTypesMod, only : hlm_use_understory_damage
     use FatesInterfaceTypesMod, only : ncrowndamage
-
+    use FatesParameterDerivedMod, only : param_derived
+    
     !
     ! !ARGUMENTS:
     type (ed_site_type), intent(inout), target :: currentSite
@@ -533,6 +534,7 @@ contains
     integer :: cd                            ! crowndamage counter
     real(r8) :: cd_frac                      ! fraction of cohort going to new damage class
     real(r8) :: agb_frac                     ! agoveground biomass fraction of cohort 
+    real(r8) :: branch_frac                  ! branch fraction of aboveground biomass
     
     logical  :: found_youngest_primary       ! logical for finding the first primary forest patch
 
@@ -783,7 +785,8 @@ contains
                  call zero_cohort(nc)
 
                 agb_frac = prt_params%allom_agb_frac(currentCohort%pft)
-
+                branch_frac = param_derived%branch_frac(currentCohort%pft)
+                
                 allocate(nc)  ! new cohort surviving
                 if(hlm_use_planthydro.eq.itrue) call InitHydrCohort(CurrentSite,nc)
 
@@ -1299,20 +1302,20 @@ contains
 
                                   sapw_m_pre = nc_d%prt%GetState(sapw_organ, all_carbon_elements)
                                   call PRTDamageLosses(nc_d%prt, sapw_organ, mass_frac * &
-                                       nc_d%branch_frac * agb_frac)
+                                       branch_frac * agb_frac)
                                   sapw_m_post = nc_d%prt%GetState(sapw_organ, all_carbon_elements)
                                   sapw_loss_prt = sapw_loss_prt + (sapw_m_pre - sapw_m_post)*nc_d%n
 
                                   struct_m_pre = nc_d%prt%GetState(struct_organ, all_carbon_elements)
                                   call PRTDamageLosses(nc_d%prt, struct_organ, mass_frac * &
-                                       nc_d%branch_frac * agb_frac)
+                                       branch_frac * agb_frac)
                                   struct_m_post = nc_d%prt%GetState(struct_organ, all_carbon_elements)
                                   struct_loss_prt = struct_loss_prt + (struct_m_pre - struct_m_post)* &
                                        nc_d%n
 
                                   store_m_pre = nc_d%prt%GetState(store_organ, all_carbon_elements)
                                   call PRTDamageLosses(nc_d%prt, store_organ, mass_frac * &
-                                       nc_d%branch_frac * agb_frac)
+                                       branch_frac * agb_frac)
                                   store_m_post = nc_d%prt%GetState(store_organ, all_carbon_elements)
                                   store_loss_prt = store_loss_prt + (store_m_pre - store_m_post)* &
                                        nc_d%n
@@ -2385,7 +2388,7 @@ contains
     use FatesInterfaceTypesMod, only : hlm_use_canopy_damage
     use FatesInterfaceTypesMod, only : hlm_use_understory_damage
     use FatesConstantsMod,      only : itrue
-
+    use FatesParameterDerivedMod, only : param_derived
     !
 
     ! !ARGUMENTS:
@@ -2432,6 +2435,7 @@ contains
     integer :: cd
     real(r8) :: cd_frac
     real(r8) :: agb_frac
+    real(r8) :: branch_frac
     integer :: ncwd_no_trunk
     real(r8), allocatable :: SF_val_CWD_frac_canopy(:)
     real(r8) :: cd_n_tot
@@ -2480,8 +2484,10 @@ contains
        do while(associated(currentCohort))       
 
 
-          agb_frac = prt_params%allom_agb_frac(currentCohort%pft)
           pft = currentCohort%pft
+          agb_frac = prt_params%allom_agb_frac(pft)
+          branch_frac = param_derived%branch_frac(pft)
+          
           ! Get mass in Kg of the element in the specified organ
           sapw_m   = currentCohort%prt%GetState(sapw_organ, element_id)
           struct_m = currentCohort%prt%GetState(struct_organ, element_id)
@@ -2544,7 +2550,7 @@ contains
 
                    ! branch loss
                    branch_loss = (sapw_m + struct_m + store_m) * crown_reduction * &
-                        currentCohort%branch_frac * agb_frac * num_trees_cd
+                        branch_frac * agb_frac * num_trees_cd
                    
                    do c=1,(ncwd_no_trunk)
 

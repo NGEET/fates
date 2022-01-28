@@ -87,7 +87,6 @@ Module EDCohortDynamicsMod
   use PRTAllometricCarbonMod, only : ac_bc_inout_id_netdc
   use PRTAllometricCarbonMod, only : ac_bc_in_id_pft
   use PRTAllometricCarbonMod, only : ac_bc_inout_id_cdamage
-  use PRTAllometricCarbonMod, only : ac_bc_in_id_branch_frac
   use PRTAllometricCarbonMod, only : ac_bc_inout_id_n
   use PRTAllometricCarbonMod, only : ac_bc_in_id_ctrim
   use PRTAllometricCarbonMod, only : ac_bc_inout_id_dbh
@@ -147,7 +146,7 @@ contains
   subroutine create_cohort(currentSite, patchptr, pft, nn, hite, coage, dbh,   &
        prt, laimemory, sapwmemory, structmemory, &
        status, recruitstatus,ctrim,carea, &
-       clayer, crowndamage,branch_frac, spread, bc_in)
+       clayer, crowndamage, spread, bc_in)
     
     !
     ! !DESCRIPTION:
@@ -169,7 +168,6 @@ contains
 
     integer,  intent(in)      :: pft              ! Cohort Plant Functional Type
     integer,  intent(in)      :: crowndamage      ! Cohort damage class
-    real(r8), intent(in)      :: branch_frac      ! Fraction of biomass in branches
     integer,  intent(in)      :: clayer           ! canopy status of cohort 
                                                   ! (1 = canopy, 2 = understorey, etc.)
     integer,  intent(in)      :: status           ! growth status of plant
@@ -232,7 +230,6 @@ contains
 
     new_cohort%pft          = pft
     new_cohort%crowndamage  = crowndamage
-    new_cohort%branch_frac  = branch_frac
     new_cohort%status_coh   = status
     new_cohort%n            = nn
     new_cohort%hite         = hite
@@ -415,7 +412,6 @@ contains
        call new_cohort%prt%RegisterBCIn(ac_bc_in_id_pft,bc_ival = new_cohort%pft)
        call new_cohort%prt%RegisterBCIn(ac_bc_in_id_ctrim,bc_rval = new_cohort%canopy_trim)
        call new_cohort%prt%RegisterBCIn(ac_bc_in_id_lstat,bc_ival = new_cohort%status_coh)
-       call new_cohort%prt%RegisterBCIn(ac_bc_in_id_branch_frac,bc_rval = new_cohort%branch_frac) 
        
     case (prt_cnp_flex_allom_hyp)
 
@@ -1314,8 +1310,7 @@ contains
                                             call ForceDBH( currentCohort%pft, currentCohort%canopy_trim, &
                                                  currentCohort%dbh, currentCohort%hite, &
                                                  bdead = currentCohort%prt%GetState(struct_organ,all_carbon_elements), &
-                                                 crowndamage = currentCohort%crowndamage, &
-                                                 branch_frac = currentCohort%branch_frac)
+                                                 crowndamage = currentCohort%crowndamage)
 
                                          end if
                                          !
@@ -1353,8 +1348,7 @@ contains
                                          call ForceDBH( currentCohort%pft, currentCohort%canopy_trim, &
                                               currentCohort%dbh, currentCohort%hite, &
                                               bdead = currentCohort%prt%GetState(struct_organ,all_carbon_elements),&
-                                              crowndamage = currentCohort%crowndamage, &
-                                              branch_frac = currentCohort%branch_frac)
+                                              crowndamage = currentCohort%crowndamage)
 
                                       end if
                                       !
@@ -1841,7 +1835,6 @@ contains
     ! VEGETATION STRUCTURE
     n%pft             = o%pft
     n%crowndamage     = o%crowndamage
-    n%branch_frac     = o%branch_frac
     n%n               = o%n
     n%dbh             = o%dbh
     n%coage           = o%coage
@@ -2103,7 +2096,6 @@ contains
     real(r8) :: canopy_trim
     integer  :: ipft
     integer  :: icrowndamage
-    real(r8) :: branch_frac
     real(r8) :: sapw_area
     real(r8) :: target_sapw_c
     real(r8) :: target_agw_c
@@ -2118,7 +2110,6 @@ contains
     dbh  = currentCohort%dbh
     ipft = currentCohort%pft
     icrowndamage = currentCohort%crowndamage
-    branch_frac = currentCohort%branch_frac
     canopy_trim = currentCohort%canopy_trim
 
     delta_dbh   = 0._r8
@@ -2129,10 +2120,10 @@ contains
        struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
 
        ! Target sapwood biomass according to allometry and trimming [kgC]
-       call bsap_allom(dbh,ipft,icrowndamage, branch_frac, canopy_trim,sapw_area,target_sapw_c)
+       call bsap_allom(dbh,ipft,icrowndamage,canopy_trim,sapw_area,target_sapw_c)
        
        ! Target total above ground biomass in woody/fibrous tissues  [kgC]
-       call bagw_allom(dbh,ipft, icrowndamage, branch_frac, target_agw_c)
+       call bagw_allom(dbh,ipft, icrowndamage,target_agw_c)
        
        ! Target total below ground biomass in woody/fibrous tissues [kgC] 
        call bbgw_allom(dbh,ipft,target_bgw_c)
@@ -2149,7 +2140,7 @@ contains
        if( (struct_c - target_struct_c ) > calloc_abs_error ) then
 
           call ForceDBH( ipft,canopy_trim, dbh, hite_out, bdead=struct_c, &
-               crowndamage = icrowndamage, branch_frac = branch_frac)
+               crowndamage = icrowndamage)
 
           delta_dbh = dbh - currentCohort%dbh 
           delta_hite = hite_out - currentCohort%hite
