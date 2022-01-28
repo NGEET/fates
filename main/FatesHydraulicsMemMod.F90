@@ -134,10 +134,10 @@ module FatesHydraulicsMemMod
 
      real(r8),allocatable :: rootuptake_sl(:)
 
-     ! Absorbing root fraction on the soil grid. We need this to
+     ! Absorbing root length on the soil grid. We need this to
      ! disaggregate uptake fluxes from the rhizosphere layers to
      ! the soil layers
-     real(r8),allocatable :: rootfr_sl(:)
+     real(r8),allocatable :: rootl_sl(:)
 
      ! Root uptake per pft x size class, over set layer depths [kg/ha/m/s]
      ! These are normalized by depth (in case the desired horizon extends
@@ -371,7 +371,7 @@ module FatesHydraulicsMemMod
        integer,intent(in) :: numlevsclass
        integer,intent(in) :: hydr_solver_type
        integer,intent(in) :: nlevsoil
-       
+
        associate(nlevrhiz => this%nlevrhiz)
 
          ! In all cases, the 0 index of the layer bottom is a value of 0
@@ -394,7 +394,7 @@ module FatesHydraulicsMemMod
          allocate(this%recruit_w_uptake(1:nlevrhiz)); this%recruit_w_uptake = nan
          
          allocate(this%rootuptake_sl(1:nlevsoil))                   ; this%rootuptake_sl = nan
-         allocate(this%rootfr_sl(1:nlevsoil))                       ; this%rootfr_sl = 0._r8
+         allocate(this%rootl_sl(1:nlevsoil))                        ; this%rootl_sl = 0._r8
          
          allocate(this%sapflow_scpf(1:numlevsclass,1:numpft))       ; this%sapflow_scpf = nan
          allocate(this%rootuptake0_scpf(1:numlevsclass,1:numpft))   ; this%rootuptake0_scpf = nan

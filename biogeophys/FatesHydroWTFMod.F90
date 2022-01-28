@@ -1062,7 +1062,8 @@ contains
     real(r8)                                  :: resid
     real(r8)                                  :: dx
     real(r8), parameter                       :: relTol = 1.d-9
-
+    integer                                   :: iter
+    
     sat_res = 0._r8
     alpha   = -1._r8/this%psi_sat
     lambda  = 1._r8/this%beta
@@ -1110,13 +1111,19 @@ contains
              !     1.d0 - Se,  &
              !     ' r{xR}', xR*xR*(scch_b2 + scch_b3*xR) +
              !     1.d0 - Se
-             do
+
+             iter = 0
+             dx = 1.e20_r8 ! something large
+             do while( abs(dx) >= -relTol*this%scch_pu )
+                
                 ! Here, assume:
                 ! + Have a bracket on the root, between `xL` and `xR`.
-              ! + The residual `r{xL} < 0` and `r{xR} > 0`.
+                ! + The residual `r{xL} < 0` and `r{xR} > 0`.
                 ! + Have a current guess `xc` at the root.  However, that guess
                 !     might not lie in the bracket.
 
+                iter=iter+1
+                
                 ! Reset `xc` using bisection if necessary.
                 if( xc<=xL .or. xc>=xR ) then
                    ! write(unit=*, fmt='("Bisecting")')
@@ -1146,10 +1153,9 @@ contains
                 !     ' r{xR}', xR*xR*(scch_b2 + scch_b3*xR) +
                 !     1.d0 - Se
 
-                ! Test for convergence.
-                !   Note this test implicitly also tests `resid == 0`.
-                if( abs(dx) < -relTol*this%scch_pu ) then
-                   exit
+                if( iter>10000) then
+                   write(fates_log(),*) "psi_from_th_smooth_cch iteration not converging"
+                   call endrun(msg=errMsg(__FILE__, __LINE__))
                 endif
              enddo
 
@@ -1362,7 +1368,8 @@ contains
     real(r8)              :: deltaGu, resid, dr_dGu  ! Newton-Raphson search.
     real(r8)              :: guInv, guToMinusLam, gsOnGu  ! Helper variables.
     real(r8), parameter   :: relTol = 1.d-12
-
+    integer               :: iter
+    
     ! Check arguments.
     !   Note this is more for documentation than anything else-- this
     ! fcn should only get used internally, by trusted callers.
@@ -1389,7 +1396,13 @@ contains
     if( gs > 0.d0 ) then
        guLeft = 1.d0
        guRight = gu
-       do
+
+       ! Test for convergence.
+       !   Note this test implicitly also tests `resid == 0`.
+       iter = 0
+       deltaGu=1.e20_r8 ! something large
+       do while( abs(deltaGu) >= relTol*abs(gu) )
+
           ! Here, assume:
           ! + Have an bracket on the root, between `guLeft` and `guRight`.
           ! + The derivative `dr/d{gu} > 0`.
@@ -1397,6 +1410,8 @@ contains
           ! + Have a current guess `gu` at the root.  However, that guess
           !     might not lie in the bracket (and does not at first iteration).
 
+          iter=iter+1
+          
           ! Reset `gu` using bisection if necessary.
           if( gu<=guLeft .or. gu>=guRight ) then
              gu = guLeft + 0.5d0*(guRight - guLeft)
@@ -1424,11 +1439,11 @@ contains
           !     'deltaGu', deltaGu, 'resid', resid, 'dr_dGu', dr_dGu
           gu = gu - deltaGu
 
-          ! Test for convergence.
-          !   Note this test implicitly also tests `resid == 0`.
-          if( abs(deltaGu) < relTol*abs(gu) ) then
-             exit
+          if( iter>10000) then
+             write(fates_log(),*) "findGu_SBC_zeroCoeff iteration not converging"
+             call endrun(msg=errMsg(__FILE__, __LINE__))
           endif
+          
        enddo
     endif
 
