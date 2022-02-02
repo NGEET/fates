@@ -260,15 +260,10 @@ contains
     ! Patch dynamics sub-routines: fusion, new patch creation (spwaning), termination.
     !*********************************************************************************
 
+    ! turn off patch dynamics if SP or ST3 modes in use
     do_patch_dynamics = itrue
     if(hlm_use_ed_st3.eq.itrue .or. &
-       hlm_use_nocomp.eq.itrue .or. &
        hlm_use_sp.eq.itrue)then
-      ! n.b. this is currently set to false to get around a memory leak that occurs
-      ! when we have multiple patches for each PFT.
-      ! when this is fixed, we will need another option for 'one patch per PFT' vs 'multiple patches per PFT'
-      ! hlm_use_sp check provides cover for potential changes in nocomp logic (nocomp required by spmode, but
-      ! not the other way around).
        do_patch_dynamics = ifalse
     end if
 
