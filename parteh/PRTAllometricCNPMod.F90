@@ -46,6 +46,7 @@ module PRTAllometricCNPMod
   use FatesConstantsMod   , only : i4 => fates_int
   use FatesConstantsMod   , only : calloc_abs_error
   use FatesConstantsMod   , only : rsnbl_math_prec
+  use FatesConstantsMod   , only : years_per_day
   use FatesIntegratorsMod , only : RKF45
   use FatesIntegratorsMod , only : Euler
   use FatesConstantsMod   , only : calloc_abs_error
@@ -206,7 +207,8 @@ module PRTAllometricCNPMod
   integer, parameter :: regulate_linear = 1
   integer, parameter :: regulate_logi   = 2
   integer, parameter :: regulate_CN_logi = 3
-     
+  integer, parameter :: regulate_CN_dfdd = 4
+  
   ! Array of pointers are difficult in F90
   ! This structure is a necessary intermediate 
   type :: parray_type
@@ -436,7 +438,7 @@ contains
     allocate(state_c(num_organs))
     allocate(state_n(num_organs))
     allocate(state_p(num_organs))
-    
+
     ! Set carbon targets based on the plant's current stature
     target_c(:) = fates_unset_r8
     target_dcdd(:) = fates_unset_r8
@@ -638,20 +640,30 @@ contains
 
     real(r8), pointer :: l2fr           ! leaf to fineroot target biomass scaler
     integer           :: ipft           ! PFT index
+    real(r8), pointer :: dbh
+    real(r8)          :: canopy_trim
 
-    real(r8) :: n_regulator  ! Nitrogen storage regulation function scaler
-    real(r8) :: p_regulator  ! Phosphorus storage regulation function scaler
-    real(r8) :: np_regulator ! Combined NP storage regulation function scaler
+    real(r8) :: fnrt_c_target ! Target fineroot C before we change l2fr
+    real(r8) :: n_regulator   ! Nitrogen storage regulation function scaler
+    real(r8) :: p_regulator   ! Phosphorus storage regulation function scaler
+    real(r8) :: np_regulator  ! Combined NP storage regulation function scaler
+    real(r8) :: turnfrac      ! The factional amount of root biomass that may
+                              ! remain after a day of root turnover without
+                              ! replacement
+    real(r8) :: fnrt_frac     ! fine-root's current fraction of the target
 
+    integer, parameter :: regulate_type = regulate_CN_logi !regulate_CN_dfdd
 
     ipft         =  this%bc_in(acnp_bc_in_id_pft)%ival
     l2fr         => this%bc_inout(acnp_bc_inout_id_l2fr)%rval
-
+    dbh          => this%bc_inout(acnp_bc_inout_id_dbh)%rval
+    canopy_trim  = this%bc_in(acnp_bc_in_id_ctrim)%rval
+    
     associate( l2fr_min => prt_params%allom_l2fr_min(ipft), &
          l2fr_max => prt_params%allom_l2fr_max(ipft))
 
-      call this%StorageRegulator(nitrogen_element, regulate_CN_logi,n_regulator)
-      call this%StorageRegulator(phosphorus_element, regulate_CN_logi,p_regulator)
+      call this%StorageRegulator(nitrogen_element, regulate_type,n_regulator)
+      call this%StorageRegulator(phosphorus_element, regulate_type,p_regulator)
 
       ! We take the maximum here, because the maximum is reflective of the
       ! element with the lowest storage, which is the limiting element
@@ -661,7 +673,48 @@ contains
       ! Update the leaf-to-fineroot ratio used
       ! to set fine-root biomass allometry
 
-      l2fr = l2fr_min + max(0._r8,min(1.0_r8,np_regulator))*(l2fr_max-l2fr_min)
+      if(regulate_type == regulate_CN_logi)then
+
+         l2fr = l2fr_min + max(0._r8,min(1.0_r8,np_regulator))*(l2fr_max-l2fr_min)
+         
+      elseif(regulate_type == regulate_CN_dfdd)then
+
+         ! Also, we aren't allowed to increase root biomass target if
+         ! we are very low on root biomass relative to the target
+         ! And we aren't allowed to reduce the target if we are above the target
+         
+         call bfineroot(dbh,ipft,canopy_trim,l2fr,fnrt_c_target)
+         fnrt_frac = this%GetState(fnrt_organ, carbon12_element)/fnrt_c_target
+
+         turnfrac = (years_per_day / prt_params%root_long(ipft))
+         
+         ! If there is low root compared to the max, don't allow cap growth
+         if(fnrt_frac < 1._r8-1.5_r8*turnfrac)then
+            np_regulator = min(np_regulator,1.0)
+         end if
+         
+         ! If there is high root compared to the max, don't allow cap decrease
+         if(fnrt_frac > 1.0_r8+1.5_r8*turnfrac)then
+            np_regulator = max(np_regulator,1.0)
+         end if
+
+         ! Don't allow us to drop l2fr more than what the maximum loss to turnover
+         ! would be for one day.
+         ! this will prevent the algorithm from snowballing.  This is doubly important
+         ! because if C is low compared to N or P, then the plant is probably
+         ! not very productive, and will not be growing. A growing plant can reach
+         ! equilibrium root mass more quickly. (might be unnecessary given
+         ! the growth caps prior to this...?)
+         
+         
+
+         !print*,dbh,fnrt_frac,l2fr,min(max(np_regulator,1._r8-turnfrac),1._r8+turnfrac)
+         
+         l2fr = l2fr * min(max(np_regulator,1._r8-2._r8*turnfrac),1._r8+2._r8*turnfrac)
+         
+      end if
+
+
       
       ! Find the updated target fineroot biomass
       ! call bfineroot(dbh,ipft,canopy_trim, l2fr, target_fnrt)
@@ -2142,16 +2195,10 @@ contains
    subroutine StorageRegulator(this,element_id,regulate_type,c_scalar)
 
      ! -----------------------------------------------------------------------------------
-     ! This function returns the cn_scalar or cp_scalar term
-     ! described in:
-     ! Zhu, Q et al. Representing Nitrogen, Phosphorus and Carbon
-     ! interactions in the E3SM land model: Development and Global benchmarking.
-     ! Journal of Advances in Modeling Earth Systems, 11, 2238-2258, 2019.
-     ! https://doi.org/10.1029/2018MS001571
-     !
-     ! In the manuscript c_scalar is described as: "f(CN) and f(CP) account for the
-     ! regulation of plant nutritional level on nutrient carrier enzyme activity"
-     ! Also, see equations 4 and 5.
+     ! This function evaluates the storage of either N or P, and returns
+     ! a scalar that is used to regulate fine-root biomass in some way. Depending
+     ! on the type of method, this may either be an absolute scalar on biomass
+     ! or it may be a rate of change on that scalar. 
      ! -----------------------------------------------------------------------------------
 
 
@@ -2165,14 +2212,20 @@ contains
      real(r8) :: c_scalar
 
      ! Locals
-     real(r8) :: store_frac                         ! Current nutrient storage relative to max
-     real(r8) :: store_max                          ! Maximum nutrient storable by plant
-     real(r8) :: store_c                            ! Current storage carbon
-     real(r8) :: store_c_max                        ! Current maximum storage carbon
-     integer  :: icode                              ! real variable checking code
+     real(r8) :: store_frac  ! Current nutrient storage relative to max
+     real(r8) :: store_max   ! Maximum nutrient storable by plant
+     real(r8) :: store_c     ! Current storage carbon
+     real(r8) :: store_c_max ! Current maximum storage carbon
+     integer  :: icode       ! real variable checking code
      real(r8) :: store_x
      integer  :: i_var
-
+     real(r8) :: c_eq_offset ! This shifts the center-point
+                             ! of the N:C or P:C storage equlibrium
+                             ! by multiplying the C term. If its less than 1 it
+                             ! shifts left and great than one it shifts right.
+                             ! It should shift left to help mitigate wasted N and P
+                             ! storage overflow
+     
      ! For N/C logistic
      real(r8) :: logi_k          ! logistic function k
      real(r8) :: store_x0        ! storage fraction inflection point
@@ -2225,8 +2278,8 @@ contains
           !   call endrun(msg=errMsg(sourcefile, __LINE__))
           !endif
 
-       else
-
+       elseif(regulate_type == regulate_CN_logi) then
+          
           logi_k   = 2.0_r8
           store_x0 = 0.0_r8
           logi_min = 0.0_r8
@@ -2243,6 +2296,30 @@ contains
 
           c_scalar = max(0._r8,min(1._r8,logi_min + (1._r8-logi_min)/(1.0 + exp(logi_k*(store_frac-store_x0)))))
 
+       elseif(regulate_type == regulate_CN_dfdd) then
+
+          store_c = this%GetState(store_organ, carbon12_element)
+          call bstore_allom(dbh,ipft,canopy_trim,store_c_max)
+
+          ! Fraction of N per fraction of C
+          ! If this is greater than 1, then we have more N in storage than
+          ! we have C, so we downregulate. If this is less than 1, then
+          ! we have less N in storage than we have C, so up-regulate
+
+          ! Note also, we do not allow the plants to dump C
+          ! but we do allow them to exude either P or N. Because of this
+          ! we shift our equilibrium point from a ratio of 1:1 to something
+          ! with a slightly lower C fraction equilibrium (ie > 1)
+          ! This will reduce N and P uptake inefficiencies by reducing
+          ! storage overflow and dumping.
+
+          c_eq_offset = 0.75
+          
+          store_frac = max(0.01_r8,store_frac) / max(0.01_r8,c_eq_offset*(store_c/store_c_max))
+
+          c_scalar = 1._r8 - 0.02_r8*log(store_frac)
+
+          !print*,element_id,store_frac,c_scalar
           
        end if
 

@@ -1714,7 +1714,8 @@ end subroutine flush_hvars
     use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
     use EDTypesMod                , only : nlevleaf
     use EDParamsMod               , only : ED_val_history_height_bin_edges
-
+    use FatesUtilsMod             , only : check_var_real
+    
     ! Arguments
     class(fates_history_interface_type)             :: this
     integer                 , intent(in)            :: nc   ! clump index
@@ -1785,7 +1786,10 @@ end subroutine flush_hvars
     real(r8) :: struct_m_net_alloc
     real(r8) :: repro_m_net_alloc
     real(r8) :: area_frac
-
+    real(r8) :: fnrtc_canopy_scpf(numpft*nlevsclass)
+    real(r8) :: fnrtc_understory_scpf(numpft*nlevsclass)
+    integer  :: return_code
+    
     type(ed_patch_type),pointer  :: cpatch
     type(ed_cohort_type),pointer :: ccohort
 
@@ -2052,6 +2056,9 @@ end subroutine flush_hvars
 
       model_day_int = nint(hlm_model_day)
 
+
+      
+      
       ! ---------------------------------------------------------------------------------
       ! Loop through the FATES scale hierarchy and fill the history IO arrays
       ! ---------------------------------------------------------------------------------
@@ -2059,6 +2066,10 @@ end subroutine flush_hvars
       do s = 1,nsites
 
          io_si  = sites(s)%h_gid
+
+         ! These are weighting factors used for calculating l2fr_scpf
+         fnrtc_canopy_scpf(:) = 0._r8
+         fnrtc_understory_scpf(:) = 0._r8
          
          ! Total carbon model error [kgC/day -> mgC/day]
          hio_cbal_err_fates_si(io_si) = &
@@ -2283,6 +2294,8 @@ end subroutine flush_hvars
                   if( element_list(el).eq.carbon12_element )then
 
 
+                     call check_var_real(ccohort%l2fr, 'l2fr', return_code)
+
                      ! These L2FR diagnostics are weighted by fineroot carbon biomass
                      hio_l2fr_si(io_si) = hio_l2fr_si(io_si) + ccohort%n*fnrt_m*ccohort%l2fr
                      
@@ -2290,9 +2303,23 @@ end subroutine flush_hvars
                           hio_l2fr_scpf(io_si,ccohort%size_by_pft_class) + &
                           ccohort%n*fnrt_m*ccohort%l2fr
 
-                     hio_l2fr_scpf(io_si,ccohort%size_by_pft_class) = &
-                          hio_l2fr_scpf(io_si,ccohort%size_by_pft_class) + &
-                          ccohort%n*fnrt_m*ccohort%l2fr
+                     if (ccohort%canopy_layer .eq. 1) then
+                        hio_l2fr_canopy_scpf(io_si,ccohort%size_by_pft_class) = &
+                             hio_l2fr_canopy_scpf(io_si,ccohort%size_by_pft_class) + &
+                             ccohort%n*fnrt_m*ccohort%l2fr
+
+                        fnrtc_canopy_scpf(ccohort%size_by_pft_class) = &
+                             fnrtc_canopy_scpf(ccohort%size_by_pft_class) + ccohort%n*fnrt_m
+                        
+                     else
+                        hio_l2fr_understory_scpf(io_si,ccohort%size_by_pft_class) = &
+                             hio_l2fr_understory_scpf(io_si,ccohort%size_by_pft_class) + &
+                             ccohort%n*fnrt_m*ccohort%l2fr
+                        fnrtc_understory_scpf(ccohort%size_by_pft_class) = &
+                             fnrtc_understory_scpf(ccohort%size_by_pft_class) + ccohort%n*fnrt_m
+                        
+                     end if
+                        
                      
                      this%hvars(ih_storec_si)%r81d(io_si)  = &
                           this%hvars(ih_storec_si)%r81d(io_si) + ccohort%n * store_m
@@ -3345,6 +3372,30 @@ end subroutine flush_hvars
                if( this%hvars(ih_storectfrac_si)%r81d(io_si)>nearzero ) then
                   this%hvars(ih_storectfrac_si)%r81d(io_si) = this%hvars(ih_storec_si)%r81d(io_si) / &
                        this%hvars(ih_storectfrac_si)%r81d(io_si)
+
+                  do i_pft = 1, numpft
+                     do i_scls = 1,nlevsclass
+                        i_scpf = (i_pft-1)*nlevsclass + i_scls
+                        
+                        if(this%hvars(ih_fnrtc_scpf)%r82d(io_si,i_scpf)>nearzero)then
+                           hio_l2fr_scpf(io_si,i_scpf) = hio_l2fr_scpf(io_si,i_scpf) / &
+                                this%hvars(ih_fnrtc_scpf)%r82d(io_si,i_scpf)
+                        end if
+
+                        if(fnrtc_canopy_scpf(i_scpf)>nearzero)then
+                           hio_l2fr_canopy_scpf(io_si,i_scpf) = &
+                                hio_l2fr_canopy_scpf(io_si,i_scpf)/fnrtc_canopy_scpf(i_scpf)
+                        end if
+
+                        if(fnrtc_understory_scpf(i_scpf)>nearzero)then
+                           hio_l2fr_understory_scpf(io_si,i_scpf) = &
+                                hio_l2fr_understory_scpf(io_si,i_scpf)/fnrtc_understory_scpf(i_scpf)
+                        end if
+
+                        
+                     end do
+                  end do
+                        
                end if
                
             elseif(element_list(el).eq.nitrogen_element)then
@@ -3355,11 +3406,6 @@ end subroutine flush_hvars
                do i_pft = 1, numpft
                   do i_scls = 1,nlevsclass
                      i_scpf = (i_pft-1)*nlevsclass + i_scls
-
-                     if(this%hvars(ih_fnrtc_scpf)%r82d(io_si,i_scpf)>nearzero)then
-                        hio_l2fr_scpf(io_si,i_scpf) = hio_l2fr_scpf(io_si,i_scpf) / &
-                             this%hvars(ih_fnrtc_scpf)%r82d(io_si,i_scpf)
-                     end if
                         
                      if(  hio_nplant_canopy_si_scpf(io_si,i_scpf)>nearzero ) then
                         this%hvars(ih_storentfrac_canopy_scpf)%r82d(io_si,i_scpf) = &

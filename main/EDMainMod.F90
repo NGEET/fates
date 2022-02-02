@@ -321,6 +321,7 @@ contains
     !-----------------------------------------------------------------------
     real(r8) :: frac_site_primary
 
+    print*,"DYNAMICS"
 
     call get_frac_site_primary(currentSite, frac_site_primary)
 
