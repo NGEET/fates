@@ -68,7 +68,9 @@ module FatesInterfaceTypesMod
                                                      ! 0: none
                                                      ! 1: p is on
 
-   
+   real(r8), public :: hlm_stepsize        ! The step-size of the host land model (s)
+                                           ! moreover, this is the shortest main-model timestep
+                                           ! at which fates will be called on the main model integration loop
   
    real(r8), public :: hlm_hio_ignore_val  ! This value can be flushed to history 
                                                       ! diagnostics, such that the
@@ -186,6 +188,11 @@ module FatesInterfaceTypesMod
   integer, public ::  hlm_use_fixed_biogeog                         !  Flag to use FATES fixed biogeography mode
                                                                     !  1 = TRUE, 0 = FALSE 
 
+  integer, public ::  hlm_use_nocomp                                !  Flag to use FATES no competition mode
+                                                                    !  1 = TRUE, 0 = FALSE
+
+  integer, public ::  hlm_use_sp                                    !  Flag to use FATES satellite phenology (LAI) mode
+                                                                    !  1 = TRUE, 0 = FALSE
    ! -------------------------------------------------------------------------------------
    ! Parameters that are dictated by FATES and known to be required knowledge
    !  needed by the HLMs
@@ -232,6 +239,7 @@ module FatesInterfaceTypesMod
    integer , public, allocatable :: fates_hdim_levfuel(:)          ! fire fuel size class (fsc) dimension
    integer , public, allocatable :: fates_hdim_levcwdsc(:)         ! cwd class dimension
    integer , public, allocatable :: fates_hdim_levcan(:)           ! canopy-layer dimension 
+   integer , public, allocatable :: fates_hdim_levleaf(:)          ! leaf-layer dimension 
    integer , public, allocatable :: fates_hdim_levelem(:)              ! element dimension
    integer , public, allocatable :: fates_hdim_canmap_levcnlf(:)   ! canopy-layer map into the canopy-layer x leaf-layer dim
    integer , public, allocatable :: fates_hdim_lfmap_levcnlf(:)    ! leaf-layer map into the can-layer x leaf-layer dimension
@@ -338,30 +346,22 @@ module FatesInterfaceTypesMod
       real(r8),allocatable :: w_scalar_sisl(:)   ! fraction by which decomposition is limited by moisture availability
       real(r8),allocatable :: t_scalar_sisl(:)   ! fraction by which decomposition is limited by temperature
       
-
-      ! Vegetation Dynamics
-      ! ---------------------------------------------------------------------------------
+      ! Fire Model
 
       ! 24-hour lightning or ignitions [#/km2/day]
       real(r8),allocatable :: lightning24(:)
 
       ! Population density [#/km2]
       real(r8),allocatable :: pop_density(:)
-
-      ! Patch 24 hour vegetation temperature [K]
-      real(r8),allocatable :: t_veg24_pa(:)  
       
-      ! Fire Model
-
       ! Average precipitation over the last 24 hours [mm/s]
       real(r8), allocatable :: precip24_pa(:)
-
+      
       ! Average relative humidity over past 24 hours [-]
       real(r8), allocatable :: relhumid24_pa(:)
 
       ! Patch 24-hour running mean of wind (m/s ?)
       real(r8), allocatable :: wind24_pa(:)
-
 
       ! Radiation variables for calculating sun/shade fractions
       ! ---------------------------------------------------------------------------------
@@ -442,7 +442,10 @@ module FatesInterfaceTypesMod
       !           I am leaving it at this scale for simplicity.  Patches should
       !           have no spacially variable information
       real(r8), allocatable :: coszen_pa(:)
-      
+
+      ! fraction of canopy that is covered in snow
+      real(r8), allocatable :: fcansno_pa(:)
+       
       ! Abledo of the ground for direct radiation, by site broadband (0-1)
       real(r8), allocatable :: albgr_dir_rb(:)
 
@@ -518,6 +521,12 @@ module FatesInterfaceTypesMod
       ! Fixed biogeography mode 
       real(r8), allocatable :: pft_areafrac(:)     ! Fractional area of the FATES column occupied by each PFT  
     
+     ! Satellite Phenology (SP) input variables.  (where each patch only has one PFT)
+     ! ---------------------------------------------------------------------------------
+     real(r8),allocatable :: hlm_sp_tlai(:)  ! Interpolated daily total LAI (leaf area index) input from HLM per patch/pft 
+     real(r8),allocatable :: hlm_sp_tsai(:)  ! Interpolated sailt total SAI (stem area index) input from HLM per patch/pft
+     real(r8),allocatable :: hlm_sp_htop(:)  ! Interpolated daily canopy vegetation height    input from HLM per patch/pft
+
    end type bc_in_type
 
 
@@ -667,6 +676,8 @@ module FatesInterfaceTypesMod
                                                         ! this is actually binary based on if any
                                                         ! vegetation in the patch is exposed.
                                                         ! [0,1]
+
+     integer, allocatable :: nocomp_pft_label_pa(:) ! in nocomp and SP mode, each patch has a PFT identity. 
 
       ! FATES Hydraulics
 

@@ -18,8 +18,11 @@ module EDTypesMod
   use FatesLitterMod,        only : ncwd
   use FatesConstantsMod,     only : n_anthro_disturbance_categories
   use FatesConstantsMod,     only : days_per_year
+  use FatesConstantsMod,     only : fates_unset_r8
+  use FatesRunningMeanMod,   only : rmean_type
   use FatesInterfaceTypesMod,only : bc_in_type
   use FatesInterfaceTypesMod,only : bc_out_type
+
   
   implicit none
   private               ! By default everything is private
@@ -36,7 +39,6 @@ module EDTypesMod
                                                           ! to understory layers (all layers that
                                                           ! are not the top canopy layer)
 
-  integer, parameter, public :: nlevleaf = 30             ! number of leaf layers in canopy layer
   integer, parameter, public :: maxpft = 16               ! maximum number of PFTs allowed
                                                           ! the parameter file may determine that fewer
                                                           ! are used, but this helps allocate scratch
@@ -58,6 +60,10 @@ module EDTypesMod
   integer, parameter, public :: idirect   = 1             ! This is the array index for direct radiation
   integer, parameter, public :: idiffuse  = 2             ! This is the array index for diffuse radiation
 
+  ! parameters that govern the VAI (LAI+SAI) bins used in radiative transfer code
+  integer, parameter, public :: nlevleaf = 30             ! number of leaf+stem layers in canopy layer
+  real(r8), public :: dinc_vai(nlevleaf)   = fates_unset_r8 ! VAI bin widths array
+  real(r8), public :: dlower_vai(nlevleaf) = fates_unset_r8 ! lower edges of VAI bins
 
   ! TODO: we use this cp_maxSWb only because we have a static array q(size=2) of
   ! land-ice abledo for vis and nir.  This should be a parameter, which would
@@ -123,8 +129,6 @@ module EDTypesMod
 
   ! BIOLOGY/BIOGEOCHEMISTRY        
   integer , parameter, public :: num_vegtemp_mem      = 10         ! Window of time over which we track temp for cold sensecence (days)
-  real(r8), parameter, public :: dinc_ed              = 1.0_r8     ! size of VAI bins (LAI+SAI)  [CHANGE THIS NAME WITH NEXT INTERFACE
-                                                           ! UPDATE]
   integer , parameter, public :: N_DIST_TYPES         = 3          ! Disturbance Modes 1) tree-fall, 2) fire, 3) logging
   integer , parameter, public :: dtype_ifall          = 1          ! index for naturally occuring tree-fall generated event
   integer , parameter, public :: dtype_ifire          = 2          ! index for fire generated disturbance event
@@ -191,9 +195,7 @@ module EDTypesMod
   integer, public :: n_uptake_mode
   integer, public :: p_uptake_mode
 
-  
 
-  
   !************************************
   !** COHORT type structure          **
   !************************************
@@ -387,6 +389,14 @@ module EDTypesMod
      ! Hydraulics
      type(ed_cohort_hydr_type), pointer :: co_hydr       ! All cohort hydraulics data, see FatesHydraulicsMemMod.F90
 
+
+     ! Running means
+
+     ! (keeping this in-code as an example)
+     !class(rmean_type), pointer :: tveg_lpa              ! exponential moving average of leaf temperature at the
+                                                          ! leaf photosynthetic acclimation time-scale [K]
+
+     
   end type ed_cohort_type
 
   !************************************
@@ -413,6 +423,14 @@ module EDTypesMod
      integer  ::  anthro_disturbance_label                         ! patch label for anthropogenic disturbance classification
      real(r8) ::  age_since_anthro_disturbance                     ! average age for secondary forest since last anthropogenic disturbance
 
+
+     ! Running means
+     !class(rmean_type), pointer :: t2m                          ! Place-holder for 2m air temperature (variable window-size)
+     class(rmean_type), pointer :: tveg24                        ! 24-hour mean vegetation temperature (K)
+     class(rmean_type), pointer :: tveg_lpa                      ! Running mean of vegetation temperature at the
+                                                                 ! leaf photosynthesis acclimation timescale [K]
+     integer  ::  nocomp_pft_label                                 ! where nocomp is active, use this label for patch ID.   
+
      ! LEAF ORGANIZATION
      real(r8) ::  pft_agb_profile(maxpft,n_dbh_bins)            ! binned above ground biomass, for patch fusion: KgC/m2
      real(r8) ::  canopy_layer_tlai(nclmax)                     ! total leaf area index of each canopy layer
@@ -431,7 +449,7 @@ module EDTypesMod
      real(r8) ::  elai_profile(nclmax,maxpft,nlevleaf)          ! exposed leaf area in each canopy layer, pft, and leaf layer
      real(r8) ::  tsai_profile(nclmax,maxpft,nlevleaf)          ! total   stem area in each canopy layer, pft, and leaf layer
      real(r8) ::  esai_profile(nclmax,maxpft,nlevleaf)          ! exposed stem area in each canopy layer, pft, and leaf layer
-
+     real(r8) ::  radiation_error                               ! radiation error (w/m2)
      real(r8) ::  layer_height_profile(nclmax,maxpft,nlevleaf)
      real(r8) ::  canopy_area_profile(nclmax,maxpft,nlevleaf)   ! fraction of crown area per canopy area in each layer
                                                                 ! they will sum to 1.0 in the fully closed canopy layers
@@ -445,6 +463,7 @@ module EDTypesMod
      integer  ::  ncan(nclmax,maxpft)                           ! number of total   leaf layers for each canopy layer and pft
 
      !RADIATION FLUXES      
+     real(r8) :: fcansno                                        ! Fraction of canopy covered in snow
 
      logical  ::  solar_zenith_flag                             ! integer flag specifying daylight (based on zenith angle)
      real(r8) ::  solar_zenith_angle                            ! solar zenith angle (radians)
@@ -529,8 +548,6 @@ module EDTypesMod
      type(litter_type), pointer :: litter(:)  ! Litter (leaf,fnrt,CWD and seeds) for different elements
 
      real(r8),allocatable :: fragmentation_scaler(:)            ! Scale rate of litter fragmentation based on soil layer. 0 to 1.
-
-     real(r8) ::  repro(maxpft)                                 ! allocation to reproduction per PFT : KgC/m2
 
      !FUEL CHARECTERISTICS
      real(r8) ::  sum_fuel                                         ! total ground fuel related to ros (omits 1000hr fuels): KgC/m2
@@ -679,7 +696,6 @@ module EDTypesMod
      ! Resource management
      type (ed_resources_management_type) :: resources_management ! resources_management at the site 
 
-
      ! If this simulation uses shared memory then the sites need to know what machine
      ! index they are on. This index is (currently) only used to identify the sites
      ! position in history output fields
@@ -688,7 +704,6 @@ module EDTypesMod
      ! Global index of this site in the history output file
      integer :: h_gid
      
-     
      ! INDICES 
      real(r8) ::  lat                                          ! latitude:  degrees 
      real(r8) ::  lon                                          ! longitude: degrees 
@@ -696,7 +711,15 @@ module EDTypesMod
      ! Fixed Biogeography mode inputs
      real(r8), allocatable :: area_PFT(:)                      ! Area allocated to individual PFTs    
      integer, allocatable  :: use_this_pft(:)                  ! Is area_PFT > 0 ? (1=yes, 0=no)
- 
+
+     ! Total area of patches in each age bin [m2]
+     real(r8), allocatable :: area_by_age(:)
+
+     ! SP mode target PFT level variables
+     real(r8), allocatable :: sp_tlai(:)                      ! target TLAI per FATES pft
+     real(r8), allocatable :: sp_tsai(:)                      ! target TSAI per FATES pft
+     real(r8), allocatable :: sp_htop(:)                      ! target HTOP per FATES pft
+     
      ! Mass Balance (allocation for each element)
 
      type(site_massbal_type), pointer :: mass_balance(:)
