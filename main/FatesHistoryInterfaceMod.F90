@@ -1497,7 +1497,7 @@ end function levcapf_index
      integer :: ndims    ! number of dimensions
 
      do ivar=1,ubound(this%hvars,1)
-        if (this%hvars(ivar)%upfreq == upfreq_in) then ! Only flush variables with update on dynamics step
+        if (this%hvars(ivar)%upfreq == upfreq_in) then 
 
            ndims = this%dim_kinds(this%hvars(ivar)%dim_kinds_index)%ndims
 
@@ -1834,7 +1834,10 @@ end subroutine flush_hvars
     real(r8) :: repro_m_net_alloc
     real(r8) :: area_frac
     real(r8) :: crown_depth
-
+    real(r8) :: fnrtc_canopy_scpf(numpft*nlevsclass)
+    real(r8) :: fnrtc_understory_scpf(numpft*nlevsclass)
+    integer  :: return_code
+    
     type(ed_patch_type),pointer  :: cpatch
     type(ed_cohort_type),pointer :: ccohort
 
@@ -2099,6 +2102,10 @@ end subroutine flush_hvars
 
       io_si  = sites(s)%h_gid
 
+      ! These are weighting factors used for calculating l2fr_scpf
+      fnrtc_canopy_scpf(:) = 0._r8
+      fnrtc_understory_scpf(:) = 0._r8
+      
       ! Total carbon model error [kgC/day -> kgC/s]
       hio_cbal_err_fates_si(io_si) = &
          sites(s)%mass_balance(element_pos(carbon12_element))%err_fates / sec_per_day
@@ -2382,11 +2389,21 @@ end subroutine flush_hvars
                   hio_l2fr_scpf(io_si,ccohort%size_by_pft_class) = &
                        hio_l2fr_scpf(io_si,ccohort%size_by_pft_class) + &
                        ccohort%n*fnrt_m*ccohort%l2fr
-                  
-                  hio_l2fr_scpf(io_si,ccohort%size_by_pft_class) = &
-                       hio_l2fr_scpf(io_si,ccohort%size_by_pft_class) + &
-                       ccohort%n*fnrt_m*ccohort%l2fr
 
+                  if (ccohort%canopy_layer .eq. 1) then
+                     hio_l2fr_canopy_scpf(io_si,ccohort%size_by_pft_class) = &
+                          hio_l2fr_canopy_scpf(io_si,ccohort%size_by_pft_class) + &
+                          ccohort%n*fnrt_m*ccohort%l2fr
+                     fnrtc_canopy_scpf(ccohort%size_by_pft_class) = &
+                          fnrtc_canopy_scpf(ccohort%size_by_pft_class) + ccohort%n*fnrt_m
+                  else
+                     hio_l2fr_understory_scpf(io_si,ccohort%size_by_pft_class) = &
+                          hio_l2fr_understory_scpf(io_si,ccohort%size_by_pft_class) + &
+                          ccohort%n*fnrt_m*ccohort%l2fr
+                     fnrtc_understory_scpf(ccohort%size_by_pft_class) = &
+                          fnrtc_understory_scpf(ccohort%size_by_pft_class) + ccohort%n*fnrt_m
+                  end if
+                  
                   call bstore_allom(ccohort%dbh,ccohort%pft,ccohort%canopy_trim, store_max)
                   this%hvars(ih_storectfrac_si)%r81d(io_si)  = &
                        this%hvars(ih_storectfrac_si)%r81d(io_si) + ccohort%n * store_max
@@ -3447,18 +3464,30 @@ end subroutine flush_hvars
       end do ! end element loop
 
 
-
-      
-      ! Normalize storage fractions
+      ! Normalize storage fractions and L2FR
 
       if( this%hvars(ih_storectfrac_si)%r81d(io_si)>nearzero ) then
          this%hvars(ih_storectfrac_si)%r81d(io_si) = this%hvars(ih_storec_si)%r81d(io_si) / &
               this%hvars(ih_storectfrac_si)%r81d(io_si)
       end if
-      if(this%hvars(ih_fnrtc_scpf)%r82d(io_si,i_scpf)>nearzero)then
-         hio_l2fr_scpf(io_si,i_scpf) = hio_l2fr_scpf(io_si,i_scpf) / &
-              this%hvars(ih_fnrtc_scpf)%r82d(io_si,i_scpf)
-      end if
+
+      do i_pft = 1, numpft
+         do i_scls = 1,nlevsclass
+            i_scpf = (i_pft-1)*nlevsclass + i_scls
+            if(this%hvars(ih_fnrtc_scpf)%r82d(io_si,i_scpf)>nearzero)then
+               hio_l2fr_scpf(io_si,i_scpf) = hio_l2fr_scpf(io_si,i_scpf) / &
+                    this%hvars(ih_fnrtc_scpf)%r82d(io_si,i_scpf)
+            end if
+            if(fnrtc_canopy_scpf(i_scpf)>nearzero)then
+               hio_l2fr_canopy_scpf(io_si,i_scpf) = &
+                    hio_l2fr_canopy_scpf(io_si,i_scpf)/fnrtc_canopy_scpf(i_scpf)
+            end if
+            if(fnrtc_understory_scpf(i_scpf)>nearzero)then
+               hio_l2fr_understory_scpf(io_si,i_scpf) = &
+                    hio_l2fr_understory_scpf(io_si,i_scpf)/fnrtc_understory_scpf(i_scpf)
+            end if
+         end do
+      end do
                      
       do el = 1, num_elements
 
