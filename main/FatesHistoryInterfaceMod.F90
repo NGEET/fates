@@ -2255,8 +2255,8 @@ end subroutine flush_hvars
 
          ! and also the bareground-labeled patch area in the event that we are in nocomp mode
          if ( hlm_use_nocomp .eq. itrue .and. cpatch%nocomp_pft_label .eq. 0) then 
-            this%hvars(ih_nocomp_baregroundpatchfraction_si)%r82d(io_si) = &
-                 this%hvars(ih_nocomp_baregroundpatchfraction_si)%r82d(io_si) + cpatch%area * AREA_INV
+            this%hvars(ih_nocomp_baregroundpatchfraction_si)%r81d(io_si) = &
+                 this%hvars(ih_nocomp_baregroundpatchfraction_si)%r81d(io_si) + cpatch%area * AREA_INV
          endif
 
          ! fractional area burnt [frac/day] -> [frac/sec]
