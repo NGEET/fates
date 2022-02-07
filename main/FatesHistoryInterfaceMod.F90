@@ -339,7 +339,6 @@ module FatesHistoryInterfaceMod
   integer :: ih_h2oveg_recruit_si
   integer :: ih_h2oveg_growturn_err_si
   integer :: ih_h2oveg_hydro_err_si
-  integer :: ih_nocomp_baregroundpatchfraction_si
 
   integer :: ih_site_cstatus_si
   integer :: ih_site_dstatus_si
@@ -2252,12 +2251,6 @@ end subroutine flush_hvars
             endif
             
          end do
-
-         ! and also the bareground-labeled patch area in the event that we are in nocomp mode
-         if ( hlm_use_nocomp .eq. itrue .and. cpatch%nocomp_pft_label .eq. 0) then 
-            this%hvars(ih_nocomp_baregroundpatchfraction_si)%r81d(io_si) = &
-                 this%hvars(ih_nocomp_baregroundpatchfraction_si)%r81d(io_si) + cpatch%area * AREA_INV
-         endif
 
          ! fractional area burnt [frac/day] -> [frac/sec]
          hio_area_burnt_si_age(io_si,cpatch%age_class) = hio_area_burnt_si_age(io_si,cpatch%age_class) + &
@@ -4567,12 +4560,6 @@ end subroutine update_history_hifrq
             use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
             upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_nocomp_pftpatchfraction_si_pft)
-
-       call this%set_history_var(vname='FATES_NOCOMP_BAREGROUND_PATCHAREA', units='m2 m-2',&
-            long='total bare-ground patch area (nocomp-mode-only)',           &
-            use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM', &
-            upfreq=1, ivar=ivar, initialize=initialize_variables,             &
-            index=ih_nocomp_baregroundpatchfraction_si)
     endif nocomp_if
 
     ! patch age class variables
