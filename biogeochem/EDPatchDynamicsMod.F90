@@ -518,7 +518,7 @@ contains
 
     do while(associated(currentPatch))
 
-       cp_nocomp_matches_1: if ( hlm_use_nocomp .eq. ifalse .or. &
+       cp_nocomp_matches_1_if: if ( hlm_use_nocomp .eq. ifalse .or. &
             currentPatch%nocomp_pft_label .eq. i_nocomp_pft ) then
     
        if(currentPatch%disturbance_rate > (1.0_r8 + rsnbl_math_prec)) then
@@ -567,7 +567,7 @@ contains
           
        end if
        
-       end if cp_nocomp_matches_1
+       end if cp_nocomp_matches_1_if
        currentPatch => currentPatch%older     
     enddo ! end loop over patches. sum area disturbed for all patches. 
 
@@ -630,7 +630,7 @@ contains
        currentPatch => currentSite%oldest_patch
        do while(associated(currentPatch))
 
-          cp_nocomp_matches_2: if ( hlm_use_nocomp .eq. ifalse .or. &
+          cp_nocomp_matches_2_if: if ( hlm_use_nocomp .eq. ifalse .or. &
             currentPatch%nocomp_pft_label .eq. i_nocomp_pft ) then
 
           ! This is the amount of patch area that is disturbed, and donated by the donor
@@ -1131,7 +1131,7 @@ contains
           currentPatch%disturbance_rates = 0._r8
           currentPatch%fract_ldist_not_harvested = 0._r8
 
-          end if cp_nocomp_matches_2
+          end if cp_nocomp_matches_2_if
           currentPatch => currentPatch%younger
           
       enddo ! currentPatch patch loop. 
@@ -2339,7 +2339,7 @@ contains
        !  Keep doing this until nopatches <= maxPatchesPerSite               !
        !---------------------------------------------------------------------!
 
-       iterate_eq_1: do while(iterate == 1)
+       iterate_eq_1_loop: do while(iterate == 1)
 
         !---------------------------------------------------------------------!
         ! iterate over nocomp pft labels (if nocomp is false, then this isn't much of a loop)
@@ -2368,15 +2368,15 @@ contains
                    write(fates_log(),*) 'ED: issue with currentPatch'
                 endif
 
-                both_associated: if(associated(tpp).and.associated(currentPatch))then
+                both_associated_if: if(associated(tpp).and.associated(currentPatch))then
                    !--------------------------------------------------------------------!
                    ! only fuse patches whose anthropogenic disturbance category matches !
                    ! that of the outer loop that we are in                              !
                    !--------------------------------------------------------------------!
-                   anthro_dist_labels_match: if ( tpp%anthro_disturbance_label .eq. i_disttype .and. &
+                   anthro_dist_labels_match_if: if ( tpp%anthro_disturbance_label .eq. i_disttype .and. &
                         currentPatch%anthro_disturbance_label .eq. i_disttype) then
 
-                    nocomp_pft_labels_match: if (hlm_use_nocomp .eq. ifalse .or. &
+                    nocomp_pft_labels_match_if: if (hlm_use_nocomp .eq. ifalse .or. &
                          (tpp%nocomp_pft_label .eq. i_pftlabel .and. &
                          currentPatch%nocomp_pft_label .eq. i_pftlabel)) then
 
@@ -2390,7 +2390,7 @@ contains
                       !--------------------------------------------------------------------------------------------
 
                       fuse_flag = 1
-                      different_patches: if(currentPatch%patchno /= tpp%patchno) then   !these should be the same patch
+                      different_patches_if: if(currentPatch%patchno /= tpp%patchno) then   !these should be the same patch
 
                          !-----------------------------------------------------------------------------------
                          ! check to see if both patches are older than the age at which we force them to fuse
@@ -2426,7 +2426,7 @@ contains
                                      ! is there biomass in this category?
                                      !----------------------------------
 
-                                     agbprof_gt_zero: if &
+                                     agbprof_gt_zero_if: if &
                                           (currentPatch%pft_agb_profile(ft,z)  > 0.0_r8 .or.  &
                                           tpp%pft_agb_profile(ft,z) > 0.0_r8)then 
 
@@ -2448,7 +2448,7 @@ contains
                                            fuse_flag = 0 !do not fuse  - keep apart. 
 
                                         endif
-                                     endif agbprof_gt_zero
+                                     endif agbprof_gt_zero_if
                                   enddo hgt_bin_loop
                                enddo pft_loop
                             endif patchfuse_min_biomass_if
@@ -2460,7 +2460,7 @@ contains
                          ! or both are older than forced fusion age                                !
                          !-------------------------------------------------------------------------!
 
-                         fuseflagset: if(fuse_flag  ==  1)then
+                         fuseflagset_if: if(fuse_flag  ==  1)then
                             
                             !-----------------------!
                             ! fuse the two patches  !
@@ -2485,13 +2485,11 @@ contains
 
                             profiletol = ED_val_patch_fusion_tol
                             
-                         else
-                            ! write(fates_log(),*) 'patches not fused'
-                         endif fuseflagset
-                      endif different_patches
-                    endif nocomp_pft_labels_match
-                   endif anthro_dist_labels_match
-                endif both_associated
+                         endif fuseflagset_if
+                      endif different_patches_if
+                    endif nocomp_pft_labels_match_if
+                   endif anthro_dist_labels_match_if
+                endif both_associated_if
                 tpp => tpp%older
              enddo tpp_loop
 
@@ -2528,7 +2526,7 @@ contains
              iterate = 0
           endif
 
-       enddo iterate_eq_1 ! iterate .eq. 1 ==> nopatches>maxPatchesPerSite
+       enddo iterate_eq_1_loop ! iterate .eq. 1 ==> nopatches>maxPatchesPerSite
 
     end do disttype_loop
 
@@ -2755,7 +2753,7 @@ contains
 
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch)) 
-       lessthan_min_patcharea: if(currentPatch%area <= min_patch_area)then
+       lessthan_min_patcharea_if: if(currentPatch%area <= min_patch_area)then
           
           nocomp_if: if (hlm_use_nocomp .eq. itrue) then
 
@@ -2781,7 +2779,7 @@ contains
                      currentPatch%nocomp_pft_label, currentPatch%anthro_disturbance_label
              endif
 
-          else
+          else nocomp_if
 
           ! Even if the patch area is small, avoid fusing it into its neighbor
           ! if it is the youngest of all patches. We do this in attempts to maintain
@@ -2789,12 +2787,12 @@ contains
           ! However, if the patch to be fused is excessivlely small, then fuse
           ! at all costs.  If it is not fused, it will make
 
-          notyoungest: if ( .not.associated(currentPatch,currentSite%youngest_patch) .or. &
+          notyoungest_if: if ( .not.associated(currentPatch,currentSite%youngest_patch) .or. &
                currentPatch%area <= min_patch_area_forced ) then
              
              gotfused = .false.
 
-             if_older_1: if(associated(currentPatch%older) )then
+             associated_older_if: if(associated(currentPatch%older) )then
                 
                 if(debug) &
                      write(fates_log(),*) 'fusing to older patch because this one is too small',&
@@ -2806,7 +2804,7 @@ contains
                 
                 olderPatch => currentPatch%older
 
-                distlabel_1: if (currentPatch%anthro_disturbance_label .eq. olderPatch%anthro_disturbance_label) then
+                distlabel_1_if: if (currentPatch%anthro_disturbance_label .eq. olderPatch%anthro_disturbance_label) then
                    
                    call fuse_2_patches(currentSite, olderPatch, currentPatch)
                 
@@ -2817,19 +2815,19 @@ contains
                    ! patch. As mentioned earlier, we try not to fuse it.
                    
                    gotfused = .true.
-                else !anthro labels of two patches are not the same
-                   if (count_cycles .gt. 0) then
+                else distlabel_1_if !i.e. anthro labels of two patches are not the same
+                   countcycles_if: if (count_cycles .gt. 0) then
                       ! if we're having an incredibly hard time fusing patches because of their differing anthropogenic disturbance labels, 
                       ! since the size is so small, let's sweep the problem under the rug and change the tiny patch's label to that of its older sibling
                       ! and then allow them to fuse together. 
                       currentPatch%anthro_disturbance_label = olderPatch%anthro_disturbance_label
                       call fuse_2_patches(currentSite, olderPatch, currentPatch)
                       gotfused = .true.
-                   endif !countcycles
-                endif distlabel_1
-             endif if_older_1
+                   endif countcycles_if
+                endif distlabel_1_if
+             endif associated_older_if
              
-             not_gotfused: if( .not. gotfused .and. associated(currentPatch%younger) ) then
+             not_gotfused_if: if( .not. gotfused .and. associated(currentPatch%younger) ) then
                 
                 if(debug) &
                      write(fates_log(),*) 'fusing to younger patch because oldest one is too small', &
@@ -2837,13 +2835,13 @@ contains
 
                 youngerPatch => currentPatch%younger
 
-                distlabel_2: if (currentPatch%anthro_disturbance_label .eq. youngerPatch% anthro_disturbance_label) then
+                distlabel_2_if: if (currentPatch%anthro_disturbance_label .eq. youngerPatch% anthro_disturbance_label) then
                    
                    call fuse_2_patches(currentSite, youngerPatch, currentPatch)
                    
                    ! The fusion process has updated the "younger" pointer on currentPatch
                    
-                else
+                else distlabel_2_if
                    if (count_cycles .gt. 0) then
                       ! if we're having an incredibly hard time fusing patches because of their differing anthropogenic disturbance labels, 
                       ! since the size is so small, let's sweep the problem under the rug and change the tiny patch's label to that of its younger sibling
@@ -2851,11 +2849,11 @@ contains
                       call fuse_2_patches(currentSite, youngerPatch, currentPatch)
                       gotfused = .true.
                    endif ! count cycles
-                endif distlabel_2     ! anthro labels
-              endif not_gotfused ! has an older patch
-           endif notyoungest ! is not the youngest patch  
+                endif distlabel_2_if     ! anthro labels
+              endif not_gotfused_if ! has an older patch
+           endif notyoungest_if ! is not the youngest patch  
         endif nocomp_if
-        endif lessthan_min_patcharea ! very small patch
+        endif lessthan_min_patcharea_if ! very small patch
 
        ! It is possible that an incredibly small patch just fused into another incredibly
        ! small patch, resulting in an incredibly small patch.  It is also possible that this
