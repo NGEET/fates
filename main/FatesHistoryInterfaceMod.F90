@@ -169,7 +169,6 @@ module FatesHistoryInterfaceMod
   integer :: ih_totvegc_si
 
   integer :: ih_storen_si
-  integer :: ih_storentfrac_si
   integer :: ih_leafn_si
   integer :: ih_sapwn_si
   integer :: ih_fnrtn_si
@@ -177,7 +176,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_totvegn_si
 
   integer :: ih_storep_si
-  integer :: ih_storeptfrac_si
+  
   integer :: ih_leafp_si
   integer :: ih_sapwp_si
   integer :: ih_fnrtp_si
@@ -239,6 +238,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_leafn_scpf
   integer :: ih_fnrtn_scpf
   integer :: ih_storen_scpf
+  integer :: ih_storentfrac_si
   integer :: ih_storentfrac_canopy_scpf
   integer :: ih_storentfrac_understory_scpf
   integer :: ih_sapwn_scpf
@@ -261,6 +261,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_fnrtp_scpf
   integer :: ih_reprop_scpf
   integer :: ih_storep_scpf
+  integer :: ih_storeptfrac_si
   integer :: ih_storeptfrac_canopy_scpf
   integer :: ih_storeptfrac_understory_scpf
   integer :: ih_sapwp_scpf
@@ -1834,8 +1835,14 @@ end subroutine flush_hvars
     real(r8) :: repro_m_net_alloc
     real(r8) :: area_frac
     real(r8) :: crown_depth
+
     real(r8) :: fnrtc_canopy_scpf(numpft*nlevsclass)
     real(r8) :: fnrtc_understory_scpf(numpft*nlevsclass)
+    real(r8) :: storen_canopy_scpf(numpft*nlevsclass)
+    real(r8) :: storen_understory_scpf(numpft*nlevsclass)
+    real(r8) :: storep_canopy_scpf(numpft*nlevsclass)
+    real(r8) :: storep_understory_scpf(numpft*nlevsclass)
+    
     integer  :: return_code
     
     type(ed_patch_type),pointer  :: cpatch
@@ -2105,7 +2112,11 @@ end subroutine flush_hvars
       ! These are weighting factors used for calculating l2fr_scpf
       fnrtc_canopy_scpf(:) = 0._r8
       fnrtc_understory_scpf(:) = 0._r8
-      
+      storen_canopy_scpf(:) = 0._r8
+      storen_understory_scpf(:) = 0._r8
+      storep_canopy_scpf(:) = 0._r8
+      storep_understory_scpf(:) = 0._r8
+    
       ! Total carbon model error [kgC/day -> kgC/s]
       hio_cbal_err_fates_si(io_si) = &
          sites(s)%mass_balance(element_pos(carbon12_element))%err_fates / sec_per_day
@@ -2342,6 +2353,9 @@ end subroutine flush_hvars
                   hio_canopy_height_dist_si_height(io_si,height_bin_max) + ccohort%c_area * AREA_INV
             endif
 
+            call set_root_fraction(sites(s)%rootfrac_scr, ccohort%pft, sites(s)%zi_soil, &
+                 bc_in(s)%max_rooting_depth_index_col )
+            
             ! Update biomass components
             ! Mass pools [kg]
             elloop: do el = 1, num_elements
@@ -2356,11 +2370,12 @@ end subroutine flush_hvars
                alive_m  = leaf_m + fnrt_m + sapw_m
                total_m  = alive_m + store_m + struct_m
 
+               i_scpf = ccohort%size_by_pft_class
+
+               
                ! Plant multi-element states and fluxes
                ! Zero states, and set the fluxes
                if( element_list(el).eq.carbon12_element )then
-
-                  
                   
                   ! mass in different tissues [kg/ha] -> [kg/m2]
                   this%hvars(ih_storec_si)%r81d(io_si) =                       &
@@ -2384,35 +2399,29 @@ end subroutine flush_hvars
 
 
                   ! These L2FR diagnostics are weighted by fineroot carbon biomass
-                  hio_l2fr_si(io_si) = hio_l2fr_si(io_si) + ccohort%n*fnrt_m*ccohort%l2fr
+                  hio_l2fr_si(io_si) = hio_l2fr_si(io_si) + ccohort%n*fnrt_m/m2_per_ha*ccohort%l2fr
                   
-                  hio_l2fr_scpf(io_si,ccohort%size_by_pft_class) = &
-                       hio_l2fr_scpf(io_si,ccohort%size_by_pft_class) + &
-                       ccohort%n*fnrt_m*ccohort%l2fr
+                  hio_l2fr_scpf(io_si,i_scpf) = &
+                       hio_l2fr_scpf(io_si,i_scpf) + ccohort%n*fnrt_m/m2_per_ha*ccohort%l2fr
 
                   if (ccohort%canopy_layer .eq. 1) then
-                     hio_l2fr_canopy_scpf(io_si,ccohort%size_by_pft_class) = &
-                          hio_l2fr_canopy_scpf(io_si,ccohort%size_by_pft_class) + &
-                          ccohort%n*fnrt_m*ccohort%l2fr
-                     fnrtc_canopy_scpf(ccohort%size_by_pft_class) = &
-                          fnrtc_canopy_scpf(ccohort%size_by_pft_class) + ccohort%n*fnrt_m
+                     hio_l2fr_canopy_scpf(io_si,i_scpf) = &
+                          hio_l2fr_canopy_scpf(io_si,i_scpf) + ccohort%n*fnrt_m *ccohort%l2fr
+                     fnrtc_canopy_scpf(i_scpf) = fnrtc_canopy_scpf(i_scpf) + ccohort%n*fnrt_m
                   else
-                     hio_l2fr_understory_scpf(io_si,ccohort%size_by_pft_class) = &
-                          hio_l2fr_understory_scpf(io_si,ccohort%size_by_pft_class) + &
-                          ccohort%n*fnrt_m*ccohort%l2fr
-                     fnrtc_understory_scpf(ccohort%size_by_pft_class) = &
-                          fnrtc_understory_scpf(ccohort%size_by_pft_class) + ccohort%n*fnrt_m
+                     hio_l2fr_understory_scpf(io_si,i_scpf) = &
+                          hio_l2fr_understory_scpf(io_si,i_scpf) + ccohort%n*fnrt_m*ccohort%l2fr
+                     fnrtc_understory_scpf(i_scpf) = fnrtc_understory_scpf(i_scpf) + ccohort%n*fnrt_m
                   end if
                   
                   call bstore_allom(ccohort%dbh,ccohort%pft,ccohort%canopy_trim, store_max)
                   this%hvars(ih_storectfrac_si)%r81d(io_si)  = &
-                       this%hvars(ih_storectfrac_si)%r81d(io_si) + ccohort%n * store_max
+                       this%hvars(ih_storectfrac_si)%r81d(io_si) + ccohort%n * store_max/m2_per_ha
 
                   ! Determine the root carbon biomass in kg/m3
                   ! [kg/m3] = [kg/plant] * [plant/ha] / [m3/ha] * [fraction] / [m]
                   
-                  call set_root_fraction(sites(s)%rootfrac_scr, ccohort%pft, sites(s)%zi_soil, &
-                       bc_in(s)%max_rooting_depth_index_col )
+                  
                   do ilyr = 1,sites(s)%nlevsoil
                      this%hvars(ih_fnrtc_sl)%r82d(io_si,ilyr) = this%hvars(ih_fnrtc_sl)%r82d(io_si,ilyr) + &
                           fnrt_m * ccohort%n / area * sites(s)%rootfrac_scr(ilyr) / sites(s)%dz_soil(ilyr)
@@ -2474,6 +2483,20 @@ end subroutine flush_hvars
                      this%hvars(ih_totvegn_si)%r81d(io_si) + ccohort%n *       &
                      total_m / m2_per_ha
 
+                  if (ccohort%canopy_layer .eq. 1) then
+                     storen_canopy_scpf(i_scpf) = &
+                          storen_canopy_scpf(i_scpf) + ccohort%n * store_m
+                     this%hvars(ih_storentfrac_canopy_scpf)%r82d(io_si,i_scpf) = & 
+                          this%hvars(ih_storentfrac_canopy_scpf)%r82d(io_si,i_scpf) + &
+                          ccohort%n * store_max
+                  else
+                     storen_understory_scpf(i_scpf) = &
+                          storen_understory_scpf(i_scpf) + ccohort%n * store_m
+                     this%hvars(ih_storentfrac_understory_scpf)%r82d(io_si,i_scpf) = & 
+                          this%hvars(ih_storentfrac_understory_scpf)%r82d(io_si,i_scpf) + &
+                          ccohort%n * store_max  
+                  end if
+                  
                elseif(element_list(el).eq.phosphorus_element) then
 
                   store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ,stoich_max)
@@ -2499,6 +2522,21 @@ end subroutine flush_hvars
                   this%hvars(ih_totvegp_si)%r81d(io_si) =                      &
                      this%hvars(ih_totvegp_si)%r81d(io_si)+ ccohort%n *        &
                      total_m / m2_per_ha
+
+                  if (ccohort%canopy_layer .eq. 1) then
+                     storep_canopy_scpf(i_scpf) = &
+                          storep_canopy_scpf(i_scpf) + ccohort%n * store_m
+                     this%hvars(ih_storeptfrac_canopy_scpf)%r82d(io_si,i_scpf) = & 
+                          this%hvars(ih_storeptfrac_canopy_scpf)%r82d(io_si,i_scpf) + &
+                          ccohort%n * store_max
+                  else
+                     storep_understory_scpf(i_scpf) = &
+                          storep_understory_scpf(i_scpf) + ccohort%n * store_m
+                     this%hvars(ih_storeptfrac_understory_scpf)%r82d(io_si,i_scpf) = & 
+                          this%hvars(ih_storeptfrac_understory_scpf)%r82d(io_si,i_scpf) + &
+                          ccohort%n * store_max
+                  end if
+                  
 
                end if
             end do elloop
@@ -3183,7 +3221,7 @@ end subroutine flush_hvars
 
          area_frac = cpatch%area * AREA_INV
 
-         ! Sum up all output fluxes (fragmentation) kgC/m2/day -> gC/m2/s
+         ! Sum up all output fluxes (fragmentation) kgC/m2/day -> kgC/m2/s
          hio_litter_out_si(io_si) = hio_litter_out_si(io_si) + &
             (sum(litt%leaf_fines_frag(:)) + &
             sum(litt%root_fines_frag(:,:)) + &
@@ -3256,8 +3294,6 @@ end subroutine flush_hvars
             this%hvars(ih_fnrtn_scpf)%r82d(io_si,:)   = 0._r8
             this%hvars(ih_sapwn_scpf)%r82d(io_si,:)   = 0._r8
             this%hvars(ih_storen_scpf)%r82d(io_si,:)  = 0._r8
-            this%hvars(ih_storentfrac_canopy_scpf)%r82d(io_si,:)  = 0._r8
-            this%hvars(ih_storentfrac_understory_scpf)%r82d(io_si,:)  = 0._r8
             this%hvars(ih_repron_scpf)%r82d(io_si,:)  = 0._r8
 
             this%hvars(ih_nefflux_scpf)%r82d(io_si,:) = &
@@ -3282,8 +3318,6 @@ end subroutine flush_hvars
             this%hvars(ih_fnrtp_scpf)%r82d(io_si,:)   = 0._r8
             this%hvars(ih_sapwp_scpf)%r82d(io_si,:)   = 0._r8
             this%hvars(ih_storep_scpf)%r82d(io_si,:)  = 0._r8
-            this%hvars(ih_storeptfrac_canopy_scpf)%r82d(io_si,:)     = 0._r8
-            this%hvars(ih_storeptfrac_understory_scpf)%r82d(io_si,:) = 0._r8
             this%hvars(ih_reprop_scpf)%r82d(io_si,:)  = 0._r8
 
             this%hvars(ih_pdemand_scpf)%r82d(io_si,:) = &
@@ -3295,7 +3329,7 @@ end subroutine flush_hvars
                m2_per_ha / sec_per_day
 
             this%hvars(ih_pdemand_si)%r81d(io_si) = &
-                 sum(sites(s)%flux_diags(el)%nutrient_demand_scpf(:),dim=1)
+                 sum(sites(s)%flux_diags(el)%nutrient_demand_scpf(:),dim=1) / &
                  m2_per_ha / sec_per_day
 
             this%hvars(ih_pefflux_si)%r81d(io_si) = &
@@ -3414,14 +3448,6 @@ end subroutine flush_hvars
                      this%hvars(ih_repron_scpf)%r82d(io_si,i_scpf) +           &
                      repro_m * ccohort%n / m2_per_ha
 
-                  if (ccohort%canopy_layer .eq. 1) then
-                     this%hvars(ih_storentfrac_canopy_scpf)%r82d(io_si,i_scpf) = &
-                        this%hvars(ih_storentfrac_canopy_scpf)%r82d(io_si,i_scpf) + store_m/store_max * ccohort%n
-                  else
-                     this%hvars(ih_storentfrac_understory_scpf)%r82d(io_si,i_scpf) = &
-                        this%hvars(ih_storentfrac_understory_scpf)%r82d(io_si,i_scpf) + store_m/store_max * ccohort%n
-                  end if
-
                elseif(element_list(el).eq.phosphorus_element)then
 
                   store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ,stoich_max)
@@ -3444,14 +3470,6 @@ end subroutine flush_hvars
                   this%hvars(ih_reprop_scpf)%r82d(io_si,i_scpf) =              &
                      this%hvars(ih_reprop_scpf)%r82d(io_si,i_scpf) +           &
                      repro_m * ccohort%n / m2_per_ha
-
-                  if (ccohort%canopy_layer .eq. 1) then
-                     this%hvars(ih_storeptfrac_canopy_scpf)%r82d(io_si,i_scpf) = &
-                        this%hvars(ih_storeptfrac_canopy_scpf)%r82d(io_si,i_scpf) + store_m/store_max * ccohort%n
-                  else
-                     this%hvars(ih_storeptfrac_understory_scpf)%r82d(io_si,i_scpf) = &
-                        this%hvars(ih_storeptfrac_understory_scpf)%r82d(io_si,i_scpf) + store_m/store_max * ccohort%n
-                  end if
 
                end if
 
@@ -3491,7 +3509,6 @@ end subroutine flush_hvars
                      
       do el = 1, num_elements
 
-         
          if(element_list(el).eq.nitrogen_element)then
             if( this%hvars(ih_storentfrac_si)%r81d(io_si)>nearzero ) then
                this%hvars(ih_storentfrac_si)%r81d(io_si)  = this%hvars(ih_storen_si)%r81d(io_si) / &
@@ -3501,16 +3518,15 @@ end subroutine flush_hvars
                do i_scls = 1,nlevsclass
                   i_scpf = (i_pft-1)*nlevsclass + i_scls
 
-                  if(  hio_nplant_canopy_si_scpf(io_si,i_scpf)>nearzero ) then
+                  if( this%hvars(ih_storentfrac_canopy_scpf)%r82d(io_si,i_scpf)>nearzero ) then
                      this%hvars(ih_storentfrac_canopy_scpf)%r82d(io_si,i_scpf) = &
-                        this%hvars(ih_storentfrac_canopy_scpf)%r82d(io_si,i_scpf) / &
-                        (hio_nplant_canopy_si_scpf(io_si,i_scpf)*m2_per_ha)
+                          storen_canopy_scpf(i_scpf) / &
+                          this%hvars(ih_storentfrac_canopy_scpf)%r82d(io_si,i_scpf)
                   end if
-
-                  if( hio_nplant_understory_si_scpf(io_si,i_scpf)>nearzero ) then
+                  if( this%hvars(ih_storentfrac_understory_scpf)%r82d(io_si,i_scpf)>nearzero ) then
                      this%hvars(ih_storentfrac_understory_scpf)%r82d(io_si,i_scpf) = &
-                        this%hvars(ih_storentfrac_understory_scpf)%r82d(io_si,i_scpf) / &
-                        (hio_nplant_understory_si_scpf(io_si,i_scpf)*m2_per_ha)
+                          storen_understory_scpf(i_scpf) / &
+                          this%hvars(ih_storentfrac_understory_scpf)%r82d(io_si,i_scpf)
                   end if
 
                end do
@@ -3524,16 +3540,15 @@ end subroutine flush_hvars
                do i_scls = 1,nlevsclass
                   i_scpf = (i_pft-1)*nlevsclass + i_scls
 
-                  if( hio_nplant_canopy_si_scpf(io_si,i_scpf)>nearzero ) then
+                  if( this%hvars(ih_storeptfrac_canopy_scpf)%r82d(io_si,i_scpf)>nearzero ) then
                      this%hvars(ih_storeptfrac_canopy_scpf)%r82d(io_si,i_scpf) = &
-                        this%hvars(ih_storeptfrac_canopy_scpf)%r82d(io_si,i_scpf) /&
-                        (hio_nplant_canopy_si_scpf(io_si,i_scpf)*m2_per_ha)
-
+                          storep_canopy_scpf(i_scpf) / &
+                          this%hvars(ih_storeptfrac_canopy_scpf)%r82d(io_si,i_scpf)
                   end if
-                  if( hio_nplant_understory_si_scpf(io_si,i_scpf)>nearzero ) then
+                  if( this%hvars(ih_storeptfrac_understory_scpf)%r82d(io_si,i_scpf)>nearzero ) then
                      this%hvars(ih_storeptfrac_understory_scpf)%r82d(io_si,i_scpf) = &
-                        this%hvars(ih_storeptfrac_understory_scpf)%r82d(io_si,i_scpf) /&
-                        (hio_nplant_understory_si_scpf(io_si,i_scpf)*m2_per_ha)
+                          storep_understory_scpf(i_scpf) / &
+                          this%hvars(ih_storeptfrac_understory_scpf)%r82d(io_si,i_scpf)
                   end if
 
                end do
@@ -4487,25 +4502,25 @@ end subroutine update_history_hifrq
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_trimming_si)
 
-       call this%set_history_var(vname='FATES_LEAF2FNRT', units='kg kg-1',                   &
+       call this%set_history_var(vname='FATES_L2FR', units='kg kg-1',                   &
          long='The leaf to fineroot biomass multiplier for target allometry', & 
          use_default='active', &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1,    &
          ivar=ivar, initialize=initialize_variables, index = ih_l2fr_si)
 
-    call this%set_history_var(vname='FATES_LEAF2FNRT_SCPF', units='kg kg-1',                   &
+    call this%set_history_var(vname='FATES_L2FR_SZPF', units='kg kg-1',                   &
          long='The leaf to fineroot biomass multiplier for target allometry', & 
          use_default='active', &
          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', upfreq=1,    &
          ivar=ivar, initialize=initialize_variables, index = ih_l2fr_scpf)
 
-    call this%set_history_var(vname='FATES_LEAF2FNRT_CANOPY_SCPF', units='kg kg-1',                   &
+    call this%set_history_var(vname='FATES_L2FR_CANOPY_SZPF', units='kg kg-1',                   &
          long='The leaf to fineroot biomass multiplier for target allometry in canopy plants', & 
          use_default='active', &
          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', upfreq=1,    &
          ivar=ivar, initialize=initialize_variables, index = ih_l2fr_canopy_scpf)
 
-    call this%set_history_var(vname='FATES_LEAF2FNRT_UNDERSTORY_SCPF', units='kg kg-1',                   &
+    call this%set_history_var(vname='FATES_L2FR_USTORY_SZPF', units='kg kg-1',                   &
          long='The leaf to fineroot biomass multiplier for target allometry in understory plants', & 
          use_default='active', &
          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', upfreq=1,    &
@@ -4959,7 +4974,7 @@ end subroutine update_history_hifrq
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_storec_si)
 
-    call this%set_history_var(vname='STOREC_TFRAC', units='kg kg-1',         &
+    call this%set_history_var(vname='FATES_STOREC_TFRAC', units='kg kg-1',         &
          long='Storage C fraction of target', use_default='active',          &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_storectfrac_si )
@@ -5012,7 +5027,7 @@ end subroutine update_history_hifrq
             avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1,              &
             ivar=ivar, initialize=initialize_variables, index = ih_storen_si)
 
-       call this%set_history_var(vname='FATES_STOREN_TF', units='1',           &
+       call this%set_history_var(vname='FATES_STOREN_TFRAC', units='1',           &
             long='storage N fraction of target', use_default='active',         &
             avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1, ivar=ivar,   &
             initialize=initialize_variables, index = ih_storentfrac_si)
@@ -5078,7 +5093,7 @@ end subroutine update_history_hifrq
             upfreq=1, ivar=ivar, initialize=initialize_variables,              &
             index = ih_storep_si)
 
-       call this%set_history_var(vname='FATES_STOREP_TF', units='1',           &
+       call this%set_history_var(vname='FATES_STOREP_TFRAC', units='1',           &
             long='storage P fraction of target', use_default='active',         &
             avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1,              &
             ivar=ivar, initialize=initialize_variables,                        &
@@ -5330,14 +5345,14 @@ end subroutine update_history_hifrq
          upfreq=2, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_ar_canopy_si)
 
-    call this%set_history_var(vname='FATES_GPP_UNDERSTORY',                    &
+    call this%set_history_var(vname='FATES_GPP_USTORY',                    &
          units='kg m-2 s-1',                                                   &
          long='gross primary production of understory plants in kg carbon per m2 per second', &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=2, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_gpp_understory_si)
 
-    call this%set_history_var(vname='FATES_AUTORESP_UNDERSTORY',               &
+    call this%set_history_var(vname='FATES_AUTORESP_USTORY',               &
          units='kg m-2 s-1',                                                   &
          long='autotrophic respiration of understory plants in kg carbon per m2 per second', &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
@@ -5557,7 +5572,7 @@ end subroutine update_history_hifrq
           upfreq=1, ivar=ivar, initialize=initialize_variables,                &
           index = ih_canopy_mortality_carbonflux_si)
 
-    call this%set_history_var(vname='FATES_MORTALITY_CFLUX_UNDERSTORY',        &
+    call this%set_history_var(vname='FATES_MORTALITY_CFLUX_USTORY',        &
           units = 'kg m-2 s-1',                                                &
           long='flux of biomass carbon from live to dead pools from mortality of understory plants in kg carbon per m2 per second', &
           use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
@@ -6723,14 +6738,14 @@ end subroutine update_history_hifrq
             hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
             initialize=initialize_variables, index = ih_storen_scpf)
 
-       call this%set_history_var(vname='FATES_STOREN_TF_CANOPY_SZPF',          &
+       call this%set_history_var(vname='FATES_STOREN_TFRAC_CANOPY_SZPF',          &
             units='1',                                                         &
             long='storage nitrogen fraction (0-1) of target, in canopy, by size-class x pft', &
             use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
             hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
             initialize=initialize_variables, index = ih_storentfrac_canopy_scpf)
 
-       call this%set_history_var(vname='FATES_STOREN_TF_USTORY_SZPF',      &
+       call this%set_history_var(vname='FATES_STOREN_TFRAC_USTORY_SZPF',      &
             units='1',                                                         &
             long='storage nitrogen fraction (0-1) of target, in understory, by size-class x pft', &
             use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
@@ -6805,14 +6820,14 @@ end subroutine update_history_hifrq
             hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
             initialize=initialize_variables, index = ih_storep_scpf)
 
-       call this%set_history_var(vname='FATES_STOREP_TF_CANOPY_SZPF',          &
+       call this%set_history_var(vname='FATES_STOREP_TFRAC_CANOPY_SZPF',          &
             units='1',                                                         &
             long='storage phosphorus fraction (0-1) of target, in canopy, by size-class x pft', &
             use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
             hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
             initialize=initialize_variables, index = ih_storeptfrac_canopy_scpf)
 
-       call this%set_history_var(vname='FATES_STOREP_TF_USTORY_SZPF',      &
+       call this%set_history_var(vname='FATES_STOREP_TFRAC_USTORY_SZPF',      &
             units='1',                                                         &
             long='storage phosphorus fraction (0-1) of target, in understory, by size-class x pft', &
             use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
