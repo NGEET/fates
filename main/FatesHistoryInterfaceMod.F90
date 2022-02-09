@@ -516,6 +516,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_npp_si_pft
   integer :: ih_nocomp_pftpatchfraction_si_pft
   integer :: ih_nocomp_pftnpatches_si_pft
+  integer :: ih_nocomp_pftburnedarea_si_pft
 
   ! indices to (site x patch-age) variables
   integer :: ih_area_si_age
@@ -2248,6 +2249,10 @@ end subroutine flush_hvars
 
                this%hvars(ih_nocomp_pftnpatches_si_pft)%r82d(io_si,i_pft) = &
                     this%hvars(ih_nocomp_pftnpatches_si_pft)%r82d(io_si,i_pft) + 1._r8
+
+               this%hvars(ih_nocomp_pftburnedarea_si_pft)%r82d(io_si,i_pft) = &
+                    this%hvars(ih_nocomp_pftburnedarea_si_pft)%r82d(io_si,i_pft) + &
+                    cpatch%frac_burnt * cpatch%area * AREA_INV / sec_per_day
             endif
             
          end do
@@ -4560,6 +4565,12 @@ end subroutine update_history_hifrq
             use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
             upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_nocomp_pftpatchfraction_si_pft)
+
+       call this%set_history_var(vname='FATES_NOCOMP_BURNEDAREA_PF', units='s-1', &
+            long='total burned area of PFT-labeled patch area (nocomp-mode-only)',&
+            use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
+            upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+            index=ih_nocomp_pftburnedarea_si_pft)
     endif nocomp_if
 
     ! patch age class variables
