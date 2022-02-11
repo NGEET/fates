@@ -497,7 +497,7 @@ contains
 
     if (hlm_use_nocomp .eq. itrue) then
        min_nocomp_pft = 0
-       max_nocomp_pft = maxpft
+       max_nocomp_pft = numpft
     else
        min_nocomp_pft = fates_unset_int
        max_nocomp_pft = fates_unset_int
@@ -2292,6 +2292,7 @@ contains
     integer  :: i_pftlabel  !nocomp pft iterator
     real(r8) :: primary_land_fraction_beforefusion,primary_land_fraction_afterfusion
     integer  :: pftlabelmin, pftlabelmax
+    real(r8) :: maxpatches(n_anthro_disturbance_categories)
     !
     !---------------------------------------------------------------------
 
@@ -2303,6 +2304,19 @@ contains
     primary_land_fraction_afterfusion = 0._r8
 
     nopatches(1:n_anthro_disturbance_categories) = 0
+
+    if (hlm_use_nocomp.eq.itrue .and. hlm_use_fixed_biogeog .eq. ifalse) then
+       maxpatches(primaryforest) = max(maxPatchesPerSite_by_disttype(primaryforest), numpft)
+       maxpatches(secondaryforest) = maxPatchesPerSite - maxpatches(primaryforest)
+       if (maxPatchesPerSite .lt. maxpatches(primaryforest)) then
+          write(fates_log(),*) 'too many PFTs and not enough patches for nocomp w/o fixed biogeog'
+          write(fates_log(),*) 'maxPatchesPerSite,numpft',maxPatchesPerSite,numpft
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       endif
+    else
+       maxpatches(:) = maxPatchesPerSite_by_disttype(:)
+    endif
+
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
        nopatches(currentPatch%anthro_disturbance_label) = &
@@ -2318,7 +2332,7 @@ contains
 
     pftlabelmin = 0
     if ( hlm_use_nocomp .eq. itrue ) then
-       pftlabelmax = maxpft
+       pftlabelmax = numpft
     else
        pftlabelmax = 0
     endif
@@ -2515,13 +2529,25 @@ contains
              currentPatch => currentPatch%older
           enddo
 
-          if(nopatches(i_disttype) > maxPatchesPerSite_by_disttype(i_disttype))then
+          if(nopatches(i_disttype) > maxpatches(i_disttype))then
              iterate = 1
              profiletol = profiletol * patch_fusion_tolerance_relaxation_increment
 
              !---------------------------------------------------------------------!
              ! Making profile tolerance larger means that more fusion will happen  !
              !---------------------------------------------------------------------!        
+
+             ! its possible that there are too many categorical patch types and the tolerances
+             ! will never allow patch fusion to occur.  In this case crash and let the user know.
+             ! the 100 is sort of a random number, in principle since profile tolerance is compared 
+             ! against relative biomass size, it shoudnt ever get above 2 (which would mean fusing 
+             ! a zero with a nonzero biomass in a given category)
+             if (profiletol .gt. 100._r8) then
+                write(fates_log(),*) 'profile tolerance is too big, this shouldnt happen.'
+                write(fates_log(),*) 'probably this means there are too many distinct categorical '
+                write(fates_log(),*) 'patch types for the maximum number of patches'
+                call endrun(msg=errMsg(sourcefile, __LINE__))                
+             endif
           else
              iterate = 0
           endif
