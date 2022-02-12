@@ -39,6 +39,8 @@ module EDParamsMod
    
    real(r8),protected, public :: fates_mortality_disturbance_fraction ! the fraction of canopy mortality that results in disturbance
    real(r8),protected, public :: ED_val_comp_excln
+   real(r8),protected, public :: ED_val_vai_top_bin_width
+   real(r8),protected, public :: ED_val_vai_width_increase_factor
    real(r8),protected, public :: ED_val_init_litter
    real(r8),protected, public :: ED_val_nignitions
    real(r8),protected, public :: ED_val_understorey_death
@@ -92,14 +94,14 @@ module EDParamsMod
    ! 1  = Christofferson et al. 2016 (TFS),   2 = Van Genuchten 1980
    integer, protected,allocatable,public :: hydr_htftype_node(:) 
    
-   character(len=param_string_length),parameter,public :: ED_name_vai_top_bin_width = "fates_vai_top_bin_width"
-   character(len=param_string_length),parameter,public :: ED_name_vai_width_increase_factor = "fates_vai_width_increase_factor"
    character(len=param_string_length),parameter,public :: ED_name_photo_temp_acclim_timescale = "fates_photo_temp_acclim_timescale"
    character(len=param_string_length),parameter,public :: name_photo_tempsens_model = "fates_photo_tempsens_model"
    character(len=param_string_length),parameter,public :: name_maintresp_model = "fates_maintresp_model"
    character(len=param_string_length),parameter,public :: ED_name_hydr_htftype_node = "fates_hydr_htftype_node"
    character(len=param_string_length),parameter,public :: ED_name_mort_disturb_frac = "fates_mort_disturb_frac"
    character(len=param_string_length),parameter,public :: ED_name_comp_excln = "fates_comp_excln"
+   character(len=param_string_length),parameter,public :: ED_name_vai_top_bin_width = "fates_vai_top_bin_width"
+   character(len=param_string_length),parameter,public :: ED_name_vai_width_increase_factor = "fates_vai_width_increase_factor"
    character(len=param_string_length),parameter,public :: ED_name_init_litter = "fates_init_litter"
    character(len=param_string_length),parameter,public :: ED_name_nignitions = "fates_fire_nignitions"
    character(len=param_string_length),parameter,public :: ED_name_understorey_death = "fates_mort_understorey_death"
@@ -221,6 +223,8 @@ contains
     maintresp_model                       = -9
     fates_mortality_disturbance_fraction  = nan
     ED_val_comp_excln                     = nan
+    ED_val_vai_top_bin_width              = nan
+    ED_val_vai_width_increase_factor      = nan
     ED_val_init_litter                    = nan
     ED_val_nignitions                     = nan
     ED_val_understorey_death              = nan
@@ -288,12 +292,6 @@ contains
        
     call FatesParamsInit()
 
-    call fates_params%RegisterParameter(name=ED_name_vai_top_bin_width, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=ED_name_vai_width_increase_factor, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-    
     call fates_params%RegisterParameter(name=ED_name_photo_temp_acclim_timescale, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
@@ -313,6 +311,12 @@ contains
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=ED_name_comp_excln, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=ED_name_vai_top_bin_width, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=ED_name_vai_width_increase_factor, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=ED_name_init_litter, dimension_shape=dimension_shape_scalar, &
@@ -471,12 +475,6 @@ contains
     real(r8) :: tmpreal ! local real variable for changing type on read
     real(r8), allocatable :: hydr_htftype_real(:)
 
-    call fates_params%RetreiveParameter(name=ED_name_vai_top_bin_width, &
-         data=vai_top_bin_width)
-
-    call fates_params%RetreiveParameter(name=ED_name_vai_width_increase_factor, &
-         data=vai_width_increase_factor)
-
     call fates_params%RetreiveParameter(name=ED_name_photo_temp_acclim_timescale, &
          data=photo_temp_acclim_timescale)
 
@@ -493,6 +491,12 @@ contains
 
     call fates_params%RetreiveParameter(name=ED_name_comp_excln, &
          data=ED_val_comp_excln)
+
+    call fates_params%RetreiveParameter(name=ED_name_vai_top_bin_width, &
+         data=ED_val_vai_top_bin_width)
+
+    call fates_params%RetreiveParameter(name=ED_name_vai_width_increase_factor, &
+         data=ED_val_vai_width_increase_factor)
 
     call fates_params%RetreiveParameter(name=ED_name_init_litter, &
          data=ED_val_init_litter)
@@ -665,6 +669,8 @@ contains
         write(fates_log(),fmti) 'hydr_htftype_node = ',hydr_htftype_node
         write(fates_log(),fmt0) 'fates_mortality_disturbance_fraction = ',fates_mortality_disturbance_fraction
         write(fates_log(),fmt0) 'ED_val_comp_excln = ',ED_val_comp_excln
+        write(fates_log(),fmt0) 'ED_val_vai_top_bin_width = ',ED_val_vai_top_bin_width
+        write(fates_log(),fmt0) 'ED_val_vai_width_increase_factor = ',ED_val_vai_width_increase_factor
         write(fates_log(),fmt0) 'ED_val_init_litter = ',ED_val_init_litter
         write(fates_log(),fmt0) 'ED_val_nignitions = ',ED_val_nignitions
         write(fates_log(),fmt0) 'ED_val_understorey_death = ',ED_val_understorey_death

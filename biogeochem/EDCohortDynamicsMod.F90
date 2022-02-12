@@ -11,6 +11,7 @@ Module EDCohortDynamicsMod
   use FatesInterfaceTypesMod     , only : hlm_use_planthydro
   use FatesInterfaceTypesMod     , only : hlm_use_sp
   use FatesInterfaceTypesMod     , only : hlm_use_cohort_age_tracking
+  use FatesInterfaceTypesMod     , only : hlm_is_restart
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : fates_unset_int
   use FatesConstantsMod     , only : itrue,ifalse
@@ -2041,9 +2042,10 @@ contains
        ! We assume that leaf age does not effect the specific leaf area, so the mass
        ! fractions are applicable to these rates
 
+       ipft = currentCohort%pft
+
        if(sum(frac_leaf_aclass(1:nleafage))>nearzero) then
 
-          ipft = currentCohort%pft
 
           frac_leaf_aclass(1:nleafage) =  frac_leaf_aclass(1:nleafage) / &
                 sum(frac_leaf_aclass(1:nleafage))
@@ -2060,6 +2062,13 @@ contains
           currentCohort%kp25top    = sum(param_derived%kp25top(ipft,1:nleafage) * &
                 frac_leaf_aclass(1:nleafage))
 
+       elseif (hlm_use_sp .eq. itrue .and. hlm_is_restart .eq. itrue) then
+         
+          currentCohort%vcmax25top = EDPftvarcon_inst%vcmax25top(ipft,1)
+          currentCohort%jmax25top  = param_derived%jmax25top(ipft,1)
+          currentCohort%tpu25top   = param_derived%tpu25top(ipft,1)
+          currentCohort%kp25top    = param_derived%kp25top(ipft,1)
+       
        else
 
           currentCohort%vcmax25top = 0._r8

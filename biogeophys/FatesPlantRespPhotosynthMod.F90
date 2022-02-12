@@ -117,7 +117,8 @@ contains
     use EDTypesMod        , only : ed_cohort_type
     use EDTypesMod        , only : ed_site_type
     use EDTypesMod        , only : maxpft
-    use EDTypesMod        , only : dinc_ed
+    use EDTypesMod        , only : dinc_vai
+    use EDTypesMod        , only : dlower_vai
     use FatesInterfaceTypesMod , only : bc_in_type
     use FatesInterfaceTypesMod , only : bc_out_type
     use EDCanopyStructureMod, only : calc_areaindex
@@ -232,9 +233,9 @@ contains
     ! over each cohort x layer.
     real(r8) :: cohort_eleaf_area  ! This is the effective leaf area [m2] reported by each cohort
     real(r8) :: lnc_top            ! Leaf nitrogen content per unit area at canopy top [gN/m2]
-    real(r8) :: lmr25top           ! canopy top leaf maint resp rate at 25C
-    ! for this plant or pft (umol CO2/m**2/s)
-    real(r8) :: leaf_inc           ! LAI-only portion of the vegetation increment of dinc_ed
+    real(r8) :: lmr25top           ! canopy top leaf maint resp rate at 25C 
+                                   ! for this plant or pft (umol CO2/m**2/s)
+    real(r8) :: leaf_inc           ! LAI-only portion of the vegetation increment of dinc_vai
     real(r8) :: lai_canopy_above   ! the LAI in the canopy layers above the layer of interest
     real(r8) :: lai_layers_above   ! the LAI in the leaf layers, within the current canopy,
     ! above the leaf layer of interest
@@ -432,31 +433,33 @@ contains
                                  (hlm_parteh_mode .ne. prt_carbon_allom_hyp )   ) then
 
                                if (hlm_use_planthydro.eq.itrue ) then
-
+                                  
                                   stomatal_intercept_btran = max( cf/rsmax0,stomatal_intercept(ft)*currentCohort%co_hydr%btran )
-                                  btran_eff = currentCohort%co_hydr%btran
+                                  btran_eff = currentCohort%co_hydr%btran 
 
-                                  ! dinc_ed is the total vegetation area index of each "leaf" layer
+                                  ! dinc_vai(:) is the total vegetation area index of each "leaf" layer
                                   ! we convert to the leaf only portion of the increment
                                   ! ------------------------------------------------------
-                                  leaf_inc    = dinc_ed * &
+                                  leaf_inc    = dinc_vai(iv) * &
                                        currentCohort%treelai/(currentCohort%treelai+currentCohort%treesai)
 
                                   ! Now calculate the cumulative top-down lai of the current layer's midpoint
-                                  lai_canopy_above  = sum(currentPatch%canopy_layer_tlai(1:cl-1))
-                                  lai_layers_above  = leaf_inc * (iv-1)
+                                  lai_canopy_above  = sum(currentPatch%canopy_layer_tlai(1:cl-1)) 
+
+                                  lai_layers_above  = (dlower_vai(iv) - dinc_vai(iv)) * &
+                                       currentCohort%treelai/(currentCohort%treelai+currentCohort%treesai)
                                   lai_current       = min(leaf_inc, currentCohort%treelai - lai_layers_above)
-                                  cumulative_lai    = lai_canopy_above + lai_layers_above + 0.5*lai_current
+                                  cumulative_lai    = lai_canopy_above + lai_layers_above + 0.5*lai_current 
 
                                   leaf_psi = currentCohort%co_hydr%psi_ag(1)
                                   
                                else
 
-                                  stomatal_intercept_btran = max( cf/rsmax0,stomatal_intercept(ft)*currentPatch%btran_ft(ft) )
+                                  stomatal_intercept_btran = max( cf/rsmax0,stomatal_intercept(ft)*currentPatch%btran_ft(ft) ) 
 
                                   btran_eff = currentPatch%btran_ft(ft)
                                   ! For consistency sake, we use total LAI here, and not exposed
-                                  ! if the plant is under-snow, it will be effectively dormant for
+                                  ! if the plant is under-snow, it will be effectively dormant for 
                                   ! the purposes of nscaler
 
                                   cumulative_lai = sum(currentPatch%canopy_layer_tlai(1:cl-1))  + &
@@ -473,7 +476,7 @@ contains
 
 
                                ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593 used
-                               ! kn = 0.11. Here, derive kn from vcmax25 as in Lloyd et al
+                               ! kn = 0.11. Here, derive kn from vcmax25 as in Lloyd et al 
                                ! (2010) Biogeosciences, 7, 1833-1859
 
                                kn = decay_coeff_kn(ft,currentCohort%vcmax25top)
@@ -492,7 +495,7 @@ contains
                                select case(hlm_parteh_mode)
                                case (prt_carbon_allom_hyp)
 
-                                 lnc_top  = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/slatop(ft)
+                                  lnc_top  = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/slatop(ft)
 
                                case (prt_cnp_flex_allom_hyp)
 
