@@ -28,6 +28,7 @@ module FatesIODimensionsMod
     character(*), parameter, public  :: levcnlf = 'fates_levcnlf'      ! matches histFileMod
     character(*), parameter, public  :: levcnlfpft = 'fates_levcnlfpf' ! matches histFileMod
     character(*), parameter, public  :: levcdsc = 'fates_levcdsc' ! matches histFileMod
+    character(*), parameter, public :: levcdcd = 'fates_levcdcd' ! matches histFileMod
     character(*), parameter, public  :: levcdpf = 'fates_levcdpf' ! matches histFileMod
     character(*), parameter, public  :: levagefuel = 'fates_levagefuel' ! matches histFileMod
     character(*), parameter, public  :: levelem =  'fates_levelem'
@@ -84,6 +85,9 @@ module FatesIODimensionsMod
 
     ! levcdsc = This is a structure that records the boundaries for the
     ! number of crown damage x size classes dimension
+
+    ! levcdcd = This is a structure that records the boundaries for the
+    ! number of crown damage x crown damage classes - for damage transitions
 
     ! levcdpf = This is a structure that records the boundaries for the
     ! number of crown damage x size classes x pft dimension
@@ -145,8 +149,10 @@ module FatesIODimensionsMod
        integer :: cnlf_end
        integer :: cnlfpft_begin
        integer :: cnlfpft_end
-       integer :: cdamage_begin
-       integer :: cdamage_end
+      ! integer :: cdamage_begin
+      ! integer :: cdamage_end
+       integer :: cdcd_begin
+       integer :: cdcd_end
        integer :: cdsc_begin
        integer :: cdsc_end
        integer :: cdpf_begin
