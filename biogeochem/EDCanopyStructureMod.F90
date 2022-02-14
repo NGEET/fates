@@ -1925,6 +1925,7 @@ contains
     real(r8) :: bare_frac_area
     real(r8) :: total_patch_area
     real(r8) :: total_canopy_area
+    real(r8) :: total_patch_leaf_stem_area
     real(r8) :: weight  ! Weighting for cohort variables in patch
 
     do s = 1,nsites
@@ -1936,6 +1937,7 @@ contains
        bc_out(s)%dleaf_pa(:) = 0._r8
        bc_out(s)%z0m_pa(:) = 0._r8
        bc_out(s)%displa_pa(:) = 0._r8
+
        
        currentPatch => sites(s)%oldest_patch
        c = fcolumn(s)
@@ -1986,13 +1988,14 @@ contains
                    if (hlm_use_sp.eq.ifalse) then
                    ! make sure that allometries are correct
                    call carea_allom(currentCohort%dbh,currentCohort%n,sites(s)%spread,&
-                        currentCohort%pft,currentCohort%c_area)
+                        currentCohort%pft,currentCohort%crowndamage, currentCohort%c_area)
 
                    currentCohort%treelai = tree_lai(currentCohort%prt%GetState(leaf_organ, all_carbon_elements),  &
                         currentCohort%pft, currentCohort%c_area, currentCohort%n, &
                         currentCohort%canopy_layer, currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )
 
-                   currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
+                   currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, sites(s)%spread, &
+                        currentCohort%canopy_trim, &
                         currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
                         currentPatch%canopy_layer_tlai, currentCohort%treelai , &
                         currentCohort%vcmax25top,4)
