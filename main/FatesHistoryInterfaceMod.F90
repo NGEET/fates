@@ -518,6 +518,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_dleafon_si_pft
   integer :: ih_meanliqvol_si_pft
   integer :: ih_meansmp_si_pft
+  integer :: ih_elong_factor_si_pft
 
 
   ! indices to (site x patch-age) variables
@@ -2036,6 +2037,7 @@ end subroutine flush_hvars
                hio_dleafon_si_pft                   => this%hvars(ih_dleafon_si_pft)%r82d, &
                hio_meanliqvol_si_pft                => this%hvars(ih_meanliqvol_si_pft)%r82d, &
                hio_meansmp_si_pft                   => this%hvars(ih_meansmp_si_pft)%r82d, &
+               hio_elong_factor_si_pft              => this%hvars(ih_elong_factor_si_pft)%r82d, &
                hio_cbal_err_fates_si                => this%hvars(ih_cbal_err_fates_si)%r81d, &
                hio_err_fates_si                     => this%hvars(ih_err_fates_si)%r82d )
 
@@ -2096,6 +2098,7 @@ end subroutine flush_hvars
             hio_site_dstatus_si_pft(io_si,i_pft) = real(sites(s)%dstatus(i_pft),r8)
             hio_dleafoff_si_pft(io_si,i_pft)     = real(sites(s)%dndaysleafon (i_pft),r8)
             hio_dleafon_si_pft(io_si,i_pft)      = real(sites(s)%dndaysleafoff(i_pft),r8)
+            hio_elong_factor_si_pft(io_si,i_pft) = sites(s)%elong_factor(i_pft)
 
             if(model_day_int>numWaterMem)then
                hio_meanliqvol_si_pft(io_si,i_pft) = &
@@ -4349,6 +4352,12 @@ end subroutine update_history_hifrq
          use_default='active',                                                  &
          avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_meansmp_si_pft)
+
+    call this%set_history_var(vname='SITE_ELONG_FACTOR', units='1', &
+         long='site level mean elongation factor (partial flushing or abscission) by PFT', &
+         use_default='active',                                                  &
+         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', flushval=hlm_hio_ignore_val, upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_elong_factor_si_pft)
 
     call this%set_history_var(vname='PFTbiomass', units='gC/m2',                   &
          long='total PFT level biomass', use_default='active',                     &

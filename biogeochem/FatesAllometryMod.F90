@@ -158,6 +158,7 @@ contains
    ! ============================================================================
    
   subroutine CheckIntegratedAllometries(dbh,ipft,canopy_trim, &
+       elongf_leaf, elongf_fnrt, elongf_stem, &
        bl,bfr,bsap,bstore,bdead, &
        grow_leaf, grow_fr, grow_sap, grow_store, grow_dead, &
        max_err, l_pass)
@@ -173,6 +174,9 @@ contains
      real(r8),intent(in) :: dbh    ! diameter of plant [cm]
      integer,intent(in)  :: ipft   ! plant functional type index
      real(r8),intent(in) :: canopy_trim ! trimming function
+     real(r8),intent(in) :: elongf_leaf ! Leaf elongation factor
+     real(r8),intent(in) :: elongf_fnrt ! Fine-root elongation factor
+     real(r8),intent(in) :: elongf_stem ! Stem elongation factor
      real(r8),intent(in) :: bl     ! integrated leaf biomass [kgC]
      real(r8),intent(in) :: bfr    ! integrated fine root biomass [kgC]
      real(r8),intent(in) :: bsap   ! integrated sapwood biomass [kgC]
@@ -203,6 +207,7 @@ contains
 
      if (grow_leaf) then
         call bleaf(dbh,ipft,canopy_trim,bl_diag)
+        bl_diag = bl_diag * elongf_leaf
         if( abs(bl_diag-bl) > max_err ) then
            if(verbose_logging) then
               write(fates_log(),*) 'disparity in integrated/diagnosed leaf carbon'
@@ -217,6 +222,7 @@ contains
         
      if (grow_fr) then
         call bfineroot(dbh,ipft,canopy_trim,bfr_diag)
+        bfr_diag = bfr_diag * elongf_fnrt
         if( abs(bfr_diag-bfr) > max_err ) then
            if(verbose_logging) then
               write(fates_log(),*) 'disparity in integrated/diagnosed fineroot carbon'
@@ -231,6 +237,7 @@ contains
 
      if (grow_sap) then
         call bsap_allom(dbh,ipft,canopy_trim,asap_diag,bsap_diag)
+        bsap_diag = bsap_diag * elongf_stem
         if( abs(bsap_diag-bsap) > max_err ) then
            if(verbose_logging) then
               write(fates_log(),*) 'disparity in integrated/diagnosed sapwood carbon'
@@ -261,7 +268,9 @@ contains
         call bsap_allom(dbh,ipft,canopy_trim,asap_diag,bsap_diag)
         call bagw_allom(dbh,ipft,bagw_diag)
         call bbgw_allom(dbh,ipft,bbgw_diag)
-        call bdead_allom( bagw_diag, bbgw_diag, bsap_diag, ipft, bdead_diag )        
+        call bdead_allom( bagw_diag, bbgw_diag, bsap_diag, ipft, bdead_diag )
+        bdead_diag = bdead_diag * elongf_stem
+
         if( abs(bdead_diag-bdead) > max_err ) then
            if(verbose_logging) then
               write(fates_log(),*) 'disparity in integrated/diagnosed structural carbon'
@@ -868,6 +877,8 @@ contains
     real(r8) :: dhdd
     real(r8) :: bl
     real(r8) :: dbldd
+    real(r8) :: blmax      ! maximum leaf biomss per allometry
+    real(r8) :: dblmaxdd
     real(r8) :: bbgw
     real(r8) :: dbbgwdd
     real(r8) :: bagw
@@ -885,12 +896,34 @@ contains
        ! Currently only one sapwood allometry model. the slope
        ! of the la:sa to diameter line is zero.
        ! ---------------------------------------------------------------------
-    case(1) ! linearly related to leaf area based on target leaf biomass
+    case(1) ! linearly related to leaf area based on target TRIMMED leaf biomass
             ! and slatop (no provisions for slamax)
 
        call h_allom(d,ipft,h,dhdd)
        call bleaf(d,ipft,canopy_trim,bl,dbldd)
        call bsap_ltarg_slatop(d,h,dhdd,bl,dbldd,ipft,sapw_area,bsap,dbsapdd)
+
+       ! Perform a capping/check on total woody biomass
+       call bagw_allom(d,ipft,bagw,dbagwdd)
+       call bbgw_allom(d,ipft,bbgw,dbbgwdd)
+       
+       ! Force sapwood to be less than a maximum fraction of total biomass
+       ! We omit the sapwood area from this calculation
+       ! (this comes into play typically in very small plants)
+       bsap_cap = max_frac*(bagw+bbgw)
+
+       if(bsap>bsap_cap) then
+          bsap     = bsap_cap
+          if(present(dbsapdd))then
+             dbsapdd = max_frac*(dbagwdd+dbbgwdd)
+          end if
+       end if
+    case(2) ! linearly related to leaf area based on target UNTRIMMED leaf biomass
+            ! and slatop (no provisions for slamax)
+
+       call h_allom(d,ipft,h,dhdd)
+       call blmax_allom(d,ipft,blmax,dblmaxdd)
+       call bsap_ltarg_slatop(d,h,dhdd,blmax,dblmaxdd,ipft,sapw_area,bsap,dbsapdd)
 
        ! Perform a capping/check on total woody biomass
        call bagw_allom(d,ipft,bagw,dbagwdd)
@@ -1009,30 +1042,35 @@ contains
      real(r8),intent(in)           :: canopy_trim  ! Crown trimming function [0-1]
      real(r8),intent(out)          :: bstore       ! allometric target storage [kgC]
      real(r8),intent(out),optional :: dbstoredd    ! change storage per cm [kgC/cm]
-     
-     real(r8) :: bl          ! Allometric target leaf biomass
-     real(r8) :: dbldd       ! Allometric target change in leaf biomass per cm
-    
-     
+
+     real(r8) :: bl          ! Allometric target leaf biomass (TRIMMED)
+     real(r8) :: dbldd       ! Allometric target change in leaf biomass per cm (TRIMMED)
+     real(r8) :: blmax       ! Allometric target leaf biomass (UNTRIMMED)
+     real(r8) :: dblmaxdd    ! Allometric target change in leaf biomass per cm (UNTRIMMED)
+
+
      ! TODO: allom_stmode needs to be added to the parameter file
-     
      associate( allom_stmode => prt_params%allom_stmode(ipft), &
                 cushion      => prt_params%cushion(ipft) )
 
        select case(int(allom_stmode))
-       case(1) ! Storage is constant proportionality of trimmed maximum leaf
+       case(1) ! Storage is constant proportionality of TRIMMED maximum leaf
           ! biomass (ie cushion * bleaf)
-          
           call bleaf(d,ipft,canopy_trim,bl,dbldd)
           call bstore_blcushion(d,bl,dbldd,cushion,ipft,bstore,dbstoredd)
-          
+
+       case(2) ! Storage is constant proportionality of UNTRIMMED maximum leaf
+          ! biomass (ie cushion * bleaf)
+          call blmax_allom(d,ipft,blmax,dblmaxdd)
+          call bstore_blcushion(d,blmax,dblmaxdd,cushion,ipft,bstore,dbstoredd)
+
        case DEFAULT 
           write(fates_log(),*) 'An undefined fine storage allometry was specified: ', &
                 allom_stmode
           write(fates_log(),*) 'Aborting'
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end select
-       
+
      end associate
      return
   end subroutine bstore_allom

@@ -148,6 +148,9 @@ module FatesRestartInterfaceMod
   integer :: ir_resp_tstep_co
   integer :: ir_pft_co
   integer :: ir_status_co
+  integer :: ir_efleaf_co
+  integer :: ir_effnrt_co
+  integer :: ir_efstem_co
   integer :: ir_isnew_co
 
   ! Litter
@@ -184,6 +187,7 @@ module FatesRestartInterfaceMod
   integer :: ir_dleafoffdate_sift
   integer :: ir_dndaysleafon_sift
   integer :: ir_dndaysleafoff_sift
+  integer :: ir_elong_factor_sift
   integer :: ir_liqvolmem_siwmft
   integer :: ir_smpmem_siwmft
   integer :: ir_vegtempmem_sitm
@@ -875,6 +879,18 @@ contains
          long_name='ed cohort - plant phenology status', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_status_co )
 
+    call this%set_restart_var(vname='fates_efleaf_coh', vtype=cohort_r8, &
+         long_name='ed cohort - leaf elongation factor', units='unitless', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_efleaf_co )
+
+    call this%set_restart_var(vname='fates_effnrt_coh', vtype=cohort_r8, &
+         long_name='ed cohort - fine-root elongation factor', units='unitless', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_effnrt_co )
+
+    call this%set_restart_var(vname='fates_efstem_coh', vtype=cohort_r8, &
+         long_name='ed cohort - stem elongation factor', units='unitless', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_efstem_co )
+
     call this%set_restart_var(vname='fates_isnew', vtype=cohort_int, &
          long_name='ed cohort - binary flag specifying if a plant has experienced a full day cycle', &
          units='0/1', flushval = flushone, &
@@ -1166,6 +1182,10 @@ contains
     call this%set_restart_var(vname='fates_drought_ndaysleafoff', vtype=cohort_int, &
          long_name='number of days since leaf off (drought deciduous)', units='days', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dndaysleafoff_sift )
+
+    call this%set_restart_var(vname='fates_elong_factor', vtype=cohort_r8, &
+         long_name='leaf elongation factor (0 - completely abscissed; 1 - completely flushed)', units='unitless', flushval = flushinvalid, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_elong_factor_sift )
 
     call this%set_restart_var(vname='fates_liqvol_memory', vtype=cohort_r8, &
          long_name='last 10 days of volumetric soil water, by site x day-index', &
@@ -1728,6 +1748,9 @@ contains
            rio_resp_tstep_co           => this%rvars(ir_resp_tstep_co)%r81d, &
            rio_pft_co                  => this%rvars(ir_pft_co)%int1d, &
            rio_status_co               => this%rvars(ir_status_co)%int1d, &
+           rio_efleaf_co               => this%rvars(ir_efleaf_co)%r81d, &
+           rio_effnrt_co               => this%rvars(ir_effnrt_co)%r81d, &
+           rio_efstem_co               => this%rvars(ir_efstem_co)%r81d, &
            rio_isnew_co                => this%rvars(ir_isnew_co)%int1d, &
            rio_gnd_alb_dif_pasb        => this%rvars(ir_gnd_alb_dif_pasb)%r81d, &
            rio_gnd_alb_dir_pasb        => this%rvars(ir_gnd_alb_dir_pasb)%r81d, &
@@ -1743,6 +1766,7 @@ contains
            rio_dleafoffdate_sift       => this%rvars(ir_dleafoffdate_sift)%int1d, &
            rio_dndaysleafon_sift       => this%rvars(ir_dndaysleafon_sift)%int1d, &
            rio_dndaysleafoff_sift      => this%rvars(ir_dndaysleafoff_sift)%int1d, &
+           rio_elong_factor_sift       => this%rvars(ir_elong_factor_sift)%r81d, &
            rio_liqvolmem_siwmft        => this%rvars(ir_liqvolmem_siwmft)%r81d, &
            rio_smpmem_siwmft           => this%rvars(ir_smpmem_siwmft)%r81d, &
            rio_vegtempmem_sitm         => this%rvars(ir_vegtempmem_sitm)%r81d, &
@@ -1974,6 +1998,9 @@ contains
                 rio_resp_tstep_co(io_idx_co)   = ccohort%resp_tstep
                 rio_pft_co(io_idx_co)          = ccohort%pft
                 rio_status_co(io_idx_co)       = ccohort%status_coh
+                rio_efleaf_co(io_idx_co)       = ccohort%efleaf_coh
+                rio_effnrt_co(io_idx_co)       = ccohort%effnrt_coh
+                rio_efstem_co(io_idx_co)       = ccohort%efstem_coh
                 if ( ccohort%isnew ) then
                    rio_isnew_co(io_idx_co)     = new_cohort
                 else
@@ -2167,6 +2194,7 @@ contains
              rio_dleafoffdate_sift(io_idx_si_pft)  = sites(s)%dleafoffdate(i_pft)
              rio_dndaysleafon_sift(io_idx_si_pft)  = sites(s)%dndaysleafon(i_pft)
              rio_dndaysleafoff_sift(io_idx_si_pft) = sites(s)%dndaysleafoff(i_pft)
+             rio_elong_factor_sift(io_idx_si_pft)  = sites(s)%elong_factor(i_pft)
 
              io_idx_si_pft = io_idx_si_pft + 1
           end do
@@ -2564,6 +2592,9 @@ contains
           rio_resp_tstep_co           => this%rvars(ir_resp_tstep_co)%r81d, &
           rio_pft_co                  => this%rvars(ir_pft_co)%int1d, &
           rio_status_co               => this%rvars(ir_status_co)%int1d, &
+          rio_efleaf_co               => this%rvars(ir_efleaf_co)%r81d, &
+          rio_effnrt_co               => this%rvars(ir_effnrt_co)%r81d, &
+          rio_efstem_co               => this%rvars(ir_efstem_co)%r81d, &
           rio_isnew_co                => this%rvars(ir_isnew_co)%int1d, &
           rio_gnd_alb_dif_pasb        => this%rvars(ir_gnd_alb_dif_pasb)%r81d, &
           rio_gnd_alb_dir_pasb        => this%rvars(ir_gnd_alb_dir_pasb)%r81d, &
@@ -2579,6 +2610,7 @@ contains
           rio_dleafoffdate_sift       => this%rvars(ir_dleafoffdate_sift)%int1d, &
           rio_dndaysleafon_sift       => this%rvars(ir_dndaysleafon_sift)%int1d, &
           rio_dndaysleafoff_sift      => this%rvars(ir_dndaysleafoff_sift)%int1d, &
+          rio_elong_factor_sift       => this%rvars(ir_elong_factor_sift)%r81d, &
           rio_liqvolmem_siwmft        => this%rvars(ir_liqvolmem_siwmft)%r81d, &
           rio_smpmem_siwmft           => this%rvars(ir_smpmem_siwmft)%r81d, &
           rio_vegtempmem_sitm         => this%rvars(ir_vegtempmem_sitm)%r81d, &
@@ -2780,6 +2812,9 @@ contains
                 ccohort%resp_tstep   = rio_resp_tstep_co(io_idx_co)
                 ccohort%pft          = rio_pft_co(io_idx_co)
                 ccohort%status_coh   = rio_status_co(io_idx_co)
+                ccohort%efleaf_coh   = rio_efleaf_co(io_idx_co)
+                ccohort%effnrt_coh   = rio_effnrt_co(io_idx_co)
+                ccohort%efstem_coh   = rio_efstem_co(io_idx_co)
                 ccohort%isnew        = ( rio_isnew_co(io_idx_co) .eq. new_cohort )
 
                 call UpdateCohortBioPhysRates(ccohort)
@@ -3037,6 +3072,7 @@ contains
              sites(s)%dleafoffdate(i_pft)   = rio_dleafoffdate_sift(io_idx_si_pft)
              sites(s)%dndaysleafon(i_pft)   = rio_dndaysleafon_sift(io_idx_si_pft)
              sites(s)%dndaysleafoff(i_pft)  = rio_dndaysleafoff_sift(io_idx_si_pft)
+             sites(s)%elong_factor(i_pft)   = rio_elong_factor_sift(io_idx_si_pft)
              io_idx_si_pft = io_idx_si_pft + 1
           end do
 

@@ -200,6 +200,7 @@ contains
     site_in%cndaysleafoff    = fates_unset_int  ! days since leaf off (cold)
     site_in%dndaysleafon(:)  = fates_unset_int  ! days since leaf on (drought)
     site_in%dndaysleafoff(:) = fates_unset_int  ! days since leaf off (drought)
+    site_in%elong_factor(:)  = nan              ! Elongation factor (0 - full abscission; 1 - fully flushed)
 
     site_in%liqvol_memory(:,:)  = nan
     site_in%smp_memory(:,:)  = nan
@@ -274,6 +275,7 @@ contains
     real(r8) :: acc_NI
     real(r8) :: liqvolmem
     real(r8) :: smpmem
+    real(r8) :: elong_factor ! Elongation factor (0 - fully off; 1 - fully on)
     integer  :: cleafon    ! DOY for cold-decid leaf-on, initial guess
     integer  :: cleafoff   ! DOY for cold-decid leaf-off, initial guess
     integer  :: dleafoff   ! DOY for drought-decid leaf-off, initial guess
@@ -310,6 +312,7 @@ contains
        dndleafoff = 0
        liqvolmem  = 0.5_r8 
        smpmem     = 0._r8
+       elong_factor = 1._r8
 
        do s = 1,nsites
           sites(s)%nchilldays    = 0
@@ -334,6 +337,7 @@ contains
 
           sites(s)%cstatus = cstat
           sites(s)%dstatus(1:numpft) = dstat
+          sites(s)%elong_factor(1:numpft) = elong_factor
 
           sites(s)%acc_NI     = acc_NI
           sites(s)%NF         = 0.0_r8
@@ -704,7 +708,11 @@ contains
     real(r8) :: m_sapw     ! Generic mass for sapwood [kg]
     real(r8) :: m_store    ! Generic mass for storage [kg]
     real(r8) :: m_repro    ! Generic mass for reproductive tissues [kg]
-    real(r8) :: stem_drop_fraction
+    real(r8) :: elongf_leaf       ! Leaf elongation factor
+    real(r8) :: elongf_fnrt       ! Fine-root "elongation factor"
+    real(r8) :: elongf_stem       ! Stem "elongation factor"
+    real(r8) :: fnrt_drop_fraction ! Fraction of fine roots to absciss when leaves absciss
+    real(r8) :: stem_drop_fraction ! Fraction of stems to absciss when leaves absciss
 
     integer, parameter :: rstatus = 0
     integer init
@@ -795,49 +803,61 @@ contains
 
              call bstore_allom(temp_cohort%dbh, pft, temp_cohort%canopy_trim, c_store)
 
-             temp_cohort%leafmemory = 0._r8
-             temp_cohort%fnrtmemory = 0._r8
-             temp_cohort%sapwmemory = 0._r8
-             temp_cohort%structmemory = 0._r8
-             cstatus = leaves_on
+             ! MLO update 20211123.  The "memory" variables are now always set to the
+             ! on-allometry state (accounting for canopy trimming when necessary).
+             ! We no longer reset them to zero when leaves are flushing.  This makes
+             ! partial deciduousness a bit easier to implement.
+             temp_cohort%leafmemory   = c_leaf
+             temp_cohort%fnrtmemory   = c_fnrt
+             temp_cohort%sapwmemory   = c_sapw
+             temp_cohort%structmemory = c_struct
 
+             ! Assume leaves are fully flushed, and update if needed.
+             cstatus      = leaves_on
+             elongf_leaf  = 1.0_r8
+             elongf_fnrt  = 1.0_r8
+             elongf_stem  = 1.0_r8
+
+             fnrt_drop_fraction = EDPftvarcon_inst%phen_fnrt_drop_fraction(temp_cohort%pft)
              stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(temp_cohort%pft)
 
              if(hlm_use_sp.eq.ifalse)then ! do not override SP vales with phenology
 
                 if( prt_params%season_decid(pft) == itrue .and. &
                     any(site_in%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
-                   ! MLO update: sapwmemory and structmemory used to be deficit, despite the
-                   !             name.  The code has been updated elsewhere to use these
-                   !             variables as memory variables.
-                   temp_cohort%leafmemory   = c_leaf   ! Leaf biomass memory
-                   temp_cohort%fnrtmemory   = c_fnrt   ! Fine root memory
-                   temp_cohort%sapwmemory   = c_sapw   ! Sapwood memory
-                   temp_cohort%structmemory = c_struct ! Heartwood memory
-                   c_leaf = 0._r8
-                   !c_fnrt = c_fnrt... Do not change fine root, if leaves are off
-                                     ! it may steadily decline.
-                   c_sapw = (1.0_r8-stem_drop_fraction) * c_sapw
-                   c_struct  = (1.0_r8-stem_drop_fraction) * c_struct
-                   cstatus = leaves_off
-                endif
+                   elongf_leaf = 0._r8
+                   elongf_fnrt = 1.0_r8 - fnrt_drop_fraction
+                   elongf_stem = 1.0_r8 - stem_drop_fraction
 
-                if ( prt_params%stress_decid(pft) == itrue .and. &
-                     any(site_in%dstatus(pft) == [phen_dstat_timeoff,phen_dstat_moistoff])) then
-                   ! MLO update: sapwmemory and structmemory used to be deficit, despite the
-                   !             name.  The code has been updated elsewhere to use these
-                   !             variables as memory variables.
-                   temp_cohort%leafmemory   = c_leaf   ! Leaf biomass memory
-                   temp_cohort%fnrtmemory   = c_fnrt   ! Fine root memory
-                   temp_cohort%sapwmemory   = c_sapw   ! Sapwood memory
-                   temp_cohort%structmemory = c_struct ! Heartwood memory
-                   c_leaf = 0._r8
-                   !c_fnrt = c_fnrt... Do not change fine root, if leaves are off
-                                     ! it may steadily decline.
-                   c_sapw = (1.0_r8-stem_drop_fraction) * c_sapw
-                   c_struct  = (1.0_r8-stem_drop_fraction) * c_struct
+                   c_leaf   = elongf_leaf * c_leaf
+                   c_fnrt   = elongf_fnrt * c_fnrt
+                   c_sapw   = elongf_stem * c_sapw
+                   c_struct = elongf_stem * c_struct
+
                    cstatus = leaves_off
-                endif
+                elseif ( prt_params%stress_decid(pft) == itrue) then
+                   ! If the plant is drought deciduous, make sure leaf status is
+                   ! always consistent with the leaf elongation factor.  For tissues
+                   ! other than leaves, the actual drop fraction is a combination of the
+                   ! elongation factor (e) and the drop fraction (x), which will ensure
+                   ! that the remaining tissue biomass will be exactly e when x=1, and
+                   ! exactly the original biomass when x = 0.
+                   elongf_leaf = site_in%elong_factor(pft)
+                   elongf_fnrt = 1.0_r8 - (1.0_r8 - elongf_leaf ) * fnrt_drop_fraction
+                   elongf_stem = 1.0_r8 - (1.0_r8 - elongf_leaf ) * stem_drop_fraction
+
+
+                   c_leaf   = elongf_leaf * c_leaf
+                   c_fnrt   = elongf_fnrt * c_fnrt
+                   c_sapw   = elongf_stem * c_sapw
+                   c_struct = elongf_stem * c_struct
+
+                   if (elongf_leaf > 0.0_r8) then
+                      cstatus = leaves_on
+                   else
+                      cstatus = leaves_off
+                   end if
+                end if
 
              end if ! SP mode
 
@@ -915,9 +935,9 @@ contains
 
              call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, &
                   temp_cohort%coage, temp_cohort%dbh, prt_obj, temp_cohort%leafmemory, &
-                  temp_cohort%fnrtmemory,  temp_cohort%sapwmemory, temp_cohort%structmemory, &
-                  cstatus, rstatus, temp_cohort%canopy_trim, temp_cohort%c_area,1, &
-                  site_in%spread, bc_in)
+                  temp_cohort%fnrtmemory, temp_cohort%sapwmemory, temp_cohort%structmemory, &
+                  elongf_leaf, elongf_fnrt, elongf_stem, cstatus, rstatus, &
+                  temp_cohort%canopy_trim, temp_cohort%c_area, 1, site_in%spread, bc_in)
 
 
              deallocate(temp_cohort) ! get rid of temporary cohort

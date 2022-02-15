@@ -55,7 +55,7 @@ module PRTAllometricCNPMod
   use FatesConstantsMod   , only : fates_unset_int
   use FatesConstantsMod   , only : sec_per_day
   use PRTParametersMod    , only : prt_params
-  use EDTypesMod          , only : leaves_on,leaves_off
+  use EDTypesMod          , only : leaves_on,leaves_off,leaves_pshed
   
   implicit none
   private
@@ -143,16 +143,17 @@ module PRTAllometricCNPMod
   ! Input only Boundary Indices (These are public)
   ! -------------------------------------------------------------------------------------
 
-  integer, public, parameter :: acnp_bc_in_id_pft     = 1 ! Index for the PFT input BC
-  integer, public, parameter :: acnp_bc_in_id_ctrim   = 2 ! Index for the canopy trim function
-  integer, public, parameter :: acnp_bc_in_id_lstat   = 3 ! phenology status logical
-  integer, public, parameter :: acnp_bc_in_id_netdc   = 4 ! Index for the net daily C input BC
-  integer, public, parameter :: acnp_bc_in_id_netdnh4 = 5 ! Index for the net daily NH4 input BC
-  integer, public, parameter :: acnp_bc_in_id_netdno3 = 6 ! Index for the net daily NO3 input BC
-  integer, public, parameter :: acnp_bc_in_id_netdp   = 7 ! Index for the net daily P input BC
-  
-  ! 0=leaf off, 1=leaf on
-  integer, parameter         :: num_bc_in             = 7
+  integer, public, parameter :: acnp_bc_in_id_pft     =  1 ! Index for the PFT input BC
+  integer, public, parameter :: acnp_bc_in_id_ctrim   =  2 ! Index for the canopy trim function
+  integer, public, parameter :: acnp_bc_in_id_lstat   =  3 ! phenology status logical
+  integer, public, parameter :: acnp_bc_in_id_netdc   =  4 ! Index for the net daily C input BC
+  integer, public, parameter :: acnp_bc_in_id_netdnh4 =  5 ! Index for the net daily NH4 input BC
+  integer, public, parameter :: acnp_bc_in_id_netdno3 =  6 ! Index for the net daily NO3 input BC
+  integer, public, parameter :: acnp_bc_in_id_netdp   =  7 ! Index for the net daily P input BC
+  integer, public, parameter :: acnp_bc_in_id_efleaf  =  8 ! Leaf elongation factor
+  integer, public, parameter :: acnp_bc_in_id_effnrt  =  9 ! Fine-root "elongation factor"
+  integer, public, parameter :: acnp_bc_in_id_efstem  = 10 ! Stem "elongation factor"
+  integer, parameter         :: num_bc_in             = 10
 
   ! -------------------------------------------------------------------------------------
   ! Output Boundary Indices (These are public)
@@ -334,6 +335,9 @@ contains
     real(r8) :: n_gain      ! Daily nitrogen uptake through fine-roots [kgN]
     real(r8) :: p_gain      ! Daily phosphorus uptake through fine-roots [kgN]
     real(r8) :: canopy_trim ! The canopy trimming function [0-1]
+    real(r8) :: elongf_leaf ! Leaf elongation factor [0-1]
+    real(r8) :: elongf_fnrt ! Fine-root "elongation factor" [0-1]
+    real(r8) :: elongf_stem ! Stem "elongation factor" [0-1]
     
     ! Pointers to output bcs
     real(r8),pointer :: c_efflux   ! Total plant efflux of carbon (kgC)
@@ -396,6 +400,9 @@ contains
     p_gain      = this%bc_in(acnp_bc_in_id_netdp)%rval; p_gain0      = p_gain
     canopy_trim = this%bc_in(acnp_bc_in_id_ctrim)%rval
     ipft        = this%bc_in(acnp_bc_in_id_pft)%ival
+    elongf_leaf = this%bc_in(acnp_bc_in_id_efleaf)%rval
+    elongf_fnrt = this%bc_in(acnp_bc_in_id_effnrt)%rval
+    elongf_stem = this%bc_in(acnp_bc_in_id_efstem)%rval
 
     ! Output only boundary conditions
     c_efflux    => this%bc_out(acnp_bc_out_id_cefflux)%rval;  c_efflux = 0._r8
@@ -440,6 +447,17 @@ contains
     call bstore_allom(dbh,ipft,canopy_trim, target_c(store_id), target_dcdd(store_id))
     target_c(repro_id) = 0._r8
     target_dcdd(repro_id) = 0._r8
+
+    ! Correct tissue targets based on the elongation factor
+    target_c(leaf_id)      = elongf_leaf * target_c(leaf_id)
+    target_c(fnrt_id)      = elongf_fnrt * target_c(fnrt_id)
+    target_c(sapw_id)      = elongf_stem * target_c(sapw_id)
+    target_c(struct_id)    = elongf_stem * target_c(struct_id)
+    ! MLO - Need to check whether or not the multiplication for the growth is correct or not.
+    target_dcdd(leaf_id)   = elongf_leaf * target_dcdd(leaf_id)
+    target_dcdd(fnrt_id)   = elongf_fnrt * target_dcdd(fnrt_id)
+    target_dcdd(sapw_id)   = elongf_stem * target_dcdd(sapw_id)
+    target_dcdd(struct_id) = elongf_stem * target_dcdd(struct_id)
 
     ! Initialize the the state, and keep a record of this state
     ! as we may actuall run the allocation process twice, and
@@ -647,6 +665,9 @@ contains
     real(r8) :: target_n                 ! Target mass of N for a given organ [kg]
     real(r8) :: target_p                 ! Target mass of P for a given organ [kg]
     real(r8) :: c_gain0
+    real(r8) :: elongf_leaf              ! Leaf elongation factor
+    real(r8) :: elongf_fnrt              ! Fine-root "elongation factor"
+    real(r8) :: elongf_stem              ! Stem "elongation factor"
     integer  :: priority_code            ! Index for priority level of each organ
     real(r8) :: sum_c_demand            ! Carbon demanded to bring tissues up to allometry (kg)
     real(r8) :: sum_n_deficit            ! The nitrogen deficit of all pools for given priority level (kg)
@@ -674,6 +695,9 @@ contains
     c_gain0 = c_gain
     
     leaf_status     = this%bc_in(acnp_bc_in_id_lstat)%ival
+    elongf_leaf     = this%bc_in(acnp_bc_in_id_efleaf)%rval
+    elongf_fnrt     = this%bc_in(acnp_bc_in_id_effnrt)%rval
+    elongf_stem     = this%bc_in(acnp_bc_in_id_efstem)%rval
     ipft            = this%bc_in(acnp_bc_in_id_pft)%ival
     canopy_trim     = this%bc_in(acnp_bc_in_id_ctrim)%rval
     
@@ -700,7 +724,8 @@ contains
        ! Don't allow allocation to leaves if they are in an "off" status.
        ! Also, dont allocate to replace turnover if this is not evergreen
        ! (this prevents accidental re-flushing on the day they drop)
-       if( ((leaf_status.eq.leaves_off) .or. (prt_params%evergreen(ipft) .ne. itrue)) &
+       if( ( any(leaf_status == [leaves_off,leaves_pshed]) .or. &
+             (prt_params%evergreen(ipft) .ne. itrue) ) &
             .and. (organ_list(ii).eq.leaf_organ)) cycle
        
        ! 1 is the highest priority code possible
@@ -865,7 +890,7 @@ contains
           
           ! Don't allow allocation to leaves if they are in an "off" status.
           ! (this prevents accidental re-flushing on the day they drop)
-          if((leaf_status.eq.leaves_off) .and. (organ_list(ii).eq.leaf_organ)) cycle
+          if(any(leaf_status == [leaves_off,leaves_pshed]) .and. (organ_list(ii).eq.leaf_organ)) cycle
           
           ! 1 is the highest priority code possible
           if( priority_code == i_pri ) then
@@ -1009,7 +1034,10 @@ contains
     real(r8), pointer :: dbh
     integer           :: ipft
     real(r8)          :: canopy_trim
-    real(r8)          :: leaf_status
+    integer           :: leaf_status
+    real(r8)          :: elongf_leaf
+    real(r8)          :: elongf_fnrt
+    real(r8)          :: elongf_stem
     
     integer  :: i, ii                            ! organ index loops (masked and unmasked)
     integer  :: istep                            ! outer step iteration loop
@@ -1088,6 +1116,9 @@ contains
     integer, parameter  :: p_limited = 3
 
     leaf_status = this%bc_in(acnp_bc_in_id_lstat)%ival
+    elongf_leaf = this%bc_in(acnp_bc_in_id_efleaf)%rval
+    elongf_fnrt = this%bc_in(acnp_bc_in_id_effnrt)%rval
+    elongf_stem = this%bc_in(acnp_bc_in_id_efstem)%rval
     dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval
     ipft        = this%bc_in(acnp_bc_in_id_pft)%ival
     canopy_trim = this%bc_in(acnp_bc_in_id_ctrim)%rval
@@ -1105,16 +1136,21 @@ contains
     if( c_gain <= calloc_abs_error .or. &
         n_gain <= 0.1_r8*calloc_abs_error .or. &
         p_gain <= 0.02_r8*calloc_abs_error .or. &
-        leaf_status.eq.leaves_off ) then
+        any(leaf_status == [leaves_off,leaves_pshed]) ) then
        return
     end if
     
        
-    intgr_params(:)                   = fates_unset_r8
-    intgr_params(acnp_bc_in_id_ctrim) = this%bc_in(acnp_bc_in_id_ctrim)%rval
-    intgr_params(acnp_bc_in_id_pft)   = real(this%bc_in(acnp_bc_in_id_pft)%ival)
-    
-    
+    intgr_params(:)                    = fates_unset_r8
+    intgr_params(acnp_bc_in_id_ctrim)  = this%bc_in(acnp_bc_in_id_ctrim)%rval
+    intgr_params(acnp_bc_in_id_pft)    = real(this%bc_in(acnp_bc_in_id_pft)%ival,r8)
+    intgr_params(acnp_bc_in_id_lstat)  = real(this%bc_in(acnp_bc_in_id_lstat)%ival,r8)
+    intgr_params(acnp_bc_in_id_efleaf) = this%bc_in(acnp_bc_in_id_efleaf)%rval
+    intgr_params(acnp_bc_in_id_effnrt) = this%bc_in(acnp_bc_in_id_effnrt)%rval
+    intgr_params(acnp_bc_in_id_efstem) = this%bc_in(acnp_bc_in_id_efstem)%rval
+
+
+
     state_mask(:) = .false.
     mask_organs(:) = fates_unset_int
     
@@ -1358,6 +1394,7 @@ contains
             end do
             
             call CheckIntegratedAllometries(state_array_out(dbh_id),ipft,canopy_trim,  &
+                 elongf_leaf, elongf_fnrt, elongf_stem, &
                  leafc_tp1, state_array_out(fnrt_id), state_array_out(sapw_id), &
                  state_array_out(store_id), state_array_out(struct_id), &
                  state_mask(leaf_id), state_mask(fnrt_id), state_mask(sapw_id), &
@@ -1434,6 +1471,9 @@ contains
                write(fates_log(),*) 'totalC',totalC
                write(fates_log(),*) 'pft: ',ipft
                write(fates_log(),*) 'dbh: ',dbh
+               write(fates_log(),*) 'elongf_leaf: ',elongf_leaf
+               write(fates_log(),*) 'elongf_fnrt: ',elongf_fnrt
+               write(fates_log(),*) 'elongf_stem: ',elongf_stem
                write(fates_log(),*) 'dCleaf_dd: ',target_dcdd(leaf_id)
                write(fates_log(),*) 'dCfnrt_dd: ',target_dcdd(fnrt_id)
                write(fates_log(),*) 'dCstore_dd: ',target_dcdd(store_id)
@@ -1454,7 +1494,13 @@ contains
                call bbgw_allom(dbh_tp1,ipft,bgw_c_target_tp1)
                call bdead_allom(agw_c_target_tp1,bgw_c_target_tp1, sapw_c_target_tp1, ipft, struct_c_target_tp1)
                call bstore_allom(dbh_tp1,ipft,canopy_trim,store_c_target_tp1)
-               
+
+               ! Correct the targets based on the elongation factors
+               leaf_c_target_tp1   = elongf_leaf * leaf_c_target_tp1
+               fnrt_c_target_tp1   = elongf_fnrt * fnrt_c_target_tp1
+               sapw_c_target_tp1   = elongf_stem * sapw_c_target_tp1
+               struct_c_target_tp1 = elongf_stem * struct_c_target_tp1
+
                write(fates_log(),*) 'leaf_c: ',leafc_tp1, leaf_c_target_tp1,leafc_tp1-leaf_c_target_tp1
                write(fates_log(),*) 'fnrt_c: ',fnrtc_tp1, fnrt_c_target_tp1,fnrtc_tp1- fnrt_c_target_tp1
                write(fates_log(),*) 'sapw_c: ',sapwc_tp1, sapw_c_target_tp1 ,sapwc_tp1- sapw_c_target_tp1
@@ -1710,15 +1756,19 @@ contains
     real(r8)         :: leaf_c_target,fnrt_c_target
     real(r8)         :: sapw_c_target,agw_c_target
     real(r8)         :: bgw_c_target,struct_c_target
+    real(r8)         :: elongf_leaf
+    real(r8)         :: elongf_fnrt
+    real(r8)         :: elongf_stem
 
-  
-    
-    
+
     dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval
     canopy_trim = this%bc_in(acnp_bc_in_id_ctrim)%rval
     ipft        = this%bc_in(acnp_bc_in_id_pft)%ival
+    elongf_leaf = this%bc_in(acnp_bc_in_id_efleaf)%rval
+    elongf_fnrt = this%bc_in(acnp_bc_in_id_effnrt)%rval
+    elongf_stem = this%bc_in(acnp_bc_in_id_efstem)%rval
     i_cvar      = prt_global%sp_organ_map(organ_id,carbon12_element)
-    
+
     ! Storage of nutrients are assumed to have different compartments than
     ! for carbon, and thus their targets are not associated with a tissue
     ! but is more represented as a fraction of the maximum amount of nutrient
@@ -1732,6 +1782,12 @@ contains
        call bagw_allom(dbh,ipft,agw_c_target)
        call bbgw_allom(dbh,ipft,bgw_c_target)
        call bdead_allom(agw_c_target,bgw_c_target, sapw_c_target, ipft, struct_c_target)
+
+       ! Correct the targets based on the elongation factors
+       leaf_c_target   = elongf_leaf * leaf_c_target
+       fnrt_c_target   = elongf_fnrt * fnrt_c_target
+       sapw_c_target   = elongf_stem * sapw_c_target
+       struct_c_target = elongf_stem * struct_c_target
 
        ! Target for storage is a fraction of the sum target of all
        ! non-reproductive organs
@@ -2102,7 +2158,10 @@ contains
       real(r8) :: total_dcdd_target     ! target total (not reproductive) biomass derivative wrt d, (kgC/cm)
       real(r8) :: repro_fraction        ! fraction of carbon balance directed towards reproduction (kgC/kgC)
       real(r8) :: total_dcostdd         ! carbon cost for non-reproductive pools per unit increment of dbh
-      
+
+      real(r8) :: elongf_leaf           ! Leaf elongation factor (0-1)
+      real(r8) :: elongf_fnrt           ! Fine-root "elongation factor" (0-1)
+      real(r8) :: elongf_stem           ! Stem "elongation factor" (0-1)
 
       associate( dbh         => l_state_array(dbh_id),      &
                  leaf_c      => l_state_array(leaf_id),   &
@@ -2122,6 +2181,9 @@ contains
 
         canopy_trim = intgr_params(acnp_bc_in_id_ctrim)
         ipft        = int(intgr_params(acnp_bc_in_id_pft))
+        elongf_leaf = intgr_params(acnp_bc_in_id_efleaf)
+        elongf_fnrt = intgr_params(acnp_bc_in_id_effnrt)
+        elongf_stem = intgr_params(acnp_bc_in_id_efstem)
 
         call bleaf(dbh,ipft,canopy_trim,leaf_c_target,leaf_dcdd_target)
         call bfineroot(dbh,ipft,canopy_trim,fnrt_c_target,fnrt_dcdd_target)
@@ -2131,6 +2193,17 @@ contains
         call bdead_allom(agw_c_target,bgw_c_target, sapw_c_target, ipft, struct_c_target, &
                          agw_dcdd_target, bgw_dcdd_target, sapw_dcdd_target, struct_dcdd_target)
         call bstore_allom(dbh,ipft,canopy_trim,store_c_target,store_dcdd_target)
+
+        ! Apply correction for partially deciduous plants.
+        leaf_c_target      = elongf_leaf * leaf_c_target
+        fnrt_c_target      = elongf_fnrt * fnrt_c_target
+        sapw_c_target      = elongf_stem * sapw_c_target
+        struct_c_target    = elongf_stem * struct_c_target
+        ! MLO - Need to double check that it is correct to apply factor to both stocks and growth
+        leaf_dcdd_target   = elongf_leaf * leaf_dcdd_target
+        fnrt_dcdd_target   = elongf_fnrt * fnrt_dcdd_target
+        sapw_dcdd_target   = elongf_stem * sapw_dcdd_target
+        struct_dcdd_target = elongf_stem * struct_dcdd_target
 
         if (mask_repro) then
            ! fraction of carbon going towards reproduction
@@ -2222,72 +2295,101 @@ contains
 
    ! ====================================================================================
 
-   subroutine TargetAllometryCheck(bleaf,bfroot,bsap,bstore,bdead, &
-                                   bt_leaf,bt_froot,bt_sap,bt_store,bt_dead, &
-                                   grow_leaf,grow_froot,grow_sapw,grow_store)
+   subroutine TargetAllometryCheck(b0_leaf,b0_fnrt,b0_sapw,b0_store,b0_struct, &
+                                   bleaf,bfnrt,bsapw,bstore,bstruct, &
+                                   bt_leaf,bt_fnrt,bt_sapw,bt_store,bt_struct, &
+                                   carbon_balance, &
+                                   elongf_leaf,elongf_fnrt,elongf_stem,ipft,leaf_status, &
+                                   grow_leaf,grow_fnrt,grow_sapw,grow_store,grow_struct)
 
      ! Arguments
-     real(r8),intent(in) :: bleaf   !actual
-     real(r8),intent(in) :: bfroot
-     real(r8),intent(in) :: bsap
+     real(r8),intent(in) :: b0_leaf        !initial
+     real(r8),intent(in) :: b0_fnrt
+     real(r8),intent(in) :: b0_sapw
+     real(r8),intent(in) :: b0_store
+     real(r8),intent(in) :: b0_struct
+     real(r8),intent(in) :: bleaf          !actual
+     real(r8),intent(in) :: bfnrt
+     real(r8),intent(in) :: bsapw
      real(r8),intent(in) :: bstore
-     real(r8),intent(in) :: bdead
-     real(r8),intent(in) :: bt_leaf   !target
-     real(r8),intent(in) :: bt_froot
-     real(r8),intent(in) :: bt_sap
+     real(r8),intent(in) :: bstruct
+     real(r8),intent(in) :: bt_leaf        !target
+     real(r8),intent(in) :: bt_fnrt
+     real(r8),intent(in) :: bt_sapw
      real(r8),intent(in) :: bt_store
-     real(r8),intent(in) :: bt_dead
-     logical,intent(out) :: grow_leaf  !growth flag
-     logical,intent(out) :: grow_froot
+     real(r8),intent(in) :: bt_struct
+     real(r8),intent(in) :: carbon_balance !remaining carbon balance
+     real(r8),intent(in) :: elongf_leaf    !elongation factors
+     real(r8),intent(in) :: elongf_fnrt
+     real(r8),intent(in) :: elongf_stem
+     integer,intent(in)  :: ipft           !Plant functional type
+     integer,intent(in)  :: leaf_status    !Phenology status
+     logical,intent(out) :: grow_leaf      !growth flag
+     logical,intent(out) :: grow_fnrt
      logical,intent(out) :: grow_sapw
      logical,intent(out) :: grow_store
+     logical,intent(out) :: grow_struct
+     ! Local variables
+     logical             :: fine_leaf
+     logical             :: fine_fnrt
+     logical             :: fine_sapw
+     logical             :: fine_store
+     logical             :: fine_struct
+     logical             :: all_fine
+     ! Local constants
+     character(len= 3), parameter :: fmth = '(a)'
+     character(len=27), parameter :: fmtb = '(a,3(1x,es12.5,1x,a),1x,l1)'
+     character(len=13), parameter :: fmte = '(a,1x,es12.5)'
+     character(len=10), parameter :: fmti = '(a,1x,i12)'
 
-     if( (bt_leaf - bleaf)>calloc_abs_error) then
-        write(fates_log(),*) 'leaves are not on-allometry at the growth step'
-        write(fates_log(),*) 'exiting',bleaf,bt_leaf
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     elseif( (bleaf - bt_leaf)>calloc_abs_error) then
-        ! leaf is above allometry, ignore
-        grow_leaf = .false.
+
+     ! First test whether or not each pool looks reasonable.
+     fine_leaf   = (bt_leaf   - bleaf  ) <= calloc_abs_error
+     fine_fnrt   = (bt_fnrt   - bfnrt  ) <= calloc_abs_error
+     fine_sapw   = (bt_sapw   - bsapw  ) <= calloc_abs_error
+     fine_store  = (bt_store  - bstore ) <= calloc_abs_error
+     fine_struct = (bt_struct - bstruct) <= calloc_abs_error
+     all_fine    = fine_leaf .and. fine_fnrt .and. fine_sapw .and. &
+                   fine_store .and. fine_struct
+
+     ! Decide whether or not to grow tissues (but only if all tissues look fine).
+     ! We grow only when biomass is less than target biomass (with tolerance).
+     if (all_fine) then
+        grow_leaf   = ( bleaf   - bt_leaf   ) <= calloc_abs_error
+        grow_fnrt   = ( bfnrt   - bt_fnrt   ) <= calloc_abs_error
+        grow_sapw   = ( bsapw   - bt_sapw   ) <= calloc_abs_error
+        grow_store  = ( bstore  - bt_store  ) <= calloc_abs_error
+        grow_struct = ( bstruct - bt_struct ) <= calloc_abs_error
      else
-        grow_leaf = .true.
-     end if
-
-     if( (bt_froot - bfroot)>calloc_abs_error) then
-        write(fates_log(),*) 'fineroots are not on-allometry at the growth step'
-        write(fates_log(),*) 'exiting',bfroot, bt_froot
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     elseif( ( bfroot-bt_froot)>calloc_abs_error ) then
-        grow_froot = .false.
-     else
-        grow_froot = .true.
-     end if
-
-     if( (bt_sap - bsap)>calloc_abs_error) then
-        write(fates_log(),*) 'sapwood is not on-allometry at the growth step'
-        write(fates_log(),*) 'exiting',bsap, bt_sap
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     elseif( ( bsap-bt_sap)>calloc_abs_error ) then
-        grow_sapw = .false.
-     else
-        grow_sapw = .true.
-     end if
-
-     if( (bt_store - bstore)>calloc_abs_error) then
-        write(fates_log(),*) 'storage is not on-allometry at the growth step'
-        write(fates_log(),*) 'exiting',bstore,bt_store
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     elseif( ( bstore-bt_store)>calloc_abs_error ) then
-        grow_store = .false.
-     else
-        grow_store = .true.
-     end if
-
-     if( (bt_dead - bdead)>calloc_abs_error) then
-        write(fates_log(),*) 'structure not on-allometry at the growth step'
-        write(fates_log(),*) 'exiting',bdead,bt_dead
+        ! If anything looks not fine, write a detailed report 
+        write(fates_log(),fmt=fmth) '======'
+        write(fates_log(),fmt=fmth) ' At least one tissue is not on-allometry at the growth step'
+        write(fates_log(),fmt=fmth) '======'
+        write(fates_log(),fmt=fmth) ''
+        write(fates_log(),fmt=fmth) ' Biomass and on-allometry test (''F'' means problem)'
+        write(fates_log(),fmt=fmth) '------'
+        write(fates_log(),fmt=fmth) ' Tissue     | Initial      | Current      | Target       | On-allometry'
+        write(fates_log(),fmt=fmtb) ' Leaf       |',b0_leaf   ,'|',bleaf     ,'|',bt_leaf   ,'|',fine_leaf
+        write(fates_log(),fmt=fmtb) ' Fine root  |',b0_fnrt   ,'|',bfnrt     ,'|',bt_fnrt   ,'|',fine_fnrt
+        write(fates_log(),fmt=fmtb) ' Sap wood   |',b0_sapw   ,'|',bsapw     ,'|',bt_sapw   ,'|',fine_sapw
+        write(fates_log(),fmt=fmtb) ' Storage    |',b0_store  ,'|',bstore    ,'|',bt_store  ,'|',fine_store
+        write(fates_log(),fmt=fmtb) ' Structural |',b0_struct ,'|',bstruct   ,'|',bt_struct ,'|',fine_struct
+        write(fates_log(),fmt=fmth) ''
+        write(fates_log(),fmt=fmth) ' Ancillary information'
+        write(fates_log(),fmt=fmth) '------'
+        write(fates_log(),fmt=fmti) ' PFT              = ',ipft
+        write(fates_log(),fmt=fmti) ' leaf_status      = ',leaf_status
+        write(fates_log(),fmt=fmte) ' elongf_leaf      = ',elongf_leaf
+        write(fates_log(),fmt=fmte) ' elongf_fnrt      = ',elongf_fnrt
+        write(fates_log(),fmt=fmte) ' elongf_stem      = ',elongf_stem
+        write(fates_log(),fmt=fmte) ' carbon_balance   = ',carbon_balance
+        write(fates_log(),fmt=fmte) ' calloc_abs_error = ',calloc_abs_error
+        write(fates_log(),fmt=fmth) ''
+        write(fates_log(),fmt=fmth) '======'
         call endrun(msg=errMsg(sourcefile, __LINE__))
      end if
+
+     return
    end subroutine TargetAllometryCheck
 
    

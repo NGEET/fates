@@ -17,7 +17,10 @@ module PRTParametersMod
      integer, allocatable :: season_decid(:)        ! Is the plant seasonally deciduous (1=yes, 0=no)
      integer, allocatable :: evergreen(:)           ! Is the plant an evergreen (1=yes, 0=no)
 
-     
+     ! Drop fraction for tissues other than leaves (PFT-dependent)
+     real(r8), allocatable :: phen_fnrt_drop_fraction(:) ! Abscission fraction of fine roots
+     real(r8), allocatable :: phen_stem_drop_fraction(:) ! Abscission fraction of stems
+
      ! Growth and Turnover Parameters
      real(r8), allocatable :: senleaf_long_fdrought(:)   ! Multiplication factor for leaf longevity of senescent 
                                                          ! leaves during drought( 1.0 indicates no change)

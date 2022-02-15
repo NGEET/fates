@@ -403,6 +403,9 @@ variables:
 	double fates_phen_evergreen(fates_pft) ;
 		fates_phen_evergreen:units = "logical flag" ;
 		fates_phen_evergreen:long_name = "Binary flag for evergreen leaf habit" ;
+	double fates_phen_fnrt_drop_fraction(fates_pft) ;
+		fates_phen_fnrt_drop_fraction:units = "fraction" ;
+		fates_phen_fnrt_drop_fraction:long_name = "fraction of fine roots to drop during drought/cold" ;
 	double fates_phen_season_decid(fates_pft) ;
 		fates_phen_season_decid:units = "logical flag" ;
 		fates_phen_season_decid:long_name = "Binary flag for seasonal-deciduous leaf habit" ;
@@ -719,12 +722,18 @@ variables:
 	double fates_phen_doff_time ;
 		fates_phen_doff_time:units = "days" ;
 		fates_phen_doff_time:long_name = "day threshold compared against days since leaves became off-allometry" ;
+	double fates_phen_drought_model ;
+		fates_phen_drought_model:units = "none" ;
+		fates_phen_drought_model:long_name = "which method to use for drought phenology: 0 - FATES default; 1 - Semi-deciduous (ED2-like)" ;
 	double fates_phen_drought_threshold ;
 		fates_phen_drought_threshold:units = "m3/m3 or mm" ;
-		fates_phen_drought_threshold:long_name = "threshold for drought phenology; the quantity depends on the sign: if positive, the threshold is volumetric soil moisture (m3/m3). If negative, the threshold is soil matric potentical (mm)." ;
+		fates_phen_drought_threshold:long_name = "threshold for drought phenology (or lower threshold when fates_phen_drought_model = 2); the quantity depends on the sign: if positive, the threshold is volumetric soil moisture (m3/m3). If negative, the threshold is soil matric potentical (mm)." ;
 	double fates_phen_mindayson ;
 		fates_phen_mindayson:units = "days" ;
 		fates_phen_mindayson:long_name = "day threshold compared against days since leaves became on-allometry" ;
+	double fates_phen_moist_threshold ;
+		fates_phen_moist_threshold:units = "m3/m3 or mm" ;
+		fates_phen_moist_threshold:long_name = "upper threshold for drought phenology (only for fates_phen_drought_model=2); the quantity depends on the sign: if positive, the threshold is volumetric soil moisture (m3/m3). If negative, the threshold is soil matric potentical (mm)." ;
 	double fates_phen_ncolddayslim ;
 		fates_phen_ncolddayslim:units = "days" ;
 		fates_phen_ncolddayslim:long_name = "day threshold exceedance for temperature leaf-drop" ;
@@ -1170,6 +1179,8 @@ data:
 
  fates_phen_evergreen = 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0 ;
 
+ fates_phen_fnrt_drop_fraction = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+
  fates_phen_season_decid = 0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 0, 0 ;
 
  fates_phen_stem_drop_fraction = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
@@ -1463,9 +1474,13 @@ data:
 
  fates_phen_doff_time = 100 ;
 
- fates_phen_drought_threshold = -140000. ;
+ fates_phen_drought_model = 0 ;
+
+ fates_phen_drought_threshold = -203943.2 ;
 
  fates_phen_mindayson = 90 ;
+
+ fates_phen_moist_threshold = -122365.9 ;
 
  fates_phen_ncolddayslim = 5 ;
 

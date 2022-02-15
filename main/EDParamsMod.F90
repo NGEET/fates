@@ -36,7 +36,12 @@ module EDParamsMod
    integer,protected, public :: photo_tempsens_model  ! switch for choosing the model that defines the temperature
                                                       ! sensitivity of photosynthetic parameters (vcmax, jmax).
                                                       ! 1=non-acclimating (NOT YET IMPLEMENTED)
-   
+
+   integer,protected, public :: phen_drought_model    ! Switch for chooshing the drought-deciduous phenology model
+                                                      ! 0 = Default FATES ( leaves on/off based on 10-day average soil moisture threshold in rooting zone )
+                                                      ! 1 = ED2-like (partial deciduousness based on 10-day average soil moisture upper and lower threshold in rooting zone)
+                                                      ! Other options coming at some point.
+
    real(r8),protected, public :: fates_mortality_disturbance_fraction ! the fraction of canopy mortality that results in disturbance
    real(r8),protected, public :: ED_val_comp_excln
    real(r8),protected, public :: ED_val_init_litter
@@ -46,6 +51,7 @@ module EDParamsMod
    real(r8),protected, public :: ED_val_cwd_flig
    real(r8),protected, public :: ED_val_base_mr_20
    real(r8),protected, public :: ED_val_phen_drought_threshold
+   real(r8),protected, public :: ED_val_phen_moist_threshold
    real(r8),protected, public :: ED_val_phen_doff_time
    real(r8),protected, public :: ED_val_phen_a
    real(r8),protected, public :: ED_val_phen_b
@@ -96,6 +102,7 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_photo_temp_acclim_timescale = "fates_photo_temp_acclim_timescale"
    character(len=param_string_length),parameter,public :: name_photo_tempsens_model = "fates_photo_tempsens_model"
    character(len=param_string_length),parameter,public :: name_maintresp_model = "fates_maintresp_model"
+   character(len=param_string_length),parameter,public :: name_phen_drought_model = "fates_phen_drought_model"
    character(len=param_string_length),parameter,public :: ED_name_hydr_htftype_node = "fates_hydr_htftype_node"
    character(len=param_string_length),parameter,public :: ED_name_mort_disturb_frac = "fates_mort_disturb_frac"
    character(len=param_string_length),parameter,public :: ED_name_comp_excln = "fates_comp_excln"
@@ -106,6 +113,7 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_cwd_flig= "fates_cwd_flig"   
    character(len=param_string_length),parameter,public :: ED_name_base_mr_20= "fates_base_mr_20"   
    character(len=param_string_length),parameter,public :: ED_name_phen_drought_threshold= "fates_phen_drought_threshold"   
+   character(len=param_string_length),parameter,public :: ED_name_phen_moist_threshold= "fates_phen_moist_threshold"
    character(len=param_string_length),parameter,public :: ED_name_phen_doff_time= "fates_phen_doff_time"   
    character(len=param_string_length),parameter,public :: ED_name_phen_a= "fates_phen_a"   
    character(len=param_string_length),parameter,public :: ED_name_phen_b= "fates_phen_b"   
@@ -214,6 +222,7 @@ contains
     photo_temp_acclim_timescale           = nan
     photo_tempsens_model                  = -9
     maintresp_model                       = -9
+    phen_drought_model                    = -9
     fates_mortality_disturbance_fraction  = nan
     ED_val_comp_excln                     = nan
     ED_val_init_litter                    = nan
@@ -223,6 +232,7 @@ contains
     ED_val_cwd_flig                       = nan
     ED_val_base_mr_20                     = nan
     ED_val_phen_drought_threshold         = nan
+    ED_val_phen_moist_threshold           = nan
     ED_val_phen_doff_time                 = nan
     ED_val_phen_a                         = nan
     ED_val_phen_b                         = nan
@@ -297,7 +307,10 @@ contains
 
     call fates_params%RegisterParameter(name=name_maintresp_model,dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
-    
+
+    call fates_params%RegisterParameter(name=name_phen_drought_model,dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
     call fates_params%RegisterParameter(name=name_theta_cj_c3, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
     
@@ -329,6 +342,9 @@ contains
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=ED_name_phen_drought_threshold, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=ED_name_phen_moist_threshold, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=ED_name_phen_doff_time, dimension_shape=dimension_shape_scalar, &
@@ -479,7 +495,11 @@ contains
     call fates_params%RetreiveParameter(name=name_maintresp_model, &
          data=tmpreal)
     maintresp_model = nint(tmpreal)
-    
+
+    call fates_params%RetreiveParameter(name=name_phen_drought_model, &
+         data=tmpreal)
+    phen_drought_model = nint(tmpreal)
+
     call fates_params%RetreiveParameter(name=ED_name_mort_disturb_frac, &
           data=fates_mortality_disturbance_fraction)
 
@@ -506,6 +526,9 @@ contains
 
     call fates_params%RetreiveParameter(name=ED_name_phen_drought_threshold, &
          data=ED_val_phen_drought_threshold)
+
+    call fates_params%RetreiveParameter(name=ED_name_phen_moist_threshold, &
+         data=ED_val_phen_moist_threshold)
 
     call fates_params%RetreiveParameter(name=ED_name_phen_doff_time, &
          data=ED_val_phen_doff_time)
@@ -633,6 +656,7 @@ contains
     hydr_htftype_node(:) = nint(hydr_htftype_real(:))
     deallocate(hydr_htftype_real)
 
+
   end subroutine FatesReceiveParams
   
   ! =====================================================================================
@@ -653,6 +677,7 @@ contains
         write(fates_log(),fmt0) 'photo_temp_acclim_timescale = ',photo_temp_acclim_timescale
         write(fates_log(),fmti) 'hydr_htftype_node = ',hydr_htftype_node
         write(fates_log(),fmt0) 'fates_mortality_disturbance_fraction = ',fates_mortality_disturbance_fraction
+        write(fates_log(),fmti) 'phen_drought_model = ',phen_drought_model
         write(fates_log(),fmt0) 'ED_val_comp_excln = ',ED_val_comp_excln
         write(fates_log(),fmt0) 'ED_val_init_litter = ',ED_val_init_litter
         write(fates_log(),fmt0) 'ED_val_nignitions = ',ED_val_nignitions
@@ -661,6 +686,7 @@ contains
         write(fates_log(),fmt0) 'ED_val_cwd_flig = ',ED_val_cwd_flig
         write(fates_log(),fmt0) 'ED_val_base_mr_20 = ', ED_val_base_mr_20
         write(fates_log(),fmt0) 'ED_val_phen_drought_threshold = ',ED_val_phen_drought_threshold
+        write(fates_log(),fmt0) 'ED_val_phen_moist_threshold = ',ED_val_phen_moist_threshold
         write(fates_log(),fmt0) 'ED_val_phen_doff_time = ',ED_val_phen_doff_time
         write(fates_log(),fmt0) 'ED_val_phen_a = ',ED_val_phen_a
         write(fates_log(),fmt0) 'ED_val_phen_b = ',ED_val_phen_b

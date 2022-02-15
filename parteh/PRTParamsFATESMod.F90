@@ -165,6 +165,14 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_phen_fnrt_drop_fraction'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_phen_stem_drop_fraction'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     name = 'fates_fnrt_prof_a'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -412,6 +420,14 @@ contains
     allocate(prt_params%evergreen(size(tmpreal,dim=1)))
     call ArrayNint(tmpreal,prt_params%evergreen)
     deallocate(tmpreal)
+
+    name = 'fates_phen_fnrt_drop_fraction'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=prt_params%phen_fnrt_drop_fraction)
+
+    name = 'fates_phen_stem_drop_fraction'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=prt_params%phen_stem_drop_fraction)
 
     name = 'fates_leaf_slamax'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -842,7 +858,8 @@ contains
      logical, intent(in) :: is_master  ! Only log if this is the master proc
 
      logical, parameter :: debug_report = .false.
-     character(len=32),parameter :: fmt0 = '(a,100(F12.4,1X))'
+     character(len=15),parameter :: fmti = '(a,100(I12,1X))'
+     character(len=17),parameter :: fmt0 = '(a,100(F12.4,1X))'
 
      integer :: npft,ipft
      
@@ -858,9 +875,11 @@ contains
         end if
 
         write(fates_log(),*) '-----------  FATES PARTEH Parameters -----------------'
-        write(fates_log(),fmt0) 'stress_decid = ',prt_params%stress_decid
-        write(fates_log(),fmt0) 'season_decid = ',prt_params%season_decid
-        write(fates_log(),fmt0) 'evergreen = ',prt_params%evergreen
+        write(fates_log(),fmti) 'stress_decid = ',prt_params%stress_decid
+        write(fates_log(),fmti) 'season_decid = ',prt_params%season_decid
+        write(fates_log(),fmti) 'evergreen = ',prt_params%evergreen
+        write(fates_log(),fmt0) 'phen_fnrt_drop_fraction = ',prt_params%phen_fnrt_drop_fraction
+        write(fates_log(),fmt0) 'phen_stem_drop_fraction = ',prt_params%phen_stem_drop_fraction
         write(fates_log(),fmt0) 'wood_density = ',prt_params%wood_density
         write(fates_log(),fmt0) 'dbh max height = ',prt_params%allom_dbh_maxheight
         write(fates_log(),fmt0) 'dbh mature = ',prt_params%dbh_repro_threshold
@@ -920,7 +939,7 @@ contains
         write(fates_log(),fmt0) 'turnover_carb_retrans = ',prt_params%turnover_carb_retrans
         write(fates_log(),fmt0) 'turnover_nitr_retrans = ',prt_params%turnover_nitr_retrans
         write(fates_log(),fmt0) 'turnover_phos_retrans = ',prt_params%turnover_phos_retrans
-        write(fates_log(),fmt0) 'organ_id = ',prt_params%organ_id
+        write(fates_log(),fmti) 'organ_id = ',prt_params%organ_id
         write(fates_log(),fmt0) 'nitr_store_ratio = ',prt_params%nitr_store_ratio
         write(fates_log(),fmt0) 'phos_store_ratio = ',prt_params%phos_store_ratio
         write(fates_log(),*) '-------------------------------------------------'
