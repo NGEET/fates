@@ -192,6 +192,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_area_plant_si
   integer :: ih_area_trees_si
 
+  integer :: ih_fates_fraction_si
+
   integer :: ih_cwd_elcwd
 
   integer :: ih_litter_in_si    ! carbon only
@@ -1563,8 +1565,14 @@ end subroutine flush_hvars
     ! Flushing to the ignore val coerces all FATES diagnostics to be
     ! relevant only on FATES sites. This way we do not average zero's
     ! at locations not on FATES columns
+    ! We make one exception to this rule, for the fates_fraction variable.  That way
+    ! we can always know what fraction of the gridcell FATES is occupying.
 
-    flushval = hlm_hio_ignore_val
+    if ( trim(vname) .ne. 'FATES_FRACTION') then
+       flushval = hlm_hio_ignore_val
+    else
+       flushval = 0._r8
+    endif
 
     write_var = check_hlm_list(trim(hlms), trim(hlm_name))
     if( write_var ) then
@@ -1834,6 +1842,7 @@ end subroutine flush_hvars
                hio_trimming_si         => this%hvars(ih_trimming_si)%r81d, &
                hio_area_plant_si       => this%hvars(ih_area_plant_si)%r81d, &
                hio_area_trees_si  => this%hvars(ih_area_trees_si)%r81d, &
+               hio_fates_fraction_si   => this%hvars(ih_fates_fraction_si)%r81d, &
                hio_canopy_spread_si    => this%hvars(ih_canopy_spread_si)%r81d, &
                hio_biomass_si_pft      => this%hvars(ih_biomass_si_pft)%r82d, &
                hio_leafbiomass_si_pft  => this%hvars(ih_leafbiomass_si_pft)%r82d, &
@@ -2080,6 +2089,10 @@ end subroutine flush_hvars
    siteloop: do s = 1,nsites
 
       io_si  = sites(s)%h_gid
+
+      ! set the fates fraction to one, since it is zero on non-fates columns, &
+      ! the average is the total gridcell fates fraction
+      hio_fates_fraction_si(io_si) = 1._r8
 
       ! Total carbon model error [kgC/day -> kgC/s]
       hio_cbal_err_fates_si(io_si) = &
@@ -4405,6 +4418,12 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_area_trees_si)
+
+    call this%set_history_var(vname='FATES_FRACTION', units='m2 m-2',        &
+         long='total gridcell fraction which FATES is running over', use_default='active', &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+         index=ih_fates_fraction_si)
 
     call this%set_history_var(vname='FATES_COLD_STATUS', units='',             &
           long='site-level cold status, 0=not cold-dec, 1=too cold for leaves, 2=not too cold',  &
