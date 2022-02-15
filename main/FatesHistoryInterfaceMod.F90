@@ -5204,14 +5204,14 @@ end subroutine update_history_hifrq
          upfreq=2, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_ar_canopy_si)
 
-    call this%set_history_var(vname='FATES_GPP_UNDERSTORY',                    &
+    call this%set_history_var(vname='FATES_GPP_USTORY',                        &
          units='kg m-2 s-1',                                                   &
          long='gross primary production of understory plants in kg carbon per m2 per second', &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=2, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_gpp_understory_si)
 
-    call this%set_history_var(vname='FATES_AUTORESP_UNDERSTORY',               &
+    call this%set_history_var(vname='FATES_AUTORESP_USTORY',                   &
          units='kg m-2 s-1',                                                   &
          long='autotrophic respiration of understory plants in kg carbon per m2 per second', &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
@@ -5431,7 +5431,7 @@ end subroutine update_history_hifrq
           upfreq=1, ivar=ivar, initialize=initialize_variables,                &
           index = ih_canopy_mortality_carbonflux_si)
 
-    call this%set_history_var(vname='FATES_MORTALITY_CFLUX_UNDERSTORY',        &
+    call this%set_history_var(vname='FATES_MORTALITY_CFLUX_USTORY',            &
           units = 'kg m-2 s-1',                                                &
           long='flux of biomass carbon from live to dead pools from mortality of understory plants in kg carbon per m2 per second', &
           use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
@@ -6686,7 +6686,7 @@ end subroutine update_history_hifrq
             hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
             initialize=initialize_variables, index = ih_storeptfrac_canopy_scpf)
 
-       call this%set_history_var(vname='FATES_STOREP_TF_USTORY_SZPF',      &
+       call this%set_history_var(vname='FATES_STOREP_TF_USTORY_SZPF',          &
             units='1',                                                         &
             long='storage phosphorus fraction (0-1) of target, in understory, by size-class x pft', &
             use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
