@@ -1995,6 +1995,8 @@ contains
 
        ipft = currentCohort%pft
 
+       write(fates_log(),*) 'UpdateCohortBPRates: frac_leaf_aclass: ', sum(frac_leaf_aclass(1:nleafage))>nearzero
+
        if(sum(frac_leaf_aclass(1:nleafage))>nearzero) then
 
 
@@ -2013,7 +2015,7 @@ contains
           currentCohort%kp25top    = sum(param_derived%kp25top(ipft,1:nleafage) * &
                 frac_leaf_aclass(1:nleafage))
 
-       elseif (hlm_use_sp .eq. itrue .and. hlm_is_restart .eq. itrue) then
+       elseif (hlm_use_sp .eq. itrue) then
          
           currentCohort%vcmax25top = EDPftvarcon_inst%vcmax25top(ipft,1)
           currentCohort%jmax25top  = param_derived%jmax25top(ipft,1)
