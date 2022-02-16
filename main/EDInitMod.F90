@@ -211,6 +211,7 @@ contains
 
     ! FIRE
     site_in%acc_ni           = 0.0_r8     ! daily nesterov index accumulating over time. time unlimited theoretically.
+    site_in%FDI              = nan
     site_in%NF               = 0.0_r8     ! daily lightning strikes per km2
     site_in%NF_successful    = 0.0_r8     ! daily successful iginitions per km2
 
