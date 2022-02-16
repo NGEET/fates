@@ -1971,6 +1971,10 @@ contains
        ! We assume that leaf age does not effect the specific leaf area, so the mass
        ! fractions are applicable to these rates
 
+       ipft = currentCohort%pft
+
+       write(fates_log(),*) 'UpdateCohortBPRates: frac_leaf_aclass: ', sum(frac_leaf_aclass(1:nleafage))>nearzero
+
        if(sum(frac_leaf_aclass(1:nleafage))>nearzero) then
 
           ipft = currentCohort%pft
@@ -1990,6 +1994,13 @@ contains
           currentCohort%kp25top    = sum(param_derived%kp25top(ipft,1:nleafage) * &
                 frac_leaf_aclass(1:nleafage))
 
+       elseif (hlm_use_sp .eq. itrue) then
+         
+          currentCohort%vcmax25top = EDPftvarcon_inst%vcmax25top(ipft,1)
+          currentCohort%jmax25top  = param_derived%jmax25top(ipft,1)
+          currentCohort%tpu25top   = param_derived%tpu25top(ipft,1)
+          currentCohort%kp25top    = param_derived%kp25top(ipft,1)
+       
        else
 
           currentCohort%vcmax25top = 0._r8
