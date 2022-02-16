@@ -922,7 +922,7 @@ contains
     ! v_stem       = c_stem_biom / (prt_params%wood_density(ft) * kg_per_g * cm3_per_m3 )
 
     ! calculate the sapwood cross-sectional area
-    call bsap_allom(ccohort%dbh,ccohort%pft,ccohort%crowndamage, ccohort%branch_frac, &
+    call bsap_allom(ccohort%dbh,ccohort%pft,ccohort%crowndamage, &
          ccohort%canopy_trim,a_sapwood_target,sapw_c_target)
 
     ! uncomment this if you want to use
@@ -2866,7 +2866,7 @@ subroutine UpdatePlantKmax(ccohort_hydr,ccohort,csite_hydr)
   pft   = ccohort%pft
 
   ! Get the cross-section of the plant's sapwood area [m2]
-  call bsap_allom(ccohort%dbh,pft,ccohort%crowndamage,ccohort%branch_frac, &
+  call bsap_allom(ccohort%dbh,pft,ccohort%crowndamage, &
        ccohort%canopy_trim,a_sapwood,c_sap_dummy)
 
   ! Leaf Maximum Hydraulic Conductance

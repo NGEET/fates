@@ -149,10 +149,6 @@ module FatesIODimensionsMod
        integer :: cnlf_end
        integer :: cnlfpft_begin
        integer :: cnlfpft_end
-      ! integer :: cdamage_begin
-      ! integer :: cdamage_end
-       integer :: cdcd_begin
-       integer :: cdcd_end
        integer :: cdsc_begin
        integer :: cdsc_end
        integer :: cdpf_begin

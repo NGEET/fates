@@ -12,6 +12,10 @@ module FatesInterfaceMod
    use EDTypesMod                , only : ed_site_type
    use EDTypesMod                , only : maxPatchesPerSite
    use EDTypesMod                , only : maxCohortsPerPatch
+   use EDTypesMod                , only : dinc_vai
+   use EDTypesMod                , only : dlower_vai
+   use EDParamsMod               , only : ED_val_vai_top_bin_width
+   use EDParamsMod               , only : ED_val_vai_width_increase_factor
    use EDTypesMod                , only : maxSWb
    use EDTypesMod                , only : ivis
    use EDTypesMod                , only : inir
@@ -819,7 +823,16 @@ contains
             max_comp_per_site = 1
          end if
             
+         ! calculate the bin edges for radiative transfer calculations
+         ! VAI bin widths array 
+         do i = 1,nlevleaf
+            dinc_vai(i) = ED_val_vai_top_bin_width * ED_val_vai_width_increase_factor ** (i-1)
+         end do
 
+         ! lower edges of VAI bins       
+         do i = 1,nlevleaf
+            dlower_vai(i) = sum(dinc_vai(1:i))
+         end do
 
          ! Identify number of size and age class bins for history output
          ! assume these arrays are 1-indexed
@@ -1019,9 +1032,6 @@ contains
        allocate( fates_hdim_pfmap_levcapf(1:nlevcoage*numpft))
        allocate( fates_hdim_camap_levcapf(1:nlevcoage*numpft))
 
-       allocate( fates_hdim_levcdam(ncrowndamage ))
-       allocate( fates_hdim_cdimap_levcdcd(ncrowndamage*(ncrowndamage+1)))
-       allocate( fates_hdim_cdjmap_levcdcd(ncrowndamage*(ncrowndamage+1)))
        allocate( fates_hdim_scmap_levcdsc(nlevsclass*ncrowndamage))
        allocate( fates_hdim_cdmap_levcdsc(nlevsclass*ncrowndamage))
        allocate( fates_hdim_scmap_levcdpf(nlevsclass*ncrowndamage * numpft))
@@ -1030,6 +1040,7 @@ contains
 
        allocate( fates_hdim_levcan(nclmax))
        allocate( fates_hdim_levelem(num_elements))
+       allocate( fates_hdim_levleaf(nlevleaf))
        allocate( fates_hdim_canmap_levcnlf(nlevleaf*nclmax))
        allocate( fates_hdim_lfmap_levcnlf(nlevleaf*nclmax))
        allocate( fates_hdim_canmap_levcnlfpf(nlevleaf*nclmax*numpft))
@@ -1058,6 +1069,7 @@ contains
        fates_hdim_levage(:) = ED_val_history_ageclass_bin_edges(:)
        fates_hdim_levheight(:) = ED_val_history_height_bin_edges(:)
        fates_hdim_levcoage(:) = ED_val_history_coageclass_bin_edges(:)
+       fates_hdim_levleaf(:) = dlower_vai(:)
 
        ! make pft array
        do ipft=1,numpft
@@ -1079,10 +1091,6 @@ contains
           fates_hdim_levcan(ican) = ican
        end do
 
-       ! make damage array
-       do icdam = 1,ncrowndamage
-          fates_hdim_levcdam(icdam) = icdam
-       end do
       
 
        ! Make an element array, each index is the PARTEH global identifier index

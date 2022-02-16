@@ -1295,7 +1295,6 @@ contains
     integer  :: ft               ! plant functional type
     integer  :: ifp              ! the number of the vegetated patch (1,2,3). In SP mode bareground patch is 0
     integer  :: patchn           ! identification number for each patch.
-    real(r8) :: canopy_leaf_area ! total amount of leaf area in the vegetated area. m2.
     real(r8) :: leaf_c           ! leaf carbon [kg]
     real(r8) :: fnrt_c           ! fineroot carbon [kg]
     real(r8) :: sapw_c           ! sapwood carbon [kg]
@@ -1324,7 +1323,6 @@ contains
           !zero cohort-summed variables.
           currentPatch%total_canopy_area = 0.0_r8
           currentPatch%total_tree_area = 0.0_r8
-          canopy_leaf_area = 0.0_r8
 
           !update cohort quantitie s
           currentCohort => currentPatch%shortest
@@ -1353,11 +1351,6 @@ contains
                 call carea_allom(currentCohort%dbh,currentCohort%n,sites(s)%spread,&
                      currentCohort%pft,currentCohort%crowndamage,currentCohort%c_area)
              endif
-             currentCohort%treelai = tree_lai(leaf_c,             &
-                  currentCohort%pft, currentCohort%c_area, currentCohort%n, &
-                  currentCohort%canopy_layer, currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )
-
-             canopy_leaf_area = canopy_leaf_area + currentCohort%treelai *currentCohort%c_area
 
              if(currentCohort%canopy_layer==1)then
                 currentPatch%total_canopy_area = currentPatch%total_canopy_area + currentCohort%c_area
@@ -1489,7 +1482,8 @@ contains
 
     ! !USES:
 
-    use EDtypesMod           , only : area, dinc_ed, hitemax, n_hite_bins
+    use EDtypesMod           , only : area, dinc_vai, dlower_vai, hitemax, n_hite_bins
+  
     !
     ! !ARGUMENTS
     type(ed_site_type)     , intent(inout) :: currentSite
@@ -1520,8 +1514,6 @@ contains
     real(r8) :: leaf_c                   ! leaf carbon [kgC]
     real(r8) :: target_c_area            ! crown area of undamaged cohort given dbh
     !----------------------------------------------------------------------
-
-
 
     smooth_leaf_distribution = 0
 
@@ -1585,7 +1577,7 @@ contains
              currentCohort%sai =  currentCohort%treesai *currentCohort%c_area/currentPatch%total_canopy_area
 
              ! Number of actual vegetation layers in this cohort's crown
-             currentCohort%nv =  ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)
+             currentCohort%nv =  count((currentCohort%treelai+currentCohort%treesai) .gt. dlower_vai(:)) + 1
 
              currentPatch%ncan(cl,ft) = max(currentPatch%ncan(cl,ft),currentCohort%NV)
 
@@ -1749,15 +1741,16 @@ contains
 
                    if(iv==currentCohort%NV) then
                       remainder = (currentCohort%treelai + currentCohort%treesai) - &
-                           (dinc_ed*real(currentCohort%nv-1,r8))
-                      if(remainder > dinc_ed )then
+                           (dlower_vai(iv) - dinc_vai(iv))
+                      if(remainder > dinc_vai(iv) )then
                          write(fates_log(), *)'ED: issue with remainder', &
-                              currentCohort%treelai,currentCohort%treesai,dinc_ed, &
+                              currentCohort%treelai,currentCohort%treesai,dinc_vai(iv), & 
                               currentCohort%NV,remainder
+
                          call endrun(msg=errMsg(sourcefile, __LINE__))
                       endif
                    else
-                      remainder = dinc_ed
+                      remainder = dinc_vai(iv)
                    end if
 
                    currentPatch%tlai_profile(cl,ft,iv) = currentPatch%tlai_profile(cl,ft,iv) + &
@@ -1932,6 +1925,7 @@ contains
     real(r8) :: bare_frac_area
     real(r8) :: total_patch_area
     real(r8) :: total_canopy_area
+    real(r8) :: total_patch_leaf_stem_area
     real(r8) :: weight  ! Weighting for cohort variables in patch
 
     do s = 1,nsites
@@ -1940,6 +1934,11 @@ contains
        total_patch_area = 0._r8
        total_canopy_area = 0._r8
        bc_out(s)%canopy_fraction_pa(:) = 0._r8
+       bc_out(s)%dleaf_pa(:) = 0._r8
+       bc_out(s)%z0m_pa(:) = 0._r8
+       bc_out(s)%displa_pa(:) = 0._r8
+
+       
        currentPatch => sites(s)%oldest_patch
        c = fcolumn(s)
        do while(associated(currentPatch))
@@ -1962,24 +1961,71 @@ contains
 
              bc_out(s)%hbot_pa(ifp) = max(0._r8, min(0.2_r8, bc_out(s)%htop_pa(ifp)- 1.0_r8))
 
-             ! Use leaf area weighting for all cohorts in the patch to define the characteristic
-             ! leaf width used by the HLM
+             ! Use canopy-only crown area weighting for all cohorts in the patch to define the characteristic
+             ! Roughness length and displacement height used by the HLM
+             ! use total LAI + SAI to weight the leaft characteristic dimension
+             ! Avoid this if running in satellite phenology mode
              ! ----------------------------------------------------------------------------
-             !           bc_out(s)%dleaf_pa(ifp) = 0.0_r8
-             !           if(currentPatch%lai>1.0e-9_r8) then
-             !              currentCohort => currentPatch%shortest
-             !              do while(associated(currentCohort))
-             !                 weight = min(1.0_r8,currentCohort%lai/currentPatch%lai)
-             !                 bc_out(s)%dleaf_pa(ifp) = bc_out(s)%dleaf_pa(ifp) + &
-             !                       EDPftvarcon_inst%dleaf(currentCohort%pft)*weight
-             !                 currentCohort => currentCohort%taller
-             !              enddo
-             !           end if
 
-             ! Roughness length and displacement height are not PFT properties, they are
-             ! properties of the canopy assemblage.  Defining this needs an appropriate model.
-             ! Right now z0 and d are pft level parameters.  For the time being we will just
-             ! use the 1st index until a suitable model is defined. (RGK 04-2017)
+             if (currentPatch%total_canopy_area > nearzero) then
+                currentCohort => currentPatch%shortest
+                do while(associated(currentCohort))
+                   if (currentCohort%canopy_layer .eq. 1) then
+                      weight = min(1.0_r8,currentCohort%c_area/currentPatch%total_canopy_area)
+                      bc_out(s)%z0m_pa(ifp) = bc_out(s)%z0m_pa(ifp) + &
+                           EDPftvarcon_inst%z0mr(currentCohort%pft) * currentCohort%hite * weight
+                      bc_out(s)%displa_pa(ifp) = bc_out(s)%displa_pa(ifp) + &
+                           EDPftvarcon_inst%displar(currentCohort%pft) * currentCohort%hite * weight
+                   endif
+                   currentCohort => currentCohort%taller
+                end do
+
+                ! for lai, scale to total LAI + SAI in patch.  first add up all the LAI and SAI in the patch
+                total_patch_leaf_stem_area = 0._r8
+                currentCohort => currentPatch%shortest
+                do while(associated(currentCohort))
+
+                   if (hlm_use_sp.eq.ifalse) then
+                   ! make sure that allometries are correct
+                   call carea_allom(currentCohort%dbh,currentCohort%n,sites(s)%spread,&
+                        currentCohort%pft,currentCohort%crowndamage, currentCohort%c_area)
+
+                   currentCohort%treelai = tree_lai(currentCohort%prt%GetState(leaf_organ, all_carbon_elements),  &
+                        currentCohort%pft, currentCohort%c_area, currentCohort%n, &
+                        currentCohort%canopy_layer, currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )
+
+                   currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, sites(s)%spread, &
+                        currentCohort%canopy_trim, &
+                        currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
+                        currentPatch%canopy_layer_tlai, currentCohort%treelai , &
+                        currentCohort%vcmax25top,4)
+                   endif
+
+                   total_patch_leaf_stem_area = total_patch_leaf_stem_area + &
+                        (currentCohort%treelai + currentCohort%treesai) * currentCohort%c_area
+                   currentCohort => currentCohort%taller
+                end do
+
+                ! make sure there is some leaf and stem area
+                if (total_patch_leaf_stem_area > nearzero) then
+                   currentCohort => currentPatch%shortest
+                   do while(associated(currentCohort))
+                      ! weight dleaf by the relative totals of leaf and stem area
+                      weight = (currentCohort%treelai + currentCohort%treesai) * currentCohort%c_area / total_patch_leaf_stem_area
+                      bc_out(s)%dleaf_pa(ifp) = bc_out(s)%dleaf_pa(ifp) + &
+                           EDPftvarcon_inst%dleaf(currentCohort%pft) * weight
+                      currentCohort => currentCohort%taller
+                   end do
+                else
+                   ! dummy case
+                   bc_out(s)%dleaf_pa(ifp)  = EDPftvarcon_inst%dleaf(1)
+                endif
+             else
+                ! if no canopy, then use dummy values (first PFT) of aerodynamic properties
+                bc_out(s)%z0m_pa(ifp)    = EDPftvarcon_inst%z0mr(1) * bc_out(s)%htop_pa(ifp)
+                bc_out(s)%displa_pa(ifp) = EDPftvarcon_inst%displar(1) * bc_out(s)%htop_pa(ifp)
+                bc_out(s)%dleaf_pa(ifp)  = EDPftvarcon_inst%dleaf(1)
+             endif
              ! -----------------------------------------------------------------------------
              bc_out(s)%z0m_pa(ifp)    = EDPftvarcon_inst%z0mr(1) * bc_out(s)%htop_pa(ifp)
              bc_out(s)%displa_pa(ifp) = EDPftvarcon_inst%displar(1) * bc_out(s)%htop_pa(ifp)

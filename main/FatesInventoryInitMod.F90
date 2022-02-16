@@ -917,7 +917,7 @@ contains
       real(r8) :: m_repro  ! Generic mass for reproductive tissues [kg]
       real(r8) :: stem_drop_fraction
       integer  :: i_pft, ncohorts_to_create
-
+     
       character(len=128),parameter    :: wr_fmt = &
            '(F7.1,2X,A20,2X,A20,2X,F5.2,2X,F5.2,2X,I4,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2)'
 
@@ -925,6 +925,7 @@ contains
       real(r8), parameter :: abnormal_large_dbh    = 500.0_r8   ! I've never heard of a tree > 3m
       integer,  parameter :: recruitstatus = 0
 
+     
       read(css_file_unit,fmt=*,iostat=ios) c_time, p_name, c_name, c_dbh, c_height, &
             c_pft, c_nplant, c_bdead, c_balive, c_avgRG
 
@@ -1022,7 +1023,7 @@ contains
          temp_cohort%canopy_trim = 1.0_r8
 
          call bagw_allom(temp_cohort%dbh,temp_cohort%pft, &
-              temp_cohort%crowndamage, temp_cohort%branch_frac, c_agw)
+              temp_cohort%crowndamage, c_agw)
          ! Calculate coarse root biomass from allometry
          call bbgw_allom(temp_cohort%dbh,temp_cohort%pft,c_bgw)
 
@@ -1168,7 +1169,7 @@ contains
               temp_cohort%coage, temp_cohort%dbh, &
               prt_obj, temp_cohort%laimemory,temp_cohort%sapwmemory, temp_cohort%structmemory, &
               cstatus, rstatus, temp_cohort%canopy_trim, temp_cohort%c_area, &
-              1, temp_cohort%crowndamage, temp_cohort%branch_frac, csite%spread, bc_in)
+              1, temp_cohort%crowndamage, csite%spread, bc_in)
 
          deallocate(temp_cohort) ! get rid of temporary cohort
 

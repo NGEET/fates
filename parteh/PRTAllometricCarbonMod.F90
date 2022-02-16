@@ -95,8 +95,7 @@ module PRTAllometricCarbonMod
   integer, public, parameter :: ac_bc_in_id_pft   = 1   ! Index for the PFT input BC
   integer, public, parameter :: ac_bc_in_id_ctrim = 2   ! Index for the canopy trim function
   integer, public, parameter :: ac_bc_in_id_lstat = 3   ! Leaf status (on or off)
-  integer, public, parameter :: ac_bc_in_id_branch_frac = 4 ! index for the branch fraction input BC
-  integer, parameter         :: num_bc_in         = 4   ! Number of input boundary conditions
+  integer, parameter         :: num_bc_in         = 3   ! Number of input boundary conditions
 
   
   ! THere are no purely output boundary conditions
@@ -303,7 +302,6 @@ contains
     
     real(r8) :: canopy_trim            ! The canopy trimming function [0-1]
     integer  :: ipft                   ! Plant Functional Type index
-    real(r8) :: branch_frac
     
     real(r8) :: target_leaf_c         ! target leaf carbon [kgC]
     real(r8) :: target_fnrt_c         ! target fine-root carbon [kgC]
@@ -432,17 +430,14 @@ contains
     canopy_trim                     = this%bc_in(ac_bc_in_id_ctrim)%rval
     ipft                            = this%bc_in(ac_bc_in_id_pft)%ival
     leaf_status                     = this%bc_in(ac_bc_in_id_lstat)%ival
-    branch_frac                     = this%bc_in(ac_bc_in_id_branch_frac)%rval
     
     intgr_params(:)                 = un_initialized
     intgr_params(ac_bc_in_id_ctrim) = this%bc_in(ac_bc_in_id_ctrim)%rval
     intgr_params(ac_bc_in_id_pft)   = real(this%bc_in(ac_bc_in_id_pft)%ival)
-    intgr_params(ac_bc_in_id_branch_frac) = this%bc_in(ac_bc_in_id_branch_frac)%rval
     intgr_params(num_bc_in + 1) = real(this%bc_inout(ac_bc_inout_id_cdamage)%ival)
     
     nleafage = prt_global%state_descriptor(leaf_c_id)%num_pos ! Number of leaf age class
     damage_recovery_scalar = prt_params%damage_recovery_scalar(ipft)
-
     
     ! -----------------------------------------------------------------------------------
     ! Call the routine that advances leaves in age.
@@ -470,10 +465,10 @@ contains
     ! -----------------------------------------------------------------------------------
     
     ! Target sapwood biomass according to allometry and trimming [kgC]
-    call bsap_allom(dbh,ipft, crowndamage, branch_frac, canopy_trim,sapw_area,target_sapw_c)
+    call bsap_allom(dbh,ipft, crowndamage, canopy_trim,sapw_area,target_sapw_c)
     
     ! Target total above ground biomass in woody/fibrous tissues  [kgC]
-    call bagw_allom(dbh,ipft, crowndamage, branch_frac, target_agw_c)
+    call bagw_allom(dbh,ipft, crowndamage, target_agw_c)
     
     ! Target total below ground biomass in woody/fibrous tissues [kgC] 
     call bbgw_allom(dbh,ipft,target_bgw_c)
@@ -687,9 +682,9 @@ contains
        mass_d = (sum(leaf_c(1:nleafage)) + fnrt_c + store_c + sapw_c + struct_c ) 
   
        ! Target sapwood biomass according to allometry and trimming [kgC]
-       call bsap_allom(dbh,ipft, crowndamage-1, branch_frac, canopy_trim,sapw_area,targetn_sapw_c)
+       call bsap_allom(dbh,ipft, crowndamage-1, canopy_trim,sapw_area,targetn_sapw_c)
        ! Target total above ground biomass in woody/fibrous tissues  [kgC]
-       call bagw_allom(dbh,ipft, crowndamage-1, branch_frac, targetn_agw_c)
+       call bagw_allom(dbh,ipft, crowndamage-1, targetn_agw_c)
        ! Target total below ground biomass in woody/fibrous tissues [kgC] 
        call bbgw_allom(dbh,ipft,targetn_bgw_c)
        ! Target total dead (structrual) biomass [kgC]
@@ -848,7 +843,7 @@ contains
              ! we remember the current step size as a good next guess.
              
              call CheckIntegratedAllometries(c_pool_out(dbh_id),ipft,&
-                  crowndamage, branch_frac, canopy_trim,  &
+                  crowndamage, canopy_trim,  &
                   c_pool_out(leaf_c_id), c_pool_out(fnrt_c_id), c_pool_out(sapw_c_id), &
                    c_pool_out(store_c_id), c_pool_out(struct_c_id), &
                    c_mask(leaf_c_id), c_mask(fnrt_c_id), c_mask(sapw_c_id), &
@@ -1009,7 +1004,6 @@ contains
       ! locals
       integer  :: ipft       ! PFT index
       integer  :: crowndamage
-      real(r8) :: branch_frac
       real(r8) :: canopy_trim    ! Canopy trimming function (boundary condition [0-1]
       real(r8) :: ct_leaf    ! target leaf biomass, dummy var (kgC)
       real(r8) :: ct_fnrt   ! target fine-root biomass, dummy var (kgC)
@@ -1047,13 +1041,12 @@ contains
 
         canopy_trim = intgr_params(ac_bc_in_id_ctrim)
         ipft        = int(intgr_params(ac_bc_in_id_pft))
-        branch_frac = intgr_params(ac_bc_in_id_branch_frac)
         crowndamage = int(intgr_params(num_bc_in + 1))
        
         call bleaf(dbh,ipft,crowndamage,canopy_trim,ct_leaf, dbldd=ct_dleafdd)
         call bfineroot(dbh,ipft,canopy_trim,ct_fnrt,ct_dfnrtdd)
-        call bsap_allom(dbh,ipft, crowndamage, branch_frac, canopy_trim,sapw_area,ct_sap,ct_dsapdd)
-        call bagw_allom(dbh,ipft,crowndamage, branch_frac, ct_agw,ct_dagwdd)
+        call bsap_allom(dbh,ipft, crowndamage, canopy_trim,sapw_area,ct_sap,ct_dsapdd)
+        call bagw_allom(dbh,ipft,crowndamage, ct_agw,ct_dagwdd)
         call bbgw_allom(dbh,ipft,ct_bgw, ct_dbgwdd)        
         call bdead_allom(ct_agw,ct_bgw, ct_sap, ipft, ct_dead, &
                          ct_dagwdd, ct_dbgwdd, ct_dsapdd, ct_ddeaddd)
@@ -1232,7 +1225,6 @@ contains
       integer, pointer :: crowndamage
       real(r8) :: canopy_trim
       integer  :: ipft
-      real(r8) :: branch_frac
       real(r8) :: target_leaf_c         ! target leaf carbon [kgC]
       real(r8) :: target_fnrt_c         ! target fine-root carbon [kgC]
       real(r8) :: target_sapw_c         ! target sapwood carbon [kgC]
@@ -1259,11 +1251,10 @@ contains
         canopy_trim         = this%bc_in(ac_bc_in_id_ctrim)%rval
         ipft                = this%bc_in(ac_bc_in_id_pft)%ival
         leaf_status         = this%bc_in(ac_bc_in_id_lstat)%ival
-        branch_frac         = this%bc_in(ac_bc_in_id_branch_frac)%rval
-
+   
         ! Get allometric targets for this dbh and crown damage class
-        call bsap_allom(dbh, ipft, crowndamage, branch_frac, canopy_trim, sapw_area, target_sapw_c)
-        call bagw_allom(dbh, ipft, crowndamage, branch_frac, target_agw_c)
+        call bsap_allom(dbh, ipft, crowndamage, canopy_trim, sapw_area, target_sapw_c)
+        call bagw_allom(dbh, ipft, crowndamage, target_agw_c)
         call bbgw_allom(dbh, ipft, target_bgw_c)
         call bdead_allom(target_agw_c, target_bgw_c, target_sapw_c, ipft, target_struct_c)
         if(leaf_status ==2)then
