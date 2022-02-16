@@ -1031,7 +1031,6 @@ contains
        allocate( fates_hdim_pfmap_levcapf(1:nlevcoage*numpft))
        allocate( fates_hdim_camap_levcapf(1:nlevcoage*numpft))
 
-       allocate( fates_hdim_levcdam(ncrowndamage ))
        allocate( fates_hdim_scmap_levcdsc(nlevsclass*ncrowndamage))
        allocate( fates_hdim_cdmap_levcdsc(nlevsclass*ncrowndamage))
        allocate( fates_hdim_scmap_levcdpf(nlevsclass*ncrowndamage * numpft))
@@ -1091,10 +1090,6 @@ contains
           fates_hdim_levcan(ican) = ican
        end do
 
-       ! make damage array
-       do icdam = 1,ncrowndamage
-          fates_hdim_levcdam(icdam) = icdam
-       end do
       
 
        ! Make an element array, each index is the PARTEH global identifier index

@@ -241,7 +241,6 @@ module FatesInterfaceTypesMod
    real(r8), public, allocatable :: fates_hdim_levsclass(:)        ! plant size class lower bound dimension
    integer , public, allocatable :: fates_hdim_pfmap_levscpf(:)    ! map of pfts into size-class x pft dimension
    integer , public, allocatable :: fates_hdim_scmap_levscpf(:)    ! map of size-class into size-class x pft dimension
-   integer , public, allocatable :: fates_hdim_levcdam(:)          ! crown damage dimension
    integer , public, allocatable :: fates_hdim_pftmap_levcdpf(:)   ! map of pfts into size x crowndamage x pft dimension
    integer , public, allocatable :: fates_hdim_cdmap_levcdpf(:)    ! map of crowndamage into size x crowndamage x pft
    integer , public, allocatable :: fates_hdim_scmap_levcdpf(:)    ! map of size into size x crowndamage x pft
