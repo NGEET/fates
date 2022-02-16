@@ -1534,12 +1534,12 @@ contains
          currentCohort%n, currentCohort%canopy_layer,               &
          canopylai,currentCohort%vcmax25top )
 
-    !if( abs(currentCohort%treelai-check_treelai).gt.1.0e-12)then !this is not as precise as nearzero
+    if( abs(currentCohort%treelai-check_treelai).gt.1.0e-12)then !this is not as precise as nearzero
        write(fates_log(),*) 'error in validate treelai',currentCohort%treelai,check_treelai,currentCohort%treelai-check_treelai
        write(fates_log(),*) 'tree_lai inputs: ', currentCohort%pft, currentCohort%c_area, currentCohort%n, &
                currentCohort%canopy_layer, currentCohort%vcmax25top
-    !   call endrun(msg=errMsg(sourcefile, __LINE__))
-    !end if
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
 
     ! the carea_allom routine sometimes generates precision-tolerance level errors in the canopy area
     ! these mean that the canopy area does not exactly add up to the patch area, which causes chaos in
