@@ -508,6 +508,10 @@ contains
     currentSite%disturbance_rates_primary_to_secondary(1:N_DIST_TYPES) = 0._r8
     currentSite%disturbance_rates_secondary_to_secondary(1:N_DIST_TYPES) = 0._r8
 
+    ! in the nocomp cases, since every patch has a PFT identity, it can only receive patch area from patches
+    ! that have the same identity. In order to allow this, we have this very high level loop over nocomp PFTs
+    ! and only do the disturbance for any patches that have that nocomp PFT identity.  
+    ! If nocomp is not enabled, then this is not much of a loop, it only passes through once.
     nocomp_pft_loop: do i_nocomp_pft = min_nocomp_pft,max_nocomp_pft
 
     ! calculate area of disturbed land, in this timestep, by summing contributions from each existing patch. 
@@ -2305,12 +2309,16 @@ contains
 
     nopatches(1:n_anthro_disturbance_categories) = 0
 
-    if (hlm_use_nocomp.eq.itrue .and. hlm_use_fixed_biogeog .eq. ifalse) then
-       maxpatches(primaryforest) = max(maxPatchesPerSite_by_disttype(primaryforest), numpft)
+    ! Its possible that, in nocomp modes, there are more categorically distinct patches than we allow as 
+    ! primary patches in non-nocomp mode.  So if this is the case, bump up the maximum number of primary patches
+    ! to let there be one for each type of nocomp PFT on the site.  this is likely to lead to problems
+    ! if anthropogenic disturance is enabled.
+    if (hlm_use_nocomp.eq.itrue) then
+       maxpatches(primaryforest) = max(maxPatchesPerSite_by_disttype(primaryforest), sum(csite%use_this_pft))
        maxpatches(secondaryforest) = maxPatchesPerSite - maxpatches(primaryforest)
        if (maxPatchesPerSite .lt. maxpatches(primaryforest)) then
           write(fates_log(),*) 'too many PFTs and not enough patches for nocomp w/o fixed biogeog'
-          write(fates_log(),*) 'maxPatchesPerSite,numpft',maxPatchesPerSite,numpft
+          write(fates_log(),*) 'maxPatchesPerSite,numpft',maxPatchesPerSite,numpft, sum(csite%use_this_pft)
           call endrun(msg=errMsg(sourcefile, __LINE__))
        endif
     else
