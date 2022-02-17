@@ -2181,7 +2181,7 @@ end subroutine flush_hvars
       hio_potential_disturbance_rate_si(io_si) = sum(sites(s)%potential_disturbance_rates(1:N_DIST_TYPES)) * days_per_year
 
       ! harvest carbon flux in [kgC/m2/d] -> [kgC/m2/yr]
-      hio_harvest_carbonflux_si(io_si) = sum(sites(s)%harvest_carbon_flux(:)) *      &
+      hio_harvest_carbonflux_si(io_si) = sites(s)%harvest_carbon_flux *      &
          days_per_year
 
       ! Loop through patches to sum up diagonistics
@@ -3068,8 +3068,7 @@ end subroutine flush_hvars
          hio_mortality_carbonflux_si_pft(io_si,ccohort%pft) = hio_mortality_carbonflux_si_pft(io_si,ccohort%pft) + &
               (sites(s)%fmort_carbonflux_canopy(i_pft) + &
               sites(s)%fmort_carbonflux_ustory(i_pft) + &
-              sites(s)%imort_carbonflux(i_pft) + &
-              sites(s)%harvest_carbon_flux(i_pft)) / g_per_kg !cdk
+              sites(s)%imort_carbonflux(i_pft) ) / g_per_kg !cdk
       end do
 
       sites(s)%term_nindivs_canopy(:,:) = 0._r8

@@ -806,7 +806,7 @@ module EDTypesMod
      real(r8) :: imort_carbonflux(1:maxpft)            ! biomass of individuals killed due to impact mortality per year. [kgC/ha/day]
      real(r8) :: fmort_carbonflux_canopy(1:maxpft)     ! biomass of canopy indivs killed due to fire per year. [gC/m2/sec]
      real(r8) :: fmort_carbonflux_ustory(1:maxpft)     ! biomass of understory indivs killed due to fire per year [gC/m2/sec] 
-     real(r8) :: harvest_carbon_flux(1:maxpft)         ! diagnostic site level flux of carbon as harvested plants [kg C / m2 / day]
+     real(r8) :: harvest_carbon_flux                   ! diagnostic site level flux of carbon as harvested plants [kg C / m2 / day]
 
      real(r8) :: recruitment_rate(1:maxpft)            ! number of individuals that were recruited into new cohorts
      real(r8), allocatable :: demotion_rate(:)         ! rate of individuals demoted from canopy to understory per FATES timestep

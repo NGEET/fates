@@ -203,7 +203,7 @@ contains
 
     ! Disturbance rates tracking
     site_in%primary_land_patchfusion_error = 0.0_r8
-    site_in%harvest_carbon_flux(:) = 0.0_r8
+    site_in%harvest_carbon_flux = 0.0_r8
     site_in%potential_disturbance_rates(:) = 0.0_r8
     site_in%disturbance_rates_secondary_to_secondary(:) = 0.0_r8
     site_in%disturbance_rates_primary_to_secondary(:) = 0.0_r8

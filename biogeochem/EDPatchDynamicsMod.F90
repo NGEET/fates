@@ -194,7 +194,7 @@ contains
     ! first calculate the fractino of the site that is primary land
     call get_frac_site_primary(site_in, frac_site_primary)
  
-    site_in%harvest_carbon_flux(:) = 0._r8
+    site_in%harvest_carbon_flux = 0._r8
 
     currentPatch => site_in%oldest_patch
     do while (associated(currentPatch))   
@@ -233,8 +233,7 @@ contains
 
           ! estimate the wood product (trunk_product_site)
           if (currentCohort%canopy_layer>=1) then
-             site_in%harvest_carbon_flux(currentCohort%pft) = &
-                  site_in%harvest_carbon_flux(currentCohort%pft) + &
+             site_in%harvest_carbon_flux = site_in%harvest_carbon_flux + &
                   currentCohort%lmort_direct * currentCohort%n * &
                   ( currentCohort%prt%GetState(sapw_organ, all_carbon_elements) + &
                   currentCohort%prt%GetState(struct_organ, all_carbon_elements)) * &
