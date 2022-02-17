@@ -1973,8 +1973,6 @@ contains
 
        ipft = currentCohort%pft
 
-       write(fates_log(),*) 'UpdateCohortBPRates: frac_leaf_aclass: ', sum(frac_leaf_aclass(1:nleafage))>nearzero
-
        if(sum(frac_leaf_aclass(1:nleafage))>nearzero) then
 
           ipft = currentCohort%pft
