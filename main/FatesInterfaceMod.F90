@@ -1013,7 +1013,6 @@ contains
        integer :: ifuel
        integer :: ican
        integer :: icdam
-       integer :: icdcd
        integer :: ileaf
        integer :: iage
        integer :: iheight
@@ -1172,15 +1171,7 @@ contains
           end do
        end do
 
-       i=0
-       do icdam=1,ncrowndamage
-          do icdcd=1,ncrowndamage+1
-             i=i+1
-             fates_hdim_cdimap_levcdcd(i) = icdcd
-             fates_hdim_cdjmap_levcdcd(i) = icdam
-          end do
-       end do
-
+      
        i=0
        do ipft=1,numpft
           do ican=1,nclmax
