@@ -325,6 +325,9 @@ contains
     real(r8) :: struct_below_target   ! dead (structural) biomass below target amount [kgC]
     real(r8) :: total_below_target    ! total biomass below the allometric target [kgC]
 
+    real(r8) :: allocation_factor     ! allocation factor (relative to demand) to 
+                                      ! reconstruct tissues
+
     real(r8) :: flux_adj              ! adjustment made to growth flux term to minimize error [kgC]
     real(r8) :: store_target_fraction ! ratio between storage and leaf biomass when on allometry [kgC]
 
@@ -349,6 +352,9 @@ contains
     real(r8) :: store_c0              ! ""
     real(r8) :: repro_c0              ! ""
     real(r8) :: struct_c0             ! ""
+
+    logical  :: is_hydecid_dormant    ! Flag to signal that the cohort is drought deciduous and dormant
+    logical  :: is_deciduous          ! Flag to signal this is a deciduous PFT
 
     logical  :: grow_struct
     logical  :: grow_leaf             ! Are leaves at allometric target and should be grown?
@@ -388,6 +394,10 @@ contains
     integer,  parameter :: iexp_leaf = 1                 ! index 1 is the expanding (i.e. youngest)
                                                          ! leaf age class, and therefore
                                                          ! all new allocation goes into that pool
+    character(len= 9),  parameter :: fmti = '(a,1x,i5)'
+    character(len=13),  parameter :: fmt0 = '(a,1x,es12.5)'
+    character(len=19),  parameter :: fmth = '(a,1x,a5,3(1x,a12))'
+    character(len=22),  parameter :: fmtg = '(a,5x,l1,3(1x,es12.5))'
 
     real(r8) ::  intgr_params(num_bc_in)                 ! The boundary conditions to this routine,
                                                          ! are pressed into an array that is also
@@ -418,8 +428,14 @@ contains
     intgr_params(:)                 = un_initialized
     intgr_params(ac_bc_in_id_ctrim) = this%bc_in(ac_bc_in_id_ctrim)%rval
     intgr_params(ac_bc_in_id_pft)   = real(this%bc_in(ac_bc_in_id_pft)%ival)
-    
-    
+    intgr_params(ac_bc_in_id_lstat) = real(this%bc_in(ac_bc_in_id_lstat)%ival,r8)
+
+
+    ! Set some logical flags to simplify "if" blocks
+    is_hydecid_dormant = ( prt_params%stress_decid(ipft) == 1 ) .and. &
+                         ( leaf_status == leaves_off )
+    is_deciduous       = ( prt_params%stress_decid(ipft) == 1 ) .or.  &
+                         ( prt_params%season_decid(ipft) == 1 )
 
     nleafage = prt_global%state_descriptor(leaf_c_id)%num_pos ! Number of leaf age class
 
@@ -463,12 +479,7 @@ contains
     call bdead_allom( target_agw_c, target_bgw_c, target_sapw_c, ipft, target_struct_c)
     
     ! Target leaf biomass according to allometry and trimming
-    select case (leaf_status)
-    case (leaves_on)
-        call bleaf(dbh,ipft,canopy_trim,target_leaf_c)
-    case (leaves_off)
-        target_leaf_c = 0._r8
-    end select
+    call bleaf(dbh,ipft,canopy_trim,target_leaf_c)
     
     ! Target fine-root biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
     call bfineroot(dbh,ipft,canopy_trim,target_fnrt_c)
@@ -477,21 +488,54 @@ contains
     call bstore_allom(dbh,ipft,canopy_trim,target_store_c)
 
 
+
+    ! -----------------------------------------------------------------------------------
+    ! II 1/2. Update target biomass based on the leaf elongation factor and the abscission
+    !         fraction for each non-leaf tissue. Elongation factor is binary for 
+    !         cold-deciduous and original drought-deciduous, and always one for 
+    !         evergreens. In case the plant is shedding leaves, we impose that any 
+    !         positive carbon balance necessarily goes to storage, even if this causes
+    !         storage to go above allometry.
+    ! -----------------------------------------------------------------------------------
+    if (is_hydecid_dormant) then
+       target_leaf_c   = 0.0_r8
+       target_fnrt_c   = 0.0_r8
+       target_sapw_c   = 0.0_r8
+       target_struct_c = 0.0_r8
+       target_store_c  = target_store_c + max(0.0_r8,carbon_balance)
+    end if
+
+
     ! -----------------------------------------------------------------------------------
     ! III.  Prioritize some amount of carbon to replace leaf/root turnover
     !         Make sure it isnt a negative payment, and either pay what is available
     !         or forcefully pay from storage. 
+    ! MLO.  Added a few conditions to decide what to do in case plants are deciduous.
+    !       Specifically, drought deciduous with leaves off should not replace fine
+    !       roots. They will be in negative carbon balance, and unlike cold deciduous,
+    !       the turnover rates will be high during the dry season (turnover is 
+    !       temperature-dependent, but not moisture-dependent).  Allocating carbon
+    !       to high-maintanence tissues will drain the storage with little benefit for
+    !       these plants.
     ! -----------------------------------------------------------------------------------
-    
-    if( prt_params%evergreen(ipft) ==1 ) then
+    if ( is_hydecid_dormant ) then
+       ! Drought deciduous, dormant state. Set demands to both leaves and roots to zero.
+       leaf_c_demand = 0.0_r8
+       fnrt_c_demand = 0.0_r8
+    elseif ( is_deciduous ) then
+       ! Either cold deciduous plant, or drought deciduous with leaves on. Maintain roots.
+       leaf_c_demand = 0.0_r8
+       fnrt_c_demand = max(0.0_r8, &
+             prt_params%leaf_stor_priority(ipft)*this%variables(fnrt_c_id)%turnover(icd))
+    else
+       ! Evergreen PFT. Try to meet demands for both leaves and fine roots.
+       ! If this is not evergreen, this PFT isn't expected by FATES, and we assume
+       ! evergreen.
        leaf_c_demand   = max(0.0_r8, &
              prt_params%leaf_stor_priority(ipft)*sum(this%variables(leaf_c_id)%turnover(:)))
-    else
-       leaf_c_demand   = 0.0_r8
+       fnrt_c_demand   = max(0.0_r8, &
+             prt_params%leaf_stor_priority(ipft)*this%variables(fnrt_c_id)%turnover(icd))
     end if
-    
-    fnrt_c_demand   = max(0.0_r8, &
-          prt_params%leaf_stor_priority(ipft)*this%variables(fnrt_c_id)%turnover(icd))
 
     total_c_demand = leaf_c_demand + fnrt_c_demand
     
@@ -499,17 +543,15 @@ contains
 
        ! We pay this even if we don't have the carbon
        ! Just don't pay so much carbon that storage+carbon_balance can't pay for it
+       allocation_factor = max(0.0_r8,min(1.0_r8,(store_c+carbon_balance)/total_c_demand))
+
+
        ! MLO. Edited the code to switch the order of operations. The previous code would
        !      subtract leaf flux from carbon balance before estimating the fine root flux,
        !      potentially allowing less fluxes to fine roots than possible.
-       leaf_c_flux = min(leaf_c_demand, &
-                         max(0.0_r8,(store_c+carbon_balance)* &
-                         (leaf_c_demand/total_c_demand)))
-       ! If we are testing b4b, then we pay this even if we don't have the carbon
-       fnrt_c_flux = min(fnrt_c_demand, &
-                         max(0.0_r8, (store_c+carbon_balance)* &
-                         (fnrt_c_demand/total_c_demand)))
-       
+       leaf_c_flux = leaf_c_demand * allocation_factor
+       fnrt_c_flux = fnrt_c_demand * allocation_factor
+
        ! Add carbon to the youngest age pool (i.e iexp_leaf = index 1) and fine roots
        leaf_c(iexp_leaf) = leaf_c(iexp_leaf) + leaf_c_flux
        fnrt_c            = fnrt_c + fnrt_c_flux
@@ -536,7 +578,7 @@ contains
        ! Accumulate some carbon in storage.  If storage is completely depleted, aim to
        ! increase storage, but not to replenish completely so we can still use some
        ! carbon for growth.
-       store_below_target     = max(target_store_c - store_c,0.0_r8)
+       store_below_target     = max(0.0_r8,target_store_c - store_c)
        store_target_fraction  = max(0.0_r8, store_c/target_store_c )
 
        store_c_flux           = min(store_below_target,carbon_balance * &
@@ -561,13 +603,14 @@ contains
     total_below_target = leaf_below_target + fnrt_below_target
 
     if ( (carbon_balance > nearzero) .and. (total_below_target > nearzero) ) then
+       ! Find fraction of carbon to be allocated to leaves and fine roots
+       allocation_factor = min(1.0_r8, carbon_balance / total_below_target)
+
        ! MLO. Edited the code to switch the order of operations. The previous code would
        !      subtract leaf flux from carbon balance before estimating the fine root flux,
        !      potentially allowing less fluxes to fine roots than possible.
-       leaf_c_flux    = min(leaf_below_target, &
-                        carbon_balance*leaf_below_target/total_below_target)
-       fnrt_c_flux    = min(fnrt_below_target, &
-                            carbon_balance*fnrt_below_target/total_below_target)
+       leaf_c_flux    = leaf_below_target * allocation_factor
+       fnrt_c_flux    = fnrt_below_target * allocation_factor
 
        leaf_c(iexp_leaf) = leaf_c(iexp_leaf) + leaf_c_flux
        fnrt_c            = fnrt_c + fnrt_c_flux
@@ -593,31 +636,23 @@ contains
                             sapw_below_target + store_below_target
     
        if ( total_below_target > nearzero ) then
-          
-          if( total_below_target > carbon_balance) then
-             leaf_c_flux  = carbon_balance * leaf_below_target/total_below_target
-             fnrt_c_flux = carbon_balance * fnrt_below_target/total_below_target
-             sapw_c_flux  = carbon_balance * sapw_below_target/total_below_target
-             store_c_flux = carbon_balance * store_below_target/total_below_target
-          else
-             leaf_c_flux  = leaf_below_target
-             fnrt_c_flux = fnrt_below_target
-             sapw_c_flux = sapw_below_target
-             store_c_flux = store_below_target
-          end if
+          ! Find allocation factor based on available carbon and total demand to meet target.
+          allocation_factor = min(1.0_r8, carbon_balance / total_below_target)
 
-          carbon_balance               = carbon_balance - leaf_c_flux
-          leaf_c(iexp_leaf)            = leaf_c(iexp_leaf) + leaf_c_flux
-          
-          carbon_balance               = carbon_balance - fnrt_c_flux
-          fnrt_c                       = fnrt_c + fnrt_c_flux
-          
-          carbon_balance               = carbon_balance - sapw_c_flux
-          sapw_c                       = sapw_c + sapw_c_flux
-          
-          carbon_balance               = carbon_balance - store_c_flux
-          store_c                      = store_c  +  store_c_flux
-          
+          ! Find fluxes to individual pools
+          leaf_c_flux  = leaf_below_target  * allocation_factor
+          fnrt_c_flux  = fnrt_below_target  * allocation_factor
+          sapw_c_flux  = sapw_below_target  * allocation_factor
+          store_c_flux = store_below_target * allocation_factor
+
+          leaf_c(iexp_leaf) = leaf_c(iexp_leaf) + leaf_c_flux
+          fnrt_c            = fnrt_c + fnrt_c_flux
+          sapw_c            = sapw_c + sapw_c_flux
+          store_c           = store_c  +  store_c_flux
+
+          carbon_balance    = carbon_balance - &
+                              ( leaf_c_flux + fnrt_c_flux + &
+                                sapw_c_flux + store_c_flux )
        end if
     end if
     
@@ -662,23 +697,12 @@ contains
        ! a false on the "grow_<>" flag, allowing the plant to grow into these pools.
        ! It also checks to make sure that structural biomass is not above the target.
 
-       if( (target_store_c - store_c)>calloc_abs_error) then
-          write(fates_log(),*) 'storage is not on-allometry at the growth step'
-          write(fates_log(),*) 'exiting'
-          write(fates_log(),*) 'cbal: ',carbon_balance
-          write(fates_log(),*) 'near-zero',nearzero
-          write(fates_log(),*) 'store_c: ',store_c
-          write(fates_log(),*) 'target c: ',target_store_c
-          write(fates_log(),*) 'store_c0:', store_c0
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       end if
-       
-
-       call TargetAllometryCheck(sum(leaf_c(1:nleafage)), fnrt_c, sapw_c, &
-                                 store_c, struct_c,       &
-                                 target_leaf_c, target_fnrt_c, &
-                                 target_sapw_c, target_store_c, target_struct_c, &
-                                 grow_struct, grow_leaf, grow_fnrt, grow_sapw, grow_store)
+       call TargetAllometryCheck(sum(leaf_c0(1:nleafage)),fnrt_c0,sapw_c0,store_c0,struct_c0, &
+                                 sum(leaf_c(1:nleafage)), fnrt_c, sapw_c,store_c, struct_c, &
+                                 target_leaf_c, target_fnrt_c, target_sapw_c, &
+                                 target_store_c, target_struct_c, &
+                                 carbon_balance,ipft,leaf_status, &
+                                 grow_leaf, grow_fnrt, grow_sapw, grow_store, grow_struct)
 
        ! --------------------------------------------------------------------------------
        ! The numerical integration of growth requires that the instantaneous state
@@ -711,19 +735,30 @@ contains
        c_pool(repro_c_id)  = repro_c
        c_pool(dbh_id)      = dbh
 
-       ! Only grow leaves if we are in a "leaf-on" status
-       if(leaf_status == leaves_on) then
-           c_mask(leaf_c_id) = grow_leaf
+       ! Only grow leaves if we are in a "leaf-on" status. For drought-deciduous, we
+       ! interrupt growth for all tissues when in dormant mode.
+       if (is_hydecid_dormant) then
+          c_mask(leaf_c_id)   = .false.
+          c_mask(fnrt_c_id)   = .false.
+          c_mask(sapw_c_id)   = .false.
+          c_mask(struct_c_id) = .false.
+
        else
-           c_mask(leaf_c_id) = .false.
+          select case (leaf_status)
+          case (leaves_on)
+             c_mask(leaf_c_id) = grow_leaf
+          case default
+             c_mask(leaf_c_id) = .false.
+          end select
+          c_mask(fnrt_c_id)   = grow_fnrt
+          c_mask(sapw_c_id)   = grow_sapw
+          c_mask(struct_c_id) = grow_struct
+
        end if
-       c_mask(fnrt_c_id)   = grow_fnrt
-       c_mask(sapw_c_id)   = grow_sapw
        c_mask(store_c_id)  = grow_store
-       c_mask(struct_c_id) = grow_struct
        c_mask(repro_c_id)  = .true.                ! Always calculate reproduction on growth
        c_mask(dbh_id)      = .true.                ! Always increment dbh on growth step
-       
+
 
        ! When using the Euler method, we keep things simple.  We always try
        ! to make the first integration step to span the entirety of the integration
@@ -736,11 +771,12 @@ contains
        do_solve_check: do while( ierr .ne. 0 )
           
           deltaC = min(totalC,this%ode_opt_step)
-          if(ODESolve == 1) then
+          select_ODESolve: select case (ODESolve)
+          case (1)
              call RKF45(AllomCGrowthDeriv,c_pool,c_mask,deltaC,totalC, &
                    max_trunc_error,intgr_params,c_pool_out,this%ode_opt_step,step_pass)
              
-          elseif(ODESolve == 2) then
+          case (2)
              call Euler(AllomCGrowthDeriv,c_pool,c_mask,deltaC,totalC,intgr_params,c_pool_out)
              !  step_pass = .true.
              
@@ -763,11 +799,11 @@ contains
              else
                 this%ode_opt_step = 0.5*deltaC
              end if
-          else
+          case default
              write(fates_log(),*) 'An integrator was chosen that does not exist'
              write(fates_log(),*) 'ODESolve = ',ODESolve
              call endrun(msg=errMsg(sourcefile, __LINE__))
-          end if
+          end select select_ODESolve
 
           nsteps = nsteps + 1
           
@@ -777,17 +813,23 @@ contains
           end if
           
           if(nsteps > max_substeps ) then
-             write(fates_log(),*) 'Plant Growth Integrator could not find'
-             write(fates_log(),*) 'a solution in less than ',max_substeps,' tries'
-             write(fates_log(),*) 'Aborting'
-             write(fates_log(),*) 'carbon_balance',carbon_balance
-             write(fates_log(),*) 'deltaC',deltaC
-             write(fates_log(),*) 'totalC',totalC
-             write(fates_log(),*) 'leaf:',grow_leaf,target_leaf_c,target_leaf_c - sum(leaf_c(:))
-             write(fates_log(),*) 'fnrt:',grow_fnrt,target_fnrt_c,target_fnrt_c - fnrt_c
-             write(fates_log(),*) 'sap:',grow_sapw,target_sapw_c, target_sapw_c - sapw_c
-             write(fates_log(),*) 'store:',grow_store,target_store_c,target_store_c - store_c
-             write(fates_log(),*) 'dead:',target_struct_c,target_struct_c - struct_c
+             write(fates_log(),fmt=*)    '---~---'
+             write(fates_log(),fmt=*)    'Plant Growth Integrator could not find'
+             write(fates_log(),fmt=*)    'a solution in less than ',max_substeps,' tries.'
+             write(fates_log(),fmt=*)    'Aborting!'
+             write(fates_log(),fmt=*)    '---~---'
+             write(fates_log(),fmt=fmti) 'Leaf status    =',leaf_status
+             write(fates_log(),fmt=fmt0) 'Carbon_balance =',carbon_balance
+             write(fates_log(),fmt=fmt0) 'deltaC         =',deltaC
+             write(fates_log(),fmt=fmt0) 'totalC         =',totalC
+             write(fates_log(),fmt=fmth) ' Tissue     |',         ' Grow','       Current','      Target'  ,'     Deficit'
+             write(fates_log(),fmt=fmtg) ' Leaf       |', grow_leaf      ,  sum(leaf_c(:)),target_leaf_c  , target_leaf_c - sum(leaf_c(:))
+             write(fates_log(),fmt=fmtg) ' Fine root  |', grow_fnrt      ,          fnrt_c,target_fnrt_c  , target_fnrt_c - fnrt_c
+             write(fates_log(),fmt=fmtg) ' Sapwood    |', grow_sapw      ,          sapw_c,target_sapw_c  , target_sapw_c - sapw_c
+             write(fates_log(),fmt=fmtg) ' Storage    |', grow_store     ,         store_c,target_store_c , target_store_c - store_c
+             write(fates_log(),fmt=fmtg) ' Structural |', grow_struct    ,        struct_c,target_struct_c, target_struct_c - struct_c
+             write(fates_log(),fmt=*)    '---~---'
+             call endrun(msg=errMsg(sourcefile, __LINE__))
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
 
@@ -965,7 +1007,8 @@ contains
     real(r8) :: struct_below_target   ! dead (structural) biomass below target amount [kgC]
     real(r8) :: total_below_target    ! total biomass below the allometric target [kgC]
 
-    real(r8) :: available_carbon      ! available carbon to reconstruct tissues
+    real(r8) :: allocation_factor     ! allocation factor (relative to demand) to 
+                                      ! reconstruct tissues
 
     real(r8) :: flux_adj              ! adjustment made to growth flux term to minimize error [kgC]
 
@@ -1028,6 +1071,10 @@ contains
     integer,  parameter :: iexp_leaf = 1                 ! index 1 is the expanding (i.e. youngest)
                                                          ! leaf age class, and therefore
                                                          ! all new allocation goes into that pool
+    character(len= 9),  parameter :: fmti = '(a,1x,i5)'
+    character(len=13),  parameter :: fmt0 = '(a,1x,es12.5)'
+    character(len=19),  parameter :: fmth = '(a,1x,a5,3(1x,a12))'
+    character(len=22),  parameter :: fmtg = '(a,5x,l1,3(1x,es12.5))'
 
     real(r8) ::  intgr_params(num_bc_in)                 ! The boundary conditions to this routine,
                                                          ! are pressed into an array that is also
@@ -1058,6 +1105,7 @@ contains
     intgr_params(:)                 = un_initialized
     intgr_params(ac_bc_in_id_ctrim) = this%bc_in(ac_bc_in_id_ctrim)%rval
     intgr_params(ac_bc_in_id_pft)   = real(this%bc_in(ac_bc_in_id_pft)%ival)
+    intgr_params(ac_bc_in_id_lstat) = real(this%bc_in(ac_bc_in_id_lstat)%ival,r8)
 
     ! Set some logical flags to simplify "if" blocks
     is_hydecid_dormant = ( prt_params%stress_decid(ipft) == 1 ) .and. &
@@ -1107,18 +1155,29 @@ contains
     call bdead_allom( target_agw_c, target_bgw_c, target_sapw_c, ipft, target_struct_c)
 
     ! Target leaf biomass according to allometry and trimming
-    select case (leaf_status)
-    case (leaves_on)
-       call bleaf(dbh,ipft,canopy_trim,target_leaf_c)
-    case (leaves_off)
-       target_leaf_c   = 0.0_r8
-    end select
+    call bleaf(dbh,ipft,canopy_trim,target_leaf_c)
 
     ! Target fine-root biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
     call bfineroot(dbh,ipft,canopy_trim,target_fnrt_c)
 
     ! Target storage carbon [kgC,kgC/cm]
     call bstore_allom(dbh,ipft,canopy_trim,target_store_c)
+
+
+
+    ! -----------------------------------------------------------------------------------
+    ! II 1/2. Update target biomass based on the leaf elongation factor and the abscission
+    !         fraction for each non-leaf tissue. In case the plant is leafless, we impose 
+    !         that any positive carbon balance necessarily goes to storage, even if this 
+    !         causes storage to go above allometry.
+    ! -----------------------------------------------------------------------------------
+    if (is_hydecid_dormant) then
+       target_leaf_c   = 0.0_r8
+       target_fnrt_c   = 0.0_r8
+       target_sapw_c   = 0.0_r8
+       target_struct_c = 0.0_r8
+       target_store_c  = target_store_c + max(0.0_r8,carbon_balance)
+    end if
 
 
     ! -----------------------------------------------------------------------------------
@@ -1141,19 +1200,14 @@ contains
     replenish_allom_check: if ( total_below_target > nearzero ) then
        ! Available carbon for transfer is the sum of stored carbon and the daily
        ! carbon balance.
-       available_carbon = store_c + carbon_balance
+       allocation_factor = min(1.0_r8, (store_c + carbon_balance) / total_below_target )
 
-       ! Scale flux so pools can be replenish simultaneously.
-       leaf_c_flux   = min( leaf_below_target, &
-                            available_carbon * leaf_below_target   / total_below_target )
-       fnrt_c_flux   = min( fnrt_below_target, &
-                            available_carbon * fnrt_below_target   / total_below_target )
-       sapw_c_flux   = min( sapw_below_target, &
-                            available_carbon * sapw_below_target   / total_below_target )
-       store_c_flux  = min( store_below_target, &
-                            available_carbon * store_below_target  / total_below_target )
-       struct_c_flux = min( struct_below_target, &
-                            available_carbon * struct_below_target / total_below_target )
+       ! Scale flux so pools can be replenished simultaneously.
+       leaf_c_flux   = leaf_below_target   * allocation_factor
+       fnrt_c_flux   = fnrt_below_target   * allocation_factor
+       sapw_c_flux   = sapw_below_target   * allocation_factor
+       store_c_flux  = store_below_target  * allocation_factor
+       struct_c_flux = struct_below_target * allocation_factor
 
        ! Replenish pools
        leaf_c(iexp_leaf) = leaf_c(iexp_leaf) + leaf_c_flux
@@ -1220,24 +1274,12 @@ contains
        ! allow actual pools to be above the target, and in these cases, it sends
        ! a false on the "grow_<>" flag, allowing the plant to grow into these pools.
        ! It also checks to make sure that structural biomass is not above the target.
-
-       if( (target_store_c - store_c)>calloc_abs_error) then
-          write(fates_log(),*) 'storage is not on-allometry at the growth step'
-          write(fates_log(),*) 'exiting'
-          write(fates_log(),*) 'cbal: ',carbon_balance
-          write(fates_log(),*) 'near-zero',nearzero
-          write(fates_log(),*) 'store_c: ',store_c
-          write(fates_log(),*) 'target c: ',target_store_c
-          write(fates_log(),*) 'store_c0:', store_c0
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       end if
-
-
-       call TargetAllometryCheck(sum(leaf_c(1:nleafage)), fnrt_c, sapw_c, &
-                                 store_c, struct_c,       &
-                                 target_leaf_c, target_fnrt_c, &
-                                 target_sapw_c, target_store_c, target_struct_c, &
-                                 grow_struct, grow_leaf, grow_fnrt, grow_sapw, grow_store)
+       call TargetAllometryCheck(sum(leaf_c0(1:nleafage)),fnrt_c0,sapw_c0,store_c0,struct_c0, &
+                                 sum(leaf_c(1:nleafage)), fnrt_c, sapw_c,store_c, struct_c, &
+                                 target_leaf_c, target_fnrt_c, target_sapw_c, &
+                                 target_store_c, target_struct_c, &
+                                 carbon_balance,ipft,leaf_status, &
+                                 grow_leaf, grow_fnrt, grow_sapw, grow_store, grow_struct)
 
        ! --------------------------------------------------------------------------------
        ! The numerical integration of growth requires that the instantaneous state
@@ -1295,11 +1337,12 @@ contains
        do_solve_check: do while( ierr .ne. 0 )
 
           deltaC = min(totalC,this%ode_opt_step)
-          if(ODESolve == 1) then
+          select_ODESolve: select case (ODESolve)
+          case (1)
              call RKF45(AllomCGrowthDeriv,c_pool,c_mask,deltaC,totalC, &
                    max_trunc_error,intgr_params,c_pool_out,this%ode_opt_step,step_pass)
 
-          elseif(ODESolve == 2) then
+          case (2)
              call Euler(AllomCGrowthDeriv,c_pool,c_mask,deltaC,totalC,intgr_params,c_pool_out)
              !  step_pass = .true.
 
@@ -1322,11 +1365,11 @@ contains
              else
                 this%ode_opt_step = 0.5*deltaC
              end if
-          else
+          case default
              write(fates_log(),*) 'An integrator was chosen that does not exist'
              write(fates_log(),*) 'ODESolve = ',ODESolve
              call endrun(msg=errMsg(sourcefile, __LINE__))
-          end if
+          end select select_ODESolve
 
           nsteps = nsteps + 1
 
@@ -1336,17 +1379,22 @@ contains
           end if
 
           if(nsteps > max_substeps ) then
-             write(fates_log(),*) 'Plant Growth Integrator could not find'
-             write(fates_log(),*) 'a solution in less than ',max_substeps,' tries'
-             write(fates_log(),*) 'Aborting'
-             write(fates_log(),*) 'carbon_balance',carbon_balance
-             write(fates_log(),*) 'deltaC',deltaC
-             write(fates_log(),*) 'totalC',totalC
-             write(fates_log(),*) 'leaf:',grow_leaf,target_leaf_c,target_leaf_c - sum(leaf_c(:))
-             write(fates_log(),*) 'fnrt:',grow_fnrt,target_fnrt_c,target_fnrt_c - fnrt_c
-             write(fates_log(),*) 'sap:',grow_sapw,target_sapw_c, target_sapw_c - sapw_c
-             write(fates_log(),*) 'store:',grow_store,target_store_c,target_store_c - store_c
-             write(fates_log(),*) 'dead:',target_struct_c,target_struct_c - struct_c
+             write(fates_log(),fmt=*)    '---~---'
+             write(fates_log(),fmt=*)    'Plant Growth Integrator could not find'
+             write(fates_log(),fmt=*)    'a solution in less than ',max_substeps,' tries.'
+             write(fates_log(),fmt=*)    'Aborting!'
+             write(fates_log(),fmt=*)    '---~---'
+             write(fates_log(),fmt=fmti) 'Leaf status    =',leaf_status
+             write(fates_log(),fmt=fmt0) 'Carbon_balance =',carbon_balance
+             write(fates_log(),fmt=fmt0) 'deltaC         =',deltaC
+             write(fates_log(),fmt=fmt0) 'totalC         =',totalC
+             write(fates_log(),fmt=fmth) ' Tissue     |',         ' Grow','       Current','      Target'  ,'     Deficit'
+             write(fates_log(),fmt=fmtg) ' Leaf       |', grow_leaf      ,  sum(leaf_c(:)),target_leaf_c  , target_leaf_c - sum(leaf_c(:))
+             write(fates_log(),fmt=fmtg) ' Fine root  |', grow_fnrt      ,          fnrt_c,target_fnrt_c  , target_fnrt_c - fnrt_c
+             write(fates_log(),fmt=fmtg) ' Sapwood    |', grow_sapw      ,          sapw_c,target_sapw_c  , target_sapw_c - sapw_c
+             write(fates_log(),fmt=fmtg) ' Storage    |', grow_store     ,         store_c,target_store_c , target_store_c - store_c
+             write(fates_log(),fmt=fmtg) ' Structural |', grow_struct    ,        struct_c,target_struct_c, target_struct_c - struct_c
+             write(fates_log(),fmt=*)    '---~---'
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
 
@@ -1589,78 +1637,92 @@ contains
 
    ! ====================================================================================
 
-   subroutine TargetAllometryCheck(bleaf,bfroot,bsap,bstore,bdead, &
-                                   bt_leaf,bt_froot,bt_sap,bt_store,bt_dead, &
-                                   grow_dead,grow_leaf,grow_froot,grow_sapw,grow_store)
+   subroutine TargetAllometryCheck(b0_leaf,b0_fnrt,b0_sapw,b0_store,b0_struct, &
+                                   bleaf,bfnrt,bsapw,bstore,bstruct, &
+                                   bt_leaf,bt_fnrt,bt_sapw,bt_store,bt_struct, &
+                                   carbon_balance,ipft,leaf_status, &
+                                   grow_leaf,grow_fnrt,grow_sapw,grow_store,grow_struct)
 
      ! Arguments
-     real(r8),intent(in) :: bleaf   !actual
-     real(r8),intent(in) :: bfroot
-     real(r8),intent(in) :: bsap
+     real(r8),intent(in) :: b0_leaf        !initial
+     real(r8),intent(in) :: b0_fnrt
+     real(r8),intent(in) :: b0_sapw
+     real(r8),intent(in) :: b0_store
+     real(r8),intent(in) :: b0_struct
+     real(r8),intent(in) :: bleaf          !actual
+     real(r8),intent(in) :: bfnrt
+     real(r8),intent(in) :: bsapw
      real(r8),intent(in) :: bstore
-     real(r8),intent(in) :: bdead
-     real(r8),intent(in) :: bt_leaf   !target
-     real(r8),intent(in) :: bt_froot
-     real(r8),intent(in) :: bt_sap
+     real(r8),intent(in) :: bstruct
+     real(r8),intent(in) :: bt_leaf        !target
+     real(r8),intent(in) :: bt_fnrt
+     real(r8),intent(in) :: bt_sapw
      real(r8),intent(in) :: bt_store
-     real(r8),intent(in) :: bt_dead
-     logical,intent(out) :: grow_leaf  !growth flag
-     logical,intent(out) :: grow_froot
+     real(r8),intent(in) :: bt_struct
+     real(r8),intent(in) :: carbon_balance !remaining carbon balance
+     integer,intent(in)  :: ipft           !Plant functional type
+     integer,intent(in)  :: leaf_status    !Phenology status
+     logical,intent(out) :: grow_leaf      !growth flag
+     logical,intent(out) :: grow_fnrt
      logical,intent(out) :: grow_sapw
      logical,intent(out) :: grow_store
-     logical,intent(out) :: grow_dead
-       
-     if( (bt_leaf - bleaf)>calloc_abs_error) then
-        write(fates_log(),*) 'leaves are not on-allometry at the growth step'
-        write(fates_log(),*) 'exiting',bleaf,bt_leaf
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     elseif( (bleaf - bt_leaf)>calloc_abs_error) then
-        ! leaf is above allometry, ignore
-        grow_leaf = .false.
+     logical,intent(out) :: grow_struct
+     ! Local variables
+     logical             :: fine_leaf
+     logical             :: fine_fnrt
+     logical             :: fine_sapw
+     logical             :: fine_store
+     logical             :: fine_struct
+     logical             :: all_fine
+     ! Local constants
+     character(len= 3), parameter :: fmth = '(a)'
+     character(len=27), parameter :: fmtb = '(a,3(1x,es12.5,1x,a),1x,l1)'
+     character(len=13), parameter :: fmte = '(a,1x,es12.5)'
+     character(len=10), parameter :: fmti = '(a,1x,i12)'
+
+
+     ! First test whether or not each pool looks reasonable.
+     fine_leaf   = (bt_leaf   - bleaf  ) <= calloc_abs_error
+     fine_fnrt   = (bt_fnrt   - bfnrt  ) <= calloc_abs_error
+     fine_sapw   = (bt_sapw   - bsapw  ) <= calloc_abs_error
+     fine_store  = (bt_store  - bstore ) <= calloc_abs_error
+     fine_struct = (bt_struct - bstruct) <= calloc_abs_error
+     all_fine    = fine_leaf .and. fine_fnrt .and. fine_sapw .and. &
+                   fine_store .and. fine_struct
+
+     ! Decide whether or not to grow tissues (but only if all tissues look fine).
+     ! We grow only when biomass is less than target biomass (with tolerance).
+     if (all_fine) then
+        grow_leaf   = ( bleaf   - bt_leaf   ) <= calloc_abs_error
+        grow_fnrt   = ( bfnrt   - bt_fnrt   ) <= calloc_abs_error
+        grow_sapw   = ( bsapw   - bt_sapw   ) <= calloc_abs_error
+        grow_store  = ( bstore  - bt_store  ) <= calloc_abs_error
+        grow_struct = ( bstruct - bt_struct ) <= calloc_abs_error
      else
-        grow_leaf = .true.
-     end if
-     
-     if( (bt_froot - bfroot)>calloc_abs_error) then
-        write(fates_log(),*) 'fineroots are not on-allometry at the growth step'
-        write(fates_log(),*) 'exiting',bfroot, bt_froot
+        ! If anything looks not fine, write a detailed report 
+        write(fates_log(),fmt=fmth) '======'
+        write(fates_log(),fmt=fmth) ' At least one tissue is not on-allometry at the growth step'
+        write(fates_log(),fmt=fmth) '======'
+        write(fates_log(),fmt=fmth) ''
+        write(fates_log(),fmt=fmth) ' Biomass and on-allometry test (''F'' means problem)'
+        write(fates_log(),fmt=fmth) '------'
+        write(fates_log(),fmt=fmth) ' Tissue     | Initial      | Current      | Target       | On-allometry'
+        write(fates_log(),fmt=fmtb) ' Leaf       |',b0_leaf   ,'|',bleaf     ,'|',bt_leaf   ,'|',fine_leaf
+        write(fates_log(),fmt=fmtb) ' Fine root  |',b0_fnrt   ,'|',bfnrt     ,'|',bt_fnrt   ,'|',fine_fnrt
+        write(fates_log(),fmt=fmtb) ' Sap wood   |',b0_sapw   ,'|',bsapw     ,'|',bt_sapw   ,'|',fine_sapw
+        write(fates_log(),fmt=fmtb) ' Storage    |',b0_store  ,'|',bstore    ,'|',bt_store  ,'|',fine_store
+        write(fates_log(),fmt=fmtb) ' Structural |',b0_struct ,'|',bstruct   ,'|',bt_struct ,'|',fine_struct
+        write(fates_log(),fmt=fmth) ''
+        write(fates_log(),fmt=fmth) ' Ancillary information'
+        write(fates_log(),fmt=fmth) '------'
+        write(fates_log(),fmt=fmti) ' PFT              = ',ipft
+        write(fates_log(),fmt=fmti) ' leaf_status      = ',leaf_status
+        write(fates_log(),fmt=fmte) ' carbon_balance   = ',carbon_balance
+        write(fates_log(),fmt=fmte) ' calloc_abs_error = ',calloc_abs_error
+        write(fates_log(),fmt=fmth) ''
+        write(fates_log(),fmt=fmth) '======'
         call endrun(msg=errMsg(sourcefile, __LINE__))
-     elseif( ( bfroot-bt_froot)>calloc_abs_error ) then
-        grow_froot = .false.
-     else
-        grow_froot = .true.
      end if
-     
-     if( (bt_sap - bsap)>calloc_abs_error) then
-        write(fates_log(),*) 'sapwood is not on-allometry at the growth step'
-        write(fates_log(),*) 'exiting',bsap, bt_sap
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     elseif( ( bsap-bt_sap)>calloc_abs_error ) then
-        grow_sapw = .false.
-     else
-        grow_sapw = .true.
-     end if
-     
-     if( (bt_store - bstore)>calloc_abs_error) then
-        write(fates_log(),*) 'storage is not on-allometry at the growth step'
-        write(fates_log(),*) 'exiting',bstore,bt_store
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     elseif( ( bstore-bt_store)>calloc_abs_error ) then
-        grow_store = .false.
-     else
-        grow_store = .true.
-     end if
-     
-     if( (bt_dead - bdead)>calloc_abs_error) then
-        write(fates_log(),*) 'structure not on-allometry at the growth step'
-        write(fates_log(),*) 'exiting',bdead,bt_dead
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     elseif( (bdead-bt_dead)> calloc_abs_error) then
-        grow_dead = .false.
-     else
-        grow_dead = .true.
-     end if
-     
 
      return
    end subroutine TargetAllometryCheck
