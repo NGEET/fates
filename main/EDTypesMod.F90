@@ -797,15 +797,16 @@ module EDTypesMod
      real(r8), allocatable :: term_nindivs_ustory(:,:) ! number of understory individuals that were in cohorts which 
                                                        ! were terminated this timestep, on size x pft
  
-     real(r8) :: term_carbonflux_canopy                ! carbon flux from live to dead pools associated 
+     real(r8) :: term_carbonflux_canopy(1:maxpft)      ! carbon flux from live to dead pools associated 
                                                        ! with termination mortality, per canopy level
-     real(r8) :: term_carbonflux_ustory                ! carbon flux from live to dead pools associated 
+     real(r8) :: term_carbonflux_ustory(1:maxpft)      ! carbon flux from live to dead pools associated 
                                                        ! with termination mortality, per canopy level    
-     real(r8) :: demotion_carbonflux                             ! biomass of demoted individuals from canopy to understory [kgC/ha/day]
-     real(r8) :: promotion_carbonflux                            ! biomass of promoted individuals from understory to canopy [kgC/ha/day]
-     real(r8) :: imort_carbonflux                                ! biomass of individuals killed due to impact mortality per year. [kgC/ha/day]
-     real(r8) :: fmort_carbonflux_canopy                         ! biomass of canopy indivs killed due to fire per year. [gC/m2/sec]
-     real(r8) :: fmort_carbonflux_ustory                         ! biomass of understory indivs killed due to fire per year [gC/m2/sec] 
+     real(r8) :: demotion_carbonflux                   ! biomass of demoted individuals from canopy to understory [kgC/ha/day]
+     real(r8) :: promotion_carbonflux                  ! biomass of promoted individuals from understory to canopy [kgC/ha/day]
+     real(r8) :: imort_carbonflux(1:maxpft)            ! biomass of individuals killed due to impact mortality per year. [kgC/ha/day]
+     real(r8) :: fmort_carbonflux_canopy(1:maxpft)     ! biomass of canopy indivs killed due to fire per year. [gC/m2/sec]
+     real(r8) :: fmort_carbonflux_ustory(1:maxpft)     ! biomass of understory indivs killed due to fire per year [gC/m2/sec] 
+     real(r8) :: harvest_carbon_flux(1:maxpft)         ! diagnostic site level flux of carbon as harvested plants [kg C / m2 / day]
 
      real(r8) :: recruitment_rate(1:maxpft)            ! number of individuals that were recruited into new cohorts
      real(r8), allocatable :: demotion_rate(:)         ! rate of individuals demoted from canopy to understory per FATES timestep
@@ -839,7 +840,6 @@ module EDTypesMod
      real(r8) :: disturbance_rates_secondary_to_secondary(N_DIST_TYPES)  ! actual disturbance rates from secondary patches to secondary patches [m2/m2/day]
      real(r8) :: potential_disturbance_rates(N_DIST_TYPES)               ! "potential" disturb rates (i.e. prior to the "which is most" logic) [m2/m2/day]
      real(r8) :: primary_land_patchfusion_error                          ! error term in total area of primary patches associated with patch fusion [m2/m2/day]
-     real(r8) :: harvest_carbon_flux                                     ! diagnostic site level flux of carbon as harvested plants [kg C / m2 / day]
      
   end type ed_site_type
 

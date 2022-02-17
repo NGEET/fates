@@ -203,7 +203,7 @@ contains
 
     ! Disturbance rates tracking
     site_in%primary_land_patchfusion_error = 0.0_r8
-    site_in%harvest_carbon_flux = 0.0_r8
+    site_in%harvest_carbon_flux(:) = 0.0_r8
     site_in%potential_disturbance_rates(:) = 0.0_r8
     site_in%disturbance_rates_secondary_to_secondary(:) = 0.0_r8
     site_in%disturbance_rates_primary_to_secondary(:) = 0.0_r8
@@ -225,15 +225,15 @@ contains
     ! termination and recruitment info
     site_in%term_nindivs_canopy(:,:) = 0._r8
     site_in%term_nindivs_ustory(:,:) = 0._r8
-    site_in%term_carbonflux_canopy = 0._r8
-    site_in%term_carbonflux_ustory = 0._r8
+    site_in%term_carbonflux_canopy(:) = 0._r8
+    site_in%term_carbonflux_ustory(:) = 0._r8
     site_in%recruitment_rate(:) = 0._r8
     site_in%imort_rate(:,:) = 0._r8
-    site_in%imort_carbonflux = 0._r8
+    site_in%imort_carbonflux(:) = 0._r8
     site_in%fmort_rate_canopy(:,:) = 0._r8
     site_in%fmort_rate_ustory(:,:) = 0._r8
-    site_in%fmort_carbonflux_canopy = 0._r8
-    site_in%fmort_carbonflux_ustory = 0._r8
+    site_in%fmort_carbonflux_canopy(:) = 0._r8
+    site_in%fmort_carbonflux_ustory(:) = 0._r8
     site_in%fmort_rate_cambial(:,:) = 0._r8
     site_in%fmort_rate_crown(:,:) = 0._r8
 

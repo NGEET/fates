@@ -509,6 +509,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_nindivs_si_pft
   integer :: ih_recruitment_si_pft
   integer :: ih_mortality_si_pft
+  integer :: ih_mortality_carbonflux_si_pft
   integer :: ih_crownarea_si_pft
   integer :: ih_canopycrownarea_si_pft
   integer :: ih_gpp_si_pft
@@ -1841,6 +1842,7 @@ end subroutine flush_hvars
                hio_nindivs_si_pft      => this%hvars(ih_nindivs_si_pft)%r82d, &
                hio_recruitment_si_pft  => this%hvars(ih_recruitment_si_pft)%r82d, &
                hio_mortality_si_pft    => this%hvars(ih_mortality_si_pft)%r82d, &
+               hio_mortality_carbonflux_si_pft  => this%hvars(ih_mortality_carbonflux_si_pft)%r82d, &
                hio_crownarea_si_pft    => this%hvars(ih_crownarea_si_pft)%r82d, &
                hio_canopycrownarea_si_pft  => this%hvars(ih_canopycrownarea_si_pft)%r82d, &
                hio_gpp_si_pft  => this%hvars(ih_gpp_si_pft)%r82d, &
@@ -2179,7 +2181,7 @@ end subroutine flush_hvars
       hio_potential_disturbance_rate_si(io_si) = sum(sites(s)%potential_disturbance_rates(1:N_DIST_TYPES)) * days_per_year
 
       ! harvest carbon flux in [kgC/m2/d] -> [kgC/m2/yr]
-      hio_harvest_carbonflux_si(io_si) = sites(s)%harvest_carbon_flux *      &
+      hio_harvest_carbonflux_si(io_si) = sum(sites(s)%harvest_carbon_flux(:)) *      &
          days_per_year
 
       ! Loop through patches to sum up diagonistics
@@ -2590,6 +2592,7 @@ end subroutine flush_hvars
                   ccohort%frmort*ccohort%n / m2_per_ha
                hio_m9_si_scls(io_si,scls) = hio_m9_si_scls(io_si,scls) + ccohort%smort*ccohort%n / m2_per_ha
 
+
                !C13 discrimination
                if(gpp_cached + ccohort%gpp_acc_hold > 0.0_r8)then
                   hio_c13disc_si_scpf(io_si,scpf) = ((hio_c13disc_si_scpf(io_si,scpf) * gpp_cached) + &
@@ -2617,6 +2620,12 @@ end subroutine flush_hvars
                alive_m  = leaf_m + fnrt_m + sapw_m
                total_m  = alive_m + store_m + struct_m
 
+               hio_mortality_carbonflux_si_pft(io_si,ccohort%pft) = hio_mortality_carbonflux_si_pft(io_si,ccohort%pft) + &
+                    (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
+                    ccohort%frmort + ccohort%smort + ccohort%asmort) * &
+                    total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2 + &
+                    (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * total_m * &
+                    ccohort%n * ha_per_m2
 
                ! number density by size and biomass
                hio_agb_si_scls(io_si,scls) = hio_agb_si_scls(io_si,scls) + &
@@ -3029,14 +3038,6 @@ end subroutine flush_hvars
                sites(s)%fmort_rate_ustory(i_scls, i_pft) / m2_per_ha
 
             !
-            ! carbon flux associated with mortality of trees dying by fire
-            hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
-               sites(s)%fmort_carbonflux_canopy / g_per_kg
-
-            hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
-               sites(s)%fmort_carbonflux_ustory / g_per_kg
-
-            !
             ! for scag variables, also treat as happening in the newly-disurbed patch
 
             hio_mortality_canopy_si_scag(io_si,iscag) = hio_mortality_canopy_si_scag(io_si,iscag) + &
@@ -3051,18 +3052,34 @@ end subroutine flush_hvars
          end do
       end do
 
+      !
+      ! carbon flux associated with mortality of trees dying by fire
+      hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
+           sum(sites(s)%fmort_carbonflux_canopy(:)) / g_per_kg
+
+      hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
+           sum(sites(s)%fmort_carbonflux_ustory(:)) / g_per_kg
+      
       ! treat carbon flux from imort the same way
       hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
-         sites(s)%imort_carbonflux / g_per_kg
+         sum(sites(s)%imort_carbonflux(:)) / g_per_kg
       !
+      do i_pft = 1, numpft
+         hio_mortality_carbonflux_si_pft(io_si,ccohort%pft) = hio_mortality_carbonflux_si_pft(io_si,ccohort%pft) + &
+              (sites(s)%fmort_carbonflux_canopy(i_pft) + &
+              sites(s)%fmort_carbonflux_ustory(i_pft) + &
+              sites(s)%imort_carbonflux(i_pft) + &
+              sites(s)%harvest_carbon_flux(i_pft)) / g_per_kg !cdk
+      end do
+
       sites(s)%term_nindivs_canopy(:,:) = 0._r8
       sites(s)%term_nindivs_ustory(:,:) = 0._r8
-      sites(s)%imort_carbonflux = 0._r8
+      sites(s)%imort_carbonflux(:) = 0._r8
       sites(s)%imort_rate(:,:) = 0._r8
       sites(s)%fmort_rate_canopy(:,:) = 0._r8
       sites(s)%fmort_rate_ustory(:,:) = 0._r8
-      sites(s)%fmort_carbonflux_canopy = 0._r8
-      sites(s)%fmort_carbonflux_ustory = 0._r8
+      sites(s)%fmort_carbonflux_canopy(:) = 0._r8
+      sites(s)%fmort_carbonflux_ustory(:) = 0._r8
       sites(s)%fmort_rate_cambial(:,:) = 0._r8
       sites(s)%fmort_rate_crown(:,:) = 0._r8
       sites(s)%growthflux_fusion(:,:) = 0._r8
@@ -3462,14 +3479,14 @@ end subroutine flush_hvars
       ! mortality-associated carbon fluxes
 
       hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
-         sites(s)%term_carbonflux_canopy * days_per_sec * ha_per_m2
+         sum(sites(s)%term_carbonflux_canopy(:)) * days_per_sec * ha_per_m2
 
       hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
-         sites(s)%term_carbonflux_ustory * days_per_sec * ha_per_m2
+         sum(sites(s)%term_carbonflux_ustory(:)) * days_per_sec * ha_per_m2
 
       ! and zero the site-level termination carbon flux variable
-      sites(s)%term_carbonflux_canopy = 0._r8
-      sites(s)%term_carbonflux_ustory = 0._r8
+      sites(s)%term_carbonflux_canopy(:) = 0._r8
+      sites(s)%term_carbonflux_ustory(:) = 0._r8
       !
 
       ! add the site-level disturbance-associated cwd and litter input fluxes to thir respective flux fields
@@ -5437,6 +5454,12 @@ end subroutine update_history_hifrq
           use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
           upfreq=1, ivar=ivar, initialize=initialize_variables,                &
           index = ih_understory_mortality_carbonflux_si)
+
+    call this%set_history_var(vname='FATES_MORTALITY_CFLUX_PF', units='kg m-2 s-1',    &
+         long='PFT-level flux of biomass carbon from live to dead pool from mortality', &
+         use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+         index=ih_mortality_carbonflux_si_pft)
 
     ! size class by age dimensioned variables
 

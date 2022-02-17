@@ -194,7 +194,7 @@ contains
     ! first calculate the fractino of the site that is primary land
     call get_frac_site_primary(site_in, frac_site_primary)
  
-    site_in%harvest_carbon_flux = 0._r8
+    site_in%harvest_carbon_flux(:) = 0._r8
 
     currentPatch => site_in%oldest_patch
     do while (associated(currentPatch))   
@@ -233,7 +233,8 @@ contains
 
           ! estimate the wood product (trunk_product_site)
           if (currentCohort%canopy_layer>=1) then
-             site_in%harvest_carbon_flux = site_in%harvest_carbon_flux + &
+             site_in%harvest_carbon_flux(currentCohort%pft) = &
+                  site_in%harvest_carbon_flux(currentCohort%pft) + &
                   currentCohort%lmort_direct * currentCohort%n * &
                   ( currentCohort%prt%GetState(sapw_organ, all_carbon_elements) + &
                   currentCohort%prt%GetState(struct_organ, all_carbon_elements)) * &
@@ -780,7 +781,8 @@ contains
                               nc%n * ED_val_understorey_death / hlm_freq_day
                          
                          
-                         currentSite%imort_carbonflux = currentSite%imort_carbonflux + &
+                         currentSite%imort_carbonflux(currentCohort%pft) = &
+                              currentSite%imort_carbonflux(currentCohort%pft) + &
                               (nc%n * ED_val_understorey_death / hlm_freq_day ) * &
                               total_c * g_per_kg * days_per_sec * years_per_day * ha_per_m2
                          
@@ -856,7 +858,8 @@ contains
                            currentSite%fmort_rate_canopy(currentCohort%size_class, currentCohort%pft) + &
                            nc%n * currentCohort%fire_mort / hlm_freq_day
                       
-                      currentSite%fmort_carbonflux_canopy = currentSite%fmort_carbonflux_canopy + &
+                      currentSite%fmort_carbonflux_canopy(currentCohort%pft) = &
+                           currentSite%fmort_carbonflux_canopy(currentCohort%pft) + &
                            (nc%n * currentCohort%fire_mort) * &
                            total_c * g_per_kg * days_per_sec * ha_per_m2
                       
@@ -865,7 +868,8 @@ contains
                            currentSite%fmort_rate_ustory(currentCohort%size_class, currentCohort%pft) + &
                            nc%n * currentCohort%fire_mort / hlm_freq_day
                       
-                      currentSite%fmort_carbonflux_ustory = currentSite%fmort_carbonflux_ustory + &
+                      currentSite%fmort_carbonflux_ustory(currentCohort%pft) = &
+                           currentSite%fmort_carbonflux_ustory(currentCohort%pft) + &
                            (nc%n * currentCohort%fire_mort) * &
                            total_c * g_per_kg * days_per_sec * ha_per_m2
                    end if
@@ -997,7 +1001,8 @@ contains
                               nc%n * currentPatch%fract_ldist_not_harvested * &
                               logging_coll_under_frac / hlm_freq_day
 
-                         currentSite%imort_carbonflux = currentSite%imort_carbonflux + &
+                         currentSite%imort_carbonflux(currentCohort%pft) = &
+                              currentSite%imort_carbonflux(currentCohort%pft) + &
                               (nc%n * currentPatch%fract_ldist_not_harvested * &
                               logging_coll_under_frac/ hlm_freq_day ) * &
                               total_c * g_per_kg * days_per_sec * years_per_day * ha_per_m2
