@@ -1504,7 +1504,6 @@ contains
     real(r8) :: min_chite                ! bottom of cohort canopy  (m)
     real(r8) :: max_chite                ! top of cohort canopy      (m)
     real(r8) :: lai                      ! summed lai for checking m2 m-2
-    real(r8) :: leaf_c                   ! leaf carbon [kg]
 
     !----------------------------------------------------------------------
 
@@ -2197,12 +2196,13 @@ contains
 
    ! Arguments
    type(ed_patch_type),intent(inout), target   :: currentPatch
-   real(r8), intent(out) :: patch_lai
+   real(r8), intent(inout) :: patch_lai
 
    ! Local Variables
    type(ed_cohort_type), pointer :: currentCohort
    integer  :: cl                                  ! Canopy layer index
    integer  :: ft                                  ! Plant functional type index
+   real(r8) :: leaf_c                              ! leaf carbon [kg]
 
    ! Zero out the patch-level canopy layer variables
    currentPatch%canopy_layer_tlai(:)        = 0._r8
