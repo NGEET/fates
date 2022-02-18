@@ -2194,6 +2194,9 @@ contains
    ! and related variables
    ! ---------------------------------------------------------------------------------------------
 
+   ! Uses
+   use EDtypesMod, only : dlower_vai
+
    ! Arguments
    type(ed_patch_type),intent(inout), target   :: currentPatch
    real(r8), intent(inout) :: patch_lai
