@@ -1522,6 +1522,8 @@ contains
        ! calculate tree lai and sai.
        ! --------------------------------------------------------------------------------
 
+       currentPatch%canopy_layer_tlai(:)        = 0._r8
+       currentPatch%ncan(:,:)                   = 0
        currentPatch%nrad(:,:)                   = 0
        patch_lai                                = 0._r8
        currentPatch%tlai_profile(:,:,:)         = 0._r8
@@ -2208,8 +2210,8 @@ contains
    real(r8) :: leaf_c                              ! leaf carbon [kg]
 
    ! Zero out the patch-level canopy layer variables
-   currentPatch%canopy_layer_tlai(:)        = 0._r8
-   currentPatch%ncan(:,:)                   = 0
+   !currentPatch%canopy_layer_tlai(:)        = 0._r8
+   !currentPatch%ncan(:,:)                   = 0
    
    ! Calculate LAI of layers above.  Because it is possible for some understory cohorts
    ! to be taller than cohorts in the top canopy layer, we must iterate through the 
