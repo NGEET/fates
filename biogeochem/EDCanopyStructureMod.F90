@@ -42,7 +42,7 @@ module EDCanopyStructureMod
   use PRTGenericMod,          only : repro_organ
   use PRTGenericMod,          only : struct_organ
   use PRTGenericMod,          only : SetState
-  use FatesRunningMeanMod,    only : ema_lpa
+  use FatesRunningMeanMod,    only : ema_lpa, ema_60day
 
   ! CIME Globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
@@ -659,6 +659,14 @@ contains
 
                 allocate(copyc)
 
+                ! (keep as an example)
+                ! Initialize running means
+                !allocate(copyc%tveg_lpa)
+                allocate(copyc%l2fr_ema)
+                ! Note, no need to give a starter value here,
+                ! that will be taken care of in copy_cohort()
+                call copyc%l2fr_ema%InitRMean(ema_60day)
+                     
                 ! Initialize the PARTEH object and point to the
                 ! correct boundary condition fields
                 copyc%prt => null()
@@ -669,12 +677,6 @@ contains
                    call InitHydrCohort(currentSite,copyc)
                 endif
 
-                ! (keep as an example)
-                ! Initialize running means
-                !allocate(copyc%tveg_lpa)
-                !call copyc%tveg_lpa%InitRMean(ema_lpa, &
-                !     init_value=currentPatch%tveg_lpa%GetMean())
-                
                 call copy_cohort(currentCohort, copyc)
 
                 newarea = currentCohort%c_area - cc_loss
@@ -1118,6 +1120,12 @@ contains
 
                    allocate(copyc)
 
+
+                   allocate(copyc%l2fr_ema)
+                   ! Note, no need to give a starter value here,
+                   ! that will be taken care of in copy_cohort()
+                   call copyc%l2fr_ema%InitRMean(ema_60day)
+                   
                    ! Initialize the PARTEH object and point to the
                    ! correct boundary condition fields
                    copyc%prt => null()

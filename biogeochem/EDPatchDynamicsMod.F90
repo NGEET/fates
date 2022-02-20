@@ -89,7 +89,7 @@ module EDPatchDynamicsMod
   use SFParamsMod,            only : SF_VAL_CWD_FRAC
   use EDParamsMod,            only : logging_event_code
   use EDParamsMod,            only : logging_export_frac
-  use FatesRunningMeanMod,    only : ema_24hr, fixed_24hr, ema_lpa
+  use FatesRunningMeanMod,    only : ema_24hr, fixed_24hr, ema_lpa, ema_60day
   
   ! CIME globals
   use shr_infnan_mod       , only : nan => shr_infnan_nan, assignment(=)
@@ -697,17 +697,17 @@ contains
                  
                  allocate(nc)
                  if(hlm_use_planthydro.eq.itrue) call InitHydrCohort(CurrentSite,nc)
+
+                 allocate(nc%l2fr_ema)
+                 ! Note, no need to give a starter value here,
+                 ! that will be taken care of in copy_cohort()
+                 call nc%l2fr_ema%InitRMean(ema_60day)
                  
                  ! Initialize the PARTEH object and point to the
                  ! correct boundary condition fields
                  nc%prt => null()
                  call InitPRTObject(nc%prt)
                  call InitPRTBoundaryConditions(nc)
-
-                 !  (Keeping as an example)
-                 ! Allocate running mean functions
-                 !allocate(nc%tveg_lpa)
-                 !call nc%tveg_lpa%InitRMean(ema_lpa,init_value=new_patch%tveg_lpa%GetMean())
 
                  call zero_cohort(nc)
 

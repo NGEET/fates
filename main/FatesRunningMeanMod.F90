@@ -91,6 +91,15 @@ module FatesRunningMeanMod
   class(rmean_def_type), public, pointer :: ema_24hr   ! Exponential moving average - 24hr window
   class(rmean_def_type), public, pointer :: fixed_24hr ! Fixed, 24-hour window
   class(rmean_def_type), public, pointer :: ema_lpa    ! Exponential moving average - leaf photo acclimation
+  class(rmean_def_type), public, pointer :: ema_60day  ! Exponential moving average, 60 day
+                                                       ! Updated daily
+
+
+  ! If we want to have different running mean specs based on
+  ! pft or other types of constants
+  type, public :: rmean_arr_type
+     class(rmean_def_type), pointer :: p
+  end type rmean_arr_type
   
 contains
 
@@ -197,7 +206,11 @@ contains
        if(present(init_value))then
           this%c_mean  = init_value
           this%l_mean  = init_value
-          this%c_index = 1
+          if(present(init_offset))then
+             this%c_index = min(nint(init_offset/rmean_def%up_period),rmean_def%n_mem)
+          else
+             this%c_index = 1
+          end if
        else
           this%c_mean  = nan
           this%l_mean  = nan

@@ -538,7 +538,7 @@ contains
           ! Loop over all of the coordinate ids
           do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos 
              
-           ! The mass that is leaving the plant
+             ! The mass that is leaving the plant
              turnover_mass = (1.0_r8 - retrans) * mass_fraction * prt%variables(i_var)%val(i_pos)
              
              ! The mass that is going towards storage

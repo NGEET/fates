@@ -18,7 +18,8 @@ module EDCohortDynamicsMod
   use FatesConstantsMod     , only : fates_unset_r8
   use FatesConstantsMod     , only : nearzero
   use FatesConstantsMod     , only : calloc_abs_error
-  use FatesRunningMeanMod       , only : ema_lpa
+  use FatesConstantsMod     , only : sec_per_day
+  use FatesRunningMeanMod       , only : ema_lpa, ema_60day
   use FatesInterfaceTypesMod     , only : hlm_days_per_year
   use FatesInterfaceTypesMod     , only : nleafage
   use SFParamsMod           , only : SF_val_CWD_frac
@@ -93,11 +94,13 @@ module EDCohortDynamicsMod
   use PRTAllometricCNPMod,    only : cnp_allom_prt_vartypes
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_pft, acnp_bc_in_id_ctrim
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_lstat, acnp_bc_inout_id_dbh
+  use PRTAllometricCNPMod,    only : acnp_bc_in_id_l2fr_ema
   use PRTAllometricCNPMod,    only : acnp_bc_inout_id_l2fr
   use PRTAllometricCNPMod,    only : acnp_bc_inout_id_rmaint_def, acnp_bc_in_id_netdc
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_netdnh4, acnp_bc_in_id_netdno3, acnp_bc_in_id_netdp
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_cefflux, acnp_bc_out_id_nefflux
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_pefflux
+  use PRTAllometricCNPMod,    only : fnrt_adapt_tscl
   use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)  
 
 
@@ -315,15 +318,17 @@ contains
        patchptr%shortest => new_cohort
     endif
 
-    call InitPRTBoundaryConditions(new_cohort)
-
-
     ! Allocate running mean functions
 
     !  (Keeping as an example)
     !! allocate(new_cohort%tveg_lpa)
     !! call new_cohort%tveg_lpa%InitRMean(ema_lpa,init_value=patchptr%tveg_lpa%GetMean())
 
+    allocate(new_cohort%l2fr_ema)
+    call new_cohort%l2fr_ema%InitRMean(ema_60day,init_value=new_cohort%l2fr,init_offset=fnrt_adapt_tscl*sec_per_day)
+    
+    call InitPRTBoundaryConditions(new_cohort)
+    
     
     ! Recuits do not have mortality rates, nor have they moved any
     ! carbon when they are created.  They will bias our statistics
@@ -426,7 +431,8 @@ contains
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdnh4, bc_rval = new_cohort%daily_nh4_uptake)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdno3, bc_rval = new_cohort%daily_no3_uptake)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdp, bc_rval = new_cohort%daily_p_uptake)
-
+       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_l2fr_ema, bc_rval = new_cohort%l2fr_ema%l_mean)
+       
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_dbh,bc_rval = new_cohort%dbh)
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_rmaint_def,bc_rval = new_cohort%resp_m_def)
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_l2fr,bc_rval = new_cohort%l2fr)
@@ -1011,7 +1017,8 @@ contains
      !  (Keeping as an example)
      ! Remove the running mean structure
      ! deallocate(currentCohort%tveg_lpa)
-
+     deallocate(currentCohort%l2fr_ema)
+     
      ! At this point, nothing should be pointing to current Cohort
      if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(currentCohort)
 
@@ -1179,6 +1186,8 @@ contains
                                    ! Running mean fuses based on number density fraction just
                                    ! like other variables
                                    !!call currentCohort%tveg_lpa%FuseRMean(nextc%tveg_lpa,currentCohort%n/newn)
+
+                                   call currentCohort%l2fr_ema%FuseRMean(nextc%l2fr_ema,currentCohort%n/newn)
                                    
                                    ! new cohort age is weighted mean of two cohorts
                                    currentCohort%coage = &
@@ -1823,6 +1832,7 @@ contains
     !  (Keeping as an example)
     ! Copy over running means
     ! call n%tveg_lpa%CopyFromDonor(o%tveg_lpa)
+    call n%l2fr_ema%CopyFromDonor(o%l2fr_ema)
     
     ! CARBON FLUXES
     n%gpp_acc_hold    = o%gpp_acc_hold

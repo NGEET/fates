@@ -221,6 +221,9 @@ module EDTypesMod
                                                          !      parameters, with a tendency driven by
                                                          !      nutrient storage)
 
+
+     class(rmean_type), pointer :: l2fr_ema              ! Exponential moving average of the L2FR
+     
      ! VEGETATION STRUCTURE
      integer  ::  pft                                    ! pft number
      real(r8) ::  n                                      ! number of individuals in cohort per 'area' (10000m2 default)

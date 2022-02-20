@@ -79,6 +79,7 @@ module EDMainMod
   use FatesPlantHydraulicsMod  , only : UpdateSizeDepRhizHydProps
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
   use FatesAllometryMod        , only : h_allom,tree_sai,tree_lai
+  use FatesAllometryMod        , only : bleaf
   use FatesPlantHydraulicsMod  , only : UpdateSizeDepRhizHydStates
   use EDLoggingMortalityMod    , only : IsItLoggingTime
   use EDPatchDynamicsMod       , only : get_frac_site_primary
@@ -335,12 +336,12 @@ contains
     logical  :: is_drought            ! logical for if the plant (site) is in a drought state
     real(r8) :: delta_dbh             ! correction for dbh
     real(r8) :: delta_hite            ! correction for hite
-
+    real(r8) :: actual_l2fr           ! The fine-root/leaf carbon biomass ratio following allocation
+                                      ! note, this is not the target, but the actual
+    real(r8) :: leaf_c_target         ! target leaf crabon [kg]
     real(r8) :: current_npp           ! place holder for calculating npp each year in prescribed physiology mode
     !-----------------------------------------------------------------------
     real(r8) :: frac_site_primary
-
-    print*,"DYNAMICS"
 
     call get_frac_site_primary(currentSite, frac_site_primary)
 
@@ -348,10 +349,10 @@ contains
     site_cmass => currentSite%mass_balance(element_pos(carbon12_element))
 
     currentPatch => currentSite%youngest_patch
-
     do while(associated(currentPatch))
 
-
+       !print*,"PATCH"
+       
        currentPatch%age = currentPatch%age + hlm_freq_day
        ! FIX(SPM,032414) valgrind 'Conditional jump or move depends on uninitialised value'
        if( currentPatch%age  <  0._r8 )then
@@ -443,9 +444,22 @@ contains
           ! Growth and Allocation (PARTEH)
           ! -----------------------------------------------------------------------------
 
+          
+
+          ! Update the moving average of actual L2FR
+          call bleaf(currentCohort%dbh,currentCohort%pft,currentCohort%canopy_trim,leaf_c_target)
+          if(currentCohort%prt%GetState(leaf_organ, carbon12_element)/leaf_c_target>0.01_r8)then
+
+             actual_l2fr = currentCohort%prt%GetState(fnrt_organ, carbon12_element) / &
+                  currentCohort%prt%GetState(leaf_organ, carbon12_element)
+
+             actual_l2fr = max(0.05_r8,min(10._r8,actual_l2fr))
+          
+             call currentCohort%l2fr_ema%UpdateRMean(actual_l2fr)
+          end if
+          
           call currentCohort%prt%DailyPRT()
-
-
+          
           ! Update the mass balance tracking for the daily nutrient uptake flux
           ! Then zero out the daily uptakes, they have been used
           ! -----------------------------------------------------------------------------

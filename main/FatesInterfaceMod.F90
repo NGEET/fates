@@ -80,10 +80,11 @@ module FatesInterfaceMod
    use FatesRunningMeanMod       , only : ema_24hr
    use FatesRunningMeanMod       , only : fixed_24hr
    use FatesRunningMeanMod       , only : ema_lpa
+   use FatesRunningMeanMod       , only : ema_60day
    use FatesRunningMeanMod       , only : moving_ema_window
    use FatesRunningMeanMod       , only : fixed_window
    use FatesHistoryInterfaceMod  , only : fates_hist
-
+   use PRTAllometricCNPMod       , only : fnrt_adapt_tscl
    
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -926,7 +927,13 @@ contains
       allocate(ema_lpa)
       call ema_lpa%define(photo_temp_acclim_timescale*sec_per_day, &
            hlm_stepsize,moving_ema_window)
+      allocate(ema_60day)
+      call ema_60day%define(fnrt_adapt_tscl*sec_per_day,sec_per_day,moving_ema_window)
 
+      !class(rmean_arr_type), pointer :: ema_fnrt_tscale(:)
+      !rmean_arr_type
+      
+      
       return
     end subroutine InitTimeAveragingGlobals
 
@@ -1909,7 +1916,7 @@ contains
            call cpatch%tveg24%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            call cpatch%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
 
-           !  (Keeping as an example)
+           
            !ccohort => cpatch%tallest
            !do while (associated(ccohort))
            !   call ccohort%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
