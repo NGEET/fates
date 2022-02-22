@@ -79,7 +79,6 @@ module EDMainMod
   use FatesPlantHydraulicsMod  , only : UpdateSizeDepRhizHydProps
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
   use FatesAllometryMod        , only : h_allom,tree_sai,tree_lai
-  use FatesPlantHydraulicsMod  , only : UpdateSizeDepRhizHydStates
   use EDLoggingMortalityMod    , only : IsItLoggingTime
   use EDPatchDynamicsMod       , only : get_frac_site_primary
   use FatesGlobals             , only : endrun => fates_endrun
@@ -287,7 +286,7 @@ contains
        ! density --> node radii and volumes)
        if( (hlm_use_planthydro.eq.itrue) .and. do_growthrecruiteffects) then
           call UpdateSizeDepRhizHydProps(currentSite, bc_in)
-          call UpdateSizeDepRhizHydStates(currentSite, bc_in)
+          !! call UpdateSizeDepRhizHydStates(currentSite, bc_in) ! keeping if re-implemented (RGK 12-2021)
        end if
 
        ! SP has changes in leaf carbon but we don't expect them to be in balance.
