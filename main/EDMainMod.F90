@@ -455,7 +455,7 @@ contains
 
              actual_l2fr = max(0.05_r8,min(10._r8,actual_l2fr))
           
-             call currentCohort%l2fr_ema%UpdateRMean(actual_l2fr)
+             !!call currentCohort%l2fr_ema%UpdateRMean(actual_l2fr)
           end if
           
           call currentCohort%prt%DailyPRT()

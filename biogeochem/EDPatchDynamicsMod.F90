@@ -698,10 +698,10 @@ contains
                  allocate(nc)
                  if(hlm_use_planthydro.eq.itrue) call InitHydrCohort(CurrentSite,nc)
 
-                 allocate(nc%l2fr_ema)
+                 !!allocate(nc%l2fr_ema)
                  ! Note, no need to give a starter value here,
                  ! that will be taken care of in copy_cohort()
-                 call nc%l2fr_ema%InitRMean(ema_60day)
+                 !!call nc%l2fr_ema%InitRMean(ema_60day)
                  
                  ! Initialize the PARTEH object and point to the
                  ! correct boundary condition fields

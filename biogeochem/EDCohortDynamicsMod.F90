@@ -94,7 +94,7 @@ module EDCohortDynamicsMod
   use PRTAllometricCNPMod,    only : cnp_allom_prt_vartypes
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_pft, acnp_bc_in_id_ctrim
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_lstat, acnp_bc_inout_id_dbh
-  use PRTAllometricCNPMod,    only : acnp_bc_in_id_l2fr_ema
+  !use PRTAllometricCNPMod,    only : acnp_bc_in_id_l2fr_ema
   use PRTAllometricCNPMod,    only : acnp_bc_inout_id_l2fr
   use PRTAllometricCNPMod,    only : acnp_bc_inout_id_rmaint_def, acnp_bc_in_id_netdc
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_netdnh4, acnp_bc_in_id_netdno3, acnp_bc_in_id_netdp
@@ -324,8 +324,8 @@ contains
     !! allocate(new_cohort%tveg_lpa)
     !! call new_cohort%tveg_lpa%InitRMean(ema_lpa,init_value=patchptr%tveg_lpa%GetMean())
 
-    allocate(new_cohort%l2fr_ema)
-    call new_cohort%l2fr_ema%InitRMean(ema_60day,init_value=new_cohort%l2fr,init_offset=fnrt_adapt_tscl*sec_per_day)
+    !!allocate(new_cohort%l2fr_ema)
+    !!call new_cohort%l2fr_ema%InitRMean(ema_60day,init_value=new_cohort%l2fr,init_offset=fnrt_adapt_tscl*sec_per_day)
     
     call InitPRTBoundaryConditions(new_cohort)
     
@@ -431,7 +431,7 @@ contains
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdnh4, bc_rval = new_cohort%daily_nh4_uptake)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdno3, bc_rval = new_cohort%daily_no3_uptake)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdp, bc_rval = new_cohort%daily_p_uptake)
-       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_l2fr_ema, bc_rval = new_cohort%l2fr_ema%l_mean)
+       !!call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_l2fr_ema, bc_rval = new_cohort%l2fr_ema%l_mean)
        
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_dbh,bc_rval = new_cohort%dbh)
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_rmaint_def,bc_rval = new_cohort%resp_m_def)
@@ -1017,7 +1017,7 @@ contains
      !  (Keeping as an example)
      ! Remove the running mean structure
      ! deallocate(currentCohort%tveg_lpa)
-     deallocate(currentCohort%l2fr_ema)
+     !!deallocate(currentCohort%l2fr_ema)
      
      ! At this point, nothing should be pointing to current Cohort
      if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(currentCohort)
@@ -1187,7 +1187,7 @@ contains
                                    ! like other variables
                                    !!call currentCohort%tveg_lpa%FuseRMean(nextc%tveg_lpa,currentCohort%n/newn)
 
-                                   call currentCohort%l2fr_ema%FuseRMean(nextc%l2fr_ema,currentCohort%n/newn)
+                                   !!call currentCohort%l2fr_ema%FuseRMean(nextc%l2fr_ema,currentCohort%n/newn)
                                    
                                    ! new cohort age is weighted mean of two cohorts
                                    currentCohort%coage = &
@@ -1832,7 +1832,7 @@ contains
     !  (Keeping as an example)
     ! Copy over running means
     ! call n%tveg_lpa%CopyFromDonor(o%tveg_lpa)
-    call n%l2fr_ema%CopyFromDonor(o%l2fr_ema)
+    !!call n%l2fr_ema%CopyFromDonor(o%l2fr_ema)
     
     ! CARBON FLUXES
     n%gpp_acc_hold    = o%gpp_acc_hold

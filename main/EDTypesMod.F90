@@ -222,7 +222,7 @@ module EDTypesMod
                                                          !      nutrient storage)
 
 
-     class(rmean_type), pointer :: l2fr_ema              ! Exponential moving average of the L2FR
+     !!class(rmean_type), pointer :: l2fr_ema              ! Exponential moving average of the L2FR
      
      ! VEGETATION STRUCTURE
      integer  ::  pft                                    ! pft number

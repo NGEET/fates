@@ -184,7 +184,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_totvegp_si
 
   integer :: ih_l2fr_si
-  integer :: ih_l2fr_ema_si
+  !!integer :: ih_l2fr_ema_si
   integer :: ih_l2fr_scpf
   integer :: ih_l2fr_canopy_scpf
   integer :: ih_l2fr_understory_scpf
@@ -1858,7 +1858,7 @@ end subroutine flush_hvars
                hio_ncohorts_si         => this%hvars(ih_ncohorts_si)%r81d, &
                hio_trimming_si         => this%hvars(ih_trimming_si)%r81d, &
                hio_l2fr_si             => this%hvars(ih_l2fr_si)%r81d, &
-               hio_l2fr_ema_si         => this%hvars(ih_l2fr_ema_si)%r81d, &
+               !!hio_l2fr_ema_si         => this%hvars(ih_l2fr_ema_si)%r81d, &
                hio_l2fr_scpf           => this%hvars(ih_l2fr_scpf)%r82d, &
                hio_l2fr_canopy_scpf     => this%hvars(ih_l2fr_canopy_scpf)%r82d, &
                hio_l2fr_understory_scpf => this%hvars(ih_l2fr_understory_scpf)%r82d, &
@@ -2404,7 +2404,7 @@ end subroutine flush_hvars
                   hio_l2fr_si(io_si) = hio_l2fr_si(io_si) + ccohort%n*fnrt_m/m2_per_ha*ccohort%l2fr
 
 
-                  hio_l2fr_ema_si(io_si) = hio_l2fr_ema_si(io_si) + ccohort%n*fnrt_m/m2_per_ha*ccohort%l2fr_ema%GetMean()
+                  !!hio_l2fr_ema_si(io_si) = hio_l2fr_ema_si(io_si) + ccohort%n*fnrt_m/m2_per_ha*ccohort%l2fr_ema%GetMean()
                   
                   hio_l2fr_scpf(io_si,i_scpf) = &
                        hio_l2fr_scpf(io_si,i_scpf) + ccohort%n*fnrt_m/m2_per_ha*ccohort%l2fr
@@ -3050,7 +3050,7 @@ end subroutine flush_hvars
 
       ! Normalize the l2fr value by total biomass
       hio_l2fr_si(io_si) = hio_l2fr_si(io_si)/this%hvars(ih_fnrtc_si)%r81d(io_si)
-      hio_l2fr_ema_si(io_si) = hio_l2fr_ema_si(io_si)/this%hvars(ih_fnrtc_si)%r81d(io_si)
+      !!hio_l2fr_ema_si(io_si) = hio_l2fr_ema_si(io_si)/this%hvars(ih_fnrtc_si)%r81d(io_si)
       
       
       ! divide so-far-just-summed but to-be-averaged patch-age-class variables by patch-age-class area to get mean values
@@ -4516,11 +4516,11 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1,    &
          ivar=ivar, initialize=initialize_variables, index = ih_l2fr_si)
 
-    call this%set_history_var(vname='FATES_L2FR_EMA', units='kg kg-1',                   &
-         long='Moving average of the leaf to fineroot biomass multiplier for target allometry', & 
-         use_default='active', &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1,    &
-         ivar=ivar, initialize=initialize_variables, index = ih_l2fr_ema_si)
+    !!call this%set_history_var(vname='FATES_L2FR_EMA', units='kg kg-1',                   &
+    !!     long='Moving average of the leaf to fineroot biomass multiplier for target allometry', & 
+    !!     use_default='active', &
+    !!     avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1,    &
+    !!     ivar=ivar, initialize=initialize_variables, index = ih_l2fr_ema_si)
 
        
     call this%set_history_var(vname='FATES_L2FR_SZPF', units='kg kg-1',                   &

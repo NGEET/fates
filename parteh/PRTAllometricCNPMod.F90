@@ -153,10 +153,12 @@ module PRTAllometricCNPMod
   integer, public, parameter :: acnp_bc_in_id_netdnh4  = 5 ! Index for the net daily NH4 input BC
   integer, public, parameter :: acnp_bc_in_id_netdno3  = 6 ! Index for the net daily NO3 input BC
   integer, public, parameter :: acnp_bc_in_id_netdp    = 7 ! Index for the net daily P input BC
-  integer, public, parameter :: acnp_bc_in_id_l2fr_ema = 8 ! Index for the moving average ema
+  !integer, public, parameter :: acnp_bc_in_id_l2fr_ema = 7 ! Index for the moving average ema
+  !integer, public, parameter :: acnp_bc_in_id_ncs_ema = 9  ! Index for N/C storage ratio (EMA)
+  !integer, public, parameter :: acnp_bc_in_id_pcs_ema = 10 ! Index for P/C storage ratio (EMA)
   
   ! 0=leaf off, 1=leaf on
-  integer, parameter         :: num_bc_in             = 8
+  integer, parameter         :: num_bc_in             = 7
 
   ! -------------------------------------------------------------------------------------
   ! Output Boundary Indices (These are public)
@@ -166,7 +168,7 @@ module PRTAllometricCNPMod
   integer, public, parameter :: acnp_bc_out_id_nefflux = 2  ! Daily exudation of N  [kg]
   integer, public, parameter :: acnp_bc_out_id_pefflux = 3  ! Daily exudation of P  [kg]
   
-  integer, parameter         :: num_bc_out                = 5  ! Total number of
+  integer, parameter         :: num_bc_out                = 3  ! Total number of
 
 
   ! Indices for parameters passed to the integrator
@@ -207,9 +209,12 @@ module PRTAllometricCNPMod
   integer, parameter :: regulate_CN_ema  = 5
 
 
-  !real(r8), public, parameter :: fnrt_adapt_tscl = 365._r8  ! Fine-root adaptation timescale (days)
-  
-  real(r8), public, parameter :: fnrt_adapt_tscl = 30._r8   ! Fine-root adaptation timescale (days)
+  real(r8), public, parameter :: fnrt_adapt_tscl = 100._r8   ! Fine-root adaptation timescale (days)
+                                                             ! or, how many days it takes
+                                                             ! for a doubling or halving of the l2fr
+
+
+
   
   ! Array of pointers are difficult in F90
   ! This structure is a necessary intermediate 
@@ -353,7 +358,7 @@ contains
     real(r8) :: n_gain      ! Daily nitrogen uptake through fine-roots [kgN]
     real(r8) :: p_gain      ! Daily phosphorus uptake through fine-roots [kgN]
     real(r8) :: canopy_trim ! The canopy trimming function [0-1]
-    real(r8) :: l2fr_ema    ! Mean (EMA) l2fr
+    !real(r8) :: l2fr_ema    ! Mean (EMA) l2fr
     
     ! Pointers to output bcs
     real(r8),pointer :: c_efflux   ! Total plant efflux of carbon (kgC)
@@ -650,7 +655,7 @@ contains
     integer           :: ipft           ! PFT index
     real(r8), pointer :: dbh
     real(r8)          :: canopy_trim
-    real(r8)          :: l2fr_ema       ! Moving average L2FR (EMA)
+    !!real(r8)          :: l2fr_ema       ! Moving average L2FR (EMA)
 
     real(r8) :: l2fr_actual
     real(r8) :: fnrt_c_target ! Target fineroot C before we change l2fr
@@ -673,7 +678,7 @@ contains
     l2fr         => this%bc_inout(acnp_bc_inout_id_l2fr)%rval
     dbh          => this%bc_inout(acnp_bc_inout_id_dbh)%rval
     canopy_trim  = this%bc_in(acnp_bc_in_id_ctrim)%rval
-    l2fr_ema     = this%bc_in(acnp_bc_in_id_l2fr_ema)%rval
+    !!l2fr_ema     = this%bc_in(acnp_bc_in_id_l2fr_ema)%rval
     
     associate( l2fr_min => prt_params%allom_l2fr_min(ipft), &
          l2fr_max => prt_params%allom_l2fr_max(ipft))
@@ -703,9 +708,7 @@ contains
          ! Only update L2FR if some leaves are out
          call bleaf(dbh,ipft,canopy_trim,leaf_c_target)
          if(this%GetState(leaf_organ, carbon12_element)/leaf_c_target>0.5_r8) then
-            l2fr = l2fr_ema * np_regulator
-            !l2fr = l2fr_actual * np_regulator
-            !l2fr = l2fr * np_regulator
+            l2fr = l2fr * np_regulator
          end if
          
          
@@ -2214,11 +2217,12 @@ contains
      real(r8) :: l2fr_delta_max
      real(r8) :: l2fr_delta_min
      real(r8) :: l2fr_actual
+     real(r8) :: leaf_c, fnrt_c
      real(r8) :: leaf_c_target
      real(r8) :: log_nc_frac
      real(r8) :: store_c_frac
      real(r8) :: c_gain
-     real(r8) :: target_fnrt_c
+     real(r8) :: fnrt_c_target
      
      ! This is the storage fraction where downregulation starts if using
      ! a linear function
@@ -2237,10 +2241,8 @@ contains
      associate(dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval, & 
                canopy_trim => this%bc_in(acnp_bc_in_id_ctrim)%rval, &
                ipft        => this%bc_in(acnp_bc_in_id_pft)%ival, & 
-               l2fr        => this%bc_inout(acnp_bc_inout_id_l2fr)%rval, &
-               l2fr_ema    => this%bc_in(acnp_bc_in_id_l2fr_ema)%rval)
-
-       
+               l2fr        => this%bc_inout(acnp_bc_inout_id_l2fr)%rval)
+              
        store_max = this%GetNutrientTarget(element_id,store_organ,stoich_max)
 
        ! Storage fractions could more than the target, depending on the
@@ -2275,7 +2277,7 @@ contains
 
        elseif(regulate_type == regulate_CN_logi .or. regulate_type == regulate_CN_ema) then
 
-          logi_k   = 2.0_r8
+          logi_k   = 1.0_r8
           store_x0 = 0.0_r8
           logi_min = 0.0_r8
 
@@ -2312,27 +2314,48 @@ contains
              !  (l2fr_delta_max*target_fnrt_c + target_fnrt_c-actual_fnrt_c )/c_gain
              !               < max_l2fr_cgain_frac
              !
+             ! or
+             !
+             ! l2fr_delta_max*target_fnrt_c < max_l2fr_cgain_frac * (c_gain -
+             !                                                       (target_fnrt_c-actual_fnrt_c) -
+             !                                                       (target_leaf_c-actual_leaf_c))
+             !
              ! ------------------------------------------------------------------------------
              
-             call bfineroot(dbh,ipft,canopy_trim, l2fr, target_fnrt_c)
+             call bfineroot(dbh,ipft,canopy_trim, l2fr, fnrt_c_target)
+             call bleaf(dbh,ipft,canopy_trim,leaf_c_target)
              
              ! If there is overflow storage, add this to the gain
              c_gain = this%bc_in(acnp_bc_in_id_netdc)%rval + &
                   max(0._r8,this%GetState(store_organ, carbon12_element)-store_c_max)
+
+             fnrt_c = this%GetState(fnrt_organ, carbon12_element)
+             leaf_c = this%GetState(leaf_organ, carbon12_element)
              
-             l2fr_delta_max =  max(0._r8, &
-                  c_gain*max_l2fr_cgain_frac - &
-                  target_fnrt_c-this%GetState(fnrt_organ, carbon12_element))/target_fnrt_c
+             l2fr_delta_max = max_l2fr_cgain_frac / fnrt_c_target * &
+                  (c_gain - (fnrt_c_target-fnrt_c) - (leaf_c_target-leaf_c)) 
+
+             ! This value could be negative if there is no gain, or less gain
+             ! than what can replace leaf/root, just ensure the multiplier is GT 1
              
-             ! Since we use l2fr_ema as the basis, we need to transform this
-             ! l2fr_actual*(1+l2fr_delta_max) = l2fr_ema*(1+l2fr_delta_eff)
+             l2fr_delta_max = max(1._r8,l2fr_delta_max)
+             
+
+             ! Second constraint, folding timescale
+             ! 2.0 = l2fr_delta_max^frnt_adapt_tscl
+             l2fr_delta_max = min(l2fr_delta_max, 2._r8**(1._r8/fnrt_adapt_tscl))
+             
              
              l2fr_actual =  this%GetState(fnrt_organ, carbon12_element) / &
                   this%GetState(leaf_organ, carbon12_element)
 
-             ! RE
-             !l2fr_delta_max = l2fr_actual*(1+l2fr_delta_max)/l2fr_ema - 1.0_r8
-             l2fr_delta_min = (years_per_day / prt_params%root_long(ipft))
+             ! Constrain change in l2fr minimum to be no more than what is lost 
+             ! in turnover for a day
+             l2fr_delta_min = 1._r8-(years_per_day / prt_params%root_long(ipft))
+
+             ! Second constraint, folding timescale
+             l2fr_delta_min = max(l2fr_delta_min, 0.5_r8**(1._r8/fnrt_adapt_tscl))
+
              
              log_nc_frac = log( store_frac / store_c_frac )
              
@@ -2341,9 +2364,9 @@ contains
                   min(1._r8,logi_min + (1._r8-logi_min)/(1._r8 + exp(logi_k*(log_nc_frac-store_x0)))))-1.0_r8
              
              if(c_scalar>0.0_r8)then
-                c_scalar = 1._r8+c_scalar*l2fr_delta_max
+                c_scalar = 1._r8 + c_scalar*(l2fr_delta_max-1._r8)
              else
-                c_scalar = 1._r8+c_scalar*l2fr_delta_min
+                c_scalar = 1._r8 + c_scalar*(1._r8-l2fr_delta_min)
              end if
              
           else
