@@ -1973,7 +1973,7 @@ contains
 
        ipft = currentCohort%pft
 
-       if(sum(frac_leaf_aclass(1:nleafage))>nearzero) then
+       if(sum(frac_leaf_aclass(1:nleafage))>nearzero .and. hlm_use_sp .eq. ifalse) then
 
           ipft = currentCohort%pft
 
