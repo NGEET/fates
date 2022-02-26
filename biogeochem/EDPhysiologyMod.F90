@@ -29,7 +29,6 @@ module EDPhysiologyMod
   use EDCohortDynamicsMod , only : zero_cohort
   use EDCohortDynamicsMod , only : create_cohort, sort_cohorts
   use EDCohortDynamicsMod , only : InitPRTObject
-  use EDCohortDynamicsMod , only : UpdateCohortBioPhysRates
   use FatesAllometryMod   , only : tree_lai
   use FatesAllometryMod   , only : tree_sai
   use FatesAllometryMod   , only : leafc_from_treelai
