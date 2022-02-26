@@ -1520,9 +1520,11 @@ contains
     ! ------------------------------------------
     currentCohort%treelai = tlai
     canopylai(:) = 0._r8
-    ! If we are initializing, the canopy layer has not been set yet, so just set to 1
     if(init.eq.itrue)then
+       ! If we are initializing, the canopy layer has not been set yet, so just set to 1
        currentCohort%canopy_layer = 1
+       ! We need to get the vcmax25top
+       currentCohort%vcmax25top = EDPftvarcon_inst%vcmax25top(currentCohort%pft,1)
     endif
     leaf_c = leafc_from_treelai( currentCohort%treelai, currentCohort%pft, currentCohort%c_area,&
          currentCohort%n, currentCohort%canopy_layer, currentCohort%vcmax25top)
