@@ -48,6 +48,7 @@ module FatesHistoryInterfaceMod
   use FatesInterfaceTypesMod        , only : bc_in_type
   use FatesInterfaceTypesMod        , only : hlm_model_day
   use FatesInterfaceTypesMod        , only : nlevcoage
+  use FatesInterfaceTypesMod        , only : hlm_use_nocomp
   use FatesAllometryMod             , only : CrownDepth
 
   use EDPftvarcon              , only : EDPftvarcon_inst
@@ -513,6 +514,9 @@ module FatesHistoryInterfaceMod
   integer :: ih_canopycrownarea_si_pft
   integer :: ih_gpp_si_pft
   integer :: ih_npp_si_pft
+  integer :: ih_nocomp_pftpatchfraction_si_pft
+  integer :: ih_nocomp_pftnpatches_si_pft
+  integer :: ih_nocomp_pftburnedarea_si_pft
 
   ! indices to (site x patch-age) variables
   integer :: ih_area_si_age
@@ -2189,6 +2193,20 @@ end subroutine flush_hvars
             iagepft = cpatch%age_class + (i_pft-1) * nlevage
             hio_scorch_height_si_agepft(io_si,iagepft) = hio_scorch_height_si_agepft(io_si,iagepft) + &
                cpatch%Scorch_ht(i_pft) * cpatch%area
+
+            ! and also pft-labeled patch areas in the event that we are in nocomp mode
+            if ( hlm_use_nocomp .eq. itrue .and. cpatch%nocomp_pft_label .eq. i_pft) then 
+               this%hvars(ih_nocomp_pftpatchfraction_si_pft)%r82d(io_si,i_pft) = &
+                    this%hvars(ih_nocomp_pftpatchfraction_si_pft)%r82d(io_si,i_pft) + cpatch%area * AREA_INV
+
+               this%hvars(ih_nocomp_pftnpatches_si_pft)%r82d(io_si,i_pft) = &
+                    this%hvars(ih_nocomp_pftnpatches_si_pft)%r82d(io_si,i_pft) + 1._r8
+
+               this%hvars(ih_nocomp_pftburnedarea_si_pft)%r82d(io_si,i_pft) = &
+                    this%hvars(ih_nocomp_pftburnedarea_si_pft)%r82d(io_si,i_pft) + &
+                    cpatch%frac_burnt * cpatch%area * AREA_INV / sec_per_day
+            endif
+            
          end do
 
          ! fractional area burnt [frac/day] -> [frac/sec]
@@ -4501,6 +4519,26 @@ end subroutine update_history_hifrq
          use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_mortality_si_pft)
+
+    nocomp_if: if (hlm_use_nocomp .eq. itrue) then
+       call this%set_history_var(vname='FATES_NOCOMP_NPATCHES_PF', units='',      &
+            long='number of patches per PFT (nocomp-mode-only)',                  &
+            use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
+            upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+            index=ih_nocomp_pftnpatches_si_pft)
+
+       call this%set_history_var(vname='FATES_NOCOMP_PATCHAREA_PF', units='m2 m-2',&
+            long='total patch area allowed per PFT (nocomp-mode-only)',           &
+            use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
+            upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+            index=ih_nocomp_pftpatchfraction_si_pft)
+
+       call this%set_history_var(vname='FATES_NOCOMP_BURNEDAREA_PF', units='s-1', &
+            long='total burned area of PFT-labeled patch area (nocomp-mode-only)',&
+            use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
+            upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+            index=ih_nocomp_pftburnedarea_si_pft)
+    endif nocomp_if
 
     ! patch age class variables
     call this%set_history_var(vname='FATES_PATCHAREA_AP', units='m2 m-2',      &
