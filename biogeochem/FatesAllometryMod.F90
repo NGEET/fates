@@ -374,7 +374,7 @@ contains
     real(r8)               :: h       ! height
     real(r8)               :: dhdd    ! change in height wrt d
     real(r8)               :: crown_reduction  ! crown reduction from damage
-    real(r8)               :: branch_frac ! fraction of aboveground biomass in branches
+    real(r8)               :: branch_frac ! fraction of aboveground woody biomass in branches
    
     associate( p1           => prt_params%allom_agb1(ipft), &
                p2           => prt_params%allom_agb2(ipft), &
@@ -923,7 +923,7 @@ contains
 
     real(r8) :: crown_reduction  ! amount that crown is damage by
     real(r8) :: agb_frac         ! aboveground biomass fraction
-    real(r8) :: branch_frac      ! fraction of aboveground biomass in branches
+    real(r8) :: branch_frac      ! fraction of aboveground woody biomass in branches
     
     ! Constrain sapwood so that its above ground portion be no larger than 
     ! X% of total woody/fibrous (ie non leaf/fineroot) tissues

@@ -245,7 +245,7 @@ contains
     real(r8), allocatable :: rootfr_ft(:,:)  ! Root fractions per depth and PFT
 
     real(r8) :: agb_frac              ! fraction of biomass aboveground
-    real(r8) :: branch_frac           ! fraction of aboveground biomass in branches
+    real(r8) :: branch_frac           ! fraction of aboveground woody biomass in branches
     real(r8) :: crown_reduction       ! reduction in crown biomass from damage
     real(r8) :: sapw_c_predamage      ! pre damage sapwood
     real(r8) :: sapw_n                ! sapwood n

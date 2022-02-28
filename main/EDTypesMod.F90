@@ -345,7 +345,7 @@ module EDTypesMod
      real(r8) ::  froot_mr                               ! Live fine root   maintenance respiration: kgC/indiv/s
 
      !DAMAGE
-     real(r8) :: branch_frac                             ! Fraction of aboveground biomass in branches
+     real(r8) :: branch_frac                             ! Fraction of aboveground woody biomass in branches
      
      !MORTALITY
      real(r8) ::  dmort                                  ! proportional mortality rate. (year-1)

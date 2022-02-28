@@ -28,7 +28,7 @@ module FatesParameterDerivedMod
      real(r8), allocatable :: kp25top(:,:)    ! canopy top: initial slope of CO2 response
                                               ! curve (C4 plants) at 25C
 
-     real(r8), allocatable :: branch_frac(:)  ! fraction of aboveground biomass in branches (as
+     real(r8), allocatable :: branch_frac(:)  ! fraction of aboveground woody biomass in branches (as
                                               ! oppose to stems) - for use in damage allometries
 
      real(r8), allocatable :: damage_transitions(:,:,:) ! matrix of transition probabilities between
@@ -118,7 +118,7 @@ contains
          
          end do
 
-         ! Allocate fraction of biomass in branches
+         ! Allocate fraction of aboveground woody biomass in branches
          this%branch_frac(ft) = sum(SF_val_CWD_frac(1:3))
          
       end do !ft
