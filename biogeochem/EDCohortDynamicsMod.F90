@@ -2031,7 +2031,7 @@ contains
 
        ipft = currentCohort%pft
 
-       if(sum(frac_leaf_aclass(1:nleafage))>nearzero) then
+       if(sum(frac_leaf_aclass(1:nleafage))>nearzero .and. hlm_use_sp .eq. ifalse) then
 
 
           frac_leaf_aclass(1:nleafage) =  frac_leaf_aclass(1:nleafage) / &
@@ -2049,7 +2049,7 @@ contains
           currentCohort%kp25top    = sum(param_derived%kp25top(ipft,1:nleafage) * &
                 frac_leaf_aclass(1:nleafage))
 
-       elseif (hlm_use_sp .eq. itrue .and. hlm_is_restart .eq. itrue) then
+       elseif (hlm_use_sp .eq. itrue) then
          
           currentCohort%vcmax25top = EDPftvarcon_inst%vcmax25top(ipft,1)
           currentCohort%jmax25top  = param_derived%jmax25top(ipft,1)
