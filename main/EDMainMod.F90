@@ -597,12 +597,7 @@ contains
                         currentCohort%pft, currentCohort%crowndamage, currentCohort%c_area)
 
 
-                   currentSite%recovery_rate(currentCohort%crowndamage, nc%crowndamage) = &
-                        currentSite%recovery_rate(currentCohort%crowndamage, nc%crowndamage) + nc%n
-                   currentSite%recovery_cflux(currentCohort%crowndamage, nc%crowndamage) = &
-                        currentSite%recovery_cflux(currentCohort%crowndamage, nc%crowndamage) + &
-                        nc%n * nc_carbon
-
+               
                    !----------- Insert copy into linked list ----------------------! 
                    nc%shorter => currentCohort
                    if(associated(currentCohort%taller))then
@@ -617,15 +612,6 @@ contains
                 end if ! end if greater than nearzero
                 
              end if ! end if crowndamage > 1
-
-             
-             ! fill in the diagonals - i.e. those that did not recover 
-             currentSite%recovery_rate(currentCohort%crowndamage, currentCohort%crowndamage) = &
-                  currentSite%recovery_rate(currentCohort%crowndamage, currentCohort%crowndamage) +&
-                  currentCohort%n
-             currentSite%recovery_cflux(currentCohort%crowndamage, currentCohort%crowndamage) = &
-                  currentSite%recovery_cflux(currentCohort%crowndamage, currentCohort%crowndamage) + &
-                  currentCohort%n * cc_carbon
 
           end if ! end if crowndamage is on
 
