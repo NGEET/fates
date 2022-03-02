@@ -240,10 +240,6 @@ module FatesRestartInterfaceMod
   integer :: ir_termcflux_usto_sicdsc
   integer :: ir_fmortcflux_cano_sicdsc
   integer :: ir_fmortcflux_usto_sicdsc
-  integer :: ir_damage_cflux_sicd
-  integer :: ir_damage_rate_sicd
-  integer :: ir_recovery_cflux_sicd
-  integer :: ir_recovery_rate_sicd
   integer :: ir_crownarea_cano_si
   integer :: ir_crownarea_usto_si
 
@@ -1375,26 +1371,6 @@ contains
          units='kgC/ha/day', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fmortcflux_usto_sicdsc)
 
-    call this%set_restart_var(vname='fates_damage_cflux', vtype=cohort_r8, &
-         long_name='fates diagnostic rate of damage carbonflux', &
-         units='kgC/ha/day', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_damage_cflux_sicd)
-
-    call this%set_restart_var(vname='fates_damage_rate', vtype=cohort_r8, &
-         long_name='fates diagnostic rate of damage transitions', &
-         units='indiv / ha/ day', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_damage_rate_sicd)
-
-     call this%set_restart_var(vname='fates_recovery_cflux', vtype=cohort_r8, &
-         long_name='fates diagnostic rate of recovery carbonflux', &
-         units='kgC/ha/day', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_recovery_cflux_sicd)
-
-    call this%set_restart_var(vname='fates_recovery_rate', vtype=cohort_r8, &
-         long_name='fates diagnostic rate of recovery transitions', &
-         units='indiv / ha/ day', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_recovery_rate_sicd)
-
     call this%set_restart_var(vname='fates_crownarea_canopy_damage', vtype=site_r8, &
          long_name='fates area lost from damage each year', &
          units='m2/ha/year', flushval = flushzero, &
@@ -2001,10 +1977,6 @@ contains
            rio_fmortrate_usto_sicdpf   => this%rvars(ir_fmortrate_usto_sicdpf)%r81d, &
            rio_fmortcflux_cano_sicdsc  => this%rvars(ir_fmortcflux_cano_sicdsc)%r81d, &
            rio_fmortcflux_usto_sicdsc  => this%rvars(ir_fmortcflux_usto_sicdsc)%r81d, &
-           rio_damage_cflux_sicd       => this%rvars(ir_damage_cflux_sicd)%r81d, &
-           rio_damage_rate_sicd        => this%rvars(ir_damage_rate_sicd)%r81d, & 
-           rio_recovery_cflux_sicd     => this%rvars(ir_recovery_cflux_sicd)%r81d, &
-           rio_recovery_rate_sicd      => this%rvars(ir_recovery_rate_sicd)%r81d, & 
            rio_crownarea_cano_damage_si=> this%rvars(ir_crownarea_cano_si)%r81d, &
            rio_crownarea_usto_damage_si=> this%rvars(ir_crownarea_usto_si)%r81d)
       
@@ -2894,10 +2866,6 @@ contains
 
           
        ! Damage
-          rio_damage_cflux_sicd       => this%rvars(ir_damage_cflux_sicd)%r81d, &
-          rio_damage_rate_sicd        => this%rvars(ir_damage_rate_sicd)%r81d, & 
-          rio_recovery_cflux_sicd     => this%rvars(ir_recovery_cflux_sicd)%r81d, &
-          rio_recovery_rate_sicd      => this%rvars(ir_recovery_rate_sicd)%r81d, & 
           rio_imortrate_sicdpf        => this%rvars(ir_imortrate_sicdpf)%r81d, &
           rio_termnindiv_cano_sicdpf  => this%rvars(ir_termnindiv_cano_sicdpf)%r81d, &
           rio_termnindiv_usto_sicdpf  => this%rvars(ir_termnindiv_usto_sicdpf)%r81d, &

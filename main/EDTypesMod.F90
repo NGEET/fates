@@ -840,12 +840,6 @@ module EDTypesMod
 
      real(r8), allocatable :: growthflux_fusion(:,:)             ! rate of individuals moving into a given size class bin
      ! due to fusion in a given day. on size x pft array 
-
-     ! Damage fluxes
-     real(r8), allocatable :: damage_cflux(:,:)         ! carbon flux into each damage class each timestep
-     real(r8), allocatable :: damage_rate(:,:)               ! number of individuals moving into a damage class
-     real(r8), allocatable :: recovery_cflux(:,:)         ! carbon flux from recovery each timestep
-     real(r8), allocatable :: recovery_rate(:,:)               ! number of individuals recovering each timesept
    
      real(r8), allocatable :: imort_rate_damage(:,:,:)     ! number of individuals per damage class that die from impact mortality
      real(r8), allocatable :: term_nindivs_canopy_damage(:,:,:) ! number of individuals per damage class that die from termination mortality - canopy
