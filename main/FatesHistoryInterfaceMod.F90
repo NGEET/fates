@@ -510,6 +510,9 @@ module FatesHistoryInterfaceMod
   integer :: ih_recruitment_si_pft
   integer :: ih_mortality_si_pft
   integer :: ih_mortality_carbonflux_si_pft
+  integer :: ih_hydraulicmortality_carbonflux_si_pft
+  integer :: ih_cstarvmortality_carbonflux_si_pft
+  integer :: ih_firemortality_carbonflux_si_pft
   integer :: ih_crownarea_si_pft
   integer :: ih_canopycrownarea_si_pft
   integer :: ih_gpp_si_pft
@@ -1843,6 +1846,9 @@ end subroutine flush_hvars
                hio_recruitment_si_pft  => this%hvars(ih_recruitment_si_pft)%r82d, &
                hio_mortality_si_pft    => this%hvars(ih_mortality_si_pft)%r82d, &
                hio_mortality_carbonflux_si_pft  => this%hvars(ih_mortality_carbonflux_si_pft)%r82d, &
+               hio_cstarvmortality_carbonflux_si_pft  => this%hvars(ih_cstarvmortality_carbonflux_si_pft)%r82d, &
+               hio_hydraulicmortality_carbonflux_si_pft  => this%hvars(ih_hydraulicmortality_carbonflux_si_pft)%r82d, &
+               hio_firemortality_carbonflux_si_pft  => this%hvars(ih_firemortality_carbonflux_si_pft)%r82d, &
                hio_crownarea_si_pft    => this%hvars(ih_crownarea_si_pft)%r82d, &
                hio_canopycrownarea_si_pft  => this%hvars(ih_canopycrownarea_si_pft)%r82d, &
                hio_gpp_si_pft  => this%hvars(ih_gpp_si_pft)%r82d, &
@@ -2627,6 +2633,12 @@ end subroutine flush_hvars
                     (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * total_m * &
                     ccohort%n * ha_per_m2
 
+               hio_hydraulicmortality_carbonflux_si_pft(io_si,ccohort%pft) = hio_hydraulicmortality_carbonflux_si_pft(io_si,ccohort%pft) + &
+                    ccohort%hmort * total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2
+
+               hio_cstarvmortality_carbonflux_si_pft(io_si,ccohort%pft) = hio_cstarvmortality_carbonflux_si_pft(io_si,ccohort%pft) + &
+                    ccohort%cmort * total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2
+
                ! number density by size and biomass
                hio_agb_si_scls(io_si,scls) = hio_agb_si_scls(io_si,scls) + &
                   total_m * ccohort%n * prt_params%allom_agb_frac(ccohort%pft) * AREA_INV
@@ -3063,12 +3075,14 @@ end subroutine flush_hvars
       ! treat carbon flux from imort the same way
       hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
          sum(sites(s)%imort_carbonflux(:)) / g_per_kg
-      !
+
       do i_pft = 1, numpft
-         hio_mortality_carbonflux_si_pft(io_si,ccohort%pft) = hio_mortality_carbonflux_si_pft(io_si,ccohort%pft) + &
+         hio_mortality_carbonflux_si_pft(io_si,i_pft) = hio_mortality_carbonflux_si_pft(io_si,i_pft) + &
               (sites(s)%fmort_carbonflux_canopy(i_pft) + &
               sites(s)%fmort_carbonflux_ustory(i_pft) + &
               sites(s)%imort_carbonflux(i_pft) ) / g_per_kg !cdk
+
+         hio_firemortality_carbonflux_si_pft(io_si,i_pft) = sites(s)%fmort_carbonflux_canopy(i_pft) / g_per_kg
       end do
 
       sites(s)%term_nindivs_canopy(:,:) = 0._r8
@@ -5459,6 +5473,24 @@ end subroutine update_history_hifrq
          use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_mortality_carbonflux_si_pft)
+
+    call this%set_history_var(vname='FATES_MORTALITY_FIRE_CFLUX_PF', units='kg m-2 s-1',    &
+         long='PFT-level flux of biomass carbon from live to dead pool from fire mortality', &
+         use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+         index=ih_firemortality_carbonflux_si_pft)
+
+    call this%set_history_var(vname='FATES_MORTALITY_HYDRAULIC_CFLUX_PF', units='kg m-2 s-1',    &
+         long='PFT-level flux of biomass carbon from live to dead pool from hydraulic failure mortality', &
+         use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+         index=ih_hydraulicmortality_carbonflux_si_pft)
+
+    call this%set_history_var(vname='FATES_MORTALITY_CSTARV_CFLUX_PF', units='kg m-2 s-1',    &
+         long='PFT-level flux of biomass carbon from live to dead pool from carbon starvation mortality', &
+         use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+         index=ih_cstarvmortality_carbonflux_si_pft)
 
     ! size class by age dimensioned variables
 
