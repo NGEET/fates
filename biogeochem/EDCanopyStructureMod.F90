@@ -1229,7 +1229,7 @@ contains
        do while (associated(currentCohort))
           call carea_allom(currentCohort%dbh,currentCohort%n, &
                currentSite%spread,currentCohort%pft,currentCohort%c_area)
-          if( ( int(prt_params%woody(currentCohort%pft)) .eq. itrue ) .and. &
+          if( (prt_params%woody(currentCohort%pft) .eq. itrue ) .and. &
                (currentCohort%canopy_layer .eq. 1 ) ) then
              sitelevel_canopyarea = sitelevel_canopyarea + currentCohort%c_area
           endif
@@ -1340,7 +1340,7 @@ contains
 
              if(currentCohort%canopy_layer==1)then
                 currentPatch%total_canopy_area = currentPatch%total_canopy_area + currentCohort%c_area
-                if( int(prt_params%woody(ft))==itrue)then
+                if( prt_params%woody(ft)==itrue)then
                    currentPatch%total_tree_area = currentPatch%total_tree_area + currentCohort%c_area
                 endif
              endif

@@ -2512,7 +2512,7 @@ end subroutine flush_hvars
                   store_m_net_alloc*n_perm2 / days_per_year / sec_per_day
 
                ! Woody State Variables (basal area growth increment)
-               if ( int(prt_params%woody(ft)) == itrue) then
+               if ( prt_params%woody(ft) == itrue) then
 
                   ! basal area  [m2/m2]
                   hio_ba_si_scpf(io_si,scpf) = hio_ba_si_scpf(io_si,scpf) + &
