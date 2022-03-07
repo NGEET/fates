@@ -490,10 +490,8 @@ contains
 
 
     ! -----------------------------------------------------------------------------------
-    ! II 1/2. Update target biomass based on the leaf elongation factor and the abscission
-    !         fraction for each non-leaf tissue. Elongation factor is binary for 
-    !         cold-deciduous and original drought-deciduous, and always one for 
-    !         evergreens. In case the plant is shedding leaves, we impose that any 
+    ! II 1/2. Update target biomass based on the phenology status.
+    !         In case the plant is shedding leaves, we impose that any 
     !         positive carbon balance necessarily goes to storage, even if this causes
     !         storage to go above allometry.
     ! -----------------------------------------------------------------------------------
@@ -1166,10 +1164,10 @@ contains
 
 
     ! -----------------------------------------------------------------------------------
-    ! II 1/2. Update target biomass based on the leaf elongation factor and the abscission
-    !         fraction for each non-leaf tissue. In case the plant is leafless, we impose 
-    !         that any positive carbon balance necessarily goes to storage, even if this 
-    !         causes storage to go above allometry.
+    ! II 1/2. Update target biomass based on the phenology status.
+    !         In case the plant is shedding leaves, we impose that any 
+    !         positive carbon balance necessarily goes to storage, even if this causes
+    !         storage to go above allometry.
     ! -----------------------------------------------------------------------------------
     if (is_hydecid_dormant) then
        target_leaf_c   = 0.0_r8

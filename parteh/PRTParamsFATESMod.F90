@@ -447,8 +447,7 @@ contains
     allocate(prt_params%woody(size(tmpreal,dim=1)))
     call ArrayNint(tmpreal,prt_params%woody)
     deallocate(tmpreal)
-    
-    
+        
     name = 'fates_wood_density'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=prt_params%wood_density)
