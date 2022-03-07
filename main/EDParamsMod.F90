@@ -91,7 +91,17 @@ module EDParamsMod
    ! Switch that defines the current pressure-volume and pressure-conductivity model
    ! to be used at each node (compartment/organ)
    ! 1  = Christofferson et al. 2016 (TFS),   2 = Van Genuchten 1980
-   integer, protected,allocatable,public :: hydr_htftype_node(:) 
+   integer, protected,allocatable,public :: hydr_htftype_node(:)
+
+   ! Switch that defines which hydraulic solver to use
+   ! 1 = Taylor solution that solves plant fluxes with 1 layer
+   !     sequentially placing solution on top of previous layer solves
+   ! 2 = Newton-Raphson solution that solves all fluxes in a plant and
+   !     the soil simultaneously, 2D: soil x (root + shell)
+   ! 3 = Picard solution that solves all fluxes in a plant and
+   !     the soil simultaneously, 2D: soil x (root + shell)
+
+   integer, parameter, public :: hydr_solver_type = 1    ! 1 = hydr_solver_1DTaylor
    
    character(len=param_string_length),parameter,public :: ED_name_photo_temp_acclim_timescale = "fates_photo_temp_acclim_timescale"
    character(len=param_string_length),parameter,public :: name_photo_tempsens_model = "fates_photo_tempsens_model"
