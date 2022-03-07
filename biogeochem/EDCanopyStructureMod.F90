@@ -14,10 +14,9 @@ module EDCanopyStructureMod
   use EDPftvarcon           , only : EDPftvarcon_inst
   use PRTParametersMod      , only : prt_params
   use FatesAllometryMod     , only : carea_allom
-  use EDCohortDynamicsMod   , only : copy_cohort, terminate_cohorts, fuse_cohorts
+  use EDCohortDynamicsMod   , only : copy_cohort, terminate_cohorts, terminate_cohort, fuse_cohorts
   use EDCohortDynamicsMod   , only : InitPRTObject
   use EDCohortDynamicsMod   , only : InitPRTBoundaryConditions
-  use EDCohortDynamicsMod   , only : SendCohortToLitter
   use FatesAllometryMod     , only : tree_lai
   use FatesAllometryMod     , only : tree_sai
   use EDtypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
@@ -718,22 +717,15 @@ contains
              end if
 
              ! kill the ones which go into canopy layers that are not allowed
-
              if(currentCohort%canopy_layer>nclmax )then
-
                 ! put the litter from the terminated cohorts
                 ! straight into the fragmenting pools
-                call SendCohortToLitter(currentSite,currentPatch, &
-                     currentCohort,currentCohort%n,bc_in)
-
-                currentCohort%n            = 0.0_r8
-                currentCohort%c_area       = 0.0_r8
-                currentCohort%canopy_layer = i_lyr
-
-             end if
-
+                call terminate_cohort(currentSite,currentPatch,currentCohort,bc_in)
+                deallocate(currentCohort)
+             else
              call carea_allom(currentCohort%dbh,currentCohort%n, &
                   currentSite%spread,currentCohort%pft,currentCohort%c_area)
+             end if
 
           endif !canopy layer = i_ly
 
@@ -1237,7 +1229,7 @@ contains
        do while (associated(currentCohort))
           call carea_allom(currentCohort%dbh,currentCohort%n, &
                currentSite%spread,currentCohort%pft,currentCohort%c_area)
-          if( ( int(prt_params%woody(currentCohort%pft)) .eq. itrue ) .and. &
+          if( (prt_params%woody(currentCohort%pft) .eq. itrue ) .and. &
                (currentCohort%canopy_layer .eq. 1 ) ) then
              sitelevel_canopyarea = sitelevel_canopyarea + currentCohort%c_area
           endif
@@ -1348,7 +1340,7 @@ contains
 
              if(currentCohort%canopy_layer==1)then
                 currentPatch%total_canopy_area = currentPatch%total_canopy_area + currentCohort%c_area
-                if( int(prt_params%woody(ft))==itrue)then
+                if( prt_params%woody(ft)==itrue)then
                    currentPatch%total_tree_area = currentPatch%total_tree_area + currentCohort%c_area
                 endif
              endif

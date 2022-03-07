@@ -784,7 +784,7 @@ contains
          ! These values are used to define the restart file allocations and general structure
          ! of memory for the cohort arrays
          
-         fates_maxElementsPerPatch = max(maxCohortsPerPatch, ndcmpy*numlevsoil_max ,ncwd*numlevsoil_max)
+         fates_maxElementsPerPatch = max(maxCohortsPerPatch, ndcmpy*hlm_maxlevsoil ,ncwd*hlm_maxlevsoil)
 
          if (maxPatchesPerSite * fates_maxElementsPerPatch <  numWaterMem) then
             write(fates_log(), *) 'By using such a tiny number of maximum patches and maximum cohorts'
@@ -1240,7 +1240,7 @@ contains
       ! call set_fates_ctrlparms('flush_to_unset')
       ! call set_fates_ctrlparms('num_sw_bbands',numrad)  ! or other variable
       ! ...
-      ! call set_fates_ctrlparms('num_lev_ground',nlevgrnd)   ! or other variable
+      ! call set_fates_ctrlparms('num_lev_soil',nlevsoi)   ! or other variable
       ! call set_fates_ctrlparms('check_allset') 
       !
       ! RGK-2016
@@ -1270,7 +1270,7 @@ contains
          hlm_inir       = unset_int
          hlm_ivis       = unset_int
          hlm_is_restart = unset_int
-         hlm_numlevgrnd   = unset_int
+         hlm_maxlevsoil   = unset_int
          hlm_name         = 'unset'
          hlm_hio_ignore_val   = unset_double
          hlm_masterproc   = unset_int
@@ -1447,9 +1447,9 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(hlm_numlevgrnd .eq. unset_int) then
+         if(hlm_maxlevsoil .eq. unset_int) then
             if (fates_global_verbose()) then
-               write(fates_log(), *) 'FATES dimension/parameter unset: numlevground, exiting'
+               write(fates_log(), *) 'FATES dimension/parameter unset: hlm_maxlevsoil, exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
@@ -1654,10 +1654,10 @@ contains
                   write(fates_log(),*) 'Transfering flag signaling restart / not-restart = ',ival,' to FATES'
                end if
 
-            case('num_lev_ground')
-               hlm_numlevgrnd = ival
+            case('num_lev_soil')
+               hlm_maxlevsoil = ival
                if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering num_lev_ground = ',ival,' to FATES'
+                  write(fates_log(),*) 'Transfering num_lev_soil = ',ival,' to FATES'
                end if
 
             case('soilwater_ipedof')

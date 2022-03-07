@@ -2370,7 +2370,7 @@ contains
      integer, parameter  :: max_counter = 200
      
      ! Do reduce "if" calls, we break this call into two parts
-     if ( int(prt_params%woody(ipft)) == itrue ) then
+     if ( prt_params%woody(ipft) == itrue ) then
 
         if(.not.present(bdead)) then
            write(fates_log(),*) 'woody plants must use structure for dbh reset'
@@ -2456,7 +2456,7 @@ contains
      call h_allom(d,ipft,h)
      if(counter>10)then
         write(fates_log(),*) 'dbh counter: ',counter,' is woody: ',&
-             int(prt_params%woody(ipft))==itrue
+             prt_params%woody(ipft)==itrue
      end if
 
      
