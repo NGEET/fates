@@ -223,6 +223,7 @@ contains
     site_in%promotion_carbonflux = 0._r8
     
     ! Resources management (logging/harvesting, etc)
+    site_in%resources_management%harvest_debt = 0.0_r8
     site_in%resources_management%trunk_product_site  = 0.0_r8
 
     ! canopy spread

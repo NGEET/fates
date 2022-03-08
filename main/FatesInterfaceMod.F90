@@ -1171,6 +1171,7 @@ contains
          hlm_sf_anthro_ignitions_def = unset_int
          hlm_use_planthydro = unset_int
          hlm_use_lu_harvest   = unset_int
+         hlm_harvest_bypass_criteria   = unset_int
          hlm_num_lu_harvest_cats   = unset_int
          hlm_use_cohort_age_tracking = unset_int
          hlm_use_logging   = unset_int
@@ -1228,6 +1229,13 @@ contains
          if ( (hlm_use_lu_harvest .lt. 0).or.(hlm_use_lu_harvest .gt. 1) ) then
             if (fates_global_verbose()) then
                write(fates_log(), *) 'The FATES lu_harvest flag must be 0 or 1,  exiting'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if ( (hlm_harvest_bypass_criteria .lt. 0).or.(hlm_harvest_bypass_criteria .gt. 1) ) then
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'The FATES bypass harvest scenario flag must be 0 or 1,  exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
@@ -1609,6 +1617,12 @@ contains
                hlm_use_lu_harvest = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_lu_harvest= ',ival,' to FATES'
+               end if
+
+            case('use_harvest_bypass_criteria')
+               hlm_harvest_bypass_criteria = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_harvest_bypass_criteria= ',ival,' to FATES'
                end if
 
             case('num_lu_harvest_cats')

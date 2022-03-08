@@ -274,6 +274,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_fall_disturbance_rate_si
   integer :: ih_potential_disturbance_rate_si
   integer :: ih_harvest_carbonflux_si
+  integer :: ih_harvest_debt_si
 
   ! Indices to site by size-class by age variables
   integer :: ih_nplant_si_scag
@@ -1859,6 +1860,7 @@ end subroutine flush_hvars
                hio_fall_disturbance_rate_si      => this%hvars(ih_fall_disturbance_rate_si)%r81d, &
                hio_potential_disturbance_rate_si => this%hvars(ih_potential_disturbance_rate_si)%r81d, &
                hio_harvest_carbonflux_si => this%hvars(ih_harvest_carbonflux_si)%r81d, &
+               hio_harvest_debt_si     => this%hvars(ih_harvest_debt_si)%r81d, &
                hio_gpp_si_scpf         => this%hvars(ih_gpp_si_scpf)%r82d, &
                hio_npp_totl_si_scpf    => this%hvars(ih_npp_totl_si_scpf)%r82d, &
                hio_npp_leaf_si_scpf    => this%hvars(ih_npp_leaf_si_scpf)%r82d, &
@@ -2148,6 +2150,7 @@ end subroutine flush_hvars
          hio_potential_disturbance_rate_si(io_si) = sum(sites(s)%potential_disturbance_rates(1:N_DIST_TYPES))
 
          hio_harvest_carbonflux_si(io_si) = sites(s)%harvest_carbon_flux
+         hio_harvest_debt_si(io_si) = sites(s)%resources_management%harvest_debt
 
          ipa = 0
          cpatch => sites(s)%oldest_patch
@@ -4851,6 +4854,11 @@ end subroutine update_history_hifrq
          long='Harvest carbon flux',  use_default='active',     &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_harvest_carbonflux_si )
+
+    call this%set_history_var(vname='HARVEST_DEBT', units='kg C',                   &
+         long='Accumulated carbon failed to be harvested',  use_default='active',     &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_harvest_debt_si )
 
     ! Canopy Resistance 
 

@@ -75,6 +75,7 @@ module EDMainMod
   use FatesAllometryMod        , only : h_allom,tree_sai,tree_lai
   use FatesPlantHydraulicsMod  , only : UpdateSizeDepRhizHydStates
   use EDLoggingMortalityMod    , only : IsItLoggingTime
+  use EDLoggingMortalityMod    , only : get_harvestable_carbon
   use EDPatchDynamicsMod       , only : get_frac_site_primary
   use FatesGlobals             , only : endrun => fates_endrun
   use ChecksBalancesMod        , only : SiteMassStock
@@ -288,6 +289,7 @@ contains
     ! FIX(SPM,032414) refactor so everything goes through interface
     !
     ! !USES:
+    use FatesInterfaceTypesMod, only : hlm_num_lu_harvest_cats
     use FatesInterfaceTypesMod, only : hlm_use_cohort_age_tracking
     use FatesConstantsMod, only : itrue
     ! !ARGUMENTS:
@@ -317,8 +319,15 @@ contains
     !-----------------------------------------------------------------------
     real(r8) :: frac_site_primary
 
+    real(r8) :: harvestable_forest_c(hlm_num_lu_harvest_cats)
+    real(r8) :: available_forest_c(hlm_num_lu_harvest_cats)
+    integer  :: harvest_tag(hlm_num_lu_harvest_cats)
+
 
     call get_frac_site_primary(currentSite, frac_site_primary)
+
+    ! Patch level biomass are required for C-based harvest
+    call get_harvestable_carbon(currentSite, bc_in%site_area, bc_in%hlm_harvest_catnames, harvestable_forest_c, available_forest_c)
 
     ! Set a pointer to this sites carbon12 mass balance
     site_cmass => currentSite%mass_balance(element_pos(carbon12_element))
@@ -352,7 +361,8 @@ contains
           ft = currentCohort%pft
 
           ! Calculate the mortality derivatives
-          call Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary )
+          call Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary, &
+              harvestable_forest_c, available_forest_c, harvest_tag)
 
           ! -----------------------------------------------------------------------------
           ! Apply Plant Allocation and Reactive Transport
