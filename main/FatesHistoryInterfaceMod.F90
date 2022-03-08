@@ -1530,7 +1530,7 @@ end subroutine flush_hvars
   ! =====================================================================================
 
   subroutine set_history_var(this, vname, units, long, use_default, avgflag, vtype, &
-       hlms, upfreq, ivar, initialize, index)
+       hlms, upfreq, ivar, initialize, index, flush_to_zero)
 
     use FatesUtilsMod, only     : check_hlm_list
     use FatesInterfaceTypesMod, only : hlm_name
@@ -1554,6 +1554,7 @@ end subroutine flush_hvars
                                            ! explict name (for fast reference during update)
                                            ! A zero is passed back when the variable is
                                            ! not used
+    logical, intent(in), optional :: flush_to_zero
 
     ! locals
     integer   :: ub1, lb1, ub2, lb2    ! Bounds for allocating the var
@@ -1568,10 +1569,10 @@ end subroutine flush_hvars
     ! We make one exception to this rule, for the fates_fraction variable.  That way
     ! we can always know what fraction of the gridcell FATES is occupying.
 
-    if ( trim(vname) .ne. 'FATES_FRACTION') then
-       flushval = hlm_hio_ignore_val
+    if (present(flush_to_zero) .and. flush_to_zero) then
+       flushval = 0.0_r8
     else
-       flushval = 0._r8
+       flushval = hlm_hio_ignore_val
     endif
 
     write_var = check_hlm_list(trim(hlms), trim(hlm_name))
@@ -4419,11 +4420,11 @@ end subroutine update_history_hifrq
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_area_trees_si)
 
-    call this%set_history_var(vname='FATES_FRACTION', units='m2 m-2',        &
+    call this%set_history_var(vname='FATES_FRACTION', units='m2 m-2',          &
          long='total gridcell fraction which FATES is running over', use_default='active', &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
-         index=ih_fates_fraction_si)
+         index=ih_fates_fraction_si, flush_to_zero=.true.)
 
     call this%set_history_var(vname='FATES_COLD_STATUS', units='',             &
           long='site-level cold status, 0=not cold-dec, 1=too cold for leaves, 2=not too cold',  &
