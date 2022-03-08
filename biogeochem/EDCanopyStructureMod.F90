@@ -721,7 +721,13 @@ contains
                 ! put the litter from the terminated cohorts
                 ! straight into the fragmenting pools
                 call terminate_cohort(currentSite,currentPatch,currentCohort,bc_in)
+                ! Since this cohort will be removed from the list
+                ! lets temporarily remember the cohort that was taller than
+                ! current, because that cohort now points to the cohort that
+                ! is shorter
+                nextc => currentCohort%taller
                 deallocate(currentCohort)
+                currentCohort => nextc
              else
              call carea_allom(currentCohort%dbh,currentCohort%n, &
                   currentSite%spread,currentCohort%pft,currentCohort%c_area)
