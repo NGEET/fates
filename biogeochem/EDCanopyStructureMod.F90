@@ -621,6 +621,8 @@ contains
        currentCohort => currentPatch%tallest
        do while (associated(currentCohort))
 
+          nextc => currentCohort%shorter
+
           if(currentCohort%canopy_layer == i_lyr )then
 
              cc_loss         = currentCohort%excl_weight
@@ -721,13 +723,7 @@ contains
                 ! put the litter from the terminated cohorts
                 ! straight into the fragmenting pools
                 call terminate_cohort(currentSite,currentPatch,currentCohort,bc_in)
-                ! Since this cohort will be removed from the list
-                ! lets temporarily remember the cohort that was taller than
-                ! current, because that cohort now points to the cohort that
-                ! is shorter
-                nextc => currentCohort%taller
                 deallocate(currentCohort)
-                currentCohort => nextc
              else
              call carea_allom(currentCohort%dbh,currentCohort%n, &
                   currentSite%spread,currentCohort%pft,currentCohort%c_area)
@@ -735,7 +731,11 @@ contains
 
           endif !canopy layer = i_ly
 
-          currentCohort => currentCohort%shorter
+          ! We dont use our typical (point to smaller)
+          ! here, because, we may had deallocated the existing
+          ! currentCohort
+
+          currentCohort => nextc
        enddo !currentCohort
 
 
