@@ -621,6 +621,8 @@ contains
        currentCohort => currentPatch%tallest
        do while (associated(currentCohort))
 
+          nextc => currentCohort%shorter
+
           if(currentCohort%canopy_layer == i_lyr )then
 
              cc_loss         = currentCohort%excl_weight
@@ -729,7 +731,11 @@ contains
 
           endif !canopy layer = i_ly
 
-          currentCohort => currentCohort%shorter
+          ! We dont use our typical (point to smaller)
+          ! here, because, we may had deallocated the existing
+          ! currentCohort
+
+          currentCohort => nextc
        enddo !currentCohort
 
 
