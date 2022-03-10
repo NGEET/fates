@@ -1322,13 +1322,6 @@ contains
                                   
                                   fnrt_c  = nc_d%prt%GetState(fnrt_organ, all_carbon_elements)
 
-                                  currentSite%damage_cflux(currentCohort%crowndamage, cd) = &
-                                       currentSite%damage_cflux(currentCohort%crowndamage, cd) + &
-                                       (leaf_m_post + sapw_m_post + struct_m_post + store_m_post + fnrt_c) * cd_n * &
-                                       hlm_days_per_year
-
-                                  currentSite%damage_rate(currentCohort%crowndamage, cd) = &
-                                       currentSite%damage_rate(currentCohort%crowndamage, cd) + cd_n * hlm_days_per_year
                                   
                                   if(hlm_use_canopy_damage .eq. itrue) then
                                      currentSite%crownarea_canopy_damage = currentSite%crownarea_canopy_damage + &
@@ -1383,29 +1376,6 @@ contains
                 end if ! end if damage is on 
                 
                    
-                if(hlm_use_canopy_damage .eq. itrue .and. currentCohort%canopy_layer == 1 .or.&
-                     hlm_use_understory_damage .eq. itrue .and. currentCohort%canopy_layer > 1) then
-
-                   if(.not. currentCohort%isnew) then
-
-                      ! Keep track of number and carbon that stayed in the same damage class
-                      sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
-                      struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
-                      leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
-                      fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_elements)
-                      store_c  = currentCohort%prt%GetState(store_organ, all_carbon_elements)
-                      repro_c  = currentCohort%prt%GetState(repro_organ, all_carbon_elements)
-
-                      currentSite%damage_cflux(currentCohort%crowndamage, currentCohort%crowndamage) = &
-                           currentSite%damage_cflux(currentCohort%crowndamage, currentCohort%crowndamage) + &
-                           (sapw_c + struct_c + leaf_c + fnrt_c + store_c + repro_c) * currentCohort%n
-
-                      currentSite%damage_rate(currentCohort%crowndamage, currentCohort%crowndamage) = &
-                           currentSite%damage_rate(currentCohort%crowndamage, currentCohort%crowndamage) + currentCohort%n
-                     
-                   end if
-                end if ! end if damage is on
-
                 ! Put new undamaged cohorts in the correct place in the linked list
                 if (nc%n > 0.0_r8) then   
                    storebigcohort   =>  new_patch%tallest
