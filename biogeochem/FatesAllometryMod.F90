@@ -2336,7 +2336,7 @@ contains
      end if
 
      call h_allom(d,ipft,h)
-     if(counter>10)then
+     if(counter>20)then
         write(fates_log(),*) 'dbh counter: ',counter,' is woody: ',&
              int(prt_params%woody(ipft))==itrue
      end if

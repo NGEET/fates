@@ -1137,9 +1137,11 @@ contains
       end if
 
       bc_out%hrv_deadstemc_to_prod10c = bc_out%hrv_deadstemc_to_prod10c + &
-          currentSite%harvest_carbon_flux * bc_in%pprodharv10_forest_mean * unit_trans_factor
+          currentSite%mass_balance(element_pos(carbon12_element))%wood_product * &
+          AREA_INV * pprodharv10_forest_mean * unit_trans_factor
       bc_out%hrv_deadstemc_to_prod100c = bc_out%hrv_deadstemc_to_prod100c + &
-          currentSite%harvest_carbon_flux * (1-bc_in%pprodharv10_forest_mean) * unit_trans_factor  
+          currentSite%mass_balance(element_pos(carbon12_element))%wood_product * &
+          AREA_INV * (1 - pprodharv10_forest_mean) * unit_trans_factor  
   
       return
    end subroutine UpdateHarvestC
