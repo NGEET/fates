@@ -2026,7 +2026,7 @@ contains
         end if
 
         ! Pass FATES Harvested C to bc_out.
-        call UpdateHarvestC(sites(s),bc_in(s),bc_out(s))
+        call UpdateHarvestC(sites(s),bc_out(s))
         
      end do
 

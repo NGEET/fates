@@ -508,8 +508,6 @@ module FatesInterfaceTypesMod
 
       integer :: hlm_harvest_units  ! what units are the harvest rates specified in? [area vs carbon]
     
-      real(r8) :: pprodharv10_forest_mean  ! harvest mortality proportion of deadstem to 10-yr pool
-
       ! Fixed biogeography mode 
       real(r8), allocatable :: pft_areafrac(:)     ! Fractional area of the FATES column occupied by each PFT  
     

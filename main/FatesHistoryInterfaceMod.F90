@@ -2147,7 +2147,7 @@ end subroutine flush_hvars
 
          hio_potential_disturbance_rate_si(io_si) = sum(sites(s)%potential_disturbance_rates(1:N_DIST_TYPES))
 
-         hio_harvest_carbonflux_si(io_si) = sites(s)%harvest_carbon_flux
+         hio_harvest_carbonflux_si(io_si) = sites(s)%mass_balance(element_pos(carbon12_element))%wood_product * AREA_INV
 
          ipa = 0
          cpatch => sites(s)%oldest_patch
