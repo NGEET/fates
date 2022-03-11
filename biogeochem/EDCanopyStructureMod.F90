@@ -14,10 +14,9 @@ module EDCanopyStructureMod
   use EDPftvarcon           , only : EDPftvarcon_inst
   use PRTParametersMod      , only : prt_params
   use FatesAllometryMod     , only : carea_allom
-  use EDCohortDynamicsMod   , only : copy_cohort, terminate_cohorts, fuse_cohorts
+  use EDCohortDynamicsMod   , only : copy_cohort, terminate_cohorts, terminate_cohort, fuse_cohorts
   use EDCohortDynamicsMod   , only : InitPRTObject
   use EDCohortDynamicsMod   , only : InitPRTBoundaryConditions
-  use EDCohortDynamicsMod   , only : SendCohortToLitter
   use FatesAllometryMod     , only : tree_lai
   use FatesAllometryMod     , only : tree_sai
   use EDtypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
@@ -623,6 +622,8 @@ contains
        currentCohort => currentPatch%tallest
        do while (associated(currentCohort))
 
+          nextc => currentCohort%shorter
+
           if(currentCohort%canopy_layer == i_lyr )then
 
              cc_loss         = currentCohort%excl_weight
@@ -720,27 +721,24 @@ contains
              end if
 
              ! kill the ones which go into canopy layers that are not allowed
-
              if(currentCohort%canopy_layer>nclmax )then
-
                 ! put the litter from the terminated cohorts
                 ! straight into the fragmenting pools
-                call SendCohortToLitter(currentSite,currentPatch, &
-                     currentCohort,currentCohort%n,bc_in)
-
-                currentCohort%n            = 0.0_r8
-                currentCohort%c_area       = 0.0_r8
-                currentCohort%canopy_layer = i_lyr
-
-             end if
-
+                call terminate_cohort(currentSite,currentPatch,currentCohort,bc_in)
+                deallocate(currentCohort)
+             else
              call carea_allom(currentCohort%dbh,currentCohort%n, &
                   currentSite%spread,currentCohort%pft,&
                   currentCohort%crowndamage, currentCohort%c_area)
+             end if
 
           endif !canopy layer = i_ly
 
-          currentCohort => currentCohort%shorter
+          ! We dont use our typical (point to smaller)
+          ! here, because, we may had deallocated the existing
+          ! currentCohort
+
+          currentCohort => nextc
        enddo !currentCohort
 
 
