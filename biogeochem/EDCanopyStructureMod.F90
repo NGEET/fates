@@ -1936,21 +1936,6 @@ contains
                 currentCohort => currentPatch%shortest
                 do while(associated(currentCohort))
 
-                   if (hlm_use_sp.eq.ifalse) then
-                   ! make sure that allometries are correct
-                   call carea_allom(currentCohort%dbh,currentCohort%n,sites(s)%spread,&
-                        currentCohort%pft,currentCohort%c_area)
-
-                   currentCohort%treelai = tree_lai(currentCohort%prt%GetState(leaf_organ, all_carbon_elements),  &
-                        currentCohort%pft, currentCohort%c_area, currentCohort%n, &
-                        currentCohort%canopy_layer, currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )
-
-                   currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
-                        currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
-                        currentPatch%canopy_layer_tlai, currentCohort%treelai , &
-                        currentCohort%vcmax25top,4)
-                   endif
-
                    total_patch_leaf_stem_area = total_patch_leaf_stem_area + &
                         (currentCohort%treelai + currentCohort%treesai) * currentCohort%c_area
                    currentCohort => currentCohort%taller
