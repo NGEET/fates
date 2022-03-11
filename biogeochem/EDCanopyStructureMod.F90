@@ -2219,7 +2219,6 @@ contains
 
          ! Only update the current cohort tree lai if lai of the above layers have been calculated
          if (currentCohort%canopy_layer .eq. cl) then
-            cl = currentCohort%canopy_layer
             ft     = currentCohort%pft
             leaf_c = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
 
