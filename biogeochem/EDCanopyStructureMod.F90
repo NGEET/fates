@@ -2192,7 +2192,6 @@ contains
    type(ed_cohort_type), pointer :: currentCohort
    integer  :: cl                                  ! Canopy layer index
    integer  :: ft                                  ! Plant functional type index
-   real(r8) :: leaf_c                              ! leaf carbon [kg]
 
    ! Calculate LAI of layers above.  Because it is possible for some understory cohorts
    ! to be taller than cohorts in the top canopy layer, we must iterate through the 
@@ -2230,11 +2229,7 @@ contains
   
   subroutine UpdateCohortLAI(currentCohort, canopy_layer_tlai, patcharea)
    
-   ! We need to pass in the the patch as well, since this cohort might not yet
-   ! be inserted into the cohort list such as during create_cohort procedure
-   
-   ! patch area could be patch%total_canopy_area or patch%area depending on call
-   
+   ! Update LAI and related variables for a given cohort
    
    ! Uses
    use EDtypesMod, only : dlower_vai
@@ -2244,6 +2239,8 @@ contains
    real(r8), intent(in) :: canopy_layer_tlai(nclmax)  ! total leaf area index of each canopy layer
    real(r8), intent(in) :: patcharea                  ! either patch%total_canopy_area or patch%area
 
+   ! Local variables
+   real(r8) :: leaf_c                              ! leaf carbon [kg]
    
    ! Obtain the leaf carbon
    leaf_c = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
