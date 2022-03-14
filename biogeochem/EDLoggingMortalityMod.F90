@@ -862,7 +862,7 @@ contains
             unit_trans_factor = 1000._r8 * days_per_sec / 31._r8
         else if((hlm_current_month == 4) .or. (hlm_current_month == 6) .or. &
             (hlm_current_month == 9) .or. (hlm_current_month == 11)) then
-            unit_trans_factor = 1000._r8 * days_per_sec / 30._r8
+            unit_trans_factor = g_per_kg * days_per_sec / 30._r8
         else
             unit_trans_factor = 1000._r8 * days_per_sec / 28._r8
         end if
