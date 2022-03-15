@@ -41,7 +41,7 @@ module FATESPlantRespPhotosynthMod
   use EDParamsMod,       only : q10_mr
   use PRTGenericMod,     only : prt_carbon_allom_hyp
   use PRTGenericMod,     only : prt_cnp_flex_allom_hyp
-  use PRTGenericMod,     only : all_carbon_elements
+  use PRTGenericMod,     only : carbon12_element
   use PRTGenericMod,     only : nitrogen_element
   use PRTGenericMod,     only : leaf_organ
   use PRTGenericMod,     only : fnrt_organ
@@ -221,7 +221,7 @@ contains
 
 
     real(r8) :: maintresp_reduction_factor  ! factor by which to reduce maintenance
-    ! respiration when storage pools are low
+                                            ! respiration when storage pools are low
     real(r8) :: b_leaf             ! leaf biomass kgC
     real(r8) :: frac               ! storage pool as a fraction of target leaf biomass
     real(r8) :: check_elai         ! This is a check on the effective LAI that is calculated
@@ -239,7 +239,8 @@ contains
     real(r8) :: leaf_psi           ! leaf xylem matric potential [MPa] (only meaningful/used w/ hydro)
     real(r8) :: fnrt_mr_layer      ! fine root maintenance respiation per layer [kgC/plant/s]
     real(r8) :: c_cost_nfix        ! carbon cost of N fixation [kgC/kgN]
-
+    real(r8) :: c_spent_nfix       ! carbon spent on N fixation, per layer [kgC/plant/timestep]
+    
     real(r8), allocatable :: rootfr_ft(:,:)  ! Root fractions per depth and PFT
 
     ! -----------------------------------------------------------------------------------
@@ -398,16 +399,16 @@ contains
                       !                                       currentCohort%canopy_trim,store_c_target)
 
                       call storage_fraction_of_target(store_c_target, &
-                           currentCohort%prt%GetState(store_organ, all_carbon_elements), &
+                           currentCohort%prt%GetState(store_organ, carbon12_element), &
                            frac)
                       call lowstorage_maintresp_reduction(frac,currentCohort%pft, &
                            maintresp_reduction_factor)
 
                       ! are there any leaves of this pft in this layer?
-                      if(currentPatch%canopy_mask(cl,ft) == 1)then
+                      canopy_mask_if: if(currentPatch%canopy_mask(cl,ft) == 1)then
 
                          ! Loop over leaf-layers
-                         do iv = 1,currentCohort%nv
+                         leaf_layer_loop : do iv = 1,currentCohort%nv
 
                             ! ------------------------------------------------------------
                             ! If we are doing plant hydro-dynamics (or any run-type
@@ -422,7 +423,7 @@ contains
                             ! age classes
                             ! ------------------------------------------------------------
 
-                            if ( .not.rate_mask_z(iv,ft,cl) .or. &
+                            rate_mask_if: if ( .not.rate_mask_z(iv,ft,cl) .or. &
                                  (hlm_use_planthydro.eq.itrue) .or. &
                                  (nleafage > 1) .or. &
                                  (hlm_parteh_mode .ne. prt_carbon_allom_hyp )   ) then
@@ -494,7 +495,7 @@ contains
 
                                case (prt_cnp_flex_allom_hyp)
 
-                                  leaf_c  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+                                  leaf_c  = currentCohort%prt%GetState(leaf_organ, carbon12_element)
                                   if( (leaf_c*slatop(ft)) > nearzero) then
                                      leaf_n  = currentCohort%prt%GetState(leaf_organ, nitrogen_element)
                                      lnc_top = leaf_n / (slatop(ft) * leaf_c )
@@ -578,8 +579,9 @@ contains
                                     c13disc_z(cl,ft,iv))                   ! out
 
                                rate_mask_z(iv,ft,cl) = .true.
-                            end if
-                         end do
+
+                            end if rate_mask_if
+                         end do leaf_layer_loop
 
                          ! Zero cohort flux accumulators.
                          currentCohort%npp_tstep  = 0.0_r8
@@ -628,7 +630,7 @@ contains
                          currentCohort%g_sb_laweight = 0.0_r8
                          currentCohort%ts_net_uptake(:) = 0.0_r8
 
-                      end if  ! if(currentPatch%canopy_mask(cl,ft) == 1)then
+                      end if canopy_mask_if 
 
 
                       ! ------------------------------------------------------------------
@@ -643,8 +645,8 @@ contains
                       ! Units are in (kgN/plant)
                       ! ------------------------------------------------------------------
 
-                      sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
-                      fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_elements)
+                      sapw_c   = currentCohort%prt%GetState(sapw_organ, carbon12_element)
+                      fnrt_c   = currentCohort%prt%GetState(fnrt_organ, carbon12_element)
 
                       select case(hlm_parteh_mode)
                       case (prt_carbon_allom_hyp)
@@ -709,21 +711,24 @@ contains
                       currentCohort%froot_mr = 0._r8
 
                       ! n_fixation is integrated over the course of the day
-                      currentCohort%n_fixation = 0._r8
+                      ! this variable is zeroed at the end of the FATES dynamics sequence
 
                       do j = 1,bc_in(s)%nlevsoil
                          tcsoi  = q10_mr**((bc_in(s)%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
                          
                          fnrt_mr_layer = fnrt_n * ED_val_base_mr_20 * tcsoi * rootfr_ft(ft,j) * maintresp_reduction_factor
 
-                         currentCohort%froot_mr = currentCohort%froot_mr + fnrt_mr_layer * (1._r8 + EDPftvarcon_inst%dev_arbitrary_pft(ft))
+                         currentCohort%froot_mr = currentCohort%froot_mr + fnrt_mr_layer * (1._r8 + EDPftvarcon_inst%nfix_mresp_scfrac(ft))
 
                          ! calculate the cost of carbon for N fixation in each soil layer and calculate N fixation rate based on that [kgC / kgN]
 
                          c_cost_nfix = s_fix * (exp(a_fix + b_fix * (bc_in(s)%t_soisno_sl(j)-tfrz) &
                               * (1._r8 - 0.5_r8 * (bc_in(s)%t_soisno_sl(j)-tfrz) / c_fix)) - 2._r8)
+
+                         ! Time integrated amount of carbon spent on fixation (in this layer) [kgC/plant/layer/tstep]
+                         c_spent_nfix = fnrt_mr_layer  * dtime * EDPftvarcon_inst%nfix_mresp_scfrac(ft)
                          
-                         currentCohort%n_fixation = currentCohort%n_fixation + fnrt_mr_layer * EDPftvarcon_inst%dev_arbitrary_pft / c_cost_nfix
+                         currentCohort%daily_n_fixation = currentCohort%daily_n_fixation + c_spent_nfix / c_cost_nfix
 
                       enddo
 
@@ -2089,7 +2094,7 @@ subroutine LeafLayerBiophysicalRates( parsun_lsl, &
    vcmax = vcmax * btran
 
    return
-end subroutine LeafLayerBiophysicalRates
+ end subroutine LeafLayerBiophysicalRates
 
 subroutine lowstorage_maintresp_reduction(frac, pft, maintresp_reduction_factor)
 

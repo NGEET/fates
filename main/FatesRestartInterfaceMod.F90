@@ -111,7 +111,7 @@ module FatesRestartInterfaceMod
   integer :: ir_gpp_acc_hold_co
   integer :: ir_npp_acc_hold_co
   integer :: ir_resp_acc_hold_co
-  integer :: ir_resp_m_def_co
+  integer :: ir_resp_excess_co
   integer :: ir_bmort_co
   integer :: ir_hmort_co
   integer :: ir_cmort_co
@@ -125,10 +125,8 @@ module FatesRestartInterfaceMod
 
   integer :: ir_daily_nh4_uptake_co
   integer :: ir_daily_no3_uptake_co
+  integer :: ir_daily_n_fixation_co
   integer :: ir_daily_p_uptake_co
-  integer :: ir_daily_c_efflux_co
-  integer :: ir_daily_n_efflux_co
-  integer :: ir_daily_p_efflux_co
   integer :: ir_daily_n_demand_co
   integer :: ir_daily_p_demand_co
 
@@ -214,8 +212,6 @@ module FatesRestartInterfaceMod
   integer :: ir_cwdbgin_flxdg
   integer :: ir_leaflittin_flxdg
   integer :: ir_rootlittin_flxdg
-  integer :: ir_efflux_flxdg
-  integer :: ir_uptake_flxdg
   integer :: ir_oldstock_mbal
   integer :: ir_errfates_mbal
   integer :: ir_prt_base     ! Base index for all PRT variables
@@ -767,10 +763,10 @@ contains
          units='kgC/indiv/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_acc_hold_co )
 
-    call this%set_restart_var(vname='fates_resp_m_def', vtype=cohort_r8, &
+    call this%set_restart_var(vname='fates_resp_excess', vtype=cohort_r8, &
          long_name='ed cohort - maintenance respiration deficit', &
          units='kgC/indiv', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_m_def_co )
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_excess_co )
 
     call this%set_restart_var(vname='fates_bmort', vtype=cohort_r8, &
          long_name='ed cohort - background mortality rate', &
@@ -797,25 +793,15 @@ contains
          units='kg/plant/day', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_no3_uptake_co )
 
+    call this%set_restart_var(vname='fates_daily_n_fixation', vtype=cohort_r8, &
+         long_name='fates cohort- daily N symbiotic fixation', &
+         units='kg/plant/day', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_n_fixation_co )
+
     call this%set_restart_var(vname='fates_daily_p_uptake', vtype=cohort_r8, &
          long_name='fates cohort- daily phosphorus uptake', &
          units='kg/plant/day', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_p_uptake_co )
-
-    call this%set_restart_var(vname='fates_daily_c_efflux', vtype=cohort_r8, &
-         long_name='fates cohort- daily carbon efflux', &
-         units='kg/plant/day', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_c_efflux_co )
-
-    call this%set_restart_var(vname='fates_daily_n_efflux', vtype=cohort_r8, &
-         long_name='fates cohort- daily nitrogen efflux', &
-         units='kg/plant/day', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_n_efflux_co )
-
-    call this%set_restart_var(vname='fates_daily_p_efflux', vtype=cohort_r8, &
-         long_name='fates cohort- daily phosphorus efflux', &
-         units='kg/plant/day', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_p_efflux_co )
 
     call this%set_restart_var(vname='fates_daily_p_demand', vtype=cohort_r8, &
          long_name='fates cohort- daily phosphorus demand', &
@@ -1026,17 +1012,6 @@ contains
            long_name_base='Input flux of root litter', &
            units='kg/ha', veclength=num_elements, flushval = flushzero, &
            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_rootlittin_flxdg)
-
-    call this%RegisterCohortVector(symbol_base='fates_efflux_scpf', vtype=cohort_r8, &
-           long_name_base='Efflux from plants to soil through roots', &
-           units='kg/day/ha', veclength=num_elements, flushval = flushzero, &
-           hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_efflux_flxdg)
-
-    call this%RegisterCohortVector(symbol_base='fates_uptake_scpf', vtype=cohort_r8, &
-           long_name_base='Daily uptake for plants through roots', &
-           units='kg/day/ha', veclength=num_elements, flushval = flushzero, &
-           hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_uptake_flxdg)
-
 
     ! Site level Mass Balance State Accounting
 
@@ -1773,16 +1748,14 @@ contains
            rio_gpp_acc_hold_co         => this%rvars(ir_gpp_acc_hold_co)%r81d, &
            rio_resp_acc_hold_co        => this%rvars(ir_resp_acc_hold_co)%r81d, &
            rio_npp_acc_hold_co         => this%rvars(ir_npp_acc_hold_co)%r81d, &
-           rio_resp_m_def_co           => this%rvars(ir_resp_m_def_co)%r81d, &
+           rio_resp_excess_co           => this%rvars(ir_resp_excess_co)%r81d, &
            rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
            rio_hmort_co                => this%rvars(ir_hmort_co)%r81d, &
            rio_cmort_co                => this%rvars(ir_cmort_co)%r81d, &
            rio_daily_nh4_uptake_co     => this%rvars(ir_daily_nh4_uptake_co)%r81d, &
            rio_daily_no3_uptake_co     => this%rvars(ir_daily_no3_uptake_co)%r81d, &
+           rio_daily_n_fixation_co     => this%rvars(ir_daily_n_fixation_co)%r81d, &
            rio_daily_p_uptake_co       => this%rvars(ir_daily_p_uptake_co)%r81d, &
-           rio_daily_c_efflux_co       => this%rvars(ir_daily_c_efflux_co)%r81d, &
-           rio_daily_n_efflux_co       => this%rvars(ir_daily_n_efflux_co)%r81d, &
-           rio_daily_p_efflux_co       => this%rvars(ir_daily_p_efflux_co)%r81d, &
            rio_daily_n_demand_co       => this%rvars(ir_daily_n_demand_co)%r81d, &
            rio_daily_p_demand_co       => this%rvars(ir_daily_p_demand_co)%r81d, &
            rio_smort_co                => this%rvars(ir_smort_co)%r81d, &
@@ -1890,17 +1863,6 @@ contains
                 io_idx_si_pft = io_idx_si_pft + 1
              end do
 
-             iscpf = 1
-             do i_scls = 1, nlevsclass
-                do i_pft = 1, numpft
-                   this%rvars(ir_efflux_flxdg+el-1)%r81d(io_idx_si_scpf) = sites(s)%flux_diags(el)%nutrient_efflux_scpf(iscpf)
-                   this%rvars(ir_uptake_flxdg+el-1)%r81d(io_idx_si_scpf) = sites(s)%flux_diags(el)%nutrient_uptake_scpf(iscpf)
-                   iscpf = iscpf + 1
-                   io_idx_si_scpf = io_idx_si_scpf + 1
-                end do
-             end do
-
-
              this%rvars(ir_oldstock_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%old_stock
              this%rvars(ir_errfates_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%err_fates
 
@@ -2003,7 +1965,7 @@ contains
                 rio_resp_acc_hold_co(io_idx_co) = ccohort%resp_acc_hold
                 rio_npp_acc_hold_co(io_idx_co) = ccohort%npp_acc_hold
 
-                rio_resp_m_def_co(io_idx_co)   = ccohort%resp_m_def
+                rio_resp_excess_co(io_idx_co)   = ccohort%resp_excess
 
                 rio_bmort_co(io_idx_co)        = ccohort%bmort
                 rio_hmort_co(io_idx_co)        = ccohort%hmort
@@ -2016,11 +1978,8 @@ contains
                 rio_daily_no3_uptake_co(io_idx_co) = ccohort%daily_no3_uptake
                 rio_daily_nh4_uptake_co(io_idx_co) = ccohort%daily_nh4_uptake
                 rio_daily_p_uptake_co(io_idx_co) = ccohort%daily_p_uptake
-
-                rio_daily_c_efflux_co(io_idx_co) = ccohort%daily_c_efflux
-                rio_daily_n_efflux_co(io_idx_co) = ccohort%daily_n_efflux
-                rio_daily_p_efflux_co(io_idx_co) = ccohort%daily_p_efflux
-
+                rio_daily_n_fixation_co(io_idx_co) = ccohort%daily_n_fixation
+                
                 rio_daily_n_demand_co(io_idx_co) = ccohort%daily_n_demand
                 rio_daily_p_demand_co(io_idx_co) = ccohort%daily_p_demand
 
@@ -2602,16 +2561,14 @@ contains
           rio_gpp_acc_hold_co         => this%rvars(ir_gpp_acc_hold_co)%r81d, &
           rio_resp_acc_hold_co        => this%rvars(ir_resp_acc_hold_co)%r81d, &
           rio_npp_acc_hold_co         => this%rvars(ir_npp_acc_hold_co)%r81d, &
-          rio_resp_m_def_co           => this%rvars(ir_resp_m_def_co)%r81d, &
+          rio_resp_excess_co           => this%rvars(ir_resp_excess_co)%r81d, &
           rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
           rio_hmort_co                => this%rvars(ir_hmort_co)%r81d, &
           rio_cmort_co                => this%rvars(ir_cmort_co)%r81d, &
           rio_daily_nh4_uptake_co     => this%rvars(ir_daily_nh4_uptake_co)%r81d, &
           rio_daily_no3_uptake_co     => this%rvars(ir_daily_no3_uptake_co)%r81d, &
+          rio_daily_n_fixation_co     => this%rvars(ir_daily_n_fixation_co)%r81d, &
           rio_daily_p_uptake_co       => this%rvars(ir_daily_p_uptake_co)%r81d, &
-          rio_daily_c_efflux_co       => this%rvars(ir_daily_c_efflux_co)%r81d, &
-          rio_daily_n_efflux_co       => this%rvars(ir_daily_n_efflux_co)%r81d, &
-          rio_daily_p_efflux_co       => this%rvars(ir_daily_p_efflux_co)%r81d, &
           rio_daily_n_demand_co       => this%rvars(ir_daily_n_demand_co)%r81d, &
           rio_daily_p_demand_co       => this%rvars(ir_daily_p_demand_co)%r81d, &
           rio_smort_co                => this%rvars(ir_smort_co)%r81d, &
@@ -2709,17 +2666,6 @@ contains
                 io_idx_si_pft = io_idx_si_pft + 1
              end do
 
-             iscpf = 1
-             do i_scls = 1, nlevsclass
-                do i_pft = 1, numpft
-                   sites(s)%flux_diags(el)%nutrient_efflux_scpf(iscpf) = this%rvars(ir_efflux_flxdg+el-1)%r81d(io_idx_si_scpf)
-                   sites(s)%flux_diags(el)%nutrient_uptake_scpf(iscpf) = this%rvars(ir_uptake_flxdg+el-1)%r81d(io_idx_si_scpf)
-                   iscpf = iscpf + 1
-                   io_idx_si_scpf = io_idx_si_scpf + 1
-                end do
-             end do
-
-
              sites(s)%mass_balance(el)%old_stock = this%rvars(ir_oldstock_mbal+el-1)%r81d(io_idx_si)
              sites(s)%mass_balance(el)%err_fates = this%rvars(ir_errfates_mbal+el-1)%r81d(io_idx_si)
 
@@ -2803,7 +2749,7 @@ contains
                 ccohort%gpp_acc_hold = rio_gpp_acc_hold_co(io_idx_co)
                 ccohort%resp_acc_hold = rio_resp_acc_hold_co(io_idx_co)
                 ccohort%npp_acc_hold = rio_npp_acc_hold_co(io_idx_co)
-                ccohort%resp_m_def   = rio_resp_m_def_co(io_idx_co)
+                ccohort%resp_excess   = rio_resp_excess_co(io_idx_co)
 
                 ccohort%bmort        = rio_bmort_co(io_idx_co)
                 ccohort%hmort        = rio_hmort_co(io_idx_co)
@@ -2815,10 +2761,8 @@ contains
                 ! Nutrient uptake / efflux
                 ccohort%daily_nh4_uptake = rio_daily_nh4_uptake_co(io_idx_co)
                 ccohort%daily_no3_uptake = rio_daily_no3_uptake_co(io_idx_co)
+                ccohort%daily_n_fixation = rio_daily_n_fixation_co(io_idx_co)
                 ccohort%daily_p_uptake = rio_daily_p_uptake_co(io_idx_co)
-                ccohort%daily_c_efflux = rio_daily_c_efflux_co(io_idx_co)
-                ccohort%daily_n_efflux = rio_daily_n_efflux_co(io_idx_co)
-                ccohort%daily_p_efflux = rio_daily_p_efflux_co(io_idx_co)
 
                 ccohort%daily_n_demand = rio_daily_n_demand_co(io_idx_co)
                 ccohort%daily_p_demand = rio_daily_p_demand_co(io_idx_co)

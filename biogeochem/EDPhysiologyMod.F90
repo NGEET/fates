@@ -92,7 +92,6 @@ module EDPhysiologyMod
   use PRTGenericMod, only : prt_vartypes
   use PRTGenericMod, only : leaf_organ
   use PRTGenericMod, only : sapw_organ, struct_organ
-  use PRTGenericMod, only : all_carbon_elements
   use PRTGenericMod, only : carbon12_element
   use PRTGenericMod, only : nitrogen_element
   use PRTGenericMod, only : phosphorus_element
@@ -427,7 +426,7 @@ contains
     real(r8) :: optimum_trim              ! Optimum trim value
     real(r8) :: initial_laimem            ! Initial laimemory
     real(r8) :: optimum_laimem            ! Optimum laimemory
-
+    real(r8) :: target_storec
     !----------------------------------------------------------------------
 
     ipatch = 1 ! Start counting patches
@@ -461,7 +460,7 @@ contains
           ipft = currentCohort%pft
           call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,currentCohort%c_area)
 
-          leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+          leaf_c   = currentCohort%prt%GetState(leaf_organ, carbon12_element)
 
           currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, &
                currentCohort%n, currentCohort%canopy_layer,               &
@@ -1105,10 +1104,10 @@ contains
 
           if(debug) call currentCohort%prt%CheckMassConservation(ipft,0)
 
-          store_c = currentCohort%prt%GetState(store_organ, all_carbon_elements)
-          leaf_c  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
-          sapw_c  = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
-          struct_c  = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
+          store_c = currentCohort%prt%GetState(store_organ, carbon12_element)
+          leaf_c  = currentCohort%prt%GetState(leaf_organ, carbon12_element)
+          sapw_c  = currentCohort%prt%GetState(sapw_organ, carbon12_element)
+          struct_c  = currentCohort%prt%GetState(struct_organ, carbon12_element)
 
           stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(ipft)
 

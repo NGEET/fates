@@ -20,7 +20,6 @@ module FatesSoilBGCFluxMod
   use PRTGenericMod     , only : prt_vartypes
   use PRTGenericMod     , only : leaf_organ
   use PRTGenericMod     , only : sapw_organ, struct_organ
-  use PRTGenericMod     , only : all_carbon_elements
   use PRTGenericMod     , only : carbon12_element
   use PRTGenericMod     , only : nitrogen_element
   use PRTGenericMod     , only : phosphorus_element
@@ -86,7 +85,7 @@ module FatesSoilBGCFluxMod
   public :: PrepNutrientAquisitionBCs
   public :: UnPackNutrientAquisitionBCs
   public :: FluxIntoLitterPools
-
+  public :: EffluxIntoLitterPools
   
   logical, parameter :: debug  = .false. ! local debug flag
   character(len=*), parameter, private :: sourcefile = &
@@ -564,6 +563,71 @@ contains
 
   ! =====================================================================================
 
+  subroutine EffluxIntoLitterPools(csite, cpatch, ccohort, bc_in )
+
+    ! -----------------------------------------------------------------------------------
+    ! This subroutine just handles the transfer of exudation/efflux from plants
+    ! to the HLM.  We "root_fines_frag" array to save memory, and because it has
+    ! a labile component, soil discretization, and already has routines
+    ! in place for restarting and mass balancing through disturbance.
+    ! -----------------------------------------------------------------------------------
+
+    ! Arguments
+    type(ed_site_type), intent(inout)   :: csite
+    type(ed_patch_type), intent(inout) :: cpatch
+    type(ed_cohort_type), intent(inout),target :: ccohort
+    type(bc_in_type), intent(in) :: bc_in
+
+    ! locals
+    integer :: el                           ! element loop index
+    integer :: j                            ! soil layer loop index
+    real(r8), pointer :: efflux_ptr         ! pointer to cohort efflux
+    type(litter_type), pointer     :: litt
+    
+    call set_root_fraction(csite%rootfrac_scr, &
+         ccohort%pft, csite%zi_soil, &
+         bc_in%max_rooting_depth_index_col )
+    
+    ! Loop over the different elements. 
+    do el = 1, num_elements
+       
+       select case (element_list(el))
+       case (carbon12_element)
+
+          efflux_ptr => ccohort%daily_c_efflux
+          
+       case (nitrogen_element) 
+          
+          efflux_ptr => ccohort%daily_n_efflux
+          
+       case (phosphorus_element)
+
+          efflux_ptr => ccohort%daily_p_efflux
+          
+       end select
+
+       litt => cpatch%litter(el)
+       
+       do j = 1,csite%nlevsoil
+
+          ! kg/m2/day
+          litt%root_fines_frag(ilabile,j) = litt%root_fines_frag(ilabile,j) + &
+               efflux_ptr * ccohort%n * AREA_INV * csite%rootfrac_scr(j)
+
+          ! Note: we do not increment the site-level mass flux checking
+          ! variable site_mass%frag_out  This will be incremented later
+          ! in the call sequence, and we don't want to double count.
+          
+       end do
+
+    end do
+
+    return
+  end subroutine EffluxIntoLitterPools
+  
+  
+  ! =====================================================================================
+
   subroutine FluxIntoLitterPools(csite, bc_in, bc_out)
     
     ! -----------------------------------------------------------------------------------
@@ -677,21 +741,19 @@ contains
        
        select case (element_list(el))
        case (carbon12_element)
-          bc_out%litt_flux_cel_c_si(:) = 0.0_r8
-          bc_out%litt_flux_lig_c_si(:) = 0.0_r8
-          bc_out%litt_flux_lab_c_si(:) = 0.0_r8
+          bc_out%litt_flux_cel_c_si(:) = 0._r8
+          bc_out%litt_flux_lig_c_si(:) = 0._r8
+          bc_out%litt_flux_lab_c_si(:) = 0._r8
           flux_cel_si => bc_out%litt_flux_cel_c_si(:)
           flux_lab_si => bc_out%litt_flux_lab_c_si(:)
           flux_lig_si => bc_out%litt_flux_lig_c_si(:)
-          
-       case (nitrogen_element) 
+       case (nitrogen_element)
           bc_out%litt_flux_cel_n_si(:) = 0._r8
           bc_out%litt_flux_lig_n_si(:) = 0._r8
           bc_out%litt_flux_lab_n_si(:) = 0._r8
           flux_cel_si => bc_out%litt_flux_cel_n_si(:)
           flux_lab_si => bc_out%litt_flux_lab_n_si(:)
           flux_lig_si => bc_out%litt_flux_lig_n_si(:)
-          
        case (phosphorus_element)
           bc_out%litt_flux_cel_p_si(:) = 0._r8
           bc_out%litt_flux_lig_p_si(:) = 0._r8
@@ -699,51 +761,10 @@ contains
           flux_cel_si => bc_out%litt_flux_cel_p_si(:)
           flux_lab_si => bc_out%litt_flux_lab_p_si(:)
           flux_lig_si => bc_out%litt_flux_lig_p_si(:)
-          
        end select
 
-       
-       ! If there is any efflux (from stores overflowing)
-       ! than pass that to the labile litter pool
-       
-       do id = 1,nlev_eff_decomp
-          flux_lab_si(id) = flux_lab_si(id) + &
-               sum(csite%flux_diags(el)%nutrient_efflux_scpf(:)) * &
-               area_inv * surface_prof(id)
-       end do
-       
        currentPatch => csite%oldest_patch
        do while (associated(currentPatch))
-
-          ! If there is any efflux (from stores overflowing)
-          ! than pass that to the labile litter pool
-          if(.false.)then
-             currentCohort => currentPatch%tallest
-             do while(associated(currentCohort))
-                if(.not.currentCohort%isnew)then
-                   if(element_list(el).eq.carbon12_element) then
-                      efflux_ptr => currentCohort%daily_c_efflux
-                   elseif(element_list(el).eq.nitrogen_element) then
-                      efflux_ptr => currentCohort%daily_n_efflux
-                   elseif(element_list(el).eq.phosphorus_element) then
-                      efflux_ptr => currentCohort%daily_p_efflux
-                   end if
-                   
-                   call set_root_fraction(csite%rootfrac_scr, currentCohort%pft, csite%zi_soil, &
-                        bc_in%max_rooting_depth_index_col )
-                   
-                   ! Unit conversion
-                   ! kg/plant/day * plant/ha * ha/m2 -> kg/m2/day
-                   
-                   do id = 1,nlev_eff_soil
-                      flux_lab_si(id) = flux_lab_si(id) + &
-                           efflux_ptr * currentCohort%n* AREA_INV *csite%rootfrac_scr(id)
-                   end do
-                   
-                end if
-                currentCohort => currentCohort%shorter
-             end do
-          end if
 
           ! Set a pointer to the litter object
           ! for the current element on the current
@@ -808,9 +829,7 @@ contains
              end do
           end do
 
-
           do j = 1, nlev_eff_soil
-
              id = bc_in%decomp_id(j)
              flux_lab_si(id) = flux_lab_si(id) + &
                   litt%root_fines_frag(ilabile,j) * area_frac

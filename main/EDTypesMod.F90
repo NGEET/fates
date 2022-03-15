@@ -9,11 +9,11 @@ module EDTypesMod
   use PRTGenericMod,         only : prt_vartypes
   use PRTGenericMod,         only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod,         only : repro_organ, store_organ, struct_organ
-  use PRTGenericMod,         only : all_carbon_elements
   use PRTGenericMod,         only : num_organ_types
   use PRTGenericMod,         only : num_elements
   use PRTGenericMod,         only : element_list
   use PRTGenericMod,         only : num_element_types
+  use PRTGenericMod,         only : carbon12_element
   use FatesLitterMod,        only : litter_type
   use FatesLitterMod,        only : ncwd
   use FatesConstantsMod,     only : n_anthro_disturbance_categories
@@ -302,6 +302,8 @@ module EDTypesMod
 
      real(r8) :: daily_nh4_uptake ! integrated daily uptake of mineralized ammonium through competitive acquisition in soil [kg N / plant/ day]
      real(r8) :: daily_no3_uptake ! integrated daily uptake of mineralized nitrate through competitive acquisition in soil [kg N / plant/ day]
+     real(r8) :: daily_n_fixation ! Rate of N fixation from the roots [kgN/indiv/day]
+     real(r8) :: daily_n_gain     ! sum of fixation and uptake of mineralized nh4/no3 in solution
      real(r8) :: daily_p_uptake   ! integrated daily uptake of mineralized P through competitive acquisition in soil [kg P / plant/ day]
 
      real(r8) :: daily_c_efflux   ! daily mean efflux of excess carbon from roots into labile pool [kg C/plant/day]
@@ -312,7 +314,7 @@ module EDTypesMod
      real(r8) :: daily_p_demand ! The daily amount of P demanded by the plant [kgN/plant/day]
 
      ! N fixation rate
-     real(r8) :: n_fixation           ! Rate of N fixation from the roots [kgN/indiv/s]
+     
 
      ! The following four biophysical rates are assumed to be
      ! at the canopy top, at reference temp 25C, and based on the 
@@ -338,10 +340,7 @@ module EDTypesMod
 
      real(r8) ::  resp_g_tstep                           ! Growth respiration:  kgC/indiv/timestep
      real(r8) ::  resp_m                                 ! Maintenance respiration:  kgC/indiv/timestep 
-     real(r8) ::  resp_m_def                             ! Optional: (NOT IMPLEMENTED YET)
-                                                         ! It may be possible to not respire at desired rate
-                                                         ! because of low carbon stores, and thus build
-                                                         ! up a deficit. This tracks that deficit. kgC/indiv
+     real(r8) ::  resp_excess                            ! Respiration of excess carbon kgC/indiv/day
      real(r8) ::  livestem_mr                            ! Live stem        maintenance respiration: kgC/indiv/s
                                                          ! (Above ground)
      real(r8) ::  livecroot_mr                           ! Live stem        maintenance respiration: kgC/indiv/s
@@ -623,10 +622,6 @@ module EDTypesMod
      real(r8) :: cwd_bg_input(1:ncwd)               
      real(r8),allocatable :: leaf_litter_input(:)
      real(r8),allocatable :: root_litter_input(:)
-
-     real(r8),allocatable :: nutrient_uptake_scpf(:)
-     real(r8),allocatable :: nutrient_efflux_scpf(:)
-     real(r8),allocatable :: nutrient_demand_scpf(:)
      
    contains
 
@@ -659,7 +654,8 @@ module EDTypesMod
      real(r8) :: aresp_acc        ! Accumulated autotrophic respiration [kg/site/day]
 
      real(r8) :: net_root_uptake  ! Net uptake of carbon or nutrients through the roots [kg/site/day]
-                                  ! (if carbon most likely exudation, if even active)
+                                  ! could include exudation, and for N this also includes symbiotic
+                                  ! fixation
 
      real(r8) :: seed_in          ! Total mass of external seed rain into fates site [kg/site/day]
                                   ! This is from external grid-cells or from user parameterization
@@ -890,9 +886,6 @@ module EDTypesMod
       this%cwd_bg_input(:)      = 0._r8
       this%leaf_litter_input(:) = 0._r8
       this%root_litter_input(:) = 0._r8
-      this%nutrient_uptake_scpf(:) = 0._r8
-      this%nutrient_efflux_scpf(:) = 0._r8
-      this%nutrient_demand_scpf(:)  = 0._r8
       
       return
     end subroutine ZeroFluxDiags
@@ -1083,12 +1076,12 @@ module EDTypesMod
      write(fates_log(),*) 'co%structmemory           = ', ccohort%structmemory
      write(fates_log(),*) 'co%l2fr                   = ', ccohort%l2fr
      
-     write(fates_log(),*) 'leaf carbon               = ', ccohort%prt%GetState(leaf_organ,all_carbon_elements) 
-     write(fates_log(),*) 'fineroot carbon           = ', ccohort%prt%GetState(fnrt_organ,all_carbon_elements) 
-     write(fates_log(),*) 'sapwood carbon            = ', ccohort%prt%GetState(sapw_organ,all_carbon_elements) 
-     write(fates_log(),*) 'structural (dead) carbon  = ', ccohort%prt%GetState(struct_organ,all_carbon_elements) 
-     write(fates_log(),*) 'storage carbon            = ', ccohort%prt%GetState(store_organ,all_carbon_elements) 
-     write(fates_log(),*) 'reproductive carbon       = ', ccohort%prt%GetState(repro_organ,all_carbon_elements) 
+     write(fates_log(),*) 'leaf carbon               = ', ccohort%prt%GetState(leaf_organ,carbon12_element) 
+     write(fates_log(),*) 'fineroot carbon           = ', ccohort%prt%GetState(fnrt_organ,carbon12_element) 
+     write(fates_log(),*) 'sapwood carbon            = ', ccohort%prt%GetState(sapw_organ,carbon12_element) 
+     write(fates_log(),*) 'structural (dead) carbon  = ', ccohort%prt%GetState(struct_organ,carbon12_element) 
+     write(fates_log(),*) 'storage carbon            = ', ccohort%prt%GetState(store_organ,carbon12_element) 
+     write(fates_log(),*) 'reproductive carbon       = ', ccohort%prt%GetState(repro_organ,carbon12_element) 
 
      write(fates_log(),*) 'co%lai                    = ', ccohort%lai                         
      write(fates_log(),*) 'co%sai                    = ', ccohort%sai  
@@ -1116,7 +1109,6 @@ module EDTypesMod
      write(fates_log(),*) 'co%resp_acc_hold          = ', ccohort%resp_acc_hold
      write(fates_log(),*) 'co%rdark                  = ', ccohort%rdark
      write(fates_log(),*) 'co%resp_m                 = ', ccohort%resp_m
-     write(fates_log(),*) 'co%resp_m_def             = ', ccohort%resp_m_def
      write(fates_log(),*) 'co%resp_g_tstep           = ', ccohort%resp_g_tstep
      write(fates_log(),*) 'co%livestem_mr            = ', ccohort%livestem_mr
      write(fates_log(),*) 'co%livecroot_mr           = ', ccohort%livecroot_mr

@@ -157,8 +157,9 @@ module EDPftvarcon
                                                   ! biochemical production, fraction based how much
                                                   ! more in need a plant is for P versus N [/]
 
-     !real(r8), allocatable :: nfix1(:)   ! nitrogen fixation parameter 1
-     !real(r8), allocatable :: nfix2(:)   ! nitrogen fixation parameter 2
+     ! Maintenance respiration surcharge for obligate fixation  [fraction of existing respiration]
+     real(r8), allocatable :: nfix_mresp_scfrac(:)
+
 
 
      ! Turnover related things
@@ -572,7 +573,6 @@ contains
 
     ! Nutrient competition parameters
 
-
     name = 'fates_eca_decompmicc'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -925,9 +925,10 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%prescribed_puptake)
 
+    ! TEMPORARILY USING DEV_ARIBITRARY_PFT FOR FIXATION PARAMETER
     name = 'fates_dev_arbitrary_pft'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%dev_arbitrary_pft)
+         data=this%nfix_mresp_scfrac)
 
     name = 'fates_eca_decompmicc'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1514,6 +1515,18 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
 
+        ! Make sure that the N fixation respiration surcharge fraction is
+        ! between 0 and 1
+        
+        if(any(EDpftvarcon_inst%nfix_mresp_scfrac(:)<0._r8) .or. any(EDpftvarcon_inst%nfix_mresp_scfrac(:)>1.0_r8)) then
+           write(fates_log(),*) 'The N fixation surcharge nfix_mresp_sfrac must be between 0-1.'
+           write(fates_log(),*) 'This parameter is temporarily using the parameter file field: dev_arbitrary_pft'
+           write(fates_log(),*) 'here are the values: ',EDpftvarcon_inst%nfix_mresp_scfrac(:)
+           write(fates_log(),*) 'Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+
+        
         ! If nitrogen is turned on, check to make sure there are valid ammonium
         ! parameters
         if(hlm_nitrogen_spec>0)then

@@ -100,7 +100,6 @@ module PRTGenericMod
   ! element.  At the time of writing this, we are very far away from
   ! creating allocation schemes that even use potassium.
   
-  integer, parameter, public :: all_carbon_elements = 0
   integer, parameter, public :: carbon12_element    = 1
   integer, parameter, public :: carbon13_element    = 2
   integer, parameter, public :: carbon14_element    = 3
@@ -136,7 +135,7 @@ module PRTGenericMod
 
 
   ! List of all carbon elements, the special index "all_carbon_elements"
-  ! implies the following list of carbon organs
+  ! implies the following list of carbon organs (NOT USED)
   
   integer, parameter, dimension(3), public :: carbon_elements_list   = &
        [carbon12_element, carbon13_element, carbon14_element]
@@ -999,44 +998,23 @@ contains
       integer,intent(in)                    :: element_id         ! Element type querried
       integer,intent(in),optional           :: position_id        ! Position querried
       real(r8)                              :: state_val          ! Mass (value) of state variable [kg]
-
       integer                               :: i_pos              ! position loop counter
-      integer                               :: i_element          ! element loop counter
-      integer                               :: num_element        ! total number of elements
-      integer,dimension(max_spec_per_group) :: element_ids        ! element ids (if element list)
       integer                               :: i_var              ! variable id
-      
-      state_val = 0.0_r8
-      
-      if(element_id == all_carbon_elements) then
-         element_ids(1:3) = carbon_elements_list(1:3)
-         num_element  = 3
-      else
-         num_element  = 1
-         element_ids(1) = element_id
-      end if
 
       if(present(position_id)) then
-         i_pos = position_id
-      
-         do i_element = 1,num_element
-            i_var = prt_global%sp_organ_map(organ_id,element_ids(i_element))
-            if (i_var>0) state_val = state_val + this%variables(i_var)%val(i_pos)
-         end do
 
+         i_pos = position_id
+         i_var = prt_global%sp_organ_map(organ_id,element_id)
+         state_val = this%variables(i_var)%val(i_pos)
+         
       else
          
-         do i_element = 1,num_element
-            
-            i_var = prt_global%sp_organ_map(organ_id,element_ids(i_element))
-            if(i_var>0)then
-               do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos
-                  state_val = state_val + this%variables(i_var)%val(i_pos)
-               end do
-            end if
-               
+         state_val = 0._r8
+         i_var = prt_global%sp_organ_map(organ_id,element_id)
+         do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos
+            state_val = state_val + this%variables(i_var)%val(i_pos)
          end do
-
+         
       end if
       
       return
@@ -1060,43 +1038,23 @@ contains
       integer,intent(in)                    :: element_id         ! Element type querried
       integer,intent(in),optional           :: position_id        ! Position querried
       real(r8)                              :: turnover_val       ! Amount (value) of turnover [kg]
-
       integer                               :: i_pos              ! position loop counter
-      integer                               :: i_element          ! element loop counter
-      integer                               :: num_element        ! total number of elements
-      integer,dimension(max_spec_per_group) :: element_ids        ! element ids (if element list)
       integer                               :: i_var              ! variable id
       
-      turnover_val = 0.0_r8
-      
-      if(element_id == all_carbon_elements) then
-         element_ids(1:3) = carbon_elements_list(1:3)
-         num_element  = 3
-      else
-         num_element  = 1
-         element_ids(1) = element_id
-      end if
-
       if(present(position_id)) then
+
          i_pos = position_id
-      
-         do i_element = 1,num_element
-            i_var = prt_global%sp_organ_map(organ_id,element_ids(i_element))
-            if(i_var>0) turnover_val = turnover_val + &
-                 this%variables(i_var)%turnover(i_pos)
-         end do
+         i_var = prt_global%sp_organ_map(organ_id,element_id)
+         turnover_val = this%variables(i_var)%turnover(i_pos)
 
       else
 
-         do i_element = 1,num_element
-            i_var = prt_global%sp_organ_map(organ_id,element_ids(i_element))
-            if(i_var>0) then
-               do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos
-                  turnover_val = turnover_val + this%variables(i_var)%turnover(i_pos)
-               end do
-            end if
-            
+         turnover_val = 0.0_r8
+         i_var = prt_global%sp_organ_map(organ_id,element_id)
+         do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos
+            turnover_val = turnover_val + this%variables(i_var)%turnover(i_pos)
          end do
+            
 
       end if
       
@@ -1117,43 +1075,21 @@ contains
       integer,intent(in)                    :: element_id         ! Element type querried
       integer,intent(in),optional           :: position_id        ! Position querried
       real(r8)                              :: burned_val         ! Amount (value) of burned [kg]
-
       integer                               :: i_pos              ! position loop counter
-      integer                               :: i_element          ! element loop counter
-      integer                               :: num_element        ! total number of elements
-      integer,dimension(max_spec_per_group) :: element_ids        ! element ids (if element list)
       integer                               :: i_var              ! variable id
 
-      
-      burned_val = 0.0_r8
-      
-      if(element_id == all_carbon_elements) then
-         element_ids(1:3) = carbon_elements_list(1:3)
-         num_element  = 3
-      else
-         num_element  = 1
-         element_ids(1) = element_id
-      end if
-
       if(present(position_id)) then
+
          i_pos = position_id
-      
-         do i_element = 1,num_element
-            i_var = prt_global%sp_organ_map(organ_id,element_ids(i_element))
-            if(i_var>0) burned_val = burned_val + &
-                  this%variables(i_var)%burned(i_pos)
-         end do
+         i_var = prt_global%sp_organ_map(organ_id,element_id)
+         burned_val = this%variables(i_var)%burned(i_pos)
 
       else
          
-         do i_element = 1,num_element
-            i_var = prt_global%sp_organ_map(organ_id,element_ids(i_element))
-            if(i_var>0) then
-               do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos
-                  burned_val = burned_val + this%variables(i_var)%burned(i_pos)
-               end do
-            end if
-            
+         burned_val = 0.0_r8
+         i_var = prt_global%sp_organ_map(organ_id,element_id)
+         do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos
+            burned_val = burned_val + this%variables(i_var)%burned(i_pos)
          end do
 
       end if
@@ -1176,42 +1112,21 @@ contains
       integer,intent(in)                    :: element_id         ! Element type querried
       integer,intent(in),optional           :: position_id        ! Position querried
       real(r8)                              :: val_netalloc       ! Amount (value) of allocation [kg]
-
       integer                               :: i_pos              ! position loop counter
-      integer                               :: i_element          ! element loop counter
-      integer                               :: num_element        ! total number of elements
-      integer,dimension(max_spec_per_group) :: element_ids        ! element ids (if element list)
       integer                               :: i_var              ! variable id
-
-      val_netalloc = 0.0_r8
       
-      if(element_id == all_carbon_elements) then
-         element_ids(1:3) = carbon_elements_list(1:3)
-         num_element  = 3
-      else
-         num_element  = 1
-         element_ids(1) = element_id
-      end if
-
       if(present(position_id)) then
-         i_pos = position_id
-      
-         do i_element = 1,num_element
-            i_var = prt_global%sp_organ_map(organ_id,element_ids(i_element))
-            if(i_var>0) val_netalloc = val_netalloc + &
-                 this%variables(i_var)%net_alloc(i_pos)
-         end do
 
-      else
+         i_pos = position_id
+         i_var = prt_global%sp_organ_map(organ_id,element_id)
+         val_netalloc = this%variables(i_var)%net_alloc(i_pos)
          
-         do i_element = 1,num_element
-            i_var = prt_global%sp_organ_map(organ_id,element_ids(i_element))
-            if(i_var>0) then
-               do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos 
-                  val_netalloc = val_netalloc + this%variables(i_var)%net_alloc(i_pos)
-               end do
-            end if
-            
+      else
+
+         val_netalloc = 0.0_r8
+         i_var = prt_global%sp_organ_map(organ_id,element_id)
+         do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos 
+            val_netalloc = val_netalloc + this%variables(i_var)%net_alloc(i_pos)
          end do
 
       end if
@@ -1279,12 +1194,6 @@ contains
      integer                               :: i_element     ! loop counter for elements
      integer                               :: i_var         ! variable loop counter
      integer                               :: i_pos         ! position loop counter
-     
-     if(element_id == all_carbon_elements) then
-        write(fates_log(),*) 'You cannot set the state of all isotopes simultaneously.'
-        write(fates_log(),*) 'You can only set 1. Exiting.'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     end if
      
      if( present(position_id) ) then
         i_pos = position_id

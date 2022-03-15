@@ -49,6 +49,7 @@ module EDMainMod
   use EDPhysiologyMod          , only : PreDisturbanceLitterFluxes
   use EDPhysiologyMod          , only : PreDisturbanceIntegrateLitter
   use FatesSoilBGCFluxMod      , only : FluxIntoLitterPools
+  use FatesSoilBGCFluxMod      , only : EffluxIntoLitterPools
   use EDCohortDynamicsMod      , only : UpdateCohortBioPhysRates
   use FatesSoilBGCFluxMod      , only : PrepNutrientAquisitionBCs
   use FatesSoilBGCFluxMod      , only : PrepCH4BCs
@@ -79,7 +80,7 @@ module EDMainMod
   use FatesPlantHydraulicsMod  , only : UpdateSizeDepRhizHydProps
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
   use FatesAllometryMod        , only : h_allom,tree_sai,tree_lai
-  use FatesAllometryMod        , only : bleaf
+  use FatesAllometryMod        , only : bleaf,bstore_allom
   use FatesPlantHydraulicsMod  , only : UpdateSizeDepRhizHydStates
   use EDLoggingMortalityMod    , only : IsItLoggingTime
   use EDPatchDynamicsMod       , only : get_frac_site_primary
@@ -88,7 +89,6 @@ module EDMainMod
   use EDMortalityFunctionsMod  , only : Mortality_Derivative
   use EDTypesMod               , only : AREA_INV
   use PRTGenericMod,          only : carbon12_element
-  use PRTGenericMod,          only : all_carbon_elements
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : fnrt_organ
   use PRTGenericMod,          only : sapw_organ
@@ -98,8 +98,6 @@ module EDMainMod
   use PRTLossFluxesMod,       only : PRTMaintTurnover
   use PRTLossFluxesMod,       only : PRTReproRelease
   use EDPftvarcon,            only : EDPftvarcon_inst
-  use FatesHistoryInterfaceMod, only : ih_nh4uptake_si, ih_no3uptake_si, ih_puptake_si
-  use FatesHistoryInterfaceMod, only : ih_nh4uptake_scpf, ih_no3uptake_scpf, ih_puptake_scpf
   use FatesHistoryInterfaceMod, only : fates_hist
 
   ! CIME Globals
@@ -166,6 +164,8 @@ contains
     ! zero dynamics (upfreq_in = 1) output history variables
     call fates_hist%zero_site_hvars(currentSite,upfreq_in=1)
 
+    ! zero nutrient fluxes (upfreq_in=5) output hist variables
+    call fates_hist%zero_site_hvars(currentSite,upfreq_in=5)
 
     ! Call a routine that simply identifies if logging should occur
     ! This is limited to a global event until more structured event handling is enabled
@@ -340,6 +340,7 @@ contains
                                       ! note, this is not the target, but the actual
     real(r8) :: leaf_c_target         ! target leaf crabon [kg]
     real(r8) :: current_npp           ! place holder for calculating npp each year in prescribed physiology mode
+    real(r8) :: target_storec
     !-----------------------------------------------------------------------
     real(r8) :: frac_site_primary
 
@@ -351,8 +352,6 @@ contains
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
 
-       !print*,"PATCH"
-       
        currentPatch%age = currentPatch%age + hlm_freq_day
        ! FIX(SPM,032414) valgrind 'Conditional jump or move depends on uninitialised value'
        if( currentPatch%age  <  0._r8 )then
@@ -373,9 +372,8 @@ contains
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort))
 
-
           ft = currentCohort%pft
-
+          
           ! Calculate the mortality derivatives
           call Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary )
 
@@ -440,115 +438,56 @@ contains
           hite_old = currentCohort%hite
           dbh_old  = currentCohort%dbh
 
+          ! Plants can acquire N from 3 sources (excluding re-absorption),
+          ! the source doesn't affect how its allocated (yet), so they
+          ! are combined into daily_n_gain, which is the value used in the following
+          ! allocation scheme
+          
+          currentCohort%daily_n_gain = currentCohort%daily_nh4_uptake + &
+               currentCohort%daily_no3_uptake + currentCohort%daily_n_fixation
+
           ! -----------------------------------------------------------------------------
           ! Growth and Allocation (PARTEH)
           ! -----------------------------------------------------------------------------
-
-          
-
-          ! Update the moving average of actual L2FR
-          call bleaf(currentCohort%dbh,currentCohort%pft,currentCohort%canopy_trim,leaf_c_target)
-          if(currentCohort%prt%GetState(leaf_organ, carbon12_element)/leaf_c_target>0.01_r8)then
-
-             actual_l2fr = currentCohort%prt%GetState(fnrt_organ, carbon12_element) / &
-                  currentCohort%prt%GetState(leaf_organ, carbon12_element)
-
-             actual_l2fr = max(0.05_r8,min(10._r8,actual_l2fr))
-          
-             !!call currentCohort%l2fr_ema%UpdateRMean(actual_l2fr)
-          end if
+          currentCohort%resp_excess = 0._r8
           
           call currentCohort%prt%DailyPRT()
-          
-          ! Update the mass balance tracking for the daily nutrient uptake flux
-          ! Then zero out the daily uptakes, they have been used
+
+          ! Send any efflux/exudates to the labile litter pools in the HLM
           ! -----------------------------------------------------------------------------
-
-          if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp ) then
-
-             ! Mass balance for N uptake
-             currentSite%mass_balance(element_pos(nitrogen_element))%net_root_uptake = &
-                  currentSite%mass_balance(element_pos(nitrogen_element))%net_root_uptake + &
-                  (currentCohort%daily_nh4_uptake+currentCohort%daily_no3_uptake- &
-                  currentCohort%daily_n_efflux)*currentCohort%n
-
-             ! Mass balance for P uptake
-             currentSite%mass_balance(element_pos(phosphorus_element))%net_root_uptake = &
-                  currentSite%mass_balance(element_pos(phosphorus_element))%net_root_uptake + &
-                  (currentCohort%daily_p_uptake-currentCohort%daily_p_efflux)*currentCohort%n
-
-             ! mass balance for C efflux (if any)
-             currentSite%mass_balance(element_pos(carbon12_element))%net_root_uptake = &
-                  currentSite%mass_balance(element_pos(carbon12_element))%net_root_uptake - &
-                  currentCohort%daily_c_efflux*currentCohort%n
-
-             ! size class index
-             iscpf = currentCohort%size_by_pft_class
-
-             ! Diagnostics for uptake, by size and pft, [kgX/ha/day]
-
-             io_si  = currentSite%h_gid
-
-             fates_hist%hvars(ih_nh4uptake_scpf)%r82d(io_si,iscpf) =           &
-                  fates_hist%hvars(ih_nh4uptake_scpf)%r82d(io_si,iscpf) +      &
-                  currentCohort%daily_nh4_uptake*currentCohort%n /             &
-                  m2_per_ha / sec_per_day
-
-             fates_hist%hvars(ih_no3uptake_scpf)%r82d(io_si,iscpf) =           &
-                  fates_hist%hvars(ih_no3uptake_scpf)%r82d(io_si,iscpf) +      &
-                  currentCohort%daily_no3_uptake*currentCohort%n /             &
-                  m2_per_ha / sec_per_day
-
-             fates_hist%hvars(ih_puptake_scpf)%r82d(io_si,iscpf) =             &
-                  fates_hist%hvars(ih_puptake_scpf)%r82d(io_si,iscpf) +        &
-                  currentCohort%daily_p_uptake*currentCohort%n /               &
-                  m2_per_ha / sec_per_day
-
-             fates_hist%hvars(ih_nh4uptake_si)%r81d(io_si) =                   &
-                  fates_hist%hvars(ih_nh4uptake_si)%r81d(io_si)  +             &
-                  currentCohort%daily_nh4_uptake*currentCohort%n /             &
-                  m2_per_ha / sec_per_day
-
-             fates_hist%hvars(ih_no3uptake_si)%r81d(io_si) =                   &
-                  fates_hist%hvars(ih_no3uptake_si)%r81d(io_si)  +             &
-                  currentCohort%daily_no3_uptake*currentCohort%n /             &
-                  m2_per_ha / sec_per_day
-
-             fates_hist%hvars(ih_puptake_si)%r81d(io_si) =                     &
-                  fates_hist%hvars(ih_puptake_si)%r81d(io_si)  +               &
-                  currentCohort%daily_p_uptake*currentCohort%n /               &
-                  m2_per_ha / sec_per_day
+          
+          call EffluxIntoLitterPools(currentSite, currentPatch, currentCohort, bc_in )
 
 
-             ! Diagnostics on efflux, size and pft [kgX/ha/day]
-             currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_efflux_scpf(iscpf) = &
-                  currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_efflux_scpf(iscpf) + &
-                  currentCohort%daily_n_efflux*currentCohort%n
+          ! Update history diagnostics related to Nutrient fluxes and C efflux (if any)
+          ! -----------------------------------------------------------------------------
+          
+          call fates_hist%update_history_nutrflux(currentSite,currentPatch,currentCohort)
 
-             currentSite%flux_diags(element_pos(phosphorus_element))%nutrient_efflux_scpf(iscpf) = &
-                  currentSite%flux_diags(element_pos(phosphorus_element))%nutrient_efflux_scpf(iscpf) + &
-                  currentCohort%daily_p_efflux*currentCohort%n
 
-             currentSite%flux_diags(element_pos(carbon12_element))%nutrient_efflux_scpf(iscpf) = &
-                  currentSite%flux_diags(element_pos(carbon12_element))%nutrient_efflux_scpf(iscpf) + &
-                  currentCohort%daily_c_efflux*currentCohort%n
-
-             ! Diagnostics on plant nutrient need
-             currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_demand_scpf(iscpf) = &
-                  currentSite%flux_diags(element_pos(nitrogen_element))%nutrient_demand_scpf(iscpf) + &
-                  currentCohort%daily_n_demand*currentCohort%n
-
-             currentSite%flux_diags(element_pos(phosphorus_element))%nutrient_demand_scpf(iscpf) = &
-                  currentSite%flux_diags(element_pos(phosphorus_element))%nutrient_demand_scpf(iscpf) + &
-                  currentCohort%daily_p_demand*currentCohort%n
-
-          end if
-
+          currentCohort%daily_n_fixation = 0._r8
+          
+          ! Mass balance for N uptake
+          currentSite%mass_balance(element_pos(nitrogen_element))%net_root_uptake = &
+               currentSite%mass_balance(element_pos(nitrogen_element))%net_root_uptake + &
+               (currentCohort%daily_n_gain-currentCohort%daily_n_efflux)*currentCohort%n
+          
+          ! Mass balance for P uptake
+          currentSite%mass_balance(element_pos(phosphorus_element))%net_root_uptake = &
+               currentSite%mass_balance(element_pos(phosphorus_element))%net_root_uptake + &
+               (currentCohort%daily_p_uptake-currentCohort%daily_p_efflux)*currentCohort%n
+          
+          ! mass balance for C efflux (if any)
+          currentSite%mass_balance(element_pos(carbon12_element))%net_root_uptake = &
+               currentSite%mass_balance(element_pos(carbon12_element))%net_root_uptake - &
+               currentCohort%daily_c_efflux*currentCohort%n
+          
           ! And simultaneously add the input fluxes to mass balance accounting
           site_cmass%gpp_acc   = site_cmass%gpp_acc + &
                 currentCohort%gpp_acc * currentCohort%n
+
           site_cmass%aresp_acc = site_cmass%aresp_acc + &
-                currentCohort%resp_acc * currentCohort%n
+               (currentCohort%resp_acc+currentCohort%resp_excess) * currentCohort%n
 
           call currentCohort%prt%CheckMassConservation(ft,5)
 
@@ -885,12 +824,13 @@ contains
                         write(fates_log(),*) 'leaf: ',leaf_m,' structure: ',struct_m,' store: ',store_m
                         write(fates_log(),*) 'fineroot: ',fnrt_m,' repro: ',repro_m,' sapwood: ',sapw_m
                         write(fates_log(),*) 'num plant: ',currentCohort%n
-                        write(fates_log(),*) 'resp m def: ',currentCohort%resp_m_def*currentCohort%n
+                        write(fates_log(),*) 'resp excess: ',currentCohort%resp_excess*currentCohort%n
 
                         if(element_list(el).eq.nitrogen_element) then
                            write(fates_log(),*) 'NH4 uptake: ',currentCohort%daily_nh4_uptake*currentCohort%n
                            write(fates_log(),*) 'NO3 uptake: ',currentCohort%daily_no3_uptake*currentCohort%n
                            write(fates_log(),*) 'N efflux: ',currentCohort%daily_n_efflux*currentCohort%n
+                           write(fates_log(),*) 'N fixation: ',currentCohort%daily_n_fixation*currentCohort%n
                         elseif(element_list(el).eq.phosphorus_element) then
                            write(fates_log(),*) 'P uptake: ',currentCohort%daily_p_uptake*currentCohort%n
                            write(fates_log(),*) 'P efflux: ',currentCohort%daily_p_efflux*currentCohort%n

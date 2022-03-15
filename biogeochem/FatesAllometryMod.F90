@@ -1031,7 +1031,8 @@ contains
        case(1) ! Storage is constant proportionality of trimmed maximum leaf
           ! biomass (ie cushion * bleaf)
           
-          call bleaf(d,ipft,canopy_trim,bl,dbldd)
+          !call bleaf(d,ipft,canopy_trim,bl,dbldd)
+          call bleaf(d,ipft,1.0_r8,bl,dbldd)
           call bstore_blcushion(d,bl,dbldd,cushion,ipft,bstore,dbstoredd)
           
        case DEFAULT 

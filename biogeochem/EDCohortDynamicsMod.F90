@@ -65,6 +65,7 @@ module EDCohortDynamicsMod
   use FatesAllometryMod  , only : bagw_allom
   use FatesAllometryMod  , only : bbgw_allom
   use FatesAllometryMod  , only : bdead_allom
+  use FatesAllometryMod  , only : bstore_allom
   use FatesAllometryMod  , only : h_allom
   use FatesAllometryMod  , only : carea_allom
   use FatesAllometryMod  , only : ForceDBH
@@ -73,7 +74,6 @@ module EDCohortDynamicsMod
   use PRTGenericMod,          only : prt_carbon_allom_hyp
   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
   use PRTGenericMod,          only : prt_vartypes
-  use PRTGenericMod,          only : all_carbon_elements
   use PRTGenericMod,          only : carbon12_element
   use PRTGenericMod,          only : nitrogen_element
   use PRTGenericMod,          only : phosphorus_element
@@ -96,8 +96,8 @@ module EDCohortDynamicsMod
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_lstat, acnp_bc_inout_id_dbh
   !use PRTAllometricCNPMod,    only : acnp_bc_in_id_l2fr_ema
   use PRTAllometricCNPMod,    only : acnp_bc_inout_id_l2fr
-  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_rmaint_def, acnp_bc_in_id_netdc
-  use PRTAllometricCNPMod,    only : acnp_bc_in_id_netdnh4, acnp_bc_in_id_netdno3, acnp_bc_in_id_netdp
+  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_resp_excess, acnp_bc_in_id_netdc
+  use PRTAllometricCNPMod,    only : acnp_bc_in_id_netdn, acnp_bc_in_id_netdp
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_cefflux, acnp_bc_out_id_nefflux
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_pefflux
   use PRTAllometricCNPMod,    only : fnrt_adapt_tscl
@@ -428,13 +428,12 @@ contains
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_ctrim,bc_rval = new_cohort%canopy_trim)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_lstat,bc_ival = new_cohort%status_coh)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdc, bc_rval = new_cohort%npp_acc)
-       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdnh4, bc_rval = new_cohort%daily_nh4_uptake)
-       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdno3, bc_rval = new_cohort%daily_no3_uptake)
+       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdn, bc_rval = new_cohort%daily_n_gain)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdp, bc_rval = new_cohort%daily_p_uptake)
        !!call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_l2fr_ema, bc_rval = new_cohort%l2fr_ema%l_mean)
        
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_dbh,bc_rval = new_cohort%dbh)
-       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_rmaint_def,bc_rval = new_cohort%resp_m_def)
+       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_resp_excess,bc_rval = new_cohort%resp_excess)
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_l2fr,bc_rval = new_cohort%l2fr)
 
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_cefflux, bc_rval = new_cohort%daily_c_efflux)
@@ -587,6 +586,8 @@ contains
     ! Fluxes from nutrient allocation
     currentCohort%daily_nh4_uptake = nan
     currentCohort%daily_no3_uptake = nan
+    currentCohort%daily_n_gain     = nan
+    currentCohort%daily_n_fixation = nan
     currentCohort%daily_p_uptake = nan
     currentCohort%daily_c_efflux = nan
     currentCohort%daily_n_efflux = nan
@@ -601,7 +602,7 @@ contains
     !RESPIRATION
     currentCohort%rdark              = nan
     currentCohort%resp_m             = nan ! Maintenance respiration.  kGC/cohort/year
-    currentCohort%resp_m_def         = nan ! Maintenance respiration deficit kgC/plant
+    currentCohort%resp_excess        = nan ! Respiration of excess (unallocatable) carbon
     currentCohort%livestem_mr        = nan ! Live stem maintenance respiration. kgC/indiv/s-1
     currentCohort%livecroot_mr       = nan ! Coarse root maintenance respiration. kgC/indiv/s-1
     currentCohort%froot_mr           = nan ! Fine root maintenance respiration. kgC/indiv/s-1
@@ -658,7 +659,7 @@ contains
     currentCohort%status_coh         = 0
     currentCohort%rdark              = 0._r8
     currentCohort%resp_m             = 0._r8
-    currentCohort%resp_m_def         = 0._r8
+    currentCohort%resp_excess         = 0._r8
     currentCohort%resp_g_tstep       = 0._r8
     currentCohort%livestem_mr        = 0._r8
     currentCohort%livecroot_mr       = 0._r8
@@ -713,6 +714,11 @@ contains
     currentCohort%daily_p_demand = -9._r8
     currentCohort%daily_n_demand = -9._r8
 
+    ! Fixation is also integrated over the course of the day
+    ! and must be zeroid upon creation and after plant
+    ! resource allocation
+    currentCohort%daily_n_fixation = 0._r8
+    
 
   end subroutine zero_cohort
 
@@ -1075,7 +1081,8 @@ contains
      real(r8) :: dynamic_age_fusion_tolerance
      real(r8) :: dbh
      real(r8) :: leaf_c             ! leaf carbon [kg]
-
+     real(r8) :: target_storec      ! Target storage C
+     
      integer  :: largersc, smallersc, sc_i        ! indices for tracking the growth flux caused by fusion
      real(r8) :: larger_n, smaller_n
      integer  :: oldercacls, youngercacls, cacls_i ! indices for tracking the age flux caused by fusion
@@ -1281,7 +1288,7 @@ contains
 
                                             call ForceDBH( currentCohort%pft, currentCohort%canopy_trim, &
                                                  currentCohort%dbh, currentCohort%hite, &
-                                                 bdead = currentCohort%prt%GetState(struct_organ,all_carbon_elements))
+                                                 bdead = currentCohort%prt%GetState(struct_organ,carbon12_element))
 
                                          end if
                                          !
@@ -1318,7 +1325,7 @@ contains
                                       if( prt_params%woody(currentCohort%pft) == itrue ) then
                                          call ForceDBH( currentCohort%pft, currentCohort%canopy_trim, &
                                               currentCohort%dbh, currentCohort%hite, &
-                                              bdead = currentCohort%prt%GetState(struct_organ,all_carbon_elements))
+                                              bdead = currentCohort%prt%GetState(struct_organ,carbon12_element))
 
                                       end if
                                       !
@@ -1330,7 +1337,7 @@ contains
                                       call endrun(msg=errMsg(sourcefile, __LINE__))
                                    end select
 
-                                   leaf_c = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
+                                   leaf_c = currentCohort%prt%GetState(leaf_organ,carbon12_element)
 
                                    currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, newn, &
                                         currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, &
@@ -1412,11 +1419,8 @@ contains
                                            (currentCohort%n*currentCohort%gpp_acc_hold + &
                                            nextc%n*nextc%gpp_acc_hold)/newn
 
-                                      ! This carbon variable needs continuity from day to day, as resp_m_def
-                                      ! needs to hold mass and be conservative
-
-                                      currentCohort%resp_m_def = (currentCohort%n*currentCohort%resp_m_def + &
-                                           nextc%n*nextc%resp_m_def)/newn
+                                      currentCohort%resp_excess = (currentCohort%n*currentCohort%resp_excess + &
+                                           nextc%n*nextc%resp_excess)/newn
 
                                       currentCohort%dmort          = (currentCohort%n*currentCohort%dmort       + &
                                            nextc%n*nextc%dmort)/newn
@@ -1437,9 +1441,16 @@ contains
                                            nextc%n*nextc%daily_nh4_uptake)/newn
                                       currentCohort%daily_no3_uptake = (currentCohort%n*currentCohort%daily_no3_uptake + &
                                            nextc%n*nextc%daily_no3_uptake)/newn
+                                      currentCohort%daily_n_fixation = (currentCohort%n*currentCohort%daily_n_fixation + &
+                                           nextc%n*nextc%daily_n_fixation)/newn
+                                      currentCohort%daily_n_gain = (currentCohort%n*currentCohort%daily_n_gain + &
+                                           nextc%n*nextc%daily_n_gain)/newn
+                                      
                                       currentCohort%daily_p_uptake = (currentCohort%n*currentCohort%daily_p_uptake + &
                                            nextc%n*nextc%daily_p_uptake)/newn
-
+                                      
+                                      
+                                      
                                       currentCohort%daily_p_demand = (currentCohort%n*currentCohort%daily_p_demand + &
                                            nextc%n*nextc%daily_p_demand)/newn
                                       currentCohort%daily_n_demand = (currentCohort%n*currentCohort%daily_n_demand + &
@@ -1854,6 +1865,8 @@ contains
 
     n%daily_nh4_uptake = o%daily_nh4_uptake
     n%daily_no3_uptake = o%daily_no3_uptake
+    n%daily_n_fixation = o%daily_n_fixation
+    n%daily_n_gain     = o%daily_n_gain
     n%daily_p_uptake = o%daily_p_uptake
     n%daily_c_efflux = o%daily_c_efflux
     n%daily_n_efflux = o%daily_n_efflux
@@ -1868,7 +1881,7 @@ contains
     !RESPIRATION
     n%rdark           = o%rdark
     n%resp_m          = o%resp_m
-    n%resp_m_def      = o%resp_m_def
+    n%resp_excess     = o%resp_excess
     n%resp_g_tstep    = o%resp_g_tstep
     n%livestem_mr     = o%livestem_mr
     n%livecroot_mr    = o%livecroot_mr
@@ -1993,7 +2006,7 @@ contains
 
        do iage = 1, nleafage
           frac_leaf_aclass(iage) = &
-                currentCohort%prt%GetState(leaf_organ, all_carbon_elements,iage)
+                currentCohort%prt%GetState(leaf_organ, carbon12_element,iage)
        end do
 
        ! If there are leaves, then perform proportional weighting on the four rates
@@ -2080,7 +2093,7 @@ contains
 
     if( int(prt_params%woody(currentCohort%pft)) == itrue) then
 
-       struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
+       struct_c = currentCohort%prt%GetState(struct_organ, carbon12_element)
 
        ! Target sapwood biomass according to allometry and trimming [kgC]
        call bsap_allom(dbh,ipft,canopy_trim,sapw_area,target_sapw_c)
@@ -2111,7 +2124,7 @@ contains
     else
 
        ! This returns the sum of leaf carbon over all (age) bins
-       leaf_c  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+       leaf_c  = currentCohort%prt%GetState(leaf_organ, carbon12_element)
 
        ! Target leaf biomass according to allometry and trimming
        call bleaf(dbh,ipft,canopy_trim,target_leaf_c)

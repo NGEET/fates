@@ -19,9 +19,8 @@ module EDMortalityFunctionsMod
    use FatesInterfaceTypesMod     , only : hlm_use_planthydro
    use EDLoggingMortalityMod , only : LoggingMortality_frac
    use EDParamsMod           , only : fates_mortality_disturbance_fraction
-
-   use PRTGenericMod,          only : all_carbon_elements
    use PRTGenericMod,          only : store_organ
+   use PRTGenericMod,          only : carbon12_element
 
    implicit none
    private
@@ -150,7 +149,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     if ( cohort_in%dbh  >  0._r8 ) then
 
        call bleaf(cohort_in%dbh,cohort_in%pft,cohort_in%canopy_trim,leaf_c_target)
-       store_c = cohort_in%prt%GetState(store_organ,all_carbon_elements)
+       store_c = cohort_in%prt%GetState(store_organ,carbon12_element)
 
        call storage_fraction_of_target(leaf_c_target, store_c, frac)
        if( frac .lt. 1._r8) then
