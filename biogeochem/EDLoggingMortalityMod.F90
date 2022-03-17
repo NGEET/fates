@@ -1089,6 +1089,11 @@ contains
       ! Harvested C flux in HLM.
       ! ----------------------------------------------------------------------------------
       use EDtypesMod             , only : ed_site_type
+      use EDTypesMod             , only : AREA_INV
+      use PRTGenericMod          , only : element_pos
+      use PRTGenericMod          , only : carbon12_element
+      use EDParamsMod            , only : pprodharv10_forest_mean
+
       use FatesInterfaceTypesMod , only : bc_in_type, bc_out_type
   
       ! Arguments
