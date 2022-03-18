@@ -821,7 +821,7 @@ contains
       ! Harvested C flux in HLM.
       ! ----------------------------------------------------------------------------------
       use EDtypesMod             , only : ed_site_type
-      use EDTypesMod           , only : AREA_INV
+      use EDTypesMod             , only : AREA_INV
       use PRTGenericMod          , only : element_pos
       use PRTGenericMod          , only : carbon12_element
       use FatesInterfaceTypesMod , only : bc_out_type
@@ -836,40 +836,11 @@ contains
   
 
       ! Flush the older value before update
-      if(logging_time) then
-         bc_out%hrv_deadstemc_to_prod10c = 0._r8
-         bc_out%hrv_deadstemc_to_prod100c = 0._r8
-      end if
+      bc_out%hrv_deadstemc_to_prod10c = 0._r8
+      bc_out%hrv_deadstemc_to_prod100c = 0._r8
   
-      ! First test tropic forest (PFT=1)
       ! Calculate the unit transfer factor (from kgC m-2 day-1 to gC m-2 s-1)
-      ! for icode == 2, icode < 0, and icode > 10000 is one time harvest, thus
-      ! shall distribute into everyday
-      icode = int(logging_event_code)
-      if(icode .eq. 1) then
-         ! Logging is turned off
-         unit_trans_factor = 1._r8
-      else if(icode .eq. 3) then
-         ! Logging event every day - this may not work due to the mortality exclusivity
-         unit_trans_factor = 1000._r8 * days_per_sec
-      else if(icode .eq. 4) then
-         ! Logging event once a month
-         ! Shijie: Shall think about a better if expreession?
-         if ((hlm_current_month == 1) .or. (hlm_current_month == 3) .or. &
-             (hlm_current_month == 5) .or. (hlm_current_month == 7) .or. &
-             (hlm_current_month == 8) .or. (hlm_current_month == 10) .or. &
-             (hlm_current_month == 12)) then
-            unit_trans_factor = 1000._r8 * days_per_sec / 31._r8
-        else if((hlm_current_month == 4) .or. (hlm_current_month == 6) .or. &
-            (hlm_current_month == 9) .or. (hlm_current_month == 11)) then
-            unit_trans_factor = 1000._r8 * days_per_sec / 30._r8
-        else
-            unit_trans_factor = 1000._r8 * days_per_sec / 28._r8
-        end if
-      else
-         ! Logging event one time every year
-         unit_trans_factor = 1000._r8 * days_per_sec * years_per_day
-      end if
+      unit_trans_factor = 1000._r8 * days_per_sec
 
       bc_out%hrv_deadstemc_to_prod10c = bc_out%hrv_deadstemc_to_prod10c + &
           currentSite%mass_balance(element_pos(carbon12_element))%wood_product * &
