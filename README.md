@@ -1,4 +1,5 @@
-# FATES
+
+![FATES_logo](https://user-images.githubusercontent.com/10852790/159047944-ddf920d0-62f7-45a4-ad58-bcee2daada19.png)
 ------------------------------
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3825473.svg)](https://doi.org/10.5281/zenodo.3825473)
 
