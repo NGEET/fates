@@ -23,6 +23,7 @@ module EDCanopyStructureMod
   use EDTypesMod            , only : nclmax
   use EDTypesMod            , only : nlevleaf
   use EDtypesMod            , only : AREA
+  use EDLoggingMortalityMod , only : UpdateHarvestC
   use FatesGlobals          , only : endrun => fates_endrun
   use FatesInterfaceTypesMod     , only : hlm_days_per_year
   use FatesInterfaceTypesMod     , only : hlm_use_planthydro
@@ -1891,7 +1892,7 @@ contains
 
   ! ======================================================================================
 
-  subroutine update_hlm_dynamics(nsites,sites,fcolumn,bc_out)
+  subroutine update_hlm_dynamics(nsites,sites,fcolumn,bc_in,bc_out)
 
     ! ----------------------------------------------------------------------------------
     ! The purpose of this routine is to package output boundary conditions related
@@ -2110,6 +2111,9 @@ contains
           call UpdateH2OVeg(sites(s),bc_out(s),bc_out(s)%plant_stored_h2o_si,1)
        end if
 
+       ! Pass FATES Harvested C to bc_out.
+       call UpdateHarvestC(sites(s),bc_in(s),bc_out(s))
+        
     end do
 
     ! This call to RecruitWaterStorage() makes an accounting of
@@ -2122,7 +2126,6 @@ contains
     if (hlm_use_planthydro.eq.itrue) then
        call RecruitWaterStorage(nsites,sites,bc_out)
     end if
-
 
   end subroutine update_hlm_dynamics
 

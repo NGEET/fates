@@ -206,7 +206,8 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
 
  ! ============================================================================
 
- subroutine Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary)
+ subroutine Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary, &
+         harvestable_forest_c, available_forest_c, harvest_tag)
 
     !
     ! !DESCRIPTION:
@@ -215,7 +216,6 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     ! elsewhere).
     !
     ! !USES:
-
     use FatesInterfaceTypesMod, only : hlm_freq_day
     !
     ! !ARGUMENTS    
@@ -223,6 +223,10 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     type(ed_cohort_type),intent(inout), target :: currentCohort
     type(bc_in_type), intent(in)               :: bc_in
     real(r8), intent(in)                       :: frac_site_primary
+    real(r8), intent(in) :: harvestable_forest_c(:)
+    real(r8), intent(in) :: available_forest_c(:)
+    integer,  intent(inout) :: harvest_tag(:)
+
     !
     ! !LOCAL VARIABLES:
     real(r8) :: cmort    ! starvation mortality rate (fraction per year)
@@ -233,6 +237,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     real(r8) :: asmort   ! age dependent senescence mortality rate (fraction per year)
     real(r8) :: dndt_logging      ! Mortality rate (per day) associated with the a logging event
     integer  :: ipft              ! local copy of the pft index
+
     !----------------------------------------------------------------------
 
     ipft = currentCohort%pft
@@ -250,10 +255,11 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
                                bc_in%hlm_harvest_units, &
                                currentCohort%patchptr%anthro_disturbance_label, &
                                currentCohort%patchptr%age_since_anthro_disturbance, &
-                               frac_site_primary)
+                               frac_site_primary, &
+                               harvestable_forest_c, &
+                               available_forest_c, &
+                               harvest_tag)
 
-    
-    
 
     if (currentCohort%canopy_layer > 1)then 
        ! Include understory logging mortality rates not associated with disturbance

@@ -280,6 +280,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_fall_disturbance_rate_si
   integer :: ih_potential_disturbance_rate_si
   integer :: ih_harvest_carbonflux_si
+  integer :: ih_harvest_debt_si
 
   ! Indices to site by size-class by age variables
   integer :: ih_nplant_si_scag
@@ -1841,6 +1842,7 @@ end subroutine flush_hvars
                hio_fall_disturbance_rate_si      => this%hvars(ih_fall_disturbance_rate_si)%r81d, &
                hio_potential_disturbance_rate_si => this%hvars(ih_potential_disturbance_rate_si)%r81d, &
                hio_harvest_carbonflux_si => this%hvars(ih_harvest_carbonflux_si)%r81d, &
+               hio_harvest_debt_si     => this%hvars(ih_harvest_debt_si)%r81d, &
                hio_gpp_si_scpf         => this%hvars(ih_gpp_si_scpf)%r82d, &
                hio_npp_totl_si_scpf    => this%hvars(ih_npp_totl_si_scpf)%r82d, &
                hio_npp_leaf_si_scpf    => this%hvars(ih_npp_leaf_si_scpf)%r82d, &
@@ -2108,6 +2110,8 @@ end subroutine flush_hvars
          this%hvars(ih_h2oveg_recruit_si)%r81d(io_si)      = sites(s)%si_hydr%h2oveg_recruit
          this%hvars(ih_h2oveg_growturn_err_si)%r81d(io_si) = sites(s)%si_hydr%h2oveg_growturn_err
       end if
+      hio_harvest_carbonflux_si(io_si) = sites(s)%harvest_carbon_flux
+      hio_harvest_debt_si(io_si) = sites(s)%resources_management%harvest_debt
 
       ! error in primary lands from patch fusion [m2 m-2 day-1] -> [m2 m-2 yr-1]
       hio_primaryland_fusion_error_si(io_si) = sites(s)%primary_land_patchfusion_error * days_per_year
@@ -5130,12 +5134,75 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2, &
          ivar=ivar, initialize=initialize_variables, index = ih_tveg_si )
     
-   ! radiation error
+    ! radiation error
 
-   call this%set_history_var(vname='FATES_RAD_ERROR', units='W m-2 ',          &
+    call this%set_history_var(vname='FATES_RAD_ERROR', units='W m-2 ',          &
          long='radiation error in FATES RTM', use_default='active',            &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,                 &
          ivar=ivar, initialize=initialize_variables, index = ih_rad_error_si)
+
+    ! disturbance rates
+    call this%set_history_var(vname='PRIMARYLAND_PATCHFUSION_ERROR', units='m2 m-2 d-1',                   &
+         long='Error in total primary lands associated with patch fusion',  use_default='active',     &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_primaryland_fusion_error_si )
+
+    call this%set_history_var(vname='DISTURBANCE_RATE_P2P', units='m2 m-2 d-1',                   &
+         long='Disturbance rate from primary to primary lands',  use_default='active',     &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_disturbance_rate_p2p_si )
+
+    call this%set_history_var(vname='DISTURBANCE_RATE_P2S', units='m2 m-2 d-1',                   &
+         long='Disturbance rate from primary to secondary lands',  use_default='active',     &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_disturbance_rate_p2s_si )
+
+    call this%set_history_var(vname='DISTURBANCE_RATE_S2S', units='m2 m-2 d-1',                   &
+         long='Disturbance rate from secondary to secondary lands',  use_default='active',     &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_disturbance_rate_s2s_si )
+
+    call this%set_history_var(vname='DISTURBANCE_RATE_FIRE', units='m2 m-2 d-1',                   &
+         long='Disturbance rate from fire',  use_default='active',     &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_fire_disturbance_rate_si )
+
+    call this%set_history_var(vname='DISTURBANCE_RATE_LOGGING', units='m2 m-2 d-1',                   &
+         long='Disturbance rate from logging',  use_default='active',     &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_logging_disturbance_rate_si )
+
+    call this%set_history_var(vname='DISTURBANCE_RATE_TREEFALL', units='m2 m-2 d-1',                   &
+         long='Disturbance rate from treefall',  use_default='active',     &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_fall_disturbance_rate_si )
+
+    call this%set_history_var(vname='DISTURBANCE_RATE_POTENTIAL', units='m2 m-2 d-1',                   &
+         long='Potential (i.e., including unresolved) disturbance rate',  use_default='active',     &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_potential_disturbance_rate_si )
+
+    call this%set_history_var(vname='HARVEST_CARBON_FLUX', units='kg C m-2 d-1',                   &
+         long='Harvest carbon flux',  use_default='active',     &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_harvest_carbonflux_si )
+
+    call this%set_history_var(vname='HARVEST_DEBT', units='kg C',                   &
+         long='Accumulated carbon failed to be harvested',  use_default='active',     &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_harvest_debt_si )
+
+    ! Canopy Resistance 
+
+    call this%set_history_var(vname='C_STOMATA', units='umol m-2 s-1',                   &
+         long='mean stomatal conductance', use_default='active',                   &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_c_stomata_si )
+
+    call this%set_history_var(vname='C_LBLAYER', units='umol m-2 s-1',                   &
+         long='mean leaf boundary layer conductance', use_default='active',                   &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_c_lblayer_si )
 
 
     ! Ecosystem Carbon Fluxes (updated rapidly, upfreq=2)

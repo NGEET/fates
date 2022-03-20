@@ -120,6 +120,12 @@ module FatesInterfaceTypesMod
                                                          ! If 1, it automatically sets
                                                          ! hlm_use_logging to 1
 
+   integer, public :: hlm_harvest_bypass_criteria  ! This flag signals whether or not to bypass the logging criteria
+                                                   ! when using carbon-based harvest and all available forest C under 
+                                                   ! criteria are not enough 
+                                                   ! 0 = do not bypass criteria
+                                                   ! 1 = allow to bypass the criteria
+
    integer, public :: hlm_num_lu_harvest_cats    ! number of hlm harvest categories (e.g. primary forest harvest, secondary young forest harvest, etc.)
                                                          ! this is the first dimension of:
                                                          ! harvest_rates in dynHarvestMod
@@ -515,6 +521,10 @@ module FatesInterfaceTypesMod
       character(len=64), allocatable :: hlm_harvest_catnames(:)  ! names of hlm_harvest d1
 
       integer :: hlm_harvest_units  ! what units are the harvest rates specified in? [area vs carbon]
+    
+      real(r8) :: pprodharv10_forest_mean  ! harvest mortality proportion of deadstem to 10-yr pool
+
+      real(r8) :: site_area    ! Actual area of current site [m2], only used in carbon-based harvest
 
       ! Fixed biogeography mode 
       real(r8), allocatable :: pft_areafrac(:)     ! Fractional area of the FATES column occupied by each PFT  
@@ -697,6 +707,9 @@ module FatesInterfaceTypesMod
                                                        ! small fluxes for various reasons
                                                        ! [mm H2O/s]
 
+      ! FATES LULCC
+      real(r8) :: hrv_deadstemc_to_prod10c   ! Harvested C flux to 10-yr wood product pool [Site-Level, gC m-2 s-1]
+      real(r8) :: hrv_deadstemc_to_prod100c  ! Harvested C flux to 100-yr wood product pool [Site-Level, gC m-2 s-1]
 
    end type bc_out_type
 
