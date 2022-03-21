@@ -1,5 +1,5 @@
 
-![FATES_logo](.github/images/fates_logo.png)
+![FATES_logo](.github/images/logo_fates_small.png)
 ------------------------------
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3825473.svg)](https://doi.org/10.5281/zenodo.3825473)
 
