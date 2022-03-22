@@ -1031,6 +1031,7 @@ contains
        allocate( fates_hdim_pfmap_levcapf(1:nlevcoage*numpft))
        allocate( fates_hdim_camap_levcapf(1:nlevcoage*numpft))
 
+       allocate( fates_hdim_levcdam(1:ncrowndamage ))
        allocate( fates_hdim_scmap_levcdsc(nlevsclass*ncrowndamage))
        allocate( fates_hdim_cdmap_levcdsc(nlevsclass*ncrowndamage))
        allocate( fates_hdim_scmap_levcdpf(nlevsclass*ncrowndamage * numpft))
