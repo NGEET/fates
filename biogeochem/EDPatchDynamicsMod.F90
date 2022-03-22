@@ -474,7 +474,7 @@ contains
     use ChecksBalancesMod   , only : SiteMassStock
     use FatesInterfaceTypesMod, only : hlm_use_canopy_damage
     use FatesInterfaceTypesMod, only : hlm_use_understory_damage
-    use FatesInterfaceTypesMod, only : ncrowndamage
+    use FatesInterfaceTypesMod, only : nlevdamage
     use FatesParameterDerivedMod, only : param_derived
     
     !
@@ -1264,7 +1264,7 @@ contains
                             cd_n_total = 0.0_r8
 
                             ! for each damage class find the number density and if big enough allocate a new cohort
-                            do cd = currentCohort%crowndamage+1, ncrowndamage
+                            do cd = currentCohort%crowndamage+1, nlevdamage
 
                                call get_damage_frac(currentCohort%crowndamage, cd, currentCohort%pft, cd_frac)
 
@@ -2377,7 +2377,7 @@ contains
     use DamageMainMod,     only : get_crown_reduction
     use DamageMainMod    , only : get_damage_frac
     use SFParamsMod      , only : SF_val_cwd_frac
-    use FatesInterfaceTypesMod , only : ncrowndamage
+    use FatesInterfaceTypesMod , only : nlevdamage
     use EDParamsMod      , only : ED_val_understorey_death
     use FatesInterfaceTypesMod, only : hlm_use_canopy_damage
     use FatesInterfaceTypesMod, only : hlm_use_understory_damage
@@ -2511,7 +2511,7 @@ contains
 
            
 
-             do cd = currentCohort%crowndamage+1, ncrowndamage
+             do cd = currentCohort%crowndamage+1, nlevdamage
 
                 call get_damage_frac(currentCohort%crowndamage, cd, currentCohort%pft, cd_frac)
 

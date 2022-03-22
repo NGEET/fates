@@ -50,7 +50,7 @@ Module FatesHistoryInterfaceMod
   use FatesInterfaceTypesMod        , only : bc_in_type
   use FatesInterfaceTypesMod        , only : hlm_model_day
   use FatesInterfaceTypesMod        , only : nlevcoage
-  use FatesInterfaceTypesMod        , only : ncrowndamage
+  use FatesInterfaceTypesMod        , only : nlevdamage
   use FatesInterfaceTypesMod        , only : hlm_use_nocomp
   use FatesAllometryMod             , only : CrownDepth
 
@@ -1808,7 +1808,7 @@ end subroutine flush_hvars
     use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
     use EDTypesMod        , only : nlevleaf
     use EDParamsMod,           only : ED_val_history_height_bin_edges
-    use FatesInterfaceTypesMod, only : ncrowndamage
+    use FatesInterfaceTypesMod, only : nlevdamage
     use DamageMainMod         , only : damage_time
 
     ! Arguments
@@ -3272,12 +3272,12 @@ end subroutine flush_hvars
            hlm_use_understory_damage .eq. itrue ) then
 
          do i_pft = 1, numpft
-            do icdam = 1, ncrowndamage
+            do icdam = 1, nlevdamage
                do i_scls = 1,nlevsclass
 
                   icdsc = (icdam-1)*nlevsclass + i_scls
                   icdpf = (icdam-1)*nlevsclass + i_scls + &
-                       (i_pft-1) * nlevsclass * ncrowndamage
+                       (i_pft-1) * nlevsclass * nlevdamage
 
                   this%hvars(ih_mortality_si_cdpf)%r82d(io_si, icdpf) = &
                        this%hvars(ih_mortality_si_cdpf)%r82d(io_si, icdpf) + &

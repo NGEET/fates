@@ -33,7 +33,7 @@ module FatesRestartInterfaceMod
   use EDCohortDynamicsMod,     only : InitPRTBoundaryConditions
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesInterfaceTypesMod,       only : nlevsclass
-  use FatesInterfaceTypesMod,  only : ncrowndamage
+  use FatesInterfaceTypesMod,  only : nlevdamage
   use FatesLitterMod,          only : litter_type
   use FatesLitterMod,          only : ncwd
   use FatesLitterMod,          only : ndcmpy
@@ -1797,7 +1797,7 @@ contains
    use EDTypesMod, only : nclmax
    use EDTypesMod, only : numWaterMem
    use EDTypesMod, only : num_vegtemp_mem
-   use FatesInterfaceTypesMod, only : ncrowndamage
+   use FatesInterfaceTypesMod, only : nlevdamage
 
     ! Arguments
     class(fates_restart_interface_type)             :: this
@@ -2372,7 +2372,7 @@ contains
           if(hlm_use_canopy_damage .eq. itrue .or. hlm_use_understory_damage .eq. itrue) then
              
              do i_scls = 1, nlevsclass
-                do i_cdam = 1, ncrowndamage
+                do i_cdam = 1, nlevdamage
                    do i_pft = 1, numpft 
                       rio_imortrate_sicdpf(io_idx_si_cdpf)       = sites(s)%imort_rate_damage(i_cdam, i_scls, i_pft)
                       rio_termnindiv_cano_sicdpf(io_idx_si_cdpf) = sites(s)%term_nindivs_canopy_damage(i_cdam,i_scls,i_pft)
@@ -3297,7 +3297,7 @@ contains
           end do
           
           if (hlm_use_canopy_damage .eq. itrue .or. hlm_use_understory_damage .eq. itrue) then
-             do i_cdam = 1, ncrowndamage
+             do i_cdam = 1, nlevdamage
                 do i_pft = 1, numpft
                    do i_scls = 1, nlevsclass
                       sites(s)%imort_rate_damage(i_cdam, i_scls, i_pft)   = rio_imortrate_sicdpf(io_idx_si_cdpf)

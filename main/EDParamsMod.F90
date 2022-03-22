@@ -44,7 +44,6 @@ module EDParamsMod
    real(r8),protected, public :: ED_val_init_litter
    real(r8),protected, public :: ED_val_nignitions
    real(r8),protected, public :: ED_val_understorey_death
-   real(r8),protected, public :: ED_val_ncrowndamage
    real(r8),protected, public :: ED_val_cwd_fcel
    real(r8),protected, public :: ED_val_cwd_flig
    real(r8),protected, public :: ED_val_base_mr_20
@@ -88,7 +87,8 @@ module EDParamsMod
    real(r8),protected,allocatable,public :: ED_val_history_ageclass_bin_edges(:)
    real(r8),protected,allocatable,public :: ED_val_history_height_bin_edges(:)
    real(r8),protected,allocatable,public :: ED_val_history_coageclass_bin_edges(:)
-
+   real(r8),protected,allocatable,public :: ED_val_history_damage_bin_edges(:)
+   
    ! Switch that defines the current pressure-volume and pressure-conductivity model
    ! to be used at each node (compartment/organ)
    ! 1  = Christofferson et al. 2016 (TFS),   2 = Van Genuchten 1980
@@ -115,7 +115,6 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_init_litter = "fates_init_litter"
    character(len=param_string_length),parameter,public :: ED_name_nignitions = "fates_fire_nignitions"
    character(len=param_string_length),parameter,public :: ED_name_understorey_death = "fates_mort_understorey_death"
-   character(len=param_string_length),parameter,public :: ED_name_ncrowndamage = 'fates_ncrowndamage'
    character(len=param_string_length),parameter,public :: ED_name_cwd_fcel= "fates_cwd_fcel"   
    character(len=param_string_length),parameter,public :: ED_name_cwd_flig= "fates_cwd_flig"   
    character(len=param_string_length),parameter,public :: ED_name_base_mr_20= "fates_base_mr_20"   
@@ -146,7 +145,7 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_history_height_bin_edges= "fates_history_height_bin_edges"
   
    character(len=param_string_length),parameter,public :: ED_name_history_coageclass_bin_edges = "fates_history_coageclass_bin_edges"
-
+   character(len=param_string_length),parameter,public :: ED_name_history_damage_bin_edges = "fates_history_damage_bin_edges"
 
    ! Hydraulics Control Parameters (ONLY RELEVANT WHEN USE_FATES_HYDR = TRUE)
    ! ----------------------------------------------------------------------------------------------
@@ -238,7 +237,6 @@ contains
     ED_val_init_litter                    = nan
     ED_val_nignitions                     = nan
     ED_val_understorey_death              = nan
-    ED_val_ncrowndamage                   = nan
     ED_val_cwd_fcel                       = nan
     ED_val_cwd_flig                       = nan
     ED_val_base_mr_20                     = nan
@@ -286,7 +284,7 @@ contains
     use FatesParametersInterface, only : fates_parameters_type, dimension_name_scalar, dimension_shape_1d
     use FatesParametersInterface, only : dimension_name_history_size_bins, dimension_name_history_age_bins
     use FatesParametersInterface, only : dimension_name_history_height_bins, dimension_name_hydr_organs
-    use FatesParametersInterface, only : dimension_name_history_coage_bins
+    use FatesParametersInterface, only : dimension_name_history_coage_bins, dimension_name_history_damage_bins
     use FatesParametersInterface, only : dimension_shape_scalar
 
     implicit none
@@ -298,6 +296,7 @@ contains
     character(len=param_string_length), parameter :: dim_names_ageclass(1) = (/dimension_name_history_age_bins/)
     character(len=param_string_length), parameter :: dim_names_height(1) = (/dimension_name_history_height_bins/)
     character(len=param_string_length), parameter :: dim_names_coageclass(1) = (/dimension_name_history_coage_bins/)
+    character(len=param_string_length), parameter :: dim_names_damageclass(1)= (/dimension_name_history_damage_bins/)
     character(len=param_string_length), parameter :: dim_names_hydro_organs(1) = (/dimension_name_hydr_organs/)
        
     call FatesParamsInit()
@@ -337,10 +336,7 @@ contains
 
     call fates_params%RegisterParameter(name=ED_name_understorey_death, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=ED_name_ncrowndamage, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-    
+ 
     call fates_params%RegisterParameter(name=ED_name_cwd_fcel, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
@@ -469,6 +465,9 @@ contains
     call fates_params%RegisterParameter(name=ED_name_history_coageclass_bin_edges, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names_coageclass)
 
+    call fates_params%RegisterParameter(name=ED_name_history_damage_bin_edges, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_damageclass)
+
 
   end subroutine FatesRegisterParams
 
@@ -516,9 +515,6 @@ contains
 
     call fates_params%RetreiveParameter(name=ED_name_understorey_death, &
          data=ED_val_understorey_death)
-
-    call fates_params%RetreiveParameter(name=ED_name_ncrowndamage, &
-         data=ED_val_ncrowndamage)
 
     call fates_params%RetreiveParameter(name=ED_name_cwd_fcel, &
          data=ED_val_cwd_fcel)
@@ -652,6 +648,9 @@ contains
     call fates_params%RetreiveParameterAllocate(name=ED_name_history_coageclass_bin_edges, &
          data=ED_val_history_coageclass_bin_edges)
 
+    call fates_params%RetreiveParameterAllocate(name=ED_name_history_damage_bin_edges, &
+         data=ED_val_history_damage_bin_edges)
+
     call fates_params%RetreiveParameterAllocate(name=ED_name_hydr_htftype_node, &
          data=hydr_htftype_real)
     allocate(hydr_htftype_node(size(hydr_htftype_real)))
@@ -684,7 +683,6 @@ contains
         write(fates_log(),fmt0) 'ED_val_init_litter = ',ED_val_init_litter
         write(fates_log(),fmt0) 'ED_val_nignitions = ',ED_val_nignitions
         write(fates_log(),fmt0) 'ED_val_understorey_death = ',ED_val_understorey_death
-        write(fates_log(),fmt0) 'ED_val_ncrowndamage = ', ED_val_ncrowndamage
         write(fates_log(),fmt0) 'ED_val_cwd_fcel = ',ED_val_cwd_fcel
         write(fates_log(),fmt0) 'ED_val_cwd_flig = ',ED_val_cwd_flig
         write(fates_log(),fmt0) 'ED_val_base_mr_20 = ', ED_val_base_mr_20

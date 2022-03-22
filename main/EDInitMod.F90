@@ -50,7 +50,7 @@ module EDInitMod
   use FatesInterfaceTypesMod         , only : nleafage
   use FatesInterfaceTypesMod         , only : nlevsclass
   use FatesInterfaceTypesMod         , only : nlevcoage
-  use FatesInterfaceTypesMod         , only : ncrowndamage
+  use FatesInterfaceTypesMod         , only : nlevdamage
   use FatesInterfaceTypesMod         , only : hlm_use_nocomp
   use FatesInterfaceTypesMod         , only : nlevage
 
@@ -132,16 +132,16 @@ contains
     allocate(site_in%flux_diags(1:num_elements))
 
     if (hlm_use_canopy_damage .eq. itrue .or. hlm_use_understory_damage .eq. itrue) then 
-       allocate(site_in%term_nindivs_canopy_damage(1:ncrowndamage, 1:nlevsclass, 1:numpft))
-       allocate(site_in%term_nindivs_ustory_damage(1:ncrowndamage, 1:nlevsclass, 1:numpft))
-       allocate(site_in%imort_rate_damage(1:ncrowndamage, 1:nlevsclass, 1:numpft))
-       allocate(site_in%imort_cflux_damage(1:ncrowndamage, 1:nlevsclass))
-       allocate(site_in%term_cflux_canopy_damage(1:ncrowndamage, 1:nlevsclass))
-       allocate(site_in%term_cflux_ustory_damage(1:ncrowndamage, 1:nlevsclass))
-       allocate(site_in%fmort_rate_canopy_damage(1:ncrowndamage, 1:nlevsclass, 1:numpft))
-       allocate(site_in%fmort_rate_ustory_damage(1:ncrowndamage, 1:nlevsclass, 1:numpft)) 
-       allocate(site_in%fmort_cflux_canopy_damage(1:ncrowndamage, 1:nlevsclass))
-       allocate(site_in%fmort_cflux_ustory_damage(1:ncrowndamage, 1:nlevsclass)) 
+       allocate(site_in%term_nindivs_canopy_damage(1:nlevdamage, 1:nlevsclass, 1:numpft))
+       allocate(site_in%term_nindivs_ustory_damage(1:nlevdamage, 1:nlevsclass, 1:numpft))
+       allocate(site_in%imort_rate_damage(1:nlevdamage, 1:nlevsclass, 1:numpft))
+       allocate(site_in%imort_cflux_damage(1:nlevdamage, 1:nlevsclass))
+       allocate(site_in%term_cflux_canopy_damage(1:nlevdamage, 1:nlevsclass))
+       allocate(site_in%term_cflux_ustory_damage(1:nlevdamage, 1:nlevsclass))
+       allocate(site_in%fmort_rate_canopy_damage(1:nlevdamage, 1:nlevsclass, 1:numpft))
+       allocate(site_in%fmort_rate_ustory_damage(1:nlevdamage, 1:nlevsclass, 1:numpft)) 
+       allocate(site_in%fmort_cflux_canopy_damage(1:nlevdamage, 1:nlevsclass))
+       allocate(site_in%fmort_cflux_ustory_damage(1:nlevdamage, 1:nlevsclass)) 
     else
        allocate(site_in%term_nindivs_canopy_damage(1,1,1))
        allocate(site_in%term_nindivs_ustory_damage(1,1,1))

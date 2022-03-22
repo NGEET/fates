@@ -13,7 +13,7 @@ module FatesParameterDerivedMod
   use FatesConstantsMod,     only : umolC_to_kgC
   use FatesConstantsMod,     only : g_per_kg
   use FatesInterfaceTypesMod,     only : nleafage
-  use FatesInterfaceTypesMod,     only : ncrowndamage
+  use FatesInterfaceTypesMod,     only : nlevdamage
   use FatesGlobals     ,     only : fates_log
   
   implicit none
@@ -66,13 +66,13 @@ contains
   ! =====================================================================================
 
  ! ===================================================================================
-  subroutine InitAllocateDamageTransitions(this,ncrowndamage, numpft)
+  subroutine InitAllocateDamageTransitions(this,nlevdamage, numpft)
     
     class(param_derived_type), intent(inout) :: this
-    integer, intent(in)                      :: ncrowndamage
+    integer, intent(in)                      :: nlevdamage
     integer, intent(in)                      :: numpft
 
-    allocate(this%damage_transitions(ncrowndamage,ncrowndamage, numpft))
+    allocate(this%damage_transitions(nlevdamage,nlevdamage, numpft))
     
     return
   end subroutine InitAllocateDamageTransitions
@@ -129,13 +129,13 @@ contains
 
 !=========================================================================
   
-  subroutine InitDamageTransitions(this, ncrowndamage, numpft)
+  subroutine InitDamageTransitions(this, nlevdamage, numpft)
 
     use EDPftvarcon, only: EDPftvarcon_inst
 
 
     class(param_derived_type), intent(inout) :: this
-    integer, intent(in)                      :: ncrowndamage
+    integer, intent(in)                      :: nlevdamage
     integer, intent(in)                      :: numpft
 
     ! local variables
@@ -144,22 +144,22 @@ contains
     real(r8) :: damage_frac       ! damage fraction 
    
    
-    call this%InitAllocateDamageTransitions(ncrowndamage, numpft)
+    call this%InitAllocateDamageTransitions(nlevdamage, numpft)
     
      do ft = 1, numpft
 
        damage_frac = EDPftvarcon_inst%damage_frac(ft)
 
-       do i = 1, ncrowndamage
+       do i = 1, nlevdamage
 
           ! zero the column
           this%damage_transitions(i,:,ft) = 0._r8
           ! 1 - damage rate stay the same
           this%damage_transitions(i,i,ft) = 1.0_r8 - damage_frac
 
-          if(i < ncrowndamage) then
+          if(i < nlevdamage) then
              ! fraction damaged get evenly split between higher damage classes
-             this%damage_transitions(i,i+1:ncrowndamage,ft) = damage_frac/(ncrowndamage - i)
+             this%damage_transitions(i,i+1:nlevdamage,ft) = damage_frac/(nlevdamage - i)
           end if
           ! Make sure it sums to one - they have to go somewhere
           this%damage_transitions(i, :, ft) = this%damage_transitions(i, :, ft)/SUM(this%damage_transitions(i, :, ft))

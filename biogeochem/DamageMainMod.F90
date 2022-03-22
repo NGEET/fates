@@ -73,7 +73,7 @@ contains
     ! Consults a look up table of transitions from param derived. 
     
     ! USES
-    use FatesInterfaceTypesMod, only : ncrowndamage
+    use FatesInterfaceTypesMod, only : nlevdamage
     use FatesConstantsMod, only : years_per_day
     use FatesParameterDerivedMod, only : param_derived
 
@@ -101,7 +101,7 @@ contains
     ! before multiplying by 0.2                                    
     ! Therefore, first damage class is 20% loss of crown, second 40% etc.                                                                   
     !-------------------------------------------------------------------                                                                    
-    use FatesInterfaceTypesMod     , only : ncrowndamage
+    use FatesInterfaceTypesMod     , only : nlevdamage
 
     integer(i4), intent(in)   :: crowndamage
     real(r8),    intent(out)  :: crown_reduction
@@ -109,7 +109,7 @@ contains
     ! local variables
     real(r8) :: class_width
 
-    class_width = 1.0_r8/ncrowndamage
+    class_width = 1.0_r8/nlevdamage
     crown_reduction = min(1.0_r8, (real(crowndamage) - 1.0_r8) * class_width)
 
     return
@@ -121,7 +121,7 @@ contains
 
   subroutine get_damage_mortality(crowndamage,pft, dgmort)
 
-    use FatesInterfaceTypesMod     , only : ncrowndamage
+    use FatesInterfaceTypesMod     , only : nlevdamage
     use EDPftvarcon                , only : EDPftvarcon_inst
     
     integer(i4), intent(in) :: crowndamage
@@ -134,7 +134,7 @@ contains
     real(r8) :: class_width
     real(r8) :: crown_loss
     
-    class_width = 1.0_r8/real(ncrowndamage)
+    class_width = 1.0_r8/real(nlevdamage)
     
     ! parameter to determine slope of exponential
     damage_mort_p1 = EDPftvarcon_inst%damage_mort_p1(pft)

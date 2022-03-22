@@ -50,7 +50,7 @@ module FatesInterfaceMod
    use EDParamsMod               , only : ED_val_history_ageclass_bin_edges
    use EDParamsMod               , only : ED_val_history_height_bin_edges
    use EDParamsMod               , only : ED_val_history_coageclass_bin_edges
-   use EDParamsMod               , only : ED_val_ncrowndamage
+   use EDParamsMod               , only : ED_val_history_damage_bin_edges
    use CLMFatesParamInterfaceMod , only : FatesReadParameters
    use EDTypesMod                , only : p_uptake_mode
    use EDTypesMod                , only : n_uptake_mode
@@ -730,9 +730,7 @@ contains
        !
        ! --------------------------------------------------------------------------------
 
-      use EDParamsMod, only : ED_val_ncrowndamage
-
-
+    
       implicit none
 
       
@@ -776,10 +774,7 @@ contains
             nleafage = size(prt_params%leaf_long,dim=2)
          end if
 
-          ! Identify the number of damage classes
-         ncrowndamage = ED_val_ncrowndamage
-
-         
+        
          ! These values are used to define the restart file allocations and general structure
          ! of memory for the cohort arrays
 
@@ -840,7 +835,7 @@ contains
          nlevage = size(ED_val_history_ageclass_bin_edges,dim=1)
          nlevheight = size(ED_val_history_height_bin_edges,dim=1)
          nlevcoage = size(ED_val_history_coageclass_bin_edges,dim=1)
-
+         nlevdamage = size(ED_val_history_damage_bin_edges, dim=1)
          
          ! do some checks on the size, age, and height bin arrays to make sure they make sense:
          ! make sure that all start at zero, and that both are monotonically increasing
@@ -991,13 +986,13 @@ contains
        
        use EDTypesMod, only : NFSC
        use EDTypesMod, only : nclmax
-       use FatesInterfaceTypesMod, only : ncrowndamage
        use EDTypesMod, only : nlevleaf
        use EDParamsMod, only : ED_val_history_sizeclass_bin_edges
        use EDParamsMod, only : ED_val_history_ageclass_bin_edges
        use EDParamsMod, only : ED_val_history_height_bin_edges
        use EDParamsMod, only : ED_val_history_coageclass_bin_edges
-
+       use EDParamsMod, only : ED_val_history_damage_bin_edges
+       
        ! ------------------------------------------------------------------------------------------
        ! This subroutine allocates and populates the variables
        ! that define the mapping of variables in history files in multiplexed dimensions like
@@ -1031,12 +1026,12 @@ contains
        allocate( fates_hdim_pfmap_levcapf(1:nlevcoage*numpft))
        allocate( fates_hdim_camap_levcapf(1:nlevcoage*numpft))
 
-       allocate( fates_hdim_levcdam(1:ncrowndamage ))
-       allocate( fates_hdim_scmap_levcdsc(nlevsclass*ncrowndamage))
-       allocate( fates_hdim_cdmap_levcdsc(nlevsclass*ncrowndamage))
-       allocate( fates_hdim_scmap_levcdpf(nlevsclass*ncrowndamage * numpft))
-       allocate( fates_hdim_cdmap_levcdpf(nlevsclass*ncrowndamage * numpft))
-       allocate( fates_hdim_pftmap_levcdpf(nlevsclass*ncrowndamage * numpft))
+       allocate( fates_hdim_levcdam(1:nlevdamage ))
+       allocate( fates_hdim_scmap_levcdsc(nlevsclass*nlevdamage))
+       allocate( fates_hdim_cdmap_levcdsc(nlevsclass*nlevdamage))
+       allocate( fates_hdim_scmap_levcdpf(nlevsclass*nlevdamage * numpft))
+       allocate( fates_hdim_cdmap_levcdpf(nlevsclass*nlevdamage * numpft))
+       allocate( fates_hdim_pftmap_levcdpf(nlevsclass*nlevdamage * numpft))
 
        allocate( fates_hdim_levcan(nclmax))
        allocate( fates_hdim_levelem(num_elements))
@@ -1164,7 +1159,7 @@ contains
        end do
 
        i=0
-       do icdam=1,ncrowndamage
+       do icdam=1,nlevdamage
           do isc=1,nlevsclass
              i=i+1
              fates_hdim_scmap_levcdsc(i) = isc
@@ -1199,7 +1194,7 @@ contains
 
         i=0
        do ipft=1,numpft
-          do icdam=1,ncrowndamage
+          do icdam=1,nlevdamage
              do isc=1,nlevsclass
                 i=i+1
                 fates_hdim_scmap_levcdpf(i) = isc

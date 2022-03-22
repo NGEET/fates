@@ -312,7 +312,7 @@ contains
     ! FIX(SPM,032414) refactor so everything goes through interface
     !
     ! !USES:
-    use FatesInterfaceTypesMod, only : ncrowndamage
+    use FatesInterfaceTypesMod, only : nlevdamage
     use FatesAllometryMod    , only : bleaf
     use FatesAllometryMod    , only : carea_allom
     use PRTGenericMod        , only : leaf_organ
