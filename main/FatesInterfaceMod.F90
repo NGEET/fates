@@ -1026,7 +1026,7 @@ contains
        allocate( fates_hdim_pfmap_levcapf(1:nlevcoage*numpft))
        allocate( fates_hdim_camap_levcapf(1:nlevcoage*numpft))
 
-       allocate( fates_hdim_levcdam(1:nlevdamage ))
+       allocate( fates_hdim_levdamage(1:nlevdamage ))
        allocate( fates_hdim_scmap_levcdsc(nlevsclass*nlevdamage))
        allocate( fates_hdim_cdmap_levcdsc(nlevsclass*nlevdamage))
        allocate( fates_hdim_scmap_levcdpf(nlevsclass*nlevdamage * numpft))
@@ -1064,8 +1064,10 @@ contains
        fates_hdim_levage(:) = ED_val_history_ageclass_bin_edges(:)
        fates_hdim_levheight(:) = ED_val_history_height_bin_edges(:)
        fates_hdim_levcoage(:) = ED_val_history_coageclass_bin_edges(:)
+       fates_hdim_levdamage(:) = ED_val_history_damage_bin_edges(:)
        fates_hdim_levleaf(:) = dlower_vai(:)
 
+       
        ! make pft array
        do ipft=1,numpft
           fates_hdim_levpft(ipft) = ipft
