@@ -485,8 +485,6 @@ contains
                                     leaf_p  = currentCohort%prt%GetState(leaf_organ, phosphorus_element)
                                     lnc_top = leaf_n / (slatop(ft) * leaf_c )
                                     lpc_top = leaf_p / (slatop(ft) * leaf_c )
-                                    ! lnc_top = leaf_n / currentPatch%tlai_profile(cl,ft,iv) !testing with LAI method
-                                    ! lpc_top = leaf_p / currentPatch%tlai_profile(cl,ft,iv) !testing with LAI method
                                  else
                                     lnc_top = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/slatop(ft)
                                     lpc_top = prt_params%phos_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/slatop(ft)
@@ -1970,7 +1968,7 @@ contains
 
               ! Calculating jmax25top here b/c need temp_a10, but still need
               ! vcmax25top_prt_ft from above.
-              ! Approach taken from ELM photosynthesis code (Q. Zhu)
+              ! jmax25 parameters from Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593
               ! dayl_factor is a photoperiod acclimation correction term from Bauerle et al. 2012
               jmax25top_prt_c = (2.59_r8 - 0.035_r8*min(max((temp_a10-tfrz),11._r8),35._r8)) * &
                       (vcmax25top_prt_ft * dayl_factor)
@@ -1990,15 +1988,12 @@ contains
 
          ! Vcmax25top was already calculated to derive the nscaler function
          ! When parteh is not used, and C-only
-         vcmax25 = vcmax25top_ft * nscaler
-         jmax25  = jmax25top_ft * nscaler
+         !vcmax25 = vcmax25top_ft * nscaler
+         !jmax25  = jmax25top_ft * nscaler
          co2_rcurve_islope25 = co2_rcurve_islope25top_ft * nscaler
 
       end if !Loop for if using parteh 
    
-         !print*,"vcmax25top, vcmax25top_prt, vcmax25: ",vcmax25top_ft,vcmax25top_prt_ft,vcmax25
-         !print*,"nscaler, nscaler_prt, day_length : ",nscaler,nscaler_prt,dayl_factor
-         !print*,"jmax25top, jmax25top_prt, jmax25: ",jmax25top_ft,jmax25top_prt_ft,jmax25
 
          ! Adjust for temperature
          vcmax = vcmax25 * ft1_f(veg_tempk, vcmaxha) * fth_f(veg_tempk, vcmaxhd, vcmaxse, vcmaxc)
