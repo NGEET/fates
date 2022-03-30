@@ -1446,14 +1446,10 @@ data:
 
  fates_logging_mechanical_frac = 0.05 ;
 
-<<<<<<< HEAD
  fates_pprodharv10_forest_mean = 0.8125 ;
 
-||||||| 36e60bb3
-=======
  fates_maintresp_model = 1 ;
 
->>>>>>> master
  fates_mort_disturb_frac = 1 ;
 
  fates_mort_understorey_death = 0.55983 ;
