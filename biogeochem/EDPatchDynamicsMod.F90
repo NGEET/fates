@@ -2000,11 +2000,11 @@ contains
     ! backward ros plays no role. kj/m/s or kw/m.
     currentPatch%fire                       = 999    ! sr decide_fire.1=fire hot enough to proceed. 0=stop everything- no fires today
     currentPatch%active_crown_fire_flg      = 9999   ! flag to indicate active crown fire ignition
-    currentPatch%fd                         = 0.0_r8 ! fire duration (mins)
-    currentPatch%ros_back                   = 0.0_r8 ! backward ros (m/min)
-    currentPatch%scorch_ht(:)               = 0.0_r8 ! scorch height of flames on a given PFT
-    currentPatch%frac_burnt                 = 0.0_r8 ! fraction burnt daily  
-    currentPatch%burnt_frac_litter(:)       = 0.0_r8 
+    currentPatch%fd                         = nan    ! fire duration (mins)
+    currentPatch%ros_back                   = nan    ! backward ros (m/min)
+    currentPatch%scorch_ht(:)               = nan    ! scorch height of flames on a given PFT
+    currentPatch%frac_burnt                 = nan    ! fraction burnt daily
+    currentPatch%burnt_frac_litter(:)       = nan
     currentPatch%btran_ft(:)                = 0.0_r8
 
     currentPatch%canopy_layer_tlai(:)       = 0.0_r8
