@@ -12,7 +12,7 @@ module EDInitMod
   use FatesGlobals              , only : endrun => fates_endrun
   use EDTypesMod                , only : nclmax
   use FatesGlobals              , only : fates_log
-  use FatesInterfaceMod         , only : hlm_is_restart
+  use FatesInterfaceTypesMod         , only : hlm_is_restart
   use EDPftvarcon               , only : EDPftvarcon_inst
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
   use EDCohortDynamicsMod       , only : InitPRTObject
@@ -35,12 +35,14 @@ module EDInitMod
   use EDTypesMod                , only : phen_dstat_moistoff
   use EDTypesMod                , only : phen_cstat_notcold
   use EDTypesMod                , only : phen_dstat_moiston
-  use FatesInterfaceMod         , only : bc_in_type
-  use FatesInterfaceMod         , only : hlm_use_planthydro
-  use FatesInterfaceMod         , only : hlm_use_inventory_init
-  use FatesInterfaceMod         , only : numpft
-  use FatesInterfaceMod         , only : nleafage
-  use FatesInterfaceMod         , only : nlevsclass
+  use EDTypesMod                , only : element_pos
+  use FatesInterfaceTypesMod         , only : bc_in_type
+  use FatesInterfaceTypesMod         , only : hlm_use_planthydro
+  use FatesInterfaceTypesMod         , only : hlm_use_inventory_init
+  use FatesInterfaceTypesMod         , only : numpft
+  use FatesInterfaceTypesMod         , only : nleafage
+  use FatesInterfaceTypesMod         , only : nlevsclass
+  use FatesInterfaceTypesMod         , only : nlevcoage
   use FatesAllometryMod         , only : h2d_allom
   use FatesAllometryMod         , only : bagw_allom
   use FatesAllometryMod         , only : bbgw_allom
@@ -50,7 +52,7 @@ module EDInitMod
   use FatesAllometryMod         , only : bdead_allom
   use FatesAllometryMod         , only : bstore_allom
 
-  use FatesInterfaceMod,      only : hlm_parteh_mode
+  use FatesInterfaceTypesMod,      only : hlm_parteh_mode
   use PRTGenericMod,          only : prt_carbon_allom_hyp
   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
   use PRTGenericMod,          only : prt_vartypes
@@ -81,6 +83,7 @@ module EDInitMod
   public  :: init_patches
   public  :: set_site_properties
   private :: init_cohorts
+
 
   ! ============================================================================
 
@@ -410,7 +413,7 @@ contains
      ! were set from a call inside of the init_cohorts()->create_cohort() subroutine
      if (hlm_use_planthydro.eq.itrue) then 
         do s = 1, nsites
-	   sitep => sites(s)
+           sitep => sites(s)
            call updateSizeDepRhizHydProps(sitep, bc_in(s))
         end do
      end if
@@ -453,6 +456,7 @@ contains
     real(r8) :: m_sapw     ! Generic mass for sapwood [kg]
     real(r8) :: m_store    ! Generic mass for storage [kg]
     real(r8) :: m_repro    ! Generic mass for reproductive tissues [kg]
+    real(r8) :: stem_drop_fraction
 
     integer, parameter :: rstatus = 0
 
@@ -470,6 +474,7 @@ contains
        temp_cohort%pft         = pft
        temp_cohort%n           = EDPftvarcon_inst%initd(pft) * patch_in%area
        temp_cohort%hite        = EDPftvarcon_inst%hgt_min(pft)
+       
 
        ! Calculate the plant diameter from height
        call h2d_allom(temp_cohort%hite,pft,temp_cohort%dbh)
@@ -498,24 +503,39 @@ contains
        call bstore_allom(temp_cohort%dbh, pft, temp_cohort%canopy_trim, c_store)
 
        temp_cohort%laimemory = 0._r8
+       temp_cohort%sapwmemory = 0._r8
+       temp_cohort%structmemory = 0._r8
        cstatus = leaves_on
+       
+       stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(temp_cohort%pft)
        
        if( EDPftvarcon_inst%season_decid(pft) == itrue .and. &
             any(site_in%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
-          temp_cohort%laimemory = c_leaf
-          c_leaf = 0._r8
-          cstatus = leaves_off
+         temp_cohort%laimemory = c_leaf
+         temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
+         temp_cohort%structmemory = c_struct * stem_drop_fraction
+         c_leaf = 0._r8
+         c_sapw = (1.0_r8-stem_drop_fraction) * c_sapw
+         c_struct  = (1.0_r8-stem_drop_fraction) * c_struct
+         cstatus = leaves_off
        endif
 
        if ( EDPftvarcon_inst%stress_decid(pft) == itrue .and. &
             any(site_in%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff])) then
           temp_cohort%laimemory = c_leaf
+          temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
+          temp_cohort%structmemory = c_struct * stem_drop_fraction
           c_leaf = 0._r8
+          c_sapw = (1.0_r8-stem_drop_fraction) * c_sapw
+          c_struct  = (1.0_r8-stem_drop_fraction) * c_struct
           cstatus = leaves_off
        endif
 
        if ( debug ) write(fates_log(),*) 'EDInitMod.F90 call create_cohort '
 
+       temp_cohort%coage = 0.0_r8
+       
+       
        ! --------------------------------------------------------------------------------
        ! Initialize the mass of every element in every organ of the organ
        ! --------------------------------------------------------------------------------
@@ -583,7 +603,8 @@ contains
        call prt_obj%CheckInitialConditions()
 
        call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, &
-             temp_cohort%dbh, prt_obj, temp_cohort%laimemory, cstatus, rstatus,        &
+            temp_cohort%coage, temp_cohort%dbh, prt_obj, temp_cohort%laimemory, &
+            temp_cohort%sapwmemory, temp_cohort%structmemory, cstatus, rstatus,        &
              temp_cohort%canopy_trim, 1, site_in%spread, bc_in)
 
        deallocate(temp_cohort) ! get rid of temporary cohort

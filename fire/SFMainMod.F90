@@ -7,11 +7,11 @@
 
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : itrue, ifalse
-  use FatesInterfaceMod     , only : hlm_masterproc ! 1= master process, 0=not master process
+  use FatesInterfaceTypesMod     , only : hlm_masterproc ! 1= master process, 0=not master process
   use EDTypesMod            , only : numWaterMem
   use FatesGlobals          , only : fates_log
 
-  use FatesInterfaceMod     , only : bc_in_type
+  use FatesInterfaceTypesMod     , only : bc_in_type
 
   use EDPftvarcon           , only : EDPftvarcon_inst
 
@@ -21,8 +21,7 @@
   use EDtypesMod            , only : ed_cohort_type
   use EDtypesMod            , only : AREA
   use EDtypesMod            , only : DL_SF
-  use EDtypesMod            , only : FIRE_THRESHOLD
-  use EDtypesMod            , only : crown_fire_threshold
+  use EDtypesMod            , only : crown_fire_threshold  ! TODO slevis: NOT used; if end up using, look at SF_val_fire_threshold as template
   use EDTypesMod            , only : TW_SF
   use EDtypesMod            , only : LB_SF
   use EDtypesMod            , only : LG_SF
@@ -40,17 +39,7 @@
   use PRTGenericMod,          only : repro_organ
   use PRTGenericMod,          only : struct_organ
   use PRTGenericMod,          only : SetState
-
-  use spmdMod, only : masterproc, mpicom, comp_id
-  use shr_kind_mod, only : CL => shr_kind_CL
-  use shr_strdata_mod, only : shr_strdata_type, shr_strdata_create
-  use shr_strdata_mod, only : shr_strdata_advance, shr_strdata_print
-  use shr_log_mod, only : errmsg => shr_log_errMsg
-  use abortutils, only : endrun
-  use clm_varctl, only : iulog
-  use fileutils, only : getavu, relavu
-  use decompMod, only : bounds_type, gsmap_lnd_gdc2glo
-  use domainMod, only : ldomain
+  use FatesInterfaceTypesMod     , only : numpft
 
   implicit none
   private
@@ -67,33 +56,6 @@
   public :: cambial_damage_kill
   public :: post_fire_mortality
 
-  public :: FATESFireInit  ! Initialize fire-related inputs
-  public :: FATESFireInterp  ! Interpolate fire-related inputs
-
-  type, public :: sfmain_type
-
-     real(r8), public, pointer :: lnfm24(:)  ! Daily avg lightning by grid cell (#/km2/hr)
-
-   contains
-
-     procedure, public  :: InitAccBuffer  ! Initialize accumulation processes
-     procedure, public  :: InitAccVars  ! Initialize accumulation variables
-     procedure, public  :: UpdateAccVars  ! Update/extract accumulations vars
-
-  end type sfmain_type
-
-  ! !PRIVATE MEMBER FUNCTIONS:
-  private :: lnfm_init   ! position datasets for Lightning
-  private :: lnfm_interp ! interpolates between two years of Lightning file data
-
-  real(r8), pointer :: forc_lnfm(:)  ! Lightning frequency from file (#/km2/hr)
-
-  type(shr_strdata_type) :: sdat_lnfm   ! Lightning input data stream
-
-  character(len=CL)  :: stream_fldFileName_lightng ! lightning stream filename to read
-  character(len=*), parameter, private :: sourcefile = &
-       __FILE__
-
   integer :: write_SF = 0     ! for debugging
   logical :: debug = .false.  ! for debugging
 
@@ -102,334 +64,12 @@
 
 contains
 
-  subroutine InitAccBuffer (this, bounds)
-    !
-    ! !DESCRIPTION:
-    ! Initialize accumulation buffer for all required module accumulated fields
-    ! This routine set defaults values that are then overwritten by the
-    ! restart file for restart or branch runs
-    !
-    ! !USES
-    use clm_varcon, only : spval
-    use accumulMod, only : init_accum_field
-    !
-    ! !ARGUMENTS:
-    class(sfmain_type) :: this
-    type(bounds_type), intent(in) :: bounds
-
-    ! !LOCAL VARIABLES:
-    integer  :: begg, endg
-    integer  :: ier
-    !---------------------------------------------------------------------
-
-    begg = bounds%begg; endg = bounds%endg
-
-    allocate(this%lnfm24(begg:endg), stat=ier)
-    if (ier/=0) then
-       call endrun(msg="allocation error for lnfm24"//&
-            errMsg(sourcefile, __LINE__))
-    endif
-    this%lnfm24(:) = spval
-    call init_accum_field (name='lnfm24', units='strikes/km2/hr', &
-         desc='24hr average of lightning strikes',  accum_type='runmean', &
-         accum_period=-1, subgrid_type='gridcell', numlev=1, init_value=0._r8)
-
-  end subroutine InitAccBuffer
-
-  !-----------------------------------------------------------------------
-  subroutine InitAccVars(this, bounds)
-    !
-    ! !DESCRIPTION:
-    ! Initialize module variables that are associated with
-    ! time accumulated fields. This routine is called for both an initial run
-    ! and a restart run (and must therefore must be called after the restart
-    ! file is read in and the accumulation buffer is obtained)
-    !
-    ! !USES
-    use accumulMod       , only : extract_accum_field
-    use clm_time_manager , only : get_nstep
-    !
-    ! !ARGUMENTS:
-    class(sfmain_type) :: this
-    type(bounds_type), intent(in) :: bounds
-    !
-    ! !LOCAL VARIABLES:
-    integer  :: begg, endg
-    integer  :: nstep
-    integer  :: ier
-    real(r8), pointer :: rbufslg(:)  ! temporary
-    !---------------------------------------------------------------------
-
-    begg = bounds%begg; endg = bounds%endg
-
-    ! Allocate needed dynamic memory for single level patch field
-    allocate(rbufslg(begg:endg), stat=ier)
-    if (ier/=0) then
-       call endrun(msg="allocation error for rbufslg"//&
-            errMsg(sourcefile, __LINE__))
-    endif
-
-    ! Determine time step
-    nstep = get_nstep()
-
-    call extract_accum_field ('lnfm24', rbufslg, nstep)
-    this%lnfm24(begg:endg) = rbufslg(begg:endg)
-
-    deallocate(rbufslg)
-
-  end subroutine InitAccVars
-
-  !-----------------------------------------------------------------------
-  subroutine UpdateAccVars (this, bounds)
-    !
-    ! USES
-    use clm_time_manager, only : get_nstep
-    use accumulMod      , only : update_accum_field, extract_accum_field
-    use abortutils      , only : endrun
-    !
-    ! !ARGUMENTS:
-    class(sfmain_type) :: this
-    type(bounds_type), intent(in) :: bounds
-    !
-    ! !LOCAL VARIABLES:
-    integer :: dtime                 ! timestep size [seconds]
-    integer :: nstep                 ! timestep number
-    integer :: ier                   ! error status
-    integer :: begg, endg
-    real(r8), pointer :: rbufslg(:)  ! temporary single level - gridcell level
-    !---------------------------------------------------------------------
-
-    begg = bounds%begg; endg = bounds%endg
-
-    nstep = get_nstep()
-
-    ! Allocate needed dynamic memory for single level gridcell field
-
-    allocate(rbufslg(begg:endg), stat=ier)
-    if (ier/=0) then
-       write(iulog,*)'UpdateAccVars allocation error for rbuf1dg'
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    endif
-
-    ! Accumulate and extract lnfm24
-    rbufslg(begg:endg) = forc_lnfm(begg:endg)
-    call update_accum_field  ('lnfm24', rbufslg, nstep)
-    call extract_accum_field ('lnfm24', this%lnfm24, nstep)
-
-    deallocate(rbufslg)
-
-  end subroutine UpdateAccVars
-
-  !-----------------------------------------------------------------------
-  subroutine FATESFireInit(bounds, NLFilename)
-
-    ! !DESCRIPTION:
-    ! Initialize FATES Fire module
-    ! !USES:
-    use FatesInterfaceMod, only : hlm_use_spitfire
-    use shr_infnan_mod  , only : nan => shr_infnan_nan, assignment(=)
-    !
-    ! !ARGUMENTS:
-    type(bounds_type), intent(in) :: bounds
-    character(len=*),  intent(in) :: NLFilename
-
-    ! !LOCAL VARIABLES:
-    integer :: begg, endg
-    !-----------------------------------------------------------------------
-
-    begg = bounds%begg; endg = bounds%endg
-
-    ! Allocate lightning forcing data
-    allocate( forc_lnfm(begg:endg) )
-    forc_lnfm(begg:) = nan
-
-    if( hlm_use_spitfire == itrue )then
-       call lnfm_init(bounds, NLFilename)
-       call lnfm_interp(bounds)
-    end if
-
-  end subroutine FATESFireInit
-
-  !*****************************************************************
-  subroutine FATESFireInterp(bounds)
-
-    ! !DESCRIPTION:
-    ! Interpolate FATES Fire datasets
-    ! !USES:
-    use FatesInterfaceMod, only : hlm_use_spitfire
-    !
-    ! !ARGUMENTS:
-    type(bounds_type), intent(in) :: bounds
-    !-----------------------------------------------------------------------
-
-    if( hlm_use_spitfire == itrue )then
-       call lnfm_interp(bounds)
-    end if
-
-  end subroutine FATESFireInterp
-
-  !-----------------------------------------------------------------------
-  subroutine lnfm_init( bounds, NLFilename )
-  !
-  ! !DESCRIPTION:
-  !
-  ! Initialize data stream information for Lightning.
-  !
-  ! !USES:
-  use clm_varctl       , only : inst_name
-  use clm_time_manager , only : get_calendar
-  use ncdio_pio        , only : pio_subsystem
-  use shr_pio_mod      , only : shr_pio_getiotype
-  use clm_nlUtilsMod   , only : find_nlgroup_name
-  use ndepStreamMod    , only : clm_domain_mct
-  use histFileMod      , only : hist_addfld1d
-  use shr_mpi_mod, only : shr_mpi_bcast
-  use mct_mod, only: mct_ggrid
-  !
-  ! !ARGUMENTS:
-  implicit none
-  type(bounds_type), intent(in) :: bounds
-  character(len=*),  intent(in) :: NLFilename
-  !
-  ! !LOCAL VARIABLES:
-  integer            :: stream_year_first_lightng  ! first year in Lightning stream to use
-  integer            :: stream_year_last_lightng   ! last year in Lightning stream to use
-  integer            :: model_year_align_lightng   ! align stream_year_first_lnfm with
-  integer            :: nu_nml                     ! unit for namelist file
-  integer            :: nml_error                  ! namelist i/o error flag
-  type(mct_ggrid)    :: dom_clm                    ! domain information
-  character(len=CL)  :: lightngmapalgo = 'bilinear'! Mapping alogrithm
-  character(*), parameter :: subName = "('lnfmdyn_init')"
-  character(*), parameter :: F00 = "('(lnfmdyn_init) ',4a)"
-  !-----------------------------------------------------------------------
-
-   namelist /light_streams/         &
-        stream_year_first_lightng,  &
-        stream_year_last_lightng,   &
-        model_year_align_lightng,   &
-        lightngmapalgo,             &
-        stream_fldFileName_lightng
-
-   ! Default values for namelist
-    stream_year_first_lightng  = 1  ! first year in stream to use
-    stream_year_last_lightng   = 1  ! last  year in stream to use
-    model_year_align_lightng   = 1  ! align stream_year_first_lnfm with this model year
-    stream_fldFileName_lightng = ' '
-
-   ! Read light_streams namelist
-   if (masterproc) then
-      nu_nml = getavu()
-      open( nu_nml, file=trim(NLFilename), status='old', iostat=nml_error )
-      call find_nlgroup_name(nu_nml, 'light_streams', status=nml_error)
-      if (nml_error == 0) then
-         read(nu_nml, nml=light_streams,iostat=nml_error)
-         if (nml_error /= 0) then
-            call endrun(msg='ERROR reading light_streams namelist'//errmsg(sourcefile, __LINE__))
-         end if
-      end if
-      close(nu_nml)
-      call relavu( nu_nml )
-   endif
-
-   call shr_mpi_bcast(stream_year_first_lightng, mpicom)
-   call shr_mpi_bcast(stream_year_last_lightng, mpicom)
-   call shr_mpi_bcast(model_year_align_lightng, mpicom)
-   call shr_mpi_bcast(stream_fldFileName_lightng, mpicom)
-
-   if (masterproc) then
-      write(iulog,*) ' '
-      write(iulog,*) 'light_stream settings:'
-      write(iulog,*) '  stream_year_first_lightng  = ',stream_year_first_lightng
-      write(iulog,*) '  stream_year_last_lightng   = ',stream_year_last_lightng
-      write(iulog,*) '  model_year_align_lightng   = ',model_year_align_lightng
-      write(iulog,*) '  stream_fldFileName_lightng = ',stream_fldFileName_lightng
-      write(iulog,*) ' '
-   endif
-
-   if (index(stream_fldFileName_lightng, 'nofile') == 0) then
-      call clm_domain_mct (bounds, dom_clm)
-
-      call shr_strdata_create(sdat_lnfm,name="clmlnfm",  &
-           pio_subsystem=pio_subsystem,                  &
-           pio_iotype=shr_pio_getiotype(inst_name),      &
-           mpicom=mpicom, compid=comp_id,                &
-           gsmap=gsmap_lnd_gdc2glo, ggrid=dom_clm,       &
-           nxg=ldomain%ni, nyg=ldomain%nj,               &
-           yearFirst=stream_year_first_lightng,          &
-           yearLast=stream_year_last_lightng,            &
-           yearAlign=model_year_align_lightng,           &
-           offset=0,                                     &
-           domFilePath='',                               &
-           domFileName=trim(stream_fldFileName_lightng), &
-           domTvarName='time',                           &
-           domXvarName='lon' ,                           &
-           domYvarName='lat' ,                           &
-           domAreaName='area',                           &
-           domMaskName='mask',                           &
-           filePath='',                                  &
-           filename=(/trim(stream_fldFileName_lightng)/),&
-           fldListFile='lnfm',                           &
-           fldListModel='lnfm',                          &
-           fillalgo='none',                              &
-           mapalgo=lightngmapalgo,                       &
-           calendar=get_calendar(),                      &
-           taxmode='cycle'                            )
-
-      if (masterproc) then
-         call shr_strdata_print(sdat_lnfm,'Lightning data')
-      endif
-
-      ! Add history fields
-      call hist_addfld1d (fname='LNFM', units='counts/km^2/hr',  &
-            avgflag='A', long_name='Lightning frequency',        &
-            ptr_lnd=forc_lnfm, default='inactive')
-
-   end if
-
-  end subroutine lnfm_init
-
-  !-----------------------------------------------------------------------
-  subroutine lnfm_interp( bounds )
-  !
-  ! !DESCRIPTION:
-  ! Interpolate data stream information for Lightning.
-  !
-  ! !USES:
-  use clm_time_manager, only : get_curr_date
-  !
-  ! !ARGUMENTS:
-  type(bounds_type), intent(in) :: bounds
-  !
-  ! !LOCAL VARIABLES:
-  integer :: g, ig
-  integer :: year    ! year (0, ...) for nstep+1
-  integer :: mon     ! month (1, ..., 12) for nstep+1
-  integer :: day     ! day of month (1, ..., 31) for nstep+1
-  integer :: sec     ! seconds into current date for nstep+1
-  integer :: mcdate  ! Current model date (yyyymmdd)
-  !-----------------------------------------------------------------------
-
-   call get_curr_date(year, mon, day, sec)
-   mcdate = year*10000 + mon*100 + day
-
-   if (index(stream_fldFileName_lightng, 'nofile') == 0) then
-      call shr_strdata_advance(sdat_lnfm, mcdate, sec, mpicom, 'lnfmdyn')
-
-      ig = 0
-      do g = bounds%begg,bounds%endg
-         ig = ig+1
-         forc_lnfm(g) = sdat_lnfm%avs(1)%rAttr(1,ig)
-      end do
-   end if
-
-  end subroutine lnfm_interp
-
   ! ============================================================================
   !        Area of site burned by fire           
   ! ============================================================================
   subroutine fire_model( currentSite, bc_in)
 
-    use FatesInterfaceMod, only : hlm_use_spitfire
+    use FatesInterfaceTypesMod, only : hlm_use_spitfire
 
     type(ed_site_type)     , intent(inout), target :: currentSite
     type(bc_in_type)       , intent(in)            :: bc_in
@@ -463,6 +103,9 @@ contains
        call crown_scorching(currentSite)
        call crown_damage(currentSite)
        ! Begin: Repeat calls to calculate effects of active crown fire
+       ! TODO slevis: if sum(currentCohort%active_crown_fire_flag) > 0
+       ! over all cohorts, then execute the repeat calls. Note that this
+       ! subroutine runs at the Site level.
 !      call rate_of_spread(currentSite, MEF, fuel_moisture)
 !      call area_burnt_intensity(currentSite, bc_in)
 !      call crown_scorching(currentSite)
@@ -792,13 +435,13 @@ contains
     !Routine called daily from within ED within a site loop.
     !Returns the updated currentPatch%ROS_front value for each patch.
 
-    use SFParamsMod, only  : SF_val_part_dens,   &
-                             SF_val_SAV,  &
+    use SFParamsMod, only  : SF_val_SAV,  &
                              SF_val_drying_ratio,  &
+                             SF_val_part_dens,   &
                              SF_val_miner_damp,  &
                              SF_val_fuel_energy
     
-    use FatesInterfaceMod, only : hlm_current_day, hlm_current_month
+    use FatesInterfaceTypesMod, only : hlm_current_day, hlm_current_month
 
     type(ed_site_type), intent(in), target :: currentSite
 
@@ -827,8 +470,8 @@ contains
     real(r8) a_beta               ! dummy variable for product of a* beta_ratio for react_v_opt equation
     real(r8) a,b,c,e              ! function of fuel sav
 
-    logical,parameter :: debug_windspeed = .false. !for debugging
-    real(r8),parameter :: q_dry = 581.0_r8 !heat of pre-ignition of dry fuels (kJ/kg)
+    logical, parameter :: debug_windspeed = .false. !for debugging
+    real(r8),parameter :: q_dry = 581.0_r8          !heat of pre-ignition of dry fuels (kJ/kg)
 
 
     currentPatch=>currentSite%oldest_patch;  
@@ -902,9 +545,7 @@ contains
        !  Rothermal EQ12= 250 Btu/lb + 1116 Btu/lb * fuel_eff_moist
        !  conversion of Rothermal (1972) EQ12 in BTU/lb to current kJ/kg 
        !  q_ig in kJ/kg 
-
-       q_ig = q_dry + 2594.0_r8 * currentPatch%fuel_eff_moist
-
+       q_ig = q_dry +2594.0_r8 * currentPatch%fuel_eff_moist
 
        ! ---effective heating number---
        ! Equation A3 in Thonicke et al. 2010.  
@@ -1086,12 +727,13 @@ contains
     !currentPatch%ROS_front  forward ROS (m/min) 
     !currentPatch%TFC_ROS total fuel consumed by flaming front (kgC/m2)
 
-    use FatesInterfaceMod, only : hlm_use_spitfire
+    use FatesInterfaceTypesMod, only : hlm_use_spitfire
     use EDParamsMod,       only : ED_val_nignitions
+    use EDParamsMod,       only : cg_strikes    ! fraction of cloud-to-ground ligtning strikes
     use FatesConstantsMod, only : years_per_day
     use SFParamsMod,       only : SF_val_fdi_alpha,SF_val_fuel_energy, &
-         SF_val_max_durat, SF_val_durat_slope
-
+         SF_val_max_durat, SF_val_durat_slope, SF_val_fire_threshold
+    
     type(ed_site_type), intent(inout), target :: currentSite
     type(ed_patch_type), pointer :: currentPatch
     type(bc_in_type), intent(in) :: bc_in
@@ -1105,9 +747,6 @@ contains
     
     real(r8) size_of_fire !in m2
     real(r8),parameter :: km2_to_m2 = 1000000.0_r8 !area conversion for square km to square m
-!   real(r8),parameter :: CG_strikes = 0.20_r8     !cloud to ground lightning strikes
-    real(r8),parameter :: CG_strikes = 1.00_r8     !cloud to ground lightning strikes
-                                                   !Latham and Williams (2001)
 
     !  ---initialize site parameters to zero--- 
     currentSite%frac_burnt = 0.0_r8  
@@ -1115,20 +754,10 @@ contains
     
     ! Equation 7 from Venevsky et al GCB 2002 (modification of equation 8 in Thonicke et al. 2010) 
     ! FDI 0.1 = low, 0.3 moderate, 0.75 high, and 1 = extreme ignition potential for alpha 0.000337
-    if (index(stream_fldFileName_lightng, 'ignition') > 0) then
-       currentSite%FDI = 1.0_r8  ! READING "SUCCESSFUL IGNITION" DATA
-    else
-       currentSite%FDI  = 1.0_r8 - exp(-SF_val_fdi_alpha*currentSite%acc_NI)
-    end if
+    currentSite%FDI  = 1.0_r8 - exp(-SF_val_fdi_alpha*currentSite%acc_NI)
     
     !NF = number of lighting strikes per day per km2 scaled by cloud to ground strikes
-    ! ED_val_nignitions is from the params file
-    ! lightning is the daily avg from a lightning dataset
-    if (index(stream_fldFileName_lightng, 'nofile') > 0) then
-       currentSite%NF = ED_val_nignitions * years_per_day * CG_strikes
-    else
-       currentSite%NF = bc_in%lightning24 * 24._r8 * CG_strikes ! #/km2/hr to #/km2/day
-    end if
+    currentSite%NF = ED_val_nignitions * years_per_day * cg_strikes
 
     ! If there are 15  lightning strikes per year, per km2. (approx from NASA product for S.A.) 
     ! then there are 15 * 1/365 strikes/km2 each day 
@@ -1211,7 +840,7 @@ contains
          endif
 
          !'decide_fire' subroutine 
-         if (currentPatch%FI > fire_threshold) then !track fires greater than kW/m2 energy threshold
+         if (currentPatch%FI > SF_val_fire_threshold) then !track fires greater than kW/m energy threshold
             currentPatch%fire = 1 ! Fire...    :D
           
          else     
@@ -1238,12 +867,12 @@ contains
   subroutine  crown_scorching ( currentSite ) 
   !*****************************************************************
 
-    !currentPatch%FI   average fire intensity of flaming front during day.  kW/m.
-    !currentCohort%SH  scorch height for the cohort(m)
+    !currentPatch%FI       average fire intensity of flaming front during day.  kW/m.
+    !currentPatch%SH(pft)  scorch height for all cohorts of a given PFT on a given patch (m)
 
     type(ed_site_type), intent(in), target :: currentSite
 
-    type(ed_patch_type),  pointer :: currentPatch
+    type(ed_patch_type), pointer  :: currentPatch
     type(ed_cohort_type), pointer :: currentCohort
 
     real(r8) ::  tree_ag_biomass ! total amount of above-ground tree biomass in patch. kgC/m2
@@ -1251,39 +880,44 @@ contains
     real(r8) ::  sapw_c          ! sapwood carbon   [kg]
     real(r8) ::  struct_c        ! structure carbon [kg]
 
+    integer  ::  i_pft
+
 
     currentPatch => currentSite%oldest_patch;  
     do while(associated(currentPatch)) 
-
+       
        tree_ag_biomass = 0.0_r8
        if (currentPatch%fire == 1) then
           currentCohort => currentPatch%tallest;
           do while(associated(currentCohort))  
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
-
+                
                 leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
                 sapw_c = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
                 struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
-
+                
                 tree_ag_biomass = tree_ag_biomass + &
-                      currentCohort%n * (leaf_c + & 
-                      EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)*(sapw_c + struct_c))
+                     currentCohort%n * (leaf_c + & 
+                     EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)*(sapw_c + struct_c))
  
-
-             currentCohort%SH = 0.0_r8
-                if (tree_ag_biomass > 0.0_r8) then 
-
-                !Equation 16 in Thonicke et al. 2010 !Van Wagner 1973 EQ8 based on 2/3 Byram (1959)
-                currentCohort%SH = EDPftvarcon_inst%fire_alpha_SH(currentCohort%pft) * (currentPatch%FI**0.667_r8)
-             
-                  if(write_SF == itrue)then
-                     if ( hlm_masterproc == itrue ) write(fates_log(),*) 'currentCohort%SH',currentCohort%SH
-                  endif
-                endif ! tree biomass
-
              endif !trees only
              currentCohort=>currentCohort%shorter;
           enddo !end cohort loop
+
+          do i_pft=1,numpft
+             if (tree_ag_biomass > 0.0_r8  .and. EDPftvarcon_inst%woody(i_pft) == 1) then 
+                
+                !Equation 16 in Thonicke et al. 2010 !Van Wagner 1973 EQ8 !2/3 Byram (1959)
+                currentPatch%Scorch_ht(i_pft) = EDPftvarcon_inst%fire_alpha_SH(i_pft) * (currentPatch%FI**0.667_r8)
+                
+                if(write_SF == itrue)then
+                   if ( hlm_masterproc == itrue ) write(fates_log(),*) 'currentPatch%SH',currentPatch%Scorch_ht(i_pft)
+                endif
+             else
+                currentPatch%Scorch_ht(i_pft) = 0.0_r8
+             endif ! tree biomass
+          end do
+
        endif !fire
 
        currentPatch => currentPatch%younger;  
@@ -1325,60 +959,56 @@ contains
     real(r8) ::  canopy_bulk_density     ! density of canopy fuel on patch
     real(r8) ::  height_base_canopy      ! lowest height of fuels to carry fire in crown
     integer  ::  ih                      ! counter
-    integer  ::  passive_canopy_fuel_flg ! flag if canopy fuel true for vertical spread 
+    integer  ::  passive_canopy_fuel_flg ! flag if canopy fuel true for vertical spread
 
-    real, dimension(70):: biom_matrix   ! matrix to track biomass from bottom to 70m 
-    
+    real, dimension(70):: biom_matrix   ! matrix to track biomass from bottom to 70m
     real(r8),parameter :: min_density_canopy_fuel = 0.011_r8 !min canopy fuel density (kg/m3) sufficient to
-                                                             !propogate fire vertically through canopy 
+                                                             !propogate fire vertically through canopy
                                                              !Scott and Reinhardt 2001 RMRS-RP-29
-    
     real(r8),parameter :: crown_ignite_energy = 3060_r8      !crown ignition energy (kJ/kg) Van Wagner 1977
 
-    
     currentPatch => currentSite%oldest_patch
 
     do while(associated(currentPatch))
-       
        !zero Patch level variables
-!      passive_crown_FI                     = 0.0_r8  
+!      passive_crown_FI                     = 0.0_r8
 !      ignite_passive_crown                 = 0.0_r8
        biom_matrix                          = 0.0_r8
        canopy_bulk_density                  = 0.0_r8
        max_height                           = 0.0_r8
        height_base_canopy                   = 0.0_r8
-              
+
        if (currentPatch%fire == 1) then
 
           currentCohort=>currentPatch%tallest
           do while(associated(currentCohort))
-             
+
              !zero cohort level variables
-             tree_sapw_struct_c                   = 0.0_r8 
+             tree_sapw_struct_c                   = 0.0_r8
              leaf_c                               = 0.0_r8
              sapw_c                               = 0.0_r8
              struct_c                             = 0.0_r8
              twig_sapw_struct_c                   = 0.0_r8
-             crown_fuel_c                         = 0.0_r8 
+             crown_fuel_c                         = 0.0_r8
              crown_fuel_biomass                   = 0.0_r8
              crown_fuel_per_m                     = 0.0_r8
 
-             ! Calculate crown 1hr fuel biomass (leaf, twig sapwood, twig structural biomass)         
+             ! Calculate crown 1hr fuel biomass (leaf, twig sapwood, twig structural biomass)
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
 
-                crown_depth    = currentCohort%hite*EDPftvarcon_inst%crown(currentCohort%pft) 
+                crown_depth    = currentCohort%hite*EDPftvarcon_inst%crown(currentCohort%pft)
                 height_cbb     = currentCohort%hite - crown_depth
 
                 !find patch max height for stand canopy fuel
                 if (currentCohort%hite > max_height) then
-                   max_height = currentCohort%hite      
-                endif       
+                   max_height = currentCohort%hite
+                endif
 
                 leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
                 sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
                 struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
 
-                tree_sapw_struct_c =  currentCohort%n * & 
+                tree_sapw_struct_c =  currentCohort%n * &
                         (EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)*(sapw_c + struct_c))
 
                 twig_sapw_struct_c =  tree_sapw_struct_c * SF_VAL_CWD_frac(1)   !only 1hr fuel
@@ -1387,7 +1017,7 @@ contains
 
                 crown_fuel_biomass = crown_fuel_c / 0.45_r8            ! crown fuel (kg biomass)
 
-                crown_fuel_per_m = crown_fuel_biomass / crown_depth    ! kg biomass per m 
+                crown_fuel_per_m = crown_fuel_biomass / crown_depth    ! kg biomass per m
 
                 !sort crown fuel into bins from bottom to top of crown
                 !accumulate across cohorts to find density within canopy 1m sections
@@ -1401,11 +1031,11 @@ contains
 
        enddo !end cohort loop
 
-          biom_matrix(:) = biom_matrix(:) / currentPatch%area    !kg biomass/m3          
+          biom_matrix(:) = biom_matrix(:) / currentPatch%area    !kg biomass/m3
 
           !loop from 1m to 70m to find bin with total density = 0.011 kg/m3
           !min canopy fuel density to propogate fire vertically in canopy across patch
-          do ih=1,70  
+          do ih=1,70
              if (biom_matrix(ih) > min_density_canopy_fuel) then
                 height_base_canopy = float(ih)
                 exit
@@ -1419,7 +1049,7 @@ contains
           ! or create foliar_moisture based on BTRAN
           ! Use foliar_moisture(currentCohort%pft) and compute weighted PFT average with EQ3 Van Wagner 1977
           ! in place of crown_ignite_energy parameter
-          
+
           ! EQ 3 Van Wagner 1977
           ! h = crown_ignite_energy (kJ/kg), m = foliar moisture content based on dry fuel (%)
           ! crown_ignite_energy = 460 + 26 * m
@@ -1429,17 +1059,17 @@ contains
           ! 0.01 = C from Van Wagner 1977 EQ4 for canopy base height 6m, 100% FMC, and FI 2500kW/m
 !         passive_crown_FI = (0.01_r8 * height_base_canopy * crown_ignite_energy)**1.5_r8
 
-!         passive_canopy_fuel_flg = 0         !does patch have canopy fuels for vertical spread?            
-                                      
+!         passive_canopy_fuel_flg = 0         !does patch have canopy fuels for vertical spread?
+
           ! Initiation of passive crown fire, EQ 14a Bessie and Johnson 1995
           ! Are the canopy fuels in the stand large enough to support vertical spread of fire?
 !         ignite_passive_crown = currentPatch%FI/passive_crown_FI
-                      
+
 !         if (ignite_passive_crown >= 1.0_r8) then
 !            passive_canopy_fuel_flg = 1      !enough passive canopy fuels for vertical spread
 !         endif
-          
- !evaluate active crown fire conditions         
+
+ !evaluate active crown fire conditions
           ! Critical intensity for active crowning (kW/m)
           ! EQ 12 Bessie and Johnson 1995
           ! Fuels / 0.45 to get biomass. Also dividing
@@ -1457,24 +1087,27 @@ contains
               EDPftvarcon_inst%active_crown_fire(currentCohort%pft) > 0.0_r8) then
              currentPatch%active_crown_fire_flg = 1  ! active crown fire ignited
           end if
-                     
+
           currentCohort=>currentPatch%tallest
-                     
+
           do while(associated(currentCohort))  
              currentCohort%fraction_crown_burned = 0.0_r8
              if (EDPftvarcon_inst%woody(currentCohort%pft) == 1) then !trees only
-                
-                ! height_cbb = clear branch bole height at base of crown (m) 
+
+                ! height_cbb = clear branch bole height at base of crown (m)
                 ! inst%crown = crown_depth_frac (PFT)
-                crown_depth  = currentCohort%hite*EDPftvarcon_inst%crown(currentCohort%pft) 
+                crown_depth  = currentCohort%hite*EDPftvarcon_inst%crown(currentCohort%pft)
                 height_cbb   = currentCohort%hite - crown_depth
 
-                
                 ! Equation 17 in Thonicke et al. 2010
-                ! flames over bottom of canopy, and potentially over top of canopy 
-                if (currentCohort%hite > 0.0_r8 .and. currentCohort%SH >= height_cbb) then
-                   if (currentPatch%active_crown_fire_flg == 0) then  
-                      currentCohort%fraction_crown_burned = min(1.0_r8, ((currentCohort%SH - height_cbb)/crown_depth))
+                ! flames over bottom of canopy, and potentially over top of
+                ! canopy
+                if (currentCohort%hite > 0.0_r8 .and. &
+                    currentPatch%Scorch_ht(currentCohort%pft) >= height_cbb) then
+                   if (currentPatch%active_crown_fire_flg == 0) then
+                      currentCohort%fraction_crown_burned = min(1.0_r8, &
+                      ((currentPatch%Scorch_ht(currentCohort%pft) - &
+                        height_cbb) / crown_depth))
                    else  ! active crown fire occurring
                       currentCohort%fraction_crown_burned = 1.0_r8
                    end if

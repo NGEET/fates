@@ -1,0 +1,28 @@
+# -----------------------------------------------------------------------------------------------------
+# Repo-wide git configuration file
+#
+# This file overrides the configurations specified below for all git users that have cloned this repo.
+# This is primarily being implemented to allow users to develop code with any operating system (OS)
+# preferred and mitigates potential problems with end of line (eol) character differences.
+# -----------------------------------------------------------------------------------------------------
+
+## Set the default end of line behavior (i.e. normalization to `lf` upon commit) for all files git recognizes as text
+* text=auto
+
+# Note that the above *only* applies to newly commited files.  If the file previously existed with a `crlf` end of file
+# and was checked out to local, then git will not change the eol character during check-in (i.e. commit).  For 
+# windows users they will see a warning like this:
+# warning: CRLF will be replaced by LF in functional_unit_testing/allometry/drive_allomtests.py.
+# The file will have its original line endings in your working directory
+
+## Explicitly declare to git which files should be normalized (i.e. treated as text files)
+*.cdl text
+*.F90 text
+*.F90_in text
+*.py text
+*.sh text
+*.txt text
+*.xml text
+
+## Declare to git which file types are binary files and should not have end of line modified
+*.mod binary

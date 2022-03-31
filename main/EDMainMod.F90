@@ -1,3 +1,4 @@
+
 module EDMainMod
 
   ! ===========================================================================
@@ -7,19 +8,20 @@ module EDMainMod
   use shr_kind_mod             , only : r8 => shr_kind_r8
   
   use FatesGlobals             , only : fates_log
-  use FatesInterfaceMod        , only : hlm_freq_day
-  use FatesInterfaceMod        , only : hlm_day_of_year
-  use FatesInterfaceMod        , only : hlm_days_per_year
-  use FatesInterfaceMod        , only : hlm_current_year
-  use FatesInterfaceMod        , only : hlm_current_month
-  use FatesInterfaceMod        , only : hlm_current_day 
-  use FatesInterfaceMod        , only : hlm_use_planthydro 
-  use FatesInterfaceMod        , only : hlm_reference_date
-  use FatesInterfaceMod        , only : hlm_use_ed_prescribed_phys
-  use FatesInterfaceMod        , only : hlm_use_ed_st3 
-  use FatesInterfaceMod        , only : bc_in_type
-  use FatesInterfaceMod        , only : hlm_masterproc
-  use FatesInterfaceMod        , only : numpft
+  use FatesInterfaceTypesMod        , only : hlm_freq_day
+  use FatesInterfaceTypesMod        , only : hlm_day_of_year
+  use FatesInterfaceTypesMod        , only : hlm_days_per_year
+  use FatesInterfaceTypesMod        , only : hlm_current_year
+  use FatesInterfaceTypesMod        , only : hlm_current_month
+  use FatesInterfaceTypesMod        , only : hlm_current_day 
+  use FatesInterfaceTypesMod        , only : hlm_use_planthydro 
+  use FatesInterfaceTypesMod        , only : hlm_use_cohort_age_tracking
+  use FatesInterfaceTypesMod        , only : hlm_reference_date
+  use FatesInterfaceTypesMod        , only : hlm_use_ed_prescribed_phys
+  use FatesInterfaceTypesMod        , only : hlm_use_ed_st3 
+  use FatesInterfaceTypesMod        , only : bc_in_type
+  use FatesInterfaceTypesMod        , only : hlm_masterproc
+  use FatesInterfaceTypesMod        , only : numpft
   use EDCohortDynamicsMod      , only : terminate_cohorts
   use EDCohortDynamicsMod      , only : fuse_cohorts
   use EDCohortDynamicsMod      , only : sort_cohorts
@@ -40,8 +42,10 @@ module EDMainMod
   use EDCohortDynamicsMod      , only : UpdateCohortBioPhysRates
   use SFMainMod                , only : fire_model 
   use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
+  use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
   use FatesLitterMod           , only : litter_type
   use FatesLitterMod           , only : ncwd
+
   use EDtypesMod               , only : ed_site_type
   use EDtypesMod               , only : ed_patch_type
   use EDtypesMod               , only : ed_cohort_type
@@ -56,13 +60,13 @@ module EDMainMod
   use FatesConstantsMod        , only : primaryforest, secondaryforest
   use FatesConstantsMod        , only : nearzero
   use FatesPlantHydraulicsMod  , only : do_growthrecruiteffects
-  use FatesPlantHydraulicsMod  , only : updateSizeDepTreeHydProps
-  use FatesPlantHydraulicsMod  , only : updateSizeDepTreeHydStates
-  use FatesPlantHydraulicsMod  , only : initTreeHydStates
-  use FatesPlantHydraulicsMod  , only : updateSizeDepRhizHydProps 
+  use FatesPlantHydraulicsMod  , only : UpdateSizeDepPlantHydProps
+  use FatesPlantHydraulicsMod  , only : UpdateSizeDepPlantHydStates
+  use FatesPlantHydraulicsMod  , only : InitPlantHydStates
+  use FatesPlantHydraulicsMod  , only : UpdateSizeDepRhizHydProps 
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
   use FatesAllometryMod        , only : h_allom,tree_sai,tree_lai
-  use FatesPlantHydraulicsMod , only : updateSizeDepRhizHydStates
+  use FatesPlantHydraulicsMod  , only : UpdateSizeDepRhizHydStates
   use EDLoggingMortalityMod    , only : IsItLoggingTime
   use FatesGlobals             , only : endrun => fates_endrun
   use ChecksBalancesMod        , only : SiteMassStock
@@ -252,12 +256,8 @@ contains
        ! 'rhizosphere geometry' (column-level root biomass + rootfr --> root length 
        ! density --> node radii and volumes)
        if( (hlm_use_planthydro.eq.itrue) .and. do_growthrecruiteffects) then
-          call updateSizeDepRhizHydProps(currentSite, bc_in)
-          call updateSizeDepRhizHydStates(currentSite, bc_in)
-          !       if(nshell > 1) then  (THIS BEING CHECKED INSIDE OF the update)
-          !          call updateSizeDepRhizHydStates(currentSite, c, soilstate_inst, &
-          !                waterstate_inst)
-          !       end if
+          call UpdateSizeDepRhizHydProps(currentSite, bc_in)
+          call UpdateSizeDepRhizHydStates(currentSite, bc_in)
        end if
     end if
 
@@ -275,12 +275,15 @@ contains
   !-------------------------------------------------------------------------------!
   subroutine ed_integrate_state_variables(currentSite, bc_in )
     !
+    
     ! !DESCRIPTION:
     ! FIX(SPM,032414) refactor so everything goes through interface
     !
     ! !USES:
-    !
+    use FatesInterfaceTypesMod, only : hlm_use_cohort_age_tracking
+    use FatesConstantsMod, only : itrue
     ! !ARGUMENTS:
+    
     type(ed_site_type)     , intent(inout) :: currentSite
     type(bc_in_type)        , intent(in)   :: bc_in
 
@@ -300,6 +303,7 @@ contains
     real(r8) :: delta_dbh             ! correction for dbh
     real(r8) :: delta_hite            ! correction for hite
 
+    real(r8) :: current_npp           ! place holder for calculating npp each year in prescribed physiology mode
     !-----------------------------------------------------------------------
 
     ! Set a pointer to this sites carbon12 mass balance
@@ -355,13 +359,10 @@ contains
              if (currentCohort%canopy_layer .eq. 1) then
                 currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_canopy(ft) &
                      * currentCohort%c_area / currentCohort%n
-
                 currentCohort%npp_acc = currentCohort%npp_acc_hold / hlm_days_per_year 
-
                 ! for mass balancing
                 currentCohort%gpp_acc  = currentCohort%npp_acc
                 currentCohort%resp_acc = 0._r8
-
              else
                 currentCohort%npp_acc_hold = EDPftvarcon_inst%prescribed_npp_understory(ft) &
                      * currentCohort%c_area / currentCohort%n
@@ -377,7 +378,7 @@ contains
              currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * real(hlm_days_per_year,r8)
              currentCohort%resp_acc_hold = currentCohort%resp_acc * real(hlm_days_per_year,r8)
           endif
-
+          
           ! Conduct Maintenance Turnover (parteh)
           if(debug) call currentCohort%prt%CheckMassConservation(ft,3)
           if(any(currentSite%dstatus == [phen_dstat_moiston,phen_dstat_timeon])) then
@@ -434,10 +435,24 @@ contains
           ! (size --> heights of elements --> hydraulic path lengths --> 
           ! maximum node-to-node conductances)
           if( (hlm_use_planthydro.eq.itrue) .and. do_growthrecruiteffects) then
-             call updateSizeDepTreeHydProps(currentSite,currentCohort, bc_in)
-             call updateSizeDepTreeHydStates(currentSite,currentCohort)
+             call UpdateSizeDepPlantHydProps(currentSite,currentCohort, bc_in)
+             call UpdateSizeDepPlantHydStates(currentSite,currentCohort)
           end if
-          
+
+          ! if we are in age-dependent mortality mode
+          if (hlm_use_cohort_age_tracking .eq. itrue) then
+             ! update cohort age
+             currentCohort%coage = currentCohort%coage + hlm_freq_day
+             if(currentCohort%coage < 0.0_r8)then
+                write(fates_log(),*) 'negative cohort age?',currentCohort%coage
+             end if
+
+             ! update cohort age class and age x pft class
+             call coagetype_class_index(currentCohort%coage, currentCohort%pft, &
+                  currentCohort%coage_class,currentCohort%coage_by_pft_class)
+          end if
+
+
           currentCohort => currentCohort%taller
       end do
 
@@ -706,7 +721,6 @@ contains
       if(call_index == final_check_id) then
           site_mass%old_stock = total_stock
           site_mass%err_fates = net_flux - change_in_stock
-          call site_mass%ZeroMassBalFlux()
       end if
 
    end do
@@ -755,6 +769,8 @@ contains
           currentCohort%hmort = 0.0_r8
           currentCohort%cmort = 0.0_r8
           currentCohort%frmort = 0.0_r8
+          currentCohort%smort = 0.0_r8
+          currentCohort%asmort = 0.0_r8
 
           currentCohort%dndt      = 0.0_r8
           currentCohort%dhdt      = 0.0_r8
@@ -767,5 +783,8 @@ contains
     
  end subroutine bypass_dynamics
 
-
 end module EDMainMod
+
+
+
+

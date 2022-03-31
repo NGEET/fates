@@ -10,11 +10,12 @@ module EDTypesMod
   use PRTGenericMod,         only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod,         only : repro_organ, store_organ, struct_organ
   use PRTGenericMod,         only : all_carbon_elements
-  use PRTGenericMod,         only : num_organ_types
+  use PRTGenericMod,         only : num_element_types
   use FatesLitterMod,        only : litter_type
   use FatesLitterMod,        only : ncwd
   use FatesConstantsMod,     only : n_anthro_disturbance_categories
-
+  use FatesConstantsMod,     only : days_per_year
+  
   implicit none
   private               ! By default everything is private
   save
@@ -22,7 +23,7 @@ module EDTypesMod
   integer, parameter, public :: maxPatchesPerSite  = 14   ! maximum number of patches to live on a site
   integer, parameter, public :: maxPatchesPerSite_by_disttype(n_anthro_disturbance_categories)  = &
                                                      (/ 10, 4 /)  !!! MUST SUM TO maxPatchesPerSite !!!
-  integer, parameter, public :: maxCohortsPerPatch = 100  ! maximum number of cohorts per patch
+  integer,  public :: maxCohortsPerPatch = 100            ! maximum number of cohorts per patch
   
   integer, parameter, public :: nclmax = 2                ! Maximum number of canopy layers
   integer, parameter, public :: ican_upper = 1            ! Nominal index for the upper canopy
@@ -38,6 +39,7 @@ module EDTypesMod
                                                   
   integer, parameter, public :: max_nleafage = 4          ! This is the maximum number of leaf age pools, 
                                                           ! used for allocating scratch space
+
 
   ! -------------------------------------------------------------------------------------
   ! Radiation parameters
@@ -145,8 +147,7 @@ module EDTypesMod
   integer,  parameter, public :: dl_sf                = 5          ! array index of dead leaf pool for spitfire (dead grass and dead leaves)
   integer,  parameter, public :: lg_sf                = 6          ! array index of live grass pool for spitfire
 
-  real(r8), parameter, public :: fire_threshold       = 50.0_r8    ! threshold for fires that spread or go out. KWm-2 (Pyne 1986)
-  real(r8), parameter, public :: crown_fire_threshold = 200.0_r8   ! threshold for passive crown fire ignition. KWm-2 (Bessie & Johnson 1995)
+  real(r8), parameter, public :: crown_fire_threshold = 200.0_r8   ! threshold for passive crown fire ignition. KWm-2 (Bessie & Johnson 1995) TODO slevis: see corresponding todo in SFMainMod.F90
 
 
   ! PATCH FUSION 
@@ -189,7 +190,7 @@ module EDTypesMod
                                                         ! in PRTGenericMod.F90. examples are carbon12_element
                                                         ! nitrogen_element, etc.
 
-  integer, public :: element_pos(num_organ_types)       ! This is the reverse lookup
+  integer, public :: element_pos(num_element_types)       ! This is the reverse lookup
                                                         ! for element types. Pick an element
                                                         ! global index, and it gives you
                                                         ! the position in the element_list
@@ -215,9 +216,12 @@ module EDTypesMod
      integer  ::  pft                                    ! pft number
      real(r8) ::  n                                      ! number of individuals in cohort per 'area' (10000m2 default)
      real(r8) ::  dbh                                    ! dbh: cm
+     real(r8) ::  coage                                  ! cohort age in years
      real(r8) ::  hite                                   ! height: meters
      integer  ::  indexnumber                            ! unique number for each cohort. (within clump?)
      real(r8) ::  laimemory                              ! target leaf biomass- set from previous year: kGC per indiv
+     real(r8) ::  sapwmemory                             ! target sapwood biomass- set from previous year: kGC per indiv
+     real(r8) ::  structmemory                           ! target structural biomass- set from previous year: kGC per indiv
      integer  ::  canopy_layer                           ! canopy status of cohort (1 = canopy, 2 = understorey, etc.)
      real(r8) ::  canopy_layer_yesterday                 ! recent canopy status of cohort
                                                          ! (1 = canopy, 2 = understorey, etc.)  
@@ -241,12 +245,14 @@ module EDTypesMod
                                                          ! this is used for history output. We maintain this in the main cohort memory
                                                          ! because we don't want to continually re-calculate the cohort's position when
                                                          ! performing size diagnostics at high-frequency calls
+     integer  ::  coage_class                            ! An index that indicates which age bin the cohort currently resides in 
+                                                         ! used for history output.
      integer  ::  size_by_pft_class                      ! An index that indicates the cohorts position of the joint size-class x functional
                                                          ! type classification. We also maintain this in the main cohort memory
                                                          ! because we don't want to continually re-calculate the cohort's position when
                                                          ! performing size diagnostics at high-frequency calls
-     integer ::  size_class_lasttimestep                 ! size class of the cohort at the end of the previous timestep (used for calculating growth flux)
-
+     integer  ::  coage_by_pft_class                     ! An index that indicates the cohorts position of the join cohort age class x PFT 
+     integer ::  size_class_lasttimestep                 ! size class of the cohort at the last time step
 
      ! CARBON FLUXES 
      
@@ -318,7 +324,9 @@ module EDTypesMod
      real(r8) ::  cmort                                  ! carbon starvation mortality rate n/year
      real(r8) ::  hmort                                  ! hydraulic failure mortality rate n/year
      real(r8) ::  frmort                                 ! freezing mortality               n/year
-
+     real(r8) ::  smort                                  ! senesence mortality              n/year
+     real(r8) ::  asmort                                 ! age senescence mortality         n/year
+     
       ! Logging Mortality Rate 
       ! Yi Xu & M. Huang
      real(r8) ::  lmort_direct                           ! directly logging rate            fraction /per logging activity
@@ -344,7 +352,6 @@ module EDTypesMod
      real(r8) ::  dbdeaddt                               ! time derivative of dead biomass         : KgC/year
 
      ! FIRE
-     real(r8) ::  sh                                     ! scorch height: m 
      real(r8) ::  fraction_crown_burned                  ! proportion of crown affected by fire:-
      real(r8) ::  cambial_mort                           ! probability that trees dies due to cambial char 
                                                          ! (conditional on the tree being subjected to the fire)
@@ -524,6 +531,7 @@ module EDTypesMod
      real(r8) ::  fd                                               ! fire duration: mins
 
      ! FIRE EFFECTS     
+     real(r8) ::  scorch_ht(maxpft)                                ! scorch height: m 
      real(r8) ::  frac_burnt                                       ! fraction burnt: frac gridcell/day  
      real(r8) ::  tfc_ros                                          ! total fuel consumed - no trunks.  KgC/m2/day
      real(r8) ::  burnt_frac_litter(nfsc)                          ! fraction of each litter pool burned:-
@@ -751,9 +759,8 @@ module EDTypesMod
      real(r8), allocatable :: fmort_rate_crown(:,:)              ! rate of individuals killed due to fire mortality 
                                                                  ! from crown damage per year.  on size x pft array
 
-     real(r8), allocatable :: growthflux_fusion(:,:)             ! rate of individuals moving into a given size class bin 
-                                                                 ! due to fusion in a given day. on size x pft array 
-
+     real(r8), allocatable :: growthflux_fusion(:,:)             ! rate of individuals moving into a given size class bin
+     ! due to fusion in a given day. on size x pft array 
 
 
 
@@ -963,7 +970,10 @@ module EDTypesMod
      write(fates_log(),*) 'co%n                      = ', ccohort%n                         
      write(fates_log(),*) 'co%dbh                    = ', ccohort%dbh                                        
      write(fates_log(),*) 'co%hite                   = ', ccohort%hite
+     write(fates_log(),*) 'co%coage                  = ', ccohort%coage
      write(fates_log(),*) 'co%laimemory              = ', ccohort%laimemory
+     write(fates_log(),*) 'co%sapwmemory             = ', ccohort%sapwmemory
+     write(fates_log(),*) 'co%structmemory           = ', ccohort%structmemory
      
      write(fates_log(),*) 'leaf carbon               = ', ccohort%prt%GetState(leaf_organ,all_carbon_elements) 
      write(fates_log(),*) 'fineroot carbon           = ', ccohort%prt%GetState(fnrt_organ,all_carbon_elements) 
@@ -985,6 +995,8 @@ module EDTypesMod
      write(fates_log(),*) 'co%prom_weight            = ', ccohort%prom_weight               
      write(fates_log(),*) 'co%size_class             = ', ccohort%size_class
      write(fates_log(),*) 'co%size_by_pft_class      = ', ccohort%size_by_pft_class
+     write(fates_log(),*) 'co%coage_class            = ', ccohort%coage_class
+     write(fates_log(),*) 'co%coage_by_pft_class     = ', ccohort%coage_by_pft_class
      write(fates_log(),*) 'co%gpp_acc_hold           = ', ccohort%gpp_acc_hold
      write(fates_log(),*) 'co%gpp_acc                = ', ccohort%gpp_acc
      write(fates_log(),*) 'co%gpp_tstep              = ', ccohort%gpp_tstep
@@ -1006,8 +1018,11 @@ module EDTypesMod
      write(fates_log(),*) 'co%c_area                 = ', ccohort%c_area
      write(fates_log(),*) 'co%cmort                  = ', ccohort%cmort
      write(fates_log(),*) 'co%bmort                  = ', ccohort%bmort
+     write(fates_log(),*) 'co%smort                  = ', ccohort%smort
+     write(fates_log(),*) 'co%asmort                 = ', ccohort%asmort
      write(fates_log(),*) 'co%hmort                  = ', ccohort%hmort
      write(fates_log(),*) 'co%frmort                 = ', ccohort%frmort
+     write(fates_log(),*) 'co%asmort                 = ', ccohort%asmort
      write(fates_log(),*) 'co%isnew                  = ', ccohort%isnew
      write(fates_log(),*) 'co%dndt                   = ', ccohort%dndt
      write(fates_log(),*) 'co%dhdt                   = ', ccohort%dhdt

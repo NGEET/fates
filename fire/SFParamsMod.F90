@@ -3,6 +3,7 @@ module SFParamsMod
    ! module that deals with reading the SF parameter file
    !
    use FatesConstantsMod , only: r8 => fates_r8
+   use FatesConstantsMod , only: fates_check_param_set
    use EDtypesMod        , only: NFSC
    use FatesLitterMod    , only: ncwd
    use FatesParametersInterface, only : param_string_length
@@ -28,6 +29,7 @@ module SFParamsMod
    real(r8),protected, public :: SF_val_max_durat
    real(r8),protected, public :: SF_val_durat_slope
    real(r8),protected, public :: SF_val_drying_ratio
+   real(r8),protected, public :: SF_val_fire_threshold    ! threshold for fires that spread or go out. kW/m (Pyne 1996)
    real(r8),protected, public :: SF_val_CWD_frac(ncwd)
    real(r8),protected, public :: SF_val_max_decomp(NFSC)
    real(r8),protected, public :: SF_val_SAV(NFSC)
@@ -49,6 +51,7 @@ module SFParamsMod
    character(len=param_string_length),parameter :: SF_name_max_durat = "fates_fire_max_durat"
    character(len=param_string_length),parameter :: SF_name_durat_slope = "fates_fire_durat_slope"
    character(len=param_string_length),parameter :: SF_name_drying_ratio = "fates_fire_drying_ratio"
+   character(len=param_string_length),parameter :: SF_name_fire_threshold = "fates_fire_threshold"
    character(len=param_string_length),parameter :: SF_name_CWD_frac = "fates_CWD_frac"
    character(len=param_string_length),parameter :: SF_name_max_decomp = "fates_max_decomp"
    character(len=param_string_length),parameter :: SF_name_SAV = "fates_fire_SAV"
@@ -62,6 +65,10 @@ module SFParamsMod
 
    character(len=*), parameter, private :: sourcefile = &
          __FILE__
+
+
+   real(r8), parameter,private :: min_fire_threshold = 0.0001_r8  ! The minimum reasonable fire intensity threshold [kW/m]
+
 
    public :: SpitFireRegisterParams
    public :: SpitFireReceiveParams
@@ -119,6 +126,15 @@ contains
          SF_val_CWD_frac(corr_id(1)) = SF_val_CWD_frac(corr_id(1)) + correction
      end if
 
+     ! Check to see if the fire threshold is above the minimum and set at all
+     if(SF_val_fire_threshold < min_fire_threshold .or. & 
+           SF_val_fire_threshold >  fates_check_param_set ) then
+         write(fates_log(),*) 'The fates_fire_threshold parameter must be set, and > ',min_fire_threshold
+         write(fates_log(),*) 'The value is set at :',SF_val_fire_threshold
+         write(fates_log(),*) 'Please provide a reasonable value, aborting.'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+     end if
+
 
      return
   end subroutine SpitFireCheckParams
@@ -142,11 +158,9 @@ contains
     SF_val_max_durat = nan
     SF_val_durat_slope = nan
     SF_val_drying_ratio = nan
-
+    SF_val_fire_threshold = nan
     SF_val_CWD_frac(:) = nan
-
     SF_val_max_decomp(:) = nan
-
     SF_val_SAV(:) = nan
     SF_val_FBD(:) = nan
     SF_val_min_moisture(:) = nan
@@ -230,6 +244,9 @@ contains
     call fates_params%RegisterParameter(name=SF_name_drying_ratio, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
+    call fates_params%RegisterParameter(name=SF_name_fire_threshold, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
   end subroutine SpitFireRegisterScalars
 
  !-----------------------------------------------------------------------
@@ -240,6 +257,8 @@ contains
     implicit none
 
     class(fates_parameters_type), intent(inout) :: fates_params
+    real(r8) :: tmp_real
+    
 
     call fates_params%RetreiveParameter(name=SF_name_fdi_a, &
          data=SF_val_fdi_a)
@@ -270,6 +289,12 @@ contains
 
     call fates_params%RetreiveParameter(name=SF_name_drying_ratio, &
          data=SF_val_drying_ratio)
+
+    call fates_params%RetreiveParameter(name=SF_name_fire_threshold, &
+         data=SF_val_fire_threshold)
+
+
+
 
   end subroutine SpitFireReceiveScalars
 

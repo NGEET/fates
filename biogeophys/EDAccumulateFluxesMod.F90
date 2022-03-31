@@ -39,7 +39,7 @@ contains
   
     use EDTypesMod        , only : ed_patch_type, ed_cohort_type, &
                                    ed_site_type, AREA
-    use FatesInterfaceMod , only : bc_in_type,bc_out_type
+    use FatesInterfaceTypesMod , only : bc_in_type,bc_out_type
 
     !
     ! !ARGUMENTS    

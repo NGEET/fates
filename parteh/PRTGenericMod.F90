@@ -33,6 +33,9 @@ module PRTGenericMod
   implicit none
   private ! Modules are private by default
 
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
+
   integer, parameter, public :: maxlen_varname   = 128
   integer, parameter, public :: maxlen_varsymbol = 32
   integer, parameter, public :: maxlen_varunits  = 32
@@ -578,8 +581,7 @@ contains
           if(this%variables(i_var)%val(i_cor) < check_initialized) then
 
              i_organ   = prt_global%state_descriptor(i_var)%organ_id
-             i_element = prt_global%state_descriptor(i_var)%element_id
-
+             i_element = prt_global%state_descriptor(i_var)%element_id 
              write(fates_log(),*)'Not all initial conditions for state variables'
              write(fates_log(),*)' in PRT hypothesis: ',trim(prt_global%hyp_name)
              write(fates_log(),*)' were written out.'
@@ -588,7 +590,7 @@ contains
              write(fates_log(),*)' organ_id:',i_organ
              write(fates_log(),*)' element_id',i_element
              write(fates_log(),*)'Exiting'
-             call endrun(msg=errMsg(__FILE__, __LINE__))
+             call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
 
        end do
@@ -946,7 +948,7 @@ contains
                                                this%variables(i_var)%turnover(i_pos), &
                                                this%variables(i_var)%burned(i_pos)
               write(fates_log(),*) ' Exiting.'
-              call endrun(msg=errMsg(__FILE__, __LINE__))
+              call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
 
         end do
@@ -1204,7 +1206,7 @@ contains
       real(r8)                          :: prt_val 
       
       write(fates_log(),*)'Init must be extended by a child class.'
-      call endrun(msg=errMsg(__FILE__, __LINE__))
+      call endrun(msg=errMsg(sourcefile, __LINE__))
       
     end function GetCoordVal
 
@@ -1215,7 +1217,7 @@ contains
       class(prt_vartypes) :: this
       
       write(fates_log(),*)'Daily PRT Allocation must be extended'
-      call endrun(msg=errMsg(__FILE__, __LINE__))
+      call endrun(msg=errMsg(sourcefile, __LINE__))
    
    end subroutine DailyPRTBase
 
@@ -1226,7 +1228,7 @@ contains
       class(prt_vartypes) :: this
       
       write(fates_log(),*)'FastReactiveTransport must be extended by a child class.'
-      call endrun(msg=errMsg(__FILE__, __LINE__))
+      call endrun(msg=errMsg(sourcefile, __LINE__))
 
    end subroutine FastPRTBase
 
@@ -1253,7 +1255,7 @@ contains
      if(element_id == all_carbon_elements) then
         write(fates_log(),*) 'You cannot set the state of all isotopes simultaneously.'
         write(fates_log(),*) 'You can only set 1. Exiting.'
-        call endrun(msg=errMsg(__FILE__, __LINE__))
+        call endrun(msg=errMsg(sourcefile, __LINE__))
      end if
      
      if( present(position_id) ) then
@@ -1269,7 +1271,7 @@ contains
         write(fates_log(),*) 'greater than the allocated position space'
         write(fates_log(),*) ' i_pos: ',i_pos
         write(fates_log(),*) ' num_pos: ',prt_global%state_descriptor(i_var)%num_pos
-        call endrun(msg=errMsg(__FILE__, __LINE__))
+        call endrun(msg=errMsg(sourcefile, __LINE__))
      end if
 
 
@@ -1282,7 +1284,7 @@ contains
         write(fates_log(),*) ' organ_id:',organ_id
         write(fates_log(),*) ' element_id:',element_id
         write(fates_log(),*) 'Exiting'
-        call endrun(msg=errMsg(__FILE__, __LINE__))
+        call endrun(msg=errMsg(sourcefile, __LINE__))
      end if
         
 

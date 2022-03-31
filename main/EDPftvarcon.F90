@@ -52,8 +52,10 @@ module EDPftvarcon
      real(r8), allocatable :: active_crown_fire(:)   ! Is plant susceptible to active crown fire?
      real(r8), allocatable :: initd(:)               ! initial seedling density 
      real(r8), allocatable :: seed_suppl(:)          ! seeds that come from outside the gridbox.
-     real(r8), allocatable :: BB_slope(:)            ! ball berry slope parameter
-     
+     real(r8), allocatable :: bb_slope(:)            ! ball berry slope parameter
+     real(r8), allocatable :: medlyn_slope(:)        ! Medlyn slope parameter KPa^0.5
+     real(r8), allocatable :: stomatal_intercept(:)  ! intercept of stomatal conductance model
+                                                     ! (or unstressed minimum conductance) umol/m**2/s
      real(r8), allocatable :: seed_alloc_mature(:)   ! fraction of carbon balance allocated to 
                                                      ! clonal reproduction.
      real(r8), allocatable :: seed_alloc(:)          ! fraction of carbon balance allocated to seeds.
@@ -69,8 +71,12 @@ module EDPftvarcon
      real(r8), allocatable :: slamax(:)              ! Maximum specific leaf area of plant (at bottom) [m2/gC]
      real(r8), allocatable :: slatop(:)              ! Specific leaf area at canopy top [m2/gC]
      
-     real(r8), allocatable :: roota_par(:)           ! Normalized Root profile scaling parameter A
-     real(r8), allocatable :: rootb_par(:)           ! Normalized root profile scaling parameter B
+     real(r8), allocatable :: fnrt_prof_mode(:)      ! Index to select fine root profile function:
+                                                     ! 1) Jackson Beta, 2) 1-param exponential
+                                                     ! 3) 2-param exponential 4) Zeng (not yet unified)
+     real(r8),allocatable :: fnrt_prof_a(:)          ! a parameter for fine-root profile (1st parameter)
+     real(r8),allocatable :: fnrt_prof_b(:)          ! b parameter for fine-root profile (2nd parameter)
+     
      real(r8), allocatable :: lf_flab(:)             ! Leaf litter labile fraction [-]
      real(r8), allocatable :: lf_fcel(:)             ! Leaf litter cellulose fraction [-]
      real(r8), allocatable :: lf_flig(:)             ! Leaf litter lignan fraction [-]
@@ -95,6 +101,10 @@ module EDPftvarcon
      real(r8), allocatable :: maintresp_reduction_intercept(:) ! intercept of MR reduction as f(carbon storage), 
                                                                ! 0=no throttling, 1=max throttling
      real(r8), allocatable :: bmort(:)
+     real(r8), allocatable :: mort_ip_size_senescence(:)  ! inflection point of dbh dependent senescence
+     real(r8), allocatable :: mort_r_size_senescence(:) ! rate of change in mortality with dbh
+     real(r8), allocatable :: mort_ip_age_senescence(:) ! inflection point of age dependent senescence 
+     real(r8), allocatable :: mort_r_age_senescence(:) ! rate of change in mortality with age 
      real(r8), allocatable :: mort_scalar_coldstress(:)
      real(r8), allocatable :: mort_scalar_cstarvation(:)
      real(r8), allocatable :: mort_scalar_hydrfailure(:)
@@ -109,8 +119,9 @@ module EDPftvarcon
      real(r8), allocatable :: vcmaxse(:)
      real(r8), allocatable :: jmaxse(:)
      real(r8), allocatable :: tpuse(:)
-     real(r8), allocatable :: germination_timescale(:)
-     real(r8), allocatable :: seed_decay_turnover(:)
+     real(r8), allocatable :: germination_rate(:)        ! Fraction of seed mass germinating per year (yr-1)
+     real(r8), allocatable :: seed_decay_rate(:)         ! Fraction of seed mass (both germinated and 
+                                                         ! ungerminated), decaying per year    (yr-1)
      
      real(r8), allocatable :: trim_limit(:)              ! Limit to reductions in leaf area w stress (m2/m2)
      real(r8), allocatable :: trim_inc(:)                ! Incremental change in trimming function   (m2/m2)
@@ -118,7 +129,9 @@ module EDPftvarcon
      real(r8), allocatable :: rhos(:, :)
      real(r8), allocatable :: taul(:, :)
      real(r8), allocatable :: taus(:, :)
-     real(r8), allocatable :: rootprof_beta(:, :)
+
+
+     
 
      ! Fire Parameters (No PFT vector capabilities in their own routines)
      ! See fire/SFParamsMod.F90 for bulk of fire parameters
@@ -165,15 +178,15 @@ module EDPftvarcon
      real(r8), allocatable :: allom_frbstor_repro(:) ! fraction of bstrore for reproduction after mortality
 
      ! Prescribed Physiology Mode Parameters
-     real(r8), allocatable :: prescribed_npp_canopy(:)           ! this is only for the special 
+     real(r8), allocatable :: prescribed_npp_canopy(:)           ! this is only for the  
                                                                  ! prescribed_physiology_mode
-     real(r8), allocatable :: prescribed_npp_understory(:)       ! this is only for the special 
+     real(r8), allocatable :: prescribed_npp_understory(:)       ! this is only for the 
+                                                                 ! prescribed physiology mode
+     real(r8), allocatable :: prescribed_mortality_canopy(:)     ! this is only for the 
                                                                  ! prescribed_physiology_mode
-     real(r8), allocatable :: prescribed_mortality_canopy(:)     ! this is only for the special
+     real(r8), allocatable :: prescribed_mortality_understory(:) ! this is only for the  
                                                                  ! prescribed_physiology_mode
-     real(r8), allocatable :: prescribed_mortality_understory(:) ! this is only for the special 
-                                                                 ! prescribed_physiology_mode
-     real(r8), allocatable :: prescribed_recruitment(:)          ! this is only for the special 
+     real(r8), allocatable :: prescribed_recruitment(:)          ! this is only for the 
                                                                  ! prescribed_physiology_mode
 
      
@@ -199,10 +212,55 @@ module EDPftvarcon
      real(r8), allocatable :: prt_phos_stoich_p2(:,:)   ! Parameter 2 for phosphorus stoichiometry (pft x organ) 
      real(r8), allocatable :: prt_alloc_priority(:,:)   ! Allocation priority for each organ (pft x organ) [integer 0-6]
 
+     ! Nutrient Aquisition parameters
+
+     real(r8), allocatable :: prescribed_nuptake(:)     ! Nitrogen uptake flux per unit crown area 
+                                                        ! (negative implies fraction of NPP) kgN/m2/yr
+
+     real(r8), allocatable :: prescribed_puptake(:)     ! Phosphorus uptake flux per unit crown area 
+                                                        ! (negative implies fraction of NPP) kgP/m2/yr
+
+     ! (NONE OF THESE ARE ACTIVE YET - PLACEHOLDERS ONLY!!!!!)
+
+     ! Nutrient Aquisition (ECA & RD)
+!     real(r8), allocatable :: decompmicc(:)             ! microbial decomposer biomass gC/m3
+                                                        ! on root surface
+
+     ! ECA Parameters: See Zhu et al. Multiple soil nutrient competition between plants,
+     !                     microbes, and mineral surfaces: model development, parameterization,
+     !                     and example applications in several tropical forests.  Biogeosciences,
+     !                     13, pp.341-363, 2016.
+     ! KM: Michaeles-Menten half-saturation constants for ECA (plant–enzyme affinity)
+     ! VMAX: Product of the reaction-rate and enzyme abundance for each PFT in ECA
+     ! Note*: units of [gC] is grams carbon of fine-root
+
+     real(r8), allocatable :: eca_km_nh4(:)       ! half-saturation constant for plant nh4 uptake  [gN/m3]
+     real(r8), allocatable :: eca_vmax_nh4(:)     ! maximum production rate for plant nh4 uptake   [gN/gC/s] 
+     real(r8), allocatable :: eca_km_no3(:)       ! half-saturation constant for plant no3 uptake  [gN/m3]
+     real(r8), allocatable :: eca_vmax_no3(:)     ! maximum production rate for plant no3 uptake   [gN/gC/s]
+     real(r8), allocatable :: eca_km_p(:)         ! half-saturation constant for plant p uptake    [gP/m3]
+     real(r8), allocatable :: eca_vmax_p(:)       ! maximum production rate for plant p uptake     [gP/gC/s]
+     real(r8), allocatable :: eca_km_ptase(:)     ! half-saturation constant for biochemical P production [gP/m3]
+     real(r8), allocatable :: eca_vmax_ptase(:)   ! maximum production rate for biochemical P prod        [gP/m2/s]
+     real(r8), allocatable :: eca_alpha_ptase(:)  ! Fraction of min P generated from ptase activity
+                                                  ! that is immediately sent to the plant [/]
+     real(r8), allocatable :: eca_lambda_ptase(:) ! critical value for Ptase that incurs 
+                                                  ! biochemical production, fraction based how much
+                                                  ! more in need a plant is for P versus N [/]
+
+     
+     real(r8), allocatable :: nfix1(:)   ! nitrogen fixation parameter 1 (in file, but not used yet)
+     real(r8), allocatable :: nfix2(:)   ! nitrogen fixation parameter 2 (in file, but not used yet)
+
+
      ! Turnover related things
 
      real(r8), allocatable :: phenflush_fraction(:)       ! Maximum fraction of storage carbon used to flush leaves
                                                           ! on bud-burst [kgC/kgC]
+     real(r8), allocatable :: phen_cold_size_threshold(:) ! stem/leaf drop occurs on DBH size of decidious non-woody 
+                                                          ! (coastal grass) plants larger than the threshold value 							  
+     real(r8), allocatable :: phen_stem_drop_fraction(:)  ! Fraction of stem dropped/senescened for decidious 
+                                                          ! non-woody (grass) plants		
 
      real(r8), allocatable :: senleaf_long_fdrought(:)    ! Multiplication factor for leaf longevity of senescent 
                                                           ! leaves during drought( 1.0 indicates no change)
@@ -394,10 +452,19 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_leaf_BB_slope'
+    name = 'fates_leaf_stomatal_slope_ballberry'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_leaf_stomatal_slope_medlyn'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_leaf_stomatal_intercept'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    
     name = 'fates_senleaf_long_fdrought'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -446,11 +513,15 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_roota_par'
+    name = 'fates_fnrt_prof_mode'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_fnrt_prof_a'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_rootb_par'
+    name = 'fates_fnrt_prof_b'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -667,6 +738,22 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_mort_r_size_senescence'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_mort_ip_size_senescence'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_mort_r_age_senescence'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_mort_ip_age_senescence'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     name = 'fates_mort_scalar_coldstress'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -723,11 +810,11 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_seed_germination_timescale'
+    name = 'fates_seed_germination_rate'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_seed_decay_turnover'
+    name = 'fates_seed_decay_rate'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -762,8 +849,77 @@ contains
     name = 'fates_phenflush_fraction'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
+	  
+    name = 'fates_phen_cold_size_threshold'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
+    name = 'fates_phen_stem_drop_fraction'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    ! Nutrient competition parameters
+
+!    name = 'fates_eca_decompmicc'
+!    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+!          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_eca_km_nh4'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_eca_vmax_nh4'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_eca_km_no3'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_eca_vmax_no3'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_eca_km_p'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_eca_vmax_p'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_eca_km_ptase'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_eca_vmax_ptase'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_eca_alpha_ptase'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_eca_lambda_ptase'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_nfix1'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_nfix2'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_prescribed_nuptake'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_prescribed_puptake'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)    
+  
   end subroutine Register_PFT
 
   !-----------------------------------------------------------------------
@@ -830,9 +986,17 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%seed_suppl)
 
-    name = 'fates_leaf_BB_slope'
+    name = 'fates_leaf_stomatal_slope_ballberry'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%BB_slope)
+         data=this%bb_slope)
+
+    name = 'fates_leaf_stomatal_slope_medlyn'   
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%medlyn_slope)
+
+    name = 'fates_leaf_stomatal_intercept'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%stomatal_intercept)
 
     name = 'fates_senleaf_long_fdrought'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -878,14 +1042,19 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%slatop)
 
-    name = 'fates_roota_par'
+    name = 'fates_fnrt_prof_mode'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%roota_par)
+         data=this%fnrt_prof_mode)
 
-    name = 'fates_rootb_par'
+    name = 'fates_fnrt_prof_a'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%rootb_par)
+         data=this%fnrt_prof_a)
 
+    name = 'fates_fnrt_prof_b'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%fnrt_prof_b)
+
+    
     name = 'fates_lf_flab'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%lf_flab)
@@ -1102,6 +1271,22 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%bmort)
 
+    name = 'fates_mort_ip_size_senescence'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%mort_ip_size_senescence)
+
+    name = 'fates_mort_r_size_senescence'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%mort_r_size_senescence)
+
+    name = 'fates_mort_ip_age_senescence'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%mort_ip_age_senescence)
+
+    name = 'fates_mort_r_age_senescence'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%mort_r_age_senescence)
+    
     name = 'fates_mort_scalar_coldstress'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%mort_scalar_coldstress)
@@ -1158,13 +1343,13 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%tpuse)
 
-    name = 'fates_seed_germination_timescale'
+    name = 'fates_seed_germination_rate'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%germination_timescale)
+         data=this%germination_rate)
 
-    name = 'fates_seed_decay_turnover'
+    name = 'fates_seed_decay_rate'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%seed_decay_turnover)
+         data=this%seed_decay_rate)
 
     name = 'fates_branch_turnover'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1197,6 +1382,83 @@ contains
     name = 'fates_phenflush_fraction'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%phenflush_fraction)
+	  	 
+    name = 'fates_phen_cold_size_threshold'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%phen_cold_size_threshold)
+	 
+    name = 'fates_phen_stem_drop_fraction'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%phen_stem_drop_fraction)	 
+	 
+
+    name = 'fates_phen_cold_size_threshold'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%phen_cold_size_threshold)
+    
+    name = 'fates_phen_stem_drop_fraction'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+          data=this%phen_stem_drop_fraction)
+
+!    name = 'fates_eca_decompmicc'
+!    call fates_params%RetreiveParameterAllocate(name=name, &
+!         data=this%eca_decompmicc)
+
+    name = 'fates_eca_km_nh4'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_km_nh4)
+
+    name = 'fates_eca_vmax_nh4'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_vmax_nh4)
+
+    name = 'fates_eca_km_no3'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_km_no3)
+
+    name = 'fates_eca_vmax_no3'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_vmax_no3)
+
+    name = 'fates_eca_km_p'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_km_p)
+
+    name = 'fates_eca_vmax_p'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_vmax_p)
+
+    name = 'fates_eca_km_ptase'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_km_ptase)
+
+    name = 'fates_eca_vmax_ptase'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_vmax_ptase)
+
+    name = 'fates_eca_alpha_ptase'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_alpha_ptase)
+
+    name = 'fates_eca_lambda_ptase'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%eca_lambda_ptase)
+
+    name = 'fates_nfix1'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%nfix1)
+
+    name = 'fates_nfix2'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%nfix2)
+
+    name = 'fates_prescribed_nuptake'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%prescribed_nuptake)
+    
+    name = 'fates_prescribed_puptake'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=this%prescribed_puptake)
 
   end subroutine Receive_PFT
 
@@ -1254,6 +1516,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
+    
 
   end subroutine Register_PFT_numrad
 
@@ -1389,10 +1652,6 @@ contains
     !X!    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
     !X!         dimension_names=dim_names)
 
-    name = 'fates_rootprof_beta'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
   end subroutine Register_PFT_nvariants
 
   !-----------------------------------------------------------------------
@@ -1412,9 +1671,6 @@ contains
     !X!    call fates_params%RetreiveParameter(name=name, &
     !X!         data=this%)
 
-    name = 'fates_rootprof_beta'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%rootprof_beta)
 
   end subroutine Receive_PFT_nvariants
 
@@ -1734,7 +1990,9 @@ contains
         write(fates_log(),fmt0) 'active_crown_fire = ',EDPftvarcon_inst%active_crown_fire
         write(fates_log(),fmt0) 'initd = ',EDPftvarcon_inst%initd
         write(fates_log(),fmt0) 'seed_suppl = ',EDPftvarcon_inst%seed_suppl
-        write(fates_log(),fmt0) 'BB_slope = ',EDPftvarcon_inst%BB_slope
+        write(fates_log(),fmt0) 'bb_slope = ',EDPftvarcon_inst%bb_slope
+        write(fates_log(),fmt0) 'medlyn_slope = ',EDPftvarcon_inst%medlyn_slope         
+        write(fates_log(),fmt0) 'stomatal_intercept = ',EDPftvarcon_inst%stomatal_intercept
         write(fates_log(),fmt0) 'root_long = ',EDPftvarcon_inst%root_long
         write(fates_log(),fmt0) 'senleaf_long_fdrought = ',EDPftvarcon_inst%senleaf_long_fdrought
         write(fates_log(),fmt0) 'seed_alloc_mature = ',EDPftvarcon_inst%seed_alloc_mature
@@ -1746,8 +2004,9 @@ contains
         write(fates_log(),fmt0) 'slamax = ',EDPftvarcon_inst%slamax
         write(fates_log(),fmt0) 'slatop = ',EDPftvarcon_inst%slatop        
         write(fates_log(),fmt0) 'leaf_long = ',EDPftvarcon_inst%leaf_long
-        write(fates_log(),fmt0) 'roota_par = ',EDPftvarcon_inst%roota_par
-        write(fates_log(),fmt0) 'rootb_par = ',EDPftvarcon_inst%rootb_par
+        write(fates_log(),fmt0) 'fnrt_prof_mode = ',EDPftvarcon_inst%fnrt_prof_mode
+        write(fates_log(),fmt0) 'fnrt_prof_a = ',EDPftvarcon_inst%fnrt_prof_a
+        write(fates_log(),fmt0) 'fnrt_prof_b = ',EDPftvarcon_inst%fnrt_prof_b
         write(fates_log(),fmt0) 'lf_flab = ',EDPftvarcon_inst%lf_flab
         write(fates_log(),fmt0) 'lf_fcel = ',EDPftvarcon_inst%lf_fcel
         write(fates_log(),fmt0) 'lf_flig = ',EDPftvarcon_inst%lf_flig
@@ -1763,6 +2022,10 @@ contains
         write(fates_log(),fmt0) 'grperc = ',EDPftvarcon_inst%grperc
         write(fates_log(),fmt0) 'c2b = ',EDPftvarcon_inst%c2b
         write(fates_log(),fmt0) 'bmort = ',EDPftvarcon_inst%bmort
+        write(fates_log(),fmt0) 'mort_ip_size_senescence = ', EDPftvarcon_inst%mort_ip_size_senescence
+        write(fates_log(),fmt0) 'mort_r_size_senescence = ', EDPftvarcon_inst%mort_r_size_senescence
+        write(fates_log(),fmt0) 'mort_ip_age_senescence = ', EDPftvarcon_inst%mort_ip_age_senescence
+        write(fates_log(),fmt0) 'mort_r_age_senescence = ', EDPftvarcon_inst%mort_r_age_senescence 
         write(fates_log(),fmt0) 'mort_scalar_coldstress = ',EDPftvarcon_inst%mort_scalar_coldstress
         write(fates_log(),fmt0) 'mort_scalar_cstarvation = ',EDPftvarcon_inst%mort_scalar_cstarvation
         write(fates_log(),fmt0) 'mort_scalar_hydrfailure = ',EDPftvarcon_inst%mort_scalar_hydrfailure
@@ -1777,8 +2040,8 @@ contains
         write(fates_log(),fmt0) 'vcmaxse = ',EDPftvarcon_inst%vcmaxse
         write(fates_log(),fmt0) 'jmaxse = ',EDPftvarcon_inst%jmaxse
         write(fates_log(),fmt0) 'tpuse = ',EDPftvarcon_inst%tpuse
-        write(fates_log(),fmt0) 'germination_timescale = ',EDPftvarcon_inst%germination_timescale
-        write(fates_log(),fmt0) 'seed_decay_turnover = ',EDPftvarcon_inst%seed_decay_turnover
+        write(fates_log(),fmt0) 'germination_rate = ',EDPftvarcon_inst%germination_rate
+        write(fates_log(),fmt0) 'seed_decay_rate = ',EDPftvarcon_inst%seed_decay_rate
         write(fates_log(),fmt0) 'branch_turnover = ',EDPftvarcon_inst%branch_turnover
         write(fates_log(),fmt0) 'trim_limit = ',EDPftvarcon_inst%trim_limit
         write(fates_log(),fmt0) 'trim_inc = ',EDPftvarcon_inst%trim_inc
@@ -1787,7 +2050,8 @@ contains
         write(fates_log(),fmt0) 'taul = ',EDPftvarcon_inst%taul 
         write(fates_log(),fmt0) 'taus = ',EDPftvarcon_inst%taus
         write(fates_log(),fmt0) 'phenflush_fraction',EDpftvarcon_inst%phenflush_fraction
-        write(fates_log(),fmt0) 'rootprof_beta = ',EDPftvarcon_inst%rootprof_beta
+        write(fates_log(),fmt0) 'phen_cold_size_threshold = ',EDPftvarcon_inst%phen_cold_size_threshold
+        write(fates_log(),fmt0) 'phen_stem_drop_fraction',EDpftvarcon_inst%phen_stem_drop_fraction
         write(fates_log(),fmt0) 'fire_alpha_SH = ',EDPftvarcon_inst%fire_alpha_SH
         write(fates_log(),fmt0) 'allom_hmode = ',EDPftvarcon_inst%allom_hmode
         write(fates_log(),fmt0) 'allom_lmode = ',EDPftvarcon_inst%allom_lmode
@@ -1862,8 +2126,9 @@ contains
      ! cannot have a structural biomass allometry intercept of 0, and a non-woody
      ! plant (grass) can't have a non-zero intercept...
      ! -----------------------------------------------------------------------------------
-
-
+    use FatesConstantsMod  , only : fates_check_param_set
+    use FatesConstantsMod  , only : itrue, ifalse
+    
      ! Argument
      logical, intent(in) :: is_master    ! Only log if this is the master proc
      integer, intent(in) :: parteh_mode  ! argument for nl flag hlm_parteh_mode
@@ -1937,12 +2202,85 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
            
         end if
+        
+        ! Check fine-root profile parameters
+
+        if(EDPftvarcon_inst%fnrt_prof_a(ipft) < nearzero .or. & 
+              EDPftvarcon_inst%fnrt_prof_a(ipft) > fates_check_param_set) then
+            write(fates_log(),*) 'Rooting profile parameter a must have a meaningful value'
+            write(fates_log(),*) 'pft: ',ipft,' fnrt_prof_a(ipft): ',EDPftvarcon_inst%fnrt_prof_a(ipft)
+            write(fates_log(),*) 'Aborting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+
+        if( EDPftvarcon_inst%fnrt_prof_mode(ipft) == 2 ) then
+            if (EDPftvarcon_inst%fnrt_prof_b(ipft) < nearzero .or. & 
+                  EDPftvarcon_inst%fnrt_prof_b(ipft) > fates_check_param_set) then
+                write(fates_log(),*) 'Rooting profile parameter b must have a meaningful value'
+                write(fates_log(),*) 'when using the 2 parameter exponential mode:'
+                write(fates_log(),*) 'pft: ',ipft,' fnrt_prof_b(ipft): ',EDPftvarcon_inst%fnrt_prof_b(ipft)
+                write(fates_log(),*) 'Aborting'
+                call endrun(msg=errMsg(sourcefile, __LINE__))
+            end if
+        end if
+        
+
+        ! Check that parameter ranges for age-dependent mortality make sense   
+        !-----------------------------------------------------------------------------------    
+        if ( ( EDPftvarcon_inst%mort_ip_age_senescence(ipft) < fates_check_param_set ) .and. &
+             (  EDPftvarcon_inst%mort_r_age_senescence(ipft) > fates_check_param_set ) ) then
+
+           write(fates_log(),*) 'Age-dependent mortality is on'
+           write(fates_log(),*) 'Please also set mort_r_age_senescence'
+           write(fates_log(),*) 'Sensible values are between 0.03-0.06'
+           write(fates_log(),*) 'Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+
+        ! Check that parameter ranges for size-dependent mortality make sense   
+        !-----------------------------------------------------------------------------------    
+        if ( ( EDPftvarcon_inst%mort_ip_size_senescence(ipft) < fates_check_param_set ) .and. &
+             (  EDPftvarcon_inst%mort_r_size_senescence(ipft) > fates_check_param_set ) ) then
+
+           write(fates_log(),*) 'Size-dependent mortality is on'
+           write(fates_log(),*) 'Please also set mort_r_size_senescence'
+           write(fates_log(),*) 'Sensible values are between 0.03-0.06'
+           write(fates_log(),*) 'Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+
+        ! Check that parameter ranges for size-dependent mortality make sense   
+        !-----------------------------------------------------------------------------------    
+        if ( ( EDPftvarcon_inst%mort_ip_size_senescence(ipft) < 0.0_r8 ) .or. &
+           ( EDPftvarcon_inst%mort_r_size_senescence(ipft) < 0.0_r8 ) ) then
+
+           write(fates_log(),*) 'Either mort_ip_size_senescence or mort_r_size_senescence'
+           write(fates_log(),*) 'is negative which makes no biological sense.'
+           write(fates_log(),*) 'Sensible values for ip are between 1 and 300?'
+           write(fates_log(),*) 'Sensible values for r are between 0.03-0.06'
+           write(fates_log(),*) 'Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+
+
+        ! Check that parameter ranges for size-dependent mortality make sense   
+        !-----------------------------------------------------------------------------------    
+        if ( ( EDPftvarcon_inst%mort_ip_size_senescence(ipft) < 0.0_r8 ) .or. &
+           ( EDPftvarcon_inst%mort_r_size_senescence(ipft) < 0.0_r8 ) ) then
+
+           write(fates_log(),*) 'Either mort_ip_size_senescence or mort_r_size_senescence'
+           write(fates_log(),*) 'is negative which makes no biological sense.'
+           write(fates_log(),*) 'Sensible values for ip are between 1 and 300?'
+           write(fates_log(),*) 'Sensible values for r are between 0.03-0.06'
+           write(fates_log(),*) 'Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
 
 
         ! Check to see if mature and base seed allocation is greater than 1
         ! ----------------------------------------------------------------------------------
         if ( ( EDPftvarcon_inst%seed_alloc(ipft) + &
-               EDPftvarcon_inst%seed_alloc_mature(ipft)) > 1.0_r8 ) then
+             EDPftvarcon_inst%seed_alloc_mature(ipft)) > 1.0_r8 ) then
 
            write(fates_log(),*) 'The sum of seed allocation from base and mature trees may'
            write(fates_log(),*) ' not exceed 1.'
@@ -1951,7 +2289,7 @@ contains
            write(fates_log(),*) ' seed_alloc_mature: ',EDPftvarcon_inst%seed_alloc_mature(ipft)
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
-           
+
         end if
 
         ! Check if woody plants have a structural biomass (agb) intercept
@@ -1988,6 +2326,8 @@ contains
 !        end if
 
 
+
+
         ! Check if the fraction of storage used for flushing deciduous trees
         ! is greater than zero, and less than or equal to 1.
 
@@ -2004,6 +2344,16 @@ contains
               write(fates_log(),*) ' Aborting'
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
+           if ( ( EDPftvarcon_inst%phen_stem_drop_fraction(ipft) < 0.0_r8 ) .or. &
+                ( EDPFtvarcon_inst%phen_stem_drop_fraction(ipft) > 1 ) ) then
+              write(fates_log(),*) ' Deciduous non-wood plants must keep 0-100% of their stems'
+              write(fates_log(),*) ' during the deciduous period.'
+              write(fates_log(),*) ' PFT#: ',ipft
+              write(fates_log(),*) ' evergreen flag: (shold be 0):',int(EDPftvarcon_inst%evergreen(ipft))
+              write(fates_log(),*) ' phen_stem_drop_fraction: ', EDPFtvarcon_inst%phen_stem_drop_fraction(ipft)
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if	
         end if
 
  
@@ -2405,7 +2755,28 @@ contains
         end if
 
 
-     end do
+    end do
+
+!!    ! Checks for HYDRO
+!!    if( hlm_use_planthydro == itrue ) then
+!!     
+!!        do ipft=1,numpft
+!!            
+!!            ! Calculate fine-root density and see if the result
+!!            ! is reasonable.
+!!            ! kg/m3
+!!
+!!            dens_aroot = 1._r8/(g_per_kg*pi_const*EDPftvarcon_inst%hydr_rs2(ipft)**2.0_r8*EDPftvarcon_inst%hydr_srl(ipft))
+!!
+!!            if(rho_aroot>max_dens_aroot .or. dens_aroot<min_dens_aroot)then
+!!                write(fates_log(),*) 'The two parameters controling fine root radius'
+!!                write(fates_log(),*) 'and specific root length, have generated'
+!!                write(fates_log(),*) 'a strange root density.'
+!!                call endrun(msg=errMsg(sourcefile, __LINE__))
+!!            end if
+!!
+!!        end if
+!!    end do
 
 
      return

@@ -67,7 +67,6 @@ contains
   end subroutine fates_endrun
 
   ! =====================================================================================
-
- 
+  
 
 end module FatesGlobals

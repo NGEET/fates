@@ -38,14 +38,14 @@ module EDLoggingMortalityMod
    use EDParamsMod       , only : logging_mechanical_frac 
    use EDParamsMod       , only : logging_coll_under_frac 
    use EDParamsMod       , only : logging_dbhmax_infra
-   use FatesInterfaceMod , only : hlm_current_year
-   use FatesInterfaceMod , only : hlm_current_month
-   use FatesInterfaceMod , only : hlm_current_day
-   use FatesInterfaceMod , only : hlm_model_day
-   use FatesInterfaceMod , only : hlm_day_of_year 
-   use FatesInterfaceMod , only : hlm_days_per_year
-   use FatesInterfaceMod , only : hlm_use_logging 
-   use FatesInterfaceMod , only : hlm_use_planthydro
+   use FatesInterfaceTypesMod , only : hlm_current_year
+   use FatesInterfaceTypesMod , only : hlm_current_month
+   use FatesInterfaceTypesMod , only : hlm_current_day
+   use FatesInterfaceTypesMod , only : hlm_model_day
+   use FatesInterfaceTypesMod , only : hlm_day_of_year 
+   use FatesInterfaceTypesMod , only : hlm_days_per_year
+   use FatesInterfaceTypesMod , only : hlm_use_logging 
+   use FatesInterfaceTypesMod , only : hlm_use_planthydro
    use FatesConstantsMod , only : itrue,ifalse
    use FatesGlobals      , only : endrun => fates_endrun 
    use FatesGlobals      , only : fates_log
@@ -55,7 +55,6 @@ module EDLoggingMortalityMod
    use PRTGenericMod     , only : sapw_organ, struct_organ, leaf_organ
    use PRTGenericMod     , only : fnrt_organ, store_organ, repro_organ
    use FatesAllometryMod , only : set_root_fraction
-   use FatesAllometryMod , only : i_biomass_rootprof_context
 
    implicit none
    private
@@ -409,9 +408,7 @@ contains
             ! derived from the current patch, so we need to multiply by patch_areadis/np%area
             ! ----------------------------------------------------------------------------------------
 
-            call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
-                  icontext = i_biomass_rootprof_context)
-
+            call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil)
          
             ag_wood = (direct_dead+indirect_dead) * (struct_m + sapw_m ) * &
                   EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)

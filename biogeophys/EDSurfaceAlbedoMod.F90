@@ -16,10 +16,10 @@ module EDSurfaceRadiationMod
   use FatesConstantsMod , only : r8 => fates_r8
   use FatesConstantsMod , only : itrue
   use FatesConstantsMod , only : pi_const
-  use FatesInterfaceMod , only : bc_in_type
-  use FatesInterfaceMod , only : bc_out_type
-  use FatesInterfaceMod , only : hlm_numSWb
-  use FatesInterfaceMod , only : numpft
+  use FatesInterfaceTypesMod , only : bc_in_type
+  use FatesInterfaceTypesMod , only : bc_out_type
+  use FatesInterfaceTypesMod , only : hlm_numSWb
+  use FatesInterfaceTypesMod , only : numpft
   use EDTypesMod        , only : maxSWb
   use EDTypesMod        , only : nclmax
   use EDTypesMod        , only : nlevleaf
