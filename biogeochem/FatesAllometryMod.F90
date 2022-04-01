@@ -83,7 +83,7 @@ module FatesAllometryMod
 
   ! If this is a unit-test, these globals will be provided by a wrapper
 
-  use EDPFTvarcon      , only : EDPftvarcon_inst
+  use PRTParametersMod, only  : prt_params
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesConstantsMod, only : i4 => fates_int
   use FatesConstantsMod, only : g_per_kg 
@@ -95,7 +95,7 @@ module FatesAllometryMod
   use shr_log_mod      , only : errMsg => shr_log_errMsg
   use FatesGlobals     , only : fates_log
   use FatesGlobals     , only : endrun => fates_endrun
-  use EDTypesMod       , only : nlevleaf, dinc_ed
+  use EDTypesMod       , only : nlevleaf, dinc_vai
   use EDTypesMod       , only : nclmax
 
 
@@ -123,10 +123,13 @@ module FatesAllometryMod
   public :: CrownDepth
   public :: set_root_fraction  ! Generic wrapper to calculate normalized
                                ! root profiles
+  public :: leafc_from_treelai ! Calculate target leaf carbon for a given treelai for SP mode
 
   logical         , parameter :: verbose_logging = .false.
   character(len=*), parameter :: sourcefile = __FILE__
 
+  
+  logical, parameter :: debug = .false.
   
   ! If testing b4b with older versions, do not remove sapwood
   ! Our old methods with saldarriaga did not remove sapwood from the
@@ -287,10 +290,10 @@ contains
     real(r8),intent(out)          :: d     ! plant diameter [cm]
     real(r8),intent(out),optional :: dddh  ! change in diameter per height [cm/m]
 
-    associate(  p1          => EDPftvarcon_inst%allom_d2h1(ipft), &
-                p2          => EDPftvarcon_inst%allom_d2h2(ipft), &
-                p3          => EDPftvarcon_inst%allom_d2h3(ipft), &
-                allom_hmode => EDPftvarcon_inst%allom_hmode(ipft))
+    associate(  p1          => prt_params%allom_d2h1(ipft), &
+                p2          => prt_params%allom_d2h2(ipft), &
+                p3          => prt_params%allom_d2h3(ipft), &
+                allom_hmode => prt_params%allom_hmode(ipft))
 
       select case(int(allom_hmode))
       case (1) ! O'Brien et al 1995, BCI
@@ -325,11 +328,11 @@ contains
     real(r8),intent(out)    :: h     ! plant height [m]
     real(r8),intent(out),optional :: dhdd  ! change in height per diameter [m/cm]
     
-    associate( dbh_maxh => EDPftvarcon_inst%allom_dbh_maxheight(ipft), &
-               p1       => EDPftvarcon_inst%allom_d2h1(ipft), &
-               p2       => EDPftvarcon_inst%allom_d2h2(ipft), &
-               p3       => EDPftvarcon_inst%allom_d2h3(ipft), &
-               allom_hmode => EDPftvarcon_inst%allom_hmode(ipft))
+    associate( dbh_maxh => prt_params%allom_dbh_maxheight(ipft), &
+               p1       => prt_params%allom_d2h1(ipft), &
+               p2       => prt_params%allom_d2h2(ipft), &
+               p3       => prt_params%allom_d2h3(ipft), &
+               allom_hmode => prt_params%allom_hmode(ipft))
       
       select case(int(allom_hmode))
       case (1)   ! "obrien"
@@ -367,14 +370,14 @@ contains
     real(r8)               :: h       ! height
     real(r8)               :: dhdd    ! change in height wrt d
 
-    associate( p1           => EDPftvarcon_inst%allom_agb1(ipft), &
-               p2           => EDPftvarcon_inst%allom_agb2(ipft), &
-               p3           => EDPftvarcon_inst%allom_agb3(ipft), &
-               p4           => EDPftvarcon_inst%allom_agb4(ipft), &
-               wood_density => EDPftvarcon_inst%wood_density(ipft), &
-               c2b          => EDPftvarcon_inst%c2b(ipft), &
-               agb_frac     => EDPftvarcon_inst%allom_agb_frac(ipft), &
-               allom_amode  => EDPftvarcon_inst%allom_amode(ipft))
+    associate( p1           => prt_params%allom_agb1(ipft), &
+               p2           => prt_params%allom_agb2(ipft), &
+               p3           => prt_params%allom_agb3(ipft), &
+               p4           => prt_params%allom_agb4(ipft), &
+               wood_density => prt_params%wood_density(ipft), &
+               c2b          => prt_params%c2b(ipft), &
+               agb_frac     => prt_params%allom_agb_frac(ipft), &
+               allom_amode  => prt_params%allom_amode(ipft))
       
       select case(int(allom_amode))
       case (1) !"salda")
@@ -407,13 +410,13 @@ contains
     real(r8),intent(out)   :: blmax     ! plant leaf biomass [kg]
     real(r8),intent(out),optional :: dblmaxdd  ! change leaf bio per diameter [kgC/cm]
 
-    associate( dbh_maxh    => EDPftvarcon_inst%allom_dbh_maxheight(ipft), &
-               rho         => EDPftvarcon_inst%wood_density(ipft), &
-               c2b         => EDPftvarcon_inst%c2b(ipft),          &
-               allom_lmode => EDPftvarcon_inst%allom_lmode(ipft),  &
-               p1          => EDPftvarcon_inst%allom_d2bl1(ipft),  &
-               p2          => EDPftvarcon_inst%allom_d2bl2(ipft),  &
-               p3          => EDPftvarcon_inst%allom_d2bl3(ipft))
+    associate( dbh_maxh    => prt_params%allom_dbh_maxheight(ipft), &
+               rho         => prt_params%wood_density(ipft), &
+               c2b         => prt_params%c2b(ipft),          &
+               allom_lmode => prt_params%allom_lmode(ipft),  &
+               p1          => prt_params%allom_d2bl1(ipft),  &
+               p2          => prt_params%allom_d2bl2(ipft),  &
+               p3          => prt_params%allom_d2bl3(ipft))
       
       select case(int(allom_lmode))
       case(1) !"salda")
@@ -453,12 +456,12 @@ contains
                                             ! crown area at height, we need to make
                                             ! special considerations
      
-     associate( dbh_maxh    => EDPftvarcon_inst%allom_dbh_maxheight(ipft), &
-                allom_lmode => EDPftvarcon_inst%allom_lmode(ipft),  &
-                d2bl_p2     => EDPftvarcon_inst%allom_d2bl2(ipft),  &
-                d2bl_ediff  => EDPftvarcon_inst%allom_blca_expnt_diff(ipft), &
-                d2ca_min    => EDPftvarcon_inst%allom_d2ca_coefficient_min(ipft), &
-                d2ca_max    => EDPftvarcon_inst%allom_d2ca_coefficient_max(ipft))
+     associate( dbh_maxh    => prt_params%allom_dbh_maxheight(ipft), &
+                allom_lmode => prt_params%allom_lmode(ipft),  &
+                d2bl_p2     => prt_params%allom_d2bl2(ipft),  &
+                d2bl_ediff  => prt_params%allom_blca_expnt_diff(ipft), &
+                d2ca_min    => prt_params%allom_d2ca_coefficient_min(ipft), &
+                d2ca_max    => prt_params%allom_d2ca_coefficient_max(ipft))
        
        if( .not. present(inverse) ) then 
           do_inverse = .false.
@@ -548,19 +551,20 @@ contains
   
   ! =====================================================================================
 
-  subroutine storage_fraction_of_target(b_leaf, bstore, frac)
+  subroutine storage_fraction_of_target(c_store_target, c_store, frac)
 
     !--------------------------------------------------------------------------------
     ! returns the storage pool as a fraction of its target (only if it is below its target)
-    ! used in both the carbon starvation mortlaity scheme as wella s the optional respiration throttling logic
+    ! used in both the carbon starvation mortlaity scheme as well as the optional
+    ! respiration throttling logic
     !--------------------------------------------------------------------------------
 
-    real(r8),intent(in)    :: b_leaf
-    real(r8),intent(in)    :: bstore
+    real(r8),intent(in)    :: c_store_target  ! target storage carbon [kg]
+    real(r8),intent(in)    :: c_store         ! storage carbon [kg]
     real(r8),intent(out)   :: frac
 
-    if( b_leaf > 0._r8 .and. bstore <= b_leaf )then
-       frac = bstore/ b_leaf
+    if( c_store_target > 0._r8 .and. c_store <= c_store_target )then
+       frac = c_store/ c_store_target
     else
        frac = 1._r8
     endif
@@ -609,7 +613,7 @@ contains
        call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
 
-    slat = g_per_kg * EDPftvarcon_inst%slatop(pft) ! m2/g to m2/kg
+    slat = g_per_kg * prt_params%slatop(pft) ! m2/g to m2/kg
     leafc_per_unitarea = leaf_c/(c_area/nplant) !KgC/m2
     
     if(leafc_per_unitarea > 0.0_r8)then
@@ -626,7 +630,7 @@ contains
 
        ! take PFT-level maximum SLA value, even if under a thick canopy (which has units of m2/gC),
        ! and put into units of m2/kgC
-       sla_max = g_per_kg *EDPftvarcon_inst%slamax(pft)
+       sla_max = g_per_kg*prt_params%slamax(pft)
        ! Leafc_per_unitarea at which sla_max is reached due to exponential sla profile in canopy:
        leafc_slamax = (slat - sla_max * exp(-1.0_r8 * kn * canopy_lai_above)) / &
             (-1.0_r8 * kn * slat * sla_max)
@@ -725,9 +729,9 @@ contains
 
     target_lai = tree_lai( target_bleaf, pft, c_area, nplant, cl, canopy_lai, vcmax25top) 
 
-    tree_sai   =  EDPftvarcon_inst%allom_sai_scaler(pft) * target_lai
+    tree_sai   =  prt_params%allom_sai_scaler(pft) * target_lai
 
-    if( (treelai + tree_sai) > (nlevleaf*dinc_ed) )then
+    if( (treelai + tree_sai) > (sum(dinc_vai)) )then
 
        call h_allom(dbh,pft,h)
 
@@ -736,12 +740,13 @@ contains
        write(fates_log(),*) 'sai: ',tree_sai
        write(fates_log(),*) 'target_lai: ',target_lai
        write(fates_log(),*) 'lai+sai: ',treelai+tree_sai
-       write(fates_log(),*) 'nlevleaf,dinc_ed,nlevleaf*dinc_ed :',nlevleaf,dinc_ed,nlevleaf*dinc_ed
+       write(fates_log(),*) 'dinc_vai:',dinc_vai
+       write(fates_log(),*) 'nlevleaf,sum(dinc_vai):',nlevleaf,sum(dinc_vai)
        write(fates_log(),*) 'pft: ',pft
        write(fates_log(),*) 'call id: ',call_id
        write(fates_log(),*) 'n: ',nplant
        write(fates_log(),*) 'c_area: ',c_area
-       write(fates_log(),*) 'dbh: ',dbh,' dbh_max: ',EDPftvarcon_inst%allom_dbh_maxheight(pft)
+       write(fates_log(),*) 'dbh: ',dbh,' dbh_max: ',prt_params%allom_dbh_maxheight(pft)
        write(fates_log(),*) 'h: ',h
        write(fates_log(),*) 'canopy_trim: ',canopy_trim
        write(fates_log(),*) 'target_bleaf: ',target_bleaf
@@ -756,6 +761,95 @@ contains
     return
   end function tree_sai
   
+! =====================================================================================
+ 
+  real(r8) function leafc_from_treelai( treelai, pft, c_area, nplant, cl, vcmax25top)
+ 
+    ! -----------------------------------------------------------------------------------
+    ! Calculates the amount of leaf carbon which is needed to generate a given treelai. 
+    ! iss the inverse of the 'tree_lai function. 
+    ! ----------------------------------------------------------------------------------
+ 
+    ! !ARGUMENTS
+    real(r8), intent(in) :: treelai                    ! desired tree lai m2/m2
+    integer, intent(in)  :: pft                       ! Plant Functional Type index
+    real(r8), intent(in) :: c_area                    ! areal extent of canopy (m2)
+    real(r8), intent(in) :: nplant                    ! number of individuals in cohort per ha
+    integer, intent(in)  :: cl                        ! canopy layer index
+    real(r8), intent(in) :: vcmax25top                ! maximum carboxylation rate at canopy
+                                                      ! top, ref 25C
+ 
+    ! !LOCAL VARIABLES:
+    real(r8) :: leaf_c                    ! plant leaf carbon [kg]
+    real(r8) :: leafc_per_unitarea ! KgC of leaf per m2 area of ground.
+    real(r8) :: slat               ! the sla of the top leaf layer. m2/kgC
+    real(r8) :: vai_per_lai        ! ratio of vegetation area index (ie. sai+lai)
+                                   ! to lai for individual tree
+    real(r8) :: kn                 ! coefficient for exponential decay of 1/sla and
+                                   ! vcmax with canopy depth
+    real(r8) :: sla_max            ! Observational constraint on how large sla
+                                   ! (m2/gC) can become
+    real(r8) :: leafc_slamax       ! Leafc_per_unitarea at which sla_max is reached
+    real(r8) :: clim               ! Upper limit for leafc_per_unitarea in exponential
+                                   ! tree_lai function
+    real(r8) :: tree_lai_at_slamax ! lai at which we reach the maximum sla value.
+    real(r8) :: leafc_linear_phase ! amount of leaf carbon needed to get to the target treelai
+                                   ! when the slamax value has been reached (i.e. deep layers with unchanging sla)
+
+    !----------------------------------------------------------------------
+ 
+    if( treelai  < 0._r8.or. pft  ==  0 ) then
+       write(fates_log(),*) 'negative tree lai in leafc_from_treelai?'
+       write(fates_log(),*) 'or.. pft was zero?'
+       write(fates_log(),*) 'problem in leafc_from_treelai',treelai,pft
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    endif
+ 
+    if(cl>1)then
+      write(fates_log(),*) 'in sub-canopy layer in leafc_from_treelai'
+      write(fates_log(),*) 'this is not set up to work for lower canopy layers.'
+      write(fates_log(),*) 'problem in leafc_from_treelai',cl,pft
+      call endrun(msg=errMsg(sourcefile, __LINE__))
+    endif
+
+    ! convert PFT-level canopy top and maximum SLA values and convert from m2/gC to m2/kgC
+    slat = g_per_kg * prt_params%slatop(pft)
+    sla_max = g_per_kg * prt_params%slamax(pft)
+    ! Coefficient for exponential decay of 1/sla with canopy depth:
+     kn = decay_coeff_kn(pft,vcmax25top)
+
+    if(treelai > 0.0_r8)then 
+       ! Leafc_per_unitarea at which sla_max is reached due to exponential sla profile in canopy:
+       leafc_slamax = max(0.0_r8,(slat - sla_max) / (-1.0_r8 * kn * slat * sla_max))
+
+       ! treelai at which we reach maximum sla.
+       tree_lai_at_slamax = (log( 1.0_r8- kn * slat * leafc_slamax)) / (-1.0_r8 * kn)
+
+       if(treelai < tree_lai_at_slamax)then
+         ! Inversion of the exponential phase calculation of treelai for a given leafc_per_unitarea
+         leafc_per_unitarea = (1.0_r8-exp(treelai*(-1.0_r8 * kn)))/(kn*slat)
+       else ! we exceed the maxumum sla
+ 
+        ! Add exponential and linear portions of tree_lai
+        ! Exponential term for leafc = leafc_slamax;
+         leafc_linear_phase = (treelai-tree_lai_at_slamax)/sla_max
+         leafc_per_unitarea = leafc_slamax + leafc_linear_phase
+       end if
+       leafc_from_treelai = leafc_per_unitarea*(c_area/nplant)
+    else
+       leafc_from_treelai = 0.0_r8 
+    endif ! (leafc_per_unitarea > 0.0_r8)
+ 
+    return
+  end function leafc_from_treelai
+ 
+  ! =====================================================================================
+
+
+
+
+
+
   ! ============================================================================
   ! Generic sapwood biomass interface
   ! ============================================================================
@@ -787,7 +881,7 @@ contains
     ! X% of total woody/fibrous (ie non leaf/fineroot) tissues
     real(r8),parameter :: max_frac = 0.95_r8 
 
-    select case(int(EDPftvarcon_inst%allom_smode(ipft)))
+    select case(int(prt_params%allom_smode(ipft)))
        ! ---------------------------------------------------------------------
        ! Currently only one sapwood allometry model. the slope
        ! of the la:sa to diameter line is zero.
@@ -817,7 +911,7 @@ contains
 
     case DEFAULT
        write(fates_log(),*) 'An undefined sapwood allometry was specified: ', &
-            EDPftvarcon_inst%allom_smode(ipft)
+            prt_params%allom_smode(ipft)
        write(fates_log(),*) 'Aborting'
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end select
@@ -840,13 +934,13 @@ contains
     real(r8)    :: bagw       ! above ground biomass [kgC]
     real(r8)    :: dbagwdd    ! change in agb per diameter [kgC/cm]
     
-    select case(int(EDPftvarcon_inst%allom_cmode(ipft)))
+    select case(int(prt_params%allom_cmode(ipft)))
     case(1) !"constant")
        call bagw_allom(d,ipft,bagw,dbagwdd)
        call bbgw_const(d,bagw,dbagwdd,ipft,bbgw,dbbgwdd)
     case DEFAULT
        write(fates_log(),*) 'An undefined coarse root allometry was specified: ', &
-             EDPftvarcon_inst%allom_cmode(ipft)
+             prt_params%allom_cmode(ipft)
        write(fates_log(),*) 'Aborting'
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end select
@@ -876,7 +970,7 @@ contains
     real(r8) :: dbfrmaxdd
     real(r8) :: slascaler
     
-    select case(int(EDPftvarcon_inst%allom_fmode(ipft)))
+    select case(int(prt_params%allom_fmode(ipft)))
     case(1) ! "constant proportionality with TRIMMED target bleaf"
        
        call blmax_allom(d,ipft,blmax,dblmaxdd)
@@ -896,7 +990,7 @@ contains
 
     case DEFAULT 
        write(fates_log(),*) 'An undefined fine root allometry was specified: ', &
-            EDPftvarcon_inst%allom_fmode(ipft)
+            prt_params%allom_fmode(ipft)
        write(fates_log(),*) 'Aborting'
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end select
@@ -923,8 +1017,8 @@ contains
      
      ! TODO: allom_stmode needs to be added to the parameter file
      
-     associate( allom_stmode => EDPftvarcon_inst%allom_stmode(ipft), &
-                cushion      => EDPftvarcon_inst%cushion(ipft) )
+     associate( allom_stmode => prt_params%allom_stmode(ipft), &
+                cushion      => prt_params%cushion(ipft) )
 
        select case(int(allom_stmode))
        case(1) ! Storage is constant proportionality of trimmed maximum leaf
@@ -971,9 +1065,9 @@ contains
      ! bbgw. Therefore, it is not removed from AGB and BBGW in the calculation of dead mass.
 
     
-    associate( agb_fraction => EDPftvarcon_inst%allom_agb_frac(ipft))
+    associate( agb_fraction => prt_params%allom_agb_frac(ipft))
 
-      select case(int(EDPftvarcon_inst%allom_amode(ipft)))
+      select case(int(prt_params%allom_amode(ipft)))
       case(1) ! Saldariagga mass allometry originally calculated bdead directly.
               ! we assume proportionality between bdead and bagw
        
@@ -993,7 +1087,7 @@ contains
       case DEFAULT
          
          write(fates_log(),*) 'An undefined AGB allometry was specified: ',&
-                              EDPftvarcon_inst%allom_amode(ipft)
+                              prt_params%allom_amode(ipft)
          write(fates_log(),*) 'Aborting'
          call endrun(msg=errMsg(sourcefile, __LINE__))
        
@@ -1016,7 +1110,7 @@ contains
     real(r8),intent(out)   :: bfrmax    ! max fine-root root biomass [kgC]
     real(r8),intent(out),optional :: dbfrmaxdd ! change frmax bio per diam [kgC/cm]
     
-    associate( l2fr => EDPftvarcon_inst%allom_l2fr(ipft) )
+    associate( l2fr => prt_params%allom_l2fr(ipft) )
       
       bfrmax = blmax*l2fr
       
@@ -1042,7 +1136,7 @@ contains
     real(r8),intent(out)   :: bbgw       ! coarse root biomass [kg]
     real(r8),intent(out),optional :: dbbgwdd    ! change croot bio per diam [kg/cm]
 
-    associate( agb_fraction => EDPftvarcon_inst%allom_agb_frac(ipft) )
+    associate( agb_fraction => prt_params%allom_agb_frac(ipft) )
       
       bbgw = (1.0_r8/agb_fraction-1.0_r8)*bagw 
       
@@ -1097,12 +1191,12 @@ contains
     real(r8)               :: hbl2bsap   ! sapwood biomass per lineal height
     
     
-    associate ( la_per_sa_int => EDPftvarcon_inst%allom_la_per_sa_int(ipft), &
-                la_per_sa_slp => EDPftvarcon_inst%allom_la_per_sa_slp(ipft), &
-                slatop        => EDPftvarcon_inst%slatop(ipft), &
-                wood_density  => EDPftvarcon_inst%wood_density(ipft), &
-                c2b           => EDPftvarcon_inst%c2b(ipft), & 
-                agb_fraction  => EDPftvarcon_inst%allom_agb_frac(ipft) )
+    associate ( la_per_sa_int => prt_params%allom_la_per_sa_int(ipft), &
+                la_per_sa_slp => prt_params%allom_la_per_sa_slp(ipft), &
+                slatop        => prt_params%slatop(ipft), &
+                wood_density  => prt_params%wood_density(ipft), &
+                c2b           => prt_params%c2b(ipft), & 
+                agb_fraction  => prt_params%allom_agb_frac(ipft) )
 
 
       ! Calculate sapwood biomass per linear height and kgC of leaf [m-1]
@@ -1237,16 +1331,15 @@ contains
     
     ! ======================================================================
     ! This is a power function for leaf biomass from plant diameter.
-    !
-    ! log(bl) = a2 + b2*log(h)
-    ! bl = exp(a2) * h**b2
     ! ======================================================================
     
+    ! p1 and p2 represent the parameters that govern total beaf dry biomass, 
+    ! and the output argument blmax is the leaf carbon only
     
     real(r8),intent(in)  :: d         ! plant diameter [cm]
     real(r8),intent(in)  :: p1        ! parameter 1  (slope)
     real(r8),intent(in)  :: p2        ! parameter 2  (curvature, exponent)
-    real(r8),intent(in)  :: c2b       ! carbon to biomass multiplier
+    real(r8),intent(in)  :: c2b       ! carbon to biomass multiplier (~2)
     
     real(r8),intent(out) :: blmax     ! plant leaf biomass [kgC]
     real(r8),intent(out),optional :: dblmaxdd  ! change leaf bio per diameter [kgC/cm]
@@ -1333,6 +1426,9 @@ contains
     ! Chave et al. Improved allometric models to estimate the abovegroud
     ! biomass of tropical trees.  Global Change Biology. V20, p3177-3190. 2015.
     !
+    ! p1 =  0.893 - E
+    ! p2 =  0.76
+    ! p3 = -0.034
     ! =========================================================================
     
     real(r8),intent(in)  :: d        ! plant diameter [cm]
@@ -1565,6 +1661,9 @@ contains
     ! Output:
     ! bagw:   Total above ground biomass [kgC]
     !
+    ! Chave's Paper has p1 = 0.0673, p2 = 0.976
+    !
+    
     ! =========================================================================
     
     
@@ -1575,7 +1674,7 @@ contains
     real(r8),intent(in)  :: p2  ! allometry parameter 2
     real(r8),intent(in)  :: wood_density
     real(r8),intent(in)  :: c2b
-    real(r8),intent(out) :: bagw     ! plant height [m]
+    real(r8),intent(out) :: bagw     ! plant aboveground biomass [kgC]
     real(r8),intent(out),optional :: dbagwdd  ! change in agb per diameter [kgC/cm]
     
     real(r8) :: dbagwdd1,dbagwdd2,dbagwdd3
@@ -1631,10 +1730,10 @@ contains
 
     
     real(r8),intent(in)  :: d       ! plant diameter [cm]
-    real(r8),intent(in)  :: p1  ! allometry parameter 1
-    real(r8),intent(in)  :: p2  ! allometry parameter 2
+    real(r8),intent(in)  :: p1      ! allometry parameter 1
+    real(r8),intent(in)  :: p2      ! allometry parameter 2
     real(r8),intent(in)  :: c2b     ! carbon to biomass multiplier ~2
-    real(r8),intent(out) :: bagw     ! plant height [m]
+    real(r8),intent(out) :: bagw    ! plant aboveground biomass [kg C]
     real(r8),intent(out),optional :: dbagwdd  ! change in agb per diameter [kgC/cm]
     
     bagw    = (p1 * d**p2)/c2b
@@ -1884,7 +1983,7 @@ contains
   ! =====================================================================================
 
 
-  subroutine CrownDepth(height,crown_depth)
+  subroutine CrownDepth(height,ft,crown_depth)
 
     ! -----------------------------------------------------------------------------------
     ! This routine returns the depth of a plant's crown.  Which is the length
@@ -1894,14 +1993,20 @@ contains
     ! optioned.
     ! -----------------------------------------------------------------------------------
     
-    real(r8),intent(in)  :: height   ! The height of the plant   [m]
+    real(r8),intent(in)  :: height      ! The height of the plant   [m]
+    integer,intent(in)   :: ft          ! functional type index
     real(r8),intent(out) :: crown_depth ! The depth of the crown [m]
-    
+
     ! Alternative Hypothesis:
     ! crown depth from Poorter, Bongers & Bongers
     ! crown_depth = exp(-1.169_r8)*cCohort%hite**1.098_r8   
-    
-    crown_depth               = min(height,0.1_r8)
+
+    ! Alternative Hypothesis:
+    ! Original FATES crown depth heigh used for hydraulics
+    ! crown_depth               = min(height,0.1_r8)
+
+    crown_depth = prt_params%crown(ft) * height
+
     
     return
  end subroutine CrownDepth
@@ -1961,7 +2066,7 @@ contains
   
   ! =========================================================================
 
-  subroutine set_root_fraction(root_fraction, ft, zi)
+  subroutine set_root_fraction(root_fraction, ft, zi, max_nlevroot)
 
     !
     ! !DESCRIPTION:
@@ -1978,6 +2083,15 @@ contains
     integer, intent(in)    :: ft               ! functional typpe
     real(r8),intent(in)    :: zi(0:)            ! Center of depth [m]
 
+    ! The soil may not be active over the soil whole column due to things
+    ! like permafrost. If so, compress profile over the maximum depth
+    integer,optional, intent(in)   :: max_nlevroot  
+
+    
+    ! locals
+    real(r8) :: a_par  ! local temporary for "a" parameter
+    real(r8) :: b_par  ! ""  "b" parameter
+    
     ! Parameters
     !
     ! TO-DO: NEXT TIME WE ROLL OUT A NEW PARAMETER INTERFACE, ADD
@@ -2000,6 +2114,7 @@ contains
     integer :: root_profile_type
     integer :: corr_id(1)        ! This is the bin with largest fraction
                                  ! add/subtract any corrections there
+    integer :: nlevroot
     real(r8) :: correction       ! This correction ensures that root fractions
                                  ! sum to 1.0
 
@@ -2011,15 +2126,29 @@ contains
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
+    nlevroot = ubound(zi,1)
     
-    select case(nint(EDPftvarcon_inst%fnrt_prof_mode(ft)))
+    ! Set root fraction to zero in all layers, as some may be inactive
+    ! and we will only calculate the profiles over those 
+    root_fraction(:) = 0._r8
+
+    if(present(max_nlevroot))then
+       if(debug .and. max_nlevroot<0)then
+          write(fates_log(),*) 'A maximum rooting layer depth <0 was specified'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+       nlevroot = min(max_nlevroot,nlevroot)
+    end if
+    
+    select case(nint(prt_params%fnrt_prof_mode(ft)))
     case ( exponential_1p_profile_type ) 
-       call exponential_1p_root_profile(root_fraction, ft, zi, EDPftvarcon_inst%fnrt_prof_a(ft)) 
+       call exponential_1p_root_profile(root_fraction(1:nlevroot), zi(0:nlevroot), prt_params%fnrt_prof_a(ft)) 
     case ( jackson_beta_profile_type )
-       call jackson_beta_root_profile(root_fraction, ft, zi, EDPftvarcon_inst%fnrt_prof_a(ft))
+       call jackson_beta_root_profile(root_fraction(1:nlevroot), zi(0:nlevroot), prt_params%fnrt_prof_a(ft))
     case ( exponential_2p_profile_type ) 
-       call exponential_2p_root_profile(root_fraction, ft, zi, & 
-             EDPftvarcon_inst%fnrt_prof_a(ft),EDPftvarcon_inst%fnrt_prof_b(ft))
+       call exponential_2p_root_profile(root_fraction(1:nlevroot), zi(0:nlevroot), & 
+             prt_params%fnrt_prof_a(ft),prt_params%fnrt_prof_b(ft))
+
     case default
        write(fates_log(),*) 'An undefined root profile type was specified'
        write(fates_log(),*) 'Aborting'
@@ -2038,11 +2167,11 @@ contains
 
   ! =====================================================================================
     
-  subroutine exponential_2p_root_profile(root_fraction, ft, zi, a, b)
+  subroutine exponential_2p_root_profile(root_fraction, zi, a, b)
+
     !
     ! !ARGUMENTS
     real(r8),intent(out) :: root_fraction(:)
-    integer,intent(in)   :: ft
     real(r8),intent(in)  :: zi(0:)
     real(r8),intent(in)  :: a     ! Exponential shape parameter a
     real(r8),intent(in)  :: b     ! Exponential shape parameter b
@@ -2073,7 +2202,7 @@ contains
 
 
     nlevsoil = ubound(zi,1)
-    
+
     sum_rootfr = 0.0_r8
     do lev = 1, nlevsoil
        root_fraction(lev) = .5_r8*( &
@@ -2081,10 +2210,10 @@ contains
              + exp(-b * zi(lev-1))  &
              - exp(-a * zi(lev))    &
              - exp(-b * zi(lev)))
-       
+
        sum_rootfr = sum_rootfr + root_fraction(lev)
     end do
-    
+
     ! Normalize the root profile
     root_fraction(1:nlevsoil) = root_fraction(1:nlevsoil)/sum_rootfr
     
@@ -2093,12 +2222,11 @@ contains
 
   ! =====================================================================================
   
-  subroutine exponential_1p_root_profile(root_fraction, ft, zi, a)
+  subroutine exponential_1p_root_profile(root_fraction, zi, a)
 
     !
     ! !ARGUMENTS
     real(r8),intent(out) :: root_fraction(:)
-    integer,intent(in)   :: ft
     real(r8),intent(in)  :: zi(0:)
     real(r8),intent(in)  :: a     ! Exponential shape parameter a
 
@@ -2131,15 +2259,13 @@ contains
     
   ! =====================================================================================
 
-  subroutine jackson_beta_root_profile(root_fraction, ft, zi, a)
+  subroutine jackson_beta_root_profile(root_fraction, zi, a)
 
     ! -----------------------------------------------------------------------------------
     ! use beta distribution parameter from Jackson et al., 1996
     ! -----------------------------------------------------------------------------------
-
     ! !ARGUMENTS
     real(r8),intent(out) :: root_fraction(:) ! fraction of root mass in each soil layer
-    integer,intent(in)   :: ft               ! functional type
     real(r8),intent(in)  :: zi(0:)           ! depth of layer interfaces 0-nlevsoil
     real(r8),intent(in)  :: a                ! Exponential shape parameter a
 
@@ -2149,6 +2275,7 @@ contains
     integer :: nlevsoil    ! number of soil layers
     real(r8) :: sum_rootfr ! sum of rooting profile, for normalization 
     
+
     ! Original defaults in fates, a = 0.976 (all Pfts)
 
     nlevsoil = ubound(zi,1)
@@ -2243,7 +2370,7 @@ contains
      integer, parameter  :: max_counter = 200
      
      ! Do reduce "if" calls, we break this call into two parts
-     if ( EDPftvarcon_inst%woody(ipft) == itrue ) then
+     if ( int(prt_params%woody(ipft)) == itrue ) then
 
         if(.not.present(bdead)) then
            write(fates_log(),*) 'woody plants must use structure for dbh reset'
@@ -2328,7 +2455,8 @@ contains
 
      call h_allom(d,ipft,h)
      if(counter>10)then
-        write(fates_log(),*) 'dbh counter: ',counter,EDPftvarcon_inst%woody(ipft)
+        write(fates_log(),*) 'dbh counter: ',counter,' is woody: ',&
+             int(prt_params%woody(ipft))==itrue
      end if
 
      

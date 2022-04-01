@@ -41,14 +41,15 @@ module PRTAllometricCarbonMod
   use shr_log_mod         , only : errMsg => shr_log_errMsg
   use FatesConstantsMod   , only : r8 => fates_r8
   use FatesConstantsMod   , only : i4 => fates_int
+  use FatesConstantsMod   , only : sec_per_day
   use FatesIntegratorsMod , only : RKF45
   use FatesIntegratorsMod , only : Euler
-  use EDPftvarcon         , only : EDPftvarcon_inst
   use FatesConstantsMod   , only : calloc_abs_error
   use FatesConstantsMod   , only : nearzero
   use FatesConstantsMod   , only : itrue
   use FatesConstantsMod   , only : years_per_day
 
+  use PRTParametersMod    , only : prt_params
 
   implicit none
   private
@@ -199,7 +200,7 @@ contains
      ! notably the size of the leaf-longevity parameter's second dimension.
      ! This is the same value in FatesInterfaceMod.F90
 
-     nleafage = size(EDPftvarcon_inst%leaf_long,dim=2)
+     nleafage = size(prt_params%leaf_long,dim=2)
      
      if(nleafage>max_nleafage) then
         write(fates_log(),*) 'The allometric carbon PARTEH hypothesis'
@@ -406,40 +407,31 @@ contains
     intgr_params(ac_bc_in_id_ctrim) = this%bc_in(ac_bc_in_id_ctrim)%rval
     intgr_params(ac_bc_in_id_pft)   = real(this%bc_in(ac_bc_in_id_pft)%ival)
     
+    
+
+    nleafage = prt_global%state_descriptor(leaf_c_id)%num_pos ! Number of leaf age class
+
+    ! -----------------------------------------------------------------------------------
+    ! Call the routine that advances leaves in age.
+    ! This will move a portion of the leaf mass in each
+    ! age bin, to the next bin. This will not handle movement
+    ! of mass from the oldest bin into the litter pool, that is something else.
+    ! -----------------------------------------------------------------------------------
+
+    call this%AgeLeaves(ipft,sec_per_day)
+
     ! -----------------------------------------------------------------------------------
     ! I. Remember the values for the state variables at the beginning of this
     ! routines. We will then use that to determine their net allocation and reactive
     ! transport flux "%net_alloc" at the end.
     ! -----------------------------------------------------------------------------------
-
-    nleafage = prt_global%state_descriptor(leaf_c_id)%num_pos ! Number of leaf age class
-
+    
     leaf_c0(1:nleafage) = leaf_c(1:nleafage)  ! Set initial leaf carbon 
     fnrt_c0 = fnrt_c                          ! Set initial fine-root carbon
     sapw_c0 = sapw_c                          ! Set initial sapwood carbon
     store_c0 = store_c                        ! Set initial storage carbon 
     repro_c0 = repro_c                        ! Set initial reproductive carbon
     struct_c0 = struct_c                      ! Set initial structural carbon
-
-    
-    ! -----------------------------------------------------------------------------------
-    ! If we have more than one leaf age classification, allow
-    ! some leaf biomass to transition to the older classes.  NOTE! This is not handling
-    ! losses due to turnover (ie. flux from the oldest senescing class). This is only
-    ! internal.
-    ! (rgk 12-15-2018: Have Chonggang confirm that aging should not be restricted
-    ! to evergreens)
-    ! -----------------------------------------------------------------------------------
-
-    if(nleafage>1) then
-       do i_age = 1,nleafage-1
-          if (EDPftvarcon_inst%leaf_long(ipft,i_age)>nearzero) then
-             leaf_age_flux   = leaf_c0(i_age) * years_per_day / EDPftvarcon_inst%leaf_long(ipft,i_age)
-             leaf_c(i_age)   = leaf_c(i_age) - leaf_age_flux
-             leaf_c(i_age+1) = leaf_c(i_age+1) + leaf_age_flux
-          end if
-       end do
-    end if
     
 
     ! -----------------------------------------------------------------------------------
@@ -478,15 +470,15 @@ contains
     !         or forcefully pay from storage. 
     ! -----------------------------------------------------------------------------------
     
-    if( EDPftvarcon_inst%evergreen(ipft) ==1 ) then
+    if( prt_params%evergreen(ipft) ==1 ) then
        leaf_c_demand   = max(0.0_r8, &
-             EDPftvarcon_inst%leaf_stor_priority(ipft)*sum(this%variables(leaf_c_id)%turnover(:)))
+             prt_params%leaf_stor_priority(ipft)*sum(this%variables(leaf_c_id)%turnover(:)))
     else
        leaf_c_demand   = 0.0_r8
     end if
     
     fnrt_c_demand   = max(0.0_r8, &
-          EDPftvarcon_inst%leaf_stor_priority(ipft)*this%variables(fnrt_c_id)%turnover(icd))
+          prt_params%leaf_stor_priority(ipft)*this%variables(fnrt_c_id)%turnover(icd))
 
     total_c_demand = leaf_c_demand + fnrt_c_demand
     
@@ -641,7 +633,7 @@ contains
     ! left to allocate, and thus it must be on allometry when its not.
     ! -----------------------------------------------------------------------------------
     
-    if( carbon_balance > calloc_abs_error ) then
+    if_stature_growth: if( carbon_balance > calloc_abs_error ) then
        
        ! This routine checks that actual carbon is not below that targets. It does
        ! allow actual pools to be above the target, and in these cases, it sends
@@ -719,7 +711,7 @@ contains
           this%ode_opt_step = totalC
        end if
        
-       do while( ierr .ne. 0 )
+       do_solve_check: do while( ierr .ne. 0 )
           
           deltaC = min(totalC,this%ode_opt_step)
           if(ODESolve == 1) then
@@ -785,7 +777,7 @@ contains
   
           ! At that point, update the actual states
           ! --------------------------------------------------------------------------------
-          if( (totalC < calloc_abs_error) .and. (step_pass) )then
+          if_step_pass: if( (totalC < calloc_abs_error) .and. (step_pass) )then
 
              ierr           = 0
              leaf_c_flux    = c_pool(leaf_c_id)   - sum(leaf_c(1:nleafage))
@@ -827,11 +819,6 @@ contains
              
              dbh            = c_pool(dbh_id)
 
-             ! THESE HAVE TO BE SET OUTSIDE OF THIS ROUTINE
-             !!          cohort%seed_prod = cohort%seed_prod + brepro_flux / hlm_freq_day
-             !!          cohort%dhdt      = (h_sub-cohort%hite)/hlm_freq_day
-             !!          cohort%ddbhdt    = (dbh_sub-dbh_in)/hlm_freq_day
-             
              if( abs(carbon_balance)>calloc_abs_error ) then
                 write(fates_log(),*) 'carbon conservation error while integrating pools'
                 write(fates_log(),*) 'along alometric curve'
@@ -840,18 +827,18 @@ contains
                 call endrun(msg=errMsg(sourcefile, __LINE__))
              end if
              
-          end if
-       end do
-    end if
+          end if if_step_pass
+
+       end do do_solve_check
+       
+    end if if_stature_growth
 
     ! Track the net allocations and transport from this routine
+    ! (the AgeLeaves() routine handled tracking allocation through aging)
 
-    do i_age = 1,nleafage
-       this%variables(leaf_c_id)%net_alloc(i_age) = &
-             this%variables(leaf_c_id)%net_alloc(i_age) + &
-             (leaf_c(i_age) - leaf_c0(i_age))
-    end do
-
+    this%variables(leaf_c_id)%net_alloc(icd) = &
+          this%variables(leaf_c_id)%net_alloc(icd) + (leaf_c(icd) - leaf_c0(icd))
+    
     this%variables(fnrt_c_id)%net_alloc(icd) = &
          this%variables(fnrt_c_id)%net_alloc(icd) + (fnrt_c - fnrt_c0)
     
@@ -953,10 +940,10 @@ contains
         call bstore_allom(dbh,ipft,canopy_trim,ct_store,ct_dstoredd)
         
         ! fraction of carbon going towards reproduction
-        if (dbh <= EDPftvarcon_inst%dbh_repro_threshold(ipft)) then ! cap on leaf biomass
-           repro_fraction = EDPftvarcon_inst%seed_alloc(ipft)
+        if (dbh <= prt_params%dbh_repro_threshold(ipft)) then ! cap on leaf biomass
+           repro_fraction = prt_params%seed_alloc(ipft)
         else
-           repro_fraction = EDPftvarcon_inst%seed_alloc(ipft) + EDPftvarcon_inst%seed_alloc_mature(ipft)
+           repro_fraction = prt_params%seed_alloc(ipft) + prt_params%seed_alloc_mature(ipft)
         end if
 
         dCdx = 0.0_r8

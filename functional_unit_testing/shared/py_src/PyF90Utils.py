@@ -16,6 +16,8 @@ def ci(i8):
 def cchar(fchar):
     return(byref(c_char(fchar)))
 
+def cchar3(fchar):
+    return(byref(c_char(fchar.encode('utf-8'))))
 
 # We do NOT pass arrays back by reference
 # This is because we will need to get their length

@@ -19,7 +19,6 @@ module EDMortalityFunctionsMod
    use FatesInterfaceTypesMod     , only : hlm_use_planthydro
    use EDLoggingMortalityMod , only : LoggingMortality_frac
    use EDParamsMod           , only : fates_mortality_disturbance_fraction
-   use FatesInterfaceTypesMod     , only : bc_in_type
 
    use PRTGenericMod,          only : all_carbon_elements
    use PRTGenericMod,          only : store_organ
@@ -62,7 +61,6 @@ contains
     real(r8),intent(out) :: smort  ! size dependent senescence term
     real(r8),intent(out) :: asmort ! age dependent senescence term 
 
-    integer  :: ifp
     real(r8) :: frac  ! relativised stored carbohydrate
     real(r8) :: leaf_c_target      ! target leaf biomass kgC
     real(r8) :: store_c
@@ -173,8 +171,8 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     !           Eastern US carbon sink.  Glob. Change Biol., 12, 2370-2390,              
     !           doi: 10.1111/j.1365-2486.2006.01254.x                                    
 
-    ifp = cohort_in%patchptr%patchno
-    temp_in_C = bc_in%t_veg24_pa(ifp) - tfrz
+    temp_in_C = cohort_in%patchptr%tveg24%GetMean() - tfrz
+    
     temp_dep_fraction  = max(0.0_r8, min(1.0_r8, 1.0_r8 - (temp_in_C - &
                          EDPftvarcon_inst%freezetol(cohort_in%pft))/frost_mort_buffer) )
     frmort    = EDPftvarcon_inst%mort_scalar_coldstress(cohort_in%pft) * temp_dep_fraction
@@ -208,7 +206,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
 
  ! ============================================================================
 
- subroutine Mortality_Derivative( currentSite, currentCohort, bc_in)
+ subroutine Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary)
 
     !
     ! !DESCRIPTION:
@@ -224,6 +222,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     type(ed_site_type), intent(inout), target  :: currentSite
     type(ed_cohort_type),intent(inout), target :: currentCohort
     type(bc_in_type), intent(in)               :: bc_in
+    real(r8), intent(in)                       :: frac_site_primary
     !
     ! !LOCAL VARIABLES:
     real(r8) :: cmort    ! starvation mortality rate (fraction per year)
@@ -245,7 +244,13 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
                                currentCohort%lmort_direct,                       &
                                currentCohort%lmort_collateral,                    &
                                currentCohort%lmort_infra,                        &
-                               currentCohort%l_degrad)
+                               currentCohort%l_degrad, &
+                               bc_in%hlm_harvest_rates, &
+                               bc_in%hlm_harvest_catnames, &
+                               bc_in%hlm_harvest_units, &
+                               currentCohort%patchptr%anthro_disturbance_label, &
+                               currentCohort%patchptr%age_since_anthro_disturbance, &
+                               frac_site_primary)
 
     
     

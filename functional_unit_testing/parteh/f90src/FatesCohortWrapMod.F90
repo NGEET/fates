@@ -19,9 +19,7 @@ module FatesCohortWrapMod
   use FatesAllometryMod,     only : h2d_allom
   use FatesAllometryMod,     only : tree_lai
   use FatesAllometryMod,     only : carea_allom
-
-  use EDPftvarcon,            only : EDPftvarcon_inst
-
+  use PRTParametersMod,      only : prt_params
   use PRTGenericMod,          only : prt_vartypes
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : all_carbon_elements
@@ -37,6 +35,8 @@ module FatesCohortWrapMod
   use PRTGenericMod,          only : carbon12_element
   use PRTGenericMod,          only : SetState
   use PRTGenericMod,          only : prt_global
+  use PRTGenericMod,          only : prt_carbon_allom_hyp   
+  use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
 
   use PRTAllometricCarbonMod, only : callom_prt_vartypes
   use PRTAllometricCarbonMod, only : ac_bc_inout_id_netdc
@@ -56,12 +56,14 @@ module FatesCohortWrapMod
   use PRTAllometricCNPMod,    only : acnp_bc_inout_id_rmaint_def
   use PRTAllometricCNPMod,    only : acnp_bc_inout_id_netdn
   use PRTAllometricCNPMod,    only : acnp_bc_inout_id_netdp
+
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_ctrim
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_pft
-  use PRTAllometricCNPMod,    only : acnp_bc_in_id_status
-  use PRTAllometricCNPMod,    only : acnp_bc_out_id_rootcexude
-  use PRTAllometricCNPMod,    only : acnp_bc_out_id_rootnexude
-  use PRTAllometricCNPMod,    only : acnp_bc_out_id_rootpexude
+  use PRTAllometricCNPMod,    only : acnp_bc_in_id_leafon
+
+  use PRTAllometricCNPMod,    only : acnp_bc_out_id_cefflux 
+  use PRTAllometricCNPMod,    only : acnp_bc_out_id_nefflux 
+  use PRTAllometricCNPMod,    only : acnp_bc_out_id_pefflux
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_growresp
 
 
@@ -75,11 +77,10 @@ module FatesCohortWrapMod
   
   implicit none
   private ! Modules are private by default
-  
+
   type, public :: ed_cohort_type
      
      integer  :: pft             ! pft number
-     integer  :: parteh_model        ! The PARTEH allocation hypothesis used
      real(r8) :: dbh             ! dbh: cm
      integer  :: status_coh      ! leaf status 1=off, 2=on
      real(r8) :: canopy_trim     ! Trimming function for the canopy
@@ -87,6 +88,7 @@ module FatesCohortWrapMod
      real(r8) :: dhdt            ! time derivative of height       : m/year
      real(r8) :: ddbhdt          ! time derivative of dbh          : cm/year
 
+     real(r8) :: vcmax25top
      real(r8) :: daily_carbon_gain        ! 
      real(r8) :: daily_nitrogen_gain      !
      real(r8) :: daily_phosphorus_gain   !
@@ -94,10 +96,12 @@ module FatesCohortWrapMod
      real(r8) :: daily_r_maint            !
      real(r8) :: daily_r_maint_demand          !
      real(r8) :: accum_r_maint_deficit  !
-     real(r8) :: carbon_root_exudate           !
-     real(r8) :: nitrogen_root_exudate         !
-     real(r8) :: phosphorus_root_exudate      !
-
+     real(r8) :: carbon_root_efflux
+     real(r8) :: nitrogen_root_efflux
+     real(r8) :: phosphorus_root_efflux
+     integer  :: parteh_mode                 ! THIS IS NOT IN FATES
+                                             ! WE MAKE THIS A PER-TREE
+                                             ! ATTRIBUTE HERE FOR INTERCOMPARISON
      
      ! Multi-species, multi-pool Reactive Transport 
      class(prt_vartypes), pointer :: prt
@@ -114,6 +118,7 @@ module FatesCohortWrapMod
   ! Make necessary procedures public
   public :: CohortInitAlloc
   public :: CohortPySet
+  public :: CohortModeSet
   public :: WrapDailyPRT
   public :: WrapQueryVars
   public :: WrapQueryDiagnostics
@@ -129,34 +134,50 @@ contains
     integer(i4)                   :: ico
     type(ed_cohort_type), pointer :: ccohort
     
-    
+
     allocate(cohort_array(numcohorts))
     
     do ico = 1,numcohorts
        ccohort               => cohort_array(ico)
-       ccohort%parteh_model              = -1
        ccohort%pft                      = -9
        ccohort%dbh                      = -999.9_r8
        ccohort%status_coh               = -1
+       ccohort%parteh_mode              = -1
        ccohort%canopy_trim              = -999.9_r8
        ccohort%dhdt                     = -999.9_r8
        ccohort%ddbhdt                   = -999.9_r8
        ccohort%daily_carbon_gain        = -999.9_r8
        ccohort%daily_nitrogen_gain      = -999.9_r8
-       ccohort%daily_phosphorus_gain   = -999.9_r8
+       ccohort%daily_phosphorus_gain    = -999.9_r8
        ccohort%daily_r_grow             = -999.9_r8
        ccohort%daily_r_maint            = -999.9_r8
        ccohort%daily_r_maint_demand     = -999.9_r8
        ccohort%accum_r_maint_deficit    = -999.9_r8
-       ccohort%carbon_root_exudate      = -999.9_r8
-       ccohort%nitrogen_root_exudate    = -999.9_r8
-       ccohort%phosphorus_root_exudate = -999.9_r8
+       ccohort%carbon_root_efflux       = -999.9_r8
+       ccohort%nitrogen_root_efflux     = -999.9_r8
+       ccohort%phosphorus_root_efflux   = -999.9_r8
+       ccohort%vcmax25top               = -999.9_r8
     end do
 
     return
   end subroutine CohortInitAlloc
   
   ! =====================================================================================  
+
+  subroutine CohortModeSet(ipft,parteh_mode)
+
+    integer(i4) :: ipft
+    integer(i4) :: parteh_mode
+
+
+    cohort_array(ipft)%parteh_mode = parteh_mode
+
+    print*,"SET MODE ",parteh_mode," FOR PFT: ",ipft
+
+    return
+  end subroutine CohortModeSet
+
+
   
   subroutine CohortPySet(ipft,hgt_min,canopy_trim)
     
@@ -202,7 +223,6 @@ contains
     
 
     ccohort%pft          = int(ipft)
-    ccohort%parteh_model = int(EDPftvarcon_inst%parteh_model(ipft))
 
     call h2d_allom(hgt_min,ipft,ccohort%dbh)
     ccohort%canopy_trim = canopy_trim
@@ -232,14 +252,17 @@ contains
     
     repro_c = 0.0_r8
 
+    ! -----------------------------------------------------
+    ! THIS IS A COPY OF InitPRTObject
+    ! -----------------------------------------------------
     
-    select case(ccohort%parteh_model)
-    case (1)
+    select case(ccohort%parteh_mode)
+    case (prt_carbon_allom_hyp)
        prt_global => prt_global_ac
        allocate(callom_prt)
        ccohort%prt => callom_prt
 
-    case(2)
+    case(prt_cnp_flex_allom_hyp)
        prt_global => prt_global_acnp
        allocate(cnpallom_prt)
        ccohort%prt => cnpallom_prt
@@ -252,8 +275,8 @@ contains
 
     call ccohort%prt%InitPRTVartype()
 
-    select case(ccohort%parteh_model)
-    case (1)
+    select case(ccohort%parteh_mode)
+    case (prt_carbon_allom_hyp)
 
        call SetState(ccohort%prt,leaf_organ, carbon12_element, leaf_c)
        call SetState(ccohort%prt,fnrt_organ, carbon12_element, fnrt_c)
@@ -268,23 +291,23 @@ contains
        call ccohort%prt%RegisterBCIn(ac_bc_in_id_pft,bc_ival = ccohort%pft)
        call ccohort%prt%RegisterBCIn(ac_bc_in_id_ctrim,bc_rval = ccohort%canopy_trim)
 
-    case (2)
+    case (prt_cnp_flex_allom_hyp)
 
        ! Initializing with the target stoichiometric ratios
        ! (OR you can initialize with the minimum ratios too.... p2)
-       leaf_n = leaf_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,leaf_organ)
-       fnrt_n = fnrt_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,fnrt_organ)
-       sapw_n = sapw_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,sapw_organ)
-       store_n = store_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,store_organ)
-       struct_n = struct_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,struct_organ)
-       repro_n = repro_c * EDPftvarcon_inst%prt_nitr_stoich_p1(ipft,repro_organ)
+       leaf_n = leaf_c * prt_params%nitr_stoich_p1(ipft,leaf_organ)
+       fnrt_n = fnrt_c * prt_params%nitr_stoich_p1(ipft,fnrt_organ)
+       sapw_n = sapw_c * prt_params%nitr_stoich_p1(ipft,sapw_organ)
+       store_n = store_c * prt_params%nitr_stoich_p1(ipft,store_organ)
+       struct_n = struct_c * prt_params%nitr_stoich_p1(ipft,struct_organ)
+       repro_n = repro_c * prt_params%nitr_stoich_p1(ipft,repro_organ)
        
-       leaf_p = leaf_c * EDPftvarcon_inst%prt_phos_stoich_p1(ipft,leaf_organ)
-       fnrt_p = fnrt_c * EDPftvarcon_inst%prt_phos_stoich_p1(ipft,fnrt_organ)
-       sapw_p = sapw_c * EDPftvarcon_inst%prt_phos_stoich_p1(ipft,sapw_organ)
-       store_p = store_c * EDPftvarcon_inst%prt_phos_stoich_p1(ipft,store_organ)
-       struct_p = struct_c * EDPftvarcon_inst%prt_phos_stoich_p1(ipft,struct_organ)
-       repro_p = repro_c * EDPftvarcon_inst%prt_phos_stoich_p1(ipft,repro_organ)
+       leaf_p = leaf_c * prt_params%phos_stoich_p1(ipft,leaf_organ)
+       fnrt_p = fnrt_c * prt_params%phos_stoich_p1(ipft,fnrt_organ)
+       sapw_p = sapw_c * prt_params%phos_stoich_p1(ipft,sapw_organ)
+       store_p = store_c * prt_params%phos_stoich_p1(ipft,store_organ)
+       struct_p = struct_c * prt_params%phos_stoich_p1(ipft,struct_organ)
+       repro_p = repro_c * prt_params%phos_stoich_p1(ipft,repro_organ)
 
        ccohort%accum_r_maint_deficit = 0.0_r8
        
@@ -319,12 +342,12 @@ contains
        ! Register Input only BC's
        call ccohort%prt%RegisterBCIn(acnp_bc_in_id_pft,bc_ival   = ccohort%pft)
        call ccohort%prt%RegisterBCIn(acnp_bc_in_id_ctrim,bc_rval = ccohort%canopy_trim)
-       call ccohort%prt%RegisterBCIn(acnp_bc_in_id_status,bc_ival = ccohort%status_coh)
+       call ccohort%prt%RegisterBCIn(acnp_bc_in_id_leafon,bc_ival = ccohort%status_coh)
 
        ! Register Output Boundary Conditions
-       call ccohort%prt%RegisterBCOut(acnp_bc_out_id_rootcexude,bc_rval = ccohort%carbon_root_exudate)
-       call ccohort%prt%RegisterBCOut(acnp_bc_out_id_rootnexude,bc_rval = ccohort%nitrogen_root_exudate)
-       call ccohort%prt%RegisterBCOut(acnp_bc_out_id_rootpexude,bc_rval = ccohort%phosphorus_root_exudate)
+       call ccohort%prt%RegisterBCOut(acnp_bc_out_id_cefflux,bc_rval = ccohort%carbon_root_efflux)
+       call ccohort%prt%RegisterBCOut(acnp_bc_out_id_nefflux,bc_rval = ccohort%nitrogen_root_efflux)
+       call ccohort%prt%RegisterBCOut(acnp_bc_out_id_pefflux,bc_rval = ccohort%phosphorus_root_efflux)
        call ccohort%prt%RegisterBCOut(acnp_bc_out_id_growresp,bc_rval = ccohort%daily_r_grow )
 
     
@@ -332,6 +355,7 @@ contains
     
     call ccohort%prt%CheckInitialConditions()
 
+    ccohort%vcmax25top = 50._r8
     
   end subroutine CohortPySet
 
@@ -353,7 +377,7 @@ contains
     real(r8), intent(in), optional :: daily_r_maint_demand
 
     type(ed_cohort_type), pointer :: ccohort
-    
+    logical, parameter :: is_drought = .false.
 
     ccohort               => cohort_array(ipft)
 
@@ -367,24 +391,25 @@ contains
     
     call PRTPhenologyFlush(ccohort%prt, ipft, leaf_organ, flush_c)
 
-    call PRTMaintTurnover(ccohort%prt, ipft)
+    call PRTMaintTurnover(ccohort%prt, ipft, is_drought)
 
-    select case(int(ccohort%parteh_model))
-    case (1)
+    select case(ccohort%parteh_mode)
+    case (prt_carbon_allom_hyp)
        prt_global => prt_global_ac
        ccohort%daily_carbon_gain = daily_carbon_gain
 
        call ccohort%prt%DailyPRT()
 
        ccohort%daily_r_grow = 0.0_r8
-       ccohort%carbon_root_exudate = 0.0_r8
+       ccohort%carbon_root_efflux = 0.0_r8
 
-    case (2)
+    case (prt_cnp_flex_allom_hyp)
+
        prt_global => prt_global_acnp
-       ccohort%daily_carbon_gain      = daily_carbon_gain
-       ccohort%daily_nitrogen_gain    = daily_nitrogen_gain
+       ccohort%daily_carbon_gain     = daily_carbon_gain
+       ccohort%daily_nitrogen_gain   = daily_nitrogen_gain
        ccohort%daily_phosphorus_gain = daily_phosphorus_gain
-       ccohort%accum_r_maint_deficit  = ccohort%accum_r_maint_deficit + &
+       ccohort%accum_r_maint_deficit = ccohort%accum_r_maint_deficit + &
                                         daily_r_maint_demand 
 
        call ccohort%prt%DailyPRT()
@@ -423,26 +448,27 @@ contains
     real(r8),parameter :: nplant = 1.0_r8
     real(r8),parameter :: site_spread = 1.0_r8
 
-    real(r8), parameter, dimension(nclmax) :: canopy_lai = [0.0_r8,0.0_r8,0.0_r8,0.0_r8]
+    real(r8), dimension(nclmax) :: canopy_lai
     integer, parameter  :: cl1 = 1
     
     ccohort     => cohort_array(ipft)
 
+    canopy_lai(:) = 0._r8
 
-    select case(int(ccohort%parteh_model))
-    case (1)
+    select case(ccohort%parteh_mode)
+    case (prt_carbon_allom_hyp)
        prt_global => prt_global_ac
-    case (2)
+    case (prt_cnp_flex_allom_hyp)
        prt_global => prt_global_acnp
     end select
     
 
-    leaf_c  = ccohort%prt%GetState(leaf_organ, all_carbon_elements )
-    store_c = ccohort%prt%GetState(store_organ, all_carbon_elements )
+    leaf_c  = ccohort%prt%GetState(leaf_organ, carbon12_element )
+    store_c = ccohort%prt%GetState(store_organ, carbon12_element )
     
     call carea_allom(ccohort%dbh,nplant,site_spread,ipft,crown_area)
 
-    leaf_area = crown_area*tree_lai(leaf_c, ipft, crown_area, nplant, cl1, canopy_lai) 
+    leaf_area = crown_area*tree_lai(leaf_c, ipft, crown_area, nplant, cl1, canopy_lai,ccohort%vcmax25top) 
 
     call bagw_allom(ccohort%dbh,ipft,agb)
 
@@ -461,7 +487,7 @@ contains
                                  leaf_p, fnrt_p, sapw_p, store_p, struct_p, repro_p, &
                                  leaf_pturn, fnrt_pturn, sapw_pturn, store_pturn, struct_pturn, &
                                  crown_area, &
-                                 carbon_root_exudate, nitrogen_root_exudate, phosphorus_root_exudate, &
+                                 carbon_root_efflux, nitrogen_root_efflux, phosphorus_root_efflux, &
                                  growth_resp )
     
     implicit none
@@ -506,9 +532,9 @@ contains
     real(r8),intent(out)   :: struct_pturn
 
 
-    real(r8),intent(out)   :: carbon_root_exudate
-    real(r8),intent(out)   :: nitrogen_root_exudate
-    real(r8),intent(out)   :: phosphorus_root_exudate
+    real(r8),intent(out)   :: carbon_root_efflux
+    real(r8),intent(out)   :: nitrogen_root_efflux
+    real(r8),intent(out)   :: phosphorus_root_efflux
     real(r8),intent(out)   :: growth_resp
     
     real(r8),intent(out)   :: crown_area
@@ -518,61 +544,61 @@ contains
 
     ccohort => cohort_array(ipft)   
     
-    select case(int(ccohort%parteh_model))
-    case (1)
+    select case(ccohort%parteh_mode)
+    case (prt_carbon_allom_hyp )
        prt_global => prt_global_ac
-    case (2)
+    case (prt_cnp_flex_allom_hyp)
        prt_global => prt_global_acnp
     end select
     
     dbh    = ccohort%dbh
 
-    leaf_c = ccohort%prt%GetState(organ_id=leaf_organ, species_id=all_carbon_elements)
-    fnrt_c = ccohort%prt%GetState(organ_id=fnrt_organ, species_id=all_carbon_elements)
-    sapw_c = ccohort%prt%GetState(organ_id=sapw_organ, species_id=all_carbon_elements)
-    store_c = ccohort%prt%GetState(organ_id=store_organ, species_id=all_carbon_elements)
-    struct_c = ccohort%prt%GetState(organ_id=struct_organ, species_id=all_carbon_elements)
-    repro_c = ccohort%prt%GetState(organ_id=repro_organ, species_id=all_carbon_elements)
+    leaf_c = ccohort%prt%GetState(organ_id=leaf_organ, element_id=carbon12_element)
+    fnrt_c = ccohort%prt%GetState(organ_id=fnrt_organ, element_id=carbon12_element)
+    sapw_c = ccohort%prt%GetState(organ_id=sapw_organ, element_id=carbon12_element)
+    store_c = ccohort%prt%GetState(organ_id=store_organ, element_id=carbon12_element)
+    struct_c = ccohort%prt%GetState(organ_id=struct_organ, element_id=carbon12_element)
+    repro_c = ccohort%prt%GetState(organ_id=repro_organ, element_id=carbon12_element)
 
-    leaf_cturn = ccohort%prt%GetTurnover(organ_id=leaf_organ, species_id=all_carbon_elements)
-    fnrt_cturn = ccohort%prt%GetTurnover(organ_id=fnrt_organ, species_id=all_carbon_elements)
-    sapw_cturn = ccohort%prt%GetTurnover(organ_id=sapw_organ, species_id=all_carbon_elements)
-    store_cturn = ccohort%prt%GetTurnover(organ_id=store_organ, species_id=all_carbon_elements)
-    struct_cturn = ccohort%prt%GetTurnover(organ_id=struct_organ, species_id=all_carbon_elements)
+    leaf_cturn = ccohort%prt%GetTurnover(organ_id=leaf_organ, element_id=carbon12_element)
+    fnrt_cturn = ccohort%prt%GetTurnover(organ_id=fnrt_organ, element_id=carbon12_element)
+    sapw_cturn = ccohort%prt%GetTurnover(organ_id=sapw_organ, element_id=carbon12_element)
+    store_cturn = ccohort%prt%GetTurnover(organ_id=store_organ, element_id=carbon12_element)
+    struct_cturn = ccohort%prt%GetTurnover(organ_id=struct_organ, element_id=carbon12_element)
 
-    leaf_n = ccohort%prt%GetState(organ_id=leaf_organ, species_id=nitrogen_element)
-    fnrt_n = ccohort%prt%GetState(organ_id=fnrt_organ, species_id=nitrogen_element)
-    sapw_n = ccohort%prt%GetState(organ_id=sapw_organ, species_id=nitrogen_element)
-    store_n = ccohort%prt%GetState(organ_id=store_organ, species_id=nitrogen_element)
-    struct_n = ccohort%prt%GetState(organ_id=struct_organ, species_id=nitrogen_element)
-    repro_n = ccohort%prt%GetState(organ_id=repro_organ, species_id=nitrogen_element)
+    leaf_n = ccohort%prt%GetState(organ_id=leaf_organ, element_id=nitrogen_element)
+    fnrt_n = ccohort%prt%GetState(organ_id=fnrt_organ, element_id=nitrogen_element)
+    sapw_n = ccohort%prt%GetState(organ_id=sapw_organ, element_id=nitrogen_element)
+    store_n = ccohort%prt%GetState(organ_id=store_organ, element_id=nitrogen_element)
+    struct_n = ccohort%prt%GetState(organ_id=struct_organ, element_id=nitrogen_element)
+    repro_n = ccohort%prt%GetState(organ_id=repro_organ, element_id=nitrogen_element)
     
-    leaf_nturn = ccohort%prt%GetTurnover(organ_id=leaf_organ, species_id=nitrogen_element)
-    fnrt_nturn = ccohort%prt%GetTurnover(organ_id=fnrt_organ, species_id=nitrogen_element)
-    sapw_nturn = ccohort%prt%GetTurnover(organ_id=sapw_organ, species_id=nitrogen_element)
-    store_nturn = ccohort%prt%GetTurnover(organ_id=store_organ, species_id=nitrogen_element)
-    struct_nturn = ccohort%prt%GetTurnover(organ_id=struct_organ, species_id=nitrogen_element)
+    leaf_nturn = ccohort%prt%GetTurnover(organ_id=leaf_organ, element_id=nitrogen_element)
+    fnrt_nturn = ccohort%prt%GetTurnover(organ_id=fnrt_organ, element_id=nitrogen_element)
+    sapw_nturn = ccohort%prt%GetTurnover(organ_id=sapw_organ, element_id=nitrogen_element)
+    store_nturn = ccohort%prt%GetTurnover(organ_id=store_organ, element_id=nitrogen_element)
+    struct_nturn = ccohort%prt%GetTurnover(organ_id=struct_organ, element_id=nitrogen_element)
 
-    leaf_p = ccohort%prt%GetState(organ_id=leaf_organ, species_id=phosphorus_element)
-    fnrt_p = ccohort%prt%GetState(organ_id=fnrt_organ, species_id=phosphorus_element)
-    sapw_p = ccohort%prt%GetState(organ_id=sapw_organ, species_id=phosphorus_element)
-    store_p = ccohort%prt%GetState(organ_id=store_organ, species_id=phosphorus_element)
-    struct_p = ccohort%prt%GetState(organ_id=struct_organ, species_id=phosphorus_element)
-    repro_p = ccohort%prt%GetState(organ_id=repro_organ, species_id=phosphorus_element)
+    leaf_p = ccohort%prt%GetState(organ_id=leaf_organ, element_id=phosphorus_element)
+    fnrt_p = ccohort%prt%GetState(organ_id=fnrt_organ, element_id=phosphorus_element)
+    sapw_p = ccohort%prt%GetState(organ_id=sapw_organ, element_id=phosphorus_element)
+    store_p = ccohort%prt%GetState(organ_id=store_organ, element_id=phosphorus_element)
+    struct_p = ccohort%prt%GetState(organ_id=struct_organ, element_id=phosphorus_element)
+    repro_p = ccohort%prt%GetState(organ_id=repro_organ, element_id=phosphorus_element)
     
-    leaf_pturn = ccohort%prt%GetTurnover(organ_id=leaf_organ, species_id=phosphorus_element)
-    fnrt_pturn = ccohort%prt%GetTurnover(organ_id=fnrt_organ, species_id=phosphorus_element)
-    sapw_pturn = ccohort%prt%GetTurnover(organ_id=sapw_organ, species_id=phosphorus_element)
-    store_pturn = ccohort%prt%GetTurnover(organ_id=store_organ, species_id=phosphorus_element)
-    struct_pturn = ccohort%prt%GetTurnover(organ_id=struct_organ, species_id=phosphorus_element)
+    leaf_pturn = ccohort%prt%GetTurnover(organ_id=leaf_organ, element_id=phosphorus_element)
+    fnrt_pturn = ccohort%prt%GetTurnover(organ_id=fnrt_organ, element_id=phosphorus_element)
+    sapw_pturn = ccohort%prt%GetTurnover(organ_id=sapw_organ, element_id=phosphorus_element)
+    store_pturn = ccohort%prt%GetTurnover(organ_id=store_organ, element_id=phosphorus_element)
+    struct_pturn = ccohort%prt%GetTurnover(organ_id=struct_organ, element_id=phosphorus_element)
 
     growth_resp = ccohort%daily_r_grow
 
     call carea_allom(ccohort%dbh,nplant,site_spread,ipft,crown_area)
 
-    carbon_root_exudate = ccohort%carbon_root_exudate
-    nitrogen_root_exudate = ccohort%nitrogen_root_exudate
-    phosphorus_root_exudate = ccohort%phosphorus_root_exudate
+    carbon_root_efflux = ccohort%carbon_root_efflux
+    nitrogen_root_efflux = ccohort%nitrogen_root_efflux
+    phosphorus_root_efflux = ccohort%phosphorus_root_efflux
 
     return
  end subroutine WrapQueryDiagnostics

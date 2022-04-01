@@ -18,7 +18,7 @@ class ParamType:
 
 
 def CheckFile(filename,check_str):
-    file_ptr = file(filename)
+    file_ptr = open(filename,'r')
     var_list = []
     found = False
     for line in file_ptr:

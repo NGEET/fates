@@ -10,11 +10,19 @@ module EDTypesMod
   use PRTGenericMod,         only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod,         only : repro_organ, store_organ, struct_organ
   use PRTGenericMod,         only : all_carbon_elements
+  use PRTGenericMod,         only : num_organ_types
+  use PRTGenericMod,         only : num_elements
+  use PRTGenericMod,         only : element_list
   use PRTGenericMod,         only : num_element_types
   use FatesLitterMod,        only : litter_type
   use FatesLitterMod,        only : ncwd
   use FatesConstantsMod,     only : n_anthro_disturbance_categories
   use FatesConstantsMod,     only : days_per_year
+  use FatesConstantsMod,     only : fates_unset_r8
+  use FatesRunningMeanMod,   only : rmean_type
+  use FatesInterfaceTypesMod,only : bc_in_type
+  use FatesInterfaceTypesMod,only : bc_out_type
+
   
   implicit none
   private               ! By default everything is private
@@ -31,15 +39,14 @@ module EDTypesMod
                                                           ! to understory layers (all layers that
                                                           ! are not the top canopy layer)
 
-  integer, parameter, public :: nlevleaf = 30             ! number of leaf layers in canopy layer
-  integer, parameter, public :: maxpft = 15               ! maximum number of PFTs allowed
+  integer, parameter, public :: maxpft = 16               ! maximum number of PFTs allowed
                                                           ! the parameter file may determine that fewer
                                                           ! are used, but this helps allocate scratch
                                                           ! space and output arrays.
                                                   
-  integer, parameter, public :: max_nleafage = 4          ! This is the maximum number of leaf age pools, 
-                                                          ! used for allocating scratch space
-
+  
+  real(r8), parameter, public :: init_recruit_trim = 0.8_r8    ! This is the initial trimming value that
+                                                               ! new recruits start with
 
   ! -------------------------------------------------------------------------------------
   ! Radiation parameters
@@ -53,6 +60,10 @@ module EDTypesMod
   integer, parameter, public :: idirect   = 1             ! This is the array index for direct radiation
   integer, parameter, public :: idiffuse  = 2             ! This is the array index for diffuse radiation
 
+  ! parameters that govern the VAI (LAI+SAI) bins used in radiative transfer code
+  integer, parameter, public :: nlevleaf = 30             ! number of leaf+stem layers in canopy layer
+  real(r8), public :: dinc_vai(nlevleaf)   = fates_unset_r8 ! VAI bin widths array
+  real(r8), public :: dlower_vai(nlevleaf) = fates_unset_r8 ! lower edges of VAI bins
 
   ! TODO: we use this cp_maxSWb only because we have a static array q(size=2) of
   ! land-ice abledo for vis and nir.  This should be a parameter, which would
@@ -118,8 +129,6 @@ module EDTypesMod
 
   ! BIOLOGY/BIOGEOCHEMISTRY        
   integer , parameter, public :: num_vegtemp_mem      = 10         ! Window of time over which we track temp for cold sensecence (days)
-  real(r8), parameter, public :: dinc_ed              = 1.0_r8     ! size of VAI bins (LAI+SAI)  [CHANGE THIS NAME WITH NEXT INTERFACE
-                                                           ! UPDATE]
   integer , parameter, public :: N_DIST_TYPES         = 3          ! Disturbance Modes 1) tree-fall, 2) fire, 3) logging
   integer , parameter, public :: dtype_ifall          = 1          ! index for naturally occuring tree-fall generated event
   integer , parameter, public :: dtype_ifire          = 2          ! index for fire generated disturbance event
@@ -181,19 +190,13 @@ module EDTypesMod
   logical, parameter, public :: homogenize_seed_pfts  = .false.
 
   
+  ! Global identifier of how nutrients interact with the host land model
+  ! either they are fully coupled, or they generate uptake rates synthetically
+  ! in prescribed mode. In the latter, there is both NO mass removed from the HLM's soil
+  ! BGC N and P pools, and there is also none removed.
 
-  ! Global identifiers for which elements we are using (apply mostly to litter)
-
-  integer, public              :: num_elements          ! This is the number of elements in this simulation
-                                                        ! e.g. (C,N,P,K, etc)
-  integer, allocatable, public :: element_list(:)       ! This vector holds the element ids that are found
-                                                        ! in PRTGenericMod.F90. examples are carbon12_element
-                                                        ! nitrogen_element, etc.
-
-  integer, public :: element_pos(num_element_types)       ! This is the reverse lookup
-                                                        ! for element types. Pick an element
-                                                        ! global index, and it gives you
-                                                        ! the position in the element_list
+  integer, public :: n_uptake_mode
+  integer, public :: p_uptake_mode
 
   !************************************
   !** COHORT type structure          **
@@ -286,7 +289,29 @@ module EDTypesMod
      real(r8) ::  c13disc_clm         ! carbon 13 discrimination in new synthesized carbon: part-per-mil, at each indiv/timestep
      real(r8) ::  c13disc_acc         ! carbon 13 discrimination in new synthesized carbon: part-per-mil, at each indiv/day, at the end of a day
 
+     ! Nutrient Fluxes (if N, P, etc. are turned on)
 
+     real(r8) :: daily_nh4_uptake ! integrated daily uptake of mineralized ammonium through competitive acquisition in soil [kg N / plant/ day]
+     real(r8) :: daily_no3_uptake ! integrated daily uptake of mineralized nitrate through competitive acquisition in soil [kg N / plant/ day]
+     real(r8) :: daily_p_uptake   ! integrated daily uptake of mineralized P through competitive acquisition in soil [kg P / plant/ day]
+
+     real(r8) :: daily_c_efflux   ! daily mean efflux of excess carbon from roots into labile pool [kg C/plant/day]
+     real(r8) :: daily_n_efflux   ! daily mean efflux of excess nitrogen from roots into labile pool [kg N/plant/day]
+     real(r8) :: daily_p_efflux   ! daily mean efflux of excess phophorus from roots into labile pool [kg P/plant/day]
+
+     real(r8) :: daily_n_need     ! Generic Nitrogen need of the plant, (hypothesis dependent) [kgN/plant/day]
+     real(r8) :: daily_p_need     ! Generic Phosphorus need of the plant, (hypothesis dependent) [kgN/plant/day]
+
+
+     ! These two variables may use the previous "need" variables, by applying a smoothing function.
+     ! These variables are used in two scenarios. 1) They work with the prescribed uptake fraction
+     ! in un-coupled mode, and 2) They are the plant's demand subbmitted to the Relative-Demand
+     ! type soil BGC scheme.
+     
+     real(r8) :: daily_n_demand ! The daily amount of N demanded by the plant [kgN]
+     real(r8) :: daily_p_demand ! The daily amount of P demanded by the plant [kgN]
+
+     
      ! The following four biophysical rates are assumed to be
      ! at the canopy top, at reference temp 25C, and based on the 
      ! leaf age weighted average of the PFT parameterized values. The last
@@ -308,8 +333,13 @@ module EDTypesMod
 
      ! RESPIRATION COMPONENTS
      real(r8) ::  rdark                                  ! Dark respiration: kgC/indiv/s
-     real(r8) ::  resp_g                                 ! Growth respiration:  kgC/indiv/timestep
+
+     real(r8) ::  resp_g_tstep                           ! Growth respiration:  kgC/indiv/timestep
      real(r8) ::  resp_m                                 ! Maintenance respiration:  kgC/indiv/timestep 
+     real(r8) ::  resp_m_def                             ! Optional: (NOT IMPLEMENTED YET)
+                                                         ! It may be possible to not respire at desired rate
+                                                         ! because of low carbon stores, and thus build
+                                                         ! up a deficit. This tracks that deficit. kgC/indiv
      real(r8) ::  livestem_mr                            ! Live stem        maintenance respiration: kgC/indiv/s
                                                          ! (Above ground)
      real(r8) ::  livecroot_mr                           ! Live stem        maintenance respiration: kgC/indiv/s
@@ -362,6 +392,14 @@ module EDTypesMod
      ! Hydraulics
      type(ed_cohort_hydr_type), pointer :: co_hydr       ! All cohort hydraulics data, see FatesHydraulicsMemMod.F90
 
+
+     ! Running means
+
+     ! (keeping this in-code as an example)
+     !class(rmean_type), pointer :: tveg_lpa              ! exponential moving average of leaf temperature at the
+                                                          ! leaf photosynthetic acclimation time-scale [K]
+
+     
   end type ed_cohort_type
 
   !************************************
@@ -388,6 +426,14 @@ module EDTypesMod
      integer  ::  anthro_disturbance_label                         ! patch label for anthropogenic disturbance classification
      real(r8) ::  age_since_anthro_disturbance                     ! average age for secondary forest since last anthropogenic disturbance
 
+
+     ! Running means
+     !class(rmean_type), pointer :: t2m                          ! Place-holder for 2m air temperature (variable window-size)
+     class(rmean_type), pointer :: tveg24                        ! 24-hour mean vegetation temperature (K)
+     class(rmean_type), pointer :: tveg_lpa                      ! Running mean of vegetation temperature at the
+                                                                 ! leaf photosynthesis acclimation timescale [K]
+     integer  ::  nocomp_pft_label                                 ! where nocomp is active, use this label for patch ID.   
+
      ! LEAF ORGANIZATION
      real(r8) ::  pft_agb_profile(maxpft,n_dbh_bins)            ! binned above ground biomass, for patch fusion: KgC/m2
      real(r8) ::  canopy_layer_tlai(nclmax)                     ! total leaf area index of each canopy layer
@@ -406,7 +452,7 @@ module EDTypesMod
      real(r8) ::  elai_profile(nclmax,maxpft,nlevleaf)          ! exposed leaf area in each canopy layer, pft, and leaf layer
      real(r8) ::  tsai_profile(nclmax,maxpft,nlevleaf)          ! total   stem area in each canopy layer, pft, and leaf layer
      real(r8) ::  esai_profile(nclmax,maxpft,nlevleaf)          ! exposed stem area in each canopy layer, pft, and leaf layer
-
+     real(r8) ::  radiation_error                               ! radiation error (w/m2)
      real(r8) ::  layer_height_profile(nclmax,maxpft,nlevleaf)
      real(r8) ::  canopy_area_profile(nclmax,maxpft,nlevleaf)   ! fraction of crown area per canopy area in each layer
                                                                 ! they will sum to 1.0 in the fully closed canopy layers
@@ -420,6 +466,7 @@ module EDTypesMod
      integer  ::  ncan(nclmax,maxpft)                           ! number of total   leaf layers for each canopy layer and pft
 
      !RADIATION FLUXES      
+     real(r8) :: fcansno                                        ! Fraction of canopy covered in snow
 
      logical  ::  solar_zenith_flag                             ! integer flag specifying daylight (based on zenith angle)
      real(r8) ::  solar_zenith_angle                            ! solar zenith angle (radians)
@@ -503,17 +550,15 @@ module EDTypesMod
 
      type(litter_type), pointer :: litter(:)  ! Litter (leaf,fnrt,CWD and seeds) for different elements
 
-     real(r8) :: fragmentation_scaler          ! Scale rate of litter fragmentation. 0 to 1.
-
-     real(r8) ::  repro(maxpft)                                 ! allocation to reproduction per PFT : KgC/m2
+     real(r8),allocatable :: fragmentation_scaler(:)            ! Scale rate of litter fragmentation based on soil layer. 0 to 1.
 
      !FUEL CHARECTERISTICS
      real(r8) ::  sum_fuel                                         ! total ground fuel related to ros (omits 1000hr fuels): KgC/m2
      real(r8) ::  fuel_frac(nfsc)                                  ! fraction of each litter class in the ros_fuel:-.  
      real(r8) ::  livegrass                                        ! total aboveground grass biomass in patch.  KgC/m2
-     real(r8) ::  fuel_bulkd                                       ! average fuel bulk density of the ground fuel 
+     real(r8) ::  fuel_bulkd                                       ! average fuel bulk density of the ground fuel. kgBiomass/m3
                                                                    ! (incl. live grasses. omits 1000hr fuels). KgC/m3
-     real(r8) ::  fuel_sav                                         ! average surface area to volume ratio of the ground fuel 
+     real(r8) ::  fuel_sav                                         ! average surface area to volume ratio of the ground fuel. cm-1
                                                                    ! (incl. live grasses. omits 1000hr fuels).
      real(r8) ::  fuel_mef                                         ! average moisture of extinction factor 
                                                                    ! of the ground fuel (incl. live grasses. omits 1000hr fuels).
@@ -577,6 +622,10 @@ module EDTypesMod
      real(r8) :: cwd_bg_input(1:ncwd)               
      real(r8),allocatable :: leaf_litter_input(:)
      real(r8),allocatable :: root_litter_input(:)
+
+     real(r8),allocatable :: nutrient_uptake_scpf(:)
+     real(r8),allocatable :: nutrient_efflux_scpf(:)
+     real(r8),allocatable :: nutrient_need_scpf(:)
      
    contains
 
@@ -636,11 +685,6 @@ module EDTypesMod
      procedure :: ZeroMassBalFlux
      
   end type site_massbal_type
-
-
-
-
-
   
 
   !************************************
@@ -656,11 +700,29 @@ module EDTypesMod
      ! Resource management
      type (ed_resources_management_type) :: resources_management ! resources_management at the site 
 
+     ! If this simulation uses shared memory then the sites need to know what machine
+     ! index they are on. This index is (currently) only used to identify the sites
+     ! position in history output fields
+     !integer :: clump_id 
 
-
+     ! Global index of this site in the history output file
+     integer :: h_gid
+     
      ! INDICES 
      real(r8) ::  lat                                          ! latitude:  degrees 
      real(r8) ::  lon                                          ! longitude: degrees 
+
+     ! Fixed Biogeography mode inputs
+     real(r8), allocatable :: area_PFT(:)                      ! Area allocated to individual PFTs    
+     integer, allocatable  :: use_this_pft(:)                  ! Is area_PFT > 0 ? (1=yes, 0=no)
+
+     ! Total area of patches in each age bin [m2]
+     real(r8), allocatable :: area_by_age(:)
+
+     ! SP mode target PFT level variables
+     real(r8), allocatable :: sp_tlai(:)                      ! target TLAI per FATES pft
+     real(r8), allocatable :: sp_tsai(:)                      ! target TSAI per FATES pft
+     real(r8), allocatable :: sp_htop(:)                      ! target HTOP per FATES pft
      
      ! Mass Balance (allocation for each element)
 
@@ -672,6 +734,7 @@ module EDTypesMod
 
      ! PHENOLOGY 
      real(r8) ::  grow_deg_days                                ! Phenology growing degree days
+     real(r8) ::  snow_depth                                   ! site-level snow depth (used for ELAI/TLAI calcs)
 
      integer  ::  cstatus                                      ! are leaves in this pixel on or off for cold decid
                                                                ! 0 = this site has not experienced a cold period over at least
@@ -699,7 +762,7 @@ module EDTypesMod
      real(r8) ::  acc_ni                                       ! daily nesterov index accumulating over time.
      real(r8) ::  fdi                                          ! daily probability an ignition event will start a fire
      real(r8) ::  NF                                           ! daily ignitions in km2
-     real(r8) ::  frac_burnt                                   ! fraction of area burnt in this day.
+     real(r8) ::  NF_successful                                ! daily ignitions in km2 that actually lead to fire
 
      ! PLANT HYDRAULICS
      type(ed_site_hydr_type), pointer :: si_hydr
@@ -712,7 +775,7 @@ module EDTypesMod
      real(r8), allocatable :: dz_soil(:)      ! layer thickness (m)
      real(r8), allocatable :: z_soil(:)       ! layer depth (m)
      real(r8), allocatable :: rootfrac_scr(:) ! This is just allocated scratch space to hold
-                                              ! root fractions. Since root fractions may be dependant
+                                              ! root fractions. Since root fractions may be dependent
                                               ! on cohort properties, and we do not want to store this infromation
                                               ! on each cohort, we do not keep root fractions in
                                               ! memory, and instead calculate them on demand.
@@ -720,6 +783,13 @@ module EDTypesMod
                                               ! layers for each site, and save allocating deallocating.
                                               ! NOTE: THIS SCRATCH SPACE WOULD NOT BE THREAD-SAFE
                                               ! IF WE FORK ON PATCHES
+
+
+     ! Mineralized nutrient flux from veg to the soil, via multiple mechanisms
+     ! inluding symbiotic fixation, or other 
+
+     !real(r8) :: allocatable :: minn_flux_out  ! kg/ha/day
+     !real(r8) :: allocatable :: minp_flux_out  ! kg/ha/day
 
      
      ! DIAGNOSTICS
@@ -766,6 +836,14 @@ module EDTypesMod
 
      ! Canopy Spread
      real(r8) ::  spread                                          ! dynamic canopy allometric term [unitless]
+
+     ! site-level variables to keep track of the disturbance rates, both actual and "potential"
+     real(r8) :: disturbance_rates_primary_to_primary(N_DIST_TYPES)      ! actual disturbance rates from primary patches to primary patches [m2/m2/day]
+     real(r8) :: disturbance_rates_primary_to_secondary(N_DIST_TYPES)    ! actual disturbance rates from primary patches to secondary patches [m2/m2/day]
+     real(r8) :: disturbance_rates_secondary_to_secondary(N_DIST_TYPES)  ! actual disturbance rates from secondary patches to secondary patches [m2/m2/day]
+     real(r8) :: potential_disturbance_rates(N_DIST_TYPES)               ! "potential" disturb rates (i.e. prior to the "which is most" logic) [m2/m2/day]
+     real(r8) :: primary_land_patchfusion_error                          ! error term in total area of primary patches associated with patch fusion [m2/m2/day]
+     real(r8) :: harvest_carbon_flux                                     ! diagnostic site level flux of carbon as harvested plants [kg C / m2 / day]
      
   end type ed_site_type
 
@@ -787,6 +865,9 @@ module EDTypesMod
       this%cwd_bg_input(:)      = 0._r8
       this%leaf_litter_input(:) = 0._r8
       this%root_litter_input(:) = 0._r8
+      this%nutrient_uptake_scpf(:) = 0._r8
+      this%nutrient_efflux_scpf(:) = 0._r8
+      this%nutrient_need_scpf(:)  = 0._r8
       
       return
     end subroutine ZeroFluxDiags
@@ -1010,7 +1091,8 @@ module EDTypesMod
      write(fates_log(),*) 'co%resp_acc_hold          = ', ccohort%resp_acc_hold
      write(fates_log(),*) 'co%rdark                  = ', ccohort%rdark
      write(fates_log(),*) 'co%resp_m                 = ', ccohort%resp_m
-     write(fates_log(),*) 'co%resp_g                 = ', ccohort%resp_g
+     write(fates_log(),*) 'co%resp_m_def             = ', ccohort%resp_m_def
+     write(fates_log(),*) 'co%resp_g_tstep           = ', ccohort%resp_g_tstep
      write(fates_log(),*) 'co%livestem_mr            = ', ccohort%livestem_mr
      write(fates_log(),*) 'co%livecroot_mr           = ', ccohort%livecroot_mr
      write(fates_log(),*) 'co%froot_mr               = ', ccohort%froot_mr

@@ -4,17 +4,16 @@ module FatesHistoryVariableType
   use FatesGlobals, only : fates_log 
   use FatesIODimensionsMod, only   : fates_io_dimension_type
   use FatesIOVariableKindMod, only : fates_io_variable_kind_type
-  use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
-  use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8
+  use FatesIOVariableKindMod, only : site_r8, site_soil_r8, site_size_pft_r8
   use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
   use FatesIOVariableKindMod, only : site_coage_r8, site_coage_pft_r8
-  use FatesIOVariableKindMod, only : site_height_r8, patch_int
+  use FatesIOVariableKindMod, only : site_height_r8
   use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
   use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8
   use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8 
   use FatesIOVariableKindMod, only : site_elem_r8, site_elpft_r8
   use FatesIOVariableKindMod, only : site_elcwd_r8, site_elage_r8
-  use FatesIOVariableKindMod, only : iotype_index
+  use FatesIOVariableKindMod, only : iotype_index, site_agefuel_r8
 
   implicit none
   private        ! By default everything is private
@@ -105,23 +104,12 @@ contains
     ! array spaces.
 
     select case(trim(vtype))
-    case(patch_r8)
-       allocate(this%r81d(lb1:ub1))
-       this%r81d(:) = flushval
 
     case(site_r8)
        allocate(this%r81d(lb1:ub1))
        this%r81d(:) = flushval
 
-    case(patch_ground_r8)
-       allocate(this%r82d(lb1:ub1, lb2:ub2))
-       this%r82d(:,:) = flushval
-
-    case(patch_size_pft_r8)
-       allocate(this%r82d(lb1:ub1, lb2:ub2))
-       this%r82d(:,:) = flushval
-
-    case(site_ground_r8)
+    case(site_soil_r8)
        allocate(this%r82d(lb1:ub1, lb2:ub2))
        this%r82d(:,:) = flushval
 
@@ -201,6 +189,10 @@ contains
        allocate(this%r82d(lb1:ub1, lb2:ub2))
        this%r82d(:,:) = flushval
 
+   case(site_agefuel_r8)
+      allocate(this%r82d(lb1:ub1, lb2:ub2))
+      this%r82d(:,:) = flushval
+
     case default
        write(fates_log(),*) 'Incompatible vtype passed to set_history_var'
        write(fates_log(),*) 'vtype = ',trim(vtype),' ?'
@@ -278,15 +270,9 @@ contains
     call this%GetBounds(thread, dim_bounds, dim_kinds, lb1, ub1, lb2, ub2)
 
     select case(trim(dim_kinds(this%dim_kinds_index)%name))
-    case(patch_r8) 
-       this%r81d(lb1:ub1) = this%flushval
     case(site_r8) 
        this%r81d(lb1:ub1) = this%flushval
-    case(patch_ground_r8) 
-       this%r82d(lb1:ub1, lb2:ub2) = this%flushval
-    case(patch_size_pft_r8) 
-       this%r82d(lb1:ub1, lb2:ub2) = this%flushval
-    case(site_ground_r8) 
+    case(site_soil_r8) 
        this%r82d(lb1:ub1, lb2:ub2) = this%flushval
     case(site_size_pft_r8) 
        this%r82d(lb1:ub1, lb2:ub2) = this%flushval
@@ -318,8 +304,6 @@ contains
        this%r82d(lb1:ub1, lb2:ub2) = this%flushval
     case(site_agepft_r8) 
        this%r82d(lb1:ub1, lb2:ub2) = this%flushval
-    case(patch_int)
-       this%int1d(lb1:ub1) = nint(this%flushval)
     case(site_elem_r8)
        this%r82d(lb1:ub1, lb2:ub2) = this%flushval
     case(site_elpft_r8)
@@ -327,6 +311,8 @@ contains
     case(site_elcwd_r8)
        this%r82d(lb1:ub1, lb2:ub2) = this%flushval
     case(site_elage_r8)
+       this%r82d(lb1:ub1, lb2:ub2) = this%flushval
+    case(site_agefuel_r8)
        this%r82d(lb1:ub1, lb2:ub2) = this%flushval
     case default
        write(fates_log(),*) 'fates history variable type undefined while flushing history variables'

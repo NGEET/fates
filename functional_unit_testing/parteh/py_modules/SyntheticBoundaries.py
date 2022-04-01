@@ -16,7 +16,7 @@ class pft_bc_type:
 
 
 def DailyCFromUnitGPPAR(leaf_area,AGB):
-    
+
     # -----------------------------------------------------------------------------------
     # This routine estimates Net Daily Carbon Gains (GPP-AR) by estimating
     # a mean canopy GPP per leaf area per year, and by estimating
@@ -26,10 +26,10 @@ def DailyCFromUnitGPPAR(leaf_area,AGB):
     # THese numbers are taken from Chambers et al. 2004
     # from ZF2 Manaus Brazil
     # -----------------------------------------------------------------------------------
-        
+
     kg_per_Mg  = 1000.0
     m2_per_ha  = 10000.0
-        
+
     site_AGB   = 151.35 # MgC/ha
     site_NPP   = 9.0    # MgC/ha/yr
     site_AR    = 21.0   # MgC/ha/yr
@@ -49,12 +49,12 @@ def DailyCFromUnitGPPAR(leaf_area,AGB):
     AR  = AR_per_kg_yr * AGB     / day_per_year
 
     NetDailyC = GPP - AR
-        
+
     return NetDailyC
 
 
 def DailyCFromCArea(presc_npp_p1,c_area,phen_type,leaf_status):
-    
+
     # -----------------------------------------------------------------------------------
     # This method was provided by Charlie Koven via is inferences from the PPA
     # literature.  Here, net daily carbon [kg] is based on one of two excluding
@@ -66,7 +66,7 @@ def DailyCFromCArea(presc_npp_p1,c_area,phen_type,leaf_status):
     # -----------------------------------------------------------------------------------
 
     if( (phen_type == 1) or (leaf_status ==2)):
-        NetDailyC = presc_npp_p1 * c_area / day_per_year        
+        NetDailyC = presc_npp_p1 * c_area / day_per_year
     else:
         NetDailyC = 0.0
 
@@ -75,7 +75,7 @@ def DailyCFromCArea(presc_npp_p1,c_area,phen_type,leaf_status):
 
 def DailyCNPFromCArea(presc_npp_p1,presc_nflux_p1, \
                       presc_pflux_p1,c_area,phen_type,leaf_status):
-    
+
     # -----------------------------------------------------------------------------------
     # This method was provided by Charlie Koven via is inferences from the PPA
     # literature.  Here, net daily carbon [kg] is based on one of two excluding
@@ -90,7 +90,7 @@ def DailyCNPFromCArea(presc_npp_p1,presc_nflux_p1, \
     # -----------------------------------------------------------------------------------
 
     if( (phen_type == 1) or (leaf_status ==2)):
-        NetDailyC = presc_npp_p1 * c_area / day_per_year        
+        NetDailyC = presc_npp_p1 * c_area / day_per_year
         NetDailyN = presc_nflux_p1 * c_area / day_per_year
         NetDailyP = presc_pflux_p1 * c_area / day_per_year
     else:
@@ -113,10 +113,15 @@ def DailyCNPFromStorageSinWave(doy,store_c,presc_npp_p1, \
     # realistic model, but its important to test that the parteh algorithms can handle
     # these stressfull negative gain conditions.
 
+#    print('doy {} store_c {} npp1 {} nflux1 {} pflux1 {} c_area {} nppamp {} phent {} status {}'.format(doy,store_c,presc_npp_p1, \
+#                               presc_nflux_p1,presc_pflux_p1,c_area,presc_npp_amp, \
+#                               phen_type, leaf_status))
+
+
     doy0=0.0
 
     sin_func = np.sin( (doy-doy0)/366.0 * 2.0 * np.pi )
-    
+
     #if (sin_func>0.0):
     #    NetDailyC = sin_func * presc_npp_p1 * c_area / day_per_year
     #else:
@@ -125,7 +130,7 @@ def DailyCNPFromStorageSinWave(doy,store_c,presc_npp_p1, \
     NetDailyC = (presc_npp_amp * sin_func * presc_npp_p1 + presc_npp_p1) * c_area/day_per_year
 
     # This is a fail-safe, for large negatives, cant be larger than storage
-    
+
     if (NetDailyC < 0.0):
         NetDailyC = -np.minimum(-NetDailyC,0.98* np.float(store_c))
 
@@ -138,7 +143,10 @@ def DailyCNPFromStorageSinWave(doy,store_c,presc_npp_p1, \
         NetDailyN = 0.0
         NetDailyP = 0.0
         NetDailyC = 0.0
-    
+
+
+#    print('NetC {} NetN {} NetP {}'.format(NetDailyC, NetDailyN, NetDailyP))
+
     return NetDailyC, NetDailyN, NetDailyP
 
 
@@ -170,6 +178,3 @@ def DeciduousPhenology(doy, target_leaf_c, store_c, phen_type):
         leaf_status = 2
 
     return  flush_c, drop_frac_c, leaf_status
-
-
-
