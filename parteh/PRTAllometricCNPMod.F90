@@ -57,6 +57,10 @@ module PRTAllometricCNPMod
   use FatesConstantsMod   , only : sec_per_day
   use PRTParametersMod    , only : prt_params
   use EDTypesMod          , only : leaves_on,leaves_off
+  use EDTypesMod        , only : p_uptake_mode
+  use EDTypesMod        , only : n_uptake_mode
+  use FatesConstantsMod , only : prescribed_p_uptake
+  use FatesConstantsMod , only : prescribed_n_uptake
   
   implicit none
   private
@@ -100,7 +104,8 @@ module PRTAllometricCNPMod
                                                   ! minimum needed for growth
   integer,public, parameter :: stoich_max = 2            ! Flag for stoichiometry associated with 
                                                   ! maximum for that organ
-
+  integer,public, parameter :: stoich_center=3    
+  
   
   ! This is the ordered list of organs used in this module
   ! -------------------------------------------------------------------------------------
@@ -141,7 +146,10 @@ module PRTAllometricCNPMod
   integer, public, parameter :: acnp_bc_inout_id_resp_excess = 2  ! Respiration of excess storage
   integer, public, parameter :: acnp_bc_inout_id_l2fr       = 3  ! leaf 2 fineroot scalar, this
                                                                  ! is dynamic with CNP
-  integer, public, parameter :: num_bc_inout                = 3
+  integer, public, parameter :: acnp_bc_inout_id_netdn    = 4 ! Index for the net daily NH4 input BC
+  integer, public, parameter :: acnp_bc_inout_id_netdp    = 5 ! Index for the net daily P input BC
+
+  integer, public, parameter :: num_bc_inout                = 5
 
   ! -------------------------------------------------------------------------------------
   ! Input only Boundary Indices (These are public)
@@ -151,11 +159,10 @@ module PRTAllometricCNPMod
   integer, public, parameter :: acnp_bc_in_id_ctrim    = 2 ! Index for the canopy trim function
   integer, public, parameter :: acnp_bc_in_id_lstat    = 3 ! phenology status logical
   integer, public, parameter :: acnp_bc_in_id_netdc    = 4 ! Index for the net daily C input BC
-  integer, public, parameter :: acnp_bc_in_id_netdn    = 5 ! Index for the net daily NH4 input BC
-  integer, public, parameter :: acnp_bc_in_id_netdp    = 6 ! Index for the net daily P input BC
+ 
   
   ! 0=leaf off, 1=leaf on
-  integer, parameter         :: num_bc_in             = 6
+  integer, parameter         :: num_bc_in             = 4
 
   ! -------------------------------------------------------------------------------------
   ! Output Boundary Indices (These are public)
@@ -190,7 +197,7 @@ module PRTAllometricCNPMod
   integer, parameter :: store_c_overflow = burn_c_store_overflow
 
   ! Following growth, if desired, you can prioritize reproductive
-  logical, parameter :: prioritize_repro_nutr_growth = .false.
+  logical, parameter :: prioritize_repro_nutr_growth = .true.
   
   ! Definitions for the regulation functions. These typically translate
   ! a storage fraction into a scalar used to regulate resources somehow
@@ -223,6 +230,7 @@ module PRTAllometricCNPMod
      ! Extended functions specific to Allometric CNP
      procedure :: CNPPrioritizedReplacement
      procedure :: CNPStatureGrowth
+     procedure :: EstimateGrowthNC
      procedure :: CNPAdjustFRootTargets
      procedure :: CNPAllocateRemainder
      procedure :: GetDeficit
@@ -339,8 +347,8 @@ contains
     ! Input only bcs
     integer  :: ipft        ! Plant Functional Type index
     real(r8) :: c_gain      ! Daily carbon balance for this cohort [kgC]
-    real(r8) :: n_gain      ! Daily nitrogen uptake through fine-roots [kgN]
-    real(r8) :: p_gain      ! Daily phosphorus uptake through fine-roots [kgN]
+    real(r8),pointer :: n_gain      ! Daily nitrogen uptake through fine-roots [kgN]
+    real(r8),pointer :: p_gain      ! Daily phosphorus uptake through fine-roots [kgN]
     real(r8) :: canopy_trim ! The canopy trimming function [0-1]
     
     ! Pointers to output bcs
@@ -356,7 +364,7 @@ contains
     real(r8) :: agw_c_target,agw_dcdd_target
     real(r8) :: bgw_c_target,bgw_dcdd_target
     real(r8) :: sapw_area
-
+    real(r8) :: store_c_flux
     integer :: i       ! generic organ loop index
     integer :: i_org   ! organ index
     integer :: i_var   ! variable index
@@ -393,7 +401,9 @@ contains
     resp_excess  => this%bc_inout(acnp_bc_inout_id_resp_excess)%rval; resp_excess0 = resp_excess
     dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval;        dbh0        = dbh
     l2fr        => this%bc_inout(acnp_bc_inout_id_l2fr)%rval
-
+    n_gain      => this%bc_inout(acnp_bc_inout_id_netdn)%rval; 
+    p_gain      => this%bc_inout(acnp_bc_inout_id_netdp)%rval;
+    
     ! integrator variables
 
     ! Copy the input only boundary conditions into readable local variables
@@ -402,10 +412,23 @@ contains
     ! for checking and resetting if needed
     ! -----------------------------------------------------------------------------------
     c_gain      = this%bc_in(acnp_bc_in_id_netdc)%rval; c_gain0      = c_gain
-    n_gain      = this%bc_in(acnp_bc_in_id_netdn)%rval; n_gain0      = n_gain
-    p_gain      = this%bc_in(acnp_bc_in_id_netdp)%rval; p_gain0      = p_gain
+   
     canopy_trim = this%bc_in(acnp_bc_in_id_ctrim)%rval
     ipft        = this%bc_in(acnp_bc_in_id_pft)%ival
+
+    ! If either n or p uptake is in prescribed mode
+    ! set the gains to something massive. 1 kilo of pure
+    ! nutrient should be wayyy more than enough
+    if(n_uptake_mode.eq.prescribed_n_uptake) then
+       n_gain = 1.e3
+    end if
+    if(p_uptake_mode.eq.prescribed_p_uptake) then
+       p_gain = 1.e3
+    end if
+    
+    n_gain0      = n_gain
+    p_gain0      = p_gain
+
     
     ! Calculate Carbon allocation targets
     ! -----------------------------------------------------------------------------------
@@ -424,35 +447,10 @@ contains
     target_c(repro_organ) = 0._r8
     target_dcdd(repro_organ) = 0._r8
 
-    
-    ! ===================================================================================
-    ! Step 1: Evaluate nutrient storage in the plant. Depending on how low
-    ! these stores are, we will move proportionally more or less of the daily carbon
-    ! gain to increase the target fine-root biomass, fill up to target
-    ! and then attempt to get them up to stoichiometry targets.
-    ! ===================================================================================
-
-    ! This routine updates the l2fr (leaf 2 fine-root multiplier) variable
-    call this%CNPAdjustFRootTargets(target_c)
-
-    
     c_gain0      = c_gain
     n_gain0      = n_gain
     p_gain0      = p_gain
-    
-    
-    ! Output only boundary conditions
-    c_efflux    => this%bc_out(acnp_bc_out_id_cefflux)%rval;  c_efflux = 0._r8
-    n_efflux    => this%bc_out(acnp_bc_out_id_nefflux)%rval;  n_efflux = 0._r8
-    p_efflux    => this%bc_out(acnp_bc_out_id_pefflux)%rval;  p_efflux = 0._r8
 
-    
-
-
-    
- 
-
-    
     ! Remember the original C,N,P states to help with final
     ! evaluation of how much was allocated
     ! -----------------------------------------------------------------------------------
@@ -466,19 +464,38 @@ contains
        i_var = prt_global%sp_organ_map(i_org,phosphorus_element)
        state_p0(i_org)  =  this%variables(i_var)%val(1)
     end do
-
     
     ! ===================================================================================
-    ! Step 0.  Transfer all stored nutrient into the daily uptake pool.
+    ! Step 1: Evaluate nutrient storage in the plant. Depending on how low
+    ! these stores are, we will move proportionally more or less of the daily carbon
+    ! gain to increase the target fine-root biomass, fill up to target
+    ! and then attempt to get them up to stoichiometry targets.
     ! ===================================================================================
-    
-    i_var = prt_global%sp_organ_map(store_organ,nitrogen_element)
-    n_gain = n_gain + sum(this%variables(i_var)%val(:))
-    this%variables(i_var)%val(:) = 0._r8
 
-    i_var = prt_global%sp_organ_map(store_organ,phosphorus_element)
-    p_gain = p_gain + sum(this%variables(i_var)%val(:))
-    this%variables(i_var)%val(:) = 0._r8
+    ! This routine updates the l2fr (leaf 2 fine-root multiplier) variable
+    call this%CNPAdjustFRootTargets(target_c)
+    
+    ! Output only boundary conditions
+    c_efflux    => this%bc_out(acnp_bc_out_id_cefflux)%rval;  c_efflux = 0._r8
+    n_efflux    => this%bc_out(acnp_bc_out_id_nefflux)%rval;  n_efflux = 0._r8
+    p_efflux    => this%bc_out(acnp_bc_out_id_pefflux)%rval;  p_efflux = 0._r8
+    
+    ! ===================================================================================
+    ! Step 0.  Transfer all stored nutrient into the daily uptake pool. Also
+    !          transfer C storage that is above the target (ie transfer overflow)
+    ! ===================================================================================
+
+    ! Put overflow storage into the net daily pool
+    store_c_flux = max(0._r8, this%variables(store_c_id)%val(1) - target_c(store_organ))
+    
+    c_gain = c_gain + store_c_flux
+    this%variables(store_c_id)%val(1) = this%variables(store_c_id)%val(1) - store_c_flux
+    
+    n_gain = n_gain + sum(this%variables(store_n_id)%val(:))
+    this%variables(store_n_id)%val(:) = 0._r8
+
+    p_gain = p_gain + sum(this%variables(store_p_id)%val(:))
+    this%variables(store_p_id)%val(:) = 0._r8
     
     ! ===================================================================================
     ! Step 2.  Prioritized allocation to replace tissues from turnover, and/or pay
@@ -537,19 +554,31 @@ contains
     call this%CNPAllocateRemainder(c_gain, n_gain, p_gain,  &
          c_efflux, n_efflux, p_efflux)
 
+
+    if(n_uptake_mode.ne.prescribed_n_uptake) then
+       if( abs(n_gain) > 0.1_r8*calloc_abs_error) then
+          write(fates_log(),*) 'Allocation scheme should had used up all mass gain pools'
+          write(fates_log(),*) 'Any mass that cannot be allocated should be effluxed'
+          write(fates_log(),*) 'n_gain: ',n_gain
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+    end if
+
+    if(p_uptake_mode.ne.prescribed_p_uptake) then
+       if( abs(p_gain) > 0.01_r8*calloc_abs_error) then
+          write(fates_log(),*) 'Allocation scheme should had used up all mass gain pools'
+          write(fates_log(),*) 'Any mass that cannot be allocated should be effluxed'
+          write(fates_log(),*) 'p_gain: ',p_gain
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+    end if
     
-    ! Error Check: Make sure that the mass gains are completely used up
-    if( abs(c_gain) > calloc_abs_error .or. &
-        abs(n_gain) > 0.1_r8*calloc_abs_error .or. &
-        abs(p_gain) > 0.02_r8*calloc_abs_error ) then
+    if( abs(c_gain) > calloc_abs_error) then
        write(fates_log(),*) 'Allocation scheme should had used up all mass gain pools'
        write(fates_log(),*) 'Any mass that cannot be allocated should be effluxed'
        write(fates_log(),*) 'c_gain: ',c_gain
-       write(fates_log(),*) 'n_gain: ',n_gain
-       write(fates_log(),*) 'p_gain: ',p_gain
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
-
 
     ! Perform a final tally on what was used (allocated)
     ! Since this is also a check against what was available
@@ -589,9 +618,9 @@ contains
        ! Error Check: Do a final balance between how much mass
        ! we had to work with, and how much was allocated
        
-       if ( abs(allocated_c - c_gain0) > calloc_abs_error .or. & 
-            abs(allocated_n - n_gain0) > calloc_abs_error .or. &
-            abs(allocated_p - p_gain0) > calloc_abs_error ) then
+       if ( abs(allocated_c - (c_gain0-c_gain)) > calloc_abs_error .or. & 
+            abs(allocated_n - (n_gain0-n_gain)) > calloc_abs_error .or. &
+            abs(allocated_p - (p_gain0-p_gain)) > calloc_abs_error ) then
           write(fates_log(),*) 'CNP allocation scheme did not balance mass.'
           write(fates_log(),*) 'c_gain0: ',c_gain0,' allocated_c: ',allocated_c
           write(fates_log(),*) 'n_gain0: ',n_gain0,' allocated_n: ',allocated_n
@@ -605,6 +634,24 @@ contains
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
     end if
+
+    ! IF this was prescribed, then we dictate the uptake
+    ! and pass that back as an output, otherwise
+    ! we set the gains to what we started with so that
+    ! it can be used again for mass balance checking and diagnostics
+    
+    if(n_uptake_mode.eq.prescribed_n_uptake) then
+       n_gain = n_gain0-n_gain
+    else
+       n_gain = n_gain0
+    end if
+    if(p_uptake_mode.eq.prescribed_p_uptake) then
+       p_gain = p_gain0-p_gain
+    else
+       p_gain = p_gain0
+    end if
+    
+
     
     return
   end subroutine DailyPRTAllometricCNP
@@ -644,14 +691,31 @@ contains
     associate( l2fr_min => prt_params%allom_l2fr_min(ipft), &
          l2fr_max => prt_params%allom_l2fr_max(ipft))
 
-      call this%StorageRegulator(nitrogen_element, regulate_type,target_c,n_regulator)
-      call this%StorageRegulator(phosphorus_element, regulate_type,target_c,p_regulator)
+      if(n_uptake_mode.eq.prescribed_n_uptake)then
+         n_regulator = 1._r8
+      else
+         call this%StorageRegulator(nitrogen_element, regulate_type,target_c,n_regulator)
+      end if
 
+      if(p_uptake_mode.eq.prescribed_p_uptake)then
+         p_regulator = 1._r8
+      else
+         call this%StorageRegulator(phosphorus_element, regulate_type,target_c,p_regulator)
+      end if
+         
       ! We take the maximum here, because the maximum is reflective of the
       ! element with the lowest storage, which is the limiting element
+      if(n_uptake_mode.eq.prescribed_n_uptake)then
+         np_regulator = p_regulator
+      else
+         if(p_uptake_mode.eq.prescribed_p_uptake)then
+            np_regulator = n_regulator
+         else
+            np_regulator = max(n_regulator,p_regulator)
+         end if
+      end if
       
-      np_regulator = max(n_regulator,p_regulator)
-
+      
       ! Update the leaf-to-fineroot ratio used
       ! to set fine-root biomass allometry
 
@@ -660,10 +724,6 @@ contains
         l2fr = l2fr_min + max(0._r8,min(1.0_r8,np_regulator))*(l2fr_max-l2fr_min)
 
       elseif(regulate_type == regulate_CN_dfdd) then
-
-         ! To prevent the target l2fr from diverging too far from the
-         ! actual l2fr, create some constraints.
-         l2fr_actual = this%GetState(fnrt_organ, carbon12_element)/this%GetState(leaf_organ, carbon12_element)
 
          ! Only update L2FR if some leaves are out
          if(this%GetState(leaf_organ, carbon12_element)/target_c(leaf_organ)  >0.5_r8) then
@@ -675,15 +735,16 @@ contains
       ! Find the updated target fineroot biomass
       call bfineroot(dbh,ipft,canopy_trim, l2fr, target_c(fnrt_organ))
 
+
+      ! The following section allows forceful turnover of fine-roots if a new L2FR is generated
+      ! that is lower than the previous l2fr. The maintenance turnover (background) rate
+      ! will automatically accomodate a lower l2fr, but if the change is large it will
+      ! not keep pace.  Note 1: however, that the algorithm in StorageRegulator() will prevent
+      ! large drops in l2fr (unless that safegaurd is removed). Note 2: this section may also
+      ! generate mass check errors in the main CNPAllocation routine, this is because the "val" is
+      ! changing but the net_allocated is not reciprocating, which is expected. 
+
       fnrt_c_above_target = max(0._r8,this%GetState(fnrt_organ, carbon12_element) - target_c(fnrt_organ))
-
-      ! Allow no reabsorption? (any reabsorption of nutrients will further push the N/C or P/C imbalance
-      ! and if we are dropping roots, its because we had excess nutrient compared to carbon anyway
-      ! Stop the positive feedback
-
-      ! Since this is really a stop gap, we want to allow allocation to handle most of the
-      ! fine-root adaption, and only have this kick in when the target starts to drift significantly
-      ! from the actual
 
       loss_flux_c = 0._r8
       
@@ -1083,6 +1144,8 @@ contains
     real(r8) :: cdeficit                         ! carbon deficit from target
     integer  :: ierr                             ! error flag for allometric growth step
     integer  :: nsteps                           ! number of sub-steps
+    real(r8) :: avg_nc,avg_pc                    ! Estimated average N/C and P/C ratios of
+                                                 ! allocated carbon during stature growth
     real(r8) :: repro_c_frac                     ! Fraction of C allocated to reproduction
                                                  ! at current stature (dbh) [/]
     real(r8) :: sum_c_flux                       ! Sum of the carbon allocated, as reported
@@ -1138,11 +1201,12 @@ contains
 
     real(r8)            :: intgr_params(num_intgr_parm)
 
-    integer, parameter  :: grow_lim_type = 3 ! Dev flag for growth limitation algorithm
-                                             ! 1 = tries to calculate equivalent carbon
-                                             ! 2 = modification of 1
-                                             ! 3 = don't limit, and assume nutrient limitations will prevent calling
-                                             !     of this step on the next cycle if they exist
+    integer, parameter  :: grow_lim_conly = 1  ! Just use C to decide stature on this step
+    integer, parameter  :: grow_lim_estNP = 2  ! Estimate equivalent C from N and P
+    
+    integer, parameter  :: grow_lim_type = grow_lim_estNP
+
+    
     
     integer, parameter  :: c_limited = 1
     integer, parameter  :: n_limited = 2
@@ -1170,6 +1234,9 @@ contains
          p_gain <= 0.02_r8*calloc_abs_error ) then
        return
     end if
+
+
+    
     
        
     intgr_params(:)              = fates_unset_r8
@@ -1279,13 +1346,25 @@ contains
        i_org = mask_gorgans(ii)
        total_dcostdd = total_dcostdd + target_dcdd(i_org)
     end do
-
-    ! No mathematical co-limitation of growth
-    ! This assumes that limitations will prevent
-    ! organs from allowing the growth step to even occur
-    ! and thus from an algorithmic level limit growth
     
-    c_gstature = c_gain
+    ! We can either proceed with stature growth by using all of the carbon
+    ! available, or we can try to estimate the limitations of N and P
+    ! and thereby reduce the amount of C we are willing to use to try
+    ! and match what is available in n_gain and p_gain.  Note that the
+    ! c-only option does allow limitations to eventually occur, because
+    ! it is assumed that in the dynamics call that follows this one, there may
+    ! or not be enough N or P to reach the stature growth step at all.
+
+    if(grow_lim_type == grow_lim_conly) then
+       c_gstature = c_gain
+    elseif (grow_lim_type == grow_lim_estNP) then
+
+       call EstimateGrowthNC(this,target_c,target_dcdd,state_mask,avg_nc,avg_pc)
+
+       c_gstature = min(c_gain,n_gain/avg_nc)
+       c_gstature = min(c_gstature,p_gain/avg_pc)
+       
+    end if
 
     
    if_stature_growth: if(c_gstature > nearzero) then
@@ -1632,14 +1711,29 @@ contains
     ! 1) excude through roots cap at 0 to flush out imprecisions
     ! -----------------------------------------------------------------------------------
 
+    ! If either n or p uptake is in prescribed mode
+    ! don't efflux anything, we will use the remainder
+    ! n_gain and p_gain to specify the demand as what was used
+    ! and what was uptaken
+    
+    if(n_uptake_mode.eq.prescribed_n_uptake) then
+       n_efflux  = 0._r8
+    else
+       n_efflux = max(0.0_r8,n_gain)
+       n_gain   = 0._r8
+    end if
+    
+    if(p_uptake_mode.eq.prescribed_p_uptake) then
+       p_efflux = 0._r8
+    else
+       p_efflux = max(0.0_r8,p_gain)
+       p_gain   = 0._r8
+    end if
+
     c_efflux = max(0.0_r8,c_gain)
-    n_efflux = max(0.0_r8,n_gain)
-    p_efflux = max(0.0_r8,p_gain)
-
-
     c_gain = 0.0_r8
-    n_gain = 0.0_r8
-    p_gain = 0.0_r8
+    
+    
 
     return
   end subroutine CNPAllocateRemainder
@@ -1746,11 +1840,18 @@ contains
           
        end if
 
-       ! Hard-code the growth minimum storage stoichiometry to 25% of maximum
-       if( stoich_mode == stoich_growth_min ) then
-          target_m = target_m*0.25_r8
+       ! This is only called during phase 3, remainder and allows
+       ! us to have some overflow to avoid exudation/efflux if possible
+       if( stoich_mode == stoich_max ) then
+          target_m = target_m*(1._r8 + store_overflow_frac)
        end if
-
+       !if( stoich_mode == stoich_growth_min ) then
+       !   target_m = 0.1_r8*target_m
+       !end if
+       !if( stoich_mode == stoich_center ) then
+          ! do nothing, target_m is unchanged
+       !end if
+       
     elseif(organ_id == repro_organ) then
 
        target_c = this%variables(i_cvar)%val(1)
@@ -2132,15 +2233,11 @@ contains
      ! Locals
      real(r8) :: store_frac  ! Current nutrient storage relative to max
      real(r8) :: store_max   ! Maximum nutrient storable by plant
+     real(r8) :: store_c_max
      integer  :: icode       ! real variable checking code
      real(r8) :: store_x
      integer  :: i_var
-     real(r8), parameter :: c_eq_offset = 1.0_r8 ! This shifts the center-point
-                                               ! of the N:C or P:C storage equlibrium
-                                               ! by multiplying the C term. If its less than 1 it
-                                               ! shifts left and great than one it shifts right.
-                                               ! It should shift left to help mitigate wasted N and P
-                                               ! storage overflow
+
      
      ! For N/C logistic
      real(r8) :: logi_k          ! logistic function k
@@ -2156,10 +2253,9 @@ contains
      real(r8) :: nc_frac
      real(r8) :: store_c_frac
      real(r8) :: c_gain
+     real(r8) :: c_fnrt_expand ! predicted carbon available to expand fine-roots
+                               ! after replacement of turnover
      
-     real(r8), parameter :: c_max = 1.0_r8   ! Maximum allowable result of the function
-     real(r8), parameter :: c_min = 0.0_r8   ! Minimum allowable result of the function
-
      ! This fraction governs
      ! how much carbon from daily gains + storage overflow, is allowed to
      ! be spent on growing out roots. This inludes getting roots
@@ -2167,10 +2263,15 @@ contains
      integer, parameter :: limit_all = 1
      integer, parameter :: limit_lf  = 2
 
-     integer :: lim_l2fr_max_type = limit_all
-     real(r8), parameter :: max_l2fr_cgain_frac = 0.5_r8
+     integer, parameter :: lim_l2fr_max_type = limit_all
+     real(r8), parameter :: max_l2fr_cgain_frac = 0.95_r8
      
-     associate(dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval, & 
+     real(r8), parameter :: nc_frac_offset = 1.0_r8 ! This shifts the center-point
+                                                    ! of the N:C or P:C storage equlibrium
+                                                    ! by multiplying the N term.
+
+     
+          associate(dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval, & 
                canopy_trim => this%bc_in(acnp_bc_in_id_ctrim)%rval, &
                ipft        => this%bc_in(acnp_bc_in_id_pft)%ival, & 
                l2fr        => this%bc_inout(acnp_bc_inout_id_l2fr)%rval)
@@ -2178,7 +2279,6 @@ contains
        logi_k   = 2._r8
        store_x0 = 0.0_r8
        logi_min = 0.0_r8
-       
 
        if(regulate_type == regulate_CN_logi) then
           
@@ -2196,20 +2296,21 @@ contains
        elseif(regulate_type == regulate_CN_dfdd) then
 
           
-          store_max = this%GetNutrientTarget(element_id,store_organ,stoich_max)
+          store_max = this%GetNutrientTarget(element_id,store_organ,stoich_center) !*(1._r8 + 0.5*store_overflow_frac)
 
           ! Storage fractions could be more than the target, depending on the
           ! hypothesis and functions involved, but should typically be 0-1
           ! The cap of 5 is for numerics and preventing weird math
-
           
           store_frac = max(0.01_r8,min(5.0_r8,this%GetState(store_organ, element_id)/store_max))
 
           ! Since we don't dump storage carbon
           ! these stores can actually get pretty large, so the cap of 10x is numerically
           ! feasable, and should also minimize stress on the logistic function
-          store_c_frac = max(0.01_r8,min(5.0_r8,c_eq_offset*(this%GetState(store_organ, carbon12_element)/target_c(store_organ) )))
 
+          store_c_max = target_c(store_organ) !*(1._r8 + 0.5*store_overflow_frac)
+          
+          store_c_frac = max(0.01_r8,min(5.0_r8,this%GetState(store_organ, carbon12_element)/store_c_max ))
 
           ! -----------------------------------------------------------------------------
           ! To decide the upper limit on expanding root growth, we perform a carbon
@@ -2233,7 +2334,8 @@ contains
           ! or
           ! as much as you like as long as turnover is replaced
           !
-          ! l2fr_delta_max*target_fnrt_c < c_gain - (target_fnrt_c-actual_fnrt_c) -
+          ! l2fr_delta_max*target_fnrt_c - target_fnrt_c   <
+          !                                         c_gain - (target_fnrt_c-actual_fnrt_c) -
           !                                         (target_leaf_c-actual_leaf_c) -
           !                                         (target_sapw_c-actual_sapw_c) -
           !                                         (target_dead_c-actual_dead_c) -
@@ -2241,27 +2343,31 @@ contains
           !
           ! ------------------------------------------------------------------------------
 
-          ! If there is overflow storage, add this to the gain
-          c_gain = this%bc_in(acnp_bc_in_id_netdc)%rval
-
           fnrt_c = this%GetState(fnrt_organ, carbon12_element)
           leaf_c = this%GetState(leaf_organ, carbon12_element)
           store_c = this%GetState(store_organ, carbon12_element)
           struct_c = this%GetState(struct_organ, carbon12_element)
           sapw_c = this%GetState(sapw_organ, carbon12_element)
 
+          ! If there is overflow storage, add this to the gain
+          c_gain = this%bc_in(acnp_bc_in_id_netdc)%rval + max(0._r8,store_c-target_c(store_organ))
+
+          
           if(lim_l2fr_max_type == limit_lf)then
              l2fr_delta_max = max_l2fr_cgain_frac / target_c(fnrt_organ) * &
                   (c_gain -  max(0._r8,target_c(fnrt_organ)-fnrt_c) -  max(0._r8,target_c(leaf_organ)-leaf_c)) 
 
           elseif(lim_l2fr_max_type ==limit_all)then
-             l2fr_delta_max = 1._r8/target_c(fnrt_organ) * &
-                  (c_gain - &
+
+             c_fnrt_expand  = max_l2fr_cgain_frac* ( c_gain - &
                   max(0._r8,target_c(fnrt_organ)-fnrt_c) - &
                   max(0._r8,target_c(leaf_organ)-leaf_c) - &
                   max(0._r8,target_c(sapw_organ)-sapw_c) - &
                   max(0._r8,target_c(struct_organ)-struct_c) - &
-                  max(0._r8,target_c(store_organ)-store_c) )
+                  max(0._r8,target_c(store_organ)-store_c))
+
+             l2fr_delta_max = (c_fnrt_expand + target_c(fnrt_organ))/target_c(fnrt_organ)
+
              
           end if
              
@@ -2277,21 +2383,11 @@ contains
           ! Determine the max change for the doubling timescale
           ! 2.0 = l2fr_delta_max^frnt_adapt_tscl
           l2fr_delta_scale = 2._r8**(1._r8/fnrt_adapt_tscl)-1.0_r8
-
-          ! Determiine the change for the halving timescale
-          !l2fr_scale_min = 0.5_r8**(1._r8/fnrt_adapt_tscl)
-
-          !log_nc_frac = log( store_frac / store_c_frac )
-
-          ! This is a logistic between -1 and 1
-          !c_scalar = l2fr_delta_scale*2._r8*max(0._r8, &
-          !     min(1._r8,logi_min + (1._r8-logi_min)/(1._r8 + exp(logi_k*(log_nc_frac-store_x0)))))-1.0_r8
-
-          nc_frac = store_frac / store_c_frac
+          
+          nc_frac = nc_frac_offset * store_frac / store_c_frac
           
           c_scalar = l2fr_delta_scale*(2.0_r8/(1.0_r8 + nc_frac**logi_k)-1.0_r8)+1.0_r8
 
-          
           if(c_scalar>1.0_r8)then
              c_scalar = min(c_scalar,l2fr_delta_max)
           else
@@ -2306,6 +2402,102 @@ contains
 
    end subroutine StorageRegulator
 
+   ! ====================================================================================
+   
+   subroutine EstimateGrowthNC(this,target_c,target_dcdd,state_mask,avg_nc,avg_pc)
 
+     ! This routine predicts the effective nutrient/carbon allocation ratio
+     ! for the forthcoming growth step. This helps the growth step predict
+     ! which element will be limiting, and reduce the amount of carbon
+     ! used to make the step.
+
+     class(cnp_allom_prt_vartypes) :: this
+     real(r8)            :: target_c(:)
+     real(r8)            :: target_dcdd(:)
+     logical             :: state_mask(:)
+     real(r8)            :: avg_nc  ! Average N:C ratio
+     real(r8)            :: avg_pc  ! Average P:C ratio
+
+     real(r8) :: repro_c_frac
+     real(r8) :: total_w      ! Weight (dC/dd) for the ratios
+     real(r8) :: store_nc
+     real(r8) :: store_pc
+     real(r8) :: repro_w,leaf_w,fnrt_w,sapw_w,struct_w,store_w
+     
+     associate(dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval, & 
+               ipft        => this%bc_in(acnp_bc_in_id_pft)%ival )
+     
+     if(state_mask(repro_id)) then
+        if (dbh <= prt_params%dbh_repro_threshold(ipft)) then
+           repro_c_frac = prt_params%seed_alloc(ipft)
+        else
+           repro_c_frac = prt_params%seed_alloc(ipft) + prt_params%seed_alloc_mature(ipft)
+        end if
+     else
+        repro_c_frac = 0._r8
+     end if
+        
+     ! Estimate the total weight
+     total_w = 0._r8
+     avg_nc = 0._r8
+     avg_pc = 0._r8
+     
+     if(state_mask(leaf_id)) then
+        leaf_w = target_dcdd(leaf_organ) * (1._r8 - repro_c_frac)
+        total_w = total_w + leaf_w
+        avg_nc = avg_nc + leaf_w * prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(leaf_organ))
+        avg_pc = avg_pc + leaf_w * prt_params%phos_stoich_p1(ipft,prt_params%organ_param_id(leaf_organ))
+     end if
+     if(state_mask(fnrt_id)) then
+        fnrt_w = target_dcdd(fnrt_organ) * (1._r8 - repro_c_frac)
+        total_w = total_w + fnrt_w
+        avg_nc = avg_nc + fnrt_w * prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(fnrt_organ))
+        avg_pc = avg_nc + fnrt_w * prt_params%phos_stoich_p1(ipft,prt_params%organ_param_id(fnrt_organ))
+     end if
+     if(state_mask(sapw_id)) then
+        sapw_w = target_dcdd(sapw_organ) * (1._r8 - repro_c_frac)
+        total_w = total_w + sapw_w
+        avg_nc = avg_nc + sapw_w * prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(sapw_organ))
+        avg_pc = avg_pc + sapw_w * prt_params%phos_stoich_p1(ipft,prt_params%organ_param_id(sapw_organ))
+     end if
+     if(state_mask(struct_id)) then
+        struct_w = target_dcdd(struct_organ) * (1._r8 - repro_c_frac)
+        total_w = total_w + struct_w
+        avg_nc = avg_nc + struct_w * prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(struct_organ))
+        avg_pc = avg_pc + struct_w * prt_params%phos_stoich_p1(ipft,prt_params%organ_param_id(struct_organ))
+     end if
+     if(state_mask(store_id)) then
+        store_w = target_dcdd(store_organ) * (1._r8 - repro_c_frac)
+        total_w = total_w + store_w
+        store_nc = this%GetNutrientTarget(nitrogen_element,store_organ,stoich_growth_min) / target_c(store_organ)
+        store_pc = this%GetNutrientTarget(phosphorus_element,store_organ,stoich_growth_min) / target_c(store_organ)
+        avg_nc = avg_nc + store_w * store_nc
+        avg_pc = avg_pc + store_w * store_pc
+     end if
+
+     if(state_mask(repro_id)) then
+
+        ! total = total_w + repro_w
+        ! repro_w = total*repro_c_frac
+        ! repro_w = (total_w + repro_w)*repro_c_frac = total_w*repro_c_frac + repro_w*repro_c_frac
+        ! repro_w * (1 - repro_c_frac) = total_w*repro_c_frac
+        ! repro_w = total_w * repro_c_frac/(1-repro_c_frac)
+        
+        repro_w = total_w * repro_c_frac/(1._r8 - repro_c_frac)
+        total_w = total_w  + repro_w
+        avg_nc = avg_nc + repro_w * prt_params%nitr_recr_stoich(ipft)
+        avg_pc = avg_pc + repro_w * prt_params%phos_recr_stoich(ipft)
+     end if
+
+
+     avg_nc = avg_nc / total_w
+     avg_pc = avg_pc / total_w
+
+   end associate
+     
+   return
+ end subroutine EstimateGrowthNC
+
+   
 
 end module PRTAllometricCNPMod

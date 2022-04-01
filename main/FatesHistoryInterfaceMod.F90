@@ -81,7 +81,7 @@ module FatesHistoryInterfaceMod
   use PRTGenericMod            , only : carbon12_element
   use PRTGenericMod            , only : nitrogen_element, phosphorus_element
   use PRTGenericMod            , only : prt_carbon_allom_hyp
-  use PRTAllometricCNPMod      , only : stoich_max
+  use PRTAllometricCNPMod      , only : stoich_max,stoich_growth_min,stoich_center
   
   implicit none
   private          ! By default everything is private
@@ -2550,7 +2550,7 @@ end subroutine flush_hvars
                      fnrtc_understory_scpf(i_scpf) = fnrtc_understory_scpf(i_scpf) + ccohort%n*fnrt_m
                   end if
                   
-                  call bstore_allom(ccohort%dbh,ccohort%pft,ccohort%canopy_trim, store_max)
+                  call bstore_allom(ccohort%dbh,ccohort%pft,ccohort%canopy_trim, store_growth_min)
                   this%hvars(ih_storectfrac_si)%r81d(io_si)  = &
                        this%hvars(ih_storectfrac_si)%r81d(io_si) + ccohort%n * store_max/m2_per_ha
 
@@ -2595,7 +2595,7 @@ end subroutine flush_hvars
 
                elseif(element_list(el).eq.nitrogen_element)then
 
-                  store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ,stoich_max)
+                  store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ,stoich_center)
 
                   this%hvars(ih_storen_si)%r81d(io_si)  =                      &
                      this%hvars(ih_storen_si)%r81d(io_si) + ccohort%n *        &
@@ -2635,7 +2635,7 @@ end subroutine flush_hvars
                   
                elseif(element_list(el).eq.phosphorus_element) then
 
-                  store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ,stoich_max)
+                  store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ,stoich_center)
 
                   this%hvars(ih_storep_si)%r81d(io_si)  =                      &
                      this%hvars(ih_storep_si)%r81d(io_si) + ccohort%n *        &
@@ -3534,7 +3534,7 @@ end subroutine flush_hvars
                      repro_m * ccohort%n / m2_per_ha
                elseif(element_list(el).eq.nitrogen_element)then
 
-                  store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ,stoich_max)
+                  store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ,stoich_center)
 
                   this%hvars(ih_totvegn_scpf)%r82d(io_si,i_scpf) =             &
                      this%hvars(ih_totvegn_scpf)%r82d(io_si,i_scpf) +          &
@@ -3557,7 +3557,7 @@ end subroutine flush_hvars
 
                elseif(element_list(el).eq.phosphorus_element)then
 
-                  store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ,stoich_max)
+                  store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ,stoich_center)
 
                   this%hvars(ih_totvegp_scpf)%r82d(io_si,i_scpf) =             &
                      this%hvars(ih_totvegp_scpf)%r82d(io_si,i_scpf) +          &

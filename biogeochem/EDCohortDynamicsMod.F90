@@ -97,7 +97,7 @@ module EDCohortDynamicsMod
   !use PRTAllometricCNPMod,    only : acnp_bc_in_id_l2fr_ema
   use PRTAllometricCNPMod,    only : acnp_bc_inout_id_l2fr
   use PRTAllometricCNPMod,    only : acnp_bc_inout_id_resp_excess, acnp_bc_in_id_netdc
-  use PRTAllometricCNPMod,    only : acnp_bc_in_id_netdn, acnp_bc_in_id_netdp
+  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_netdn, acnp_bc_inout_id_netdp
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_cefflux, acnp_bc_out_id_nefflux
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_pefflux
   use PRTAllometricCNPMod,    only : fnrt_adapt_tscl
@@ -428,14 +428,15 @@ contains
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_ctrim,bc_rval = new_cohort%canopy_trim)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_lstat,bc_ival = new_cohort%status_coh)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdc, bc_rval = new_cohort%npp_acc)
-       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdn, bc_rval = new_cohort%daily_n_gain)
-       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdp, bc_rval = new_cohort%daily_p_uptake)
+       
        !!call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_l2fr_ema, bc_rval = new_cohort%l2fr_ema%l_mean)
        
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_dbh,bc_rval = new_cohort%dbh)
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_resp_excess,bc_rval = new_cohort%resp_excess)
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_l2fr,bc_rval = new_cohort%l2fr)
-
+       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdn, bc_rval = new_cohort%daily_n_gain)
+       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdp, bc_rval = new_cohort%daily_p_uptake)
+       
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_cefflux, bc_rval = new_cohort%daily_c_efflux)
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_nefflux, bc_rval = new_cohort%daily_n_efflux)
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_pefflux, bc_rval = new_cohort%daily_p_efflux)
