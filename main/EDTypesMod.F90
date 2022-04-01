@@ -940,6 +940,8 @@ module EDTypesMod
      write(fates_log(),*) 'pa%c_stomata          = ',cpatch%c_stomata
      write(fates_log(),*) 'pa%c_lblayer          = ',cpatch%c_lblayer
      write(fates_log(),*) 'pa%disturbance_rate   = ',cpatch%disturbance_rate
+     write(fates_log(),*) 'pa%disturbance_rates  = ',cpatch%disturbance_rates(:)
+     write(fates_log(),*) 'pa%anthro_disturbance_label = ', cpatch%anthro_disturbance_label
      write(fates_log(),*) 'pa%active_crown_fire_flg = ', cpatch%active_crown_fire_flg
      write(fates_log(),*) '----------------------------------------'
      do el = 1,num_elements
