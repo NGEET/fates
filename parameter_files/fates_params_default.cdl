@@ -165,8 +165,8 @@ variables:
 		fates_eca_vmax_ptase:units = "gP/m2/s" ;
 		fates_eca_vmax_ptase:long_name = "maximum production rate for biochemical P (per m2) (ECA)" ;
 	double fates_fire_alpha_SH(fates_pft) ;
-		fates_fire_alpha_SH:units = "NA" ;
-		fates_fire_alpha_SH:long_name = "spitfire parameter, alpha scorch height, EQ 16 Thonicke et al 2010" ;
+		fates_fire_alpha_SH:units = "m / (kw/m)**(2/3)" ;
+		fates_fire_alpha_SH:long_name = "spitfire parameter, alpha scorch height, Equation 16 Thonicke et al 2010" ;
 	double fates_fire_bark_scaler(fates_pft) ;
 		fates_fire_bark_scaler:units = "fraction" ;
 		fates_fire_bark_scaler:long_name = "the thickness of a cohorts bark as a fraction of its dbh" ;
