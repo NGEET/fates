@@ -730,7 +730,7 @@ contains
     !currentPatch%ROS_front  forward ROS (m/min) 
     !currentPatch%TFC_ROS total fuel consumed by flaming front (kgC/m2 of burned area)
 
-    use FatesInterfaceTypesMod, only : hlm_spitfire_mode
+    use FatesInterfaceTypesMod, only : hlm_spitfire_mode  ! TODO slevis: redundant?
     use EDParamsMod,       only : ED_val_nignitions
     use EDParamsMod,       only : cg_strikes    ! fraction of cloud-to-ground ligtning strikes
     use FatesConstantsMod, only : years_per_day

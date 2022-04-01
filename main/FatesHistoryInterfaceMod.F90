@@ -5515,7 +5515,7 @@ end subroutine update_history_hifrq
 
     call this%set_history_var(vname='FATES_SCORCH_HEIGHT_APPF',units = 'm',    &
           long='SPITFIRE flame Scorch Height (calculated per PFT in each patch age bin)', &
-          use_default='inactive', avgflag='A', vtype=site_agepft_r8,           &
+          use_default='active', avgflag='A', vtype=site_agepft_r8,           &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_scorch_height_si_agepft)
 
