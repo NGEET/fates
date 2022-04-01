@@ -917,7 +917,6 @@ contains
     use FatesConstantsMod, only : sec_per_day
     use FatesInterfaceTypesMod, only : bc_in_type, bc_out_type
     use FatesInterfaceTypesMod, only : hlm_use_vertsoilc
-    use FatesInterfaceTypesMod, only : hlm_numlevgrnd
     use FatesConstantsMod, only : itrue
     use FatesGlobals, only : endrun => fates_endrun
     use EDParamsMod , only : ED_val_cwd_flig, ED_val_cwd_fcel
@@ -941,7 +940,7 @@ contains
                                                       ! element's root efflux                                         
     type(litter_type), pointer     :: litt
      
-    real(r8) :: surface_prof(1:hlm_numlevgrnd) ! this array is used to distribute
+    real(r8) :: surface_prof(bc_in%nlevsoil) ! this array is used to distribute
                                                ! fragmented litter on the surface
                                                ! into the soil/decomposition
                                                ! layers. It exponentially decays

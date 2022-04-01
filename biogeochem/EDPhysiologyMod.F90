@@ -16,6 +16,7 @@ module EDPhysiologyMod
   use FatesInterfaceTypesMod, only    : hlm_use_planthydro
   use FatesInterfaceTypesMod, only    : hlm_parteh_mode
   use FatesInterfaceTypesMod, only    : hlm_use_fixed_biogeog
+  use FatesInterfaceTypesMod, only    : hlm_use_nocomp
   use FatesInterfaceTypesMod, only    : hlm_nitrogen_spec
   use FatesInterfaceTypesMod, only    : hlm_phosphorus_spec
   use FatesConstantsMod, only    : r8 => fates_r8
@@ -36,8 +37,8 @@ module EDPhysiologyMod
   use EDTypesMod          , only : site_massbal_type
   use EDTypesMod          , only : numlevsoil_max
   use EDTypesMod          , only : numWaterMem
-  use EDTypesMod          , only : dl_sf, dinc_ed, area_inv
-  use EDTypesMod                , only : AREA
+  use EDTypesMod          , only : dl_sf, dinc_vai, dlower_vai, area_inv
+  use EDTypesMod          , only : AREA
   use FatesLitterMod      , only : ncwd
   use FatesLitterMod      , only : ndcmpy
   use FatesLitterMod      , only : ilabile
@@ -392,7 +393,7 @@ contains
     real(r8) :: sapw_c                ! sapwood carbon [kg]
     real(r8) :: store_c               ! storage carbon [kg]
     real(r8) :: struct_c              ! structure carbon [kg]
-    real(r8) :: leaf_inc              ! LAI-only portion of the vegetation increment of dinc_ed
+    real(r8) :: leaf_inc              ! LAI-only portion of the vegetation increment of dinc_vai
     real(r8) :: lai_canopy_above      ! the LAI in the canopy layers above the layer of interest
     real(r8) :: lai_layers_above      ! the LAI in the leaf layers, within the current canopy,
     ! above the leaf layer of interest
@@ -476,7 +477,7 @@ contains
                currentPatch%canopy_layer_tlai, currentCohort%treelai, &
                currentCohort%vcmax25top,0 )
 
-          currentCohort%nv      = ceiling((currentCohort%treelai+currentCohort%treesai)/dinc_ed)
+          currentCohort%nv      = count((currentCohort%treelai+currentCohort%treesai) .gt. dlower_vai(:)) + 1
 
           if (currentCohort%nv > nlevleaf)then
              write(fates_log(),*) 'nv > nlevleaf',currentCohort%nv, &
@@ -507,12 +508,12 @@ contains
           do z = 1, currentCohort%nv
 
              ! Calculate the cumulative total vegetation area index (no snow occlusion, stems and leaves)
-
-             leaf_inc    = dinc_ed * &
+             leaf_inc    = dinc_vai(z) * &
                   currentCohort%treelai/(currentCohort%treelai+currentCohort%treesai)
-
+             
              ! Now calculate the cumulative top-down lai of the current layer's midpoint within the current cohort
-             lai_layers_above      = leaf_inc * (z-1)
+             lai_layers_above      = (dlower_vai(z) - dinc_vai(z)) * &
+                  currentCohort%treelai/(currentCohort%treelai+currentCohort%treesai)
              lai_current           = min(leaf_inc, currentCohort%treelai - lai_layers_above)
              cumulative_lai_cohort = lai_layers_above + 0.5*lai_current
 
@@ -777,7 +778,7 @@ contains
     temp_in_C = 0._r8
     cpatch => CurrentSite%oldest_patch
     do while(associated(cpatch))
-       temp_in_C = temp_in_C + bc_in%t_veg24_pa(cpatch%patchno)*cpatch%area
+       temp_in_C = temp_in_C + cpatch%tveg24%GetMean()*cpatch%area
        cpatch => cpatch%younger
     end do
     temp_in_C = temp_in_C * area_inv - tfrz
@@ -1669,6 +1670,12 @@ contains
     ! ------------------------------------------
     currentCohort%treelai = tlai
     canopylai(:) = 0._r8
+    if(init.eq.itrue)then
+       ! If we are initializing, the canopy layer has not been set yet, so just set to 1
+       currentCohort%canopy_layer = 1
+       ! We need to get the vcmax25top
+       currentCohort%vcmax25top = EDPftvarcon_inst%vcmax25top(currentCohort%pft,1)
+    endif
     leaf_c = leafc_from_treelai( currentCohort%treelai, currentCohort%pft, currentCohort%c_area,&
          currentCohort%n, currentCohort%canopy_layer, currentCohort%vcmax25top)
 
@@ -1681,6 +1688,8 @@ contains
 
     if( abs(currentCohort%treelai-check_treelai).gt.1.0e-12)then !this is not as precise as nearzero
        write(fates_log(),*) 'error in validate treelai',currentCohort%treelai,check_treelai,currentCohort%treelai-check_treelai
+       write(fates_log(),*) 'tree_lai inputs: ', currentCohort%pft, currentCohort%c_area, currentCohort%n, &
+               currentCohort%canopy_layer, currentCohort%vcmax25top
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
@@ -2007,7 +2016,14 @@ contains
 
 
     do ft = 1,numpft
-       if(currentSite%use_this_pft(ft).eq.itrue)then
+       ! The following if block is for the prescribed biogeography and/or nocomp modes.
+       ! Since currentSite%use_this_pft is a site-level quantity and thus only limits whether a given PFT
+       ! is permitted on a given gridcell or not, it applies to the prescribed biogeography case only.
+       ! If nocomp is enabled, then we must determine whether a given PFT is allowed on a given patch or not.
+
+       if(currentSite%use_this_pft(ft).eq.itrue &
+            .and. ((hlm_use_nocomp .eq. ifalse) .or. (ft .eq. currentPatch%nocomp_pft_label)))then
+
           temp_cohort%canopy_trim = init_recruit_trim
           temp_cohort%pft         = ft
           temp_cohort%hite        = EDPftvarcon_inst%hgt_min(ft)
@@ -2630,7 +2646,6 @@ contains
     logical  :: use_century_tfunc = .false.
     logical  :: use_hlm_soil_scalar = .true. ! Use hlm input decomp fraction scalars
     integer  :: j
-    integer  :: ifp                          ! Index of a FATES Patch "ifp"
     real(r8) :: t_scalar                     ! temperature scalar
     real(r8) :: w_scalar                     ! moisture scalar
     real(r8) :: catanf                       ! hyperbolic temperature function from CENTURY
@@ -2641,7 +2656,6 @@ contains
     catanf(t1) = 11.75_r8 +(29.7_r8 / pi) * atan( pi * 0.031_r8  * ( t1 - 15.4_r8 ))
     catanf_30 = catanf(30._r8)
 
-    ifp = currentPatch%patchno
     if(currentPatch%nocomp_pft_label.ne.0)then
 
        ! Use the hlm temp and moisture decomp fractions by default
@@ -2653,19 +2667,19 @@ contains
        else
 
          if ( .not. use_century_tfunc ) then
-         !calculate rate constant scalar for soil temperature,assuming that the base rate constants
-         !are assigned for non-moisture limiting conditions at 25C.
-            if (bc_in%t_veg24_pa(ifp)  >=  tfrz) then
-              t_scalar = q10_mr**((bc_in%t_veg24_pa(ifp)-(tfrz+25._r8))/10._r8)
-                  !  Q10**((t_soisno(c,j)-(tfrz+25._r8))/10._r8)
+            !calculate rate constant scalar for soil temperature,assuming that the base rate constants
+            !are assigned for non-moisture limiting conditions at 25C.
+            if (currentPatch%tveg24%GetMean()  >=  tfrz) then
+               t_scalar = q10_mr**((currentPatch%tveg24%GetMean()-(tfrz+25._r8))/10._r8)
+               !  Q10**((t_soisno(c,j)-(tfrz+25._r8))/10._r8)
             else
-              t_scalar = (q10_mr**(-25._r8/10._r8))*(q10_froz**((bc_in%t_veg24_pa(ifp)-tfrz)/10._r8))
-                     !Q10**(-25._r8/10._r8))*(froz_q10**((t_soisno(c,j)-tfrz)/10._r8)
+               t_scalar = (q10_mr**(-25._r8/10._r8))*(q10_froz**((currentPatch%tveg24%GetMean()-tfrz)/10._r8))
+               !  Q10**(-25._r8/10._r8))*(froz_q10**((t_soisno(c,j)-tfrz)/10._r8)
             endif
          else
             ! original century uses an arctangent function to calculate the
             ! temperature dependence of decomposition
-            t_scalar = max(catanf(bc_in%t_veg24_pa(ifp)-tfrz)/catanf_30,0.01_r8)
+            t_scalar = max(catanf(currentPatch%tveg24%GetMean()-tfrz)/catanf_30,0.01_r8)
          endif
 
          !Moisture Limitations

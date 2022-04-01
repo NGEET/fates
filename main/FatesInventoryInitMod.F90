@@ -47,24 +47,25 @@ module FatesInventoryInitMod
    use PRTParametersMod , only : prt_params
    use EDPftvarcon      , only : EDPftvarcon_inst
    use FatesInterfaceTypesMod, only : hlm_parteh_mode
-   use EDCohortDynamicsMod,    only : InitPRTObject
-   use PRTGenericMod,          only : prt_csimpler_allom_hyp
-   use PRTGenericMod,          only : prt_carbon_allom_hyp
-   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
-   use PRTGenericMod,          only : prt_vartypes
-   use PRTGenericMod,          only : leaf_organ
-   use PRTGenericMod,          only : fnrt_organ
-   use PRTGenericMod,          only : sapw_organ
-   use PRTGenericMod,          only : store_organ
-   use PRTGenericMod,          only : struct_organ
-   use PRTGenericMod,          only : repro_organ
-   use PRTGenericMod,          only : carbon12_element
-   use PRTGenericMod,          only : nitrogen_element
-   use PRTGenericMod,          only : phosphorus_element
-   use PRTGenericMod,          only : SetState
-   use FatesConstantsMod,      only : primaryforest
-   use FatesConstantsMod,      only : fates_unset_int
-   use PRTGenericMod,          only : StorageNutrientTarget
+   use EDCohortDynamicsMod, only : InitPRTObject
+   use PRTGenericMod,       only : prt_csimpler_allom_hyp
+   use PRTGenericMod,       only : prt_carbon_allom_hyp
+   use PRTGenericMod,       only : prt_cnp_flex_allom_hyp
+   use PRTGenericMod,       only : prt_vartypes
+   use PRTGenericMod,       only : leaf_organ
+   use PRTGenericMod,       only : fnrt_organ
+   use PRTGenericMod,       only : sapw_organ
+   use PRTGenericMod,       only : store_organ
+   use PRTGenericMod,       only : struct_organ
+   use PRTGenericMod,       only : repro_organ
+   use PRTGenericMod,       only : carbon12_element
+   use PRTGenericMod,       only : nitrogen_element
+   use PRTGenericMod,       only : phosphorus_element
+   use PRTGenericMod,       only : SetState
+   use FatesConstantsMod,   only : primaryforest
+   use FatesRunningMeanMod, only : ema_lpa
+   use PRTGenericMod,       only : StorageNutrientTarget
+   use FatesConstantsMod,   only : fates_unset_int
 
    implicit none
    private
@@ -1104,6 +1105,11 @@ contains
          prt_obj => null()
          call InitPRTObject(prt_obj)
 
+         !  (Keeping as an example)
+         ! Allocate running mean functions
+         !allocate(temp_cohort%tveg_lpa)
+         !call temp_cohort%tveg_lpa%InitRMean(ema_lpa,init_value=cpatch%tveg_lpa%GetMean())
+         
          do el = 1,num_elements
 
             element_id = element_list(el)
