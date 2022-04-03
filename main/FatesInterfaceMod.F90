@@ -835,7 +835,7 @@ contains
          nlevage = size(ED_val_history_ageclass_bin_edges,dim=1)
          nlevheight = size(ED_val_history_height_bin_edges,dim=1)
          nlevcoage = size(ED_val_history_coageclass_bin_edges,dim=1)
-         nlevdamage = size(ED_val_history_damage_bin_edges, dim=1)
+         nlevdamage = size(ED_val_history_damage_bin_edges, dim=1) - 1
          
          ! do some checks on the size, age, and height bin arrays to make sure they make sense:
          ! make sure that all start at zero, and that both are monotonically increasing
