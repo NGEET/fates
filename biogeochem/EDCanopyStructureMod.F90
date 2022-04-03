@@ -380,7 +380,7 @@ contains
        currentCohort => currentPatch%shortest
        do while (associated(currentCohort))
           call carea_allom(currentCohort%dbh,currentCohort%n, &
-               currentSite%spread,currentCohort%pft,&
+               currentSite%spread,currentCohort%pft, &
                currentCohort%crowndamage, currentCohort%c_area)
 
           if(debug) then
@@ -728,8 +728,8 @@ contains
                 deallocate(currentCohort)
              else
              call carea_allom(currentCohort%dbh,currentCohort%n, &
-                  currentSite%spread,currentCohort%pft,&
-                  currentCohort%crowndamage, currentCohort%c_area)
+                  currentSite%spread,currentCohort%pft,currentCohort%crowndamage, &
+                  currentCohort%c_area)
              end if
 
           endif !canopy layer = i_ly
@@ -866,7 +866,7 @@ contains
           currentCohort => currentPatch%tallest
           do while (associated(currentCohort))
              call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
-                  currentCohort%pft,currentCohort%crowndamage, currentCohort%c_area)
+                  currentCohort%pft,currentCohort%c_area)
              if(currentCohort%canopy_layer == i_lyr+1)then !look at the cohorts in the canopy layer below...
 
                 if (ED_val_comp_excln .ge. 0.0_r8 ) then
@@ -1161,7 +1161,7 @@ contains
                    call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
                         currentCohort%pft,currentCohort%crowndamage, currentCohort%c_area)
                    call carea_allom(copyc%dbh,copyc%n,currentSite%spread,copyc%pft,&
-                        copyc%crowndamage, copyc%c_area)
+                        copyc%crowndamage,copyc%c_area)
 
                    !----------- Insert copy into linked list ------------------------!
                    copyc%shorter => currentCohort
@@ -1238,9 +1238,8 @@ contains
        currentCohort => currentPatch%tallest
        do while (associated(currentCohort))
           call carea_allom(currentCohort%dbh,currentCohort%n, &
-               currentSite%spread,currentCohort%pft, &
-               currentCohort%crowndamage, currentCohort%c_area)
-
+               currentSite%spread,currentCohort%pft,currentCohort%crowndamage, &
+               currentCohort%c_area)
           if( ( int(prt_params%woody(currentCohort%pft)) .eq. itrue ) .and. &
                (currentCohort%canopy_layer .eq. 1 ) ) then
              sitelevel_canopyarea = sitelevel_canopyarea + currentCohort%c_area
@@ -1338,7 +1337,7 @@ contains
              ! Update the cohort's index within the size bin classes
              ! Update the cohort's index within the SCPF classification system
              call sizetype_class_index(currentCohort%dbh,currentCohort%pft, &
-                                       currentCohort%size_class,currentCohort%size_by_pft_class)
+                  currentCohort%size_class,currentCohort%size_by_pft_class)
 
              if (hlm_use_cohort_age_tracking .eq. itrue) then
                 call coagetype_class_index(currentCohort%coage,currentCohort%pft, &
@@ -1347,7 +1346,7 @@ contains
 
              if(hlm_use_sp.eq.ifalse)then
                 call carea_allom(currentCohort%dbh,currentCohort%n,sites(s)%spread,&
-                     currentCohort%pft,currentCohort%crowndamage,currentCohort%c_area)
+                     currentCohort%pft,currentCohort%crowndamage, currentCohort%c_area)
              endif
 
              if(currentCohort%canopy_layer==1)then
@@ -1455,7 +1454,7 @@ contains
     ! currentCohort%treesai    ! SAI per unit crown area  (m2/m2)
     ! currentCohort%lai        ! LAI per unit canopy area (m2/m2)
     ! currentCohort%sai        ! SAI per unit canopy area (m2/m2)
-    ! currentCohort%nv         ! The number of discrete vegetation
+    ! currentCohort%NV         ! The number of discrete vegetation
     !                          ! layers needed to describe this crown
     !
     ! The following patch level diagnostics are updated here:
@@ -1508,9 +1507,8 @@ contains
     real(r8) :: min_chite                ! bottom of cohort canopy  (m)
     real(r8) :: max_chite                ! top of cohort canopy      (m)
     real(r8) :: lai                      ! summed lai for checking m2 m-2
-    real(r8) :: snow_depth_avg           ! avg snow over whole site
-    real(r8) :: leaf_c                   ! leaf carbon [kgC]
-    real(r8) :: target_c_area            ! crown area of undamaged cohort given dbh
+    real(r8) :: leaf_c                   ! leaf carbon [kg]
+
     !----------------------------------------------------------------------
 
     smooth_leaf_distribution = 0
@@ -1563,6 +1561,7 @@ contains
              currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, &
                   currentCohort%n, currentCohort%canopy_layer,               &
                   currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )
+
              if (hlm_use_sp .eq. ifalse) then
                 currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh,&
                      currentSite%spread, currentCohort%canopy_trim, &
@@ -1935,7 +1934,6 @@ contains
        bc_out(s)%dleaf_pa(:) = 0._r8
        bc_out(s)%z0m_pa(:) = 0._r8
        bc_out(s)%displa_pa(:) = 0._r8
-
        
        currentPatch => sites(s)%oldest_patch
        c = fcolumn(s)
@@ -1992,8 +1990,8 @@ contains
                         currentCohort%pft, currentCohort%c_area, currentCohort%n, &
                         currentCohort%canopy_layer, currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )
 
-                   currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, sites(s)%spread, &
-                        currentCohort%canopy_trim, &
+                   currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, &
+                        site(s)%spread, currentCohort%canopy_trim, &
                         currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
                         currentPatch%canopy_layer_tlai, currentCohort%treelai , &
                         currentCohort%vcmax25top,4)
@@ -2025,9 +2023,6 @@ contains
                 bc_out(s)%dleaf_pa(ifp)  = EDPftvarcon_inst%dleaf(1)
              endif
              ! -----------------------------------------------------------------------------
-             bc_out(s)%z0m_pa(ifp)    = EDPftvarcon_inst%z0mr(1) * bc_out(s)%htop_pa(ifp)
-             bc_out(s)%displa_pa(ifp) = EDPftvarcon_inst%displar(1) * bc_out(s)%htop_pa(ifp)
-             bc_out(s)%dleaf_pa(ifp)  = EDPftvarcon_inst%dleaf(1)
 
              ! We are assuming here that grass is all located underneath tree canopies.
              ! The alternative is to assume it is all spatial distinct from tree canopies.
@@ -2075,9 +2070,9 @@ contains
              end if
 
           else  ! nocomp or SP, and currentPatch%nocomp_pft_label .eq. 0
-             
+
              total_patch_area = total_patch_area + currentPatch%area/AREA
-             
+
           end if
           currentPatch => currentPatch%younger
        end do
@@ -2110,26 +2105,26 @@ contains
 
        endif
 
-        ! If running hydro, perform a final check to make sure that we
-        ! have conserved water. Since this is the very end of the dynamics
-        ! cycle. No water should had been added or lost to the site during dynamics.
-        ! With growth and death, we may have shuffled it around.
-        ! For recruitment, we initialized their water, but flagged them
-        ! to not be included in the site level balance yet, for they
-        ! will demand the water for their initialization on the first hydraulics time-step
+       ! If running hydro, perform a final check to make sure that we
+       ! have conserved water. Since this is the very end of the dynamics
+       ! cycle. No water should had been added or lost to the site during dynamics.
+       ! With growth and death, we may have shuffled it around.
+       ! For recruitment, we initialized their water, but flagged them
+       ! to not be included in the site level balance yet, for they
+       ! will demand the water for their initialization on the first hydraulics time-step
 
-        if (hlm_use_planthydro.eq.itrue) then
-           call UpdateH2OVeg(sites(s),bc_out(s),bc_out(s)%plant_stored_h2o_si,1)
-        end if
+       if (hlm_use_planthydro.eq.itrue) then
+          call UpdateH2OVeg(sites(s),bc_out(s),bc_out(s)%plant_stored_h2o_si,1)
+       end if
 
     end do
 
-     ! This call to RecruitWaterStorage() makes an accounting of
-     ! how much water is used to intialize newly recruited plants.
-     ! However, it does not actually move water from the soil or create
-     ! a flux, it is just accounting for diagnostics purposes.  The water
-     ! will not actually be moved until the beginning of the first hydraulics
-     ! call during the fast timestep sequence
+    ! This call to RecruitWaterStorage() makes an accounting of
+    ! how much water is used to intialize newly recruited plants.
+    ! However, it does not actually move water from the soil or create
+    ! a flux, it is just accounting for diagnostics purposes.  The water
+    ! will not actually be moved until the beginning of the first hydraulics
+    ! call during the fast timestep sequence
 
     if (hlm_use_planthydro.eq.itrue) then
        call RecruitWaterStorage(nsites,sites,bc_out)
@@ -2271,8 +2266,8 @@ contains
        currentCohort => currentPatch%tallest
        do while (associated(currentCohort))
           if(currentCohort%canopy_layer == z) then
-             call carea_allom(currentCohort%dbh,currentCohort%n,site_spread,&
-                  currentCohort%pft,currentCohort%crowndamage, c_area)
+             call carea_allom(currentCohort%dbh,currentCohort%n,site_spread,currentCohort%pft, &
+                  currentCohort%crowndamage, c_area)
              arealayer = arealayer + c_area
           end if
           currentCohort => currentCohort%shorter
