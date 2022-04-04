@@ -353,7 +353,6 @@ contains
     real(r8) :: repro_c0              ! ""
     real(r8) :: struct_c0             ! ""
 
-    logical  :: is_hydecid_dormant    ! Flag to signal that the cohort is drought deciduous and dormant
     logical  :: is_deciduous          ! Flag to signal this is a deciduous PFT
 
     logical  :: grow_struct
@@ -432,8 +431,6 @@ contains
 
 
     ! Set some logical flags to simplify "if" blocks
-    is_hydecid_dormant = ( prt_params%stress_decid(ipft) == 1 ) .and. &
-                         ( leaf_status == leaves_off )
     is_deciduous       = ( prt_params%stress_decid(ipft) == 1 ) .or.  &
                          ( prt_params%season_decid(ipft) == 1 )
 
@@ -488,39 +485,12 @@ contains
     call bstore_allom(dbh,ipft,canopy_trim,target_store_c)
 
 
-
-    ! -----------------------------------------------------------------------------------
-    ! II 1/2. Update target biomass based on the phenology status.
-    !         In case the plant is shedding leaves, we impose that any 
-    !         positive carbon balance necessarily goes to storage, even if this causes
-    !         storage to go above allometry.
-    ! -----------------------------------------------------------------------------------
-    if (is_hydecid_dormant) then
-       target_leaf_c   = 0.0_r8
-       target_fnrt_c   = 0.0_r8
-       target_sapw_c   = 0.0_r8
-       target_struct_c = 0.0_r8
-       target_store_c  = target_store_c + max(0.0_r8,carbon_balance)
-    end if
-
-
     ! -----------------------------------------------------------------------------------
     ! III.  Prioritize some amount of carbon to replace leaf/root turnover
     !         Make sure it isnt a negative payment, and either pay what is available
     !         or forcefully pay from storage. 
-    ! MLO.  Added a few conditions to decide what to do in case plants are deciduous.
-    !       Specifically, drought deciduous with leaves off should not replace fine
-    !       roots. They will be in negative carbon balance, and unlike cold deciduous,
-    !       the turnover rates will be high during the dry season (turnover is 
-    !       temperature-dependent, but not moisture-dependent).  Allocating carbon
-    !       to high-maintanence tissues will drain the storage with little benefit for
-    !       these plants.
     ! -----------------------------------------------------------------------------------
-    if ( is_hydecid_dormant ) then
-       ! Drought deciduous, dormant state. Set demands to both leaves and roots to zero.
-       leaf_c_demand = 0.0_r8
-       fnrt_c_demand = 0.0_r8
-    elseif ( is_deciduous ) then
+    if ( is_deciduous ) then
        ! Either cold deciduous plant, or drought deciduous with leaves on. Maintain roots.
        leaf_c_demand = 0.0_r8
        fnrt_c_demand = max(0.0_r8, &
@@ -733,26 +703,17 @@ contains
        c_pool(repro_c_id)  = repro_c
        c_pool(dbh_id)      = dbh
 
-       ! Only grow leaves if we are in a "leaf-on" status. For drought-deciduous, we
-       ! interrupt growth for all tissues when in dormant mode.
-       if (is_hydecid_dormant) then
-          c_mask(leaf_c_id)   = .false.
-          c_mask(fnrt_c_id)   = .false.
-          c_mask(sapw_c_id)   = .false.
-          c_mask(struct_c_id) = .false.
+       ! Only grow leaves if we are in a "leaf-on" status.
+       select case (leaf_status)
+       case (leaves_on)
+          c_mask(leaf_c_id) = grow_leaf
+       case default
+          c_mask(leaf_c_id) = .false.
+       end select
+       c_mask(fnrt_c_id)   = grow_fnrt
+       c_mask(sapw_c_id)   = grow_sapw
+       c_mask(struct_c_id) = grow_struct
 
-       else
-          select case (leaf_status)
-          case (leaves_on)
-             c_mask(leaf_c_id) = grow_leaf
-          case default
-             c_mask(leaf_c_id) = .false.
-          end select
-          c_mask(fnrt_c_id)   = grow_fnrt
-          c_mask(sapw_c_id)   = grow_sapw
-          c_mask(struct_c_id) = grow_struct
-
-       end if
        c_mask(store_c_id)  = grow_store
        c_mask(repro_c_id)  = .true.                ! Always calculate reproduction on growth
        c_mask(dbh_id)      = .true.                ! Always increment dbh on growth step
@@ -1028,7 +989,6 @@ contains
     real(r8) :: repro_c0              ! ""
     real(r8) :: struct_c0             ! ""
 
-    logical  :: is_hydecid_dormant    ! Flag to signal that the cohort is drought deciduous and dormant
     logical  :: is_deciduous          ! Flag to signal this is a deciduous PFT
 
     logical  :: grow_struct
@@ -1106,8 +1066,6 @@ contains
     intgr_params(ac_bc_in_id_lstat) = real(this%bc_in(ac_bc_in_id_lstat)%ival,r8)
 
     ! Set some logical flags to simplify "if" blocks
-    is_hydecid_dormant = ( prt_params%stress_decid(ipft) == 1 ) .and. &
-                         ( leaf_status == leaves_off )
     is_deciduous       = ( prt_params%stress_decid(ipft) == 1 ) .or.  &
                          ( prt_params%season_decid(ipft) == 1 )
 
@@ -1162,22 +1120,6 @@ contains
     call bstore_allom(dbh,ipft,canopy_trim,target_store_c)
 
 
-
-    ! -----------------------------------------------------------------------------------
-    ! II 1/2. Update target biomass based on the phenology status.
-    !         In case the plant is shedding leaves, we impose that any 
-    !         positive carbon balance necessarily goes to storage, even if this causes
-    !         storage to go above allometry.
-    ! -----------------------------------------------------------------------------------
-    if (is_hydecid_dormant) then
-       target_leaf_c   = 0.0_r8
-       target_fnrt_c   = 0.0_r8
-       target_sapw_c   = 0.0_r8
-       target_struct_c = 0.0_r8
-       target_store_c  = target_store_c + max(0.0_r8,carbon_balance)
-    end if
-
-
     ! -----------------------------------------------------------------------------------
     ! III.  If carbon is available, bring all the pools as close to the allometry
     !       as possible.  This also includes the storage pool, even though carbon may
@@ -1226,7 +1168,7 @@ contains
     ! IV.  If carbon balance is negative, reduce the storage pool.  Otherwise, try to
     !      fill the storage pool before growing.
     ! -----------------------------------------------------------------------------------
-    update_storage: if ( carbon_balance < 0.0_r8 .or. is_hydecid_dormant ) then
+    update_storage: if ( carbon_balance < 0.0_r8 ) then
 
 
        ! If carbon balance is negative, store_c will be depleted. Otherwise, if this is
