@@ -431,8 +431,8 @@ contains
 
 
     ! Set some logical flags to simplify "if" blocks
-    is_deciduous       = ( prt_params%stress_decid(ipft) == 1 ) .or.  &
-                         ( prt_params%season_decid(ipft) == 1 )
+    is_deciduous       = ( prt_params%stress_decid(ipft) == itrue ) .or.  &
+                         ( prt_params%season_decid(ipft) == itrue )
 
     nleafage = prt_global%state_descriptor(leaf_c_id)%num_pos ! Number of leaf age class
 
@@ -1066,8 +1066,8 @@ contains
     intgr_params(ac_bc_in_id_lstat) = real(this%bc_in(ac_bc_in_id_lstat)%ival,r8)
 
     ! Set some logical flags to simplify "if" blocks
-    is_deciduous       = ( prt_params%stress_decid(ipft) == 1 ) .or.  &
-                         ( prt_params%season_decid(ipft) == 1 )
+    is_deciduous       = ( prt_params%stress_decid(ipft) == itrue ) .or.  &
+                         ( prt_params%season_decid(ipft) == itrue )
 
 
     nleafage = prt_global%state_descriptor(leaf_c_id)%num_pos ! Number of leaf age class
