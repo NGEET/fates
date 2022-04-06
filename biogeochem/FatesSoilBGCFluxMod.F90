@@ -1002,20 +1002,9 @@ contains
     do id = 1,nlev_eff_decomp
        surface_prof(id) = surface_prof(id)/surface_prof_tot
     end do
-
-
- 
-
     
     ! Loop over the different elements. 
     do el = 1, num_elements
-       
-       ! Zero out the boundary flux arrays
-       ! Make a pointer to the cellulose, labile and lignan
-       ! flux partitions.
-       if(hlm_use_mimics) then
-          bc_out%litt_flux_ligc_per_n(:) = 0._r8
-       end if
        
        select case (element_list(el))
        case (carbon12_element)
