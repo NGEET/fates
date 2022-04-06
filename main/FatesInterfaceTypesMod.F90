@@ -602,6 +602,11 @@ module FatesInterfaceTypesMod
       real(r8), allocatable :: litt_flux_lig_p_si(:) ! lignan phosphorus litter, fates->BGC g/m3/s
       real(r8), allocatable :: litt_flux_lab_p_si(:) ! labile phosphorus litter, fates->BGC g/m3/s
 
+      ! MIMICS Boundary Conditions
+      ! -----------------------------------------------------------------------------------
+      real(r8), allocatable :: litt_flux_ligc_per_n(:) ! Grams of lignin carbon per grams of nitrogen
+                                                       ! in the fragmentation flux, per square meter
+      
 
       ! Nutrient competition boundary conditions
       ! (These are all pointer allocations, this is because the host models
@@ -641,6 +646,9 @@ module FatesInterfaceTypesMod
                                              ! for use in ELMs CTC/RD [g/m2/s] 
 
 
+
+
+      
       ! CH4 Boundary Conditions
       ! -----------------------------------------------------------------------------------
       real(r8), pointer :: annavg_agnpp_pa(:)    ! annual average patch npp above ground (gC/m2/s)

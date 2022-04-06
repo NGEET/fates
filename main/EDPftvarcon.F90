@@ -1605,7 +1605,9 @@ contains
         p_uptake_mode = coupled_p_uptake
      end if
 
+     
 
+     
 
      do ipft = 1,npft
 

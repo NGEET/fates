@@ -55,6 +55,7 @@ module FatesSoilBGCFluxMod
   use FatesInterfaceTypesMod, only    : hlm_nu_com
   use FatesInterfaceTypesMod, only    : hlm_parteh_mode
   use FatesInterfaceTypesMod, only    : hlm_use_ch4
+  use FatesInterfaceTypesMod, only    : hlm_use_mimics
   use FatesConstantsMod , only : prescribed_p_uptake
   use FatesConstantsMod , only : prescribed_n_uptake
   use FatesConstantsMod , only : coupled_p_uptake
@@ -993,6 +994,9 @@ contains
        ! Zero out the boundary flux arrays
        ! Make a pointer to the cellulose, labile and lignan
        ! flux partitions.
+       if(hlm_use_mimics) then
+          bc_out%litt_flux_ligc_per_n(:) = 0._r8
+       end if
        
        select case (element_list(el))
        case (carbon12_element)
@@ -1126,6 +1130,41 @@ contains
 
     end do  ! do elements
 
+
+    if(hlm_use_mimics) then
+
+       ! If we track nitrogen (ie cnp or other) then
+       ! we diagnose the c-lig/n ratio directly from the pools
+       if(element_pos(nitrogen_element)>0) then
+
+          ! Sum ligC and totalN fluxes over depth
+          sum_N = sum((bc_out%litt_flux_cel_n_si(1:nlev_eff_soil) + &
+               bc_out%litt_flux_lig_n_si(1:nlev_eff_soil) + &
+               bc_out%litt_flux_lab_n_si(1:nlev_eff_soil)) * &
+               bc_in%dz_sisl(1:nlev_eff_soil))
+
+          sum_ligC = sum(bc_out%litt_flux_lig_c_si(1:nlev_eff_soil) * bc_in%dz_sisl(1:nlev_eff_soil))
+
+          if(sum_N>nearzero)then
+             bc_out%litt_flux_ligc_per_n = sum_ligC / sum_N
+          else
+             bc_out%litt_flux_ligc_per_n = 0._r8
+          end if
+          
+       else
+
+          write(fates_log(),*) 'If FATES is coupled with MIMICS, N cycling'
+          write(fates_log(),*) 'must be turned on. Both coupled N cycling, as'
+          write(fates_log(),*) 'well as a prescribed N cycle'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+          
+       end if
+          
+    end if
+
+
+
+    
     return
   end subroutine FluxIntoLitterPools
 
