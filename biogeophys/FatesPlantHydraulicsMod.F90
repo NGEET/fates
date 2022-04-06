@@ -4605,56 +4605,73 @@ end subroutine shellGeom
 
 ! =====================================================================================
 
-function xylemtaper(p, dz) result(chi_tapnotap)
+function xylemtaper(pexp, dz) result(chi_tapnotap)
 
-   ! !ARGUMENTS:
-   real(r8) , intent(in) :: p      ! Savage et al. (2010) taper exponent
-   real(r8) , intent(in) :: dz     ! hydraulic distance from petiole to node of interest                                                [m]
-   !
-   ! !LOCAL VARIABLES:
-   real(r8) :: atap,btap           ! scaling exponents for total conductance ~ tree size (ratio of stem radius to terminal twig radius)
-   real(r8) :: anotap,bnotap       ! same as atap, btap, but not acounting for xylem taper (Savage et al. (2010) p = 0)
-   ! NOTE: these scaling exponents were digitized from Fig 2a of Savage et al. (2010)
-   ! Savage VM, Bentley LP, Enquist BJ, Sperry JS, Smith DD, Reich PB, von Allmen EI. 2010.
-   !    Hydraulic trade-offs and space filling enable better predictions of vascular structure
-   !    and function in plants. Proceedings of the National Academy of Sciences 107(52): 22722-22727.
-   real(r8) :: lN=0.04_r8          ! petiole length                                                                                     [m]
-   real(r8) :: little_n=2._r8      ! number of daughter branches per parent branch, assumed constant throughout tree (self-similarity)  [-]
-   real(r8) :: big_n               ! number of branching levels (allowed here to take on non-integer values): increases with tree size  [-]
-   real(r8) :: ktap                ! hydraulic conductance along the pathway, accounting for xylem taper                                [kg s-1 MPa-1]
-   real(r8) :: knotap              ! hydraulic conductance along the pathway, not accounting for xylem taper                            [kg s-1 MPa-1]
-   real(r8) :: num                 ! temporary
-   real(r8) :: den                 ! temporary
-   !
-   ! !RESULT
-   real(r8) :: chi_tapnotap        ! ratio of total tree conductance accounting for xylem taper to that without, over interval dz
-   !
-   !------------------------------------------------------------------------
+    use FatesConstantsMod, only : pi => pi_const
 
-   anotap  = 7.19903e-13_r8
-   bnotap  = 1.326105578_r8
-   if (p >= 1.0_r8) then
-      btap  = 2.00586217_r8
-      atap  = 1.82513E-12_r8
-   else if (p >= (1._r8/3._r8) .AND. p < 1._r8) then
-      btap  = 1.854812819_r8
-      atap  = 6.66908E-13_r8
-   else if (p >= (1._r8/6._r8) .AND. p < (1._r8/3._r8)) then
-      btap  = 1.628179741_r8
-      atap  = 6.58345E-13_r8
-   else
-      btap  = bnotap
-      atap  = anotap
-   end if
+    ! !DESCRIPTION: Following the theory presented i
+    ! Savage VM, Bentley LP, Enquist BJ, Sperry JS, Smith DD, Reich PB, von
+    ! Allmen EI. 2010.
+    ! Hydraulic trade-offs and space filling enable better predictions of
+    ! vascular structure
+    ! and function in plants. Proceedings of the National Academy of Sciences
+    ! 107(52): 22722-22727.
 
-   num          = 3._r8*log(1._r8 - dz/lN * (1._r8-little_n**(1._r8/3._r8)))
-   den          = log(little_n)
-   big_n        = num/den - 1._r8
-   ktap         = atap   * (little_n**(big_N*  btap/2._r8))
-   knotap       = anotap * (little_n**(big_N*bnotap/2._r8))
-   chi_tapnotap = ktap / knotap
+    ! Revised 2019-01-03 BOC: total conductance exponent (qexp) is now a
+    ! continuous function of the xylem taper exponent (pexp).
+                                    ! renamed btap to qexp, a[tap][notap] to kN,
+                                    ! little_n to n_ext, to match variable names
+                                    ! in Savage et al.
 
-   return
+    ! !ARGUMENTS:
+    real(r8) , intent(in) :: pexp   ! Savage et al. (2010) taper exponent[-]
+    real(r8) , intent(in) :: dz     ! hydraulic distance from petiole to node of interest[m]
+    !
+    ! !LOCAL VARIABLES:
+    real(r8) :: qexp                ! total conductance exponent (as in Fig. 2b of Savage et al. (2010)
+    real(r8) :: qexp_notap          ! same as qexp, but without xylem taper; i.e., pexp = 0
+    real(r8) :: lN=0.005_r8         ! petiole length[m]
+    real(r8) :: mu=1.0E-03_r8       ! viscosity[kg m-1 s-1]
+    real(r8) :: rintN=0.00001_r8    ! internal conduit diameter in petiole[m]
+    real(r8) :: NsegintN=200        ! number of conduits in a single terminal twig[-]
+    real(r8) :: kN                  ! conductance for laminar flow through all conduits in a terminal twig, according to Hagen-Poiseuille[kg Pa-1 s-1]
+    real(r8) :: n_ext=2._r8         ! number of daughter branches per parent branch, assumed constant throughout tree (self-similarity)  [-]
+    real(r8) :: big_n               ! number of branching levels (allowed here to take on non-integer values): increases with tree size  [-]
+    real(r8) :: r0rN                ! ratio of stem radius to terminal twig radius; r.ext0/r.extN (x-axis of Savage et al. (2010) Fig 2a)[-]
+    real(r8) :: ktap                ! hydraulic conductance along the pathway,accounting for xylem taper                                [kg s-1 MPa-1]
+    real(r8) :: knotap              ! hydraulic conductance along the pathway,not accounting for xylem taper                            [kg s-1 MPa-1]
+    real(r8) :: num                 ! temporary
+    real(r8) :: den                 ! temporary
+    real(r8) :: a5,a4,a3,a2,a1,a0   ! coefficients of 5th-order polynomial fit to Savage et al. Fig. 2b (qexp vs. pexp)
+                                    ! NOTE: These were obtained by digitizing
+                                    ! Fig. 2b (dashed line) and fitting a
+                                    ! polynomial using nls() in R
+    !
+    ! !RESULT
+    real(r8) :: chi_tapnotap        ! ratio of total tree conductance accounting for xylem taper to that without, over interval dz
+    !
+    !------------------------------------------------------------------------
+
+    kN = NsegintN*pi*rintN**(4.0_r8)/(8.0_r8*mu*lN)
+
+    a5 = -3.555547_r8
+    a4 =  9.760275_r8
+    a3 = -8.468005_r8
+    a2 =  1.096488_r8
+    a1 =  1.844792_r8
+    a0 =  1.320732_r8
+    qexp         = a5*pexp**5 + a4*pexp**4 + a3*pexp**3 + a2*pexp**2 + a1*pexp + a0
+    qexp_notap   = a0
+
+    num          = 3._r8*log(1._r8 - dz/lN * (1._r8-n_ext**(1._r8/3._r8)))
+    den          = log(n_ext)
+    big_N        = num/den - 1._r8
+    r0rN         = n_ext**(big_N/2._r8)
+    ktap         = kN * (r0rN**qexp)
+    knotap       = kN * (r0rN**qexp_notap)
+    chi_tapnotap = ktap / knotap
+
+    return
 
 end function xylemtaper
 
