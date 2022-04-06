@@ -485,6 +485,16 @@ contains
     call bstore_allom(dbh,ipft,canopy_trim,target_store_c)
 
 
+
+    ! -----------------------------------------------------------------------------------
+    ! II 1/2. Update target biomass based on the leaf status.
+    ! -----------------------------------------------------------------------------------
+    select case (leaf_status)
+    case (leaves_off)
+       target_leaf_c   = 0.0_r8
+    end select
+
+
     ! -----------------------------------------------------------------------------------
     ! III.  Prioritize some amount of carbon to replace leaf/root turnover
     !         Make sure it isnt a negative payment, and either pay what is available
@@ -1118,6 +1128,16 @@ contains
 
     ! Target storage carbon [kgC,kgC/cm]
     call bstore_allom(dbh,ipft,canopy_trim,target_store_c)
+
+
+
+    ! -----------------------------------------------------------------------------------
+    ! II 1/2. Update target biomass based on the leaf status.
+    ! -----------------------------------------------------------------------------------
+    select case (leaf_status)
+    case (leaves_off)
+       target_leaf_c   = 0.0_r8
+    end select
 
 
     ! -----------------------------------------------------------------------------------
