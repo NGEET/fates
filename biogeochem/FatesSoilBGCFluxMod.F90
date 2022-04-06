@@ -1205,13 +1205,6 @@ contains
                 ccohort => ccohort%shorter
              end do
 
-             !print*,prt_params%nitr_stoich_p1(ipft,:), &
-             !     prt_params%organ_param_id(leaf_organ), &
-             !     prt_params%organ_param_id(sapw_organ), &
-             !     prt_params%organ_param_id(fnrt_organ), &
-             !     prt_params%organ_param_id(struct_organ)
-             !stop
-             
              if(tot_wood_c>nearzero) then
                 sum_N = sum_N + area_frac*sum(litt%ag_cwd_frag)*(tot_wood_n/tot_wood_c)
                 sum_N = sum_N + area_frac*sum(litt%bg_cwd_frag)*(tot_wood_n/tot_wood_c)
@@ -1227,8 +1220,6 @@ contains
                      (litt%seed_decay(ipft) + litt%seed_germ_decay(ipft))
              end do
 
-!             print*,(tot_leaf_n / tot_leaf_c),(tot_fnrt_n / tot_fnrt_c),(tot_wood_n/tot_wood_c),prt_params%nitr_recr_stoich(1)
-             
              currentPatch => currentPatch%younger
           end do
           
@@ -1246,8 +1237,6 @@ contains
           bc_out%litt_flux_ligc_per_n = 0._r8
        end if
 
-       print*,"--",bc_out%litt_flux_ligc_per_n,sum_ligC,sum_N
-       
     end if
 
 

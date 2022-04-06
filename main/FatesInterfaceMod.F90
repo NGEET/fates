@@ -1484,7 +1484,7 @@ contains
          end if
 
          ! TEMPORARY TESTING OVERRIDE !!!!!!!!
-         hlm_decomp = 'MIMICS'
+         ! hlm_decomp = 'MIMICS'
          
          if(trim(hlm_nu_com) .eq. 'unset') then
             if (fates_global_verbose()) then
