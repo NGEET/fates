@@ -36,7 +36,7 @@ module FatesInterfaceMod
    use FatesGlobals              , only : fates_global_verbose
    use FatesGlobals              , only : fates_log
    use FatesGlobals              , only : endrun => fates_endrun
-   use FatesGlobals              , only : fates_unset_r8
+   use FatesConstantsMod             , only : fates_unset_r8
    use FatesLitterMod            , only : ncwd
    use FatesLitterMod            , only : ndcmpy
    use EDPftvarcon               , only : FatesReportPFTParams
@@ -1284,7 +1284,6 @@ contains
          hlm_phosphorus_spec = unset_int
          hlm_max_patch_per_site = unset_int
          hlm_use_ch4       = unset_int
-         hlm_use_mimics    = unset_int
          hlm_use_vertsoilc = unset_int
          hlm_parteh_mode   = unset_int
          hlm_spitfire_mode = unset_int
@@ -1484,9 +1483,8 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         print*,trim(hlm_decomp)
-         stop
-
+         ! TEMPORARY TESTING OVERRIDE !!!!!!!!
+         hlm_decomp = 'MIMICS'
          
          if(trim(hlm_nu_com) .eq. 'unset') then
             if (fates_global_verbose()) then

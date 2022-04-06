@@ -55,7 +55,7 @@ module FatesSoilBGCFluxMod
   use FatesInterfaceTypesMod, only    : hlm_nu_com
   use FatesInterfaceTypesMod, only    : hlm_parteh_mode
   use FatesInterfaceTypesMod, only    : hlm_use_ch4
-  use FatesInterfaceTypesMod, only    : hlm_use_mimics
+  use FatesInterfaceTypesMod, only    : hlm_decomp
   use FatesConstantsMod , only : prescribed_p_uptake
   use FatesConstantsMod , only : prescribed_n_uptake
   use FatesConstantsMod , only : coupled_p_uptake
@@ -931,7 +931,7 @@ contains
 
     ! !LOCAL VARIABLES:
     type (ed_patch_type),  pointer :: currentPatch
-    type (ed_cohort_type), pointer :: currentCohort
+    type (ed_cohort_type), pointer :: ccohort
     real(r8), pointer              :: flux_cel_si(:)
     real(r8), pointer              :: flux_lab_si(:)
     real(r8), pointer              :: flux_lig_si(:)
@@ -1185,12 +1185,13 @@ contains
              tot_wood_c = 0._r8
              tot_wood_n = 0._r8
 
-             ccohort => cpatch%tallest
+             ccohort => currentPatch%tallest
              do while (associated(ccohort))
-                leaf_c  = ccohort%n * area_inv * ccohort%n*ccohort%prt%GetState(leaf_organ, carbon12_element)
-                sapw_c  = ccohort%n * area_inv * ccohort%n*ccohort%prt%GetState(sapw_organ, carbon12_element)
-                fnrt_c  = ccohort%n * area_inv * ccohort%n*ccohort%prt%GetState(fnrt_organ, carbon12_element)
-                struct_c = ccohort%n * area_inv * ccohort%n*ccohort%prt%GetState(struct_organ, carbon12_element)
+                ipft = ccohort%pft
+                leaf_c  = ccohort%n * area_inv * ccohort%prt%GetState(leaf_organ, carbon12_element)
+                sapw_c  = ccohort%n * area_inv * ccohort%prt%GetState(sapw_organ, carbon12_element)
+                fnrt_c  = ccohort%n * area_inv * ccohort%prt%GetState(fnrt_organ, carbon12_element)
+                struct_c = ccohort%n * area_inv * ccohort%prt%GetState(struct_organ, carbon12_element)
                 leaf_n = leaf_c * prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(leaf_organ))
                 sapw_n = sapw_c * prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(sapw_organ))
                 fnrt_n = fnrt_c * prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(fnrt_organ))
@@ -1204,6 +1205,13 @@ contains
                 ccohort => ccohort%shorter
              end do
 
+             !print*,prt_params%nitr_stoich_p1(ipft,:), &
+             !     prt_params%organ_param_id(leaf_organ), &
+             !     prt_params%organ_param_id(sapw_organ), &
+             !     prt_params%organ_param_id(fnrt_organ), &
+             !     prt_params%organ_param_id(struct_organ)
+             !stop
+             
              if(tot_wood_c>nearzero) then
                 sum_N = sum_N + area_frac*sum(litt%ag_cwd_frag)*(tot_wood_n/tot_wood_c)
                 sum_N = sum_N + area_frac*sum(litt%bg_cwd_frag)*(tot_wood_n/tot_wood_c)
@@ -1218,6 +1226,8 @@ contains
                 sum_N = sum_N + area_frac * prt_params%nitr_recr_stoich(ipft) * &
                      (litt%seed_decay(ipft) + litt%seed_germ_decay(ipft))
              end do
+
+!             print*,(tot_leaf_n / tot_leaf_c),(tot_fnrt_n / tot_fnrt_c),(tot_wood_n/tot_wood_c),prt_params%nitr_recr_stoich(1)
              
              currentPatch => currentPatch%younger
           end do
@@ -1235,6 +1245,8 @@ contains
        else
           bc_out%litt_flux_ligc_per_n = 0._r8
        end if
+
+       print*,"--",bc_out%litt_flux_ligc_per_n,sum_ligC,sum_N
        
     end if
 
