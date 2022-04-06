@@ -1006,6 +1006,10 @@ contains
     ! Loop over the different elements. 
     do el = 1, num_elements
        
+       ! Zero out the boundary flux arrays
+       ! Make a pointer to the cellulose, labile and lignan
+       ! flux partitions.
+       
        select case (element_list(el))
        case (carbon12_element)
           bc_out%litt_flux_cel_c_si(:) = 0.0_r8
