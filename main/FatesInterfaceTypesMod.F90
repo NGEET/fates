@@ -46,7 +46,11 @@ module FatesInterfaceTypesMod
                                                     ! specficially packaged for them.
                                                     ! This string sets which filter is enacted.
 
-
+   character(len=16), public :: hlm_decomp ! This string defines which soil decomposition
+                                           ! scheme is active
+                                           ! expected values are one of CENTURY,MIMICS,CTC
+   
+   
    character(len=16), public :: hlm_nu_com ! This string defines which soil
                                                       ! nutrient competition scheme is in use.
                                                       ! current options with
@@ -602,10 +606,11 @@ module FatesInterfaceTypesMod
       real(r8), allocatable :: litt_flux_lig_p_si(:) ! lignan phosphorus litter, fates->BGC g/m3/s
       real(r8), allocatable :: litt_flux_lab_p_si(:) ! labile phosphorus litter, fates->BGC g/m3/s
 
+      
       ! MIMICS Boundary Conditions
       ! -----------------------------------------------------------------------------------
-      real(r8), allocatable :: litt_flux_ligc_per_n(:) ! Grams of lignin carbon per grams of nitrogen
-                                                       ! in the fragmentation flux, per square meter
+      real(r8) :: litt_flux_ligc_per_n  ! lignin carbon per total nitrogen
+                                        ! in the fragmentation flux, per square meter [g/g]
       
 
       ! Nutrient competition boundary conditions

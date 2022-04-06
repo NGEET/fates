@@ -955,6 +955,16 @@ contains
     integer  :: ic               ! CWD type index
     integer  :: ipft             ! PFT index
 
+    ! The following are used for the MIMICS ligC/N boundary condition
+    real(r8) :: leaf_c, sapw_c   ! leaf and sapwood carbon, per plant [kg]
+    real(r8) :: fnrt_c, struct_c ! fineroot and struct carbon, per plant [kg]
+    real(r8) :: leaf_n, sapw_n   ! leaf and sapwood N, per plant [kg]
+    real(r8) :: fnrt_n, struct_n ! fineroot and struct N, per plant [kg]
+    real(r8) :: total_c, total_n ! Total estimated C and N for plants, [kg/m2]
+    real(r8) :: sum_ligC         ! Flux of lignan C [kg/m2/s]
+    real(r8) :: sum_C            ! Flux of all C [kg/m2/s]
+    real(r8) :: sum_N            ! Flux of all N [kg/m2/s]
+    
     ! NOTE(rgk, 201705) this parameter was brought over from SoilBiogeochemVerticalProfile
     ! how steep profile is for surface components (1/ e_folding depth) (1/m) 
     real(r8),  parameter :: surfprof_exp  = 10.
@@ -1131,7 +1141,7 @@ contains
     end do  ! do elements
 
 
-    if(hlm_use_mimics) then
+    if(trim(hlm_decomp).eq.'MIMICS') then
 
        ! If we track nitrogen (ie cnp or other) then
        ! we diagnose the c-lig/n ratio directly from the pools
@@ -1152,11 +1162,60 @@ contains
           end if
           
        else
+          
+          ! In this case (Carbon Only), we use the stoichiometry parameters to estimate
+          ! the C:N of live vegetation and the seedbank, and use that
+          ! as a proxy for the C:N of the litter flux
 
-          write(fates_log(),*) 'If FATES is coupled with MIMICS, N cycling'
-          write(fates_log(),*) 'must be turned on. Both coupled N cycling, as'
-          write(fates_log(),*) 'well as a prescribed N cycle'
-          call endrun(msg=errMsg(sourcefile, __LINE__))
+          total_c = 0._r8
+          total_n = 0._r8
+          currentPatch => csite%oldest_patch
+          do while (associated(currentPatch))
+             
+             litt       => currentPatch%litter(element_pos(carbon12_element))
+             area_frac  = currentPatch%area*area_inv
+
+             do ipft = 1,numpft
+                total_c = total_c + &
+                     area_frac*(litt%seed(ipft) + litt%seed_germ(ipft))
+                total_n = total_n + area_frac*prt_params%nitr_recr_stoich(ipft) * &
+                     (litt%seed(ipft) + litt%seed_germ(ipft))
+             end do
+
+             ccohort => cpatch%tallest
+             do while (associated(ccohort))
+
+                leaf_c  = ccohort%prt%GetState(leaf_organ, carbon12_element)
+                sapw_c  = ccohort%prt%GetState(sapw_organ, carbon12_element)
+                fnrt_c  = ccohort%prt%GetState(fnrt_organ, carbon12_element)
+                struct_c = ccohort%prt%GetState(struct_organ, carbon12_element)
+
+                leaf_n = leaf_c*prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(leaf_organ))
+                sapw_n = sapw_c*prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(sapw_organ))
+                fnrt_n = fnrt_c*prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(fnrt_organ))
+                struct_n = struct_c*prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(struct_organ))
+
+                total_c = total_c + ccohort%n * area_inv * (leaf_c+fnrt_c+sapw_c+struct_c)
+                total_n = total_n + ccohort%n * area_inv * (leaf_n+fnrt_n+sapw_n+struct_n)
+                
+                ccohort => ccohort%shorter
+             end do
+             
+             currentPatch => currentPatch%younger
+          end do
+
+          sum_ligC = sum(bc_out%litt_flux_lig_c_si(1:nlev_eff_soil) * bc_in%dz_sisl(1:nlev_eff_soil))
+          sum_C = sum( (bc_out%litt_flux_cel_c_si(1:nlev_eff_soil)+ &
+                        bc_out%litt_flux_lab_c_si(1:nlev_eff_soil)+ &
+                        bc_out%litt_flux_lig_c_si(1:nlev_eff_soil)) * bc_in%dz_sisl(1:nlev_eff_soil))
+          
+          !bc_out%litt_flux_ligc_per_n = ligC/TotalN  = ligC/totalC * (totalC/totalN)
+
+          if((sum_C>nearzero) .and. (total_n>nearzero))then
+             bc_out%litt_flux_ligc_per_n = sum_ligC/sum_C * total_c/total_n
+          else
+             bc_out%litt_flux_ligc_per_n = 0._r8
+          end if
           
        end if
           
