@@ -1809,7 +1809,8 @@ end subroutine HydrSiteColdStart
     ! turnover. need to be improved for future(CX)
     bc_out%plant_stored_h2o_si = csite_hydr%h2oveg + csite_hydr%h2oveg_dead - &
           csite_hydr%h2oveg_growturn_err - &
-          csite_hydr%h2oveg_hydro_err
+          csite_hydr%h2oveg_hydro_err-&
+          csite_hydr%trans_err
 
 
     ! Perform a conservation check if desired
