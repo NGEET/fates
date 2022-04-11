@@ -113,9 +113,9 @@ contains
        call crown_scorching(currentSite)
        call crown_damage(currentSite)
        ! Begin: Repeat calls to calculate effects of active crown fire
-       ! TODO slevis: if sum(currentCohort%active_crown_fire_flag) > 0
-       ! over all cohorts, then execute the repeat calls. Note that this
-       ! subroutine runs at the Site level.
+       ! TODO slevis: if (currentPatch%active_crown_fire_flg) > 0)
+       ! at any Patch at this Site, then execute the repeat calls.
+       ! NB. this subroutine runs at the Site level.
 !      call rate_of_spread(currentSite, MEF, fuel_moisture)
 !      call area_burnt_intensity(currentSite, bc_in)
 !      call crown_scorching(currentSite)
@@ -498,14 +498,12 @@ contains
 !      ! TODO Would it make sense to move this section of code to subr.
 !      ! characteristics_of_fuel?
 !      sum_fuel = currentPatch%sum_fuel  ! save for comparison later
-!      if (currentPatch%fire == 1) then
+!      if (currentPatch%fire == 1 .and. currentPatch%active_crown_fire_flg == 1) then
 !         currentCohort=>currentPatch%tallest
 !         do while(associated(currentCohort))
-!            if (currentCohort%active_crown_fire_flg == 1) then
-!               ! Add the leaf carbon from each cohort to currentPatch%sum_fuel
-!               leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
-!               currentPatch%sum_fuel = currentPatch%sum_fuel + leaf_c
-!            end if
+!            ! Add the leaf carbon from each cohort to currentPatch%sum_fuel
+!            leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+!            currentPatch%sum_fuel = currentPatch%sum_fuel + leaf_c
 !            currentCohort => currentCohort%shorter;
 !         enddo !end cohort loop
 
