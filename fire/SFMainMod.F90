@@ -1054,7 +1054,7 @@ contains
                 struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
 
                 tree_sapw_struct_c =  currentCohort%n * &
-                        (EDPftvarcon_inst%allom_agb_frac(currentCohort%pft)*(sapw_c + struct_c))
+                        (prt_params%allom_agb_frac(currentCohort%pft)*(sapw_c + struct_c))
 
                 twig_sapw_struct_c =  tree_sapw_struct_c * SF_VAL_CWD_frac(1)   !only 1hr fuel
 
