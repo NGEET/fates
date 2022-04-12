@@ -142,7 +142,7 @@ contains
                    bc_out(s)%fabd_parb(ifp,:) = 0.0_r8
                    bc_out(s)%fabi_parb(ifp,:) = 0.0_r8
                    currentPatch%radiation_error = 0.0_r8
-                   
+
                    do ib = 1,hlm_numSWb
                       bc_out(s)%albd_parb(ifp,ib) = bc_in(s)%albgr_dir_rb(ib)
                       bc_out(s)%albi_parb(ifp,ib) = bc_in(s)%albgr_dif_rb(ib)
@@ -320,16 +320,18 @@ contains
           do  iv = 1, currentPatch%nrad(L,ft)
              if (currentPatch%canopy_area_profile(L,ft,iv) > 0._r8)then
                 currentPatch%canopy_mask(L,ft) = 1
-                ! layer level reflectance qualities
-                do ib = 1,hlm_numSWb !vis, nir
-                   if(currentPatch%elai_profile(L,ft,iv)+ currentPatch%esai_profile(L,ft,iv).gt.0.0_r8) then
-                      frac_lai = currentPatch%elai_profile(L,ft,iv)/&
-                           (currentPatch%elai_profile(L,ft,iv)+ currentPatch%esai_profile(L,ft,iv))
-                   else
-                      frac_lai = 1.0_r8
-                   endif
-                   !frac_lai = 1.0_r8 ! make the same as previous codebase, in theory.
-                   frac_sai = 1.0_r8 - frac_lai
+
+               if(currentPatch%elai_profile(L,ft,iv)+ currentPatch%esai_profile(L,ft,iv).gt.0.0_r8) then
+                  frac_lai = currentPatch%elai_profile(L,ft,iv)/&
+                       (currentPatch%elai_profile(L,ft,iv)+ currentPatch%esai_profile(L,ft,iv))
+               else
+                  frac_lai = 1.0_r8
+               endif
+               !frac_lai = 1.0_r8 ! make the same as previous codebase, in theory.
+               frac_sai = 1.0_r8 - frac_lai
+
+               ! layer level reflectance qualities
+               do ib = 1,hlm_numSWb !vis, nir
 
                    rho_layer(L,ft,iv,ib)=frac_lai*rhol(ft,ib)+frac_sai*rhos(ft,ib)
                    tau_layer(L,ft,iv,ib)=frac_lai*taul(ft,ib)+frac_sai*taus(ft,ib)
@@ -340,7 +342,7 @@ contains
                    tau_layer(L,ft,iv,ib)=tau_layer(L,ft,iv,ib)*(1.0_r8- currentPatch%fcansno) &
                         + tau_snow(ib) * currentPatch%fcansno
 
-                   ! fraction of incoming light absorbed by leaves or stems. 
+                   ! fraction of incoming light absorbed by leaves or stems.
                    f_abs(L,ft,iv,ib) = 1.0_r8 - tau_layer(L,ft,iv,ib) - rho_layer(L,ft,iv,ib)
 
                    ! the fraction of the vegetation absorbed light which is absorbed by leaves
@@ -594,10 +596,10 @@ contains
              endif ! currentPatch%canopy_mask
           end do!ft
        end do!L
-       
+
        ! Zero out the radiation error for the current patch before conducting the conservation check
        currentPatch%radiation_error = 0.0_r8
-       
+
        do ib = 1,hlm_numSWb
           Dif_dn(:,:,:) = 0.00_r8
           Dif_up(:,:,:) = 0.00_r8
@@ -1011,7 +1013,7 @@ contains
 
           ! ignore the current patch radiation error if the veg-covered fraction of the patch is really small
           if ( (currentPatch%total_canopy_area / currentPatch%area) .gt. tolerance ) then
-             ! normalize rad error by the veg-covered fraction of the patch because that is 
+             ! normalize rad error by the veg-covered fraction of the patch because that is
              ! the only part that this code applies to
              currentPatch%radiation_error = currentPatch%radiation_error + error &
                   * currentPatch%total_canopy_area / currentPatch%area
@@ -1242,11 +1244,11 @@ subroutine ED_SunShadeFracs(nsites, sites,bc_in,bc_out)
                  end do !iv
               end do !FT
            end do !CL
-           
-           ! Convert normalized radiation error units from fraction of radiation to W/m2 
+
+           ! Convert normalized radiation error units from fraction of radiation to W/m2
            cpatch%radiation_error = cpatch%radiation_error * (bc_in(s)%solad_parb(ifp,ipar) + &
                 bc_in(s)%solai_parb(ifp,ipar))
-                
+
            ! output the actual PAR profiles through the canopy for diagnostic purposes
            do CL = 1, cpatch%NCL_p
               do FT = 1,numpft

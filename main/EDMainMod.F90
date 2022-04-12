@@ -79,7 +79,6 @@ module EDMainMod
   use FatesPlantHydraulicsMod  , only : UpdateSizeDepRhizHydProps
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
   use FatesAllometryMod        , only : h_allom,tree_sai,tree_lai
-  use FatesPlantHydraulicsMod  , only : UpdateSizeDepRhizHydStates
   use EDLoggingMortalityMod    , only : IsItLoggingTime
   use EDPatchDynamicsMod       , only : get_frac_site_primary
   use FatesGlobals             , only : endrun => fates_endrun
@@ -260,15 +259,10 @@ contains
     ! Patch dynamics sub-routines: fusion, new patch creation (spwaning), termination.
     !*********************************************************************************
 
+    ! turn off patch dynamics if SP or ST3 modes in use
     do_patch_dynamics = itrue
     if(hlm_use_ed_st3.eq.itrue .or. &
-       hlm_use_nocomp.eq.itrue .or. &
        hlm_use_sp.eq.itrue)then
-      ! n.b. this is currently set to false to get around a memory leak that occurs
-      ! when we have multiple patches for each PFT.
-      ! when this is fixed, we will need another option for 'one patch per PFT' vs 'multiple patches per PFT'
-      ! hlm_use_sp check provides cover for potential changes in nocomp logic (nocomp required by spmode, but
-      ! not the other way around).
        do_patch_dynamics = ifalse
     end if
 
@@ -287,7 +281,7 @@ contains
        ! density --> node radii and volumes)
        if( (hlm_use_planthydro.eq.itrue) .and. do_growthrecruiteffects) then
           call UpdateSizeDepRhizHydProps(currentSite, bc_in)
-          call UpdateSizeDepRhizHydStates(currentSite, bc_in)
+          !! call UpdateSizeDepRhizHydStates(currentSite, bc_in) ! keeping if re-implemented (RGK 12-2021)
        end if
 
        ! SP has changes in leaf carbon but we don't expect them to be in balance.
