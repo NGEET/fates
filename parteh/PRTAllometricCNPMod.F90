@@ -446,6 +446,19 @@ contains
     target_c(repro_organ) = 0._r8
     target_dcdd(repro_organ) = 0._r8
 
+    ! ===================================================================================
+    ! Step 1: Evaluate nutrient storage in the plant. Depending on how low
+    ! these stores are, we will move proportionally more or less of the daily carbon
+    ! gain to increase the target fine-root biomass, fill up to target
+    ! and then attempt to get them up to stoichiometry targets.
+    ! ===================================================================================
+
+    ! This routine updates the l2fr (leaf 2 fine-root multiplier) variable
+    call this%CNPAdjustFRootTargets(target_c)
+
+    
+
+    
     c_gain0      = c_gain
     n_gain0      = n_gain
     p_gain0      = p_gain
@@ -464,15 +477,7 @@ contains
        state_p0(i_org)  =  this%variables(i_var)%val(1)
     end do
     
-    ! ===================================================================================
-    ! Step 1: Evaluate nutrient storage in the plant. Depending on how low
-    ! these stores are, we will move proportionally more or less of the daily carbon
-    ! gain to increase the target fine-root biomass, fill up to target
-    ! and then attempt to get them up to stoichiometry targets.
-    ! ===================================================================================
-
-    ! This routine updates the l2fr (leaf 2 fine-root multiplier) variable
-    call this%CNPAdjustFRootTargets(target_c)
+    
     
     ! Output only boundary conditions
     c_efflux    => this%bc_out(acnp_bc_out_id_cefflux)%rval;  c_efflux = 0._r8
@@ -742,7 +747,11 @@ contains
       ! generate mass check errors in the main CNPAllocation routine, this is because the "val" is
       ! changing but the net_allocated is not reciprocating, which is expected. 
 
-      fnrt_c_above_target = max(0._r8,this%GetState(fnrt_organ, carbon12_element) - target_c(fnrt_organ))
+      ! Don't remove roots that will be gone due to natural turnover
+      
+      store_c = this%GetState(fnrt_organ, carbon12_element)*(1._r8-(years_per_day / prt_params%root_long(ipft)))
+      
+      fnrt_c_above_target = max(0._r8,store_c - target_c(fnrt_organ))
 
       loss_flux_c = 0._r8
       
