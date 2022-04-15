@@ -157,10 +157,6 @@ module EDPftvarcon
                                                   ! biochemical production, fraction based how much
                                                   ! more in need a plant is for P versus N [/]
 
-     ! Maintenance respiration surcharge for obligate fixation  [fraction of existing respiration]
-     real(r8), allocatable :: nfix_mresp_scfrac(:)
-
-
 
      ! Turnover related things
 
@@ -925,10 +921,9 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%prescribed_puptake)
 
-    ! TEMPORARILY USING DEV_ARIBITRARY_PFT FOR FIXATION PARAMETER
     name = 'fates_dev_arbitrary_pft'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%nfix_mresp_scfrac)
+         data=this%dev_arbitrary_pft)
 
     name = 'fates_eca_decompmicc'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -1033,8 +1028,6 @@ contains
     name = 'fates_tausnir'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
-
-
 
   end subroutine Register_PFT_numrad
 
@@ -1511,17 +1504,6 @@ contains
            write(fates_log(),*) 'FATES PARTEH with allometric flexible CNP must have'
            write(fates_log(),*) 'a valid BGC model enabled: RD,ECA,MIC or SYN'
            write(fates_log(),*) 'nu_comp: ',trim(hlm_nu_com)
-           write(fates_log(),*) 'Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-        end if
-
-        ! Make sure that the N fixation respiration surcharge fraction is
-        ! between 0 and 1
-        
-        if(any(EDpftvarcon_inst%nfix_mresp_scfrac(:)<0._r8) .or. any(EDpftvarcon_inst%nfix_mresp_scfrac(:)>1.0_r8)) then
-           write(fates_log(),*) 'The N fixation surcharge nfix_mresp_sfrac must be between 0-1.'
-           write(fates_log(),*) 'This parameter is temporarily using the parameter file field: dev_arbitrary_pft'
-           write(fates_log(),*) 'here are the values: ',EDpftvarcon_inst%nfix_mresp_scfrac(:)
            write(fates_log(),*) 'Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if

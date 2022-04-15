@@ -100,7 +100,7 @@ module EDCohortDynamicsMod
   use PRTAllometricCNPMod,    only : acnp_bc_inout_id_netdn, acnp_bc_inout_id_netdp
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_cefflux, acnp_bc_out_id_nefflux
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_pefflux
-  use PRTAllometricCNPMod,    only : fnrt_adapt_tscl
+
   use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)  
 
 
@@ -248,7 +248,7 @@ contains
     ! enabled case, because cohorts are also initialized with
     ! full stores, which match with minimum fr biomass
 
-    new_cohort%l2fr = prt_params%allom_l2fr_min(pft)
+    new_cohort%l2fr = prt_params%allom_l2fr(pft)
 
     
     ! This sets things like vcmax25top, that depend on the
@@ -324,9 +324,6 @@ contains
     !! allocate(new_cohort%tveg_lpa)
     !! call new_cohort%tveg_lpa%InitRMean(ema_lpa,init_value=patchptr%tveg_lpa%GetMean())
 
-    !!allocate(new_cohort%l2fr_ema)
-    !!call new_cohort%l2fr_ema%InitRMean(ema_60day,init_value=new_cohort%l2fr,init_offset=fnrt_adapt_tscl*sec_per_day)
-    
     call InitPRTBoundaryConditions(new_cohort)
     
     

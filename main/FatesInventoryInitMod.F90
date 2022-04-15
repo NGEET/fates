@@ -1031,7 +1031,7 @@ contains
 
          ! Calculate fine root biomass
 
-         temp_cohort%l2fr = prt_params%allom_l2fr_min(temp_cohort%pft)
+         temp_cohort%l2fr = prt_params%allom_l2fr(temp_cohort%pft)
          call bfineroot(temp_cohort%dbh,temp_cohort%pft,temp_cohort%canopy_trim,temp_cohort%l2fr,c_fnrt)
 
          ! Calculate sapwood biomass

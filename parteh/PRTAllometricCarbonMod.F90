@@ -391,7 +391,7 @@ contains
           store_c  => this%variables(store_c_id)%val(icd), &
           repro_c  => this%variables(repro_c_id)%val(icd), &
           struct_c => this%variables(struct_c_id)%val(icd), &
-          l2fr     => prt_params%allom_l2fr_min(ipft) )
+          l2fr     => prt_params%allom_l2fr(ipft) )
 
     ! -----------------------------------------------------------------------------------
     ! 0.
@@ -931,7 +931,7 @@ contains
 
         canopy_trim = intgr_params(ac_bc_in_id_ctrim)
         ipft        = int(intgr_params(ac_bc_in_id_pft))
-        l2fr        = prt_params%allom_l2fr_min(ipft)
+        l2fr        = prt_params%allom_l2fr(ipft)
 
         call bleaf(dbh,ipft,canopy_trim,ct_leaf,ct_dleafdd)
         call bfineroot(dbh,ipft,canopy_trim,l2fr,ct_fnrt,ct_dfnrtdd)

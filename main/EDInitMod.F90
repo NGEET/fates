@@ -745,7 +745,7 @@ contains
              endif
 
              temp_cohort%canopy_trim = 1.0_r8
-             temp_cohort%l2fr = prt_params%allom_l2fr_min(pft)
+             temp_cohort%l2fr = prt_params%allom_l2fr(pft)
              
              !  h,dbh,leafc,n from SP values or from small initial size.
 

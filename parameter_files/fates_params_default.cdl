@@ -44,6 +44,9 @@ variables:
 	char fates_prt_organ_name(fates_prt_organs, fates_string_length) ;
 		fates_prt_organ_name:units = "unitless - string" ;
 		fates_prt_organ_name:long_name = "Name of plant organs (order must match PRTGenericMod.F90)" ;
+	double fates_fnrt_adapt_tscale(fates_pft) ;
+	   fates_fnrt_adapt_tscale:units = "fraction" ;
+		fates_fnrt_adapt_tscale:long_name = "Number of days that is the shortest possible doubling period for CNP fine-root adaptation" ;
 	double fates_alloc_storage_cushion(fates_pft) ;
 		fates_alloc_storage_cushion:units = "fraction" ;
 		fates_alloc_storage_cushion:long_name = "maximum size of storage C pool, relative to maximum size of leaf C pool" ;
@@ -111,12 +114,9 @@ variables:
 		fates_allom_hmode:units = "index" ;
 		fates_allom_hmode:long_name = "height allometry function index." ;
 		fates_allom_hmode:possible_values = "1: OBrien 1995; 2: Poorter 2006; 3: 2 parameter power law; 4: Chave 2014; 5: Martinez-Cano 2019." ;
-	double fates_allom_l2fr_min(fates_pft) ;
-		fates_allom_l2fr_min:units = "gC/gC" ;
-		fates_allom_l2fr_min:long_name = "Allocation parameter: minimum fine root C per leaf C (definitive l2fr for Carbon-only)" ;
-	double fates_allom_l2fr_max(fates_pft) ;
-		fates_allom_l2fr_max:units = "gC/gC" ;
-		fates_allom_l2fr_max:long_name = "Allocation parameter: maximum fine root C per leaf C (NOT USED IN Carbon-only, only CNP)" ;	
+	double fates_allom_l2fr(fates_pft) ;
+		fates_allom_l2fr:units = "gC/gC" ;
+		fates_allom_l2fr:long_name = "Allocation parameter: static or initial fine root C per leaf C" ;
 	double fates_allom_la_per_sa_int(fates_pft) ;
 		fates_allom_la_per_sa_int:units = "m2/cm2" ;
 		fates_allom_la_per_sa_int:long_name = "Leaf area per sapwood area, intercept" ;
@@ -505,6 +505,9 @@ variables:
 	double fates_smpso(fates_pft) ;
 		fates_smpso:units = "mm" ;
 		fates_smpso:long_name = "Soil water potential at full stomatal opening" ;
+   double fates_store_ovrflw_frac(fates_pft) ;
+	   fates_store_ovrflw_frac:units = "fraction" ;
+	   fates_store_ovrflw_frac:long_name = "size of overflow storage (CNP only) as a fraction of storage target" ;
 	double fates_taulnir(fates_pft) ;
 		fates_taulnir:units = "fraction" ;
 		fates_taulnir:long_name = "Leaf transmittance: near-IR" ;
@@ -810,6 +813,9 @@ data:
   "sapwood                                          ",
   "structure                                        " ;
 
+  
+ fates_fnrt_adapt_tscale = 30.0,30.0,30.0,30.0,30.0,30.0,30.0,30.0, 30.0,30.0,30.0,30.0;
+
  fates_alloc_storage_cushion = 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2,
     1.2, 1.2, 1.2 ;
 
@@ -868,9 +874,7 @@ data:
 
  fates_allom_hmode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
- fates_allom_l2fr_min = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
-
- fates_allom_l2fr_max = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
+ fates_allom_l2fr = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
  fates_allom_la_per_sa_int = 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8,
     0.8, 0.8, 0.8 ;
@@ -1290,6 +1294,8 @@ data:
 
  fates_smpso = -66000, -66000, -66000, -66000, -66000, -66000, -66000,
     -66000, -66000, -66000, -66000, -66000 ;
+
+ fates_store_ovrflw_frac = 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ;
 
  fates_taulnir = 0.25, 0.1, 0.1, 0.25, 0.25, 0.25, 0.1, 0.25, 0.25, 0.34,
     0.34, 0.34 ;

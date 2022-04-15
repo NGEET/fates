@@ -231,11 +231,19 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_allom_l2fr_min'
+    name = 'fates_allom_l2fr'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_allom_l2fr_max'
+    name = 'fates_fnrt_adapt_tscale'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_store_ovrflw_frac'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_nfix1'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
@@ -527,14 +535,22 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=prt_params%allom_la_per_sa_slp)
 
-    name = 'fates_allom_l2fr_min'
+    name = 'fates_allom_l2fr'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=prt_params%allom_l2fr_min)
+         data=prt_params%allom_l2fr)
 
-    name = 'fates_allom_l2fr_max'
+    name = 'fates_fnrt_adapt_tscale'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=prt_params%allom_l2fr_max)
-
+         data=prt_params%fnrt_adapt_tscale)
+    
+    name = 'fates_store_ovrflw_frac'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=prt_params%store_ovrflw_frac)
+    
+    name = 'fates_nfix1'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=prt_params%nfix_mresp_scfrac)
+    
     name = 'fates_allom_agb_frac'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=prt_params%allom_agb_frac)
@@ -626,7 +642,7 @@ contains
     name = 'fates_phos_store_ratio'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=prt_params%phos_store_ratio)
-    
+
     
   end subroutine PRTReceivePFT
 
@@ -891,8 +907,9 @@ contains
         write(fates_log(),fmt0) 'allom_smode = ',prt_params%allom_smode
         write(fates_log(),fmt0) 'allom_la_per_sa_int = ',prt_params%allom_la_per_sa_int
         write(fates_log(),fmt0) 'allom_la_per_sa_slp = ',prt_params%allom_la_per_sa_slp
-        write(fates_log(),fmt0) 'allom_l2fr_min = ',prt_params%allom_l2fr_min
-        write(fates_log(),fmt0) 'allom_l2fr_max = ',prt_params%allom_l2fr_max
+        write(fates_log(),fmt0) 'allom_l2fr = ',prt_params%allom_l2fr
+        write(fates_log(),fmt0) 'fnrt_adapt_tscale = ',prt_params%fnrt_adapt_tscale
+        write(fates_log(),fmt0) 'store_ovrflw_frac = ',prt_params%store_ovrflw_frac
         write(fates_log(),fmt0) 'allom_agb_frac = ',prt_params%allom_agb_frac
         write(fates_log(),fmt0) 'allom_d2h1 = ',prt_params%allom_d2h1
         write(fates_log(),fmt0) 'allom_d2h2 = ',prt_params%allom_d2h2
@@ -1046,6 +1063,18 @@ contains
            
         end do
      end if
+
+     ! Make sure that the N fixation respiration surcharge fraction is
+     ! between 0 and 1
+     if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
+        if(any(prt_params%nfix_mresp_scfrac(:)<0._r8) .or. any(prt_params%nfix_mresp_scfrac(:)>1.0_r8)) then
+           write(fates_log(),*) 'The N fixation surcharge nfix_mresp_sfrac (fates_nfix1) must be between 0-1.'
+           write(fates_log(),*) 'here are the values: ',prt_params%nfix_mresp_scfrac(:)
+           write(fates_log(),*) 'Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+     end if
+
      
      pftloop: do ipft = 1,npft
 
@@ -1470,7 +1499,7 @@ contains
 
      call h2d_allom(EDPftvarcon_inst%hgt_min(ft),ft,dbh)
      call bleaf(dbh,ft,init_recruit_trim,c_leaf)
-     call bfineroot(dbh,ft,init_recruit_trim,prt_params%allom_l2fr_min(ft),c_fnrt)
+     call bfineroot(dbh,ft,init_recruit_trim,prt_params%allom_l2fr(ft),c_fnrt)
      call bsap_allom(dbh,ft,init_recruit_trim,a_sapw, c_sapw)
      call bagw_allom(dbh,ft,c_agw)
      call bbgw_allom(dbh,ft,c_bgw)

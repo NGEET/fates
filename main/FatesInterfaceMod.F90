@@ -84,7 +84,6 @@ module FatesInterfaceMod
    use FatesRunningMeanMod       , only : moving_ema_window
    use FatesRunningMeanMod       , only : fixed_window
    use FatesHistoryInterfaceMod  , only : fates_hist
-   use PRTAllometricCNPMod       , only : fnrt_adapt_tscl
    
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -927,9 +926,9 @@ contains
       allocate(ema_lpa)
       call ema_lpa%define(photo_temp_acclim_timescale*sec_per_day, &
            hlm_stepsize,moving_ema_window)
-      allocate(ema_60day)
-      call ema_60day%define(fnrt_adapt_tscl*sec_per_day,sec_per_day,moving_ema_window)
 
+      !allocate(ema_60day)
+      !call ema_60day%define(prt_params%fnrt_adapt_tscl*sec_per_day,sec_per_day,moving_ema_window)
       !class(rmean_arr_type), pointer :: ema_fnrt_tscale(:)
       !rmean_arr_type
       

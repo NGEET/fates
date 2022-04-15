@@ -1866,7 +1866,7 @@ contains
           temp_cohort%pft         = ft
           temp_cohort%hite        = EDPftvarcon_inst%hgt_min(ft)
           temp_cohort%coage       = 0.0_r8
-          temp_cohort%l2fr        = prt_params%allom_l2fr_min(ft)
+          temp_cohort%l2fr        = prt_params%allom_l2fr(ft)
           stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(ft)
 
           call h2d_allom(temp_cohort%hite,ft,temp_cohort%dbh)

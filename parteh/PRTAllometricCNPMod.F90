@@ -61,6 +61,7 @@ module PRTAllometricCNPMod
   use EDTypesMod        , only : n_uptake_mode
   use FatesConstantsMod , only : prescribed_p_uptake
   use FatesConstantsMod , only : prescribed_n_uptake
+  use EDPftvarcon, only : EDPftvarcon_inst
   
   implicit none
   private
@@ -104,8 +105,6 @@ module PRTAllometricCNPMod
                                                   ! minimum needed for growth
   integer,public, parameter :: stoich_max = 2            ! Flag for stoichiometry associated with 
                                                   ! maximum for that organ
-  integer,public, parameter :: stoich_center=3    
-  
   
   ! This is the ordered list of organs used in this module
   ! -------------------------------------------------------------------------------------
@@ -187,9 +186,6 @@ module PRTAllometricCNPMod
   ! -------------------------------------------------------------------------------------
   integer, parameter :: icd = 1
 
-
-  real(r8), parameter :: store_overflow_frac = 1.0_r8  ! The fraction above target allowed in storage
-
   integer, parameter :: exude_c_store_overflow = 1
   integer, parameter :: retain_c_store_overflow = 2
   integer, parameter :: burn_c_store_overflow = 3
@@ -206,11 +202,6 @@ module PRTAllometricCNPMod
   integer, parameter :: regulate_logi   = 2    ! DEPRECATED
   integer, parameter :: regulate_CN_logi = 3   ! almost deprecated
   integer, parameter :: regulate_CN_dfdd = 4
-
-
-  real(r8), public, parameter :: fnrt_adapt_tscl = 100._r8   ! Fine-root adaptation timescale (days)
-                                                             ! or, how many days it takes
-                                                             ! for a doubling or halving of the l2fr
 
 
   ! -------------------------------------------------------------------------------------
@@ -398,11 +389,19 @@ contains
 
     
     ! In/out boundary conditions
-    resp_excess  => this%bc_inout(acnp_bc_inout_id_resp_excess)%rval; resp_excess0 = resp_excess
+    resp_excess  => this%bc_inout(acnp_bc_inout_id_resp_excess)%rval; 
     dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval;        dbh0        = dbh
     l2fr        => this%bc_inout(acnp_bc_inout_id_l2fr)%rval
     n_gain      => this%bc_inout(acnp_bc_inout_id_netdn)%rval; 
     p_gain      => this%bc_inout(acnp_bc_inout_id_netdp)%rval;
+
+
+    ! Assume that there is no other source of excess respiration
+    ! so it is safe to zero it. In the third stage we will
+    ! decide if this should be updated
+    resp_excess  = 0._r8
+    resp_excess0 = resp_excess
+
     
     ! integrator variables
 
@@ -688,8 +687,7 @@ contains
     dbh          => this%bc_inout(acnp_bc_inout_id_dbh)%rval
     canopy_trim  = this%bc_in(acnp_bc_in_id_ctrim)%rval
     
-    associate( l2fr_min => prt_params%allom_l2fr_min(ipft), &
-         l2fr_max => prt_params%allom_l2fr_max(ipft))
+    associate( l2fr_min => prt_params%allom_l2fr(ipft) )
 
       if(n_uptake_mode.eq.prescribed_n_uptake)then
          n_regulator = 1._r8
@@ -721,7 +719,7 @@ contains
 
       if(regulate_type == regulate_CN_logi)then
 
-        l2fr = l2fr_min + max(0._r8,min(1.0_r8,np_regulator))*(l2fr_max-l2fr_min)
+        l2fr = l2fr_min + max(0._r8,min(1.0_r8,np_regulator))*(10._r8*l2fr_min-l2fr_min)
 
       elseif(regulate_type == regulate_CN_dfdd) then
 
@@ -1677,17 +1675,18 @@ contains
 
           ! Update carbon based allometric targets
           call bstore_allom(dbh,ipft,canopy_trim, store_c_target)
-          
-          ! Allow some overflow
-          store_c_target = store_c_target * (1.0_r8 + store_overflow_frac)
 
-          total_c_flux = min(c_gain,max(0.0, (store_c_target - this%variables(store_c_id)%val(1))))
-          ! Transfer excess carbon into storage overflow
+
+          ! Allow some overflow
+          store_c_target = store_c_target * (1._r8 + prt_params%store_ovrflw_frac(ipft))
+
+          total_c_flux = min(c_gain,max(0.0_r8, ( store_c_target - this%variables(store_c_id)%val(1)   )))
+          ! Transfer excess carbon INTO storage overflow
           this%variables(store_c_id)%val(1) = this%variables(store_c_id)%val(1) + total_c_flux
           c_gain              = c_gain - total_c_flux
           
-          resp_excess = c_gain
-          c_gain     = 0._r8
+          resp_excess = resp_excess + c_gain
+          c_gain      = 0._r8
           
        elseif(store_c_overflow == exude_c_store_overflow)then
                  
@@ -1695,7 +1694,7 @@ contains
           call bstore_allom(dbh,ipft,canopy_trim, store_c_target)
           
           ! Estimate the overflow
-          store_c_target = store_c_target * (1.0_r8 + store_overflow_frac)
+          store_c_target = store_c_target * (1._r8 + prt_params%store_ovrflw_frac(ipft))
           
           total_c_flux = min(c_gain,max(0.0, (store_c_target - this%variables(store_c_id)%val(1))))
           ! Transfer excess carbon into storage overflow
@@ -1826,31 +1825,25 @@ contains
        if( element_id == nitrogen_element) then
           
           target_m = StorageNutrientTarget(ipft, element_id, &
-               leaf_c_target*prt_params%nitr_stoich_p2(ipft,prt_params%organ_param_id(leaf_organ)), &
-               fnrt_c_target*prt_params%nitr_stoich_p2(ipft,prt_params%organ_param_id(fnrt_organ)), &
-               sapw_c_target*prt_params%nitr_stoich_p2(ipft,prt_params%organ_param_id(sapw_organ)), & 
-               struct_c_target*prt_params%nitr_stoich_p2(ipft,prt_params%organ_param_id(struct_organ)))
+               leaf_c_target*prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(leaf_organ)), &
+               fnrt_c_target*prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(fnrt_organ)), &
+               sapw_c_target*prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(sapw_organ)), & 
+               struct_c_target*prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(struct_organ)))
        else
           
           target_m = StorageNutrientTarget(ipft, element_id, &
-               leaf_c_target*prt_params%phos_stoich_p2(ipft,prt_params%organ_param_id(leaf_organ)), &
-               fnrt_c_target*prt_params%phos_stoich_p2(ipft,prt_params%organ_param_id(fnrt_organ)), &
-               sapw_c_target*prt_params%phos_stoich_p2(ipft,prt_params%organ_param_id(sapw_organ)), & 
-               struct_c_target*prt_params%phos_stoich_p2(ipft,prt_params%organ_param_id(struct_organ)))
+               leaf_c_target*prt_params%phos_stoich_p1(ipft,prt_params%organ_param_id(leaf_organ)), &
+               fnrt_c_target*prt_params%phos_stoich_p1(ipft,prt_params%organ_param_id(fnrt_organ)), &
+               sapw_c_target*prt_params%phos_stoich_p1(ipft,prt_params%organ_param_id(sapw_organ)), & 
+               struct_c_target*prt_params%phos_stoich_p1(ipft,prt_params%organ_param_id(struct_organ)))
           
        end if
 
        ! This is only called during phase 3, remainder and allows
        ! us to have some overflow to avoid exudation/efflux if possible
        if( stoich_mode == stoich_max ) then
-          target_m = target_m*(1._r8 + store_overflow_frac)
+          target_m = target_m*(1._r8 + prt_params%store_ovrflw_frac(ipft))
        end if
-       !if( stoich_mode == stoich_growth_min ) then
-       !   target_m = 0.1_r8*target_m
-       !end if
-       !if( stoich_mode == stoich_center ) then
-          ! do nothing, target_m is unchanged
-       !end if
        
     elseif(organ_id == repro_organ) then
 
@@ -2255,7 +2248,7 @@ contains
      real(r8) :: c_gain
      real(r8) :: c_fnrt_expand ! predicted carbon available to expand fine-roots
                                ! after replacement of turnover
-     
+
      ! This fraction governs
      ! how much carbon from daily gains + storage overflow, is allowed to
      ! be spent on growing out roots. This inludes getting roots
@@ -2276,10 +2269,13 @@ contains
                ipft        => this%bc_in(acnp_bc_in_id_pft)%ival, & 
                l2fr        => this%bc_inout(acnp_bc_inout_id_l2fr)%rval)
 
-       logi_k   = 2._r8
+
+       logi_k   = EDPftvarcon_inst%dev_arbitrary_pft(ipft)  !2._r8
        store_x0 = 0.0_r8
        logi_min = 0.0_r8
 
+       ! TEMPORARY OVERRIDE
+       
        if(regulate_type == regulate_CN_logi) then
           
           store_c = this%GetState(store_organ, carbon12_element)
@@ -2296,7 +2292,7 @@ contains
        elseif(regulate_type == regulate_CN_dfdd) then
 
           
-          store_max = this%GetNutrientTarget(element_id,store_organ,stoich_center) !*(1._r8 + 0.5*store_overflow_frac)
+          store_max = this%GetNutrientTarget(element_id,store_organ,stoich_growth_min) 
 
           ! Storage fractions could be more than the target, depending on the
           ! hypothesis and functions involved, but should typically be 0-1
@@ -2308,7 +2304,7 @@ contains
           ! these stores can actually get pretty large, so the cap of 10x is numerically
           ! feasable, and should also minimize stress on the logistic function
 
-          store_c_max = target_c(store_organ) !*(1._r8 + 0.5*store_overflow_frac)
+          store_c_max = target_c(store_organ)
           
           store_c_frac = max(0.01_r8,min(5.0_r8,this%GetState(store_organ, carbon12_element)/store_c_max ))
 
@@ -2382,8 +2378,8 @@ contains
 
           ! Determine the max change for the doubling timescale
           ! 2.0 = l2fr_delta_max^frnt_adapt_tscl
-          l2fr_delta_scale = 2._r8**(1._r8/fnrt_adapt_tscl)-1.0_r8
-          
+          l2fr_delta_scale = 2._r8**(1._r8/prt_params%fnrt_adapt_tscale(ipft))-1.0_r8
+
           nc_frac = nc_frac_offset * store_frac / store_c_frac
           
           c_scalar = l2fr_delta_scale*(2.0_r8/(1.0_r8 + nc_frac**logi_k)-1.0_r8)+1.0_r8

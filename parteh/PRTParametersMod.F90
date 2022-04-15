@@ -94,9 +94,9 @@ module PRTParametersMod
      ! Root profile parameters. Note we have separate parameters for those that govern
      ! hydraulics, and those that govern biomass (for decomposition and respiration)
 
-     real(r8), allocatable :: fnrt_prof_mode(:)           ! Fine root profile functional form
-     real(r8), allocatable :: fnrt_prof_a(:)              ! Fine root profile scaling parameter A
-     real(r8), allocatable :: fnrt_prof_b(:)              ! Fine root profile scaling parameter B
+     real(r8), allocatable :: fnrt_prof_mode(:)             ! Fine root profile functional form
+     real(r8), allocatable :: fnrt_prof_a(:)                ! Fine root profile scaling parameter A
+     real(r8), allocatable :: fnrt_prof_b(:)                ! Fine root profile scaling parameter B
 
      real(r8), allocatable :: c2b(:)                        ! Carbon to biomass multiplier [kg/kgC]
      real(r8), allocatable :: wood_density(:)               ! wood density  g cm^-3  ...
@@ -119,10 +119,9 @@ module PRTParametersMod
                                                             ! (sapwood area / leaf area) [cm2/m2]
      real(r8), allocatable :: allom_la_per_sa_slp(:)        ! Leaf area to sap area conversion, slope 
                                                             ! (sapwood area / leaf area / diameter) [cm2/m2/cm]
-     real(r8), allocatable :: allom_l2fr_min(:)             ! Minimum fine root biomass per leaf biomass ratio [kgC/kgC]
-                                                            ! FOR C-ONLY, THIS IS THE ONLY AND STATIC L2FR
-     real(r8), allocatable :: allom_l2fr_max(:)             ! Maximum fine root biomass per leaf biomass ratio [kgC/kgC]
-                                                            ! for nutrient enabled runs
+     real(r8), allocatable :: allom_l2fr(:)                 ! Fine root biomass per leaf biomass ratio [kgC/kgC]
+                                                            ! FOR C-ONLY: this is the static, unchanging ratio
+                                                            ! FOR CNP: this is the initial value a cohort starts with
      real(r8), allocatable :: allom_agb_frac(:)             ! Fraction of stem above ground [-]
      real(r8), allocatable :: allom_d2h1(:)                 ! Parameter 1 for d2h allometry (intercept, or "c")
      real(r8), allocatable :: allom_d2h2(:)                 ! Parameter 2 for d2h allometry (slope, or "m")
@@ -147,6 +146,20 @@ module PRTParametersMod
      real(r8), allocatable :: allom_zroot_min_z(:)          ! the maximum rooting depth defined at dbh = fates_allom_zroot_min_dbh [m]
      real(r8), allocatable :: allom_zroot_k(:)              ! scale coefficient of logistic rooting depth model
      
+
+     real(r8), allocatable :: fnrt_adapt_tscale(:)          ! The time-scale over which you could see a doubling (or halving)
+                                                            ! of fineroot biomass in response to a nutrient/carbon storage disparity
+                                                            ! assuming no constraints on turnover or carbon availability (days)
+
+     real(r8), allocatable :: store_ovrflw_frac(:)          ! For a coupled nutrient enabled simulation with dynamic fine-root biomass,
+                                                            ! there will be an excess of at least two of the three species C, N or P.
+                                                            ! This specifies how much excess (overflow) is allowed to be retained in storage
+                                                            ! beyond the target level before it is either burned (C) or exuded (N or P). The
+                                                            ! maximum value is the target * (1+store_ovrflw_frac)
+     
+
+     real(r8), allocatable :: nfix_mresp_scfrac(:)            ! Surcharge (as a fraction) to add to maintentance respiration
+                                                            ! that is used to pay for N-Fixation
      
   end type prt_param_type
 

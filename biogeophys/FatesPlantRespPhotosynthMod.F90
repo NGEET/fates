@@ -718,7 +718,7 @@ contains
                          
                          fnrt_mr_layer = fnrt_n * ED_val_base_mr_20 * tcsoi * rootfr_ft(ft,j) * maintresp_reduction_factor
 
-                         currentCohort%froot_mr = currentCohort%froot_mr + fnrt_mr_layer * (1._r8 + EDPftvarcon_inst%nfix_mresp_scfrac(ft))
+                         currentCohort%froot_mr = currentCohort%froot_mr + fnrt_mr_layer * (1._r8 + prt_params%nfix_mresp_scfrac(ft))
 
                          ! calculate the cost of carbon for N fixation in each soil layer and calculate N fixation rate based on that [kgC / kgN]
 
@@ -726,7 +726,7 @@ contains
                               * (1._r8 - 0.5_r8 * (bc_in(s)%t_soisno_sl(j)-tfrz) / c_fix)) - 2._r8)
 
                          ! Time integrated amount of carbon spent on fixation (in this layer) [kgC/plant/layer/tstep]
-                         c_spent_nfix = fnrt_mr_layer  * dtime * EDPftvarcon_inst%nfix_mresp_scfrac(ft)
+                         c_spent_nfix = fnrt_mr_layer  * dtime * prt_params%nfix_mresp_scfrac(ft)
                          
                          currentCohort%daily_n_fixation = currentCohort%daily_n_fixation + c_spent_nfix / c_cost_nfix
 
