@@ -162,6 +162,8 @@ module FatesHistoryInterfaceMod
 
   integer :: ih_storec_si
   integer :: ih_storectfrac_si
+  integer :: ih_storectfrac_canopy_scpf
+  integer :: ih_storectfrac_ustory_scpf
   integer :: ih_leafc_si
   integer :: ih_sapwc_si
   integer :: ih_fnrtc_si
@@ -1974,6 +1976,8 @@ end subroutine flush_hvars
     real(r8) :: storen_understory_scpf(numpft*nlevsclass)
     real(r8) :: storep_canopy_scpf(numpft*nlevsclass)
     real(r8) :: storep_understory_scpf(numpft*nlevsclass)
+    real(r8) :: storec_canopy_scpf(numpft*nlevsclass)
+    real(r8) :: storec_understory_scpf(numpft*nlevsclass)
     
     integer  :: return_code
     
@@ -2249,7 +2253,9 @@ end subroutine flush_hvars
       storen_understory_scpf(:) = 0._r8
       storep_canopy_scpf(:) = 0._r8
       storep_understory_scpf(:) = 0._r8
-    
+      storec_canopy_scpf(:) = 0._r8
+      storec_understory_scpf(:) = 0._r8
+      
       ! Total carbon model error [kgC/day -> kgC/s]
       hio_cbal_err_fates_si(io_si) = &
          sites(s)%mass_balance(element_pos(carbon12_element))%err_fates / sec_per_day
@@ -2593,6 +2599,21 @@ end subroutine flush_hvars
                      total_m * ccohort%n * AREA_INV
                   endif
 
+                  if (ccohort%canopy_layer .eq. 1) then
+                     storec_canopy_scpf(i_scpf) = &
+                          storec_canopy_scpf(i_scpf) + ccohort%n * store_m
+                     this%hvars(ih_storectfrac_canopy_scpf)%r82d(io_si,i_scpf) = & 
+                          this%hvars(ih_storectfrac_canopy_scpf)%r82d(io_si,i_scpf) + &
+                          ccohort%n * store_max
+                  else
+                     storec_understory_scpf(i_scpf) = &
+                          storec_understory_scpf(i_scpf) + ccohort%n * store_m
+                     this%hvars(ih_storectfrac_ustory_scpf)%r82d(io_si,i_scpf) = & 
+                          this%hvars(ih_storectfrac_ustory_scpf)%r82d(io_si,i_scpf) + &
+                          ccohort%n * store_max  
+                  end if
+
+                  
                elseif(element_list(el).eq.nitrogen_element)then
 
                   store_max = ccohort%prt%GetNutrientTarget(element_list(el),store_organ,stoich_growth_min)
@@ -3611,9 +3632,21 @@ end subroutine flush_hvars
                hio_l2fr_understory_scpf(io_si,i_scpf) = &
                     hio_l2fr_understory_scpf(io_si,i_scpf)/fnrtc_understory_scpf(i_scpf)
             end if
+
+            if( this%hvars(ih_storectfrac_canopy_scpf)%r82d(io_si,i_scpf)>nearzero ) then
+               this%hvars(ih_storectfrac_canopy_scpf)%r82d(io_si,i_scpf) = &
+                    storec_canopy_scpf(i_scpf) / &
+                    this%hvars(ih_storectfrac_canopy_scpf)%r82d(io_si,i_scpf)
+            end if
+            if( this%hvars(ih_storectfrac_ustory_scpf)%r82d(io_si,i_scpf)>nearzero ) then
+               this%hvars(ih_storectfrac_ustory_scpf)%r82d(io_si,i_scpf) = &
+                    storec_understory_scpf(i_scpf) / &
+                    this%hvars(ih_storectfrac_ustory_scpf)%r82d(io_si,i_scpf)
+            end if
+            
          end do
       end do
-                     
+
       do el = 1, num_elements
 
          if(element_list(el).eq.nitrogen_element)then
@@ -5096,6 +5129,19 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_storectfrac_si )
 
+    call this%set_history_var(vname='FATES_STOREC_TFRAC_USTORY_SZPF', units='kg kg-1',         &
+         long='Storage C fraction of target by size x pft, in the understory', use_default='inactive',          &
+         avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_storectfrac_ustory_scpf )
+
+
+    call this%set_history_var(vname='FATES_STOREC_TFRAC_CANOPY_SZPF', units='kg kg-1',         &
+         long='Storage C fraction of target by size x pft, in the canopy', use_default='inactive',          &
+         avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_storectfrac_canopy_scpf )
+    
+    
+    
     call this%set_history_var(vname='FATES_VEGC', units='kg m-2',              &
          long='total biomass in live plants in kg carbon per m2 land area',    &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
