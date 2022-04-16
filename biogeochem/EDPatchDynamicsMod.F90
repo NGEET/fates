@@ -538,6 +538,7 @@ contains
     
     logical  :: found_youngest_primary       ! logical for finding the first primary forest patch
     integer  :: min_nocomp_pft, max_nocomp_pft, i_nocomp_pft
+
     !---------------------------------------------------------------------
 
     real(r8), parameter          :: damage_error_fail = 1.0e-6_r8
@@ -1308,7 +1309,7 @@ contains
                                   ! update crown area here - for cohort fusion and canopy organisation below 
                                   call carea_allom(nc_d%dbh, nc_d%n, currentSite%spread,&
                                        nc_d%pft, nc_d%crowndamage, nc_d%c_area)
-
+  
                                   call get_crown_reduction(nc_d%crowndamage, mass_frac)
 
 
@@ -1385,10 +1386,15 @@ contains
                             end do ! end crowndamage loop
 
                             ! Reduce currentCohort%n now based on sum of all new damage classes  
+                            ! And update c_area of the undamaged cohort (since number density has changed)
                             if(hlm_use_canopy_damage .eq. itrue) then
                                currentCohort%n = currentCohort%n - cd_n_total
+                               call carea_allom(currentCohort%dbh, currentCohort%n, currentSite%spread,&
+                                    currentCohort%pft, currentCohort%crowndamage, currentCohort%c_area)
                             else if(hlm_use_understory_damage .eq. itrue) then
                                nc%n = nc%n - cd_n_total
+                               call carea_allom(nc%dbh, nc%n, currentSite%spread,&
+                                    nc%pft, nc%crowndamage, nc%c_area)
                             end if
 
                             
@@ -1397,7 +1403,7 @@ contains
                    end if ! end if damage time
                 end if ! end if damage is on 
                 
-                   
+                
                 ! Put new undamaged cohorts in the correct place in the linked list
                 if (nc%n > 0.0_r8) then   
                    storebigcohort   =>  new_patch%tallest
@@ -1462,8 +1468,6 @@ contains
 
 
        enddo ! currentPatch patch loop.
-
-           
        !*************************/
       !**  INSERT NEW PATCH(ES) INTO LINKED LIST    
       !*************************/

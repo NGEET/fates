@@ -866,7 +866,7 @@ contains
           currentCohort => currentPatch%tallest
           do while (associated(currentCohort))
              call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
-                  currentCohort%pft,currentCohort%c_area)
+                  currentCohort%pft,currentCohort%crowndamage,currentCohort%c_area)
              if(currentCohort%canopy_layer == i_lyr+1)then !look at the cohorts in the canopy layer below...
 
                 if (ED_val_comp_excln .ge. 0.0_r8 ) then
@@ -1412,6 +1412,8 @@ contains
           currentPatch => currentPatch%younger
        end do !patch loop
 
+
+    
        call leaf_area_profile(sites(s))
 
     end do ! site loop
@@ -1508,7 +1510,8 @@ contains
     real(r8) :: max_chite                ! top of cohort canopy      (m)
     real(r8) :: lai                      ! summed lai for checking m2 m-2
     real(r8) :: leaf_c                   ! leaf carbon [kg]
-
+    real(r8) :: target_c_area            ! for tree sai - need an undamaged version
+    
     !----------------------------------------------------------------------
 
     smooth_leaf_distribution = 0
@@ -1537,7 +1540,7 @@ contains
        currentPatch%layer_height_profile(:,:,:) = 0._r8
        currentPatch%canopy_area_profile(:,:,:)  = 0._r8
        currentPatch%canopy_mask(:,:)            = 0
-
+       
        ! ------------------------------------------------------------------------------
        ! It is remotely possible that in deserts we will not have any canopy
        ! area, ie not plants at all...
@@ -1545,13 +1548,13 @@ contains
 
        if (currentPatch%total_canopy_area > nearzero ) then
 
-
           currentCohort => currentPatch%tallest
           do while(associated(currentCohort))
 
              ft = currentCohort%pft
              cl = currentCohort%canopy_layer
 
+             
              ! Calculate LAI of layers above
              ! Note that the canopy_layer_lai is also calculated in this loop
              ! but since we go top down in terms of plant size, we should be okay
@@ -1562,17 +1565,21 @@ contains
                   currentCohort%n, currentCohort%canopy_layer,               &
                   currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )
 
+             call carea_allom(currentCohort%dbh, currentCohort%n, currentSite%spread, currentCohort%pft, &
+                  1, target_c_area)
+             
              if (hlm_use_sp .eq. ifalse) then
                 currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh,&
-                     currentSite%spread, currentCohort%canopy_trim, &
-                     currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
+                     currentCohort%canopy_trim, &
+                     target_c_area, currentCohort%n, currentCohort%canopy_layer, &
                      currentPatch%canopy_layer_tlai, currentCohort%treelai , &
                      currentCohort%vcmax25top,4)
              end if
-
+            
              currentCohort%lai =  currentCohort%treelai *currentCohort%c_area/currentPatch%total_canopy_area
+          
              currentCohort%sai =  currentCohort%treesai *currentCohort%c_area/currentPatch%total_canopy_area
-
+   
              ! Number of actual vegetation layers in this cohort's crown
              currentCohort%nv =  count((currentCohort%treelai+currentCohort%treesai) .gt. dlower_vai(:)) + 1
 
@@ -1582,10 +1589,12 @@ contains
 
              currentPatch%canopy_layer_tlai(cl) = currentPatch%canopy_layer_tlai(cl) + currentCohort%lai
 
+            
              currentCohort => currentCohort%shorter
 
           enddo !currentCohort
 
+          
           if(smooth_leaf_distribution == 1)then
 
              ! -----------------------------------------------------------------------------
@@ -1652,6 +1661,7 @@ contains
 
              enddo !currentCohort
 
+          
              ! -----------------------------------------------------------------------------
              ! Perform a leaf area conservation check on the LAI profile
              lai = 0.0_r8
@@ -1672,8 +1682,6 @@ contains
              ! Go through all cohorts and add their leaf area
              ! and canopy area to the accumulators.
              ! -----------------------------------------------------------------------------
-
-
              currentCohort => currentPatch%shortest
              do while(associated(currentCohort))
                 ft = currentCohort%pft
@@ -1776,7 +1784,7 @@ contains
                 currentCohort => currentCohort%taller
 
              enddo !cohort
-
+             
              ! --------------------------------------------------------------------------
 
              ! If there is an upper-story, the top canopy layer
@@ -1924,7 +1932,8 @@ contains
     real(r8) :: total_canopy_area
     real(r8) :: total_patch_leaf_stem_area
     real(r8) :: weight  ! Weighting for cohort variables in patch
-
+    real(r8) :: target_c_area
+    
     do s = 1,nsites
 
        ifp = 0
@@ -1990,9 +1999,12 @@ contains
                         currentCohort%pft, currentCohort%c_area, currentCohort%n, &
                         currentCohort%canopy_layer, currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )
 
+                   call carea_allom(currentCohort%dbh,currentCohort%n,sites(s)%spread,&
+                        currentCohort%pft,1, target_c_area)
+
                    currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, &
-                        site(s)%spread, currentCohort%canopy_trim, &
-                        currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
+                        currentCohort%canopy_trim, &
+                        target_c_area, currentCohort%n, currentCohort%canopy_layer, &
                         currentPatch%canopy_layer_tlai, currentCohort%treelai , &
                         currentCohort%vcmax25top,4)
                    endif

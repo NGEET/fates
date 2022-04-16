@@ -737,7 +737,7 @@ contains
 
   ! ============================================================================
 
-  real(r8) function tree_sai(pft, dbh, site_spread, canopy_trim, target_c_area, nplant, cl, &
+  real(r8) function tree_sai(pft, dbh, canopy_trim, c_area, nplant, cl, &
                               canopy_lai, treelai, vcmax25top, call_id )
 
     ! ============================================================================
@@ -745,10 +745,9 @@ contains
     ! ============================================================================
 
     integer, intent(in)  :: pft
-    real(r8), intent(inout) :: dbh
-    real(r8), intent(in) :: site_spread
-    real(r8), intent(inout) :: target_c_area
+    real(r8), intent(in) :: dbh
     real(r8), intent(in) :: canopy_trim        ! trimming function (0-1)
+    real(r8), intent(in) :: c_area             ! crown area (m2)
     real(r8), intent(in) :: nplant             ! number of plants
     integer, intent(in)  :: cl                 ! canopy layer index
     real(r8), intent(in) :: canopy_lai(nclmax) ! total leaf area index of 
@@ -763,10 +762,8 @@ contains
 
     ! target undamaged bleaf
     call bleaf(dbh, pft, 1, canopy_trim, target_bleaf)
-
-    call carea_allom(dbh, nplant, site_spread, pft, 1, target_c_area, inverse = .false.)
-    
-    target_lai = tree_lai(target_bleaf, pft, target_c_area, nplant, cl,&
+  
+    target_lai = tree_lai(target_bleaf, pft, c_area, nplant, cl,&
          canopy_lai, vcmax25top) 
 
     tree_sai   =  prt_params%allom_sai_scaler(pft) * target_lai
@@ -780,7 +777,7 @@ contains
        write(fates_log(),*) 'sai: ',tree_sai
        write(fates_log(),*) 'lai+sai: ',treelai+tree_sai
        write(fates_log(),*) 'target_bleaf: ', target_bleaf
-       write(fates_log(),*) 'target_c_area: ', target_c_area
+       write(fates_log(),*) 'area: ', c_area
        write(fates_log(),*) 'target_lai: ',target_lai
        write(fates_log(),*) 'dinc_vai:',dinc_vai
        write(fates_log(),*) 'nlevleaf,sum(dinc_vai):',nlevleaf,sum(dinc_vai)

@@ -285,7 +285,7 @@ contains
                                   patchptr%canopy_layer_tlai,new_cohort%vcmax25top )
 
     if(hlm_use_sp.eq.ifalse)then
-       new_cohort%treesai = tree_sai(new_cohort%pft, new_cohort%dbh, currentSite%spread, &
+       new_cohort%treesai = tree_sai(new_cohort%pft, new_cohort%dbh, &
             new_cohort%canopy_trim,   &
             new_cohort%c_area, new_cohort%n, new_cohort%canopy_layer, &
             patchptr%canopy_layer_tlai, new_cohort%treelai,new_cohort%vcmax25top,2 )
@@ -1380,7 +1380,7 @@ contains
 
 
                                    currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh,&
-                                        currentSite%spread, currentCohort%canopy_trim, &
+                                        currentCohort%canopy_trim, &
                                         currentCohort%c_area, newn, currentCohort%canopy_layer, &
                                         currentPatch%canopy_layer_tlai, currentCohort%treelai,currentCohort%vcmax25top,1 )
 
