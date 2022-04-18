@@ -960,7 +960,7 @@ contains
     real(r8) :: fnrt_c, struct_c ! fineroot and struct carbon, per plant [kg]
     real(r8) :: leaf_n, sapw_n   ! leaf and sapwood N, per plant [kg]
     real(r8) :: fnrt_n, struct_n ! fineroot and struct N, per plant [kg]
-    real(r8) :: sum_ligC         ! Flux of lignan C [kg/m2/s]
+    real(r8) :: sum_ligC         ! Flux of lignin C [kg/m2/s]
     real(r8) :: sum_N            ! Flux of all N [kg/m2/s]
     real(r8) :: tot_leaf_c       ! total leaf C of all cohorts in patch [kg/m2]
     real(r8) :: tot_leaf_n       ! total leaf N of all cohorts in patch [kg/m2]
@@ -1007,7 +1007,7 @@ contains
     do el = 1, num_elements
        
        ! Zero out the boundary flux arrays
-       ! Make a pointer to the cellulose, labile and lignan
+       ! Make a pointer to the cellulose, labile and lignin
        ! flux partitions.
        
        select case (element_list(el))
