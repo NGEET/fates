@@ -31,10 +31,8 @@ module FatesInterfaceTypesMod
    integer, public :: hlm_inir    ! The HLMs assumption of the array index associated with the 
                                              ! NIR portion of the spectrum in short-wave radiation arrays
 
+   integer, public :: hlm_maxlevsoil   ! Max number of soil layers
 
-   integer, public :: hlm_numlevgrnd   ! Number of ground layers
-                                                  ! NOTE! SOIL LAYERS ARE NOT A GLOBAL, THEY 
-                                                  ! ARE VARIABLE BY SITE
 
    integer, public :: hlm_is_restart   ! Is the HLM signalling that this is a restart
                                                   ! type simulation?
@@ -68,7 +66,9 @@ module FatesInterfaceTypesMod
                                                      ! 0: none
                                                      ! 1: p is on
 
-   
+   real(r8), public :: hlm_stepsize        ! The step-size of the host land model (s)
+                                           ! moreover, this is the shortest main-model timestep
+                                           ! at which fates will be called on the main model integration loop
   
    real(r8), public :: hlm_hio_ignore_val  ! This value can be flushed to history 
                                                       ! diagnostics, such that the
@@ -237,6 +237,7 @@ module FatesInterfaceTypesMod
    integer , public, allocatable :: fates_hdim_levfuel(:)          ! fire fuel size class (fsc) dimension
    integer , public, allocatable :: fates_hdim_levcwdsc(:)         ! cwd class dimension
    integer , public, allocatable :: fates_hdim_levcan(:)           ! canopy-layer dimension 
+   integer , public, allocatable :: fates_hdim_levleaf(:)          ! leaf-layer dimension 
    integer , public, allocatable :: fates_hdim_levelem(:)              ! element dimension
    integer , public, allocatable :: fates_hdim_canmap_levcnlf(:)   ! canopy-layer map into the canopy-layer x leaf-layer dim
    integer , public, allocatable :: fates_hdim_lfmap_levcnlf(:)    ! leaf-layer map into the can-layer x leaf-layer dimension
@@ -343,30 +344,22 @@ module FatesInterfaceTypesMod
       real(r8),allocatable :: w_scalar_sisl(:)   ! fraction by which decomposition is limited by moisture availability
       real(r8),allocatable :: t_scalar_sisl(:)   ! fraction by which decomposition is limited by temperature
       
-
-      ! Vegetation Dynamics
-      ! ---------------------------------------------------------------------------------
+      ! Fire Model
 
       ! 24-hour lightning or ignitions [#/km2/day]
       real(r8),allocatable :: lightning24(:)
 
       ! Population density [#/km2]
       real(r8),allocatable :: pop_density(:)
-
-      ! Patch 24 hour vegetation temperature [K]
-      real(r8),allocatable :: t_veg24_pa(:)  
       
-      ! Fire Model
-
       ! Average precipitation over the last 24 hours [mm/s]
       real(r8), allocatable :: precip24_pa(:)
-
+      
       ! Average relative humidity over past 24 hours [-]
       real(r8), allocatable :: relhumid24_pa(:)
 
       ! Patch 24-hour running mean of wind (m/s ?)
       real(r8), allocatable :: wind24_pa(:)
-
 
       ! Radiation variables for calculating sun/shade fractions
       ! ---------------------------------------------------------------------------------
@@ -404,7 +397,7 @@ module FatesInterfaceTypesMod
       ! 2 = patch is currently marked for photosynthesis
       ! 3 = patch has been called for photosynthesis at least once
       integer, allocatable  :: filter_photo_pa(:)
-     
+
       ! atmospheric pressure (Pa)
       real(r8)              :: forc_pbot             
 
@@ -447,7 +440,10 @@ module FatesInterfaceTypesMod
       !           I am leaving it at this scale for simplicity.  Patches should
       !           have no spacially variable information
       real(r8), allocatable :: coszen_pa(:)
-      
+
+      ! fraction of canopy that is covered in snow
+      real(r8), allocatable :: fcansno_pa(:)
+       
       ! Abledo of the ground for direct radiation, by site broadband (0-1)
       real(r8), allocatable :: albgr_dir_rb(:)
 
@@ -485,10 +481,10 @@ module FatesInterfaceTypesMod
       ! volumetric soil water at saturation (porosity)
       real(r8), allocatable :: watsat_sl(:)
 
-      ! Temperature of ground layers [K]
+      ! Temperature of soil layers [K]
       real(r8), allocatable :: tempk_sl(:)
 
-      ! Liquid volume in ground layer (m3/m3)
+      ! Liquid volume in soil layer (m3/m3)
       real(r8), allocatable :: h2o_liqvol_sl(:)
 
       ! Site level filter for uptake response functions
@@ -543,7 +539,7 @@ module FatesInterfaceTypesMod
       ! Shaded canopy LAI
       real(r8),allocatable :: laisha_pa(:)
       
-      ! Logical stating whether a ground layer can have water uptake by plants
+      ! Logical stating whether a soil layer can have water uptake by plants
       ! The only condition right now is that liquid water exists
       ! The name (suction) is used to indicate that soil suction should be calculated
       logical, allocatable :: active_suction_sl(:)
@@ -681,7 +677,7 @@ module FatesInterfaceTypesMod
 
      integer, allocatable :: nocomp_pft_label_pa(:) ! in nocomp and SP mode, each patch has a PFT identity. 
 
-       ! FATES Hydraulics
+      ! FATES Hydraulics
 
 
       
@@ -735,7 +731,7 @@ module FatesInterfaceTypesMod
                                                 ! increasing, or all 1s)
 
    end type bc_pconst_type
-   
+  
 
 
  contains

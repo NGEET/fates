@@ -11,12 +11,14 @@ module EDCohortDynamicsMod
   use FatesInterfaceTypesMod     , only : hlm_use_planthydro
   use FatesInterfaceTypesMod     , only : hlm_use_sp
   use FatesInterfaceTypesMod     , only : hlm_use_cohort_age_tracking
+  use FatesInterfaceTypesMod     , only : hlm_is_restart
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : fates_unset_int
   use FatesConstantsMod     , only : itrue,ifalse
   use FatesConstantsMod     , only : fates_unset_r8
   use FatesConstantsMod     , only : nearzero
   use FatesConstantsMod     , only : calloc_abs_error
+  use FatesRunningMeanMod       , only : ema_lpa
   use FatesInterfaceTypesMod     , only : hlm_days_per_year
   use FatesInterfaceTypesMod     , only : nleafage
   use SFParamsMod           , only : SF_val_CWD_frac
@@ -111,6 +113,7 @@ module EDCohortDynamicsMod
   public :: zero_cohort
   public :: nan_cohort
   public :: terminate_cohorts
+  public :: terminate_cohort
   public :: fuse_cohorts
   public :: insert_cohort
   public :: sort_cohorts
@@ -308,7 +311,13 @@ contains
     call InitPRTBoundaryConditions(new_cohort)
 
 
+    ! Allocate running mean functions
 
+    !  (Keeping as an example)
+    !! allocate(new_cohort%tveg_lpa)
+    !! call new_cohort%tveg_lpa%InitRMean(ema_lpa,init_value=patchptr%tveg_lpa%GetMean())
+
+    
     ! Recuits do not have mortality rates, nor have they moved any
     ! carbon when they are created.  They will bias our statistics
     ! until they have experienced a full day.  We need a newly recruited flag.
@@ -324,7 +333,7 @@ contains
        call InitHydrCohort(currentSite,new_cohort)
 
        ! This calculates node heights
-       call UpdatePlantHydrNodes(new_cohort%co_hydr,new_cohort%pft, &
+       call UpdatePlantHydrNodes(new_cohort,new_cohort%pft, &
                                 new_cohort%hite,currentSite%si_hydr)
 
        ! This calculates volumes and lengths
@@ -705,10 +714,9 @@ contains
   subroutine terminate_cohorts( currentSite, currentPatch, level , call_index, bc_in)
     !
     ! !DESCRIPTION:
-    ! terminates cohorts when they get too small
+    ! terminates all cohorts when they get too small
     !
     ! !USES:
-
     !
     ! !ARGUMENTS
     type (ed_site_type) , intent(inout), target :: currentSite
@@ -738,8 +746,6 @@ contains
     real(r8) :: repro_c   ! reproductive carbon [kg]
     real(r8) :: struct_c  ! structural carbon [kg]
     integer :: terminate  ! do we terminate (itrue) or not (ifalse)
-    integer :: c           ! counter for litter size class.
-    integer :: levcan      ! canopy level
     !----------------------------------------------------------------------
 
     currentCohort => currentPatch%shortest
@@ -806,64 +812,102 @@ contains
       endif    !  if (.not.currentCohort%isnew .and. level == 2) then
 
       if (terminate == itrue) then
-
-          ! preserve a record of the to-be-terminated cohort for mortality accounting
-          levcan = currentCohort%canopy_layer
-
-          if( hlm_use_planthydro == itrue ) &
-             call AccumulateMortalityWaterStorage(currentSite,currentCohort,currentCohort%n)
-
-          if(levcan==ican_upper) then
-             currentSite%term_nindivs_canopy(currentCohort%size_class,currentCohort%pft) = &
-                   currentSite%term_nindivs_canopy(currentCohort%size_class,currentCohort%pft) + currentCohort%n
-
-             currentSite%term_carbonflux_canopy = currentSite%term_carbonflux_canopy + &
-                   currentCohort%n * (struct_c+sapw_c+leaf_c+fnrt_c+store_c+repro_c)
-          else
-             currentSite%term_nindivs_ustory(currentCohort%size_class,currentCohort%pft) = &
-                   currentSite%term_nindivs_ustory(currentCohort%size_class,currentCohort%pft) + currentCohort%n
-
-             currentSite%term_carbonflux_ustory = currentSite%term_carbonflux_ustory + &
-                   currentCohort%n * (struct_c+sapw_c+leaf_c+fnrt_c+store_c+repro_c)
-          end if
-
-          ! put the litter from the terminated cohorts
-          ! straight into the fragmenting pools
-
-          if (currentCohort%n.gt.0.0_r8) then
-             call SendCohortToLitter(currentSite,currentPatch, &
-                  currentCohort,currentCohort%n,bc_in)
-          end if
-
-          ! Set pointers and remove the current cohort from the list
-          shorterCohort => currentCohort%shorter
-
-          if (.not. associated(tallerCohort)) then
-             currentPatch%tallest => shorterCohort
-             if(associated(shorterCohort)) shorterCohort%taller => null()
-          else
-             tallerCohort%shorter => shorterCohort
-
-          endif
-
-          if (.not. associated(shorterCohort)) then
-             currentPatch%shortest => tallerCohort
-             if(associated(tallerCohort)) tallerCohort%shorter => null()
-          else
-             shorterCohort%taller => tallerCohort
-          endif
-
-
-          call DeallocateCohort(currentCohort)
-          deallocate(currentCohort)
-          nullify(currentCohort)
-
-       endif
-       currentCohort => tallerCohort
+         call terminate_cohort(currentSite, currentPatch, currentCohort, bc_in)
+         deallocate(currentCohort)
+      endif
+      currentCohort => tallerCohort
     enddo
 
   end subroutine terminate_cohorts
 
+  !-------------------------------------------------------------------------------------!
+  subroutine terminate_cohort(currentSite, currentPatch, currentCohort, bc_in)
+   !
+   ! !DESCRIPTION:
+   ! Terminates an individual cohort and updates the site-level
+   ! updates the carbon flux and nuber of individuals appropriately
+   !
+   ! !USES:
+   !
+   ! !ARGUMENTS
+   type (ed_site_type)  , intent(inout), target :: currentSite
+   type (ed_patch_type) , intent(inout), target :: currentPatch
+   type (ed_cohort_type), intent(inout), target :: currentCohort
+   type(bc_in_type), intent(in)                :: bc_in
+
+   ! !LOCAL VARIABLES:
+   type (ed_cohort_type) , pointer :: shorterCohort
+   type (ed_cohort_type) , pointer :: tallerCohort
+
+   real(r8) :: leaf_c    ! leaf carbon [kg]
+   real(r8) :: store_c   ! storage carbon [kg]
+   real(r8) :: sapw_c    ! sapwood carbon [kg]
+   real(r8) :: fnrt_c    ! fineroot carbon [kg]
+   real(r8) :: repro_c   ! reproductive carbon [kg]
+   real(r8) :: struct_c  ! structural carbon [kg]
+   integer :: terminate  ! do we terminate (itrue) or not (ifalse)
+   integer :: c           ! counter for litter size class.
+   integer :: levcan      ! canopy level
+   !----------------------------------------------------------------------
+
+   leaf_c  = currentCohort%prt%GetState(leaf_organ, carbon12_element)
+   store_c = currentCohort%prt%GetState(store_organ, carbon12_element)
+   sapw_c  = currentCohort%prt%GetState(sapw_organ, carbon12_element)
+   fnrt_c  = currentCohort%prt%GetState(fnrt_organ, carbon12_element)
+   struct_c = currentCohort%prt%GetState(struct_organ, carbon12_element)
+   repro_c  = currentCohort%prt%GetState(repro_organ, carbon12_element)
+   
+   ! preserve a record of the to-be-terminated cohort for mortality accounting
+   levcan = currentCohort%canopy_layer
+
+   if( hlm_use_planthydro == itrue ) &
+      call AccumulateMortalityWaterStorage(currentSite,currentCohort,currentCohort%n)
+
+   ! Update the site-level carbon flux and individuals count for the appropriate canopy layer
+   if(levcan==ican_upper) then
+      currentSite%term_nindivs_canopy(currentCohort%size_class,currentCohort%pft) = &
+            currentSite%term_nindivs_canopy(currentCohort%size_class,currentCohort%pft) + currentCohort%n
+
+      currentSite%term_carbonflux_canopy = currentSite%term_carbonflux_canopy + &
+            currentCohort%n * (struct_c+sapw_c+leaf_c+fnrt_c+store_c+repro_c)
+   else
+      currentSite%term_nindivs_ustory(currentCohort%size_class,currentCohort%pft) = &
+            currentSite%term_nindivs_ustory(currentCohort%size_class,currentCohort%pft) + currentCohort%n
+
+      currentSite%term_carbonflux_ustory = currentSite%term_carbonflux_ustory + &
+            currentCohort%n * (struct_c+sapw_c+leaf_c+fnrt_c+store_c+repro_c)
+   end if
+
+   ! put the litter from the terminated cohorts
+   ! straight into the fragmenting pools
+
+   if (currentCohort%n.gt.0.0_r8) then
+      call SendCohortToLitter(currentSite,currentPatch, &
+           currentCohort,currentCohort%n,bc_in)
+   end if
+
+   ! Set pointers and deallocate the current cohort from the list
+   shorterCohort => currentCohort%shorter
+   tallerCohort => currentCohort%taller
+
+   if (.not. associated(tallerCohort)) then
+      currentPatch%tallest => shorterCohort
+      if(associated(shorterCohort)) shorterCohort%taller => null()
+   else
+      tallerCohort%shorter => shorterCohort
+   endif
+
+   if (.not. associated(shorterCohort)) then
+      currentPatch%shortest => tallerCohort
+      if(associated(tallerCohort)) tallerCohort%shorter => null()
+   else
+      shorterCohort%taller => tallerCohort
+   endif
+
+   call DeallocateCohort(currentCohort)
+
+ end subroutine terminate_cohort  
+  
   ! =====================================================================================
 
   subroutine SendCohortToLitter(csite,cpatch,ccohort,nplant,bc_in)
@@ -998,6 +1042,10 @@ contains
      ! ----------------------------------------------------------------------------------
 
      type(ed_cohort_type),intent(inout) :: currentCohort
+
+     !  (Keeping as an example)
+     ! Remove the running mean structure
+     ! deallocate(currentCohort%tveg_lpa)
 
      ! At this point, nothing should be pointing to current Cohort
      if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(currentCohort)
@@ -1162,6 +1210,11 @@ contains
                                       end do
                                    end if
 
+                                   !  (Keeping as an example)
+                                   ! Running mean fuses based on number density fraction just
+                                   ! like other variables
+                                   !!call currentCohort%tveg_lpa%FuseRMean(nextc%tveg_lpa,currentCohort%n/newn)
+                                   
                                    ! new cohort age is weighted mean of two cohorts
                                    currentCohort%coage = &
                                         (currentCohort%coage * (currentCohort%n/(currentCohort%n + nextc%n))) + &
@@ -1792,6 +1845,7 @@ contains
     n%size_by_pft_class = o%size_by_pft_class
     n%coage_class     = o%coage_class
     n%coage_by_pft_class = o%coage_by_pft_class
+
     ! This transfers the PRT objects over.
     call n%prt%CopyPRTVartypes(o%prt)
 
@@ -1801,6 +1855,10 @@ contains
     n%tpu25top   = o%tpu25top
     n%kp25top    = o%kp25top
 
+    !  (Keeping as an example)
+    ! Copy over running means
+    ! call n%tveg_lpa%CopyFromDonor(o%tveg_lpa)
+    
     ! CARBON FLUXES
     n%gpp_acc_hold    = o%gpp_acc_hold
     n%gpp_acc         = o%gpp_acc
@@ -1972,9 +2030,10 @@ contains
        ! We assume that leaf age does not effect the specific leaf area, so the mass
        ! fractions are applicable to these rates
 
-       if(sum(frac_leaf_aclass(1:nleafage))>nearzero) then
+       ipft = currentCohort%pft
 
-          ipft = currentCohort%pft
+       if(sum(frac_leaf_aclass(1:nleafage))>nearzero .and. hlm_use_sp .eq. ifalse) then
+
 
           frac_leaf_aclass(1:nleafage) =  frac_leaf_aclass(1:nleafage) / &
                 sum(frac_leaf_aclass(1:nleafage))
@@ -1991,6 +2050,13 @@ contains
           currentCohort%kp25top    = sum(param_derived%kp25top(ipft,1:nleafage) * &
                 frac_leaf_aclass(1:nleafage))
 
+       elseif (hlm_use_sp .eq. itrue) then
+         
+          currentCohort%vcmax25top = EDPftvarcon_inst%vcmax25top(ipft,1)
+          currentCohort%jmax25top  = param_derived%jmax25top(ipft,1)
+          currentCohort%tpu25top   = param_derived%tpu25top(ipft,1)
+          currentCohort%kp25top    = param_derived%kp25top(ipft,1)
+       
        else
 
           currentCohort%vcmax25top = 0._r8

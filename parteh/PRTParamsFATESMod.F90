@@ -178,6 +178,10 @@ contains
     name = 'fates_woody'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_fire_crown_depth_frac'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
     name = 'fates_wood_density'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
@@ -430,6 +434,10 @@ contains
     name = 'fates_fnrt_prof_mode'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=prt_params%fnrt_prof_mode)
+
+    name = 'fates_fire_crown_depth_frac'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=prt_params%crown)
     
     name = 'fates_woody'
     call fates_params%RetreiveParameterAllocate(name=name, &
@@ -903,6 +911,7 @@ contains
         write(fates_log(),fmt0) 'prt_phos_stoich_p2 = ',prt_params%phos_stoich_p2
         write(fates_log(),fmt0) 'prt_alloc_priority = ',prt_params%alloc_priority
         write(fates_log(),fmt0) 'woody = ',prt_params%woody
+        write(fates_log(),fmt0) 'crown = ',prt_params%crown
         write(fates_log(),fmt0) 'roota_par = ',prt_params%fnrt_prof_a
         write(fates_log(),fmt0) 'rootb_par = ',prt_params%fnrt_prof_b
         write(fates_log(),fmt0) 'fnrt_prof_mode = ',prt_params%fnrt_prof_mode
