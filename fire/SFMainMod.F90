@@ -1233,11 +1233,12 @@ contains
                 ! calculate canopy fraction burnt, Eq 28 Scott & Reinhardt App A 
                 ! using wind at which ROS_active = ROS_active_min
                 ! solve for phi_wind associated with ROS_active_min
-                phi_wind_ROS_SA = ((ROS_active_min*fuel_bd*eps*q_ig)/(3.34*ir*xi))-1.0
+                phi_wind_ROS_SA = (ROS_active_min * fuel_bd * eps * q_ig - 3.34 * ir * xi) &
+                                     /(3.34 * ir * xi)
                 ! solve for open wind for that phi_wind
                 wind_ROS_SA = log(b)*(phi_wind_ROS_SA/(c*beta_ratio**(-e)))/log(b)*(3.28*0.4)
-                ! use this phi_wind for surface ROS
-                ROS_SA =  (ir*xi*(1.0_r8+wind_ROS_SA)) / (fuel_bd*eps*q_ig) 
+                ! use this phi_wind for potential surface ROS for canopy_frac_burnt calculation
+                ROS_SA =  (ir * xi * (1.0_r8 + wind_ROS_SA)) / (fuel_bd * eps * q_ig) 
 
                 ! canopy fraction burnt, Eq 28 Scott & Reinhardt Appendix A
                 canopy_frac_burnt = (min(1.0_r8, ((currentPatch%ROS_front - ROS_active_min) &
