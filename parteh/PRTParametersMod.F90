@@ -101,7 +101,8 @@ module PRTParametersMod
      real(r8), allocatable :: c2b(:)                        ! Carbon to biomass multiplier [kg/kgC]
      real(r8), allocatable :: wood_density(:)               ! wood density  g cm^-3  ...
      real(r8), allocatable :: woody(:)                      ! Does the plant have wood?      (1=yes, 0=no)
- 
+     real(r8), allocatable :: crown(:)                      ! fraction of the height of the plant
+                                                            ! that is occupied by crown
      real(r8), allocatable :: slamax(:)                     ! Maximum specific leaf area of plant (at bottom) [m2/gC]
      real(r8), allocatable :: slatop(:)                     ! Specific leaf area at canopy top [m2/gC]
      real(r8), allocatable :: allom_sai_scaler(:)           ! 
@@ -137,7 +138,6 @@ module PRTParametersMod
      real(r8), allocatable :: allom_agb3(:)                 ! Parameter 3 for agb allometry
      real(r8), allocatable :: allom_agb4(:)                 ! Parameter 3 for agb allometry
 
-     ! ------------------------ (NOT YET IMPLEMENTED) -------------------------
      real(r8), allocatable :: allom_zroot_max_dbh(:)        ! dbh at which maximum rooting depth saturates (largest possible) [cm]
      real(r8), allocatable :: allom_zroot_max_z(:)          ! the maximum rooting depth defined at dbh = fates_allom_zroot_max_dbh [m]
      real(r8), allocatable :: allom_zroot_min_dbh(:)        ! dbh at which the maximum rooting depth for a recruit is defined [cm]
