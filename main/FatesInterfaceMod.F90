@@ -1724,7 +1724,7 @@ contains
 
             case default
                write(fates_log(), *) 'fates NL tag not recognized:',trim(tag)
-               call endrun(msg=errMsg(sourcefile, __LINE__))
+               !! call endrun(msg=errMsg(sourcefile, __LINE__))
             end select
             
          end if
@@ -1738,7 +1738,7 @@ contains
                end if
             case default
                write(fates_log(),*) 'fates NL tag not recognized:',trim(tag)
-               call endrun(msg=errMsg(sourcefile, __LINE__))
+               !! call endrun(msg=errMsg(sourcefile, __LINE__))
             end select
          end if
 
@@ -1765,7 +1765,7 @@ contains
                
             case default
                write(fates_log(),*) 'fates NL tag not recognized:',trim(tag)
-               call endrun(msg=errMsg(sourcefile, __LINE__))
+               !! call endrun(msg=errMsg(sourcefile, __LINE__))
             end select
          end if
 
