@@ -139,8 +139,7 @@ contains
   function A2S(reals_in) result(str)
 
     real(r8) :: reals_in(:)
-    character(len=512) :: str
-    character(len=16) :: str_frag
+    character(len=1024) :: str
     integer :: i, nreal
     
     str = ', '

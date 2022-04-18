@@ -2883,7 +2883,6 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
      wb_check_site = delta_plant_storage+delta_soil_storage+site_runoff+transp_flux
 
      ! Now check on total error
-     end if
 
      if(debug)then
         if( abs(wb_check_site) > 1.e-4_r8 ) then
