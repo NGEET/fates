@@ -403,8 +403,9 @@ contains
        height_base_canopy                   = 0.0_r8
        canopy_fuel_load                     = 0.0_r8
        passive_crown_FI                     = 0.0_r8
+       max_height = 0._r8
 
-       if (currentPatch%fire == 1) then
+!      if (currentPatch%active_crown_fire == 1) then
 
           currentCohort=>currentPatch%tallest
           do while(associated(currentCohort))
@@ -491,7 +492,7 @@ contains
           ! passive_crown_FI = min fire intensity to ignite canopy fuel (kW/m or kJ/m/s)
           passive_crown_FI = (0.01_r8 * height_base_canopy * crown_ignite_energy)**1.5_r8
       
-      endif  ! fire?
+!     endif  !active crown fire?
 
       currentPatch => currentPatch%younger;
 
@@ -740,10 +741,11 @@ contains
           heat_per_area = ir * time_r          
 
           ! calculate torching index based on wind speed and crown fuels 
-          ! ROS for crown torch initation (m/min), Eq 18 Scott & Reinhardt 2001 
-          ROS_torch = (1.0 / 54.683 * wind_reduce)* &
-                      ((((60.0*passive_crown_FI*currentPatch%fuel_bulkd*eps*q_ig)/heat_per_area*ir*xi)-1.0) &
-                       / (c*beta_ratio)**-e)**1/b
+          ! ROS for crown torch initation (m/min), Eq 18 Scott & Reinhardt 2001
+          ! TODO slevis: Are we missing a -phi_s after the -1?
+          ROS_torch = 1._r8 / (54.683_r8 * wind_reduce) * &
+    ((60._r8 * passive_crown_FI * currentPatch%fuel_bulkd * eps * q_ig / &
+      (heat_per_area * ir * xi) - 1._r8) / (c * beta_ratio**-e))**(1._r8 / b)
        endif
        ! Eq 10 in Thonicke et al. 2010
        ! backward ROS from Can FBP System (1992) in m/min
