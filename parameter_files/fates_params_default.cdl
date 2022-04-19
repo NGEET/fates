@@ -207,9 +207,6 @@ variables:
 	double fates_fire_crown_kill(fates_pft) ;
 		fates_fire_crown_kill:units = "NA" ;
 		fates_fire_crown_kill:long_name = "crown resistance to fire (1 = none), EQ 22 in Thonicke et al 2010" ;
-	double fates_fire_active_crown_fire(fates_pft) ;
-		fates_fire_active_crown_fire:units = "fraction" ;
-		fates_fire_active_crown_fire:long_name = "resistance to active crown fire (1=none)";
 	double fates_fnrt_prof_a(fates_pft) ;
 		fates_fnrt_prof_a:units = "unitless" ;
 		fates_fnrt_prof_a:long_name = "Fine root profile function, parameter a" ;
@@ -605,6 +602,9 @@ variables:
 	double fates_eca_plant_escalar ;
 		fates_eca_plant_escalar:units = "" ;
 		fates_eca_plant_escalar:long_name = "scaling factor for plant fine root biomass to calculate nutrient carrier enzyme abundance (ECA)" ;
+        double fates_fire_active_crown_fire ;
+		fates_fire_active_crown_fire:units = "0 or 1" ;
+		fates_fire_active_crown_fire:long_name = "flag, 1=active crown fire 0=no active crown fire" ;
 	double fates_fire_cg_strikes ;
 		fates_fire_cg_strikes:units = "fraction (0-1)" ;
 		fates_fire_cg_strikes:long_name = "fraction of cloud to ground lightning strikes" ;
@@ -944,8 +944,6 @@ data:
 
  fates_fire_crown_kill = 0.775, 0.775, 0.775, 0.775, 0.775, 0.775, 0.775,
     0.775, 0.775, 0.775, 0.775, 0.775 ;
-
- fates_fire_active_crown_fire =  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
  fates_fnrt_prof_a = 7, 7, 7, 7, 6, 6, 7, 7, 7, 11, 11, 11 ;
 
@@ -1386,6 +1384,8 @@ data:
  fates_dev_arbitrary = _ ;
 
  fates_eca_plant_escalar = 1.25e-05 ;
+
+ fates_fire_active_crown_fire =  0 ;
 
  fates_fire_cg_strikes = 0.2 ;
 
