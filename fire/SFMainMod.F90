@@ -448,7 +448,7 @@ contains
 
                 !sort crown fuel into bins from bottom to top of crown
                 !accumulate across cohorts to find density within canopy 1m sections
-                do ih = int(height_cbb), int(currentCohort%hite)
+                do ih = max(1, nint(height_cbb)), max(1, nint(currentCohort%hite))
                    biom_matrix(ih) = biom_matrix(ih) + crown_fuel_per_m
                 end do
 
