@@ -404,7 +404,7 @@ contains
        canopy_fuel_load                     = 0.0_r8
        passive_crown_FI                     = 0.0_r8
 
-       if (currentPatch%fire == 1) then
+!       if (currentPatch%active_crown_fire == 1) then
 
           currentCohort=>currentPatch%tallest
           do while(associated(currentCohort))
@@ -491,7 +491,7 @@ contains
           ! passive_crown_FI = min fire intensity to ignite canopy fuel (kW/m or kJ/m/s)
           passive_crown_FI = (0.01_r8 * height_base_canopy * crown_ignite_energy)**1.5_r8
       
-      endif  ! fire?
+!      endif  !active crown fire?
 
       currentPatch => currentPatch%younger;
 
