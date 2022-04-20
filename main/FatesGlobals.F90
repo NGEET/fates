@@ -20,7 +20,9 @@ module FatesGlobals
   public :: FatesWarn
   public :: A2S
   public :: N2S
-
+  public :: I2S
+  public :: FatesReportTotalWarnings
+  
   ! -------------------------------------------------------------------------------------
   ! Warning handling
   ! The objective here is to stop writing the same warning over and over again. After
@@ -42,6 +44,8 @@ module FatesGlobals
                                                    ! printing any of these warnings to the log
                                                    ! It should also bypass the logicals bound inside
                                                    ! at the compiler level (?) and be faster
+
+ 
   
 contains
 
@@ -113,15 +117,36 @@ contains
     warn_counts(ind) = warn_counts(ind) + 1
 
     if(warn_active(ind))then
-       write(fates_log(),*) 'FWARN: ',ind,'m: ',msg
+       write(fates_log(),*) 'FWARN: '//trim(ADJUSTL(I2S(ind)))//' m: '//trim(msg)
        if(warn_counts(ind)> max_warnings) then
           warn_active(ind) = .false.
-          write(fates_log(),*) 'FWARN: ',ind,'has saturated messaging, no longer reporting'
+          write(fates_log(),*) 'FWARN: '//trim(ADJUSTL(I2S(ind)))//' has saturated messaging, no longer reporting'
        end if
     end if
     return
   end subroutine FatesWarn
 
+  ! =====================================================================================
+
+
+  subroutine FatesReportTotalWarnings()
+    
+    integer :: ind
+
+    do ind = 1,max_ids
+       
+       if(warn_counts(ind)>0)then
+
+          write(fates_log(),*) 'FWARN: '//trim(ADJUSTL(I2S(ind)))//' was triggered ',trim(ADJUSTL(I2S(warn_counts(ind))))//' times'
+          
+       end if
+       
+    end do
+
+    
+  end subroutine FatesReportTotalWarnings
+  
+  
   ! =====================================================================================
 
   function N2S(real_in) result(str)
@@ -130,9 +155,21 @@ contains
     character(len=16) :: str
 
     !write(str,*) real_in
-    write(str,'(a,E12.6)') ', ',real_in
+    write(str,'(E12.6)') real_in
     
   end function N2S
+
+  ! =====================================================================================
+  
+  function I2S(int_in) result(str)
+
+    integer :: int_in
+    character(len=16) :: str
+
+    !write(str,*) real_in
+    write(str,'(I15)') int_in
+    
+  end function I2S
   
   ! =====================================================================================
   
