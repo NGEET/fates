@@ -734,7 +734,7 @@ contains
       ! water	(NA)       Water content of soil (NOT USED)
       ! fsc	(kg/m2)    Fast Soil Carbon
       ! stsc	(kg/m2)    Structural Soil Carbon
-      ! stsl	(kg/m2)    Structural Soil Lignan
+      ! stsl	(kg/m2)    Structural Soil Lignin
       ! ssc	(kg/m2)    Slow Soil Carbon
       ! psc	(NA)       Passive Soil Carbon (NOT USED)
       ! msn	(kg/m2)    Mineralized Soil Nitrogen
@@ -763,7 +763,7 @@ contains
       real(r8)                                    :: p_water    ! Patch water (unused)
       real(r8)                                    :: p_fsc      ! Patch fast soil carbon
       real(r8)                                    :: p_stsc     ! Patch structural soil carbon
-      real(r8)                                    :: p_stsl     ! Patch structural soil lignans
+      real(r8)                                    :: p_stsl     ! Patch structural soil lignins
       real(r8)                                    :: p_ssc      ! Patch slow soil carbon
       real(r8)                                    :: p_psc      ! Patch P soil carbon
       real(r8)                                    :: p_msn      ! Patch mean soil nitrogen
