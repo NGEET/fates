@@ -62,7 +62,7 @@ module EDParamsMod
    real(r8),protected, public :: ED_val_canopy_closure_thresh ! site-level canopy closure point where trees take on forest (narrow) versus savannah (wide) crown allometry
    integer,protected, public  :: stomatal_model  !switch for choosing between stomatal conductance models, 1 for Ball-Berry, 2 for Medlyn
 
-   logical,protected, public :: active_crown_fire        ! flag, 1=active crown fire 0=no active crown fire
+   logical,protected, public :: active_crown_fire_switch  ! flag, 1=active crown fire 0=no active crown fire
    character(len=param_string_length),parameter :: fates_name_active_crown_fire = "fates_fire_active_crown_fire"
 
    real(r8), protected, public :: cg_strikes             ! fraction of cloud to ground lightning strikes (0-1)
@@ -622,7 +622,7 @@ contains
 
     call fates_params%RetreiveParameter(name=fates_name_active_crown_fire, & 
           data=tmpreal)
-    active_crown_fire = (abs(tmpreal-1.0_r8)<nearzero)
+    active_crown_fire_switch = (abs(tmpreal-1.0_r8)<nearzero)
 
     call fates_params%RetreiveParameter(name=fates_name_cg_strikes, &
           data=cg_strikes)
@@ -706,7 +706,7 @@ contains
         write(fates_log(),fmt0) 'q10_mr = ',q10_mr
         write(fates_log(),fmt0) 'q10_froz = ',q10_froz
         write(fates_log(),fmt0) 'cg_strikes = ',cg_strikes
-        write(fates_log(),'(a,L2)') 'active_crown_fire = ',active_crown_fire
+        write(fates_log(),'(a,L2)') 'active_crown_fire_switch = ',active_crown_fire_switch
         write(fates_log(),*) '------------------------------------------------------'
 
      end if

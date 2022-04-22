@@ -115,6 +115,9 @@ contains
        call fire_danger_index(currentSite, bc_in)
        call wind_effect(currentSite, bc_in) 
        call characteristics_of_fuel(currentSite)
+       ! TODO Should canopy_fuel_load and passive_crown_FI be currentPatch%
+       ! variables to work? If so, don't pass them as arguments.
+       ! Same may apply to ROS_torch, heat_per_area, lb.
        call characteristics_of_crown(currentSite, canopy_fuel_load, passive_crown_FI)
        call rate_of_spread(currentSite, passive_crown_FI, ROS_torch, heat_per_area)
        call ground_fuel_consumption(currentSite)
@@ -396,8 +399,6 @@ contains
 
     currentPatch => currentSite%oldest_patch
 
-    !! check to see if active_crown_fire is enabled? 
-
     do while(associated(currentPatch))
        !zero Patch level variables
        height_base_canopy                   = 0.0_r8
@@ -405,8 +406,6 @@ contains
        passive_crown_FI                     = 0.0_r8
        max_height = 0._r8
        biom_matrix(:) = 0._r8
-
-!      if (currentPatch%active_crown_fire == 1) then
 
           currentCohort=>currentPatch%tallest
           do while(associated(currentCohort))
@@ -497,8 +496,6 @@ contains
           ! passive_crown_FI = min fire intensity to ignite canopy fuel (kW/m or kJ/m/s)
           passive_crown_FI = (0.01_r8 * height_base_canopy * crown_ignite_energy)**1.5_r8
       
-!     endif  !active crown fire?
-
       currentPatch => currentPatch%younger;
 
     enddo !end patch loop
@@ -1060,6 +1057,7 @@ contains
     !returns final rate of spread and fire intensity in patch with added fuel from active crown fire.
     !currentCohort%fraction_crown_burned is the proportion of crown affected by fire
 
+    use EDParamsMod, only : active_crown_fire_switch
     use SFParamsMod, only  : SF_val_miner_total, SF_val_part_dens, SF_val_miner_damp, &
                              SF_val_fuel_energy, SF_val_drying_ratio
 
@@ -1137,8 +1135,6 @@ contains
 
 
     currentPatch => currentSite%oldest_patch
-
-    !! check to see if active_crown_fire is enabled
 
     do while(associated(currentPatch))
 
@@ -1236,7 +1232,9 @@ contains
              ROS_active_min = (critical_mass_flow_rate / fuel_bd) * 60.0 
 
              ! check threshold intensity and rate of spread
-             if (currentPatch%FI >= passive_crown_FI .and. ROS_active >= ROS_active_min) then
+             if (active_crown_fire_switch == 1 .and. &
+                 currentPatch%FI >= passive_crown_FI .and. &
+                 ROS_active >= ROS_active_min) then
                 currentPatch%active_crown_fire_flg = 1  ! active crown fire ignited
                 !ROS_final = ROS_surface+CFB(ROS_active - ROS_surface), Eq 21 Scott & Reinhardt 2001
                 !with active crown fire CFB (canopy fraction burned) = 100%
