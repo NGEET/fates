@@ -404,6 +404,7 @@ contains
        canopy_fuel_load                     = 0.0_r8
        passive_crown_FI                     = 0.0_r8
        max_height = 0._r8
+       biom_matrix(:) = 0._r8
 
 !      if (currentPatch%active_crown_fire == 1) then
 
@@ -473,8 +474,12 @@ contains
              end if
           end do
 
-          !canopy_bulk_denisty (kg/m3) for Patch
-          canopy_bulk_density = sum(biom_matrix) / (max_height - height_base_canopy)
+          !canopy_bulk_denisty (kg/m3) for Patch TODO slevis: var not used
+          if (max_height - height_base_canopy > 0._r8) then
+             canopy_bulk_density = sum(biom_matrix) / (max_height - height_base_canopy)
+          else
+             canopy_bulk_density = 0._r8
+          end if
 
           ! Note: crown_ignition_energy to be calculated based on PFT foliar moisture content from FATES-Hydro
           ! or create foliar moisture % based on BTRAN
@@ -620,6 +625,7 @@ contains
     real(r8) a_beta               ! dummy variable for product of a* beta_ratio for react_v_opt equation
     real(r8) a,b,c,e              ! function of fuel sav
     real(r8) time_r               ! residence time (min)
+    real(r8) temp1, temp2
 
     real(r8),parameter :: q_dry = 581.0_r8             !heat of pre-ignition of dry fuels (kJ/kg)
     real(r8),parameter :: wind_reduce = 0.2_r8         !wind reduction factor (%)
@@ -726,7 +732,10 @@ contains
        ! write(fates_log(),*) 'ir',gamma_aptr,moist_damp,SF_val_fuel_energy,SF_val_miner_damp
 
      
-       if (((currentPatch%fuel_bulkd) <= 0.0_r8).or.(eps <= 0.0_r8).or.(q_ig <= 0.0_r8)) then
+       if (currentPatch%fuel_bulkd <= 0.0_r8 .or. eps <= 0.0_r8 .or. &
+           q_ig <= 0.0_r8 .or. ir <= 0.0_r8 .or. &
+           currentPatch%fuel_sav <= 0.0_r8 .or. xi <= 0.0_r8 .or. &
+           c <= 0.0_r8 .or. beta_ratio <= 0.0_r8 .or. b <= 0.0_r8) then
           currentPatch%ROS_front = 0.0_r8
           ROS_torch = 0.0_r8   
        else ! Eq 9. Thonicke et al. 2010. 
@@ -737,15 +746,20 @@ contains
 
           ! calculate heat release per unit area (HPA)(kJ/m2), Eq 2 Scott & Reinhardt 2001
           ! and residence time (min), Eq 3 Scott & Reinhardt 2001
-          time_r = 12.595 / currentPatch%fuel_sav 
+          time_r = 12.595_r8 / currentPatch%fuel_sav
           heat_per_area = ir * time_r          
 
           ! calculate torching index based on wind speed and crown fuels 
           ! ROS for crown torch initation (m/min), Eq 18 Scott & Reinhardt 2001
-          ! TODO slevis: Are we missing a -phi_s after the -1?
-          ROS_torch = 1._r8 / (54.683_r8 * wind_reduce) * &
-    ((60._r8 * passive_crown_FI * currentPatch%fuel_bulkd * eps * q_ig / &
-      (heat_per_area * ir * xi) - 1._r8) / (c * beta_ratio**-e))**(1._r8 / b)
+          ! temp1 requires max(0... to avoid raising a negative value to a
+          ! fractional temp2 power.
+          ! TODO slevis: omitting "- phi_s" after the -1 bc phi_s = 0 for now.
+          !              @jkshuman recommended naming it slope_factor.
+          temp1 = max(0._r8, (60._r8 * passive_crown_FI * &
+  currentPatch%fuel_bulkd * eps * q_ig / (heat_per_area * ir * xi) - 1._r8) / &
+  (c * beta_ratio**-e))
+          temp2 = 1._r8 / b
+          ROS_torch = temp1**temp2 / (54.683_r8 * wind_reduce)
        endif
        ! Eq 10 in Thonicke et al. 2010
        ! backward ROS from Can FBP System (1992) in m/min
@@ -857,7 +871,6 @@ contains
     !currentPatch%ROS_front  forward ROS (m/min) 
     !currentPatch%TFC_ROS total fuel consumed by flaming front (kgC/m2 of burned area)
 
-    use FatesInterfaceTypesMod, only : hlm_spitfire_mode  ! TODO slevis: redundant?
     use EDParamsMod,       only : ED_val_nignitions
     use EDParamsMod,       only : cg_strikes    ! fraction of cloud-to-ground ligtning strikes
     use FatesConstantsMod, only : years_per_day
@@ -1057,7 +1070,7 @@ contains
     type(ed_cohort_type), pointer :: currentCohort
 
     ! ARGUMENTS
-    real(r8), intent(in)  :: ROS_torch           ! ROS for crown torch initation (m/min)
+    real(r8), intent(in)  :: ROS_torch           ! ROS for crown torch initation (m/min) TODO slevis: var not used
     real(r8), intent(in)  :: canopy_fuel_load    ! available canopy fuel load in patch (kg biomass)
     real(r8), intent(in)  :: lb                  !length to breadth ratio of fire ellipse (unitless)
     real(r8), intent(in)  :: heat_per_area       ! heat release per unit area (kJ/m2) for surface fuel
