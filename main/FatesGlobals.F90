@@ -117,10 +117,10 @@ contains
     warn_counts(ind) = warn_counts(ind) + 1
 
     if(warn_active(ind))then
-       write(fates_log(),*) 'FWARN: '//trim(ADJUSTL(I2S(ind)))//' m: '//trim(msg)
+       write(fates_log(),*) 'FATESWARN: '//trim(ADJUSTL(I2S(ind)))//' m: '//trim(msg)
        if(warn_counts(ind)> max_warnings) then
           warn_active(ind) = .false.
-          write(fates_log(),*) 'FWARN: '//trim(ADJUSTL(I2S(ind)))//' has saturated messaging, no longer reporting'
+          write(fates_log(),*) 'FATESWARN: '//trim(ADJUSTL(I2S(ind)))//' has saturated messaging, no longer reporting'
        end if
     end if
     return
@@ -137,7 +137,7 @@ contains
        
        if(warn_counts(ind)>0)then
 
-          write(fates_log(),*) 'FWARN: '//trim(ADJUSTL(I2S(ind)))//' was triggered ',trim(ADJUSTL(I2S(warn_counts(ind))))//' times'
+          write(fates_log(),*) 'FATESWARN: '//trim(ADJUSTL(I2S(ind)))//' was triggered ',trim(ADJUSTL(I2S(warn_counts(ind))))//' times'
           
        end if
        
