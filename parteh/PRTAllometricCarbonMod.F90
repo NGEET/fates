@@ -476,7 +476,12 @@ contains
     call bdead_allom( target_agw_c, target_bgw_c, target_sapw_c, ipft, target_struct_c)
     
     ! Target leaf biomass according to allometry and trimming
-    call bleaf(dbh,ipft,canopy_trim,target_leaf_c)
+    select case (leaf_status)
+    case (leaves_on)
+       call bleaf(dbh,ipft,canopy_trim,target_leaf_c)
+    case (leaves_off)
+       target_leaf_c   = 0.0_r8
+    end select
     
     ! Target fine-root biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
     call bfineroot(dbh,ipft,canopy_trim,target_fnrt_c)
@@ -487,36 +492,24 @@ contains
 
 
     ! -----------------------------------------------------------------------------------
-    ! II 1/2. Update target biomass based on the leaf status.
-    ! -----------------------------------------------------------------------------------
-    select case (leaf_status)
-    case (leaves_off)
-       target_leaf_c   = 0.0_r8
-    end select
-
-
-    ! -----------------------------------------------------------------------------------
     ! III.  Prioritize some amount of carbon to replace leaf/root turnover
-    !         Make sure it isnt a negative payment, and either pay what is available
+    !         Make sure it isn't a negative payment, and either pay what is available
     !         or forcefully pay from storage. 
     ! -----------------------------------------------------------------------------------
     if ( is_deciduous ) then
-       ! Either cold deciduous plant, or drought deciduous with leaves on. Maintain roots.
+       ! Deciduous PFT. Set leaf demand to zero, but keep fine-root demand.
        leaf_c_demand = 0.0_r8
-       fnrt_c_demand = max(0.0_r8, &
-             prt_params%leaf_stor_priority(ipft)*this%variables(fnrt_c_id)%turnover(icd))
     else
        ! Evergreen PFT. Try to meet demands for both leaves and fine roots.
-       ! If this is not evergreen, this PFT isn't expected by FATES, and we assume
-       ! evergreen.
        leaf_c_demand   = max(0.0_r8, &
              prt_params%leaf_stor_priority(ipft)*sum(this%variables(leaf_c_id)%turnover(:)))
-       fnrt_c_demand   = max(0.0_r8, &
-             prt_params%leaf_stor_priority(ipft)*this%variables(fnrt_c_id)%turnover(icd))
     end if
 
+    fnrt_c_demand = max(0.0_r8, &
+          prt_params%leaf_stor_priority(ipft)*this%variables(fnrt_c_id)%turnover(icd))
+
     total_c_demand = leaf_c_demand + fnrt_c_demand
-    
+
     if (total_c_demand> nearzero ) then
 
        ! We pay this even if we don't have the carbon
@@ -674,7 +667,8 @@ contains
        ! allow actual pools to be above the target, and in these cases, it sends
        ! a false on the "grow_<>" flag, allowing the plant to grow into these pools.
        ! It also checks to make sure that structural biomass is not above the target.
-
+       ! ( MLO. Removed the check for storage because the same test is done inside
+       !        sub-routine TargetAllometryCheck.)
        call TargetAllometryCheck(sum(leaf_c0(1:nleafage)),fnrt_c0,sapw_c0,store_c0,struct_c0, &
                                  sum(leaf_c(1:nleafage)), fnrt_c, sapw_c,store_c, struct_c, &
                                  target_leaf_c, target_fnrt_c, target_sapw_c, &
@@ -798,7 +792,6 @@ contains
              write(fates_log(),fmt=fmtg) ' Storage    |', grow_store     ,         store_c,target_store_c , target_store_c - store_c
              write(fates_log(),fmt=fmtg) ' Structural |', grow_struct    ,        struct_c,target_struct_c, target_struct_c - struct_c
              write(fates_log(),fmt=*)    '---~---'
-             call endrun(msg=errMsg(sourcefile, __LINE__))
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
 
