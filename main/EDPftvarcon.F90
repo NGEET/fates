@@ -1548,8 +1548,7 @@ contains
      case default
 
         write(fates_log(),*) 'FATES Plant Allocation and Reactive Transport has'
-        write(fates_log(),*) 'only 2 modules supported, simpler allometric carbon,'
-        write(fates_log(),*) 'default allometric carbon, and CNP.'
+        write(fates_log(),*) 'only 2 modules supported, allometric carbon and CNP.'
         write(fates_log(),*) 'fates_parteh_mode must be set to 1 or 2 in the namelist'
         write(fates_log(),*) 'Aborting'
         call endrun(msg=errMsg(sourcefile, __LINE__))
