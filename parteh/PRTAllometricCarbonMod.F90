@@ -427,7 +427,6 @@ contains
     intgr_params(:)                 = un_initialized
     intgr_params(ac_bc_in_id_ctrim) = this%bc_in(ac_bc_in_id_ctrim)%rval
     intgr_params(ac_bc_in_id_pft)   = real(this%bc_in(ac_bc_in_id_pft)%ival)
-    intgr_params(ac_bc_in_id_lstat) = real(this%bc_in(ac_bc_in_id_lstat)%ival,r8)
 
 
     ! Set some logical flags to simplify "if" blocks
