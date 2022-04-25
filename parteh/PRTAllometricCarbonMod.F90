@@ -669,6 +669,7 @@ contains
        ! It also checks to make sure that structural biomass is not above the target.
        ! ( MLO. Removed the check for storage because the same test is done inside
        !        sub-routine TargetAllometryCheck.)
+
        call TargetAllometryCheck(sum(leaf_c0(1:nleafage)),fnrt_c0,sapw_c0,store_c0,struct_c0, &
                                  sum(leaf_c(1:nleafage)), fnrt_c, sapw_c,store_c, struct_c, &
                                  target_leaf_c, target_fnrt_c, target_sapw_c, &
