@@ -59,7 +59,7 @@ module EDPftvarcon
 
      real(r8), allocatable :: lf_flab(:)             ! Leaf litter labile fraction [-]
      real(r8), allocatable :: lf_fcel(:)             ! Leaf litter cellulose fraction [-]
-     real(r8), allocatable :: lf_flig(:)             ! Leaf litter lignan fraction [-]
+     real(r8), allocatable :: lf_flig(:)             ! Leaf litter lignin fraction [-]
      real(r8), allocatable :: fr_flab(:)             ! Fine-root litter labile fraction [-]
      real(r8), allocatable :: fr_fcel(:)             ! Fine-root litter cellulose fraction [-]
      real(r8), allocatable :: fr_flig(:)             ! Fine-root litter lignatn fraction [-]

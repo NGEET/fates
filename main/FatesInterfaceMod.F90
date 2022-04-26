@@ -36,6 +36,7 @@ module FatesInterfaceMod
    use FatesGlobals              , only : fates_global_verbose
    use FatesGlobals              , only : fates_log
    use FatesGlobals              , only : endrun => fates_endrun
+   use FatesConstantsMod             , only : fates_unset_r8
    use FatesLitterMod            , only : ncwd
    use FatesLitterMod            , only : ndcmpy
    use EDPftvarcon               , only : FatesReportPFTParams
@@ -304,6 +305,10 @@ contains
     fates%bc_out(s)%rootr_pasl(:,:) = 0.0_r8
     fates%bc_out(s)%btran_pa(:)     = 0.0_r8
 
+    ! MIMIC litter quality, always initialize to unset
+    fates%bc_out(s)%litt_flux_ligc_per_n = fates_unset_r8
+
+    
     ! Fates -> BGC fragmentation mass fluxes
     select case(hlm_parteh_mode) 
     case(prt_carbon_allom_hyp)
@@ -624,7 +629,6 @@ contains
          bc_out%rootfr_pa(0,1:nlevsoil_in)=1._r8/real(nlevsoil_in,r8)
       end if
 
-         
       ! Fates -> BGC fragmentation mass fluxes
       select case(hlm_parteh_mode) 
       case(prt_carbon_allom_hyp)
@@ -1275,6 +1279,7 @@ contains
          hlm_masterproc   = unset_int
          hlm_ipedof       = unset_int
          hlm_nu_com      = 'unset'
+         hlm_decomp      = 'unset'
          hlm_nitrogen_spec = unset_int
          hlm_phosphorus_spec = unset_int
          hlm_max_patch_per_site = unset_int
@@ -1422,10 +1427,32 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(trim(hlm_decomp) .eq. 'unset') then
+            if (fates_global_verbose()) then
+               write(fates_log(),*) 'FATES dimension/parameter unset: hlm_decomp, exiting'
+               write(fates_log(),*) 'valid: MIMICS, CENTURY, CTC'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         if( .not. ((trim(hlm_decomp) .eq. 'MIMICS') .or. &
+              (trim(hlm_decomp) .eq. 'CENTURY') .or. &
+              (trim(hlm_decomp) .eq. 'CTC') .or. &
+              (trim(hlm_decomp) .eq. 'NONE'))   ) then
+            if (fates_global_verbose()) then
+               write(fates_log(),*) 'FATES dimension/parameter unset: hlm_decomp, exiting'
+               write(fates_log(),*) 'valid: NONE, MIMICS, CENTURY, CTC, yours: ',trim(hlm_decomp)
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         ! TEMPORARY TESTING OVERRIDE !!!!!!!!
+         ! hlm_decomp = 'MIMICS'
+         
          if(trim(hlm_nu_com) .eq. 'unset') then
             write(fates_log(),*) 'FATES dimension/parameter unset: hlm_nu_com, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
+         
          
          if(hlm_nitrogen_spec .eq. unset_int) then
             write(fates_log(),*) 'FATES parameters unset: hlm_nitrogen_spec, exiting'
@@ -1468,7 +1495,7 @@ contains
             write(fates_log(), *) 'switch for the HLMs CH4 module unset: hlm_use_ch4, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
-         
+
          if(hlm_use_vertsoilc .eq. unset_int) then
             write(fates_log(), *) 'switch for the HLMs soil carbon discretization unset: hlm_use_vertsoilc, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1755,6 +1782,12 @@ contains
                hlm_nu_com = trim(cval)
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering the nutrient competition name = ',trim(cval)
+               end if
+
+            case('decomp_method')
+               hlm_decomp = trim(cval)
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering the decomp method name = ',trim(cval)
                end if
 
             case('inventory_ctrl_file')
