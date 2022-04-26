@@ -1268,7 +1268,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
 
            if (abs(gs_mol-gs_mol_err) > 1.e-01_r8) then
               warn_msg = 'Stomatal conductance error check - weak convergence: '//trim(N2S(gs_mol))//' '//trim(N2S(gs_mol_err))
-              call FatesWarn(warn_msg,index=4)
+              call FatesWarn(warn_msg,index=1)
            end if
 
         enddo !sunsha loop

@@ -133,7 +133,7 @@ contains
     
     integer :: ind
 
-    do ind = 1,max_ids
+    do ind = 0,max_ids
        
        if(warn_counts(ind)>0)then
 
