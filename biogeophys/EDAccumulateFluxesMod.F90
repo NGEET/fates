@@ -13,7 +13,7 @@ module EDAccumulateFluxesMod
   use FatesGlobals, only      : fates_log
   use shr_log_mod , only      : errMsg => shr_log_errMsg
   use FatesConstantsMod , only : r8 => fates_r8
-  use shr_log_mod , only      : errMsg => shr_log_errMsg
+
 
   implicit none
   private
