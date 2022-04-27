@@ -160,6 +160,60 @@ variables:
 	double fates_c2b(fates_pft) ;
 		fates_c2b:units = "ratio" ;
 		fates_c2b:long_name = "Carbon to biomass multiplier of bulk structural tissues" ;
+	double fates_cnp_eca_alpha_ptase(fates_pft) ;
+		fates_cnp_eca_alpha_ptase:units = "g/m3" ;
+		fates_cnp_eca_alpha_ptase:long_name = "fraction of P from ptase activity sent directly to plant (ECA)" ;
+	double fates_cnp_eca_decompmicc(fates_pft) ;
+		fates_cnp_eca_decompmicc:units = "gC/m3" ;
+		fates_cnp_eca_decompmicc:long_name = "maximum soil microbial decomposer biomass found over depth (will be applied at a reference depth w/ exponential attenuation) (ECA)" ;
+	double fates_cnp_eca_km_nh4(fates_pft) ;
+		fates_cnp_eca_km_nh4:units = "gN/m3" ;
+		fates_cnp_eca_km_nh4:long_name = "half-saturation constant for plant nh4 uptake (ECA)" ;
+	double fates_cnp_eca_km_no3(fates_pft) ;
+		fates_cnp_eca_km_no3:units = "gN/m3" ;
+		fates_cnp_eca_km_no3:long_name = "half-saturation constant for plant no3 uptake (ECA)" ;
+	double fates_cnp_eca_km_p(fates_pft) ;
+		fates_cnp_eca_km_p:units = "gP/m3" ;
+		fates_cnp_eca_km_p:long_name = "half-saturation constant for plant p uptake (ECA)" ;
+	double fates_cnp_eca_km_ptase(fates_pft) ;
+		fates_cnp_eca_km_ptase:units = "gP/m3" ;
+		fates_cnp_eca_km_ptase:long_name = "half-saturation constant for biochemical P (ECA)" ;
+	double fates_cnp_eca_lambda_ptase(fates_pft) ;
+		fates_cnp_eca_lambda_ptase:units = "g/m3" ;
+		fates_cnp_eca_lambda_ptase:long_name = "critical value for biochemical production (ECA)" ;
+	double fates_cnp_eca_vmax_ptase(fates_pft) ;
+		fates_cnp_eca_vmax_ptase:units = "gP/m2/s" ;
+		fates_cnp_eca_vmax_ptase:long_name = "maximum production rate for biochemical P (per m2) (ECA)" ;
+	double fates_cnp_fnrt_adapt_tscale(fates_pft) ;
+		fates_cnp_fnrt_adapt_tscale:units = "days" ;
+		fates_cnp_fnrt_adapt_tscale:long_name = "Number of days that is the shortest possible doubling period for fine-root adaptation (CNP only)" ;
+	double fates_cnp_nfix1(fates_pft) ;
+		fates_cnp_nfix1:units = "NA" ;
+		fates_cnp_nfix1:long_name = "place-holder for future n-fixation parameter (NOT IMPLEMENTED)" ;
+	double fates_cnp_nfix2(fates_pft) ;
+		fates_cnp_nfix2:units = "NA" ;
+		fates_cnp_nfix2:long_name = "place-holder for future n-fixation parameter (NOT IMPLEMENTED)" ;
+	double fates_cnp_nitr_store_ratio(fates_pft) ;
+		fates_cnp_nitr_store_ratio:units = "(gN/gN)" ;
+		fates_cnp_nitr_store_ratio:long_name = "ratio of storeable N, to functional N bound in cell structures of leaf,root,sap" ;
+	double fates_cnp_phos_store_ratio(fates_pft) ;
+		fates_cnp_phos_store_ratio:units = "(gP/gP)" ;
+		fates_cnp_phos_store_ratio:long_name = "ratio of storeable P, to functional P bound in cell structures of leaf,root,sap" ;
+	double fates_cnp_prescribed_nuptake(fates_pft) ;
+		fates_cnp_prescribed_nuptake:units = "fraction" ;
+		fates_cnp_prescribed_nuptake:long_name = "Prescribed N uptake flux. 0=fully coupled simulation >0=prescribed (experimental)" ;
+	double fates_cnp_prescribed_puptake(fates_pft) ;
+		fates_cnp_prescribed_puptake:units = "fraction" ;
+		fates_cnp_prescribed_puptake:long_name = "Prescribed P uptake flux. 0=fully coupled simulation, >0=prescribed (experimental)" ;
+	double fates_cnp_vmax_nh4(fates_pft) ;
+		fates_cnp_vmax_nh4:units = "gN/gC/s" ;
+		fates_cnp_vmax_nh4:long_name = "maximum production rate for plant nh4 uptake (ECA & RD)" ;
+	double fates_cnp_vmax_no3(fates_pft) ;
+		fates_cnp_vmax_no3:units = "gN/gC/s" ;
+		fates_cnp_vmax_no3:long_name = "maximum production rate for plant no3 uptake (ECA & RD)" ;
+	double fates_cnp_vmax_p(fates_pft) ;
+		fates_cnp_vmax_p:units = "gP/gC/s" ;
+		fates_cnp_vmax_p:long_name = "maximum production rate for plant p uptake (ECA & RD)" ;
 	double fates_crown_depth_frac(fates_pft) ;
 		fates_crown_depth_frac:units = "fraction" ;
 		fates_crown_depth_frac:long_name = "the depth of a cohorts crown as a fraction of its height" ;
@@ -181,39 +235,6 @@ variables:
 	double fates_displar(fates_pft) ;
 		fates_displar:units = "unitless" ;
 		fates_displar:long_name = "Ratio of displacement height to canopy top height" ;
-	double fates_eca_alpha_ptase(fates_pft) ;
-		fates_eca_alpha_ptase:units = "g/m3" ;
-		fates_eca_alpha_ptase:long_name = "fraction of P from ptase activity sent directly to plant (ECA)" ;
-	double fates_eca_decompmicc(fates_pft) ;
-		fates_eca_decompmicc:units = "gC/m3" ;
-		fates_eca_decompmicc:long_name = "maximum soil microbial decomposer biomass found over depth (will be applied at a reference depth w/ exponential attenuation) (ECA)" ;
-	double fates_eca_km_nh4(fates_pft) ;
-		fates_eca_km_nh4:units = "gN/m3" ;
-		fates_eca_km_nh4:long_name = "half-saturation constant for plant nh4 uptake (ECA)" ;
-	double fates_eca_km_no3(fates_pft) ;
-		fates_eca_km_no3:units = "gN/m3" ;
-		fates_eca_km_no3:long_name = "half-saturation constant for plant no3 uptake (ECA)" ;
-	double fates_eca_km_p(fates_pft) ;
-		fates_eca_km_p:units = "gP/m3" ;
-		fates_eca_km_p:long_name = "half-saturation constant for plant p uptake (ECA)" ;
-	double fates_eca_km_ptase(fates_pft) ;
-		fates_eca_km_ptase:units = "gP/m3" ;
-		fates_eca_km_ptase:long_name = "half-saturation constant for biochemical P (ECA)" ;
-	double fates_eca_lambda_ptase(fates_pft) ;
-		fates_eca_lambda_ptase:units = "g/m3" ;
-		fates_eca_lambda_ptase:long_name = "critical value for biochemical production (ECA)" ;
-	double fates_eca_vmax_nh4(fates_pft) ;
-		fates_eca_vmax_nh4:units = "gN/gC/s" ;
-		fates_eca_vmax_nh4:long_name = "maximum production rate for plant nh4 uptake (ECA)" ;
-	double fates_eca_vmax_no3(fates_pft) ;
-		fates_eca_vmax_no3:units = "gN/gC/s" ;
-		fates_eca_vmax_no3:long_name = "maximum production rate for plant no3 uptake (ECA)" ;
-	double fates_eca_vmax_p(fates_pft) ;
-		fates_eca_vmax_p:units = "gP/gC/s" ;
-		fates_eca_vmax_p:long_name = "maximum production rate for plant p uptake (ECA)" ;
-	double fates_eca_vmax_ptase(fates_pft) ;
-		fates_eca_vmax_ptase:units = "gP/m2/s" ;
-		fates_eca_vmax_ptase:long_name = "maximum production rate for biochemical P (per m2) (ECA)" ;
 	double fates_fire_alpha_SH(fates_pft) ;
 		fates_fire_alpha_SH:units = "m / (kw/m)**(2/3)" ;
 		fates_fire_alpha_SH:long_name = "spitfire parameter, alpha scorch height, Equation 16 Thonicke et al 2010" ;
@@ -223,9 +244,6 @@ variables:
 	double fates_fire_crown_kill(fates_pft) ;
 		fates_fire_crown_kill:units = "NA" ;
 		fates_fire_crown_kill:long_name = "fire parameter, see equation 22 in Thonicke et al 2010" ;
-	double fates_fnrt_adapt_tscale(fates_pft) ;
-		fates_fnrt_adapt_tscale:units = "days" ;
-		fates_fnrt_adapt_tscale:long_name = "Number of days that is the shortest possible doubling period for fine-root adaptation (CNP only)" ;
 	double fates_fnrt_prof_a(fates_pft) ;
 		fates_fnrt_prof_a:units = "unitless" ;
 		fates_fnrt_prof_a:long_name = "Fine root profile function, parameter a" ;
@@ -407,15 +425,6 @@ variables:
 	double fates_mort_scalar_hydrfailure(fates_pft) ;
 		fates_mort_scalar_hydrfailure:units = "1/yr" ;
 		fates_mort_scalar_hydrfailure:long_name = "maximum mortality rate from hydraulic failure" ;
-	double fates_nfix1(fates_pft) ;
-		fates_nfix1:units = "NA" ;
-		fates_nfix1:long_name = "place-holder for future n-fixation parameter (NOT IMPLEMENTED)" ;
-	double fates_nfix2(fates_pft) ;
-		fates_nfix2:units = "NA" ;
-		fates_nfix2:long_name = "place-holder for future n-fixation parameter (NOT IMPLEMENTED)" ;
-	double fates_nitr_store_ratio(fates_pft) ;
-		fates_nitr_store_ratio:units = "(gN/gN)" ;
-		fates_nitr_store_ratio:long_name = "ratio of storeable N, to functional N bound in cell structures of leaf,root,sap" ;
 	double fates_phen_cold_size_threshold(fates_pft) ;
 		fates_phen_cold_size_threshold:units = "cm" ;
 		fates_phen_cold_size_threshold:long_name = "the dbh size above which will lead to phenology-related stem and leaf drop" ;
@@ -437,9 +446,6 @@ variables:
 	double fates_phenflush_fraction(fates_pft) ;
 		fates_phenflush_fraction:units = "fraction" ;
 		fates_phenflush_fraction:long_name = "Upon bud-burst, the maximum fraction of storage carbon used for flushing leaves" ;
-	double fates_phos_store_ratio(fates_pft) ;
-		fates_phos_store_ratio:units = "(gP/gP)" ;
-		fates_phos_store_ratio:long_name = "ratio of storeable P, to functional P bound in cell structures of leaf,root,sap" ;
 	double fates_prescribed_mortality_canopy(fates_pft) ;
 		fates_prescribed_mortality_canopy:units = "1/yr" ;
 		fates_prescribed_mortality_canopy:long_name = "mortality rate of canopy trees for prescribed physiology mode" ;
@@ -452,12 +458,6 @@ variables:
 	double fates_prescribed_npp_understory(fates_pft) ;
 		fates_prescribed_npp_understory:units = "kgC / m^2 / yr" ;
 		fates_prescribed_npp_understory:long_name = "NPP per unit crown area of understory trees for prescribed physiology mode" ;
-	double fates_prescribed_nuptake(fates_pft) ;
-		fates_prescribed_nuptake:units = "fraction" ;
-		fates_prescribed_nuptake:long_name = "Prescribed N uptake flux. 0=fully coupled simulation >0=prescribed (experimental)" ;
-	double fates_prescribed_puptake(fates_pft) ;
-		fates_prescribed_puptake:units = "fraction" ;
-		fates_prescribed_puptake:long_name = "Prescribed P uptake flux. 0=fully coupled simulation, >0=prescribed (experimental)" ;
 	double fates_prescribed_recruitment(fates_pft) ;
 		fates_prescribed_recruitment:units = "n/yr" ;
 		fates_prescribed_recruitment:long_name = "recruitment rate for prescribed physiology mode" ;
@@ -603,6 +603,9 @@ variables:
 	double fates_canopy_closure_thresh ;
 		fates_canopy_closure_thresh:units = "unitless" ;
 		fates_canopy_closure_thresh:long_name = "tree canopy coverage at which crown area allometry changes from savanna to forest value" ;
+	double fates_cnp_eca_plant_escalar ;
+		fates_cnp_eca_plant_escalar:units = "" ;
+		fates_cnp_eca_plant_escalar:long_name = "scaling factor for plant fine root biomass to calculate nutrient carrier enzyme abundance (ECA)" ;
 	double fates_cohort_age_fusion_tol ;
 		fates_cohort_age_fusion_tol:units = "unitless" ;
 		fates_cohort_age_fusion_tol:long_name = "minimum fraction in differece in cohort age between cohorts." ;
@@ -621,9 +624,6 @@ variables:
 	double fates_dev_arbitrary ;
 		fates_dev_arbitrary:units = "unknown" ;
 		fates_dev_arbitrary:long_name = "Unassociated free parameter that developers can use for testing arbitrary new hypotheses" ;
-	double fates_eca_plant_escalar ;
-		fates_eca_plant_escalar:units = "" ;
-		fates_eca_plant_escalar:long_name = "scaling factor for plant fine root biomass to calculate nutrient carrier enzyme abundance (ECA)" ;
 	double fates_fire_active_crown_fire ;
 		fates_fire_active_crown_fire:units = "0 or 1" ;
 		fates_fire_active_crown_fire:long_name = "flag, 1=active crown fire 0=no active crown fire" ;
@@ -943,6 +943,54 @@ data:
 
  fates_c2b = 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ;
 
+ fates_cnp_eca_alpha_ptase = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
+    0.5, 0.5, 0.5 ;
+
+ fates_cnp_eca_decompmicc = 280, 280, 280, 280, 280, 280, 280, 280, 280, 280, 
+    280, 280 ;
+
+ fates_cnp_eca_km_nh4 = 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 
+    0.14, 0.14, 0.14 ;
+
+ fates_cnp_eca_km_no3 = 0.27, 0.27, 0.27, 0.27, 0.27, 0.27, 0.27, 0.27, 0.27, 
+    0.27, 0.27, 0.27 ;
+
+ fates_cnp_eca_km_p = 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 
+    0.1 ;
+
+ fates_cnp_eca_km_ptase = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
+
+ fates_cnp_eca_lambda_ptase = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
+
+ fates_cnp_eca_vmax_ptase = 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 
+    5e-09, 5e-09, 5e-09, 5e-09, 5e-09 ;
+
+ fates_cnp_fnrt_adapt_tscale = 100, 100, 100, 100, 100, 100, 100, 100, 100, 
+    100, 100, 100 ;
+
+ fates_cnp_nfix1 = _, _, _, _, _, _, _, _, _, _, _, _ ;
+
+ fates_cnp_nfix2 = _, _, _, _, _, _, _, _, _, _, _, _ ;
+
+ fates_cnp_nitr_store_ratio = 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 
+    1.5, 1.5, 1.5 ;
+
+ fates_cnp_phos_store_ratio = 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 
+    1.5, 1.5, 1.5 ;
+
+ fates_cnp_prescribed_nuptake = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
+
+ fates_cnp_prescribed_puptake = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
+
+ fates_cnp_vmax_nh4 = 1.5e-07, 1.5e-07, 1.5e-07, 1.5e-07, 1.5e-07, 1.5e-07, 
+    1.5e-07, 1.5e-07, 1.5e-07, 1.5e-07, 1.5e-07, 1.5e-07 ;
+
+ fates_cnp_vmax_no3 = 1.5e-08, 1.5e-08, 1.5e-08, 1.5e-08, 1.5e-08, 1.5e-08, 
+    1.5e-08, 1.5e-08, 1.5e-08, 1.5e-08, 1.5e-08, 1.5e-08 ;
+
+ fates_cnp_vmax_p = 1.5e-09, 1.5e-09, 1.5e-09, 1.5e-09, 1.5e-09, 1.5e-09, 
+    1.5e-09, 1.5e-09, 1.5e-09, 1.5e-09, 1.5e-09, 1.5e-09 ;
+
  fates_crown_depth_frac = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.95, 0.95, 0.95, 1, 
     1, 1 ;
 
@@ -961,36 +1009,6 @@ data:
  fates_displar = 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 
     0.67, 0.67 ;
 
- fates_eca_alpha_ptase = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
-    0.5, 0.5 ;
-
- fates_eca_decompmicc = 280, 280, 280, 280, 280, 280, 280, 280, 280, 280, 
-    280, 280 ;
-
- fates_eca_km_nh4 = 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 
-    0.14, 0.14, 0.14 ;
-
- fates_eca_km_no3 = 0.27, 0.27, 0.27, 0.27, 0.27, 0.27, 0.27, 0.27, 0.27, 
-    0.27, 0.27, 0.27 ;
-
- fates_eca_km_p = 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1 ;
-
- fates_eca_km_ptase = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
-
- fates_eca_lambda_ptase = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
-
- fates_eca_vmax_nh4 = 1.5e-07, 1.5e-07, 1.5e-07, 1.5e-07, 1.5e-07, 1.5e-07, 
-    1.5e-07, 1.5e-07, 1.5e-07, 1.5e-07, 1.5e-07, 1.5e-07 ;
-
- fates_eca_vmax_no3 = 1.5e-08, 1.5e-08, 1.5e-08, 1.5e-08, 1.5e-08, 1.5e-08, 
-    1.5e-08, 1.5e-08, 1.5e-08, 1.5e-08, 1.5e-08, 1.5e-08 ;
-
- fates_eca_vmax_p = 1.5e-09, 1.5e-09, 1.5e-09, 1.5e-09, 1.5e-09, 1.5e-09, 
-    1.5e-09, 1.5e-09, 1.5e-09, 1.5e-09, 1.5e-09, 1.5e-09 ;
-
- fates_eca_vmax_ptase = 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 
-    5e-09, 5e-09, 5e-09, 5e-09, 5e-09 ;
-
  fates_fire_alpha_SH = 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 
     0.2 ;
 
@@ -999,9 +1017,6 @@ data:
 
  fates_fire_crown_kill = 0.775, 0.775, 0.775, 0.775, 0.775, 0.775, 0.775, 
     0.775, 0.775, 0.775, 0.775, 0.775 ;
-
- fates_fnrt_adapt_tscale = 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 
-    100, 100 ;
 
  fates_fnrt_prof_a = 7, 7, 7, 7, 6, 6, 7, 7, 7, 11, 11, 11 ;
 
@@ -1217,13 +1232,6 @@ data:
  fates_mort_scalar_hydrfailure = 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 
     0.6, 0.6, 0.6 ;
 
- fates_nfix1 = _, _, _, _, _, _, _, _, _, _, _, _ ;
-
- fates_nfix2 = _, _, _, _, _, _, _, _, _, _, _, _ ;
-
- fates_nitr_store_ratio = 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 
-    1.5, 1.5 ;
-
  fates_phen_cold_size_threshold = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
  fates_phen_evergreen = 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0 ;
@@ -1238,9 +1246,6 @@ data:
 
  fates_phenflush_fraction = _, _, 0.5, _, 0.5, 0.5, _, 0.5, 0.5, 0.5, 0.5, 0.5 ;
 
- fates_phos_store_ratio = 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 
-    1.5, 1.5 ;
-
  fates_prescribed_mortality_canopy = 0.0194, 0.0194, 0.0194, 0.0194, 0.0194, 
     0.0194, 0.0194, 0.0194, 0.0194, 0.0194, 0.0194, 0.0194 ;
 
@@ -1252,10 +1257,6 @@ data:
 
  fates_prescribed_npp_understory = 0.03125, 0.03125, 0.03125, 0.03125, 
     0.03125, 0.03125, 0.03125, 0.03125, 0.03125, 0.03125, 0.03125, 0.03125 ;
-
- fates_prescribed_nuptake = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
-
- fates_prescribed_puptake = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
  fates_prescribed_recruitment = 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 
     0.02, 0.02, 0.02, 0.02, 0.02 ;
@@ -1432,6 +1433,8 @@ data:
 
  fates_canopy_closure_thresh = 0.8 ;
 
+ fates_cnp_eca_plant_escalar = 1.25e-05 ;
+
  fates_cohort_age_fusion_tol = 0.08 ;
 
  fates_cohort_size_fusion_tol = 0.08 ;
@@ -1443,8 +1446,6 @@ data:
  fates_cwd_flig = 0.24 ;
 
  fates_dev_arbitrary = _ ;
-
- fates_eca_plant_escalar = 1.25e-05 ;
 
  fates_fire_active_crown_fire = 0 ;
 
