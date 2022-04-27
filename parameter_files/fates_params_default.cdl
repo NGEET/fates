@@ -201,9 +201,9 @@ variables:
 	double fates_fire_bark_scaler(fates_pft) ;
 		fates_fire_bark_scaler:units = "fraction" ;
 		fates_fire_bark_scaler:long_name = "the thickness of a cohorts bark as a fraction of its dbh" ;
-	double fates_fire_crown_depth_frac(fates_pft) ;
-		fates_fire_crown_depth_frac:units = "fraction" ;
-		fates_fire_crown_depth_frac:long_name = "the depth of a cohorts crown as a fraction of its height" ;
+	double fates_crown_depth_frac(fates_pft) ;
+		fates_crown_depth_frac:units = "fraction" ;
+		fates_crown_depth_frac:long_name = "the depth of a cohorts crown as a fraction of its height" ;
 	double fates_fire_crown_kill(fates_pft) ;
 		fates_fire_crown_kill:units = "NA" ;
 		fates_fire_crown_kill:long_name = "fire parameter, see equation 22 in Thonicke et al 2010" ;
@@ -656,6 +656,9 @@ variables:
 	double fates_hydr_psicap ;
 		fates_hydr_psicap:units = "MPa" ;
 		fates_hydr_psicap:long_name = "sapwood water potential at which capillary reserves exhausted" ;
+   double fates_hydr_solver ;
+	   fates_hydr_solver:units = "unitless" ;
+		fates_hydr_solver:long_name = "switch designating which numerical solver for plant hydraulics, 1 = 1D taylor, 2 = 2D Picard" ;
 	double fates_init_litter ;
 		fates_init_litter:units = "NA" ;
 		fates_init_litter:long_name = "Initialization value for litter pool in cold-start (NOT USED)" ;
@@ -743,6 +746,9 @@ variables:
 	double fates_soil_salinity ;
 		fates_soil_salinity:units = "ppt" ;
 		fates_soil_salinity:long_name = "soil salinity used for model when not coupled to dynamic soil salinity" ;
+	double fates_stomatal_assim ;
+	   fates_stomatal_assim:units = "unitless" ;
+		fates_stomatal_assim:long_name = "a switch designating whether to use net (1) or gross (2) assimilation in the stomatal model" ;
 	double fates_theta_cj_c3 ;
 		fates_theta_cj_c3:units = "unitless" ;
 		fates_theta_cj_c3:long_name = "Empirical curvature parameter for ac, aj photosynthesis co-limitation in c3 plants" ;
@@ -939,7 +945,7 @@ data:
  fates_fire_bark_scaler = 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07,
     0.07, 0.07, 0.07, 0.07 ;
 
- fates_fire_crown_depth_frac = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.95, 0.95,
+ fates_crown_depth_frac = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.95, 0.95,
     0.95, 1, 1, 1 ;
 
  fates_fire_crown_kill = 0.775, 0.775, 0.775, 0.775, 0.775, 0.775, 0.775,
@@ -1421,6 +1427,8 @@ data:
 
  fates_hydr_psicap = -0.6 ;
 
+ fates_hydr_solver = 1 ;
+
  fates_init_litter = 0.05 ;
 
  fates_leaf_stomatal_model = 1 ;
@@ -1478,6 +1486,8 @@ data:
  fates_q10_mr = 1.5 ;
 
  fates_soil_salinity = 0.4 ;
+
+ fates_stomatal_assim = 1 ;
 
  fates_theta_cj_c3 = 0.999 ;
 

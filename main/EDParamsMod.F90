@@ -93,16 +93,6 @@ module EDParamsMod
    ! 1  = Christofferson et al. 2016 (TFS),   2 = Van Genuchten 1980
    integer, protected,allocatable,public :: hydr_htftype_node(:)
 
-   ! Switch that defines which hydraulic solver to use
-   ! 1 = Taylor solution that solves plant fluxes with 1 layer
-   !     sequentially placing solution on top of previous layer solves
-   ! 2 = Newton-Raphson solution that solves all fluxes in a plant and
-   !     the soil simultaneously, 2D: soil x (root + shell)
-   ! 3 = Picard solution that solves all fluxes in a plant and
-   !     the soil simultaneously, 2D: soil x (root + shell)
-
-   integer, parameter, public :: hydr_solver_type = 1    ! 1 = hydr_solver_1DTaylor
-   
    character(len=param_string_length),parameter,public :: ED_name_photo_temp_acclim_timescale = "fates_photo_temp_acclim_timescale"
    character(len=param_string_length),parameter,public :: name_photo_tempsens_model = "fates_photo_tempsens_model"
    character(len=param_string_length),parameter,public :: name_maintresp_model = "fates_maintresp_model"
@@ -160,10 +150,27 @@ module EDParamsMod
    real(r8),protected,public :: hydr_psicap        !  sapwood water potential at which capillary reserves exhausted (MPa)
    character(len=param_string_length),parameter,public :: hydr_name_psicap = "fates_hydr_psicap"
 
+
+   ! Switch that defines which hydraulic solver to use
+   ! 1 = Taylor solution that solves plant fluxes with 1 layer
+   !     sequentially placing solution on top of previous layer solves
+   ! 2 = Picard solution that solves all fluxes in a plant and
+   !     the soil simultaneously, 2D: soil x (root + shell)
+   ! 3 = Newton-Raphson (Deprecated) solution that solves all fluxes in a plant and
+   !     the soil simultaneously, 2D: soil x (root + shell)
+   
+   integer,protected,public :: hydr_solver        !  switch designating hydraulics numerical solver
+   character(len=param_string_length),parameter,public :: hydr_name_solver = "fates_hydr_solver"
+   
    !Soil BGC parameters, mostly used for testing FATES when not coupled to the dynamics bgc hlm
    ! ----------------------------------------------------------------------------------------------
    real(r8),protected,public :: bgc_soil_salinity ! site-level soil salinity for FATES when not coupled to dynamic soil BGC of salinity
    character(len=param_string_length),parameter,public :: bgc_name_soil_salinity= "fates_soil_salinity"      
+
+   ! Switch designating whether to use net or gross assimilation in the stomata model
+   integer, protected, public :: stomatal_assim_model
+   character(len=param_string_length), parameter, public :: stomatal_assim_name = "fates_stomatal_assim"
+   
    
    ! Logging Control Parameters (ONLY RELEVANT WHEN USE_FATES_LOGGING = TRUE)
    ! ----------------------------------------------------------------------------------------------
@@ -250,10 +257,12 @@ contains
     ED_val_patch_fusion_tol               = nan
     ED_val_canopy_closure_thresh          = nan
     stomatal_model                        = -9
+    stomatal_assim_model                  = -9
     hydr_kmax_rsurf1                      = nan
     hydr_kmax_rsurf2                      = nan
     hydr_psi0                             = nan
     hydr_psicap                           = nan
+    hydr_solver                           = -9
     bgc_soil_salinity                     = nan
     logging_dbhmin                        = nan
     logging_dbhmax                        = nan
@@ -383,7 +392,10 @@ contains
 
     call fates_params%RegisterParameter(name=ED_name_stomatal_model, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
-	 
+
+    call fates_params%RegisterParameter(name=stomatal_assim_name, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+    
     call fates_params%RegisterParameter(name=hydr_name_kmax_rsurf1, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
@@ -561,6 +573,10 @@ contains
          data=tmpreal)
     stomatal_model = nint(tmpreal)
 
+    call fates_params%RetreiveParameter(name=stomatal_assim_name, &
+         data=tmpreal)
+    stomatal_assim_model = nint(tmpreal)
+    
     call fates_params%RetreiveParameter(name=hydr_name_kmax_rsurf1, &
           data=hydr_kmax_rsurf1)
 
@@ -572,7 +588,11 @@ contains
 
     call fates_params%RetreiveParameter(name=hydr_name_psicap, &
           data=hydr_psicap)
-	  
+
+    call fates_params%RetreiveParameter(name=hydr_name_solver, &
+         data=tmpreal)
+    hydr_solver = nint(tmpreal)
+    
     call fates_params%RetreiveParameter(name=bgc_name_soil_salinity, &
           data=bgc_soil_salinity)	  
 
@@ -689,11 +709,13 @@ contains
         write(fates_log(),fmt0) 'ED_val_cohort_age_fusion_tol = ',ED_val_cohort_age_fusion_tol
         write(fates_log(),fmt0) 'ED_val_patch_fusion_tol = ',ED_val_patch_fusion_tol
         write(fates_log(),fmt0) 'ED_val_canopy_closure_thresh = ',ED_val_canopy_closure_thresh
-        write(fates_log(),fmt0) 'stomatal_model = ',stomatal_model      
+        write(fates_log(),fmt0) 'stomatal_model = ',stomatal_model
+        write(fates_log(),fmt0) 'stomatal_assim_model = ',stomatal_assim_model            
         write(fates_log(),fmt0) 'hydr_kmax_rsurf1 = ',hydr_kmax_rsurf1
         write(fates_log(),fmt0) 'hydr_kmax_rsurf2 = ',hydr_kmax_rsurf2  
         write(fates_log(),fmt0) 'hydr_psi0 = ',hydr_psi0
         write(fates_log(),fmt0) 'hydr_psicap = ',hydr_psicap
+        write(fates_log(),fmt0) 'hydr_solver = ',hydr_solver
         write(fates_log(),fmt0) 'bgc_soil_salinity = ', bgc_soil_salinity
         write(fates_log(),fmt0) 'logging_dbhmin = ',logging_dbhmin
         write(fates_log(),fmt0) 'logging_dbhmax = ',logging_dbhmax
