@@ -93,7 +93,7 @@ module FATESPlantRespPhotosynthMod
   
   ! Alternatively, Gross Assimilation can be used to estimate
   ! leaf co2 partial pressure and therefore conductance. The default
-  !is to use anet
+  ! is to use anet
   integer, parameter :: net_assim_model = 1
   integer, parameter :: gross_assim_model = 2
   
