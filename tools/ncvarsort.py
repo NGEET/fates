@@ -38,6 +38,7 @@ def main():
     (u'fates_history_coage_bins',):1,
     (u'fates_history_height_bins',):2,
     (u'fates_history_size_bins',):3,
+    (u'fates_history_damage_bins',):3,
     (u'fates_hydr_organs',):4,
     (u'fates_prt_organs',):4,
     (u'fates_pft', u'fates_string_length'):5,
