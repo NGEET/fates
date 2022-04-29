@@ -170,7 +170,18 @@ module EDParamsMod
    ! Switch designating whether to use net or gross assimilation in the stomata model
    integer, protected, public :: stomatal_assim_model
    character(len=param_string_length), parameter, public :: stomatal_assim_name = "fates_stomatal_assim"
+
+
+   ! Maximum allowable primary and secondary patches
+   ! These values are USED FOR ALLOCATIONS IN BOTH FATES AND CLM/ELM!!!!
    
+   integer, protected, public :: maxpatch_primary
+   character(len=param_string_length), parameter, public :: maxpatch_primary_name = "fates_maxpatch_primary"
+   
+   integer, protected, public :: maxpatch_secondary
+   character(len=param_string_length), parameter, public :: maxpatch_secondary_name = "fates_maxpatch_secondary"
+
+
    
    ! Logging Control Parameters (ONLY RELEVANT WHEN USE_FATES_LOGGING = TRUE)
    ! ----------------------------------------------------------------------------------------------
@@ -258,6 +269,8 @@ contains
     ED_val_canopy_closure_thresh          = nan
     stomatal_model                        = -9
     stomatal_assim_model                  = -9
+    maxpatch_primary                      = -9
+    maxpatch_secondary                    = -9
     hydr_kmax_rsurf1                      = nan
     hydr_kmax_rsurf2                      = nan
     hydr_psi0                             = nan
@@ -394,6 +407,12 @@ contains
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=stomatal_assim_name, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=maxpatch_primary_name, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=maxpatch_secondary_name, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
     
     call fates_params%RegisterParameter(name=hydr_name_kmax_rsurf1, dimension_shape=dimension_shape_scalar, &
@@ -576,6 +595,14 @@ contains
     call fates_params%RetreiveParameter(name=stomatal_assim_name, &
          data=tmpreal)
     stomatal_assim_model = nint(tmpreal)
+
+    call fates_params%RetreiveParameter(name=maxpatch_primary_name, &
+         data=tmpreal)
+    maxpatch_primary = nint(tmpreal)
+
+    call fates_params%RetreiveParameter(name=maxpatch_secondary_name, &
+         data=tmpreal)
+    maxpatch_secondary = nint(tmpreal)
     
     call fates_params%RetreiveParameter(name=hydr_name_kmax_rsurf1, &
           data=hydr_kmax_rsurf1)
