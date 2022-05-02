@@ -565,8 +565,13 @@ module EDTypesMod
      real(r8) ::  fuel_eff_moist                                   ! effective avearage fuel moisture content of the ground fuel 
                                                                    ! (incl. live grasses. omits 1000hr fuels)
      real(r8) ::  litter_moisture(nfsc)
+     real(r8) ::  canopy_fuel_load                                 ! available canopy fuel load in patch (kg biomass)
+     real(r8) ::  passive_crown_FI                                 ! fire intensity for ignition of passive canopy fuel (kW/m)
+     real(r8) ::  heat_per_area                                    ! heat release per unit area (kJ/m2) for surface fuel
 
      ! FIRE SPREAD
+     real(r8) ::  lb                                               ! length to breadth ratio of fire ellipse (unitless)
+     real(r8) ::  ros_torch                                        ! rate of spread for crown torch initiation: m/min
      real(r8) ::  ros_front                                        ! rate of forward  spread of fire: m/min
      real(r8) ::  ros_back                                         ! rate of backward spread of fire: m/min
      real(r8) ::  effect_wspeed                                    ! windspeed modified by fraction of relative grass and tree cover: m/min

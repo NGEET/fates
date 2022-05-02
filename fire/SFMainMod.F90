@@ -89,12 +89,6 @@ contains
 
     type (ed_patch_type), pointer :: currentPatch
 
-    real(r8) :: canopy_fuel_load     ! available canopy fuel load in patch (kg biomass)
-    real(r8) :: passive_crown_FI     ! fire intensity for ignition of passive canopy fuel (kW/m)
-    real(r8) :: ROS_torch            ! ROS for crown torch initation (m/min)
-    real(r8) :: lb                   !length to breadth ratio of fire ellipse (unitless)
-    real(r8) :: heat_per_area        ! heat release per unit area (kJ/m2) for surface fuel
-
 
     !zero fire things
     currentPatch => currentSite%youngest_patch
@@ -115,14 +109,14 @@ contains
        call fire_danger_index(currentSite, bc_in)
        call wind_effect(currentSite, bc_in) 
        call characteristics_of_fuel(currentSite)
-       ! TODO Should canopy_fuel_load and passive_crown_FI be currentPatch%
-       ! variables to work? If so, don't pass them as arguments.
-       ! Same may apply to ROS_torch, heat_per_area, lb.
-       call characteristics_of_crown(currentSite, canopy_fuel_load, passive_crown_FI)
-       call rate_of_spread(currentSite, passive_crown_FI, ROS_torch, heat_per_area)
+       ! TODO canopy_fuel_load, passive_crown_FI, ROS_torch, heat_per_area, lb
+       ! look to me as though they should be currentPatch% variables, so I
+       ! stopped passing them as arguments
+       call characteristics_of_crown(currentSite)
+       call rate_of_spread(currentSite)
        call ground_fuel_consumption(currentSite)
-       call area_burnt_intensity(currentSite, bc_in, lb)
-       call active_crown_fire (currentSite,passive_crown_FI,canopy_fuel_load,ROS_torch,heat_per_area,lb)
+       call area_burnt_intensity(currentSite, bc_in)
+       call active_crown_fire (currentSite)
        call crown_scorching(currentSite)
        call crown_damage(currentSite)
        call cambial_damage_kill(currentSite)
@@ -352,7 +346,7 @@ contains
   end subroutine characteristics_of_fuel
 
   !****************************************************************
-  subroutine  characteristics_of_crown ( currentSite, canopy_fuel_load, passive_crown_FI) 
+  subroutine  characteristics_of_crown ( currentSite )
   !****************************************************************.  
 
     !returns the live crown fuel characteristics within each patch.
@@ -366,8 +360,6 @@ contains
     type(ed_cohort_type), pointer :: currentCohort
 
     ! ARGUMENTS
-    real(r8), intent(out) :: canopy_fuel_load     ! available canopy fuel load in patch (kg biomass)
-    real(r8), intent(out) :: passive_crown_FI     ! min fire intensity to ignite canopy fuel (kW/m)
 
     ! LOCAL
     real(r8) ::  crown_depth          ! depth of crown (m)
@@ -402,8 +394,8 @@ contains
     do while(associated(currentPatch))
        !zero Patch level variables
        height_base_canopy                   = 0.0_r8
-       canopy_fuel_load                     = 0.0_r8
-       passive_crown_FI                     = 0.0_r8
+       currentPatch%canopy_fuel_load        = 0.0_r8
+       currentPatch%passive_crown_FI        = 0.0_r8
        max_height = 0._r8
        biom_matrix(:) = 0._r8
 
@@ -454,7 +446,7 @@ contains
 
                 !accumulate available canopy fuel for patch (kg biomass)
                 ! use this in CFB (crown fraction burn) calculation and FI final
-                canopy_fuel_load = canopy_fuel_load + crown_fuel_biomass  !canopy fuel in patch
+                currentPatch%canopy_fuel_load = currentPatch%canopy_fuel_load + crown_fuel_biomass  !canopy fuel in patch
 
              endif !trees only
 
@@ -494,7 +486,7 @@ contains
           ! FI = (Czh)**3/2 where z=canopy base height,h=heat of crown ignite energy, FI=fire intensity
           ! 0.01 = C, empirical constant Van Wagner 1977 Eq 4 for 6m canopy base height, 100% FMC, FI 2500kW/m
           ! passive_crown_FI = min fire intensity to ignite canopy fuel (kW/m or kJ/m/s)
-          passive_crown_FI = (0.01_r8 * height_base_canopy * crown_ignite_energy)**1.5_r8
+          currentPatch%passive_crown_FI = (0.01_r8 * height_base_canopy * crown_ignite_energy)**1.5_r8
       
       currentPatch => currentPatch%younger;
 
@@ -588,7 +580,7 @@ contains
   end subroutine wind_effect
 
   !*******************************************************************
-  subroutine rate_of_spread ( currentSite, ROS_torch, passive_crown_FI, heat_per_area)
+  subroutine rate_of_spread ( currentSite)
     !*****************************************************************.
     !Routine called daily from within ED within a site loop.
     !Returns the updated currentPatch%ROS_front value for each patch.
@@ -605,9 +597,6 @@ contains
     type(ed_patch_type), pointer :: currentPatch
 
     ! ARGUMENTS
-    real(r8), intent(out) :: ROS_torch            ! ROS for crown torch initation (m/min)
-    real(r8), intent(out) :: heat_per_area        ! heat release per unit area (kJ/m2) for surface fuel
-    real(r8), intent(in)  :: passive_crown_FI     ! min fire intensity to ignite canopy fuel (kW/m or kJ/m/s)
 
     ! LOCAL VARIABLES
 
@@ -734,7 +723,7 @@ contains
            currentPatch%fuel_sav <= 0.0_r8 .or. xi <= 0.0_r8 .or. &
            c <= 0.0_r8 .or. beta_ratio <= 0.0_r8 .or. b <= 0.0_r8) then
           currentPatch%ROS_front = 0.0_r8
-          ROS_torch = 0.0_r8   
+          currentPatch%ROS_torch = 0.0_r8
        else ! Eq 9. Thonicke et al. 2010. 
             ! forward ROS in m/min
           currentPatch%ROS_front = (ir*xi*(1.0_r8+phi_wind)) / (currentPatch%fuel_bulkd*eps*q_ig)
@@ -744,7 +733,7 @@ contains
           ! calculate heat release per unit area (HPA)(kJ/m2), Eq 2 Scott & Reinhardt 2001
           ! and residence time (min), Eq 3 Scott & Reinhardt 2001
           time_r = 12.595_r8 / currentPatch%fuel_sav
-          heat_per_area = ir * time_r          
+          currentPatch%heat_per_area = ir * time_r
 
           ! calculate torching index based on wind speed and crown fuels 
           ! ROS for crown torch initation (m/min), Eq 18 Scott & Reinhardt 2001
@@ -752,11 +741,11 @@ contains
           ! fractional temp2 power.
           ! TODO slevis: omitting "- phi_s" after the -1 bc phi_s = 0 for now.
           !              @jkshuman recommended naming it slope_factor.
-          temp1 = max(0._r8, (60._r8 * passive_crown_FI * &
-  currentPatch%fuel_bulkd * eps * q_ig / (heat_per_area * ir * xi) - 1._r8) / &
+          temp1 = max(0._r8, (60._r8 * currentPatch%passive_crown_FI * &
+  currentPatch%fuel_bulkd * eps * q_ig / (currentPatch%heat_per_area * ir * xi) - 1._r8) / &
   (c * beta_ratio**-e))
           temp2 = 1._r8 / b
-          ROS_torch = temp1**temp2 / (54.683_r8 * wind_reduce)
+          currentPatch%ROS_torch = temp1**temp2 / (54.683_r8 * wind_reduce)
        endif
        ! Eq 10 in Thonicke et al. 2010
        ! backward ROS from Can FBP System (1992) in m/min
@@ -857,7 +846,7 @@ contains
 
   
   !*****************************************************************
-  subroutine  area_burnt_intensity ( currentSite, bc_in, lb)
+  subroutine  area_burnt_intensity ( currentSite, bc_in)
   !*****************************************************************
 
     !returns the updated currentPatch%FI value for each patch.
@@ -879,7 +868,6 @@ contains
     type(bc_in_type), intent(in) :: bc_in
 
     ! ARGUMENTS
-    real(r8), intent(out) :: lb      !length to breadth ratio of fire ellipse (unitless)
 
     ! LOCAL VARIABLES
     real(r8) ROS                     !rate of spread (m/s)
@@ -966,15 +954,16 @@ contains
           endif         
  
           if ((currentPatch%effect_wspeed*m_per_min__to__km_per_hour) < 1._r8) then !16.67m/min = 1km/hr 
-             lb = 1.0_r8
+             currentPatch%lb = 1.0_r8
           else
              if (tree_fraction_patch > forest_grassland_lengthtobreadth_threshold) then 
                  ! Eq 79 forest fuels (Canadian Forest Fire Behavior Prediction System Ont.Inf.Rep. ST-X-3, 1992)
-                 lb = (1.0_r8 + (8.729_r8 * &
-                      ((1.0_r8 -(exp(-0.03_r8 * m_per_min__to__km_per_hour * currentPatch%effect_wspeed)))**2.155_r8)))
+                 currentPatch%lb = (1.0_r8 + (8.729_r8 * &
+  ((1.0_r8 -(exp(-0.03_r8 * m_per_min__to__km_per_hour * currentPatch%effect_wspeed)))**2.155_r8)))
              else ! Eq 80 grass fuels (CFFBPS Ont.Inf.Rep. ST-X-3, 1992, with correction from errata published in 
                   ! Inf.Rep. GLC-X-10 (Bottom et al., 2009) because of typo in CFFBPS Ont.Inf.Rep. ST-X-3, 1992)
-                 lb = (1.1_r8*((m_per_min__to__km_per_hour * currentPatch%effect_wspeed)**0.464_r8))
+                 currentPatch%lb = 1.1_r8 * &
+  ((m_per_min__to__km_per_hour * currentPatch%effect_wspeed)**0.464_r8)
              endif
           endif
 
@@ -986,7 +975,7 @@ contains
           df = currentPatch%ROS_front * currentPatch%FD !m
 
           ! --- calculate area burnt---
-          if(lb > 0.0_r8) then
+          if (currentPatch%lb > 0.0_r8) then
 
              ! Eq 1 in Thonicke et al. 2010
              ! To Do: Connect here with the Li & Levis GDP fire suppression algorithm. 
@@ -994,7 +983,7 @@ contains
              ! AB = AB *3.0_r8
 
              !size of fire = Eq 14 Arora and Boer JGR 2005 (area of an ellipse)
-             size_of_fire = ((pi_const/(4.0_r8*lb))*((df+db)**2.0_r8))
+             size_of_fire = (df + db) * (df + db) * pi_const / (4.0_r8 * currentPatch%lb)
 
              ! AB = daily area burnt = size fires in m2 * num ignitions per day per km2 * prob ignition starts fire
              ! AB = m2 per km2 per day
@@ -1049,13 +1038,13 @@ contains
   end subroutine area_burnt_intensity
 
   !*****************************************************************
-  subroutine  active_crown_fire ( currentSite, canopy_fuel_load, ROS_torch, &
-                                   lb, heat_per_area, passive_crown_FI) 
+  subroutine  active_crown_fire ( currentSite)
   !*****************************************************************
 
     !evaluates if there will be an active crown fire based on canopy fuel and rate of spread
     !returns final rate of spread and fire intensity in patch with added fuel from active crown fire.
     !currentCohort%fraction_crown_burned is the proportion of crown affected by fire
+    ! TODO slevis: Jackie, you had ROS_torch coming in here but not used
 
     use EDParamsMod, only : active_crown_fire_switch
     use SFParamsMod, only  : SF_val_miner_total, SF_val_part_dens, SF_val_miner_damp, &
@@ -1068,12 +1057,8 @@ contains
     type(ed_cohort_type), pointer :: currentCohort
 
     ! ARGUMENTS
-    real(r8), intent(in)  :: ROS_torch           ! ROS for crown torch initation (m/min) TODO slevis: var not used
-    real(r8), intent(in)  :: canopy_fuel_load    ! available canopy fuel load in patch (kg biomass)
-    real(r8), intent(in)  :: lb                  !length to breadth ratio of fire ellipse (unitless)
-    real(r8), intent(in)  :: heat_per_area       ! heat release per unit area (kJ/m2) for surface fuel
-    real(r8), intent(in)  :: passive_crown_FI    ! fire intensity for ignition of passive canopy fuel (kW/m)
 
+    ! LOCAL VARIABLES
     ! Active crown Rothermel fire spread model parameters using FM 10
     real(r8) beta,beta_op         ! weighted average of packing ratio (unitless)
     real(r8) ir                   ! reaction intensity (kJ/m2/min)
@@ -1143,7 +1128,7 @@ contains
           ROS_active = 0.0_r8
 
           ! check initiation of passive crown fire
-          if (currentPatch%FI >= passive_crown_FI) then
+          if (currentPatch%FI >= currentPatch%passive_crown_FI) then
              passive_canopy_fuel_flg = 1      !enough passive canopy fuels for vertical spread
 
              ! Calculate rate of spread using FM 10 as in Rothermel 1977 
@@ -1233,7 +1218,6 @@ contains
 
              ! check threshold intensity and rate of spread
              if (active_crown_fire_switch == 1 .and. &
-                 currentPatch%FI >= passive_crown_FI .and. &
                  ROS_active >= ROS_active_min) then
                 currentPatch%active_crown_fire_flg = 1  ! active crown fire ignited
                 !ROS_final = ROS_surface+CFB(ROS_active - ROS_surface), Eq 21 Scott & Reinhardt 2001
@@ -1270,7 +1254,7 @@ contains
              currentPatch%ROS_front = ROS_final
 
              ! --- calculate updated area burnt using df from ROS final---
-             if(lb > 0.0_r8) then
+             if (currentPatch%lb > 0.0_r8) then
 
                 ! Eq 1 in Thonicke et al. 2010
                 ! To Do: Connect here with the Li & Levis GDP fire suppression algorithm. 
@@ -1278,7 +1262,7 @@ contains
                 ! AB = AB *3.0_r8
 
                 !size of fire = Eq 14 Arora and Boer JGR 2005 (area of an ellipse)
-                size_of_fire = ((pi_const/(4.0_r8*lb))*((df+db)**2.0_r8))
+                size_of_fire = (df + db) * (df + db) * pi_const / (4.0_r8 * currentPatch%lb)
 
                 ! AB = daily area burnt = size fires in m2 * num ignitions per day per km2 * prob ignition starts fire
                 ! AB = m2 per km2 per day
@@ -1301,8 +1285,9 @@ contains
              endif ! lb
 
              !final fireline intensity (kJ/m/sec or kW/m), Eq 22 Scott & Reinhardt 2001
-             FI_final = ((heat_per_area + (canopy_fuel_load*canopy_ignite_energy*canopy_frac_burnt))&
-                             *currentPatch%ROS_front)/60.0    
+             FI_final = (currentPatch%heat_per_area + &
+  currentPatch%canopy_fuel_load * canopy_ignite_energy * canopy_frac_burnt) * &
+  currentPatch%ROS_front / 60._r8
              ! update patch FI to adjust according to potential canopy fuel consumed (passive and active)
              currentPatch%FI = FI_final
 
