@@ -27,7 +27,7 @@
   use EDtypesMod            , only : ed_cohort_type
   use EDtypesMod            , only : AREA
   use EDtypesMod            , only : DL_SF
-  use EDtypesMod            , only : crown_fire_threshold  ! TODO slevis: NOT used; if end up using, look at SF_val_fire_threshold as template
+! use EDtypesMod            , only : crown_fire_threshold  ! TODO slevis: NOT used; if end up using, look at SF_val_fire_threshold as template
   use EDTypesMod            , only : TW_SF
   use EDtypesMod            , only : LB_SF
   use EDtypesMod            , only : LG_SF
@@ -109,9 +109,6 @@ contains
        call fire_danger_index(currentSite, bc_in)
        call wind_effect(currentSite, bc_in) 
        call characteristics_of_fuel(currentSite)
-       ! TODO canopy_fuel_load, passive_crown_FI, ROS_torch, heat_per_area, lb
-       ! look to me as though they should be currentPatch% variables, so I
-       ! stopped passing them as arguments
        call characteristics_of_crown(currentSite)
        call rate_of_spread(currentSite)
        call ground_fuel_consumption(currentSite)
@@ -375,7 +372,6 @@ contains
     real(r8) ::  crown_fuel_biomass      ! biomass of crown fuel in cohort (kg biomass)
     real(r8) ::  crown_fuel_per_m        ! crown fuel per 1m section in cohort
     real(r8) ::  height_base_canopy      ! lowest height of fuels in patch to carry fire in crown
-    real(r8) ::  canopy_bulk_density     ! density of canopy fuel on patch
 
     integer  ::  ih                      ! counter
 
@@ -464,13 +460,6 @@ contains
                 exit
              end if
           end do
-
-          !canopy_bulk_denisty (kg/m3) for Patch TODO slevis: var not used
-          if (max_height - height_base_canopy > 0._r8) then
-             canopy_bulk_density = sum(biom_matrix) / (max_height - height_base_canopy)
-          else
-             canopy_bulk_density = 0._r8
-          end if
 
           ! Note: crown_ignition_energy to be calculated based on PFT foliar moisture content from FATES-Hydro
           ! or create foliar moisture % based on BTRAN
@@ -723,7 +712,7 @@ contains
            currentPatch%fuel_sav <= 0.0_r8 .or. xi <= 0.0_r8 .or. &
            c <= 0.0_r8 .or. beta_ratio <= 0.0_r8 .or. b <= 0.0_r8) then
           currentPatch%ROS_front = 0.0_r8
-          currentPatch%ROS_torch = 0.0_r8
+!         currentPatch%ROS_torch = 0.0_r8  ! potentially useful diagnostic
        else ! Eq 9. Thonicke et al. 2010. 
             ! forward ROS in m/min
           currentPatch%ROS_front = (ir*xi*(1.0_r8+phi_wind)) / (currentPatch%fuel_bulkd*eps*q_ig)
@@ -741,11 +730,11 @@ contains
           ! fractional temp2 power.
           ! TODO slevis: omitting "- phi_s" after the -1 bc phi_s = 0 for now.
           !              @jkshuman recommended naming it slope_factor.
-          temp1 = max(0._r8, (60._r8 * currentPatch%passive_crown_FI * &
-  currentPatch%fuel_bulkd * eps * q_ig / (currentPatch%heat_per_area * ir * xi) - 1._r8) / &
-  (c * beta_ratio**-e))
-          temp2 = 1._r8 / b
-          currentPatch%ROS_torch = temp1**temp2 / (54.683_r8 * wind_reduce)
+!         temp1 = max(0._r8, (60._r8 * currentPatch%passive_crown_FI * &
+! currentPatch%fuel_bulkd * eps * q_ig / (currentPatch%heat_per_area * ir * xi) - 1._r8) / &
+! (c * beta_ratio**-e))
+!         temp2 = 1._r8 / b
+!         currentPatch%ROS_torch = temp1**temp2 / (54.683_r8 * wind_reduce)
        endif
        ! Eq 10 in Thonicke et al. 2010
        ! backward ROS from Can FBP System (1992) in m/min
@@ -1044,7 +1033,6 @@ contains
     !evaluates if there will be an active crown fire based on canopy fuel and rate of spread
     !returns final rate of spread and fire intensity in patch with added fuel from active crown fire.
     !currentCohort%fraction_crown_burned is the proportion of crown affected by fire
-    ! TODO slevis: Jackie, you had ROS_torch coming in here but not used
 
     use EDParamsMod, only : active_crown_fire_switch
     use SFParamsMod, only  : SF_val_miner_total, SF_val_part_dens, SF_val_miner_damp, &

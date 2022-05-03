@@ -156,7 +156,7 @@ module EDTypesMod
   integer,  parameter, public :: dl_sf                = 5          ! array index of dead leaf pool for spitfire (dead grass and dead leaves)
   integer,  parameter, public :: lg_sf                = 6          ! array index of live grass pool for spitfire
 
-  real(r8), parameter, public :: crown_fire_threshold = 200.0_r8   ! threshold for passive crown fire ignition. KWm-2 (Bessie & Johnson 1995) TODO slevis: see corresponding todo in SFMainMod.F90
+! real(r8), parameter, public :: crown_fire_threshold = 200.0_r8   ! threshold for passive crown fire ignition. KWm-2 (Bessie & Johnson 1995) TODO slevis: see corresponding todo in SFMainMod.F90
 
 
   ! PATCH FUSION 
