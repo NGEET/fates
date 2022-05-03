@@ -219,7 +219,8 @@ contains
     end do
     
     ! We can exit if this is a c-only simulation
-    if(hlm_parteh_mode.eq.prt_carbon_allom_hyp) then
+    select case (hlm_parteh_mode)
+    case (prt_carbon_allom_hyp)
        ! These can now be zero'd
        do s = 1, nsites
           bc_in(s)%plant_nh4_uptake_flux(:,:) = 0._r8
@@ -227,7 +228,7 @@ contains
           bc_in(s)%plant_p_uptake_flux(:,:) = 0._r8
        end do
        return
-    end if
+    end select
 
     do s = 1, nsites
 
