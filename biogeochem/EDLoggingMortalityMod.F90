@@ -258,7 +258,7 @@ contains
 
          ! transfer of area to secondary land is based on overall area affected, not just logged crown area
          ! l_degrad accounts for the affected area between logged crowns
-         if(int(prt_params%woody(pft_i)) == 1)then ! only set logging rates for trees
+         if(prt_params%woody(pft_i) == itrue)then ! only set logging rates for trees
             
             ! direct logging rates, based on dbh min and max criteria
             if (dbh >= logging_dbhmin .and. .not. &
@@ -542,7 +542,7 @@ contains
                ! plants that were impacted. Thus, no direct dead can occur
                ! here, and indirect are impacts.
 
-               if(int(prt_params%woody(pft)) == itrue) then
+               if(prt_params%woody(pft) == itrue) then
                   direct_dead   = 0.0_r8
                   indirect_dead = logging_coll_under_frac * &
                        (1._r8-currentPatch%fract_ldist_not_harvested) * currentCohort%n * &
