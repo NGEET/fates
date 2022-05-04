@@ -126,11 +126,11 @@ contains
     character(len=param_string_length) :: name
 
 !    name = 'q10_mr'
-!    call fates_params%RetreiveParameter(name=name, &
+!    call fates_params%RetrieveParameter(name=name, &
 !         data=this%Q10)
 
 !    name = 'froz_q10'
-!    call fates_params%RetreiveParameter(name=name, &
+!    call fates_params%RetrieveParameter(name=name, &
 !         data=this%froz_q10)
 
   end subroutine ReceiveParamsScalar
