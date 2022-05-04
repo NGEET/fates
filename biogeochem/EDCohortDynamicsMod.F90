@@ -1590,7 +1590,6 @@ contains
                  !---------------------------------------------------------------------!
                  dynamic_size_fusion_tolerance = dynamic_size_fusion_tolerance * 1.1_r8
                  dynamic_age_fusion_tolerance = dynamic_age_fusion_tolerance * 1.1_r8
-                 !write(fates_log(),*) 'maxcohorts exceeded',dynamic_fusion_tolerance
 
               else
 
@@ -1605,7 +1604,6 @@ contains
                  ! Making profile tolerance larger means that more fusion will happen  !
                  !---------------------------------------------------------------------!
                  dynamic_size_fusion_tolerance = dynamic_size_fusion_tolerance * 1.1_r8
-                 !write(fates_log(),*) 'maxcohorts exceeded',dynamic_fusion_tolerance
 
               else
 
@@ -1989,10 +1987,13 @@ contains
        currentCohort => currentCohort%shorter
     enddo
 
-    if (backcount /= currentPatch%countcohorts) then
-       write(fates_log(),*) 'problem with linked list, not symmetrical'
-    endif
-
+    if(debug) then
+       if (backcount /= currentPatch%countcohorts) then
+          write(fates_log(),*) 'problem with linked list, not symmetrical'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       endif
+    end if
+       
   end subroutine count_cohorts
 
   ! ===================================================================================

@@ -73,7 +73,8 @@ module EDLoggingMortalityMod
    logical, protected :: logging_time   ! If true, logging should be 
                                         ! performed during the current time-step
 
-
+   logical, parameter :: debug = .false.
+   
    ! harvest litter localization specifies how much of the litter from a falling
    ! tree lands within the newly generated patch, and how much lands outside of 
    ! the new patch, and thus in the original patch.  By setting this to zero,

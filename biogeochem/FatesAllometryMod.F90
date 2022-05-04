@@ -95,6 +95,7 @@ module FatesAllometryMod
   use shr_log_mod      , only : errMsg => shr_log_errMsg
   use FatesGlobals     , only : fates_log
   use FatesGlobals     , only : endrun => fates_endrun
+  use FatesGlobals     , only : FatesWarn,N2S,A2S,I2S
   use EDTypesMod       , only : nlevleaf, dinc_vai
   use EDTypesMod       , only : nclmax
 
@@ -130,6 +131,8 @@ module FatesAllometryMod
 
   
   logical, parameter :: debug = .false.
+
+  character(len=1024) :: warn_msg   ! for defining a warning message
   
   ! If testing b4b with older versions, do not remove sapwood
   ! Our old methods with saldarriaga did not remove sapwood from the
@@ -2454,9 +2457,17 @@ contains
      end if
 
      call h_allom(d,ipft,h)
-     if(counter>10)then
+
+     if(counter>20)then
         write(fates_log(),*) 'dbh counter: ',counter,' is woody: ',&
              (prt_params%woody(ipft) == itrue)
+
+        if(int(prt_params%woody(ipft))==itrue)then
+           warn_msg = 'dbh counter: '//trim(I2S(counter))//' is woody'
+        else
+           warn_msg = 'dbh counter: '//trim(I2S(counter))//' is not woody'
+        end if
+        call FatesWarn(warn_msg,index=3)
      end if
 
      
