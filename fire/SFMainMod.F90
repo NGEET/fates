@@ -1211,7 +1211,6 @@ contains
                 !ROS_final = ROS_surface+CFB(ROS_active - ROS_surface), Eq 21 Scott & Reinhardt 2001
                 !with active crown fire CFB (canopy fraction burned) = 100%
                 canopy_frac_burnt = 1.0_r8
-                ROS_final = currentPatch%ROS_front + canopy_frac_burnt*(ROS_active-currentPatch%ROS_front)
 
              else 
                 currentPatch%active_crown_fire_flg = 0  ! only passive crown fire with partial crown burnt
@@ -1231,10 +1230,12 @@ contains
                 ! canopy fraction burnt, Eq 28 Scott & Reinhardt Appendix A
                 canopy_frac_burnt = max(0._r8, min(1.0_r8, &
                    (currentPatch%ROS_front - ROS_active_min) / (ROS_SA - ROS_active_min)))
-                !ROS_final = ROS_surface+CFB(ROS_active - ROS_surface), Eq 21 Scott & Reinhardt 2001
-                ROS_final = currentPatch%ROS_front + canopy_frac_burnt*(ROS_active-currentPatch%ROS_front)
                 
              endif !check intensity & ROS for active crown fire thresholds
+
+             !ROS_final = ROS_surface+CFB(ROS_active - ROS_surface), Eq 21 Scott & Reinhardt 2001
+             ROS_final = currentPatch%ROS_front + &
+                canopy_frac_burnt * (ROS_active - currentPatch%ROS_front)
 
              ! recalculate area burned with new ROS_front value from ROS_final
              ! ---- re-calculate length of major axis for df using new ROS_front value from ROS final---
