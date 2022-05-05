@@ -2124,6 +2124,7 @@ contains
     new_patch%fabi_sha_z(:,:,:)  = 0._r8  
     new_patch%scorch_ht(:)       = 0._r8  
     new_patch%frac_burnt         = 0._r8  
+    new_patch%canopy_bulk_density = 0._r8
     new_patch%canopy_fuel_load   = 0._r8
     new_patch%passive_crown_FI   = 0._r8
     new_patch%ros_torch          = 0._r8
@@ -2245,6 +2246,7 @@ contains
     currentPatch%ros_back                   = nan    ! backward ros (m/min)
     currentPatch%scorch_ht(:)               = nan    ! scorch height of flames on a given PFT
     currentPatch%frac_burnt                 = nan    ! fraction burnt daily
+    currentPatch%canopy_bulk_density        = nan    ! available canopy fuel bulk density in patch (kg biomass/m3)
     currentPatch%canopy_fuel_load           = nan    ! available canopy fuel load in patch (kg biomass)
     currentPatch%passive_crown_FI           = nan    ! fire intensity for ignition of passive canopy fuel (kW/m)
     currentPatch%ros_torch                  = nan    ! rate of spread (ROS) for crown torch initiation (m/min)
@@ -2669,6 +2671,7 @@ contains
     rp%ros_back             = (dp%ros_back*dp%area + rp%ros_back*rp%area) * inv_sum_area
     rp%scorch_ht(:)         = (dp%scorch_ht(:)*dp%area + rp%scorch_ht(:)*rp%area) * inv_sum_area
     rp%frac_burnt           = (dp%frac_burnt*dp%area + rp%frac_burnt*rp%area) * inv_sum_area
+    rp%canopy_bulk_density  = (dp%canopy_bulk_density*dp%area + rp%canopy_bulk_density*rp%area) * inv_sum_area
     rp%canopy_fuel_load     = (dp%canopy_fuel_load*dp%area + rp%canopy_fuel_load*rp%area) * inv_sum_area
     rp%passive_crown_FI     = (dp%passive_crown_FI*dp%area + rp%passive_crown_FI*rp%area) * inv_sum_area
     rp%ros_torch            = (dp%ros_torch*dp%area + rp%ros_torch*rp%area) * inv_sum_area

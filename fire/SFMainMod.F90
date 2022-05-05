@@ -392,6 +392,7 @@ contains
        height_base_canopy                   = 0.0_r8
        currentPatch%canopy_fuel_load        = 0.0_r8
        currentPatch%passive_crown_FI        = 0.0_r8
+       currentPatch%canopy_bulk_density     = 0.0_r8
        max_height = 0._r8
        biom_matrix(:) = 0._r8
 
@@ -460,6 +461,13 @@ contains
                 exit
              end if
           end do
+
+          !canopy_bulk_denisty (kg/m3) for Patch
+          if (max_height - height_base_canopy > 0._r8) then
+             currentPatch%canopy_bulk_density = sum(biom_matrix) / (max_height - height_base_canopy)
+          else
+             currentPatch%canopy_bulk_density = 0._r8
+          end if
 
           ! Note: crown_ignition_energy to be calculated based on PFT foliar moisture content from FATES-Hydro
           ! or create foliar moisture % based on BTRAN
@@ -1078,9 +1086,9 @@ contains
     real(r8) size_of_fire         ! in m2
     real(r8) ROS_active           ! actual rate of spread (m/min) using FM 10 fuels
     real(r8) ROS_active_min       ! minimum rate of spread to ignite active crown fire
-    real(r8) phi_wind_ROS_SA      ! phi_wind for ROS_active_min, use to find open wind for ROS_SA
-    real(r8) wind_ROS_SA          ! open windspeed for ROS surface fire where ROS_SA = ROS_active_min
-    real(r8) ROS_SA               ! rate of spread for surface fire with wind_ROS_SA
+    real(r8) CI_temp              ! temporary variable to calculate wind_active_min
+    real(r8) wind_active_min      ! open windspeed to sustain active crown fire where ROS_SA = ROS_active_min
+    real(r8) ROS_SA               ! rate of spread for surface fire with wind_active_min
     real(r8) canopy_frac_burnt    ! fraction of canopy fuels consumed (0, surface fire to 1,active crown fire) 
     real(r8) ROS_final            ! final rate of spread for combined surface and canopy spread (m/min)
     real(r8) FI_final             ! final fireline intensity (kW/m or kJ/m/sec) with canopy consumption 
@@ -1152,7 +1160,7 @@ contains
              beta_ratio = beta/beta_op  
 
              ! -- heat of pre-ignition --
-             q_ig = q_dry + 2594.0 * fuel_eff_moist  
+             q_ig = q_dry + 2594.0_r8 * fuel_eff_moist
 
              ! ---effective heating number---
              ! Eq A3 in Thonicke et al. 2010.  
@@ -1199,10 +1207,10 @@ contains
              ir = reaction_v_opt*(net_fuel)*SF_val_fuel_energy*moist_damp*SF_val_miner_damp  
  
              ! actual ROS (m/min) for FM 10 fuels for open windspeed, Eq 8 Scott & Reinhardt 2001
-             ROS_active = 3.34*((ir*xi*(1.0_r8+phi_wind)) / (fuel_bd * eps * q_ig))
+             ROS_active = 3.34_r8 * ((ir*xi*(1.0_r8+phi_wind)) / (fuel_bd * eps * q_ig))
 
              ! critical min rate of spread (m/min) for active crowning
-             ROS_active_min = (critical_mass_flow_rate / fuel_bd) * 60.0 
+             ROS_active_min = (critical_mass_flow_rate / fuel_bd) * 60.0_r8
 
              ! check threshold intensity and rate of spread
              if (active_crown_fire_switch == 1 .and. &
@@ -1214,18 +1222,22 @@ contains
 
              else 
                 currentPatch%active_crown_fire_flg = 0  ! only passive crown fire with partial crown burnt
-                ! calculate canopy fraction burnt, Eq 28 Scott & Reinhardt App A 
-                ! using wind at which ROS_active = ROS_active_min
-                ! solve for phi_wind associated with ROS_active_min
-                if (ir > 0._r8 .and. xi > 0._r8) then
-                   phi_wind_ROS_SA = (ROS_active_min * fuel_bd * eps * q_ig - 3.34 * ir * xi) / (3.34 * ir * xi)
+
+                ! phi_slope is not used yet. consider adding with later
+                ! development
+                ! calculate open wind speed critical to sustain active crown
+                ! fire Eq 20 Scott & Reinhardt
+                if (ir > 0._r8 .and. currentPatch%canopy_bulk_density > 0._r8) then
+                   CI_temp = ((164.8_r8 * eps * q_ig)/(ir * currentPatch%canopy_bulk_density)) - 1.0_r8
                 else
-                   phi_wind_ROS_SA = 0._r8
+                   CI_temp = 0._r8
                 end if
-                ! solve for open wind for that phi_wind
-                wind_ROS_SA = log(b)*(phi_wind_ROS_SA/(c*beta_ratio**(-e)))/log(b)*(3.28*0.4)
-                ! use this phi_wind for potential surface ROS for canopy_frac_burnt calculation
-                ROS_SA =  (ir * xi * (1.0_r8 + wind_ROS_SA)) / (fuel_bd * eps * q_ig) 
+
+                wind_active_min = 0.0457_r8 * (CI_temp / 0.001612_r8)**0.7_r8
+
+                ! use open wind speed "wind_active_min" for ROS surface fire
+                ! where ROS_SA=ROS_active_min
+                ROS_SA =  (ir * xi * (1.0_r8 + wind_active_min)) / (fuel_bd * eps * q_ig)
 
                 ! canopy fraction burnt, Eq 28 Scott & Reinhardt Appendix A
                 canopy_frac_burnt = max(0._r8, min(1.0_r8, &

@@ -565,6 +565,7 @@ module EDTypesMod
      real(r8) ::  fuel_eff_moist                                   ! effective avearage fuel moisture content of the ground fuel 
                                                                    ! (incl. live grasses. omits 1000hr fuels)
      real(r8) ::  litter_moisture(nfsc)
+     real(r8) ::  canopy_bulk_density                              ! available canopy fuel bulk density in patch (kg biomass/m3)
      real(r8) ::  canopy_fuel_load                                 ! available canopy fuel load in patch (kg biomass)
      real(r8) ::  passive_crown_FI                                 ! fire intensity for ignition of passive canopy fuel (kW/m)
      real(r8) ::  heat_per_area                                    ! heat release per unit area (kJ/m2) for surface fuel

@@ -642,6 +642,7 @@ contains
          currentPatch%scorch_ht(:)               = 0._r8
          currentPatch%frac_burnt                 = 0._r8
          currentPatch%burnt_frac_litter(:)       = 0._r8
+         currentPatch%canopy_bulk_density        = 0._r8
          currentPatch%canopy_fuel_load           = 0._r8
          currentPatch%passive_crown_FI           = 0._r8
          currentPatch%ros_torch                  = 0._r8
