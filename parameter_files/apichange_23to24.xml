@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<all>
+  <!-- -->
+  <!-- This set of changes should update an existing parameter file from API 23 to API 24 -->
+  <!-- -->
+  <!-- Special mod types "variable_add": creates a new variable
+		 "dimension_add": creates a new dimension
+		 "variable_del": removes a variable, must include attribute "name" 
+		 "variable_change": change values in the parameter, possibly including the name, and
+                          this must also come with a name attribute as well -->
+  <!-- To change a dimension. The easiest way to script this, is to delete the variables
+		 that use it, delete the dimension. Re-add it with the new size, and then re-add
+		 the variables -->
+  <!-- -->
+  
+  <base_file>fates_params_default.cdl</base_file>
+  <new_file>fates_params_default_api24.cdl</new_file>
+  <pft_list> 1,2,3,4,5,6,7,8,9,10,11,12 </pft_list>
+  <mods>
+	 <mod type="dimension_add">
+		<di> fates_history_damage_bins </di>
+		<val> 6 </val>
+	 </mod>
+	 <mod type="variable_change" name="fates_eca_alpha_ptase"> 
+		<na> fates_cnp_eca_alpha_ptase </na>
+	 </mod>
+	 <mod type="variable_add">
+		<na> fates_history_damage_bin_edges </na>
+		<di> fates_history_damage_bins </di>
+		<un> % crown loss </un>
+		<ln> Lower edges for damage class bins used in cohort history output </ln>
+		<uc> damage </uc>
+		<val> 0, 80, 100 </val>
+	 </mod>
+	 <mod type="variable_add">
+		<na> fates_damage_frac </na>
+		<di> fates_pft </di>
+		<un> fraction </un>
+		<ln> fraction of cohort damaged in each damage event (event frequency specified in the is_it_damage_time subroutine) </ln>
+		<uc> damage </uc>
+		<val> 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01 </val>
+	 </mod>
+  </mods>
+</all>

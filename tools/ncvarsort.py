@@ -20,6 +20,7 @@ def main():
     parser.add_argument('--fout','--output', dest='fnameout', type=str, help="Output filename.  Required.", required=True)
     parser.add_argument('--O','--overwrite', dest='overwrite', help="If present, automatically overwrite the output file.", action="store_true")
     parser.add_argument('--debug', dest='debug', help="If present, output more diagnostics", action="store_true")
+    parser.add_argument('--silent', dest='silent', help="If present, prevents printing messages", action="store_true")
     #
     args = parser.parse_args()
     #
@@ -65,17 +66,28 @@ def main():
     for i in range(len(varnames_list)):
         varnames_list[i] = sorted(varnames_list[i], key=lambda L: (L.lower(), L))
         varnames_list_sorted.extend(varnames_list[i])
-    #
+
+    if args.silent:
+        verbose = False
+    else:
+        verbose = True
+        
     # write list of variables in ourput order
     if args.debug:
-        print(varnames_list_sorted)
-    #
+        if (not verbose):
+            print("cant run debug and silent in ncvarsort")
+            exit(2)
+        else:
+            print(varnames_list_sorted)
+
+    
+    
     # open the output filename, deleting it if it exists already.
     if os.path.isfile(args.fnameout):
         if args.fnameout == args.fnamein:
             raise ValueError('Error: output file name is the same as the input file name.')
         elif args.overwrite:
-            print('replacing file: '+args.fnameout)
+            if (verbose): print('replacing file: '+args.fnameout)
             os.remove(args.fnameout)
         else:
             raise ValueError('Output file already exists and overwrite flag not specified for filename: '+args.fnameout)
@@ -85,15 +97,15 @@ def main():
     #Copy dimensions
     for dname, the_dim in dsin.dimensions.items():
         if args.debug:
-            print(dname, the_dim.size)
+            if (verbose): print(dname, the_dim.size)
         dsout.createDimension(dname, the_dim.size )
     #
-    print()
+    if (verbose): print()
     #
     try:
         dsout.history = dsin.history
     except:
-        print('no history!')
+        if (verbose): print('no history!')
     #
     #
     # go through each variable in the order of the sorted master list, and copy the variable
@@ -103,7 +115,7 @@ def main():
         varin = dsin.variables[v_name]
         outVar = dsout.createVariable(v_name, varin.datatype, varin.dimensions)
         if args.debug:
-            print(v_name)
+            if (verbose): print(v_name)
         #
         outVar.setncatts({k: varin.getncattr(k) for k in varin.ncattrs()})
         outVar[:] = varin[:]
