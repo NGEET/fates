@@ -44,7 +44,8 @@ module EDSurfaceRadiationMod
   public :: ED_SunShadeFracs
 
   logical :: debug = .false.  ! for debugging this module
-
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
 
   !  real(r8), public  :: albice(maxSWb) = &       ! albedo land ice by waveband (1=vis, 2=nir)
   !       (/ 0.80_r8, 0.55_r8 /)
@@ -142,7 +143,7 @@ contains
                    bc_out(s)%fabd_parb(ifp,:) = 0.0_r8
                    bc_out(s)%fabi_parb(ifp,:) = 0.0_r8
                    currentPatch%radiation_error = 0.0_r8
-                   
+
                    do ib = 1,hlm_numSWb
                       bc_out(s)%albd_parb(ifp,ib) = bc_in(s)%albgr_dir_rb(ib)
                       bc_out(s)%albi_parb(ifp,ib) = bc_in(s)%albgr_dif_rb(ib)
@@ -320,16 +321,18 @@ contains
           do  iv = 1, currentPatch%nrad(L,ft)
              if (currentPatch%canopy_area_profile(L,ft,iv) > 0._r8)then
                 currentPatch%canopy_mask(L,ft) = 1
-                ! layer level reflectance qualities
-                do ib = 1,hlm_numSWb !vis, nir
-                   if(currentPatch%elai_profile(L,ft,iv)+ currentPatch%esai_profile(L,ft,iv).gt.0.0_r8) then
-                      frac_lai = currentPatch%elai_profile(L,ft,iv)/&
-                           (currentPatch%elai_profile(L,ft,iv)+ currentPatch%esai_profile(L,ft,iv))
-                   else
-                      frac_lai = 1.0_r8
-                   endif
-                   !frac_lai = 1.0_r8 ! make the same as previous codebase, in theory.
-                   frac_sai = 1.0_r8 - frac_lai
+
+               if(currentPatch%elai_profile(L,ft,iv)+ currentPatch%esai_profile(L,ft,iv).gt.0.0_r8) then
+                  frac_lai = currentPatch%elai_profile(L,ft,iv)/&
+                       (currentPatch%elai_profile(L,ft,iv)+ currentPatch%esai_profile(L,ft,iv))
+               else
+                  frac_lai = 1.0_r8
+               endif
+               !frac_lai = 1.0_r8 ! make the same as previous codebase, in theory.
+               frac_sai = 1.0_r8 - frac_lai
+
+               ! layer level reflectance qualities
+               do ib = 1,hlm_numSWb !vis, nir
 
                    rho_layer(L,ft,iv,ib)=frac_lai*rhol(ft,ib)+frac_sai*rhos(ft,ib)
                    tau_layer(L,ft,iv,ib)=frac_lai*taul(ft,ib)+frac_sai*taus(ft,ib)
@@ -340,7 +343,7 @@ contains
                    tau_layer(L,ft,iv,ib)=tau_layer(L,ft,iv,ib)*(1.0_r8- currentPatch%fcansno) &
                         + tau_snow(ib) * currentPatch%fcansno
 
-                   ! fraction of incoming light absorbed by leaves or stems. 
+                   ! fraction of incoming light absorbed by leaves or stems.
                    f_abs(L,ft,iv,ib) = 1.0_r8 - tau_layer(L,ft,iv,ib) - rho_layer(L,ft,iv,ib)
 
                    ! the fraction of the vegetation absorbed light which is absorbed by leaves
@@ -390,13 +393,16 @@ contains
              end do  !iv
           end do  !ft1
        end do  !L
-       if (sum(ftweight(1,:,1))<0.999_r8)then
-          write(fates_log(),*) 'canopy not full',ftweight(1,:,1)
-       endif
-       if (sum(ftweight(1,:,1))>1.0001_r8)then
-          write(fates_log(),*) 'canopy too full',ftweight(1,:,1)
-       endif
 
+       if(debug)then
+          if (sum(ftweight(1,:,1))<0.999_r8)then
+             write(fates_log(),*) 'canopy not full',ftweight(1,:,1)
+          endif
+          if (sum(ftweight(1,:,1))>1.0001_r8)then
+             write(fates_log(),*) 'canopy too full',ftweight(1,:,1)
+          endif
+       end if
+       
        do L = 1,currentPatch%NCL_p !start at the top canopy layer (1 is the top layer.)
 
           weighted_dir_tr(L)                 = 0.0_r8
@@ -448,11 +454,13 @@ contains
                       !where there is a partly empty leaf layer, some fluxes go straight through.
                       lai_change(L,ft,iv) = ftweight(L,ft,iv)-ftweight(L,ft,iv+1)
                    endif
-                   if (ftweight(L,ft,iv+1) - ftweight(L,ft,iv) > 1.e-10_r8)then
-                      write(fates_log(),*) 'lower layer has more coverage. This is wrong' , &
-                           ftweight(L,ft,iv),ftweight(L,ft,iv+1),ftweight(L,ft,iv+1)-ftweight(L,ft,iv)
-                   endif
-
+                   if(debug)then
+                      if (ftweight(L,ft,iv+1) - ftweight(L,ft,iv) > 1.e-10_r8)then
+                         write(fates_log(),*) 'lower layer has more coverage. This is wrong' , &
+                              ftweight(L,ft,iv),ftweight(L,ft,iv+1),ftweight(L,ft,iv+1)-ftweight(L,ft,iv)
+                      endif
+                   end if
+                   
                    !n.b. in theory lai_change could be calculated daily in the ED code.
                    !This is light coming striaght through the canopy.
                    if (L==1)then
@@ -594,10 +602,10 @@ contains
              endif ! currentPatch%canopy_mask
           end do!ft
        end do!L
-       
+
        ! Zero out the radiation error for the current patch before conducting the conservation check
        currentPatch%radiation_error = 0.0_r8
-       
+
        do ib = 1,hlm_numSWb
           Dif_dn(:,:,:) = 0.00_r8
           Dif_up(:,:,:) = 0.00_r8
@@ -979,26 +987,30 @@ contains
              error = abs(currentPatch%sabs_dir(ib) - (currentPatch%tr_soil_dir(ib) * &
                   (1.0_r8-currentPatch%gnd_alb_dir(ib) ) + &
                   currentPatch%tr_soil_dir_dif(ib) * (1.0_r8-currentPatch%gnd_alb_dif(ib)     )))
-             if ( abs(error) > 0.0001)then
-                write(fates_log(),*)'dir ground absorption error',error,currentPatch%sabs_dir(ib), &
-                     currentPatch%tr_soil_dir(ib)* &
-                     (1.0_r8-currentPatch%gnd_alb_dir(ib)  ),currentPatch%NCL_p,ib,sum(ftweight(1,1:numpft,1))
-                write(fates_log(),*) 'albedos',currentPatch%sabs_dir(ib) ,currentPatch%tr_soil_dir(ib), &
-                     (1.0_r8-currentPatch%gnd_alb_dir(ib)  )
 
-                do ft =1,3
-                   iv = currentPatch%nrad(1,ft) + 1
-                   write(fates_log(),*) 'abs soil fluxes', Abs_dir_z(ft,iv),Abs_dif_z(ft,iv)
-                end do
-
+             if(debug)then
+                if ( abs(error) > 0.0001)then
+                   write(fates_log(),*)'dir ground absorption error',error,currentPatch%sabs_dir(ib), &
+                        currentPatch%tr_soil_dir(ib)* &
+                        (1.0_r8-currentPatch%gnd_alb_dir(ib)  ),currentPatch%NCL_p,ib,sum(ftweight(1,1:numpft,1))
+                   write(fates_log(),*) 'albedos',currentPatch%sabs_dir(ib) ,currentPatch%tr_soil_dir(ib), &
+                        (1.0_r8-currentPatch%gnd_alb_dir(ib)  )
+                   do ft =1,numpft
+                      iv = currentPatch%nrad(1,ft) + 1
+                      write(fates_log(),*) 'abs soil fluxes', Abs_dir_z(ft,iv),Abs_dif_z(ft,iv)
+                   end do
+                end if
              end if
+             
           else
-             if ( abs(currentPatch%sabs_dif(ib)-(currentPatch%tr_soil_dif(ib) * &
-                  (1.0_r8-currentPatch%gnd_alb_dif(ib)  ))) > 0.0001_r8)then
-                write(fates_log(),*)'dif ground absorption error',currentPatch%sabs_dif(ib) , &
-                     (currentPatch%tr_soil_dif(ib)* &
-                     (1.0_r8-currentPatch%gnd_alb_dif(ib)  )),currentPatch%NCL_p,ib,sum(ftweight(1,1:numpft,1))
-             endif
+             if (debug) then
+                if ( abs(currentPatch%sabs_dif(ib)-(currentPatch%tr_soil_dif(ib) * &
+                     (1.0_r8-currentPatch%gnd_alb_dif(ib)  ))) > 0.0001_r8)then
+                   write(fates_log(),*)'dif ground absorption error',currentPatch%sabs_dif(ib) , &
+                        (currentPatch%tr_soil_dif(ib)* &
+                        (1.0_r8-currentPatch%gnd_alb_dif(ib)  )),currentPatch%NCL_p,ib,sum(ftweight(1,1:numpft,1))
+                endif
+             end if
           endif
 
           if (radtype == idirect)then
@@ -1011,7 +1023,7 @@ contains
 
           ! ignore the current patch radiation error if the veg-covered fraction of the patch is really small
           if ( (currentPatch%total_canopy_area / currentPatch%area) .gt. tolerance ) then
-             ! normalize rad error by the veg-covered fraction of the patch because that is 
+             ! normalize rad error by the veg-covered fraction of the patch because that is
              ! the only part that this code applies to
              currentPatch%radiation_error = currentPatch%radiation_error + error &
                   * currentPatch%total_canopy_area / currentPatch%area
@@ -1042,16 +1054,18 @@ contains
                 ! to the complexity of this code, but where the system generates occasional errors, we
                 ! will deal with them for now.
              end if
+             
              if (abs(error)  >  0.15_r8)then
-                write(fates_log(),*) 'Large Dir Radn consvn error',error ,ib
-                write(fates_log(),*) 'diags', albd_parb_out(ib), ftdd_parb_out(ib), &
-                     ftid_parb_out(ib), fabd_parb_out(ib)
-                write(fates_log(),*) 'elai',currentpatch%elai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
-                write(fates_log(),*) 'esai',currentpatch%esai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
-                write(fates_log(),*) 'ftweight',ftweight(1,1:numpft,1:diag_nlevleaf)
-                write(fates_log(),*) 'cp',currentPatch%area, currentPatch%patchno
-                write(fates_log(),*) 'ground albedo diffuse (ib)', currentPatch%gnd_alb_dir(ib)
-
+                if(debug)then
+                   write(fates_log(),*) 'Large Dir Radn consvn error',error ,ib
+                   write(fates_log(),*) 'diags', albd_parb_out(ib), ftdd_parb_out(ib), &
+                        ftid_parb_out(ib), fabd_parb_out(ib)
+                   write(fates_log(),*) 'elai',currentpatch%elai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
+                   write(fates_log(),*) 'esai',currentpatch%esai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
+                   write(fates_log(),*) 'ftweight',ftweight(1,1:numpft,1:diag_nlevleaf)
+                   write(fates_log(),*) 'cp',currentPatch%area, currentPatch%patchno
+                   write(fates_log(),*) 'ground albedo diffuse (ib)', currentPatch%gnd_alb_dir(ib)
+                end if
                 albd_parb_out(ib) = albd_parb_out(ib) + error
              end if
           else
@@ -1061,20 +1075,21 @@ contains
              end if
 
              if (abs(error)  >  0.15_r8)then
-                write(fates_log(),*)  'lg Dif Radn consvn error',error ,ib
-                write(fates_log(),*) 'diags', albi_parb_out(ib), ftii_parb_out(ib), &
-                     fabi_parb_out(ib)
-                !write(fates_log(),*) 'lai_change',lai_change(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
-                !write(fates_log(),*) 'elai',currentpatch%elai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
-                !write(fates_log(),*) 'esai',currentpatch%esai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
-                !write(fates_log(),*) 'ftweight',ftweight(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
-                write(fates_log(),*) 'cp',currentPatch%area, currentPatch%patchno
-                write(fates_log(),*) 'ground albedo diffuse (ib)', currentPatch%gnd_alb_dir(ib)
-                !write(fates_log(),*) 'rhol',rhol(1:numpft,:)
-                !write(fates_log(),*) 'ftw',sum(ftweight(1,1:numpft,1)),ftweight(1,1:numpft,1)
-                !write(fates_log(),*) 'present',currentPatch%canopy_mask(1,1:numpft)
-                !write(fates_log(),*) 'CAP',currentPatch%canopy_area_profile(1,1:numpft,1)
-
+                if(debug)then
+                   write(fates_log(),*)  'lg Dif Radn consvn error',error ,ib
+                   write(fates_log(),*) 'diags', albi_parb_out(ib), ftii_parb_out(ib), &
+                        fabi_parb_out(ib)
+                   !write(fates_log(),*) 'lai_change',lai_change(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
+                   !write(fates_log(),*) 'elai',currentpatch%elai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
+                   !write(fates_log(),*) 'esai',currentpatch%esai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
+                   !write(fates_log(),*) 'ftweight',ftweight(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
+                   write(fates_log(),*) 'cp',currentPatch%area, currentPatch%patchno
+                   write(fates_log(),*) 'ground albedo diffuse (ib)', currentPatch%gnd_alb_dir(ib)
+                   !write(fates_log(),*) 'rhol',rhol(1:numpft,:)
+                   !write(fates_log(),*) 'ftw',sum(ftweight(1,1:numpft,1)),ftweight(1,1:numpft,1)
+                   !write(fates_log(),*) 'present',currentPatch%canopy_mask(1,1:numpft)
+                   !write(fates_log(),*) 'CAP',currentPatch%canopy_area_profile(1,1:numpft,1)
+                end if
                 albi_parb_out(ib) = albi_parb_out(ib) + error
              end if
 
@@ -1086,10 +1101,12 @@ contains
                      (fabi_parb_out(ib)  + albi_parb_out(ib) + currentPatch%sabs_dif(ib))
              endif
 
-             if (abs(error)  >  0.00000001_r8)then
-                write(fates_log(),*)  'there is still error after correction',error ,ib
+             if(debug) then
+                if (abs(error)  >  0.00000001_r8)then
+                   write(fates_log(),*)  'there is still error after correction',error ,ib
+                end if
              end if
-
+             
           end if
        end do !hlm_numSWb
 
@@ -1196,11 +1213,13 @@ subroutine ED_SunShadeFracs(nsites, sites,bc_in,bc_out)
               bc_out(s)%fsun_pa(ifp) = 0._r8
            endif
 
-           if(bc_out(s)%fsun_pa(ifp) > 1._r8)then
-              write(fates_log(),*) 'too much leaf area in profile',  bc_out(s)%fsun_pa(ifp), &
-                   sunlai,shalai
-           endif
-
+           if(debug)then
+              if(bc_out(s)%fsun_pa(ifp) > 1._r8)then
+                 write(fates_log(),*) 'too much leaf area in profile',  bc_out(s)%fsun_pa(ifp), &
+                      sunlai,shalai
+              endif
+           end if
+           
            elai = calc_areaindex(cpatch,'elai')
 
            bc_out(s)%laisun_pa(ifp) = elai*bc_out(s)%fsun_pa(ifp)
@@ -1242,11 +1261,11 @@ subroutine ED_SunShadeFracs(nsites, sites,bc_in,bc_out)
                  end do !iv
               end do !FT
            end do !CL
-           
-           ! Convert normalized radiation error units from fraction of radiation to W/m2 
+
+           ! Convert normalized radiation error units from fraction of radiation to W/m2
            cpatch%radiation_error = cpatch%radiation_error * (bc_in(s)%solad_parb(ifp,ipar) + &
                 bc_in(s)%solai_parb(ifp,ipar))
-                
+
            ! output the actual PAR profiles through the canopy for diagnostic purposes
            do CL = 1, cpatch%NCL_p
               do FT = 1,numpft
