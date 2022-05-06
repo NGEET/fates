@@ -1101,11 +1101,11 @@ contains
 
     real(r8),parameter :: q_dry = 581.0_r8                 !heat of pre-ignition of dry fuels (kJ/kg)
     ! fuel loading, MEF, and depth from Anderson 1982 Aids to determining fuel models for fire behavior
-    ! SAV values from BEHAVE model Burgan & Rothermel 1984)
-    real(r8),parameter :: fuel_1hr     = 3.01_r8             ! FM 10 1-hr fuel loading (US tons/acre)
-    real(r8),parameter :: fuel_10hr    = 2.0_r8              ! FM 10 10-hr fuel loading (US tons/acre)             
-    real(r8),parameter :: fuel_100hr   = 5.01_r8             ! FM 10 100-hr fuel loading (US tons/acre)
-    real(r8),parameter :: fuel_live    = 2.0_r8              ! FM 10 live fuel loading (US tons/acre)
+    ! SAV values from BEHAVE model Burgan & Rothermel (1984) 
+    real(r8),parameter :: fuel_1hr_ton     = 3.01_r8             ! FM 10 1-hr fuel loading (US tons/acre)
+    real(r8),parameter :: fuel_10hr_ton    = 2.0_r8              ! FM 10 10-hr fuel loading (US tons/acre)             
+    real(r8),parameter :: fuel_100hr_ton   = 5.01_r8             ! FM 10 100-hr fuel loading (US tons/acre)
+    real(r8),parameter :: fuel_live_ton = 2.0_r8              ! FM 10 live fuel loading (US tons/acre)
     real(r8),parameter :: fuel_mef     = 0.25_r8             ! FM 10 moisture of extinction (volumetric)
     real(r8),parameter :: fuel_depth_ft= 1.0_r8              ! FM 10 fuel depth (ft)
     real(r8),parameter :: sav_1hr_ft   = 2000.0_r8           ! FM 10 1-hr SAV (ft2/ft3)
@@ -1137,7 +1137,12 @@ contains
 
              ! Calculate rate of spread using FM 10 as in Rothermel 1977 
              ! fuel characteristics 
-             total_fuel = (fuel_1hr + fuel_10hr + fuel_100hr + fuel_live) * tonnes_acre_to_kg_m2 
+             fuel_1hr   = fuel_1hr_ton * tonnes_acre_to_kg_m2
+             fuel_10hr  = fuel_10hr_ton * tonnes_acre_to_kg_m2
+             fuel_100hr = fuel_100hr_ton * tonnes_acre_to_kg_m2
+             fuel_live  = fuel_live_ton * tonnes_acre_to_kg_m2
+
+             total_fuel = (fuel_1hr + fuel_10hr + fuel_100hr + fuel_live) !total fuel (kg/m2)
 
              SAV_1hr   = sav_1hr_ft * sqft_cubicft_to_sqm_cubicm
              SAV_10hr  = sav_10hr_ft * sqft_cubicft_to_sqm_cubicm
@@ -1150,7 +1155,7 @@ contains
              fuel_moistlive   = exp(-1.0_r8 * ((SAV_live/SF_val_drying_ratio) * currentSite%acc_NI))
 
              fuel_depth       = fuel_depth_ft *0.3048           !convert to meters
-             fuel_bd          = total_fuel/fuel_depth
+             fuel_bd          = total_fuel/fuel_depth           !fuel bulk density (kg/m3)
 
              fuel_sav         = SAV_1hr *(fuel_1hr/total_fuel) + SAV_10hr*(fuel_10hr/total_fuel) + & 
                                  SAV_100hr*(fuel_100hr/total_fuel) + SAV_live*(fuel_live/total_fuel)
@@ -1183,7 +1188,7 @@ contains
              midflame_wind = currentSite%wind *0.40_r8  !Scott & Reinhardt 2001 40% open wind speed
 
              ! Eq A5 in Thonicke et al. 2010
-             ! convert current_wspeed (wind at elev relevant to fire) from m/min to ft/min for Rothermel ROS eqn
+             ! include convert wind from m/min to ft/min for Rothermel ROS eqn
              phi_wind = c * ((3.281_r8*midflame_wind)**b)*(beta_ratio**(-e)) !unitless
 
              ! ---propagating flux = xi (unitless) 
