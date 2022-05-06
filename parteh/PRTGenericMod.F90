@@ -1334,10 +1334,12 @@ contains
      !   total nitrogen content of 1 or more sets of organs
      ! -------------------------------------------------------------------------------------
      
-     integer, parameter :: lfs_store_prop = 1  ! leaf-sapwood proportional storage
-     integer, parameter :: lfss_store_prop = 2 ! leaf-fnrt-sapw-struct proportional storage
-     integer, parameter :: fnrt_store_prop = 3 ! fineroot proportional storage
-     integer, parameter :: store_prop = lfs_store_prop
+     integer, parameter :: lfs_store_prop = 1    ! leaf-sapwood proportional storage
+     integer, parameter :: lfss_store_prop = 2   ! leaf-fnrt-sapw-struct proportional storage
+     integer, parameter :: fnrt_store_prop = 3   ! fineroot proportional storage
+     integer, parameter :: cstore_store_prop = 4 ! As a proportion to carbon storage times mean CN
+     integer, parameter :: lf_store_prop = 5     ! leaf proportional storage
+     integer, parameter :: store_prop = lf_store_prop
 
      
      select case(element_id)
@@ -1352,6 +1354,10 @@ contains
 
            store_target  = prt_params%nitr_store_ratio(pft) * (leaf_target + sapw_target)
 
+        elseif (store_prop == lf_store_prop) then
+           
+           store_target  = prt_params%nitr_store_ratio(pft) * leaf_target
+   
         elseif(store_prop==lfss_store_prop) then
            
            store_target  = prt_params%nitr_store_ratio(pft) * (leaf_target + fnrt_target + sapw_target + struct_target)
@@ -1360,6 +1366,30 @@ contains
 
            store_target  = prt_params%nitr_store_ratio(pft) * fnrt_target
 
+        elseif(store_prop==cstore_store_prop) then
+
+           !call bsap_allom(dbh,ipft,canopy_trim,sapw_area,target_sapw_c)
+           !call bagw_allom(dbh,ipft,agw_c_target)
+           !call bbgw_allom(dbh,ipft,bgw_c_target)
+           !call bdead_allom(agw_c_target,bgw_c_target,target_sapw_c,ipft,target_struct_c)
+           !call bleaf(dbh,ipft,canopy_trim, target_leaf_c)
+           !call bfineroot(dbh,ipft,canopy_trim, l2fr, target_fnrt_c)
+           !call bstore_allom(dbh,ipft,canopy_trim, target_store_c)
+
+           ! Strategy, store as much nutrient as needed to match carbon's growth potential
+           ! ie, nutrient storage is proportional to carbon storage times plant NC ratio
+
+           ! N_so = a * C_so * NC_p
+           ! NC_p = ( (N_so + N_lf + N_fr + N_sa + N_de)/C_tot )
+           ! N_so = a * C_so * ( N_so/C_tot)  + a * C_so * (N_lf + N_fr + N_sa + N_de)/C_tot )
+           ! N_so = (a * C_so * (N_lf + N_fr + N_sa + N_de)/C_tot ) / ( 1 - a * C_so/C_tot)
+
+           !store_target = (target_store_c * prt_params%nitr_store_ratio(pft) * &
+           !     (leaf_target + fnrt_target + sapw_target + struct_target)/total_c_target) / &
+           !     ( 1._r8 - target_store_c * prt_params%nitr_store_ratio(pft) / total_c_target )
+           write(fates_log(),*)'cstore_store_prop method of calculating target nutrient stores not available'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+           
         end if
         
              
@@ -1369,15 +1399,19 @@ contains
            
            store_target  = prt_params%phos_store_ratio(pft) * (leaf_target + fnrt_target + sapw_target)
 
+        elseif (store_prop == lf_store_prop) then
+           
+           store_target  = prt_params%phos_store_ratio(pft) * leaf_target
+    
         elseif(store_prop==lfss_store_prop) then
            
-           store_target  = prt_params%nitr_store_ratio(pft) * (leaf_target + fnrt_target + sapw_target + struct_target)
+           store_target  = prt_params%phos_store_ratio(pft) * (leaf_target + fnrt_target + sapw_target + struct_target)
     
         elseif(store_prop==fnrt_store_prop) then
            
            store_target  = prt_params%phos_store_ratio(pft) * fnrt_target
-           
-        end if
+
+         end if
      end select
      
      

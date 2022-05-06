@@ -1987,6 +1987,14 @@ end subroutine flush_hvars
     real(r8), parameter :: tiny = 1.e-5_r8      ! some small number
     real(r8), parameter :: reallytalltrees = 1000.   ! some large number (m)
 
+
+    ! Set this to true if you want the size-pft l2fr variables to
+    ! take a mean over the site, otherwise it just tracks the oldest patch
+    
+    logical, parameter :: do_site_l2fr_scpf = .false.
+    
+
+    
     integer :: tmp
 
     associate( hio_npatches_si         => this%hvars(ih_npatches_si)%r81d, &
@@ -2238,6 +2246,11 @@ end subroutine flush_hvars
 
    model_day_int = nint(hlm_model_day)
 
+
+   
+
+
+   
    ! ---------------------------------------------------------------------------------
    ! Loop through the FATES scale hierarchy and fill the history IO arrays
    ! ---------------------------------------------------------------------------------
@@ -2546,16 +2559,19 @@ end subroutine flush_hvars
                   hio_l2fr_scpf(io_si,i_scpf) = &
                        hio_l2fr_scpf(io_si,i_scpf) + ccohort%n*fnrt_m/m2_per_ha*ccohort%l2fr
 
-                  if (ccohort%canopy_layer .eq. 1) then
-                     hio_l2fr_canopy_scpf(io_si,i_scpf) = &
-                          hio_l2fr_canopy_scpf(io_si,i_scpf) + ccohort%n*fnrt_m *ccohort%l2fr
-                     fnrtc_canopy_scpf(i_scpf) = fnrtc_canopy_scpf(i_scpf) + ccohort%n*fnrt_m
-                  else
-                     hio_l2fr_understory_scpf(io_si,i_scpf) = &
-                          hio_l2fr_understory_scpf(io_si,i_scpf) + ccohort%n*fnrt_m*ccohort%l2fr
-                     fnrtc_understory_scpf(i_scpf) = fnrtc_understory_scpf(i_scpf) + ccohort%n*fnrt_m
+                  ! Constrain L2FR to oldest patch?
+                  if(do_site_l2fr_scpf .or. associated(cpatch,sites(s)%oldest_patch)) then
+                     if (ccohort%canopy_layer .eq. 1) then
+                        hio_l2fr_canopy_scpf(io_si,i_scpf) = &
+                             hio_l2fr_canopy_scpf(io_si,i_scpf) + ccohort%n*fnrt_m *ccohort%l2fr
+                        fnrtc_canopy_scpf(i_scpf) = fnrtc_canopy_scpf(i_scpf) + ccohort%n*fnrt_m
+                     else
+                        hio_l2fr_understory_scpf(io_si,i_scpf) = &
+                             hio_l2fr_understory_scpf(io_si,i_scpf) + ccohort%n*fnrt_m*ccohort%l2fr
+                        fnrtc_understory_scpf(i_scpf) = fnrtc_understory_scpf(i_scpf) + ccohort%n*fnrt_m
+                     end if
                   end if
-                  
+                     
                   call bstore_allom(ccohort%dbh,ccohort%pft,ccohort%canopy_trim, store_max)
                   this%hvars(ih_storectfrac_si)%r81d(io_si)  = &
                        this%hvars(ih_storectfrac_si)%r81d(io_si) + ccohort%n * store_max/m2_per_ha

@@ -203,7 +203,9 @@ module PRTAllometricCNPMod
   integer, parameter :: regulate_CN_logi = 3   ! almost deprecated
   integer, parameter :: regulate_CN_dfdd = 4
 
-
+  logical, parameter :: use_gains_in_regulator = .true.
+  logical, parameter :: use_unrestricted_contraction = .true.
+  
   ! -------------------------------------------------------------------------------------
   ! This is the core type that holds this specific
   ! plant reactive transport (PRT) module
@@ -226,6 +228,7 @@ module PRTAllometricCNPMod
      procedure :: CNPAllocateRemainder
      procedure :: GetDeficit
      procedure :: StorageRegulator
+     procedure :: TrimFineRoot
   end type cnp_allom_prt_vartypes
 
 
@@ -454,10 +457,8 @@ contains
     ! ===================================================================================
 
     ! This routine updates the l2fr (leaf 2 fine-root multiplier) variable
+    ! It will also update target_c(fnrt_organ)
     call this%CNPAdjustFRootTargets(target_c)
-
-    
-
     
     c_gain0      = c_gain
     n_gain0      = n_gain
@@ -654,8 +655,15 @@ contains
     else
        p_gain = p_gain0
     end if
-    
 
+
+
+    ! If fine-roots are allocated above their
+    ! target (perhaps with some buffer, but perhaps not)
+    ! then 
+    call this%TrimFineRoot()
+
+    
     
     return
   end subroutine DailyPRTAllometricCNP
@@ -680,10 +688,8 @@ contains
                               ! remain after a day of root turnover without
                               ! replacement
     real(r8) :: fnrt_frac     ! fine-root's current fraction of the target
-    real(r8) :: loss_flux_c
-    real(r8) :: loss_flux_n
-    real(r8) :: loss_flux_p
-    real(r8) :: fnrt_c_above_target
+
+ 
     
     integer, parameter :: regulate_type = regulate_CN_dfdd
 
@@ -705,7 +711,7 @@ contains
       else
          call this%StorageRegulator(phosphorus_element, regulate_type,target_c,p_regulator)
       end if
-         
+
       ! We take the maximum here, because the maximum is reflective of the
       ! element with the lowest storage, which is the limiting element
       if(n_uptake_mode.eq.prescribed_n_uptake)then
@@ -738,44 +744,82 @@ contains
       ! Find the updated target fineroot biomass
       call bfineroot(dbh,ipft,canopy_trim, l2fr, target_c(fnrt_organ))
 
-
-      ! The following section allows forceful turnover of fine-roots if a new L2FR is generated
-      ! that is lower than the previous l2fr. The maintenance turnover (background) rate
-      ! will automatically accomodate a lower l2fr, but if the change is large it will
-      ! not keep pace.  Note 1: however, that the algorithm in StorageRegulator() will prevent
-      ! large drops in l2fr (unless that safegaurd is removed). Note 2: this section may also
-      ! generate mass check errors in the main CNPAllocation routine, this is because the "val" is
-      ! changing but the net_allocated is not reciprocating, which is expected. 
-
-      ! Don't remove roots that will be gone due to natural turnover
-      
-      store_c = this%GetState(fnrt_organ, carbon12_element)*(1._r8-(years_per_day / prt_params%root_long(ipft)))
-      
-      fnrt_c_above_target = max(0._r8,store_c - target_c(fnrt_organ))
-
-      loss_flux_c = 0._r8
-      
-      !loss_flux_c = fnrt_c_above_target*max(fnrt_c_above_target/fnrt_c_target-0.1_r8,0._r8)
-      
-      
-      loss_flux_n = loss_flux_c*this%variables(fnrt_n_id)%val(1)/this%variables(fnrt_c_id)%val(1)
-      this%variables(fnrt_n_id)%val(1) = this%variables(fnrt_n_id)%val(1) - loss_flux_n
-      this%variables(fnrt_n_id)%turnover(1) = this%variables(fnrt_n_id)%turnover(1) + loss_flux_n
-
-      loss_flux_p = loss_flux_c*this%variables(fnrt_p_id)%val(1)/this%variables(fnrt_c_id)%val(1)
-      this%variables(fnrt_p_id)%val(1) = this%variables(fnrt_p_id)%val(1) - loss_flux_p
-      this%variables(fnrt_p_id)%turnover(1) = this%variables(fnrt_p_id)%turnover(1) + loss_flux_p
-      
-      this%variables(fnrt_c_id)%val(1) = this%variables(fnrt_c_id)%val(1) - loss_flux_c
-      this%variables(fnrt_c_id)%turnover(1) = this%variables(fnrt_c_id)%turnover(1) + loss_flux_c
-
-      
-
+    
     end associate
 
     return
   end subroutine CNPAdjustFRootTargets
+  
+  ! =====================================================================================
 
+  subroutine TrimFineRoot(this)
+    
+    ! The following section allows forceful turnover of fine-roots if a new L2FR is generated
+    ! that is lower than the previous l2fr. The maintenance turnover (background) rate
+    ! will automatically accomodate a lower l2fr, but if the change is large it will
+    ! not keep pace.  Note 1: however, that the algorithm in StorageRegulator() will prevent
+    ! large drops in l2fr (unless that safegaurd is removed). Note 2: this section may also
+    ! generate mass check errors in the main CNPAllocation routine, this is because the "val" is
+    ! changing but the net_allocated is not reciprocating, which is expected. 
+    
+    ! Keep a buffer above the L2FR in the hopes that natural turnover will catch
+    ! up.
+    class(cnp_allom_prt_vartypes) :: this
+       
+    real(r8) :: fnrt_flux_c
+    real(r8) :: turn_flux_c
+    real(r8) :: store_flux_c
+    real(r8) :: nc_fnrt
+    real(r8) :: pc_fnrt
+    real(r8) :: target_fnrt_c
+    real(r8),parameter :: nday_buffer = 0._r8
+    real(r8),parameter :: fnrt_opt_eff = 0._r8  ! If we want to transfer resources to storage
+    
+    if(.not.use_unrestricted_contraction)return
+    
+    associate( ipft         => this%bc_in(acnp_bc_in_id_pft)%ival,        &
+         l2fr         => this%bc_inout(acnp_bc_inout_id_l2fr)%rval, &
+         dbh          => this%bc_inout(acnp_bc_inout_id_dbh)%rval,  &
+         canopy_trim  => this%bc_in(acnp_bc_in_id_ctrim)%rval)
+
+      ! Find the updated target fineroot biomass
+      call bfineroot(dbh,ipft,canopy_trim, l2fr, target_fnrt_c)
+
+      fnrt_flux_c = max(0._r8,this%variables(fnrt_c_id)%val(1)*(1._r8-nday_buffer*(years_per_day / prt_params%root_long(ipft))) - target_fnrt_c )
+
+      if(fnrt_flux_c>nearzero) then
+
+          !EDPftvarcon_inst%dev_arbitrary_pft(ipft)
+
+         turn_flux_c = (1._r8 - fnrt_opt_eff)*fnrt_flux_c
+         store_flux_c = fnrt_opt_eff*fnrt_flux_c
+
+         nc_fnrt = this%variables(fnrt_n_id)%val(1)/this%variables(fnrt_c_id)%val(1)
+         pc_fnrt = this%variables(fnrt_p_id)%val(1)/this%variables(fnrt_c_id)%val(1)
+
+         this%variables(fnrt_c_id)%val(1)        = this%variables(fnrt_c_id)%val(1) - fnrt_flux_c
+         this%variables(fnrt_c_id)%turnover(1)   = this%variables(fnrt_c_id)%turnover(1) + turn_flux_c
+         this%variables(fnrt_c_id)%net_alloc(1)  = this%variables(fnrt_c_id)%net_alloc(1) - store_flux_c
+         this%variables(store_c_id)%val(1)       = this%variables(store_c_id)%val(1) + store_flux_c
+         this%variables(store_c_id)%net_alloc(1) = this%variables(store_c_id)%net_alloc(1) + store_flux_c
+
+         this%variables(fnrt_n_id)%val(1)        = this%variables(fnrt_n_id)%val(1) - fnrt_flux_c * nc_fnrt
+         this%variables(fnrt_n_id)%turnover(1)   = this%variables(fnrt_n_id)%turnover(1) + turn_flux_c * nc_fnrt
+         this%variables(fnrt_n_id)%net_alloc(1)  = this%variables(fnrt_n_id)%net_alloc(1) - store_flux_c * nc_fnrt
+         this%variables(store_n_id)%val(1)       = this%variables(store_n_id)%val(1) + store_flux_c * nc_fnrt
+         this%variables(store_n_id)%net_alloc(1) = this%variables(store_n_id)%net_alloc(1) + store_flux_c * nc_fnrt
+
+         this%variables(fnrt_p_id)%val(1)        = this%variables(fnrt_p_id)%val(1) - fnrt_flux_c * pc_fnrt
+         this%variables(fnrt_p_id)%turnover(1)   = this%variables(fnrt_p_id)%turnover(1) + turn_flux_c * pc_fnrt
+         this%variables(fnrt_p_id)%net_alloc(1)  = this%variables(fnrt_p_id)%net_alloc(1) - store_flux_c * pc_fnrt
+         this%variables(store_p_id)%val(1)       = this%variables(store_p_id)%val(1) + store_flux_c * pc_fnrt
+         this%variables(store_p_id)%net_alloc(1) = this%variables(store_p_id)%net_alloc(1) + store_flux_c * pc_fnrt
+
+      end if
+    end associate
+    return
+  end subroutine TrimFineRoot
+  
   ! =====================================================================================
     
   subroutine CNPPrioritizedReplacement(this,c_gain, n_gain, p_gain, target_c)
@@ -2257,7 +2301,10 @@ contains
      real(r8) :: c_gain
      real(r8) :: c_fnrt_expand ! predicted carbon available to expand fine-roots
                                ! after replacement of turnover
-
+     real(r8) :: gain
+     real(r8) :: store_act
+     real(r8) :: store_c_act
+     
      ! This fraction governs
      ! how much carbon from daily gains + storage overflow, is allowed to
      ! be spent on growing out roots. This inludes getting roots
@@ -2266,20 +2313,22 @@ contains
      integer, parameter :: limit_lf  = 2
 
      integer, parameter :: lim_l2fr_max_type = limit_all
-     real(r8), parameter :: max_l2fr_cgain_frac = 0.95_r8
+     real(r8), parameter :: max_l2fr_cgain_frac = 0.99_r8
      
      real(r8), parameter :: nc_frac_offset = 1.0_r8 ! This shifts the center-point
                                                     ! of the N:C or P:C storage equlibrium
                                                     ! by multiplying the N term.
 
      
-          associate(dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval, & 
-               canopy_trim => this%bc_in(acnp_bc_in_id_ctrim)%rval, &
-               ipft        => this%bc_in(acnp_bc_in_id_pft)%ival, & 
-               l2fr        => this%bc_inout(acnp_bc_inout_id_l2fr)%rval)
+     
+     
+     associate(dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval, & 
+          canopy_trim => this%bc_in(acnp_bc_in_id_ctrim)%rval, &
+          ipft        => this%bc_in(acnp_bc_in_id_pft)%ival, & 
+          l2fr        => this%bc_inout(acnp_bc_inout_id_l2fr)%rval)
 
 
-       logi_k   = EDPftvarcon_inst%dev_arbitrary_pft(ipft)  !2._r8
+       logi_k   = EDPftvarcon_inst%dev_arbitrary_pft(ipft)
        store_x0 = 0.0_r8
        logi_min = 0.0_r8
 
@@ -2300,14 +2349,27 @@ contains
 
        elseif(regulate_type == regulate_CN_dfdd) then
 
-          
           store_max = this%GetNutrientTarget(element_id,store_organ,stoich_growth_min) 
 
           ! Storage fractions could be more than the target, depending on the
           ! hypothesis and functions involved, but should typically be 0-1
           ! The cap of 5 is for numerics and preventing weird math
           
-          store_frac = max(0.01_r8,min(5.0_r8,this%GetState(store_organ, element_id)/store_max))
+          if(element_id.eq.nitrogen_element)then
+             gain = this%bc_inout(acnp_bc_inout_id_netdn)%rval
+          else
+             gain = this%bc_inout(acnp_bc_inout_id_netdp)%rval
+          end if
+
+          if(use_gains_in_regulator)then
+             store_act   = this%GetState(store_organ, element_id) + gain
+             store_c_act = this%GetState(store_organ, carbon12_element) + this%bc_in(acnp_bc_in_id_netdc)%rval
+          else
+             store_act   = this%GetState(store_organ, element_id)
+             store_c_act = this%GetState(store_organ, carbon12_element)
+          end if
+
+          store_frac = max(0.01_r8,min(5.0_r8,store_act/store_max))
 
           ! Since we don't dump storage carbon
           ! these stores can actually get pretty large, so the cap of 10x is numerically
@@ -2315,7 +2377,7 @@ contains
 
           store_c_max = target_c(store_organ)
           
-          store_c_frac = max(0.01_r8,min(5.0_r8,this%GetState(store_organ, carbon12_element)/store_c_max ))
+          store_c_frac = max(0.01_r8,min(5.0_r8,store_c_act/store_c_max))
 
           ! -----------------------------------------------------------------------------
           ! To decide the upper limit on expanding root growth, we perform a carbon
@@ -2396,14 +2458,16 @@ contains
           if(c_scalar>1.0_r8)then
              c_scalar = min(c_scalar,l2fr_delta_max)
           else
-             c_scalar = max(c_scalar,l2fr_delta_min)
+             ! Remove the min function temporarily
+             if(.not.use_unrestricted_contraction)then
+                c_scalar = max(c_scalar,l2fr_delta_min)
+             end if
           end if
 
           
        end if
 
      end associate
-
 
    end subroutine StorageRegulator
 
