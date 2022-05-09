@@ -1112,7 +1112,7 @@ contains
     real(r8),parameter :: sav_live_ft  = 1650.0_r8           ! FM 10 live SAV (ft2/ft3)
     real(r8),parameter :: tonnes_acre_to_kg_m2 = 0.2241701   ! convert tons/acre to kg/m2
     real(r8),parameter :: sqft_cubicft_to_sqm_cubicm = 0.03280844 !convert ft2/ft3 to m2/m3
-    real(r8),parameter :: canopy_ignite_energy = 18000_r8    ! heat yield for canopy fuels (kJ/kg)
+    real(r8),parameter :: canopy_ignite_energy = 18000.0_r8  ! heat yield for canopy fuels (kJ/kg)
     real(r8),parameter :: critical_mass_flow_rate = 0.05_r8  ! critical mass flow rate (kg/m2/sec)for crown fire
     real(r8),parameter :: km2_to_m2 = 1000000.0_r8           ! area conversion for square km to square m
 
