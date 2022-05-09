@@ -1264,7 +1264,8 @@ contains
              df = ROS_final * currentPatch%FD              !(m) update with ROS final 
              
              ! update ROS_front with ROS_final for output variable 
-             currentPatch%ROS_front = ROS_final
+             ! if changing, expect only an increase in ROS_front
+             currentPatch%ROS_front = max(ROS_final, currentPatch%ROS_front)
 
              ! --- calculate updated area burnt using df from ROS final---
              if (currentPatch%lb > 0.0_r8) then
@@ -1302,7 +1303,8 @@ contains
   currentPatch%canopy_fuel_load * canopy_ignite_energy * canopy_frac_burnt) * &
   currentPatch%ROS_front / 60._r8
              ! update patch FI to adjust according to potential canopy fuel consumed (passive and active)
-             currentPatch%FI = FI_final
+             ! if changing, expect only an increase in FI
+             currentPatch%FI = max(FI_final, currentPatch%FI)
 
            endif !check if passive crown fire?
        endif !fire?
