@@ -55,6 +55,8 @@ module EDCanopyStructureMod
   public :: canopy_summarization
   public :: update_hlm_dynamics
   public :: UpdateFatesAvgSnowDepth
+  public :: UpdatePatchLAI
+  public :: UpdateCohortLAI
 
   logical, parameter :: debug=.false.
 
@@ -1939,21 +1941,6 @@ contains
                 currentCohort => currentPatch%shortest
                 do while(associated(currentCohort))
 
-                   if (hlm_use_sp.eq.ifalse) then
-                   ! make sure that allometries are correct
-                   call carea_allom(currentCohort%dbh,currentCohort%n,sites(s)%spread,&
-                        currentCohort%pft,currentCohort%c_area)
-
-                   currentCohort%treelai = tree_lai(currentCohort%prt%GetState(leaf_organ, all_carbon_elements),  &
-                        currentCohort%pft, currentCohort%c_area, currentCohort%n, &
-                        currentCohort%canopy_layer, currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )
-
-                   currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
-                        currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
-                        currentPatch%canopy_layer_tlai, currentCohort%treelai , &
-                        currentCohort%vcmax25top,4)
-                   endif
-
                    total_patch_leaf_stem_area = total_patch_leaf_stem_area + &
                         (currentCohort%treelai + currentCohort%treesai) * currentCohort%c_area
                    currentCohort => currentCohort%taller
@@ -2208,7 +2195,6 @@ contains
    type(ed_cohort_type), pointer :: currentCohort
    integer  :: cl                                  ! Canopy layer index
    integer  :: ft                                  ! Plant functional type index
-   real(r8) :: leaf_c                              ! leaf carbon [kg]
 
    ! Calculate LAI of layers above.  Because it is possible for some understory cohorts
    ! to be taller than cohorts in the top canopy layer, we must iterate through the 
@@ -2223,27 +2209,10 @@ contains
          ! Only update the current cohort tree lai if lai of the above layers have been calculated
          if (currentCohort%canopy_layer .eq. cl) then
             ft     = currentCohort%pft
-            leaf_c = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
-
-            ! Note that tree_lai has an internal check on the canopy
-            currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, &
-                 currentCohort%n, currentCohort%canopy_layer,               &
-                 currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )
-
-            if (hlm_use_sp .eq. ifalse) then
-               currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
-                    currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
-                    currentPatch%canopy_layer_tlai, currentCohort%treelai , &
-                    currentCohort%vcmax25top,4)
-            end if
-
-            ! Update the cohort lai and sai
-            currentCohort%lai =  currentCohort%treelai *currentCohort%c_area/currentPatch%total_canopy_area
-            currentCohort%sai =  currentCohort%treesai *currentCohort%c_area/currentPatch%total_canopy_area
-
-            ! Number of actual vegetation layers in this cohort's crown
-            currentCohort%nv =  count((currentCohort%treelai+currentCohort%treesai) .gt. dlower_vai(:)) + 1
-
+            
+            ! Update the cohort level lai and related variables
+            call UpdateCohortLAI(currentCohort,currentPatch%canopy_layer_tlai,currentPatch%total_canopy_area)
+            
             ! Update the number of number of vegetation layers
             currentPatch%ncan(cl,ft) = max(currentPatch%ncan(cl,ft),currentCohort%NV)
 
@@ -2259,7 +2228,47 @@ contains
    end do canopyloop
 
   end subroutine UpdatePatchLAI
+  ! ===============================================================================================
+  
+  subroutine UpdateCohortLAI(currentCohort, canopy_layer_tlai, patcharea)
+   
+   ! Update LAI and related variables for a given cohort
+   
+   ! Uses
+   use EDtypesMod, only : dlower_vai
+   
+   ! Arguments
+   type(ed_cohort_type),intent(inout), target   :: currentCohort
+   real(r8), intent(in) :: canopy_layer_tlai(nclmax)  ! total leaf area index of each canopy layer
+   real(r8), intent(in) :: patcharea                  ! either patch%total_canopy_area or patch%area
 
+   ! Local variables
+   real(r8) :: leaf_c                              ! leaf carbon [kg]
+   
+   ! Obtain the leaf carbon
+   leaf_c = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
+
+   ! Note that tree_lai has an internal check on the canopy locatoin
+   currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, &
+        currentCohort%n, currentCohort%canopy_layer,               &
+        canopy_layer_tlai,currentCohort%vcmax25top )
+
+   if (hlm_use_sp .eq. ifalse) then
+      currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
+           currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
+           canopy_layer_tlai, currentCohort%treelai , &
+           currentCohort%vcmax25top,4)
+   end if
+
+   ! Update the cohort lai and sai
+   currentCohort%lai =  currentCohort%treelai *currentCohort%c_area/patcharea
+   currentCohort%sai =  currentCohort%treesai *currentCohort%c_area/patcharea
+
+   ! Number of actual vegetation layers in this cohort's crown
+   currentCohort%nv =  count((currentCohort%treelai+currentCohort%treesai) .gt. dlower_vai(:)) + 1
+   
+  end subroutine UpdateCohortLAI
+  
   ! ===============================================================================================
 
   function NumPotentialCanopyLayers(currentPatch,site_spread,include_substory) result(z)
