@@ -1222,7 +1222,7 @@ contains
              ROS_active_min = (critical_mass_flow_rate / fuel_bd) * 60.0_r8
 
              ! check threshold intensity and rate of spread
-             if (active_crown_fire_switch == 1 .and. &
+             if (active_crown_fire_switch .and. &
                  ROS_active >= ROS_active_min) then
                 currentPatch%active_crown_fire_flg = 1  ! active crown fire ignited
                 !ROS_final = ROS_surface+CFB(ROS_active - ROS_surface), Eq 21 Scott & Reinhardt 2001
