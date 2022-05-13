@@ -117,7 +117,7 @@
 		<val> 0.8125 </val>
 	 </mod>
 	 <mod type="variable_add">
-		<na> fates_stomatal_assim_model </na>
+		<na> fates_leaf_stomatal_assim_model </na>
 		<di> scalar </di>
 		<un> unitless </un>
 		<ln> a switch designating whether to use net (1) or gross (2) assimilation in the stomatal model </ln>
