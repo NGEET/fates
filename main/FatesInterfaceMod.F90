@@ -1842,6 +1842,7 @@ contains
                hlm_use_canopy_damage = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_canopy_damage= ',ival,' to FATES'
+                  write(fates_log(),*) 'JN FatesInterfaceMod hlm_use_canopy_damage : ', hlm_use_canopy_damage
                end if
 
             case('use_logging')
