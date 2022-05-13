@@ -120,11 +120,8 @@ def selectvalues(ncfile,dimnames,ipft_list,values,dtype):
             else:
                 dim1_list = range(0,dim_size[0])
 
-            #code.interact(local=dict(globals(), **locals()))
-            #sel_values = np.empty([len(dim1_list),dim_size[1]], dtype="S{}".format(dim_size[1]))
-            #sel_values = np.empty(len(dim1_list), dtype='S60')
             sel_values = np.chararray([len(dim1_list),dim_size[1]])
-            sel_values[:]
+            sel_values[:] = ""
             for i,ipft in enumerate(dim1_list):
                 for j,cc in enumerate(values[ipft]):
                     sel_values[i][j] = cc
@@ -188,10 +185,10 @@ def removevar(base_nc,varname):
                 
             new_var.units = value.units
             new_var.long_name = value.long_name
-            try:
-                new_var.use_case = value.use_case
-            except:
-                new_var.use_case = "undefined"
+            #try:
+            #    new_var.use_case = value.use_case
+            #except:
+            #    new_var.use_case = "undefined"
     
     fp_new.history = fp_base.history
 
@@ -318,10 +315,10 @@ def main():
             except:
                 print("no long-name (ln), exiting");exit(2)
                 
-            try:
-                usecase = mod.find('uc').text.strip()
-            except:
-                print("no use case (uc), exiting");exit(2)
+            #try:
+            #    usecase = mod.find('uc').text.strip()
+            #except:
+            #    print("no use case (uc), exiting");exit(2)
                 
             try:
                 values = str2fvec(mod.find('val').text.strip())
@@ -359,9 +356,9 @@ def main():
             
         elif(mod.attrib['type'] == 'variable_del'):
             try:
-                paramname = mod.attrib['name']
+                paramname = mod.find('na').text.strip()
             except:
-                print('must define the parameter name to delete, using <na>')
+                print('must define the parameter name to delete, using name attribute')
                 exit(2)
             removevar(base_nc,paramname)
             print("parameter: {}, removed".format(paramname))
@@ -385,8 +382,6 @@ def main():
                 usecase_o = ncvar_o.use_case.decode("utf-8")
             except:
                 usecase_o = 'undefined'
-
-            
                 
             try:
                 paramname = mod.find('na').text.strip()
@@ -417,12 +412,12 @@ def main():
             if(not isinstance(longname,type(None))):
                 ncvar.long_name = longname
                 
-            try:
-                usecase = mod.find('uc').text.strip()
-            except:
-                usecase = None
-            if(not isinstance(usecase,type(None))):
-                ncvar.use_case = use_case
+            #try:
+            #    usecase = mod.find('uc').text.strip()
+            #except:
+            usecase = None
+            #if(not isinstance(usecase,type(None))):
+            #    ncvar.use_case = use_case
                 
             try:
                 values = str2fvec(mod.find('val').text.strip())
