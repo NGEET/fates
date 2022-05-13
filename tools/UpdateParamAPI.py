@@ -14,6 +14,7 @@ import argparse
 import code  # For development: code.interact(local=dict(globals(), **locals()))
 from scipy.io import netcdf
 import xml.etree.ElementTree as et
+import numpy as np
 
 # =======================================================================================
 
@@ -53,22 +54,25 @@ def str2ivec(numstr):
 
 # =======================================================================================
 
-def createvar(ncfile,paramname,dimnames,units,longname,usecase,sel_values):
+def createvar(ncfile,paramname,dimnames,units,longname,usecase,dcode,sel_values):
 
     # Create a new netcdf variable inside an existing netcdf dataset (append)
-    
-    ncvar = ncfile.createVariable(paramname,'d',dimnames)
+        
+    ncvar = ncfile.createVariable(paramname,dcode,dimnames)
     ncvar.units = units
     ncvar.long_name = longname
     ncvar.use_case = usecase
-    ncvar[:] = sel_values
+    if( not dimnames):
+        ncvar.assignValue(sel_values)
+    else:
+        ncvar[:] = sel_values
     ncfile.flush()
     
     return(ncfile,ncvar)
 
 # =======================================================================================
 
-def selectvalues(ncfile,dimnames,ipft_list,values):
+def selectvalues(ncfile,dimnames,ipft_list,values,dtype):
 
     # Reduce a list of values so that onlythe chosen pft values are left. This
     # only works on float arrays currently.  We need to pass in a file
@@ -81,29 +85,72 @@ def selectvalues(ncfile,dimnames,ipft_list,values):
         print('len(ipft_list) = {}'.format(len(ipft_list)))
         print('fates_pft dim = {}'.format(ncfile.dimensions['fates_pft']))
         exit(2)
-    
+
+    # shift the pft list to a base of 0 instead of 1
+        
     pft_dim = -1
-    dim2_size = 1
-    for idim,name in enumerate(list(dimnames)):
+    dim_size = [0 for i in range(0,len(dimnames))]
+
+    for idim, name in enumerate(dimnames):
+        dim_size[idim] = ncfile.dimensions[name]
         if(name=='fates_pft'):
             pft_dim = idim
             pft_dim_size = ncfile.dimensions['fates_pft']
-        else:
-            dim2_size = ncfile.dimensions[name]
+    
+    if(len(dimnames) == 1):
 
-    sel_values = []
-    if(pft_dim==0):
-        for j in range(dim2_size):
-            i0 = j*pft_dim_size 
-            for i in ipft_list:
-                sel_values.append(values[i-1+i0])
-    elif(pft_dim==1):
-        for i in ipft_list:
-            i0 = i*dim2_size
-            for j in range(dim2_size):
-                sel_values.append(values[j-1+i0])
+        if(pft_dim==0):
+            dim1_list = ipft_list
+        else:
+            dim1_list = range(0,dim_size[0])
+        
+        sel_values = np.zeros([len(dim1_list)])
+        for i,ipft in enumerate(dim1_list):
+            sel_values[i] = values[ipft]
+            
+    elif(len(dimnames) == 2 ):
+
+        if(dtype=="c"):
+
+            if(pft_dim>0):
+                print("problem with pft_dim: {},{}".format(dimnames[0],dimnames[1]));exit(2)
+            
+            if(pft_dim==0):
+                dim1_list = ipft_list
+            else:
+                dim1_list = range(0,dim_size[0])
+
+            #code.interact(local=dict(globals(), **locals()))
+            #sel_values = np.empty([len(dim1_list),dim_size[1]], dtype="S{}".format(dim_size[1]))
+            #sel_values = np.empty(len(dim1_list), dtype='S60')
+            sel_values = np.chararray([len(dim1_list),dim_size[1]])
+            sel_values[:]
+            for i,ipft in enumerate(dim1_list):
+                for j,cc in enumerate(values[ipft]):
+                    sel_values[i][j] = cc
+
+                
+        elif(dtype=="d"):
+
+            if(pft_dim==0):
+                print("problem with pft_dim: {},{}".format(dimnames[0],dimnames[1]));exit(2)
+                
+            if(pft_dim==1):
+                dim1_list = ipft_list
+            else:
+                dim1_list = range(0,dim_size[1])
+
+            sel_values = np.zeros([dim_size[0],len(dim1_list)])
+            for i,ipft in enumerate(dim1_list):
+                for i2 in range(0,dim_size[0]):
+                    id = i2*len(dim1_list)+ipft
+                    sel_values[i2,i] = values[id]
+
     else:
-        sel_values = values
+                    
+        # Scalar
+        #code.interact(local=dict(globals(), **locals()))
+        sel_values = float(values[0])
 
     return(sel_values)
 
@@ -120,10 +167,13 @@ def removevar(base_nc,varname):
     new_nc = os.popen('mktemp').read().rstrip('\n')
     fp_new  = netcdf.netcdf_file(new_nc, 'w',mmap=False)
 
-    for key, value in sorted(fp_base.dimensions.items()):
-        fp_new.createDimension(key,int(value))
-
     found = False
+    for key, value in sorted(fp_base.dimensions.items()):
+        if( key == varname ):
+            found = True
+        else:
+            fp_new.createDimension(key,int(value))
+
     for key, value in fp_base.variables.items():
 
         if(key == varname):
@@ -172,7 +222,9 @@ def main():
     [base_cdl,new_cdl,pft_list,modroot] = load_xml(args.xmlfile)
 
     ipft_list = str2ivec(pft_list)
-
+    
+    for i,ipft in enumerate(ipft_list):
+        ipft_list[i] = ipft_list[i]-1
     
     # Convert the base cdl file into a temp nc binary
     base_nc = os.popen('mktemp').read().rstrip('\n')
@@ -194,7 +246,7 @@ def main():
                 print("{}, no dimension (di), exiting".format(mod.attrib['type']));exit(2)
 
             try:
-                values = str2fvec(mod.find('val').text.strip())
+                values = str2ivec(mod.find('val').text.strip())
             except:
                 print("no values (val), exiting");exit(2)
                 
@@ -209,6 +261,35 @@ def main():
 
             print("dimension: {}, size: {}, added".format(dimname,values[0]))
             
+        elif(mod.attrib['type'].strip() == 'dimension_del'):
+
+            try:
+                dimname = mod.find('di').text.strip()
+            except:
+                print('define the dimension name to delete using a <na> tag')
+                exit(2)
+
+            # Find which parameters use this dimension
+            ncfile = netcdf.netcdf_file(base_nc,"r",mmap=False)
+            found = False
+            for key, value in sorted(ncfile.dimensions.items()):
+                if(key==dimname):
+                    found=True
+
+            if(not found):
+                print("could not find {} for deletion".format(dimname));exit(2)
+            
+            for key, value in sorted(ncfile.variables.items()):
+                hasdim = any([dim == dimname for dim in list(value.dimensions) ])
+                
+                if (hasdim):
+                    print("parameter: {}, removed (to accomodate dimension removal)".format(key))
+                    removevar(base_nc,key)
+                    
+            ncfile.close()
+            
+            removevar(base_nc,dimname)
+            print("dimension: {}, removed".format(dimname))
             
         elif(mod.attrib['type'].strip() == 'variable_add'):
 
@@ -217,10 +298,15 @@ def main():
             except:
                 print("no name (na), exiting");exit(2)
 
+            #try:
+            #    dtype = mod.find('dt').text.strip()
+            #except:
+            #    print("no data type (dt), exiting");exit(2)
+                
             try:
-                dimnames = tuple([mod.find('di').text.strip()])
+                dimnames = tuple(mod.find('di').text.replace(" ","").split(','))
             except:
-                print("no dimension (di), exiting");exit(2)
+                print("no data type (di), exiting");exit(2)
                 
             try:
                 units = mod.find('un').text.strip()
@@ -240,12 +326,31 @@ def main():
             try:
                 values = str2fvec(mod.find('val').text.strip())
             except:
-                print("no values (val), exiting");exit(2)
+                try:
+                    values = mod.find('val').text.strip()
+                except:
+                    print("no values (val), exiting");exit(2)
 
-            sel_values = selectvalues(ncfile,list(dimnames),ipft_list,values)
-                        
+            #code.interact(local=dict(globals(), **locals()))
+            
+            if(dimnames[0]=='scalar' or dimnames[0]=='none' or dimnames[0]==''):
+                dimnames = ()
+
+            if(isinstance(values[0],str)):
+                dcode = "c"
+                values = values.split(',')
+                for i,val in enumerate(values):
+                    values[i] = val.strip()
+            elif(isinstance(values[0],float)):
+                dcode = "d"
+            else:
+                print("Unknown value type: {} {}".format(type(values[0]),paramname));exit(2)
+
+                
+            sel_values = selectvalues(ncfile,list(dimnames),ipft_list,values,dcode)
+                
             ncfile = netcdf.netcdf_file(base_nc,"a",mmap=False)
-            [ncfile,ncvar] = createvar(ncfile,paramname,dimnames,units,longname,usecase,sel_values)
+            [ncfile,ncvar] = createvar(ncfile,paramname,dimnames,units,longname,usecase,dcode,sel_values)
             ncfile.flush()
             ncfile.close()
 
@@ -273,6 +378,7 @@ def main():
             ncfile = netcdf.netcdf_file(base_nc,"a",mmap=False)
             ncvar_o = ncfile.variables[paramname_o]
             dims_o  = ncvar_o.dimensions
+            dtype_o = ncvar_o.typecode()
             units_o = ncvar_o.units.decode("utf-8")
             longname_o = ncvar_o.long_name.decode("utf-8")
             try:
@@ -280,6 +386,8 @@ def main():
             except:
                 usecase_o = 'undefined'
 
+            
+                
             try:
                 paramname = mod.find('na').text.strip()
             except:
@@ -287,7 +395,10 @@ def main():
 
             # Change the parameter's name
             if(not isinstance(paramname,type(None))):
-                [ncfile,ncvar] = createvar(ncfile,paramname,dims_o,units_o,longname_o,usecase_o,ncvar_o[:].copy())
+                if not dims_o:
+                    [ncfile,ncvar] = createvar(ncfile,paramname,dims_o,units_o,longname_o,usecase_o,dtype_o,float(ncvar_o.data))
+                else:
+                    [ncfile,ncvar] = createvar(ncfile,paramname,dims_o,units_o,longname_o,usecase_o,dtype_o,ncvar_o[:].copy())
             else:
                 ncvar = ncvar_o
                
@@ -319,11 +430,11 @@ def main():
                 values = None
                 
             if(not isinstance(values,type(None))):
-                sel_values = selectvalues(ncfile,list(dims_o),ipft_list,values)
+                sel_values = selectvalues(ncfile,list(dims_o),ipft_list,values,dtype_o)
                     
                 # Scalars have their own thing
                 if(ncvar.data.size == 1):
-                    ncvar.assignValue(float(sel_values[0]))
+                    ncvar.assignValue(sel_values)
                 else:
                     ncvar[:] = sel_values[:]
 
@@ -336,7 +447,8 @@ def main():
             # old one
             if(not isinstance(paramname,type(None))):
                removevar(base_nc,paramname_o)
-            
+               paramname = paramname_o
+               
             print("parameter: {}, modified".format(paramname))
 
                
