@@ -70,20 +70,22 @@ contains
     integer :: damage_date  ! Day of month for damage extracted from event code
     integer :: damage_month ! Month of year for damage extracted from event code
     integer :: damage_year  ! Year for damage extracted from event code
-    character(len=64) :: fmt = '(a,i2.2,a,i2.2,a,i4,4)'
+    integer :: model_day_int  ! Model day
+    
+    character(len=64) :: fmt = '(a,i2.2,a,i2.2,a,i4.4)'
 
     damage_time = .false.
     icode = int(damage_event_code)
 
-    if(hlm_use_canopy_damage .eq. ifalse .or. hlm_use_understory_damage .eq. ifalse) return
-
+    model_day_int = nint(hlm_model_day)
+    
     if(icode .eq. 1) then
        ! Damage is turned off 
        damage_time = .false.
 
     else if(icode .eq. 2) then
        ! Damage event on first time step 
-       if(hlm_model_day .eq.1) then
+       if(model_day_int .eq.1) then
           damage_time = .true.
        end if
 
@@ -130,15 +132,7 @@ contains
        write(fates_log(),fmt) 'Damage Event Enacted on date: ', &
             hlm_current_month,'-', hlm_current_day,'-',hlm_current_year
     end if
-    
-    !if (hlm_day_of_year .eq. 1) then
-    !   damage_time = .true.
-    !end if
-
-    write(fates_log(),fmt) 'JN date: ', &
-         hlm_current_month,'-', hlm_current_day,'-',hlm_current_year
-    write(fates_log(),*) 'JN damage_time: ', damage_time
-    
+  
     return
     
   end subroutine is_it_damage_time

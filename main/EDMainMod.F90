@@ -173,10 +173,8 @@ contains
     call IsItLoggingTime(hlm_masterproc,currentSite)
 
     ! Call a routine that identifies if damage should occur
-    if(hlm_use_canopy_damage .eq. itrue .or. hlm_use_understory_damage .eq. itrue) then
-       call is_it_damage_time(hlm_masterproc, currentSite)
-    end if
-
+    call is_it_damage_time(hlm_masterproc, currentSite)
+ 
     !**************************************************************************
     ! Fire, growth, biogeochemistry.
     !**************************************************************************
