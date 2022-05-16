@@ -1353,20 +1353,8 @@ contains
                                       call endrun(msg=errMsg(sourcefile, __LINE__))
                                    end select
 
-                                   leaf_c = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
-
-                                   currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, newn, &
-                                        currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, &
-                                        currentCohort%vcmax25top)
-
-                                   ! We don't need check on sp mode here since we don't fuse_cohorts with sp mode
-                                   currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
-                                        currentCohort%c_area, newn, currentCohort%canopy_layer, &
-                                        currentPatch%canopy_layer_tlai, currentCohort%treelai,currentCohort%vcmax25top,1 )
-
                                    call sizetype_class_index(currentCohort%dbh,currentCohort%pft, &
                                         currentCohort%size_class,currentCohort%size_by_pft_class)
-
 
                                    if(hlm_use_planthydro.eq.itrue) then
                                       call FuseCohortHydraulics(currentSite,currentCohort,nextc,bc_in,newn)
