@@ -1533,13 +1533,6 @@ contains
                                    ! update hydraulics quantities that are functions of hite & biomasses
                                    ! deallocate the hydro structure of nextc
                                    if (hlm_use_planthydro.eq.itrue) then
-                                      call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
-                                           currentCohort%pft,currentCohort%c_area)
-                                      leaf_c   = currentCohort%prt%GetState(leaf_organ, carbon12_element)
-                                      currentCohort%treelai = tree_lai(leaf_c,             &
-                                           currentCohort%pft, currentCohort%c_area, currentCohort%n, &
-                                           currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, &
-                                           currentCohort%vcmax25top  )
                                       call UpdateSizeDepPlantHydProps(currentSite,currentCohort, bc_in)
                                    endif
 
