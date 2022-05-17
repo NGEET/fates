@@ -3592,6 +3592,8 @@ end subroutine flush_hvars
 
          do while(associated(cpatch))
 
+            bgp_if: if(cpatch%nocomp_pft_label.ne.0)then  ! ignore the bareground patch
+
             patch_area_by_age(cpatch%age_class)  = &
                  patch_area_by_age(cpatch%age_class) + cpatch%area
 
@@ -3850,7 +3852,7 @@ end subroutine flush_hvars
                        cpatch%parprof_dif_z(ican,ileaf) * cpatch%area * AREA_INV
                end do
             end do
-
+            endif bgp_if
             ipa = ipa + 1
             cpatch => cpatch%younger
          end do !patch loop
