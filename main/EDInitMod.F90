@@ -509,6 +509,10 @@ contains
              num_new_patches = 1
           end if !nocomp
 
+          write(*,*) 'fates: nocomp, fbg, spmode: ', s, hlm_use_nocomp, hlm_use_fixed_biogeog, hlm_use_sp
+          write(*,*) 'fates: start_patch: ', s, start_patch
+          write(*,*) 'fates: area_pft: ', s, sites(s)%area_pft
+
           is_first_patch = itrue
           do n = start_patch, num_new_patches
 
@@ -518,6 +522,8 @@ contains
              else
                 nocomp_pft = fates_unset_int
              end if
+
+             write(*,*) 'fates: n, nocomp_pft: ', s, n, nocomp_pft
 
              if(hlm_use_nocomp.eq.itrue)then
                 ! In no competition mode, if we are using the fixed_biogeog filter
@@ -534,6 +540,8 @@ contains
              else  ! The default case is initialized w/ one patch with the area of the whole site.
                 newparea = area
              end if  !nocomp mode
+
+             write(*,*) 'fates: n, newparea: ', s, n, newparea
 
              if(newparea.gt.0._r8)then ! Stop patches being initilialized when PFT not present in nocomop mode
                 allocate(newp)
@@ -558,6 +566,9 @@ contains
                    sites(s)%youngest_patch   => newp
                 end if
 
+                write(*,*) 'fates: n, is_first_patch: ', s, n, is_first_patch
+                write(*,*) 'fates: n, patchno: ', s, n, newp%patchno
+
                 ! Initialize the litter pools to zero, these
                 ! pools will be populated by looping over the existing patches
                 ! and transfering in mass
@@ -578,6 +589,7 @@ contains
                 else ! normal non SP case always call init cohorts
                    call init_cohorts(sitep, newp, bc_in(s))
                 end if
+                write(*,*) 'fates: post init_cohort: n, patchno: ', s, n, newp%patchno
              end if
           end do !no new patches
 
