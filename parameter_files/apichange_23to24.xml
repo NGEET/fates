@@ -110,7 +110,7 @@
 		<val> 0.18 </val>
 	 </mod>
 	 <mod type="variable_add">
-		<na> fates_lu_pprodharv10_forest_mean </na>
+		<na> fates_landuse_pprodharv10_forest_mean </na>
 		<di> scalar </di>
 		<un> fraction </un>
 		<ln> mean harvest mortality proportion of deadstem to 10-yr product (pprodharv10) of all woody PFT types </ln>
@@ -216,31 +216,31 @@
 		<na> fates_turb_z0mr </na>
 	 </mod>
 	 <mod type="variable_change" name="fates_logging_coll_under_frac"> 
-		<na> fates_lu_logging_coll_under_frac </na>
+		<na> fates_landuse_logging_coll_under_frac </na>
 	 </mod>
 	 <mod type="variable_change" name="fates_logging_collateral_frac"> 
-		<na> fates_lu_logging_collateral_frac </na>
+		<na> fates_landuse_logging_collateral_frac </na>
 	 </mod>
 	 <mod type="variable_change" name="fates_logging_dbhmax"> 
-		<na> fates_lu_logging_dbhmax </na>
+		<na> fates_landuse_logging_dbhmax </na>
 	 </mod>
 	 <mod type="variable_change" name="fates_logging_dbhmax_infra"> 
-		<na> fates_lu_logging_dbhmax_infra </na>
+		<na> fates_landuse_logging_dbhmax_infra </na>
 	 </mod>
 	 <mod type="variable_change" name="fates_logging_dbhmin"> 
-		<na> fates_lu_logging_dbhmin </na>
+		<na> fates_landuse_logging_dbhmin </na>
 	 </mod>
 	 <mod type="variable_change" name="fates_logging_direct_frac"> 
-		<na> fates_lu_logging_direct_frac </na>
+		<na> fates_landuse_logging_direct_frac </na>
 	 </mod>
 	 <mod type="variable_change" name="fates_logging_event_code"> 
-		<na> fates_lu_logging_event_code </na>
+		<na> fates_landuse_logging_event_code </na>
 	 </mod>
 	 <mod type="variable_change" name="fates_logging_export_frac"> 
-		<na> fates_lu_logging_export_frac </na>
+		<na> fates_landuse_logging_export_frac </na>
 	 </mod>
 	 <mod type="variable_change" name="fates_logging_mechanical_frac"> 
-		<na> fates_lu_logging_mechanical_frac </na>
+		<na> fates_landuse_logging_mechanical_frac </na>
 	 </mod>
 	 <mod type="variable_change" name="fates_photo_temp_acclim_timescale"> 
 		<na> fates_leaf_photo_temp_acclim_timescale </na>

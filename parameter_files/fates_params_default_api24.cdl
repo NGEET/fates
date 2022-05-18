@@ -659,6 +659,36 @@ variables:
 	double fates_hydro_solver ;
 		fates_hydro_solver:units = "unitless" ;
 		fates_hydro_solver:long_name = "switch designating which numerical solver for plant hydraulics, 1 = 1D taylor, 2 = 2D Picard" ;
+	double fates_landuse_logging_coll_under_frac ;
+		fates_landuse_logging_coll_under_frac:units = "fraction" ;
+		fates_landuse_logging_coll_under_frac:long_name = "Fraction of stems killed in the understory when logging generates disturbance" ;
+	double fates_landuse_logging_collateral_frac ;
+		fates_landuse_logging_collateral_frac:units = "fraction" ;
+		fates_landuse_logging_collateral_frac:long_name = "Fraction of large stems in upperstory that die from logging collateral damage" ;
+	double fates_landuse_logging_dbhmax ;
+		fates_landuse_logging_dbhmax:units = "cm" ;
+		fates_landuse_logging_dbhmax:long_name = "Maximum dbh below which logging is applied (unset values flag this to be unused)" ;
+	double fates_landuse_logging_dbhmax_infra ;
+		fates_landuse_logging_dbhmax_infra:units = "cm" ;
+		fates_landuse_logging_dbhmax_infra:long_name = "Tree diameter, above which infrastructure from logging does not impact damage or mortality." ;
+	double fates_landuse_logging_dbhmin ;
+		fates_landuse_logging_dbhmin:units = "cm" ;
+		fates_landuse_logging_dbhmin:long_name = "Minimum dbh at which logging is applied" ;
+	double fates_landuse_logging_direct_frac ;
+		fates_landuse_logging_direct_frac:units = "fraction" ;
+		fates_landuse_logging_direct_frac:long_name = "Fraction of stems logged directly per event" ;
+	double fates_landuse_logging_event_code ;
+		fates_landuse_logging_event_code:units = "unitless" ;
+		fates_landuse_logging_event_code:long_name = "Integer code that options how logging events are structured" ;
+	double fates_landuse_logging_export_frac ;
+		fates_landuse_logging_export_frac:units = "fraction" ;
+		fates_landuse_logging_export_frac:long_name = "fraction of trunk product being shipped offsite, the leftovers will be left onsite as large CWD" ;
+	double fates_landuse_logging_mechanical_frac ;
+		fates_landuse_logging_mechanical_frac:units = "fraction" ;
+		fates_landuse_logging_mechanical_frac:long_name = "Fraction of stems killed due infrastructure an other mechanical means" ;
+	double fates_landuse_pprodharv10_forest_mean ;
+		fates_landuse_pprodharv10_forest_mean:units = "fraction" ;
+		fates_landuse_pprodharv10_forest_mean:long_name = "mean harvest mortality proportion of deadstem to 10-yr product (pprodharv10) of all woody PFT types" ;
 	double fates_leaf_photo_temp_acclim_timescale ;
 		fates_leaf_photo_temp_acclim_timescale:units = "days" ;
 		fates_leaf_photo_temp_acclim_timescale:long_name = "Length of the window for the exponential moving average (ema) of vegetation temperature used in photosynthesis temperature acclimation (NOT USED)" ;
@@ -677,36 +707,6 @@ variables:
 	double fates_leaf_theta_cj_c4 ;
 		fates_leaf_theta_cj_c4:units = "unitless" ;
 		fates_leaf_theta_cj_c4:long_name = "Empirical curvature parameter for ac, aj photosynthesis co-limitation in c4 plants" ;
-	double fates_lu_logging_coll_under_frac ;
-		fates_lu_logging_coll_under_frac:units = "fraction" ;
-		fates_lu_logging_coll_under_frac:long_name = "Fraction of stems killed in the understory when logging generates disturbance" ;
-	double fates_lu_logging_collateral_frac ;
-		fates_lu_logging_collateral_frac:units = "fraction" ;
-		fates_lu_logging_collateral_frac:long_name = "Fraction of large stems in upperstory that die from logging collateral damage" ;
-	double fates_lu_logging_dbhmax ;
-		fates_lu_logging_dbhmax:units = "cm" ;
-		fates_lu_logging_dbhmax:long_name = "Maximum dbh below which logging is applied (unset values flag this to be unused)" ;
-	double fates_lu_logging_dbhmax_infra ;
-		fates_lu_logging_dbhmax_infra:units = "cm" ;
-		fates_lu_logging_dbhmax_infra:long_name = "Tree diameter, above which infrastructure from logging does not impact damage or mortality." ;
-	double fates_lu_logging_dbhmin ;
-		fates_lu_logging_dbhmin:units = "cm" ;
-		fates_lu_logging_dbhmin:long_name = "Minimum dbh at which logging is applied" ;
-	double fates_lu_logging_direct_frac ;
-		fates_lu_logging_direct_frac:units = "fraction" ;
-		fates_lu_logging_direct_frac:long_name = "Fraction of stems logged directly per event" ;
-	double fates_lu_logging_event_code ;
-		fates_lu_logging_event_code:units = "unitless" ;
-		fates_lu_logging_event_code:long_name = "Integer code that options how logging events are structured" ;
-	double fates_lu_logging_export_frac ;
-		fates_lu_logging_export_frac:units = "fraction" ;
-		fates_lu_logging_export_frac:long_name = "fraction of trunk product being shipped offsite, the leftovers will be left onsite as large CWD" ;
-	double fates_lu_logging_mechanical_frac ;
-		fates_lu_logging_mechanical_frac:units = "fraction" ;
-		fates_lu_logging_mechanical_frac:long_name = "Fraction of stems killed due infrastructure an other mechanical means" ;
-	double fates_lu_pprodharv10_forest_mean ;
-		fates_lu_pprodharv10_forest_mean:units = "fraction" ;
-		fates_lu_pprodharv10_forest_mean:long_name = "mean harvest mortality proportion of deadstem to 10-yr product (pprodharv10) of all woody PFT types" ;
 	double fates_maintresp_model ;
 		fates_maintresp_model:units = "unitless" ;
 		fates_maintresp_model:long_name = "switch for choosing between maintenance respiration models. 1=Ryan (1991) (NOT USED)" ;
@@ -1438,6 +1438,26 @@ data:
 
  fates_hydro_solver = 1 ;
 
+ fates_landuse_logging_coll_under_frac = 0.55983 ;
+
+ fates_landuse_logging_collateral_frac = 0.05 ;
+
+ fates_landuse_logging_dbhmax = _ ;
+
+ fates_landuse_logging_dbhmax_infra = 35 ;
+
+ fates_landuse_logging_dbhmin = 50 ;
+
+ fates_landuse_logging_direct_frac = 0.15 ;
+
+ fates_landuse_logging_event_code = -30 ;
+
+ fates_landuse_logging_export_frac = 0.8 ;
+
+ fates_landuse_logging_mechanical_frac = 0.05 ;
+
+ fates_landuse_pprodharv10_forest_mean = 0.8125 ;
+
  fates_leaf_photo_temp_acclim_timescale = 30 ;
 
  fates_leaf_photo_tempsens_model = 1 ;
@@ -1449,26 +1469,6 @@ data:
  fates_leaf_theta_cj_c3 = 0.999 ;
 
  fates_leaf_theta_cj_c4 = 0.999 ;
-
- fates_lu_logging_coll_under_frac = 0.55983 ;
-
- fates_lu_logging_collateral_frac = 0.05 ;
-
- fates_lu_logging_dbhmax = _ ;
-
- fates_lu_logging_dbhmax_infra = 35 ;
-
- fates_lu_logging_dbhmin = 50 ;
-
- fates_lu_logging_direct_frac = 0.15 ;
-
- fates_lu_logging_event_code = -30 ;
-
- fates_lu_logging_export_frac = 0.8 ;
-
- fates_lu_logging_mechanical_frac = 0.05 ;
-
- fates_lu_pprodharv10_forest_mean = 0.8125 ;
 
  fates_maintresp_model = 1 ;
 
