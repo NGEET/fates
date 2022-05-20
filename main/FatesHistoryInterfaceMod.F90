@@ -4742,7 +4742,7 @@ end subroutine update_history_hifrq
 
     call this%set_history_var(vname='FATES_FUEL_AMOUNT_APFC', units='kg m-2',  &
          long='spitfire fuel quantity in each age x fuel class in kg carbon per m2 land area', &
-         use_default='inactive', avgflag='A', vtype=site_agefuel_r8,           &
+         use_default='active', avgflag='A', vtype=site_agefuel_r8,           &
          hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
          index = ih_fuel_amount_age_fuel)
 
@@ -5706,7 +5706,7 @@ end subroutine update_history_hifrq
     call this%set_history_var(vname='FATES_MORTALITY_FIRE_SZPF',               &
           units = 'm-2 yr-1',                                                  &
           long='fire mortality by pft/size in number of plants per m2 per year', &
-          use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
+          use_default='active', avgflag='A', vtype=site_size_pft_r8,         &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_m5_si_scpf)
 
