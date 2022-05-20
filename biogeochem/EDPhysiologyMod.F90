@@ -1494,7 +1494,7 @@ contains
              ! bc%seed_in(pft) in [kg/site/day]
              seed_in_external = bc_in%seed_in(pft)/currentPatch%area + seed_stoich*EDPftvarcon_inst%seed_suppl(pft)*years_per_day ![kg/m2/day]
 
-             write(fates_log(),*) 'pft, bc_in%seed_in(pft),bc_in%seed_in(pft)/currentPatch%area, seed_in_external: ', pft, bc_in%seed_in(pft), bc_in%seed_in(pft)/currentPatch%area, seed_in_external
+             !write(fates_log(),*) 'pft, bc_in%seed_in(pft),bc_in%seed_in(pft)/currentPatch%area, seed_in_external: ', pft, bc_in%seed_in(pft), bc_in%seed_in(pft)/currentPatch%area, seed_in_external
 
              !--------------------------------------------------------------------------------------------------
              litt%seed_in_extern(pft) = litt%seed_in_extern(pft) + seed_in_external
