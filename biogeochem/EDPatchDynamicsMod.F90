@@ -282,7 +282,7 @@ contains
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort))   
 
-          if(currentCohort%canopy_layer == 1)then
+          if(currentCohort%canopy_layer == 1 .and. int(prt_params%woody(currentCohort%pft)) == itrue )then
 
              ! Treefall Disturbance Rate
              currentPatch%disturbance_rates(dtype_ifall) = currentPatch%disturbance_rates(dtype_ifall) + &
