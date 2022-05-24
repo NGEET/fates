@@ -3110,7 +3110,7 @@ end subroutine flush_hvars
                (sum(litt%seed_in_local(:)) + sum(litt%seed_in_extern(:))) * &
                area_frac * days_per_sec
 
-            endif bgp_if_hist1
+            endif bgp_if_hist2
          cpatch => cpatch%younger
       end do patchloop2
 
