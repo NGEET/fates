@@ -2888,9 +2888,7 @@ end subroutine flush_hvars
                cpatch%FI * cpatch%frac_burnt * cpatch%area * AREA_INV * J_per_kJ
 
             ! Update Litter Flux Variables
-
             litt_c       => cpatch%litter(element_pos(carbon12_element))
-            flux_diags_c => sites(s)%flux_diags(element_pos(carbon12_element))
 
             do i_cwd = 1, ncwd
 
@@ -3453,6 +3451,7 @@ end subroutine flush_hvars
       !
 
       ! add the site-level disturbance-associated cwd and litter input fluxes to thir respective flux fields
+       flux_diags_c => sites(s)%flux_diags(element_pos(carbon12_element))
 
       do i_cwd = 1, ncwd
          hio_cwd_ag_in_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_in_si_cwdsc(io_si, i_cwd) + &
