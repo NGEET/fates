@@ -485,7 +485,7 @@ contains
          write(fates_log(),*) 'Lat: ',sites(s)%lat,' Lon: ',sites(s)%lon
          write(fates_log(),*) basal_area_pref,' [m2/ha]'
          write(fates_log(),*) '-------------------------------------------------------'
-
+                  
          ! Update the patch index numbers and fuse the cohorts in the patches
          ! ----------------------------------------------------------------------------------------
          ipa=1
@@ -995,9 +995,11 @@ contains
       end if
 
       if (c_pft .eq. 0 ) then
-         write(fates_log(), *) 'inventory pft: ',c_pft
-         write(fates_log(), *) 'SPECIAL CASE TRIGGERED: PFT == 0 and therefore this subroutine'
-         write(fates_log(), *) 'will assign a cohort with n = n_orig/numpft to every cohort in range 1 to numpft'
+         if(debug_inv)then
+            write(fates_log(), *) 'inventory pft: ',c_pft
+            write(fates_log(), *) 'SPECIAL CASE TRIGGERED: PFT == 0 and therefore this subroutine'
+            write(fates_log(), *) 'will assign a cohort with n = n_orig/numpft to every cohort in range 1 to numpft'
+         end if
          ncohorts_to_create = numpft
       else
          ncohorts_to_create = 1

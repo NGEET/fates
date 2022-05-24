@@ -591,11 +591,6 @@ contains
                    ! Make sure the cohort trim fraction is great than the pft trim limit
                    if (currentCohort%canopy_trim > EDPftvarcon_inst%trim_limit(ipft)) then
 
-                      !  if ( debug ) then
-                      !     write(fates_log(),*) 'trimming leaves', &
-                      !           currentCohort%canopy_trim,currentCohort%leaf_cost
-                      !  endif
-
                       ! keep trimming until none of the canopy is in negative carbon balance.
                       if (currentCohort%hite > EDPftvarcon_inst%hgt_min(ipft)) then
                          currentCohort%canopy_trim = currentCohort%canopy_trim - &
@@ -620,10 +615,6 @@ contains
              lwork = -1 ! Ask sgels to compute optimal number of entries for work
              call dgels(trans, m, n, nrhs, nnu_clai_a, lda, nnu_clai_b, ldb, work, lwork, info)
              lwork = int(work(1)) ! Pick the optimum.  TBD, can work(1) come back with greater than work size?
-
-             ! if (debug) then
-             !    write(fates_log(),*) 'LLSF lwork output (info, lwork):', info, lwork
-             ! endif
 
              ! Compute the minimum of 2-norm of of the least squares fit to solve for X
              ! Note that dgels returns the solution by overwriting the nnu_clai_b array.
