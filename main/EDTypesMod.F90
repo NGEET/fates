@@ -156,6 +156,9 @@ module EDTypesMod
   integer,  parameter, public :: dl_sf                = 5          ! array index of dead leaf pool for spitfire (dead grass and dead leaves)
   integer,  parameter, public :: lg_sf                = 6          ! array index of live grass pool for spitfire
 
+! real(r8), parameter, public :: crown_fire_threshold = 200.0_r8   ! threshold for passive crown fire ignition. KWm-2 (Bessie & Johnson 1995) TODO slevis: see corresponding todo in SFMainMod.F90
+
+
   ! PATCH FUSION 
   real(r8), parameter, public :: force_patchfuse_min_biomass = 0.005_r8   ! min biomass (kg / m2 patch area) below which to force-fuse patches
   integer , parameter, public :: N_DBH_BINS           = 6                 ! no. of dbh bins used when comparing patches
@@ -562,8 +565,14 @@ module EDTypesMod
      real(r8) ::  fuel_eff_moist                                   ! effective avearage fuel moisture content of the ground fuel 
                                                                    ! (incl. live grasses. omits 1000hr fuels)
      real(r8) ::  litter_moisture(nfsc)
+     real(r8) ::  canopy_bulk_density                              ! available canopy fuel bulk density in patch (kg biomass/m3)
+     real(r8) ::  canopy_fuel_load                                 ! available canopy fuel load in patch (kg biomass)
+     real(r8) ::  passive_crown_FI                                 ! fire intensity for ignition of passive canopy fuel (kW/m)
+     real(r8) ::  heat_per_area                                    ! heat release per unit area (kJ/m2) for surface fuel
 
      ! FIRE SPREAD
+     real(r8) ::  lb                                               ! length to breadth ratio of fire ellipse (unitless)
+     real(r8) ::  ros_torch                                        ! rate of spread for crown torch initiation: m/min
      real(r8) ::  ros_front                                        ! rate of forward  spread of fire: m/min
      real(r8) ::  ros_back                                         ! rate of backward spread of fire: m/min
      real(r8) ::  effect_wspeed                                    ! windspeed modified by fraction of relative grass and tree cover: m/min
@@ -574,9 +583,10 @@ module EDTypesMod
 
      ! FIRE EFFECTS     
      real(r8) ::  scorch_ht(maxpft)                                ! scorch height: m 
-     real(r8) ::  frac_burnt                                       ! fraction burnt: frac patch/day  
+     real(r8) ::  frac_burnt                                       ! fraction burnt: frac patch/day
      real(r8) ::  tfc_ros                                          ! total intensity-relevant fuel consumed - no trunks.  KgC/m2 of burned ground/day
      real(r8) ::  burnt_frac_litter(nfsc)                          ! fraction of each litter pool burned, conditional on it being burned
+     integer  ::  active_crown_fire_flg                            ! flag for active crown fire ignition
 
 
      ! PLANT HYDRAULICS   (not currently used in hydraulics RGK 03-2018)  
@@ -1018,7 +1028,8 @@ module EDTypesMod
      write(fates_log(),*) 'pa%c_lblayer          = ',cpatch%c_lblayer
      write(fates_log(),*) 'pa%disturbance_rate   = ',cpatch%disturbance_rate
      write(fates_log(),*) 'pa%disturbance_rates  = ',cpatch%disturbance_rates(:)
-     write(fates_log(),*) 'pa%anthro_disturbance_label = ',cpatch%anthro_disturbance_label
+     write(fates_log(),*) 'pa%anthro_disturbance_label = ', cpatch%anthro_disturbance_label
+     write(fates_log(),*) 'pa%active_crown_fire_flg = ', cpatch%active_crown_fire_flg
      write(fates_log(),*) '----------------------------------------'
      do el = 1,num_elements
         write(fates_log(),*) 'element id: ',element_list(el)

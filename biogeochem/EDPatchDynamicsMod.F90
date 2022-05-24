@@ -2125,6 +2125,12 @@ contains
     new_patch%fabi_sha_z(:,:,:)  = 0._r8  
     new_patch%scorch_ht(:)       = 0._r8  
     new_patch%frac_burnt         = 0._r8  
+    new_patch%canopy_bulk_density = 0._r8
+    new_patch%canopy_fuel_load   = 0._r8
+    new_patch%passive_crown_FI   = 0._r8
+    new_patch%ros_torch          = 0._r8
+    new_patch%heat_per_area      = 0._r8
+    new_patch%lb                 = 0._r8
     new_patch%litter_moisture(:) = 0._r8
     new_patch%fuel_eff_moist     = 0._r8
     new_patch%livegrass          = 0._r8
@@ -2236,11 +2242,18 @@ contains
     currentPatch%fi                         = nan    ! average fire intensity of flaming front during day.  
     ! backward ros plays no role. kj/m/s or kw/m.
     currentPatch%fire                       = 999    ! sr decide_fire.1=fire hot enough to proceed. 0=stop everything- no fires today
+    currentPatch%active_crown_fire_flg      = 9999   ! flag to indicate active crown fire ignition
     currentPatch%fd                         = nan    ! fire duration (mins)
     currentPatch%ros_back                   = nan    ! backward ros (m/min)
     currentPatch%scorch_ht(:)               = nan    ! scorch height of flames on a given PFT
-    currentPatch%frac_burnt                 = nan    ! fraction burnt daily  
-    currentPatch%burnt_frac_litter(:)       = nan    
+    currentPatch%frac_burnt                 = nan    ! fraction burnt daily
+    currentPatch%canopy_bulk_density        = nan    ! available canopy fuel bulk density in patch (kg biomass/m3)
+    currentPatch%canopy_fuel_load           = nan    ! available canopy fuel load in patch (kg biomass)
+    currentPatch%passive_crown_FI           = nan    ! fire intensity for ignition of passive canopy fuel (kW/m)
+    currentPatch%ros_torch                  = nan    ! rate of spread (ROS) for crown torch initiation (m/min)
+    currentPatch%heat_per_area              = nan    ! heat release per unit area (kJ/m2) for surface fuel
+    currentPatch%lb                         = nan    ! length to breadth ratio of fire ellipse (unitless)
+    currentPatch%burnt_frac_litter(:)       = nan
     currentPatch%btran_ft(:)                = 0.0_r8
 
     currentPatch%canopy_layer_tlai(:)       = 0.0_r8
@@ -2661,6 +2674,12 @@ contains
     rp%ros_back             = (dp%ros_back*dp%area + rp%ros_back*rp%area) * inv_sum_area
     rp%scorch_ht(:)         = (dp%scorch_ht(:)*dp%area + rp%scorch_ht(:)*rp%area) * inv_sum_area
     rp%frac_burnt           = (dp%frac_burnt*dp%area + rp%frac_burnt*rp%area) * inv_sum_area
+    rp%canopy_bulk_density  = (dp%canopy_bulk_density*dp%area + rp%canopy_bulk_density*rp%area) * inv_sum_area
+    rp%canopy_fuel_load     = (dp%canopy_fuel_load*dp%area + rp%canopy_fuel_load*rp%area) * inv_sum_area
+    rp%passive_crown_FI     = (dp%passive_crown_FI*dp%area + rp%passive_crown_FI*rp%area) * inv_sum_area
+    rp%ros_torch            = (dp%ros_torch*dp%area + rp%ros_torch*rp%area) * inv_sum_area
+    rp%heat_per_area        = (dp%heat_per_area*dp%area + rp%heat_per_area*rp%area) * inv_sum_area
+    rp%lb                   = (dp%lb*dp%area + rp%lb*rp%area) * inv_sum_area
     rp%burnt_frac_litter(:) = (dp%burnt_frac_litter(:)*dp%area + rp%burnt_frac_litter(:)*rp%area) * inv_sum_area
     rp%btran_ft(:)          = (dp%btran_ft(:)*dp%area + rp%btran_ft(:)*rp%area) * inv_sum_area
     rp%zstar                = (dp%zstar*dp%area + rp%zstar*rp%area) * inv_sum_area

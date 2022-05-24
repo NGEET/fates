@@ -206,7 +206,7 @@ variables:
 		fates_fire_crown_depth_frac:long_name = "the depth of a cohorts crown as a fraction of its height" ;
 	double fates_fire_crown_kill(fates_pft) ;
 		fates_fire_crown_kill:units = "NA" ;
-		fates_fire_crown_kill:long_name = "fire parameter, see equation 22 in Thonicke et al 2010" ;
+		fates_fire_crown_kill:long_name = "crown resistance to fire (1 = none), EQ 22 in Thonicke et al 2010" ;
 	double fates_fnrt_prof_a(fates_pft) ;
 		fates_fnrt_prof_a:units = "unitless" ;
 		fates_fnrt_prof_a:long_name = "Fine root profile function, parameter a" ;

@@ -48,9 +48,8 @@ module EDPftvarcon
      real(r8), allocatable :: z0mr(:)                ! ratio of roughness length of vegetation to height (-)
      real(r8), allocatable :: displar(:)             ! ratio of displacement height to canopy top height
      real(r8), allocatable :: bark_scaler(:)         ! scaler from dbh to bark thickness. For fire model.
-     real(r8), allocatable :: crown_kill(:)          ! scaler on fire death. For fire model.
-     real(r8), allocatable :: initd(:)               ! initial seedling density
-
+     real(r8), allocatable :: crown_kill(:)          ! crown resistance to fire. (1 = none) For fire model.
+     real(r8), allocatable :: initd(:)               ! initial seedling density 
      real(r8), allocatable :: seed_suppl(:)          ! seeds that come from outside the gridbox.
      real(r8), allocatable :: bb_slope(:)            ! ball berry slope parameter
      real(r8), allocatable :: medlyn_slope(:)        ! Medlyn slope parameter KPa^0.5
