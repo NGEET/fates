@@ -214,14 +214,15 @@ module EDTypesMod
      class(prt_vartypes), pointer :: prt
 
      real(r8) :: l2fr                                    ! leaf to fineroot biomass ratio (this is constant
-                                                         !      in carbon only simulations, and is set by the
+                                                         !      in carbon only simulationss, and is set by the
                                                          !      allom_l2fr_min parameter.  In nutrient
                                                          !      enabled simulations, this is dynamic, will
                                                          !      vary between allom_l2fr_min and allom_l2fr_max
                                                          !      parameters, with a tendency driven by
                                                          !      nutrient storage)
 
-
+     integer :: cnp_limiter   ! Which species is limiting growth? ! 0=none,1=C,2=N,3=P
+     
      !!class(rmean_type), pointer :: l2fr_ema              ! Exponential moving average of the L2FR
      
      ! VEGETATION STRUCTURE
@@ -382,6 +383,9 @@ module EDTypesMod
      real(r8) ::  ddbhdt                                 ! time derivative of dbh          : cm/year
      real(r8) ::  dbdeaddt                               ! time derivative of dead biomass         : KgC/year
 
+     
+
+     
      ! FIRE
      real(r8) ::  fraction_crown_burned                  ! proportion of crown affected by fire:-
      real(r8) ::  cambial_mort                           ! probability that trees dies due to cambial char 

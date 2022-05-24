@@ -99,7 +99,7 @@ module EDCohortDynamicsMod
   use PRTAllometricCNPMod,    only : acnp_bc_inout_id_resp_excess, acnp_bc_in_id_netdc
   use PRTAllometricCNPMod,    only : acnp_bc_inout_id_netdn, acnp_bc_inout_id_netdp
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_cefflux, acnp_bc_out_id_nefflux
-  use PRTAllometricCNPMod,    only : acnp_bc_out_id_pefflux
+  use PRTAllometricCNPMod,    only : acnp_bc_out_id_pefflux, acnp_bc_out_id_limiter
 
   use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)  
 
@@ -431,13 +431,15 @@ contains
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_dbh,bc_rval = new_cohort%dbh)
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_resp_excess,bc_rval = new_cohort%resp_excess)
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_l2fr,bc_rval = new_cohort%l2fr)
+       
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdn, bc_rval = new_cohort%daily_n_gain)
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdp, bc_rval = new_cohort%daily_p_uptake)
        
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_cefflux, bc_rval = new_cohort%daily_c_efflux)
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_nefflux, bc_rval = new_cohort%daily_n_efflux)
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_pefflux, bc_rval = new_cohort%daily_p_efflux)
-
+       call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_limiter, bc_ival = new_cohort%cnp_limiter)
+       
     case DEFAULT
 
        write(fates_log(),*) 'You specified an unknown PRT module'
@@ -717,7 +719,6 @@ contains
     ! resource allocation
     currentCohort%daily_n_fixation = 0._r8
     
-
   end subroutine zero_cohort
 
   !-------------------------------------------------------------------------------------!
@@ -1213,9 +1214,9 @@ contains
                                    ! -----------------------------------------------------------------
                                    call UpdateCohortBioPhysRates(currentCohort)
                                    
-                                   currentCohort%l2fr = (currentCohort%n*currentCohort%l2fr&
+                                   currentCohort%l2fr = (currentCohort%n*currentCohort%l2fr &
                                         + nextc%n*nextc%l2fr)/newn
-                                   
+
                                    currentCohort%laimemory   = (currentCohort%n*currentCohort%laimemory   &
                                         + nextc%n*nextc%laimemory)/newn
 
@@ -1830,7 +1831,7 @@ contains
 
     ! This transfers the PRT objects over.
     call n%prt%CopyPRTVartypes(o%prt)
-    n%l2fr       = o%l2fr
+    n%l2fr                 = o%l2fr
     
     ! Leaf biophysical rates
     n%vcmax25top = o%vcmax25top
@@ -1939,6 +1940,9 @@ contains
     n%shorter         => NULL()     ! pointer to next shorter cohort
     n%patchptr        => o%patchptr ! pointer to patch that cohort is in
 
+
+
+    
   end subroutine copy_cohort
 
   !-------------------------------------------------------------------------------------!
