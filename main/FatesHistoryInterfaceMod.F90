@@ -3614,10 +3614,12 @@ end subroutine flush_hvars
 
             hio_rad_error_si(io_si) = hio_rad_error_si(io_si) + &
                  cpatch%radiation_error * cpatch%area * AREA_INV
+
+            if(cpatch%patchno.ne.0)then
+               hio_tveg(io_si) = hio_tveg(io_si) + &
+                    (bc_in(s)%t_veg_pa(cpatch%patchno) - t_water_freeze_k_1atm)*cpatch%area*area_inv
+            end if
             
-            hio_tveg(io_si) = hio_tveg(io_si) + &
-                 (bc_in(s)%t_veg_pa(cpatch%patchno) - t_water_freeze_k_1atm)*cpatch%area*area_inv
-          
             ccohort => cpatch%shortest
             do while(associated(ccohort))
 

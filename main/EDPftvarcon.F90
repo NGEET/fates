@@ -132,6 +132,9 @@ module EDPftvarcon
                                                                  ! prescribed_physiology_mode
 
      ! Nutrient Aquisition (ECA & RD)
+
+
+     !real(r8), allocatable :: rd_vmax_n(:)             ! maximum production rate for plant n uptake   [gN/gC/s]
      real(r8), allocatable :: decompmicc(:)             ! microbial decomposer biomass gC/m3
                                                         ! on root surface
 
@@ -158,7 +161,6 @@ module EDPftvarcon
                                                   ! more in need a plant is for P versus N [/]
 
      !real(r8), allocatable :: nfix1(:)   ! nitrogen fixation parameter 1
-     !real(r8), allocatable :: nfix2(:)   ! nitrogen fixation parameter 2
 
 
      ! Turnover related things
@@ -325,7 +327,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_recruit_hgt_min'
+    name = 'fates_recruit_height_min'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -337,11 +339,11 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_recruit_initd'
+    name = 'fates_recruit_init_density'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_seed_suppl'
+    name = 'fates_recruit_seed_supplement'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -357,36 +359,35 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_lf_flab'
+    name = 'fates_frag_leaf_flab'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_lf_fcel'
+    name = 'fates_frag_leaf_fcel'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_lf_flig'
+    name = 'fates_frag_leaf_flig'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_fr_flab'
+    name = 'fates_frag_fnrt_flab'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_fr_fcel'
+    name = 'fates_frag_fnrt_fcel'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_fr_flig'
+    name = 'fates_frag_fnrt_flig'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_leaf_xl'
+    name = 'fates_rad_leaf_xl'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-
-    name = 'fates_leaf_clumping_index'
+    name = 'fates_rad_leaf_clumping_index'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -394,11 +395,11 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_smpso'
+    name = 'fates_nonhydro_smpso'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_smpsc'
+    name = 'fates_nonhydro_smpsc'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -418,15 +419,15 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_prescribed_mortality_canopy'
+    name = 'fates_mort_prescribed_canopy'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_prescribed_mortality_understory'
+    name = 'fates_mort_prescribed_understory'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_prescribed_recruitment'
+    name = 'fates_recruit_prescribed_rate'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -438,31 +439,31 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_hydr_p_taper'
+    name = 'fates_hydro_p_taper'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_hydr_rs2'
+    name = 'fates_hydro_rs2'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_hydr_srl'
+    name = 'fates_hydro_srl'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_hydr_rfrac_stem'
+    name = 'fates_hydro_rfrac_stem'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_hydr_avuln_gs'
+    name = 'fates_hydro_avuln_gs'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_hydr_p50_gs'
+    name = 'fates_hydro_p50_gs'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_hydr_k_lwp'
+    name = 'fates_hydro_k_lwp'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -530,11 +531,11 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_seed_germination_rate'
+    name = 'fates_recruit_seed_germination_rate'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_seed_decay_rate'
+    name = 'fates_frag_seed_decay_rate'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -546,19 +547,19 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_leaf_diameter'
+    name = 'fates_turb_leaf_diameter'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_z0mr'
+    name = 'fates_turb_z0mr'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_displar'
+    name = 'fates_turb_displar'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_phenflush_fraction'
+    name = 'fates_phen_flush_fraction'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -573,55 +574,55 @@ contains
     ! Nutrient competition parameters
 
 
-    name = 'fates_eca_decompmicc'
+    name = 'fates_cnp_eca_decompmicc'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_eca_km_nh4'
+    name = 'fates_cnp_eca_km_nh4'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_eca_vmax_nh4'
+    name = 'fates_cnp_eca_vmax_nh4'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_eca_km_no3'
+    name = 'fates_cnp_eca_km_no3'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_eca_vmax_no3'
+    name = 'fates_cnp_eca_vmax_no3'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_eca_km_p'
+    name = 'fates_cnp_eca_km_p'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_eca_vmax_p'
+    name = 'fates_cnp_vmax_p'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_eca_km_ptase'
+    name = 'fates_cnp_eca_km_ptase'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_eca_vmax_ptase'
+    name = 'fates_cnp_eca_vmax_ptase'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_eca_alpha_ptase'
+    name = 'fates_cnp_eca_alpha_ptase'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_eca_lambda_ptase'
+    name = 'fates_cnp_eca_lambda_ptase'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_prescribed_nuptake'
+    name = 'fates_cnp_prescribed_nuptake'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_prescribed_puptake'
+    name = 'fates_cnp_prescribed_puptake'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -659,7 +660,7 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%freezetol)
 
-    name = 'fates_recruit_hgt_min'
+    name = 'fates_recruit_height_min'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%hgt_min)
 
@@ -671,11 +672,11 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%crown_kill)
 
-    name = 'fates_recruit_initd'
+    name = 'fates_recruit_init_density'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%initd)
 
-    name = 'fates_seed_suppl'
+    name = 'fates_recruit_seed_supplement'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%seed_suppl)
 
@@ -691,35 +692,35 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%stomatal_intercept)
 
-    name = 'fates_lf_flab'
+    name = 'fates_frag_leaf_flab'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%lf_flab)
 
-    name = 'fates_lf_fcel'
+    name = 'fates_frag_leaf_fcel'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%lf_fcel)
 
-    name = 'fates_lf_flig'
+    name = 'fates_frag_leaf_flig'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%lf_flig)
 
-    name = 'fates_fr_flab'
+    name = 'fates_frag_fnrt_flab'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%fr_flab)
 
-    name = 'fates_fr_fcel'
+    name = 'fates_frag_fnrt_fcel'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%fr_fcel)
 
-    name = 'fates_fr_flig'
+    name = 'fates_frag_fnrt_flig'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%fr_flig)
 
-    name = 'fates_leaf_xl'
+    name = 'fates_rad_leaf_xl'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%xl)
 
-    name = 'fates_leaf_clumping_index'
+    name = 'fates_rad_leaf_clumping_index'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%clumping_index)
 
@@ -727,11 +728,11 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%c3psn)
 
-    name = 'fates_smpso'
+    name = 'fates_nonhydro_smpso'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%smpso)
 
-    name = 'fates_smpsc'
+    name = 'fates_nonhydro_smpsc'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%smpsc)
 
@@ -751,15 +752,15 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%prescribed_npp_understory)
 
-    name = 'fates_prescribed_mortality_canopy'
+    name = 'fates_mort_prescribed_canopy'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%prescribed_mortality_canopy)
 
-    name = 'fates_prescribed_mortality_understory'
+    name = 'fates_mort_prescribed_understory'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%prescribed_mortality_understory)
 
-    name = 'fates_prescribed_recruitment'
+    name = 'fates_recruit_prescribed_rate'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%prescribed_recruitment)
 
@@ -771,35 +772,31 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%allom_frbstor_repro)
 
-    name = 'fates_hydr_p_taper'
+    name = 'fates_hydro_p_taper'
     call fates_params%RetreiveParameterAllocate(name=name, &
           data=this%hydr_p_taper)
 
-    name = 'fates_hydr_rs2'
+    name = 'fates_hydro_rs2'
     call fates_params%RetreiveParameterAllocate(name=name, &
           data=this%hydr_rs2)
 
-    name = 'fates_hydr_srl'
+    name = 'fates_hydro_srl'
     call fates_params%RetreiveParameterAllocate(name=name, &
           data=this%hydr_srl)
 
-    name = 'fates_hydr_rfrac_stem'
+    name = 'fates_hydro_rfrac_stem'
     call fates_params%RetreiveParameterAllocate(name=name, &
           data=this%hydr_rfrac_stem)
 
-    name = 'fates_hydr_k_lwp'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-          data=this%hydr_k_lwp)
-
-    name = 'fates_hydr_avuln_gs'
+    name = 'fates_hydro_avuln_gs'
     call fates_params%RetreiveParameterAllocate(name=name, &
           data=this%hydr_avuln_gs)
 
-    name = 'fates_hydr_p50_gs'
+    name = 'fates_hydro_p50_gs'
     call fates_params%RetreiveParameterAllocate(name=name, &
           data=this%hydr_p50_gs)
 
-    name = 'fates_hydr_k_lwp'
+    name = 'fates_hydro_k_lwp'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%hydr_k_lwp)
 
@@ -877,11 +874,11 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%jmaxse)
 
-    name = 'fates_seed_germination_rate'
+    name = 'fates_recruit_seed_germination_rate'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%germination_rate)
 
-    name = 'fates_seed_decay_rate'
+    name = 'fates_frag_seed_decay_rate'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%seed_decay_rate)
 
@@ -893,19 +890,19 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
           data=this%trim_inc)
 
-    name = 'fates_leaf_diameter'
+    name = 'fates_turb_leaf_diameter'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%dleaf)
 
-    name = 'fates_z0mr'
+    name = 'fates_turb_z0mr'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%z0mr)
 
-    name = 'fates_displar'
+    name = 'fates_turb_displar'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%displar)
 
-    name = 'fates_phenflush_fraction'
+    name = 'fates_phen_flush_fraction'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%phenflush_fraction)
 
@@ -917,11 +914,11 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
           data=this%phen_stem_drop_fraction)
 
-    name = 'fates_prescribed_nuptake'
+    name = 'fates_cnp_prescribed_nuptake'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%prescribed_nuptake)
 
-    name = 'fates_prescribed_puptake'
+    name = 'fates_cnp_prescribed_puptake'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%prescribed_puptake)
 
@@ -929,47 +926,47 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%dev_arbitrary_pft)
 
-    name = 'fates_eca_decompmicc'
+    name = 'fates_cnp_eca_decompmicc'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%decompmicc)
 
-    name = 'fates_eca_km_nh4'
+    name = 'fates_cnp_eca_km_nh4'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%eca_km_nh4)
 
-    name = 'fates_eca_vmax_nh4'
+    name = 'fates_cnp_eca_vmax_nh4'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%eca_vmax_nh4)
 
-    name = 'fates_eca_km_no3'
+    name = 'fates_cnp_eca_km_no3'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%eca_km_no3)
 
-    name = 'fates_eca_vmax_no3'
+    name = 'fates_cnp_eca_vmax_no3'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%eca_vmax_no3)
 
-    name = 'fates_eca_km_p'
+    name = 'fates_cnp_eca_km_p'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%eca_km_p)
 
-    name = 'fates_eca_vmax_p'
+    name = 'fates_cnp_vmax_p'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%eca_vmax_p)
 
-    name = 'fates_eca_km_ptase'
+    name = 'fates_cnp_eca_km_ptase'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%eca_km_ptase)
 
-    name = 'fates_eca_vmax_ptase'
+    name = 'fates_cnp_eca_vmax_ptase'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%eca_vmax_ptase)
 
-    name = 'fates_eca_alpha_ptase'
+    name = 'fates_cnp_eca_alpha_ptase'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%eca_alpha_ptase)
 
-    name = 'fates_eca_lambda_ptase'
+    name = 'fates_cnp_eca_lambda_ptase'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%eca_lambda_ptase)
 
@@ -1001,35 +998,35 @@ contains
     !X!    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
     !X!         dimension_names=dim_names)
 
-    name = 'fates_rholvis'
+    name = 'fates_rad_leaf_rhovis'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
-    name = 'fates_rholnir'
+    name = 'fates_rad_leaf_rhonir'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
-    name = 'fates_rhosvis'
+    name = 'fates_rad_stem_rhovis'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
-    name = 'fates_rhosnir'
+    name = 'fates_rad_stem_rhonir'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
-    name = 'fates_taulvis'
+    name = 'fates_rad_leaf_tauvis'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
-    name = 'fates_taulnir'
+    name = 'fates_rad_leaf_taunir'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
-    name = 'fates_tausvis'
+    name = 'fates_rad_stem_tauvis'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
-    name = 'fates_tausnir'
+    name = 'fates_rad_stem_taunir'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
 
@@ -1071,7 +1068,7 @@ contains
 
     ! Fetch metadata from a representative variable. All variables
     ! called by this subroutine must be dimensioned the same way!
-    name = 'fates_rholvis'
+    name = 'fates_rad_leaf_rhovis'
     index = fates_params%FindIndex(name)
     call fates_params%GetMetaData(index, name, dimension_shape, dimension_sizes, dimension_names, is_host_param)
     lower_bound_1 = lower_bound_pft
@@ -1088,12 +1085,12 @@ contains
     !
     allocate(this%rhol(lower_bound_1:upper_bound_1, lower_bound_2:upper_bound_2))
 
-    name = 'fates_rholvis'
+    name = 'fates_rad_leaf_rhovis'
     call fates_params%RetreiveParameter(name=name, &
          data=dummy_data)
     this%rhol(lower_bound_1:upper_bound_1, ivis) = dummy_data
 
-    name = 'fates_rholnir'
+    name = 'fates_rad_leaf_rhonir'
     call fates_params%RetreiveParameter(name=name, &
          data=dummy_data)
     this%rhol(lower_bound_1:upper_bound_1, inir) = dummy_data
@@ -1103,12 +1100,12 @@ contains
     !
     allocate(this%rhos(lower_bound_1:upper_bound_1, lower_bound_2:upper_bound_2))
 
-    name = 'fates_rhosvis'
+    name = 'fates_rad_stem_rhovis'
     call fates_params%RetreiveParameter(name=name, &
          data=dummy_data)
     this%rhos(lower_bound_1:upper_bound_1, ivis) = dummy_data
 
-    name = 'fates_rhosnir'
+    name = 'fates_rad_stem_rhonir'
     call fates_params%RetreiveParameter(name=name, &
          data=dummy_data)
     this%rhos(lower_bound_1:upper_bound_1, inir) = dummy_data
@@ -1118,12 +1115,12 @@ contains
     !
     allocate(this%taul(lower_bound_1:upper_bound_1, lower_bound_2:upper_bound_2))
 
-    name = 'fates_taulvis'
+    name = 'fates_rad_leaf_tauvis'
     call fates_params%RetreiveParameter(name=name, &
          data=dummy_data)
     this%taul(lower_bound_1:upper_bound_1, ivis) = dummy_data
 
-    name = 'fates_taulnir'
+    name = 'fates_rad_leaf_taunir'
     call fates_params%RetreiveParameter(name=name, &
          data=dummy_data)
     this%taul(lower_bound_1:upper_bound_1, inir) = dummy_data
@@ -1133,12 +1130,12 @@ contains
     !
     allocate(this%taus(lower_bound_1:upper_bound_1, lower_bound_2:upper_bound_2))
 
-    name = 'fates_tausvis'
+    name = 'fates_rad_stem_tauvis'
     call fates_params%RetreiveParameter(name=name, &
          data=dummy_data)
     this%taus(lower_bound_1:upper_bound_1, ivis) = dummy_data
 
-    name = 'fates_tausnir'
+    name = 'fates_rad_stem_taunir'
     call fates_params%RetreiveParameter(name=name, &
          data=dummy_data)
     this%taus(lower_bound_1:upper_bound_1, inir) = dummy_data
@@ -1220,63 +1217,63 @@ contains
     dim_names(1) = dimension_name_pft
     dim_names(2) = dimension_name_hydr_organs
 
-    name = 'fates_hydr_vg_alpha_node'
+    name = 'fates_hydro_vg_alpha_node'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_hydr_vg_m_node'
+    name = 'fates_hydro_vg_m_node'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_hydr_vg_n_node'
+    name = 'fates_hydro_vg_n_node'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_hydr_avuln_node'
+    name = 'fates_hydro_avuln_node'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_hydr_p50_node'
+    name = 'fates_hydro_p50_node'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_hydr_thetas_node'
+    name = 'fates_hydro_thetas_node'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_hydr_epsil_node'
+    name = 'fates_hydro_epsil_node'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_hydr_pitlp_node'
+    name = 'fates_hydro_pitlp_node'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_hydr_resid_node'
+    name = 'fates_hydro_resid_node'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_hydr_fcap_node'
+    name = 'fates_hydro_fcap_node'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_hydr_pinot_node'
+    name = 'fates_hydro_pinot_node'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_hydr_kmax_node'
+    name = 'fates_hydro_kmax_node'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_hydr_vg_alpha_node'
+    name = 'fates_hydro_vg_alpha_node'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_hydr_vg_m_node'
+    name = 'fates_hydro_vg_m_node'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_hydr_vg_n_node'
+    name = 'fates_hydro_vg_n_node'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -1297,63 +1294,63 @@ contains
      character(len=param_string_length) :: name
 
 
-     name = 'fates_hydr_vg_alpha_node'
+     name = 'fates_hydro_vg_alpha_node'
      call fates_params%RetreiveParameterAllocate(name=name, &
           data=this%hydr_vg_alpha_node)
 
-     name = 'fates_hydr_vg_m_node'
+     name = 'fates_hydro_vg_m_node'
      call fates_params%RetreiveParameterAllocate(name=name, &
            data=this%hydr_vg_m_node)
 
-     name = 'fates_hydr_vg_n_node'
+     name = 'fates_hydro_vg_n_node'
      call fates_params%RetreiveParameterAllocate(name=name, &
           data=this%hydr_vg_n_node)
 
-     name = 'fates_hydr_avuln_node'
+     name = 'fates_hydro_avuln_node'
      call fates_params%RetreiveParameterAllocate(name=name, &
            data=this%hydr_avuln_node)
 
-     name = 'fates_hydr_p50_node'
+     name = 'fates_hydro_p50_node'
      call fates_params%RetreiveParameterAllocate(name=name, &
            data=this%hydr_p50_node)
 
-     name = 'fates_hydr_thetas_node'
+     name = 'fates_hydro_thetas_node'
      call fates_params%RetreiveParameterAllocate(name=name, &
            data=this%hydr_thetas_node)
 
-     name = 'fates_hydr_epsil_node'
+     name = 'fates_hydro_epsil_node'
      call fates_params%RetreiveParameterAllocate(name=name, &
            data=this%hydr_epsil_node)
 
-     name = 'fates_hydr_pitlp_node'
+     name = 'fates_hydro_pitlp_node'
      call fates_params%RetreiveParameterAllocate(name=name, &
            data=this%hydr_pitlp_node)
 
-     name = 'fates_hydr_resid_node'
+     name = 'fates_hydro_resid_node'
      call fates_params%RetreiveParameterAllocate(name=name, &
            data=this%hydr_resid_node)
 
-     name = 'fates_hydr_fcap_node'
+     name = 'fates_hydro_fcap_node'
      call fates_params%RetreiveParameterAllocate(name=name, &
            data=this%hydr_fcap_node)
 
-     name = 'fates_hydr_pinot_node'
+     name = 'fates_hydro_pinot_node'
      call fates_params%RetreiveParameterAllocate(name=name, &
            data=this%hydr_pinot_node)
 
-     name = 'fates_hydr_kmax_node'
+     name = 'fates_hydro_kmax_node'
      call fates_params%RetreiveParameterAllocate(name=name, &
            data=this%hydr_kmax_node)
 
-     name = 'fates_hydr_vg_alpha_node'
+     name = 'fates_hydro_vg_alpha_node'
      call fates_params%RetreiveParameterAllocate(name=name, &
           data=this%hydr_vg_alpha_node)
 
-     name = 'fates_hydr_vg_m_node'
+     name = 'fates_hydro_vg_m_node'
      call fates_params%RetreiveParameterAllocate(name=name, &
           data=this%hydr_vg_m_node)
 
-     name = 'fates_hydr_vg_n_node'
+     name = 'fates_hydro_vg_n_node'
      call fates_params%RetreiveParameterAllocate(name=name, &
           data=this%hydr_vg_n_node)
 
@@ -1431,32 +1428,31 @@ contains
         write(fates_log(),fmt0) 'rhos = ',EDPftvarcon_inst%rhos
         write(fates_log(),fmt0) 'taul = ',EDPftvarcon_inst%taul
         write(fates_log(),fmt0) 'taus = ',EDPftvarcon_inst%taus
-        write(fates_log(),fmt0) 'phenflush_fraction',EDpftvarcon_inst%phenflush_fraction
+        write(fates_log(),fmt0) 'phen_flush_fraction',EDpftvarcon_inst%phenflush_fraction
         write(fates_log(),fmt0) 'phen_cold_size_threshold = ',EDPftvarcon_inst%phen_cold_size_threshold
         write(fates_log(),fmt0) 'phen_stem_drop_fraction',EDpftvarcon_inst%phen_stem_drop_fraction
         write(fates_log(),fmt0) 'fire_alpha_SH = ',EDPftvarcon_inst%fire_alpha_SH
         write(fates_log(),fmt0) 'allom_frbstor_repro = ',EDPftvarcon_inst%allom_frbstor_repro
-        write(fates_log(),fmt0) 'hydr_p_taper = ',EDPftvarcon_inst%hydr_p_taper
-        write(fates_log(),fmt0) 'hydr_rs2 = ',EDPftvarcon_inst%hydr_rs2
-        write(fates_log(),fmt0) 'hydr_srl = ',EDPftvarcon_inst%hydr_srl
-        write(fates_log(),fmt0) 'hydr_rfrac_stem = ',EDPftvarcon_inst%hydr_rfrac_stem
-        write(fates_log(),fmt0) 'hydr_avuln_gs = ',EDPftvarcon_inst%hydr_avuln_gs
-        write(fates_log(),fmt0) 'hydr_k_lwp = ',EDPftvarcon_inst%hydr_k_lwp
-        write(fates_log(),fmt0) 'hydr_p50_gs = ',EDPftvarcon_inst%hydr_p50_gs
-        write(fates_log(),fmt0) 'hydr_k_lwp = ',EDPftvarcon_inst%hydr_k_lwp
-        write(fates_log(),fmt0) 'hydr_avuln_node = ',EDPftvarcon_inst%hydr_avuln_node
-        write(fates_log(),fmt0) 'hydr_p50_node = ',EDPftvarcon_inst%hydr_p50_node
-        write(fates_log(),fmt0) 'hydr_thetas_node = ',EDPftvarcon_inst%hydr_thetas_node
-        write(fates_log(),fmt0) 'hydr_epsil_node = ',EDPftvarcon_inst%hydr_epsil_node
-        write(fates_log(),fmt0) 'hydr_pitlp_node = ',EDPftvarcon_inst%hydr_pitlp_node
-        write(fates_log(),fmt0) 'hydr_resid_node = ',EDPftvarcon_inst%hydr_resid_node
-        write(fates_log(),fmt0) 'hydr_fcap_node = ',EDPftvarcon_inst%hydr_fcap_node
-        write(fates_log(),fmt0) 'hydr_pinot_node = ',EDPftvarcon_inst%hydr_pinot_node
-        write(fates_log(),fmt0) 'hydr_kmax_node = ',EDPftvarcon_inst%hydr_kmax_node
+        write(fates_log(),fmt0) 'hydro_p_taper = ',EDPftvarcon_inst%hydr_p_taper
+        write(fates_log(),fmt0) 'hydro_rs2 = ',EDPftvarcon_inst%hydr_rs2
+        write(fates_log(),fmt0) 'hydro_srl = ',EDPftvarcon_inst%hydr_srl
+        write(fates_log(),fmt0) 'hydro_rfrac_stem = ',EDPftvarcon_inst%hydr_rfrac_stem
+        write(fates_log(),fmt0) 'hydro_avuln_gs = ',EDPftvarcon_inst%hydr_avuln_gs
+        write(fates_log(),fmt0) 'hydro_k_lwp = ',EDPftvarcon_inst%hydr_k_lwp
+        write(fates_log(),fmt0) 'hydro_p50_gs = ',EDPftvarcon_inst%hydr_p50_gs
+        write(fates_log(),fmt0) 'hydro_avuln_node = ',EDPftvarcon_inst%hydr_avuln_node
+        write(fates_log(),fmt0) 'hydro_p50_node = ',EDPftvarcon_inst%hydr_p50_node
+        write(fates_log(),fmt0) 'hydro_thetas_node = ',EDPftvarcon_inst%hydr_thetas_node
+        write(fates_log(),fmt0) 'hydro_epsil_node = ',EDPftvarcon_inst%hydr_epsil_node
+        write(fates_log(),fmt0) 'hydro_pitlp_node = ',EDPftvarcon_inst%hydr_pitlp_node
+        write(fates_log(),fmt0) 'hydro_resid_node = ',EDPftvarcon_inst%hydr_resid_node
+        write(fates_log(),fmt0) 'hydro_fcap_node = ',EDPftvarcon_inst%hydr_fcap_node
+        write(fates_log(),fmt0) 'hydro_pinot_node = ',EDPftvarcon_inst%hydr_pinot_node
+        write(fates_log(),fmt0) 'hydro_kmax_node = ',EDPftvarcon_inst%hydr_kmax_node
         write(fates_log(),fmt0) 'hlm_pft_map = ', EDPftvarcon_inst%hlm_pft_map
-        write(fates_log(),fmt0) 'hydr_vg_alpha_node  = ',EDPftvarcon_inst%hydr_vg_alpha_node
-        write(fates_log(),fmt0) 'hydr_vg_m_node  = ',EDPftvarcon_inst%hydr_vg_m_node
-        write(fates_log(),fmt0) 'hydr_vg_n_node  = ',EDPftvarcon_inst%hydr_vg_n_node
+        write(fates_log(),fmt0) 'hydro_vg_alpha_node  = ',EDPftvarcon_inst%hydr_vg_alpha_node
+        write(fates_log(),fmt0) 'hydro_vg_m_node  = ',EDPftvarcon_inst%hydr_vg_m_node
+        write(fates_log(),fmt0) 'hydro_vg_n_node  = ',EDPftvarcon_inst%hydr_vg_n_node
         write(fates_log(),*) '-------------------------------------------------'
 
      end if

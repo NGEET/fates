@@ -88,6 +88,15 @@
 		<ln> maximum number of secondary vegetation patches per site </ln>
 		<val> 1 </val>
 	 </mod>
+
+	 <mod type="variable_add">
+		<na> fates_maxcohort </na>
+		<di> scalar </di>
+		<un> count </un>
+		<ln> maximum number of cohorts per patch. Actual number of cohorts also depend on cohort fusion tolerances  </ln>
+		<val> 100 </val>
+	 </mod>
+	 
 	 <mod type="variable_add">
 		<na> fates_phen_drought_model </na>
 		<di> scalar </di>
@@ -201,7 +210,7 @@
 		<na> fates_mort_prescribed_understory </na>
 	 </mod>
 	 <mod type="variable_change" name="fates_phenflush_fraction"> 
-		<na> fates_phen_flushfrac </na>
+		<na> fates_phen_flush_fraction </na>
 	 </mod>
 	 <mod type="variable_change" name="fates_phen_doff_time"> 
 		<na> fates_phen_mindaysoff </na>
@@ -260,11 +269,14 @@
 	 <mod type="variable_change" name="fates_smpso"> 
 		<na> fates_nonhydro_smpso </na>
 	 </mod>
+	 <mod type="variable_change" name="fates_hydr_htftype_node"> 
+		<na> fates_hydro_htftype_node </na>
+	 </mod>
 	 <mod type="variable_change" name="fates_hydr_kmax_rsurf1"> 
 		<na> fates_hydro_kmax_rsurf1 </na>
 	 </mod>
 	 <mod type="variable_change" name="fates_hydr_kmax_rsurf2"> 
-		<na> fates_hydro_hydr_kmax_rsurf2 </na>
+		<na> fates_hydro_kmax_rsurf2 </na>
 	 </mod>
 	 <mod type="variable_change" name="fates_hydr_psi0"> 
 		<na> fates_hydro_psi0 </na>
@@ -408,7 +420,7 @@
 		<na> fates_cnp_eca_plant_escalar </na>
 	 </mod>
 	 <mod type="variable_change" name="fates_leaf_stor_priority"> 
-		<na> fates_alloc_stor_priority_frac </na>
+		<na> fates_alloc_store_priority_frac </na>
 		<ln> for high-priority organs, the fraction of their turnover demand that is gauranteed to be replaced, and if need-be by storage </ln>
 	 </mod>
 	 <mod type="variable_change" name="fates_leaf_long"> 
@@ -457,7 +469,7 @@
 		<na> fates_frag_leaf_flig </na>
 	 </mod>
 	 <mod type="variable_change" name="fates_seed_decay_rate"> 
-		<na> fates_frag_seed_decay </na>
+		<na> fates_frag_seed_decay_rate </na>
 	 </mod>
 	 <mod type="variable_change" name="fates_cwd_fcel"> 
 		<na> fates_frag_cwd_fcel </na>

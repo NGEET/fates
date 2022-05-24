@@ -91,15 +91,6 @@ module FatesInterfaceTypesMod
                                                  ! and how it moves and stores water in its
                                                  ! rhizosphere shells
    
-   integer, public :: hlm_max_patch_per_site ! The HLM needs to exchange some patch
-                                                        ! level quantities with FATES
-                                                        ! FATES does not dictate those allocations
-                                                        ! since it happens pretty early in
-                                                        ! the model initialization sequence.
-                                                        ! So we want to at least query it,
-                                                        ! compare it to our maxpatchpersite,
-                                                        ! and gracefully halt if we are over-allocating
-
    integer, public :: hlm_parteh_mode   ! This flag signals which Plant Allocation and Reactive
                                                    ! Transport (exensible) Hypothesis (PARTEH) to use
 
@@ -216,7 +207,16 @@ module FatesInterfaceTypesMod
                                                            ! data as some fields are arrays where each array is
                                                            ! associated with one cohort
 
-
+   ! The number of patches that FATES wants the HLM to allocate
+   ! for non sp/no-comp, this is the same number of patches that
+   ! fates tracks, plus 1 for the bare-ground. For sp/nocomp, it is the
+   ! maximum between the number fates tracks, and the numper of PFTs+CFTs
+   ! in the surface file.
+   ! for an SP simulation, if there are more PFTs and CFTs in the surface
+   ! dataset than the number of PFTs in FATES, we have to allocate with
+   ! the prior so that we can hold the LAI data
+   integer, public :: fates_maxPatchesPerSite
+   
    integer, public :: max_comp_per_site         ! This is the maximum number of nutrient aquisition
                                                            ! competitors that will be generated on each site
    

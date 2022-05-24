@@ -32,7 +32,7 @@ module EDCohortDynamicsMod
   use FatesLitterMod        , only : ncwd
   use FatesLitterMod        , only : ndcmpy
   use FatesLitterMod        , only : litter_type
-  use EDTypesMod            , only : maxCohortsPerPatch
+  use EDParamsMod           , only : max_cohort_per_patch
   use EDTypesMod            , only : AREA
   use EDTypesMod            , only : min_npm2, min_nppatch
   use EDTypesMod            , only : min_n_safemath
@@ -1072,7 +1072,6 @@ contains
      use FatesInterfaceTypesMod , only :  hlm_use_cohort_age_tracking
      use FatesConstantsMod , only : itrue
      use FatesConstantsMod, only : days_per_year
-     use EDTypesMod  , only : maxCohortsPerPatch
 
      !
      ! !ARGUMENTS
@@ -1583,7 +1582,7 @@ contains
 
 
            if ( hlm_use_cohort_age_tracking .eq.itrue) then
-              if ( nocohorts > maxCohortsPerPatch ) then
+              if ( nocohorts > max_cohort_per_patch ) then
                  iterate = 1
                  !---------------------------------------------------------------------!
                  ! Making profile tolerance larger means that more fusion will happen  !
@@ -1598,7 +1597,7 @@ contains
 
            else
 
-              if (nocohorts > maxCohortsPerPatch) then
+              if (nocohorts > max_cohort_per_patch) then
                  iterate = 1
                  !---------------------------------------------------------------------!
                  ! Making profile tolerance larger means that more fusion will happen  !

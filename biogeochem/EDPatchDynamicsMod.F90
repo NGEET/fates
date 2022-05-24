@@ -19,8 +19,6 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : homogenize_seed_pfts
   use EDTypesMod           , only : n_dbh_bins, area, patchfusion_dbhbin_loweredges
   use EDtypesMod           , only : force_patchfuse_min_biomass
-  use EDTypesMod           , only : maxPatchesPerSite
-  use EDTypesMod           , only : maxPatchesPerSite_by_disttype  
   use EDTypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod           , only : site_massbal_type
   use EDTypesMod           , only : site_fluxdiags_type
@@ -90,6 +88,9 @@ module EDPatchDynamicsMod
   use SFParamsMod,            only : SF_VAL_CWD_FRAC
   use EDParamsMod,            only : logging_event_code
   use EDParamsMod,            only : logging_export_frac
+  use EDParamsMod,            only : maxpatch_primary
+  use EDParamsMod,            only : maxpatch_secondary
+  use EDParamsMod,            only : maxpatch_total
   use FatesRunningMeanMod,    only : ema_24hr, fixed_24hr, ema_lpa
   
   ! CIME globals
@@ -2315,15 +2316,16 @@ contains
     ! to let there be one for each type of nocomp PFT on the site.  this is likely to lead to problems
     ! if anthropogenic disturance is enabled.
     if (hlm_use_nocomp.eq.itrue) then
-       maxpatches(primaryforest) = max(maxPatchesPerSite_by_disttype(primaryforest), sum(csite%use_this_pft))
-       maxpatches(secondaryforest) = maxPatchesPerSite - maxpatches(primaryforest)
-       if (maxPatchesPerSite .lt. maxpatches(primaryforest)) then
+       maxpatches(primaryforest) = max(maxpatch_primary, sum(csite%use_this_pft))
+       maxpatches(secondaryforest) = maxpatch_total - maxpatches(primaryforest)
+       if (maxpatch_total .lt. maxpatches(primaryforest)) then
           write(fates_log(),*) 'too many PFTs and not enough patches for nocomp w/o fixed biogeog'
-          write(fates_log(),*) 'maxPatchesPerSite,numpft',maxPatchesPerSite,numpft, sum(csite%use_this_pft)
+          write(fates_log(),*) 'maxpatch_total,numpft',maxpatch_total,numpft, sum(csite%use_this_pft)
           call endrun(msg=errMsg(sourcefile, __LINE__))
        endif
     else
-       maxpatches(:) = maxPatchesPerSite_by_disttype(:)
+       maxpatches(1) = maxpatch_primary
+       maxpatches(2) = maxpatch_secondary
     endif
 
     currentPatch => currentSite%youngest_patch
@@ -2359,7 +2361,7 @@ contains
        iterate = 1
 
        !---------------------------------------------------------------------!
-       !  Keep doing this until nopatches <= maxPatchesPerSite               !
+       !  Keep doing this until nopatches <= maxpatch_total                  !
        !---------------------------------------------------------------------!
 
        iterate_eq_1_loop: do while(iterate == 1)
@@ -2501,10 +2503,10 @@ contains
                             ! a patch x patch loop, reset the patch fusion tolerance to the starting !
                             ! value so that any subsequent fusions in this loop are done with that   !
                             ! value. otherwise we can end up in a situation where we've loosened the !
-                            ! fusion tolerance to get nopatches <= maxPatchesPerSite, but then,      !
+                            ! fusion tolerance to get nopatches <= maxpatch_total, but then,      !
                             ! having accomplished that, we continue through all the patch x patch    !
                             ! combinations and then all the patches get fused, ending up with        !
-                            ! nopatches << maxPatchesPerSite and losing all heterogeneity.           !
+                            ! nopatches << maxpatch_total and losing all heterogeneity.           !
                             !------------------------------------------------------------------------!
 
                             profiletol = ED_val_patch_fusion_tol
@@ -2563,7 +2565,7 @@ contains
              iterate = 0
           endif
 
-       enddo iterate_eq_1_loop ! iterate .eq. 1 ==> nopatches>maxPatchesPerSite
+       enddo iterate_eq_1_loop ! iterate .eq. 1 ==> nopatches>maxpatch_total
 
     end do disttype_loop
 

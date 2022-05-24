@@ -41,7 +41,6 @@ module EDParamsMod
    real(r8),protected, public :: ED_val_comp_excln
    real(r8),protected, public :: ED_val_vai_top_bin_width
    real(r8),protected, public :: ED_val_vai_width_increase_factor
-   real(r8),protected, public :: ED_val_init_litter
    real(r8),protected, public :: ED_val_nignitions
    real(r8),protected, public :: ED_val_understorey_death
    real(r8),protected, public :: ED_val_cwd_fcel
@@ -93,22 +92,21 @@ module EDParamsMod
    ! 1  = Christofferson et al. 2016 (TFS),   2 = Van Genuchten 1980
    integer, protected,allocatable,public :: hydr_htftype_node(:)
 
-   character(len=param_string_length),parameter,public :: ED_name_photo_temp_acclim_timescale = "fates_photo_temp_acclim_timescale"
-   character(len=param_string_length),parameter,public :: name_photo_tempsens_model = "fates_photo_tempsens_model"
+   character(len=param_string_length),parameter,public :: ED_name_photo_temp_acclim_timescale = "fates_leaf_photo_temp_acclim_timescale"
+   character(len=param_string_length),parameter,public :: name_photo_tempsens_model = "fates_leaf_photo_tempsens_model"
    character(len=param_string_length),parameter,public :: name_maintresp_model = "fates_maintresp_model"
-   character(len=param_string_length),parameter,public :: ED_name_hydr_htftype_node = "fates_hydr_htftype_node"
+   character(len=param_string_length),parameter,public :: ED_name_hydr_htftype_node = "fates_hydro_htftype_node"
    character(len=param_string_length),parameter,public :: ED_name_mort_disturb_frac = "fates_mort_disturb_frac"
    character(len=param_string_length),parameter,public :: ED_name_comp_excln = "fates_comp_excln"
    character(len=param_string_length),parameter,public :: ED_name_vai_top_bin_width = "fates_vai_top_bin_width"
    character(len=param_string_length),parameter,public :: ED_name_vai_width_increase_factor = "fates_vai_width_increase_factor"
-   character(len=param_string_length),parameter,public :: ED_name_init_litter = "fates_init_litter"
    character(len=param_string_length),parameter,public :: ED_name_nignitions = "fates_fire_nignitions"
    character(len=param_string_length),parameter,public :: ED_name_understorey_death = "fates_mort_understorey_death"
-   character(len=param_string_length),parameter,public :: ED_name_cwd_fcel= "fates_cwd_fcel"   
-   character(len=param_string_length),parameter,public :: ED_name_cwd_flig= "fates_cwd_flig"   
+   character(len=param_string_length),parameter,public :: ED_name_cwd_fcel= "fates_frag_cwd_fcel"   
+   character(len=param_string_length),parameter,public :: ED_name_cwd_flig= "fates_frag_cwd_flig"   
    character(len=param_string_length),parameter,public :: ED_name_base_mr_20= "fates_base_mr_20"   
    character(len=param_string_length),parameter,public :: ED_name_phen_drought_threshold= "fates_phen_drought_threshold"   
-   character(len=param_string_length),parameter,public :: ED_name_phen_doff_time= "fates_phen_doff_time"   
+   character(len=param_string_length),parameter,public :: ED_name_phen_doff_time= "fates_phen_mindaysoff"
    character(len=param_string_length),parameter,public :: ED_name_phen_a= "fates_phen_a"   
    character(len=param_string_length),parameter,public :: ED_name_phen_b= "fates_phen_b"   
    character(len=param_string_length),parameter,public :: ED_name_phen_c= "fates_phen_c"   
@@ -122,8 +120,8 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_canopy_closure_thresh= "fates_canopy_closure_thresh"      
    character(len=param_string_length),parameter,public :: ED_name_stomatal_model= "fates_leaf_stomatal_model"
 
-   character(len=param_string_length),parameter,public :: name_theta_cj_c3 = "fates_theta_cj_c3"
-   character(len=param_string_length),parameter,public :: name_theta_cj_c4 = "fates_theta_cj_c4"
+   character(len=param_string_length),parameter,public :: name_theta_cj_c3 = "fates_leaf_theta_cj_c3"
+   character(len=param_string_length),parameter,public :: name_theta_cj_c4 = "fates_leaf_theta_cj_c4"
    
    character(len=param_string_length),parameter :: fates_name_q10_mr="fates_q10_mr"
    character(len=param_string_length),parameter :: fates_name_q10_froz="fates_q10_froz"
@@ -138,17 +136,17 @@ module EDParamsMod
    ! ----------------------------------------------------------------------------------------------
    real(r8),protected,public :: hydr_kmax_rsurf1         !  maximum conducitivity for unit root surface 
                                                   !  soil to root direction (kg water/m2 root area/Mpa/s)
-   character(len=param_string_length),parameter,public :: hydr_name_kmax_rsurf1 = "fates_hydr_kmax_rsurf1"  
+   character(len=param_string_length),parameter,public :: hydr_name_kmax_rsurf1 = "fates_hydro_kmax_rsurf1"  
    
    real(r8),protected,public :: hydr_kmax_rsurf2         !  maximum conducitivity for unit root surface 
                                                   !  root to soil direciton (kg water/m2 root area/Mpa/s)
-   character(len=param_string_length),parameter,public :: hydr_name_kmax_rsurf2 = "fates_hydr_kmax_rsurf2" 
+   character(len=param_string_length),parameter,public :: hydr_name_kmax_rsurf2 = "fates_hydro_kmax_rsurf2" 
 
    real(r8),protected,public :: hydr_psi0          !  sapwood water potential at saturation (MPa)
-   character(len=param_string_length),parameter,public :: hydr_name_psi0 = "fates_hydr_psi0"
+   character(len=param_string_length),parameter,public :: hydr_name_psi0 = "fates_hydro_psi0"
 
    real(r8),protected,public :: hydr_psicap        !  sapwood water potential at which capillary reserves exhausted (MPa)
-   character(len=param_string_length),parameter,public :: hydr_name_psicap = "fates_hydr_psicap"
+   character(len=param_string_length),parameter,public :: hydr_name_psicap = "fates_hydro_psicap"
 
 
    ! Switch that defines which hydraulic solver to use
@@ -160,7 +158,7 @@ module EDParamsMod
    !     the soil simultaneously, 2D: soil x (root + shell)
    
    integer,protected,public :: hydr_solver        !  switch designating hydraulics numerical solver
-   character(len=param_string_length),parameter,public :: hydr_name_solver = "fates_hydr_solver"
+   character(len=param_string_length),parameter,public :: hydr_name_solver = "fates_hydro_solver"
    
    !Soil BGC parameters, mostly used for testing FATES when not coupled to the dynamics bgc hlm
    ! ----------------------------------------------------------------------------------------------
@@ -169,59 +167,68 @@ module EDParamsMod
 
    ! Switch designating whether to use net or gross assimilation in the stomata model
    integer, protected, public :: stomatal_assim_model
-   character(len=param_string_length), parameter, public :: stomatal_assim_name = "fates_stomatal_assim"
+   character(len=param_string_length), parameter, public :: stomatal_assim_name = "fates_leaf_stomatal_assim_model"
 
 
    ! Maximum allowable primary and secondary patches
    ! These values are USED FOR ALLOCATIONS IN BOTH FATES AND CLM/ELM!!!!
+   ! The number of patches specified in the parameter file may be over-written.
+   ! For instance, in SP mode, we want the same number of primary patches as the number of PFTs
+   ! in the fates parameter file, and zero secondary.
    
-   integer, protected, public :: maxpatch_primary
+   integer, public :: maxpatch_primary
    character(len=param_string_length), parameter, public :: maxpatch_primary_name = "fates_maxpatch_primary"
    
-   integer, protected, public :: maxpatch_secondary
+   integer, public :: maxpatch_secondary
    character(len=param_string_length), parameter, public :: maxpatch_secondary_name = "fates_maxpatch_secondary"
 
+   integer, public :: maxpatch_total
 
+   ! Maximum allowable cohorts per patch
+   integer, protected, public :: max_cohort_per_patch
+   character(len=param_string_length), parameter, public :: maxcohort_name = "fates_maxcohort"
+
+   
    
    ! Logging Control Parameters (ONLY RELEVANT WHEN USE_FATES_LOGGING = TRUE)
    ! ----------------------------------------------------------------------------------------------
 
    real(r8),protected,public :: logging_dbhmin              ! Minimum dbh at which logging is applied (cm)
                                                             ! Typically associated with harvesting
-   character(len=param_string_length),parameter,public :: logging_name_dbhmin = "fates_logging_dbhmin"
+   character(len=param_string_length),parameter,public :: logging_name_dbhmin = "fates_landuse_logging_dbhmin"
 
    real(r8),protected,public :: logging_dbhmax              ! Maximum dbh at which logging is applied (cm)
                                                             ! Typically associated with fire suppression
-   character(len=param_string_length),parameter,public :: logging_name_dbhmax = "fates_logging_dbhmax"
+   character(len=param_string_length),parameter,public :: logging_name_dbhmax = "fates_landuse_logging_dbhmax"
 
 
    real(r8),protected,public :: logging_collateral_frac     ! Ratio of collateral mortality to direct logging mortality
-   character(len=param_string_length),parameter,public :: logging_name_collateral_frac = "fates_logging_collateral_frac"
+   character(len=param_string_length),parameter,public :: logging_name_collateral_frac = "fates_landuse_logging_collateral_frac"
 
    real(r8),protected,public :: logging_coll_under_frac ! Fraction of understory plants that die when logging disturbance
                                                  ! is generated
-   character(len=param_string_length),parameter,public :: logging_name_coll_under_frac = "fates_logging_coll_under_frac"
+   character(len=param_string_length),parameter,public :: logging_name_coll_under_frac = "fates_landuse_logging_coll_under_frac"
    
    real(r8),protected,public :: logging_direct_frac         ! Fraction of stems logged per event
-   character(len=param_string_length),parameter,public :: logging_name_direct_frac = "fates_logging_direct_frac"
+   character(len=param_string_length),parameter,public :: logging_name_direct_frac = "fates_landuse_logging_direct_frac"
 
    real(r8),protected,public :: logging_mechanical_frac         ! Fraction of stems logged per event
-   character(len=param_string_length),parameter,public :: logging_name_mechanical_frac = "fates_logging_mechanical_frac"
+   character(len=param_string_length),parameter,public :: logging_name_mechanical_frac = "fates_landuse_logging_mechanical_frac"
 
    real(r8),protected,public :: logging_event_code          ! Code that options how logging events are structured 
-   character(len=param_string_length),parameter,public :: logging_name_event_code = "fates_logging_event_code"
+   character(len=param_string_length),parameter,public :: logging_name_event_code = "fates_landuse_logging_event_code"
    
    real(r8),protected,public :: logging_dbhmax_infra        ! "Tree diameter, above which infrastructure from logging does not impact damage or mortality.
-   character(len=param_string_length),parameter,public :: logging_name_dbhmax_infra = "fates_logging_dbhmax_infra"
+   character(len=param_string_length),parameter,public :: logging_name_dbhmax_infra = "fates_landuse_logging_dbhmax_infra"
    
    real(r8),protected,public :: logging_export_frac        ! "fraction of trunk product being shipped offsite, the 
                                                     ! leftovers will be left onsite as large CWD
-   character(len=param_string_length),parameter,public :: logging_name_export_frac ="fates_logging_export_frac"   
+   character(len=param_string_length),parameter,public :: logging_name_export_frac ="fates_landuse_logging_export_frac"   
 
    real(r8),protected,public :: eca_plant_escalar  ! scaling factor for plant fine root biomass to 
                                                ! calculate nutrient carrier enzyme abundance (ECA)
 
-   character(len=param_string_length),parameter,public :: eca_name_plant_escalar = "fates_eca_plant_escalar"
+   character(len=param_string_length),parameter,public :: eca_name_plant_escalar = "fates_cnp_eca_plant_escalar"
 
    public :: FatesParamsInit
    public :: FatesRegisterParams
@@ -248,7 +255,6 @@ contains
     ED_val_comp_excln                     = nan
     ED_val_vai_top_bin_width              = nan
     ED_val_vai_width_increase_factor      = nan
-    ED_val_init_litter                    = nan
     ED_val_nignitions                     = nan
     ED_val_understorey_death              = nan
     ED_val_cwd_fcel                       = nan
@@ -271,6 +277,7 @@ contains
     stomatal_assim_model                  = -9
     maxpatch_primary                      = -9
     maxpatch_secondary                    = -9
+    max_cohort_per_patch                  = -9
     hydr_kmax_rsurf1                      = nan
     hydr_kmax_rsurf2                      = nan
     hydr_psi0                             = nan
@@ -346,9 +353,6 @@ contains
     call fates_params%RegisterParameter(name=ED_name_vai_width_increase_factor, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=ED_name_init_litter, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
     call fates_params%RegisterParameter(name=ED_name_nignitions, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
@@ -413,6 +417,12 @@ contains
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=maxpatch_secondary_name, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=maxcohort_name, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+    
+    call fates_params%RegisterParameter(name=hydr_name_solver, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
     
     call fates_params%RegisterParameter(name=hydr_name_kmax_rsurf1, dimension_shape=dimension_shape_scalar, &
@@ -531,9 +541,6 @@ contains
     call fates_params%RetreiveParameter(name=ED_name_vai_width_increase_factor, &
          data=ED_val_vai_width_increase_factor)
 
-    call fates_params%RetreiveParameter(name=ED_name_init_litter, &
-         data=ED_val_init_litter)
-
     call fates_params%RetreiveParameter(name=ED_name_nignitions, &
          data=ED_val_nignitions)
 
@@ -603,6 +610,12 @@ contains
     call fates_params%RetreiveParameter(name=maxpatch_secondary_name, &
          data=tmpreal)
     maxpatch_secondary = nint(tmpreal)
+
+    maxpatch_total = maxpatch_primary+maxpatch_secondary
+    
+    call fates_params%RetreiveParameter(name=maxcohort_name, &
+         data=tmpreal)
+    max_cohort_per_patch = nint(tmpreal)
     
     call fates_params%RetreiveParameter(name=hydr_name_kmax_rsurf1, &
           data=hydr_kmax_rsurf1)
@@ -717,7 +730,6 @@ contains
         write(fates_log(),fmt0) 'ED_val_comp_excln = ',ED_val_comp_excln
         write(fates_log(),fmt0) 'ED_val_vai_top_bin_width = ',ED_val_vai_top_bin_width
         write(fates_log(),fmt0) 'ED_val_vai_width_increase_factor = ',ED_val_vai_width_increase_factor
-        write(fates_log(),fmt0) 'ED_val_init_litter = ',ED_val_init_litter
         write(fates_log(),fmt0) 'ED_val_nignitions = ',ED_val_nignitions
         write(fates_log(),fmt0) 'ED_val_understorey_death = ',ED_val_understorey_death
         write(fates_log(),fmt0) 'ED_val_cwd_fcel = ',ED_val_cwd_fcel
@@ -738,11 +750,11 @@ contains
         write(fates_log(),fmt0) 'ED_val_canopy_closure_thresh = ',ED_val_canopy_closure_thresh
         write(fates_log(),fmt0) 'stomatal_model = ',stomatal_model
         write(fates_log(),fmt0) 'stomatal_assim_model = ',stomatal_assim_model            
-        write(fates_log(),fmt0) 'hydr_kmax_rsurf1 = ',hydr_kmax_rsurf1
-        write(fates_log(),fmt0) 'hydr_kmax_rsurf2 = ',hydr_kmax_rsurf2  
-        write(fates_log(),fmt0) 'hydr_psi0 = ',hydr_psi0
-        write(fates_log(),fmt0) 'hydr_psicap = ',hydr_psicap
-        write(fates_log(),fmt0) 'hydr_solver = ',hydr_solver
+        write(fates_log(),fmt0) 'hydro_kmax_rsurf1 = ',hydr_kmax_rsurf1
+        write(fates_log(),fmt0) 'hydro_kmax_rsurf2 = ',hydr_kmax_rsurf2  
+        write(fates_log(),fmt0) 'hydro_psi0 = ',hydr_psi0
+        write(fates_log(),fmt0) 'hydro_psicap = ',hydr_psicap
+        write(fates_log(),fmt0) 'hydro_solver = ',hydr_solver
         write(fates_log(),fmt0) 'bgc_soil_salinity = ', bgc_soil_salinity
         write(fates_log(),fmt0) 'logging_dbhmin = ',logging_dbhmin
         write(fates_log(),fmt0) 'logging_dbhmax = ',logging_dbhmax

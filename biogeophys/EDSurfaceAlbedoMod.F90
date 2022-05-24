@@ -11,7 +11,6 @@ module EDSurfaceRadiationMod
 #include "shr_assert.h"
 
   use EDTypesMod        , only : ed_patch_type, ed_site_type
-  use EDTypesMod        , only : maxPatchesPerSite
   use EDTypesMod        , only : maxpft
   use FatesConstantsMod , only : r8 => fates_r8
   use FatesConstantsMod , only : itrue
