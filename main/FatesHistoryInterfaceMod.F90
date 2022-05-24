@@ -1721,7 +1721,7 @@ end subroutine flush_hvars
     integer  :: s        ! The local site index
     integer  :: io_si     ! The site index of the IO array
     integer  :: ilyr      ! Soil index for nlevsoil
-    integer  :: ipa, ipa2 ! The local "I"ndex of "PA"tches
+    integer  :: ipa2 ! The local "I"ndex of "PA"tches
     integer  :: lb1,ub1,lb2,ub2  ! IO array bounds for the calling thread
     integer  :: ivar             ! index of IO variable object vector
     integer  :: ft               ! functional type index
@@ -2138,7 +2138,6 @@ end subroutine flush_hvars
          days_per_year
 
       ! Loop through patches to sum up diagonistics
-      ipa = 0
       cpatch => sites(s)%oldest_patch
       patchloop1: do while(associated(cpatch))
       
@@ -2906,9 +2905,6 @@ end subroutine flush_hvars
                   days_per_year / sec_per_day
 
             end do
-
-            ipa = ipa + 1
-         
          endif bgp_if_hist1
          
          cpatch => cpatch%younger
@@ -3489,7 +3485,6 @@ end subroutine flush_hvars
     ! Locals
     integer  :: s        ! The local site index
     integer  :: io_si     ! The site index of the IO array
-    integer  :: ipa      ! The local "I"ndex of "PA"tches
     integer  :: lb1,ub1,lb2,ub2  ! IO array bounds for the calling thread
     integer  :: ivar             ! index of IO variable object vector
     integer  :: ft               ! functional type index
@@ -3593,7 +3588,6 @@ end subroutine flush_hvars
          hio_nep_si(io_si) = -bc_in(s)%tot_het_resp / g_per_kg ! (kgC/m2/s)
          hio_hr_si(io_si)  =  bc_in(s)%tot_het_resp / g_per_kg
 
-         ipa = 0
          cpatch => sites(s)%oldest_patch
 
          patch_area_by_age(1:nlevage) = 0._r8
@@ -3861,8 +3855,6 @@ end subroutine flush_hvars
                           cpatch%parprof_dif_z(ican,ileaf) * cpatch%area * AREA_INV
                   end do
                end do
-               ipa = ipa + 1
-            
             endif bgp_if_hifrq
             
             cpatch => cpatch%younger
@@ -3931,7 +3923,6 @@ end subroutine update_history_hifrq
     ! Locals
     integer  :: s        ! The local site index
     integer  :: io_si     ! The site index of the IO array
-    integer  :: ipa      ! The local "I"ndex of "PA"tches
     integer  :: ft               ! functional type index
 !    integer  :: io_shsl  ! The combined "SH"ell "S"oil "L"ayer index in the IO array
     real(r8), parameter :: tiny = 1.e-5_r8      ! some small number
@@ -4145,7 +4136,6 @@ end subroutine update_history_hifrq
             end do
          end do
 
-         ipa = 0
          cpatch => sites(s)%oldest_patch
          patchloop_hydr: do while(associated(cpatch))
 
@@ -4231,7 +4221,6 @@ end subroutine update_history_hifrq
                   ccohort => ccohort%taller
                enddo ! cohort loop
             endif bgp_if_hydr
-            ipa = ipa + 1
             cpatch => cpatch%younger
          end do patchloop_hydr
 
