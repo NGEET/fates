@@ -246,7 +246,6 @@ contains
 
           currentCohort => currentCohort%taller
        end do
-       currentPatch%disturbance_mode = fates_unset_int
        currentPatch => currentPatch%younger
     end do
 
@@ -414,7 +413,8 @@ contains
     real(r8) :: leaf_m                       ! leaf mass during partial burn calculations
     logical  :: found_youngest_primary       ! logical for finding the first primary forest patch
     integer  :: min_nocomp_pft, max_nocomp_pft, i_nocomp_pft
-    integer  :: i_dist, i_dist2
+    integer  :: i_disturbance_type, i_dist2
+    real(r8) :: disturbance_rate
     real(r8) :: oldarea
     !---------------------------------------------------------------------
 
@@ -440,7 +440,7 @@ contains
     ! If nocomp is not enabled, then this is not much of a loop, it only passes through once.
     nocomp_pft_loop: do i_nocomp_pft = min_nocomp_pft,max_nocomp_pft
 
-    disturbance_type_loop: do i_dist = 1,N_DIST_TYPES
+    disturbance_type_loop: do i_disturbance_type = 1,N_DIST_TYPES
 
     ! calculate area of disturbed land, in this timestep, by summing contributions from each existing patch. 
     currentPatch => currentSite%youngest_patch
@@ -453,42 +453,41 @@ contains
        cp_nocomp_matches_1_if: if ( hlm_use_nocomp .eq. ifalse .or. &
             currentPatch%nocomp_pft_label .eq. i_nocomp_pft ) then
     
-       if(currentPatch%disturbance_rate > (1.0_r8 + rsnbl_math_prec)) then
-          write(fates_log(),*) 'patch disturbance rate > 1 ?',currentPatch%disturbance_rate
+       disturbance_rate = currentPatch%disturbance_rates(i_disturbance_type)
+
+       if(disturbance_rate > (1.0_r8 + rsnbl_math_prec)) then
+          write(fates_log(),*) 'patch disturbance rate > 1 ?',disturbance_rate
           call dump_patch(currentPatch)
           call endrun(msg=errMsg(sourcefile, __LINE__))          
        end if
 
-       currentPatch%disturbance_mode = i_dist
-       currentPatch%disturbance_rate = currentPatch%disturbance_rates(i_dist)
-
        ! Only create new patches that have non-negligible amount of land
-       if((currentPatch%area*currentPatch%disturbance_rate) > nearzero ) then
+       if((currentPatch%area*disturbance_rate) > nearzero ) then
           
           ! figure out whether the receiver patch for disturbance from this patch will be 
           ! primary or secondary land receiver patch is primary forest only if both the 
-          ! donor patch is primary forest and the dominant disturbance type is not logging
+          ! donor patch is primary forest and the current disturbance type is not logging
           if ( currentPatch%anthro_disturbance_label .eq. primaryforest .and. &
-                (currentPatch%disturbance_mode .ne. dtype_ilog) ) then
+                (i_disturbance_type .ne. dtype_ilog) ) then
              
-             site_areadis_primary = site_areadis_primary + currentPatch%area * currentPatch%disturbance_rate
+             site_areadis_primary = site_areadis_primary + currentPatch%area * disturbance_rate
 
              ! track disturbance rates to output to history
-             currentSite%disturbance_rates_primary_to_primary(currentPatch%disturbance_mode) = &
-                  currentSite%disturbance_rates_primary_to_primary(currentPatch%disturbance_mode) + &
-                  currentPatch%area * currentPatch%disturbance_rate * AREA_INV
+             currentSite%disturbance_rates_primary_to_primary(i_disturbance_type) = &
+                  currentSite%disturbance_rates_primary_to_primary(i_disturbance_type) + &
+                  currentPatch%area * disturbance_rate * AREA_INV
           else
-             site_areadis_secondary = site_areadis_secondary + currentPatch%area * currentPatch%disturbance_rate          
+             site_areadis_secondary = site_areadis_secondary + currentPatch%area * disturbance_rate          
 
              ! track disturbance rates to output to history
              if (currentPatch%anthro_disturbance_label .eq. secondaryforest) then
-                currentSite%disturbance_rates_secondary_to_secondary(currentPatch%disturbance_mode) = &
-                     currentSite%disturbance_rates_secondary_to_secondary(currentPatch%disturbance_mode) + &
-                     currentPatch%area * currentPatch%disturbance_rate * AREA_INV
+                currentSite%disturbance_rates_secondary_to_secondary(i_disturbance_type) = &
+                     currentSite%disturbance_rates_secondary_to_secondary(i_disturbance_type) + &
+                     currentPatch%area * disturbance_rate * AREA_INV
              else
-                currentSite%disturbance_rates_primary_to_secondary(currentPatch%disturbance_mode) = &
-                     currentSite%disturbance_rates_primary_to_secondary(currentPatch%disturbance_mode) + &
-                     currentPatch%area * currentPatch%disturbance_rate * AREA_INV
+                currentSite%disturbance_rates_primary_to_secondary(i_disturbance_type) = &
+                     currentSite%disturbance_rates_primary_to_secondary(i_disturbance_type) + &
+                     currentPatch%area * disturbance_rate * AREA_INV
              endif
 
           endif
@@ -562,17 +561,18 @@ contains
             currentPatch%nocomp_pft_label .eq. i_nocomp_pft ) then
 
           ! This is the amount of patch area that is disturbed, and donated by the donor
-          patch_site_areadis = currentPatch%area * currentPatch%disturbance_rate
+          disturbance_rate = currentPatch%disturbance_rates(i_disturbance_type)
+          patch_site_areadis = currentPatch%area * disturbance_rate
 
           
           if ( patch_site_areadis > nearzero ) then
 
               ! figure out whether the receiver patch for disturbance from this patch 
               ! will be primary or secondary land receiver patch is primary forest 
-              ! only if both the donor patch is primary forest and the dominant 
+              ! only if both the donor patch is primary forest and the current 
               ! disturbance type is not logging
               if (currentPatch%anthro_disturbance_label .eq. primaryforest .and. &
-                    (currentPatch%disturbance_mode .ne. dtype_ilog)) then
+                    (i_disturbance_type .ne. dtype_ilog)) then
                   new_patch => new_patch_primary
               else
                   new_patch => new_patch_secondary
@@ -585,11 +585,11 @@ contains
               end if
 
              ! for the case where the donating patch is secondary forest, if 
-             ! the dominant disturbance from this patch is non-anthropogenic,
+             ! the current disturbance from this patch is non-anthropogenic,
              ! we need to average in the time-since-anthropogenic-disturbance 
              ! from the donor patch into that of the receiver patch
              if ( currentPatch%anthro_disturbance_label .eq. secondaryforest .and. &
-                   (currentPatch%disturbance_mode .ne. dtype_ilog) ) then
+                   (i_disturbance_type .ne. dtype_ilog) ) then
 
                 new_patch%age_since_anthro_disturbance = new_patch%age_since_anthro_disturbance + &
                      currentPatch%age_since_anthro_disturbance * (patch_site_areadis / site_areadis_secondary)
@@ -600,9 +600,9 @@ contains
              ! Transfer the litter existing already in the donor patch to the new patch
              ! This call will only transfer non-burned litter to new patch
              ! and burned litter to atmosphere. Thus it is important to zero burnt_frac_litter when
-             ! fire is not the dominant disturbance regime. 
+             ! fire is not the current disturbance regime. 
 
-             if(currentPatch%disturbance_mode .ne. dtype_ifire) then
+             if(i_disturbance_type .ne. dtype_ifire) then
                  currentPatch%burnt_frac_litter(:) = 0._r8
              end if
 
@@ -610,10 +610,10 @@ contains
 
              ! Transfer in litter fluxes from plants in various contexts of death and destruction
 
-             if(currentPatch%disturbance_mode .eq. dtype_ilog) then
+             if(i_disturbance_type .eq. dtype_ilog) then
                 call logging_litter_fluxes(currentSite, currentPatch, &
                      new_patch, patch_site_areadis,bc_in)
-             elseif(currentPatch%disturbance_mode .eq. dtype_ifire) then
+             elseif(i_disturbance_type .eq. dtype_ifire) then
                 call fire_litter_fluxes(currentSite, currentPatch, &
                      new_patch, patch_site_areadis,bc_in)  
              else
@@ -672,8 +672,8 @@ contains
                  store_c  = currentCohort%prt%GetState(store_organ, all_carbon_elements)
                  total_c  = sapw_c + struct_c + leaf_c + fnrt_c + store_c
 
-                 ! treefall mortality is the dominant disturbance
-                 if(currentPatch%disturbance_mode .eq. dtype_ifall) then
+                 ! treefall mortality is the current disturbance
+                 if(i_disturbance_type .eq. dtype_ifall) then
                    
                      if(currentCohort%canopy_layer == 1)then
 
@@ -782,8 +782,8 @@ contains
                       endif
                    endif
                    
-                   ! Fire is the dominant disturbance 
-                elseif (currentPatch%disturbance_mode .eq. dtype_ifire ) then
+                   ! Fire is the current disturbance 
+                elseif (i_disturbance_type .eq. dtype_ifire ) then
                    
                    ! Number of members in the new patch, before we impose fire survivorship
                    nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
@@ -881,8 +881,8 @@ contains
 
 
 
-               ! Logging is the dominant disturbance  
-               elseif (currentPatch%disturbance_mode .eq. dtype_ilog ) then
+               ! Logging is the current disturbance  
+               elseif (i_disturbance_type .eq. dtype_ilog ) then
                    
                    ! If this cohort is in the upper canopy. It generated 
                    if(currentCohort%canopy_layer == 1)then
@@ -916,7 +916,7 @@ contains
                       
                    else
                       
-                      ! WHat to do with cohorts in the understory of a logging generated
+                      ! What to do with cohorts in the understory of a logging generated
                       ! disturbance patch?
                       
                       if(int(prt_params%woody(currentCohort%pft)) == itrue)then
@@ -1000,7 +1000,7 @@ contains
                    
                else
                   write(fates_log(),*) 'unknown disturbance mode?'
-                  write(fates_log(),*) 'disturbance_mode: ',currentPatch%disturbance_mode 
+                  write(fates_log(),*) 'i_disturbance_type: ',i_disturbance_type 
                   call endrun(msg=errMsg(sourcefile, __LINE__))          
                end if   ! Select disturbance mode
                 
@@ -1046,8 +1046,8 @@ contains
 
              ! for all disturbance rates that haven't been resolved yet, increase their amount so that 
              ! they are the same amount of gridcell-scale disturbance relative to the original patch size
-             if (i_dist .ne. N_DIST_TYPES) then
-                do i_dist2 = i_dist+1,N_DIST_TYPES
+             if (i_disturbance_type .ne. N_DIST_TYPES) then
+                do i_dist2 = i_disturbance_type+1,N_DIST_TYPES
                    currentPatch%disturbance_rates(i_dist2) = currentPatch%disturbance_rates(i_dist2) &
                         * oldarea / currentPatch%area
                 end do
@@ -1153,8 +1153,7 @@ contains
     !zero disturbance rate trackers on all patches
     currentPatch => currentSite%oldest_patch
     do while(associated(currentPatch))
-       currentPatch%disturbance_rate  = 0._r8
-       currentPatch%disturbance_rates = 0._r8
+       currentPatch%disturbance_rates(:) = 0._r8
        currentPatch%fract_ldist_not_harvested = 0._r8
        currentPatch => currentPatch%younger
     end do
@@ -2047,7 +2046,6 @@ contains
 
     ! This new value will be generated when the calculate disturbance
     ! rates routine is called. This does not need to be remembered or in the restart file.
-    new_patch%disturbance_mode   = fates_unset_int
  
     new_patch%f_sun              = 0._r8
     new_patch%ed_laisun_z(:,:,:) = 0._r8 
@@ -2150,8 +2148,7 @@ contains
     currentPatch%pft_agb_profile(:,:)       = nan    
 
     ! DISTURBANCE 
-    currentPatch%disturbance_rates          = 0._r8 
-    currentPatch%disturbance_rate           = 0._r8
+    currentPatch%disturbance_rates(:)       = 0._r8 
     currentPatch%fract_ldist_not_harvested  = 0._r8
 
 

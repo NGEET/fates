@@ -537,9 +537,6 @@ module EDTypesMod
      real(r8) ::  disturbance_rates(n_dist_types)                  ! disturbance rate from 1) mortality 
                                                                    !                       2) fire: fraction/day 
                                                                    !                       3) logging mortatliy
-     real(r8) ::  disturbance_rate                                 ! larger effective disturbance rate: fraction/day
-     integer  ::  disturbance_mode                                 ! index identifying which disturbance was applied
-                                                                   ! can be one of: dtype_ifall, dtype_ilog or dtype_ifire
      real(r8) ::  fract_ldist_not_harvested                        ! fraction of logged area that is canopy trees that weren't harvested
 
 
@@ -1016,7 +1013,6 @@ module EDTypesMod
      write(fates_log(),*) 'pa%gnd_alb_dir        = ',cpatch%gnd_alb_dir(:)
      write(fates_log(),*) 'pa%c_stomata          = ',cpatch%c_stomata
      write(fates_log(),*) 'pa%c_lblayer          = ',cpatch%c_lblayer
-     write(fates_log(),*) 'pa%disturbance_rate   = ',cpatch%disturbance_rate
      write(fates_log(),*) 'pa%disturbance_rates  = ',cpatch%disturbance_rates(:)
      write(fates_log(),*) 'pa%anthro_disturbance_label = ',cpatch%anthro_disturbance_label
      write(fates_log(),*) '----------------------------------------'
