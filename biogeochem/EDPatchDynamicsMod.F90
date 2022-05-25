@@ -413,9 +413,9 @@ contains
     real(r8) :: leaf_m                       ! leaf mass during partial burn calculations
     logical  :: found_youngest_primary       ! logical for finding the first primary forest patch
     integer  :: min_nocomp_pft, max_nocomp_pft, i_nocomp_pft
-    integer  :: i_disturbance_type, i_dist2
-    real(r8) :: disturbance_rate
-    real(r8) :: oldarea
+    integer  :: i_disturbance_type, i_dist2  ! iterators for looping over disturbance types
+    real(r8) :: disturbance_rate             ! rate of disturbance being resolved [fraction of patch area / day]
+    real(r8) :: oldarea                      ! old patch area prior to disturbance
     !---------------------------------------------------------------------
 
     storesmallcohort => null() ! storage of the smallest cohort for insertion routine
