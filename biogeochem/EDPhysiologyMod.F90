@@ -688,9 +688,10 @@ contains
     ! !USES:
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
     use EDParamsMod, only : ED_val_phen_drought_threshold, ED_val_phen_doff_time
-    use EDParamsMod, only : ED_val_phen_a, ED_val_phen_b, ED_val_phen_c, ED_val_phen_chiltemp
-    use EDParamsMod, only : ED_val_phen_mindayson, ED_val_phen_ncolddayslim, ED_val_phen_coldtemp
-
+    !use EDParamsMod, only : ED_val_phen_a, ED_val_phen_b, ED_val_phen_c, ED_val_phen_chiltemp
+    use EDParamsMod, only : ED_val_phen_mindayson !, ED_val_phen_ncolddayslim, ED_val_phen_coldtemp
+    use EDPftvarcon, only : phen_gddthresh_a,phen_gddthresh_b,phen_gddthresh_c
+    use EDPftvarcon, only : phen_chiltemp,phen_coldtemp,phen_ncolddayslim 
 
     !
     ! !ARGUMENTS:
