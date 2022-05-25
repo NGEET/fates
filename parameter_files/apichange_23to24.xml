@@ -106,10 +106,10 @@
 	 </mod>
 	 <mod type="variable_add">
 		<na> fates_phen_drought_threshold </na>
-		<di> fates_pft </di>
+		<di> scalar </di>
 		<un> m3/m3 or mm </un>
 		<ln> threshold for drought phenology (or lower threshold when fates_phen_drought_model = 1); the quantity depends on the sign: if positive, the threshold is volumetric soil moisture (m3/m3). If negative, the threshold is soil matric potentical (mm) </ln>
-		<val> 0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15 </val>
+		<val> 0.15 </val>
 	 </mod>
 	 <mod type="variable_add">
 		<na>fates_phen_moist_threshold</na>
@@ -541,62 +541,14 @@
 	 <mod type="variable_change" name="fates_phen_a">
 		<na> fates_phen_gddthresh_a </na>
 	 </mod>
-	 <mod type="variable_add">
-		<na> fates_phen_gddthresh_a </na>
-		<di> fates_pft </di>
-		<un> unitless </un>
-		<ln> GDD accumulation function, intercept parameter: gdd_thesh = a + b exp(c*ncd) </ln>
-		<val> -68,-68,-68,-68,-68,-68,-68,-68,-68,-68,-68,-68 </val>
-	 </mod>
-	 <mod type="variable_del">
-		<na> fates_phen_b </na>
-	 </mod>
-	 <mod type="variable_add">
+	 <mod type="variable_change" name="fates_phen_b">
 		<na> fates_phen_gddthresh_b </na>
-		<di> fates_pft </di>
-		<un> unitless </un>
-		<ln> GDD accumulation function, multiplier parameter: gdd_thesh = a + b exp(c*ncd) </ln>
-		<val> 638,638,638,638,638,638,638,638,638,638,638,638  </val>
 	 </mod>
-	 <mod type="variable_del">
-		<na> fates_phen_c </na>
-	 </mod>
-	 <mod type="variable_add">
+	 <mod type="variable_change" name="fates_phen_c">
 		<na> fates_phen_gddthresh_c </na>
-		<di> fates_pft </di>
-		<un> unitless </un>
-		<ln> GDD accumulation function, exponent parameter: gdd_thesh = a + b exp(c*ncd) </ln>
-		<val> -0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01, </val>
 	 </mod>
-	 <mod type="variable_del">
-		<na> fates_phen_chiltemp </na>
-	 </mod>
-	 <mod type="variable_add">
+	 <mod type="variable_change" name="fates_phen_chiltemp">
 		<na> fates_phen_chilltemp </na>
-		<di> fates_pft </di>
-		<un> degrees C </un>
-		<ln> chilling day counting threshold for vegetation </ln>
-		<val> 5,5,5,5,5,5,5,5,5,5,5,5 </val>
-	 </mod>
-	 <mod type="variable_del">
-		<na> fates_phen_coldtemp </na>
-	 </mod>
-	 <mod type="variable_add">
-		<na> fates_phen_coldtemp </na>
-		<di> fates_pft </di>
-		<un> degrees C </un>
-		<ln> vegetation temperature exceedance that flags a cold-day for leaf-drop </ln>
-		<val> 7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5, </val>
-	 </mod>
-	 <mod type="variable_del">
-		<na>fates_phen_ncolddayslim </na>
-	 </mod>
-	 <mod type="variable_add">
-		<na> fates_phen_ncolddayslim </na>
-		<di> fates_pft </di>
-		<un> days </un>
-		<ln> day threshold exceedance for temperature leaf-drop </ln>
-		<val>  </val>
 	 </mod>
 	 <mod type="variable_add">
 		<na> fates_cnp_store_ovrflw_frac </na>
@@ -605,7 +557,5 @@
 		<ln> size of overflow storage (for excess C,N or P) as a fraction of storage target </ln>
 		<val> 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0  </val>
 	 </mod>
-
-	 
   </mods>
 </all>

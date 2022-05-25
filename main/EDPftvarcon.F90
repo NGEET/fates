@@ -180,17 +180,6 @@ module EDPftvarcon
                                                       ! prescribe an uptake rate for phosphorus
                                                       ! This is the fraction of plant demand
 
-     ! GDD accumulation function, intercept parameters: gdd_thesh = a + b exp(c*ncd)
-     !real(r8), allocatable :: phen_gddthresh_a
-     !real(r8), allocatable :: phen_gddthresh_b
-     !real(r8), allocatable :: phen_gddthresh_c
-     !chilling day counting threshold for vegetation (deg C)
-     !real(r8), allocatable :: phen_chiltemp
-     ! vegetation temperature exceedance that flags a cold-day for leaf-drop (deg C)  
-     !real(r8), allocatable :: phen_coldtemp
-     ! day threshold exceedance for temperature leaf-drop (days) 
-     !real(r8), allocatable :: phen_ncolddayslim  
-     
      ! Unassociated pft dimensioned free parameter that
      ! developers can use for testing arbitrary new hypothese
      real(r8), allocatable :: dev_arbitrary_pft(:)
@@ -569,30 +558,6 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_phen_gddthresh_a'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-    
-    name = 'fates_phen_gddthresh_b'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-    
-    name = 'fates_phen_gddthresh_c'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-    
-    name = 'fates_phen_chilltemp'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-    
-    name = 'fates_phen_coldtemp'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-    
-    name = 'fates_phen_ncolddayslim'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-    
     name = 'fates_phen_flush_fraction'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -936,30 +901,6 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%displar)
 
-    name = 'fates_phen_gddthresh_a'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%phen_gddthresh_a)
-    
-    name = 'fates_phen_gddthresh_b'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%phen_gddthresh_b)
-
-    name = 'fates_phen_gddthresh_c'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%phen_gddthresh_c)
-
-    name = 'fates_phen_chilltemp'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%phen_chilltemp)
-    
-    name = 'fates_phen_coldtemp'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%phen_coldtemp)
-    
-    name = 'fates_phen_ncolddayslim'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=this%phen_ncolddayslim)
-    
     name = 'fates_phen_flush_fraction'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=this%phenflush_fraction)
