@@ -9,7 +9,7 @@ module EDAccumulateFluxesMod
   ! Rosie Fisher. March 2014. 
   !
   ! !USES:
-  use FatesGlobals, only      : fates_endrun 
+  use FatesGlobals, only      : endrun => fates_endrun 
   use FatesGlobals, only      : fates_log
   use shr_log_mod , only      : errMsg => shr_log_errMsg
   use FatesConstantsMod , only : r8 => fates_r8

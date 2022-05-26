@@ -59,7 +59,7 @@ module EDPftvarcon
 
      real(r8), allocatable :: lf_flab(:)             ! Leaf litter labile fraction [-]
      real(r8), allocatable :: lf_fcel(:)             ! Leaf litter cellulose fraction [-]
-     real(r8), allocatable :: lf_flig(:)             ! Leaf litter lignan fraction [-]
+     real(r8), allocatable :: lf_flig(:)             ! Leaf litter lignin fraction [-]
      real(r8), allocatable :: fr_flab(:)             ! Fine-root litter labile fraction [-]
      real(r8), allocatable :: fr_fcel(:)             ! Fine-root litter cellulose fraction [-]
      real(r8), allocatable :: fr_flig(:)             ! Fine-root litter lignatn fraction [-]
@@ -1466,7 +1466,7 @@ contains
         write(fates_log(),fmt0) 'phen_cold_size_threshold = ',EDPftvarcon_inst%phen_cold_size_threshold
         write(fates_log(),fmt0) 'phen_stem_drop_fraction',EDpftvarcon_inst%phen_stem_drop_fraction
         write(fates_log(),fmt0) 'fire_alpha_SH = ',EDPftvarcon_inst%fire_alpha_SH
-	write(fates_log(),fmt0) 'allom_frbstor_repro = ',EDPftvarcon_inst%allom_frbstor_repro
+        write(fates_log(),fmt0) 'allom_frbstor_repro = ',EDPftvarcon_inst%allom_frbstor_repro
         write(fates_log(),fmt0) 'hydr_p_taper = ',EDPftvarcon_inst%hydr_p_taper
         write(fates_log(),fmt0) 'hydr_rs2 = ',EDPftvarcon_inst%hydr_rs2
         write(fates_log(),fmt0) 'hydr_srl = ',EDPftvarcon_inst%hydr_srl

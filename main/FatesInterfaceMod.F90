@@ -36,6 +36,7 @@ module FatesInterfaceMod
    use FatesGlobals              , only : fates_global_verbose
    use FatesGlobals              , only : fates_log
    use FatesGlobals              , only : endrun => fates_endrun
+   use FatesConstantsMod             , only : fates_unset_r8
    use FatesLitterMod            , only : ncwd
    use FatesLitterMod            , only : ndcmpy
    use EDPftvarcon               , only : FatesReportPFTParams
@@ -305,6 +306,10 @@ contains
     fates%bc_out(s)%rootr_pasl(:,:) = 0.0_r8
     fates%bc_out(s)%btran_pa(:)     = 0.0_r8
 
+    ! MIMIC litter quality, always initialize to unset
+    fates%bc_out(s)%litt_flux_ligc_per_n = fates_unset_r8
+
+    
     ! Fates -> BGC fragmentation mass fluxes
     select case(hlm_parteh_mode) 
     case(prt_carbon_allom_hyp)
@@ -625,7 +630,6 @@ contains
          bc_out%rootfr_pa(0,1:nlevsoil_in)=1._r8/real(nlevsoil_in,r8)
       end if
 
-         
       ! Fates -> BGC fragmentation mass fluxes
       select case(hlm_parteh_mode) 
       case(prt_carbon_allom_hyp)
@@ -1315,6 +1319,7 @@ contains
          hlm_masterproc   = unset_int
          hlm_ipedof       = unset_int
          hlm_nu_com      = 'unset'
+         hlm_decomp      = 'unset'
          hlm_nitrogen_spec = unset_int
          hlm_phosphorus_spec = unset_int
          hlm_max_patch_per_site = unset_int
@@ -1343,36 +1348,28 @@ contains
       case('check_allset')
          
          if(hlm_numSWb .eq. unset_int) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'FATES dimension/parameter unset: num_sw_rad_bbands'
-            end if
+            write(fates_log(), *) 'FATES dimension/parameter unset: num_sw_rad_bbands'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_masterproc .eq. unset_int) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'FATES parameter unset: hlm_masterproc'
-            end if
+            write(fates_log(), *) 'FATES parameter unset: hlm_masterproc'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_numSWb > maxSWb) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'FATES sets a maximum number of shortwave bands'
-               write(fates_log(), *) 'for some scratch-space, maxSWb'
-               write(fates_log(), *) 'it defaults to 2, but can be increased as needed'
-               write(fates_log(), *) 'your driver or host model is intending to drive'
-               write(fates_log(), *) 'FATES with:',hlm_numSWb,' bands.'
-               write(fates_log(), *) 'please increase maxSWb in EDTypes to match'
-               write(fates_log(), *) 'or exceed this value'
-            end if
+            write(fates_log(), *) 'FATES sets a maximum number of shortwave bands'
+            write(fates_log(), *) 'for some scratch-space, maxSWb'
+            write(fates_log(), *) 'it defaults to 2, but can be increased as needed'
+            write(fates_log(), *) 'your driver or host model is intending to drive'
+            write(fates_log(), *) 'FATES with:',hlm_numSWb,' bands.'
+            write(fates_log(), *) 'please increase maxSWb in EDTypes to match'
+            write(fates_log(), *) 'or exceed this value'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
          
          if (  .not.((hlm_use_planthydro.eq.1).or.(hlm_use_planthydro.eq.0))    ) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'The FATES namelist planthydro flag must be 0 or 1, exiting'
-            end if
+            write(fates_log(), *) 'The FATES namelist planthydro flag must be 0 or 1, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          elseif (hlm_use_planthydro.eq.1 ) then
                write(fates_log(), *) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
@@ -1385,30 +1382,23 @@ contains
          end if
 
          if ( (hlm_use_lu_harvest .lt. 0).or.(hlm_use_lu_harvest .gt. 1) ) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'The FATES lu_harvest flag must be 0 or 1,  exiting'
-            end if
+            write(fates_log(), *) 'The FATES lu_harvest flag must be 0 or 1,  exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if ( (hlm_num_lu_harvest_cats .lt. 0) ) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'The FATES number of hlm harvest cats must be >= 0, exiting'
-            end if
+            write(fates_log(), *) 'The FATES number of hlm harvest cats must be >= 0, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if ( .not.((hlm_use_logging .eq.1).or.(hlm_use_logging.eq.0))    ) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'The FATES namelist use_logging flag must be 0 or 1, exiting'
-            end if
+            write(fates_log(), *) 'The FATES namelist use_logging flag must be 0 or 1, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
 
          if ( ( ANY(EDPftvarcon_inst%mort_ip_age_senescence < fates_check_param_set )) .and. &
            (hlm_use_cohort_age_tracking .eq.0 ) ) then
-
            write(fates_log(),*) 'Age dependent mortality cannot be on if'
            write(fates_log(),*) 'cohort age tracking is off.'
            write(fates_log(),*) 'Set hlm_use_cohort_age_tracking = .true.'
@@ -1416,74 +1406,53 @@ contains
            write(fates_log(),*) 'Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
-         
 
          if (  .not.((hlm_use_ed_st3.eq.1).or.(hlm_use_ed_st3.eq.0))    ) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'The FATES namelist stand structure flag must be 0 or 1, exiting'
-            end if
+            write(fates_log(), *) 'The FATES namelist stand structure flag must be 0 or 1, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if (  .not.((hlm_use_ed_prescribed_phys.eq.1).or.(hlm_use_ed_prescribed_phys.eq.0))    ) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'The FATES namelist prescribed physiology flag must be 0 or 1, exiting'
-            end if
+            write(fates_log(), *) 'The FATES namelist prescribed physiology flag must be 0 or 1, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if ( hlm_use_ed_prescribed_phys.eq.1 .and. hlm_use_ed_st3.eq.1 ) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'FATES ST3 and prescribed physiology cannot both be turned on.'
-               write(fates_log(), *) 'Review the namelist entries, exiting'
-            end if
+            write(fates_log(), *) 'FATES ST3 and prescribed physiology cannot both be turned on.'
+            write(fates_log(), *) 'Review the namelist entries, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if ( hlm_use_inventory_init.eq.1  .and. hlm_use_cohort_age_tracking .eq.1) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'Fates inventory init cannot be used with age dependent mortality'
-               write(fates_log(), *) 'Set hlm_use_cohort_age_tracking to 0 or turn off inventory init'
-            end if
+            write(fates_log(), *) 'Fates inventory init cannot be used with age dependent mortality'
+            write(fates_log(), *) 'Set hlm_use_cohort_age_tracking to 0 or turn off inventory init'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
          
-
-         
          if (  .not.((hlm_use_inventory_init.eq.1).or.(hlm_use_inventory_init.eq.0))    ) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'The FATES NL inventory flag must be 0 or 1, exiting'
-            end if
+            write(fates_log(), *) 'The FATES NL inventory flag must be 0 or 1, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
          
          if(trim(hlm_inventory_ctrl_file) .eq. 'unset') then
-            if (fates_global_verbose()) then
-               write(fates_log(),*) 'namelist entry for fates inventory control file is unset, exiting'
-            end if
+            write(fates_log(),*) 'namelist entry for fates inventory control file is unset, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_ivis .ne. ivis) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'FATES assumption about the index of visible shortwave'
-               write(fates_log(), *) 'radiation is different from the HLM, exiting'
-            end if
+            write(fates_log(), *) 'FATES assumption about the index of visible shortwave'
+            write(fates_log(), *) 'radiation is different from the HLM, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
          
          if(hlm_inir .ne. inir) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'FATES assumption about the index of NIR shortwave'
-               write(fates_log(), *) 'radiation is different from the HLM, exiting'
-            end if
+            write(fates_log(), *) 'FATES assumption about the index of NIR shortwave'
+            write(fates_log(), *) 'radiation is different from the HLM, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_is_restart .eq. unset_int) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'FATES parameter unset: hlm_is_restart, exiting'
-            end if
+            write(fates_log(), *) 'FATES parameter unset: hlm_is_restart, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
@@ -1495,112 +1464,102 @@ contains
          end if
 
          if(trim(hlm_name) .eq. 'unset') then
+            write(fates_log(),*) 'FATES dimension/parameter unset: hlm_name, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(trim(hlm_decomp) .eq. 'unset') then
             if (fates_global_verbose()) then
-               write(fates_log(),*) 'FATES dimension/parameter unset: hlm_name, exiting'
+               write(fates_log(),*) 'FATES dimension/parameter unset: hlm_decomp, exiting'
+               write(fates_log(),*) 'valid: MIMICS, CENTURY, CTC'
+            end if
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         if( .not. ((trim(hlm_decomp) .eq. 'MIMICS') .or. &
+              (trim(hlm_decomp) .eq. 'CENTURY') .or. &
+              (trim(hlm_decomp) .eq. 'CTC') .or. &
+              (trim(hlm_decomp) .eq. 'NONE'))   ) then
+            if (fates_global_verbose()) then
+               write(fates_log(),*) 'FATES dimension/parameter unset: hlm_decomp, exiting'
+               write(fates_log(),*) 'valid: NONE, MIMICS, CENTURY, CTC, yours: ',trim(hlm_decomp)
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         ! TEMPORARY TESTING OVERRIDE !!!!!!!!
+         ! hlm_decomp = 'MIMICS'
+         
          if(trim(hlm_nu_com) .eq. 'unset') then
-            if (fates_global_verbose()) then
-               write(fates_log(),*) 'FATES dimension/parameter unset: hlm_nu_com, exiting'
-            end if
+            write(fates_log(),*) 'FATES dimension/parameter unset: hlm_nu_com, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
          
+         
          if(hlm_nitrogen_spec .eq. unset_int) then
-            if (fates_global_verbose()) then
-               write(fates_log(),*) 'FATES parameters unset: hlm_nitrogen_spec, exiting'
-            end if
+            write(fates_log(),*) 'FATES parameters unset: hlm_nitrogen_spec, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_phosphorus_spec .eq. unset_int) then
-            if (fates_global_verbose()) then
-               write(fates_log(),*) 'FATES parameters unset: hlm_phosphorus_spec, exiting'
-            end if
+            write(fates_log(),*) 'FATES parameters unset: hlm_phosphorus_spec, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if( abs(hlm_hio_ignore_val-unset_double)<1e-10 ) then
-            if (fates_global_verbose()) then
-               write(fates_log(),*) 'FATES dimension/parameter unset: hio_ignore'
-            end if
+            write(fates_log(),*) 'FATES dimension/parameter unset: hio_ignore'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_ipedof .eq. unset_int) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'index for the HLMs pedotransfer function unset: hlm_ipedof, exiting'
-            end if
+            write(fates_log(), *) 'index for the HLMs pedotransfer function unset: hlm_ipedof, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
 
          if(hlm_max_patch_per_site .eq. unset_int ) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'the number of patch-space per site unset: hlm_max_patch_per_site, exiting'
-            end if
+            write(fates_log(), *) 'the number of patch-space per site unset: hlm_max_patch_per_site, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          elseif(hlm_max_patch_per_site < maxPatchesPerSite ) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'FATES is trying to allocate space for more patches per site, than the HLM has space for.'
-               write(fates_log(), *) 'hlm_max_patch_per_site (HLM side): ', hlm_max_patch_per_site
-               write(fates_log(), *) 'maxPatchesPerSite (FATES side): ', maxPatchesPerSite
-               write(fates_log(), *)
-            end if
+            write(fates_log(), *) 'FATES is trying to allocate space for more patches per site, than the HLM has space for.'
+            write(fates_log(), *) 'hlm_max_patch_per_site (HLM side): ', hlm_max_patch_per_site
+            write(fates_log(), *) 'maxPatchesPerSite (FATES side): ', maxPatchesPerSite
+            write(fates_log(), *)
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_parteh_mode .eq. unset_int) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'switch deciding which plant reactive transport model to use is unset, hlm_parteh_mode, exiting'
-            end if
+            write(fates_log(), *) 'switch deciding which plant reactive transport model to use is unset, hlm_parteh_mode, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_use_ch4 .eq. unset_int) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'switch for the HLMs CH4 module unset: hlm_use_ch4, exiting'
-            end if
+            write(fates_log(), *) 'switch for the HLMs CH4 module unset: hlm_use_ch4, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
-         
+
          if(hlm_use_vertsoilc .eq. unset_int) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'switch for the HLMs soil carbon discretization unset: hlm_use_vertsoilc, exiting'
-            end if
+            write(fates_log(), *) 'switch for the HLMs soil carbon discretization unset: hlm_use_vertsoilc, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_spitfire_mode .eq. unset_int) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'switch for SPITFIRE unset: hlm_spitfire_mode, exiting'
-            end if
+            write(fates_log(), *) 'switch for SPITFIRE unset: hlm_spitfire_mode, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
          if(hlm_sf_nofire_def .eq. unset_int) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'definition of no-fire mode unset: hlm_sf_nofire_def, exiting'
-            end if
+            write(fates_log(), *) 'definition of no-fire mode unset: hlm_sf_nofire_def, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
          if(hlm_sf_scalar_lightning_def .eq. unset_int) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'definition of scalar lightning mode unset: hlm_sf_scalltng_def, exiting'
-            end if
+            write(fates_log(), *) 'definition of scalar lightning mode unset: hlm_sf_scalltng_def, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
          if(hlm_sf_successful_ignitions_def .eq. unset_int) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'definition of successful ignition mode unset: hlm_sf_successful, exiting'
-            end if
+            write(fates_log(), *) 'definition of successful ignition mode unset: hlm_sf_successful, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
          if(hlm_sf_anthro_ignitions_def .eq. unset_int) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'definition of anthro-ignition mode unset: hlm_sf_anthig_def, exiting'
-            end if
+            write(fates_log(), *) 'definition of anthro-ignition mode unset: hlm_sf_anthig_def, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
@@ -1614,7 +1573,6 @@ contains
             end if
          end if
          
-         
         if(hlm_use_fixed_biogeog.eq.unset_int) then
            if(fates_global_verbose()) then
              write(fates_log(), *) 'switch for fixed biogeog unset: him_use_fixed_biogeog, exiting'
@@ -1623,23 +1581,17 @@ contains
          end if
 
          if(hlm_use_nocomp.eq.unset_int) then
-              if(fates_global_verbose()) then
-             write(fates_log(), *) 'switch for no competition mode. '
-            end if
-           call endrun(msg=errMsg(sourcefile, __LINE__))
+            write(fates_log(), *) 'switch for no competition mode. '
+            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_use_sp.eq.unset_int) then
-              if(fates_global_verbose()) then
-             write(fates_log(), *) 'switch for SP mode. '
-            end if
-	       call endrun(msg=errMsg(sourcefile, __LINE__))
+            write(fates_log(), *) 'switch for SP mode. '
+            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_use_cohort_age_tracking .eq. unset_int) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'switch for cohort_age_tracking  unset: hlm_use_cohort_age_tracking, exiting'
-            end if
+            write(fates_log(), *) 'switch for cohort_age_tracking  unset: hlm_use_cohort_age_tracking, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
@@ -1655,7 +1607,6 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-
          if(hlm_use_sp.eq.itrue.and.hlm_use_fixed_biogeog.eq.ifalse)then
             write(fates_log(), *) 'SP cannot be on if fixed biogeog mode is off. Exiting. '
             call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1664,7 +1615,6 @@ contains
          if (fates_global_verbose()) then
             write(fates_log(), *) 'Checked. All control parameters sent to FATES.'
          end if
-
          
       case default
 
@@ -1794,10 +1744,10 @@ contains
                end if
 
             case('use_sp')
-            hlm_use_sp = ival
-            if (fates_global_verbose()) then
-                   write(fates_log(),*) 'Transfering hlm_use_sp= ',ival,' to FATES'
-            end if
+               hlm_use_sp = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_sp= ',ival,' to FATES'
+               end if
 
             case('use_planthydro')
                hlm_use_planthydro = ival
@@ -1854,11 +1804,8 @@ contains
                end if
 
             case default
-               if (fates_global_verbose()) then
-                   write(fates_log(), *) 'tag not recognized:',trim(tag)
-                   call endrun(msg=errMsg(sourcefile, __LINE__))
-               end if
-               ! end_run
+               write(fates_log(), *) 'fates NL tag not recognized:',trim(tag)
+               !! call endrun(msg=errMsg(sourcefile, __LINE__))
             end select
             
          end if
@@ -1871,10 +1818,8 @@ contains
                   write(fates_log(),*) 'Transfering hio_ignore_val = ',rval,' to FATES'
                end if
             case default
-               if (fates_global_verbose()) then
-                  write(fates_log(),*) 'tag not recognized:',trim(tag)
-               end if
-               ! end_run
+               write(fates_log(),*) 'fates NL tag not recognized:',trim(tag)
+               !! call endrun(msg=errMsg(sourcefile, __LINE__))
             end select
          end if
 
@@ -1893,6 +1838,12 @@ contains
                   write(fates_log(),*) 'Transfering the nutrient competition name = ',trim(cval)
                end if
 
+            case('decomp_method')
+               hlm_decomp = trim(cval)
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering the decomp method name = ',trim(cval)
+               end if
+
             case('inventory_ctrl_file')
                hlm_inventory_ctrl_file = trim(cval)
                if (fates_global_verbose()) then
@@ -1900,10 +1851,8 @@ contains
                end if
                
             case default
-               if (fates_global_verbose()) then
-                  write(fates_log(),*) 'tag not recognized:',trim(tag)
-               end if
-               ! end_run
+               write(fates_log(),*) 'fates NL tag not recognized:',trim(tag)
+               !! call endrun(msg=errMsg(sourcefile, __LINE__))
             end select
          end if
 

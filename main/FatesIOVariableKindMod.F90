@@ -3,10 +3,16 @@ module FatesIOVariableKindMod
   use FatesConstantsMod, only : fates_long_string_length
   use FatesGlobals, only : fates_log
   use FatesIODimensionsMod, only : fates_io_dimension_type
+  use FatesGlobals          , only : endrun => fates_endrun
+  use shr_log_mod           , only : errMsg => shr_log_errMsg
 
+  
   implicit none
   private
 
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
+  
   ! FIXME(bja, 2016-10) do these need to be strings, or can they be integer enumerations?
   ! FIXME(rgk, 2016-11) these should probably be moved to varkindmod?
   
@@ -121,7 +127,7 @@ contains
        end if
     end do
     write(fates_log(),*) 'An IOTYPE THAT DOESNT EXIST WAS SPECIFIED'
-    !end_run
+    call endrun(msg=errMsg(sourcefile, __LINE__))
 
   end function iotype_index
   

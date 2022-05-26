@@ -372,7 +372,6 @@ contains
                 ! non-empty dimension name, set the size
                 do i = 1, num_used_dimensions
                    if (trim(dimension_names(i)) == trim(dim_name)) then
-                      !write(*, *) '--> ', trim(this%parameters(p)%name), ' setting ', trim(dim_name), ' d = ', d, 'size = ', dimension_sizes(i)
                       this%parameters(p)%dimension_sizes(d) = dimension_sizes(i)
                       exit
                    end if

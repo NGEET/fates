@@ -2885,20 +2885,21 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
      wb_check_site = delta_plant_storage+delta_soil_storage+site_runoff+transp_flux
 
      ! Now check on total error
-     if( abs(wb_check_site) > 1.e-4_r8 ) then
-        write(fates_log(),*) 'FATES hydro water balance does not add up [kg/m2]'
-        write(fates_log(),*) 'csite_hydr%errh2o_hyd: ',wb_check_site
-        write(fates_log(),*) 'delta_plant_storage: ',delta_plant_storage
-        write(fates_log(),*) 'delta_soil_storage: ',delta_soil_storage
-        write(fates_log(),*) 'site_runoff: ',site_runoff
-        write(fates_log(),*) 'transp_flux: ',transp_flux
+
+     if(debug)then
+        if( abs(wb_check_site) > 1.e-4_r8 ) then
+           write(fates_log(),*) 'FATES hydro water balance does not add up [kg/m2]'
+           write(fates_log(),*) 'csite_hydr%errh2o_hyd: ',wb_check_site
+           write(fates_log(),*) 'delta_plant_storage: ',delta_plant_storage
+           write(fates_log(),*) 'delta_soil_storage: ',delta_soil_storage
+           write(fates_log(),*) 'site_runoff: ',site_runoff
+           write(fates_log(),*) 'transp_flux: ',transp_flux
+        end if
      end if
-
-
+     
      csite_hydr%h2oveg_hydro_err = csite_hydr%h2oveg_hydro_err + csite_hydr%errh2o_hyd
 
-
-       call UpdateH2OVeg(sites(s),bc_out(s))
+     call UpdateH2OVeg(sites(s),bc_out(s))
 
   enddo !site
 
@@ -5213,7 +5214,9 @@ subroutine MatSolve2D(csite_hydr,cohort,cohort_hydr, &
          enddo
          if ( nwtn_iter > max_newton_iter) then
             icnv = icnv_fail_round
-            write(fates_log(),*) 'Newton hydraulics solve failed',residual_amax,nsd,tm
+            if(debug)then
+               write(fates_log(),*) 'Newton hydraulics solve failed',residual_amax,nsd,tm
+            end if
          endif
 
          ! Three scenarios:
@@ -5405,10 +5408,12 @@ subroutine MatSolve2D(csite_hydr,cohort,cohort_hydr, &
 
    end do outerloop
 
-   if(cohort_hydr%iterh1>1._r8) then
-      write(fates_log(),*) "hydro solve info: i1: ",cohort_hydr%iterh1,"i2: ",cohort_hydr%iterh2
+   if(debug)then
+      if(cohort_hydr%iterh1>1._r8) then
+         write(fates_log(),*) "hydro solve info: i1: ",cohort_hydr%iterh1,"i2: ",cohort_hydr%iterh2
+      end if
    end if
-
+   
    ! Save flux diagnostics
    ! ------------------------------------------------------
 

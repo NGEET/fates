@@ -392,7 +392,7 @@ contains
 
              do ft =  1,numpft
                 if(sites(s)%area_pft(ft).lt.0.01_r8.and.sites(s)%area_pft(ft).gt.0.0_r8)then
-                   write(fates_log(),*)  'removing small pft patches',s,ft,sites(s)%area_pft(ft)
+                   if(debug) write(fates_log(),*)  'removing small pft patches',s,ft,sites(s)%area_pft(ft)
                    sites(s)%area_pft(ft)=0.0_r8
                    ! remove tiny patches to prevent numerical errors in terminate patches
                 endif
@@ -641,13 +641,13 @@ contains
                    ! remove or add extra area
                    ! if the oldest patch has enough area, use that
                    sites(s)%oldest_patch%area = sites(s)%oldest_patch%area - (tota-area)
-                   write(*,*) 'fixing patch precision - oldest',s, tota-area
+                   if(debug) write(fates_log(),*) 'fixing patch precision - oldest',s, tota-area
                 else ! or otherwise take the area from the youngest patch.
                    sites(s)%youngest_patch%area = sites(s)%oldest_patch%area - (tota-area)
-                   write(*,*) 'fixing patch precision -youngest ',s, tota-area
+                   if(debug) write(fates_log(),*) 'fixing patch precision -youngest ',s, tota-area
                 endif
              else !this is a big error not just a precision error.
-                write(*,*) 'issue with patch area in EDinit',tota-area,tota
+                write(fates_log(),*) 'issue with patch area in EDinit',tota-area,tota
                 call endrun(msg=errMsg(sourcefile, __LINE__))
              endif  ! big error
           end if ! too much patch area
