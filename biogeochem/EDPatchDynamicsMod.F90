@@ -62,7 +62,7 @@ module EDPatchDynamicsMod
   use EDLoggingMortalityMod, only : logging_time
   use EDLoggingMortalityMod, only : get_harvest_rate_area
   use EDParamsMod          , only : fates_mortality_disturbance_fraction
-  use DamageMainMod        , only : damage_time
+  use DamageMainMod        , only : DamageTime
   use FatesAllometryMod    , only : carea_allom
   use FatesAllometryMod    , only : set_root_fraction
   use FatesConstantsMod    , only : g_per_kg
@@ -469,8 +469,8 @@ contains
     use EDParamsMod         , only : ED_val_understorey_death, logging_coll_under_frac
     use EDCohortDynamicsMod , only : zero_cohort, copy_cohort, terminate_cohorts
     use FatesConstantsMod   , only : rsnbl_math_prec
-    use DamageMainMod       , only : get_crown_reduction
-    use DamageMainMod       , only : get_damage_frac
+    use DamageMainMod       , only : GetCrownReduction
+    use DamageMainMod       , only : GetDamageFrac
     use PRTLossFluxesMod    , only : PRTDamageLosses
     use PRTGenericMod       , only : leaf_organ
     use ChecksBalancesMod   , only : SiteMassStock
@@ -766,7 +766,7 @@ contains
              
              ! and the damaged trees
              if(hlm_use_crown_damage .eq. itrue) then
-                if( damage_time ) then 
+                if( DamageTime ) then 
 
                    call damage_litter_fluxes(currentSite, currentPatch, &
                         new_patch, patch_site_areadis, patch_damage_litter)
@@ -1259,7 +1259,7 @@ contains
                 
                 ! Regardless of disturbance type, reduce mass of damaged trees
                 if(hlm_use_crown_damage .eq. itrue) then
-                   if(damage_time) then
+                   if(DamageTime) then
 
                       ! if woody
                       if (prt_params%woody(currentCohort%pft)==1  ) then
@@ -1272,7 +1272,7 @@ contains
                             ! for each damage class find the number density and if big enough allocate a new cohort
                             do cd = currentCohort%crowndamage+1, nlevdamage
 
-                               call get_damage_frac(currentCohort%crowndamage, cd, currentCohort%pft, cd_frac)
+                               call GetDamageFrac(currentCohort%crowndamage, cd, currentCohort%pft, cd_frac)
 
                                if(i_damage_code .eq. 1 .and. currentCohort%canopy_layer == 1) then
                                   cd_n = currentCohort%n * cd_frac
@@ -1315,7 +1315,7 @@ contains
                                   call carea_allom(nc_d%dbh, nc_d%n, currentSite%spread,&
                                        nc_d%pft, nc_d%crowndamage, nc_d%c_area)
   
-                                  call get_crown_reduction(nc_d%crowndamage, mass_frac)
+                                  call GetCrownReduction(nc_d%crowndamage, mass_frac)
 
 
                                   leaf_m_pre = nc_d%prt%GetState(leaf_organ, all_carbon_elements) + &
@@ -1560,7 +1560,7 @@ contains
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
-    if (damage_time) then
+    if (DamageTime) then
 
        
        write(fates_log(),*) 'Damage to litter: ',total_litter_d
@@ -2383,8 +2383,8 @@ contains
     ! !DESCRIPTION:
     !
     ! !USES:
-    use DamageMainMod,     only : get_crown_reduction
-    use DamageMainMod    , only : get_damage_frac
+    use DamageMainMod,     only : GetCrownReduction
+    use DamageMainMod    , only : GetDamageFrac
     use SFParamsMod      , only : SF_val_cwd_frac
     use FatesInterfaceTypesMod , only : nlevdamage
     use EDParamsMod      , only : ED_val_understorey_death
@@ -2528,7 +2528,7 @@ contains
 
              do cd = currentCohort%crowndamage+1, nlevdamage
 
-                call get_damage_frac(currentCohort%crowndamage, cd, currentCohort%pft, cd_frac)
+                call GetDamageFrac(currentCohort%crowndamage, cd, currentCohort%pft, cd_frac)
 
                 ! now to get the number of damaged trees we multiply by damage frac
                 num_trees_cd = num_trees * cd_frac
@@ -2538,7 +2538,7 @@ contains
                 ! if non negligable get litter
                 if (num_trees_cd > nearzero ) then
 
-                   call get_crown_reduction(cd, crown_reduction)
+                   call GetCrownReduction(cd, crown_reduction)
 
                    
                    ! leaf loss in kg

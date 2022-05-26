@@ -59,7 +59,7 @@ contains
     use FatesConstantsMod,  only : tfrz => t_water_freeze_k_1atm
     use FatesInterfaceTypesMod        , only : hlm_hio_ignore_val   
     use FatesConstantsMod,  only : fates_check_param_set
-    use DamageMainMod,      only : get_damage_mortality
+    use DamageMainMod,      only : GetDamageMortality
     
     type (ed_cohort_type), intent(in) :: cohort_in 
     type (bc_in_type), intent(in) :: bc_in
@@ -123,7 +123,7 @@ contains
 
     ! Damage dependent mortality
     if (hlm_use_crown_damage .eq. itrue) then
-       call get_damage_mortality(cohort_in%crowndamage, cohort_in%pft, dgmort)
+       call GetDamageMortality(cohort_in%crowndamage, cohort_in%pft, dgmort)
     else
        dgmort = 0.0_r8
     end if

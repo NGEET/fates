@@ -98,7 +98,7 @@ module FatesAllometryMod
   use FatesGlobals     , only : FatesWarn,N2S,A2S,I2S
   use EDTypesMod       , only : nlevleaf, dinc_vai
   use EDTypesMod       , only : nclmax
-  use DamageMainMod    , only : get_crown_reduction
+  use DamageMainMod    , only : GetCrownReduction
 
   implicit none
 
@@ -365,7 +365,7 @@ contains
   
   subroutine bagw_allom(d,ipft,crowndamage, bagw,dbagwdd)
 
-    use DamageMainMod, only : get_crown_reduction
+    use DamageMainMod, only : GetCrownReduction
     use FatesParameterDerivedMod, only : param_derived
     
     real(r8),intent(in)    :: d       ! plant diameter [cm]
@@ -407,7 +407,7 @@ contains
       end select
       
       if(crowndamage > 1) then
-         call get_crown_reduction(crowndamage, crown_reduction)
+         call GetCrownReduction(crowndamage, crown_reduction)
          bagw = bagw - (bagw * branch_frac * crown_reduction)
          if(present(dbagwdd))then
             dbagwdd = dbagwdd - (dbagwdd * branch_frac * crown_reduction)
@@ -546,7 +546,7 @@ contains
     ! this routine is not name-spaced with allom_
     ! -------------------------------------------------------------------------
 
-    use DamageMainMod      , only : get_crown_reduction
+    use DamageMainMod      , only : GetCrownReduction
     
     real(r8),intent(in)    :: d             ! plant diameter [cm]
     integer(i4),intent(in) :: ipft          ! PFT index
@@ -577,7 +577,7 @@ contains
 
     if ( crowndamage > 1 ) then
 
-       call  get_crown_reduction(crowndamage, crown_reduction)
+       call  GetCrownReduction(crowndamage, crown_reduction)
        bl = bl * (1.0_r8 - crown_reduction)
        if(present(dbldd))then
           dbldd = dblmaxdd * canopy_trim * (1.0_r8 - crown_reduction)
@@ -896,7 +896,7 @@ contains
 
   subroutine bsap_allom(d,ipft,crowndamage,canopy_trim,sapw_area,bsap,dbsapdd)
 
-    use DamageMainMod , only : get_crown_reduction
+    use DamageMainMod , only : GetCrownReduction
     use FatesParameterDerivedMod, only : param_derived
     
     real(r8),intent(in)           :: d           ! plant diameter [cm]
@@ -949,7 +949,7 @@ contains
        ! fraction of biomass that would be in branches (pft specific)
        if(crowndamage > 1)then
 
-          call get_crown_reduction(crowndamage, crown_reduction)
+          call GetCrownReduction(crowndamage, crown_reduction)
           bsap = bsap - (bsap * agb_frac *  branch_frac * crown_reduction)
           if(present(dbsapdd))then
              dbsapdd = dbsapdd - (dbsapdd * agb_frac * branch_frac * crown_reduction)
@@ -2128,13 +2128,13 @@ contains
         c_area = spreadterm * dbh ** crown_area_to_dbh_exponent
 
         if(crowndamage > 1) then
-           call get_crown_reduction(crowndamage, crown_reduction)
+           call GetCrownReduction(crowndamage, crown_reduction)
            c_area = c_area * (1.0_r8 - crown_reduction)
         end if
         
      else
         if(crowndamage > 1) then
-           call get_crown_reduction(crowndamage, crown_reduction)
+           call GetCrownReduction(crowndamage, crown_reduction)
            c_area = c_area/(1.0_r8 - crown_reduction)
         end if
         dbh = (c_area / spreadterm) ** (1./crown_area_to_dbh_exponent)

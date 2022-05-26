@@ -1081,7 +1081,7 @@ contains
      use FatesConstantsMod , only : itrue
      use FatesConstantsMod, only : days_per_year
      use EDTypesMod  , only : maxCohortsPerPatch
-     use DamageMainMod, only : get_crown_reduction
+     use DamageMainMod, only : GetCrownReduction
      !
      ! !ARGUMENTS
      type (ed_site_type), intent(inout),  target :: currentSite
@@ -2084,7 +2084,7 @@ contains
     ! consistent with stuctural biomass (or, in the case of grasses, leaf biomass)
     ! then correct (increase) the dbh to match that.
     ! -----------------------------------------------------------------------------------
-    use DamageMainMod, only : get_crown_reduction
+    use DamageMainMod, only : GetCrownReduction
     
     ! argument
     type(ed_cohort_type),intent(inout) :: currentCohort

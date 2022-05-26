@@ -165,7 +165,7 @@ variables:
 		fates_damage_event_code:long_name = "Integer code that options how damage events are structured" ;
         double fates_damage_frac(fates_pft) ;
                 fates_damage_frac:units = "fraction";         
-                fates_damage_frac:long_name = "fraction of cohort damaged in each damage event (event frequency specified in the is_it_damage_time subroutine)";
+                fates_damage_frac:long_name = "fraction of cohort damaged in each damage event (event frequency specified in the IsItDamageTime subroutine)";
         double fates_damage_mort_p1(fates_pft) ;
                fates_damage_mort_p1:units = "fraction crown loss - a value of 0.8 means 50% mortality with 80% loss of crown";
                fates_damage_mort_p1:long_name = "inflection point of damage mortality function - to turn off damage mortality set this to a large number" ;

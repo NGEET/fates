@@ -5,8 +5,8 @@ module DamageMainMod
   use FatesConstantsMod     , only : itrue, ifalse
   use FatesConstantsMod     , only : years_per_day
   use FatesGlobals          , only : fates_log
-  use FatesGlobals      , only : endrun => fates_endrun
-  use shr_log_mod       , only : errMsg => shr_log_errMsg
+  use FatesGlobals          , only : endrun => fates_endrun
+  use shr_log_mod           , only : errMsg => shr_log_errMsg
   use EDPftvarcon           , only : EDPftvarcon_inst
   use EDParamsMod           , only : damage_event_code
   use EDtypesMod            , only : ed_site_type
@@ -34,16 +34,16 @@ module DamageMainMod
   implicit none
   private
 
-  logical, protected :: damage_time  ! if true then damage occurs during current time step
+  logical, protected :: DamageTime  ! if true then damage occurs during current time step
 
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
   
-  public :: get_crown_reduction
-  public :: get_damage_frac
-  public :: is_it_damage_time
-  public :: damage_time
-  public :: get_damage_mortality
+  public :: GetCrownReduction
+  public :: GetDamageFrac
+  public :: IsItDamageTime
+  public :: DamageTime
+  public :: GetDamageMortality
   
   logical :: debug = .false.  ! for debugging
 
@@ -53,7 +53,7 @@ module DamageMainMod
 contains
 
 
-  subroutine is_it_damage_time(is_master, currentSite)
+  subroutine IsItDamageTime(is_master, currentSite)
 
     !----------------------------------------------------------------------------
     ! This subroutine determines whether damage should occur (it is called daily)
@@ -72,36 +72,36 @@ contains
     
     character(len=64) :: fmt = '(a,i2.2,a,i2.2,a,i4.4)'
 
-    damage_time = .false.
+    DamageTime = .false.
     icode = int(damage_event_code)
 
     model_day_int = nint(hlm_model_day)
     
     if(icode .eq. 1) then
        ! Damage is turned off 
-       damage_time = .false.
+       DamageTime = .false.
 
     else if(icode .eq. 2) then
        ! Damage event on first time step 
        if(model_day_int .eq.1) then
-          damage_time = .true.
+          DamageTime = .true.
        end if
 
     else if(icode .eq. 3) then
        ! Damage event every day - not sure this is recommended as it will result in a very large
        ! number of cohorts 
-       damage_time = .true.
+       DamageTime = .true.
 
     else if(icode .eq. 4) then
        ! Damage event once a month
        if(hlm_current_day.eq.1 ) then
-          damage_time = .true.
+          DamageTime = .true.
        end if
 
     else if(icode < 0 .and. icode > -366) then
        ! Damage event every year on a specific day of the year
        if(hlm_day_of_year .eq. abs(icode) ) then
-          damage_time = .true.
+          DamageTime = .true.
        end if
 
     else if(icode > 10000 ) then
@@ -113,31 +113,31 @@ contains
        if(hlm_current_day .eq. damage_date .and. &
             hlm_current_month .eq. damage_month .and. &
             hlm_current_year .eq. damage_year ) then
-          damage_time = .true.
+          DamageTime = .true.
        end if
 
     else
        ! Bad damage event flag
        write(fates_log(),*) 'An invalid damage code was specified in fates_params'
-       write(fates_log(),*) 'Check DamageMainMod.F90:is_it_damage_time()'
+       write(fates_log(),*) 'Check DamageMainMod.F90:IsItDamageTime()'
        write(fates_log(),*) 'for a breakdown of the valide codes and change'
        write(fates_log(),*) 'fates_damage_event_code in the file accordingly.'
        write(fates_log(),*) 'exiting'
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
-    if(damage_time .and. (is_master.eq.itrue) ) then
+    if(DamageTime .and. (is_master.eq.itrue) ) then
        write(fates_log(),fmt) 'Damage Event Enacted on date: ', &
             hlm_current_month,'-', hlm_current_day,'-',hlm_current_year
     end if
   
     return
     
-  end subroutine is_it_damage_time
+  end subroutine IsItDamageTime
   
   !----------------------------------------------------------------------------
 
-  subroutine get_damage_frac(cc_cd, nc_cd, pft, dist_frac)
+  subroutine GetDamageFrac(cc_cd, nc_cd, pft, dist_frac)
 
 
     ! given current cohort damage class find the fraction of individuals
@@ -160,11 +160,11 @@ contains
     ! (if damage is occuring annually don't do this)
     
 
-  end subroutine get_damage_frac
+  end subroutine GetDamageFrac
 
   !-------------------------------------------------------    
   
-  subroutine get_crown_reduction(crowndamage, crown_reduction)
+  subroutine GetCrownReduction(crowndamage, crown_reduction)
 
     !------------------------------------------------------------------                                                                     
     ! This function takes the crown damage class of a cohort (integer)
@@ -185,13 +185,13 @@ contains
     crown_reduction = min(1.0_r8, (real(crowndamage) - 1.0_r8) * class_width)
 
     return
-  end subroutine get_crown_reduction
+  end subroutine GetCrownReduction
 
 
   !----------------------------------------------------------------------------------------
 
 
-  subroutine get_damage_mortality(crowndamage,pft, dgmort)
+  subroutine GetDamageMortality(crowndamage,pft, dgmort)
 
     use FatesInterfaceTypesMod     , only : nlevdamage
     use EDPftvarcon                , only : EDPftvarcon_inst
@@ -226,7 +226,7 @@ contains
     end if
 
     return
-  end subroutine get_damage_mortality
+  end subroutine GetDamageMortality
   !----------------------------------------------------------------------------------------
 
  

@@ -1839,7 +1839,7 @@ end subroutine flush_hvars
     use EDTypesMod        , only : nlevleaf
     use EDParamsMod,           only : ED_val_history_height_bin_edges
     use FatesInterfaceTypesMod, only : nlevdamage
-    use DamageMainMod         , only : damage_time
+    use DamageMainMod         , only : DamageTime
 
     ! Arguments
     class(fates_history_interface_type)             :: this

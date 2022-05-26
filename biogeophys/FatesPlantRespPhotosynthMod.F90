@@ -139,7 +139,7 @@ contains
     use FatesAllometryMod, only : set_root_fraction
     use FatesAllometryMod, only : decay_coeff_kn
 
-    use DamageMainMod, only : get_crown_reduction
+    use DamageMainMod, only : GetCrownReduction
 
     use FatesInterfaceTypesMod, only : hlm_use_crown_damage
     
@@ -659,7 +659,7 @@ contains
 
                          agb_frac = prt_params%allom_agb_frac(currentCohort%pft)
                          branch_frac = param_derived%branch_frac(currentCohort%pft)
-                         call get_crown_reduction(currentCohort%crowndamage, crown_reduction)
+                         call GetCrownReduction(currentCohort%crowndamage, crown_reduction)
 
                          ! need the undamaged version if using ratios with roots
                          sapw_c = sapw_c / &

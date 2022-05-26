@@ -81,7 +81,7 @@ module EDMainMod
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
   use FatesAllometryMod        , only : h_allom,tree_sai,tree_lai
   use EDLoggingMortalityMod    , only : IsItLoggingTime
-  use DamageMainMod            , only : is_it_damage_time
+  use DamageMainMod            , only : IsItDamageTime
   use EDPatchDynamicsMod       , only : get_frac_site_primary
   use FatesGlobals             , only : endrun => fates_endrun
   use ChecksBalancesMod        , only : SiteMassStock
@@ -171,7 +171,7 @@ contains
     call IsItLoggingTime(hlm_masterproc,currentSite)
 
     ! Call a routine that identifies if damage should occur
-    call is_it_damage_time(hlm_masterproc, currentSite)
+    call IsItDamageTime(hlm_masterproc, currentSite)
  
     !**************************************************************************
     ! Fire, growth, biogeochemistry.
@@ -320,7 +320,7 @@ contains
     use FatesInterfaceTypesMod, only : hlm_use_cohort_age_tracking
     use FatesConstantsMod, only : itrue
     use PRTGenericMod        , only : all_carbon_elements
-    use DamageMainMod        , only : damage_time
+    use DamageMainMod        , only : DamageTime
     use EDCohortDynamicsMod   , only : zero_cohort, copy_cohort, insert_cohort
     use EDCohortDynamicsMod   , only : DeallocateCohort
     use FatesPlantHydraulicsMod, only : InitHydrCohort
