@@ -1323,7 +1323,6 @@ contains
       patchno = 1
       currentPatch => currentSite%oldest_patch
       do while(associated(currentPatch))
-        write(fates_log(),*) 'set_patchno start: currentPatch%patchno', currentPatch%patchno
         if(currentPatch%nocomp_pft_label.eq.0)then
          ! for bareground patch, we make the patch number 0
          ! we also do not count this in the veg. patch numbering scheme.
@@ -1332,7 +1331,6 @@ contains
          currentPatch%patchno = patchno
          patchno = patchno + 1
         endif
-        write(fates_log(),*) 'set_patchno stop: currentPatch%patchno', currentPatch%patchno
         currentPatch => currentPatch%younger
        enddo
     endif
