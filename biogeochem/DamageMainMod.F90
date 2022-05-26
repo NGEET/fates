@@ -34,7 +34,7 @@ module DamageMainMod
   implicit none
   private
 
-  logical, protected :: DamageTime  ! if true then damage occurs during current time step
+  logical, protected :: damage_time  ! if true then damage occurs during current time step
 
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
@@ -42,7 +42,7 @@ module DamageMainMod
   public :: GetCrownReduction
   public :: GetDamageFrac
   public :: IsItDamageTime
-  public :: DamageTime
+  public :: damage_time
   public :: GetDamageMortality
   
   logical :: debug = .false.  ! for debugging
@@ -72,36 +72,36 @@ contains
     
     character(len=64) :: fmt = '(a,i2.2,a,i2.2,a,i4.4)'
 
-    DamageTime = .false.
+    damage_time = .false.
     icode = int(damage_event_code)
 
     model_day_int = nint(hlm_model_day)
     
     if(icode .eq. 1) then
        ! Damage is turned off 
-       DamageTime = .false.
+       damage_time = .false.
 
     else if(icode .eq. 2) then
        ! Damage event on first time step 
        if(model_day_int .eq.1) then
-          DamageTime = .true.
+          damage_time = .true.
        end if
 
     else if(icode .eq. 3) then
        ! Damage event every day - not sure this is recommended as it will result in a very large
        ! number of cohorts 
-       DamageTime = .true.
+       damage_time = .true.
 
     else if(icode .eq. 4) then
        ! Damage event once a month
        if(hlm_current_day.eq.1 ) then
-          DamageTime = .true.
+          damage_time = .true.
        end if
 
     else if(icode < 0 .and. icode > -366) then
        ! Damage event every year on a specific day of the year
        if(hlm_day_of_year .eq. abs(icode) ) then
-          DamageTime = .true.
+          damage_time = .true.
        end if
 
     else if(icode > 10000 ) then
@@ -113,7 +113,7 @@ contains
        if(hlm_current_day .eq. damage_date .and. &
             hlm_current_month .eq. damage_month .and. &
             hlm_current_year .eq. damage_year ) then
-          DamageTime = .true.
+          damage_time = .true.
        end if
 
     else
