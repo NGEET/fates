@@ -38,8 +38,7 @@ Module FatesHistoryInterfaceMod
   use FatesInterfaceTypesMod        , only : hlm_use_planthydro
   use FatesInterfaceTypesMod        , only : hlm_use_ed_st3
   use FatesInterfaceTypesMod        , only : hlm_use_cohort_age_tracking
-  use FatesInterfaceTypesMod        , only : hlm_use_canopy_damage
-  use FatesInterfaceTypesMod        , only : hlm_use_understory_damage
+  use FatesInterfaceTypesMod        , only : hlm_use_crown_damage
   use FatesInterfaceTypesMod        , only : numpft
   use FatesInterfaceTypesMod        , only : hlm_freq_day
   use FatesInterfaceTypesMod        , only : hlm_parteh_mode
@@ -2208,7 +2207,7 @@ end subroutine flush_hvars
       end do
       
       ! damage variables - site level - this needs to be OUT of the patch loop 
-      if(hlm_use_canopy_damage .eq. itrue .or. hlm_use_understory_damage .eq. itrue) then
+      if(hlm_use_crown_damage .eq. itrue) then
 
          this%hvars(ih_crownarea_canopy_damage_si)%r81d(io_si) = &
               this%hvars(ih_crownarea_canopy_damage_si)%r81d(io_si) + &
@@ -2741,7 +2740,7 @@ end subroutine flush_hvars
                end if
 
                 ! damage variables - cohort level 
-                    if(hlm_use_canopy_damage .eq. itrue .or. hlm_use_understory_damage .eq. itrue) then
+                    if(hlm_use_crown_damage .eq. itrue) then
 
                        cdpf = get_cdamagesizepft_class_index(ccohort%dbh, ccohort%crowndamage, ccohort%pft)
                   
@@ -2891,7 +2890,7 @@ end subroutine flush_hvars
 
 
                   ! damage variables - canopy
-                  if(hlm_use_canopy_damage .eq. itrue .or. hlm_use_understory_damage .eq. itrue) then
+                  if(hlm_use_crown_damage .eq. itrue) then
 
                      ! carbon starvation mortality in the canopy by size x damage x pft 
                      this%hvars(ih_m3_mortality_canopy_si_cdpf)%r82d(io_si,cdpf) = &
@@ -3023,7 +3022,7 @@ end subroutine flush_hvars
 
 
                   ! damage variables - understory
-                  if(hlm_use_canopy_damage .eq. itrue .or. hlm_use_understory_damage .eq. itrue) then
+                  if(hlm_use_crown_damage .eq. itrue) then
 
                      ! carbon mortality in the understory by damage x size x pft
                      this%hvars(ih_m3_mortality_understory_si_cdpf)%r82d(io_si,cdpf) = &
@@ -3300,8 +3299,7 @@ end subroutine flush_hvars
          end do
       end do
 
-      if(hlm_use_canopy_damage .eq. itrue .or. &
-           hlm_use_understory_damage .eq. itrue ) then
+      if(hlm_use_crown_damage .eq. itrue) then
 
          do i_pft = 1, numpft
             do icdam = 1, nlevdamage
@@ -3384,7 +3382,7 @@ end subroutine flush_hvars
                hio_m9_si_scpf(io_si,i_scpf) + &
                hio_m10_si_scpf(io_si,i_scpf)
 
-            if(hlm_use_canopy_damage .eq. itrue .or. hlm_use_understory_damage .eq. itrue) then
+            if(hlm_use_crown_damage .eq. itrue) then
                hio_mortality_si_pft(io_si, i_pft) = hio_mortality_si_pft(io_si,i_pft) + &
                     this%hvars(ih_m11_si_scpf)%r82d(io_si,i_scpf)
             end if
@@ -6842,7 +6840,7 @@ end subroutine update_history_hifrq
           index = ih_resp_m_understory_si_scls)
 
  ! CROWN DAMAGE VARIABLES
-    if(hlm_use_canopy_damage .eq. itrue .or. hlm_use_understory_damage .eq. itrue) then 
+    if(hlm_use_crown_damage .eq. itrue) then 
 
        call this%set_history_var(vname='FATES_CROWNAREA_CANOPY_CD', units = 'm2 m-2 yr-1',         &
             long='crownarea lost to damage each year', use_default='inactive',   &

@@ -1786,8 +1786,7 @@ contains
 
  subroutine set_restart_vectors(this,nc,nsites,sites)
 
-   use FatesInterfaceTypesMod, only : hlm_use_canopy_damage
-   use FatesInterfaceTypesMod, only : hlm_use_understory_damage
+   use FatesInterfaceTypesMod, only : hlm_use_crown_damage
    use FatesInterfaceTypesMod, only : fates_maxElementsPerPatch
    use FatesInterfaceTypesMod, only : numpft
    use EDTypesMod, only : ed_site_type
@@ -2369,7 +2368,7 @@ contains
 
           ! this only copies live portions of transitions - but that's ok because the mortality
           ! bit only needs to be added for history outputs
-          if(hlm_use_canopy_damage .eq. itrue .or. hlm_use_understory_damage .eq. itrue) then
+          if(hlm_use_crown_damage .eq. itrue) then
              
              do i_scls = 1, nlevsclass
                 do i_cdam = 1, nlevdamage
@@ -2694,9 +2693,8 @@ contains
      use EDTypesMod, only : numWaterMem
      use EDTypesMod, only : num_vegtemp_mem
      use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
-     use FatesInterfaceTypesMod, only : hlm_use_canopy_damage
-     use FatesInterfaceTypesMod, only : hlm_use_understory_damage
-  
+     use FatesInterfaceTypesMod, only : hlm_use_crown_damage
+    
      
      ! !ARGUMENTS:
      class(fates_restart_interface_type) , intent(inout) :: this
@@ -3296,7 +3294,7 @@ contains
              io_idx_si_sc = io_idx_si_sc + 1
           end do
           
-          if (hlm_use_canopy_damage .eq. itrue .or. hlm_use_understory_damage .eq. itrue) then
+          if (hlm_use_crown_damage .eq. itrue) then
              do i_cdam = 1, nlevdamage
                 do i_pft = 1, numpft
                    do i_scls = 1, nlevsclass

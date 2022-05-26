@@ -136,8 +136,7 @@ contains
 
     use DamageMainMod, only : get_crown_reduction
 
-    use FatesInterfaceTypesMod, only : hlm_use_canopy_damage
-    use FatesInterfaceTypesMod, only : hlm_use_understory_damage
+    use FatesInterfaceTypesMod, only : hlm_use_crown_damage
     
     ! ARGUMENTS:
     ! -----------------------------------------------------------------------------------
@@ -651,7 +650,7 @@ contains
                       sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
                       fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_elements)
                       
-                      if (hlm_use_canopy_damage .eq. itrue .or. hlm_use_understory_damage .eq. itrue) then
+                      if (hlm_use_crown_damage .eq. itrue) then
 
                          agb_frac = prt_params%allom_agb_frac(currentCohort%pft)
                          branch_frac = param_derived%branch_frac(currentCohort%pft)

@@ -11,6 +11,7 @@ Module EDCohortDynamicsMod
   use FatesInterfaceTypesMod     , only : hlm_use_planthydro
   use FatesInterfaceTypesMod     , only : hlm_use_sp
   use FatesInterfaceTypesMod     , only : hlm_use_cohort_age_tracking
+  use FatesInterfaceTypesMod     , only : hlm_use_crown_damage
   use FatesInterfaceTypesMod     , only : hlm_is_restart
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : fates_unset_int
@@ -723,8 +724,6 @@ contains
     ! terminates all cohorts when they get too small
     !
     ! !USES:
-    use FatesInterfaceTypesMod   , only : hlm_use_canopy_damage
-    use FatesInterfaceTypesMod   , only : hlm_use_understory_damage
     
     !
     ! !ARGUMENTS

@@ -209,10 +209,13 @@ module EDParamsMod
 
    character(len=param_string_length),parameter,public :: eca_name_plant_escalar = "fates_eca_plant_escalar"
 
-   ! Damage Control Parameters (ONLY RELEVANT WHEN USE_FATES_CANOPY_DAMAGE OR USE_FATES_UNDERSTORY_DAMAGE = TRUE)
+   ! Damage Control Parameters (ONLY RELEVANT WHEN USE_FATES_DAMAGE = TRUE)
    !---------------------------------------------------------------------------------------------------------------
-    real(r8),protected,public :: damage_event_code          ! Code that options how damage events are structured 
+   real(r8),protected,public :: damage_event_code          ! Code that options how damage events are structured 
    character(len=param_string_length),parameter,public :: damage_name_event_code = "fates_damage_event_code"
+
+   real(r8),protected,public :: damage_canopy_layer_code  ! Code that changes whether damage affects canopy trees (1), understory trees (2)
+   character(len=param_string_length),parameter,public :: damage_name_canopy_layer_code = "fates_damage_canopy_layer_code"
   
    public :: FatesParamsInit
    public :: FatesRegisterParams
@@ -279,6 +282,7 @@ contains
     theta_cj_c4                           = nan
     dev_arbitrary                         = nan
     damage_event_code                     = nan
+    damage_canopy_layer_code              = nan
   end subroutine FatesParamsInit
 
   !-----------------------------------------------------------------------
@@ -448,7 +452,10 @@ contains
     call fates_params%RegisterParameter(name=name_dev_arbitrary, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
-     call fates_params%RegisterParameter(name=damage_name_event_code, dimension_shape=dimension_shape_scalar, &
+    call fates_params%RegisterParameter(name=damage_name_event_code, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=damage_name_canopy_layer_code, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
     ! non-scalar parameters
@@ -647,6 +654,9 @@ contains
     call fates_params%RetreiveParameter(name=damage_name_event_code, &
          data=damage_event_code)
 
+    call fates_params%RetreiveParameter(name=damage_name_canopy_layer_code, &
+         data=damage_canopy_layer_code)
+
     ! parameters that are arrays of size defined within the params file and thus need allocating as well
     call fates_params%RetreiveParameterAllocate(name=ED_name_history_sizeclass_bin_edges, &
           data=ED_val_history_sizeclass_bin_edges)
@@ -731,6 +741,7 @@ contains
         write(fates_log(),fmt0) 'cg_strikes = ',cg_strikes
         write(fates_log(),'(a,L2)') 'active_crown_fire = ',active_crown_fire
         write(fates_log(),fmt0) 'damage_event_code = ',damage_event_code
+        write(fates_log(),fmt0) 'damage_canopy_layer_code = ', damage_canopy_layer_code
         write(fates_log(),*) '------------------------------------------------------'
 
      end if

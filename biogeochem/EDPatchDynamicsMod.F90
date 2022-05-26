@@ -472,10 +472,10 @@ contains
     use PRTLossFluxesMod    , only : PRTDamageLosses
     use PRTGenericMod       , only : leaf_organ
     use ChecksBalancesMod   , only : SiteMassStock
-    use FatesInterfaceTypesMod, only : hlm_use_canopy_damage
-    use FatesInterfaceTypesMod, only : hlm_use_understory_damage
+    use FatesInterfaceTypesMod, only : hlm_use_crown_damage
     use FatesInterfaceTypesMod, only : nlevdamage
     use FatesParameterDerivedMod, only : param_derived
+    use EDParamsMod         , only : damage_canopy_layer_code
     
     !
     ! !ARGUMENTS:
@@ -539,11 +539,14 @@ contains
     logical  :: found_youngest_primary       ! logical for finding the first primary forest patch
     integer  :: min_nocomp_pft, max_nocomp_pft, i_nocomp_pft
 
+    integer  :: i_damage_code
     !---------------------------------------------------------------------
 
     real(r8), parameter          :: damage_error_fail = 1.0e-6_r8
     
     !--------------------------------------------------------------------- 
+
+    i_damage_code = int(damage_canopy_layer_code)
     
     total_litter_d = 0.0_r8
    
@@ -760,7 +763,7 @@ contains
 
              
              ! and the damaged trees
-             if(hlm_use_canopy_damage .eq. itrue .or. hlm_use_understory_damage .eq. itrue) then
+             if(hlm_use_crown_damage .eq. itrue) then
                 if( damage_time ) then 
 
                    call damage_litter_fluxes(currentSite, currentPatch, &
@@ -905,7 +908,7 @@ contains
                               total_c * g_per_kg * days_per_sec * years_per_day * ha_per_m2
 
 
-                         if (hlm_use_canopy_damage .eq. itrue .or. hlm_use_understory_damage .eq. itrue) then
+                         if (hlm_use_crown_damage .eq. itrue) then
 
                             currentSite%imort_rate_damage(currentCohort%crowndamage, &
                                  currentCohort%size_class, currentCohort%pft) = &
@@ -1017,7 +1020,7 @@ contains
                    end if
                    
                    ! also track fire damage mortality and cflux along size x damage axis
-                   if(hlm_use_canopy_damage .eq. itrue .or. hlm_use_understory_damage .eq. itrue) then
+                   if(hlm_use_crown_damage .eq. itrue) then
                       if(levcan==ican_upper) then
                          currentSite%fmort_rate_canopy_damage(currentCohort%crowndamage, currentCohort%size_class, &
                               currentCohort%pft) = &
@@ -1178,7 +1181,7 @@ contains
                               logging_coll_under_frac/ hlm_freq_day ) * &
                               total_c * g_per_kg * days_per_sec * years_per_day * ha_per_m2
 
-                         if (hlm_use_canopy_damage .eq. itrue .or. hlm_use_understory_damage .eq. itrue) then 
+                         if (hlm_use_crown_damage .eq. itrue) then 
                             currentSite%imort_rate_damage(currentCohort%crowndamage,&
                                  currentCohort%size_class, currentCohort%pft) = &
                                  currentSite%imort_rate_damage(currentCohort%crowndamage,&
@@ -1253,7 +1256,7 @@ contains
 
                 
                 ! Regardless of disturbance type, reduce mass of damaged trees
-                if(hlm_use_canopy_damage .eq.itrue .or. hlm_use_understory_damage .eq. itrue) then
+                if(hlm_use_crown_damage .eq. itrue) then
                    if(damage_time) then
 
                       ! if woody
@@ -1269,9 +1272,9 @@ contains
 
                                call get_damage_frac(currentCohort%crowndamage, cd, currentCohort%pft, cd_frac)
 
-                               if(hlm_use_canopy_damage .eq. itrue .and. currentCohort%canopy_layer == 1) then
+                               if(i_damage_code .eq. 1 .and. currentCohort%canopy_layer == 1) then
                                   cd_n = currentCohort%n * cd_frac
-                               else if(hlm_use_understory_damage .eq. itrue .and. currentCohort%canopy_layer > 1) then
+                               else if(i_damage_code .eq. 2 .and. currentCohort%canopy_layer > 1) then
                                   cd_n = nc%n * cd_frac
                                else
                                   cd_n = 0._r8
@@ -1346,12 +1349,12 @@ contains
                                   fnrt_c  = nc_d%prt%GetState(fnrt_organ, all_carbon_elements)
 
                                   
-                                  if(hlm_use_canopy_damage .eq. itrue) then
+                                  if(i_damage_code .eq. 1 ) then
                                      currentSite%crownarea_canopy_damage = currentSite%crownarea_canopy_damage + &
                                           (currentCohort%c_area/currentCohort%n - nc_d%c_area/nc_d%n) * nc_d%n 
                                   end if
 
-                                  if(hlm_use_understory_damage .eq. itrue) then
+                                  if(i_damage_code .eq. 2 ) then
                                      currentSite%crownarea_ustory_damage = currentSite%crownarea_ustory_damage + &
                                           (currentCohort%c_area/currentCohort%n - nc_d%c_area/nc_d%n) * nc_d%n
                                   end if
@@ -1387,14 +1390,14 @@ contains
 
                             ! Reduce currentCohort%n now based on sum of all new damage classes  
                             ! And update c_area of the undamaged cohort (since number density has changed)
-                            if(hlm_use_canopy_damage .eq. itrue) then
+                            if(i_damage_code .eq. 1 ) then
                                currentCohort%n = currentCohort%n - cd_n_total
                                call carea_allom(currentCohort%dbh, currentCohort%n, currentSite%spread,&
                                     currentCohort%pft, currentCohort%crowndamage, currentCohort%c_area)
-                            else if(hlm_use_understory_damage .eq. itrue) then
+                            else if(i_damage_code .eq. 2 ) then
                                nc%n = nc%n - cd_n_total
                                call carea_allom(nc%dbh, nc%n, currentSite%spread,&
-                                    nc%pft, nc%crowndamage, nc%c_area)
+                                    nc%pft, nc%crowndamage, nc%c_area)    
                             end if
 
                             
@@ -2383,8 +2386,8 @@ contains
     use SFParamsMod      , only : SF_val_cwd_frac
     use FatesInterfaceTypesMod , only : nlevdamage
     use EDParamsMod      , only : ED_val_understorey_death
-    use FatesInterfaceTypesMod, only : hlm_use_canopy_damage
-    use FatesInterfaceTypesMod, only : hlm_use_understory_damage
+    use EDParamsMod      , only : damage_canopy_layer_code
+    use FatesInterfaceTypesMod, only : hlm_use_crown_damage
     use FatesConstantsMod,      only : itrue
     use FatesParameterDerivedMod, only : param_derived
     !
@@ -2437,7 +2440,11 @@ contains
     integer :: ncwd_no_trunk
     real(r8), allocatable :: SF_val_CWD_frac_canopy(:)
     real(r8) :: cd_n_tot
+    integer :: i_damage_code
+    
     !---------------------------------------------------------------------
+    i_damage_code = int(damage_canopy_layer_code)
+
     total_damage_litter = 0.0_r8
     cd_n_tot = 0.0_r8
     ncwd_no_trunk = ncwd - 1
@@ -2495,15 +2502,17 @@ contains
 
           if(prt_params%woody(currentCohort%pft)==1) then
 
-             if( hlm_use_canopy_damage .eq.itrue .and. &
-                  currentCohort%canopy_layer ==1 .and. .not. currentCohort%isnew) then
+             if( hlm_use_crown_damage .eq.itrue .and. & 
+                  currentCohort%canopy_layer ==1 .and. i_damage_code .eq. 1 .and. &
+                  .not. currentCohort%isnew) then
 
                 ! litter is called before damage - so we need to account for mortality here too
                 num_trees = currentCohort%n * (1.0_r8 - fates_mortality_disturbance_fraction * &
                      min(1.0_r8, currentCohort%dmort* hlm_freq_day))
 
-             else if( hlm_use_understory_damage .eq.itrue .and. &
-                  currentCohort%canopy_layer > 1 .and. .not. currentCohort%isnew) then
+             else if( hlm_use_crown_damage .eq.itrue .and. &
+                  currentCohort%canopy_layer > 1 .and. i_damage_code .eq. 2 .and. &
+                  .not. currentCohort%isnew) then
 
                 ! for trees in new patch to be damaged
                 num_trees = currentCohort%n * (patch_site_areadis/currentPatch%area) * &

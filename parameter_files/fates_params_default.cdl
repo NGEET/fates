@@ -157,6 +157,9 @@ variables:
 	double fates_branch_turnover(fates_pft) ;
 		fates_branch_turnover:units = "yr" ;
 		fates_branch_turnover:long_name = "turnover time of branches" ;
+	double fates_damage_canopy_layer_code ;
+	        fates_damage_canopy_layer_code:units = "unitless" ;
+		fates_damage_canopy_layer_code:long_name = "Integer code that decides whether damage affects canopy trees (1),  understory trees (2)" ;
 	double fates_damage_event_code ;
 		fates_damage_event_code:units = "unitless" ;
 		fates_damage_event_code:long_name = "Integer code that options how damage events are structured" ;
@@ -919,6 +922,8 @@ data:
 
  fates_damage_frac = 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01,
     0.01, 0.01, 0.01, 0.01 ;
+
+ fates_damage_canopy_layer_code = 1 ; 
 
  fates_damage_event_code = 1 ;
 

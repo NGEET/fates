@@ -22,7 +22,6 @@ module EDTypesMod
   use FatesRunningMeanMod,   only : rmean_type
   use FatesInterfaceTypesMod,only : bc_in_type
   use FatesInterfaceTypesMod,only : bc_out_type
-  use FatesInterfaceTypesMod,only : hlm_use_canopy_damage, hlm_use_understory_damage
   
   implicit none
   private               ! By default everything is private

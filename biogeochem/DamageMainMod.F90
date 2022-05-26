@@ -28,8 +28,6 @@ module DamageMainMod
   use FatesInterfaceTypesMod, only : hlm_current_year
   use FatesInterfaceTypesMod, only : hlm_model_day
   use FatesInterfaceTypesMod , only : hlm_day_of_year
-  use FatesInterfaceTypesMod, only : hlm_use_canopy_damage
-  use FatesInterfaceTypesMod, only : hlm_use_understory_damage
   
   
   

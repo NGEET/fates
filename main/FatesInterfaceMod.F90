@@ -778,8 +778,7 @@ contains
          ! These values are used to define the restart file allocations and general structure
          ! of memory for the cohort arrays
 
-         if ( hlm_use_cohort_age_tracking .eq. itrue .or. &
-              hlm_use_canopy_damage .eq. itrue .or. hlm_use_understory_damage .eq. itrue) then
+         if ( hlm_use_cohort_age_tracking .eq. itrue .or. hlm_use_crown_damage .eq. itrue) then
             maxCohortsPerPatch = 300
          else
             maxCohortsPerPatch = 100
@@ -1331,8 +1330,7 @@ contains
          hlm_use_lu_harvest   = unset_int
          hlm_num_lu_harvest_cats   = unset_int
          hlm_use_cohort_age_tracking = unset_int
-         hlm_use_understory_damage = unset_int
-         hlm_use_canopy_damage = unset_int
+         hlm_use_crown_damage = unset_int
          hlm_use_logging   = unset_int
          hlm_use_ed_st3    = unset_int
          hlm_use_ed_prescribed_phys = unset_int
@@ -1645,16 +1643,9 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(hlm_use_understory_damage .eq. unset_int) then
+          if(hlm_use_crown_damage .eq. unset_int) then
             if (fates_global_verbose()) then
-               write(fates_log(), *) 'switch for understory damage unset: hlm_use_understory_damage, exiting'
-            end if
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
-
-          if(hlm_use_canopy_damage .eq. unset_int) then
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'switch for canopy damage unset: hlm_use_canopy_damage, exiting'
+               write(fates_log(), *) 'switch for crown damage unset: hlm_use_crown_damage, exiting'
             end if
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
@@ -1832,17 +1823,10 @@ contains
                   write(fates_log(),*) 'Transfering hlm_use_cohort_age_tracking= ',ival,' to FATES'
                end if
                
-            case('use_understory_damage')
-               hlm_use_understory_damage = ival
+            case('use_crown_damage')
+               hlm_use_crown_damage = ival
                if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_use_understory_damage= ',ival,' to FATES'
-               end if
-
-            case('use_canopy_damage')
-               hlm_use_canopy_damage = ival
-               if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_use_canopy_damage= ',ival,' to FATES'
-                  write(fates_log(),*) 'JN FatesInterfaceMod hlm_use_canopy_damage : ', hlm_use_canopy_damage
+                  write(fates_log(),*) 'Transfering hlm_use_crown_damage= ',ival,' to FATES'
                end if
 
             case('use_logging')

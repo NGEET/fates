@@ -151,11 +151,8 @@ module FatesInterfaceTypesMod
                                                              ! cohort age tracking. 1 = TRUE, 0 = FALSE
 
 
-   integer, public :: hlm_use_canopy_damage ! This flag signals whether or not to use
-                                                             ! the canopy damage module. 1 = TRUE, 0 = FALSE
-
-   integer, public :: hlm_use_understory_damage ! This flag signals whether or not to use
-                                                             ! understory damage. 1 = TRUE, 0 = FALSE
+   integer, public :: hlm_use_crown_damage ! This flag signals whether or not to use
+                                                             ! the crown damage module. 1 = TRUE, 0 = FALSE
 
    
    integer, public :: hlm_use_ed_st3        ! This flag signals whether or not to use
