@@ -1886,7 +1886,6 @@ contains
     real(r8) :: total_canopy_area
     real(r8) :: total_patch_leaf_stem_area
     real(r8) :: weight  ! Weighting for cohort variables in patch
-    real(r8) :: target_c_area
     
     do s = 1,nsites
 
@@ -2249,7 +2248,8 @@ contains
 
    ! Local variables
    real(r8) :: leaf_c                              ! leaf carbon [kg]
-   
+   real(r8) :: target_c_area
+      
    ! Obtain the leaf carbon
    leaf_c = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
 
