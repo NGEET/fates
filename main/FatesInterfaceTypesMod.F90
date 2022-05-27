@@ -146,7 +146,7 @@ module FatesInterfaceTypesMod
                                                   ! cohort age tracking. 1 = TRUE, 0 = FALSE
 
 
-   integer, public :: hlm_use_tree_damage         ! This flag signals whehter or not to turn on the
+   integer, public :: hlm_use_tree_damage         ! This flag signals whether or not to turn on the
                                                   ! tree damage module
    
    integer, public :: hlm_use_ed_st3              ! This flag signals whether or not to use

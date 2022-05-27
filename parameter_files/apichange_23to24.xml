@@ -36,7 +36,7 @@
 		<na> fates_hydro_solver </na>
 		<di> scalar </di>
 		<un> unitless </un>
-		<ln> switch designating which numerical solver for plant hydraulics, 1 = 1D taylor, 2 = 2D Picard </ln>
+		<ln> switch designating which numerical solver for plant hydraulics, 1 = 1D taylor, 2 = 2D Picard, 3 = 2D Newton (deprecated) </ln>
 		<val> 1 </val>
 	 </mod>
 	 <mod type="variable_add">
