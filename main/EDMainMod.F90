@@ -320,7 +320,6 @@ contains
     use FatesInterfaceTypesMod, only : hlm_use_cohort_age_tracking
     use FatesConstantsMod, only : itrue
     use PRTGenericMod        , only : all_carbon_elements
-    use DamageMainMod        , only : damage_time
     use EDCohortDynamicsMod   , only : zero_cohort, copy_cohort, insert_cohort
     use EDCohortDynamicsMod   , only : DeallocateCohort
     use FatesPlantHydraulicsMod, only : InitHydrCohort

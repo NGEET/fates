@@ -766,7 +766,7 @@ contains
              
              ! and the damaged trees
              if(hlm_use_crown_damage .eq. itrue) then
-                if( damage_time ) then 
+                if(damage_time) then 
 
                    call damage_litter_fluxes(currentSite, currentPatch, &
                         new_patch, patch_site_areadis, patch_damage_litter)
