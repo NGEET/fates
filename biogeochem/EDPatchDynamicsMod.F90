@@ -62,7 +62,7 @@ module EDPatchDynamicsMod
   use EDLoggingMortalityMod, only : logging_time
   use EDLoggingMortalityMod, only : get_harvest_rate_area
   use EDParamsMod          , only : fates_mortality_disturbance_fraction
-  use DamageMainMod        , only : DamageTime
+  use DamageMainMod        , only : damage_time
   use FatesAllometryMod    , only : carea_allom
   use FatesAllometryMod    , only : set_root_fraction
   use FatesConstantsMod    , only : g_per_kg
@@ -766,7 +766,7 @@ contains
              
              ! and the damaged trees
              if(hlm_use_crown_damage .eq. itrue) then
-                if( DamageTime ) then 
+                if(damage_time) then 
 
                    call damage_litter_fluxes(currentSite, currentPatch, &
                         new_patch, patch_site_areadis, patch_damage_litter)
@@ -1259,7 +1259,7 @@ contains
                 
                 ! Regardless of disturbance type, reduce mass of damaged trees
                 if(hlm_use_crown_damage .eq. itrue) then
-                   if(DamageTime) then
+                   if(damage_time) then
 
                       ! if woody
                       if (prt_params%woody(currentCohort%pft)==1  ) then
@@ -1560,7 +1560,7 @@ contains
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
-    if (DamageTime) then
+    if (damage_time) then
 
        
        write(fates_log(),*) 'Damage to litter: ',total_litter_d
