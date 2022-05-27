@@ -14,6 +14,7 @@ module FatesInterfaceMod
    use EDTypesMod                , only : dlower_vai
    use EDParamsMod               , only : ED_val_vai_top_bin_width
    use EDParamsMod               , only : ED_val_vai_width_increase_factor
+   use EDParamsMod               , only : ED_val_history_damage_bin_edges
    use EDParamsMod               , only : maxpatch_total
    use EDParamsMod               , only : maxpatch_primary
    use EDParamsMod               , only : maxpatch_secondary
@@ -373,6 +374,10 @@ contains
     end if
     fates%bc_out(s)%plant_stored_h2o_si = 0.0_r8
 
+    
+    fates%bc_out(s)%hrv_deadstemc_to_prod10c = 0.0_r8
+    fates%bc_out(s)%hrv_deadstemc_to_prod100c = 0.0_r8
+    
     return
   end subroutine zero_bcs
 
@@ -879,7 +884,8 @@ contains
          nlevage = size(ED_val_history_ageclass_bin_edges,dim=1)
          nlevheight = size(ED_val_history_height_bin_edges,dim=1)
          nlevcoage = size(ED_val_history_coageclass_bin_edges,dim=1)
-
+         nlevdamage = size(ED_val_history_damage_bin_edges, dim=1)
+         
          ! do some checks on the size, age, and height bin arrays to make sure they make sense:
          ! make sure that all start at zero, and that both are monotonically increasing
          if ( ED_val_history_sizeclass_bin_edges(1) .ne. 0._r8 ) then
@@ -1047,6 +1053,7 @@ contains
        integer :: icwd
        integer :: ifuel
        integer :: ican
+       integer :: icdam
        integer :: ileaf
        integer :: iage
        integer :: iheight
@@ -1090,14 +1097,21 @@ contains
        allocate( fates_hdim_cwdmap_levelcwd(num_elements*ncwd))
        allocate( fates_hdim_agemap_levelage(num_elements*nlevage))
 
-
+       allocate( fates_hdim_levdamage(1:nlevdamage ))
+       allocate( fates_hdim_scmap_levcdsc(nlevsclass*nlevdamage))
+       allocate( fates_hdim_cdmap_levcdsc(nlevsclass*nlevdamage))
+       allocate( fates_hdim_scmap_levcdpf(nlevsclass*nlevdamage * numpft))
+       allocate( fates_hdim_cdmap_levcdpf(nlevsclass*nlevdamage * numpft))
+       allocate( fates_hdim_pftmap_levcdpf(nlevsclass*nlevdamage * numpft))
+       
        ! Fill the IO array of plant size classes
        fates_hdim_levsclass(:) = ED_val_history_sizeclass_bin_edges(:)
        fates_hdim_levage(:) = ED_val_history_ageclass_bin_edges(:)
        fates_hdim_levheight(:) = ED_val_history_height_bin_edges(:)
        fates_hdim_levcoage(:) = ED_val_history_coageclass_bin_edges(:)
        fates_hdim_levleaf(:) = dlower_vai(:)
-
+       fates_hdim_levdamage(:) = ED_val_history_damage_bin_edges(:)
+       
        ! make pft array
        do ipft=1,numpft
           fates_hdim_levpft(ipft) = ipft
@@ -1188,6 +1202,27 @@ contains
           end do
        end do
 
+       i=0
+       do icdam=1,nlevdamage
+          do isc=1,nlevsclass
+             i=i+1
+             fates_hdim_scmap_levcdsc(i) = isc
+             fates_hdim_cdmap_levcdsc(i) = icdam
+          end do
+       end do
+
+       i=0
+       do ipft=1,numpft
+          do icdam=1,nlevdamage
+             do isc=1,nlevsclass
+                i=i+1
+                fates_hdim_scmap_levcdpf(i) = isc
+                fates_hdim_cdmap_levcdpf(i) = icdam
+                fates_hdim_pftmap_levcdpf(i) = ipft
+             end do
+          end do
+       end do
+       
        i=0
        do ipft=1,numpft
           do ican=1,nclmax
@@ -1324,6 +1359,7 @@ contains
          hlm_nu_com      = 'unset'
          hlm_decomp      = 'unset'
          hlm_nitrogen_spec = unset_int
+         hlm_use_tree_damage = unset_int
          hlm_phosphorus_spec = unset_int
          hlm_use_ch4       = unset_int
          hlm_use_vertsoilc = unset_int
@@ -1494,7 +1530,16 @@ contains
             write(fates_log(),*) 'FATES dimension/parameter unset: hlm_nu_com, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
-         
+
+         if(hlm_use_tree_damage .eq. unset_int .or. hlm_use_tree_damage .eq. itrue) then
+            write(fates_log(),*) 'FATES dimension/parameter unset: hlm_use_tree_damage, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(hlm_use_tree_damage .eq. itrue) then
+            write(fates_log(),*) 'hlm_use_tree_damage is not available yet, value: ',hlm_use_tree_damage,' ,set to false'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
          
          if(hlm_nitrogen_spec .eq. unset_int) then
             write(fates_log(),*) 'FATES parameters unset: hlm_nitrogen_spec, exiting'
@@ -1645,6 +1690,12 @@ contains
                   write(fates_log(),*) 'Transfering hlm_ipedof = ',ival,' to FATES'
                end if
 
+            case('use_tree_damage')
+               hlm_use_tree_damage = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_tree_damage = ',ival,' to FATES'
+               end if
+               
             case('nitrogen_spec')
                hlm_nitrogen_spec = ival
                if (fates_global_verbose()) then

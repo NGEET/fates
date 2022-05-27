@@ -1474,8 +1474,9 @@ contains
      ! -----------------------------------------------------------------------------------
     use FatesConstantsMod  , only : fates_check_param_set
     use FatesConstantsMod  , only : itrue, ifalse
-    use EDParamsMod        , only : logging_mechanical_frac, logging_collateral_frac, logging_direct_frac
-    use FatesInterfaceTypesMod         , only : hlm_use_fixed_biogeog,hlm_use_sp
+    use EDParamsMod        , only : logging_mechanical_frac, logging_collateral_frac
+    use EDParamsMod        , only : logging_direct_frac,logging_export_frac
+    use FatesInterfaceTypesMod, only : hlm_use_fixed_biogeog,hlm_use_sp, hlm_name
 
      ! Argument
      logical, intent(in) :: is_master    ! Only log if this is the master proc
@@ -1576,6 +1577,14 @@ contains
         call endrun(msg=errMsg(sourcefile, __LINE__))
      endif
 
+     ! logging export turned off in CLM until the interface is included
+     if(logging_export_frac>nearzero .and. hlm_name .eq. 'CLM') then
+        write(fates_log(),*) 'The harvest to wood-product interface with CLM is not yet operational'
+        write(fates_log(),*) 'This feature is only available in ELM at the time being'
+        write(fates_log(),*) 'Please make sure the parameter fates_lu_logging_export_frac = 0'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+
+     
      ! Same for phosphorus
      if (any(EDPftvarcon_inst%prescribed_puptake(:) < -nearzero ) .or. &
           any(EDPftvarcon_inst%prescribed_puptake(:) > 10._r8 )) then

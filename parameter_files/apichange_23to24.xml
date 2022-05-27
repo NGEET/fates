@@ -19,7 +19,7 @@
   <mods>
 	 <mod type="dimension_add">
 		<di> fates_history_damage_bins </di>
-		<val> 3 </val>
+		<val> 2 </val>
 	 </mod>
 	 <mod type="variable_change" name="fates_fire_crown_depth_frac"> 
 		<na> fates_allom_crown_depth_frac </na>
@@ -44,7 +44,7 @@
 		<di> fates_history_damage_bins </di>
 		<un> % crown loss </un>
 		<ln> Lower edges for damage class bins used in cohort history output </ln>
-		<val> 0, 80, 100 </val>
+		<val> 0, 80 </val>
 	 </mod>
 	 <mod type="variable_add">
 		<na> fates_damage_frac </na>
@@ -536,6 +536,13 @@
 		<di> scalar </di>
 		<un> unitless </un>
 		<ln> Integer code that options how damage events are structured </ln>
+		<val> 1 </val>
+	 </mod>
+	 <mod type="variable_add">
+		<na> fates_damage_canopy_layer_code </na>
+		<di> scalar </di>
+		<un> unitless </un>
+		<ln> Integer code that decides whether damage affects canopy trees (1),  understory trees (2) </ln>
 		<val> 1 </val>
 	 </mod>
 	 <mod type="variable_change" name="fates_phen_a">

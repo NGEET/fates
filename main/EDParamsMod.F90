@@ -86,7 +86,8 @@ module EDParamsMod
    real(r8),protected,allocatable,public :: ED_val_history_ageclass_bin_edges(:)
    real(r8),protected,allocatable,public :: ED_val_history_height_bin_edges(:)
    real(r8),protected,allocatable,public :: ED_val_history_coageclass_bin_edges(:)
-
+   real(r8),protected,allocatable,public :: ED_val_history_damage_bin_edges(:)
+   
    ! Switch that defines the current pressure-volume and pressure-conductivity model
    ! to be used at each node (compartment/organ)
    ! 1  = Christofferson et al. 2016 (TFS),   2 = Van Genuchten 1980
@@ -131,6 +132,7 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_history_ageclass_bin_edges= "fates_history_ageclass_bin_edges"      
    character(len=param_string_length),parameter,public :: ED_name_history_height_bin_edges= "fates_history_height_bin_edges"
    character(len=param_string_length),parameter,public :: ED_name_history_coageclass_bin_edges = "fates_history_coageclass_bin_edges"
+   character(len=param_string_length),parameter,public :: ED_name_history_damage_bin_edges = "fates_history_damage_bin_edges"
 
    ! Hydraulics Control Parameters (ONLY RELEVANT WHEN USE_FATES_HYDR = TRUE)
    ! ----------------------------------------------------------------------------------------------
@@ -148,7 +150,7 @@ module EDParamsMod
    real(r8),protected,public :: hydr_psicap        !  sapwood water potential at which capillary reserves exhausted (MPa)
    character(len=param_string_length),parameter,public :: hydr_name_psicap = "fates_hydro_psicap"
 
-
+   
    ! Switch that defines which hydraulic solver to use
    ! 1 = Taylor solution that solves plant fluxes with 1 layer
    !     sequentially placing solution on top of previous layer solves
@@ -171,7 +173,10 @@ module EDParamsMod
 
    ! Integer code that options how damage events are structured
    integer, protected, public :: damage_event_code
-   character(len=param_string_length), parameter, public :: damage_event_code_name = "fates_damage_event_code"
+   character(len=param_string_length), parameter, public :: damage_name_event_code = "fates_damage_event_code"
+
+   integer,protected,public :: damage_canopy_layer_code  ! Code that changes whether damage affects canopy trees (1), understory trees (2)
+   character(len=param_string_length),parameter,public :: damage_name_canopy_layer_code = "fates_damage_canopy_layer_code"
    
    ! Maximum allowable primary and secondary patches
    ! These values are USED FOR ALLOCATIONS IN BOTH FATES AND CLM/ELM!!!!
@@ -304,6 +309,8 @@ contains
     theta_cj_c3                           = nan
     theta_cj_c4                           = nan
     dev_arbitrary                         = nan
+    damage_event_code                     = -9
+    damage_canopy_layer_code              = -9
   end subroutine FatesParamsInit
 
   !-----------------------------------------------------------------------
@@ -315,7 +322,7 @@ contains
     use FatesParametersInterface, only : fates_parameters_type, dimension_name_scalar, dimension_shape_1d
     use FatesParametersInterface, only : dimension_name_history_size_bins, dimension_name_history_age_bins
     use FatesParametersInterface, only : dimension_name_history_height_bins, dimension_name_hydr_organs
-    use FatesParametersInterface, only : dimension_name_history_coage_bins
+    use FatesParametersInterface, only : dimension_name_history_coage_bins, dimension_name_history_damage_bins
     use FatesParametersInterface, only : dimension_shape_scalar
 
 
@@ -329,7 +336,8 @@ contains
     character(len=param_string_length), parameter :: dim_names_height(1) = (/dimension_name_history_height_bins/)
     character(len=param_string_length), parameter :: dim_names_coageclass(1) = (/dimension_name_history_coage_bins/)
     character(len=param_string_length), parameter :: dim_names_hydro_organs(1) = (/dimension_name_hydr_organs/)
-       
+    character(len=param_string_length), parameter :: dim_names_damageclass(1)= (/dimension_name_history_damage_bins/)
+    
     call FatesParamsInit()
 
     call fates_params%RegisterParameter(name=ED_name_photo_temp_acclim_timescale, dimension_shape=dimension_shape_scalar, &
@@ -484,6 +492,12 @@ contains
 
     call fates_params%RegisterParameter(name=name_dev_arbitrary, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=damage_name_event_code, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+    
+    call fates_params%RegisterParameter(name=damage_name_canopy_layer_code, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
     
     ! non-scalar parameters
 
@@ -508,6 +522,8 @@ contains
     call fates_params%RegisterParameter(name=ED_name_history_coageclass_bin_edges, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names_coageclass)
 
+    call fates_params%RegisterParameter(name=ED_name_history_damage_bin_edges, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_damageclass)
 
   end subroutine FatesRegisterParams
 
@@ -694,6 +710,14 @@ contains
     call fates_params%RetreiveParameter(name=fates_name_cg_strikes, &
           data=cg_strikes)
 
+    call fates_params%RetreiveParameter(name=damage_name_event_code, &
+         data=tmpreal)
+    damage_event_code = nint(tmpreal)
+    
+    call fates_params%RetreiveParameter(name=damage_name_canopy_layer_code, &
+         data=tmpreal)
+    damage_canopy_layer_code = nint(tmpreal)
+    
     ! parameters that are arrays of size defined within the params file and thus need allocating as well
     call fates_params%RetreiveParameterAllocate(name=ED_name_history_sizeclass_bin_edges, &
           data=ED_val_history_sizeclass_bin_edges)
@@ -706,6 +730,9 @@ contains
 
     call fates_params%RetreiveParameterAllocate(name=ED_name_history_coageclass_bin_edges, &
          data=ED_val_history_coageclass_bin_edges)
+
+    call fates_params%RetreiveParameterAllocate(name=ED_name_history_damage_bin_edges, &
+         data=ED_val_history_damage_bin_edges)
 
     call fates_params%RetreiveParameterAllocate(name=ED_name_hydr_htftype_node, &
          data=hydr_htftype_real)
@@ -775,6 +802,8 @@ contains
         write(fates_log(),fmt0) 'q10_froz = ',q10_froz
         write(fates_log(),fmt0) 'cg_strikes = ',cg_strikes
         write(fates_log(),'(a,L2)') 'active_crown_fire = ',active_crown_fire
+        write(fates_log(),fmt0) 'damage_event_code = ',damage_event_code
+        write(fates_log(),fmt0) 'damage_canopy_layer_code = ', damage_canopy_layer_code
         write(fates_log(),*) '------------------------------------------------------'
 
      end if

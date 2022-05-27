@@ -143,17 +143,21 @@ module FatesInterfaceTypesMod
                                                        ! THIS IS CURRENTLY NOT SUPPORTED 
 
    integer, public :: hlm_use_cohort_age_tracking ! This flag signals whether or not to use
-                                                             ! cohort age tracking. 1 = TRUE, 0 = FALSE
+                                                  ! cohort age tracking. 1 = TRUE, 0 = FALSE
 
-   integer, public :: hlm_use_ed_st3        ! This flag signals whether or not to use
-                                                       ! (ST)atic (ST)and (ST)ructure mode (ST3)
-                                                       ! Essentially, this gives us the ability
-                                                       ! to turn off "dynamics", ie growth, disturbance
-                                                       ! recruitment and mortality.
-                                                       ! (EXPERIMENTAL!!!!! - RGK 07-2017)
-                                                       ! 1 = TRUE, 0 = FALSE
-                                                       ! default should be FALSE (dynamics on)
-                                                       ! cannot be true with prescribed_phys
+
+   integer, public :: hlm_use_tree_damage         ! This flag signals whehter or not to turn on the
+                                                  ! tree damage module
+   
+   integer, public :: hlm_use_ed_st3              ! This flag signals whether or not to use
+                                                  ! (ST)atic (ST)and (ST)ructure mode (ST3)
+                                                  ! Essentially, this gives us the ability
+                                                  ! to turn off "dynamics", ie growth, disturbance
+                                                  ! recruitment and mortality.
+                                                  ! (EXPERIMENTAL!!!!! - RGK 07-2017)
+                                                  ! 1 = TRUE, 0 = FALSE
+                                                  ! default should be FALSE (dynamics on)
+                                                  ! cannot be true with prescribed_phys
 
    integer, public :: hlm_use_ed_prescribed_phys ! This flag signals whether or not to use
                                                             ! prescribed physiology, somewhat the opposite
@@ -264,7 +268,14 @@ module FatesInterfaceTypesMod
    integer , public, allocatable :: fates_hdim_pftmap_levelpft(:)       ! map of pfts in the element x pft dimension
    integer , public, allocatable :: fates_hdim_cwdmap_levelcwd(:)       ! map of cwds in the element x cwd dimension
    integer , public, allocatable :: fates_hdim_agemap_levelage(:)       ! map of ages in the element x age dimension
-
+   
+   integer , public, allocatable :: fates_hdim_pftmap_levcdpf(:)   ! map of pfts into size x crowndamage x pft dimension
+   integer , public, allocatable :: fates_hdim_cdmap_levcdpf(:)    ! map of crowndamage into size x crowndamage x pft
+   integer , public, allocatable :: fates_hdim_scmap_levcdpf(:)    ! map of size into size x crowndamage x pft
+   integer , public, allocatable :: fates_hdim_cdmap_levcdsc(:)    ! map of crowndamage into size x crowndamage
+   integer , public, allocatable :: fates_hdim_scmap_levcdsc(:)    ! map of size into size x crowndamage
+   integer , public, allocatable :: fates_hdim_levdamage(:)        ! plant damage class lower bound dimension   
+   
    ! ------------------------------------------------------------------------------------
    !                              DYNAMIC BOUNDARY CONDITIONS
    ! ------------------------------------------------------------------------------------
@@ -301,7 +312,8 @@ module FatesInterfaceTypesMod
    integer, public :: nlevheight       ! The total number of height bins output to history
    integer, public :: nlevcoage        ! The total number of cohort age bins output to history 
    integer, public :: nleafage         ! The total number of leaf age classes
-
+   integer, public :: nlevdamage       ! The total number of damage classes
+   
    ! -------------------------------------------------------------------------------------
    ! Structured Boundary Conditions (SITE/PATCH SCALE)
    ! For floating point arrays, it is sometimes the convention to define the arrays as
@@ -711,6 +723,10 @@ module FatesInterfaceTypesMod
                                                        ! [mm H2O/s]
 
 
+      ! FATES LULCC
+      real(r8) :: hrv_deadstemc_to_prod10c   ! Harvested C flux to 10-yr wood product pool [Site-Level, gC m-2 s-1]
+      real(r8) :: hrv_deadstemc_to_prod100c  ! Harvested C flux to 100-yr wood product pool [Site-Level, gC m-2 s-1]
+      
    end type bc_out_type
 
 
