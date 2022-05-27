@@ -126,7 +126,7 @@ contains
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
-    if(DamageTime .and. (is_master.eq.itrue) ) then
+    if(damage_time .and. (is_master.eq.itrue) ) then
        write(fates_log(),fmt) 'Damage Event Enacted on date: ', &
             hlm_current_month,'-', hlm_current_day,'-',hlm_current_year
     end if

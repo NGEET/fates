@@ -175,22 +175,12 @@ contains
              cmort = 0.0_r8
           endif
 
+    
        else
           write(fates_log(),*) 'dbh problem in mortality_rates', &
                cohort_in%dbh,cohort_in%pft,cohort_in%n,cohort_in%canopy_layer
+          call endrun(msg=errMsg(sourcefile, __LINE__))
        endif
-       !-------------------------------------------------------------------------------- 
-       !    Mortality due to cold and freezing stress (frmort), based on ED2 and:           
-       !      Albani, M.; D. Medvigy; G. C. Hurtt; P. R. Moorcroft, 2006: The contributions 
-       !           of land-use change, CO2 fertilization, and climate variability to the    
-       !           Eastern US carbon sink.  Glob. Change Biol., 12, 2370-2390,              
-       !           doi: 10.1111/j.1365-2486.2006.01254.x                                    
-
-    else
-       write(fates_log(),*) 'dbh problem in mortality_rates', &
-            cohort_in%dbh,cohort_in%pft,cohort_in%n,cohort_in%canopy_layer
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    endif
     !-------------------------------------------------------------------------------- 
     !    Mortality due to cold and freezing stress (frmort), based on ED2 and:           
     !      Albani, M.; D. Medvigy; G. C. Hurtt; P. R. Moorcroft, 2006: The contributions 
@@ -198,11 +188,11 @@ contains
     !           Eastern US carbon sink.  Glob. Change Biol., 12, 2370-2390,              
     !           doi: 10.1111/j.1365-2486.2006.01254.x                                    
 
-    temp_in_C = cohort_in%patchptr%tveg24%GetMean() - tfrz
+       temp_in_C = cohort_in%patchptr%tveg24%GetMean() - tfrz
     
-    temp_dep_fraction  = max(0.0_r8, min(1.0_r8, 1.0_r8 - (temp_in_C - &
-                         EDPftvarcon_inst%freezetol(cohort_in%pft))/frost_mort_buffer) )
-    frmort    = EDPftvarcon_inst%mort_scalar_coldstress(cohort_in%pft) * temp_dep_fraction
+       temp_dep_fraction  = max(0.0_r8, min(1.0_r8, 1.0_r8 - (temp_in_C - &
+            EDPftvarcon_inst%freezetol(cohort_in%pft))/frost_mort_buffer) )
+       frmort    = EDPftvarcon_inst%mort_scalar_coldstress(cohort_in%pft) * temp_dep_fraction
 
        !mortality_rates = bmort + hmort + cmort
 
