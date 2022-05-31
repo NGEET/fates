@@ -44,9 +44,9 @@ module PRTParametersMod
      !                                                        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
      real(r8), allocatable :: nitr_stoich_p1(:,:)        ! Parameter 1 for nitrogen stoichiometry (pft x organ) 
-     real(r8), allocatable :: nitr_stoich_p2(:,:)        ! Parameter 2 for nitrogen stoichiometry (pft x organ) 
+     !real(r8), allocatable :: nitr_stoich_p2(:,:)        ! Parameter 2 for nitrogen stoichiometry (pft x organ) 
      real(r8), allocatable :: phos_stoich_p1(:,:)        ! Parameter 1 for phosphorus stoichiometry (pft x organ) 
-     real(r8), allocatable :: phos_stoich_p2(:,:)        ! Parameter 2 for phosphorus stoichiometry (pft x organ)
+     !real(r8), allocatable :: phos_stoich_p2(:,:)        ! Parameter 2 for phosphorus stoichiometry (pft x organ)
 
      real(r8), allocatable :: nitr_store_ratio(:)        ! This is the ratio of the target nitrogen stored per
                                                          ! target nitrogen that is bound into the tissues

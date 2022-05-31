@@ -1810,8 +1810,8 @@ contains
        c = fcolumn(s)
        do while(associated(currentPatch))
 
-          if(currentPatch%nocomp_pft_label.ne.0)then  ! ignore the bare-ground-PFT patch entirely for these BC outs
-
+          if_nocomp_notbare: if(currentPatch%nocomp_pft_label.ne.0)then  ! ignore the bare-ground-PFT patch entirely for these BC outs
+             
              ifp = ifp+1
 
              if ( currentPatch%total_canopy_area-currentPatch%area > 0.000001_r8 ) then
@@ -1931,7 +1931,7 @@ contains
 
              total_patch_area = total_patch_area + currentPatch%area/AREA
 
-          end if
+          end if if_nocomp_notbare
           currentPatch => currentPatch%younger
        end do
 

@@ -377,7 +377,7 @@ contains
                 end do !ft
              else ! for sp and nocomp mode, assert a bare ground patch if needed
                 sumarea = sum(sites(s)%area_pft(1:numpft))
-
+                
                ! In all the other FATES modes, bareground is the area in which plants
                ! do not grow of their own accord. In SP mode we assert that the canopy is full for
                ! each PFT patch. Thus, we also need to assert a bare ground area in
@@ -397,6 +397,8 @@ contains
           end if !fixed biogeog
 
           do ft = 1,numpft
+             ! Setting this to true ensures that all pfts
+             ! are used for nocomp with no biogeog
              sites(s)%use_this_pft(ft) = itrue
              if(hlm_use_fixed_biogeog.eq.itrue)then
                 if(sites(s)%area_pft(ft).gt.0.0_r8)then
@@ -850,19 +852,19 @@ contains
 
                 case(nitrogen_element)
 
-             m_struct = c_struct*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(struct_organ))
-             m_leaf   = c_leaf*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(leaf_organ))
-             m_fnrt   = c_fnrt*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(fnrt_organ))
-             m_sapw   = c_sapw*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(sapw_organ))
+             m_struct = c_struct*prt_params%nitr_stoich_p1(pft,prt_params%organ_param_id(struct_organ))
+             m_leaf   = c_leaf*prt_params%nitr_stoich_p1(pft,prt_params%organ_param_id(leaf_organ))
+             m_fnrt   = c_fnrt*prt_params%nitr_stoich_p1(pft,prt_params%organ_param_id(fnrt_organ))
+             m_sapw   = c_sapw*prt_params%nitr_stoich_p1(pft,prt_params%organ_param_id(sapw_organ))
                    m_repro  = 0._r8
              m_store = StorageNutrientTarget(pft,element_id,m_leaf,m_fnrt,m_sapw,m_struct)
 
                 case(phosphorus_element)
 
-             m_struct = c_struct*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(struct_organ))
-             m_leaf   = c_leaf*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(leaf_organ))
-             m_fnrt   = c_fnrt*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(fnrt_organ))
-             m_sapw   = c_sapw*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(sapw_organ))
+             m_struct = c_struct*prt_params%phos_stoich_p1(pft,prt_params%organ_param_id(struct_organ))
+             m_leaf   = c_leaf*prt_params%phos_stoich_p1(pft,prt_params%organ_param_id(leaf_organ))
+             m_fnrt   = c_fnrt*prt_params%phos_stoich_p1(pft,prt_params%organ_param_id(fnrt_organ))
+             m_sapw   = c_sapw*prt_params%phos_stoich_p1(pft,prt_params%organ_param_id(sapw_organ))
                    m_repro  = 0._r8
              m_store = StorageNutrientTarget(pft,element_id,m_leaf,m_fnrt,m_sapw,m_struct)
 

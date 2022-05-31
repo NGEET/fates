@@ -775,10 +775,13 @@ contains
             ! and that value will match fates_maxPatchesPerSite
             
             if(hlm_use_nocomp==itrue) then
-               if(maxpatch_primary<fates_numpft)then
-                  write(fates_log(),*) 'warning: lower number of patches than pfts'
-                  write(fates_log(),*) 'this may become a problem in nocomp mode'
-               end if
+
+               maxpatch_primary = max(maxpatch_primary,fates_numpft)
+               maxpatch_total = maxpatch_primary + maxpatch_secondary
+               !if(maxpatch_primary<fates_numpft)then
+               !   write(fates_log(),*) 'warning: lower number of patches than pfts'
+               !   write(fates_log(),*) 'this may become a problem in nocomp mode'
+               !end if
             end if
 
             ! maxpatch_total does not include the bare ground (so add 1)
