@@ -3488,8 +3488,9 @@ end subroutine flush_hvars
     real(r8) :: npp         ! npp for this time-step (adjusted for g resp) [kgC/indiv/step]
     real(r8) :: aresp       ! autotrophic respiration (adjusted for g resp) [kgC/indiv/step]
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
-    real(r8) :: patch_area_by_age(nlevage) ! patch area in each bin for normalizing purposes
+    real(r8) :: patch_area_by_age(nlevage)  ! patch area in each bin for normalizing purposes
     real(r8) :: canopy_area_by_age(nlevage) ! canopy area in each bin for normalizing purposes
+    real(r8) :: site_area_veg               ! area of the site that is not bare-ground 
     real(r8), parameter :: tiny = 1.e-5_r8      ! some small number
     integer  :: ipa2     ! patch incrementer
     integer :: cnlfpft_indx, cnlf_indx, ipft, ican, ileaf ! more iterators and indices
@@ -3587,27 +3588,17 @@ end subroutine flush_hvars
          
          patch_area_by_age(1:nlevage) = 0._r8
          canopy_area_by_age(1:nlevage) = 0._r8
-         site_area_veg = 0._r8
+         site_area_veg = area
          
          ! Calculate the site-level total vegetated area (i.e. non-bareground)
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
-            if (nocomp_pft_label .ne. 0) then
-               site_area_veg = site_area_veg + cpatch%area
+            if (nocomp_pft_label .eq. 0) then
+               site_area_veg = site_area_veg - cpatch%area
             endif
             cpatch => cpatch%younger
          end do
 
-         ! Only calculate the instantaneous vegetation temperature for vegetated sites
-         cpatch => sites(s)%oldest_patch
-         do while(associated(cpatch))
-            if (nocomp_pft_label .ne. 0) then
-               hio_tveg(io_si) = hio_tveg(io_si) + &
-                  (bc_in(s)%t_veg_pa(cpatch%patchno) - t_water_freeze_k_1atm) * cpatch%area / site_area_veg
-            end if
-            cpatch => cpatch%younger
-         end do
-         
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
 
@@ -3634,6 +3625,12 @@ end subroutine flush_hvars
 
             hio_rad_error_si(io_si) = hio_rad_error_si(io_si) + &
                  cpatch%radiation_error * cpatch%area * AREA_INV
+                 
+            ! Only accumulate the instantaneous vegetation temperature for vegetated patches
+            if (nocomp_pft_label .ne. 0) then
+               hio_tveg(io_si) = hio_tveg(io_si) + &
+                  (bc_in(s)%t_veg_pa(cpatch%patchno) - t_water_freeze_k_1atm) * cpatch%area / site_area_veg
+            end if
             
             ccohort => cpatch%shortest
             do while(associated(ccohort))
