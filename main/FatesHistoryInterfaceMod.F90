@@ -3584,11 +3584,31 @@ end subroutine flush_hvars
          hio_hr_si(io_si)  =  bc_in(s)%tot_het_resp / g_per_kg
 
          ipa = 0
-         cpatch => sites(s)%oldest_patch
-
+         
          patch_area_by_age(1:nlevage) = 0._r8
          canopy_area_by_age(1:nlevage) = 0._r8
+         site_area_veg = 0._r8
+         
+         ! Calculate the site-level total vegetated area (i.e. non-bareground)
+         cpatch => sites(s)%oldest_patch
+         do while(associated(cpatch))
+            if (nocomp_pft_label .ne. 0) then
+               site_area_veg = site_area_veg + cpatch%area
+            endif
+            cpatch => cpatch%younger
+         end do
 
+         ! Only calculate the instantaneous vegetation temperature for vegetated sites
+         cpatch => sites(s)%oldest_patch
+         do while(associated(cpatch))
+            if (nocomp_pft_label .ne. 0) then
+               hio_tveg(io_si) = hio_tveg(io_si) + &
+                  (bc_in(s)%t_veg_pa(cpatch%patchno) - t_water_freeze_k_1atm) * cpatch%area / site_area_veg
+            end if
+            cpatch => cpatch%younger
+         end do
+         
+         cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
 
             patch_area_by_age(cpatch%age_class)  = &
@@ -3615,9 +3635,6 @@ end subroutine flush_hvars
             hio_rad_error_si(io_si) = hio_rad_error_si(io_si) + &
                  cpatch%radiation_error * cpatch%area * AREA_INV
             
-            hio_tveg(io_si) = hio_tveg(io_si) + &
-                 (bc_in(s)%t_veg_pa(cpatch%patchno) - t_water_freeze_k_1atm)*cpatch%area*area_inv
-          
             ccohort => cpatch%shortest
             do while(associated(ccohort))
 
