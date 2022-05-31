@@ -3593,7 +3593,7 @@ end subroutine flush_hvars
          ! Calculate the site-level total vegetated area (i.e. non-bareground)
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
-            if (nocomp_pft_label .eq. 0) then
+            if (cpatch%nocomp_pft_label .eq. 0) then
                site_area_veg = site_area_veg - cpatch%area
             endif
             cpatch => cpatch%younger
@@ -3627,7 +3627,7 @@ end subroutine flush_hvars
                  cpatch%radiation_error * cpatch%area * AREA_INV
                  
             ! Only accumulate the instantaneous vegetation temperature for vegetated patches
-            if (nocomp_pft_label .ne. 0) then
+            if (cpatch%nocomp_pft_label .ne. 0) then
                hio_tveg(io_si) = hio_tveg(io_si) + &
                   (bc_in(s)%t_veg_pa(cpatch%patchno) - t_water_freeze_k_1atm) * cpatch%area / site_area_veg
             end if
