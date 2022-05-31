@@ -1097,21 +1097,17 @@ contains
             case(nitrogen_element)
 
                ! For inventory runs, initialize nutrient contents half way between max and min stoichiometries
-               m_struct = c_struct * 0.5_r8 * &
-                    (prt_params%nitr_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(struct_organ)) + &
-                    prt_params%nitr_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(struct_organ)))
+               m_struct = c_struct * &
+                    prt_params%nitr_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(struct_organ))
 
-               m_leaf   = c_leaf * 0.5_r8 * &
-                    (prt_params%nitr_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(leaf_organ)) + &
-                    prt_params%nitr_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(leaf_organ)))
+               m_leaf   = c_leaf * &
+                    prt_params%nitr_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(leaf_organ))
 
-               m_fnrt   = c_fnrt * 0.5_r8 * &
-                    (prt_params%nitr_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(fnrt_organ)) + &
-                    prt_params%nitr_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(fnrt_organ)))
+               m_fnrt   = c_fnrt * &
+                    prt_params%nitr_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(fnrt_organ))
 
-               m_sapw   = c_sapw * 0.5_r8 * &
-                    (prt_params%nitr_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(sapw_organ)) + &
-                    prt_params%nitr_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(sapw_organ)))
+               m_sapw   = c_sapw * &
+                    prt_params%nitr_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(sapw_organ))
 
                m_repro  = 0._r8
 
@@ -1119,21 +1115,17 @@ contains
 
             case(phosphorus_element)
 
-               m_struct = c_struct * 0.5_r8 * &
-                    (prt_params%phos_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(struct_organ)) + &
-                    prt_params%phos_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(struct_organ)))
+               m_struct = c_struct * &
+                    prt_params%phos_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(struct_organ))
 
-               m_leaf   = c_leaf * 0.5_r8 * &
-                    (prt_params%phos_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(leaf_organ)) + &
-                    prt_params%phos_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(leaf_organ)))
+               m_leaf   = c_leaf * &
+                    prt_params%phos_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(leaf_organ))
 
-               m_fnrt   = c_fnrt * 0.5_r8 * &
-                    (prt_params%phos_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(fnrt_organ)) + &
-                    prt_params%phos_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(fnrt_organ)))
-
-               m_sapw   = c_sapw * 0.5_r8 * &
-                    (prt_params%phos_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(sapw_organ)) + &
-                    prt_params%phos_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(sapw_organ)))
+               m_fnrt   = c_fnrt * &
+                    prt_params%phos_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(fnrt_organ))
+                    
+               m_sapw   = c_sapw * &
+                    prt_params%phos_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(sapw_organ))
 
                m_repro  = 0._r8
 
