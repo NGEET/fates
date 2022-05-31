@@ -668,7 +668,7 @@ variables:
 		fates_hydro_psicap:long_name = "sapwood water potential at which capillary reserves exhausted" ;
 	double fates_hydro_solver ;
 		fates_hydro_solver:units = "unitless" ;
-		fates_hydro_solver:long_name = "switch designating which numerical solver for plant hydraulics, 1 = 1D taylor, 2 = 2D Picard" ;
+		fates_hydro_solver:long_name = "switch designating which numerical solver for plant hydraulics, 1 = 1D taylor, 2 = 2D Picard, 3 = 2D Newton (deprecated)" ;
 	double fates_landuse_logging_coll_under_frac ;
 		fates_landuse_logging_coll_under_frac:units = "fraction" ;
 		fates_landuse_logging_coll_under_frac:long_name = "Fraction of stems killed in the understory when logging generates disturbance" ;
@@ -842,7 +842,7 @@ data:
 
  fates_alloc_organ_priority =
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+  2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
   3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
   4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4 ;
 
@@ -1496,7 +1496,7 @@ data:
 
  fates_maxpatch_primary = 10 ;
 
- fates_maxpatch_secondary = 1 ;
+ fates_maxpatch_secondary = 4 ;
 
  fates_mort_disturb_frac = 1 ;
 
