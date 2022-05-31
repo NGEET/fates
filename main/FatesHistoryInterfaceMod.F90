@@ -1110,8 +1110,7 @@ contains
        write(fates_log(), *) 'Trying to define dimension size to a dim-type structure'
        write(fates_log(), *) 'but the dimension index does not exist'
        write(fates_log(), *) 'type: ',dk_name,' ndims: ',this%dim_kinds(ityp)%ndims,' input dim:',idim
-       stop
-       !end_run
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
     if (idim == 1) then
@@ -4246,11 +4245,8 @@ end subroutine update_history_hifrq
          end if
 
          if(print_iterations) then
-!             print*,' Mean solves: ',sum(hio_iterh2_scpf(io_si,:))/real(count(ncohort_scpf(:)>0._r8),r8), &
-!                   ' Mean failures: ',sum(hio_iterh1_scpf(io_si,:))/real(count(ncohort_scpf(:)>0._r8),r8)
-             write(fmt_char,'(I2)') iterh2_nhist
-             write(fates_log(),fmt='(A,'//fmt_char//'I5)') 'Solves: ',int(iterh2_histy(:))
-             !write(*,*) 'Histogram: ',int(iterh2_histy(:))
+            write(fmt_char,'(I2)') iterh2_nhist
+            write(fates_log(),fmt='(A,'//fmt_char//'I5)') 'Solves: ',int(iterh2_histy(:))
          end if
 
 
