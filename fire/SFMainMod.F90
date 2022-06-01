@@ -66,8 +66,8 @@
   ! The following parameter represents one of the values of hlm_spitfire_mode
   ! and more of these appear in subroutine area_burnt_intensity below
   ! NB. The same parameters are set in /src/biogeochem/CNFireFactoryMod
-  integer :: write_SF = 0     ! for debugging
-  logical :: debug = .false.  ! for debugging
+  integer :: write_SF = ifalse   ! for debugging
+  logical :: debug = .false.     ! for debugging
 
   ! ============================================================================
   ! ============================================================================
@@ -95,7 +95,7 @@ contains
        currentPatch => currentPatch%older
     enddo
 
-    if(write_SF==1)then
+    if(write_SF==itrue)then
        write(fates_log(),*) 'spitfire_mode', hlm_spitfire_mode
     endif
 
@@ -304,8 +304,10 @@ contains
           endif
           currentPatch%fuel_sav = sum(SF_val_SAV(1:nfsc))/(nfsc) ! make average sav to avoid crashing code. 
 
-          if ( hlm_masterproc == itrue ) write(fates_log(),*) 'problem with spitfire fuel averaging'
-
+          if ( hlm_masterproc == itrue .and. write_SF == itrue)then
+             write(fates_log(),*) 'problem with spitfire fuel averaging'
+          end if
+          
           ! FIX(SPM,032414) refactor...should not have 0 fuel unless everything is burnt
           ! off.
           currentPatch%fuel_eff_moist = 0.0000000001_r8 
