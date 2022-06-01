@@ -1538,10 +1538,11 @@ end subroutine flush_hvars
     ! We make one exception to this rule, for the fates_fraction variable.  That way
     ! we can always know what fraction of the gridcell FATES is occupying.
 
-    if (present(flush_to_zero) .and. flush_to_zero) then
-       flushval = 0.0_r8
-    else
-       flushval = hlm_hio_ignore_val
+    flushval = hlm_hio_ignore_val
+    if (present(flush_to_zero)) then
+       if (flush_to_zero) then
+          flushval = 0.0_r8
+       endif
     endif
 
     write_var = check_hlm_list(trim(hlms), trim(hlm_name))
