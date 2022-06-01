@@ -485,7 +485,7 @@ contains
          write(fates_log(),*) 'Lat: ',sites(s)%lat,' Lon: ',sites(s)%lon
          write(fates_log(),*) basal_area_pref,' [m2/ha]'
          write(fates_log(),*) '-------------------------------------------------------'
-
+                  
          ! Update the patch index numbers and fuse the cohorts in the patches
          ! ----------------------------------------------------------------------------------------
          ipa=1
@@ -734,7 +734,7 @@ contains
       ! water	(NA)       Water content of soil (NOT USED)
       ! fsc	(kg/m2)    Fast Soil Carbon
       ! stsc	(kg/m2)    Structural Soil Carbon
-      ! stsl	(kg/m2)    Structural Soil Lignan
+      ! stsl	(kg/m2)    Structural Soil Lignin
       ! ssc	(kg/m2)    Slow Soil Carbon
       ! psc	(NA)       Passive Soil Carbon (NOT USED)
       ! msn	(kg/m2)    Mineralized Soil Nitrogen
@@ -763,7 +763,7 @@ contains
       real(r8)                                    :: p_water    ! Patch water (unused)
       real(r8)                                    :: p_fsc      ! Patch fast soil carbon
       real(r8)                                    :: p_stsc     ! Patch structural soil carbon
-      real(r8)                                    :: p_stsl     ! Patch structural soil lignans
+      real(r8)                                    :: p_stsl     ! Patch structural soil lignins
       real(r8)                                    :: p_ssc      ! Patch slow soil carbon
       real(r8)                                    :: p_psc      ! Patch P soil carbon
       real(r8)                                    :: p_msn      ! Patch mean soil nitrogen
@@ -995,9 +995,11 @@ contains
       end if
 
       if (c_pft .eq. 0 ) then
-         write(fates_log(), *) 'inventory pft: ',c_pft
-         write(fates_log(), *) 'SPECIAL CASE TRIGGERED: PFT == 0 and therefore this subroutine'
-         write(fates_log(), *) 'will assign a cohort with n = n_orig/numpft to every cohort in range 1 to numpft'
+         if(debug_inv)then
+            write(fates_log(), *) 'inventory pft: ',c_pft
+            write(fates_log(), *) 'SPECIAL CASE TRIGGERED: PFT == 0 and therefore this subroutine'
+            write(fates_log(), *) 'will assign a cohort with n = n_orig/numpft to every cohort in range 1 to numpft'
+         end if
          ncohorts_to_create = numpft
       else
          ncohorts_to_create = 1
