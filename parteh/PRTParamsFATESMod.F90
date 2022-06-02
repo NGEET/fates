@@ -1025,6 +1025,7 @@ contains
               write(fates_log(),*) 'the parameter file organ list'
               write(fates_log(),*) 'fates_prt_organ_id: ',prt_params%organ_id(:)
               write(fates_log(),*) 'Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
            if(prt_params%organ_id(io) == store_organ) then
               write(fates_log(),*) 'with flexible cnp or c-only alloc hypotheses'
@@ -1033,6 +1034,7 @@ contains
               write(fates_log(),*) 'the parameter file organ list'
               write(fates_log(),*) 'fates_prt_organ_id: ',prt_params%organ_id(:)
               write(fates_log(),*) 'Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
 
         end do

@@ -22,6 +22,7 @@ module FATESPlantRespPhotosynthMod
 
   use FatesGlobals,      only : endrun => fates_endrun
   use FatesGlobals,      only : fates_log
+  use FatesGlobals,      only : FatesWarn,N2S,A2S
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesConstantsMod, only : itrue
   use FatesConstantsMod, only : nearzero
@@ -63,6 +64,10 @@ module FATESPlantRespPhotosynthMod
 
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
+
+  
+  character(len=1024) :: warn_msg   ! for defining a warning message
+  
   !-------------------------------------------------------------------------------------
 
   ! maximum stomatal resistance [s/m] (used across several procedures)
@@ -1263,8 +1268,8 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
            end if
 
            if (abs(gs_mol-gs_mol_err) > 1.e-01_r8) then
-              write (fates_log(),*) 'Stomatal model error check - stomatal conductance error:'
-              write (fates_log(),*) gs_mol, gs_mol_err
+              warn_msg = 'Stomatal conductance error check - weak convergence: '//trim(N2S(gs_mol))//' '//trim(N2S(gs_mol_err))
+              call FatesWarn(warn_msg,index=1)
            end if
 
         enddo !sunsha loop
