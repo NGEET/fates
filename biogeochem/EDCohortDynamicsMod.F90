@@ -1353,19 +1353,8 @@ contains
                                       call endrun(msg=errMsg(sourcefile, __LINE__))
                                    end select
 
-                                   leaf_c = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
-
-                                   currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, newn, &
-                                        currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, &
-                                        currentCohort%vcmax25top)
-
-                                   currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
-                                        currentCohort%c_area, newn, currentCohort%canopy_layer, &
-                                        currentPatch%canopy_layer_tlai, currentCohort%treelai,currentCohort%vcmax25top,1 )
-
                                    call sizetype_class_index(currentCohort%dbh,currentCohort%pft, &
                                         currentCohort%size_class,currentCohort%size_by_pft_class)
-
 
                                    if(hlm_use_planthydro.eq.itrue) then
                                       call FuseCohortHydraulics(currentSite,currentCohort,nextc,bc_in,newn)
@@ -1532,13 +1521,6 @@ contains
                                    ! update hydraulics quantities that are functions of hite & biomasses
                                    ! deallocate the hydro structure of nextc
                                    if (hlm_use_planthydro.eq.itrue) then
-                                      call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
-                                           currentCohort%pft,currentCohort%c_area)
-                                      leaf_c   = currentCohort%prt%GetState(leaf_organ, carbon12_element)
-                                      currentCohort%treelai = tree_lai(leaf_c,             &
-                                           currentCohort%pft, currentCohort%c_area, currentCohort%n, &
-                                           currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, &
-                                           currentCohort%vcmax25top  )
                                       call UpdateSizeDepPlantHydProps(currentSite,currentCohort, bc_in)
                                    endif
 
@@ -1590,7 +1572,6 @@ contains
                  !---------------------------------------------------------------------!
                  dynamic_size_fusion_tolerance = dynamic_size_fusion_tolerance * 1.1_r8
                  dynamic_age_fusion_tolerance = dynamic_age_fusion_tolerance * 1.1_r8
-                 !write(fates_log(),*) 'maxcohorts exceeded',dynamic_fusion_tolerance
 
               else
 
@@ -1605,7 +1586,6 @@ contains
                  ! Making profile tolerance larger means that more fusion will happen  !
                  !---------------------------------------------------------------------!
                  dynamic_size_fusion_tolerance = dynamic_size_fusion_tolerance * 1.1_r8
-                 !write(fates_log(),*) 'maxcohorts exceeded',dynamic_fusion_tolerance
 
               else
 
@@ -1989,10 +1969,13 @@ contains
        currentCohort => currentCohort%shorter
     enddo
 
-    if (backcount /= currentPatch%countcohorts) then
-       write(fates_log(),*) 'problem with linked list, not symmetrical'
-    endif
-
+    if(debug) then
+       if (backcount /= currentPatch%countcohorts) then
+          write(fates_log(),*) 'problem with linked list, not symmetrical'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       endif
+    end if
+       
   end subroutine count_cohorts
 
   ! ===================================================================================
