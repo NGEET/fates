@@ -100,7 +100,7 @@ module PRTParametersMod
 
      real(r8), allocatable :: c2b(:)                        ! Carbon to biomass multiplier [kg/kgC]
      real(r8), allocatable :: wood_density(:)               ! wood density  g cm^-3  ...
-     real(r8), allocatable :: woody(:)                      ! Does the plant have wood?      (1=yes, 0=no)
+     integer , allocatable :: woody(:)                      ! Does the plant have wood?      (1=yes, 0=no)
      real(r8), allocatable :: crown(:)                      ! fraction of the height of the plant
                                                             ! that is occupied by crown
      real(r8), allocatable :: slamax(:)                     ! Maximum specific leaf area of plant (at bottom) [m2/gC]

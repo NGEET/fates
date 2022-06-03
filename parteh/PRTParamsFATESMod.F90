@@ -441,7 +441,10 @@ contains
     
     name = 'fates_woody'
     call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%woody)
+         data=tmpreal)
+    allocate(prt_params%woody(size(tmpreal,dim=1)))
+    call ArrayNint(tmpreal,prt_params%woody)
+    deallocate(tmpreal)
     
     name = 'fates_wood_density'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -1078,13 +1081,13 @@ contains
         ! Check if woody plants have a structural biomass (agb) intercept
         ! ----------------------------------------------------------------------------------
         if ( ( prt_params%allom_agb1(ipft) <= tiny(prt_params%allom_agb1(ipft)) ) .and. &
-             ( int(prt_params%woody(ipft)) .eq. 1 ) ) then
+             ( prt_params%woody(ipft) .eq. 1 ) ) then
 
            write(fates_log(),*) 'Woody plants are expected to have a non-zero intercept'
            write(fates_log(),*) ' in the diameter to AGB allometry equations'
            write(fates_log(),*) ' PFT#: ',ipft
            write(fates_log(),*) ' allom_agb1: ',prt_params%allom_agb1(ipft)
-           write(fates_log(),*) ' woody: ',int(prt_params%woody(ipft))
+           write(fates_log(),*) ' woody: ',prt_params%woody(ipft)
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
 
@@ -1093,7 +1096,7 @@ contains
         ! Check if non-woody plants have structural biomass (agb) intercept
         ! ----------------------------------------------------------------------------------
 !        if ( ( prt_params%allom_agb1(ipft) > tiny(prt_params%allom_agb1(ipft)) ) .and. &
-!              ( int(prt_params%woody(ipft)) .ne. 1 ) ) then
+!              ( iprt_params%woody(ipft) .ne. 1 ) ) then
 !
 !           write(fates_log(),*) 'Non-woody plants are expected to have a zero intercept'
 !           write(fates_log(),*) ' in the diameter to AGB allometry equations'
@@ -1102,7 +1105,7 @@ contains
 !           write(fates_log(),*) ' woody tissues (sap and structural dead wood).'
 !           write(fates_log(),*) ' PFT#: ',ipft
 !           write(fates_log(),*) ' allom_agb1: ',prt_params%allom_agb1(ipft)
-!           write(fates_log(),*) ' woody: ',int(prt_params%woody(ipft))
+!           write(fates_log(),*) ' woody: ',prt_params%woody(ipft)
 !           write(fates_log(),*) ' Aborting'
 !           call endrun(msg=errMsg(sourcefile, __LINE__))
 !

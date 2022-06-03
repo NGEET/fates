@@ -2090,7 +2090,7 @@ contains
     delta_dbh   = 0._r8
     delta_hite  = 0._r8
 
-    if( int(prt_params%woody(currentCohort%pft)) == itrue) then
+    if( prt_params%woody(currentCohort%pft) == itrue) then
 
        struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
 
