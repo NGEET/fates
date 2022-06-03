@@ -540,201 +540,201 @@ contains
     real(r8) :: tmpreal ! local real variable for changing type on read
     real(r8), allocatable :: hydr_htftype_real(:)
     
-    call fates_params%RetreiveParameter(name=ED_name_photo_temp_acclim_timescale, &
+    call fates_params%RetrieveParameter(name=ED_name_photo_temp_acclim_timescale, &
          data=photo_temp_acclim_timescale)
 
-    call fates_params%RetreiveParameter(name=name_photo_tempsens_model, &
+    call fates_params%RetrieveParameter(name=name_photo_tempsens_model, &
          data=tmpreal)
     photo_tempsens_model = nint(tmpreal)
 
-    call fates_params%RetreiveParameter(name=name_maintresp_model, &
+    call fates_params%RetrieveParameter(name=name_maintresp_model, &
          data=tmpreal)
     maintresp_model = nint(tmpreal)
     
-    call fates_params%RetreiveParameter(name=ED_name_mort_disturb_frac, &
+    call fates_params%RetrieveParameter(name=ED_name_mort_disturb_frac, &
           data=fates_mortality_disturbance_fraction)
 
-    call fates_params%RetreiveParameter(name=ED_name_comp_excln, &
+    call fates_params%RetrieveParameter(name=ED_name_comp_excln, &
          data=ED_val_comp_excln)
 
-    call fates_params%RetreiveParameter(name=ED_name_vai_top_bin_width, &
+    call fates_params%RetrieveParameter(name=ED_name_vai_top_bin_width, &
          data=ED_val_vai_top_bin_width)
 
-    call fates_params%RetreiveParameter(name=ED_name_vai_width_increase_factor, &
+    call fates_params%RetrieveParameter(name=ED_name_vai_width_increase_factor, &
          data=ED_val_vai_width_increase_factor)
 
-    call fates_params%RetreiveParameter(name=ED_name_nignitions, &
+    call fates_params%RetrieveParameter(name=ED_name_nignitions, &
          data=ED_val_nignitions)
 
-    call fates_params%RetreiveParameter(name=ED_name_understorey_death, &
+    call fates_params%RetrieveParameter(name=ED_name_understorey_death, &
          data=ED_val_understorey_death)
 
-    call fates_params%RetreiveParameter(name=ED_name_cwd_fcel, &
+    call fates_params%RetrieveParameter(name=ED_name_cwd_fcel, &
          data=ED_val_cwd_fcel)
 
-    call fates_params%RetreiveParameter(name=ED_name_cwd_flig, &
+    call fates_params%RetrieveParameter(name=ED_name_cwd_flig, &
          data=ED_val_cwd_flig)
 
-    call fates_params%RetreiveParameter(name=ED_name_base_mr_20, &
+    call fates_params%RetrieveParameter(name=ED_name_base_mr_20, &
          data=ED_val_base_mr_20)
 
-    call fates_params%RetreiveParameter(name=ED_name_phen_drought_threshold, &
+    call fates_params%RetrieveParameter(name=ED_name_phen_drought_threshold, &
          data=ED_val_phen_drought_threshold)
 
-    call fates_params%RetreiveParameter(name=ED_name_phen_doff_time, &
+    call fates_params%RetrieveParameter(name=ED_name_phen_doff_time, &
          data=ED_val_phen_doff_time)
 
-    call fates_params%RetreiveParameter(name=ED_name_phen_a, &
+    call fates_params%RetrieveParameter(name=ED_name_phen_a, &
          data=ED_val_phen_a)
 
-    call fates_params%RetreiveParameter(name=ED_name_phen_b, &
+    call fates_params%RetrieveParameter(name=ED_name_phen_b, &
          data=ED_val_phen_b)
 
-    call fates_params%RetreiveParameter(name=ED_name_phen_c, &
+    call fates_params%RetrieveParameter(name=ED_name_phen_c, &
          data=ED_val_phen_c)
 
-    call fates_params%RetreiveParameter(name=ED_name_phen_chiltemp, &
+    call fates_params%RetrieveParameter(name=ED_name_phen_chiltemp, &
          data=ED_val_phen_chiltemp)
 
-    call fates_params%RetreiveParameter(name=ED_name_phen_mindayson, &
+    call fates_params%RetrieveParameter(name=ED_name_phen_mindayson, &
          data=ED_val_phen_mindayson)
 
-    call fates_params%RetreiveParameter(name=ED_name_phen_ncolddayslim, &
+    call fates_params%RetrieveParameter(name=ED_name_phen_ncolddayslim, &
          data=ED_val_phen_ncolddayslim)
 
-    call fates_params%RetreiveParameter(name=ED_name_phen_coldtemp, &
+    call fates_params%RetrieveParameter(name=ED_name_phen_coldtemp, &
          data=ED_val_phen_coldtemp)
 
-    call fates_params%RetreiveParameter(name=ED_name_cohort_size_fusion_tol, &
+    call fates_params%RetrieveParameter(name=ED_name_cohort_size_fusion_tol, &
          data=ED_val_cohort_size_fusion_tol)
 
-    call fates_params%RetreiveParameter(name=ED_name_cohort_age_fusion_tol, &
+    call fates_params%RetrieveParameter(name=ED_name_cohort_age_fusion_tol, &
          data=ED_val_cohort_age_fusion_tol)
 
-    call fates_params%RetreiveParameter(name=ED_name_patch_fusion_tol, &
+    call fates_params%RetrieveParameter(name=ED_name_patch_fusion_tol, &
          data=ED_val_patch_fusion_tol)
     
-    call fates_params%RetreiveParameter(name=ED_name_canopy_closure_thresh, &
+    call fates_params%RetrieveParameter(name=ED_name_canopy_closure_thresh, &
          data=ED_val_canopy_closure_thresh)
 
-    call fates_params%RetreiveParameter(name=ED_name_stomatal_model, &
+    call fates_params%RetrieveParameter(name=ED_name_stomatal_model, &
          data=tmpreal)
     stomatal_model = nint(tmpreal)
 
-    call fates_params%RetreiveParameter(name=stomatal_assim_name, &
+    call fates_params%RetrieveParameter(name=stomatal_assim_name, &
          data=tmpreal)
     stomatal_assim_model = nint(tmpreal)
 
-    call fates_params%RetreiveParameter(name=maxpatch_primary_name, &
+    call fates_params%RetrieveParameter(name=maxpatch_primary_name, &
          data=tmpreal)
     maxpatch_primary = nint(tmpreal)
 
-    call fates_params%RetreiveParameter(name=maxpatch_secondary_name, &
+    call fates_params%RetrieveParameter(name=maxpatch_secondary_name, &
          data=tmpreal)
     maxpatch_secondary = nint(tmpreal)
 
     maxpatch_total = maxpatch_primary+maxpatch_secondary
     
-    call fates_params%RetreiveParameter(name=maxcohort_name, &
+    call fates_params%RetrieveParameter(name=maxcohort_name, &
          data=tmpreal)
     max_cohort_per_patch = nint(tmpreal)
     
-    call fates_params%RetreiveParameter(name=hydr_name_kmax_rsurf1, &
+    call fates_params%RetrieveParameter(name=hydr_name_kmax_rsurf1, &
           data=hydr_kmax_rsurf1)
 
-    call fates_params%RetreiveParameter(name=hydr_name_kmax_rsurf2, &
+    call fates_params%RetrieveParameter(name=hydr_name_kmax_rsurf2, &
           data=hydr_kmax_rsurf2)	 
     
-    call fates_params%RetreiveParameter(name=hydr_name_psi0, &
+    call fates_params%RetrieveParameter(name=hydr_name_psi0, &
           data=hydr_psi0)
 
-    call fates_params%RetreiveParameter(name=hydr_name_psicap, &
+    call fates_params%RetrieveParameter(name=hydr_name_psicap, &
           data=hydr_psicap)
 
-    call fates_params%RetreiveParameter(name=hydr_name_solver, &
+    call fates_params%RetrieveParameter(name=hydr_name_solver, &
          data=tmpreal)
     hydr_solver = nint(tmpreal)
     
-    call fates_params%RetreiveParameter(name=bgc_name_soil_salinity, &
+    call fates_params%RetrieveParameter(name=bgc_name_soil_salinity, &
           data=bgc_soil_salinity)	  
 
-    call fates_params%RetreiveParameter(name=logging_name_dbhmin, &
+    call fates_params%RetrieveParameter(name=logging_name_dbhmin, &
           data=logging_dbhmin)
 
-    call fates_params%RetreiveParameter(name=logging_name_dbhmax, &
+    call fates_params%RetrieveParameter(name=logging_name_dbhmax, &
           data=logging_dbhmax)
 
-    call fates_params%RetreiveParameter(name=logging_name_collateral_frac, &
+    call fates_params%RetrieveParameter(name=logging_name_collateral_frac, &
           data=logging_collateral_frac)
     
-    call fates_params%RetreiveParameter(name=logging_name_coll_under_frac, &
+    call fates_params%RetrieveParameter(name=logging_name_coll_under_frac, &
           data=logging_coll_under_frac)
 
-    call fates_params%RetreiveParameter(name=logging_name_direct_frac, &
+    call fates_params%RetrieveParameter(name=logging_name_direct_frac, &
           data=logging_direct_frac)
 
-    call fates_params%RetreiveParameter(name=logging_name_mechanical_frac, &
+    call fates_params%RetrieveParameter(name=logging_name_mechanical_frac, &
           data=logging_mechanical_frac)
     
-    call fates_params%RetreiveParameter(name=logging_name_event_code, &
+    call fates_params%RetrieveParameter(name=logging_name_event_code, &
           data=logging_event_code)
 
-    call fates_params%RetreiveParameter(name=logging_name_dbhmax_infra, &
+    call fates_params%RetrieveParameter(name=logging_name_dbhmax_infra, &
           data=logging_dbhmax_infra)
 
-    call fates_params%RetreiveParameter(name=logging_name_export_frac, &
+    call fates_params%RetrieveParameter(name=logging_name_export_frac, &
           data=logging_export_frac)
 
-    call fates_params%RetreiveParameter(name=eca_name_plant_escalar, &
+    call fates_params%RetrieveParameter(name=eca_name_plant_escalar, &
           data=eca_plant_escalar)
 
-    call fates_params%RetreiveParameter(name=name_theta_cj_c3, &
+    call fates_params%RetrieveParameter(name=name_theta_cj_c3, &
           data=theta_cj_c3)
 
-     call fates_params%RetreiveParameter(name=name_theta_cj_c4, &
+     call fates_params%RetrieveParameter(name=name_theta_cj_c4, &
           data=theta_cj_c4)
      
-    call fates_params%RetreiveParameter(name=fates_name_q10_mr, &
+    call fates_params%RetrieveParameter(name=fates_name_q10_mr, &
           data=q10_mr)
     
-    call fates_params%RetreiveParameter(name=fates_name_q10_froz, &
+    call fates_params%RetrieveParameter(name=fates_name_q10_froz, &
          data=q10_froz)
     
-    call fates_params%RetreiveParameter(name=name_dev_arbitrary, &
+    call fates_params%RetrieveParameter(name=name_dev_arbitrary, &
          data=dev_arbitrary)
 
-    call fates_params%RetreiveParameter(name=fates_name_active_crown_fire, & 
+    call fates_params%RetrieveParameter(name=fates_name_active_crown_fire, & 
           data=tmpreal)
     active_crown_fire = (abs(tmpreal-1.0_r8)<nearzero)
 
-    call fates_params%RetreiveParameter(name=fates_name_cg_strikes, &
+    call fates_params%RetrieveParameter(name=fates_name_cg_strikes, &
           data=cg_strikes)
 
-    call fates_params%RetreiveParameter(name=damage_name_event_code, &
+    call fates_params%RetrieveParameter(name=damage_name_event_code, &
          data=tmpreal)
     damage_event_code = nint(tmpreal)
     
-    call fates_params%RetreiveParameter(name=damage_name_canopy_layer_code, &
+    call fates_params%RetrieveParameter(name=damage_name_canopy_layer_code, &
          data=tmpreal)
     damage_canopy_layer_code = nint(tmpreal)
     
     ! parameters that are arrays of size defined within the params file and thus need allocating as well
-    call fates_params%RetreiveParameterAllocate(name=ED_name_history_sizeclass_bin_edges, &
+    call fates_params%RetrieveParameterAllocate(name=ED_name_history_sizeclass_bin_edges, &
           data=ED_val_history_sizeclass_bin_edges)
 
-    call fates_params%RetreiveParameterAllocate(name=ED_name_history_ageclass_bin_edges, &
+    call fates_params%RetrieveParameterAllocate(name=ED_name_history_ageclass_bin_edges, &
           data=ED_val_history_ageclass_bin_edges)
 
-    call fates_params%RetreiveParameterAllocate(name=ED_name_history_height_bin_edges, &
+    call fates_params%RetrieveParameterAllocate(name=ED_name_history_height_bin_edges, &
           data=ED_val_history_height_bin_edges)
 
-    call fates_params%RetreiveParameterAllocate(name=ED_name_history_coageclass_bin_edges, &
+    call fates_params%RetrieveParameterAllocate(name=ED_name_history_coageclass_bin_edges, &
          data=ED_val_history_coageclass_bin_edges)
 
-    call fates_params%RetreiveParameterAllocate(name=ED_name_history_damage_bin_edges, &
+    call fates_params%RetrieveParameterAllocate(name=ED_name_history_damage_bin_edges, &
          data=ED_val_history_damage_bin_edges)
 
-    call fates_params%RetreiveParameterAllocate(name=ED_name_hydr_htftype_node, &
+    call fates_params%RetrieveParameterAllocate(name=ED_name_hydr_htftype_node, &
          data=hydr_htftype_real)
     allocate(hydr_htftype_node(size(hydr_htftype_real)))
     hydr_htftype_node(:) = nint(hydr_htftype_real(:))
