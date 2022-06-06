@@ -2324,8 +2324,8 @@ contains
           call endrun(msg=errMsg(sourcefile, __LINE__))
        endif
     else
-       maxpatches(1) = maxpatch_primary
-       maxpatches(2) = maxpatch_secondary
+       maxpatches(primaryforest) = maxpatch_primary
+       maxpatches(secondaryforest) = maxpatch_secondary
     endif
 
     currentPatch => currentSite%youngest_patch
