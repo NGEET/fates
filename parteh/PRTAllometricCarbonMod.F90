@@ -382,6 +382,10 @@ module PRTAllometricCarbonMod
     integer,  parameter :: iexp_leaf = 1                 ! index 1 is the expanding (i.e. youngest)
                                                          ! leaf age class, and therefore
                                                          ! all new allocation goes into that pool
+    character(len= 9),  parameter :: fmti = '(a,1x,i5)'
+    character(len=13),  parameter :: fmt0 = '(a,1x,es12.5)'
+    character(len=19),  parameter :: fmth = '(a,1x,a5,3(1x,a12))'
+    character(len=22),  parameter :: fmtg = '(a,5x,l1,3(1x,es12.5))'
 
     real(r8) ::  intgr_params(num_bc_in)                 ! The boundary conditions to this routine,
                                                          ! are pressed into an array that is also
@@ -646,24 +650,15 @@ module PRTAllometricCarbonMod
        ! allow actual pools to be above the target, and in these cases, it sends
        ! a false on the "grow_<>" flag, allowing the plant to grow into these pools.
        ! It also checks to make sure that structural biomass is not above the target.
+       ! ( MLO. Removed the check for storage because the same test is done inside
+       !        sub-routine TargetAllometryCheck.)
 
-       if( (target_store_c - store_c)>calloc_abs_error) then
-          write(fates_log(),*) 'storage is not on-allometry at the growth step'
-          write(fates_log(),*) 'exiting'
-          write(fates_log(),*) 'cbal: ',carbon_balance
-          write(fates_log(),*) 'near-zero',nearzero
-          write(fates_log(),*) 'store_c: ',store_c
-          write(fates_log(),*) 'target c: ',target_store_c
-          write(fates_log(),*) 'store_c0:', store_c0
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       end if
-       
-
-       call TargetAllometryCheck(sum(leaf_c(1:nleafage)), fnrt_c, sapw_c, &
-                                 store_c, struct_c,       &
-                                 target_leaf_c, target_fnrt_c, &
-                                 target_sapw_c, target_store_c, target_struct_c, &
-                                 grow_struct, grow_leaf, grow_fnrt, grow_sapw, grow_store)
+       call TargetAllometryCheck(sum(leaf_c0(1:nleafage)),fnrt_c0,sapw_c0,store_c0,struct_c0, &
+                                 sum(leaf_c(1:nleafage)), fnrt_c, sapw_c,store_c, struct_c, &
+                                 target_leaf_c, target_fnrt_c, target_sapw_c, &
+                                 target_store_c, target_struct_c, &
+                                 carbon_balance,ipft,leaf_status, &
+                                 grow_leaf, grow_fnrt, grow_sapw, grow_store, grow_struct)
 
        ! --------------------------------------------------------------------------------
        ! The numerical integration of growth requires that the instantaneous state
@@ -705,28 +700,30 @@ module PRTAllometricCarbonMod
        end select
        c_mask(fnrt_c_id)   = grow_fnrt
        c_mask(sapw_c_id)   = grow_sapw
-       c_mask(store_c_id)  = grow_store
        c_mask(struct_c_id) = grow_struct
+       c_mask(store_c_id)  = grow_store
        c_mask(repro_c_id)  = .true.                ! Always calculate reproduction on growth
        c_mask(dbh_id)      = .true.                ! Always increment dbh on growth step
-       
+
 
        ! When using the Euler method, we keep things simple.  We always try
        ! to make the first integration step to span the entirety of the integration
        ! window for the independent variable (available carbon)
 
-       if(ODESolve == 2) then
+       select case (ODESolve)
+       case (2)
           this%ode_opt_step = totalC
-       end if
+       end select
        
        do_solve_check: do while( ierr .ne. 0 )
           
           deltaC = min(totalC,this%ode_opt_step)
-          if(ODESolve == 1) then
+          select_ODESolve: select case (ODESolve)
+          case (1)
              call RKF45(AllomCGrowthDeriv,c_pool,c_mask,deltaC,totalC, &
                    max_trunc_error,intgr_params,c_pool_out,this%ode_opt_step,step_pass)
              
-          elseif(ODESolve == 2) then
+          case (2)
              call Euler(AllomCGrowthDeriv,c_pool,c_mask,deltaC,totalC,intgr_params,c_pool_out)
              !  step_pass = .true.
              
@@ -749,11 +746,11 @@ module PRTAllometricCarbonMod
              else
                 this%ode_opt_step = 0.5*deltaC
              end if
-          else
+          case default
              write(fates_log(),*) 'An integrator was chosen that does not exist'
              write(fates_log(),*) 'ODESolve = ',ODESolve
              call endrun(msg=errMsg(sourcefile, __LINE__))
-          end if
+          end select select_ODESolve
 
           nsteps = nsteps + 1
           
@@ -763,17 +760,22 @@ module PRTAllometricCarbonMod
           end if
           
           if(nsteps > max_substeps ) then
-             write(fates_log(),*) 'Plant Growth Integrator could not find'
-             write(fates_log(),*) 'a solution in less than ',max_substeps,' tries'
-             write(fates_log(),*) 'Aborting'
-             write(fates_log(),*) 'carbon_balance',carbon_balance
-             write(fates_log(),*) 'deltaC',deltaC
-             write(fates_log(),*) 'totalC',totalC
-             write(fates_log(),*) 'leaf:',grow_leaf,target_leaf_c,target_leaf_c - sum(leaf_c(:))
-             write(fates_log(),*) 'fnrt:',grow_fnrt,target_fnrt_c,target_fnrt_c - fnrt_c
-             write(fates_log(),*) 'sap:',grow_sapw,target_sapw_c, target_sapw_c - sapw_c
-             write(fates_log(),*) 'store:',grow_store,target_store_c,target_store_c - store_c
-             write(fates_log(),*) 'dead:',target_struct_c,target_struct_c - struct_c
+             write(fates_log(),fmt=*)    '---~---'
+             write(fates_log(),fmt=*)    'Plant Growth Integrator could not find'
+             write(fates_log(),fmt=*)    'a solution in less than ',max_substeps,' tries.'
+             write(fates_log(),fmt=*)    'Aborting!'
+             write(fates_log(),fmt=*)    '---~---'
+             write(fates_log(),fmt=fmti) 'Leaf status    =',leaf_status
+             write(fates_log(),fmt=fmt0) 'Carbon_balance =',carbon_balance
+             write(fates_log(),fmt=fmt0) 'deltaC         =',deltaC
+             write(fates_log(),fmt=fmt0) 'totalC         =',totalC
+             write(fates_log(),fmt=fmth) ' Tissue     |',         ' Grow','       Current','      Target'  ,'     Deficit'
+             write(fates_log(),fmt=fmtg) ' Leaf       |', grow_leaf      ,  sum(leaf_c(:)),target_leaf_c  , target_leaf_c - sum(leaf_c(:))
+             write(fates_log(),fmt=fmtg) ' Fine root  |', grow_fnrt      ,          fnrt_c,target_fnrt_c  , target_fnrt_c - fnrt_c
+             write(fates_log(),fmt=fmtg) ' Sapwood    |', grow_sapw      ,          sapw_c,target_sapw_c  , target_sapw_c - sapw_c
+             write(fates_log(),fmt=fmtg) ' Storage    |', grow_store     ,         store_c,target_store_c , target_store_c - store_c
+             write(fates_log(),fmt=fmtg) ' Structural |', grow_struct    ,        struct_c,target_struct_c, target_struct_c - struct_c
+             write(fates_log(),fmt=*)    '---~---'
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
 
@@ -1016,80 +1018,94 @@ module PRTAllometricCarbonMod
 
    ! ====================================================================================
 
-   subroutine TargetAllometryCheck(bleaf,bfroot,bsap,bstore,bdead, &
-                                   bt_leaf,bt_froot,bt_sap,bt_store,bt_dead, &
-                                   grow_dead,grow_leaf,grow_froot,grow_sapw,grow_store)
+   subroutine TargetAllometryCheck(b0_leaf,b0_fnrt,b0_sapw,b0_store,b0_struct, &
+                                   bleaf,bfnrt,bsapw,bstore,bstruct, &
+                                   bt_leaf,bt_fnrt,bt_sapw,bt_store,bt_struct, &
+                                   carbon_balance,ipft,leaf_status, &
+                                   grow_leaf,grow_fnrt,grow_sapw,grow_store,grow_struct)
 
-     ! Arguments
-     real(r8),intent(in) :: bleaf   !actual
-     real(r8),intent(in) :: bfroot
-     real(r8),intent(in) :: bsap
-     real(r8),intent(in) :: bstore
-     real(r8),intent(in) :: bdead
-     real(r8),intent(in) :: bt_leaf   !target
-     real(r8),intent(in) :: bt_froot
-     real(r8),intent(in) :: bt_sap
-     real(r8),intent(in) :: bt_store
-     real(r8),intent(in) :: bt_dead
-     logical,intent(out) :: grow_leaf  !growth flag
-     logical,intent(out) :: grow_froot
-     logical,intent(out) :: grow_sapw
-     logical,intent(out) :: grow_store
-     logical,intent(out) :: grow_dead
-       
-     if( (bt_leaf - bleaf)>calloc_abs_error) then
-        write(fates_log(),*) 'leaves are not on-allometry at the growth step'
-        write(fates_log(),*) 'exiting',bleaf,bt_leaf
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     elseif( (bleaf - bt_leaf)>calloc_abs_error) then
-        ! leaf is above allometry, ignore
-        grow_leaf = .false.
-     else
-        grow_leaf = .true.
-     end if
-     
-     if( (bt_froot - bfroot)>calloc_abs_error) then
-        write(fates_log(),*) 'fineroots are not on-allometry at the growth step'
-        write(fates_log(),*) 'exiting',bfroot, bt_froot
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     elseif( ( bfroot-bt_froot)>calloc_abs_error ) then
-        grow_froot = .false.
-     else
-        grow_froot = .true.
-     end if
-     
-     if( (bt_sap - bsap)>calloc_abs_error) then
-        write(fates_log(),*) 'sapwood is not on-allometry at the growth step'
-        write(fates_log(),*) 'exiting',bsap, bt_sap
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     elseif( ( bsap-bt_sap)>calloc_abs_error ) then
-        grow_sapw = .false.
-     else
-        grow_sapw = .true.
-     end if
-     
-     if( (bt_store - bstore)>calloc_abs_error) then
-        write(fates_log(),*) 'storage is not on-allometry at the growth step'
-        write(fates_log(),*) 'exiting',bstore,bt_store
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     elseif( ( bstore-bt_store)>calloc_abs_error ) then
-        grow_store = .false.
-     else
-        grow_store = .true.
-     end if
-     
-     if( (bt_dead - bdead)>calloc_abs_error) then
-        write(fates_log(),*) 'structure not on-allometry at the growth step'
-        write(fates_log(),*) 'exiting',bdead,bt_dead
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     elseif( (bdead-bt_dead)> calloc_abs_error) then
-        grow_dead = .false.
-     else
-        grow_dead = .true.
-     end if
-     
+      ! Arguments
+      real(r8),intent(in) :: b0_leaf        !initial
+      real(r8),intent(in) :: b0_fnrt
+      real(r8),intent(in) :: b0_sapw
+      real(r8),intent(in) :: b0_store
+      real(r8),intent(in) :: b0_struct
+      real(r8),intent(in) :: bleaf          !actual
+      real(r8),intent(in) :: bfnrt
+      real(r8),intent(in) :: bsapw
+      real(r8),intent(in) :: bstore
+      real(r8),intent(in) :: bstruct
+      real(r8),intent(in) :: bt_leaf        !target
+      real(r8),intent(in) :: bt_fnrt
+      real(r8),intent(in) :: bt_sapw
+      real(r8),intent(in) :: bt_store
+      real(r8),intent(in) :: bt_struct
+      real(r8),intent(in) :: carbon_balance !remaining carbon balance
+      integer,intent(in)  :: ipft           !Plant functional type
+      integer,intent(in)  :: leaf_status    !Phenology status
+      logical,intent(out) :: grow_leaf      !growth flag
+      logical,intent(out) :: grow_fnrt
+      logical,intent(out) :: grow_sapw
+      logical,intent(out) :: grow_store
+      logical,intent(out) :: grow_struct
+      ! Local variables
+      logical             :: fine_leaf
+      logical             :: fine_fnrt
+      logical             :: fine_sapw
+      logical             :: fine_store
+      logical             :: fine_struct
+      logical             :: all_fine
+      ! Local constants
+      character(len= 3), parameter :: fmth = '(a)'
+      character(len=27), parameter :: fmtb = '(a,3(1x,es12.5,1x,a),1x,l1)'
+      character(len=13), parameter :: fmte = '(a,1x,es12.5)'
+      character(len=10), parameter :: fmti = '(a,1x,i12)'
 
-     return
+
+      ! First test whether or not each pool looks reasonable.
+      fine_leaf   = (bt_leaf   - bleaf  ) <= calloc_abs_error
+      fine_fnrt   = (bt_fnrt   - bfnrt  ) <= calloc_abs_error
+      fine_sapw   = (bt_sapw   - bsapw  ) <= calloc_abs_error
+      fine_store  = (bt_store  - bstore ) <= calloc_abs_error
+      fine_struct = (bt_struct - bstruct) <= calloc_abs_error
+      all_fine    = fine_leaf .and. fine_fnrt .and. fine_sapw .and. &
+                    fine_store .and. fine_struct
+
+      ! Decide whether or not to grow tissues (but only if all tissues look fine).
+      ! We grow only when biomass is less than target biomass (with tolerance).
+      if (all_fine) then
+         grow_leaf   = ( bleaf   - bt_leaf   ) <= calloc_abs_error
+         grow_fnrt   = ( bfnrt   - bt_fnrt   ) <= calloc_abs_error
+         grow_sapw   = ( bsapw   - bt_sapw   ) <= calloc_abs_error
+         grow_store  = ( bstore  - bt_store  ) <= calloc_abs_error
+         grow_struct = ( bstruct - bt_struct ) <= calloc_abs_error
+      else
+         ! If anything looks not fine, write a detailed report 
+         write(fates_log(),fmt=fmth) '======'
+         write(fates_log(),fmt=fmth) ' At least one tissue is not on-allometry at the growth step'
+         write(fates_log(),fmt=fmth) '======'
+         write(fates_log(),fmt=fmth) ''
+         write(fates_log(),fmt=fmth) ' Biomass and on-allometry test (''F'' means problem)'
+         write(fates_log(),fmt=fmth) '------'
+         write(fates_log(),fmt=fmth) ' Tissue     | Initial      | Current      | Target       | On-allometry'
+         write(fates_log(),fmt=fmtb) ' Leaf       |',b0_leaf   ,'|',bleaf     ,'|',bt_leaf   ,'|',fine_leaf
+         write(fates_log(),fmt=fmtb) ' Fine root  |',b0_fnrt   ,'|',bfnrt     ,'|',bt_fnrt   ,'|',fine_fnrt
+         write(fates_log(),fmt=fmtb) ' Sap wood   |',b0_sapw   ,'|',bsapw     ,'|',bt_sapw   ,'|',fine_sapw
+         write(fates_log(),fmt=fmtb) ' Storage    |',b0_store  ,'|',bstore    ,'|',bt_store  ,'|',fine_store
+         write(fates_log(),fmt=fmtb) ' Structural |',b0_struct ,'|',bstruct   ,'|',bt_struct ,'|',fine_struct
+         write(fates_log(),fmt=fmth) ''
+         write(fates_log(),fmt=fmth) ' Ancillary information'
+         write(fates_log(),fmt=fmth) '------'
+         write(fates_log(),fmt=fmti) ' PFT              = ',ipft
+         write(fates_log(),fmt=fmti) ' leaf_status      = ',leaf_status
+         write(fates_log(),fmt=fmte) ' carbon_balance   = ',carbon_balance
+         write(fates_log(),fmt=fmte) ' calloc_abs_error = ',calloc_abs_error
+         write(fates_log(),fmt=fmth) ''
+         write(fates_log(),fmt=fmth) '======'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
+
+      return
    end subroutine TargetAllometryCheck
 
    ! =====================================================================================

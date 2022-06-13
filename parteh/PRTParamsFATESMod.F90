@@ -127,7 +127,7 @@ contains
     real(r8), allocatable :: tmpreal(:)  ! Temporary variable to hold floats
     
     name = 'fates_prt_organ_id'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=tmpreal)
     allocate(prt_params%organ_id(size(tmpreal,dim=1)))
     call ArrayNint(tmpreal,prt_params%organ_id)
@@ -391,232 +391,235 @@ contains
                                          ! that are converted to ints
 
     name = 'fates_phen_stress_decid'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=tmpreal)
     allocate(prt_params%stress_decid(size(tmpreal,dim=1)))
     call ArrayNint(tmpreal,prt_params%stress_decid)
     deallocate(tmpreal)
     
     name = 'fates_phen_season_decid'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=tmpreal)
     allocate(prt_params%season_decid(size(tmpreal,dim=1)))
     call ArrayNint(tmpreal,prt_params%season_decid)
     deallocate(tmpreal)
     
     name = 'fates_phen_evergreen'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=tmpreal)
     allocate(prt_params%evergreen(size(tmpreal,dim=1)))
     call ArrayNint(tmpreal,prt_params%evergreen)
     deallocate(tmpreal)
 
     name = 'fates_leaf_slamax'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%slamax)
     
     name = 'fates_leaf_slatop'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%slatop)
 
     name = 'fates_allom_sai_scaler'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_sai_scaler)
 
     name = 'fates_fnrt_prof_a'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%fnrt_prof_a)
 
     name = 'fates_fnrt_prof_b'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%fnrt_prof_b)
 
     name = 'fates_fnrt_prof_mode'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%fnrt_prof_mode)
 
     name = 'fates_fire_crown_depth_frac'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%crown)
     
     name = 'fates_woody'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=prt_params%woody)
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=tmpreal)
+    allocate(prt_params%woody(size(tmpreal,dim=1)))
+    call ArrayNint(tmpreal,prt_params%woody)
+    deallocate(tmpreal)
     
     name = 'fates_wood_density'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%wood_density)
     
     name = 'fates_seed_dbh_repro_threshold'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%dbh_repro_threshold)
 
     name = 'fates_alloc_storage_cushion'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%cushion)
 
     name = 'fates_leaf_stor_priority'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%leaf_stor_priority)
 
     name = 'fates_senleaf_long_fdrought'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
           data=prt_params%senleaf_long_fdrought)
 
     name = 'fates_root_long'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%root_long)
 
     name = 'fates_seed_alloc_mature'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%seed_alloc_mature)
 
     name = 'fates_seed_alloc'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%seed_alloc)
 
     name = 'fates_c2b'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%c2b)
 
     name = 'fates_grperc'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%grperc)
 
     name = 'fates_allom_dbh_maxheight'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
           data=prt_params%allom_dbh_maxheight)
 
     name = 'fates_allom_hmode'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_hmode)
 
     name = 'fates_allom_lmode'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_lmode)
 
     name = 'fates_allom_fmode'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_fmode)
 
     name = 'fates_allom_amode'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_amode)
 
     name = 'fates_allom_stmode'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_stmode)
 
     name = 'fates_allom_cmode'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_cmode)
 
     name = 'fates_allom_smode'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_smode)
 
     name = 'fates_allom_la_per_sa_int'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_la_per_sa_int)
 
     name = 'fates_allom_la_per_sa_slp'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_la_per_sa_slp)
 
     name = 'fates_allom_l2fr'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_l2fr)
 
     name = 'fates_allom_agb_frac'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_agb_frac)
 
     name = 'fates_allom_d2h1'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_d2h1)
 
     name = 'fates_allom_d2h2'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_d2h2)
 
     name = 'fates_allom_d2h3'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_d2h3)
 
     name = 'fates_allom_d2bl1'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_d2bl1)
 
     name = 'fates_allom_d2bl2'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_d2bl2)
 
     name = 'fates_allom_d2bl3'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_d2bl3)
 
     name = 'fates_allom_blca_expnt_diff'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_blca_expnt_diff)
 
     name = 'fates_allom_d2ca_coefficient_max'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_d2ca_coefficient_max)
 
     name = 'fates_allom_d2ca_coefficient_min'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_d2ca_coefficient_min)
 
     name = 'fates_allom_agb1'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_agb1)
 
     name = 'fates_allom_agb2'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_agb2)
 
     name = 'fates_allom_agb3'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_agb3)
 
     name = 'fates_allom_agb4'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_agb4)
 
     name = 'fates_allom_zroot_max_dbh'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_zroot_max_dbh)
     
     name = 'fates_allom_zroot_max_z'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_zroot_max_z)
     
     name = 'fates_allom_zroot_min_dbh'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_zroot_min_dbh)
     
     name = 'fates_allom_zroot_min_z'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_zroot_min_z)
     
     name = 'fates_allom_zroot_k'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_zroot_k)
     
     name = 'fates_branch_turnover'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%branch_long)
     
     name = 'fates_turnover_retrans_mode'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
           data=prt_params%turnover_retrans_mode)
 
     name = 'fates_nitr_store_ratio'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%nitr_store_ratio)
     
     name = 'fates_phos_store_ratio'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%phos_store_ratio)
     
     
@@ -703,7 +706,7 @@ contains
     character(len=param_string_length) :: name
 
     !X!    name = ''
-    !X!    call fates_params%RetreiveParameter(name=name, &
+    !X!    call fates_params%RetrieveParameter(name=name, &
     !X!         data=this%)
 
   end subroutine Receive_PFT_nvariants
@@ -722,7 +725,7 @@ contains
      character(len=param_string_length) :: name
 
      name = 'fates_leaf_long'
-     call fates_params%RetreiveParameterAllocate(name=name, &
+     call fates_params%RetrieveParameterAllocate(name=name, &
           data=prt_params%leaf_long)
 
      return
@@ -799,35 +802,35 @@ contains
      character(len=param_string_length) :: name
 
      name = 'fates_prt_nitr_stoich_p1'
-     call fates_params%RetreiveParameterAllocate(name=name, &
+     call fates_params%RetrieveParameterAllocate(name=name, &
            data=prt_params%nitr_stoich_p1)
 
      name = 'fates_prt_nitr_stoich_p2'
-     call fates_params%RetreiveParameterAllocate(name=name, &
+     call fates_params%RetrieveParameterAllocate(name=name, &
            data=prt_params%nitr_stoich_p2)
      
      name = 'fates_prt_phos_stoich_p1'
-     call fates_params%RetreiveParameterAllocate(name=name, &
+     call fates_params%RetrieveParameterAllocate(name=name, &
            data=prt_params%phos_stoich_p1)
 
      name = 'fates_prt_phos_stoich_p2'
-     call fates_params%RetreiveParameterAllocate(name=name, &
+     call fates_params%RetrieveParameterAllocate(name=name, &
            data=prt_params%phos_stoich_p2)
     
      name = 'fates_prt_alloc_priority'
-     call fates_params%RetreiveParameterAllocate(name=name, &
+     call fates_params%RetrieveParameterAllocate(name=name, &
            data=prt_params%alloc_priority)
 
      name = 'fates_turnover_carb_retrans'
-     call fates_params%RetreiveParameterAllocate(name=name, &
+     call fates_params%RetrieveParameterAllocate(name=name, &
            data=prt_params%turnover_carb_retrans)
 
      name = 'fates_turnover_nitr_retrans'
-     call fates_params%RetreiveParameterAllocate(name=name, &
+     call fates_params%RetrieveParameterAllocate(name=name, &
            data=prt_params%turnover_nitr_retrans)
 
      name = 'fates_turnover_phos_retrans'
-     call fates_params%RetreiveParameterAllocate(name=name, &
+     call fates_params%RetrieveParameterAllocate(name=name, &
            data=prt_params%turnover_phos_retrans)
 
   end subroutine PRTReceivePFTOrgans
@@ -1078,13 +1081,13 @@ contains
         ! Check if woody plants have a structural biomass (agb) intercept
         ! ----------------------------------------------------------------------------------
         if ( ( prt_params%allom_agb1(ipft) <= tiny(prt_params%allom_agb1(ipft)) ) .and. &
-             ( int(prt_params%woody(ipft)) .eq. 1 ) ) then
+             ( prt_params%woody(ipft) .eq. 1 ) ) then
 
            write(fates_log(),*) 'Woody plants are expected to have a non-zero intercept'
            write(fates_log(),*) ' in the diameter to AGB allometry equations'
            write(fates_log(),*) ' PFT#: ',ipft
            write(fates_log(),*) ' allom_agb1: ',prt_params%allom_agb1(ipft)
-           write(fates_log(),*) ' woody: ',int(prt_params%woody(ipft))
+           write(fates_log(),*) ' woody: ',prt_params%woody(ipft)
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
 
@@ -1093,7 +1096,7 @@ contains
         ! Check if non-woody plants have structural biomass (agb) intercept
         ! ----------------------------------------------------------------------------------
 !        if ( ( prt_params%allom_agb1(ipft) > tiny(prt_params%allom_agb1(ipft)) ) .and. &
-!              ( int(prt_params%woody(ipft)) .ne. 1 ) ) then
+!              ( iprt_params%woody(ipft) .ne. 1 ) ) then
 !
 !           write(fates_log(),*) 'Non-woody plants are expected to have a zero intercept'
 !           write(fates_log(),*) ' in the diameter to AGB allometry equations'
@@ -1102,7 +1105,7 @@ contains
 !           write(fates_log(),*) ' woody tissues (sap and structural dead wood).'
 !           write(fates_log(),*) ' PFT#: ',ipft
 !           write(fates_log(),*) ' allom_agb1: ',prt_params%allom_agb1(ipft)
-!           write(fates_log(),*) ' woody: ',int(prt_params%woody(ipft))
+!           write(fates_log(),*) ' woody: ',prt_params%woody(ipft)
 !           write(fates_log(),*) ' Aborting'
 !           call endrun(msg=errMsg(sourcefile, __LINE__))
 !

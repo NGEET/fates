@@ -220,6 +220,9 @@ module FatesHistoryInterfaceMod
   integer :: ih_bstor_understory_si_scpf
   integer :: ih_bleaf_canopy_si_scpf
   integer :: ih_bleaf_understory_si_scpf
+  !  Size-class x PFT LAI states
+  integer :: ih_lai_canopy_si_scpf
+  integer :: ih_lai_understory_si_scpf
 
 
 
@@ -1860,6 +1863,8 @@ end subroutine flush_hvars
                hio_bstor_understory_si_scpf  => this%hvars(ih_bstor_understory_si_scpf)%r82d, &
                hio_bleaf_canopy_si_scpf      => this%hvars(ih_bleaf_canopy_si_scpf)%r82d, &
                hio_bleaf_understory_si_scpf  => this%hvars(ih_bleaf_understory_si_scpf)%r82d, &
+               hio_lai_canopy_si_scpf        => this%hvars(ih_lai_canopy_si_scpf)%r82d, &
+               hio_lai_understory_si_scpf    => this%hvars(ih_lai_understory_si_scpf)%r82d, &
                hio_mortality_canopy_si_scpf         => this%hvars(ih_mortality_canopy_si_scpf)%r82d, &
                hio_mortality_understory_si_scpf     => this%hvars(ih_mortality_understory_si_scpf)%r82d, &
                hio_nplant_canopy_si_scpf     => this%hvars(ih_nplant_canopy_si_scpf)%r82d, &
@@ -2505,7 +2510,7 @@ end subroutine flush_hvars
                   store_m_net_alloc*n_perm2 / days_per_year / sec_per_day
 
                ! Woody State Variables (basal area growth increment)
-               if ( int(prt_params%woody(ft)) == itrue) then
+               if ( prt_params%woody(ft) == itrue) then
 
                   ! basal area  [m2/m2]
                   hio_ba_si_scpf(io_si,scpf) = hio_ba_si_scpf(io_si,scpf) + &
@@ -2632,6 +2637,8 @@ end subroutine flush_hvars
                      store_m * ccohort%n / m2_per_ha
                   hio_bleaf_canopy_si_scpf(io_si,scpf) = hio_bleaf_canopy_si_scpf(io_si,scpf) + &
                      leaf_m * ccohort%n / m2_per_ha
+                  hio_lai_canopy_si_scpf(io_si,scpf) = hio_lai_canopy_si_scpf(io_si,scpf) + &
+                      ccohort%treelai*ccohort%c_area * AREA_INV
 
                   hio_canopy_biomass_si(io_si) = hio_canopy_biomass_si(io_si) + n_perm2 * total_m
 
@@ -2725,6 +2732,8 @@ end subroutine flush_hvars
                      leaf_m  * ccohort%n / m2_per_ha
                   hio_understory_biomass_si(io_si) = hio_understory_biomass_si(io_si) + &
                      n_perm2 * total_m
+                  hio_lai_understory_si_scpf(io_si,scpf) = hio_lai_understory_si_scpf(io_si,scpf) + &
+                      ccohort%treelai*ccohort%c_area  * AREA_INV
 
                   !hio_mortality_understory_si_scpf(io_si,scpf) = hio_mortality_understory_si_scpf(io_si,scpf)+ &
                   !    (ccohort%bmort + ccohort%hmort + ccohort%cmort +
@@ -3488,8 +3497,9 @@ end subroutine flush_hvars
     real(r8) :: npp         ! npp for this time-step (adjusted for g resp) [kgC/indiv/step]
     real(r8) :: aresp       ! autotrophic respiration (adjusted for g resp) [kgC/indiv/step]
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
-    real(r8) :: patch_area_by_age(nlevage) ! patch area in each bin for normalizing purposes
+    real(r8) :: patch_area_by_age(nlevage)  ! patch area in each bin for normalizing purposes
     real(r8) :: canopy_area_by_age(nlevage) ! canopy area in each bin for normalizing purposes
+    real(r8) :: site_area_veg               ! area of the site that is not bare-ground 
     real(r8), parameter :: tiny = 1.e-5_r8      ! some small number
     integer  :: ipa2     ! patch incrementer
     integer :: cnlfpft_indx, cnlf_indx, ipft, ican, ileaf ! more iterators and indices
@@ -3584,11 +3594,18 @@ end subroutine flush_hvars
          hio_hr_si(io_si)  =  bc_in(s)%tot_het_resp / g_per_kg
 
          ipa = 0
-         cpatch => sites(s)%oldest_patch
-
+         
          patch_area_by_age(1:nlevage) = 0._r8
          canopy_area_by_age(1:nlevage) = 0._r8
+         
+         ! Calculate the site-level total vegetated area (i.e. non-bareground)
+         if (hlm_use_nocomp .eq. itrue) then
+            site_area_veg = area - sites(s)%area_pft(0)
+         else
+            site_area_veg = area
+         end if
 
+         cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
 
             patch_area_by_age(cpatch%age_class)  = &
@@ -3614,10 +3631,14 @@ end subroutine flush_hvars
 
             hio_rad_error_si(io_si) = hio_rad_error_si(io_si) + &
                  cpatch%radiation_error * cpatch%area * AREA_INV
+                 
+            ! Only accumulate the instantaneous vegetation temperature for vegetated patches
+            if (cpatch%patchno .ne. 0) then
+               hio_tveg(io_si) = hio_tveg(io_si) + &
+                  (bc_in(s)%t_veg_pa(cpatch%patchno) - t_water_freeze_k_1atm) * &
+                  cpatch%area / site_area_veg
+            end if
             
-            hio_tveg(io_si) = hio_tveg(io_si) + &
-                 (bc_in(s)%t_veg_pa(cpatch%patchno) - t_water_freeze_k_1atm)*cpatch%area*area_inv
-          
             ccohort => cpatch%shortest
             do while(associated(ccohort))
 
@@ -4043,7 +4064,7 @@ end subroutine update_history_hifrq
             do j_bc = j_t,j_b
             
                vwc     = bc_in(s)%h2o_liqvol_sl(j_bc)
-               psi     = site_hydr%wrf_soil(j)%p%psi_from_th(vwc)
+               psi     = site_hydr%wrf_soil(j)%p%psi_from_th(vwc) ! MLO: Any reason for not using smp_sl?
                ! cap capillary pressure
                ! psi = max(-1e5_r8,psi) Removing cap as that is inconstistent
                !                        with model internals and physics. Should
@@ -5789,6 +5810,14 @@ end subroutine update_history_hifrq
           ivar=ivar, initialize=initialize_variables,                          &
           index = ih_bleaf_canopy_si_scpf)
 
+    call this%set_history_var(vname='FATES_LAI_CANOPY_SZPF',                   &
+          units = 'm2 m-2',                                                    &
+          long='Leaf area index (LAI) of canopy plants by pft/size',           &
+          use_default='inactive', &
+          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', upfreq=1,       &
+          ivar=ivar, initialize=initialize_variables,                          &
+          index = ih_lai_canopy_si_scpf )          
+
     call this%set_history_var(vname='FATES_NPLANT_CANOPY_SZPF', units = 'm-2', &
           long='number of canopy plants by size/pft per m2',                   &
           use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
@@ -5816,6 +5845,13 @@ end subroutine update_history_hifrq
           use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_bleaf_understory_si_scpf)
+
+    call this%set_history_var(vname='FATES_LAI_USTORY_SZPF',                   &
+          units = 'm2 m-2',                                                    &
+          long='Leaf area index (LAI) of understory plants by pft/size',       &
+          use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
+          hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
+          initialize=initialize_variables, index = ih_lai_understory_si_scpf )
 
     call this%set_history_var(vname='FATES_NPLANT_USTORY_SZPF',            &
           units = 'm-2',                                                       &

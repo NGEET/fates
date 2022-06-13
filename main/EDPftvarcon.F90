@@ -652,329 +652,329 @@ contains
     character(len=param_string_length) :: name
 
     !X!    name = ''
-    !X!    call fates_params%RetreiveParameter(name=name, &
+    !X!    call fates_params%RetrieveParameter(name=name, &
     !X!         data=this%)
 
     name = 'fates_mort_freezetol'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%freezetol)
 
     name = 'fates_recruit_hgt_min'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%hgt_min)
 
     name = 'fates_fire_bark_scaler'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%bark_scaler)
 
     name = 'fates_fire_crown_kill'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%crown_kill)
 
     name = 'fates_recruit_initd'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%initd)
 
     name = 'fates_seed_suppl'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%seed_suppl)
 
     name = 'fates_leaf_stomatal_slope_ballberry'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%bb_slope)
 
     name = 'fates_leaf_stomatal_slope_medlyn'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%medlyn_slope)
 
     name = 'fates_leaf_stomatal_intercept'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%stomatal_intercept)
 
     name = 'fates_lf_flab'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%lf_flab)
 
     name = 'fates_lf_fcel'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%lf_fcel)
 
     name = 'fates_lf_flig'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%lf_flig)
 
     name = 'fates_fr_flab'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%fr_flab)
 
     name = 'fates_fr_fcel'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%fr_fcel)
 
     name = 'fates_fr_flig'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%fr_flig)
 
     name = 'fates_leaf_xl'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%xl)
 
     name = 'fates_leaf_clumping_index'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%clumping_index)
 
     name = 'fates_leaf_c3psn'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%c3psn)
 
     name = 'fates_smpso'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%smpso)
 
     name = 'fates_smpsc'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%smpsc)
 
     name = 'fates_maintresp_reduction_curvature'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
           data=this%maintresp_reduction_curvature)
 
     name = 'fates_maintresp_reduction_intercept'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
           data=this%maintresp_reduction_intercept)
 
     name = 'fates_prescribed_npp_canopy'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%prescribed_npp_canopy)
 
     name = 'fates_prescribed_npp_understory'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%prescribed_npp_understory)
 
     name = 'fates_prescribed_mortality_canopy'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%prescribed_mortality_canopy)
 
     name = 'fates_prescribed_mortality_understory'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%prescribed_mortality_understory)
 
     name = 'fates_prescribed_recruitment'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%prescribed_recruitment)
 
     name = 'fates_fire_alpha_SH'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%fire_alpha_SH)
 
     name = 'fates_allom_frbstor_repro'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%allom_frbstor_repro)
 
     name = 'fates_hydr_p_taper'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
           data=this%hydr_p_taper)
 
     name = 'fates_hydr_rs2'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
           data=this%hydr_rs2)
 
     name = 'fates_hydr_srl'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
           data=this%hydr_srl)
 
     name = 'fates_hydr_rfrac_stem'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
           data=this%hydr_rfrac_stem)
 
     name = 'fates_hydr_k_lwp'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
           data=this%hydr_k_lwp)
 
     name = 'fates_hydr_avuln_gs'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
           data=this%hydr_avuln_gs)
 
     name = 'fates_hydr_p50_gs'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
           data=this%hydr_p50_gs)
 
     name = 'fates_hydr_k_lwp'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%hydr_k_lwp)
 
     name = 'fates_mort_bmort'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%bmort)
 
     name = 'fates_mort_scalar_coldstress'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%mort_scalar_coldstress)
 
     name = 'fates_mort_scalar_cstarvation'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%mort_scalar_cstarvation)
 
     name = 'fates_mort_scalar_hydrfailure'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%mort_scalar_hydrfailure)
 
 
     name = 'fates_mort_ip_size_senescence'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%mort_ip_size_senescence)
 
     name = 'fates_mort_r_size_senescence'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%mort_r_size_senescence)
 
     name = 'fates_mort_ip_age_senescence'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%mort_ip_age_senescence)
 
     name = 'fates_mort_r_age_senescence'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%mort_r_age_senescence)
 
     name = 'fates_mort_scalar_coldstress'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%mort_scalar_coldstress)
 
     name = 'fates_mort_scalar_cstarvation'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%mort_scalar_cstarvation)
 
 
     name = 'fates_mort_hf_sm_threshold'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%hf_sm_threshold)
 
     name = 'fates_mort_hf_flc_threshold'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%hf_flc_threshold)
 
     name = 'fates_leaf_vcmaxha'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%vcmaxha)
 
     name = 'fates_leaf_jmaxha'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%jmaxha)
 
     name = 'fates_leaf_vcmaxhd'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%vcmaxhd)
 
     name = 'fates_leaf_jmaxhd'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%jmaxhd)
 
     name = 'fates_leaf_vcmaxse'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%vcmaxse)
 
     name = 'fates_leaf_jmaxse'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%jmaxse)
 
     name = 'fates_seed_germination_rate'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%germination_rate)
 
     name = 'fates_seed_decay_rate'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%seed_decay_rate)
 
     name = 'fates_trim_limit'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
           data=this%trim_limit)
 
     name = 'fates_trim_inc'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
           data=this%trim_inc)
 
     name = 'fates_leaf_diameter'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%dleaf)
 
     name = 'fates_z0mr'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%z0mr)
 
     name = 'fates_displar'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%displar)
 
     name = 'fates_phenflush_fraction'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%phenflush_fraction)
 
     name = 'fates_phen_cold_size_threshold'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
           data=this%phen_cold_size_threshold)
 
     name = 'fates_phen_stem_drop_fraction'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
           data=this%phen_stem_drop_fraction)
 
     name = 'fates_prescribed_nuptake'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%prescribed_nuptake)
 
     name = 'fates_prescribed_puptake'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%prescribed_puptake)
 
     name = 'fates_dev_arbitrary_pft'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%dev_arbitrary_pft)
 
     name = 'fates_eca_decompmicc'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%decompmicc)
 
     name = 'fates_eca_km_nh4'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%eca_km_nh4)
 
     name = 'fates_eca_vmax_nh4'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%eca_vmax_nh4)
 
     name = 'fates_eca_km_no3'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%eca_km_no3)
 
     name = 'fates_eca_vmax_no3'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%eca_vmax_no3)
 
     name = 'fates_eca_km_p'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%eca_km_p)
 
     name = 'fates_eca_vmax_p'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%eca_vmax_p)
 
     name = 'fates_eca_km_ptase'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%eca_km_ptase)
 
     name = 'fates_eca_vmax_ptase'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%eca_vmax_ptase)
 
     name = 'fates_eca_alpha_ptase'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%eca_alpha_ptase)
 
     name = 'fates_eca_lambda_ptase'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%eca_lambda_ptase)
 
     name = 'fates_hlm_pft_map'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%hlm_pft_map)
 
   end subroutine Receive_PFT
@@ -1042,7 +1042,7 @@ contains
     ! NOTE(bja, 2017-02) these are 2-d parameters, but they are
     ! currently stored in the parameter file as separate 1-d arrays.
     ! We can't allocate slices of arrays separately, so we have to
-    ! manually allocate the memory here, retreive into a dummy array,
+    ! manually allocate the memory here, retrieve into a dummy array,
     ! and copy. All parameters in this subroutine are sized the same,
     ! so we can reused the dummy array. If someone wants to cleanup
     ! the input file, all this complexity can be removed.
@@ -1057,7 +1057,7 @@ contains
     character(len=param_string_length) :: name
 
     !X!    name = ''
-    !X!    call fates_params%RetreiveParameter(name=name, &
+    !X!    call fates_params%RetrieveParameter(name=name, &
     !X!         data=this%)
 
     integer :: index
@@ -1089,12 +1089,12 @@ contains
     allocate(this%rhol(lower_bound_1:upper_bound_1, lower_bound_2:upper_bound_2))
 
     name = 'fates_rholvis'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetrieveParameter(name=name, &
          data=dummy_data)
     this%rhol(lower_bound_1:upper_bound_1, ivis) = dummy_data
 
     name = 'fates_rholnir'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetrieveParameter(name=name, &
          data=dummy_data)
     this%rhol(lower_bound_1:upper_bound_1, inir) = dummy_data
 
@@ -1104,12 +1104,12 @@ contains
     allocate(this%rhos(lower_bound_1:upper_bound_1, lower_bound_2:upper_bound_2))
 
     name = 'fates_rhosvis'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetrieveParameter(name=name, &
          data=dummy_data)
     this%rhos(lower_bound_1:upper_bound_1, ivis) = dummy_data
 
     name = 'fates_rhosnir'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetrieveParameter(name=name, &
          data=dummy_data)
     this%rhos(lower_bound_1:upper_bound_1, inir) = dummy_data
 
@@ -1119,12 +1119,12 @@ contains
     allocate(this%taul(lower_bound_1:upper_bound_1, lower_bound_2:upper_bound_2))
 
     name = 'fates_taulvis'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetrieveParameter(name=name, &
          data=dummy_data)
     this%taul(lower_bound_1:upper_bound_1, ivis) = dummy_data
 
     name = 'fates_taulnir'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetrieveParameter(name=name, &
          data=dummy_data)
     this%taul(lower_bound_1:upper_bound_1, inir) = dummy_data
 
@@ -1134,12 +1134,12 @@ contains
     allocate(this%taus(lower_bound_1:upper_bound_1, lower_bound_2:upper_bound_2))
 
     name = 'fates_tausvis'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetrieveParameter(name=name, &
          data=dummy_data)
     this%taus(lower_bound_1:upper_bound_1, ivis) = dummy_data
 
     name = 'fates_tausnir'
-    call fates_params%RetreiveParameter(name=name, &
+    call fates_params%RetrieveParameter(name=name, &
          data=dummy_data)
     this%taus(lower_bound_1:upper_bound_1, inir) = dummy_data
 
@@ -1192,7 +1192,7 @@ contains
      character(len=param_string_length) :: name
 
      name = 'fates_leaf_vcmax25top'
-     call fates_params%RetreiveParameterAllocate(name=name, &
+     call fates_params%RetrieveParameterAllocate(name=name, &
           data=this%vcmax25top)
 
      return
@@ -1298,63 +1298,63 @@ contains
 
 
      name = 'fates_hydr_vg_alpha_node'
-     call fates_params%RetreiveParameterAllocate(name=name, &
+     call fates_params%RetrieveParameterAllocate(name=name, &
           data=this%hydr_vg_alpha_node)
 
      name = 'fates_hydr_vg_m_node'
-     call fates_params%RetreiveParameterAllocate(name=name, &
+     call fates_params%RetrieveParameterAllocate(name=name, &
            data=this%hydr_vg_m_node)
 
      name = 'fates_hydr_vg_n_node'
-     call fates_params%RetreiveParameterAllocate(name=name, &
+     call fates_params%RetrieveParameterAllocate(name=name, &
           data=this%hydr_vg_n_node)
 
      name = 'fates_hydr_avuln_node'
-     call fates_params%RetreiveParameterAllocate(name=name, &
+     call fates_params%RetrieveParameterAllocate(name=name, &
            data=this%hydr_avuln_node)
 
      name = 'fates_hydr_p50_node'
-     call fates_params%RetreiveParameterAllocate(name=name, &
+     call fates_params%RetrieveParameterAllocate(name=name, &
            data=this%hydr_p50_node)
 
      name = 'fates_hydr_thetas_node'
-     call fates_params%RetreiveParameterAllocate(name=name, &
+     call fates_params%RetrieveParameterAllocate(name=name, &
            data=this%hydr_thetas_node)
 
      name = 'fates_hydr_epsil_node'
-     call fates_params%RetreiveParameterAllocate(name=name, &
+     call fates_params%RetrieveParameterAllocate(name=name, &
            data=this%hydr_epsil_node)
 
      name = 'fates_hydr_pitlp_node'
-     call fates_params%RetreiveParameterAllocate(name=name, &
+     call fates_params%RetrieveParameterAllocate(name=name, &
            data=this%hydr_pitlp_node)
 
      name = 'fates_hydr_resid_node'
-     call fates_params%RetreiveParameterAllocate(name=name, &
+     call fates_params%RetrieveParameterAllocate(name=name, &
            data=this%hydr_resid_node)
 
      name = 'fates_hydr_fcap_node'
-     call fates_params%RetreiveParameterAllocate(name=name, &
+     call fates_params%RetrieveParameterAllocate(name=name, &
            data=this%hydr_fcap_node)
 
      name = 'fates_hydr_pinot_node'
-     call fates_params%RetreiveParameterAllocate(name=name, &
+     call fates_params%RetrieveParameterAllocate(name=name, &
            data=this%hydr_pinot_node)
 
      name = 'fates_hydr_kmax_node'
-     call fates_params%RetreiveParameterAllocate(name=name, &
+     call fates_params%RetrieveParameterAllocate(name=name, &
            data=this%hydr_kmax_node)
 
      name = 'fates_hydr_vg_alpha_node'
-     call fates_params%RetreiveParameterAllocate(name=name, &
+     call fates_params%RetrieveParameterAllocate(name=name, &
           data=this%hydr_vg_alpha_node)
 
      name = 'fates_hydr_vg_m_node'
-     call fates_params%RetreiveParameterAllocate(name=name, &
+     call fates_params%RetrieveParameterAllocate(name=name, &
           data=this%hydr_vg_m_node)
 
      name = 'fates_hydr_vg_n_node'
-     call fates_params%RetreiveParameterAllocate(name=name, &
+     call fates_params%RetrieveParameterAllocate(name=name, &
           data=this%hydr_vg_n_node)
 
   end subroutine Receive_PFT_hydr_organs
