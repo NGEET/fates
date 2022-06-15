@@ -127,7 +127,13 @@ contains
     allocate(site_in%growthflux_fusion(1:nlevsclass,1:numpft))
     allocate(site_in%mass_balance(1:num_elements))
     allocate(site_in%flux_diags(1:num_elements))
-
+    
+    allocate(site_in%term_carbonflux_canopy(1:numpft))
+    allocate(site_in%term_carbonflux_ustory(1:numpft))
+    allocate(site_in%imort_carbonflux(1:numpft))
+    allocate(site_in%fmort_carbonflux_canopy(1:numpft))
+    allocate(site_in%fmort_carbonflux_ustory(1:numpft))
+    
     site_in%nlevsoil   = bc_in%nlevsoil
     allocate(site_in%rootfrac_scr(site_in%nlevsoil))
     allocate(site_in%zi_soil(0:site_in%nlevsoil))
