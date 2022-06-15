@@ -219,7 +219,7 @@ module EDTypesMod
      real(r8) ::  coage                                  ! cohort age in years
      real(r8) ::  hite                                   ! height: meters
      integer  ::  indexnumber                            ! unique number for each cohort. (within clump?)
-     real(r8) ::  laimemory                              ! target leaf biomass- set from previous year: kGC per indiv
+     real(r8) ::  leafmemory                             ! target leaf biomass- set from previous year: kGC per indiv
      real(r8) ::  sapwmemory                             ! target sapwood biomass- set from previous year: kGC per indiv
      real(r8) ::  structmemory                           ! target structural biomass- set from previous year: kGC per indiv
      integer  ::  canopy_layer                           ! canopy status of cohort (1 = canopy, 2 = understorey, etc.)
@@ -1048,7 +1048,7 @@ module EDTypesMod
      write(fates_log(),*) 'co%dbh                    = ', ccohort%dbh                                        
      write(fates_log(),*) 'co%hite                   = ', ccohort%hite
      write(fates_log(),*) 'co%coage                  = ', ccohort%coage
-     write(fates_log(),*) 'co%laimemory              = ', ccohort%laimemory
+     write(fates_log(),*) 'co%leafmemory             = ', ccohort%leafmemory
      write(fates_log(),*) 'co%sapwmemory             = ', ccohort%sapwmemory
      write(fates_log(),*) 'co%structmemory           = ', ccohort%structmemory
      

@@ -778,7 +778,7 @@ contains
                       
                    else
                       ! small trees 
-                      if( int(prt_params%woody(currentCohort%pft)) == itrue)then
+                      if( prt_params%woody(currentCohort%pft) == itrue)then
                          
                          
                          ! Survivorship of undestory woody plants.  Two step process.
@@ -921,7 +921,7 @@ contains
                    ! burned off.  Here, we remove that mass, and
                    ! tally it in the flux we sent to the atmosphere
                    
-                   if(int(prt_params%woody(currentCohort%pft)) == itrue)then
+                   if(prt_params%woody(currentCohort%pft) == itrue)then
                        leaf_burn_frac = currentCohort%fraction_crown_burned
                    else
 
@@ -999,7 +999,7 @@ contains
                       ! WHat to do with cohorts in the understory of a logging generated
                       ! disturbance patch?
                       
-                      if(int(prt_params%woody(currentCohort%pft)) == itrue)then
+                      if(prt_params%woody(currentCohort%pft) == itrue)then
                          
                          
                          ! Survivorship of undestory woody plants.  Two step process.
@@ -1910,7 +1910,7 @@ contains
              num_dead = currentCohort%n * min(1.0_r8,currentCohort%dmort * &
                    hlm_freq_day * fates_mortality_disturbance_fraction)
              
-          elseif(int(prt_params%woody(pft)) == itrue) then
+          elseif(prt_params%woody(pft) == itrue) then
              
              ! Understorey trees. The total dead is based on their survivorship
              ! function, and the total area of disturbance.

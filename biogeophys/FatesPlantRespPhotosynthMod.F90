@@ -505,6 +505,7 @@ contains
 
                                end select
 
+                               ! MLO - Shouldn't these numbers be parameters too?
                                lmr25top = 2.525e-6_r8 * (1.5_r8 ** ((25._r8 - 20._r8)/10._r8))
                                lmr25top = lmr25top * lnc_top / (umolC_to_kgC * g_per_kg)
 
