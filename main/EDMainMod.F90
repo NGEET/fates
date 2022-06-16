@@ -855,7 +855,6 @@ contains
                 write(fates_log(),*) 'BG CWD (by layer): ', sum(litt%bg_cwd,dim=1)
                 write(fates_log(),*) 'leaf litter:',sum(litt%leaf_fines)
                 write(fates_log(),*) 'root litter (by layer): ',sum(litt%root_fines,dim=1)
-                write(fates_log(),*) 'dist mode: ',currentPatch%disturbance_mode
                 write(fates_log(),*) 'anthro_disturbance_label: ',currentPatch%anthro_disturbance_label
                 write(fates_log(),*) 'use_this_pft: ', currentSite%use_this_pft(:)
                 if(print_cohorts)then

@@ -374,12 +374,13 @@ contains
       integer :: h_index   ! for looping over harvest categories
       integer :: icode   ! Integer equivalent of the event code (parameter file only allows reals)
 
-     !  Loop around harvest categories to determine the annual hlm harvest rate for the current cohort based on patch history info
+     ! Loop around harvest categories to determine the annual hlm harvest rate for the current cohort based on patch history info
+     ! We do account forest only since non-forest harvest has geographical mismatch to LUH2 dataset
      harvest_rate = 0._r8
      do h_index = 1,hlm_num_lu_harvest_cats
         if (patch_anthro_disturbance_label .eq. primaryforest) then
-           if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1" .or. &
-                hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2") then
+           if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1") then! .or. &
+           !     hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2") then
               harvest_rate = harvest_rate + hlm_harvest_rates(h_index)
            endif
         else if (patch_anthro_disturbance_label .eq. secondaryforest .and. &
@@ -389,8 +390,8 @@ contains
            endif
         else if (patch_anthro_disturbance_label .eq. secondaryforest .and. &
              secondary_age < secondary_age_threshold) then
-           if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2" .or. &
-                hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3") then
+           if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2") then! .or. &
+           !     hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3") then
               harvest_rate = harvest_rate + hlm_harvest_rates(h_index)
            endif
         endif
@@ -594,8 +595,8 @@ contains
 
      do h_index = 1,hlm_num_lu_harvest_cats
         if (patch_anthro_disturbance_label .eq. primaryforest) then
-           if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1" .or. &
-                hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2") then
+           if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1") then! .or. &
+           !     hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2") then
               harvest_rate_c = harvest_rate_c + hlm_harvest_rates(h_index)
               ! Determine the total supply of available C for harvest
               if(harvestable_forest_c(h_index) >= harvest_rate_c) then
@@ -624,8 +625,8 @@ contains
            endif
         else if (patch_anthro_disturbance_label .eq. secondaryforest .and. &
              secondary_age < secondary_age_threshold) then
-           if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2" .or. &
-                hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3") then
+           if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2") then! .or. &
+           !     hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3") then
               harvest_rate_c = harvest_rate_c + hlm_harvest_rates(h_index)
               if(harvestable_forest_c(h_index) >= harvest_rate_c) then
                  harvest_rate_supply = harvest_rate_supply + harvestable_forest_c(h_index)
