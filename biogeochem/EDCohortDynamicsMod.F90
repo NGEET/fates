@@ -868,13 +868,13 @@ contains
       currentSite%term_nindivs_canopy(currentCohort%size_class,currentCohort%pft) = &
             currentSite%term_nindivs_canopy(currentCohort%size_class,currentCohort%pft) + currentCohort%n
 
-      currentSite%term_carbonflux_canopy = currentSite%term_carbonflux_canopy + &
+      currentSite%term_carbonflux_canopy(currentCohort%pft) = currentSite%term_carbonflux_canopy(currentCohort%pft) + &
             currentCohort%n * (struct_c+sapw_c+leaf_c+fnrt_c+store_c+repro_c)
    else
       currentSite%term_nindivs_ustory(currentCohort%size_class,currentCohort%pft) = &
             currentSite%term_nindivs_ustory(currentCohort%size_class,currentCohort%pft) + currentCohort%n
 
-      currentSite%term_carbonflux_ustory = currentSite%term_carbonflux_ustory + &
+      currentSite%term_carbonflux_ustory(currentCohort%pft) = currentSite%term_carbonflux_ustory(currentCohort%pft) + &
             currentCohort%n * (struct_c+sapw_c+leaf_c+fnrt_c+store_c+repro_c)
    end if
 
