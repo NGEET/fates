@@ -27,6 +27,9 @@ module FatesIODimensionsMod
     character(*), parameter, public  :: levcnlf = 'fates_levcnlf'      ! matches histFileMod
     character(*), parameter, public  :: levcnlfpft = 'fates_levcnlfpf' ! matches histFileMod
     character(*), parameter, public  :: levagefuel = 'fates_levagefuel' ! matches histFileMod
+    character(*), parameter, public  :: levcdsc = 'fates_levcdsc' ! matches histFileMod
+    character(*), parameter, public  :: levcdpf = 'fates_levcdpf' ! matches histFileMod
+    character(*), parameter, public  :: levcdam = 'fates_levcdam' ! matches histFileMod
     
     character(*), parameter, public  :: levelem =  'fates_levelem'
     character(*), parameter, public  :: levelpft = 'fates_levelpft'
@@ -93,7 +96,15 @@ module FatesIODimensionsMod
     ! levelcwd = This records the boundaries for element x cwd
     ! levelage = This records the boundaries for element x age
 
+    ! levcdsc = This is a structure that records the boundaries for the
+    ! number of crown damage x size classes dimension
 
+    ! levcdpf = This is a structure that records the boundaries for the
+    ! number of crown damage x size classes x pft dimension
+
+    ! levcdam = This is the structure that records the boundaries for the
+    ! number of crown damage classes dimension
+    
     type, public :: fates_bounds_type
        integer :: cohort_begin
        integer :: cohort_end
@@ -131,6 +142,12 @@ module FatesIODimensionsMod
        integer :: cnlf_end
        integer :: cnlfpft_begin
        integer :: cnlfpft_end
+       integer :: cdsc_begin
+       integer :: cdsc_end
+       integer :: cdpf_begin
+       integer :: cdpf_end
+       integer :: cdam_begin
+       integer :: cdam_end
        integer :: elem_begin
        integer :: elem_end
        integer :: elpft_begin

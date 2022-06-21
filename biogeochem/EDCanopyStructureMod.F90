@@ -31,7 +31,6 @@ module EDCanopyStructureMod
   use FatesInterfaceTypesMod     , only : numpft
   use FatesInterfaceTypesMod, only : bc_in_type
   use FatesPlantHydraulicsMod, only : UpdateH2OVeg,InitHydrCohort, RecruitWaterStorage
-  use EDTypesMod            , only : maxCohortsPerPatch
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : all_carbon_elements
   use PRTGenericMod,          only : leaf_organ
@@ -1566,19 +1565,19 @@ contains
              currentCohort => currentPatch%shortest
              do while(associated(currentCohort))
                 ft = currentCohort%pft
-                min_chite = currentCohort%hite - currentCohort%hite * prt_params%crown(ft)
+                min_chite = currentCohort%hite - currentCohort%hite * prt_params%crown_depth_frac(ft)
                 max_chite = currentCohort%hite
                 do iv = 1,N_HITE_BINS
                    frac_canopy(iv) = 0.0_r8
                    ! this layer is in the middle of the canopy
                    if(max_chite > maxh(iv).and.min_chite < minh(iv))then
-                      frac_canopy(iv)= min(1.0_r8,dh / (currentCohort%hite*prt_params%crown(ft)))
+                      frac_canopy(iv)= min(1.0_r8,dh / (currentCohort%hite*prt_params%crown_depth_frac(ft) ))
                       ! this is the layer with the bottom of the canopy in it.
                    elseif(min_chite < maxh(iv).and.min_chite > minh(iv).and.max_chite > maxh(iv))then
-                      frac_canopy(iv) = (maxh(iv) -min_chite ) / (currentCohort%hite*prt_params%crown(ft))
+                      frac_canopy(iv) = (maxh(iv) -min_chite ) / (currentCohort%hite*prt_params%crown_depth_frac(ft)  )
                       ! this is the layer with the top of the canopy in it.
                    elseif(max_chite > minh(iv).and.max_chite < maxh(iv).and.min_chite < minh(iv))then
-                      frac_canopy(iv) = (max_chite - minh(iv)) / (currentCohort%hite*prt_params%crown(ft))
+                      frac_canopy(iv) = (max_chite - minh(iv)) / (currentCohort%hite*prt_params%crown_depth_frac(ft))
                    elseif(max_chite < maxh(iv).and.min_chite > minh(iv))then !the whole cohort is within this layer.
                       frac_canopy(iv) = 1.0_r8
                    endif
@@ -1674,11 +1673,11 @@ contains
 
                    layer_top_hite = currentCohort%hite - &
                         ( real(iv-1,r8)/currentCohort%NV * currentCohort%hite *  &
-                        prt_params%crown(currentCohort%pft) )
+                        prt_params%crown_depth_frac(currentCohort%pft) )
 
                    layer_bottom_hite = currentCohort%hite - &
                         ( real(iv,r8)/currentCohort%NV * currentCohort%hite * &
-                        prt_params%crown(currentCohort%pft) )
+                        prt_params%crown_depth_frac(currentCohort%pft) )
 
                    fraction_exposed = 1.0_r8
                    if(currentSite%snow_depth  > layer_top_hite)then

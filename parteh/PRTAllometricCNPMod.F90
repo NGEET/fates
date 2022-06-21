@@ -96,9 +96,11 @@ module PRTAllometricCNPMod
 
   ! Global identifiers for the two stoichiometry values
   integer,public, parameter :: stoich_growth_min = 1     ! Flag for stoichiometry associated with
-                                                  ! minimum needed for growth
+                                                         ! minimum needed for growth
+  
+  ! This is deprecated until a reasonable hypothesis is in place (RGK)
   integer,public, parameter :: stoich_max = 2            ! Flag for stoichiometry associated with 
-                                                  ! maximum for that organ
+                                                         ! maximum for that organ
 
   
   ! This is the ordered list of organs used in this module
@@ -1575,10 +1577,10 @@ contains
     do i = 1, num_organs
        
        ! Update the nitrogen and phosphorus deficits
-       target_n = this%GetNutrientTarget(nitrogen_element,organ_list(i),stoich_max)
+       target_n = this%GetNutrientTarget(nitrogen_element,organ_list(i),stoich_growth_min)
        deficit_n(i) = max(0._r8,this%GetDeficit(nitrogen_element,organ_list(i),target_n))
        
-       target_p = this%GetNutrientTarget(phosphorus_element,organ_list(i),stoich_max)
+       target_p = this%GetNutrientTarget(phosphorus_element,organ_list(i),stoich_growth_min)
        deficit_p(i) = max(0._r8,this%GetDeficit(phosphorus_element,organ_list(i),target_p))
           
     end do
@@ -1739,17 +1741,17 @@ contains
        if( element_id == nitrogen_element) then
           
           target_m = StorageNutrientTarget(ipft, element_id, &
-               leaf_c_target*prt_params%nitr_stoich_p2(ipft,prt_params%organ_param_id(leaf_organ)), &
-               fnrt_c_target*prt_params%nitr_stoich_p2(ipft,prt_params%organ_param_id(fnrt_organ)), &
-               sapw_c_target*prt_params%nitr_stoich_p2(ipft,prt_params%organ_param_id(sapw_organ)), & 
-               struct_c_target*prt_params%nitr_stoich_p2(ipft,prt_params%organ_param_id(struct_organ)))
+               leaf_c_target*prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(leaf_organ)), &
+               fnrt_c_target*prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(fnrt_organ)), &
+               sapw_c_target*prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(sapw_organ)), & 
+               struct_c_target*prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(struct_organ)))
        else
 
           target_m = StorageNutrientTarget(ipft, element_id, &
-               leaf_c_target*prt_params%phos_stoich_p2(ipft,prt_params%organ_param_id(leaf_organ)), &
-               fnrt_c_target*prt_params%phos_stoich_p2(ipft,prt_params%organ_param_id(fnrt_organ)), &
-               sapw_c_target*prt_params%phos_stoich_p2(ipft,prt_params%organ_param_id(sapw_organ)), & 
-               struct_c_target*prt_params%phos_stoich_p2(ipft,prt_params%organ_param_id(struct_organ)))
+               leaf_c_target*prt_params%phos_stoich_p1(ipft,prt_params%organ_param_id(leaf_organ)), &
+               fnrt_c_target*prt_params%phos_stoich_p1(ipft,prt_params%organ_param_id(fnrt_organ)), &
+               sapw_c_target*prt_params%phos_stoich_p1(ipft,prt_params%organ_param_id(sapw_organ)), & 
+               struct_c_target*prt_params%phos_stoich_p1(ipft,prt_params%organ_param_id(struct_organ)))
              
        end if
 
@@ -1783,11 +1785,15 @@ contains
              target_m = target_c * prt_params%phos_stoich_p1(ipft,prt_params%organ_param_id(organ_id))
           end if
        elseif( stoich_mode == stoich_max ) then
-          if( element_id == nitrogen_element) then
-             target_m = target_c * prt_params%nitr_stoich_p2(ipft,prt_params%organ_param_id(organ_id))
-          else
-             target_m = target_c * prt_params%phos_stoich_p2(ipft,prt_params%organ_param_id(organ_id))
-          end if
+          !if( element_id == nitrogen_element) then
+          !   target_m = target_c * prt_params%nitr_stoich_p2(ipft,prt_params%organ_param_id(organ_id))
+          !else
+          !   target_m = target_c * prt_params%phos_stoich_p2(ipft,prt_params%organ_param_id(organ_id))
+          !end if
+          write(fates_log(),*) 'invalid stoichiometry mode specified while getting'
+          write(fates_log(),*) 'nutrient targets'
+          write(fates_log(),*) 'stoich_mode: ',stoich_mode
+          call endrun(msg=errMsg(sourcefile, __LINE__))
        else
           write(fates_log(),*) 'invalid stoichiometry mode specified while getting'
           write(fates_log(),*) 'nutrient targets'

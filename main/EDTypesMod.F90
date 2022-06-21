@@ -28,11 +28,6 @@ module EDTypesMod
   private               ! By default everything is private
   save
 
-  integer, parameter, public :: maxPatchesPerSite  = 14   ! maximum number of patches to live on a site
-  integer, parameter, public :: maxPatchesPerSite_by_disttype(n_anthro_disturbance_categories)  = &
-                                                     (/ 10, 4 /)  !!! MUST SUM TO maxPatchesPerSite !!!
-  integer,  public :: maxCohortsPerPatch = 100            ! maximum number of cohorts per patch
-  
   integer, parameter, public :: nclmax = 2                ! Maximum number of canopy layers
   integer, parameter, public :: ican_upper = 1            ! Nominal index for the upper canopy
   integer, parameter, public :: ican_ustory = 2           ! Nominal index for diagnostics that refer
@@ -429,7 +424,7 @@ module EDTypesMod
      class(rmean_type), pointer :: tveg24                        ! 24-hour mean vegetation temperature (K)
      class(rmean_type), pointer :: tveg_lpa                      ! Running mean of vegetation temperature at the
                                                                  ! leaf photosynthesis acclimation timescale [K]
-     integer  ::  nocomp_pft_label                                 ! where nocomp is active, use this label for patch ID.   
+     integer  ::  nocomp_pft_label                               ! where nocomp is active, use this label for patch ID.   
 
      ! LEAF ORGANIZATION
      real(r8) ::  pft_agb_profile(maxpft,n_dbh_bins)            ! binned above ground biomass, for patch fusion: KgC/m2
