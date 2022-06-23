@@ -127,7 +127,13 @@ contains
     allocate(site_in%growthflux_fusion(1:nlevsclass,1:numpft))
     allocate(site_in%mass_balance(1:num_elements))
     allocate(site_in%flux_diags(1:num_elements))
-
+    
+    allocate(site_in%term_carbonflux_canopy(1:numpft))
+    allocate(site_in%term_carbonflux_ustory(1:numpft))
+    allocate(site_in%imort_carbonflux(1:numpft))
+    allocate(site_in%fmort_carbonflux_canopy(1:numpft))
+    allocate(site_in%fmort_carbonflux_ustory(1:numpft))
+    
     site_in%nlevsoil   = bc_in%nlevsoil
     allocate(site_in%rootfrac_scr(site_in%nlevsoil))
     allocate(site_in%zi_soil(0:site_in%nlevsoil))
@@ -225,15 +231,15 @@ contains
     ! termination and recruitment info
     site_in%term_nindivs_canopy(:,:) = 0._r8
     site_in%term_nindivs_ustory(:,:) = 0._r8
-    site_in%term_carbonflux_canopy = 0._r8
-    site_in%term_carbonflux_ustory = 0._r8
+    site_in%term_carbonflux_canopy(:) = 0._r8
+    site_in%term_carbonflux_ustory(:) = 0._r8
     site_in%recruitment_rate(:) = 0._r8
     site_in%imort_rate(:,:) = 0._r8
-    site_in%imort_carbonflux = 0._r8
+    site_in%imort_carbonflux(:) = 0._r8
     site_in%fmort_rate_canopy(:,:) = 0._r8
     site_in%fmort_rate_ustory(:,:) = 0._r8
-    site_in%fmort_carbonflux_canopy = 0._r8
-    site_in%fmort_carbonflux_ustory = 0._r8
+    site_in%fmort_carbonflux_canopy(:) = 0._r8
+    site_in%fmort_carbonflux_ustory(:) = 0._r8
     site_in%fmort_rate_cambial(:,:) = 0._r8
     site_in%fmort_rate_crown(:,:) = 0._r8
 
@@ -345,7 +351,7 @@ contains
 
              do ft =  1,numpft
                 if(sites(s)%area_pft(ft).lt.0.01_r8.and.sites(s)%area_pft(ft).gt.0.0_r8)then
-                   write(fates_log(),*)  'removing small pft patches',s,ft,sites(s)%area_pft(ft)
+                   if(debug) write(fates_log(),*)  'removing small pft patches',s,ft,sites(s)%area_pft(ft)
                    sites(s)%area_pft(ft)=0.0_r8
                    ! remove tiny patches to prevent numerical errors in terminate patches
                 endif
@@ -376,7 +382,7 @@ contains
                 end do !ft
              else ! for sp and nocomp mode, assert a bare ground patch if needed
                 sumarea = sum(sites(s)%area_pft(1:numpft))
-
+                
                ! In all the other FATES modes, bareground is the area in which plants
                ! do not grow of their own accord. In SP mode we assert that the canopy is full for
                ! each PFT patch. Thus, we also need to assert a bare ground area in
@@ -396,6 +402,8 @@ contains
           end if !fixed biogeog
 
           do ft = 1,numpft
+             ! Setting this to true ensures that all pfts
+             ! are used for nocomp with no biogeog
              sites(s)%use_this_pft(ft) = itrue
              if(hlm_use_fixed_biogeog.eq.itrue)then
                 if(sites(s)%area_pft(ft).gt.0.0_r8)then
@@ -594,13 +602,13 @@ contains
                    ! remove or add extra area
                    ! if the oldest patch has enough area, use that
                    sites(s)%oldest_patch%area = sites(s)%oldest_patch%area - (tota-area)
-                   write(*,*) 'fixing patch precision - oldest',s, tota-area
+                   if(debug) write(fates_log(),*) 'fixing patch precision - oldest',s, tota-area
                 else ! or otherwise take the area from the youngest patch.
                    sites(s)%youngest_patch%area = sites(s)%oldest_patch%area - (tota-area)
-                   write(*,*) 'fixing patch precision -youngest ',s, tota-area
+                   if(debug) write(fates_log(),*) 'fixing patch precision -youngest ',s, tota-area
                 endif
              else !this is a big error not just a precision error.
-                write(*,*) 'issue with patch area in EDinit',tota-area,tota
+                write(fates_log(),*) 'issue with patch area in EDinit',tota-area,tota
                 call endrun(msg=errMsg(sourcefile, __LINE__))
              endif  ! big error
           end if ! too much patch area
@@ -786,7 +794,7 @@ contains
 
              call bstore_allom(temp_cohort%dbh, pft, temp_cohort%canopy_trim, c_store)
 
-             temp_cohort%laimemory = 0._r8
+             temp_cohort%leafmemory = 0._r8
              temp_cohort%sapwmemory = 0._r8
              temp_cohort%structmemory = 0._r8
              cstatus = leaves_on
@@ -797,7 +805,7 @@ contains
 
                 if( prt_params%season_decid(pft) == itrue .and. &
                     any(site_in%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
-                   temp_cohort%laimemory = c_leaf
+                   temp_cohort%leafmemory = c_leaf
                    temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
                    temp_cohort%structmemory = c_struct * stem_drop_fraction
                    c_leaf = 0._r8
@@ -808,7 +816,7 @@ contains
 
                 if ( prt_params%stress_decid(pft) == itrue .and. &
                      any(site_in%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff])) then
-                   temp_cohort%laimemory = c_leaf
+                   temp_cohort%leafmemory = c_leaf
                    temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
                    temp_cohort%structmemory = c_struct * stem_drop_fraction
                    c_leaf = 0._r8
@@ -849,21 +857,21 @@ contains
 
                 case(nitrogen_element)
 
-             m_struct = c_struct*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(struct_organ))
-             m_leaf   = c_leaf*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(leaf_organ))
-             m_fnrt   = c_fnrt*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(fnrt_organ))
-             m_sapw   = c_sapw*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(sapw_organ))
+                   m_struct = c_struct*prt_params%nitr_stoich_p1(pft,prt_params%organ_param_id(struct_organ))
+                   m_leaf   = c_leaf*prt_params%nitr_stoich_p1(pft,prt_params%organ_param_id(leaf_organ))
+                   m_fnrt   = c_fnrt*prt_params%nitr_stoich_p1(pft,prt_params%organ_param_id(fnrt_organ))
+                   m_sapw   = c_sapw*prt_params%nitr_stoich_p1(pft,prt_params%organ_param_id(sapw_organ))
                    m_repro  = 0._r8
-             m_store = StorageNutrientTarget(pft,element_id,m_leaf,m_fnrt,m_sapw,m_struct)
+                   m_store  = StorageNutrientTarget(pft,element_id,m_leaf,m_fnrt,m_sapw,m_struct)
 
                 case(phosphorus_element)
 
-             m_struct = c_struct*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(struct_organ))
-             m_leaf   = c_leaf*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(leaf_organ))
-             m_fnrt   = c_fnrt*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(fnrt_organ))
-             m_sapw   = c_sapw*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(sapw_organ))
+                   m_struct = c_struct*prt_params%phos_stoich_p1(pft,prt_params%organ_param_id(struct_organ))
+                   m_leaf   = c_leaf*prt_params%phos_stoich_p1(pft,prt_params%organ_param_id(leaf_organ))
+                   m_fnrt   = c_fnrt*prt_params%phos_stoich_p1(pft,prt_params%organ_param_id(fnrt_organ))
+                   m_sapw   = c_sapw*prt_params%phos_stoich_p1(pft,prt_params%organ_param_id(sapw_organ))
                    m_repro  = 0._r8
-             m_store = StorageNutrientTarget(pft,element_id,m_leaf,m_fnrt,m_sapw,m_struct)
+                   m_store  = StorageNutrientTarget(pft,element_id,m_leaf,m_fnrt,m_sapw,m_struct)
 
                 end select
 
@@ -892,7 +900,7 @@ contains
              call prt_obj%CheckInitialConditions()
 
              call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, &
-                  temp_cohort%coage, temp_cohort%dbh, prt_obj, temp_cohort%laimemory, &
+                  temp_cohort%coage, temp_cohort%dbh, prt_obj, temp_cohort%leafmemory, &
                   temp_cohort%sapwmemory, temp_cohort%structmemory, cstatus, rstatus,        &
                   temp_cohort%canopy_trim, temp_cohort%c_area,1, site_in%spread, bc_in)
 

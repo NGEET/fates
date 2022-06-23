@@ -3,7 +3,8 @@ module EDPatchDynamicsMod
   ! ============================================================================
   ! Controls formation, creation, fusing and termination of patch level processes. 
   ! ============================================================================
-  use FatesGlobals         , only : fates_log 
+  use FatesGlobals         , only : fates_log
+  use FatesGlobals         , only : FatesWarn,N2S,A2S
   use FatesInterfaceTypesMod    , only : hlm_freq_day
   use EDPftvarcon          , only : EDPftvarcon_inst
   use EDPftvarcon          , only : GetDecompyFrac
@@ -18,8 +19,6 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : homogenize_seed_pfts
   use EDTypesMod           , only : n_dbh_bins, area, patchfusion_dbhbin_loweredges
   use EDtypesMod           , only : force_patchfuse_min_biomass
-  use EDTypesMod           , only : maxPatchesPerSite
-  use EDTypesMod           , only : maxPatchesPerSite_by_disttype  
   use EDTypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod           , only : site_massbal_type
   use EDTypesMod           , only : site_fluxdiags_type
@@ -89,6 +88,9 @@ module EDPatchDynamicsMod
   use SFParamsMod,            only : SF_VAL_CWD_FRAC
   use EDParamsMod,            only : logging_event_code
   use EDParamsMod,            only : logging_export_frac
+  use EDParamsMod,            only : maxpatch_primary
+  use EDParamsMod,            only : maxpatch_secondary
+  use EDParamsMod,            only : maxpatch_total
   use FatesRunningMeanMod,    only : ema_24hr, fixed_24hr, ema_lpa
   
   ! CIME globals
@@ -135,7 +137,8 @@ module EDPatchDynamicsMod
   real(r8), parameter :: treefall_localization = 0.0_r8
   real(r8), parameter :: burn_localization = 0.0_r8
 
-
+  character(len=512) :: msg  ! Message string for warnings and logging
+  
   ! 10/30/09: Created by Rosie Fisher
   ! ============================================================================
 
@@ -324,12 +327,11 @@ contains
        end do
 
        ! Fires can't burn the whole patch, as this causes /0 errors. 
-       if (debug) then
-          if (currentPatch%disturbance_rates(dtype_ifire) > 0.98_r8)then
-          write(fates_log(),*) 'very high fire areas', &
-               currentPatch%disturbance_rates(dtype_ifire),currentPatch%frac_burnt
-          endif
+       if (currentPatch%disturbance_rates(dtype_ifire) > 0.98_r8)then
+          msg = 'very high fire areas'//trim(A2S(currentPatch%disturbance_rates(:)))//trim(N2S(currentPatch%frac_burnt))
+          call FatesWarn(msg,index=2)
        endif
+
 
 
 
@@ -765,7 +767,7 @@ contains
                       
                    else
                       ! small trees 
-                      if( int(prt_params%woody(currentCohort%pft)) == itrue)then
+                      if( prt_params%woody(currentCohort%pft) == itrue)then
                          
                          
                          ! Survivorship of undestory woody plants.  Two step process.
@@ -789,7 +791,8 @@ contains
                               nc%n * ED_val_understorey_death / hlm_freq_day
                          
                          
-                         currentSite%imort_carbonflux = currentSite%imort_carbonflux + &
+                         currentSite%imort_carbonflux(currentCohort%pft) = &
+                              currentSite%imort_carbonflux(currentCohort%pft) + &
                               (nc%n * ED_val_understorey_death / hlm_freq_day ) * &
                               total_c * g_per_kg * days_per_sec * years_per_day * ha_per_m2
                          
@@ -865,7 +868,8 @@ contains
                            currentSite%fmort_rate_canopy(currentCohort%size_class, currentCohort%pft) + &
                            nc%n * currentCohort%fire_mort / hlm_freq_day
                       
-                      currentSite%fmort_carbonflux_canopy = currentSite%fmort_carbonflux_canopy + &
+                      currentSite%fmort_carbonflux_canopy(currentCohort%pft) = &
+                           currentSite%fmort_carbonflux_canopy(currentCohort%pft) + &
                            (nc%n * currentCohort%fire_mort) * &
                            total_c * g_per_kg * days_per_sec * ha_per_m2
                       
@@ -874,7 +878,8 @@ contains
                            currentSite%fmort_rate_ustory(currentCohort%size_class, currentCohort%pft) + &
                            nc%n * currentCohort%fire_mort / hlm_freq_day
                       
-                      currentSite%fmort_carbonflux_ustory = currentSite%fmort_carbonflux_ustory + &
+                      currentSite%fmort_carbonflux_ustory(currentCohort%pft) = &
+                           currentSite%fmort_carbonflux_ustory(currentCohort%pft) + &
                            (nc%n * currentCohort%fire_mort) * &
                            total_c * g_per_kg * days_per_sec * ha_per_m2
                    end if
@@ -905,7 +910,7 @@ contains
                    ! burned off.  Here, we remove that mass, and
                    ! tally it in the flux we sent to the atmosphere
                    
-                   if(int(prt_params%woody(currentCohort%pft)) == itrue)then
+                   if(prt_params%woody(currentCohort%pft) == itrue)then
                        leaf_burn_frac = currentCohort%fraction_crown_burned
                    else
 
@@ -983,7 +988,7 @@ contains
                       ! WHat to do with cohorts in the understory of a logging generated
                       ! disturbance patch?
                       
-                      if(int(prt_params%woody(currentCohort%pft)) == itrue)then
+                      if(prt_params%woody(currentCohort%pft) == itrue)then
                          
                          
                          ! Survivorship of undestory woody plants.  Two step process.
@@ -1006,7 +1011,8 @@ contains
                               nc%n * currentPatch%fract_ldist_not_harvested * &
                               logging_coll_under_frac / hlm_freq_day
 
-                         currentSite%imort_carbonflux = currentSite%imort_carbonflux + &
+                         currentSite%imort_carbonflux(currentCohort%pft) = &
+                              currentSite%imort_carbonflux(currentCohort%pft) + &
                               (nc%n * currentPatch%fract_ldist_not_harvested * &
                               logging_coll_under_frac/ hlm_freq_day ) * &
                               total_c * g_per_kg * days_per_sec * years_per_day * ha_per_m2
@@ -1893,7 +1899,7 @@ contains
              num_dead = currentCohort%n * min(1.0_r8,currentCohort%dmort * &
                    hlm_freq_day * fates_mortality_disturbance_fraction)
              
-          elseif(int(prt_params%woody(pft)) == itrue) then
+          elseif(prt_params%woody(pft) == itrue) then
              
              ! Understorey trees. The total dead is based on their survivorship
              ! function, and the total area of disturbance.
@@ -2302,15 +2308,16 @@ contains
     ! to let there be one for each type of nocomp PFT on the site.  this is likely to lead to problems
     ! if anthropogenic disturance is enabled.
     if (hlm_use_nocomp.eq.itrue) then
-       maxpatches(primaryforest) = max(maxPatchesPerSite_by_disttype(primaryforest), sum(csite%use_this_pft))
-       maxpatches(secondaryforest) = maxPatchesPerSite - maxpatches(primaryforest)
-       if (maxPatchesPerSite .lt. maxpatches(primaryforest)) then
+       maxpatches(primaryforest) = max(maxpatch_primary, sum(csite%use_this_pft))
+       maxpatches(secondaryforest) = maxpatch_total - maxpatches(primaryforest)
+       if (maxpatch_total .lt. maxpatches(primaryforest)) then
           write(fates_log(),*) 'too many PFTs and not enough patches for nocomp w/o fixed biogeog'
-          write(fates_log(),*) 'maxPatchesPerSite,numpft',maxPatchesPerSite,numpft, sum(csite%use_this_pft)
+          write(fates_log(),*) 'maxpatch_total,numpft',maxpatch_total,numpft, sum(csite%use_this_pft)
           call endrun(msg=errMsg(sourcefile, __LINE__))
        endif
     else
-       maxpatches(:) = maxPatchesPerSite_by_disttype(:)
+       maxpatches(primaryforest) = maxpatch_primary
+       maxpatches(secondaryforest) = maxpatch_secondary
     endif
 
     currentPatch => currentSite%youngest_patch
@@ -2346,7 +2353,7 @@ contains
        iterate = 1
 
        !---------------------------------------------------------------------!
-       !  Keep doing this until nopatches <= maxPatchesPerSite               !
+       !  Keep doing this until nopatches <= maxpatch_total                  !
        !---------------------------------------------------------------------!
 
        iterate_eq_1_loop: do while(iterate == 1)
@@ -2375,7 +2382,8 @@ contains
              tpp_loop: do while(associated(tpp))
 
                 if(.not.associated(currentPatch))then
-                   write(fates_log(),*) 'ED: issue with currentPatch'
+                   write(fates_log(),*) 'FATES fuse_patches(): currentPatch is not associated?'
+                   call endrun(msg=errMsg(sourcefile, __LINE__))
                 endif
 
                 both_associated_if: if(associated(tpp).and.associated(currentPatch))then
@@ -2487,19 +2495,20 @@ contains
                             ! a patch x patch loop, reset the patch fusion tolerance to the starting !
                             ! value so that any subsequent fusions in this loop are done with that   !
                             ! value. otherwise we can end up in a situation where we've loosened the !
-                            ! fusion tolerance to get nopatches <= maxPatchesPerSite, but then,      !
+                            ! fusion tolerance to get nopatches <= maxpatch_total, but then,      !
                             ! having accomplished that, we continue through all the patch x patch    !
                             ! combinations and then all the patches get fused, ending up with        !
-                            ! nopatches << maxPatchesPerSite and losing all heterogeneity.           !
+                            ! nopatches << maxpatch_total and losing all heterogeneity.           !
                             !------------------------------------------------------------------------!
 
                             profiletol = ED_val_patch_fusion_tol
-                            
+
                          endif fuseflagset_if
                       endif different_patches_if
                     endif nocomp_pft_labels_match_if
                    endif anthro_dist_labels_match_if
                 endif both_associated_if
+
                 tpp => tpp%older
              enddo tpp_loop
 
@@ -2548,7 +2557,7 @@ contains
              iterate = 0
           endif
 
-       enddo iterate_eq_1_loop ! iterate .eq. 1 ==> nopatches>maxPatchesPerSite
+       enddo iterate_eq_1_loop ! iterate .eq. 1 ==> nopatches>maxpatch_total
 
     end do disttype_loop
 
