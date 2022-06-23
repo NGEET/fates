@@ -96,9 +96,11 @@ module PRTAllometricCNPMod
 
   ! Global identifiers for the two stoichiometry values
   integer,public, parameter :: stoich_growth_min = 1     ! Flag for stoichiometry associated with
-                                                  ! minimum needed for growth
+                                                         ! minimum needed for growth
+  
+  ! This is deprecated until a reasonable hypothesis is in place (RGK)
   integer,public, parameter :: stoich_max = 2            ! Flag for stoichiometry associated with 
-                                                  ! maximum for that organ
+                                                         ! maximum for that organ
 
   
   ! This is the ordered list of organs used in this module
@@ -1575,10 +1577,10 @@ contains
     do i = 1, num_organs
        
        ! Update the nitrogen and phosphorus deficits
-       target_n = this%GetNutrientTarget(nitrogen_element,organ_list(i),stoich_max)
+       target_n = this%GetNutrientTarget(nitrogen_element,organ_list(i),stoich_growth_min)
        deficit_n(i) = max(0._r8,this%GetDeficit(nitrogen_element,organ_list(i),target_n))
        
-       target_p = this%GetNutrientTarget(phosphorus_element,organ_list(i),stoich_max)
+       target_p = this%GetNutrientTarget(phosphorus_element,organ_list(i),stoich_growth_min)
        deficit_p(i) = max(0._r8,this%GetDeficit(phosphorus_element,organ_list(i),target_p))
           
     end do
@@ -1739,17 +1741,17 @@ contains
        if( element_id == nitrogen_element) then
           
           target_m = StorageNutrientTarget(ipft, element_id, &
-               leaf_c_target*prt_params%nitr_stoich_p2(ipft,prt_params%organ_param_id(leaf_organ)), &
-               fnrt_c_target*prt_params%nitr_stoich_p2(ipft,prt_params%organ_param_id(fnrt_organ)), &
-               sapw_c_target*prt_params%nitr_stoich_p2(ipft,prt_params%organ_param_id(sapw_organ)), & 
-               struct_c_target*prt_params%nitr_stoich_p2(ipft,prt_params%organ_param_id(struct_organ)))
+               leaf_c_target*prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(leaf_organ)), &
+               fnrt_c_target*prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(fnrt_organ)), &
+               sapw_c_target*prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(sapw_organ)), & 
+               struct_c_target*prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(struct_organ)))
        else
 
           target_m = StorageNutrientTarget(ipft, element_id, &
-               leaf_c_target*prt_params%phos_stoich_p2(ipft,prt_params%organ_param_id(leaf_organ)), &
-               fnrt_c_target*prt_params%phos_stoich_p2(ipft,prt_params%organ_param_id(fnrt_organ)), &
-               sapw_c_target*prt_params%phos_stoich_p2(ipft,prt_params%organ_param_id(sapw_organ)), & 
-               struct_c_target*prt_params%phos_stoich_p2(ipft,prt_params%organ_param_id(struct_organ)))
+               leaf_c_target*prt_params%phos_stoich_p1(ipft,prt_params%organ_param_id(leaf_organ)), &
+               fnrt_c_target*prt_params%phos_stoich_p1(ipft,prt_params%organ_param_id(fnrt_organ)), &
+               sapw_c_target*prt_params%phos_stoich_p1(ipft,prt_params%organ_param_id(sapw_organ)), & 
+               struct_c_target*prt_params%phos_stoich_p1(ipft,prt_params%organ_param_id(struct_organ)))
              
        end if
 
@@ -1783,11 +1785,15 @@ contains
              target_m = target_c * prt_params%phos_stoich_p1(ipft,prt_params%organ_param_id(organ_id))
           end if
        elseif( stoich_mode == stoich_max ) then
-          if( element_id == nitrogen_element) then
-             target_m = target_c * prt_params%nitr_stoich_p2(ipft,prt_params%organ_param_id(organ_id))
-          else
-             target_m = target_c * prt_params%phos_stoich_p2(ipft,prt_params%organ_param_id(organ_id))
-          end if
+          !if( element_id == nitrogen_element) then
+          !   target_m = target_c * prt_params%nitr_stoich_p2(ipft,prt_params%organ_param_id(organ_id))
+          !else
+          !   target_m = target_c * prt_params%phos_stoich_p2(ipft,prt_params%organ_param_id(organ_id))
+          !end if
+          write(fates_log(),*) 'invalid stoichiometry mode specified while getting'
+          write(fates_log(),*) 'nutrient targets'
+          write(fates_log(),*) 'stoich_mode: ',stoich_mode
+          call endrun(msg=errMsg(sourcefile, __LINE__))
        else
           write(fates_log(),*) 'invalid stoichiometry mode specified while getting'
           write(fates_log(),*) 'nutrient targets'
@@ -2222,72 +2228,94 @@ contains
 
    ! ====================================================================================
 
-   subroutine TargetAllometryCheck(bleaf,bfroot,bsap,bstore,bdead, &
-                                   bt_leaf,bt_froot,bt_sap,bt_store,bt_dead, &
-                                   grow_leaf,grow_froot,grow_sapw,grow_store)
+   subroutine TargetAllometryCheck(b0_leaf,b0_fnrt,b0_sapw,b0_store,b0_struct, &
+                                   bleaf,bfnrt,bsapw,bstore,bstruct, &
+                                   bt_leaf,bt_fnrt,bt_sapw,bt_store,bt_struct, &
+                                   carbon_balance,ipft,leaf_status, &
+                                   grow_leaf,grow_fnrt,grow_sapw,grow_store,grow_struct)
 
-     ! Arguments
-     real(r8),intent(in) :: bleaf   !actual
-     real(r8),intent(in) :: bfroot
-     real(r8),intent(in) :: bsap
-     real(r8),intent(in) :: bstore
-     real(r8),intent(in) :: bdead
-     real(r8),intent(in) :: bt_leaf   !target
-     real(r8),intent(in) :: bt_froot
-     real(r8),intent(in) :: bt_sap
-     real(r8),intent(in) :: bt_store
-     real(r8),intent(in) :: bt_dead
-     logical,intent(out) :: grow_leaf  !growth flag
-     logical,intent(out) :: grow_froot
-     logical,intent(out) :: grow_sapw
-     logical,intent(out) :: grow_store
+      ! Arguments
+      real(r8),intent(in) :: b0_leaf        !initial
+      real(r8),intent(in) :: b0_fnrt
+      real(r8),intent(in) :: b0_sapw
+      real(r8),intent(in) :: b0_store
+      real(r8),intent(in) :: b0_struct
+      real(r8),intent(in) :: bleaf          !actual
+      real(r8),intent(in) :: bfnrt
+      real(r8),intent(in) :: bsapw
+      real(r8),intent(in) :: bstore
+      real(r8),intent(in) :: bstruct
+      real(r8),intent(in) :: bt_leaf        !target
+      real(r8),intent(in) :: bt_fnrt
+      real(r8),intent(in) :: bt_sapw
+      real(r8),intent(in) :: bt_store
+      real(r8),intent(in) :: bt_struct
+      real(r8),intent(in) :: carbon_balance !remaining carbon balance
+      integer,intent(in)  :: ipft           !Plant functional type
+      integer,intent(in)  :: leaf_status    !Phenology status
+      logical,intent(out) :: grow_leaf      !growth flag
+      logical,intent(out) :: grow_fnrt
+      logical,intent(out) :: grow_sapw
+      logical,intent(out) :: grow_store
+      logical,intent(out) :: grow_struct
+      ! Local variables
+      logical             :: fine_leaf
+      logical             :: fine_fnrt
+      logical             :: fine_sapw
+      logical             :: fine_store
+      logical             :: fine_struct
+      logical             :: all_fine
+      ! Local constants
+      character(len= 3), parameter :: fmth = '(a)'
+      character(len=27), parameter :: fmtb = '(a,3(1x,es12.5,1x,a),1x,l1)'
+      character(len=13), parameter :: fmte = '(a,1x,es12.5)'
+      character(len=10), parameter :: fmti = '(a,1x,i12)'
 
-     if( (bt_leaf - bleaf)>calloc_abs_error) then
-        write(fates_log(),*) 'leaves are not on-allometry at the growth step'
-        write(fates_log(),*) 'exiting',bleaf,bt_leaf
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     elseif( (bleaf - bt_leaf)>calloc_abs_error) then
-        ! leaf is above allometry, ignore
-        grow_leaf = .false.
-     else
-        grow_leaf = .true.
-     end if
 
-     if( (bt_froot - bfroot)>calloc_abs_error) then
-        write(fates_log(),*) 'fineroots are not on-allometry at the growth step'
-        write(fates_log(),*) 'exiting',bfroot, bt_froot
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     elseif( ( bfroot-bt_froot)>calloc_abs_error ) then
-        grow_froot = .false.
-     else
-        grow_froot = .true.
-     end if
+      ! First test whether or not each pool looks reasonable.
+      fine_leaf   = (bt_leaf   - bleaf  ) <= calloc_abs_error
+      fine_fnrt   = (bt_fnrt   - bfnrt  ) <= calloc_abs_error
+      fine_sapw   = (bt_sapw   - bsapw  ) <= calloc_abs_error
+      fine_store  = (bt_store  - bstore ) <= calloc_abs_error
+      fine_struct = (bt_struct - bstruct) <= calloc_abs_error
+      all_fine    = fine_leaf .and. fine_fnrt .and. fine_sapw .and. &
+                    fine_store .and. fine_struct
 
-     if( (bt_sap - bsap)>calloc_abs_error) then
-        write(fates_log(),*) 'sapwood is not on-allometry at the growth step'
-        write(fates_log(),*) 'exiting',bsap, bt_sap
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     elseif( ( bsap-bt_sap)>calloc_abs_error ) then
-        grow_sapw = .false.
-     else
-        grow_sapw = .true.
-     end if
+      ! Decide whether or not to grow tissues (but only if all tissues look fine).
+      ! We grow only when biomass is less than target biomass (with tolerance).
+      if (all_fine) then
+         grow_leaf   = ( bleaf   - bt_leaf   ) <= calloc_abs_error
+         grow_fnrt   = ( bfnrt   - bt_fnrt   ) <= calloc_abs_error
+         grow_sapw   = ( bsapw   - bt_sapw   ) <= calloc_abs_error
+         grow_store  = ( bstore  - bt_store  ) <= calloc_abs_error
+         grow_struct = ( bstruct - bt_struct ) <= calloc_abs_error
+      else
+         ! If anything looks not fine, write a detailed report 
+         write(fates_log(),fmt=fmth) '======'
+         write(fates_log(),fmt=fmth) ' At least one tissue is not on-allometry at the growth step'
+         write(fates_log(),fmt=fmth) '======'
+         write(fates_log(),fmt=fmth) ''
+         write(fates_log(),fmt=fmth) ' Biomass and on-allometry test (''F'' means problem)'
+         write(fates_log(),fmt=fmth) '------'
+         write(fates_log(),fmt=fmth) ' Tissue     | Initial      | Current      | Target       | On-allometry'
+         write(fates_log(),fmt=fmtb) ' Leaf       |',b0_leaf   ,'|',bleaf     ,'|',bt_leaf   ,'|',fine_leaf
+         write(fates_log(),fmt=fmtb) ' Fine root  |',b0_fnrt   ,'|',bfnrt     ,'|',bt_fnrt   ,'|',fine_fnrt
+         write(fates_log(),fmt=fmtb) ' Sap wood   |',b0_sapw   ,'|',bsapw     ,'|',bt_sapw   ,'|',fine_sapw
+         write(fates_log(),fmt=fmtb) ' Storage    |',b0_store  ,'|',bstore    ,'|',bt_store  ,'|',fine_store
+         write(fates_log(),fmt=fmtb) ' Structural |',b0_struct ,'|',bstruct   ,'|',bt_struct ,'|',fine_struct
+         write(fates_log(),fmt=fmth) ''
+         write(fates_log(),fmt=fmth) ' Ancillary information'
+         write(fates_log(),fmt=fmth) '------'
+         write(fates_log(),fmt=fmti) ' PFT              = ',ipft
+         write(fates_log(),fmt=fmti) ' leaf_status      = ',leaf_status
+         write(fates_log(),fmt=fmte) ' carbon_balance   = ',carbon_balance
+         write(fates_log(),fmt=fmte) ' calloc_abs_error = ',calloc_abs_error
+         write(fates_log(),fmt=fmth) ''
+         write(fates_log(),fmt=fmth) '======'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
 
-     if( (bt_store - bstore)>calloc_abs_error) then
-        write(fates_log(),*) 'storage is not on-allometry at the growth step'
-        write(fates_log(),*) 'exiting',bstore,bt_store
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     elseif( ( bstore-bt_store)>calloc_abs_error ) then
-        grow_store = .false.
-     else
-        grow_store = .true.
-     end if
-
-     if( (bt_dead - bdead)>calloc_abs_error) then
-        write(fates_log(),*) 'structure not on-allometry at the growth step'
-        write(fates_log(),*) 'exiting',bdead,bt_dead
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     end if
+      return
    end subroutine TargetAllometryCheck
 
    

@@ -26,8 +26,6 @@ module PRTParametersMod
                                                          ! one class to the next [yr]
      real(r8), allocatable :: root_long(:)               ! root turnover time (longevity) (pft)             [yr]
      real(r8), allocatable :: branch_long(:)             ! Turnover time for branchfall on live trees (pft) [yr]
-     real(r8), allocatable :: turnover_retrans_mode(:)   ! Retranslocation method (pft)
-     real(r8), allocatable :: turnover_carb_retrans(:,:) ! carbon re-translocation fraction (pft x organ)
      real(r8), allocatable :: turnover_nitr_retrans(:,:) ! nitrogen re-translocation fraction (pft x organ)
      real(r8), allocatable :: turnover_phos_retrans(:,:) ! phosphorus re-translocation fraction (pft x organ)
                                                          ! Parameters dimensioned by PFT and leaf age
@@ -46,9 +44,7 @@ module PRTParametersMod
      !                                                        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
      real(r8), allocatable :: nitr_stoich_p1(:,:)        ! Parameter 1 for nitrogen stoichiometry (pft x organ) 
-     real(r8), allocatable :: nitr_stoich_p2(:,:)        ! Parameter 2 for nitrogen stoichiometry (pft x organ) 
      real(r8), allocatable :: phos_stoich_p1(:,:)        ! Parameter 1 for phosphorus stoichiometry (pft x organ) 
-     real(r8), allocatable :: phos_stoich_p2(:,:)        ! Parameter 2 for phosphorus stoichiometry (pft x organ)
 
      real(r8), allocatable :: nitr_store_ratio(:)        ! This is the ratio of the target nitrogen stored per
                                                          ! target nitrogen that is bound into the tissues
@@ -100,8 +96,8 @@ module PRTParametersMod
 
      real(r8), allocatable :: c2b(:)                        ! Carbon to biomass multiplier [kg/kgC]
      real(r8), allocatable :: wood_density(:)               ! wood density  g cm^-3  ...
-     real(r8), allocatable :: woody(:)                      ! Does the plant have wood?      (1=yes, 0=no)
-     real(r8), allocatable :: crown(:)                      ! fraction of the height of the plant
+     real(r8), allocatable :: crown_depth_frac(:)           ! fraction of the height of the plant
+     integer , allocatable :: woody(:)                      ! Does the plant have wood?      (1=yes, 0=no)
                                                             ! that is occupied by crown
      real(r8), allocatable :: slamax(:)                     ! Maximum specific leaf area of plant (at bottom) [m2/gC]
      real(r8), allocatable :: slatop(:)                     ! Specific leaf area at canopy top [m2/gC]
