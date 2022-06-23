@@ -29,13 +29,15 @@ module FatesParametersInterface
   character(len=*), parameter, public :: dimension_name_allpfts = 'fates_allpfts'
   character(len=*), parameter, public :: dimension_name_variants = 'fates_variants'
   character(len=*), parameter, public :: dimension_name_hydr_organs = 'fates_hydr_organs'
-  character(len=*), parameter, public :: dimension_name_prt_organs = 'fates_prt_organs'
+  character(len=*), parameter, public :: dimension_name_prt_organs = 'fates_plant_organs'
   character(len=*), parameter, public :: dimension_name_leaf_age = 'fates_leafage_class'
   character(len=*), parameter, public :: dimension_name_history_size_bins = 'fates_history_size_bins'
   character(len=*), parameter, public :: dimension_name_history_age_bins = 'fates_history_age_bins'
   character(len=*), parameter, public :: dimension_name_history_height_bins = 'fates_history_height_bins'
   character(len=*), parameter, public :: dimension_name_history_coage_bins = 'fates_history_coage_bins'
   character(len=*), parameter, public :: dimension_name_hlm_pftno = 'fates_hlm_pftno'
+  character(len=*), parameter, public :: dimension_name_history_damage_bins = 'fates_history_damage_bins'
+  character(len=*), parameter, public :: dimension_name_damage = 'fates_damage_class'
   
   ! Dimensions in the host namespace:
   character(len=*), parameter, public :: dimension_name_host_allpfts = 'allpfts'
@@ -59,8 +61,8 @@ module FatesParametersInterface
      procedure :: Init
      procedure :: Destroy
      procedure :: RegisterParameter
-     generic   :: RetreiveParameter => RetreiveParameterScalar, RetreiveParameter1D, RetreiveParameter2D
-     generic   :: RetreiveParameterAllocate => RetreiveParameter1DAllocate, RetreiveParameter2DAllocate
+     generic   :: RetrieveParameter => RetrieveParameterScalar, RetrieveParameter1D, RetrieveParameter2D
+     generic   :: RetrieveParameterAllocate => RetrieveParameter1DAllocate, RetrieveParameter2DAllocate
      generic   :: SetData => SetDataScalar, SetData1D, SetData2D
      procedure :: GetUsedDimensions
      procedure :: SetDimensionSizes
@@ -70,11 +72,11 @@ module FatesParametersInterface
      procedure :: FindIndex
 
      ! Private functions
-     procedure, private :: RetreiveParameterScalar
-     procedure, private :: RetreiveParameter1D
-     procedure, private :: RetreiveParameter2D
-     procedure, private :: RetreiveParameter1DAllocate
-     procedure, private :: RetreiveParameter2DAllocate
+     procedure, private :: RetrieveParameterScalar
+     procedure, private :: RetrieveParameter1D
+     procedure, private :: RetrieveParameter2D
+     procedure, private :: RetrieveParameter1DAllocate
+     procedure, private :: RetrieveParameter2DAllocate
      procedure, private :: SetDataScalar
      procedure, private :: SetData1D
      procedure, private :: SetData2D
@@ -151,7 +153,7 @@ contains
   end subroutine RegisterParameter
 
   !-----------------------------------------------------------------------
-  subroutine RetreiveParameterScalar(this, name, data)
+  subroutine RetrieveParameterScalar(this, name, data)
 
     implicit none
 
@@ -165,10 +167,10 @@ contains
     ! assert(size(data) == size(this%parameters(i)%data))
     data = this%parameters(i)%data(1, 1)
 
-  end subroutine RetreiveParameterScalar
+  end subroutine RetrieveParameterScalar
 
   !-----------------------------------------------------------------------
-  subroutine RetreiveParameter1D(this, name, data)
+  subroutine RetrieveParameter1D(this, name, data)
 
     use abortutils, only : endrun
 
@@ -182,7 +184,7 @@ contains
 
     i = this%FindIndex(name)
     if (size(data) /= size(this%parameters(i)%data(:, 1))) then
-       write(fates_log(), *) 'ERROR : retreiveparameter1d : ', name, ' size inconsistent.'
+       write(fates_log(), *) 'ERROR : RetrieveParameter1d : ', name, ' size inconsistent.'
        write(fates_log(), *) 'ERROR : expected size = ', size(data)
        write(fates_log(), *) 'ERROR : data size received from file = ', size(this%parameters(i)%data(:, 1))
        write(fates_log(), *) 'ERROR : dimesions received from file'
@@ -194,10 +196,10 @@ contains
     end if
     data = this%parameters(i)%data(:, 1)
 
-  end subroutine RetreiveParameter1D
+  end subroutine RetrieveParameter1D
 
   !-----------------------------------------------------------------------
-  subroutine RetreiveParameter2D(this, name, data)
+  subroutine RetrieveParameter2D(this, name, data)
 
     use abortutils, only : endrun
 
@@ -212,7 +214,7 @@ contains
     i = this%FindIndex(name)
     if (size(data, 1) /= size(this%parameters(i)%data, 1) .and. &
          size(data, 2) /= size(this%parameters(i)%data, 2)) then
-       write(fates_log(), *) 'ERROR : retreiveparameter2d : ', name, ' size inconsistent.'
+       write(fates_log(), *) 'ERROR : RetrieveParameter2d : ', name, ' size inconsistent.'
        write(fates_log(), *) 'ERROR : expected shape = ', shape(data)
        write(fates_log(), *) 'ERROR : dim 1 expected size = ', size(data, 1)
        write(fates_log(), *) 'ERROR : dim 2 expected size = ', size(data, 2)
@@ -227,10 +229,10 @@ contains
     end if
     data = this%parameters(i)%data
 
-  end subroutine RetreiveParameter2D
+  end subroutine RetrieveParameter2D
 
   !-----------------------------------------------------------------------
-  subroutine RetreiveParameter1DAllocate(this, name, data)
+  subroutine RetrieveParameter1DAllocate(this, name, data)
 
     use abortutils, only : endrun
 
@@ -248,10 +250,10 @@ contains
     allocate(data(lower_bound:upper_bound))
     data(lower_bound:upper_bound) = this%parameters(i)%data(:, 1)
 
-  end subroutine RetreiveParameter1DAllocate
+  end subroutine RetrieveParameter1DAllocate
 
   !-----------------------------------------------------------------------
-  subroutine RetreiveParameter2DAllocate(this, name, data)
+  subroutine RetrieveParameter2DAllocate(this, name, data)
 
     use abortutils, only : endrun
 
@@ -271,7 +273,7 @@ contains
     allocate(data(lb_1:ub_1, lb_2:ub_2))
     data(lb_1:ub_1, lb_2:ub_2) = this%parameters(i)%data
 
-  end subroutine RetreiveParameter2DAllocate
+  end subroutine RetrieveParameter2DAllocate
 
   !-----------------------------------------------------------------------
   function FindIndex(this, name) result(i)

@@ -14,8 +14,8 @@ module FatesHydraulicsMemMod
    ! Define the various different solver options for hydraulics
    
    integer, parameter, public :: hydr_solver_1DTaylor = 1
-   integer, parameter, public :: hydr_solver_2DNewton = 2
-   integer, parameter, public :: hydr_solver_2DPicard = 3
+   integer, parameter, public :: hydr_solver_2DNewton = 3
+   integer, parameter, public :: hydr_solver_2DPicard = 2
    
    ! Number of soil layers for indexing cohort fine root quanitities
    ! NOTE: The hydraulics code does have some capacity to run a single soil

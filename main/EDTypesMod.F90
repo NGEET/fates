@@ -28,11 +28,6 @@ module EDTypesMod
   private               ! By default everything is private
   save
 
-  integer, parameter, public :: maxPatchesPerSite  = 14   ! maximum number of patches to live on a site
-  integer, parameter, public :: maxPatchesPerSite_by_disttype(n_anthro_disturbance_categories)  = &
-                                                     (/ 10, 4 /)  !!! MUST SUM TO maxPatchesPerSite !!!
-  integer,  public :: maxCohortsPerPatch = 100            ! maximum number of cohorts per patch
-  
   integer, parameter, public :: nclmax = 2                ! Maximum number of canopy layers
   integer, parameter, public :: ican_upper = 1            ! Nominal index for the upper canopy
   integer, parameter, public :: ican_ustory = 2           ! Nominal index for diagnostics that refer
@@ -219,7 +214,7 @@ module EDTypesMod
      real(r8) ::  coage                                  ! cohort age in years
      real(r8) ::  hite                                   ! height: meters
      integer  ::  indexnumber                            ! unique number for each cohort. (within clump?)
-     real(r8) ::  laimemory                              ! target leaf biomass- set from previous year: kGC per indiv
+     real(r8) ::  leafmemory                             ! target leaf biomass- set from previous year: kGC per indiv
      real(r8) ::  sapwmemory                             ! target sapwood biomass- set from previous year: kGC per indiv
      real(r8) ::  structmemory                           ! target structural biomass- set from previous year: kGC per indiv
      integer  ::  canopy_layer                           ! canopy status of cohort (1 = canopy, 2 = understorey, etc.)
@@ -429,7 +424,7 @@ module EDTypesMod
      class(rmean_type), pointer :: tveg24                        ! 24-hour mean vegetation temperature (K)
      class(rmean_type), pointer :: tveg_lpa                      ! Running mean of vegetation temperature at the
                                                                  ! leaf photosynthesis acclimation timescale [K]
-     integer  ::  nocomp_pft_label                                 ! where nocomp is active, use this label for patch ID.   
+     integer  ::  nocomp_pft_label                               ! where nocomp is active, use this label for patch ID.   
 
      ! LEAF ORGANIZATION
      real(r8) ::  pft_agb_profile(maxpft,n_dbh_bins)            ! binned above ground biomass, for patch fusion: KgC/m2
@@ -789,41 +784,41 @@ module EDTypesMod
 
      ! TERMINATION, RECRUITMENT, DEMOTION, and DISTURBANCE
      
-     real(r8), allocatable :: term_nindivs_canopy(:,:) ! number of canopy individuals that were in cohorts which 
-                                                       ! were terminated this timestep, on size x pft
-     real(r8), allocatable :: term_nindivs_ustory(:,:) ! number of understory individuals that were in cohorts which 
-                                                       ! were terminated this timestep, on size x pft
- 
-     real(r8) :: term_carbonflux_canopy                ! carbon flux from live to dead pools associated 
-                                                       ! with termination mortality, per canopy level
-     real(r8) :: term_carbonflux_ustory                ! carbon flux from live to dead pools associated 
-                                                       ! with termination mortality, per canopy level    
-     real(r8) :: demotion_carbonflux                             ! biomass of demoted individuals from canopy to understory [kgC/ha/day]
-     real(r8) :: promotion_carbonflux                            ! biomass of promoted individuals from understory to canopy [kgC/ha/day]
-     real(r8) :: imort_carbonflux                                ! biomass of individuals killed due to impact mortality per year. [kgC/ha/day]
-     real(r8) :: fmort_carbonflux_canopy                         ! biomass of canopy indivs killed due to fire per year. [gC/m2/sec]
-     real(r8) :: fmort_carbonflux_ustory                         ! biomass of understory indivs killed due to fire per year [gC/m2/sec] 
+     real(r8), allocatable :: term_nindivs_canopy(:,:)   ! number of canopy individuals that were in cohorts which 
+                                                         ! were terminated this timestep, on size x pft
+     real(r8), allocatable :: term_nindivs_ustory(:,:)   ! number of understory individuals that were in cohorts which 
+                                                         ! were terminated this timestep, on size x pft
 
-     real(r8) :: recruitment_rate(1:maxpft)            ! number of individuals that were recruited into new cohorts
-     real(r8), allocatable :: demotion_rate(:)         ! rate of individuals demoted from canopy to understory per FATES timestep
-    
-     real(r8), allocatable :: promotion_rate(:)                  ! rate of individuals promoted from understory to canopy per FATES timestep
+     real(r8), allocatable :: term_carbonflux_canopy(:)  ! carbon flux from live to dead pools associated 
+                                                         ! with termination mortality, per canopy level
+     real(r8), allocatable :: term_carbonflux_ustory(:)  ! carbon flux from live to dead pools associated 
+                                                         ! with termination mortality, per canopy level    
+     real(r8), allocatable :: imort_carbonflux(:)        ! biomass of individuals killed due to impact mortality per year. [kgC/ha/day]
+     real(r8), allocatable :: fmort_carbonflux_canopy(:) ! biomass of canopy indivs killed due to fire per year. [gC/m2/sec]
+     real(r8), allocatable :: fmort_carbonflux_ustory(:) ! biomass of understory indivs killed due to fire per year [gC/m2/sec] 
+
+     real(r8) :: demotion_carbonflux                     ! biomass of demoted individuals from canopy to understory [kgC/ha/day]
+     real(r8) :: promotion_carbonflux                    ! biomass of promoted individuals from understory to canopy [kgC/ha/day]
+     real(r8) :: harvest_carbon_flux                     ! diagnostic site level flux of carbon as harvested plants [kg C / m2 / day]
+
+     real(r8) :: recruitment_rate(1:maxpft)              ! number of individuals that were recruited into new cohorts
+     real(r8), allocatable :: demotion_rate(:)           ! rate of individuals demoted from canopy to understory per FATES timestep
+     real(r8), allocatable :: promotion_rate(:)          ! rate of individuals promoted from understory to canopy per FATES timestep
+     real(r8), allocatable :: imort_rate(:,:)            ! rate of individuals killed due to impact mortality per year.  on size x pft array
      
-     real(r8), allocatable :: imort_rate(:,:)                    ! rate of individuals killed due to impact mortality per year.  on size x pft array
-     
 
-     real(r8), allocatable :: fmort_rate_canopy(:,:)             ! rate of canopy individuals killed due to fire mortality per year.  
-                                                                 ! on size x pft array  (1:nlevsclass,1:numpft)
-     real(r8), allocatable :: fmort_rate_ustory(:,:)             ! rate of understory individuals killed due to fire mortality per year.  
-                                                                 ! on size x pft array  (1:nlevsclass,1:numpft)
+     real(r8), allocatable :: fmort_rate_canopy(:,:)     ! rate of canopy individuals killed due to fire mortality per year.  
+                                                         ! on size x pft array  (1:nlevsclass,1:numpft)
+     real(r8), allocatable :: fmort_rate_ustory(:,:)     ! rate of understory individuals killed due to fire mortality per year.  
+                                                         ! on size x pft array  (1:nlevsclass,1:numpft)
     
-     real(r8), allocatable :: fmort_rate_cambial(:,:)            ! rate of individuals killed due to fire mortality 
-                                                                 ! from cambial damage per year.  on size x pft array
-     real(r8), allocatable :: fmort_rate_crown(:,:)              ! rate of individuals killed due to fire mortality 
-                                                                 ! from crown damage per year.  on size x pft array
+     real(r8), allocatable :: fmort_rate_cambial(:,:)    ! rate of individuals killed due to fire mortality 
+                                                         ! from cambial damage per year.  on size x pft array
+     real(r8), allocatable :: fmort_rate_crown(:,:)      ! rate of individuals killed due to fire mortality 
+                                                         ! from crown damage per year.  on size x pft array
 
-     real(r8), allocatable :: growthflux_fusion(:,:)             ! rate of individuals moving into a given size class bin
-     ! due to fusion in a given day. on size x pft array 
+     real(r8), allocatable :: growthflux_fusion(:,:)     ! rate of individuals moving into a given size class bin
+                                                         ! due to fusion in a given day. on size x pft array 
 
 
 
@@ -836,7 +831,6 @@ module EDTypesMod
      real(r8) :: disturbance_rates_secondary_to_secondary(N_DIST_TYPES)  ! actual disturbance rates from secondary patches to secondary patches [m2/m2/day]
      real(r8) :: potential_disturbance_rates(N_DIST_TYPES)               ! "potential" disturb rates (i.e. prior to the "which is most" logic) [m2/m2/day]
      real(r8) :: primary_land_patchfusion_error                          ! error term in total area of primary patches associated with patch fusion [m2/m2/day]
-     real(r8) :: harvest_carbon_flux                                     ! diagnostic site level flux of carbon as harvested plants [kg C / m2 / day]
      
   end type ed_site_type
 
@@ -1045,7 +1039,7 @@ module EDTypesMod
      write(fates_log(),*) 'co%dbh                    = ', ccohort%dbh                                        
      write(fates_log(),*) 'co%hite                   = ', ccohort%hite
      write(fates_log(),*) 'co%coage                  = ', ccohort%coage
-     write(fates_log(),*) 'co%laimemory              = ', ccohort%laimemory
+     write(fates_log(),*) 'co%leafmemory             = ', ccohort%leafmemory
      write(fates_log(),*) 'co%sapwmemory             = ', ccohort%sapwmemory
      write(fates_log(),*) 'co%structmemory           = ', ccohort%structmemory
      

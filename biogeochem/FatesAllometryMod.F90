@@ -2008,7 +2008,7 @@ contains
     ! Original FATES crown depth heigh used for hydraulics
     ! crown_depth               = min(height,0.1_r8)
 
-    crown_depth = prt_params%crown(ft) * height
+    crown_depth = prt_params%crown_depth_frac(ft) * height
 
     
     return
@@ -2373,7 +2373,7 @@ contains
      integer, parameter  :: max_counter = 200
      
      ! Do reduce "if" calls, we break this call into two parts
-     if ( int(prt_params%woody(ipft)) == itrue ) then
+     if ( prt_params%woody(ipft) == itrue ) then
 
         if(.not.present(bdead)) then
            write(fates_log(),*) 'woody plants must use structure for dbh reset'
@@ -2460,7 +2460,7 @@ contains
 
      if(counter>20)then
         write(fates_log(),*) 'dbh counter: ',counter,' is woody: ',&
-             int(prt_params%woody(ipft))==itrue
+             (prt_params%woody(ipft) == itrue)
 
         if(int(prt_params%woody(ipft))==itrue)then
            warn_msg = 'dbh counter: '//trim(I2S(counter))//' is woody'

@@ -10,12 +10,15 @@ module FatesInterfaceMod
    ! ------------------------------------------------------------------------------------
 
    use EDTypesMod                , only : ed_site_type
-   use EDTypesMod                , only : maxPatchesPerSite
-   use EDTypesMod                , only : maxCohortsPerPatch
    use EDTypesMod                , only : dinc_vai
    use EDTypesMod                , only : dlower_vai
    use EDParamsMod               , only : ED_val_vai_top_bin_width
    use EDParamsMod               , only : ED_val_vai_width_increase_factor
+   use EDParamsMod               , only : ED_val_history_damage_bin_edges
+   use EDParamsMod               , only : maxpatch_total
+   use EDParamsMod               , only : maxpatch_primary
+   use EDParamsMod               , only : maxpatch_secondary
+   use EDParamsMod               , only : max_cohort_per_patch
    use EDTypesMod                , only : maxSWb
    use EDTypesMod                , only : ivis
    use EDTypesMod                , only : inir
@@ -143,7 +146,8 @@ module FatesInterfaceMod
    public :: FatesInterfaceInit
    public :: set_fates_ctrlparms
    public :: SetFatesTime
-   public :: SetFatesGlobalElements
+   public :: SetFatesGlobalElements1
+   public :: SetFatesGlobalElements2
    public :: FatesReportParameters
    public :: allocate_bcin
    public :: allocate_bcout
@@ -370,12 +374,16 @@ contains
     end if
     fates%bc_out(s)%plant_stored_h2o_si = 0.0_r8
 
+    
+    fates%bc_out(s)%hrv_deadstemc_to_prod10c = 0.0_r8
+    fates%bc_out(s)%hrv_deadstemc_to_prod100c = 0.0_r8
+    
     return
   end subroutine zero_bcs
 
   ! ===========================================================================
 
-   subroutine allocate_bcin(bc_in, nlevsoil_in, nlevdecomp_in, num_lu_harvest_cats)
+   subroutine allocate_bcin(bc_in, nlevsoil_in, nlevdecomp_in, num_lu_harvest_cats,natpft_lb,natpft_ub)
       
       ! ---------------------------------------------------------------------------------
       ! Allocate and Initialze the FATES boundary condition vectors
@@ -386,6 +394,7 @@ contains
       integer,intent(in)              :: nlevsoil_in
       integer,intent(in)              :: nlevdecomp_in
       integer,intent(in)              :: num_lu_harvest_cats
+      integer,intent(in)              :: natpft_lb,natpft_ub ! dimension bounds of the array holding surface file pft data
       
       ! Allocate input boundaries
 
@@ -471,15 +480,15 @@ contains
 
       ! Lightning (or successful ignitions) and population density
       ! Fire related variables
-      allocate(bc_in%lightning24(maxPatchesPerSite))
-      allocate(bc_in%pop_density(maxPatchesPerSite))
-      allocate(bc_in%wind24_pa(maxPatchesPerSite))
-      allocate(bc_in%relhumid24_pa(maxPatchesPerSite))
-      allocate(bc_in%precip24_pa(maxPatchesPerSite))
+      allocate(bc_in%lightning24(maxpatch_total))
+      allocate(bc_in%pop_density(maxpatch_total))
+      allocate(bc_in%wind24_pa(maxpatch_total))
+      allocate(bc_in%relhumid24_pa(maxpatch_total))
+      allocate(bc_in%precip24_pa(maxpatch_total))
       
       ! Radiation
-      allocate(bc_in%solad_parb(maxPatchesPerSite,hlm_numSWb))
-      allocate(bc_in%solai_parb(maxPatchesPerSite,hlm_numSWb))
+      allocate(bc_in%solad_parb(maxpatch_total,hlm_numSWb))
+      allocate(bc_in%solai_parb(maxpatch_total,hlm_numSWb))
       
       ! Hydrology
       allocate(bc_in%smp_sl(nlevsoil_in))
@@ -496,30 +505,30 @@ contains
       
       
       ! Photosynthesis
-      allocate(bc_in%filter_photo_pa(maxPatchesPerSite))
-      allocate(bc_in%dayl_factor_pa(maxPatchesPerSite))
-      allocate(bc_in%esat_tv_pa(maxPatchesPerSite))
-      allocate(bc_in%eair_pa(maxPatchesPerSite))
-      allocate(bc_in%oair_pa(maxPatchesPerSite))
-      allocate(bc_in%cair_pa(maxPatchesPerSite))
-      allocate(bc_in%rb_pa(maxPatchesPerSite))
-      allocate(bc_in%t_veg_pa(maxPatchesPerSite))
-      allocate(bc_in%tgcm_pa(maxPatchesPerSite))
+      allocate(bc_in%filter_photo_pa(maxpatch_total))
+      allocate(bc_in%dayl_factor_pa(maxpatch_total))
+      allocate(bc_in%esat_tv_pa(maxpatch_total))
+      allocate(bc_in%eair_pa(maxpatch_total))
+      allocate(bc_in%oair_pa(maxpatch_total))
+      allocate(bc_in%cair_pa(maxpatch_total))
+      allocate(bc_in%rb_pa(maxpatch_total))
+      allocate(bc_in%t_veg_pa(maxpatch_total))
+      allocate(bc_in%tgcm_pa(maxpatch_total))
       allocate(bc_in%t_soisno_sl(nlevsoil_in))
 
       ! Canopy Radiation
-      allocate(bc_in%filter_vegzen_pa(maxPatchesPerSite))
-      allocate(bc_in%coszen_pa(maxPatchesPerSite))
-      allocate(bc_in%fcansno_pa(maxPatchesPerSite))
+      allocate(bc_in%filter_vegzen_pa(maxpatch_total))
+      allocate(bc_in%coszen_pa(maxpatch_total))
+      allocate(bc_in%fcansno_pa(maxpatch_total))
       allocate(bc_in%albgr_dir_rb(hlm_numSWb))
       allocate(bc_in%albgr_dif_rb(hlm_numSWb))
 
       ! Plant-Hydro BC's
       if (hlm_use_planthydro.eq.itrue) then
 
-         allocate(bc_in%qflx_transp_pa(maxPatchesPerSite))
-         allocate(bc_in%swrad_net_pa(maxPatchesPerSite))
-         allocate(bc_in%lwrad_net_pa(maxPatchesPerSite))
+         allocate(bc_in%qflx_transp_pa(maxpatch_total))
+         allocate(bc_in%swrad_net_pa(maxpatch_total))
+         allocate(bc_in%lwrad_net_pa(maxpatch_total))
          
          allocate(bc_in%watsat_sisl(nlevsoil_in))
          allocate(bc_in%watres_sisl(nlevsoil_in))
@@ -541,13 +550,13 @@ contains
          allocate(bc_in%hlm_harvest_catnames(0))
       end if
 
-      allocate(bc_in%pft_areafrac(0:maxpft))
+      allocate(bc_in%pft_areafrac(natpft_lb:natpft_ub))
 
       ! Variables for SP mode. 
       if(hlm_use_sp.eq.itrue) then
-        allocate(bc_in%hlm_sp_tlai(0:maxpft))
-        allocate(bc_in%hlm_sp_tsai(0:maxpft))     
-        allocate(bc_in%hlm_sp_htop(0:maxpft))
+        allocate(bc_in%hlm_sp_tlai(natpft_lb:natpft_ub))
+        allocate(bc_in%hlm_sp_tsai(natpft_lb:natpft_ub))     
+        allocate(bc_in%hlm_sp_htop(natpft_lb:natpft_ub))
       end if 
       return
    end subroutine allocate_bcin
@@ -566,28 +575,28 @@ contains
       integer,intent(in)               :: nlevdecomp_in
       
       ! Radiation
-      allocate(bc_out%fsun_pa(maxPatchesPerSite))
-      allocate(bc_out%laisun_pa(maxPatchesPerSite))
-      allocate(bc_out%laisha_pa(maxPatchesPerSite))
+      allocate(bc_out%fsun_pa(maxpatch_total))
+      allocate(bc_out%laisun_pa(maxpatch_total))
+      allocate(bc_out%laisha_pa(maxpatch_total))
       
       ! Hydrology
       allocate(bc_out%active_suction_sl(nlevsoil_in))
-      allocate(bc_out%rootr_pasl(maxPatchesPerSite,nlevsoil_in))
-      allocate(bc_out%btran_pa(maxPatchesPerSite))
+      allocate(bc_out%rootr_pasl(maxpatch_total,nlevsoil_in))
+      allocate(bc_out%btran_pa(maxpatch_total))
       
       ! Photosynthesis
 
-      allocate(bc_out%rssun_pa(maxPatchesPerSite))
-      allocate(bc_out%rssha_pa(maxPatchesPerSite))
+      allocate(bc_out%rssun_pa(maxpatch_total))
+      allocate(bc_out%rssha_pa(maxpatch_total))
       
       ! Canopy Radiation
-      allocate(bc_out%albd_parb(maxPatchesPerSite,hlm_numSWb))
-      allocate(bc_out%albi_parb(maxPatchesPerSite,hlm_numSWb))
-      allocate(bc_out%fabd_parb(maxPatchesPerSite,hlm_numSWb))
-      allocate(bc_out%fabi_parb(maxPatchesPerSite,hlm_numSWb))
-      allocate(bc_out%ftdd_parb(maxPatchesPerSite,hlm_numSWb))
-      allocate(bc_out%ftid_parb(maxPatchesPerSite,hlm_numSWb))
-      allocate(bc_out%ftii_parb(maxPatchesPerSite,hlm_numSWb))
+      allocate(bc_out%albd_parb(maxpatch_total,hlm_numSWb))
+      allocate(bc_out%albi_parb(maxpatch_total,hlm_numSWb))
+      allocate(bc_out%fabd_parb(maxpatch_total,hlm_numSWb))
+      allocate(bc_out%fabi_parb(maxpatch_total,hlm_numSWb))
+      allocate(bc_out%ftdd_parb(maxpatch_total,hlm_numSWb))
+      allocate(bc_out%ftid_parb(maxpatch_total,hlm_numSWb))
+      allocate(bc_out%ftii_parb(maxpatch_total,hlm_numSWb))
 
 
       ! We allocate the boundary conditions to the BGC
@@ -616,13 +625,13 @@ contains
       ! Include the bare-ground patch for these patch-level boundary conditions
       ! (it will always be zero for all of these)
       if(hlm_use_ch4.eq.itrue) then
-         allocate(bc_out%annavg_agnpp_pa(0:maxPatchesPerSite));bc_out%annavg_agnpp_pa(:)=nan
-         allocate(bc_out%annavg_bgnpp_pa(0:maxPatchesPerSite));bc_out%annavg_bgnpp_pa(:)=nan
-         allocate(bc_out%annsum_npp_pa(0:maxPatchesPerSite));bc_out%annsum_npp_pa(:)=nan
-         allocate(bc_out%frootc_pa(0:maxPatchesPerSite));bc_out%frootc_pa(:)=nan
+         allocate(bc_out%annavg_agnpp_pa(0:maxpatch_total));bc_out%annavg_agnpp_pa(:)=nan
+         allocate(bc_out%annavg_bgnpp_pa(0:maxpatch_total));bc_out%annavg_bgnpp_pa(:)=nan
+         allocate(bc_out%annsum_npp_pa(0:maxpatch_total));bc_out%annsum_npp_pa(:)=nan
+         allocate(bc_out%frootc_pa(0:maxpatch_total));bc_out%frootc_pa(:)=nan
          allocate(bc_out%root_resp(nlevsoil_in));bc_out%root_resp(:)=nan
-         allocate(bc_out%woody_frac_aere_pa(0:maxPatchesPerSite));bc_out%woody_frac_aere_pa(:)=nan
-         allocate(bc_out%rootfr_pa(0:maxPatchesPerSite,nlevsoil_in))
+         allocate(bc_out%woody_frac_aere_pa(0:maxpatch_total));bc_out%woody_frac_aere_pa(:)=nan
+         allocate(bc_out%rootfr_pa(0:maxpatch_total,nlevsoil_in))
          bc_out%rootfr_pa(:,:)=nan
 
          ! Give the bare-ground root fractions a nominal fraction of unity over depth
@@ -659,21 +668,21 @@ contains
 
 
       ! Canopy Structure
-      allocate(bc_out%elai_pa(maxPatchesPerSite))
-      allocate(bc_out%esai_pa(maxPatchesPerSite))
-      allocate(bc_out%tlai_pa(maxPatchesPerSite))
-      allocate(bc_out%tsai_pa(maxPatchesPerSite))
-      allocate(bc_out%htop_pa(maxPatchesPerSite))
-      allocate(bc_out%hbot_pa(maxPatchesPerSite))
-      allocate(bc_out%dleaf_pa(maxPatchesPerSite))
+      allocate(bc_out%elai_pa(maxpatch_total))
+      allocate(bc_out%esai_pa(maxpatch_total))
+      allocate(bc_out%tlai_pa(maxpatch_total))
+      allocate(bc_out%tsai_pa(maxpatch_total))
+      allocate(bc_out%htop_pa(maxpatch_total))
+      allocate(bc_out%hbot_pa(maxpatch_total))
+      allocate(bc_out%dleaf_pa(maxpatch_total))
 
-      allocate(bc_out%displa_pa(maxPatchesPerSite))
-      allocate(bc_out%z0m_pa(maxPatchesPerSite))
+      allocate(bc_out%displa_pa(maxpatch_total))
+      allocate(bc_out%z0m_pa(maxpatch_total))
 
-      allocate(bc_out%canopy_fraction_pa(maxPatchesPerSite))
-      allocate(bc_out%frac_veg_nosno_alb_pa(maxPatchesPerSite))
+      allocate(bc_out%canopy_fraction_pa(maxpatch_total))
+      allocate(bc_out%frac_veg_nosno_alb_pa(maxpatch_total))
 
-      allocate(bc_out%nocomp_pft_label_pa(maxPatchesPerSite))
+      allocate(bc_out%nocomp_pft_label_pa(maxpatch_total))
 
       ! Plant-Hydro BC's
       if (hlm_use_planthydro.eq.itrue) then
@@ -715,37 +724,89 @@ contains
 
     ! ===================================================================================
     
-    subroutine SetFatesGlobalElements(use_fates)
+    subroutine SetFatesGlobalElements1(use_fates,surf_numpft,surf_numcft)
 
        ! --------------------------------------------------------------------------------
        !
        ! This is the first FATES routine that is called.
        !
-       ! This subroutine MUST BE CALLED AFTER the FATES PFT parameter file has been read in,
-       ! and the EDPftvarcon_inst structure has been made.
-       ! This subroutine MUST BE CALLED AFTER NL VARIABLES ARE READ (ie hlm_parteh_mode,etc)
-       ! This subroutine must ALSO BE CALLED BEFORE the history file dimensions
-       ! are set.
-       ! 
-       ! This routine requires no information from the HLM. This routine is responsible
-       ! for generating the globals that are required by the HLM that are entirely
-       ! FATES derived.
-       !
+       ! spmode,biogeog and nocomp mode flags have been passed prior to this call
        ! --------------------------------------------------------------------------------
 
 
       implicit none
       
       logical,intent(in) :: use_fates    ! Is fates turned on?
-      integer :: i
+      integer,intent(in) :: surf_numpft  ! Number of PFTs in surface dataset
+      integer,intent(in) :: surf_numcft  ! Number of CFTs in surface dataset
+
+      integer :: fates_numpft  ! Number of PFTs tracked in FATES
       
       if (use_fates) then
          
          ! Self explanatory, read the fates parameter file
          call FatesReadParameters()
 
-         ! Identify the number of PFTs by evaluating a pft array
-         ! Using wood density as that is not expected to be deprecated any time soon
+         fates_numpft = size(prt_params%wood_density,dim=1)
+         
+         if(hlm_use_sp==itrue)then
+
+            ! For an SP run we also just use the primary patches
+            ! to hold all PFTs.  So create the same number of
+            ! patches as the number of PFTs
+
+            maxpatch_primary   = fates_numpft
+            maxpatch_secondary = 0
+            maxpatch_total     = fates_numpft
+            
+            ! If this is an SP run, we actually need enough patches on the
+            ! CLM/ELM side of the code to hold the LAI data.  This
+            ! number may be larger than what fates requires.  Of course
+            ! we may have multiple PFTs in the surface datafile mapping
+            ! to FATES.  The surf_numpft includes the bare ground.
+            ! maxpatch_total does not include the bare ground (so add 1)
+            
+            fates_maxPatchesPerSite = max(surf_numpft+surf_numcft,maxpatch_total+1)
+
+         else
+
+            ! If we are using fixed biogeography or no-comp then we
+            ! can also apply those constraints to maxpatch_primary and secondary
+            ! and that value will match fates_maxPatchesPerSite
+            
+            if(hlm_use_nocomp==itrue) then
+
+               maxpatch_primary = max(maxpatch_primary,fates_numpft)
+               maxpatch_total = maxpatch_primary + maxpatch_secondary
+               !if(maxpatch_primary<fates_numpft)then
+               !   write(fates_log(),*) 'warning: lower number of patches than pfts'
+               !   write(fates_log(),*) 'this may become a problem in nocomp mode'
+               !end if
+            end if
+
+            ! maxpatch_total does not include the bare ground (so add 1)
+            fates_maxPatchesPerSite = maxpatch_total+1
+            
+         end if
+             
+      end if
+
+    end subroutine SetFatesGlobalElements1
+
+    ! ====================================================================================
+    
+    subroutine SetFatesGlobalElements2(use_fates)
+
+      ! --------------------------------------------------------------------------------
+      !
+      ! This is the second FATES routine that is called.
+      !
+      ! --------------------------------------------------------------------------------
+
+      logical,intent(in) :: use_fates    ! Is fates turned on?
+      integer :: i
+
+      if (use_fates) then
 
          if(lbound(prt_params%wood_density(:),dim=1) .eq. 0 ) then
             numpft = size(prt_params%wood_density,dim=1)-1
@@ -775,28 +836,20 @@ contains
             nleafage = size(prt_params%leaf_long,dim=2)
          end if
 
-         ! These values are used to define the restart file allocations and general structure
-         ! of memory for the cohort arrays
-
-         if ( hlm_use_cohort_age_tracking .eq. itrue) then
-            maxCohortsPerPatch = 300
-         else
-            maxCohortsPerPatch = 100
-         end if
          
          ! These values are used to define the restart file allocations and general structure
          ! of memory for the cohort arrays
          
-         fates_maxElementsPerPatch = max(maxCohortsPerPatch, ndcmpy*hlm_maxlevsoil ,ncwd*hlm_maxlevsoil)
-
-         if (maxPatchesPerSite * fates_maxElementsPerPatch <  numWaterMem) then
+         fates_maxElementsPerPatch = max(max_cohort_per_patch, ndcmpy*hlm_maxlevsoil ,ncwd*hlm_maxlevsoil)
+         
+         if (fates_maxPatchesPerSite * fates_maxElementsPerPatch <  numWaterMem) then
             write(fates_log(), *) 'By using such a tiny number of maximum patches and maximum cohorts'
             write(fates_log(), *) ' this could create problems for indexing in restart files'
             write(fates_log(), *) ' The multiple of the two has to be greater than numWaterMem'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
          
-         fates_maxElementsPerSite = maxPatchesPerSite * fates_maxElementsPerPatch
+         fates_maxElementsPerSite = fates_maxPatchesPerSite * fates_maxElementsPerPatch
 
 
          ! Set the maximum number of nutrient aquisition competitors per site
@@ -834,7 +887,8 @@ contains
          nlevage = size(ED_val_history_ageclass_bin_edges,dim=1)
          nlevheight = size(ED_val_history_height_bin_edges,dim=1)
          nlevcoage = size(ED_val_history_coageclass_bin_edges,dim=1)
-
+         nlevdamage = size(ED_val_history_damage_bin_edges, dim=1)
+         
          ! do some checks on the size, age, and height bin arrays to make sure they make sense:
          ! make sure that all start at zero, and that both are monotonically increasing
          if ( ED_val_history_sizeclass_bin_edges(1) .ne. 0._r8 ) then
@@ -906,9 +960,7 @@ contains
          
 
       end if
-
-
-    end subroutine SetFatesGlobalElements
+    end subroutine SetFatesGlobalElements2
 
     ! ======================================================================
 
@@ -1004,6 +1056,7 @@ contains
        integer :: icwd
        integer :: ifuel
        integer :: ican
+       integer :: icdam
        integer :: ileaf
        integer :: iage
        integer :: iheight
@@ -1047,14 +1100,21 @@ contains
        allocate( fates_hdim_cwdmap_levelcwd(num_elements*ncwd))
        allocate( fates_hdim_agemap_levelage(num_elements*nlevage))
 
-
+       allocate( fates_hdim_levdamage(1:nlevdamage ))
+       allocate( fates_hdim_scmap_levcdsc(nlevsclass*nlevdamage))
+       allocate( fates_hdim_cdmap_levcdsc(nlevsclass*nlevdamage))
+       allocate( fates_hdim_scmap_levcdpf(nlevsclass*nlevdamage * numpft))
+       allocate( fates_hdim_cdmap_levcdpf(nlevsclass*nlevdamage * numpft))
+       allocate( fates_hdim_pftmap_levcdpf(nlevsclass*nlevdamage * numpft))
+       
        ! Fill the IO array of plant size classes
        fates_hdim_levsclass(:) = ED_val_history_sizeclass_bin_edges(:)
        fates_hdim_levage(:) = ED_val_history_ageclass_bin_edges(:)
        fates_hdim_levheight(:) = ED_val_history_height_bin_edges(:)
        fates_hdim_levcoage(:) = ED_val_history_coageclass_bin_edges(:)
        fates_hdim_levleaf(:) = dlower_vai(:)
-
+       fates_hdim_levdamage(:) = ED_val_history_damage_bin_edges(:)
+       
        ! make pft array
        do ipft=1,numpft
           fates_hdim_levpft(ipft) = ipft
@@ -1145,6 +1205,27 @@ contains
           end do
        end do
 
+       i=0
+       do icdam=1,nlevdamage
+          do isc=1,nlevsclass
+             i=i+1
+             fates_hdim_scmap_levcdsc(i) = isc
+             fates_hdim_cdmap_levcdsc(i) = icdam
+          end do
+       end do
+
+       i=0
+       do ipft=1,numpft
+          do icdam=1,nlevdamage
+             do isc=1,nlevsclass
+                i=i+1
+                fates_hdim_scmap_levcdpf(i) = isc
+                fates_hdim_cdmap_levcdpf(i) = icdam
+                fates_hdim_pftmap_levcdpf(i) = ipft
+             end do
+          end do
+       end do
+       
        i=0
        do ipft=1,numpft
           do ican=1,nclmax
@@ -1281,8 +1362,8 @@ contains
          hlm_nu_com      = 'unset'
          hlm_decomp      = 'unset'
          hlm_nitrogen_spec = unset_int
+         hlm_use_tree_damage = unset_int
          hlm_phosphorus_spec = unset_int
-         hlm_max_patch_per_site = unset_int
          hlm_use_ch4       = unset_int
          hlm_use_vertsoilc = unset_int
          hlm_parteh_mode   = unset_int
@@ -1452,7 +1533,16 @@ contains
             write(fates_log(),*) 'FATES dimension/parameter unset: hlm_nu_com, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
-         
+
+         if(hlm_use_tree_damage .eq. unset_int .or. hlm_use_tree_damage .eq. itrue) then
+            write(fates_log(),*) 'FATES dimension/parameter unset: hlm_use_tree_damage, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(hlm_use_tree_damage .eq. itrue) then
+            write(fates_log(),*) 'hlm_use_tree_damage is not available yet, value: ',hlm_use_tree_damage,' ,set to false'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
          
          if(hlm_nitrogen_spec .eq. unset_int) then
             write(fates_log(),*) 'FATES parameters unset: hlm_nitrogen_spec, exiting'
@@ -1471,18 +1561,6 @@ contains
 
          if(hlm_ipedof .eq. unset_int) then
             write(fates_log(), *) 'index for the HLMs pedotransfer function unset: hlm_ipedof, exiting'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
-
-
-         if(hlm_max_patch_per_site .eq. unset_int ) then
-            write(fates_log(), *) 'the number of patch-space per site unset: hlm_max_patch_per_site, exiting'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         elseif(hlm_max_patch_per_site < maxPatchesPerSite ) then
-            write(fates_log(), *) 'FATES is trying to allocate space for more patches per site, than the HLM has space for.'
-            write(fates_log(), *) 'hlm_max_patch_per_site (HLM side): ', hlm_max_patch_per_site
-            write(fates_log(), *) 'maxPatchesPerSite (FATES side): ', maxPatchesPerSite
-            write(fates_log(), *)
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
@@ -1615,6 +1693,12 @@ contains
                   write(fates_log(),*) 'Transfering hlm_ipedof = ',ival,' to FATES'
                end if
 
+            case('use_tree_damage')
+               hlm_use_tree_damage = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_tree_damage = ',ival,' to FATES'
+               end if
+               
             case('nitrogen_spec')
                hlm_nitrogen_spec = ival
                if (fates_global_verbose()) then
@@ -1625,13 +1709,6 @@ contains
                hlm_phosphorus_spec = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_phosphorus_spec = ',ival,' to FATES'
-               end if
-
-               
-            case('max_patch_per_site')
-               hlm_max_patch_per_site = ival
-               if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_max_patch_per_site = ',ival,' to FATES'
                end if
 
             case('use_ch4')
