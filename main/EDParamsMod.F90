@@ -235,7 +235,7 @@ module EDParamsMod
 
    real(r8),protected,public :: pprodharv10_forest_mean ! "mean harvest mortality proportion of deadstem to 10-yr 
                                                         ! product pool (pprodharv10) of all woody PFT types
-   character(len=param_string_length),parameter,public :: logging_name_pprodharv10="fates_pprodharv10_forest_mean"   
+   character(len=param_string_length),parameter,public :: logging_name_pprodharv10="fates_landuse_pprodharv10_forest_mean"
 
    real(r8),protected,public :: eca_plant_escalar  ! scaling factor for plant fine root biomass to 
                                                ! calculate nutrient carrier enzyme abundance (ECA)
