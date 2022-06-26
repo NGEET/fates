@@ -273,8 +273,10 @@ contains
             ! if (fates_global_verbose()) then
             !    write(fates_log(), *) 'Successfully Read Harvest Rate from HLM.', hlm_harvest_rates(:), harvest_rate 
             ! end if
-            !write(fates_log(),*) 'HLM harvest carbon data not implemented yet. Exiting.'
-            !call endrun(msg=errMsg(sourcefile, __LINE__))
+            
+            write(fates_log(),*) 'HLM harvest carbon data not implemented yet. Exiting.'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+            
          endif
 
          ! transfer of area to secondary land is based on overall area affected, not just logged crown area
@@ -846,14 +848,14 @@ contains
       bc_out%hrv_deadstemc_to_prod100c = 0._r8
   
       ! Calculate the unit transfer factor (from kgC m-2 day-1 to gC m-2 s-1)
-      unit_trans_factor = 1000._r8 * days_per_sec
+      unit_trans_factor = g_per_kg * days_per_sec
 
       bc_out%hrv_deadstemc_to_prod10c = bc_out%hrv_deadstemc_to_prod10c + &
           currentSite%mass_balance(element_pos(carbon12_element))%wood_product * &
           AREA_INV * pprodharv10_forest_mean * unit_trans_factor
       bc_out%hrv_deadstemc_to_prod100c = bc_out%hrv_deadstemc_to_prod100c + &
           currentSite%mass_balance(element_pos(carbon12_element))%wood_product * &
-          AREA_INV * (1 - pprodharv10_forest_mean) * unit_trans_factor  
+          AREA_INV * (1._r8 - pprodharv10_forest_mean) * unit_trans_factor  
   
       return
    end subroutine UpdateHarvestC
