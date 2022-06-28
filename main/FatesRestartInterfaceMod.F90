@@ -102,7 +102,7 @@ module FatesRestartInterfaceMod
   integer :: ir_coage_co
   integer :: ir_g_sb_laweight_co
   integer :: ir_height_co
-  integer :: ir_laimemory_co
+  integer :: ir_leafmemory_co
   integer :: ir_sapwmemory_co
   integer :: ir_structmemory_co
   integer :: ir_nplant_co
@@ -207,18 +207,20 @@ module FatesRestartInterfaceMod
   integer :: ir_growflx_fusion_siscpf
   integer :: ir_demorate_sisc
   integer :: ir_promrate_sisc
-  integer :: ir_termcflux_cano_si
-  integer :: ir_termcflux_usto_si
   integer :: ir_termcarea_cano_si
   integer :: ir_termcarea_usto_si
-  integer :: ir_democflux_si
-  integer :: ir_promcflux_si
-  integer :: ir_imortcflux_si
+
   integer :: ir_imortcarea_si
-  integer :: ir_fmortcflux_cano_si
-  integer :: ir_fmortcflux_usto_si
   integer :: ir_fmortcarea_cano_si
   integer :: ir_fmortcarea_usto_si
+  integer :: ir_termcflux_cano_sipft
+  integer :: ir_termcflux_usto_sipft
+  integer :: ir_democflux_si
+  integer :: ir_promcflux_si
+  integer :: ir_imortcflux_sipft
+  integer :: ir_fmortcflux_cano_sipft
+  integer :: ir_fmortcflux_usto_sipft
+
   integer :: ir_cwdagin_flxdg
   integer :: ir_cwdbgin_flxdg
   integer :: ir_leaflittin_flxdg
@@ -227,6 +229,7 @@ module FatesRestartInterfaceMod
   integer :: ir_uptake_flxdg
   integer :: ir_oldstock_mbal
   integer :: ir_errfates_mbal
+  integer :: ir_woodprod_mbal
   integer :: ir_prt_base     ! Base index for all PRT variables
 
   ! Damage x damage or damage x size
@@ -739,10 +742,10 @@ contains
          long_name='ed cohort - plant height', units='m', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_height_co )
 
-    call this%set_restart_var(vname='fates_laimemory', vtype=cohort_r8, &
+    call this%set_restart_var(vname='fates_leafmemory', vtype=cohort_r8, &
          long_name='ed cohort - target leaf biomass set from prev year', &
          units='kgC/indiv', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_laimemory_co )
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_leafmemory_co )
 
     call this%set_restart_var(vname='fates_sapwmemory', vtype=cohort_r8, &
          long_name='ed cohort - target sapwood biomass set from prev year', &
@@ -1087,7 +1090,11 @@ contains
          units='kg/ha', veclength=num_elements, flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_errfates_mbal)
 
-
+    call this%RegisterCohortVector(symbol_base='fates_woodproduct', vtype=site_r8, &
+         long_name_base='Current wood product flux', &
+         units='kg/m2/day', veclength=num_elements, flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_woodprod_mbal)
+    
     ! Only register satellite phenology related restart variables if it is turned on!
 
     if(hlm_use_sp .eq. itrue) then
@@ -1259,35 +1266,35 @@ contains
          units='indiv/ha/da', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_promrate_sisc)
 
-    call this%set_restart_var(vname='fates_imortcflux', vtype=site_r8, &
+    call this%set_restart_var(vname='fates_imortcflux', vtype=cohort_r8, &
          long_name='biomass of indivs killed due to impact mort', &
          units='kgC/ha/day', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_imortcflux_si)
-    
-    call this%set_restart_var(vname='fates_imortcarea', vtype=site_r8, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_imortcflux_sipft)
+
+   call this%set_restart_var(vname='fates_imortcarea', vtype=site_r8, &
          long_name='crownarea of indivs killed due to impact mort', &
          units='m2/ha/day', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_imortcarea_si)
 
-    call this%set_restart_var(vname='fates_fmortcflux_canopy', vtype=site_r8, &
+   call this%set_restart_var(vname='fates_fmortcflux_canopy', vtype=cohort_r8, &
          long_name='fates diagnostic biomass of canopy fire', &
          units='gC/m2/sec', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fmortcflux_cano_si)
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fmortcflux_cano_sipft)
 
-    call this%set_restart_var(vname='fates_fmortcflux_ustory', vtype=site_r8, &
+    call this%set_restart_var(vname='fates_fmortcflux_ustory', vtype=cohort_r8, &
          long_name='fates diagnostic biomass of understory fire', &
          units='gC/m2/sec', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fmortcflux_usto_si)
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fmortcflux_usto_sipft)
 
-    call this%set_restart_var(vname='fates_termcflux_canopy', vtype=site_r8, &
+    call this%set_restart_var(vname='fates_termcflux_canopy', vtype=cohort_r8, &
          long_name='fates diagnostic term carbon flux canopy', &
          units='', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index =   ir_termcflux_cano_si )
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index =   ir_termcflux_cano_sipft )
 
-   call this%set_restart_var(vname='fates_termcflux_ustory', vtype=site_r8, &
+   call this%set_restart_var(vname='fates_termcflux_ustory', vtype=cohort_r8, &
          long_name='fates diagnostic term carbon flux understory', &
          units='', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index =   ir_termcflux_usto_si )
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index =   ir_termcflux_usto_sipft )
 
    call this%set_restart_var(vname='fates_democflux', vtype=site_r8, &
          long_name='fates diagnostic demotion carbon flux', &
@@ -1891,7 +1898,7 @@ contains
            rio_coage_co                => this%rvars(ir_coage_co)%r81d, &
            rio_g_sb_laweight_co        => this%rvars(ir_g_sb_laweight_co)%r81d, &
            rio_height_co               => this%rvars(ir_height_co)%r81d, &
-           rio_laimemory_co            => this%rvars(ir_laimemory_co)%r81d, &
+           rio_leafmemory_co           => this%rvars(ir_leafmemory_co)%r81d, &
            rio_sapwmemory_co           => this%rvars(ir_sapwmemory_co)%r81d, &
            rio_structmemory_co         => this%rvars(ir_structmemory_co)%r81d, &
            rio_nplant_co               => this%rvars(ir_nplant_co)%r81d, &
@@ -1951,18 +1958,19 @@ contains
            rio_growflx_fusion_siscpf   => this%rvars(ir_growflx_fusion_siscpf)%r81d,  &
            rio_demorate_sisc           => this%rvars(ir_demorate_sisc)%r81d, &
            rio_promrate_sisc           => this%rvars(ir_promrate_sisc)%r81d, &
-           rio_termcflux_cano_si       => this%rvars(ir_termcflux_cano_si)%r81d, &
-           rio_termcflux_usto_si       => this%rvars(ir_termcflux_usto_si)%r81d, &
            rio_termcarea_cano_si       => this%rvars(ir_termcarea_cano_si)%r81d, &
            rio_termcarea_usto_si       => this%rvars(ir_termcarea_usto_si)%r81d, &
-           rio_democflux_si            => this%rvars(ir_democflux_si)%r81d, &
-           rio_promcflux_si            => this%rvars(ir_promcflux_si)%r81d, &
-           rio_imortcflux_si           => this%rvars(ir_imortcflux_si)%r81d, &
-           rio_fmortcflux_cano_si      => this%rvars(ir_fmortcflux_cano_si)%r81d, &
-           rio_fmortcflux_usto_si      => this%rvars(ir_fmortcflux_usto_si)%r81d, &
+           
            rio_imortcarea_si           => this%rvars(ir_imortcarea_si)%r81d, &
            rio_fmortcarea_cano_si      => this%rvars(ir_fmortcarea_cano_si)%r81d, &
            rio_fmortcarea_usto_si      => this%rvars(ir_fmortcarea_usto_si)%r81d, &
+           rio_termcflux_cano_sipft    => this%rvars(ir_termcflux_cano_sipft)%r81d, &
+           rio_termcflux_usto_sipft    => this%rvars(ir_termcflux_usto_sipft)%r81d, &
+           rio_democflux_si            => this%rvars(ir_democflux_si)%r81d, &
+           rio_promcflux_si            => this%rvars(ir_promcflux_si)%r81d, &
+           rio_imortcflux_sipft        => this%rvars(ir_imortcflux_sipft)%r81d, &
+           rio_fmortcflux_cano_sipft   => this%rvars(ir_fmortcflux_cano_sipft)%r81d, &
+           rio_fmortcflux_usto_sipft   => this%rvars(ir_fmortcflux_usto_sipft)%r81d)
 
            ! damage
            rio_imortrate_sicdpf        => this%rvars(ir_imortrate_sicdpf)%r81d, &
@@ -2054,7 +2062,8 @@ contains
 
              this%rvars(ir_oldstock_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%old_stock
              this%rvars(ir_errfates_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%err_fates
-
+             this%rvars(ir_woodprod_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%wood_product
+             
           end do
 
 
@@ -2141,7 +2150,7 @@ contains
                 rio_dbh_co(io_idx_co)          = ccohort%dbh
                 rio_coage_co(io_idx_co)        = ccohort%coage
                 rio_height_co(io_idx_co)       = ccohort%hite
-                rio_laimemory_co(io_idx_co)    = ccohort%laimemory
+                rio_leafmemory_co(io_idx_co)   = ccohort%leafmemory
                 rio_sapwmemory_co(io_idx_co)   = ccohort%sapwmemory
                 rio_structmemory_co(io_idx_co) = ccohort%structmemory
                 rio_g_sb_laweight_co(io_idx_co)= ccohort%g_sb_laweight
@@ -2364,6 +2373,9 @@ contains
 
              io_idx_si_sc = io_idx_si_sc + 1
           end do
+          rio_termcarea_cano_si(io_idx_si)  = sites(s)%term_crownarea_canopy
+          rio_termcarea_usto_si(io_idx_si)  = sites(s)%term_crownarea_ustory
+          
 
           ! this only copies live portions of transitions - but that's ok because the mortality
           ! bit only needs to be added for history outputs
@@ -2393,20 +2405,24 @@ contains
              
           end if
 
-          rio_termcflux_cano_si(io_idx_si)  = sites(s)%term_carbonflux_canopy
-          rio_termcflux_usto_si(io_idx_si)  = sites(s)%term_carbonflux_ustory
-          rio_termcarea_cano_si(io_idx_si)  = sites(s)%term_crownarea_canopy
-          rio_termcarea_usto_si(io_idx_si)  = sites(s)%term_crownarea_ustory
+          
           rio_democflux_si(io_idx_si)       = sites(s)%demotion_carbonflux
           rio_promcflux_si(io_idx_si)       = sites(s)%promotion_carbonflux
-          rio_imortcflux_si(io_idx_si)      = sites(s)%imort_carbonflux
+
+          io_idx_si_pft = io_idx_co_1st
+          do i_pft = 1, numpft
+             rio_termcflux_cano_sipft(io_idx_si_pft)  = sites(s)%term_carbonflux_canopy(i_pft)
+             rio_termcflux_usto_sipft(io_idx_si_pft)  = sites(s)%term_carbonflux_ustory(i_pft)
+             rio_fmortcflux_cano_sipft(io_idx_si_pft) = sites(s)%fmort_carbonflux_canopy(i_pft)
+             rio_fmortcflux_usto_sipft(io_idx_si_pft) = sites(s)%fmort_carbonflux_ustory(i_pft)
+             rio_imortcflux_sipft(io_idx_si_pft)      = sites(s)%imort_carbonflux(i_pft)
+             io_idx_si_pft = io_idx_si_pft + 1
+          end do
+
           rio_imortcarea_si(io_idx_si)      = sites(s)%imort_crownarea
-          rio_fmortcflux_cano_si(io_idx_si) = sites(s)%fmort_carbonflux_canopy
-          rio_fmortcflux_usto_si(io_idx_si) = sites(s)%fmort_carbonflux_ustory
           rio_fmortcarea_cano_si(io_idx_si) = sites(s)%fmort_crownarea_canopy
           rio_fmortcarea_usto_si(io_idx_si) = sites(s)%fmort_crownarea_ustory
 
-          
           rio_cd_status_si(io_idx_si)    = sites(s)%cstatus
           rio_dd_status_si(io_idx_si)    = sites(s)%dstatus
           rio_nchill_days_si(io_idx_si)  = sites(s)%nchilldays
@@ -2788,7 +2804,7 @@ contains
           rio_coage_co                => this%rvars(ir_coage_co)%r81d, &
           rio_g_sb_laweight_co        => this%rvars(ir_g_sb_laweight_co)%r81d, &
           rio_height_co               => this%rvars(ir_height_co)%r81d, &
-          rio_laimemory_co            => this%rvars(ir_laimemory_co)%r81d, &
+          rio_leafmemory_co           => this%rvars(ir_leafmemory_co)%r81d, &
           rio_sapwmemory_co           => this%rvars(ir_sapwmemory_co)%r81d, &
           rio_structmemory_co         => this%rvars(ir_structmemory_co)%r81d, &
           rio_nplant_co               => this%rvars(ir_nplant_co)%r81d, &
@@ -2848,21 +2864,19 @@ contains
           rio_growflx_fusion_siscpf   => this%rvars(ir_growflx_fusion_siscpf)%r81d,  &
           rio_demorate_sisc           => this%rvars(ir_demorate_sisc)%r81d, &
           rio_promrate_sisc           => this%rvars(ir_promrate_sisc)%r81d, &
-          rio_termcflux_cano_si       => this%rvars(ir_termcflux_cano_si)%r81d, &
-          rio_termcflux_usto_si       => this%rvars(ir_termcflux_usto_si)%r81d, &
+          rio_termcflux_cano_sipft    => this%rvars(ir_termcflux_cano_sipft)%r81d, &
+          rio_termcflux_usto_sipft    => this%rvars(ir_termcflux_usto_sipft)%r81d, &
           rio_democflux_si            => this%rvars(ir_democflux_si)%r81d, &
           rio_promcflux_si            => this%rvars(ir_promcflux_si)%r81d, &
-          rio_imortcflux_si           => this%rvars(ir_imortcflux_si)%r81d, &
-          rio_fmortcflux_cano_si      => this%rvars(ir_fmortcflux_cano_si)%r81d, &
-          rio_fmortcflux_usto_si      => this%rvars(ir_fmortcflux_usto_si)%r81d, &
           rio_termcarea_cano_si       => this%rvars(ir_termcarea_cano_si)%r81d, &
           rio_termcarea_usto_si       => this%rvars(ir_termcarea_usto_si)%r81d, &
+          
           rio_imortcarea_si           => this%rvars(ir_imortcarea_si)%r81d, &
           rio_fmortcarea_cano_si      => this%rvars(ir_fmortcarea_cano_si)%r81d, &
           rio_fmortcarea_usto_si      => this%rvars(ir_fmortcarea_usto_si)%r81d, &
 
           
-       ! Damage
+          ! Damage
           rio_imortrate_sicdpf        => this%rvars(ir_imortrate_sicdpf)%r81d, &
           rio_termnindiv_cano_sicdpf  => this%rvars(ir_termnindiv_cano_sicdpf)%r81d, &
           rio_termnindiv_usto_sicdpf  => this%rvars(ir_termnindiv_usto_sicdpf)%r81d, &
@@ -2875,8 +2889,9 @@ contains
           rio_fmortcflux_usto_sicdsc  => this%rvars(ir_fmortcflux_usto_sicdsc)%r81d, &
           rio_crownarea_cano_damage_si=> this%rvars(ir_crownarea_cano_si)%r81d, &
           rio_crownarea_usto_damage_si=> this%rvars(ir_crownarea_usto_si)%r81d )
-
-
+          rio_imortcflux_sipft        => this%rvars(ir_imortcflux_sipft)%r81d, &
+          rio_fmortcflux_cano_sipft   => this%rvars(ir_fmortcflux_cano_sipft)%r81d, &
+          rio_fmortcflux_usto_sipft   => this%rvars(ir_fmortcflux_usto_sipft)%r81d)
 
 
        totalcohorts = 0
@@ -2945,7 +2960,7 @@ contains
 
              sites(s)%mass_balance(el)%old_stock = this%rvars(ir_oldstock_mbal+el-1)%r81d(io_idx_si)
              sites(s)%mass_balance(el)%err_fates = this%rvars(ir_errfates_mbal+el-1)%r81d(io_idx_si)
-
+             sites(s)%mass_balance(el)%wood_product = this%rvars(ir_woodprod_mbal+el-1)%r81d(io_idx_si)
           end do
 
           sites(s)%spread = rio_spread_si(io_idx_si)
@@ -3016,9 +3031,9 @@ contains
                 ccohort%coage        = rio_coage_co(io_idx_co)
                 ccohort%g_sb_laweight= rio_g_sb_laweight_co(io_idx_co)
                 ccohort%hite         = rio_height_co(io_idx_co)
-                ccohort%laimemory    = rio_laimemory_co(io_idx_co)
+                ccohort%leafmemory   = rio_leafmemory_co(io_idx_co)
                 ccohort%sapwmemory   = rio_sapwmemory_co(io_idx_co)
-                ccohort%structmemory= rio_structmemory_co(io_idx_co)
+                ccohort%structmemory = rio_structmemory_co(io_idx_co)
                 ccohort%n            = rio_nplant_co(io_idx_co)
                 ccohort%gpp_acc      = rio_gpp_acc_co(io_idx_co)
                 ccohort%npp_acc      = rio_npp_acc_co(io_idx_co)
@@ -3318,21 +3333,24 @@ contains
 
           end if
 
-
-
-          sites(s)%term_carbonflux_canopy   = rio_termcflux_cano_si(io_idx_si)
-          sites(s)%term_carbonflux_ustory   = rio_termcflux_usto_si(io_idx_si)
           sites(s)%term_crownarea_canopy    = rio_termcarea_cano_si(io_idx_si)
           sites(s)%term_crownarea_ustory    = rio_termcarea_usto_si(io_idx_si)
-          sites(s)%demotion_carbonflux      = rio_democflux_si(io_idx_si)
-          sites(s)%promotion_carbonflux     = rio_promcflux_si(io_idx_si)
-          sites(s)%imort_carbonflux         = rio_imortcflux_si(io_idx_si)
+
           sites(s)%imort_crownarea          = rio_imortcarea_si(io_idx_si)
-          sites(s)%fmort_carbonflux_canopy  = rio_fmortcflux_cano_si(io_idx_si)
-          sites(s)%fmort_carbonflux_ustory  = rio_fmortcflux_usto_si(io_idx_si)
           sites(s)%fmort_crownarea_canopy  = rio_fmortcarea_cano_si(io_idx_si)
           sites(s)%fmort_crownarea_ustory  = rio_fmortcarea_usto_si(io_idx_si)
+          sites(s)%demotion_carbonflux      = rio_democflux_si(io_idx_si)
+          sites(s)%promotion_carbonflux     = rio_promcflux_si(io_idx_si)
 
+          io_idx_si_pft = io_idx_co_1st
+          do i_pft = 1, numpft
+             sites(s)%term_carbonflux_canopy(i_pft)   = rio_termcflux_cano_sipft(io_idx_si_pft)
+             sites(s)%term_carbonflux_ustory(i_pft)   = rio_termcflux_usto_sipft(io_idx_si_pft)
+             sites(s)%fmort_carbonflux_canopy(i_pft)  = rio_fmortcflux_cano_sipft(io_idx_si_pft)
+             sites(s)%fmort_carbonflux_ustory(i_pft)  = rio_fmortcflux_usto_sipft(io_idx_si_pft)
+             sites(s)%imort_carbonflux(i_pft)         = rio_imortcflux_sipft(io_idx_si_pft)
+             io_idx_si_pft = io_idx_si_pft + 1
+          end do
 
           ! Site level phenology status flags
 

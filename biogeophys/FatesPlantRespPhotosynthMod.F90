@@ -50,7 +50,7 @@ module FATESPlantRespPhotosynthMod
   use PRTGenericMod,     only : store_organ
   use PRTGenericMod,     only : repro_organ
   use PRTGenericMod,     only : struct_organ
-  use EDParamsMod,       only : ED_val_base_mr_20, stomatal_model
+  use EDParamsMod,       only : ED_val_base_mr_20, stomatal_model, stomatal_assim_model
   use PRTParametersMod,  only : prt_params
   use EDPftvarcon         , only : EDPftvarcon_inst
   
@@ -93,12 +93,9 @@ module FATESPlantRespPhotosynthMod
   
   ! Alternatively, Gross Assimilation can be used to estimate
   ! leaf co2 partial pressure and therefore conductance. The default
-  !is to use anet
-  logical, parameter :: use_agross = .false.
-
-
-  
-
+  ! is to use anet
+  integer, parameter :: net_assim_model = 1
+  integer, parameter :: gross_assim_model = 2
   
   
 contains
@@ -517,6 +514,7 @@ contains
 
                                end select
 
+                               ! MLO - Shouldn't these numbers be parameters too?
                                lmr25top = 2.525e-6_r8 * (1.5_r8 ** ((25._r8 - 20._r8)/10._r8))
                                lmr25top = lmr25top * lnc_top / (umolC_to_kgC * g_per_kg)
 
@@ -1176,7 +1174,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
               ! using anet in calculating gs this is version B  
               anet = agross  - lmr
 
-              if (use_agross) then
+              if ( stomatal_assim_model == gross_assim_model ) then
                  if ( stomatal_model == medlyn_model ) then
                     write (fates_log(),*) 'Gross Assimilation conductance is incompatible with the Medlyn model'
                     call endrun(msg=errMsg(sourcefile, __LINE__))

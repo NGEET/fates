@@ -491,16 +491,8 @@ contains
      end if
 
      
-     if ( int(prt_params%turnover_retrans_mode(ipft)) == 1 ) then
-        call DeciduousTurnoverSimpleRetranslocation(prt,ipft,organ_id,mass_fraction)
-     else
-        write(fates_log(),*) 'A retranslocation mode was specified for deciduous drop'
-        write(fates_log(),*) 'that is unknown.'
-        write(fates_log(),*) 'turnover_retrans_mode= ',prt_params%turnover_retrans_mode(ipft)
-        write(fates_log(),*) 'pft = ',ipft
-        call endrun(msg=errMsg(__FILE__, __LINE__))
-     end if
-     
+     call DeciduousTurnoverSimpleRetranslocation(prt,ipft,organ_id,mass_fraction)
+          
      return
    end subroutine PRTDeciduousTurnover
    
@@ -576,7 +568,7 @@ contains
              retrans = 0._r8
           else
              if ( any(element_id == carbon_elements_list) ) then
-                retrans = prt_params%turnover_carb_retrans(ipft,prt_params%organ_param_id(organ_id))
+                retrans = 0._r8
              else if( element_id == nitrogen_element ) then
                 retrans = prt_params%turnover_nitr_retrans(ipft,prt_params%organ_param_id(organ_id))
              else if( element_id == phosphorus_element ) then
@@ -645,15 +637,8 @@ contains
       logical,intent(in)  :: is_drought  ! Is this plant/cohort operating in a drought
                                          ! stress context?
       
-      if ( int(prt_params%turnover_retrans_mode(ipft)) == 1 ) then
-         call MaintTurnoverSimpleRetranslocation(prt,ipft,is_drought)
-      else
-         write(fates_log(),*) 'A maintenance/retranslocation mode was specified'
-         write(fates_log(),*) 'that is unknown.'
-         write(fates_log(),*) 'turnover_retrans_mode= ',prt_params%turnover_retrans_mode(ipft)
-         write(fates_log(),*) 'pft = ',ipft
-         call endrun(msg=errMsg(__FILE__, __LINE__))
-      end if
+      call MaintTurnoverSimpleRetranslocation(prt,ipft,is_drought)
+      
       
       return
    end subroutine PRTMaintTurnover
@@ -787,7 +772,7 @@ contains
             retrans_frac = 0._r8
          else
             if ( any(element_id == carbon_elements_list) ) then
-               retrans_frac = prt_params%turnover_carb_retrans(ipft,prt_params%organ_param_id(organ_id))
+               retrans_frac = 0._r8
             else if( element_id == nitrogen_element ) then
                retrans_frac = prt_params%turnover_nitr_retrans(ipft,prt_params%organ_param_id(organ_id))
             else if( element_id == phosphorus_element ) then

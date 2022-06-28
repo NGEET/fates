@@ -154,7 +154,12 @@ contains
        allocate(site_in%fmort_cflux_ustory_damage(1,1))
     end if
 
-       
+    allocate(site_in%term_carbonflux_canopy(1:numpft))
+    allocate(site_in%term_carbonflux_ustory(1:numpft))
+    allocate(site_in%imort_carbonflux(1:numpft))
+    allocate(site_in%fmort_carbonflux_canopy(1:numpft))
+    allocate(site_in%fmort_carbonflux_ustory(1:numpft))
+    
     site_in%nlevsoil   = bc_in%nlevsoil
     allocate(site_in%rootfrac_scr(site_in%nlevsoil))
     allocate(site_in%zi_soil(0:site_in%nlevsoil))
@@ -230,7 +235,6 @@ contains
 
     ! Disturbance rates tracking
     site_in%primary_land_patchfusion_error = 0.0_r8
-    site_in%harvest_carbon_flux = 0.0_r8
     site_in%potential_disturbance_rates(:) = 0.0_r8
     site_in%disturbance_rates_secondary_to_secondary(:) = 0.0_r8
     site_in%disturbance_rates_primary_to_secondary(:) = 0.0_r8
@@ -253,20 +257,20 @@ contains
     ! termination and recruitment info
     site_in%term_nindivs_canopy(:,:) = 0._r8
     site_in%term_nindivs_ustory(:,:) = 0._r8
-    site_in%term_carbonflux_canopy = 0._r8
-    site_in%term_carbonflux_ustory = 0._r8
     site_in%term_crownarea_canopy = 0._r8
     site_in%term_crownarea_ustory = 0._r8
-    site_in%recruitment_rate(:) = 0._r8
-    site_in%imort_rate(:,:) = 0._r8
-    site_in%imort_carbonflux = 0._r8
     site_in%imort_crownarea = 0._r8
-    site_in%fmort_rate_canopy(:,:) = 0._r8
-    site_in%fmort_rate_ustory(:,:) = 0._r8
-    site_in%fmort_carbonflux_canopy = 0._r8
-    site_in%fmort_carbonflux_ustory = 0._r8
     site_in%fmort_crownarea_canopy = 0._r8
     site_in%fmort_crownarea_ustory = 0._r8
+    site_in%term_carbonflux_canopy(:) = 0._r8
+    site_in%term_carbonflux_ustory(:) = 0._r8
+    site_in%recruitment_rate(:) = 0._r8
+    site_in%imort_rate(:,:) = 0._r8
+    site_in%imort_carbonflux(:) = 0._r8
+    site_in%fmort_rate_canopy(:,:) = 0._r8
+    site_in%fmort_rate_ustory(:,:) = 0._r8
+    site_in%fmort_carbonflux_canopy(:) = 0._r8
+    site_in%fmort_carbonflux_ustory(:) = 0._r8
     site_in%fmort_rate_cambial(:,:) = 0._r8
     site_in%fmort_rate_crown(:,:) = 0._r8
 
@@ -423,7 +427,7 @@ contains
                 end do !ft
              else ! for sp and nocomp mode, assert a bare ground patch if needed
                 sumarea = sum(sites(s)%area_pft(1:numpft))
-
+                
                ! In all the other FATES modes, bareground is the area in which plants
                ! do not grow of their own accord. In SP mode we assert that the canopy is full for
                ! each PFT patch. Thus, we also need to assert a bare ground area in
@@ -443,6 +447,8 @@ contains
           end if !fixed biogeog
 
           do ft = 1,numpft
+             ! Setting this to true ensures that all pfts
+             ! are used for nocomp with no biogeog
              sites(s)%use_this_pft(ft) = itrue
              if(hlm_use_fixed_biogeog.eq.itrue)then
                 if(sites(s)%area_pft(ft).gt.0.0_r8)then
@@ -842,7 +848,7 @@ contains
              call bstore_allom(temp_cohort%dbh, pft, temp_cohort%crowndamage, &
                   temp_cohort%canopy_trim, c_store)
 
-             temp_cohort%laimemory = 0._r8
+             temp_cohort%leafmemory = 0._r8
              temp_cohort%sapwmemory = 0._r8
              temp_cohort%structmemory = 0._r8
              cstatus = leaves_on
@@ -853,7 +859,7 @@ contains
 
                 if( prt_params%season_decid(pft) == itrue .and. &
                     any(site_in%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
-                   temp_cohort%laimemory = c_leaf
+                   temp_cohort%leafmemory = c_leaf
                    temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
                    temp_cohort%structmemory = c_struct * stem_drop_fraction
                    c_leaf = 0._r8
@@ -864,7 +870,7 @@ contains
 
                 if ( prt_params%stress_decid(pft) == itrue .and. &
                      any(site_in%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff])) then
-                   temp_cohort%laimemory = c_leaf
+                   temp_cohort%leafmemory = c_leaf
                    temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
                    temp_cohort%structmemory = c_struct * stem_drop_fraction
                    c_leaf = 0._r8
@@ -905,21 +911,21 @@ contains
 
                 case(nitrogen_element)
 
-             m_struct = c_struct*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(struct_organ))
-             m_leaf   = c_leaf*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(leaf_organ))
-             m_fnrt   = c_fnrt*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(fnrt_organ))
-             m_sapw   = c_sapw*prt_params%nitr_stoich_p2(pft,prt_params%organ_param_id(sapw_organ))
+                   m_struct = c_struct*prt_params%nitr_stoich_p1(pft,prt_params%organ_param_id(struct_organ))
+                   m_leaf   = c_leaf*prt_params%nitr_stoich_p1(pft,prt_params%organ_param_id(leaf_organ))
+                   m_fnrt   = c_fnrt*prt_params%nitr_stoich_p1(pft,prt_params%organ_param_id(fnrt_organ))
+                   m_sapw   = c_sapw*prt_params%nitr_stoich_p1(pft,prt_params%organ_param_id(sapw_organ))
                    m_repro  = 0._r8
-             m_store = StorageNutrientTarget(pft,element_id,m_leaf,m_fnrt,m_sapw,m_struct)
+                   m_store  = StorageNutrientTarget(pft,element_id,m_leaf,m_fnrt,m_sapw,m_struct)
 
                 case(phosphorus_element)
 
-             m_struct = c_struct*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(struct_organ))
-             m_leaf   = c_leaf*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(leaf_organ))
-             m_fnrt   = c_fnrt*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(fnrt_organ))
-             m_sapw   = c_sapw*prt_params%phos_stoich_p2(pft,prt_params%organ_param_id(sapw_organ))
+                   m_struct = c_struct*prt_params%phos_stoich_p1(pft,prt_params%organ_param_id(struct_organ))
+                   m_leaf   = c_leaf*prt_params%phos_stoich_p1(pft,prt_params%organ_param_id(leaf_organ))
+                   m_fnrt   = c_fnrt*prt_params%phos_stoich_p1(pft,prt_params%organ_param_id(fnrt_organ))
+                   m_sapw   = c_sapw*prt_params%phos_stoich_p1(pft,prt_params%organ_param_id(sapw_organ))
                    m_repro  = 0._r8
-             m_store = StorageNutrientTarget(pft,element_id,m_leaf,m_fnrt,m_sapw,m_struct)
+                   m_store  = StorageNutrientTarget(pft,element_id,m_leaf,m_fnrt,m_sapw,m_struct)
 
                 end select
 
@@ -946,13 +952,12 @@ contains
              end do
 
              call prt_obj%CheckInitialConditions()
-
-       call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, &
-            temp_cohort%coage, temp_cohort%dbh, prt_obj, temp_cohort%laimemory,&
-            temp_cohort%sapwmemory, temp_cohort%structmemory, cstatus, rstatus,        &
-            temp_cohort%canopy_trim, temp_cohort%c_area, 1, temp_cohort%crowndamage,&
-            site_in%spread, bc_in)
-
+             
+             call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, &
+                  temp_cohort%coage, temp_cohort%dbh, prt_obj, temp_cohort%leafmemory,&
+                  temp_cohort%sapwmemory, temp_cohort%structmemory, cstatus, rstatus,        &
+                  temp_cohort%canopy_trim, temp_cohort%c_area, 1, temp_cohort%crowndamage,&
+                  site_in%spread, bc_in)
 
              deallocate(temp_cohort) ! get rid of temporary cohort
 

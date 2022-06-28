@@ -104,7 +104,7 @@ contains
     integer, parameter :: dim_lower_bound(1) = (/ lower_bound_general /)
     character(len=param_string_length) :: name
 
-    name = 'fates_prt_organ_id'
+    name = 'fates_alloc_organ_id'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
@@ -126,8 +126,8 @@ contains
 
     real(r8), allocatable :: tmpreal(:)  ! Temporary variable to hold floats
     
-    name = 'fates_prt_organ_id'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    name = 'fates_alloc_organ_id'
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=tmpreal)
     allocate(prt_params%organ_id(size(tmpreal,dim=1)))
     call ArrayNint(tmpreal,prt_params%organ_id)
@@ -163,15 +163,15 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_fnrt_prof_a'
+    name = 'fates_allom_fnrt_prof_a'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_fnrt_prof_b'
+    name = 'fates_allom_fnrt_prof_b'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_fnrt_prof_mode'
+    name = 'fates_allom_fnrt_prof_mode'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
@@ -179,7 +179,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_fire_crown_depth_frac'
+    name = 'fates_allom_crown_depth_frac'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
@@ -199,7 +199,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
-    name = 'fates_seed_dbh_repro_threshold'
+    name = 'fates_recruit_seed_dbh_repro_threshold'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -207,23 +207,23 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_leaf_stor_priority'
+    name = 'fates_alloc_store_priority_frac'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_senleaf_long_fdrought'
+    name = 'fates_turnover_senleaf_fdrought'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_root_long'
+    name = 'fates_turnover_fnrt'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_seed_alloc_mature'
+    name = 'fates_recruit_seed_alloc_mature'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_seed_alloc'
+    name = 'fates_recruit_seed_alloc'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -355,26 +355,20 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
         
-    name = 'fates_turnover_retrans_mode'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_branch_turnover'
+    name = 'fates_turnover_branch'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_damage_recovery_scalar'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
- 
-    name = 'fates_nitr_store_ratio'
+   
+
+    name = 'fates_cnp_nitr_store_ratio'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_phos_store_ratio'
+    name = 'fates_cnp_phos_store_ratio'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
+    
   end subroutine PRTRegisterPFT
   
   !-----------------------------------------------------------------------
@@ -393,238 +387,234 @@ contains
                                          ! that are converted to ints
 
     name = 'fates_phen_stress_decid'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=tmpreal)
     allocate(prt_params%stress_decid(size(tmpreal,dim=1)))
     call ArrayNint(tmpreal,prt_params%stress_decid)
     deallocate(tmpreal)
     
     name = 'fates_phen_season_decid'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=tmpreal)
     allocate(prt_params%season_decid(size(tmpreal,dim=1)))
     call ArrayNint(tmpreal,prt_params%season_decid)
     deallocate(tmpreal)
     
     name = 'fates_phen_evergreen'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=tmpreal)
     allocate(prt_params%evergreen(size(tmpreal,dim=1)))
     call ArrayNint(tmpreal,prt_params%evergreen)
     deallocate(tmpreal)
 
     name = 'fates_leaf_slamax'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%slamax)
     
     name = 'fates_leaf_slatop'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%slatop)
 
     name = 'fates_allom_sai_scaler'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_sai_scaler)
 
-    name = 'fates_fnrt_prof_a'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    name = 'fates_allom_fnrt_prof_a'
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%fnrt_prof_a)
 
-    name = 'fates_fnrt_prof_b'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    name = 'fates_allom_fnrt_prof_b'
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%fnrt_prof_b)
 
-    name = 'fates_fnrt_prof_mode'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    name = 'fates_allom_fnrt_prof_mode'
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%fnrt_prof_mode)
 
-    name = 'fates_fire_crown_depth_frac'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=prt_params%crown)
+    name = 'fates_allom_crown_depth_frac'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=prt_params%crown_depth_frac)
     
     name = 'fates_woody'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-         data=prt_params%woody)
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=tmpreal)
+    allocate(prt_params%woody(size(tmpreal,dim=1)))
+    call ArrayNint(tmpreal,prt_params%woody)
+    deallocate(tmpreal)
     
     name = 'fates_wood_density'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%wood_density)
     
-    name = 'fates_seed_dbh_repro_threshold'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    name = 'fates_recruit_seed_dbh_repro_threshold'
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%dbh_repro_threshold)
 
     name = 'fates_alloc_storage_cushion'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%cushion)
 
-    name = 'fates_leaf_stor_priority'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    name = 'fates_alloc_store_priority_frac'
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%leaf_stor_priority)
 
-    name = 'fates_senleaf_long_fdrought'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    name = 'fates_turnover_senleaf_fdrought'
+    call fates_params%RetrieveParameterAllocate(name=name, &
           data=prt_params%senleaf_long_fdrought)
 
-    name = 'fates_root_long'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    name = 'fates_turnover_fnrt'
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%root_long)
 
-    name = 'fates_seed_alloc_mature'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    name = 'fates_recruit_seed_alloc_mature'
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%seed_alloc_mature)
 
-    name = 'fates_seed_alloc'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    name = 'fates_recruit_seed_alloc'
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%seed_alloc)
 
     name = 'fates_c2b'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%c2b)
 
     name = 'fates_grperc'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%grperc)
 
     name = 'fates_allom_dbh_maxheight'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
           data=prt_params%allom_dbh_maxheight)
 
     name = 'fates_allom_hmode'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_hmode)
 
     name = 'fates_allom_lmode'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_lmode)
 
     name = 'fates_allom_fmode'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_fmode)
 
     name = 'fates_allom_amode'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_amode)
 
     name = 'fates_allom_stmode'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_stmode)
 
     name = 'fates_allom_cmode'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_cmode)
 
     name = 'fates_allom_smode'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_smode)
 
     name = 'fates_allom_la_per_sa_int'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_la_per_sa_int)
 
     name = 'fates_allom_la_per_sa_slp'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_la_per_sa_slp)
 
     name = 'fates_allom_l2fr'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_l2fr)
 
     name = 'fates_allom_agb_frac'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_agb_frac)
 
     name = 'fates_allom_d2h1'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_d2h1)
 
     name = 'fates_allom_d2h2'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_d2h2)
 
     name = 'fates_allom_d2h3'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_d2h3)
 
     name = 'fates_allom_d2bl1'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_d2bl1)
 
     name = 'fates_allom_d2bl2'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_d2bl2)
 
     name = 'fates_allom_d2bl3'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_d2bl3)
 
     name = 'fates_allom_blca_expnt_diff'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_blca_expnt_diff)
 
     name = 'fates_allom_d2ca_coefficient_max'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_d2ca_coefficient_max)
 
     name = 'fates_allom_d2ca_coefficient_min'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_d2ca_coefficient_min)
 
     name = 'fates_allom_agb1'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_agb1)
 
     name = 'fates_allom_agb2'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_agb2)
 
     name = 'fates_allom_agb3'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_agb3)
 
     name = 'fates_allom_agb4'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_agb4)
 
     name = 'fates_allom_zroot_max_dbh'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_zroot_max_dbh)
     
     name = 'fates_allom_zroot_max_z'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_zroot_max_z)
     
     name = 'fates_allom_zroot_min_dbh'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_zroot_min_dbh)
     
     name = 'fates_allom_zroot_min_z'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_zroot_min_z)
     
     name = 'fates_allom_zroot_k'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_zroot_k)
     
-    name = 'fates_branch_turnover'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    name = 'fates_turnover_branch'
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%branch_long)
     
-    name = 'fates_turnover_retrans_mode'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-          data=prt_params%turnover_retrans_mode)
-
-    name = 'fates_damage_recovery_scalar'
-    call fates_params%RetreiveParameterAllocate(name=name, &
-          data=prt_params%damage_recovery_scalar)
-
-    name = 'fates_nitr_store_ratio'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    name = 'fates_cnp_nitr_store_ratio'
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%nitr_store_ratio)
     
-    name = 'fates_phos_store_ratio'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    name = 'fates_cnp_phos_store_ratio'
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%phos_store_ratio)
-
+    
+    
   end subroutine PRTReceivePFT
 
   !-----------------------------------------------------------------------
@@ -646,7 +636,7 @@ contains
     dim_names(1) = dimension_name_pft
     dim_names(2) = dimension_name_leaf_age
 
-    name = 'fates_leaf_long'
+    name = 'fates_turnover_leaf'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -708,7 +698,7 @@ contains
     character(len=param_string_length) :: name
 
     !X!    name = ''
-    !X!    call fates_params%RetreiveParameter(name=name, &
+    !X!    call fates_params%RetrieveParameter(name=name, &
     !X!         data=this%)
 
   end subroutine Receive_PFT_nvariants
@@ -726,8 +716,8 @@ contains
      
      character(len=param_string_length) :: name
 
-     name = 'fates_leaf_long'
-     call fates_params%RetreiveParameterAllocate(name=name, &
+     name = 'fates_turnover_leaf'
+     call fates_params%RetrieveParameterAllocate(name=name, &
           data=prt_params%leaf_long)
 
      return
@@ -755,35 +745,23 @@ contains
     dim_names(1) = dimension_name_pft
     dim_names(2) = dimension_name_prt_organs
 
-    name = 'fates_prt_nitr_stoich_p1'
+    name = 'fates_stoich_nitr'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_prt_nitr_stoich_p2'
+    name = 'fates_stoich_phos'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_prt_phos_stoich_p1'
+    name = 'fates_alloc_organ_priority'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_prt_phos_stoich_p2'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_prt_alloc_priority'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_turnover_carb_retrans'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)    
-
-    name = 'fates_turnover_nitr_retrans'
+    name = 'fates_cnp_turnover_nitr_retrans'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
-    name = 'fates_turnover_phos_retrans'
+    name = 'fates_cnp_turnover_phos_retrans'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -803,36 +781,24 @@ contains
      
      character(len=param_string_length) :: name
 
-     name = 'fates_prt_nitr_stoich_p1'
-     call fates_params%RetreiveParameterAllocate(name=name, &
+     name = 'fates_stoich_nitr'
+     call fates_params%RetrieveParameterAllocate(name=name, &
            data=prt_params%nitr_stoich_p1)
 
-     name = 'fates_prt_nitr_stoich_p2'
-     call fates_params%RetreiveParameterAllocate(name=name, &
-           data=prt_params%nitr_stoich_p2)
-     
-     name = 'fates_prt_phos_stoich_p1'
-     call fates_params%RetreiveParameterAllocate(name=name, &
+     name = 'fates_stoich_phos'
+     call fates_params%RetrieveParameterAllocate(name=name, &
            data=prt_params%phos_stoich_p1)
 
-     name = 'fates_prt_phos_stoich_p2'
-     call fates_params%RetreiveParameterAllocate(name=name, &
-           data=prt_params%phos_stoich_p2)
-    
-     name = 'fates_prt_alloc_priority'
-     call fates_params%RetreiveParameterAllocate(name=name, &
+     name = 'fates_alloc_organ_priority'
+     call fates_params%RetrieveParameterAllocate(name=name, &
            data=prt_params%alloc_priority)
 
-     name = 'fates_turnover_carb_retrans'
-     call fates_params%RetreiveParameterAllocate(name=name, &
-           data=prt_params%turnover_carb_retrans)
-
-     name = 'fates_turnover_nitr_retrans'
-     call fates_params%RetreiveParameterAllocate(name=name, &
+     name = 'fates_cnp_turnover_nitr_retrans'
+     call fates_params%RetrieveParameterAllocate(name=name, &
            data=prt_params%turnover_nitr_retrans)
 
-     name = 'fates_turnover_phos_retrans'
-     call fates_params%RetreiveParameterAllocate(name=name, &
+     name = 'fates_cnp_turnover_phos_retrans'
+     call fates_params%RetrieveParameterAllocate(name=name, &
            data=prt_params%turnover_phos_retrans)
 
   end subroutine PRTReceivePFTOrgans
@@ -880,7 +846,6 @@ contains
         write(fates_log(),fmt0) 'grperc = ',prt_params%grperc
         write(fates_log(),fmt0) 'c2b = ',prt_params%c2b
         write(fates_log(),fmt0) 'branch_turnover = ',prt_params%branch_long
-        write(fates_log(),fmt0) 'damage_recovery_scalar = ', prt_params%damage_recovery_scalar
         write(fates_log(),fmt0) 'allom_hmode = ',prt_params%allom_hmode
         write(fates_log(),fmt0) 'allom_lmode = ',prt_params%allom_lmode
         write(fates_log(),fmt0) 'allom_fmode = ',prt_params%allom_fmode
@@ -911,17 +876,14 @@ contains
         write(fates_log(),fmt0) 'allom_zroot_min_z = ',prt_params%allom_zroot_min_z
         write(fates_log(),fmt0) 'allom_zroot_k = ',prt_params%allom_zroot_k
         
-        write(fates_log(),fmt0) 'prt_nitr_stoich_p1 = ',prt_params%nitr_stoich_p1
-        write(fates_log(),fmt0) 'prt_nitr_stoich_p2 = ',prt_params%nitr_stoich_p2
-        write(fates_log(),fmt0) 'prt_phos_stoich_p1 = ',prt_params%phos_stoich_p1
-        write(fates_log(),fmt0) 'prt_phos_stoich_p2 = ',prt_params%phos_stoich_p2
-        write(fates_log(),fmt0) 'prt_alloc_priority = ',prt_params%alloc_priority
+        write(fates_log(),fmt0) 'stoich_nitr = ',prt_params%nitr_stoich_p1
+        write(fates_log(),fmt0) 'stoich_phos = ',prt_params%phos_stoich_p1
+        write(fates_log(),fmt0) 'alloc_organ_priority = ',prt_params%alloc_priority
         write(fates_log(),fmt0) 'woody = ',prt_params%woody
-        write(fates_log(),fmt0) 'crown = ',prt_params%crown
+        write(fates_log(),fmt0) 'crown_depth_frac = ',prt_params%crown_depth_frac
         write(fates_log(),fmt0) 'roota_par = ',prt_params%fnrt_prof_a
         write(fates_log(),fmt0) 'rootb_par = ',prt_params%fnrt_prof_b
         write(fates_log(),fmt0) 'fnrt_prof_mode = ',prt_params%fnrt_prof_mode
-        write(fates_log(),fmt0) 'turnover_carb_retrans = ',prt_params%turnover_carb_retrans
         write(fates_log(),fmt0) 'turnover_nitr_retrans = ',prt_params%turnover_nitr_retrans
         write(fates_log(),fmt0) 'turnover_phos_retrans = ',prt_params%turnover_phos_retrans
         write(fates_log(),fmt0) 'organ_id = ',prt_params%organ_id
@@ -1020,12 +982,12 @@ contains
 
      ! Check to make sure the organ ids are valid if this is the
      ! cnp_flex_allom_hypothesis
-     if ((hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) .or. &
-         (hlm_parteh_mode .eq. prt_carbon_allom_hyp) ) then
+     select case (hlm_parteh_mode)
+     case (prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp)
 
          do io = 1,norgans
            if(prt_params%organ_id(io) == repro_organ) then
-              write(fates_log(),*) 'with flexible cnp or c-only alloc hypothesese'
+              write(fates_log(),*) 'with flexible cnp or c-only alloc hypotheses'
               write(fates_log(),*) 'reproductive tissues are a special case'
               write(fates_log(),*) 'and therefore should not be included in'
               write(fates_log(),*) 'the parameter file organ list'
@@ -1034,7 +996,7 @@ contains
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
            if(prt_params%organ_id(io) == store_organ) then
-              write(fates_log(),*) 'with flexible cnp or c-only alloc hypothesese'
+              write(fates_log(),*) 'with flexible cnp or c-only alloc hypotheses'
               write(fates_log(),*) 'storage is a special case'
               write(fates_log(),*) 'and therefore should not be included in'
               write(fates_log(),*) 'the parameter file organ list'
@@ -1042,9 +1004,9 @@ contains
               write(fates_log(),*) 'Aborting'
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
-           
+
         end do
-     end if
+     end select
      
      pftloop: do ipft = 1,npft
 
@@ -1084,13 +1046,13 @@ contains
         ! Check if woody plants have a structural biomass (agb) intercept
         ! ----------------------------------------------------------------------------------
         if ( ( prt_params%allom_agb1(ipft) <= tiny(prt_params%allom_agb1(ipft)) ) .and. &
-             ( int(prt_params%woody(ipft)) .eq. 1 ) ) then
+             ( prt_params%woody(ipft) .eq. 1 ) ) then
 
            write(fates_log(),*) 'Woody plants are expected to have a non-zero intercept'
            write(fates_log(),*) ' in the diameter to AGB allometry equations'
            write(fates_log(),*) ' PFT#: ',ipft
            write(fates_log(),*) ' allom_agb1: ',prt_params%allom_agb1(ipft)
-           write(fates_log(),*) ' woody: ',int(prt_params%woody(ipft))
+           write(fates_log(),*) ' woody: ',prt_params%woody(ipft)
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
 
@@ -1099,7 +1061,7 @@ contains
         ! Check if non-woody plants have structural biomass (agb) intercept
         ! ----------------------------------------------------------------------------------
 !        if ( ( prt_params%allom_agb1(ipft) > tiny(prt_params%allom_agb1(ipft)) ) .and. &
-!              ( int(prt_params%woody(ipft)) .ne. 1 ) ) then
+!              ( iprt_params%woody(ipft) .ne. 1 ) ) then
 !
 !           write(fates_log(),*) 'Non-woody plants are expected to have a zero intercept'
 !           write(fates_log(),*) ' in the diameter to AGB allometry equations'
@@ -1108,7 +1070,7 @@ contains
 !           write(fates_log(),*) ' woody tissues (sap and structural dead wood).'
 !           write(fates_log(),*) ' PFT#: ',ipft
 !           write(fates_log(),*) ' allom_agb1: ',prt_params%allom_agb1(ipft)
-!           write(fates_log(),*) ' woody: ',int(prt_params%woody(ipft))
+!           write(fates_log(),*) ' woody: ',prt_params%woody(ipft)
 !           write(fates_log(),*) ' Aborting'
 !           call endrun(msg=errMsg(sourcefile, __LINE__))
 !
@@ -1130,53 +1092,9 @@ contains
 
         end if
 
+        select case (hlm_parteh_mode)
+        case (prt_cnp_flex_allom_hyp)
 
-        ! Check re-translocations
-        ! Seems reasonable to assume that sapwood, structure and reproduction
-        ! should not be re-translocating mass upon turnover.
-        ! Note to advanced users. Feel free to remove these checks...
-        ! -------------------------------------------------------------------
-
-        if ((hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) .or. &
-             (hlm_parteh_mode .eq. prt_carbon_allom_hyp) ) then
-
-           do i = 1,norgans
-              io = prt_params%organ_id(i)
-
-              if(io == sapw_organ) then
-                 if ((prt_params%turnover_carb_retrans(ipft,i) > nearzero)) then
-                    write(fates_log(),*) ' Retranslocation of sapwood tissues should be zero.'
-                    write(fates_log(),*) ' PFT#: ',ipft
-                    write(fates_log(),*) ' carbon retrans: ',prt_params%turnover_carb_retrans(ipft,i)
-                    write(fates_log(),*) ' Aborting'
-                    call endrun(msg=errMsg(sourcefile, __LINE__))
-                 end if
-              elseif(io == struct_organ) then
-                 if ((prt_params%turnover_carb_retrans(ipft,i) > nearzero)) then
-                    write(fates_log(),*) ' Retranslocation of structural tissues should be zero.'
-                    write(fates_log(),*) ' PFT#: ',ipft
-                    write(fates_log(),*) ' carbon retrans: ',prt_params%turnover_carb_retrans(ipft,i)
-                    write(fates_log(),*) ' Aborting'
-                    call endrun(msg=errMsg(sourcefile, __LINE__))
-                 end if
-              end if
-
-              ! Otherwise, all other retranslocations should be between 0 and 1
-              if ( (prt_params%turnover_carb_retrans(ipft,i) > 1.0_r8) .or. & 
-                   (prt_params%turnover_carb_retrans(ipft,i) < 0.0_r8) ) then
-                 write(fates_log(),*) ' Retranslocation rates should be between 0 and 1.'
-                 write(fates_log(),*) ' PFT#: ',ipft
-                 write(fates_log(),*) ' parameter file index: ',i,' global index: ',io
-                 write(fates_log(),*) ' retranslocation rate: ',prt_params%turnover_carb_retrans(ipft,i)
-                 write(fates_log(),*) ' Aborting'
-                 call endrun(msg=errMsg(sourcefile, __LINE__))
-              end if
-
-           end do
-        end if
-        
-        if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-           
            ! Make sure nutrient storage fractions are positive
            if( prt_params%nitr_store_ratio(ipft) < 0._r8  ) then
               write(fates_log(),*) 'With parteh allometric CNP hypothesis'
@@ -1243,9 +1161,9 @@ contains
               end if
 
            end do
-           
-        end if
-        
+
+        end select
+
 
         ! Growth respiration
         !        if (parteh_mode .eq. prt_carbon_allom_hyp) then
@@ -1266,8 +1184,8 @@ contains
 !           end if
 !        end if
 
-        if ((hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) .or. &
-             (hlm_parteh_mode .eq. prt_carbon_allom_hyp) ) then
+        select case (hlm_parteh_mode)
+        case (prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp)
            ! The first nitrogen stoichiometry is used in all cases
            if ( (any(prt_params%nitr_stoich_p1(ipft,:) < 0.0_r8)) .or. &
                 (any(prt_params%nitr_stoich_p1(ipft,:) >= 1.0_r8))) then
@@ -1277,32 +1195,25 @@ contains
               write(fates_log(),*) ' Aborting'
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
-        end if
+        end select
 
-        if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
+        select case (hlm_parteh_mode)
+        case (prt_cnp_flex_allom_hyp)
 
            do i = 1,norgans
               if ( (prt_params%nitr_stoich_p1(ipft,i) < 0._r8) .or. &
-                   (prt_params%nitr_stoich_p2(ipft,i) < 0._r8) .or. &
                    (prt_params%phos_stoich_p1(ipft,i) < 0._r8) .or. &
-                   (prt_params%phos_stoich_p2(ipft,i) < 0._r8) .or. & 
                    (prt_params%nitr_stoich_p1(ipft,i) > 1._r8) .or. &
-                   (prt_params%nitr_stoich_p2(ipft,i) > 1._r8) .or. &
-                   (prt_params%phos_stoich_p1(ipft,i) > 1._r8) .or. &
-                   (prt_params%phos_stoich_p2(ipft,i) > 1._r8) ) then
+                   (prt_params%phos_stoich_p1(ipft,i) > 1._r8) ) then
                  write(fates_log(),*) 'When the C,N,P allocation hypothesis with flexible'
                  write(fates_log(),*) 'stoichiometry is turned on (prt_cnp_flex_allom_hyp),'
                  write(fates_log(),*) 'all stoichiometries must be greater than or equal to zero,'
                  write(fates_log(),*) 'and less than 1 (probably way less than 1).'
-                 write(fates_log(),*) 'Setting both p1 and p2 parameters to zero will turn'
-                 write(fates_log(),*) 'off nutrient dynamics for the given species.'
                  write(fates_log(),*) 'You specified an organ/pft less than zero.'
                  write(fates_log(),*) 'PFT: ',ipft
                  write(fates_log(),*) 'organ index (see head of PRTGenericMod): ',io
-                 write(fates_log(),*) 'nitr_stoich_p1: ',prt_params%nitr_stoich_p1(ipft,i)
-                 write(fates_log(),*) 'nitr_stoich_p2: ',prt_params%phos_stoich_p1(ipft,i)
-                 write(fates_log(),*) 'phos_stoich_p1: ',prt_params%nitr_stoich_p2(ipft,i)
-                 write(fates_log(),*) 'phos_stoich_p2: ',prt_params%phos_stoich_p2(ipft,i)
+                 write(fates_log(),*) 'nitr_stoich: ',prt_params%nitr_stoich_p1(ipft,i)
+                 write(fates_log(),*) 'phos_stoich: ',prt_params%phos_stoich_p1(ipft,i)
                  write(fates_log(),*) 'Aborting'
                  call endrun(msg=errMsg(sourcefile, __LINE__))
               end if
@@ -1317,7 +1228,7 @@ contains
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
 
-        end if
+        end select
 
 
         ! Check turnover time-scales
@@ -1453,7 +1364,6 @@ contains
 
      integer,intent(in) :: ft
      integer,intent(in) :: element_id
-
      real(r8)           :: recruit_stoich  ! nutrient to carbon ratio of recruit
 
      real(r8) :: dbh         ! dbh of the new recruit [cm]
@@ -1467,18 +1377,15 @@ contains
      real(r8) :: c_store     ! target Storage biomass [kgC]
      real(r8) :: c_total     ! total target carbon
      real(r8) :: nutr_total  ! total target nutrient
-    
-    
-     ! Since recruits have no damage we can put 1 for crown damage class and
-     ! branch fraction 
+
      call h2d_allom(EDPftvarcon_inst%hgt_min(ft),ft,dbh)
-     call bleaf(dbh,ft,1, init_recruit_trim,c_leaf)
+     call bleaf(dbh,ft,init_recruit_trim,c_leaf)
      call bfineroot(dbh,ft,init_recruit_trim,c_fnrt)
-     call bsap_allom(dbh,ft,1,init_recruit_trim,a_sapw, c_sapw)
-     call bagw_allom(dbh,ft,1,c_agw)
+     call bsap_allom(dbh,ft,init_recruit_trim,a_sapw, c_sapw)
+     call bagw_allom(dbh,ft,c_agw)
      call bbgw_allom(dbh,ft,c_bgw)
      call bdead_allom(c_agw,c_bgw,c_sapw,ft,c_struct)
-     call bstore_allom(dbh,ft,1,init_recruit_trim,c_store)
+     call bstore_allom(dbh,ft,init_recruit_trim,c_store)
 
      ! Total carbon in a newly recruited plant
      c_total = c_leaf + c_fnrt + c_sapw + c_struct + c_store
@@ -1488,28 +1395,28 @@ contains
      case(nitrogen_element)
 
         nutr_total = &
-             c_struct*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(struct_organ)) + &
-             c_leaf*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(leaf_organ)) + &
-             c_fnrt*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(fnrt_organ)) + & 
-             c_sapw*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(sapw_organ)) + &
+             c_struct*prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(struct_organ)) + &
+             c_leaf*prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ)) + &
+             c_fnrt*prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(fnrt_organ)) + & 
+             c_sapw*prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ)) + &
              StorageNutrientTarget(ft, element_id, &
-             c_leaf*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(leaf_organ)), &
-             c_fnrt*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(fnrt_organ)), &
-             c_sapw*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(sapw_organ)), &
-             c_struct*prt_params%nitr_stoich_p2(ft,prt_params%organ_param_id(struct_organ)))
+             c_leaf*prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ)), &
+             c_fnrt*prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(fnrt_organ)), &
+             c_sapw*prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ)), &
+             c_struct*prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(struct_organ)))
 
      case(phosphorus_element)
 
         nutr_total = &
-             c_struct*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(struct_organ)) + &
-             c_leaf*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(leaf_organ)) + &
-             c_fnrt*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(fnrt_organ)) + & 
-             c_sapw*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(sapw_organ)) + &
+             c_struct*prt_params%phos_stoich_p1(ft,prt_params%organ_param_id(struct_organ)) + &
+             c_leaf*prt_params%phos_stoich_p1(ft,prt_params%organ_param_id(leaf_organ)) + &
+             c_fnrt*prt_params%phos_stoich_p1(ft,prt_params%organ_param_id(fnrt_organ)) + & 
+             c_sapw*prt_params%phos_stoich_p1(ft,prt_params%organ_param_id(sapw_organ)) + &
              StorageNutrientTarget(ft, element_id, &
-             c_leaf*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(leaf_organ)), &
-             c_fnrt*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(fnrt_organ)), &
-             c_sapw*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(sapw_organ)), &
-             c_struct*prt_params%phos_stoich_p2(ft,prt_params%organ_param_id(struct_organ)))
+             c_leaf*prt_params%phos_stoich_p1(ft,prt_params%organ_param_id(leaf_organ)), &
+             c_fnrt*prt_params%phos_stoich_p1(ft,prt_params%organ_param_id(fnrt_organ)), &
+             c_sapw*prt_params%phos_stoich_p1(ft,prt_params%organ_param_id(sapw_organ)), &
+             c_struct*prt_params%phos_stoich_p1(ft,prt_params%organ_param_id(struct_organ)))
 
 
      end select

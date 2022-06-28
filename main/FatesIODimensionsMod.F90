@@ -104,7 +104,15 @@ module FatesIODimensionsMod
     ! levelcwd = This records the boundaries for element x cwd
     ! levelage = This records the boundaries for element x age
 
+    ! levcdsc = This is a structure that records the boundaries for the
+    ! number of crown damage x size classes dimension
 
+    ! levcdpf = This is a structure that records the boundaries for the
+    ! number of crown damage x size classes x pft dimension
+
+    ! levcdam = This is the structure that records the boundaries for the
+    ! number of crown damage classes dimension
+    
     type, public :: fates_bounds_type
        integer :: cohort_begin
        integer :: cohort_end

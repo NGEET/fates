@@ -23,6 +23,7 @@ module EDCanopyStructureMod
   use EDTypesMod            , only : nclmax
   use EDTypesMod            , only : nlevleaf
   use EDtypesMod            , only : AREA
+  use EDLoggingMortalityMod , only : UpdateHarvestC
   use FatesGlobals          , only : endrun => fates_endrun
   use FatesInterfaceTypesMod     , only : hlm_days_per_year
   use FatesInterfaceTypesMod     , only : hlm_use_planthydro
@@ -31,7 +32,6 @@ module EDCanopyStructureMod
   use FatesInterfaceTypesMod     , only : numpft
   use FatesInterfaceTypesMod, only : bc_in_type
   use FatesPlantHydraulicsMod, only : UpdateH2OVeg,InitHydrCohort, RecruitWaterStorage
-  use EDTypesMod            , only : maxCohortsPerPatch
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : all_carbon_elements
   use PRTGenericMod,          only : leaf_organ
@@ -1240,9 +1240,8 @@ contains
        currentCohort => currentPatch%tallest
        do while (associated(currentCohort))
           call carea_allom(currentCohort%dbh,currentCohort%n, &
-               currentSite%spread,currentCohort%pft,currentCohort%crowndamage, &
-               currentCohort%c_area)
-          if( ( int(prt_params%woody(currentCohort%pft)) .eq. itrue ) .and. &
+               currentSite%spread,currentCohort%pft,currentCohort%crowndamage,currentCohort%c_area)
+          if( ( prt_params%woody(currentCohort%pft) .eq. itrue ) .and. &
                (currentCohort%canopy_layer .eq. 1 ) ) then
              sitelevel_canopyarea = sitelevel_canopyarea + currentCohort%c_area
           endif
@@ -1353,7 +1352,7 @@ contains
 
              if(currentCohort%canopy_layer==1)then
                 currentPatch%total_canopy_area = currentPatch%total_canopy_area + currentCohort%c_area
-                if( int(prt_params%woody(ft))==itrue)then
+                if( prt_params%woody(ft) == itrue)then
                    currentPatch%total_tree_area = currentPatch%total_tree_area + currentCohort%c_area
                 endif
              endif
@@ -1572,19 +1571,19 @@ contains
              currentCohort => currentPatch%shortest
              do while(associated(currentCohort))
                 ft = currentCohort%pft
-                min_chite = currentCohort%hite - currentCohort%hite * prt_params%crown(ft)
+                min_chite = currentCohort%hite - currentCohort%hite * prt_params%crown_depth_frac(ft)
                 max_chite = currentCohort%hite
                 do iv = 1,N_HITE_BINS
                    frac_canopy(iv) = 0.0_r8
                    ! this layer is in the middle of the canopy
                    if(max_chite > maxh(iv).and.min_chite < minh(iv))then
-                      frac_canopy(iv)= min(1.0_r8,dh / (currentCohort%hite*prt_params%crown(ft)))
+                      frac_canopy(iv)= min(1.0_r8,dh / (currentCohort%hite*prt_params%crown_depth_frac(ft) ))
                       ! this is the layer with the bottom of the canopy in it.
                    elseif(min_chite < maxh(iv).and.min_chite > minh(iv).and.max_chite > maxh(iv))then
-                      frac_canopy(iv) = (maxh(iv) -min_chite ) / (currentCohort%hite*prt_params%crown(ft))
+                      frac_canopy(iv) = (maxh(iv) -min_chite ) / (currentCohort%hite*prt_params%crown_depth_frac(ft)  )
                       ! this is the layer with the top of the canopy in it.
                    elseif(max_chite > minh(iv).and.max_chite < maxh(iv).and.min_chite < minh(iv))then
-                      frac_canopy(iv) = (max_chite - minh(iv)) / (currentCohort%hite*prt_params%crown(ft))
+                      frac_canopy(iv) = (max_chite - minh(iv)) / (currentCohort%hite*prt_params%crown_depth_frac(ft))
                    elseif(max_chite < maxh(iv).and.min_chite > minh(iv))then !the whole cohort is within this layer.
                       frac_canopy(iv) = 1.0_r8
                    endif
@@ -1679,11 +1678,11 @@ contains
 
                    layer_top_hite = currentCohort%hite - &
                         ( real(iv-1,r8)/currentCohort%NV * currentCohort%hite *  &
-                        prt_params%crown(currentCohort%pft) )
+                        prt_params%crown_depth_frac(currentCohort%pft) )
 
                    layer_bottom_hite = currentCohort%hite - &
                         ( real(iv,r8)/currentCohort%NV * currentCohort%hite * &
-                        prt_params%crown(currentCohort%pft) )
+                        prt_params%crown_depth_frac(currentCohort%pft) )
 
                    fraction_exposed = 1.0_r8
                    if(currentSite%snow_depth  > layer_top_hite)then
@@ -2065,6 +2064,9 @@ contains
           call UpdateH2OVeg(sites(s),bc_out(s),bc_out(s)%plant_stored_h2o_si,1)
        end if
 
+       ! Pass FATES Harvested C to bc_out.
+       call UpdateHarvestC(sites(s),bc_out(s))
+       
     end do
 
     ! This call to RecruitWaterStorage() makes an accounting of
