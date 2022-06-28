@@ -82,45 +82,51 @@ contains
   ! uses double precision to avoid ill-conditioned behaviour of sin and cos for numbers      !
   ! close to the n*pi/2.                                                                     !
   !------------------------------------------------------------------------------------------!
-  real function dist_gc(slons,slonf,slats,slatf)
-  use consts_coms, only : erad    & ! intent(in)
-                        , pio1808 ! ! intent(in)
-   implicit none
-   !----- Local variables. ----------------------------------------------------------------!
-   real, intent(in) :: slons
-   real, intent(in) :: slonf
-   real, intent(in) :: slats
-   real, intent(in) :: slatf
-   !----- Local variables. ----------------------------------------------------------------!
-   real(kind=8)     :: lons
-   real(kind=8)     :: lonf
-   real(kind=8)     :: lats
-   real(kind=8)     :: latf
-   real(kind=8)     :: dlon
-   real(kind=8)     :: dlat
-   real(kind=8)     :: x
-   real(kind=8)     :: y
-   !---------------------------------------------------------------------------------------!
-
-   !----- Convert the co-ordinates to double precision and to radians. --------------------!
-   lons = dble(slons) * pio1808
-   lonf = dble(slonf) * pio1808
-   lats = dble(slats) * pio1808
-   latf = dble(slatf) * pio1808
-   dlon = lonf - lons
-   dlat = latf - lats
-
-   !----- Find the arcs. ------------------------------------------------------------------!
-   x    = dsin(lats) * dsin(latf) + dcos(lats) * dcos(latf) * dcos(dlon)
-   y    = dsqrt( (dcos(latf)*dsin(dlon)) * (dcos(latf)*dsin(dlon))                         &
-               + (dcos(lats)*dsin(latf)-dsin(lats)*dcos(latf)*dcos(dlon))                  &
-               * (dcos(lats)*dsin(latf)-dsin(lats)*dcos(latf)*dcos(dlon)) )
-
-   !----- Convert the arcs to actual distance. --------------------------------------------!
-   dist_gc = erad*sngl(datan2(y,x))
-
-   return
-   end function dist_gc
+  real(r8) function GreatCircleDist(slons,slonf,slats,slatf)
+  
+     use FatesConstantsMod, only : earth_radius_eq &
+                                 , pi_const 
+     implicit none
+    
+     !----- Local variables. ----------------------------------------------------------------!
+     real(r8), intent(in) :: slons
+     real(r8), intent(in) :: slonf
+     real(r8), intent(in) :: slats
+     real(r8), intent(in) :: slatf
+    
+     !----- Local variables. ----------------------------------------------------------------!
+     real(r8)     :: lons
+     real(r8)     :: lonf
+     real(r8)     :: lats
+     real(r8)     :: latf
+     real(r8)     :: dlon
+     real(r8)     :: dlat
+     real(r8)     :: x
+     real(r8)     :: y
+     !---------------------------------------------------------------------------------------!
+    
+     !----- Convert the co-ordinates to double precision and to radians. --------------------!
+     lons = slons * pi_const
+     lonf = slonf * pi_const
+     lats = slats * pi_const
+     latf = slatf * pi_const
+     dlon = lonf - lons
+     dlat = latf - lats
+    
+     !----- Find the arcs. ------------------------------------------------------------------!
+     x    = dsin(lats) * dsin(latf) + dcos(lats) * dcos(latf) * dcos(dlon)
+     y    = dsqrt( (dcos(latf)*dsin(dlon)) * (dcos(latf)*dsin(dlon))                         &
+                 + (dcos(lats)*dsin(latf)-dsin(lats)*dcos(latf)*dcos(dlon))                  &
+                 * (dcos(lats)*dsin(latf)-dsin(lats)*dcos(latf)*dcos(dlon)) )
+    
+     !----- Convert the arcs to actual distance. --------------------------------------------!
+     GreatCircleDist = earth_radius_eq*datan2(y,x)
+    
+     return
+ 
+  end function GreatCircleDist
+   
+   
 
 
 end module FatesUtilsMod
