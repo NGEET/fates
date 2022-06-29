@@ -47,6 +47,14 @@ module DamageMainMod
   
   logical :: debug = .false.  ! for debugging
 
+
+  ! The following is the special classification for undamaged plants
+  ! and is used in contexts where cohort%damageclass is used. This is
+  ! to flag to the user that an undamaged plant is assumed in those contexts
+  
+  integer, parameter, public :: undamaged_class = 1
+
+  
   ! ============================================================================
   ! ============================================================================
 

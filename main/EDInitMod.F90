@@ -77,6 +77,7 @@ module EDInitMod
   use PRTGenericMod,          only : phosphorus_element
   use PRTGenericMod,          only : SetState
   use FatesSizeAgeTypeIndicesMod,only : get_age_class_index
+  use DamageMainMod,          only : undamaged_class
   
   ! CIME GLOBALS
   use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -956,8 +957,8 @@ contains
              call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, &
                   temp_cohort%coage, temp_cohort%dbh, prt_obj, temp_cohort%leafmemory,&
                   temp_cohort%sapwmemory, temp_cohort%structmemory, cstatus, rstatus,        &
-                  temp_cohort%canopy_trim, temp_cohort%c_area, 1, temp_cohort%crowndamage,&
-                  site_in%spread, bc_in)
+                  temp_cohort%canopy_trim, temp_cohort%c_area, undamaged_class, &
+                  temp_cohort%crowndamage, site_in%spread, bc_in)
 
              deallocate(temp_cohort) ! get rid of temporary cohort
 

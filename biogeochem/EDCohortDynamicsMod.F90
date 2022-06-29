@@ -102,7 +102,7 @@ Module EDCohortDynamicsMod
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_pefflux
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_nneed
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_pneed
-
+  use DamageMainMod,          only : GetCrownReduction
 
   use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)
 
@@ -1080,7 +1080,7 @@ contains
      use FatesInterfaceTypesMod , only :  hlm_use_cohort_age_tracking
      use FatesConstantsMod , only : itrue
      use FatesConstantsMod, only : days_per_year
-     use DamageMainMod, only : GetCrownReduction
+     
 
      !
      ! !ARGUMENTS
