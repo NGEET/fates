@@ -2238,7 +2238,7 @@ contains
   end subroutine UpdatePatchLAI
   ! ===============================================================================================
   
-  subroutine UpdateCohortLAI(currentCohort, canopy_layer_tlai, patcharea, spread)
+  subroutine UpdateCohortLAI(currentCohort, canopy_layer_tlai, total_canopy_area, spread)
    
    ! Update LAI and related variables for a given cohort
    
@@ -2248,7 +2248,7 @@ contains
    ! Arguments
    type(ed_cohort_type),intent(inout), target   :: currentCohort
    real(r8), intent(in) :: canopy_layer_tlai(nclmax)  ! total leaf area index of each canopy layer
-   real(r8), intent(in) :: patcharea                  ! either patch%total_canopy_area or patch%area
+   real(r8), intent(in) :: total_canopy_area                  ! either patch%total_canopy_area or patch%area
    real(r8), intent(in) :: spread                     ! currentSite%spread
    
    ! Local variables
@@ -2275,8 +2275,8 @@ contains
    end if
 
    ! Update the cohort lai and sai
-   currentCohort%lai =  currentCohort%treelai *currentCohort%c_area/patcharea
-   currentCohort%sai =  currentCohort%treesai *currentCohort%c_area/patcharea
+   currentCohort%lai =  currentCohort%treelai *currentCohort%c_area/total_canopy_area
+   currentCohort%sai =  currentCohort%treesai *currentCohort%c_area/total_canopy_area
 
    ! Number of actual vegetation layers in this cohort's crown
    currentCohort%nv =  count((currentCohort%treelai+currentCohort%treesai) .gt. dlower_vai(:)) + 1
