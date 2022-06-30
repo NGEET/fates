@@ -61,7 +61,7 @@ module DamageMainMod
 
 contains
 
-  subroutine DamageRecovery(currentCohort,recoveryCohort)
+  subroutine DamageRecovery(csite,cpatch,ccohort,newly_recovered)
 
     !---------------------------------------------------------------------------
     ! JN March 2021
@@ -74,173 +74,219 @@ contains
     !
     ! d = damage class
     ! --------------------------------------------------------------------------
+
+    type(ed_site_type)   :: csite            ! Site of the current cohort
+    type(ed_patch_type)  :: cpatch           ! patch of the current cohort
+    type(ed_cohort_type) :: ccohort          ! Current (damaged) cohort
+    logical              :: newly_recovered  ! true if we create a new cohort
+
+    ! locals
+    type(ed_cohort_type), pointer :: rcohort ! New cohort that recovers by
+                                             ! having an lower damage class
+    real(r8) :: sapw_area
+    real(r8) :: target_sapw_c,target_sapw_m
+    real(r8) :: target_agw_c
+    real(r8) :: target_bgw_c
+    real(r8) :: target_struct_c,target_struct_m
+    real(r8) :: target_fnrt_c,target_fnrt_m
+    real(r8) :: target_leaf_c,target_leaf_m
+    real(r8) :: target_store_c,target_store_m
+    real(r8) :: target_repro_m
+    real(r8) :: mass_d
+    real(r8) :: mass_dminus1
+    real(r8) :: recovery_demand
+    real(r8) :: max_recover_nplant
+    real(r8) :: nplant_recover
     
-    type(ed_cohort_type) :: currentCohort
-    type(ed_cohort_type), pointer :: recoveryCohort
+    associate(dbh => ccohort%dbh, &
+         ipft => ccohort%pft, &
+         canopy_trim => ccohort%canopy_trim)
 
+      ! If we are currently undamaged, no recovery
+      ! necessary, do nothing and return a null pointer
+      ! If the damage_recovery_scalar is zero, which
+      ! would be an unusual testing case, but possible,
+      ! then no recovery is possible, do nothing and
+      ! return a null pointer
+      if ((ccohort%crowndamage == undamaged_class) .or. &
+           (damage_recovery_scalar < nearzero) ) then
+         newly_recovered = .false.
+         return
+      end if
 
+      cpatch => ccohort%patchptr
+      
+      
+      ! If we have not returned, then this cohort both has
+      ! a damaged status, and the ability to recover from that damage
+      ! -----------------------------------------------------------------
 
-    if (crowndamage > 1 .and. carbon_balance > calloc_abs_error) then
+      ! To determine recovery, the first priority is to determine how much
+      ! resources (C,N,P) are required to recover the plant to the target
+      ! pool sizes of the next (less) damage class
+      
+      ! Target sapwood biomass according to allometry and trimming [kgC]
+      call bsap_allom(dbh,ipft, ccohort%crowndamage-1, canopy_trim,sapw_area,target_sapw_c)
+      ! Target total above ground biomass in woody/fibrous tissues  [kgC]
+      call bagw_allom(dbh,ipft, ccohort%crowndamage-1, target_agw_c)
+      ! Target total below ground biomass in woody/fibrous tissues [kgC] 
+      call bbgw_allom(dbh,ipft,target_bgw_c)
+      ! Target total dead (structrual) biomass [kgC]
+      call bdead_allom( target_agw_c, target_bgw_c, target_sapw_c, ipft, target_struct_c)
+      ! Target fine-root biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
+      call bfineroot(dbh,ipft,canopy_trim,target_fnrt_c)
+      ! Target storage carbon [kgC,kgC/cm]
+      call bstore_allom(dbh,ipft,crowndamage-1, canopy_trim,target_store_c)
+      ! Target leaf biomass according to allometry and trimming
+      if(ccohort%status_coh==leaves_on) then
+         call bleaf(dbh,ipft,crowndamage-1, canopy_trim,target_leaf_c)
+      else
+         target_leaf_c = 0._r8
+      end if
 
-       if(damage_recovery_scalar > 0.0_r8) then 
-       ! 1. What is excess carbon?
-       ! carbon_balance
+      ! We will be taking the number of recovering plants
+      ! based on minimum of available resources for C/N/P (initialize high)
+      nplant_recover = 1.e10_r8
+      
+      do el=1,num_elements
+         
+         ! Actual mass of chemical species in the organs
+         leaf_m   = ccohort%prt%GetState(leaf_organ, element_list(el))
+         store_m  = ccohort%prt%GetState(store_organ, element_list(el))
+         sapw_m   = ccohort%prt%GetState(sapw_organ, element_list(el))
+         fnrt_m   = ccohort%prt%GetState(fnrt_organ, element_list(el))
+         struct_m = ccohort%prt%GetState(struct_organ, element_list(el))
+         repro_m  = ccohort%prt%GetState(repro_organ, element_list(el))
+         
+         ! Target mass of chemical species in organs, based on stature,
+         ! allometry and stoichiometry parameters
+         select case (element_list(el))
+         case (carbon12_element)
+            target_store_m  = target_store_c
+            target_leaf_m   = target_leaf_c
+            target_fnrt_m   = target_fnrt_c
+            target_struct_m = target_struct_c
+            target_sapw_m   = target_sapw_c
+            target_repro_m  = 0._r8
+            available_m     = ccohort%npp_acc
+         case (nitrogen_element) 
+            target_struct_m = target_struct_c * &
+                 prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(struct_organ))
+            target_leaf_m = target_leaf_c * &
+                 prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(leaf_organ))
+            target_fnrt_m = target_fnrt_c * &
+                 prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(fnrt_organ))
+            target_sapw_m = target_sapw_c * &
+                 prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(sapw_organ))
+            target_repro_m  = 0._r8
+            target_store_m = StorageNutrientTarget(ipft, element_list(el), &
+                 leaf_target_m, fnrt_target_m, sapw_target_m, struct_target_m)
+            ! For nutrients, all uptake is immediately put into storage, so just swap
+            ! them and assume storage is what is available, but needs to be filled up
+            available_m     = store_m
+            store_m         = 0._r8
+         case (phosphorus_element)
+            target_struct_m = target_struct_c * &
+                 prt_params%phos_stoich_p1(ipft,prt_params%organ_param_id(struct_organ))
+            target_leaf_m = target_leaf_c * &
+                 prt_params%phos_stoich_p1(ipft,prt_params%organ_param_id(leaf_organ))
+            target_fnrt_m = target_fnrt_c * &
+                 prt_params%phos_stoich_p1(ipft,prt_params%organ_param_id(fnrt_organ))
+            target_sapw_m = target_sapw_c * &
+                 prt_params%phos_stoich_p1(ipft,prt_params%organ_param_id(sapw_organ))
+            target_repro_m  = 0._r8
+            target_store_m = StorageNutrientTarget(ipft, element_list(el), &
+                 leaf_target_m, fnrt_target_m, sapw_target_m, struct_target_m)
+         end select
+         
+         ! 1. What is excess carbon?
+         ! carbon_balance
+         
+         !  2. What is biomass required to go from current
+         !     damage level to next damage level?
+         
+         ! mass of this damage class
+         mass_d = leaf_m + store_m + sapw_m + fnrt_m + struct_m + repro_m
+         
+         mass_dminus1 = max(leaf_m, target_leaf_m) + max(fnrt_m, target_fnrt_m) + &
+              max(store_m, target_store_m) + max(sapw_m, target_sapw_m) + &
+              max(struct_m, target_struct_m)) 
+         
+         ! Mass needed to get from current mass to allometric
+         ! target mass of next damage class up
+         recovery_demand = mass_dminus1 - mass_d
+         
+         ! 3. How many trees can get there with excess carbon?
+         max_recover_nplant =  available_m * ccohort%n / recovery_demand 
+         
+         ! 4. Use the scalar to decide how many to recover
+         nplant_recover = min(nplant_recover,max(0._r8,max_recover_nplant * damage_recovery_scalar))
+         
+      end do
           
-       !  2. What is biomass required to go from current damage level to next damage level?
+      ! there is a special case where damage_recovery_scalar = 1, but
+      ! max_recover_nplant > n (i.e. there is more carbon than needed for all
+      ! individuals to recover to the next damage class.
+      ! in this case we can cheat, by making n_recover 0 and simply
+      ! allowing the donor cohort to recover and then go through
+      ! prt - will this work though? if they are not anywhere near allometry?
+      
+      if( abs(damage_recovery_scalar-1._r8) < nearzero .and. &
+           nplant_recover > ccohort%n) then
+         nplant_recover = 0.0_r8
+         crowndamage = crowndamage - 1
+      end if
 
-       ! mass of this damage class
-       mass_d = (sum(leaf_c(1:nleafage)) + fnrt_c + store_c + sapw_c + struct_c ) 
-  
-       ! Target sapwood biomass according to allometry and trimming [kgC]
-       call bsap_allom(dbh,ipft, crowndamage-1, canopy_trim,sapw_area,targetn_sapw_c)
-       ! Target total above ground biomass in woody/fibrous tissues  [kgC]
-       call bagw_allom(dbh,ipft, crowndamage-1, targetn_agw_c)
-       ! Target total below ground biomass in woody/fibrous tissues [kgC] 
-       call bbgw_allom(dbh,ipft,targetn_bgw_c)
-       ! Target total dead (structrual) biomass [kgC]
-       call bdead_allom( targetn_agw_c, targetn_bgw_c, targetn_sapw_c, ipft, targetn_struct_c)
-       ! Target fine-root biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
-       call bfineroot(dbh,ipft,canopy_trim,targetn_fnrt_c)
-       ! Target storage carbon [kgC,kgC/cm]
-       call bstore_allom(dbh,ipft,crowndamage-1, canopy_trim,targetn_store_c)
-       ! Target leaf biomass according to allometry and trimming
-       if(leaf_status==2) then
-          call bleaf(dbh,ipft,crowndamage-1, canopy_trim,targetn_leaf_c)
-       else
-          targetn_leaf_c = 0._r8
-       end if
+      if(nplant_recover < nearzero) then
 
+         newly_recovered = .false.
+         return
+         
+      else
+         newly_recovered = .true.
+         allocate(rcohort)
+         if(hlm_use_planthydro .eq. itrue) call InitHydrCohort(csite,rcohort)
+         ! Initialize the PARTEH object and point to the
+         ! correct boundary condition fields
+         rcohort%prt => null()
+         call InitPRTObject(rcohort%prt)
+         call InitPRTBoundaryConditions(rcohort)
+         call copy_cohort(ccohort, rcohort)
 
-       mass_dminus1 = (max(sum(leaf_c), targetn_leaf_c) + max(fnrt_c, targetn_fnrt_c) + &
-            max(store_c, targetn_store_c) + max(sapw_c, targetn_sapw_c) + &
-            max(struct_c, targetn_struct_c)) 
+         rcohort%n = nplant_recover
+          
+         rcohort%crowndamage = ccohort%crowndamage - 1
+         
+         ! Need to adjust the crown area which is NOT on a per individual basis
+         call carea_allom(dbh,rcohort%n,site_spread,ipft,rcohort%crowndamage,c_area)
+         !rcohort%n/n_old * ccohort%c_area
+         !ccohort%c_area = ccohort%c_area - rcohort%c_area
 
-       ! Carbon needed to get from current mass to allometric target mass of next damage class up
-       recovery_demand = mass_dminus1 - mass_d
-       
-       ! 3. How many trees can get there with excess carbon?
-       max_recover_n =  carbon_balance * n / recovery_demand 
+         ! Update properties of the un-recovered (donor) cohort
+         ccohort%n = ccohort%n - rcohort%n
+         ccohort%c_area = ccohort%c_area * ccohort%n / (ccohort%n+rcohort%n)
 
-       ! 4. Use the scalar to decide how many to recover
-       n_recover = max_recover_n * damage_recovery_scalar
+         !----------- Insert copy into linked list ----------------------!
+         ! This subroutine is called within a loop in EDMain that
+         ! proceeds short to tall. We want the newly created cohort
+         ! to have an opportunity to experience the list, so we add
+         ! it in the list in a position taller than the current cohort
+         ! --------------------------------------------------------------!
+         
+         rcohort%shorter => ccohort
+         if(associated(ccohort%taller))then
+            rcohort%taller => ccohort%taller
+            ccohort%taller%shorter => rcohort
+         else
+            cpatch%tallest => rcohort    
+            rcohort%taller => null()
+         endif
+         ccohort%taller => rcohort
+         
+      end if ! end if greater than nearzero
 
-       ! carbon balance needs to be updated
-
-       ! there is a special case where damage_recovery_scalar = 1, but
-       ! max_recover_n > n (i.e. there is more carbon than needed for all
-       ! individuals to recover to the next damage class.
-       ! in this case we can cheat, by making n_recover 0 and simply
-       ! allowing the donor cohort to recover and then go through
-       ! prt - will this work though? if they are not anywhere near allometry?
-       
-
-       if(damage_recovery_scalar .eq. 1.0_r8 .and. max_recover_n > n) then
-          n_recover = 0.0_r8
-          crowndamage = crowndamage - 1
-          ! call prt from within itself here? 
-       else
-          carbon_balance = (n * carbon_balance - (recovery_demand * n_recover)) /(n-n_recover)
-       end if
-
-       ! we reduce number density here and continue on with daily prt for the
-       ! part of the cohort that is not recovering - staying fixed on its
-       ! current reduced allometries
-       n = n - n_recover
-
-       ! Outside of parteh we will copy the cohort and allow the
-       ! recovery portion to change allometric targets.
-       
-       end if ! end if some recovery is permited
-    end if ! end if crowndamage 
-    !------------------------------------------------------------------------------------
-
-
-
-
+    end associate
     
-    if(currentCohort%crowndamage > 1) then
-
-       ! N is inout boundary condition so has now been updated. The difference must
-       ! go to a new cohort
-       n_recover = n_old - currentCohort%n
-
-       if(n_recover > nearzero) then
-
-          allocate(nc)
-          if(hlm_use_planthydro .eq. itrue) call InitHydrCohort(CurrentSite,nc)
-          ! Initialize the PARTEH object and point to the
-          ! correct boundary condition fields
-          nc%prt => null()
-          call InitPRTObject(nc%prt)
-          call InitPRTBoundaryConditions(nc)          
-          !    call zero_cohort(nc)  
-          call copy_cohort(currentCohort, nc)
-
-          nc%n = n_recover
-          nc%crowndamage = currentCohort%crowndamage - 1
-
-          ! Need to adjust the crown area which is NOT on a per individual basis
-          nc%c_area = nc%n/n_old * currentCohort%c_area
-          currentCohort%c_area = currentCohort%c_area - nc%c_area
-
-          ! This new cohort spends carbon balance on growing out pools
-          ! (but not dbh) to reach new allometric targets
-          ! This was already calculated within parteh - this cohort should just
-          ! be able to hit allometric targets of one damage class down
-          call nc%prt%DamageRecovery()
-
-          ! at this point we need to update fluxes or this cohort will
-          ! fail its mass conservation checks
-
-          sapw_c   = nc%prt%GetState(sapw_organ, all_carbon_elements)
-          struct_c = nc%prt%GetState(struct_organ, all_carbon_elements)
-          leaf_c   = nc%prt%GetState(leaf_organ, all_carbon_elements)
-          fnrt_c   = nc%prt%GetState(fnrt_organ, all_carbon_elements)
-          store_c  = nc%prt%GetState(store_organ, all_carbon_elements)
-          repro_c  = nc%prt%GetState(repro_organ, all_carbon_elements)
-          nc_carbon = sapw_c + struct_c + leaf_c + fnrt_c + store_c + repro_c
-
-          cc_sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
-          cc_struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
-          cc_leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
-          cc_fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_elements)
-          cc_store_c  = currentCohort%prt%GetState(store_organ, all_carbon_elements)
-          cc_repro_c  = currentCohort%prt%GetState(repro_organ, all_carbon_elements)
-          cc_carbon = cc_sapw_c + cc_struct_c + cc_leaf_c + cc_fnrt_c + cc_store_c + cc_repro_c
-
-
-          call PRTDamageRecoveryFluxes(nc%prt, leaf_organ, leaf_c0, leaf_c, cc_leaf_c)
-          call PRTDamageRecoveryFluxes(nc%prt, repro_organ, repro_c0, repro_c, cc_repro_c)
-          call PRTDamageRecoveryFluxes(nc%prt, sapw_organ, sapw_c0, sapw_c, cc_sapw_c)
-          call PRTDamageRecoveryFluxes(nc%prt, struct_organ, struct_c0, struct_c, cc_struct_c)
-          call PRTDamageRecoveryFluxes(nc%prt, store_organ, store_c0, store_c, cc_store_c)
-          call PRTDamageRecoveryFluxes(nc%prt, fnrt_organ, fnrt_c0, fnrt_c, cc_fnrt_c)
-
-          ! update crown area
-          call carea_allom(nc%dbh, nc%n, currentSite%spread, nc%pft, nc%crowndamage, nc%c_area)
-          call carea_allom(currentCohort%dbh, currentCohort%n, currentSite%spread, &
-               currentCohort%pft, currentCohort%crowndamage, currentCohort%c_area)
-
-
-
-          !----------- Insert copy into linked list ----------------------! 
-          nc%shorter => currentCohort
-          if(associated(currentCohort%taller))then
-             nc%taller => currentCohort%taller
-             currentCohort%taller%shorter => nc
-          else
-             currentPatch%tallest => nc    
-             nc%taller => null()
-          endif
-          currentCohort%taller => nc
-
-       end if ! end if greater than nearzero
-
-    end if ! end if crowndamage > 1
-
-
-
-
     return
   end subroutine DamageRecovery
 

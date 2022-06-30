@@ -314,7 +314,6 @@ contains
 
     call InitPRTBoundaryConditions(new_cohort)
 
-
     ! Allocate running mean functions
 
     !  (Keeping as an example)
@@ -410,7 +409,6 @@ contains
 
        call new_cohort%prt%RegisterBCInOut(ac_bc_inout_id_dbh,bc_rval = new_cohort%dbh)
        call new_cohort%prt%RegisterBCInOut(ac_bc_inout_id_netdc,bc_rval = new_cohort%npp_acc)
-       call new_cohort%prt%RegisterBCInOut(ac_bc_inout_id_n,bc_rval = new_cohort%n)
        call new_cohort%prt%RegisterBCInOut(ac_bc_inout_id_cdamage,bc_ival = new_cohort%crowndamage)
        call new_cohort%prt%RegisterBCIn(ac_bc_in_id_pft,bc_ival = new_cohort%pft)
        call new_cohort%prt%RegisterBCIn(ac_bc_in_id_ctrim,bc_rval = new_cohort%canopy_trim)

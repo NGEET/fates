@@ -427,96 +427,94 @@ contains
        currentPatch%age_class = get_age_class_index(currentPatch%age)
 
 
-       ! Update Canopy Biomass Pools
+       ! Within this loop, we may be creating new cohorts, which
+       ! are copies of pre-existing cohorts with reduced damage classes.
+       ! If that is true, we want to bypass some of the things in
+       ! this loop (such as calculation of npp, etc) because they
+       ! are derived from the donor and have been modified accordingly
+       newly_recovered = .false.
+       
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort))
 
           ft = currentCohort%pft
- 
-          ! Calculate the mortality derivatives
-          call Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary )
+          
+          ! Some cohorts are created and inserted to the list while
+          ! the loop is going. These are pointed to the "taller" position
+          ! of current, and then inherit properties of their donor (current)
+          ! we don't need to repeat things before allocation for these
+          ! newly_recovered cohorts
+          
+          if_newlyrecovered: if(.not.newly_recovered) then
 
-          ! -----------------------------------------------------------------------------
-          ! Apply Plant Allocation and Reactive Transport
-          ! -----------------------------------------------------------------------------
-          ! -----------------------------------------------------------------------------
-          !  Identify the net carbon gain for this dynamics interval
-          !    Set the available carbon pool, identify allocation portions, and
-          !    decrement the available carbon pool to zero.
-          ! -----------------------------------------------------------------------------
+             ! Calculate the mortality derivatives
+             call Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary )
 
+             ! -----------------------------------------------------------------------------
+             ! Apply Plant Allocation and Reactive Transport
+             ! -----------------------------------------------------------------------------
+             ! -----------------------------------------------------------------------------
+             !  Identify the net carbon gain for this dynamics interval
+             !    Set the available carbon pool, identify allocation portions, and
+             !    decrement the available carbon pool to zero.
+             ! -----------------------------------------------------------------------------
 
-          if (hlm_use_ed_prescribed_phys .eq. itrue) then
-             if (currentCohort%canopy_layer .eq. 1) then
-                currentCohort%npp_acc = EDPftvarcon_inst%prescribed_npp_canopy(ft) &
-                     * currentCohort%c_area / currentCohort%n / hlm_days_per_year
+             if (hlm_use_ed_prescribed_phys .eq. itrue) then
+                if (currentCohort%canopy_layer .eq. 1) then
+                   currentCohort%npp_acc = EDPftvarcon_inst%prescribed_npp_canopy(ft) &
+                        * currentCohort%c_area / currentCohort%n / hlm_days_per_year
+                else
+                   currentCohort%npp_acc = EDPftvarcon_inst%prescribed_npp_understory(ft) &
+                        * currentCohort%c_area / currentCohort%n / hlm_days_per_year
+                endif
+                
+                ! We don't explicitly define a respiration rate for prescribe phys
+                ! but we do need to pass mass balance. So we say it is zero respiration
+                currentCohort%gpp_acc  = currentCohort%npp_acc
+                currentCohort%resp_acc = 0._r8
+                
+             end if
+             
+             ! -----------------------------------------------------------------------------
+             ! Save NPP/GPP/R in these "hold" style variables. These variables
+             ! persist after this routine is complete, and used in I/O diagnostics.
+             ! Whereas the _acc style variables are zero'd because they are key
+             ! accumulation state variables.
+             !
+             ! convert from kgC/indiv/day into kgC/indiv/year
+             ! <x>_acc_hold is remembered until the next dynamics step (used for I/O)
+             ! <x>_acc will be reset soon and will be accumulated on the next leaf
+             !         photosynthesis step
+             ! -----------------------------------------------------------------------------
+             
+             currentCohort%npp_acc_hold  = currentCohort%npp_acc  * real(hlm_days_per_year,r8)
+             currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * real(hlm_days_per_year,r8)
+             currentCohort%resp_acc_hold = currentCohort%resp_acc * real(hlm_days_per_year,r8)
+             
+             ! Conduct Maintenance Turnover (parteh)
+             if(debug) call currentCohort%prt%CheckMassConservation(ft,3)
+             if(any(currentSite%dstatus == [phen_dstat_moiston,phen_dstat_timeon])) then
+                is_drought = .false.
              else
-                currentCohort%npp_acc = EDPftvarcon_inst%prescribed_npp_understory(ft) &
-                     * currentCohort%c_area / currentCohort%n / hlm_days_per_year
-             endif
+                is_drought = .true.
+             end if
+             
+             call PRTMaintTurnover(currentCohort%prt,ft,is_drought)
+             
+             ! If the current diameter of a plant is somehow less than what is consistent
+             ! with what is allometrically consistent with the stuctural biomass, then
+             ! correct the dbh to match.
 
-             ! We don't explicitly define a respiration rate for prescribe phys
-             ! but we do need to pass mass balance. So we say it is zero respiration
-             currentCohort%gpp_acc  = currentCohort%npp_acc
-             currentCohort%resp_acc = 0._r8
-
-          end if
-
-          ! -----------------------------------------------------------------------------
-          ! Save NPP/GPP/R in these "hold" style variables. These variables
-          ! persist after this routine is complete, and used in I/O diagnostics.
-          ! Whereas the _acc style variables are zero'd because they are key
-          ! accumulation state variables.
-          !
-          ! convert from kgC/indiv/day into kgC/indiv/year
-          ! <x>_acc_hold is remembered until the next dynamics step (used for I/O)
-          ! <x>_acc will be reset soon and will be accumulated on the next leaf
-          !         photosynthesis step
-          ! -----------------------------------------------------------------------------
-
-          currentCohort%npp_acc_hold  = currentCohort%npp_acc  * real(hlm_days_per_year,r8)
-          currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * real(hlm_days_per_year,r8)
-          currentCohort%resp_acc_hold = currentCohort%resp_acc * real(hlm_days_per_year,r8)
-
-
-          ! Conduct Maintenance Turnover (parteh)
-          if(debug) call currentCohort%prt%CheckMassConservation(ft,3)
-          if(any(currentSite%dstatus == [phen_dstat_moiston,phen_dstat_timeon])) then
-             is_drought = .false.
-          else
-             is_drought = .true.
-          end if
-
-          call PRTMaintTurnover(currentCohort%prt,ft,is_drought)
-
-          ! If the current diameter of a plant is somehow less than what is consistent
-          ! with what is allometrically consistent with the stuctural biomass, then
-          ! correct the dbh to match.
-
+          end if if_newlyrecovered
+             
           call EvaluateAndCorrectDBH(currentCohort,delta_dbh,delta_hite)
-
+          
           hite_old = currentCohort%hite
           dbh_old  = currentCohort%dbh
-
+          
           ! -----------------------------------------------------------------------------
           ! Growth and Allocation (PARTEH)
           ! -----------------------------------------------------------------------------
-
-          ! cohorts will be split during this phase to allow some fraction to recover
-          ! keep track of starting population
-          n_old = currentCohort%n
-
-          ! track initial carbon pools
-       
-          leaf_c0   = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
-          fnrt_c0   = currentCohort%prt%GetState(fnrt_organ, all_carbon_elements)
-          sapw_c0   = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
-          struct_c0 = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
-          store_c0  = currentCohort%prt%GetState(store_organ, all_carbon_elements)
-          repro_c0 = currentCohort%prt%GetState(repro_organ, all_carbon_elements)
-
-          total_c0 = sapw_c0 + struct_c0 + leaf_c0 + fnrt_c0 + store_c0 + repro_c0
-          cc_carbon = 0.0_r8 ! need to set it here to avoid nan errors if conditions aren't met below
 
           ! We split the allocation into phases (currently for all hypotheses)
           ! In phase 1, allocation gets the mass of organs to match targets
@@ -531,8 +529,9 @@ contains
           ! to grow in stature (phase 2)
           
           call currentCohort%prt%DailyPRT(phase=1)
-          if(hlm_use_crown_damage .eq. itrue) then
-
+          
+          if((newly_recovered .eq. .false.)  .and. &
+             (hlm_use_crown_damage .eq. itrue) ) then
              ! The loop order is shortest to tallest
              ! The recovered cohort (ie one with larger targets)
              ! is newly created in DamageRecovery(), and
@@ -540,19 +539,22 @@ contains
              ! original and current (unrecovered) cohort.
              ! we pass it back here in case the pointer is
              ! needed for diagnostics
-             call DamageRecovery(currentCohort,recoveredCohort)
+             call DamageRecovery(currentSite,currentPatch,currentCohort,newly_recovered)
+
+             ! New targets may have been issued (based on damage status). If so,
+             ! we need to repeat phase 1 of allocation. This only happens if
+             ! the cohort is NOT split, and the whole thing graduates to a lesser
+             ! damage class
+             if(.not.newly_recovered)then
+                call currentCohort%prt%DailyPRT(phase=1)
+             end if
+             
+          else
+             newly_recovered = .false.
           end if
           
           call currentCohort%prt%DailyPRT(phase=2)
           
-          
-          if(hlm_use_crown_damage .eq. itrue) then
-
- 
-
-          end if ! end if crowndamage is on
-
-   
           ! Update the mass balance tracking for the daily nutrient uptake flux
           ! Then zero out the daily uptakes, they have been used
           ! -----------------------------------------------------------------------------
@@ -688,11 +690,8 @@ contains
              call coagetype_class_index(currentCohort%coage, currentCohort%pft, &
                   currentCohort%coage_class,currentCohort%coage_by_pft_class)
           end if
-
         
           currentCohort => currentCohort%taller
-
-         
        end do
 
        currentPatch => currentPatch%older

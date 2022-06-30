@@ -574,7 +574,6 @@ contains
        dbldd = dblmaxdd * canopy_trim
     end if
 
-
     if ( crowndamage > 1 ) then
 
        call  GetCrownReduction(crowndamage, crown_reduction)

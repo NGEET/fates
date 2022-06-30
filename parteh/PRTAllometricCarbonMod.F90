@@ -90,9 +90,8 @@ module PRTAllometricCarbonMod
 
   integer, public, parameter :: ac_bc_inout_id_dbh   = 1   ! Plant DBH
   integer, public, parameter :: ac_bc_inout_id_netdc = 2   ! Index for the net daily C input BC
-  integer, public, parameter :: ac_bc_inout_id_n     = 3  ! Number of plants 
-  integer, public, parameter :: ac_bc_inout_id_cdamage = 4 ! Index for the crowndamage input BC
-  integer, parameter         :: num_bc_inout         = 4   ! Number of in & output boundary conditions
+  integer, public, parameter :: ac_bc_inout_id_cdamage = 3 ! Index for the crowndamage input BC
+  integer, parameter         :: num_bc_inout         = 3   ! Number of in & output boundary conditions
 
 
   integer, public, parameter :: ac_bc_in_id_pft   = 1   ! Index for the PFT input BC
@@ -434,7 +433,6 @@ module PRTAllometricCarbonMod
 
     dbh                             => this%bc_inout(ac_bc_inout_id_dbh)%rval
     carbon_balance                  => this%bc_inout(ac_bc_inout_id_netdc)%rval
-    n                               => this%bc_inout(ac_bc_inout_id_n)%rval
     crowndamage                     => this%bc_inout(ac_bc_inout_id_cdamage)%ival
     
     canopy_trim                     = this%bc_in(ac_bc_in_id_ctrim)%rval
@@ -1152,70 +1150,6 @@ module PRTAllometricCarbonMod
       return
     end subroutine FastPRTAllometricCarbon
 
-    !-------------------------------------------------------------------------------
-
-    subroutine PRTDamageRecovery(this)                                                                          
-      ! ----------------------------------------------------------------------------------                                          
-      ! We are assigning mass to each organ based on the allometric targets  
-      ! ----------------------------------------------------------------------------------
-      class(callom_prt_vartypes) :: this
-
-      
-      real(r8),pointer :: dbh
-      integer, pointer :: crowndamage
-      real(r8) :: canopy_trim
-      integer  :: ipft
-      real(r8) :: target_leaf_c         ! target leaf carbon [kgC]
-      real(r8) :: target_fnrt_c         ! target fine-root carbon [kgC]
-      real(r8) :: target_sapw_c         ! target sapwood carbon [kgC]
-      real(r8) :: target_store_c        ! target storage carbon [kgC]
-      real(r8) :: target_agw_c          ! target above ground carbon in woody tissues [kgC]
-      real(r8) :: target_bgw_c          ! target below ground carbon in woody tissues [kgC]
-      real(r8) :: target_struct_c       ! target structural carbon [kgC]
-      real(r8) :: sapw_area             ! dummy var, x-section area of sapwood [m2]
-      integer  :: leaf_status                                                                                                   
-      real(r8) :: leaf_c_flux
-      integer, parameter :: iexp_leaf = 1 ! index 1 is the expanding leaf age class and
-      ! therefore all new carbon goes into that pool
-
-      associate ( &
-           leaf_c => this%variables(leaf_c_id)%val, & 
-           fnrt_c => this%variables(fnrt_c_id)%val(icd), &
-           sapw_c => this%variables(sapw_c_id)%val(icd), &
-           store_c => this%variables(store_c_id)%val(icd), &
-           repro_c => this%variables(repro_c_id)%val(icd), &
-           struct_c => this%variables(struct_c_id)%val(icd))
-        
-        dbh                 => this%bc_inout(ac_bc_inout_id_dbh)%rval
-        crowndamage         => this%bc_inout(ac_bc_inout_id_cdamage)%ival
-        canopy_trim         = this%bc_in(ac_bc_in_id_ctrim)%rval
-        ipft                = this%bc_in(ac_bc_in_id_pft)%ival
-        leaf_status         = this%bc_in(ac_bc_in_id_lstat)%ival
-   
-        ! Get allometric targets for this dbh and crown damage class
-        call bsap_allom(dbh, ipft, crowndamage, canopy_trim, sapw_area, target_sapw_c)
-        call bagw_allom(dbh, ipft, crowndamage, target_agw_c)
-        call bbgw_allom(dbh, ipft, target_bgw_c)
-        call bdead_allom(target_agw_c, target_bgw_c, target_sapw_c, ipft, target_struct_c)
-        if(leaf_status ==2)then
-           call bleaf(dbh, ipft, crowndamage, canopy_trim, target_leaf_c)
-        else
-           target_leaf_c = 0.0_r8
-        end if
-        call bfineroot(dbh, ipft, canopy_trim, target_fnrt_c)
-        call bstore_allom(dbh, ipft,crowndamage, canopy_trim, target_store_c)
-
-        ! Now we assign these targets to the actual biomass pools
-        fnrt_c   = max(target_fnrt_c, fnrt_c)
-        store_c  = max(target_store_c, store_c)
-        sapw_c   = max(target_sapw_c, sapw_c)
-        struct_c = max(target_struct_c, struct_c)
-        leaf_c_flux = target_leaf_c - sum(leaf_c)
-        leaf_c(iexp_leaf) = leaf_c(iexp_leaf) + leaf_c_flux
-
-      end associate
-  end subroutine PRTDamageRecovery  
-  ! =====================================================================================      
    
 end module PRTAllometricCarbonMod
   
