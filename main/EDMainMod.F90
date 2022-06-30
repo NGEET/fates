@@ -517,91 +517,38 @@ contains
 
           total_c0 = sapw_c0 + struct_c0 + leaf_c0 + fnrt_c0 + store_c0 + repro_c0
           cc_carbon = 0.0_r8 ! need to set it here to avoid nan errors if conditions aren't met below
-          
-          call currentCohort%prt%DailyPRT()
 
+          ! We split the allocation into phases (currently for all hypotheses)
+          ! In phase 1, allocation gets the mass of organs to match targets
+          ! In phase 2, allocation increases the mass of organs along with stature growth (dbh)
+          ! The reason why we split is to accomodate the damage code. Following phase 1,
+          ! we will allow the damage status of the cohorts to potentially recover, if they
+          ! have any left-over C/N/P resources. In this process, the cohort will be split
+          ! into two, each having a number count summing to the original. Where one cohort
+          ! will remain in the original damage class proceed with allocation, and the other
+          ! will reduce its damage class with new mass tarets. The latter will have to re-play
+          ! The first phase of allocation. Both cohorts have the opportunity (if resources remain)
+          ! to grow in stature (phase 2)
+          
+          call currentCohort%prt%DailyPRT(phase=1)
+          if(hlm_use_crown_damage .eq. itrue) then
+
+             ! The loop order is shortest to tallest
+             ! The recovered cohort (ie one with larger targets)
+             ! is newly created in DamageRecovery(), and
+             ! is inserted into the next position, following the 
+             ! original and current (unrecovered) cohort.
+             ! we pass it back here in case the pointer is
+             ! needed for diagnostics
+             call DamageRecovery(currentCohort,recoveredCohort)
+          end if
+          
+          call currentCohort%prt%DailyPRT(phase=2)
+          
           
           if(hlm_use_crown_damage .eq. itrue) then
 
-             if(currentCohort%crowndamage > 1) then
-  
-                ! N is inout boundary condition so has now been updated. The difference must
-                ! go to a new cohort
-                n_recover = n_old - currentCohort%n
-
-                if(n_recover > nearzero) then
-
-                   allocate(nc)
-                   if(hlm_use_planthydro .eq. itrue) call InitHydrCohort(CurrentSite,nc)
-                   ! Initialize the PARTEH object and point to the
-                   ! correct boundary condition fields
-                   nc%prt => null()
-                   call InitPRTObject(nc%prt)
-                   call InitPRTBoundaryConditions(nc)          
-                   !    call zero_cohort(nc)  
-                   call copy_cohort(currentCohort, nc)
-
-                   nc%n = n_recover
-                   nc%crowndamage = currentCohort%crowndamage - 1
-
-                   ! Need to adjust the crown area which is NOT on a per individual basis
-                   nc%c_area = nc%n/n_old * currentCohort%c_area
-                   currentCohort%c_area = currentCohort%c_area - nc%c_area
-
-                   ! This new cohort spends carbon balance on growing out pools
-                   ! (but not dbh) to reach new allometric targets
-                   ! This was already calculated within parteh - this cohort should just
-                   ! be able to hit allometric targets of one damage class down
-                   call nc%prt%DamageRecovery()
-
-                   ! at this point we need to update fluxes or this cohort will
-                   ! fail its mass conservation checks
-
-                   sapw_c   = nc%prt%GetState(sapw_organ, all_carbon_elements)
-                   struct_c = nc%prt%GetState(struct_organ, all_carbon_elements)
-                   leaf_c   = nc%prt%GetState(leaf_organ, all_carbon_elements)
-                   fnrt_c   = nc%prt%GetState(fnrt_organ, all_carbon_elements)
-                   store_c  = nc%prt%GetState(store_organ, all_carbon_elements)
-                   repro_c  = nc%prt%GetState(repro_organ, all_carbon_elements)
-                   nc_carbon = sapw_c + struct_c + leaf_c + fnrt_c + store_c + repro_c
-
-                   cc_sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
-                   cc_struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
-                   cc_leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
-                   cc_fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_elements)
-                   cc_store_c  = currentCohort%prt%GetState(store_organ, all_carbon_elements)
-                   cc_repro_c  = currentCohort%prt%GetState(repro_organ, all_carbon_elements)
-                   cc_carbon = cc_sapw_c + cc_struct_c + cc_leaf_c + cc_fnrt_c + cc_store_c + cc_repro_c
-
-
-                   call PRTDamageRecoveryFluxes(nc%prt, leaf_organ, leaf_c0, leaf_c, cc_leaf_c)
-                   call PRTDamageRecoveryFluxes(nc%prt, repro_organ, repro_c0, repro_c, cc_repro_c)
-                   call PRTDamageRecoveryFluxes(nc%prt, sapw_organ, sapw_c0, sapw_c, cc_sapw_c)
-                   call PRTDamageRecoveryFluxes(nc%prt, struct_organ, struct_c0, struct_c, cc_struct_c)
-                   call PRTDamageRecoveryFluxes(nc%prt, store_organ, store_c0, store_c, cc_store_c)
-                   call PRTDamageRecoveryFluxes(nc%prt, fnrt_organ, fnrt_c0, fnrt_c, cc_fnrt_c)
-
-                   ! update crown area
-                   call carea_allom(nc%dbh, nc%n, currentSite%spread, nc%pft, nc%crowndamage, nc%c_area)
-                   call carea_allom(currentCohort%dbh, currentCohort%n, currentSite%spread, &
-                        currentCohort%pft, currentCohort%crowndamage, currentCohort%c_area)
-
-
-               
-                   !----------- Insert copy into linked list ----------------------! 
-                   nc%shorter => currentCohort
-                   if(associated(currentCohort%taller))then
-                      nc%taller => currentCohort%taller
-                      currentCohort%taller%shorter => nc
-                   else
-                      currentPatch%tallest => nc    
-                      nc%taller => null()
-                   endif
-                   currentCohort%taller => nc
-
-                end if ! end if greater than nearzero
-                
-             end if ! end if crowndamage > 1
+ 
 
           end if ! end if crowndamage is on
 
