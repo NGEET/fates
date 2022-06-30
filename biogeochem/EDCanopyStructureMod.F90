@@ -2238,7 +2238,7 @@ contains
   end subroutine UpdatePatchLAI
   ! ===============================================================================================
   
-  subroutine UpdateCohortLAI(currentCohort, canopy_layer_tlai, total_canopy_area, spread)
+  subroutine UpdateCohortLAI(currentCohort, canopy_layer_tlai, total_canopy_area)
    
    ! Update LAI and related variables for a given cohort
    
@@ -2249,11 +2249,9 @@ contains
    type(ed_cohort_type),intent(inout), target   :: currentCohort
    real(r8), intent(in) :: canopy_layer_tlai(nclmax)  ! total leaf area index of each canopy layer
    real(r8), intent(in) :: total_canopy_area                  ! either patch%total_canopy_area or patch%area
-   real(r8), intent(in) :: spread                     ! currentSite%spread
    
    ! Local variables
    real(r8) :: leaf_c                              ! leaf carbon [kg]
-   real(r8) :: target_c_area                       !  target c_area  - as if not damaged
       
    ! Obtain the leaf carbon
    leaf_c = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
@@ -2263,13 +2261,11 @@ contains
    currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, &
         currentCohort%n, currentCohort%canopy_layer,               &
         canopy_layer_tlai,currentCohort%vcmax25top )
-
-   call carea_allom(currentCohort%dbh, currentCohort%n, spread, currentCohort%pft, &
-        1, target_c_area)
-   
+ 
    if (hlm_use_sp .eq. ifalse) then
-      currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
-                                       target_c_area, currentCohort%n, currentCohort%canopy_layer, &
+      currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%crowndamage, &
+                                       currentCohort%canopy_trim, &
+                                       currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
                                        canopy_layer_tlai, currentCohort%treelai , &
                                        currentCohort%vcmax25top,4)
    end if

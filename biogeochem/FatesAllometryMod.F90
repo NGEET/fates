@@ -740,7 +740,7 @@ contains
 
   ! ============================================================================
 
-  real(r8) function tree_sai(pft, dbh, canopy_trim, c_area, nplant, cl, &
+  real(r8) function tree_sai(pft, dbh, crowndamage, canopy_trim, c_area, nplant, cl, &
                               canopy_lai, treelai, vcmax25top, call_id )
 
     ! ============================================================================
@@ -749,6 +749,7 @@ contains
 
     integer, intent(in)  :: pft
     real(r8), intent(in) :: dbh
+    integer, intent(in)  :: crowndamage
     real(r8), intent(in) :: canopy_trim        ! trimming function (0-1)
     real(r8), intent(in) :: c_area             ! crown area (m2)
     real(r8), intent(in) :: nplant             ! number of plants
@@ -763,8 +764,7 @@ contains
     real(r8)             :: target_lai
     real(r8)             :: target_bleaf
 
-    ! target undamaged bleaf
-    call bleaf(dbh, pft, 1, canopy_trim, target_bleaf)
+    call bleaf(dbh, pft, crowndamage, canopy_trim, target_bleaf)
   
     target_lai = tree_lai(target_bleaf, pft, c_area, nplant, cl,&
          canopy_lai, vcmax25top) 

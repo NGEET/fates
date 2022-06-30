@@ -475,7 +475,7 @@ contains
 
           ! We don't need check on sp mode here since we don't trim_canopy with sp mode
           currentCohort%treesai = tree_sai(currentCohort%pft, &
-               currentCohort%dbh, &
+               currentCohort%dbh, currentCohort%crowndamage,  &
                currentCohort%canopy_trim, &
                target_c_area, currentCohort%n,currentCohort%canopy_layer,& 
                currentPatch%canopy_layer_tlai, currentCohort%treelai, &

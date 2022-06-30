@@ -287,7 +287,7 @@ contains
 
     if(hlm_use_sp.eq.ifalse)then
        new_cohort%treesai = tree_sai(new_cohort%pft, new_cohort%dbh, &
-            new_cohort%canopy_trim,   &
+            new_cohort%crowndamage, new_cohort%canopy_trim,   &
             new_cohort%c_area, new_cohort%n, new_cohort%canopy_layer, &
             patchptr%canopy_layer_tlai, new_cohort%treelai,new_cohort%vcmax25top,2 )
     end if
