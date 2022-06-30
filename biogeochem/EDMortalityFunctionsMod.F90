@@ -72,7 +72,8 @@ contains
     real(r8),intent(out) :: dgmort ! damage dependent mortality
 
     real(r8) :: frac  ! relativised stored carbohydrate
-    real(r8) :: leaf_c      ! leaf biomass kgC
+    real(r8) :: target_leaf_c      ! target leaf biomass for the current trim status and
+                                   ! damage class [kgC]
     real(r8) :: store_c
     real(r8) :: hf_sm_threshold    ! hydraulic failure soil moisture threshold 
     real(r8) :: hf_flc_threshold   ! hydraulic failure fractional loss of conductivity threshold
@@ -164,10 +165,10 @@ contains
        ! Carbon Starvation induced mortality.
        if ( cohort_in%dbh  >  0._r8 ) then
 
-          call bleaf(cohort_in%dbh,cohort_in%pft,cohort_in%crowndamage,cohort_in%canopy_trim,leaf_c)
+          call bleaf(cohort_in%dbh,cohort_in%pft,cohort_in%crowndamage,cohort_in%canopy_trim,target_leaf_c)
           store_c = cohort_in%prt%GetState(store_organ,all_carbon_elements)
 
-          call storage_fraction_of_target(leaf_c, store_c, frac)
+          call storage_fraction_of_target(target_leaf_c, store_c, frac)
           if( frac .lt. 1._r8) then
              cmort = max(0.0_r8,EDPftvarcon_inst%mort_scalar_cstarvation(cohort_in%pft) * &
                   (1.0_r8 - frac))
