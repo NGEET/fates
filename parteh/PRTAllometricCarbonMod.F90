@@ -90,14 +90,15 @@ module PRTAllometricCarbonMod
 
   integer, public, parameter :: ac_bc_inout_id_dbh   = 1   ! Plant DBH
   integer, public, parameter :: ac_bc_inout_id_netdc = 2   ! Index for the net daily C input BC
-  integer, public, parameter :: ac_bc_inout_id_cdamage = 3 ! Index for the crowndamage input BC
-  integer, parameter         :: num_bc_inout         = 3   ! Number of in & output boundary conditions
+  
+  integer, parameter         :: num_bc_inout         = 2   ! Number of in & output boundary conditions
 
 
   integer, public, parameter :: ac_bc_in_id_pft   = 1   ! Index for the PFT input BC
   integer, public, parameter :: ac_bc_in_id_ctrim = 2   ! Index for the canopy trim function
   integer, public, parameter :: ac_bc_in_id_lstat = 3   ! Leaf status (on or off)
-  integer, parameter         :: num_bc_in         = 3   ! Number of input boundary conditions
+  integer, public, parameter :: ac_bc_in_id_cdamage = 4 ! Index for the crowndamage input BC
+  integer, parameter         :: num_bc_in         = 4   ! Number of input boundary conditions
 
   
   ! THere are no purely output boundary conditions
@@ -298,8 +299,7 @@ module PRTAllometricCarbonMod
     ! this local will point to both in and out bc's
     real(r8),pointer :: carbon_balance ! Daily carbon balance for this cohort [kgC]
 
-    real(r8), pointer :: n             ! number of plants
-    integer,  pointer :: crowndamage   ! which crown damage class
+    integer           :: crowndamage   ! which crown damage class
 
 
     real(r8) :: canopy_trim            ! The canopy trimming function [0-1]
@@ -392,12 +392,13 @@ module PRTAllometricCarbonMod
     character(len=19),  parameter :: fmth = '(a,1x,a5,3(1x,a12))'
     character(len=22),  parameter :: fmtg = '(a,5x,l1,3(1x,es12.5))'
 
-    real(r8) ::  intgr_params(num_bc_in+1)                 ! The boundary conditions to this routine,
+    ! The boundary conditions to this routine,
     ! are pressed into an array that is also
     ! passed to the integrators
     ! add one because we pass crown damage also
     ! which is not a bc_in
-
+    
+    real(r8) ::  intgr_params(num_bc_in)
 
     associate( & 
          
@@ -417,12 +418,13 @@ module PRTAllometricCarbonMod
 
       dbh                             => this%bc_inout(ac_bc_inout_id_dbh)%rval
       carbon_balance                  => this%bc_inout(ac_bc_inout_id_netdc)%rval
-      crowndamage                     => this%bc_inout(ac_bc_inout_id_cdamage)%ival
+      
 
       canopy_trim                     = this%bc_in(ac_bc_in_id_ctrim)%rval
       ipft                            = this%bc_in(ac_bc_in_id_pft)%ival
       leaf_status                     = this%bc_in(ac_bc_in_id_lstat)%ival
-
+      crowndamage                     = this%bc_in(ac_bc_in_id_cdamage)%ival
+      
       nleafage = prt_global%state_descriptor(leaf_c_id)%num_pos ! Number of leaf age class
 
       ! -----------------------------------------------------------------------------------
@@ -644,10 +646,10 @@ module PRTAllometricCarbonMod
          ! left to allocate, and thus it must be on allometry when its not.
          ! -----------------------------------------------------------------------------------
 
-         intgr_params(:)                 = un_initialized
-         intgr_params(ac_bc_in_id_ctrim) = this%bc_in(ac_bc_in_id_ctrim)%rval
-         intgr_params(ac_bc_in_id_pft)   = real(this%bc_in(ac_bc_in_id_pft)%ival)
-         intgr_params(num_bc_in + 1) = real(this%bc_inout(ac_bc_inout_id_cdamage)%ival)
+         intgr_params(:)                   = un_initialized
+         intgr_params(ac_bc_in_id_ctrim)   = this%bc_in(ac_bc_in_id_ctrim)%rval
+         intgr_params(ac_bc_in_id_pft)     = real(this%bc_in(ac_bc_in_id_pft)%ival)
+         intgr_params(ac_bc_in_id_cdamage) = real(this%bc_in(ac_bc_in_id_cdamage)%ival)
 
 
 
@@ -906,16 +908,16 @@ module PRTAllometricCarbonMod
       real(r8),dimension(lbound(c_pools,dim=1):ubound(c_pools,dim=1)) :: dCdx 
 
       ! locals
-      integer  :: ipft       ! PFT index
-      integer  :: crowndamage
+      integer  :: ipft           ! PFT index
+      integer  :: crowndamage    ! Damage class
       real(r8) :: canopy_trim    ! Canopy trimming function (boundary condition [0-1]
-      real(r8) :: ct_leaf    ! target leaf biomass, dummy var (kgC)
-      real(r8) :: ct_fnrt   ! target fine-root biomass, dummy var (kgC)
-      real(r8) :: ct_sap     ! target sapwood biomass, dummy var (kgC)
-      real(r8) :: ct_agw     ! target aboveground wood, dummy var (kgC)
-      real(r8) :: ct_bgw     ! target belowground wood, dummy var (kgC)
-      real(r8) :: ct_store   ! target storage, dummy var (kgC)
-      real(r8) :: ct_dead    ! target structural biomas, dummy var (kgC)
+      real(r8) :: ct_leaf        ! target leaf biomass, dummy var (kgC)
+      real(r8) :: ct_fnrt        ! target fine-root biomass, dummy var (kgC)
+      real(r8) :: ct_sap         ! target sapwood biomass, dummy var (kgC)
+      real(r8) :: ct_agw         ! target aboveground wood, dummy var (kgC)
+      real(r8) :: ct_bgw         ! target belowground wood, dummy var (kgC)
+      real(r8) :: ct_store       ! target storage, dummy var (kgC)
+      real(r8) :: ct_dead        ! target structural biomas, dummy var (kgC)
       real(r8) :: sapw_area      ! dummy sapwood area
       real(r8) :: ct_dleafdd     ! target leaf biomass derivative wrt diameter, (kgC/cm)
       real(r8) :: ct_dfnrtdd     ! target fine-root biomass derivative wrt diameter, (kgC/cm)
@@ -945,7 +947,7 @@ module PRTAllometricCarbonMod
 
         canopy_trim = intgr_params(ac_bc_in_id_ctrim)
         ipft        = int(intgr_params(ac_bc_in_id_pft))
-        crowndamage = int(intgr_params(num_bc_in + 1))
+        crowndamage = int(intgr_params(ac_bc_in_id_cdamage))
        
         call bleaf(dbh,ipft,crowndamage,canopy_trim,ct_leaf, dbldd=ct_dleafdd)
         call bfineroot(dbh,ipft,canopy_trim,ct_fnrt,ct_dfnrtdd)

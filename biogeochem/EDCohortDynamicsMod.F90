@@ -88,18 +88,17 @@ Module EDCohortDynamicsMod
   use PRTAllometricCarbonMod, only : callom_prt_vartypes
   use PRTAllometricCarbonMod, only : ac_bc_inout_id_netdc
   use PRTAllometricCarbonMod, only : ac_bc_in_id_pft
-  use PRTAllometricCarbonMod, only : ac_bc_inout_id_cdamage
   use PRTAllometricCarbonMod, only : ac_bc_inout_id_n
   use PRTAllometricCarbonMod, only : ac_bc_in_id_ctrim
   use PRTAllometricCarbonMod, only : ac_bc_inout_id_dbh
-  use PRTAllometricCarbonMod, only : ac_bc_in_id_lstat
+  use PRTAllometricCarbonMod, only : ac_bc_in_id_lstat, ac_bc_in_id_cdamage
   use PRTAllometricCNPMod,    only : cnp_allom_prt_vartypes
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_pft, acnp_bc_in_id_ctrim
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_lstat, acnp_bc_inout_id_dbh
   use PRTAllometricCNPMod,    only : acnp_bc_inout_id_rmaint_def, acnp_bc_in_id_netdc
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_netdnh4, acnp_bc_in_id_netdno3, acnp_bc_in_id_netdp
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_cefflux, acnp_bc_out_id_nefflux
-  use PRTAllometricCNPMod,    only : acnp_bc_out_id_pefflux
+  use PRTAllometricCNPMod,    only : acnp_bc_out_id_pefflux, acnp_bc_in_id_cdamage
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_nneed
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_pneed
   use DamageMainMod,          only : GetCrownReduction
@@ -409,7 +408,7 @@ contains
 
        call new_cohort%prt%RegisterBCInOut(ac_bc_inout_id_dbh,bc_rval = new_cohort%dbh)
        call new_cohort%prt%RegisterBCInOut(ac_bc_inout_id_netdc,bc_rval = new_cohort%npp_acc)
-       call new_cohort%prt%RegisterBCInOut(ac_bc_inout_id_cdamage,bc_ival = new_cohort%crowndamage)
+       call new_cohort%prt%RegisterBCIn(ac_bc_in_id_cdamage,bc_ival = new_cohort%crowndamage)
        call new_cohort%prt%RegisterBCIn(ac_bc_in_id_pft,bc_ival = new_cohort%pft)
        call new_cohort%prt%RegisterBCIn(ac_bc_in_id_ctrim,bc_rval = new_cohort%canopy_trim)
        call new_cohort%prt%RegisterBCIn(ac_bc_in_id_lstat,bc_ival = new_cohort%status_coh)
@@ -423,7 +422,8 @@ contains
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdnh4, bc_rval = new_cohort%daily_nh4_uptake)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdno3, bc_rval = new_cohort%daily_no3_uptake)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdp, bc_rval = new_cohort%daily_p_uptake)
-
+       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_cdamage,bc_ival = new_cohort%crowndamage)
+       
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_dbh,bc_rval = new_cohort%dbh)
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_rmaint_def,bc_rval = new_cohort%resp_m_def)
 

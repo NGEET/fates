@@ -138,11 +138,9 @@ module PRTAllometricCNPMod
 
   integer, public, parameter :: acnp_bc_inout_id_dbh        = 1  ! Plant DBH
   integer, public, parameter :: acnp_bc_inout_id_rmaint_def = 2  ! Index for any accumulated
-  integer, public, parameter :: acnp_bc_inout_id_cdamage    = 3  ! Crown damage index
-  integer, public, parameter :: acnp_bc_inout_id_num        = 4  ! Number of plants
+                                                                 ! maintenance respiration deficit
   
-  ! maintenance respiration deficit
-  integer, public, parameter :: num_bc_inout                = 4
+  integer, public, parameter :: num_bc_inout                = 2
 
   ! -------------------------------------------------------------------------------------
   ! Input only Boundary Indices (These are public)
@@ -155,9 +153,10 @@ module PRTAllometricCNPMod
   integer, public, parameter :: acnp_bc_in_id_netdnh4 = 5 ! Index for the net daily NH4 input BC
   integer, public, parameter :: acnp_bc_in_id_netdno3 = 6 ! Index for the net daily NO3 input BC
   integer, public, parameter :: acnp_bc_in_id_netdp   = 7 ! Index for the net daily P input BC
+  integer, public, parameter :: acnp_bc_in_id_cdamage = 8 ! Index for the crowndamage input BC
   
   ! 0=leaf off, 1=leaf on
-  integer, parameter         :: num_bc_in             = 7
+  integer, parameter         :: num_bc_in             = 8
 
   ! -------------------------------------------------------------------------------------
   ! Output Boundary Indices (These are public)
@@ -248,99 +247,100 @@ contains
 
   subroutine InitPRTGlobalAllometricCNP()
 
-     ! ----------------------------------------------------------------------------------
-     ! Initialize and populate the general mapping table that
-     ! organizes the specific variables in this module to
-     ! pre-ordained groups, so they can be used to inform
-     ! the rest of the model
-     !
-     ! This routine is not part of the sp_pool_vartypes class
-     ! because it is the same for all plants and we need not
-     ! waste memory on it.
-     ! -----------------------------------------------------------------------------------
+    ! ----------------------------------------------------------------------------------
+    ! Initialize and populate the general mapping table that
+    ! organizes the specific variables in this module to
+    ! pre-ordained groups, so they can be used to inform
+    ! the rest of the model
+    !
+    ! This routine is not part of the sp_pool_vartypes class
+    ! because it is the same for all plants and we need not
+    ! waste memory on it.
+    ! -----------------------------------------------------------------------------------
 
-     integer :: nleafage
+    integer :: nleafage
 
-     allocate(prt_global_acnp)
-     allocate(prt_global_acnp%state_descriptor(num_vars))
+    allocate(prt_global_acnp)
+    allocate(prt_global_acnp%state_descriptor(num_vars))
 
-     prt_global_acnp%hyp_name = 'Allometric Flexible C+N+P'
+    prt_global_acnp%hyp_name = 'Allometric Flexible C+N+P'
 
-     prt_global_acnp%hyp_id = prt_cnp_flex_allom_hyp
+    prt_global_acnp%hyp_id = prt_cnp_flex_allom_hyp
 
-     call prt_global_acnp%ZeroGlobal()
+    call prt_global_acnp%ZeroGlobal()
 
-     ! The number of leaf age classes can be determined from the parameter file,
-     ! notably the size of the leaf-longevity parameter's second dimension.
-     ! This is the same value in FatesInterfaceMod.F90
+    ! The number of leaf age classes can be determined from the parameter file,
+    ! notably the size of the leaf-longevity parameter's second dimension.
+    ! This is the same value in FatesInterfaceMod.F90
 
-     nleafage = size(prt_params%leaf_long,dim=2)
+    nleafage = size(prt_params%leaf_long,dim=2)
 
-     if(nleafage>max_nleafage) then
-        write(fates_log(),*) 'The allometric carbon PARTEH hypothesis'
-        write(fates_log(),*) 'sets a maximum number of leaf age classes'
-        write(fates_log(),*) 'used for scratch space. The model wants'
-        write(fates_log(),*) 'exceed that. Simply increase max_nleafage'
-        write(fates_log(),*) 'found in parteh/PRTAllometricCarbonMod.F90'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     end if
-
-
-
-     call prt_global_acnp%RegisterVarInGlobal(leaf_c_id,'Leaf Carbon','leaf_c',leaf_organ,carbon12_element,nleafage)
-     call prt_global_acnp%RegisterVarInGlobal(fnrt_c_id,'Fine Root Carbon','fnrt_c',fnrt_organ,carbon12_element,icd)
-     call prt_global_acnp%RegisterVarInGlobal(sapw_c_id,'Sapwood Carbon','sapw_c',sapw_organ,carbon12_element,icd)
-     call prt_global_acnp%RegisterVarInGlobal(store_c_id,'Storage Carbon','store_c',store_organ,carbon12_element,icd)
-     call prt_global_acnp%RegisterVarInGlobal(struct_c_id,'Structural Carbon','struct_c',struct_organ,carbon12_element,icd)
-     call prt_global_acnp%RegisterVarInGlobal(repro_c_id,'Reproductive Carbon','repro_c',repro_organ,carbon12_element,icd)
-
-     call prt_global_acnp%RegisterVarInGlobal(leaf_n_id,'Leaf Nitrogen','leaf_n',leaf_organ,nitrogen_element,nleafage)
-     call prt_global_acnp%RegisterVarInGlobal(fnrt_n_id,'Fine Root Nitrogen','fnrt_n',fnrt_organ,nitrogen_element,icd)
-     call prt_global_acnp%RegisterVarInGlobal(sapw_n_id,'Sapwood Nitrogen','sapw_n',sapw_organ,nitrogen_element,icd)
-     call prt_global_acnp%RegisterVarInGlobal(store_n_id,'Storage Nitrogen','store_n',store_organ,nitrogen_element,icd)
-     call prt_global_acnp%RegisterVarInGlobal(struct_n_id,'Structural Nitrogen','struct_n',struct_organ,nitrogen_element,icd)
-     call prt_global_acnp%RegisterVarInGlobal(repro_n_id,'Reproductive Nitrogen','repro_n',repro_organ,nitrogen_element,icd)
-
-     call prt_global_acnp%RegisterVarInGlobal(leaf_p_id,'Leaf Phosphorus','leaf_p',leaf_organ,phosphorus_element,nleafage)
-     call prt_global_acnp%RegisterVarInGlobal(fnrt_p_id,'Fine Root Phosphorus','fnrt_p',fnrt_organ,phosphorus_element,icd)
-     call prt_global_acnp%RegisterVarInGlobal(sapw_p_id,'Sapwood Phosphorus','sapw_p',sapw_organ,phosphorus_element,icd)
-     call prt_global_acnp%RegisterVarInGlobal(store_p_id,'Storage Phosphorus','store_p',store_organ,phosphorus_element,icd)
-     call prt_global_acnp%RegisterVarInGlobal(struct_p_id,'Structural Phosphorus','struct_p',struct_organ,phosphorus_element,icd)
-     call prt_global_acnp%RegisterVarInGlobal(repro_p_id,'Reproductive Phosphorus','repro_p',repro_organ,phosphorus_element,icd)
+    if(nleafage>max_nleafage) then
+       write(fates_log(),*) 'The allometric carbon PARTEH hypothesis'
+       write(fates_log(),*) 'sets a maximum number of leaf age classes'
+       write(fates_log(),*) 'used for scratch space. The model wants'
+       write(fates_log(),*) 'exceed that. Simply increase max_nleafage'
+       write(fates_log(),*) 'found in parteh/PRTAllometricCarbonMod.F90'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
 
 
-     ! Set some of the array sizes for input and output boundary conditions
-     prt_global_acnp%num_bc_in    = num_bc_in
-     prt_global_acnp%num_bc_out   = num_bc_out
-     prt_global_acnp%num_bc_inout = num_bc_inout
-     prt_global_acnp%num_vars     = num_vars
 
-     ! Have the global generic pointer, point to this hypothesis' object
-     prt_global => prt_global_acnp
+    call prt_global_acnp%RegisterVarInGlobal(leaf_c_id,'Leaf Carbon','leaf_c',leaf_organ,carbon12_element,nleafage)
+    call prt_global_acnp%RegisterVarInGlobal(fnrt_c_id,'Fine Root Carbon','fnrt_c',fnrt_organ,carbon12_element,icd)
+    call prt_global_acnp%RegisterVarInGlobal(sapw_c_id,'Sapwood Carbon','sapw_c',sapw_organ,carbon12_element,icd)
+    call prt_global_acnp%RegisterVarInGlobal(store_c_id,'Storage Carbon','store_c',store_organ,carbon12_element,icd)
+    call prt_global_acnp%RegisterVarInGlobal(struct_c_id,'Structural Carbon','struct_c',struct_organ,carbon12_element,icd)
+    call prt_global_acnp%RegisterVarInGlobal(repro_c_id,'Reproductive Carbon','repro_c',repro_organ,carbon12_element,icd)
 
-     return
+    call prt_global_acnp%RegisterVarInGlobal(leaf_n_id,'Leaf Nitrogen','leaf_n',leaf_organ,nitrogen_element,nleafage)
+    call prt_global_acnp%RegisterVarInGlobal(fnrt_n_id,'Fine Root Nitrogen','fnrt_n',fnrt_organ,nitrogen_element,icd)
+    call prt_global_acnp%RegisterVarInGlobal(sapw_n_id,'Sapwood Nitrogen','sapw_n',sapw_organ,nitrogen_element,icd)
+    call prt_global_acnp%RegisterVarInGlobal(store_n_id,'Storage Nitrogen','store_n',store_organ,nitrogen_element,icd)
+    call prt_global_acnp%RegisterVarInGlobal(struct_n_id,'Structural Nitrogen','struct_n',struct_organ,nitrogen_element,icd)
+    call prt_global_acnp%RegisterVarInGlobal(repro_n_id,'Reproductive Nitrogen','repro_n',repro_organ,nitrogen_element,icd)
+
+    call prt_global_acnp%RegisterVarInGlobal(leaf_p_id,'Leaf Phosphorus','leaf_p',leaf_organ,phosphorus_element,nleafage)
+    call prt_global_acnp%RegisterVarInGlobal(fnrt_p_id,'Fine Root Phosphorus','fnrt_p',fnrt_organ,phosphorus_element,icd)
+    call prt_global_acnp%RegisterVarInGlobal(sapw_p_id,'Sapwood Phosphorus','sapw_p',sapw_organ,phosphorus_element,icd)
+    call prt_global_acnp%RegisterVarInGlobal(store_p_id,'Storage Phosphorus','store_p',store_organ,phosphorus_element,icd)
+    call prt_global_acnp%RegisterVarInGlobal(struct_p_id,'Structural Phosphorus','struct_p',struct_organ,phosphorus_element,icd)
+    call prt_global_acnp%RegisterVarInGlobal(repro_p_id,'Reproductive Phosphorus','repro_p',repro_organ,phosphorus_element,icd)
+
+
+    ! Set some of the array sizes for input and output boundary conditions
+    prt_global_acnp%num_bc_in    = num_bc_in
+    prt_global_acnp%num_bc_out   = num_bc_out
+    prt_global_acnp%num_bc_inout = num_bc_inout
+    prt_global_acnp%num_vars     = num_vars
+
+    ! Have the global generic pointer, point to this hypothesis' object
+    prt_global => prt_global_acnp
+
+    return
   end subroutine InitPRTGlobalAllometricCNP
 
 
   ! =====================================================================================
 
 
-  subroutine DailyPRTAllometricCNP(this)
+  subroutine DailyPRTAllometricCNP(this,phase)
 
     class(cnp_allom_prt_vartypes) :: this
-    
+    integer,intent(in)            :: phase
+
     ! Pointers to in-out bcs
     real(r8),pointer :: dbh          ! Diameter at breast height [cm]
     real(r8),pointer :: maint_r_def  ! Current maintenance respiration deficit [kgC]
-    integer ,pointer :: cdamage      ! Crown damage 
-    
+
     ! Input only bcs
     integer  :: ipft        ! Plant Functional Type index
     real(r8) :: c_gain      ! Daily carbon balance for this cohort [kgC]
     real(r8) :: n_gain      ! Daily nitrogen uptake through fine-roots [kgN]
     real(r8) :: p_gain      ! Daily phosphorus uptake through fine-roots [kgN]
     real(r8) :: canopy_trim ! The canopy trimming function [0-1]
-    
+    integer  :: crowndamage ! which crown damage clas
+
     ! Pointers to output bcs
     real(r8),pointer :: c_efflux   ! Total plant efflux of carbon (kgC)
     real(r8),pointer :: n_efflux   ! Total plant efflux of nitrogen (kgN)
@@ -379,7 +379,6 @@ contains
     real(r8) :: n_gain0
     real(r8) :: p_gain0
     real(r8) :: maint_r_def0
-    integer  :: cdamage0
 
     ! Used for mass checking, total mass allocated based
     ! on change in the states, should match gain0's
@@ -388,6 +387,13 @@ contains
     real(r8) :: allocated_p
     real(r8) :: target_n,target_p
     real(r8) :: sum_c ! error checking sum
+
+
+    ! We do not use damage with parteh_mode 2, so just
+    ! do everything in phase 1 and short-circuit the phase 2 call
+    ! ----------------------------------------------------------
+    if(phase.eq.2) return
+
 
     ! integrator variables
 
@@ -398,11 +404,12 @@ contains
     ! -----------------------------------------------------------------------------------
     c_gain      = this%bc_in(acnp_bc_in_id_netdc)%rval; c_gain0      = c_gain
     n_gain      = this%bc_in(acnp_bc_in_id_netdnh4)%rval + &
-                  this%bc_in(acnp_bc_in_id_netdno3)%rval
+         this%bc_in(acnp_bc_in_id_netdno3)%rval
     n_gain0      = n_gain
     p_gain      = this%bc_in(acnp_bc_in_id_netdp)%rval; p_gain0      = p_gain
     canopy_trim = this%bc_in(acnp_bc_in_id_ctrim)%rval
     ipft        = this%bc_in(acnp_bc_in_id_pft)%ival
+    crowndamage = this%bc_in(acnp_bc_in_id_cdamage)%ival
 
     ! Output only boundary conditions
     c_efflux    => this%bc_out(acnp_bc_out_id_cefflux)%rval;  c_efflux = 0._r8
@@ -411,42 +418,39 @@ contains
     n_need      => this%bc_out(acnp_bc_out_id_nneed)%rval;    n_need = fates_unset_r8
     p_need      => this%bc_out(acnp_bc_out_id_pneed)%rval;    p_need = fates_unset_r8
 
-    
+
     ! In/out boundary conditions
     maint_r_def => this%bc_inout(acnp_bc_inout_id_rmaint_def)%rval; maint_r_def0 = maint_r_def
     dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval;        dbh0         = dbh
-    cdamage => this%bc_inout(acnp_bc_inout_id_cdamage)%ival;   cdamage0     = cdamage
-    
-    
-    
-    ! If more than 1 leaf age bin is present, this
-    ! call advances leaves in their age, but does
-    ! not actually remove any biomass from the plant
-    
-    call this%AgeLeaves(ipft,sec_per_day)
 
-    
+
+    if(crowndamage>1)then
+       write(fates_log(),*) 'The crown damage model is incompatible with'
+       write(fates_log(),*) 'dynamic nutrients, ie parteh_mode=2'
+       write(fates_log(),*) 'This feature will be brought in in with CNP v2'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
+
     ! Set all of the per-organ pointer arrays
     ! Note: Since growth only happens in the 1st leaf bin, we only
     ! point to that bin.  However, we need to account for all bins
     ! when we calculate the deficit
-    
+
     allocate(state_c(num_organs))
     allocate(state_n(num_organs))
     allocate(state_p(num_organs))
-    
+
     ! Set carbon targets based on the plant's current stature
     target_c(:) = fates_unset_r8
     target_dcdd(:) = fates_unset_r8
-    call bsap_allom(dbh,ipft,cdamage, canopy_trim, &
-         sapw_area,target_c(sapw_id),target_dcdd(sapw_id)  )
-    call bagw_allom(dbh,ipft,cdamage, agw_c_target,agw_dcdd_target)
+    call bsap_allom(dbh,ipft,canopy_trim,sapw_area,target_c(sapw_id),target_dcdd(sapw_id)  )
+    call bagw_allom(dbh,ipft,agw_c_target,agw_dcdd_target)
     call bbgw_allom(dbh,ipft,bgw_c_target,bgw_dcdd_target)
     call bdead_allom(agw_c_target,bgw_c_target, target_c(sapw_id), ipft, target_c(struct_id), &
-                     agw_dcdd_target, bgw_dcdd_target, target_dcdd(sapw_id), target_dcdd(struct_id))
-    call bleaf(dbh,ipft,cdamage, canopy_trim, target_c(leaf_id), target_dcdd(leaf_id))
+         agw_dcdd_target, bgw_dcdd_target, target_dcdd(sapw_id), target_dcdd(struct_id))
+    call bleaf(dbh,ipft,canopy_trim, target_c(leaf_id), target_dcdd(leaf_id))
     call bfineroot(dbh,ipft,canopy_trim, target_c(fnrt_id), target_dcdd(fnrt_id))
-    call bstore_allom(dbh,ipft,cdamage, canopy_trim, target_c(store_id), target_dcdd(store_id))
+    call bstore_allom(dbh,ipft,canopy_trim, target_c(store_id), target_dcdd(store_id))
     target_c(repro_id) = 0._r8
     target_dcdd(repro_id) = 0._r8
 
@@ -467,7 +471,7 @@ contains
        i_var = prt_global%sp_organ_map(organ_list(i_org),phosphorus_element)
        state_p(i_org)%ptr => this%variables(i_var)%val(1)
        state_p0(i_org)  =  this%variables(i_var)%val(1)
-       
+
     end do
 
     ! ===================================================================================
@@ -484,21 +488,21 @@ contains
     i_var = prt_global%sp_organ_map(store_organ,phosphorus_element)
     p_gain = p_gain + sum(this%variables(i_var)%val(:))
     this%variables(i_var)%val(:) = 0._r8
-    
+
     ! ===================================================================================
     ! Step 1.  Prioritized allocation to replace tissues from turnover, and/or pay
     ! any un-paid maintenance respiration from storage.
     ! ===================================================================================
-    
+
     call this%CNPPrioritizedReplacement(maint_r_def, c_gain, n_gain, p_gain, &
-             state_c, state_n, state_p, target_c)
+         state_c, state_n, state_p, target_c)
 
     sum_c = 0._r8
     do i_org = 1,num_organs
        sum_c = sum_c+state_c(i_org)%ptr
     end do
     if( abs((c_gain0-c_gain) - &
-            (sum_c-sum(state_c0(:),dim=1)+(maint_r_def0-maint_r_def))) >calloc_abs_error ) then
+         (sum_c-sum(state_c0(:),dim=1)+(maint_r_def0-maint_r_def))) >calloc_abs_error ) then
        write(fates_log(),*) 'Carbon not balancing I'
        do i_org = 1,num_organs
           write(fates_log(),*) 'state_c: ',state_c(i_org)%ptr,state_c0(i_org)
@@ -506,23 +510,23 @@ contains
        write(fates_log(),*) maint_r_def0-maint_r_def
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
-    
+
     ! ===================================================================================
     ! Step 2. Grow out the stature of the plant by allocating to tissues beyond
     ! current targets. 
     ! Attempts have been made to get all pools and species closest to allometric
     ! targets based on prioritized relative demand and allometry functions.
     ! ===================================================================================
-    
+
     call this%CNPStatureGrowth(c_gain, n_gain, p_gain,  &
          state_c, state_n, state_p, target_c, target_dcdd, cnp_limiter)
-    
+
     sum_c = 0._r8
     do i_org = 1,num_organs
        sum_c = sum_c+state_c(i_org)%ptr
     end do
     if( abs((c_gain0-c_gain) - &
-            (sum_c-sum(state_c0(:),dim=1)+(maint_r_def0-maint_r_def))) >calloc_abs_error ) then
+         (sum_c-sum(state_c0(:),dim=1)+(maint_r_def0-maint_r_def))) >calloc_abs_error ) then
        write(fates_log(),*) 'Carbon not balanceing II'
        do i_org = 1,num_organs
           write(fates_log(),*) 'state_c: ',state_c(i_org)%ptr,state_c0(i_org)
@@ -536,14 +540,14 @@ contains
     ! At this point, at least 1 of the 3 resources have been used up.
     ! Allocate the remaining resources, or as a last resort, efflux them.
     ! ===================================================================================
-    
+
     call this%CNPAllocateRemainder(c_gain, n_gain, p_gain,  &
          state_c, state_n, state_p, c_efflux, n_efflux, p_efflux)
 
     ! Error Check: Make sure that the mass gains are completely used up
     if( abs(c_gain) > calloc_abs_error .or. &
-        abs(n_gain) > 0.1_r8*calloc_abs_error .or. &
-        abs(p_gain) > 0.02_r8*calloc_abs_error ) then
+         abs(n_gain) > 0.1_r8*calloc_abs_error .or. &
+         abs(p_gain) > 0.02_r8*calloc_abs_error ) then
        write(fates_log(),*) 'Allocation scheme should had used up all mass gain pools'
        write(fates_log(),*) 'Any mass that cannot be allocated should be effluxed'
        write(fates_log(),*) 'c_gain: ',c_gain
@@ -557,39 +561,40 @@ contains
     ! Since this is also a check against what was available
     ! we include maintenance pay-back and efflux to the "allocated"
     ! pool to make sure everything balances.
-    
+
     allocated_c = (maint_r_def0-maint_r_def) + c_efflux
     allocated_n = n_efflux
     allocated_p = p_efflux
-    
+
+
     ! Update the allocation flux diagnostic arrays for each 3 elements
     do i_org = 1,num_organs
-       
+
        i_var = prt_global%sp_organ_map(organ_list(i_org),carbon12_element)
        this%variables(i_var)%net_alloc(1) = &
             this%variables(i_var)%net_alloc(1) + (state_c(i_org)%ptr - state_c0(i_org))
 
        allocated_c = allocated_c + (state_c(i_org)%ptr - state_c0(i_org))
-       
+
        i_var = prt_global%sp_organ_map(organ_list(i_org),nitrogen_element)
        this%variables(i_var)%net_alloc(1) = &
             this%variables(i_var)%net_alloc(1) + (state_n(i_org)%ptr - state_n0(i_org))
 
        allocated_n = allocated_n + (state_n(i_org)%ptr - state_n0(i_org))
-       
+
        i_var = prt_global%sp_organ_map(organ_list(i_org),phosphorus_element)
        this%variables(i_var)%net_alloc(1) = &
             this%variables(i_var)%net_alloc(1) + (state_p(i_org)%ptr - state_p0(i_org))
 
        allocated_p = allocated_p + (state_p(i_org)%ptr - state_p0(i_org))
-       
+
     end do
-    
+
     if(debug) then
 
        ! Error Check: Do a final balance between how much mass
        ! we had to work with, and how much was allocated
-       
+
        if ( abs(allocated_c - c_gain0) > calloc_abs_error .or. & 
             abs(allocated_n - n_gain0) > calloc_abs_error .or. &
             abs(allocated_p - p_gain0) > calloc_abs_error ) then
@@ -608,14 +613,14 @@ contains
 
     target_n = this%GetNutrientTarget(nitrogen_element,store_organ)
     target_p = this%GetNutrientTarget(phosphorus_element,store_organ)
-    
+
     n_need = target_n - state_n(store_id)%ptr
     p_need = target_p - state_p(store_id)%ptr
-    
+
     deallocate(state_c)
     deallocate(state_n)
     deallocate(state_p)
-    
+
     return
   end subroutine DailyPRTAllometricCNP
 
@@ -1019,7 +1024,6 @@ contains
     integer           :: ipft
     real(r8)          :: canopy_trim
     real(r8)          :: leaf_status
-    integer           :: icrowndamage
     
     integer  :: i, ii                            ! organ index loops (masked and unmasked)
     integer  :: istep                            ! outer step iteration loop
@@ -1101,8 +1105,7 @@ contains
     dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval
     ipft        = this%bc_in(acnp_bc_in_id_pft)%ival
     canopy_trim = this%bc_in(acnp_bc_in_id_ctrim)%rval
-    icrowndamage = this%bc_inout(acnp_bc_inout_id_cdamage)%ival
-   
+
     cnp_limiter = 0
     
     ! If any of these resources is essentially tapped out,
@@ -1124,7 +1127,7 @@ contains
     intgr_params(:)                   = fates_unset_r8
     intgr_params(acnp_bc_in_id_ctrim) = this%bc_in(acnp_bc_in_id_ctrim)%rval
     intgr_params(acnp_bc_in_id_pft)   = real(this%bc_in(acnp_bc_in_id_pft)%ival)
-    
+    intgr_params(acnp_bc_in_id_cdamage) = real(this%bc_in(acnp_bc_in_id_cdamage)%ival)
     
     state_mask(:) = .false.
     mask_organs(:) = fates_unset_int
@@ -1368,8 +1371,7 @@ contains
                leafc_tp1 = leafc_tp1 + this%variables(i_var)%val(i)
             end do
             
-            call CheckIntegratedAllometries(state_array_out(dbh_id),ipft, &
-                 icrowndamage, canopy_trim,  &
+            call CheckIntegratedAllometries(state_array_out(dbh_id),ipft,canopy_trim,  &
                  leafc_tp1, state_array_out(fnrt_id), state_array_out(sapw_id), &
                  state_array_out(store_id), state_array_out(struct_id), &
                  state_mask(leaf_id), state_mask(fnrt_id), state_mask(sapw_id), &
@@ -1459,13 +1461,13 @@ contains
                storec_tp1  = state_array_out(store_id)
                structc_tp1 = state_array_out(struct_id)
                
-               call bleaf(dbh_tp1,ipft,icrowndamage, canopy_trim,leaf_c_target_tp1)
+               call bleaf(dbh_tp1,ipft,canopy_trim,leaf_c_target_tp1)
                call bfineroot(dbh_tp1,ipft,canopy_trim,fnrt_c_target_tp1)
-               call bsap_allom(dbh_tp1,ipft,icrowndamage,canopy_trim,sapw_area,sapw_c_target_tp1)
-               call bagw_allom(dbh_tp1,ipft,icrowndamage, agw_c_target_tp1)
+               call bsap_allom(dbh_tp1,ipft,canopy_trim,sapw_area,sapw_c_target_tp1)
+               call bagw_allom(dbh_tp1,ipft,agw_c_target_tp1)
                call bbgw_allom(dbh_tp1,ipft,bgw_c_target_tp1)
                call bdead_allom(agw_c_target_tp1,bgw_c_target_tp1, sapw_c_target_tp1, ipft, struct_c_target_tp1)
-               call bstore_allom(dbh_tp1,ipft,icrowndamage, canopy_trim,store_c_target_tp1)
+               call bstore_allom(dbh_tp1,ipft,canopy_trim,store_c_target_tp1)
                
                write(fates_log(),*) 'leaf_c: ',leafc_tp1, leaf_c_target_tp1,leafc_tp1-leaf_c_target_tp1
                write(fates_log(),*) 'fnrt_c: ',fnrtc_tp1, fnrt_c_target_tp1,fnrtc_tp1- fnrt_c_target_tp1
@@ -1573,13 +1575,11 @@ contains
     real(r8), pointer :: dbh
     integer           :: ipft
     real(r8)          :: canopy_trim
-    integer, pointer  :: icrowndamage
     
 
     dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval
     canopy_trim = this%bc_in(acnp_bc_in_id_ctrim)%rval
     ipft        = this%bc_in(acnp_bc_in_id_pft)%ival
-    icrowndamage => this%bc_inout(acnp_bc_inout_id_cdamage)%ival
     
     ! -----------------------------------------------------------------------------------
     ! If nutrients are still available, then we can bump up the values in the pools
@@ -1631,7 +1631,7 @@ contains
     if(c_gain>calloc_abs_error) then
 
        ! Update carbon based allometric targets
-       call bstore_allom(dbh,ipft,icrowndamage, canopy_trim, store_c_target)
+       call bstore_allom(dbh,ipft,canopy_trim, store_c_target)
        
        ! Estimate the overflow
        store_c_target = store_c_target * (1.0_r8 + store_overflow_frac)
@@ -1717,7 +1717,6 @@ contains
     
     real(r8)         :: target_c
     real(r8),pointer :: dbh
-    integer, pointer :: cdamage
     real(r8)         :: canopy_trim
     integer          :: ipft
     integer          :: i_cvar
@@ -1726,13 +1725,13 @@ contains
     real(r8)         :: sapw_c_target,agw_c_target
     real(r8)         :: bgw_c_target,struct_c_target
 
+  
+    
     
     dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval
     canopy_trim = this%bc_in(acnp_bc_in_id_ctrim)%rval
     ipft        = this%bc_in(acnp_bc_in_id_pft)%ival
     i_cvar      = prt_global%sp_organ_map(organ_id,carbon12_element)
-    cdamage     => this%bc_inout(acnp_bc_inout_id_cdamage)%ival
-    
     
     ! Storage of nutrients are assumed to have different compartments than
     ! for carbon, and thus their targets are not associated with a tissue
@@ -1741,10 +1740,10 @@ contains
     
     if(organ_id == store_organ) then
 
-       call bleaf(dbh,ipft,1, canopy_trim,leaf_c_target)
+       call bleaf(dbh,ipft,canopy_trim,leaf_c_target)
        call bfineroot(dbh,ipft,canopy_trim,fnrt_c_target)
-       call bsap_allom(dbh,ipft,1, canopy_trim,sapw_area,sapw_c_target)
-       call bagw_allom(dbh,ipft,1, agw_c_target)
+       call bsap_allom(dbh,ipft,canopy_trim,sapw_area,sapw_c_target)
+       call bagw_allom(dbh,ipft,agw_c_target)
        call bbgw_allom(dbh,ipft,bgw_c_target)
        call bdead_allom(agw_c_target,bgw_c_target, sapw_c_target, ipft, struct_c_target)
 
@@ -2102,8 +2101,8 @@ contains
 
       ! locals
       integer  :: ipft             ! PFT index
+      integer  :: crowndamage      ! Damage class
       real(r8) :: canopy_trim      ! Canopy trimming function (boundary condition [0-1]
-      integer  :: icrowndamage     ! crown damage index
       real(r8) :: leaf_c_target    ! target leaf biomass, dummy var (kgC)
       real(r8) :: fnrt_c_target    ! target fine-root biomass, dummy var (kgC)
       real(r8) :: sapw_c_target    ! target sapwood biomass, dummy var (kgC)
@@ -2142,16 +2141,16 @@ contains
 
         canopy_trim = intgr_params(acnp_bc_in_id_ctrim)
         ipft        = int(intgr_params(acnp_bc_in_id_pft))
-        icrowndamage = int(intgr_params(acnp_bc_inout_id_cdamage))
-
-        call bleaf(dbh,ipft,icrowndamage, canopy_trim,leaf_c_target,leaf_dcdd_target)
+        crowndamage = int(intgr_params(acnp_bc_in_id_cdamage))
+        
+        call bleaf(dbh,ipft,crowndamage,canopy_trim,leaf_c_target,leaf_dcdd_target)
         call bfineroot(dbh,ipft,canopy_trim,fnrt_c_target,fnrt_dcdd_target)
-        call bsap_allom(dbh,ipft,icrowndamage, canopy_trim,sapw_area,sapw_c_target,sapw_dcdd_target)
-        call bagw_allom(dbh,ipft,icrowndamage, agw_c_target,agw_dcdd_target)
+        call bsap_allom(dbh,ipft,crowndamage,canopy_trim,sapw_area,sapw_c_target,sapw_dcdd_target)
+        call bagw_allom(dbh,ipft,crowndamage,agw_c_target,agw_dcdd_target)
         call bbgw_allom(dbh,ipft,bgw_c_target,bgw_dcdd_target)
         call bdead_allom(agw_c_target,bgw_c_target, sapw_c_target, ipft, struct_c_target, &
                          agw_dcdd_target, bgw_dcdd_target, sapw_dcdd_target, struct_dcdd_target)
-        call bstore_allom(dbh,ipft,icrowndamage,canopy_trim,store_c_target,store_dcdd_target)
+        call bstore_allom(dbh,ipft,crowndamage,canopy_trim,store_c_target,store_dcdd_target)
 
         if (mask_repro) then
            ! fraction of carbon going towards reproduction
