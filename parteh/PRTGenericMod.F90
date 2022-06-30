@@ -1254,9 +1254,10 @@ contains
 
    ! ====================================================================================
 
-   subroutine DailyPRTBase(this)
+   subroutine DailyPRTBase(this,phase)
       
-      class(prt_vartypes) :: this
+     class(prt_vartypes) :: this
+     integer,intent(in)  :: phase  ! We allow this and its children to be broken into phases
       
       write(fates_log(),*)'Daily PRT Allocation must be extended'
       call endrun(msg=errMsg(sourcefile, __LINE__))

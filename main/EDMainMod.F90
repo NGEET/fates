@@ -445,7 +445,7 @@ contains
           ! we don't need to repeat things before allocation for these
           ! newly_recovered cohorts
           
-          if_newlyrecovered: if(.not.newly_recovered) then
+          if_not_newlyrecovered: if(.not.newly_recovered) then
 
              ! Calculate the mortality derivatives
              call Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary )
@@ -500,13 +500,22 @@ contains
              end if
              
              call PRTMaintTurnover(currentCohort%prt,ft,is_drought)
-             
-             ! If the current diameter of a plant is somehow less than what is consistent
-             ! with what is allometrically consistent with the stuctural biomass, then
-             ! correct the dbh to match.
 
-          end if if_newlyrecovered
+
+             ! -----------------------------------------------------------------------------------
+             ! Call the routine that advances leaves in age.
+             ! This will move a portion of the leaf mass in each
+             ! age bin, to the next bin. This will not handle movement
+             ! of mass from the oldest bin into the litter pool, that is something else.
+             ! -----------------------------------------------------------------------------------
+             call currentCohort%prt%AgeLeaves(ft,sec_per_day)
+
+          end if if_not_newlyrecovered
              
+             
+          ! If the current diameter of a plant is somehow less than what is consistent
+          ! with what is allometrically consistent with the stuctural biomass, then
+          ! correct the dbh to match.
           call EvaluateAndCorrectDBH(currentCohort,delta_dbh,delta_hite)
           
           hite_old = currentCohort%hite

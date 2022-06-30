@@ -346,9 +346,9 @@ contains
 
     else if(icode > 10000 ) then
        ! Specific Event: YYYYMMDD
-       damage_date  = icode - int(100* floor(real(icode)/100))
-       damage_year  = floor(real(icode)/10000)
-       damage_month = floor(real(icode)/100) - damage_year*100
+       damage_date  = icode - int(100* floor(real(icode,r8)/100._r8))
+       damage_year  = floor(real(icode,r8)/10000._r8)
+       damage_month = floor(real(icode,r8)/100._r8) - damage_year*100
 
        if(hlm_current_day .eq. damage_date .and. &
             hlm_current_month .eq. damage_month .and. &
@@ -422,7 +422,7 @@ contains
     real(r8) :: class_width
 
     class_width = 1.0_r8/nlevdamage
-    crown_reduction = min(1.0_r8, (real(crowndamage) - 1.0_r8) * class_width)
+    crown_reduction = min(1.0_r8, (real(crowndamage,r8) - 1.0_r8) * class_width)
 
     return
   end subroutine GetCrownReduction
@@ -446,7 +446,7 @@ contains
     real(r8) :: class_width
     real(r8) :: crown_loss
     
-    class_width = 1.0_r8/real(nlevdamage)
+    class_width = 1.0_r8/real(nlevdamage,r8)
     
     ! parameter to determine slope of exponential
     damage_mort_p1 = EDPftvarcon_inst%damage_mort_p1(pft)
@@ -455,7 +455,7 @@ contains
     ! make damage mortality a function of crownloss and not crowndamage
     ! class so that it doesn't need to be re-parameterised if the number
     ! of damage classes change.
-    crown_loss = min(1.0_r8, (real(crowndamage) - 1.0_r8) * class_width)
+    crown_loss = min(1.0_r8, (real(crowndamage,r8) - 1.0_r8) * class_width)
     
     if (crowndamage .eq. 1 ) then
        dgmort = 0.0_r8
