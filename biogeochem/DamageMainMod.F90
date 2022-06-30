@@ -114,8 +114,6 @@ contains
          return
       end if
 
-      cpatch => ccohort%patchptr
-      
       
       ! If we have not returned, then this cohort both has
       ! a damaged status, and the ability to recover from that damage
@@ -197,6 +195,10 @@ contains
             target_repro_m  = 0._r8
             target_store_m = StorageNutrientTarget(ipft, element_list(el), &
                  leaf_target_m, fnrt_target_m, sapw_target_m, struct_target_m)
+            ! For nutrients, all uptake is immediately put into storage, so just swap
+            ! them and assume storage is what is available, but needs to be filled up
+            available_m     = store_m
+            store_m         = 0._r8
          end select
          
          ! 1. What is excess carbon?
@@ -258,7 +260,7 @@ contains
          rcohort%crowndamage = ccohort%crowndamage - 1
          
          ! Need to adjust the crown area which is NOT on a per individual basis
-         call carea_allom(dbh,rcohort%n,site_spread,ipft,rcohort%crowndamage,c_area)
+         call carea_allom(dbh,rcohort%n,csite%spread,ipft,rcohort%crowndamage,rcohort%c_area)
          !rcohort%n/n_old * ccohort%c_area
          !ccohort%c_area = ccohort%c_area - rcohort%c_area
 
