@@ -36,6 +36,7 @@ module EDMainMod
   use EDCohortDynamicsMod      , only : sort_cohorts
   use EDCohortDynamicsMod      , only : count_cohorts
   use EDCohortDynamicsMod      , only : EvaluateAndCorrectDBH
+  use EDCohortDynamicsMod      , only : DamageRecovery
   use EDPatchDynamicsMod       , only : disturbance_rates
   use EDPatchDynamicsMod       , only : fuse_patches
   use EDPatchDynamicsMod       , only : spawn_patches
