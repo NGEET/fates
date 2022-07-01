@@ -1383,6 +1383,7 @@ contains
          hlm_use_sp = unset_int
          hlm_use_inventory_init = unset_int
          hlm_inventory_ctrl_file = 'unset'
+         hlm_use_tree_damage = unset_int
 
       case('check_allset')
          
@@ -1538,11 +1539,6 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(hlm_use_tree_damage .eq. itrue) then
-            write(fates_log(),*) 'hlm_use_tree_damage is not available yet, value: ',hlm_use_tree_damage,' ,set to false'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
-         
          if(hlm_nitrogen_spec .eq. unset_int) then
             write(fates_log(),*) 'FATES parameters unset: hlm_nitrogen_spec, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
