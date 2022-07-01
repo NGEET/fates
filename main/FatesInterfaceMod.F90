@@ -1383,7 +1383,6 @@ contains
          hlm_use_sp = unset_int
          hlm_use_inventory_init = unset_int
          hlm_inventory_ctrl_file = 'unset'
-         hlm_use_tree_damage = unset_int
 
       case('check_allset')
          
@@ -1534,7 +1533,7 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(hlm_use_tree_damage .eq. unset_int .or. hlm_use_tree_damage .eq. itrue) then
+         if(hlm_use_tree_damage .eq. unset_int) then
             write(fates_log(),*) 'FATES dimension/parameter unset: hlm_use_tree_damage, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
