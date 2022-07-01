@@ -30,6 +30,7 @@ Module EDCohortDynamicsMod
   use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod            , only : nclmax
   use PRTGenericMod         , only : element_list
+  use PRTGenericMod         , only : StorageNutrientTarget
   use FatesLitterMod        , only : ncwd
   use FatesLitterMod        , only : ndcmpy
   use FatesLitterMod        , only : litter_type
@@ -68,6 +69,7 @@ Module EDCohortDynamicsMod
   use FatesAllometryMod  , only : bdead_allom
   use FatesAllometryMod  , only : h_allom
   use FatesAllometryMod  , only : carea_allom
+  use FatesAllometryMod  , only : bstore_allom
   use FatesAllometryMod  , only : ForceDBH
   use FatesAllometryMod  , only : tree_lai, tree_sai
   use FatesAllometryMod    , only : set_root_fraction
@@ -102,6 +104,7 @@ Module EDCohortDynamicsMod
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_nneed
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_pneed
   use DamageMainMod,          only : GetCrownReduction
+  use DamageMainMod,          only : undamaged_class
 
   use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)
 
