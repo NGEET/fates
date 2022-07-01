@@ -43,7 +43,7 @@ module EDInitMod
   use FatesInterfaceTypesMod         , only : hlm_use_planthydro
   use FatesInterfaceTypesMod         , only : hlm_use_inventory_init
   use FatesInterfaceTypesMod         , only : hlm_use_fixed_biogeog
-  use FatesInterfaceTypesMod         , only : hlm_use_crown_damage
+  use FatesInterfaceTypesMod         , only : hlm_use_tree_damage
   use FatesInterfaceTypesMod         , only : hlm_use_sp
   use FatesInterfaceTypesMod         , only : numpft
   use FatesInterfaceTypesMod         , only : nleafage
@@ -131,7 +131,7 @@ contains
     allocate(site_in%mass_balance(1:num_elements))
     allocate(site_in%flux_diags(1:num_elements))
 
-    if (hlm_use_crown_damage .eq. itrue) then 
+    if (hlm_use_tree_damage .eq. itrue) then 
        allocate(site_in%term_nindivs_canopy_damage(1:nlevdamage, 1:nlevsclass, 1:numpft))
        allocate(site_in%term_nindivs_ustory_damage(1:nlevdamage, 1:nlevsclass, 1:numpft))
        allocate(site_in%imort_rate_damage(1:nlevdamage, 1:nlevsclass, 1:numpft))

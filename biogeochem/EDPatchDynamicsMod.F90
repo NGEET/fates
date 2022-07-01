@@ -7,6 +7,7 @@ module EDPatchDynamicsMod
   use FatesGlobals         , only : FatesWarn,N2S,A2S
   use FatesInterfaceTypesMod    , only : hlm_freq_day
   use FatesInterfaceTypesMod    , only : hlm_days_per_year
+  use FatesInterfaceTypesMod, only : hlm_use_tree_damage
   use EDPftvarcon          , only : EDPftvarcon_inst
   use EDPftvarcon          , only : GetDecompyFrac
   use PRTParametersMod      , only : prt_params
@@ -463,7 +464,6 @@ contains
     use PRTLossFluxesMod    , only : PRTDamageLosses
     use PRTGenericMod       , only : leaf_organ
     use ChecksBalancesMod   , only : SiteMassStock
-    use FatesInterfaceTypesMod, only : hlm_use_crown_damage
     use FatesInterfaceTypesMod, only : nlevdamage
     use FatesParameterDerivedMod, only : param_derived
     use EDParamsMod         , only : damage_canopy_layer_code
@@ -754,7 +754,7 @@ contains
 
              
              ! and the damaged trees
-             if(hlm_use_crown_damage .eq. itrue) then
+             if(hlm_use_tree_damage .eq. itrue) then
                 if(damage_time) then 
 
                    call damage_litter_fluxes(currentSite, currentPatch, &
@@ -899,7 +899,7 @@ contains
                               total_c * g_per_kg * days_per_sec * years_per_day * ha_per_m2
 
 
-                         if (hlm_use_crown_damage .eq. itrue) then
+                         if (hlm_use_tree_damage .eq. itrue) then
 
                             currentSite%imort_rate_damage(currentCohort%crowndamage, &
                                  currentCohort%size_class, currentCohort%pft) = &
@@ -1013,7 +1013,7 @@ contains
                    end if
                    
                    ! also track fire damage mortality and cflux along size x damage axis
-                   if(hlm_use_crown_damage .eq. itrue) then
+                   if(hlm_use_tree_damage .eq. itrue) then
                       if(levcan==ican_upper) then
                          currentSite%fmort_rate_canopy_damage(currentCohort%crowndamage, currentCohort%size_class, &
                               currentCohort%pft) = &
@@ -1172,7 +1172,7 @@ contains
                               logging_coll_under_frac/ hlm_freq_day ) * &
                               total_c * g_per_kg * days_per_sec * years_per_day * ha_per_m2
 
-                         if (hlm_use_crown_damage .eq. itrue) then 
+                         if (hlm_use_tree_damage .eq. itrue) then 
                             currentSite%imort_rate_damage(currentCohort%crowndamage,&
                                  currentCohort%size_class, currentCohort%pft) = &
                                  currentSite%imort_rate_damage(currentCohort%crowndamage,&
@@ -1247,7 +1247,7 @@ contains
 
                 
                 ! Regardless of disturbance type, reduce mass of damaged trees
-                if(hlm_use_crown_damage .eq. itrue) then
+                if(hlm_use_tree_damage .eq. itrue) then
                    if(damage_time) then
 
                       ! if woody
@@ -2378,7 +2378,6 @@ contains
     use FatesInterfaceTypesMod , only : nlevdamage
     use EDParamsMod      , only : ED_val_understorey_death
     use EDParamsMod      , only : damage_canopy_layer_code
-    use FatesInterfaceTypesMod, only : hlm_use_crown_damage
     use FatesConstantsMod,      only : itrue
     use FatesParameterDerivedMod, only : param_derived
     !
@@ -2493,7 +2492,7 @@ contains
 
           if(prt_params%woody(currentCohort%pft)==1) then
 
-             if( hlm_use_crown_damage .eq.itrue .and. & 
+             if( hlm_use_tree_damage .eq.itrue .and. & 
                   currentCohort%canopy_layer ==1 .and. i_damage_code .eq. 1 .and. &
                   .not. currentCohort%isnew) then
 
@@ -2501,7 +2500,7 @@ contains
                 num_trees = currentCohort%n * (1.0_r8 - fates_mortality_disturbance_fraction * &
                      min(1.0_r8, currentCohort%dmort* hlm_freq_day))
 
-             else if( hlm_use_crown_damage .eq.itrue .and. &
+             else if( hlm_use_tree_damage .eq.itrue .and. &
                   currentCohort%canopy_layer > 1 .and. i_damage_code .eq. 2 .and. &
                   .not. currentCohort%isnew) then
 

@@ -629,7 +629,7 @@ module PRTAllometricCarbonMod
 
          end if
 
-      elseif( (phase.eq.2) .and. ( carbon_balance > calloc_abs_error ) then
+      elseif( (phase.eq.2) .and. ( carbon_balance > calloc_abs_error )) then
 
          ! -----------------------------------------------------------------------------------
          ! VIII.  If carbon is yet still available ...

@@ -20,6 +20,7 @@ module FatesRestartInterfaceMod
   use FatesInterfaceTypesMod,       only : hlm_use_planthydro
   use FatesInterfaceTypesMod,       only : hlm_use_sp
   use FatesInterfaceTypesMod,       only : fates_maxElementsPerSite
+  use FatesInterfaceTypesMod, only : hlm_use_tree_damage
   use EDCohortDynamicsMod,     only : UpdateCohortBioPhysRates
   use FatesHydraulicsMemMod,   only : nshell
   use FatesHydraulicsMemMod,   only : n_hypool_ag
@@ -1792,7 +1793,6 @@ contains
 
  subroutine set_restart_vectors(this,nc,nsites,sites)
 
-   use FatesInterfaceTypesMod, only : hlm_use_crown_damage
    use FatesInterfaceTypesMod, only : fates_maxElementsPerPatch
    use FatesInterfaceTypesMod, only : numpft
    use EDTypesMod, only : ed_site_type
@@ -1970,9 +1970,7 @@ contains
            rio_promcflux_si            => this%rvars(ir_promcflux_si)%r81d, &
            rio_imortcflux_sipft        => this%rvars(ir_imortcflux_sipft)%r81d, &
            rio_fmortcflux_cano_sipft   => this%rvars(ir_fmortcflux_cano_sipft)%r81d, &
-           rio_fmortcflux_usto_sipft   => this%rvars(ir_fmortcflux_usto_sipft)%r81d)
-
-           ! damage
+           rio_fmortcflux_usto_sipft   => this%rvars(ir_fmortcflux_usto_sipft)%r81d, &
            rio_imortrate_sicdpf        => this%rvars(ir_imortrate_sicdpf)%r81d, &
            rio_imortcflux_sicdsc       => this%rvars(ir_imortcflux_sicdsc)%r81d, &
            rio_termcflux_cano_sicdsc   => this%rvars(ir_termcflux_cano_sicdsc)%r81d, &
@@ -2379,7 +2377,7 @@ contains
 
           ! this only copies live portions of transitions - but that's ok because the mortality
           ! bit only needs to be added for history outputs
-          if(hlm_use_crown_damage .eq. itrue) then
+          if(hlm_use_tree_damage .eq. itrue) then
              
              do i_scls = 1, nlevsclass
                 do i_cdam = 1, nlevdamage
@@ -2708,8 +2706,6 @@ contains
      use EDTypesMod, only : numWaterMem
      use EDTypesMod, only : num_vegtemp_mem
      use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
-     use FatesInterfaceTypesMod, only : hlm_use_crown_damage
-    
      
      ! !ARGUMENTS:
      class(fates_restart_interface_type) , intent(inout) :: this
@@ -2870,13 +2866,9 @@ contains
           rio_promcflux_si            => this%rvars(ir_promcflux_si)%r81d, &
           rio_termcarea_cano_si       => this%rvars(ir_termcarea_cano_si)%r81d, &
           rio_termcarea_usto_si       => this%rvars(ir_termcarea_usto_si)%r81d, &
-          
           rio_imortcarea_si           => this%rvars(ir_imortcarea_si)%r81d, &
           rio_fmortcarea_cano_si      => this%rvars(ir_fmortcarea_cano_si)%r81d, &
           rio_fmortcarea_usto_si      => this%rvars(ir_fmortcarea_usto_si)%r81d, &
-
-          
-          ! Damage
           rio_imortrate_sicdpf        => this%rvars(ir_imortrate_sicdpf)%r81d, &
           rio_termnindiv_cano_sicdpf  => this%rvars(ir_termnindiv_cano_sicdpf)%r81d, &
           rio_termnindiv_usto_sicdpf  => this%rvars(ir_termnindiv_usto_sicdpf)%r81d, &
@@ -2888,7 +2880,7 @@ contains
           rio_fmortcflux_cano_sicdsc  => this%rvars(ir_fmortcflux_cano_sicdsc)%r81d, &
           rio_fmortcflux_usto_sicdsc  => this%rvars(ir_fmortcflux_usto_sicdsc)%r81d, &
           rio_crownarea_cano_damage_si=> this%rvars(ir_crownarea_cano_si)%r81d, &
-          rio_crownarea_usto_damage_si=> this%rvars(ir_crownarea_usto_si)%r81d )
+          rio_crownarea_usto_damage_si=> this%rvars(ir_crownarea_usto_si)%r81d, &
           rio_imortcflux_sipft        => this%rvars(ir_imortcflux_sipft)%r81d, &
           rio_fmortcflux_cano_sipft   => this%rvars(ir_fmortcflux_cano_sipft)%r81d, &
           rio_fmortcflux_usto_sipft   => this%rvars(ir_fmortcflux_usto_sipft)%r81d)
@@ -3308,7 +3300,7 @@ contains
              io_idx_si_sc = io_idx_si_sc + 1
           end do
           
-          if (hlm_use_crown_damage .eq. itrue) then
+          if (hlm_use_tree_damage .eq. itrue) then
              do i_cdam = 1, nlevdamage
                 do i_pft = 1, numpft
                    do i_scls = 1, nlevsclass

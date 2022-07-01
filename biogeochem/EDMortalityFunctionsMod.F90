@@ -19,7 +19,7 @@ module EDMortalityFunctionsMod
    use FatesInterfaceTypesMod     , only : hlm_use_ed_prescribed_phys
    use FatesInterfaceTypesMod     , only : hlm_freq_day
    use FatesInterfaceTypesMod     , only : hlm_use_planthydro
-   use FatesInterfaceTypesMod     , only : hlm_use_crown_damage
+   use FatesInterfaceTypesMod     , only : hlm_use_tree_damage
    use EDLoggingMortalityMod , only : LoggingMortality_frac
    use EDParamsMod           , only : fates_mortality_disturbance_fraction
 
@@ -123,7 +123,7 @@ contains
     end if
 
     ! Damage dependent mortality
-    if (hlm_use_crown_damage .eq. itrue) then
+    if (hlm_use_tree_damage .eq. itrue) then
        call GetDamageMortality(cohort_in%crowndamage, cohort_in%pft, dgmort)
     else
        dgmort = 0.0_r8

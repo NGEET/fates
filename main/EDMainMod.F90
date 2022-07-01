@@ -19,7 +19,7 @@ module EDMainMod
   use FatesInterfaceTypesMod        , only : hlm_use_cohort_age_tracking
   use FatesInterfaceTypesMod        , only : hlm_reference_date
   use FatesInterfaceTypesMod        , only : hlm_use_ed_prescribed_phys
-  use FatesInterfaceTypesMod        , only : hlm_use_crown_damage
+  use FatesInterfaceTypesMod        , only : hlm_use_tree_damage
   use FatesInterfaceTypesMod        , only : hlm_use_ed_st3
   use FatesInterfaceTypesMod        , only : hlm_use_sp
   use FatesInterfaceTypesMod        , only : bc_in_type
@@ -361,7 +361,10 @@ contains
     real(r8) :: delta_dbh             ! correction for dbh
     real(r8) :: delta_hite            ! correction for hite
     real(r8) :: current_npp           ! place holder for calculating npp each year in prescribed physiology mode
-
+    logical  :: newly_recovered       ! If the current loop is dealing with a newly created cohort, which
+                                      ! was created because it is a clone of the previous cohort in
+                                      ! a lowered damage state. This cohort should bypass several calculations
+                                      ! because it inherited them (such as daily carbon balance)
     real(r8) :: target_leaf_c
     real(r8) :: frac_site_primary
 
@@ -540,7 +543,7 @@ contains
           call currentCohort%prt%DailyPRT(phase=1)
           
           if((newly_recovered .eq. .false.)  .and. &
-             (hlm_use_crown_damage .eq. itrue) ) then
+             (hlm_use_tree_damage .eq. itrue) ) then
              ! The loop order is shortest to tallest
              ! The recovered cohort (ie one with larger targets)
              ! is newly created in DamageRecovery(), and

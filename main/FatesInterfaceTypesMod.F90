@@ -146,21 +146,6 @@ module FatesInterfaceTypesMod
                                                   ! cohort age tracking. 1 = TRUE, 0 = FALSE
 
 
-<<<<<<< HEAD
-   integer, public :: hlm_use_crown_damage ! This flag signals whether or not to use
-                                                             ! the crown damage module. 1 = TRUE, 0 = FALSE
-
-   
-   integer, public :: hlm_use_ed_st3        ! This flag signals whether or not to use
-                                                       ! (ST)atic (ST)and (ST)ructure mode (ST3)
-                                                       ! Essentially, this gives us the ability
-                                                       ! to turn off "dynamics", ie growth, disturbance
-                                                       ! recruitment and mortality.
-                                                       ! (EXPERIMENTAL!!!!! - RGK 07-2017)
-                                                       ! 1 = TRUE, 0 = FALSE
-                                                       ! default should be FALSE (dynamics on)
-                                                       ! cannot be true with prescribed_phys
-=======
    integer, public :: hlm_use_tree_damage         ! This flag signals whether or not to turn on the
                                                   ! tree damage module
    
@@ -173,7 +158,6 @@ module FatesInterfaceTypesMod
                                                   ! 1 = TRUE, 0 = FALSE
                                                   ! default should be FALSE (dynamics on)
                                                   ! cannot be true with prescribed_phys
->>>>>>> master
 
    integer, public :: hlm_use_ed_prescribed_phys ! This flag signals whether or not to use
                                                             ! prescribed physiology, somewhat the opposite
@@ -255,13 +239,6 @@ module FatesInterfaceTypesMod
    real(r8), public, allocatable :: fates_hdim_levsclass(:)        ! plant size class lower bound dimension
    integer , public, allocatable :: fates_hdim_pfmap_levscpf(:)    ! map of pfts into size-class x pft dimension
    integer , public, allocatable :: fates_hdim_scmap_levscpf(:)    ! map of size-class into size-class x pft dimension
-   integer , public, allocatable :: fates_hdim_pftmap_levcdpf(:)   ! map of pfts into size x crowndamage x pft dimension
-   integer , public, allocatable :: fates_hdim_cdmap_levcdpf(:)    ! map of crowndamage into size x crowndamage x pft
-   integer , public, allocatable :: fates_hdim_scmap_levcdpf(:)    ! map of size into size x crowndamage x pft
-   integer , public, allocatable :: fates_hdim_cdmap_levcdsc(:)    ! map of crowndamage into size x crowndamage
-   integer , public, allocatable :: fates_hdim_scmap_levcdsc(:)    ! map of size into size x crowndamage
-   integer , public, allocatable :: fates_hdim_levdamage(:)        ! plant damage class lower bound dimension
-   
    real(r8), public, allocatable :: fates_hdim_levage(:)           ! patch age lower bound dimension
    real(r8), public, allocatable :: fates_hdim_levheight(:)        ! height lower bound dimension
    integer , public, allocatable :: fates_hdim_levpft(:)           ! plant pft dimension
@@ -554,7 +531,7 @@ module FatesInterfaceTypesMod
       character(len=64), allocatable :: hlm_harvest_catnames(:)  ! names of hlm_harvest d1
 
       integer :: hlm_harvest_units  ! what units are the harvest rates specified in? [area vs carbon]
-    
+
       ! Fixed biogeography mode 
       real(r8), allocatable :: pft_areafrac(:)     ! Fractional area of the FATES column occupied by each PFT  
     
@@ -744,6 +721,7 @@ module FatesInterfaceTypesMod
                                                        ! This does seem unlikely, but we need accomodate
                                                        ! small fluxes for various reasons
                                                        ! [mm H2O/s]
+
 
       ! FATES LULCC
       real(r8) :: hrv_deadstemc_to_prod10c   ! Harvested C flux to 10-yr wood product pool [Site-Level, gC m-2 s-1]

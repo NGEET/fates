@@ -11,7 +11,7 @@ Module EDCohortDynamicsMod
   use FatesInterfaceTypesMod     , only : hlm_use_planthydro
   use FatesInterfaceTypesMod     , only : hlm_use_sp
   use FatesInterfaceTypesMod     , only : hlm_use_cohort_age_tracking
-  use FatesInterfaceTypesMod     , only : hlm_use_crown_damage
+  use FatesInterfaceTypesMod     , only : hlm_use_tree_damage
   use FatesInterfaceTypesMod     , only : hlm_is_restart
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : fates_unset_int
@@ -88,7 +88,6 @@ Module EDCohortDynamicsMod
   use PRTAllometricCarbonMod, only : callom_prt_vartypes
   use PRTAllometricCarbonMod, only : ac_bc_inout_id_netdc
   use PRTAllometricCarbonMod, only : ac_bc_in_id_pft
-  use PRTAllometricCarbonMod, only : ac_bc_inout_id_n
   use PRTAllometricCarbonMod, only : ac_bc_in_id_ctrim
   use PRTAllometricCarbonMod, only : ac_bc_inout_id_dbh
   use PRTAllometricCarbonMod, only : ac_bc_in_id_lstat, ac_bc_in_id_cdamage

@@ -4,15 +4,22 @@ module DamageMainMod
   use FatesConstantsMod     , only : i4 => fates_int
   use FatesConstantsMod     , only : itrue, ifalse
   use FatesConstantsMod     , only : years_per_day
+  use FatesConstantsMod     , only : nearzero
   use FatesGlobals          , only : fates_log
   use FatesGlobals          , only : endrun => fates_endrun
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   use EDPftvarcon           , only : EDPftvarcon_inst
   use EDParamsMod           , only : damage_event_code
-  use EDtypesMod            , only : ed_site_type
-  use EDtypesMod            , only : ed_patch_type
-  use EDtypesMod            , only : ed_cohort_type
-  use EDtypesMod            , only : AREA
+  use EDTypesMod            , only : ed_site_type
+  use EDTypesMod            , only : ed_patch_type
+  use EDTypesMod            , only : ed_cohort_type
+  use EDTypesMod            , only : AREA
+  use EDTypesMod            , only : leaves_on
+  use PRTGenericMod,          only : num_elements
+  use PRTGenericMod,          only : element_list
+  use PRTGenericMod,          only : carbon12_element
+  use PRTGenericMod,          only : nitrogen_element
+  use PRTGenericMod,          only : phosphorus_element
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : carbon12_element
   use PRTGenericMod,          only : all_carbon_elements
@@ -23,13 +30,25 @@ module DamageMainMod
   use PRTGenericMod,          only : repro_organ
   use PRTGenericMod,          only : struct_organ
   use PRTGenericMod,          only : SetState
+  use PRTGenericMod,          only : StorageNutrientTarget
+  use PRTParametersMod,       only : prt_params
   use FatesInterfaceTypesMod, only : hlm_current_day
   use FatesInterfaceTypesMod, only : hlm_current_month
   use FatesInterfaceTypesMod, only : hlm_current_year
   use FatesInterfaceTypesMod, only : hlm_model_day
-  use FatesInterfaceTypesMod , only : hlm_day_of_year
-  
-  
+  use FatesInterfaceTypesMod, only : hlm_day_of_year
+  use FatesInterfaceTypesMod, only : hlm_use_planthydro
+  use FatesAllometryMod,      only : bsap_allom
+  use FatesAllometryMod,      only : bagw_allom
+  use FatesAllometryMod,      only : bbgw_allom
+  use FatesAllometryMod,      only : bdead_allom
+  use FatesAllometryMod,      only : bfineroot
+  use FatesAllometryMod,      only : bstore_allom
+  use FatesAllometryMod,      only : bleaf
+  use EDCohortDynamicsMod,   only : copy_cohort
+  use FatesPlantHydraulicsMod, only : InitHydrCohort
+  use EDCohortDynamicsMod  , only : InitPRTObject
+  use EDCohortDynamicsMod  , only : InitPRTBoundaryConditions
   
   implicit none
   private
@@ -77,26 +96,34 @@ contains
 
     type(ed_site_type)   :: csite            ! Site of the current cohort
     type(ed_patch_type)  :: cpatch           ! patch of the current cohort
-    type(ed_cohort_type) :: ccohort          ! Current (damaged) cohort
+    type(ed_cohort_type),pointer :: ccohort  ! Current (damaged) cohort
     logical              :: newly_recovered  ! true if we create a new cohort
 
     ! locals
     type(ed_cohort_type), pointer :: rcohort ! New cohort that recovers by
                                              ! having an lower damage class
-    real(r8) :: sapw_area
-    real(r8) :: target_sapw_c,target_sapw_m
-    real(r8) :: target_agw_c
-    real(r8) :: target_bgw_c
-    real(r8) :: target_struct_c,target_struct_m
-    real(r8) :: target_fnrt_c,target_fnrt_m
-    real(r8) :: target_leaf_c,target_leaf_m
-    real(r8) :: target_store_c,target_store_m
-    real(r8) :: target_repro_m
-    real(r8) :: mass_d
-    real(r8) :: mass_dminus1
-    real(r8) :: recovery_demand
-    real(r8) :: max_recover_nplant
-    real(r8) :: nplant_recover
+    real(r8) :: sapw_area                    ! sapwood area
+    real(r8) :: target_sapw_c,target_sapw_m  ! sapwood mass, C and N/P
+    real(r8) :: target_agw_c                 ! target above ground wood
+    real(r8) :: target_bgw_c                    ! target below ground wood
+    real(r8) :: target_struct_c,target_struct_m ! target structural C and N/P
+    real(r8) :: target_fnrt_c,target_fnrt_m     ! target fine-root C and N/P
+    real(r8) :: target_leaf_c,target_leaf_m     ! target leaf C and N/P
+    real(r8) :: target_store_c,target_store_m   ! target storage C and N/P
+    real(r8) :: target_repro_m                  ! target reproductive C/N/P
+    real(r8) :: leaf_m,fnrt_m,sapw_m            ! actual masses in organs C/N/P
+    real(r8) :: struct_m,store_m,repro_m        ! actual masses in organs C/N/P
+    real(r8) :: mass_d                          ! intermediate term for nplant_recover
+    real(r8) :: mass_dminus1                    ! intermediate term for nplant_recover
+    real(r8) :: available_m                     ! available mass that can be used to 
+                                                ! improve damage class
+    real(r8) :: recovery_demand                 ! amount of mass needed to get to 
+                                                ! get to the target of the next damage class
+    real(r8) :: max_recover_nplant              ! max number of plants that could get to
+                                                ! target of next class
+    real(r8) :: nplant_recover                  ! number of plants in cohort that will
+                                                ! recover to the next class
+    integer  :: el                                ! element loop counter
     
     associate(dbh => ccohort%dbh, &
          ipft => ccohort%pft, &
@@ -109,7 +136,7 @@ contains
       ! then no recovery is possible, do nothing and
       ! return a null pointer
       if ((ccohort%crowndamage == undamaged_class) .or. &
-           (damage_recovery_scalar < nearzero) ) then
+           (EDPftvarcon_inst%damage_recovery_scalar(ipft) < nearzero) ) then
          newly_recovered = .false.
          return
       end if
@@ -134,10 +161,10 @@ contains
       ! Target fine-root biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
       call bfineroot(dbh,ipft,canopy_trim,target_fnrt_c)
       ! Target storage carbon [kgC,kgC/cm]
-      call bstore_allom(dbh,ipft,crowndamage-1, canopy_trim,target_store_c)
+      call bstore_allom(dbh,ipft,ccohort%crowndamage-1, canopy_trim,target_store_c)
       ! Target leaf biomass according to allometry and trimming
       if(ccohort%status_coh==leaves_on) then
-         call bleaf(dbh,ipft,crowndamage-1, canopy_trim,target_leaf_c)
+         call bleaf(dbh,ipft,ccohort%crowndamage-1, canopy_trim,target_leaf_c)
       else
          target_leaf_c = 0._r8
       end if
@@ -178,7 +205,7 @@ contains
                  prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(sapw_organ))
             target_repro_m  = 0._r8
             target_store_m = StorageNutrientTarget(ipft, element_list(el), &
-                 leaf_target_m, fnrt_target_m, sapw_target_m, struct_target_m)
+                 target_leaf_m, target_fnrt_m, target_sapw_m, target_struct_m)
             ! For nutrients, all uptake is immediately put into storage, so just swap
             ! them and assume storage is what is available, but needs to be filled up
             available_m     = store_m
@@ -194,7 +221,7 @@ contains
                  prt_params%phos_stoich_p1(ipft,prt_params%organ_param_id(sapw_organ))
             target_repro_m  = 0._r8
             target_store_m = StorageNutrientTarget(ipft, element_list(el), &
-                 leaf_target_m, fnrt_target_m, sapw_target_m, struct_target_m)
+                 target_leaf_m, target_fnrt_m, target_sapw_m, target_struct_m)
             ! For nutrients, all uptake is immediately put into storage, so just swap
             ! them and assume storage is what is available, but needs to be filled up
             available_m     = store_m
@@ -212,7 +239,7 @@ contains
          
          mass_dminus1 = max(leaf_m, target_leaf_m) + max(fnrt_m, target_fnrt_m) + &
               max(store_m, target_store_m) + max(sapw_m, target_sapw_m) + &
-              max(struct_m, target_struct_m)) 
+              max(struct_m, target_struct_m)
          
          ! Mass needed to get from current mass to allometric
          ! target mass of next damage class up
@@ -222,7 +249,8 @@ contains
          max_recover_nplant =  available_m * ccohort%n / recovery_demand 
          
          ! 4. Use the scalar to decide how many to recover
-         nplant_recover = min(nplant_recover,max(0._r8,max_recover_nplant * damage_recovery_scalar))
+         nplant_recover = min(nplant_recover,max(0._r8,max_recover_nplant * &
+                              EDPftvarcon_inst%damage_recovery_scalar(ipft) ))
          
       end do
           
@@ -233,10 +261,10 @@ contains
       ! allowing the donor cohort to recover and then go through
       ! prt - will this work though? if they are not anywhere near allometry?
       
-      if( abs(damage_recovery_scalar-1._r8) < nearzero .and. &
+      if( abs(EDPftvarcon_inst%damage_recovery_scalar(ipft)-1._r8) < nearzero .and. &
            nplant_recover > ccohort%n) then
          nplant_recover = 0.0_r8
-         crowndamage = crowndamage - 1
+         ccohort%crowndamage = ccohort%crowndamage - 1
       end if
 
       if(nplant_recover < nearzero) then

@@ -2219,7 +2219,7 @@ contains
             
             ! Update the cohort level lai and related variables
             call UpdateCohortLAI(currentCohort,currentPatch%canopy_layer_tlai,  &
-                 currentPatch%total_canopy_area, currentSite%spread)
+                 currentPatch%total_canopy_area)
             
             ! Update the number of number of vegetation layers
             currentPatch%ncan(cl,ft) = max(currentPatch%ncan(cl,ft),currentCohort%NV)
