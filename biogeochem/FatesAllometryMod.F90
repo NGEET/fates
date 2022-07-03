@@ -497,16 +497,16 @@ contains
        case(1)
           dbh_eff = min(dbh,dbh_maxh)
           call carea_2pwr(dbh_eff,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max, &
-               c_area,do_inverse, crowndamage)
+               crowndamage,c_area, do_inverse)
           capped_allom = .true.
        case(2)   ! "2par_pwr")
-          call carea_2pwr(dbh,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area, &
-               do_inverse, crowndamage)
+          call carea_2pwr(dbh,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max, & 
+               crowndamage, c_area, do_inverse)
           capped_allom = .false.
        case(3)
           dbh_eff = min(dbh,dbh_maxh)
           call carea_2pwr(dbh_eff,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max, &
-               c_area,do_inverse, crowndamage)
+               crowndamage, c_area, do_inverse)
           capped_allom = .true.
        case DEFAULT
           write(fates_log(),*) 'An undefined leaf allometry was specified: ', &
@@ -2083,7 +2083,8 @@ contains
   ! =============================================================================
 
   
-  subroutine carea_2pwr(dbh,spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area,inverse,crowndamage)
+  subroutine carea_2pwr(dbh,spread,d2bl_p2,d2bl_ediff,d2ca_min, & 
+                       d2ca_max,crowndamage,c_area,inverse)
 
      ! ============================================================================
      ! Calculate area of ground covered by entire cohort. (m2)
@@ -2096,9 +2097,9 @@ contains
      real(r8),intent(in) :: d2bl_ediff  ! area difference factor in the diameter-bleaf allometry (exponent)
      real(r8),intent(in) :: d2ca_min    ! minimum diameter to crown area scaling factor
      real(r8),intent(in) :: d2ca_max    ! maximum diameter to crown area scaling factor
+     integer,intent(in)  :: crowndamage ! crowndamage class [1: undamaged, >1: damaged]
      real(r8),intent(inout) :: c_area   ! crown area for one plant [m2]
      logical,intent(in)  :: inverse     ! if true, calculate dbh from crown area rather than its reverse
-     integer,intent(in)  :: crowndamage ! crowndamage class [1: undamaged, >1: damaged]
      
      real(r8)            :: crown_area_to_dbh_exponent
      real(r8)            :: spreadterm  ! Effective 2bh to crown area scaling factor

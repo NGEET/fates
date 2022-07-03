@@ -470,14 +470,11 @@ contains
                currentCohort%n, currentCohort%canopy_layer,               &
                currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )
 
-          call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread,currentCohort%pft,&
-               1, target_c_area)
-
           ! We don't need check on sp mode here since we don't trim_canopy with sp mode
           currentCohort%treesai = tree_sai(currentCohort%pft, &
                currentCohort%dbh, currentCohort%crowndamage,  &
                currentCohort%canopy_trim, &
-               target_c_area, currentCohort%n,currentCohort%canopy_layer,& 
+               currentCohort%c_area, currentCohort%n,currentCohort%canopy_layer,& 
                currentPatch%canopy_layer_tlai, currentCohort%treelai, &
                currentCohort%vcmax25top,0 )  
 
