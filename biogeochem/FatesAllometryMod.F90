@@ -2404,7 +2404,7 @@ contains
   end function decay_coeff_kn
 
   ! =====================================================================================
-subroutine ForceDBH( ipft, canopy_trim, d, h, bdead, bl, crowndamage)
+subroutine ForceDBH( ipft, crowndamage, canopy_trim, d, h, bdead, bl )
 
      ! =========================================================================
      ! This subroutine estimates the diameter based on either the structural biomass
@@ -2419,7 +2419,7 @@ subroutine ForceDBH( ipft, canopy_trim, d, h, bdead, bl, crowndamage)
 
 
      integer(i4),intent(in)        :: ipft  ! PFT index
-     integer(i4),intent(in),optional :: crowndamage ! crowndamage [1: undamaged, >1: damaged]
+     integer(i4),intent(in)        :: crowndamage ! crowndamage [1: undamaged, >1: damaged]
      real(r8),intent(in)           :: canopy_trim
      real(r8),intent(inout)        :: d     ! plant diameter [cm]
      real(r8),intent(out)          :: h     ! plant height
@@ -2504,7 +2504,7 @@ subroutine ForceDBH( ipft, canopy_trim, d, h, bdead, bl, crowndamage)
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
 
-        call bleaf(d,ipft,1,canopy_trim,bt_leaf,dbt_leaf_dd)
+        call bleaf(d,ipft,crowndamage,canopy_trim,bt_leaf,dbt_leaf_dd)
 
         counter = 0
         step_frac = step_frac0
@@ -2513,7 +2513,7 @@ subroutine ForceDBH( ipft, canopy_trim, d, h, bdead, bl, crowndamage)
            dd    = step_frac*(bl-bt_leaf)/dbt_leaf_dd
            d_try = d + dd
            
-           call bleaf(d_try,ipft,1,canopy_trim,bt_leaf_try,dbt_leaf_dd_try)
+           call bleaf(d_try,ipft,crowndamage,canopy_trim,bt_leaf_try,dbt_leaf_dd_try)
 
            ! Prevent overshooting                                                                                           
            if(bt_leaf_try > (bl+calloc_abs_error)) then

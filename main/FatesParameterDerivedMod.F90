@@ -66,10 +66,9 @@ contains
   ! =====================================================================================
 
  ! ===================================================================================
-  subroutine InitAllocateDamageTransitions(this,nlevdamage, numpft)
+  subroutine InitAllocateDamageTransitions(this,numpft)
     
     class(param_derived_type), intent(inout) :: this
-    integer, intent(in)                      :: nlevdamage
     integer, intent(in)                      :: numpft
 
     allocate(this%damage_transitions(nlevdamage,nlevdamage, numpft))
@@ -96,6 +95,7 @@ contains
     associate( vcmax25top => EDPftvarcon_inst%vcmax25top ) 
     
       call this%InitAllocate(numpft)
+      call this%InitDamageTransitions(numpft)
       
       do ft = 1,numpft
          
@@ -129,13 +129,12 @@ contains
 
 !=========================================================================
   
-  subroutine InitDamageTransitions(this, nlevdamage, numpft)
+  subroutine InitDamageTransitions(this, numpft)
 
     use EDPftvarcon, only: EDPftvarcon_inst
 
 
     class(param_derived_type), intent(inout) :: this
-    integer, intent(in)                      :: nlevdamage
     integer, intent(in)                      :: numpft
 
     ! local variables
@@ -144,7 +143,7 @@ contains
     real(r8) :: damage_frac       ! damage fraction 
    
    
-    call this%InitAllocateDamageTransitions(nlevdamage, numpft)
+    call this%InitAllocateDamageTransitions(numpft)
     
      do ft = 1, numpft
 

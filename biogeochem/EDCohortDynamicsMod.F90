@@ -1319,10 +1319,10 @@ contains
 
                                          if( prt_params%woody(currentCohort%pft) == itrue ) then
 
-                                            call ForceDBH( currentCohort%pft, currentCohort%canopy_trim, &
+                                            call ForceDBH( currentCohort%pft, currentCohort%crowndamage, & 
+                                                 currentCohort%canopy_trim, &
                                                  currentCohort%dbh, currentCohort%hite, &
-                                                 bdead = currentCohort%prt%GetState(struct_organ,all_carbon_elements), &
-                                                 crowndamage = currentCohort%crowndamage)
+                                                 bdead = currentCohort%prt%GetState(struct_organ,all_carbon_elements))
 
                                          end if
                                          !
@@ -1357,11 +1357,10 @@ contains
                                       ! -----------------------------------------------------------------
                                       !
                                       if( prt_params%woody(currentCohort%pft) == itrue ) then
-                                         call ForceDBH( currentCohort%pft, currentCohort%canopy_trim, &
+                                         call ForceDBH( currentCohort%pft, currentCohort%crowndamage, & 
+                                              currentCohort%canopy_trim, &
                                               currentCohort%dbh, currentCohort%hite, &
-                                              bdead = currentCohort%prt%GetState(struct_organ,all_carbon_elements),&
-                                              crowndamage = currentCohort%crowndamage)
-
+                                              bdead = currentCohort%prt%GetState(struct_organ,all_carbon_elements))
                                       end if
                                       !
                                       call carea_allom(currentCohort%dbh,newn,currentSite%spread,currentCohort%pft,&
@@ -2140,8 +2139,7 @@ contains
 
        if( (struct_c - target_struct_c ) > calloc_abs_error ) then
 
-          call ForceDBH( ipft,canopy_trim, dbh, hite_out, bdead=struct_c, &
-               crowndamage = icrowndamage)
+          call ForceDBH( ipft,icrowndamage,canopy_trim, dbh, hite_out, bdead=struct_c)
 
           delta_dbh = dbh - currentCohort%dbh 
           delta_hite = hite_out - currentCohort%hite
@@ -2158,7 +2156,7 @@ contains
        call bleaf(dbh,ipft,icrowndamage, canopy_trim,target_leaf_c)
 
        if( ( leaf_c - target_leaf_c ) > calloc_abs_error ) then
-          call ForceDBH( ipft, canopy_trim, dbh, hite_out, bl=leaf_c )
+          call ForceDBH( ipft, icrowndamage, canopy_trim, dbh, hite_out, bl=leaf_c )
           delta_dbh = dbh - currentCohort%dbh
           delta_hite = hite_out - currentCohort%hite
           currentCohort%dbh = dbh
