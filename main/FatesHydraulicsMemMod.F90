@@ -29,7 +29,7 @@ module FatesHydraulicsMemMod
    integer, parameter, public                  :: n_hypool_stem  = 1
    integer, parameter, public                  :: n_hypool_troot = 1 ! CANNOT BE CHANGED
    integer, parameter, public                  :: n_hypool_aroot = 1 ! THIS IS "PER-SOIL-LAYER"
-   integer, parameter, public                  :: nshell         = 5
+   integer, parameter, public                  :: nshell         = 1
 
    ! number of aboveground plant water storage nodes
    integer, parameter, public                  :: n_hypool_ag    = n_hypool_leaf+n_hypool_stem

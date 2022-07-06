@@ -934,8 +934,16 @@ contains
     crown_depth  = min(ccohort%hite,0.1_r8)
     z_stem       = ccohort%hite - crown_depth
     v_sapwood    = a_sapwood * z_stem    ! + 0.333_r8*a_sapwood*crown_depth
-    ccohort_hydr%v_ag(n_hypool_leaf+1:n_hypool_ag) = v_sapwood / n_hypool_stem
 
+    ! Junyan changed the following code to calculate the above ground node volume
+    ! foliage donate half of its water volume to xylem for grass
+    if (prt_params%woody(ft)==1) then
+      ccohort_hydr%v_ag(n_hypool_leaf+1:n_hypool_ag) = v_sapwood / n_hypool_stem  ! original code
+    else
+      v_leaf_donate(1:n_hypool_leaf) = ccohort_hydr%v_ag(1:n_hypool_leaf) / l2sap_vol_donate_frac
+      ccohort_hydr%v_ag(1:n_hypool_leaf) = ccohort_hydr%v_ag(1:n_hypool_leaf) - v_leaf_donate(1:n_hypool_leaf)
+      ccohort_hydr%v_ag(n_hypool_leaf+1:n_hypool_ag) = (v_sapwood + sum(v_leaf_donate(1:n_hypool_leaf))) / n_hypool_stem
+    end if 
 
     ! Determine belowground biomass as a function of total (sapwood, heartwood,
     ! leaf, fine root) biomass then subtract out the fine root biomass to get
