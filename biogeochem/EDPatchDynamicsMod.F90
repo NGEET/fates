@@ -47,6 +47,7 @@ module EDPatchDynamicsMod
   use FatesInterfaceTypesMod    , only : hlm_use_sp
   use FatesInterfaceTypesMod    , only : hlm_use_nocomp
   use FatesInterfaceTypesMod    , only : hlm_use_fixed_biogeog
+  use FatesInterfaceTypesMod    , only : hlm_use_tree_damage
   use FatesGlobals         , only : endrun => fates_endrun
   use FatesConstantsMod    , only : r8 => fates_r8
   use FatesConstantsMod    , only : itrue, ifalse
@@ -801,7 +802,7 @@ contains
                               (nc%n * ED_val_understorey_death / hlm_freq_day ) * &
                               total_c * g_per_kg * days_per_sec * years_per_day * ha_per_m2
 
-                         if (hlm_use_crown_damage .eq. itrue) then
+                         if (hlm_use_tree_damage .eq. itrue) then
 
                             currentSite%imort_rate_damage(currentCohort%crowndamage, &
                                  currentCohort%size_class, currentCohort%pft) = &
@@ -914,7 +915,7 @@ contains
                    end if
                    
                    ! also track fire damage mortality and cflux along size x damage axis
-                   if(hlm_use_crown_damage .eq. itrue) then
+                   if(hlm_use_tree_damage .eq. itrue) then
                       if(levcan==ican_upper) then
                          currentSite%fmort_rate_canopy_damage(currentCohort%crowndamage, currentCohort%size_class, &
                               currentCohort%pft) = &
