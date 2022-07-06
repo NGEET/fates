@@ -121,6 +121,7 @@ module EDPhysiologyMod
   public :: ZeroAllocationRates
   public :: PreDisturbanceLitterFluxes
   public :: PreDisturbanceIntegrateLitter
+  public :: GenerateDamageAndLitterFluxes
   public :: SeedIn
 
   logical, parameter :: debug  = .false. ! local debug flag
@@ -186,6 +187,146 @@ contains
     return
   end subroutine ZeroAllocationRates
 
+  ! ============================================================================
+  
+  subroutine GenerateDamageAndLitterFluxes( currentSite, currentPatch, bc_in )
+
+    if(hlm_use_crown_damage .ne. itrue) return
+
+    if(.not.damage_time) return
+
+    currentCohort => currentPatch%tallest
+    do while (associated(currentCohort))
+
+       ! Ignore damage to new plants and non-woody plants
+       if(prt_params%woody(currentCohort%pft)==ifalse  ) cycle
+       if(currentCohort%isnew ) cycle
+
+       agb_frac = prt_params%allom_agb_frac(currentCohort%pft)
+       branch_frac = param_derived%branch_frac(currentCohort%pft)
+
+       do_dclass: do cd = currentCohort%crowndamage+1, nlevdamage
+          
+          call GetDamageFrac(currentCohort%crowndamage, cd, currentCohort%pft, cd_frac)
+
+          ! now to get the number of damaged trees we multiply by damage frac
+          num_trees_cd = currentCohort%n * cd_frac
+
+          ! if non negligable lets create a new cohort and generate some litter
+          if_numtrees: if (num_trees_cd > nearzero ) then
+
+             ! Create a new damaged cohort
+             allocate(nc_d)  ! new cohort surviving but damaged
+             if(hlm_use_planthydro.eq.itrue) call InitHydrCohort(CurrentSite,nc_d)
+             
+             ! Initialize the PARTEH object and point to the
+             ! correct boundary condition fields
+             nc_d%prt => null()
+
+             call InitPRTObject(nc_d%prt)
+             call InitPRTBoundaryConditions(nc_d)
+             call zero_cohort(nc_d)
+             
+             ! nc_canopy_d is the new cohort that gets damaged 
+             call copy_cohort(currentCohort, nc_d)
+             
+             ! new number densities - we just do damaged cohort here -
+             ! undamaged at the end of the cohort loop once we know how many damaged to
+             ! subtract
+             
+             nc_d%n = num_trees_cd
+             nc_d%crowndamage = cd
+
+             ! Remove these trees from the donor cohort
+             currentCohort%n = currentCohort%n - num_trees_cd
+             
+             ! update crown area here - for cohort fusion and canopy organisation below 
+             call carea_allom(nc_d%dbh, nc_d%n, currentSite%spread,&
+                  nc_d%pft, nc_d%crowndamage, nc_d%c_area)
+             
+             call GetCrownReduction(cd, crown_loss_frac)
+
+             do_element: do el = 1, num_elements
+                
+                litt => currentPatch%litter(el)
+                flux_diags => currentSite%flux_diags(el)
+                
+                ! Reduce the mass of the newly damaged cohort
+                ! Fine-roots are not damaged as of yet
+                ! only above-ground sapwood,structure and storage in
+                ! branches is damaged/removed
+                branch_loss_frac = crown_loss_frac * branch_frac * agb_frac
+                
+                leaf_loss = nc_d%prt%GetState(leaf_organ,element_id(el))*crown_loss_frac
+                repro_loss = nc_d%prt%GetState(repro_organ,element_id(el))*crown_loss_frac
+                sapw_loss = nc_d%prt%GetState(sapw_organ,element_id(el))*branch_loss_frac
+                store_loss = nc_d%prt%GetState(store_organ,element_id(el))*branch_loss_frac
+                struct_loss = nc_d%prt%GetState(struct_organ,element_id(el))*branch_loss_frac
+
+                ! ------------------------------------------------------
+                ! Transfer the biomass from the cohort's
+                ! damage to the litter input fluxes
+                ! ------------------------------------------------------
+    
+                do dcmpy=1,ndcmpy
+                   dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
+                   litt%leaf_fines_in(dcmpy) = litt%leaf_fines_in(dcmpy) + &
+                        (store_loss+leaf_loss+repro_loss) * &
+                        nc_d%n * dcmpy_frac / currentPatch%area
+                end do
+
+                flux_diags%leaf_litter_input(pft) = &
+                     flux_diags%leaf_litter_input(pft) +  &
+                     (store_loss+leaf_loss+repro_loss) * nc_d%n
+
+                do c = 1,ncwd
+                   litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + &
+                        (sapw_loss + struct_loss) * &
+                        SF_val_CWD_frac(c) * nc_d%n / &
+                        currentPatch%area
+                   
+                   flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
+                        (struct_m_turnover + sapw_m_turnover) * &
+                        SF_val_CWD_frac(c) * nc_d%n
+                end do
+                
+             end do do_element
+
+             ! Applying the damage to the cohort, does not need to happen
+             ! in the element loop, it will loop inside that call
+             call PRTDamageLosses(nc_d%prt, leaf_organ, crown_loss_frac)
+             call PRTDamageLosses(nc_d%prt, repro_organ, crown_loss_frac)
+             call PRTDamageLosses(nc_d%prt, sapw_organ, branch_loss_frac)
+             call PRTDamageLosses(nc_d%prt, store_organ, branch_loss_frac)
+             call PRTDamageLosses(nc_d%prt, struct_organ, branch_loss_frac)
+                                
+             
+             !----------- Insert new cohort into the linked list
+             ! This list is going tall to short, lets add this new
+             ! cohort into a taller position so we don't hit it again
+             ! as the loop traverses
+             ! --------------------------------------------------------------!
+             
+             nc_d%shorter => currentCohort
+             if(associated(currentCohort%taller))then
+                nc_d%taller => currentCohort%taller
+                currentCohort%taller%shorter => nc_d
+             else
+                cpatch%tallest => nc_d
+                nc_d%taller => null()
+             endif
+             currentCohort%taller => nc_d
+
+             
+          end if if_numtrees
+
+       end do do_dclass
+       
+       currentCohort => currentCohort%shorter
+    enddo
+    
+    return
+  end subroutine GenerateDamageAndLitterFluxes
 
   ! ============================================================================
 

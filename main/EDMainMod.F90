@@ -738,9 +738,10 @@ contains
 
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
+       
+       call GenerateDamageAndLitterFluxes( currentSite, currentPatch, bc_in)
 
        call PreDisturbanceLitterFluxes( currentSite, currentPatch, bc_in)
-
 
        call PreDisturbanceIntegrateLitter(currentPatch )
 
