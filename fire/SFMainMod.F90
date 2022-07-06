@@ -192,7 +192,7 @@ contains
        currentPatch%livegrass = 0.0_r8 
        currentCohort => currentPatch%tallest
        do while(associated(currentCohort))
-          if( int(prt_params%woody(currentCohort%pft)) == ifalse)then 
+          if( prt_params%woody(currentCohort%pft) == ifalse)then 
              
              currentPatch%livegrass = currentPatch%livegrass + &
                   currentCohort%prt%GetState(leaf_organ, all_carbon_elements) * &
@@ -376,7 +376,7 @@ contains
  
        do while(associated(currentCohort))
           if (debug) write(fates_log(),*) 'SF currentCohort%c_area ',currentCohort%c_area
-          if( int(prt_params%woody(currentCohort%pft)) == itrue)then
+          if( prt_params%woody(currentCohort%pft) == itrue)then
              currentPatch%total_tree_area = currentPatch%total_tree_area + currentCohort%c_area
           else
              total_grass_area = total_grass_area + currentCohort%c_area
@@ -866,7 +866,7 @@ contains
        if (currentPatch%fire == 1) then
           currentCohort => currentPatch%tallest;
           do while(associated(currentCohort))  
-             if ( int(prt_params%woody(currentCohort%pft)) == itrue) then !trees only
+             if ( prt_params%woody(currentCohort%pft) == itrue) then !trees only
 
                 leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
                 sapw_c = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
@@ -880,7 +880,7 @@ contains
           enddo !end cohort loop
 
           do i_pft=1,numpft
-             if (tree_ag_biomass > 0.0_r8  .and. int(prt_params%woody(i_pft)) == itrue) then 
+             if (tree_ag_biomass > 0.0_r8  .and. prt_params%woody(i_pft) == itrue) then 
                 
                 !Equation 16 in Thonicke et al. 2010 !Van Wagner 1973 EQ8 !2/3 Byram (1959)
                 currentPatch%Scorch_ht(i_pft) = EDPftvarcon_inst%fire_alpha_SH(i_pft) * (currentPatch%FI**0.667_r8)
@@ -922,7 +922,7 @@ contains
 
           do while(associated(currentCohort))  
              currentCohort%fraction_crown_burned = 0.0_r8
-             if ( int(prt_params%woody(currentCohort%pft)) == itrue) then !trees only
+             if ( prt_params%woody(currentCohort%pft) == itrue) then !trees only
                 ! Flames lower than bottom of canopy. 
                 ! c%hite is height of cohort
 
@@ -986,7 +986,7 @@ contains
        if (currentPatch%fire == 1) then
           currentCohort => currentPatch%tallest;
           do while(associated(currentCohort))  
-             if ( int(prt_params%woody(currentCohort%pft)) == itrue) then !trees only
+             if ( prt_params%woody(currentCohort%pft) == itrue) then !trees only
                 ! Equation 21 in Thonicke et al 2010
                 bt = EDPftvarcon_inst%bark_scaler(currentCohort%pft)*currentCohort%dbh ! bark thickness. 
                 ! Equation 20 in Thonicke et al. 2010. 
@@ -1038,7 +1038,7 @@ contains
           do while(associated(currentCohort))  
              currentCohort%fire_mort = 0.0_r8
              currentCohort%crownfire_mort = 0.0_r8
-             if ( int(prt_params%woody(currentCohort%pft)) == itrue) then
+             if ( prt_params%woody(currentCohort%pft) == itrue) then
                 ! Equation 22 in Thonicke et al. 2010. 
                 currentCohort%crownfire_mort = EDPftvarcon_inst%crown_kill(currentCohort%pft)*currentCohort%fraction_crown_burned**3.0_r8
                 ! Equation 18 in Thonicke et al. 2010. 

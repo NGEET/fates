@@ -91,15 +91,6 @@ module FatesInterfaceTypesMod
                                                  ! and how it moves and stores water in its
                                                  ! rhizosphere shells
    
-   integer, public :: hlm_max_patch_per_site ! The HLM needs to exchange some patch
-                                                        ! level quantities with FATES
-                                                        ! FATES does not dictate those allocations
-                                                        ! since it happens pretty early in
-                                                        ! the model initialization sequence.
-                                                        ! So we want to at least query it,
-                                                        ! compare it to our maxpatchpersite,
-                                                        ! and gracefully halt if we are over-allocating
-
    integer, public :: hlm_parteh_mode   ! This flag signals which Plant Allocation and Reactive
                                                    ! Transport (exensible) Hypothesis (PARTEH) to use
 
@@ -152,17 +143,21 @@ module FatesInterfaceTypesMod
                                                        ! THIS IS CURRENTLY NOT SUPPORTED 
 
    integer, public :: hlm_use_cohort_age_tracking ! This flag signals whether or not to use
-                                                             ! cohort age tracking. 1 = TRUE, 0 = FALSE
+                                                  ! cohort age tracking. 1 = TRUE, 0 = FALSE
 
-   integer, public :: hlm_use_ed_st3        ! This flag signals whether or not to use
-                                                       ! (ST)atic (ST)and (ST)ructure mode (ST3)
-                                                       ! Essentially, this gives us the ability
-                                                       ! to turn off "dynamics", ie growth, disturbance
-                                                       ! recruitment and mortality.
-                                                       ! (EXPERIMENTAL!!!!! - RGK 07-2017)
-                                                       ! 1 = TRUE, 0 = FALSE
-                                                       ! default should be FALSE (dynamics on)
-                                                       ! cannot be true with prescribed_phys
+
+   integer, public :: hlm_use_tree_damage         ! This flag signals whether or not to turn on the
+                                                  ! tree damage module
+   
+   integer, public :: hlm_use_ed_st3              ! This flag signals whether or not to use
+                                                  ! (ST)atic (ST)and (ST)ructure mode (ST3)
+                                                  ! Essentially, this gives us the ability
+                                                  ! to turn off "dynamics", ie growth, disturbance
+                                                  ! recruitment and mortality.
+                                                  ! (EXPERIMENTAL!!!!! - RGK 07-2017)
+                                                  ! 1 = TRUE, 0 = FALSE
+                                                  ! default should be FALSE (dynamics on)
+                                                  ! cannot be true with prescribed_phys
 
    integer, public :: hlm_use_ed_prescribed_phys ! This flag signals whether or not to use
                                                             ! prescribed physiology, somewhat the opposite
@@ -216,7 +211,16 @@ module FatesInterfaceTypesMod
                                                            ! data as some fields are arrays where each array is
                                                            ! associated with one cohort
 
-
+   ! The number of patches that FATES wants the HLM to allocate
+   ! for non sp/no-comp, this is the same number of patches that
+   ! fates tracks, plus 1 for the bare-ground. For sp/nocomp, it is the
+   ! maximum between the number fates tracks, and the numper of PFTs+CFTs
+   ! in the surface file.
+   ! for an SP simulation, if there are more PFTs and CFTs in the surface
+   ! dataset than the number of PFTs in FATES, we have to allocate with
+   ! the prior so that we can hold the LAI data
+   integer, public :: fates_maxPatchesPerSite
+   
    integer, public :: max_comp_per_site         ! This is the maximum number of nutrient aquisition
                                                            ! competitors that will be generated on each site
    
@@ -264,7 +268,14 @@ module FatesInterfaceTypesMod
    integer , public, allocatable :: fates_hdim_pftmap_levelpft(:)       ! map of pfts in the element x pft dimension
    integer , public, allocatable :: fates_hdim_cwdmap_levelcwd(:)       ! map of cwds in the element x cwd dimension
    integer , public, allocatable :: fates_hdim_agemap_levelage(:)       ! map of ages in the element x age dimension
-
+   
+   integer , public, allocatable :: fates_hdim_pftmap_levcdpf(:)   ! map of pfts into size x crowndamage x pft dimension
+   integer , public, allocatable :: fates_hdim_cdmap_levcdpf(:)    ! map of crowndamage into size x crowndamage x pft
+   integer , public, allocatable :: fates_hdim_scmap_levcdpf(:)    ! map of size into size x crowndamage x pft
+   integer , public, allocatable :: fates_hdim_cdmap_levcdsc(:)    ! map of crowndamage into size x crowndamage
+   integer , public, allocatable :: fates_hdim_scmap_levcdsc(:)    ! map of size into size x crowndamage
+   integer , public, allocatable :: fates_hdim_levdamage(:)        ! plant damage class lower bound dimension   
+   
    ! ------------------------------------------------------------------------------------
    !                              DYNAMIC BOUNDARY CONDITIONS
    ! ------------------------------------------------------------------------------------
@@ -301,7 +312,8 @@ module FatesInterfaceTypesMod
    integer, public :: nlevheight       ! The total number of height bins output to history
    integer, public :: nlevcoage        ! The total number of cohort age bins output to history 
    integer, public :: nleafage         ! The total number of leaf age classes
-
+   integer, public :: nlevdamage       ! The total number of damage classes
+   
    ! -------------------------------------------------------------------------------------
    ! Structured Boundary Conditions (SITE/PATCH SCALE)
    ! For floating point arrays, it is sometimes the convention to define the arrays as
@@ -519,7 +531,7 @@ module FatesInterfaceTypesMod
       character(len=64), allocatable :: hlm_harvest_catnames(:)  ! names of hlm_harvest d1
 
       integer :: hlm_harvest_units  ! what units are the harvest rates specified in? [area vs carbon]
-
+    
       ! Fixed biogeography mode 
       real(r8), allocatable :: pft_areafrac(:)     ! Fractional area of the FATES column occupied by each PFT  
     
@@ -710,7 +722,10 @@ module FatesInterfaceTypesMod
                                                        ! small fluxes for various reasons
                                                        ! [mm H2O/s]
 
-
+      ! FATES LULCC
+      real(r8) :: hrv_deadstemc_to_prod10c   ! Harvested C flux to 10-yr wood product pool [Site-Level, gC m-2 s-1]
+      real(r8) :: hrv_deadstemc_to_prod100c  ! Harvested C flux to 100-yr wood product pool [Site-Level, gC m-2 s-1]
+      
    end type bc_out_type
 
 
