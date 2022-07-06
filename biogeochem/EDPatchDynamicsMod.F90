@@ -804,17 +804,6 @@ contains
                 agb_frac = prt_params%allom_agb_frac(currentCohort%pft)
                 branch_frac = param_derived%branch_frac(currentCohort%pft)
                 
-                allocate(nc)  ! new cohort surviving
-                if(hlm_use_planthydro.eq.itrue) call InitHydrCohort(CurrentSite,nc)
-
-                ! Initialize the PARTEH object and point to the
-                ! correct boundary condition fields
-                nc%prt => null()
-
-                call InitPRTObject(nc%prt)
-                call InitPRTBoundaryConditions(nc)
-                call zero_cohort(nc)
-
 
                 ! nc is the new cohort that goes in the disturbed patch (new_patch)... currentCohort
                 ! is the curent cohort that stays in the donor patch (currentPatch)
