@@ -1724,9 +1724,9 @@ contains
              !seed_in_external =  seed_stoich*EDPftvarcon_inst%seed_suppl(pft)*years_per_day ![kg/m2/day]
 
              ! bc%seed_in(pft) in [kg/site/day]
-             seed_in_external = bc_in%seed_in(pft)/currentPatch%area + seed_stoich*EDPftvarcon_inst%seed_suppl(pft)*years_per_day ![kg/m2/day]
+             seed_in_external = bc_in%seed_in(pft)/area + seed_stoich*EDPftvarcon_inst%seed_suppl(pft)*years_per_day ![kg/m2/day]
 
-             !write(fates_log(),*) 'pft, bc_in%seed_in(pft),bc_in%seed_in(pft)/currentPatch%area, seed_in_external: ', pft, bc_in%seed_in(pft), bc_in%seed_in(pft)/currentPatch%area, seed_in_external
+             write(fates_log(),*) 'pft, bc_in%seed_in(pft),bc_in%seed_in(pft)/currentPatch%area, seed_in_external: ', pft, bc_in%seed_in(pft), bc_in%seed_in(pft)/currentPatch%area, seed_in_external
 
              !--------------------------------------------------------------------------------------------------
              litt%seed_in_extern(pft) = litt%seed_in_extern(pft) + seed_in_external
@@ -1753,7 +1753,7 @@ contains
     !YL---------
     do pft = 1,numpft
         bc_out%seed_out(pft) = bc_out%seed_out(pft) + site_seed_rain(pft)*disp_frac(pft) ![kg/site/day]
-        !write(fates_log(),*) 'pft, site_seed_rain(pft), bc_out%seed_out(pft): ', pft, site_seed_rain(pft), bc_out%seed_out(pft)
+        write(fates_log(),*) 'pft, bc_in%seed_in(pft), bc_out%seed_out(pft): ', pft, bc_in%seed_in(pft), bc_out%seed_out(pft)
     end do
     !-----------
 
