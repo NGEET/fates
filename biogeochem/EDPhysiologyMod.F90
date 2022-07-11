@@ -13,12 +13,14 @@ module EDPhysiologyMod
   use FatesInterfaceTypesMod, only    : hlm_day_of_year
   use FatesInterfaceTypesMod, only    : numpft
   use FatesInterfaceTypesMod, only    : nleafage
+  use FatesInterfaceTypesMod, only    : nlevdamage
   use FatesInterfaceTypesMod, only    : hlm_use_planthydro
   use FatesInterfaceTypesMod, only    : hlm_parteh_mode
   use FatesInterfaceTypesMod, only    : hlm_use_fixed_biogeog
   use FatesInterfaceTypesMod, only    : hlm_use_nocomp
   use FatesInterfaceTypesMod, only    : hlm_nitrogen_spec
   use FatesInterfaceTypesMod, only    : hlm_phosphorus_spec
+  use FatesInterfaceTypesMod, only    : hlm_use_tree_damage
   use FatesConstantsMod, only    : r8 => fates_r8
   use FatesConstantsMod, only    : nearzero
   use EDPftvarcon      , only    : EDPftvarcon_inst
@@ -103,11 +105,13 @@ module EDPhysiologyMod
   use PRTGenericMod, only : repro_organ
   use PRTGenericMod, only : struct_organ
   use PRTGenericMod, only : SetState
-  use PRTLossFluxesMod, only : PRTPhenologyFlush
-  use PRTLossFluxesMod, only : PRTDeciduousTurnover
-  use PRTLossFluxesMod, only : PRTReproRelease
-  use PRTGenericMod, only : StorageNutrientTarget
-
+  use PRTLossFluxesMod, only  : PRTPhenologyFlush
+  use PRTLossFluxesMod, only  : PRTDeciduousTurnover
+  use PRTLossFluxesMod, only  : PRTReproRelease
+  use PRTGenericMod, only     : StorageNutrientTarget
+  use DamageMainMod, only     : damage_time
+  use SFParamsMod, only       : SF_val_CWD_frac
+  
   implicit none
   private
 
@@ -189,67 +193,96 @@ contains
 
   ! ============================================================================
   
-  subroutine GenerateDamageAndLitterFluxes( currentSite, currentPatch, bc_in )
+  subroutine GenerateDamageAndLitterFluxes( csite, cpatch, bc_in )
 
-    if(hlm_use_crown_damage .ne. itrue) return
+    ! Arguments
+    type(ed_site_type)  :: csite
+    type(ed_patch_type) :: cpatch
+    type(bc_in_type), intent(in) :: bc_in
+    
+
+    ! Locals
+    type(ed_cohort_type), pointer :: ccohort    ! Current cohort
+    type(ed_cohort_type), pointer :: ndcohort   ! Newly damage-class cohort
+    type(litter_type), pointer :: litt     ! Points to the litter object
+    type(site_fluxdiags_type), pointer :: flux_diags ! pointer to site level flux diagnostics object
+    integer  :: cd               ! Damage class index
+    integer  :: el               ! Element index
+    integer  :: dcmpy            ! Decomposition pool index
+    integer  :: c                ! CWD pool index
+    real(r8) :: cd_frac          ! Fraction of trees damaged in this class transition
+    real(r8) :: num_trees_cd     ! Number of trees to spawn into the new damage class cohort
+    real(r8) :: crown_loss_frac  ! Fraction of crown lost from one damage class to next
+    real(r8) :: branch_loss_frac ! Fraction of sap, structure and storage lost in branch
+                                 ! fall during damage
+    real(r8) :: leaf_loss        ! Mass lost to each organ during damage [kg]
+    real(r8) :: repro_loss       ! "" [kg]
+    real(r8) :: sapw_loss        ! "" [kg]
+    real(r8) :: store_loss       ! "" [kg]
+    real(r8) :: struct_loss      ! "" [kg]       
+    real(r8) :: dcmpy_frac       ! fraction of mass going to each decomposition pool
+
+    
+    if(hlm_use_tree_damage .ne. itrue) return
 
     if(.not.damage_time) return
 
-    currentCohort => currentPatch%tallest
-    do while (associated(currentCohort))
+    ccohort => cpatch%tallest
+    do while (associated(ccohort))
 
        ! Ignore damage to new plants and non-woody plants
-       if(prt_params%woody(currentCohort%pft)==ifalse  ) cycle
-       if(currentCohort%isnew ) cycle
+       if(prt_params%woody(ccohort%pft)==ifalse  ) cycle
+       if(ccohort%isnew ) cycle
 
-       agb_frac = prt_params%allom_agb_frac(currentCohort%pft)
-       branch_frac = param_derived%branch_frac(currentCohort%pft)
-
-       do_dclass: do cd = currentCohort%crowndamage+1, nlevdamage
+       associate( ipft     => ccohort%pft, & 
+                  agb_frac => prt_params%allom_agb_frac(ccohort%pft), &
+                  branch_frac => param_derived%branch_frac(ccohort%pft))
+         
+       do_dclass: do cd = ccohort%crowndamage+1, nlevdamage
           
-          call GetDamageFrac(currentCohort%crowndamage, cd, currentCohort%pft, cd_frac)
+          call GetDamageFrac(ccohort%crowndamage, cd, ipft, cd_frac)
 
           ! now to get the number of damaged trees we multiply by damage frac
-          num_trees_cd = currentCohort%n * cd_frac
+          num_trees_cd = ccohort%n * cd_frac
 
           ! if non negligable lets create a new cohort and generate some litter
           if_numtrees: if (num_trees_cd > nearzero ) then
 
              ! Create a new damaged cohort
-             allocate(nc_d)  ! new cohort surviving but damaged
-             if(hlm_use_planthydro.eq.itrue) call InitHydrCohort(CurrentSite,nc_d)
+             allocate(ndcohort)  ! new cohort surviving but damaged
+             if(hlm_use_planthydro.eq.itrue) call InitHydrCohort(csite,ndcohort)
              
              ! Initialize the PARTEH object and point to the
              ! correct boundary condition fields
-             nc_d%prt => null()
+             ndcohort%prt => null()
 
-             call InitPRTObject(nc_d%prt)
-             call InitPRTBoundaryConditions(nc_d)
-             call zero_cohort(nc_d)
+             call InitPRTObject(ndcohort%prt)
+             call InitPRTBoundaryConditions(ndcohort)
+             call zero_cohort(ndcohort)
              
              ! nc_canopy_d is the new cohort that gets damaged 
-             call copy_cohort(currentCohort, nc_d)
+             call copy_cohort(ccohort, ndcohort)
              
              ! new number densities - we just do damaged cohort here -
              ! undamaged at the end of the cohort loop once we know how many damaged to
              ! subtract
              
-             nc_d%n = num_trees_cd
-             nc_d%crowndamage = cd
+             ndcohort%n = num_trees_cd
+             ndcohort%crowndamage = cd
 
              ! Remove these trees from the donor cohort
-             currentCohort%n = currentCohort%n - num_trees_cd
+             ccohort%n = ccohort%n - num_trees_cd
              
              ! update crown area here - for cohort fusion and canopy organisation below 
-             call carea_allom(nc_d%dbh, nc_d%n, currentSite%spread,&
-                  nc_d%pft, nc_d%crowndamage, nc_d%c_area)
+             call carea_allom(ndcohort%dbh, ndcohort%n, csite%spread,&
+                  ipft, ndcohort%crowndamage, ndcohort%c_area)
              
              call GetCrownReduction(cd, crown_loss_frac)
 
              do_element: do el = 1, num_elements
                 
-                litt => currentPatch%litter(el)
-                flux_diags => currentSite%flux_diags(el)
+                litt => cpatch%litter(el)
+                flux_diags => csite%flux_diags(el)
                 
                 ! Reduce the mass of the newly damaged cohort
                 ! Fine-roots are not damaged as of yet
@@ -257,11 +290,11 @@ contains
                 ! branches is damaged/removed
                 branch_loss_frac = crown_loss_frac * branch_frac * agb_frac
                 
-                leaf_loss = nc_d%prt%GetState(leaf_organ,element_id(el))*crown_loss_frac
-                repro_loss = nc_d%prt%GetState(repro_organ,element_id(el))*crown_loss_frac
-                sapw_loss = nc_d%prt%GetState(sapw_organ,element_id(el))*branch_loss_frac
-                store_loss = nc_d%prt%GetState(store_organ,element_id(el))*branch_loss_frac
-                struct_loss = nc_d%prt%GetState(struct_organ,element_id(el))*branch_loss_frac
+                leaf_loss = ndcohort%prt%GetState(leaf_organ,element_id(el))*crown_loss_frac
+                repro_loss = ndcohort%prt%GetState(repro_organ,element_id(el))*crown_loss_frac
+                sapw_loss = ndcohort%prt%GetState(sapw_organ,element_id(el))*branch_loss_frac
+                store_loss = ndcohort%prt%GetState(store_organ,element_id(el))*branch_loss_frac
+                struct_loss = ndcohort%prt%GetState(struct_organ,element_id(el))*branch_loss_frac
 
                 ! ------------------------------------------------------
                 ! Transfer the biomass from the cohort's
@@ -272,33 +305,33 @@ contains
                    dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
                    litt%leaf_fines_in(dcmpy) = litt%leaf_fines_in(dcmpy) + &
                         (store_loss+leaf_loss+repro_loss) * &
-                        nc_d%n * dcmpy_frac / currentPatch%area
+                        ndcohort%n * dcmpy_frac / cpatch%area
                 end do
 
                 flux_diags%leaf_litter_input(pft) = &
                      flux_diags%leaf_litter_input(pft) +  &
-                     (store_loss+leaf_loss+repro_loss) * nc_d%n
+                     (store_loss+leaf_loss+repro_loss) * ndcohort%n
 
                 do c = 1,ncwd
                    litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + &
                         (sapw_loss + struct_loss) * &
-                        SF_val_CWD_frac(c) * nc_d%n / &
-                        currentPatch%area
+                        SF_val_CWD_frac(c) * ndcohort%n / &
+                        cpatch%area
                    
                    flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
-                        (struct_m_turnover + sapw_m_turnover) * &
-                        SF_val_CWD_frac(c) * nc_d%n
+                        (struct_loss + sapw_loss) * &
+                        SF_val_CWD_frac(c) * ndcohort%n
                 end do
                 
              end do do_element
 
              ! Applying the damage to the cohort, does not need to happen
              ! in the element loop, it will loop inside that call
-             call PRTDamageLosses(nc_d%prt, leaf_organ, crown_loss_frac)
-             call PRTDamageLosses(nc_d%prt, repro_organ, crown_loss_frac)
-             call PRTDamageLosses(nc_d%prt, sapw_organ, branch_loss_frac)
-             call PRTDamageLosses(nc_d%prt, store_organ, branch_loss_frac)
-             call PRTDamageLosses(nc_d%prt, struct_organ, branch_loss_frac)
+             call PRTDamageLosses(ndcohort%prt, leaf_organ, crown_loss_frac)
+             call PRTDamageLosses(ndcohort%prt, repro_organ, crown_loss_frac)
+             call PRTDamageLosses(ndcohort%prt, sapw_organ, branch_loss_frac)
+             call PRTDamageLosses(ndcohort%prt, store_organ, branch_loss_frac)
+             call PRTDamageLosses(ndcohort%prt, struct_organ, branch_loss_frac)
                                 
              
              !----------- Insert new cohort into the linked list
@@ -307,22 +340,22 @@ contains
              ! as the loop traverses
              ! --------------------------------------------------------------!
              
-             nc_d%shorter => currentCohort
-             if(associated(currentCohort%taller))then
-                nc_d%taller => currentCohort%taller
-                currentCohort%taller%shorter => nc_d
+             ndcohort%shorter => ccohort
+             if(associated(ccohort%taller))then
+                ndcohort%taller => ccohort%taller
+                ccohort%taller%shorter => ndcohort
              else
-                cpatch%tallest => nc_d
-                nc_d%taller => null()
+                cpatch%tallest => ndcohort
+                ndcohort%taller => null()
              endif
-             currentCohort%taller => nc_d
-
+             ccohort%taller => ndcohort
              
           end if if_numtrees
 
        end do do_dclass
-       
-       currentCohort => currentCohort%shorter
+
+       end associate
+       ccohort => ccohort%shorter
     enddo
     
     return
@@ -1958,7 +1991,7 @@ contains
     ! !USES:
     use FatesInterfaceTypesMod, only : hlm_use_ed_prescribed_phys
     use FatesLitterMod   , only : ncwd
-    use SFParamsMod      , only : SF_val_CWD_frac
+    
     !
     ! !ARGUMENTS
     type(ed_site_type), intent(inout), target   :: currentSite
@@ -2289,7 +2322,6 @@ contains
     ! and turnover in dying trees.
     !
     ! !USES:
-    use SFParamsMod , only : SF_val_CWD_frac
 
     !
     ! !ARGUMENTS
