@@ -219,6 +219,7 @@ module FatesRestartInterfaceMod
   integer :: ir_uptake_flxdg
   integer :: ir_oldstock_mbal
   integer :: ir_errfates_mbal
+  integer :: ir_woodprod_mbal
   integer :: ir_prt_base     ! Base index for all PRT variables
 
   ! Hydraulic indices
@@ -1056,7 +1057,11 @@ contains
          units='kg/ha', veclength=num_elements, flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_errfates_mbal)
 
-
+    call this%RegisterCohortVector(symbol_base='fates_woodproduct', vtype=site_r8, &
+         long_name_base='Current wood product flux', &
+         units='kg/m2/day', veclength=num_elements, flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_woodprod_mbal)
+    
     ! Only register satellite phenology related restart variables if it is turned on!
 
     if(hlm_use_sp .eq. itrue) then
@@ -1910,7 +1915,8 @@ contains
 
              this%rvars(ir_oldstock_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%old_stock
              this%rvars(ir_errfates_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%err_fates
-
+             this%rvars(ir_woodprod_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%wood_product
+             
           end do
 
 
@@ -2738,7 +2744,7 @@ contains
 
              sites(s)%mass_balance(el)%old_stock = this%rvars(ir_oldstock_mbal+el-1)%r81d(io_idx_si)
              sites(s)%mass_balance(el)%err_fates = this%rvars(ir_errfates_mbal+el-1)%r81d(io_idx_si)
-
+             sites(s)%mass_balance(el)%wood_product = this%rvars(ir_woodprod_mbal+el-1)%r81d(io_idx_si)
           end do
 
           sites(s)%spread = rio_spread_si(io_idx_si)
