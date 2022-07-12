@@ -2330,11 +2330,6 @@ contains
              tpp => currentSite%youngest_patch
              tpp_loop: do while(associated(tpp))
 
-                if(.not.associated(currentPatch))then
-                   write(fates_log(),*) 'FATES fuse_patches(): currentPatch is not associated?'
-                   call endrun(msg=errMsg(sourcefile, __LINE__))
-                endif
-
                 both_associated_if: if(associated(tpp).and.associated(currentPatch))then
                    !--------------------------------------------------------------------!
                    ! only fuse patches whose anthropogenic disturbance category matches !
