@@ -50,6 +50,7 @@ module EDMainMod
   use EDPhysiologyMod          , only : ZeroLitterFluxes
   use EDPhysiologyMod          , only : PreDisturbanceLitterFluxes
   use EDPhysiologyMod          , only : PreDisturbanceIntegrateLitter
+  use EDPhysiologyMod          , only : GenerateDamageAndLitterFluxes
   use FatesSoilBGCFluxMod      , only : FluxIntoLitterPools
   use EDCohortDynamicsMod      , only : UpdateCohortBioPhysRates
   use FatesSoilBGCFluxMod      , only : PrepNutrientAquisitionBCs

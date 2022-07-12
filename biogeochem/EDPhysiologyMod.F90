@@ -31,6 +31,8 @@ module EDPhysiologyMod
   use EDCohortDynamicsMod , only : zero_cohort
   use EDCohortDynamicsMod , only : create_cohort, sort_cohorts
   use EDCohortDynamicsMod , only : InitPRTObject
+  use EDCohortDynamicsMod , only : InitPRTBoundaryConditions
+  use EDCohortDynamicsMod , only : copy_cohort
   use FatesAllometryMod   , only : tree_lai
   use FatesAllometryMod   , only : tree_sai
   use FatesAllometryMod   , only : leafc_from_treelai
@@ -108,9 +110,15 @@ module EDPhysiologyMod
   use PRTLossFluxesMod, only  : PRTPhenologyFlush
   use PRTLossFluxesMod, only  : PRTDeciduousTurnover
   use PRTLossFluxesMod, only  : PRTReproRelease
+  use PRTLossFluxesMod, only  : PRTDamageLosses
   use PRTGenericMod, only     : StorageNutrientTarget
   use DamageMainMod, only     : damage_time
+  use DamageMainMod, only     : GetCrownReduction
+  use DamageMainMod, only     : GetDamageFrac
   use SFParamsMod, only       : SF_val_CWD_frac
+  use FatesParameterDerivedMod, only : param_derived
+  use FatesPlantHydraulicsMod, only : InitHydrCohort
+
   
   implicit none
   private
@@ -290,11 +298,11 @@ contains
                 ! branches is damaged/removed
                 branch_loss_frac = crown_loss_frac * branch_frac * agb_frac
                 
-                leaf_loss = ndcohort%prt%GetState(leaf_organ,element_id(el))*crown_loss_frac
-                repro_loss = ndcohort%prt%GetState(repro_organ,element_id(el))*crown_loss_frac
-                sapw_loss = ndcohort%prt%GetState(sapw_organ,element_id(el))*branch_loss_frac
-                store_loss = ndcohort%prt%GetState(store_organ,element_id(el))*branch_loss_frac
-                struct_loss = ndcohort%prt%GetState(struct_organ,element_id(el))*branch_loss_frac
+                leaf_loss = ndcohort%prt%GetState(leaf_organ,element_list(el))*crown_loss_frac
+                repro_loss = ndcohort%prt%GetState(repro_organ,element_list(el))*crown_loss_frac
+                sapw_loss = ndcohort%prt%GetState(sapw_organ,element_list(el))*branch_loss_frac
+                store_loss = ndcohort%prt%GetState(store_organ,element_list(el))*branch_loss_frac
+                struct_loss = ndcohort%prt%GetState(struct_organ,element_list(el))*branch_loss_frac
 
                 ! ------------------------------------------------------
                 ! Transfer the biomass from the cohort's
@@ -302,14 +310,14 @@ contains
                 ! ------------------------------------------------------
     
                 do dcmpy=1,ndcmpy
-                   dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
+                   dcmpy_frac = GetDecompyFrac(ipft,leaf_organ,dcmpy)
                    litt%leaf_fines_in(dcmpy) = litt%leaf_fines_in(dcmpy) + &
                         (store_loss+leaf_loss+repro_loss) * &
                         ndcohort%n * dcmpy_frac / cpatch%area
                 end do
 
-                flux_diags%leaf_litter_input(pft) = &
-                     flux_diags%leaf_litter_input(pft) +  &
+                flux_diags%leaf_litter_input(ipft) = &
+                     flux_diags%leaf_litter_input(ipft) +  &
                      (store_loss+leaf_loss+repro_loss) * ndcohort%n
 
                 do c = 1,ncwd
