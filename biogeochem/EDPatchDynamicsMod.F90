@@ -198,8 +198,6 @@ contains
     ! first calculate the fractino of the site that is primary land
     call get_frac_site_primary(site_in, frac_site_primary)
  
-    site_in%harvest_carbon_flux = 0._r8
-
     currentPatch => site_in%oldest_patch
     do while (associated(currentPatch))   
 
@@ -234,16 +232,6 @@ contains
           currentCohort%lmort_collateral = lmort_collateral
           currentCohort%lmort_infra      = lmort_infra
           currentCohort%l_degrad         = l_degrad
-
-          ! estimate the wood product (trunk_product_site)
-          if (currentCohort%canopy_layer>=1) then
-             site_in%harvest_carbon_flux = site_in%harvest_carbon_flux + &
-                  currentCohort%lmort_direct * currentCohort%n * &
-                  ( currentCohort%prt%GetState(sapw_organ, all_carbon_elements) + &
-                  currentCohort%prt%GetState(struct_organ, all_carbon_elements)) * &
-                  prt_params%allom_agb_frac(currentCohort%pft) * &
-                  SF_val_CWD_frac(ncwd) * logging_export_frac
-          endif
 
           currentCohort => currentCohort%taller
        end do
@@ -307,7 +295,7 @@ contains
        enddo !currentCohort
 
        ! for non-closed-canopy areas subject to logging, add an additional increment of area disturbed
-       ! equivalent to the fradction loged to account for transfer of interstitial ground area to new secondary lands
+       ! equivalent to the fradction logged to account for transfer of interstitial ground area to new secondary lands
        if ( logging_time .and. &
             (currentPatch%area - currentPatch%total_canopy_area) .gt. fates_tiny ) then
           ! The canopy is NOT closed. 

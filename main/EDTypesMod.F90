@@ -799,8 +799,6 @@ module EDTypesMod
 
      real(r8) :: demotion_carbonflux                     ! biomass of demoted individuals from canopy to understory [kgC/ha/day]
      real(r8) :: promotion_carbonflux                    ! biomass of promoted individuals from understory to canopy [kgC/ha/day]
-     real(r8) :: harvest_carbon_flux                     ! diagnostic site level flux of carbon as harvested plants [kg C / m2 / day]
-
      real(r8) :: recruitment_rate(1:maxpft)              ! number of individuals that were recruited into new cohorts
      real(r8), allocatable :: demotion_rate(:)           ! rate of individuals demoted from canopy to understory per FATES timestep
      real(r8), allocatable :: promotion_rate(:)          ! rate of individuals promoted from understory to canopy per FATES timestep
