@@ -4629,8 +4629,7 @@ function xylemtaper(pexp, dz) result(chi_tapnotap)
     real(r8) , intent(in) :: dz     ! hydraulic distance from petiole to node of interest[m]
     !
     ! !LOCAL VARIABLES:
-    real(r8) :: qexp                ! total conductance exponent (as in Fig. 2b of Savage et al. (2010)
-    real(r8) :: qexp_notap          ! same as qexp, but without xylem taper; i.e., pexp = 0
+    real(r8) :: qexp                ! total conductance exponent (as in Fig. 2b of Savage et al. (2010) minus a0 term
     real(r8) :: lN=0.005_r8         ! petiole length[m]
     real(r8) :: mu=1.0E-03_r8       ! viscosity[kg m-1 s-1]
     real(r8) :: rintN=0.00001_r8    ! internal conduit diameter in petiole[m]
@@ -4661,16 +4660,15 @@ function xylemtaper(pexp, dz) result(chi_tapnotap)
     a2 =  1.096488_r8
     a1 =  1.844792_r8
     a0 =  1.320732_r8
-    qexp         = a5*pexp**5 + a4*pexp**4 + a3*pexp**3 + a2*pexp**2 + a1*pexp + a0
-    qexp_notap   = a0
+    
+    qexp         = a5*pexp**5 + a4*pexp**4 + a3*pexp**3 + a2*pexp**2 + a1*pexp
 
     num          = 3._r8*log(1._r8 - dz/lN * (1._r8-n_ext**(1._r8/3._r8)))
     den          = log(n_ext)
     big_N        = num/den - 1._r8
     r0rN         = n_ext**(big_N/2._r8)
-    ktap         = kN * (r0rN**qexp)
-    knotap       = kN * (r0rN**qexp_notap)
-    chi_tapnotap = ktap / knotap
+    
+    chi_tapnotap = r0rN**qexp
 
     return
 
