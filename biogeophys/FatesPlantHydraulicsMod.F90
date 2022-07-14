@@ -4631,15 +4631,9 @@ function xylemtaper(pexp, dz) result(chi_tapnotap)
     ! !LOCAL VARIABLES:
     real(r8) :: qexp                ! total conductance exponent (as in Fig. 2b of Savage et al. (2010) minus a0 term
     real(r8) :: lN=0.005_r8         ! petiole length[m]
-    real(r8) :: mu=1.0E-03_r8       ! viscosity[kg m-1 s-1]
-    real(r8) :: rintN=0.00001_r8    ! internal conduit diameter in petiole[m]
-    real(r8) :: NsegintN=200        ! number of conduits in a single terminal twig[-]
-    real(r8) :: kN                  ! conductance for laminar flow through all conduits in a terminal twig, according to Hagen-Poiseuille[kg Pa-1 s-1]
     real(r8) :: n_ext=2._r8         ! number of daughter branches per parent branch, assumed constant throughout tree (self-similarity)  [-]
     real(r8) :: big_n               ! number of branching levels (allowed here to take on non-integer values): increases with tree size  [-]
     real(r8) :: r0rN                ! ratio of stem radius to terminal twig radius; r.ext0/r.extN (x-axis of Savage et al. (2010) Fig 2a)[-]
-    real(r8) :: ktap                ! hydraulic conductance along the pathway,accounting for xylem taper                                [kg s-1 MPa-1]
-    real(r8) :: knotap              ! hydraulic conductance along the pathway,not accounting for xylem taper                            [kg s-1 MPa-1]
     real(r8) :: num                 ! temporary
     real(r8) :: den                 ! temporary
     real(r8) :: a5,a4,a3,a2,a1,a0   ! coefficients of 5th-order polynomial fit to Savage et al. Fig. 2b (qexp vs. pexp)
@@ -4651,8 +4645,6 @@ function xylemtaper(pexp, dz) result(chi_tapnotap)
     real(r8) :: chi_tapnotap        ! ratio of total tree conductance accounting for xylem taper to that without, over interval dz
     !
     !------------------------------------------------------------------------
-
-    kN = NsegintN*pi*rintN**(4.0_r8)/(8.0_r8*mu*lN)
 
     a5 = -3.555547_r8
     a4 =  9.760275_r8
