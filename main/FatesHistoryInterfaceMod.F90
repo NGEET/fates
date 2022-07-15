@@ -193,6 +193,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_area_plant_si
   integer :: ih_area_trees_si
 
+  integer :: ih_fates_fraction_si
+
   integer :: ih_cwd_elcwd
 
   integer :: ih_litter_in_si    ! carbon only
@@ -1504,7 +1506,7 @@ end subroutine flush_hvars
   ! =====================================================================================
 
   subroutine set_history_var(this, vname, units, long, use_default, avgflag, vtype, &
-       hlms, upfreq, ivar, initialize, index)
+       hlms, upfreq, ivar, initialize, index, flush_to_zero)
 
     use FatesUtilsMod, only     : check_hlm_list
     use FatesInterfaceTypesMod, only : hlm_name
@@ -1528,6 +1530,7 @@ end subroutine flush_hvars
                                            ! explict name (for fast reference during update)
                                            ! A zero is passed back when the variable is
                                            ! not used
+    logical, intent(in), optional :: flush_to_zero
 
     ! locals
     integer   :: ub1, lb1, ub2, lb2    ! Bounds for allocating the var
@@ -1539,8 +1542,15 @@ end subroutine flush_hvars
     ! Flushing to the ignore val coerces all FATES diagnostics to be
     ! relevant only on FATES sites. This way we do not average zero's
     ! at locations not on FATES columns
+    ! We make one exception to this rule, for the fates_fraction variable.  That way
+    ! we can always know what fraction of the gridcell FATES is occupying.
 
     flushval = hlm_hio_ignore_val
+    if (present(flush_to_zero)) then
+       if (flush_to_zero) then
+          flushval = 0.0_r8
+       endif
+    endif
 
     write_var = check_hlm_list(trim(hlms), trim(hlm_name))
     if( write_var ) then
@@ -1796,6 +1806,7 @@ end subroutine flush_hvars
                hio_trimming_si         => this%hvars(ih_trimming_si)%r81d, &
                hio_area_plant_si       => this%hvars(ih_area_plant_si)%r81d, &
                hio_area_trees_si  => this%hvars(ih_area_trees_si)%r81d, &
+               hio_fates_fraction_si   => this%hvars(ih_fates_fraction_si)%r81d, &
                hio_canopy_spread_si    => this%hvars(ih_canopy_spread_si)%r81d, &
                hio_biomass_si_pft      => this%hvars(ih_biomass_si_pft)%r82d, &
                hio_leafbiomass_si_pft  => this%hvars(ih_leafbiomass_si_pft)%r82d, &
@@ -2049,6 +2060,10 @@ end subroutine flush_hvars
 
       io_si  = sites(s)%h_gid
 
+      ! set the fates fraction to one, since it is zero on non-fates columns, &
+      ! the average is the total gridcell fates fraction
+      hio_fates_fraction_si(io_si) = 1._r8
+
       ! Total carbon model error [kgC/day -> kgC/s]
       hio_cbal_err_fates_si(io_si) = &
          sites(s)%mass_balance(element_pos(carbon12_element))%err_fates / sec_per_day
@@ -2165,7 +2180,7 @@ end subroutine flush_hvars
          ! 24hr veg temperature
          hio_tveg24(io_si) = hio_tveg24(io_si) + &
               (cpatch%tveg24%GetMean()- t_water_freeze_k_1atm)*cpatch%area*AREA_INV
-         
+
          ! Increment some patch-age-resolved diagnostics
 
          hio_lai_si_age(io_si,cpatch%age_class) = hio_lai_si_age(io_si,cpatch%age_class) &
@@ -3606,7 +3621,7 @@ end subroutine flush_hvars
                hio_parsun_top_si_can     => this%hvars(ih_parsun_top_si_can)%r82d, &
                hio_parsha_top_si_can     => this%hvars(ih_parsha_top_si_can)%r82d, &
                hio_tveg   => this%hvars(ih_tveg_si)%r81d)
-      
+
       ! Flush the relevant history variables
       call this%flush_hvars(nc,upfreq_in=2)
 
@@ -4436,6 +4451,12 @@ end subroutine update_history_hifrq
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_area_trees_si)
 
+    call this%set_history_var(vname='FATES_FRACTION', units='m2 m-2',          &
+         long='total gridcell fraction which FATES is running over', use_default='active', &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+         index=ih_fates_fraction_si, flush_to_zero=.true.)
+
     call this%set_history_var(vname='FATES_COLD_STATUS', units='',             &
           long='site-level cold status, 0=not cold-dec, 1=too cold for leaves, 2=not too cold',  &
           use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
@@ -4755,7 +4776,7 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1, ivar=ivar,      &
          initialize=initialize_variables, index = ih_fire_fuel_eff_moist_si)
 
-    call this%set_history_var(vname='FATES_FUEL_SAV', units='per m',           &
+    call this%set_history_var(vname='FATES_FUEL_SAV', units='m-1',             &
          long='spitfire fuel surface area to volume ratio',                    &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
@@ -5162,19 +5183,19 @@ end subroutine update_history_hifrq
          ivar=ivar, initialize=initialize_variables, index = ih_c_lblayer_si)
 
     ! Temperature
-    
+
     call this%set_history_var(vname='FATES_TVEG24', units='degree_Celsius', &
          long='fates 24-hr running mean vegetation temperature by site', &
          use_default='active', &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_tveg24_si )
-    
+
     call this%set_history_var(vname='FATES_TVEG', units='degree_Celsius', &
          long='fates instantaneous mean vegetation temperature by site', &
          use_default='active', &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2, &
          ivar=ivar, initialize=initialize_variables, index = ih_tveg_si )
-    
+
    ! radiation error
 
    call this%set_history_var(vname='FATES_RAD_ERROR', units='W m-2 ',          &
@@ -5254,14 +5275,14 @@ end subroutine update_history_hifrq
          upfreq=2, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_ar_canopy_si)
 
-    call this%set_history_var(vname='FATES_GPP_UNDERSTORY',                    &
+    call this%set_history_var(vname='FATES_GPP_USTORY',                        &
          units='kg m-2 s-1',                                                   &
          long='gross primary production of understory plants in kg carbon per m2 per second', &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=2, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_gpp_understory_si)
 
-    call this%set_history_var(vname='FATES_AUTORESP_UNDERSTORY',               &
+    call this%set_history_var(vname='FATES_AUTORESP_USTORY',                   &
          units='kg m-2 s-1',                                                   &
          long='autotrophic respiration of understory plants in kg carbon per m2 per second', &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
@@ -5481,7 +5502,7 @@ end subroutine update_history_hifrq
           upfreq=1, ivar=ivar, initialize=initialize_variables,                &
           index = ih_canopy_mortality_carbonflux_si)
 
-    call this%set_history_var(vname='FATES_MORTALITY_CFLUX_UNDERSTORY',        &
+    call this%set_history_var(vname='FATES_MORTALITY_CFLUX_USTORY',            &
           units = 'kg m-2 s-1',                                                &
           long='flux of biomass carbon from live to dead pools from mortality of understory plants in kg carbon per m2 per second', &
           use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
@@ -5802,7 +5823,7 @@ end subroutine update_history_hifrq
 
     call this%set_history_var(vname='FATES_MORTALITY_LOGGING_SZPF',            &
           units = 'm-2 yr-1',                                                  &
-          long='logging mortality by pft/size in number of plants per m2 per ', &
+          long='logging mortality by pft/size in number of plants per m2 per year', &
           use_default='inactive',           &
           avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', upfreq=1,       &
           ivar=ivar, initialize=initialize_variables, index = ih_m7_si_scpf)
@@ -6167,21 +6188,21 @@ end subroutine update_history_hifrq
 
     call this%set_history_var(vname='FATES_MORTALITY_LOGGING_SZ',              &
           units = 'm-2 yr-1',                                                  &
-          long='logging mortality by size in number of plants per m2 per event', &
+          long='logging mortality by size in number of plants per m2 per year', &
           use_default='active', avgflag='A', vtype=site_size_r8,               &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_m7_si_scls)
 
     call this%set_history_var(vname='FATES_MORTALITY_FREEZING_SZ',             &
-          units = 'm-2 event-1',                                               &
-          long='freezing mortality by size in number of plants per m2 per event', &
+          units = 'm-2 yr-1',                                                  &
+          long='freezing mortality by size in number of plants per m2 per year', &
           use_default='active', avgflag='A', vtype=site_size_r8,               &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_m8_si_scls)
 
     call this%set_history_var(vname='FATES_MORTALITY_SENESCENCE_SZ',           &
           units = 'm-2 yr-1',                                                  &
-          long='senescence mortality by size in number of plants per m2 per event', &
+          long='senescence mortality by size in number of plants per m2 per year', &
           use_default='active', avgflag='A', vtype=site_size_r8,               &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_m9_si_scls)
@@ -6775,7 +6796,7 @@ end subroutine update_history_hifrq
             hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
             initialize=initialize_variables, index = ih_storeptfrac_canopy_scpf)
 
-       call this%set_history_var(vname='FATES_STOREP_TF_USTORY_SZPF',      &
+       call this%set_history_var(vname='FATES_STOREP_TF_USTORY_SZPF',          &
             units='1',                                                         &
             long='storage phosphorus fraction (0-1) of target, in understory, by size-class x pft', &
             use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
