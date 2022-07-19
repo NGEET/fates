@@ -283,13 +283,9 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
        ! need to include all of their mortality here rather than part of it here
        ! and part in disturbance routine.
 
+       currentCohort%dndt= -(cmort+hmort+bmort+frmort+smort+asmort) * currentCohort%n
        if ( .not. ExemptTreefallDist(currentCohort)) then
-          currentCohort%dndt= -(1.0_r8-fates_mortality_disturbance_fraction) &
-               * (cmort+hmort+bmort+frmort+smort+asmort) * &
-               currentCohort%n
-       else
-          currentCohort%dndt= - (cmort+hmort+bmort+frmort+smort+asmort) * &
-               currentCohort%n
+          currentCohort%dndt = (1.0_r8-fates_mortality_disturbance_fraction) * currentCohort%dndt
        endif
 
     endif
