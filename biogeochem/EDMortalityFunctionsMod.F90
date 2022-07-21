@@ -6,6 +6,8 @@ module EDMortalityFunctionsMod
 
    use FatesConstantsMod     , only : r8 => fates_r8
    use FatesGlobals          , only : fates_log
+   use FatesGlobals          , only : endrun => fates_endrun
+   use FatesGlobals          , only : fates_log
    use EDPftvarcon           , only : EDPftvarcon_inst
    use EDTypesMod            , only : ed_cohort_type
    use EDTypesMod            , only : ed_site_type
@@ -22,10 +24,15 @@ module EDMortalityFunctionsMod
 
    use PRTGenericMod,          only : all_carbon_elements
    use PRTGenericMod,          only : store_organ
-
+   use shr_log_mod           , only : errMsg => shr_log_errMsg
+   
    implicit none
    private
    
+
+   logical, parameter :: debug = .false.
+   character(len=*), parameter, private :: sourcefile = &
+        __FILE__
    
    public :: mortality_rates
    public :: Mortality_Derivative
@@ -163,6 +170,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     else
        write(fates_log(),*) 'dbh problem in mortality_rates', &
             cohort_in%dbh,cohort_in%pft,cohort_in%n,cohort_in%canopy_layer
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
     !-------------------------------------------------------------------------------- 
     !    Mortality due to cold and freezing stress (frmort), based on ED2 and:           
