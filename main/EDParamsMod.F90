@@ -467,7 +467,8 @@ contains
          dimension_names=dim_names_scalar)
 	 
     call fates_params%RegisterParameter(name=ED_name_regeneration_model, dimension_shape=dimension_shape_scalar, &
-
+         dimension_names=dim_names_scalar)
+	 
     call fates_params%RegisterParameter(name=stomatal_assim_name, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
@@ -590,16 +591,16 @@ contains
     call fates_params%RetrieveParameter(name=ED_name_photo_temp_acclim_timescale, &
          data=photo_temp_acclim_timescale)
 
-    call fates_params%RetreiveParameter(name=ED_name_sdlng_emerg_h2o_timescale, &
+    call fates_params%RetrieveParameter(name=ED_name_sdlng_emerg_h2o_timescale, &
          data=sdlng_emerg_h2o_timescale)
 
-    call fates_params%RetreiveParameter(name=ED_name_sdlng_mort_par_timescale, &
+    call fates_params%RetrieveParameter(name=ED_name_sdlng_mort_par_timescale, &
          data=sdlng_mort_par_timescale)
 
-    call fates_params%RetreiveParameter(name=ED_name_sdlng_mdd_timescale, &
+    call fates_params%RetrieveParameter(name=ED_name_sdlng_mdd_timescale, &
          data=sdlng_mdd_timescale)
 
-    call fates_params%RetreiveParameter(name=ED_name_sdlng2sap_par_timescale, &
+    call fates_params%RetrieveParameter(name=ED_name_sdlng2sap_par_timescale, &
          data=sdlng2sap_par_timescale)
 
     call fates_params%RetrieveParameter(name=name_photo_tempsens_model, &
