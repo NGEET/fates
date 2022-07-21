@@ -12,6 +12,7 @@ module FatesUtilsMod
   ! Make public necessary subroutines and functions
   public :: check_hlm_list
   public :: check_var_real
+  public :: GreatCircleDist
 
 contains
   
