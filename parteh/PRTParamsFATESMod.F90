@@ -487,11 +487,11 @@ contains
     !ahb added the code below
     !--------------------------------------------------------
     name = 'fates_repro_alloc_a'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%repro_alloc_a)
 
     name = 'fates_repro_alloc_b'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%repro_alloc_b)
     !---------------------------------------------------------
 

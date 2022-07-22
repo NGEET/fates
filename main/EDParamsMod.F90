@@ -681,7 +681,7 @@ contains
          data=tmpreal)
     stomatal_model = nint(tmpreal)
 
-    call fates_params%RetreiveParameter(name=ED_name_regeneration_model, &
+    call fates_params%RetrieveParameter(name=ED_name_regeneration_model, &
          data=tmpreal)
     regeneration_model = nint(tmpreal)
     

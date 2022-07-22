@@ -959,67 +959,67 @@ contains
          data=this%germination_rate)
 
     name = 'fates_repro_frac_seed'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%repro_frac_seed)
 
     name = 'fates_a_emerg'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%a_emerg)
              
     name = 'fates_b_emerg'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%b_emerg)
     
     name = 'fates_par_crit_germ'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%par_crit_germ)
 
     name = 'fates_seedling_psi_emerg'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%seedling_psi_emerg)
    
     name = 'fates_seedling_psi_crit'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%seedling_psi_crit)
     
     name = 'fates_seedling_light_rec_a'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%seedling_light_rec_a)
     
     name = 'fates_seedling_light_rec_b'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%seedling_light_rec_b)
 
     name = 'fates_seedling_mdd_crit'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%seedling_mdd_crit)
 
     name = 'fates_seedling_h2o_mort_a'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%seedling_h2o_mort_a)
     
     name = 'fates_seedling_h2o_mort_b'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%seedling_h2o_mort_b)
 
     name = 'fates_seedling_h2o_mort_c'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%seedling_h2o_mort_c)
 
     name = 'fates_seedling_root_depth'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%seedling_root_depth)
                      
     name = 'fates_seedling_light_mort_a'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%seedling_light_mort_a)
 
     name = 'fates_seedling_light_mort_b'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%seedling_light_mort_b)
 
     name = 'fates_background_seedling_mort'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%background_seedling_mort)
                               
     name = 'fates_frag_seed_decay_rate'
