@@ -223,6 +223,11 @@ module FatesConstantsMod
   real(fates_r8), parameter, public :: fates_huge = huge(g_per_kg)
 
   real(fates_r8), parameter, public :: fates_tiny = tiny(g_per_kg)
+  
+  ! Geodesy constants (WGS 84)
+  real(fates_r8), parameter, public :: earth_radius_eq = 6378137_fates_r8                       ! equitorial radius, earth [m]
+  real(fates_r8), parameter, public :: earth_flattening = 1.0_fates_r8 / 298.257223563_fates_r8  ! flattening [non-dimensional]
+  
 
   ! Geometric Constants
 
