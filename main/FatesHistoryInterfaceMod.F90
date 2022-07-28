@@ -57,7 +57,7 @@ module FatesHistoryInterfaceMod
   ! CIME Globals
   use shr_log_mod              , only : errMsg => shr_log_errMsg
   use shr_infnan_mod           , only : isnan => shr_infnan_isnan
-  use FatesConstantsMod        , only : g_per_kg
+  use FatesConstantsMod        , only : g_per_kg,kg_per_g
   use FatesConstantsMod        , only : ha_per_m2
   use FatesConstantsMod        , only : days_per_sec
   use FatesConstantsMod        , only : sec_per_day
