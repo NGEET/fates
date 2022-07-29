@@ -48,6 +48,7 @@ module EDPhysiologyMod
   use EDTypesMod          , only : nlevleaf
   use EDTypesMod          , only : num_vegtemp_mem
   use EDTypesMod          , only : maxpft
+  use EDTypesMod          , only : nclmax
   use EDTypesMod          , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod          , only : leaves_on
   use EDTypesMod          , only : leaves_off
@@ -106,6 +107,7 @@ module EDPhysiologyMod
   use PRTLossFluxesMod, only : PRTDeciduousTurnover
   use PRTLossFluxesMod, only : PRTReproRelease
   use PRTGenericMod, only : StorageNutrientTarget
+  use PRTInitParamsFatesMod, only : NewRecruitTotalStoichiometry
 
   implicit none
   private
@@ -116,12 +118,14 @@ module EDPhysiologyMod
   public :: assign_cohort_SP_properties
   public :: recruitment
   public :: ZeroLitterFluxes
-
   public :: ZeroAllocationRates
   public :: PreDisturbanceLitterFluxes
   public :: PreDisturbanceIntegrateLitter
   public :: SeedIn
-
+  public :: UpdateRecruitL2FR
+  public :: UpdateRecruitStoich
+  public :: SetRecruitL2FR
+   
   logical, parameter :: debug  = .false. ! local debug flag
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
@@ -1675,15 +1679,16 @@ contains
                 litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)/area
 
                 ! If there is forced external seed rain, we calculate the input mass flux
-                ! from the different elements, usung the seed optimal stoichiometry
-                ! for non-carbon
+                ! from the different elements, usung the mean stoichiometry of new
+                ! recruits for the current patch and lowest canopy position
+
                 select case(element_id)
                 case(carbon12_element)
                    seed_stoich = 1._r8
                 case(nitrogen_element)
-                 seed_stoich = prt_params%nitr_recr_stoich(pft)
+                   seed_stoich = currentPatch%nitr_repro_stoich(pft)
                 case(phosphorus_element)
-                 seed_stoich = prt_params%phos_recr_stoich(pft)
+                   seed_stoich = currentPatch%phos_repro_stoich(pft)
                 case default
                    write(fates_log(), *) 'undefined element specified'
                    write(fates_log(), *) 'while defining forced external seed mass flux'
@@ -1866,7 +1871,7 @@ contains
           temp_cohort%pft         = ft
           temp_cohort%hite        = EDPftvarcon_inst%hgt_min(ft)
           temp_cohort%coage       = 0.0_r8
-          temp_cohort%l2fr        = prt_params%allom_l2fr(ft)
+          temp_cohort%l2fr        = currentSite%rec_l2fr(ft,currentPatch%NCL_p)
           stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(ft)
 
           call h2d_allom(temp_cohort%hite,ft,temp_cohort%dbh)
@@ -2583,4 +2588,134 @@ contains
 
   end subroutine CWDOut
 
+  ! ======================================================================
+  
+  subroutine UpdateRecruitL2FR(csite)
+
+    type(ed_site_type) :: csite
+    type(ed_patch_type), pointer :: cpatch
+    type(ed_cohort_type), pointer :: ccohort
+
+    real(r8) :: rec_n(maxpft,nclmax)     ! plant count
+    real(r8) :: rec_l2fr0(maxpft,nclmax) ! mean l2fr for this day
+    integer  :: rec_count(maxpft,nclmax) ! sample count
+    integer  :: ft                       ! functional type index
+    integer  :: cl                       ! canopy layer index
+    real(r8) :: dbh_min                  ! the dbh of a recruit
+    real(r8), parameter :: max_delta = 5.0_r8  ! dbh tolerance, cm, consituting a recruit
+    real(r8), parameter :: smth_wgt = 1._r8/300.0_r8
+    integer, parameter :: max_count = 3
+    
+    ! Difference in dbh (cm) to consider a plant was recruited fairly recently
+
+    rec_n(1:numpft,1:nclmax) = 0._r8
+    rec_l2fr0(1:numpft,1:nclmax) = 0._r8
+
+    cpatch => csite%youngest_patch
+    do while(associated(cpatch))
+
+       rec_count(1:numpft,1:nclmax) = 0
+       
+       ccohort => cpatch%shortest
+       cloop: do while(associated(ccohort))
+
+          ft = ccohort%pft
+          cl = ccohort%canopy_layer
+          call h2d_allom(EDPftvarcon_inst%hgt_min(ft),ft,dbh_min)
+
+          if( .not.ccohort%isnew ) then
+
+             if(rec_count(ft,cl) <= max_count .and. &
+                  ccohort%dbh-dbh_min < max_delta ) then
+                rec_count(ft,cl) = rec_count(ft,cl) + 1
+                rec_n(ft,cl) = rec_n(ft,cl) + ccohort%n
+                rec_l2fr0(ft,cl) = rec_l2fr0(ft,cl) + ccohort%n*ccohort%l2fr
+             end if
+
+          end if
+
+          ccohort => ccohort%taller
+       end do cloop
+
+       cpatch => cpatch%older
+    end do
+
+    ! Find the daily mean for each PFT weighted by number and add it to the running mean
+    do cl = 1,nclmax
+       do ft = 1,numpft
+          if(rec_n(ft,cl)>nearzero)then
+             rec_l2fr0(ft,cl) = rec_l2fr0(ft,cl) / rec_n(ft,cl)
+             csite%rec_l2fr(ft,cl) = &
+                  (1._r8-smth_wgt)*csite%rec_l2fr(ft,cl) + smth_wgt*rec_l2fr0(ft,cl)
+
+             !print*,"REC_L2FR:",cl,csite%rec_l2fr(ft,cl)
+          end if
+       end do
+    end do
+
+    return
+  end subroutine UpdateRecruitL2FR
+
+  ! ======================================================================
+
+  subroutine UpdateRecruitStoich(csite)
+
+    type(ed_site_type) :: csite
+    type(ed_patch_type), pointer :: cpatch
+    integer  :: ft                       ! functional type index
+    integer  :: cl                       ! canopy layer index
+    real(r8) :: rec_l2fr_pft             ! Actual l2fr of a pft in it's patch
+    
+    ! Update the total plant stoichiometry of a new recruit, based on the updated
+    ! L2FR values
+    cpatch => csite%youngest_patch
+    do while(associated(cpatch))
+       cl = cpatch%ncl_p
+       do ft = 1,numpft
+          rec_l2fr_pft = csite%rec_l2fr(ft,cl)
+          cpatch%nitr_repro_stoich(ft) = &
+               NewRecruitTotalStoichiometry(ft,rec_l2fr_pft,nitrogen_element)
+          cpatch%phos_repro_stoich(ft) = &
+               NewRecruitTotalStoichiometry(ft,rec_l2fr_pft,phosphorus_element)
+       end do
+       cpatch => cpatch%older
+    end do
+       
+    return
+  end subroutine UpdateRecruitStoich
+
+  ! ======================================================================
+  
+  subroutine SetRecruitL2FR(csite)
+
+    ! I DONT THINK THIS ROUTINE IS ACTUALLY NEEDED...
+    ! TURN THIS OFF IN A B4B TEST
+    
+
+    type(ed_site_type) :: csite
+    type(ed_patch_type), pointer :: cpatch
+    type(ed_cohort_type), pointer :: ccohort
+    integer :: ft,cl
+    
+    cpatch => csite%youngest_patch
+    do while(associated(cpatch))
+       ccohort => cpatch%shortest
+       cloop: do while(associated(ccohort))
+
+          if( ccohort%isnew ) then
+             ft = ccohort%pft
+             cl = ccohort%canopy_layer
+             ccohort%l2fr = csite%rec_l2fr(ft,cl)
+          end if
+
+          ccohort => ccohort%taller
+       end do cloop
+
+       cpatch => cpatch%older
+    end do
+    
+    return
+  end subroutine SetRecruitL2FR
+  
+  
 end module EDPhysiologyMod

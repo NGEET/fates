@@ -96,6 +96,8 @@ module FatesRestartInterfaceMod
   integer :: ir_canopy_layer_yesterday_co
   integer :: ir_canopy_trim_co
   integer :: ir_l2fr_co
+  integer :: ir_nc_store_co
+  integer :: ir_pc_store_co
   integer :: ir_size_class_lasttimestep_co
   integer :: ir_dbh_co
   integer :: ir_coage_co
@@ -184,6 +186,7 @@ module FatesRestartInterfaceMod
   integer :: ir_litter_moisture_pa_nfsc
 
   ! Site level
+  integer :: ir_recl2fr_sipfcl
   integer :: ir_watermem_siwm
   integer :: ir_vegtempmem_sitm
   integer :: ir_seed_bank_sift
@@ -696,6 +699,14 @@ contains
     call this%set_restart_var(vname='fates_l2fr', vtype=cohort_r8, &
          long_name='ed cohort - l2fr', units='fraction', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_l2fr_co )
+
+    call this%set_restart_var(vname='fates_nc_store', vtype=cohort_r8, &
+         long_name='ed cohort - nc_store', units='fraction', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_nc_store_co )
+
+    call this%set_restart_var(vname='fates_pc_store', vtype=cohort_r8, &
+         long_name='ed cohort - pc_store', units='fraction', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_pc_store_co )
     
     call this%set_restart_var(vname='fates_size_class_lasttimestep', vtype=cohort_int, &
          long_name='ed cohort - size-class last timestep', units='index', flushval = flushzero, &
@@ -1121,7 +1132,11 @@ contains
     !
     ! site x time level vars
     !
-
+    call this%set_restart_var(vname='fates_recruit_l2fr', vtype=cohort_r8, &
+         long_name='site-level mean recruit l2frs, by pft x canopy layer', &
+         units='-', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_recl2fr_sipfcl)
+    
     call this%set_restart_var(vname='fates_water_memory', vtype=cohort_r8, &
          long_name='last 10 days of volumetric soil water, by site x day-index', &
          units='m3/m3', flushval = flushzero, &
@@ -1677,6 +1692,7 @@ contains
     integer  :: io_idx_pa_dc   ! each decomposability index
     integer  :: io_idx_pa_ib   ! each SW band (vis/ir) per patch (pa_ib)
     integer  :: io_idx_si_wmem ! each water memory class within each site
+    integer  :: io_idx_si_pfcl ! each pft x canopy layer within each site
     integer  :: io_idx_si_lyr_shell ! site - layer x shell index
     integer  :: io_idx_si_scpf ! each size-class x pft index within site
     integer  :: io_idx_si_sc   ! each size-class index within site
@@ -1732,6 +1748,8 @@ contains
            rio_canopy_layer_yesterday_co    => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
            rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
            rio_l2fr_co                 => this%rvars(ir_l2fr_co)%r81d, &
+           rio_nc_store_co             => this%rvars(ir_nc_store_co)%r81d, &
+           rio_pc_store_co             => this%rvars(ir_pc_store_co)%r81d, &
            rio_seed_prod_co            => this%rvars(ir_seed_prod_co)%r81d, &
            rio_size_class_lasttimestep => this%rvars(ir_size_class_lasttimestep_co)%int1d, &
            rio_dbh_co                  => this%rvars(ir_dbh_co)%r81d, &
@@ -1779,6 +1797,7 @@ contains
            rio_nocomp_pft_label_pa     => this%rvars(ir_nocomp_pft_label_pa)%int1d, &
            rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
            rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d, &
+           rio_recl2fr_sipfcl          => this%rvars(ir_recl2fr_sipfcl)%r81d, &
            rio_vegtempmem_sitm         => this%rvars(ir_vegtempmem_sitm)%r81d, &
            rio_recrate_sift            => this%rvars(ir_recrate_sift)%r81d, &
            rio_use_this_pft_sift       => this%rvars(ir_use_this_pft_sift)%int1d, &
@@ -1823,6 +1842,7 @@ contains
           io_idx_co      = io_idx_co_1st
           io_idx_pa_ib   = io_idx_co_1st
           io_idx_si_wmem = io_idx_co_1st
+          io_idx_si_pfcl = io_idx_co_1st
           io_idx_si_vtmem = io_idx_co_1st
           io_idx_pa_ncl   = io_idx_co_1st
 
@@ -1947,6 +1967,8 @@ contains
                 rio_canopy_layer_yesterday_co(io_idx_co) = ccohort%canopy_layer_yesterday
                 rio_canopy_trim_co(io_idx_co)  = ccohort%canopy_trim
                 rio_l2fr_co(io_idx_co)         = ccohort%l2fr
+                rio_nc_store_co(io_idx_co)     = ccohort%nc_store
+                rio_pc_store_co(io_idx_co)     = ccohort%pc_store
                 rio_seed_prod_co(io_idx_co)    = ccohort%seed_prod
                 rio_size_class_lasttimestep(io_idx_co) = ccohort%size_class_lasttimestep
                 rio_dbh_co(io_idx_co)          = ccohort%dbh
@@ -2164,7 +2186,7 @@ contains
                 io_idx_si_scpf = io_idx_si_scpf + 1
              end do
 
-             rio_demorate_sisc(io_idx_si_sc) = sites(s)%demotion_rate(i_scls)
+              rio_demorate_sisc(io_idx_si_sc) = sites(s)%demotion_rate(i_scls)
              rio_promrate_sisc(io_idx_si_sc) = sites(s)%promotion_rate(i_scls)
 
              io_idx_si_sc = io_idx_si_sc + 1
@@ -2197,6 +2219,13 @@ contains
 
           rio_npatch_si(io_idx_si)  = patchespersite
 
+          do i = 1,nclmax
+             do i_pft = 1, numpft
+                rio_recl2fr_sipfcl(io_idx_si_pfcl ) = sites(s)%rec_l2fr(i_pft,i)
+                io_idx_si_pfcl = io_idx_si_pfcl + 1
+             end do
+          end do
+          
           do i = 1,numWaterMem ! numWaterMem currently 10
              rio_watermem_siwm( io_idx_si_wmem ) = sites(s)%water_memory(i)
              io_idx_si_wmem = io_idx_si_wmem + 1
@@ -2385,7 +2414,7 @@ contains
                 ! correct boundary condition fields
                 new_cohort%prt => null()
                 call InitPRTObject(new_cohort%prt)
-                call InitPRTBoundaryConditions(new_cohort)
+                
 
 
                 ! Allocate hydraulics arrays
@@ -2498,6 +2527,7 @@ contains
      integer  :: io_idx_pa_dc   ! each decomposability index
      integer  :: io_idx_pa_ib   ! each SW radiation band per patch (pa_ib)
      integer  :: io_idx_si_wmem ! each water memory class within each site
+     integer  :: io_idx_si_pfcl  ! each pft x canopy layer class within each site
      integer  :: io_idx_si_vtmem ! counter for vegetation temp memory
      integer  :: io_idx_si_lyr_shell ! site - layer x shell index
      integer  :: io_idx_si_scpf ! each size-class x pft index within site
@@ -2545,6 +2575,8 @@ contains
           rio_canopy_layer_yesterday_co         => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
           rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
           rio_l2fr_co                 => this%rvars(ir_l2fr_co)%r81d, &
+          rio_nc_store_co             => this%rvars(ir_nc_store_co)%r81d, &
+          rio_pc_store_co             => this%rvars(ir_pc_store_co)%r81d, &
           rio_seed_prod_co            => this%rvars(ir_seed_prod_co)%r81d, &
           rio_size_class_lasttimestep => this%rvars(ir_size_class_lasttimestep_co)%int1d, &
           rio_dbh_co                  => this%rvars(ir_dbh_co)%r81d, &
@@ -2591,6 +2623,7 @@ contains
           rio_agesinceanthrodist_pa   => this%rvars(ir_agesinceanthrodist_pa)%r81d, &
           rio_nocomp_pft_label_pa     => this%rvars(ir_nocomp_pft_label_pa)%int1d, &
           rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
+          rio_recl2fr_sipfcl          => this%rvars(ir_recl2fr_sipfcl)%r81d, &
           rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d, &
           rio_vegtempmem_sitm         => this%rvars(ir_vegtempmem_sitm)%r81d, &
           rio_recrate_sift            => this%rvars(ir_recrate_sift)%r81d, &
@@ -2625,6 +2658,7 @@ contains
           io_idx_co      = io_idx_co_1st
           io_idx_pa_ib   = io_idx_co_1st
           io_idx_si_wmem = io_idx_co_1st
+          io_idx_si_pfcl = io_idx_co_1st
           io_idx_si_vtmem = io_idx_co_1st
           io_idx_pa_ncl = io_idx_co_1st
 
@@ -2732,7 +2766,9 @@ contains
                 ccohort%canopy_layer = rio_canopy_layer_co(io_idx_co)
                 ccohort%canopy_layer_yesterday = rio_canopy_layer_yesterday_co(io_idx_co)
                 ccohort%canopy_trim  = rio_canopy_trim_co(io_idx_co)
-                ccohort%l2fr         = rio_l2fr_co(io_idx_co)      
+                ccohort%l2fr         = rio_l2fr_co(io_idx_co)
+                ccohort%nc_store     = rio_nc_store_co(io_idx_co)
+                ccohort%pc_store     = rio_pc_store_co(io_idx_co)
                 ccohort%seed_prod    = rio_seed_prod_co(io_idx_co)
                 ccohort%size_class_lasttimestep = rio_size_class_lasttimestep(io_idx_co)
                 ccohort%dbh          = rio_dbh_co(io_idx_co)
@@ -2778,6 +2814,7 @@ contains
                 ccohort%status_coh   = rio_status_co(io_idx_co)
                 ccohort%isnew        = ( rio_isnew_co(io_idx_co) .eq. new_cohort )
 
+                call InitPRTBoundaryConditions(ccohort,ccohort%pft,4)
                 call UpdateCohortBioPhysRates(ccohort)
 
 
@@ -2949,6 +2986,13 @@ contains
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
 
+          do i = 1,nclmax
+             do i_pft = 1, numpft
+                sites(s)%rec_l2fr(i_pft,i) = rio_recl2fr_sipfcl(io_idx_si_pfcl)
+                io_idx_si_pfcl = io_idx_si_pfcl + 1
+             end do
+          end do
+          
           do i = 1,numWaterMem
              sites(s)%water_memory(i) = rio_watermem_siwm( io_idx_si_wmem )
              io_idx_si_wmem = io_idx_si_wmem + 1

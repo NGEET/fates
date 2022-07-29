@@ -926,7 +926,7 @@ contains
       allocate(ema_lpa)
       call ema_lpa%define(photo_temp_acclim_timescale*sec_per_day, &
            hlm_stepsize,moving_ema_window)
-
+      
       !allocate(ema_60day)
       !call ema_60day%define(prt_params%fnrt_adapt_tscl*sec_per_day,sec_per_day,moving_ema_window)
       !class(rmean_arr_type), pointer :: ema_fnrt_tscale(:)

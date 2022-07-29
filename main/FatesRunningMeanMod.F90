@@ -93,7 +93,7 @@ module FatesRunningMeanMod
   class(rmean_def_type), public, pointer :: ema_lpa    ! Exponential moving average - leaf photo acclimation
   class(rmean_def_type), public, pointer :: ema_60day  ! Exponential moving average, 60 day
                                                        ! Updated daily
-
+  class(rmean_def_type), public, pointer :: ema_storemem ! EMA used for smoothing N/C and P/C storage
 
   ! If we want to have different running mean specs based on
   ! pft or other types of constants
@@ -309,12 +309,13 @@ contains
     class(rmean_type)          :: this
     class(rmean_type), pointer :: donor
     real(r8),intent(in)        :: recip_wgt  ! Weighting factor for recipient (0-1)
-    
-    if(this%def_type%n_mem .ne. donor%def_type%n_mem) then
-       write(fates_log(), *) 'memory size is somehow different during fusion'
-       write(fates_log(), *) 'of two running mean variables: '!,this%name,donor%name
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    end if
+
+    ! Unecessary
+    !if(this%def_type%n_mem .ne. donor%def_type%n_mem) then
+    !   write(fates_log(), *) 'memory size is somehow different during fusion'
+    !   write(fates_log(), *) 'of two running mean variables: '!,this%name,donor%name
+    !   call endrun(msg=errMsg(sourcefile, __LINE__))
+    !end if
 
     if(this%def_type%method .eq. fixed_window ) then
        if (this%c_index .ne. donor%c_index) then

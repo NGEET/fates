@@ -671,14 +671,14 @@ contains
                 ! correct boundary condition fields
                 copyc%prt => null()
                 call InitPRTObject(copyc%prt)
-                call InitPRTBoundaryConditions(copyc)
 
                 if( hlm_use_planthydro.eq.itrue ) then
                    call InitHydrCohort(currentSite,copyc)
                 endif
 
                 call copy_cohort(currentCohort, copyc)
-
+                call InitPRTBoundaryConditions(copyc,currentCohort%pft,1)
+                
                 newarea = currentCohort%c_area - cc_loss
                 copyc%n = currentCohort%n*newarea/currentCohort%c_area
                 currentCohort%n = currentCohort%n - copyc%n
@@ -1130,7 +1130,7 @@ contains
                    ! correct boundary condition fields
                    copyc%prt => null()
                    call InitPRTObject(copyc%prt)
-                   call InitPRTBoundaryConditions(copyc)
+                   
 
                    if( hlm_use_planthydro.eq.itrue ) then
                       call InitHydrCohort(CurrentSite,copyc)
@@ -1143,7 +1143,8 @@ contains
                    !     init_value=currentPatch%tveg_lpa%GetMean())
                    
                    call copy_cohort(currentCohort, copyc) !makes an identical copy...
-
+                   call InitPRTBoundaryConditions(copyc,currentCohort%pft,2)
+                   
                    newarea = currentCohort%c_area - cc_gain !new area of existing cohort
 
                    call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
@@ -1331,8 +1332,6 @@ contains
           do while(associated(currentCohort))
 
              ft = currentCohort%pft
-
-
              leaf_c   = currentCohort%prt%GetState(leaf_organ, carbon12_element)
              sapw_c   = currentCohort%prt%GetState(sapw_organ, carbon12_element)
              struct_c = currentCohort%prt%GetState(struct_organ, carbon12_element)

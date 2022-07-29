@@ -19,7 +19,7 @@ module EDCohortDynamicsMod
   use FatesConstantsMod     , only : nearzero
   use FatesConstantsMod     , only : calloc_abs_error
   use FatesConstantsMod     , only : sec_per_day
-  use FatesRunningMeanMod       , only : ema_lpa, ema_60day
+  use FatesRunningMeanMod       , only : ema_lpa, ema_60day, ema_storemem
   use FatesInterfaceTypesMod     , only : hlm_days_per_year
   use FatesInterfaceTypesMod     , only : nleafage
   use SFParamsMod           , only : SF_val_CWD_frac
@@ -94,8 +94,11 @@ module EDCohortDynamicsMod
   use PRTAllometricCNPMod,    only : cnp_allom_prt_vartypes
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_pft, acnp_bc_in_id_ctrim
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_lstat, acnp_bc_inout_id_dbh
-  !use PRTAllometricCNPMod,    only : acnp_bc_in_id_l2fr_ema
+  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_nc_store
+  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_pc_store
   use PRTAllometricCNPMod,    only : acnp_bc_inout_id_l2fr
+  use PRTAllometricCNPMod,    only : acnp_bc_in_id_nc_repro
+  use PRTAllometricCNPMod,    only : acnp_bc_in_id_pc_repro
   use PRTAllometricCNPMod,    only : acnp_bc_inout_id_resp_excess, acnp_bc_in_id_netdc
   use PRTAllometricCNPMod,    only : acnp_bc_inout_id_netdn, acnp_bc_inout_id_netdp
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_cefflux, acnp_bc_out_id_nefflux
@@ -217,8 +220,7 @@ contains
     ! The PARTEH cohort object should be allocated and already
     ! initialized in this routine.
     call new_cohort%prt%CheckInitialConditions()
-
-
+    
     !**********************/
     ! Define cohort state variable
     !**********************/
@@ -250,6 +252,8 @@ contains
 
     new_cohort%l2fr = prt_params%allom_l2fr(pft)
 
+    new_cohort%nc_store = 1._r8  ! Assume balanced N/C stores
+    new_cohort%pc_store = 1._r8  ! Assume balanced P/C stores
     
     ! This sets things like vcmax25top, that depend on the
     ! leaf age fractions (which are defined by PARTEH)
@@ -324,7 +328,7 @@ contains
     !! allocate(new_cohort%tveg_lpa)
     !! call new_cohort%tveg_lpa%InitRMean(ema_lpa,init_value=patchptr%tveg_lpa%GetMean())
 
-    call InitPRTBoundaryConditions(new_cohort)
+    call InitPRTBoundaryConditions(new_cohort,pft,0)
     
     
     ! Recuits do not have mortality rates, nor have they moved any
@@ -385,7 +389,7 @@ contains
 
   ! -------------------------------------------------------------------------------------
 
-  subroutine InitPRTBoundaryConditions(new_cohort)
+  subroutine InitPRTBoundaryConditions(new_cohort,ft,call_id)
 
     ! Set the boundary conditions that flow in an out of the PARTEH
     ! allocation hypotheses.  Each of these calls to "RegsterBC" are simply
@@ -406,8 +410,9 @@ contains
     ! value boundary condition.
 
     type(ed_cohort_type), intent(inout), target :: new_cohort
-
-
+    integer,intent(in) :: ft  ! PFT index
+    integer,intent(in) :: call_id
+    
     select case(hlm_parteh_mode)
     case (prt_carbon_allom_hyp)
 
@@ -425,12 +430,15 @@ contains
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_ctrim,bc_rval = new_cohort%canopy_trim)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_lstat,bc_ival = new_cohort%status_coh)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdc, bc_rval = new_cohort%npp_acc)
-       
-       !!call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_l2fr_ema, bc_rval = new_cohort%l2fr_ema%l_mean)
+
+       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_nc_repro,bc_rval = new_cohort%patchptr%nitr_repro_stoich(ft))
+       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_pc_repro,bc_rval = new_cohort%patchptr%phos_repro_stoich(ft))
        
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_dbh,bc_rval = new_cohort%dbh)
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_resp_excess,bc_rval = new_cohort%resp_excess)
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_l2fr,bc_rval = new_cohort%l2fr)
+       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_nc_store,bc_rval = new_cohort%nc_store)
+       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_pc_store,bc_rval = new_cohort%pc_store)
        
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdn, bc_rval = new_cohort%daily_n_gain)
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdp, bc_rval = new_cohort%daily_p_uptake)
@@ -594,8 +602,7 @@ contains
     currentCohort%daily_p_efflux = nan
     currentCohort%daily_n_demand = nan
     currentCohort%daily_p_demand = nan
-
-
+    
     currentCohort%c13disc_clm        = nan ! C13 discrimination, per mil at indiv/timestep
     currentCohort%c13disc_acc        = nan ! C13 discrimination, per mil at indiv/timestep at indiv/daily at the end of a day
 
@@ -1019,11 +1026,6 @@ contains
 
      type(ed_cohort_type),intent(inout) :: currentCohort
 
-     !  (Keeping as an example)
-     ! Remove the running mean structure
-     ! deallocate(currentCohort%tveg_lpa)
-     !!deallocate(currentCohort%l2fr_ema)
-     
      ! At this point, nothing should be pointing to current Cohort
      if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(currentCohort)
 
@@ -1188,12 +1190,10 @@ contains
                                       end do
                                    end if
 
-                                   !  (Keeping as an example)
-                                   ! Running mean fuses based on number density fraction just
-                                   ! like other variables
-                                   !!call currentCohort%tveg_lpa%FuseRMean(nextc%tveg_lpa,currentCohort%n/newn)
-
-                                   !!call currentCohort%l2fr_ema%FuseRMean(nextc%l2fr_ema,currentCohort%n/newn)
+                                   currentCohort%nc_store = (currentCohort%n*currentCohort%nc_store &
+                                        + nextc%n*nextc%nc_store)/newn
+                                   currentCohort%pc_store = (currentCohort%n*currentCohort%pc_store &
+                                        + nextc%n*nextc%pc_store)/newn
                                    
                                    ! new cohort age is weighted mean of two cohorts
                                    currentCohort%coage = &
@@ -1839,11 +1839,10 @@ contains
     n%tpu25top   = o%tpu25top
     n%kp25top    = o%kp25top
 
-    !  (Keeping as an example)
     ! Copy over running means
-    ! call n%tveg_lpa%CopyFromDonor(o%tveg_lpa)
-    !!call n%l2fr_ema%CopyFromDonor(o%l2fr_ema)
-    
+    n%nc_store = o%nc_store
+    n%pc_store = o%pc_store
+
     ! CARBON FLUXES
     n%gpp_acc_hold    = o%gpp_acc_hold
     n%gpp_acc         = o%gpp_acc

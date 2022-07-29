@@ -50,6 +50,7 @@ module PRTInitParamsFatesMod
   public :: PRTReceiveParams
   public :: PRTCheckParams
   public :: PRTDerivedParams
+  public :: NewRecruitTotalStoichiometry
   !-----------------------------------------------------------------------
 
 contains
@@ -967,8 +968,6 @@ contains
     
     ! Set the reverse lookup map for organs to the parameter file index
     allocate(prt_params%organ_param_id(num_organ_types))
-    allocate(prt_params%nitr_recr_stoich(npft))
-    allocate(prt_params%phos_recr_stoich(npft))
     
     ! Initialize them as invalid
     prt_params%organ_param_id(:) = -1
@@ -977,18 +976,6 @@ contains
        prt_params%organ_param_id(prt_params%organ_id(i)) = i
     end do
 
-    
-    ! Calculate the stoichiometry of a new recruit, and use this for defining
-    ! seed stoichiometry and 
-
-    do ft = 1,npft
-
-       prt_params%nitr_recr_stoich(ft) = NewRecruitTotalStoichiometry(ft,nitrogen_element)
-       prt_params%phos_recr_stoich(ft) = NewRecruitTotalStoichiometry(ft,phosphorus_element)
-       
-    end do
-
-    
     return
   end subroutine PRTDerivedParams
     
@@ -1466,7 +1453,7 @@ contains
 
    ! ====================================================================================
    
-   function NewRecruitTotalStoichiometry(ft,element_id) result(recruit_stoich)
+   function NewRecruitTotalStoichiometry(ft,l2fr,element_id) result(recruit_stoich)
 
      ! ----------------------------------------------------------------------------------
      ! This function calculates the total N:C or P:C ratio for a newly recruited plant
@@ -1480,10 +1467,10 @@ contains
      ! into new recruits.
      ! ----------------------------------------------------------------------------------
 
-
-     integer,intent(in) :: ft
-     integer,intent(in) :: element_id
-     real(r8)           :: recruit_stoich  ! nutrient to carbon ratio of recruit
+     integer,intent(in)  :: ft
+     integer,intent(in)  :: element_id
+     real(r8),intent(in) :: l2fr
+     real(r8)            :: recruit_stoich  ! nutrient to carbon ratio of recruit
 
      real(r8) :: dbh         ! dbh of the new recruit [cm]
      real(r8) :: c_leaf      ! target leaf biomass [kgC]
@@ -1499,7 +1486,7 @@ contains
 
      call h2d_allom(EDPftvarcon_inst%hgt_min(ft),ft,dbh)
      call bleaf(dbh,ft,init_recruit_trim,c_leaf)
-     call bfineroot(dbh,ft,init_recruit_trim,prt_params%allom_l2fr(ft),c_fnrt)
+     call bfineroot(dbh,ft,init_recruit_trim,l2fr,c_fnrt)
      call bsap_allom(dbh,ft,init_recruit_trim,a_sapw, c_sapw)
      call bagw_allom(dbh,ft,c_agw)
      call bbgw_allom(dbh,ft,c_bgw)

@@ -146,6 +146,11 @@ module PRTGenericMod
   ! (used for allocating scratch space)
   integer, parameter, public :: max_nleafage = 4
 
+
+  ! This is the minimum allowable L2FR, this is needed so that plants
+  ! in the understory don't shrink their roots down so far that
+  ! they dissappear and cause numerical issues
+  real(r8), parameter, public :: l2fr_min = 0.01_r8
   
   ! -------------------------------------------------------------------------------------
   !

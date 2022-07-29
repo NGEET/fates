@@ -48,6 +48,9 @@ module EDMainMod
   use EDPhysiologyMod          , only : ZeroLitterFluxes
   use EDPhysiologyMod          , only : PreDisturbanceLitterFluxes
   use EDPhysiologyMod          , only : PreDisturbanceIntegrateLitter
+  use EDPhysiologyMod          , only : UpdateRecruitL2FR
+  use EDPhysiologyMod          , only : UpdateRecruitStoich
+  use EDPhysiologyMod          , only : SetRecruitL2FR
   use FatesSoilBGCFluxMod      , only : FluxIntoLitterPools
   use FatesSoilBGCFluxMod      , only : EffluxIntoLitterPools
   use EDCohortDynamicsMod      , only : UpdateCohortBioPhysRates
@@ -349,6 +352,13 @@ contains
     ! Set a pointer to this sites carbon12 mass balance
     site_cmass => currentSite%mass_balance(element_pos(carbon12_element))
 
+    ! This call updates the assessment of the total stoichiometry
+    ! for a new recruit, based on its PFT and the L2FR of
+    ! a new recruit.  This is called here, because it is
+    ! prior to the growth sequence, where reproductive
+    ! tissues are allocated
+    call UpdateRecruitStoich(currentSite)
+    
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
 
@@ -542,6 +552,12 @@ contains
    end do
 
 
+   ! We keep a record of the L2FRs of plants
+   ! that are near the recruit size, for different
+   ! pfts and canopy layer. We use this mean to
+   ! set the L2FRs of newly recruited plants
+   call UpdateRecruitL2FR(currentSite)
+   
     ! When plants die, the water goes with them.  This effects
     ! the water balance.
 
@@ -638,6 +654,9 @@ contains
 
     call TotalBalanceCheck(currentSite,final_check_id)
 
+    ! Update recruit L2FRs based on new canopy position
+    call SetRecruitL2FR(currentSite)
+    
     currentSite%area_by_age(:) = 0._r8
     
     currentPatch => currentSite%oldest_patch

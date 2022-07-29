@@ -187,11 +187,10 @@ module FatesHistoryInterfaceMod
   integer :: ih_totvegp_si
 
   integer :: ih_l2fr_si
-  !!integer :: ih_l2fr_ema_si
-  integer :: ih_l2fr_scpf
   integer :: ih_l2fr_canopy_scpf
   integer :: ih_l2fr_understory_scpf
-  
+  integer :: ih_recl2fr_canopy_pf
+  integer :: ih_recl2fr_ustory_pf
   integer :: ih_nh4uptake_si
   integer :: ih_no3uptake_si
   integer :: ih_puptake_si
@@ -2001,8 +2000,8 @@ end subroutine flush_hvars
                hio_ncohorts_si         => this%hvars(ih_ncohorts_si)%r81d, &
                hio_trimming_si         => this%hvars(ih_trimming_si)%r81d, &
                hio_l2fr_si             => this%hvars(ih_l2fr_si)%r81d, &
-               !!hio_l2fr_ema_si         => this%hvars(ih_l2fr_ema_si)%r81d, &
-               hio_l2fr_scpf           => this%hvars(ih_l2fr_scpf)%r82d, &
+               hio_recl2fr_canopy_pf   => this%hvars(ih_recl2fr_canopy_pf)%r82d, &
+               hio_recl2fr_ustory_pf   => this%hvars(ih_recl2fr_ustory_pf)%r82d, &
                hio_l2fr_canopy_scpf     => this%hvars(ih_l2fr_canopy_scpf)%r82d, &
                hio_l2fr_understory_scpf => this%hvars(ih_l2fr_understory_scpf)%r82d, &
                hio_area_plant_si       => this%hvars(ih_area_plant_si)%r81d, &
@@ -2278,6 +2277,11 @@ end subroutine flush_hvars
          sites(s)%mass_balance(element_pos(carbon12_element))%burn_flux_to_atm * &
          ha_per_m2 * days_per_sec
 
+      do ft = 1,numpft
+         hio_recl2fr_canopy_pf(io_si,ft) = sites(s)%rec_l2fr(ft,1)
+         hio_recl2fr_ustory_pf(io_si,ft) = sites(s)%rec_l2fr(ft,2)
+      end do
+      
       do el = 1, num_elements
 
          ! Total model error [kg/day -> kg/s]  (all elements)
@@ -2553,11 +2557,6 @@ end subroutine flush_hvars
                   ! These L2FR diagnostics are weighted by fineroot carbon biomass
                   hio_l2fr_si(io_si) = hio_l2fr_si(io_si) + ccohort%n*fnrt_m/m2_per_ha*ccohort%l2fr
 
-
-                  !!hio_l2fr_ema_si(io_si) = hio_l2fr_ema_si(io_si) + ccohort%n*fnrt_m/m2_per_ha*ccohort%l2fr_ema%GetMean()
-                  
-                  hio_l2fr_scpf(io_si,i_scpf) = &
-                       hio_l2fr_scpf(io_si,i_scpf) + ccohort%n*fnrt_m/m2_per_ha*ccohort%l2fr
 
                   ! Constrain L2FR to oldest patch?
                   if(do_site_l2fr_scpf .or. associated(cpatch,sites(s)%oldest_patch)) then
@@ -3636,10 +3635,6 @@ end subroutine flush_hvars
       do i_pft = 1, numpft
          do i_scls = 1,nlevsclass
             i_scpf = (i_pft-1)*nlevsclass + i_scls
-            if(this%hvars(ih_fnrtc_scpf)%r82d(io_si,i_scpf)>nearzero)then
-               hio_l2fr_scpf(io_si,i_scpf) = hio_l2fr_scpf(io_si,i_scpf) / &
-                    this%hvars(ih_fnrtc_scpf)%r82d(io_si,i_scpf)
-            end if
             if(fnrtc_canopy_scpf(i_scpf)>nearzero)then
                hio_l2fr_canopy_scpf(io_si,i_scpf) = &
                     hio_l2fr_canopy_scpf(io_si,i_scpf)/fnrtc_canopy_scpf(i_scpf)
@@ -4631,6 +4626,7 @@ end subroutine update_history_hifrq
     ! patch age x pft                 (site_agepft_r8)   : APPF
     ! canopy layer x leaf layer       (site_cnlf_r8)     : CLLL
     ! canopy layer x leaf layer x pft (site_cnlfpft_r8)  : CLLLPF
+    ! canopy layer x pft              (site_clpf_r8)     : CLPF
     ! element x cwd size              (site_elcwd_r8)    : ELDC
     ! cohort size x patch age         (site_scag_r8)     : SZAP
     ! cohort size x patch age x pft   (site_scagpft_r8)  : SZAPPF
@@ -4667,18 +4663,17 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1,    &
          ivar=ivar, initialize=initialize_variables, index = ih_l2fr_si)
 
-    !!call this%set_history_var(vname='FATES_L2FR_EMA', units='kg kg-1',                   &
-    !!     long='Moving average of the leaf to fineroot biomass multiplier for target allometry', & 
-    !!     use_default='active', &
-    !!     avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1,    &
-    !!     ivar=ivar, initialize=initialize_variables, index = ih_l2fr_ema_si)
-
-       
-    call this%set_history_var(vname='FATES_L2FR_SZPF', units='kg kg-1',                   &
-         long='The leaf to fineroot biomass multiplier for target allometry', & 
+    call this%set_history_var(vname='FATES_RECL2FR_CANOPY_PF', units='kg kg-1',                   &
+         long='The leaf to fineroot biomass multiplier for recruits (canopy)', & 
          use_default='active', &
-         avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', upfreq=1,    &
-         ivar=ivar, initialize=initialize_variables, index = ih_l2fr_scpf)
+         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', upfreq=1,    &
+         ivar=ivar, initialize=initialize_variables, index = ih_recl2fr_canopy_pf)
+
+    call this%set_history_var(vname='FATES_RECL2FR_USTORY_PF', units='kg kg-1',                   &
+         long='The leaf to fineroot biomass multiplier for recruits (understory)', & 
+         use_default='active', &
+         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', upfreq=1,    &
+         ivar=ivar, initialize=initialize_variables, index = ih_recl2fr_ustory_pf)
 
     call this%set_history_var(vname='FATES_L2FR_CANOPY_SZPF', units='kg kg-1',                   &
          long='The leaf to fineroot biomass multiplier for target allometry in canopy plants', & 

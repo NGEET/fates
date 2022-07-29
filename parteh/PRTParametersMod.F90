@@ -8,7 +8,7 @@ module PRTParametersMod
   ! that data, for that is model dependent (ie FATES may have a different
   ! way than another TBM)
   ! This code does perform checks on parameters.
-  
+
   type,public ::  prt_param_type
 
      ! The following three PFT classes 
@@ -61,10 +61,6 @@ module PRTParametersMod
 
      integer, allocatable :: organ_id(:)                 ! Mapping of the organ index in the parameter file, to the
                                                          ! global list of organs found in PRTGenericMod.F90
-
-     
-
-     
      real(r8), allocatable :: alloc_priority(:,:)        ! Allocation priority for each organ (pft x organ) [integer 0-6]
      real(r8), allocatable :: cushion(:)                 ! labile carbon storage target as multiple of leaf pool.
      real(r8), allocatable :: leaf_stor_priority(:)      ! leaf turnover vs labile carbon use prioritisation
@@ -81,13 +77,6 @@ module PRTParametersMod
                                                          ! by all the possible organs in parteh, and each index
                                                          ! may point to the index in the parameter file, or will be -1
      
-     real(r8), allocatable :: nitr_recr_stoich(:)        ! This is the N:C ratio of newly recruited plants that are
-                                                         ! on allometry at their recruitment diameter
-
-     real(r8), allocatable :: phos_recr_stoich(:)        ! This is the P:C ratio of newly recruited plants that are
-                                                         ! on allometry at their recruitment diameter
-     
-
      ! Allometry Parameters
      ! --------------------------------------------------------------------------------------------
 

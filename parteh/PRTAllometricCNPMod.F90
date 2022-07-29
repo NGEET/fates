@@ -18,7 +18,7 @@ module PRTAllometricCNPMod
   use PRTGenericMod , only  : nitrogen_element
   use PRTGenericMod , only  : phosphorus_element
   use PRTGenericMod , only  : max_nleafage
-  
+  use PRTGenericMod , only  : l2fr_min
   use PRTGenericMod , only  : leaf_organ
   use PRTGenericMod , only  : fnrt_organ
   use PRTGenericMod , only  : sapw_organ
@@ -147,8 +147,10 @@ module PRTAllometricCNPMod
                                                                  ! is dynamic with CNP
   integer, public, parameter :: acnp_bc_inout_id_netdn    = 4 ! Index for the net daily NH4 input BC
   integer, public, parameter :: acnp_bc_inout_id_netdp    = 5 ! Index for the net daily P input BC
-
-  integer, public, parameter :: num_bc_inout                = 5
+  integer, public, parameter :: acnp_bc_inout_id_nc_store = 6 ! Index for the EMA log storage ratio N/C
+  integer, public, parameter :: acnp_bc_inout_id_pc_store = 7 ! Index for the EMA log storage ratio P/C
+ 
+  integer, public, parameter :: num_bc_inout                = 7
 
   ! -------------------------------------------------------------------------------------
   ! Input only Boundary Indices (These are public)
@@ -158,10 +160,11 @@ module PRTAllometricCNPMod
   integer, public, parameter :: acnp_bc_in_id_ctrim    = 2 ! Index for the canopy trim function
   integer, public, parameter :: acnp_bc_in_id_lstat    = 3 ! phenology status logical
   integer, public, parameter :: acnp_bc_in_id_netdc    = 4 ! Index for the net daily C input BC
- 
+  integer, public, parameter :: acnp_bc_in_id_nc_repro = 5
+  integer, public, parameter :: acnp_bc_in_id_pc_repro = 6
   
   ! 0=leaf off, 1=leaf on
-  integer, parameter         :: num_bc_in             = 4
+  integer, parameter         :: num_bc_in             = 6
 
   ! -------------------------------------------------------------------------------------
   ! Output Boundary Indices (These are public)
@@ -413,8 +416,7 @@ contains
     ! Also, we save the initial values of many of these BC's
     ! for checking and resetting if needed
     ! -----------------------------------------------------------------------------------
-    c_gain      = this%bc_in(acnp_bc_in_id_netdc)%rval; c_gain0      = c_gain
-   
+    c_gain      = this%bc_in(acnp_bc_in_id_netdc)%rval
     canopy_trim = this%bc_in(acnp_bc_in_id_ctrim)%rval
     ipft        = this%bc_in(acnp_bc_in_id_pft)%ival
 
@@ -430,7 +432,7 @@ contains
     
     n_gain0      = n_gain
     p_gain0      = p_gain
-
+    c_gain0      = c_gain
     
     ! Calculate Carbon allocation targets
     ! -----------------------------------------------------------------------------------
@@ -457,13 +459,9 @@ contains
     ! ===================================================================================
 
     ! This routine updates the l2fr (leaf 2 fine-root multiplier) variable
-    ! It will also update target_c(fnrt_organ)
-    call this%CNPAdjustFRootTargets(target_c)
+    ! It will also update the target
+    call this%CNPAdjustFRootTargets(target_c,target_dcdd)
     
-    c_gain0      = c_gain
-    n_gain0      = n_gain
-    p_gain0      = p_gain
-
     ! Remember the original C,N,P states to help with final
     ! evaluation of how much was allocated
     ! -----------------------------------------------------------------------------------
@@ -627,7 +625,7 @@ contains
             abs(allocated_n - (n_gain0-n_gain)) > calloc_abs_error .or. &
             abs(allocated_p - (p_gain0-p_gain)) > calloc_abs_error ) then
           write(fates_log(),*) 'CNP allocation scheme did not balance mass.'
-          write(fates_log(),*) 'c_gain0: ',c_gain0,' allocated_c: ',allocated_c
+          write(fates_log(),*) 'c_gain0: ',c_gain0,' allocated_c: ',allocated_c,resp_excess,resp_excess0,c_efflux
           write(fates_log(),*) 'n_gain0: ',n_gain0,' allocated_n: ',allocated_n
           write(fates_log(),*) 'p_gain0: ',p_gain0,' allocated_p: ',allocated_p
 
@@ -669,10 +667,11 @@ contains
   end subroutine DailyPRTAllometricCNP
 
   ! =====================================================================================
-  subroutine CNPAdjustFRootTargets(this, target_c)
+  subroutine CNPAdjustFRootTargets(this, target_c, target_dcdd)
 
     class(cnp_allom_prt_vartypes) :: this
     real(r8)                      :: target_c(:)
+    real(r8)                      :: target_dcdd(:)
 
     real(r8), pointer :: l2fr           ! leaf to fineroot target biomass scaler
     integer           :: ipft           ! PFT index
@@ -688,14 +687,19 @@ contains
     real(r8) :: l2fr_delta_scale
     real(r8) :: logi_k
     real(r8) :: l2fr_mult
+    real(r8), pointer :: nc_store
+    real(r8), pointer :: pc_store
     
     real(r8), parameter :: max_l2fr_cgain_frac = 0.99_r8
+    real(r8), parameter :: wgt = 1._r8/10._r8   ! 10-day smoothing
+    
 
     ipft         =  this%bc_in(acnp_bc_in_id_pft)%ival
     l2fr         => this%bc_inout(acnp_bc_inout_id_l2fr)%rval
     dbh          => this%bc_inout(acnp_bc_inout_id_dbh)%rval
     canopy_trim  =  this%bc_in(acnp_bc_in_id_ctrim)%rval
-    
+    nc_store      => this%bc_inout(acnp_bc_inout_id_nc_store)%rval
+    pc_store      => this%bc_inout(acnp_bc_inout_id_pc_store)%rval
     
     ! Step 1: Determine the nutrient to carbon ratio (aka relative health factor)
     ! -----------------------------------------------------------------------------------
@@ -717,6 +721,8 @@ contains
 
        n_ratio = min(50.0_r8,max(0.02_r8,(store_nut_act/store_nut_max)/(store_c_act/store_c_max)))
 
+       nc_store = wgt*log(n_ratio) + (1._r8-wgt)*nc_store
+       
     end if
 
     if(p_uptake_mode.ne.prescribed_p_uptake)then
@@ -726,10 +732,11 @@ contains
 
        store_nut_max = this%GetNutrientTarget(phosphorus_element,store_organ,stoich_growth_min) 
 
-       store_nut_act = this%GetState(store_organ, phosphorus_element) + this%bc_inout(acnp_bc_inout_id_netdp)%rval
-       
+       store_nut_act = this%GetState(store_organ, phosphorus_element) + this%bc_inout(acnp_bc_inout_id_netdp)%rval       
        p_ratio = min(50.0_r8,max(0.02_r8,(store_nut_act/store_nut_max)/(store_c_act/store_c_max)))
 
+       pc_store = wgt*log(p_ratio) + (1._r8-wgt)*pc_store
+       
     end if
 
     ! Use the limiting nutrient species
@@ -739,13 +746,13 @@ contains
           cnp_store_ratio = 1._r8
           return
        else
-          cnp_store_ratio = p_ratio
+          cnp_store_ratio = exp(pc_store)
        end if
     else
        if(p_uptake_mode.eq.prescribed_p_uptake)then
-          cnp_store_ratio = n_ratio
+          cnp_store_ratio = exp(nc_store)
        else
-          cnp_store_ratio = min(n_ratio, p_ratio)
+          cnp_store_ratio = min(exp(nc_store),exp(pc_store))
        end if
     end if
     
@@ -805,31 +812,17 @@ contains
        l2fr_mult = min(l2fr_mult,l2fr_delta_max)
     end if
 
-    ! Use the derivative approach
-    ! -----------------------------------------------------------------------------------
-    
-    ! gamma = log(np_ratio)
-
-    ! Calculate how close the change in gamma was to what was predicted
-
-    !gamma_del = gamma - dlambda_dgamma*gamma_prev
-    
-    
-    !l2fr_deriv = gamma * dlambda_dgamma
-
-
-    
     ! Only update L2FR if some leaves are out
     if(this%GetState(leaf_organ, carbon12_element)/target_c(leaf_organ) > 0.5_r8) then
 
        !l2fr = (1._r8-err_beta)*(l2fr * l2fr_mult) + err_beta*l2fr_deriv
-       l2fr = l2fr * l2fr_mult
+       l2fr = max(l2fr_min,l2fr * l2fr_mult)
        
     end if
 
 
     ! Find the updated target fineroot biomass
-    call bfineroot(dbh,ipft,canopy_trim, l2fr, target_c(fnrt_organ))
+    call bfineroot(dbh,ipft,canopy_trim, l2fr, target_c(fnrt_organ),target_dcdd(fnrt_organ))
 
     return
   end subroutine CNPAdjustFRootTargets
@@ -857,11 +850,11 @@ contains
     real(r8) :: pc_fnrt
     real(r8) :: target_fnrt_c
     real(r8),parameter :: nday_buffer = 0._r8
-    real(r8),parameter :: fnrt_opt_eff = 0._r8  ! If we want to transfer resources to storage
+    real(r8),parameter :: fnrt_opt_eff = 1._r8  ! If we want to transfer resources to storage
     
     if(.not.use_unrestricted_contraction)return
     
-    associate( ipft         => this%bc_in(acnp_bc_in_id_pft)%ival,        &
+    associate( ipft         => this%bc_in(acnp_bc_in_id_pft)%ival,  &
          l2fr         => this%bc_inout(acnp_bc_inout_id_l2fr)%rval, &
          dbh          => this%bc_inout(acnp_bc_inout_id_dbh)%rval,  &
          canopy_trim  => this%bc_in(acnp_bc_in_id_ctrim)%rval)
@@ -1658,8 +1651,10 @@ contains
                write(fates_log(),*) 'Aborting'
                write(fates_log(),*) 'mask: ',state_mask
                write(fates_log(),*) 'smallest deltaC',this%ode_opt_step
-               write(fates_log(),*) 'totalC',totalC
+               write(fates_log(),*) 'totalC',totalC,c_gain,neq_cgain,peq_cgain
                write(fates_log(),*) 'pft: ',ipft
+               write(fates_log(),*) 'trim: ',canopy_trim
+               write(fates_log(),*) 'l2fr: ',l2fr
                write(fates_log(),*) 'dbh: ',dbh
                write(fates_log(),*) 'dCleaf_dd: ',target_dcdd(leaf_organ)
                write(fates_log(),*) 'dCfnrt_dd: ',target_dcdd(fnrt_organ)
@@ -1839,7 +1834,6 @@ contains
           ! Update carbon based allometric targets
           call bstore_allom(dbh,ipft,canopy_trim, store_c_target)
 
-
           ! Allow some overflow
           store_c_target = store_c_target * (1._r8 + prt_params%store_ovrflw_frac(ipft))
           
@@ -1962,12 +1956,15 @@ contains
     real(r8)         :: leaf_c_target,fnrt_c_target
     real(r8)         :: sapw_c_target,agw_c_target
     real(r8)         :: bgw_c_target,struct_c_target
+    real(r8)         :: nc_repro,pc_repro
     
     dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval
     canopy_trim = this%bc_in(acnp_bc_in_id_ctrim)%rval
     ipft        = this%bc_in(acnp_bc_in_id_pft)%ival
     i_cvar      = prt_global%sp_organ_map(organ_id,carbon12_element)
     l2fr        = this%bc_inout(acnp_bc_inout_id_l2fr)%rval
+    nc_repro    = this%bc_in(acnp_bc_in_id_nc_repro)%rval
+    pc_repro    = this%bc_in(acnp_bc_in_id_pc_repro)%rval
     
     ! Storage of nutrients are assumed to have different compartments than
     ! for carbon, and thus their targets are not associated with a tissue
@@ -2013,9 +2010,9 @@ contains
 
        target_c = this%variables(i_cvar)%val(1)
        if( element_id == nitrogen_element) then
-          target_m = target_c * prt_params%nitr_recr_stoich(ipft)
+          target_m = target_c * nc_repro
        else
-          target_m = target_c * prt_params%phos_recr_stoich(ipft)
+          target_m = target_c * pc_repro
        end if
        
     else
@@ -2387,8 +2384,10 @@ contains
      real(r8) :: store_pc
      real(r8) :: repro_w,leaf_w,fnrt_w,sapw_w,struct_w,store_w
      
-     associate(dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval, & 
-               ipft        => this%bc_in(acnp_bc_in_id_pft)%ival )
+     associate(dbh    => this%bc_inout(acnp_bc_inout_id_dbh)%rval, & 
+          ipft        => this%bc_in(acnp_bc_in_id_pft)%ival, &
+          nc_repro    => this%bc_in(acnp_bc_in_id_nc_repro)%rval, &
+          pc_repro    => this%bc_in(acnp_bc_in_id_pc_repro)%rval)
      
      if(state_mask(repro_id)) then
         if (dbh <= prt_params%dbh_repro_threshold(ipft)) then
@@ -2448,10 +2447,9 @@ contains
         
         repro_w = total_w * repro_c_frac/(1._r8 - repro_c_frac)
         total_w = total_w  + repro_w
-        avg_nc = avg_nc + repro_w * prt_params%nitr_recr_stoich(ipft)
-        avg_pc = avg_pc + repro_w * prt_params%phos_recr_stoich(ipft)
+        avg_nc = avg_nc + repro_w * nc_repro
+        avg_pc = avg_pc + repro_w * pc_repro
      end if
-
 
      avg_nc = avg_nc / total_w
      avg_pc = avg_pc / total_w

@@ -706,7 +706,8 @@ contains
                  ! correct boundary condition fields
                  nc%prt => null()
                  call InitPRTObject(nc%prt)
-                 call InitPRTBoundaryConditions(nc)
+                 nc%patchptr => new_patch
+                 call InitPRTBoundaryConditions(nc,currentCohort%pft,3)
 
                  call zero_cohort(nc)
 

@@ -220,10 +220,13 @@ module EDTypesMod
                                                          !      vary between allom_l2fr_min and allom_l2fr_max
                                                          !      parameters, with a tendency driven by
                                                          !      nutrient storage)
-
-     integer :: cnp_limiter   ! Which species is limiting growth? ! 0=none,1=C,2=N,3=P
      
-     !!class(rmean_type), pointer :: l2fr_ema              ! Exponential moving average of the L2FR
+     
+     ! Used for CNP
+     integer :: cnp_limiter            ! Which species is limiting growth? ! 0=none,1=C,2=N,3=P
+     real(r8) :: nc_store              ! Exponential moving average of the log of the N/C storage ratio
+     real(r8) :: pc_store              ! Exponential moving average of the log of the P/C storage ratio
+     
      
      ! VEGETATION STRUCTURE
      integer  ::  pft                                    ! pft number
@@ -437,6 +440,8 @@ module EDTypesMod
      class(rmean_type), pointer :: tveg24                        ! 24-hour mean vegetation temperature (K)
      class(rmean_type), pointer :: tveg_lpa                      ! Running mean of vegetation temperature at the
                                                                  ! leaf photosynthesis acclimation timescale [K]
+     
+
      integer  ::  nocomp_pft_label                                 ! where nocomp is active, use this label for patch ID.   
 
      ! LEAF ORGANIZATION
@@ -537,18 +542,25 @@ module EDTypesMod
      real(r8) ::  psn_z(nclmax,maxpft,nlevleaf)               ! carbon assimilation in each canopy layer, pft, and leaf layer. umolC/m2/s
 
      ! ROOTS
-     real(r8) ::  btran_ft(maxpft)                              ! btran calculated seperately for each PFT:-
-     real(r8) ::  bstress_sal_ft(maxpft)                        ! bstress from salinity calculated seperately for each PFT:-   
-     
+     real(r8) ::  btran_ft(maxpft)                ! btran calculated seperately for each PFT:-
+     real(r8) ::  bstress_sal_ft(maxpft)          ! bstress from salinity calculated seperately for each PFT:-   
 
-     ! DISTURBANCE 
-     real(r8) ::  disturbance_rates(n_dist_types)                  ! disturbance rate from 1) mortality 
-                                                                   !                       2) fire: fraction/day 
-                                                                   !                       3) logging mortatliy
-     real(r8) ::  disturbance_rate                                 ! larger effective disturbance rate: fraction/day
-     integer  ::  disturbance_mode                                 ! index identifying which disturbance was applied
-                                                                   ! can be one of: dtype_ifall, dtype_ilog or dtype_ifire
-     real(r8) ::  fract_ldist_not_harvested                        ! fraction of logged area that is canopy trees that weren't harvested
+!     real(r8), pointer :: rec_l2fr_pft(:)         ! A pointer array that points
+                                                  ! to the lowest canopy position of site%rec_l2fr
+                                                  ! Thus, this is the l2fr of any new recruit in the
+                                                  ! current patch, according to its PFT
+     real(r8) :: nitr_repro_stoich(maxpft)        ! The NC ratio of a new recruit in this patch
+     real(r8) :: phos_repro_stoich(maxpft)        ! The PC ratio of a new recruit in this patch
+
+     
+                                                  ! DISTURBANCE 
+     real(r8) ::  disturbance_rates(n_dist_types) ! disturbance rate from 1) mortality 
+                                                  !                       2) fire: fraction/day 
+                                                  !                       3) logging mortatliy
+     real(r8) ::  disturbance_rate                ! larger effective disturbance rate: fraction/day
+     integer  ::  disturbance_mode                ! index identifying which disturbance was applied
+                                                  ! can be one of: dtype_ifall, dtype_ilog or dtype_ifire
+     real(r8) ::  fract_ldist_not_harvested       ! fraction of logged area that is canopy trees that weren't harvested
 
 
      ! Litter and Coarse Woody Debris
@@ -720,6 +732,9 @@ module EDTypesMod
      ! Total area of patches in each age bin [m2]
      real(r8), allocatable :: area_by_age(:)
 
+     real(r8), allocatable :: rec_l2fr(:,:)               ! A running mean of the l2fr's for the newly
+                                                          ! recruited, pft x canopy_layer
+     
      ! SP mode target PFT level variables
      real(r8), allocatable :: sp_tlai(:)                      ! target TLAI per FATES pft
      real(r8), allocatable :: sp_tsai(:)                      ! target TSAI per FATES pft
