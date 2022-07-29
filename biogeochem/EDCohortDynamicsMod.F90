@@ -147,8 +147,7 @@ contains
 
 
   subroutine create_cohort(currentSite, patchptr, pft, nn, hite, coage, dbh,   &
-                           prt, leafmemory, sapwmemory, structmemory, &
-                           status, recruitstatus,ctrim, carea, clayer, spread, bc_in)
+                           prt, status, recruitstatus,ctrim, carea, clayer, spread, bc_in)
     !
     ! !DESCRIPTION:
     ! create new cohort
@@ -181,12 +180,6 @@ contains
     real(r8), intent(in)      :: dbh              ! dbh: cm
     class(prt_vartypes),target :: prt             ! The allocated PARTEH
                                                   ! object
-    real(r8), intent(in)      :: leafmemory       ! target leaf biomass- set from
-                                                  ! previous year: kGC per indiv
-    real(r8), intent(in)   :: sapwmemory          ! target sapwood biomass- set from
-                                                  ! previous year: kGC per indiv
-    real(r8), intent(in)   :: structmemory        ! target structural biomass- set from
-                                                  ! previous year: kGC per indiv
     real(r8), intent(in)      :: ctrim            ! What is the fraction of the maximum
                                                   ! leaf biomass that we are targeting?
     real(r8), intent(in)      :: spread           ! The community assembly effects how
@@ -237,9 +230,6 @@ contains
     new_cohort%canopy_trim  = ctrim
     new_cohort%canopy_layer = clayer
     new_cohort%canopy_layer_yesterday = real(clayer, r8)
-    new_cohort%leafmemory   = leafmemory
-    new_cohort%sapwmemory   = sapwmemory
-    new_cohort%structmemory = structmemory
 
     ! This sets things like vcmax25top, that depend on the
     ! leaf age fractions (which are defined by PARTEH)
@@ -544,9 +534,6 @@ contains
     currentCohort%dbh                = nan ! 'diameter at breast height' in cm
     currentCohort%coage              = nan ! age of the cohort in years
     currentCohort%hite               = nan ! height: meters
-    currentCohort%leafmemory         = nan ! target leaf biomass- set from previous year: kGC per indiv
-    currentCohort%sapwmemory         = nan ! target sapwood biomass- set from previous year: kGC per indiv
-    currentCohort%structmemory       = nan ! target structural biomass- set from previous year: kGC per indiv
     currentCohort%lai                = nan ! leaf area index of cohort   m2/m2
     currentCohort%sai                = nan ! stem area index of cohort   m2/m2
     currentCohort%g_sb_laweight      = nan ! Total leaf conductance of cohort (stomata+blayer) weighted by leaf-area [m/s]*[m2]
@@ -1198,7 +1185,6 @@ contains
                                       write(fates_log(),*) 'Cohort I, Cohort II'
                                       write(fates_log(),*) 'n:',currentCohort%n,nextc%n
                                       write(fates_log(),*) 'isnew:',currentCohort%isnew,nextc%isnew
-                                      write(fates_log(),*) 'leafmemory:',currentCohort%leafmemory,nextc%leafmemory
                                       write(fates_log(),*) 'hite:',currentCohort%hite,nextc%hite
                                       write(fates_log(),*) 'coage:',currentCohort%coage,nextc%coage
                                       write(fates_log(),*) 'dbh:',currentCohort%dbh,nextc%dbh
@@ -1235,15 +1221,6 @@ contains
                                    ! Leaf biophysical rates (use leaf mass weighting)
                                    ! -----------------------------------------------------------------
                                    call UpdateCohortBioPhysRates(currentCohort)
-
-                                   currentCohort%leafmemory   = (currentCohort%n*currentCohort%leafmemory   &
-                                        + nextc%n*nextc%leafmemory)/newn
-
-                                   currentCohort%sapwmemory   = (currentCohort%n*currentCohort%sapwmemory   &
-                                        + nextc%n*nextc%sapwmemory)/newn
-
-                                   currentCohort%structmemory   = (currentCohort%n*currentCohort%structmemory   &
-                                        + nextc%n*nextc%structmemory)/newn
 
                                    currentCohort%canopy_trim = (currentCohort%n*currentCohort%canopy_trim &
                                         + nextc%n*nextc%canopy_trim)/newn
@@ -1810,9 +1787,6 @@ contains
     n%dbh             = o%dbh
     n%coage           = o%coage
     n%hite            = o%hite
-    n%leafmemory      = o%leafmemory
-    n%sapwmemory      = o%sapwmemory
-    n%structmemory    = o%structmemory
     n%lai             = o%lai
     n%sai             = o%sai
     n%g_sb_laweight   = o%g_sb_laweight

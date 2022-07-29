@@ -1690,6 +1690,15 @@ contains
            end if
         end if
 
+        if( (prt_params%woody(ipft) == itrue) .and. &
+            (EDPftvarcon_inst%phen_stem_drop_fraction(ipft) > nearzero ) ) then
+           write(fates_log(),*) ' Non-zero stem-drop fractions are not allowed for woody plants'
+           write(fates_log(),*) ' PFT#: ',ipft
+           write(fates_log(),*) ' part_params%woody:',prt_params%woody(ipft)
+           write(fates_log(),*) ' phen_stem_drop_fraction: ', EDPFtvarcon_inst%phen_stem_drop_fraction(ipft)
+           write(fates_log(),*) ' Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
 
         ! Check if freezing tolerance is within reasonable bounds
         ! ----------------------------------------------------------------------------------
