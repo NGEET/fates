@@ -1041,9 +1041,6 @@ module EDTypesMod
      write(fates_log(),*) 'structural (dead) carbon  = ', ccohort%prt%GetState(struct_organ,all_carbon_elements) 
      write(fates_log(),*) 'storage carbon            = ', ccohort%prt%GetState(store_organ,all_carbon_elements) 
      write(fates_log(),*) 'reproductive carbon       = ', ccohort%prt%GetState(repro_organ,all_carbon_elements) 
-
-     write(fates_log(),*) 'co%lai                    = ', ccohort%lai                         
-     write(fates_log(),*) 'co%sai                    = ', ccohort%sai  
      write(fates_log(),*) 'co%g_sb_laweight          = ', ccohort%g_sb_laweight
      write(fates_log(),*) 'co%leaf_cost              = ', ccohort%leaf_cost
      write(fates_log(),*) 'co%canopy_layer           = ', ccohort%canopy_layer

@@ -277,8 +277,6 @@ contains
                                   patchptr%canopy_layer_tlai, new_cohort%treelai,new_cohort%vcmax25top,2 )
     end if
 
-    new_cohort%lai     = new_cohort%treelai * new_cohort%c_area/patchptr%area
-
 
     ! Put cohort at the right place in the linked list
     storebigcohort   => patchptr%tallest
@@ -534,8 +532,6 @@ contains
     currentCohort%dbh                = nan ! 'diameter at breast height' in cm
     currentCohort%coage              = nan ! age of the cohort in years
     currentCohort%hite               = nan ! height: meters
-    currentCohort%lai                = nan ! leaf area index of cohort   m2/m2
-    currentCohort%sai                = nan ! stem area index of cohort   m2/m2
     currentCohort%g_sb_laweight      = nan ! Total leaf conductance of cohort (stomata+blayer) weighted by leaf-area [m/s]*[m2]
     currentCohort%canopy_trim        = nan ! What is the fraction of the maximum leaf biomass that we are targeting? :-
     currentCohort%leaf_cost          = nan ! How much does it cost to maintain leaves: kgC/m2/year-1
@@ -1787,8 +1783,6 @@ contains
     n%dbh             = o%dbh
     n%coage           = o%coage
     n%hite            = o%hite
-    n%lai             = o%lai
-    n%sai             = o%sai
     n%g_sb_laweight   = o%g_sb_laweight
     n%leaf_cost       = o%leaf_cost
     n%canopy_layer    = o%canopy_layer
