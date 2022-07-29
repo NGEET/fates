@@ -1108,10 +1108,12 @@ contains
                    call bbgw_allom(currentCohort%dbh,currentCohort%pft,target_bgw_c)
                    call bdead_allom( target_agw_c, target_bgw_c, target_sapw_c, currentCohort%pft, target_struct_c)
 
-                   if(prt_params%woody(ipft) == itrue)then
-                      deficit_c = target_leaf_c
-                   else
+                   if (stem_drop_fraction .gt. 0.0_r8) then
+                      ! Note, this is only true for some grasses, woody plants don't
+                      ! have a stem drop fraction
                       deficit_c = target_leaf_c + (target_sapw_c-sapw_c) + (target_struct_c-struct_c)
+                   else
+                      deficit_c = target_leaf_c
                    end if
                    
                    if(store_c>nearzero) then
@@ -1128,33 +1130,27 @@ contains
 
                    ! This call will request that storage carbon will be transferred to
                    ! leaf tissues. It is specified as a fraction of the available storage
-                   if(prt_params%woody(ipft) == itrue) then
-
-                      call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, store_c_transfer_frac)
-
+                   ! Check that the stem drop fraction is set to non-zero amount
+                   ! otherwise flush all carbon store to leaves
+                   if (stem_drop_fraction .gt. 0.0_r8) then
+                      
+                      call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, &
+                           store_c_transfer_frac*target_leaf_c/deficit_c)
+                      
+                      call PRTPhenologyFlush(currentCohort%prt, ipft, sapw_organ, &
+                           store_c_transfer_frac*(target_sapw_c-sapw_c)/deficit_c)
+                      
+                      call PRTPhenologyFlush(currentCohort%prt, ipft, struct_organ, &
+                           store_c_transfer_frac*(target_struct_c-struct_c)/deficit_c)
+                      
                    else
+                      
+                      call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, &
+                           store_c_transfer_frac)
+                      
+                   end if
 
-                      ! Check that the stem drop fraction is set to non-zero amount
-                      ! otherwise flush all carbon store to leaves
-                      if (stem_drop_fraction .gt. 0.0_r8) then
-
-                         call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, &
-                              store_c_transfer_frac*target_leaf_c/deficit_c)
-
-                         call PRTPhenologyFlush(currentCohort%prt, ipft, sapw_organ, &
-                              store_c_transfer_frac*(target_sapw_c-sapw_c)/deficit_c)
-
-                         call PRTPhenologyFlush(currentCohort%prt, ipft, struct_organ, &
-                              store_c_transfer_frac*(target_struct_c-struct_c)/deficit_c)
-
-                      else
-
-                         call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, &
-                              store_c_transfer_frac)
-
-                      end if
-
-                   endif
+                endif
                 endif !pft phenology
              endif ! growing season
 
@@ -1214,10 +1210,12 @@ contains
                    call bbgw_allom(currentCohort%dbh,currentCohort%pft,target_bgw_c)
                    call bdead_allom( target_agw_c, target_bgw_c, target_sapw_c, currentCohort%pft, target_struct_c)
 
-                   if(prt_params%woody(ipft) == itrue)then
-                      deficit_c = target_leaf_c
-                   else
+                   if (stem_drop_fraction .gt. 0.0_r8) then
+                      ! Note, this is only true for some grasses, woody plants don't
+                      ! have a stem drop fraction
                       deficit_c = target_leaf_c + (target_sapw_c-sapw_c) + (target_struct_c-struct_c)
+                   else
+                      deficit_c = target_leaf_c
                    end if
                    
                    if(store_c>nearzero) then
@@ -1232,31 +1230,23 @@ contains
 
                    ! This call will request that storage carbon will be transferred to
                    ! leaf tissues. It is specified as a fraction of the available storage
-                   if(prt_params%woody(ipft) == itrue) then
-
-                      call PRTPhenologyFlush(currentCohort%prt, ipft, &
-                           leaf_organ, store_c_transfer_frac)
-
+                   if (stem_drop_fraction .gt. 0.0_r8) then
+                      
+                      call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, &
+                           store_c_transfer_frac*target_leaf_c/deficit_c)
+                      
+                      call PRTPhenologyFlush(currentCohort%prt, ipft, sapw_organ, &
+                           store_c_transfer_frac*(target_sapw_c-sapw_c)/deficit_c)
+                      
+                      call PRTPhenologyFlush(currentCohort%prt, ipft, struct_organ, &
+                           store_c_transfer_frac*(target_struct_c-struct_c)/deficit_c)
+                      
                    else
-
-                      ! Check that the stem drop fraction is set to non-zero amount otherwise flush all carbon store to leaves
-                      if (stem_drop_fraction .gt. 0.0_r8) then
-
-                         call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, &
-                              store_c_transfer_frac*target_leaf_c/deficit_c)
-
-                         call PRTPhenologyFlush(currentCohort%prt, ipft, sapw_organ, &
-                              store_c_transfer_frac*(target_sapw_c-sapw_c)/deficit_c)
-
-                         call PRTPhenologyFlush(currentCohort%prt, ipft, struct_organ, &
-                              store_c_transfer_frac*(target_struct_c-struct_c)/deficit_c)
-                         
-                      else
-
-                         call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, &
-                              store_c_transfer_frac)
-
-                      end if
+                      
+                      call PRTPhenologyFlush(currentCohort%prt, ipft, leaf_organ, &
+                           store_c_transfer_frac)
+                      
+                   end if
 
                    endif ! woody plant check
                 endif !currentCohort status again?
