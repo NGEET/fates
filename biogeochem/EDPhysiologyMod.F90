@@ -1066,7 +1066,7 @@ contains
     real(r8) :: deficit_c              ! Amount of C needed to get flushing pools "on-allometry"
     real(r8) :: target_leaf_c
     real(r8) :: target_sapw_c
-    real(r8) :: target_bgw_c, target_agw_c, target_struct_c
+    real(r8) :: target_agw_c, target_bgw_c, target_agw_c, target_struct_c
     real(r8) :: sapw_area
     integer  :: ipft
     real(r8), parameter :: leaf_drop_fraction = 1.0_r8
@@ -1104,9 +1104,12 @@ contains
                    ! stop flow of carbon out of bstore.
 
                    call bleaf(currentCohort%dbh,currentCohort%pft,currentCohort%canopy_trim,target_leaf_c)
-                   call bsap_allom(currentCohort%dbh,currentCohort%pft,currentCohort%canopy_trim,sapw_area,target_sapw_c)
+                   call bsap_allom(currentCohort%dbh,currentCohort%pft, &
+                        currentCohort%canopy_trim,sapw_area,target_sapw_c)
+                   call bagw_allom(currentCohort%dbh,currentCohort%pft,target_agw_c)
                    call bbgw_allom(currentCohort%dbh,currentCohort%pft,target_bgw_c)
-                   call bdead_allom( target_agw_c, target_bgw_c, target_sapw_c, currentCohort%pft, target_struct_c)
+                   call bdead_allom( target_agw_c, target_bgw_c, target_sapw_c, &
+                        currentCohort%pft, target_struct_c)
 
                    if (stem_drop_fraction .gt. 0.0_r8) then
                       ! Note, this is only true for some grasses, woody plants don't
@@ -1205,10 +1208,14 @@ contains
                    currentCohort%status_coh = leaves_on    ! Leaves are on, so change status to
                    ! stop flow of carbon out of bstore.
 
-                   call bleaf(currentCohort%dbh,currentCohort%pft,currentCohort%canopy_trim,target_leaf_c)
-                   call bsap_allom(currentCohort%dbh,currentCohort%pft,currentCohort%canopy_trim,sapw_area,target_sapw_c)
+                   call bleaf(currentCohort%dbh,currentCohort%pft,&
+                        currentCohort%canopy_trim,target_leaf_c)
+                   call bsap_allom(currentCohort%dbh,currentCohort%pft, &
+                        currentCohort%canopy_trim,sapw_area,target_sapw_c)
+                   call bagw_allom(currentCohort%dbh,currentCohort%pft,target_agw_c)
                    call bbgw_allom(currentCohort%dbh,currentCohort%pft,target_bgw_c)
-                   call bdead_allom( target_agw_c, target_bgw_c, target_sapw_c, currentCohort%pft, target_struct_c)
+                   call bdead_allom( target_agw_c, target_bgw_c, target_sapw_c, &
+                        currentCohort%pft, target_struct_c)
 
                    if (stem_drop_fraction .gt. 0.0_r8) then
                       ! Note, this is only true for some grasses, woody plants don't
