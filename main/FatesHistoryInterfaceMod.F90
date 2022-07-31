@@ -57,7 +57,7 @@ module FatesHistoryInterfaceMod
   ! CIME Globals
   use shr_log_mod              , only : errMsg => shr_log_errMsg
   use shr_infnan_mod           , only : isnan => shr_infnan_isnan
-  use FatesConstantsMod        , only : g_per_kg
+  use FatesConstantsMod        , only : g_per_kg,kg_per_g
   use FatesConstantsMod        , only : ha_per_m2
   use FatesConstantsMod        , only : days_per_sec
   use FatesConstantsMod        , only : sec_per_day
@@ -68,7 +68,7 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : m2_per_ha
   use FatesConstantsMod        , only : m_per_cm
   use FatesConstantsMod        , only : sec_per_min
-  use FatesConstantsMod        , only : umol_per_mol
+  use FatesConstantsMod        , only : umol_per_mol,mol_per_umol
   use FatesConstantsMod        , only : pa_per_mpa
   use FatesLitterMod           , only : litter_type
   use FatesConstantsMod        , only : secondaryforest
@@ -3633,8 +3633,8 @@ end subroutine flush_hvars
 
          io_si  = sites(s)%h_gid
 
-         hio_nep_si(io_si) = -bc_in(s)%tot_het_resp / g_per_kg ! (kgC/m2/s)
-         hio_hr_si(io_si)  =  bc_in(s)%tot_het_resp / g_per_kg
+         hio_nep_si(io_si) = -bc_in(s)%tot_het_resp * kg_per_g
+         hio_hr_si(io_si)  =  bc_in(s)%tot_het_resp * kg_per_g
 
          ipa = 0
          
@@ -3660,17 +3660,17 @@ end subroutine flush_hvars
             ! Canopy resitance terms
             hio_c_stomata_si_age(io_si,cpatch%age_class) = &
                  hio_c_stomata_si_age(io_si,cpatch%age_class) + &
-                 cpatch%c_stomata * cpatch%total_canopy_area / umol_per_mol
+                 cpatch%c_stomata * cpatch%total_canopy_area * mol_per_umol
 
             hio_c_lblayer_si_age(io_si,cpatch%age_class) = &
                  hio_c_lblayer_si_age(io_si,cpatch%age_class) + &
-                 cpatch%c_lblayer * cpatch%total_canopy_area / umol_per_mol
+                 cpatch%c_lblayer * cpatch%total_canopy_area * mol_per_umol
 
             hio_c_stomata_si(io_si) = hio_c_stomata_si(io_si) + &
-                 cpatch%c_stomata * cpatch%total_canopy_area / umol_per_mol
+                 cpatch%c_stomata * cpatch%total_canopy_area * mol_per_umol
 
             hio_c_lblayer_si(io_si) = hio_c_lblayer_si(io_si) + &
-                 cpatch%c_lblayer * cpatch%total_canopy_area / umol_per_mol
+                 cpatch%c_lblayer * cpatch%total_canopy_area * mol_per_umol
 
             hio_rad_error_si(io_si) = hio_rad_error_si(io_si) + &
                  cpatch%radiation_error * cpatch%area * AREA_INV
@@ -3727,15 +3727,15 @@ end subroutine flush_hvars
 
                   ! Total AR (kgC/m2/s) = (kgC/plant/step) / (s/step) * (plant/m2)
                   hio_ar_si_scpf(io_si,scpf)    =   hio_ar_si_scpf(io_si,scpf) + &
-                        (ccohort%resp_tstep/dt_tstep) * n_perm2
+                        (ccohort%resp_tstep*per_dt_tstep) * n_perm2
 
                   ! Growth AR (kgC/m2/s)
                   hio_ar_grow_si_scpf(io_si,scpf) = hio_ar_grow_si_scpf(io_si,scpf) + &
-                        (resp_g/dt_tstep) * n_perm2
+                        (resp_g*per_dt_tstep) * n_perm2
 
                   ! Maint AR (kgC/m2/s)
                   hio_ar_maint_si_scpf(io_si,scpf) = hio_ar_maint_si_scpf(io_si,scpf) + &
-                        (ccohort%resp_m/dt_tstep) * n_perm2
+                        (ccohort%resp_m*per_dt_tstep) * n_perm2
 
                   ! Maintenance AR partition variables are stored as rates (kgC/plant/s)
                   ! (kgC/m2/s) = (kgC/plant/s) * (plant/m2)
@@ -3773,18 +3773,18 @@ end subroutine flush_hvars
                      !
                      ! size-resolved respiration fluxes are in kg C / m2 / s
                      hio_rdark_canopy_si_scls(io_si,scls) = hio_rdark_canopy_si_scls(io_si,scls) + &
-                          ccohort%rdark  * ccohort%n / m2_per_ha
+                          ccohort%rdark  * ccohort%n * ha_per_m2
                      hio_livestem_mr_canopy_si_scls(io_si,scls) = hio_livestem_mr_canopy_si_scls(io_si,scls) + &
-                          ccohort%livestem_mr  * ccohort%n / m2_per_ha
+                          ccohort%livestem_mr  * ccohort%n * ha_per_m2
                      hio_livecroot_mr_canopy_si_scls(io_si,scls) = hio_livecroot_mr_canopy_si_scls(io_si,scls) + &
-                          ccohort%livecroot_mr  * ccohort%n / m2_per_ha
+                          ccohort%livecroot_mr  * ccohort%n * ha_per_m2
                      hio_froot_mr_canopy_si_scls(io_si,scls) = hio_froot_mr_canopy_si_scls(io_si,scls) + &
-                          ccohort%froot_mr  * ccohort%n / m2_per_ha
+                          ccohort%froot_mr  * ccohort%n * ha_per_m2
 
                      hio_resp_g_canopy_si_scls(io_si,scls) = hio_resp_g_canopy_si_scls(io_si,scls) + &
-                          resp_g  * ccohort%n * per_dt_tstep / m2_per_ha
+                          resp_g  * ccohort%n * per_dt_tstep * ha_per_m2
                      hio_resp_m_canopy_si_scls(io_si,scls) = hio_resp_m_canopy_si_scls(io_si,scls) + &
-                          ccohort%resp_m  * ccohort%n * per_dt_tstep / m2_per_ha
+                          ccohort%resp_m  * ccohort%n * per_dt_tstep * ha_per_m2
                   else
                      !
                      ! bulk fluxes are in gC / m2 / s
@@ -3796,17 +3796,17 @@ end subroutine flush_hvars
                      !
                      ! size-resolved respiration fluxes are in kg C / m2 / s
                      hio_rdark_understory_si_scls(io_si,scls) = hio_rdark_understory_si_scls(io_si,scls) + &
-                          ccohort%rdark  * ccohort%n / m2_per_ha
+                          ccohort%rdark  * ccohort%n * ha_per_m2
                      hio_livestem_mr_understory_si_scls(io_si,scls) = hio_livestem_mr_understory_si_scls(io_si,scls) + &
-                          ccohort%livestem_mr  * ccohort%n  / m2_per_ha
+                          ccohort%livestem_mr  * ccohort%n  * ha_per_m2
                      hio_livecroot_mr_understory_si_scls(io_si,scls) = hio_livecroot_mr_understory_si_scls(io_si,scls) + &
-                          ccohort%livecroot_mr  * ccohort%n  / m2_per_ha
+                          ccohort%livecroot_mr  * ccohort%n  * ha_per_m2
                      hio_froot_mr_understory_si_scls(io_si,scls) = hio_froot_mr_understory_si_scls(io_si,scls) + &
-                          ccohort%froot_mr  * ccohort%n  / m2_per_ha
+                          ccohort%froot_mr  * ccohort%n  * ha_per_m2
                      hio_resp_g_understory_si_scls(io_si,scls) = hio_resp_g_understory_si_scls(io_si,scls) + &
-                          resp_g  * ccohort%n * per_dt_tstep  / m2_per_ha
+                          resp_g  * ccohort%n * per_dt_tstep  * ha_per_m2
                      hio_resp_m_understory_si_scls(io_si,scls) = hio_resp_m_understory_si_scls(io_si,scls) + &
-                          ccohort%resp_m  * ccohort%n * per_dt_tstep  / m2_per_ha
+                          ccohort%resp_m  * ccohort%n * per_dt_tstep  * ha_per_m2
                   endif
                 end associate
                endif
@@ -3816,7 +3816,7 @@ end subroutine flush_hvars
                do ileaf=1,ccohort%nv
                   cnlf_indx = ileaf + (ican-1) * nlevleaf
                   hio_ts_net_uptake_si_cnlf(io_si, cnlf_indx) = hio_ts_net_uptake_si_cnlf(io_si, cnlf_indx) + &
-                       ccohort%ts_net_uptake(ileaf) * per_dt_tstep * ccohort%c_area / AREA
+                       ccohort%ts_net_uptake(ileaf) * per_dt_tstep * ccohort%c_area * area_inv
                end do
 
                ccohort => ccohort%taller
@@ -4017,7 +4017,7 @@ end subroutine update_history_hifrq
     type(ed_cohort_type),pointer :: ccohort
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
     type(ed_site_hydr_type), pointer :: site_hydr
-
+    real(r8) :: per_dt_tstep          ! Time step in frequency units (/s)
     real(r8), parameter :: daysecs = 86400.0_r8 ! What modeler doesn't recognize 86400?
     real(r8), parameter :: yeardays = 365.0_r8  ! Should this be 365.25?
 
@@ -4070,6 +4070,8 @@ end subroutine update_history_hifrq
       ! Flush the relevant history variables
       call this%flush_hvars(nc,upfreq_in=4)
 
+      per_dt_tstep = 1._r8 / dt_tstep
+      
       if(print_iterations) then
           do iscpf = 1,iterh2_nhist
               iterh2_histx(iscpf) = iterh2_dx*real(iscpf-1,r8)
@@ -4181,11 +4183,11 @@ end subroutine update_history_hifrq
          do ipft = 1, numpft
             do iscls = 1,nlevsclass
                iscpf = (ipft-1)*nlevsclass + iscls
-               hio_sapflow_scpf(io_si,iscpf)       = site_hydr%sapflow_scpf(iscls, ipft) / m2_per_ha
-               hio_rootuptake0_scpf(io_si,iscpf)   = site_hydr%rootuptake0_scpf(iscls,ipft) / m2_per_ha
-               hio_rootuptake10_scpf(io_si,iscpf)  = site_hydr%rootuptake10_scpf(iscls,ipft) / m2_per_ha
-               hio_rootuptake50_scpf(io_si,iscpf)  = site_hydr%rootuptake50_scpf(iscls,ipft) / m2_per_ha
-               hio_rootuptake100_scpf(io_si,iscpf) = site_hydr%rootuptake100_scpf(iscls,ipft) / m2_per_ha
+               hio_sapflow_scpf(io_si,iscpf)       = site_hydr%sapflow_scpf(iscls, ipft) * ha_per_m2
+               hio_rootuptake0_scpf(io_si,iscpf)   = site_hydr%rootuptake0_scpf(iscls,ipft) * ha_per_m2
+               hio_rootuptake10_scpf(io_si,iscpf)  = site_hydr%rootuptake10_scpf(iscls,ipft) * ha_per_m2
+               hio_rootuptake50_scpf(io_si,iscpf)  = site_hydr%rootuptake50_scpf(iscls,ipft) * ha_per_m2
+               hio_rootuptake100_scpf(io_si,iscpf) = site_hydr%rootuptake100_scpf(iscls,ipft) * ha_per_m2
                hio_iterh1_scpf(io_si,iscpf) = 0._r8
                hio_iterh2_scpf(io_si,iscpf) = 0._r8
             end do
@@ -4206,7 +4208,7 @@ end subroutine update_history_hifrq
                   iscpf = ccohort%size_by_pft_class
 
                   ! scale up cohort fluxes to their sites
-                  number_fraction_rate = (ccohort%n / nplant_scpf(iscpf))/dt_tstep
+                  number_fraction_rate = (ccohort%n / nplant_scpf(iscpf)) * per_dt_tstep
 
                   ! scale cohorts to mean quantity
                   number_fraction = (ccohort%n / nplant_scpf(iscpf))
@@ -4280,7 +4282,7 @@ end subroutine update_history_hifrq
 
          if(hlm_use_ed_st3.eq.ifalse) then
             do iscpf=1,nlevsclass*numpft
-               if ((abs(hio_nplant_si_scpf(io_si, iscpf)-(nplant_scpf(iscpf)/m2_per_ha)) > 1.0E-8_r8) .and. &
+               if ((abs(hio_nplant_si_scpf(io_si, iscpf)-(nplant_scpf(iscpf)*ha_per_m2)) > 1.0E-8_r8) .and. &
                (hio_nplant_si_scpf(io_si, iscpf) .ne. hlm_hio_ignore_val)) then
                   write(fates_log(),*) 'numpft:',numpft
                   write(fates_log(),*) 'nlevsclass:',nlevsclass
