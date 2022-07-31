@@ -1066,7 +1066,7 @@ contains
     real(r8) :: deficit_c              ! Amount of C needed to get flushing pools "on-allometry"
     real(r8) :: target_leaf_c
     real(r8) :: target_sapw_c
-    real(r8) :: target_agw_c, target_bgw_c, target_agw_c, target_struct_c
+    real(r8) :: target_agw_c, target_bgw_c, target_struct_c
     real(r8) :: sapw_area
     integer  :: ipft
     real(r8), parameter :: leaf_drop_fraction = 1.0_r8
@@ -1097,9 +1097,9 @@ contains
           ! The site level flags signify that it is no-longer too cold
           ! for leaves. Time to signal flushing
 
-          if (prt_params%season_decid(ipft) == itrue)then
-             if ( currentSite%cstatus == phen_cstat_notcold  )then                ! we have just moved to leaves being on .
-                if (currentCohort%status_coh == leaves_off)then ! Are the leaves currently off?
+          if_colddec: if (prt_params%season_decid(ipft) == itrue)then
+             if_notcold: if ( currentSite%cstatus == phen_cstat_notcold  )then                ! we have just moved to leaves being on .
+                if_leaves_off: if (currentCohort%status_coh == leaves_off)then ! Are the leaves currently off?
                    currentCohort%status_coh = leaves_on         ! Leaves are on, so change status to
                    ! stop flow of carbon out of bstore.
 
@@ -1153,16 +1153,15 @@ contains
                       
                    end if
 
-                endif
-                endif !pft phenology
-             endif ! growing season
+                endif if_leaves_off
+             endif if_notcold
 
              !COLD LEAF OFF
-             if (currentSite%cstatus == phen_cstat_nevercold .or. &
+             if_cold:  if (currentSite%cstatus == phen_cstat_nevercold .or. &
                   currentSite%cstatus == phen_cstat_iscold) then ! past leaf drop day? Leaves still on tree?
-
-                if (currentCohort%status_coh == leaves_on) then ! leaves have not dropped
-
+                
+                if_leaves_on: if (currentCohort%status_coh == leaves_on) then ! leaves have not dropped
+                   
                    ! leaf off occur on individuals bigger than specific size for grass
                    if (currentCohort%dbh > EDPftvarcon_inst%phen_cold_size_threshold(ipft) &
                         .or. prt_params%woody(ipft)==itrue) then
@@ -1187,9 +1186,9 @@ contains
 
                       endif	! woody plant check
                    endif ! individual dbh size check
-                endif !leaf status
-             endif !currentSite status
-          endif  !season_decid
+                endif if_leaves_on !leaf status
+             endif if_cold !currentSite status
+          endif if_colddec  !season_decid
 
           ! DROUGHT LEAF ON
           ! Site level flag indicates it is no longer in drought condition
@@ -1255,7 +1254,6 @@ contains
                       
                    end if
 
-                   endif ! woody plant check
                 endif !currentCohort status again?
              endif   !currentSite status
 
