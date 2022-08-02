@@ -866,15 +866,17 @@ contains
     ! Check to see if there is any value in these pools?
     ! SHould not deallocate if there is any carbon left
 
-    do i_var = 1, prt_global%num_vars
-       deallocate(this%variables(i_var)%val)
-       deallocate(this%variables(i_var)%val0)
-       deallocate(this%variables(i_var)%net_alloc)
-       deallocate(this%variables(i_var)%turnover)
-       deallocate(this%variables(i_var)%burned)
-    end do
+    if(allocated(this%variables)) then
+       do i_var = 1, prt_global%num_vars
+          deallocate(this%variables(i_var)%val)
+          deallocate(this%variables(i_var)%val0)
+          deallocate(this%variables(i_var)%net_alloc)
+          deallocate(this%variables(i_var)%turnover)
+          deallocate(this%variables(i_var)%burned)
+       end do
 
-    deallocate(this%variables)
+       deallocate(this%variables)
+    end if
 
     if(allocated(this%bc_in))then
        deallocate(this%bc_in)

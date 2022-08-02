@@ -342,6 +342,10 @@ contains
 
     call get_frac_site_primary(currentSite, frac_site_primary)
 
+    ! Clear site GPP and AR passing to HLM
+    bc_out%gpp_site = 0._r8
+    bc_out%ar_site = 0._r8
+
     ! Patch level biomass are required for C-based harvest
     call get_harvestable_carbon(currentSite, bc_in%site_area, bc_in%hlm_harvest_catnames, harvestable_forest_c, available_forest_c)
 
@@ -422,6 +426,11 @@ contains
           currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * real(hlm_days_per_year,r8)
           currentCohort%resp_acc_hold = currentCohort%resp_acc * real(hlm_days_per_year,r8)
 
+          ! Passing gpp_acc_hold to HLM 
+          bc_out%gpp_site = bc_out%gpp_site + currentCohort%gpp_acc_hold * &
+               AREA_INV * currentCohort%n / hlm_days_per_year / sec_per_day
+          bc_out%ar_site = bc_out%ar_site + currentCohort%resp_acc_hold * & 
+               AREA_INV * currentCohort%n / hlm_days_per_year / sec_per_day
 
           ! Conduct Maintenance Turnover (parteh)
           if(debug) call currentCohort%prt%CheckMassConservation(ft,3)
