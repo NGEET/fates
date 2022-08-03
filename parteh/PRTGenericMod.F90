@@ -67,8 +67,7 @@ module PRTGenericMod
   ! -------------------------------------------------------------------------------------
 
   integer, parameter, public :: prt_carbon_allom_hyp   = 1
-  integer, parameter, public :: prt_cnp_flex_allom_hyp = 2   ! Still under development
-
+  integer, parameter, public :: prt_cnp_flex_allom_hyp = 2
 
   ! -------------------------------------------------------------------------------------
   ! Organ types

@@ -2662,6 +2662,7 @@ contains
 
     type(ed_site_type) :: csite
     type(ed_patch_type), pointer :: cpatch
+    type(ed_cohort_type), pointer :: ccohort
     integer  :: ft                       ! functional type index
     integer  :: cl                       ! canopy layer index
     real(r8) :: rec_l2fr_pft             ! Actual l2fr of a pft in it's patch
@@ -2671,6 +2672,7 @@ contains
     cpatch => csite%youngest_patch
     do while(associated(cpatch))
        cl = cpatch%ncl_p
+       
        do ft = 1,numpft
           rec_l2fr_pft = csite%rec_l2fr(ft,cl)
           cpatch%nitr_repro_stoich(ft) = &
@@ -2678,6 +2680,15 @@ contains
           cpatch%phos_repro_stoich(ft) = &
                NewRecruitTotalStoichiometry(ft,rec_l2fr_pft,phosphorus_element)
        end do
+
+       ccohort => cpatch%shortest
+       cloop: do while(associated(ccohort))
+          rec_l2fr_pft = csite%rec_l2fr(ccohort%pft,cl)
+          ccohort%nc_repro = NewRecruitTotalStoichiometry(ccohort%pft,rec_l2fr_pft,nitrogen_element)
+          ccohort%pc_repro = NewRecruitTotalStoichiometry(ccohort%pft,rec_l2fr_pft,phosphorus_element)
+          ccohort => ccohort%taller
+       end do cloop
+       
        cpatch => cpatch%older
     end do
        

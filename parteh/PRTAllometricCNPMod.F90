@@ -691,6 +691,7 @@ contains
     real(r8), pointer :: pc_store
     
     real(r8), parameter :: max_l2fr_cgain_frac = 0.99_r8
+    real(r8), parameter :: xc_ratio_correction = 1.2_r8
     real(r8), parameter :: wgt = 1._r8/10._r8   ! 10-day smoothing
     
 
@@ -719,7 +720,7 @@ contains
        store_nut_act = this%GetState(store_organ, nitrogen_element) + &
             this%bc_inout(acnp_bc_inout_id_netdn)%rval
 
-       n_ratio = min(50.0_r8,max(0.02_r8,(store_nut_act/store_nut_max)/(store_c_act/store_c_max)))
+       n_ratio = xc_ratio_correction*min(50.0_r8,max(0.02_r8,(store_nut_act/store_nut_max)/(store_c_act/store_c_max)))
 
        nc_store = wgt*log(n_ratio) + (1._r8-wgt)*nc_store
        
@@ -733,7 +734,7 @@ contains
        store_nut_max = this%GetNutrientTarget(phosphorus_element,store_organ,stoich_growth_min) 
 
        store_nut_act = this%GetState(store_organ, phosphorus_element) + this%bc_inout(acnp_bc_inout_id_netdp)%rval       
-       p_ratio = min(50.0_r8,max(0.02_r8,(store_nut_act/store_nut_max)/(store_c_act/store_c_max)))
+       p_ratio = xc_ratio_correction*min(50.0_r8,max(0.02_r8,(store_nut_act/store_nut_max)/(store_c_act/store_c_max)))
 
        pc_store = wgt*log(p_ratio) + (1._r8-wgt)*pc_store
        

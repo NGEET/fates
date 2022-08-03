@@ -469,13 +469,7 @@ contains
           call EffluxIntoLitterPools(currentSite, currentPatch, currentCohort, bc_in )
 
 
-          ! Update history diagnostics related to Nutrient fluxes and C efflux (if any)
-          ! -----------------------------------------------------------------------------
           
-          call fates_hist%update_history_nutrflux(currentSite,currentPatch,currentCohort)
-
-
-          currentCohort%daily_n_fixation = 0._r8
           
           ! Mass balance for N uptake
           currentSite%mass_balance(element_pos(nitrogen_element))%net_root_uptake = &
@@ -550,13 +544,18 @@ contains
 
        currentPatch => currentPatch%older
    end do
-
-
+          
    ! We keep a record of the L2FRs of plants
    ! that are near the recruit size, for different
    ! pfts and canopy layer. We use this mean to
    ! set the L2FRs of newly recruited plants
+   
    call UpdateRecruitL2FR(currentSite)
+
+   ! Update history diagnostics related to Nutrients (if any)
+   ! -----------------------------------------------------------------------------
+   
+   call fates_hist%update_history_nutrflux(currentSite)
    
     ! When plants die, the water goes with them.  This effects
     ! the water balance.
@@ -612,6 +611,7 @@ contains
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort))
           currentCohort%n = max(0._r8,currentCohort%n + currentCohort%dndt * hlm_freq_day )
+          currentCohort%daily_n_fixation = 0._r8
           currentCohort => currentCohort%taller
        enddo
        currentPatch => currentPatch%older

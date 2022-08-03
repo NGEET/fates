@@ -5,6 +5,7 @@ module FatesSizeAgeTypeIndicesMod
   use FatesInterfaceTypesMod,     only : nlevage
   use FatesInterfaceTypesMod,     only : nlevheight
   use FatesInterfaceTypesMod,     only : nlevcoage
+  use EDTypesMod,                 only : nclmax
   use EDParamsMod,           only : ED_val_history_sizeclass_bin_edges
   use EDParamsMod,           only : ED_val_history_ageclass_bin_edges
   use EDParamsMod,           only : ED_val_history_height_bin_edges
@@ -24,7 +25,8 @@ module FatesSizeAgeTypeIndicesMod
   public :: coagetype_class_index
   public :: get_coage_class_index
   public :: get_agefuel_class_index
-
+  public :: get_layersizetype_class_index
+  
 contains
 
   ! =====================================================================================
@@ -38,6 +40,32 @@ contains
      patch_age_class = count(age-ED_val_history_ageclass_bin_edges.ge.0.0_r8)
 
   end function get_age_class_index
+
+  ! =====================================================================================
+
+  function get_layersizetype_class_index(layer,dbh,pft) result(iclscpf)
+
+    ! Get the 1D index for a canopy layer x size x pft triplet
+    
+    ! Arguments
+    integer,intent(in) :: layer
+    real(r8),intent(in) :: dbh
+    integer,intent(in) :: pft
+
+    integer :: size_class
+    integer :: iclscpf
+     
+    size_class        = get_size_class_index(dbh)
+    
+    iclscpf = (pft-1)*nlevsclass*nclmax + (size_class-1)*nclmax + layer
+
+    ! FOR ANALYSIS CODE, REVERSE: (assuming indices starting at 1):
+
+    ! pft = ceiling(real(index,r8)/real(nlevsclass*nclmax,r8))
+    ! size_class = ceiling(real(index-(pft-1)*nlevsclass*nclmax,r8)/real(nclmax,r8))
+    ! layer = index - ((pft-1)*nlevsclass*nclmax + (size_class-1)*nclmax)
+    
+  end function get_layersizetype_class_index
 
   ! =====================================================================================
 

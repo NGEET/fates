@@ -431,8 +431,8 @@ contains
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_lstat,bc_ival = new_cohort%status_coh)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdc, bc_rval = new_cohort%npp_acc)
 
-       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_nc_repro,bc_rval = new_cohort%patchptr%nitr_repro_stoich(ft))
-       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_pc_repro,bc_rval = new_cohort%patchptr%phos_repro_stoich(ft))
+       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_nc_repro,bc_rval = new_cohort%nc_repro) !patchptr%nitr_repro_stoich(ft))
+       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_pc_repro,bc_rval = new_cohort%pc_repro) !patchptr%phos_repro_stoich(ft))
        
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_dbh,bc_rval = new_cohort%dbh)
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_resp_excess,bc_rval = new_cohort%resp_excess)

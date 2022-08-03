@@ -35,7 +35,8 @@ module FatesIOVariableKindMod
   character(*), parameter, public :: site_scagpft_r8 = 'SI_SCAGPFT_R8'
   character(*), parameter, public :: site_agepft_r8 = 'SI_AGEPFT_R8'
   character(*), parameter, public :: site_agefuel_r8 = 'SI_AGEFUEL_R8'
-
+  character(*), parameter, public :: site_clscpf_r8 = 'SI_CLSCPF_R8'
+  
   ! Element, and multiplexed element dimensions
   character(*), parameter, public :: site_elem_r8  = 'SI_ELEM_R8'
   character(*), parameter, public :: site_elpft_r8 = 'SI_ELEMPFT_R8'

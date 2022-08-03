@@ -226,6 +226,8 @@ module EDTypesMod
      integer :: cnp_limiter            ! Which species is limiting growth? ! 0=none,1=C,2=N,3=P
      real(r8) :: nc_store              ! Exponential moving average of the log of the N/C storage ratio
      real(r8) :: pc_store              ! Exponential moving average of the log of the P/C storage ratio
+     real(r8) :: nc_repro              ! The NC ratio of a new recruit in this patch
+     real(r8) :: pc_repro              ! The PC ratio of a new recruit in this patch
      
      
      ! VEGETATION STRUCTURE
