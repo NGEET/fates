@@ -86,7 +86,7 @@ contains
   real(r8) function GreatCircleDist(slons,slonf,slats,slatf)
   
      use FatesConstantsMod, only : earth_radius_eq &
-                                 , pi_const 
+                                 , rad_per_deg 
      implicit none
     
      !----- Local variables. ----------------------------------------------------------------!
@@ -107,10 +107,10 @@ contains
      !---------------------------------------------------------------------------------------!
     
      !----- Convert the co-ordinates to double precision and to radians. --------------------!
-     lons = slons * pi_const
-     lonf = slonf * pi_const
-     lats = slats * pi_const
-     latf = slatf * pi_const
+     lons = slons * rad_per_deg
+     lonf = slonf * rad_per_deg
+     lats = slats * rad_per_deg
+     latf = slatf * rad_per_deg
      dlon = lonf - lons
      dlat = latf - lats
     

@@ -233,5 +233,6 @@ module FatesConstantsMod
 
   ! PI
   real(fates_r8), parameter, public :: pi_const = 3.14159265359_fates_r8
+  real(fates_r8), parameter, public :: rad_per_deg = pi_const/180.0_fates_r8
 
 end module FatesConstantsMod
