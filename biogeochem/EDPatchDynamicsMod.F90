@@ -1637,12 +1637,24 @@ contains
              ! across ground surface. 
              ! -----------------------------------------------------------------------
              
-             sapw_m   = currentCohort%prt%GetState(sapw_organ, element_id)
-             struct_m = currentCohort%prt%GetState(struct_organ, element_id)
-             leaf_m   = currentCohort%prt%GetState(leaf_organ, element_id)
              fnrt_m   = currentCohort%prt%GetState(fnrt_organ, element_id)
              store_m  = currentCohort%prt%GetState(store_organ, element_id)
              repro_m  = currentCohort%prt%GetState(repro_organ, element_id)
+
+             if (prt_params%woody(currentCohort%pft) == itrue) then
+                ! Assumption: for woody plants, we lump fluxes from deadwood and sapwood together in CWD pool.
+                ! for non-woody plants, we put all stem fluxes into the same leaf litter pool.
+                leaf_m          = currentCohort%prt%GetState(leaf_organ,element_id)
+                sapw_m          = currentCohort%prt%GetState(sapw_organ,element_id)
+                struct_m        = currentCohort%prt%GetState(struct_organ,element_id)
+             else
+                leaf_m          = currentCohort%prt%GetState(leaf_organ,element_id) + &
+                     currentCohort%prt%GetState(sapw_organ,element_id) + &
+                     currentCohort%prt%GetState(struct_organ,element_id)
+                sapw_m          = 0._r8
+                struct_m        = 0._r8
+             end if
+
              
              ! Absolute number of dead trees being transfered in with the donated area
              num_dead_trees = (currentCohort%fire_mort*currentCohort%n * &
@@ -1823,12 +1835,23 @@ contains
 
           pft = currentCohort%pft
    
-          sapw_m   = currentCohort%prt%GetState(sapw_organ, element_id)
-          struct_m = currentCohort%prt%GetState(struct_organ, element_id)
-          leaf_m   = currentCohort%prt%GetState(leaf_organ, element_id)
           fnrt_m   = currentCohort%prt%GetState(fnrt_organ, element_id)
           store_m  = currentCohort%prt%GetState(store_organ, element_id)
           repro_m  = currentCohort%prt%GetState(repro_organ, element_id)
+
+          if (prt_params%woody(currentCohort%pft) == itrue) then
+             ! Assumption: for woody plants, we lump fluxes from deadwood and sapwood together in CWD pool.
+             ! for non-woody plants, we put all stem fluxes into the same leaf litter pool.
+             leaf_m          = currentCohort%prt%GetState(leaf_organ,element_id)
+             sapw_m          = currentCohort%prt%GetState(sapw_organ,element_id)
+             struct_m        = currentCohort%prt%GetState(struct_organ,element_id)
+          else
+             leaf_m          = currentCohort%prt%GetState(leaf_organ,element_id) + &
+                     currentCohort%prt%GetState(sapw_organ,element_id) + &
+                     currentCohort%prt%GetState(struct_organ,element_id)
+             sapw_m          = 0._r8
+             struct_m        = 0._r8
+          end if
 
           if(currentCohort%canopy_layer == 1)then
 
