@@ -12,6 +12,7 @@ module FatesUtilsMod
   ! Make public necessary subroutines and functions
   public :: check_hlm_list
   public :: check_var_real
+  public :: GreatCircleDist
 
 contains
   
@@ -74,6 +75,59 @@ contains
 
 
   end subroutine check_var_real
+  
+  !==========================================================================================!
+  !   Function to compute the great circle distance between two points: the s suffix denotes !
+  ! source point, and f denotes the destination - "forepoint"). The results are given in     !
+  ! metres. The formula is intended to be accurate for both small and large distances and    !
+  ! uses double precision to avoid ill-conditioned behaviour of sin and cos for numbers      !
+  ! close to the n*pi/2.                                                                     !
+  !------------------------------------------------------------------------------------------!
+  real(r8) function GreatCircleDist(slons,slonf,slats,slatf)
+  
+     use FatesConstantsMod, only : earth_radius_eq &
+                                 , rad_per_deg 
+     implicit none
+    
+     !----- Local variables. ----------------------------------------------------------------!
+     real(r8), intent(in) :: slons
+     real(r8), intent(in) :: slonf
+     real(r8), intent(in) :: slats
+     real(r8), intent(in) :: slatf
+    
+     !----- Local variables. ----------------------------------------------------------------!
+     real(r8)     :: lons
+     real(r8)     :: lonf
+     real(r8)     :: lats
+     real(r8)     :: latf
+     real(r8)     :: dlon
+     real(r8)     :: dlat
+     real(r8)     :: x
+     real(r8)     :: y
+     !---------------------------------------------------------------------------------------!
+    
+     !----- Convert the co-ordinates to double precision and to radians. --------------------!
+     lons = slons * rad_per_deg
+     lonf = slonf * rad_per_deg
+     lats = slats * rad_per_deg
+     latf = slatf * rad_per_deg
+     dlon = lonf - lons
+     dlat = latf - lats
+    
+     !----- Find the arcs. ------------------------------------------------------------------!
+     x    = dsin(lats) * dsin(latf) + dcos(lats) * dcos(latf) * dcos(dlon)
+     y    = dsqrt( (dcos(latf)*dsin(dlon)) * (dcos(latf)*dsin(dlon))                         &
+                 + (dcos(lats)*dsin(latf)-dsin(lats)*dcos(latf)*dcos(dlon))                  &
+                 * (dcos(lats)*dsin(latf)-dsin(lats)*dcos(latf)*dcos(dlon)) )
+    
+     !----- Convert the arcs to actual distance. --------------------------------------------!
+     GreatCircleDist = earth_radius_eq*datan2(y,x)
+    
+     return
+ 
+  end function GreatCircleDist
+   
+   
 
 
 end module FatesUtilsMod
