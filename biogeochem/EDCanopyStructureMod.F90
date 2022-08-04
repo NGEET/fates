@@ -1555,7 +1555,7 @@ contains
              ! This may indeed be zero if there is a sensecent grass
              ! ----------------------------------------------------------------
 
-             if( (currentCohort%treelai+currentCohort%treesai) > 0._r8)then
+             if( (currentCohort%treelai+currentCohort%treesai) > nearzero)then
                 fleaf = currentCohort%treelai / (currentCohort%treelai + currentCohort%treesai)
              else
                 fleaf = 0._r8
