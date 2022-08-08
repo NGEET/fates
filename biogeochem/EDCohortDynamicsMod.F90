@@ -252,8 +252,8 @@ contains
 
     new_cohort%l2fr = prt_params%allom_l2fr(pft)
 
-    new_cohort%nc_store = 1._r8  ! Assume balanced N/C stores
-    new_cohort%pc_store = 1._r8  ! Assume balanced P/C stores
+    new_cohort%nc_store = 0._r8  ! Assume balanced N/C stores ie log(1) = 0
+    new_cohort%pc_store = 0._r8  ! Assume balanced P/C stores ie log(1) = 0
     
     ! This sets things like vcmax25top, that depend on the
     ! leaf age fractions (which are defined by PARTEH)
