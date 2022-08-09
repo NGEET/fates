@@ -100,6 +100,15 @@ module PRTAllometricCNPMod
   integer, parameter :: num_vars    = 18
 
 
+  ! Setpoint Error controller method
+  integer, parameter, private :: storage_spe = 0
+  integer, parameter, private :: binary_limiter_spe = 1
+  integer, parameter, private :: daily_gain_ratio_spe = 2
+
+  integer, parameter, private :: pid_spe_controller = storage_spe
+
+  real(r8), parameter, private :: pid_int_wgt = 1._r8/5._r8   ! n-day smoothing (K on the integral of PID)
+  
   ! Global identifiers for the two stoichiometry values
   integer,public, parameter :: stoich_growth_min = 1     ! Flag for stoichiometry associated with
                                                   ! minimum needed for growth
@@ -382,10 +391,6 @@ contains
     real(r8) :: p_gain0
     real(r8) :: resp_excess0
 
-    real(r8) :: c_alloc_nso  ! Allocated C not including changes in storage overflow
-    real(r8) :: n_alloc_nso  ! Allocated N not including changes in storage overflow
-    real(r8) :: p_alloc_nso  ! Allocated P not including changes in storage overflow
-    
     ! Used for mass checking, total mass allocated based
     ! on change in the states, should match gain0's
     real(r8) :: allocated_c
@@ -394,9 +399,6 @@ contains
     real(r8) :: target_n,target_p
     real(r8) :: sum_c ! error checking sum
 
-
-    print*,"ALLOC"
-    
     ! If more than 1 leaf age bin is present, this
     ! call advances leaves in their age, but does
     ! not actually remove any biomass from the plant
@@ -500,28 +502,12 @@ contains
     target_n = this%GetNutrientTarget(nitrogen_element,store_organ,stoich_growth_min)
     store_flux = max(0._r8, this%variables(store_n_id)%val(1) - target_n)
     n_gain = n_gain + store_flux
-    print*,"n store flux: ",store_flux
     this%variables(store_n_id)%val(1) = this%variables(store_n_id)%val(1) - store_flux
     target_p = this%GetNutrientTarget(phosphorus_element,store_organ,stoich_growth_min)
     store_flux = max(0._r8, this%variables(store_p_id)%val(1) - target_p)
     p_gain = p_gain + store_flux
-    print*,"p store flux: ",store_flux
     this%variables(store_p_id)%val(1) = this%variables(store_p_id)%val(1) - store_flux
     
-    n_alloc_nso = 0._r8
-    c_alloc_nso = 0._r8
-    p_alloc_nso = 0._r8
-    do i = 1,num_organs
-       i_org = l2g_organ_list(i) ! global index from PRTGeneric
-       i_var = prt_global%sp_organ_map(i_org,carbon12_element)
-       c_alloc_nso = c_alloc_nso - this%variables(i_var)%val(1)
-       i_var = prt_global%sp_organ_map(i_org,nitrogen_element)
-       n_alloc_nso = n_alloc_nso - this%variables(i_var)%val(1)
-       i_var = prt_global%sp_organ_map(i_org,phosphorus_element)
-       p_alloc_nso = p_alloc_nso - this%variables(i_var)%val(1)
-    end do
-
-       
     ! ===================================================================================
     ! Step 0.  Transfer all stored nutrient into the daily uptake pool. Also
     !          transfer C storage that is above the target (ie transfer overflow)
@@ -594,19 +580,8 @@ contains
     ! Allocate the remaining resources, or as a last resort, efflux them.
     ! ===================================================================================
 
-    do i = 1,num_organs
-       i_org = l2g_organ_list(i) ! global index from PRTGeneric
-       i_var = prt_global%sp_organ_map(i_org,carbon12_element)
-       c_alloc_nso = c_alloc_nso + this%variables(i_var)%val(1)
-       i_var = prt_global%sp_organ_map(i_org,nitrogen_element)
-       n_alloc_nso = n_alloc_nso + this%variables(i_var)%val(1)
-       i_var = prt_global%sp_organ_map(i_org,phosphorus_element)
-       p_alloc_nso = p_alloc_nso + this%variables(i_var)%val(1)
-    end do
-    
     call this%CNPAllocateRemainder(c_gain, n_gain, p_gain, &
          c_gain0, n_gain0, p_gain0,  &
-         c_alloc_nso, n_alloc_nso, p_alloc_nso,  &
          c_efflux, n_efflux, p_efflux)
 
 
@@ -741,7 +716,7 @@ contains
     real(r8) :: l2fr_mult
     real(r8), pointer :: nc_store
     real(r8), pointer :: pc_store
-    !real(r8), parameter :: wgt = 1._r8/10._r8   ! 10-day smoothing
+    
     real(r8), parameter :: max_l2fr_cgain_frac = 0.99_r8
     real(r8), parameter :: xc_ratio_correction = 1.0_r8
     
@@ -753,45 +728,48 @@ contains
     canopy_trim  =  this%bc_in(acnp_bc_in_id_ctrim)%rval
     nc_store      => this%bc_inout(acnp_bc_inout_id_nc_store)%rval
     pc_store      => this%bc_inout(acnp_bc_inout_id_pc_store)%rval
-    
-    ! Step 1: Determine the nutrient to carbon ratio (aka relative health factor)
-    ! -----------------------------------------------------------------------------------
 
-    store_c_max = target_c(store_organ)
 
-    store_c_act = this%GetState(store_organ, carbon12_element) + &
-         this%bc_in(acnp_bc_in_id_netdc)%rval
-
-    if(n_uptake_mode.ne.prescribed_n_uptake)then
-
-       ! Calculate the relative nitrogen storage fraction,
-       ! over the relative carbon storage fraction.
-
-       store_nut_max = this%GetNutrientTarget(nitrogen_element,store_organ,stoich_growth_min)
-
-       store_nut_act = this%GetState(store_organ, nitrogen_element) + &
-            this%bc_inout(acnp_bc_inout_id_netdn)%rval
-
-       n_ratio = xc_ratio_correction*min(50.0_r8,max(0.02_r8,(store_nut_act/store_nut_max)/(store_c_act/store_c_max)))
-
-       !nc_store = wgt*log(n_ratio) + (1._r8-wgt)*nc_store
+    if(pid_spe_controller == storage_spe) then
        
-    end if
-
-    if(p_uptake_mode.ne.prescribed_p_uptake)then
-
-       ! Calculate the relative phosphorus storage fraction,
-       ! over the relative carbon storage fraction.
-
-       store_nut_max = this%GetNutrientTarget(phosphorus_element,store_organ,stoich_growth_min) 
-
-       store_nut_act = this%GetState(store_organ, phosphorus_element) + this%bc_inout(acnp_bc_inout_id_netdp)%rval       
-       p_ratio = xc_ratio_correction*min(50.0_r8,max(0.02_r8,(store_nut_act/store_nut_max)/(store_c_act/store_c_max)))
-
-       !pc_store = wgt*log(p_ratio) + (1._r8-wgt)*pc_store
+       ! Step 1: Determine the nutrient to carbon ratio (aka relative health factor)
+       ! -----------------------------------------------------------------------------------
        
-    end if
+       store_c_max = target_c(store_organ)
+       
+       store_c_act = this%GetState(store_organ, carbon12_element) + &
+            this%bc_in(acnp_bc_in_id_netdc)%rval
+       
+       if(n_uptake_mode.ne.prescribed_n_uptake)then
+          
+          ! Calculate the relative nitrogen storage fraction,
+          ! over the relative carbon storage fraction.
+          
+          store_nut_max = this%GetNutrientTarget(nitrogen_element,store_organ,stoich_growth_min)
+          
+          store_nut_act = this%GetState(store_organ, nitrogen_element) + &
+               this%bc_inout(acnp_bc_inout_id_netdn)%rval
 
+          n_ratio = xc_ratio_correction*min(50.0_r8,max(0.02_r8,(store_nut_act/store_nut_max)/(store_c_act/store_c_max)))
+          
+          nc_store = pid_int_wgt*log(n_ratio) + (1._r8-pid_int_wgt)*nc_store
+          
+       end if
+       
+       if(p_uptake_mode.ne.prescribed_p_uptake)then
+          
+          ! Calculate the relative phosphorus storage fraction,
+          ! over the relative carbon storage fraction.
+          
+          store_nut_max = this%GetNutrientTarget(phosphorus_element,store_organ,stoich_growth_min) 
+          
+          store_nut_act = this%GetState(store_organ, phosphorus_element) + this%bc_inout(acnp_bc_inout_id_netdp)%rval       
+          p_ratio = xc_ratio_correction*min(50.0_r8,max(0.02_r8,(store_nut_act/store_nut_max)/(store_c_act/store_c_max)))
+          
+          pc_store = pid_int_wgt*log(p_ratio) + (1._r8-pid_int_wgt)*pc_store
+          
+       end if
+    end if
     ! Use the limiting nutrient species
 
     if(n_uptake_mode.eq.prescribed_n_uptake)then
@@ -1422,7 +1400,6 @@ contains
          leaf_status.eq.leaves_off  .or. &
          n_gain <= 0.1_r8*calloc_abs_error .or. &
          p_gain <= 0.02_r8*calloc_abs_error ) then
-       print*,"lim: ",limiter
        return
     end if
 
@@ -1808,7 +1785,7 @@ contains
            p_gain, phosphorus_element,mask_gorgans(1:n_mask_organs))
 
     end if if_stature_growth
-    print*,"lim:",limiter
+
     return
   end subroutine CNPStatureGrowth
   
@@ -1816,16 +1793,12 @@ contains
 
   subroutine CNPAllocateRemainder(this, c_gain,n_gain,p_gain, &
                                         c_gain0, n_gain0, p_gain0, &
-                                        c_alloc_nso, n_alloc_nso, p_alloc_nso, &
                                         c_efflux, n_efflux, p_efflux)
 
     class(cnp_allom_prt_vartypes) :: this
     real(r8), intent(inout) :: c_gain
     real(r8), intent(inout) :: n_gain
     real(r8), intent(inout) :: p_gain 
-    real(r8), intent(in)    :: c_alloc_nso       ! Allocated C
-    real(r8), intent(in)    :: n_alloc_nso       ! Allocated N
-    real(r8), intent(in)    :: p_alloc_nso       ! Allocated P
     real(r8), intent(in)    :: c_gain0      ! Total C gain for the day
     real(r8), intent(in)    :: n_gain0      ! Total N gain for the day
     real(r8), intent(in)    :: p_gain0      ! Total P gain for the day
@@ -1850,7 +1823,6 @@ contains
     real(r8)          :: n_ratio,p_ratio,c_ratio
     real(r8)          :: nc_ratio,pc_ratio
     real(r8), pointer :: l2fr
-    real(r8), parameter :: wgt = 1._r8/5._r8   ! 10-day smoothing
 
     dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval
     canopy_trim = this%bc_in(acnp_bc_in_id_ctrim)%rval
@@ -1867,68 +1839,70 @@ contains
     ! If either n or p uptake is in prescribed mode
     ! set the gains to something massive. 1 kilo of pure
     ! nutrient should be wayyy more than enough
-    if(.false.)then
-    if(c_alloc_nso<nearzero)then
-       !If carbon gains were negative, the N and P allocations
-       ! will be incredibly small, which will generate
-       ! a large ratio anyway
+    
+    if(pid_spe_controller == daily_gain_ratio_spe) then
+
+       if(c_gain0<nearzero)then
+          !If carbon gains were negative, the N and P allocations
+          ! will be incredibly small, which will generate
+          ! a large ratio anyway
+          if(n_uptake_mode.eq.prescribed_n_uptake) then
+             nc_ratio = 1.0_r8
+          else
+             nc_ratio = 10._r8
+          end if
+          n_ratio=-9._r8
+          if(p_uptake_mode.eq.prescribed_p_uptake) then
+             pc_ratio = 1.0_r8
+          else
+             pc_ratio = 10._r8
+          end if
+          p_ratio=-9._r8
+       else
+
+          c_ratio = (c_gain0+c_gain)/c_gain0
+
+          if(n_uptake_mode.eq.prescribed_n_uptake) then
+             nc_ratio = 1.0_r8
+          else
+
+             ! At this point, n_gain is the combination of overflow
+             ! and efflux, so we want that to tend towards zero
+             n_ratio = (n_gain0+n_gain)/n_gain0
+             nc_ratio = max(0.1_r8,min(10._r8,n_ratio/c_ratio))
+          end if
+
+          if(p_uptake_mode.eq.prescribed_p_uptake) then
+             pc_ratio = 1.0_r8
+          else    
+             p_ratio = (p_gain0+p_gain)/p_gain0
+             pc_ratio = max(0.1_r8,min(10._r8,p_ratio/c_ratio))
+          end if
+       end if
+
+    elseif( pid_spe_controller==binary_limiter_spe) then
+
+       select case(limiter)
+       case(cnp_limited)
+          nc_ratio = exp(nc_store)
+          pc_ratio = exp(pc_store)
+       case(c_limited)
+          nc_ratio = 2.0_r8
+          pc_ratio = 2.0_r8
+       case(n_limited,p_limited)
+          nc_ratio = 0.5_r8
+          pc_ratio = 0.5_r8
+       end select
        if(n_uptake_mode.eq.prescribed_n_uptake) then
           nc_ratio = 1.0_r8
-       else
-          nc_ratio = 10._r8
        end if
-       n_ratio=-9._r8
        if(p_uptake_mode.eq.prescribed_p_uptake) then
           pc_ratio = 1.0_r8
-       else
-          pc_ratio = 10._r8
-       end if
-       p_ratio=-9._r8
-    else
-
-       c_ratio = c_gain0/max(nearzero,c_alloc_nso)
-
-       if(n_uptake_mode.eq.prescribed_n_uptake) then
-          nc_ratio = 1.0_r8
-       else
-          n_ratio = n_gain0/max(nearzero,n_alloc_nso)
-          if(n_alloc_nso<-1.e-17_r8)then
-             print*,"NEGATIVE N ALLOC?"
-             stop
-          end if
-          nc_ratio = max(0.1_r8,min(10._r8,n_ratio/c_ratio))
-       end if
-       
-       if(p_uptake_mode.eq.prescribed_p_uptake) then
-          pc_ratio = 1.0_r8
-       else    
-          p_ratio = p_gain0/max(nearzero,p_alloc_nso)
-          if(p_alloc_nso<-1.e-17_r8)then
-             print*,"NEGATIVE P ALLOC?",p_gain0,p_alloc_nso,p_gain
-             stop
-          end if
-          pc_ratio = max(0.1_r8,min(10._r8,p_ratio/c_ratio))
        end if
     end if
-     end if
-    !print*,"NR:",nc_ratio,dbh,l2fr
-
-    select case(limiter)
-    case(cnp_limited)
-       nc_ratio = exp(nc_store)
-       pc_ratio = exp(pc_store)
-    case(c_limited)
-       nc_ratio = 2.0_r8
-       pc_ratio = 2.0_r8
-    case(n_limited,p_limited)
-       nc_ratio = 0.5_r8
-       pc_ratio = 0.5_r8
-    end select
-
-    print*,"NR:",limiter,dbh,l2fr
     
-    nc_store = wgt*log(nc_ratio) + (1._r8-wgt)*nc_store
-    pc_store = wgt*log(pc_ratio) + (1._r8-wgt)*pc_store
+    nc_store = pid_int_wgt*log(nc_ratio) + (1._r8-pid_int_wgt)*nc_store
+    pc_store = pid_int_wgt*log(pc_ratio) + (1._r8-pid_int_wgt)*pc_store
     
     ! -----------------------------------------------------------------------------------
     ! If nutrients are still available, then we can bump up the values in the pools
