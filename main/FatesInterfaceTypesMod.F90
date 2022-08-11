@@ -753,12 +753,57 @@ module FatesInterfaceTypesMod
 
    end type bc_pconst_type
   
+   ! Neighbor node
+   type, public :: neighbor_type
+      
+      ! Grid cell neighbor
+      type(neighbor_type), pointer :: next_neighbor => null() 
+   
+      integer  :: gindex      ! grid cell index
+      real(r8) :: gc_dist     ! distance between source and neighbor
+      real(r8) :: dist_weight ! distance-based weight scalar
+      
+      contains
+         procedure :: DistWeightCalc
+  
+   end type neighbor_type
 
+   ! Neighborhood linked list
+   type, public :: neighborhood_type
+
+      ! Linked list of neighbors for a given source grid cell
+      type(neighbor_type), pointer :: first_neighbor => null()
+      type(neighbor_type), pointer :: last_neighbor => null()
+     
+      integer  :: neighbor_count   ! total neighbors near source
+      real(r8) :: dist_weight_tot  ! sum of dist weight scalars
+      ! real(r8) :: gclat            ! source gridcell latitude (deg)
+      ! real(r8) :: gclon            ! source gridcell longitude (deg)
+
+   end type neighborhood_type
+
+   type(neighborhood_type), public, pointer :: lneighbors(:)
 
  contains
+       
+    ! ======================================================================================
    
-   ! ====================================================================================
+    function DistWeightCalc(this, g2g_dist, decay_rate) result(dist_weight)
+      
+      ! Arguments
+      class(neighbor_type) :: this
+      real(r8), intent(in) :: g2g_dist
+      real(r8), intent(in) :: decay_rate
+      real(r8)             :: dist_weight
+      
+      ! Assuming simple exponential decay.  In the future perhaps this could be an interface
+      ! for different weight calculations (and could be held only in fates)
+      
+      dist_weight = exp(-decay_rate*g2g_dist)
+
+    end function DistWeightCalc
    
+    ! ====================================================================================
    
-    
+       
   end module FatesInterfaceTypesMod
