@@ -764,7 +764,8 @@ module FatesInterfaceTypesMod
       real(r8) :: dist_weight ! distance-based weight scalar
       
       contains
-         procedure :: DistWeightCalc
+        generic, public :: DistWeightCalc => SWC   
+        procedure, private :: SWC => SimpleWeightCalc
   
    end type neighbor_type
 
@@ -783,12 +784,17 @@ module FatesInterfaceTypesMod
    end type neighborhood_type
 
    type(neighborhood_type), public, pointer :: lneighbors(:)
+   
+   ! 
+   interface DistWeightCalc
+      module procedure SimpleWeightCalc
+   end interface DistWeightCalc
 
  contains
        
     ! ======================================================================================
    
-    function DistWeightCalc(this, g2g_dist, decay_rate) result(dist_weight)
+    function SimpleWeightCalc(this, g2g_dist, decay_rate) result(dist_weight)
       
       ! Arguments
       class(neighbor_type) :: this
@@ -801,7 +807,7 @@ module FatesInterfaceTypesMod
       
       dist_weight = exp(-decay_rate*g2g_dist)
 
-    end function DistWeightCalc
+    end function SimpleWeightCalc
    
     ! ====================================================================================
    
