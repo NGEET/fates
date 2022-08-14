@@ -150,7 +150,7 @@ contains
     type(ed_patch_type), pointer :: currentPatch
     integer :: el                ! Loop counter for elements
     integer :: do_patch_dynamics ! for some modes, we turn off patch dynamics
-
+    integer :: co_num
     !-----------------------------------------------------------------------
 
     if ( hlm_masterproc==itrue ) write(fates_log(),'(A,I4,A,I2.2,A,I2.2)') 'FATES Dynamics: ',&
@@ -344,6 +344,7 @@ contains
     real(r8) :: leaf_c_target         ! target leaf crabon [kg]
     real(r8) :: current_npp           ! place holder for calculating npp each year in prescribed physiology mode
     real(r8) :: target_storec
+    integer  :: co_num                ! simple cohort counter
     !-----------------------------------------------------------------------
     real(r8) :: frac_site_primary
 
@@ -358,8 +359,9 @@ contains
     ! prior to the growth sequence, where reproductive
     ! tissues are allocated
     call UpdateRecruitStoich(currentSite)
-    
-    currentPatch => currentSite%youngest_patch
+
+    co_num = 1
+    currentPatch => currentSite%oldest_patch
     do while(associated(currentPatch))
 
        currentPatch%age = currentPatch%age + hlm_freq_day
@@ -379,7 +381,7 @@ contains
        currentPatch%age_class = get_age_class_index(currentPatch%age)
 
        ! Update Canopy Biomass Pools
-       currentCohort => currentPatch%shortest
+       currentCohort => currentPatch%tallest
        do while(associated(currentCohort))
 
           ft = currentCohort%pft
@@ -461,7 +463,7 @@ contains
           ! -----------------------------------------------------------------------------
           currentCohort%resp_excess = 0._r8
           
-          call currentCohort%prt%DailyPRT()
+          call currentCohort%prt%DailyPRT(co_num,currentCohort%n)
 
           ! Send any efflux/exudates to the labile litter pools in the HLM
           ! -----------------------------------------------------------------------------
@@ -538,11 +540,11 @@ contains
                   currentCohort%coage_class,currentCohort%coage_by_pft_class)
           end if
 
-
-          currentCohort => currentCohort%taller
+          co_num=co_num+1
+          currentCohort => currentCohort%shorter
       end do
 
-       currentPatch => currentPatch%older
+       currentPatch => currentPatch%younger
    end do
           
    ! We keep a record of the L2FRs of plants

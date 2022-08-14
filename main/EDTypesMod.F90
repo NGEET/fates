@@ -223,11 +223,16 @@ module EDTypesMod
      
      
      ! Used for CNP
-     integer :: cnp_limiter            ! Which species is limiting growth? ! 0=none,1=C,2=N,3=P
-     real(r8) :: nc_store              ! Exponential moving average of the log of the N/C storage ratio
-     real(r8) :: pc_store              ! Exponential moving average of the log of the P/C storage ratio
-     real(r8) :: nc_repro              ! The NC ratio of a new recruit in this patch
-     real(r8) :: pc_repro              ! The PC ratio of a new recruit in this patch
+     integer :: cnp_limiter ! Which species is limiting growth? ! 0=none,1=C,2=N,3=P
+     real(r8) :: ema_xc     ! Exponential moving average of the log of the error term
+                            ! that controls the l2fr set-point in the PID controller
+                            ! the term is probably a ratio of storage or a ratio of
+                            ! gain efficiencies
+     real(r8) :: ema_dxcdt  ! The derivative of ema_xc per day
+     real(r8) :: xc0        ! The value on the previous time-step of the log of
+                            ! the PID error term (not smoothed)
+     real(r8) :: nc_repro   ! The NC ratio of a new recruit in this patch
+     real(r8) :: pc_repro   ! The PC ratio of a new recruit in this patch
      
      
      ! VEGETATION STRUCTURE

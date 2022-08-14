@@ -1159,10 +1159,11 @@ contains
 
    ! ====================================================================================
 
-   subroutine DailyPRTBase(this)
+   subroutine DailyPRTBase(this,co_num,nplant)
       
       class(prt_vartypes) :: this
-      
+      integer,intent(in)  :: co_num  ! cohort number
+      real(r8),intent(in) :: nplant
       write(fates_log(),*)'Daily PRT Allocation must be extended'
       call endrun(msg=errMsg(sourcefile, __LINE__))
    

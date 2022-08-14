@@ -94,9 +94,10 @@ module EDCohortDynamicsMod
   use PRTAllometricCNPMod,    only : cnp_allom_prt_vartypes
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_pft, acnp_bc_in_id_ctrim
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_lstat, acnp_bc_inout_id_dbh
-  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_nc_store
-  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_pc_store
   use PRTAllometricCNPMod,    only : acnp_bc_inout_id_l2fr
+  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_emaxc
+  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_xc0
+  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_emadxcdt
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_nc_repro
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_pc_repro
   use PRTAllometricCNPMod,    only : acnp_bc_inout_id_resp_excess, acnp_bc_in_id_netdc
@@ -252,8 +253,9 @@ contains
 
     new_cohort%l2fr = prt_params%allom_l2fr(pft)
 
-    new_cohort%nc_store = 0._r8  ! Assume balanced N/C stores ie log(1) = 0
-    new_cohort%pc_store = 0._r8  ! Assume balanced P/C stores ie log(1) = 0
+    new_cohort%ema_xc    = 0._r8  ! Assume balanced N,P/C stores ie log(1) = 0
+    new_cohort%xc0       = 0._r8  ! Assume balanced N,P/C stores ie log(1) = 0
+    new_cohort%ema_dxcdt = 0._r8  ! Assume unchanged dXC/dt
     
     ! This sets things like vcmax25top, that depend on the
     ! leaf age fractions (which are defined by PARTEH)
@@ -437,8 +439,9 @@ contains
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_dbh,bc_rval = new_cohort%dbh)
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_resp_excess,bc_rval = new_cohort%resp_excess)
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_l2fr,bc_rval = new_cohort%l2fr)
-       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_nc_store,bc_rval = new_cohort%nc_store)
-       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_pc_store,bc_rval = new_cohort%pc_store)
+       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_emaxc,bc_rval = new_cohort%ema_xc)
+       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_emadxcdt,bc_rval = new_cohort%ema_dxcdt)
+       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_xc0,bc_rval = new_cohort%xc0)
        
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdn, bc_rval = new_cohort%daily_n_gain)
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdp, bc_rval = new_cohort%daily_p_uptake)
@@ -1190,10 +1193,12 @@ contains
                                       end do
                                    end if
 
-                                   currentCohort%nc_store = (currentCohort%n*currentCohort%nc_store &
-                                        + nextc%n*nextc%nc_store)/newn
-                                   currentCohort%pc_store = (currentCohort%n*currentCohort%pc_store &
-                                        + nextc%n*nextc%pc_store)/newn
+                                   currentCohort%ema_xc = (currentCohort%n*currentCohort%ema_xc &
+                                        + nextc%n*nextc%ema_xc)/newn
+                                   currentCohort%ema_dxcdt = (currentCohort%n*currentCohort%ema_dxcdt &
+                                        + nextc%n*nextc%ema_dxcdt)/newn
+                                   currentCohort%xc0 = (currentCohort%n*currentCohort%xc0 &
+                                        + nextc%n*nextc%xc0)/newn
                                    
                                    ! new cohort age is weighted mean of two cohorts
                                    currentCohort%coage = &
@@ -1840,8 +1845,9 @@ contains
     n%kp25top    = o%kp25top
 
     ! Copy over running means
-    n%nc_store = o%nc_store
-    n%pc_store = o%pc_store
+    n%ema_xc    = o%ema_xc
+    n%ema_dxcdt = o%ema_dxcdt
+    n%xc0       = o%xc0
 
     ! CARBON FLUXES
     n%gpp_acc_hold    = o%gpp_acc_hold

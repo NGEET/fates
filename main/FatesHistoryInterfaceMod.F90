@@ -1815,6 +1815,9 @@ end subroutine flush_hvars
       gpp_si          = 0._r8
       fnrtc_clscpf(:) = 0._r8
       fnrtc_si        = 0._r8
+
+      ! history site index
+      io_si  = csite%h_gid
       
       cpatch => csite%youngest_patch
       do while(associated(cpatch))
@@ -1823,16 +1826,16 @@ end subroutine flush_hvars
          do while(associated(ccohort))
 
             ! If this is a new cohort, do not make diagnostics
-            if(ccohort%isnew) cycle
+            if(ccohort%isnew) then
+               ccohort => ccohort%taller
+               cycle
+            end if
             
             ! size class index
             iscpf = ccohort%size_by_pft_class
 
             ! layer by size by pft index
             iclscpf = get_layersizetype_class_index(ccohort%canopy_layer,ccohort%dbh,ccohort%pft)
-            
-            ! history site index
-            io_si  = csite%h_gid
 
             ! unit conversion factor to get x/plant/day -> x/m2/sec
             uconv = ccohort%n * ha_per_m2 * days_per_sec
@@ -1952,6 +1955,7 @@ end subroutine flush_hvars
 
       ! Normalize the layer x size x pft arrays
       do iclscpf = 1,nclmax*numpft*nlevsclass
+         
          if(gpp_clscpf(iclscpf)>nearzero) then
             hio_ngrowlim_clscpf(io_si,iclscpf) = hio_ngrowlim_clscpf(io_si,iclscpf) / gpp_clscpf(iclscpf)
             hio_pgrowlim_clscpf(io_si,iclscpf) = hio_pgrowlim_clscpf(io_si,iclscpf) / gpp_clscpf(iclscpf)
