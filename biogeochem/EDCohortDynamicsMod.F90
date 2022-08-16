@@ -978,12 +978,11 @@ contains
                 leaf_m   = ccohort%prt%GetState(leaf_organ, element_list(el))+ &
                         ccohort%prt%GetState(store_organ, element_list(el))+ &
                         ccohort%prt%GetState(sapw_organ, element_list(el))+ &
-                        ccohort%prt%GetState(fnrt_organ, element_list(el))+ &
                         ccohort%prt%GetState(struct_organ, element_list(el))+ &
                         ccohort%prt%GetState(repro_organ, element_list(el))
                 store_m  = 0_r8
                 sapw_m   = 0_r8
-                fnrt_m   = 0_r8
+                fnrt_m   = ccohort%prt%GetState(fnrt_organ, element_list(el))
                 struct_m = 0_r8
                 repro_m  = 0_r8
         end if

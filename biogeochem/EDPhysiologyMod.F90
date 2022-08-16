@@ -2213,23 +2213,22 @@ contains
           leaf_m_turnover   = currentCohort%prt%GetTurnover(leaf_organ, element_id)+ &
                         currentCohort%prt%GetTurnover(store_organ, element_id)+ &
                         currentCohort%prt%GetTurnover(sapw_organ, element_id)+ &
-                        currentCohort%prt%GetTurnover(fnrt_organ, element_id)+ &
+                        
                         currentCohort%prt%GetTurnover(struct_organ, element_id)+ &
                         currentCohort%prt%GetTurnover(repro_organ, element_id)
           store_m_turnover  = 0_r8
           sapw_m_turnover   = 0_r8
-          fnrt_m_turnover   = 0_r8
+          fnrt_m_turnover   = currentCohort%prt%GetTurnover(fnrt_organ, element_id)
           struct_m_turnover = 0_r8
           repro_m_turnover  = 0_r8
           leaf_m   = currentCohort%prt%GetState(leaf_organ, element_id)+ &
                         currentCohort%prt%GetState(store_organ, element_id)+ &
                         currentCohort%prt%GetState(sapw_organ, element_id)+ &
-                        currentCohort%prt%GetState(fnrt_organ, element_id)+ &
                         currentCohort%prt%GetState(struct_organ, element_id)+ &
                         currentCohort%prt%GetState(repro_organ, element_id)
           store_m  = 0_r8
           sapw_m   = 0_r8
-          fnrt_m   = 0_r8
+          fnrt_m   = currentCohort%prt%GetState(fnrt_organ, element_id)
           struct_m = 0_r8
           repro_m  = 0_r8
        end if
