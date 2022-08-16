@@ -1637,13 +1637,17 @@ contains
              ! across ground surface. 
              ! -----------------------------------------------------------------------
              
-             sapw_m   = currentCohort%prt%GetState(sapw_organ, element_id)
-             struct_m = currentCohort%prt%GetState(struct_organ, element_id)
-             leaf_m   = currentCohort%prt%GetState(leaf_organ, element_id)
-             fnrt_m   = currentCohort%prt%GetState(fnrt_organ, element_id)
-             store_m  = currentCohort%prt%GetState(store_organ, element_id)
-             repro_m  = currentCohort%prt%GetState(repro_organ, element_id)
-             
+			if ( prt_params%woody(pft) == itrue) then !trees only, May require additional accounting for the atm_fluxes when PFT is grass. 
+													  ! Goal was to not add to pools in the event of grass fire. Grass would typically not introduce a flux of dead leaves	
+													  ! or coarse woody debris. This may be too coarse a solution in the long term. 
+                leaf_m   = currentCohort%prt%GetState(leaf_organ, element_list(el))
+                store_m  = currentCohort%prt%GetState(store_organ, element_list(el))
+                sapw_m   = currentCohort%prt%GetState(sapw_organ, element_list(el))
+                fnrt_m   = currentCohort%prt%GetState(fnrt_organ, element_list(el))
+                struct_m = currentCohort%prt%GetState(struct_organ, element_list(el))
+                repro_m  = currentCohort%prt%GetState(repro_organ, element_list(el))
+
+
              ! Absolute number of dead trees being transfered in with the donated area
              num_dead_trees = (currentCohort%fire_mort*currentCohort%n * &
                                patch_site_areadis/currentPatch%area)
@@ -1654,7 +1658,7 @@ contains
 
              ! Contribution of dead trees to leaf burn-flux
              burned_mass  = num_dead_trees * (leaf_m+repro_m) * currentCohort%fraction_crown_burned
-             
+
              do dcmpy=1,ndcmpy
                  dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
                  new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + &
@@ -1667,9 +1671,7 @@ contains
 
              call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
                   bc_in%max_rooting_depth_index_col)
-
-             ! Contribution of dead trees to root litter (no root burn flux to atm)
-             do dcmpy=1,ndcmpy
+            do dcmpy=1,ndcmpy
                  dcmpy_frac = GetDecompyFrac(pft,fnrt_organ,dcmpy)
                  do sl = 1,currentSite%nlevsoil
                      donatable_mass = num_dead_trees * (fnrt_m+store_m) * currentSite%rootfrac_scr(sl)
@@ -1688,10 +1690,10 @@ contains
              flux_diags%root_litter_input(pft) = &
                   flux_diags%root_litter_input(pft) + &
                   (fnrt_m + store_m) * num_dead_trees
-             
+
              ! coarse root biomass per tree
              bcroot = (sapw_m + struct_m) * (1.0_r8 - prt_params%allom_agb_frac(pft) )
-      
+
              ! below ground coarse woody debris from burned trees
              do c = 1,ncwd
                 do sl = 1,currentSite%nlevsoil
@@ -1719,14 +1721,15 @@ contains
                  donatable_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem
                  if (c == 1 .or. c == 2) then
                       donatable_mass = donatable_mass * (1.0_r8-currentCohort%fraction_crown_burned)
-                      burned_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem * & 
+                      burned_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem * &
                       currentCohort%fraction_crown_burned
                       site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
                 endif
                 new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * donate_m2
                 curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass * retain_m2
                 flux_diags%cwd_ag_input(c) = flux_diags%cwd_ag_input(c) + donatable_mass
-             enddo   
+             enddo
+             endif
                   
 
             currentCohort => currentCohort%taller

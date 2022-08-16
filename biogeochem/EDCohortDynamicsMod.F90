@@ -967,12 +967,26 @@ contains
 
     do el=1,num_elements
 
-       leaf_m   = ccohort%prt%GetState(leaf_organ, element_list(el))
-       store_m  = ccohort%prt%GetState(store_organ, element_list(el))
-       sapw_m   = ccohort%prt%GetState(sapw_organ, element_list(el))
-       fnrt_m   = ccohort%prt%GetState(fnrt_organ, element_list(el))
-       struct_m = ccohort%prt%GetState(struct_organ, element_list(el))
-       repro_m  = ccohort%prt%GetState(repro_organ, element_list(el))
+       if ( prt_params%woody(pft) == itrue) then !trees only
+                leaf_m   = ccohort%prt%GetState(leaf_organ, element_list(el))
+                store_m  = ccohort%prt%GetState(store_organ, element_list(el))
+                sapw_m   = ccohort%prt%GetState(sapw_organ, element_list(el))
+                fnrt_m   = ccohort%prt%GetState(fnrt_organ, element_list(el))
+                struct_m = ccohort%prt%GetState(struct_organ, element_list(el))
+                repro_m  = ccohort%prt%GetState(repro_organ, element_list(el))
+        else
+                leaf_m   = ccohort%prt%GetState(leaf_organ, element_list(el))+ &
+                        ccohort%prt%GetState(store_organ, element_list(el))+ &
+                        ccohort%prt%GetState(sapw_organ, element_list(el))+ &
+                        ccohort%prt%GetState(fnrt_organ, element_list(el))+ &
+                        ccohort%prt%GetState(struct_organ, element_list(el))+ &
+                        ccohort%prt%GetState(repro_organ, element_list(el))
+                store_m  = 0_r8
+                sapw_m   = 0_r8
+                fnrt_m   = 0_r8
+                struct_m = 0_r8
+                repro_m  = 0_r8
+        end if
 
        litt => cpatch%litter(el)
        flux_diags => csite%flux_diags(el)
