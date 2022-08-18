@@ -1897,7 +1897,7 @@ contains
       use domainMod             , only : ldomain
       use spmdMod               , only : MPI_REAL8, MPI_INTEGER, mpicom, npes, masterproc, iam
       use perf_mod              , only : t_startf, t_stopf
-      use FatesInterfaceTypesMod, only : neighborhood_type, neighbor_type
+      use FatesDispersalMod     , only : neighborhood_type, neighbor_type
       use FatesUtilsMod         , only : GetNeighborDistance
       
       ! Arguments
@@ -1919,10 +1919,11 @@ contains
       real(r8), allocatable :: gclat(:), gclon(:)
       
       real(r8) :: g2g_dist ! grid cell distance
+      real(r8) :: pdf ! temp
       
       ! Parameters and constants, to be moved to fates param file
       ! Both of these should probably be per pft
-      real(r8) :: decay_rate = 1._r8
+      ! real(r8) :: decay_rate = 1._r8
       real(r8) :: g2g_dist_max = 2500._r8 * 1000._r8 ! maximum search distance [m]
          ! 5 deg = 785.8 km, 10 deg = 1569 km, 15deg = 2345 km assumes cartesian layout with diagonal distance
          
@@ -1934,7 +1935,7 @@ contains
       ! write(fates_log(),*)'DGCN: npes, numproc: ', npes, numproc
       
       allocate(neighbors(numg), stat=ier)
-      neighbors(:)%dist_weight_tot = nan
+      ! neighbors(:)%density_prob_tot = nan
       neighbors(:)%neighbor_count = 0
       
       allocate(gclat(numg))
@@ -1993,7 +1994,9 @@ contains
                current_neighbor%gindex = ldecomp%gdc2glo(gj) 
                
                current_neighbor%gc_dist = g2g_dist
-               current_neighbor%dist_weight = current_neighbor%DistWeightCalc(g2g_dist,decay_rate)
+               call current_neighbor%DistWeightCalc(pdf, g2g_dist)
+               current_neighbor%density_prob = pdf
+               ! current_neighbor%density_prob = current_neighbor%DistWeightCalc(g2g_dist,decay_rate)
               
                if (associated(neighbors(gi)%first_neighbor)) then
                  neighbors(gi)%last_neighbor%next_neighbor => current_neighbor
@@ -2004,7 +2007,7 @@ contains
                end if
                
                neighbors(gi)%neighbor_count = neighbors(gi)%neighbor_count + 1
-               neighbors(gi)%dist_weight_tot = neighbors(gi)%dist_weight_tot + current_neighbor%dist_weight
+               ! neighbors(gi)%density_prob_tot = neighbors(gi)%density_prob_tot + current_neighbor%density_prob
                
                ! Add current grid cell index to the neighbor's list as well
                allocate(another_neighbor)
@@ -2014,7 +2017,7 @@ contains
                another_neighbor%gindex = ldecomp%gdc2glo(gi) 
                
                another_neighbor%gc_dist = current_neighbor%gc_dist
-               another_neighbor%dist_weight = current_neighbor%dist_weight
+               another_neighbor%density_prob = current_neighbor%density_prob
                
                if (associated(neighbors(gj)%first_neighbor)) then
                  neighbors(gj)%last_neighbor%next_neighbor => another_neighbor
@@ -2025,7 +2028,7 @@ contains
                end if
                
                neighbors(gj)%neighbor_count = neighbors(gj)%neighbor_count + 1
-               neighbors(gj)%dist_weight_tot = neighbors(gj)%dist_weight_tot + another_neighbor%dist_weight
+               ! neighbors(gj)%density_prob_tot = neighbors(gj)%density_prob_tot + another_neighbor%density_prob
             
             end if dist_check
          end do neighbor_search
