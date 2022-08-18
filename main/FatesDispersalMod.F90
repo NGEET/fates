@@ -18,10 +18,6 @@ module FatesDispersalMod
       real(r8) :: gc_dist      ! distance between source and neighbor
       real(r8) :: density_prob ! probability density from source
       
-      contains
-      
-        procedure :: ProbabilityDensity
-  
    end type neighbor_type
 
    ! Neighborhood linked list
@@ -37,6 +33,9 @@ module FatesDispersalMod
 
    type(neighborhood_type), public, pointer :: lneighbors(:)
 
+   public :: ProbabilityDensity
+
+   character(len=*), parameter, private :: sourcefile = __FILE__
 
 contains
 
@@ -58,12 +57,10 @@ contains
       real(r8), intent(in)  :: dist ! distance
 
       ! Local - temp
-      param_a = 1._r8
-      param_b = 1._r8
+      real(r8) :: param_a = 1._r8
+      real(r8) :: param_b = 1._r8
+
       hlm_dispersal_kernel_mode = 1
-      hlm_dispersal_kernel_exponential = 1
-      hlm_dispersal_kernel_exppower = 2
-      hlm_dispersal_kernel_logsech = 3
 
       select case(hlm_dispersal_kernel_mode)
 

@@ -1897,7 +1897,7 @@ contains
       use domainMod             , only : ldomain
       use spmdMod               , only : MPI_REAL8, MPI_INTEGER, mpicom, npes, masterproc, iam
       use perf_mod              , only : t_startf, t_stopf
-      use FatesDispersalMod     , only : neighborhood_type, neighbor_type
+      use FatesDispersalMod     , only : neighborhood_type, neighbor_type, ProbabilityDensity
       use FatesUtilsMod         , only : GetNeighborDistance
       
       ! Arguments
@@ -1994,7 +1994,7 @@ contains
                current_neighbor%gindex = ldecomp%gdc2glo(gj) 
                
                current_neighbor%gc_dist = g2g_dist
-               call current_neighbor%DistWeightCalc(pdf, g2g_dist)
+               call ProbabilityDensity(pdf, g2g_dist)
                current_neighbor%density_prob = pdf
                ! current_neighbor%density_prob = current_neighbor%DistWeightCalc(g2g_dist,decay_rate)
               
