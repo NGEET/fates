@@ -4482,13 +4482,13 @@ end subroutine update_history_hifrq
          long='basal area-weighted mean height of woody plants', use_default='active', &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
-         index=ih_ba_weighted_heght_si)
+         index=ih_ba_weighted_height_si)
 
     call this%set_history_var(vname='FATES_CA_WEIGHTED_HEIGHT', units='m',        &
          long='crown area-weighted mean height of canopy plants', use_default='active', &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
-         index=ih_ca_weighted_heght_si)
+         index=ih_ca_weighted_height_si)
 
     call this%set_history_var(vname='FATES_COLD_STATUS', units='',             &
           long='site-level cold status, 0=not cold-dec, 1=too cold for leaves, 2=not too cold',  &
