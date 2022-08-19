@@ -107,8 +107,8 @@ module PRTAllometricCNPMod
 
   integer, parameter, private :: pid_spe_controller = storage_spe
 
-  real(r8), parameter, private :: pid_int_wgt = 1._r8/30._r8   ! n-day smoothing (K on the integral of PID)
-  real(r8), parameter, private :: pid_drv_wgt = 1._r8/30._r8   ! n-day smoothing (K on the derivative of PID)
+  real(r8), parameter, private :: pid_int_wgt = 1._r8/10._r8   ! n-day smoothing (K on the integral of PID)
+  real(r8), parameter, private :: pid_drv_wgt = 1._r8/10._r8   ! n-day smoothing (K on the derivative of PID)
   
   ! Global identifiers for the two stoichiometry values
   integer,public, parameter :: stoich_growth_min = 1     ! Flag for stoichiometry associated with
@@ -481,7 +481,7 @@ contains
 
     ! This routine updates the l2fr (leaf 2 fine-root multiplier) variable
     ! It will also update the target
-    call this%CNPAdjustFRootTargets(target_c,target_dcdd,co_num,nplant)
+    !call this%CNPAdjustFRootTargets(target_c,target_dcdd,co_num,nplant)
     
     ! Remember the original C,N,P states to help with final
     ! evaluation of how much was allocated
@@ -582,6 +582,11 @@ contains
        end do
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
+
+
+    ! This routine updates the l2fr (leaf 2 fine-root multiplier) variable
+    ! It will also update the target
+    !call this%CNPAdjustFRootTargets(target_c,target_dcdd,co_num,nplant)
     
     ! ===================================================================================
     ! Step 3. 
@@ -591,7 +596,7 @@ contains
 
     call this%CNPAllocateRemainder(c_gain, n_gain, p_gain, &
          c_gain0, n_gain0, p_gain0,  &
-         c_efflux, n_efflux, p_efflux)
+         c_efflux, n_efflux, p_efflux,co_num,nplant,target_c,target_dcdd)
 
 
     if(n_uptake_mode.ne.prescribed_n_uptake) then
@@ -730,6 +735,7 @@ contains
     real(r8) :: logi_k
     real(r8) :: l2fr_mult
     real(r8) :: l2fr_delta
+    real(r8) :: nc_ratio, pc_ratio
     real(r8) :: dxcdt_ratio        ! log change (derivative) of the maximum of the N/C and P/C storage ratio
     real(r8) :: xc_ratio           ! log Maximum of the N/C and P/C storage ratio
     real(r8), pointer :: ema_xc      ! The exponential moving average of the N-or-P versus C PID error function
@@ -739,6 +745,14 @@ contains
     real(r8), parameter :: max_l2fr_cgain_frac = 0.99_r8
     real(r8), parameter :: xc_ratio_correction = 1.0_r8
 
+    integer, parameter :: pid_c_function = 0
+    integer, parameter :: pid_n_function = 1
+    integer, parameter :: pid_minnc_function = 2
+    integer, parameter :: pid_alogmaxnc_function = 3
+    integer, parameter :: pid_ncratio_function = 4
+
+    !integer, parameter :: pid_function = pid_c_function
+    
     ! This is the relative scaling strength of the derivative term (K_d),
     ! compared to the combined proportion and integral term (K_p and K_i)
     ! Note the strength of the derivative is should be about half of the period
@@ -767,8 +781,8 @@ contains
        
        store_c_max = target_c(store_organ)
        
-       store_c_act = this%GetState(store_organ, carbon12_element) + &
-            this%bc_in(acnp_bc_in_id_netdc)%rval
+       store_c_act = max(0.001_r8*store_c_max,this%GetState(store_organ, carbon12_element) + &
+            this%bc_in(acnp_bc_in_id_netdc)%rval)
        
        if(n_uptake_mode.ne.prescribed_n_uptake)then
           
@@ -780,15 +794,28 @@ contains
           store_nut_act = this%GetState(store_organ, nitrogen_element) + &
                this%bc_inout(acnp_bc_inout_id_netdn)%rval
 
-          !n_ratio = xc_ratio_correction*min(50.0_r8,max(0.02_r8,(store_nut_act/store_nut_max)/(store_c_act/store_c_max)))
-          !n_ratio = xc_ratio_correction*min(50.0_r8,max(0.02_r8,(store_nut_act/store_nut_max)))
-          !n_ratio = xc_ratio_correction*min(50.0_r8,max(0.02_r8,1._r8/(store_c_act/store_c_max)))
+          select case(nint(EDPftvarcon_inst%dev_arbitrary_pft(ipft)))
+          case(pid_c_function)
+             n_ratio = store_c_max/store_c_act
+          case(pid_n_function)
+             n_ratio = store_nut_act/store_nut_max
+          case(pid_minnc_function)
+             if((store_nut_act/store_nut_max) > (store_c_act/store_c_max))then
+                n_ratio = (store_c_max/store_c_act)
+             else
+                n_ratio = (store_nut_act/store_nut_max)
+             end if
+          case(pid_alogmaxnc_function)
+             if( abs(log(store_nut_act/store_nut_max)) < abs(log(store_c_act/store_c_max))) then
+                n_ratio = (store_c_max/store_c_act)
+             else
+                n_ratio = (store_nut_act/store_nut_max)
+             end if
+          case(pid_ncratio_function)
+             n_ratio = (store_nut_act/store_nut_max)/(store_c_act/store_c_max)
+          end select
 
-          if((store_nut_act/store_nut_max) > (store_c_act/store_c_max))then
-             n_ratio = xc_ratio_correction*min(50.0_r8,max(0.02_r8,(store_c_max/store_c_act)))
-          else
-             n_ratio = xc_ratio_correction*min(50.0_r8,max(0.02_r8,(store_nut_act/store_nut_max)))
-          end if
+          nc_ratio = (store_nut_act/store_nut_max)/(store_c_act/store_c_max)
           
        else
           n_ratio = -1._r8
@@ -804,16 +831,28 @@ contains
           store_nut_act = this%GetState(store_organ, phosphorus_element) + &
                this%bc_inout(acnp_bc_inout_id_netdp)%rval
           
-          !p_ratio = xc_ratio_correction*min(50.0_r8,max(0.02_r8,(store_nut_act/store_nut_max)/(store_c_act/store_c_max)))
-          p_ratio = xc_ratio_correction*min(50.0_r8,max(0.02_r8,(store_nut_act/store_nut_max)))
-          !p_ratio = xc_ratio_correction*min(50.0_r8,max(0.02_r8,1._r8/(store_c_act/store_c_max)))
+          select case(nint(EDPftvarcon_inst%dev_arbitrary_pft(ipft)))
+          case(pid_c_function)
+             p_ratio = store_c_max/store_c_act
+          case(pid_n_function)
+             p_ratio = store_nut_act/store_nut_max
+          case(pid_minnc_function)
+             if((store_nut_act/store_nut_max) > (store_c_act/store_c_max))then
+                p_ratio = (store_c_max/store_c_act)
+             else
+                p_ratio = (store_nut_act/store_nut_max)
+             end if
+          case(pid_alogmaxnc_function)
+             if( abs(log(store_nut_act/store_nut_max)) < abs(log(store_c_act/store_c_max))) then
+                p_ratio = (store_c_max/store_c_act)
+             else
+                p_ratio = (store_nut_act/store_nut_max)
+             end if
+          case(pid_ncratio_function)
+             p_ratio = (store_nut_act/store_nut_max)/(store_c_act/store_c_max)
+          end select
 
-          if((store_nut_act/store_nut_max) > (store_c_act/store_c_max))then
-             p_ratio = xc_ratio_correction*min(50.0_r8,max(0.02_r8,(store_c_max/store_c_act)))
-          else
-             p_ratio = xc_ratio_correction*min(50.0_r8,max(0.02_r8,(store_nut_act/store_nut_max)))
-          end if
-          
+          pc_ratio = (store_nut_act/store_nut_max)/(store_c_act/store_c_max)
           
        else
           p_ratio = -1._r8
@@ -875,34 +914,7 @@ contains
          max(0._r8,target_c(struct_organ)-struct_c) - &
          max(0._r8,target_c(store_organ)-store_c))
 
-    if(pid_method==pid_ratio) then
-       
-       l2fr_delta_max = (c_fnrt_expand + target_c(fnrt_organ))/target_c(fnrt_organ)
-       
-       ! This value could be negative if there is no gain, or less gain
-       ! than what can replace tissues, just ensure the multiplier is GT 1
-       
-       l2fr_delta_max = max(1._r8,l2fr_delta_max)
-
-       ! Determine the max change for the doubling timescale
-       ! 2.0 = l2fr_delta_max^frnt_adapt_tscl
-       
-       l2fr_delta_scale = 2._r8**(1._r8/prt_params%fnrt_adapt_tscale(ipft))-1.0_r8
-
-       ! Calculate the un-regulated l2fr multiplier
-       
-       logi_k   = EDPftvarcon_inst%dev_arbitrary_pft(ipft)
-       l2fr_mult = l2fr_delta_scale*(2.0_r8/(1.0_r8 + exp(ema_xc)**logi_k)-1.0_r8)+1.0_r8
-       
-       
-       if(l2fr_mult>1.0_r8)then
-          l2fr_mult = min(l2fr_mult,l2fr_delta_max)
-       end if
-
-       l2fr = max(l2fr_min,l2fr * l2fr_mult)
-
-
-    elseif(pid_method==pid_logratio) then
+    if(pid_method==pid_logratio) then
 
        ! When using a log based (additive) PID search method
        ! we define 1/fnrt_adapt_tscale as delta we want
@@ -914,10 +926,12 @@ contains
        
        l2fr_delta_scale = (1._r8/prt_params%fnrt_adapt_tscale(ipft))/log(2.0_r8)
        
+       ! log(2.0_r8)*l2fr_delta_scale = (1._r8/prt_params%fnrt_adapt_tscale(ipft))
+       
        ! ema_xc is already in log form to allow for averaging
 
        ! Want the derivative to be strongest when storage is most disproportionate
-       l2fr_deriv_scale = 0.0_r8  !0.25*abs(ema_xc/ema_dxcdt)
+       l2fr_deriv_scale = 0.0_r8  !-20.0_r8  !0.25*abs(ema_xc/ema_dxcdt)
        l2fr_int_scale   = 0.0_r8
 
 
@@ -925,27 +939,28 @@ contains
        ! we have already corrected enough to change the behavior, lets
        ! decrease the scaling
 
-       if( ((ema_xc > 0._r8) .and. (ema_dxcdt<0)) .or. ((ema_xc < 0._r8) .and. (ema_dxcdt>0)))  then  
-          l2fr_delta_scale = 0.05_r8 * l2fr_delta_scale
+       if( ((ema_xc > 0._r8) .and. (ema_dxcdt<0._r8)) .or. ((ema_xc < 0._r8) .and. (ema_dxcdt>0._r8)))  then  
+          l2fr_delta_scale = 0.1_r8 * l2fr_delta_scale
           sup_flag = 1
        else
           sup_flag = 0
-          
        end if
 
        
        !l2fr_delta = -l2fr_delta_scale*(min(0.2,max(-0.2,xc_ratio)) + ema_xc*l2fr_int_scale + ema_dxcdt*l2fr_deriv_scale)
        l2fr_delta = -l2fr_delta_scale*(xc_ratio + ema_xc*l2fr_int_scale + ema_dxcdt*l2fr_deriv_scale)
-       
+
        ! Cap growth and shrinkage to avoid large changes
        ! (currently capping at projected rate for a 2:1 ratio
-       l2fr_delta_minmax = l2fr_delta_scale*log(2.0)
+       l2fr_delta_minmax = l2fr_delta_scale*log(20.0)
 
        ! Don't allow more growth than we have carbon to pay for
-       l2fr_delta_max = min(l2fr_delta_minmax,l2fr*(c_fnrt_expand + target_c(fnrt_organ))/target_c(fnrt_organ))
+       !! l2fr_delta_max = min(l2fr_delta_minmax,l2fr*(c_fnrt_expand + target_c(fnrt_organ))/target_c(fnrt_organ))
 
        
-       l2fr_delta = max(-l2fr_delta_minmax,min(l2fr_delta,l2fr_delta_max))
+       !! l2fr_delta = max(-l2fr_delta_minmax,min(l2fr_delta,l2fr_delta_max))
+       !!l2fr_delta = max(-l2fr_delta_minmax,min(l2fr_delta,l2fr_delta_minmax))
+
        
        ! Apply the delta, also, avoid generating incredibly small l2fr's,
        ! super small l2frs will occur in plants that perpetually get almost
@@ -953,9 +968,7 @@ contains
 
        l2fr = max(l2fr_min, l2fr + l2fr_delta )
 
-       !if(co_num==1)
-       print*,'AAX1',co_num,hlm_current_year,hlm_day_of_year,dbh,nplant,sup_flag,xc_ratio,l2fr
-
+       if(co_num==1) print*,'AAX1',co_num,hlm_current_year,hlm_day_of_year,dbh,nplant,sup_flag,log(nc_ratio),l2fr
        
     else
        
@@ -1906,7 +1919,7 @@ contains
 
   subroutine CNPAllocateRemainder(this, c_gain,n_gain,p_gain, &
                                         c_gain0, n_gain0, p_gain0, &
-                                        c_efflux, n_efflux, p_efflux)
+                                        c_efflux, n_efflux, p_efflux,co_num,nplant,target_c,target_dcdd)
 
     class(cnp_allom_prt_vartypes) :: this
     real(r8), intent(inout) :: c_gain
@@ -1918,7 +1931,11 @@ contains
     real(r8), intent(inout) :: c_efflux
     real(r8), intent(inout) :: n_efflux
     real(r8), intent(inout) :: p_efflux
-
+    integer,intent(in) :: co_num
+    real(r8),intent(in) :: nplant
+    real(r8)  :: target_c(:)
+    real(r8) :: target_dcdd(:)
+    
     integer  :: i
     real(r8), dimension(num_organs) :: deficit_n
     real(r8), dimension(num_organs) :: deficit_p
@@ -2040,7 +2057,7 @@ contains
        deficit_p(i) = max(0._r8,this%GetDeficit(phosphorus_element,l2g_organ_list(i),target_p))
           
     end do
-
+    
     ! -----------------------------------------------------------------------------------
     ! Nutrient Fluxes proportionally to each pool (these should be fully actualized)
     ! (this also removes from the gain pools)
@@ -2054,8 +2071,8 @@ contains
     call ProportionalNutrAllocation(this,deficit_p(1:num_organs), &
          p_gain, phosphorus_element, l2g_organ_list(1:num_organs))
 
-
-
+    call this%CNPAdjustFRootTargets(target_c,target_dcdd,co_num,nplant)
+    
 
     
     ! -----------------------------------------------------------------------------------

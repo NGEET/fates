@@ -2647,8 +2647,6 @@ contains
              rec_l2fr0(ft,cl) = rec_l2fr0(ft,cl) / rec_n(ft,cl)
              csite%rec_l2fr(ft,cl) = &
                   (1._r8-smth_wgt)*csite%rec_l2fr(ft,cl) + smth_wgt*rec_l2fr0(ft,cl)
-
-             !print*,"REC_L2FR:",cl,csite%rec_l2fr(ft,cl)
           end if
        end do
     end do
