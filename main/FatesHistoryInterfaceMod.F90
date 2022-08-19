@@ -195,8 +195,8 @@ module FatesHistoryInterfaceMod
 
   integer :: ih_fates_fraction_si
 
-  integer :: ih_ba_weighted_height
-  integer :: ih_ca_weighted_height
+  integer :: ih_ba_weighted_height_si
+  integer :: ih_ca_weighted_height_si
 
   integer :: ih_cwd_elcwd
 
@@ -1810,8 +1810,8 @@ end subroutine flush_hvars
                hio_area_plant_si       => this%hvars(ih_area_plant_si)%r81d, &
                hio_area_trees_si  => this%hvars(ih_area_trees_si)%r81d, &
                hio_fates_fraction_si   => this%hvars(ih_fates_fraction_si)%r81d, &
-               hio_ba_weighted_height  => this%hvars(ih_ba_weighted_height)%r81d, &
-               hio_ca_weighted_height  => this%hvars(ih_ca_weighted_height)%r81d, &
+               hio_ba_weighted_height_si  => this%hvars(ih_ba_weighted_height_si)%r81d, &
+               hio_ca_weighted_height_si  => this%hvars(ih_ca_weighted_height_si)%r81d, &
                hio_canopy_spread_si    => this%hvars(ih_canopy_spread_si)%r81d, &
                hio_biomass_si_pft      => this%hvars(ih_biomass_si_pft)%r82d, &
                hio_leafbiomass_si_pft  => this%hvars(ih_leafbiomass_si_pft)%r82d, &
@@ -2551,7 +2551,7 @@ end subroutine flush_hvars
                   hio_ddbh_si_scpf(io_si,scpf) = hio_ddbh_si_scpf(io_si,scpf) + &
                      ccohort%ddbhdt*ccohort%n / m2_per_ha * m_per_cm
 
-                  hio_ba_weighted_height(io_si) = hio_ba_weighted_height(io_si) + &
+                  hio_ba_weighted_height_si(io_si) = hio_ba_weighted_height_si(io_si) + &
                        ccohort%hite * &
                        0.25_r8*pi_const*((dbh/100.0_r8)**2.0_r8)*ccohort%n / m2_per_ha
 
@@ -2763,7 +2763,7 @@ end subroutine flush_hvars
                   hio_yesterdaycanopylevel_canopy_si_scls(io_si,scls) + &
                   ccohort%canopy_layer_yesterday * ccohort%n / m2_per_ha
 
-                  hio_ca_weighted_height(io_si) = hio_ca_weighted_height(io_si) + &
+                  hio_ca_weighted_height_si(io_si) = hio_ca_weighted_height_si(io_si) + &
                        ccohort%hite * ccohort%c_area / m2_per_ha
                else canlayer
                   hio_nplant_understory_si_scag(io_si,iscag) = hio_nplant_understory_si_scag(io_si,iscag) + ccohort%n / m2_per_ha
@@ -2968,9 +2968,9 @@ end subroutine flush_hvars
 
       ! divide basal-area-weighted height by basal area to get mean
       if ( sum(hio_ba_si_scpf(io_si,:)) .gt. tiny ) then
-         hio_ba_weighted_height(io_si) = hio_ba_weighted_height(io_si) / sum(hio_ba_si_scpf(io_si,:))
+         hio_ba_weighted_height_si(io_si) = hio_ba_weighted_height_si(io_si) / sum(hio_ba_si_scpf(io_si,:))
       else
-         hio_ba_weighted_height(io_si) = 0._r8
+         hio_ba_weighted_height_si(io_si) = 0._r8
       endif
 
       ! divide so-far-just-summed but to-be-averaged patch-age-class variables by patch-age-class area to get mean values
