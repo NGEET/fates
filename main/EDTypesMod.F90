@@ -218,9 +218,6 @@ module EDTypesMod
      real(r8) ::  canopy_layer_yesterday                 ! recent canopy status of cohort
                                                          ! (1 = canopy, 2 = understorey, etc.)  
                                                          ! real to be conservative during fusion
-
-     real(r8) ::  lai                                    ! leaf area index of cohort: m2 leaf area of entire cohort per m2 of canopy area of a patch
-     real(r8) ::  sai                                    ! stem area index of cohort: m2 leaf area of entire cohort per m2 of canopy area of a patch
      real(r8) ::  g_sb_laweight                          ! Total conductance (stomata+boundary layer) of the cohort, weighted by its leaf area [m/s]*[m2]
      real(r8) ::  canopy_trim                            ! What is the fraction of the maximum leaf biomass that we are targeting? :-
      real(r8) ::  leaf_cost                              ! How much does it cost to maintain leaves: kgC/m2/year-1
