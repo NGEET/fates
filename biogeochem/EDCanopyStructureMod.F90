@@ -1493,7 +1493,6 @@ contains
     real(r8) :: fraction_exposed         ! how much of this layer is not covered by snow?
     real(r8) :: layer_top_hite           ! notional top height of this canopy layer (m)
     real(r8) :: layer_bottom_hite        ! notional bottom height of this canopy layer (m)
-    integer  :: smooth_leaf_distribution ! is the leaf distribution this option (1) or not (0)
     real(r8) :: frac_canopy(N_HITE_BINS) ! amount of canopy in each height class
     real(r8) :: minh(N_HITE_BINS)        ! minimum height in height class (m)
     real(r8) :: maxh(N_HITE_BINS)        ! maximum height in height class (m)
@@ -1504,7 +1503,6 @@ contains
 
     !----------------------------------------------------------------------
 
-    smooth_leaf_distribution = 0
 
     ! Here we are trying to generate a profile of leaf area, indexed by 'z' and by pft
     ! We assume that each point in the canopy recieved the light attenuated by the average
