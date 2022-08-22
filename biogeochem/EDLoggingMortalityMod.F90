@@ -40,6 +40,7 @@ module EDLoggingMortalityMod
    use EDParamsMod       , only : logging_mechanical_frac 
    use EDParamsMod       , only : logging_coll_under_frac 
    use EDParamsMod       , only : logging_dbhmax_infra
+   use FatesInterfaceTypesMod , only : bc_in_type
    use FatesInterfaceTypesMod , only : hlm_current_year
    use FatesInterfaceTypesMod , only : hlm_current_month
    use FatesInterfaceTypesMod , only : hlm_current_day
@@ -53,6 +54,7 @@ module EDLoggingMortalityMod
    use FatesConstantsMod , only : itrue,ifalse
    use FatesGlobals      , only : endrun => fates_endrun 
    use FatesGlobals      , only : fates_log
+   use FatesGlobals      , only : fates_global_verbose
    use shr_log_mod       , only : errMsg => shr_log_errMsg
    use FatesPlantHydraulicsMod, only : AccumulateMortalityWaterStorage
    use PRTGenericMod     , only : all_carbon_elements,carbon12_element
@@ -61,7 +63,7 @@ module EDLoggingMortalityMod
    use FatesAllometryMod , only : set_root_fraction
    use FatesConstantsMod , only : primaryforest, secondaryforest, secondary_age_threshold
    use FatesConstantsMod , only : fates_tiny
-   use FatesConstantsMod , only : months_per_year
+   use FatesConstantsMod , only : months_per_year, days_per_sec, years_per_day, g_per_kg
    use FatesConstantsMod , only : hlm_harvest_area_fraction
    use FatesConstantsMod , only : hlm_harvest_carbon
    use FatesConstantsMod, only : fates_check_param_set
@@ -72,7 +74,8 @@ module EDLoggingMortalityMod
    logical, protected :: logging_time   ! If true, logging should be 
                                         ! performed during the current time-step
 
-
+   logical, parameter :: debug = .false.
+   
    ! harvest litter localization specifies how much of the litter from a falling
    ! tree lands within the newly generated patch, and how much lands outside of 
    ! the new patch, and thus in the original patch.  By setting this to zero,
@@ -83,6 +86,11 @@ module EDLoggingMortalityMod
 
    real(r8), parameter :: harvest_litter_localization = 0.0_r8
 
+   ! ! transfer factor from kg biomass (dry matter) to kg carbon
+   ! ! now we applied a simple fraction of 50% based on the IPCC
+   ! ! guideline
+   ! real(r8), parameter :: carbon_per_kg_biomass = 0.5_r8
+
    character(len=*), parameter, private :: sourcefile = &
          __FILE__
    
@@ -91,6 +99,7 @@ module EDLoggingMortalityMod
    public :: logging_time
    public :: IsItLoggingTime
    public :: get_harvest_rate_area
+   public :: UpdateHarvestC
 
 contains
 
@@ -248,16 +257,31 @@ contains
             call get_harvest_rate_area (patch_anthro_disturbance_label, hlm_harvest_catnames, &
                  hlm_harvest_rates, frac_site_primary, secondary_age, harvest_rate)
 
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'Successfully Read Harvest Rate from HLM.'
+            end if
+
          else if (hlm_use_lu_harvest == itrue .and. hlm_harvest_units == hlm_harvest_carbon) then
             ! 2=use carbon from hlm
-            ! not implemented yet
+            ! Shijie: Shall call another function, which transfer biomass/carbon into fraction?
+            ! Is it the correct place to call the function?
+            ! Inputs: patch_area, patch_biomass, what else?
+
+            ! call get_harvest_rate_carbon (patch_anthro_disturbance_label, hlm_harvest_catnames, &
+            !       hlm_harvest_rates, frac_site_primary, secondary_age, harvest_rate)
+
+            ! if (fates_global_verbose()) then
+            !    write(fates_log(), *) 'Successfully Read Harvest Rate from HLM.', hlm_harvest_rates(:), harvest_rate 
+            ! end if
+            
             write(fates_log(),*) 'HLM harvest carbon data not implemented yet. Exiting.'
             call endrun(msg=errMsg(sourcefile, __LINE__))
+            
          endif
 
          ! transfer of area to secondary land is based on overall area affected, not just logged crown area
          ! l_degrad accounts for the affected area between logged crowns
-         if(int(prt_params%woody(pft_i)) == 1)then ! only set logging rates for trees
+         if(prt_params%woody(pft_i) == itrue)then ! only set logging rates for trees
             
             ! direct logging rates, based on dbh min and max criteria
             if (dbh >= logging_dbhmin .and. .not. &
@@ -356,7 +380,7 @@ contains
 
      !  Normalize by site-level primary or secondary forest fraction
      !  since harvest_rate is specified as a fraction of the gridcell
-     ! also need to put a cap so as not to harvest more primary or secondary area than there is in a gridcell
+     !  also need to put a cap so as not to harvest more primary or secondary area than there is in a gridcell
      if (patch_anthro_disturbance_label .eq. primaryforest) then
         if (frac_site_primary .gt. fates_tiny) then
            harvest_rate = min((harvest_rate / frac_site_primary),frac_site_primary)
@@ -394,7 +418,7 @@ contains
 
    ! ============================================================================
 
-   subroutine logging_litter_fluxes(currentSite, currentPatch, newPatch, patch_site_areadis)
+   subroutine logging_litter_fluxes(currentSite, currentPatch, newPatch, patch_site_areadis, bc_in)
 
       ! -------------------------------------------------------------------------------------------
       !
@@ -440,6 +464,8 @@ contains
       type(ed_patch_type) , intent(inout), target  :: currentPatch
       type(ed_patch_type) , intent(inout), target  :: newPatch
       real(r8)            , intent(in)             :: patch_site_areadis
+      type(bc_in_type)    , intent(in)             :: bc_in
+
 
       !LOCAL VARIABLES:
       type(ed_cohort_type), pointer      :: currentCohort
@@ -539,7 +565,7 @@ contains
                ! plants that were impacted. Thus, no direct dead can occur
                ! here, and indirect are impacts.
 
-               if(int(prt_params%woody(pft)) == itrue) then
+               if(prt_params%woody(pft) == itrue) then
                   direct_dead   = 0.0_r8
                   indirect_dead = logging_coll_under_frac * &
                        (1._r8-currentPatch%fract_ldist_not_harvested) * currentCohort%n * &
@@ -567,7 +593,9 @@ contains
             ! derived from the current patch, so we need to multiply by patch_areadis/np%area
             ! ----------------------------------------------------------------------------------------
 
-            call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil)
+            call set_root_fraction(currentSite%rootfrac_scr, pft, &
+                 currentSite%zi_soil, &
+                 bc_in%max_rooting_depth_index_col)
          
             ag_wood = (direct_dead+indirect_dead) * (struct_m + sapw_m ) * &
                   prt_params%allom_agb_frac(currentCohort%pft)
@@ -685,7 +713,7 @@ contains
             ! This is for checking the total mass balance [kg/site/day]
             site_mass%wood_product = site_mass%wood_product + &
                   ag_wood * logging_export_frac
-            
+
             new_litt%ag_cwd(ncwd) = new_litt%ag_cwd(ncwd) + ag_wood * &
                   (1._r8-logging_export_frac)*donate_frac/newPatch%area
             
@@ -790,5 +818,46 @@ contains
       
       return
    end subroutine logging_litter_fluxes
+
+  ! =====================================================================================
+
+   subroutine UpdateHarvestC(currentSite,bc_out)
+
+      ! ----------------------------------------------------------------------------------
+      ! Added by Shijie Shu.
+      ! This subroutine is called when logging is completed and need to update 
+      ! Harvested C flux in HLM.
+      ! ----------------------------------------------------------------------------------
+      use EDtypesMod             , only : ed_site_type
+      use EDTypesMod             , only : AREA_INV
+      use PRTGenericMod          , only : element_pos
+      use PRTGenericMod          , only : carbon12_element
+      use FatesInterfaceTypesMod , only : bc_out_type
+      use EDParamsMod            , only : pprodharv10_forest_mean
+  
+      ! Arguments
+      type(ed_site_type), intent(inout), target :: currentSite     ! site structure
+      type(bc_out_type), intent(inout)          :: bc_out
+  
+      integer :: icode
+      real(r8) :: unit_trans_factor
+  
+
+      ! Flush the older value before update
+      bc_out%hrv_deadstemc_to_prod10c = 0._r8
+      bc_out%hrv_deadstemc_to_prod100c = 0._r8
+  
+      ! Calculate the unit transfer factor (from kgC m-2 day-1 to gC m-2 s-1)
+      unit_trans_factor = g_per_kg * days_per_sec
+
+      bc_out%hrv_deadstemc_to_prod10c = bc_out%hrv_deadstemc_to_prod10c + &
+          currentSite%mass_balance(element_pos(carbon12_element))%wood_product * &
+          AREA_INV * pprodharv10_forest_mean * unit_trans_factor
+      bc_out%hrv_deadstemc_to_prod100c = bc_out%hrv_deadstemc_to_prod100c + &
+          currentSite%mass_balance(element_pos(carbon12_element))%wood_product * &
+          AREA_INV * (1._r8 - pprodharv10_forest_mean) * unit_trans_factor  
+  
+      return
+   end subroutine UpdateHarvestC
 
 end module EDLoggingMortalityMod
