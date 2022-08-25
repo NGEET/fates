@@ -1755,6 +1755,7 @@ end subroutine flush_hvars
     integer  :: height_bin_max, height_bin_min   ! which height bin a given cohort's canopy is in
     integer  :: i_heightbin  ! iterator for height bins
     integer  :: el           ! Loop index for elements
+    integer  :: model_day_int ! Integer model day since simulation start
     integer  :: ageclass_since_anthrodist  ! what is the equivalent age class for
                                            ! time-since-anthropogenic-disturbance of secondary forest
 
