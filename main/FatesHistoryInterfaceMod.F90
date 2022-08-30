@@ -1799,7 +1799,6 @@ end subroutine flush_hvars
     type(ed_patch_type),pointer  :: cpatch
     type(ed_cohort_type),pointer :: ccohort
 
-    real(r8), parameter :: tiny = 1.e-5_r8      ! some small number
     real(r8), parameter :: reallytalltrees = 1000.   ! some large number (m)
 
     integer :: tmp
@@ -2967,7 +2966,7 @@ end subroutine flush_hvars
       end do patchloop !patch loop
 
       ! divide basal-area-weighted height by basal area to get mean
-      if ( sum(hio_ba_si_scpf(io_si,:)) .gt. tiny ) then
+      if ( sum(hio_ba_si_scpf(io_si,:)) .gt. nearzero ) then
          hio_ba_weighted_height_si(io_si) = hio_ba_weighted_height_si(io_si) / sum(hio_ba_si_scpf(io_si,:))
       else
          hio_ba_weighted_height_si(io_si) = 0._r8
@@ -2975,7 +2974,7 @@ end subroutine flush_hvars
 
       ! divide so-far-just-summed but to-be-averaged patch-age-class variables by patch-age-class area to get mean values
       do ipa2 = 1, nlevage
-         if (hio_area_si_age(io_si, ipa2) .gt. tiny) then
+         if (hio_area_si_age(io_si, ipa2) .gt. nearzero) then
                hio_lai_si_age(io_si, ipa2) = hio_lai_si_age(io_si, ipa2) / (hio_area_si_age(io_si, ipa2)*AREA)
                hio_ncl_si_age(io_si, ipa2) = hio_ncl_si_age(io_si, ipa2) / (hio_area_si_age(io_si, ipa2)*AREA)
             do i_pft = 1, numpft
@@ -3562,7 +3561,6 @@ end subroutine flush_hvars
     real(r8) :: patch_area_by_age(nlevage)  ! patch area in each bin for normalizing purposes
     real(r8) :: canopy_area_by_age(nlevage) ! canopy area in each bin for normalizing purposes
     real(r8) :: site_area_veg               ! area of the site that is not bare-ground 
-    real(r8), parameter :: tiny = 1.e-5_r8      ! some small number
     integer  :: ipa2     ! patch incrementer
     integer :: cnlfpft_indx, cnlf_indx, ipft, ican, ileaf ! more iterators and indices
     type(ed_patch_type),pointer  :: cpatch
@@ -3938,7 +3936,7 @@ end subroutine flush_hvars
          end do !patch loop
 
          do ipa2 = 1, nlevage
-            if (patch_area_by_age(ipa2) .gt. tiny) then
+            if (patch_area_by_age(ipa2) .gt. nearzero) then
                hio_gpp_si_age(io_si, ipa2) = hio_gpp_si_age(io_si, ipa2) / (patch_area_by_age(ipa2))
                hio_npp_si_age(io_si, ipa2) = hio_npp_si_age(io_si, ipa2) / (patch_area_by_age(ipa2))
             else
@@ -3947,7 +3945,7 @@ end subroutine flush_hvars
             endif
 
             ! Normalize resistance diagnostics
-            if (canopy_area_by_age(ipa2) .gt. tiny) then
+            if (canopy_area_by_age(ipa2) .gt. nearzero) then
                hio_c_stomata_si_age(io_si,ipa2) = &
                     hio_c_stomata_si_age(io_si,ipa2) / canopy_area_by_age(ipa2)
 
@@ -3961,7 +3959,7 @@ end subroutine flush_hvars
          end do
 
          ! Normalize resistance diagnostics
-         if ( sum(canopy_area_by_age(1:nlevage)) .gt. tiny) then
+         if ( sum(canopy_area_by_age(1:nlevage)) .gt. nearzero) then
             hio_c_stomata_si(io_si) = hio_c_stomata_si(io_si) / sum(canopy_area_by_age(1:nlevage))
             hio_c_lblayer_si(io_si) = hio_c_lblayer_si(io_si) / sum(canopy_area_by_age(1:nlevage))
          else
@@ -4003,7 +4001,6 @@ end subroutine update_history_hifrq
     integer  :: ipa      ! The local "I"ndex of "PA"tches
     integer  :: ft               ! functional type index
 !    integer  :: io_shsl  ! The combined "SH"ell "S"oil "L"ayer index in the IO array
-    real(r8), parameter :: tiny = 1.e-5_r8      ! some small number
     real(r8) :: ncohort_scpf(nlevsclass*maxpft)  ! Bins to count up cohorts counts used in weighting
     ! should be "hio_nplant_si_scpf"
     real(r8) :: nplant_scpf(nlevsclass*maxpft)  ! Bins to count up cohorts counts used in weighting
