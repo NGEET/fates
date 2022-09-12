@@ -133,6 +133,7 @@ module FatesRestartInterfaceMod
   integer :: ir_daily_p_demand_co
   integer :: ir_daily_n_need_co
   integer :: ir_daily_p_need_co
+  integer :: ir_year_net_up_co
 
   !Logging
   integer :: ir_lmort_direct_co
@@ -838,6 +839,11 @@ contains
          long_name='fates cohort- daily nitrogen need', &
          units='kgN/plant/day', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_n_need_co )
+
+    call this%set_restart_var(vname='fates_year_net_up', vtype=cohort_r8, &
+         long_name='fates cohort- yearly net uptake', &
+         units='kgC/m2/year', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_year_net_up_co )
 
     call this%set_restart_var(vname='fates_frmort', vtype=cohort_r8, &
          long_name='ed cohort - freezing mortality rate', &
@@ -1803,6 +1809,7 @@ contains
            rio_daily_p_demand_co       => this%rvars(ir_daily_p_demand_co)%r81d, &
            rio_daily_n_need_co         => this%rvars(ir_daily_n_need_co)%r81d, &
            rio_daily_p_need_co         => this%rvars(ir_daily_p_need_co)%r81d, &
+           rio_year_net_up_co          => this%rvars(ir_year_net_up_co)%r81d, &
            rio_smort_co                => this%rvars(ir_smort_co)%r81d, &
            rio_asmort_co               => this%rvars(ir_asmort_co)%r81d, &
            rio_frmort_co               => this%rvars(ir_frmort_co)%r81d, &
@@ -1983,6 +1990,10 @@ contains
                             ccohort%prt%variables(i_var)%burned(i_pos)
 
                    end do
+                end do
+
+                do i = 1,nlevleaf
+                   this%rvars(ir_year_net_up_co)%r81d(io_idx_co) = ccohort%year_net_uptake(i)
                 end do
 
 
@@ -2643,6 +2654,7 @@ contains
           rio_daily_p_demand_co       => this%rvars(ir_daily_p_demand_co)%r81d, &
           rio_daily_n_need_co         => this%rvars(ir_daily_n_need_co)%r81d, &
           rio_daily_p_need_co         => this%rvars(ir_daily_p_need_co)%r81d, &
+          rio_year_net_up_co          => this%rvars(ir_year_net_up_co)%r81d, &
           rio_smort_co                => this%rvars(ir_smort_co)%r81d, &
           rio_asmort_co               => this%rvars(ir_asmort_co)%r81d, &
           rio_frmort_co               => this%rvars(ir_frmort_co)%r81d, &
@@ -2892,6 +2904,10 @@ contains
                     ccohort%treelai = this%rvars(ir_treelai_co)%r81d(io_idx_co)
                     ccohort%treesai = this%rvars(ir_treesai_co)%r81d(io_idx_co)
                 end if
+
+                do i = 1,nlevleaf
+                  ccohort%year_net_uptake(i) = this%rvars(ir_year_net_up_co)%r81d(io_idx_co)
+                end do
 
                 io_idx_co = io_idx_co + 1
 
