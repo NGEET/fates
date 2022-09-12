@@ -36,7 +36,7 @@ module FatesRestartInterfaceMod
   use FatesLitterMod,          only : litter_type
   use FatesLitterMod,          only : ncwd
   use FatesLitterMod,          only : ndcmpy
-  use EDTypesMod,              only : nfsc
+  use EDTypesMod,              only : nfsc, nlevleaf
   use PRTGenericMod,           only : prt_global
   use PRTGenericMod,           only : num_elements
   use FatesRunningMeanMod,     only : rmean_type
