@@ -195,6 +195,9 @@ module FatesHistoryInterfaceMod
 
   integer :: ih_fates_fraction_si
 
+  integer :: ih_ba_weighted_height_si
+  integer :: ih_ca_weighted_height_si
+
   integer :: ih_cwd_elcwd
 
   integer :: ih_litter_in_si    ! carbon only
@@ -1755,7 +1758,7 @@ end subroutine flush_hvars
     integer  :: height_bin_max, height_bin_min   ! which height bin a given cohort's canopy is in
     integer  :: i_heightbin  ! iterator for height bins
     integer  :: el           ! Loop index for elements
-    integer  :: model_day_int ! integer model day from reference
+    integer  :: model_day_int ! Integer model day since simulation start
     integer  :: ageclass_since_anthrodist  ! what is the equivalent age class for
                                            ! time-since-anthropogenic-disturbance of secondary forest
 
@@ -1796,7 +1799,6 @@ end subroutine flush_hvars
     type(ed_patch_type),pointer  :: cpatch
     type(ed_cohort_type),pointer :: ccohort
 
-    real(r8), parameter :: tiny = 1.e-5_r8      ! some small number
     real(r8), parameter :: reallytalltrees = 1000.   ! some large number (m)
 
     integer :: tmp
@@ -1807,6 +1809,8 @@ end subroutine flush_hvars
                hio_area_plant_si       => this%hvars(ih_area_plant_si)%r81d, &
                hio_area_trees_si  => this%hvars(ih_area_trees_si)%r81d, &
                hio_fates_fraction_si   => this%hvars(ih_fates_fraction_si)%r81d, &
+               hio_ba_weighted_height_si  => this%hvars(ih_ba_weighted_height_si)%r81d, &
+               hio_ca_weighted_height_si  => this%hvars(ih_ca_weighted_height_si)%r81d, &
                hio_canopy_spread_si    => this%hvars(ih_canopy_spread_si)%r81d, &
                hio_biomass_si_pft      => this%hvars(ih_biomass_si_pft)%r82d, &
                hio_leafbiomass_si_pft  => this%hvars(ih_leafbiomass_si_pft)%r82d, &
@@ -2041,7 +2045,7 @@ end subroutine flush_hvars
                hio_cleafoff_si                      => this%hvars(ih_cleafoff_si)%r81d, &
                hio_cleafon_si                       => this%hvars(ih_cleafon_si)%r81d, &
                hio_dleafoff_si                      => this%hvars(ih_dleafoff_si)%r81d, &
-               hio_dleafon_si                       => this%hvars(ih_dleafoff_si)%r81d, &
+               hio_dleafon_si                       => this%hvars(ih_dleafon_si)%r81d, &
                hio_tveg24                           => this%hvars(ih_tveg24_si)%r81d, &
                hio_meanliqvol_si                    => this%hvars(ih_meanliqvol_si)%r81d, &
                hio_cbal_err_fates_si                => this%hvars(ih_cbal_err_fates_si)%r81d, &
@@ -2101,10 +2105,10 @@ end subroutine flush_hvars
       hio_gdd_si(io_si) = sites(s)%grow_deg_days
 
       ! Model days elapsed since leaf on/off for cold- and drought-deciduous
-      hio_cleafoff_si(io_si) = real(model_day_int - sites(s)%cleafoffdate,r8)
-      hio_cleafon_si(io_si)  = real(model_day_int - sites(s)%cleafondate,r8)
-      hio_dleafoff_si(io_si) = real(model_day_int - sites(s)%dleafoffdate,r8)
-      hio_dleafon_si(io_si)  = real(model_day_int - sites(s)%dleafondate,r8)
+      hio_cleafoff_si(io_si) = real(sites(s)%phen_model_date - sites(s)%cleafoffdate,r8)
+      hio_cleafon_si(io_si)  = real(sites(s)%phen_model_date - sites(s)%cleafondate,r8)
+      hio_dleafoff_si(io_si) = real(sites(s)%phen_model_date - sites(s)%dleafoffdate,r8)
+      hio_dleafon_si(io_si)  = real(sites(s)%phen_model_date - sites(s)%dleafondate,r8)
 
       ! Mean liquid water content (m3/m3) used for drought phenology
       if(model_day_int>numWaterMem)then
@@ -2535,16 +2539,20 @@ end subroutine flush_hvars
 
                   ! basal area  [m2/m2]
                   hio_ba_si_scpf(io_si,scpf) = hio_ba_si_scpf(io_si,scpf) + &
-                     0.25_r8*3.14159_r8*((dbh/100.0_r8)**2.0_r8)*ccohort%n / m2_per_ha
+                     0.25_r8*pi_const*((dbh/100.0_r8)**2.0_r8)*ccohort%n / m2_per_ha
 
                   ! also by size class only
                   hio_ba_si_scls(io_si,scls) = hio_ba_si_scls(io_si,scls) + &
-                     0.25_r8*3.14159_r8*((dbh/100.0_r8)**2.0_r8)*       &
+                     0.25_r8*pi_const*((dbh/100.0_r8)**2.0_r8)*       &
                      ccohort%n / m2_per_ha
 
                   ! growth increment
                   hio_ddbh_si_scpf(io_si,scpf) = hio_ddbh_si_scpf(io_si,scpf) + &
                      ccohort%ddbhdt*ccohort%n / m2_per_ha * m_per_cm
+
+                  hio_ba_weighted_height_si(io_si) = hio_ba_weighted_height_si(io_si) + &
+                       ccohort%hite * &
+                       0.25_r8*pi_const*((dbh/100.0_r8)**2.0_r8)*ccohort%n / m2_per_ha
 
                end if
 
@@ -2753,6 +2761,9 @@ end subroutine flush_hvars
                   hio_yesterdaycanopylevel_canopy_si_scls(io_si,scls) = &
                   hio_yesterdaycanopylevel_canopy_si_scls(io_si,scls) + &
                   ccohort%canopy_layer_yesterday * ccohort%n / m2_per_ha
+
+                  hio_ca_weighted_height_si(io_si) = hio_ca_weighted_height_si(io_si) + &
+                       ccohort%hite * ccohort%c_area / m2_per_ha
                else canlayer
                   hio_nplant_understory_si_scag(io_si,iscag) = hio_nplant_understory_si_scag(io_si,iscag) + ccohort%n / m2_per_ha
                   hio_mortality_understory_si_scag(io_si,iscag) = hio_mortality_understory_si_scag(io_si,iscag) + &
@@ -2954,9 +2965,16 @@ end subroutine flush_hvars
          cpatch => cpatch%younger
       end do patchloop !patch loop
 
+      ! divide basal-area-weighted height by basal area to get mean
+      if ( sum(hio_ba_si_scpf(io_si,:)) .gt. nearzero ) then
+         hio_ba_weighted_height_si(io_si) = hio_ba_weighted_height_si(io_si) / sum(hio_ba_si_scpf(io_si,:))
+      else
+         hio_ba_weighted_height_si(io_si) = 0._r8
+      endif
+
       ! divide so-far-just-summed but to-be-averaged patch-age-class variables by patch-age-class area to get mean values
       do ipa2 = 1, nlevage
-         if (hio_area_si_age(io_si, ipa2) .gt. tiny) then
+         if (hio_area_si_age(io_si, ipa2) .gt. nearzero) then
                hio_lai_si_age(io_si, ipa2) = hio_lai_si_age(io_si, ipa2) / (hio_area_si_age(io_si, ipa2)*AREA)
                hio_ncl_si_age(io_si, ipa2) = hio_ncl_si_age(io_si, ipa2) / (hio_area_si_age(io_si, ipa2)*AREA)
             do i_pft = 1, numpft
@@ -3543,7 +3561,6 @@ end subroutine flush_hvars
     real(r8) :: patch_area_by_age(nlevage)  ! patch area in each bin for normalizing purposes
     real(r8) :: canopy_area_by_age(nlevage) ! canopy area in each bin for normalizing purposes
     real(r8) :: site_area_veg               ! area of the site that is not bare-ground 
-    real(r8), parameter :: tiny = 1.e-5_r8      ! some small number
     integer  :: ipa2     ! patch incrementer
     integer :: cnlfpft_indx, cnlf_indx, ipft, ican, ileaf ! more iterators and indices
     type(ed_patch_type),pointer  :: cpatch
@@ -3919,7 +3936,7 @@ end subroutine flush_hvars
          end do !patch loop
 
          do ipa2 = 1, nlevage
-            if (patch_area_by_age(ipa2) .gt. tiny) then
+            if (patch_area_by_age(ipa2) .gt. nearzero) then
                hio_gpp_si_age(io_si, ipa2) = hio_gpp_si_age(io_si, ipa2) / (patch_area_by_age(ipa2))
                hio_npp_si_age(io_si, ipa2) = hio_npp_si_age(io_si, ipa2) / (patch_area_by_age(ipa2))
             else
@@ -3928,7 +3945,7 @@ end subroutine flush_hvars
             endif
 
             ! Normalize resistance diagnostics
-            if (canopy_area_by_age(ipa2) .gt. tiny) then
+            if (canopy_area_by_age(ipa2) .gt. nearzero) then
                hio_c_stomata_si_age(io_si,ipa2) = &
                     hio_c_stomata_si_age(io_si,ipa2) / canopy_area_by_age(ipa2)
 
@@ -3942,7 +3959,7 @@ end subroutine flush_hvars
          end do
 
          ! Normalize resistance diagnostics
-         if ( sum(canopy_area_by_age(1:nlevage)) .gt. tiny) then
+         if ( sum(canopy_area_by_age(1:nlevage)) .gt. nearzero) then
             hio_c_stomata_si(io_si) = hio_c_stomata_si(io_si) / sum(canopy_area_by_age(1:nlevage))
             hio_c_lblayer_si(io_si) = hio_c_lblayer_si(io_si) / sum(canopy_area_by_age(1:nlevage))
          else
@@ -3984,7 +4001,6 @@ end subroutine update_history_hifrq
     integer  :: ipa      ! The local "I"ndex of "PA"tches
     integer  :: ft               ! functional type index
 !    integer  :: io_shsl  ! The combined "SH"ell "S"oil "L"ayer index in the IO array
-    real(r8), parameter :: tiny = 1.e-5_r8      ! some small number
     real(r8) :: ncohort_scpf(nlevsclass*maxpft)  ! Bins to count up cohorts counts used in weighting
     ! should be "hio_nplant_si_scpf"
     real(r8) :: nplant_scpf(nlevsclass*maxpft)  ! Bins to count up cohorts counts used in weighting
@@ -4458,6 +4474,18 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_fates_fraction_si, flush_to_zero=.true.)
+
+    call this%set_history_var(vname='FATES_BA_WEIGHTED_HEIGHT', units='m',        &
+         long='basal area-weighted mean height of woody plants', use_default='active', &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+         index=ih_ba_weighted_height_si)
+
+    call this%set_history_var(vname='FATES_CA_WEIGHTED_HEIGHT', units='m',        &
+         long='crown area-weighted mean height of canopy plants', use_default='active', &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+         index=ih_ca_weighted_height_si)
 
     call this%set_history_var(vname='FATES_COLD_STATUS', units='',             &
           long='site-level cold status, 0=not cold-dec, 1=too cold for leaves, 2=not too cold',  &

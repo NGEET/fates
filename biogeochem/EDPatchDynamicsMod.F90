@@ -158,6 +158,7 @@ contains
 
     ! !USES:
     use EDMortalityFunctionsMod , only : mortality_rates
+    use EDMortalityFunctionsMod , only : ExemptTreefallDist
     ! loging flux
     use EDLoggingMortalityMod , only : LoggingMortality_frac
 
@@ -273,10 +274,12 @@ contains
 
           if(currentCohort%canopy_layer == 1)then
 
-             ! Treefall Disturbance Rate
-             currentPatch%disturbance_rates(dtype_ifall) = currentPatch%disturbance_rates(dtype_ifall) + &
-                  fates_mortality_disturbance_fraction * &
-                  min(1.0_r8,currentCohort%dmort)*hlm_freq_day*currentCohort%c_area/currentPatch%area
+             ! Treefall Disturbance Rate.  Only count this for trees, not grasses
+             if ( .not. ExemptTreefallDist(currentCohort) ) then
+                currentPatch%disturbance_rates(dtype_ifall) = currentPatch%disturbance_rates(dtype_ifall) + &
+                     fates_mortality_disturbance_fraction * &
+                     min(1.0_r8,currentCohort%dmort)*hlm_freq_day*currentCohort%c_area/currentPatch%area
+             end if
 
              ! Logging Disturbance Rate
              currentPatch%disturbance_rates(dtype_ilog) = currentPatch%disturbance_rates(dtype_ilog) + &
