@@ -1499,7 +1499,8 @@ contains
     real(r8) :: dh                       ! vertical detph of height class (m)
     real(r8) :: min_chite                ! bottom of cohort canopy  (m)
     real(r8) :: max_chite                ! top of cohort canopy      (m)
-    real(r8) :: lai                      ! summed lai for checking m2 m-2
+    real(r8) :: lai                      ! we use this to preserve b4b right now (m2/m2)
+    real(r8) :: sai                      ! ""
 
     !----------------------------------------------------------------------
 
@@ -1552,9 +1553,11 @@ contains
              ! How much of each tree is stem area index? Assuming that there is
              ! This may indeed be zero if there is a sensecent grass
              ! ----------------------------------------------------------------
-
+             lai = currentCohort%treelai * currentCohort%c_area/currentPatch%total_canopy_area
+             sai = currentCohort%treesai * currentCohort%c_area/currentPatch%total_canopy_area
              if( (currentCohort%treelai+currentCohort%treesai) > nearzero)then
-                fleaf = currentCohort%treelai / (currentCohort%treelai + currentCohort%treesai)
+                !fleaf = currentCohort%treelai / (currentCohort%treelai + currentCohort%treesai)
+                fleaf = lai / (lai+sai)
              else
                 fleaf = 0._r8
              endif
