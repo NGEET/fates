@@ -338,6 +338,9 @@ contains
        ! This allocates array spaces
        call InitHydrCohort(currentSite,new_cohort)
 
+       ! zero out the water balance error
+       new_cohort%co_hydr%errh2o = 0._r8
+
        ! This calculates node heights
        call UpdatePlantHydrNodes(new_cohort,new_cohort%pft, &
                                 new_cohort%hite,currentSite%si_hydr)

@@ -22,6 +22,7 @@ module EDInitMod
   use EDPatchDynamicsMod        , only : set_patchno
   use EDPhysiologyMod           , only : assign_cohort_sp_properties
   use ChecksBalancesMod         , only : SiteMassStock
+  use FatesInterfaceTypesMod    , only : hlm_day_of_year
   use EDTypesMod                , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod                , only : numWaterMem
   use EDTypesMod                , only : num_vegtemp_mem
@@ -227,12 +228,14 @@ contains
     site_in%snow_depth       = nan
     site_in%nchilldays       = fates_unset_int
     site_in%ncolddays        = fates_unset_int
-    site_in%cleafondate      = fates_unset_int  ! doy of leaf on
-    site_in%cleafoffdate     = fates_unset_int  ! doy of leaf off
-    site_in%dleafondate      = fates_unset_int  ! doy of leaf on drought
-    site_in%dleafoffdate     = fates_unset_int  ! doy of leaf on drought
+    site_in%cleafondate      = fates_unset_int
+    site_in%cleafoffdate     = fates_unset_int
+    site_in%dleafondate      = fates_unset_int
+    site_in%dleafoffdate     = fates_unset_int
     site_in%water_memory(:)  = nan
     site_in%vegtemp_memory(:) = nan              ! record of last 10 days temperature for senescence model.
+
+    site_in%phen_model_date  = fates_unset_int
 
     ! Disturbance rates tracking
     site_in%primary_land_patchfusion_error = 0.0_r8
@@ -361,15 +364,15 @@ contains
        do s = 1,nsites
           sites(s)%nchilldays    = 0
           sites(s)%ncolddays     = 0        ! recalculated in phenology
-          ! immediately, so yes this
-          ! is memory-less, but needed
-          ! for first value in history file
-
-          sites(s)%cleafondate   = cleafon
-          sites(s)%cleafoffdate  = cleafoff
-          sites(s)%dleafoffdate  = dleafoff
-          sites(s)%dleafondate   = dleafon
-          sites(s)%grow_deg_days = GDD
+                                            ! immediately, so yes this
+                                            ! is memory-less, but needed
+                                            ! for first value in history file
+          sites(s)%phen_model_date = 0
+          sites(s)%cleafondate     = cleafon  - hlm_day_of_year
+          sites(s)%cleafoffdate    = cleafoff - hlm_day_of_year
+          sites(s)%dleafoffdate    = dleafoff - hlm_day_of_year
+          sites(s)%dleafondate     = dleafon  - hlm_day_of_year
+          sites(s)%grow_deg_days   = GDD
 
           sites(s)%water_memory(1:numWaterMem) = watermem
           sites(s)%vegtemp_memory(1:num_vegtemp_mem) = 0._r8
