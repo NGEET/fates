@@ -1733,6 +1733,7 @@ contains
     integer  :: io_idx_si_pft  ! each site-pft index
     integer  :: io_idx_si_vtmem ! indices for veg-temp memory at site
     integer  :: io_idx_pa_ncl   ! each canopy layer within each patch
+    integer  :: io_idx_co_nll   ! each leaf layer within each cohort
 
     ! Some counters (for checking mostly)
     integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
@@ -1877,6 +1878,7 @@ contains
           io_idx_si_wmem = io_idx_co_1st
           io_idx_si_vtmem = io_idx_co_1st
           io_idx_pa_ncl   = io_idx_co_1st
+          io_idx_co_nll   = io_idx_co_1st
 
           ! Hydraulics counters  lyr = hydraulic layer, shell = rhizosphere shell
           io_idx_si_lyr_shell = io_idx_co_1st
@@ -1993,7 +1995,8 @@ contains
                 end do
 
                 do i = 1,nlevleaf
-                   this%rvars(ir_year_net_up_co)%r81d(io_idx_co) = ccohort%year_net_uptake(i)
+                   this%rvars(ir_year_net_up_co)%r81d(io_idx_co_nll) = ccohort%year_net_uptake(i)
+                   io_idx_co_nll = io_idx_co_nll + 1
                 end do
 
 
@@ -2586,6 +2589,7 @@ contains
      integer  :: io_idx_si_cwd
      integer  :: io_idx_si_pft
      integer  :: io_idx_pa_ncl   ! each canopy layer within each patch
+     integer  :: io_idx_co_nll   ! each leaf layer within each cohort
 
      ! Some counters (for checking mostly)
      integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
@@ -2711,6 +2715,7 @@ contains
           io_idx_si_wmem = io_idx_co_1st
           io_idx_si_vtmem = io_idx_co_1st
           io_idx_pa_ncl = io_idx_co_1st
+          io_idx_co_nll = io_idx_co_1st
 
           ! Hydraulics counters  lyr = hydraulic layer, shell = rhizosphere shell
           io_idx_si_lyr_shell = io_idx_co_1st
@@ -2906,7 +2911,8 @@ contains
                 end if
 
                 do i = 1,nlevleaf
-                  ccohort%year_net_uptake(i) = this%rvars(ir_year_net_up_co)%r81d(io_idx_co)
+                  ccohort%year_net_uptake(i) = this%rvars(ir_year_net_up_co)%r81d(io_idx_co_nll)
+                  io_idx_co_nll = io_idx_co_nll + 1
                 end do
 
                 io_idx_co = io_idx_co + 1
