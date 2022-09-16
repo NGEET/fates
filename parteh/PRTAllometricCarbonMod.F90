@@ -474,7 +474,7 @@ module PRTAllometricCarbonMod
       ! Phase 1: Replace losses, push pools towards targets
       ! -----------------------------------------------------------------------------------
 
-      if_phase: if(phase.eq.1) then
+      if_phase1: if(phase.eq.1) then
 
          ! III.  Prioritize some amount of carbon to replace leaf/root turnover
          !         Make sure it isn't a negative payment, and either pay what is available
@@ -544,6 +544,11 @@ module PRTAllometricCarbonMod
 
          end if
 
+      end if if_phase1
+
+      
+      if_phase12: if((phase==1) .or. (phase==2))then
+         
          ! -----------------------------------------------------------------------------------
          ! V.  If carbon is still available, prioritize some allocation to replace
          !        the rest of the leaf/fineroot deficit
@@ -628,8 +633,9 @@ module PRTAllometricCarbonMod
             end if
 
          end if
-
-      elseif( (phase.eq.2) .and. ( carbon_balance > calloc_abs_error )) then
+      end if if_phase12
+         
+      if_phase3: if( (phase.eq.3) .and. ( carbon_balance > calloc_abs_error )) then
 
          ! -----------------------------------------------------------------------------------
          ! VIII.  If carbon is yet still available ...
@@ -850,7 +856,7 @@ module PRTAllometricCarbonMod
 
          end do do_solve_check
 
-      end if if_phase
+      end if if_phase3
 
       ! Track the net allocations and transport from this routine
       ! (the AgeLeaves() routine handled tracking allocation through aging)

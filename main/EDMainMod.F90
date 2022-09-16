@@ -514,17 +514,18 @@ contains
              ! of mass from the oldest bin into the litter pool, that is something else.
              ! -----------------------------------------------------------------------------------
              call currentCohort%prt%AgeLeaves(ft,sec_per_day)
-
+          
           end if if_not_newlyrecovered
-             
              
           ! If the current diameter of a plant is somehow less than what is consistent
           ! with what is allometrically consistent with the stuctural biomass, then
           ! correct the dbh to match.
           call EvaluateAndCorrectDBH(currentCohort,delta_dbh,delta_hite)
           
+          ! We want to save these values for the newly recovered cohort as well
           hite_old = currentCohort%hite
           dbh_old  = currentCohort%dbh
+          
           
           ! -----------------------------------------------------------------------------
           ! Growth and Allocation (PARTEH)
@@ -543,9 +544,8 @@ contains
           ! to grow in stature (phase 2)
           
           call currentCohort%prt%DailyPRT(phase=1)
-          
-          if((newly_recovered .eq. .false.)  .and. &
-             (hlm_use_tree_damage .eq. itrue) ) then
+
+          if((.not.newly_recovered) .and. (hlm_use_tree_damage .eq. itrue) ) then
              ! The loop order is shortest to tallest
              ! The recovered cohort (ie one with larger targets)
              ! is newly created in DamageRecovery(), and
@@ -560,14 +560,16 @@ contains
              ! the cohort is NOT split, and the whole thing graduates to a lesser
              ! damage class
              if(.not.newly_recovered)then
-                call currentCohort%prt%DailyPRT(phase=1)
+                call currentCohort%prt%DailyPRT(phase=2)
              end if
              
           else
              newly_recovered = .false.
           end if
+
+          !print*,"CD:",currentcohort%crowndamage
           
-          call currentCohort%prt%DailyPRT(phase=2)
+          call currentCohort%prt%DailyPRT(phase=3)
           
           ! Update the mass balance tracking for the daily nutrient uptake flux
           ! Then zero out the daily uptakes, they have been used
