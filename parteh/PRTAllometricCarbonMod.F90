@@ -547,7 +547,7 @@ module PRTAllometricCarbonMod
       end if if_phase1
 
       
-      if_phase12: if((phase==1) .or. (phase==2))then
+      if_phase2: if(phase.eq.2)then
          
          ! -----------------------------------------------------------------------------------
          ! V.  If carbon is still available, prioritize some allocation to replace
@@ -633,7 +633,7 @@ module PRTAllometricCarbonMod
             end if
 
          end if
-      end if if_phase12
+      end if if_phase2
          
       if_phase3: if( (phase.eq.3) .and. ( carbon_balance > calloc_abs_error )) then
 

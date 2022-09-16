@@ -532,16 +532,14 @@ contains
           ! -----------------------------------------------------------------------------
 
           ! We split the allocation into phases (currently for all hypotheses)
-          ! In phase 1, allocation gets the mass of organs to match targets
-          ! In phase 2, allocation increases the mass of organs along with stature growth (dbh)
-          ! The reason why we split is to accomodate the damage code. Following phase 1,
-          ! we will allow the damage status of the cohorts to potentially recover, if they
-          ! have any left-over C/N/P resources. In this process, the cohort will be split
-          ! into two, each having a number count summing to the original. Where one cohort
-          ! will remain in the original damage class proceed with allocation, and the other
-          ! will reduce its damage class with new mass tarets. The latter will have to re-play
-          ! The first phase of allocation. Both cohorts have the opportunity (if resources remain)
-          ! to grow in stature (phase 2)
+          ! In phase 1, allocation, we address prioritized allocation that should
+          ! only happen once per day, this is only allocation that does not grow stature.
+          ! In phase 2, allocation , we address allocation that can be performed
+          ! as many times as necessary. This is allocation that does not contain stature
+          ! growth.  This is separate from phase 1, because some recovering plants
+          ! will have new allocation targets that need to be updated after they change status.
+          ! In Phase 3, we assume that the plant has reached its targets, and any
+          ! left-over resources are used to grow the stature of the plant
           
           if(.not.newly_recovered)then
              call currentCohort%prt%DailyPRT(phase=1)
