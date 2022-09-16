@@ -2341,24 +2341,11 @@ contains
          max_recover_nplant =  available_m * ccohort%n / recovery_demand 
          
          ! 4. Use the scalar to decide how many to recover
-         nplant_recover = min(nplant_recover,max(0._r8,max_recover_nplant * &
-                              EDPftvarcon_inst%damage_recovery_scalar(ipft) ))
+         nplant_recover = min(nplant_recover,min(ccohort%n,max(0._r8,max_recover_nplant * &
+                              EDPftvarcon_inst%damage_recovery_scalar(ipft) )))
          
       end do
           
-      ! there is a special case where damage_recovery_scalar = 1, but
-      ! max_recover_nplant > n (i.e. there is more carbon than needed for all
-      ! individuals to recover to the next damage class.
-      ! in this case we can cheat, by making n_recover 0 and simply
-      ! allowing the donor cohort to recover and then go through
-      ! prt - will this work though? if they are not anywhere near allometry?
-      
-      if( abs(EDPftvarcon_inst%damage_recovery_scalar(ipft)-1._r8) < nearzero .and. &
-           nplant_recover > ccohort%n) then
-         nplant_recover = 0.0_r8
-         ccohort%crowndamage = ccohort%crowndamage - 1
-      end if
-
       if(nplant_recover < nearzero) then
 
          newly_recovered = .false.

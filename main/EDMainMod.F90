@@ -543,8 +543,12 @@ contains
           ! The first phase of allocation. Both cohorts have the opportunity (if resources remain)
           ! to grow in stature (phase 2)
           
-          call currentCohort%prt%DailyPRT(phase=1)
+          if(.not.newly_recovered)then
+             call currentCohort%prt%DailyPRT(phase=1)
+          end if
 
+          call currentCohort%prt%DailyPRT(phase=2)
+          
           if((.not.newly_recovered) .and. (hlm_use_tree_damage .eq. itrue) ) then
              ! The loop order is shortest to tallest
              ! The recovered cohort (ie one with larger targets)
@@ -555,20 +559,10 @@ contains
              ! needed for diagnostics
              call DamageRecovery(currentSite,currentPatch,currentCohort,newly_recovered)
 
-             ! New targets may have been issued (based on damage status). If so,
-             ! we need to repeat phase 1 of allocation. This only happens if
-             ! the cohort is NOT split, and the whole thing graduates to a lesser
-             ! damage class
-             if(.not.newly_recovered)then
-                call currentCohort%prt%DailyPRT(phase=2)
-             end if
-             
           else
              newly_recovered = .false.
           end if
 
-          !print*,"CD:",currentcohort%crowndamage
-          
           call currentCohort%prt%DailyPRT(phase=3)
           
           ! Update the mass balance tracking for the daily nutrient uptake flux
