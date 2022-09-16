@@ -1546,7 +1546,7 @@ contains
 
        if (currentPatch%total_canopy_area > nearzero ) then
 
-          call UpdatePatchLAI(currentPatch, patch_lai, CurrentSite)
+          call UpdatePatchLAI(currentPatch, patch_lai)
           
           if(smooth_leaf_distribution == 1)then
 
@@ -2183,7 +2183,7 @@ contains
   
   ! ===============================================================================================
 
-  subroutine UpdatePatchLAI(currentPatch, patch_lai, currentSite)
+  subroutine UpdatePatchLAI(currentPatch, patch_lai)
 
    ! --------------------------------------------------------------------------------------------
    ! This subroutine works through the current patch cohorts and updates the canopy_layer_tlai
@@ -2195,7 +2195,6 @@ contains
 
    ! Arguments
    type(ed_patch_type),intent(inout), target   :: currentPatch
-   type(ed_site_type),intent(inout), target    :: currentSite
    real(r8), intent(inout) :: patch_lai
 
    ! Local Variables

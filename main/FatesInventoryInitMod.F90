@@ -1031,17 +1031,19 @@ contains
 
          ! Calculate the leaf biomass (calculates a maximum first, then applies canopy trim
          ! and sla scaling factors)
-         call bleaf(temp_cohort%dbh,temp_cohort%pft,1,&
+         call bleaf(temp_cohort%dbh,temp_cohort%pft,temp_cohort%crowndamage,&
               temp_cohort%canopy_trim,c_leaf)
          
          ! Calculate fine root biomass
          call bfineroot(temp_cohort%dbh,temp_cohort%pft,temp_cohort%canopy_trim,c_fnrt)
 
          ! Calculate sapwood biomass
-         call bsap_allom(temp_cohort%dbh,temp_cohort%pft,1, 1.0_r8,temp_cohort%canopy_trim, a_sapw, c_sapw)
+         call bsap_allom(temp_cohort%dbh,temp_cohort%pft,temp_cohort%crowndamage, &
+              temp_cohort%canopy_trim, a_sapw, c_sapw)
          
          call bdead_allom( c_agw, c_bgw, c_sapw, temp_cohort%pft, c_struct )
-         call bstore_allom(temp_cohort%dbh, temp_cohort%pft, 1,  temp_cohort%canopy_trim, c_store)
+         call bstore_allom(temp_cohort%dbh, temp_cohort%pft, temp_cohort%crowndamage, &
+              temp_cohort%canopy_trim, c_store)
          temp_cohort%leafmemory = 0._r8
          temp_cohort%sapwmemory = 0._r8
          temp_cohort%structmemory = 0._r8

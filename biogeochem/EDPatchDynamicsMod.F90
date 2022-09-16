@@ -47,7 +47,6 @@ module EDPatchDynamicsMod
   use FatesInterfaceTypesMod    , only : hlm_use_sp
   use FatesInterfaceTypesMod    , only : hlm_use_nocomp
   use FatesInterfaceTypesMod    , only : hlm_use_fixed_biogeog
-  use FatesInterfaceTypesMod    , only : hlm_use_tree_damage
   use FatesGlobals         , only : endrun => fates_endrun
   use FatesConstantsMod    , only : r8 => fates_r8
   use FatesConstantsMod    , only : itrue, ifalse
