@@ -282,10 +282,10 @@ contains
              ccohort%n = ccohort%n - num_trees_cd
              
              ! update crown area here - for cohort fusion and canopy organisation below 
-             call carea_allom(ndcohort%dbh, ndcohort%n, csite%spread,&
+             call carea_allom(ndcohort%dbh, ndcohort%n, csite%spread, &
                   ipft, ndcohort%crowndamage, ndcohort%c_area)
              
-             call GetCrownReduction(cd, crown_loss_frac)
+             call GetCrownReduction(cd-ccohort%crowndamage, crown_loss_frac)
 
              do_element: do el = 1, num_elements
                 
