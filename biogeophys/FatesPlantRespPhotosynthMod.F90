@@ -250,9 +250,11 @@ contains
     real(r8) :: crown_reduction       ! reduction in crown biomass from damage
     real(r8) :: sapw_c_bgw            ! belowground sapwood
     real(r8) :: sapw_c_agw            ! aboveground sapwood
+    real(r8) :: sapw_c_undamaged      ! the target sapwood of an undamaged tree
     real(r8) :: sapw_n                ! sapwood nitrogen
     real(r8) :: sapw_n_bgw            ! nitrogen in belowground portion of sapwood
     real(r8) :: sapw_n_agw            ! nitrogen in aboveground portion of sapwood
+    real(r8) :: sapw_n_undamaged      ! nitrogen in sapwood of undamaged tree
 
     ! -----------------------------------------------------------------------------------
     ! Keeping these two definitions in case they need to be added later
@@ -668,9 +670,11 @@ contains
                          branch_frac = param_derived%branch_frac(currentCohort%pft)
                          call GetCrownReduction(currentCohort%crowndamage, crown_reduction)
 
-                         ! Undamaged below ground portion
-                         sapw_c_bgw = sapw_c / &
+                         sapw_c_undamaged = sapw_c / &
                               (1.0_r8 - (agb_frac * branch_frac * (1.0_r8-crown_reduction)))
+                         ! Undamaged below ground portion
+                         sapw_c_bgw = sapw_c_undamaged * (1.0_r8 - agb_frac)
+
                          ! Damaged aboveground portion
                          sapw_c_agw = sapw_c - sapw_c_bgw
 
@@ -703,8 +707,10 @@ contains
 
                             sapw_n = currentCohort%prt%GetState(sapw_organ, nitrogen_element)
 
-                            sapw_n_bgw = sapw_n / &
+                            sapw_n_undamaged = sapw_n / &
                                  (1.0_r8 - (agb_frac * branch_frac * (1.0_r8 - crown_reduction)))
+                            
+                            sapw_n_bgw = sapw_n_undamaged * (1.0_r8 - agb_frac)
                             sapw_n_agw = sapw_n - sapw_n_bgw
 
                             live_croot_n = (1.0_r8-prt_params%allom_agb_frac(currentCohort%pft)) * &
