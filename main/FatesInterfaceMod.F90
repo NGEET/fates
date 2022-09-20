@@ -1539,7 +1539,8 @@ contains
          else
             if((hlm_use_tree_damage .eq. itrue) .and. &
                  (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp))then
-               write(fates_log(),*) 'FATES tree damage is not (yet) compatible with CNP allocation (fates_parteh_mode = 2)'
+               write(fates_log(),*) 'FATES tree damage (use_fates_tree_damage = .true.) is not'
+               write(fates_log(),*) '(yet) compatible with CNP allocation (fates_parteh_mode = 2)'
                call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
