@@ -431,7 +431,6 @@ contains
           currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * real(hlm_days_per_year,r8)
           currentCohort%resp_acc_hold = currentCohort%resp_acc * real(hlm_days_per_year,r8)
 
-
           ! Conduct Maintenance Turnover (parteh)
           if(debug) call currentCohort%prt%CheckMassConservation(ft,3)
           if(any(currentSite%dstatus == [phen_dstat_moiston,phen_dstat_timeon])) then
@@ -470,18 +469,18 @@ contains
           
           call EffluxIntoLitterPools(currentSite, currentPatch, currentCohort, bc_in )
 
-
-          
-          
-          ! Mass balance for N uptake
-          currentSite%mass_balance(element_pos(nitrogen_element))%net_root_uptake = &
-               currentSite%mass_balance(element_pos(nitrogen_element))%net_root_uptake + &
-               (currentCohort%daily_n_gain-currentCohort%daily_n_efflux)*currentCohort%n
-          
-          ! Mass balance for P uptake
-          currentSite%mass_balance(element_pos(phosphorus_element))%net_root_uptake = &
-               currentSite%mass_balance(element_pos(phosphorus_element))%net_root_uptake + &
-               (currentCohort%daily_p_uptake-currentCohort%daily_p_efflux)*currentCohort%n
+          if(element_pos(nitrogen_element)>0) then
+             ! Mass balance for N uptake
+             currentSite%mass_balance(element_pos(nitrogen_element))%net_root_uptake = &
+                  currentSite%mass_balance(element_pos(nitrogen_element))%net_root_uptake + &
+                  (currentCohort%daily_n_gain-currentCohort%daily_n_efflux)*currentCohort%n
+          end if
+          if(element_pos(phosphorus_element)>0) then
+             ! Mass balance for P uptake
+             currentSite%mass_balance(element_pos(phosphorus_element))%net_root_uptake = &
+                  currentSite%mass_balance(element_pos(phosphorus_element))%net_root_uptake + &
+                  (currentCohort%daily_p_uptake-currentCohort%daily_p_efflux)*currentCohort%n
+          end if
           
           ! mass balance for C efflux (if any)
           currentSite%mass_balance(element_pos(carbon12_element))%net_root_uptake = &
@@ -556,8 +555,10 @@ contains
 
    ! Update history diagnostics related to Nutrients (if any)
    ! -----------------------------------------------------------------------------
-   
-   call fates_hist%update_history_nutrflux(currentSite)
+   select case(hlm_parteh_mode)
+   case (prt_cnp_flex_allom_hyp)
+      call fates_hist%update_history_nutrflux(currentSite)
+   end select
    
     ! When plants die, the water goes with them.  This effects
     ! the water balance.

@@ -346,6 +346,7 @@ contains
                 !  CO2 compensation point (Pa)
                 !  leaf boundary layer conductance of h20
                 !  constrained vapor pressure
+
                 call GetCanopyGasParameters(bc_in(s)%forc_pbot,       & ! in
                      bc_in(s)%oair_pa(ifp),    & ! in
                      bc_in(s)%t_veg_pa(ifp),   & ! in
@@ -2127,7 +2128,7 @@ subroutine lowstorage_maintresp_reduction(frac, pft, maintresp_reduction_factor)
    ! ---------------------------------------------------------------------------------
 
    if( frac .lt. 1._r8 )then
-      if ( EDPftvarcon_inst%maintresp_reduction_curvature(pft) .ne. 1._r8 ) then
+      if ( abs(EDPftvarcon_inst%maintresp_reduction_curvature(pft)-1._r8) > nearzero ) then
          maintresp_reduction_factor = (1._r8 - EDPftvarcon_inst%maintresp_reduction_intercept(pft)) + &
             EDPftvarcon_inst%maintresp_reduction_intercept(pft) * &
             (1._r8 - EDPftvarcon_inst%maintresp_reduction_curvature(pft)**frac) &

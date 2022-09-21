@@ -107,8 +107,8 @@ module PRTAllometricCNPMod
 
   integer, parameter, private :: pid_spe_controller = storage_spe
 
-  real(r8), parameter, private :: pid_int_wgt = 1._r8/10._r8   ! n-day smoothing (K on the integral of PID)
-  real(r8), parameter, private :: pid_drv_wgt = 1._r8/10._r8   ! n-day smoothing (K on the derivative of PID)
+  real(r8), parameter, private :: pid_int_wgt = 1._r8/1._r8   ! n-day smoothing (K on the integral of PID)
+  real(r8), parameter, private :: pid_drv_wgt = 1._r8/20._r8   ! n-day smoothing (K on the derivative of PID)
   
   ! Global identifiers for the two stoichiometry values
   integer,public, parameter :: stoich_growth_min = 1     ! Flag for stoichiometry associated with
@@ -504,35 +504,21 @@ contains
     n_efflux    => this%bc_out(acnp_bc_out_id_nefflux)%rval;  n_efflux = 0._r8
     p_efflux    => this%bc_out(acnp_bc_out_id_pefflux)%rval;  p_efflux = 0._r8
 
-    ! Bring storage pools down to the first target put overflow into gain pools
-    store_flux = max(0._r8, this%variables(store_c_id)%val(1) - target_c(store_organ))
-    c_gain = c_gain + store_flux
-    this%variables(store_c_id)%val(1) = this%variables(store_c_id)%val(1) - store_flux
-    target_n = this%GetNutrientTarget(nitrogen_element,store_organ,stoich_growth_min)
-    store_flux = max(0._r8, this%variables(store_n_id)%val(1) - target_n)
-    n_gain = n_gain + store_flux
-    this%variables(store_n_id)%val(1) = this%variables(store_n_id)%val(1) - store_flux
-    target_p = this%GetNutrientTarget(phosphorus_element,store_organ,stoich_growth_min)
-    store_flux = max(0._r8, this%variables(store_p_id)%val(1) - target_p)
-    p_gain = p_gain + store_flux
-    this%variables(store_p_id)%val(1) = this%variables(store_p_id)%val(1) - store_flux
-    
     ! ===================================================================================
     ! Step 0.  Transfer all stored nutrient into the daily uptake pool. Also
     !          transfer C storage that is above the target (ie transfer overflow)
     ! ===================================================================================
 
     ! Put overflow storage into the net daily pool
-    !store_flux = max(0._r8, this%variables(store_c_id)%val(1) - target_c(store_organ))
-    !c_gain = c_gain + store_flux
-    !this%variables(store_c_id)%val(1) = this%variables(store_c_id)%val(1) - store_flux
+    store_flux = max(0._r8, this%variables(store_c_id)%val(1) - target_c(store_organ))
+    c_gain = c_gain + store_flux
+    this%variables(store_c_id)%val(1) = this%variables(store_c_id)%val(1) - store_flux
 
     n_gain = n_gain + sum(this%variables(store_n_id)%val(:))
     this%variables(store_n_id)%val(:) = 0._r8
 
     p_gain = p_gain + sum(this%variables(store_p_id)%val(:))
     this%variables(store_p_id)%val(:) = 0._r8
-
     
     
     ! ===================================================================================
@@ -707,6 +693,24 @@ contains
     return
   end subroutine DailyPRTAllometricCNP
 
+  
+  function SafeLog(val) result(logval)
+
+    ! The log functions used to transform storage ratios
+    ! need not be large. Even a ratio of 10 is sending a strong signal to the
+    ! root adaptation algorithm to change course pretty strongly. We set
+    ! bounds of e3 here to prevent numerical overflows and underflows
+    
+    real(r8) :: val
+    real(r8) :: logval
+    real(r8), parameter :: safelog_min = 0.001_r8  !Don't pass anything smaller to a log
+    real(r8), parameter :: safelog_max = 1000._r8
+
+    logval = log(max(safelog_min,min(safelog_max,val)))
+    
+  end function SafeLog
+
+  
   ! =====================================================================================
   subroutine CNPAdjustFRootTargets(this, target_c, target_dcdd,co_num,nplant)
 
@@ -735,7 +739,7 @@ contains
     real(r8) :: logi_k
     real(r8) :: l2fr_mult
     real(r8) :: l2fr_delta
-    real(r8) :: nc_ratio, pc_ratio
+    real(r8) :: cn_ratio, cp_ratio
     real(r8) :: dxcdt_ratio        ! log change (derivative) of the maximum of the N/C and P/C storage ratio
     real(r8) :: xc_ratio           ! log Maximum of the N/C and P/C storage ratio
     real(r8), pointer :: ema_xc      ! The exponential moving average of the N-or-P versus C PID error function
@@ -745,6 +749,7 @@ contains
     real(r8), parameter :: max_l2fr_cgain_frac = 0.99_r8
     real(r8), parameter :: xc_ratio_correction = 1.0_r8
 
+    
     integer, parameter :: pid_c_function = 0
     integer, parameter :: pid_n_function = 1
     integer, parameter :: pid_minnc_function = 2
@@ -758,8 +763,9 @@ contains
     ! Note the strength of the derivative is should be about half of the period
     ! for an oscillation when turned off, to balance the K_p and K_i terms.
     ! This will have to be tuned in a sequence of 1, 10, 100, etc...
-    real(r8) :: l2fr_deriv_scale != 200._r8
-    real(r8) :: l2fr_int_scale 
+    real(r8) :: pid_k_i   ! Integral scaling coefficient in PID 
+    real(r8) :: pid_k_d   ! Derivative scaling coefficient in PID
+    real(r8) :: pid_k_p   ! Proportional scaling coefficient in PID
     
     ! If we do not have leaves out, then the relative nutrient vs carbon
     ! balancing is meaningless, just leave this routine
@@ -791,10 +797,11 @@ contains
           
           store_nut_max = this%GetNutrientTarget(nitrogen_element,store_organ,stoich_growth_min)
           
-          store_nut_act = this%GetState(store_organ, nitrogen_element) + &
-               this%bc_inout(acnp_bc_inout_id_netdn)%rval
+          store_nut_act = max(0.001_r8*store_nut_max, &
+               this%GetState(store_organ, nitrogen_element) + &
+               this%bc_inout(acnp_bc_inout_id_netdn)%rval)
 
-          select case(nint(EDPftvarcon_inst%dev_arbitrary_pft(ipft)))
+          select case(pid_ncratio_function) !nint(EDPftvarcon_inst%dev_arbitrary_pft(ipft)) )
           case(pid_c_function)
              n_ratio = store_c_max/store_c_act
           case(pid_n_function)
@@ -806,16 +813,16 @@ contains
                 n_ratio = (store_nut_act/store_nut_max)
              end if
           case(pid_alogmaxnc_function)
-             if( abs(log(store_nut_act/store_nut_max)) < abs(log(store_c_act/store_c_max))) then
+             if( abs(SafeLog(store_nut_act/store_nut_max)) < abs(SafeLog(store_c_act/store_c_max))) then
                 n_ratio = (store_c_max/store_c_act)
              else
                 n_ratio = (store_nut_act/store_nut_max)
              end if
           case(pid_ncratio_function)
-             n_ratio = (store_nut_act/store_nut_max)/(store_c_act/store_c_max)
+             n_ratio = (store_c_act/store_c_max)/(store_nut_act/store_nut_max)
           end select
 
-          nc_ratio = (store_nut_act/store_nut_max)/(store_c_act/store_c_max)
+          cn_ratio = (store_c_act/store_c_max)/(store_nut_act/store_nut_max)
           
        else
           n_ratio = -1._r8
@@ -828,10 +835,11 @@ contains
           
           store_nut_max = this%GetNutrientTarget(phosphorus_element,store_organ,stoich_growth_min) 
           
-          store_nut_act = this%GetState(store_organ, phosphorus_element) + &
-               this%bc_inout(acnp_bc_inout_id_netdp)%rval
+          store_nut_act = max(0.001_r8*store_nut_max, &
+               this%GetState(store_organ, phosphorus_element) + &
+               this%bc_inout(acnp_bc_inout_id_netdp)%rval)
           
-          select case(nint(EDPftvarcon_inst%dev_arbitrary_pft(ipft)))
+          select case(pid_ncratio_function) !nint(EDPftvarcon_inst%dev_arbitrary_pft(ipft)))
           case(pid_c_function)
              p_ratio = store_c_max/store_c_act
           case(pid_n_function)
@@ -843,16 +851,16 @@ contains
                 p_ratio = (store_nut_act/store_nut_max)
              end if
           case(pid_alogmaxnc_function)
-             if( abs(log(store_nut_act/store_nut_max)) < abs(log(store_c_act/store_c_max))) then
+             if( abs(SafeLog(store_nut_act/store_nut_max)) < abs(SafeLog(store_c_act/store_c_max))) then
                 p_ratio = (store_c_max/store_c_act)
              else
                 p_ratio = (store_nut_act/store_nut_max)
              end if
           case(pid_ncratio_function)
-             p_ratio = (store_nut_act/store_nut_max)/(store_c_act/store_c_max)
+             p_ratio = (store_c_act/store_c_max)/(store_nut_act/store_nut_max)
           end select
 
-          pc_ratio = (store_nut_act/store_nut_max)/(store_c_act/store_c_max)
+          cp_ratio = (store_c_act/store_c_max)/(store_nut_act/store_nut_max)
           
        else
           p_ratio = -1._r8
@@ -866,12 +874,28 @@ contains
           return
        else
 
-          xc_ratio = log(min(n_ratio,p_ratio))
+          xc_ratio = SafeLog(max(n_ratio,p_ratio))
 
+          ! If xc_ratio has just crossed zero, then
+          ! reset the integrator. This will be true if
+          ! the sign of the current ratio is different than
+          ! the sign of the previous
+
+          if( (xc_ratio/abs(xc_ratio) - xc0/abs(xc0)) > nearzero ) then
+             ema_xc = xc_ratio
+          else
+             ema_xc = ema_xc + xc_ratio
+          end if
+          
           dxcdt_ratio = xc_ratio-xc0
-
-          ema_xc = pid_int_wgt*xc_ratio + (1._r8-pid_int_wgt)*ema_xc
+          
+          !ema_xc = pid_int_wgt*xc_ratio + (1._r8-pid_int_wgt)*ema_xc
           ema_dxcdt = pid_drv_wgt*dxcdt_ratio + (1._r8-pid_drv_wgt)*ema_dxcdt
+
+
+          !ema_xc = (1._r8/EDPftvarcon_inst%dev_arbitrary_pft(ipft))*xc_ratio + &
+          !     (1._r8-(1._r8/EDPftvarcon_inst%dev_arbitrary_pft(ipft)))*ema_xc
+
           xc0 = xc_ratio
 
           
@@ -926,30 +950,15 @@ contains
        
        l2fr_delta_scale = (1._r8/prt_params%fnrt_adapt_tscale(ipft))/log(2.0_r8)
        
-       ! log(2.0_r8)*l2fr_delta_scale = (1._r8/prt_params%fnrt_adapt_tscale(ipft))
-       
-       ! ema_xc is already in log form to allow for averaging
-
        ! Want the derivative to be strongest when storage is most disproportionate
-       l2fr_deriv_scale = 0.0_r8  !-20.0_r8  !0.25*abs(ema_xc/ema_dxcdt)
-       l2fr_int_scale   = 0.0_r8
-
-
-       ! To limit overshoot, when either positive and decending   or   negative and ascending
-       ! we have already corrected enough to change the behavior, lets
-       ! decrease the scaling
-
-       if( ((ema_xc > 0._r8) .and. (ema_dxcdt<0._r8)) .or. ((ema_xc < 0._r8) .and. (ema_dxcdt>0._r8)))  then  
-          l2fr_delta_scale = 0.1_r8 * l2fr_delta_scale
-          sup_flag = 1
-       else
-          sup_flag = 0
-       end if
-
+       pid_k_d  = prt_params%fnrt_adapt_tscale(ipft)   !-0.1_r8
+       pid_k_i  = 0.0_r8 !EDPftvarcon_inst%dev_arbitrary_pft(ipft) !-0.0001_r8
+       pid_k_p  = EDPftvarcon_inst%dev_arbitrary_pft(ipft)  !0.0005_r8
        
-       !l2fr_delta = -l2fr_delta_scale*(min(0.2,max(-0.2,xc_ratio)) + ema_xc*l2fr_int_scale + ema_dxcdt*l2fr_deriv_scale)
-       l2fr_delta = -l2fr_delta_scale*(xc_ratio + ema_xc*l2fr_int_scale + ema_dxcdt*l2fr_deriv_scale)
+       l2fr_delta = pid_k_p*xc_ratio + pid_k_i*ema_xc + pid_k_d*ema_dxcdt
 
+       !l2fr_delta = ema_xc/abs(ema_xc)*l2fr_int_scale + ema_dxcdt*l2fr_deriv_scale
+       
        ! Cap growth and shrinkage to avoid large changes
        ! (currently capping at projected rate for a 2:1 ratio
        l2fr_delta_minmax = l2fr_delta_scale*log(20.0)
@@ -968,7 +977,8 @@ contains
 
        l2fr = max(l2fr_min, l2fr + l2fr_delta )
 
-       if(co_num==1) print*,'AAX1',co_num,hlm_current_year,hlm_day_of_year,dbh,nplant,sup_flag,log(nc_ratio),l2fr
+       !if((co_num==1) .or. (co_num==2)) print*,'AAX1',co_num,hlm_current_year,hlm_day_of_year, &
+       !     dbh,nplant,(store_c_act/store_c_max),cn_ratio,SafeLog(cn_ratio),l2fr
        
     else
        
@@ -976,6 +986,7 @@ contains
        call endrun(msg=errMsg(sourcefile, __LINE__))
        
     end if
+    
     
 
     ! Find the updated target fineroot biomass
@@ -2036,8 +2047,11 @@ contains
           xc_ratio = 1.0_r8
        end if
 
+       dxcdt_ratio = log(xc_ratio)-xc0
        ema_xc = pid_int_wgt*log(xc_ratio) + (1._r8-pid_int_wgt)*ema_xc
-              
+       ema_dxcdt = pid_drv_wgt*dxcdt_ratio + (1._r8-pid_drv_wgt)*ema_dxcdt
+       xc0 = log(xc_ratio)
+       
     end if
     
    

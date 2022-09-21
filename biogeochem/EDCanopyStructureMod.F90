@@ -720,6 +720,12 @@ contains
              end if
 
              ! kill the ones which go into canopy layers that are not allowed
+
+             ! USE THIS OVERRIDE IF YOU ARE FORCING A ONE COHORT SIMULATION
+             ! (also make sure to turn off germination, external seed rain,
+             ! (use only one PFT, and make sure disturb_frac is 0)
+             ! (RGK-0822)
+             !if(currentCohort%canopy_layer>1) then
              if(currentCohort%canopy_layer>nclmax )then
 
                 ! put the litter from the terminated cohorts

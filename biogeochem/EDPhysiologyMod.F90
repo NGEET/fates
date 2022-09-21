@@ -751,7 +751,6 @@ contains
     ! continues monotonically, indefinitely
     model_day_int = nint(hlm_model_day)
 
-
     ! Use the following layer index to calculate drought conditions
     ilayer_swater = minloc(abs(bc_in%z_sisl(:)-dphen_soil_depth),dim=1)
 
