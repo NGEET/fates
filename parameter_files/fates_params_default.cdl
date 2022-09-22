@@ -1,4 +1,4 @@
-netcdf fates_params_default_api24 {
+netcdf tmp {
 dimensions:
 	fates_NCWD = 4 ;
 	fates_history_age_bins = 7 ;
@@ -197,18 +197,24 @@ variables:
 	double fates_cnp_eca_vmax_ptase(fates_pft) ;
 		fates_cnp_eca_vmax_ptase:units = "gP/m2/s" ;
 		fates_cnp_eca_vmax_ptase:long_name = "maximum production rate for biochemical P (per m2) (ECA)" ;
-	double fates_cnp_fnrt_adapt_tscale(fates_pft) ;
-		fates_cnp_fnrt_adapt_tscale:units = "days" ;
-		fates_cnp_fnrt_adapt_tscale:long_name = "Number of days that is shortest possible doubling period for fine-root adaptation to C/N/P balance" ;
 	double fates_cnp_nfix1(fates_pft) ;
-		fates_cnp_nfix1:units = "NA" ;
-		fates_cnp_nfix1:long_name = "place-holder for future n-fixation parameter (NOT IMPLEMENTED)" ;
+		fates_cnp_nfix1:units = "fraction" ;
+		fates_cnp_nfix1:long_name = "fractional surcharge added to maintenance respiration that drives symbiotic fixation" ;
 	double fates_cnp_nitr_store_ratio(fates_pft) ;
 		fates_cnp_nitr_store_ratio:units = "(gN/gN)" ;
 		fates_cnp_nitr_store_ratio:long_name = "storeable (labile) N, as a ratio compared to the N bound in cell structures of other organs (see code)" ;
 	double fates_cnp_phos_store_ratio(fates_pft) ;
 		fates_cnp_phos_store_ratio:units = "(gP/gP)" ;
 		fates_cnp_phos_store_ratio:long_name = "storeable (labile) P, as a ratio compared to the P bound in cell structures of other organs (see code)" ;
+	double fates_cnp_pid_kd(fates_pft) ;
+		fates_cnp_pid_kd:units = "unknown" ;
+		fates_cnp_pid_kd:long_name = "derivative constant of the PID controller on adaptive fine-root biomass" ;
+	double fates_cnp_pid_ki(fates_pft) ;
+		fates_cnp_pid_ki:units = "unknown" ;
+		fates_cnp_pid_ki:long_name = "integral constant of the PID controller on adaptive fine-root biomass" ;
+	double fates_cnp_pid_kp(fates_pft) ;
+		fates_cnp_pid_kp:units = "unknown" ;
+		fates_cnp_pid_kp:long_name = "proportional constant of the PID controller on adaptive fine-root biomass" ;
 	double fates_cnp_prescribed_nuptake(fates_pft) ;
 		fates_cnp_prescribed_nuptake:units = "fraction" ;
 		fates_cnp_prescribed_nuptake:long_name = "Prescribed N uptake flux. 0=fully coupled simulation >0=prescribed (experimental)" ;
@@ -221,7 +227,6 @@ variables:
 	double fates_cnp_store_ovrflw_frac(fates_pft) ;
 		fates_cnp_store_ovrflw_frac:units = "fraction" ;
 		fates_cnp_store_ovrflw_frac:long_name = "size of overflow storage (for excess C,N or P) as a fraction of storage target" ;
-		fates_cnp_store_ovrflw_frac:use_case = "None" ;
 	double fates_cnp_turnover_nitr_retrans(fates_plant_organs, fates_pft) ;
 		fates_cnp_turnover_nitr_retrans:units = "fraction" ;
 		fates_cnp_turnover_nitr_retrans:long_name = "retranslocation (reabsorbtion) fraction of nitrogen in turnover of scenescing tissues" ;
@@ -975,9 +980,6 @@ data:
  fates_cnp_eca_vmax_ptase = 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 
     5e-09, 5e-09, 5e-09, 5e-09, 5e-09 ;
 
- fates_cnp_fnrt_adapt_tscale = 100, 100, 100, 100, 100, 100, 100, 100, 100, 
-    100, 100, 100 ;
-
  fates_cnp_nfix1 = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
  fates_cnp_nitr_store_ratio = 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 
@@ -985,6 +987,13 @@ data:
 
  fates_cnp_phos_store_ratio = 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 
     1.5, 1.5, 1.5 ;
+
+ fates_cnp_pid_kd = 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1 ;
+
+ fates_cnp_pid_ki = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+
+ fates_cnp_pid_kp = 0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 
+    0.0005, 0.0005, 0.0005, 0.0005, 0.0005 ;
 
  fates_cnp_prescribed_nuptake = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
