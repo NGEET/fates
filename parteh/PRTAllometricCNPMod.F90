@@ -73,8 +73,6 @@ module PRTAllometricCNPMod
   !
   ! -------------------------------------------------------------------------------------
 
-
-
   integer, parameter :: leaf_c_id   = 1       ! leaf carbon index
   integer, parameter :: fnrt_c_id   = 2       ! fine-root carbon index
   integer, parameter :: sapw_c_id   = 3       ! sapwood carbon index
@@ -98,17 +96,7 @@ module PRTAllometricCNPMod
 
   ! Total number of state variables
   integer, parameter :: num_vars    = 18
-
-
-  ! Setpoint Error controller method
-  integer, parameter, private :: storage_spe = 0
-  integer, parameter, private :: binary_limiter_spe = 1
-  integer, parameter, private :: daily_gain_ratio_spe = 2
-
-  integer, parameter, private :: pid_spe_controller = storage_spe
-
-  real(r8), parameter, private :: pid_int_wgt = 1._r8/1._r8   ! n-day smoothing (K on the integral of PID)
-  real(r8), parameter, private :: pid_drv_wgt = 1._r8/20._r8   ! n-day smoothing (K on the derivative of PID)
+  
   
   ! Global identifiers for the two stoichiometry values
   integer,public, parameter :: stoich_growth_min = 1     ! Flag for stoichiometry associated with
@@ -141,10 +129,7 @@ module PRTAllometricCNPMod
 
   integer, parameter :: num_intgr_vars = 7
 
-  integer, parameter  :: cnp_limited = 0
-  integer, parameter  :: c_limited = 1
-  integer, parameter  :: n_limited = 2
-  integer, parameter  :: p_limited = 3
+
   
   ! -------------------------------------------------------------------------------------
   ! Input/Output Boundary Indices (These are public, and therefore
@@ -201,41 +186,42 @@ module PRTAllometricCNPMod
   ! -------------------------------------------------------------------------------------
   ! Define the size of the coorindate vector.  For this hypothesis, there is only
   ! one pool per each species x organ combination, except for leaves (WHICH HAVE AGE)
+  ! icd refers to the first index in the leaf array, which is the youngest.  Growth
+  ! and allocation only happens in the youngest bin by definition
   ! -------------------------------------------------------------------------------------
   integer, parameter :: icd = 1
 
+  ! These constants define different methods of dealing with excess carbon at
+  ! the end of the allocation process, assuming that N or P is limiting growth.
+  ! You can either exude (send to soil), retain (grow storage without limit),
+  ! or burn (as respiration to the atm).
   integer, parameter :: exude_c_store_overflow = 1
   integer, parameter :: retain_c_store_overflow = 2
   integer, parameter :: burn_c_store_overflow = 3
-  
   integer, parameter :: store_c_overflow = burn_c_store_overflow
 
-  ! Following growth, if desired, you can prioritize reproductive
+  ! These constants define if/how growth is limited by
+  ! one of the 3 chemical species, 0 indicates there is some
+  ! degree of co limitation
+  integer, parameter  :: cnp_limited = 0
+  integer, parameter  :: c_limited = 1
+  integer, parameter  :: n_limited = 2
+  integer, parameter  :: p_limited = 3
+
+  
+  ! Following growth, if desired, you can prioritize that 
+  ! reproductive tissues get balanced CNP
   logical, parameter :: prioritize_repro_nutr_growth = .true.
   
-  ! Definitions for the regulation functions. These typically translate
-  ! a storage fraction into a scalar used to regulate resources somehow
-  
-  integer, parameter :: regulate_linear = 1    ! DEPRECATED
-  integer, parameter :: regulate_logi   = 2    ! DEPRECATED
-  integer, parameter :: regulate_CN_logi = 3   ! almost deprecated
-  integer, parameter :: regulate_CN_dfdd = 4
-
-  logical, parameter :: use_gains_in_regulator = .true.
+  ! If this parameter is true, then the fine-root l2fr optimization
+  ! scheme will remove biomass from roots without restriction if the
+  ! l2fr is getting smaller.
   logical, parameter :: use_unrestricted_contraction = .true.
 
-  integer, parameter :: pid_ratio = 1
-  integer, parameter :: pid_logratio = 2
-
-  integer, parameter :: pid_method = pid_logratio
-
-  
   ! -------------------------------------------------------------------------------------
   ! This is the core type that holds this specific
   ! plant reactive transport (PRT) module
   ! -------------------------------------------------------------------------------------
-
-
   type, public, extends(prt_vartypes) :: cnp_allom_prt_vartypes
 
   contains
@@ -498,7 +484,6 @@ contains
     end do
     
     
-    
     ! Output only boundary conditions
     c_efflux    => this%bc_out(acnp_bc_out_id_cefflux)%rval;  c_efflux = 0._r8
     n_efflux    => this%bc_out(acnp_bc_out_id_nefflux)%rval;  n_efflux = 0._r8
@@ -732,23 +717,21 @@ contains
     real(r8) :: store_c_max, store_c_act
     real(r8) :: store_nut_max, store_nut_act
     real(r8) :: n_ratio, p_ratio, np_ratio
-    real(r8) :: fnrt_c,leaf_c,store_c,struct_c,sapw_c,c_gain,c_fnrt_expand
+    real(r8) :: fnrt_c,leaf_c,store_c,struct_c,sapw_c,c_gain
+    real(r8) :: c_fnrt_expand
     real(r8) :: l2fr_delta_max
-    real(r8) :: l2fr_delta_minmax  ! Hard cap on maximum change scale*log(2)
-    real(r8) :: l2fr_delta_scale
     real(r8) :: logi_k
     real(r8) :: l2fr_mult
     real(r8) :: l2fr_delta
     real(r8) :: cn_ratio, cp_ratio
     real(r8) :: dxcdt_ratio        ! log change (derivative) of the maximum of the N/C and P/C storage ratio
-    real(r8) :: xc_ratio           ! log Maximum of the N/C and P/C storage ratio
-    real(r8), pointer :: ema_xc      ! The exponential moving average of the N-or-P versus C PID error function
-    real(r8), pointer :: xc0         ! The log of the xc ratio from previous time-step
-    real(r8), pointer :: ema_dxcdt   ! the EMA of the change in log storage ratio
+    real(r8) :: cx_logratio           ! log Maximum of the C/N and C/P storage ratio
+    real(r8), pointer :: cx_int      ! Integration of the cx_logratio 
+    real(r8), pointer :: cx0         ! The log of the cx ratio from previous time-step
+    real(r8), pointer :: ema_dcxdt   ! the EMA of the change in log storage ratio
     integer :: sup_flag
     real(r8), parameter :: max_l2fr_cgain_frac = 0.99_r8
-    real(r8), parameter :: xc_ratio_correction = 1.0_r8
-
+    real(r8), parameter :: pid_drv_wgt = 1._r8/20._r8   ! n-day smoothing (K on the derivative of PID)
     
     integer, parameter :: pid_c_function = 0
     integer, parameter :: pid_n_function = 1
@@ -756,17 +739,6 @@ contains
     integer, parameter :: pid_alogmaxnc_function = 3
     integer, parameter :: pid_ncratio_function = 4
 
-    !integer, parameter :: pid_function = pid_c_function
-    
-    ! This is the relative scaling strength of the derivative term (K_d),
-    ! compared to the combined proportion and integral term (K_p and K_i)
-    ! Note the strength of the derivative is should be about half of the period
-    ! for an oscillation when turned off, to balance the K_p and K_i terms.
-    ! This will have to be tuned in a sequence of 1, 10, 100, etc...
-    real(r8) :: pid_k_i   ! Integral scaling coefficient in PID 
-    real(r8) :: pid_k_d   ! Derivative scaling coefficient in PID
-    real(r8) :: pid_k_p   ! Proportional scaling coefficient in PID
-    
     ! If we do not have leaves out, then the relative nutrient vs carbon
     ! balancing is meaningless, just leave this routine
     if(this%GetState(leaf_organ, carbon12_element)/target_c(leaf_organ) < 0.5_r8) return
@@ -776,12 +748,10 @@ contains
     l2fr        => this%bc_inout(acnp_bc_inout_id_l2fr)%rval
     dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval
     canopy_trim =  this%bc_in(acnp_bc_in_id_ctrim)%rval
-    ema_xc      => this%bc_inout(acnp_bc_inout_id_emaxc)%rval
-    xc0         => this%bc_inout(acnp_bc_inout_id_xc0)%rval
-    ema_dxcdt   => this%bc_inout(acnp_bc_inout_id_emadxcdt)%rval
+    cx_int      => this%bc_inout(acnp_bc_inout_id_emaxc)%rval
+    cx0         => this%bc_inout(acnp_bc_inout_id_xc0)%rval
+    ema_dcxdt   => this%bc_inout(acnp_bc_inout_id_emadxcdt)%rval
     
-    if_storage_spe: if(pid_spe_controller == storage_spe) then
-       
        ! Step 1: Determine the nutrient to carbon ratio (aka relative health factor)
        ! -----------------------------------------------------------------------------------
        
@@ -801,27 +771,29 @@ contains
                this%GetState(store_organ, nitrogen_element) + &
                this%bc_inout(acnp_bc_inout_id_netdn)%rval)
 
-          select case(pid_ncratio_function) !nint(EDPftvarcon_inst%dev_arbitrary_pft(ipft)) )
+          select case(pid_ncratio_function)
           case(pid_c_function)
-             n_ratio = store_c_max/store_c_act
+             n_ratio = store_c_act/store_c_max
           case(pid_n_function)
-             n_ratio = store_nut_act/store_nut_max
+             n_ratio = store_nut_max/store_nut_act
           case(pid_minnc_function)
              if((store_nut_act/store_nut_max) > (store_c_act/store_c_max))then
-                n_ratio = (store_c_max/store_c_act)
+                n_ratio = (store_c_act/store_c_max)
              else
-                n_ratio = (store_nut_act/store_nut_max)
+                n_ratio = (store_nut_max/store_nut_act)
              end if
           case(pid_alogmaxnc_function)
              if( abs(SafeLog(store_nut_act/store_nut_max)) < abs(SafeLog(store_c_act/store_c_max))) then
-                n_ratio = (store_c_max/store_c_act)
+                n_ratio = (store_c_act/store_c_max)
              else
-                n_ratio = (store_nut_act/store_nut_max)
+                n_ratio = (store_nut_max/store_nut_act)
              end if
           case(pid_ncratio_function)
              n_ratio = (store_c_act/store_c_max)/(store_nut_act/store_nut_max)
           end select
 
+          ! This is more of a diagnostic, to see if the other process functions
+          ! are as good as the ratio of relative ratios
           cn_ratio = (store_c_act/store_c_max)/(store_nut_act/store_nut_max)
           
        else
@@ -839,22 +811,22 @@ contains
                this%GetState(store_organ, phosphorus_element) + &
                this%bc_inout(acnp_bc_inout_id_netdp)%rval)
           
-          select case(pid_ncratio_function) !nint(EDPftvarcon_inst%dev_arbitrary_pft(ipft)))
+          select case(pid_ncratio_function)
           case(pid_c_function)
-             p_ratio = store_c_max/store_c_act
+             p_ratio = store_c_act/store_c_max
           case(pid_n_function)
-             p_ratio = store_nut_act/store_nut_max
+             p_ratio = store_nut_max/store_nut_act
           case(pid_minnc_function)
              if((store_nut_act/store_nut_max) > (store_c_act/store_c_max))then
-                p_ratio = (store_c_max/store_c_act)
+                p_ratio = (store_c_act/store_c_max)
              else
-                p_ratio = (store_nut_act/store_nut_max)
+                p_ratio = (store_nut_max/store_nut_act)
              end if
           case(pid_alogmaxnc_function)
              if( abs(SafeLog(store_nut_act/store_nut_max)) < abs(SafeLog(store_c_act/store_c_max))) then
-                p_ratio = (store_c_max/store_c_act)
+                p_ratio = (store_c_act/store_c_max)
              else
-                p_ratio = (store_nut_act/store_nut_max)
+                p_ratio = (store_nut_max/store_nut_act)
              end if
           case(pid_ncratio_function)
              p_ratio = (store_c_act/store_c_max)/(store_nut_act/store_nut_max)
@@ -867,42 +839,50 @@ contains
        end if
        
        ! Use the limiting nutrient species
-       if(n_uptake_mode.eq.prescribed_n_uptake .and. p_uptake_mode.eq.prescribed_p_uptake)then
-          ema_xc = 0._r8
-          ema_dxcdt = 0._r8
-          xc0 = 0.0_r8
+       if( (n_uptake_mode.eq.prescribed_n_uptake) .and. &
+            (p_uptake_mode.eq.prescribed_p_uptake) )then
+          cx_int = 0._r8
+          ema_dcxdt = 0._r8
+          cx0 = 0.0_r8
           return
        else
 
-          xc_ratio = SafeLog(max(n_ratio,p_ratio))
+          cx_logratio = SafeLog(max(n_ratio,p_ratio))
 
-          ! If xc_ratio has just crossed zero, then
+          ! If cx_logratio has just crossed zero, then
           ! reset the integrator. This will be true if
           ! the sign of the current ratio is different than
           ! the sign of the previous
 
-          if( (xc_ratio/abs(xc_ratio) - xc0/abs(xc0)) > nearzero ) then
-             ema_xc = xc_ratio
+          if( (cx_logratio/abs(cx_logratio) - cx0/abs(cx0)) > nearzero ) then
+             cx_int = cx_logratio
           else
-             ema_xc = ema_xc + xc_ratio
+             cx_int = cx_int + cx_logratio
           end if
           
-          dxcdt_ratio = xc_ratio-xc0
+          dxcdt_ratio = cx_logratio-cx0
           
-          !ema_xc = pid_int_wgt*xc_ratio + (1._r8-pid_int_wgt)*ema_xc
-          ema_dxcdt = pid_drv_wgt*dxcdt_ratio + (1._r8-pid_drv_wgt)*ema_dxcdt
+          ema_dcxdt = pid_drv_wgt*dxcdt_ratio + (1._r8-pid_drv_wgt)*ema_dcxdt
 
-
-          !ema_xc = (1._r8/EDPftvarcon_inst%dev_arbitrary_pft(ipft))*xc_ratio + &
-          !     (1._r8-(1._r8/EDPftvarcon_inst%dev_arbitrary_pft(ipft)))*ema_xc
-
-          xc0 = xc_ratio
+          cx0 = cx_logratio
 
           
        end if
-          
-    end if if_storage_spe
+
+    fnrt_c = this%GetState(fnrt_organ, carbon12_element)
+    leaf_c = this%GetState(leaf_organ, carbon12_element)
+    store_c = this%GetState(store_organ, carbon12_element)
+    struct_c = this%GetState(struct_organ, carbon12_element)
+    sapw_c = this%GetState(sapw_organ, carbon12_element)
+
+    ! If there is overflow storage, add this to the gain
+    c_gain = this%bc_in(acnp_bc_in_id_netdc)%rval + max(0._r8,store_c-target_c(store_organ))
+
     
+    l2fr_delta = prt_params%pid_kp(ipft)*cx_logratio + &
+                 prt_params%pid_ki(ipft)*cx_int + &
+                 prt_params%pid_kd(ipft)*ema_dcxdt
+
     ! -----------------------------------------------------------------------------
     ! To decide the upper limit on expanding root growth, we perform a carbon
     ! balance. Note that if we are growing roots out more, than we have proportionaly
@@ -919,74 +899,32 @@ contains
     !                                         (target_sapw_c-actual_sapw_c) -
     !                                         (target_dead_c-actual_dead_c) -
     !                                         (target_stor_c-actual_stor_c)
-    !
     ! ------------------------------------------------------------------------------
-
-    fnrt_c = this%GetState(fnrt_organ, carbon12_element)
-    leaf_c = this%GetState(leaf_organ, carbon12_element)
-    store_c = this%GetState(store_organ, carbon12_element)
-    struct_c = this%GetState(struct_organ, carbon12_element)
-    sapw_c = this%GetState(sapw_organ, carbon12_element)
-
-    ! If there is overflow storage, add this to the gain
-    c_gain = this%bc_in(acnp_bc_in_id_netdc)%rval + max(0._r8,store_c-target_c(store_organ))
-
+    ! This is a rough estimate of the amount of carbon we will have to spend
+    ! on root expansion after we get back on allometry
     c_fnrt_expand  = max_l2fr_cgain_frac* ( c_gain - &
          max(0._r8,target_c(fnrt_organ)-fnrt_c) - &
          max(0._r8,target_c(leaf_organ)-leaf_c) - &
          max(0._r8,target_c(sapw_organ)-sapw_c) - &
          max(0._r8,target_c(struct_organ)-struct_c) - &
          max(0._r8,target_c(store_organ)-store_c))
-
-    if(pid_method==pid_logratio) then
-
-       ! When using a log based (additive) PID search method
-       ! we define 1/fnrt_adapt_tscale as delta we want
-       ! when we have a 2:1 ratio.  For instance if fnrt_adapt_tscale = 100,
-       ! then we want a scaling parameter that generates a change in l2fr of 1/100
-       ! when there is 2:1 ratio of nutrient versus carbon storage.  This
-       ! value is akin to the K_p and K_i terms in a PID controller (and
-       ! the ema timescale is the relative weight of K_p and K_i)
-       
-       l2fr_delta_scale = (1._r8/prt_params%fnrt_adapt_tscale(ipft))/log(2.0_r8)
-       
-       ! Want the derivative to be strongest when storage is most disproportionate
-       pid_k_d  = prt_params%fnrt_adapt_tscale(ipft)   !-0.1_r8
-       pid_k_i  = 0.0_r8 !EDPftvarcon_inst%dev_arbitrary_pft(ipft) !-0.0001_r8
-       pid_k_p  = EDPftvarcon_inst%dev_arbitrary_pft(ipft)  !0.0005_r8
-       
-       l2fr_delta = pid_k_p*xc_ratio + pid_k_i*ema_xc + pid_k_d*ema_dxcdt
-
-       !l2fr_delta = ema_xc/abs(ema_xc)*l2fr_int_scale + ema_dxcdt*l2fr_deriv_scale
-       
-       ! Cap growth and shrinkage to avoid large changes
-       ! (currently capping at projected rate for a 2:1 ratio
-       l2fr_delta_minmax = l2fr_delta_scale*log(20.0)
-
-       ! Don't allow more growth than we have carbon to pay for
-       !! l2fr_delta_max = min(l2fr_delta_minmax,l2fr*(c_fnrt_expand + target_c(fnrt_organ))/target_c(fnrt_organ))
-
-       
-       !! l2fr_delta = max(-l2fr_delta_minmax,min(l2fr_delta,l2fr_delta_max))
-       !!l2fr_delta = max(-l2fr_delta_minmax,min(l2fr_delta,l2fr_delta_minmax))
-
-       
-       ! Apply the delta, also, avoid generating incredibly small l2fr's,
-       ! super small l2frs will occur in plants that perpetually get almost
-       ! now carbon gain, such as newly recruited plants in a dark understory
-
-       l2fr = max(l2fr_min, l2fr + l2fr_delta )
-
-       !if((co_num==1) .or. (co_num==2)) print*,'AAX1',co_num,hlm_current_year,hlm_day_of_year, &
-       !     dbh,nplant,(store_c_act/store_c_max),cn_ratio,SafeLog(cn_ratio),l2fr
-       
-    else
-       
-       write(fates_log(),*) 'unknown PID controller method', pid_method
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-       
-    end if
     
+    !c_fnrt_expand > (l2fr+l2fr_delta)*target_c(leaf_organ) - l2fr*target_c(leaf_organ)
+    !c_fnrt_expand = (l2fr+l2fr_delta_max)*target_c(leaf_organ) - l2fr*target_c(leaf_organ)
+    !c_fnrt_expand = l2fr_delta_max*target_c(leaf_organ)
+
+    l2fr_delta_max = max(0._r8,c_fnrt_expand/target_c(leaf_organ))
+    
+    ! Apply the delta, also, avoid generating incredibly small l2fr's,
+    ! super small l2frs will occur in plants that perpetually get almost
+    ! now carbon gain, such as newly recruited plants in a dark understory
+
+    !l2fr = max(l2fr_min, l2fr + l2fr_delta)
+    
+    l2fr = max(l2fr_min, l2fr + min(l2fr_delta_max,l2fr_delta))
+    
+    !if((co_num==1) .or. (co_num==2)) print*,'AAX1',co_num,hlm_current_year,hlm_day_of_year, &
+    !     dbh,nplant,(store_c_act/store_c_max),cn_ratio,SafeLog(cn_ratio),l2fr
     
 
     ! Find the updated target fineroot biomass
@@ -1033,8 +971,6 @@ contains
       fnrt_flux_c = max(0._r8,this%variables(fnrt_c_id)%val(1)*(1._r8-nday_buffer*(years_per_day / prt_params%root_long(ipft))) - target_fnrt_c )
 
       if(fnrt_flux_c>nearzero) then
-
-          !EDPftvarcon_inst%dev_arbitrary_pft(ipft)
 
          turn_flux_c = (1._r8 - fnrt_opt_eff)*fnrt_flux_c
          store_flux_c = fnrt_opt_eff*fnrt_flux_c
@@ -1957,104 +1893,15 @@ contains
     real(r8) :: store_m_flux     ! Flux into storage [kg]
     real(r8), pointer :: dbh
     real(r8), pointer :: resp_excess
-    real(r8), pointer :: ema_xc
-    real(r8), pointer :: ema_dxcdt
-    real(r8), pointer :: xc0
-    real(r8)          :: dxcdt_ratio
     integer           :: ipft
     integer, pointer  :: limiter
     real(r8)          :: canopy_trim
-    real(r8)          :: n_ratio,p_ratio,c_ratio
-    real(r8)          :: xc_ratio,nc_ratio,pc_ratio
-    real(r8), pointer :: l2fr
 
     dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval
     canopy_trim = this%bc_in(acnp_bc_in_id_ctrim)%rval
     ipft        = this%bc_in(acnp_bc_in_id_pft)%ival
     resp_excess => this%bc_inout(acnp_bc_inout_id_resp_excess)%rval
-    l2fr        => this%bc_inout(acnp_bc_inout_id_l2fr)%rval
     limiter     => this%bc_out(acnp_bc_out_id_limiter)%ival
-    ema_xc      => this%bc_inout(acnp_bc_inout_id_emaxc)%rval
-    ema_dxcdt   => this%bc_inout(acnp_bc_inout_id_emadxcdt)%rval
-    xc0         => this%bc_inout(acnp_bc_inout_id_xc0)%rval
-    ! Update the F_NPC
-
-    ! n_ratio the ratio of n_gain/n_alloc /  c_gain/c_alloc
-    ! If either n or p uptake is in prescribed mode
-    ! set the gains to something massive. 1 kilo of pure
-    ! nutrient should be wayyy more than enough
-    
-    if(pid_spe_controller == daily_gain_ratio_spe) then
-
-       if(c_gain0<nearzero)then
-          !If carbon gains were negative, the N and P allocations
-          ! will be incredibly small, which will generate
-          ! a large ratio anyway
-          if(n_uptake_mode.eq.prescribed_n_uptake) then
-             nc_ratio = 1.0_r8
-          else
-             nc_ratio = 10._r8
-          end if
-          n_ratio=-9._r8
-          if(p_uptake_mode.eq.prescribed_p_uptake) then
-             pc_ratio = 1.0_r8
-          else
-             pc_ratio = 10._r8
-          end if
-          p_ratio=-9._r8
-       else
-
-          c_ratio = (c_gain0+c_gain)/c_gain0
-
-          if(n_uptake_mode.eq.prescribed_n_uptake) then
-             nc_ratio = 1.0_r8
-          else
-
-             ! At this point, n_gain is the combination of overflow
-             ! and efflux, so we want that to tend towards zero
-             n_ratio = (n_gain0+n_gain)/n_gain0
-             nc_ratio = max(0.1_r8,min(10._r8,n_ratio/c_ratio))
-          end if
-
-          if(p_uptake_mode.eq.prescribed_p_uptake) then
-             pc_ratio = 1.0_r8
-          else    
-             p_ratio = (p_gain0+p_gain)/p_gain0
-             pc_ratio = max(0.1_r8,min(10._r8,p_ratio/c_ratio))
-          end if
-       end if
-
-       xc_ratio = log(min(nc_ratio,pc_ratio))
-
-       dxcdt_ratio = xc_ratio-xc0
-       
-       ema_xc = pid_int_wgt*xc_ratio + (1._r8-pid_int_wgt)*ema_xc
-       ema_dxcdt = pid_drv_wgt*dxcdt_ratio + (1._r8-pid_drv_wgt)*ema_dxcdt
-       xc0 = xc_ratio
-       
-       
-    elseif( pid_spe_controller==binary_limiter_spe) then
-
-       select case(limiter)
-       case(cnp_limited)
-          xc_ratio = exp(ema_xc)
-       case(c_limited)
-          xc_ratio = 2.0_r8
-       case(n_limited,p_limited)
-          xc_ratio = 0.5_r8
-       end select
-       if((n_uptake_mode.eq.prescribed_n_uptake) .and. (p_uptake_mode.eq.prescribed_p_uptake) ) then
-          xc_ratio = 1.0_r8
-       end if
-
-       dxcdt_ratio = log(xc_ratio)-xc0
-       ema_xc = pid_int_wgt*log(xc_ratio) + (1._r8-pid_int_wgt)*ema_xc
-       ema_dxcdt = pid_drv_wgt*dxcdt_ratio + (1._r8-pid_drv_wgt)*ema_dxcdt
-       xc0 = log(xc_ratio)
-       
-    end if
-    
-   
     
     ! -----------------------------------------------------------------------------------
     ! If nutrients are still available, then we can bump up the values in the pools

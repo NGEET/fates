@@ -136,10 +136,11 @@ module PRTParametersMod
      real(r8), allocatable :: allom_zroot_k(:)              ! scale coefficient of logistic rooting depth model
      
 
-     real(r8), allocatable :: fnrt_adapt_tscale(:)          ! The time-scale over which you could see a doubling (or halving)
-                                                            ! of fineroot biomass in response to a nutrient/carbon storage disparity
-                                                            ! assuming no constraints on turnover or carbon availability (days)
-
+     ! PID controller parameters
+     real(r8), allocatable :: pid_kp(:)                     ! proportion constant in the PID controller for fine-root biomass
+     real(r8), allocatable :: pid_ki(:)                     ! integral constant in the PID controller for fine-root biomass
+     real(r8), allocatable :: pid_kd(:)                     ! derivative constant in the PID controller for fine-root biomass
+     
      real(r8), allocatable :: store_ovrflw_frac(:)          ! For a coupled nutrient enabled simulation with dynamic fine-root biomass,
                                                             ! there will be an excess of at least two of the three species C, N or P.
                                                             ! This specifies how much excess (overflow) is allowed to be retained in storage

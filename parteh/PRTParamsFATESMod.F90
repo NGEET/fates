@@ -236,11 +236,19 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_fnrt_adapt_tscale'
+    name = 'fates_cnp_pid_kd'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_store_ovrflw_frac'
+    name = 'fates_cnp_pid_ki'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_cnp_pid_kp'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_cnp_store_ovrflw_frac'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -540,11 +548,19 @@ contains
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=prt_params%allom_l2fr)
 
-    name = 'fates_fnrt_adapt_tscale'
+    name = 'fates_cnp_pid_kp'
     call fates_params%RetreiveParameterAllocate(name=name, &
-         data=prt_params%fnrt_adapt_tscale)
+         data=prt_params%pid_kp)
+
+    name = 'fates_cnp_pid_ki'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=prt_params%pid_ki)
+
+    name = 'fates_cnp_pid_kd'
+    call fates_params%RetreiveParameterAllocate(name=name, &
+         data=prt_params%pid_kd)
     
-    name = 'fates_store_ovrflw_frac'
+    name = 'fates_cnp_store_ovrflw_frac'
     call fates_params%RetreiveParameterAllocate(name=name, &
          data=prt_params%store_ovrflw_frac)
     
@@ -909,7 +925,9 @@ contains
         write(fates_log(),fmt0) 'allom_la_per_sa_int = ',prt_params%allom_la_per_sa_int
         write(fates_log(),fmt0) 'allom_la_per_sa_slp = ',prt_params%allom_la_per_sa_slp
         write(fates_log(),fmt0) 'allom_l2fr = ',prt_params%allom_l2fr
-        write(fates_log(),fmt0) 'fnrt_adapt_tscale = ',prt_params%fnrt_adapt_tscale
+        write(fates_log(),fmt0) 'pid_kp = ',prt_params%pid_kp
+        write(fates_log(),fmt0) 'pid_ki = ',prt_params%pid_ki
+        write(fates_log(),fmt0) 'pid_kd = ',prt_params%pid_kd
         write(fates_log(),fmt0) 'store_ovrflw_frac = ',prt_params%store_ovrflw_frac
         write(fates_log(),fmt0) 'allom_agb_frac = ',prt_params%allom_agb_frac
         write(fates_log(),fmt0) 'allom_d2h1 = ',prt_params%allom_d2h1

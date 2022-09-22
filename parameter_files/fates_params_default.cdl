@@ -44,9 +44,6 @@ variables:
 	char fates_prt_organ_name(fates_prt_organs, fates_string_length) ;
 		fates_prt_organ_name:units = "unitless - string" ;
 		fates_prt_organ_name:long_name = "Name of plant organs (order must match PRTGenericMod.F90)" ;
-	double fates_fnrt_adapt_tscale(fates_pft) ;
-	   fates_fnrt_adapt_tscale:units = "fraction" ;
-		fates_fnrt_adapt_tscale:long_name = "Number of days that is the shortest possible doubling period for CNP fine-root adaptation" ;
 	double fates_alloc_storage_cushion(fates_pft) ;
 		fates_alloc_storage_cushion:units = "fraction" ;
 		fates_alloc_storage_cushion:long_name = "maximum size of storage C pool, relative to maximum size of leaf C pool" ;
@@ -159,6 +156,15 @@ variables:
 	double fates_c2b(fates_pft) ;
 		fates_c2b:units = "ratio" ;
 		fates_c2b:long_name = "Carbon to biomass multiplier of bulk structural tissues" ;
+	double fates_cnp_pid_kd(fates_pft) ;
+	        fates_cnp_pid_kd:units = "unknown" ;
+		fates_cnp_pid_kd:long_name = "derivative constant of the PID controller on adaptive fine-root biomass" ;
+	double fates_cnp_pid_ki(fates_pft) ;
+	        fates_cnp_pid_ki:units = "unknown" ;
+		fates_cnp_pid_ki:long_name = "integral constant of the PID controller on adaptive fine-root biomass" ;
+	double fates_cnp_pid_kp(fates_pft) ;
+	        fates_cnp_pid_kp:units = "unknown" ;
+		fates_cnp_pid_kp:long_name = "proportional constant of the PID controller on adaptive fine-root biomass" ;
 	double fates_dev_arbitrary_pft(fates_pft) ;
 		fates_dev_arbitrary_pft:units = "unknown" ;
 		fates_dev_arbitrary_pft:long_name = "Unassociated pft dimensioned free parameter that developers can use for testing arbitrary new hypotheses" ;
@@ -505,9 +511,9 @@ variables:
 	double fates_smpso(fates_pft) ;
 		fates_smpso:units = "mm" ;
 		fates_smpso:long_name = "Soil water potential at full stomatal opening" ;
-   double fates_store_ovrflw_frac(fates_pft) ;
-	   fates_store_ovrflw_frac:units = "fraction" ;
-	   fates_store_ovrflw_frac:long_name = "size of overflow storage (CNP only) as a fraction of storage target" ;
+	double fates_cnp_store_ovrflw_frac(fates_pft) ;
+	        fates_cnp_store_ovrflw_frac:units = "fraction" ;
+	        fates_cnp_store_ovrflw_frac:long_name = "size of overflow storage (CNP only) as a fraction of storage target" ;
 	double fates_taulnir(fates_pft) ;
 		fates_taulnir:units = "fraction" ;
 		fates_taulnir:long_name = "Leaf transmittance: near-IR" ;
@@ -813,9 +819,6 @@ data:
   "sapwood                                          ",
   "structure                                        " ;
 
-  
- fates_fnrt_adapt_tscale = 30.0,30.0,30.0,30.0,30.0,30.0,30.0,30.0, 30.0,30.0,30.0,30.0;
-
  fates_alloc_storage_cushion = 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2,
     1.2, 1.2, 1.2 ;
 
@@ -906,6 +909,12 @@ data:
  fates_branch_turnover = 150, 150, 150, 150, 150, 150, 150, 150, 150, 0, 0, 0 ;
 
  fates_c2b = 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ;
+
+ fates_cnp_pid_kd = 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1 ;
+
+ fates_cnp_pid_ki =  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ;
+
+ fates_cnp_pid_kp =  5e-4, 5e-4, 5e-4, 5e-4, 5e-4, 5e-4, 5e-4, 5e-4, 5e-4, 5e-4, 5e-4, 5e-4 ;
 
  fates_dev_arbitrary_pft = _, _, _, _, _, _, _, _, _, _, _, _ ;
 
@@ -1295,7 +1304,7 @@ data:
  fates_smpso = -66000, -66000, -66000, -66000, -66000, -66000, -66000,
     -66000, -66000, -66000, -66000, -66000 ;
 
- fates_store_ovrflw_frac = 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ;
+ fates_cnp_store_ovrflw_frac = 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ;
 
  fates_taulnir = 0.25, 0.1, 0.1, 0.25, 0.25, 0.25, 0.1, 0.25, 0.25, 0.34,
     0.34, 0.34 ;
