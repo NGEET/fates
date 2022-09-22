@@ -104,9 +104,6 @@ module FatesRestartInterfaceMod
   integer :: ir_coage_co
   integer :: ir_g_sb_laweight_co
   integer :: ir_height_co
-  integer :: ir_leafmemory_co
-  integer :: ir_sapwmemory_co
-  integer :: ir_structmemory_co
   integer :: ir_nplant_co
   integer :: ir_gpp_acc_co
   integer :: ir_npp_acc_co
@@ -747,21 +744,6 @@ contains
     call this%set_restart_var(vname='fates_height', vtype=cohort_r8, &
          long_name='ed cohort - plant height', units='m', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_height_co )
-
-    call this%set_restart_var(vname='fates_leafmemory', vtype=cohort_r8, &
-         long_name='ed cohort - target leaf biomass set from prev year', &
-         units='kgC/indiv', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_leafmemory_co )
-
-    call this%set_restart_var(vname='fates_sapwmemory', vtype=cohort_r8, &
-         long_name='ed cohort - target sapwood biomass set from prev year', &
-         units='kgC/indiv', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_sapwmemory_co )
-
-    call this%set_restart_var(vname='fates_structmemory', vtype=cohort_r8, &
-         long_name='ed cohort - target structural biomass set from prev year', &
-         units='kgC/indiv', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_structmemory_co )
 
     call this%set_restart_var(vname='fates_nplant', vtype=cohort_r8, &
          long_name='ed cohort - number of plants in the cohort', &
@@ -1904,9 +1886,6 @@ contains
            rio_coage_co                => this%rvars(ir_coage_co)%r81d, &
            rio_g_sb_laweight_co        => this%rvars(ir_g_sb_laweight_co)%r81d, &
            rio_height_co               => this%rvars(ir_height_co)%r81d, &
-           rio_leafmemory_co           => this%rvars(ir_leafmemory_co)%r81d, &
-           rio_sapwmemory_co           => this%rvars(ir_sapwmemory_co)%r81d, &
-           rio_structmemory_co         => this%rvars(ir_structmemory_co)%r81d, &
            rio_nplant_co               => this%rvars(ir_nplant_co)%r81d, &
            rio_gpp_acc_co              => this%rvars(ir_gpp_acc_co)%r81d, &
            rio_npp_acc_co              => this%rvars(ir_npp_acc_co)%r81d, &
@@ -2154,11 +2133,7 @@ contains
                 rio_dbh_co(io_idx_co)          = ccohort%dbh
                 rio_coage_co(io_idx_co)        = ccohort%coage
                 rio_height_co(io_idx_co)       = ccohort%hite
-                rio_leafmemory_co(io_idx_co)   = ccohort%leafmemory
-                rio_sapwmemory_co(io_idx_co)   = ccohort%sapwmemory
-                rio_structmemory_co(io_idx_co) = ccohort%structmemory
                 rio_g_sb_laweight_co(io_idx_co)= ccohort%g_sb_laweight
-
                 rio_nplant_co(io_idx_co)       = ccohort%n
                 rio_gpp_acc_co(io_idx_co)      = ccohort%gpp_acc
                 rio_npp_acc_co(io_idx_co)      = ccohort%npp_acc
@@ -2807,9 +2782,6 @@ contains
           rio_coage_co                => this%rvars(ir_coage_co)%r81d, &
           rio_g_sb_laweight_co        => this%rvars(ir_g_sb_laweight_co)%r81d, &
           rio_height_co               => this%rvars(ir_height_co)%r81d, &
-          rio_leafmemory_co           => this%rvars(ir_leafmemory_co)%r81d, &
-          rio_sapwmemory_co           => this%rvars(ir_sapwmemory_co)%r81d, &
-          rio_structmemory_co         => this%rvars(ir_structmemory_co)%r81d, &
           rio_nplant_co               => this%rvars(ir_nplant_co)%r81d, &
           rio_gpp_acc_co              => this%rvars(ir_gpp_acc_co)%r81d, &
           rio_npp_acc_co              => this%rvars(ir_npp_acc_co)%r81d, &
@@ -3030,9 +3002,6 @@ contains
                 ccohort%coage        = rio_coage_co(io_idx_co)
                 ccohort%g_sb_laweight= rio_g_sb_laweight_co(io_idx_co)
                 ccohort%hite         = rio_height_co(io_idx_co)
-                ccohort%leafmemory   = rio_leafmemory_co(io_idx_co)
-                ccohort%sapwmemory   = rio_sapwmemory_co(io_idx_co)
-                ccohort%structmemory = rio_structmemory_co(io_idx_co)
                 ccohort%n            = rio_nplant_co(io_idx_co)
                 ccohort%gpp_acc      = rio_gpp_acc_co(io_idx_co)
                 ccohort%npp_acc      = rio_npp_acc_co(io_idx_co)

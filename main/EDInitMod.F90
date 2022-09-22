@@ -852,9 +852,6 @@ contains
              call bstore_allom(temp_cohort%dbh, pft, temp_cohort%crowndamage, &
                   temp_cohort%canopy_trim, c_store)
 
-             temp_cohort%leafmemory = 0._r8
-             temp_cohort%sapwmemory = 0._r8
-             temp_cohort%structmemory = 0._r8
              cstatus = leaves_on
 
              stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(temp_cohort%pft)
@@ -863,9 +860,6 @@ contains
 
                 if( prt_params%season_decid(pft) == itrue .and. &
                     any(site_in%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
-                   temp_cohort%leafmemory = c_leaf
-                   temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
-                   temp_cohort%structmemory = c_struct * stem_drop_fraction
                    c_leaf = 0._r8
                    c_sapw = (1.0_r8-stem_drop_fraction) * c_sapw
                    c_struct  = (1.0_r8-stem_drop_fraction) * c_struct
@@ -874,9 +868,6 @@ contains
 
                 if ( prt_params%stress_decid(pft) == itrue .and. &
                      any(site_in%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff])) then
-                   temp_cohort%leafmemory = c_leaf
-                   temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
-                   temp_cohort%structmemory = c_struct * stem_drop_fraction
                    c_leaf = 0._r8
                    c_sapw = (1.0_r8-stem_drop_fraction) * c_sapw
                    c_struct  = (1.0_r8-stem_drop_fraction) * c_struct
@@ -958,10 +949,8 @@ contains
              call prt_obj%CheckInitialConditions()
              
              call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, &
-                  temp_cohort%coage, temp_cohort%dbh, prt_obj, temp_cohort%leafmemory,&
-                  temp_cohort%sapwmemory, temp_cohort%structmemory, cstatus, rstatus,        &
-                  temp_cohort%canopy_trim, temp_cohort%c_area, undamaged_class, &
-                  temp_cohort%crowndamage, site_in%spread, bc_in)
+                  temp_cohort%coage, temp_cohort%dbh, prt_obj, cstatus, rstatus,        &
+                  temp_cohort%canopy_trim, temp_cohort%c_area,1,temp_cohort%crowndamage, site_in%spread, bc_in)
 
              deallocate(temp_cohort) ! get rid of temporary cohort
 

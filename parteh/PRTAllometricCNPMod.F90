@@ -389,11 +389,12 @@ contains
     real(r8) :: sum_c ! error checking sum
 
 
-    ! We do not use damage with parteh_mode 2, so just
-    ! do everything in phase 1 and short-circuit the phase 2 call
-    ! ----------------------------------------------------------
-    if(phase.eq.2) return
-
+    ! Right now FATES CNP is not compatable with tree damage
+    ! only simulate calls for phase 1 (ie call this once)
+    ! Compatability will be enabled with PR #880
+    
+    if(phase>1)return
+    
 
     ! integrator variables
 
@@ -511,6 +512,7 @@ contains
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
+     
     ! ===================================================================================
     ! Step 2. Grow out the stature of the plant by allocating to tissues beyond
     ! current targets. 
@@ -626,7 +628,7 @@ contains
 
   ! =====================================================================================
   
-  subroutine CNPPrioritizedReplacement(this, & 
+  subroutine CNPPrioritizedReplacement(this, &
        maint_r_deficit, c_gain, n_gain, p_gain, &
        state_c, state_n, state_p, target_c)
 
@@ -698,8 +700,11 @@ contains
     ! If it is, then we track the variable ids associated with that pool for each CNP
     ! species.  It "should" work fine if there are NO priority=1 pools...
     ! -----------------------------------------------------------------------------------
+
+    
     
     curpri_org(:) = fates_unset_int    ! reset "current-priority" organ ids
+
     i = 0
     do ii = 1, num_organs
        
@@ -843,9 +848,8 @@ contains
        state_c(store_id)%ptr    = state_c(store_id)%ptr +               store_c_flux
        
    
-   end if
+    end if
    
-    
     ! -----------------------------------------------------------------------------------
     !  If carbon is still available, allocate to remaining high
     !        carbon balance is guaranteed to be >=0 beyond this point
