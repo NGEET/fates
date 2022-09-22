@@ -282,7 +282,7 @@ module PRTGenericMod
                                                         ! examples are carbon12_element
                                                         ! nitrogen_element, etc.
 
-  integer, public :: element_pos(num_organ_types)       ! This is the reverse lookup
+  integer, public :: element_pos(num_element_types)     ! This is the reverse lookup
                                                         ! for element types. Pick an element
                                                         ! global index, and it gives you
                                                         ! the position in the element_list

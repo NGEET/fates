@@ -11,9 +11,8 @@ module FatesIODimensionsMod
     character(*), parameter, public :: levcacls = 'fates_levcacls'    ! matches histFileMod
    
     character(*), parameter, public  :: cohort = 'cohort'           ! matches clm_varcon
-    character(*), parameter, public  :: patch = 'patch'             ! matches clm_varcon
     character(*), parameter, public  :: column = 'column'           ! matches clm_varcon
-    character(*), parameter, public  :: levgrnd = 'levgrnd'         ! matches clm_varcon
+    character(*), parameter, public  :: levsoil = 'levsoi'          ! matches clm_varcon
     character(*), parameter, public  :: levscag = 'fates_levscag'      ! matches histFileMod
     character(*), parameter, public  :: levscagpft = 'fates_levscagpf' ! matches histFileMod
     character(*), parameter, public  :: levagepft = 'fates_levagepft'  ! matches histFileMod
@@ -28,22 +27,23 @@ module FatesIODimensionsMod
     character(*), parameter, public  :: levcnlf = 'fates_levcnlf'      ! matches histFileMod
     character(*), parameter, public  :: levcnlfpft = 'fates_levcnlfpf' ! matches histFileMod
     character(*), parameter, public  :: levagefuel = 'fates_levagefuel' ! matches histFileMod
+
     character(*), parameter, public  :: levclscpf = 'fates_levclscpf'   
+    character(*), parameter, public  :: levcdsc = 'fates_levcdsc' ! matches histFileMod
+    character(*), parameter, public  :: levcdpf = 'fates_levcdpf' ! matches histFileMod
+    character(*), parameter, public  :: levcdam = 'fates_levcdam' ! matches histFileMod
+    
     character(*), parameter, public  :: levelem =  'fates_levelem'
     character(*), parameter, public  :: levelpft = 'fates_levelpft'
     character(*), parameter, public  :: levelcwd = 'fates_levelcwd'
     character(*), parameter, public  :: levelage = 'fates_levelage'
     
-    ! patch = This is a structure that records where FATES patch boundaries
-    ! on each thread point to in the host IO array, this structure
-    ! is allocated by number of threads
-
     ! column = This is a structure that records where FATES column boundaries
     ! on each thread point to in the host IO array, this structure
     ! is allocated by number of threads
 
-    ! ground = This is a structure that records the boundaries for the
-    ! ground level (includes rock) dimension
+    ! levsoil = This is a structure that records the boundaries for the
+    ! soil level (includes rock) dimension
 
     ! levscpf = This is a structure that records the boundaries for the
     ! number of size-class x pft dimension
@@ -100,16 +100,22 @@ module FatesIODimensionsMod
     ! levelcwd = This records the boundaries for element x cwd
     ! levelage = This records the boundaries for element x age
 
+    ! levcdsc = This is a structure that records the boundaries for the
+    ! number of crown damage x size classes dimension
 
+    ! levcdpf = This is a structure that records the boundaries for the
+    ! number of crown damage x size classes x pft dimension
+
+    ! levcdam = This is the structure that records the boundaries for the
+    ! number of crown damage classes dimension
+    
     type, public :: fates_bounds_type
-       integer :: patch_begin
-       integer :: patch_end
        integer :: cohort_begin
        integer :: cohort_end
        integer :: column_begin          ! FATES does not have a "column" type
        integer :: column_end            ! we call this a "site" (rgk 11-2016)
-       integer :: ground_begin
-       integer :: ground_end
+       integer :: soil_begin
+       integer :: soil_end
        integer :: sizeage_class_begin
        integer :: sizeage_class_end
        integer :: sizeagepft_class_begin
@@ -140,6 +146,12 @@ module FatesIODimensionsMod
        integer :: cnlf_end
        integer :: cnlfpft_begin
        integer :: cnlfpft_end
+       integer :: cdsc_begin
+       integer :: cdsc_end
+       integer :: cdpf_begin
+       integer :: cdpf_end
+       integer :: cdam_begin
+       integer :: cdam_end
        integer :: elem_begin
        integer :: elem_end
        integer :: elpft_begin

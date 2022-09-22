@@ -83,8 +83,6 @@ module EDMainMod
   use FatesPlantHydraulicsMod  , only : UpdateSizeDepRhizHydProps
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
   use FatesAllometryMod        , only : h_allom,tree_sai,tree_lai
-  use FatesAllometryMod        , only : bleaf,bstore_allom
-  use FatesPlantHydraulicsMod  , only : UpdateSizeDepRhizHydStates
   use EDLoggingMortalityMod    , only : IsItLoggingTime
   use EDPatchDynamicsMod       , only : get_frac_site_primary
   use FatesGlobals             , only : endrun => fates_endrun
@@ -153,7 +151,7 @@ contains
     integer :: co_num
     !-----------------------------------------------------------------------
 
-    if ( hlm_masterproc==itrue ) write(fates_log(),'(A,I4,A,I2.2,A,I2.2)') 'FATES Dynamics: ',&
+    if (debug .and.( hlm_masterproc==itrue)) write(fates_log(),'(A,I4,A,I2.2,A,I2.2)') 'FATES Dynamics: ',&
           hlm_current_year,'-',hlm_current_month,'-',hlm_current_day
 
     ! Consider moving this towards the end, because some of these
@@ -265,15 +263,10 @@ contains
     ! Patch dynamics sub-routines: fusion, new patch creation (spwaning), termination.
     !*********************************************************************************
 
+    ! turn off patch dynamics if SP or ST3 modes in use
     do_patch_dynamics = itrue
     if(hlm_use_ed_st3.eq.itrue .or. &
-       hlm_use_nocomp.eq.itrue .or. &
        hlm_use_sp.eq.itrue)then
-      ! n.b. this is currently set to false to get around a memory leak that occurs
-      ! when we have multiple patches for each PFT.
-      ! when this is fixed, we will need another option for 'one patch per PFT' vs 'multiple patches per PFT'
-      ! hlm_use_sp check provides cover for potential changes in nocomp logic (nocomp required by spmode, but
-      ! not the other way around).
        do_patch_dynamics = ifalse
     end if
 
@@ -292,7 +285,7 @@ contains
        ! density --> node radii and volumes)
        if( (hlm_use_planthydro.eq.itrue) .and. do_growthrecruiteffects) then
           call UpdateSizeDepRhizHydProps(currentSite, bc_in)
-          call UpdateSizeDepRhizHydStates(currentSite, bc_in)
+          !! call UpdateSizeDepRhizHydStates(currentSite, bc_in) ! keeping if re-implemented (RGK 12-2021)
        end if
 
        ! SP has changes in leaf carbon but we don't expect them to be in balance.
@@ -369,6 +362,7 @@ contains
        if( currentPatch%age  <  0._r8 )then
           write(fates_log(),*) 'negative patch age?',currentPatch%age, &
                currentPatch%patchno,currentPatch%area
+          call endrun(msg=errMsg(sourcefile, __LINE__))
        endif
 
        ! add age increment to secondary forest patches as well
@@ -532,6 +526,7 @@ contains
              currentCohort%coage = currentCohort%coage + hlm_freq_day
              if(currentCohort%coage < 0.0_r8)then
                 write(fates_log(),*) 'negative cohort age?',currentCohort%coage
+                call endrun(msg=errMsg(sourcefile, __LINE__))
              end if
 
              ! update cohort age class and age x pft class
@@ -828,7 +823,6 @@ contains
                 write(fates_log(),*) 'BG CWD (by layer): ', sum(litt%bg_cwd,dim=1)
                 write(fates_log(),*) 'leaf litter:',sum(litt%leaf_fines)
                 write(fates_log(),*) 'root litter (by layer): ',sum(litt%root_fines,dim=1)
-                write(fates_log(),*) 'dist mode: ',currentPatch%disturbance_mode
                 write(fates_log(),*) 'anthro_disturbance_label: ',currentPatch%anthro_disturbance_label
                 write(fates_log(),*) 'use_this_pft: ', currentSite%use_this_pft(:)
                 if(print_cohorts)then

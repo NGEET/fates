@@ -24,7 +24,7 @@ from scipy.io import netcdf
 # =======================================================================================
 
 pft_dim_name = 'fates_pft'
-prt_dim_name = 'fates_prt_organs'
+prt_dim_name = 'fates_plant_organs'
 hydro_dim_name = 'fates_hydr_organs'
 litt_dim_name = 'fates_litterclass'
 string_dim_name = 'fates_string_length'

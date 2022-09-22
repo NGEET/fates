@@ -6,6 +6,8 @@ module EDMortalityFunctionsMod
 
    use FatesConstantsMod     , only : r8 => fates_r8
    use FatesGlobals          , only : fates_log
+   use FatesGlobals          , only : endrun => fates_endrun
+   use FatesGlobals          , only : fates_log
    use EDPftvarcon           , only : EDPftvarcon_inst
    use EDTypesMod            , only : ed_cohort_type
    use EDTypesMod            , only : ed_site_type
@@ -21,13 +23,19 @@ module EDMortalityFunctionsMod
    use EDParamsMod           , only : fates_mortality_disturbance_fraction
    use PRTGenericMod,          only : store_organ
    use PRTGenericMod,          only : carbon12_element
+   use shr_log_mod           , only : errMsg => shr_log_errMsg
 
    implicit none
    private
    
+
+   logical, parameter :: debug = .false.
+   character(len=*), parameter, private :: sourcefile = &
+        __FILE__
    
    public :: mortality_rates
    public :: Mortality_Derivative
+   public :: ExemptTreefallDist
    
    
    ! ============================================================================
@@ -162,6 +170,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     else
        write(fates_log(),*) 'dbh problem in mortality_rates', &
             cohort_in%dbh,cohort_in%pft,cohort_in%n,cohort_in%canopy_layer
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
     !-------------------------------------------------------------------------------- 
     !    Mortality due to cold and freezing stress (frmort), based on ED2 and:           
@@ -266,18 +275,50 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
             * currentCohort%n
     else
 
-      
-    
        ! Mortality from logging in the canopy is ONLY disturbance generating, don't
        ! update number densities via non-disturbance inducing death
-       currentCohort%dndt= -(1.0_r8-fates_mortality_disturbance_fraction) &
-            * (cmort+hmort+bmort+frmort+smort+asmort) * &
-            currentCohort%n
+
+       ! for plants whose death is not considered disturbance (i.e. grasses),
+       ! need to include all of their mortality here rather than part of it here
+       ! and part in disturbance routine.
+
+       currentCohort%dndt= -(cmort+hmort+bmort+frmort+smort+asmort) * currentCohort%n
+       if ( .not. ExemptTreefallDist(currentCohort)) then
+          currentCohort%dndt = (1.0_r8-fates_mortality_disturbance_fraction) * currentCohort%dndt
+       endif
 
     endif
 
     return
 
  end subroutine Mortality_Derivative
+
+ ! ============================================================================
+
+ function ExemptTreefallDist(ccohort) result(is_exempt)
+
+   use PRTParametersMod      , only : prt_params
+
+   ! ============================================================================
+   !  Determine whether or not to consider some fraction of a cohort's crown
+   !  area as disturbed patch area when individuals of that cohort die.
+   ! ============================================================================
+
+   ! Arguments
+   type(ed_cohort_type),intent(in), target :: ccohort
+
+   logical :: is_exempt ! if true, then treat all mortality from this cohort as non-disturbance-generating
+
+   !! current logic is only to exempt non-woody plants
+
+   if ( prt_params%woody(ccohort%pft) == ifalse ) then
+      is_exempt = .true.
+   else
+      is_exempt = .false.
+   endif
+
+   return
+
+ end function ExemptTreefallDist
 
 end module EDMortalityFunctionsMod

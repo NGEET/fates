@@ -53,6 +53,7 @@ module FatesSoilBGCFluxMod
   use FatesInterfaceTypesMod, only    : hlm_nu_com
   use FatesInterfaceTypesMod, only    : hlm_parteh_mode
   use FatesInterfaceTypesMod, only    : hlm_use_ch4
+  use FatesInterfaceTypesMod, only    : hlm_decomp
   use FatesConstantsMod , only : prescribed_p_uptake
   use FatesConstantsMod , only : prescribed_n_uptake
   use FatesConstantsMod , only : coupled_p_uptake
@@ -199,7 +200,8 @@ contains
     nsites = size(sites,dim=1)
 
     ! We can exit if this is a c-only simulation
-    if(hlm_parteh_mode.eq.prt_carbon_allom_hyp) then
+    select case (hlm_parteh_mode)
+    case (prt_carbon_allom_hyp)
        ! These can now be zero'd
        do s = 1, nsites
           bc_in(s)%plant_nh4_uptake_flux(:,:) = 0._r8
@@ -207,7 +209,7 @@ contains
           bc_in(s)%plant_p_uptake_flux(:,:) = 0._r8
        end do
        return
-    end if
+    end select
 
     do s = 1, nsites
 
@@ -525,7 +527,7 @@ contains
 
              if(trim(hlm_nu_com).eq.'ECA')then
 
-                ! We use a 3 parameter exponential attenuation function to estimate decomposer biomass
+                ! We use a 2 parameter exponential attenuation function to estimate decomposer biomass
                 ! The parameter EDPftvarcon_inst%decompmicc(pft) is the maximum amount found at depth
                 ! decompmicc_zmax, and the profile attenuates with strength lambda
 
@@ -659,7 +661,6 @@ contains
     
     use FatesInterfaceTypesMod, only : bc_in_type, bc_out_type
     use FatesInterfaceTypesMod, only : hlm_use_vertsoilc
-    use FatesInterfaceTypesMod, only : hlm_numlevgrnd
     use FatesConstantsMod, only : itrue
     use FatesGlobals, only : endrun => fates_endrun
     use EDParamsMod , only : ED_val_cwd_flig, ED_val_cwd_fcel
@@ -675,7 +676,7 @@ contains
 
     ! !LOCAL VARIABLES:
     type (ed_patch_type),  pointer :: currentPatch
-    type (ed_cohort_type), pointer :: currentCohort
+    type (ed_cohort_type), pointer :: ccohort
     real(r8), pointer              :: flux_cel_si(:)
     real(r8), pointer              :: flux_lab_si(:)
     real(r8), pointer              :: flux_lig_si(:)
@@ -683,7 +684,7 @@ contains
                                                       ! element's root efflux                                         
     type(litter_type), pointer     :: litt
      
-    real(r8) :: surface_prof(1:hlm_numlevgrnd) ! this array is used to distribute
+    real(r8) :: surface_prof(bc_in%nlevsoil) ! this array is used to distribute
                                                ! fragmented litter on the surface
                                                ! into the soil/decomposition
                                                ! layers. It exponentially decays
@@ -699,6 +700,21 @@ contains
     integer  :: ic               ! CWD type index
     integer  :: ipft             ! PFT index
 
+    ! The following are used for the MIMICS ligC/N boundary condition
+    real(r8) :: leaf_c, sapw_c   ! leaf and sapwood carbon, per plant [kg]
+    real(r8) :: fnrt_c, struct_c ! fineroot and struct carbon, per plant [kg]
+    real(r8) :: leaf_n, sapw_n   ! leaf and sapwood N, per plant [kg]
+    real(r8) :: fnrt_n, struct_n ! fineroot and struct N, per plant [kg]
+    real(r8) :: sum_ligC         ! Flux of lignin C [kg/m2/s]
+    real(r8) :: sum_N            ! Flux of all N [kg/m2/s]
+    real(r8) :: tot_leaf_c       ! total leaf C of all cohorts in patch [kg/m2]
+    real(r8) :: tot_leaf_n       ! total leaf N of all cohorts in patch [kg/m2]
+    real(r8) :: tot_fnrt_c       ! total fineroot C of all cohorts in patch [kg/m2]
+    real(r8) :: tot_fnrt_n       ! total fineroot N of all cohorts in patch [kg/m2]
+    real(r8) :: tot_wood_c       ! total wood C of all cohorts in patch [kg/m2]
+    real(r8) :: tot_wood_n       ! total wood N of all cohorts in patch [kg/m2]
+    
+    
     ! NOTE(rgk, 201705) this parameter was brought over from SoilBiogeochemVerticalProfile
     ! how steep profile is for surface components (1/ e_folding depth) (1/m) 
     real(r8),  parameter :: surfprof_exp  = 10.
@@ -731,12 +747,12 @@ contains
     do id = 1,nlev_eff_decomp
        surface_prof(id) = surface_prof(id)/surface_prof_tot
     end do
-
+    
     ! Loop over the different elements. 
     do el = 1, num_elements
        
        ! Zero out the boundary flux arrays
-       ! Make a pointer to the cellulose, labile and lignan
+       ! Make a pointer to the cellulose, labile and lignin
        ! flux partitions.
        
        select case (element_list(el))
@@ -780,6 +796,7 @@ contains
 
                 flux_lig_si(id) = flux_lig_si(id) + & 
                      litt%ag_cwd_frag(ic) * ED_val_cwd_flig * area_frac * surface_prof(id)
+                
              end do
 
              do j = 1, nlev_eff_soil
@@ -795,6 +812,9 @@ contains
              end do
           end do
 
+
+
+          
           ! leaf and fine root fragmentation fluxes
 
           do id = 1,nlev_eff_decomp
@@ -856,6 +876,102 @@ contains
 
     end do  ! do elements
 
+    ! If we are coupled with MIMICS, then we need some assessment of litter quality
+    ! ie ligC/totalN.  If we are not tracking N in the litter flux (ie C-only model)
+    ! then we need to approximate this by estimating the mean C:N ratios of each
+    ! plant organ, and mulitplying that by the different C Fluxes to get a total
+    ! approximate N flux.  Note, in C-only, we will not capture any re-absorption.
+    
+    if(trim(hlm_decomp).eq.'MIMICS') then
+
+       ! If we track nitrogen (ie cnp or other) then
+       ! we diagnose the c-lig/n ratio directly from the pools
+       if(element_pos(nitrogen_element)>0) then
+
+          ! Sum totalN fluxes over depth [g/m2]
+          sum_N = sum((bc_out%litt_flux_cel_n_si(1:nlev_eff_soil) + &
+               bc_out%litt_flux_lig_n_si(1:nlev_eff_soil) + &
+               bc_out%litt_flux_lab_n_si(1:nlev_eff_soil)) * &
+               bc_in%dz_sisl(1:nlev_eff_soil))
+          
+       else
+          
+          ! In this case (Carbon Only), we use the stoichiometry parameters to estimate
+          ! the C:N of live vegetation and the seedbank, and use that
+          ! as a proxy for the C:N of the litter flux
+
+          sum_N = 0._r8
+          
+          currentPatch => csite%oldest_patch
+          do while (associated(currentPatch))
+             
+             litt       => currentPatch%litter(element_pos(carbon12_element))
+             area_frac  = currentPatch%area*area_inv
+
+             tot_leaf_c = 0._r8
+             tot_leaf_n = 0._r8
+             tot_fnrt_c = 0._r8
+             tot_fnrt_n = 0._r8
+             tot_wood_c = 0._r8
+             tot_wood_n = 0._r8
+
+             ccohort => currentPatch%tallest
+             do while (associated(ccohort))
+                ipft = ccohort%pft
+                leaf_c  = ccohort%n * area_inv * ccohort%prt%GetState(leaf_organ, carbon12_element)
+                sapw_c  = ccohort%n * area_inv * ccohort%prt%GetState(sapw_organ, carbon12_element)
+                fnrt_c  = ccohort%n * area_inv * ccohort%prt%GetState(fnrt_organ, carbon12_element)
+                struct_c = ccohort%n * area_inv * ccohort%prt%GetState(struct_organ, carbon12_element)
+                leaf_n = leaf_c * prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(leaf_organ))
+                sapw_n = sapw_c * prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(sapw_organ))
+                fnrt_n = fnrt_c * prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(fnrt_organ))
+                struct_n = struct_c * prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(struct_organ))
+                tot_leaf_c = tot_leaf_c + leaf_c
+                tot_leaf_n = tot_leaf_n + leaf_n
+                tot_fnrt_c = tot_fnrt_c + fnrt_c
+                tot_fnrt_n = tot_fnrt_n + fnrt_n
+                tot_wood_c = tot_wood_c + sapw_c + struct_c
+                tot_wood_n = tot_wood_n + sapw_n + struct_n
+                ccohort => ccohort%shorter
+             end do
+
+             if(tot_wood_c>nearzero) then
+                sum_N = sum_N + area_frac*sum(litt%ag_cwd_frag)*(tot_wood_n/tot_wood_c)
+                sum_N = sum_N + area_frac*sum(litt%bg_cwd_frag)*(tot_wood_n/tot_wood_c)
+             end if
+             if(tot_leaf_c>nearzero)then
+                sum_N = sum_N + area_frac*sum(litt%leaf_fines_frag)*(tot_leaf_n / tot_leaf_c)
+             end if
+             if(tot_fnrt_c>nearzero)then
+                sum_N = sum_N + area_frac*sum(litt%root_fines_frag)*(tot_fnrt_n / tot_fnrt_c)
+             end if
+             do ipft = 1,numpft
+                sum_N = sum_N + area_frac * prt_params%nitr_recr_stoich(ipft) * &
+                     (litt%seed_decay(ipft) + litt%seed_germ_decay(ipft))
+             end do
+
+             currentPatch => currentPatch%younger
+          end do
+          
+          ! Convert from kg/m2/day -> g/m2/s
+          sum_N = sum_N * days_per_sec * g_per_kg
+          
+       end if
+
+       ! Sum over layers and multiply by depth g/m3/s * m -> g/m2/s
+       sum_ligC = sum(bc_out%litt_flux_lig_c_si(1:nlev_eff_soil) * bc_in%dz_sisl(1:nlev_eff_soil))
+       
+       if(sum_N>nearzero)then
+          bc_out%litt_flux_ligc_per_n = sum_ligC / sum_N
+       else
+          bc_out%litt_flux_ligc_per_n = 0._r8
+       end if
+
+    end if
+
+
+
+    
     return
   end subroutine FluxIntoLitterPools
 
