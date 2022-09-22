@@ -15,7 +15,8 @@ module FatesParameterDerivedMod
   use FatesInterfaceTypesMod,     only : nleafage
   use FatesInterfaceTypesMod,     only : nlevdamage
   use FatesGlobals     ,     only : fates_log
-  
+  use EDParamsMod      ,     only : ED_val_history_damage_bin_edges
+
   implicit none
   private
 
@@ -141,7 +142,7 @@ contains
     integer  :: ft                ! pft index
     integer  :: i                 ! crowndamage index
     real(r8) :: damage_frac       ! damage fraction 
-   
+    real(r8) :: class_widths      ! widths of each damage class
    
     call this%InitAllocateDamageTransitions(numpft)
     
@@ -153,12 +154,19 @@ contains
 
           ! zero the column
           this%damage_transitions(i,:,ft) = 0._r8
-          ! 1 - damage rate stay the same
+          ! damage rate stays the same 
           this%damage_transitions(i,i,ft) = 1.0_r8 - damage_frac
 
+          ! class widths
+          ! append 100 to ED_val_history_damage_bin_edges
+          ! gets class widths (something like below)
+          !class_widths =  ED_val_history_damage_bin_edges(2:nlevdamage) - &
+           !    ED_val_history_damage_bin_edges(1:(nlevdamage-1))
+
           if(i < nlevdamage) then
-             ! fraction damaged get evenly split between higher damage classes
-             this%damage_transitions(i,i+1:nlevdamage,ft) = damage_frac/(nlevdamage - i)
+             ! fraction damaged get split according to class width
+!             this%damage_transitions(i,i+1:nlevdamage,ft) = damage_frac/ &
+ !                 sum(class_widths(i+1:nlevdamage)) *  class_widths(i+1:nlevdamage)
           end if
           ! Make sure it sums to one - they have to go somewhere
           this%damage_transitions(i, :, ft) = this%damage_transitions(i, :, ft)/SUM(this%damage_transitions(i, :, ft))

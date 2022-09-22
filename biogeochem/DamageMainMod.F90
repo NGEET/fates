@@ -10,6 +10,7 @@ module DamageMainMod
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   use EDPftvarcon           , only : EDPftvarcon_inst
   use EDParamsMod           , only : damage_event_code
+  use EDParamsMod           , only : ED_val_history_damage_bin_edges
   use EDTypesMod            , only : ed_site_type
   use EDTypesMod            , only : ed_patch_type
   use EDTypesMod            , only : ed_cohort_type
@@ -88,7 +89,7 @@ contains
        end if
 
     else if(icode .eq. 3) then
-       ! Damage event every day - not sure this is recommended as it will result in a very large
+       ! Damage event every day - this is not recommended as it will result in a very large
        ! number of cohorts 
        damage_time = .true.
 
@@ -100,6 +101,7 @@ contains
 
     else if(icode < 0 .and. icode > -366) then
        ! Damage event every year on a specific day of the year
+       ! specified as negative day of year
        if(hlm_day_of_year .eq. abs(icode) ) then
           damage_time = .true.
        end if
@@ -120,7 +122,7 @@ contains
        ! Bad damage event flag
        write(fates_log(),*) 'An invalid damage code was specified in fates_params'
        write(fates_log(),*) 'Check DamageMainMod.F90:IsItDamageTime()'
-       write(fates_log(),*) 'for a breakdown of the valide codes and change'
+       write(fates_log(),*) 'for a breakdown of the valid codes and change'
        write(fates_log(),*) 'fates_damage_event_code in the file accordingly.'
        write(fates_log(),*) 'exiting'
        call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -140,9 +142,9 @@ contains
   subroutine GetDamageFrac(cc_cd, nc_cd, pft, dist_frac)
 
 
-    ! given current cohort damage class find the fraction of individuals
+    ! Given the current cohort damage class find the fraction of individuals
     ! going to the new damage class.
-    ! Consults a look up table of transitions from param derived. 
+    ! This subroutine consults a look up table of transitions from param derived. 
     
     ! USES
     use FatesInterfaceTypesMod, only : nlevdamage
@@ -153,12 +155,12 @@ contains
     ! ARGUMENTS
     integer, intent(in) :: cc_cd                   ! current cohort crown damage
     integer, intent(in) :: nc_cd                   ! new cohort crown damage
-    integer, intent(in) :: pft
-    real(r8), intent(out) :: dist_frac             ! probability of current cohort moving to new damage level
+    integer, intent(in) :: pft                     ! plant functional type
+    real(r8), intent(out) :: dist_frac             ! probability of current cohort moving to
+                                                   ! new damage level
 
     dist_frac = param_derived%damage_transitions(cc_cd, nc_cd, pft) 
     
-
   end subroutine GetDamageFrac
 
   !-------------------------------------------------------    
@@ -166,22 +168,17 @@ contains
   subroutine GetCrownReduction(crowndamage, crown_reduction)
 
     !------------------------------------------------------------------                                                                     
-    ! This function takes the crown damage class of a cohort (integer)
-    ! and returns the fraction of the crown that is lost
-    ! Since crowndamage class = 1 means no damage, we subtract one     
-    ! before multiplying by 0.2                                    
-    ! Therefore, first damage class is 20% loss of crown, second 40% etc.                                                                   
+    ! This subroutine takes the crown damage class of a cohort (integer)
+    ! and returns the fraction of the crown that is lost.                                                                  
     !-------------------------------------------------------------------                                                                    
-    use FatesInterfaceTypesMod     , only : nlevdamage
 
-    integer(i4), intent(in)   :: crowndamage
-    real(r8),    intent(out)  :: crown_reduction
+    integer(i4), intent(in)   :: crowndamage        ! crown damage class of the cohort
+    real(r8),    intent(out)  :: crown_reduction    ! fraction of crown lost from damage
 
-    ! local variables
-    real(r8) :: class_width
-
-    class_width = 1.0_r8/nlevdamage
-    crown_reduction = min(1.0_r8, (real(crowndamage,r8) - 1.0_r8) * class_width)
+    crown_reduction = ED_val_history_damage_bin_edges(crowndamage)/100.0_r8
+    
+    write(fates_log(),*) 'JN crowndamage', crowndamage
+    write(fates_log(),*) 'JN crownreduction', crown_reduction
 
     return
   end subroutine GetCrownReduction
@@ -192,30 +189,36 @@ contains
 
   subroutine GetDamageMortality(crowndamage,pft, dgmort)
 
-    use FatesInterfaceTypesMod     , only : nlevdamage
+    !------------------------------------------------------------------
+    ! This subroutine calculates damage-dependent mortality. 
+    ! Not all damage related mortality will be captured by mechanisms in FATES
+    ! (e.g. carbon starvation mortality). Damage could also lead to damage 
+    ! due to unrepresented mechanisms such as pathogens or increased 
+    ! vulnerability to wind throws. This function captures mortality due to 
+    ! those unrepresented mechanisms. 
+    !------------------------------------------------------------------
+
+
+    use FatesInterfaceTypesMod     , only : nlevdamage           
     use EDPftvarcon                , only : EDPftvarcon_inst
     
-    integer(i4), intent(in) :: crowndamage
-    integer(i4), intent(in) :: pft
-    real(r8),    intent(out) :: dgmort
+    integer(i4), intent(in) :: crowndamage       ! crown damage class of the cohort
+    integer(i4), intent(in) :: pft               ! plant functional type
+    real(r8),    intent(out) :: dgmort           ! mortality directly associated with damage
 
     ! local variables
-    real(r8) :: damage_mort_p1
-    real(r8) :: damage_mort_p2
-    real(r8) :: class_width
-    real(r8) :: crown_loss
-    
-    class_width = 1.0_r8/real(nlevdamage,r8)
-    
-    ! parameter to determine slope of exponential
+    real(r8) :: damage_mort_p1       ! inflection  point of the damage mortalty relationship
+    real(r8) :: damage_mort_p2       ! rate parameter for the damage mortality relationship
+    real(r8) :: crown_loss           ! fraction of  crown lost 
+        
     damage_mort_p1 = EDPftvarcon_inst%damage_mort_p1(pft)
     damage_mort_p2 = EDPftvarcon_inst%damage_mort_p2(pft)
 
     ! make damage mortality a function of crownloss and not crowndamage
     ! class so that it doesn't need to be re-parameterised if the number
     ! of damage classes change.
-    crown_loss = min(1.0_r8, (real(crowndamage,r8) - 1.0_r8) * class_width)
-    
+    crown_loss = ED_val_history_damage_bin_edges(crowndamage)/ 100.0_r8
+
     if (crowndamage .eq. 1 ) then
        dgmort = 0.0_r8
     else
