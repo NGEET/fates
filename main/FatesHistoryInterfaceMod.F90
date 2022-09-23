@@ -1764,7 +1764,7 @@ end subroutine flush_hvars
     integer  :: height_bin_max, height_bin_min   ! which height bin a given cohort's canopy is in
     integer  :: i_heightbin  ! iterator for height bins
     integer  :: el           ! Loop index for elements
-    integer  :: model_day_int ! integer model day from reference
+    integer  :: model_day_int ! Integer model day since simulation start
     integer  :: ageclass_since_anthrodist  ! what is the equivalent age class for
                                            ! time-since-anthropogenic-disturbance of secondary forest
 
@@ -2062,7 +2062,7 @@ end subroutine flush_hvars
                hio_cleafoff_si                      => this%hvars(ih_cleafoff_si)%r81d, &
                hio_cleafon_si                       => this%hvars(ih_cleafon_si)%r81d, &
                hio_dleafoff_si                      => this%hvars(ih_dleafoff_si)%r81d, &
-               hio_dleafon_si                       => this%hvars(ih_dleafoff_si)%r81d, &
+               hio_dleafon_si                       => this%hvars(ih_dleafon_si)%r81d, &
                hio_tveg24                           => this%hvars(ih_tveg24_si)%r81d, &
                hio_meanliqvol_si                    => this%hvars(ih_meanliqvol_si)%r81d, &
                hio_cbal_err_fates_si                => this%hvars(ih_cbal_err_fates_si)%r81d, &
@@ -2118,10 +2118,10 @@ end subroutine flush_hvars
       hio_gdd_si(io_si) = sites(s)%grow_deg_days
 
       ! Model days elapsed since leaf on/off for cold- and drought-deciduous
-      hio_cleafoff_si(io_si) = real(model_day_int - sites(s)%cleafoffdate,r8)
-      hio_cleafon_si(io_si)  = real(model_day_int - sites(s)%cleafondate,r8)
-      hio_dleafoff_si(io_si) = real(model_day_int - sites(s)%dleafoffdate,r8)
-      hio_dleafon_si(io_si)  = real(model_day_int - sites(s)%dleafondate,r8)
+      hio_cleafoff_si(io_si) = real(sites(s)%phen_model_date - sites(s)%cleafoffdate,r8)
+      hio_cleafon_si(io_si)  = real(sites(s)%phen_model_date - sites(s)%cleafondate,r8)
+      hio_dleafoff_si(io_si) = real(sites(s)%phen_model_date - sites(s)%dleafoffdate,r8)
+      hio_dleafon_si(io_si)  = real(sites(s)%phen_model_date - sites(s)%dleafondate,r8)
 
       ! Mean liquid water content (m3/m3) used for drought phenology
       if(model_day_int>numWaterMem)then

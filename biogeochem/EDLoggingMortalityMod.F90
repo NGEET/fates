@@ -49,7 +49,6 @@ module EDLoggingMortalityMod
    use FatesInterfaceTypesMod , only : hlm_day_of_year 
    use FatesInterfaceTypesMod , only : hlm_days_per_year
    use FatesInterfaceTypesMod , only : hlm_use_lu_harvest
-   use FatesInterfaceTypesMod , only : hlm_harvest_bypass_criteria
    use FatesInterfaceTypesMod , only : hlm_num_lu_harvest_cats
    use FatesInterfaceTypesMod , only : hlm_use_logging 
    use FatesInterfaceTypesMod , only : hlm_use_planthydro
@@ -307,8 +306,6 @@ contains
                else
                   lmort_direct = 0.0_r8
                end if
-            else if (cur_harvest_tag == 1 .and. hlm_harvest_bypass_criteria == 1) then
-                lmort_direct = harvest_rate * logging_direct_frac
             else
                 lmort_direct = 0.0_r8
             end if

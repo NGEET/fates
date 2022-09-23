@@ -50,7 +50,6 @@ module EDPatchDynamicsMod
   use FatesInterfaceTypesMod    , only : hlm_use_nocomp
   use FatesInterfaceTypesMod    , only : hlm_use_fixed_biogeog
   use FatesInterfaceTypesMod    , only : hlm_num_lu_harvest_cats
-  use FatesInterfaceTypesMod    , only : hlm_harvest_bypass_criteria
   use FatesGlobals         , only : endrun => fates_endrun
   use FatesConstantsMod    , only : r8 => fates_r8
   use FatesConstantsMod    , only : itrue, ifalse
@@ -281,7 +280,7 @@ contains
              if (harvest_debt_primary == 0) then
                 if ( currentPatch%anthro_disturbance_label .eq. primaryforest ) then  
                    if ( harvest_tag(h_index) == 2 .or. &
-                        (harvest_tag(h_index) == 1 .and. .not. (hlm_harvest_bypass_criteria))) then
+                        (harvest_tag(h_index) == 1 )) then
                       ! h_index points to primary forest harvest
                       if((bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1")) then
                           harvest_debt_primary = 1
@@ -295,7 +294,7 @@ contains
                 if ( currentPatch%anthro_disturbance_label .eq. secondaryforest ) then
                    patch_no_secondary = patch_no_secondary + 1
                    if ( harvest_tag(h_index) == 2 .or. &
-                        (harvest_tag(h_index) == 1 .and. .not. (hlm_harvest_bypass_criteria))) then
+                        (harvest_tag(h_index) == 1 )) then
                       ! h_index points to secondary forest harvest
                       if((bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1") .or. &
                           (bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2")) then

@@ -120,12 +120,6 @@ module FatesInterfaceTypesMod
                                                          ! If 1, it automatically sets
                                                          ! hlm_use_logging to 1
 
-   integer, public :: hlm_harvest_bypass_criteria  ! This flag signals whether or not to bypass the logging criteria
-                                                   ! when using carbon-based harvest and all available forest C under 
-                                                   ! criteria are not enough 
-                                                   ! 0 = do not bypass criteria
-                                                   ! 1 = allow to bypass the criteria
-
    integer, public :: hlm_num_lu_harvest_cats    ! number of hlm harvest categories (e.g. primary forest harvest, secondary young forest harvest, etc.)
                                                          ! this is the first dimension of:
                                                          ! harvest_rates in dynHarvestMod
