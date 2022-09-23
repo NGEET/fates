@@ -568,7 +568,6 @@ contains
     ! ===================================================================================
 
     call this%CNPAllocateRemainder(c_gain, n_gain, p_gain, &
-         c_gain0, n_gain0, p_gain0,  &
          c_efflux, n_efflux, p_efflux,co_num,nplant,target_c,target_dcdd)
 
 
@@ -1867,16 +1866,13 @@ contains
   ! =====================================================================================
 
   subroutine CNPAllocateRemainder(this, c_gain,n_gain,p_gain, &
-                                        c_gain0, n_gain0, p_gain0, &
-                                        c_efflux, n_efflux, p_efflux,co_num,nplant,target_c,target_dcdd)
+                                  c_efflux, n_efflux, p_efflux, &
+                                  co_num,nplant,target_c,target_dcdd)
 
     class(cnp_allom_prt_vartypes) :: this
     real(r8), intent(inout) :: c_gain
     real(r8), intent(inout) :: n_gain
     real(r8), intent(inout) :: p_gain 
-    real(r8), intent(in)    :: c_gain0      ! Total C gain for the day
-    real(r8), intent(in)    :: n_gain0      ! Total N gain for the day
-    real(r8), intent(in)    :: p_gain0      ! Total P gain for the day
     real(r8), intent(inout) :: c_efflux
     real(r8), intent(inout) :: n_efflux
     real(r8), intent(inout) :: p_efflux
@@ -1913,11 +1909,11 @@ contains
     do i = 1, num_organs
        
        ! Update the nitrogen and phosphorus deficits
-       target_n = this%GetNutrientTarget(nitrogen_element,organ_list(i),stoich_growth_min)
-       deficit_n(i) = max(0._r8,this%GetDeficit(nitrogen_element,organ_list(i),target_n))
+       target_n = this%GetNutrientTarget(nitrogen_element,l2g_organ_list(i),stoich_growth_min)
+       deficit_n(i) = max(0._r8,this%GetDeficit(nitrogen_element,l2g_organ_list(i),target_n))
        
-       target_p = this%GetNutrientTarget(phosphorus_element,organ_list(i),stoich_growth_min)
-       deficit_p(i) = max(0._r8,this%GetDeficit(phosphorus_element,organ_list(i),target_p))
+       target_p = this%GetNutrientTarget(phosphorus_element,l2g_organ_list(i),stoich_growth_min)
+       deficit_p(i) = max(0._r8,this%GetDeficit(phosphorus_element,l2g_organ_list(i),target_p))
           
     end do
     
@@ -1935,9 +1931,7 @@ contains
          p_gain, phosphorus_element, l2g_organ_list(1:num_organs))
 
     call this%CNPAdjustFRootTargets(target_c,target_dcdd,co_num,nplant)
-    
-
-    
+        
     ! -----------------------------------------------------------------------------------
     ! If carbon is still available, lets cram some into storage overflow
     ! We will do this last, because we wanted the non-overflow storage

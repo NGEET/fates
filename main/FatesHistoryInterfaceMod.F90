@@ -249,7 +249,6 @@ module FatesHistoryInterfaceMod
   integer :: ih_fates_fraction_si
   integer :: ih_ba_weighted_height_si
   integer :: ih_ca_weighted_height_si
-  integer :: ih_cwd_elcwd
   integer :: ih_litter_in_si    ! carbon only
   integer :: ih_litter_out_si   ! carbon only
   integer :: ih_seed_bank_si    ! carbon only
@@ -5304,7 +5303,7 @@ end subroutine update_history_hifrq
 
     call this%set_history_var(vname='FATES_FROOTC_SL', units='kg m-3',                        &
          long='Total carbon in live plant fine-roots over depth', use_default='active', &
-         avgflag='A', vtype=site_ground_r8, hlms='CLM:ALM', upfreq=1,         &
+         avgflag='A', vtype=site_soil_r8, hlms='CLM:ALM', upfreq=1,         &
          ivar=ivar, initialize=initialize_variables, index = ih_fnrtc_sl )
     
     call this%set_history_var(vname='FATES_REPROC', units='kg m-2',            &

@@ -946,7 +946,7 @@ contains
                 sum_N = sum_N + area_frac*sum(litt%root_fines_frag)*(tot_fnrt_n / tot_fnrt_c)
              end if
              do ipft = 1,numpft
-                sum_N = sum_N + area_frac * prt_params%nitr_recr_stoich(ipft) * &
+                sum_N = sum_N + area_frac * currentPatch%nitr_repro_stoich(ipft) * &
                      (litt%seed_decay(ipft) + litt%seed_germ_decay(ipft))
              end do
 

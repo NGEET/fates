@@ -1826,7 +1826,7 @@ contains
     n%kp25top    = o%kp25top
 
     ! Copy over running means
-    n%cx_int    = o%ema_cx
+    n%cx_int    = o%cx_int
     n%ema_dcxdt = o%ema_dcxdt
     n%cx0       = o%cx0
 

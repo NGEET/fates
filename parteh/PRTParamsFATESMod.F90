@@ -548,23 +548,23 @@ contains
          data=prt_params%allom_l2fr)
 
     name = 'fates_cnp_pid_kp'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%pid_kp)
 
     name = 'fates_cnp_pid_ki'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%pid_ki)
 
     name = 'fates_cnp_pid_kd'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%pid_kd)
     
     name = 'fates_cnp_store_ovrflw_frac'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%store_ovrflw_frac)
     
     name = 'fates_nfix1'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%nfix_mresp_scfrac)
     
     name = 'fates_allom_agb_frac'

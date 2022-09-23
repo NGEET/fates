@@ -219,13 +219,10 @@ module EDTypesMod
      
      ! Used for CNP
      integer :: cnp_limiter ! Which species is limiting growth? ! 0=none,1=C,2=N,3=P
-     real(r8) :: ema_xc     ! Exponential moving average of the log of the error term
-                            ! that controls the l2fr set-point in the PID controller
-                            ! the term is probably a ratio of storage or a ratio of
-                            ! gain efficiencies
-     real(r8) :: ema_dxcdt  ! The derivative of ema_xc per day
-     real(r8) :: xc0        ! The value on the previous time-step of the log of
-                            ! the PID error term (not smoothed)
+     real(r8) :: cx_int     ! The time integration of the log of the relative carbon storage over relative nutrient
+     real(r8) :: ema_dcxdt  ! The derivative of the log of the relative carbon storage over relative nutrient
+     real(r8) :: cx0        ! The value on the previous time-step of log of the relative carbon
+                            ! storage over relative nutrient
      real(r8) :: nc_repro   ! The NC ratio of a new recruit in this patch
      real(r8) :: pc_repro   ! The PC ratio of a new recruit in this patch
      
@@ -1081,12 +1078,12 @@ module EDTypesMod
      write(fates_log(),*) 'co%hite                   = ', ccohort%hite
      write(fates_log(),*) 'co%coage                  = ', ccohort%coage
      write(fates_log(),*) 'co%l2fr                   = ', ccohort%l2fr
-     write(fates_log(),*) 'leaf carbon               = ', ccohort%prt%GetState(leaf_organ,all_carbon_elements) 
-     write(fates_log(),*) 'fineroot carbon           = ', ccohort%prt%GetState(fnrt_organ,all_carbon_elements) 
-     write(fates_log(),*) 'sapwood carbon            = ', ccohort%prt%GetState(sapw_organ,all_carbon_elements) 
-     write(fates_log(),*) 'structural (dead) carbon  = ', ccohort%prt%GetState(struct_organ,all_carbon_elements) 
-     write(fates_log(),*) 'storage carbon            = ', ccohort%prt%GetState(store_organ,all_carbon_elements) 
-     write(fates_log(),*) 'reproductive carbon       = ', ccohort%prt%GetState(repro_organ,all_carbon_elements) 
+     write(fates_log(),*) 'leaf carbon               = ', ccohort%prt%GetState(leaf_organ,carbon12_element) 
+     write(fates_log(),*) 'fineroot carbon           = ', ccohort%prt%GetState(fnrt_organ,carbon12_element) 
+     write(fates_log(),*) 'sapwood carbon            = ', ccohort%prt%GetState(sapw_organ,carbon12_element) 
+     write(fates_log(),*) 'structural (dead) carbon  = ', ccohort%prt%GetState(struct_organ,carbon12_element) 
+     write(fates_log(),*) 'storage carbon            = ', ccohort%prt%GetState(store_organ,carbon12_element) 
+     write(fates_log(),*) 'reproductive carbon       = ', ccohort%prt%GetState(repro_organ,carbon12_element) 
      write(fates_log(),*) 'co%g_sb_laweight          = ', ccohort%g_sb_laweight
      write(fates_log(),*) 'co%leaf_cost              = ', ccohort%leaf_cost
      write(fates_log(),*) 'co%canopy_layer           = ', ccohort%canopy_layer

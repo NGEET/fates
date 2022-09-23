@@ -678,7 +678,7 @@ contains
                 endif
 
                 call copy_cohort(currentCohort, copyc)
-                call InitPRTBoundaryConditions(copyc,currentCohort%pft,1)
+                call InitPRTBoundaryConditions(copyc)
                 
                 newarea = currentCohort%c_area - cc_loss
                 copyc%n = currentCohort%n*newarea/currentCohort%c_area
@@ -1147,7 +1147,7 @@ contains
                    !     init_value=currentPatch%tveg_lpa%GetMean())
                    
                    call copy_cohort(currentCohort, copyc) !makes an identical copy...
-                   call InitPRTBoundaryConditions(copyc,currentCohort%pft,2)
+                   call InitPRTBoundaryConditions(copyc)
                    
                    newarea = currentCohort%c_area - cc_gain !new area of existing cohort
 
@@ -2172,7 +2172,7 @@ contains
    real(r8) :: leaf_c                              ! leaf carbon [kg]
    
    ! Obtain the leaf carbon
-   leaf_c = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
+   leaf_c = currentCohort%prt%GetState(leaf_organ,carbon12_element)
 
    ! Note that tree_lai has an internal check on the canopy locatoin
    currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, &

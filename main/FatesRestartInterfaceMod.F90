@@ -97,9 +97,9 @@ module FatesRestartInterfaceMod
   integer :: ir_canopy_layer_yesterday_co
   integer :: ir_canopy_trim_co
   integer :: ir_l2fr_co
-  integer :: ir_emaxc_co
-  integer :: ir_emadxcdt_co
-  integer :: ir_xc0_co
+  integer :: ir_cx_int_co
+  integer :: ir_emadcxdt_co
+  integer :: ir_cx0_co
   integer :: ir_pc_store_co
   integer :: ir_size_class_lasttimestep_co
   integer :: ir_dbh_co
@@ -704,17 +704,17 @@ contains
          long_name='ed cohort - l2fr', units='fraction', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_l2fr_co )
 
-    call this%set_restart_var(vname='fates_emaxc', vtype=cohort_r8, &
-         long_name='ed cohort - emaxc', units='fraction', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_emaxc_co )
+    call this%set_restart_var(vname='fates_cx_int', vtype=cohort_r8, &
+         long_name='ed cohort - emacx', units='fraction', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cx_int_co )
 
-    call this%set_restart_var(vname='fates_emadxcdt', vtype=cohort_r8, &
-         long_name='ed cohort - emadxcdt', units='fraction', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_emadxcdt_co )
+    call this%set_restart_var(vname='fates_emadcxdt', vtype=cohort_r8, &
+         long_name='ed cohort - emadcxdt', units='fraction', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_emadcxdt_co )
 
-    call this%set_restart_var(vname='fates_xc0', vtype=cohort_r8, &
-         long_name='ed cohort - xc0', units='fraction', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_xc0_co )
+    call this%set_restart_var(vname='fates_cx0', vtype=cohort_r8, &
+         long_name='ed cohort - cx0', units='fraction', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cx0_co )
     
     call this%set_restart_var(vname='fates_size_class_lasttimestep', vtype=cohort_int, &
          long_name='ed cohort - size-class last timestep', units='index', flushval = flushzero, &
@@ -1746,9 +1746,9 @@ contains
            rio_canopy_layer_yesterday_co    => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
            rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
            rio_l2fr_co                 => this%rvars(ir_l2fr_co)%r81d, &
-           rio_emaxc_co                => this%rvars(ir_emaxc_co)%r81d, &
-           rio_emadxcdt_co             => this%rvars(ir_emadxcdt_co)%r81d, &
-           rio_xc0_co                  => this%rvars(ir_xc0_co)%r81d, &
+           rio_cx_int_co               => this%rvars(ir_cx_int_co)%r81d, &
+           rio_emadcxdt_co             => this%rvars(ir_emadcxdt_co)%r81d, &
+           rio_cx0_co                  => this%rvars(ir_cx0_co)%r81d, &
            rio_seed_prod_co            => this%rvars(ir_seed_prod_co)%r81d, &
            rio_size_class_lasttimestep => this%rvars(ir_size_class_lasttimestep_co)%int1d, &
            rio_dbh_co                  => this%rvars(ir_dbh_co)%r81d, &
@@ -1964,9 +1964,9 @@ contains
                 rio_canopy_layer_yesterday_co(io_idx_co) = ccohort%canopy_layer_yesterday
                 rio_canopy_trim_co(io_idx_co)  = ccohort%canopy_trim
                 rio_l2fr_co(io_idx_co)         = ccohort%l2fr
-                rio_emaxc_co(io_idx_co)        = ccohort%ema_xc
-                rio_emadxcdt_co(io_idx_co)     = ccohort%ema_dxcdt
-                rio_xc0_co(io_idx_co)          = ccohort%xc0
+                rio_cx_int_co(io_idx_co)       = ccohort%cx_int
+                rio_emadcxdt_co(io_idx_co)     = ccohort%ema_dcxdt
+                rio_cx0_co(io_idx_co)          = ccohort%cx0
                 rio_seed_prod_co(io_idx_co)    = ccohort%seed_prod
                 rio_size_class_lasttimestep(io_idx_co) = ccohort%size_class_lasttimestep
                 rio_dbh_co(io_idx_co)          = ccohort%dbh
@@ -2577,9 +2577,9 @@ contains
           rio_canopy_layer_yesterday_co         => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
           rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
           rio_l2fr_co                 => this%rvars(ir_l2fr_co)%r81d, &
-          rio_emaxc_co                => this%rvars(ir_emaxc_co)%r81d, &
-          rio_emadxcdt_co             => this%rvars(ir_emadxcdt_co)%r81d, &
-          rio_xc0_co                  => this%rvars(ir_xc0_co)%r81d, &
+          rio_cx_int_co               => this%rvars(ir_cx_int_co)%r81d, &
+          rio_emadcxdt_co             => this%rvars(ir_emadcxdt_co)%r81d, &
+          rio_cx0_co                  => this%rvars(ir_cx0_co)%r81d, &
           rio_seed_prod_co            => this%rvars(ir_seed_prod_co)%r81d, &
           rio_size_class_lasttimestep => this%rvars(ir_size_class_lasttimestep_co)%int1d, &
           rio_dbh_co                  => this%rvars(ir_dbh_co)%r81d, &
@@ -2767,9 +2767,9 @@ contains
                 ccohort%canopy_layer_yesterday = rio_canopy_layer_yesterday_co(io_idx_co)
                 ccohort%canopy_trim  = rio_canopy_trim_co(io_idx_co)
                 ccohort%l2fr         = rio_l2fr_co(io_idx_co)
-                ccohort%ema_xc       = rio_emaxc_co(io_idx_co)
-                ccohort%ema_dxcdt    = rio_emadxcdt_co(io_idx_co)
-                ccohort%xc0          = rio_xc0_co(io_idx_co)
+                ccohort%cx_int       = rio_cx_int_co(io_idx_co)
+                ccohort%ema_dcxdt    = rio_emadcxdt_co(io_idx_co)
+                ccohort%cx0          = rio_cx0_co(io_idx_co)
                 ccohort%seed_prod    = rio_seed_prod_co(io_idx_co)
                 ccohort%size_class_lasttimestep = rio_size_class_lasttimestep(io_idx_co)
                 ccohort%dbh          = rio_dbh_co(io_idx_co)
@@ -2812,9 +2812,8 @@ contains
                 ccohort%status_coh   = rio_status_co(io_idx_co)
                 ccohort%isnew        = ( rio_isnew_co(io_idx_co) .eq. new_cohort )
 
-                call InitPRTBoundaryConditions(ccohort,ccohort%pft,4)
+                call InitPRTBoundaryConditions(ccohort)
                 call UpdateCohortBioPhysRates(ccohort)
-
 
                 ! Initialize Plant Hydraulics
 
