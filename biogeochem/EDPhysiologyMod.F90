@@ -1434,7 +1434,6 @@ contains
     ! translates them into a FATES structure with one patch and one cohort per PFT
     ! The leaf area of the cohort is modified each day to match that asserted by the HLM
     ! -----------------------------------------------------------------------------------!
-    use EDTypesMod       , only : nclmax
 
     type(ed_cohort_type), intent(inout), target :: currentCohort
 
@@ -1828,7 +1827,6 @@ contains
 
     allocate(temp_cohort) ! create temporary cohort
     call zero_cohort(temp_cohort)
-
 
     do ft = 1,numpft
 
@@ -2555,6 +2553,13 @@ contains
   
   subroutine UpdateRecruitL2FR(csite)
 
+
+    ! When CNP is active, the l2fr (target leaf to fine-root biomass multiplier)
+    ! is dynamic. We therefore update what the l2fr for recruits
+    ! are, taking an exponential moving average of all plants that
+    ! are within recruit size limitations (less than recruit size + delta)
+    ! and less than the max_count cohort.
+    
     type(ed_site_type) :: csite
     type(ed_patch_type), pointer :: cpatch
     type(ed_cohort_type), pointer :: ccohort
@@ -2571,6 +2576,8 @@ contains
     
     ! Difference in dbh (cm) to consider a plant was recruited fairly recently
 
+    if(hlm_parteh_mode .ne. prt_cnp_flex_allom_hyp) return
+    
     rec_n(1:numpft,1:nclmax) = 0._r8
     rec_l2fr0(1:numpft,1:nclmax) = 0._r8
 
@@ -2630,6 +2637,9 @@ contains
     
     ! Update the total plant stoichiometry of a new recruit, based on the updated
     ! L2FR values
+
+    if(hlm_parteh_mode .ne. prt_cnp_flex_allom_hyp) return
+    
     cpatch => csite%youngest_patch
     do while(associated(cpatch))
        cl = cpatch%ncl_p
@@ -2660,14 +2670,13 @@ contains
   
   subroutine SetRecruitL2FR(csite)
 
-    ! I DONT THINK THIS ROUTINE IS ACTUALLY NEEDED...
-    ! TURN THIS OFF IN A B4B TEST
-    
 
     type(ed_site_type) :: csite
     type(ed_patch_type), pointer :: cpatch
     type(ed_cohort_type), pointer :: ccohort
     integer :: ft,cl
+    
+    if(hlm_parteh_mode .ne. prt_cnp_flex_allom_hyp) return
     
     cpatch => csite%youngest_patch
     do while(associated(cpatch))

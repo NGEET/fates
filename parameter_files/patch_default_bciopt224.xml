@@ -2,17 +2,16 @@
 <all>
   <notes>This parameter dataset was created by Ryan Knox rgknox@lbl.gov. Please contact if using in published work. The calibration uses the following datasets: [1] Ely et al. 2019. Leaf mass area, Panama. NGEE-Tropics data collection.http://dx.doi.org/10.15486/ngt/1411973 and [2] Condit et al. 2019. Complete data from the Barro Colorado 50-ha plot. https://doi.org/10.15146/5xcp-0d46. [3] Koven et al. 2019. Benchmarking and parameter sensitivity of physiological and vegetation dynamics using the functionally assembled terrestrial ecosystem simulator. Biogeosciences. The ECA nutrient aquisition parmeters are unconstrained, the file output naming convention vmn6phi is shorthand for vmax for nitrogen uptake is order e-6 and for phosphorus is excessively high.  These parameters were calibrated with the special fates modification in main/EDTypesMod.F90: nclmax = 3</notes>
   <base_file>fates_params_default.cdl</base_file>
-  <new_file>fates_params_opt224_040822_v2.cdl</new_file>
+  <new_file>fates_params_opt224_040822_api24.cdl</new_file>
   <pft_list>1</pft_list>
   <parameters>
-	 <fates_prescribed_nuptake> 0 </fates_prescribed_nuptake>
-	 <fates_prescribed_puptake> 0 </fates_prescribed_puptake>
-	 <fates_prt_alloc_priority> 1,1,3,4 </fates_prt_alloc_priority>
-	 <fates_prt_nitr_stoich_p1> 0.03347526,0.024,1e-08,0.0047 </fates_prt_nitr_stoich_p1>
-	 <fates_prt_phos_stoich_p1> 0.002675,0.0005,0.00015,0.00015 </fates_prt_phos_stoich_p1>
-	 <fates_turnover_carb_retrans> 0.0,0,0,0 </fates_turnover_carb_retrans>
-	 <fates_turnover_nitr_retrans> 0.45,0.25,0,0 </fates_turnover_nitr_retrans>
-	 <fates_turnover_phos_retrans> 0.65,0.25,0,0 </fates_turnover_phos_retrans>
+	 <fates_cnp_prescribed_nuptake> 0 </fates_cnp_prescribed_nuptake>
+	 <fates_cnp_prescribed_puptake> 0 </fates_cnp_prescribed_puptake>
+	 <fates_alloc_organ_priority> 1,1,3,4 </fates_alloc_organ_priority>
+	 <fates_stoich_nitr> 0.03347526,0.024,1e-08,0.0047 </fates_stoich_nitr>
+	 <fates_stoich_phos> 0.002675,0.0005,0.00015,0.00015 </fates_stoich_phos>
+	 <fates_cnp_turnover_nitr_retrans> 0.45,0.25,0,0 </fates_cnp_turnover_nitr_retrans>
+	 <fates_cnp_turnover_phos_retrans> 0.65,0.25,0,0 </fates_cnp_turnover_phos_retrans>
 	 <fates_leaf_long> 0.8012471 </fates_leaf_long>
 	 <fates_leaf_vcmax25top> 30.94711 </fates_leaf_vcmax25top>
 	 <fates_allom_agb1> 0.0673 </fates_allom_agb1>

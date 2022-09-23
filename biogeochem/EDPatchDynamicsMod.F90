@@ -639,7 +639,6 @@ contains
                          ! correct boundary condition fields
                          nc%prt => null()
                          call InitPRTObject(nc%prt)
-                         nc%patchptr => new_patch
                          call InitPRTBoundaryConditions(nc)
 
                          !  (Keeping as an example)

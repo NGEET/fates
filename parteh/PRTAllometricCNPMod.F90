@@ -148,9 +148,9 @@ module PRTAllometricCNPMod
                                                                  ! is dynamic with CNP
   integer, public, parameter :: acnp_bc_inout_id_netdn    = 4 ! Index for the net daily NH4 input BC
   integer, public, parameter :: acnp_bc_inout_id_netdp    = 5 ! Index for the net daily P input BC
-  integer, public, parameter :: acnp_bc_inout_id_emaxc    = 6 ! Index for the EMA log storage ratio max(N,P)/C
-  integer, public, parameter :: acnp_bc_inout_id_xc0      = 7 ! Index for the previous step's log storage ratio max(N,P)/C
-  integer, public, parameter :: acnp_bc_inout_id_emadxcdt = 8 ! Index for the EMA log storage ratio derivative d max(NP)/C dt
+  integer, public, parameter :: acnp_bc_inout_id_cx_int   = 6 ! Index for the EMA log storage ratio max(N,P)/C
+  integer, public, parameter :: acnp_bc_inout_id_cx0      = 7 ! Index for the previous step's log storage ratio max(N,P)/C
+  integer, public, parameter :: acnp_bc_inout_id_emadcxdt = 8 ! Index for the EMA log storage ratio derivative d max(NP)/C dt
   integer, public, parameter :: num_bc_inout              = 8
 
   ! -------------------------------------------------------------------------------------
@@ -726,7 +726,7 @@ contains
     real(r8) :: l2fr_mult
     real(r8) :: l2fr_delta
     real(r8) :: cn_ratio, cp_ratio
-    real(r8) :: dxcdt_ratio        ! log change (derivative) of the maximum of the N/C and P/C storage ratio
+    real(r8) :: dcxdt_ratio        ! log change (derivative) of the maximum of the N/C and P/C storage ratio
     real(r8) :: cx_logratio           ! log Maximum of the C/N and C/P storage ratio
     real(r8), pointer :: cx_int      ! Integration of the cx_logratio 
     real(r8), pointer :: cx0         ! The log of the cx ratio from previous time-step
@@ -750,9 +750,9 @@ contains
     l2fr        => this%bc_inout(acnp_bc_inout_id_l2fr)%rval
     dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval
     canopy_trim =  this%bc_in(acnp_bc_in_id_ctrim)%rval
-    cx_int      => this%bc_inout(acnp_bc_inout_id_emaxc)%rval
-    cx0         => this%bc_inout(acnp_bc_inout_id_xc0)%rval
-    ema_dcxdt   => this%bc_inout(acnp_bc_inout_id_emadxcdt)%rval
+    cx_int      => this%bc_inout(acnp_bc_inout_id_cx_int)%rval
+    cx0         => this%bc_inout(acnp_bc_inout_id_cx0)%rval
+    ema_dcxdt   => this%bc_inout(acnp_bc_inout_id_emadcxdt)%rval
     
        ! Step 1: Determine the nutrient to carbon ratio (aka relative health factor)
        ! -----------------------------------------------------------------------------------
@@ -862,9 +862,9 @@ contains
              cx_int = cx_int + cx_logratio
           end if
           
-          dxcdt_ratio = cx_logratio-cx0
+          dcxdt_ratio = cx_logratio-cx0
           
-          ema_dcxdt = pid_drv_wgt*dxcdt_ratio + (1._r8-pid_drv_wgt)*ema_dcxdt
+          ema_dcxdt = pid_drv_wgt*dcxdt_ratio + (1._r8-pid_drv_wgt)*ema_dcxdt
 
           cx0 = cx_logratio
 
