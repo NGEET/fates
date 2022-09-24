@@ -188,9 +188,6 @@ variables:
 	double fates_cnp_eca_lambda_ptase(fates_pft) ;
 		fates_cnp_eca_lambda_ptase:units = "g/m3" ;
 		fates_cnp_eca_lambda_ptase:long_name = "critical value for biochemical production (ECA)" ;
-	double fates_cnp_eca_vmax_nh4(fates_pft) ;
-		fates_cnp_eca_vmax_nh4:units = "gN/gC/s" ;
-		fates_cnp_eca_vmax_nh4:long_name = "maximum production rate for plant nh4 uptake (ECA)" ;
 	double fates_cnp_eca_vmax_no3(fates_pft) ;
 		fates_cnp_eca_vmax_no3:units = "gN/gC/s" ;
 		fates_cnp_eca_vmax_no3:long_name = "maximum production rate for plant no3 uptake (ECA)" ;
@@ -221,9 +218,6 @@ variables:
 	double fates_cnp_prescribed_puptake(fates_pft) ;
 		fates_cnp_prescribed_puptake:units = "fraction" ;
 		fates_cnp_prescribed_puptake:long_name = "Prescribed P uptake flux. 0=fully coupled simulation, >0=prescribed (experimental)" ;
-	double fates_cnp_rd_vmax_n(fates_pft) ;
-		fates_cnp_rd_vmax_n:units = "gN/gC/s" ;
-		fates_cnp_rd_vmax_n:long_name = "maximum production rate for compbined (NH4+NO3) uptake (RD)" ;
 	double fates_cnp_store_ovrflw_frac(fates_pft) ;
 		fates_cnp_store_ovrflw_frac:units = "fraction" ;
 		fates_cnp_store_ovrflw_frac:long_name = "size of overflow storage (for excess C,N or P) as a fraction of storage target" ;
@@ -233,6 +227,9 @@ variables:
 	double fates_cnp_turnover_phos_retrans(fates_plant_organs, fates_pft) ;
 		fates_cnp_turnover_phos_retrans:units = "fraction" ;
 		fates_cnp_turnover_phos_retrans:long_name = "retranslocation (reabsorbtion) fraction of phosphorus in turnover of scenescing tissues" ;
+	double fates_cnp_vmax_nh4(fates_pft) ;
+		fates_cnp_vmax_nh4:units = "gN/gC/s" ;
+		fates_cnp_vmax_nh4:long_name = "maximum (potential) uptake rate of N (for RD) or NH4 (for ECA) per gC of fineroot biomass" ;
 	double fates_cnp_vmax_p(fates_pft) ;
 		fates_cnp_vmax_p:units = "gP/gC/s" ;
 		fates_cnp_vmax_p:long_name = "maximum production rate for phosphorus (ECA and RD)" ;
@@ -971,9 +968,6 @@ data:
 
  fates_cnp_eca_lambda_ptase = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
- fates_cnp_eca_vmax_nh4 = 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 
-    5e-09, 5e-09, 5e-09, 5e-09, 5e-09 ;
-
  fates_cnp_eca_vmax_no3 = 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 
     5e-09, 5e-09, 5e-09, 5e-09, 5e-09 ;
 
@@ -999,9 +993,6 @@ data:
 
  fates_cnp_prescribed_puptake = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
- fates_cnp_rd_vmax_n = 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 
-    5e-09, 5e-09, 5e-09, 5e-09, 5e-09 ;
-
  fates_cnp_store_ovrflw_frac = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
  fates_cnp_turnover_nitr_retrans =
@@ -1015,6 +1006,9 @@ data:
   0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+
+ fates_cnp_vmax_nh4 = 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 
+    5e-09, 5e-09, 5e-09, 5e-09 ;
 
  fates_cnp_vmax_p = 5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 
     5e-10, 5e-10, 5e-10, 5e-10 ;
