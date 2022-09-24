@@ -741,8 +741,10 @@ module FatesInterfaceTypesMod
        ! each column is inefficient. Each of these are dimensioned by PFT.
        
        integer           :: max_plant_comps
+
+       real(r8), pointer :: vmax_nh4(:)
+
        real(r8), pointer :: eca_km_nh4(:)
-       real(r8), pointer :: eca_vmax_nh4(:)
        real(r8), pointer :: eca_km_no3(:)
        real(r8), pointer :: eca_vmax_no3(:)
        real(r8), pointer :: eca_km_p(:)     

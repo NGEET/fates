@@ -20,6 +20,19 @@
     <mod type="variable_del">
       <na> fates_cnp_fnrt_adapt_tscale </na>
     </mod>
+    <mod type="variable_del">
+      <na> fates_cnp_eca_vmax_nh4 </na>
+    </mod>
+    <mod type="variable_del">
+      <na> fates_cnp_rd_vmax_n </na>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_cnp_vmax_nh4 </na>
+      <di> fates_pft </di>
+      <un> gN/gC/s </un>
+      <ln> maximum (potential) uptake rate of N (for RD) or NH4 (for ECA) per gC of fineroot biomass </ln>
+      <val> 5e-9, 5e-9, 5e-9, 5e-9, 5e-9, 5e-9, 5e-9, 5e-9, 5e-9, 5e-9, 5e-9, 5e-9 </val>
+    </mod>
     <mod type="variable_add">
       <na> fates_cnp_pid_kd </na>
       <di> fates_pft </di>

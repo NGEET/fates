@@ -134,10 +134,16 @@ module EDPftvarcon
      ! Nutrient Aquisition (ECA & RD)
 
 
-     !real(r8), allocatable :: rd_vmax_n(:)             ! maximum production rate for plant n uptake   [gN/gC/s]
      real(r8), allocatable :: decompmicc(:)             ! microbial decomposer biomass gC/m3
                                                         ! on root surface
 
+     real(r8), allocatable :: vmax_nh4(:) ! maximum production rate for plant N uptake
+                                          ! For ECA: this is just ammonium: nh4 uptake   [gN/gC/s]
+                                          ! For RD: this is the uptake of both (we can't have
+                                          ! unique parameter for RD, because it want's one demand,
+                                          ! and uses this vmax to set the demand, first drawing from
+                                          ! NH4 and then NO3
+     
      ! ECA Parameters: See Zhu et al. Multiple soil nutrient competition between plants,
      !                     microbes, and mineral surfaces: model development, parameterization,
      !                     and example applications in several tropical forests.  Biogeosciences,
@@ -145,9 +151,9 @@ module EDPftvarcon
      ! KM: Michaeles-Menten half-saturation constants for ECA (plant–enzyme affinity)
      ! VMAX: Product of the reaction-rate and enzyme abundance for each PFT in ECA
      ! Note*: units of [gC] is grams carbon of fine-root
-
+     
      real(r8), allocatable :: eca_km_nh4(:)   ! half-saturation constant for plant nh4 uptake  [gN/m3]
-     real(r8), allocatable :: eca_vmax_nh4(:) ! maximum production rate for plant nh4 uptake   [gN/gC/s]
+     
      real(r8), allocatable :: eca_km_no3(:)   ! half-saturation constant for plant no3 uptake  [gN/m3]
      real(r8), allocatable :: eca_vmax_no3(:) ! maximum production rate for plant no3 uptake   [gN/gC/s]
      real(r8), allocatable :: eca_km_p(:)     ! half-saturation constant for plant p uptake    [gP/m3]
@@ -577,7 +583,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_cnp_eca_vmax_nh4'
+    name = 'fates_cnp_vmax_nh4'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -928,10 +934,10 @@ contains
     name = 'fates_cnp_eca_km_nh4'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%eca_km_nh4)
-
-    name = 'fates_cnp_eca_vmax_nh4'
+    
+    name = 'fates_cnp_vmax_nh4'
     call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%eca_vmax_nh4)
+         data=this%vmax_nh4)
 
     name = 'fates_cnp_eca_km_no3'
     call fates_params%RetrieveParameterAllocate(name=name, &

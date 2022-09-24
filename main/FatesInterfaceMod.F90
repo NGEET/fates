@@ -202,9 +202,9 @@ contains
     
     type(bc_pconst_type), intent(inout) :: bc_pconst
     integer             , intent(in)    :: nlevdecomp 
-    
+
+    allocate(bc_pconst%vmax_nh4(numpft))
     allocate(bc_pconst%eca_km_nh4(numpft))
-    allocate(bc_pconst%eca_vmax_nh4(numpft))
     allocate(bc_pconst%eca_km_no3(numpft))
     allocate(bc_pconst%eca_vmax_no3(numpft))      
     allocate(bc_pconst%eca_km_p(numpft))
@@ -226,8 +226,9 @@ contains
     integer             , intent(in)    :: nlevdecomp 
     integer                             :: j
     
+    bc_pconst%vmax_nh4(1:numpft)         = EDPftvarcon_inst%vmax_nh4(1:numpft)
+
     bc_pconst%eca_km_nh4(1:numpft)       = EDPftvarcon_inst%eca_km_nh4(1:numpft)
-    bc_pconst%eca_vmax_nh4(1:numpft)     = EDPftvarcon_inst%eca_vmax_nh4(1:numpft)
     bc_pconst%eca_km_no3(1:numpft)       = EDPftvarcon_inst%eca_km_no3(1:numpft)
     bc_pconst%eca_vmax_no3(1:numpft)     = EDPftvarcon_inst%eca_vmax_no3(1:numpft)
     bc_pconst%eca_km_p(1:numpft)         = EDPftvarcon_inst%eca_km_p(1:numpft)
