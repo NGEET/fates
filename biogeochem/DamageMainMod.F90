@@ -177,9 +177,6 @@ contains
 
     crown_reduction = ED_val_history_damage_bin_edges(crowndamage)/100.0_r8
     
-    write(fates_log(),*) 'JN crowndamage', crowndamage
-    write(fates_log(),*) 'JN crownreduction', crown_reduction
-
     return
   end subroutine GetCrownReduction
 
@@ -217,7 +214,7 @@ contains
     ! make damage mortality a function of crownloss and not crowndamage
     ! class so that it doesn't need to be re-parameterised if the number
     ! of damage classes change.
-    crown_loss = ED_val_history_damage_bin_edges(crowndamage)/ 100.0_r8
+    crown_loss = ED_val_history_damage_bin_edges(crowndamage)/100.0_r8
 
     if (crowndamage .eq. 1 ) then
        dgmort = 0.0_r8
