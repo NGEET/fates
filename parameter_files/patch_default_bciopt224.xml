@@ -2,7 +2,7 @@
 <all>
   <notes>This parameter dataset was created by Ryan Knox rgknox@lbl.gov. Please contact if using in published work. The calibration uses the following datasets: [1] Ely et al. 2019. Leaf mass area, Panama. NGEE-Tropics data collection.http://dx.doi.org/10.15486/ngt/1411973 and [2] Condit et al. 2019. Complete data from the Barro Colorado 50-ha plot. https://doi.org/10.15146/5xcp-0d46. [3] Koven et al. 2019. Benchmarking and parameter sensitivity of physiological and vegetation dynamics using the functionally assembled terrestrial ecosystem simulator. Biogeosciences. The ECA nutrient aquisition parmeters are unconstrained, the file output naming convention vmn6phi is shorthand for vmax for nitrogen uptake is order e-6 and for phosphorus is excessively high.  These parameters were calibrated with the special fates modification in main/EDTypesMod.F90: nclmax = 3</notes>
   <base_file>fates_params_default.cdl</base_file>
-  <new_file>fates_params_opt224_040822_api24.cdl</new_file>
+  <new_file>fates_params_opt224_040822_api25.cdl</new_file>
   <pft_list>1</pft_list>
   <parameters>
 	 <fates_cnp_prescribed_nuptake> 0 </fates_cnp_prescribed_nuptake>
@@ -12,7 +12,7 @@
 	 <fates_stoich_phos> 0.002675,0.0005,0.00015,0.00015 </fates_stoich_phos>
 	 <fates_cnp_turnover_nitr_retrans> 0.45,0.25,0,0 </fates_cnp_turnover_nitr_retrans>
 	 <fates_cnp_turnover_phos_retrans> 0.65,0.25,0,0 </fates_cnp_turnover_phos_retrans>
-	 <fates_leaf_long> 0.8012471 </fates_leaf_long>
+	 <fates_turnover_leaf> 0.8012471 </fates_turnover_leaf>
 	 <fates_leaf_vcmax25top> 30.94711 </fates_leaf_vcmax25top>
 	 <fates_allom_agb1> 0.0673 </fates_allom_agb1>
 	 <fates_allom_agb2> 0.976 </fates_allom_agb2>
@@ -31,21 +31,21 @@
 	 <fates_allom_fmode> 2 </fates_allom_fmode>
 	 <fates_allom_hmode> 5 </fates_allom_hmode>
 	 <fates_allom_l2fr> 0.4863088 </fates_allom_l2fr>
-	 <fates_nfix1> 0.0 </fates_nfix1>
+	 <fates_cnp_nfix1> 0.0 </fates_cnp_nfix1>
 	 <fates_cnp_store_ovrflw_frac> 1 </fates_cnp_store_ovrflw_frac>
 	 <fates_allom_lmode> 3 </fates_allom_lmode>
-	 <fates_eca_vmax_nh4> 5e-09 </fates_eca_vmax_nh4>
-	 <fates_eca_vmax_no3> 5e-09 </fates_eca_vmax_no3>
-	 <fates_eca_vmax_p> 5e-10 </fates_eca_vmax_p>
-	 <fates_eca_vmax_ptase> 3e-08 </fates_eca_vmax_ptase>
+	 <fates_cnp_vmax_nh4> 5e-09 </fates_cnp_vmax_nh4>
+	 <fates_cnp_eca_vmax_no3> 5e-09 </fates_cnp_eca_vmax_no3>
+	 <fates_cnp_vmax_p> 5e-10 </fates_cnp_vmax_p>
+	 <fates_cnp_eca_vmax_ptase> 3e-08 </fates_cnp_eca_vmax_ptase>
 	 <fates_leaf_slamax> 0.03991654 </fates_leaf_slamax>
 	 <fates_leaf_slatop> 0.01995827 </fates_leaf_slatop>
 	 <fates_mort_bmort> 0.01303514 </fates_mort_bmort>
 	 <fates_mort_scalar_cstarvation> 0.02955703 </fates_mort_scalar_cstarvation>
-	 <fates_nitr_store_ratio> 3 </fates_nitr_store_ratio>
-	 <fates_phos_store_ratio> 3 </fates_phos_store_ratio>
-	 <fates_seed_alloc> 0.04680188 </fates_seed_alloc>
-	 <fates_seed_suppl> 0.001 </fates_seed_suppl>
+	 <fates_cnp_nitr_store_ratio> 3 </fates_cnp_nitr_store_ratio>
+	 <fates_cnp_phos_store_ratio> 3 </fates_cnp_phos_store_ratio>
+	 <fates_recruit_seed_alloc> 0.04680188 </fates_recruit_seed_alloc>
+	 <fates_recruit_seed_supplement> 0.001 </fates_recruit_seed_supplement>
 	 <fates_wood_density> 0.8374751 </fates_wood_density>
 	 <fates_comp_excln> -1 </fates_comp_excln>
 	 <fates_mort_disturb_frac> 0.5 </fates_mort_disturb_frac>
