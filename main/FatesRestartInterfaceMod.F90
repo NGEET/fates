@@ -18,7 +18,7 @@ module FatesRestartInterfaceMod
   use FatesInterfaceTypesMod,       only : bc_in_type
   use FatesInterfaceTypesMod,       only : bc_out_type
   use FatesInterfaceTypesMod,       only : hlm_use_planthydro
-  use FatesInterfaceTypesMod,       only : hlm_use_sp
+  use FatesInterfaceTypesMod,       only : hlm_use_sp, hlm_use_nocomp
   use FatesInterfaceTypesMod,       only : fates_maxElementsPerSite
   use EDCohortDynamicsMod,     only : UpdateCohortBioPhysRates
   use FatesHydraulicsMemMod,   only : nshell
@@ -36,7 +36,7 @@ module FatesRestartInterfaceMod
   use FatesLitterMod,          only : litter_type
   use FatesLitterMod,          only : ncwd
   use FatesLitterMod,          only : ndcmpy
-  use EDTypesMod,              only : nfsc
+  use EDTypesMod,              only : nfsc, nlevleaf, area
   use PRTGenericMod,           only : prt_global
   use PRTGenericMod,           only : num_elements
   use FatesRunningMeanMod,     only : rmean_type
@@ -2685,11 +2685,19 @@ contains
              sites(s)%recruitment_rate(i_pft) = rio_recrate_sift(io_idx_co_1st+i_pft-1)
           enddo
 
-         !variables for fixed biogeography mode. These are currently used in restart even when this is off.
+          ! variables for fixed biogeography mode. These are currently used in restart even when this is off.
           do i_pft = 1,numpft
              sites(s)%use_this_pft(i_pft) = rio_use_this_pft_sift(io_idx_co_1st+i_pft-1)
              sites(s)%area_pft(i_pft)     = rio_area_pft_sift(io_idx_co_1st+i_pft-1)
           enddo
+
+          ! calculate the bareground area for the pft in no competition modes
+          if (hlm_use_nocomp .eq. itrue) then
+             if (sum(sites(s)%area_pft(1:numpft)) .lt. area) then
+                sites(s)%area_pft(0) = area - sum(sites(s)%area_pft(1:numpft))
+             else
+                sites(s)%area_pft(0) = 0.0_r8
+          endif
 
           ! Mass balance and diagnostics across elements at the site level
           do el = 1, num_elements
