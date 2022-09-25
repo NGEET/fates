@@ -739,7 +739,8 @@ contains
     integer, parameter :: pid_minnc_function = 2
     integer, parameter :: pid_alogmaxnc_function = 3
     integer, parameter :: pid_ncratio_function = 4
-
+    integer, parameter :: pid_function = pid_ncratio_function
+    
     ! If we do not have leaves out, then the relative nutrient vs carbon
     ! balancing is meaningless, just leave this routine
     if(this%GetState(leaf_organ, carbon12_element)/target_c(leaf_organ) < 0.5_r8) return
@@ -772,7 +773,7 @@ contains
                this%GetState(store_organ, nitrogen_element) + &
                this%bc_inout(acnp_bc_inout_id_netdn)%rval)
 
-          select case(pid_ncratio_function)
+          select case(pid_function)
           case(pid_c_function)
              n_ratio = store_c_act/store_c_max
           case(pid_n_function)
@@ -812,7 +813,7 @@ contains
                this%GetState(store_organ, phosphorus_element) + &
                this%bc_inout(acnp_bc_inout_id_netdp)%rval)
           
-          select case(pid_ncratio_function)
+          select case(pid_function)
           case(pid_c_function)
              p_ratio = store_c_act/store_c_max
           case(pid_n_function)
@@ -914,15 +915,15 @@ contains
     !c_fnrt_expand = (l2fr+l2fr_delta_max)*target_c(leaf_organ) - l2fr*target_c(leaf_organ)
     !c_fnrt_expand = l2fr_delta_max*target_c(leaf_organ)
 
-    l2fr_delta_max = max(0._r8,c_fnrt_expand/target_c(leaf_organ))
+    !l2fr_delta_max = max(0._r8,c_fnrt_expand/target_c(leaf_organ))
     
     ! Apply the delta, also, avoid generating incredibly small l2fr's,
     ! super small l2frs will occur in plants that perpetually get almost
     ! now carbon gain, such as newly recruited plants in a dark understory
 
-    !l2fr = max(l2fr_min, l2fr + l2fr_delta)
+    l2fr = max(l2fr_min, l2fr + l2fr_delta)
     
-    l2fr = max(l2fr_min, l2fr + min(l2fr_delta_max,l2fr_delta))
+    !l2fr = max(l2fr_min, l2fr + min(l2fr_delta_max,l2fr_delta))
     
     !if((co_num==1) .or. (co_num==2)) print*,'AAX1',co_num,hlm_current_year,hlm_day_of_year, &
     !     dbh,nplant,(store_c_act/store_c_max),cn_ratio,SafeLog(cn_ratio),l2fr

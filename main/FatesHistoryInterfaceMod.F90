@@ -5259,18 +5259,18 @@ end subroutine update_history_hifrq
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_storec_si)
 
-    call this%set_history_var(vname='FATES_STOREC_TFRAC', units='kg kg-1',         &
+    call this%set_history_var(vname='FATES_STOREC_TF', units='kg kg-1',         &
          long='Storage C fraction of target', use_default='active',          &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_storectfrac_si )
 
-    call this%set_history_var(vname='FATES_STOREC_TFRAC_USTORY_SZPF', units='kg kg-1',         &
+    call this%set_history_var(vname='FATES_STOREC_TF_USTORY_SZPF', units='kg kg-1',         &
          long='Storage C fraction of target by size x pft, in the understory', use_default='inactive',          &
          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_storectfrac_ustory_scpf )
 
 
-    call this%set_history_var(vname='FATES_STOREC_TFRAC_CANOPY_SZPF', units='kg kg-1',         &
+    call this%set_history_var(vname='FATES_STOREC_TF_CANOPY_SZPF', units='kg kg-1',         &
          long='Storage C fraction of target by size x pft, in the canopy', use_default='inactive',          &
          avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_storectfrac_canopy_scpf )
@@ -5423,7 +5423,7 @@ end subroutine update_history_hifrq
             avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1,              &
             ivar=ivar, initialize=initialize_variables, index = ih_storen_si)
 
-       call this%set_history_var(vname='FATES_STOREN_TFRAC', units='1',           &
+       call this%set_history_var(vname='FATES_STOREN_TF', units='1',           &
             long='storage N fraction of target', use_default='active',         &
             avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1, ivar=ivar,   &
             initialize=initialize_variables, index = ih_storentfrac_si)
@@ -5485,14 +5485,14 @@ end subroutine update_history_hifrq
             hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
             initialize=initialize_variables, index = ih_storen_scpf)
 
-       call this%set_history_var(vname='FATES_STOREN_TFRAC_CANOPY_SZPF',          &
+       call this%set_history_var(vname='FATES_STOREN_TF_CANOPY_SZPF',          &
             units='1',                                                         &
             long='storage nitrogen fraction (0-1) of target, in canopy, by size-class x pft', &
             use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
             hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
             initialize=initialize_variables, index = ih_storentfrac_canopy_scpf)
 
-       call this%set_history_var(vname='FATES_STOREN_TFRAC_USTORY_SZPF',      &
+       call this%set_history_var(vname='FATES_STOREN_TF_USTORY_SZPF',      &
             units='1',                                                         &
             long='storage nitrogen fraction (0-1) of target, in understory, by size-class x pft', &
             use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
@@ -5519,7 +5519,7 @@ end subroutine update_history_hifrq
             upfreq=1, ivar=ivar, initialize=initialize_variables,              &
             index = ih_storep_si)
 
-       call this%set_history_var(vname='FATES_STOREP_TFRAC', units='1',           &
+       call this%set_history_var(vname='FATES_STOREP_TF', units='1',           &
             long='storage P fraction of target', use_default='active',         &
             avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1,              &
             ivar=ivar, initialize=initialize_variables,                        &
@@ -7213,7 +7213,7 @@ end subroutine update_history_hifrq
             hlms='CLM:ALM', upfreq=1, ivar=ivar,                               &
             initialize=initialize_variables, index = ih_storep_scpf)
 
-       call this%set_history_var(vname='FATES_STOREP_TFRAC_CANOPY_SZPF',          &
+       call this%set_history_var(vname='FATES_STOREP_TF_CANOPY_SZPF',          &
             units='1',                                                         &
             long='storage phosphorus fraction (0-1) of target, in canopy, by size-class x pft', &
             use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &

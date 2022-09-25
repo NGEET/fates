@@ -153,7 +153,7 @@ contains
 
     if(element_id.eq.nitrogen_element) then
 
-       plant_demand = fnrt_c * EDPftvarcon_inst%eca_vmax_nh4(ccohort%pft) * sec_per_day
+       plant_demand = fnrt_c * EDPftvarcon_inst%vmax_nh4(ccohort%pft) * sec_per_day
        
     elseif(element_id.eq.phosphorus_element) then
 

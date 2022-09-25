@@ -252,7 +252,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_nfix1'
+    name = 'fates_cnp_nfix1'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
@@ -563,7 +563,7 @@ contains
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%store_ovrflw_frac)
     
-    name = 'fates_nfix1'
+    name = 'fates_cnp_nfix1'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%nfix_mresp_scfrac)
     
