@@ -141,11 +141,27 @@ contains
     ! local variables
     integer  :: ft                ! pft index
     integer  :: i                 ! crowndamage index
+    integer  :: j                 ! damage bin index
     real(r8) :: damage_frac       ! damage fraction 
-    real(r8) :: class_widths      ! widths of each damage class
+    real(r8), allocatable :: damage_bin_edges_ex(:) ! including the upper bound of 100
+    real(r8), allocatable :: class_widths(:)      ! widths of each damage class
    
     call this%InitAllocateDamageTransitions(numpft)
+
+    allocate(class_widths(1:nlevdamage))
+    allocate(damage_bin_edges_ex(1:(nlevdamage+1)))
     
+    ! class widths
+    ! append 100 to ED_val_history_damage_bin_edges
+    do j = 1,nlevdamage
+       damage_bin_edges_ex(j) = ED_val_history_damage_bin_edges(j)
+    end do
+    damage_bin_edges_ex(j) = 100.0_r8
+
+    ! gets class widths (something like below)
+    class_widths =  damage_bin_edges_ex(2:(nlevdamage+1)) - &
+         damage_bin_edges_ex(1:nlevdamage)
+
      do ft = 1, numpft
 
        damage_frac = EDPftvarcon_inst%damage_frac(ft)
@@ -157,16 +173,11 @@ contains
           ! damage rate stays the same 
           this%damage_transitions(i,i,ft) = 1.0_r8 - damage_frac
 
-          ! class widths
-          ! append 100 to ED_val_history_damage_bin_edges
-          ! gets class widths (something like below)
-          !class_widths =  ED_val_history_damage_bin_edges(2:nlevdamage) - &
-           !    ED_val_history_damage_bin_edges(1:(nlevdamage-1))
 
           if(i < nlevdamage) then
              ! fraction damaged get split according to class width
-!             this%damage_transitions(i,i+1:nlevdamage,ft) = damage_frac/ &
- !                 sum(class_widths(i+1:nlevdamage)) *  class_widths(i+1:nlevdamage)
+             this%damage_transitions(i,i+1:nlevdamage,ft) = damage_frac * &
+                  class_widths(i+1:nlevdamage)/ SUM(class_widths(i+1:nlevdamage))  
           end if
           ! Make sure it sums to one - they have to go somewhere
           this%damage_transitions(i, :, ft) = this%damage_transitions(i, :, ft)/SUM(this%damage_transitions(i, :, ft))
