@@ -150,7 +150,7 @@ contains
 
     !-----------------------------------------------------------------------
 
-    if ( hlm_masterproc==itrue ) write(fates_log(),'(A,I4,A,I2.2,A,I2.2)') 'FATES Dynamics: ',&
+    if (debug .and.( hlm_masterproc==itrue)) write(fates_log(),'(A,I4,A,I2.2,A,I2.2)') 'FATES Dynamics: ',&
           hlm_current_year,'-',hlm_current_month,'-',hlm_current_day
 
     ! Consider moving this towards the end, because some of these
@@ -362,6 +362,7 @@ contains
        if( currentPatch%age  <  0._r8 )then
           write(fates_log(),*) 'negative patch age?',currentPatch%age, &
                currentPatch%patchno,currentPatch%area
+          call endrun(msg=errMsg(sourcefile, __LINE__))
        endif
 
        ! add age increment to secondary forest patches as well
@@ -585,6 +586,7 @@ contains
              currentCohort%coage = currentCohort%coage + hlm_freq_day
              if(currentCohort%coage < 0.0_r8)then
                 write(fates_log(),*) 'negative cohort age?',currentCohort%coage
+                call endrun(msg=errMsg(sourcefile, __LINE__))
              end if
 
              ! update cohort age class and age x pft class

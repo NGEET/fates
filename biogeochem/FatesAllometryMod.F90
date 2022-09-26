@@ -95,6 +95,7 @@ module FatesAllometryMod
   use shr_log_mod      , only : errMsg => shr_log_errMsg
   use FatesGlobals     , only : fates_log
   use FatesGlobals     , only : endrun => fates_endrun
+  use FatesGlobals     , only : FatesWarn,N2S,A2S,I2S
   use EDTypesMod       , only : nlevleaf, dinc_vai
   use EDTypesMod       , only : nclmax
 
@@ -130,6 +131,8 @@ module FatesAllometryMod
 
   
   logical, parameter :: debug = .false.
+
+  character(len=1024) :: warn_msg   ! for defining a warning message
   
   ! If testing b4b with older versions, do not remove sapwood
   ! Our old methods with saldarriaga did not remove sapwood from the
@@ -2005,7 +2008,7 @@ contains
     ! Original FATES crown depth heigh used for hydraulics
     ! crown_depth               = min(height,0.1_r8)
 
-    crown_depth = prt_params%crown(ft) * height
+    crown_depth = prt_params%crown_depth_frac(ft) * height
 
     
     return
@@ -2370,7 +2373,7 @@ contains
      integer, parameter  :: max_counter = 200
      
      ! Do reduce "if" calls, we break this call into two parts
-     if ( int(prt_params%woody(ipft)) == itrue ) then
+     if ( prt_params%woody(ipft) == itrue ) then
 
         if(.not.present(bdead)) then
            write(fates_log(),*) 'woody plants must use structure for dbh reset'
@@ -2456,7 +2459,14 @@ contains
      call h_allom(d,ipft,h)
      if(counter>20)then
         write(fates_log(),*) 'dbh counter: ',counter,' is woody: ',&
-             int(prt_params%woody(ipft))==itrue
+             (prt_params%woody(ipft) == itrue)
+
+        if(int(prt_params%woody(ipft))==itrue)then
+           warn_msg = 'dbh counter: '//trim(I2S(counter))//' is woody'
+        else
+           warn_msg = 'dbh counter: '//trim(I2S(counter))//' is not woody'
+        end if
+        call FatesWarn(warn_msg,index=3)
      end if
 
      

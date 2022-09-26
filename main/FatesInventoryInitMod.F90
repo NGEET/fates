@@ -485,7 +485,7 @@ contains
          write(fates_log(),*) 'Lat: ',sites(s)%lat,' Lon: ',sites(s)%lon
          write(fates_log(),*) basal_area_pref,' [m2/ha]'
          write(fates_log(),*) '-------------------------------------------------------'
-
+                  
          ! Update the patch index numbers and fuse the cohorts in the patches
          ! ----------------------------------------------------------------------------------------
          ipa=1
@@ -734,7 +734,7 @@ contains
       ! water	(NA)       Water content of soil (NOT USED)
       ! fsc	(kg/m2)    Fast Soil Carbon
       ! stsc	(kg/m2)    Structural Soil Carbon
-      ! stsl	(kg/m2)    Structural Soil Lignan
+      ! stsl	(kg/m2)    Structural Soil Lignin
       ! ssc	(kg/m2)    Slow Soil Carbon
       ! psc	(NA)       Passive Soil Carbon (NOT USED)
       ! msn	(kg/m2)    Mineralized Soil Nitrogen
@@ -763,7 +763,7 @@ contains
       real(r8)                                    :: p_water    ! Patch water (unused)
       real(r8)                                    :: p_fsc      ! Patch fast soil carbon
       real(r8)                                    :: p_stsc     ! Patch structural soil carbon
-      real(r8)                                    :: p_stsl     ! Patch structural soil lignans
+      real(r8)                                    :: p_stsl     ! Patch structural soil lignins
       real(r8)                                    :: p_ssc      ! Patch slow soil carbon
       real(r8)                                    :: p_psc      ! Patch P soil carbon
       real(r8)                                    :: p_msn      ! Patch mean soil nitrogen
@@ -995,9 +995,11 @@ contains
       end if
 
       if (c_pft .eq. 0 ) then
-         write(fates_log(), *) 'inventory pft: ',c_pft
-         write(fates_log(), *) 'SPECIAL CASE TRIGGERED: PFT == 0 and therefore this subroutine'
-         write(fates_log(), *) 'will assign a cohort with n = n_orig/numpft to every cohort in range 1 to numpft'
+         if(debug_inv)then
+            write(fates_log(), *) 'inventory pft: ',c_pft
+            write(fates_log(), *) 'SPECIAL CASE TRIGGERED: PFT == 0 and therefore this subroutine'
+            write(fates_log(), *) 'will assign a cohort with n = n_orig/numpft to every cohort in range 1 to numpft'
+         end if
          ncohorts_to_create = numpft
       else
          ncohorts_to_create = 1
@@ -1039,32 +1041,22 @@ contains
 
          call bstore_allom(temp_cohort%dbh, temp_cohort%pft, temp_cohort%canopy_trim, c_store)
 
-         temp_cohort%laimemory = 0._r8
-         temp_cohort%sapwmemory = 0._r8
-         temp_cohort%structmemory = 0._r8
          cstatus = leaves_on
-
          stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(temp_cohort%pft)
 
          if( prt_params%season_decid(temp_cohort%pft) == itrue .and. &
               any(csite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
-            temp_cohort%laimemory = c_leaf
-            temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
-            temp_cohort%structmemory = c_struct * stem_drop_fraction
             c_leaf  = 0._r8
-	         c_sapw = (1._r8 - stem_drop_fraction) * c_sapw
-	         c_struct  = (1._r8 - stem_drop_fraction) * c_struct
+            c_sapw = (1._r8 - stem_drop_fraction) * c_sapw
+            c_struct  = (1._r8 - stem_drop_fraction) * c_struct
             cstatus = leaves_off
          endif
 
          if ( prt_params%stress_decid(temp_cohort%pft) == itrue .and. &
               any(csite%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff])) then
-            temp_cohort%laimemory = c_leaf
-            temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
-            temp_cohort%structmemory = c_struct * stem_drop_fraction
             c_leaf  = 0._r8
-	         c_sapw = (1._r8 - stem_drop_fraction) * c_sapw
-	         c_struct  = (1._r8 - stem_drop_fraction) * c_struct
+            c_sapw = (1._r8 - stem_drop_fraction) * c_sapw
+            c_struct  = (1._r8 - stem_drop_fraction) * c_struct
             cstatus = leaves_off
          endif
 
@@ -1095,21 +1087,17 @@ contains
             case(nitrogen_element)
 
                ! For inventory runs, initialize nutrient contents half way between max and min stoichiometries
-               m_struct = c_struct * 0.5_r8 * &
-                    (prt_params%nitr_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(struct_organ)) + &
-                    prt_params%nitr_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(struct_organ)))
+               m_struct = c_struct * &
+                    prt_params%nitr_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(struct_organ))
 
-               m_leaf   = c_leaf * 0.5_r8 * &
-                    (prt_params%nitr_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(leaf_organ)) + &
-                    prt_params%nitr_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(leaf_organ)))
+               m_leaf   = c_leaf * &
+                    prt_params%nitr_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(leaf_organ))
 
-               m_fnrt   = c_fnrt * 0.5_r8 * &
-                    (prt_params%nitr_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(fnrt_organ)) + &
-                    prt_params%nitr_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(fnrt_organ)))
+               m_fnrt   = c_fnrt * &
+                    prt_params%nitr_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(fnrt_organ))
 
-               m_sapw   = c_sapw * 0.5_r8 * &
-                    (prt_params%nitr_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(sapw_organ)) + &
-                    prt_params%nitr_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(sapw_organ)))
+               m_sapw   = c_sapw * &
+                    prt_params%nitr_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(sapw_organ))
 
                m_repro  = 0._r8
 
@@ -1117,21 +1105,17 @@ contains
 
             case(phosphorus_element)
 
-               m_struct = c_struct * 0.5_r8 * &
-                    (prt_params%phos_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(struct_organ)) + &
-                    prt_params%phos_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(struct_organ)))
+               m_struct = c_struct * &
+                    prt_params%phos_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(struct_organ))
 
-               m_leaf   = c_leaf * 0.5_r8 * &
-                    (prt_params%phos_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(leaf_organ)) + &
-                    prt_params%phos_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(leaf_organ)))
+               m_leaf   = c_leaf * &
+                    prt_params%phos_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(leaf_organ))
 
-               m_fnrt   = c_fnrt * 0.5_r8 * &
-                    (prt_params%phos_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(fnrt_organ)) + &
-                    prt_params%phos_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(fnrt_organ)))
-
-               m_sapw   = c_sapw * 0.5_r8 * &
-                    (prt_params%phos_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(sapw_organ)) + &
-                    prt_params%phos_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(sapw_organ)))
+               m_fnrt   = c_fnrt * &
+                    prt_params%phos_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(fnrt_organ))
+                    
+               m_sapw   = c_sapw * &
+                    prt_params%phos_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(sapw_organ))
 
                m_repro  = 0._r8
 
@@ -1167,8 +1151,7 @@ contains
 
          call create_cohort(csite, cpatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, &
               temp_cohort%coage, temp_cohort%dbh, &
-              prt_obj, temp_cohort%laimemory,temp_cohort%sapwmemory, temp_cohort%structmemory, &
-              cstatus, rstatus, temp_cohort%canopy_trim,temp_cohort%c_area, &
+              prt_obj, cstatus, rstatus, temp_cohort%canopy_trim,temp_cohort%c_area, &
               1, csite%spread, bc_in)
 
          deallocate(temp_cohort) ! get rid of temporary cohort

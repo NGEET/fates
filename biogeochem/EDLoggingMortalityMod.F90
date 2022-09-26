@@ -64,7 +64,7 @@ module EDLoggingMortalityMod
    use FatesAllometryMod , only : set_root_fraction
    use FatesConstantsMod , only : primaryforest, secondaryforest, secondary_age_threshold
    use FatesConstantsMod , only : fates_tiny
-   use FatesConstantsMod , only : months_per_year, days_per_sec, years_per_day
+   use FatesConstantsMod , only : months_per_year, days_per_sec, years_per_day, g_per_kg
    use FatesConstantsMod , only : hlm_harvest_area_fraction
    use FatesConstantsMod , only : hlm_harvest_carbon
    use FatesConstantsMod, only : fates_check_param_set
@@ -75,7 +75,8 @@ module EDLoggingMortalityMod
    logical, protected :: logging_time   ! If true, logging should be 
                                         ! performed during the current time-step
 
-
+   logical, parameter :: debug = .false.
+   
    ! harvest litter localization specifies how much of the litter from a falling
    ! tree lands within the newly generated patch, and how much lands outside of 
    ! the new patch, and thus in the original patch.  By setting this to zero,
@@ -285,27 +286,27 @@ contains
                   harvest_rate, harvest_tag, cur_harvest_tag)
 
             if (fates_global_verbose()) then
-               write(fates_log(), *) 'Successfully Read Harvest Rate from HLM.', hlm_harvest_rates(:), harvest_rate, &
+               write(fates_log(), *) 'Successfully Read Harvest Rate from HLM.', hlm_harvest_rates(:), harvest_rate &
                harvestable_forest_c, available_forest_c
             end if
-            !write(fates_log(),*) 'HLM harvest carbon data not implemented yet. Exiting.'
-            !call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
+            
+            write(fates_log(),*) 'HLM harvest carbon data not implemented yet. Exiting.'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+            
+         endif
 
          ! transfer of area to secondary land is based on overall area affected, not just logged crown area
          ! l_degrad accounts for the affected area between logged crowns
-         if(int(prt_params%woody(pft_i)) == 1) then ! only set logging rates for trees
+         if(prt_params%woody(pft_i) == itrue)then ! only set logging rates for trees
             if (cur_harvest_tag == 0) then
                ! direct logging rates, based on dbh min and max criteria
                if (dbh >= logging_dbhmin .and. .not. &
-                    ((logging_dbhmax < fates_check_param_set) .and. (dbh >= logging_dbhmax )) ) then
+                  ((logging_dbhmax < fates_check_param_set) .and. (dbh >= logging_dbhmax )) ) then
                   ! the logic of the above line is a bit unintuitive but allows turning off the dbhmax comparison entirely.
                   ! since there is an .and. .not. after the first conditional, the dbh:dbhmax comparison needs to be 
                   ! the opposite of what would otherwise be expected...
                   lmort_direct = harvest_rate * logging_direct_frac
-               else
-                  lmort_direct = 0.0_r8
-               end if
+
             else
                 lmort_direct = 0.0_r8
             end if
@@ -827,7 +828,7 @@ contains
                ! plants that were impacted. Thus, no direct dead can occur
                ! here, and indirect are impacts.
 
-               if(int(prt_params%woody(pft)) == itrue) then
+               if(prt_params%woody(pft) == itrue) then
                   direct_dead   = 0.0_r8
                   indirect_dead = logging_coll_under_frac * &
                        (1._r8-currentPatch%fract_ldist_not_harvested) * currentCohort%n * &
@@ -1083,7 +1084,7 @@ contains
 
   ! =====================================================================================
 
-   subroutine UpdateHarvestC(currentSite,bc_in,bc_out)
+   subroutine UpdateHarvestC(currentSite,bc_out)
 
       ! ----------------------------------------------------------------------------------
       ! Added by Shijie Shu.
@@ -1094,13 +1095,11 @@ contains
       use EDTypesMod             , only : AREA_INV
       use PRTGenericMod          , only : element_pos
       use PRTGenericMod          , only : carbon12_element
+      use FatesInterfaceTypesMod , only : bc_out_type
       use EDParamsMod            , only : pprodharv10_forest_mean
-
-      use FatesInterfaceTypesMod , only : bc_in_type, bc_out_type
   
       ! Arguments
       type(ed_site_type), intent(inout), target :: currentSite     ! site structure
-      type(bc_in_type), intent(in)              :: bc_in
       type(bc_out_type), intent(inout)          :: bc_out
   
       integer :: icode
@@ -1108,47 +1107,18 @@ contains
   
 
       ! Flush the older value before update
-      if(logging_time) then
-         bc_out%hrv_deadstemc_to_prod10c = 0._r8
-         bc_out%hrv_deadstemc_to_prod100c = 0._r8
-      end if
+      bc_out%hrv_deadstemc_to_prod10c = 0._r8
+      bc_out%hrv_deadstemc_to_prod100c = 0._r8
   
-      ! First test tropic forest (PFT=1)
       ! Calculate the unit transfer factor (from kgC m-2 day-1 to gC m-2 s-1)
-      ! for icode == 2, icode < 0, and icode > 10000 is one time harvest, thus
-      ! shall distribute into everyday
-      icode = int(logging_event_code)
-      if(icode .eq. 1) then
-         ! Logging is turned off
-         unit_trans_factor = 1._r8
-      else if(icode .eq. 3) then
-         ! Logging event every day - this may not work due to the mortality exclusivity
-         unit_trans_factor = 1000._r8 * days_per_sec
-      else if(icode .eq. 4) then
-         ! Logging event once a month
-         ! Shijie: Shall think about a better if expreession?
-         if ((hlm_current_month == 1) .or. (hlm_current_month == 3) .or. &
-             (hlm_current_month == 5) .or. (hlm_current_month == 7) .or. &
-             (hlm_current_month == 8) .or. (hlm_current_month == 10) .or. &
-             (hlm_current_month == 12)) then
-            unit_trans_factor = 1000._r8 * days_per_sec / 31._r8
-        else if((hlm_current_month == 4) .or. (hlm_current_month == 6) .or. &
-            (hlm_current_month == 9) .or. (hlm_current_month == 11)) then
-            unit_trans_factor = 1000._r8 * days_per_sec / 30._r8
-        else
-            unit_trans_factor = 1000._r8 * days_per_sec / 28._r8
-        end if
-      else
-         ! Logging event one time every year
-         unit_trans_factor = 1000._r8 * days_per_sec * years_per_day
-      end if
+      unit_trans_factor = g_per_kg * days_per_sec
 
       bc_out%hrv_deadstemc_to_prod10c = bc_out%hrv_deadstemc_to_prod10c + &
           currentSite%mass_balance(element_pos(carbon12_element))%wood_product * &
           AREA_INV * pprodharv10_forest_mean * unit_trans_factor
       bc_out%hrv_deadstemc_to_prod100c = bc_out%hrv_deadstemc_to_prod100c + &
           currentSite%mass_balance(element_pos(carbon12_element))%wood_product * &
-          AREA_INV * (1 - pprodharv10_forest_mean) * unit_trans_factor  
+          AREA_INV * (1._r8 - pprodharv10_forest_mean) * unit_trans_factor  
   
       return
    end subroutine UpdateHarvestC
