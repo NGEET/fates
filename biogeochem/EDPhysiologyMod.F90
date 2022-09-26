@@ -1296,10 +1296,12 @@ contains
                    currentCohort%status_coh = leaves_on         ! Leaves are on, so change status to
                    ! stop flow of carbon out of bstore.
 
-                   call bleaf(currentCohort%dbh,currentCohort%pft,currentCohort%canopy_trim,target_leaf_c)
-                   call bsap_allom(currentCohort%dbh,currentCohort%pft, &
+                   call bleaf(currentCohort%dbh,currentCohort%pft,currentCohort%crowndamage, &
+                        currentCohort%canopy_trim,target_leaf_c)
+                   call bsap_allom(currentCohort%dbh,currentCohort%pft,currentCohort%crowndamage, &
                         currentCohort%canopy_trim,sapw_area,target_sapw_c)
-                   call bagw_allom(currentCohort%dbh,currentCohort%pft,target_agw_c)
+                   call bagw_allom(currentCohort%dbh,currentCohort%pft,currentCohort%crowndamage,&
+                        target_agw_c)
                    call bbgw_allom(currentCohort%dbh,currentCohort%pft,target_bgw_c)
                    call bdead_allom( target_agw_c, target_bgw_c, target_sapw_c, &
                         currentCohort%pft, target_struct_c)
@@ -1400,11 +1402,12 @@ contains
                    currentCohort%status_coh = leaves_on    ! Leaves are on, so change status to
                    ! stop flow of carbon out of bstore.
 
-                   call bleaf(currentCohort%dbh,currentCohort%pft,&
+                   call bleaf(currentCohort%dbh,currentCohort%pft,currentCohort%crowndamage,&
                         currentCohort%canopy_trim,target_leaf_c)
-                   call bsap_allom(currentCohort%dbh,currentCohort%pft, &
+                   call bsap_allom(currentCohort%dbh,currentCohort%pft,currentCohort%crowndamage,&
                         currentCohort%canopy_trim,sapw_area,target_sapw_c)
-                   call bagw_allom(currentCohort%dbh,currentCohort%pft,target_agw_c)
+                   call bagw_allom(currentCohort%dbh,currentCohort%pft,currentCohort%crowndamage,&
+                        target_agw_c)
                    call bbgw_allom(currentCohort%dbh,currentCohort%pft,target_bgw_c)
                    call bdead_allom( target_agw_c, target_bgw_c, target_sapw_c, &
                         currentCohort%pft, target_struct_c)
