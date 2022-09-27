@@ -671,24 +671,22 @@ contains
                          call GetCrownReduction(currentCohort%crowndamage, crown_reduction)
 
                          sapw_c_undamaged = sapw_c / &
-                              (1.0_r8 - (agb_frac * branch_frac * (1.0_r8-crown_reduction)))
+                              (1.0_r8 - (agb_frac * branch_frac * crown_reduction))
                          ! Undamaged below ground portion
                          sapw_c_bgw = sapw_c_undamaged * (1.0_r8 - agb_frac)
 
                          ! Damaged aboveground portion
                          sapw_c_agw = sapw_c - sapw_c_bgw
-
+                         
                       end if
                      
    
                       select case(hlm_parteh_mode)
                       case (prt_carbon_allom_hyp)
 
-                         live_stem_n = prt_params%allom_agb_frac(currentCohort%pft) * &
-                              sapw_c_agw * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ))
+                         live_stem_n = sapw_c_agw * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ))
 
-                         live_croot_n = (1.0_r8-prt_params%allom_agb_frac(currentCohort%pft)) * &
-                              sapw_c_bgw * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ))
+                         live_croot_n = sapw_c_bgw * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ))
 
                          fnrt_n = fnrt_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(fnrt_organ))
 
@@ -708,16 +706,14 @@ contains
                             sapw_n = currentCohort%prt%GetState(sapw_organ, nitrogen_element)
 
                             sapw_n_undamaged = sapw_n / &
-                                 (1.0_r8 - (agb_frac * branch_frac * (1.0_r8 - crown_reduction)))
+                                 (1.0_r8 - (agb_frac * branch_frac * crown_reduction))
                             
                             sapw_n_bgw = sapw_n_undamaged * (1.0_r8 - agb_frac)
                             sapw_n_agw = sapw_n - sapw_n_bgw
 
-                            live_croot_n = (1.0_r8-prt_params%allom_agb_frac(currentCohort%pft)) * &
-                                 sapw_n_bgw
+                            live_croot_n = sapw_n_bgw
 
-                            live_stem_n = prt_params%allom_agb_frac(currentCohort%pft) * &
-                                 sapw_n_agw
+                            live_stem_n = sapw_n_agw
 
                          end if
 
