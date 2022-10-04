@@ -103,7 +103,6 @@ Module EDCohortDynamicsMod
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_pefflux, acnp_bc_in_id_cdamage
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_nneed
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_pneed
-  use DamageMainMod,          only : GetCrownReduction
   use DamageMainMod,          only : undamaged_class
 
   use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)
@@ -2055,7 +2054,6 @@ contains
     ! consistent with stuctural biomass (or, in the case of grasses, leaf biomass)
     ! then correct (increase) the dbh to match that.
     ! -----------------------------------------------------------------------------------
-    use DamageMainMod, only : GetCrownReduction
     
     ! argument
     type(ed_cohort_type),intent(inout) :: currentCohort
@@ -2161,7 +2159,7 @@ contains
 
     ! locals
     type(ed_cohort_type), pointer :: rcohort ! New cohort that recovers by
-                                             ! having an lower damage class
+                                             ! having a lower damage class
     real(r8) :: sapw_area                    ! sapwood area
     real(r8) :: target_sapw_c,target_sapw_m  ! sapwood mass, C and N/P
     real(r8) :: target_agw_c                 ! target above ground wood
@@ -2178,7 +2176,7 @@ contains
     real(r8) :: available_m                     ! available mass that can be used to 
                                                 ! improve damage class
     real(r8) :: recovery_demand                 ! amount of mass needed to get to 
-                                                ! get to the target of the next damage class
+                                                ! the target of the next damage class
     real(r8) :: max_recover_nplant              ! max number of plants that could get to
                                                 ! target of next class
     real(r8) :: nplant_recover                  ! number of plants in cohort that will
@@ -2336,9 +2334,7 @@ contains
          
          ! Need to adjust the crown area which is NOT on a per individual basis
          call carea_allom(dbh,rcohort%n,csite%spread,ipft,rcohort%crowndamage,rcohort%c_area)
-         !rcohort%n/n_old * ccohort%c_area
-         !ccohort%c_area = ccohort%c_area - rcohort%c_area
-
+        
          ! Update properties of the un-recovered (donor) cohort
          ccohort%n = ccohort%n - rcohort%n
          ccohort%c_area = ccohort%c_area * ccohort%n / (ccohort%n+rcohort%n)

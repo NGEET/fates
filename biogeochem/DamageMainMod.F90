@@ -76,7 +76,7 @@ contains
     damage_time = .false.
     icode = int(damage_event_code)
 
-    model_day_int = nint(hlm_model_day)
+    model_day_int = int(hlm_model_day)
     
     if(icode .eq. 1) then
        ! Damage is turned off 
@@ -90,7 +90,7 @@ contains
 
     else if(icode .eq. 3) then
        ! Damage event every day - this is not recommended as it will result in a very large
-       ! number of cohorts 
+       ! number of cohorts which will likely be terminated 
        damage_time = .true.
 
     else if(icode .eq. 4) then
@@ -147,8 +147,6 @@ contains
     ! This subroutine consults a look up table of transitions from param derived. 
     
     ! USES
-    use FatesInterfaceTypesMod, only : nlevdamage
-    use FatesConstantsMod, only : years_per_day
     use FatesParameterDerivedMod, only : param_derived
 
        
@@ -156,7 +154,7 @@ contains
     integer, intent(in) :: cc_cd                   ! current cohort crown damage
     integer, intent(in) :: nc_cd                   ! new cohort crown damage
     integer, intent(in) :: pft                     ! plant functional type
-    real(r8), intent(out) :: dist_frac             ! probability of current cohort moving to
+    real(r8), intent(out) :: dist_frac             ! fraction of current cohort moving to
                                                    ! new damage level
 
     dist_frac = param_derived%damage_transitions(cc_cd, nc_cd, pft) 
@@ -167,10 +165,10 @@ contains
   
   subroutine GetCrownReduction(crowndamage, crown_reduction)
 
-    !------------------------------------------------------------------                                                                     
+    !------------------------------------------------------------------
     ! This subroutine takes the crown damage class of a cohort (integer)
     ! and returns the fraction of the crown that is lost.                                                                  
-    !-------------------------------------------------------------------                                                                    
+    !-------------------------------------------------------------------       
 
     integer(i4), intent(in)   :: crowndamage        ! crown damage class of the cohort
     real(r8),    intent(out)  :: crown_reduction    ! fraction of crown lost from damage
@@ -195,8 +193,6 @@ contains
     ! those unrepresented mechanisms. 
     !------------------------------------------------------------------
 
-
-    use FatesInterfaceTypesMod     , only : nlevdamage           
     use EDPftvarcon                , only : EDPftvarcon_inst
     
     integer(i4), intent(in) :: crowndamage       ! crown damage class of the cohort

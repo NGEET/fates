@@ -211,7 +211,7 @@ contains
 
     ! Locals
     type(ed_cohort_type), pointer :: ccohort    ! Current cohort
-    type(ed_cohort_type), pointer :: ndcohort   ! Newly damage-class cohort
+    type(ed_cohort_type), pointer :: ndcohort   ! New damage-class cohort
     type(litter_type), pointer :: litt     ! Points to the litter object
     type(site_fluxdiags_type), pointer :: flux_diags ! pointer to site level flux diagnostics object
     integer  :: cd               ! Damage class index
