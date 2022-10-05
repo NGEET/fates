@@ -2697,6 +2697,7 @@ contains
                 sites(s)%area_pft(0) = area - sum(sites(s)%area_pft(1:numpft))
              else
                 sites(s)%area_pft(0) = 0.0_r8
+             endif
           endif
 
           ! Mass balance and diagnostics across elements at the site level
