@@ -9,6 +9,7 @@ module FatesRestartInterfaceMod
   use FatesConstantsMod,       only : ifalse
   use FatesConstantsMod,       only : fates_unset_r8, fates_unset_int
   use FatesConstantsMod,       only : primaryforest
+  use FatesConstantsMod,       only : nearzero
   use FatesGlobals,            only : fates_log
   use FatesGlobals,            only : endrun => fates_endrun
   use FatesIODimensionsMod,    only : fates_io_dimension_type
