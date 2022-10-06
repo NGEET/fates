@@ -2693,7 +2693,7 @@ contains
 
           ! calculate the bareground area for the pft in no competition modes
           if (hlm_use_nocomp .eq. itrue) then
-             if (sum(sites(s)%area_pft(1:numpft)) .lt. area) then
+             if (area-sum(sites(s)%area_pft(1:numpft)) .gt. nearzero) then
                 sites(s)%area_pft(0) = area - sum(sites(s)%area_pft(1:numpft))
              else
                 sites(s)%area_pft(0) = 0.0_r8
