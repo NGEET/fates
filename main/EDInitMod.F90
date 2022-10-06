@@ -292,9 +292,11 @@ contains
     integer  :: dleafoff   ! DOY for drought-decid leaf-off, initial guess
     integer  :: dleafon    ! DOY for drought-decid leaf-on, initial guess
     integer  :: ft         ! PFT loop
-    real(r8) :: sumarea    ! area of PFTs in nocomp mode.
+    real(r8) :: sumarea    ! area of PFTs in nocomp mode
     integer  :: hlm_pft    ! used in fixed biogeog mode
     integer  :: fates_pft  ! used in fixed biogeog mode
+    
+    real(r8) :: small_patch_tol = 0.01_r8 ! Do not allocate pft area below this threshhold
     !----------------------------------------------------------------------
 
 
@@ -346,25 +348,38 @@ contains
 
              sites(s)%area_pft(1:numpft) = 0._r8
              do hlm_pft = 1,size( EDPftvarcon_inst%hlm_pft_map,2)
-                do fates_pft = 1,numpft ! loop round all fates pfts for all hlm pfts
+                
+                ! loop round all fates pfts for all hlm pfts
+                do fates_pft = 1,numpft
+                
                    sites(s)%area_pft(fates_pft) = sites(s)%area_pft(fates_pft) + &
                         EDPftvarcon_inst%hlm_pft_map(fates_pft,hlm_pft) * bc_in(s)%pft_areafrac(hlm_pft)
-                end do
+                
+                   ! Check for negative pft area
+                   if(sites(s)%area_pft(fates_pft) .lt. 0._r8)then
+                      write(fates_log(),*) 'negative area',s,ft,sites(s)%area_pft(ft)
+                      call endrun(msg=errMsg(sourcefile, __LINE__))
+                   end if
+                   
+                   ! remove tiny patches to prevent numerical errors in terminate patches
+                   if(sites(s)%area_pft(fates_pft) .lt. small_patch_tol)then
+                     if(debug) write(fates_log(),*)  'removing small pft patches',s,fates_pft,sites(s)%area_pft(fates_pft)
+                     sites(s)%area_pft(fates_pft) = 0.0_r8
+                  endif
+                  
+                  ! rescale units to m2
+                  sites(s)%area_pft(fates_pft)= sites(s)%area_pft(fates_pft) * AREA 
+        
+                end do !fates_pft
              end do !hlm_pft
 
-             do ft =  1,numpft
-                if(sites(s)%area_pft(ft).lt.0.01_r8.and.sites(s)%area_pft(ft).gt.0.0_r8)then
-                   if(debug) write(fates_log(),*)  'removing small pft patches',s,ft,sites(s)%area_pft(ft)
-                   sites(s)%area_pft(ft)=0.0_r8
-                   ! remove tiny patches to prevent numerical errors in terminate patches
-                endif
-                if(sites(s)%area_pft(ft).lt.0._r8)then
-                   write(fates_log(),*) 'negative area',s,ft,sites(s)%area_pft(ft)
-                   call endrun(msg=errMsg(sourcefile, __LINE__))
-                end if
-                sites(s)%area_pft(ft)= sites(s)%area_pft(ft) * AREA ! rescale units to m2.
-             end do
-
+             ! Check that the sum of the areas is not greater than the notional area
+             sumarea = sum(sites(s)%area_pft(1:numpft))
+             if(sumarea .gt. area)then
+               write(fates_log(),*) 'Total pft area for site is larger than notional area',s,sum(sites(s)%area_pft)
+               call endrun(msg=errMsg(sourcefile, __LINE__))
+             endif
+                          
              ! re-normalize PFT area to ensure it sums to one.
              ! note that in areas of 'bare ground' (PFT 0 in CLM/ELM)
              ! the bare ground will no longer be proscribed and should emerge from FATES
@@ -372,10 +387,9 @@ contains
 
              if(hlm_use_nocomp.eq.ifalse)then ! when not in nocomp (i.e. or SP) mode, 
                 ! subsume bare ground evenly into the existing patches.
-
-                sumarea = sum(sites(s)%area_pft(1:numpft))
+                
                 do ft =  1,numpft
-                   if(sumarea.gt.0._r8)then
+                   if(area-sumarea.gt.nearzero)then
                       sites(s)%area_pft(ft) = area * sites(s)%area_pft(ft)/sumarea
                    else
                       sites(s)%area_pft(ft) = area/numpft
@@ -383,8 +397,8 @@ contains
                       ! all pfts and let the model figure out whether land should be bare or not.
                    end if
                 end do !ft
+                
              else ! for sp and nocomp mode, assert a bare ground patch if needed
-                sumarea = sum(sites(s)%area_pft(1:numpft))
                 
                ! In all the other FATES modes, bareground is the area in which plants
                ! do not grow of their own accord. In SP mode we assert that the canopy is full for
@@ -396,11 +410,12 @@ contains
                ! on canopy are inside FATES, and so in SP mode, we define the bare groud
                ! patch as having a PFT identifier as zero.
 
-                if(sumarea.lt.area)then !make some bare ground
+                if(area-sumarea.gt.nearzero)then !make some bare ground
                    sites(s)%area_pft(0) = area - sumarea
                 else
                    sites(s)%area_pft(0) = 0.0_r8
                 end if
+                
              end if !sp mode
           end if !fixed biogeog
 
