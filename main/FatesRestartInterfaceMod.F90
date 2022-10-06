@@ -2692,8 +2692,8 @@ contains
              sites(s)%area_pft(i_pft)     = rio_area_pft_sift(io_idx_co_1st+i_pft-1)
           enddo
 
-          ! calculate the bareground area for the pft in no competition modes
-          if (hlm_use_nocomp .eq. itrue) then
+          ! calculate the bareground area for the pft in no competition + fixed biogeo modes
+          if (hlm_use_nocomp .eq. itrue .and. hlm_use_fixed_biogeog .eq. itrue) then
              if (area-sum(sites(s)%area_pft(1:numpft)) .gt. nearzero) then
                 sites(s)%area_pft(0) = area - sum(sites(s)%area_pft(1:numpft))
              else
