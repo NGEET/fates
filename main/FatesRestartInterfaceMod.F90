@@ -19,7 +19,8 @@ module FatesRestartInterfaceMod
   use FatesInterfaceTypesMod,       only : bc_in_type
   use FatesInterfaceTypesMod,       only : bc_out_type
   use FatesInterfaceTypesMod,       only : hlm_use_planthydro
-  use FatesInterfaceTypesMod,       only : hlm_use_sp, hlm_use_nocomp
+  use FatesInterfaceTypesMod,       only : hlm_use_sp
+  use FatesInterfaceTypesMod,       only : hlm_use_nocomp, hlm_use_fixed_biogeog
   use FatesInterfaceTypesMod,       only : fates_maxElementsPerSite
   use EDCohortDynamicsMod,     only : UpdateCohortBioPhysRates
   use FatesHydraulicsMemMod,   only : nshell
