@@ -859,6 +859,18 @@ contains
                             do el = 1,num_elements
 
                                leaf_m = nc%prt%GetState(leaf_organ, element_list(el))
+                               ! for grasses burn all aboveground tissues, for woody plants burn only leaves
+                               if(int(prt_params%woody(currentCohort%pft)) == itrue)then
+
+                                  leaf_m = nc%prt%GetState(leaf_organ, element_list(el))
+
+                               else
+
+                                  leaf_m = nc%prt%GetState(leaf_organ, element_list(el)) + &
+                                       nc%prt%GetState(sapw_organ, element_list(el)) + &
+                                       nc%prt%GetState(struct_organ, element_list(el))
+
+                               endif
 
                                currentSite%mass_balance(el)%burn_flux_to_atm = &
                                     currentSite%mass_balance(el)%burn_flux_to_atm + &
@@ -867,7 +879,14 @@ contains
 
                             ! Here the mass is removed from the plant
 
-                            call PRTBurnLosses(nc%prt, leaf_organ, leaf_burn_frac)
+                            if(int(prt_params%woody(currentCohort%pft)) == itrue)then
+                               call PRTBurnLosses(nc%prt, leaf_organ, leaf_burn_frac)
+                            else
+                               call PRTBurnLosses(nc%prt, leaf_organ, leaf_burn_frac)
+                               call PRTBurnLosses(nc%prt, sapw_organ, leaf_burn_frac)
+                               call PRTBurnLosses(nc%prt, struct_organ, leaf_burn_frac)
+                            endif
+
                             currentCohort%fraction_crown_burned = 0.0_r8
                             nc%fraction_crown_burned            = 0.0_r8
 

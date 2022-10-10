@@ -195,7 +195,9 @@ contains
           if( prt_params%woody(currentCohort%pft) == ifalse)then 
              
              currentPatch%livegrass = currentPatch%livegrass + &
-                  currentCohort%prt%GetState(leaf_organ, all_carbon_elements) * &
+                  ( currentCohort%prt%GetState(leaf_organ, all_carbon_elements) + &
+                  currentCohort%prt%GetState(sapw_organ, all_carbon_elements) + &
+                  currentCohort%prt%GetState(struct_organ, all_carbon_elements) ) * &
                   currentCohort%n/currentPatch%area
 
           endif
