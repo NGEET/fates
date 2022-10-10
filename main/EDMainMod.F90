@@ -26,6 +26,10 @@ module EDMainMod
   use FatesInterfaceTypesMod        , only : hlm_masterproc
   use FatesInterfaceTypesMod        , only : numpft
   use FatesInterfaceTypesMod        , only : hlm_use_nocomp
+  use FatesInterfaceTypesMod        , only : hlm_use_hydrohard
+  use FatesInterfaceTypesMod        , only : hlm_use_frosthard
+  use FatesInterfaceTypesMod        , only : hlm_model_day
+  use FatesHydroWTFMod         , only : wrf_type, wrf_type_tfs
   use PRTGenericMod            , only : prt_carbon_allom_hyp
   use PRTGenericMod            , only : prt_cnp_flex_allom_hyp
   use PRTGenericMod            , only : nitrogen_element
@@ -83,7 +87,7 @@ module EDMainMod
   use EDPatchDynamicsMod       , only : get_frac_site_primary
   use FatesGlobals             , only : endrun => fates_endrun
   use ChecksBalancesMod        , only : SiteMassStock
-  use EDMortalityFunctionsMod  , only : Mortality_Derivative
+  use EDMortalityFunctionsMod  , only : Mortality_Derivative,Hardening_scheme
   use EDTypesMod               , only : AREA_INV
   use PRTGenericMod,          only : carbon12_element
   use PRTGenericMod,          only : all_carbon_elements
@@ -304,13 +308,15 @@ contains
     !
     ! !USES:
     use FatesInterfaceTypesMod, only : hlm_use_cohort_age_tracking
-    use FatesConstantsMod, only : itrue
+    use FatesConstantsMod     , only : itrue
+    use EDTypesMod            , only : maxpft
     ! !ARGUMENTS:
 
     type(ed_site_type)     , intent(inout) :: currentSite
     type(bc_in_type)        , intent(in)   :: bc_in
     type(bc_out_type)       , intent(inout)  :: bc_out
 
+    class(wrf_type_tfs), pointer :: wrf_tfs
     !
     ! !LOCAL VARIABLES:
     type(site_massbal_type), pointer :: site_cmass
@@ -328,12 +334,48 @@ contains
     logical  :: is_drought            ! logical for if the plant (site) is in a drought state
     real(r8) :: delta_dbh             ! correction for dbh
     real(r8) :: delta_hite            ! correction for hite
+    real(r8) :: ncohort_pft(maxpft)
+    real(r8) :: number_fraction_pft
 
     real(r8) :: current_npp           ! place holder for calculating npp each year in prescribed physiology mode
     !-----------------------------------------------------------------------
     real(r8) :: frac_site_primary
 
+    if (hlm_use_hydrohard.eq.itrue .or. hlm_use_frosthard.eq.itrue) then
+       currentSite%Tmin_24_fates=bc_in%tmin24_si-273.15_r8
+       if (nint(hlm_model_day)>=366) then
+         currentSite%hardtemp=bc_in%t_mean_5yr_si-273.15_r8
+       else if (nint(hlm_model_day)<366) then
+         currentSite%hardtemp=bc_in%t_min_yr_inst_si-273.15_r8
+       end if   
+       currentPatch => currentSite%youngest_patch
+       do while(associated(currentPatch))
+          currentCohort => currentPatch%shortest
+          do while(associated(currentCohort)) 
+             if ( (.not. currentCohort%isnew) .or. currentCohort%hard_level>-1.0_r8 ) then
+                ft = currentCohort%pft
+                !hard_level will be updated, ED_ecosystem_dynamics is called once a day at beginning of day
+                call Hardening_scheme( currentSite, currentPatch, currentCohort, bc_in )  
+                currentSite%hard_level2(ft) = currentCohort%hard_level 
+             endif
+             currentCohort => currentCohort%taller
+          enddo ! cohort loop
+          currentPatch => currentPatch%older
+       end do !patch loop
 
+       currentPatch => currentSite%youngest_patch
+       do while(associated(currentPatch))
+          currentCohort => currentPatch%shortest
+          do while(associated(currentCohort)) 
+             ft = currentCohort%pft
+             currentCohort%hard_level = currentSite%hard_level2(ft)   
+             currentCohort => currentCohort%taller
+          enddo ! cohort loop
+          currentPatch => currentPatch%older
+       end do !patch loop
+
+    end if
+    
     call get_frac_site_primary(currentSite, frac_site_primary)
 
     ! Set a pointer to this sites carbon12 mass balance

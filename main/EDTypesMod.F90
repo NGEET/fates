@@ -353,6 +353,8 @@ module EDTypesMod
                                                          !  forest patch).  fraction /per logging activity
 
      real(r8) :: seed_prod                               ! diagnostic seed production rate [kgC/plant/day]
+     real(r8) ::  hard_level                             ! Hardiness state (K)
+     real(r8) ::  hard_level_prev                        ! Hardiness state previous (K)
 
      ! NITROGEN POOLS      
      ! ----------------------------------------------------------------------------------
@@ -750,7 +752,10 @@ module EDTypesMod
      real(r8) ::  fdi                                          ! daily probability an ignition event will start a fire
      real(r8) ::  NF                                           ! daily ignitions in km2
      real(r8) ::  NF_successful                                ! daily ignitions in km2 that actually lead to fire
-
+     real(r8) ::  hardtemp                                     ! Temperature index for hardiness calculation
+     real(r8) ::  hard_level2(1:maxpft)                        ! Temporary hardiness variable
+     real(r8) ::  Tmin_24_fates
+     
      ! PLANT HYDRAULICS
      type(ed_site_hydr_type), pointer :: si_hydr
 
@@ -1094,6 +1099,8 @@ module EDTypesMod
      write(fates_log(),*) 'co%cambial_mort           = ', ccohort%cambial_mort
      write(fates_log(),*) 'co%size_class             = ', ccohort%size_class
      write(fates_log(),*) 'co%size_by_pft_class      = ', ccohort%size_by_pft_class
+     write(fates_log(),*) 'co%hard_level             = ', ccohort%hard_level
+     write(fates_log(),*) 'co%hard_level_prev        = ', ccohort%hard_level_prev
      if (associated(ccohort%co_hydr) ) then
         call dump_cohort_hydr(ccohort)
      endif 

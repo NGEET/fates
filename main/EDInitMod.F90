@@ -198,6 +198,9 @@ contains
     site_in%cstatus          = fates_unset_int    ! are leaves in this pixel on or off?
     site_in%dstatus          = fates_unset_int
     site_in%grow_deg_days    = nan  ! growing degree days
+    site_in%hardtemp         = -2._r8
+    site_in%hard_level2(:)   = -2._r8
+    site_in%Tmin_24_fates    = 0.0_r8
     site_in%snow_depth       = nan
     site_in%nchilldays       = fates_unset_int
     site_in%ncolddays        = fates_unset_int
@@ -327,6 +330,9 @@ contains
           sites(s)%dleafoffdate    = dleafoff - hlm_day_of_year
           sites(s)%dleafondate     = dleafon  - hlm_day_of_year
           sites(s)%grow_deg_days   = GDD
+          sites(s)%hardtemp        = -2._r8
+          sites(s)%hard_level2(1:numpft) = -2._r8
+          sites(s)%Tmin_24_fates   = 0.0_r8
 
           sites(s)%water_memory(1:numWaterMem) = watermem
           sites(s)%vegtemp_memory(1:num_vegtemp_mem) = 0._r8

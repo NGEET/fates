@@ -140,7 +140,17 @@ module FatesInterfaceTypesMod
    integer, public :: hlm_use_planthydro    ! This flag signals whether or not to use
                                                        ! plant hydraulics (bchristo/xu methods)
                                                        ! 1 = TRUE, 0 = FALSE
-                                                       ! THIS IS CURRENTLY NOT SUPPORTED 
+                                                       ! THIS IS CURRENTLY NOT SUPPORTED
+
+   integer, public :: hlm_use_hydrohard    ! This flag signals whether or not to use
+                                                       ! hydraulic hardening
+                                                       ! 1 = TRUE, 0 = FALSE
+                                                       ! THIS IS CURRENTLY NOT SUPPORTED
+
+   integer, public :: hlm_use_frosthard    ! This flag signals whether or not to use
+                                                       ! frost hardening mortality
+                                                       ! 1 = TRUE, 0 = FALSE
+                                                       ! THIS IS CURRENTLY NOT SUPPORTED
 
    integer, public :: hlm_use_cohort_age_tracking ! This flag signals whether or not to use
                                                   ! cohort age tracking. 1 = TRUE, 0 = FALSE
@@ -481,6 +491,13 @@ module FatesInterfaceTypesMod
 
       real(r8) :: snow_depth_si    ! Depth of snow in snowy areas of site (m)
       real(r8) :: frac_sno_eff_si  ! Fraction of ground covered by snow (0-1)
+
+      real(r8) :: temp24_si
+      real(r8) :: t_mean_5yr_si  
+      real(r8) :: t_min_yr_inst_si  
+      real(r8) :: tmin24_si 
+      real(r8) :: dayl_si
+      real(r8) :: prev_dayl_si
 
       ! Hydrology variables for BTRAN
       ! ---------------------------------------------------------------------------------
