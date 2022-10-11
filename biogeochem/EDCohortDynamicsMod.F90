@@ -594,7 +594,7 @@ contains
     !RESPIRATION
     currentCohort%rdark              = nan
     currentCohort%resp_m             = nan ! Maintenance respiration.  kGC/cohort/year
-    currentCohort%resp_excess        = nan ! Respiration of excess (unallocatable) carbon
+    currentCohort%resp_excess        = nan ! Respiration of excess (unallocatable) carbon (kg/indiv/day)
     currentCohort%livestem_mr        = nan ! Live stem maintenance respiration. kgC/indiv/s-1
     currentCohort%livecroot_mr       = nan ! Coarse root maintenance respiration. kgC/indiv/s-1
     currentCohort%froot_mr           = nan ! Fine root maintenance respiration. kgC/indiv/s-1
@@ -707,7 +707,7 @@ contains
     currentCohort%daily_n_demand = -9._r8
 
     ! Fixation is also integrated over the course of the day
-    ! and must be zeroid upon creation and after plant
+    ! and must be zeroed upon creation and after plant
     ! resource allocation
     currentCohort%daily_n_fixation = 0._r8
     

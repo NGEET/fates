@@ -214,7 +214,7 @@ module EDTypesMod
                                                          !      enabled simulations, this is dynamic, will
                                                          !      vary between allom_l2fr_min and allom_l2fr_max
                                                          !      parameters, with a tendency driven by
-                                                         !      nutrient storage)
+                                                         !      nutrient storage) [g root / g leaf]
      
      
      ! Used for CNP

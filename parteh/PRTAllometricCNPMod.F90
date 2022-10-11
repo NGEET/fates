@@ -255,7 +255,7 @@ module PRTAllometricCNPMod
    class(prt_global_type), public, target, allocatable :: prt_global_acnp
 
    character(len=*), parameter, private :: sourcefile = __FILE__
-   logical, parameter :: debug = .true.
+   logical, parameter :: debug = .false.
    
    public :: InitPRTGlobalAllometricCNP
    
@@ -376,10 +376,6 @@ contains
     integer :: i_org   ! organ index
     integer :: i_var   ! variable index
 
-    ! Agruments for allometry functions, that are not in the target_c array
-   
-    real(r8) :: max_store_n
-
     ! These are daily mass gains, frozen in time, not drawn from, and thus
     ! these are only used for evaluating mass balancing at the end
     real(r8) :: dbh0
@@ -393,7 +389,6 @@ contains
     real(r8) :: allocated_c
     real(r8) :: allocated_n
     real(r8) :: allocated_p
-    real(r8) :: target_n,target_p
     real(r8) :: sum_c ! error checking sum
 
     ! If more than 1 leaf age bin is present, this
@@ -404,11 +399,12 @@ contains
 
     
     ! In/out boundary conditions
-    resp_excess  => this%bc_inout(acnp_bc_inout_id_resp_excess)%rval; 
-    dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval;        dbh0        = dbh
+    resp_excess => this%bc_inout(acnp_bc_inout_id_resp_excess)%rval
+    dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval
+    dbh0        =  dbh
     l2fr        => this%bc_inout(acnp_bc_inout_id_l2fr)%rval
-    n_gain      => this%bc_inout(acnp_bc_inout_id_netdn)%rval; 
-    p_gain      => this%bc_inout(acnp_bc_inout_id_netdp)%rval;
+    n_gain      => this%bc_inout(acnp_bc_inout_id_netdn)%rval
+    p_gain      => this%bc_inout(acnp_bc_inout_id_netdp)%rval
 
 
     ! Assume that there is no other source of excess respiration
@@ -433,10 +429,10 @@ contains
     ! set the gains to something massive. 1 kilo of pure
     ! nutrient should be wayyy more than enough
     if(n_uptake_mode.eq.prescribed_n_uptake) then
-       n_gain = 1.e3
+       n_gain = 1.e3_r8
     end if
     if(p_uptake_mode.eq.prescribed_p_uptake) then
-       p_gain = 1.e3
+       p_gain = 1.e3_r8
     end if
     
     n_gain0      = n_gain
@@ -701,14 +697,13 @@ contains
   subroutine CNPAdjustFRootTargets(this, target_c, target_dcdd,co_num,nplant)
 
     use FatesInterfaceTypesMod        , only : hlm_day_of_year
-    use FatesInterfaceTypesMod        , only : hlm_days_per_year
     use FatesInterfaceTypesMod        , only : hlm_current_year
 
     class(cnp_allom_prt_vartypes) :: this
     real(r8)                      :: target_c(:)
     real(r8)                      :: target_dcdd(:)
-    integer,intent(in)            :: co_num
-    real(r8),intent(in)           :: nplant
+    integer,intent(in)            :: co_num          ! Used for single plant diagnostics
+    real(r8),intent(in)           :: nplant          ! Used for single plant diagnostics
 
     real(r8), pointer :: l2fr           ! leaf to fineroot target biomass scaler
     integer           :: ipft           ! PFT index
@@ -717,8 +712,7 @@ contains
     integer  :: leaf_status
     real(r8) :: store_c_max, store_c_act
     real(r8) :: store_nut_max, store_nut_act
-    real(r8) :: n_ratio, p_ratio, np_ratio
-    real(r8) :: fnrt_c,leaf_c,store_c,struct_c,sapw_c,c_gain
+    real(r8) :: n_ratio, p_ratio
     real(r8) :: l2fr_delta
     real(r8) :: cn_ratio, cp_ratio ! ratio of relative C storage over relative N or P storage
     real(r8) :: dcxdt_ratio        ! log change (derivative) of the maximum of the N/C and P/C storage ratio
@@ -727,7 +721,8 @@ contains
     real(r8), pointer :: cx0       ! The log of the cx ratio from previous time-step
     real(r8), pointer :: ema_dcxdt ! the EMA of the change in log storage ratio
 
-    real(r8), parameter :: pid_drv_wgt = 1._r8/20._r8   ! n-day smoothing (K on the derivative of PID)
+    real(r8), parameter :: pid_drv_wgt = 1._r8/10._r8   ! n-day smoothing of the derivative
+                                                        ! of the process function in the PID controller
 
     ! These are different ways of defining the process function in the PID controller.  pid_ncratio_function
     ! is perhaps the most complete, in that it gives the true balance of relative C stores to relative N
@@ -996,32 +991,22 @@ contains
     real(r8), dimension(num_organs) :: deficit_p ! Deficit to get to target from current    [kg]
     
     integer  :: i, ii, i_org             ! Loop indices (mostly for organs)
-    integer  :: i_var                   ! variable index
+    integer  :: i_var                    ! variable index
     integer  :: i_pri                    ! loop index for priority
     integer  :: ipft                     ! Plant functional type index of this plant
     integer  :: leaf_status              ! Is this plant in a leaf on or off status?
-    real(r8) :: dbh                      ! DBH [cm]
     real(r8) :: canopy_trim              ! trim factor for maximum leaf biomass
     real(r8) :: target_n                 ! Target mass of N for a given organ [kg]
     real(r8) :: target_p                 ! Target mass of P for a given organ [kg]
     integer  :: priority_code            ! Index for priority level of each organ
     real(r8) :: sum_c_demand             ! Carbon demanded to bring tissues up to allometry (kg)
-    real(r8) :: sum_n_deficit            ! The nitrogen deficit of all pools for given priority level (kg)
-    real(r8) :: sum_p_deficit            ! The phosphorus deficit of all pools for given priority level (kg)
-    real(r8) :: store_below_target
-    real(r8) :: store_target_fraction
-    real(r8) :: store_demand
-    real(r8) :: store_c_flux
+    real(r8) :: store_below_target       ! The amount of storage that is less than the target (kg)
+    real(r8) :: store_target_fraction    ! The fraction of actual storage carbon over the target (kg)
+    real(r8) :: store_demand             ! Based on the target fraction, an exponential function defining
+                                         ! how much carbon we should try to put back into storage
+    real(r8) :: store_c_flux             ! The amount of C we draw from gains to give back to storage (kg)
     real(r8) :: sum_c_flux               ! The flux to bring tissues up to allometry (kg)
-    real(r8) :: sum_n_flux               ! The flux of nitrogen ""  (kg)
-    real(r8) :: sum_p_flux               ! The flux of phosphorus "" (Kg)
     real(r8) :: c_flux                   ! carbon flux into an arbitrary pool (kg)
-    real(r8) :: gr_flux                  ! carbon flux to fulfill growth respiration of an arbitrary pool (kg)
-    real(r8) :: n_flux                   ! nitrogen flux into  an arbitrary pool (kg)
-    real(r8) :: p_flux                   ! phosphorus flux into an arbitrary pool (kg)
-    real(r8) :: c_gain_flux              ! Flux used to pay back negative carbon gain (from storage) (kgC)
-    real(r8) :: sapw_area
-
     integer :: n_max_priority    ! Maximum possible number of priority levels is
                                  ! the total number organs plus 1, which allows
                                  ! each organ to have its own level, and ignore
@@ -1183,7 +1168,6 @@ contains
        
        ! This is the desired need for carbon
        store_target_fraction  = max(this%variables(store_c_id)%val(1)/target_c(store_organ),0._r8)
-       
        store_demand           = max(c_gain*(exp(-1.*store_target_fraction**4._r8) - exp( -1.0_r8 )),0._r8)
 
        ! The flux is the (positive) minimum of all three
@@ -1325,22 +1309,18 @@ contains
                                            ! (new uptake + storage)
     real(r8), intent(inout) :: p_gain      ! Total P available for allocation
                                            ! (new uptake + storage)
-    real(r8), intent(in) :: target_c(:)
-    real(r8), intent(in) :: target_dcdd(:)
-    
+    real(r8), intent(in) :: target_c(:)    ! target carbon mass for each organ (before growth)
+    real(r8), intent(in) :: target_dcdd(:) ! target carbon mass derivative (wrt dbh) before growth)
+
+
     real(r8), pointer :: dbh
     integer           :: ipft
-    integer, pointer  :: limiter
-    real(r8)          :: canopy_trim
-    real(r8)          :: leaf_status
-    real(r8)          :: l2fr
-    
+    integer, pointer  :: limiter                 ! Integer flagging which (C,N,P) is limiting
+    real(r8)          :: canopy_trim             ! fraction of crown trimmed
+    real(r8)          :: leaf_status             ! leaves on or off?
+    real(r8)          :: l2fr                    ! leaf to fineroot allometry multiplier
     integer  :: i, ii                            ! organ index loops (masked and unmasked)
     integer  :: i_org                            ! global organ index
-    integer  :: istep                            ! outer step iteration loop
-    real(r8) :: grow_c_from_c                    ! carbon transferred into tissues
-    real(r8) :: grow_c_from_n                    ! carbon needed to match N transfers to tissues
-    real(r8) :: grow_c_from_p                    ! carbon needed to match P transfers to tissues
     real(r8) :: total_dcostdd                    ! Total carbon transferred to all pools for unit growth
     logical  :: step_pass                        ! flag stating if the integration sub-steps passed checks
     real(r8) :: totalC                           ! total carbon sent to integrator (kg)
@@ -1354,14 +1334,10 @@ contains
                                                  ! at current stature (dbh) [/]
     real(r8) :: sum_c_flux                       ! Sum of the carbon allocated, as reported
                                                  ! by the ODE solver. [kg]
-    real(r8) :: np_limit
-    real(r8) :: n_match
-    real(r8) :: p_match
     real(r8) :: c_flux_adj                       ! Adjustment to total carbon flux during stature growth
                                                  ! intended to correct integration error (kg/kg)
     real(r8) :: c_flux                           ! Carbon flux from the gain pool to an organ (kgC)
     real(r8) :: n_flux,p_flux
-    real(r8) :: gr_flux                          ! Growth respiration flux for the current transaction (kgC)
     real(r8) :: c_gstature                       ! Carbon reserved for stature growth (kg)
     real(r8) :: target_n                         ! Target mass of N for a given organ [kg]
     real(r8) :: target_p                         ! Target mass of P for a given organ [kg]
@@ -1409,8 +1385,8 @@ contains
     integer, parameter  :: grow_lim_estNP = 2  ! Estimate equivalent C from N and P
     
     integer, parameter  :: grow_lim_type = grow_lim_estNP
-    real :: neq_cgain, peq_cgain  ! N and P equivalent c_gain spent on growth
-    real :: cnp_gain              ! used as a check to see efficiency of limited growth
+    real(r8) :: neq_cgain, peq_cgain  ! N and P equivalent c_gain spent on growth
+    real(r8) :: cnp_gain              ! used as a check to see efficiency of limited growth
     
     
 
@@ -1858,7 +1834,6 @@ contains
     real(r8) :: target_p
     real(r8) :: store_c_target   ! Target amount of C in storage including "overflow" [kgC]
     real(r8) :: total_c_flux     ! Total C flux from gains into storage and growth R [kgC]
-    real(r8) :: store_m_flux     ! Flux into storage [kg]
     real(r8), pointer :: dbh
     real(r8), pointer :: resp_excess
     integer           :: ipft
@@ -2261,7 +2236,6 @@ contains
       real(r8) :: bgw_dcdd_target       ! target BG wood biomass derivative wrt d, (kgC/cm)
       real(r8) :: store_dcdd_target     ! target storage biomass derivative wrt d, (kgC/cm)
       real(r8) :: struct_dcdd_target    ! target structural biomass derivative wrt d, (kgC/cm)
-      real(r8) :: total_dcdd_target     ! target total (not reproductive) biomass derivative wrt d, (kgC/cm)
       real(r8) :: repro_fraction        ! fraction of carbon balance directed towards reproduction (kgC/kgC)
       real(r8) :: total_dcostdd         ! carbon cost for non-reproductive pools per unit increment of dbh
       
@@ -2382,99 +2356,6 @@ contains
       return
    end function AllomCNPGrowthDeriv
 
-   ! ====================================================================================
-
-   subroutine TargetAllometryCheck(b0_leaf,b0_fnrt,b0_sapw,b0_store,b0_struct, &
-                                   bleaf,bfnrt,bsapw,bstore,bstruct, &
-                                   bt_leaf,bt_fnrt,bt_sapw,bt_store,bt_struct, &
-                                   carbon_balance,ipft,leaf_status, &
-                                   grow_leaf,grow_fnrt,grow_sapw,grow_store,grow_struct)
-
-      ! Arguments
-      real(r8),intent(in) :: b0_leaf        !initial
-      real(r8),intent(in) :: b0_fnrt
-      real(r8),intent(in) :: b0_sapw
-      real(r8),intent(in) :: b0_store
-      real(r8),intent(in) :: b0_struct
-      real(r8),intent(in) :: bleaf          !actual
-      real(r8),intent(in) :: bfnrt
-      real(r8),intent(in) :: bsapw
-      real(r8),intent(in) :: bstore
-      real(r8),intent(in) :: bstruct
-      real(r8),intent(in) :: bt_leaf        !target
-      real(r8),intent(in) :: bt_fnrt
-      real(r8),intent(in) :: bt_sapw
-      real(r8),intent(in) :: bt_store
-      real(r8),intent(in) :: bt_struct
-      real(r8),intent(in) :: carbon_balance !remaining carbon balance
-      integer,intent(in)  :: ipft           !Plant functional type
-      integer,intent(in)  :: leaf_status    !Phenology status
-      logical,intent(out) :: grow_leaf      !growth flag
-      logical,intent(out) :: grow_fnrt
-      logical,intent(out) :: grow_sapw
-      logical,intent(out) :: grow_store
-      logical,intent(out) :: grow_struct
-      ! Local variables
-      logical             :: fine_leaf
-      logical             :: fine_fnrt
-      logical             :: fine_sapw
-      logical             :: fine_store
-      logical             :: fine_struct
-      logical             :: all_fine
-      ! Local constants
-      character(len= 3), parameter :: fmth = '(a)'
-      character(len=27), parameter :: fmtb = '(a,3(1x,es12.5,1x,a),1x,l1)'
-      character(len=13), parameter :: fmte = '(a,1x,es12.5)'
-      character(len=10), parameter :: fmti = '(a,1x,i12)'
-
-
-      ! First test whether or not each pool looks reasonable.
-      fine_leaf   = (bt_leaf   - bleaf  ) <= calloc_abs_error
-      fine_fnrt   = (bt_fnrt   - bfnrt  ) <= calloc_abs_error
-      fine_sapw   = (bt_sapw   - bsapw  ) <= calloc_abs_error
-      fine_store  = (bt_store  - bstore ) <= calloc_abs_error
-      fine_struct = (bt_struct - bstruct) <= calloc_abs_error
-      all_fine    = fine_leaf .and. fine_fnrt .and. fine_sapw .and. &
-                    fine_store .and. fine_struct
-
-      ! Decide whether or not to grow tissues (but only if all tissues look fine).
-      ! We grow only when biomass is less than target biomass (with tolerance).
-      if (all_fine) then
-         grow_leaf   = ( bleaf   - bt_leaf   ) <= calloc_abs_error
-         grow_fnrt   = ( bfnrt   - bt_fnrt   ) <= calloc_abs_error
-         grow_sapw   = ( bsapw   - bt_sapw   ) <= calloc_abs_error
-         grow_store  = ( bstore  - bt_store  ) <= calloc_abs_error
-         grow_struct = ( bstruct - bt_struct ) <= calloc_abs_error
-      else
-         ! If anything looks not fine, write a detailed report 
-         write(fates_log(),fmt=fmth) '======'
-         write(fates_log(),fmt=fmth) ' At least one tissue is not on-allometry at the growth step'
-         write(fates_log(),fmt=fmth) '======'
-         write(fates_log(),fmt=fmth) ''
-         write(fates_log(),fmt=fmth) ' Biomass and on-allometry test (''F'' means problem)'
-         write(fates_log(),fmt=fmth) '------'
-         write(fates_log(),fmt=fmth) ' Tissue     | Initial      | Current      | Target       | On-allometry'
-         write(fates_log(),fmt=fmtb) ' Leaf       |',b0_leaf   ,'|',bleaf     ,'|',bt_leaf   ,'|',fine_leaf
-         write(fates_log(),fmt=fmtb) ' Fine root  |',b0_fnrt   ,'|',bfnrt     ,'|',bt_fnrt   ,'|',fine_fnrt
-         write(fates_log(),fmt=fmtb) ' Sap wood   |',b0_sapw   ,'|',bsapw     ,'|',bt_sapw   ,'|',fine_sapw
-         write(fates_log(),fmt=fmtb) ' Storage    |',b0_store  ,'|',bstore    ,'|',bt_store  ,'|',fine_store
-         write(fates_log(),fmt=fmtb) ' Structural |',b0_struct ,'|',bstruct   ,'|',bt_struct ,'|',fine_struct
-         write(fates_log(),fmt=fmth) ''
-         write(fates_log(),fmt=fmth) ' Ancillary information'
-         write(fates_log(),fmt=fmth) '------'
-         write(fates_log(),fmt=fmti) ' PFT              = ',ipft
-         write(fates_log(),fmt=fmti) ' leaf_status      = ',leaf_status
-         write(fates_log(),fmt=fmte) ' carbon_balance   = ',carbon_balance
-         write(fates_log(),fmt=fmte) ' calloc_abs_error = ',calloc_abs_error
-         write(fates_log(),fmt=fmth) ''
-         write(fates_log(),fmt=fmth) '======'
-         call endrun(msg=errMsg(sourcefile, __LINE__))
-      end if
-
-      return
-   end subroutine TargetAllometryCheck
-
-   
    ! =====================================================================================
    
    
