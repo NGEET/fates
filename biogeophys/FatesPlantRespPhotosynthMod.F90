@@ -30,6 +30,7 @@ module FATESPlantRespPhotosynthMod
   use FatesConstantsMod, only : molar_mass_water
   use FatesConstantsMod, only : rgas_J_K_mol
   use FatesConstantsMod, only : fates_unset_r8
+  use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
   use FatesInterfaceTypesMod, only : hlm_use_planthydro
   use FatesInterfaceTypesMod, only : hlm_parteh_mode
   use FatesInterfaceTypesMod, only : numpft
@@ -128,7 +129,6 @@ contains
     use FatesConstantsMod, only : g_per_kg
     use FatesConstantsMod, only : umol_per_mmol
     use FatesConstantsMod, only : rgas => rgas_J_K_kmol
-    use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
     use FatesParameterDerivedMod, only : param_derived
 
     use FatesAllometryMod, only : bleaf, bstore_allom
@@ -240,9 +240,9 @@ contains
     real(r8) :: cumulative_lai     ! the cumulative LAI, top down, to the leaf layer of interest
     real(r8) :: leaf_psi           ! leaf xylem matric potential [MPa] (only meaningful/used w/ hydro)
     real(r8) :: fnrt_mr_layer      ! fine root maintenance respiation per layer [kgC/plant/s]
-    real(r8) :: c_cost_nfix        ! carbon cost of N fixation [kgC/kgN]
-    real(r8) :: c_spent_nfix       ! carbon spent on N fixation, per layer [kgC/plant/timestep]
-    
+
+    real(r8) :: fnrt_mr_nfix_layer ! fineroot maintenance respiration specifically for symbiotic fixation [kgC/plant/layer/s]
+    real(r8) :: nfix_layer         ! Nitrogen fixed in each layer this timestep [kgN/plant/layer/timestep]
     real(r8), allocatable :: rootfr_ft(:,:)  ! Root fractions per depth and PFT
 
     ! -----------------------------------------------------------------------------------
@@ -269,11 +269,7 @@ contains
     ! (gC/gN/s)
     ! ------------------------------------------------------------------------
 
-    ! N fixation parameters from Houlton et al (2008) and Fisher et al (2010)
-    real(r8), parameter :: s_fix = -6.25_r8 ! s parameter from FUN model (fisher et al 2010)
-    real(r8), parameter :: a_fix = -3.62_r8 ! a parameter from Houlton et al. 2010 (a = -3.62 +/- 0.52)
-    real(r8), parameter :: b_fix = 0.27_r8  ! b parameter from Houlton et al. 2010 (b = 0.27 +/-0.04)
-    real(r8), parameter :: c_fix = 25.15_r8 ! c parameter from Houlton et al. 2010 (c = 25.15 +/- 0.66)
+
     ! -----------------------------------------------------------------------------------
     ! Photosynthesis and stomatal conductance parameters, from:
     ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593
@@ -722,18 +718,15 @@ contains
                          
                          fnrt_mr_layer = fnrt_n * ED_val_base_mr_20 * tcsoi * rootfr_ft(ft,j) * maintresp_reduction_factor
 
-                         currentCohort%froot_mr = currentCohort%froot_mr + fnrt_mr_layer * (1._r8 + prt_params%nfix_mresp_scfrac(ft))
-
                          ! calculate the cost of carbon for N fixation in each soil layer and calculate N fixation rate based on that [kgC / kgN]
 
-                         c_cost_nfix = s_fix * (exp(a_fix + b_fix * (bc_in(s)%t_soisno_sl(j)-tfrz) &
-                              * (1._r8 - 0.5_r8 * (bc_in(s)%t_soisno_sl(j)-tfrz) / c_fix)) - 2._r8)
-
-                         ! Time integrated amount of carbon spent on fixation (in this layer) [kgC/plant/layer/tstep]
-                         c_spent_nfix = fnrt_mr_layer  * dtime * prt_params%nfix_mresp_scfrac(ft)
+                         call RootLayerNFixation(bc_in(s)%t_soisno_sl(j),ft,dtime,fnrt_mr_layer,fnrt_mr_nfix_layer,nfix_layer)
                          
-                         currentCohort%daily_n_fixation = currentCohort%daily_n_fixation + c_spent_nfix / c_cost_nfix
+                         currentCohort%froot_mr = currentCohort%froot_mr + fnrt_mr_nfix_layer + fnrt_mr_layer 
 
+                         currentCohort%daily_n_fixation = currentCohort%daily_n_fixation + nfix_layer
+                         
+                         
                       enddo
 
                       ! Coarse Root MR (kgC/plant/s) (below ground sapwood)
@@ -885,6 +878,48 @@ contains
 
   end associate
 end subroutine FatesPlantRespPhotosynthDrive
+
+! ===========================================================================================
+
+
+subroutine RootLayerNFixation(t_soil,ft,dtime,fnrt_mr_layer,fnrt_mr_nfix_layer,nfix_layer)
+
+  real(r8),intent(in) :: t_soil              ! Temperature of the current soil layer [degC]
+  integer,intent(in)  :: ft                  ! Functional type index
+  real(r8),intent(in) :: dtime               ! Time step length [s]
+  real(r8),intent(in) :: fnrt_mr_layer       ! Amount of maintenance respiration in the fine-roots
+                                             ! for all non-fixation related processes [kgC/s]
+  
+  real(r8),intent(out) :: fnrt_mr_nfix_layer ! The added maintenance respiration due to nfixation
+                                             ! to be added as a surcharge to non-fixation MR [kgC]
+  real(r8),intent(out) :: nfix_layer         ! The amount of N fixed in this layer through
+                                             ! symbiotic activity [kgN]
+
+  real(r8) :: c_cost_nfix                    ! carbon cost of N fixation [kgC/kgN]
+  real(r8) :: c_spent_nfix                   ! carbon spent on N fixation, per layer [kgC/plant/timestep]
+  
+  ! N fixation parameters from Houlton et al (2008) and Fisher et al (2010)
+  real(r8), parameter :: s_fix = -6.25_r8 ! s parameter from FUN model (fisher et al 2010)
+  real(r8), parameter :: a_fix = -3.62_r8 ! a parameter from Houlton et al. 2010 (a = -3.62 +/- 0.52)
+  real(r8), parameter :: b_fix = 0.27_r8  ! b parameter from Houlton et al. 2010 (b = 0.27 +/-0.04)
+  real(r8), parameter :: c_fix = 25.15_r8 ! c parameter from Houlton et al. 2010 (c = 25.15 +/- 0.66)
+
+  ! Amount of C spent (as part of MR respiration) on symbiotic fixation [kgC/s]
+  fnrt_mr_nfix_layer  = fnrt_mr_layer * prt_params%nfix_mresp_scfrac(ft)
+  
+  ! This is the unit carbon cost for nitrogen fixation. It is temperature dependant [kgC/kgN]
+  c_cost_nfix = s_fix * (exp(a_fix + b_fix * (t_soil-tfrz) &
+       * (1._r8 - 0.5_r8 * (t_soil-tfrz) / c_fix)) - 2._r8)
+  
+  ! Time integrated amount of carbon spent on fixation (in this layer) [kgC/plant/layer/tstep]
+  c_spent_nfix = fnrt_mr_nfix_layer  * dtime
+  
+  ! Amount of nitrogen fixed in this layer [kgC/plant/layer/tstep]/[kgC/kgN] = [kgN/plant/layer/tstep]
+  nfix_layer = c_spent_nfix / c_cost_nfix
+  
+  
+end subroutine RootLayerNFixation
+
 
 ! =======================================================================================
 
@@ -1572,7 +1607,7 @@ function ft1_f(tl, ha) result(ans)
   !
   !!USES
    use FatesConstantsMod, only : rgas => rgas_J_K_kmol
-   use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
+  
    !
    ! !ARGUMENTS:
    real(r8), intent(in) :: tl  ! leaf temperature in photosynthesis temperature function (K)
@@ -1599,7 +1634,6 @@ function fth_f(tl,hd,se,scaleFactor) result(ans)
   ! 7/23/16: Copied over from CLM by Ryan Knox
   !
    use FatesConstantsMod, only : rgas => rgas_J_K_kmol
-   use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
 
    !
    ! !ARGUMENTS:
@@ -1631,7 +1665,6 @@ function fth25_f(hd,se)result(ans)
   !!USES
 
    use FatesConstantsMod, only : rgas => rgas_J_K_kmol
-   use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
 
    !
    ! !ARGUMENTS:
@@ -1945,9 +1978,6 @@ subroutine LeafLayerMaintenanceRespiration(lmr25top_ft, &
    veg_tempk,     &
    lmr)
 
-   use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
-   
-
    ! Arguments
    real(r8), intent(in)  :: lmr25top_ft  ! canopy top leaf maint resp rate at 25C
    ! for this pft (umol CO2/m**2/s)
@@ -2015,7 +2045,6 @@ subroutine LeafLayerBiophysicalRates( parsun_lsl, &
   ! ---------------------------------------------------------------------------------
 
    use EDPftvarcon         , only : EDPftvarcon_inst
-   use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
 
    ! Arguments
    ! ------------------------------------------------------------------------------

@@ -797,7 +797,7 @@ contains
 
        ! This is more of a diagnostic, to see if the other process functions
        ! are as good as the ratio of relative ratios
-       cn_ratio = (store_c_act/store_c_max)/(store_nut_act/store_nut_max)
+       cn_ratio = (store_nut_act/store_nut_max)
 
     end if
 
@@ -866,7 +866,7 @@ contains
 
        ! Reset the integrator if its sign changes
        if( abs(cx_logratio)>nearzero .and. abs(cx0)>nearzero) then
-          if( (cx_logratio/abs(cx_logratio) - cx0/abs(cx0)) > nearzero ) then
+          if( abs(cx_logratio/abs(cx_logratio) - cx0/abs(cx0)) > nearzero ) then
              cx_int = cx_logratio
           end if
        end if
@@ -890,8 +890,8 @@ contains
 
     l2fr = max(l2fr_min, l2fr + l2fr_delta)
 
-    !if((co_num==1) .or. (co_num==2)) print*,'AAX1',co_num,hlm_current_year,hlm_day_of_year, &
-    !     dbh,nplant,(store_c_act/store_c_max),cx_logratio,cx_int,ema_dcxdt,l2fr
+    if((co_num==1)) print*,'AAX1',co_num,hlm_current_year,hlm_day_of_year, &
+         dbh,nplant,(store_c_act/store_c_max),cn_ratio,cx_logratio,ema_dcxdt,l2fr
 
     ! Find the updated target fineroot biomass
     call bfineroot(dbh,ipft,canopy_trim, l2fr, target_c(fnrt_organ),target_dcdd(fnrt_organ))
