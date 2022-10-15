@@ -864,6 +864,11 @@ contains
             currentCohort%n * (struct_c+sapw_c+leaf_c+fnrt_c+store_c+repro_c)
    end if
 
+   currentSite%term_bagw_flux(currentCohort%size_class, currentCohort%pft) = &
+        currentSite%term_bagw_flux(currentCohort%size_class, currentCohort%pft) + &
+        currentCohort%n * (struct_c+sapw_c)
+  
+
    ! put the litter from the terminated cohorts
    ! straight into the fragmenting pools
 

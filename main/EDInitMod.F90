@@ -135,6 +135,10 @@ contains
     allocate(site_in%fmort_carbonflux_canopy(1:numpft))
     allocate(site_in%fmort_carbonflux_ustory(1:numpft))
     
+    allocate(site_in%term_bagw_flux(1:nlevsclass,1:numpft))
+    allocate(site_in%imort_bagw_flux(1:nlevsclass,1:numpft))
+    allocate(site_in%fmort_bagw_flux(1:nlevsclass,1:numpft))
+    
     site_in%nlevsoil   = bc_in%nlevsoil
     allocate(site_in%rootfrac_scr(site_in%nlevsoil))
     allocate(site_in%zi_soil(0:site_in%nlevsoil))
@@ -245,6 +249,10 @@ contains
     site_in%fmort_carbonflux_ustory(:) = 0._r8
     site_in%fmort_rate_cambial(:,:) = 0._r8
     site_in%fmort_rate_crown(:,:) = 0._r8
+    site_in%term_bagw_flux(:,:) = 0._r8
+    site_in%imort_bagw_flux(:,:) = 0._r8
+    site_in%fmort_bagw_flux(:,:) = 0._r8
+
 
     ! fusoin-induced growth flux of individuals
     site_in%growthflux_fusion(:,:) = 0._r8
