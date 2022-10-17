@@ -8,7 +8,6 @@ module PRTLossFluxesMod
   use PRTGenericMod, only : store_organ
   use PRTGenericMod, only : repro_organ
   use PRTGenericMod, only : struct_organ
-  use PRTGenericMod, only : carbon_elements_list
   use PRTGenericMod, only : carbon12_element
   use PRTGenericMod, only : carbon13_element
   use PRTGenericMod, only : carbon14_element
@@ -158,22 +157,10 @@ contains
           element_id = prt_global%state_descriptor(i_var)%element_id
           
           ! This will filter IN all carbon related variables
-          if( any(element_id == carbon_elements_list) ) then
+          if( element_id == carbon12_element ) then
              
-             ! No hypotheses exist for how to flush carbon isotopes
-             ! yet.  Please fill this in.
-             if(  (element_id == carbon13_element) .or. &
-                  (element_id == carbon14_element) )then
-                write(fates_log(),*) ' Phenology flushing routine does not know'
-                write(fates_log(),*) ' how to handle carbon isotopes. Please'
-                write(fates_log(),*) ' evaluate the code referenced in this message'
-                write(fates_log(),*) ' and provide a hypothesis.'
-                call endrun(msg=errMsg(__FILE__, __LINE__))
-             end if
-
              ! Get the variable id of the storage pool for this element (carbon12)
              i_store = prt_global%sp_organ_map(store_organ,element_id)
-
 
              do i_pos = 1,i_leaf_pos
                 
@@ -222,7 +209,7 @@ contains
           element_id = prt_global%state_descriptor(i_var)%element_id
           
           ! This will filter OUT all carbon related elements
-          if ( .not. any(element_id == carbon_elements_list)   ) then
+          if ( .not. (element_id == carbon12_element)  ) then
 
              ! Get the variable id of the storage pool for this element
              i_store = prt_global%sp_organ_map(store_organ,element_id)
@@ -509,7 +496,7 @@ contains
           if( prt_params%organ_param_id(organ_id) < 1 ) then
              retrans = 0._r8
           else
-             if ( any(element_id == carbon_elements_list) ) then
+             if ( element_id == carbon12_element ) then
                 retrans = 0._r8
              else if( element_id == nitrogen_element ) then
                 retrans = prt_params%turnover_nitr_retrans(ipft,prt_params%organ_param_id(organ_id))
@@ -713,7 +700,7 @@ contains
          if( prt_params%organ_param_id(organ_id) < 1 ) then
             retrans_frac = 0._r8
          else
-            if ( any(element_id == carbon_elements_list) ) then
+            if ( element_id == carbon12_element ) then
                retrans_frac = 0._r8
             else if( element_id == nitrogen_element ) then
                retrans_frac = prt_params%turnover_nitr_retrans(ipft,prt_params%organ_param_id(organ_id))

@@ -456,7 +456,7 @@ contains
           ! -----------------------------------------------------------------------------
           currentCohort%resp_excess = 0._r8
           
-          call currentCohort%prt%DailyPRT(co_num,currentCohort%n)
+          call currentCohort%prt%DailyPRT()
 
           ! Send any efflux/exudates to the labile litter pools in the HLM
           ! -----------------------------------------------------------------------------
@@ -473,7 +473,7 @@ contains
              ! Mass balance for P uptake
              currentSite%mass_balance(element_pos(phosphorus_element))%net_root_uptake = &
                   currentSite%mass_balance(element_pos(phosphorus_element))%net_root_uptake + &
-                  (currentCohort%daily_p_uptake-currentCohort%daily_p_efflux)*currentCohort%n
+                  (currentCohort%daily_p_gain-currentCohort%daily_p_efflux)*currentCohort%n
           end if
           
           ! mass balance for C efflux (if any)
@@ -848,7 +848,7 @@ contains
                            write(fates_log(),*) 'N efflux: ',currentCohort%daily_n_efflux*currentCohort%n
                            write(fates_log(),*) 'N fixation: ',currentCohort%daily_n_fixation*currentCohort%n
                         elseif(element_list(el).eq.phosphorus_element) then
-                           write(fates_log(),*) 'P uptake: ',currentCohort%daily_p_uptake*currentCohort%n
+                           write(fates_log(),*) 'P uptake: ',currentCohort%daily_p_gain*currentCohort%n
                            write(fates_log(),*) 'P efflux: ',currentCohort%daily_p_efflux*currentCohort%n
                         elseif(element_list(el).eq.carbon12_element) then
                            write(fates_log(),*) 'C efflux: ',currentCohort%daily_c_efflux*currentCohort%n

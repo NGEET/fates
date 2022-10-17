@@ -1895,11 +1895,11 @@ end subroutine flush_hvars
 
                   fates_hist%hvars(ih_puptake_scpf)%r82d(io_si,iscpf) =             &
                        fates_hist%hvars(ih_puptake_scpf)%r82d(io_si,iscpf) +        &
-                       ccohort%daily_p_uptake*uconv
+                       ccohort%daily_p_gain*uconv
 
                   fates_hist%hvars(ih_puptake_si)%r81d(io_si) =                     &
                        fates_hist%hvars(ih_puptake_si)%r81d(io_si)  +               &
-                       ccohort%daily_p_uptake*uconv
+                       ccohort%daily_p_gain*uconv
 
                   this%hvars(ih_pefflux_scpf)%r82d(io_si,iscpf) = &
                        this%hvars(ih_pefflux_scpf)%r82d(io_si,iscpf) + & 

@@ -301,7 +301,7 @@ module EDTypesMod
      real(r8) :: daily_no3_uptake ! integrated daily uptake of mineralized nitrate through competitive acquisition in soil [kg N / plant/ day]
      real(r8) :: daily_n_fixation ! Rate of N fixation from the roots [kgN/indiv/day]
      real(r8) :: daily_n_gain     ! sum of fixation and uptake of mineralized nh4/no3 in solution
-     real(r8) :: daily_p_uptake   ! integrated daily uptake of mineralized P through competitive acquisition in soil [kg P / plant/ day]
+     real(r8) :: daily_p_gain     ! integrated daily uptake of mineralized P through competitive acquisition in soil [kg P / plant/ day]
 
      real(r8) :: daily_c_efflux   ! daily mean efflux of excess carbon from roots into labile pool [kg C/plant/day]
      real(r8) :: daily_n_efflux   ! daily mean efflux of excess nitrogen from roots into labile pool [kg N/plant/day]

@@ -210,7 +210,14 @@ module PRTAllometricCNPMod
   integer, parameter  :: n_limited = 2
   integer, parameter  :: p_limited = 3
 
+  ! Flags to select using the equivalent carbon method of co-limitation,
+  ! or to just grow with available carbon and let it fix itself on the
+  ! next step
   
+  integer, parameter  :: grow_lim_conly = 1  ! Just use C to decide stature on this step
+  integer, parameter  :: grow_lim_estNP = 2  ! Estimate equivalent C from N and P
+  integer, parameter  :: grow_lim_type = grow_lim_estNP
+    
   ! Following growth, if desired, you can prioritize that 
   ! reproductive tissues get balanced CNP
   logical, parameter :: prioritize_repro_nutr_growth = .true.
@@ -340,11 +347,9 @@ contains
   ! =====================================================================================
 
 
-  subroutine DailyPRTAllometricCNP(this,co_num,nplant)
+  subroutine DailyPRTAllometricCNP(this)
 
     class(cnp_allom_prt_vartypes) :: this
-    integer,intent(in)            :: co_num  ! Cohort index
-    real(r8),intent(in)           :: nplant
     
     ! Pointers to in-out bcs
     real(r8),pointer :: dbh          ! Diameter at breast height [cm]
@@ -464,9 +469,7 @@ contains
     ! and then attempt to get them up to stoichiometry targets.
     ! ===================================================================================
 
-    ! This routine updates the l2fr (leaf 2 fine-root multiplier) variable
-    ! It will also update the target
-    !call this%CNPAdjustFRootTargets(target_c,target_dcdd,co_num,nplant)
+    
     
     ! Remember the original C,N,P states to help with final
     ! evaluation of how much was allocated
@@ -553,11 +556,6 @@ contains
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
-
-    ! This routine updates the l2fr (leaf 2 fine-root multiplier) variable
-    ! It will also update the target
-    !call this%CNPAdjustFRootTargets(target_c,target_dcdd,co_num,nplant)
-    
     ! ===================================================================================
     ! Step 3. 
     ! At this point, at least 1 of the 3 resources have been used up.
@@ -565,7 +563,7 @@ contains
     ! ===================================================================================
 
     call this%CNPAllocateRemainder(c_gain, n_gain, p_gain, &
-         c_efflux, n_efflux, p_efflux,co_num,nplant,target_c,target_dcdd)
+         c_efflux, n_efflux, p_efflux,target_c,target_dcdd)
 
 
     if(n_uptake_mode.ne.prescribed_n_uptake) then
@@ -694,7 +692,7 @@ contains
   
   ! =====================================================================================
   
-  subroutine CNPAdjustFRootTargets(this, target_c, target_dcdd,co_num,nplant)
+  subroutine CNPAdjustFRootTargets(this, target_c, target_dcdd)
 
     use FatesInterfaceTypesMod        , only : hlm_day_of_year
     use FatesInterfaceTypesMod        , only : hlm_current_year
@@ -702,17 +700,15 @@ contains
     class(cnp_allom_prt_vartypes) :: this
     real(r8)                      :: target_c(:)
     real(r8)                      :: target_dcdd(:)
-    integer,intent(in)            :: co_num          ! Used for single plant diagnostics
-    real(r8),intent(in)           :: nplant          ! Used for single plant diagnostics
 
     real(r8), pointer :: l2fr           ! leaf to fineroot target biomass scaler
     integer           :: ipft           ! PFT index
     real(r8), pointer :: dbh
     real(r8)          :: canopy_trim
     integer  :: leaf_status
+    integer, pointer :: limiter
     real(r8) :: store_c_max, store_c_act
     real(r8) :: store_nut_max, store_nut_act
-    real(r8) :: n_ratio, p_ratio
     real(r8) :: l2fr_delta
     real(r8) :: cn_ratio, cp_ratio ! ratio of relative C storage over relative N or P storage
     real(r8) :: dcxdt_ratio        ! log change (derivative) of the maximum of the N/C and P/C storage ratio
@@ -721,19 +717,8 @@ contains
     real(r8), pointer :: cx0       ! The log of the cx ratio from previous time-step
     real(r8), pointer :: ema_dcxdt ! the EMA of the change in log storage ratio
 
-    real(r8), parameter :: pid_drv_wgt = 1._r8/10._r8   ! n-day smoothing of the derivative
+    real(r8), parameter :: pid_drv_wgt = 1._r8/20._r8   ! n-day smoothing of the derivative
                                                         ! of the process function in the PID controller
-
-    ! These are different ways of defining the process function in the PID controller.  pid_ncratio_function
-    ! is perhaps the most complete, in that it gives the true balance of relative C stores to relative N
-    ! stores. In the future we may just remove the alternatives
-
-    integer, parameter :: pid_c_function = 0
-    integer, parameter :: pid_n_function = 1
-    integer, parameter :: pid_minnc_function = 2
-    integer, parameter :: pid_alogmaxnc_function = 3
-    integer, parameter :: pid_ncratio_function = 4
-    integer, parameter :: pid_function = pid_ncratio_function
 
     leaf_status = this%bc_in(acnp_bc_in_id_lstat)%ival
     ipft        =  this%bc_in(acnp_bc_in_id_pft)%ival
@@ -743,7 +728,8 @@ contains
     cx_int      => this%bc_inout(acnp_bc_inout_id_cx_int)%rval
     cx0         => this%bc_inout(acnp_bc_inout_id_cx0)%rval
     ema_dcxdt   => this%bc_inout(acnp_bc_inout_id_emadcxdt)%rval
-
+    limiter     => this%bc_out(acnp_bc_out_id_limiter)%ival
+    
     ! Abort if leaves are off
     if(leaf_status.eq.leaves_off) return
 
@@ -762,7 +748,7 @@ contains
          this%bc_in(acnp_bc_in_id_netdc)%rval)
 
     if(n_uptake_mode.eq.prescribed_n_uptake)then
-       n_ratio = -1._r8
+       cn_ratio = -1._r8
     else
 
        ! Calculate the relative nitrogen storage fraction,
@@ -774,35 +760,12 @@ contains
             this%GetState(store_organ, nitrogen_element) + &
             this%bc_inout(acnp_bc_inout_id_netdn)%rval)
 
-       select case(pid_function)
-       case(pid_c_function)
-          n_ratio = store_c_act/store_c_max
-       case(pid_n_function)
-          n_ratio = store_nut_max/store_nut_act
-       case(pid_minnc_function)
-          if((store_nut_act/store_nut_max) > (store_c_act/store_c_max))then
-             n_ratio = (store_c_act/store_c_max)
-          else
-             n_ratio = (store_nut_max/store_nut_act)
-          end if
-       case(pid_alogmaxnc_function)
-          if( abs(SafeLog(store_nut_act/store_nut_max)) < abs(SafeLog(store_c_act/store_c_max))) then
-             n_ratio = (store_c_act/store_c_max)
-          else
-             n_ratio = (store_nut_max/store_nut_act)
-          end if
-       case(pid_ncratio_function)
-          n_ratio = (store_c_act/store_c_max)/(store_nut_act/store_nut_max)
-       end select
-
-       ! This is more of a diagnostic, to see if the other process functions
-       ! are as good as the ratio of relative ratios
-       cn_ratio = (store_nut_act/store_nut_max)
+       cn_ratio = (store_c_act/store_c_max)/(store_nut_act/store_nut_max)
 
     end if
 
     if(p_uptake_mode.eq.prescribed_p_uptake)then
-       p_ratio = -1._r8
+       cp_ratio = -1._r8
     else
 
        ! Calculate the relative phosphorus storage fraction,
@@ -814,29 +777,7 @@ contains
             this%GetState(store_organ, phosphorus_element) + &
             this%bc_inout(acnp_bc_inout_id_netdp)%rval)
 
-       select case(pid_function)
-       case(pid_c_function)
-          p_ratio = store_c_act/store_c_max
-       case(pid_n_function)
-          p_ratio = store_nut_max/store_nut_act
-       case(pid_minnc_function)
-          if((store_nut_act/store_nut_max) > (store_c_act/store_c_max))then
-             p_ratio = (store_c_act/store_c_max)
-          else
-             p_ratio = (store_nut_max/store_nut_act)
-          end if
-       case(pid_alogmaxnc_function)
-          if( abs(SafeLog(store_nut_act/store_nut_max)) < abs(SafeLog(store_c_act/store_c_max))) then
-             p_ratio = (store_c_act/store_c_max)
-          else
-             p_ratio = (store_nut_max/store_nut_act)
-          end if
-       case(pid_ncratio_function)
-          p_ratio = (store_c_act/store_c_max)/(store_nut_act/store_nut_max)
-       end select
-
        cp_ratio = (store_c_act/store_c_max)/(store_nut_act/store_nut_max)
-
 
     end if
 
@@ -850,11 +791,11 @@ contains
     else
 
        if (n_uptake_mode.eq.prescribed_n_uptake) then
-          cx_logratio = SafeLog(p_ratio)
+          cx_logratio = SafeLog(cp_ratio)
        elseif (p_uptake_mode.eq.prescribed_p_uptake) then
-          cx_logratio = SafeLog(n_ratio)
+          cx_logratio = SafeLog(cn_ratio)
        else
-          cx_logratio = SafeLog(max(p_ratio,n_ratio))
+          cx_logratio = SafeLog(max(cp_ratio,cn_ratio))
        end if
 
        ! If cx_logratio has just crossed zero, then
@@ -889,9 +830,6 @@ contains
     ! now carbon gain, such as newly recruited plants in a dark understory
 
     l2fr = max(l2fr_min, l2fr + l2fr_delta)
-
-    if((co_num==1)) print*,'AAX1',co_num,hlm_current_year,hlm_day_of_year, &
-         dbh,nplant,(store_c_act/store_c_max),cn_ratio,cx_logratio,ema_dcxdt,l2fr
 
     ! Find the updated target fineroot biomass
     call bfineroot(dbh,ipft,canopy_trim, l2fr, target_c(fnrt_organ),target_dcdd(fnrt_organ))
@@ -1381,10 +1319,7 @@ contains
 
     real(r8)            :: intgr_params(num_intgr_parm)
 
-    integer, parameter  :: grow_lim_conly = 1  ! Just use C to decide stature on this step
-    integer, parameter  :: grow_lim_estNP = 2  ! Estimate equivalent C from N and P
     
-    integer, parameter  :: grow_lim_type = grow_lim_estNP
     real(r8) :: neq_cgain, peq_cgain  ! N and P equivalent c_gain spent on growth
     real(r8) :: cnp_gain              ! used as a check to see efficiency of limited growth
     
@@ -1406,7 +1341,9 @@ contains
        if(n_gain <= 0.1_r8*calloc_abs_error) limiter = n_limited
        if(p_gain <= 0.02_r8*calloc_abs_error) limiter = p_limited
     end if
-       
+
+    limiter = 0
+    
     ! If any of these resources is essentially tapped out,
     ! then there is no point in performing growth
     ! It also seems impossible that we would be in a leaf-off status
@@ -1545,6 +1482,7 @@ contains
 
     if(grow_lim_type == grow_lim_conly) then
        c_gstature = c_gain
+       limiter = 0
     elseif (grow_lim_type == grow_lim_estNP) then
 
        call EstimateGrowthNC(this,target_c,target_dcdd,state_mask,avg_nc,avg_pc)
@@ -1813,7 +1751,7 @@ contains
 
   subroutine CNPAllocateRemainder(this, c_gain,n_gain,p_gain, &
                                   c_efflux, n_efflux, p_efflux, &
-                                  co_num,nplant,target_c,target_dcdd)
+                                  target_c,target_dcdd)
 
     class(cnp_allom_prt_vartypes) :: this
     real(r8), intent(inout) :: c_gain
@@ -1822,8 +1760,6 @@ contains
     real(r8), intent(inout) :: c_efflux
     real(r8), intent(inout) :: n_efflux
     real(r8), intent(inout) :: p_efflux
-    integer,intent(in) :: co_num
-    real(r8),intent(in) :: nplant
     real(r8)  :: target_c(:)
     real(r8) :: target_dcdd(:)
     
@@ -1855,9 +1791,14 @@ contains
        
        ! Update the nitrogen and phosphorus deficits
        target_n = this%GetNutrientTarget(nitrogen_element,l2g_organ_list(i),stoich_growth_min)
-       deficit_n(i) = max(0._r8,this%GetDeficit(nitrogen_element,l2g_organ_list(i),target_n))
-       
        target_p = this%GetNutrientTarget(phosphorus_element,l2g_organ_list(i),stoich_growth_min)
+
+       if(l2g_organ_list(i)==store_organ)then
+          target_n = target_n * (1._r8 + prt_params%store_ovrflw_frac(ipft))
+          target_p = target_p * (1._r8 + prt_params%store_ovrflw_frac(ipft))
+       end if
+
+       deficit_n(i) = max(0._r8,this%GetDeficit(nitrogen_element,l2g_organ_list(i),target_n))
        deficit_p(i) = max(0._r8,this%GetDeficit(phosphorus_element,l2g_organ_list(i),target_p))
           
     end do
@@ -1875,7 +1816,10 @@ contains
     call ProportionalNutrAllocation(this,deficit_p(1:num_organs), &
          p_gain, phosphorus_element, l2g_organ_list(1:num_organs))
 
-    call this%CNPAdjustFRootTargets(target_c,target_dcdd,co_num,nplant)
+
+    ! This routine updates the l2fr (leaf 2 fine-root multiplier) variable
+    ! It will also update the target
+    call this%CNPAdjustFRootTargets(target_c,target_dcdd)
         
     ! -----------------------------------------------------------------------------------
     ! If carbon is still available, lets cram some into storage overflow
@@ -1925,7 +1869,7 @@ contains
        end if
 
     end if
-    
+
 
     ! Figure out what to do with excess carbon and nutrients
     ! 1) excude through roots cap at 0 to flush out imprecisions

@@ -261,7 +261,7 @@ contains
              do while (associated(ccohort))
                 pft = ccohort%pft
                 !ccohort%daily_p_demand = GetPlantDemand(ccohort,phosphorus_element)
-                ccohort%daily_p_uptake = -9._r8 !EDPftvarcon_inst%prescribed_puptake(pft) * ccohort%daily_p_demand
+                ccohort%daily_p_gain = -9._r8 !EDPftvarcon_inst%prescribed_puptake(pft) * ccohort%daily_p_demand
                 ccohort => ccohort%shorter
              end do
              cpatch => cpatch%younger
@@ -277,7 +277,7 @@ contains
                 icomp = icomp+1
                 ccohort%daily_p_demand =  GetPlantDemand(ccohort,phosphorus_element)
                 ! P Uptake:  Convert g/m2/day -> kg/plant/day
-                ccohort%daily_p_uptake = bc_in(s)%plant_p_uptake_flux(icomp,1)*kg_per_g*AREA/ccohort%n
+                ccohort%daily_p_gain = bc_in(s)%plant_p_uptake_flux(icomp,1)*kg_per_g*AREA/ccohort%n
                 ccohort => ccohort%shorter
              end do
              cpatch => cpatch%younger

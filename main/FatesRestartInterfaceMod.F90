@@ -1993,7 +1993,7 @@ contains
                 ! Nutrient uptake/efflux
                 rio_daily_no3_uptake_co(io_idx_co) = ccohort%daily_no3_uptake
                 rio_daily_nh4_uptake_co(io_idx_co) = ccohort%daily_nh4_uptake
-                rio_daily_p_uptake_co(io_idx_co) = ccohort%daily_p_uptake
+                rio_daily_p_uptake_co(io_idx_co) = ccohort%daily_p_gain
                 rio_daily_n_fixation_co(io_idx_co) = ccohort%daily_n_fixation
                 
                 rio_daily_n_demand_co(io_idx_co) = ccohort%daily_n_demand
@@ -2796,7 +2796,7 @@ contains
                 ccohort%daily_nh4_uptake = rio_daily_nh4_uptake_co(io_idx_co)
                 ccohort%daily_no3_uptake = rio_daily_no3_uptake_co(io_idx_co)
                 ccohort%daily_n_fixation = rio_daily_n_fixation_co(io_idx_co)
-                ccohort%daily_p_uptake = rio_daily_p_uptake_co(io_idx_co)
+                ccohort%daily_p_gain = rio_daily_p_uptake_co(io_idx_co)
 
                 ccohort%daily_n_demand = rio_daily_n_demand_co(io_idx_co)
                 ccohort%daily_p_demand = rio_daily_p_demand_co(io_idx_co)

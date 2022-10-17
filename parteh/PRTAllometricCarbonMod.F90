@@ -241,7 +241,7 @@ module PRTAllometricCarbonMod
   ! =====================================================================================
   
 
-  subroutine DailyPRTAllometricCarbon(this,co_num,nplant)
+  subroutine DailyPRTAllometricCarbon(this)
 
     ! -----------------------------------------------------------------------------------
     !
@@ -286,8 +286,6 @@ module PRTAllometricCarbonMod
     
     ! The class is the only argument
     class(callom_prt_vartypes)   :: this          ! this class
-    integer,intent(in)           :: co_num        ! cohort index
-    real(r8),intent(in)          :: nplant
     ! -----------------------------------------------------------------------------------
     ! These are local copies of the in/out boundary condition structure
     ! -----------------------------------------------------------------------------------

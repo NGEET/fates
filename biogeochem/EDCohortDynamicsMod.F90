@@ -420,8 +420,8 @@ contains
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_lstat,bc_ival = new_cohort%status_coh)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdc, bc_rval = new_cohort%npp_acc)
 
-       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_nc_repro,bc_rval = new_cohort%nc_repro) !patchptr%nitr_repro_stoich(ft))
-       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_pc_repro,bc_rval = new_cohort%pc_repro) !patchptr%phos_repro_stoich(ft))
+       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_nc_repro,bc_rval = new_cohort%nc_repro)
+       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_pc_repro,bc_rval = new_cohort%pc_repro)
        
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_dbh,bc_rval = new_cohort%dbh)
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_resp_excess,bc_rval = new_cohort%resp_excess)
@@ -431,7 +431,7 @@ contains
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_cx0,bc_rval = new_cohort%cx0)
        
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdn, bc_rval = new_cohort%daily_n_gain)
-       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdp, bc_rval = new_cohort%daily_p_uptake)
+       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdp, bc_rval = new_cohort%daily_p_gain)
        
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_cefflux, bc_rval = new_cohort%daily_c_efflux)
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_nefflux, bc_rval = new_cohort%daily_n_efflux)
@@ -581,7 +581,7 @@ contains
     currentCohort%daily_no3_uptake = nan
     currentCohort%daily_n_gain     = nan
     currentCohort%daily_n_fixation = nan
-    currentCohort%daily_p_uptake = nan
+    currentCohort%daily_p_gain = nan
     currentCohort%daily_c_efflux = nan
     currentCohort%daily_n_efflux = nan
     currentCohort%daily_p_efflux = nan
@@ -696,7 +696,7 @@ contains
 
     currentCohort%daily_nh4_uptake = 0._r8
     currentCohort%daily_no3_uptake = 0._r8
-    currentCohort%daily_p_uptake = 0._r8
+    currentCohort%daily_p_gain = 0._r8
 
     currentCohort%daily_c_efflux = 0._r8
     currentCohort%daily_n_efflux = 0._r8
@@ -1445,8 +1445,8 @@ contains
                                       currentCohort%daily_n_gain = (currentCohort%n*currentCohort%daily_n_gain + &
                                            nextc%n*nextc%daily_n_gain)/newn
                                       
-                                      currentCohort%daily_p_uptake = (currentCohort%n*currentCohort%daily_p_uptake + &
-                                           nextc%n*nextc%daily_p_uptake)/newn
+                                      currentCohort%daily_p_gain = (currentCohort%n*currentCohort%daily_p_gain + &
+                                           nextc%n*nextc%daily_p_gain)/newn
                                       
                                       
                                       
@@ -1852,7 +1852,7 @@ contains
     n%daily_no3_uptake = o%daily_no3_uptake
     n%daily_n_fixation = o%daily_n_fixation
     n%daily_n_gain     = o%daily_n_gain
-    n%daily_p_uptake = o%daily_p_uptake
+    n%daily_p_gain   = o%daily_p_gain
     n%daily_c_efflux = o%daily_c_efflux
     n%daily_n_efflux = o%daily_n_efflux
     n%daily_p_efflux = o%daily_p_efflux
