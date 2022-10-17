@@ -252,8 +252,8 @@ def main(argv):
         out_var.units     = in_var.units
         out_var.long_name = in_var.long_name
 
-    fp_out.history = "This file was made from FatesPFTIndexSwapper.py \n Input File = {} \n Indices = {}"\
-          .format(input_fname,donor_pft_indices)
+    fp_out.history = fp_in.history
+    
 
     #var_out.mode = var.mode
     #fp.flush()

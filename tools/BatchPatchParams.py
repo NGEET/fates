@@ -69,12 +69,12 @@ def parse_syscall_str(fnamein,fnameout,pft_index,param_name,param_val):
     if(pft_index==0):
         sys_call_str = "../tools/modify_fates_paramfile.py"+" --fin " + fnamein + \
             " --fout " + fnameout + " --var " + param_name + " --silent " +\
-            " --val " + "\" "+param_val+"\"" + " --overwrite --all"
+            " --val " + "\" "+param_val+"\"" + " --overwrite --all --nohist"
     else:
         pft_str_index="{}".format(pft_index)
         sys_call_str = "../tools/modify_fates_paramfile.py"+" --fin " + fnamein + \
             " --fout " + fnameout + " --var " + param_name + " --silent " +\
-            " --val " + "\" "+param_val+"\"" + " --overwrite --pft "+pft_str_index
+            " --val " + "\" "+param_val+"\"" + " --overwrite --pft "+pft_str_index+" --nohist"
 
     if(debug):
         print(sys_call_str)
