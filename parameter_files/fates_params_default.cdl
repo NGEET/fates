@@ -499,7 +499,7 @@ variables:
 		fates_recruit_seed_alloc_mature:long_name = "fraction of available carbon balance allocated to seeds in mature plants (adds to fates_seed_alloc)" ;
 	double fates_recruit_seed_dbh_repro_threshold(fates_pft) ;
 		fates_recruit_seed_dbh_repro_threshold:units = "cm" ;
-		fates_recruit_seed_dbh_repro_threshold:long_name = "the diameter (if any) where the plant will start extra clonal allocation to the seed pool" ;
+		fates_recruit_seed_dbh_repro_threshold:long_name = "the diameter where the plant will start extra allocation (via fates_recruit_seed_alloc_mature) to the seed pool" ;
 	double fates_recruit_seed_germination_rate(fates_pft) ;
 		fates_recruit_seed_germination_rate:units = "yr-1" ;
 		fates_recruit_seed_germination_rate:long_name = "fraction of seeds that germinate per year" ;
