@@ -30,6 +30,19 @@ module FatesDispersalMod
       integer  :: neighbor_count   ! total neighbors near source
 
    end type neighborhood_type
+   
+   ! Dispersal type
+   type, public :: dispersal_type
+   
+      real(r8), allocatable :: outgoing_local(:)    ! local gridcell array of outgoing seeds, gridcell x pft
+      real(r8), allocatable :: outgoing_global(:)   ! global accumulation array of outgoing seeds, gridcell x pft
+      real(r8), allocatable :: incoming_global(:)   ! 
+      
+      contains
+      
+         procedure :: init
+      
+   end type dispersal_type
 
    type(neighborhood_type), public, pointer :: lneighbors(:)
 
@@ -38,6 +51,23 @@ module FatesDispersalMod
    character(len=*), parameter, private :: sourcefile = __FILE__
 
 contains
+
+   ! ====================================================================================
+
+   subroutine init(this, numprocs)
+      
+      class(dispersal_type), intent(inout) :: this
+      integer, intent(in) ::  numprocs
+      
+      allocate(this%outgoing_local(numprocs))
+      allocate(this%outgoing_global(numprocs))
+      allocate(this%incoming_global(numprocs))
+   
+      this%outgoing_local(:) = 0._r8
+      this%outgoing_global(:) = 0._r8
+      this%incoming_global(:) = 0._r8
+      
+   end subroutine init
 
    ! ====================================================================================
 
