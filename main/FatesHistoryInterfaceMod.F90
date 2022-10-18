@@ -5598,18 +5598,18 @@ end subroutine update_history_hifrq
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_cstarvmortality_carbonflux_si_pft)
 
-    call this%set_history_var(vname='FATES_ABOVEGROUND_MORTALITY_SZPF', units='kg m-2 s-1',    &
+    call this%set_history_var(vname='FATES_AGW_MORTALITY_SZPF', units='kg m-2 s-1',    &
          long='Aboveground woody flux of carbon from AGB to necromass due to mortality', &
          use_default='inactive', avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_bagw_mortality_si_scpf)
 
-    call this%set_history_var(vname='FATES_ABOVEGROUND_PRODUCTIVITY_SZPF', units='kg m-2 s-1',    &
+    call this%set_history_var(vname='FATES_AGW_PRODUCTIVITY_SZPF', units='kg m-2 s-1',    &
          long='Aboveground woody carbon productivity', &
          use_default='inactive', avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_bagw_productivity_si_scpf)
-
+    
     ! size class by age dimensioned variables
 
     call this%set_history_var(vname='FATES_NPLANT_SZAP', units = 'm-2',        &
