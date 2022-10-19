@@ -455,7 +455,7 @@ contains
           ! Growth and Allocation (PARTEH)
           ! -----------------------------------------------------------------------------
           currentCohort%resp_excess = 0._r8
-          
+
           call currentCohort%prt%DailyPRT()
 
           ! Send any efflux/exudates to the labile litter pools in the HLM

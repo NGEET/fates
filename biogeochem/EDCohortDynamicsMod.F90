@@ -241,10 +241,13 @@ contains
 
     new_cohort%l2fr = prt_params%allom_l2fr(pft)
 
-    new_cohort%cx_int    = 0._r8  ! Assume balanced N,P/C stores ie log(1) = 0
-    new_cohort%cx0       = 0._r8  ! Assume balanced N,P/C stores ie log(1) = 0
-    new_cohort%ema_dcxdt = 0._r8  ! Assume unchanged dCX/dt
-    
+    if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
+       new_cohort%cx_int      = 0._r8  ! Assume balanced N,P/C stores ie log(1) = 0
+       new_cohort%cx0         = 0._r8  ! Assume balanced N,P/C stores ie log(1) = 0
+       new_cohort%ema_dcxdt   = 0._r8  ! Assume unchanged dCX/dt
+       new_cohort%cnp_limiter = 0    ! Assume limitations are unknown
+    end if
+       
     ! This sets things like vcmax25top, that depend on the
     ! leaf age fractions (which are defined by PARTEH)
     call UpdateCohortBioPhysRates(new_cohort)
@@ -581,12 +584,16 @@ contains
     currentCohort%daily_no3_uptake = nan
     currentCohort%daily_n_gain     = nan
     currentCohort%daily_n_fixation = nan
-    currentCohort%daily_p_gain = nan
-    currentCohort%daily_c_efflux = nan
-    currentCohort%daily_n_efflux = nan
-    currentCohort%daily_p_efflux = nan
-    currentCohort%daily_n_demand = nan
-    currentCohort%daily_p_demand = nan
+    currentCohort%daily_p_gain     = nan
+    currentCohort%daily_c_efflux   = nan
+    currentCohort%daily_n_efflux   = nan
+    currentCohort%daily_p_efflux   = nan
+    currentCohort%daily_n_demand   = nan
+    currentCohort%daily_p_demand   = nan
+    currentCohort%cx_int           = nan
+    currentCohort%cx0              = nan
+    currentCohort%ema_dcxdt        = nan
+    currentCohort%cnp_limiter      = fates_unset_int 
     
     currentCohort%c13disc_clm        = nan ! C13 discrimination, per mil at indiv/timestep
     currentCohort%c13disc_acc        = nan ! C13 discrimination, per mil at indiv/timestep at indiv/daily at the end of a day
@@ -1208,13 +1215,9 @@ contains
                                       end do
                                    end if
 
-                                   currentCohort%cx_int = (currentCohort%n*currentCohort%cx_int &
-                                        + nextc%n*nextc%cx_int)/newn
-                                   currentCohort%ema_dcxdt = (currentCohort%n*currentCohort%ema_dcxdt &
-                                        + nextc%n*nextc%ema_dcxdt)/newn
-                                   currentCohort%cx0 = (currentCohort%n*currentCohort%cx0 &
-                                        + nextc%n*nextc%cx0)/newn
                                    
+
+                                      
                                    ! new cohort age is weighted mean of two cohorts
                                    currentCohort%coage = &
                                         (currentCohort%coage * (currentCohort%n/(currentCohort%n + nextc%n))) + &
@@ -1435,32 +1438,39 @@ contains
                                       currentCohort%asmort = (currentCohort%n*currentCohort%asmort + nextc%n*nextc%asmort)/newn
                                       currentCohort%frmort = (currentCohort%n*currentCohort%frmort + nextc%n*nextc%frmort)/newn
 
-                                      ! Nutrient fluxes
-                                      currentCohort%daily_nh4_uptake = (currentCohort%n*currentCohort%daily_nh4_uptake + &
-                                           nextc%n*nextc%daily_nh4_uptake)/newn
-                                      currentCohort%daily_no3_uptake = (currentCohort%n*currentCohort%daily_no3_uptake + &
-                                           nextc%n*nextc%daily_no3_uptake)/newn
-                                      currentCohort%daily_n_fixation = (currentCohort%n*currentCohort%daily_n_fixation + &
-                                           nextc%n*nextc%daily_n_fixation)/newn
-                                      currentCohort%daily_n_gain = (currentCohort%n*currentCohort%daily_n_gain + &
-                                           nextc%n*nextc%daily_n_gain)/newn
-                                      
-                                      currentCohort%daily_p_gain = (currentCohort%n*currentCohort%daily_p_gain + &
-                                           nextc%n*nextc%daily_p_gain)/newn
-                                      
-                                      
-                                      
-                                      currentCohort%daily_p_demand = (currentCohort%n*currentCohort%daily_p_demand + &
-                                           nextc%n*nextc%daily_p_demand)/newn
-                                      currentCohort%daily_n_demand = (currentCohort%n*currentCohort%daily_n_demand + &
-                                           nextc%n*nextc%daily_n_demand)/newn
+                                      ! Nutrients
+                                      if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
 
-                                      currentCohort%daily_c_efflux = (currentCohort%n*currentCohort%daily_c_efflux + &
-                                           nextc%n*nextc%daily_c_efflux)/newn
-                                      currentCohort%daily_n_efflux = (currentCohort%n*currentCohort%daily_n_efflux + &
-                                           nextc%n*nextc%daily_n_efflux)/newn
-                                      currentCohort%daily_p_efflux = (currentCohort%n*currentCohort%daily_p_efflux + &
-                                           nextc%n*nextc%daily_p_efflux)/newn
+                                         if(nextc%n > currentCohort%n) currentCohort%cnp_limiter = nextc%cnp_limiter
+
+                                         currentCohort%cx_int = (currentCohort%n*currentCohort%cx_int + &
+                                              nextc%n*nextc%cx_int)/newn
+                                         currentCohort%ema_dcxdt = (currentCohort%n*currentCohort%ema_dcxdt + &
+                                              nextc%n*nextc%ema_dcxdt)/newn
+                                         currentCohort%cx0 = (currentCohort%n*currentCohort%cx0 + &
+                                              nextc%n*nextc%cx0)/newn
+                                         currentCohort%daily_nh4_uptake = (currentCohort%n*currentCohort%daily_nh4_uptake + &
+                                              nextc%n*nextc%daily_nh4_uptake)/newn
+                                         currentCohort%daily_no3_uptake = (currentCohort%n*currentCohort%daily_no3_uptake + &
+                                              nextc%n*nextc%daily_no3_uptake)/newn
+                                         currentCohort%daily_n_fixation = (currentCohort%n*currentCohort%daily_n_fixation + &
+                                              nextc%n*nextc%daily_n_fixation)/newn
+                                         currentCohort%daily_n_gain = (currentCohort%n*currentCohort%daily_n_gain + &
+                                              nextc%n*nextc%daily_n_gain)/newn
+                                         currentCohort%daily_p_gain = (currentCohort%n*currentCohort%daily_p_gain + &
+                                              nextc%n*nextc%daily_p_gain)/newn
+                                         currentCohort%daily_p_demand = (currentCohort%n*currentCohort%daily_p_demand + &
+                                              nextc%n*nextc%daily_p_demand)/newn
+                                         currentCohort%daily_n_demand = (currentCohort%n*currentCohort%daily_n_demand + &
+                                              nextc%n*nextc%daily_n_demand)/newn
+                                         currentCohort%daily_c_efflux = (currentCohort%n*currentCohort%daily_c_efflux + &
+                                              nextc%n*nextc%daily_c_efflux)/newn
+                                         currentCohort%daily_n_efflux = (currentCohort%n*currentCohort%daily_n_efflux + &
+                                              nextc%n*nextc%daily_n_efflux)/newn
+                                         currentCohort%daily_p_efflux = (currentCohort%n*currentCohort%daily_p_efflux + &
+                                              nextc%n*nextc%daily_p_efflux)/newn
+                                      end if
+                                         
 
                                       ! logging mortality, Yi Xu
                                       currentCohort%lmort_direct = (currentCohort%n*currentCohort%lmort_direct + &
@@ -1826,10 +1836,12 @@ contains
     n%kp25top    = o%kp25top
 
     ! Copy over running means
-    n%cx_int    = o%cx_int
-    n%ema_dcxdt = o%ema_dcxdt
-    n%cx0       = o%cx0
-
+    if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
+       n%cx_int    = o%cx_int
+       n%ema_dcxdt = o%ema_dcxdt
+       n%cx0       = o%cx0
+    end if
+    
     ! CARBON FLUXES
     n%gpp_acc_hold    = o%gpp_acc_hold
     n%gpp_acc         = o%gpp_acc

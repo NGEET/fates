@@ -18,6 +18,7 @@ module FatesRestartInterfaceMod
   use FatesInterfaceTypesMod,       only : bc_in_type
   use FatesInterfaceTypesMod,       only : bc_out_type
   use FatesInterfaceTypesMod,       only : hlm_use_planthydro
+  use FatesInterfaceTypesMod,       only : hlm_parteh_mode
   use FatesInterfaceTypesMod,       only : hlm_use_sp
   use FatesInterfaceTypesMod,       only : fates_maxElementsPerSite
   use EDCohortDynamicsMod,     only : UpdateCohortBioPhysRates
@@ -27,6 +28,7 @@ module FatesRestartInterfaceMod
   use FatesHydraulicsMemMod,   only : nlevsoi_hyd_max
   use FatesPlantHydraulicsMod, only : UpdatePlantPsiFTCFromTheta
   use PRTGenericMod,           only : prt_global
+  use PRTGenericMod,           only : prt_cnp_flex_allom_hyp
   use EDCohortDynamicsMod,     only : nan_cohort
   use EDCohortDynamicsMod,     only : zero_cohort
   use EDCohortDynamicsMod,     only : InitPRTObject
@@ -97,10 +99,18 @@ module FatesRestartInterfaceMod
   integer :: ir_canopy_layer_yesterday_co
   integer :: ir_canopy_trim_co
   integer :: ir_l2fr_co
+
   integer :: ir_cx_int_co
   integer :: ir_emadcxdt_co
   integer :: ir_cx0_co
-  integer :: ir_pc_store_co
+  integer :: ir_cnplimiter_co
+  integer :: ir_daily_nh4_uptake_co
+  integer :: ir_daily_no3_uptake_co
+  integer :: ir_daily_n_fixation_co
+  integer :: ir_daily_p_uptake_co
+  integer :: ir_daily_n_demand_co
+  integer :: ir_daily_p_demand_co
+  
   integer :: ir_size_class_lasttimestep_co
   integer :: ir_dbh_co
   integer :: ir_coage_co
@@ -125,12 +135,7 @@ module FatesRestartInterfaceMod
   integer :: ir_treesai_co
   integer :: ir_canopy_layer_tlai_pa
 
-  integer :: ir_daily_nh4_uptake_co
-  integer :: ir_daily_no3_uptake_co
-  integer :: ir_daily_n_fixation_co
-  integer :: ir_daily_p_uptake_co
-  integer :: ir_daily_n_demand_co
-  integer :: ir_daily_p_demand_co
+
 
   !Logging
   integer :: ir_lmort_direct_co
@@ -704,18 +709,56 @@ contains
          long_name='ed cohort - l2fr', units='fraction', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_l2fr_co )
 
-    call this%set_restart_var(vname='fates_cx_int', vtype=cohort_r8, &
-         long_name='ed cohort - emacx', units='fraction', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cx_int_co )
-
-    call this%set_restart_var(vname='fates_emadcxdt', vtype=cohort_r8, &
-         long_name='ed cohort - emadcxdt', units='fraction', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_emadcxdt_co )
-
-    call this%set_restart_var(vname='fates_cx0', vtype=cohort_r8, &
-         long_name='ed cohort - cx0', units='fraction', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cx0_co )
+    if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
     
+       call this%set_restart_var(vname='fates_cx_int', vtype=cohort_r8, &
+            long_name='ed cohort - emacx', units='fraction', flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cx_int_co )
+
+       call this%set_restart_var(vname='fates_emadcxdt', vtype=cohort_r8, &
+            long_name='ed cohort - emadcxdt', units='fraction', flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_emadcxdt_co )
+       
+       call this%set_restart_var(vname='fates_cx0', vtype=cohort_r8, &
+            long_name='ed cohort - cx0', units='fraction', flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cx0_co )
+       
+       call this%set_restart_var(vname='fates_cnplimiter', vtype=cohort_r8, &
+            long_name='ed cohort - cnp limiter index', units='index', flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cnplimiter_co )
+
+       call this%set_restart_var(vname='fates_daily_nh4_uptake', vtype=cohort_r8, &
+            long_name='fates cohort- daily ammonium [NH4] uptake', &
+            units='kg/plant/day', flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_nh4_uptake_co )
+       
+       call this%set_restart_var(vname='fates_daily_no3_uptake', vtype=cohort_r8, &
+            long_name='fates cohort- daily ammonium [NO3] uptake', &
+            units='kg/plant/day', flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_no3_uptake_co )
+       
+       call this%set_restart_var(vname='fates_daily_n_fixation', vtype=cohort_r8, &
+            long_name='fates cohort- daily N symbiotic fixation', &
+            units='kg/plant/day', flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_n_fixation_co )
+       
+       call this%set_restart_var(vname='fates_daily_p_uptake', vtype=cohort_r8, &
+            long_name='fates cohort- daily phosphorus uptake', &
+            units='kg/plant/day', flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_p_uptake_co )
+       
+       call this%set_restart_var(vname='fates_daily_p_demand', vtype=cohort_r8, &
+            long_name='fates cohort- daily phosphorus demand', &
+            units='kgP/plant/day', flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_p_demand_co )
+       
+       call this%set_restart_var(vname='fates_daily_n_demand', vtype=cohort_r8, &
+            long_name='fates cohort- daily nitrogen demand', &
+            units='kgN/plant/day', flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_n_demand_co )
+       
+    end if
+       
     call this%set_restart_var(vname='fates_size_class_lasttimestep', vtype=cohort_int, &
          long_name='ed cohort - size-class last timestep', units='index', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_size_class_lasttimestep_co )
@@ -787,35 +830,7 @@ contains
          units='/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cmort_co )
 
-    call this%set_restart_var(vname='fates_daily_nh4_uptake', vtype=cohort_r8, &
-         long_name='fates cohort- daily ammonium [NH4] uptake', &
-         units='kg/plant/day', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_nh4_uptake_co )
 
-    call this%set_restart_var(vname='fates_daily_no3_uptake', vtype=cohort_r8, &
-         long_name='fates cohort- daily ammonium [NO3] uptake', &
-         units='kg/plant/day', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_no3_uptake_co )
-
-    call this%set_restart_var(vname='fates_daily_n_fixation', vtype=cohort_r8, &
-         long_name='fates cohort- daily N symbiotic fixation', &
-         units='kg/plant/day', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_n_fixation_co )
-
-    call this%set_restart_var(vname='fates_daily_p_uptake', vtype=cohort_r8, &
-         long_name='fates cohort- daily phosphorus uptake', &
-         units='kg/plant/day', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_p_uptake_co )
-
-    call this%set_restart_var(vname='fates_daily_p_demand', vtype=cohort_r8, &
-         long_name='fates cohort- daily phosphorus demand', &
-         units='kgP/plant/day', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_p_demand_co )
-
-    call this%set_restart_var(vname='fates_daily_n_demand', vtype=cohort_r8, &
-         long_name='fates cohort- daily nitrogen demand', &
-         units='kgN/plant/day', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_n_demand_co )
 
     call this%set_restart_var(vname='fates_frmort', vtype=cohort_r8, &
          long_name='ed cohort - freezing mortality rate', &
@@ -1746,9 +1761,6 @@ contains
            rio_canopy_layer_yesterday_co    => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
            rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
            rio_l2fr_co                 => this%rvars(ir_l2fr_co)%r81d, &
-           rio_cx_int_co               => this%rvars(ir_cx_int_co)%r81d, &
-           rio_emadcxdt_co             => this%rvars(ir_emadcxdt_co)%r81d, &
-           rio_cx0_co                  => this%rvars(ir_cx0_co)%r81d, &
            rio_seed_prod_co            => this%rvars(ir_seed_prod_co)%r81d, &
            rio_size_class_lasttimestep => this%rvars(ir_size_class_lasttimestep_co)%int1d, &
            rio_dbh_co                  => this%rvars(ir_dbh_co)%r81d, &
@@ -1766,12 +1778,6 @@ contains
            rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
            rio_hmort_co                => this%rvars(ir_hmort_co)%r81d, &
            rio_cmort_co                => this%rvars(ir_cmort_co)%r81d, &
-           rio_daily_nh4_uptake_co     => this%rvars(ir_daily_nh4_uptake_co)%r81d, &
-           rio_daily_no3_uptake_co     => this%rvars(ir_daily_no3_uptake_co)%r81d, &
-           rio_daily_n_fixation_co     => this%rvars(ir_daily_n_fixation_co)%r81d, &
-           rio_daily_p_uptake_co       => this%rvars(ir_daily_p_uptake_co)%r81d, &
-           rio_daily_n_demand_co       => this%rvars(ir_daily_n_demand_co)%r81d, &
-           rio_daily_p_demand_co       => this%rvars(ir_daily_p_demand_co)%r81d, &
            rio_smort_co                => this%rvars(ir_smort_co)%r81d, &
            rio_asmort_co               => this%rvars(ir_asmort_co)%r81d, &
            rio_frmort_co               => this%rvars(ir_frmort_co)%r81d, &
@@ -1945,6 +1951,20 @@ contains
                    end do
                 end do
 
+                rio_l2fr_co(io_idx_co)         = ccohort%l2fr
+                
+                if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
+                   this%rvars(ir_cx_int_co)%r81d(io_idx_co)       = ccohort%cx_int
+                   this%rvars(ir_emadcxdt_co)%r81d(io_idx_co)     = ccohort%ema_dcxdt
+                   this%rvars(ir_cx0_co)%r81d(io_idx_co)          = ccohort%cx0
+                   this%rvars(ir_cnplimiter_co)%r81d(io_idx_co)   = real(ccohort%cnp_limiter,r8)
+                   this%rvars(ir_daily_no3_uptake_co)%r81d(io_idx_co) = ccohort%daily_no3_uptake
+                   this%rvars(ir_daily_nh4_uptake_co)%r81d(io_idx_co) = ccohort%daily_nh4_uptake
+                   this%rvars(ir_daily_p_uptake_co)%r81d(io_idx_co) = ccohort%daily_p_gain
+                   this%rvars(ir_daily_n_fixation_co)%r81d(io_idx_co) = ccohort%daily_n_fixation
+                   this%rvars(ir_daily_n_demand_co)%r81d(io_idx_co) = ccohort%daily_n_demand
+                   this%rvars(ir_daily_p_demand_co)%r81d(io_idx_co) = ccohort%daily_p_demand
+                end if
 
                 if(hlm_use_planthydro==itrue)then
 
@@ -1963,10 +1983,7 @@ contains
                 rio_canopy_layer_co(io_idx_co) = ccohort%canopy_layer
                 rio_canopy_layer_yesterday_co(io_idx_co) = ccohort%canopy_layer_yesterday
                 rio_canopy_trim_co(io_idx_co)  = ccohort%canopy_trim
-                rio_l2fr_co(io_idx_co)         = ccohort%l2fr
-                rio_cx_int_co(io_idx_co)       = ccohort%cx_int
-                rio_emadcxdt_co(io_idx_co)     = ccohort%ema_dcxdt
-                rio_cx0_co(io_idx_co)          = ccohort%cx0
+                
                 rio_seed_prod_co(io_idx_co)    = ccohort%seed_prod
                 rio_size_class_lasttimestep(io_idx_co) = ccohort%size_class_lasttimestep
                 rio_dbh_co(io_idx_co)          = ccohort%dbh
@@ -1990,14 +2007,6 @@ contains
                 rio_asmort_co(io_idx_co)       = ccohort%asmort
                 rio_frmort_co(io_idx_co)       = ccohort%frmort
 
-                ! Nutrient uptake/efflux
-                rio_daily_no3_uptake_co(io_idx_co) = ccohort%daily_no3_uptake
-                rio_daily_nh4_uptake_co(io_idx_co) = ccohort%daily_nh4_uptake
-                rio_daily_p_uptake_co(io_idx_co) = ccohort%daily_p_gain
-                rio_daily_n_fixation_co(io_idx_co) = ccohort%daily_n_fixation
-                
-                rio_daily_n_demand_co(io_idx_co) = ccohort%daily_n_demand
-                rio_daily_p_demand_co(io_idx_co) = ccohort%daily_p_demand
 
                 !Logging
                 rio_lmort_direct_co(io_idx_co)       = ccohort%lmort_direct
@@ -2577,9 +2586,6 @@ contains
           rio_canopy_layer_yesterday_co         => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
           rio_canopy_trim_co          => this%rvars(ir_canopy_trim_co)%r81d, &
           rio_l2fr_co                 => this%rvars(ir_l2fr_co)%r81d, &
-          rio_cx_int_co               => this%rvars(ir_cx_int_co)%r81d, &
-          rio_emadcxdt_co             => this%rvars(ir_emadcxdt_co)%r81d, &
-          rio_cx0_co                  => this%rvars(ir_cx0_co)%r81d, &
           rio_seed_prod_co            => this%rvars(ir_seed_prod_co)%r81d, &
           rio_size_class_lasttimestep => this%rvars(ir_size_class_lasttimestep_co)%int1d, &
           rio_dbh_co                  => this%rvars(ir_dbh_co)%r81d, &
@@ -2597,12 +2603,6 @@ contains
           rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
           rio_hmort_co                => this%rvars(ir_hmort_co)%r81d, &
           rio_cmort_co                => this%rvars(ir_cmort_co)%r81d, &
-          rio_daily_nh4_uptake_co     => this%rvars(ir_daily_nh4_uptake_co)%r81d, &
-          rio_daily_no3_uptake_co     => this%rvars(ir_daily_no3_uptake_co)%r81d, &
-          rio_daily_n_fixation_co     => this%rvars(ir_daily_n_fixation_co)%r81d, &
-          rio_daily_p_uptake_co       => this%rvars(ir_daily_p_uptake_co)%r81d, &
-          rio_daily_n_demand_co       => this%rvars(ir_daily_n_demand_co)%r81d, &
-          rio_daily_p_demand_co       => this%rvars(ir_daily_p_demand_co)%r81d, &
           rio_smort_co                => this%rvars(ir_smort_co)%r81d, &
           rio_asmort_co               => this%rvars(ir_asmort_co)%r81d, &
           rio_frmort_co               => this%rvars(ir_frmort_co)%r81d, &
@@ -2757,19 +2757,24 @@ contains
                    end do
                 end do
 
-                !ccohort%vcmax25top
-                !ccohort%jmax25top
-                !ccohort%tpu25top
-                !ccohort%kp25top
-
-
                 ccohort%canopy_layer = rio_canopy_layer_co(io_idx_co)
                 ccohort%canopy_layer_yesterday = rio_canopy_layer_yesterday_co(io_idx_co)
                 ccohort%canopy_trim  = rio_canopy_trim_co(io_idx_co)
                 ccohort%l2fr         = rio_l2fr_co(io_idx_co)
-                ccohort%cx_int       = rio_cx_int_co(io_idx_co)
-                ccohort%ema_dcxdt    = rio_emadcxdt_co(io_idx_co)
-                ccohort%cx0          = rio_cx0_co(io_idx_co)
+
+                if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
+                   ccohort%cx_int       = this%rvars(ir_cx_int_co)%r81d(io_idx_co)
+                   ccohort%ema_dcxdt    = this%rvars(ir_emadcxdt_co)%r81d(io_idx_co)
+                   ccohort%cx0          = this%rvars(ir_cx0_co)%r81d(io_idx_co)
+                   ccohort%cnp_limiter  = int(this%rvars(ir_cnplimiter_co)%r81d(io_idx_co))
+                   ccohort%daily_nh4_uptake = this%rvars(ir_daily_nh4_uptake_co)%r81d(io_idx_co)
+                   ccohort%daily_no3_uptake = this%rvars(ir_daily_no3_uptake_co)%r81d(io_idx_co)
+                   ccohort%daily_n_fixation = this%rvars(ir_daily_n_fixation_co)%r81d(io_idx_co)
+                   ccohort%daily_p_gain = this%rvars(ir_daily_p_uptake_co)%r81d(io_idx_co)
+                   ccohort%daily_n_demand = this%rvars(ir_daily_n_demand_co)%r81d(io_idx_co)
+                   ccohort%daily_p_demand = this%rvars(ir_daily_p_demand_co)%r81d(io_idx_co)
+                end if
+
                 ccohort%seed_prod    = rio_seed_prod_co(io_idx_co)
                 ccohort%size_class_lasttimestep = rio_size_class_lasttimestep(io_idx_co)
                 ccohort%dbh          = rio_dbh_co(io_idx_co)
@@ -2792,14 +2797,7 @@ contains
                 ccohort%asmort       = rio_asmort_co(io_idx_co)
                 ccohort%frmort        = rio_frmort_co(io_idx_co)
 
-                ! Nutrient uptake / efflux
-                ccohort%daily_nh4_uptake = rio_daily_nh4_uptake_co(io_idx_co)
-                ccohort%daily_no3_uptake = rio_daily_no3_uptake_co(io_idx_co)
-                ccohort%daily_n_fixation = rio_daily_n_fixation_co(io_idx_co)
-                ccohort%daily_p_gain = rio_daily_p_uptake_co(io_idx_co)
-
-                ccohort%daily_n_demand = rio_daily_n_demand_co(io_idx_co)
-                ccohort%daily_p_demand = rio_daily_p_demand_co(io_idx_co)
+                
 
                 !Logging
                 ccohort%lmort_direct       = rio_lmort_direct_co(io_idx_co)

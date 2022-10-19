@@ -28,7 +28,7 @@ module EDTypesMod
   private               ! By default everything is private
   save
 
-  integer, parameter, public :: nclmax = 2                ! Maximum number of canopy layers
+  integer, parameter, public :: nclmax = 3                ! Maximum number of canopy layers
   integer, parameter, public :: ican_upper = 1            ! Nominal index for the upper canopy
   integer, parameter, public :: ican_ustory = 2           ! Nominal index for diagnostics that refer
                                                           ! to understory layers (all layers that
@@ -214,17 +214,10 @@ module EDTypesMod
                                                          !      enabled simulations, this is dynamic, will
                                                          !      vary between allom_l2fr_min and allom_l2fr_max
                                                          !      parameters, with a tendency driven by
-                                                         !      nutrient storage) [g root / g leaf]
+                                                         !      nutrient storage) [kg root / kg leaf]
      
      
-     ! Used for CNP
-     integer :: cnp_limiter ! Which species is limiting growth? ! 0=none,1=C,2=N,3=P
-     real(r8) :: cx_int     ! The time integration of the log of the relative carbon storage over relative nutrient
-     real(r8) :: ema_dcxdt  ! The derivative of the log of the relative carbon storage over relative nutrient
-     real(r8) :: cx0        ! The value on the previous time-step of log of the relative carbon
-                            ! storage over relative nutrient
-     real(r8) :: nc_repro   ! The NC ratio of a new recruit in this patch
-     real(r8) :: pc_repro   ! The PC ratio of a new recruit in this patch
+
      
      
      ! VEGETATION STRUCTURE
@@ -295,6 +288,16 @@ module EDTypesMod
      real(r8) ::  c13disc_clm         ! carbon 13 discrimination in new synthesized carbon: part-per-mil, at each indiv/timestep
      real(r8) ::  c13disc_acc         ! carbon 13 discrimination in new synthesized carbon: part-per-mil, at each indiv/day, at the end of a day
 
+
+     ! Used for CNP
+     integer  :: cnp_limiter ! Which species is limiting growth? ! 0=none,1=C,2=N,3=P
+     real(r8) :: cx_int      ! The time integration of the log of the relative carbon storage over relative nutrient
+     real(r8) :: ema_dcxdt   ! The derivative of the log of the relative carbon storage over relative nutrient
+     real(r8) :: cx0         ! The value on the previous time-step of log of the relative carbon
+                             ! storage over relative nutrient
+     real(r8) :: nc_repro    ! The NC ratio of a new recruit, used also for defining reproductive stoich
+     real(r8) :: pc_repro    ! The PC ratio of a new recruit
+     
      ! Nutrient Fluxes (if N, P, etc. are turned on)
 
      real(r8) :: daily_nh4_uptake ! integrated daily uptake of mineralized ammonium through competitive acquisition in soil [kg N / plant/ day]
@@ -310,8 +313,6 @@ module EDTypesMod
      real(r8) :: daily_n_demand ! The daily amount of N demanded by the plant [kgN/plant/day]
      real(r8) :: daily_p_demand ! The daily amount of P demanded by the plant [kgN/plant/day]
 
-     ! N fixation rate
-     
 
      ! The following four biophysical rates are assumed to be
      ! at the canopy top, at reference temp 25C, and based on the 
@@ -538,6 +539,8 @@ module EDTypesMod
      real(r8) ::  btran_ft(maxpft)                ! btran calculated seperately for each PFT:-
      real(r8) ::  bstress_sal_ft(maxpft)          ! bstress from salinity calculated seperately for each PFT:-   
 
+
+     ! These two variables are only used for external seed rain currently.
      real(r8) :: nitr_repro_stoich(maxpft)        ! The NC ratio of a new recruit in this patch
      real(r8) :: phos_repro_stoich(maxpft)        ! The PC ratio of a new recruit in this patch
 
