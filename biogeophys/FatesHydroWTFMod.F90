@@ -72,6 +72,7 @@
      procedure :: dpsidth_from_th => dpsidth_from_th_base
      procedure :: set_wrf_param   => set_wrf_param_base
      procedure :: get_thsat       => get_thsat_base
+     procedure :: set_wrf_hard    => set_wrf_hard_base
 
      ! All brands of WRFs have access to these tools to operate
      ! above and below sat and residual, should they want to
@@ -226,6 +227,7 @@
      procedure :: set_wrf_param   => set_wrf_param_tfs
      procedure :: get_thsat       => get_thsat_tfs
      procedure :: bisect_pv
+     procedure :: set_wrf_hard  => set_wrf_cohort_hardening
   end type wrf_type_tfs
 
   ! Water Conductivity Function
@@ -417,6 +419,14 @@ contains
     write(fates_log(),*) 'check how the class pointer was setup'
     call endrun(msg=errMsg(sourcefile, __LINE__))
   end function dftcdpsi_from_psi_base
+  subroutine set_wrf_hard_base(this,params_in)
+    class(wrf_type)     :: this
+    real(r8),intent(in) :: params_in(:)
+    write(fates_log(),*) 'The base water retention function'
+    write(fates_log(),*) 'should never be actualized'
+    write(fates_log(),*) 'check how the class pointer was setup'
+    call endrun(msg=errMsg(sourcefile, __LINE__))
+  end subroutine set_wrf_hard_base  
 
   ! =====================================================================================
   ! Van Genuchten Functions are defined here
@@ -747,10 +757,14 @@ contains
     class(wrf_type_cch)  :: this
     real(r8), intent(in) :: psi
     real(r8)             :: th
-
+    real(r8)             :: thmin
+    thmin=this%th_sat*(-20._r8/this%psi_sat)**(-1.0_r8/this%beta) !We want to avoid Soil water potentials below -25
+    
     if(psi>this%psi_max) then
         ! Linear range for extreme values
         th = this%th_max + (psi-this%psi_max)/this%dpsidth_max
+    else if (psi<-20._r8)   then
+        th = thmin + thmin/5._r8*(psi+20._r8)
     else
         th = this%th_sat*(psi/this%psi_sat)**(-1.0_r8/this%beta)
     end if
@@ -764,9 +778,13 @@ contains
     class(wrf_type_cch)  :: this
     real(r8),intent(in)  :: th
     real(r8)             :: psi
-
+    real(r8)             :: thmin
+    thmin=this%th_sat*(-20._r8/this%psi_sat)**(-1.0_r8/this%beta)
+    
     if(th>this%th_max) then
         psi = this%psi_max + this%dpsidth_max*(th-max_sf_interp*this%th_sat)
+    else if (th < thmin)   then
+        psi = -20._r8 - 5._r8 * (thmin-th)/thmin
     else
         psi = this%psi_sat*(th/this%th_sat)**(-this%beta)
     end if
@@ -778,12 +796,16 @@ contains
   function dpsidth_from_th_cch(this,th) result(dpsidth)
 
     class(wrf_type_cch)  :: this
-    real(r8),intent(in) :: th
-    real(r8)            :: dpsidth
-
+    real(r8),intent(in)  :: th
+    real(r8)             :: dpsidth
+    real(r8)             :: thmin
+    thmin=this%th_sat*(-20._r8/this%psi_sat)**(-1.0_r8/this%beta)
+    
     ! Differentiate:
     if(th>this%th_max) then
         dpsidth = this%dpsidth_max
+    else if (th < thmin )   then
+        dpsidth = 5._r8/thmin
     else
         dpsidth = -this%beta*this%psi_sat/this%th_sat * (th/this%th_sat)**(-this%beta-1._r8)
     end if
@@ -1494,6 +1516,20 @@ contains
     return
   end subroutine set_wrf_param_tfs
 
+  ! =====================================================================================
+  ! Set the hardening changed variables in wrf
+  ! PV curve changes if plants harden or deharden
+
+  subroutine set_wrf_cohort_hardening(this,params_in)
+
+    class(wrf_type_tfs) :: this
+    real(r8), intent(in) :: params_in(:)
+
+    this%pinot    = params_in(1)
+    this%epsil    = params_in(2)
+
+    return
+  end subroutine set_wrf_cohort_hardening
   ! =====================================================================================
 
   function get_thsat_tfs(this) result(th_sat)

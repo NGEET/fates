@@ -34,9 +34,13 @@ module FATESPlantRespPhotosynthMod
   use FatesInterfaceTypesMod, only : hlm_parteh_mode
   use FatesInterfaceTypesMod, only : numpft
   use FatesInterfaceTypesMod, only : nleafage
+  use FatesInterfaceTypesMod, only : hlm_use_hydrohard
+  use FatesInterfaceTypesMod, only : hlm_use_planthydro
+  use FatesInterfaceTypesMod, only : hlm_model_day 
   use EDTypesMod,        only : maxpft
   use EDTypesMod,        only : nlevleaf
   use EDTypesMod,        only : nclmax
+  use EDTypesMod,        only : leaves_on 
   use PRTGenericMod,     only : max_nleafage
   use EDTypesMod,        only : do_fates_salinity
   use EDParamsMod,       only : q10_mr
@@ -239,6 +243,9 @@ contains
     real(r8) :: lai_current        ! the LAI in the current leaf layer
     real(r8) :: cumulative_lai     ! the cumulative LAI, top down, to the leaf layer of interest
     real(r8) :: leaf_psi           ! leaf xylem matric potential [MPa] (only meaningful/used w/ hydro)
+    real(r8) :: stomatal_intercept_hard ! stomatal intercept influenced by the hardiness
+    real(r8) :: hard_rate_temporary! temporary hardiness level
+    real(r8) :: k_factor           ! rate at which we reduce stomatal parameters
     real(r8), allocatable :: rootfr_ft(:,:)  ! Root fractions per depth and PFT
 
     ! -----------------------------------------------------------------------------------
@@ -423,7 +430,18 @@ contains
 
                                if (hlm_use_planthydro.eq.itrue ) then
                                   
-                                  stomatal_intercept_btran = max( cf/rsmax0,stomatal_intercept(ft)*currentCohort%co_hydr%btran )
+                                  stomatal_intercept_hard = stomatal_intercept(ft)
+                                  if (hlm_use_hydrohard.eq.itrue .and. sites(s)%hard_level2(ft) < -3._r8 ) then
+                                    if (prt_params%season_decid(ft) == itrue .and. currentCohort%status_coh == leaves_on .and. &
+                                       (nint(hlm_model_day) >= sites(s)%cleafondate .or. nint(hlm_model_day) >= sites(s)%dleafondate)) then         
+                                    else
+                                     k_factor=20._r8 
+                                     hard_rate_temporary=((sites(s)%hard_level2(ft)+3._r8)/k_factor)
+                                     stomatal_intercept_hard = stomatal_intercept(ft)*10**hard_rate_temporary
+                                    endif
+                                  end if
+
+                                  stomatal_intercept_btran = max( cf/rsmax0,stomatal_intercept_hard*currentCohort%co_hydr%btran )
                                   btran_eff = currentCohort%co_hydr%btran 
 
                                   ! dinc_vai(:) is the total vegetation area index of each "leaf" layer
@@ -541,7 +559,11 @@ contains
                                ! Part IX: This call calculates the actual photosynthesis for the
                                ! leaf layer, as well as the stomatal resistance and the net assimilated carbon.
 
-                               call LeafLayerPhotosynthesis(currentPatch%f_sun(cl,ft,iv),    &  ! in
+                               call LeafLayerPhotosynthesis(sites(s)%hard_level2(ft),        &  ! in
+                                    currentCohort%status_coh          , &  ! in
+                                    sites(s)%cleafondate              , &  ! in
+                                    sites(s)%dleafondate              , &  ! in
+                                    currentPatch%f_sun(cl,ft,iv)      , &  ! in
                                     currentPatch%ed_parsun_z(cl,ft,iv), &  ! in
                                     currentPatch%ed_parsha_z(cl,ft,iv), &  ! in
                                     currentPatch%ed_laisun_z(cl,ft,iv), &  ! in
@@ -858,7 +880,11 @@ end subroutine FatesPlantRespPhotosynthDrive
 
 ! =======================================================================================
 
-subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
+subroutine LeafLayerPhotosynthesis(hard_level,        &  ! in
+     status_coh,        &  ! in 
+     cleafondate,       &  ! in
+     dleafondate,       &  ! in
+     f_sun_lsl,         &  ! in
      parsun_lsl,        &  ! in
      parsha_lsl,        &  ! in
      laisun_lsl,        &  ! in
@@ -982,6 +1008,14 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
   real(r8) :: init_co2_inter_c  ! First guess intercellular co2 specific to C path
   real(r8) :: term                 ! intermediate variable in Medlyn stomatal conductance model
   real(r8) :: vpd                  ! water vapor deficit in Medlyn stomatal model (KPa)
+  real(r8) :: hard_level           ! hardiness level of plants
+  real(r8) :: stomatal_intercept_hard
+  real(r8) :: hard_rate_temporary
+  real(r8) :: k_factor
+  real(r8) :: bb_slope_hard
+  integer  :: status_coh
+  integer  :: dleafondate
+  integer  :: cleafondate
 
 
   ! Parameters
@@ -1010,7 +1044,20 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
   associate( bb_slope  => EDPftvarcon_inst%bb_slope      ,& ! slope of BB relationship, unitless
        medlyn_slope=> EDPftvarcon_inst%medlyn_slope          , & ! Slope for Medlyn stomatal conductance model method, the unit is KPa^0.5
        stomatal_intercept=> EDPftvarcon_inst%stomatal_intercept )  !Unstressed minimum stomatal conductance, the unit is umol/m**2/s
-
+       
+  stomatal_intercept_hard = stomatal_intercept(ft)
+  bb_slope_hard= bb_slope(ft)
+  if (hlm_use_hydrohard.eq.itrue .and. hard_level < -3._r8 ) then ! reduce stomatal conductance with hardiness
+     if (prt_params%season_decid(ft) == itrue .and. status_coh == leaves_on .and. &
+        (nint(hlm_model_day) >= cleafondate .or. nint(hlm_model_day) >= dleafondate)) then         
+     else
+        k_factor=20._r8 
+        hard_rate_temporary=((hard_level+3._r8)/k_factor)
+        stomatal_intercept_hard = stomatal_intercept(ft)*10**hard_rate_temporary
+        bb_slope_hard= bb_slope(ft)*10**hard_rate_temporary
+     endif
+  end if
+       
   ! photosynthetic pathway: 0. = c4, 1. = c3
   c3c4_path_index = nint(EDPftvarcon_inst%c3psn(ft))
 
@@ -1185,9 +1232,9 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
 
               else if ( stomatal_model == ballberry_model ) then         !stomatal conductance calculated from Ball et al. (1987)
                  aquad = leaf_co2_ppress
-                 bquad = leaf_co2_ppress*(gb_mol - stomatal_intercept_btran) - bb_slope(ft) * a_gs * can_press
+                 bquad = leaf_co2_ppress*(gb_mol - stomatal_intercept_btran) - bb_slope_hard * a_gs * can_press
                  cquad = -gb_mol*(leaf_co2_ppress*stomatal_intercept_btran + &
-                      bb_slope(ft)*anet*can_press * ceair/ veg_esat )
+                      bb_slope_hard*anet*can_press * ceair/ veg_esat )
 
                  call quadratic_f (aquad, bquad, cquad, r1, r2)
                  gs_mol = max(r1,r2)
@@ -1261,7 +1308,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
               ! Compare with Ball-Berry model: gs_mol = m * an * hs/leaf_co2_ppress*p + b
            else if ( stomatal_model == 1 ) then
               hs = (gb_mol*ceair + gs_mol* veg_esat ) / ((gb_mol+gs_mol)*veg_esat )
-              gs_mol_err = bb_slope(ft)*max(anet, 0._r8)*hs/leaf_co2_ppress*can_press + stomatal_intercept_btran
+              gs_mol_err = bb_slope_hard*max(anet, 0._r8)*hs/leaf_co2_ppress*can_press + stomatal_intercept_btran
            end if
 
            if (abs(gs_mol-gs_mol_err) > 1.e-01_r8) then
@@ -1290,7 +1337,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
         psn_out     = 0._r8
         anet_av_out = 0._r8
 
-        rstoma_out  = min(rsmax0,cf/(stem_cuticle_loss_frac*stomatal_intercept(ft)))
+        rstoma_out  = min(rsmax0,cf/(stem_cuticle_loss_frac*stomatal_intercept_hard))
         c13disc_z = 0.0_r8
 
      end if if_leafarea !is there leaf area?

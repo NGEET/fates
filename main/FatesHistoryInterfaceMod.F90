@@ -36,6 +36,8 @@ module FatesHistoryInterfaceMod
   use FatesHistoryVariableType , only : fates_history_variable_type
   use FatesInterfaceTypesMod        , only : hlm_hio_ignore_val
   use FatesInterfaceTypesMod        , only : hlm_use_planthydro
+  use FatesInterfaceTypesMod        , only : hlm_use_hydrohard
+  use FatesInterfaceTypesMod        , only : hlm_use_frosthard
   use FatesInterfaceTypesMod        , only : hlm_use_ed_st3
   use FatesInterfaceTypesMod        , only : hlm_use_cohort_age_tracking
   use FatesInterfaceTypesMod        , only : numpft
@@ -311,6 +313,9 @@ module FatesHistoryInterfaceMod
   integer :: ih_tveg_si
   integer :: ih_nep_si
   integer :: ih_hr_si
+  integer :: ih_hardtemp_si
+  integer :: ih_Tmin_24_fates_si
+  integer :: ih_hardlevel_si_pft
 
   integer :: ih_c_stomata_si
   integer :: ih_c_lblayer_si
@@ -1882,6 +1887,9 @@ end subroutine flush_hvars
                hio_npp_froot_si        => this%hvars(ih_npp_froot_si)%r81d, &
                hio_npp_croot_si        => this%hvars(ih_npp_croot_si)%r81d, &
                hio_npp_stor_si         => this%hvars(ih_npp_stor_si)%r81d, &
+               hio_hardlevel_si_pft    => this%hvars(ih_hardlevel_si_pft)%r82d, &
+               hio_hardtemp_si         => this%hvars(ih_hardtemp_si)%r81d, &
+               hio_Tmin_24_fates_si    => this%hvars(ih_Tmin_24_fates_si)%r81d, &
                hio_bstor_canopy_si_scpf      => this%hvars(ih_bstor_canopy_si_scpf)%r82d, &
                hio_bstor_understory_si_scpf  => this%hvars(ih_bstor_understory_si_scpf)%r82d, &
                hio_bleaf_canopy_si_scpf      => this%hvars(ih_bleaf_canopy_si_scpf)%r82d, &
@@ -2132,6 +2140,33 @@ end subroutine flush_hvars
       ! Fire danger index (FDI) (0-1)
       hio_fire_fdi_si(io_si) = sites(s)%FDI
 
+      if (hlm_use_hydrohard .eq. itrue .or. hlm_use_frosthard .eq. itrue) then    
+        hio_hardtemp_si(io_si)   =  sites(s)%hardtemp   
+        hio_Tmin_24_fates_si(io_si)   =  sites(s)%Tmin_24_fates     
+        ncohort_pft(:) = 0.0_r8 
+        ! Normalization counters
+        cpatch => sites(s)%oldest_patch
+        do while(associated(cpatch))
+           ccohort => cpatch%shortest
+           do while(associated(ccohort))
+              if ( .not. ccohort%isnew ) then
+                 ft = ccohort%pft                            
+                 ncohort_pft(ft) = ncohort_pft(ft) + ccohort%n
+              end if
+              ccohort => ccohort%taller
+           enddo ! cohort loop
+           cpatch => cpatch%younger
+        end do !patch loop
+        do ft = 1, numpft
+          if (ncohort_pft(ft)>0._r8)then
+             hio_hardlevel_si_pft(io_si,ft)=0._r8
+          endif
+        enddo
+      else
+        hio_Tmin_24_fates_si(io_si)   = 0.0_r8
+        hio_hardtemp_si(io_si)   = -2._r8
+      end if
+      
       ! If hydraulics are turned on, track the error terms associated with
       ! dynamics [kg/m2]
       if(hlm_use_planthydro.eq.itrue)then
@@ -2465,6 +2500,16 @@ end subroutine flush_hvars
             ! have any meaning, otherwise they are just inialization values
             notnew: if( .not.(ccohort%isnew) ) then
 
+               if (hlm_use_hydrohard .eq. itrue .or. hlm_use_frosthard .eq. itrue) then
+                 ft = ccohort%pft
+                 number_fraction_pft = (ccohort%n / ncohort_pft(ft))
+
+                 hio_hardlevel_si_pft(io_si,ft) =  hio_hardlevel_si_pft(io_si,ft) + &
+                     ccohort%hard_level * number_fraction_pft
+               else
+                 hio_hardlevel_si_pft(io_si,ft) = -2._r8
+               end if
+               
                ! Turnover pools [kgC/day] * [day/yr] = [kgC/yr]
                sapw_m_turnover   = ccohort%prt%GetTurnover(sapw_organ, carbon12_element) * days_per_year
                store_m_turnover  = ccohort%prt%GetTurnover(store_organ, carbon12_element) * days_per_year
@@ -4439,6 +4484,23 @@ end subroutine update_history_hifrq
 
 
     ! Site level counting variables
+    
+
+    call this%set_history_var(vname='PFThardiness',  units='degC',            &
+         long='Hardiness level of vegetation', use_default='active',       &
+         avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_hardlevel_si_pft)
+
+    call this%set_history_var(vname='hardtemp',  units='DegC',            &
+         long='5yr running mean temperature for hardiness', use_default='active',       &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_hardtemp_si )
+
+    call this%set_history_var(vname='Tmin_24_fates',  units='DegC',            &
+         long='Tmin_24_fates', use_default='active',       &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_Tmin_24_fates_si )
+
     call this%set_history_var(vname='FATES_NPATCHES', units='',                &
          long='total number of patches per site', use_default='active',        &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &

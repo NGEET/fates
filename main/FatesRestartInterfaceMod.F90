@@ -22,6 +22,8 @@ module FatesRestartInterfaceMod
   use FatesInterfaceTypesMod,       only : hlm_use_sp
   use FatesInterfaceTypesMod,       only : hlm_use_nocomp, hlm_use_fixed_biogeog
   use FatesInterfaceTypesMod,       only : fates_maxElementsPerSite
+  use FatesInterfaceTypesMod,       only : hlm_use_hydrohard
+  use FatesInterfaceTypesMod,       only : hlm_use_frosthard
   use EDCohortDynamicsMod,     only : UpdateCohortBioPhysRates
   use FatesHydraulicsMemMod,   only : nshell
   use FatesHydraulicsMemMod,   only : n_hypool_ag
@@ -92,6 +94,8 @@ module FatesRestartInterfaceMod
   integer :: ir_phenmodeldate_si
   integer :: ir_acc_ni_si
   integer :: ir_gdd_si
+  integer :: ir_hard_level_co
+  integer :: ir_hard_level_prev_co
   integer :: ir_snow_depth_si
   integer :: ir_trunk_product_si
   integer :: ir_ncohort_pa
@@ -684,6 +688,15 @@ contains
 
     ! 1D cohort Variables
     ! -----------------------------------------------------------------------------------
+
+    if  (hlm_use_hydrohard .eq. itrue .or. hlm_use_frosthard .eq. itrue) then
+       call this%set_restart_var(vname='fates_hard_level', vtype=cohort_r8, &
+            long_name='hard_level', units='DegC', flushval = flushinvalid, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hard_level_co )
+       call this%set_restart_var(vname='fates_hard_level_prev', vtype=cohort_r8, &
+            long_name='hard_level', units='DegC', flushval = flushinvalid, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_hard_level_prev_co )
+    end if
 
     call this%set_restart_var(vname='fates_seed_prod', vtype=cohort_r8, &
          long_name='fates cohort - seed production', units='kgC/plant', flushval = flushinvalid, &
@@ -1748,6 +1761,8 @@ contains
            rio_phenmodeldate_si        => this%rvars(ir_phenmodeldate_si)%int1d, &
            rio_acc_ni_si               => this%rvars(ir_acc_ni_si)%r81d, &
            rio_gdd_si                  => this%rvars(ir_gdd_si)%r81d, &
+           rio_hard_level_co           => this%rvars(ir_hard_level_co)%r81d, &
+           rio_hard_level_prev_co      => this%rvars(ir_hard_level_prev_co)%r81d, &
            rio_snow_depth_si           => this%rvars(ir_snow_depth_si)%r81d, &
            rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
            rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
@@ -2006,6 +2021,11 @@ contains
                 rio_smort_co(io_idx_co)        = ccohort%smort
                 rio_asmort_co(io_idx_co)       = ccohort%asmort
                 rio_frmort_co(io_idx_co)       = ccohort%frmort
+
+                if (hlm_use_hydrohard .eq. itrue .or. hlm_use_frosthard .eq. itrue) then
+                   rio_hard_level_co(io_idx_co)      = ccohort%hard_level
+                   rio_hard_level_prev_co(io_idx_co) = ccohort%hard_level_prev
+                end if
 
                 ! Nutrient uptake/efflux
                 rio_daily_no3_uptake_co(io_idx_co) = ccohort%daily_no3_uptake
@@ -2581,6 +2601,8 @@ contains
           rio_phenmodeldate_si        => this%rvars(ir_phenmodeldate_si)%int1d, &
           rio_acc_ni_si               => this%rvars(ir_acc_ni_si)%r81d, &
           rio_gdd_si                  => this%rvars(ir_gdd_si)%r81d, &
+          rio_hard_level_co           => this%rvars(ir_hard_level_co)%r81d, &
+          rio_hard_level_prev_co      => this%rvars(ir_hard_level_prev_co)%r81d, &
           rio_snow_depth_si           => this%rvars(ir_snow_depth_si)%r81d, &
           rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
           rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
@@ -2819,6 +2841,11 @@ contains
                 ccohort%smort        = rio_smort_co(io_idx_co)
                 ccohort%asmort       = rio_asmort_co(io_idx_co)
                 ccohort%frmort        = rio_frmort_co(io_idx_co)
+
+                if (hlm_use_hydrohard .eq. itrue .or. hlm_use_frosthard .eq. itrue) then
+                   ccohort%hard_level   = rio_hard_level_co(io_idx_co)
+                   ccohort%hard_level_prev   = rio_hard_level_prev_co(io_idx_co)
+                end if
 
                 ! Nutrient uptake / efflux
                 ccohort%daily_nh4_uptake = rio_daily_nh4_uptake_co(io_idx_co)

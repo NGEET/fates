@@ -12,6 +12,7 @@ module EDMortalityFunctionsMod
    use EDTypesMod            , only : ed_cohort_type
    use EDTypesMod            , only : ed_site_type
    use EDTypesMod            , only : ed_patch_type
+   use EDTypesMod            , only : leaves_on
    use FatesConstantsMod     , only : itrue,ifalse
    use FatesAllometryMod     , only : bleaf
    use FatesAllometryMod     , only : storage_fraction_of_target
@@ -19,6 +20,12 @@ module EDMortalityFunctionsMod
    use FatesInterfaceTypesMod     , only : hlm_use_ed_prescribed_phys
    use FatesInterfaceTypesMod     , only : hlm_freq_day
    use FatesInterfaceTypesMod     , only : hlm_use_planthydro
+   use FatesInterfaceTypesMod     , only : hlm_model_day
+   use FatesInterfaceTypesMod     , only : hlm_use_frosthard
+   use FatesInterfaceTypesMod     , only : hlm_current_year
+   use FatesInterfaceTypesMod     , only : hlm_current_month
+   use FatesInterfaceTypesMod     , only : hlm_current_day
+   use PRTParametersMod           , only : prt_params
    use EDLoggingMortalityMod , only : LoggingMortality_frac
    use EDParamsMod           , only : fates_mortality_disturbance_fraction
 
@@ -37,6 +44,7 @@ module EDMortalityFunctionsMod
    public :: mortality_rates
    public :: Mortality_Derivative
    public :: ExemptTreefallDist
+   public :: Hardening_scheme
    
    
    ! ============================================================================
@@ -49,7 +57,7 @@ contains
 
 
 
-  subroutine mortality_rates( cohort_in,bc_in,cmort,hmort,bmort,frmort,smort,asmort )
+  subroutine mortality_rates( currentSite,cohort_in,bc_in,cmort,hmort,bmort,frmort,smort,asmort )
 
     ! ============================================================================
     !  Calculate mortality rates from carbon storage, hydraulic cavitation, 
@@ -61,6 +69,7 @@ contains
     use FatesConstantsMod,  only : fates_check_param_set
     
     type (ed_cohort_type), intent(in) :: cohort_in 
+    type (ed_site_type), intent(inout), target  :: currentSite
     type (bc_in_type), intent(in) :: bc_in
     real(r8),intent(out) :: bmort ! background mortality : Fraction per year
     real(r8),intent(out) :: cmort  ! carbon starvation mortality
@@ -85,6 +94,10 @@ contains
     real(r8) :: min_fmc_ar         ! minimum fraction of maximum conductivity for absorbing root
     real(r8) :: min_fmc            ! minimum fraction of maximum conductivity for whole plant
     real(r8) :: flc                ! fractional loss of conductivity 
+    real(r8) :: Tmin               ! minimum daily average temperature
+    real(r8) :: hard_hydr          ! reduced hydro mortality if hardened 
+    real(r8) :: max_h                      !maximum hardiness level
+    real(r8), parameter :: min_h = -2.0_r8 !minimum hardiness level
     real(r8), parameter :: frost_mort_buffer = 5.0_r8  ! 5deg buffer for freezing mortality
     logical, parameter :: test_zero_mortality = .false. ! Developer test which
                                                         ! may help to debug carbon imbalances
@@ -140,9 +153,14 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
      min_fmc = min(min_fmc_ag, min_fmc_tr)
      min_fmc = min(min_fmc, min_fmc_ar)
      flc = 1.0_r8-min_fmc
-     if(flc >= hf_flc_threshold .and. hf_flc_threshold < 1.0_r8 )then 
-       hmort = (flc-hf_flc_threshold)/(1.0_r8-hf_flc_threshold) * &
-           EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
+     if(flc >= hf_flc_threshold .and. hf_flc_threshold < 1.0_r8 )then
+       if (hlm_use_hydrohard .eq. itrue .and. currentSite%hard_level2(cohort_in%pft) < -3._r8) then  
+         max_h=min(max(EDPftvarcon_inst%freezetol(cohort_in%pft),max(currentSite%hardtemp,-60._r8)-10._r8),min_h)
+         hard_hydr=EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)*( ((currentSite%hard_level2(cohort_in%pft)-max_h)/(min_h-max_h) )  *0.5_r8+0.5_r8)
+       else 
+         hard_hydr=EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
+       end if
+       hmort = (flc-hf_flc_threshold)/(1.0_r8-hf_flc_threshold) * hard_hydr
      else
        hmort = 0.0_r8
      endif      
@@ -180,11 +198,20 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     !           Eastern US carbon sink.  Glob. Change Biol., 12, 2370-2390,              
     !           doi: 10.1111/j.1365-2486.2006.01254.x                                    
 
-    temp_in_C = cohort_in%patchptr%tveg24%GetMean() - tfrz
-    
-    temp_dep_fraction  = max(0.0_r8, min(1.0_r8, 1.0_r8 - (temp_in_C - &
-                         EDPftvarcon_inst%freezetol(cohort_in%pft))/frost_mort_buffer) )
-    frmort    = EDPftvarcon_inst%mort_scalar_coldstress(cohort_in%pft) * temp_dep_fraction
+    if (hlm_use_frosthard .eq. itrue) then !Hardiness level dependent frost mortality
+       Tmin=bc_in%tmin24_si-273.15_r8
+       temp_dep_fraction  = max(0.0_r8, min(1.0_r8,(-Tmin + &
+       max(currentSite%hard_level2(cohort_in%pft),EDPftvarcon_inst%mort_scalar_coldstress(cohort_in%pft)))/frost_mort_buffer))
+       if (nint(hlm_model_day)<185) then
+          temp_dep_fraction=0._r8
+       endif
+       frmort    = EDPftvarcon_inst%mort_scalar_coldstress(cohort_in%pft)*temp_dep_fraction
+    else
+       temp_in_C = bc_in%t_veg24_pa(ifp) - tfrz
+       temp_dep_fraction  = max(0.0_r8, min(1.0_r8, 1.0_r8 - (temp_in_C - &
+                            EDPftvarcon_inst%freezetol(cohort_in%pft))/frost_mort_buffer) )
+       frmort    = EDPftvarcon_inst%mort_scalar_coldstress(cohort_in%pft) * temp_dep_fraction
+    endif
 
 
     !mortality_rates = bmort + hmort + cmort
@@ -248,7 +275,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     
     ! Mortality for trees in the understorey. 
     !if trees are in the canopy, then their death is 'disturbance'. This probably needs a different terminology
-    call mortality_rates(currentCohort,bc_in,cmort,hmort,bmort,frmort,smort, asmort)
+    call mortality_rates(currentSite,currentCohort,bc_in,cmort,hmort,bmort,frmort,smort, asmort)
     call LoggingMortality_frac(ipft, currentCohort%dbh, currentCohort%canopy_layer, &
                                currentCohort%lmort_direct,                       &
                                currentCohort%lmort_collateral,                    &
@@ -293,7 +320,119 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     return
 
  end subroutine Mortality_Derivative
+! ============================================================================
 
+  subroutine Hardening_scheme(currentSite,currentPatch,cohort_in,bc_in )
+    !
+    ! !DESCRIPTION:
+    ! Hardening module from Rammig et al. 2010. 
+    ! Controls the unrealistic root water release by reducing root confuctivity, controls freezing mortality
+
+    ! !ARGUMENTS
+    type (ed_site_type), intent(inout), target  :: currentSite
+    type (ed_patch_type), intent(inout), target  :: currentPatch
+    type (ed_cohort_type), intent(inout) :: cohort_in
+    type (bc_in_type), intent(in) :: bc_in
+
+
+    ! !LOCAL VARIABLES:
+    real(r8) :: Tmean                        ! Daily average temperature °C
+    real(r8) :: Tmin                         ! Daily minimum temperature °C
+    real(r8) :: max_h                        ! Maximum hardiness level
+    real(r8) :: max_h_dehard                 ! Maximum hardiness level for dehardening function
+    real(r8), parameter :: min_h = -2.0_r8   ! Minimum hardiness level from Bigras for Picea abies (°C)
+    real(r8) :: target_h                     ! Target hardiness 
+    real(r8) :: rate_h                       ! Hardening rate     
+    real(r8) :: rate_dh                      ! Dehardening rate
+    real(r8) :: hard_level_prev              ! Temporary variable for the previous time-step hardiness level
+    real(r8) :: dayl_thresh                  ! Threshold for the onset of the hardening only period
+    integer  :: ipft                         ! pft index
+
+    Tmean=bc_in%temp24_si-273.15_r8
+    if (Tmean<-200.0_r8) then
+       Tmean=0.0_r8
+    endif
+    Tmin=bc_in%tmin24_si-273.15_r8
+
+    max_h=min(max(EDPftvarcon_inst%freezetol(cohort_in%pft),max(currentSite%hardtemp,-60._r8)-10._r8),min_h)
+
+    !Calculation of the target hardiness
+    if (Tmean <= max_h/1.5_r8) then !
+       target_h=max_h
+    else if (Tmean>= (6.0_r8-max_h/6._r8)) then
+       target_h=min_h
+    else
+       target_h = -sin((3.14159_r8*(0.5_r8+(Tmean-max_h/1.5_r8)/(-max_h/1.5_r8+(6.0_r8-max_h/6._r8)))))*(min_h-max_h)/2._r8-(min_h-max_h)/2._r8+min_h
+    end if
+    !Calculation of the hardening rate
+    if (Tmean <= max_h/2) then
+       rate_h=(max_h-min_h)/-31.11_r8+0.1_r8
+    else if (Tmean >= 20.0_r8) then
+       rate_h=0.1_r8
+    else 
+       rate_h = sin((3.14159_r8*(0.5+(Tmean-max_h/2._r8)/(-max_h/2._r8+20._r8))))*((max_h-min_h)/-62.22_r8)+(((max_h-min_h)/-62.22_r8)+0.1_r8)
+    end if
+    !Calculation of the dehardening rate
+    if (max_h>-5.111_r8) then !this if steatement so that there is always possibility for 0.5 dehardening rate at 12 degreesC.
+       max_h_dehard=-5.111_r8
+    else 
+       max_h_dehard=max_h
+    end if
+    ipft = cohort_in%pft
+    if (prt_params%season_decid(ipft) == itrue) then
+     if (Tmean <= 5.0_r8) then
+       rate_dh=0.0_r8
+     else if (Tmean >= 15.0_r8) then
+       rate_dh=5.0_r8*(max_h_dehard-min_h)/-31.11_r8
+     else
+       rate_dh=(Tmean-5.0_r8)*((max_h_dehard-min_h)/-62.22_r8)
+     end if      
+    else
+     if (Tmean <= 2.5_r8) then
+       rate_dh=0.0_r8
+     else if (Tmean >= 12.5_r8) then
+       rate_dh=5.0_r8*(max_h_dehard-min_h)/-31.11_r8
+     else
+       rate_dh=(Tmean-2.5_r8)*((max_h_dehard-min_h)/-62.22_r8)
+     end if   
+    end if
+
+    dayl_thresh= 42000.0_r8 + ( (-30.0_r8 - max(-60.0_r8,min(0.0_r8,currentSite%hardtemp)) )/15.0_r8) * 4500.0_r8  
+    !Hardening calculation
+    cohort_in%hard_level_prev = cohort_in%hard_level
+
+    if (cohort_in%hard_level_prev + rate_dh > min_h) then
+       cohort_in%hard_level = min_h
+    else if (cohort_in%hard_level_prev >= target_h) then
+       cohort_in%hard_level = cohort_in%hard_level_prev - rate_h
+    else if (cohort_in%hard_level_prev < target_h) then
+       cohort_in%hard_level = cohort_in%hard_level_prev + rate_dh
+    end if
+    if (bc_in%dayl_si <= dayl_thresh .and. bc_in%dayl_si < bc_in%prev_dayl_si) then
+       if (cohort_in%hard_level_prev >= target_h) then
+       cohort_in%hard_level = cohort_in%hard_level_prev - rate_h
+       else 
+          cohort_in%hard_level = cohort_in%hard_level_prev ! now dehardening is not possible in autumn but the hardiness level is also allowed to remain steady
+       end if
+    else if (bc_in%dayl_si > dayl_thresh .and. bc_in%dayl_si < bc_in%prev_dayl_si) then
+          cohort_in%hard_level = min_h
+    end if  
+    ipft = cohort_in%pft
+    if (prt_params%season_decid(ipft) == itrue .and. cohort_in%status_coh == leaves_on .and. bc_in%dayl_si > bc_in%prev_dayl_si .and. &
+        (nint(hlm_model_day) >= currentSite%cleafondate .or. nint(hlm_model_day) >= currentSite%dleafondate)) then         
+       cohort_in%hard_level = min_h
+    end if
+    if (cohort_in%hard_level > min_h) then
+       cohort_in%hard_level = min_h
+    end if
+    if (cohort_in%hard_level < max_h) then
+       cohort_in%hard_level = max_h
+    end if 
+
+    return
+
+  end subroutine Hardening_scheme
+  
  ! ============================================================================
 
  function ExemptTreefallDist(ccohort) result(is_exempt)
