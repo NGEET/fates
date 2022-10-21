@@ -399,7 +399,6 @@ contains
     real(r8) :: sapw_c                       ! sapwood carbon [kg]
     real(r8) :: store_c                      ! storage carbon [kg]
     real(r8) :: struct_c                     ! structure carbon [kg]
-    real(r8) :: repro_c                      ! reproductive carbon [kg]
     real(r8) :: total_c                      ! total carbon of plant [kg]
     real(r8) :: leaf_burn_frac               ! fraction of leaves burned in fire
                                              ! for both woody and grass species
@@ -663,7 +662,6 @@ contains
                          leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
                          fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_elements)
                          store_c  = currentCohort%prt%GetState(store_organ, all_carbon_elements)
-                         repro_c  = currentCohort%prt%GetState(repro_organ, all_carbon_elements)
                          total_c  = sapw_c + struct_c + leaf_c + fnrt_c + store_c
 
                          ! treefall mortality is the current disturbance
