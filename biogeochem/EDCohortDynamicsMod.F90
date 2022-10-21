@@ -864,9 +864,10 @@ contains
             currentCohort%n * (struct_c+sapw_c+leaf_c+fnrt_c+store_c+repro_c)
    end if
 
-   currentSite%term_bagw_flux(currentCohort%size_class, currentCohort%pft) = &
-        currentSite%term_bagw_flux(currentCohort%size_class, currentCohort%pft) + &
-        currentCohort%n * (struct_c+sapw_c)
+   currentSite%term_abg_flux(currentCohort%size_class, currentCohort%pft) = &
+        currentSite%term_abg_flux(currentCohort%size_class, currentCohort%pft) + &
+        currentCohort%n * ( (struct_c+sapw_c+store_c) * prt_params%allom_agb_frac(currentCohort%pft) + &
+        leaf_c )
   
 
    ! put the litter from the terminated cohorts

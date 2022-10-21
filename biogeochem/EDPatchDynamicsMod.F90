@@ -399,6 +399,7 @@ contains
     real(r8) :: sapw_c                       ! sapwood carbon [kg]
     real(r8) :: store_c                      ! storage carbon [kg]
     real(r8) :: struct_c                     ! structure carbon [kg]
+    real(r8) :: repro_c                      ! reproductive carbon [kg]
     real(r8) :: total_c                      ! total carbon of plant [kg]
     real(r8) :: leaf_burn_frac               ! fraction of leaves burned in fire
                                              ! for both woody and grass species
@@ -662,6 +663,7 @@ contains
                          leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
                          fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_elements)
                          store_c  = currentCohort%prt%GetState(store_organ, all_carbon_elements)
+                         repro_c  = currentCohort%prt%GetState(repro_organ, all_carbon_elements)
                          total_c  = sapw_c + struct_c + leaf_c + fnrt_c + store_c
 
                          ! treefall mortality is the current disturbance
@@ -722,10 +724,11 @@ contains
                                        (nc%n * ED_val_understorey_death / hlm_freq_day ) * &
                                        total_c * g_per_kg * days_per_sec * years_per_day * ha_per_m2
 
-                                  currentSite%imort_bagw_flux(currentCohort%size_class, currentCohort%pft) = &
-                                       currentSite%imort_bagw_flux(currentCohort%size_class, currentCohort%pft) + &
+                                  currentSite%imort_abg_flux(currentCohort%size_class, currentCohort%pft) = &
+                                       currentSite%imort_abg_flux(currentCohort%size_class, currentCohort%pft) + &
                                        (nc%n * ED_val_understorey_death / hlm_freq_day ) * &
-                                       (sapw_c + struct_c) * prt_params%allom_agb_frac(currentCohort%pft) * &
+                                       ( (sapw_c + struct_c + store_c) * prt_params%allom_agb_frac(currentCohort%pft) + &
+                                       leaf_c ) * &
                                        g_per_kg * days_per_sec * years_per_day * ha_per_m2
 
 
@@ -817,10 +820,11 @@ contains
                                     total_c * g_per_kg * days_per_sec * ha_per_m2
                             end if
 
-                            currentSite%fmort_bagw_flux(currentCohort%size_class, currentCohort%pft) = &
-                                 currentSite%fmort_bagw_flux(currentCohort%size_class, currentCohort%pft) + &
+                            currentSite%fmort_abg_flux(currentCohort%size_class, currentCohort%pft) = &
+                                 currentSite%fmort_abg_flux(currentCohort%size_class, currentCohort%pft) + &
                                  (nc%n * currentCohort%fire_mort) * &
-                                 (sapw_c + struct_c) * prt_params%allom_agb_frac(currentCohort%pft) * &
+                                 ( (sapw_c + struct_c + store_c) * prt_params%allom_agb_frac(currentCohort%pft) + &
+                                 leaf_c ) * &
                                  g_per_kg * days_per_sec * ha_per_m2
                             
 
