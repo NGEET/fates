@@ -2644,7 +2644,7 @@ end subroutine flush_hvars
                hio_cstarvmortality_carbonflux_si_pft(io_si,ccohort%pft) = hio_cstarvmortality_carbonflux_si_pft(io_si,ccohort%pft) + &
                     ccohort%cmort * total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2
 
-               ! Aboveground woody mortality
+               ! Aboveground mortality
                hio_abg_mortality_cflux_si_scpf(io_si,scpf) = hio_abg_mortality_cflux_si_scpf(io_si,scpf) + &
                     (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
                     ccohort%frmort + ccohort%smort + ccohort%asmort) * &
@@ -3118,7 +3118,9 @@ end subroutine flush_hvars
          hio_mortality_carbonflux_si_pft(io_si,i_pft) = hio_mortality_carbonflux_si_pft(io_si,i_pft) + &
               (sites(s)%fmort_carbonflux_canopy(i_pft) + &
               sites(s)%fmort_carbonflux_ustory(i_pft) + &
-              sites(s)%imort_carbonflux(i_pft) ) / g_per_kg !cdk
+              sites(s)%imort_carbonflux(i_pft) ) / g_per_kg + &  ! cdk
+              (sites(s)%term_carbonflux_canopy(i_pft) + &
+              sites(s)%term_carbonflux_ustory(i_pft) ) * days_per_sec * ha_per_m2
 
          hio_firemortality_carbonflux_si_pft(io_si,i_pft) = sites(s)%fmort_carbonflux_canopy(i_pft) / g_per_kg
       end do
