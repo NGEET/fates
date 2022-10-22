@@ -5,6 +5,7 @@ module FatesDispersalMod
    use FatesGlobals          , only : fates_log
    use FatesConstantsMod     , only : r8 => fates_r8
    use FatesConstantsMod     , only : pi_const
+   use FatesInterfaceTypesMod, only : numpft
 
    implicit none
    
@@ -14,9 +15,9 @@ module FatesDispersalMod
       ! Grid cell neighbor
       type(neighbor_type), pointer :: next_neighbor => null() 
    
-      integer  :: gindex       ! grid cell index
-      real(r8) :: gc_dist      ! distance between source and neighbor
-      real(r8) :: density_prob ! probability density from source
+      integer               :: gindex           ! grid cell index
+      real(r8)              :: gc_dist          ! distance between source and neighbor
+      real(r8), allocatable :: density_prob(:)  ! probability density from source per pft
       
    end type neighbor_type
 
@@ -34,9 +35,9 @@ module FatesDispersalMod
    ! Dispersal type
    type, public :: dispersal_type
    
-      real(r8), allocatable :: outgoing_local(:)    ! local gridcell array of outgoing seeds, gridcell x pft
-      real(r8), allocatable :: outgoing_global(:)   ! global accumulation array of outgoing seeds, gridcell x pft
-      real(r8), allocatable :: incoming_global(:)   ! 
+      real(r8), allocatable :: outgoing_local(:,:)    ! local gridcell array of outgoing seeds, gridcell x pft
+      real(r8), allocatable :: outgoing_global(:,:)   ! global accumulation array of outgoing seeds, gridcell x pft
+      real(r8), allocatable :: incoming_global(:,:)   ! 
       
       contains
       
@@ -54,18 +55,19 @@ contains
 
    ! ====================================================================================
 
-   subroutine init(this, numprocs)
+   subroutine init(this, numprocs, numpft)
       
       class(dispersal_type), intent(inout) :: this
       integer, intent(in) ::  numprocs
+      integer, intent(in) ::  numpft
       
-      allocate(this%outgoing_local(numprocs))
-      allocate(this%outgoing_global(numprocs))
-      allocate(this%incoming_global(numprocs))
+      allocate(this%outgoing_local(numprocs,numpft))
+      allocate(this%outgoing_global(numprocs,numpft))
+      allocate(this%incoming_global(numprocs,numpft))
    
-      this%outgoing_local(:) = 0._r8
-      this%outgoing_global(:) = 0._r8
-      this%incoming_global(:) = 0._r8
+      this%outgoing_local(:,:) = 0._r8
+      this%outgoing_global(:,:) = 0._r8
+      this%incoming_global(:,:) = 0._r8
       
    end subroutine init
 

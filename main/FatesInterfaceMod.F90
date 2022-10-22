@@ -1899,6 +1899,7 @@ contains
       use perf_mod              , only : t_startf, t_stopf
       use FatesDispersalMod     , only : neighborhood_type, neighbor_type, ProbabilityDensity
       use FatesUtilsMod         , only : GetNeighborDistance
+      use FatesInterfaceTypesMod, only : numpft
       
       ! Arguments
       type(neighborhood_type), intent(inout), pointer :: neighbors(:)
@@ -1994,6 +1995,8 @@ contains
                current_neighbor%gindex = ldecomp%gdc2glo(gj) 
                
                current_neighbor%gc_dist = g2g_dist
+               
+               allocate(current_neighbor%density_prob(numpft))
                call ProbabilityDensity(pdf, g2g_dist)
                current_neighbor%density_prob = pdf
                ! current_neighbor%density_prob = current_neighbor%DistWeightCalc(g2g_dist,decay_rate)
@@ -2016,6 +2019,7 @@ contains
                ! ldomain and ldecomp indices match per initGridCells
                another_neighbor%gindex = ldecomp%gdc2glo(gi) 
                
+               allocate(another_neighbor%density_prob(numpft))
                another_neighbor%gc_dist = current_neighbor%gc_dist
                another_neighbor%density_prob = current_neighbor%density_prob
                
