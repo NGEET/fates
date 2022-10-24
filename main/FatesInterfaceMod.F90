@@ -1930,6 +1930,7 @@ contains
         ifp=0
         cpatch => sites(s)%oldest_patch
         do while(associated(cpatch))
+           if (cpatch%patchno .ne. 0) then
            ifp=ifp+1
            call cpatch%tveg24%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            call cpatch%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
@@ -1940,6 +1941,7 @@ contains
            !   call ccohort%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            !   ccohort => ccohort%shorter
            !end do
+           end if
            
            cpatch => cpatch%younger
         enddo

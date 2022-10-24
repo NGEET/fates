@@ -9,6 +9,7 @@ module FatesRestartInterfaceMod
   use FatesConstantsMod,       only : ifalse
   use FatesConstantsMod,       only : fates_unset_r8, fates_unset_int
   use FatesConstantsMod,       only : primaryforest
+  use FatesConstantsMod,       only : nearzero
   use FatesGlobals,            only : fates_log
   use FatesGlobals,            only : endrun => fates_endrun
   use FatesIODimensionsMod,    only : fates_io_dimension_type
@@ -19,6 +20,7 @@ module FatesRestartInterfaceMod
   use FatesInterfaceTypesMod,       only : bc_out_type
   use FatesInterfaceTypesMod,       only : hlm_use_planthydro
   use FatesInterfaceTypesMod,       only : hlm_use_sp
+  use FatesInterfaceTypesMod,       only : hlm_use_nocomp, hlm_use_fixed_biogeog
   use FatesInterfaceTypesMod,       only : fates_maxElementsPerSite
   use FatesInterfaceTypesMod, only : hlm_use_tree_damage
   use EDCohortDynamicsMod,     only : UpdateCohortBioPhysRates
@@ -38,7 +40,7 @@ module FatesRestartInterfaceMod
   use FatesLitterMod,          only : litter_type
   use FatesLitterMod,          only : ncwd
   use FatesLitterMod,          only : ndcmpy
-  use EDTypesMod,              only : nfsc
+  use EDTypesMod,              only : nfsc, nlevleaf, area
   use PRTGenericMod,           only : prt_global
   use PRTGenericMod,           only : num_elements
   use FatesRunningMeanMod,     only : rmean_type
@@ -2893,11 +2895,20 @@ contains
              sites(s)%recruitment_rate(i_pft) = rio_recrate_sift(io_idx_co_1st+i_pft-1)
           enddo
 
-         !variables for fixed biogeography mode. These are currently used in restart even when this is off.
+          ! variables for fixed biogeography mode. These are currently used in restart even when this is off.
           do i_pft = 1,numpft
              sites(s)%use_this_pft(i_pft) = rio_use_this_pft_sift(io_idx_co_1st+i_pft-1)
              sites(s)%area_pft(i_pft)     = rio_area_pft_sift(io_idx_co_1st+i_pft-1)
           enddo
+
+          ! calculate the bareground area for the pft in no competition + fixed biogeo modes
+          if (hlm_use_nocomp .eq. itrue .and. hlm_use_fixed_biogeog .eq. itrue) then
+             if (area-sum(sites(s)%area_pft(1:numpft)) .gt. nearzero) then
+                sites(s)%area_pft(0) = area - sum(sites(s)%area_pft(1:numpft))
+             else
+                sites(s)%area_pft(0) = 0.0_r8
+             endif
+          endif
 
           ! Mass balance and diagnostics across elements at the site level
           do el = 1, num_elements
