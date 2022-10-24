@@ -46,6 +46,8 @@ module FatesParameterDerivedMod
   
   type(param_derived_type), public :: param_derived
   
+  logical :: debug = .false.  ! for module level debugging
+  
 contains 
 
   ! ===================================================================================
@@ -183,7 +185,7 @@ contains
           this%damage_transitions(i, :, ft) = this%damage_transitions(i, :, ft)/SUM(this%damage_transitions(i, :, ft))
        end do
 
-        write(fates_log(),'(a/,5(F12.6,1x))') 'annual transition matrix : ', this%damage_transitions(:,:,ft)
+        if (debug) write(fates_log(),'(a/,5(F12.6,1x))') 'annual transition matrix : ', this%damage_transitions(:,:,ft)
      end do
 
 
