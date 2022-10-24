@@ -665,20 +665,21 @@ contains
                          ! Crown damage currenly only reduces the aboveground portion of 
                          ! sapwood. Therefore we calculate the aboveground and the belowground portion 
                          ! sapwood for use in stem respiration. 
-
-                         agb_frac = prt_params%allom_agb_frac(currentCohort%pft)
-                         branch_frac = param_derived%branch_frac(currentCohort%pft)
                          call GetCrownReduction(currentCohort%crowndamage, crown_reduction)
-
-                         sapw_c_undamaged = sapw_c / &
-                              (1.0_r8 - (agb_frac * branch_frac * crown_reduction))
-                         ! Undamaged below ground portion
-                         sapw_c_bgw = sapw_c_undamaged * (1.0_r8 - agb_frac)
-
-                         ! Damaged aboveground portion
-                         sapw_c_agw = sapw_c - sapw_c_bgw
                          
-                      end if
+                    else
+                        crown_reduction = 0.0_r8
+                    end if
+                    
+                    agb_frac = prt_params%allom_agb_frac(currentCohort%pft)
+                    branch_frac = param_derived%branch_frac(currentCohort%pft)
+                    sapw_c_undamaged = sapw_c / &
+                              (1.0_r8 - (agb_frac * branch_frac * crown_reduction))
+                    ! Undamaged below ground portion
+                    sapw_c_bgw = sapw_c_undamaged * (1.0_r8 - agb_frac)
+
+                    ! Damaged aboveground portion
+                    sapw_c_agw = sapw_c - sapw_c_bgw                         
                      
    
                       select case(hlm_parteh_mode)
