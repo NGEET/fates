@@ -99,7 +99,8 @@ module EDPftvarcon
      real(r8), allocatable :: germination_rate(:)        ! Fraction of seed mass germinating per year (yr-1)
      real(r8), allocatable :: seed_decay_rate(:)         ! Fraction of seed mass (both germinated and
                                                          ! ungerminated), decaying per year    (yr-1)
-
+     real(r8), allocatable :: seed_dispersal_param_A(:)  ! Seed dispersal scale parameter, Bullock et al. (2017)
+     real(r8), allocatable :: seed_dispersal_param_B(:)  ! Seed dispersal shape parameter, Bullock et al. (2017)
      real(r8), allocatable :: trim_limit(:)              ! Limit to reductions in leaf area w stress (m2/m2)
      real(r8), allocatable :: trim_inc(:)                ! Incremental change in trimming function   (m2/m2)
      real(r8), allocatable :: rhol(:, :)
@@ -537,6 +538,14 @@ contains
     name = 'fates_seed_decay_rate'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+         
+    name = 'fates_seed_dispersal_param_A'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+         
+    name = 'fates_seed_dispersal_param_B'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_trim_limit'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
@@ -885,6 +894,14 @@ contains
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%seed_decay_rate)
 
+    name = 'fates_seed_dispersal_param_A'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%seed_dispersal_param_A)
+         
+    name = 'fates_seed_dispersal_param_B'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%seed_dispersal_param_B)
+         
     name = 'fates_trim_limit'
     call fates_params%RetrieveParameterAllocate(name=name, &
           data=this%trim_limit)
@@ -1425,6 +1442,8 @@ contains
         write(fates_log(),fmt0) 'jmaxse = ',EDPftvarcon_inst%jmaxse
         write(fates_log(),fmt0) 'germination_timescale = ',EDPftvarcon_inst%germination_rate
         write(fates_log(),fmt0) 'seed_decay_turnover = ',EDPftvarcon_inst%seed_decay_rate
+        write(fates_log(),fmt0) 'seed_decay_turnover = ',EDPftvarcon_inst%seed_dispersal_param_B
+        write(fates_log(),fmt0) 'seed_decay_turnover = ',EDPftvarcon_inst%seed_dispersal_param_B
         write(fates_log(),fmt0) 'trim_limit = ',EDPftvarcon_inst%trim_limit
         write(fates_log(),fmt0) 'trim_inc = ',EDPftvarcon_inst%trim_inc
         write(fates_log(),fmt0) 'rhol = ',EDPftvarcon_inst%rhol

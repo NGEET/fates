@@ -89,19 +89,19 @@ contains
       real(r8), intent(in)  :: dist ! distance
 
       ! Local - temp
-      real(r8) :: param_a = 1._r8
-      real(r8) :: param_b = 1._r8
+      ! real(r8) :: param_a = 1._r8
+      ! real(r8) :: param_b = 1._r8
 
       hlm_dispersal_kernel_mode = 1
 
       select case(hlm_dispersal_kernel_mode)
 
       case (hlm_dispersal_kernel_exponential)
-         pd = PD_exponential(dist,param_a)
+         pd = PD_exponential(dist)
       case (hlm_dispersal_kernel_exppower)
-         pd = PD_exppower(dist,param_a, param_b)
+         pd = PD_exppower(dist)
       case (hlm_dispersal_kernel_logsech)
-         pd = PD_logsech(dist,param_a, param_b)
+         pd = PD_logsech(dist)
       case default
          write(fates_log(),*) 'ERROR: An undefined dispersal kernel was specified: ', hlm_dispersal_kernel_mode
          call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -111,16 +111,18 @@ contains
 
    ! ====================================================================================
 
-   real(r8) function PD_exponential(dist,param_a)
+   real(r8) function PD_exponential(dist)
       
+      use EDPftvarcon           , only : EDPftvarcon_inst
+   
       ! Arguments
       real(r8), intent(in) :: dist
-      real(r8), intent(in) :: param_a
+      ! real(r8), intent(in) :: param_a
       
       ! Assuming simple exponential decay.  In the future perhaps this could be an interface
       ! for different weight calculations (and could be held only in fates)
       
-      PD_exponential = exp(-param_a*dist)
+      PD_exponential = exp(-EDPftvarcon_inst%seed_dispersal_param_A(ipft)*dist)
 
    end function PD_exponential
 
@@ -128,34 +130,44 @@ contains
 
    real(r8) function PD_exppower(dist,param_a,param_b)
       
+      use EDPftvarcon           , only : EDPftvarcon_inst
+   
       ! Arguments
       real(r8), intent(in) :: dist
-      real(r8), intent(in) :: param_a
-      real(r8), intent(in) :: param_b
+      ! real(r8), intent(in) :: param_a
+      ! real(r8), intent(in) :: param_b
       
-      ! Assuming simple exponential decay.  In the future perhaps this could be an interface
-      ! for different weight calculations (and could be held only in fates)
+      associate(&
+         param_a => EDPftvarcon_inst%seed_dispersal_param_A, &
+         param_b => EDPftvarcon_inst%seed_dispersal_param_B)      
       
       PD_exppower = (param_b / (2*pi_const*gamma(2/param_b))) * &
                     exp(-(dist**param_b)/(param_a**param_b))
+                    
+      end associate
 
    end function PD_exppower
 
    ! ====================================================================================
 
-   real(r8) function PD_logsech(dist,param_a,param_b)
+   real(r8) function PD_logsech(dist)
       
+      use EDPftvarcon           , only : EDPftvarcon_inst
+   
       ! Arguments
       real(r8), intent(in) :: dist
-      real(r8), intent(in) :: param_a
-      real(r8), intent(in) :: param_b
-      
-      ! Assuming simple exponential decay.  In the future perhaps this could be an interface
-      ! for different weight calculations (and could be held only in fates)
+      ! real(r8), intent(in) :: param_a
+      ! real(r8), intent(in) :: param_b
+
+      associate(&
+         param_a => EDPftvarcon_inst%seed_dispersal_param_A, &
+         param_b => EDPftvarcon_inst%seed_dispersal_param_B)      
       
       PD_logsech = (1/(pi_const**2 * param_b * dist**2)) / &
                     ((dist/param_a)**(1/param_b) + &
                     (dist/param_a)**(-1/param_b))
+                    
+      end associate
 
    end function PD_logsech
 
