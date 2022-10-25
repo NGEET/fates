@@ -73,7 +73,7 @@ contains
 
    ! ====================================================================================
 
-   subroutine ProbabilityDensity(pd, dist)
+   subroutine ProbabilityDensity(pd, ipft, dist)
 
       ! Main subroutine that calls difference routines based on case select mode
 
@@ -85,7 +85,7 @@ contains
 
       ! Arguments
       real(r8), intent(out) :: pd   ! Probability density
-      ! integer, intent(in)   :: ipft ! pft index - future arg
+      integer, intent(in)   :: ipft ! pft index
       real(r8), intent(in)  :: dist ! distance
 
       ! Local - temp

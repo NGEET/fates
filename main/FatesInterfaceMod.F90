@@ -1912,8 +1912,8 @@ contains
       integer :: numg   ! number of land gridcells
       integer :: ngcheck   ! number of land gridcells, globally
       integer :: numproc   ! number of processors, globally
-      integer :: ier,mpierr    ! error code
-      integer :: i
+      integer :: ier,mpierr   ! error code
+      integer :: ipft         ! pft index
       
       integer :: ldsize ! ldomain size
       integer, allocatable :: ncells_array(:), begg_array(:)
@@ -1997,9 +1997,11 @@ contains
                current_neighbor%gc_dist = g2g_dist
                
                allocate(current_neighbor%density_prob(numpft))
-               call ProbabilityDensity(pdf, g2g_dist)
-               current_neighbor%density_prob = pdf
-               ! current_neighbor%density_prob = current_neighbor%DistWeightCalc(g2g_dist,decay_rate)
+               
+               do ipft = 1, numpft
+                  call ProbabilityDensity(pdf, ifpt, g2g_dist)
+                  current_neighbor%density_prob(ipft) = pdf
+               end do
               
                if (associated(neighbors(gi)%first_neighbor)) then
                  neighbors(gi)%last_neighbor%next_neighbor => current_neighbor
@@ -2019,9 +2021,11 @@ contains
                ! ldomain and ldecomp indices match per initGridCells
                another_neighbor%gindex = ldecomp%gdc2glo(gi) 
                
-               allocate(another_neighbor%density_prob(numpft))
                another_neighbor%gc_dist = current_neighbor%gc_dist
-               another_neighbor%density_prob = current_neighbor%density_prob
+               allocate(another_neighbor%density_prob(numpft))
+               do ipft = 1, numpft
+                  another_neighbor%density_prob(ipft) = current_neighbor%density_prob(ipft)
+               end do
                
                if (associated(neighbors(gj)%first_neighbor)) then
                  neighbors(gj)%last_neighbor%next_neighbor => another_neighbor
