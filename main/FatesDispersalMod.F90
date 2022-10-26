@@ -57,9 +57,17 @@ contains
 
    subroutine init(this, numprocs, numpft)
       
+      ! Use
+      use EDPftvarcon           , only : EDPftvarcon_inst 
+      use FatesConstantsMod     , only : fates_check_param_set
+      
+      ! Arguments
       class(dispersal_type), intent(inout) :: this
       integer, intent(in) ::  numprocs
       integer, intent(in) ::  numpft
+      
+      ! Check if seed dispersal mode is 'turned on' by checking the parameter values
+      if (EDPftvarcon_inst%fates_seed_dispersal_param_A(ipft) > fates_check_param_set) return 
       
       allocate(this%outgoing_local(numprocs,numpft))
       allocate(this%outgoing_global(numprocs,numpft))

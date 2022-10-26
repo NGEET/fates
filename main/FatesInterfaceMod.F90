@@ -1900,6 +1900,8 @@ contains
       use FatesDispersalMod     , only : neighborhood_type, neighbor_type, ProbabilityDensity
       use FatesUtilsMod         , only : GetNeighborDistance
       use FatesInterfaceTypesMod, only : numpft
+      use EDPftvarcon           , only : EDPftvarcon_inst 
+      use FatesConstantsMod     , only : fates_check_param_set
       
       ! Arguments
       type(neighborhood_type), intent(inout), pointer :: neighbors(:)
@@ -1921,6 +1923,9 @@ contains
       
       real(r8) :: g2g_dist ! grid cell distance
       real(r8) :: pdf ! temp
+      
+      ! Check if seed dispersal mode is 'turned on' by checking the parameter values
+      if (EDPftvarcon_inst%fates_seed_dispersal_param_A(ipft) > fates_check_param_set) return 
       
       ! Parameters and constants, to be moved to fates param file
       ! Both of these should probably be per pft

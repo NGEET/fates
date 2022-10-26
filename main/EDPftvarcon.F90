@@ -1629,6 +1629,31 @@ contains
      do ipft = 1,npft
 
 
+        ! Check that parameter ranges for the seed dispersal scale parameter make sense
+        !-----------------------------------------------------------------------------------
+          if ( ( EDPftvarcon_inst%fates_seed_dispersal_param_A(ipft) < fates_check_param_set ) .and. &
+               (  EDPftvarcon_inst%fates_seed_dispersal_param_B(ipft) > fates_check_param_set ) ) then
+
+        write(fates_log(),*) 'Seed dispersal is on'
+        write(fates_log(),*) 'Please also set fates_seed_dispersal_param_B'
+        write(fates_log(),*) 'See Bullock et al. (2017) for reasonable values'
+        write(fates_log(),*) 'Aborting'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+
+                ! Check that parameter ranges for the seed dispersal shape parameter make sense
+        !-----------------------------------------------------------------------------------
+        if ( ( EDPftvarcon_inst%fates_seed_dispersal_param_B(ipft) < fates_check_param_set ) .and. &
+             (  EDPftvarcon_inst%fates_seed_dispersal_param_A(ipft) > fates_check_param_set ) ) then
+
+        write(fates_log(),*) 'Seed dispersal is on'
+        write(fates_log(),*) 'Please also set fates_seed_dispersal_param_A'
+        write(fates_log(),*) 'See Bullock et al. (2017) for reasonable values'
+        write(fates_log(),*) 'Aborting'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+
+        
         ! Check that parameter ranges for age-dependent mortality make sense
         !-----------------------------------------------------------------------------------
         if ( ( EDPftvarcon_inst%mort_ip_age_senescence(ipft) < fates_check_param_set ) .and. &
