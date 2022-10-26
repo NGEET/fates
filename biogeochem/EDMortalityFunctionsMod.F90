@@ -216,7 +216,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
  ! ============================================================================
 
  subroutine Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary, &
-         harvestable_forest_c, available_forest_c, harvest_tag)
+         harvestable_forest_c, harvest_tag)
 
     !
     ! !DESCRIPTION:
@@ -233,7 +233,6 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     type(bc_in_type), intent(in)               :: bc_in
     real(r8), intent(in)                       :: frac_site_primary
     real(r8), intent(in) :: harvestable_forest_c(:)
-    real(r8), intent(in) :: available_forest_c(:)
     integer,  intent(inout) :: harvest_tag(:)
 
     !
@@ -266,7 +265,6 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
                                currentCohort%patchptr%age_since_anthro_disturbance, &
                                frac_site_primary, &
                                harvestable_forest_c, &
-                               available_forest_c, &
                                harvest_tag)
 
 

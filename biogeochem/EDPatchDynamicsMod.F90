@@ -196,7 +196,6 @@ contains
     real(r8) :: harvest_rate
     real(r8) :: tempsum
     real(r8) :: harvestable_forest_c(hlm_num_lu_harvest_cats)
-    real(r8) :: available_forest_c(hlm_num_lu_harvest_cats)
     integer  :: harvest_tag(hlm_num_lu_harvest_cats)
     integer  :: harvest_debt_primary
     integer  :: harvest_debt_secondary
@@ -211,7 +210,7 @@ contains
     call get_frac_site_primary(site_in, frac_site_primary)
 
     ! get available biomass for harvest for all patches
-    call get_harvestable_carbon(site_in, bc_in%site_area, bc_in%hlm_harvest_catnames, harvestable_forest_c, available_forest_c)
+    call get_harvestable_carbon(site_in, bc_in%site_area, bc_in%hlm_harvest_catnames, harvestable_forest_c)
  
     site_in%harvest_carbon_flux = 0._r8
     harvest_debt_primary = 0
@@ -248,7 +247,6 @@ contains
                 currentPatch%age_since_anthro_disturbance, &
                 frac_site_primary, &
                 harvestable_forest_c, &
-                available_forest_c, &
                 harvest_tag)
          
           currentCohort%lmort_direct     = lmort_direct
@@ -282,8 +280,7 @@ contains
              ! Primary patch: Once a patch has debt, skip the calculation
              if (harvest_debt_primary == 0) then
                 if ( currentPatch%anthro_disturbance_label .eq. primaryforest ) then  
-                   if ( harvest_tag(h_index) == 2 .or. &
-                        (harvest_tag(h_index) == 1 )) then
+                   if ( harvest_tag(h_index) == 1 ) then
                       ! h_index points to primary forest harvest
                       if((bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1")) then
                           harvest_debt_primary = 1
@@ -296,8 +293,7 @@ contains
              if (harvest_debt_secondary == 0) then
                 if ( currentPatch%anthro_disturbance_label .eq. secondaryforest ) then
                    patch_no_secondary = patch_no_secondary + 1
-                   if ( harvest_tag(h_index) == 2 .or. &
-                        (harvest_tag(h_index) == 1 )) then
+                   if ( harvest_tag(h_index) == 1 ) then
                       ! h_index points to secondary forest harvest
                       if((bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1") .or. &
                           (bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2")) then
@@ -410,7 +406,7 @@ contains
           if(bc_in%hlm_harvest_units == hlm_harvest_carbon) then
              call get_harvest_rate_carbon (currentPatch%anthro_disturbance_label, bc_in%hlm_harvest_catnames, &
                    bc_in%hlm_harvest_rates, currentPatch%age_since_anthro_disturbance, harvestable_forest_c, &
-                   available_forest_c, harvest_rate, harvest_tag)
+                   harvest_rate, harvest_tag)
           else
              call get_harvest_rate_area (currentPatch%anthro_disturbance_label, bc_in%hlm_harvest_catnames, &
                   bc_in%hlm_harvest_rates, frac_site_primary, currentPatch%age_since_anthro_disturbance, harvest_rate)

@@ -336,7 +336,6 @@ contains
     real(r8) :: frac_site_primary
 
     real(r8) :: harvestable_forest_c(hlm_num_lu_harvest_cats)
-    real(r8) :: available_forest_c(hlm_num_lu_harvest_cats)
     integer  :: harvest_tag(hlm_num_lu_harvest_cats)
 
 
@@ -347,7 +346,7 @@ contains
     bc_out%ar_site = 0._r8
 
     ! Patch level biomass are required for C-based harvest
-    call get_harvestable_carbon(currentSite, bc_in%site_area, bc_in%hlm_harvest_catnames, harvestable_forest_c, available_forest_c)
+    call get_harvestable_carbon(currentSite, bc_in%site_area, bc_in%hlm_harvest_catnames, harvestable_forest_c)
 
     ! Set a pointer to this sites carbon12 mass balance
     site_cmass => currentSite%mass_balance(element_pos(carbon12_element))
@@ -383,7 +382,7 @@ contains
 
           ! Calculate the mortality derivatives
           call Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary, &
-              harvestable_forest_c, available_forest_c, harvest_tag)
+              harvestable_forest_c, harvest_tag )
 
           ! -----------------------------------------------------------------------------
           ! Apply Plant Allocation and Reactive Transport

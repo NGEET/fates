@@ -203,7 +203,7 @@ contains
                                      hlm_harvest_units, &
                                      patch_anthro_disturbance_label, secondary_age, &
                                      frac_site_primary, harvestable_forest_c, &
-                                     available_forest_c, harvest_tag)
+                                     harvest_tag)
 
       ! Arguments
       integer,  intent(in)  :: pft_i            ! pft index 
@@ -216,8 +216,6 @@ contains
       real(r8), intent(in) :: secondary_age     ! patch level age_since_anthro_disturbance
       real(r8), intent(in) :: harvestable_forest_c(:)  ! total harvestable forest carbon 
                                                        ! of all hlm harvest categories
-      real(r8), intent(in) :: available_forest_c(:)   ! total forest carbon available for 
-                                                      ! harvest of all hlm harvest categories
       real(r8), intent(in) :: frac_site_primary
       real(r8), intent(out) :: lmort_direct     ! direct (harvestable) mortality fraction
       real(r8), intent(out) :: lmort_collateral ! collateral damage mortality fraction
@@ -282,12 +280,12 @@ contains
             ! shall call another subroutine, which transfers biomass/carbon into fraction
 
             call get_harvest_rate_carbon (patch_anthro_disturbance_label, hlm_harvest_catnames, &
-                  hlm_harvest_rates, secondary_age, harvestable_forest_c, available_forest_c, &
+                  hlm_harvest_rates, secondary_age, harvestable_forest_c, &
                   harvest_rate, harvest_tag, cur_harvest_tag)
 
             if (fates_global_verbose()) then
                write(fates_log(), *) 'Successfully Read Harvest Rate from HLM.', hlm_harvest_rates(:), harvest_rate &
-               harvestable_forest_c, available_forest_c
+               harvestable_forest_c
             end if
             
             write(fates_log(),*) 'HLM harvest carbon data not implemented yet. Exiting.'
@@ -435,7 +433,7 @@ contains
 
    ! ============================================================================
 
-   subroutine get_harvestable_carbon (csite, site_area, hlm_harvest_catnames, harvestable_forest_c, available_forest_c)
+   subroutine get_harvestable_carbon (csite, site_area, hlm_harvest_catnames, harvestable_forest_c )
 
      !USES:
      use SFParamsMod,  only : SF_val_cwd_frac
@@ -461,7 +459,6 @@ contains
      character(len=64), intent(in) :: hlm_harvest_catnames(:) ! names of hlm harvest categories
 
      real(r8), intent(out) :: harvestable_forest_c(hlm_num_lu_harvest_cats)
-     real(r8), intent(out) :: available_forest_c(hlm_num_lu_harvest_cats)
 
      ! Local Variables
      type(ed_patch_type), pointer  :: currentPatch
@@ -477,7 +474,6 @@ contains
 
      ! Initialization
      harvestable_forest_c = 0._r8
-     available_forest_c = 0._r8
 
      ! loop over patches
      currentPatch => csite%oldest_patch
@@ -526,21 +522,18 @@ contains
               ! Primary
               if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1") then
                  harvestable_forest_c(h_index) = harvestable_forest_c(h_index) + harvestable_patch_c
-                 available_forest_c(h_index) = available_forest_c(h_index) + available_patch_c
               end if
            else if (currentPatch%anthro_disturbance_label .eq. secondaryforest .and. &
                 currentPatch%age_since_anthro_disturbance >= secondary_age_threshold) then
               ! Secondary mature
               if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1") then
                  harvestable_forest_c(h_index) = harvestable_forest_c(h_index) + harvestable_patch_c
-                 available_forest_c(h_index) = available_forest_c(h_index) + available_patch_c
               end if
            else if (currentPatch%anthro_disturbance_label .eq. secondaryforest .and. &
                 currentPatch%age_since_anthro_disturbance < secondary_age_threshold) then
               ! Secondary young
               if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2") then
                  harvestable_forest_c(h_index) = harvestable_forest_c(h_index) + harvestable_patch_c
-                 available_forest_c(h_index) = available_forest_c(h_index) + available_patch_c
               end if
            end if
         end do
@@ -552,7 +545,7 @@ contains
    ! ============================================================================
 
    subroutine get_harvest_rate_carbon (patch_anthro_disturbance_label, hlm_harvest_catnames, &
-                 hlm_harvest_rates, secondary_age, harvestable_forest_c, available_forest_c, &
+                 hlm_harvest_rates, secondary_age, harvestable_forest_c, &
                  harvest_rate, harvest_tag, cur_harvest_tag)
 
      ! -------------------------------------------------------------------------------------------
@@ -567,7 +560,6 @@ contains
       integer, intent(in) :: patch_anthro_disturbance_label    ! patch level anthro_disturbance_label
       real(r8), intent(in) :: secondary_age     ! patch level age_since_anthro_disturbance
       real(r8), intent(in) :: harvestable_forest_c(:)  ! site level forest c matching criteria available for harvest
-      real(r8), intent(in) :: available_forest_c(:)    ! site level total forest c available for harvest
       real(r8), intent(out) :: harvest_rate
       integer,  intent(inout) :: harvest_tag(:)  ! 0. normal harvest; 1. current site does not have enough C but
                                                  ! can perform harvest by ignoring criteria; 2. current site does
@@ -600,11 +592,8 @@ contains
               if(harvestable_forest_c(h_index) >= harvest_rate_c) then
                  harvest_rate_supply = harvest_rate_supply + harvestable_forest_c(h_index)
                  harvest_tag(h_index) = 0
-              else if (available_forest_c(h_index) >= harvest_rate_c) then
-                 harvest_rate_supply = harvest_rate_supply + available_forest_c(h_index)
-                 harvest_tag(h_index) = 1
               else
-                 harvest_tag(h_index) = 2
+                 harvest_tag(h_index) = 1
               end if
            endif
         else if (patch_anthro_disturbance_label .eq. secondaryforest .and. &
@@ -614,11 +603,8 @@ contains
               if(harvestable_forest_c(h_index) >= harvest_rate_c) then
                  harvest_rate_supply = harvest_rate_supply + harvestable_forest_c(h_index)
                  harvest_tag(h_index) = 0
-              else if (available_forest_c(h_index) >= harvest_rate_c) then
-                 harvest_rate_supply = harvest_rate_supply + available_forest_c(h_index)
-                 harvest_tag(h_index) = 1
               else
-                 harvest_tag(h_index) = 2
+                 harvest_tag(h_index) = 1
               end if
            endif
         else if (patch_anthro_disturbance_label .eq. secondaryforest .and. &
@@ -629,11 +615,8 @@ contains
               if(harvestable_forest_c(h_index) >= harvest_rate_c) then
                  harvest_rate_supply = harvest_rate_supply + harvestable_forest_c(h_index)
                  harvest_tag(h_index) = 0
-              else if (available_forest_c(h_index) >= harvest_rate_c) then
-                 harvest_rate_supply = harvest_rate_supply + available_forest_c(h_index)
-                 harvest_tag(h_index) = 1
               else
-                 harvest_tag(h_index) = 2
+                 harvest_tag(h_index) = 1
               end if
            endif
         endif
