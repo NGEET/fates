@@ -2193,8 +2193,7 @@ contains
     currentCohort => currentPatch%shortest
     do while(associated(currentCohort))
        pft = currentCohort%pft
-
-      call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
+       call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
            bc_in%max_rooting_depth_index_col)
 
        store_m_turnover  = currentCohort%prt%GetTurnover(store_organ,element_id)
