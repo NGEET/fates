@@ -69,12 +69,12 @@ def parse_syscall_str(fnamein,fnameout,pft_index,param_name,param_val):
     if(pft_index==0):
         sys_call_str = "../tools/modify_fates_paramfile.py"+" --fin " + fnamein + \
             " --fout " + fnameout + " --var " + param_name + " --silent " +\
-            " --val " + "\" "+param_val+"\"" + " --overwrite --all"
+            " --val " + "\" "+param_val+"\"" + " --nohist --overwrite --all"
     else:
         pft_str_index="{}".format(pft_index)
         sys_call_str = "../tools/modify_fates_paramfile.py"+" --fin " + fnamein + \
             " --fout " + fnameout + " --var " + param_name + " --silent " +\
-            " --val " + "\" "+param_val+"\"" + " --overwrite --pft "+pft_str_index
+            " --val " + "\" "+param_val+"\"" + " --nohist --overwrite --pft "+pft_str_index
 
     if(debug):
         print(sys_call_str)
@@ -111,7 +111,7 @@ def main():
 
     # Use FatesPFTIndexSwapper.py to prune out unwanted PFTs
     pft_trim_list = xmlroot.find('pft_trim_list').text.replace(" ","")
-    swapcmd="../tools/FatesPFTIndexSwapper.py --pft-indices="+pft_trim_list+" --fin="+base_nc+" --fout="+new_nc   #+" 1>/dev/null"
+    swapcmd="../tools/FatesPFTIndexSwapper.py --pft-indices="+pft_trim_list+" --fin="+base_nc+" --fout="+new_nc+" --nohist"   #+" 1>/dev/null"
     os.system(swapcmd)
 
     # We open the new parameter file. We only use this
