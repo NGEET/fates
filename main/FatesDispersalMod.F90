@@ -67,7 +67,9 @@ contains
       integer, intent(in) ::  numpft
       
       ! Check if seed dispersal mode is 'turned on' by checking the parameter values
-      if (EDPftvarcon_inst%fates_seed_dispersal_param_A(ipft) > fates_check_param_set) return 
+      ! This assumes we consistency in the parameter file across all pfts, i.e. either
+      ! all 'on' or all 'off'
+      if (EDPftvarcon_inst%seed_dispersal_param_A(1) > fates_check_param_set) return 
       
       allocate(this%outgoing_local(numprocs,numpft))
       allocate(this%outgoing_global(numprocs,numpft))
@@ -105,11 +107,11 @@ contains
       select case(hlm_dispersal_kernel_mode)
 
       case (hlm_dispersal_kernel_exponential)
-         pd = PD_exponential(dist)
+         pd = PD_exponential(dist,ipft)
       case (hlm_dispersal_kernel_exppower)
-         pd = PD_exppower(dist)
+         pd = PD_exppower(dist,ipft)
       case (hlm_dispersal_kernel_logsech)
-         pd = PD_logsech(dist)
+         pd = PD_logsech(dist,ipft)
       case default
          write(fates_log(),*) 'ERROR: An undefined dispersal kernel was specified: ', hlm_dispersal_kernel_mode
          call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -119,13 +121,13 @@ contains
 
    ! ====================================================================================
 
-   real(r8) function PD_exponential(dist)
+   real(r8) function PD_exponential(dist, ipft)
       
       use EDPftvarcon           , only : EDPftvarcon_inst
    
       ! Arguments
       real(r8), intent(in) :: dist
-      ! real(r8), intent(in) :: param_a
+      integer, intent(in)  :: ipft
       
       ! Assuming simple exponential decay.  In the future perhaps this could be an interface
       ! for different weight calculations (and could be held only in fates)
@@ -136,18 +138,17 @@ contains
 
    ! ====================================================================================
 
-   real(r8) function PD_exppower(dist,param_a,param_b)
+   real(r8) function PD_exppower(dist, ipft)
       
       use EDPftvarcon           , only : EDPftvarcon_inst
    
       ! Arguments
       real(r8), intent(in) :: dist
-      ! real(r8), intent(in) :: param_a
-      ! real(r8), intent(in) :: param_b
+      integer, intent(in)  :: ipft
       
       associate(&
-         param_a => EDPftvarcon_inst%seed_dispersal_param_A, &
-         param_b => EDPftvarcon_inst%seed_dispersal_param_B)      
+         param_a => EDPftvarcon_inst%seed_dispersal_param_A(ipft), &
+         param_b => EDPftvarcon_inst%seed_dispersal_param_B(ipft))      
       
       PD_exppower = (param_b / (2*pi_const*gamma(2/param_b))) * &
                     exp(-(dist**param_b)/(param_a**param_b))
@@ -158,18 +159,17 @@ contains
 
    ! ====================================================================================
 
-   real(r8) function PD_logsech(dist)
+   real(r8) function PD_logsech(dist, ipft)
       
       use EDPftvarcon           , only : EDPftvarcon_inst
    
       ! Arguments
       real(r8), intent(in) :: dist
-      ! real(r8), intent(in) :: param_a
-      ! real(r8), intent(in) :: param_b
+      integer, intent(in)  :: ipft
 
       associate(&
-         param_a => EDPftvarcon_inst%seed_dispersal_param_A, &
-         param_b => EDPftvarcon_inst%seed_dispersal_param_B)      
+         param_a => EDPftvarcon_inst%seed_dispersal_param_A(ipft), &
+         param_b => EDPftvarcon_inst%seed_dispersal_param_B(ipft))      
       
       PD_logsech = (1/(pi_const**2 * param_b * dist**2)) / &
                     ((dist/param_a)**(1/param_b) + &

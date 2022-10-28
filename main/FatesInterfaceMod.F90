@@ -1910,7 +1910,7 @@ contains
       type (neighbor_type), pointer :: current_neighbor
       type (neighbor_type), pointer :: another_neighbor
       
-      integer :: gi,gj  ! indices
+      integer :: i, gi,gj  ! indices
       integer :: numg   ! number of land gridcells
       integer :: ngcheck   ! number of land gridcells, globally
       integer :: numproc   ! number of processors, globally
@@ -1922,15 +1922,16 @@ contains
       real(r8), allocatable :: gclat(:), gclon(:)
       
       real(r8) :: g2g_dist ! grid cell distance
+      real(r8) :: g2g_dist_max ! grid cell distance
       real(r8) :: pdf ! temp
       
       ! Check if seed dispersal mode is 'turned on' by checking the parameter values
-      if (EDPftvarcon_inst%fates_seed_dispersal_param_A(ipft) > fates_check_param_set) return 
+      if (EDPftvarcon_inst%seed_dispersal_param_A(1) > fates_check_param_set) return 
       
       ! Parameters and constants, to be moved to fates param file
       ! Both of these should probably be per pft
       ! real(r8) :: decay_rate = 1._r8
-      real(r8) :: g2g_dist_max = 2500._r8 * 1000._r8 ! maximum search distance [m]
+      g2g_dist_max = 2500._r8 * 1000._r8 ! maximum search distance [m]
          ! 5 deg = 785.8 km, 10 deg = 1569 km, 15deg = 2345 km assumes cartesian layout with diagonal distance
          
       ! Allocate array neighbor type
@@ -2004,7 +2005,7 @@ contains
                allocate(current_neighbor%density_prob(numpft))
                
                do ipft = 1, numpft
-                  call ProbabilityDensity(pdf, ifpt, g2g_dist)
+                  call ProbabilityDensity(pdf, ipft, g2g_dist)
                   current_neighbor%density_prob(ipft) = pdf
                end do
               

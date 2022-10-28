@@ -1442,8 +1442,8 @@ contains
         write(fates_log(),fmt0) 'jmaxse = ',EDPftvarcon_inst%jmaxse
         write(fates_log(),fmt0) 'germination_timescale = ',EDPftvarcon_inst%germination_rate
         write(fates_log(),fmt0) 'seed_decay_turnover = ',EDPftvarcon_inst%seed_decay_rate
-        write(fates_log(),fmt0) 'seed_decay_turnover = ',EDPftvarcon_inst%seed_dispersal_param_B
-        write(fates_log(),fmt0) 'seed_decay_turnover = ',EDPftvarcon_inst%seed_dispersal_param_B
+        write(fates_log(),fmt0) 'seed_dispersal_param_A = ',EDPftvarcon_inst%seed_dispersal_param_A
+        write(fates_log(),fmt0) 'seed_dispersal_param_B = ',EDPftvarcon_inst%seed_dispersal_param_B
         write(fates_log(),fmt0) 'trim_limit = ',EDPftvarcon_inst%trim_limit
         write(fates_log(),fmt0) 'trim_inc = ',EDPftvarcon_inst%trim_inc
         write(fates_log(),fmt0) 'rhol = ',EDPftvarcon_inst%rhol
@@ -1631,8 +1631,8 @@ contains
 
         ! Check that parameter ranges for the seed dispersal scale parameter make sense
         !-----------------------------------------------------------------------------------
-          if ( ( EDPftvarcon_inst%fates_seed_dispersal_param_A(ipft) < fates_check_param_set ) .and. &
-               (  EDPftvarcon_inst%fates_seed_dispersal_param_B(ipft) > fates_check_param_set ) ) then
+        if ( ( EDPftvarcon_inst%seed_dispersal_param_A(ipft) < fates_check_param_set ) .and. &
+             (  EDPftvarcon_inst%seed_dispersal_param_B(ipft) > fates_check_param_set ) ) then
 
         write(fates_log(),*) 'Seed dispersal is on'
         write(fates_log(),*) 'Please also set fates_seed_dispersal_param_B'
@@ -1643,8 +1643,8 @@ contains
 
                 ! Check that parameter ranges for the seed dispersal shape parameter make sense
         !-----------------------------------------------------------------------------------
-        if ( ( EDPftvarcon_inst%fates_seed_dispersal_param_B(ipft) < fates_check_param_set ) .and. &
-             (  EDPftvarcon_inst%fates_seed_dispersal_param_A(ipft) > fates_check_param_set ) ) then
+        if ( ( EDPftvarcon_inst%seed_dispersal_param_B(ipft) < fates_check_param_set ) .and. &
+             (  EDPftvarcon_inst%seed_dispersal_param_A(ipft) > fates_check_param_set ) ) then
 
         write(fates_log(),*) 'Seed dispersal is on'
         write(fates_log(),*) 'Please also set fates_seed_dispersal_param_A'
