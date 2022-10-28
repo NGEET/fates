@@ -2135,6 +2135,8 @@ end subroutine flush_hvars
          this%hvars(ih_h2oveg_recruit_si)%r81d(io_si)      = sites(s)%si_hydr%h2oveg_recruit
          this%hvars(ih_h2oveg_growturn_err_si)%r81d(io_si) = sites(s)%si_hydr%h2oveg_growturn_err
       end if
+      hio_harvest_debt_si(io_si) = sites(s)%resources_management%harvest_debt
+      hio_harvest_debt_sec_si(io_si) = sites(s)%resources_management%harvest_debt_sec
 
       ! error in primary lands from patch fusion [m2 m-2 day-1] -> [m2 m-2 yr-1]
       hio_primaryland_fusion_error_si(io_si) = sites(s)%primary_land_patchfusion_error * days_per_year
@@ -2209,6 +2211,12 @@ end subroutine flush_hvars
                hio_secondaryforest_area_si_age(io_si,cpatch%age_class)  &
                + cpatch%area * AREA_INV
          endif
+
+         ! Secondary forest mean LAI
+         if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+            hio_lai_secondary_si(io_si) = hio_lai_secondary_si(io_si) &
+                + sum(cpatch%tlai_profile(:,:,:)) * cpatch%total_canopy_area
+         end if
 
          ! patch-age-resolved fire variables
          do i_pft = 1,numpft
@@ -2969,6 +2977,13 @@ end subroutine flush_hvars
             hio_ncl_si_age(io_si, ipa2) = 0._r8
          endif
       end do
+
+      ! divide secondary plant leaf area by secondary forest area to get the secondary forest LAI
+      if (hio_fraction_secondary_forest_si(io_si) .gt. nearzero) then
+         hio_lai_secondary_si(io_si) = hio_lai_secondary_si(io_si) / (hio_fraction_secondary_forest_si(io_si)*AREA)
+      else
+         hio_lai_secondary_si(io_si) = 0._r8
+      end if
 
       ! pass the cohort termination mortality as a flux to the history, and then reset the termination mortality buffer
       ! note there are various ways of reporting the total mortality, so pass to these as well

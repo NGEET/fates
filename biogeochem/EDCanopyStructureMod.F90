@@ -2063,7 +2063,7 @@ contains
 
        ! Pass FATES Harvested C to bc_out.
        call UpdateHarvestC(sites(s),bc_out(s))
-       
+
     end do
 
     ! This call to RecruitWaterStorage() makes an accounting of

@@ -197,6 +197,10 @@ contains
     ! first calculate the fractino of the site that is primary land
     call get_frac_site_primary(site_in, frac_site_primary)
  
+    harvest_debt_primary = 0
+    harvest_debt_secondary = 0
+    patch_no_secondary = 0
+
     currentPatch => site_in%oldest_patch
     do while (associated(currentPatch))   
 
@@ -234,9 +238,75 @@ contains
 
           currentCohort => currentCohort%taller
        end do
-       currentPatch%disturbance_mode = fates_unset_int
+
+       ! Determine harvest debt for primary land and secondary land
+       ! Harvest debt is the accumulated total carbon amount once 
+       ! available carbon for harvest is smaller than the harvest 
+       ! rate of forcing data for each site.
+       ! Each cohort has the same harvest tag but not each patch
+       ! Hence this part shall be within the patch loop
+       ! TODO: we can define harvest debt as a fraction of the 
+       ! harvest rate in the future
+       ! Warning: Non-forest harvest is not accounted for yet
+       ! Thus the harvest tag for non-forest are not effective
+       if(logging_time) then
+          harvest_debt_loop: do h_index = 1, hlm_num_lu_harvest_cats
+             ! Primary patch: Once a patch has debt, skip the calculation
+             if (harvest_debt_primary == 0) then
+                if ( currentPatch%anthro_disturbance_label .eq. primaryforest ) then  
+                   if ( harvest_tag(h_index) == 1 ) then
+                      ! h_index points to primary forest harvest
+                      if((bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1")) then
+                          harvest_debt_primary = 1
+                          exit harvest_debt_loop
+                      end if
+                   end if
+                end if
+             end if
+             ! Secondary patch
+             if (harvest_debt_secondary == 0) then
+                if ( currentPatch%anthro_disturbance_label .eq. secondaryforest ) then
+                   patch_no_secondary = patch_no_secondary + 1
+                   if ( harvest_tag(h_index) == 1 ) then
+                      ! h_index points to secondary forest harvest
+                      if((bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1") .or. &
+                          (bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2")) then
+                          harvest_debt_secondary = 1
+                          exit harvest_debt_loop
+                      end if
+                   end if
+                end if
+             end if
+          end do harvest_debt_loop
+       end if
+
        currentPatch => currentPatch%younger
     end do
+
+    ! Obatin actual harvest debt. This shall be outside the patch loop
+    if(logging_time) then
+       do h_index = 1, hlm_num_lu_harvest_cats
+          if ( harvest_debt_primary == 1 ) then
+             ! Only account for primary forest harvest rate
+             if((bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1") .or. &
+                (bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2")) then
+                site_in%resources_management%harvest_debt = site_in%resources_management%harvest_debt + &
+                    bc_in%hlm_harvest_rates(h_index)
+             end if
+          end if
+          if (harvest_debt_secondary == 1 .or. patch_no_secondary == 0) then
+             ! Only account for secondary forest harvest rate
+             if((bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1") .or. &
+                (bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2") .or. &
+                (bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3")) then
+                site_in%resources_management%harvest_debt = site_in%resources_management%harvest_debt + &
+                    bc_in%hlm_harvest_rates(h_index)
+                site_in%resources_management%harvest_debt_sec = site_in%resources_management%harvest_debt_sec + &
+                    bc_in%hlm_harvest_rates(h_index)
+             end if
+          end if
+       end do
+    end if
 
     ! ---------------------------------------------------------------------------------------------
     ! Calculate Disturbance Rates based on the mortality rates just calculated

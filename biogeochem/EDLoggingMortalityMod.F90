@@ -86,11 +86,6 @@ module EDLoggingMortalityMod
 
    real(r8), parameter :: harvest_litter_localization = 0.0_r8
 
-   ! ! transfer factor from kg biomass (dry matter) to kg carbon
-   ! ! now we applied a simple fraction of 50% based on the IPCC
-   ! ! guideline
-   ! real(r8), parameter :: carbon_per_kg_biomass = 0.5_r8
-
    character(len=*), parameter, private :: sourcefile = &
          __FILE__
    
@@ -267,30 +262,30 @@ contains
             ! Is it the correct place to call the function?
             ! Inputs: patch_area, patch_biomass, what else?
 
-            ! call get_harvest_rate_carbon (patch_anthro_disturbance_label, hlm_harvest_catnames, &
-            !       hlm_harvest_rates, frac_site_primary, secondary_age, harvest_rate)
+            call get_harvest_rate_carbon (patch_anthro_disturbance_label, hlm_harvest_catnames, &
+                  hlm_harvest_rates, secondary_age, harvestable_forest_c, &
+                  harvest_rate, harvest_tag, cur_harvest_tag)
 
-            ! if (fates_global_verbose()) then
-            !    write(fates_log(), *) 'Successfully Read Harvest Rate from HLM.', hlm_harvest_rates(:), harvest_rate 
-            ! end if
-            
-            write(fates_log(),*) 'HLM harvest carbon data not implemented yet. Exiting.'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
+            if (fates_global_verbose()) then
+               write(fates_log(), *) 'Successfully Read Harvest Rate from HLM.', hlm_harvest_rates(:), harvest_rate, harvestable_forest_c
+            end if
             
          endif
 
          ! transfer of area to secondary land is based on overall area affected, not just logged crown area
          ! l_degrad accounts for the affected area between logged crowns
          if(prt_params%woody(pft_i) == itrue)then ! only set logging rates for trees
-            
-            ! direct logging rates, based on dbh min and max criteria
-            if (dbh >= logging_dbhmin .and. .not. &
-                 ((logging_dbhmax < fates_check_param_set) .and. (dbh >= logging_dbhmax )) ) then
-               ! the logic of the above line is a bit unintuitive but allows turning off the dbhmax comparison entirely.
-               ! since there is an .and. .not. after the first conditional, the dbh:dbhmax comparison needs to be 
-               ! the opposite of what would otherwise be expected...
-               lmort_direct = harvest_rate * logging_direct_frac
-
+            if (cur_harvest_tag == 0) then
+               ! direct logging rates, based on dbh min and max criteria
+               if (dbh >= logging_dbhmin .and. .not. &
+                  ((logging_dbhmax < fates_check_param_set) .and. (dbh >= logging_dbhmax )) ) then
+                  ! the logic of the above line is a bit unintuitive but allows turning off the dbhmax comparison entirely.
+                  ! since there is an .and. .not. after the first conditional, the dbh:dbhmax comparison needs to be 
+                  ! the opposite of what would otherwise be expected...
+                  lmort_direct = harvest_rate * logging_direct_frac
+               else
+                  lmort_direct = 0.0_r8
+               end if
             else
                lmort_direct = 0.0_r8
             end if
@@ -415,6 +410,224 @@ contains
      end if
 
    end subroutine get_harvest_rate_area
+
+   ! ============================================================================
+
+   subroutine get_harvestable_carbon (csite, site_area, hlm_harvest_catnames, harvestable_forest_c )
+
+     !USES:
+     use SFParamsMod,  only : SF_val_cwd_frac
+     use EDTypesMod,   only : AREA_INV
+
+
+     ! -------------------------------------------------------------------------------------------
+     !
+     !  DESCRIPTION:
+     !  get the total carbon availale for harvest for three different harvest categories:
+     !  primary forest, secondary mature forest and secondary young forest
+     !  under two different scenarios:
+     !  harvestable carbon: aggregate all cohorts matching the dbhmin harvest criteria
+     !
+     !  this subroutine shall be called outside the patch loop
+     !  output will be used to estimate the area-based harvest rate (get_harvest_rate_carbon)
+     !  for each cohort.
+
+     ! Arguments
+     type(ed_site_type), intent(in), target :: csite
+     real(r8), intent(in) :: site_area    ! temporary variable
+     character(len=64), intent(in) :: hlm_harvest_catnames(:) ! names of hlm harvest categories
+
+     real(r8), intent(out) :: harvestable_forest_c(hlm_num_lu_harvest_cats)
+
+     ! Local Variables
+     type(ed_patch_type), pointer  :: currentPatch
+     type(ed_cohort_type), pointer :: currentCohort
+     real(r8) :: harvestable_patch_c     ! temporary variable, kgC site-1
+     real(r8) :: harvestable_cohort_c    ! temporary variable, kgC site-1
+     real(r8) :: sapw_m      ! Biomass of sap wood
+     real(r8) :: struct_m    ! Biomass of structural organs
+     integer :: pft         ! Index of plant functional type
+     integer :: h_index     ! for looping over harvest categories
+
+     ! Initialization
+     harvestable_forest_c = 0._r8
+
+     ! loop over patches
+     currentPatch => csite%oldest_patch
+     do while (associated(currentPatch))
+        harvestable_patch_c = 0._r8
+        currentCohort => currentPatch%tallest
+
+        do while (associated(currentCohort))
+           pft = currentCohort%pft
+
+           ! only account for cohorts matching the following conditions
+           if(int(prt_params%woody(pft)) == 1)then ! only set logging rates for trees
+              sapw_m   = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
+              struct_m = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
+              ! logging_direct_frac shall be 1 for LUH2 driven simulation and global simulation
+              ! in site level study logging_direct_frac shall be surveyed
+              ! unit:  [kgC ] = [kgC/plant] * [plant/ha] * [ha/ 10k m2] * [ m2 area ]
+              harvestable_cohort_c = logging_direct_frac * ( sapw_m + struct_m ) * &
+                     prt_params%allom_agb_frac(currentCohort%pft) * &
+                     SF_val_CWD_frac(ncwd) * logging_export_frac * &
+                     currentCohort%n * AREA_INV * site_area
+
+              ! No harvest for trees without canopy 
+              if (currentCohort%canopy_layer>=1) then
+                 ! logging amount are based on dbh min and max criteria
+                 if (currentCohort%dbh >= logging_dbhmin .and. .not. &
+                       ((logging_dbhmax < fates_check_param_set) .and. (currentCohort%dbh >= logging_dbhmax )) ) then
+                    ! Harvestable C: aggregate cohorts fit the criteria
+                    harvestable_patch_c = harvestable_patch_c + harvestable_cohort_c
+                 end if
+              end if
+           end if
+           currentCohort => currentCohort%shorter
+        end do
+
+        ! judge which category the current patch belong to
+        ! since we have not separated forest vs. non-forest
+        ! all carbon belongs to the forest categories
+        do h_index = 1,hlm_num_lu_harvest_cats
+           if (currentPatch%anthro_disturbance_label .eq. primaryforest) then
+              ! Primary
+              if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1") then
+                 harvestable_forest_c(h_index) = harvestable_forest_c(h_index) + harvestable_patch_c
+              end if
+           else if (currentPatch%anthro_disturbance_label .eq. secondaryforest .and. &
+                currentPatch%age_since_anthro_disturbance >= secondary_age_threshold) then
+              ! Secondary mature
+              if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1") then
+                 harvestable_forest_c(h_index) = harvestable_forest_c(h_index) + harvestable_patch_c
+              end if
+           else if (currentPatch%anthro_disturbance_label .eq. secondaryforest .and. &
+                currentPatch%age_since_anthro_disturbance < secondary_age_threshold) then
+              ! Secondary young
+              if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2") then
+                 harvestable_forest_c(h_index) = harvestable_forest_c(h_index) + harvestable_patch_c
+              end if
+           end if
+        end do
+        currentPatch => currentPatch%younger
+     end do
+
+   end subroutine get_harvestable_carbon
+
+   ! ============================================================================
+
+   subroutine get_harvest_rate_carbon (patch_anthro_disturbance_label, hlm_harvest_catnames, &
+                 hlm_harvest_rates, secondary_age, harvestable_forest_c, &
+                 harvest_rate, harvest_tag, cur_harvest_tag)
+
+     ! -------------------------------------------------------------------------------------------
+     !
+     !  DESCRIPTION:
+     !  get the carbon-based harvest rates based on info passed to FATES from the boundary conditions in.
+     !  assumes logging_time == true
+
+      ! Arguments
+      real(r8), intent(in) :: hlm_harvest_rates(:) ! annual harvest rate per hlm category
+      character(len=64), intent(in) :: hlm_harvest_catnames(:) ! names of hlm harvest categories
+      integer, intent(in) :: patch_anthro_disturbance_label    ! patch level anthro_disturbance_label
+      real(r8), intent(in) :: secondary_age     ! patch level age_since_anthro_disturbance
+      real(r8), intent(in) :: harvestable_forest_c(:)  ! site level forest c matching criteria available for harvest, kgC site-1
+      real(r8), intent(out) :: harvest_rate      ! area fraction
+      integer,  intent(inout) :: harvest_tag(:)  ! 0. normal harvest; 1. current site does not have enough C but
+                                                 ! can perform harvest by ignoring criteria; 2. current site does
+                                                 ! not have enough carbon
+                                                 ! This harvest tag shall be a patch level variable but since all
+                                                 ! logging functions happen within cohort loop we can only put the 
+                                                 ! calculation here. Can think about optimizing the logging calculation
+                                                 ! in the future.
+      integer,  intent(out), optional :: cur_harvest_tag  ! harvest tag of the current cohort
+
+      ! Local Variables
+      integer :: h_index   ! for looping over harvest categories
+      integer :: icode   ! Integer equivalent of the event code (parameter file only allows reals)
+      real(r8) :: harvest_rate_c    ! Temporary variable, kgC site-1
+      real(r8) :: harvest_rate_supply  ! Temporary variable, kgC site-1
+
+     ! Loop around harvest categories to determine the hlm harvest rate demand and actual harvest rate for the 
+     ! current cohort based on patch history info
+     harvest_rate = 0._r8
+     harvest_rate_c = 0._r8
+     harvest_rate_supply = 0._r8
+     harvest_tag(:) = 1
+
+     do h_index = 1,hlm_num_lu_harvest_cats
+        if (patch_anthro_disturbance_label .eq. primaryforest) then
+           if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1"  .or. &
+                hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2") then
+              harvest_rate_c = harvest_rate_c + hlm_harvest_rates(h_index)
+              ! Determine the total supply of available C for harvest
+              if(harvestable_forest_c(h_index) >= harvest_rate_c) then
+                 harvest_rate_supply = harvest_rate_supply + harvestable_forest_c(h_index)
+                 harvest_tag(h_index) = 0
+              else
+                 harvest_tag(h_index) = 1
+              end if
+           endif
+        else if (patch_anthro_disturbance_label .eq. secondaryforest .and. &
+             secondary_age >= secondary_age_threshold) then
+           if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1") then
+              harvest_rate_c = harvest_rate_c + hlm_harvest_rates(h_index)
+              if(harvestable_forest_c(h_index) >= harvest_rate_c) then
+                 harvest_rate_supply = harvest_rate_supply + harvestable_forest_c(h_index)
+                 harvest_tag(h_index) = 0
+              else
+                 harvest_tag(h_index) = 1
+              end if
+           endif
+        else if (patch_anthro_disturbance_label .eq. secondaryforest .and. &
+             secondary_age < secondary_age_threshold) then
+           if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2" .or. &
+                hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3") then
+              harvest_rate_c = harvest_rate_c + hlm_harvest_rates(h_index)
+              if(harvestable_forest_c(h_index) >= harvest_rate_c) then
+                 harvest_rate_supply = harvest_rate_supply + harvestable_forest_c(h_index)
+                 harvest_tag(h_index) = 0
+              else
+                 harvest_tag(h_index) = 1
+              end if
+           endif
+        endif
+     end do
+
+     ! If any harvest category available, assign to cur_harvest_tag and trigger logging event
+     if(present(cur_harvest_tag))then
+       cur_harvest_tag = minval(harvest_tag)
+     end if
+
+     ! Transfer carbon-based harvest rate to area-based harvest rate
+     if (harvest_rate_supply > rsnbl_math_prec .and. harvest_rate_supply > harvest_rate_c) then
+        harvest_rate = harvest_rate_c / harvest_rate_supply
+     else
+        harvest_rate = 0._r8
+     end if
+
+     ! For carbon-based harvest rate, normalizing by site-level primary or secondary forest fraction
+     ! is not needed
+
+     ! calculate today's harvest rate
+     ! whether to harvest today has already been determined by IsItLoggingTime
+     ! for icode == 2, icode < 0, and icode > 10000 apply the annual rate one time (no calc)
+     ! Bad logging event flag is caught in IsItLoggingTime, so don't check it here
+     icode = int(logging_event_code)
+     if(icode .eq. 1) then
+        ! Logging is turned off - not sure why we need another switch
+        harvest_rate = 0._r8
+     else if(icode .eq. 3) then
+        ! Logging event every day - this may not work due to the mortality exclusivity
+        harvest_rate = harvest_rate / hlm_days_per_year
+     else if(icode .eq. 4) then
+        ! logging event once a month
+        if(hlm_current_day.eq.1  ) then
+           harvest_rate = harvest_rate / months_per_year
+        end if
+     end if
+
+   end subroutine get_harvest_rate_carbon
 
    ! ============================================================================
 
