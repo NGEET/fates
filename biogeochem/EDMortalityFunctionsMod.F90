@@ -232,7 +232,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     type(ed_cohort_type),intent(inout), target :: currentCohort
     type(bc_in_type), intent(in)               :: bc_in
     real(r8), intent(in)                       :: frac_site_primary
-    real(r8), intent(in) :: harvestable_forest_c(:)
+    real(r8), intent(in) :: harvestable_forest_c(:)   ! total carbon available for logging, kgC site-1
     integer,  intent(inout) :: harvest_tag(:)
 
     !

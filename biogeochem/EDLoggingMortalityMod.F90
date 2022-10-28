@@ -87,11 +87,6 @@ module EDLoggingMortalityMod
 
    real(r8), parameter :: harvest_litter_localization = 0.0_r8
 
-   ! ! transfer factor from kg biomass (dry matter) to kg carbon
-   ! ! now we applied a simple fraction of 50% based on the IPCC
-   ! ! guideline
-   ! real(r8), parameter :: carbon_per_kg_biomass = 0.5_r8
-
    character(len=*), parameter, private :: sourcefile = &
          __FILE__
    
@@ -284,12 +279,8 @@ contains
                   harvest_rate, harvest_tag, cur_harvest_tag)
 
             if (fates_global_verbose()) then
-               write(fates_log(), *) 'Successfully Read Harvest Rate from HLM.', hlm_harvest_rates(:), harvest_rate &
-               harvestable_forest_c
+               write(fates_log(), *) 'Successfully Read Harvest Rate from HLM.', hlm_harvest_rates(:), harvest_rate, harvestable_forest_c
             end if
-            
-            write(fates_log(),*) 'HLM harvest carbon data not implemented yet. Exiting.'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
             
          endif
 
@@ -304,7 +295,9 @@ contains
                   ! since there is an .and. .not. after the first conditional, the dbh:dbhmax comparison needs to be 
                   ! the opposite of what would otherwise be expected...
                   lmort_direct = harvest_rate * logging_direct_frac
-
+               else
+                  lmort_direct = 0.0_r8
+               end if
             else
                 lmort_direct = 0.0_r8
             end if
@@ -375,8 +368,8 @@ contains
      harvest_rate = 0._r8
      do h_index = 1,hlm_num_lu_harvest_cats
         if (patch_anthro_disturbance_label .eq. primaryforest) then
-           if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1") then! .or. &
-           !     hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2") then
+           if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1"  .or. &
+                hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2") then
               harvest_rate = harvest_rate + hlm_harvest_rates(h_index)
            endif
         else if (patch_anthro_disturbance_label .eq. secondaryforest .and. &
@@ -386,8 +379,8 @@ contains
            endif
         else if (patch_anthro_disturbance_label .eq. secondaryforest .and. &
              secondary_age < secondary_age_threshold) then
-           if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2") then! .or. &
-           !     hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3") then
+           if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2" .or. &
+                hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3") then
               harvest_rate = harvest_rate + hlm_harvest_rates(h_index)
            endif
         endif
@@ -447,7 +440,6 @@ contains
      !  primary forest, secondary mature forest and secondary young forest
      !  under two different scenarios:
      !  harvestable carbon: aggregate all cohorts matching the dbhmin harvest criteria
-     !  available carbon: aggregate all cohorts
      !
      !  this subroutine shall be called outside the patch loop
      !  output will be used to estimate the area-based harvest rate (get_harvest_rate_carbon)
@@ -463,10 +455,8 @@ contains
      ! Local Variables
      type(ed_patch_type), pointer  :: currentPatch
      type(ed_cohort_type), pointer :: currentCohort
-     real(r8) :: harvestable_patch_c     ! temporary variable
-     real(r8) :: harvestable_cohort_c    ! temporary variable
-     real(r8) :: available_patch_c     ! temporary variable
-     real(r8) :: available_cohort_c    ! temporary variable
+     real(r8) :: harvestable_patch_c     ! temporary variable, kgC site-1
+     real(r8) :: harvestable_cohort_c    ! temporary variable, kgC site-1
      real(r8) :: sapw_m      ! Biomass of sap wood
      real(r8) :: struct_m    ! Biomass of structural organs
      integer :: pft         ! Index of plant functional type
@@ -479,7 +469,6 @@ contains
      currentPatch => csite%oldest_patch
      do while (associated(currentPatch))
         harvestable_patch_c = 0._r8
-        available_patch_c = 0._r8
         currentCohort => currentPatch%tallest
 
         do while (associated(currentCohort))
@@ -504,10 +493,6 @@ contains
                        ((logging_dbhmax < fates_check_param_set) .and. (currentCohort%dbh >= logging_dbhmax )) ) then
                     ! Harvestable C: aggregate cohorts fit the criteria
                     harvestable_patch_c = harvestable_patch_c + harvestable_cohort_c
-                    ! Available C: aggregate all cohorts
-                    available_patch_c =  available_patch_c + harvestable_cohort_c
-                 else
-                    available_patch_c = available_patch_c + harvestable_cohort_c
                  end if
               end if
            end if
@@ -559,8 +544,8 @@ contains
       character(len=64), intent(in) :: hlm_harvest_catnames(:) ! names of hlm harvest categories
       integer, intent(in) :: patch_anthro_disturbance_label    ! patch level anthro_disturbance_label
       real(r8), intent(in) :: secondary_age     ! patch level age_since_anthro_disturbance
-      real(r8), intent(in) :: harvestable_forest_c(:)  ! site level forest c matching criteria available for harvest
-      real(r8), intent(out) :: harvest_rate
+      real(r8), intent(in) :: harvestable_forest_c(:)  ! site level forest c matching criteria available for harvest, kgC site-1
+      real(r8), intent(out) :: harvest_rate      ! area fraction
       integer,  intent(inout) :: harvest_tag(:)  ! 0. normal harvest; 1. current site does not have enough C but
                                                  ! can perform harvest by ignoring criteria; 2. current site does
                                                  ! not have enough carbon
@@ -573,20 +558,20 @@ contains
       ! Local Variables
       integer :: h_index   ! for looping over harvest categories
       integer :: icode   ! Integer equivalent of the event code (parameter file only allows reals)
-      real(r8) :: harvest_rate_c    ! Temporary variable
-      real(r8) :: harvest_rate_supply  ! Temporary variable
+      real(r8) :: harvest_rate_c    ! Temporary variable, kgC site-1
+      real(r8) :: harvest_rate_supply  ! Temporary variable, kgC site-1
 
      ! Loop around harvest categories to determine the hlm harvest rate demand and actual harvest rate for the 
      ! current cohort based on patch history info
      harvest_rate = 0._r8
      harvest_rate_c = 0._r8
      harvest_rate_supply = 0._r8
-     harvest_tag = 2
+     harvest_tag(:) = 1
 
      do h_index = 1,hlm_num_lu_harvest_cats
         if (patch_anthro_disturbance_label .eq. primaryforest) then
-           if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1") then! .or. &
-           !     hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2") then
+           if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1"  .or. &
+                hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2") then
               harvest_rate_c = harvest_rate_c + hlm_harvest_rates(h_index)
               ! Determine the total supply of available C for harvest
               if(harvestable_forest_c(h_index) >= harvest_rate_c) then
@@ -609,8 +594,8 @@ contains
            endif
         else if (patch_anthro_disturbance_label .eq. secondaryforest .and. &
              secondary_age < secondary_age_threshold) then
-           if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2") then! .or. &
-           !     hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3") then
+           if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2" .or. &
+                hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3") then
               harvest_rate_c = harvest_rate_c + hlm_harvest_rates(h_index)
               if(harvestable_forest_c(h_index) >= harvest_rate_c) then
                  harvest_rate_supply = harvest_rate_supply + harvestable_forest_c(h_index)
@@ -625,11 +610,6 @@ contains
      ! If any harvest category available, assign to cur_harvest_tag and trigger logging event
      if(present(cur_harvest_tag))then
        cur_harvest_tag = minval(harvest_tag)
-       !write(fates_log(), *) 'cur_harvest_tag:', cur_harvest_tag
-       !write(fates_log(), *) 'harvest tags:', harvest_tag
-       !write(fates_log(), *) 'harvest rate c:', harvest_rate_c
-       !write(fates_log(), *) 'harvest rate supply:', harvest_rate_supply
-       !write(fates_log(), *) 'hlm harvest rates:', hlm_harvest_rates
      end if
 
      ! Transfer carbon-based harvest rate to area-based harvest rate

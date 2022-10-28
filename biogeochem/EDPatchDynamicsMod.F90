@@ -212,7 +212,6 @@ contains
     ! get available biomass for harvest for all patches
     call get_harvestable_carbon(site_in, bc_in%site_area, bc_in%hlm_harvest_catnames, harvestable_forest_c)
  
-    site_in%harvest_carbon_flux = 0._r8
     harvest_debt_primary = 0
     harvest_debt_secondary = 0
     patch_no_secondary = 0
@@ -254,21 +253,13 @@ contains
           currentCohort%lmort_infra      = lmort_infra
           currentCohort%l_degrad         = l_degrad
 
-          ! estimate the wood product (trunk_product_site)
-          if (currentCohort%canopy_layer>=1) then
-             ! kgC m-2 day-1
-             site_in%harvest_carbon_flux = site_in%harvest_carbon_flux + &
-                  currentCohort%lmort_direct * currentCohort%n * &
-                  ( currentCohort%prt%GetState(sapw_organ, all_carbon_elements) + &
-                  currentCohort%prt%GetState(struct_organ, all_carbon_elements)) * &
-                  prt_params%allom_agb_frac(currentCohort%pft) * &
-                  SF_val_CWD_frac(ncwd) * logging_export_frac * AREA_INV
-          endif
-
           currentCohort => currentCohort%taller
        end do
 
-       ! Determine harvest debt status from all three categories
+       ! Determine harvest debt for primary land and secondary land
+       ! Harvest debt is the accumulated total carbon amount once 
+       ! available carbon for harvest is smaller than the harvest 
+       ! rate of forcing data for each site.
        ! Each cohort has the same harvest tag but not each patch
        ! Hence this part shall be within the patch loop
        ! TODO: we can define harvest debt as a fraction of the 
@@ -314,8 +305,8 @@ contains
        do h_index = 1, hlm_num_lu_harvest_cats
           if ( harvest_debt_primary == 1 ) then
              ! Only account for primary forest harvest rate
-             if((bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1")) then !.or. &
-             !   (bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2")) then
+             if((bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1") .or. &
+                (bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2")) then
                 site_in%resources_management%harvest_debt = site_in%resources_management%harvest_debt + &
                     bc_in%hlm_harvest_rates(h_index)
              end if
@@ -323,8 +314,8 @@ contains
           if (harvest_debt_secondary == 1 .or. patch_no_secondary == 0) then
              ! Only account for secondary forest harvest rate
              if((bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1") .or. &
-                (bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2")) then !.or. &
-             !   (bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3")) then
+                (bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2") .or. &
+                (bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3")) then
                 site_in%resources_management%harvest_debt = site_in%resources_management%harvest_debt + &
                     bc_in%hlm_harvest_rates(h_index)
                 site_in%resources_management%harvest_debt_sec = site_in%resources_management%harvest_debt_sec + &

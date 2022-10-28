@@ -1785,7 +1785,6 @@ contains
     integer,            intent(in)            :: nsites
     type(ed_site_type), intent(inout), target :: sites(nsites)
     integer,            intent(in)            :: fcolumn(nsites)
-    type(bc_in_type),  intent(inout)          :: bc_in(nsites)
     type(bc_out_type),  intent(inout)         :: bc_out(nsites)
 
     ! Locals
@@ -1978,7 +1977,7 @@ contains
        end if
 
        ! Pass FATES Harvested C to bc_out.
-       call UpdateHarvestC(sites(s),bc_in(s),bc_out(s))
+       call UpdateHarvestC(sites(s),bc_out(s))
         
     end do
 

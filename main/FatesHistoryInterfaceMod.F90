@@ -1796,7 +1796,6 @@ end subroutine flush_hvars
     real(r8) :: binbottom,bintop    ! edges of height bins
 
     real(r8) :: gpp_cached ! variable used to cache gpp value in previous time step; for C13 discrimination
-    real(r8) :: lai_patch_cached   ! temporary variable to cache mean lai of current patch
 
     ! The following are all carbon states, turnover and net allocation flux variables
     ! the organs of relevance should be self explanatory
@@ -2183,7 +2182,6 @@ end subroutine flush_hvars
          this%hvars(ih_h2oveg_recruit_si)%r81d(io_si)      = sites(s)%si_hydr%h2oveg_recruit
          this%hvars(ih_h2oveg_growturn_err_si)%r81d(io_si) = sites(s)%si_hydr%h2oveg_growturn_err
       end if
-      hio_harvest_carbonflux_si(io_si) = sites(s)%harvest_carbon_flux
       hio_harvest_debt_si(io_si) = sites(s)%resources_management%harvest_debt
       hio_harvest_debt_sec_si(io_si) = sites(s)%resources_management%harvest_debt_sec
 
@@ -2266,15 +2264,8 @@ end subroutine flush_hvars
 
          ! Secondary forest mean LAI
          if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
-            lai_patch_cached = 0._r8
-            do ican = 1, cpatch%NCL_p
-               do i_pft = 1, numpft
-                  lai_patch_cached = lai_patch_cached + sum(cpatch%canopy_area_profile(ican,i_pft,1:cpatch%nrad(ican,i_pft)) * &
-                    cpatch%tlai_profile(ican,i_pft,1:cpatch%nrad(ican,i_pft)))
-               end do
-            end do
             hio_lai_secondary_si(io_si) = hio_lai_secondary_si(io_si) &
-                + lai_patch_cached * min(1.0_r8, (cpatch%total_canopy_area/cpatch%area)) * cpatch%area * AREA_INV
+                + sum(cpatch%tlai_profile(:,:,:)) * cpatch%total_canopy_area
          end if
 
          ! patch-age-resolved fire variables
@@ -3099,6 +3090,13 @@ end subroutine flush_hvars
             hio_ncl_si_age(io_si, ipa2) = 0._r8
          endif
       end do
+
+      ! divide secondary plant leaf area by secondary forest area to get the secondary forest LAI
+      if (hio_fraction_secondary_forest_si(io_si) .gt. nearzero) then
+         hio_lai_secondary_si(io_si) = hio_lai_secondary_si(io_si) / (hio_fraction_secondary_forest_si(io_si)*AREA)
+      else
+         hio_lai_secondary_si(io_si) = 0._r8
+      end if
 
       ! pass the cohort termination mortality as a flux to the history, and then reset the termination mortality buffer
       ! note there are various ways of reporting the total mortality, so pass to these as well
@@ -5411,74 +5409,6 @@ end subroutine update_history_hifrq
          long='radiation error in FATES RTM', use_default='active',            &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,                 &
          ivar=ivar, initialize=initialize_variables, index = ih_rad_error_si)
-
-    ! disturbance rates
-    call this%set_history_var(vname='PRIMARYLAND_PATCHFUSION_ERROR', units='m2 m-2 d-1',                   &
-         long='Error in total primary lands associated with patch fusion',  use_default='active',     &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_primaryland_fusion_error_si )
-
-    call this%set_history_var(vname='DISTURBANCE_RATE_P2P', units='m2 m-2 d-1',                   &
-         long='Disturbance rate from primary to primary lands',  use_default='active',     &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_disturbance_rate_p2p_si )
-
-    call this%set_history_var(vname='DISTURBANCE_RATE_P2S', units='m2 m-2 d-1',                   &
-         long='Disturbance rate from primary to secondary lands',  use_default='active',     &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_disturbance_rate_p2s_si )
-
-    call this%set_history_var(vname='DISTURBANCE_RATE_S2S', units='m2 m-2 d-1',                   &
-         long='Disturbance rate from secondary to secondary lands',  use_default='active',     &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_disturbance_rate_s2s_si )
-
-!    call this%set_history_var(vname='DISTURBANCE_RATE_FIRE', units='m2 m-2 d-1',                   &
-!         long='Disturbance rate from fire',  use_default='active',     &
-!         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1,   &
-!         ivar=ivar, initialize=initialize_variables, index = ih_fire_disturbance_rate_si )
-!
-!    call this%set_history_var(vname='DISTURBANCE_RATE_LOGGING', units='m2 m-2 d-1',                   &
-!         long='Disturbance rate from logging',  use_default='active',     &
-!         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1,   &
-!         ivar=ivar, initialize=initialize_variables, index = ih_logging_disturbance_rate_si )
-!
-!    call this%set_history_var(vname='DISTURBANCE_RATE_TREEFALL', units='m2 m-2 d-1',                   &
-!         long='Disturbance rate from treefall',  use_default='active',     &
-!         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1,   &
-!         ivar=ivar, initialize=initialize_variables, index = ih_fall_disturbance_rate_si )
-!
-!    call this%set_history_var(vname='DISTURBANCE_RATE_POTENTIAL', units='m2 m-2 d-1',                   &
-!         long='Potential (i.e., including unresolved) disturbance rate',  use_default='active',     &
-!         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1,   &
-!         ivar=ivar, initialize=initialize_variables, index = ih_potential_disturbance_rate_si )
-
-    call this%set_history_var(vname='HARVEST_CARBON_FLUX', units='kg C m-2 d-1',                   &
-         long='Harvest carbon flux',  use_default='active',     &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_harvest_carbonflux_si )
-
-    call this%set_history_var(vname='HARVEST_DEBT', units='kg C',                   &
-         long='Accumulated carbon failed to be harvested',  use_default='active',     &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_harvest_debt_si )
-
-    call this%set_history_var(vname='HARVEST_DEBT_SEC', units='kg C',                   &
-         long='Accumulated carbon failed to be harvested from secondary patches',  use_default='active',     &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_harvest_debt_sec_si )
-
-    ! Canopy Resistance 
-
-    call this%set_history_var(vname='C_STOMATA', units='umol m-2 s-1',                   &
-         long='mean stomatal conductance', use_default='active',                   &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_c_stomata_si )
-
-    call this%set_history_var(vname='C_LBLAYER', units='umol m-2 s-1',                   &
-         long='mean leaf boundary layer conductance', use_default='active',                   &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_c_lblayer_si )
 
 
     ! Ecosystem Carbon Fluxes (updated rapidly, upfreq=2)
