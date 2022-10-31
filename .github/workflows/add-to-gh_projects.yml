@@ -1,0 +1,23 @@
+# This is a basic workflow to help you get started with Actions
+
+name: Add issue to github project issue triage board
+
+# Controls when the workflow will run
+on:
+  issues:
+    types:
+      - opened
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  add-to-project:
+    name: add issue to issue triage board project
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/add-to-project@v0.3.0
+        with:
+          # URL of the project to add issues to
+          project-url: https://github.com/orgs/NGEET/projects/1
+          # A GitHub personal access token with write access to the project
+          github-token: ${{ secrets.ADD_TO_PROJECT_PAT }}
+
