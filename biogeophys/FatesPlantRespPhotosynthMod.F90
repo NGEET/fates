@@ -40,6 +40,10 @@ module FATESPlantRespPhotosynthMod
   use PRTGenericMod,     only : max_nleafage
   use EDTypesMod,        only : do_fates_salinity
   use EDParamsMod,       only : q10_mr
+  use EDParamsMod,       only : maintresp_model
+  use FatesConstantsMod, only : lmrmodel_ryan_1991
+  use FatesConstantsMod, only : lmrmodel_atkin_etal_2015
+  use FatesConstantsMod, only : lmrmodel_heskel_etal_2018
   use PRTGenericMod,     only : prt_carbon_allom_hyp
   use PRTGenericMod,     only : prt_cnp_flex_allom_hyp
   use PRTGenericMod,     only : all_carbon_elements
@@ -520,17 +524,40 @@ contains
 
                                end select
 
-                               ! MLO - Shouldn't these numbers be parameters too?
-                               lmr25top = 2.525e-6_r8 * (1.5_r8 ** ((25._r8 - 20._r8)/10._r8))
-                               lmr25top = lmr25top * lnc_top / (umolC_to_kgC * g_per_kg)
-
-
                                ! Part VII: Calculate dark respiration (leaf maintenance) for this layer
-                               call LeafLayerMaintenanceRespiration( lmr25top,                 &  ! in
-                                    nscaler,                  &  ! in
-                                    ft,                       &  ! in
-                                    bc_in(s)%t_veg_pa(ifp),   &  ! in
-                                    lmr_z(iv,ft,cl))             ! out
+                               select case (maintresp_model)
+
+                               case (lmrmodel_ryan_1991)
+
+                                  ! MLO - Shouldn't these numbers be parameters too?
+                                  lmr25top = 2.525e-6_r8 * (1.5_r8 ** ((25._r8 - 20._r8)/10._r8))
+                                  lmr25top = lmr25top * lnc_top / (umolC_to_kgC * g_per_kg)
+
+                                  call LeafLayerMaintenanceRespiration_Ryan_1991( lmr25top,     &  ! in
+                                       nscaler,                  &  ! in
+                                       ft,                       &  ! in
+                                       bc_in(s)%t_veg_pa(ifp),   &  ! in
+                                       lmr_z(iv,ft,cl))             ! out
+
+                               case (lmrmodel_atkin_etal_2015)
+
+                                  call LeafLayerMaintenanceRespiration_Atkin_etal_2015(lnc_top, &  ! in
+                                       nscaler,                  &  ! in
+                                       ft,                       &  ! in
+                                       bc_in(s)%t_veg_pa(ifp),   &  ! in
+                                       currentPatch%tveg_lpa,    &  ! in
+                                       lmr_z(iv,ft,cl))             ! out
+
+                               case (lmrmodel_heskel_etal_2016)
+
+                                  call LeafLayerMaintenanceRespiration_Heskel_etal_2016(lnc_top, &  ! in
+                                       nscaler,                  &  ! in
+                                       ft,                       &  ! in
+                                       bc_in(s)%t_veg_pa(ifp),   &  ! in
+                                       currentPatch%tveg_lpa,    &  ! in
+                                       lmr_z(iv,ft,cl))             ! out
+
+                               end select
 
                                ! Part VII: Calculate (1) maximum rate of carboxylation (vcmax),
                                ! (2) maximum electron transport rate, (3) triose phosphate
@@ -1966,7 +1993,7 @@ end subroutine GetCanopyGasParameters
 
 ! ====================================================================================
 
-subroutine LeafLayerMaintenanceRespiration(lmr25top_ft, &
+subroutine LeafLayerMaintenanceRespiration_Ryan_1991(lmr25top_ft, &
    nscaler,   &
    ft,        &
    veg_tempk,     &
@@ -2012,7 +2039,58 @@ subroutine LeafLayerMaintenanceRespiration(lmr25top_ft, &
    ! Any hydrodynamic limitations could go here, currently none
    ! lmr = lmr * (nothing)
 
-end subroutine LeafLayerMaintenanceRespiration
+end subroutine LeafLayerMaintenanceRespiration_Ryan_1991
+
+! ====================================================================================   
+
+subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2015(lnc, &
+   nscaler,   &
+   ft,        &
+   veg_tempk, &
+   tgrowth,   &
+   lmr)
+
+   use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
+
+   ! Arguments
+   real(r8), intent(in)  :: lnc
+   integer,  intent(in)  :: ft           ! (plant) Functional Type Index
+   real(r8), intent(in)  :: nscaler      ! Scale for leaf nitrogen profile
+   real(r8), intent(in)  :: veg_tempk    ! vegetation temperature
+   real(r8), intent(in)  :: tgrowth      ! lagged vegetation temperature averaged over acclimation timescale
+   real(r8), intent(out) :: lmr          ! Leaf Maintenance Respiration  (umol CO2/m**2/s)
+
+   ! Locals
+   real(r8) :: lmr25   ! leaf layer: leaf maintenance respiration rate at 25C (umol CO2/m**2/s)
+
+   ! Parameter
+
+
+end subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2015
+
+! ====================================================================================
+
+subroutine LeafLayerMaintenanceRespiration_Heskel_etal_2016(lnc, &
+   nscaler,   &
+   ft,        &
+   veg_tempk, &
+   tgrowth,   &
+   lmr)
+
+   use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
+
+   ! Arguments
+   real(r8), intent(in)  :: lnc
+   integer,  intent(in)  :: ft           ! (plant) Functional Type Index
+   real(r8), intent(in)  :: nscaler      ! Scale for leaf nitrogen profile
+   real(r8), intent(in)  :: veg_tempk    ! vegetation temperature
+   real(r8), intent(in)  :: tgrowth      ! lagged vegetation temperature averaged over acclimation timescale
+   real(r8), intent(out) :: lmr          ! Leaf Maintenance Respiration  (umol CO2/m**2/s)
+
+   ! Locals
+   real(r8) :: lmr25   ! leaf layer: leaf maintenance respiration rate at 25C (umol CO2/m**2/s)
+
+end subroutine LeafLayerMaintenanceRespiration_Heskel_etal_2016
 
 ! ====================================================================================
 

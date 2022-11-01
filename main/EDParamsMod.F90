@@ -32,7 +32,7 @@ module EDParamsMod
                                                              ! temperature acclimation (NOT YET IMPLEMENTED)
 
    integer,protected, public :: maintresp_model       ! switch for choosing between leaf maintenance
-                                                      ! respiration model. 1=Ryan (1991) (NOT YET IMPLEMENTED)
+                                                      ! respiration model. 1=Ryan (1991), 2=Atkin et al (2015), 3=Heskel et al (2016)
    integer,protected, public :: photo_tempsens_model  ! switch for choosing the model that defines the temperature
                                                       ! sensitivity of photosynthetic parameters (vcmax, jmax).
                                                       ! 1=non-acclimating (NOT YET IMPLEMENTED)

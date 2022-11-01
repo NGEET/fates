@@ -74,6 +74,10 @@ module FatesConstantsMod
   integer, parameter, public :: hlm_harvest_area_fraction = 1 ! Code for harvesting by area
   integer, parameter, public :: hlm_harvest_carbon = 2 ! Code for harvesting based on carbon extracted.
 
+  ! integer labels for specifying leaf maintenance respiration models
+  integer, parameter, public :: lmrmodel_ryan_1991         = 1
+  integer, parameter, public :: lmrmodel_atkin_etal_2015   = 2
+  integer, parameter, public :: lmrmodel_heskel_etal_2016  = 3
 
   ! Error Tolerances
 
