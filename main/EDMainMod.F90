@@ -80,6 +80,7 @@ module EDMainMod
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
   use FatesAllometryMod        , only : h_allom,tree_sai,tree_lai
   use EDLoggingMortalityMod    , only : IsItLoggingTime
+  use EDLoggingMortalityMod    , only : get_harvestable_carbon
   use EDPatchDynamicsMod       , only : get_frac_site_primary
   use FatesGlobals             , only : endrun => fates_endrun
   use ChecksBalancesMod        , only : SiteMassStock
@@ -303,6 +304,7 @@ contains
     ! FIX(SPM,032414) refactor so everything goes through interface
     !
     ! !USES:
+    use FatesInterfaceTypesMod, only : hlm_num_lu_harvest_cats
     use FatesInterfaceTypesMod, only : hlm_use_cohort_age_tracking
     use FatesConstantsMod, only : itrue
     ! !ARGUMENTS:
@@ -333,8 +335,18 @@ contains
     !-----------------------------------------------------------------------
     real(r8) :: frac_site_primary
 
+    real(r8) :: harvestable_forest_c(hlm_num_lu_harvest_cats)
+    integer  :: harvest_tag(hlm_num_lu_harvest_cats)
+
 
     call get_frac_site_primary(currentSite, frac_site_primary)
+
+    ! Clear site GPP and AR passing to HLM
+    bc_out%gpp_site = 0._r8
+    bc_out%ar_site = 0._r8
+
+    ! Patch level biomass are required for C-based harvest
+    call get_harvestable_carbon(currentSite, bc_in%site_area, bc_in%hlm_harvest_catnames, harvestable_forest_c)
 
     ! Set a pointer to this sites carbon12 mass balance
     site_cmass => currentSite%mass_balance(element_pos(carbon12_element))
@@ -369,7 +381,8 @@ contains
           ft = currentCohort%pft
 
           ! Calculate the mortality derivatives
-          call Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary )
+          call Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary, &
+              harvestable_forest_c, harvest_tag)
 
           ! -----------------------------------------------------------------------------
           ! Apply Plant Allocation and Reactive Transport
@@ -413,6 +426,11 @@ contains
           currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * real(hlm_days_per_year,r8)
           currentCohort%resp_acc_hold = currentCohort%resp_acc * real(hlm_days_per_year,r8)
 
+          ! Passing gpp_acc_hold to HLM 
+          bc_out%gpp_site = bc_out%gpp_site + currentCohort%gpp_acc_hold * &
+               AREA_INV * currentCohort%n / hlm_days_per_year / sec_per_day
+          bc_out%ar_site = bc_out%ar_site + currentCohort%resp_acc_hold * & 
+               AREA_INV * currentCohort%n / hlm_days_per_year / sec_per_day
 
           ! Conduct Maintenance Turnover (parteh)
           if(debug) call currentCohort%prt%CheckMassConservation(ft,3)

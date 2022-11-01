@@ -585,6 +585,9 @@ module EDTypesMod
   type, public :: ed_resources_management_type
     
      real(r8) ::  trunk_product_site                       ! Actual  trunk product at site level KgC/site
+     real(r8) ::  harvest_debt                             ! the amount of kgC per site that did not successfully harvested 
+     real(r8) ::  harvest_debt_sec                         ! the amount of kgC per site from secondary patches that did
+                                                           ! not successfully harvested
 
      !debug variables
      real(r8) ::  delta_litter_stock                       ! kgC/site = kgC/ha

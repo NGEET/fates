@@ -14,6 +14,7 @@ module EDLoggingMortalityMod
    ! ====================================================================================
 
    use FatesConstantsMod , only : r8 => fates_r8
+   use FatesConstantsMod , only : rsnbl_math_prec
    use EDTypesMod        , only : ed_cohort_type
    use EDTypesMod        , only : ed_patch_type
    use EDTypesMod        , only : site_massbal_type
@@ -94,6 +95,8 @@ module EDLoggingMortalityMod
    public :: logging_time
    public :: IsItLoggingTime
    public :: get_harvest_rate_area
+   public :: get_harvestable_carbon
+   public :: get_harvest_rate_carbon
    public :: UpdateHarvestC
 
 contains
@@ -194,7 +197,9 @@ contains
                                      hlm_harvest_rates, hlm_harvest_catnames, &
                                      hlm_harvest_units, &
                                      patch_anthro_disturbance_label, secondary_age, &
-                                     frac_site_primary)
+                                     frac_site_primary, harvestable_forest_c, &
+                                     harvest_tag)
+
 
       ! Arguments
       integer,  intent(in)  :: pft_i            ! pft index 
@@ -205,6 +210,9 @@ contains
       integer, intent(in) :: hlm_harvest_units     ! unit type of hlm harvest rates: [area vs. mass]
       integer, intent(in) :: patch_anthro_disturbance_label    ! patch level anthro_disturbance_label
       real(r8), intent(in) :: secondary_age     ! patch level age_since_anthro_disturbance
+      real(r8), intent(in) :: harvestable_forest_c(:)  ! total harvestable forest carbon 
+                                                       ! of all hlm harvest categories
+      real(r8), intent(in) :: frac_site_primary
       real(r8), intent(out) :: lmort_direct     ! direct (harvestable) mortality fraction
       real(r8), intent(out) :: lmort_collateral ! collateral damage mortality fraction
       real(r8), intent(out) :: lmort_infra      ! infrastructure mortality fraction
@@ -212,9 +220,11 @@ contains
                                                 ! but suffer from forest degradation (i.e. they
                                                 ! are moved to newly-anthro-disturbed secondary
                                                 ! forest patch)
-      real(r8), intent(in) :: frac_site_primary
+      integer, intent(out) :: harvest_tag(:)    ! tag to record the harvest status, 0 - successful; 
+                                                ! 1 - unsuccessful since not enough carbon 
 
       ! Local variables
+      integer :: cur_harvest_tag ! the harvest tag of the cohort today
       real(r8) :: harvest_rate ! the final harvest rate to apply to this cohort today
 
       ! todo: probably lower the dbhmin default value to 30 cm
@@ -251,6 +261,10 @@ contains
             ! Get the area-based harvest rates based on info passed to FATES from the boundary condition
             call get_harvest_rate_area (patch_anthro_disturbance_label, hlm_harvest_catnames, &
                  hlm_harvest_rates, frac_site_primary, secondary_age, harvest_rate)
+
+            ! For area-based harvest, harvest_tag shall always be 0.
+            harvest_tag = 0
+            cur_harvest_tag = 0
 
             if (fates_global_verbose()) then
                write(fates_log(), *) 'Successfully Read Harvest Rate from HLM.'

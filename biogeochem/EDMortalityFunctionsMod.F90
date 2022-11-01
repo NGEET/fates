@@ -214,7 +214,8 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
 
  ! ============================================================================
 
- subroutine Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary)
+ subroutine Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary, &
+         harvestable_forest_c, harvest_tag)
 
     !
     ! !DESCRIPTION:
@@ -262,7 +263,7 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
                                bc_in%hlm_harvest_units, &
                                currentCohort%patchptr%anthro_disturbance_label, &
                                currentCohort%patchptr%age_since_anthro_disturbance, &
-                               frac_site_primary)
+                               frac_site_primary, harvestable_forest_c, harvest_tag)
 
     
     
