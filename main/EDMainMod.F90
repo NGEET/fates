@@ -606,7 +606,7 @@ contains
     ! fluxes. However, because this is potentially a cross-patch mixing model
     ! we will calculate this as a group
     
-    call SeedIn(currentSite,bc_in,bc_out)
+    call SeedUpdate(currentSite,bc_in,bc_out)
 
     ! Calculate all other litter fluxes
     ! -----------------------------------------------------------------------------------

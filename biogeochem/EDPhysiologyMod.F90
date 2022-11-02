@@ -1565,7 +1565,7 @@ contains
 
   ! =====================================================================================
   
-  subroutine SeedIn( currentSite, bc_in, bc_out)
+  subroutine SeedUpdate( currentSite, bc_in, bc_out)
 
     ! -----------------------------------------------------------------------------------
     ! Flux from plants into the seed pool.
@@ -1728,7 +1728,7 @@ contains
     end do
 
     return
-  end subroutine SeedIn
+  end subroutine SeedUpdate
 
   ! ============================================================================
 
