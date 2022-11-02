@@ -1020,7 +1020,8 @@ data:
 
  fates_damage_recovery_scalar = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
- fates_dev_arbitrary_pft = _, _, _, _, _, _, _, _, _, _, _, _ ;
+ fates_dev_arbitrary_pft = 1.7560, 1.4995, 1.4995, 1.7560, 1.7560, 1.7560, 
+    2.0749, 2.0749, 2.0749, 2.1956, 2.1956, _ ;
 
  fates_fire_alpha_SH = 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 
     0.2 ;
@@ -1490,7 +1491,7 @@ data:
 
  fates_leaf_theta_cj_c4 = 0.999 ;
 
- fates_maintresp_model = 1 ;
+ fates_maintresp_model = 2 ;
 
  fates_maxcohort = 100 ;
 

@@ -76,8 +76,7 @@ module FatesConstantsMod
 
   ! integer labels for specifying leaf maintenance respiration models
   integer, parameter, public :: lmrmodel_ryan_1991         = 1
-  integer, parameter, public :: lmrmodel_atkin_etal_2015   = 2
-  integer, parameter, public :: lmrmodel_heskel_etal_2016  = 3
+  integer, parameter, public :: lmrmodel_atkin_etal_2017   = 2
 
   ! Error Tolerances
 
