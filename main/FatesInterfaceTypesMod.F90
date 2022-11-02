@@ -196,14 +196,6 @@ module FatesInterfaceTypesMod
   integer, public ::  hlm_use_sp                                    !  Flag to use FATES satellite phenology (LAI) mode
                                                                     !  1 = TRUE, 0 = FALSE
 
-  integer, public :: hlm_dispersal_kernel_mode                      ! Flag to signal the use of grid cell seed dispersal
-                                                                    ! Setting this to greater than zero overrides seed rain
-
-  integer, parameter, public :: hlm_dispersal_kernel_none = 0                      ! no dispersal (use seed rain)
-  integer, parameter, public :: hlm_dispersal_kernel_exponential = 1              ! exponential dispersal kernel
-  integer, parameter, public :: hlm_dispersal_kernel_exppower = 2                 ! exponential power (ExP) dispersal kernel
-  integer, parameter, public :: hlm_dispersal_kernel_logsech = 3                  ! logistic-sech (LogS) dispersal kernel
-
    ! -------------------------------------------------------------------------------------
    ! Parameters that are dictated by FATES and known to be required knowledge
    !  needed by the HLMs
@@ -228,6 +220,15 @@ module FatesInterfaceTypesMod
 
    integer, public :: max_comp_per_site         ! This is the maximum number of nutrient aquisition
                                                            ! competitors that will be generated on each site
+   
+   
+   integer, public :: fates_dispersal_kernel_mode   !Flag to signal the use of grid cell seed dispersal
+                                                    ! Setting this to greater than zero overrides seed rain
+
+   integer, parameter, public :: fates_dispersal_kernel_none = 0         ! no dispersal (use seed rain)
+   integer, parameter, public :: fates_dispersal_kernel_exponential = 1  ! exponential dispersal kernel
+   integer, parameter, public :: fates_dispersal_kernel_exppower = 2     ! exponential power (ExP) dispersal kernel
+   integer, parameter, public :: fates_dispersal_kernel_logsech = 3      ! logistic-sech (LogS) dispersal kernel
    
    ! -------------------------------------------------------------------------------------
    ! These vectors are used for history output mapping

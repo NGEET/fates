@@ -60,6 +60,8 @@ contains
       ! Use
       use EDPftvarcon           , only : EDPftvarcon_inst 
       use FatesConstantsMod     , only : fates_check_param_set
+      use FatesInterfaceTypesMod, only : fates_dispersal_kernel_mode
+      use FatesInterfaceTypesMod, only : fates_dispersal_kernel_none
       
       ! Arguments
       class(dispersal_type), intent(inout) :: this
@@ -69,7 +71,7 @@ contains
       ! Check if seed dispersal mode is 'turned on' by checking the parameter values
       ! This assumes we consistency in the parameter file across all pfts, i.e. either
       ! all 'on' or all 'off'
-      if (EDPftvarcon_inst%seed_dispersal_param_A(1) > fates_check_param_set) return 
+      if (fates_dispersal_kernel_mode .eq. fates_dispersal_kernel_none) return 
       
       allocate(this%outgoing_local(numprocs,numpft))
       allocate(this%outgoing_global(numprocs,numpft))
@@ -88,10 +90,10 @@ contains
       ! Main subroutine that calls difference routines based on case select mode
 
       ! Use
-      use FatesInterfaceTypesMod, only : hlm_dispersal_kernel_exponential, &
-                                         hlm_dispersal_kernel_exppower, &
-                                         hlm_dispersal_kernel_logsech, &
-                                         hlm_dispersal_kernel_mode
+      use FatesInterfaceTypesMod, only : fates_dispersal_kernel_exponential, &
+                                         fates_dispersal_kernel_exppower, &
+                                         fates_dispersal_kernel_logsech, &
+                                         fates_dispersal_kernel_mode
 
       ! Arguments
       real(r8), intent(out) :: pd   ! Probability density
@@ -102,18 +104,18 @@ contains
       ! real(r8) :: param_a = 1._r8
       ! real(r8) :: param_b = 1._r8
 
-      hlm_dispersal_kernel_mode = 1
+      fates_dispersal_kernel_mode = 1
 
-      select case(hlm_dispersal_kernel_mode)
+      select case(fates_dispersal_kernel_mode)
 
-      case (hlm_dispersal_kernel_exponential)
+      case (fates_dispersal_kernel_exponential)
          pd = PD_exponential(dist,ipft)
-      case (hlm_dispersal_kernel_exppower)
+      case (fates_dispersal_kernel_exppower)
          pd = PD_exppower(dist,ipft)
-      case (hlm_dispersal_kernel_logsech)
+      case (fates_dispersal_kernel_logsech)
          pd = PD_logsech(dist,ipft)
       case default
-         write(fates_log(),*) 'ERROR: An undefined dispersal kernel was specified: ', hlm_dispersal_kernel_mode
+         write(fates_log(),*) 'ERROR: An undefined dispersal kernel was specified: ', fates_dispersal_kernel_mode
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end select
 

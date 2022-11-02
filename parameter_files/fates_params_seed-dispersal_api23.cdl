@@ -487,6 +487,10 @@ variables:
 	double fates_seed_decay_rate(fates_pft) ;
 		fates_seed_decay_rate:units = "yr-1" ;
 		fates_seed_decay_rate:long_name = "fraction of seeds that decay per year" ;
+	double fates_seed_dispersal_max_dist(fates_pft) ;
+		fates_seed_dispersal_max_dist:units = "m" ;
+		fates_seed_dispersal_max_dist:long_name = "maximum seed dispersal distance for a given pft" ;
+		fates_seed_dispersal_max_dist:use_case = "undefined" ;
 	double fates_seed_dispersal_param_A(fates_pft) ;
 		fates_seed_dispersal_param_A:units = "unitless" ;
 		fates_seed_dispersal_param_A:long_name = "seed dispersal scale parameter" ;
@@ -1279,6 +1283,8 @@ data:
 
  fates_seed_decay_rate = 0.51, 0.51, 0.51, 0.51, 0.51, 0.51, 0.51, 0.51, 
     0.51, 0.51, 0.51, 0.51 ;
+
+ fates_seed_dispersal_max_dist = _, _, _, _, _, _, _, _, _, _, _, _ ;
 
  fates_seed_dispersal_param_A = _, _, _, _, _, _, _, _, _, _, _, _ ;
 

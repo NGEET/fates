@@ -748,7 +748,8 @@ contains
        ! FATES derived.
        !
        ! --------------------------------------------------------------------------------
-
+      
+      use FatesConstantsMod,      only : fates_check_param_set
 
       implicit none
       
@@ -889,6 +890,17 @@ contains
                call endrun(msg=errMsg(sourcefile, __LINE__))
             end if
          end do
+         
+         ! Set the fates dispersal kernel mode if there are any seed dispersal parameters set.
+         ! The validation of the parameter values is check in FatesCheckParams prior to this check.
+         ! This is currently hard coded.
+         if(any(EDPftvarcon_inst%seed_dispersal_param_A .lt. fates_check_param_set)) then
+            fates_dispersal_kernel_mode = fates_dispersal_kernel_exponential
+            ! fates_dispersal_kernel_mode = fates_dispersal_kernel_exppower
+            ! fates_dispersal_kernel_mode = fates_dispersal_kernel_logsech
+         else
+            fates_dispersal_kernel_mode = fates_dispersal_kernel_none
+         end if
 
          ! Initialize Hydro globals 
          ! (like water retention functions)
@@ -1899,7 +1911,6 @@ contains
       use perf_mod              , only : t_startf, t_stopf
       use FatesDispersalMod     , only : neighborhood_type, neighbor_type, ProbabilityDensity
       use FatesUtilsMod         , only : GetNeighborDistance
-      use FatesInterfaceTypesMod, only : numpft
       use EDPftvarcon           , only : EDPftvarcon_inst 
       use FatesConstantsMod     , only : fates_check_param_set
       
@@ -1921,18 +1932,15 @@ contains
       integer, allocatable :: ncells_array(:), begg_array(:)
       real(r8), allocatable :: gclat(:), gclon(:)
       
-      real(r8) :: g2g_dist ! grid cell distance
-      real(r8) :: g2g_dist_max ! grid cell distance
-      real(r8) :: pdf ! temp
+      ! 5 deg = 785.8 km, 10 deg = 1569 km, 15deg = 2345 km assumes cartesian layout with diagonal distance
+      real(r8) :: g2g_dist ! grid cell distance (m)
+      real(r8) :: pdf
       
       ! Check if seed dispersal mode is 'turned on' by checking the parameter values
       if (EDPftvarcon_inst%seed_dispersal_param_A(1) > fates_check_param_set) return 
       
-      ! Parameters and constants, to be moved to fates param file
-      ! Both of these should probably be per pft
-      ! real(r8) :: decay_rate = 1._r8
-      g2g_dist_max = 2500._r8 * 1000._r8 ! maximum search distance [m]
-         ! 5 deg = 785.8 km, 10 deg = 1569 km, 15deg = 2345 km assumes cartesian layout with diagonal distance
+      if(hlm_is_restart .eq. itrue) write(fates_log(),*) 'gridcell initialization during restart'
+     
          
       ! Allocate array neighbor type
       numg = size(ldecomp%gdc2glo)
@@ -1991,7 +1999,7 @@ contains
             ! Determine distance to old grid cells to the current one
             g2g_dist = GetNeighborDistance(gi,gj,gclat,gclon)
             
-            dist_check: if (g2g_dist .le. g2g_dist_max) then
+            dist_check: if (any(EDPftvarcon_inst%seed_dispersal_max_dist .gt. g2g_dist)) then
             
                ! Add neighbor index to current grid cell index list
                allocate(current_neighbor)
