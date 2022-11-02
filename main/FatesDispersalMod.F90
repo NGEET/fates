@@ -100,12 +100,8 @@ contains
       integer, intent(in)   :: ipft ! pft index
       real(r8), intent(in)  :: dist ! distance
 
-      ! Local - temp
-      ! real(r8) :: param_a = 1._r8
-      ! real(r8) :: param_b = 1._r8
-
-      fates_dispersal_kernel_mode = 1
-
+      ! Select the function to use based on the kernel mode
+      ! Note that fates_dispersal_kernel_none mode is checked prior to this call being made
       select case(fates_dispersal_kernel_mode)
 
       case (fates_dispersal_kernel_exponential)
