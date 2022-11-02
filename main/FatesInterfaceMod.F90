@@ -2018,7 +2018,6 @@ contains
                end if
                
                neighbors(gi)%neighbor_count = neighbors(gi)%neighbor_count + 1
-               ! neighbors(gi)%density_prob_tot = neighbors(gi)%density_prob_tot + current_neighbor%density_prob
                
                ! Add current grid cell index to the neighbor's list as well
                allocate(another_neighbor)
@@ -2042,7 +2041,6 @@ contains
                end if
                
                neighbors(gj)%neighbor_count = neighbors(gj)%neighbor_count + 1
-               ! neighbors(gj)%density_prob_tot = neighbors(gj)%density_prob_tot + another_neighbor%density_prob
             
             end if dist_check
          end do neighbor_search
