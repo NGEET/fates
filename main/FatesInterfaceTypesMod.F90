@@ -521,10 +521,7 @@ module FatesInterfaceTypesMod
       real(r8),allocatable :: hksat_sisl(:)        ! hydraulic conductivity at saturation (mm H2O /s)
       real(r8),allocatable :: h2o_liq_sisl(:)      ! Liquid water mass in each layer (kg/m2)
       real(r8) :: smpmin_si                        ! restriction for min of soil potential (mm)
-     
-      !YL------------
       real(r8), allocatable :: seed_in(:)          ! amount of seed dispersed into the site from neighbouring cells  [kg/site/day]
-      !--------------
  
       ! Land use
       ! ---------------------------------------------------------------------------------
@@ -724,10 +721,7 @@ module FatesInterfaceTypesMod
                                                        ! small fluxes for various reasons
                                                        ! [mm H2O/s]
 
-      !YL-------------
-      ! Seed dispersal
       real(r8),allocatable :: seed_out(:)            ! amount of seed leaving the site [kg/site/day]
-      !---------------
       
    end type bc_out_type
 

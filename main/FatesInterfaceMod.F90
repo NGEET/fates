@@ -369,10 +369,8 @@ contains
     end if
     fates%bc_out(s)%plant_stored_h2o_si = 0.0_r8
 
-    !YL-------
     fates%bc_in(s)%seed_in(:) = 0.0_r8
     fates%bc_out(s)%seed_out(:) = 0.0_r8
-    !---------
     
     return
   end subroutine zero_bcs
@@ -533,12 +531,8 @@ contains
          allocate(bc_in%h2o_liq_sisl(nlevsoil_in)); bc_in%h2o_liq_sisl = nan
       end if
 
-
-      !YL---------
       ! Seed dispersal
       allocate(bc_in%seed_in(1:numpft))
-      !-----------
-
 
       ! Land use
 
@@ -692,10 +686,8 @@ contains
          allocate(bc_out%qflx_ro_sisl(nlevsoil_in))
       end if
 
-      !YL---------
       ! Seed dispersal
       allocate(bc_out%seed_out(1:numpft))
-      !-----------
 
       return
    end subroutine allocate_bcout
@@ -2058,21 +2050,6 @@ contains
       
       call t_stopf('fates-seed-init-decomp')
 
-      ! Diagnostic output
-      !YL--------
-      ! if (masterproc) then
-      !   write(fates_log(),*)' Surface Grid Characteristics'
-      !   write(fates_log(),*)'   longitude points               = ',lni
-      !   write(fates_log(),*)'   latitude points                = ',lnj
-      !   write(fates_log(),*)'   total number of land gridcells = ',numg
-      !   write(fates_log(),*)' Decomposition Characteristics'
-      !   write(fates_log(),*)'   clumps per process             = ',clump_pproc
-      !   write(fates_log(),*)' gsMap Characteristics'
-      !   write(fates_log(),*) '  lnd gsmap glo num of segs      = ',mct_gsMap_ngseg(gsMap_lnd_gdc2glo)
-      !   write(fates_log(),*)
-      ! end if
-      !----------
-   
    end subroutine DetermineGridCellNeighbors
       
  end module FatesInterfaceMod
