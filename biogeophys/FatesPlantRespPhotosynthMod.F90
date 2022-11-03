@@ -128,7 +128,6 @@ contains
     use FatesInterfaceTypesMod , only : bc_out_type
     use EDCanopyStructureMod, only : calc_areaindex
     use FatesConstantsMod, only : umolC_to_kgC
-    use FatesConstantsMod, only : g_per_kg
     use FatesConstantsMod, only : umol_per_mmol
     use FatesConstantsMod, only : rgas => rgas_J_K_kmol
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
@@ -531,15 +530,15 @@ contains
                                case (lmrmodel_atkin_etal_2017)
 
                                   call LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, &  ! in
-                                       nscaler,                  &  ! in
-                                       ft,                       &  ! in
-                                       bc_in(s)%t_veg_pa(ifp),   &  ! in
-                                       currentPatch%tveg_lpa,    &  ! in
-                                       lmr_z(iv,ft,cl))             ! out
+                                       nscaler,                            &  ! in
+                                       ft,                                 &  ! in
+                                       bc_in(s)%t_veg_pa(ifp),             &  ! in
+                                       currentPatch%tveg_lpa%GetMean(),    &  ! in
+                                       lmr_z(iv,ft,cl))                       ! out
 
                                case default
 
-                                  write (fates_log(),*)'error, incorrect leaf respiration model specified')
+                                  write (fates_log(),*)'error, incorrect leaf respiration model specified'
                                   call endrun(msg=errMsg(sourcefile, __LINE__))
 
                                end select
@@ -1985,6 +1984,9 @@ subroutine LeafLayerMaintenanceRespiration_Ryan_1991(lnc_top, &
    lmr)
 
    use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
+   use FatesConstantsMod, only : umolC_to_kgC
+   use FatesConstantsMod, only : g_per_kg
+   use EDPftvarcon      , only : EDPftvarcon_inst
    
    ! -----------------------------------------------------------------------
    ! Base maintenance respiration rate for plant tissues base_mr_20
@@ -2020,9 +2022,9 @@ subroutine LeafLayerMaintenanceRespiration_Ryan_1991(lnc_top, &
 
    ! Part I: Leaf Maintenance respiration: umol CO2 / m**2 [leaf] / s
    ! ----------------------------------------------------------------------------------
-   lmr25 = lmr25top_ft * nscaler
+   lmr25 = lmr25top * nscaler
 
-   if ( nint(EDpftvarcon_inst%c3psn(ft)) == 1)then
+   if ( nint(EDPftvarcon_inst%c3psn(ft)) == 1)then
       lmr = lmr25 * ft1_f(veg_tempk, lmrha) * &
          fth_f(veg_tempk, lmrhd, lmrse, lmrc)
    else
@@ -2045,6 +2047,9 @@ subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, &
    lmr)
 
    use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
+   use FatesConstantsMod, only : umolC_to_kgC
+   use FatesConstantsMod, only : g_per_kg
+   use EDPftvarcon      , only : EDPftvarcon_inst
 
    ! Arguments
    real(r8), intent(in)  :: lnc_top      ! Leaf nitrogen content per unit area at canopy top [gN/m2]
@@ -2058,15 +2063,17 @@ subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, &
    real(r8) :: lmr25   ! leaf layer: leaf maintenance respiration rate at 25C (umol CO2/m**2/s)
    real(r8) :: r_0     ! base respiration rate, PFT-dependent (umol CO2/m**2/s)
    real(r8) :: r_t_ref ! acclimated ref respiration rate (umol CO2/m**2/s)
+   real(r8) :: lnc     ! Leaf nitrogen content per unit area at this level [gN/m2] 
+   real(r8) :: lmr25top  ! canopy top leaf maint resp rate at 25C for this pft (umol CO2/m**2/s)
 
    ! Parameters
    ! values from Atkin et al., 2017 https://doi.org/10.1007/978-3-319-68703-2_6
    ! and Heskel et al., 2016 https://doi.org/10.1073/pnas.1520282113
-   real(r8), parameter :: b = 0.1012_r8       (degrees C**-1)
-   real(r8), parameter :: c = -0.0005_r8      (degrees C**-2)
-   real(r8), parameter :: Tref = tfrz+25._r8  (degrees K)
-   real(r8), parameter :: r_1 = 0.2061_r8     (umol CO2/m**2/s / (gN/(m2 leaf))) 
-   real(r8), parameter :: r_2 = -0.0402_r8    (umol CO2/m**2/s/degree C)
+   real(r8), parameter :: b = 0.1012_r8       ! (degrees C**-1)
+   real(r8), parameter :: c = -0.0005_r8      ! (degrees C**-2)
+   real(r8), parameter :: Tref = tfrz+25._r8  ! (degrees K)
+   real(r8), parameter :: r_1 = 0.2061_r8     ! (umol CO2/m**2/s / (gN/(m2 leaf))) 
+   real(r8), parameter :: r_2 = -0.0402_r8    ! (umol CO2/m**2/s/degree C)
 
    ! parameter values of r_0 as listed in Atkin et al 2017: (umol CO2/m**2/s) 
    ! Broad-leaved trees  1.7560
@@ -2076,10 +2083,10 @@ subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, &
 
    lnc = lnc_top * nscaler
 
-   if ( nint(EDpftvarcon_inst%c3psn(ft)) == 1)then
+   if ( nint(EDPftvarcon_inst%c3psn(ft)) == 1)then
 
-      ! r_0 currently put into the EDpftvarcon_inst%fates_dev_arbitrary_pft
-      r_0 = EDpftvarcon_inst%fates_dev_arbitrary_pft(ft)
+      ! r_0 currently put into the EDPftvarcon_inst%dev_arbitrary_pft
+      r_0 = EDPftvarcon_inst%dev_arbitrary_pft(ft)
       r_t_ref = r_0 + r_1 * lnc + r_2 * tgrowth
 
       lmr = r_t_ref * exp(b * (veg_tempk - Tref) + c * (veg_tempk**2 - Tref**2))
