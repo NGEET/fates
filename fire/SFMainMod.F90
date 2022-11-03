@@ -427,8 +427,6 @@ contains
                              SF_val_miner_damp,  &
                              SF_val_fuel_energy
     
-    use FatesInterfaceTypesMod, only : hlm_current_day, hlm_current_month
-
     type(ed_site_type), intent(in), target :: currentSite
 
     type(ed_patch_type), pointer :: currentPatch
