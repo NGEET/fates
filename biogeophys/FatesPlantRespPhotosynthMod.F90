@@ -2071,7 +2071,7 @@ subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, &
    ! and Heskel et al., 2016 https://doi.org/10.1073/pnas.1520282113
    real(r8), parameter :: b = 0.1012_r8       ! (degrees C**-1)
    real(r8), parameter :: c = -0.0005_r8      ! (degrees C**-2)
-   real(r8), parameter :: Tref = tfrz+25._r8  ! (degrees K)
+   real(r8), parameter :: TrefC = 25._r8      ! (degrees C)
    real(r8), parameter :: r_1 = 0.2061_r8     ! (umol CO2/m**2/s / (gN/(m2 leaf))) 
    real(r8), parameter :: r_2 = -0.0402_r8    ! (umol CO2/m**2/s/degree C)
 
@@ -2086,13 +2086,14 @@ subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, &
    if ( nint(EDPftvarcon_inst%c3psn(ft)) == 1)then
 
       ! r_0 currently put into the EDPftvarcon_inst%dev_arbitrary_pft
+      ! all figs in Atkin et al 2017 stop at zero Celsius so we will assume acclimation is fixed below that
       r_0 = EDPftvarcon_inst%dev_arbitrary_pft(ft)
-      r_t_ref = r_0 + r_1 * lnc + r_2 * tgrowth
+      r_t_ref = r_0 + r_1 * lnc + r_2 * max(0._r8, (tgrowth - tfrz) )
 
-      lmr = r_t_ref * exp(b * (veg_tempk - Tref) + c * (veg_tempk**2 - Tref**2))
+      lmr = r_t_ref * exp(b * (veg_tempk - tfrz - TrefC) + c * ((veg_tempk-tfrz)**2 - TrefC**2))
 
    else
-      ! revert to Q10 model for C4 plants, parameter values as described above
+      ! revert to Q10 model for C4 plants, parameter values as described above in Ryan 1991 method
 
       lmr25top = 2.525e-6_r8 * (1.5_r8 ** ((25._r8 - 20._r8)/10._r8))
       lmr25top = lmr25top * lnc / (umolC_to_kgC * g_per_kg)
