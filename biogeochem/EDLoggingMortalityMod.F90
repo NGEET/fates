@@ -620,6 +620,9 @@ contains
         harvest_rate = 0._r8
      end if
 
+     ! Prevent the generation of tiny secondary patches
+     if(harvest_rate < 1e-8) harvest_rate = 0._r8
+
      ! For carbon-based harvest rate, normalizing by site-level primary or secondary forest fraction
      ! is not needed
 
