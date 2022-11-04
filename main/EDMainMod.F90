@@ -43,7 +43,7 @@ module EDMainMod
   use EDPhysiologyMod          , only : satellite_phenology
   use EDPhysiologyMod          , only : recruitment
   use EDPhysiologyMod          , only : trim_canopy
-  use EDPhysiologyMod          , only : SeedIn
+  use EDPhysiologyMod          , only : SeedUpdate
   use EDPhysiologyMod          , only : ZeroAllocationRates
   use EDPhysiologyMod          , only : ZeroLitterFluxes
   use EDPhysiologyMod          , only : PreDisturbanceLitterFluxes
