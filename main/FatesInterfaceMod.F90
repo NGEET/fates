@@ -134,8 +134,6 @@ module FatesInterfaceMod
 
    end type fates_interface_type
    
-   
-
    character(len=*), parameter :: sourcefile = &
         __FILE__
 
@@ -153,6 +151,7 @@ module FatesInterfaceMod
    public :: set_bcs
    public :: UpdateFatesRMeansTStep
    public :: InitTimeAveragingGlobals
+   public :: DetermineGridCellNeighbors
    
 contains
 
@@ -370,10 +369,8 @@ contains
     end if
     fates%bc_out(s)%plant_stored_h2o_si = 0.0_r8
 
-    !YL-------
     fates%bc_in(s)%seed_in(:) = 0.0_r8
     fates%bc_out(s)%seed_out(:) = 0.0_r8
-    !---------
     
     return
   end subroutine zero_bcs
@@ -534,12 +531,8 @@ contains
          allocate(bc_in%h2o_liq_sisl(nlevsoil_in)); bc_in%h2o_liq_sisl = nan
       end if
 
-
-      !YL---------
       ! Seed dispersal
       allocate(bc_in%seed_in(1:numpft))
-      !-----------
-
 
       ! Land use
 
@@ -693,10 +686,8 @@ contains
          allocate(bc_out%qflx_ro_sisl(nlevsoil_in))
       end if
 
-      !YL---------
       ! Seed dispersal
       allocate(bc_out%seed_out(1:numpft))
-      !-----------
 
       return
    end subroutine allocate_bcout
@@ -749,7 +740,8 @@ contains
        ! FATES derived.
        !
        ! --------------------------------------------------------------------------------
-
+      
+      use FatesConstantsMod,      only : fates_check_param_set
 
       implicit none
       
@@ -890,6 +882,17 @@ contains
                call endrun(msg=errMsg(sourcefile, __LINE__))
             end if
          end do
+         
+         ! Set the fates dispersal kernel mode if there are any seed dispersal parameters set.
+         ! The validation of the parameter values is check in FatesCheckParams prior to this check.
+         ! This is currently hard coded.
+         if(any(EDPftvarcon_inst%seed_dispersal_param_A .lt. fates_check_param_set)) then
+            fates_dispersal_kernel_mode = fates_dispersal_kernel_exponential
+            ! fates_dispersal_kernel_mode = fates_dispersal_kernel_exppower
+            ! fates_dispersal_kernel_mode = fates_dispersal_kernel_logsech
+         else
+            fates_dispersal_kernel_mode = fates_dispersal_kernel_none
+         end if
 
          ! Initialize Hydro globals 
          ! (like water retention functions)
@@ -1884,5 +1887,167 @@ contains
 
      return
    end subroutine UpdateFatesRMeansTStep
+   
+   ! ======================================================================================
+      
+   subroutine DetermineGridCellNeighbors(neighbors)
+   
+      ! This subroutine utilizes information from the decomposition and domain types to determine
+      ! the set of grid cell neighbors within some maximum distance.  It records the distance for each
+      ! neighbor for later use.  This should be called after decompInit_lnd and surf_get_grid
+      ! as it relies on ldecomp and ldomain information.
+
+      use decompMod             , only : ldecomp, procinfo, get_proc_global
+      use domainMod             , only : ldomain
+      use spmdMod               , only : MPI_REAL8, MPI_INTEGER, mpicom, npes, masterproc, iam
+      use perf_mod              , only : t_startf, t_stopf
+      use FatesDispersalMod     , only : neighborhood_type, neighbor_type, ProbabilityDensity
+      use FatesUtilsMod         , only : GetNeighborDistance
+      use EDPftvarcon           , only : EDPftvarcon_inst 
+      use FatesConstantsMod     , only : fates_check_param_set
+      
+      ! Arguments
+      type(neighborhood_type), intent(inout), pointer :: neighbors(:)
+    
+      ! Local variables
+      type (neighbor_type), pointer :: current_neighbor
+      type (neighbor_type), pointer :: another_neighbor
+      
+      integer :: i, gi,gj  ! indices
+      integer :: numg   ! number of land gridcells
+      integer :: ngcheck   ! number of land gridcells, globally
+      integer :: numproc   ! number of processors, globally
+      integer :: ier,mpierr   ! error code
+      integer :: ipft         ! pft index
+      
+      integer :: ldsize ! ldomain size
+      integer, allocatable :: ncells_array(:), begg_array(:)
+      real(r8), allocatable :: gclat(:), gclon(:)
+      
+      ! 5 deg = 785.8 km, 10 deg = 1569 km, 15deg = 2345 km assumes cartesian layout with diagonal distance
+      real(r8) :: g2g_dist ! grid cell distance (m)
+      real(r8) :: pdf
+      
+      ! Check if seed dispersal mode is 'turned on' by checking the parameter values
+      if (EDPftvarcon_inst%seed_dispersal_param_A(1) > fates_check_param_set) return 
+      
+      if(hlm_is_restart .eq. itrue) write(fates_log(),*) 'gridcell initialization during restart'
+     
+         
+      ! Allocate array neighbor type
+      numg = size(ldecomp%gdc2glo)
+      ! call get_proc_global(ng=ngcheck,np=numproc)
+      
+      ! write(fates_log(),*)'DGCN: numg, ngcheck: ', numg, ngcheck
+      ! write(fates_log(),*)'DGCN: npes, numproc: ', npes, numproc
+      
+      allocate(neighbors(numg), stat=ier)
+      ! neighbors(:)%density_prob_tot = nan
+      neighbors(:)%neighbor_count = 0
+      
+      allocate(gclat(numg))
+      allocate(gclon(numg))
+      gclon = nan
+      gclat = nan
+      
+      allocate(ncells_array(0:npes-1))
+      allocate(begg_array(0:npes-1))
+      ncells_array = -999
+      begg_array = -999
+      
+      write(fates_log(),*)'DGCN: procinfo%ncells: ', procinfo%ncells
+      write(fates_log(),*)'DGCN: procinfo%begg: ', procinfo%begg
+      
+      call t_startf('fates-seed-init-allgather')
+      ! Gather the sizes of the ldomain that each mpi rank is passing
+      call MPI_Allgather(procinfo%ncells,1,MPI_INTEGER,ncells_array,1,MPI_INTEGER,mpicom,mpierr)
+      
+      ! Gather the starting index for each ldomain (reduce begging index by one for mpi rank conversion)
+      call MPI_Allgather(procinfo%begg-1,1,MPI_INTEGER,begg_array,1,MPI_INTEGER,mpicom,mpierr)
+      
+      ! Gather the domain information together into the neighbor type
+      call MPI_Allgatherv(ldomain%latc,procinfo%ncells,MPI_REAL8,gclat,ncells_array,begg_array,MPI_REAL8,mpicom,mpierr)
+      call MPI_Allgatherv(ldomain%lonc,procinfo%ncells,MPI_REAL8,gclon,ncells_array,begg_array,MPI_REAL8,mpicom,mpierr)
+      
+      if (iam==1) then
+         write(fates_log(),*)'DGCN: ncells_array: ', ncells_array
+         write(fates_log(),*)'DGCN: begg_array: ', begg_array
+         write(fates_log(),*)'DGCN: sum(gclat):, sum(gclon): ', sum(gclat), sum(gclon)
+         do i = 1,numg
+            write(fates_log(),*)'DGCN: i, gclat, gclon: ', i, gclat(i), gclon(i)
+         end do
+      end if
+      
+      call t_stopf('fates-seed-init-allgather')
+      
+      call t_startf('fates-seed-init-decomp')
+      
+      ! Iterate through the grid cell indices and determine if any neighboring cells are in range
+      gc_loop: do gi = 1,numg-1
+      
+         ! Seach forward through all indices for neighbors to current grid cell index
+         neighbor_search: do gj = gi+1,numg
+           
+            ! Determine distance to old grid cells to the current one
+            g2g_dist = GetNeighborDistance(gi,gj,gclat,gclon)
+            
+            dist_check: if (any(EDPftvarcon_inst%seed_dispersal_max_dist .gt. g2g_dist)) then
+            
+               ! Add neighbor index to current grid cell index list
+               allocate(current_neighbor)
+               current_neighbor%next_neighbor => null()
+               
+               ! ldomain and ldecomp indices match per initGridCells
+               current_neighbor%gindex = ldecomp%gdc2glo(gj) 
+               
+               current_neighbor%gc_dist = g2g_dist
+               
+               allocate(current_neighbor%density_prob(numpft))
+               
+               do ipft = 1, numpft
+                  call ProbabilityDensity(pdf, ipft, g2g_dist)
+                  current_neighbor%density_prob(ipft) = pdf
+               end do
+              
+               if (associated(neighbors(gi)%first_neighbor)) then
+                 neighbors(gi)%last_neighbor%next_neighbor => current_neighbor
+                 neighbors(gi)%last_neighbor => current_neighbor
+               else
+                 neighbors(gi)%first_neighbor => current_neighbor
+                 neighbors(gi)%last_neighbor => current_neighbor
+               end if
+               
+               neighbors(gi)%neighbor_count = neighbors(gi)%neighbor_count + 1
+               
+               ! Add current grid cell index to the neighbor's list as well
+               allocate(another_neighbor)
+               another_neighbor%next_neighbor => null()
+               
+               ! ldomain and ldecomp indices match per initGridCells
+               another_neighbor%gindex = ldecomp%gdc2glo(gi) 
+               
+               another_neighbor%gc_dist = current_neighbor%gc_dist
+               allocate(another_neighbor%density_prob(numpft))
+               do ipft = 1, numpft
+                  another_neighbor%density_prob(ipft) = current_neighbor%density_prob(ipft)
+               end do
+               
+               if (associated(neighbors(gj)%first_neighbor)) then
+                 neighbors(gj)%last_neighbor%next_neighbor => another_neighbor
+                 neighbors(gj)%last_neighbor => another_neighbor
+               else
+                 neighbors(gj)%first_neighbor => another_neighbor
+                 neighbors(gj)%last_neighbor => another_neighbor
+               end if
+               
+               neighbors(gj)%neighbor_count = neighbors(gj)%neighbor_count + 1
+            
+            end if dist_check
+         end do neighbor_search
+      end do gc_loop
+      
+      call t_stopf('fates-seed-init-decomp')
+
+   end subroutine DetermineGridCellNeighbors
       
  end module FatesInterfaceMod

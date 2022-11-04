@@ -12,7 +12,7 @@ module FatesUtilsMod
   ! Make public necessary subroutines and functions
   public :: check_hlm_list
   public :: check_var_real
-  public :: GreatCircleDist
+  public :: GetNeighborDistance
 
 contains
   
@@ -126,8 +126,23 @@ contains
      return
  
   end function GreatCircleDist
+  
+  
+  ! ======================================================================================
+ 
+  function GetNeighborDistance(gi,gj,latc,lonc) result(gcd)
    
+      integer,  intent(in) :: gi,gj     ! indices of gridcells
+      real(r8), intent(in) :: latc(:),lonc(:) ! lat/lon of gridcells
+      real(r8) :: gcd
+    
+      ! write(fates_log(),*)'neighborhood: size ldomain latc/lonc: ', size(ldomain%latc), size(ldomain%lonc)
+      
+      gcd = GreatCircleDist(lonc(gi),lonc(gj), &
+                            latc(gi),latc(gj))
    
-
+  end function GetNeighborDistance
+   
+  ! ====================================================================================== 
 
 end module FatesUtilsMod

@@ -319,10 +319,6 @@ contains
                litt%seed_germ_in(pft) - &
                litt%seed_germ_decay(pft)
 
-          !YL------
-          !write(fates_log(),*) 'el, pft, litt%seed_germ(pft), litt%seed(pft), litt%seed_in_local(pft): ', el, pft, litt%seed_germ(pft), litt%seed(pft), litt%seed_in_local(pft)
-          !-------
-
        enddo
 
        ! Update the Coarse Woody Debris pools (above and below)
@@ -1569,10 +1565,7 @@ contains
 
   ! =====================================================================================
   
-  !YL--------------
-  !subroutine SeedIn( currentSite, bc_in)
-  subroutine SeedIn( currentSite, bc_in, bc_out)
-  !----------------
+  subroutine SeedUpdate( currentSite, bc_in, bc_out)
 
     ! -----------------------------------------------------------------------------------
     ! Flux from plants into the seed pool.
@@ -1594,10 +1587,7 @@ contains
     ! !ARGUMENTS
     type(ed_site_type), intent(inout), target  :: currentSite
     type(bc_in_type), intent(in)               :: bc_in
-
-    !YL---------
     type(bc_out_type),  intent(inout)          :: bc_out
-    !-----------
 
     type(ed_patch_type), pointer     :: currentPatch
     type(litter_type), pointer       :: litt
@@ -1613,19 +1603,13 @@ contains
     integer  :: n_litt_types           ! number of litter element types (c,n,p, etc)
     integer  :: el                     ! loop counter for litter element types
     integer  :: element_id             ! element id consistent with parteh/PRTGenericMod.F90
-
-
-    !YL--------- 
     real(r8) :: disp_frac(maxpft) ! fraction of seed-rain among the site_seed_rain that's leaving the site [unitless]
-    !-----------
 
     do el = 1, num_elements
 
        site_seed_rain(:) = 0._r8
 
-       !YL-------
        disp_frac(:) = 0.2       ! to be specified in the parameter file or calculated using dispersal kernel 
-       !---------
 
        element_id = element_list(el)
 
@@ -1695,11 +1679,8 @@ contains
              if(currentSite%use_this_pft(pft).eq.itrue)then
              ! Seed input from local sources (within site)
 
-             !YL-----
-             !litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)/area
              litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)*(1-disp_frac(pft))/area ![kg/m2/day]
              !write(fates_log(),*) 'pft, litt%seed_in_local(pft), site_seed_rain(pft): ', pft, litt%seed_in_local(pft), site_seed_rain(pft)
-             !-------
 
              ! If there is forced external seed rain, we calculate the input mass flux
              ! from the different elements, usung the seed optimal stoichiometry
@@ -1718,17 +1699,10 @@ contains
              end select
              
              ! Seed input from external sources (user param seed rain, or dispersal model)
-
-             !YL, include both prescribed seed_suppl and seed_in dispersed from neighbouring gridcells ---------
-             
-             !seed_in_external =  seed_stoich*EDPftvarcon_inst%seed_suppl(pft)*years_per_day ![kg/m2/day]
-
-             ! bc%seed_in(pft) in [kg/site/day]
+             ! Include both prescribed seed_suppl and seed_in dispersed from neighbouring gridcells
              seed_in_external = bc_in%seed_in(pft)/area + seed_stoich*EDPftvarcon_inst%seed_suppl(pft)*years_per_day ![kg/m2/day]
+             ! write(fates_log(),*) 'pft, bc_in%seed_in(pft),bc_in%seed_in(pft)/currentPatch%area, seed_in_external: ', pft, bc_in%seed_in(pft), bc_in%seed_in(pft)/currentPatch%area, seed_in_external
 
-             write(fates_log(),*) 'pft, bc_in%seed_in(pft),bc_in%seed_in(pft)/currentPatch%area, seed_in_external: ', pft, bc_in%seed_in(pft), bc_in%seed_in(pft)/currentPatch%area, seed_in_external
-
-             !--------------------------------------------------------------------------------------------------
              litt%seed_in_extern(pft) = litt%seed_in_extern(pft) + seed_in_external
 
              ! Seeds entering externally [kg/site/day]
@@ -1741,24 +1715,20 @@ contains
           currentPatch => currentPatch%younger
        enddo
 
-       !YL, 06/23/2021, track seed mass (of each element) leaving the site -----------
         do pft = 1,numpft
             site_mass%seed_out = site_mass%seed_out + site_seed_rain(pft)*disp_frac(pft) ![kg/site/day]
             !write(fates_log(),*) 'pft, site_seed_rain(pft), site_mass%seed_out: ', pft, site_mass%seed_out
         end do
-        !-----------------------------------------------------------------------------
  
     end do
 
-    !YL---------
     do pft = 1,numpft
         bc_out%seed_out(pft) = bc_out%seed_out(pft) + site_seed_rain(pft)*disp_frac(pft) ![kg/site/day]
         write(fates_log(),*) 'pft, bc_in%seed_in(pft), bc_out%seed_out(pft): ', pft, bc_in%seed_in(pft), bc_out%seed_out(pft)
     end do
-    !-----------
 
     return
-  end subroutine SeedIn
+  end subroutine SeedUpdate
 
   ! ============================================================================
 

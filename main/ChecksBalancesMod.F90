@@ -72,9 +72,6 @@ contains
      
      total_stock = biomass_stock + seed_stock + litter_stock
 
-     !YL-----
-     !write(fates_log(),*) 'seed_stock, litter_stock: ', seed_stock, litter_stock
-     !-------
      return
   end subroutine SiteMassStock
 

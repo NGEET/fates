@@ -195,6 +195,7 @@ module FatesInterfaceTypesMod
 
   integer, public ::  hlm_use_sp                                    !  Flag to use FATES satellite phenology (LAI) mode
                                                                     !  1 = TRUE, 0 = FALSE
+
    ! -------------------------------------------------------------------------------------
    ! Parameters that are dictated by FATES and known to be required knowledge
    !  needed by the HLMs
@@ -219,6 +220,15 @@ module FatesInterfaceTypesMod
 
    integer, public :: max_comp_per_site         ! This is the maximum number of nutrient aquisition
                                                            ! competitors that will be generated on each site
+   
+   
+   integer, public :: fates_dispersal_kernel_mode   !Flag to signal the use of grid cell seed dispersal
+                                                    ! Setting this to greater than zero overrides seed rain
+
+   integer, parameter, public :: fates_dispersal_kernel_none = 0         ! no dispersal (use seed rain)
+   integer, parameter, public :: fates_dispersal_kernel_exponential = 1  ! exponential dispersal kernel
+   integer, parameter, public :: fates_dispersal_kernel_exppower = 2     ! exponential power (ExP) dispersal kernel
+   integer, parameter, public :: fates_dispersal_kernel_logsech = 3      ! logistic-sech (LogS) dispersal kernel
    
    ! -------------------------------------------------------------------------------------
    ! These vectors are used for history output mapping
@@ -511,10 +521,7 @@ module FatesInterfaceTypesMod
       real(r8),allocatable :: hksat_sisl(:)        ! hydraulic conductivity at saturation (mm H2O /s)
       real(r8),allocatable :: h2o_liq_sisl(:)      ! Liquid water mass in each layer (kg/m2)
       real(r8) :: smpmin_si                        ! restriction for min of soil potential (mm)
-     
-      !YL------------
       real(r8), allocatable :: seed_in(:)          ! amount of seed dispersed into the site from neighbouring cells  [kg/site/day]
-      !--------------
  
       ! Land use
       ! ---------------------------------------------------------------------------------
@@ -714,10 +721,7 @@ module FatesInterfaceTypesMod
                                                        ! small fluxes for various reasons
                                                        ! [mm H2O/s]
 
-      !YL-------------
-      ! Seed dispersal
       real(r8),allocatable :: seed_out(:)            ! amount of seed leaving the site [kg/site/day]
-      !---------------
       
    end type bc_out_type
 
@@ -753,12 +757,9 @@ module FatesInterfaceTypesMod
 
    end type bc_pconst_type
   
-
-
  contains
-   
-   ! ====================================================================================
-   
-   
-    
+       
+    ! ======================================================================================
+      
+       
   end module FatesInterfaceTypesMod
