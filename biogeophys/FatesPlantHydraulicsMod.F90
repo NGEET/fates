@@ -2595,7 +2595,7 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
               end if
 	      
 	      !Hydro uses the transpiration flux from last time step
-              !For numberical stability, make sure that transpiration flux is less than 80% of total water
+              !For numerical stability, make sure that transpiration flux is less than 80% of total water
               !availability. If it is larger than that, we will adjust the
               !transpiration flux and record the excessive demand to the plant
               !water storage pool, which will be dumped later in HLM
@@ -2603,7 +2603,7 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
               !basically delays the water limition by a few steps with a benefit
               !of numerical stability. 
               if (qflx_tran_veg_indiv>0.0_r8)then
-                  call CaculateTotalAvailW(ccohort,site_hydr,bc_in(s),dtime, availWater);
+                  call CalculateTotalAvailW(ccohort,site_hydr,bc_in(s),dtime, availWater);
                   if(qflx_tran_veg_indiv*dtime > 0.8_r8*availWater)then
                      site_hydr%trans_err = site_hydr%trans_err + dtime*ccohort%n*(qflx_tran_veg_indiv &
                                             - 0.8_r8*availWater)
@@ -4338,7 +4338,7 @@ end subroutine AccumulateMortalityWaterStorage
 
 !-------------------------------------------------------------------------------!
 
-subroutine CaculateTotalAvailW(cohort,site_hydr,bc_in,dtime,totalAvailW)
+subroutine CalculateTotalAvailW(cohort,site_hydr,bc_in,dtime,totalAvailW)
   ! ---------------------------------------------------------------------------
   ! This subroutine estimates the total available water for transpiration
   ! for an individual plant
@@ -4407,7 +4407,7 @@ subroutine CaculateTotalAvailW(cohort,site_hydr,bc_in,dtime,totalAvailW)
         end if
      end do
      
-end subroutine CaculateTotalAvailW
+end subroutine CalculateTotalAvailW
 
 
 !-------------------------------------------------------------------------------!
