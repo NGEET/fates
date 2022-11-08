@@ -225,7 +225,7 @@ module FatesInterfaceTypesMod
    integer, public :: fates_dispersal_kernel_mode   !Flag to signal the use of grid cell seed dispersal
                                                     ! Setting this to greater than zero overrides seed rain
 
-   integer, parameter, public :: fates_dispersal_kernel_none = 0         ! no dispersal (use seed rain)
+   integer, parameter, public :: fates_dispersal_kernel_none = 0         ! no dispersal (use seed rain only)
    integer, parameter, public :: fates_dispersal_kernel_exponential = 1  ! exponential dispersal kernel
    integer, parameter, public :: fates_dispersal_kernel_exppower = 2     ! exponential power (ExP) dispersal kernel
    integer, parameter, public :: fates_dispersal_kernel_logsech = 3      ! logistic-sech (LogS) dispersal kernel
