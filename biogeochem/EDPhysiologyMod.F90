@@ -121,7 +121,7 @@ module EDPhysiologyMod
   public :: ZeroAllocationRates
   public :: PreDisturbanceLitterFluxes
   public :: PreDisturbanceIntegrateLitter
-  public :: SeedIn
+  public :: SeedUpdate
 
   logical, parameter :: debug  = .false. ! local debug flag
   character(len=*), parameter, private :: sourcefile = &
