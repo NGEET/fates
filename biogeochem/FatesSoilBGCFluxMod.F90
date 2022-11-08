@@ -315,6 +315,7 @@ contains
     integer                       :: fp            ! patch index of the site
     real(r8) :: agnpp   ! Above ground daily npp
     real(r8) :: bgnpp   ! Below ground daily npp
+    real(r8) :: site_npp ! Site level NPP gC/m2/year
     real(r8) :: plant_area ! crown area (m2) of all plants in patch
     real(r8) :: woody_area ! corwn area (m2) of woody plants in patch
     real(r8) :: fnrt_c  ! Fine root carbon [kg/plant]
@@ -325,8 +326,10 @@ contains
     real(r8) :: struct_net_alloc
     real(r8) :: repro_net_alloc
 
+    real(r8), parameter :: ema_npp_tscale = 10._r8  ! 10 day
+    
     ! Exit if we need not communicate with the hlm's ch4 module
-    if(.not.(hlm_use_ch4==itrue)) return
+    if(.not.(hlm_use_ch4==itrue) .and. .not.(hlm_parteh_mode==prt_cnp_flex_allom_hyp) ) return
     
     ! Initialize to zero
     bc_out%annavg_agnpp_pa(:) = 0._r8
@@ -336,6 +339,7 @@ contains
     bc_out%frootc_pa(:)    = 0._r8
     bc_out%root_resp(:)  = 0._r8
     bc_out%woody_frac_aere_pa(:) = 0._r8
+    site_npp = 0._r8
     
     fp = 0
     cpatch => csite%oldest_patch
@@ -431,6 +435,8 @@ contains
        ! gc/m2/yr
        bc_out%annsum_npp_pa(fp) = (bgnpp+agnpp)*days_per_year*sec_per_day
 
+       site_npp = site_npp + bc_out%annsum_npp_pa(fp)*cpatch%area*area_inv
+       
        if(plant_area>nearzero) then
           bc_out%woody_frac_aere_pa(fp) = woody_area/plant_area
        end if
@@ -438,6 +444,17 @@ contains
        cpatch => cpatch%younger
     end do
 
+    ! Smoothed [gc/m2/yr]
+    if(csite%ema_npp<-10000._r8)then
+       ! Its difficult to come up with a resonable starting smoothing value, so
+       ! we initialize on a cold-start to -1
+       csite%ema_npp = site_npp
+    else
+       csite%ema_npp = (1._r8-1._r8/ema_npp_tscale)*csite%ema_npp + (1._r8/ema_npp_tscale)*site_npp
+    end if
+    
+    bc_out%ema_npp = csite%ema_npp
+    
     return
   end subroutine PrepCH4BCs
   

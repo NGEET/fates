@@ -627,6 +627,9 @@ contains
          bc_out%rootfr_pa(0,1:nlevsoil_in)=1._r8/real(nlevsoil_in,r8)
       end if
 
+      bc_out%ema_npp = nan
+      
+      
       ! Fates -> BGC fragmentation mass fluxes
       select case(hlm_parteh_mode) 
       case(prt_carbon_allom_hyp)
@@ -635,6 +638,7 @@ contains
          allocate(bc_out%litt_flux_lab_c_si(nlevdecomp_in))
       case(prt_cnp_flex_allom_hyp) 
 
+         
          allocate(bc_out%litt_flux_cel_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lig_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lab_c_si(nlevdecomp_in))

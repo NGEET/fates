@@ -1861,15 +1861,32 @@ contains
           ! Estimate the overflow
           store_c_target = store_c_target * (1._r8 + prt_params%store_ovrflw_frac(ipft))
           
-          total_c_flux = min(c_gain,max(0.0, (store_c_target - this%variables(store_c_id)%val(1))))
+          total_c_flux = max(0.0, min(c_gain, store_c_target - this%variables(store_c_id)%val(1)))
           ! Transfer excess carbon into storage overflow
           this%variables(store_c_id)%val(1) = this%variables(store_c_id)%val(1) + total_c_flux
-          c_gain              = c_gain - total_c_flux
+          c_gain = c_gain - total_c_flux
           
        end if
 
     end if
 
+    ! If we had some poor numerical precision resulting
+    ! in negative gains, use storage to get them back to zero
+    ! they should be very very small
+    if(c_gain<-nearzero) then
+       this%variables(store_c_id)%val(1) = this%variables(store_c_id)%val(1) + c_gain
+       c_gain                            = 0
+    end if
+    if(n_gain<-nearzero) then
+       this%variables(store_n_id)%val(1) = this%variables(store_n_id)%val(1) + n_gain
+       n_gain                            = 0
+    end if
+    if(p_gain<-nearzero) then
+       this%variables(store_p_id)%val(1) = this%variables(store_p_id)%val(1) + p_gain
+       p_gain                            = 0
+    end if
+    
+    
 
     ! Figure out what to do with excess carbon and nutrients
     ! 1) excude through roots cap at 0 to flush out imprecisions
@@ -1883,19 +1900,19 @@ contains
     if(n_uptake_mode.eq.prescribed_n_uptake) then
        n_efflux  = 0._r8
     else
-       n_efflux = max(0.0_r8,n_gain)
+       n_efflux = n_gain
        n_gain   = 0._r8
     end if
     
     if(p_uptake_mode.eq.prescribed_p_uptake) then
        p_efflux = 0._r8
     else
-       p_efflux = max(0.0_r8,p_gain)
+       p_efflux = p_gain
        p_gain   = 0._r8
     end if
 
-    c_efflux = max(0.0_r8,c_gain)
-    c_gain = 0.0_r8
+    c_efflux = c_gain
+    c_gain   = 0.0_r8
     
     
 

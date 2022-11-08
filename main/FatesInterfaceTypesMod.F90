@@ -677,6 +677,8 @@ module FatesInterfaceTypesMod
       real(r8), pointer :: woody_frac_aere_pa(:) ! Woody plant fraction (by crown area) of all plants
                                                  ! used for calculating patch-level aerenchyma porosity
       
+      real(r8)          :: ema_npp               ! site-level NPP smoothed over time, see PrepCH4BCs()
+                                                 ! used for N fixation in ELM/CLM right now
       ! Canopy Structure
 
       real(r8), allocatable :: elai_pa(:)  ! exposed leaf area index

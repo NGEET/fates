@@ -342,7 +342,11 @@ contains
           do ft =  1,numpft
              sites(s)%rec_l2fr(ft,:) = prt_params%allom_l2fr(ft)
           end do
-             
+          
+          ! Its difficult to come up with a resonable starting smoothing value, so
+          ! we initialize on a cold-start to -1
+          sites(s)%ema_npp = -9999._r8
+          
           if(hlm_use_fixed_biogeog.eq.itrue)then
              ! MAPPING OF FATES PFTs on to HLM_PFTs
              ! add up the area associated with each FATES PFT

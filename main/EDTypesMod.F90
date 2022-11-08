@@ -721,8 +721,15 @@ module EDTypesMod
      ! Total area of patches in each age bin [m2]
      real(r8), allocatable :: area_by_age(:)
 
-     real(r8), allocatable :: rec_l2fr(:,:)               ! A running mean of the l2fr's for the newly
-                                                          ! recruited, pft x canopy_layer
+     ! Nutrient relevant 
+     real(r8), allocatable :: rec_l2fr(:,:) ! A running mean of the l2fr's for the newly
+                                            ! recruited, pft x canopy_layer
+     real(r8) :: ema_npp                    ! An exponential moving average of NPP [gC/m2/year]
+                                            ! The lengthscale is hard-coded "ema_npp_tcale"
+                                            ! in FatesSoilBGCFluxMod. Used solely to inform bc_out%ema_npp
+                                            ! which is used for fixation
+
+     
      
      ! SP mode target PFT level variables
      real(r8), allocatable :: sp_tlai(:)                      ! target TLAI per FATES pft
