@@ -1929,7 +1929,7 @@ contains
       real(r8) :: pdf
       
       ! Check if seed dispersal mode is 'turned on' by checking the parameter values
-      if (EDPftvarcon_inst%seed_dispersal_param_A(1) > fates_check_param_set) return 
+      if (fates_dispersal_kernel_mode .eq. fates_dispersal_kernel_none) return
       
       if(hlm_is_restart .eq. itrue) write(fates_log(),*) 'gridcell initialization during restart'
      
