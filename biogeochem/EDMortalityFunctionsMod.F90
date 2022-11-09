@@ -234,8 +234,12 @@ if (hlm_use_ed_prescribed_phys .eq. ifalse) then
     real(r8), intent(in)                       :: frac_site_primary
 
     real(r8), intent(in) :: harvestable_forest_c(:)   ! total carbon available for logging, kgC site-1
-    integer,  intent(inout) :: harvest_tag(:)
-
+    integer, intent(out) :: harvest_tag(:)    ! tag to record the harvest status
+                                              ! for the calculation of harvest debt in C-based
+                                              ! harvest mode
+                                              ! 0 - successful;
+                                              ! 1 - unsuccessful since not enough carbon
+                                              ! 2 - not applicable
     !
     ! !LOCAL VARIABLES:
     real(r8) :: cmort    ! starvation mortality rate (fraction per year)

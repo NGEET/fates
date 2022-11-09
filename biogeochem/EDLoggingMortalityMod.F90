@@ -220,8 +220,12 @@ contains
                                                 ! but suffer from forest degradation (i.e. they
                                                 ! are moved to newly-anthro-disturbed secondary
                                                 ! forest patch)
-      integer, intent(out) :: harvest_tag(:)    ! tag to record the harvest status, 0 - successful; 
+      integer, intent(out) :: harvest_tag(:)    ! tag to record the harvest status 
+                                                ! for the calculation of harvest debt in C-based
+                                                ! harvest mode
+                                                ! 0 - successful; 
                                                 ! 1 - unsuccessful since not enough carbon 
+                                                ! 2 - not applicable
 
       ! Local variables
       integer :: cur_harvest_tag ! the harvest tag of the cohort today
@@ -262,9 +266,9 @@ contains
             call get_harvest_rate_area (patch_anthro_disturbance_label, hlm_harvest_catnames, &
                  hlm_harvest_rates, frac_site_primary, secondary_age, harvest_rate)
 
-            ! For area-based harvest, harvest_tag shall always be 0.
-            harvest_tag = 0
-            cur_harvest_tag = 0
+            ! For area-based harvest, harvest_tag shall always be 2 (not applicable).
+            harvest_tag = 2
+            cur_harvest_tag = 2
 
             if (fates_global_verbose()) then
                write(fates_log(), *) 'Successfully Read Harvest Rate from HLM.'
@@ -456,8 +460,8 @@ contains
      ! Local Variables
      type(ed_patch_type), pointer  :: currentPatch
      type(ed_cohort_type), pointer :: currentCohort
-     real(r8) :: harvestable_patch_c     ! temporary variable, kgC site-1
-     real(r8) :: harvestable_cohort_c    ! temporary variable, kgC site-1
+     real(r8) :: harvestable_patch_c     ! patch level total carbon available for harvest, kgC site-1
+     real(r8) :: harvestable_cohort_c    ! cohort level total carbon available for harvest, kgC site-1
      real(r8) :: sapw_m      ! Biomass of sap wood
      real(r8) :: struct_m    ! Biomass of structural organs
      integer :: pft         ! Index of plant functional type
@@ -562,50 +566,73 @@ contains
       real(r8) :: harvest_rate_c    ! Temporary variable, kgC site-1
       real(r8) :: harvest_rate_supply  ! Temporary variable, kgC site-1
 
-     ! Loop around harvest categories to determine the hlm harvest rate demand and actual harvest rate for the 
+     ! This subroutine follows the same logic of get_harvest_rate_area
+     ! Loop over harvest categories to determine the hlm harvest rate demand and actual harvest rate for the 
      ! current cohort based on patch history info
+
+     ! Initialize local variables
      harvest_rate = 0._r8
      harvest_rate_c = 0._r8
      harvest_rate_supply = 0._r8
-     harvest_tag(:) = 1
+     harvest_tag(:) = 2
 
+     ! Since we have five harvest categories from forcing data but in FATES non-forest harvest
+     ! is merged with forest harvest, we only have three logging type in FATES (primary, secondary
+     ! mature and secondary young).
+     ! Get the harvest rate from HLM
      do h_index = 1,hlm_num_lu_harvest_cats
         if (patch_anthro_disturbance_label .eq. primaryforest) then
            if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1"  .or. &
                 hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2") then
               harvest_rate_c = harvest_rate_c + hlm_harvest_rates(h_index)
-              ! Determine the total supply of available C for harvest
-              if(harvestable_forest_c(h_index) >= harvest_rate_c) then
-                 harvest_rate_supply = harvest_rate_supply + harvestable_forest_c(h_index)
-                 harvest_tag(h_index) = 0
-              else
-                 harvest_tag(h_index) = 1
-              end if
            endif
         else if (patch_anthro_disturbance_label .eq. secondaryforest .and. &
              secondary_age >= secondary_age_threshold) then
            if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1") then
               harvest_rate_c = harvest_rate_c + hlm_harvest_rates(h_index)
-              if(harvestable_forest_c(h_index) >= harvest_rate_c) then
-                 harvest_rate_supply = harvest_rate_supply + harvestable_forest_c(h_index)
-                 harvest_tag(h_index) = 0
-              else
-                 harvest_tag(h_index) = 1
-              end if
            endif
         else if (patch_anthro_disturbance_label .eq. secondaryforest .and. &
              secondary_age < secondary_age_threshold) then
            if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2" .or. &
                 hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3") then
               harvest_rate_c = harvest_rate_c + hlm_harvest_rates(h_index)
+           endif
+        endif
+     end do
+
+     ! Determine harvest status (succesful or not)
+     ! Here only three categories are used
+     do h_index = 1,hlm_num_lu_harvest_cats
+        if (patch_anthro_disturbance_label .eq. primaryforest) then
+           if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1" ) then
               if(harvestable_forest_c(h_index) >= harvest_rate_c) then
                  harvest_rate_supply = harvest_rate_supply + harvestable_forest_c(h_index)
                  harvest_tag(h_index) = 0
               else
                  harvest_tag(h_index) = 1
               end if
-           endif
-        endif
+           end if
+        else if (patch_anthro_disturbance_label .eq. secondaryforest .and. &
+              secondary_age >= secondary_age_threshold) then
+           if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1" ) then
+              if(harvestable_forest_c(h_index) >= harvest_rate_c) then
+                 harvest_rate_supply = harvest_rate_supply + harvestable_forest_c(h_index)
+                 harvest_tag(h_index) = 0
+              else
+                 harvest_tag(h_index) = 1
+              end if
+           end if
+        else if (patch_anthro_disturbance_label .eq. secondaryforest .and. &
+              secondary_age < secondary_age_threshold) then
+           if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2" ) then
+               if(harvestable_forest_c(h_index) >= harvest_rate_c) then
+                  harvest_rate_supply = harvest_rate_supply + harvestable_forest_c(h_index)
+                  harvest_tag(h_index) = 0
+               else
+                  harvest_tag(h_index) = 1
+               end if
+           end if
+        end if
      end do
 
      ! If any harvest category available, assign to cur_harvest_tag and trigger logging event
@@ -617,7 +644,8 @@ contains
      if (harvest_rate_supply > rsnbl_math_prec .and. harvest_rate_supply > harvest_rate_c) then
         harvest_rate = harvest_rate_c / harvest_rate_supply
      else
-        harvest_rate = 0._r8
+        ! Force to harvest the whole cohort
+        harvest_rate = 1._r8
      end if
 
      ! Prevent the generation of tiny secondary patches

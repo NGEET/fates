@@ -194,10 +194,11 @@ contains
     real(r8) :: frac_site_primary
     real(r8) :: harvest_rate
     real(r8) :: tempsum
+    real(r8) :: harvest_debt_pri
+    real(r8) :: harvest_debt_sec_mature
+    real(r8) :: harvest_debt_sec_young
     real(r8) :: harvestable_forest_c(hlm_num_lu_harvest_cats)
     integer  :: harvest_tag(hlm_num_lu_harvest_cats)
-    integer  :: harvest_debt_primary
-    integer  :: harvest_debt_secondary
     integer  :: patch_no_secondary
 
     !----------------------------------------------------------------------------------------------
@@ -211,10 +212,11 @@ contains
     ! get available biomass for harvest for all patches
     call get_harvestable_carbon(site_in, bc_in%site_area, bc_in%hlm_harvest_catnames, harvestable_forest_c)
  
- 
-    harvest_debt_primary = 0
-    harvest_debt_secondary = 0
+    ! Initialize local variables
     patch_no_secondary = 0
+    harvest_debt_pri = 0._r8
+    harvest_debt_sec_mature = 0._r8
+    harvest_debt_sec_young = 0._r8
 
     currentPatch => site_in%oldest_patch
     do while (associated(currentPatch))   
@@ -256,70 +258,56 @@ contains
           currentCohort => currentCohort%taller
        end do
 
-       ! Determine harvest debt for primary land and secondary land
-       ! Harvest debt is the accumulated total carbon amount once 
-       ! available carbon for harvest is smaller than the harvest 
-       ! rate of forcing data for each site.
-       ! Each cohort has the same harvest tag but not each patch
-       ! Hence this part shall be within the patch loop
-       ! TODO: we can define harvest debt as a fraction of the 
-       ! harvest rate in the future
-       ! Warning: Non-forest harvest is not accounted for yet
-       ! Thus the harvest tag for non-forest are not effective
-       if(logging_time) then
-          harvest_debt_loop: do h_index = 1, hlm_num_lu_harvest_cats
-             ! Primary patch: Once a patch has debt, skip the calculation
-             if (harvest_debt_primary == 0) then
-                if ( currentPatch%anthro_disturbance_label .eq. primaryforest ) then  
-                   if ( harvest_tag(h_index) == 1 ) then
-                      ! h_index points to primary forest harvest
-                      if((bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1")) then
-                          harvest_debt_primary = 1
-                          exit harvest_debt_loop
-                      end if
-                   end if
-                end if
-             end if
-             ! Secondary patch
-             if (harvest_debt_secondary == 0) then
-                if ( currentPatch%anthro_disturbance_label .eq. secondaryforest ) then
-                   patch_no_secondary = patch_no_secondary + 1
-                   if ( harvest_tag(h_index) == 1 ) then
-                      ! h_index points to secondary forest harvest
-                      if((bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1") .or. &
-                          (bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2")) then
-                          harvest_debt_secondary = 1
-                          exit harvest_debt_loop
-                      end if
-                   end if
-                end if
-             end if
-          end do harvest_debt_loop
-       end if
+       ! ! Counter of secondary patch used in logging debt calculation
+       ! if ( currentPatch%anthro_disturbance_label .eq. secondaryforest ) then
+       !    patch_no_secondary = patch_no_secondary + 1
+       ! end if
 
        currentPatch => currentPatch%younger
     end do
 
-    ! Obatin actual harvest debt. This shall be outside the patch loop
+    ! Calculate if we have harvest debt for primary and secondary land
+    ! Harvest debt is the accumulated total carbon 
+    ! deficiency once the carbon amount available for harvest 
+    ! is smaller than the harvest rate of forcing data.
+    ! Harvest debt is calculated on site level
+    ! TODO: we can define harvest debt as a fraction of the 
+    ! harvest rate in the future
+    ! Note 1: Non-forest harvest is accounted for under forest
+    ! harvest, thus the harvest tag for non-forest is not applicable (= 2)
+    ! Note 2: Since we will completely harvest all forest C from patches 
+    ! with debt, the harvest debt shall subtract the harvestable forest C
+
     if(logging_time) then
+       ! First we need to get harvest rate for all three categories
        do h_index = 1, hlm_num_lu_harvest_cats
-          if ( harvest_debt_primary == 1 ) then
-             ! Only account for primary forest harvest rate
-             if((bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1") .or. &
-                (bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2")) then
-                site_in%resources_management%harvest_debt = site_in%resources_management%harvest_debt + &
-                    bc_in%hlm_harvest_rates(h_index)
-             end if
+          ! Primary forest harvest rate
+          if(bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1" .or. &
+              bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2" ) then
+                harvest_debt_pri = harvest_debt_pri + bc_in%hlm_harvest_rates(h_index)
+          else if(bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1") then
+              harvest_debt_sec_mature = harvest_debt_sec_mature + bc_in%hlm_harvest_rates(h_index)
+          else if(bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2" .or. &
+                   bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3") then
+              harvest_debt_sec_mature = harvest_debt_sec_mature + bc_in%hlm_harvest_rates(h_index)
           end if
-          if (harvest_debt_secondary == 1 .or. patch_no_secondary == 0) then
-             ! Only account for secondary forest harvest rate
-             if((bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1") .or. &
-                (bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2") .or. &
-                (bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3")) then
+       end do
+       ! Next we get the harvest debt through the harvest tag 
+       do h_index = 1, hlm_num_lu_harvest_cats
+          if (harvest_tag(h_index) .eq. 1) then
+             if(bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1") then
                 site_in%resources_management%harvest_debt = site_in%resources_management%harvest_debt + &
-                    bc_in%hlm_harvest_rates(h_index)
+                    harvest_debt_pri - harvestable_forest_c(h_index)
+             else if(bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1") then
+                site_in%resources_management%harvest_debt = site_in%resources_management%harvest_debt + &
+                    harvest_debt_sec_mature - harvestable_forest_c(h_index)
                 site_in%resources_management%harvest_debt_sec = site_in%resources_management%harvest_debt_sec + &
-                    bc_in%hlm_harvest_rates(h_index)
+                    harvest_debt_sec_mature - harvestable_forest_c(h_index)
+             else if(bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2") then
+                site_in%resources_management%harvest_debt = site_in%resources_management%harvest_debt + &
+                    harvest_debt_sec_young - harvestable_forest_c(h_index)
+                site_in%resources_management%harvest_debt_sec = site_in%resources_management%harvest_debt_sec + &
+                    harvest_debt_sec_young - harvestable_forest_c(h_index)
              end if
           end if
        end do

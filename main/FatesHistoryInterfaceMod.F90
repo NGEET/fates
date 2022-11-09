@@ -4839,20 +4839,20 @@ end subroutine update_history_hifrq
 
     call this%set_history_var(vname='FATES_SECONDARY_FOREST_FRACTION',         &
          units='m2 m-2', long='secondary forest fraction',                     &
-         use_default='inactive', avgflag='A', vtype=site_r8, hlms='CLM:ALM',   &
+         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',   &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_fraction_secondary_forest_si)
 
     call this%set_history_var(vname='FATES_WOOD_PRODUCT', units='kg m-2',      &
          long='total wood product from logging in kg carbon per m2 land area', &
-         use_default='inactive', avgflag='A', vtype=site_r8, hlms='CLM:ALM',   &
+         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',   &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_woodproduct_si)
 
     call this%set_history_var(vname='FATES_SECONDARY_FOREST_VEGC',             &
          units='kg m-2',                                                       &
          long='biomass on secondary lands in kg carbon per m2 land area (mult by FATES_SECONDARY_FOREST_FRACTION to get per secondary forest area)', &
-         use_default='inactive', avgflag='A', vtype=site_r8,                   &
+         use_default='active', avgflag='A', vtype=site_r8,                   &
          hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
          index=ih_biomass_secondary_forest_si)
 
