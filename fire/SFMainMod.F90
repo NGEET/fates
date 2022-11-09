@@ -764,7 +764,7 @@ contains
                  lb = (1.0_r8 + (8.729_r8 * &
                       ((1.0_r8 -(exp(-0.03_r8 * m_per_min__to__km_per_hour * currentPatch%effect_wspeed)))**2.155_r8)))
              else ! EQ 80 grass fuels (CFFBPS Ont.Inf.Rep. ST-X-3, 1992, but with a correction from an errata published within 
-                  ! Information Report GLC-X-10 by Bottom et al., 2009 because there is a typo in CFFBPS Ont.Inf.Rep. ST-X-3, 1992)
+                  ! Information Report GLC-X-10 by Wotten et al., 2009 because there is a typo in CFFBPS Ont.Inf.Rep. ST-X-3, 1992)
                  lb = (1.1_r8*((m_per_min__to__km_per_hour * currentPatch%effect_wspeed)**0.464_r8))
              endif
           endif
