@@ -86,6 +86,8 @@ contains
                    ccohort%gpp_acc  = ccohort%gpp_acc  + ccohort%gpp_tstep 
                    ccohort%resp_acc = ccohort%resp_acc + ccohort%resp_tstep
 
+                   ccohort%sym_nfix_daily = ccohort%sym_nfix_daily + ccohort%sym_nfix_tstep
+                   
                    ! weighted mean of D13C by gpp
                    if((ccohort%gpp_acc + ccohort%gpp_tstep) .eq. 0.0_r8) then
                       ccohort%c13disc_acc = 0.0_r8

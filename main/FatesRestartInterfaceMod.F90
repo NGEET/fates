@@ -2108,7 +2108,7 @@ contains
                    this%rvars(ir_daily_no3_uptake_co)%r81d(io_idx_co) = ccohort%daily_no3_uptake
                    this%rvars(ir_daily_nh4_uptake_co)%r81d(io_idx_co) = ccohort%daily_nh4_uptake
                    this%rvars(ir_daily_p_uptake_co)%r81d(io_idx_co) = ccohort%daily_p_gain
-                   this%rvars(ir_daily_n_fixation_co)%r81d(io_idx_co) = ccohort%daily_n_fixation
+                   this%rvars(ir_daily_n_fixation_co)%r81d(io_idx_co) = ccohort%sym_nfix_daily
                    this%rvars(ir_daily_n_demand_co)%r81d(io_idx_co) = ccohort%daily_n_demand
                    this%rvars(ir_daily_p_demand_co)%r81d(io_idx_co) = ccohort%daily_p_demand
                 end if
@@ -2989,7 +2989,7 @@ contains
                    ccohort%cnp_limiter  = int(this%rvars(ir_cnplimiter_co)%r81d(io_idx_co))
                    ccohort%daily_nh4_uptake = this%rvars(ir_daily_nh4_uptake_co)%r81d(io_idx_co)
                    ccohort%daily_no3_uptake = this%rvars(ir_daily_no3_uptake_co)%r81d(io_idx_co)
-                   ccohort%daily_n_fixation = this%rvars(ir_daily_n_fixation_co)%r81d(io_idx_co)
+                   ccohort%sym_nfix_daily = this%rvars(ir_daily_n_fixation_co)%r81d(io_idx_co)
                    ccohort%daily_p_gain = this%rvars(ir_daily_p_uptake_co)%r81d(io_idx_co)
                    ccohort%daily_n_demand = this%rvars(ir_daily_n_demand_co)%r81d(io_idx_co)
                    ccohort%daily_p_demand = this%rvars(ir_daily_p_demand_co)%r81d(io_idx_co)

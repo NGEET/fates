@@ -765,7 +765,8 @@ contains
                       ! for now use dev_arbitrary_pft as scaling term between 0 and 1 as additional increment of root respiration used for N fixation
                       ! ------------------------------------------------------------------
                       currentCohort%froot_mr = 0._r8
-
+                      currentCohort%sym_nfix_tstep = 0._r8
+                      
                       ! n_fixation is integrated over the course of the day
                       ! this variable is zeroed at the end of the FATES dynamics sequence
 
@@ -780,7 +781,7 @@ contains
                          
                          currentCohort%froot_mr = currentCohort%froot_mr + fnrt_mr_nfix_layer + fnrt_mr_layer 
 
-                         currentCohort%daily_n_fixation = currentCohort%daily_n_fixation + nfix_layer
+                         currentCohort%sym_nfix_tstep = currentCohort%sym_nfix_tstep + nfix_layer
                          
                          
                       enddo

@@ -301,7 +301,10 @@ module EDTypesMod
 
      real(r8) :: daily_nh4_uptake ! integrated daily uptake of mineralized ammonium through competitive acquisition in soil [kg N / plant/ day]
      real(r8) :: daily_no3_uptake ! integrated daily uptake of mineralized nitrate through competitive acquisition in soil [kg N / plant/ day]
-     real(r8) :: daily_n_fixation ! Rate of N fixation from the roots [kgN/indiv/day]
+
+     real(r8) :: sym_nfix_daily   ! Accumulated symbiotic N fixation from the roots [kgN/indiv/day]
+     real(r8) :: sym_nfix_tstep   ! Symbiotic N fixation from the roots for the time-step[kgN/indiv/tstep]
+     
      real(r8) :: daily_n_gain     ! sum of fixation and uptake of mineralized nh4/no3 in solution as well as symbiotic fixation
      real(r8) :: daily_p_gain     ! integrated daily uptake of mineralized P through competitive acquisition in soil [kg P / plant/ day]
 

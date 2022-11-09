@@ -2002,11 +2002,11 @@ end subroutine flush_hvars
                   ! Symbiotic Fixation
                   fates_hist%hvars(ih_nfix_si)%r81d(io_si) = &
                        fates_hist%hvars(ih_nfix_si)%r81d(io_si) + &
-                       ccohort%daily_n_fixation*uconv
+                       ccohort%sym_nfix_daily*uconv
 
                   fates_hist%hvars(ih_nfix_scpf)%r82d(io_si,iscpf) =           &
                        fates_hist%hvars(ih_nfix_scpf)%r82d(io_si,iscpf) +      &
-                       ccohort%daily_n_fixation*uconv
+                       ccohort%sym_nfix_daily*uconv
 
                   ! Efflux/exudation
                   this%hvars(ih_nefflux_scpf)%r82d(io_si,iscpf) = &
@@ -2801,7 +2801,7 @@ end subroutine flush_hvars
                      total_m / m2_per_ha
 
                      
-                  call bstore_allom(ccohort%dbh,ccohort%pft,ccohort%canopy_trim, store_max)
+                  call bstore_allom(ccohort%dbh,ccohort%pft,ccohort%crowndamage,ccohort%canopy_trim, store_max)
                   this%hvars(ih_storectfrac_si)%r81d(io_si)  = &
                        this%hvars(ih_storectfrac_si)%r81d(io_si) + ccohort%n * store_max/m2_per_ha
 

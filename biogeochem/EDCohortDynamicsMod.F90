@@ -592,7 +592,8 @@ contains
     currentCohort%daily_nh4_uptake = nan
     currentCohort%daily_no3_uptake = nan
     currentCohort%daily_n_gain     = nan
-    currentCohort%daily_n_fixation = nan
+    currentCohort%sym_nfix_daily   = nan
+    currentCohort%sym_nfix_tstep   = nan
     currentCohort%daily_p_gain     = nan
     currentCohort%daily_c_efflux   = nan
     currentCohort%daily_n_efflux   = nan
@@ -725,7 +726,7 @@ contains
     ! Fixation is also integrated over the course of the day
     ! and must be zeroed upon creation and after plant
     ! resource allocation
-    currentCohort%daily_n_fixation = 0._r8
+    currentCohort%sym_nfix_daily   = 0._r8
     
   end subroutine zero_cohort
 
@@ -1469,12 +1470,16 @@ contains
                                               nextc%n*nextc%ema_dcxdt)/newn
                                          currentCohort%cx0 = (currentCohort%n*currentCohort%cx0 + &
                                               nextc%n*nextc%cx0)/newn
+
+                                         ! These variables do not need to be rescaled because they
+                                         ! are written to history immediately after calculation
+                                         
                                          currentCohort%daily_nh4_uptake = (currentCohort%n*currentCohort%daily_nh4_uptake + &
                                               nextc%n*nextc%daily_nh4_uptake)/newn
                                          currentCohort%daily_no3_uptake = (currentCohort%n*currentCohort%daily_no3_uptake + &
                                               nextc%n*nextc%daily_no3_uptake)/newn
-                                         currentCohort%daily_n_fixation = (currentCohort%n*currentCohort%daily_n_fixation + &
-                                              nextc%n*nextc%daily_n_fixation)/newn
+                                         currentCohort%sym_nfix_daily = (currentCohort%n*currentCohort%sym_nfix_daily + &
+                                              nextc%n*nextc%sym_nfix_daily)/newn
                                          currentCohort%daily_n_gain = (currentCohort%n*currentCohort%daily_n_gain + &
                                               nextc%n*nextc%daily_n_gain)/newn
                                          currentCohort%daily_p_gain = (currentCohort%n*currentCohort%daily_p_gain + &
@@ -1882,9 +1887,12 @@ contains
     n%year_net_uptake = o%year_net_uptake
     n%ts_net_uptake   = o%ts_net_uptake
 
+    ! These do not need to be copied because they
+    ! are written to history before dynamics occurs
+    ! and cohorts are reformed
     n%daily_nh4_uptake = o%daily_nh4_uptake
     n%daily_no3_uptake = o%daily_no3_uptake
-    n%daily_n_fixation = o%daily_n_fixation
+    n%sym_nfix_daily   = o%sym_nfix_daily
     n%daily_n_gain     = o%daily_n_gain
     n%daily_p_gain   = o%daily_p_gain
     n%daily_c_efflux = o%daily_c_efflux
@@ -2253,7 +2261,7 @@ contains
       ! Target total dead (structrual) biomass [kgC]
       call bdead_allom( target_agw_c, target_bgw_c, target_sapw_c, ipft, target_struct_c)
       ! Target fine-root biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
-      call bfineroot(dbh,ipft,canopy_trim,target_fnrt_c)
+      call bfineroot(dbh,ipft,canopy_trim,ccohort%l2fr,target_fnrt_c)
       ! Target storage carbon [kgC,kgC/cm]
       call bstore_allom(dbh,ipft,ccohort%crowndamage-1, canopy_trim,target_store_c)
       ! Target leaf biomass according to allometry and trimming

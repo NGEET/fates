@@ -525,7 +525,7 @@ contains
              ! allocation scheme
              
              currentCohort%daily_n_gain = currentCohort%daily_nh4_uptake + &
-                  currentCohort%daily_no3_uptake + currentCohort%daily_n_fixation
+                  currentCohort%daily_no3_uptake + currentCohort%sym_nfix_daily
 
              currentCohort%resp_excess = 0._r8
              
@@ -731,7 +731,7 @@ contains
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort))
           currentCohort%n = max(0._r8,currentCohort%n + currentCohort%dndt * hlm_freq_day )
-          currentCohort%daily_n_fixation = 0._r8
+          currentCohort%sym_nfix_daily = 0._r8
           currentCohort => currentCohort%taller
        enddo
        currentPatch => currentPatch%older
@@ -968,7 +968,7 @@ contains
                            write(fates_log(),*) 'NH4 uptake: ',currentCohort%daily_nh4_uptake*currentCohort%n
                            write(fates_log(),*) 'NO3 uptake: ',currentCohort%daily_no3_uptake*currentCohort%n
                            write(fates_log(),*) 'N efflux: ',currentCohort%daily_n_efflux*currentCohort%n
-                           write(fates_log(),*) 'N fixation: ',currentCohort%daily_n_fixation*currentCohort%n
+                           write(fates_log(),*) 'N fixation: ',currentCohort%sym_nfix_daily*currentCohort%n
                         elseif(element_list(el).eq.phosphorus_element) then
                            write(fates_log(),*) 'P uptake: ',currentCohort%daily_p_gain*currentCohort%n
                            write(fates_log(),*) 'P efflux: ',currentCohort%daily_p_efflux*currentCohort%n

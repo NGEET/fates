@@ -163,9 +163,10 @@ module PRTAllometricCNPMod
   integer, public, parameter :: acnp_bc_in_id_netdc    = 4 ! Index for the net daily C input BC
   integer, public, parameter :: acnp_bc_in_id_nc_repro = 5
   integer, public, parameter :: acnp_bc_in_id_pc_repro = 6
+  integer, public, parameter :: acnp_bc_in_id_cdamage  = 7
   
   ! 0=leaf off, 1=leaf on
-  integer, parameter         :: num_bc_in             = 6
+  integer, parameter         :: num_bc_in             = 7
 
   ! -------------------------------------------------------------------------------------
   ! Output Boundary Indices (These are public)
@@ -180,10 +181,11 @@ module PRTAllometricCNPMod
 
 
   ! Indices for parameters passed to the integrator
-  integer,private, parameter :: intgr_parm_ctrim = 1
-  integer,private, parameter :: intgr_parm_pft   = 2
-  integer,private, parameter :: intgr_parm_l2fr  = 3
-  integer,private, parameter :: num_intgr_parm   = 3
+  integer,private, parameter :: intgr_parm_ctrim   = 1
+  integer,private, parameter :: intgr_parm_pft     = 2
+  integer,private, parameter :: intgr_parm_l2fr    = 3
+  integer,private, parameter :: intgr_parm_cdamage = 4
+  integer,private, parameter :: num_intgr_parm     = 4
   
   ! -------------------------------------------------------------------------------------
   ! Define the size of the coorindate vector.  For this hypothesis, there is only
@@ -363,11 +365,12 @@ contains
     real(r8),pointer :: l2fr         ! Leaf to fineroot ratio of target biomass
     
     ! Input only bcs
-    integer  :: ipft        ! Plant Functional Type index
-    real(r8) :: c_gain      ! Daily carbon balance for this cohort [kgC]
-    real(r8),pointer :: n_gain      ! Daily nitrogen uptake through fine-roots [kgN]
-    real(r8),pointer :: p_gain      ! Daily phosphorus uptake through fine-roots [kgN]
-    real(r8) :: canopy_trim ! The canopy trimming function [0-1]
+    integer  :: ipft           ! Plant Functional Type index
+    real(r8) :: c_gain         ! Daily carbon balance for this cohort [kgC]
+    real(r8),pointer :: n_gain ! Daily nitrogen uptake through fine-roots [kgN]
+    real(r8),pointer :: p_gain ! Daily phosphorus uptake through fine-roots [kgN]
+    real(r8) :: canopy_trim    ! The canopy trimming function [0-1]
+    integer :: crown_damage    ! Damage status of the crown (for allometry)
     
     ! Pointers to output bcs
     real(r8),pointer :: c_efflux   ! Total plant efflux of carbon (kgC)
@@ -435,7 +438,8 @@ contains
     c_gain      = this%bc_in(acnp_bc_in_id_netdc)%rval
     canopy_trim = this%bc_in(acnp_bc_in_id_ctrim)%rval
     ipft        = this%bc_in(acnp_bc_in_id_pft)%ival
-
+    crown_damage = this%bc_in(acnp_bc_in_id_cdamage)%ival
+    
     ! If either n or p uptake is in prescribed mode
     ! set the gains to something massive. 1 kilo of pure
     ! nutrient should be wayyy more than enough
@@ -457,14 +461,14 @@ contains
     ! Set carbon targets based on the plant's current stature
     target_c(:) = fates_unset_r8
     target_dcdd(:) = fates_unset_r8
-    call bsap_allom(dbh,ipft,canopy_trim,sapw_area,target_c(sapw_organ),target_dcdd(sapw_organ))
-    call bagw_allom(dbh,ipft,agw_c_target,agw_dcdd_target)
+    call bsap_allom(dbh,ipft,crown_damage,canopy_trim,sapw_area,target_c(sapw_organ),target_dcdd(sapw_organ))
+    call bagw_allom(dbh,ipft,crown_damage,agw_c_target,agw_dcdd_target)
     call bbgw_allom(dbh,ipft,bgw_c_target,bgw_dcdd_target)
     call bdead_allom(agw_c_target,bgw_c_target,target_c(sapw_organ),ipft,target_c(struct_organ), &
                      agw_dcdd_target,bgw_dcdd_target,target_dcdd(sapw_organ),target_dcdd(struct_organ))
-    call bleaf(dbh,ipft,canopy_trim, target_c(leaf_organ), target_dcdd(leaf_organ))
+    call bleaf(dbh,ipft,crown_damage,canopy_trim, target_c(leaf_organ), target_dcdd(leaf_organ))
     call bfineroot(dbh,ipft,canopy_trim, l2fr, target_c(fnrt_organ), target_dcdd(fnrt_organ))
-    call bstore_allom(dbh,ipft,canopy_trim, target_c(store_organ), target_dcdd(store_organ))
+    call bstore_allom(dbh,ipft,crown_damage, canopy_trim, target_c(store_organ), target_dcdd(store_organ))
     target_c(repro_organ) = 0._r8
     target_dcdd(repro_organ) = 0._r8
 
@@ -1261,6 +1265,7 @@ contains
     integer           :: ipft
     integer, pointer  :: limiter                 ! Integer flagging which (C,N,P) is limiting
     real(r8)          :: canopy_trim             ! fraction of crown trimmed
+    integer           :: crown_damage            ! Damage status level
     real(r8)          :: leaf_status             ! leaves on or off?
     real(r8)          :: l2fr                    ! leaf to fineroot allometry multiplier
     integer  :: i, ii                            ! organ index loops (masked and unmasked)
@@ -1334,6 +1339,7 @@ contains
     leaf_status = this%bc_in(acnp_bc_in_id_lstat)%ival
     dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval
     ipft        = this%bc_in(acnp_bc_in_id_pft)%ival
+    crown_damage = this%bc_in(acnp_bc_in_id_cdamage)%ival
     limiter     => this%bc_out(acnp_bc_out_id_limiter)%ival
     canopy_trim = this%bc_in(acnp_bc_in_id_ctrim)%rval
     l2fr        = this%bc_inout(acnp_bc_inout_id_l2fr)%rval ! This variable is not updated in this
@@ -1365,15 +1371,12 @@ contains
          p_gain <= 0.02_r8*calloc_abs_error ) then
        return
     end if
-
-
-    
-    
        
     intgr_params(:)              = fates_unset_r8
     intgr_params(intgr_parm_ctrim) = this%bc_in(acnp_bc_in_id_ctrim)%rval
     intgr_params(intgr_parm_pft)   = real(this%bc_in(acnp_bc_in_id_pft)%ival)
     intgr_params(intgr_parm_l2fr)  = this%bc_inout(acnp_bc_inout_id_l2fr)%rval
+    intgr_params(intgr_parm_cdamage) = real(this%bc_in(acnp_bc_in_id_cdamage)%ival)
     
     state_mask(:) = .false.
     mask_organs(:) = fates_unset_int
@@ -1573,7 +1576,7 @@ contains
                leafc_tp1 = leafc_tp1 + this%variables(i_var)%val(i)
             end do
             
-            call CheckIntegratedAllometries(state_array_out(dbh_id),ipft,canopy_trim, l2fr,  &
+            call CheckIntegratedAllometries(state_array_out(dbh_id),ipft,crown_damage,canopy_trim, l2fr,  &
                  leafc_tp1, state_array_out(fnrt_id), state_array_out(sapw_id), &
                  state_array_out(store_id), state_array_out(struct_id), &
                  state_mask(leaf_id), state_mask(fnrt_id), state_mask(sapw_id), &
@@ -1669,13 +1672,13 @@ contains
                storec_tp1  = state_array_out(store_id)
                structc_tp1 = state_array_out(struct_id)
                
-               call bleaf(dbh_tp1,ipft,canopy_trim,leaf_c_target_tp1)
+               call bleaf(dbh_tp1,ipft,crown_damage,canopy_trim,leaf_c_target_tp1)
                call bfineroot(dbh_tp1,ipft,canopy_trim,l2fr,fnrt_c_target_tp1)
-               call bsap_allom(dbh_tp1,ipft,canopy_trim,sapw_area,sapw_c_target_tp1)
-               call bagw_allom(dbh_tp1,ipft,agw_c_target_tp1)
+               call bsap_allom(dbh_tp1,ipft,crown_damage,canopy_trim,sapw_area,sapw_c_target_tp1)
+               call bagw_allom(dbh_tp1,ipft,crown_damage,agw_c_target_tp1)
                call bbgw_allom(dbh_tp1,ipft,bgw_c_target_tp1)
                call bdead_allom(agw_c_target_tp1,bgw_c_target_tp1, sapw_c_target_tp1, ipft, struct_c_target_tp1)
-               call bstore_allom(dbh_tp1,ipft,canopy_trim,store_c_target_tp1)
+               call bstore_allom(dbh_tp1,ipft,crown_damage,canopy_trim,store_c_target_tp1)
                
                write(fates_log(),*) 'leaf_c: ',leafc_tp1, leaf_c_target_tp1,leafc_tp1-leaf_c_target_tp1
                write(fates_log(),*) 'fnrt_c: ',fnrtc_tp1, fnrt_c_target_tp1,fnrtc_tp1- fnrt_c_target_tp1
@@ -1781,12 +1784,14 @@ contains
     integer           :: ipft
     integer, pointer  :: limiter
     real(r8)          :: canopy_trim
-
+    integer           :: crown_damage
+    
     dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval
     canopy_trim = this%bc_in(acnp_bc_in_id_ctrim)%rval
     ipft        = this%bc_in(acnp_bc_in_id_pft)%ival
     resp_excess => this%bc_inout(acnp_bc_inout_id_resp_excess)%rval
     limiter     => this%bc_out(acnp_bc_out_id_limiter)%ival
+    crown_damage = this%bc_in(acnp_bc_in_id_cdamage)%ival
     
     ! -----------------------------------------------------------------------------------
     ! If nutrients are still available, then we can bump up the values in the pools
@@ -1845,7 +1850,7 @@ contains
        elseif(store_c_overflow == burn_c_store_overflow) then
 
           ! Update carbon based allometric targets
-          call bstore_allom(dbh,ipft,canopy_trim, store_c_target)
+          call bstore_allom(dbh,ipft,crown_damage,canopy_trim, store_c_target)
 
           ! Allow some overflow
           store_c_target = store_c_target * (1._r8 + prt_params%store_ovrflw_frac(ipft))
@@ -1862,7 +1867,7 @@ contains
        elseif(store_c_overflow == exude_c_store_overflow)then
                  
           ! Update carbon based allometric targets
-          call bstore_allom(dbh,ipft,canopy_trim, store_c_target)
+          call bstore_allom(dbh,ipft,crown_damage,canopy_trim, store_c_target)
           
           ! Estimate the overflow
           store_c_target = store_c_target * (1._r8 + prt_params%store_ovrflw_frac(ipft))
@@ -1982,6 +1987,7 @@ contains
     real(r8)         :: l2fr
     integer          :: ipft
     integer          :: i_cvar
+    integer          :: crown_damage
     real(r8)         :: sapw_area
     real(r8)         :: leaf_c_target,fnrt_c_target
     real(r8)         :: sapw_c_target,agw_c_target
@@ -1995,6 +2001,7 @@ contains
     l2fr        = this%bc_inout(acnp_bc_inout_id_l2fr)%rval
     nc_repro    = this%bc_in(acnp_bc_in_id_nc_repro)%rval
     pc_repro    = this%bc_in(acnp_bc_in_id_pc_repro)%rval
+    crown_damage = this%bc_in(acnp_bc_in_id_cdamage)%ival
     
     ! Storage of nutrients are assumed to have different compartments than
     ! for carbon, and thus their targets are not associated with a tissue
@@ -2003,10 +2010,10 @@ contains
     
     if(organ_id == store_organ) then
 
-       call bleaf(dbh,ipft,canopy_trim,leaf_c_target)
+       call bleaf(dbh,ipft,crown_damage,canopy_trim,leaf_c_target)
        call bfineroot(dbh,ipft,canopy_trim,l2fr,fnrt_c_target)
-       call bsap_allom(dbh,ipft,canopy_trim,sapw_area,sapw_c_target)
-       call bagw_allom(dbh,ipft,agw_c_target)
+       call bsap_allom(dbh,ipft,crown_damage,canopy_trim,sapw_area,sapw_c_target)
+       call bagw_allom(dbh,ipft,crown_damage,agw_c_target)
        call bbgw_allom(dbh,ipft,bgw_c_target)
        call bdead_allom(agw_c_target,bgw_c_target, sapw_c_target, ipft, struct_c_target)
 
@@ -2187,6 +2194,7 @@ contains
       ! locals
       integer  :: ipft             ! PFT index
       real(r8) :: canopy_trim      ! Canopy trimming function (boundary condition [0-1]
+      integer  :: crown_damage     ! Damage class
       real(r8) :: l2fr             ! leaf to fineroot biomass multiplier 
       real(r8) :: leaf_c_target    ! target leaf biomass, dummy var (kgC)
       real(r8) :: fnrt_c_target    ! target fine-root biomass, dummy var (kgC)
@@ -2225,15 +2233,16 @@ contains
         canopy_trim = intgr_params(intgr_parm_ctrim)
         ipft        = int(intgr_params(intgr_parm_pft))
         l2fr        = intgr_params(intgr_parm_l2fr)
-
-        call bleaf(dbh,ipft,canopy_trim,leaf_c_target,leaf_dcdd_target)
+        crown_damage = int(intgr_params(acnp_bc_in_id_cdamage))
+        
+        call bleaf(dbh,ipft,crown_damage,canopy_trim,leaf_c_target,leaf_dcdd_target)
         call bfineroot(dbh,ipft,canopy_trim,l2fr,fnrt_c_target,fnrt_dcdd_target)
-        call bsap_allom(dbh,ipft,canopy_trim,sapw_area,sapw_c_target,sapw_dcdd_target)
-        call bagw_allom(dbh,ipft,agw_c_target,agw_dcdd_target)
+        call bsap_allom(dbh,ipft,crown_damage,canopy_trim,sapw_area,sapw_c_target,sapw_dcdd_target)
+        call bagw_allom(dbh,ipft,crown_damage,agw_c_target,agw_dcdd_target)
         call bbgw_allom(dbh,ipft,bgw_c_target,bgw_dcdd_target)
         call bdead_allom(agw_c_target,bgw_c_target, sapw_c_target, ipft, struct_c_target, &
                          agw_dcdd_target, bgw_dcdd_target, sapw_dcdd_target, struct_dcdd_target)
-        call bstore_allom(dbh,ipft,canopy_trim,store_c_target,store_dcdd_target)
+        call bstore_allom(dbh,ipft,crown_damage,canopy_trim,store_c_target,store_dcdd_target)
 
         if (mask_repro) then
            ! fraction of carbon going towards reproduction
