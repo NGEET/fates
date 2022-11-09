@@ -42,7 +42,6 @@ module EDPatchDynamicsMod
   use FatesInterfaceTypesMod    , only : hlm_use_planthydro
   use FatesInterfaceTypesMod    , only : hlm_numSWb
   use FatesInterfaceTypesMod    , only : bc_in_type
-  use FatesInterfaceTypesMod    , only : hlm_days_per_year
   use FatesInterfaceTypesMod    , only : numpft
   use FatesInterfaceTypesMod    , only : hlm_stepsize
   use FatesInterfaceTypesMod    , only : hlm_use_sp
@@ -176,7 +175,8 @@ contains
     real(r8) :: frmort
     real(r8) :: smort
     real(r8) :: asmort
-
+    real(r8) :: dgmort
+    
     real(r8) :: lmort_direct
     real(r8) :: lmort_collateral
     real(r8) :: lmort_infra
@@ -206,10 +206,10 @@ contains
           ! Mortality for trees in the understorey.
           currentCohort%patchptr => currentPatch
 
-          call mortality_rates(currentCohort,bc_in,cmort,hmort,bmort,frmort,smort,asmort)
-          currentCohort%dmort  = cmort+hmort+bmort+frmort+smort+asmort
+          call mortality_rates(currentCohort,bc_in,cmort,hmort,bmort,frmort,smort,asmort,dgmort)
+          currentCohort%dmort  = cmort+hmort+bmort+frmort+smort+asmort+dgmort
           call carea_allom(currentCohort%dbh,currentCohort%n,site_in%spread,currentCohort%pft, &
-               currentCohort%c_area)
+               currentCohort%crowndamage,currentCohort%c_area)
 
           ! Initialize diagnostic mortality rates
           currentCohort%cmort = cmort
@@ -218,7 +218,8 @@ contains
           currentCohort%frmort = frmort
           currentCohort%smort = smort
           currentCohort%asmort = asmort
-
+          currentCohort%dgmort = dgmort
+          
           call LoggingMortality_frac(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_layer, &
                 lmort_direct,lmort_collateral,lmort_infra,l_degrad,&
                 bc_in%hlm_harvest_rates, &
@@ -476,6 +477,7 @@ contains
                          currentSite%disturbance_rates_secondary_to_secondary(i_disturbance_type) = &
                               currentSite%disturbance_rates_secondary_to_secondary(i_disturbance_type) + &
                               currentPatch%area * disturbance_rate * AREA_INV
+
                       else
                          currentSite%disturbance_rates_primary_to_secondary(i_disturbance_type) = &
                               currentSite%disturbance_rates_primary_to_secondary(i_disturbance_type) + &
@@ -686,6 +688,7 @@ contains
                                nc%frmort = nan
                                nc%smort = nan
                                nc%asmort = nan
+                               nc%dgmort = nan
                                nc%lmort_direct     = nan
                                nc%lmort_collateral = nan
                                nc%lmort_infra      = nan
@@ -741,6 +744,7 @@ contains
                                   nc%frmort           = currentCohort%frmort
                                   nc%smort            = currentCohort%smort
                                   nc%asmort           = currentCohort%asmort
+                                  nc%dgmort           = currentCohort%dgmort
                                   nc%dmort            = currentCohort%dmort
                                   nc%lmort_direct     = currentCohort%lmort_direct
                                   nc%lmort_collateral = currentCohort%lmort_collateral
@@ -767,6 +771,7 @@ contains
                                   nc%frmort           = currentCohort%frmort
                                   nc%smort            = currentCohort%smort
                                   nc%asmort           = currentCohort%asmort
+                                  nc%dgmort           = currentCohort%dgmort
                                   nc%dmort            = currentCohort%dmort
                                   nc%lmort_direct    = currentCohort%lmort_direct
                                   nc%lmort_collateral = currentCohort%lmort_collateral
@@ -826,6 +831,7 @@ contains
                             nc%frmort           = currentCohort%frmort
                             nc%smort            = currentCohort%smort
                             nc%asmort           = currentCohort%asmort
+                            nc%dgmort           = currentCohort%dgmort
                             nc%dmort            = currentCohort%dmort
                             nc%lmort_direct     = currentCohort%lmort_direct
                             nc%lmort_collateral = currentCohort%lmort_collateral
@@ -901,6 +907,7 @@ contains
                                nc%frmort           = currentCohort%frmort
                                nc%smort            = currentCohort%smort
                                nc%asmort           = currentCohort%asmort
+                               nc%dgmort           = currentCohort%dgmort
                                nc%dmort            = currentCohort%dmort
 
                                ! since these are the ones that weren't logged,
@@ -963,6 +970,7 @@ contains
                                   nc%frmort           = currentCohort%frmort
                                   nc%smort            = currentCohort%smort
                                   nc%asmort           = currentCohort%asmort
+                                  nc%dgmort           = currentCohort%dgmort
                                   nc%dmort            = currentCohort%dmort
                                   nc%lmort_direct     = currentCohort%lmort_direct
                                   nc%lmort_collateral = currentCohort%lmort_collateral
@@ -985,6 +993,7 @@ contains
                                   nc%frmort           = currentCohort%frmort
                                   nc%smort            = currentCohort%smort
                                   nc%asmort           = currentCohort%asmort
+                                  nc%dgmort           = currentCohort%dgmort
                                   nc%dmort            = currentCohort%dmort
                                   nc%lmort_direct     = currentCohort%lmort_direct
                                   nc%lmort_collateral = currentCohort%lmort_collateral

@@ -1,16 +1,19 @@
 module FatesSizeAgeTypeIndicesMod
 
   use FatesConstantsMod,     only : r8 => fates_r8
+
   use FatesInterfaceTypesMod,     only : nlevsclass
   use FatesInterfaceTypesMod,     only : nlevage
   use FatesInterfaceTypesMod,     only : nlevheight
   use FatesInterfaceTypesMod,     only : nlevcoage
   use EDTypesMod,                 only : nclmax
+  use FatesInterfaceTypesMod,     only : nlevdamage
   use EDParamsMod,           only : ED_val_history_sizeclass_bin_edges
   use EDParamsMod,           only : ED_val_history_ageclass_bin_edges
   use EDParamsMod,           only : ED_val_history_height_bin_edges
   use EDParamsMod,           only : ED_val_history_coageclass_bin_edges
-
+  use EDParamsMod,           only : ED_val_history_damage_bin_edges
+  
   implicit none
   private ! Modules are private by default
 
@@ -22,6 +25,8 @@ module FatesSizeAgeTypeIndicesMod
   public :: get_height_index
   public :: get_sizeagepft_class_index
   public :: get_agepft_class_index
+  public :: get_cdamagesize_class_index
+  public :: get_cdamagesizepft_class_index
   public :: coagetype_class_index
   public :: get_coage_class_index
   public :: get_agefuel_class_index
@@ -41,7 +46,8 @@ contains
 
   end function get_age_class_index
 
-  ! =====================================================================================
+    ! =====================================================================================
+  
 
   function get_layersizetype_class_index(layer,dbh,pft) result(iclscpf)
 
@@ -86,6 +92,25 @@ contains
      size_by_age_class = (age_class-1)*nlevsclass + size_class
 
   end function get_sizeage_class_index
+
+  !======================================================================================
+
+  
+  function get_cdamagesize_class_index(dbh,cdamage) result(cdamage_by_size_class)
+     
+     ! Arguments
+     real(r8),intent(in) :: dbh
+     integer,intent(in) :: cdamage
+
+     integer             :: size_class
+     integer             :: cdamage_by_size_class
+     
+     size_class        = get_size_class_index(dbh)
+   
+     cdamage_by_size_class = (cdamage-1)*nlevsclass + size_class
+
+  end function get_cdamagesize_class_index
+
 
   ! =====================================================================================
 
@@ -180,6 +205,25 @@ contains
           (pft-1) * nlevsclass * nlevage
 
   end function get_sizeagepft_class_index
+
+   ! =====================================================================================
+
+  function get_cdamagesizepft_class_index(dbh,cdamage,pft) result(cdamage_by_size_by_pft_class)
+     
+     ! Arguments
+     real(r8),intent(in) :: dbh
+     integer,intent(in) :: cdamage
+     integer,intent(in)  :: pft
+
+     integer             :: size_class
+     integer             :: cdamage_by_size_by_pft_class
+     
+     size_class        = get_size_class_index(dbh)
+ 
+     cdamage_by_size_by_pft_class = (cdamage-1)*nlevsclass + size_class + &
+          (pft-1) * nlevsclass * nlevdamage
+
+  end function get_cdamagesizepft_class_index
 
   ! =====================================================================================
 

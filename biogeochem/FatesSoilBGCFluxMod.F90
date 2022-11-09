@@ -95,73 +95,6 @@ module FatesSoilBGCFluxMod
 
 contains
   
-  ! =====================================================================================
-
-  function GetPlantDemand(ccohort,element_id) result(plant_demand)
-
-    ! -----------------------------------------------------------------------------------
-    ! This function calculates the plant's demand for a given nutrient
-    ! based upon the need to fill its NPP demand and/or the need to
-    ! get its tissues to their ideal stoichiometry ratios.
-    ! This routine is used for informing BGC competition schemes, and
-    ! for generating synthetic upake rates and also for calculating
-    ! diagnostics.
-    !
-    ! THIS ROUTINE IS UNDERGOING MODIFICATIONS WILL CLEAN UP AFTER
-    ! A DECENT FIRST HYPOTHESIS MANIFESTS
-    ! -----------------------------------------------------------------------------------
-
-    
-    type(ed_cohort_type),intent(in) :: ccohort
-    integer,intent(in)              :: element_id      ! Should match nitrogen_element or
-                                                       ! phosphorus_element
-    
-    real(r8)              :: plant_demand ! Nutrient demand per plant [kg]
-    real(r8)              :: plant_x      ! Total mass for element of interest [kg]
-    real(r8)              :: plant_max_x  ! Maximum mass for element of interest [kg]
-    integer               :: pft
-    real(r8)              :: dbh
-    real(r8)              :: fnrt_c
-
-    real(r8), parameter :: smth_fac = 0.1_r8         ! Smoothing factor for updating
-                                                     ! demand.
-    real(r8), parameter :: init_demand_frac = 0.1_r8 ! Newly recruited plants
-                                                     ! will specify a demand
-                                                     ! based on their total nutrient
-                                                     ! because they have not history
-                                                     ! of need yet
-
-    
-    
-    pft = ccohort%pft
-    dbh = ccohort%dbh
-
-
-    ! If the cohort has not experienced a day of integration
-    ! (and thus any allocation yet), it has no deficit
-    ! in its storage to drive any need, so it thus has no demand
-    if(ccohort%isnew) then
-       plant_demand = 0._r8
-       return
-    end if
-       
-    fnrt_c = ccohort%prt%GetState(fnrt_organ, carbon12_element)
-    
-    ! If the plant is not a newly recruited plant
-    ! We use other methods of specifying nutrient demand
-    ! -----------------------------------------------------------------------------------
-
-    if(element_id.eq.nitrogen_element) then
-
-       plant_demand = fnrt_c * EDPftvarcon_inst%vmax_nh4(ccohort%pft) * sec_per_day
-       
-    elseif(element_id.eq.phosphorus_element) then
-
-       plant_demand = fnrt_c * EDPftvarcon_inst%eca_vmax_p(ccohort%pft) * sec_per_day
-       
-    end if
-
-  end function GetPlantDemand
 
   ! =====================================================================================
   
@@ -217,8 +150,7 @@ contains
        ! then we are not coupling with the soil bgc model.
        ! In this case, the bc_in structure is meaningless.
        ! Instead, we give the plants a parameterized fraction
-       ! of their demand.  Routine GetPlantDemand() returns
-       ! the plant demand.
+       ! of their demand.
 
        if (n_uptake_mode.eq.prescribed_n_uptake) then
 
@@ -227,9 +159,11 @@ contains
              ccohort => cpatch%tallest
              do while (associated(ccohort))
                 pft = ccohort%pft
-                !ccohort%daily_n_demand = GetPlantDemand(ccohort,nitrogen_element)
-                ccohort%daily_nh4_uptake = -9._r8 !EDPftvarcon_inst%prescribed_nuptake(pft) * ccohort%daily_n_demand
-                ccohort%daily_no3_uptake = 0._r8
+                fnrt_c = ccohort%prt%GetState(fnrt_organ, carbon12_element)
+                ccohort%daily_n_demand = fnrt_c * &
+                     (EDPftvarcon_inst%vmax_nh4(pft)+EDPftvarcon_inst%vmax_no3(pft)) * sec_per_day
+                ccohort%daily_nh4_uptake = fnrt_c*EDPftvarcon_inst%vmax_nh4(pft)*EDPftvarcon_inst%prescribed_nuptake(pft)* sec_per_day
+                ccohort%daily_no3_uptake = fnrt_c*EDPftvarcon_inst%vmax_no3(pft)*EDPftvarcon_inst%prescribed_nuptake(pft)* sec_per_day
                 ccohort => ccohort%shorter
              end do
              cpatch => cpatch%younger
@@ -243,7 +177,10 @@ contains
              ccohort => cpatch%tallest
              do while (associated(ccohort))
                 icomp = icomp+1
-                ccohort%daily_n_demand = GetPlantDemand(ccohort,nitrogen_element)
+                pft = ccohort%pft
+                fnrt_c = ccohort%prt%GetState(fnrt_organ, carbon12_element)
+                ccohort%daily_n_demand = fnrt_c * &
+                     (EDPftvarcon_inst%vmax_nh4(pft)+EDPftvarcon_inst%vmax_no3(pft)) * sec_per_day
                 ! N Uptake:  Convert g/m2/day -> kg/plant/day
                 ccohort%daily_nh4_uptake = bc_in(s)%plant_nh4_uptake_flux(icomp,1)*kg_per_g*AREA/ccohort%n
                 ccohort%daily_no3_uptake = bc_in(s)%plant_no3_uptake_flux(icomp,1)*kg_per_g*AREA/ccohort%n
@@ -260,8 +197,9 @@ contains
              ccohort => cpatch%tallest
              do while (associated(ccohort))
                 pft = ccohort%pft
-                !ccohort%daily_p_demand = GetPlantDemand(ccohort,phosphorus_element)
-                ccohort%daily_p_gain = -9._r8 !EDPftvarcon_inst%prescribed_puptake(pft) * ccohort%daily_p_demand
+                fnrt_c = ccohort%prt%GetState(fnrt_organ, carbon12_element)
+                ccohort%daily_p_demand = fnrt_c * EDPftvarcon_inst%vmax_p(pft) * sec_per_day
+                ccohort%daily_p_gain   = fnrt_c * EDPftvarcon_inst%vmax_p(pft) * sec_per_day * EDPftvarcon_inst%prescribed_nuptake(pft)
                 ccohort => ccohort%shorter
              end do
              cpatch => cpatch%younger
@@ -275,7 +213,9 @@ contains
              ccohort => cpatch%tallest
              do while (associated(ccohort))
                 icomp = icomp+1
-                ccohort%daily_p_demand =  GetPlantDemand(ccohort,phosphorus_element)
+                pft = ccohort%pft
+                fnrt_c = ccohort%prt%GetState(fnrt_organ, carbon12_element)
+                ccohort%daily_p_demand = fnrt_c * EDPftvarcon_inst%vmax_p(pft) * sec_per_day
                 ! P Uptake:  Convert g/m2/day -> kg/plant/day
                 ccohort%daily_p_gain = bc_in(s)%plant_p_uptake_flux(icomp,1)*kg_per_g*AREA/ccohort%n
                 ccohort => ccohort%shorter
@@ -445,9 +385,9 @@ contains
     end do
 
     ! Smoothed [gc/m2/yr]
-    if(csite%ema_npp<-10000._r8)then
-       ! Its difficult to come up with a resonable starting smoothing value, so
-       ! we initialize on a cold-start to -1
+    if(csite%ema_npp<-9000._r8)then
+       ! For cold starts, we initialize the ema_npp value at -9999, so that
+       ! it becomes memoryless and uses the first calculated value
        csite%ema_npp = site_npp
     else
        csite%ema_npp = (1._r8-1._r8/ema_npp_tscale)*csite%ema_npp + (1._r8/ema_npp_tscale)*site_npp
@@ -466,8 +406,7 @@ contains
     ! This subroutine will generate the appropriate boundary condition output 
     ! structures, depending on:
     ! 1) Which soil-bgc competition method is active in the HLM
-    ! 2) If nitrification/denitrification is turned on
-    ! 3) Which competitor scaling type is used
+    ! 2) Which competitor scaling type is used
     ! -----------------------------------------------------------------------------------
 
     ! !ARGUMENTS    
@@ -991,8 +930,6 @@ contains
     
     return
   end subroutine FluxIntoLitterPools
-
-
 
 
 end module FatesSoilBGCFluxMod

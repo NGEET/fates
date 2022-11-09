@@ -1,4 +1,4 @@
-netcdf tmp {
+netcdf fates_params_default_api24 {
 dimensions:
 	fates_NCWD = 4 ;
 	fates_history_age_bins = 7 ;
@@ -188,48 +188,46 @@ variables:
 	double fates_cnp_eca_lambda_ptase(fates_pft) ;
 		fates_cnp_eca_lambda_ptase:units = "g/m3" ;
 		fates_cnp_eca_lambda_ptase:long_name = "critical value for biochemical production (ECA)" ;
+	double fates_cnp_eca_vmax_nh4(fates_pft) ;
+		fates_cnp_eca_vmax_nh4:units = "gN/gC/s" ;
+		fates_cnp_eca_vmax_nh4:long_name = "maximum production rate for plant nh4 uptake (ECA)" ;
+	double fates_cnp_eca_vmax_no3(fates_pft) ;
+		fates_cnp_eca_vmax_no3:units = "gN/gC/s" ;
+		fates_cnp_eca_vmax_no3:long_name = "maximum production rate for plant no3 uptake (ECA)" ;
 	double fates_cnp_eca_vmax_ptase(fates_pft) ;
 		fates_cnp_eca_vmax_ptase:units = "gP/m2/s" ;
 		fates_cnp_eca_vmax_ptase:long_name = "maximum production rate for biochemical P (per m2) (ECA)" ;
+	double fates_cnp_fnrt_adapt_tscale(fates_pft) ;
+		fates_cnp_fnrt_adapt_tscale:units = "days" ;
+		fates_cnp_fnrt_adapt_tscale:long_name = "Number of days that is shortest possible doubling period for fine-root adaptation to C/N/P balance" ;
 	double fates_cnp_nfix1(fates_pft) ;
-		fates_cnp_nfix1:units = "fraction" ;
-		fates_cnp_nfix1:long_name = "fractional surcharge added to maintenance respiration that drives symbiotic fixation" ;
+		fates_cnp_nfix1:units = "NA" ;
+		fates_cnp_nfix1:long_name = "place-holder for future n-fixation parameter (NOT IMPLEMENTED)" ;
 	double fates_cnp_nitr_store_ratio(fates_pft) ;
 		fates_cnp_nitr_store_ratio:units = "(gN/gN)" ;
 		fates_cnp_nitr_store_ratio:long_name = "storeable (labile) N, as a ratio compared to the N bound in cell structures of other organs (see code)" ;
 	double fates_cnp_phos_store_ratio(fates_pft) ;
 		fates_cnp_phos_store_ratio:units = "(gP/gP)" ;
 		fates_cnp_phos_store_ratio:long_name = "storeable (labile) P, as a ratio compared to the P bound in cell structures of other organs (see code)" ;
-	double fates_cnp_pid_kd(fates_pft) ;
-		fates_cnp_pid_kd:units = "unknown" ;
-		fates_cnp_pid_kd:long_name = "derivative constant of the PID controller on adaptive fine-root biomass" ;
-	double fates_cnp_pid_ki(fates_pft) ;
-		fates_cnp_pid_ki:units = "unknown" ;
-		fates_cnp_pid_ki:long_name = "integral constant of the PID controller on adaptive fine-root biomass" ;
-	double fates_cnp_pid_kp(fates_pft) ;
-		fates_cnp_pid_kp:units = "unknown" ;
-		fates_cnp_pid_kp:long_name = "proportional constant of the PID controller on adaptive fine-root biomass" ;
 	double fates_cnp_prescribed_nuptake(fates_pft) ;
 		fates_cnp_prescribed_nuptake:units = "fraction" ;
 		fates_cnp_prescribed_nuptake:long_name = "Prescribed N uptake flux. 0=fully coupled simulation >0=prescribed (experimental)" ;
 	double fates_cnp_prescribed_puptake(fates_pft) ;
 		fates_cnp_prescribed_puptake:units = "fraction" ;
 		fates_cnp_prescribed_puptake:long_name = "Prescribed P uptake flux. 0=fully coupled simulation, >0=prescribed (experimental)" ;
+	double fates_cnp_rd_vmax_n(fates_pft) ;
+		fates_cnp_rd_vmax_n:units = "gN/gC/s" ;
+		fates_cnp_rd_vmax_n:long_name = "maximum production rate for compbined (NH4+NO3) uptake (RD)" ;
 	double fates_cnp_store_ovrflw_frac(fates_pft) ;
 		fates_cnp_store_ovrflw_frac:units = "fraction" ;
 		fates_cnp_store_ovrflw_frac:long_name = "size of overflow storage (for excess C,N or P) as a fraction of storage target" ;
+		fates_cnp_store_ovrflw_frac:use_case = "None" ;
 	double fates_cnp_turnover_nitr_retrans(fates_plant_organs, fates_pft) ;
 		fates_cnp_turnover_nitr_retrans:units = "fraction" ;
 		fates_cnp_turnover_nitr_retrans:long_name = "retranslocation (reabsorbtion) fraction of nitrogen in turnover of scenescing tissues" ;
 	double fates_cnp_turnover_phos_retrans(fates_plant_organs, fates_pft) ;
 		fates_cnp_turnover_phos_retrans:units = "fraction" ;
 		fates_cnp_turnover_phos_retrans:long_name = "retranslocation (reabsorbtion) fraction of phosphorus in turnover of scenescing tissues" ;
-	double fates_cnp_vmax_nh4(fates_pft) ;
-		fates_cnp_vmax_nh4:units = "gN/gC/s" ;
-		fates_cnp_vmax_nh4:long_name = "maximum (potential) uptake rate of NH4 per gC of fineroot biomass (see main/EDPftvarcon.F90 vmax_nh4 for usage)" ;
-	double fates_cnp_vmax_no3(fates_pft) ;
-		fates_cnp_vmax_no3:units = "gN/gC/s" ;
-		fates_cnp_vmax_no3:long_name = "maximum (potential) uptake rate of NO3 per gC of fineroot biomass (see main/EDPftvarcon.F90 vmax_no3 for usage)" ;
 	double fates_cnp_vmax_p(fates_pft) ;
 		fates_cnp_vmax_p:units = "gP/gC/s" ;
 		fates_cnp_vmax_p:long_name = "maximum production rate for phosphorus (ECA and RD)" ;
@@ -968,8 +966,17 @@ data:
 
  fates_cnp_eca_lambda_ptase = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
+ fates_cnp_eca_vmax_nh4 = 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 
+    5e-09, 5e-09, 5e-09, 5e-09, 5e-09 ;
+
+ fates_cnp_eca_vmax_no3 = 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 
+    5e-09, 5e-09, 5e-09, 5e-09, 5e-09 ;
+
  fates_cnp_eca_vmax_ptase = 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 
     5e-09, 5e-09, 5e-09, 5e-09, 5e-09 ;
+
+ fates_cnp_fnrt_adapt_tscale = 100, 100, 100, 100, 100, 100, 100, 100, 100, 
+    100, 100, 100 ;
 
  fates_cnp_nfix1 = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
@@ -979,16 +986,12 @@ data:
  fates_cnp_phos_store_ratio = 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 
     1.5, 1.5, 1.5 ;
 
- fates_cnp_pid_kd = 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1 ;
-
- fates_cnp_pid_ki = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
-
- fates_cnp_pid_kp = 0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 
-    0.0005, 0.0005, 0.0005, 0.0005, 0.0005 ;
-
  fates_cnp_prescribed_nuptake = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
  fates_cnp_prescribed_puptake = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
+
+ fates_cnp_rd_vmax_n = 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 
+    5e-09, 5e-09, 5e-09, 5e-09, 5e-09 ;
 
  fates_cnp_store_ovrflw_frac = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
@@ -1003,12 +1006,6 @@ data:
   0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
-
- fates_cnp_vmax_nh4 = 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 
-    2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09 ;
-
- fates_cnp_vmax_no3 = 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 
-    2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09 ;
 
  fates_cnp_vmax_p = 5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 
     5e-10, 5e-10, 5e-10, 5e-10 ;

@@ -347,9 +347,15 @@ contains
   ! =====================================================================================
 
 
-  subroutine DailyPRTAllometricCNP(this)
+  subroutine DailyPRTAllometricCNP(this,phase)
 
     class(cnp_allom_prt_vartypes) :: this
+    integer,intent(in)           :: phase         ! the phase splits the routine into parts
+    ! note that phasing is used primarily to
+    ! accomodate the damage module. Damage
+    ! and nutrient cycling are not yet compatable though
+    ! hence, we simply return from any phase but phase 1
+
     
     ! Pointers to in-out bcs
     real(r8),pointer :: dbh          ! Diameter at breast height [cm]
@@ -396,12 +402,12 @@ contains
     real(r8) :: allocated_p
     real(r8) :: sum_c ! error checking sum
 
-    ! If more than 1 leaf age bin is present, this
-    ! call advances leaves in their age, but does
-    ! not actually remove any biomass from the plant
-    
-    call this%AgeLeaves(ipft,sec_per_day)
 
+    ! Phasing is only used to accomodate the
+    ! damage module. Since this is incompatible with CNP
+    ! Ignore all subsequent calls after the first
+    if (phase.ne.1) return
+    
     
     ! In/out boundary conditions
     resp_excess => this%bc_inout(acnp_bc_inout_id_resp_excess)%rval

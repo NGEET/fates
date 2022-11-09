@@ -26,12 +26,22 @@
     <mod type="variable_del">
       <na> fates_cnp_rd_vmax_n </na>
     </mod>
+    <mod type="variable_del">
+      <na> fates_cnp_eca_vmax_no3 </na>
+    </mod>
     <mod type="variable_add">
       <na> fates_cnp_vmax_nh4 </na>
       <di> fates_pft </di>
       <un> gN/gC/s </un>
-      <ln> maximum (potential) uptake rate of N (for RD) or NH4 (for ECA) per gC of fineroot biomass </ln>
-      <val> 5e-9, 5e-9, 5e-9, 5e-9, 5e-9, 5e-9, 5e-9, 5e-9, 5e-9, 5e-9, 5e-9, 5e-9 </val>
+      <ln> maximum (potential) uptake rate of NH4 per gC of fineroot biomass (see main/EDPftvarcon.F90 vmax_nh4 for usage)</ln>
+      <val> 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_cnp_vmax_no3 </na>
+      <di> fates_pft </di>
+      <un> gN/gC/s </un>
+      <ln> maximum (potential) uptake rate of NO3 per gC of fineroot biomass (see main/EDPftvarcon.F90 vmax_no3 for usage)</ln>
+      <val> 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9 </val>
     </mod>
     <mod type="variable_add">
       <na> fates_cnp_pid_kd </na>

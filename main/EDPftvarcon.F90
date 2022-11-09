@@ -131,18 +131,31 @@ module EDPftvarcon
      real(r8), allocatable :: prescribed_recruitment(:)          ! this is only for the
                                                                  ! prescribed_physiology_mode
 
+
+     ! Damage Parameters
+
+     real(r8), allocatable :: damage_frac(:)             ! Fraction of each cohort damaged per year
+     real(r8), allocatable :: damage_mort_p1(:)          ! Inflection point for damage mortality function
+     real(r8), allocatable :: damage_mort_p2(:)          ! Rate parameter for damage mortality function
+     real(r8), allocatable :: damage_recovery_scalar(:)  ! what fraction of cohort gets to recover
+
      ! Nutrient Aquisition (ECA & RD)
 
 
      real(r8), allocatable :: decompmicc(:)             ! microbial decomposer biomass gC/m3
                                                         ! on root surface
 
-     real(r8), allocatable :: vmax_nh4(:) ! maximum production rate for plant N uptake
-                                          ! For ECA: this is just ammonium: nh4 uptake   [gN/gC/s]
-                                          ! For RD: this is the uptake of both (we can't have
-                                          ! unique parameter for RD, because it want's one demand,
-                                          ! and uses this vmax to set the demand, first drawing from
-                                          ! NH4 and then NO3
+     real(r8), allocatable :: vmax_nh4(:) ! maximum production rate for plant NH4 uptake   [gN/gC/s]
+     real(r8), allocatable :: vmax_no3(:) ! maximum production rate for plant NO3 uptake   [gN/gC/s]
+                                          ! For ECA: these rates will be applied separately to
+                                          ! draw from mineralized nh4 and no3 pools independantly.
+                                          ! For RD: these rates will be added, to construct a total
+                                          ! N demand, which will be applied to NH4 and then NO3
+                                          ! sequentially
+     real(r8), allocatable :: vmax_p(:)   ! maximum production rate for plant p uptake     [gP/gC/s]
+
+     
+
      
      ! ECA Parameters: See Zhu et al. Multiple soil nutrient competition between plants,
      !                     microbes, and mineral surfaces: model development, parameterization,
@@ -155,9 +168,9 @@ module EDPftvarcon
      real(r8), allocatable :: eca_km_nh4(:)   ! half-saturation constant for plant nh4 uptake  [gN/m3]
      
      real(r8), allocatable :: eca_km_no3(:)   ! half-saturation constant for plant no3 uptake  [gN/m3]
-     real(r8), allocatable :: eca_vmax_no3(:) ! maximum production rate for plant no3 uptake   [gN/gC/s]
+    
      real(r8), allocatable :: eca_km_p(:)     ! half-saturation constant for plant p uptake    [gP/m3]
-     real(r8), allocatable :: eca_vmax_p(:)   ! maximum production rate for plant p uptake     [gP/gC/s]
+     
      real(r8), allocatable :: eca_km_ptase(:)     ! half-saturation constant for biochemical P production [gP/m3]
      real(r8), allocatable :: eca_vmax_ptase(:)   ! maximum production rate for biochemical P prod        [gP/gC/s]
      real(r8), allocatable :: eca_alpha_ptase(:)  ! Fraction of min P generated from ptase activity
@@ -433,6 +446,22 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_damage_frac'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_damage_mort_p1'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_damage_mort_p2'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_damage_recovery_scalar'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     name = 'fates_fire_alpha_SH'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -591,7 +620,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_cnp_eca_vmax_no3'
+    name = 'fates_cnp_vmax_no3'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -764,6 +793,22 @@ contains
     name = 'fates_recruit_prescribed_rate'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%prescribed_recruitment)
+
+    name = 'fates_damage_frac'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%damage_frac)
+
+    name = 'fates_damage_mort_p1'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%damage_mort_p1)
+
+    name = 'fates_damage_mort_p2'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%damage_mort_p2)
+    
+    name = 'fates_damage_recovery_scalar'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%damage_recovery_scalar)
 
     name = 'fates_fire_alpha_SH'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -943,9 +988,9 @@ contains
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%eca_km_no3)
 
-    name = 'fates_cnp_eca_vmax_no3'
+    name = 'fates_cnp_vmax_no3'
     call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%eca_vmax_no3)
+         data=this%vmax_no3)
 
     name = 'fates_cnp_eca_km_p'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -953,7 +998,7 @@ contains
 
     name = 'fates_cnp_vmax_p'
     call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%eca_vmax_p)
+         data=this%vmax_p)
 
     name = 'fates_cnp_eca_km_ptase'
     call fates_params%RetrieveParameterAllocate(name=name, &

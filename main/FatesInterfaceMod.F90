@@ -204,11 +204,11 @@ contains
     integer             , intent(in)    :: nlevdecomp 
 
     allocate(bc_pconst%vmax_nh4(numpft))
+    allocate(bc_pconst%vmax_no3(numpft))    
+    allocate(bc_pconst%vmax_p(numpft))
     allocate(bc_pconst%eca_km_nh4(numpft))
     allocate(bc_pconst%eca_km_no3(numpft))
-    allocate(bc_pconst%eca_vmax_no3(numpft))      
     allocate(bc_pconst%eca_km_p(numpft))
-    allocate(bc_pconst%eca_vmax_p(numpft))
     allocate(bc_pconst%eca_km_ptase(numpft))
     allocate(bc_pconst%eca_vmax_ptase(numpft))
     allocate(bc_pconst%eca_alpha_ptase(numpft))
@@ -227,12 +227,12 @@ contains
     integer                             :: j
     
     bc_pconst%vmax_nh4(1:numpft)         = EDPftvarcon_inst%vmax_nh4(1:numpft)
-
+    bc_pconst%vmax_no3(1:numpft)         = EDPftvarcon_inst%vmax_no3(1:numpft)
+    bc_pconst%vmax_p(1:numpft)           = EDPftvarcon_inst%vmax_p(1:numpft)
+    
     bc_pconst%eca_km_nh4(1:numpft)       = EDPftvarcon_inst%eca_km_nh4(1:numpft)
     bc_pconst%eca_km_no3(1:numpft)       = EDPftvarcon_inst%eca_km_no3(1:numpft)
-    bc_pconst%eca_vmax_no3(1:numpft)     = EDPftvarcon_inst%eca_vmax_no3(1:numpft)
     bc_pconst%eca_km_p(1:numpft)         = EDPftvarcon_inst%eca_km_p(1:numpft)
-    bc_pconst%eca_vmax_p(1:numpft)       = EDPftvarcon_inst%eca_vmax_p(1:numpft)
     bc_pconst%eca_km_ptase(1:numpft)     = EDPftvarcon_inst%eca_km_ptase(1:numpft)
     bc_pconst%eca_vmax_ptase(1:numpft)   = EDPftvarcon_inst%eca_vmax_ptase(1:numpft)
     bc_pconst%eca_alpha_ptase(1:numpft)  = EDPftvarcon_inst%eca_alpha_ptase(1:numpft) 
@@ -1540,24 +1540,25 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         ! TEMPORARY TESTING OVERRIDE !!!!!!!!
-         ! hlm_decomp = 'MIMICS'
-         
          if(trim(hlm_nu_com) .eq. 'unset') then
             write(fates_log(),*) 'FATES dimension/parameter unset: hlm_nu_com, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(hlm_use_tree_damage .eq. unset_int .or. hlm_use_tree_damage .eq. itrue) then
+         if(hlm_use_tree_damage .eq. unset_int) then
             write(fates_log(),*) 'FATES dimension/parameter unset: hlm_use_tree_damage, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
+         else
+            if((hlm_use_tree_damage .eq. itrue) .and. &
+                 (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp))then
+               write(fates_log(),*) 'FATES tree damage (use_fates_tree_damage = .true.) is not'
+               write(fates_log(),*) '(yet) compatible with CNP allocation (fates_parteh_mode = 2)'
+               call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(hlm_use_tree_damage .eq. itrue) then
-            write(fates_log(),*) 'hlm_use_tree_damage is not available yet, value: ',hlm_use_tree_damage,' ,set to false'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
+            
          end if
-         
+
          if(hlm_nitrogen_spec .eq. unset_int) then
             write(fates_log(),*) 'FATES parameters unset: hlm_nitrogen_spec, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1941,6 +1942,7 @@ contains
         ifp=0
         cpatch => sites(s)%oldest_patch
         do while(associated(cpatch))
+           if (cpatch%patchno .ne. 0) then
            ifp=ifp+1
            call cpatch%tveg24%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            call cpatch%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
@@ -1951,6 +1953,7 @@ contains
            !   call ccohort%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            !   ccohort => ccohort%shorter
            !end do
+           end if
            
            cpatch => cpatch%younger
         enddo
