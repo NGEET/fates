@@ -743,7 +743,6 @@ module EDTypesMod
                                                                ! in runs that are restarted, regardless of
                                                                ! the conditions of restart
 
-     
      real(r8) ::  water_memory(numWaterMem)                             ! last 10 days of soil moisture memory...
 
 

@@ -316,7 +316,7 @@ module FatesHistoryInterfaceMod
 
   ! Indices to (site) variables
   integer :: ih_tveg24_si
-  integer :: ih_tveg_si
+  !integer :: ih_tveg_si
   integer :: ih_nep_si
   integer :: ih_hr_si
 
@@ -2531,7 +2531,6 @@ end subroutine flush_hvars
                   ccohort%npp_acc_hold * n_perm2 / days_per_year / sec_per_day
             end if
 
-
             ! Site by Size-Class x PFT (SCPF)
             ! ------------------------------------------------------------------------
 
@@ -2670,7 +2669,6 @@ end subroutine flush_hvars
                hio_m9_si_scls(io_si,scls) = hio_m9_si_scls(io_si,scls) + ccohort%smort*ccohort%n / m2_per_ha
 
                ! Examine secondary forest mortality and mortality rates
-
                if(cpatch%anthro_disturbance_label .eq. secondaryforest) then
 
                   if (hlm_use_cohort_age_tracking .eq.itrue) then
@@ -3757,8 +3755,8 @@ end subroutine flush_hvars
                hio_fabi_sun_top_si_can  => this%hvars(ih_fabi_sun_top_si_can)%r82d, &
                hio_fabi_sha_top_si_can  => this%hvars(ih_fabi_sha_top_si_can)%r82d, &
                hio_parsun_top_si_can     => this%hvars(ih_parsun_top_si_can)%r82d, &
-               hio_parsha_top_si_can     => this%hvars(ih_parsha_top_si_can)%r82d, &
-               hio_tveg   => this%hvars(ih_tveg_si)%r81d)
+               hio_parsha_top_si_can     => this%hvars(ih_parsha_top_si_can)%r82d)!, &
+               !hio_tveg   => this%hvars(ih_tveg_si)%r81d)
 
       ! Flush the relevant history variables
       call this%flush_hvars(nc,upfreq_in=2)
@@ -3813,12 +3811,12 @@ end subroutine flush_hvars
             hio_rad_error_si(io_si) = hio_rad_error_si(io_si) + &
                  cpatch%radiation_error * cpatch%area * AREA_INV
                  
-            ! Only accumulate the instantaneous vegetation temperature for vegetated patches
-            if (cpatch%patchno .ne. 0) then
-               hio_tveg(io_si) = hio_tveg(io_si) + &
-                  (bc_in(s)%t_veg_pa(cpatch%patchno) - t_water_freeze_k_1atm) * &
-                  cpatch%area / site_area_veg
-            end if
+           ! ! Only accumulate the instantaneous vegetation temperature for vegetated patches
+           ! if (cpatch%patchno .ne. 0) then
+           !    hio_tveg(io_si) = hio_tveg(io_si) + &
+           !       (bc_in(s)%t_veg_pa(cpatch%patchno) - t_water_freeze_k_1atm) * &
+           !       cpatch%area / site_area_veg
+           ! end if
             
             ccohort => cpatch%shortest
             do while(associated(ccohort))
@@ -4876,20 +4874,20 @@ end subroutine update_history_hifrq
 
     call this%set_history_var(vname='FATES_SECONDARY_FOREST_FRACTION',         &
          units='m2 m-2', long='secondary forest fraction',                     &
-         use_default='inactive', avgflag='A', vtype=site_r8, hlms='CLM:ALM',   &
+         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',   &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_fraction_secondary_forest_si)
 
     call this%set_history_var(vname='FATES_WOOD_PRODUCT', units='kg m-2',      &
          long='total wood product from logging in kg carbon per m2 land area', &
-         use_default='inactive', avgflag='A', vtype=site_r8, hlms='CLM:ALM',   &
+         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',   &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_woodproduct_si)
 
     call this%set_history_var(vname='FATES_SECONDARY_FOREST_VEGC',             &
          units='kg m-2',                                                       &
          long='biomass on secondary lands in kg carbon per m2 land area (mult by FATES_SECONDARY_FOREST_FRACTION to get per secondary forest area)', &
-         use_default='inactive', avgflag='A', vtype=site_r8,                   &
+         use_default='active', avgflag='A', vtype=site_r8,                   &
          hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
          index=ih_biomass_secondary_forest_si)
 
@@ -5397,11 +5395,11 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_tveg24_si )
 
-    call this%set_history_var(vname='FATES_TVEG', units='degree_Celsius', &
-         long='fates instantaneous mean vegetation temperature by site', &
-         use_default='active', &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2, &
-         ivar=ivar, initialize=initialize_variables, index = ih_tveg_si )
+    ! call this%set_history_var(vname='FATES_TVEG', units='degree_Celsius', &
+    !      long='fates instantaneous mean vegetation temperature by site', &
+    !      use_default='active', &
+    !      avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2, &
+    !      ivar=ivar, initialize=initialize_variables, index = ih_tveg_si )
 
     ! radiation error
 
@@ -5409,6 +5407,17 @@ end subroutine update_history_hifrq
          long='radiation error in FATES RTM', use_default='active',            &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,                 &
          ivar=ivar, initialize=initialize_variables, index = ih_rad_error_si)
+
+    call this%set_history_var(vname='FATES_HARVEST_DEBT', units='kg C',                   &
+         long='Accumulated carbon failed to be harvested',  use_default='active',     &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_harvest_debt_si )
+
+    call this%set_history_var(vname='FATES_HARVEST_DEBT_SEC', units='kg C',                   &
+         long='Accumulated carbon failed to be harvested from secondary patches',  use_default='active',     &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_harvest_debt_sec_si )
+
 
 
     ! Ecosystem Carbon Fluxes (updated rapidly, upfreq=2)

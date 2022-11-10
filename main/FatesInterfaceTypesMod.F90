@@ -532,8 +532,6 @@ module FatesInterfaceTypesMod
 
       integer :: hlm_harvest_units  ! what units are the harvest rates specified in? [area vs carbon]
     
-      real(r8) :: pprodharv10_forest_mean  ! harvest mortality proportion of deadstem to 10-yr pool
-
       real(r8) :: site_area    ! Actual area of current site [m2], only used in carbon-based harvest
 
       ! Fixed biogeography mode 
