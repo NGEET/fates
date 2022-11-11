@@ -192,7 +192,8 @@ contains
        currentPatch%livegrass = 0.0_r8 
        currentCohort => currentPatch%tallest
        do while(associated(currentCohort))
-          if( prt_params%woody(currentCohort%pft) == ifalse)then 
+           ! for grasses sum all aboveground tissues
+           if( prt_params%woody(currentCohort%pft) == ifalse)then 
              
              currentPatch%livegrass = currentPatch%livegrass + &
                   ( currentCohort%prt%GetState(leaf_organ, all_carbon_elements) + &
