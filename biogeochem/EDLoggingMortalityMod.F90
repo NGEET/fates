@@ -642,8 +642,10 @@ contains
      if (harvest_rate_supply > rsnbl_math_prec .and. harvest_rate_supply > harvest_rate_c) then
         harvest_rate = harvest_rate_c / harvest_rate_supply
      else
-        ! Force to harvest the whole cohort
-        harvest_rate = 1._r8
+        ! If we force harvest rate to 1 when we don't have enough C, we will produce
+        ! primary patch with no area, which cannot be terminated under nocomp mode.
+        ! So we still keep the harvest rate to 0 for now.
+        harvest_rate = 0._r8
      end if
 
      ! Prevent the generation of tiny secondary patches
