@@ -1864,6 +1864,7 @@ contains
              sapw_m          = currentCohort%prt%GetState(sapw_organ,element_id)
              struct_m        = currentCohort%prt%GetState(struct_organ,element_id)
           else
+             ! for non-woody plants all stem fluxes go into the same leaf litter pool
              leaf_m          = currentCohort%prt%GetState(leaf_organ,element_id) + &
                      currentCohort%prt%GetState(sapw_organ,element_id) + &
                      currentCohort%prt%GetState(struct_organ,element_id)
