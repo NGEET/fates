@@ -2205,8 +2205,7 @@ contains
        repro_m         = currentCohort%prt%GetState(repro_organ,element_id)
 
        if (prt_params%woody(currentCohort%pft) == itrue) then
-          ! Assumption: for woody plants, we lump fluxes from deadwood and sapwood together in CWD pool.
-          ! for non-woody plants, we put all stem fluxes into the same leaf litter pool.
+          ! Assumption: for woody plants fluxes from deadwood and sapwood go together in CWD pool
           leaf_m_turnover   = currentCohort%prt%GetTurnover(leaf_organ,element_id)
           sapw_m_turnover   = currentCohort%prt%GetTurnover(sapw_organ,element_id)
           struct_m_turnover = currentCohort%prt%GetTurnover(struct_organ,element_id)
