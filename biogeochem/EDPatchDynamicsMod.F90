@@ -865,7 +865,7 @@ contains
                                   leaf_m = nc%prt%GetState(leaf_organ, element_list(el))
 
                                else
-
+                               ! for grasses burn all aboveground tissues
                                   leaf_m = nc%prt%GetState(leaf_organ, element_list(el)) + &
                                        nc%prt%GetState(sapw_organ, element_list(el)) + &
                                        nc%prt%GetState(struct_organ, element_list(el))
