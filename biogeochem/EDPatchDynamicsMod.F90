@@ -859,7 +859,7 @@ contains
                             do el = 1,num_elements
 
                                leaf_m = nc%prt%GetState(leaf_organ, element_list(el))
-                               ! for grasses burn all aboveground tissues, for woody plants burn only leaves
+                               ! for woody plants burn only leaves
                                if(int(prt_params%woody(currentCohort%pft)) == itrue)then
 
                                   leaf_m = nc%prt%GetState(leaf_organ, element_list(el))
