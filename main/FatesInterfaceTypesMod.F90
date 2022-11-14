@@ -531,7 +531,7 @@ module FatesInterfaceTypesMod
       character(len=64), allocatable :: hlm_harvest_catnames(:)  ! names of hlm_harvest d1
 
       integer :: hlm_harvest_units  ! what units are the harvest rates specified in? [area vs carbon]
-    
+
       ! Fixed biogeography mode 
       real(r8), allocatable :: pft_areafrac(:)     ! Fractional area of the FATES column occupied by each PFT  
     
@@ -721,6 +721,7 @@ module FatesInterfaceTypesMod
                                                        ! This does seem unlikely, but we need accomodate
                                                        ! small fluxes for various reasons
                                                        ! [mm H2O/s]
+
 
       ! FATES LULCC
       real(r8) :: hrv_deadstemc_to_prod10c   ! Harvested C flux to 10-yr wood product pool [Site-Level, gC m-2 s-1]

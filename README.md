@@ -9,6 +9,8 @@ For more information on the FATES model, see our [User's Guide](https://fates-us
 
 Please submit any questions you may have to the [FATES Github Discussions board](https://github.com/NGEET/fates/discussions).
 
+To receive email updates about forthcoming release tags, regular meeting notifications, and other important announcements, please join the [FATES Google group](https://groups.google.com/g/fates_model).
+
 ## Important Guides:
 ------------------------------
 
