@@ -33,6 +33,7 @@
     </pft_group>
     <pft_group ids="2,3,4,6">
       <fates_allom_dbh_maxheight> 80, 80, 80, 80 </fates_allom_dbh_maxheight>
+      <fates_recruit_seed_dbh_repro_threshold> 80, 80, 80, 80 </fates_recruit_seed_dbh_repro_threshold>
     </pft_group>
     <!-- bushes -->
     <pft_group ids="7,8,9">
