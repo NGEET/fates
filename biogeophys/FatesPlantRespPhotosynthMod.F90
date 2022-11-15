@@ -2096,7 +2096,7 @@ subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, &
       ! revert to Q10 model for C4 plants, parameter values as described above in Ryan 1991 method
 
       lmr25top = 2.525e-6_r8 * (1.5_r8 ** ((25._r8 - 20._r8)/10._r8))
-      lmr25top = lmr25top * lnc / (umolC_to_kgC * g_per_kg)
+      lmr25 = lmr25top * lnc / (umolC_to_kgC * g_per_kg)
 
       lmr = lmr25 * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8)
       lmr = lmr / (1._r8 + exp( 1.3_r8*(veg_tempk-(tfrz+55._r8)) ))
