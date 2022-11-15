@@ -2081,14 +2081,15 @@ subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, &
    ! Shrubs              2.0749
    ! C3 herbs/grasses    2.1956
 
-   lnc = lnc_top * nscaler
+   ! note that this code uses the relationship between leaf N and respiration from Atkin et al 
+   ! for the top of the canopy, but then assumes proportionality with N through the canopy.
 
    if ( nint(EDPftvarcon_inst%c3psn(ft)) == 1)then
 
       ! r_0 currently put into the EDPftvarcon_inst%dev_arbitrary_pft
       ! all figs in Atkin et al 2017 stop at zero Celsius so we will assume acclimation is fixed below that
       r_0 = EDPftvarcon_inst%dev_arbitrary_pft(ft)
-      r_t_ref = r_0 + r_1 * lnc + r_2 * max(0._r8, (tgrowth - tfrz) )
+      r_t_ref = nscaler * (r_0 + r_1 * lnc_top + r_2 * max(0._r8, (tgrowth - tfrz) ))
 
       lmr = r_t_ref * exp(b * (veg_tempk - tfrz - TrefC) + c * ((veg_tempk-tfrz)**2 - TrefC**2))
 
@@ -2096,7 +2097,7 @@ subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, &
       ! revert to Q10 model for C4 plants, parameter values as described above in Ryan 1991 method
 
       lmr25top = 2.525e-6_r8 * (1.5_r8 ** ((25._r8 - 20._r8)/10._r8))
-      lmr25top = lmr25top * lnc / (umolC_to_kgC * g_per_kg)
+      lmr25 = lmr25top * lnc_top * nscaler / (umolC_to_kgC * g_per_kg)
 
       lmr = lmr25 * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8)
       lmr = lmr / (1._r8 + exp( 1.3_r8*(veg_tempk-(tfrz+55._r8)) ))
