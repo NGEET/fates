@@ -38,8 +38,8 @@
 	 <fates_cnp_nfix1> 0.0 </fates_cnp_nfix1>
 	 <fates_cnp_store_ovrflw_frac> 1 </fates_cnp_store_ovrflw_frac>
 	 <fates_allom_lmode> 3 </fates_allom_lmode>
-	 <fates_cnp_vmax_nh4> 5e-09 </fates_cnp_vmax_nh4>
-	 <fates_cnp_vmax_no3> 5e-09 </fates_cnp_vmax_no3>
+	 <fates_cnp_vmax_nh4> 5e-09 </fates_cnp_vmax_nh4>  <!-- Calibrated for RD, where NH4+NO3 is summed -->
+	 <fates_cnp_vmax_no3> 0 </fates_cnp_vmax_no3>      <!-- Calibrated for RD, where NH4+NO3 is summed -->
 	 <fates_cnp_vmax_p> 5e-10 </fates_cnp_vmax_p>
 	 <fates_cnp_eca_vmax_ptase> 3e-08 </fates_cnp_eca_vmax_ptase>
 	 <fates_leaf_slamax> 0.03991654 </fates_leaf_slamax>
