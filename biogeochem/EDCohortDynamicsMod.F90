@@ -960,12 +960,20 @@ contains
 
     do el=1,num_elements
 
-       leaf_m   = ccohort%prt%GetState(leaf_organ, element_list(el))
        store_m  = ccohort%prt%GetState(store_organ, element_list(el))
-       sapw_m   = ccohort%prt%GetState(sapw_organ, element_list(el))
        fnrt_m   = ccohort%prt%GetState(fnrt_organ, element_list(el))
-       struct_m = ccohort%prt%GetState(struct_organ, element_list(el))
        repro_m  = ccohort%prt%GetState(repro_organ, element_list(el))
+       if (prt_params%woody(ccohort%pft) == itrue) then
+          leaf_m   = ccohort%prt%GetState(leaf_organ, element_list(el))
+          sapw_m   = ccohort%prt%GetState(sapw_organ, element_list(el))
+          struct_m = ccohort%prt%GetState(struct_organ, element_list(el))
+       else
+          leaf_m   = ccohort%prt%GetState(leaf_organ, element_list(el)) + &
+               ccohort%prt%GetState(sapw_organ, element_list(el)) + &
+               ccohort%prt%GetState(struct_organ, element_list(el))
+          sapw_m   = 0._r8
+          struct_m = 0._r8
+       endif
 
        litt => cpatch%litter(el)
        flux_diags => csite%flux_diags(el)
