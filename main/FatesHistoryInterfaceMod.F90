@@ -1685,7 +1685,7 @@ end subroutine flush_hvars
 
   ! ====================================================================================
 
-  subroutine update_history_dyn(this,nc,nsites,sites)
+  subroutine update_history_dyn(this,nc,nsites,sites,bc_in,bc_out)
 
     ! ---------------------------------------------------------------------------------
     ! This is the call to update the history IO arrays that are expected to only change
@@ -1713,6 +1713,8 @@ end subroutine flush_hvars
     integer                 , intent(in)            :: nc   ! clump index
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
+    type(bc_out_type)       , intent(in)            :: bc_out(nsites)
+    type(bc_in_type)        , intent(in)            :: bc_in(nsites)
 
     ! Locals
     type(litter_type), pointer         :: litt_c   ! Pointer to the carbon12 litter pool
@@ -1798,6 +1800,8 @@ end subroutine flush_hvars
                hio_storebiomass_si_pft => this%hvars(ih_storebiomass_si_pft)%r82d, &
                hio_nindivs_si_pft      => this%hvars(ih_nindivs_si_pft)%r82d, &
                hio_recruitment_si_pft  => this%hvars(ih_recruitment_si_pft)%r82d, &
+               hio_seeds_out_gc_si_pft => this%hvars(ih_seeds_out_gc_si_pft)%r82d, &
+               hio_seeds_in_gc_si_pft  => this%hvars(ih_seeds_in_gc_si_pft)%r82d, &
                hio_mortality_si_pft    => this%hvars(ih_mortality_si_pft)%r82d, &
                hio_crownarea_si_pft    => this%hvars(ih_crownarea_si_pft)%r82d, &
                hio_canopycrownarea_si_pft  => this%hvars(ih_canopycrownarea_si_pft)%r82d, &
@@ -3045,9 +3049,14 @@ end subroutine flush_hvars
       sites(s)%fmort_rate_crown(:,:) = 0._r8
       sites(s)%growthflux_fusion(:,:) = 0._r8
 
-      ! pass the recruitment rate as a flux to the history, and then reset the recruitment buffer
+      ! site-level pft diagnostics
       do i_pft = 1, numpft
+         ! pass the recruitment rate as a flux to the history, and then reset the recruitment buffer
          hio_recruitment_si_pft(io_si,i_pft) = sites(s)%recruitment_rate(i_pft) * days_per_year / m2_per_ha
+         
+         ! Gridcell output and inputs
+         hio_seeds_out_gc_si_pft(io_si,i_pft) = bc_out(s)%seed_out(i_pft)
+         hio_seeds_in_gc_si_pft(io_si,i_pft) = bc_in(s)%seed_in(i_pft)
       end do
       sites(s)%recruitment_rate(:) = 0._r8
 
@@ -4530,7 +4539,21 @@ end subroutine update_history_hifrq
          use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_recruitment_si_pft)
+         
+   call this%set_history_var(vname='FATES_SEEDS_IN_GRIDCELL_PF',                    &
+         units='kg',                                                      &
+         long='Site-level seed mass input from neighboring gridcells per pft',  &
+         use_default='inactive', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+         index=ih_seeds_in_gc_si_pft)
 
+   call this%set_history_var(vname='FATES_SEEDS_OUT_GRIDCELL_PF',                    &
+         units='kg',                                                      &
+         long='Site-level seed mass output from neighboring gridcells per pft',  &
+         use_default='inactive', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+         index=ih_seeds_out_gc_si_pft)
+         
     call this%set_history_var(vname='FATES_MORTALITY_PF', units='m-2 yr-1',    &
          long='PFT-level mortality rate in number of individuals per m2 land area per year', &
          use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
