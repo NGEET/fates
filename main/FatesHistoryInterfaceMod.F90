@@ -520,6 +520,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_nocomp_pftpatchfraction_si_pft
   integer :: ih_nocomp_pftnpatches_si_pft
   integer :: ih_nocomp_pftburnedarea_si_pft
+  integer :: ih_seeds_out_gc_si_pft
+  integer :: ih_seeds_in_gc_si_pft
 
   ! indices to (site x patch-age) variables
   integer :: ih_area_si_age
