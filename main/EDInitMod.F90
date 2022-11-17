@@ -814,9 +814,12 @@ contains
 
              temp_cohort%canopy_trim = 1.0_r8
              temp_cohort%l2fr = prt_params%allom_l2fr(pft)
-             
-             !  h,dbh,leafc,n from SP values or from small initial size.
 
+             ! Assume no damage to begin with - since we assume no damage
+             ! we do not need to initialise branch frac just yet. 
+             temp_cohort%crowndamage = 1
+
+             !  h,dbh,leafc,n from SP values or from small initial size.
              if(hlm_use_sp.eq.itrue)then
                 init = itrue
                 ! At this point, we do not know the bc_in values of tlai tsai and htop,
@@ -827,10 +830,6 @@ contains
              else
                 temp_cohort%hite        = EDPftvarcon_inst%hgt_min(pft)
                 
-                ! Assume no damage to begin with - since we assume no damage
-                ! we do not need to initialise branch frac just yet. 
-                temp_cohort%crowndamage = 1
-
                 ! Calculate the plant diameter from height
                 call h2d_allom(temp_cohort%hite,pft,temp_cohort%dbh)
 

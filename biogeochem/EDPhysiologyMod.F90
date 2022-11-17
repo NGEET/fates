@@ -2366,23 +2366,40 @@ contains
     currentCohort => currentPatch%shortest
     do while(associated(currentCohort))
        pft = currentCohort%pft
-
-      call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
+       call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
            bc_in%max_rooting_depth_index_col)
 
-       leaf_m_turnover   = currentCohort%prt%GetTurnover(leaf_organ,element_id)
        store_m_turnover  = currentCohort%prt%GetTurnover(store_organ,element_id)
        fnrt_m_turnover   = currentCohort%prt%GetTurnover(fnrt_organ,element_id)
-       sapw_m_turnover   = currentCohort%prt%GetTurnover(sapw_organ,element_id)
-       struct_m_turnover = currentCohort%prt%GetTurnover(struct_organ,element_id)
        repro_m_turnover  = currentCohort%prt%GetTurnover(repro_organ,element_id)
 
-       leaf_m          = currentCohort%prt%GetState(leaf_organ,element_id)
        store_m         = currentCohort%prt%GetState(store_organ,element_id)
        fnrt_m          = currentCohort%prt%GetState(fnrt_organ,element_id)
-       sapw_m          = currentCohort%prt%GetState(sapw_organ,element_id)
-       struct_m        = currentCohort%prt%GetState(struct_organ,element_id)
        repro_m         = currentCohort%prt%GetState(repro_organ,element_id)
+
+       if (prt_params%woody(currentCohort%pft) == itrue) then
+          ! Assumption: for woody plants fluxes from deadwood and sapwood go together in CWD pool
+          leaf_m_turnover   = currentCohort%prt%GetTurnover(leaf_organ,element_id)
+          sapw_m_turnover   = currentCohort%prt%GetTurnover(sapw_organ,element_id)
+          struct_m_turnover = currentCohort%prt%GetTurnover(struct_organ,element_id)
+
+          leaf_m          = currentCohort%prt%GetState(leaf_organ,element_id)
+          sapw_m          = currentCohort%prt%GetState(sapw_organ,element_id)
+          struct_m        = currentCohort%prt%GetState(struct_organ,element_id)
+       else
+          ! for non-woody plants all stem fluxes go into the same leaf litter pool
+          leaf_m_turnover   = currentCohort%prt%GetTurnover(leaf_organ,element_id) + &
+               currentCohort%prt%GetTurnover(sapw_organ,element_id) + &
+               currentCohort%prt%GetTurnover(struct_organ,element_id)
+          sapw_m_turnover   = 0._r8
+          struct_m_turnover = 0._r8
+
+          leaf_m          = currentCohort%prt%GetState(leaf_organ,element_id) + &
+               currentCohort%prt%GetState(sapw_organ,element_id) + &
+               currentCohort%prt%GetState(struct_organ,element_id)
+          sapw_m          = 0._r8
+          struct_m        = 0._r8
+       end if
 
        plant_dens =  currentCohort%n/currentPatch%area
 
