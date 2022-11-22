@@ -185,8 +185,9 @@ module PRTGenericMod
                                           ! over the control period
 
      real(r8),allocatable :: burned(:)    ! Losses due to burn                     [kg]
+     real(r8),allocatable :: damaged(:)   ! Losses due to damage                   [kg]
 
-!     real(r8),allocatable :: herbiv(:)    ! Losses due to herbivory                [kg]
+     !     real(r8),allocatable :: herbiv(:)    ! Losses due to herbivory                [kg]
 
      ! Placeholder
      ! To save on memory, keep this commented out, or simply
@@ -241,6 +242,7 @@ module PRTGenericMod
      
      procedure :: DailyPRT            => DailyPRTBase
      procedure :: FastPRT             => FastPRTBase
+     procedure :: DamageRecovery      => DamageRecoveryBase
      procedure :: GetNutrientTarget   => GetNutrientTargetBase
      
      ! These are generic functions that should work on all hypotheses
@@ -262,7 +264,8 @@ module PRTGenericMod
      procedure, non_overridable :: DeallocatePRTVartypes
      procedure, non_overridable :: WeightedFusePRTVartypes
      procedure, non_overridable :: CopyPRTVartypes
-
+     
+     
      procedure :: AgeLeaves  ! This routine may be used generically
                              ! but also leaving the door open for over-rides
      
@@ -279,7 +282,7 @@ module PRTGenericMod
                                                         ! examples are carbon12_element
                                                         ! nitrogen_element, etc.
 
-  integer, public :: element_pos(num_organ_types)       ! This is the reverse lookup
+  integer, public :: element_pos(num_element_types)     ! This is the reverse lookup
                                                         ! for element types. Pick an element
                                                         ! global index, and it gives you
                                                         ! the position in the element_list
@@ -542,7 +545,8 @@ contains
         allocate(this%variables(i_var)%turnover(num_pos))
         allocate(this%variables(i_var)%net_alloc(num_pos))
         allocate(this%variables(i_var)%burned(num_pos))
-
+        allocate(this%variables(i_var)%damaged(num_pos))
+        
      end do
 
      
@@ -567,6 +571,7 @@ contains
        this%variables(i_var)%val0(:)      = un_initialized
        this%variables(i_var)%turnover(:)  = un_initialized
        this%variables(i_var)%burned(:)    = un_initialized
+       this%variables(i_var)%damaged(:)   = un_initialized
        this%variables(i_var)%net_alloc(:) = un_initialized
     end do
 
@@ -787,6 +792,7 @@ contains
        this%variables(i_var)%net_alloc(:)   = donor_prt_obj%variables(i_var)%net_alloc(:)
        this%variables(i_var)%turnover(:)  = donor_prt_obj%variables(i_var)%turnover(:)
        this%variables(i_var)%burned(:)    = donor_prt_obj%variables(i_var)%burned(:)
+       this%variables(i_var)%damaged(:)   = donor_prt_obj%variables(i_var)%damaged(:)
     end do
 
     this%ode_opt_step = donor_prt_obj%ode_opt_step
@@ -834,6 +840,9 @@ contains
           this%variables(i_var)%burned(pos_id)    = recipient_fuse_weight * this%variables(i_var)%burned(pos_id) + &
                 (1.0_r8-recipient_fuse_weight) * donor_prt_obj%variables(i_var)%burned(pos_id)
           
+          this%variables(i_var)%damaged(pos_id)    = recipient_fuse_weight * this%variables(i_var)%damaged(pos_id) + &
+                (1.0_r8-recipient_fuse_weight) * donor_prt_obj%variables(i_var)%damaged(pos_id)
+          
        end do
     end do
 
@@ -872,6 +881,7 @@ contains
        deallocate(this%variables(i_var)%net_alloc)
        deallocate(this%variables(i_var)%turnover)
        deallocate(this%variables(i_var)%burned)
+       deallocate(this%variables(i_var)%damaged)
     end do
 
     deallocate(this%variables)
@@ -914,6 +924,7 @@ contains
          this%variables(i_var)%net_alloc(:) = 0.0_r8
          this%variables(i_var)%turnover(:)  = 0.0_r8
          this%variables(i_var)%burned(:)    = 0.0_r8
+         this%variables(i_var)%damaged(:)   = 0.0_r8    
       end do
       
     end subroutine ZeroRates
@@ -949,14 +960,16 @@ contains
            err = abs((this%variables(i_var)%val(i_pos) - this%variables(i_var)%val0(i_pos)) - &
                   (this%variables(i_var)%net_alloc(i_pos) &
                    -this%variables(i_var)%turnover(i_pos) & 
-                   -this%variables(i_var)%burned(i_pos) ))
-           
+                   -this%variables(i_var)%burned(i_pos) &
+                   -this%variables(i_var)%damaged(i_pos)))
+                  
            if(this%variables(i_var)%val(i_pos) > nearzero ) then
               rel_err = err / this%variables(i_var)%val(i_pos)
            else
               rel_err = 0.0_r8
            end if
 
+          
            if( abs(err) > calloc_abs_error ) then
               write(fates_log(),*) 'PARTEH mass conservation check failed'
               write(fates_log(),*) ' Change in mass over control period should'
@@ -973,7 +986,8 @@ contains
                                                this%variables(i_var)%val0(i_pos), &
                                                this%variables(i_var)%net_alloc(i_pos), &
                                                this%variables(i_var)%turnover(i_pos), &
-                                               this%variables(i_var)%burned(i_pos)
+                                               this%variables(i_var)%burned(i_pos), & 
+                                               this%variables(i_var)%damaged(i_pos)
               write(fates_log(),*) ' Exiting.'
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
@@ -1240,9 +1254,10 @@ contains
 
    ! ====================================================================================
 
-   subroutine DailyPRTBase(this)
+   subroutine DailyPRTBase(this,phase)
       
-      class(prt_vartypes) :: this
+     class(prt_vartypes) :: this
+     integer,intent(in)  :: phase  ! We allow this and its children to be broken into phases
       
       write(fates_log(),*)'Daily PRT Allocation must be extended'
       call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1251,17 +1266,28 @@ contains
 
    ! ====================================================================================
    
-   subroutine FastPRTBase(this)
+   subroutine DamageRecoveryBase(this)
 
       class(prt_vartypes) :: this
       
-      write(fates_log(),*)'FastReactiveTransport must be extended by a child class.'
+      write(fates_log(),*)'?'
       call endrun(msg=errMsg(sourcefile, __LINE__))
 
-   end subroutine FastPRTBase
+   end subroutine DamageRecoveryBase
 
    ! ====================================================================================
+   ! ====================================================================================
+
+   subroutine FastPRTBase(this)
+      
+      class(prt_vartypes) :: this
+      
+      write(fates_log(),*)'FastReactiveTransport must be extended by a child class'
+      call endrun(msg=errMsg(sourcefile, __LINE__))
    
+   end subroutine FastPRTBase
+
+   !====================================================================================   
    subroutine SetState(prt,organ_id, element_id, state_val, position_id)
 
      ! This routine should only be called for initalizing the state value
@@ -1396,6 +1422,8 @@ contains
     integer, intent(in),optional  :: stoich_mode
     real(r8)                      :: target_m    ! Target amount of nutrient for this organ [kg]
 
+    target_m = 0._r8
+    
     write(fates_log(),*)'GetNutrientTargetBase must be extended by a child class.'
     call endrun(msg=errMsg(sourcefile, __LINE__))
 

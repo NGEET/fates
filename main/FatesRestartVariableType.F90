@@ -3,10 +3,16 @@ module FatesRestartVariableMod
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesGlobals, only : fates_log
   use FatesIOVariableKindMod, only : fates_io_variable_kind_type
-
+  use FatesGlobals          , only : endrun => fates_endrun
+  use shr_log_mod           , only : errMsg => shr_log_errMsg
+  
   implicit none
   private ! Modules are private by default
 
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
+  
   ! This type is instanteated in the HLM-FATES interface (clmfates_interfaceMod.F90)
   
   type, public :: fates_restart_variable_type
@@ -39,8 +45,8 @@ contains
   subroutine Init(this, vname, units, long, vtype, flushval, num_dim_kinds, dim_kinds, dim_bounds)
 
     use FatesIODimensionsMod, only : fates_io_dimension_type
-    use FatesIOVariableKindMod, only : patch_r8, site_r8, cohort_r8
-    use FatesIOVariableKindMod, only : patch_int, site_int, cohort_int
+    use FatesIOVariableKindMod, only : site_r8, cohort_r8
+    use FatesIOVariableKindMod, only : site_int, cohort_int
     use FatesIOVariableKindMod, only : iotype_index
 
     implicit none
@@ -85,19 +91,11 @@ contains
        allocate(this%r81d(lb1:ub1))
        this%r81d(:) = flushval
 
-    case(patch_r8)
-       allocate(this%r81d(lb1:ub1))
-       this%r81d(:) = flushval
-
     case(site_r8)
        allocate(this%r81d(lb1:ub1))
        this%r81d(:) = flushval
 
     case(cohort_int)
-       allocate(this%int1d(lb1:ub1))
-       this%int1d(:) = idnint(flushval)
-
-    case(patch_int)
        allocate(this%int1d(lb1:ub1))
        this%int1d(:) = idnint(flushval)
 
@@ -108,8 +106,7 @@ contains
     case default
        write(fates_log(),*) 'Incompatible vtype passed to set_restart_var'
        write(fates_log(),*) 'vtype = ',trim(vtype),' ?'
-       stop
-       ! end_run
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     end select
     
   end subroutine Init
@@ -170,8 +167,8 @@ contains
   subroutine flush(this, thread, dim_bounds, dim_kinds)
 
     use FatesIODimensionsMod, only : fates_io_dimension_type
-    use FatesIOVariableKindMod, only : patch_r8, site_r8, cohort_r8
-    use FatesIOVariableKindMod, only : patch_int, site_int, cohort_int
+    use FatesIOVariableKindMod, only : site_r8, cohort_r8
+    use FatesIOVariableKindMod, only : site_int, cohort_int
 
     implicit none
 
@@ -185,14 +182,10 @@ contains
     call this%GetBounds(thread, dim_bounds, dim_kinds, lb1, ub1, lb2, ub2)
 
     select case(trim(dim_kinds(this%dim_kinds_index)%name))
-    case(patch_r8) 
-       this%r81d(lb1:ub1) = this%flushval
     case(site_r8) 
        this%r81d(lb1:ub1) = this%flushval
     case(cohort_r8)
        this%r81d(lb1:ub1) = this%flushval
-    case(patch_int)
-       this%int1d(lb1:ub1) = nint(this%flushval)
     case(site_int)
        this%int1d(lb1:ub1) = nint(this%flushval)
     case(cohort_int)
@@ -200,8 +193,7 @@ contains
        
     case default
        write(fates_log(),*) 'fates history variable type undefined while flushing history variables'
-       stop
-       !end_run
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     end select
     
  end subroutine Flush

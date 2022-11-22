@@ -10,8 +10,12 @@ module FatesHydraulicsMemMod
    implicit none
    private
 
-   logical, parameter, public :: use_2d_hydrosolve = .false.
+
+   ! Define the various different solver options for hydraulics
    
+   integer, parameter, public :: hydr_solver_1DTaylor = 1
+   integer, parameter, public :: hydr_solver_2DNewton = 3
+   integer, parameter, public :: hydr_solver_2DPicard = 2
    
    ! Number of soil layers for indexing cohort fine root quanitities
    ! NOTE: The hydraulics code does have some capacity to run a single soil
@@ -30,6 +34,7 @@ module FatesHydraulicsMemMod
    integer, parameter, public                  :: n_hypool_troot = 1 ! CANNOT BE CHANGED
    integer, parameter, public                  :: n_hypool_aroot = 1 ! THIS IS "PER-SOIL-LAYER"
    integer, parameter, public                  :: nshell         = 5
+
 
    ! number of aboveground plant water storage nodes
    integer, parameter, public                  :: n_hypool_ag    = n_hypool_leaf+n_hypool_stem
@@ -53,33 +58,18 @@ module FatesHydraulicsMemMod
    ! P-V curve: total RWC @ which capillary reserves exhausted (tfs)
    real(r8), parameter, public, dimension(n_plant_media) :: rwccap  = (/1.0_r8,0.947_r8,0.947_r8,0.947_r8/) 
    
-
-   ! mirror of nlevcan, hard-set for simplicity, remove nlevcan_hyd on a rainy day
-   ! Note (RGK): uscing nclmax causes annoying circular dependency (this needs EDTypes, EDTypes needs this)
-   ! way around that: dynamic allocation, or just keep this, but set the value high
-   integer, parameter, public                          :: nlevcan_hyd = 2                       
-                       
    ! Mean fine root radius expected in the bulk soil                
    real(r8), parameter, public                         :: fine_root_radius_const = 0.0001_r8
 
-   ! Should we ignore the first soil layer and have root layers start on the second?
-   logical, parameter, public :: ignore_layer1=.true.
-   
-   
-   ! Derived parameters
-   ! ----------------------------------------------------------------------------------------------
-   
-   !temporatory variables
-   real(r8), public :: cohort_recruit_water_layer(nlevsoi_hyd_max)   ! the recruit water requirement for a 
-                                                             ! single individual at different layer (kg H2o/m2)
-   real(r8), public :: recruit_water_avail_layer(nlevsoi_hyd_max)    ! the recruit water avaibility from soil (kg H2o/m2)
 
+
+   
    type, public :: ed_site_hydr_type
 
       ! Plant Hydraulics
-     integer :: i_rhiz_t                            ! Soil layer index of top rhizosphere
-     integer :: i_rhiz_b                            ! Soil layer index of bottom rhizospher layer
      integer               :: nlevrhiz              ! Number of rhizosphere levels (vertical layers)
+     integer, allocatable  :: map_s2r(:)              ! soil to rhizoshpere level mapping
+     integer, allocatable  :: map_r2s(:,:)            ! rhizoshpere to soil level mapping, 1 -top soil layer, 2- bottom soil layer
      real(r8), allocatable :: zi_rhiz(:)            ! Depth of the bottom edge of each rhizosphere level [m]
      real(r8), allocatable :: dz_rhiz(:)            ! Width of each rhizosphere level [m]
 
@@ -107,12 +97,6 @@ module FatesHydraulicsMemMod
                                                     ! encountering super- or sub-saturation
      real(r8),allocatable :: h2osoi_liqvol_shell(:,:) ! volumetric water in rhizosphere compartment (m3/m3)
 
-     real(r8),allocatable :: h2osoi_liq_prev(:)     ! liquid water mass for the bulk soil layer
-                                                    ! defined at the end of the hydraulics sequence
-                                                    ! after root water has been extracted.  This should
-                                                    ! be equal to the sum of the water over the rhizosphere shells
-                                                    ! [kg/m2]
-     
      real(r8),allocatable :: recruit_w_uptake(:)    ! recruitment water uptake (kg H2o/m2/s)
 
     
@@ -143,8 +127,17 @@ module FatesHydraulicsMemMod
      real(r8),allocatable ::  sapflow_scpf(:,:)   ! flow at base of tree (+ upward)      [kg/ha/s]
                                                   ! discretized by size x pft
 
-     ! Root uptake per rhiz layer [kg/ha/s]
+     
+     ! Root uptake per SOIL layer [kg/m2/s]
+     ! !!!!!!!! IMPORTANT: THIS IS FOR DIAGNOSTICS, AND WE OUTPUT
+     ! AT THE SOIL LAYER, NOT RHIZ LAYER, SO THIS HAS A SOIL LAYER DIMENSION
+
      real(r8),allocatable :: rootuptake_sl(:)
+
+     ! Absorbing root length on the soil grid. We need this to
+     ! disaggregate uptake fluxes from the rhizosphere layers to
+     ! the soil layers
+     real(r8),allocatable :: rootl_sl(:)
 
      ! Root uptake per pft x size class, over set layer depths [kg/ha/m/s]
      ! These are normalized by depth (in case the desired horizon extends
@@ -185,10 +178,12 @@ module FatesHydraulicsMemMod
      real(r8), allocatable :: q_flux(:)
      real(r8), allocatable :: dftc_dpsi_node(:)
      real(r8), allocatable :: ftc_node(:)
-     
-
      real(r8), allocatable :: kmax_up(:)
      real(r8), allocatable :: kmax_dn(:)
+
+     ! Scratch arrays 
+     real(r8) :: cohort_recruit_water_layer(nlevsoi_hyd_max)   ! the recruit water requirement for a cohort
+     real(r8) :: recruit_water_avail_layer(nlevsoi_hyd_max)    ! the recruit water avaibility from soil (kg H2o/m2)
      
      
   contains
@@ -196,6 +191,8 @@ module FatesHydraulicsMemMod
     procedure :: InitHydrSite
     procedure :: SetConnections
     procedure :: FlushSiteScratch
+    procedure :: AggBCToRhiz
+    
   end type ed_site_hydr_type
 
 
@@ -366,17 +363,22 @@ module FatesHydraulicsMemMod
 
     ! ===================================================================================
 
-    subroutine InitHydrSite(this,numpft,numlevsclass)
+    subroutine InitHydrSite(this,numpft,numlevsclass,hydr_solver_type,nlevsoil)
        
        ! Arguments
        class(ed_site_hydr_type),intent(inout) :: this
        integer,intent(in) :: numpft
        integer,intent(in) :: numlevsclass
+       integer,intent(in) :: hydr_solver_type
+       integer,intent(in) :: nlevsoil
 
        associate(nlevrhiz => this%nlevrhiz)
 
-         allocate(this%zi_rhiz(1:nlevrhiz));  this%zi_rhiz(:)  = nan
+         ! In all cases, the 0 index of the layer bottom is a value of 0
+         allocate(this%zi_rhiz(1:nlevrhiz)); this%zi_rhiz(:) = nan
          allocate(this%dz_rhiz(1:nlevrhiz)); this%dz_rhiz(:) = nan
+         allocate(this%map_s2r(1:nlevrhiz)); this%map_s2r(:) = -999
+         allocate(this%map_r2s(1:nlevrhiz,1:2)); this%map_r2s(:,:) = -999
          allocate(this%v_shell(1:nlevrhiz,1:nshell))         ; this%v_shell = nan
          allocate(this%v_shell_init(1:nlevrhiz,1:nshell))    ; this%v_shell_init = nan
          allocate(this%r_node_shell(1:nlevrhiz,1:nshell))    ; this%r_node_shell = nan
@@ -388,12 +390,13 @@ module FatesHydraulicsMemMod
          allocate(this%kmax_lower_shell(1:nlevrhiz,1:nshell)); this%kmax_lower_shell = nan
          allocate(this%supsub_flag(1:nlevrhiz))                ; this%supsub_flag = -999
          allocate(this%h2osoi_liqvol_shell(1:nlevrhiz,1:nshell)) ; this%h2osoi_liqvol_shell = nan
-         allocate(this%h2osoi_liq_prev(1:nlevrhiz))          ; this%h2osoi_liq_prev = nan
          allocate(this%rs1(1:nlevrhiz)); this%rs1(:) = fine_root_radius_const
          allocate(this%recruit_w_uptake(1:nlevrhiz)); this%recruit_w_uptake = nan
          
+         allocate(this%rootuptake_sl(1:nlevsoil))                   ; this%rootuptake_sl = nan
+         allocate(this%rootl_sl(1:nlevsoil))                        ; this%rootl_sl = 0._r8
+         
          allocate(this%sapflow_scpf(1:numlevsclass,1:numpft))       ; this%sapflow_scpf = nan
-         allocate(this%rootuptake_sl(1:nlevrhiz))                   ; this%rootuptake_sl = nan
          allocate(this%rootuptake0_scpf(1:numlevsclass,1:numpft))   ; this%rootuptake0_scpf = nan
          allocate(this%rootuptake10_scpf(1:numlevsclass,1:numpft))  ; this%rootuptake10_scpf = nan
          allocate(this%rootuptake50_scpf(1:numlevsclass,1:numpft))  ; this%rootuptake50_scpf = nan
@@ -413,8 +416,9 @@ module FatesHydraulicsMemMod
          allocate(this%wrf_soil(1:nlevrhiz))
          allocate(this%wkf_soil(1:nlevrhiz))
          
-         if(use_2d_hydrosolve) then
-            
+         if((hydr_solver_type == hydr_solver_2DNewton) .or. &
+            (hydr_solver_type == hydr_solver_2DPicard)) then  
+
             this%num_connections =  n_hypool_leaf + n_hypool_stem + n_hypool_troot - 1  &
                  + (n_hypool_aroot + nshell) * nlevrhiz
             
@@ -459,7 +463,7 @@ module FatesHydraulicsMemMod
             
          end if
          
-         call this%SetConnections()
+         call this%SetConnections(hydr_solver_type)
          
           
        end associate
@@ -469,35 +473,76 @@ module FatesHydraulicsMemMod
      
     ! ===================================================================================
     
-    subroutine FlushSiteScratch(this)
-        class(ed_site_hydr_type),intent(inout) :: this
+    subroutine FlushSiteScratch(this,hydr_solver_type)
 
-        if(use_2d_hydrosolve) then
-            this%residual(:)       = fates_unset_r8
-            this%ajac(:,:)         = fates_unset_r8
-            this%th_node_init(:)   = fates_unset_r8
-            this%th_node_prev(:)   = fates_unset_r8
-            this%th_node(:)        = fates_unset_r8
-            this%dth_node(:)       = fates_unset_r8
-            this%h_node(:)         = fates_unset_r8
-            this%v_node(:)         = fates_unset_r8
-            this%z_node(:)         = fates_unset_r8
-            this%psi_node(:)       = fates_unset_r8
-            this%ftc_node(:)       = fates_unset_r8
-            this%dftc_dpsi_node(:) = fates_unset_r8
-!            this%kmax_up(:)        = fates_unset_r8
-!            this%kmax_dn(:)        = fates_unset_r8
-            this%q_flux(:)         = fates_unset_r8
-        end if
+      class(ed_site_hydr_type),intent(inout) :: this
+      integer,intent(in)                     :: hydr_solver_type
+
+      if((hydr_solver_type == hydr_solver_2DNewton) .or. &
+         (hydr_solver_type == hydr_solver_2DPicard)) then
+         this%residual(:)       = fates_unset_r8
+         this%ajac(:,:)         = fates_unset_r8
+         this%th_node_init(:)   = fates_unset_r8
+         this%th_node_prev(:)   = fates_unset_r8
+         this%th_node(:)        = fates_unset_r8
+         this%dth_node(:)       = fates_unset_r8
+         this%h_node(:)         = fates_unset_r8
+         this%v_node(:)         = fates_unset_r8
+         this%z_node(:)         = fates_unset_r8
+         this%psi_node(:)       = fates_unset_r8
+         this%ftc_node(:)       = fates_unset_r8
+         this%dftc_dpsi_node(:) = fates_unset_r8
+         !            this%kmax_up(:)        = fates_unset_r8
+         !            this%kmax_dn(:)        = fates_unset_r8
+         this%q_flux(:)         = fates_unset_r8
+      end if
 
     end subroutine FlushSiteScratch
 
+
+    ! ===================================================================================
+    
+    function AggBCToRhiz(this,var_in,j,weight) result(var_out)
+
+      class(ed_site_hydr_type) :: this
+      real(r8) :: var_in(:)
+      real(r8) :: weight(:)
+      integer  :: j
+      integer  :: j_t,j_b
+      real(r8) :: var_out
+
+      integer, parameter :: arithmetic_mean = 0
+      integer, parameter :: harmonic_mean = 1
+      integer, parameter :: mean_type = harmonic_mean
+      
+      ! This function aggregates properties on the soil layer to
+      ! the root(rhiz) layer
+      
+      j_t = this%map_r2s(j,1)
+      j_b = this%map_r2s(j,2)
+
+
+      if(mean_type.eq.arithmetic_mean) then
+         var_out = sum(var_in(j_t:j_b)*weight(j_t:j_b))/sum(weight(j_t:j_b))
+      else
+
+         var_out = sum(weight(j_t:j_b)) / sum( weight(j_t:j_b) / var_in(j_t:j_b) )
+         
+      end if
+         
+      
+    end function AggBCToRhiz
+    
     ! ===================================================================================
 
-    subroutine SetConnections(this)
+    subroutine SetConnections(this,hydr_solver_type)
+      
+     ! This routine should be updated
+     ! when new layers are added as plants grow into them?
       
      class(ed_site_hydr_type),intent(inout) :: this
-      
+     integer,intent(in) :: hydr_solver_type
+     
      integer :: k, j
      integer :: num_cnxs
      integer :: num_nds
@@ -521,7 +566,8 @@ module FatesHydraulicsMemMod
         this%pm_node(num_nds) = stem_p_media
      enddo
 
-     if(use_2d_hydrosolve) then
+     if((hydr_solver_type == hydr_solver_2DNewton) .or. &
+        (hydr_solver_type == hydr_solver_2DPicard)) then
      
         num_nds     = n_hypool_ag+n_hypool_troot
         node_tr_end = num_nds

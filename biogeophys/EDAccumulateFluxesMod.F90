@@ -9,7 +9,7 @@ module EDAccumulateFluxesMod
   ! Rosie Fisher. March 2014. 
   !
   ! !USES:
-  use FatesGlobals, only      : fates_endrun 
+  use FatesGlobals, only      : endrun => fates_endrun 
   use FatesGlobals, only      : fates_log
   use shr_log_mod , only      : errMsg => shr_log_errMsg
   use FatesConstantsMod , only : r8 => fates_r8
@@ -24,8 +24,8 @@ module EDAccumulateFluxesMod
   logical :: debug = .false.  ! for debugging this module
 
   character(len=*), parameter, private :: sourcefile = &
-        __FILE__
-  
+       __FILE__
+
 contains
 
   !------------------------------------------------------------------------------
@@ -37,9 +37,9 @@ contains
     ! see above
     !
     ! !USES:
-  
+
     use EDTypesMod        , only : ed_patch_type, ed_cohort_type, &
-                                   ed_site_type, AREA
+         ed_site_type, AREA
     use FatesInterfaceTypesMod , only : bc_in_type,bc_out_type
 
     !
@@ -60,56 +60,58 @@ contains
     !----------------------------------------------------------------------
 
     do s = 1, nsites
-       
+
        ifp = 0
 
        cpatch => sites(s)%oldest_patch
        do while (associated(cpatch))                 
-          ifp = ifp+1
+          if(cpatch%nocomp_pft_label.ne.0)then
+             ifp = ifp+1
 
-          if( bc_in(s)%filter_photo_pa(ifp) == 3 ) then
-             ccohort => cpatch%shortest
-             do while(associated(ccohort))
-                
-                ! Accumulate fluxes from hourly to daily values. 
-                ! _tstep fluxes are KgC/indiv/timestep _acc are KgC/indiv/day
-                
-                if ( debug ) then
+             if( bc_in(s)%filter_photo_pa(ifp) == 3 ) then
+                ccohort => cpatch%shortest
+                do while(associated(ccohort))
 
-                   write(fates_log(),*) 'EDAccumFlux 64 ',ccohort%npp_tstep
-                   write(fates_log(),*) 'EDAccumFlux 66 ',ccohort%gpp_tstep
-                   write(fates_log(),*) 'EDAccumFlux 67 ',ccohort%resp_tstep
+                   ! Accumulate fluxes from hourly to daily values. 
+                   ! _tstep fluxes are KgC/indiv/timestep _acc are KgC/indiv/day
 
-                endif
+                   if ( debug ) then
+                      write(fates_log(),*) 'EDAccumFlux 64 ',ccohort%npp_tstep
+                      write(fates_log(),*) 'EDAccumFlux 66 ',ccohort%gpp_tstep
+                      write(fates_log(),*) 'EDAccumFlux 67 ',ccohort%resp_tstep
+                   endif
 
-                ccohort%npp_acc  = ccohort%npp_acc  + ccohort%npp_tstep 
-                ccohort%gpp_acc  = ccohort%gpp_acc  + ccohort%gpp_tstep 
-                ccohort%resp_acc = ccohort%resp_acc + ccohort%resp_tstep
-		
-                ! weighted mean of D13C by gpp
-                if((ccohort%gpp_acc + ccohort%gpp_tstep) .eq. 0.0_r8) then
-                    ccohort%c13disc_acc = 0.0_r8
-                else
-                    ccohort%c13disc_acc  = ((ccohort%c13disc_acc * ccohort%gpp_acc) + &
-                          (ccohort%c13disc_clm * ccohort%gpp_tstep)) / &
-                          (ccohort%gpp_acc + ccohort%gpp_tstep)
-                endif
+                   ccohort%npp_acc  = ccohort%npp_acc  + ccohort%npp_tstep 
+                   ccohort%gpp_acc  = ccohort%gpp_acc  + ccohort%gpp_tstep 
+                   ccohort%resp_acc = ccohort%resp_acc + ccohort%resp_tstep
 
-                if( ccohort%is_trimmable ) then
-                   do iv=1,min(ccohort%nveg_max,nlevleafmem)
-                      ccohort%year_net_uptake(iv) = ccohort%year_net_uptake(iv) + ccohort%ts_net_uptake(iv)
-                   end do
-                end if
-                
-                ccohort => ccohort%taller
-             enddo ! while(associated(ccohort))
-          end if
+                   ! weighted mean of D13C by gpp
+                   if((ccohort%gpp_acc + ccohort%gpp_tstep) .eq. 0.0_r8) then
+                      ccohort%c13disc_acc = 0.0_r8
+                   else
+                      ccohort%c13disc_acc  = ((ccohort%c13disc_acc * ccohort%gpp_acc) + &
+                           (ccohort%c13disc_clm * ccohort%gpp_tstep)) / &
+                           (ccohort%gpp_acc + ccohort%gpp_tstep)
+                   endif
+
+
+                   if( ccohort%is_trimmable ) then
+                      do iv=1,min(ccohort%nveg_max,nlevleafmem)
+                         ccohort%year_net_uptake(iv) = ccohort%year_net_uptake(iv) + ccohort%ts_net_uptake(iv)
+                      end do
+                   end if
+                   
+                   ccohort => ccohort%taller
+                enddo ! while(associated(ccohort))
+             end if ! if filter = 3
+          end if ! nocomp=0
+
           cpatch => cpatch%younger
        end do  ! while(associated(cpatch))
     end do
     return
-    
- end subroutine AccumulateFluxes_ED
+
+  end subroutine AccumulateFluxes_ED
 
 end module EDAccumulateFluxesMod
 
