@@ -40,7 +40,7 @@ module FatesRestartInterfaceMod
   use FatesLitterMod,          only : litter_type
   use FatesLitterMod,          only : ncwd
   use FatesLitterMod,          only : ndcmpy
-  use EDTypesMod,              only : nfsc, nlevleaf, area
+  use EDTypesMod,              only : nfsc, nlevleaf, area, nlevleafmem
   use PRTGenericMod,           only : prt_global
   use PRTGenericMod,           only : num_elements
   use FatesRunningMeanMod,     only : rmean_type
@@ -136,6 +136,7 @@ module FatesRestartInterfaceMod
   integer :: ir_daily_p_demand_co
   integer :: ir_daily_n_need_co
   integer :: ir_daily_p_need_co
+  integer :: ir_year_net_up_co
 
   !Logging
   integer :: ir_lmort_direct_co
@@ -853,6 +854,8 @@ contains
          units='kgN/plant/day', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_n_need_co )
 
+    
+
     call this%set_restart_var(vname='fates_frmort', vtype=cohort_r8, &
          long_name='ed cohort - freezing mortality rate', &
          units='/year', flushval = flushzero, &
@@ -1112,7 +1115,11 @@ contains
              hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_canopy_layer_tlai_pa )
     end if
 
-
+    call this%RegisterCohortVector(symbol_base='fates_year_net_up', vtype=cohort_r8, &
+         long_name_base='yearly net uptake at leaf layers',  &
+         units='kg/m2/year', veclength=nlevleafmem, flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_year_net_up_co )
+    
     ! Only register hydraulics restart variables if it is turned on!
 
     if(hlm_use_planthydro==itrue) then
@@ -1838,6 +1845,7 @@ contains
     integer  :: io_idx_si_pft  ! each site-pft index
     integer  :: io_idx_si_vtmem ! indices for veg-temp memory at site
     integer  :: io_idx_pa_ncl   ! each canopy layer within each patch
+    integer  :: io_idx_co_nll   ! each leaf layer within each cohort
 
     ! Some counters (for checking mostly)
     integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
@@ -2001,6 +2009,7 @@ contains
           io_idx_si_wmem = io_idx_co_1st
           io_idx_si_vtmem = io_idx_co_1st
           io_idx_pa_ncl   = io_idx_co_1st
+          io_idx_co_nll   = io_idx_co_1st
 
           ! Hydraulics counters  lyr = hydraulic layer, shell = rhizosphere shell
           io_idx_si_lyr_shell = io_idx_co_1st
@@ -2118,6 +2127,7 @@ contains
                    end do
                 end do
 
+                call this%SetCohortRealVector(ccohort%year_net_uptake,nlevleafmem,ir_year_net_up_co,io_idx_co)
 
                 if(hlm_use_planthydro==itrue)then
 
@@ -2748,6 +2758,7 @@ contains
      integer  :: io_idx_si_cdpf ! damage x size x pft within site
      
      integer  :: io_idx_pa_ncl   ! each canopy layer within each patch
+     integer  :: io_idx_co_nll   ! each leaf layer within each cohort
 
      ! Some counters (for checking mostly)
      integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
@@ -2892,6 +2903,7 @@ contains
           io_idx_si_wmem = io_idx_co_1st
           io_idx_si_vtmem = io_idx_co_1st
           io_idx_pa_ncl = io_idx_co_1st
+          io_idx_co_nll = io_idx_co_1st
 
           ! Hydraulics counters  lyr = hydraulic layer, shell = rhizosphere shell
           io_idx_si_lyr_shell = io_idx_co_1st
@@ -3096,7 +3108,9 @@ contains
                     ccohort%treelai = this%rvars(ir_treelai_co)%r81d(io_idx_co)
                     ccohort%treesai = this%rvars(ir_treesai_co)%r81d(io_idx_co)
                 end if
-
+                
+                call this%GetCohortRealVector(ccohort%year_net_uptake,nlevleafmem,ir_year_net_up_co,io_idx_co)
+                
                 io_idx_co = io_idx_co + 1
 
                 ccohort => ccohort%taller
