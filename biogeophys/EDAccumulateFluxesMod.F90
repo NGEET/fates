@@ -57,6 +57,7 @@ contains
     integer :: c  ! clm/alm column
     integer :: s  ! ed site
     integer :: ifp ! index fates patch
+    integer :: ifc
     !----------------------------------------------------------------------
 
     do s = 1, nsites
@@ -67,10 +68,14 @@ contains
        do while (associated(cpatch))                 
           if(cpatch%nocomp_pft_label.ne.0)then
              ifp = ifp+1
-
+             
              if( bc_in(s)%filter_photo_pa(ifp) == 3 ) then
+
+                ifc=0
                 ccohort => cpatch%shortest
                 do while(associated(ccohort))
+
+                   ifc=ifc+1
 
                    ! Accumulate fluxes from hourly to daily values. 
                    ! _tstep fluxes are KgC/indiv/timestep _acc are KgC/indiv/day
@@ -96,7 +101,7 @@ contains
 
 
                    if( ccohort%is_trimmable ) then
-                      do iv=1,min(ccohort%nveg_max,nlevleafmem)
+                      do iv=1,min(ccohort%nveg_act,nlevleafmem)
                          ccohort%year_net_uptake(iv) = ccohort%year_net_uptake(iv) + ccohort%ts_net_uptake(iv)
                       end do
                    end if

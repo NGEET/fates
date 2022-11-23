@@ -663,10 +663,12 @@ contains
                currentPatch%canopy_layer_tlai, currentCohort%treelai, &
                currentCohort%vcmax25top,0 )  
 
-          call GetNLevVeg(currentCohort%dbh, leaf_c, currentSite%spread, currentCohort%pft, &
-                          currentCohort%canopy_trim, currentCohort%canopy_layer, &
-                          currentPatch%canopy_layer_tlai, currentCohort%vcmax25top, &
-                          currentCohort%nveg_act,currentCohort%nveg_max)
+          call GetNLevVeg(currentCohort%dbh, leaf_c, currentCohort%c_area, &
+               currentCohort%pft, currentCohort%n, &
+               currentCohort%crowndamage,currentCohort%canopy_trim, &
+               currentCohort%canopy_layer, &
+               currentPatch%canopy_layer_tlai, currentCohort%vcmax25top, &
+               currentCohort%nveg_act,currentCohort%nveg_max)
           
 
           if (currentCohort%nveg_max > nlevleaf)then
@@ -857,7 +859,9 @@ contains
           ! that are not zero'd here, are not allowed to trim (because
           ! they need full year)
           currentCohort%year_net_uptake(:) = 0.0_r8
-
+          currentCohort%is_trimmable = .true.
+          
+          
           ! Add to trim fraction if cohort not trimmed at all
           if ( (.not.trimmed) .and.currentCohort%canopy_trim < 1.0_r8)then
              currentCohort%canopy_trim = currentCohort%canopy_trim + EDPftvarcon_inst%trim_inc(ipft)

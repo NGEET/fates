@@ -75,6 +75,7 @@ module EDMainMod
   use FatesConstantsMod        , only : nearzero
   use FatesConstantsMod        , only : m2_per_ha
   use FatesConstantsMod        , only : sec_per_day
+  use FatesConstantsMod        , only : trim_day_of_year
   use FatesPlantHydraulicsMod  , only : do_growthrecruiteffects
   use FatesPlantHydraulicsMod  , only : UpdateSizeDepPlantHydProps
   use FatesPlantHydraulicsMod  , only : UpdateSizeDepPlantHydStates
@@ -831,10 +832,9 @@ contains
     ! rooting mass, distributions, respiration rates and NPP
     call PrepCH4BCs(currentSite,bc_in,bc_out)
 
-
     ! FIX(RF,032414). This needs to be monthly, not annual
     ! If this is the second to last day of the year, then perform trimming
-    if( hlm_day_of_year == hlm_days_per_year-1) then
+    if( hlm_day_of_year == trim_day_of_year) then
        if(hlm_use_sp.eq.ifalse)then
           call trim_canopy(currentSite)
        endif

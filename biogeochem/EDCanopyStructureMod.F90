@@ -1623,7 +1623,7 @@ contains
                    if(remainder > dinc_vai(iv) )then
                       write(fates_log(), *)'ED: issue with remainder', &
                            currentCohort%treelai,currentCohort%treesai,dinc_vai(iv), & 
-                           currentCohort%nveg_act,remainder
+                           dlower_vai(iv),currentCohort%nveg_act,remainder
 
                       call endrun(msg=errMsg(sourcefile, __LINE__))
                    endif
@@ -2185,14 +2185,12 @@ contains
                                        canopy_layer_tlai, currentCohort%treelai , &
                                        currentCohort%vcmax25top,4)
    end if
-
-   ! Number of actual vegetation layers in this cohort's crown
-   call GetNLevVeg(currentCohort%dbh, leaf_c, currentSite%spread, currentCohort%pft, &
-                   currentCohort%canopy_trim, currentCohort%canopy_layer, &
-                   currentPatch%canopy_layer_tlai, currentCohort%vcmax25top, &
-                   currentCohort%nveg_act,currentCohort%nveg_max)
-
    
+   ! Number of actual vegetation layers in this cohort's crown
+   call GetNLevVeg(currentCohort%dbh, leaf_c, currentCohort%c_area, currentCohort%pft, currentCohort%n, &
+         currentCohort%crowndamage, currentCohort%canopy_trim, currentCohort%canopy_layer, &
+         canopy_layer_tlai, currentCohort%vcmax25top, &
+         currentCohort%nveg_act, currentCohort%nveg_max)
 
    
   end subroutine UpdateCohortLAI

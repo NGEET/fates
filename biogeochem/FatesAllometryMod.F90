@@ -802,9 +802,9 @@ contains
   end function tree_sai
 
   
-  subroutine GetNLevVeg(dbh, leaf_c, site_spread, ipft, canopy_trim, &
-       canopy_layer,canopy_layer_tlai, vcmax25top, &
-       nveg_act, nveg_max)
+  subroutine GetNLevVeg(dbh, leaf_c, c_area, ipft, nplant, &
+       crowndamage, canopy_trim, canopy_layer, canopy_layer_tlai, &
+       vcmax25top, nveg_act, nveg_max)
     
     ! Determine the maximum number of leaf (vegetation) layers
     ! for a cohort. This is based off of allometry, and assuming the plant
@@ -812,9 +812,11 @@ contains
 
     real(r8), intent(inout) :: dbh
     real(r8), intent(in) :: leaf_c
-    real(r8), intent(in) :: site_spread
+    real(r8), intent(in) :: c_area
     integer,  intent(in) :: ipft
+    real(r8), intent(in) :: nplant
     real(r8), intent(in) :: canopy_trim
+    integer,  intent(in) :: crowndamage
     integer,  intent(in) :: canopy_layer
     real(r8), intent(in) :: canopy_layer_tlai(:)
     real(r8), intent(in) :: vcmax25top
@@ -822,32 +824,29 @@ contains
     integer, intent(out) :: nveg_max
     
     integer  :: nv
-    real(r8) :: c_area
     real(r8) :: leaf_c_target
     real(r8) :: max_lai, max_sai
-    real(r8), parameter :: nplant_dum = 1.0_r8  ! Number of plants falls out (dummy)
     
-    call carea_allom(dbh,nplant_dum,site_spread,ipft,c_area)
     
     max_lai = tree_lai(leaf_c, ipft, c_area, &
-         nplant_dum, canopy_layer, canopy_layer_tlai, vcmax25top )    
+         nplant, canopy_layer, canopy_layer_tlai, vcmax25top )    
     
-    max_sai = tree_sai(ipft, dbh, canopy_trim, &
-         c_area, nplant_dum, canopy_layer, canopy_layer_tlai, max_lai, &
-         vcmax25top, 0)  
+    max_sai = tree_sai(ipft, dbh, crowndamage, canopy_trim, &
+         c_area, nplant, canopy_layer, canopy_layer_tlai, max_lai, &
+         vcmax25top, 0)
 
-    nveg_act = count((currentCohort%treelai+currentCohort%treesai) .gt. dlower_vai(:)) + 1
+    nveg_act = count((max_lai+max_sai) .gt. dlower_vai(:)) + 1
 
-    call bleaf(dbh,ipft,canopy_trim,leaf_c_target)
+    call bleaf(dbh,ipft,crowndamage,canopy_trim,leaf_c_target)
     
     max_lai = tree_lai(leaf_c_target, ipft, c_area, &
-         nplant_dum, canopy_layer, canopy_layer_tlai, vcmax25top )    
+         nplant, canopy_layer, canopy_layer_tlai, vcmax25top )    
     
-    max_sai = tree_sai(ipft, dbh, canopy_trim, &
-         c_area, nplant_dum, canopy_layer, canopy_layer_tlai, max_lai, &
+    max_sai = tree_sai(ipft, dbh, crowndamage, canopy_trim, &
+         c_area, nplant, canopy_layer, canopy_layer_tlai, max_lai, &
          vcmax25top, 0)  
 
-    nveg_max  = count((currentCohort%treelai+currentCohort%treesai) .gt. dlower_vai(:)) + 1
+    nveg_max  = count((max_lai+max_sai) .gt. dlower_vai(:)) + 1
     
     return
   end subroutine GetNLevVeg

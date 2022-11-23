@@ -3872,7 +3872,7 @@ end subroutine flush_hvars
     ! after rapid timescale productivity calculations (gpp and respiration).
     ! ---------------------------------------------------------------------------------
 
-    use EDTypesMod          , only : nclmax, nlevleaf
+    use EDTypesMod          , only : nclmax, nlevleaf, nlevleafmem
     !
     ! Arguments
     class(fates_history_interface_type)                 :: this
@@ -4167,10 +4167,10 @@ end subroutine flush_hvars
 
                !!! canopy leaf carbon balance
                ican = ccohort%canopy_layer
-               do ileaf=1, min(nlevleafmem,currentCohort%nveg_max)
+               do ileaf=1, min(nlevleafmem,ccohort%nveg_max)
 
                   ! The actual leaf layer index (going from top to bottom)
-                  z = currentCohort%nveg_max - ileaf + 1
+                  z = ccohort%nveg_max - ileaf + 1
                   cnlf_indx = z + (ican-1) * nlevleaf
                   
                   hio_ts_net_uptake_si_cnlf(io_si, cnlf_indx) = hio_ts_net_uptake_si_cnlf(io_si, cnlf_indx) + &

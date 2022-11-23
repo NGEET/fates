@@ -261,6 +261,8 @@ contains
     real(r8) :: sapw_n_undamaged      ! nitrogen in sapwood of undamaged tree
 
     integer  :: ivm, iv, nvm, nva     ! Loop indices and bounds for cohort vegetation layers
+    integer  :: ivt, ivb              ! Top and bottom leaf layer indices that match
+                                      ! viable leaf memory bins
     integer  :: cl, s, j, ps, ft, ifp ! indices
     integer  :: NCL_p                 ! number of canopy layers in patch
     integer  :: iage                  ! loop counter for leaf age classes
@@ -652,13 +654,23 @@ contains
                          if(nva>0) then
 
                             if(.not.stretch_cbalmem_vert)then
-                               do ivm = min(nlevleafmem,nvm-nva+1),nlevleafmem
-                                  iv = nva - ivm + 1
-                                  currentCohort%ts_net_uptake(ivm) = anet_av_z(iv,ft,cl) * umolC_to_kgC
-                               end do
+
+                               ivb = nva
+                               ivt = max(1,nvm-nlevleafmem+1)
+                               if(ivb>=ivt) then
+                                  do iv = ivt,ivb
+                                     ivm = nvm - iv + 1
+                                     ! Its possible that the leaves aren't flushed enough
+                                     ! to lign up with any of the memory bins
+                                     if(ivm>0 .and. ivm.le.nlevleafmem) then
+                                        currentCohort%ts_net_uptake(ivm) = anet_av_z(iv,ft,cl) * umolC_to_kgC
+                                     end if
+                                  end do
+                               end if
+                               
                             else
                                
-                               do ivm = 1,nlevleafmem
+                               do ivm = 1,min(nlevleafmem,nva)
                                   
                                   ! This is the fraction of actual leaf bins versus the 
                                   ! current allometric maximum

@@ -22,7 +22,8 @@ module EDInitMod
   use EDPatchDynamicsMod        , only : set_patchno
   use EDPhysiologyMod           , only : assign_cohort_sp_properties
   use ChecksBalancesMod         , only : SiteMassStock
-  use FatesInterfaceTypesMod    , only : hlm_day_of_year
+  use FatesInterfaceTypesMod    , only : hlm_day_of_year, hlm_days_per_year
+  use FatesConstantsMod         , only : trim_day_of_year, max_days_since_trim_coldstart
   use EDTypesMod                , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod                , only : numWaterMem
   use EDTypesMod                , only : num_vegtemp_mem
@@ -503,6 +504,7 @@ contains
     integer  :: start_patch
     integer  :: num_new_patches
     integer  :: nocomp_pft
+    integer  :: days_since_trim         ! Number of days since trimming date
     real(r8) :: newparea
     real(r8) :: tota !check on area
     integer  :: is_first_patch
@@ -510,6 +512,7 @@ contains
     type(ed_site_type),  pointer :: sitep
     type(ed_patch_type), pointer :: newppft(:)
     type(ed_patch_type), pointer :: newp
+    type(ed_cohort_type),pointer :: newc
     type(ed_patch_type), pointer :: currentPatch
 
     ! List out some nominal patch values that are used for Near Bear Ground initializations
@@ -637,6 +640,39 @@ contains
              end if
           end do !no new patches
 
+          ! ----------------------------------------------------------
+          ! If this is a cold start and the date is after the date
+          ! we trim on, but fairly close, then we say its close
+          ! enough and flag the newly created cohorts as trimmable
+          ! the next time we encounter trimming, and zero out
+          ! the incrementing carbon balance array
+          ! -----------------------------------------------------------
+
+          if(hlm_day_of_year.ge.trim_day_of_year) then
+             days_since_trim = hlm_day_of_year-trim_day_of_year
+          else
+             days_since_trim = (hlm_day_of_year+hlm_days_per_year)-trim_day_of_year
+          end if
+             
+          if(days_since_trim .le. max_days_since_trim_coldstart)then
+
+             write(fates_log(),*) 'FATES Cold-start initiated on a day-of-year ',hlm_day_of_year
+             write(fates_log(),*) 'after and reasonably close to the trim date ',trim_day_of_year
+             write(fates_log(),*) 'Will initialize trimming arrays in new cohorts.'
+             
+             newp => sites(s)%oldest_patch
+             do while (associated(newp))
+                newc => newp%tallest
+                do while(associated(newc))
+                   newc%is_trimmable = .true.
+                   newc%year_net_uptake(:) = 0._r8
+                   newc => newc%shorter
+                end do
+                newp=>newp%younger
+             end do
+          end if
+          
+          
           !check if the total area adds to the same as site area
           tota = 0.0_r8
           newp => sites(s)%oldest_patch

@@ -1218,7 +1218,7 @@ contains
                                       write(fates_log(),*) 'canopy_layer_yesterday:', &
                                            currentCohort%canopy_layer_yesterday,nextc%canopy_layer_yesterday
                                       write(fates_log(),*) 'is_trimmable:',currentCohort%is_trimmable,nextc%is_trimmable
-                                      do i=1, nlevleaf
+                                      do i=1, nlevleafmem
                                          write(fates_log(),*) 'leaf level: ',i,'year_net_uptake', &
                                               currentCohort%year_net_uptake(i),nextc%year_net_uptake(i)
                                       end do
@@ -1248,7 +1248,7 @@ contains
                                    ! -----------------------------------------------------------------
                                    call UpdateCohortBioPhysRates(currentCohort)
 
-                                   call FuseVegLayerMem(currentCohort,nextc,currentPatch,currentSite%spread)
+                                   
 
                                    ! c13disc_acc calculation; weighted mean by GPP
                                    if ((currentCohort%n * currentCohort%gpp_acc + nextc%n * nextc%gpp_acc) .eq. 0.0_r8) then
@@ -1491,6 +1491,11 @@ contains
                                       currentCohort%ddbhdt     = (currentCohort%n*currentCohort%ddbhdt  + &
                                            nextc%n*nextc%ddbhdt)/newn
 
+                                      ! Try to do this last, it relies on many things like actual leaf carbon
+                                      ! and crown area. We have to call the tree_lai and tree_sai routines
+                                      ! to get the updated layering.
+                                      call FuseVegLayerMem(currentCohort,nextc,currentPatch,currentSite%spread)
+                                      
                                    end if !(currentCohort%isnew)
 
                                    currentCohort%n = newn
@@ -1855,9 +1860,10 @@ contains
     n%resp_tstep      = o%resp_tstep
     n%resp_acc        = o%resp_acc
     n%resp_acc_hold   = o%resp_acc_hold
-    n%year_net_uptake = o%year_net_uptake
-    n%ts_net_uptake   = o%ts_net_uptake
 
+    n%year_net_uptake = o%year_net_uptake
+    n%is_trimmable    = o%is_trimmable
+    
     n%daily_nh4_uptake = o%daily_nh4_uptake
     n%daily_no3_uptake = o%daily_no3_uptake
     n%daily_p_uptake = o%daily_p_uptake
@@ -2000,24 +2006,28 @@ contains
        
        do iv = iv0 ,iv1
           if(joint_wgt(iv)<nearzero) then
+
+             write(fates_log(),*) 'no joint weight when fusing carbon balance array'
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+
              ! This scenario should be incredibly unlikely
              ! but its better to have something here than nothing
              ! Note: there should be net uptake defined (and therefore weights)
              ! at the end-points.
-             joint_net_uptake(iv) = &
-                  0.5_r8*(joint_net_uptake(iv0)+joint_net_uptake(iv1)/joint_wgt(iv1))
+             !joint_net_uptake(iv) = &
+             !     0.5_r8*(joint_net_uptake(iv0)+joint_net_uptake(iv1)/joint_wgt(iv1))
           else
              joint_net_uptake(iv) = joint_net_uptake(iv)/joint_wgt(iv)
           end if
        end do
 
        leaf_c = ccohort%prt%GetState(leaf_organ, carbon12_element)
-       call GetNLevVeg(ccohort%dbh, leaf_c, site_spread, ccohort%pft, &
-                       ccohort%canopy_trim, ccohort%canopy_layer, &
+       call GetNLevVeg(ccohort%dbh, leaf_c, ccohort%c_area, ccohort%pft, (ccohort%n+ncohort%n), &
+                       ccohort%crowndamage, ccohort%canopy_trim, ccohort%canopy_layer, &
                        cpatch%canopy_layer_tlai, ccohort%vcmax25top, &
                        ccohort%nveg_act,ccohort%nveg_max) 
 
-       do ivm = 1, min(nlevleafmem,ncohort%nveg_max)
+       do ivm = 1, min(nlevleafmem,ccohort%nveg_max)
           iv = ccohort%nveg_max - ivm + 1
           ccohort%year_net_uptake(ivm) = joint_net_uptake(iv)
        end do
