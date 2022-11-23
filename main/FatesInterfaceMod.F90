@@ -893,6 +893,16 @@ contains
          else
             fates_dispersal_kernel_mode = fates_dispersal_kernel_none
          end if
+         
+         ! Set the fates dispersal cadence if seed dispersal parameters are set.
+         ! This could be a parameter value setting as well.  Currently hardcoded
+         if(any(EDPftvarcon_inst%seed_dispersal_param_A .lt. fates_check_param_set)) then
+            ! fates_dispersal_cadence = fates_dispersal_cadence_daily
+            fates_dispersal_cadence = fates_dispersal_cadence_monthly
+            ! fates_dispersal_cadence = fates_dispersal_cadence_yearly
+         else 
+            fates_dispersal_cadence = 0
+         end if
 
          ! Initialize Hydro globals 
          ! (like water retention functions)

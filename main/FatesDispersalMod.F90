@@ -48,7 +48,10 @@ module FatesDispersalMod
    type(neighborhood_type), public, pointer :: lneighbors(:)
 
    public :: ProbabilityDensity
+   public :: IsItDispersalTime
 
+   integer :: prev_dispersal_date = 0
+   
    character(len=*), parameter, private :: sourcefile = __FILE__
 
 contains
@@ -178,6 +181,47 @@ contains
    end function PD_logsech
 
    ! ====================================================================================
+   
+   logical function IsItDispersalTime()
+   
+   ! Determine if seeds should be dispersed across gridcells.  This eventually could be
+   ! driven by plant reproduction dynamics.  For now this is based strictly on a calendar
+   
+   use FatesInterfaceMod,      only : hlm_current_day, &
+                                      hlm_current_month, & 
+                                      hlm_current_year, &
+                                      hlm_current_date
+   use FatesInterfaceTypesMod, only : fates_dispersal_cadence, &
+                                      fates_dispersal_cadence_daily, &
+                                      fates_dispersal_cadence_monthly, &
+                                      fates_dispersal_cadence_yearly
+
+   ! LOCAL
+   integer :: check_date = 0
+   
+   ! initialize the return value as false
+   IsItDispersalTime = .false.
+   
+   ! Select the date type to check against based on the dispersal candence
+   select case(fates_dispersal_cadence)
+   case (fates_dispersal_cadence_daily)
+      check_date = hlm_current_day
+   case (fates_dispersal_cadence_monthly)
+      check_date = hlm_current_month
+   case (fates_dispersal_cadence_yearly)
+      check_date = hlm_current_year
+   case default
+      write(fates_log(),*) 'ERROR: An undefined dispersal cadence was specified: ', fates_dispersal_cadence
+      call endrun(msg=errMsg(sourcefile, __LINE__))
+   end select
+   
+   ! Determine if it is a new day, month, or year.  If true update the previous date to the current value   
+   if (check_date .ne. prev_dispersal_date) then
+      IsItDispersalTime = .true.
+      prev_dispersal_date = check_date
+   end if
+                                                                            
+   end function IsItDispersalTime
 
       
 end module FatesDispersalMod

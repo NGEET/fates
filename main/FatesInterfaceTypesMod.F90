@@ -222,13 +222,19 @@ module FatesInterfaceTypesMod
                                                            ! competitors that will be generated on each site
    
    
-   integer, public :: fates_dispersal_kernel_mode   !Flag to signal the use of grid cell seed dispersal
+   integer, public :: fates_dispersal_kernel_mode   ! Flag to signal the use of grid cell seed dispersal
                                                     ! Setting this to greater than zero overrides seed rain
-
+   
    integer, parameter, public :: fates_dispersal_kernel_none = 0         ! no dispersal (use seed rain only)
    integer, parameter, public :: fates_dispersal_kernel_exponential = 1  ! exponential dispersal kernel
    integer, parameter, public :: fates_dispersal_kernel_exppower = 2     ! exponential power (ExP) dispersal kernel
    integer, parameter, public :: fates_dispersal_kernel_logsech = 3      ! logistic-sech (LogS) dispersal kernel
+
+   integer, public :: fates_dispersal_cadence       ! Setting to denote how often seed dispersal should occur
+   
+   integer, parameter, public :: fates_dispersal_cadence_daily = 1    ! Disperse seeds daily   
+   integer, parameter, public :: fates_dispersal_cadence_monthly = 2  ! Disperse seeds monthly
+   integer, parameter, public :: fates_dispersal_cadence_yearly = 3   ! Disperse seeds yearly
    
    ! -------------------------------------------------------------------------------------
    ! These vectors are used for history output mapping
