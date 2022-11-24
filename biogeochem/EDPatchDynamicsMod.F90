@@ -398,6 +398,12 @@ contains
                (currentPatch%area - currentPatch%total_canopy_area) * harvest_rate / currentPatch%area
        endif
 
+       ! For nocomp mode, we need to prevent producing too small patches, which may produce small patches
+       if ((hlm_use_nocomp .eq. itrue) .and. &
+           (currentPatch%disturbance_rates(dtype_ilog)*currentPatch%area .lt. min_patch_area_forced)) then
+          currentPatch%disturbance_rates(dtype_ilog) = 0._r8
+       end if
+
        ! fraction of the logging disturbance rate that is non-harvested
        if (currentPatch%disturbance_rates(dtype_ilog) .gt. nearzero) then
           currentPatch%fract_ldist_not_harvested = dist_rate_ldist_notharvested / &
