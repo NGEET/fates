@@ -13,8 +13,8 @@
 		 the variables -->
   <!-- -->
   
-  <base_file>fates_params_default.cdl</base_file>
-  <new_file>fates_params_default_api25.cdl</new_file>
+  <base_file>archive/api24.2.0_112822_fates_params_default.cdl</base_file>
+  <new_file>fates_params_default_api25_v2.cdl</new_file>
   <pft_list> 1,2,3,4,5,6,7,8,9,10,11,12 </pft_list>
   <mods>
     <mod type="variable_del">
