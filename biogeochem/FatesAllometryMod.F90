@@ -1056,7 +1056,7 @@ contains
 
        bfr = blmax*l2fr
        if(present(dbfrdd))then
-          dbfrdd = dbfrmaxdd*l2fr
+          dbfrdd = dblmaxdd*l2fr
        end if
 
     case DEFAULT 
