@@ -319,6 +319,7 @@ def main():
             #    usecase = mod.find('uc').text.strip()
             #except:
             #    print("no use case (uc), exiting");exit(2)
+            usecase = 'undefined'
                 
             try:
                 values = str2fvec(mod.find('val').text.strip())
@@ -344,9 +345,9 @@ def main():
                 print("Unknown value type: {} {}".format(type(values[0]),paramname));exit(2)
 
                 
-            sel_values = selectvalues(ncfile,list(dimnames),ipft_list,values,dcode)
                 
             ncfile = netcdf.netcdf_file(base_nc,"a",mmap=False)
+            sel_values = selectvalues(ncfile,list(dimnames),ipft_list,values,dcode)
             [ncfile,ncvar] = createvar(ncfile,paramname,dimnames,units,longname,usecase,dcode,sel_values)
             ncfile.flush()
             ncfile.close()
