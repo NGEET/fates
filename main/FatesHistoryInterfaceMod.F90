@@ -2209,6 +2209,8 @@ end subroutine flush_hvars
 
       io_si  = sites(s)%h_gid
 
+      flux_diags_c => sites(s)%flux_diags(element_pos(carbon12_element))
+      
       ! set the fates fraction to one, since it is zero on non-fates columns, &
       ! the average is the total gridcell fates fraction
       hio_fates_fraction_si(io_si) = 1._r8
@@ -3216,7 +3218,7 @@ end subroutine flush_hvars
          ! Update Litter Flux Variables
 
          litt_c       => cpatch%litter(element_pos(carbon12_element))
-         flux_diags_c => sites(s)%flux_diags(element_pos(carbon12_element))
+         
 
          do i_cwd = 1, ncwd
 
@@ -3462,12 +3464,10 @@ end subroutine flush_hvars
       ! Some carbon only litter diagnostics (legacy)
       ! ------------------------------------------------------------------------------
 
-      flux_diags => sites(s)%flux_diags(element_pos(carbon12_element))
-
-      hio_litter_in_si(io_si) = (sum(flux_diags%cwd_ag_input(:)) + &
-         sum(flux_diags%cwd_bg_input(:)) + &
-         sum(flux_diags%leaf_litter_input(:)) + &
-         sum(flux_diags%root_litter_input(:))) * &
+      hio_litter_in_si(io_si) = (sum(flux_diags_c%cwd_ag_input(:)) + &
+         sum(flux_diags_c%cwd_bg_input(:)) + &
+         sum(flux_diags_c%leaf_litter_input(:)) + &
+         sum(flux_diags_c%root_litter_input(:))) * &
          AREA_INV * days_per_sec
 
       hio_litter_out_si(io_si) = 0._r8
