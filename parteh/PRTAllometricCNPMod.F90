@@ -2233,7 +2233,7 @@ contains
         canopy_trim = intgr_params(intgr_parm_ctrim)
         ipft        = int(intgr_params(intgr_parm_pft))
         l2fr        = intgr_params(intgr_parm_l2fr)
-        crown_damage = int(intgr_params(acnp_bc_in_id_cdamage))
+        crown_damage = int(intgr_params(intgr_parm_cdamage))
         
         call bleaf(dbh,ipft,crown_damage,canopy_trim,leaf_c_target,leaf_dcdd_target)
         call bfineroot(dbh,ipft,canopy_trim,l2fr,fnrt_c_target,fnrt_dcdd_target)
