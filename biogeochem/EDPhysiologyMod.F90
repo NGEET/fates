@@ -704,7 +704,9 @@ contains
              ! Lets loop over the last few leaf layers, only the number of layers
              ! necessary for evaluating the trend
 
-             leafmem_loop: do zm = 1, min(nll,currentCohort%nveg_max)
+             cumulative_lai_cohort = 0._r8
+
+             leafmem_loop: do zm = min(nll,currentCohort%nveg_max),1,-1
 
                 ! The actual leaf layer index (going from top to bottom)
                 z = currentCohort%nveg_max - zm + 1
@@ -755,7 +757,6 @@ contains
                            bfr_per_bleaf / prt_params%root_long(ipft)
                    endif
 
-
                    currentCohort%leaf_cost = currentCohort%leaf_cost * &
                         (prt_params%grperc(ipft) + 1._r8)
                 else !evergreen costs
@@ -763,7 +764,6 @@ contains
                    ! Leaf cost at leaf level z accounting for sla profile
                    currentCohort%leaf_cost = 1.0_r8/(sla_levleaf* &
                         sum(prt_params%leaf_long(ipft,:))*1000.0_r8) !convert from sla in m2g-1 to m2kg-1
-
 
                    if ( int(prt_params%allom_fmode(ipft)) .eq. 1 ) then
                       ! if using trimmed leaf for fine root biomass allometry, add the cost of the root increment
@@ -780,19 +780,23 @@ contains
                 ! if at least nll leaf layers are present in the current cohort and only for the bottom nll
                 ! leaf layers.
 
-                ! Build the A matrix for the LHS of the linear system. A = [n  sum(x); sum(x)  sum(x^2)]
-                ! where n = nll and x = yearly_net_uptake-leafcost
-                nnu_clai_a(1,1) = nnu_clai_a(1,1) + 1 ! Increment for each layer used
-                nnu_clai_a(1,2) = nnu_clai_a(1,2) + currentCohort%year_net_uptake(zm) - currentCohort%leaf_cost
-                nnu_clai_a(2,1) = nnu_clai_a(1,2)
-                nnu_clai_a(2,2) = nnu_clai_a(2,2) + (currentCohort%year_net_uptake(zm) - currentCohort%leaf_cost)**2
-
-                ! Build the B matrix for the RHS of the linear system. B = [sum(y); sum(x*y)]
-                ! where x = yearly_net_uptake-leafcost and y = cumulative_lai_cohort
-                nnu_clai_b(1,1) = nnu_clai_b(1,1) + cumulative_lai_cohort
-                nnu_clai_b(2,1) = nnu_clai_b(2,1) + (cumulative_lai_cohort * & 
-                     (currentCohort%year_net_uptake(zm) - currentCohort%leaf_cost))
-
+                if( currentCohort%nveg_max >= nll ) then
+                   
+                   ! Build the A matrix for the LHS of the linear system. A = [n  sum(x); sum(x)  sum(x^2)]
+                   ! where n = nll and x = yearly_net_uptake-leafcost
+                   nnu_clai_a(1,1) = nnu_clai_a(1,1) + 1 ! Increment for each layer used
+                   nnu_clai_a(1,2) = nnu_clai_a(1,2) + currentCohort%year_net_uptake(zm) - currentCohort%leaf_cost
+                   nnu_clai_a(2,1) = nnu_clai_a(1,2)
+                   nnu_clai_a(2,2) = nnu_clai_a(2,2) + (currentCohort%year_net_uptake(zm) - currentCohort%leaf_cost)**2
+                   
+                   ! Build the B matrix for the RHS of the linear system. B = [sum(y); sum(x*y)]
+                   ! where x = yearly_net_uptake-leafcost and y = cumulative_lai_cohort
+                   nnu_clai_b(1,1) = nnu_clai_b(1,1) + cumulative_lai_cohort
+                   nnu_clai_b(2,1) = nnu_clai_b(2,1) + (cumulative_lai_cohort * & 
+                        (currentCohort%year_net_uptake(zm) - currentCohort%leaf_cost))
+                   
+                end if
+                
                 ! Check leaf cost against the yearly net uptake for that cohort leaf layer
                 if (currentCohort%year_net_uptake(zm) < currentCohort%leaf_cost) then
                    ! Make sure the cohort trim fraction is great than the pft trim limit
