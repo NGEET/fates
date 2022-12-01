@@ -47,6 +47,7 @@ module EDParamsMod
    real(r8),protected, public :: ED_val_cwd_flig
    real(r8),protected, public :: ED_val_base_mr_20
    real(r8),protected, public :: ED_val_phen_drought_threshold
+   real(r8),protected, public :: ED_val_phen_moist_threshold
    real(r8),protected, public :: ED_val_phen_doff_time
    real(r8),protected, public :: ED_val_phen_a
    real(r8),protected, public :: ED_val_phen_b
@@ -107,6 +108,7 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_cwd_flig= "fates_frag_cwd_flig"   
    character(len=param_string_length),parameter,public :: ED_name_base_mr_20= "fates_base_mr_20"   
    character(len=param_string_length),parameter,public :: ED_name_phen_drought_threshold= "fates_phen_drought_threshold"   
+   character(len=param_string_length),parameter,public :: ED_name_phen_moist_threshold= "fates_phen_moist_threshold"
    character(len=param_string_length),parameter,public :: ED_name_phen_doff_time= "fates_phen_mindaysoff"
    character(len=param_string_length),parameter,public :: ED_name_phen_a= "fates_phen_gddthresh_a"   
    character(len=param_string_length),parameter,public :: ED_name_phen_b= "fates_phen_gddthresh_b"   
@@ -276,6 +278,7 @@ contains
     ED_val_cwd_flig                       = nan
     ED_val_base_mr_20                     = nan
     ED_val_phen_drought_threshold         = nan
+    ED_val_phen_moist_threshold           = nan
     ED_val_phen_doff_time                 = nan
     ED_val_phen_a                         = nan
     ED_val_phen_b                         = nan
@@ -388,6 +391,9 @@ contains
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=ED_name_phen_drought_threshold, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=ED_name_phen_moist_threshold, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=ED_name_phen_doff_time, dimension_shape=dimension_shape_scalar, &
@@ -589,6 +595,9 @@ contains
     call fates_params%RetrieveParameter(name=ED_name_phen_drought_threshold, &
          data=ED_val_phen_drought_threshold)
 
+    call fates_params%RetrieveParameter(name=ED_name_phen_moist_threshold, &
+         data=ED_val_phen_moist_threshold)
+
     call fates_params%RetrieveParameter(name=ED_name_phen_doff_time, &
          data=ED_val_phen_doff_time)
 
@@ -780,6 +789,7 @@ contains
         write(fates_log(),fmt0) 'ED_val_cwd_flig = ',ED_val_cwd_flig
         write(fates_log(),fmt0) 'ED_val_base_mr_20 = ', ED_val_base_mr_20
         write(fates_log(),fmt0) 'ED_val_phen_drought_threshold = ',ED_val_phen_drought_threshold
+        write(fates_log(),fmt0) 'ED_val_phen_moist_threshold = ',ED_val_phen_moist_threshold
         write(fates_log(),fmt0) 'ED_val_phen_doff_time = ',ED_val_phen_doff_time
         write(fates_log(),fmt0) 'ED_val_phen_a = ',ED_val_phen_a
         write(fates_log(),fmt0) 'ED_val_phen_b = ',ED_val_phen_b

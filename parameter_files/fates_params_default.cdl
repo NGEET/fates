@@ -432,12 +432,12 @@ variables:
 	double fates_phen_evergreen(fates_pft) ;
 		fates_phen_evergreen:units = "logical flag" ;
 		fates_phen_evergreen:long_name = "Binary flag for evergreen leaf habit" ;
+	double fates_phen_fnrt_drop_fraction(fates_pft) ;
+		fates_phen_fnrt_drop_fraction:units = "fraction" ;
+		fates_phen_fnrt_drop_fraction:long_name = "fraction of fine roots to drop during drought/cold" ;
 	double fates_phen_flush_fraction(fates_pft) ;
 		fates_phen_flush_fraction:units = "fraction" ;
 		fates_phen_flush_fraction:long_name = "Upon bud-burst, the maximum fraction of storage carbon used for flushing leaves" ;
-	double fates_phen_fnrt_drop_frac(fates_pft) ;
-		fates_phen_fnrt_drop_frac:units = "fraction" ;
-		fates_phen_fnrt_drop_frac:long_name = "fraction of fine roots to drop during drought or cold" ;
 	double fates_phen_season_decid(fates_pft) ;
 		fates_phen_season_decid:units = "logical flag" ;
 		fates_phen_season_decid:long_name = "Binary flag for seasonal-deciduous leaf habit" ;
@@ -744,12 +744,9 @@ variables:
 	double fates_phen_coldtemp ;
 		fates_phen_coldtemp:units = "degrees C" ;
 		fates_phen_coldtemp:long_name = "vegetation temperature exceedance that flags a cold-day for leaf-drop" ;
-	double fates_phen_drought_model ;
-		fates_phen_drought_model:units = "unitless" ;
-		fates_phen_drought_model:long_name = "which method to use for drought phenology: 0 - FATES default; 1 - Semi-deciduous (ED2-like)" ;
 	double fates_phen_drought_threshold ;
 		fates_phen_drought_threshold:units = "m3/m3 or mm" ;
-		fates_phen_drought_threshold:long_name = "threshold for drought phenology (or lower threshold when fates_phen_drought_model = 1); the quantity depends on the sign: if positive, the threshold is volumetric soil moisture (m3/m3). If negative, the threshold is soil matric potentical (mm)" ;
+		fates_phen_drought_threshold:long_name = "threshold for drought phenology (or lower threshold for semi-deciduous PFTs); the quantity depends on the sign: if positive, the threshold is volumetric soil moisture (m3/m3). If negative, the threshold is soil matric potentical (mm)" ;
 	double fates_phen_gddthresh_a ;
 		fates_phen_gddthresh_a:units = "none" ;
 		fates_phen_gddthresh_a:long_name = "GDD accumulation function, intercept parameter: gdd_thesh = a + b exp(c*ncd)" ;
@@ -767,7 +764,7 @@ variables:
 		fates_phen_mindayson:long_name = "day threshold compared against days since leaves became on-allometry" ;
 	double fates_phen_moist_threshold ;
 		fates_phen_moist_threshold:units = "m3/m3 or mm" ;
-		fates_phen_moist_threshold:long_name = "upper threshold for drought phenology (only for fates_phen_drought_model=1); the quantity depends on the sign: if positive, the threshold is volumetric soil moisture (m3/m3). If negative, the threshold is soil matric potentical (mm)" ;
+		fates_phen_moist_threshold:long_name = "upper threshold for drought phenology (only for drought semi-deciduous PFTs); the quantity depends on the sign: if positive, the threshold is volumetric soil moisture (m3/m3). If negative, the threshold is soil matric potentical (mm)" ;
 	double fates_phen_ncolddayslim ;
 		fates_phen_ncolddayslim:units = "days" ;
 		fates_phen_ncolddayslim:long_name = "day threshold exceedance for temperature leaf-drop" ;
@@ -1248,7 +1245,7 @@ data:
  fates_phen_flush_fraction = _, _, 0.5, _, 0.5, 0.5, _, 0.5, 0.5, 0.5, 0.5, 
     0.5 ;
 
- fates_phen_fnrt_drop_frac = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+ fates_phen_fnrt_drop_fraction = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
  fates_phen_season_decid = 0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 0, 0 ;
 
@@ -1507,8 +1504,6 @@ data:
  fates_phen_chilltemp = 5 ;
 
  fates_phen_coldtemp = 7.5 ;
-
- fates_phen_drought_model = 0 ;
 
  fates_phen_drought_threshold = 0.15 ;
 

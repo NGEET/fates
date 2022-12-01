@@ -161,6 +161,7 @@ contains
    ! ============================================================================
    
   subroutine CheckIntegratedAllometries(dbh,ipft,canopy_trim, &
+       elongf_leaf, elongf_fnrt, elongf_stem, &
        bl,bfr,bsap,bstore,bdead, &
        grow_leaf, grow_fr, grow_sap, grow_store, grow_dead, &
        max_err, l_pass)
@@ -176,6 +177,9 @@ contains
      real(r8),intent(in) :: dbh    ! diameter of plant [cm]
      integer,intent(in)  :: ipft   ! plant functional type index
      real(r8),intent(in) :: canopy_trim ! trimming function
+     real(r8),intent(in) :: elongf_leaf ! Leaf elongation factor
+     real(r8),intent(in) :: elongf_fnrt ! Fine-root elongation factor
+     real(r8),intent(in) :: elongf_stem ! Stem elongation factor
      real(r8),intent(in) :: bl     ! integrated leaf biomass [kgC]
      real(r8),intent(in) :: bfr    ! integrated fine root biomass [kgC]
      real(r8),intent(in) :: bsap   ! integrated sapwood biomass [kgC]
@@ -206,6 +210,7 @@ contains
 
      if (grow_leaf) then
         call bleaf(dbh,ipft,canopy_trim,bl_diag)
+        bl_diag = bl_diag * elongf_leaf
         if( abs(bl_diag-bl) > max_err ) then
            if(verbose_logging) then
               write(fates_log(),*) 'disparity in integrated/diagnosed leaf carbon'
@@ -220,6 +225,7 @@ contains
         
      if (grow_fr) then
         call bfineroot(dbh,ipft,canopy_trim,bfr_diag)
+        bfr_diag = bfr_diag * elongf_fnrt
         if( abs(bfr_diag-bfr) > max_err ) then
            if(verbose_logging) then
               write(fates_log(),*) 'disparity in integrated/diagnosed fineroot carbon'
@@ -234,6 +240,7 @@ contains
 
      if (grow_sap) then
         call bsap_allom(dbh,ipft,canopy_trim,asap_diag,bsap_diag)
+        bsap_diag = bsap_diag * elongf_stem
         if( abs(bsap_diag-bsap) > max_err ) then
            if(verbose_logging) then
               write(fates_log(),*) 'disparity in integrated/diagnosed sapwood carbon'
@@ -265,6 +272,8 @@ contains
         call bagw_allom(dbh,ipft,bagw_diag)
         call bbgw_allom(dbh,ipft,bbgw_diag)
         call bdead_allom( bagw_diag, bbgw_diag, bsap_diag, ipft, bdead_diag )        
+        bdead_diag = bdead_diag * elongf_stem
+
         if( abs(bdead_diag-bdead) > max_err ) then
            if(verbose_logging) then
               write(fates_log(),*) 'disparity in integrated/diagnosed structural carbon'
@@ -2462,7 +2471,7 @@ contains
         write(fates_log(),*) 'dbh counter: ',counter,' is woody: ',&
              (prt_params%woody(ipft) == itrue)
 
-        if(int(prt_params%woody(ipft))==itrue)then
+        if(prt_params%woody(ipft)==itrue)then
            warn_msg = 'dbh counter: '//trim(I2S(counter))//' is woody'
         else
            warn_msg = 'dbh counter: '//trim(I2S(counter))//' is not woody'

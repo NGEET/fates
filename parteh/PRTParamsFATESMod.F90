@@ -32,6 +32,7 @@ module PRTInitParamsFatesMod
   use FatesAllometryMod, only : set_root_fraction
   use PRTGenericMod, only : StorageNutrientTarget
   use EDTypesMod,          only : init_recruit_trim
+  use EDTypesMod,          only : ihard_stress_decid, isemi_stress_decid
   
   !
   ! !PUBLIC TYPES:
@@ -811,6 +812,7 @@ contains
      logical, intent(in) :: is_master  ! Only log if this is the master proc
 
      logical, parameter :: debug_report = .false.
+     character(len=15),parameter :: fmti = '(a,100(I12,1X))'
      character(len=32),parameter :: fmt0 = '(a,100(F12.4,1X))'
 
      integer :: npft,ipft
@@ -827,9 +829,9 @@ contains
         end if
 
         write(fates_log(),*) '-----------  FATES PARTEH Parameters -----------------'
-        write(fates_log(),fmt0) 'stress_decid = ',prt_params%stress_decid
-        write(fates_log(),fmt0) 'season_decid = ',prt_params%season_decid
-        write(fates_log(),fmt0) 'evergreen = ',prt_params%evergreen
+        write(fates_log(),fmti) 'stress_decid = ',prt_params%stress_decid
+        write(fates_log(),fmti) 'season_decid = ',prt_params%season_decid
+        write(fates_log(),fmti) 'evergreen = ',prt_params%evergreen
         write(fates_log(),fmt0) 'wood_density = ',prt_params%wood_density
         write(fates_log(),fmt0) 'dbh max height = ',prt_params%allom_dbh_maxheight
         write(fates_log(),fmt0) 'dbh mature = ',prt_params%dbh_repro_threshold
@@ -886,7 +888,7 @@ contains
         write(fates_log(),fmt0) 'fnrt_prof_mode = ',prt_params%fnrt_prof_mode
         write(fates_log(),fmt0) 'turnover_nitr_retrans = ',prt_params%turnover_nitr_retrans
         write(fates_log(),fmt0) 'turnover_phos_retrans = ',prt_params%turnover_phos_retrans
-        write(fates_log(),fmt0) 'organ_id = ',prt_params%organ_id
+        write(fates_log(),fmti) 'organ_id = ',prt_params%organ_id
         write(fates_log(),fmt0) 'nitr_store_ratio = ',prt_params%nitr_store_ratio
         write(fates_log(),fmt0) 'phos_store_ratio = ',prt_params%phos_store_ratio
         write(fates_log(),*) '-------------------------------------------------'
@@ -954,12 +956,15 @@ contains
 
      character(len=32),parameter :: fmt0 = '(a,100(F12.4,1X))'
 
-     integer :: npft     ! number of PFTs
-     integer :: ipft     ! pft index
-     integer :: nleafage ! size of the leaf age class array
-     integer :: iage     ! leaf age class index
-     integer :: norgans  ! size of the plant organ dimension
-     integer :: i, io    ! generic loop index and organ loop index
+     integer :: npft            ! number of PFTs
+     integer :: ipft            ! pft index
+     integer :: nleafage        ! size of the leaf age class array
+     integer :: iage            ! leaf age class index
+     integer :: norgans         ! size of the plant organ dimension
+     integer :: i, io           ! generic loop index and organ loop index
+     logical :: is_evergreen    ! Is the PFT evergreen
+     logical :: is_season_decid ! Is the PFT cold-deciduous?
+     logical :: is_stress_decid ! Is the PFT drought-deciduous?
 
      npft = size(prt_params%evergreen,1)
 
@@ -1011,14 +1016,22 @@ contains
      pftloop: do ipft = 1,npft
 
         ! Check to see if evergreen, deciduous flags are mutually exclusive
+        ! MLO. Changed the check because season_decid can be 1 or 2.
+        !      By the way, if these are mutually exclusive, shouldn't we define a
+        !      single prt_params%leaf_phenology and a list of codes for the different
+        !      types (i.e., ievergreen, iseason_decid, istress_hard, istress_semi, etc.)?
         ! ----------------------------------------------------------------------------------
+        is_evergreen    = prt_params%evergreen(ipft)    == itrue
+        is_season_decid = prt_params%season_decid(ipft) == itrue
+        is_stress_decid = any(prt_params%stress_decid(ipft) == [ihard_stress_decid,isemi_stress_decid])
 
-        if ( int(prt_params%evergreen(ipft) +    &
-                 prt_params%season_decid(ipft) + &
-                 prt_params%stress_decid(ipft)) .ne. 1 ) then
-           
+        if ( ( is_evergreen    .and. is_season_decid ) .or. &
+             ( is_evergreen    .and. is_stress_decid ) .or. &
+             ( is_season_decid .and. is_stress_decid ) ) then
+
            write(fates_log(),*) 'PFT # ',ipft,' must be defined as having one of three'
-           write(fates_log(),*) 'phenology habits, ie == 1'
+           write(fates_log(),*) 'phenology habits, ie, only one of the flags below should'
+           write(fates_log(),*) 'be different than ',ifalse
            write(fates_log(),*) 'stress_decid: ',prt_params%stress_decid(ipft)
            write(fates_log(),*) 'season_decid: ',prt_params%season_decid(ipft)
            write(fates_log(),*) 'evergreen: ',prt_params%evergreen(ipft)

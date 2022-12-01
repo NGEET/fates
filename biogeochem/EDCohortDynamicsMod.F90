@@ -90,9 +90,15 @@ module EDCohortDynamicsMod
   use PRTAllometricCarbonMod, only : ac_bc_in_id_ctrim
   use PRTAllometricCarbonMod, only : ac_bc_inout_id_dbh
   use PRTAllometricCarbonMod, only : ac_bc_in_id_lstat
+  use PRTAllometricCarbonMod, only : ac_bc_in_id_efleaf
+  use PRTAllometricCarbonMod, only : ac_bc_in_id_effnrt
+  use PRTAllometricCarbonMod, only : ac_bc_in_id_efstem
   use PRTAllometricCNPMod,    only : cnp_allom_prt_vartypes
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_pft, acnp_bc_in_id_ctrim
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_lstat, acnp_bc_inout_id_dbh
+  use PRTAllometricCNPMod,    only : acnp_bc_in_id_efleaf
+  use PRTAllometricCNPMod,    only : acnp_bc_in_id_effnrt
+  use PRTAllometricCNPMod,    only : acnp_bc_in_id_efstem
   use PRTAllometricCNPMod,    only : acnp_bc_inout_id_rmaint_def, acnp_bc_in_id_netdc
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_netdnh4, acnp_bc_in_id_netdno3, acnp_bc_in_id_netdp
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_cefflux, acnp_bc_out_id_nefflux
@@ -147,7 +153,8 @@ contains
 
 
   subroutine create_cohort(currentSite, patchptr, pft, nn, hite, coage, dbh,   &
-                           prt, status, recruitstatus,ctrim, carea, clayer, spread, bc_in)
+                           prt, elongf_leaf, elongf_fnrt, elongf_stem, status, &
+                           recruitstatus,ctrim, carea, clayer, spread, bc_in)
     !
     ! !DESCRIPTION:
     ! create new cohort
@@ -178,6 +185,12 @@ contains
     real(r8), intent(in)      :: hite             ! height: meters
     real(r8), intent(in)      :: coage            ! cohort age in years
     real(r8), intent(in)      :: dbh              ! dbh: cm
+    real(r8), intent(in)      :: elongf_leaf      ! leaf elongation factor (fraction)
+    real(r8), intent(in)      :: elongf_fnrt      ! fine-root "elongation factor" (fraction)
+    real(r8), intent(in)      :: elongf_stem      ! stem "elongation factor" (fraction)
+                                                  !    For all elongation factors:
+                                                  !    0 means fully abscissed
+                                                  !    1 means fully flushed
     class(prt_vartypes),target :: prt             ! The allocated PARTEH
                                                   ! object
     real(r8), intent(in)      :: ctrim            ! What is the fraction of the maximum
@@ -223,6 +236,9 @@ contains
 
     new_cohort%pft          = pft
     new_cohort%status_coh   = status
+    new_cohort%efleaf_coh   = elongf_leaf
+    new_cohort%effnrt_coh   = elongf_fnrt
+    new_cohort%efstem_coh   = elongf_stem
     new_cohort%n            = nn
     new_cohort%hite         = hite
     new_cohort%dbh          = dbh
@@ -400,12 +416,18 @@ contains
        call new_cohort%prt%RegisterBCIn(ac_bc_in_id_pft,bc_ival = new_cohort%pft)
        call new_cohort%prt%RegisterBCIn(ac_bc_in_id_ctrim,bc_rval = new_cohort%canopy_trim)
        call new_cohort%prt%RegisterBCIn(ac_bc_in_id_lstat,bc_ival = new_cohort%status_coh)
+       call new_cohort%prt%RegisterBCIn(ac_bc_in_id_efleaf,bc_rval = new_cohort%efleaf_coh)
+       call new_cohort%prt%RegisterBCIn(ac_bc_in_id_effnrt,bc_rval = new_cohort%effnrt_coh)
+       call new_cohort%prt%RegisterBCIn(ac_bc_in_id_efstem,bc_rval = new_cohort%efstem_coh)
 
     case (prt_cnp_flex_allom_hyp)
 
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_pft,bc_ival = new_cohort%pft)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_ctrim,bc_rval = new_cohort%canopy_trim)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_lstat,bc_ival = new_cohort%status_coh)
+       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_efleaf,bc_rval = new_cohort%efleaf_coh)
+       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_effnrt,bc_rval = new_cohort%effnrt_coh)
+       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_efstem,bc_rval = new_cohort%efstem_coh)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdc, bc_rval = new_cohort%npp_acc)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdnh4, bc_rval = new_cohort%daily_nh4_uptake)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdno3, bc_rval = new_cohort%daily_no3_uptake)
@@ -522,6 +544,9 @@ contains
     currentCohort%canopy_layer_yesterday       = nan  ! recent canopy status of cohort (1 = canopy, 2 = understorey, etc.)
     currentCohort%NV                 = fates_unset_int  ! Number of leaf layers: -
     currentCohort%status_coh         = fates_unset_int  ! growth status of plant  (2 = leaves on , 1 = leaves off)
+    currentCohort%efleaf_coh         = nan              ! leaf elongation factor (fraction from 0 (fully abscissed) to 1 (fully flushed)
+    currentCohort%effnrt_coh         = nan              ! fine-root "elongation factor" (fraction from 0 (fully abscissed) to 1 (fully flushed)
+    currentCohort%efstem_coh         = nan              ! stem "elongation factor" (fraction from 0 (fully abscissed) to 1 (fully flushed)
     currentCohort%size_class         = fates_unset_int  ! size class index
     currentCohort%size_class_lasttimestep = fates_unset_int  ! size class index
     currentCohort%size_by_pft_class  = fates_unset_int  ! size by pft classification index
@@ -633,6 +658,9 @@ contains
 
     currentCohort%NV                 = 0
     currentCohort%status_coh         = 0
+    currentCohort%efleaf_coh         = 0._r8
+    currentCohort%effnrt_coh         = 0._r8
+    currentCohort%efstem_coh         = 0._r8
     currentCohort%rdark              = 0._r8
     currentCohort%resp_m             = 0._r8
     currentCohort%resp_m_def         = 0._r8
@@ -1789,6 +1817,9 @@ contains
     n%canopy_layer_yesterday    = o%canopy_layer_yesterday
     n%nv              = o%nv
     n%status_coh      = o%status_coh
+    n%efleaf_coh      = o%efleaf_coh
+    n%effnrt_coh      = o%effnrt_coh
+    n%efstem_coh      = o%efstem_coh
     n%canopy_trim     = o%canopy_trim
     n%excl_weight     = o%excl_weight
     n%prom_weight     = o%prom_weight

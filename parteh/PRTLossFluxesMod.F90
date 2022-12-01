@@ -104,15 +104,22 @@ contains
      real(r8)            :: sp_demand              ! nutrient demand for element
 
 
-     ! We currently only allow the flushing and drop of leaves.
-     ! If other organs should be desired (like seasonality of fine-roots)
-     ! those parameters and clauses need to be added
+     ! We currently  allow the flushing and drop of leaves and fine roots (always) and
+     ! sapwood and heartwood (non-woody PFTs only).
+     ! If other organs should be desired, those parameters and clauses need to be added
 
-     !if(organ_id .ne. leaf_organ) then
-     if(organ_id .ne. leaf_organ .AND. prt_params%woody(ipft) == itrue) then
-        write(fates_log(),*) 'Deciduous drop and re-flushing only allowed in leaves'
+     if( (.not. any(organ_id == [leaf_organ,fnrt_organ])) .and. &
+         prt_params%woody(ipft) == itrue ) then
+        write(fates_log(),*) '    When PFT is woody, deciduous drop and re-flushing are'
+        write(fates_log(),*) ' only allowed in leaves and fine roots:'
+        write(fates_log(),*) ''
+        write(fates_log(),*) ' PFT: ',ipft
+        write(fates_log(),*) ' Woody PFT: ',prt_params%woody(ipft) == itrue
+        write(fates_log(),*) ''
+        write(fates_log(),*) ''
         write(fates_log(),*) ' leaf_organ: ',leaf_organ
-        write(fates_log(),*) ' organ: ',organ_id
+        write(fates_log(),*) ' fnrt_organ: ',fnrt_organ
+        write(fates_log(),*) ' Attempted organ: ',organ_id
         write(fates_log(),*) 'Exiting'
         call endrun(msg=errMsg(__FILE__, __LINE__))
      end if
@@ -419,15 +426,22 @@ contains
      real(r8),intent(in) :: mass_fraction ! The fraction of mass in this organ that should
                                           ! leave the indicated organ.
      
-     ! We currently only allow the flushing and drop of leaves.
-     ! If other organs should be desired (like seasonality of fine-roots)
-     ! those parameters and clauses need to be added
-     
-     !if(organ_id .ne. leaf_organ) then
-     if(organ_id .ne. leaf_organ .AND. prt_params%woody(ipft) == itrue) then
-        write(fates_log(),*) 'Deciduous drop and re-flushing only allowed in leaves'
+     ! We currently  allow the flushing and drop of leaves and fine roots (always) and
+     ! sapwood and heartwood (non-woody PFTs only).
+     ! If other organs should be desired, those parameters and clauses need to be added
+
+     if( (.not. any(organ_id == [leaf_organ,fnrt_organ])) .and. &
+         prt_params%woody(ipft) == itrue ) then
+        write(fates_log(),*) '    When PFT is woody, deciduous drop and re-flushing are'
+        write(fates_log(),*) ' only allowed in leaves and fine roots:'
+        write(fates_log(),*) ''
+        write(fates_log(),*) ' PFT: ',ipft
+        write(fates_log(),*) ' Woody PFT: ',prt_params%woody(ipft) == itrue
+        write(fates_log(),*) ''
+        write(fates_log(),*) ''
         write(fates_log(),*) ' leaf_organ: ',leaf_organ
-        write(fates_log(),*) ' organ: ',organ_id
+        write(fates_log(),*) ' fnrt_organ: ',fnrt_organ
+        write(fates_log(),*) ' Attempted organ: ',organ_id
         write(fates_log(),*) 'Exiting'
         call endrun(msg=errMsg(__FILE__, __LINE__))
      end if

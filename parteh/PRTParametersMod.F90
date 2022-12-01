@@ -13,9 +13,21 @@ module PRTParametersMod
 
      ! The following three PFT classes 
      ! are mutually exclusive
-     integer, allocatable :: stress_decid(:)        ! Is the plant stress deciduous? (1=yes, 0=no)
+     ! MLO: perhaps we should replace these three parameters with a single
+     !      parameter (phenology(:)) that is assigned different indices?
+     integer, allocatable :: stress_decid(:)        ! Is the plant stress deciduous?
+                                                    ! 0 - No
+                                                    ! 1 - Drought "hard" deciduous (i.e., PFT
+                                                    !     sheds leaves all at once when stressed)
+                                                    ! 2 - Drought semi-deciduous (i.e., PFT
+                                                    !     sheds leaves gradually as drought
+                                                    !     conditions deteriorate)
      integer, allocatable :: season_decid(:)        ! Is the plant seasonally deciduous (1=yes, 0=no)
      integer, allocatable :: evergreen(:)           ! Is the plant an evergreen (1=yes, 0=no)
+
+     ! Drop fraction for tissues other than leaves (PFT-dependent)
+     real(r8), allocatable :: phen_fnrt_drop_fraction(:) ! Abscission fraction of fine roots
+     real(r8), allocatable :: phen_stem_drop_fraction(:) ! Abscission fraction of stems
 
      
      ! Growth and Turnover Parameters

@@ -53,6 +53,9 @@ module PRTAllometricCarbonMod
 
   use EDTypesMod          , only : leaves_on
   use EDTypesMod          , only : leaves_off
+  use EDTypesMod          , only : leaves_pshed
+  use EDTypesMod          , only : ihard_stress_decid
+  use EDTypesMod          , only : isemi_stress_decid
 
   implicit none
   private
@@ -95,8 +98,11 @@ module PRTAllometricCarbonMod
 
   integer, public, parameter :: ac_bc_in_id_pft   = 1   ! Index for the PFT input BC
   integer, public, parameter :: ac_bc_in_id_ctrim = 2   ! Index for the canopy trim function
-  integer, public, parameter :: ac_bc_in_id_lstat = 3   ! Leaf status (on or off)
-  integer, parameter         :: num_bc_in         = 3   ! Number of input boundary conditions
+  integer, public, parameter :: ac_bc_in_id_lstat = 3   ! Leaf status (on, off, partial abscission)
+  integer, public, parameter :: ac_bc_in_id_efleaf = 4   ! Elongation factor (leaves)
+  integer, public, parameter :: ac_bc_in_id_effnrt = 5   ! "Elongation factor" (fine roots)
+  integer, public, parameter :: ac_bc_in_id_efstem = 6   ! "Elongation factor" (stem)
+  integer, parameter         :: num_bc_in          = 6   ! Number of input boundary conditions
 
   ! THere are no purely output boundary conditions
   integer, parameter         :: num_bc_out        = 0   ! Number of purely output boundary condtions
@@ -344,6 +350,9 @@ module PRTAllometricCarbonMod
     real(r8) :: repro_c0              ! ""
     real(r8) :: struct_c0             ! ""
 
+    logical  :: is_hydecid_dormant    ! Flag to signal that the cohort is drought deciduous and dormant
+    logical  :: is_deciduous          ! Flag to signal this is a deciduous PFT
+
     logical  :: grow_struct
     logical  :: grow_leaf             ! Are leaves at allometric target and should be grown?
     logical  :: grow_fnrt             ! Are fine-roots at allometric target and should be grown?
@@ -363,6 +372,10 @@ module PRTAllometricCarbonMod
     integer  :: nleafage              ! number of leaf age classifications
     integer  :: leaf_status           ! are leaves on (2) or off (1) 
     real(r8) :: leaf_age_flux         ! carbon mass flux between leaf age classification pools
+
+    real(r8) :: elongf_leaf           ! Leaf elongation factor
+    real(r8) :: elongf_fnrt           ! Fine-root "elongation factor"
+    real(r8) :: elongf_stem           ! Stem "elongation factor"
 
 
     ! Integegrator variables c_pool is "mostly" carbon variables, it also includes
@@ -412,12 +425,23 @@ module PRTAllometricCarbonMod
     canopy_trim                     = this%bc_in(ac_bc_in_id_ctrim)%rval
     ipft                            = this%bc_in(ac_bc_in_id_pft)%ival
     leaf_status                     = this%bc_in(ac_bc_in_id_lstat)%ival
+    elongf_leaf                     = this%bc_in(ac_bc_in_id_efleaf)%rval
+    elongf_fnrt                     = this%bc_in(ac_bc_in_id_effnrt)%rval
+    elongf_stem                     = this%bc_in(ac_bc_in_id_efstem)%rval
 
-    intgr_params(:)                 = un_initialized
-    intgr_params(ac_bc_in_id_ctrim) = this%bc_in(ac_bc_in_id_ctrim)%rval
-    intgr_params(ac_bc_in_id_pft)   = real(this%bc_in(ac_bc_in_id_pft)%ival)
-    
-    
+    intgr_params(:)                  = un_initialized
+    intgr_params(ac_bc_in_id_ctrim)  = this%bc_in(ac_bc_in_id_ctrim)%rval
+    intgr_params(ac_bc_in_id_pft)    = real(this%bc_in(ac_bc_in_id_pft)%ival,r8)
+    intgr_params(ac_bc_in_id_lstat)  = real(this%bc_in(ac_bc_in_id_lstat)%ival,r8)
+    intgr_params(ac_bc_in_id_efleaf) = this%bc_in(ac_bc_in_id_efleaf)%rval
+    intgr_params(ac_bc_in_id_effnrt) = this%bc_in(ac_bc_in_id_effnrt)%rval
+    intgr_params(ac_bc_in_id_efstem) = this%bc_in(ac_bc_in_id_efstem)%rval
+
+    ! Set some logical flags to simplify "if" blocks
+    is_hydecid_dormant = any(prt_params%stress_decid(ipft) == [ihard_stress_decid,isemi_stress_decid] ) &
+                         .and. any(leaf_status == [leaves_off,leaves_pshed] )
+    is_deciduous       = ( prt_params%stress_decid(ipft) == itrue ) .or.  &
+                         any(prt_params%stress_decid(ipft) == [ihard_stress_decid,isemi_stress_decid] )
 
     nleafage = prt_global%state_descriptor(leaf_c_id)%num_pos ! Number of leaf age class
 
@@ -461,12 +485,7 @@ module PRTAllometricCarbonMod
     call bdead_allom( target_agw_c, target_bgw_c, target_sapw_c, ipft, target_struct_c)
     
     ! Target leaf biomass according to allometry and trimming
-    select case (leaf_status)
-    case (leaves_on)
-        call bleaf(dbh,ipft,canopy_trim,target_leaf_c)
-    case (leaves_off)
-        target_leaf_c = 0._r8
-    end select
+    call bleaf(dbh,ipft,canopy_trim,target_leaf_c)
 
     ! Target fine-root biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
     call bfineroot(dbh,ipft,canopy_trim,target_fnrt_c)
@@ -475,21 +494,60 @@ module PRTAllometricCarbonMod
     call bstore_allom(dbh,ipft,canopy_trim,target_store_c)
 
 
+
+    ! -----------------------------------------------------------------------------------
+    ! II 1/2. Update target biomass based on the leaf elongation factor and the abscission
+    !         fraction for each non-leaf tissue. Elongation factor is binary for 
+    !         cold-deciduous and original drought-deciduous, and always one for 
+    !         evergreens. In case the plant is shedding leaves, we impose that any 
+    !         positive carbon balance necessarily goes to storage, even if this causes
+    !         storage to go above allometry.
+    ! -----------------------------------------------------------------------------------
+    if (is_hydecid_dormant) then
+       target_leaf_c   = 0.0_r8
+       target_fnrt_c   = 0.0_r8
+       target_sapw_c   = 0.0_r8
+       target_struct_c = 0.0_r8
+       target_store_c  = target_store_c + max(0.0_r8,carbon_balance)
+    else
+       target_leaf_c   = elongf_leaf * target_leaf_c
+       target_fnrt_c   = elongf_fnrt * target_fnrt_c
+       target_sapw_c   = elongf_stem * target_sapw_c
+       target_struct_c = elongf_stem * target_struct_c
+    end if
+
+
+
     ! -----------------------------------------------------------------------------------
     ! III.  Prioritize some amount of carbon to replace leaf/root turnover
-    !         Make sure it isn't a negative payment, and either pay what is available
+    !         Make sure it isnt a negative payment, and either pay what is available
     !         or forcefully pay from storage. 
+    ! MLO.  Added a few conditions to decide what to do in case plants are deciduous.
+    !       Specifically, drought deciduous with leaves off should not replace fine
+    !       roots. They will be in negative carbon balance, and unlike cold deciduous,
+    !       the turnover rates will be high during the dry season (turnover is 
+    !       temperature-dependent, but not moisture-dependent).  Allocating carbon
+    !       to high-maintanence tissues will drain the storage with little benefit for
+    !       these plants.
     ! -----------------------------------------------------------------------------------
-    
-    if( prt_params%evergreen(ipft) == itrue ) then
+    if ( is_hydecid_dormant ) then
+       ! Drought deciduous, dormant state. Set demands to both leaves and roots to zero.
+       leaf_c_demand = 0.0_r8
+       fnrt_c_demand = 0.0_r8
+    elseif ( is_deciduous ) then
+       ! Either cold deciduous plant, or drought deciduous with leaves on. Maintain roots.
+       leaf_c_demand = 0.0_r8
+       fnrt_c_demand = max(0.0_r8, &
+             prt_params%leaf_stor_priority(ipft)*this%variables(fnrt_c_id)%turnover(icd))
+    else
+       ! Evergreen PFT. Try to meet demands for both leaves and fine roots.
+       ! If this is not evergreen, this PFT isn't expected by FATES, and we assume
+       ! evergreen.
        leaf_c_demand   = max(0.0_r8, &
              prt_params%leaf_stor_priority(ipft)*sum(this%variables(leaf_c_id)%turnover(:)))
-    else
-       leaf_c_demand   = 0.0_r8
+       fnrt_c_demand   = max(0.0_r8, &
+             prt_params%leaf_stor_priority(ipft)*this%variables(fnrt_c_id)%turnover(icd))
     end if
-    
-    fnrt_c_demand = max(0.0_r8, &
-          prt_params%leaf_stor_priority(ipft)*this%variables(fnrt_c_id)%turnover(icd))
 
     total_c_demand = leaf_c_demand + fnrt_c_demand
 
@@ -628,6 +686,25 @@ module PRTAllometricCarbonMod
        end if
 
     end if
+
+
+
+    ! -----------------------------------------------------------------------------------
+    ! VII 1/2: If plant is semi-deciduous, there will be cases in which plant's carbon
+    !          balance is positive but plant is losing leaves, in which case the plant
+    !          should not invest in growth.  Likewise, when plants are flushing but the
+    !          elongation factor is small, we may have need to "shed" excess storage by
+    !          placing it as carbon_balance again (not the neatest solution, but other-
+    !          wise the solver may fail to find a solution).
+    ! -----------------------------------------------------------------------------------
+    select_stash_grow: select case (leaf_status)
+    case (leaves_off,leaves_pshed)
+       ! There is carbon balance, but plant is shedding leaves. We stash the carbon
+       ! to storage even if it makes their storage too large.
+       store_c_flux   = carbon_balance
+       carbon_balance = carbon_balance - store_c_flux
+       store_c        = store_c + store_c_flux
+    end select select_stash_grow
     
     ! -----------------------------------------------------------------------------------
     ! VIII.  If carbon is yet still available ...
@@ -657,7 +734,8 @@ module PRTAllometricCarbonMod
                                  sum(leaf_c(1:nleafage)), fnrt_c, sapw_c,store_c, struct_c, &
                                  target_leaf_c, target_fnrt_c, target_sapw_c, &
                                  target_store_c, target_struct_c, &
-                                 carbon_balance,ipft,leaf_status, &
+                                 carbon_balance,elongf_leaf,elongf_fnrt,elongf_stem, &
+                                 ipft,leaf_status, &
                                  grow_leaf, grow_fnrt, grow_sapw, grow_store, grow_struct)
 
        ! --------------------------------------------------------------------------------
@@ -691,16 +769,26 @@ module PRTAllometricCarbonMod
        c_pool(repro_c_id)  = repro_c
        c_pool(dbh_id)      = dbh
 
-       ! Only grow leaves if we are in a "leaf-on" status
-       select case (leaf_status)
-       case (leaves_on)
-          c_mask(leaf_c_id) = grow_leaf
-       case default
-          c_mask(leaf_c_id) = .false.
-       end select
-       c_mask(fnrt_c_id)   = grow_fnrt
-       c_mask(sapw_c_id)   = grow_sapw
-       c_mask(struct_c_id) = grow_struct
+       ! Only grow leaves if we are in a "leaf-on" status. For drought-deciduous, we
+       ! interrupt growth for all tissues when in dormant mode.
+       if (is_hydecid_dormant) then
+          c_mask(leaf_c_id)   = .false.
+          c_mask(fnrt_c_id)   = .false.
+          c_mask(sapw_c_id)   = .false.
+          c_mask(struct_c_id) = .false.
+
+       else
+          select case (leaf_status)
+          case (leaves_on)
+             c_mask(leaf_c_id) = grow_leaf
+          case default
+             c_mask(leaf_c_id) = .false.
+          end select
+          c_mask(fnrt_c_id)   = grow_fnrt
+          c_mask(sapw_c_id)   = grow_sapw
+          c_mask(struct_c_id) = grow_struct
+
+       end if
        c_mask(store_c_id)  = grow_store
        c_mask(repro_c_id)  = .true.                ! Always calculate reproduction on growth
        c_mask(dbh_id)      = .true.                ! Always increment dbh on growth step
@@ -737,6 +825,7 @@ module PRTAllometricCarbonMod
              ! we remember the current step size as a good next guess.
              
              call CheckIntegratedAllometries(c_pool_out(dbh_id),ipft,canopy_trim,  &
+                   elongf_leaf, elongf_fnrt, elongf_stem, &
                    c_pool_out(leaf_c_id), c_pool_out(fnrt_c_id), c_pool_out(sapw_c_id), &
                    c_pool_out(store_c_id), c_pool_out(struct_c_id), &
                    c_mask(leaf_c_id), c_mask(fnrt_c_id), c_mask(sapw_c_id), &
@@ -900,7 +989,10 @@ module PRTAllometricCarbonMod
 
       ! locals
       integer  :: ipft       ! PFT index
-      real(r8) :: canopy_trim    ! Canopy trimming function (boundary condition [0-1]
+      real(r8) :: canopy_trim    ! Canopy trimming function (boundary condition) [0-1]
+      real(r8) :: elongf_leaf    ! Leaf elongation factor (boundary condition) [0-1]
+      real(r8) :: elongf_fnrt    ! Fine-root "elongation factor" (boundary condition) [0-1]
+      real(r8) :: elongf_stem    ! Stem "elongation factor" (boundary condition) [0-1]
       real(r8) :: ct_leaf    ! target leaf biomass, dummy var (kgC)
       real(r8) :: ct_fnrt   ! target fine-root biomass, dummy var (kgC)
       real(r8) :: ct_sap     ! target sapwood biomass, dummy var (kgC)
@@ -937,7 +1029,10 @@ module PRTAllometricCarbonMod
 
         canopy_trim = intgr_params(ac_bc_in_id_ctrim)
         ipft        = int(intgr_params(ac_bc_in_id_pft))
-        
+        elongf_leaf = intgr_params(ac_bc_in_id_efleaf)
+        elongf_fnrt = intgr_params(ac_bc_in_id_effnrt)
+        elongf_stem = intgr_params(ac_bc_in_id_efstem)
+
 
         call bleaf(dbh,ipft,canopy_trim,ct_leaf,ct_dleafdd)
         call bfineroot(dbh,ipft,canopy_trim,ct_fnrt,ct_dfnrtdd)
@@ -948,7 +1043,18 @@ module PRTAllometricCarbonMod
         call bdead_allom(ct_agw,ct_bgw, ct_sap, ipft, ct_dead, &
                          ct_dagwdd, ct_dbgwdd, ct_dsapdd, ct_ddeaddd)
         call bstore_allom(dbh,ipft,canopy_trim,ct_store,ct_dstoredd)
-        
+
+        ! Apply elongation factor correction to targets
+        ct_leaf    = elongf_leaf * ct_leaf
+        ct_fnrt    = elongf_fnrt * ct_fnrt
+        ct_sap     = elongf_stem * ct_sap
+        ct_dead    = elongf_stem * ct_dead
+        ! MLO - Need to double check that it is correct to multiply derivatives too.
+        ct_dleafdd = elongf_leaf * ct_dleafdd
+        ct_dfnrtdd = elongf_fnrt * ct_dfnrtdd
+        ct_dsapdd  = elongf_stem * ct_dsapdd
+        ct_ddeaddd = elongf_stem * ct_ddeaddd
+
         ! fraction of carbon going towards reproduction
         if (dbh <= prt_params%dbh_repro_threshold(ipft)) then ! cap on leaf biomass
            repro_fraction = prt_params%seed_alloc(ipft)
@@ -1021,7 +1127,8 @@ module PRTAllometricCarbonMod
    subroutine TargetAllometryCheck(b0_leaf,b0_fnrt,b0_sapw,b0_store,b0_struct, &
                                    bleaf,bfnrt,bsapw,bstore,bstruct, &
                                    bt_leaf,bt_fnrt,bt_sapw,bt_store,bt_struct, &
-                                   carbon_balance,ipft,leaf_status, &
+                                   carbon_balance,elongf_leaf,elongf_fnrt,elongf_stem, &
+                                   ipft,leaf_status, &
                                    grow_leaf,grow_fnrt,grow_sapw,grow_store,grow_struct)
 
       ! Arguments
@@ -1041,6 +1148,9 @@ module PRTAllometricCarbonMod
       real(r8),intent(in) :: bt_store
       real(r8),intent(in) :: bt_struct
       real(r8),intent(in) :: carbon_balance !remaining carbon balance
+      real(r8),intent(in) :: elongf_leaf    !elongation factors
+      real(r8),intent(in) :: elongf_fnrt
+      real(r8),intent(in) :: elongf_stem
       integer,intent(in)  :: ipft           !Plant functional type
       integer,intent(in)  :: leaf_status    !Phenology status
       logical,intent(out) :: grow_leaf      !growth flag
@@ -1098,6 +1208,9 @@ module PRTAllometricCarbonMod
          write(fates_log(),fmt=fmth) '------'
          write(fates_log(),fmt=fmti) ' PFT              = ',ipft
          write(fates_log(),fmt=fmti) ' leaf_status      = ',leaf_status
+         write(fates_log(),fmt=fmte) ' elongf_leaf      = ',elongf_leaf
+         write(fates_log(),fmt=fmte) ' elongf_fnrt      = ',elongf_fnrt
+         write(fates_log(),fmt=fmte) ' elongf_stem      = ',elongf_stem
          write(fates_log(),fmt=fmte) ' carbon_balance   = ',carbon_balance
          write(fates_log(),fmt=fmte) ' calloc_abs_error = ',calloc_abs_error
          write(fates_log(),fmt=fmth) ''
