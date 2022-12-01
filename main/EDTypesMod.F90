@@ -174,8 +174,6 @@ module EDTypesMod
   real(r8), parameter, public :: min_n_safemath = 1.0E-12_r8              ! in some cases, we want to immediately remove super small
                                                                           ! number densities of cohorts to prevent FPEs
 
-  character*4 yearchar                    
-
   ! special mode to cause PFTs to create seed mass of all currently-existing PFTs
   logical, parameter, public :: homogenize_seed_pfts  = .false.
 
