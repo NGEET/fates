@@ -37,7 +37,6 @@
 
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : carbon12_element
-  use PRTGenericMod,          only : all_carbon_elements
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : fnrt_organ
   use PRTGenericMod,          only : sapw_organ
@@ -192,10 +191,13 @@ contains
        currentPatch%livegrass = 0.0_r8 
        currentCohort => currentPatch%tallest
        do while(associated(currentCohort))
-          if( prt_params%woody(currentCohort%pft) == ifalse)then 
+           ! for grasses sum all aboveground tissues
+           if( prt_params%woody(currentCohort%pft) == ifalse)then 
              
              currentPatch%livegrass = currentPatch%livegrass + &
-                  currentCohort%prt%GetState(leaf_organ, all_carbon_elements) * &
+                  ( currentCohort%prt%GetState(leaf_organ, carbon12_element) + &
+                  currentCohort%prt%GetState(sapw_organ, carbon12_element) + &
+                  currentCohort%prt%GetState(struct_organ, carbon12_element) ) * &
                   currentCohort%n/currentPatch%area
 
           endif
@@ -760,7 +762,7 @@ contains
                  lb = (1.0_r8 + (8.729_r8 * &
                       ((1.0_r8 -(exp(-0.03_r8 * m_per_min__to__km_per_hour * currentPatch%effect_wspeed)))**2.155_r8)))
              else ! EQ 80 grass fuels (CFFBPS Ont.Inf.Rep. ST-X-3, 1992, but with a correction from an errata published within 
-                  ! Information Report GLC-X-10 by Bottom et al., 2009 because there is a typo in CFFBPS Ont.Inf.Rep. ST-X-3, 1992)
+                  ! Information Report GLC-X-10 by Wotton et al., 2009 for a typo in CFFBPS Ont.Inf.Rep. ST-X-3, 1992)
                  lb = (1.1_r8*((m_per_min__to__km_per_hour * currentPatch%effect_wspeed)**0.464_r8))
              endif
           endif
@@ -866,9 +868,9 @@ contains
           do while(associated(currentCohort))  
              if ( prt_params%woody(currentCohort%pft) == itrue) then !trees only
 
-                leaf_c = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
-                sapw_c = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
-                struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
+                leaf_c = currentCohort%prt%GetState(leaf_organ, carbon12_element)
+                sapw_c = currentCohort%prt%GetState(sapw_organ, carbon12_element)
+                struct_c = currentCohort%prt%GetState(struct_organ, carbon12_element)
                 
                 tree_ag_biomass = tree_ag_biomass + &
                       currentCohort%n * (leaf_c + & 

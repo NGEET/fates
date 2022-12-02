@@ -30,6 +30,7 @@ module FATESPlantRespPhotosynthMod
   use FatesConstantsMod, only : molar_mass_water
   use FatesConstantsMod, only : rgas_J_K_mol
   use FatesConstantsMod, only : fates_unset_r8
+  use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
   use FatesInterfaceTypesMod, only : hlm_use_planthydro
   use FatesInterfaceTypesMod, only : hlm_parteh_mode
   use FatesInterfaceTypesMod, only : numpft
@@ -45,7 +46,7 @@ module FATESPlantRespPhotosynthMod
   use FatesConstantsMod, only : lmrmodel_atkin_etal_2017
   use PRTGenericMod,     only : prt_carbon_allom_hyp
   use PRTGenericMod,     only : prt_cnp_flex_allom_hyp
-  use PRTGenericMod,     only : all_carbon_elements
+  use PRTGenericMod,     only : carbon12_element
   use PRTGenericMod,     only : nitrogen_element
   use PRTGenericMod,     only : leaf_organ
   use PRTGenericMod,     only : fnrt_organ
@@ -130,7 +131,6 @@ contains
     use FatesConstantsMod, only : umolC_to_kgC
     use FatesConstantsMod, only : umol_per_mmol
     use FatesConstantsMod, only : rgas => rgas_J_K_kmol
-    use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
     use FatesParameterDerivedMod, only : param_derived
 
     use FatesAllometryMod, only : bleaf, bstore_allom
@@ -229,7 +229,7 @@ contains
 
 
     real(r8) :: maintresp_reduction_factor  ! factor by which to reduce maintenance
-    ! respiration when storage pools are low
+                                            ! respiration when storage pools are low
     real(r8) :: b_leaf             ! leaf biomass kgC
     real(r8) :: frac               ! storage pool as a fraction of target leaf biomass
     real(r8) :: check_elai         ! This is a check on the effective LAI that is calculated
@@ -245,6 +245,10 @@ contains
     real(r8) :: lai_current        ! the LAI in the current leaf layer
     real(r8) :: cumulative_lai     ! the cumulative LAI, top down, to the leaf layer of interest
     real(r8) :: leaf_psi           ! leaf xylem matric potential [MPa] (only meaningful/used w/ hydro)
+    real(r8) :: fnrt_mr_layer      ! fine root maintenance respiation per layer [kgC/plant/s]
+
+    real(r8) :: fnrt_mr_nfix_layer ! fineroot maintenance respiration specifically for symbiotic fixation [kgC/plant/layer/s]
+    real(r8) :: nfix_layer         ! Nitrogen fixed in each layer this timestep [kgN/plant/layer/timestep]
     real(r8), allocatable :: rootfr_ft(:,:)  ! Root fractions per depth and PFT
 
     real(r8) :: agb_frac              ! fraction of biomass aboveground
@@ -275,6 +279,7 @@ contains
     ! Base rate is at 20C. Adjust to 25C using the CN Q10 = 1.5
     ! (gC/gN/s)
     ! ------------------------------------------------------------------------
+
 
     ! -----------------------------------------------------------------------------------
     ! Photosynthesis and stomatal conductance parameters, from:
@@ -352,6 +357,7 @@ contains
                 !  CO2 compensation point (Pa)
                 !  leaf boundary layer conductance of h20
                 !  constrained vapor pressure
+
                 call GetCanopyGasParameters(bc_in(s)%forc_pbot,       & ! in
                      bc_in(s)%oair_pa(ifp),    & ! in
                      bc_in(s)%t_veg_pa(ifp),   & ! in
@@ -406,16 +412,16 @@ contains
                       !                                       currentCohort%canopy_trim,store_c_target)
 
                       call storage_fraction_of_target(store_c_target, &
-                           currentCohort%prt%GetState(store_organ, all_carbon_elements), &
+                           currentCohort%prt%GetState(store_organ, carbon12_element), &
                            frac)
                       call lowstorage_maintresp_reduction(frac,currentCohort%pft, &
                            maintresp_reduction_factor)
 
                       ! are there any leaves of this pft in this layer?
-                      if(currentPatch%canopy_mask(cl,ft) == 1)then
+                      canopy_mask_if: if(currentPatch%canopy_mask(cl,ft) == 1)then
 
                          ! Loop over leaf-layers
-                         do iv = 1,currentCohort%nv
+                         leaf_layer_loop : do iv = 1,currentCohort%nv
 
                             ! ------------------------------------------------------------
                             ! If we are doing plant hydro-dynamics (or any run-type
@@ -430,7 +436,7 @@ contains
                             ! age classes
                             ! ------------------------------------------------------------
 
-                            if ( .not.rate_mask_z(iv,ft,cl) .or. &
+                            rate_mask_if: if ( .not.rate_mask_z(iv,ft,cl) .or. &
                                  (hlm_use_planthydro.eq.itrue) .or. &
                                  (nleafage > 1) .or. &
                                  (hlm_parteh_mode .ne. prt_carbon_allom_hyp )   ) then
@@ -502,7 +508,7 @@ contains
 
                                case (prt_cnp_flex_allom_hyp)
 
-                                  leaf_c  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+                                  leaf_c  = currentCohort%prt%GetState(leaf_organ, carbon12_element)
                                   if( (leaf_c*slatop(ft)) > nearzero) then
                                      leaf_n  = currentCohort%prt%GetState(leaf_organ, nitrogen_element)
                                      lnc_top = leaf_n / (slatop(ft) * leaf_c )
@@ -602,8 +608,9 @@ contains
                                     c13disc_z(cl,ft,iv))                   ! out
 
                                rate_mask_z(iv,ft,cl) = .true.
-                            end if
-                         end do
+
+                            end if rate_mask_if
+                         end do leaf_layer_loop
 
                          ! Zero cohort flux accumulators.
                          currentCohort%npp_tstep  = 0.0_r8
@@ -652,7 +659,7 @@ contains
                          currentCohort%g_sb_laweight = 0.0_r8
                          currentCohort%ts_net_uptake(:) = 0.0_r8
 
-                      end if  ! if(currentPatch%canopy_mask(cl,ft) == 1)then
+                      end if canopy_mask_if 
 
 
                       ! ------------------------------------------------------------------
@@ -667,9 +674,8 @@ contains
                       ! Units are in (kgN/plant)
                       ! ------------------------------------------------------------------
 
-                      sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
-                      fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_elements)
-                      
+                      sapw_c   = currentCohort%prt%GetState(sapw_organ, carbon12_element)
+                      fnrt_c   = currentCohort%prt%GetState(fnrt_organ, carbon12_element)
 
                       if (hlm_use_tree_damage .eq. itrue) then
                          
@@ -766,12 +772,29 @@ contains
 
 
                       ! Fine Root MR  (kgC/plant/s)
+                      ! and calculate the N fixation rate as a function of the fixation-specific root respiration
+                      ! for now use dev_arbitrary_pft as scaling term between 0 and 1 as additional increment of root respiration used for N fixation
                       ! ------------------------------------------------------------------
                       currentCohort%froot_mr = 0._r8
+                      currentCohort%sym_nfix_tstep = 0._r8
+                      
+                      ! n_fixation is integrated over the course of the day
+                      ! this variable is zeroed at the end of the FATES dynamics sequence
+
                       do j = 1,bc_in(s)%nlevsoil
                          tcsoi  = q10_mr**((bc_in(s)%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
-                         currentCohort%froot_mr = currentCohort%froot_mr + &
-                              fnrt_n * ED_val_base_mr_20 * tcsoi * rootfr_ft(ft,j) * maintresp_reduction_factor
+                         
+                         fnrt_mr_layer = fnrt_n * ED_val_base_mr_20 * tcsoi * rootfr_ft(ft,j) * maintresp_reduction_factor
+
+                         ! calculate the cost of carbon for N fixation in each soil layer and calculate N fixation rate based on that [kgC / kgN]
+
+                         call RootLayerNFixation(bc_in(s)%t_soisno_sl(j),ft,dtime,fnrt_mr_layer,fnrt_mr_nfix_layer,nfix_layer)
+                         
+                         currentCohort%froot_mr = currentCohort%froot_mr + fnrt_mr_nfix_layer + fnrt_mr_layer 
+
+                         currentCohort%sym_nfix_tstep = currentCohort%sym_nfix_tstep + nfix_layer
+                         
+                         
                       enddo
 
                       ! Coarse Root MR (kgC/plant/s) (below ground sapwood)
@@ -923,6 +946,64 @@ contains
 
   end associate
 end subroutine FatesPlantRespPhotosynthDrive
+
+! ===========================================================================================
+
+
+subroutine RootLayerNFixation(t_soil,ft,dtime,fnrt_mr_layer,fnrt_mr_nfix_layer,nfix_layer)
+
+
+  ! -------------------------------------------------------------------------------
+  ! Symbiotic N Fixation is handled via Houlton et al 2008 and Fisher et al. 2010
+  !
+  ! A unifying framework for dinitrogen fixation in the terrestrial biosphere
+  ! Benjamin Z. Houlton, Ying-Ping Wang, Peter M. Vitousek & Christopher B. Field 
+  ! Nature volume 454, pages327–330 (2008)  https://doi.org/10.1038/nature07028
+  !
+  ! Carbon cost of plant nitrogen acquisition: A mechanistic, globally applicable model
+  ! of plant nitrogen uptake, retranslocation, and fixation.  J. B. Fisher,S. Sitch,Y.
+  ! Malhi,R. A. Fisher,C. Huntingford,S.-Y. Tan. Global Biogeochemical Cycles. March
+  ! 2010 https://doi.org/10.1029/2009GB003621
+  !
+  ! ------------------------------------------------------------------------------
+
+  
+  real(r8),intent(in) :: t_soil              ! Temperature of the current soil layer [degC]
+  integer,intent(in)  :: ft                  ! Functional type index
+  real(r8),intent(in) :: dtime               ! Time step length [s]
+  real(r8),intent(in) :: fnrt_mr_layer       ! Amount of maintenance respiration in the fine-roots
+                                             ! for all non-fixation related processes [kgC/s]
+  
+  real(r8),intent(out) :: fnrt_mr_nfix_layer ! The added maintenance respiration due to nfixation
+                                             ! to be added as a surcharge to non-fixation MR [kgC]
+  real(r8),intent(out) :: nfix_layer         ! The amount of N fixed in this layer through
+                                             ! symbiotic activity [kgN]
+
+  real(r8) :: c_cost_nfix                    ! carbon cost of N fixation [kgC/kgN]
+  real(r8) :: c_spent_nfix                   ! carbon spent on N fixation, per layer [kgC/plant/timestep]
+  
+  ! N fixation parameters from Houlton et al (2008) and Fisher et al (2010)
+  real(r8), parameter :: s_fix = -6.25_r8 ! s parameter from FUN model (fisher et al 2010)
+  real(r8), parameter :: a_fix = -3.62_r8 ! a parameter from Houlton et al. 2010 (a = -3.62 +/- 0.52)
+  real(r8), parameter :: b_fix = 0.27_r8  ! b parameter from Houlton et al. 2010 (b = 0.27 +/-0.04)
+  real(r8), parameter :: c_fix = 25.15_r8 ! c parameter from Houlton et al. 2010 (c = 25.15 +/- 0.66)
+
+  ! Amount of C spent (as part of MR respiration) on symbiotic fixation [kgC/s]
+  fnrt_mr_nfix_layer  = fnrt_mr_layer * prt_params%nfix_mresp_scfrac(ft)
+  
+  ! This is the unit carbon cost for nitrogen fixation. It is temperature dependant [kgC/kgN]
+  c_cost_nfix = s_fix * (exp(a_fix + b_fix * (t_soil-tfrz) &
+       * (1._r8 - 0.5_r8 * (t_soil-tfrz) / c_fix)) - 2._r8)
+  
+  ! Time integrated amount of carbon spent on fixation (in this layer) [kgC/plant/layer/tstep]
+  c_spent_nfix = fnrt_mr_nfix_layer  * dtime
+  
+  ! Amount of nitrogen fixed in this layer [kgC/plant/layer/tstep]/[kgC/kgN] = [kgN/plant/layer/tstep]
+  nfix_layer = c_spent_nfix / c_cost_nfix
+  
+  return
+end subroutine RootLayerNFixation
+
 
 ! =======================================================================================
 
@@ -1505,14 +1586,14 @@ subroutine ScaleLeafLayerFluxToCohort(nv,          & ! in   currentCohort%nv
    real(r8), intent(in) :: nplant           ! indiv/m2
    real(r8), intent(in) :: rb               ! leaf boundary layer resistance (s/m)
    real(r8), intent(in) :: maintresp_reduction_factor  ! factor by which to reduce maintenance respiration
-   real(r8), intent(out) :: g_sb_laweight      ! Combined conductance (stomatal + boundary layer) for the cohort
-                                               ! weighted by leaf area [m/s]*[m2]
-   real(r8), intent(out) :: gpp        ! GPP (kgC/indiv/s)
-   real(r8), intent(out) :: rdark      ! Dark Leaf Respiration (kgC/indiv/s)
-   real(r8), intent(out) :: cohort_eleaf_area  ! Effective leaf area of the cohort [m2]
-   real(r8), intent(out) :: c13disc_clm     ! unpacked Cohort level c13 discrimination
-   real(r8)              :: sum_weight      ! sum of weight for unpacking d13c flux (c13disc_z) from
-   ! (canopy_layer, pft, leaf_layer) matrix to cohort (c13disc_clm)
+   real(r8), intent(out) :: g_sb_laweight     ! Combined conductance (stomatal + boundary layer) for the cohort
+                                              ! weighted by leaf area [m/s]*[m2]
+   real(r8), intent(out) :: gpp               ! GPP (kgC/indiv/s)
+   real(r8), intent(out) :: rdark             ! Dark Leaf Respiration (kgC/indiv/s)
+   real(r8), intent(out) :: cohort_eleaf_area ! Effective leaf area of the cohort [m2]
+   real(r8), intent(out) :: c13disc_clm       ! unpacked Cohort level c13 discrimination
+   real(r8)              :: sum_weight        ! sum of weight for unpacking d13c flux (c13disc_z) from
+                                              ! (canopy_layer, pft, leaf_layer) matrix to cohort (c13disc_clm)
 
    ! GPP IN THIS SUBROUTINE IS A RATE. THE CALLING ARGUMENT IS GPP_TSTEP. AFTER THIS
    ! CALL THE RATE WILL BE MULTIPLIED BY THE INTERVAL TO GIVE THE INTEGRATED QUANT.
@@ -1610,7 +1691,7 @@ function ft1_f(tl, ha) result(ans)
   !
   !!USES
    use FatesConstantsMod, only : rgas => rgas_J_K_kmol
-   use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
+  
    !
    ! !ARGUMENTS:
    real(r8), intent(in) :: tl  ! leaf temperature in photosynthesis temperature function (K)
@@ -1637,7 +1718,6 @@ function fth_f(tl,hd,se,scaleFactor) result(ans)
   ! 7/23/16: Copied over from CLM by Ryan Knox
   !
    use FatesConstantsMod, only : rgas => rgas_J_K_kmol
-   use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
 
    !
    ! !ARGUMENTS:
@@ -1669,7 +1749,6 @@ function fth25_f(hd,se)result(ans)
   !!USES
 
    use FatesConstantsMod, only : rgas => rgas_J_K_kmol
-   use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
 
    !
    ! !ARGUMENTS:
@@ -2133,7 +2212,6 @@ subroutine LeafLayerBiophysicalRates( parsun_lsl, &
   ! ---------------------------------------------------------------------------------
 
    use EDPftvarcon         , only : EDPftvarcon_inst
-   use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
 
    ! Arguments
    ! ------------------------------------------------------------------------------
@@ -2216,7 +2294,7 @@ subroutine LeafLayerBiophysicalRates( parsun_lsl, &
    vcmax = vcmax * btran
 
    return
-end subroutine LeafLayerBiophysicalRates
+ end subroutine LeafLayerBiophysicalRates
 
 subroutine lowstorage_maintresp_reduction(frac, pft, maintresp_reduction_factor)
 
@@ -2249,7 +2327,7 @@ subroutine lowstorage_maintresp_reduction(frac, pft, maintresp_reduction_factor)
    ! ---------------------------------------------------------------------------------
 
    if( frac .lt. 1._r8 )then
-      if ( EDPftvarcon_inst%maintresp_reduction_curvature(pft) .ne. 1._r8 ) then
+      if ( abs(EDPftvarcon_inst%maintresp_reduction_curvature(pft)-1._r8) > nearzero ) then
          maintresp_reduction_factor = (1._r8 - EDPftvarcon_inst%maintresp_reduction_intercept(pft)) + &
             EDPftvarcon_inst%maintresp_reduction_intercept(pft) * &
             (1._r8 - EDPftvarcon_inst%maintresp_reduction_curvature(pft)**frac) &

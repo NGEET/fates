@@ -1,4 +1,4 @@
-netcdf fates_params_default {
+netcdf fates_params_default_api24 {
 dimensions:
 	fates_NCWD = 4 ;
 	fates_history_age_bins = 7 ;
@@ -188,48 +188,46 @@ variables:
 	double fates_cnp_eca_lambda_ptase(fates_pft) ;
 		fates_cnp_eca_lambda_ptase:units = "g/m3" ;
 		fates_cnp_eca_lambda_ptase:long_name = "critical value for biochemical production (ECA)" ;
+	double fates_cnp_eca_vmax_nh4(fates_pft) ;
+		fates_cnp_eca_vmax_nh4:units = "gN/gC/s" ;
+		fates_cnp_eca_vmax_nh4:long_name = "maximum production rate for plant nh4 uptake (ECA)" ;
+	double fates_cnp_eca_vmax_no3(fates_pft) ;
+		fates_cnp_eca_vmax_no3:units = "gN/gC/s" ;
+		fates_cnp_eca_vmax_no3:long_name = "maximum production rate for plant no3 uptake (ECA)" ;
 	double fates_cnp_eca_vmax_ptase(fates_pft) ;
 		fates_cnp_eca_vmax_ptase:units = "gP/m2/s" ;
 		fates_cnp_eca_vmax_ptase:long_name = "maximum production rate for biochemical P (per m2) (ECA)" ;
+	double fates_cnp_fnrt_adapt_tscale(fates_pft) ;
+		fates_cnp_fnrt_adapt_tscale:units = "days" ;
+		fates_cnp_fnrt_adapt_tscale:long_name = "Number of days that is shortest possible doubling period for fine-root adaptation to C/N/P balance" ;
 	double fates_cnp_nfix1(fates_pft) ;
-		fates_cnp_nfix1:units = "fraction" ;
-		fates_cnp_nfix1:long_name = "fractional surcharge added to maintenance respiration that drives symbiotic fixation" ;
+		fates_cnp_nfix1:units = "NA" ;
+		fates_cnp_nfix1:long_name = "place-holder for future n-fixation parameter (NOT IMPLEMENTED)" ;
 	double fates_cnp_nitr_store_ratio(fates_pft) ;
 		fates_cnp_nitr_store_ratio:units = "(gN/gN)" ;
 		fates_cnp_nitr_store_ratio:long_name = "storeable (labile) N, as a ratio compared to the N bound in cell structures of other organs (see code)" ;
 	double fates_cnp_phos_store_ratio(fates_pft) ;
 		fates_cnp_phos_store_ratio:units = "(gP/gP)" ;
 		fates_cnp_phos_store_ratio:long_name = "storeable (labile) P, as a ratio compared to the P bound in cell structures of other organs (see code)" ;
-	double fates_cnp_pid_kd(fates_pft) ;
-		fates_cnp_pid_kd:units = "unknown" ;
-		fates_cnp_pid_kd:long_name = "derivative constant of the PID controller on adaptive fine-root biomass" ;
-	double fates_cnp_pid_ki(fates_pft) ;
-		fates_cnp_pid_ki:units = "unknown" ;
-		fates_cnp_pid_ki:long_name = "integral constant of the PID controller on adaptive fine-root biomass" ;
-	double fates_cnp_pid_kp(fates_pft) ;
-		fates_cnp_pid_kp:units = "unknown" ;
-		fates_cnp_pid_kp:long_name = "proportional constant of the PID controller on adaptive fine-root biomass" ;
 	double fates_cnp_prescribed_nuptake(fates_pft) ;
 		fates_cnp_prescribed_nuptake:units = "fraction" ;
 		fates_cnp_prescribed_nuptake:long_name = "Prescribed N uptake flux. 0=fully coupled simulation >0=prescribed (experimental)" ;
 	double fates_cnp_prescribed_puptake(fates_pft) ;
 		fates_cnp_prescribed_puptake:units = "fraction" ;
 		fates_cnp_prescribed_puptake:long_name = "Prescribed P uptake flux. 0=fully coupled simulation, >0=prescribed (experimental)" ;
+	double fates_cnp_rd_vmax_n(fates_pft) ;
+		fates_cnp_rd_vmax_n:units = "gN/gC/s" ;
+		fates_cnp_rd_vmax_n:long_name = "maximum production rate for compbined (NH4+NO3) uptake (RD)" ;
 	double fates_cnp_store_ovrflw_frac(fates_pft) ;
 		fates_cnp_store_ovrflw_frac:units = "fraction" ;
 		fates_cnp_store_ovrflw_frac:long_name = "size of overflow storage (for excess C,N or P) as a fraction of storage target" ;
+		fates_cnp_store_ovrflw_frac:use_case = "None" ;
 	double fates_cnp_turnover_nitr_retrans(fates_plant_organs, fates_pft) ;
 		fates_cnp_turnover_nitr_retrans:units = "fraction" ;
 		fates_cnp_turnover_nitr_retrans:long_name = "retranslocation (reabsorbtion) fraction of nitrogen in turnover of scenescing tissues" ;
 	double fates_cnp_turnover_phos_retrans(fates_plant_organs, fates_pft) ;
 		fates_cnp_turnover_phos_retrans:units = "fraction" ;
 		fates_cnp_turnover_phos_retrans:long_name = "retranslocation (reabsorbtion) fraction of phosphorus in turnover of scenescing tissues" ;
-	double fates_cnp_vmax_nh4(fates_pft) ;
-		fates_cnp_vmax_nh4:units = "gN/gC/s" ;
-		fates_cnp_vmax_nh4:long_name = "maximum (potential) uptake rate of NH4 per gC of fineroot biomass (see main/EDPftvarcon.F90 vmax_nh4 for usage)" ;
-	double fates_cnp_vmax_no3(fates_pft) ;
-		fates_cnp_vmax_no3:units = "gN/gC/s" ;
-		fates_cnp_vmax_no3:long_name = "maximum (potential) uptake rate of NO3 per gC of fineroot biomass (see main/EDPftvarcon.F90 vmax_no3 for usage)" ;
 	double fates_cnp_vmax_p(fates_pft) ;
 		fates_cnp_vmax_p:units = "gP/gC/s" ;
 		fates_cnp_vmax_p:long_name = "maximum production rate for phosphorus (ECA and RD)" ;
@@ -502,7 +500,7 @@ variables:
 		fates_recruit_seed_alloc_mature:long_name = "fraction of available carbon balance allocated to seeds in mature plants (adds to fates_seed_alloc)" ;
 	double fates_recruit_seed_dbh_repro_threshold(fates_pft) ;
 		fates_recruit_seed_dbh_repro_threshold:units = "cm" ;
-		fates_recruit_seed_dbh_repro_threshold:long_name = "the diameter where the plant will increase allocation to the seed pool by fraction: fates_recruit_seed_alloc_mature" ;
+		fates_recruit_seed_dbh_repro_threshold:long_name = "the diameter (if any) where the plant will start extra clonal allocation to the seed pool" ;
 	double fates_recruit_seed_germination_rate(fates_pft) ;
 		fates_recruit_seed_germination_rate:units = "yr-1" ;
 		fates_recruit_seed_germination_rate:long_name = "fraction of seeds that germinate per year" ;
@@ -790,7 +788,7 @@ variables:
 		fates_vai_width_increase_factor:long_name = "factor by which each leaf+stem scattering element increases in VAI width (1 = uniform spacing)" ;
 
 // global attributes:
-		:history = "This file was generated by BatchPatchParams.py:\nCDL Base File = archive/api24.1.0_101722_fates_params_default.cdl\nXML patch file = archive/api24.1.0_101722_patch_params.xml" ;
+		:history = "This parameter file is maintained in version control\nSee https://github.com/NGEET/fates/blob/master/parameter_files/fates_params_default.cdl \nFor changes, use git blame \n" ;
 data:
 
  fates_history_ageclass_bin_edges = 0, 1, 2, 5, 10, 20, 50 ;
@@ -904,7 +902,7 @@ data:
  fates_allom_d2h3 = -999.9, -999.9, -999.9, -999.9, -999.9, -999.9, -999.9, 
     -999.9, -999.9, -999.9, -999.9, -999.9 ;
 
- fates_allom_dbh_maxheight = 90, 80, 80, 80, 90, 80, 3, 3, 2, 0.35, 0.35, 0.35 ;
+ fates_allom_dbh_maxheight = 90, 90, 90, 90, 90, 90, 3, 3, 2, 0.35, 0.35, 0.35 ;
 
  fates_allom_fmode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
@@ -968,8 +966,17 @@ data:
 
  fates_cnp_eca_lambda_ptase = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
+ fates_cnp_eca_vmax_nh4 = 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 
+    5e-09, 5e-09, 5e-09, 5e-09, 5e-09 ;
+
+ fates_cnp_eca_vmax_no3 = 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 
+    5e-09, 5e-09, 5e-09, 5e-09, 5e-09 ;
+
  fates_cnp_eca_vmax_ptase = 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 
     5e-09, 5e-09, 5e-09, 5e-09, 5e-09 ;
+
+ fates_cnp_fnrt_adapt_tscale = 100, 100, 100, 100, 100, 100, 100, 100, 100, 
+    100, 100, 100 ;
 
  fates_cnp_nfix1 = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
@@ -979,16 +986,12 @@ data:
  fates_cnp_phos_store_ratio = 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 
     1.5, 1.5, 1.5 ;
 
- fates_cnp_pid_kd = 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1 ;
-
- fates_cnp_pid_ki = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
-
- fates_cnp_pid_kp = 0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 
-    0.0005, 0.0005, 0.0005, 0.0005, 0.0005 ;
-
  fates_cnp_prescribed_nuptake = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
  fates_cnp_prescribed_puptake = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
+
+ fates_cnp_rd_vmax_n = 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 
+    5e-09, 5e-09, 5e-09, 5e-09, 5e-09 ;
 
  fates_cnp_store_ovrflw_frac = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
@@ -1004,12 +1007,6 @@ data:
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
- fates_cnp_vmax_nh4 = 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 
-    2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09 ;
-
- fates_cnp_vmax_no3 = 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 
-    2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09 ;
-
  fates_cnp_vmax_p = 5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 
     5e-10, 5e-10, 5e-10, 5e-10 ;
 
@@ -1023,8 +1020,7 @@ data:
 
  fates_damage_recovery_scalar = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
- fates_dev_arbitrary_pft = 1.7560, 1.4995, 1.4995, 1.7560, 1.7560, 1.7560, 
-    2.0749, 2.0749, 2.0749, 2.1956, 2.1956, _ ;
+ fates_dev_arbitrary_pft = _, _, _, _, _, _, _, _, _, _, _, _ ;
 
  fates_fire_alpha_SH = 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 
     0.2 ;
@@ -1177,7 +1173,7 @@ data:
  fates_leaf_slamax = 0.0954, 0.0954, 0.0954, 0.0954, 0.0954, 0.0954, 0.012, 
     0.03, 0.03, 0.03, 0.03, 0.03 ;
 
- fates_leaf_slatop = 0.012, 0.005, 0.024, 0.009, 0.03, 0.03, 0.012, 0.03, 
+ fates_leaf_slatop = 0.012, 0.01, 0.024, 0.012, 0.03, 0.03, 0.012, 0.03, 
     0.03, 0.03, 0.03, 0.03 ;
 
  fates_leaf_stomatal_intercept = 10000, 10000, 10000, 10000, 10000, 10000, 
@@ -1189,7 +1185,7 @@ data:
     4.7, 2.2, 5.3, 1.6 ;
 
  fates_leaf_vcmax25top =
-  50, 62, 39, 61, 41, 58, 62, 54, 54, 78, 78, 78 ;
+  50, 65, 39, 62, 41, 58, 62, 54, 54, 78, 78, 78 ;
 
  fates_leaf_vcmaxha = 65330, 65330, 65330, 65330, 65330, 65330, 65330, 65330, 
     65330, 65330, 65330, 65330 ;
@@ -1208,7 +1204,7 @@ data:
  fates_mort_bmort = 0.014, 0.014, 0.014, 0.014, 0.014, 0.014, 0.014, 0.014, 
     0.014, 0.014, 0.014, 0.014 ;
 
- fates_mort_freezetol = 2.5, -55, -80, -30, 2.5, -80, -60, -10, -80, -80, 
+ fates_mort_freezetol = 2.5, -55, -80, -30, 2.5, -30, -60, -10, -80, -80, 
     -20, 2.5 ;
 
  fates_mort_hf_flc_threshold = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
@@ -1296,7 +1292,7 @@ data:
  fates_rad_stem_tauvis = 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 
     0.001, 0.001, 0.12, 0.12, 0.12 ;
 
- fates_recruit_height_min = 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 0.2, 0.2, 0.2, 
+ fates_recruit_height_min = 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 0.75, 0.75, 0.75, 
     0.125, 0.125, 0.125 ;
 
  fates_recruit_init_density = 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 
@@ -1311,8 +1307,8 @@ data:
  fates_recruit_seed_alloc_mature = 0, 0, 0, 0, 0, 0, 0.9, 0.9, 0.9, 0.9, 0.9, 
     0.9 ;
 
- fates_recruit_seed_dbh_repro_threshold = 90, 80, 80, 80, 90, 80, 3, 3, 2, 
-    0.35, 0.35, 0.35 ;
+ fates_recruit_seed_dbh_repro_threshold = 150, 90, 90, 90, 90, 90, 3, 3, 2, 
+    1.47, 1.47, 1.47 ;
 
  fates_recruit_seed_germination_rate = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
     0.5, 0.5, 0.5, 0.5, 0.5 ;
@@ -1361,7 +1357,7 @@ data:
 
  fates_turnover_senleaf_fdrought = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
- fates_wood_density = 0.7, 0.4, 0.7, 0.53, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 
+ fates_wood_density = 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 
     0.7 ;
 
  fates_woody = 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0 ;
@@ -1494,7 +1490,7 @@ data:
 
  fates_leaf_theta_cj_c4 = 0.999 ;
 
- fates_maintresp_model = 2 ;
+ fates_maintresp_model = 1 ;
 
  fates_maxcohort = 100 ;
 

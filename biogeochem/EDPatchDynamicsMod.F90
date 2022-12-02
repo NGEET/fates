@@ -72,7 +72,6 @@ module EDPatchDynamicsMod
   use EDCohortDynamicsMod  , only : InitPRTObject
   use EDCohortDynamicsMod  , only : InitPRTBoundaryConditions
   use ChecksBalancesMod,      only : SiteMassStock
-  use PRTGenericMod,          only : all_carbon_elements
   use PRTGenericMod,          only : carbon12_element
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : fnrt_organ
@@ -469,6 +468,7 @@ contains
                       currentSite%disturbance_rates_primary_to_primary(i_disturbance_type) = &
                            currentSite%disturbance_rates_primary_to_primary(i_disturbance_type) + &
                            currentPatch%area * disturbance_rate * AREA_INV
+
                    else
                       site_areadis_secondary = site_areadis_secondary + currentPatch%area * disturbance_rate
 
@@ -659,11 +659,11 @@ contains
                          nc%canopy_layer = 1
                          nc%canopy_layer_yesterday = 1._r8
 
-                         sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
-                         struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
-                         leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
-                         fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_elements)
-                         store_c  = currentCohort%prt%GetState(store_organ, all_carbon_elements)
+                         sapw_c   = currentCohort%prt%GetState(sapw_organ, carbon12_element)
+                         struct_c = currentCohort%prt%GetState(struct_organ, carbon12_element)
+                         leaf_c   = currentCohort%prt%GetState(leaf_organ, carbon12_element)
+                         fnrt_c   = currentCohort%prt%GetState(fnrt_organ, carbon12_element)
+                         store_c  = currentCohort%prt%GetState(store_organ, carbon12_element)
                          total_c  = sapw_c + struct_c + leaf_c + fnrt_c + store_c
 
                          ! treefall mortality is the current disturbance
@@ -868,6 +868,18 @@ contains
                             do el = 1,num_elements
 
                                leaf_m = nc%prt%GetState(leaf_organ, element_list(el))
+                               ! for woody plants burn only leaves
+                               if(int(prt_params%woody(currentCohort%pft)) == itrue)then
+
+                                  leaf_m = nc%prt%GetState(leaf_organ, element_list(el))
+
+                               else
+                               ! for grasses burn all aboveground tissues
+                                  leaf_m = nc%prt%GetState(leaf_organ, element_list(el)) + &
+                                       nc%prt%GetState(sapw_organ, element_list(el)) + &
+                                       nc%prt%GetState(struct_organ, element_list(el))
+
+                               endif
 
                                currentSite%mass_balance(el)%burn_flux_to_atm = &
                                     currentSite%mass_balance(el)%burn_flux_to_atm + &
@@ -876,7 +888,14 @@ contains
 
                             ! Here the mass is removed from the plant
 
-                            call PRTBurnLosses(nc%prt, leaf_organ, leaf_burn_frac)
+                            if(int(prt_params%woody(currentCohort%pft)) == itrue)then
+                               call PRTBurnLosses(nc%prt, leaf_organ, leaf_burn_frac)
+                            else
+                               call PRTBurnLosses(nc%prt, leaf_organ, leaf_burn_frac)
+                               call PRTBurnLosses(nc%prt, sapw_organ, leaf_burn_frac)
+                               call PRTBurnLosses(nc%prt, struct_organ, leaf_burn_frac)
+                            endif
+
                             currentCohort%fraction_crown_burned = 0.0_r8
                             nc%fraction_crown_burned            = 0.0_r8
 
@@ -1643,19 +1662,31 @@ contains
        do while(associated(currentCohort))
           
              pft = currentCohort%pft
-             
+
              ! Number of trees that died because of the fire, per m2 of ground. 
              ! Divide their litter into the four litter streams, and spread 
              ! across ground surface. 
              ! -----------------------------------------------------------------------
-             
-             sapw_m   = currentCohort%prt%GetState(sapw_organ, element_id)
-             struct_m = currentCohort%prt%GetState(struct_organ, element_id)
-             leaf_m   = currentCohort%prt%GetState(leaf_organ, element_id)
+
              fnrt_m   = currentCohort%prt%GetState(fnrt_organ, element_id)
              store_m  = currentCohort%prt%GetState(store_organ, element_id)
              repro_m  = currentCohort%prt%GetState(repro_organ, element_id)
-             
+          
+             if (prt_params%woody(currentCohort%pft) == itrue) then
+                ! Assumption: for woody plants fluxes from deadwood and sapwood go together in CWD pool
+                leaf_m          = currentCohort%prt%GetState(leaf_organ,element_id)
+                sapw_m          = currentCohort%prt%GetState(sapw_organ,element_id)
+                struct_m        = currentCohort%prt%GetState(struct_organ,element_id)
+             else
+                ! for non-woody plants all stem fluxes go into the same leaf litter pool
+                leaf_m          = currentCohort%prt%GetState(leaf_organ,element_id) + &
+                     currentCohort%prt%GetState(sapw_organ,element_id) + &
+                     currentCohort%prt%GetState(struct_organ,element_id)
+                sapw_m          = 0._r8
+                struct_m        = 0._r8
+             end if
+
+
              ! Absolute number of dead trees being transfered in with the donated area
              num_dead_trees = (currentCohort%fire_mort*currentCohort%n * &
                                patch_site_areadis/currentPatch%area)
@@ -1666,7 +1697,7 @@ contains
 
              ! Contribution of dead trees to leaf burn-flux
              burned_mass  = num_dead_trees * (leaf_m+repro_m) * currentCohort%fraction_crown_burned
-             
+
              do dcmpy=1,ndcmpy
                  dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
                  new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + &
@@ -1700,10 +1731,10 @@ contains
              flux_diags%root_litter_input(pft) = &
                   flux_diags%root_litter_input(pft) + &
                   (fnrt_m + store_m) * num_dead_trees
-             
+
              ! coarse root biomass per tree
              bcroot = (sapw_m + struct_m) * (1.0_r8 - prt_params%allom_agb_frac(pft) )
-      
+
              ! below ground coarse woody debris from burned trees
              do c = 1,ncwd
                 do sl = 1,currentSite%nlevsoil
@@ -1731,15 +1762,15 @@ contains
                  donatable_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem
                  if (c == 1 .or. c == 2) then
                       donatable_mass = donatable_mass * (1.0_r8-currentCohort%fraction_crown_burned)
-                      burned_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem * & 
+                      burned_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem * &
                       currentCohort%fraction_crown_burned
                       site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
                 endif
                 new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * donate_m2
                 curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass * retain_m2
                 flux_diags%cwd_ag_input(c) = flux_diags%cwd_ag_input(c) + donatable_mass
-             enddo   
-                  
+             enddo
+
 
             currentCohort => currentCohort%taller
         enddo
@@ -1835,12 +1866,23 @@ contains
 
           pft = currentCohort%pft
    
-          sapw_m   = currentCohort%prt%GetState(sapw_organ, element_id)
-          struct_m = currentCohort%prt%GetState(struct_organ, element_id)
-          leaf_m   = currentCohort%prt%GetState(leaf_organ, element_id)
           fnrt_m   = currentCohort%prt%GetState(fnrt_organ, element_id)
           store_m  = currentCohort%prt%GetState(store_organ, element_id)
           repro_m  = currentCohort%prt%GetState(repro_organ, element_id)
+
+          if (prt_params%woody(currentCohort%pft) == itrue) then
+             ! Assumption: for woody plants fluxes from deadwood and sapwood go together in CWD pool
+             leaf_m          = currentCohort%prt%GetState(leaf_organ,element_id)
+             sapw_m          = currentCohort%prt%GetState(sapw_organ,element_id)
+             struct_m        = currentCohort%prt%GetState(struct_organ,element_id)
+          else
+             ! for non-woody plants all stem fluxes go into the same leaf litter pool
+             leaf_m          = currentCohort%prt%GetState(leaf_organ,element_id) + &
+                     currentCohort%prt%GetState(sapw_organ,element_id) + &
+                     currentCohort%prt%GetState(struct_organ,element_id)
+             sapw_m          = 0._r8
+             struct_m        = 0._r8
+          end if
 
           if(currentCohort%canopy_layer == 1)then
 
@@ -3000,7 +3042,7 @@ contains
 
              currentPatch%pft_agb_profile(currentCohort%pft,j) = &
                   currentPatch%pft_agb_profile(currentCohort%pft,j) + &
-                  currentCohort%prt%GetState(struct_organ, all_carbon_elements) * &
+                  currentCohort%prt%GetState(struct_organ, carbon12_element) * &
                   currentCohort%n/currentPatch%area
 
           endif
