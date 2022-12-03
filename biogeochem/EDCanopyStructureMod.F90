@@ -382,7 +382,8 @@ contains
        currentCohort => currentPatch%shortest
        do while (associated(currentCohort))
           call carea_allom(currentCohort%dbh,currentCohort%n, &
-               currentSite%spread,currentCohort%pft,currentCohort%c_area)
+               currentSite%spread,currentCohort%pft, &
+               currentCohort%crowndamage, currentCohort%c_area)
 
           if(debug) then
              if(currentCohort%c_area<0._r8)then
@@ -695,9 +696,10 @@ contains
                 currentSite%demotion_carbonflux = currentSite%demotion_carbonflux + &
                      (leaf_c + store_c + fnrt_c + sapw_c + struct_c) * currentCohort%n
 
-                call carea_allom(copyc%dbh,copyc%n,currentSite%spread,copyc%pft,copyc%c_area)
+                call carea_allom(copyc%dbh,copyc%n,currentSite%spread,copyc%pft, &
+                     copyc%crowndamage, copyc%c_area)
                 call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
-                     currentCohort%pft,currentCohort%c_area)
+                     currentCohort%pft,currentCohort%crowndamage, currentCohort%c_area)
 
                 !----------- Insert copy into linked list ------------------------!
                 copyc%shorter => currentCohort
@@ -728,7 +730,8 @@ contains
                 deallocate(currentCohort)
              else
              call carea_allom(currentCohort%dbh,currentCohort%n, &
-                  currentSite%spread,currentCohort%pft,currentCohort%c_area)
+                  currentSite%spread,currentCohort%pft,currentCohort%crowndamage, &
+                  currentCohort%c_area)
              end if
 
           endif !canopy layer = i_ly
@@ -839,7 +842,7 @@ contains
 
                 currentCohort%canopy_layer = i_lyr
                 call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
-                     currentCohort%pft,currentCohort%c_area)
+                     currentCohort%pft,currentCohort%crowndamage, currentCohort%c_area)
                 ! keep track of number and biomass of promoted cohort
                 currentSite%promotion_rate(currentCohort%size_class) = &
                      currentSite%promotion_rate(currentCohort%size_class) + currentCohort%n
@@ -865,7 +868,7 @@ contains
           currentCohort => currentPatch%tallest
           do while (associated(currentCohort))
              call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
-                  currentCohort%pft,currentCohort%c_area)
+                  currentCohort%pft,currentCohort%crowndamage,currentCohort%c_area)
              if(currentCohort%canopy_layer == i_lyr+1)then !look at the cohorts in the canopy layer below...
 
                 if (ED_val_comp_excln .ge. 0.0_r8 ) then
@@ -1139,7 +1142,7 @@ contains
                    newarea = currentCohort%c_area - cc_gain !new area of existing cohort
 
                    call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
-                        currentCohort%pft,currentCohort%c_area)
+                        currentCohort%pft,currentCohort%crowndamage, currentCohort%c_area)
 
                    ! number of individuals in promoted cohort.
                    copyc%n = currentCohort%n*cc_gain/currentCohort%c_area
@@ -1158,8 +1161,9 @@ contains
                         (leaf_c + fnrt_c + store_c + sapw_c + struct_c) * copyc%n
 
                    call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
-                        currentCohort%pft,currentCohort%c_area)
-                   call carea_allom(copyc%dbh,copyc%n,currentSite%spread,copyc%pft,copyc%c_area)
+                        currentCohort%pft,currentCohort%crowndamage, currentCohort%c_area)
+                   call carea_allom(copyc%dbh,copyc%n,currentSite%spread,copyc%pft,&
+                        copyc%crowndamage,copyc%c_area)
 
                    !----------- Insert copy into linked list ------------------------!
                    copyc%shorter => currentCohort
@@ -1236,7 +1240,7 @@ contains
        currentCohort => currentPatch%tallest
        do while (associated(currentCohort))
           call carea_allom(currentCohort%dbh,currentCohort%n, &
-               currentSite%spread,currentCohort%pft,currentCohort%c_area)
+               currentSite%spread,currentCohort%pft,currentCohort%crowndamage,currentCohort%c_area)
           if( ( prt_params%woody(currentCohort%pft) .eq. itrue ) .and. &
                (currentCohort%canopy_layer .eq. 1 ) ) then
              sitelevel_canopyarea = sitelevel_canopyarea + currentCohort%c_area
@@ -1343,7 +1347,7 @@ contains
 
              if(hlm_use_sp.eq.ifalse)then
                 call carea_allom(currentCohort%dbh,currentCohort%n,sites(s)%spread,&
-                     currentCohort%pft,currentCohort%c_area)
+                     currentCohort%pft,currentCohort%crowndamage, currentCohort%c_area)
              endif
 
              if(currentCohort%canopy_layer==1)then
@@ -1409,6 +1413,8 @@ contains
           currentPatch => currentPatch%younger
        end do !patch loop
 
+
+    
        call leaf_area_profile(sites(s))
 
     end do ! site loop
@@ -1528,7 +1534,7 @@ contains
        currentPatch%layer_height_profile(:,:,:) = 0._r8
        currentPatch%canopy_area_profile(:,:,:)  = 0._r8
        currentPatch%canopy_mask(:,:)            = 0
-
+       
        ! ------------------------------------------------------------------------------
        ! It is remotely possible that in deserts we will not have any canopy
        ! area, ie not plants at all...
@@ -1796,7 +1802,7 @@ contains
     real(r8) :: total_canopy_area
     real(r8) :: total_patch_leaf_stem_area
     real(r8) :: weight  ! Weighting for cohort variables in patch
-
+    
     do s = 1,nsites
 
        ifp = 0
@@ -1855,7 +1861,6 @@ contains
                 total_patch_leaf_stem_area = 0._r8
                 currentCohort => currentPatch%shortest
                 do while(associated(currentCohort))
-
                    total_patch_leaf_stem_area = total_patch_leaf_stem_area + &
                         (currentCohort%treelai + currentCohort%treesai) * currentCohort%c_area
                    currentCohort => currentCohort%taller
@@ -2083,7 +2088,7 @@ contains
     currentCohort => currentPatch%tallest
     do while (associated(currentCohort))
        call carea_allom(currentCohort%dbh,currentCohort%n,site_spread, &
-            currentCohort%pft,currentCohort%c_area)
+            currentCohort%pft,currentCohort%crowndamage, currentCohort%c_area)
        if (currentCohort%canopy_layer .eq. layer_index) then
           layer_area = layer_area + currentCohort%c_area
        end if
@@ -2127,7 +2132,8 @@ contains
             ft     = currentCohort%pft
             
             ! Update the cohort level lai and related variables
-            call UpdateCohortLAI(currentCohort,currentPatch%canopy_layer_tlai,currentPatch%total_canopy_area)
+            call UpdateCohortLAI(currentCohort,currentPatch%canopy_layer_tlai,  &
+                 currentPatch%total_canopy_area)
             
             ! Update the number of number of vegetation layers
             currentPatch%ncan(cl,ft) = max(currentPatch%ncan(cl,ft),currentCohort%NV)
@@ -2145,7 +2151,7 @@ contains
   end subroutine UpdatePatchLAI
   ! ===============================================================================================
   
-  subroutine UpdateCohortLAI(currentCohort, canopy_layer_tlai, patcharea)
+  subroutine UpdateCohortLAI(currentCohort, canopy_layer_tlai, total_canopy_area)
    
    ! Update LAI and related variables for a given cohort
    
@@ -2155,27 +2161,27 @@ contains
    ! Arguments
    type(ed_cohort_type),intent(inout), target   :: currentCohort
    real(r8), intent(in) :: canopy_layer_tlai(nclmax)  ! total leaf area index of each canopy layer
-   real(r8), intent(in) :: patcharea                  ! either patch%total_canopy_area or patch%area
-
+   real(r8), intent(in) :: total_canopy_area                  ! either patch%total_canopy_area or patch%area
+   
    ! Local variables
    real(r8) :: leaf_c                              ! leaf carbon [kg]
-   
+      
    ! Obtain the leaf carbon
    leaf_c = currentCohort%prt%GetState(leaf_organ,all_carbon_elements)
 
+   
    ! Note that tree_lai has an internal check on the canopy locatoin
    currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, &
         currentCohort%n, currentCohort%canopy_layer,               &
         canopy_layer_tlai,currentCohort%vcmax25top )
-
-   if (hlm_use_sp .eq. ifalse) then
-      currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_trim, &
-           currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
-           canopy_layer_tlai, currentCohort%treelai , &
-           currentCohort%vcmax25top,4)
-   end if
-
  
+   if (hlm_use_sp .eq. ifalse) then
+      currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%crowndamage, &
+                                       currentCohort%canopy_trim, &
+                                       currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
+                                       canopy_layer_tlai, currentCohort%treelai , &
+                                       currentCohort%vcmax25top,4)
+   end if
 
    ! Number of actual vegetation layers in this cohort's crown
    currentCohort%nv =  count((currentCohort%treelai+currentCohort%treesai) .gt. dlower_vai(:)) + 1
@@ -2217,7 +2223,8 @@ contains
        currentCohort => currentPatch%tallest
        do while (associated(currentCohort))
           if(currentCohort%canopy_layer == z) then
-             call carea_allom(currentCohort%dbh,currentCohort%n,site_spread,currentCohort%pft,c_area)
+             call carea_allom(currentCohort%dbh,currentCohort%n,site_spread,currentCohort%pft, &
+                  currentCohort%crowndamage, c_area)
              arealayer = arealayer + c_area
           end if
           currentCohort => currentCohort%shorter

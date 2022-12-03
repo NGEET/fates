@@ -42,7 +42,6 @@ module EDPatchDynamicsMod
   use FatesInterfaceTypesMod    , only : hlm_use_planthydro
   use FatesInterfaceTypesMod    , only : hlm_numSWb
   use FatesInterfaceTypesMod    , only : bc_in_type
-  use FatesInterfaceTypesMod    , only : hlm_days_per_year
   use FatesInterfaceTypesMod    , only : numpft
   use FatesInterfaceTypesMod    , only : hlm_stepsize
   use FatesInterfaceTypesMod    , only : hlm_use_sp
@@ -181,7 +180,8 @@ contains
     real(r8) :: frmort
     real(r8) :: smort
     real(r8) :: asmort
-
+    real(r8) :: dgmort
+    
     real(r8) :: lmort_direct
     real(r8) :: lmort_collateral
     real(r8) :: lmort_infra
@@ -227,10 +227,10 @@ contains
           ! Mortality for trees in the understorey.
           currentCohort%patchptr => currentPatch
 
-          call mortality_rates(currentCohort,bc_in,cmort,hmort,bmort,frmort,smort,asmort)
-          currentCohort%dmort  = cmort+hmort+bmort+frmort+smort+asmort
+          call mortality_rates(currentCohort,bc_in,cmort,hmort,bmort,frmort,smort,asmort,dgmort)
+          currentCohort%dmort  = cmort+hmort+bmort+frmort+smort+asmort+dgmort
           call carea_allom(currentCohort%dbh,currentCohort%n,site_in%spread,currentCohort%pft, &
-               currentCohort%c_area)
+               currentCohort%crowndamage,currentCohort%c_area)
 
           ! Initialize diagnostic mortality rates
           currentCohort%cmort = cmort
@@ -239,7 +239,8 @@ contains
           currentCohort%frmort = frmort
           currentCohort%smort = smort
           currentCohort%asmort = asmort
-
+          currentCohort%dgmort = dgmort
+          
           call LoggingMortality_frac(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_layer, &
                 lmort_direct,lmort_collateral,lmort_infra,l_degrad,&
                 bc_in%hlm_harvest_rates, &
@@ -566,6 +567,7 @@ contains
                          currentSite%disturbance_rates_secondary_to_secondary(i_disturbance_type) = &
                               currentSite%disturbance_rates_secondary_to_secondary(i_disturbance_type) + &
                               currentPatch%area * disturbance_rate * AREA_INV
+
                       else
                          currentSite%disturbance_rates_primary_to_secondary(i_disturbance_type) = &
                               currentSite%disturbance_rates_primary_to_secondary(i_disturbance_type) + &
@@ -776,6 +778,7 @@ contains
                                nc%frmort = nan
                                nc%smort = nan
                                nc%asmort = nan
+                               nc%dgmort = nan
                                nc%lmort_direct     = nan
                                nc%lmort_collateral = nan
                                nc%lmort_infra      = nan
@@ -831,6 +834,7 @@ contains
                                   nc%frmort           = currentCohort%frmort
                                   nc%smort            = currentCohort%smort
                                   nc%asmort           = currentCohort%asmort
+                                  nc%dgmort           = currentCohort%dgmort
                                   nc%dmort            = currentCohort%dmort
                                   nc%lmort_direct     = currentCohort%lmort_direct
                                   nc%lmort_collateral = currentCohort%lmort_collateral
@@ -857,6 +861,7 @@ contains
                                   nc%frmort           = currentCohort%frmort
                                   nc%smort            = currentCohort%smort
                                   nc%asmort           = currentCohort%asmort
+                                  nc%dgmort           = currentCohort%dgmort
                                   nc%dmort            = currentCohort%dmort
                                   nc%lmort_direct    = currentCohort%lmort_direct
                                   nc%lmort_collateral = currentCohort%lmort_collateral
@@ -916,6 +921,7 @@ contains
                             nc%frmort           = currentCohort%frmort
                             nc%smort            = currentCohort%smort
                             nc%asmort           = currentCohort%asmort
+                            nc%dgmort           = currentCohort%dgmort
                             nc%dmort            = currentCohort%dmort
                             nc%lmort_direct     = currentCohort%lmort_direct
                             nc%lmort_collateral = currentCohort%lmort_collateral
@@ -952,6 +958,18 @@ contains
                             do el = 1,num_elements
 
                                leaf_m = nc%prt%GetState(leaf_organ, element_list(el))
+                               ! for woody plants burn only leaves
+                               if(int(prt_params%woody(currentCohort%pft)) == itrue)then
+
+                                  leaf_m = nc%prt%GetState(leaf_organ, element_list(el))
+
+                               else
+                               ! for grasses burn all aboveground tissues
+                                  leaf_m = nc%prt%GetState(leaf_organ, element_list(el)) + &
+                                       nc%prt%GetState(sapw_organ, element_list(el)) + &
+                                       nc%prt%GetState(struct_organ, element_list(el))
+
+                               endif
 
                                currentSite%mass_balance(el)%burn_flux_to_atm = &
                                     currentSite%mass_balance(el)%burn_flux_to_atm + &
@@ -960,7 +978,14 @@ contains
 
                             ! Here the mass is removed from the plant
 
-                            call PRTBurnLosses(nc%prt, leaf_organ, leaf_burn_frac)
+                            if(int(prt_params%woody(currentCohort%pft)) == itrue)then
+                               call PRTBurnLosses(nc%prt, leaf_organ, leaf_burn_frac)
+                            else
+                               call PRTBurnLosses(nc%prt, leaf_organ, leaf_burn_frac)
+                               call PRTBurnLosses(nc%prt, sapw_organ, leaf_burn_frac)
+                               call PRTBurnLosses(nc%prt, struct_organ, leaf_burn_frac)
+                            endif
+
                             currentCohort%fraction_crown_burned = 0.0_r8
                             nc%fraction_crown_burned            = 0.0_r8
 
@@ -991,6 +1016,7 @@ contains
                                nc%frmort           = currentCohort%frmort
                                nc%smort            = currentCohort%smort
                                nc%asmort           = currentCohort%asmort
+                               nc%dgmort           = currentCohort%dgmort
                                nc%dmort            = currentCohort%dmort
 
                                ! since these are the ones that weren't logged,
@@ -1053,6 +1079,7 @@ contains
                                   nc%frmort           = currentCohort%frmort
                                   nc%smort            = currentCohort%smort
                                   nc%asmort           = currentCohort%asmort
+                                  nc%dgmort           = currentCohort%dgmort
                                   nc%dmort            = currentCohort%dmort
                                   nc%lmort_direct     = currentCohort%lmort_direct
                                   nc%lmort_collateral = currentCohort%lmort_collateral
@@ -1075,6 +1102,7 @@ contains
                                   nc%frmort           = currentCohort%frmort
                                   nc%smort            = currentCohort%smort
                                   nc%asmort           = currentCohort%asmort
+                                  nc%dgmort           = currentCohort%dgmort
                                   nc%dmort            = currentCohort%dmort
                                   nc%lmort_direct     = currentCohort%lmort_direct
                                   nc%lmort_collateral = currentCohort%lmort_collateral
@@ -1724,19 +1752,31 @@ contains
        do while(associated(currentCohort))
           
              pft = currentCohort%pft
-             
+
              ! Number of trees that died because of the fire, per m2 of ground. 
              ! Divide their litter into the four litter streams, and spread 
              ! across ground surface. 
              ! -----------------------------------------------------------------------
-             
-             sapw_m   = currentCohort%prt%GetState(sapw_organ, element_id)
-             struct_m = currentCohort%prt%GetState(struct_organ, element_id)
-             leaf_m   = currentCohort%prt%GetState(leaf_organ, element_id)
+
              fnrt_m   = currentCohort%prt%GetState(fnrt_organ, element_id)
              store_m  = currentCohort%prt%GetState(store_organ, element_id)
              repro_m  = currentCohort%prt%GetState(repro_organ, element_id)
-             
+          
+             if (prt_params%woody(currentCohort%pft) == itrue) then
+                ! Assumption: for woody plants fluxes from deadwood and sapwood go together in CWD pool
+                leaf_m          = currentCohort%prt%GetState(leaf_organ,element_id)
+                sapw_m          = currentCohort%prt%GetState(sapw_organ,element_id)
+                struct_m        = currentCohort%prt%GetState(struct_organ,element_id)
+             else
+                ! for non-woody plants all stem fluxes go into the same leaf litter pool
+                leaf_m          = currentCohort%prt%GetState(leaf_organ,element_id) + &
+                     currentCohort%prt%GetState(sapw_organ,element_id) + &
+                     currentCohort%prt%GetState(struct_organ,element_id)
+                sapw_m          = 0._r8
+                struct_m        = 0._r8
+             end if
+
+
              ! Absolute number of dead trees being transfered in with the donated area
              num_dead_trees = (currentCohort%fire_mort*currentCohort%n * &
                                patch_site_areadis/currentPatch%area)
@@ -1747,7 +1787,7 @@ contains
 
              ! Contribution of dead trees to leaf burn-flux
              burned_mass  = num_dead_trees * (leaf_m+repro_m) * currentCohort%fraction_crown_burned
-             
+
              do dcmpy=1,ndcmpy
                  dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
                  new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + &
@@ -1781,10 +1821,10 @@ contains
              flux_diags%root_litter_input(pft) = &
                   flux_diags%root_litter_input(pft) + &
                   (fnrt_m + store_m) * num_dead_trees
-             
+
              ! coarse root biomass per tree
              bcroot = (sapw_m + struct_m) * (1.0_r8 - prt_params%allom_agb_frac(pft) )
-      
+
              ! below ground coarse woody debris from burned trees
              do c = 1,ncwd
                 do sl = 1,currentSite%nlevsoil
@@ -1812,15 +1852,15 @@ contains
                  donatable_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem
                  if (c == 1 .or. c == 2) then
                       donatable_mass = donatable_mass * (1.0_r8-currentCohort%fraction_crown_burned)
-                      burned_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem * & 
+                      burned_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem * &
                       currentCohort%fraction_crown_burned
                       site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
                 endif
                 new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * donate_m2
                 curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass * retain_m2
                 flux_diags%cwd_ag_input(c) = flux_diags%cwd_ag_input(c) + donatable_mass
-             enddo   
-                  
+             enddo
+
 
             currentCohort => currentCohort%taller
         enddo
@@ -1916,12 +1956,23 @@ contains
 
           pft = currentCohort%pft
    
-          sapw_m   = currentCohort%prt%GetState(sapw_organ, element_id)
-          struct_m = currentCohort%prt%GetState(struct_organ, element_id)
-          leaf_m   = currentCohort%prt%GetState(leaf_organ, element_id)
           fnrt_m   = currentCohort%prt%GetState(fnrt_organ, element_id)
           store_m  = currentCohort%prt%GetState(store_organ, element_id)
           repro_m  = currentCohort%prt%GetState(repro_organ, element_id)
+
+          if (prt_params%woody(currentCohort%pft) == itrue) then
+             ! Assumption: for woody plants fluxes from deadwood and sapwood go together in CWD pool
+             leaf_m          = currentCohort%prt%GetState(leaf_organ,element_id)
+             sapw_m          = currentCohort%prt%GetState(sapw_organ,element_id)
+             struct_m        = currentCohort%prt%GetState(struct_organ,element_id)
+          else
+             ! for non-woody plants all stem fluxes go into the same leaf litter pool
+             leaf_m          = currentCohort%prt%GetState(leaf_organ,element_id) + &
+                     currentCohort%prt%GetState(sapw_organ,element_id) + &
+                     currentCohort%prt%GetState(struct_organ,element_id)
+             sapw_m          = 0._r8
+             struct_m        = 0._r8
+          end if
 
           if(currentCohort%canopy_layer == 1)then
 
