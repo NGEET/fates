@@ -923,7 +923,7 @@ contains
       real(r8) :: fnrt_drop_fraction ! Fine-root abscission fraction
       real(r8) :: stem_drop_fraction ! Stem abscission fraction
       integer  :: i_pft, ncohorts_to_create
-
+     
       character(len=128),parameter    :: wr_fmt = &
            '(F7.1,2X,A20,2X,A20,2X,F5.2,2X,F5.2,2X,I4,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2)'
 
@@ -931,6 +931,7 @@ contains
       real(r8), parameter :: abnormal_large_dbh    = 500.0_r8   ! I've never heard of a tree > 3m
       integer,  parameter :: recruitstatus = 0
 
+     
       read(css_file_unit,fmt=*,iostat=ios) c_time, p_name, c_name, c_dbh, c_height, &
             c_pft, c_nplant, c_bdead, c_balive, c_avgRG
 
@@ -1024,28 +1025,30 @@ contains
 
          temp_cohort%n           = c_nplant * cpatch%area / real(ncohorts_to_create,r8)
          temp_cohort%dbh         = c_dbh
+         temp_cohort%crowndamage = 1  ! assume undamaged 
 
          call h_allom(c_dbh,temp_cohort%pft,temp_cohort%hite)
          temp_cohort%canopy_trim = 1.0_r8
 
-
-         call bagw_allom(temp_cohort%dbh,temp_cohort%pft,c_agw)
+         call bagw_allom(temp_cohort%dbh,temp_cohort%pft, &
+              temp_cohort%crowndamage, c_agw)
          ! Calculate coarse root biomass from allometry
          call bbgw_allom(temp_cohort%dbh,temp_cohort%pft,c_bgw)
 
          ! Calculate the leaf biomass (calculates a maximum first, then applies canopy trim
          ! and sla scaling factors)
-         call bleaf(temp_cohort%dbh,temp_cohort%pft,temp_cohort%canopy_trim,c_leaf)
-
+         call bleaf(temp_cohort%dbh,temp_cohort%pft,temp_cohort%crowndamage,&
+              temp_cohort%canopy_trim,c_leaf)
+         
          ! Calculate fine root biomass
          call bfineroot(temp_cohort%dbh,temp_cohort%pft,temp_cohort%canopy_trim,c_fnrt)
 
          ! Calculate sapwood biomass
-         call bsap_allom(temp_cohort%dbh,temp_cohort%pft,temp_cohort%canopy_trim, a_sapw, c_sapw)
-
+         call bsap_allom(temp_cohort%dbh,temp_cohort%pft,temp_cohort%crowndamage, &
+              temp_cohort%canopy_trim, a_sapw, c_sapw)
+         
          call bdead_allom( c_agw, c_bgw, c_sapw, temp_cohort%pft, c_struct )
-
-         call bstore_allom(temp_cohort%dbh, temp_cohort%pft, temp_cohort%canopy_trim, c_store)
+         call bstore_allom(temp_cohort%dbh, temp_cohort%pft, temp_cohort%crowndamage,temp_cohort%canopy_trim, c_store)
 
          cstatus = leaves_on
          elongf_leaf = 1.0_r8
@@ -1182,14 +1185,11 @@ contains
 
          call prt_obj%CheckInitialConditions()
 
-
-         ! Since spread is a canopy level calculation, we need to provide an initial guess here.
-
          call create_cohort(csite, cpatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, &
               temp_cohort%coage, temp_cohort%dbh, &
               prt_obj, elongf_leaf, elongf_fnrt, elongf_stem, cstatus, rstatus, &
               temp_cohort%canopy_trim,temp_cohort%c_area, &
-              1, csite%spread, bc_in)
+              1, temp_cohort%crowndamage, csite%spread, bc_in)
 
          deallocate(temp_cohort) ! get rid of temporary cohort
 

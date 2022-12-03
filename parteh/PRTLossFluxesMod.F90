@@ -1,3 +1,4 @@
+
 module PRTLossFluxesMod
 
 
@@ -64,7 +65,9 @@ module PRTLossFluxesMod
   public :: PRTBurnLosses
   public :: PRTPhenologyFlush
   public :: PRTReproRelease
-
+  public :: PRTDamageLosses
+  public :: PRTDamageRecoveryFluxes
+  
 contains
 
 
@@ -342,7 +345,62 @@ contains
      end associate
   end subroutine PRTBurnLosses
     
+  ! =====================================================================================
 
+  subroutine PRTDamageLosses(prt, organ_id, mass_fraction)
+
+    ! ----------------------------------------------------------------------------------
+    ! This subroutine assumes that there is no re-translocation associated
+    ! with damage. There is only one destiny for damaged mass within
+    ! the organ, and that is outside the plant.  
+    ! It is also assumed that non PARTEH parts of the code (ie the damage-model)
+    ! will decide what to do with the damaged mass (i.e. sent it to the litter
+    ! pool, or.. other?)
+    ! ----------------------------------------------------------------------------------
+
+    class(prt_vartypes) :: prt
+    integer,intent(in)  :: organ_id
+    real(r8),intent(in) :: mass_fraction
+
+    integer             :: i_pos          ! position index
+    integer             :: i_var          ! index for the variable of interest 
+    integer             :: i_var_of_organ ! loop counter for all element in this organ
+    integer             :: element_id     ! Element id of the turnover pool
+    real(r8)            :: damaged_mass    ! Lost mass of each element, in each
+                                          ! position, in the organ of interest
+     
+    associate(organ_map => prt_global%organ_map)
+
+       ! This is the total number of state variables associated
+       ! with this particular organ
+
+       do i_var_of_organ = 1, organ_map(organ_id)%num_vars
+          
+          i_var = organ_map(organ_id)%var_id(i_var_of_organ)
+          
+          element_id = prt_global%state_descriptor(i_var)%element_id
+          
+          ! Loop over all of the coordinate ids
+          do i_pos = 1,prt_global%state_descriptor(i_var)%num_pos
+             
+             ! The mass that is leaving the plant
+             damaged_mass = mass_fraction * prt%variables(i_var)%val(i_pos)
+             
+             ! Track the amount of mass being lost (+ is amount lost)
+             prt%variables(i_var)%damaged(i_pos) = prt%variables(i_var)%damaged(i_pos) &
+                  + damaged_mass
+             
+             ! Update the state of the pool to reflect the mass lost
+             prt%variables(i_var)%val(i_pos)    = prt%variables(i_var)%val(i_pos) &
+                  - damaged_mass
+             
+          end do
+          
+       end do
+       
+     end associate
+  end subroutine PRTDamageLosses
+      
   ! =====================================================================================
 
 
@@ -810,6 +868,30 @@ contains
       return
    end subroutine MaintTurnoverSimpleRetranslocation
 
+   !----------------------------------------------------------------------------------------------
+   
+  subroutine PRTDamageRecoveryFluxes(prt, organ_id, mass_0, mass, cc_mass)
+
+    class(prt_vartypes) :: prt
+    integer,intent(in)  :: organ_id
+    real(r8),intent(in) :: mass_0
+    real(r8),intent(in) :: mass
+    real(r8),intent(in) :: cc_mass
+    
+    integer, parameter  :: icd = 1
+
+    ! Remove the amount that was copied from old cohort
+    prt%variables(organ_id)%net_alloc(icd) = prt%variables(organ_id)%net_alloc(icd) &
+         - (cc_mass - mass_0)
+    
+
+    ! Track the amount of mass being lost (+ is amount lost)
+    prt%variables(organ_id)%net_alloc(icd) = prt%variables(organ_id)%net_alloc(icd) &
+         + (mass - mass_0)
+
+    end subroutine PRTDamageRecoveryFluxes
+      
+  ! =====================================================================================
 
 
 

@@ -1533,16 +1533,20 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(hlm_use_tree_damage .eq. unset_int .or. hlm_use_tree_damage .eq. itrue) then
+         if(hlm_use_tree_damage .eq. unset_int) then
             write(fates_log(),*) 'FATES dimension/parameter unset: hlm_use_tree_damage, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
+         else
+            if((hlm_use_tree_damage .eq. itrue) .and. &
+                 (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp))then
+               write(fates_log(),*) 'FATES tree damage (use_fates_tree_damage = .true.) is not'
+               write(fates_log(),*) '(yet) compatible with CNP allocation (fates_parteh_mode = 2)'
+               call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(hlm_use_tree_damage .eq. itrue) then
-            write(fates_log(),*) 'hlm_use_tree_damage is not available yet, value: ',hlm_use_tree_damage,' ,set to false'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
+            
          end if
-         
+
          if(hlm_nitrogen_spec .eq. unset_int) then
             write(fates_log(),*) 'FATES parameters unset: hlm_nitrogen_spec, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))

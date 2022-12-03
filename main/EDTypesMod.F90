@@ -22,7 +22,6 @@ module EDTypesMod
   use FatesRunningMeanMod,   only : rmean_type
   use FatesInterfaceTypesMod,only : bc_in_type
   use FatesInterfaceTypesMod,only : bc_out_type
-
   
   implicit none
   private               ! By default everything is private
@@ -39,7 +38,6 @@ module EDTypesMod
                                                           ! are used, but this helps allocate scratch
                                                           ! space and output arrays.
                                                   
-  
   real(r8), parameter, public :: init_recruit_trim = 0.8_r8    ! This is the initial trimming value that
                                                                ! new recruits start with
 
@@ -197,8 +195,6 @@ module EDTypesMod
   real(r8), parameter, public :: min_n_safemath = 1.0E-12_r8              ! in some cases, we want to immediately remove super small
                                                                           ! number densities of cohorts to prevent FPEs
 
-  character*4 yearchar                    
-
   ! special mode to cause PFTs to create seed mass of all currently-existing PFTs
   logical, parameter, public :: homogenize_seed_pfts  = .false.
 
@@ -236,6 +232,7 @@ module EDTypesMod
      real(r8) ::  hite                                   ! height: meters
      integer  ::  indexnumber                            ! unique number for each cohort. (within clump?)
      integer  ::  canopy_layer                           ! canopy status of cohort (1 = canopy, 2 = understorey, etc.)
+     integer  ::  crowndamage                            ! crown damage class of the cohort [1: undamaged, >1: damaged]
      real(r8) ::  canopy_layer_yesterday                 ! recent canopy status of cohort
                                                          ! (1 = canopy, 2 = understorey, etc.)  
                                                          ! real to be conservative during fusion
@@ -343,6 +340,7 @@ module EDTypesMod
      real(r8) ::  ts_net_uptake(nlevleaf)              ! Net uptake of leaf layers: kgC/m2/timestep
      real(r8) ::  year_net_uptake(nlevleaf)            ! Net uptake of leaf layers: kgC/m2/year
 
+
      ! RESPIRATION COMPONENTS
      real(r8) ::  rdark                                  ! Dark respiration: kgC/indiv/s
 
@@ -358,6 +356,9 @@ module EDTypesMod
                                                          ! (below ground)
      real(r8) ::  froot_mr                               ! Live fine root   maintenance respiration: kgC/indiv/s
 
+     !DAMAGE
+     real(r8) :: branch_frac                             ! Fraction of aboveground woody biomass in branches
+     
      !MORTALITY
      real(r8) ::  dmort                                  ! proportional mortality rate. (year-1)
 
@@ -368,6 +369,7 @@ module EDTypesMod
      real(r8) ::  frmort                                 ! freezing mortality               n/year
      real(r8) ::  smort                                  ! senesence mortality              n/year
      real(r8) ::  asmort                                 ! age senescence mortality         n/year
+     real(r8) ::  dgmort                                  ! damage mortality                 n/year
      
       ! Logging Mortality Rate 
       ! Yi Xu & M. Huang
@@ -816,10 +818,18 @@ module EDTypesMod
 
      ! TERMINATION, RECRUITMENT, DEMOTION, and DISTURBANCE
      
-     real(r8), allocatable :: term_nindivs_canopy(:,:)   ! number of canopy individuals that were in cohorts which 
-                                                         ! were terminated this timestep, on size x pft
-     real(r8), allocatable :: term_nindivs_ustory(:,:)   ! number of understory individuals that were in cohorts which 
-                                                         ! were terminated this timestep, on size x pft
+     real(r8) :: term_crownarea_canopy                 ! crownarea from termination mortality, per canopy level
+     real(r8) :: term_crownarea_ustory                 ! crownarea from termination mortality, per canopy level    
+ 
+     real(r8) :: imort_crownarea                       ! crownarea of individuals killed due to impact mortality per year. [m2 day]
+
+     real(r8) :: fmort_crownarea_canopy                ! crownarea of canopy indivs killed due to fire per year. [m2/sec]
+     real(r8) :: fmort_crownarea_ustory                ! crownarea of understory indivs killed due to fire per year [m2/sec] 
+
+     real(r8), allocatable :: term_nindivs_canopy(:,:) ! number of canopy individuals that were in cohorts which 
+                                                       ! were terminated this timestep, on size x pft
+     real(r8), allocatable :: term_nindivs_ustory(:,:) ! number of understory individuals that were in cohorts which 
+                                                       ! were terminated this timestep, on size x pft
 
      real(r8), allocatable :: term_carbonflux_canopy(:)  ! carbon flux from live to dead pools associated 
                                                          ! with termination mortality, per canopy level
@@ -847,11 +857,24 @@ module EDTypesMod
      real(r8), allocatable :: fmort_rate_crown(:,:)      ! rate of individuals killed due to fire mortality 
                                                          ! from crown damage per year.  on size x pft array
 
+     real(r8), allocatable :: imort_rate_damage(:,:,:)     ! number of individuals per damage class that die from impact mortality
+     real(r8), allocatable :: term_nindivs_canopy_damage(:,:,:) ! number of individuals per damage class that die from termination mortality - canopy
+     real(r8), allocatable :: term_nindivs_ustory_damage(:,:,:) ! number of individuals per damage class that die from termination mortality - canopy
+     real(r8), allocatable :: fmort_rate_canopy_damage(:,:,:) ! number of individuals per damage class that die from fire - canopy
+     real(r8), allocatable :: fmort_rate_ustory_damage(:,:,:) ! number of individuals per damage class that die from fire - ustory
+     real(r8), allocatable :: fmort_cflux_canopy_damage(:,:) ! cflux per damage class that die from fire - canopy
+     real(r8), allocatable :: fmort_cflux_ustory_damage(:,:) ! cflux per damage class that die from fire - ustory
+     real(r8), allocatable :: imort_cflux_damage(:,:)         ! carbon flux from impact mortality by damage class
+     real(r8), allocatable :: term_cflux_canopy_damage(:,:)          ! carbon flux from termination mortality by damage class
+     real(r8), allocatable :: term_cflux_ustory_damage(:,:)          ! carbon flux from termination mortality by damage class
+
      real(r8), allocatable :: growthflux_fusion(:,:)     ! rate of individuals moving into a given size class bin
                                                          ! due to fusion in a given day. on size x pft array 
 
 
-
+     real(r8)              :: crownarea_canopy_damage                 ! crown area of canopy that is damaged annually  
+     real(r8)              :: crownarea_ustory_damage                 ! crown area of understory that is damaged annually
+     
      ! Canopy Spread
      real(r8) ::  spread                                          ! dynamic canopy allometric term [unitless]
 
@@ -1068,6 +1091,7 @@ module EDTypesMod
      write(fates_log(),*) 'co%n                      = ', ccohort%n                         
      write(fates_log(),*) 'co%dbh                    = ', ccohort%dbh                                        
      write(fates_log(),*) 'co%hite                   = ', ccohort%hite
+     write(fates_log(),*) 'co%crowndamage            = ', ccohort%crowndamage
      write(fates_log(),*) 'co%coage                  = ', ccohort%coage
      
      write(fates_log(),*) 'leaf carbon               = ', ccohort%prt%GetState(leaf_organ,all_carbon_elements) 
@@ -1108,7 +1132,7 @@ module EDTypesMod
      write(fates_log(),*) 'co%livestem_mr            = ', ccohort%livestem_mr
      write(fates_log(),*) 'co%livecroot_mr           = ', ccohort%livecroot_mr
      write(fates_log(),*) 'co%froot_mr               = ', ccohort%froot_mr
-     write(fates_log(),*) 'co%dmort                  = ', ccohort%dmort
+     write(fates_log(),*) 'co%dgmort                 = ', ccohort%dgmort
      write(fates_log(),*) 'co%treelai                = ', ccohort%treelai
      write(fates_log(),*) 'co%treesai                = ', ccohort%treesai
      write(fates_log(),*) 'co%c_area                 = ', ccohort%c_area
@@ -1116,9 +1140,9 @@ module EDTypesMod
      write(fates_log(),*) 'co%bmort                  = ', ccohort%bmort
      write(fates_log(),*) 'co%smort                  = ', ccohort%smort
      write(fates_log(),*) 'co%asmort                 = ', ccohort%asmort
+     write(fates_log(),*) 'co%dgmort                 = ', ccohort%dgmort
      write(fates_log(),*) 'co%hmort                  = ', ccohort%hmort
      write(fates_log(),*) 'co%frmort                 = ', ccohort%frmort
-     write(fates_log(),*) 'co%asmort                 = ', ccohort%asmort
      write(fates_log(),*) 'co%isnew                  = ', ccohort%isnew
      write(fates_log(),*) 'co%dndt                   = ', ccohort%dndt
      write(fates_log(),*) 'co%dhdt                   = ', ccohort%dhdt

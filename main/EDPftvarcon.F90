@@ -131,6 +131,14 @@ module EDPftvarcon
      real(r8), allocatable :: prescribed_recruitment(:)          ! this is only for the
                                                                  ! prescribed_physiology_mode
 
+
+     ! Damage Parameters
+
+     real(r8), allocatable :: damage_frac(:)             ! Fraction of each cohort damaged per year
+     real(r8), allocatable :: damage_mort_p1(:)          ! Inflection point for damage mortality function
+     real(r8), allocatable :: damage_mort_p2(:)          ! Rate parameter for damage mortality function
+     real(r8), allocatable :: damage_recovery_scalar(:)  ! what fraction of cohort gets to recover
+
      ! Nutrient Aquisition (ECA & RD)
 
 
@@ -428,6 +436,22 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_recruit_prescribed_rate'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_damage_frac'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_damage_mort_p1'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_damage_mort_p2'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_damage_recovery_scalar'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -767,6 +791,22 @@ contains
     name = 'fates_recruit_prescribed_rate'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%prescribed_recruitment)
+
+    name = 'fates_damage_frac'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%damage_frac)
+
+    name = 'fates_damage_mort_p1'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%damage_mort_p1)
+
+    name = 'fates_damage_mort_p2'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%damage_mort_p2)
+    
+    name = 'fates_damage_recovery_scalar'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%damage_recovery_scalar)
 
     name = 'fates_fire_alpha_SH'
     call fates_params%RetrieveParameterAllocate(name=name, &

@@ -1391,14 +1391,16 @@ contains
      real(r8) :: c_total     ! total target carbon
      real(r8) :: nutr_total  ! total target nutrient
 
+     integer, parameter :: not_damaged = 1 ! this is also in MainDamageMod, here for dependency purposes
+
      call h2d_allom(EDPftvarcon_inst%hgt_min(ft),ft,dbh)
-     call bleaf(dbh,ft,init_recruit_trim,c_leaf)
+     call bleaf(dbh,ft,not_damaged,init_recruit_trim,c_leaf)
      call bfineroot(dbh,ft,init_recruit_trim,c_fnrt)
-     call bsap_allom(dbh,ft,init_recruit_trim,a_sapw, c_sapw)
-     call bagw_allom(dbh,ft,c_agw)
+     call bsap_allom(dbh,ft,not_damaged,init_recruit_trim,a_sapw, c_sapw)
+     call bagw_allom(dbh,ft,not_damaged,c_agw)
      call bbgw_allom(dbh,ft,c_bgw)
      call bdead_allom(c_agw,c_bgw,c_sapw,ft,c_struct)
-     call bstore_allom(dbh,ft,init_recruit_trim,c_store)
+     call bstore_allom(dbh,ft,not_damaged,init_recruit_trim,c_store)
 
      ! Total carbon in a newly recruited plant
      c_total = c_leaf + c_fnrt + c_sapw + c_struct + c_store
