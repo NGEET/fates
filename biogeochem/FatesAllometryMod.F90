@@ -161,8 +161,8 @@ contains
    ! ============================================================================
    
   subroutine CheckIntegratedAllometries(dbh,ipft,crowndamage, &
-       canopy_trim, elongf_leaf, elongf_fnrt, elongf_stem,  &
-       bl,bfr,bsap,bstore,bdead, &
+       canopy_trim, elongf_leaf, elongf_fnrt, elongf_stem, &
+       l2fr, bl,bfr,bsap,bstore,bdead, &
        grow_leaf, grow_fr, grow_sap, grow_store, grow_dead, &
        max_err, l_pass)
 
@@ -181,6 +181,7 @@ contains
      real(r8),intent(in) :: elongf_leaf ! Leaf elongation factor
      real(r8),intent(in) :: elongf_fnrt ! Fine-root elongation factor
      real(r8),intent(in) :: elongf_stem ! Stem elongation factor
+     real(r8),intent(in) :: l2fr   ! leaf to fine-root biomass multiplier (fr/leaf)
      real(r8),intent(in) :: bl     ! integrated leaf biomass [kgC]
      real(r8),intent(in) :: bfr    ! integrated fine root biomass [kgC]
      real(r8),intent(in) :: bsap   ! integrated sapwood biomass [kgC]
@@ -225,7 +226,7 @@ contains
      end if
         
      if (grow_fr) then
-        call bfineroot(dbh,ipft,canopy_trim,bfr_diag)
+        call bfineroot(dbh,ipft,canopy_trim,l2fr,bfr_diag)
         bfr_diag = bfr_diag * elongf_fnrt
         if( abs(bfr_diag-bfr) > max_err ) then
            if(verbose_logging) then
@@ -1024,7 +1025,7 @@ contains
   ! Fine root biomass allometry wrapper
   ! ============================================================================
   
-  subroutine bfineroot(d,ipft,canopy_trim,bfr,dbfrdd)
+  subroutine bfineroot(d,ipft,canopy_trim,l2fr,bfr,dbfrdd)
     
     ! -------------------------------------------------------------------------
     ! This subroutine calculates the actual target fineroot biomass
@@ -1034,6 +1035,10 @@ contains
     real(r8),intent(in)    :: d             ! plant diameter [cm]
     integer(i4),intent(in) :: ipft          ! PFT index
     real(r8),intent(in)    :: canopy_trim   ! trimming function
+    real(r8),intent(in)    :: l2fr          ! leaf to fineroot scaler
+                                            ! this is either a PFT parameter
+                                            ! constant (when no nutrient model)
+                                            ! or dynamic (with nutrient model)
     real(r8),intent(out)   :: bfr           ! fine root biomass [kgC]
     real(r8),intent(out),optional :: dbfrdd ! change leaf bio per diameter [kgC/cm]
     
@@ -1048,19 +1053,19 @@ contains
        
        call blmax_allom(d,ipft,blmax,dblmaxdd)
 
-       bfr = blmax*canopy_trim
+       bfr = blmax*l2fr*canopy_trim
        
        if(present(dbfrdd))then
-          dbfrdd = dblmaxdd * canopy_trim
+          dbfrdd = dblmaxdd*l2fr * canopy_trim
           
        end if
     case(2) ! "constant proportionality with UNTRIMMED target bleaf"
        
        call blmax_allom(d,ipft,blmax,dblmaxdd)
 
-       bfr = blmax
+       bfr = blmax*l2fr
        if(present(dbfrdd))then
-          dbfrdd = dblmaxdd
+          dbfrdd = dblmaxdd*l2fr
        end if
 
     case DEFAULT 
@@ -1172,32 +1177,6 @@ contains
     return
   end subroutine bdead_allom
 
-  ! ============================================================================
-  ! Specific bfrmax relationships
-  ! ============================================================================
-  
-  subroutine bfrmax_const(d,blmax,dblmaxdd,ipft,bfrmax,dbfrmaxdd)
-
-    
-    real(r8),intent(in)    :: d         ! plant diameter [cm]
-    real(r8),intent(in)    :: blmax     ! max leaf biomass [kgC]
-    real(r8),intent(in)    :: dblmaxdd  ! change in blmax per diam [kgC/cm]
-    integer(i4),intent(in) :: ipft      ! PFT index
-    real(r8),intent(out)   :: bfrmax    ! max fine-root root biomass [kgC]
-    real(r8),intent(out),optional :: dbfrmaxdd ! change frmax bio per diam [kgC/cm]
-    
-    associate( l2fr => prt_params%allom_l2fr(ipft) )
-      
-      bfrmax = blmax*l2fr
-      
-      ! dbfr/dd = dbfrmax/dblmax * dblmax/dd
-      if(present(dbfrmaxdd))then
-         dbfrmaxdd = dblmaxdd*l2fr
-      end if
-      
-    end associate
-    return
-  end subroutine bfrmax_const
 
   ! ============================================================================
   ! Specific bbgw relationships

@@ -48,6 +48,7 @@ module EDPhysiologyMod
   use FatesLitterMod      , only : ilabile
   use FatesLitterMod      , only : ilignin
   use FatesLitterMod      , only : icellulose
+  use EDTypesMod          , only : nclmax
   use EDTypesMod          , only : AREA,AREA_INV
   use EDTypesMod          , only : nlevleaf
   use EDTypesMod          , only : num_vegtemp_mem
@@ -100,7 +101,6 @@ module EDPhysiologyMod
   use PRTGenericMod, only : prt_vartypes
   use PRTGenericMod, only : leaf_organ
   use PRTGenericMod, only : sapw_organ, struct_organ
-  use PRTGenericMod, only : all_carbon_elements
   use PRTGenericMod, only : carbon12_element
   use PRTGenericMod, only : nitrogen_element
   use PRTGenericMod, only : phosphorus_element
@@ -122,7 +122,7 @@ module EDPhysiologyMod
   use SFParamsMod, only       : SF_val_CWD_frac
   use FatesParameterDerivedMod, only : param_derived
   use FatesPlantHydraulicsMod, only : InitHydrCohort
-
+  use PRTInitParamsFatesMod, only : NewRecruitTotalStoichiometry
   
   implicit none
   private
@@ -139,7 +139,10 @@ module EDPhysiologyMod
   public :: PreDisturbanceIntegrateLitter
   public :: GenerateDamageAndLitterFluxes
   public :: SeedIn
-
+  public :: UpdateRecruitL2FR
+  public :: UpdateRecruitStoicH
+  public :: SetRecruitL2FR
+  
   logical, parameter :: debug  = .false. ! local debug flag
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
@@ -646,7 +649,7 @@ contains
                currentCohort%crowndamage, currentCohort%c_area)
 
           
-          leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+          leaf_c   = currentCohort%prt%GetState(leaf_organ, carbon12_element)
 
           currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, &
                currentCohort%n, currentCohort%canopy_layer,               &
@@ -674,7 +677,7 @@ contains
 
           if ( int(prt_params%allom_fmode(ipft)) .eq. 1 ) then
              ! only query fine root biomass if using a fine root allometric model that takes leaf trim into account
-             call bfineroot(currentcohort%dbh,ipft,currentcohort%canopy_trim,tar_bfr)
+             call bfineroot(currentcohort%dbh,ipft,currentcohort%canopy_trim,currentcohort%l2fr,tar_bfr)
              bfr_per_bleaf = tar_bfr/tar_bl
           endif
 
@@ -1489,6 +1492,7 @@ contains
 
     real(r8) :: fnrt_drop_fraction       ! Fine root relative drop fraction (0 = no drop, 1 = as much as leaves)
     real(r8) :: stem_drop_fraction       ! Stem drop relative fraction (0 = no drop, 1 = as much as leaves)
+    real(r8) :: l2fr                     ! Leaf to fineroot biomass multiplier 
 
     integer  :: ipft                     ! Plant functional type index
     real(r8), parameter :: leaf_drop_fraction  = 1.0_r8
@@ -1515,6 +1519,7 @@ contains
 
           fnrt_drop_fraction = EDPftvarcon_inst%phen_fnrt_drop_fraction(ipft)
           stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(ipft)
+          l2fr               = prt_params%allom_l2fr(ipft)
 
           ! MLO. To avoid duplicating code for drought and cold deciduous PFTs, we first
           !      check whether or not it's time to flush or time to shed leaves, then
@@ -1563,7 +1568,7 @@ contains
           call bleaf(currentCohort%dbh,currentCohort%pft,currentCohort%crowndamage, &
                currentCohort%canopy_trim,target_leaf_c)
           call bfineroot(currentCohort%dbh,currentCohort%pft, &
-               currentCohort%canopy_trim,target_fnrt_c)
+               currentCohort%canopy_trim,l2fr,target_fnrt_c)
           call bsap_allom(currentCohort%dbh,currentCohort%pft,currentCohort%crowndamage, &
                currentCohort%canopy_trim,sapw_area,target_sapw_c)
           call bagw_allom(currentCohort%dbh,currentCohort%pft,currentCohort%crowndamage,&
@@ -1810,7 +1815,7 @@ contains
     ! translates them into a FATES structure with one patch and one cohort per PFT
     ! The leaf area of the cohort is modified each day to match that asserted by the HLM
     ! -----------------------------------------------------------------------------------!
-    use EDTypesMod       , only : nclmax
+   
 
     type(ed_cohort_type), intent(inout), target :: currentCohort
 
@@ -2030,15 +2035,16 @@ contains
                 litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)/area
 
                 ! If there is forced external seed rain, we calculate the input mass flux
-                ! from the different elements, usung the seed optimal stoichiometry
-                ! for non-carbon
+                ! from the different elements, using the mean stoichiometry of new
+                ! recruits for the current patch and lowest canopy position
+
                 select case(element_id)
                 case(carbon12_element)
                    seed_stoich = 1._r8
                 case(nitrogen_element)
-                 seed_stoich = prt_params%nitr_recr_stoich(pft)
+                   seed_stoich = currentPatch%nitr_repro_stoich(pft)
                 case(phosphorus_element)
-                 seed_stoich = prt_params%phos_recr_stoich(pft)
+                   seed_stoich = currentPatch%phos_repro_stoich(pft)
                 case default
                    write(fates_log(), *) 'undefined element specified'
                    write(fates_log(), *) 'while defining forced external seed mass flux'
@@ -2236,6 +2242,7 @@ contains
           temp_cohort%coage       = 0.0_r8
           fnrt_drop_fraction      = EDPftvarcon_inst%phen_fnrt_drop_fraction(ft)
           stem_drop_fraction      = EDPftvarcon_inst%phen_stem_drop_fraction(ft)
+          temp_cohort%l2fr        = currentSite%rec_l2fr(ft,currentPatch%NCL_p)
           temp_cohort%crowndamage = 1       ! new recruits are undamaged
 
           call h2d_allom(temp_cohort%hite,ft,temp_cohort%dbh)
@@ -2244,7 +2251,7 @@ contains
           ! Initialize live pools
           call bleaf(temp_cohort%dbh,ft,temp_cohort%crowndamage,&
                temp_cohort%canopy_trim,c_leaf)
-          call bfineroot(temp_cohort%dbh,ft,temp_cohort%canopy_trim,c_fnrt)
+          call bfineroot(temp_cohort%dbh,ft,temp_cohort%canopy_trim,temp_cohort%l2fr,c_fnrt)
           call bsap_allom(temp_cohort%dbh,ft,temp_cohort%crowndamage, &
                temp_cohort%canopy_trim,a_sapw, c_sapw)
           call bagw_allom(temp_cohort%dbh,ft,temp_cohort%crowndamage, c_agw)
@@ -2981,5 +2988,152 @@ contains
     enddo
 
   end subroutine CWDOut
+  
+  subroutine UpdateRecruitL2FR(csite)
+    
 
+    ! When CNP is active, the l2fr (target leaf to fine-root biomass multiplier)
+    ! is dynamic. We therefore update what the l2fr for recruits
+    ! are, taking an exponential moving average of all plants that
+    ! are within recruit size limitations (less than recruit size + delta)
+    ! and less than the max_count cohort.
+    
+    type(ed_site_type) :: csite
+    type(ed_patch_type), pointer :: cpatch
+    type(ed_cohort_type), pointer :: ccohort
+
+    real(r8) :: rec_n(maxpft,nclmax)     ! plant count
+    real(r8) :: rec_l2fr0(maxpft,nclmax) ! mean l2fr for this day
+    integer  :: rec_count(maxpft,nclmax) ! sample count
+    integer  :: ft                       ! functional type index
+    integer  :: cl                       ! canopy layer index
+    real(r8) :: dbh_min                  ! the dbh of a recruit
+    real(r8), parameter :: max_delta = 5.0_r8  ! dbh tolerance, cm, consituting a recruit
+    real(r8), parameter :: smth_wgt = 1._r8/300.0_r8
+    integer, parameter :: max_count = 3
+    
+    ! Difference in dbh (cm) to consider a plant was recruited fairly recently
+
+    if(hlm_parteh_mode .ne. prt_cnp_flex_allom_hyp) return
+    
+    rec_n(1:numpft,1:nclmax) = 0._r8
+    rec_l2fr0(1:numpft,1:nclmax) = 0._r8
+
+    cpatch => csite%youngest_patch
+    do while(associated(cpatch))
+
+       rec_count(1:numpft,1:nclmax) = 0
+       
+       ccohort => cpatch%shortest
+       cloop: do while(associated(ccohort))
+
+          ft = ccohort%pft
+          cl = ccohort%canopy_layer
+          call h2d_allom(EDPftvarcon_inst%hgt_min(ft),ft,dbh_min)
+
+          if( .not.ccohort%isnew ) then
+
+             if(rec_count(ft,cl) <= max_count .and. &
+                  ccohort%dbh-dbh_min < max_delta ) then
+                rec_count(ft,cl) = rec_count(ft,cl) + 1
+                rec_n(ft,cl) = rec_n(ft,cl) + ccohort%n
+                rec_l2fr0(ft,cl) = rec_l2fr0(ft,cl) + ccohort%n*ccohort%l2fr
+             end if
+
+          end if
+
+          ccohort => ccohort%taller
+       end do cloop
+
+       cpatch => cpatch%older
+    end do
+
+    ! Find the daily mean for each PFT weighted by number and add it to the running mean
+    do cl = 1,nclmax
+       do ft = 1,numpft
+          if(rec_n(ft,cl)>nearzero)then
+             rec_l2fr0(ft,cl) = rec_l2fr0(ft,cl) / rec_n(ft,cl)
+             csite%rec_l2fr(ft,cl) = &
+                  (1._r8-smth_wgt)*csite%rec_l2fr(ft,cl) + smth_wgt*rec_l2fr0(ft,cl)
+          end if
+       end do
+    end do
+
+    return
+  end subroutine UpdateRecruitL2FR
+
+  ! ======================================================================
+
+  subroutine UpdateRecruitStoich(csite)
+
+    type(ed_site_type) :: csite
+    type(ed_patch_type), pointer :: cpatch
+    type(ed_cohort_type), pointer :: ccohort
+    integer  :: ft                       ! functional type index
+    integer  :: cl                       ! canopy layer index
+    real(r8) :: rec_l2fr_pft             ! Actual l2fr of a pft in it's patch
+    
+    ! Update the total plant stoichiometry of a new recruit, based on the updated
+    ! L2FR values
+
+    if(hlm_parteh_mode .ne. prt_cnp_flex_allom_hyp) return
+    
+    cpatch => csite%youngest_patch
+    do while(associated(cpatch))
+       cl = cpatch%ncl_p
+       
+       do ft = 1,numpft
+          rec_l2fr_pft = csite%rec_l2fr(ft,cl)
+          cpatch%nitr_repro_stoich(ft) = &
+               NewRecruitTotalStoichiometry(ft,rec_l2fr_pft,nitrogen_element)
+          cpatch%phos_repro_stoich(ft) = &
+               NewRecruitTotalStoichiometry(ft,rec_l2fr_pft,phosphorus_element)
+       end do
+
+       ccohort => cpatch%shortest
+       cloop: do while(associated(ccohort))
+          rec_l2fr_pft = csite%rec_l2fr(ccohort%pft,cl)
+          ccohort%nc_repro = NewRecruitTotalStoichiometry(ccohort%pft,rec_l2fr_pft,nitrogen_element)
+          ccohort%pc_repro = NewRecruitTotalStoichiometry(ccohort%pft,rec_l2fr_pft,phosphorus_element)
+          ccohort => ccohort%taller
+       end do cloop
+       
+       cpatch => cpatch%older
+    end do
+       
+    return
+  end subroutine UpdateRecruitStoich
+
+  ! ======================================================================
+  
+  subroutine SetRecruitL2FR(csite)
+
+
+    type(ed_site_type) :: csite
+    type(ed_patch_type), pointer :: cpatch
+    type(ed_cohort_type), pointer :: ccohort
+    integer :: ft,cl
+    
+    if(hlm_parteh_mode .ne. prt_cnp_flex_allom_hyp) return
+    
+    cpatch => csite%youngest_patch
+    do while(associated(cpatch))
+       ccohort => cpatch%shortest
+       cloop: do while(associated(ccohort))
+
+          if( ccohort%isnew ) then
+             ft = ccohort%pft
+             cl = ccohort%canopy_layer
+             ccohort%l2fr = csite%rec_l2fr(ft,cl)
+          end if
+
+          ccohort => ccohort%taller
+       end do cloop
+
+       cpatch => cpatch%older
+    end do
+    
+    return
+  end subroutine SetRecruitL2FR
+  
 end module EDPhysiologyMod

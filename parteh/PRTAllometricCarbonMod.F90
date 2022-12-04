@@ -423,7 +423,8 @@ module PRTAllometricCarbonMod
          sapw_c   => this%variables(sapw_c_id)%val(icd), &
          store_c  => this%variables(store_c_id)%val(icd), &
          repro_c  => this%variables(repro_c_id)%val(icd), &
-         struct_c => this%variables(struct_c_id)%val(icd) )
+         struct_c => this%variables(struct_c_id)%val(icd), &
+         l2fr     => prt_params%allom_l2fr(ipft) )
 
 
       ! -----------------------------------------------------------------------------------
@@ -485,7 +486,7 @@ module PRTAllometricCarbonMod
       call bleaf(dbh,ipft,crowndamage,canopy_trim,target_leaf_c)
 
       ! Target fine-root biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
-      call bfineroot(dbh,ipft,canopy_trim,target_fnrt_c)
+      call bfineroot(dbh,ipft,canopy_trim,l2fr,target_fnrt_c)
 
       ! Target storage carbon [kgC,kgC/cm]
       call bstore_allom(dbh,ipft,crowndamage,canopy_trim,target_store_c)
@@ -697,6 +698,7 @@ module PRTAllometricCarbonMod
       case (3)
          if_carbon_increment: if(carbon_balance > calloc_abs_error ) then
 
+
             ! -----------------------------------------------------------------------------------
             ! VIII.  If carbon is yet still available ...
             !        Our pools are now either on allometry or above (from fusion).
@@ -820,7 +822,7 @@ module PRTAllometricCarbonMod
                   ! we remember the current step size as a good next guess.
 
                   call CheckIntegratedAllometries(c_pool_out(dbh_id),ipft,&
-                       crowndamage, canopy_trim, elongf_leaf, elongf_fnrt, elongf_stem,  &
+                       crowndamage, canopy_trim, elongf_leaf, elongf_fnrt, elongf_stem, l2fr,  &
                        c_pool_out(leaf_c_id), c_pool_out(fnrt_c_id), c_pool_out(sapw_c_id), &
                        c_pool_out(store_c_id), c_pool_out(struct_c_id), &
                        c_mask(leaf_c_id), c_mask(fnrt_c_id), c_mask(sapw_c_id), &
@@ -981,10 +983,11 @@ module PRTAllometricCarbonMod
       ! locals
       integer  :: ipft           ! PFT index
       integer  :: crowndamage    ! Damage class
-      real(r8) :: canopy_trim    ! Canopy trimming function (boundary condition) [0-1]
+      real(r8) :: canopy_trim    ! Canopy trimming function (boundary condition [0-1]
       real(r8) :: elongf_leaf    ! Leaf elongation factor (boundary condition) [0-1]
       real(r8) :: elongf_fnrt    ! Fine-root "elongation factor" (boundary condition) [0-1]
       real(r8) :: elongf_stem    ! Stem "elongation factor" (boundary condition) [0-1]
+      real(r8) :: l2fr           ! Leaf to fine-root multiplier
       real(r8) :: ct_leaf        ! target leaf biomass, dummy var (kgC)
       real(r8) :: ct_fnrt        ! target fine-root biomass, dummy var (kgC)
       real(r8) :: ct_sap         ! target sapwood biomass, dummy var (kgC)
@@ -1025,8 +1028,10 @@ module PRTAllometricCarbonMod
         elongf_fnrt = intgr_params(ac_bc_in_id_effnrt)
         elongf_stem = intgr_params(ac_bc_in_id_efstem)
         crowndamage = int(intgr_params(ac_bc_in_id_cdamage))
+        l2fr        = prt_params%allom_l2fr(ipft)
+
         call bleaf(dbh,ipft,crowndamage,canopy_trim,ct_leaf, dbldd=ct_dleafdd)
-        call bfineroot(dbh,ipft,canopy_trim,ct_fnrt,ct_dfnrtdd)
+        call bfineroot(dbh,ipft,canopy_trim,l2fr,ct_fnrt,ct_dfnrtdd)
         call bsap_allom(dbh,ipft, crowndamage, canopy_trim,sapw_area,ct_sap,ct_dsapdd)
         call bagw_allom(dbh,ipft,crowndamage, ct_agw,ct_dagwdd)
         call bbgw_allom(dbh,ipft,ct_bgw, ct_dbgwdd)        
