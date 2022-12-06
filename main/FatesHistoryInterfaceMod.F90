@@ -75,7 +75,7 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : m2_per_ha
   use FatesConstantsMod        , only : ha_per_m2
   use FatesConstantsMod        , only : m_per_cm
-  use FatesConstantsMod        , only : mm_per_m
+  use FatesConstantsMod        , only : m_per_mm
   use FatesConstantsMod        , only : sec_per_min
   use FatesConstantsMod        , only : umol_per_mol,mol_per_umol
   use FatesConstantsMod        , only : pa_per_mpa
@@ -2542,7 +2542,7 @@ end subroutine flush_hvars
             ! Mean soil matric potential (Pa) used for drought phenology
             hio_meansmp_si_pft(io_si,i_pft) = &
                  sum(sites(s)%smp_memory(1:numWaterMem,i_pft))/real(numWaterMem,r8) &
-               * dens_fresh_liquid_water * grav_earth * mm_per_m
+               * dens_fresh_liquid_water * grav_earth * m_per_mm
          end if
       end do
 
