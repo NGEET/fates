@@ -38,7 +38,7 @@ module FatesDispersalMod
       real(r8), allocatable :: outgoing_local(:,:)    ! local gridcell array of outgoing seeds, gridcell x pft
       real(r8), allocatable :: outgoing_global(:,:)   ! global accumulation array of outgoing seeds, gridcell x pft
       real(r8), allocatable :: incoming_global(:,:)   ! 
-      
+           
       contains
       
          procedure :: init
@@ -49,9 +49,9 @@ module FatesDispersalMod
 
    public :: ProbabilityDensity
    public :: IsItDispersalTime
-
-   integer :: prev_dispersal_date = 0
    
+   integer :: dispersal_date = 0 ! Last date in which there was a dispersal
+  
    character(len=*), parameter, private :: sourcefile = __FILE__
 
 contains
@@ -83,6 +83,10 @@ contains
       this%outgoing_local(:,:) = 0._r8
       this%outgoing_global(:,:) = 0._r8
       this%incoming_global(:,:) = 0._r8
+      
+      ! Set the dispersal date to the current date.  Dispersal will start at the end of
+      ! current initial date
+      dispersal_date = GetDispersalDate()           
       
    end subroutine init
 
@@ -186,6 +190,21 @@ contains
    
    ! Determine if seeds should be dispersed across gridcells.  This eventually could be
    ! driven by plant reproduction dynamics.  For now this is based strictly on a calendar
+      
+   ! The default return value is false
+   IsItDispersalTime = .false.
+   
+   ! Determine if it is a new day, month, or year.  If true update the previous date to the current value   
+   if (GetDispersalDate() .ne. dispersal_date) then
+      IsItDispersalTime = .true.
+      dispersal_date = GetDispersalDate()
+   end if
+                                                                            
+   end function IsItDispersalTime
+   
+   ! ====================================================================================
+
+   integer function GetDispersalDate()
    
    use FatesInterfaceMod,      only : hlm_current_day, &
                                       hlm_current_month, & 
@@ -196,32 +215,20 @@ contains
                                       fates_dispersal_cadence_monthly, &
                                       fates_dispersal_cadence_yearly
 
-   ! LOCAL
-   integer :: check_date = 0
-   
-   ! initialize the return value as false
-   IsItDispersalTime = .false.
-   
    ! Select the date type to check against based on the dispersal candence
    select case(fates_dispersal_cadence)
    case (fates_dispersal_cadence_daily)
-      check_date = hlm_current_day
+      GetDispersalDate = hlm_current_day
    case (fates_dispersal_cadence_monthly)
-      check_date = hlm_current_month
+      GetDispersalDate = hlm_current_month
    case (fates_dispersal_cadence_yearly)
-      check_date = hlm_current_year
+      GetDispersalDate = hlm_current_year
    case default
       write(fates_log(),*) 'ERROR: An undefined dispersal cadence was specified: ', fates_dispersal_cadence
       call endrun(msg=errMsg(sourcefile, __LINE__))
    end select
-   
-   ! Determine if it is a new day, month, or year.  If true update the previous date to the current value   
-   if (check_date .ne. prev_dispersal_date) then
-      IsItDispersalTime = .true.
-      prev_dispersal_date = check_date
-   end if
-                                                                            
-   end function IsItDispersalTime
+                                      
+   end function GetDispersalDate
 
       
 end module FatesDispersalMod
