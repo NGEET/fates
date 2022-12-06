@@ -414,10 +414,25 @@ module PRTAllometricCarbonMod
     real(r8) ::  intgr_params(num_bc_in)
 
 
-    ipft = this%bc_in(ac_bc_in_id_pft)%ival
-    
+    ! -----------------------------------------------------------------------------------
+    ! 0.
+    ! Copy the boundary conditions into readable local variables.
+    ! We don't use pointers for bc's that ar "in" only, only "in-out" and "out"
+    ! -----------------------------------------------------------------------------------
+    ipft         = this%bc_in(ac_bc_in_id_pft)%ival
+    canopy_trim  = this%bc_in(ac_bc_in_id_ctrim)%rval
+    leaf_status  = this%bc_in(ac_bc_in_id_lstat)%ival
+    crowndamage  = this%bc_in(ac_bc_in_id_cdamage)%ival
+    elongf_leaf  = this%bc_in(ac_bc_in_id_efleaf)%rval
+    elongf_fnrt  = this%bc_in(ac_bc_in_id_effnrt)%rval
+    elongf_stem  = this%bc_in(ac_bc_in_id_efstem)%rval
+
+
+    ! -----------------------------------------------------------------------------------
+    ! 1/2. Use pointers and associations to create simpler names inside the sub-routine.
+    !      MLO. Any reason to use associate for some variables and pointers for others?
+    ! -----------------------------------------------------------------------------------
     associate( & 
-         
          leaf_c   => this%variables(leaf_c_id)%val, &
          fnrt_c   => this%variables(fnrt_c_id)%val(icd), &
          sapw_c   => this%variables(sapw_c_id)%val(icd), &
@@ -426,32 +441,21 @@ module PRTAllometricCarbonMod
          struct_c => this%variables(struct_c_id)%val(icd), &
          l2fr     => prt_params%allom_l2fr(ipft) )
 
+      dbh            => this%bc_inout(ac_bc_inout_id_dbh)%rval
+      carbon_balance => this%bc_inout(ac_bc_inout_id_netdc)%rval
+
+
 
       ! -----------------------------------------------------------------------------------
-      ! 0.
-      ! Copy the boundary conditions into readable local variables.
-      ! We don't use pointers for bc's that ar "in" only, only "in-out" and "out"
+      ! 3/4. Set some logical flags to simplify "if" blocks
       ! -----------------------------------------------------------------------------------
-
-      dbh                             => this%bc_inout(ac_bc_inout_id_dbh)%rval
-      carbon_balance                  => this%bc_inout(ac_bc_inout_id_netdc)%rval
-      
-
-      canopy_trim                     = this%bc_in(ac_bc_in_id_ctrim)%rval
-      leaf_status                     = this%bc_in(ac_bc_in_id_lstat)%ival
-      crowndamage                     = this%bc_in(ac_bc_in_id_cdamage)%ival
-      elongf_leaf                     = this%bc_in(ac_bc_in_id_efleaf)%rval
-      elongf_fnrt                     = this%bc_in(ac_bc_in_id_effnrt)%rval
-      elongf_stem                     = this%bc_in(ac_bc_in_id_efstem)%rval
-
-
-      ! Set some logical flags to simplify "if" blocks
       is_hydecid_dormant = ( prt_params%stress_decid(ipft) == 1 ) .and. &
                            any(leaf_status == [leaves_off,leaves_pshed] )
       is_deciduous       = ( prt_params%stress_decid(ipft) == 1 ) .or.  &
                            ( prt_params%season_decid(ipft) == 1 )
 
       nleafage = prt_global%state_descriptor(leaf_c_id)%num_pos ! Number of leaf age class
+
 
       ! -----------------------------------------------------------------------------------
       ! I. Remember the values for the state variables at the beginning of this
@@ -525,6 +529,7 @@ module PRTAllometricCarbonMod
          ! -----------------------------------------------------------------------------------
 
 
+         ! -----------------------------------------------------------------------------------
          ! III.  Prioritize some amount of carbon to replace leaf/root turnover
          !         Make sure it isn't a negative payment, and either pay what is available
          !         or forcefully pay from storage. 
@@ -696,6 +701,21 @@ module PRTAllometricCarbonMod
          end if
       
       case (3)
+         ! -----------------------------------------------------------------------------------
+         ! VII 1/2: If plant is semi-deciduous, there will be cases in which plant's carbon
+         !          balance is positive but plant is losing leaves, in which case the plant
+         !          should not invest in growth.
+         ! -----------------------------------------------------------------------------------
+         select_stash_grow: select case (leaf_status)
+         case (leaves_off,leaves_pshed)
+            ! There is carbon balance, but plant is shedding leaves. We stash the carbon
+            ! to storage even if it makes their storage too large.
+            store_c_flux   = carbon_balance
+            carbon_balance = carbon_balance - store_c_flux
+            store_c        = store_c + store_c_flux
+         end select select_stash_grow
+
+
          if_carbon_increment: if(carbon_balance > calloc_abs_error ) then
 
 
@@ -716,8 +736,8 @@ module PRTAllometricCarbonMod
 
             intgr_params(:)                   = un_initialized
             intgr_params(ac_bc_in_id_ctrim)   = this%bc_in(ac_bc_in_id_ctrim)%rval
-            intgr_params(ac_bc_in_id_pft)     = real(this%bc_in(ac_bc_in_id_pft)%ival)
-            intgr_params(ac_bc_in_id_cdamage) = real(this%bc_in(ac_bc_in_id_cdamage)%ival)
+            intgr_params(ac_bc_in_id_pft)     = real(this%bc_in(ac_bc_in_id_pft)%ival,r8)
+            intgr_params(ac_bc_in_id_cdamage) = real(this%bc_in(ac_bc_in_id_cdamage)%ival,r8)
 
 
 
