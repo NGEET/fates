@@ -122,6 +122,8 @@ contains
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end select
 
+      write(fates_log(),*) 'ipft,dist,pd: ', ipft, dist, pd
+
    end subroutine ProbabilityDensity
 
    ! ====================================================================================
@@ -138,6 +140,7 @@ contains
       ! for different weight calculations (and could be held only in fates)
       
       PD_exponential = exp(-EDPftvarcon_inst%seed_dispersal_param_A(ipft)*dist)
+      write(fates_log(),*) 'ipft,dist,PD_exp: ', ipft, dist, PD_exponential
 
    end function PD_exponential
 
@@ -206,11 +209,11 @@ contains
 
    integer function GetDispersalDate()
    
-   use FatesInterfaceMod,      only : hlm_current_day, &
+   use FatesInterfaceTypesMod,      only : hlm_current_day, &
                                       hlm_current_month, & 
                                       hlm_current_year, &
-                                      hlm_current_date
-   use FatesInterfaceTypesMod, only : fates_dispersal_cadence, &
+                                      hlm_current_date, &
+                                      fates_dispersal_cadence, &
                                       fates_dispersal_cadence_daily, &
                                       fates_dispersal_cadence_monthly, &
                                       fates_dispersal_cadence_yearly
