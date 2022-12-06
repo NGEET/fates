@@ -189,18 +189,31 @@ contains
 
    ! ====================================================================================
    
-   logical function IsItDispersalTime()
+   logical function IsItDispersalTime(setflag)
    
    ! Determine if seeds should be dispersed across gridcells.  This eventually could be
    ! driven by plant reproduction dynamics.  For now this is based strictly on a calendar
       
+   ! Arguments
+   logical, optional :: setflag ! Set the dispersal date as the current date
+
+   ! Local
+   logical :: setdateflag
+
    ! The default return value is false
    IsItDispersalTime = .false.
    
+   ! Check if optional flag is provided.  
+   if (present(setflag)) then
+      setdateflag = setflag
+   else
+      setdateflag = .false.
+   end if
+
    ! Determine if it is a new day, month, or year.  If true update the previous date to the current value   
    if (GetDispersalDate() .ne. dispersal_date) then
       IsItDispersalTime = .true.
-      dispersal_date = GetDispersalDate()
+      if (setdateflag)  dispersal_date = GetDispersalDate()
    end if
                                                                             
    end function IsItDispersalTime
