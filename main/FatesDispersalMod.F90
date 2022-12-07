@@ -87,7 +87,7 @@ contains
       
       ! Set the dispersal date to the current date.  Dispersal will start at the end of
       ! current initial date
-      dispersal_date = GetCandenceDate()           
+      dispersal_date = GetCadenceDate()           
       
    end subroutine init
 
@@ -232,11 +232,11 @@ contains
       IsItDispersalTime = .true.
       dispersal_flag = .false.
    else
-      if (GetCandenceDate() .ne. dispersal_date) then
+      if (GetCadenceDate() .ne. dispersal_date) then
          IsItDispersalTime = .true.
          if (setflag) then
             dispersal_flag = .true.
-            dispersal_date = GetCandenceDate()
+            dispersal_date = GetCadenceDate()
          end if
       end if
       
@@ -246,7 +246,7 @@ contains
    
    ! ====================================================================================
 
-   integer function GetCandenceDate()
+   integer function GetCadenceDate()
    
    use FatesInterfaceTypesMod,      only : hlm_current_day, &
                                       hlm_current_month, & 
@@ -260,17 +260,17 @@ contains
    ! Select the date type to check against based on the dispersal candence
    select case(fates_dispersal_cadence)
    case (fates_dispersal_cadence_daily)
-      GetCandenceDate = hlm_current_day
+      GetCadenceDate = hlm_current_day
    case (fates_dispersal_cadence_monthly)
-      GetCandenceDate = hlm_current_month
+      GetCadenceDate = hlm_current_month
    case (fates_dispersal_cadence_yearly)
-      GetCandenceDate = hlm_current_year
+      GetCadenceDate = hlm_current_year
    case default
       write(fates_log(),*) 'ERROR: An undefined dispersal cadence was specified: ', fates_dispersal_cadence
       call endrun(msg=errMsg(sourcefile, __LINE__))
    end select
                                       
-   end function GetCandenceDate
+   end function GetCadenceDate
 
       
 end module FatesDispersalMod
