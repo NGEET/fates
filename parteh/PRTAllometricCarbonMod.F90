@@ -417,7 +417,7 @@ module PRTAllometricCarbonMod
     ! -----------------------------------------------------------------------------------
     ! 0.
     ! Copy the boundary conditions into readable local variables.
-    ! We don't use pointers for bc's that ar "in" only, only "in-out" and "out"
+    ! We don't use pointers for bc's that are "in" only, only "in-out" and "out"
     ! -----------------------------------------------------------------------------------
     ipft         = this%bc_in(ac_bc_in_id_pft)%ival
     canopy_trim  = this%bc_in(ac_bc_in_id_ctrim)%rval
@@ -426,6 +426,13 @@ module PRTAllometricCarbonMod
     elongf_leaf  = this%bc_in(ac_bc_in_id_efleaf)%rval
     elongf_fnrt  = this%bc_in(ac_bc_in_id_effnrt)%rval
     elongf_stem  = this%bc_in(ac_bc_in_id_efstem)%rval
+    !--- Set some logical flags to simplify "if" blocks
+    is_hydecid_dormant = any(prt_params%stress_decid(ipft) == [ihard_stress_decid,isemi_stress_decid] ) &
+                         .and. any(leaf_status == [leaves_off,leaves_pshed] )
+    is_deciduous       = any(prt_params%stress_decid(ipft) == [ihard_stress_decid,isemi_stress_decid] ) &
+                         .or. ( prt_params%season_decid(ipft) == itrue )
+
+    nleafage = prt_global%state_descriptor(leaf_c_id)%num_pos ! Number of leaf age class
 
 
     ! -----------------------------------------------------------------------------------
@@ -445,16 +452,6 @@ module PRTAllometricCarbonMod
       carbon_balance => this%bc_inout(ac_bc_inout_id_netdc)%rval
 
 
-
-      ! -----------------------------------------------------------------------------------
-      ! 3/4. Set some logical flags to simplify "if" blocks
-      ! -----------------------------------------------------------------------------------
-      is_hydecid_dormant = ( prt_params%stress_decid(ipft) == 1 ) .and. &
-                           any(leaf_status == [leaves_off,leaves_pshed] )
-      is_deciduous       = ( prt_params%stress_decid(ipft) == 1 ) .or.  &
-                           ( prt_params%season_decid(ipft) == 1 )
-
-      nleafage = prt_global%state_descriptor(leaf_c_id)%num_pos ! Number of leaf age class
 
 
       ! -----------------------------------------------------------------------------------
@@ -738,6 +735,10 @@ module PRTAllometricCarbonMod
             intgr_params(ac_bc_in_id_ctrim)   = this%bc_in(ac_bc_in_id_ctrim)%rval
             intgr_params(ac_bc_in_id_pft)     = real(this%bc_in(ac_bc_in_id_pft)%ival,r8)
             intgr_params(ac_bc_in_id_cdamage) = real(this%bc_in(ac_bc_in_id_cdamage)%ival,r8)
+            intgr_params(ac_bc_in_id_lstat)   = real(this%bc_in(ac_bc_in_id_lstat)%ival,r8)
+            intgr_params(ac_bc_in_id_efleaf)  = this%bc_in(ac_bc_in_id_efleaf)%rval
+            intgr_params(ac_bc_in_id_effnrt)  = this%bc_in(ac_bc_in_id_effnrt)%rval
+            intgr_params(ac_bc_in_id_efstem)  = this%bc_in(ac_bc_in_id_efstem)%rval
 
 
 
