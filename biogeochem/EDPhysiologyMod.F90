@@ -1603,13 +1603,13 @@ contains
     integer  :: n_litt_types           ! number of litter element types (c,n,p, etc)
     integer  :: el                     ! loop counter for litter element types
     integer  :: element_id             ! element id consistent with parteh/PRTGenericMod.F90
-    real(r8) :: disp_frac(maxpft) ! fraction of seed-rain among the site_seed_rain that's leaving the site [unitless]
+    real(r8) :: EDPftvarcon_inst%seed_dispersal_fraction(maxpft) ! fraction of seed-rain among the site_seed_rain that's leaving the site [unitless]
 
     do el = 1, num_elements
 
        site_seed_rain(:) = 0._r8
 
-       disp_frac(:) = 0.2       ! to be specified in the parameter file or calculated using dispersal kernel 
+       EDPftvarcon_inst%seed_dispersal_fraction(:) = 0.2       ! to be specified in the parameter file or calculated using dispersal kernel 
 
        element_id = element_list(el)
 
@@ -1679,7 +1679,7 @@ contains
              if(currentSite%use_this_pft(pft).eq.itrue)then
              ! Seed input from local sources (within site)
 
-             litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)*(1-disp_frac(pft))/area ![kg/m2/day]
+             litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)*(1-EDPftvarcon_inst%seed_dispersal_fraction(pft))/area ![kg/m2/day]
              !write(fates_log(),*) 'pft, litt%seed_in_local(pft), site_seed_rain(pft): ', pft, litt%seed_in_local(pft), site_seed_rain(pft)
 
              ! If there is forced external seed rain, we calculate the input mass flux
@@ -1716,14 +1716,14 @@ contains
        enddo
 
         do pft = 1,numpft
-            site_mass%seed_out = site_mass%seed_out + site_seed_rain(pft)*disp_frac(pft) ![kg/site/day]
+            site_mass%seed_out = site_mass%seed_out + site_seed_rain(pft)*EDPftvarcon_inst%seed_dispersal_fraction(pft) ![kg/site/day]
             !write(fates_log(),*) 'pft, site_seed_rain(pft), site_mass%seed_out: ', pft, site_mass%seed_out
         end do
  
     end do
 
     do pft = 1,numpft
-        bc_out%seed_out(pft) = bc_out%seed_out(pft) + site_seed_rain(pft)*disp_frac(pft) ![kg/site/day]
+        bc_out%seed_out(pft) = bc_out%seed_out(pft) + site_seed_rain(pft)*EDPftvarcon_inst%seed_dispersal_fraction(pft) ![kg/site/day]
         write(fates_log(),*) 'pft, bc_in%seed_in(pft), bc_out%seed_out(pft): ', pft, bc_in%seed_in(pft), bc_out%seed_out(pft)
     end do
 
