@@ -1603,7 +1603,6 @@ contains
     integer  :: n_litt_types           ! number of litter element types (c,n,p, etc)
     integer  :: el                     ! loop counter for litter element types
     integer  :: element_id             ! element id consistent with parteh/PRTGenericMod.F90
-    real(r8) :: EDPftvarcon_inst%seed_dispersal_fraction(maxpft) ! fraction of seed-rain among the site_seed_rain that's leaving the site [unitless]
 
     do el = 1, num_elements
 
