@@ -1723,7 +1723,7 @@ contains
 
     do pft = 1,numpft
         bc_out%seed_out(pft) = bc_out%seed_out(pft) + site_seed_rain(pft)*EDPftvarcon_inst%seed_dispersal_fraction(pft) ![kg/site/day]
-        write(fates_log(),*) 'pft, bc_in%seed_in(pft), bc_out%seed_out(pft): ', pft, bc_in%seed_in(pft), bc_out%seed_out(pft)
+      !   write(fates_log(),*) 'pft, bc_in%seed_in(pft), bc_out%seed_out(pft): ', pft, bc_in%seed_in(pft), bc_out%seed_out(pft)
     end do
 
     return
