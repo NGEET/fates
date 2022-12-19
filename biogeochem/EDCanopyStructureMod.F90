@@ -19,11 +19,12 @@ module EDCanopyStructureMod
   use EDCohortDynamicsMod   , only : InitPRTBoundaryConditions
   use FatesAllometryMod     , only : tree_lai
   use FatesAllometryMod     , only : tree_sai
-  use FatesAllometryMod     , only : GetNLevVeg
+  use EDCohortDynamicsMod   , only : GetNLevVeg
   use EDtypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod            , only : nclmax
   use EDTypesMod            , only : nlevleaf
-  use EDtypesMod            , only : AREA
+  use EDtypesMod            , only : area, dinc_vai, dlower_vai
+  use EDTypesMod            , only : n_hite_bins
   use EDLoggingMortalityMod , only : UpdateHarvestC
   use FatesGlobals          , only : endrun => fates_endrun
   use FatesInterfaceTypesMod     , only : hlm_days_per_year
@@ -31,7 +32,7 @@ module EDCanopyStructureMod
   use FatesInterfaceTypesMod     , only : hlm_use_cohort_age_tracking
   use FatesInterfaceTypesMod     , only : hlm_use_sp
   use FatesInterfaceTypesMod     , only : numpft
-  use FatesInterfaceTypesMod, only : bc_in_type
+  use FatesInterfaceTypesMod, only : bc_in_type,bc_out_type
   use FatesPlantHydraulicsMod, only : UpdateH2OVeg,InitHydrCohort, RecruitWaterStorage
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : leaf_organ
@@ -1229,7 +1230,6 @@ contains
     !  Calculates the spatial spread of tree canopies based on canopy closure.
     !
     ! !USES:
-    use EDTypesMod        , only : AREA
     use EDParamsMod, only : ED_val_canopy_closure_thresh
     !
     ! !ARGUMENTS
@@ -1268,7 +1268,7 @@ contains
 
     ! If the canopy area is approaching closure,
     ! squash the tree canopies and make them taller and thinner
-    if( sitelevel_canopyarea/AREA .gt. ED_val_canopy_closure_thresh ) then
+    if( sitelevel_canopyarea/area .gt. ED_val_canopy_closure_thresh ) then
        currentSite%spread = currentSite%spread - inc
     else
        currentSite%spread = currentSite%spread + inc
@@ -1494,7 +1494,7 @@ contains
 
     ! !USES:
 
-    use EDtypesMod           , only : area, dinc_vai, dlower_vai, hitemax, n_hite_bins
+    
 
     !
     ! !ARGUMENTS
@@ -1794,11 +1794,6 @@ contains
     ! to vegetation coverage to the host land model.
     ! ----------------------------------------------------------------------------------
 
-    use EDTypesMod        , only : ed_patch_type, ed_cohort_type, &
-         ed_site_type, AREA
-    use FatesInterfaceTypesMod , only : bc_out_type
-
-    !
     ! !ARGUMENTS
     integer,            intent(in)            :: nsites
     type(ed_site_type), intent(inout), target :: sites(nsites)
@@ -1904,17 +1899,17 @@ contains
              ! The alternative is to assume it is all spatial distinct from tree canopies.
              ! In which case, the bare area would have to be reduced by the grass area...
              ! currentPatch%total_canopy_area/currentPatch%area is fraction of this patch cover by plants
-             ! currentPatch%area/AREA is the fraction of the soil covered by this patch.
+             ! currentPatch%area/area is the fraction of the soil covered by this patch.
 
              if(currentPatch%area.gt.0.0_r8)then
                 bc_out(s)%canopy_fraction_pa(ifp) = &
-                     min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)*(currentPatch%area/AREA)
+                     min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)*(currentPatch%area/area)
              else
                 bc_out(s)%canopy_fraction_pa(ifp) = 0.0_r8
              endif
 
              bare_frac_area = (1.0_r8 - min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)) * &
-                  (currentPatch%area/AREA)
+                  (currentPatch%area/area)
 
              total_patch_area = total_patch_area + bc_out(s)%canopy_fraction_pa(ifp) + bare_frac_area
 
@@ -1947,7 +1942,7 @@ contains
 
           else  ! nocomp or SP, and currentPatch%nocomp_pft_label .eq. 0
 
-             total_patch_area = total_patch_area + currentPatch%area/AREA
+             total_patch_area = total_patch_area + currentPatch%area/area
 
           end if
           currentPatch => currentPatch%younger
@@ -2120,7 +2115,6 @@ contains
    ! ---------------------------------------------------------------------------------------------
 
    ! Uses
-   use EDtypesMod, only : dlower_vai
 
    ! Arguments
    type(ed_patch_type),intent(inout), target   :: currentPatch
@@ -2147,8 +2141,7 @@ contains
             ft     = currentCohort%pft
             
             ! Update the cohort level lai and related variables
-            call UpdateCohortLAI(currentCohort,currentPatch%canopy_layer_tlai,  &
-                 currentPatch%total_canopy_area)
+            call UpdateCohortLAI(currentCohort,currentPatch)            
 
             currentPatch%ncan(cl,ft) = max(currentPatch%ncan(cl,ft),currentCohort%nveg_act)
             
@@ -2165,17 +2158,14 @@ contains
   end subroutine UpdatePatchLAI
   ! ===============================================================================================
   
-  subroutine UpdateCohortLAI(currentCohort, canopy_layer_tlai, total_canopy_area)
+  subroutine UpdateCohortLAI(currentCohort, currentPatch)
    
    ! Update LAI and related variables for a given cohort
    
    ! Uses
-   use EDtypesMod, only : dlower_vai
-   
    ! Arguments
-   type(ed_cohort_type),intent(inout), target   :: currentCohort
-   real(r8), intent(in) :: canopy_layer_tlai(nclmax)  ! total leaf area index of each canopy layer
-   real(r8), intent(in) :: total_canopy_area                  ! either patch%total_canopy_area or patch%area
+   type(ed_cohort_type) :: currentCohort
+   type(ed_patch_type)  :: currentPatch 
    
    ! Local variables
    real(r8) :: leaf_c                              ! leaf carbon [kg]
@@ -2187,23 +2177,20 @@ contains
    ! Note that tree_lai has an internal check on the canopy locatoin
    currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, &
         currentCohort%n, currentCohort%canopy_layer,               &
-        canopy_layer_tlai,currentCohort%vcmax25top )
+        currentPatch%canopy_layer_tlai, currentCohort%vcmax25top )
  
    if (hlm_use_sp .eq. ifalse) then
       currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%crowndamage, &
                                        currentCohort%canopy_trim, &
                                        currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
-                                       canopy_layer_tlai, currentCohort%treelai , &
-                                       currentCohort%vcmax25top,4)
+                                       currentPatch%canopy_layer_tlai, currentCohort%treelai , &
+                                       sum(dinc_vai),currentCohort%vcmax25top,4)
    end if
    
    ! Number of actual vegetation layers in this cohort's crown
-   call GetNLevVeg(currentCohort%dbh, leaf_c, currentCohort%c_area, currentCohort%pft, currentCohort%n, &
-         currentCohort%crowndamage, currentCohort%canopy_trim, currentCohort%canopy_layer, &
-         canopy_layer_tlai, currentCohort%vcmax25top, &
-         currentCohort%nveg_act, currentCohort%nveg_max)
+   call GetNLevVeg(currentCohort,currentPatch)
 
-   
+   return
   end subroutine UpdateCohortLAI
   
   ! ===============================================================================================

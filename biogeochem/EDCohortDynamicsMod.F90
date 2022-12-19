@@ -39,11 +39,14 @@ Module EDCohortDynamicsMod
   use EDTypesMod            , only : min_n_safemath
   use EDTypesMod            , only : nlevleaf
   use EDTypesMod            , only : nlevleafmem
+  use EDTypesMod            , only : use_relative_leafmem_layers
+  use EDTypesMod            , only : GetLeafFromMemLayer
   use PRTGenericMod         , only : max_nleafage
   use EDTypesMod            , only : ican_upper
   use EDTypesMod            , only : site_fluxdiags_type
-  use PRTGenericMod          , only : num_elements
+  use PRTGenericMod         , only : num_elements
   use EDTypesMod            , only : leaves_on
+  use EDTypesMod            , only : dinc_vai,dlower_vai
   use EDParamsMod           , only : ED_val_cohort_age_fusion_tol
   use FatesInterfaceTypesMod      , only : hlm_use_planthydro
   use FatesInterfaceTypesMod      , only : hlm_parteh_mode
@@ -74,7 +77,6 @@ Module EDCohortDynamicsMod
   use FatesAllometryMod  , only : tree_lai, tree_sai
   use FatesAllometryMod    , only : set_root_fraction
   use PRTGenericMod,          only : prt_carbon_allom_hyp
-  use FatesAllometryMod  , only : GetNLevVeg
   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
   use PRTGenericMod,          only : prt_vartypes
   use PRTGenericMod,          only : carbon12_element
@@ -134,6 +136,7 @@ Module EDCohortDynamicsMod
   public :: DeallocateCohort
   public :: EvaluateAndCorrectDBH
   public :: DamageRecovery
+  public :: GetNLevVeg
   
   logical, parameter :: debug  = .false. ! local debug flag
 
@@ -299,7 +302,8 @@ contains
        new_cohort%treesai = tree_sai(new_cohort%pft, new_cohort%dbh, &
             new_cohort%crowndamage, new_cohort%canopy_trim,   &
             new_cohort%c_area, new_cohort%n, new_cohort%canopy_layer, &
-            patchptr%canopy_layer_tlai, new_cohort%treelai,new_cohort%vcmax25top,2 )
+            patchptr%canopy_layer_tlai, new_cohort%treelai, sum(dinc_vai), &
+            new_cohort%vcmax25top,2 )
     end if
 
 
@@ -2013,31 +2017,34 @@ contains
     
     real(r8) :: joint_net_uptake(nlevleaf)
     real(r8) :: joint_wgt(nlevleaf)
-    real(r8) :: leaf_c
     integer :: iv  ! veg layer index
     integer :: ivm  ! veg layer memory index
     integer :: iv0,iv1  ! lowest and highest veg layer index matching memory
     
     joint_net_uptake(:) = 0._r8
     joint_wgt(:) = 0._r8
+
+    ccohort%canopy_trim = (ccohort%n*ccohort%canopy_trim &
+         + ncohort%n*ncohort%canopy_trim)/(ccohort%n+ncohort%n)
+
     
     if(ccohort%is_trimmable .and. ncohort%is_trimmable) then
 
-       ccohort%canopy_trim = (ccohort%n*ccohort%canopy_trim &
-            + ncohort%n*ncohort%canopy_trim)/(ccohort%n+ncohort%n)
+       !ccohort%canopy_trim = (ccohort%n*ccohort%canopy_trim &
+       !     + ncohort%n*ncohort%canopy_trim)/(ccohort%n+ncohort%n)
        
        do ivm = 1, min(nlevleafmem,ccohort%nveg_max)
-          iv = ccohort%nveg_max - ivm + 1
+          iv = GetLeafFromMemLayer(ccohort,ivm)
           joint_net_uptake(iv) = ccohort%n*ccohort%year_net_uptake(ivm)
           joint_wgt(iv)        = ccohort%n
        end do
        do ivm = 1, min(nlevleafmem,ncohort%nveg_max)
-          iv = ncohort%nveg_max - ivm + 1
+          iv = GetLeafFromMemLayer(ncohort,ivm)
           joint_net_uptake(iv) = joint_net_uptake(iv)+ncohort%n*ncohort%year_net_uptake(ivm)
           joint_wgt(iv)        = joint_wgt(iv)+ncohort%n
        end do
 
-       iv0 = min(max(ccohort%nveg_max-nlevleafmem+1,1),max(ncohort%nveg_max-nlevleafmem+1,1))
+       iv0 = max(1,min(ccohort%nveg_max,ncohort%nveg_max)-nlevleafmem+1)
        iv1 = max(ccohort%nveg_max,ncohort%nveg_max)
 
        if(debug)then
@@ -2053,6 +2060,8 @@ contains
           if(joint_wgt(iv)<nearzero) then
 
              write(fates_log(),*) 'no joint weight when fusing carbon balance array'
+             write(fates_log(),*) 'iv: ',iv
+             write(fates_log(),*) 'joint_wgt: ',joint_wgt(:)
              call endrun(msg=errMsg(sourcefile, __LINE__))
 
              ! This scenario should be incredibly unlikely
@@ -2065,15 +2074,10 @@ contains
              joint_net_uptake(iv) = joint_net_uptake(iv)/joint_wgt(iv)
           end if
        end do
-
-       leaf_c = ccohort%prt%GetState(leaf_organ, carbon12_element)
-       call GetNLevVeg(ccohort%dbh, leaf_c, ccohort%c_area, ccohort%pft, (ccohort%n+ncohort%n), &
-                       ccohort%crowndamage, ccohort%canopy_trim, ccohort%canopy_layer, &
-                       cpatch%canopy_layer_tlai, ccohort%vcmax25top, &
-                       ccohort%nveg_act,ccohort%nveg_max) 
-
+       
+       ccohort%nveg_max = max(ccohort%nveg_max,ncohort%nveg_max)
        do ivm = 1, min(nlevleafmem,ccohort%nveg_max)
-          iv = ccohort%nveg_max - ivm + 1
+          iv = GetLeafFromMemLayer(ccohort,ivm)
           ccohort%year_net_uptake(ivm) = joint_net_uptake(iv)
        end do
 
@@ -2082,19 +2086,23 @@ contains
        ! Note: If the recipient cohort (ccohort) is trimmable
        ! but the donor (ncohort) is not, then the cohort maintains
        ! its trimming information and ignores the donor's
-       ! thus, nothing needs to be done
+       ! thus, nothing needs to be done !!!
        ! Note: If both cohorts are not trimmable, then they
        ! both should have uninitialized year_net_uptakes, and
-       ! thus, nothing needs to be done
+       ! thus, nothing needs to be done !!!
 
        if(ncohort%is_trimmable) then
-          ccohort%canopy_trim = ncohort%canopy_trim
+          !ccohort%canopy_trim = ncohort%canopy_trim
           ccohort%year_net_uptake(:) = ncohort%year_net_uptake(:)
           ccohort%is_trimmable = .true.
        end if
        
     end if
 
+    
+    ! Update the number of vegetation layers, cohort%nveg_act and cohort%nveg_max
+    call GetNLevVeg(ccohort,cpatch)
+    
   end subroutine FuseVegLayerMem
 
                                       
@@ -2530,6 +2538,77 @@ contains
     
     return
   end subroutine DamageRecovery
-  
 
+  ! =====================================================================================
+  
+  subroutine GetNLevVeg(cohort,patch)
+
+    ! ---------------------------------------------------------------------
+    ! Determine the number of leaf (vegetation) layers
+    ! for a cohort. This is based off of allometry, and assuming the plant
+    ! has the maximum leaf for its size and trimming.
+    !
+    ! This routine updates:  cohort%nveg_act and cohort%nveg_max
+    !
+    ! Also, depending on the hypothesis used for leaf layering, we may
+    ! shift the leaf-layer index that matches our memory array.
+    ! --------------------------------------------------------------------
+
+    type(ed_cohort_type) :: cohort
+    type(ed_patch_type)  :: patch
+    real(r8) :: leaf_c_target ! leaf allometry target
+    real(r8) :: lai           ! tree lai, either actual or target
+    real(r8) :: sai           ! tree sai, either actual or target
+    integer  :: nveg_max      ! temporary nveg_max used to shift
+                              ! net carbon uptake array, if necessary
+    integer  :: di            ! differential memory index used for
+                              ! shifting yearly uptake array to a new offset
+    
+    lai = tree_lai(cohort%prt%GetState(leaf_organ, carbon12_element), &
+                   cohort%pft, cohort%c_area, &
+                   cohort%n, cohort%canopy_layer, &
+                   patch%canopy_layer_tlai, cohort%vcmax25top )
+    
+    sai = tree_sai(cohort%pft, cohort%dbh, cohort%crowndamage, &
+                   cohort%canopy_trim, cohort%c_area, cohort%n, &
+                   cohort%canopy_layer, patch%canopy_layer_tlai, lai, &
+                   sum(dinc_vai),cohort%vcmax25top, 0)
+
+    cohort%nveg_act = count((lai+sai) .gt. dlower_vai(:)) + 1
+
+    call bleaf(cohort%dbh,cohort%pft,cohort%crowndamage,cohort%canopy_trim,leaf_c_target)
+    
+    lai = tree_lai(leaf_c_target, cohort%pft, cohort%c_area, &
+                   cohort%n, cohort%canopy_layer, patch%canopy_layer_tlai, &
+                   cohort%vcmax25top )    
+    
+    sai = tree_sai(cohort%pft, cohort%dbh, cohort%crowndamage, cohort%canopy_trim, &
+                   cohort%c_area, cohort%n, cohort%canopy_layer, patch%canopy_layer_tlai, lai, &
+                   sum(dinc_vai),cohort%vcmax25top, 0)
+
+    nveg_max  = count((lai+sai) .gt. dlower_vai(:)) + 1
+
+    ! If the plant recently grew past the matchpoint on the veg layer memory
+    ! array, then we have to shift everything up one and initialize the new
+    ! memory layer.
+    
+    if( (.not.use_relative_leafmem_layers) .and. &
+         (cohort%nveg_max.ne.fates_unset_int) ) then
+       if(nveg_max .ne. cohort%nveg_max) then
+          di = nveg_max - cohort%nveg_max
+          if(di>0) then
+             cohort%year_net_uptake(1+di:nlevleafmem) = cohort%year_net_uptake(1:nlevleafmem-di)
+             cohort%year_net_uptake(1:di)             = 0._r8
+          else
+             cohort%year_net_uptake(1:nlevleafmem+di) = cohort%year_net_uptake(1-di:nlevleafmem)
+             cohort%year_net_uptake(nlevleafmem+di+1:nlevleafmem) = 0._r8             
+          end if
+       end if
+    end if
+    
+    cohort%nveg_max                       = nveg_max
+    
+    return
+  end subroutine GetNLevVeg
+  
 end module EDCohortDynamicsMod

@@ -54,7 +54,7 @@ module EDInitMod
   use FatesInterfaceTypesMod         , only : nlevdamage
   use FatesInterfaceTypesMod         , only : hlm_use_nocomp
   use FatesInterfaceTypesMod         , only : nlevage
-
+  use EDCohortDynamicsMod       , only : GetNLevVeg
   use FatesAllometryMod         , only : h2d_allom
   use FatesAllometryMod         , only : bagw_allom
   use FatesAllometryMod         , only : bbgw_allom
@@ -672,6 +672,7 @@ contains
                 do while(associated(newc))
                    newc%is_trimmable = .true.
                    newc%year_net_uptake(:) = 0._r8
+                   call GetNLevVeg(newc,newp)
                    newc => newc%shorter
                 end do
                 newp=>newp%younger

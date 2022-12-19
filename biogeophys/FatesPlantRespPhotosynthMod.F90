@@ -39,6 +39,8 @@ module FATESPlantRespPhotosynthMod
   use EDTypesMod,        only : nlevleaf
   use EDTypesMod,        only : nlevleafmem
   use EDTypesMod,        only : nclmax
+  use EDTypesMod,        only : GetLeafFromMemLayer
+  use EDTypesMod,        only : GetMemFromLeafLayer
   use PRTGenericMod,     only : max_nleafage
   use EDTypesMod,        only : do_fates_salinity
   use EDParamsMod,       only : q10_mr
@@ -136,8 +138,7 @@ contains
     use FatesAllometryMod, only : storage_fraction_of_target
     use FatesAllometryMod, only : set_root_fraction
     use FatesAllometryMod, only : decay_coeff_kn
-
-    use DamageMainMod, only : GetCrownReduction
+    use FatesAllometryMod, only : GetCrownReduction
 
     use FatesInterfaceTypesMod, only : hlm_use_tree_damage
     
@@ -613,13 +614,13 @@ contains
                          end do leaf_layer_loop
 
                          ! Zero cohort flux accumulators.
-                         currentCohort%npp_tstep  = 0.0_r8
-                         currentCohort%resp_tstep = 0.0_r8
-                         currentCohort%gpp_tstep  = 0.0_r8
-                         currentCohort%rdark      = 0.0_r8
-                         currentCohort%resp_m     = 0.0_r8
-                         currentCohort%ts_net_uptake = 0.0_r8
-                         currentCohort%c13disc_clm = 0.0_r8
+                         currentCohort%npp_tstep        = 0.0_r8
+                         currentCohort%resp_tstep       = 0.0_r8
+                         currentCohort%gpp_tstep        = 0.0_r8
+                         currentCohort%rdark            = 0.0_r8
+                         currentCohort%resp_m           = 0.0_r8
+                         currentCohort%ts_net_uptake(:) = 0.0_r8
+                         currentCohort%c13disc_clm      = 0.0_r8
 
                          ! ---------------------------------------------------------------
                          ! Part VII: Transfer leaf flux rates (like maintenance respiration,
@@ -663,18 +664,32 @@ contains
 
                             if(.not.stretch_cbalmem_vert)then
 
-                               ivb = nva
-                               ivt = max(1,nvm-nlevleafmem+1)
-                               if(ivb>=ivt) then
-                                  do iv = ivt,ivb
-                                     ivm = nvm - iv + 1
-                                     ! Its possible that the leaves aren't flushed enough
-                                     ! to lign up with any of the memory bins
-                                     if(ivm>0 .and. ivm.le.nlevleafmem) then
-                                        currentCohort%ts_net_uptake(ivm) = anet_av_z(iv,ft,cl) * umolC_to_kgC
-                                     end if
-                                  end do
-                               end if
+                               ! These are the top (ivt) and bottom (ivb)
+                               ! leaf-layers that match up with the top and bottom
+                               ! leaf memory layers. iv loops over these leaf
+                               ! layers, which starts higher (vertically) and decends
+                               ! If the leaves are fully flushed, it should end on
+                               ! the leaf memory index of 1.
+                               
+                               !ivb = nvm
+                               !ivt = max(1,nvm-nlevleafmem+1)
+                               !if(ivb>=ivt) then
+                               !   do iv = ivt,ivb
+                               !      ivm = currentCohort%GetMemFromLeafLayer(iv)
+                               !      ! Its possible that the leaves aren't flushed enough
+                               !      ! to lign up with any of the memory bins
+                               !      if(ivm>0 .and. ivm.le.nlevleafmem) then
+                               !         currentCohort%ts_net_uptake(ivm) = anet_av_z(iv,ft,cl) * umolC_to_kgC
+                               !      end if
+                               !   end do
+                               !end if
+
+                               do ivm = 1,nlevleafmem
+                                  iv = GetLeafFromMemLayer(currentCohort,ivm)
+                                  if(iv>0 .and. iv<=nva) then
+                                     currentCohort%ts_net_uptake(ivm) = anet_av_z(iv,ft,cl) * umolC_to_kgC
+                                  end if
+                               end do
                                
                             else
                                
@@ -687,7 +702,7 @@ contains
                                   ! We are matching the memory bins with the actual
                                   ! bins by stretching out the actual bins to cover the same
                                   ! depth as the bin space defined by allometry
-                                  iv = min(nva,int(real(nvm - ivm + 1,r8) * flush_frac))
+                                  iv = min(nva,int(real(GetLeafFromMemLayer(currentCohort,ivm),r8) * flush_frac))
                                   
                                   currentCohort%ts_net_uptake(ivm) = flush_frac*anet_av_z(iv,ft,cl) * umolC_to_kgC
                                   

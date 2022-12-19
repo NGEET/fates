@@ -4,6 +4,7 @@ module EDTypesMod
   use FatesConstantsMod,     only : ifalse
   use FatesConstantsMod,     only : itrue
   use FatesGlobals,          only : fates_log
+  use FatesGlobals,          only : endrun => fates_endrun
   use FatesHydraulicsMemMod, only : ed_cohort_hydr_type
   use FatesHydraulicsMemMod, only : ed_site_hydr_type
   use PRTGenericMod,         only : prt_vartypes
@@ -22,11 +23,17 @@ module EDTypesMod
   use FatesRunningMeanMod,   only : rmean_type
   use FatesInterfaceTypesMod,only : bc_in_type
   use FatesInterfaceTypesMod,only : bc_out_type
+  use shr_log_mod           ,only : errMsg => shr_log_errMsg
   
   implicit none
   private               ! By default everything is private
   save
 
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
+
+  logical, parameter :: debug = .true.                    ! Local debug flag
+  
   integer, parameter, public :: nclmax = 2                ! Maximum number of canopy layers
   integer, parameter, public :: ican_upper = 1            ! Nominal index for the upper canopy
   integer, parameter, public :: ican_ustory = 2           ! Nominal index for diagnostics that refer
@@ -41,6 +48,8 @@ module EDTypesMod
   real(r8), parameter, public :: init_recruit_trim = 0.8_r8    ! This is the initial trimming value that
                                                                ! new recruits start with
 
+  logical, parameter, public :: use_relative_leafmem_layers = .false.
+  
   ! -------------------------------------------------------------------------------------
   ! Radiation parameters
   ! These should be part of the radiation module, but since we only have one option
@@ -54,35 +63,10 @@ module EDTypesMod
   integer, parameter, public :: idiffuse  = 2             ! This is the array index for diffuse radiation
 
   ! parameters that govern the VAI (LAI+SAI) bins used in radiative transfer code
-  integer, parameter, public :: nlevleafmem = 5             ! number of layers for veg memory used for trimming
+  integer, parameter, public :: nlevleafmem = 7             ! number of layers for veg memory used for trimming
   integer, parameter, public :: nlevleaf   = 30             ! number of leaf+stem layers in canopy layer
   real(r8), public :: dinc_vai(nlevleaf)   = fates_unset_r8 ! VAI bin widths array
   real(r8), public :: dlower_vai(nlevleaf) = fates_unset_r8 ! lower edges of VAI bins
-
-  ! TODO: we use this cp_maxSWb only because we have a static array q(size=2) of
-  ! land-ice abledo for vis and nir.  This should be a parameter, which would
-  ! get us on track to start using multi-spectral or hyper-spectral (RGK 02-2017)
-
-  integer, parameter, public :: maxSWb = 2      ! maximum number of broad-bands in the
-                                                ! shortwave spectrum cp_numSWb <= cp_maxSWb
-                                                ! this is just for scratch-array purposes
-                                                ! if cp_numSWb is larger than this value
-                                                ! simply bump this number up as needed
-
-  integer, parameter, public :: ivis = 1        ! This is the array index for short-wave
-                                                ! radiation in the visible spectrum, as expected
-                                                ! in boundary condition files and parameter
-                                                ! files.  This will be compared with 
-                                                ! the HLM's expectation in FatesInterfaceMod
-  integer, parameter, public :: inir = 2        ! This is the array index for short-wave
-                                                ! radiation in the near-infrared spectrum, as expected
-                                                ! in boundary condition files and parameter
-                                                ! files.  This will be compared with 
-                                                ! the HLM's expectation in FatesInterfaceMod
-
-  integer, parameter, public :: ipar = ivis     ! The photosynthetically active band
-                                                ! can be approximated to be equal to the visible band
-
 
   integer, parameter, public :: leaves_on  = 2  ! Flag specifying that a deciduous plant has leaves
                                                 ! and should be allocating to them as well
@@ -119,7 +103,29 @@ module EDTypesMod
 
   integer, parameter, public  :: numlevsoil_max       = 30         ! This is scratch space used for static arrays
                                                                    ! The actual number of soil layers should not exceed this
+  ! TODO: we use this cp_maxSWb only because we have a static array q(size=2) of
+  ! land-ice abledo for vis and nir.  This should be a parameter, which would
+  ! get us on track to start using multi-spectral or hyper-spectral (RGK 02-2017)
 
+  integer, parameter, public :: maxSWb = 2      ! maximum number of broad-bands in the
+                                                ! shortwave spectrum cp_numSWb <= cp_maxSWb
+                                                ! this is just for scratch-array purposes
+                                                ! if cp_numSWb is larger than this value
+                                                ! simply bump this number up as needed
+
+  integer, parameter, public :: ivis = 1        ! This is the array index for short-wave
+                                                ! radiation in the visible spectrum, as expected
+                                                ! in boundary condition files and parameter
+                                                ! files.  This will be compared with 
+                                                ! the HLM's expectation in FatesInterfaceMod
+  integer, parameter, public :: inir = 2        ! This is the array index for short-wave
+                                                ! radiation in the near-infrared spectrum, as expected
+                                                ! in boundary condition files and parameter
+                                                ! files.  This will be compared with 
+                                                ! the HLM's expectation in FatesInterfaceMod
+
+  integer, parameter, public :: ipar = ivis     ! The photosynthetically active band
+                                                ! can be approximated to be equal to the visible band
 
   ! BIOLOGY/BIOGEOCHEMISTRY        
   integer , parameter, public :: num_vegtemp_mem      = 10         ! Window of time over which we track temp for cold sensecence (days)
@@ -140,15 +146,13 @@ module EDTypesMod
   integer, parameter, public :: phen_dstat_moiston   = 2       ! Leaves on due to moisture avail   (drought phenology)
   integer, parameter, public :: phen_dstat_timeon    = 3       ! Leaves on due to time exceedance  (drought phenology)
 
+  integer,  parameter, public :: NFSC  = NCWD+2     ! number fuel size classes  (4 cwd size classes, leaf litter, and grass)
+  integer,  parameter, public :: tw_sf = 1          ! array index of twig pool for spitfire
+  integer,  parameter, public :: lb_sf = 3          ! array index of large branch pool for spitfire
+  integer,  parameter, public :: tr_sf = 4          ! array index of dead trunk pool for spitfire
+  integer,  parameter, public :: dl_sf = 5          ! array index of dead leaf pool for spitfire (dead grass and dead leaves)
+  integer,  parameter, public :: lg_sf = 6          ! array index of live grass pool for spitfire
 
-  ! SPITFIRE     
-
-  integer,  parameter, public :: NFSC                 = NCWD+2     ! number fuel size classes  (4 cwd size classes, leaf litter, and grass)
-  integer,  parameter, public :: tw_sf                = 1          ! array index of twig pool for spitfire
-  integer,  parameter, public :: lb_sf                = 3          ! array index of large branch pool for spitfire
-  integer,  parameter, public :: tr_sf                = 4          ! array index of dead trunk pool for spitfire
-  integer,  parameter, public :: dl_sf                = 5          ! array index of dead leaf pool for spitfire (dead grass and dead leaves)
-  integer,  parameter, public :: lg_sf                = 6          ! array index of live grass pool for spitfire
 
   ! PATCH FUSION 
   real(r8), parameter, public :: force_patchfuse_min_biomass = 0.005_r8   ! min biomass (kg / m2 patch area) below which to force-fuse patches
@@ -235,7 +239,10 @@ module EDTypesMod
      real(r8) ::  excl_weight                            ! How much of this cohort is demoted each year, as a proportion of all cohorts:-
      real(r8) ::  prom_weight                            ! How much of this cohort is promoted each year, as a proportion of all cohorts:-
      integer  ::  nveg_act                               ! Number of vegetation layers (actual) at any point in time
-     integer  ::  nveg_max                               ! Maximum number of vegetation layers based on allometry 
+     integer  ::  nveg_max                               ! Maximum number of vegetation layers based on allometry
+     !integer  ::  nveg_mem                               ! The vegetation layer that matches memory layer 1, we set this layer
+                                                         ! lower down in the vegetation layers, in-case the plant grows beyond
+                                                         ! its current nveg_max in between trimming events
      integer  ::  status_coh                             ! growth status of plant  (2 = leaves on , 1 = leaves off)
      real(r8) ::  c_area                                 ! areal extent of canopy (m2)
      real(r8) ::  treelai                                ! lai of an individual within cohort leaf area (m2) / crown area (m2)
@@ -414,9 +421,11 @@ module EDTypesMod
      !class(rmean_type), pointer :: tveg_lpa              ! exponential moving average of leaf temperature at the
                                                           ! leaf photosynthetic acclimation time-scale [K]
 
-     
   end type ed_cohort_type
 
+
+    
+  
   !************************************
   !** Patch type structure           **
   !************************************
@@ -906,12 +915,17 @@ module EDTypesMod
   public :: dump_patch
   public :: dump_cohort
   public :: dump_cohort_hydr
-  public :: CanUpperUnder  
-  contains
+  public :: CanUpperUnder
+  public :: GetMemFromLeafLayer
+  public :: GetLeafFromMemLayer
+  
+contains
 
-    ! =====================================================================================
 
-    function CanUpperUnder(ccohort) result(can_position)
+  
+  ! =====================================================================================
+
+  function CanUpperUnder(ccohort) result(can_position)
 
       ! This simple function is used to determine if a
       ! cohort's crown position is in the upper portion (ie the canopy)
@@ -931,7 +945,12 @@ module EDTypesMod
       end if
       
     end function CanUpperUnder
-      
+
+
+
+    
+    
+    
     ! =====================================================================================
 
     subroutine ZeroFluxDiags(this)
@@ -1211,4 +1230,29 @@ module EDTypesMod
      return
   end subroutine dump_cohort_hydr
 
+  ! =====================================================================================
+
+  function GetMemFromLeafLayer(cohort,ileaf) result(imem)
+    
+    type(ed_cohort_type) :: cohort
+    integer :: ileaf
+    integer :: imem
+
+    imem = cohort%nveg_max - ileaf + 1
+    
+  end function GetMemFromLeafLayer
+
+  ! =====================================================================================
+
+  function GetLeafFromMemLayer(cohort,imem) result(ileaf)
+
+    type(ed_cohort_type) :: cohort
+    integer :: ileaf
+    integer :: imem
+
+    ileaf = cohort%nveg_max - imem + 1
+    
+  end function GetLeafFromMemLayer
+
+  
 end module EDTypesMod

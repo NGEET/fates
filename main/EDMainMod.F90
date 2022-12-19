@@ -86,7 +86,7 @@ module EDMainMod
   use FatesPlantHydraulicsMod  , only : InitPlantHydStates
   use FatesPlantHydraulicsMod  , only : UpdateSizeDepRhizHydProps
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
-  use FatesAllometryMod        , only : h_allom,tree_sai,tree_lai
+  use FatesAllometryMod        , only : h_allom
   use EDLoggingMortalityMod    , only : IsItLoggingTime
   use DamageMainMod            , only : IsItDamageTime
   use EDPatchDynamicsMod       , only : get_frac_site_primary

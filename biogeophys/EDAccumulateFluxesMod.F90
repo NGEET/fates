@@ -103,7 +103,7 @@ contains
 
 
                    if( ccohort%is_trimmable ) then
-                      do iv=1,min(ccohort%nveg_act,nlevleafmem)
+                      do iv=1,nlevleafmem
                          ccohort%year_net_uptake(iv) = ccohort%year_net_uptake(iv) + ccohort%ts_net_uptake(iv)
                       end do
                    end if

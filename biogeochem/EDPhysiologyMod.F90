@@ -33,6 +33,7 @@ module EDPhysiologyMod
   use EDCohortDynamicsMod , only : InitPRTObject
   use EDCohortDynamicsMod , only : InitPRTBoundaryConditions
   use EDCohortDynamicsMod , only : copy_cohort
+  use EDCohortDynamicsMod , only : GetNLevVeg
   use FatesAllometryMod   , only : tree_lai
   use FatesAllometryMod   , only : tree_sai
   use FatesAllometryMod   , only : leafc_from_treelai
@@ -42,6 +43,7 @@ module EDPhysiologyMod
   use EDTypesMod          , only : numlevsoil_max
   use EDTypesMod          , only : numWaterMem
   use EDTypesMod          , only : dl_sf, dinc_vai, dlower_vai, area_inv
+  use EDTypesMod          , only : GetLeafFromMemLayer
   use EDTypesMod          , only : AREA
   use FatesLitterMod      , only : ncwd
   use FatesLitterMod      , only : ndcmpy
@@ -70,6 +72,7 @@ module EDPhysiologyMod
   use EDTypesMod          , only : phen_dstat_moiston
   use EDTypesMod          , only : phen_dstat_timeon
   use EDTypesMod          , only : init_recruit_trim
+  use EDTypesMod            , only : use_relative_leafmem_layers
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   use FatesGlobals          , only : fates_log
   use FatesGlobals          , only : endrun => fates_endrun
@@ -93,7 +96,6 @@ module EDPhysiologyMod
   use FatesAllometryMod  , only : carea_allom
   use FatesAllometryMod  , only : CheckIntegratedAllometries
   use FatesAllometryMod, only : set_root_fraction
-  use FatesAllometryMod, only : GetNLevVeg
   use PRTGenericMod, only : prt_carbon_allom_hyp
   use PRTGenericMod, only : prt_cnp_flex_allom_hyp
   use PRTGenericMod, only : prt_vartypes
@@ -115,7 +117,7 @@ module EDPhysiologyMod
   use PRTLossFluxesMod, only  : PRTDamageLosses
   use PRTGenericMod, only     : StorageNutrientTarget
   use DamageMainMod, only     : damage_time
-  use DamageMainMod, only     : GetCrownReduction
+  use FatesAllometryMod, only     : GetCrownReduction
   use DamageMainMod, only     : GetDamageFrac
   use SFParamsMod, only       : SF_val_CWD_frac
   use FatesParameterDerivedMod, only : param_derived
@@ -664,20 +666,14 @@ contains
                currentCohort%canopy_trim, &
                currentCohort%c_area, currentCohort%n,currentCohort%canopy_layer,& 
                currentPatch%canopy_layer_tlai, currentCohort%treelai, &
-               currentCohort%vcmax25top,0 )  
+               sum(dinc_vai),currentCohort%vcmax25top,0 )  
 
-          call GetNLevVeg(currentCohort%dbh, leaf_c, currentCohort%c_area, &
-               currentCohort%pft, currentCohort%n, &
-               currentCohort%crowndamage,currentCohort%canopy_trim, &
-               currentCohort%canopy_layer, &
-               currentPatch%canopy_layer_tlai, currentCohort%vcmax25top, &
-               currentCohort%nveg_act,currentCohort%nveg_max)
-          
+          call GetNLevVeg(currentCohort,currentPatch)          
 
           if (currentCohort%nveg_max > nlevleaf)then
-             write(fates_log(),*) 'nv > nlevleaf',currentCohort%nveg_max, &
+             write(fates_log(),*) 'nveg_max > nlevleaf',currentCohort%nveg_max, &
                   currentCohort%treelai,currentCohort%treesai, &
-                  currentCohort%c_area,currentCohort%n,leaf_c
+                  currentCohort%c_area,currentCohort%n
              call endrun(msg=errMsg(sourcefile, __LINE__))
           endif
 
@@ -709,10 +705,10 @@ contains
 
              cumulative_lai_cohort = 0._r8
 
-             leafmem_loop: do zm = min(nll,currentCohort%nveg_max),1,-1
+             leafmem_loop: do zm = min(nlevleafmem,currentCohort%nveg_max),1,-1
 
                 ! The actual leaf layer index (going from top to bottom)
-                z = currentCohort%nveg_max - zm + 1
+                z = GetLeafFromMemLayer(currentCohort,zm)
 
                 ! Calculate the cumulative total vegetation area index (no snow occlusion, stems and leaves)
                 
@@ -799,10 +795,11 @@ contains
                         (currentCohort%year_net_uptake(zm) - currentCohort%leaf_cost))
                    
                 end if
-                
+
                 ! Check leaf cost against the yearly net uptake for that cohort leaf layer
                 if (currentCohort%year_net_uptake(zm) < currentCohort%leaf_cost) then
                    ! Make sure the cohort trim fraction is great than the pft trim limit
+
                    if (currentCohort%canopy_trim > EDPftvarcon_inst%trim_limit(ipft)) then
 
                       ! keep trimming until none of the canopy is in negative carbon balance.
@@ -878,6 +875,9 @@ contains
              write(fates_log(),*) 'trimming:',currentCohort%canopy_trim
           endif
 
+          ! Update the number of vegetation layers, max and actual
+          call GetNLevVeg(currentCohort,currentPatch)
+          
           currentCohort => currentCohort%shorter
           icohort = icohort + 1
        enddo

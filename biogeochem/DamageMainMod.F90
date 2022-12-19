@@ -29,12 +29,10 @@ module DamageMainMod
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
   
-  public :: GetCrownReduction
   public :: GetDamageFrac
   public :: IsItDamageTime
   public :: damage_time
   public :: GetDamageMortality
-  
   
   logical :: debug = .false.  ! for debugging
 
@@ -163,20 +161,7 @@ contains
 
   !-------------------------------------------------------    
   
-  subroutine GetCrownReduction(crowndamage, crown_reduction)
 
-    !------------------------------------------------------------------
-    ! This subroutine takes the crown damage class of a cohort (integer)
-    ! and returns the fraction of the crown that is lost.                                                                  
-    !-------------------------------------------------------------------       
-
-    integer(i4), intent(in)   :: crowndamage        ! crown damage class of the cohort
-    real(r8),    intent(out)  :: crown_reduction    ! fraction of crown lost from damage
-
-    crown_reduction = ED_val_history_damage_bin_edges(crowndamage)/100.0_r8
-    
-    return
-  end subroutine GetCrownReduction
 
 
   !----------------------------------------------------------------------------------------

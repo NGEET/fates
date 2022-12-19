@@ -1848,7 +1848,6 @@ contains
     integer  :: io_idx_si_pft  ! each site-pft index
     integer  :: io_idx_si_vtmem ! indices for veg-temp memory at site
     integer  :: io_idx_pa_ncl   ! each canopy layer within each patch
-    integer  :: io_idx_co_nll   ! each leaf layer within each cohort
 
     ! Some counters (for checking mostly)
     integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
@@ -2005,7 +2004,6 @@ contains
           io_idx_si_pfcl = io_idx_co_1st
           io_idx_si_vtmem = io_idx_co_1st
           io_idx_pa_ncl   = io_idx_co_1st
-          io_idx_co_nll   = io_idx_co_1st
 
           ! Hydraulics counters  lyr = hydraulic layer, shell = rhizosphere shell
           io_idx_si_lyr_shell = io_idx_co_1st
@@ -2754,7 +2752,6 @@ contains
      integer  :: io_idx_si_cdpf ! damage x size x pft within site
      
      integer  :: io_idx_pa_ncl   ! each canopy layer within each patch
-     integer  :: io_idx_co_nll   ! each leaf layer within each cohort
 
      ! Some counters (for checking mostly)
      integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
@@ -2892,7 +2889,6 @@ contains
           io_idx_si_pfcl = io_idx_co_1st
           io_idx_si_vtmem = io_idx_co_1st
           io_idx_pa_ncl = io_idx_co_1st
-          io_idx_co_nll = io_idx_co_1st
 
           ! Hydraulics counters  lyr = hydraulic layer, shell = rhizosphere shell
           io_idx_si_lyr_shell = io_idx_co_1st

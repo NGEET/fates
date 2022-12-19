@@ -96,14 +96,10 @@ module FatesAllometryMod
   use FatesGlobals     , only : fates_log
   use FatesGlobals     , only : endrun => fates_endrun
   use FatesGlobals     , only : FatesWarn,N2S,A2S,I2S
-  use EDTypesMod       , only : nlevleaf, dinc_vai
-  use EDTypesMod       , only : nclmax, dlower_vai
-  use DamageMainMod    , only : GetCrownReduction
 
   implicit none
 
   private
-  public :: GetNLevVeg    ! Number of vegetation layers for the plant
   public :: h2d_allom     ! Generic height to diameter wrapper
   public :: h_allom       ! Generic diameter to height wrapper
   public :: bagw_allom    ! Generic AGWB (above grnd. woody bio) wrapper
@@ -126,7 +122,8 @@ module FatesAllometryMod
   public :: set_root_fraction  ! Generic wrapper to calculate normalized
                                ! root profiles
   public :: leafc_from_treelai ! Calculate target leaf carbon for a given treelai for SP mode
-
+  public :: GetCrownReduction
+  
   logical         , parameter :: verbose_logging = .false.
   character(len=*), parameter :: sourcefile = __FILE__
 
@@ -367,7 +364,6 @@ contains
   
   subroutine bagw_allom(d,ipft,crowndamage, bagw,dbagwdd)
 
-    use DamageMainMod, only : GetCrownReduction
     use FatesParameterDerivedMod, only : param_derived
     
     real(r8),intent(in)    :: d       ! plant diameter [cm]
@@ -421,6 +417,26 @@ contains
     return
   end subroutine bagw_allom
 
+  ! =============================================================================
+  
+  subroutine GetCrownReduction(crowndamage, crown_reduction)
+
+    use EDParamsMod           , only : ED_val_history_damage_bin_edges
+    
+    !------------------------------------------------------------------
+    ! This subroutine takes the crown damage class of a cohort (integer)
+    ! and returns the fraction of the crown that is lost.                                                                  
+    !-------------------------------------------------------------------       
+
+    integer(i4), intent(in)   :: crowndamage        ! crown damage class of the cohort
+    real(r8),    intent(out)  :: crown_reduction    ! fraction of crown lost from damage
+
+    crown_reduction = ED_val_history_damage_bin_edges(crowndamage)/100.0_r8
+    
+    return
+  end subroutine GetCrownReduction
+
+  
   ! ============================================================================
   ! Generic diameter to maximum leaf biomass interface
   ! ============================================================================
@@ -548,8 +564,6 @@ contains
     ! this routine is not name-spaced with allom_
     ! -------------------------------------------------------------------------
 
-    use DamageMainMod      , only : GetCrownReduction
-    
     real(r8),intent(in)    :: d             ! plant diameter [cm]
     integer(i4),intent(in) :: ipft          ! PFT index
     integer(i4),intent(in) :: crowndamage   ! crown damage class [1: undamaged, >1: damaged]
@@ -625,7 +639,7 @@ contains
     real(r8), intent(in) :: c_area                    ! areal extent of canopy (m2)
     real(r8), intent(in) :: nplant                    ! number of individuals in cohort per ha
     integer, intent(in)  :: cl                        ! canopy layer index
-    real(r8), intent(in) :: canopy_lai(nclmax)        ! total leaf area index of 
+    real(r8), intent(in) :: canopy_lai(:)             ! total leaf area index of 
                                                       ! each canopy layer
     real(r8), intent(in) :: vcmax25top                ! maximum carboxylation rate at canopy
                                                       ! top, ref 25C
@@ -742,7 +756,7 @@ contains
   ! ============================================================================
 
   real(r8) function tree_sai(pft, dbh, crowndamage, canopy_trim, c_area, nplant, cl, &
-                              canopy_lai, treelai, vcmax25top, call_id )
+                              canopy_lai, treelai, max_treevai, vcmax25top, call_id )
 
     ! ============================================================================
     !  SAI of individual trees is a function of the LAI of individual trees
@@ -751,16 +765,19 @@ contains
     integer, intent(in)  :: pft
     real(r8), intent(in) :: dbh
     integer, intent(in)  :: crowndamage
-    real(r8), intent(in) :: canopy_trim        ! trimming function (0-1)
-    real(r8), intent(in) :: c_area             ! crown area (m2)
-    real(r8), intent(in) :: nplant             ! number of plants
-    integer, intent(in)  :: cl                 ! canopy layer index
-    real(r8), intent(in) :: canopy_lai(nclmax) ! total leaf area index of 
-                                               ! each canopy layer
-    real(r8), intent(in) :: treelai            ! tree LAI for checking purposes only
-    real(r8), intent(in) :: vcmax25top         ! maximum carboxylation rate at top of crown
-    integer,intent(in)   :: call_id            ! flag specifying where this is called
-                                               ! from
+    real(r8), intent(in) :: canopy_trim   ! trimming function (0-1)
+    real(r8), intent(in) :: c_area        ! crown area (m2)
+    real(r8), intent(in) :: nplant        ! number of plants
+    integer, intent(in)  :: cl            ! canopy layer index
+    real(r8), intent(in) :: canopy_lai(:) ! total leaf area index of 
+                                          ! each canopy layer
+    real(r8), intent(in) :: treelai       ! tree LAI for checking purposes only
+    real(r8), intent(in) :: max_treevai   ! maximum tree LAI+SAI that is allowed based
+                                          ! on the constraints of the
+                                          ! incrementation arrays (ie dinc_vai)
+    real(r8), intent(in) :: vcmax25top    ! maximum carboxylation rate at top of crown
+    integer,intent(in)   :: call_id       ! flag specifying where this is called
+                                          ! from
     real(r8)             :: h
     real(r8)             :: target_lai
     real(r8)             :: target_bleaf
@@ -772,7 +789,7 @@ contains
 
     tree_sai   =  prt_params%allom_sai_scaler(pft) * target_lai
 
-    if( (treelai + tree_sai) > (sum(dinc_vai)) )then
+    if( (treelai + tree_sai) > max_treevai )then
 
        call h_allom(dbh,pft,h)
 
@@ -783,8 +800,6 @@ contains
        write(fates_log(),*) 'target_bleaf: ', target_bleaf
        write(fates_log(),*) 'area: ', c_area
        write(fates_log(),*) 'target_lai: ',target_lai
-       write(fates_log(),*) 'dinc_vai:',dinc_vai
-       write(fates_log(),*) 'nlevleaf,sum(dinc_vai):',nlevleaf,sum(dinc_vai)
        write(fates_log(),*) 'pft: ',pft
        write(fates_log(),*) 'call id: ',call_id
        write(fates_log(),*) 'n: ',nplant
@@ -802,56 +817,6 @@ contains
     return
   end function tree_sai
 
-  
-  subroutine GetNLevVeg(dbh, leaf_c, c_area, ipft, nplant, &
-       crowndamage, canopy_trim, canopy_layer, canopy_layer_tlai, &
-       vcmax25top, nveg_act, nveg_max)
-    
-    ! Determine the maximum number of leaf (vegetation) layers
-    ! for a cohort. This is based off of allometry, and assuming the plant
-    ! has the maximum leaf for its size and trimming.
-
-    real(r8), intent(inout) :: dbh
-    real(r8), intent(in) :: leaf_c
-    real(r8), intent(in) :: c_area
-    integer,  intent(in) :: ipft
-    real(r8), intent(in) :: nplant
-    real(r8), intent(in) :: canopy_trim
-    integer,  intent(in) :: crowndamage
-    integer,  intent(in) :: canopy_layer
-    real(r8), intent(in) :: canopy_layer_tlai(:)
-    real(r8), intent(in) :: vcmax25top
-    integer, intent(out) :: nveg_act
-    integer, intent(out) :: nveg_max
-    
-    integer  :: nv
-    real(r8) :: leaf_c_target
-    real(r8) :: max_lai, max_sai
-    
-    
-    max_lai = tree_lai(leaf_c, ipft, c_area, &
-         nplant, canopy_layer, canopy_layer_tlai, vcmax25top )    
-    
-    max_sai = tree_sai(ipft, dbh, crowndamage, canopy_trim, &
-         c_area, nplant, canopy_layer, canopy_layer_tlai, max_lai, &
-         vcmax25top, 0)
-
-    nveg_act = count((max_lai+max_sai) .gt. dlower_vai(:)) + 1
-
-    call bleaf(dbh,ipft,crowndamage,canopy_trim,leaf_c_target)
-    
-    max_lai = tree_lai(leaf_c_target, ipft, c_area, &
-         nplant, canopy_layer, canopy_layer_tlai, vcmax25top )    
-    
-    max_sai = tree_sai(ipft, dbh, crowndamage, canopy_trim, &
-         c_area, nplant, canopy_layer, canopy_layer_tlai, max_lai, &
-         vcmax25top, 0)  
-
-    nveg_max  = count((max_lai+max_sai) .gt. dlower_vai(:)) + 1
-    
-    return
-  end subroutine GetNLevVeg
-  
 ! =====================================================================================
  
   real(r8) function leafc_from_treelai( treelai, pft, c_area, nplant, cl, vcmax25top)
@@ -937,17 +902,12 @@ contains
   ! =====================================================================================
 
 
-
-
-
-
   ! ============================================================================
   ! Generic sapwood biomass interface
   ! ============================================================================
 
   subroutine bsap_allom(d,ipft,crowndamage,canopy_trim,sapw_area,bsap,dbsapdd)
 
-    use DamageMainMod , only : GetCrownReduction
     use FatesParameterDerivedMod, only : param_derived
     
     real(r8),intent(in)           :: d           ! plant diameter [cm]
