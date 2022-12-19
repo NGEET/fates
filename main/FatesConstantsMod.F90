@@ -53,7 +53,17 @@ module FatesConstantsMod
                                                             ! plants are not coupled with below ground chemistry. In
                                                             ! this situation, we send token boundary condition information.
 
+  
+  integer, public, parameter :: trim_day_of_year = 364      ! Trim on this date (2nd to last day of year)
 
+  ! If this is a cold start and the date is after the date
+  ! we trim on, but fairly close, then we say its close
+  ! enough and flag the newly created cohorts as trimmable
+  ! the next time we encounter trimming, and zero out
+  ! the incrementing carbon balance array
+  integer, public, parameter :: max_days_since_trim_coldstart = 5    
+
+  
   ! This flag specifies the scaling of how we present
   ! nutrient competitors to the HLM's soil BGC model
   

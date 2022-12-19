@@ -779,7 +779,7 @@ contains
                 ! if at least nll leaf layers are present in the current cohort and only for the bottom nll
                 ! leaf layers.
 
-                if( currentCohort%nveg_max >= nll ) then
+                if( currentCohort%nveg_max >= nll .and. zm <= nll) then
                    
                    ! Build the A matrix for the LHS of the linear system. A = [n  sum(x); sum(x)  sum(x^2)]
                    ! where n = nll and x = yearly_net_uptake-leafcost
