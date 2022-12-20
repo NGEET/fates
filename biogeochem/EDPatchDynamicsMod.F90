@@ -60,6 +60,7 @@ module EDPatchDynamicsMod
   use EDLoggingMortalityMod, only : get_harvest_rate_area
   use EDLoggingMortalityMod, only : get_harvest_rate_carbon
   use EDLoggingMortalityMod, only : get_harvestable_carbon
+  use EDLoggingMortalityMod, only : get_harvest_debt
   use EDParamsMod          , only : fates_mortality_disturbance_fraction
   use FatesAllometryMod    , only : carea_allom
   use FatesAllometryMod    , only : set_root_fraction
@@ -268,50 +269,7 @@ contains
        currentPatch => currentPatch%younger
     end do
 
-    ! Calculate if we have harvest debt for primary and secondary land
-    ! Harvest debt is the accumulated total carbon 
-    ! deficiency once the carbon amount available for harvest 
-    ! is smaller than the harvest rate of forcing data.
-    ! Harvest debt is calculated on site level
-    ! TODO: we can define harvest debt as a fraction of the 
-    ! harvest rate in the future
-    ! Note: Non-forest harvest is accounted for under forest
-    ! harvest, thus the harvest tag for non-forest is not applicable (= 2)
-
-    if(logging_time) then
-       ! First we need to get harvest rate for all three categories
-       do h_index = 1, hlm_num_lu_harvest_cats
-          ! Primary forest harvest rate
-          if(bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1" .or. &
-              bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2" ) then
-                harvest_debt_pri = harvest_debt_pri + bc_in%hlm_harvest_rates(h_index)
-          else if(bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1") then
-              harvest_debt_sec_mature = harvest_debt_sec_mature + bc_in%hlm_harvest_rates(h_index)
-          else if(bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2" .or. &
-                   bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3") then
-              harvest_debt_sec_mature = harvest_debt_sec_mature + bc_in%hlm_harvest_rates(h_index)
-          end if
-       end do
-       ! Next we get the harvest debt through the harvest tag 
-       do h_index = 1, hlm_num_lu_harvest_cats
-          if (harvest_tag(h_index) .eq. 1) then
-             if(bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1") then
-                site_in%resources_management%harvest_debt = site_in%resources_management%harvest_debt + &
-                    harvest_debt_pri
-             else if(bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1") then
-                site_in%resources_management%harvest_debt = site_in%resources_management%harvest_debt + &
-                    harvest_debt_sec_mature
-                site_in%resources_management%harvest_debt_sec = site_in%resources_management%harvest_debt_sec + &
-                    harvest_debt_sec_mature
-             else if(bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2") then
-                site_in%resources_management%harvest_debt = site_in%resources_management%harvest_debt + &
-                    harvest_debt_sec_young
-                site_in%resources_management%harvest_debt_sec = site_in%resources_management%harvest_debt_sec + &
-                    harvest_debt_sec_young
-             end if
-          end if
-       end do
-    end if
+    call get_harvest_debt(site_in, bc_in, harvest_tag)
 
     ! ---------------------------------------------------------------------------------------------
     ! Calculate Disturbance Rates based on the mortality rates just calculated
