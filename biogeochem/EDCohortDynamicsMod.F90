@@ -2015,11 +2015,18 @@ contains
     type(ed_patch_type)  :: cpatch      ! current patch (both cohorts are on this patch)
     real(r8),intent(in)  :: site_spread
     
-    real(r8) :: joint_net_uptake(nlevleaf)
-    real(r8) :: joint_wgt(nlevleaf)
-    integer :: iv  ! veg layer index
-    integer :: ivm  ! veg layer memory index
-    integer :: iv0,iv1  ! lowest and highest veg layer index matching memory
+    real(r8) :: joint_net_uptake(nlevleaf) ! temp space for joint carbon balance data
+    real(r8) :: joint_wgt(nlevleaf)        ! weighting factor (plant num) for joint data
+    integer  :: iv                         ! veg layer index
+    integer  :: ivm                        ! veg layer memory index
+    integer  :: iv0,iv1                    ! lowest and highest veg layer index matching memory
+    real(r8) :: nplant                     ! We save the old number of plants in the
+                                           ! receiver cohort. We do this because we want to pass the joint
+                                           ! number to a routine, yet we want to revert to the unfused
+                                           ! number again in case this routine is not the last thing
+                                           ! called during cohort fusion, because the number
+                                           ! density is fused last.
+    
     
     joint_net_uptake(:) = 0._r8
     joint_wgt(:) = 0._r8
@@ -2101,7 +2108,10 @@ contains
 
     
     ! Update the number of vegetation layers, cohort%nveg_act and cohort%nveg_max
+    nplant = ccohort%n
+    ccohort%n = ccohort%n + ncohort%n
     call GetNLevVeg(ccohort,cpatch)
+    ccohort%n = nplant
     
   end subroutine FuseVegLayerMem
 

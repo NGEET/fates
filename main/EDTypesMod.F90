@@ -240,9 +240,6 @@ module EDTypesMod
      real(r8) ::  prom_weight                            ! How much of this cohort is promoted each year, as a proportion of all cohorts:-
      integer  ::  nveg_act                               ! Number of vegetation layers (actual) at any point in time
      integer  ::  nveg_max                               ! Maximum number of vegetation layers based on allometry
-     !integer  ::  nveg_mem                               ! The vegetation layer that matches memory layer 1, we set this layer
-                                                         ! lower down in the vegetation layers, in-case the plant grows beyond
-                                                         ! its current nveg_max in between trimming events
      integer  ::  status_coh                             ! growth status of plant  (2 = leaves on , 1 = leaves off)
      real(r8) ::  c_area                                 ! areal extent of canopy (m2)
      real(r8) ::  treelai                                ! lai of an individual within cohort leaf area (m2) / crown area (m2)
