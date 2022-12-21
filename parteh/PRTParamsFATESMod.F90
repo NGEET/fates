@@ -457,13 +457,17 @@ contains
     call fates_params%RetrieveParameterAllocate(name=name, &
           data=prt_params%phen_fnrt_drop_fraction)
 
+    name = 'fates_phen_mindaysoff'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+          data=prt_params%phen_doff_time)
+
     name = 'fates_phen_drought_threshold'
     call fates_params%RetrieveParameterAllocate(name=name, &
           data=prt_params%phen_drought_threshold)
 
-    name = 'fates_phen_mindaysoff'
+    name = 'fates_phen_moist_threshold'
     call fates_params%RetrieveParameterAllocate(name=name, &
-          data=prt_params%phen_doff_time)
+          data=prt_params%phen_moist_threshold)
 
     name = 'fates_leaf_slamax'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -911,9 +915,9 @@ contains
         write(fates_log(),fmti) 'evergreen = ',prt_params%evergreen
         write(fates_log(),fmt0) 'phen_fnrt_drop_fraction = ',prt_params%phen_fnrt_drop_fraction
         write(fates_log(),fmt0) 'phen_stem_drop_fraction = ',prt_params%phen_stem_drop_fraction
+        write(fates_log(),fmt0) 'phen_doff_time = ',prt_params%phen_doff_time
         write(fates_log(),fmt0) 'phen_drought_threshold = ',prt_params%phen_drought_threshold
         write(fates_log(),fmt0) 'phen_moist_threshold = ',prt_params%phen_moist_threshold
-        write(fates_log(),fmt0) 'phen_doff_time = ',prt_params%phen_doff_time
         write(fates_log(),fmt0) 'wood_density = ',prt_params%wood_density
         write(fates_log(),fmt0) 'dbh max height = ',prt_params%allom_dbh_maxheight
         write(fates_log(),fmt0) 'dbh mature = ',prt_params%dbh_repro_threshold
