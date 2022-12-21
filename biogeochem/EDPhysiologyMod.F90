@@ -43,8 +43,9 @@ module EDPhysiologyMod
   use EDTypesMod          , only : numlevsoil_max
   use EDTypesMod          , only : numWaterMem
   use EDTypesMod          , only : dl_sf, dinc_vai, dlower_vai, area_inv
-  use EDTypesMod          , only : GetLeafFromMemLayer
+  use EDTypesMod          , only : GetLeafFromMemLayer,GetMemFromLeafLayer
   use EDTypesMod          , only : AREA
+  use EDTypesMod          , only : match_old_trim_method
   use FatesLitterMod      , only : ncwd
   use FatesLitterMod      , only : ndcmpy
   use FatesLitterMod      , only : ilabile
@@ -72,7 +73,6 @@ module EDPhysiologyMod
   use EDTypesMod          , only : phen_dstat_moiston
   use EDTypesMod          , only : phen_dstat_timeon
   use EDTypesMod          , only : init_recruit_trim
-  use EDTypesMod            , only : use_relative_leafmem_layers
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   use FatesGlobals          , only : fates_log
   use FatesGlobals          , only : endrun => fates_endrun
@@ -600,26 +600,30 @@ contains
     ! b is the y-intercept i.e. the cumulative lai that has zero net-net uptake
     ! m is the slope of the linear fit
 
-    integer :: nll = 3                    ! Number of leaf layers to fit a regression
-                                          ! to for calculating the optimum lai
-    character(1) :: trans = 'N'           ! Input matrix is not transposed
+    integer :: nll = 3                  ! Number of leaf layers to fit a regression
+                                        ! to for calculating the optimum lai
+    character(1) :: trans = 'N'         ! Input matrix is not transposed
 
-    integer, parameter :: m = 2, n = 2    ! Number of rows and columns, respectively, in matrix A
-    integer, parameter :: nrhs = 1        ! Number of columns in matrix B and X
-    integer, parameter :: workmax = 100   ! Maximum iterations to minimize work
+    integer, parameter :: m = 2, n = 2  ! Number of rows and columns, respectively, in matrix A
+    integer, parameter :: nrhs = 1      ! Number of columns in matrix B and X
+    integer, parameter :: workmax = 100 ! Maximum iterations to minimize work
 
-    integer :: lda = m, ldb = n           ! Leading dimension of A and B, respectively
-    integer :: lwork                      ! Dimension of work array
-    integer :: info                       ! Procedure diagnostic ouput
+    integer :: lda = m, ldb = n         ! Leading dimension of A and B, respectively
+    integer :: lwork                    ! Dimension of work array
+    integer :: info                     ! Procedure diagnostic ouput
+    integer :: z0,z1                    ! Veg layer loop bounds
+    
+    real(r8) :: nnu_clai_a(m,n)         ! LHS of linear least squares fit, A matrix
+    real(r8) :: nnu_clai_b(m,nrhs)      ! RHS of linear least squares fit, B matrix
+    real(r8) :: work(workmax)           ! work array
 
-    real(r8) :: nnu_clai_a(m,n)           ! LHS of linear least squares fit, A matrix
-    real(r8) :: nnu_clai_b(m,nrhs)        ! RHS of linear least squares fit, B matrix
-    real(r8) :: work(workmax)             ! work array
-
-    real(r8) :: initial_trim              ! Initial trim
-    real(r8) :: optimum_trim              ! Optimum trim value
-
-    real(r8) :: target_c_area
+    real(r8) :: initial_trim            ! Initial trim
+    real(r8) :: optimum_trim            ! Optimum trim value
+    logical  :: build_matrix            ! Logical used to decid if we build out the
+                                        ! trim optimization matrix, which
+                                        ! depends on which version of trimming
+                                        ! (new vs old) we use
+    
     !----------------------------------------------------------------------
 
 
@@ -705,11 +709,19 @@ contains
 
              cumulative_lai_cohort = 0._r8
 
-             leafmem_loop: do zm = min(nlevleafmem,currentCohort%nveg_max),1,-1
+             if(match_old_trim_method) then
+                z0 = 1
+                z1 = currentCohort%nveg_act
+             else
+                z0 = GetLeafFromMemLayer(currentCohort,min(nlevleafmem,currentCohort%nveg_max))
+                z1 = GetLeafFromMemLayer(currentCohort,1)
+             end if
 
-                ! The actual leaf layer index (going from top to bottom)
-                z = GetLeafFromMemLayer(currentCohort,zm)
-
+             leafmem_loop: do z = z0,z1
+             
+                ! Get the memory layer index
+                zm = GetMemFromLeafLayer(currentCohort,z)
+                
                 ! Calculate the cumulative total vegetation area index (no snow occlusion, stems and leaves)
                 
                 leaf_inc    = dinc_vai(z) * &
@@ -775,11 +787,24 @@ contains
                         (prt_params%grperc(ipft) + 1._r8)
                 endif
 
+                if(match_old_trim_method) then
+                   if (currentCohort%nveg_act > nll .and. currentCohort%nveg_act - z < nll) then
+                      build_matrix = .true.
+                   else
+                      build_matrix = .false.
+                   end if
+                else
+                   if( currentCohort%nveg_max >= nll .and. zm <= nll) then
+                      build_matrix = .true.
+                   else
+                      build_matrix = .false.
+                   end if
+                end if
+                
                 ! Construct the arrays for a least square fit of the net_net_uptake versus the cumulative lai
                 ! if at least nll leaf layers are present in the current cohort and only for the bottom nll
                 ! leaf layers.
-
-                if( currentCohort%nveg_max >= nll .and. zm <= nll) then
+                if (build_matrix) then
                    
                    ! Build the A matrix for the LHS of the linear system. A = [n  sum(x); sum(x)  sum(x^2)]
                    ! where n = nll and x = yearly_net_uptake-leafcost

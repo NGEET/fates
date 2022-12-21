@@ -14,6 +14,7 @@ module FatesHistoryInterfaceMod
   use FatesGlobals             , only : endrun => fates_endrun
   use EDTypesMod               , only : nclmax
   use EDTypesMod               , only : ican_upper
+  use EDTypesMod               , only : GetMemFromLeafLayer
   use PRTGenericMod            , only : element_pos
   use PRTGenericMod            , only : num_elements
   use PRTGenericMod            , only : prt_cnp_flex_allom_hyp
@@ -4442,19 +4443,20 @@ end subroutine flush_hvars
                   endif
                 end associate
                endif
-
-               !!! canopy leaf carbon balance
-               ican = ccohort%canopy_layer
-               do ileaf=1, min(nlevleafmem,ccohort%nveg_max)
-
-                  ! The actual leaf layer index (going from top to bottom)
-                  z = ccohort%nveg_max - ileaf + 1
-                  cnlf_indx = z + (ican-1) * nlevleaf
+               
+               ! canopy leaf carbon balance
+               if(nlevleafmem == nlevleaf) then
+                  ican = ccohort%canopy_layer
+                  do z = 1,ccohort%nveg_act
+                     ! The actual leaf layer index (going from top to bottom)
+                     ileaf = GetMemFromLeafLayer(ccohort,z)
+                     cnlf_indx = z + (ican-1) * nlevleaf
+                     
+                     hio_ts_net_uptake_si_cnlf(io_si, cnlf_indx) = hio_ts_net_uptake_si_cnlf(io_si, cnlf_indx) + &
+                          ccohort%ts_net_uptake(ileaf) * per_dt_tstep * ccohort%c_area * area_inv
+                  end do
+               end if
                   
-                  hio_ts_net_uptake_si_cnlf(io_si, cnlf_indx) = hio_ts_net_uptake_si_cnlf(io_si, cnlf_indx) + &
-                       ccohort%ts_net_uptake(ileaf) * per_dt_tstep * ccohort%c_area * area_inv
-               end do
-
                ccohort => ccohort%taller
             enddo ! cohort loop
 

@@ -48,7 +48,13 @@ module EDTypesMod
   real(r8), parameter, public :: init_recruit_trim = 0.8_r8    ! This is the initial trimming value that
                                                                ! new recruits start with
 
-  logical, parameter, public :: use_relative_leafmem_layers = .false.
+
+  logical, parameter, public :: match_old_trim_method = .true. ! There are some subtle
+                                                               ! updates to trimming logic. For
+                                                               ! instance, does a cohort need to
+                                                               ! have a year of year_net_uptake
+                                                               ! data to be allowed to trim (new)
+                                                               ! or not (old)
   
   ! -------------------------------------------------------------------------------------
   ! Radiation parameters
@@ -63,7 +69,7 @@ module EDTypesMod
   integer, parameter, public :: idiffuse  = 2             ! This is the array index for diffuse radiation
 
   ! parameters that govern the VAI (LAI+SAI) bins used in radiative transfer code
-  integer, parameter, public :: nlevleafmem = 7             ! number of layers for veg memory used for trimming
+  integer, parameter, public :: nlevleafmem = 5             ! number of layers for veg memory used for trimming
   integer, parameter, public :: nlevleaf   = 30             ! number of leaf+stem layers in canopy layer
   real(r8), public :: dinc_vai(nlevleaf)   = fates_unset_r8 ! VAI bin widths array
   real(r8), public :: dlower_vai(nlevleaf) = fates_unset_r8 ! lower edges of VAI bins

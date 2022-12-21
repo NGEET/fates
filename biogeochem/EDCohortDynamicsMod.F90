@@ -28,6 +28,7 @@ Module EDCohortDynamicsMod
   use FatesParameterDerivedMod, only : param_derived
   use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod            , only : nclmax
+  use EDTypesMod            , only : match_old_trim_method
   use PRTGenericMod         , only : element_list
   use PRTGenericMod         , only : StorageNutrientTarget
   use FatesLitterMod        , only : ncwd
@@ -39,7 +40,6 @@ Module EDCohortDynamicsMod
   use EDTypesMod            , only : min_n_safemath
   use EDTypesMod            , only : nlevleaf
   use EDTypesMod            , only : nlevleafmem
-  use EDTypesMod            , only : use_relative_leafmem_layers
   use EDTypesMod            , only : GetLeafFromMemLayer
   use PRTGenericMod         , only : max_nleafage
   use EDTypesMod            , only : ican_upper
@@ -2031,15 +2031,18 @@ contains
     joint_net_uptake(:) = 0._r8
     joint_wgt(:) = 0._r8
 
-    ccohort%canopy_trim = (ccohort%n*ccohort%canopy_trim &
-         + ncohort%n*ncohort%canopy_trim)/(ccohort%n+ncohort%n)
-
+    if(match_old_trim_method) then
+       ccohort%canopy_trim = (ccohort%n*ccohort%canopy_trim &
+            + ncohort%n*ncohort%canopy_trim)/(ccohort%n+ncohort%n)
+    end if
     
     if(ccohort%is_trimmable .and. ncohort%is_trimmable) then
 
-       !ccohort%canopy_trim = (ccohort%n*ccohort%canopy_trim &
-       !     + ncohort%n*ncohort%canopy_trim)/(ccohort%n+ncohort%n)
-       
+       if(.not.match_old_trim_method) then
+          ccohort%canopy_trim = (ccohort%n*ccohort%canopy_trim &
+               + ncohort%n*ncohort%canopy_trim)/(ccohort%n+ncohort%n)
+       end if
+          
        do ivm = 1, min(nlevleafmem,ccohort%nveg_max)
           iv = GetLeafFromMemLayer(ccohort,ivm)
           joint_net_uptake(iv) = ccohort%n*ccohort%year_net_uptake(ivm)
@@ -2099,7 +2102,7 @@ contains
        ! thus, nothing needs to be done !!!
 
        if(ncohort%is_trimmable) then
-          !ccohort%canopy_trim = ncohort%canopy_trim
+          if (.not.match_old_trim_method) ccohort%canopy_trim = ncohort%canopy_trim
           ccohort%year_net_uptake(:) = ncohort%year_net_uptake(:)
           ccohort%is_trimmable = .true.
        end if
@@ -2573,6 +2576,16 @@ contains
                               ! net carbon uptake array, if necessary
     integer  :: di            ! differential memory index used for
                               ! shifting yearly uptake array to a new offset
+
+    ! If the max layer has changed, then
+    ! we need to shift the year_net_uptake
+    ! array. These holds the previous
+    ! values in the vertically lowest (1)
+    ! and highest (nlevleafmem) positions
+    ! which may be used to initialize new positions
+    real(r8) :: year_net_uptake_low
+    real(r8) :: year_net_uptake_high
+    
     
     lai = tree_lai(cohort%prt%GetState(leaf_organ, carbon12_element), &
                    cohort%pft, cohort%c_area, &
@@ -2598,20 +2611,36 @@ contains
 
     nveg_max  = count((lai+sai) .gt. dlower_vai(:)) + 1
 
-    ! If the plant recently grew past the matchpoint on the veg layer memory
-    ! array, then we have to shift everything up one and initialize the new
-    ! memory layer.
-    
-    if( (.not.use_relative_leafmem_layers) .and. &
-         (cohort%nveg_max.ne.fates_unset_int) ) then
-       if(nveg_max .ne. cohort%nveg_max) then
+    ! If the plant recently changed its nveg_max
+    ! then the matchpoint on the veg layer memory
+    ! array is different and the array needs to shift
+
+    if (cohort%nveg_max.ne.fates_unset_int) then
+       if (nveg_max .ne. cohort%nveg_max) then
           di = nveg_max - cohort%nveg_max
-          if(di>0) then
-             cohort%year_net_uptake(1+di:nlevleafmem) = cohort%year_net_uptake(1:nlevleafmem-di)
-             cohort%year_net_uptake(1:di)             = 0._r8
+
+          year_net_uptake_low = cohort%year_net_uptake(1)
+          year_net_uptake_high  = cohort%year_net_uptake(nlevleafmem)
+          
+          if (match_old_trim_method) then
+             if(di>0) then
+                ! We need a new layer
+                cohort%year_net_uptake(1:di)                         = 0._r8
+                cohort%year_net_uptake(1+di:nlevleafmem)             = cohort%year_net_uptake(1:nlevleafmem-di)
+             else
+                ! We need to remove a layer
+                cohort%year_net_uptake(nlevleafmem+di+1:nlevleafmem) = year_net_uptake_high
+                cohort%year_net_uptake(1:nlevleafmem+di)             = cohort%year_net_uptake(1-di:nlevleafmem)
+             end if
           else
-             cohort%year_net_uptake(1:nlevleafmem+di) = cohort%year_net_uptake(1-di:nlevleafmem)
-             cohort%year_net_uptake(nlevleafmem+di+1:nlevleafmem) = 0._r8             
+             if(di>0) then
+                ! We need a new layer
+                cohort%year_net_uptake(1+di:nlevleafmem)             = cohort%year_net_uptake(1:nlevleafmem-di)
+                cohort%year_net_uptake(1:di)                         = year_net_uptake_low
+             else
+                cohort%year_net_uptake(1:nlevleafmem+di)             = cohort%year_net_uptake(1-di:nlevleafmem)
+                cohort%year_net_uptake(nlevleafmem+di+1:nlevleafmem) = year_net_uptake_high
+             end if
           end if
        end if
     end if
