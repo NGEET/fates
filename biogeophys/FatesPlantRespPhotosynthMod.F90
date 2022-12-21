@@ -664,25 +664,8 @@ contains
 
                             if(.not.stretch_cbalmem_vert)then
 
-                               ! These are the top (ivt) and bottom (ivb)
-                               ! leaf-layers that match up with the top and bottom
-                               ! leaf memory layers. iv loops over these leaf
-                               ! layers, which starts higher (vertically) and decends
                                ! If the leaves are fully flushed, it should end on
                                ! the leaf memory index of 1.
-                               
-                               !ivb = nvm
-                               !ivt = max(1,nvm-nlevleafmem+1)
-                               !if(ivb>=ivt) then
-                               !   do iv = ivt,ivb
-                               !      ivm = currentCohort%GetMemFromLeafLayer(iv)
-                               !      ! Its possible that the leaves aren't flushed enough
-                               !      ! to lign up with any of the memory bins
-                               !      if(ivm>0 .and. ivm.le.nlevleafmem) then
-                               !         currentCohort%ts_net_uptake(ivm) = anet_av_z(iv,ft,cl) * umolC_to_kgC
-                               !      end if
-                               !   end do
-                               !end if
 
                                do ivm = 1,nlevleafmem
                                   iv = GetLeafFromMemLayer(currentCohort,ivm)
