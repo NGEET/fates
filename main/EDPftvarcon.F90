@@ -179,15 +179,12 @@ module EDPftvarcon
                                                   ! biochemical production, fraction based how much
                                                   ! more in need a plant is for P versus N [/]
 
-     ! Turnover related things
+     ! Phenology related things
 
      real(r8), allocatable :: phenflush_fraction(:)       ! Maximum fraction of storage carbon used to flush leaves
                                                           ! on bud-burst [kgC/kgC]
      real(r8), allocatable :: phen_cold_size_threshold(:) ! stem/leaf drop occurs on DBH size of decidious non-woody
                                                           ! (coastal grass) plants larger than the threshold value
-     real(r8), allocatable :: phen_fnrt_drop_fraction(:)  ! Fraction of fine roots abscissed when leaves absciss
-     real(r8), allocatable :: phen_stem_drop_fraction(:)  ! Fraction of stem abscissed when leaves absciss, for deciduous
-                                                          ! non-woody (grass) plants
 
      ! Nutrient Aquisition parameters
      real(r8), allocatable :: prescribed_nuptake(:)   ! If there is no soil BGC model active,
@@ -599,13 +596,6 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_phen_stem_drop_fraction'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_phen_fnrt_drop_fraction'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     ! Nutrient competition parameters
 
@@ -960,14 +950,6 @@ contains
     name = 'fates_phen_cold_size_threshold'
     call fates_params%RetrieveParameterAllocate(name=name, &
           data=this%phen_cold_size_threshold)
-
-    name = 'fates_phen_stem_drop_fraction'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-          data=this%phen_stem_drop_fraction)
-
-    name = 'fates_phen_fnrt_drop_fraction'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-          data=this%phen_fnrt_drop_fraction)
 
     name = 'fates_cnp_prescribed_nuptake'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -1483,8 +1465,6 @@ contains
         write(fates_log(),fmt0) 'taus = ',EDPftvarcon_inst%taus
         write(fates_log(),fmt0) 'phen_flush_fraction',EDpftvarcon_inst%phenflush_fraction
         write(fates_log(),fmt0) 'phen_cold_size_threshold = ',EDPftvarcon_inst%phen_cold_size_threshold
-        write(fates_log(),fmt0) 'phen_fnrt_drop_fraction',EDpftvarcon_inst%phen_fnrt_drop_fraction
-        write(fates_log(),fmt0) 'phen_stem_drop_fraction',EDpftvarcon_inst%phen_stem_drop_fraction
         write(fates_log(),fmt0) 'fire_alpha_SH = ',EDPftvarcon_inst%fire_alpha_SH
         write(fates_log(),fmt0) 'allom_frbstor_repro = ',EDPftvarcon_inst%allom_frbstor_repro
         write(fates_log(),fmt0) 'hydro_p_taper = ',EDPftvarcon_inst%hydr_p_taper
@@ -1531,9 +1511,6 @@ contains
     use FatesConstantsMod  , only : itrue, ifalse
     use EDParamsMod        , only : logging_mechanical_frac, logging_collateral_frac
     use EDParamsMod        , only : logging_direct_frac,logging_export_frac
-    use EDParamsMod        , only : ED_val_phen_drought_threshold
-    use EDParamsMod        , only : ED_val_phen_moist_threshold
-    use EDTypesMod         , only : isemi_stress_decid
     use FatesInterfaceTypesMod, only : hlm_use_fixed_biogeog,hlm_use_sp, hlm_name
 
      ! Argument
@@ -1715,7 +1692,6 @@ contains
 
         ! Check if the fraction of storage used for flushing deciduous trees
         ! is greater than zero, and less than or equal to 1.
-
         if (prt_params%evergreen(ipft) == ifalse) then
            if ( ( EDPftvarcon_inst%phenflush_fraction(ipft) < nearzero ) .or. &
                 ( EDPFtvarcon_inst%phenflush_fraction(ipft) > 1 ) ) then
@@ -1729,36 +1705,6 @@ contains
               write(fates_log(),*) ' Aborting'
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
-           if ( ( EDPftvarcon_inst%phen_fnrt_drop_fraction(ipft) < 0.0_r8 ) .or. &
-                ( EDPFtvarcon_inst%phen_fnrt_drop_fraction(ipft) > 1.0_r8 ) ) then
-              write(fates_log(),*) ' Abscission rate for fine roots must be between 0 and 1 for '
-              write(fates_log(),*) ' deciduous PFTs.'
-              write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' evergreen flag: (should be 0):',int(prt_params%evergreen(ipft))
-              write(fates_log(),*) ' phen_fnrt_drop_fraction: ', EDPFtvarcon_inst%phen_fnrt_drop_fraction(ipft)
-              write(fates_log(),*) ' Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
-           end if
-           if ( ( EDPftvarcon_inst%phen_stem_drop_fraction(ipft) < 0.0_r8 ) .or. &
-                ( EDPFtvarcon_inst%phen_stem_drop_fraction(ipft) > 1.0_r8 ) ) then
-              write(fates_log(),*) ' Deciduous non-wood plants must keep 0-100% of their stems'
-              write(fates_log(),*) ' during the deciduous period.'
-              write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' evergreen flag: (should be 0):',int(prt_params%evergreen(ipft))
-              write(fates_log(),*) ' phen_stem_drop_fraction: ', EDPFtvarcon_inst%phen_stem_drop_fraction(ipft)
-              write(fates_log(),*) ' Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
-           end if
-        end if
-
-        if( (prt_params%woody(ipft) == itrue) .and. &
-            (EDPftvarcon_inst%phen_stem_drop_fraction(ipft) > nearzero ) ) then
-           write(fates_log(),*) ' Non-zero stem-drop fractions are not allowed for woody plants'
-           write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' part_params%woody:',prt_params%woody(ipft)
-           write(fates_log(),*) ' phen_stem_drop_fraction: ', EDPFtvarcon_inst%phen_stem_drop_fraction(ipft)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
 
         ! Check if freezing tolerance is within reasonable bounds
@@ -1853,39 +1799,6 @@ contains
 !!
 !!        end if
 !!    end do
-
-
-     ! When using the the gradual (ED2-like) phenology, we must ensure that the lower
-     ! and upper thresholds are consistent (i.e., that both are based on either soil
-     ! water content or soil matric potential).
-     is_semi_decid: if (any(prt_params%stress_decid(:) == isemi_stress_decid)) then
-
-        if (ED_val_phen_drought_threshold*ED_val_phen_moist_threshold < 0._r8) then
-           ! In case the product of the lower and upper thresholds is negative, the
-           !    thresholds are inconsistent as both should be defined using the same 
-           !    quantity.
-           write(fates_log(),*) ' When using gradual (ED2-like) drought deciduous phenology,'
-           write(fates_log(),*) '    the moist threshold should be have the same sign as'
-           write(fates_log(),*) '    the dry threshold.  Positive = soil water content [m3/m3],'
-           write(fates_log(),*) '    Negative = soil matric potential [mm].'
-           write(fates_log(),*) ' fates_phen_drought_threshold (dry threshold) = ',ED_val_phen_drought_threshold
-           write(fates_log(),*) ' fates_phen_moist_threshold (moist threshold) = ',ED_val_phen_moist_threshold
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-
-        elseif ( ED_val_phen_drought_threshold >= ED_val_phen_moist_threshold) then
-           write(fates_log(),*) ' When using gradual (ED2-like) drought deciduous phenology,'
-           write(fates_log(),*) '   the moist threshold should be greater than the dry threshold.'
-           write(fates_log(),*) '   By greater we mean more positive or less negative, and'
-           write(fates_log(),*) '   they cannot be the identical.'
-           write(fates_log(),*) ' fates_phen_drought_threshold (dry threshold) = ',ED_val_phen_drought_threshold
-           write(fates_log(),*) ' fates_phen_moist_threshold (moist threshold) = ',ED_val_phen_moist_threshold
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-        end if
-
-     end if is_semi_decid
-
 
      return
   end subroutine FatesCheckParams

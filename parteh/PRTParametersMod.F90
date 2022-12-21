@@ -28,8 +28,23 @@ module PRTParametersMod
      ! Drop fraction for tissues other than leaves (PFT-dependent)
      real(r8), allocatable :: phen_fnrt_drop_fraction(:) ! Abscission fraction of fine roots
      real(r8), allocatable :: phen_stem_drop_fraction(:) ! Abscission fraction of stems
+     real(r8), allocatable :: phen_drought_threshold(:)   ! For obligate (hard) drought deciduous, this is the threshold
+                                                          !    below which plants will abscise leaves, and 
+                                                          !    above which plants will flush leaves. For semi-deciduous
+                                                          !    plants, this is the threshold below which abscission will
+                                                          !    be complete. This depends on the sign. If positive, these
+                                                          !    are soil volumetric water content [m3/m3]. If
+                                                          !    negative, the values are soil matric potential [mm].
+                                                          !    Ignored for non-deciduous plants.
+     real(r8), allocatable :: phen_moist_threshold(:)     ! For semi-deciduous, this is the threshold above which flushing 
+                                                          !    will be complete.  This depends on the sign. If positive, these
+                                                          !    are soil volumetric water content [m3/m3]. If
+                                                          !    negative, the values are soil matric potential [mm].
+                                                          !    Ignored for non-deciduous plants.
+     real(r8), allocatable :: phen_doff_time(:)           ! Minimum number of days that plants must remain leafless before
+                                                          !   flushing leaves again.
 
-     
+
      ! Growth and Turnover Parameters
      real(r8), allocatable :: senleaf_long_fdrought(:)   ! Multiplication factor for leaf longevity of senescent 
                                                          ! leaves during drought( 1.0 indicates no change)

@@ -165,6 +165,26 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_phen_stem_drop_fraction'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_phen_fnrt_drop_fraction'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_phen_mindaysoff'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_phen_drought_threshold'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_phen_moist_threshold'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     name = 'fates_allom_fnrt_prof_a'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -428,6 +448,22 @@ contains
     allocate(prt_params%evergreen(size(tmpreal,dim=1)))
     call ArrayNint(tmpreal,prt_params%evergreen)
     deallocate(tmpreal)
+
+    name = 'fates_phen_stem_drop_fraction'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+          data=prt_params%phen_stem_drop_fraction)
+
+    name = 'fates_phen_fnrt_drop_fraction'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+          data=prt_params%phen_fnrt_drop_fraction)
+
+    name = 'fates_phen_drought_threshold'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+          data=prt_params%phen_drought_threshold)
+
+    name = 'fates_phen_mindaysoff'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+          data=prt_params%phen_doff_time)
 
     name = 'fates_leaf_slamax'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -873,6 +909,11 @@ contains
         write(fates_log(),fmti) 'stress_decid = ',prt_params%stress_decid
         write(fates_log(),fmti) 'season_decid = ',prt_params%season_decid
         write(fates_log(),fmti) 'evergreen = ',prt_params%evergreen
+        write(fates_log(),fmt0) 'phen_fnrt_drop_fraction = ',prt_params%phen_fnrt_drop_fraction
+        write(fates_log(),fmt0) 'phen_stem_drop_fraction = ',prt_params%phen_stem_drop_fraction
+        write(fates_log(),fmt0) 'phen_drought_threshold = ',prt_params%phen_drought_threshold
+        write(fates_log(),fmt0) 'phen_moist_threshold = ',prt_params%phen_moist_threshold
+        write(fates_log(),fmt0) 'phen_doff_time = ',prt_params%phen_doff_time
         write(fates_log(),fmt0) 'wood_density = ',prt_params%wood_density
         write(fates_log(),fmt0) 'dbh max height = ',prt_params%allom_dbh_maxheight
         write(fates_log(),fmt0) 'dbh mature = ',prt_params%dbh_repro_threshold
@@ -996,6 +1037,7 @@ contains
      logical :: is_evergreen    ! Is the PFT evergreen
      logical :: is_season_decid ! Is the PFT cold-deciduous?
      logical :: is_stress_decid ! Is the PFT drought-deciduous?
+     logical :: is_semi_decid   ! Is the PFT drought semi-deciduous?
 
      npft = size(prt_params%evergreen,1)
 
@@ -1067,6 +1109,7 @@ contains
         is_evergreen    = prt_params%evergreen(ipft)    == itrue
         is_season_decid = prt_params%season_decid(ipft) == itrue
         is_stress_decid = any(prt_params%stress_decid(ipft) == [ihard_stress_decid,isemi_stress_decid])
+        is_semi_decid   = prt_params%stress_decid(ipft) == isemi_stress_decid
 
         if ( ( is_evergreen    .and. is_season_decid ) .or. &
              ( is_evergreen    .and. is_stress_decid ) .or. &
@@ -1080,8 +1123,84 @@ contains
            write(fates_log(),*) 'evergreen: ',prt_params%evergreen(ipft)
            write(fates_log(),*) 'Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
-           
         end if
+
+
+        ! When using the the drought semi-deciduous phenology, we must ensure that the lower
+        ! and upper thresholds are consistent (i.e., that both are based on either soil
+        ! water content or soil matric potential).
+        if (is_semi_decid) then
+           if ( prt_params%phen_drought_threshold(ipft)*prt_params%phen_moist_threshold(ipft) < 0._r8 ) then
+              ! In case the product of the lower and upper thresholds is negative, the
+              !    thresholds are inconsistent as both should be defined using the same 
+              !    quantity.
+              write(fates_log(),*) ' When using drought semi-deciduous phenology,'
+              write(fates_log(),*) '    the moist threshold must have the same sign as'
+              write(fates_log(),*) '    the dry threshold.  Positive = soil water content [m3/m3],'
+              write(fates_log(),*) '    Negative = soil matric potential [mm].'
+              write(fates_log(),*) ' PFT                          = ',ipft
+              write(fates_log(),*) ' Stress_decid                 = ',prt_params%stress_decid(ipft)
+              write(fates_log(),*) ' fates_phen_drought_threshold = ',prt_params%phen_drought_threshold(ipft)
+              write(fates_log(),*) ' fates_phen_moist_threshold   = ',prt_params%phen_moist_threshold  (ipft)
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+
+           elseif ( prt_params%phen_drought_threshold(ipft) >= prt_params%phen_moist_threshold(ipft) ) then
+              write(fates_log(),*) ' When using drought semi-deciduous phenology,'
+              write(fates_log(),*) '   the moist threshold must be greater than the dry threshold.'
+              write(fates_log(),*) '   By greater we mean more positive or less negative, and'
+              write(fates_log(),*) '   they cannot be the identical.'
+              write(fates_log(),*) ' PFT                          = ',ipft
+              write(fates_log(),*) ' Stress_decid                 = ',prt_params%stress_decid(ipft)
+              write(fates_log(),*) ' fates_phen_drought_threshold = ',prt_params%phen_drought_threshold(ipft)
+              write(fates_log(),*) ' fates_phen_moist_threshold   = ',prt_params%phen_moist_threshold  (ipft)
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+        end if
+
+        ! For all deciduous PFTs, check that abscission fractions are all bounded.
+        if (prt_params%evergreen(ipft) == ifalse) then
+           ! Check if the fraction of fine roots to be actively abscised relative to leaf abscission
+           ! is bounded between 0 and 1 (exactly 0 and 1 are acceptable).
+           if ( ( prt_params%phen_fnrt_drop_fraction(ipft) < 0.0_r8 ) .or. &
+                ( prt_params%phen_fnrt_drop_fraction(ipft) > 1.0_r8 ) ) then
+              write(fates_log(),*) ' Abscission rate for fine roots must be between 0 and 1 for '
+              write(fates_log(),*) ' deciduous PFTs.'
+              write(fates_log(),*) ' PFT#: ',ipft
+              write(fates_log(),*) ' evergreen flag: (should be 0):',prt_params%evergreen(ipft)
+              write(fates_log(),*) ' phen_fnrt_drop_fraction: ', prt_params%phen_fnrt_drop_fraction(ipft)
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+
+
+           ! Check if the fraction of stems to be actively abscised relative to leaf abscission
+           ! is bounded between 0 and 1 (exactly 0 and 1 are acceptable) when PFTs are non-woody, and
+           ! that the fraction is zero for woody PFTs.  Stem abscission is a solution to avoid hydraulic
+           ! problems when plant hydraulics is enabled.
+           if ( ( prt_params%woody(ipft) == itrue )                     .and. &
+                ( ( prt_params%phen_stem_drop_fraction(ipft) < 0.0_r8 ) .or.  &
+                  ( prt_params%phen_stem_drop_fraction(ipft) > nearzero )   ) ) then
+              write(fates_log(),*) ' Non-zero stem-drop fractions are not allowed for woody plants'
+              write(fates_log(),*) ' PFT#: ',ipft
+              write(fates_log(),*) ' part_params%woody:',prt_params%woody(ipft)
+              write(fates_log(),*) ' phen_stem_drop_fraction: ', prt_params%phen_stem_drop_fraction(ipft)
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           elseif ( ( prt_params%phen_stem_drop_fraction(ipft) < 0.0_r8 ) .or. &
+                    ( prt_params%phen_stem_drop_fraction(ipft) > 1.0_r8 ) ) then
+              write(fates_log(),*) ' Deciduous non-wood plants must keep 0-100% of their stems'
+              write(fates_log(),*) ' during the deciduous period.'
+              write(fates_log(),*) ' PFT#: ',ipft
+              write(fates_log(),*) ' evergreen flag: (should be 0):',prt_params%evergreen(ipft)
+              write(fates_log(),*) ' phen_stem_drop_fraction: ', prt_params%phen_stem_drop_fraction(ipft)
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+        end if
+
+
 
 
         ! Check to see if mature and base seed allocation is greater than 1

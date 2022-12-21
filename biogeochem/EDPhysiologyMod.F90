@@ -869,9 +869,6 @@ contains
     !
     ! !USES:
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
-    use EDParamsMod, only : ED_val_phen_drought_threshold
-    use EDParamsMod, only : ED_val_phen_moist_threshold
-    use EDParamsMod, only : ED_val_phen_doff_time
     use EDParamsMod, only : ED_val_phen_a, ED_val_phen_b, ED_val_phen_c
     use EDParamsMod, only : ED_val_phen_chiltemp
     use EDParamsMod, only : ED_val_phen_mindayson
@@ -911,6 +908,25 @@ contains
                                   !    This is the shortest between the PFT leaf lifespan
                                   !    and the maximum lifespan of drought deciduous
                                   !    (see canopy_leaf_lifespan below)
+     real(r8) :: phen_drought_threshold ! For drought hard-deciduous, this is the threshold
+                                        !   below which plants will abscise leaves, and
+                                        !   above which plants will flush leaves. For semi-
+                                        !   deciduous plants, this is the threshold below
+                                        !   which abscission will be complete. This depends
+                                        !   on the sign. If positive, these are soil
+                                        !   volumetric water content [m3/m3]. If negative,
+                                        !   the values are soil matric potential [mm]. Not
+                                        !   used for non-deciduous plants. Ignored for 
+                                        !   non-deciduous plants.
+     real(r8) :: phen_moist_threshold   ! For semi-deciduous, this is the threshold above 
+                                        !    which flushing will be complete.  This depends
+                                        !    on the sign. If positive, these are soil
+                                        !    volumetric water content [m3/m3]. If negative,
+                                        !    the values are soil matric potential [mm].
+                                        !    Ignored for hard-deciduous and evergreen 
+                                        !    plants.
+     real(r8) :: phen_doff_time         ! Minimum number of days that plants must remain
+                                        !   leafless before flushing leaves again.
 
     ! Logical tests to make code more readable
     logical  :: smoist_below_threshold   ! Is soil moisture below threshold?
@@ -1130,6 +1146,12 @@ contains
     ! Add PFT look to account for different PFT rooting depth profiles.
     pft_elong_loop: do ipft=1,numpft
 
+       ! Copy values to a local variable to make code more legible.
+       phen_drought_threshold = prt_params%phen_drought_threshold(ipft)
+       phen_moist_threshold   = prt_params%phen_moist_threshold  (ipft)
+       phen_doff_time         = prt_params%phen_doff_time        (ipft)
+
+
        ! Update soil moisture information memory (we always track the last 10 days)
        do i_wmem = numWaterMem,2,-1 !shift memory to previous day, to make room for current day
           currentSite%liqvol_memory(i_wmem,ipft) = currentSite%liqvol_memory(i_wmem-1,ipft)
@@ -1171,12 +1193,12 @@ contains
                            real(numWaterMem,r8)
 
        ! Compare the moisture with the threshold.
-       if ( ED_val_phen_drought_threshold >= 0. ) then
+       if ( phen_drought_threshold >= 0. ) then
           ! Liquid volume in reference layer (m3/m3)
-          smoist_below_threshold = mean_10day_liqvol < ED_val_phen_drought_threshold
+          smoist_below_threshold = mean_10day_liqvol < phen_drought_threshold
        else
           ! Soil matric potential in reference layer (mm)
-          smoist_below_threshold = mean_10day_smp    < ED_val_phen_drought_threshold
+          smoist_below_threshold = mean_10day_smp    < phen_drought_threshold
        end if
 
        ! Calculate days since last flushing and shedding event, but make a provision
@@ -1241,7 +1263,7 @@ contains
           ! was about one year ago (+/- tolerance).
           prolonged_off_period     = &
              any( currentSite%dstatus(ipft) == [phen_dstat_timeoff,phen_dstat_moistoff] ) .and. &
-             ( currentSite%dndaysleafoff(ipft) > ED_val_phen_doff_time )                  .and. &
+             ( currentSite%dndaysleafoff(ipft) > phen_doff_time     )                     .and. &
              ( currentSite%dndaysleafon(ipft) >= 365-dd_offon_toler )                     .and. &
              ( currentSite%dndaysleafon(ipft) <= 365+dd_offon_toler )
           ! Last flushing was a very long time ago.
@@ -1324,14 +1346,14 @@ contains
 
 
           ! First guess elongation factor
-          if (ED_val_phen_drought_threshold >= 0.) then
+          if (phen_drought_threshold >= 0.) then
              elongf_1st = elongf_min + (1.0_r8 - elongf_min ) * &
-                          ( mean_10day_liqvol           - ED_val_phen_drought_threshold ) / &
-                          ( ED_val_phen_moist_threshold - ED_val_phen_drought_threshold )
+                          ( mean_10day_liqvol    - phen_drought_threshold ) / &
+                          ( phen_moist_threshold - phen_drought_threshold )
           else
              elongf_1st = elongf_min + (1.0_r8 - elongf_min ) * &
-                          ( mean_10day_smp              - ED_val_phen_drought_threshold ) / &
-                          ( ED_val_phen_moist_threshold - ED_val_phen_drought_threshold )
+                          ( mean_10day_smp       - phen_drought_threshold ) / &
+                          ( phen_moist_threshold - phen_drought_threshold )
           end if
           elongf_1st = max(0.0_r8,min(1.0_r8,elongf_1st))
 
@@ -1517,8 +1539,8 @@ contains
           sapw_c   = currentCohort%prt%GetState(sapw_organ  , carbon12_element)
           struct_c = currentCohort%prt%GetState(struct_organ, carbon12_element)
 
-          fnrt_drop_fraction = EDPftvarcon_inst%phen_fnrt_drop_fraction(ipft)
-          stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(ipft)
+          fnrt_drop_fraction = prt_params%phen_fnrt_drop_fraction(ipft)
+          stem_drop_fraction = prt_params%phen_stem_drop_fraction(ipft)
           l2fr               = prt_params%allom_l2fr(ipft)
 
           ! MLO. To avoid duplicating code for drought and cold deciduous PFTs, we first
@@ -2240,8 +2262,8 @@ contains
           temp_cohort%pft         = ft
           temp_cohort%hite        = EDPftvarcon_inst%hgt_min(ft)
           temp_cohort%coage       = 0.0_r8
-          fnrt_drop_fraction      = EDPftvarcon_inst%phen_fnrt_drop_fraction(ft)
-          stem_drop_fraction      = EDPftvarcon_inst%phen_stem_drop_fraction(ft)
+          fnrt_drop_fraction      = prt_params%phen_fnrt_drop_fraction(ft)
+          stem_drop_fraction      = prt_params%phen_stem_drop_fraction(ft)
           temp_cohort%l2fr        = currentSite%rec_l2fr(ft,currentPatch%NCL_p)
           temp_cohort%crowndamage = 1       ! new recruits are undamaged
 

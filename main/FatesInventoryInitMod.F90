@@ -1057,8 +1057,8 @@ contains
          elongf_fnrt = 1.0_r8
          elongf_stem = 1.0_r8
 
-         fnrt_drop_fraction = EDPftvarcon_inst%phen_fnrt_drop_fraction(temp_cohort%pft)
-         stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(temp_cohort%pft)
+         fnrt_drop_fraction = prt_params%phen_fnrt_drop_fraction(temp_cohort%pft)
+         stem_drop_fraction = prt_params%phen_stem_drop_fraction(temp_cohort%pft)
 
          if( prt_params%season_decid(temp_cohort%pft) == itrue .and. &
               any(csite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then

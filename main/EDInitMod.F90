@@ -898,8 +898,8 @@ contains
              elongf_fnrt  = 1.0_r8
              elongf_stem  = 1.0_r8
 
-             fnrt_drop_fraction = EDPftvarcon_inst%phen_fnrt_drop_fraction(temp_cohort%pft)
-             stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(temp_cohort%pft)
+             fnrt_drop_fraction = prt_params%phen_fnrt_drop_fraction(temp_cohort%pft)
+             stem_drop_fraction = prt_params%phen_stem_drop_fraction(temp_cohort%pft)
 
              if(hlm_use_sp.eq.ifalse)then ! do not override SP vales with phenology
 
