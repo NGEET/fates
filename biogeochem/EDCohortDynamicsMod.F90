@@ -2067,20 +2067,9 @@ contains
        end if
        
        do iv = iv0 ,iv1
-          if(joint_wgt(iv)<nearzero) then
-
-             write(fates_log(),*) 'no joint weight when fusing carbon balance array'
-             write(fates_log(),*) 'iv: ',iv
-             write(fates_log(),*) 'joint_wgt: ',joint_wgt(:)
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-
-             ! This scenario should be incredibly unlikely
-             ! but its better to have something here than nothing
-             ! Note: there should be net uptake defined (and therefore weights)
-             ! at the end-points.
-             !joint_net_uptake(iv) = &
-             !     0.5_r8*(joint_net_uptake(iv0)+joint_net_uptake(iv1)/joint_wgt(iv1))
-          else
+          ! It really is possible to have a zero weight if
+          ! the two cohorts have very different maximum layer depths
+          if(joint_wgt(iv)>nearzero) then
              joint_net_uptake(iv) = joint_net_uptake(iv)/joint_wgt(iv)
           end if
        end do
