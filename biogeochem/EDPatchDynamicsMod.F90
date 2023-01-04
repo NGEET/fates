@@ -77,7 +77,6 @@ module EDPatchDynamicsMod
   use EDCohortDynamicsMod  , only : InitPRTObject
   use EDCohortDynamicsMod  , only : InitPRTBoundaryConditions
   use ChecksBalancesMod,      only : SiteMassStock
-  use PRTGenericMod,          only : all_carbon_elements
   use PRTGenericMod,          only : carbon12_element
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : fnrt_organ
@@ -517,6 +516,7 @@ contains
                       currentSite%disturbance_rates_primary_to_primary(i_disturbance_type) = &
                            currentSite%disturbance_rates_primary_to_primary(i_disturbance_type) + &
                            currentPatch%area * disturbance_rate * AREA_INV
+
                    else
                       site_areadis_secondary = site_areadis_secondary + currentPatch%area * disturbance_rate
 
@@ -707,11 +707,11 @@ contains
                          nc%canopy_layer = 1
                          nc%canopy_layer_yesterday = 1._r8
 
-                         sapw_c   = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
-                         struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
-                         leaf_c   = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
-                         fnrt_c   = currentCohort%prt%GetState(fnrt_organ, all_carbon_elements)
-                         store_c  = currentCohort%prt%GetState(store_organ, all_carbon_elements)
+                         sapw_c   = currentCohort%prt%GetState(sapw_organ, carbon12_element)
+                         struct_c = currentCohort%prt%GetState(struct_organ, carbon12_element)
+                         leaf_c   = currentCohort%prt%GetState(leaf_organ, carbon12_element)
+                         fnrt_c   = currentCohort%prt%GetState(fnrt_organ, carbon12_element)
+                         store_c  = currentCohort%prt%GetState(store_organ, carbon12_element)
                          total_c  = sapw_c + struct_c + leaf_c + fnrt_c + store_c
 
                          ! treefall mortality is the current disturbance
@@ -3090,7 +3090,7 @@ contains
 
              currentPatch%pft_agb_profile(currentCohort%pft,j) = &
                   currentPatch%pft_agb_profile(currentCohort%pft,j) + &
-                  currentCohort%prt%GetState(struct_organ, all_carbon_elements) * &
+                  currentCohort%prt%GetState(struct_organ, carbon12_element) * &
                   currentCohort%n/currentPatch%area
 
           endif

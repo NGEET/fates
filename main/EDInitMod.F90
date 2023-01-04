@@ -13,7 +13,7 @@ module EDInitMod
   use FatesGlobals              , only : endrun => fates_endrun
   use EDTypesMod                , only : nclmax
   use FatesGlobals              , only : fates_log
-  use FatesInterfaceTypesMod         , only : hlm_is_restart
+  use FatesInterfaceTypesMod    , only : hlm_is_restart
   use EDPftvarcon               , only : EDPftvarcon_inst
   use PRTParametersMod          , only : prt_params
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
@@ -177,6 +177,10 @@ contains
     allocate(site_in%use_this_pft(1:numpft))
     allocate(site_in%area_by_age(1:nlevage))
 
+    ! for CNP dynamics, track the mean l2fr of recruits
+    ! for different pfts and canopy positions
+    allocate(site_in%rec_l2fr(1:numpft,nclmax))
+    
     
     ! SP mode
     allocate(site_in%sp_tlai(1:numpft))
@@ -186,9 +190,6 @@ contains
     do el=1,num_elements
        allocate(site_in%flux_diags(el)%leaf_litter_input(1:numpft))
        allocate(site_in%flux_diags(el)%root_litter_input(1:numpft))
-       allocate(site_in%flux_diags(el)%nutrient_efflux_scpf(nlevsclass*numpft))
-       allocate(site_in%flux_diags(el)%nutrient_uptake_scpf(nlevsclass*numpft))
-        allocate(site_in%flux_diags(el)%nutrient_need_scpf(nlevsclass*numpft))
     end do
 
     ! Initialize the static soil
@@ -386,6 +387,14 @@ contains
           sites(s)%NF         = 0.0_r8
           sites(s)%NF_successful  = 0.0_r8
 
+          do ft =  1,numpft
+             sites(s)%rec_l2fr(ft,:) = prt_params%allom_l2fr(ft)
+          end do
+          
+          ! Its difficult to come up with a resonable starting smoothing value, so
+          ! we initialize on a cold-start to -1
+          sites(s)%ema_npp = -9999._r8
+          
           if(hlm_use_fixed_biogeog.eq.itrue)then
              ! MAPPING OF FATES PFTs on to HLM_PFTs
              ! add up the area associated with each FATES PFT
@@ -478,9 +487,6 @@ contains
     ! initialize patches
     ! This may be call a near bare ground initialization, or it may
     ! load patches from an inventory.
-
-    !
-
 
     use FatesPlantHydraulicsMod, only : updateSizeDepRhizHydProps
     use FatesInventoryInitMod,   only : initialize_sites_by_inventory
@@ -809,6 +815,7 @@ contains
              endif
 
              temp_cohort%canopy_trim = 1.0_r8
+             temp_cohort%l2fr = prt_params%allom_l2fr(pft)
 
              ! Assume no damage to begin with - since we assume no damage
              ! we do not need to initialise branch frac just yet. 
@@ -842,7 +849,7 @@ contains
 
              ! Calculate fine root biomass from allometry
              ! (calculates a maximum and then trimming value)
-             call bfineroot(temp_cohort%dbh,pft,temp_cohort%canopy_trim,c_fnrt)
+             call bfineroot(temp_cohort%dbh,pft,temp_cohort%canopy_trim,temp_cohort%l2fr,c_fnrt)
 
              ! Calculate sapwood biomass
              call bsap_allom(temp_cohort%dbh,pft,temp_cohort%crowndamage, &

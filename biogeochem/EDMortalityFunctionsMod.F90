@@ -23,7 +23,7 @@ module EDMortalityFunctionsMod
    use EDLoggingMortalityMod , only : LoggingMortality_frac
    use EDParamsMod           , only : fates_mortality_disturbance_fraction
 
-   use PRTGenericMod,          only : all_carbon_elements
+   use PRTGenericMod,          only : carbon12_element
    use PRTGenericMod,          only : store_organ
    use shr_log_mod           , only : errMsg => shr_log_errMsg
    
@@ -167,7 +167,7 @@ contains
        if ( cohort_in%dbh  >  0._r8 ) then
 
           call bleaf(cohort_in%dbh,cohort_in%pft,cohort_in%crowndamage,cohort_in%canopy_trim,target_leaf_c)
-          store_c = cohort_in%prt%GetState(store_organ,all_carbon_elements)
+          store_c = cohort_in%prt%GetState(store_organ,carbon12_element)
 
           call storage_fraction_of_target(target_leaf_c, store_c, frac)
           if( frac .lt. 1._r8) then

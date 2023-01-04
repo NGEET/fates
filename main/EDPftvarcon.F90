@@ -142,10 +142,21 @@ module EDPftvarcon
      ! Nutrient Aquisition (ECA & RD)
 
 
-     !real(r8), allocatable :: rd_vmax_n(:)             ! maximum production rate for plant n uptake   [gN/gC/s]
      real(r8), allocatable :: decompmicc(:)             ! microbial decomposer biomass gC/m3
                                                         ! on root surface
 
+     real(r8), allocatable :: vmax_nh4(:) ! maximum production rate for plant NH4 uptake   [gN/gC/s]
+     real(r8), allocatable :: vmax_no3(:) ! maximum production rate for plant NO3 uptake   [gN/gC/s]
+                                          ! For ECA: these rates will be applied separately to
+                                          ! draw from mineralized nh4 and no3 pools independantly.
+                                          ! For RD: these rates will be added, to construct a total
+                                          ! N demand, which will be applied to NH4 and then NO3
+                                          ! sequentially
+     real(r8), allocatable :: vmax_p(:)   ! maximum production rate for plant p uptake     [gP/gC/s]
+
+     
+
+     
      ! ECA Parameters: See Zhu et al. Multiple soil nutrient competition between plants,
      !                     microbes, and mineral surfaces: model development, parameterization,
      !                     and example applications in several tropical forests.  Biogeosciences,
@@ -153,13 +164,13 @@ module EDPftvarcon
      ! KM: Michaeles-Menten half-saturation constants for ECA (plant–enzyme affinity)
      ! VMAX: Product of the reaction-rate and enzyme abundance for each PFT in ECA
      ! Note*: units of [gC] is grams carbon of fine-root
-
+     
      real(r8), allocatable :: eca_km_nh4(:)   ! half-saturation constant for plant nh4 uptake  [gN/m3]
-     real(r8), allocatable :: eca_vmax_nh4(:) ! maximum production rate for plant nh4 uptake   [gN/gC/s]
+     
      real(r8), allocatable :: eca_km_no3(:)   ! half-saturation constant for plant no3 uptake  [gN/m3]
-     real(r8), allocatable :: eca_vmax_no3(:) ! maximum production rate for plant no3 uptake   [gN/gC/s]
+    
      real(r8), allocatable :: eca_km_p(:)     ! half-saturation constant for plant p uptake    [gP/m3]
-     real(r8), allocatable :: eca_vmax_p(:)   ! maximum production rate for plant p uptake     [gP/gC/s]
+     
      real(r8), allocatable :: eca_km_ptase(:)     ! half-saturation constant for biochemical P production [gP/m3]
      real(r8), allocatable :: eca_vmax_ptase(:)   ! maximum production rate for biochemical P prod        [gP/gC/s]
      real(r8), allocatable :: eca_alpha_ptase(:)  ! Fraction of min P generated from ptase activity
@@ -167,9 +178,6 @@ module EDPftvarcon
      real(r8), allocatable :: eca_lambda_ptase(:) ! critical value for Ptase that incurs
                                                   ! biochemical production, fraction based how much
                                                   ! more in need a plant is for P versus N [/]
-
-     !real(r8), allocatable :: nfix1(:)   ! nitrogen fixation parameter 1
-
 
      ! Turnover related things
 
@@ -596,7 +604,6 @@ contains
 
     ! Nutrient competition parameters
 
-
     name = 'fates_cnp_eca_decompmicc'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -605,7 +612,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_cnp_eca_vmax_nh4'
+    name = 'fates_cnp_vmax_nh4'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -613,7 +620,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_cnp_eca_vmax_no3'
+    name = 'fates_cnp_vmax_no3'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -972,18 +979,18 @@ contains
     name = 'fates_cnp_eca_km_nh4'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%eca_km_nh4)
-
-    name = 'fates_cnp_eca_vmax_nh4'
+    
+    name = 'fates_cnp_vmax_nh4'
     call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%eca_vmax_nh4)
+         data=this%vmax_nh4)
 
     name = 'fates_cnp_eca_km_no3'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%eca_km_no3)
 
-    name = 'fates_cnp_eca_vmax_no3'
+    name = 'fates_cnp_vmax_no3'
     call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%eca_vmax_no3)
+         data=this%vmax_no3)
 
     name = 'fates_cnp_eca_km_p'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -991,7 +998,7 @@ contains
 
     name = 'fates_cnp_vmax_p'
     call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%eca_vmax_p)
+         data=this%vmax_p)
 
     name = 'fates_cnp_eca_km_ptase'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -1068,8 +1075,6 @@ contains
     name = 'fates_rad_stem_taunir'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
-
-
 
   end subroutine Register_PFT_numrad
 
@@ -1551,6 +1556,7 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
 
+        
         ! If nitrogen is turned on, check to make sure there are valid ammonium
         ! parameters
         if(hlm_nitrogen_spec>0)then
@@ -1609,9 +1615,6 @@ contains
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
-        n_uptake_mode = prescribed_n_uptake
-     else
-        n_uptake_mode = coupled_n_uptake
      end if
 
      ! logging parameters, make sure they make sense
@@ -1641,12 +1644,7 @@ contains
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
-        p_uptake_mode = prescribed_p_uptake
-     else
-        p_uptake_mode = coupled_p_uptake
      end if
-
-
 
      do ipft = 1,npft
 
