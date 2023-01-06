@@ -480,8 +480,8 @@ contains
 
            ! only account for cohorts matching the following conditions
            if(int(prt_params%woody(pft)) == 1)then ! only set logging rates for trees
-              sapw_m   = currentCohort%prt%GetState(sapw_organ, all_carbon_elements)
-              struct_m = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
+              sapw_m   = currentCohort%prt%GetState(sapw_organ, carbon12_element)
+              struct_m = currentCohort%prt%GetState(struct_organ, carbon12_element)
               ! logging_direct_frac shall be 1 for LUH2 driven simulation and global simulation
               ! in site level study logging_direct_frac shall be surveyed
               ! unit:  [kgC ] = [kgC/plant] * [plant/ha] * [ha/ 10k m2] * [ m2 area ]
