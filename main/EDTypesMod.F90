@@ -9,11 +9,11 @@ module EDTypesMod
   use PRTGenericMod,         only : prt_vartypes
   use PRTGenericMod,         only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod,         only : repro_organ, store_organ, struct_organ
-  use PRTGenericMod,         only : all_carbon_elements
   use PRTGenericMod,         only : num_organ_types
   use PRTGenericMod,         only : num_elements
   use PRTGenericMod,         only : element_list
   use PRTGenericMod,         only : num_element_types
+  use PRTGenericMod,         only : carbon12_element
   use FatesLitterMod,        only : litter_type
   use FatesLitterMod,        only : ncwd
   use FatesConstantsMod,     only : n_anthro_disturbance_categories
@@ -174,8 +174,6 @@ module EDTypesMod
   real(r8), parameter, public :: min_n_safemath = 1.0E-12_r8              ! in some cases, we want to immediately remove super small
                                                                           ! number densities of cohorts to prevent FPEs
 
-  character*4 yearchar                    
-
   ! special mode to cause PFTs to create seed mass of all currently-existing PFTs
   logical, parameter, public :: homogenize_seed_pfts  = .false.
 
@@ -187,6 +185,7 @@ module EDTypesMod
 
   integer, public :: n_uptake_mode
   integer, public :: p_uptake_mode
+
 
   !************************************
   !** COHORT type structure          **
@@ -205,6 +204,18 @@ module EDTypesMod
 
      class(prt_vartypes), pointer :: prt
 
+     real(r8) :: l2fr                                    ! leaf to fineroot biomass ratio (this is constant
+                                                         !      in carbon only simulationss, and is set by the
+                                                         !      allom_l2fr_min parameter.  In nutrient
+                                                         !      enabled simulations, this is dynamic, will
+                                                         !      vary between allom_l2fr_min and allom_l2fr_max
+                                                         !      parameters, with a tendency driven by
+                                                         !      nutrient storage) [kg root / kg leaf]
+     
+     
+
+     
+     
      ! VEGETATION STRUCTURE
      integer  ::  pft                                    ! pft number
      real(r8) ::  n                                      ! number of individuals in cohort per 'area' (10000m2 default)
@@ -274,29 +285,35 @@ module EDTypesMod
      real(r8) ::  c13disc_clm         ! carbon 13 discrimination in new synthesized carbon: part-per-mil, at each indiv/timestep
      real(r8) ::  c13disc_acc         ! carbon 13 discrimination in new synthesized carbon: part-per-mil, at each indiv/day, at the end of a day
 
+
+     ! Used for CNP
+     integer  :: cnp_limiter ! Which element is limiting growth? ! 0=none,1=C,2=N,3=P
+     real(r8) :: cx_int      ! The time integration of the log of the relative carbon storage over relative nutrient
+     real(r8) :: ema_dcxdt   ! The derivative of the log of the relative carbon storage over relative nutrient
+     real(r8) :: cx0         ! The value on the previous time-step of log of the relative carbon
+                             ! storage over relative nutrient
+     real(r8) :: nc_repro    ! The NC ratio of a new recruit, used also for defining reproductive stoich
+     real(r8) :: pc_repro    ! The PC ratio of a new recruit
+     
      ! Nutrient Fluxes (if N, P, etc. are turned on)
 
      real(r8) :: daily_nh4_uptake ! integrated daily uptake of mineralized ammonium through competitive acquisition in soil [kg N / plant/ day]
      real(r8) :: daily_no3_uptake ! integrated daily uptake of mineralized nitrate through competitive acquisition in soil [kg N / plant/ day]
-     real(r8) :: daily_p_uptake   ! integrated daily uptake of mineralized P through competitive acquisition in soil [kg P / plant/ day]
+
+     real(r8) :: sym_nfix_daily   ! Accumulated symbiotic N fixation from the roots [kgN/indiv/day]
+     real(r8) :: sym_nfix_tstep   ! Symbiotic N fixation from the roots for the time-step[kgN/indiv/tstep]
+     
+     real(r8) :: daily_n_gain     ! sum of fixation and uptake of mineralized nh4/no3 in solution as well as symbiotic fixation
+     real(r8) :: daily_p_gain     ! integrated daily uptake of mineralized P through competitive acquisition in soil [kg P / plant/ day]
 
      real(r8) :: daily_c_efflux   ! daily mean efflux of excess carbon from roots into labile pool [kg C/plant/day]
      real(r8) :: daily_n_efflux   ! daily mean efflux of excess nitrogen from roots into labile pool [kg N/plant/day]
      real(r8) :: daily_p_efflux   ! daily mean efflux of excess phophorus from roots into labile pool [kg P/plant/day]
 
-     real(r8) :: daily_n_need     ! Generic Nitrogen need of the plant, (hypothesis dependent) [kgN/plant/day]
-     real(r8) :: daily_p_need     ! Generic Phosphorus need of the plant, (hypothesis dependent) [kgN/plant/day]
+     real(r8) :: daily_n_demand ! The daily amount of N demanded by the plant [kgN/plant/day]
+     real(r8) :: daily_p_demand ! The daily amount of P demanded by the plant [kgN/plant/day]
 
 
-     ! These two variables may use the previous "need" variables, by applying a smoothing function.
-     ! These variables are used in two scenarios. 1) They work with the prescribed uptake fraction
-     ! in un-coupled mode, and 2) They are the plant's demand subbmitted to the Relative-Demand
-     ! type soil BGC scheme.
-     
-     real(r8) :: daily_n_demand ! The daily amount of N demanded by the plant [kgN]
-     real(r8) :: daily_p_demand ! The daily amount of P demanded by the plant [kgN]
-
-     
      ! The following four biophysical rates are assumed to be
      ! at the canopy top, at reference temp 25C, and based on the 
      ! leaf age weighted average of the PFT parameterized values. The last
@@ -322,10 +339,7 @@ module EDTypesMod
 
      real(r8) ::  resp_g_tstep                           ! Growth respiration:  kgC/indiv/timestep
      real(r8) ::  resp_m                                 ! Maintenance respiration:  kgC/indiv/timestep 
-     real(r8) ::  resp_m_def                             ! Optional: (NOT IMPLEMENTED YET)
-                                                         ! It may be possible to not respire at desired rate
-                                                         ! because of low carbon stores, and thus build
-                                                         ! up a deficit. This tracks that deficit. kgC/indiv
+     real(r8) ::  resp_excess                            ! Respiration of excess carbon kgC/indiv/day
      real(r8) ::  livestem_mr                            ! Live stem        maintenance respiration: kgC/indiv/s
                                                          ! (Above ground)
      real(r8) ::  livecroot_mr                           ! Live stem        maintenance respiration: kgC/indiv/s
@@ -371,6 +385,9 @@ module EDTypesMod
      real(r8) ::  ddbhdt                                 ! time derivative of dbh          : cm/year
      real(r8) ::  dbdeaddt                               ! time derivative of dead biomass         : KgC/year
 
+     
+
+     
      ! FIRE
      real(r8) ::  fraction_crown_burned                  ! proportion of crown affected by fire:-
      real(r8) ::  cambial_mort                           ! probability that trees dies due to cambial char 
@@ -422,7 +439,9 @@ module EDTypesMod
      class(rmean_type), pointer :: tveg24                        ! 24-hour mean vegetation temperature (K)
      class(rmean_type), pointer :: tveg_lpa                      ! Running mean of vegetation temperature at the
                                                                  ! leaf photosynthesis acclimation timescale [K]
+
      integer  ::  nocomp_pft_label                               ! where nocomp is active, use this label for patch ID.   
+
 
      ! LEAF ORGANIZATION
      real(r8) ::  pft_agb_profile(maxpft,n_dbh_bins)            ! binned above ground biomass, for patch fusion: KgC/m2
@@ -522,10 +541,15 @@ module EDTypesMod
      real(r8) ::  psn_z(nclmax,maxpft,nlevleaf)               ! carbon assimilation in each canopy layer, pft, and leaf layer. umolC/m2/s
 
      ! ROOTS
-     real(r8) ::  btran_ft(maxpft)                              ! btran calculated seperately for each PFT:-
-     real(r8) ::  bstress_sal_ft(maxpft)                        ! bstress from salinity calculated seperately for each PFT:-   
-     
+     real(r8) ::  btran_ft(maxpft)                ! btran calculated seperately for each PFT:-
+     real(r8) ::  bstress_sal_ft(maxpft)          ! bstress from salinity calculated seperately for each PFT:-   
 
+
+     ! These two variables are only used for external seed rain currently.
+     real(r8) :: nitr_repro_stoich(maxpft)        ! The NC ratio of a new recruit in this patch
+     real(r8) :: phos_repro_stoich(maxpft)        ! The PC ratio of a new recruit in this patch
+
+     
      ! DISTURBANCE 
      real(r8) ::  disturbance_rates(n_dist_types)                  ! disturbance rate from 1) mortality 
                                                                    !                       2) fire: fraction/day 
@@ -608,10 +632,6 @@ module EDTypesMod
      real(r8) :: cwd_bg_input(1:ncwd)               
      real(r8),allocatable :: leaf_litter_input(:)
      real(r8),allocatable :: root_litter_input(:)
-
-     real(r8),allocatable :: nutrient_uptake_scpf(:)
-     real(r8),allocatable :: nutrient_efflux_scpf(:)
-     real(r8),allocatable :: nutrient_need_scpf(:)
      
    contains
 
@@ -644,7 +664,8 @@ module EDTypesMod
      real(r8) :: aresp_acc        ! Accumulated autotrophic respiration [kg/site/day]
 
      real(r8) :: net_root_uptake  ! Net uptake of carbon or nutrients through the roots [kg/site/day]
-                                  ! (if carbon most likely exudation, if even active)
+                                  ! could include exudation, and for N this also includes symbiotic
+                                  ! fixation
 
      real(r8) :: seed_in          ! Total mass of external seed rain into fates site [kg/site/day]
                                   ! This is from external grid-cells or from user parameterization
@@ -705,6 +726,16 @@ module EDTypesMod
      ! Total area of patches in each age bin [m2]
      real(r8), allocatable :: area_by_age(:)
 
+     ! Nutrient relevant 
+     real(r8), allocatable :: rec_l2fr(:,:) ! A running mean of the l2fr's for the newly
+                                            ! recruited, pft x canopy_layer
+     real(r8) :: ema_npp                    ! An exponential moving average of NPP [gC/m2/year]
+                                            ! The lengthscale is hard-coded "ema_npp_tcale"
+                                            ! in FatesSoilBGCFluxMod. Used solely to inform bc_out%ema_npp
+                                            ! which is used for fixation
+
+     
+     
      ! SP mode target PFT level variables
      real(r8), allocatable :: sp_tlai(:)                      ! target TLAI per FATES pft
      real(r8), allocatable :: sp_tsai(:)                      ! target TSAI per FATES pft
@@ -862,9 +893,33 @@ module EDTypesMod
   public :: dump_patch
   public :: dump_cohort
   public :: dump_cohort_hydr
-
+  public :: CanUpperUnder  
   contains
 
+    ! =====================================================================================
+
+    function CanUpperUnder(ccohort) result(can_position)
+
+      ! This simple function is used to determine if a
+      ! cohort's crown position is in the upper portion (ie the canopy)
+      ! or the understory.  This differentiation is only used for
+      ! diagnostic purposes.  Functionally, the model uses
+      ! the canopy layer position, which may have more than two layers
+      ! at any given time. Utlimately, every plant that is not in the
+      ! top layer (canopy), is considered understory.
+
+      type(ed_cohort_type) :: ccohort   ! Current cohort of interest
+      integer :: can_position
+      
+      if(ccohort%canopy_layer == 1)then
+         can_position = ican_upper
+      else
+         can_position = ican_ustory
+      end if
+      
+    end function CanUpperUnder
+      
+    ! =====================================================================================
 
     subroutine ZeroFluxDiags(this)
       
@@ -874,9 +929,6 @@ module EDTypesMod
       this%cwd_bg_input(:)      = 0._r8
       this%leaf_litter_input(:) = 0._r8
       this%root_litter_input(:) = 0._r8
-      this%nutrient_uptake_scpf(:) = 0._r8
-      this%nutrient_efflux_scpf(:) = 0._r8
-      this%nutrient_need_scpf(:)  = 0._r8
       
       return
     end subroutine ZeroFluxDiags
@@ -1062,13 +1114,13 @@ module EDTypesMod
      write(fates_log(),*) 'co%hite                   = ', ccohort%hite
      write(fates_log(),*) 'co%crowndamage            = ', ccohort%crowndamage
      write(fates_log(),*) 'co%coage                  = ', ccohort%coage
-     
-     write(fates_log(),*) 'leaf carbon               = ', ccohort%prt%GetState(leaf_organ,all_carbon_elements) 
-     write(fates_log(),*) 'fineroot carbon           = ', ccohort%prt%GetState(fnrt_organ,all_carbon_elements) 
-     write(fates_log(),*) 'sapwood carbon            = ', ccohort%prt%GetState(sapw_organ,all_carbon_elements) 
-     write(fates_log(),*) 'structural (dead) carbon  = ', ccohort%prt%GetState(struct_organ,all_carbon_elements) 
-     write(fates_log(),*) 'storage carbon            = ', ccohort%prt%GetState(store_organ,all_carbon_elements) 
-     write(fates_log(),*) 'reproductive carbon       = ', ccohort%prt%GetState(repro_organ,all_carbon_elements) 
+     write(fates_log(),*) 'co%l2fr                   = ', ccohort%l2fr
+     write(fates_log(),*) 'leaf carbon               = ', ccohort%prt%GetState(leaf_organ,carbon12_element) 
+     write(fates_log(),*) 'fineroot carbon           = ', ccohort%prt%GetState(fnrt_organ,carbon12_element) 
+     write(fates_log(),*) 'sapwood carbon            = ', ccohort%prt%GetState(sapw_organ,carbon12_element) 
+     write(fates_log(),*) 'structural (dead) carbon  = ', ccohort%prt%GetState(struct_organ,carbon12_element) 
+     write(fates_log(),*) 'storage carbon            = ', ccohort%prt%GetState(store_organ,carbon12_element) 
+     write(fates_log(),*) 'reproductive carbon       = ', ccohort%prt%GetState(repro_organ,carbon12_element) 
      write(fates_log(),*) 'co%g_sb_laweight          = ', ccohort%g_sb_laweight
      write(fates_log(),*) 'co%leaf_cost              = ', ccohort%leaf_cost
      write(fates_log(),*) 'co%canopy_layer           = ', ccohort%canopy_layer
@@ -1093,7 +1145,6 @@ module EDTypesMod
      write(fates_log(),*) 'co%resp_acc_hold          = ', ccohort%resp_acc_hold
      write(fates_log(),*) 'co%rdark                  = ', ccohort%rdark
      write(fates_log(),*) 'co%resp_m                 = ', ccohort%resp_m
-     write(fates_log(),*) 'co%resp_m_def             = ', ccohort%resp_m_def
      write(fates_log(),*) 'co%resp_g_tstep           = ', ccohort%resp_g_tstep
      write(fates_log(),*) 'co%livestem_mr            = ', ccohort%livestem_mr
      write(fates_log(),*) 'co%livecroot_mr           = ', ccohort%livecroot_mr

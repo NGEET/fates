@@ -2750,6 +2750,7 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
         ccohort=>cpatch%tallest
         do while(associated(ccohort))
 
+           ccohort_hydr => ccohort%co_hydr
            sum_l_aroot = sum(ccohort_hydr%l_aroot_layer(:))
            ft = ccohort%pft 
            

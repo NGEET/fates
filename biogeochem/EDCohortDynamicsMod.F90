@@ -19,7 +19,6 @@ Module EDCohortDynamicsMod
   use FatesConstantsMod     , only : fates_unset_r8
   use FatesConstantsMod     , only : nearzero
   use FatesConstantsMod     , only : calloc_abs_error
-  use FatesRunningMeanMod       , only : ema_lpa
   use FatesInterfaceTypesMod     , only : hlm_days_per_year
   use FatesInterfaceTypesMod     , only : nleafage
   use SFParamsMod           , only : SF_val_CWD_frac
@@ -76,7 +75,6 @@ Module EDCohortDynamicsMod
   use PRTGenericMod,          only : prt_carbon_allom_hyp
   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
   use PRTGenericMod,          only : prt_vartypes
-  use PRTGenericMod,          only : all_carbon_elements
   use PRTGenericMod,          only : carbon12_element
   use PRTGenericMod,          only : nitrogen_element
   use PRTGenericMod,          only : phosphorus_element
@@ -97,18 +95,22 @@ Module EDCohortDynamicsMod
   use PRTAllometricCNPMod,    only : cnp_allom_prt_vartypes
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_pft, acnp_bc_in_id_ctrim
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_lstat, acnp_bc_inout_id_dbh
-  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_rmaint_def, acnp_bc_in_id_netdc
-  use PRTAllometricCNPMod,    only : acnp_bc_in_id_netdnh4, acnp_bc_in_id_netdno3, acnp_bc_in_id_netdp
+  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_l2fr
+  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_cx_int
+  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_cx0
+  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_emadcxdt
+  use PRTAllometricCNPMod,    only : acnp_bc_in_id_nc_repro
+  use PRTAllometricCNPMod,    only : acnp_bc_in_id_pc_repro
+  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_resp_excess, acnp_bc_in_id_netdc
+  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_netdn, acnp_bc_inout_id_netdp
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_cefflux, acnp_bc_out_id_nefflux
-  use PRTAllometricCNPMod,    only : acnp_bc_out_id_pefflux, acnp_bc_in_id_cdamage
-  use PRTAllometricCNPMod,    only : acnp_bc_out_id_nneed
-  use PRTAllometricCNPMod,    only : acnp_bc_out_id_pneed
+  use PRTAllometricCNPMod,    only : acnp_bc_out_id_pefflux, acnp_bc_out_id_limiter
+  use PRTAllometricCNPMod,    only : acnp_bc_in_id_cdamage
   use DamageMainMod,          only : undamaged_class
 
-  use shr_infnan_mod, only : nan => shr_infnan_nan, assignment(=)
+  use shr_infnan_mod,         only : nan => shr_infnan_nan, assignment(=)  
+  use shr_log_mod,            only : errMsg => shr_log_errMsg
 
-  ! CIME globals
-  use shr_log_mod           , only : errMsg => shr_log_errMsg
   !
   implicit none
   private
@@ -214,8 +216,7 @@ contains
     ! The PARTEH cohort object should be allocated and already
     ! initialized in this routine.
     call new_cohort%prt%CheckInitialConditions()
-
-
+    
     !**********************/
     ! Define cohort state variable
     !**********************/
@@ -236,6 +237,22 @@ contains
     new_cohort%canopy_layer = clayer
     new_cohort%canopy_layer_yesterday = real(clayer, r8)
 
+    ! Initialize the leaf to fineroot biomass ratio
+    ! for C-only, this will stay constant, for nutrient enabled
+    ! this will be dynamic.  In both cases, new cohorts are
+    ! initialized with the minimum. This works in the nutrient
+    ! enabled case, because cohorts are also initialized with
+    ! full stores, which match with minimum fr biomass
+
+    new_cohort%l2fr = prt_params%allom_l2fr(pft)
+
+    if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
+       new_cohort%cx_int      = 0._r8  ! Assume balanced N,P/C stores ie log(1) = 0
+       new_cohort%cx0         = 0._r8  ! Assume balanced N,P/C stores ie log(1) = 0
+       new_cohort%ema_dcxdt   = 0._r8  ! Assume unchanged dCX/dt
+       new_cohort%cnp_limiter = 0    ! Assume limitations are unknown
+    end if
+       
     ! This sets things like vcmax25top, that depend on the
     ! leaf age fractions (which are defined by PARTEH)
     call UpdateCohortBioPhysRates(new_cohort)
@@ -302,14 +319,14 @@ contains
        patchptr%shortest => new_cohort
     endif
 
-    call InitPRTBoundaryConditions(new_cohort)
-
     ! Allocate running mean functions
 
     !  (Keeping as an example)
     !! allocate(new_cohort%tveg_lpa)
     !! call new_cohort%tveg_lpa%InitRMean(ema_lpa,init_value=patchptr%tveg_lpa%GetMean())
 
+    call InitPRTBoundaryConditions(new_cohort)
+    
     
     ! Recuits do not have mortality rates, nor have they moved any
     ! carbon when they are created.  They will bias our statistics
@@ -393,8 +410,7 @@ contains
     ! value boundary condition.
 
     type(ed_cohort_type), intent(inout), target :: new_cohort
-
-
+    
     select case(hlm_parteh_mode)
     case (prt_carbon_allom_hyp)
 
@@ -413,21 +429,26 @@ contains
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_ctrim,bc_rval = new_cohort%canopy_trim)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_lstat,bc_ival = new_cohort%status_coh)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdc, bc_rval = new_cohort%npp_acc)
-       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdnh4, bc_rval = new_cohort%daily_nh4_uptake)
-       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdno3, bc_rval = new_cohort%daily_no3_uptake)
-       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdp, bc_rval = new_cohort%daily_p_uptake)
+
+       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_nc_repro,bc_rval = new_cohort%nc_repro)
+       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_pc_repro,bc_rval = new_cohort%pc_repro)
        call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_cdamage,bc_ival = new_cohort%crowndamage)
        
        call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_dbh,bc_rval = new_cohort%dbh)
-       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_rmaint_def,bc_rval = new_cohort%resp_m_def)
-
+       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_resp_excess,bc_rval = new_cohort%resp_excess)
+       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_l2fr,bc_rval = new_cohort%l2fr)
+       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_cx_int,bc_rval = new_cohort%cx_int)
+       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_emadcxdt,bc_rval = new_cohort%ema_dcxdt)
+       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_cx0,bc_rval = new_cohort%cx0)
+       
+       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdn, bc_rval = new_cohort%daily_n_gain)
+       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdp, bc_rval = new_cohort%daily_p_gain)
+       
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_cefflux, bc_rval = new_cohort%daily_c_efflux)
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_nefflux, bc_rval = new_cohort%daily_n_efflux)
        call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_pefflux, bc_rval = new_cohort%daily_p_efflux)
-       call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_nneed, bc_rval = new_cohort%daily_n_need)
-       call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_pneed, bc_rval = new_cohort%daily_p_need)
-
-
+       call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_limiter, bc_ival = new_cohort%cnp_limiter)
+       
     case DEFAULT
 
        write(fates_log(),*) 'You specified an unknown PRT module'
@@ -570,23 +591,27 @@ contains
     ! Fluxes from nutrient allocation
     currentCohort%daily_nh4_uptake = nan
     currentCohort%daily_no3_uptake = nan
-    currentCohort%daily_p_uptake = nan
-    currentCohort%daily_c_efflux = nan
-    currentCohort%daily_n_efflux = nan
-    currentCohort%daily_p_efflux = nan
-    currentCohort%daily_n_need   = nan
-    currentCohort%daily_p_need   = nan
-    currentCohort%daily_n_demand = nan
-    currentCohort%daily_p_demand = nan
-
-
+    currentCohort%daily_n_gain     = nan
+    currentCohort%sym_nfix_daily   = nan
+    currentCohort%sym_nfix_tstep   = nan
+    currentCohort%daily_p_gain     = nan
+    currentCohort%daily_c_efflux   = nan
+    currentCohort%daily_n_efflux   = nan
+    currentCohort%daily_p_efflux   = nan
+    currentCohort%daily_n_demand   = nan
+    currentCohort%daily_p_demand   = nan
+    currentCohort%cx_int           = nan
+    currentCohort%cx0              = nan
+    currentCohort%ema_dcxdt        = nan
+    currentCohort%cnp_limiter      = fates_unset_int 
+    
     currentCohort%c13disc_clm        = nan ! C13 discrimination, per mil at indiv/timestep
     currentCohort%c13disc_acc        = nan ! C13 discrimination, per mil at indiv/timestep at indiv/daily at the end of a day
 
     !RESPIRATION
     currentCohort%rdark              = nan
     currentCohort%resp_m             = nan ! Maintenance respiration.  kGC/cohort/year
-    currentCohort%resp_m_def         = nan ! Maintenance respiration deficit kgC/plant
+    currentCohort%resp_excess        = nan ! Respiration of excess (unallocatable) carbon (kg/indiv/day)
     currentCohort%livestem_mr        = nan ! Live stem maintenance respiration. kgC/indiv/s-1
     currentCohort%livecroot_mr       = nan ! Coarse root maintenance respiration. kgC/indiv/s-1
     currentCohort%froot_mr           = nan ! Fine root maintenance respiration. kgC/indiv/s-1
@@ -643,7 +668,7 @@ contains
     currentCohort%status_coh         = 0
     currentCohort%rdark              = 0._r8
     currentCohort%resp_m             = 0._r8
-    currentCohort%resp_m_def         = 0._r8
+    currentCohort%resp_excess         = 0._r8
     currentCohort%resp_g_tstep       = 0._r8
     currentCohort%livestem_mr        = 0._r8
     currentCohort%livecroot_mr       = 0._r8
@@ -688,20 +713,21 @@ contains
 
     currentCohort%daily_nh4_uptake = 0._r8
     currentCohort%daily_no3_uptake = 0._r8
-    currentCohort%daily_p_uptake = 0._r8
+    currentCohort%daily_p_gain = 0._r8
 
     currentCohort%daily_c_efflux = 0._r8
     currentCohort%daily_n_efflux = 0._r8
     currentCohort%daily_p_efflux = 0._r8
 
-    currentCohort%daily_n_need = 0._r8
-    currentCohort%daily_p_need = 0._r8
-
     ! Initialize these as negative
     currentCohort%daily_p_demand = -9._r8
     currentCohort%daily_n_demand = -9._r8
 
-
+    ! Fixation is also integrated over the course of the day
+    ! and must be zeroed upon creation and after plant
+    ! resource allocation
+    currentCohort%sym_nfix_daily   = 0._r8
+    
   end subroutine zero_cohort
 
   !-------------------------------------------------------------------------------------!
@@ -1047,10 +1073,6 @@ contains
 
      type(ed_cohort_type),intent(inout) :: currentCohort
 
-     !  (Keeping as an example)
-     ! Remove the running mean structure
-     ! deallocate(currentCohort%tveg_lpa)
-
      ! At this point, nothing should be pointing to current Cohort
      if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(currentCohort)
 
@@ -1106,7 +1128,8 @@ contains
      real(r8) :: dynamic_age_fusion_tolerance
      real(r8) :: dbh
      real(r8) :: leaf_c             ! leaf carbon [kg]
-
+     real(r8) :: target_storec      ! Target storage C
+     
      integer  :: largersc, smallersc, sc_i        ! indices for tracking the growth flux caused by fusion
      real(r8) :: larger_n, smaller_n
      integer  :: oldercacls, youngercacls, cacls_i ! indices for tracking the age flux caused by fusion
@@ -1217,11 +1240,9 @@ contains
                                       end do
                                    end if
 
-                                   !  (Keeping as an example)
-                                   ! Running mean fuses based on number density fraction just
-                                   ! like other variables
-                                   !!call currentCohort%tveg_lpa%FuseRMean(nextc%tveg_lpa,currentCohort%n/newn)
                                    
+
+                                      
                                    ! new cohort age is weighted mean of two cohorts
                                    currentCohort%coage = &
                                         (currentCohort%coage * (currentCohort%n/(currentCohort%n + nextc%n))) + &
@@ -1240,6 +1261,9 @@ contains
                                    ! Leaf biophysical rates (use leaf mass weighting)
                                    ! -----------------------------------------------------------------
                                    call UpdateCohortBioPhysRates(currentCohort)
+                                   
+                                   currentCohort%l2fr = (currentCohort%n*currentCohort%l2fr &
+                                        + nextc%n*nextc%l2fr)/newn
 
                                    currentCohort%canopy_trim = (currentCohort%n*currentCohort%canopy_trim &
                                         + nextc%n*nextc%canopy_trim)/newn
@@ -1305,7 +1329,7 @@ contains
                                             call ForceDBH( currentCohort%pft, currentCohort%crowndamage, & 
                                                  currentCohort%canopy_trim, &
                                                  currentCohort%dbh, currentCohort%hite, &
-                                                 bdead = currentCohort%prt%GetState(struct_organ,all_carbon_elements))
+                                                 bdead = currentCohort%prt%GetState(struct_organ,carbon12_element))
 
                                          end if
                                          !
@@ -1343,7 +1367,8 @@ contains
                                          call ForceDBH( currentCohort%pft, currentCohort%crowndamage, & 
                                               currentCohort%canopy_trim, &
                                               currentCohort%dbh, currentCohort%hite, &
-                                              bdead = currentCohort%prt%GetState(struct_organ,all_carbon_elements))
+                                              bdead = currentCohort%prt%GetState(struct_organ,carbon12_element))
+
                                       end if
                                       !
                                       call carea_allom(currentCohort%dbh,newn,currentSite%spread,currentCohort%pft,&
@@ -1425,11 +1450,8 @@ contains
                                            (currentCohort%n*currentCohort%gpp_acc_hold + &
                                            nextc%n*nextc%gpp_acc_hold)/newn
 
-                                      ! This carbon variable needs continuity from day to day, as resp_m_def
-                                      ! needs to hold mass and be conservative
-
-                                      currentCohort%resp_m_def = (currentCohort%n*currentCohort%resp_m_def + &
-                                           nextc%n*nextc%resp_m_def)/newn
+                                      currentCohort%resp_excess = (currentCohort%n*currentCohort%resp_excess + &
+                                           nextc%n*nextc%resp_excess)/newn
 
                                       currentCohort%dmort          = (currentCohort%n*currentCohort%dmort       + &
                                            nextc%n*nextc%dmort)/newn
@@ -1445,31 +1467,43 @@ contains
                                       currentCohort%asmort = (currentCohort%n*currentCohort%asmort + nextc%n*nextc%asmort)/newn
                                       currentCohort%frmort = (currentCohort%n*currentCohort%frmort + nextc%n*nextc%frmort)/newn
 
-                                      ! Nutrient fluxes
-                                      currentCohort%daily_nh4_uptake = (currentCohort%n*currentCohort%daily_nh4_uptake + &
-                                           nextc%n*nextc%daily_nh4_uptake)/newn
-                                      currentCohort%daily_no3_uptake = (currentCohort%n*currentCohort%daily_no3_uptake + &
-                                           nextc%n*nextc%daily_no3_uptake)/newn
-                                      currentCohort%daily_p_uptake = (currentCohort%n*currentCohort%daily_p_uptake + &
-                                           nextc%n*nextc%daily_p_uptake)/newn
+                                      ! Nutrients
+                                      if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
 
-                                      currentCohort%daily_p_demand = (currentCohort%n*currentCohort%daily_p_demand + &
-                                           nextc%n*nextc%daily_p_demand)/newn
-                                      currentCohort%daily_n_demand = (currentCohort%n*currentCohort%daily_n_demand + &
-                                           nextc%n*nextc%daily_n_demand)/newn
+                                         if(nextc%n > currentCohort%n) currentCohort%cnp_limiter = nextc%cnp_limiter
 
-                                      currentCohort%daily_c_efflux = (currentCohort%n*currentCohort%daily_c_efflux + &
-                                           nextc%n*nextc%daily_c_efflux)/newn
-                                      currentCohort%daily_n_efflux = (currentCohort%n*currentCohort%daily_n_efflux + &
-                                           nextc%n*nextc%daily_n_efflux)/newn
-                                      currentCohort%daily_p_efflux = (currentCohort%n*currentCohort%daily_p_efflux + &
-                                           nextc%n*nextc%daily_p_efflux)/newn
+                                         currentCohort%cx_int = (currentCohort%n*currentCohort%cx_int + &
+                                              nextc%n*nextc%cx_int)/newn
+                                         currentCohort%ema_dcxdt = (currentCohort%n*currentCohort%ema_dcxdt + &
+                                              nextc%n*nextc%ema_dcxdt)/newn
+                                         currentCohort%cx0 = (currentCohort%n*currentCohort%cx0 + &
+                                              nextc%n*nextc%cx0)/newn
 
-                                      currentCohort%daily_n_need = (currentCohort%n*currentCohort%daily_n_need + &
-                                           nextc%n*nextc%daily_n_need)/newn
-                                      currentCohort%daily_p_need = (currentCohort%n*currentCohort%daily_p_need + &
-                                           nextc%n*nextc%daily_p_need)/newn
-
+                                         ! These variables do not need to be rescaled because they
+                                         ! are written to history immediately after calculation
+                                         
+                                         currentCohort%daily_nh4_uptake = (currentCohort%n*currentCohort%daily_nh4_uptake + &
+                                              nextc%n*nextc%daily_nh4_uptake)/newn
+                                         currentCohort%daily_no3_uptake = (currentCohort%n*currentCohort%daily_no3_uptake + &
+                                              nextc%n*nextc%daily_no3_uptake)/newn
+                                         currentCohort%sym_nfix_daily = (currentCohort%n*currentCohort%sym_nfix_daily + &
+                                              nextc%n*nextc%sym_nfix_daily)/newn
+                                         currentCohort%daily_n_gain = (currentCohort%n*currentCohort%daily_n_gain + &
+                                              nextc%n*nextc%daily_n_gain)/newn
+                                         currentCohort%daily_p_gain = (currentCohort%n*currentCohort%daily_p_gain + &
+                                              nextc%n*nextc%daily_p_gain)/newn
+                                         currentCohort%daily_p_demand = (currentCohort%n*currentCohort%daily_p_demand + &
+                                              nextc%n*nextc%daily_p_demand)/newn
+                                         currentCohort%daily_n_demand = (currentCohort%n*currentCohort%daily_n_demand + &
+                                              nextc%n*nextc%daily_n_demand)/newn
+                                         currentCohort%daily_c_efflux = (currentCohort%n*currentCohort%daily_c_efflux + &
+                                              nextc%n*nextc%daily_c_efflux)/newn
+                                         currentCohort%daily_n_efflux = (currentCohort%n*currentCohort%daily_n_efflux + &
+                                              nextc%n*nextc%daily_n_efflux)/newn
+                                         currentCohort%daily_p_efflux = (currentCohort%n*currentCohort%daily_p_efflux + &
+                                              nextc%n*nextc%daily_p_efflux)/newn
+                                      end if
+                                         
 
                                       ! logging mortality, Yi Xu
                                       currentCohort%lmort_direct = (currentCohort%n*currentCohort%lmort_direct + &
@@ -1828,16 +1862,20 @@ contains
 
     ! This transfers the PRT objects over.
     call n%prt%CopyPRTVartypes(o%prt)
-
+    n%l2fr                 = o%l2fr
+    
     ! Leaf biophysical rates
     n%vcmax25top = o%vcmax25top
     n%jmax25top  = o%jmax25top
     n%tpu25top   = o%tpu25top
     n%kp25top    = o%kp25top
 
-    !  (Keeping as an example)
     ! Copy over running means
-    ! call n%tveg_lpa%CopyFromDonor(o%tveg_lpa)
+    if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
+       n%cx_int    = o%cx_int
+       n%ema_dcxdt = o%ema_dcxdt
+       n%cx0       = o%cx0
+    end if
     
     ! CARBON FLUXES
     n%gpp_acc_hold    = o%gpp_acc_hold
@@ -1857,14 +1895,17 @@ contains
     n%year_net_uptake = o%year_net_uptake
     n%ts_net_uptake   = o%ts_net_uptake
 
+    ! These do not need to be copied because they
+    ! are written to history before dynamics occurs
+    ! and cohorts are reformed
     n%daily_nh4_uptake = o%daily_nh4_uptake
     n%daily_no3_uptake = o%daily_no3_uptake
-    n%daily_p_uptake = o%daily_p_uptake
+    n%sym_nfix_daily   = o%sym_nfix_daily
+    n%daily_n_gain     = o%daily_n_gain
+    n%daily_p_gain   = o%daily_p_gain
     n%daily_c_efflux = o%daily_c_efflux
     n%daily_n_efflux = o%daily_n_efflux
     n%daily_p_efflux = o%daily_p_efflux
-    n%daily_n_need   = o%daily_n_need
-    n%daily_p_need   = o%daily_p_need
     n%daily_n_demand = o%daily_n_demand
     n%daily_p_demand = o%daily_p_demand
 
@@ -1875,7 +1916,7 @@ contains
     !RESPIRATION
     n%rdark           = o%rdark
     n%resp_m          = o%resp_m
-    n%resp_m_def      = o%resp_m_def
+    n%resp_excess     = o%resp_excess
     n%resp_g_tstep    = o%resp_g_tstep
     n%livestem_mr     = o%livestem_mr
     n%livecroot_mr    = o%livecroot_mr
@@ -1936,6 +1977,9 @@ contains
     n%shorter         => NULL()     ! pointer to next shorter cohort
     n%patchptr        => o%patchptr ! pointer to patch that cohort is in
 
+
+
+    
   end subroutine copy_cohort
 
   !-------------------------------------------------------------------------------------!
@@ -2004,7 +2048,7 @@ contains
 
        do iage = 1, nleafage
           frac_leaf_aclass(iage) = &
-                currentCohort%prt%GetState(leaf_organ, all_carbon_elements,iage)
+                currentCohort%prt%GetState(leaf_organ, carbon12_element,iage)
        end do
 
        ! If there are leaves, then perform proportional weighting on the four rates
@@ -2094,7 +2138,7 @@ contains
 
     if( prt_params%woody(currentCohort%pft) == itrue) then
 
-       struct_c = currentCohort%prt%GetState(struct_organ, all_carbon_elements)
+       struct_c = currentCohort%prt%GetState(struct_organ, carbon12_element)
 
        ! Target sapwood biomass according to allometry and trimming [kgC]
        call bsap_allom(dbh,ipft,icrowndamage,canopy_trim,sapw_area,target_sapw_c)
@@ -2127,7 +2171,7 @@ contains
     else
 
        ! This returns the sum of leaf carbon over all (age) bins
-       leaf_c  = currentCohort%prt%GetState(leaf_organ, all_carbon_elements)
+       leaf_c  = currentCohort%prt%GetState(leaf_organ, carbon12_element)
 
        ! Target leaf biomass according to allometry and trimming
        call bleaf(dbh,ipft,icrowndamage, canopy_trim,target_leaf_c)
@@ -2225,7 +2269,7 @@ contains
       ! Target total dead (structrual) biomass [kgC]
       call bdead_allom( target_agw_c, target_bgw_c, target_sapw_c, ipft, target_struct_c)
       ! Target fine-root biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
-      call bfineroot(dbh,ipft,canopy_trim,target_fnrt_c)
+      call bfineroot(dbh,ipft,canopy_trim,ccohort%l2fr,target_fnrt_c)
       ! Target storage carbon [kgC,kgC/cm]
       call bstore_allom(dbh,ipft,ccohort%crowndamage-1, canopy_trim,target_store_c)
       ! Target leaf biomass according to allometry and trimming
