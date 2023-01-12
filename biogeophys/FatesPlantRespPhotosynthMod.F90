@@ -837,6 +837,9 @@ contains
 
                       currentCohort%resp_m = currentCohort%resp_m + currentCohort%rdark
 
+                      ! save as a diagnostic the un-throttled maintenance respiration to be able to know how strong this is
+                      currentCohort%resp_m_unreduced = currentCohort%resp_m / maintresp_reduction_factor
+
                       ! convert from kgC/indiv/s to kgC/indiv/timestep
                       currentCohort%resp_m        = currentCohort%resp_m  * dtime
                       currentCohort%gpp_tstep     = currentCohort%gpp_tstep * dtime
