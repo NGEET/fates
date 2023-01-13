@@ -21,6 +21,7 @@ module EDLoggingMortalityMod
    use FatesLitterMod    , only : ncwd
    use FatesLitterMod    , only : ndcmpy
    use FatesLitterMod    , only : litter_type
+   use FatesLitterMod    , only : adjust_SF_CWD_frac
    use EDTypesMod        , only : ed_site_type
    use EDTypesMod        , only : ed_resources_management_type
    use EDTypesMod        , only : dtype_ilog
@@ -502,7 +503,7 @@ contains
       integer  :: nlevsoil            ! number of soil layers
       integer  :: ilyr                ! soil layer loop index
       integer  :: el                  ! elemend loop index
-      
+      real(r8) :: SF_val_CWD_frac_adj(4) !Updated wood partitioning to CWD based on dbh
 
       nlevsoil = currentSite%nlevsoil
 
@@ -601,37 +602,40 @@ contains
                   prt_params%allom_agb_frac(currentCohort%pft)
             bg_wood = (direct_dead+indirect_dead) * (struct_m + sapw_m ) * &
                   (1._r8 - prt_params%allom_agb_frac(currentCohort%pft))
-         
-            do c = 1,ncwd-1
+	
+	    !adjust how wood is partitioned between the cwd classes based on cohort dbh
+            call adjust_SF_CWD_frac(currentCohort%dbh,ncwd,SF_val_CWD_frac,SF_val_CWD_frac_adj) 
+            
+	    do c = 1,ncwd-1
                
                new_litt%ag_cwd(c)     = new_litt%ag_cwd(c) + &
-                     ag_wood * SF_val_CWD_frac(c) * donate_frac/newPatch%area
+                     ag_wood * SF_val_CWD_frac_adj(c) * donate_frac/newPatch%area
                cur_litt%ag_cwd(c)     = cur_litt%ag_cwd(c) + &
-                     ag_wood * SF_val_CWD_frac(c) * retain_frac/remainder_area
+                     ag_wood * SF_val_CWD_frac_adj(c) * retain_frac/remainder_area
 
                do ilyr = 1,nlevsoil
                   
                   new_litt%bg_cwd(c,ilyr) = new_litt%bg_cwd(c,ilyr) + &
                         bg_wood * currentSite%rootfrac_scr(ilyr) * &
-                        SF_val_CWD_frac(c) * donate_frac/newPatch%area
+                        SF_val_CWD_frac_adj(c) * donate_frac/newPatch%area
                   
                   cur_litt%bg_cwd(c,ilyr) = cur_litt%bg_cwd(c,ilyr) + &
                         bg_wood * currentSite%rootfrac_scr(ilyr) * &
-                        SF_val_CWD_frac(c) * retain_frac/remainder_area
+                        SF_val_CWD_frac_adj(c) * retain_frac/remainder_area
                end do
 
                
                ! Diagnostics on fluxes into the AG and BG CWD pools
                flux_diags%cwd_ag_input(c) = flux_diags%cwd_ag_input(c) + & 
-                    SF_val_CWD_frac(c) * ag_wood
+                    SF_val_CWD_frac_adj(c) * ag_wood
                
                flux_diags%cwd_bg_input(c) = flux_diags%cwd_bg_input(c) + & 
-                    SF_val_CWD_frac(c) * bg_wood
+                    SF_val_CWD_frac_adj(c) * bg_wood
             
                ! Diagnostic specific to resource management code
                if( element_id .eq. carbon12_element) then
                    delta_litter_stock  = delta_litter_stock  + &
-                         (ag_wood + bg_wood) * SF_val_CWD_frac(c)
+                         (ag_wood + bg_wood) * SF_val_CWD_frac_adj(c)
                end if
 
             enddo
@@ -646,39 +650,39 @@ contains
                   (1._r8 - prt_params%allom_agb_frac(currentCohort%pft))
 
             new_litt%ag_cwd(ncwd) = new_litt%ag_cwd(ncwd) + ag_wood * &
-                  SF_val_CWD_frac(ncwd) * donate_frac/newPatch%area
+                  SF_val_CWD_frac_adj(ncwd) * donate_frac/newPatch%area
 
             cur_litt%ag_cwd(ncwd) = cur_litt%ag_cwd(ncwd) + ag_wood * &
-                  SF_val_CWD_frac(ncwd) * retain_frac/remainder_area
+                  SF_val_CWD_frac_adj(ncwd) * retain_frac/remainder_area
             
             do ilyr = 1,nlevsoil
                
                new_litt%bg_cwd(ncwd,ilyr) = new_litt%bg_cwd(ncwd,ilyr) + &
                      bg_wood * currentSite%rootfrac_scr(ilyr) * &
-                     SF_val_CWD_frac(ncwd) * donate_frac/newPatch%area
+                     SF_val_CWD_frac_adj(ncwd) * donate_frac/newPatch%area
                
                cur_litt%bg_cwd(ncwd,ilyr) = cur_litt%bg_cwd(ncwd,ilyr) + &
                      bg_wood * currentSite%rootfrac_scr(ilyr) * &
-                     SF_val_CWD_frac(ncwd) * retain_frac/remainder_area
+                     SF_val_CWD_frac_adj(ncwd) * retain_frac/remainder_area
 
             end do
 
             flux_diags%cwd_ag_input(ncwd) = flux_diags%cwd_ag_input(ncwd) + & 
-                 SF_val_CWD_frac(ncwd) * ag_wood
+                 SF_val_CWD_frac_adj(ncwd) * ag_wood
             
             flux_diags%cwd_bg_input(ncwd) = flux_diags%cwd_bg_input(ncwd) + & 
-                 SF_val_CWD_frac(ncwd) * bg_wood
+                 SF_val_CWD_frac_adj(ncwd) * bg_wood
 
             if( element_id .eq. carbon12_element) then
                 delta_litter_stock  = delta_litter_stock + &
-                      (ag_wood+bg_wood) * SF_val_CWD_frac(ncwd)
+                      (ag_wood+bg_wood) * SF_val_CWD_frac_adj(ncwd)
             end if
 
             ! ---------------------------------------------------------------------------------------
             ! Handle below-ground trunk flux for directly logged trees (c = ncwd)
             ! ----------------------------------------------------------------------------------------
             
-            bg_wood = direct_dead * (struct_m + sapw_m ) * SF_val_CWD_frac(ncwd) * &
+            bg_wood = direct_dead * (struct_m + sapw_m ) * SF_val_CWD_frac_adj(ncwd) * &
                   (1._r8 - prt_params%allom_agb_frac(currentCohort%pft))
 
             do ilyr = 1,nlevsoil
@@ -705,7 +709,7 @@ contains
 
             ag_wood = direct_dead * (struct_m + sapw_m ) * &
                   prt_params%allom_agb_frac(currentCohort%pft) * &
-                  SF_val_CWD_frac(ncwd)
+                  SF_val_CWD_frac_adj(ncwd)
 
             trunk_product_site = trunk_product_site + &
                   ag_wood * logging_export_frac

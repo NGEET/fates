@@ -48,6 +48,7 @@ module EDPhysiologyMod
   use FatesLitterMod      , only : ilabile
   use FatesLitterMod      , only : ilignin
   use FatesLitterMod      , only : icellulose
+  use FatesLitterMod      , only : adjust_SF_CWD_frac
   use EDTypesMod          , only : nclmax
   use EDTypesMod          , only : AREA,AREA_INV
   use EDTypesMod          , only : nlevleaf
@@ -231,7 +232,7 @@ contains
     real(r8) :: store_loss       ! "" [kg]
     real(r8) :: struct_loss      ! "" [kg]       
     real(r8) :: dcmpy_frac       ! fraction of mass going to each decomposition pool
-    real(r8), allocatable :: SF_val_CWD_frac_adj(:) !SF_val_CWD_frac adjusted based on cohort dbh 
+    real(r8) :: SF_val_CWD_frac_adj(4) !SF_val_CWD_frac adjusted based on cohort dbh 
     
     if(hlm_use_tree_damage .ne. itrue) return
 
@@ -322,7 +323,7 @@ contains
                      flux_diags%leaf_litter_input(ipft) +  &
                      (store_loss+leaf_loss+repro_loss) * ndcohort%n
                 
-                call adjust_SF_CWD_frac(currentCohort%dbh,ncwd,SF_val_CWD_frac,SF_val_CWD_frac_adj)
+                call adjust_SF_CWD_frac(ndcohort%dbh,ncwd,SF_val_CWD_frac,SF_val_CWD_frac_adj)
 
                 do c = 1,ncwd
                    litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + &
@@ -2349,7 +2350,7 @@ contains
     integer  :: dcmpy             ! decomposability pool index
     integer  :: numlevsoil        ! Actual number of soil layers
 
-    real(r8), allocatable :: SF_val_CWD_frac_adj(:) !SF_val_CWD_frac adjusted based on cohort dbh
+    real(r8) :: SF_val_CWD_frac_adj(4) !SF_val_CWD_frac adjusted based on cohort dbh
     !----------------------------------------------------------------------
 
     ! -----------------------------------------------------------------------------------
@@ -2927,61 +2928,4 @@ contains
     return
   end subroutine SetRecruitL2FR
 
-  ! =======================================================================
-  subroutine adjust_SF_CWD_frac(dbh,ncwd,SF_val_CWD_frac,SF_val_CWD_frac_adj)
-     
-     !DESCRIPTION
-     !Adjust  the partitioning of struct + sawp into cwd pools based on 
-     !cohort dbh. This avoids struct and sapw from small cohorts going to
-     !1,000 hr fuels. Instead, struct + sapw go to the appropriate cwd pools
-     !based on established fuel class diameter thresholds. 
-
-     !ARGUMENTS
-     real(r8), intent(in)               :: dbh !dbh of cohort
-     type(integer), intent(in)          :: ncwd !number of cwd pools
-     real(r8), intent(in)               :: SF_val_CWD_frac
-     real(r8), intent(out)              :: SF_val_CWD_frac_adj
-     !
-     !LOCAL VARIABLES
-     !These diameter ranges are based on work by Fosberg et al., 1971 
-     !
-     real(r8), parameter :: lb_max_diam        = 7.6 !max diameter [cm] for large branch
-     real(r8), parameter :: sb_max_diam        = 2.5 !max diameter [cm] for small branch
-     real(r8), parameter :: twig_max_diam      = 0.6 !max diameter [cm] for twig
-     !------------------------------------------------------------------------------------
-
-
-     SF_val_CWD_frac_adj = SF_val_CWD_frac
-     
-     !If dbh is larger than max size of a large branch then we don't change
-     !how biomass is partitioned among cwd classes.
-     if (dbh > lb_max_diam) then
-        return
-
-     !When dbh is greater than the max size of a small branch but less than or 
-     !equal to the max size of a large branch we send the biomass that would have
-     !gone to trunk fuel to large branch fuel instead.
-     else if (dbh > sb_max_diam .and. dbh .le. lb_max_diam) then
-        SF_val_CWD_frac_adj(ncwd) = 0.0_r8
-        SF_val_CWD_frac_adj(ncwd-1) = sum(SF_val_CWD_frac(ncwd-1:ncwd)) 
-     
-     !When dbh is greater than the max size of a twig but less than or 
-     !equal to the max size of a small branch we send the biomass that would have
-     !gone to trunk fuel / larger branch to small branch fuel instead.
-     else if (dbh > twig_max_diam .and. dbh .le. sb_max_diam) then
-        SF_val_CWD_frac_adj(ncwd) = 0.0_r8
-        SF_val_CWD_frac_adj(ncwd-1) = 0.0_r8
-        SF_val_CWD_frac_adj(ncwd-2) = sum(SF_val_CWD_frac(ncwd-2:ncwd))
-     
-     !If dbh is less than or equal to the max size of a twig we send all 
-     !biomass to twigs
-     else if (dbh .le. twig_max_diam) then
-        SF_val_CWD_frac_adj(ncwd) = 0.0_r8
-        SF_val_CWD_frac_adj(ncwd-1) = 0.0_r8
-        SF_val_CWD_frac_adj(ncwd-2) = 0.0_r8
-        SF_val_CWD_frac_adj(ncwd-3) = sum(SF_val_CWD_frac)
-      
-     endif
-
-  end subroutine adjust_SF_CWD_frac
 end module EDPhysiologyMod
