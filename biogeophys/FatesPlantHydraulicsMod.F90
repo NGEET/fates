@@ -2605,9 +2605,9 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
               if (qflx_tran_veg_indiv>0.0_r8)then
                   call CalculateTotalAvailW(ccohort,site_hydr,bc_in(s),dtime, availWater);
                   if(qflx_tran_veg_indiv*dtime > 0.8_r8*availWater)then
-                     site_hydr%trans_err = site_hydr%trans_err + dtime*ccohort%n*(qflx_tran_veg_indiv &
-                                            - 0.8_r8*availWater)
-                     qflx_tran_veg_indiv=0.8_r8*availWater
+                     site_hydr%trans_err = site_hydr%trans_err &
+                                         + ccohort%n*AREA_INV*(dtime*qflx_tran_veg_indiv - 0.8_r8*availWater)
+                     qflx_tran_veg_indiv = 0.8_r8 * availWater / dtime
                   endif
 
               endif
