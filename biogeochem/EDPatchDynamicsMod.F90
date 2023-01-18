@@ -195,12 +195,8 @@ contains
     real(r8) :: frac_site_primary
     real(r8) :: harvest_rate
     real(r8) :: tempsum
-    real(r8) :: harvest_debt_pri
-    real(r8) :: harvest_debt_sec_mature
-    real(r8) :: harvest_debt_sec_young
     real(r8) :: harvestable_forest_c(hlm_num_lu_harvest_cats)
     integer  :: harvest_tag(hlm_num_lu_harvest_cats)
-    integer  :: patch_no_secondary
 
     !----------------------------------------------------------------------------------------------
     ! Calculate Mortality Rates (these were previously calculated during growth derivatives)
@@ -213,12 +209,6 @@ contains
     ! get available biomass for harvest for all patches
     call get_harvestable_carbon(site_in, bc_in%site_area, bc_in%hlm_harvest_catnames, harvestable_forest_c)
  
-    ! Initialize local variables
-    patch_no_secondary = 0
-    harvest_debt_pri = 0._r8
-    harvest_debt_sec_mature = 0._r8
-    harvest_debt_sec_young = 0._r8
-
     currentPatch => site_in%oldest_patch
     do while (associated(currentPatch))   
 
@@ -259,11 +249,6 @@ contains
 
           currentCohort => currentCohort%taller
        end do
-
-       ! ! Counter of secondary patch used in logging debt calculation
-       ! if ( currentPatch%anthro_disturbance_label .eq. secondaryforest ) then
-       !    patch_no_secondary = patch_no_secondary + 1
-       ! end if
 
        currentPatch => currentPatch%younger
     end do
