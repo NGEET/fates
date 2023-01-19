@@ -1282,7 +1282,7 @@ contains
        currentPatch => currentPatch%younger
     enddo
 
-    if(hlm_use_sp.eq.itrue)then
+    if(hlm_use_fixed_biogeog.eq.itrue .and. hlm_use_nocomp.eq.itrue)then
       patchno = 1
       currentPatch => currentSite%oldest_patch
       do while(associated(currentPatch))
