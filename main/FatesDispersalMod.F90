@@ -38,7 +38,7 @@ module FatesDispersalMod
       real(r8), allocatable :: outgoing_local(:,:)    ! local gridcell array of outgoing seeds, gridcell x pft
       real(r8), allocatable :: outgoing_global(:,:)   ! global accumulation array of outgoing seeds, gridcell x pft
       real(r8), allocatable :: incoming_global(:,:)   ! 
-      
+           
       contains
       
          procedure :: init
@@ -48,7 +48,11 @@ module FatesDispersalMod
    type(neighborhood_type), public, pointer :: lneighbors(:)
 
    public :: ProbabilityDensity
-
+   public :: IsItDispersalTime
+   
+   integer :: dispersal_date = 0       ! Last candence date in which there was a dispersal
+   logical :: dispersal_flag = .false. ! Have seeds been disperesed globally
+  
    character(len=*), parameter, private :: sourcefile = __FILE__
 
 contains
@@ -80,6 +84,10 @@ contains
       this%outgoing_local(:,:) = 0._r8
       this%outgoing_global(:,:) = 0._r8
       this%incoming_global(:,:) = 0._r8
+      
+      ! Set the dispersal date to the current date.  Dispersal will start at the end of
+      ! current initial date
+      dispersal_date = GetCadenceDate()           
       
    end subroutine init
 
@@ -115,6 +123,8 @@ contains
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end select
 
+      write(fates_log(),*) 'ipft,dist,pd: ', ipft, dist, pd
+
    end subroutine ProbabilityDensity
 
    ! ====================================================================================
@@ -131,6 +141,7 @@ contains
       ! for different weight calculations (and could be held only in fates)
       
       PD_exponential = exp(-EDPftvarcon_inst%seed_dispersal_param_A(ipft)*dist)
+      write(fates_log(),*) 'ipft,dist,PD_exp: ', ipft, dist, PD_exponential
 
    end function PD_exponential
 
@@ -178,6 +189,88 @@ contains
    end function PD_logsech
 
    ! ====================================================================================
+   
+   logical function IsItDispersalTime(setdispersedflag)
+   
+   ! Determine if seeds should be dispersed across gridcells.  This eventually could be
+   ! driven by plant reproduction dynamics.  For now this is based strictly on a calendar.
+   ! This function attempts to wrap up all the logic for the dispersal code, which is
+   ! takes place at multiple points in the code, into a single function.
+   ! The logic for the function is as follows:
+   !     - If new date and seeds not globally dispersed, pass local seed to global bufffer 
+   !       (see wrap_update_hlmfates_dyn)
+   !     - If new date and seeds not globally dispersed, globally disperse seeds (call WrapSeedGlobal) and
+   !       set dispersed flag to true.  Note that since this must happen outside of threaded region,
+   !       this comes after fates dynamic_driv procedure.
+   !     - If new date or not and seeds have been globally dispersed, call wrap_seed_disperse
+   !       to pass dispersed seeds to fates.  Set dispersed flag to false.  Given that this must 
+   !       happen after WrapSeedGlobal, but can be threaded this takes place at the top of the 
+   !       dynamics_driv call.
+      
+   ! Arguments
+   logical, optional :: setdispersedflag ! Has the global dispersal been completed?
+
+   ! Local
+   logical :: setflag
+   
+   ! The default return value is false
+   IsItDispersalTime = .false.
+
+   ! Check if set dispersal flag is provided.  This should be provided during a check
+   ! when the flag should be set to true after the global dispersal
+   if (present(setdispersedflag)) then
+      setflag = setdispersedflag
+   else
+      setflag = .false.
+   end if
+      
+   ! If dispersal flag is true, regardless of the date, pass dispersed seeds to fates and reset flag
+   ! If dispersal flag is false, check if it is time to disperse
+   ! If it's time to disperse, check to see if the dispersal flag should be set true and last
+   ! dispersal date updated
+   if (dispersal_flag) then
+      IsItDispersalTime = .true.
+      dispersal_flag = .false.
+   else
+      if (GetCadenceDate() .ne. dispersal_date) then
+         IsItDispersalTime = .true.
+         if (setflag) then
+            dispersal_flag = .true.
+            dispersal_date = GetCadenceDate()
+         end if
+      end if
+      
+   end if
+                                                                            
+   end function IsItDispersalTime
+   
+   ! ====================================================================================
+
+   integer function GetCadenceDate()
+   
+   use FatesInterfaceTypesMod,      only : hlm_current_day, &
+                                      hlm_current_month, & 
+                                      hlm_current_year, &
+                                      hlm_current_date, &
+                                      fates_dispersal_cadence, &
+                                      fates_dispersal_cadence_daily, &
+                                      fates_dispersal_cadence_monthly, &
+                                      fates_dispersal_cadence_yearly
+
+   ! Select the date type to check against based on the dispersal candence
+   select case(fates_dispersal_cadence)
+   case (fates_dispersal_cadence_daily)
+      GetCadenceDate = hlm_current_day
+   case (fates_dispersal_cadence_monthly)
+      GetCadenceDate = hlm_current_month
+   case (fates_dispersal_cadence_yearly)
+      GetCadenceDate = hlm_current_year
+   case default
+      write(fates_log(),*) 'ERROR: An undefined dispersal cadence was specified: ', fates_dispersal_cadence
+      call endrun(msg=errMsg(sourcefile, __LINE__))
+   end select
+                                      
+   end function GetCadenceDate
 
       
 end module FatesDispersalMod

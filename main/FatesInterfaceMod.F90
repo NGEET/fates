@@ -893,6 +893,16 @@ contains
          else
             fates_dispersal_kernel_mode = fates_dispersal_kernel_none
          end if
+         
+         ! Set the fates dispersal cadence if seed dispersal parameters are set.
+         ! This could be a parameter value setting as well.  Currently hardcoded
+         if(any(EDPftvarcon_inst%seed_dispersal_param_A .lt. fates_check_param_set)) then
+            fates_dispersal_cadence = fates_dispersal_cadence_daily
+            !fates_dispersal_cadence = fates_dispersal_cadence_monthly
+            ! fates_dispersal_cadence = fates_dispersal_cadence_yearly
+         else 
+            fates_dispersal_cadence = 0
+         end if
 
          ! Initialize Hydro globals 
          ! (like water retention functions)
@@ -1929,7 +1939,7 @@ contains
       real(r8) :: pdf
       
       ! Check if seed dispersal mode is 'turned on' by checking the parameter values
-      if (EDPftvarcon_inst%seed_dispersal_param_A(1) > fates_check_param_set) return 
+      if (fates_dispersal_kernel_mode .eq. fates_dispersal_kernel_none) return
       
       if(hlm_is_restart .eq. itrue) write(fates_log(),*) 'gridcell initialization during restart'
      

@@ -491,6 +491,10 @@ variables:
 		fates_seed_dispersal_max_dist:units = "m" ;
 		fates_seed_dispersal_max_dist:long_name = "maximum seed dispersal distance for a given pft" ;
 		fates_seed_dispersal_max_dist:use_case = "undefined" ;
+	double fates_seed_dispersal_fraction(fates_pft) ;
+		fates_seed_dispersal_fraction:units = "fraction" ;
+		fates_seed_dispersal_fraction:long_name = "fraction of seed rain to be dispersed to other grid cells" ;
+		fates_seed_dispersal_fraction:use_case = "undefined" ;
 	double fates_seed_dispersal_param_A(fates_pft) ;
 		fates_seed_dispersal_param_A:units = "unitless" ;
 		fates_seed_dispersal_param_A:long_name = "seed dispersal scale parameter" ;
@@ -1285,6 +1289,8 @@ data:
     0.51, 0.51, 0.51, 0.51 ;
 
  fates_seed_dispersal_max_dist = _, _, _, _, _, _, _, _, _, _, _, _ ;
+ 
+ fates_seed_dispersal_fraction = _, _, _, _, _, _, _, _, _, _, _, _ ;
 
  fates_seed_dispersal_param_A = _, _, _, _, _, _, _, _, _, _, _, _ ;
 
