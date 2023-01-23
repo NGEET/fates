@@ -1089,8 +1089,6 @@ contains
      real(r8) :: dblmaxdd    ! Allometric target change in leaf biomass per cm (UNTRIMMED)
     
      
-     ! TODO: allom_stmode needs to be added to the parameter file
-     
      associate( allom_stmode => prt_params%allom_stmode(ipft), &
                 cushion      => prt_params%cushion(ipft) )
 
@@ -1102,7 +1100,7 @@ contains
           call bstore_blcushion(d,bl,dbldd,cushion,ipft,bstore,dbstoredd)
 
        case(2) ! Storage is constant proportionality of untrimmed maximum leaf
-          ! biomass (ie cushion * bleaf)
+          ! biomass (ie cushion * bleaf_max)
           call blmax_allom(d,ipft,blmax,dblmaxdd)
           call bstore_blcushion(d,blmax,dblmaxdd,cushion,ipft,bstore,dbstoredd)
 
