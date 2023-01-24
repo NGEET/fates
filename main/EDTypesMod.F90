@@ -441,6 +441,9 @@ module EDTypesMod
                                                                  ! leaf photosynthesis acclimation timescale [K]
 
      integer  ::  nocomp_pft_label                               ! Where nocomp is active, use this label for patch ID.
+                                                                 ! Each patch ID corresponds to a pft number since each
+                                                                 ! patch has only one pft.  Bareground patches are given
+                                                                 ! a zero integer as a label.
                                                                  ! If nocomp is not active this is set to unset.
                                                                  ! This is set in create_patch as an argument
                                                                  ! to that procedure.

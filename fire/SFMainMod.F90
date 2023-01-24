@@ -8,6 +8,7 @@
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : itrue, ifalse
   use FatesConstantsMod     , only : pi_const
+  use FatesConstantsMod     , only : nocomp_bareground
   use FatesInterfaceTypesMod     , only : hlm_masterproc ! 1= master process, 0=not master process
   use EDTypesMod            , only : numWaterMem
   use FatesGlobals          , only : fates_log
@@ -185,7 +186,7 @@ contains
     currentPatch => currentSite%oldest_patch; 
     do while(associated(currentPatch))  
 
-       if(currentPatch%nocomp_pft_label .ne. 0)then
+       if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
 
        litt_c => currentPatch%litter(element_pos(carbon12_element))
        
@@ -375,7 +376,7 @@ contains
     currentPatch=>currentSite%oldest_patch;  
     do while(associated(currentPatch))
 
-       if(currentPatch%nocomp_pft_label .ne. 0)then
+       if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
        
        currentPatch%total_tree_area = 0.0_r8
        total_grass_area = 0.0_r8
@@ -416,7 +417,7 @@ contains
     currentPatch=>currentSite%oldest_patch;
 
     do while(associated(currentPatch))       
-       if(currentPatch%nocomp_pft_label .ne. 0)then
+       if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
 
        currentPatch%total_tree_area = min(currentPatch%total_tree_area,currentPatch%area)
        ! effect_wspeed in units m/min      
@@ -462,7 +463,7 @@ contains
 
     do while(associated(currentPatch))
 
-       if(currentPatch%nocomp_pft_label .ne. 0)then
+       if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
               
        ! remove mineral content from net fuel load per Thonicke 2010 for ir calculation
        currentPatch%sum_fuel  = currentPatch%sum_fuel * (1.0_r8 - SF_val_miner_total) !net of minerals
@@ -598,7 +599,7 @@ contains
 
     do while(associated(currentPatch))
 
-       if(currentPatch%nocomp_pft_label .ne. 0)then
+       if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
 
        currentPatch%burnt_frac_litter(:) = 1.0_r8       
        ! Calculate fraction of litter is burnt for all classes. 
@@ -746,7 +747,7 @@ contains
     currentPatch => currentSite%oldest_patch;  
     do while(associated(currentPatch))
 
-       if(currentPatch%nocomp_pft_label .ne. 0)then
+       if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
 
        !  ---initialize patch parameters to zero---
        currentPatch%FI         = 0._r8
@@ -885,7 +886,7 @@ contains
     currentPatch => currentSite%oldest_patch;  
     do while(associated(currentPatch)) 
 
-       if(currentPatch%nocomp_pft_label .ne. 0)then
+       if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
        
        tree_ag_biomass = 0.0_r8
        if (currentPatch%fire == 1) then
@@ -943,7 +944,7 @@ contains
 
     do while(associated(currentPatch)) 
 
-       if(currentPatch%nocomp_pft_label .ne. 0)then
+       if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
        if (currentPatch%fire == 1) then
 
           currentCohort=>currentPatch%tallest
@@ -1012,7 +1013,7 @@ contains
 
     do while(associated(currentPatch)) 
 
-       if(currentPatch%nocomp_pft_label .ne. 0)then
+       if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
 
        if (currentPatch%fire == 1) then
           currentCohort => currentPatch%tallest;
@@ -1065,7 +1066,7 @@ contains
 
     do while(associated(currentPatch)) 
 
-       if(currentPatch%nocomp_pft_label .ne. 0)then
+       if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
 
        if (currentPatch%fire == 1) then 
           currentCohort => currentPatch%tallest

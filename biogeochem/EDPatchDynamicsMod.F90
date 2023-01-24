@@ -39,6 +39,7 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : AREA_INV
   use FatesConstantsMod    , only : rsnbl_math_prec
   use FatesConstantsMod    , only : fates_tiny
+  use FatesConstantsMod    , only : nocomp_bareground
   use FatesInterfaceTypesMod    , only : hlm_use_planthydro
   use FatesInterfaceTypesMod    , only : hlm_numSWb
   use FatesInterfaceTypesMod    , only : bc_in_type
@@ -1286,7 +1287,7 @@ contains
       patchno = 1
       currentPatch => currentSite%oldest_patch
       do while(associated(currentPatch))
-        if(currentPatch%nocomp_pft_label.eq.0)then
+        if(currentPatch%nocomp_pft_label.eq.nocomp_bareground)then
          ! for bareground patch, we make the patch number 0
          ! we also do not count this in the veg. patch numbering scheme.
           currentPatch%patchno = 0
