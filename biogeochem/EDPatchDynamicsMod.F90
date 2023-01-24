@@ -2027,7 +2027,7 @@ contains
     real(r8), intent(in) :: age                  ! notional age of this patch in years
     real(r8), intent(in) :: areap                ! initial area of this patch in m2. 
     integer, intent(in)  :: label                ! anthropogenic disturbance label
-    integer, intent(in)  :: nocomp_pft
+    integer, intent(in)  :: nocomp_pft           ! no competition mode pft label
 
 
     ! Until bc's are pointed to by sites give veg a default temp [K]

@@ -440,7 +440,10 @@ module EDTypesMod
      class(rmean_type), pointer :: tveg_lpa                      ! Running mean of vegetation temperature at the
                                                                  ! leaf photosynthesis acclimation timescale [K]
 
-     integer  ::  nocomp_pft_label                               ! where nocomp is active, use this label for patch ID.   
+     integer  ::  nocomp_pft_label                               ! Where nocomp is active, use this label for patch ID.
+                                                                 ! If nocomp is not active this is set to unset.
+                                                                 ! This is set in create_patch as an argument
+                                                                 ! to that procedure.
 
 
      ! LEAF ORGANIZATION
