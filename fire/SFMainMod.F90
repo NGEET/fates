@@ -87,7 +87,7 @@ contains
     type (ed_patch_type), pointer :: currentPatch
 
     !zero fire things
-    currentPatch => currentSite%oldest_patch
+    currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
        currentPatch%frac_burnt = 0.0_r8
        currentPatch%fire       = 0
