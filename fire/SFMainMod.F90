@@ -127,6 +127,8 @@ contains
     type(ed_site_type)     , intent(inout), target :: currentSite
     type(bc_in_type)       , intent(in)            :: bc_in
 
+    type(ed_patch_type),  pointer :: currentPatch
+
     real(r8) :: temp_in_C  ! daily averaged temperature in celcius
     real(r8) :: rainfall   ! daily precip in mm/day
     real(r8) :: rh         ! daily rh 
@@ -141,9 +143,17 @@ contains
     ! is simply using the values associated with the first patch.
     ! which probably won't have much inpact, unless we decide to ever calculated the NI for each patch.  
     
-    iofp = currentSite%youngest_patch%patchno
+    currentPatch => currentSite%oldest_patch
+
+    ! If the oldest patch is a bareground patch (i.e. nocomp mode is on) use the first vegetated patch
+    ! for the iofp index (i.e. the next younger patch)
+    if(currentPatch%nocomp_pft_label .eq. nocomp_bareground)then
+      currentPatch => currentPatch%younger
+    endif
+
+    iofp = currentPatch%patchno
     
-    temp_in_C  = currentSite%youngest_patch%tveg24%GetMean() - tfrz
+    temp_in_C  = currentSite%currentPatch%tveg24%GetMean() - tfrz
     rainfall   = bc_in%precip24_pa(iofp)*sec_per_day
     rh         = bc_in%relhumid24_pa(iofp)
     
@@ -181,8 +191,6 @@ contains
 
     fuel_moisture(:) = 0.0_r8
     
-    
-
     currentPatch => currentSite%oldest_patch; 
     do while(associated(currentPatch))  
 
@@ -359,10 +367,17 @@ contains
     integer  :: iofp                 ! index of oldest fates patch
 
 
+    currentPatch => currentSite%oldest_patch
+
+    ! If the oldest patch is a bareground patch (i.e. nocomp mode is on) use the first vegetated patch
+    ! for the iofp index (i.e. the next younger patch)
+    if(currentPatch%nocomp_pft_label .eq. nocomp_bareground)then
+      currentPatch => currentPatch%younger
+    endif
+
     ! note - this is a patch level temperature, which probably won't have much inpact, 
     ! unless we decide to ever calculated the NI for each patch.  
-
-    iofp = currentSite%youngest_patch%patchno
+    iofp = currentPatch%patchno
     currentSite%wind = bc_in%wind24_pa(iofp) * sec_per_min !Convert to m/min for SPITFIRE
 
     if(write_SF == itrue)then
@@ -722,8 +737,16 @@ contains
        cloud_to_ground_strikes = cg_strikes
     end if
     
+    currentPatch => currentSite%oldest_patch
+
+    ! If the oldest patch is a bareground patch (i.e. nocomp mode is on) use the first vegetated patch
+    ! for the iofp index (i.e. the next younger patch)
+    if(currentPatch%nocomp_pft_label .eq. nocomp_bareground)then
+      currentPatch => currentPatch%younger
+    endif
+    
     !NF = number of lighting strikes per day per km2 scaled by cloud to ground strikes
-    iofp = currentSite%youngest_patch%patchno
+    iofp = currentPatch%patchno
     if (hlm_spitfire_mode == hlm_sf_scalar_lightning_def ) then
        currentSite%NF = ED_val_nignitions * years_per_day * cloud_to_ground_strikes
     else    ! use external daily lightning ignition data
