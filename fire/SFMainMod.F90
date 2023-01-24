@@ -153,7 +153,7 @@ contains
 
     iofp = currentPatch%patchno
     
-    temp_in_C  = currentSite%currentPatch%tveg24%GetMean() - tfrz
+    temp_in_C  = currentPatch%tveg24%GetMean() - tfrz
     rainfall   = bc_in%precip24_pa(iofp)*sec_per_day
     rh         = bc_in%relhumid24_pa(iofp)
     
