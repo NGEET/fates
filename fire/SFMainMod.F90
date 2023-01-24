@@ -87,7 +87,7 @@ contains
     type (ed_patch_type), pointer :: currentPatch
 
     !zero fire things
-    currentPatch => currentSite%youngest_patch
+    currentPatch => currentSite%oldest_patch
     do while(associated(currentPatch))
        currentPatch%frac_burnt = 0.0_r8
        currentPatch%fire       = 0
@@ -140,9 +140,9 @@ contains
     ! is simply using the values associated with the first patch.
     ! which probably won't have much inpact, unless we decide to ever calculated the NI for each patch.  
     
-    iofp = currentSite%oldest_patch%patchno
+    iofp = currentSite%youngest_patch%patchno
     
-    temp_in_C  = currentSite%oldest_patch%tveg24%GetMean() - tfrz
+    temp_in_C  = currentSite%youngest_patch%tveg24%GetMean() - tfrz
     rainfall   = bc_in%precip24_pa(iofp)*sec_per_day
     rh         = bc_in%relhumid24_pa(iofp)
     
@@ -184,6 +184,8 @@ contains
 
     currentPatch => currentSite%oldest_patch; 
     do while(associated(currentPatch))  
+
+       if(currentPatch%nocomp_pft_label .ne. 0)then
 
        litt_c => currentPatch%litter(element_pos(carbon12_element))
        
@@ -325,7 +327,7 @@ contains
             0.0_r8.or.currentPatch%fuel_mef <= 0.0_r8.or.currentPatch%fuel_eff_moist <= 0.0_r8)then
             if ( hlm_masterproc == itrue ) write(fates_log(),*) 'problem with spitfire fuel averaging'
        endif 
-       
+       endif !nocomp_pft_label check
        currentPatch => currentPatch%younger
 
     enddo !end patch loop
@@ -359,7 +361,7 @@ contains
     ! note - this is a patch level temperature, which probably won't have much inpact, 
     ! unless we decide to ever calculated the NI for each patch.  
 
-    iofp = currentSite%oldest_patch%patchno
+    iofp = currentSite%youngest_patch%patchno
     currentSite%wind = bc_in%wind24_pa(iofp) * sec_per_min !Convert to m/min for SPITFIRE
 
     if(write_SF == itrue)then
@@ -372,6 +374,9 @@ contains
     grass_fraction = 0.0_r8
     currentPatch=>currentSite%oldest_patch;  
     do while(associated(currentPatch))
+
+       if(currentPatch%nocomp_pft_label .ne. 0)then
+       
        currentPatch%total_tree_area = 0.0_r8
        total_grass_area = 0.0_r8
        currentCohort => currentPatch%tallest
@@ -394,6 +399,8 @@ contains
          write(fates_log(),*) 'SF  total_grass_area ',tree_fraction,grass_fraction
          write(fates_log(),*) 'SF  AREA ',AREA
        endif
+
+       endif !nocomp_pft_label check
        
        currentPatch => currentPatch%younger
     enddo !currentPatch loop
@@ -409,9 +416,13 @@ contains
     currentPatch=>currentSite%oldest_patch;
 
     do while(associated(currentPatch))       
+       if(currentPatch%nocomp_pft_label .ne. 0)then
+
        currentPatch%total_tree_area = min(currentPatch%total_tree_area,currentPatch%area)
        ! effect_wspeed in units m/min      
        currentPatch%effect_wspeed = currentSite%wind * (tree_fraction*0.4_r8+(grass_fraction+bare_fraction)*0.6_r8)
+
+       endif ! nocomp_pft_label check
       
        currentPatch => currentPatch%younger
     enddo !end patch loop
@@ -450,6 +461,8 @@ contains
     currentPatch=>currentSite%oldest_patch;  
 
     do while(associated(currentPatch))
+
+       if(currentPatch%nocomp_pft_label .ne. 0)then
               
        ! remove mineral content from net fuel load per Thonicke 2010 for ir calculation
        currentPatch%sum_fuel  = currentPatch%sum_fuel * (1.0_r8 - SF_val_miner_total) !net of minerals
@@ -555,6 +568,7 @@ contains
        ! backward ROS wind not changed by vegetation 
        currentPatch%ROS_back = currentPatch%ROS_front*exp(-0.012_r8*currentSite%wind) 
 
+       end if ! nocomp_pft_label check
        currentPatch => currentPatch%younger
 
     enddo !end patch loop
@@ -583,6 +597,9 @@ contains
     currentPatch => currentSite%oldest_patch;  
 
     do while(associated(currentPatch))
+
+       if(currentPatch%nocomp_pft_label .ne. 0)then
+
        currentPatch%burnt_frac_litter(:) = 1.0_r8       
        ! Calculate fraction of litter is burnt for all classes. 
        ! Equation B1 in Thonicke et al. 2010---
@@ -641,6 +658,8 @@ contains
        !---calculate overall fuel consumed by spreading fire --- 
        ! ignore 1000hr fuels. Just interested in fuels affecting ROS   
        currentPatch%TFC_ROS = sum(FC_ground)-FC_ground(tr_sf)  
+
+       end if ! nocomp_pft_label check
 
        currentPatch=>currentPatch%younger;
     enddo !end patch loop
@@ -703,7 +722,7 @@ contains
     end if
     
     !NF = number of lighting strikes per day per km2 scaled by cloud to ground strikes
-    iofp = currentSite%oldest_patch%patchno
+    iofp = currentSite%youngest_patch%patchno
     if (hlm_spitfire_mode == hlm_sf_scalar_lightning_def ) then
        currentSite%NF = ED_val_nignitions * years_per_day * cloud_to_ground_strikes
     else    ! use external daily lightning ignition data
@@ -726,6 +745,9 @@ contains
 
     currentPatch => currentSite%oldest_patch;  
     do while(associated(currentPatch))
+
+       if(currentPatch%nocomp_pft_label .ne. 0)then
+
        !  ---initialize patch parameters to zero---
        currentPatch%FI         = 0._r8
        currentPatch%fire       = 0
@@ -829,7 +851,8 @@ contains
             currentPatch%frac_burnt = 0.0_r8
          endif         
           
-       endif! NF ignitions check
+       endif ! NF ignitions check
+       endif ! nocomp_pft_label check
        
        currentPatch => currentPatch%younger
 
@@ -861,6 +884,8 @@ contains
 
     currentPatch => currentSite%oldest_patch;  
     do while(associated(currentPatch)) 
+
+       if(currentPatch%nocomp_pft_label .ne. 0)then
        
        tree_ag_biomass = 0.0_r8
        if (currentPatch%fire == 1) then
@@ -894,6 +919,7 @@ contains
           end do
 
        endif !fire
+       endif !nocomp_pft_label
 
        currentPatch => currentPatch%younger;  
     enddo !end patch loop
@@ -916,6 +942,8 @@ contains
     currentPatch => currentSite%oldest_patch
 
     do while(associated(currentPatch)) 
+
+       if(currentPatch%nocomp_pft_label .ne. 0)then
        if (currentPatch%fire == 1) then
 
           currentCohort=>currentPatch%tallest
@@ -957,6 +985,7 @@ contains
 
           enddo !end cohort loop
        endif !fire?
+       endif !nocomp_pft_label check
 
        currentPatch => currentPatch%younger;
 
@@ -983,6 +1012,8 @@ contains
 
     do while(associated(currentPatch)) 
 
+       if(currentPatch%nocomp_pft_label .ne. 0)then
+
        if (currentPatch%fire == 1) then
           currentCohort => currentPatch%tallest;
           do while(associated(currentCohort))  
@@ -1007,6 +1038,7 @@ contains
 
           enddo !end cohort loop
        endif !fire?
+       endif !nocomp_pft_label check
 
        currentPatch=>currentPatch%younger;
 
@@ -1033,6 +1065,8 @@ contains
 
     do while(associated(currentPatch)) 
 
+       if(currentPatch%nocomp_pft_label .ne. 0)then
+
        if (currentPatch%fire == 1) then 
           currentCohort => currentPatch%tallest
           do while(associated(currentCohort))  
@@ -1052,6 +1086,7 @@ contains
 
           enddo !end cohort loop
        endif !fire?
+       endif !nocomp_pft_label check
 
        currentPatch => currentPatch%younger
 
