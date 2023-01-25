@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<all>
+  <base_file>fates_params_default.cdl</base_file>
+  <new_file>fates_params_e3smtest.cdl</new_file>
+  <pft_list>1,2,3,4,5,6,7,8,9,10,11,12</pft_list>
+  <parameters>
+	 <fates_cnp_prescribed_nuptake>0,0,0,0,0,0,0,0,0,0,0,0</fates_cnp_prescribed_nuptake>
+	 <fates_cnp_prescribed_puptake>0,0,0,0,0,0,0,0,0,0,0,0</fates_cnp_prescribed_puptake>
+  </parameters>
+</all>

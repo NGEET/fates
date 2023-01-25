@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+<all>
+  <notes>This parameter dataset was created by Ryan Knox rgknox@lbl.gov. Please contact if using in published work. The calibration uses the following datasets: [1] Ely et al. 2019. Leaf mass area, Panama. NGEE-Tropics data collection.http://dx.doi.org/10.15486/ngt/1411973 and [2] Condit et al. 2019. Complete data from the Barro Colorado 50-ha plot. https://doi.org/10.15146/5xcp-0d46. [3] Koven et al. 2019. Benchmarking and parameter sensitivity of physiological and vegetation dynamics using the functionally assembled terrestrial ecosystem simulator. Biogeosciences. The ECA nutrient aquisition parmeters are unconstrained, the file output naming convention vmn6phi is shorthand for vmax for nitrogen uptake is order e-6 and for phosphorus is excessively high.  These parameters were calibrated with the special fates modification in main/EDTypesMod.F90: nclmax = 3</notes>
+  <base_file>fates_params_default.cdl</base_file>
+  <new_file>fates_params_opt224_040822_api25.cdl</new_file>
+  <pft_trim_list>1</pft_trim_list>
+  <parameters>
+    
+    <!-- if specifying a multi-dimensional parameter, use the PFTs as the outer dimension in the ordering below -->
+    <!-- in this case there is only 1 pft, so the point is moot -->
+    
+    <pft_group ids="1">
+	 <fates_cnp_prescribed_nuptake> 0 </fates_cnp_prescribed_nuptake>
+	 <fates_cnp_prescribed_puptake> 0 </fates_cnp_prescribed_puptake>
+	 <fates_stoich_nitr> 0.03347526,0.024,1e-08,0.0047 </fates_stoich_nitr>
+	 <fates_stoich_phos> 0.002675,0.0005,0.00015,0.00015 </fates_stoich_phos>
+	 <fates_cnp_turnover_nitr_retrans> 0.45,0.25,0,0 </fates_cnp_turnover_nitr_retrans>
+	 <fates_cnp_turnover_phos_retrans> 0.65,0.25,0,0 </fates_cnp_turnover_phos_retrans>
+	 <fates_turnover_leaf> 0.8012471 </fates_turnover_leaf>
+	 <fates_leaf_vcmax25top> 30.94711 </fates_leaf_vcmax25top>
+	 <fates_allom_agb1> 0.0673 </fates_allom_agb1>
+	 <fates_allom_agb2> 0.976 </fates_allom_agb2>
+	 <fates_allom_agb3> -9 </fates_allom_agb3>
+	 <fates_allom_agb4> -9 </fates_allom_agb4>
+	 <fates_allom_amode> 3 </fates_allom_amode>
+	 <fates_allom_d2bl1> 0.1266844 </fates_allom_d2bl1>
+	 <fates_allom_d2bl2> 1.281329 </fates_allom_d2bl2>
+	 <fates_allom_d2bl3> -9 </fates_allom_d2bl3>
+	 <fates_allom_d2ca_coefficient_max> 0.768654 </fates_allom_d2ca_coefficient_max>
+	 <fates_allom_d2ca_coefficient_min> 0.768654 </fates_allom_d2ca_coefficient_min>
+	 <fates_allom_d2h1> 57.6 </fates_allom_d2h1>
+	 <fates_allom_d2h2> 0.74 </fates_allom_d2h2>
+	 <fates_allom_d2h3> 21.6 </fates_allom_d2h3>
+	 <fates_allom_dbh_maxheight> 200 </fates_allom_dbh_maxheight>
+	 <fates_allom_fmode> 2 </fates_allom_fmode>
+	 <fates_allom_hmode> 5 </fates_allom_hmode>
+	 <fates_allom_l2fr> 0.4863088 </fates_allom_l2fr>
+	 <fates_cnp_nfix1> 0.0 </fates_cnp_nfix1>
+	 <fates_cnp_store_ovrflw_frac> 1 </fates_cnp_store_ovrflw_frac>
+	 <fates_allom_lmode> 3 </fates_allom_lmode>
+	 <fates_cnp_vmax_nh4> 5e-09 </fates_cnp_vmax_nh4>  <!-- Calibrated for RD, where NH4+NO3 is summed -->
+	 <fates_cnp_vmax_no3> 0 </fates_cnp_vmax_no3>      <!-- Calibrated for RD, where NH4+NO3 is summed -->
+	 <fates_cnp_vmax_p> 5e-10 </fates_cnp_vmax_p>
+	 <fates_cnp_eca_vmax_ptase> 3e-08 </fates_cnp_eca_vmax_ptase>
+	 <fates_leaf_slamax> 0.03991654 </fates_leaf_slamax>
+	 <fates_leaf_slatop> 0.01995827 </fates_leaf_slatop>
+	 <fates_mort_bmort> 0.01303514 </fates_mort_bmort>
+	 <fates_mort_scalar_cstarvation> 0.02955703 </fates_mort_scalar_cstarvation>
+	 <fates_cnp_nitr_store_ratio> 3 </fates_cnp_nitr_store_ratio>
+	 <fates_cnp_phos_store_ratio> 3 </fates_cnp_phos_store_ratio>
+	 <fates_recruit_seed_alloc> 0.04680188 </fates_recruit_seed_alloc>
+	 <fates_recruit_seed_supplement> 0.001 </fates_recruit_seed_supplement>
+	 <fates_wood_density> 0.8374751 </fates_wood_density>
+    </pft_group>
+    <non_pft_group>
+      <fates_alloc_organ_priority> 1,1,3,4 </fates_alloc_organ_priority>
+      <fates_comp_excln> -1 </fates_comp_excln>
+      <fates_mort_disturb_frac> 0.5 </fates_mort_disturb_frac>
+      <fates_mort_understorey_death> 1 </fates_mort_understorey_death>
+    </non_pft_group>
+  </parameters>
+</all>

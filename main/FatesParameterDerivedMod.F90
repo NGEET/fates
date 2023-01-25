@@ -13,7 +13,10 @@ module FatesParameterDerivedMod
   use FatesConstantsMod,     only : umolC_to_kgC
   use FatesConstantsMod,     only : g_per_kg
   use FatesInterfaceTypesMod,     only : nleafage
-  
+  use FatesInterfaceTypesMod,     only : nlevdamage
+  use FatesGlobals     ,     only : fates_log
+  use EDParamsMod      ,     only : ED_val_history_damage_bin_edges
+
   implicit none
   private
 
@@ -25,17 +28,29 @@ module FatesParameterDerivedMod
                                               ! rate at 25C (umol CO2/m**2/s)
      real(r8), allocatable :: kp25top(:,:)    ! canopy top: initial slope of CO2 response
                                               ! curve (C4 plants) at 25C
+
+     real(r8), allocatable :: branch_frac(:)  ! fraction of aboveground woody biomass in branches (as
+                                              ! oppose to stems) - for use in damage allometries
+
+     real(r8), allocatable :: damage_transitions(:,:,:) ! matrix of transition probabilities between
+                                                      ! damage classes - one per PFT
+     
    contains
      
      procedure :: Init
+     procedure :: InitDamageTransitions
      procedure :: InitAllocate
+     procedure :: InitAllocateDamageTransitions
      
   end type param_derived_type
   
   type(param_derived_type), public :: param_derived
   
-contains
+  logical :: debug = .false.  ! for module level debugging
   
+contains 
+
+  ! ===================================================================================
   subroutine InitAllocate(this,numpft)
     
     class(param_derived_type), intent(inout) :: this
@@ -44,26 +59,46 @@ contains
     allocate(this%jmax25top(numpft,nleafage))
     allocate(this%tpu25top(numpft,nleafage))
     allocate(this%kp25top(numpft,nleafage))
+
+    allocate(this%branch_frac(numpft))
+    
     
     return
   end subroutine InitAllocate
 
   ! =====================================================================================
-  
+
+ ! ===================================================================================
+  subroutine InitAllocateDamageTransitions(this,numpft)
+    
+    class(param_derived_type), intent(inout) :: this
+    integer, intent(in)                      :: numpft
+
+    allocate(this%damage_transitions(nlevdamage,nlevdamage, numpft))
+    
+    return
+  end subroutine InitAllocateDamageTransitions
+
+  ! =====================================================================================
+ 
   subroutine Init(this,numpft)
 
     use EDPftvarcon, only: EDPftvarcon_inst
-
+    use SFParamsMod, only: SF_val_CWD_frac
+    use FatesLitterMod, only : ncwd
+    
     class(param_derived_type), intent(inout) :: this
     integer, intent(in)                      :: numpft
     
     ! local variables
     integer  :: ft                 ! pft index
     integer  :: iage               ! leaf age class index
-    
+    integer  :: c                  ! cwd index
+
     associate( vcmax25top => EDPftvarcon_inst%vcmax25top ) 
     
       call this%InitAllocate(numpft)
+      call this%InitDamageTransitions(numpft)
       
       do ft = 1,numpft
          
@@ -85,11 +120,78 @@ contains
             this%kp25top(ft,iage)   = 20000._r8 * vcmax25top(ft,iage)
          
          end do
+
+         ! Allocate fraction of aboveground woody biomass in branches
+         this%branch_frac(ft) = sum(SF_val_CWD_frac(1:3))
          
-      end do !ft 
+      end do !ft
 
     end associate
     return
   end subroutine Init
+
+!=========================================================================
+  
+  subroutine InitDamageTransitions(this, numpft)
+
+    use EDPftvarcon, only: EDPftvarcon_inst
+
+
+    class(param_derived_type), intent(inout) :: this
+    integer, intent(in)                      :: numpft
+
+    ! local variables
+    integer  :: ft                ! pft index
+    integer  :: i                 ! crowndamage index
+    integer  :: j                 ! damage bin index
+    real(r8) :: damage_frac       ! damage fraction 
+    real(r8), allocatable :: damage_bin_edges_ex(:) ! including the upper bound of 100
+    real(r8), allocatable :: class_widths(:)      ! widths of each damage class
+   
+    call this%InitAllocateDamageTransitions(numpft)
+
+    allocate(class_widths(1:nlevdamage))
+    allocate(damage_bin_edges_ex(1:(nlevdamage+1)))
+    
+    ! class widths
+    ! append 100 to ED_val_history_damage_bin_edges
+    do j = 1,nlevdamage
+       damage_bin_edges_ex(j) = ED_val_history_damage_bin_edges(j)
+    end do
+    damage_bin_edges_ex(j) = 100.0_r8
+
+    ! gets class widths (something like below)
+    class_widths =  damage_bin_edges_ex(2:(nlevdamage+1)) - &
+         damage_bin_edges_ex(1:nlevdamage)
+
+     do ft = 1, numpft
+
+       damage_frac = EDPftvarcon_inst%damage_frac(ft)
+
+       do i = 1, nlevdamage
+
+          ! zero the column
+          this%damage_transitions(i,:,ft) = 0._r8
+          ! damage rate stays the same 
+          this%damage_transitions(i,i,ft) = 1.0_r8 - damage_frac
+
+
+          if(i < nlevdamage) then
+             ! fraction damaged get split according to class width
+             this%damage_transitions(i,i+1:nlevdamage,ft) = damage_frac * &
+                  class_widths(i+1:nlevdamage)/ SUM(class_widths(i+1:nlevdamage))  
+          end if
+          ! Make sure it sums to one - they have to go somewhere
+          this%damage_transitions(i, :, ft) = this%damage_transitions(i, :, ft)/SUM(this%damage_transitions(i, :, ft))
+       end do
+
+        if (debug) write(fates_log(),'(a/,5(F12.6,1x))') 'annual transition matrix : ', this%damage_transitions(:,:,ft)
+     end do
+
+
+
+    
+    return
+  end subroutine InitDamageTransitions
 
 end module FatesParameterDerivedMod
