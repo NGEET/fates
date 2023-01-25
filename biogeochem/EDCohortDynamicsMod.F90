@@ -842,9 +842,8 @@ contains
             if (debug_dealloc) write(fates_log(),*) 'dealloc001: fail on terminate_cohorts:deallocate(currentCohort):'//trim(smsg)
             nullify(currentCohort)
          else
-            if (debug_dealloc) write(fates_log(),*) 'dealloc001: pass on terminate_cohorts:deallocate(currentCohort)'//trim(smsg)
+            if (debug_dealloc) write(fates_log(),*) 'dealloc001: pass on terminate_cohorts:deallocate(currentCohort)'
          endif
-         
       endif
       currentCohort => tallerCohort
    enddo
@@ -1099,7 +1098,7 @@ contains
         if (debug_dealloc) write(fates_log(),*) 'dealloc002: fail in deallocate(currentCohort%prt):'//trim(smsg)
         nullify(currentCohort%prt)
      else
-        if (debug_dealloc) write(fates_log(),*) 'dealloc002: pass in deallocate(currentCohort%prt):'//trim(smsg)
+        if (debug_dealloc) write(fates_log(),*) 'dealloc002: pass in deallocate(currentCohort%prt):'
      endif
 
      return
@@ -1584,9 +1583,9 @@ contains
                                    call DeallocateCohort(nextc)
                                    deallocate(nextc, stat=istat, errmsg=smsg)
                                    if (istat/=0) then
-                                      if (debug_alloc) write(fates_log(),*) 'dealloc003: fail on deallocate(nextc):'//trim(smsg)
+                                      if (debug_dealloc) write(fates_log(),*) 'dealloc003: fail on deallocate(nextc):'//trim(smsg)
                                    else
-                                      if (debug_alloc) write(fates_log(),*) 'dealloc003: pass on deallocate(nextc):'//trim(smsg)
+                                      if (debug_dealloc) write(fates_log(),*) 'dealloc003: pass on deallocate(nextc):'
                                    endif
                                    nullify(nextc)
 
