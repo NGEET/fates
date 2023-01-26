@@ -331,7 +331,7 @@ module FatesHistoryInterfaceMod
 
   ! Indices to (site) variables
   integer :: ih_tveg24_si
-  !integer :: ih_tveg_si
+  integer :: ih_tveg_si
   integer :: ih_nep_si
   integer :: ih_hr_si
 
@@ -4370,8 +4370,8 @@ end subroutine flush_hvars
                hio_fabi_sun_top_si_can  => this%hvars(ih_fabi_sun_top_si_can)%r82d, &
                hio_fabi_sha_top_si_can  => this%hvars(ih_fabi_sha_top_si_can)%r82d, &
                hio_parsun_top_si_can     => this%hvars(ih_parsun_top_si_can)%r82d, &
-               hio_parsha_top_si_can     => this%hvars(ih_parsha_top_si_can)%r82d)!, &
-               !hio_tveg   => this%hvars(ih_tveg_si)%r81d)
+               hio_parsha_top_si_can     => this%hvars(ih_parsha_top_si_can)%r82d, &
+               hio_tveg   => this%hvars(ih_tveg_si)%r81d)
 
       ! Flush the relevant history variables
       call this%flush_hvars(nc,upfreq_in=2)
@@ -4425,12 +4425,12 @@ end subroutine flush_hvars
             hio_rad_error_si(io_si) = hio_rad_error_si(io_si) + &
                  cpatch%radiation_error * cpatch%area * AREA_INV
                  
-           ! ! Only accumulate the instantaneous vegetation temperature for vegetated patches
-           ! if (cpatch%patchno .ne. 0) then
-           !    hio_tveg(io_si) = hio_tveg(io_si) + &
-           !       (bc_in(s)%t_veg_pa(cpatch%patchno) - t_water_freeze_k_1atm) * &
-           !       cpatch%area / site_area_veg
-           ! end if
+           ! Only accumulate the instantaneous vegetation temperature for vegetated patches
+           if (cpatch%patchno .ne. 0) then
+              hio_tveg(io_si) = hio_tveg(io_si) + &
+                 (bc_in(s)%t_veg_pa(cpatch%patchno) - t_water_freeze_k_1atm) * &
+                 cpatch%area / site_area_veg
+           end if
             
             ccohort => cpatch%shortest
             do while(associated(ccohort))
@@ -6223,11 +6223,11 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_tveg24_si )
 
-    ! call this%set_history_var(vname='FATES_TVEG', units='degree_Celsius', &
-    !      long='fates instantaneous mean vegetation temperature by site', &
-    !      use_default='active', &
-    !      avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2, &
-    !      ivar=ivar, initialize=initialize_variables, index = ih_tveg_si )
+    call this%set_history_var(vname='FATES_TVEG', units='degree_Celsius', &
+         long='fates instantaneous mean vegetation temperature by site', &
+         use_default='active', &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2, &
+         ivar=ivar, initialize=initialize_variables, index = ih_tveg_si )
 
     ! radiation error
 
