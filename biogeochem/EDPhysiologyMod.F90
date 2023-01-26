@@ -143,6 +143,8 @@ module EDPhysiologyMod
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
 
+  integer :: istat           ! return status code
+  character(len=255) :: smsg ! Message string for deallocation errors
   integer, parameter :: dleafon_drycheck = 100 ! Drought deciduous leaves max days on check parameter
 
 
@@ -1983,9 +1985,9 @@ contains
     
     !
     ! !ARGUMENTS
-    type(ed_site_type), intent(inout), target   :: currentSite
-    type(ed_patch_type), intent(inout), pointer :: currentPatch
-    type(bc_in_type), intent(in)                :: bc_in
+    type(ed_site_type), intent(inout)  :: currentSite
+    type(ed_patch_type), intent(inout),pointer :: currentPatch
+    type(bc_in_type), intent(in)       :: bc_in
     !
     ! !LOCAL VARIABLES:
     class(prt_vartypes), pointer :: prt
@@ -2285,8 +2287,13 @@ contains
        endif !use_this_pft
     enddo  !pft loop
 
-    deallocate(temp_cohort) ! delete temporary cohort
+    deallocate(temp_cohort, stat=istat, errmsg=smsg)
+    if (istat/=0) then
+       write(fates_log(),*) 'dealloc013: fail on deallocate(temp_cohort):'//trim(smsg)
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    endif
 
+    
   end subroutine recruitment
 
   ! ============================================================================

@@ -134,7 +134,6 @@ Module EDCohortDynamicsMod
   public :: DamageRecovery
   
   logical, parameter :: debug  = .false. ! local debug flag
-  logical, parameter :: debug_dealloc = .true.
   
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
@@ -741,11 +740,11 @@ contains
     
     !
     ! !ARGUMENTS
-    type (ed_site_type) , intent(inout), target :: currentSite
-    type (ed_patch_type), intent(inout), target :: currentPatch
-    integer             , intent(in)            :: level
-    integer                                     :: call_index
-    type(bc_in_type), intent(in)                :: bc_in
+    type (ed_site_type) , intent(inout) :: currentSite
+    type (ed_patch_type), intent(inout) :: currentPatch
+    integer             , intent(in)    :: level
+    integer                             :: call_index
+    type(bc_in_type), intent(in)        :: bc_in
 
     ! Important point regarding termination levels.  Termination is typically
     ! called after fusion.  We do this so that we can re-capture the biomass that would
@@ -839,10 +838,8 @@ contains
          call terminate_cohort(currentSite, currentPatch, currentCohort, bc_in)
          deallocate(currentCohort, stat=istat, errmsg=smsg)
          if (istat/=0) then
-            if (debug_dealloc) write(fates_log(),*) 'dealloc001: fail on terminate_cohorts:deallocate(currentCohort):'//trim(smsg)
-            nullify(currentCohort)
-         else
-            if (debug_dealloc) write(fates_log(),*) 'dealloc001: pass on terminate_cohorts:deallocate(currentCohort)'
+            write(fates_log(),*) 'dealloc001: fail on terminate_cohorts:deallocate(currentCohort):'//trim(smsg)
+            call endrun(msg=errMsg(sourcefile, __LINE__))
          endif
       endif
       currentCohort => tallerCohort
@@ -1095,10 +1092,8 @@ contains
 
      deallocate(currentCohort%prt, stat=istat, errmsg=smsg)
      if (istat/=0) then
-        if (debug_dealloc) write(fates_log(),*) 'dealloc002: fail in deallocate(currentCohort%prt):'//trim(smsg)
-        nullify(currentCohort%prt)
-     else
-        if (debug_dealloc) write(fates_log(),*) 'dealloc002: pass in deallocate(currentCohort%prt):'
+        write(fates_log(),*) 'dealloc002: fail in deallocate(currentCohort%prt):'//trim(smsg)
+        call endrun(msg=errMsg(sourcefile, __LINE__))
      endif
 
      return
@@ -1120,9 +1115,9 @@ contains
 
      !
      ! !ARGUMENTS
-     type (ed_site_type), intent(inout),  target :: currentSite
-     type (ed_patch_type), intent(inout), target :: currentPatch
-     type (bc_in_type), intent(in)               :: bc_in
+     type (ed_site_type), intent(inout)           :: currentSite
+     type (ed_patch_type), intent(inout), pointer :: currentPatch
+     type (bc_in_type), intent(in)                :: bc_in
      !
 
      ! !LOCAL VARIABLES:
@@ -1583,11 +1578,9 @@ contains
                                    call DeallocateCohort(nextc)
                                    deallocate(nextc, stat=istat, errmsg=smsg)
                                    if (istat/=0) then
-                                      if (debug_dealloc) write(fates_log(),*) 'dealloc003: fail on deallocate(nextc):'//trim(smsg)
-                                   else
-                                      if (debug_dealloc) write(fates_log(),*) 'dealloc003: pass on deallocate(nextc):'
+                                      write(fates_log(),*) 'dealloc003: fail on deallocate(nextc):'//trim(smsg)
+                                      call endrun(msg=errMsg(sourcefile, __LINE__))
                                    endif
-                                   nullify(nextc)
 
                                 endif ! if( currentCohort%isnew.eqv.nextc%isnew ) then
                              endif !canopy layer
