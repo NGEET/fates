@@ -10,6 +10,7 @@ module EDCanopyStructureMod
   use FatesConstantsMod     , only : tinyr8
   use FatesConstantsMod     , only : nearzero
   use FatesConstantsMod     , only : rsnbl_math_prec
+  use FatesConstantsMod     , only : nocomp_bareground
   use FatesGlobals          , only : fates_log
   use EDPftvarcon           , only : EDPftvarcon_inst
   use PRTParametersMod      , only : prt_params
@@ -1369,7 +1370,7 @@ contains
              endif
 
              ! adding checks for SP and NOCOMP modes.
-             if(currentPatch%nocomp_pft_label.eq.0)then
+             if(currentPatch%nocomp_pft_label.eq.nocomp_bareground)then
                 write(fates_log(),*) 'cohorts in barepatch',currentPatch%total_canopy_area,currentPatch%nocomp_pft_label
                 call endrun(msg=errMsg(sourcefile, __LINE__))
              end if
@@ -1828,7 +1829,7 @@ contains
        c = fcolumn(s)
        do while(associated(currentPatch))
 
-          if(currentPatch%nocomp_pft_label.ne.0)then  ! ignore the bare-ground-PFT patch entirely for these BC outs
+          if(currentPatch%nocomp_pft_label.ne.nocomp_bareground)then  ! ignore the bare-ground-PFT patch entirely for these BC outs
 
              ifp = ifp+1
 
@@ -1970,7 +1971,7 @@ contains
           currentPatch => sites(s)%oldest_patch
           ifp = 0
           do while(associated(currentPatch))
-             if(currentPatch%nocomp_pft_label.ne.0)then ! for vegetated patches only
+             if(currentPatch%nocomp_pft_label.ne.nocomp_bareground)then ! for vegetated patches only
                 ifp = ifp+1
                 bc_out(s)%canopy_fraction_pa(ifp) = bc_out(s)%canopy_fraction_pa(ifp)/total_patch_area
              endif ! veg patch

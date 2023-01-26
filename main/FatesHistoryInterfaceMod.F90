@@ -52,6 +52,7 @@ module FatesHistoryInterfaceMod
   use FatesInterfaceTypesMod        , only : hlm_model_day
   use FatesInterfaceTypesMod        , only : nlevcoage
   use FatesInterfaceTypesMod        , only : hlm_use_nocomp
+  use FatesInterfaceTypesMod        , only : hlm_use_fixed_biogeog
   use FatesAllometryMod             , only : CrownDepth
   use FatesAllometryMod             , only : bstore_allom
   use FatesAllometryMod             , only : set_root_fraction
@@ -4273,10 +4274,9 @@ end subroutine flush_hvars
          canopy_area_by_age(1:nlevage) = 0._r8
          
          ! Calculate the site-level total vegetated area (i.e. non-bareground)
-         if (hlm_use_nocomp .eq. itrue) then
+         site_area_veg = area
+         if (hlm_use_nocomp .eq. itrue .and. hlm_use_fixed_biogeog .eq. itrue) then
             site_area_veg = area - sites(s)%area_pft(0)
-         else
-            site_area_veg = area
          end if
 
          cpatch => sites(s)%oldest_patch
