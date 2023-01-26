@@ -1147,6 +1147,12 @@ contains
       real(r8) :: harvest_debt_sec_young
 
       if(logging_time) then
+
+         ! Initialize the local variables
+         harvest_debt_pri = 0._r8
+         harvest_debt_sec_mature = 0._r8
+         harvest_debt_sec_young = 0._r8
+ 
          ! First we need to get harvest rate for all three categories
          do h_index = 1, hlm_num_lu_harvest_cats
             ! Primary forest harvest rate
