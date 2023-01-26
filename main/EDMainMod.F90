@@ -209,7 +209,15 @@ contains
 
 
     if (hlm_use_ed_st3.eq.ifalse.and.hlm_use_sp.eq.ifalse) then   ! Bypass if ST3
-       call fire_model(currentSite, bc_in)
+       
+       ! Check that the site doesn't consist solely of a single bareground patch.
+       ! If so, skip the fire model.  Since the bareground patch should be the
+       ! oldest patch per set_patchno, we check that the youngest patch isn't zero.
+       ! If there are multiple patches on the site, the bareground patch is avoided
+       ! at the level of the fire_model subroutines.
+       if (currentSite%youngest_patch%patchno .ne. 0) then 
+          call fire_model(currentSite, bc_in)
+       end if
 
        ! Calculate disturbance and mortality based on previous timestep vegetation.
        ! disturbance_rates calls logging mortality and other mortalities, Yi Xu

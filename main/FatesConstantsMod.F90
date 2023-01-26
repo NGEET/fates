@@ -35,6 +35,8 @@ module FatesConstantsMod
   integer, parameter, public :: primaryforest = 1
   integer, parameter, public :: secondaryforest = 2
 
+  ! Bareground label for no competition mode
+  integer, parameter, public :: nocomp_bareground = 0
 
   ! Flags specifying how phosphorous uptake and turnover interacts
   ! with the host model.

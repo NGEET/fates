@@ -39,6 +39,7 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : AREA_INV
   use FatesConstantsMod    , only : rsnbl_math_prec
   use FatesConstantsMod    , only : fates_tiny
+  use FatesConstantsMod    , only : nocomp_bareground
   use FatesInterfaceTypesMod    , only : hlm_use_planthydro
   use FatesInterfaceTypesMod    , only : hlm_numSWb
   use FatesInterfaceTypesMod    , only : bc_in_type
@@ -1315,11 +1316,11 @@ contains
        currentPatch => currentPatch%younger
     enddo
 
-    if(hlm_use_sp.eq.itrue)then
+    if(hlm_use_fixed_biogeog.eq.itrue .and. hlm_use_nocomp.eq.itrue)then
       patchno = 1
       currentPatch => currentSite%oldest_patch
       do while(associated(currentPatch))
-        if(currentPatch%nocomp_pft_label.eq.0)then
+        if(currentPatch%nocomp_pft_label.eq.nocomp_bareground)then
          ! for bareground patch, we make the patch number 0
          ! we also do not count this in the veg. patch numbering scheme.
           currentPatch%patchno = 0
@@ -2060,7 +2061,7 @@ contains
     real(r8), intent(in) :: age                  ! notional age of this patch in years
     real(r8), intent(in) :: areap                ! initial area of this patch in m2. 
     integer, intent(in)  :: label                ! anthropogenic disturbance label
-    integer, intent(in)  :: nocomp_pft
+    integer, intent(in)  :: nocomp_pft           ! no competition mode pft label
 
 
     ! Until bc's are pointed to by sites give veg a default temp [K]
