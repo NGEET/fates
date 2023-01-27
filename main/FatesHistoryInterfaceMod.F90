@@ -3247,9 +3247,6 @@ end subroutine flush_hvars
                        (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
                        ccohort%c_area * sec_per_day * days_per_year                  
 
-                  hio_m3_mortality_canopy_si_scls(io_si,scls) = hio_m3_mortality_canopy_si_scls(io_si,scls) + &
-                       ccohort%cmort * ccohort%n
-
                   hio_carbon_balance_canopy_si_scls(io_si,scls) = hio_carbon_balance_canopy_si_scls(io_si,scls) + &
                        ccohort%n * ccohort%npp_acc_hold / m2_per_ha / days_per_year / sec_per_day
 
