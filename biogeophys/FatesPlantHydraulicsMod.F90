@@ -2605,8 +2605,8 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
               if (qflx_tran_veg_indiv>0.0_r8)then
                   call CalculateTotalAvailW(ccohort,site_hydr,bc_in(s),dtime, availWater);
                   if(qflx_tran_veg_indiv*dtime > 0.8_r8*availWater)then
-                     site_hydr%trans_err = site_hydr%trans_err &
-                                         + ccohort%n*AREA_INV*(dtime*qflx_tran_veg_indiv - 0.8_r8*availWater)
+                     csite_hydr%trans_err = csite_hydr%trans_err &
+                                          + ccohort%n*AREA_INV*(dtime*qflx_tran_veg_indiv - 0.8_r8*availWater)
                      qflx_tran_veg_indiv = 0.8_r8 * availWater / dtime
                   endif
 
@@ -4338,17 +4338,17 @@ end subroutine AccumulateMortalityWaterStorage
 
 !-------------------------------------------------------------------------------!
 
-subroutine CalculateTotalAvailW(cohort,site_hydr,bc_in,dtime,totalAvailW)
+subroutine CalculateTotalAvailW(ccohort,csite_hydr,bc_in,dtime,totalAvailW)
   ! ---------------------------------------------------------------------------
   ! This subroutine estimates the total available water for transpiration
   ! for an individual plant
   ! ---------------------------------------------------------------------------
-  type(ed_cohort_type) , intent(inout), target  :: cohort  
-  type(ed_site_hydr_type), intent(inout),target :: site_hydr        ! ED site_hydr structure
+  type(ed_cohort_type) , intent(inout), target  :: ccohort  
+  type(ed_site_hydr_type), intent(inout),target :: csite_hydr        ! ED site_hydr structure
   type(bc_in_type),intent(in) :: bc_in
   real(r8), intent(in)::dtime !time step (seconds)
   real(r8), intent(out)::totalAvailW
-  type(ed_cohort_hydr_type), pointer :: cohort_hydr
+  type(ed_cohort_hydr_type), pointer :: ccohort_hydr
   integer :: i, ilayer,ishell
   real (r8) :: aroot_frac_plant !fraction of absorbing rooting in the layer
   real(r8)::thr   !residual water content (m3/m3)
@@ -4358,46 +4358,46 @@ subroutine CalculateTotalAvailW(cohort,site_hydr,bc_in,dtime,totalAvailW)
   real(r8)::availW,recruit_water_demand
   
 
-  cohort_hydr => cohort%co_hydr
+  ccohort_hydr => ccohort%co_hydr
   
   totalAvailW = 0._r8
   do i = 1,n_hypool_tot
 
         if (i<=n_hypool_ag) then                    ! leaf and stem, n_hypool_ag= 2
-           v_node = cohort_hydr%v_ag(i)
-           th_node = cohort_hydr%th_ag(i) 
-           thr     = EDPftvarcon_inst%hydr_resid_node(cohort%pft,i) 
+           v_node  = ccohort_hydr%v_ag(i)
+           th_node = ccohort_hydr%th_ag(i) 
+           thr     = EDPftvarcon_inst%hydr_resid_node(ccohort%pft,i) 
            totalAvailW = totalAvailW +max(th_node-thr,0._r8)*v_node
         elseif (i==n_hypool_ag+1) then              ! i=3, transport root
-           v_node = cohort_hydr%v_troot
-           th_node = cohort_hydr%th_troot
-           thr     = EDPftvarcon_inst%hydr_resid_node(cohort%pft,i)
+           v_node  = ccohort_hydr%v_troot
+           th_node = ccohort_hydr%th_troot
+           thr     = EDPftvarcon_inst%hydr_resid_node(ccohort%pft,i)
            totalAvailW = totalAvailW +max(th_node-thr,0._r8)*v_node
         elseif (i==n_hypool_ag+2) then              ! i=4, fine roots
-           do ilayer=1,site_hydr%nlevrhiz
-              v_node = cohort_hydr%v_aroot_layer(ilayer)
-              th_node = cohort_hydr%th_aroot(ilayer)
-              thr     = EDPftvarcon_inst%hydr_resid_node(cohort%pft,i)
+           do ilayer=1,csite_hydr%nlevrhiz
+              v_node  = ccohort_hydr%v_aroot_layer(ilayer)
+              th_node = ccohort_hydr%th_aroot(ilayer)
+              thr     = EDPftvarcon_inst%hydr_resid_node(ccohort%pft,i)
               totalAvailW = totalAvailW +max(th_node-thr,0._r8)*v_node
            enddo
         else
-           do ilayer=1,site_hydr%nlevrhiz
-              thr=site_hydr%wrf_soil(ilayer)%p%th_from_psi(&
+           do ilayer=1,csite_hydr%nlevrhiz
+              thr=csite_hydr%wrf_soil(ilayer)%p%th_from_psi(&
                         bc_in%smpmin_si*denh2o*grav_earth*m_per_mm*mpa_per_pa)
               ishell  = i-(n_hypool_ag+2)              ! i>=5, rhizosphere
-	      if(cohort_hydr%l_aroot_layer(ilayer)>nearzero)then
-                aroot_frac_plant = cohort_hydr%l_aroot_layer(ilayer)/site_hydr%l_aroot_layer(ilayer)
+	      if(ccohort_hydr%l_aroot_layer(ilayer)>nearzero)then
+                aroot_frac_plant = ccohort_hydr%l_aroot_layer(ilayer)/csite_hydr%l_aroot_layer(ilayer)
               else
                 aroot_frac_plant = 0._r8
               end if
               ! The volume of the Rhizosphere for a single plant
-              v_node  = site_hydr%v_shell(ilayer,ishell)*aroot_frac_plant
-              th_node = site_hydr%h2osoi_liqvol_shell(ilayer,ishell)
-	      shell_sum_v = sum(site_hydr%h2osoi_liqvol_shell(ilayer,:))
+              v_node  = csite_hydr%v_shell(ilayer,ishell)*aroot_frac_plant
+              th_node = csite_hydr%h2osoi_liqvol_shell(ilayer,ishell)
+	      shell_sum_v = sum(csite_hydr%h2osoi_liqvol_shell(ilayer,:))
               recruit_water_demand = 0._r8
               if(shell_sum_v>0._r8.and. &
-                    (.not.isnan(site_hydr%recruit_w_uptake(ilayer))))then
-	           recruit_water_demand = site_hydr%recruit_w_uptake(ilayer)* &
+                    (.not.isnan(csite_hydr%recruit_w_uptake(ilayer))))then
+	           recruit_water_demand = csite_hydr%recruit_w_uptake(ilayer)* &
                       v_node/shell_sum_v*dtime*AREA
               endif
 	      availW = max(th_node-thr,0._r8)*v_node
