@@ -2603,7 +2603,7 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
               !basically delays the water limition by a few steps with a benefit
               !of numerical stability. 
               if (qflx_tran_veg_indiv>0.0_r8)then
-                  call CalculateTotalAvailW(ccohort,site_hydr,bc_in(s),dtime, availWater);
+                  call CalculateTotalAvailW(ccohort,csite_hydr,bc_in(s),dtime, availWater);
                   if(qflx_tran_veg_indiv*dtime > 0.8_r8*availWater)then
                      csite_hydr%trans_err = csite_hydr%trans_err &
                                           + ccohort%n*AREA_INV*(dtime*qflx_tran_veg_indiv - 0.8_r8*availWater)
