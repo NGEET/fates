@@ -1402,7 +1402,7 @@ data:
 
  fates_frag_cwd_frac = 0.045, 0.075, 0.21, 0.67 ;
 
- fates_base_mr_20 = 2.52e-06 ;
+ fates_base_mr_20 = 2.525e-06 ;
 
  fates_canopy_closure_thresh = 0.8 ;
 

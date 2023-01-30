@@ -2089,6 +2089,7 @@ subroutine LeafLayerMaintenanceRespiration_Ryan_1991(lnc_top, &
    ! Ecological Applications, 1(2), 157-167.
    ! Original expression is br = 0.0106 molC/(molN h)
    ! Conversion by molecular weights of C and N gives 2.525e-6 gC/(gN s)
+   ! Which is the default value of ED_val_base_mr_20
 
    ! Arguments
    real(r8), intent(in)  :: lnc_top       ! Leaf nitrogen content per unit area at canopy top [gN/m2]
@@ -2109,9 +2110,7 @@ subroutine LeafLayerMaintenanceRespiration_Ryan_1991(lnc_top, &
    real(r8), parameter :: lmrc = 1.15912391_r8 ! scaling factor for high
    ! temperature inhibition (25 C = 1.0)
 
-   real(r8), parameter :: basal_resp_rate_perunit_N_ryan1991 = 2.525e-6_r8 ! gC/(gN s)
-
-   lmr25top = basal_resp_rate_perunit_N_ryan1991 * (1.5_r8 ** ((25._r8 - 20._r8)/10._r8))
+   lmr25top = ED_val_base_mr_20 * (1.5_r8 ** ((25._r8 - 20._r8)/10._r8))
    lmr25top = lmr25top * lnc_top / (umolC_to_kgC * g_per_kg)
 
 
@@ -2202,6 +2201,7 @@ subroutine LeafLayerMaintenanceRespiration_C4(lnc_top, &
    ! Ecological Applications, 1(2), 157-167.
    ! Original expression is br = 0.0106 molC/(molN h)
    ! Conversion by molecular weights of C and N gives 2.525e-6 gC/(gN s)
+   ! Which is the default value of ED_val_base_mr_20
 
    ! This contains the original C4 dark respiraiton logic from CLM, which uses a different
    ! temperature scaling than for C3 plants
@@ -2218,10 +2218,8 @@ subroutine LeafLayerMaintenanceRespiration_C4(lnc_top, &
    real(r8) :: lmr25   ! leaf layer: leaf maintenance respiration rate at 25C (umol CO2/m**2/s)
    real(r8) :: lmr25top  ! canopy top leaf maint resp rate at 25C for this pft (umol CO2/m**2/s)
 
-   ! Parameters
-   real(r8), parameter :: basal_resp_rate_perunit_N_ryan1991 = 2.525e-6_r8 ! gC/(gN s)
 
-   lmr25top = basal_resp_rate_perunit_N_ryan1991 * (1.5_r8 ** ((25._r8 - 20._r8)/10._r8))
+   lmr25top = ED_val_base_mr_20 * (1.5_r8 ** ((25._r8 - 20._r8)/10._r8))
    lmr25top = lmr25top * lnc_top / (umolC_to_kgC * g_per_kg)
 
 
