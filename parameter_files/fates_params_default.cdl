@@ -1494,7 +1494,7 @@ data:
 
  fates_leaf_theta_cj_c4 = 0.999 ;
 
- fates_maintresp_model = 2 ;
+ fates_maintresp_model = 1 ;
 
  fates_maxcohort = 100 ;
 
