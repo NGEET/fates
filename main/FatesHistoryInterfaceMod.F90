@@ -363,7 +363,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_h2oveg_recruit_si
   integer :: ih_h2oveg_growturn_err_si
   integer :: ih_h2oveg_hydro_err_si
-
+  integer :: ih_lai_si
+ 
   integer :: ih_site_cstatus_si
   integer :: ih_site_dstatus_si
   integer :: ih_gdd_si
@@ -2430,7 +2431,8 @@ end subroutine flush_hvars
                hio_tveg24                           => this%hvars(ih_tveg24_si)%r81d, &
                hio_meanliqvol_si                    => this%hvars(ih_meanliqvol_si)%r81d, &
                hio_cbal_err_fates_si                => this%hvars(ih_cbal_err_fates_si)%r81d, &
-               hio_err_fates_si                     => this%hvars(ih_err_fates_si)%r82d )
+               hio_err_fates_si                     => this%hvars(ih_err_fates_si)%r82d, &
+               hio_lai_si                           => this%hvars(ih_lai_si)%r81d )
 
    ! If we don't have dynamics turned on, we just abort these diagnostics
    if (hlm_use_ed_st3.eq.itrue) return
@@ -2600,6 +2602,8 @@ end subroutine flush_hvars
          hio_ncl_si_age(io_si,cpatch%age_class) = hio_ncl_si_age(io_si,cpatch%age_class) &
             + cpatch%ncl_p * cpatch%area
          hio_npatches_si_age(io_si,cpatch%age_class) = hio_npatches_si_age(io_si,cpatch%age_class) + 1._r8
+
+         hio_lai_si(io_si) = hio_lai_si(io_si) + sum(cpatch%tlai_profile(:,:,:)) * cpatch%area * AREA_INV
 
          if ( ED_val_comp_excln .lt. 0._r8 ) then ! only valid when "strict ppa" enabled
             hio_zstar_si_age(io_si,cpatch%age_class) = hio_zstar_si_age(io_si,cpatch%age_class) &
@@ -5183,6 +5187,12 @@ end subroutine update_history_hifrq
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_canopy_spread_si)
+
+    call this%set_history_var(vname='FATES_LAI', units='m2 m-2',               &
+         long='leaf area index per m2 land area',                              &
+         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+         index=ih_lai_si)
 
     call this%set_history_var(vname='FATES_VEGC_PF', units='kg m-2',           &
          long='total PFT-level biomass in kg of carbon per land area',         &
