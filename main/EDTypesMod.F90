@@ -613,6 +613,9 @@ module EDTypesMod
   type, public :: ed_resources_management_type
     
      real(r8) ::  trunk_product_site                       ! Actual  trunk product at site level KgC/site
+     real(r8) ::  harvest_debt                             ! the amount of kgC per site that did not successfully harvested 
+     real(r8) ::  harvest_debt_sec                         ! the amount of kgC per site from secondary patches that did
+                                                           ! not successfully harvested
 
      !debug variables
      real(r8) ::  delta_litter_stock                       ! kgC/site = kgC/ha
@@ -781,7 +784,6 @@ module EDTypesMod
                                                                ! in runs that are restarted, regardless of
                                                                ! the conditions of restart
 
-     
      real(r8) ::  water_memory(numWaterMem)                             ! last 10 days of soil moisture memory...
 
 
@@ -1166,6 +1168,10 @@ module EDTypesMod
      write(fates_log(),*) 'co%dgmort                 = ', ccohort%dgmort
      write(fates_log(),*) 'co%hmort                  = ', ccohort%hmort
      write(fates_log(),*) 'co%frmort                 = ', ccohort%frmort
+     write(fates_log(),*) 'co%asmort                 = ', ccohort%asmort
+     write(fates_log(),*) 'co%lmort_direct           = ', ccohort%lmort_direct
+     write(fates_log(),*) 'co%lmort_collateral       = ', ccohort%lmort_collateral
+     write(fates_log(),*) 'co%lmort_infra            = ', ccohort%lmort_infra
      write(fates_log(),*) 'co%isnew                  = ', ccohort%isnew
      write(fates_log(),*) 'co%dndt                   = ', ccohort%dndt
      write(fates_log(),*) 'co%dhdt                   = ', ccohort%dhdt
@@ -1177,6 +1183,7 @@ module EDTypesMod
      write(fates_log(),*) 'co%cambial_mort           = ', ccohort%cambial_mort
      write(fates_log(),*) 'co%size_class             = ', ccohort%size_class
      write(fates_log(),*) 'co%size_by_pft_class      = ', ccohort%size_by_pft_class
+
      if (associated(ccohort%co_hydr) ) then
         call dump_cohort_hydr(ccohort)
      endif 

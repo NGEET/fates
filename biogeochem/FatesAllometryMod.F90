@@ -2520,7 +2520,6 @@ subroutine ForceDBH( ipft, crowndamage, canopy_trim, d, h, bdead, bl )
      end if
 
      call h_allom(d,ipft,h)
-
      if(counter>20)then
         write(fates_log(),*) 'dbh counter: ',counter,' is woody: ',&
              (prt_params%woody(ipft) == itrue)

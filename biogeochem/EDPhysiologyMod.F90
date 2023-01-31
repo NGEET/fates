@@ -1753,7 +1753,6 @@ contains
     ! !USES:
     use EDTypesMod, only : area
     use EDTypesMod, only : homogenize_seed_pfts
-
     !
     ! !ARGUMENTS
     type(ed_site_type), intent(inout), target  :: currentSite
