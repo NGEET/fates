@@ -1978,8 +1978,7 @@ contains
            rio_fmortcflux_usto_sipft   => this%rvars(ir_fmortcflux_usto_sipft)%r81d, &
            rio_abg_imort_flux_siscpf => this%rvars(ir_abg_imort_flux_siscpf)%r81d, &
            rio_abg_fmort_flux_siscpf => this%rvars(ir_abg_fmort_flux_siscpf)%r81d, &
-           rio_abg_term_flux_siscpf  => this%rvars(ir_abg_term_flux_siscpf)%r81d )
-           
+           rio_abg_term_flux_siscpf  => this%rvars(ir_abg_term_flux_siscpf)%r81d
 
            rio_imortrate_sicdpf        => this%rvars(ir_imortrate_sicdpf)%r81d, &
            rio_imortcflux_sicdsc       => this%rvars(ir_imortcflux_sicdsc)%r81d, &
