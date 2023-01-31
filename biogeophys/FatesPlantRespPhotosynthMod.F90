@@ -532,7 +532,6 @@ contains
 
                                      call LeafLayerMaintenanceRespiration_Ryan_1991( lnc_top,     &  ! in
                                           nscaler,                  &  ! in
-                                          ft,                       &  ! in
                                           bc_in(s)%t_veg_pa(ifp),   &  ! in
                                           lmr_z(iv,ft,cl))             ! out
 
@@ -556,7 +555,6 @@ contains
 
                                   call LeafLayerMaintenanceRespiration_C4( lnc_top,     &  ! in
                                        nscaler,                  &  ! in
-                                       ft,                       &  ! in
                                        bc_in(s)%t_veg_pa(ifp),   &  ! in
                                        lmr_z(iv,ft,cl))             ! out
 
@@ -2074,7 +2072,6 @@ end subroutine GetCanopyGasParameters
 
 subroutine LeafLayerMaintenanceRespiration_Ryan_1991(lnc_top, &
    nscaler,   &
-   ft,        &
    veg_tempk,     &
    lmr)
 
@@ -2094,7 +2091,6 @@ subroutine LeafLayerMaintenanceRespiration_Ryan_1991(lnc_top, &
    ! Arguments
    real(r8), intent(in)  :: lnc_top       ! Leaf nitrogen content per unit area at canopy top [gN/m2]
 
-   integer,  intent(in)  :: ft           ! (plant) Functional Type Index
    real(r8), intent(in)  :: nscaler      ! Scale for leaf nitrogen profile
    real(r8), intent(in)  :: veg_tempk    ! vegetation temperature
    real(r8), intent(out) :: lmr          ! Leaf Maintenance Respiration  (umol CO2/m**2/s)
@@ -2186,7 +2182,6 @@ end subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017
 
 subroutine LeafLayerMaintenanceRespiration_C4(lnc_top, &
    nscaler,   &
-   ft,        &
    veg_tempk,     &
    lmr)
 
@@ -2209,7 +2204,6 @@ subroutine LeafLayerMaintenanceRespiration_C4(lnc_top, &
    ! Arguments
    real(r8), intent(in)  :: lnc_top       ! Leaf nitrogen content per unit area at canopy top [gN/m2]
 
-   integer,  intent(in)  :: ft           ! (plant) Functional Type Index
    real(r8), intent(in)  :: nscaler      ! Scale for leaf nitrogen profile
    real(r8), intent(in)  :: veg_tempk    ! vegetation temperature
    real(r8), intent(out) :: lmr          ! Leaf Maintenance Respiration  (umol CO2/m**2/s)
