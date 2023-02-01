@@ -148,7 +148,7 @@ variables:
 		fates_allom_smode:long_name = "sapwood allometry function index." ;
 	double fates_allom_stmode(fates_pft) ;
 		fates_allom_stmode:units = "index" ;
-		fates_allom_stmode:long_name = "storage allometry function index." ;
+		fates_allom_stmode:long_name = "storage allometry function index: 1) Storage proportional to leaf biomass (with trimming), 2) Storage proportional to maximum leaf biomass (not trimmed)" ;
 	double fates_allom_zroot_k(fates_pft) ;
 		fates_allom_zroot_k:units = "unitless" ;
 		fates_allom_zroot_k:long_name = "scale coefficient of logistic rooting depth model" ;
