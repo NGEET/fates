@@ -531,6 +531,8 @@ module FatesInterfaceTypesMod
       character(len=64), allocatable :: hlm_harvest_catnames(:)  ! names of hlm_harvest d1
 
       integer :: hlm_harvest_units  ! what units are the harvest rates specified in? [area vs carbon]
+    
+      real(r8) :: site_area    ! Actual area of current site [m2], only used in carbon-based harvest
 
       ! Fixed biogeography mode 
       real(r8), allocatable :: pft_areafrac(:)     ! Fractional area of the FATES column occupied by each PFT  
@@ -728,7 +730,9 @@ module FatesInterfaceTypesMod
       ! FATES LULCC
       real(r8) :: hrv_deadstemc_to_prod10c   ! Harvested C flux to 10-yr wood product pool [Site-Level, gC m-2 s-1]
       real(r8) :: hrv_deadstemc_to_prod100c  ! Harvested C flux to 100-yr wood product pool [Site-Level, gC m-2 s-1]
-      
+      real(r8) :: gpp_site  ! Site level GPP, for NBP diagnosis in HLM [Site-Level, gC m-2 s-1]
+      real(r8) :: ar_site   ! Site level Autotrophic Resp, for NBP diagnosis in HLM [Site-Level, gC m-2 s-1]
+
    end type bc_out_type
 
 

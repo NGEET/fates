@@ -39,6 +39,7 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : AREA_INV
   use FatesConstantsMod    , only : rsnbl_math_prec
   use FatesConstantsMod    , only : fates_tiny
+  use FatesConstantsMod    , only : nocomp_bareground
   use FatesInterfaceTypesMod    , only : hlm_use_planthydro
   use FatesInterfaceTypesMod    , only : hlm_numSWb
   use FatesInterfaceTypesMod    , only : bc_in_type
@@ -47,6 +48,7 @@ module EDPatchDynamicsMod
   use FatesInterfaceTypesMod    , only : hlm_use_sp
   use FatesInterfaceTypesMod    , only : hlm_use_nocomp
   use FatesInterfaceTypesMod    , only : hlm_use_fixed_biogeog
+  use FatesInterfaceTypesMod    , only : hlm_num_lu_harvest_cats
   use FatesGlobals         , only : endrun => fates_endrun
   use FatesConstantsMod    , only : r8 => fates_r8
   use FatesConstantsMod    , only : itrue, ifalse
@@ -57,6 +59,9 @@ module EDPatchDynamicsMod
   use EDLoggingMortalityMod, only : logging_litter_fluxes 
   use EDLoggingMortalityMod, only : logging_time
   use EDLoggingMortalityMod, only : get_harvest_rate_area
+  use EDLoggingMortalityMod, only : get_harvest_rate_carbon
+  use EDLoggingMortalityMod, only : get_harvestable_carbon
+  use EDLoggingMortalityMod, only : get_harvest_debt
   use EDParamsMod          , only : fates_mortality_disturbance_fraction
   use FatesAllometryMod    , only : carea_allom
   use FatesAllometryMod    , only : set_root_fraction
@@ -69,6 +74,7 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : n_anthro_disturbance_categories
   use FatesConstantsMod    , only : fates_unset_r8
   use FatesConstantsMod    , only : fates_unset_int
+  use FatesConstantsMod    , only : hlm_harvest_carbon
   use EDCohortDynamicsMod  , only : InitPRTObject
   use EDCohortDynamicsMod  , only : InitPRTBoundaryConditions
   use ChecksBalancesMod,      only : SiteMassStock
@@ -186,9 +192,12 @@ contains
     real(r8) :: dist_rate_ldist_notharvested
     integer  :: threshold_sizeclass
     integer  :: i_dist
+    integer  :: h_index
     real(r8) :: frac_site_primary
     real(r8) :: harvest_rate
     real(r8) :: tempsum
+    real(r8) :: harvestable_forest_c(hlm_num_lu_harvest_cats)
+    integer  :: harvest_tag(hlm_num_lu_harvest_cats)
 
     !----------------------------------------------------------------------------------------------
     ! Calculate Mortality Rates (these were previously calculated during growth derivatives)
@@ -197,6 +206,9 @@ contains
     
     ! first calculate the fractino of the site that is primary land
     call get_frac_site_primary(site_in, frac_site_primary)
+
+    ! get available biomass for harvest for all patches
+    call get_harvestable_carbon(site_in, bc_in%site_area, bc_in%hlm_harvest_catnames, harvestable_forest_c)
  
     currentPatch => site_in%oldest_patch
     do while (associated(currentPatch))   
@@ -227,7 +239,9 @@ contains
                 bc_in%hlm_harvest_units, &
                 currentPatch%anthro_disturbance_label, &
                 currentPatch%age_since_anthro_disturbance, &
-                frac_site_primary)
+                frac_site_primary, &
+                harvestable_forest_c, &
+                harvest_tag)
          
           currentCohort%lmort_direct     = lmort_direct
           currentCohort%lmort_collateral = lmort_collateral
@@ -236,8 +250,11 @@ contains
 
           currentCohort => currentCohort%taller
        end do
+
        currentPatch => currentPatch%younger
     end do
+
+    call get_harvest_debt(site_in, bc_in, harvest_tag)
 
     ! ---------------------------------------------------------------------------------------------
     ! Calculate Disturbance Rates based on the mortality rates just calculated
@@ -288,6 +305,11 @@ contains
                                currentCohort%lmort_infra +                           &
                                currentCohort%l_degrad ) *                            &
                                currentCohort%c_area/currentPatch%area
+
+             if(currentPatch%disturbance_rates(dtype_ilog)>1.0) then
+                 write(fates_log(),*) 'See luc mortalities:', currentCohort%lmort_direct, &
+                     currentCohort%lmort_collateral, currentCohort%lmort_infra, currentCohort%l_degrad
+             end if
              
              ! Non-harvested part of the logging disturbance rate
              dist_rate_ldist_notharvested = dist_rate_ldist_notharvested + currentCohort%l_degrad * &
@@ -298,13 +320,19 @@ contains
        enddo !currentCohort
 
        ! for non-closed-canopy areas subject to logging, add an additional increment of area disturbed
-       ! equivalent to the fradction logged to account for transfer of interstitial ground area to new secondary lands
+       ! equivalent to the fraction logged to account for transfer of interstitial ground area to new secondary lands
        if ( logging_time .and. &
             (currentPatch%area - currentPatch%total_canopy_area) .gt. fates_tiny ) then
           ! The canopy is NOT closed. 
 
-          call get_harvest_rate_area (currentPatch%anthro_disturbance_label, bc_in%hlm_harvest_catnames, &
-               bc_in%hlm_harvest_rates, frac_site_primary, currentPatch%age_since_anthro_disturbance, harvest_rate)
+          if(bc_in%hlm_harvest_units == hlm_harvest_carbon) then
+             call get_harvest_rate_carbon (currentPatch%anthro_disturbance_label, bc_in%hlm_harvest_catnames, &
+                   bc_in%hlm_harvest_rates, currentPatch%age_since_anthro_disturbance, harvestable_forest_c, &
+                   harvest_rate, harvest_tag)
+          else
+             call get_harvest_rate_area (currentPatch%anthro_disturbance_label, bc_in%hlm_harvest_catnames, &
+                  bc_in%hlm_harvest_rates, frac_site_primary, currentPatch%age_since_anthro_disturbance, harvest_rate)
+          end if
 
           currentPatch%disturbance_rates(dtype_ilog) = currentPatch%disturbance_rates(dtype_ilog) + &
                (currentPatch%area - currentPatch%total_canopy_area) * harvest_rate / currentPatch%area
@@ -313,6 +341,12 @@ contains
           dist_rate_ldist_notharvested = dist_rate_ldist_notharvested + &
                (currentPatch%area - currentPatch%total_canopy_area) * harvest_rate / currentPatch%area
        endif
+
+       ! For nocomp mode, we need to prevent producing too small patches, which may produce small patches
+       if ((hlm_use_nocomp .eq. itrue) .and. &
+           (currentPatch%disturbance_rates(dtype_ilog)*currentPatch%area .lt. min_patch_area_forced)) then
+          currentPatch%disturbance_rates(dtype_ilog) = 0._r8
+       end if
 
        ! fraction of the logging disturbance rate that is non-harvested
        if (currentPatch%disturbance_rates(dtype_ilog) .gt. nearzero) then
@@ -1282,11 +1316,11 @@ contains
        currentPatch => currentPatch%younger
     enddo
 
-    if(hlm_use_sp.eq.itrue)then
+    if(hlm_use_fixed_biogeog.eq.itrue .and. hlm_use_nocomp.eq.itrue)then
       patchno = 1
       currentPatch => currentSite%oldest_patch
       do while(associated(currentPatch))
-        if(currentPatch%nocomp_pft_label.eq.0)then
+        if(currentPatch%nocomp_pft_label.eq.nocomp_bareground)then
          ! for bareground patch, we make the patch number 0
          ! we also do not count this in the veg. patch numbering scheme.
           currentPatch%patchno = 0
@@ -2027,7 +2061,7 @@ contains
     real(r8), intent(in) :: age                  ! notional age of this patch in years
     real(r8), intent(in) :: areap                ! initial area of this patch in m2. 
     integer, intent(in)  :: label                ! anthropogenic disturbance label
-    integer, intent(in)  :: nocomp_pft
+    integer, intent(in)  :: nocomp_pft           ! no competition mode pft label
 
 
     ! Until bc's are pointed to by sites give veg a default temp [K]

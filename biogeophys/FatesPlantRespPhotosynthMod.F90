@@ -31,6 +31,7 @@ module FATESPlantRespPhotosynthMod
   use FatesConstantsMod, only : rgas_J_K_mol
   use FatesConstantsMod, only : fates_unset_r8
   use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
+  use FatesConstantsMod, only : nocomp_bareground
   use FatesInterfaceTypesMod, only : hlm_use_planthydro
   use FatesInterfaceTypesMod, only : hlm_parteh_mode
   use FatesInterfaceTypesMod, only : numpft
@@ -320,7 +321,7 @@ contains
        ifp = 0
        currentpatch => sites(s)%oldest_patch
        do while (associated(currentpatch))
-          if(currentpatch%nocomp_pft_label.ne.0)then
+          if(currentpatch%nocomp_pft_label.ne.nocomp_bareground)then
              ifp   = ifp+1
              NCL_p = currentPatch%NCL_p
 
