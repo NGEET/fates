@@ -759,6 +759,14 @@ contains
                                        (nc%n * ED_val_understorey_death / hlm_freq_day ) * &
                                        total_c * g_per_kg * days_per_sec * years_per_day * ha_per_m2
 
+                                  currentSite%imort_abg_flux(currentCohort%size_class, currentCohort%pft) = &
+                                       currentSite%imort_abg_flux(currentCohort%size_class, currentCohort%pft) + &
+                                       (nc%n * ED_val_understorey_death / hlm_freq_day ) * &
+                                       ( (sapw_c + struct_c + store_c) * prt_params%allom_agb_frac(currentCohort%pft) + &
+                                       leaf_c ) * &
+                                       g_per_kg * days_per_sec * years_per_day * ha_per_m2
+
+
                                   ! Step 2:  Apply survivor ship function based on the understory death fraction
                                   ! remaining of understory plants of those that are knocked over
                                   ! by the overstorey trees dying...
@@ -848,6 +856,14 @@ contains
                                     (nc%n * currentCohort%fire_mort) * &
                                     total_c * g_per_kg * days_per_sec * ha_per_m2
                             end if
+
+                            currentSite%fmort_abg_flux(currentCohort%size_class, currentCohort%pft) = &
+                                 currentSite%fmort_abg_flux(currentCohort%size_class, currentCohort%pft) + &
+                                 (nc%n * currentCohort%fire_mort) * &
+                                 ( (sapw_c + struct_c + store_c) * prt_params%allom_agb_frac(currentCohort%pft) + &
+                                 leaf_c ) * &
+                                 g_per_kg * days_per_sec * ha_per_m2
+                            
 
                             currentSite%fmort_rate_cambial(currentCohort%size_class, currentCohort%pft) = &
                                  currentSite%fmort_rate_cambial(currentCohort%size_class, currentCohort%pft) + &
