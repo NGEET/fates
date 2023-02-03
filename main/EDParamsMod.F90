@@ -60,6 +60,7 @@ module EDParamsMod
    real(r8),protected, public :: ED_val_patch_fusion_tol
    real(r8),protected, public :: ED_val_canopy_closure_thresh ! site-level canopy closure point where trees take on forest (narrow) versus savannah (wide) crown allometry
    integer,protected, public  :: stomatal_model  !switch for choosing between stomatal conductance models, 1 for Ball-Berry, 2 for Medlyn
+   integer,protected, public  :: temp_acclim  !switch for turning on and off temperature acclimation, 0 for off, 1 for Kumarathunge et al. temperature acclimation 
    
    logical,protected, public :: active_crown_fire        ! flag, 1=active crown fire 0=no active crown fire
    character(len=param_string_length),parameter :: fates_name_active_crown_fire = "fates_fire_active_crown_fire"
@@ -120,6 +121,7 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_patch_fusion_tol= "fates_patch_fusion_tol"
    character(len=param_string_length),parameter,public :: ED_name_canopy_closure_thresh= "fates_canopy_closure_thresh"      
    character(len=param_string_length),parameter,public :: ED_name_stomatal_model= "fates_leaf_stomatal_model"
+   character(len=param_string_length),parameter,public :: ED_name_temp_acclim= "fates_leaf_temp_acclim"
 
    character(len=param_string_length),parameter,public :: name_theta_cj_c3 = "fates_leaf_theta_cj_c3"
    character(len=param_string_length),parameter,public :: name_theta_cj_c4 = "fates_leaf_theta_cj_c4"
@@ -293,6 +295,7 @@ contains
     maxpatch_primary                      = -9
     maxpatch_secondary                    = -9
     max_cohort_per_patch                  = -9
+    temp_acclim                           = 0
     hydr_kmax_rsurf1                      = nan
     hydr_kmax_rsurf2                      = nan
     hydr_psi0                             = nan
@@ -442,6 +445,9 @@ contains
          dimension_names=dim_names_scalar)
     
     call fates_params%RegisterParameter(name=hydr_name_solver, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=ED_name_temp_acclim, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
     
     call fates_params%RegisterParameter(name=hydr_name_kmax_rsurf1, dimension_shape=dimension_shape_scalar, &
@@ -647,7 +653,11 @@ contains
          data=tmpreal)
     max_cohort_per_patch = nint(tmpreal)
     
-    call fates_params%RetrieveParameter(name=hydr_name_kmax_rsurf1, &
+    call fates_params%RetreiveParameter(name=ED_name_temp_acclim, &
+         data=tmpreal)
+    temp_acclim = nint(tmpreal)
+
+    call fates_params%RetreiveParameter(name=hydr_name_kmax_rsurf1, &
           data=hydr_kmax_rsurf1)
 
     call fates_params%RetrieveParameter(name=hydr_name_kmax_rsurf2, &
@@ -799,6 +809,7 @@ contains
         write(fates_log(),fmt0) 'hydro_psi0 = ',hydr_psi0
         write(fates_log(),fmt0) 'hydro_psicap = ',hydr_psicap
         write(fates_log(),fmt0) 'hydro_solver = ',hydr_solver
+        write(fates_log(),fmt0) 'temp_acclim = ',temp_acclim
         write(fates_log(),fmt0) 'bgc_soil_salinity = ', bgc_soil_salinity
         write(fates_log(),fmt0) 'logging_dbhmin = ',logging_dbhmin
         write(fates_log(),fmt0) 'logging_dbhmax = ',logging_dbhmax
