@@ -108,7 +108,7 @@ contains
 
   !--------------------------------------------------------------------------------------
 
-  subroutine FatesPlantRespPhotosynthDrive (nsites, sites,bc_in,bc_out,dtime, temperature_inst)
+  subroutine FatesPlantRespPhotosynthDrive (nsites, sites,bc_in,bc_out,dtime)
 
     ! -----------------------------------------------------------------------------------
     ! !DESCRIPTION:
@@ -152,7 +152,6 @@ contains
     type(bc_in_type),intent(in)             :: bc_in(nsites)
     type(bc_out_type),intent(inout)         :: bc_out(nsites)
     real(r8),intent(in)                     :: dtime
-    type(temperature_type) , intent(in) :: temperature_inst
 
 
     ! LOCAL VARIABLES:
@@ -557,7 +556,6 @@ contains
 
 
                                call LeafLayerBiophysicalRates(currentPatch%ed_parsun_z(cl,ft,iv), &  ! in
-                                                             temperature_inst,                   & !in 
                                     ft,                                 &  ! in
                                     currentCohort%vcmax25top,           &  ! in
                                     currentCohort%jmax25top,            &  ! in
@@ -2164,7 +2162,6 @@ end subroutine LeafLayerMaintenanceRespiration
 ! ====================================================================================
 
 subroutine LeafLayerBiophysicalRates( parsun_lsl, &
-                                         temperature_inst, & 
    ft,            &
    vcmax25top_ft, &
    jmax25top_ft, &
@@ -2195,7 +2192,6 @@ subroutine LeafLayerBiophysicalRates( parsun_lsl, &
    ! ------------------------------------------------------------------------------
 
    real(r8), intent(in) :: parsun_lsl      ! PAR absorbed in sunlit leaves for this layer
-      type(temperature_type) , intent(in) :: temperature_inst 
    integer,  intent(in) :: ft              ! (plant) Functional Type Index
    real(r8), intent(in) :: nscaler         ! Scale for leaf nitrogen profile
    real(r8), intent(in) :: vcmax25top_ft   ! canopy top maximum rate of carboxylation at 25C
@@ -2238,10 +2234,7 @@ subroutine LeafLayerBiophysicalRates( parsun_lsl, &
    real(r8) :: vcmaxc         ! scaling factor for high temperature inhibition (25 C = 1.0)
    real(r8) :: jmaxc          ! scaling factor for high temperature inhibition (25 C = 1.0)
 
-   associate( t10 => temperature_inst%t_a10_patch, &     ! Input:  [real(r8) (:)   ]  10-day running mean of the 2 m temperature (K)
-              t30 => temperature_inst%t_a30_patch)       ! Input:  [real(r8) (:)   ]  30-day running mean of the 2 m temperature (K)
-
-     select case(temp_acclim)
+   select case(temp_acclim)
    case (photosynth_acclim_model_none) !No temperature acclimation
       vcmaxha = EDPftvarcon_inst%vcmaxha(FT)
       jmaxha  = EDPftvarcon_inst%jmaxha(FT)
