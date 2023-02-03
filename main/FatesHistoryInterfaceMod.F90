@@ -283,23 +283,14 @@ module FatesHistoryInterfaceMod
   integer :: ih_agb_si
   integer :: ih_npp_si
   integer :: ih_gpp_si
-  integer :: ih_aj_si
-  integer :: ih_ac_si
-  integer :: ih_ap_si
   integer :: ih_aresp_si
   integer :: ih_maint_resp_si
   integer :: ih_growth_resp_si
   integer :: ih_excess_resp_si
   integer :: ih_ar_canopy_si
   integer :: ih_gpp_canopy_si
-  integer :: ih_aj_canopy_si
-  integer :: ih_ac_canopy_si
-  integer :: ih_ap_canopy_si
   integer :: ih_ar_understory_si
   integer :: ih_gpp_understory_si
-  integer :: ih_aj_understory_si
-  integer :: ih_ac_understory_si
-  integer :: ih_ap_understory_si
   integer :: ih_canopy_biomass_si
   integer :: ih_understory_biomass_si
 
@@ -4307,10 +4298,6 @@ end subroutine flush_hvars
 
     associate( hio_gpp_si         => this%hvars(ih_gpp_si)%r81d, &
                hio_gpp_secondary_si   => this%hvars(ih_gpp_secondary_si)%r81d, &
-               hio_aj_si         => this%hvars(ih_aj_si)%r81d, &
-               hio_ac_si         => this%hvars(ih_ac_si)%r81d, &
-               hio_ap_si         => this%hvars(ih_ap_si)%r81d, &
-
                hio_npp_si         => this%hvars(ih_npp_si)%r81d, &
                hio_npp_secondary_si   => this%hvars(ih_npp_secondary_si)%r81d, &
                hio_aresp_si       => this%hvars(ih_aresp_si)%r81d, &
@@ -4332,14 +4319,8 @@ end subroutine flush_hvars
                hio_ar_crootm_si_scpf => this%hvars(ih_ar_crootm_si_scpf)%r82d, &
                hio_ar_frootm_si_scpf => this%hvars(ih_ar_frootm_si_scpf)%r82d, &
                hio_gpp_canopy_si     => this%hvars(ih_gpp_canopy_si)%r81d, &
-               hio_aj_canopy_si     => this%hvars(ih_aj_canopy_si)%r81d, &
-               hio_ac_canopy_si     => this%hvars(ih_ac_canopy_si)%r81d, &
-               hio_ap_canopy_si     => this%hvars(ih_ap_canopy_si)%r81d, &
                hio_ar_canopy_si      => this%hvars(ih_ar_canopy_si)%r81d, &
                hio_gpp_understory_si => this%hvars(ih_gpp_understory_si)%r81d, &
-               hio_aj_understory_si => this%hvars(ih_aj_understory_si)%r81d, &
-               hio_ac_understory_si => this%hvars(ih_ac_understory_si)%r81d, &
-               hio_ap_understory_si => this%hvars(ih_ap_understory_si)%r81d, &
                hio_ar_understory_si  => this%hvars(ih_ar_understory_si)%r81d, &
                hio_rdark_canopy_si_scls             => this%hvars(ih_rdark_canopy_si_scls)%r82d, &
                hio_livestem_mr_canopy_si_scls       => this%hvars(ih_livestem_mr_canopy_si_scls)%r82d, &
@@ -4473,13 +4454,6 @@ end subroutine flush_hvars
                   hio_gpp_si(io_si) = hio_gpp_si(io_si) + &
                         ccohort%gpp_tstep * n_perm2 * per_dt_tstep
 
-                  hio_aj_si(io_si) = hio_aj_si(io_si) + &
-                        ccohort%aj_sum_tstep * g_per_kg * n_perm2 * per_dt_tstep
-                  hio_ac_si(io_si) = hio_ac_si(io_si) + &
-                        ccohort%ac_sum_tstep * g_per_kg * n_perm2 * per_dt_tstep
-                  hio_ap_si(io_si) = hio_ap_si(io_si) + &
-                        ccohort%ap_sum_tstep * g_per_kg * n_perm2 * per_dt_tstep
-
                   hio_aresp_si(io_si) = hio_aresp_si(io_si) + &
                         aresp * n_perm2 * per_dt_tstep
                   hio_growth_resp_si(io_si) = hio_growth_resp_si(io_si) + &
@@ -4559,13 +4533,6 @@ end subroutine flush_hvars
                      hio_gpp_canopy_si(io_si) = hio_gpp_canopy_si(io_si) + &
                           ccohort%gpp_tstep * n_perm2 * per_dt_tstep
 
-                     hio_aj_canopy_si(io_si) = hio_aj_canopy_si(io_si) + &
-                          ccohort%aj_sum_tstep * g_per_kg * n_perm2 * per_dt_tstep
-                     hio_ac_canopy_si(io_si) = hio_ac_canopy_si(io_si) + &
-                          ccohort%ac_sum_tstep * g_per_kg * n_perm2 * per_dt_tstep
-                     hio_ap_canopy_si(io_si) = hio_ap_canopy_si(io_si) + &
-                          ccohort%ap_sum_tstep * g_per_kg * n_perm2 * per_dt_tstep
-
                      hio_ar_canopy_si(io_si) = hio_ar_canopy_si(io_si) + &
                           aresp * n_perm2 * per_dt_tstep
 
@@ -4590,12 +4557,6 @@ end subroutine flush_hvars
                      hio_gpp_understory_si(io_si) = hio_gpp_understory_si(io_si) + &
                           ccohort%gpp_tstep * n_perm2 * per_dt_tstep
 
-                     hio_aj_understory_si(io_si) = hio_aj_understory_si(io_si) + &
-                          ccohort%aj_sum_tstep * g_per_kg * n_perm2 * per_dt_tstep
-                     hio_ac_understory_si(io_si) = hio_ac_understory_si(io_si) + &
-                          ccohort%ac_sum_tstep * g_per_kg * n_perm2 * per_dt_tstep
-                     hio_ap_understory_si(io_si) = hio_ap_understory_si(io_si) + &
-                          ccohort%ap_sum_tstep * g_per_kg * n_perm2 * per_dt_tstep 
 
                      hio_ar_understory_si(io_si) = hio_ar_understory_si(io_si) + &
                           aresp * n_perm2 * per_dt_tstep
@@ -6278,21 +6239,6 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,                 &
          ivar=ivar, initialize=initialize_variables, index = ih_rad_error_si)
 
-    call this%set_history_var(vname='FATES_AJ', units='gC/m^2/s',                   & 
-         long='RuBP-limited gross primary production',  use_default='active',                &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_aj_si )
-
-    call this%set_history_var(vname='FATES_AC', units='gC/m^2/s',                   & 
-         long='Rubisco-limited gross primary production',  use_default='active',                &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_ac_si )
-
-    call this%set_history_var(vname='FATES_AP', units='gC/m^2/s',                   & 
-         long='Product-limited gross primary production',  use_default='active',                &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_ap_si )
-
     call this%set_history_var(vname='FATES_AR', units='gC/m^2/s',                 &
          long='autotrophic respiration', use_default='active',                  &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,   &
@@ -6379,21 +6325,6 @@ end subroutine update_history_hifrq
          hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
          index = ih_c_stomata_si_age)
 
-    call this%set_history_var(vname='FATES_AJ_CANOPY', units='gC/m^2/s',                   &
-         long='RuBP-limited gross primary production of canopy plants',  use_default='active',     &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_aj_canopy_si )
-
-    call this%set_history_var(vname='FATES_AC_CANOPY', units='gC/m^2/s',                   &
-         long='Rubisco-limited gross primary production of canopy plants',  use_default='active',     &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_ac_canopy_si )
-
-    call this%set_history_var(vname='FATES_AP_CANOPY', units='gC/m^2/s',                   &
-         long='Product-limited gross primary production of canopy plants',  use_default='active',     &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_ap_canopy_si )
-
     call this%set_history_var(vname='FATES_AR_CANOPY', units='gC/m^2/s',                 &
          long='autotrophic respiration of canopy plants', use_default='active',       &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,   &
@@ -6418,21 +6349,6 @@ end subroutine update_history_hifrq
          use_default='inactive', avgflag='A', vtype=site_age_r8,               &
          hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
          index = ih_gpp_si_age)
-
-    call this%set_history_var(vname='FATES_AJ_UNDERSTORY', units='gC/m^2/s',                   &
-         long='RuBP-limited gross primary production of understory plants',  use_default='active',     &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_aj_understory_si )
-
-    call this%set_history_var(vname='FATES_AC_UNDERSTORY', units='gC/m^2/s',                   &
-         long='Rubisco-limited gross primary production of understory plants',  use_default='active',     &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_ac_understory_si )
-
-    call this%set_history_var(vname='FATES_AP_UNDERSTORY', units='gC/m^2/s',                   &
-         long='Product-limited gross primary production of understory plants',  use_default='active',     &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_ap_understory_si )
 
     call this%set_history_var(vname='FATES_AR_UNDERSTORY', units='gC/m^2/s',                 &
          long='autotrophic respiration of understory plants', use_default='active',       &
