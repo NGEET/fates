@@ -463,22 +463,18 @@ contains
      !gone to trunk fuel to large branch fuel (100 hr) instead.
      else if (dbh > sb_max_diam .and. dbh .le. lb_max_diam) then
         SF_val_CWD_frac_adj(ncwd) = 0.0
-        SF_val_CWD_frac_adj(ncwd-1) = sum(SF_val_CWD_frac((ncwd-1):ncwd)) 
-       
-       
-       !SF_val_CWD_frac_adj(3) = sum(SF_val_CWD_frac(3:4)) 
-       !write(fates_log(),*) "using ahb trunk fuel fix", SF_val_CWD_frac_adj
-     
+        SF_val_CWD_frac_adj(ncwd-1) = SF_val_CWD_frac(ncwd)
+	SF_val_CWD_frac_adj(ncwd-2) = SF_val_CWD_frac(ncwd-1)
+	SF_val_CWD_frac_adj(ncwd-3) = sum(SF_val_CWD_frac((ncwd-3):(ncwd-2)))
+
      !When dbh is greater than the max size of a twig (1 hr) but less than or 
      !equal to the max size of a small branch (10 hr) we send the biomass that would have
-     !gone to trunk fuel / larger branch to small branch fuel instead.
+     !gone to trunk fuel and large branch fuel to small branch fuel instead.
      else if (dbh > twig_max_diam .and. dbh .le. sb_max_diam) then
         SF_val_CWD_frac_adj(ncwd) = 0.0
-        !SF_val_CWD_frac_adj(4) = 0.0
         SF_val_CWD_frac_adj(ncwd-1) = 0.0
-        !SF_val_CWD_frac_adj(3) = 0.0
-        SF_val_CWD_frac_adj(ncwd-2) = sum(SF_val_CWD_frac((ncwd-2):ncwd))
-        !SF_val_CWD_frac_adj(2) = sum(SF_val_CWD_frac(2:4))
+        SF_val_CWD_frac_adj(ncwd-2) = SF_val_CWD_frac(ncwd)
+	SF_val_CWD_frac_adj(ncwd-3) = sum(SF_val_CWD_frac((ncwd-3):(ncwd-1)))
      
      !If dbh is less than or equal to the max size of a twig we send all 
      !biomass to twigs
