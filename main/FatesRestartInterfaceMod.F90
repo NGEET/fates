@@ -158,6 +158,7 @@ module FatesRestartInterfaceMod
   ! Running Means
   integer :: ir_tveg24_pa
   integer :: ir_tveglpa_pa
+  integer :: ir_tveglongterm_pa
 
   !  (Keeping as an example)
   !!integer :: ir_tveglpa_co
@@ -1389,6 +1390,10 @@ contains
         long_name='running average (EMA) of patch veg temp for photo acclim', &
         units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveglpa_pa)
 
+   call this%DefineRMeanRestartVar(vname='fates_tveglongtermpatch',vtype=cohort_r8, &
+        long_name='long-term (T_home) running average (EMA) of patch veg temp for photo acclim', &
+        units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveglongterm_pa)
+
    !  (Keeping as an example)
    !call this%DefineRMeanRestartVar(vname='fates_tveglpacohort',vtype=cohort_r8, &
    !     long_name='running average (EMA) of cohort veg temp for photo acclim', &
@@ -2205,6 +2210,7 @@ contains
              ! Patch level running means
              call this%SetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
              call this%SetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
+             call this%SetRMeanRestartVar(cpatch%tveg_longterm, ir_tveglongterm_pa, io_idx_co_1st)
              
              ! set cohorts per patch for IO
              rio_ncohort_pa( io_idx_co_1st )   = cohortsperpatch
@@ -3091,6 +3097,7 @@ contains
 
              call this%GetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
              call this%GetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
+             call this%GetRMeanRestartVar(cpatch%tveg_longterm, ir_tveglongterm_pa, io_idx_co_1st)
              
              ! set cohorts per patch for IO
 

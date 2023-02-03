@@ -84,6 +84,7 @@ module FatesInterfaceMod
    use FatesRunningMeanMod       , only : ema_24hr
    use FatesRunningMeanMod       , only : fixed_24hr
    use FatesRunningMeanMod       , only : ema_lpa
+   use FatesRunningMeanMod       , only : ema_longterm
    use FatesRunningMeanMod       , only : ema_60day
    use FatesRunningMeanMod       , only : moving_ema_window
    use FatesRunningMeanMod       , only : fixed_window
@@ -988,6 +989,9 @@ contains
       call fixed_24hr%define(sec_per_day, hlm_stepsize, fixed_window)
       allocate(ema_lpa)
       call ema_lpa%define(photo_temp_acclim_timescale*sec_per_day, &
+           hlm_stepsize,moving_ema_window)
+      allocate(ema_longterm)  ! for now just fix this as a 30-year exponential moving average
+      call ema_lpa%define(30._r8*365._r8*sec_per_day, & 
            hlm_stepsize,moving_ema_window)
       
       !allocate(ema_60day)
@@ -1949,6 +1953,7 @@ contains
            ifp=ifp+1
            call cpatch%tveg24%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            call cpatch%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
+           call cpatch%tveg_longterm%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
 
            
            !ccohort => cpatch%tallest

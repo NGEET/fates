@@ -32,6 +32,8 @@ module FATESPlantRespPhotosynthMod
   use FatesConstantsMod, only : fates_unset_r8
   use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
   use FatesConstantsMod, only : nocomp_bareground
+  use FatesConstantsMod, only : photosynth_acclim_model_none
+  use FatesConstantsMod, only : photosynth_acclim_model_kumarathunge_etal_2019
   use FatesInterfaceTypesMod, only : hlm_use_planthydro
   use FatesInterfaceTypesMod, only : hlm_parteh_mode
   use FatesInterfaceTypesMod, only : numpft
@@ -562,6 +564,8 @@ contains
                                     currentCohort%kp25top,              &  ! in
                                     nscaler,                            &  ! in
                                     bc_in(s)%t_veg_pa(ifp),             &  ! in
+                                    currentPatch%tveg_lpa%GetMean(),    &  ! in
+                                    currentPatch%tveg_longterm%GetMean(),&  ! in
                                     btran_eff,                          &  ! in
                                     vcmax_z,                            &  ! out
                                     jmax_z,                             &  ! out
@@ -2201,6 +2205,8 @@ subroutine LeafLayerBiophysicalRates( parsun_lsl, &
    real(r8), intent(in) :: co2_rcurve_islope25top_ft ! initial slope of CO2 response curve
                                              ! (C4 plants) at 25C, canopy top, this pft
    real(r8), intent(in) :: veg_tempk           ! vegetation temperature
+   real(r8), intent(in) :: t_growth            ! T_growth (short-term running mean temperature) (K)
+   real(r8), intent(in) :: t_home              ! T_home (long-term running mean temperature) (K)
    real(r8), intent(in) :: btran           ! transpiration wetness factor (0 to 1)
 
    real(r8), intent(out) :: vcmax             ! maximum rate of carboxylation (umol co2/m**2/s)
@@ -2226,43 +2232,37 @@ subroutine LeafLayerBiophysicalRates( parsun_lsl, &
    real(r8) :: jmaxhd         ! deactivation energy for jmax (J/mol)
    real(r8) :: vcmaxse        ! entropy term for vcmax (J/mol/K)
    real(r8) :: jmaxse         ! entropy term for jmax (J/mol/K)
-   real(r8) :: tgrowth            ! average growing temperature
-   real(r8) :: thome              ! average home temperature
-   real(r8) :: jvr              ! ratio of Jmax25 / Vcmax25
+   real(r8) :: tgrowth        ! average growing temperature
+   real(r8) :: thome          ! average home temperature
+   real(r8) :: jvr            ! ratio of Jmax25 / Vcmax25
    real(r8) :: vcmaxc         ! scaling factor for high temperature inhibition (25 C = 1.0)
    real(r8) :: jmaxc          ! scaling factor for high temperature inhibition (25 C = 1.0)
 
    associate( t10 => temperature_inst%t_a10_patch, &     ! Input:  [real(r8) (:)   ]  10-day running mean of the 2 m temperature (K)
               t30 => temperature_inst%t_a30_patch)       ! Input:  [real(r8) (:)   ]  30-day running mean of the 2 m temperature (K)
 
-   if (temp_acclim == 0) then !No temperature acclimation
+     select case(temp_acclim)
+   case (photosynth_acclim_model_none) !No temperature acclimation
       vcmaxha = EDPftvarcon_inst%vcmaxha(FT)
       jmaxha  = EDPftvarcon_inst%jmaxha(FT)
       vcmaxhd = EDPftvarcon_inst%vcmaxhd(FT)
       jmaxhd  = EDPftvarcon_inst%jmaxhd(FT)
       vcmaxse = EDPftvarcon_inst%vcmaxse(FT)
       jmaxse  = EDPftvarcon_inst%jmaxse(FT)
-   else if (temp_acclim == 1) then !Kumarathunge et al. temperature acclimation, Thome=Tgrowth
-      tgrowth = t30(1)-tfrz
-      thome = t30(1)-tfrz
-      vcmaxha = (42.6 + (1.14*tgrowth))*1000 !J/mol
-      jmaxha = 40.71*1000 !J/mol
-      vcmaxhd = 200*1000 !J/mol
-      jmaxhd = 200*1000 !J/mol
-      vcmaxse = (645.13 - (0.38*tgrowth))
-      jmaxse = 658.77 - (0.84*thome) - 0.52*(tgrowth-thome)
-      jvr = 2.56 - (0.0375*thome)-(0.0202*(tgrowth-thome))
-   else if (temp_acclim == 2) then !Kumarathunge et al. temperature acclimation, Thome=25C
-      tgrowth = t30(1)-tfrz
-      thome = 25 !degrees C
-      vcmaxha = (42.6 + (1.14*tgrowth))*1000 !J/mol
-      jmaxha = 40.71*1000 !J/mol
-      vcmaxhd = 200*1000 !J/mol
-      jmaxhd = 200*1000 !J/mol
-      vcmaxse = (645.13 - (0.38*tgrowth))
-      jmaxse = 658.77 - (0.84*thome) - 0.52*(tgrowth-thome)
-      jvr = 2.56 - (0.0375*thome)-(0.0202*(tgrowth-thome))
-   end if
+   case (photosynth_acclim_model_kumarathunge_etal_2019) !Kumarathunge et al. temperature acclimation, Thome=30-year running mean
+      t_growth_celsius = t_growth-tfrz
+      t_home_celsius = t_home-tfrz
+      vcmaxha = (42.6_r8 + (1.14_r8*t_growth_celsius))*1e3_r8 !J/mol
+      jmaxha = 40.71_r8*1e3._r8 !J/mol
+      vcmaxhd = 200._r8*1e3._r8 !J/mol
+      jmaxhd = 200._r8*1e3._r8 !J/mol
+      vcmaxse = (645.13_r8 - (0.38_r8*t_growth_celsius))
+      jmaxse = 658.77_r8 - (0.84_r8*t_home_celsius) - 0.52_r8*(t_growth_celsius-t_home_celsius)
+      jvr = 2.56_r8 - (0.0375_r8*t_home_celsius)-(0.0202_r8*(t_growth_celsius-t_home_celsius))
+   case default
+      write (fates_log(),*)'error, incorrect leaf photosynthesis temperature acclimation model specified'
+      call endrun(msg=errMsg(sourcefile, __LINE__))
+   end select
 
    vcmaxc = fth25_f(vcmaxhd, vcmaxse)
    jmaxc  = fth25_f(jmaxhd, jmaxse)

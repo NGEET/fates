@@ -443,6 +443,8 @@ module EDTypesMod
      class(rmean_type), pointer :: tveg24                        ! 24-hour mean vegetation temperature (K)
      class(rmean_type), pointer :: tveg_lpa                      ! Running mean of vegetation temperature at the
                                                                  ! leaf photosynthesis acclimation timescale [K]
+     class(rmean_type), pointer :: tveg_longterm                ! Long-Term Running mean of vegetation temperature at the
+                                                                 ! leaf photosynthesis acclimation timescale [K] (i.e T_home)
 
      integer  ::  nocomp_pft_label                               ! Where nocomp is active, use this label for patch ID.
                                                                  ! Each patch ID corresponds to a pft number since each

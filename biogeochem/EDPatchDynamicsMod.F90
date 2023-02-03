@@ -95,7 +95,7 @@ module EDPatchDynamicsMod
   use EDParamsMod,            only : maxpatch_primary
   use EDParamsMod,            only : maxpatch_secondary
   use EDParamsMod,            only : maxpatch_total
-  use FatesRunningMeanMod,    only : ema_24hr, fixed_24hr, ema_lpa
+  use FatesRunningMeanMod,    only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm
   
   ! CIME globals
   use shr_infnan_mod       , only : nan => shr_infnan_nan, assignment(=)
@@ -655,6 +655,7 @@ contains
                       ! --------------------------------------------------------------------------
                       call new_patch%tveg24%CopyFromDonor(currentPatch%tveg24)
                       call new_patch%tveg_lpa%CopyFromDonor(currentPatch%tveg_lpa)
+                      call new_patch%tveg_longterm%CopyFromDonor(currentPatch%tveg_longterm)
 
 
                       ! --------------------------------------------------------------------------
@@ -2087,6 +2088,8 @@ contains
     call new_patch%tveg24%InitRMean(fixed_24hr,init_value=temp_init_veg,init_offset=real(hlm_current_tod,r8) )
     allocate(new_patch%tveg_lpa)
     call new_patch%tveg_lpa%InitRmean(ema_lpa,init_value=temp_init_veg)
+    allocate(new_patch%tveg_longterm)
+    call new_patch%tveg_longterm%InitRmean(ema_longterm,init_value=temp_init_veg)
     
     ! Litter
     ! Allocate, Zero Fluxes, and Initialize to "unset" values
@@ -2661,6 +2664,7 @@ contains
     ! Weighted mean of the running means
     call rp%tveg24%FuseRMean(dp%tveg24,rp%area*inv_sum_area)
     call rp%tveg_lpa%FuseRMean(dp%tveg_lpa,rp%area*inv_sum_area)
+    call rp%tveg_longterm%FuseRMean(dp%tveg_longterm,rp%area*inv_sum_area)
     
     rp%fuel_eff_moist       = (dp%fuel_eff_moist*dp%area + rp%fuel_eff_moist*rp%area) * inv_sum_area
     rp%livegrass            = (dp%livegrass*dp%area + rp%livegrass*rp%area) * inv_sum_area
@@ -3032,6 +3036,7 @@ contains
     ! Deallocate any running means
     deallocate(cpatch%tveg24)
     deallocate(cpatch%tveg_lpa)
+    deallocate(cpatch%tveg_longterm)
     
     return
   end subroutine dealloc_patch
