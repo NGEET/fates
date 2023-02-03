@@ -991,7 +991,7 @@ contains
       call ema_lpa%define(photo_temp_acclim_timescale*sec_per_day, &
            hlm_stepsize,moving_ema_window)
       allocate(ema_longterm)  ! for now just fix this as a 30-year exponential moving average
-      call ema_lpa%define(30._r8*365._r8*sec_per_day, & 
+      call ema_longterm%define(30._r8*365._r8*sec_per_day, & 
            hlm_stepsize,moving_ema_window)
       
       !allocate(ema_60day)
