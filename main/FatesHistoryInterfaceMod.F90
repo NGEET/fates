@@ -6373,34 +6373,31 @@ end subroutine update_history_hifrq
          index = ih_excess_resp_si)
     
     ! Canopy resistance
-
-<<<<<<< HEAD
     call this%set_history_var(vname='FATES_STOMATAL_COND_AP',                  &
          units='mol m-2 s-1', long='mean stomatal conductance - by patch age', &
          use_default='inactive', avgflag='A', vtype=site_age_r8,               &
          hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
          index = ih_c_stomata_si_age)
-=======
-    call this%set_history_var(vname='AJ_CANOPY', units='gC/m^2/s',                   &
+
+    call this%set_history_var(vname='FATES_AJ_CANOPY', units='gC/m^2/s',                   &
          long='RuBP-limited gross primary production of canopy plants',  use_default='active',     &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,   &
          ivar=ivar, initialize=initialize_variables, index = ih_aj_canopy_si )
 
-    call this%set_history_var(vname='AC_CANOPY', units='gC/m^2/s',                   &
+    call this%set_history_var(vname='FATES_AC_CANOPY', units='gC/m^2/s',                   &
          long='Rubisco-limited gross primary production of canopy plants',  use_default='active',     &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,   &
          ivar=ivar, initialize=initialize_variables, index = ih_ac_canopy_si )
 
-    call this%set_history_var(vname='AP_CANOPY', units='gC/m^2/s',                   &
+    call this%set_history_var(vname='FATES_AP_CANOPY', units='gC/m^2/s',                   &
          long='Product-limited gross primary production of canopy plants',  use_default='active',     &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,   &
          ivar=ivar, initialize=initialize_variables, index = ih_ap_canopy_si )
 
-    call this%set_history_var(vname='AR_CANOPY', units='gC/m^2/s',                 &
+    call this%set_history_var(vname='FATES_AR_CANOPY', units='gC/m^2/s',                 &
          long='autotrophic respiration of canopy plants', use_default='active',       &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,   &
          ivar=ivar, initialize=initialize_variables, index = ih_ar_canopy_si )
->>>>>>> temp_acclim_photosynth
 
     call this%set_history_var(vname='FATES_LBLAYER_COND_AP',                   &
          units='mol m-2 s-1',                                                  &
@@ -6409,7 +6406,6 @@ end subroutine update_history_hifrq
          hlms='CLM:ALM',  upfreq=2, ivar=ivar,                                 &
          initialize=initialize_variables, index = ih_c_lblayer_si_age)
 
-<<<<<<< HEAD
     ! fast fluxes by age bin
     call this%set_history_var(vname='FATES_NPP_AP', units='kg m-2 s-1',        &
          long='net primary productivity by age bin in kg carbon per m2 per second', &
@@ -6422,27 +6418,26 @@ end subroutine update_history_hifrq
          use_default='inactive', avgflag='A', vtype=site_age_r8,               &
          hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
          index = ih_gpp_si_age)
-=======
-    call this%set_history_var(vname='AJ_UNDERSTORY', units='gC/m^2/s',                   &
+
+    call this%set_history_var(vname='FATES_AJ_UNDERSTORY', units='gC/m^2/s',                   &
          long='RuBP-limited gross primary production of understory plants',  use_default='active',     &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,   &
          ivar=ivar, initialize=initialize_variables, index = ih_aj_understory_si )
 
-    call this%set_history_var(vname='AC_UNDERSTORY', units='gC/m^2/s',                   &
+    call this%set_history_var(vname='FATES_AC_UNDERSTORY', units='gC/m^2/s',                   &
          long='Rubisco-limited gross primary production of understory plants',  use_default='active',     &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,   &
          ivar=ivar, initialize=initialize_variables, index = ih_ac_understory_si )
 
-    call this%set_history_var(vname='AP_UNDERSTORY', units='gC/m^2/s',                   &
+    call this%set_history_var(vname='FATES_AP_UNDERSTORY', units='gC/m^2/s',                   &
          long='Product-limited gross primary production of understory plants',  use_default='active',     &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,   &
          ivar=ivar, initialize=initialize_variables, index = ih_ap_understory_si )
 
-    call this%set_history_var(vname='AR_UNDERSTORY', units='gC/m^2/s',                 &
+    call this%set_history_var(vname='FATES_AR_UNDERSTORY', units='gC/m^2/s',                 &
          long='autotrophic respiration of understory plants', use_default='active',       &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', flushval=0.0_r8, upfreq=2,   &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,   &
          ivar=ivar, initialize=initialize_variables, index = ih_ar_understory_si )
->>>>>>> temp_acclim_photosynth
 
     ! fast fluxes separated canopy/understory
     call this%set_history_var(vname='FATES_GPP_CANOPY', units='kg m-2 s-1',    &
