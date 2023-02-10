@@ -179,7 +179,8 @@ contains
     real(r8), intent(in)      :: hite             ! height: meters
     real(r8), intent(in)      :: coage            ! cohort age in years
     real(r8), intent(in)      :: dbh              ! dbh: cm
-    class(prt_vartypes),target :: prt             ! The allocated PARTEH
+    class(prt_vartypes),intent(inout), pointer :: prt             ! The allocated PARTEH
+    !class(prt_vartypes),target :: prt             ! The allocated PARTEH
                                                   ! object
     real(r8), intent(in)      :: leafmemory       ! target leaf biomass- set from
                                                   ! previous year: kGC per indiv
@@ -1680,9 +1681,9 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS
-    type(ed_cohort_type) , intent(inout), target          :: pcc
-    type(ed_cohort_type) , intent(inout), target          :: ptall
-    type(ed_cohort_type) , intent(inout), target          :: pshort
+    type(ed_cohort_type) , intent(inout), pointer :: pcc
+    type(ed_cohort_type) , intent(inout), pointer :: ptall
+    type(ed_cohort_type) , intent(inout), pointer :: pshort
     integer              , intent(in)                     :: tnull
     integer              , intent(in)                     :: snull
     type(ed_cohort_type) , intent(inout),pointer,optional :: storesmallcohort ! storage of the smallest cohort for insertion routine
