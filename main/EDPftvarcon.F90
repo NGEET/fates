@@ -1649,44 +1649,55 @@ contains
      do ipft = 1,npft
 
 
-        ! Check that parameter ranges for the seed dispersal scale parameter make sense
+        ! Check that the seed dispersal parameters are all set if one of them is set
         !-----------------------------------------------------------------------------------
         if (( EDPftvarcon_inst%seed_dispersal_param_A(ipft) < fates_check_param_set ) .and. &
-            (( EDPftvarcon_inst%seed_dispersal_max_dist(ipft) > fates_check_param_set ) .or. &
-             (  EDPftvarcon_inst%seed_dispersal_param_B(ipft) > fates_check_param_set )) ) then
+            (( EDPftvarcon_inst%seed_dispersal_max_dist(ipft) > fates_check_param_set  ) .or. &
+             (  EDPftvarcon_inst%seed_dispersal_param_B(ipft) > fates_check_param_set  ) .or. &
+             (  EDPftvarcon_inst%seed_dispersal_fraction(ipft) > fates_check_param_set ))) then
 
         write(fates_log(),*) 'Seed dispersal is on per fates_seed_dispersal_param_A being set'
-        write(fates_log(),*) 'Please also set fates_seed_dispersal_param_B and fates_seed_dispersal_max_dist'
+        write(fates_log(),*) 'Please provide values for all other seed_dispersal parameters'
         write(fates_log(),*) 'See Bullock et al. (2017) for reasonable values'
         write(fates_log(),*) 'Aborting'
         call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
 
-                ! Check that parameter ranges for the seed dispersal shape parameter make sense
-        !-----------------------------------------------------------------------------------
         if (( EDPftvarcon_inst%seed_dispersal_param_B(ipft) < fates_check_param_set ) .and. &
-            (( EDPftvarcon_inst%seed_dispersal_max_dist(ipft) > fates_check_param_set ) .or. &
-             (  EDPftvarcon_inst%seed_dispersal_param_A(ipft) > fates_check_param_set ))) then
+            (( EDPftvarcon_inst%seed_dispersal_max_dist(ipft) > fates_check_param_set  ) .or. &
+             (  EDPftvarcon_inst%seed_dispersal_param_A(ipft) > fates_check_param_set  ) .or. &
+             (  EDPftvarcon_inst%seed_dispersal_fraction(ipft) > fates_check_param_set ))) then
 
         write(fates_log(),*) 'Seed dispersal is on per fates_seed_dispersal_param_B being set'
-        write(fates_log(),*) 'Please also set fates_seed_dispersal_param_A and fates_seed_dispersal_max_dist'
+        write(fates_log(),*) 'Please provide values for all other seed_dispersal parameters'
         write(fates_log(),*) 'See Bullock et al. (2017) for reasonable values'
         write(fates_log(),*) 'Aborting'
         call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
         
-        ! Check that parameter ranges for the seed dispersal shape parameter make sense
-        !-----------------------------------------------------------------------------------
         if (( EDPftvarcon_inst%seed_dispersal_max_dist(ipft) < fates_check_param_set ) .and. &
-            ((  EDPftvarcon_inst%seed_dispersal_param_B(ipft) > fates_check_param_set ) .or. &
-             (  EDPftvarcon_inst%seed_dispersal_param_A(ipft) > fates_check_param_set ))) then
+            ((  EDPftvarcon_inst%seed_dispersal_param_B(ipft) > fates_check_param_set  ) .or. &
+             (  EDPftvarcon_inst%seed_dispersal_param_A(ipft) > fates_check_param_set  ) .or. &
+             (  EDPftvarcon_inst%seed_dispersal_fraction(ipft) > fates_check_param_set ))) then
 
         write(fates_log(),*) 'Seed dispersal is on per seed_dispersal_max_dist being set'
-        write(fates_log(),*) 'Please also set fates_seed_dispersal_param_A and fates_seed_dispersal_param_B'
+        write(fates_log(),*) 'Please provide values for all other seed_dispersal parameters'
         write(fates_log(),*) 'See Bullock et al. (2017) for reasonable values'
         write(fates_log(),*) 'Aborting'
         call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
+        
+        if (( EDPftvarcon_inst%seed_dispersal_fraction(ipft) < fates_check_param_set ) .and. &
+        ((  EDPftvarcon_inst%seed_dispersal_param_B(ipft) > fates_check_param_set  ) .or. &
+         (  EDPftvarcon_inst%seed_dispersal_param_A(ipft) > fates_check_param_set  ) .or. &
+         (  EDPftvarcon_inst%seed_dispersal_max_dist(ipft) > fates_check_param_set ))) then
+
+         write(fates_log(),*) 'Seed dispersal is on per seed_dispersal_fraction being set'
+         write(fates_log(),*) 'Please provide values for all other seed_dispersal parameters'
+         write(fates_log(),*) 'See Bullock et al. (2017) for reasonable values'
+         write(fates_log(),*) 'Aborting'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
         
         ! Check that parameter ranges for the seed dispersal fraction make sense
         !-----------------------------------------------------------------------------------
