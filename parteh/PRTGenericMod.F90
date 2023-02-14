@@ -67,8 +67,7 @@ module PRTGenericMod
   ! -------------------------------------------------------------------------------------
 
   integer, parameter, public :: prt_carbon_allom_hyp   = 1
-  integer, parameter, public :: prt_cnp_flex_allom_hyp = 2   ! Still under development
-
+  integer, parameter, public :: prt_cnp_flex_allom_hyp = 2
 
   ! -------------------------------------------------------------------------------------
   ! Organ types
@@ -100,7 +99,6 @@ module PRTGenericMod
   ! element.  At the time of writing this, we are very far away from
   ! creating allocation schemes that even use potassium.
   
-  integer, parameter, public :: all_carbon_elements = 0
   integer, parameter, public :: carbon12_element    = 1
   integer, parameter, public :: carbon13_element    = 2
   integer, parameter, public :: carbon14_element    = 3
@@ -136,7 +134,7 @@ module PRTGenericMod
 
 
   ! List of all carbon elements, the special index "all_carbon_elements"
-  ! implies the following list of carbon organs
+  ! implies the following list of carbon organs (NOT USED)
   
   integer, parameter, dimension(3), public :: carbon_elements_list   = &
        [carbon12_element, carbon13_element, carbon14_element]
@@ -147,6 +145,11 @@ module PRTGenericMod
   ! (used for allocating scratch space)
   integer, parameter, public :: max_nleafage = 4
 
+
+  ! This is the minimum allowable L2FR, this is needed so that plants
+  ! in the understory don't shrink their roots down so far that
+  ! they dissappear and cause numerical issues
+  real(r8), parameter, public :: l2fr_min = 0.01_r8
   
   ! -------------------------------------------------------------------------------------
   !
@@ -185,8 +188,9 @@ module PRTGenericMod
                                           ! over the control period
 
      real(r8),allocatable :: burned(:)    ! Losses due to burn                     [kg]
+     real(r8),allocatable :: damaged(:)   ! Losses due to damage                   [kg]
 
-!     real(r8),allocatable :: herbiv(:)    ! Losses due to herbivory                [kg]
+     !     real(r8),allocatable :: herbiv(:)    ! Losses due to herbivory                [kg]
 
      ! Placeholder
      ! To save on memory, keep this commented out, or simply
@@ -241,6 +245,7 @@ module PRTGenericMod
      
      procedure :: DailyPRT            => DailyPRTBase
      procedure :: FastPRT             => FastPRTBase
+     procedure :: DamageRecovery      => DamageRecoveryBase
      procedure :: GetNutrientTarget   => GetNutrientTargetBase
      
      ! These are generic functions that should work on all hypotheses
@@ -262,7 +267,8 @@ module PRTGenericMod
      procedure, non_overridable :: DeallocatePRTVartypes
      procedure, non_overridable :: WeightedFusePRTVartypes
      procedure, non_overridable :: CopyPRTVartypes
-
+     
+     
      procedure :: AgeLeaves  ! This routine may be used generically
                              ! but also leaving the door open for over-rides
      
@@ -542,7 +548,8 @@ contains
         allocate(this%variables(i_var)%turnover(num_pos))
         allocate(this%variables(i_var)%net_alloc(num_pos))
         allocate(this%variables(i_var)%burned(num_pos))
-
+        allocate(this%variables(i_var)%damaged(num_pos))
+        
      end do
 
      
@@ -567,6 +574,7 @@ contains
        this%variables(i_var)%val0(:)      = un_initialized
        this%variables(i_var)%turnover(:)  = un_initialized
        this%variables(i_var)%burned(:)    = un_initialized
+       this%variables(i_var)%damaged(:)   = un_initialized
        this%variables(i_var)%net_alloc(:) = un_initialized
     end do
 
@@ -787,6 +795,7 @@ contains
        this%variables(i_var)%net_alloc(:)   = donor_prt_obj%variables(i_var)%net_alloc(:)
        this%variables(i_var)%turnover(:)  = donor_prt_obj%variables(i_var)%turnover(:)
        this%variables(i_var)%burned(:)    = donor_prt_obj%variables(i_var)%burned(:)
+       this%variables(i_var)%damaged(:)   = donor_prt_obj%variables(i_var)%damaged(:)
     end do
 
     this%ode_opt_step = donor_prt_obj%ode_opt_step
@@ -834,6 +843,9 @@ contains
           this%variables(i_var)%burned(pos_id)    = recipient_fuse_weight * this%variables(i_var)%burned(pos_id) + &
                 (1.0_r8-recipient_fuse_weight) * donor_prt_obj%variables(i_var)%burned(pos_id)
           
+          this%variables(i_var)%damaged(pos_id)    = recipient_fuse_weight * this%variables(i_var)%damaged(pos_id) + &
+                (1.0_r8-recipient_fuse_weight) * donor_prt_obj%variables(i_var)%damaged(pos_id)
+          
        end do
     end do
 
@@ -869,31 +881,32 @@ contains
 
     do i_var = 1, prt_global%num_vars
        deallocate( &
-          & this%variables(i_var)%val, &
-          & this%variables(i_var)%val0, &
-          & this%variables(i_var)%net_alloc, &
-          & this%variables(i_var)%turnover, &
-          & this%variables(i_var)%burned, &
-          & stat=istat, errmsg=smsg )
-       if (istat/=0) call endrun(msg='deallocate stat/=0:'//trim(smsg)//errMsg(sourcefile, __LINE__))
+            this%variables(i_var)%val, &
+            this%variables(i_var)%val0, &
+            this%variables(i_var)%net_alloc, &
+            this%variables(i_var)%turnover, &
+            this%variables(i_var)%burned, &
+            this%variables(i_var)%damaged, &
+            stat=istat, errmsg=smsg )
+       if (istat/=0) call endrun(msg='DeallocatePRTVartypes 1 stat/=0:'//trim(smsg)//errMsg(sourcefile, __LINE__))
     end do
 
     deallocate(this%variables, stat=istat, errmsg=smsg)
-    if (istat/=0) call endrun(msg='deallocate stat/=0:'//trim(smsg)//errMsg(sourcefile, __LINE__))
+    if (istat/=0) call endrun(msg='DeallocatePRTVartypes 2 stat/=0:'//trim(smsg)//errMsg(sourcefile, __LINE__))
 
     if(allocated(this%bc_in))then
        deallocate(this%bc_in, stat=istat, errmsg=smsg)
-       if (istat/=0) call endrun(msg='deallocate stat/=0:'//trim(smsg)//errMsg(sourcefile, __LINE__))
+       if (istat/=0) call endrun(msg='DeallocatePRTVartypes bc_in stat/=0:'//trim(smsg)//errMsg(sourcefile, __LINE__))
     end if
     
     if(allocated(this%bc_out))then
        deallocate(this%bc_out, stat=istat, errmsg=smsg)
-       if (istat/=0) call endrun(msg='deallocate stat/=0:'//trim(smsg)//errMsg(sourcefile, __LINE__))
+       if (istat/=0) call endrun(msg='DeallocatePRTVartypes bc_out stat/=0:'//trim(smsg)//errMsg(sourcefile, __LINE__))
     end if
 
     if(allocated(this%bc_inout))then
        deallocate(this%bc_inout, stat=istat, errmsg=smsg)
-       if (istat/=0) call endrun(msg='deallocate stat/=0:'//trim(smsg)//errMsg(sourcefile, __LINE__))
+       if (istat/=0) call endrun(msg='DeallocatePRTVartypes bc_inout stat/=0:'//trim(smsg)//errMsg(sourcefile, __LINE__))
     end if
 
     return
@@ -922,6 +935,7 @@ contains
          this%variables(i_var)%net_alloc(:) = 0.0_r8
          this%variables(i_var)%turnover(:)  = 0.0_r8
          this%variables(i_var)%burned(:)    = 0.0_r8
+         this%variables(i_var)%damaged(:)   = 0.0_r8    
       end do
       
     end subroutine ZeroRates
@@ -957,14 +971,16 @@ contains
            err = abs((this%variables(i_var)%val(i_pos) - this%variables(i_var)%val0(i_pos)) - &
                   (this%variables(i_var)%net_alloc(i_pos) &
                    -this%variables(i_var)%turnover(i_pos) & 
-                   -this%variables(i_var)%burned(i_pos) ))
-           
+                   -this%variables(i_var)%burned(i_pos) &
+                   -this%variables(i_var)%damaged(i_pos)))
+                  
            if(this%variables(i_var)%val(i_pos) > nearzero ) then
               rel_err = err / this%variables(i_var)%val(i_pos)
            else
               rel_err = 0.0_r8
            end if
 
+          
            if( abs(err) > calloc_abs_error ) then
               write(fates_log(),*) 'PARTEH mass conservation check failed'
               write(fates_log(),*) ' Change in mass over control period should'
@@ -981,7 +997,8 @@ contains
                                                this%variables(i_var)%val0(i_pos), &
                                                this%variables(i_var)%net_alloc(i_pos), &
                                                this%variables(i_var)%turnover(i_pos), &
-                                               this%variables(i_var)%burned(i_pos)
+                                               this%variables(i_var)%burned(i_pos), & 
+                                               this%variables(i_var)%damaged(i_pos)
               write(fates_log(),*) ' Exiting.'
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
@@ -1007,44 +1024,23 @@ contains
       integer,intent(in)                    :: element_id         ! Element type querried
       integer,intent(in),optional           :: position_id        ! Position querried
       real(r8)                              :: state_val          ! Mass (value) of state variable [kg]
-
       integer                               :: i_pos              ! position loop counter
-      integer                               :: i_element          ! element loop counter
-      integer                               :: num_element        ! total number of elements
-      integer,dimension(max_spec_per_group) :: element_ids        ! element ids (if element list)
       integer                               :: i_var              ! variable id
-      
-      state_val = 0.0_r8
-      
-      if(element_id == all_carbon_elements) then
-         element_ids(1:3) = carbon_elements_list(1:3)
-         num_element  = 3
-      else
-         num_element  = 1
-         element_ids(1) = element_id
-      end if
 
       if(present(position_id)) then
-         i_pos = position_id
-      
-         do i_element = 1,num_element
-            i_var = prt_global%sp_organ_map(organ_id,element_ids(i_element))
-            if (i_var>0) state_val = state_val + this%variables(i_var)%val(i_pos)
-         end do
 
+         i_pos = position_id
+         i_var = prt_global%sp_organ_map(organ_id,element_id)
+         state_val = this%variables(i_var)%val(i_pos)
+         
       else
          
-         do i_element = 1,num_element
-            
-            i_var = prt_global%sp_organ_map(organ_id,element_ids(i_element))
-            if(i_var>0)then
-               do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos
-                  state_val = state_val + this%variables(i_var)%val(i_pos)
-               end do
-            end if
-               
+         state_val = 0._r8
+         i_var = prt_global%sp_organ_map(organ_id,element_id)
+         do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos
+            state_val = state_val + this%variables(i_var)%val(i_pos)
          end do
-
+         
       end if
       
       return
@@ -1068,43 +1064,23 @@ contains
       integer,intent(in)                    :: element_id         ! Element type querried
       integer,intent(in),optional           :: position_id        ! Position querried
       real(r8)                              :: turnover_val       ! Amount (value) of turnover [kg]
-
       integer                               :: i_pos              ! position loop counter
-      integer                               :: i_element          ! element loop counter
-      integer                               :: num_element        ! total number of elements
-      integer,dimension(max_spec_per_group) :: element_ids        ! element ids (if element list)
       integer                               :: i_var              ! variable id
       
-      turnover_val = 0.0_r8
-      
-      if(element_id == all_carbon_elements) then
-         element_ids(1:3) = carbon_elements_list(1:3)
-         num_element  = 3
-      else
-         num_element  = 1
-         element_ids(1) = element_id
-      end if
-
       if(present(position_id)) then
+
          i_pos = position_id
-      
-         do i_element = 1,num_element
-            i_var = prt_global%sp_organ_map(organ_id,element_ids(i_element))
-            if(i_var>0) turnover_val = turnover_val + &
-                 this%variables(i_var)%turnover(i_pos)
-         end do
+         i_var = prt_global%sp_organ_map(organ_id,element_id)
+         turnover_val = this%variables(i_var)%turnover(i_pos)
 
       else
 
-         do i_element = 1,num_element
-            i_var = prt_global%sp_organ_map(organ_id,element_ids(i_element))
-            if(i_var>0) then
-               do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos
-                  turnover_val = turnover_val + this%variables(i_var)%turnover(i_pos)
-               end do
-            end if
-            
+         turnover_val = 0.0_r8
+         i_var = prt_global%sp_organ_map(organ_id,element_id)
+         do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos
+            turnover_val = turnover_val + this%variables(i_var)%turnover(i_pos)
          end do
+            
 
       end if
       
@@ -1125,43 +1101,21 @@ contains
       integer,intent(in)                    :: element_id         ! Element type querried
       integer,intent(in),optional           :: position_id        ! Position querried
       real(r8)                              :: burned_val         ! Amount (value) of burned [kg]
-
       integer                               :: i_pos              ! position loop counter
-      integer                               :: i_element          ! element loop counter
-      integer                               :: num_element        ! total number of elements
-      integer,dimension(max_spec_per_group) :: element_ids        ! element ids (if element list)
       integer                               :: i_var              ! variable id
 
-      
-      burned_val = 0.0_r8
-      
-      if(element_id == all_carbon_elements) then
-         element_ids(1:3) = carbon_elements_list(1:3)
-         num_element  = 3
-      else
-         num_element  = 1
-         element_ids(1) = element_id
-      end if
-
       if(present(position_id)) then
+
          i_pos = position_id
-      
-         do i_element = 1,num_element
-            i_var = prt_global%sp_organ_map(organ_id,element_ids(i_element))
-            if(i_var>0) burned_val = burned_val + &
-                  this%variables(i_var)%burned(i_pos)
-         end do
+         i_var = prt_global%sp_organ_map(organ_id,element_id)
+         burned_val = this%variables(i_var)%burned(i_pos)
 
       else
          
-         do i_element = 1,num_element
-            i_var = prt_global%sp_organ_map(organ_id,element_ids(i_element))
-            if(i_var>0) then
-               do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos
-                  burned_val = burned_val + this%variables(i_var)%burned(i_pos)
-               end do
-            end if
-            
+         burned_val = 0.0_r8
+         i_var = prt_global%sp_organ_map(organ_id,element_id)
+         do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos
+            burned_val = burned_val + this%variables(i_var)%burned(i_pos)
          end do
 
       end if
@@ -1184,42 +1138,21 @@ contains
       integer,intent(in)                    :: element_id         ! Element type querried
       integer,intent(in),optional           :: position_id        ! Position querried
       real(r8)                              :: val_netalloc       ! Amount (value) of allocation [kg]
-
       integer                               :: i_pos              ! position loop counter
-      integer                               :: i_element          ! element loop counter
-      integer                               :: num_element        ! total number of elements
-      integer,dimension(max_spec_per_group) :: element_ids        ! element ids (if element list)
       integer                               :: i_var              ! variable id
-
-      val_netalloc = 0.0_r8
       
-      if(element_id == all_carbon_elements) then
-         element_ids(1:3) = carbon_elements_list(1:3)
-         num_element  = 3
-      else
-         num_element  = 1
-         element_ids(1) = element_id
-      end if
-
       if(present(position_id)) then
-         i_pos = position_id
-      
-         do i_element = 1,num_element
-            i_var = prt_global%sp_organ_map(organ_id,element_ids(i_element))
-            if(i_var>0) val_netalloc = val_netalloc + &
-                 this%variables(i_var)%net_alloc(i_pos)
-         end do
 
-      else
+         i_pos = position_id
+         i_var = prt_global%sp_organ_map(organ_id,element_id)
+         val_netalloc = this%variables(i_var)%net_alloc(i_pos)
          
-         do i_element = 1,num_element
-            i_var = prt_global%sp_organ_map(organ_id,element_ids(i_element))
-            if(i_var>0) then
-               do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos 
-                  val_netalloc = val_netalloc + this%variables(i_var)%net_alloc(i_pos)
-               end do
-            end if
-            
+      else
+
+         val_netalloc = 0.0_r8
+         i_var = prt_global%sp_organ_map(organ_id,element_id)
+         do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos 
+            val_netalloc = val_netalloc + this%variables(i_var)%net_alloc(i_pos)
          end do
 
       end if
@@ -1248,28 +1181,40 @@ contains
 
    ! ====================================================================================
 
-   subroutine DailyPRTBase(this)
+   subroutine DailyPRTBase(this,phase)
       
-      class(prt_vartypes) :: this
-      
-      write(fates_log(),*)'Daily PRT Allocation must be extended'
-      call endrun(msg=errMsg(sourcefile, __LINE__))
+     class(prt_vartypes) :: this
+     integer,intent(in)  :: phase  ! We allow this and its children to be broken into phases
+
+     write(fates_log(),*)'Daily PRT Allocation must be extended'
+     call endrun(msg=errMsg(sourcefile, __LINE__))
    
    end subroutine DailyPRTBase
 
    ! ====================================================================================
    
-   subroutine FastPRTBase(this)
+   subroutine DamageRecoveryBase(this)
 
       class(prt_vartypes) :: this
       
-      write(fates_log(),*)'FastReactiveTransport must be extended by a child class.'
+      write(fates_log(),*)'?'
       call endrun(msg=errMsg(sourcefile, __LINE__))
 
-   end subroutine FastPRTBase
+   end subroutine DamageRecoveryBase
 
    ! ====================================================================================
+   ! ====================================================================================
+
+   subroutine FastPRTBase(this)
+      
+      class(prt_vartypes) :: this
+      
+      write(fates_log(),*)'FastReactiveTransport must be extended by a child class'
+      call endrun(msg=errMsg(sourcefile, __LINE__))
    
+   end subroutine FastPRTBase
+
+   !====================================================================================   
    subroutine SetState(prt,organ_id, element_id, state_val, position_id)
 
      ! This routine should only be called for initalizing the state value
@@ -1287,12 +1232,6 @@ contains
      integer                               :: i_element     ! loop counter for elements
      integer                               :: i_var         ! variable loop counter
      integer                               :: i_pos         ! position loop counter
-     
-     if(element_id == all_carbon_elements) then
-        write(fates_log(),*) 'You cannot set the state of all isotopes simultaneously.'
-        write(fates_log(),*) 'You can only set 1. Exiting.'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     end if
      
      if( present(position_id) ) then
         i_pos = position_id
@@ -1433,10 +1372,12 @@ contains
      !   total nitrogen content of 1 or more sets of organs
      ! -------------------------------------------------------------------------------------
      
-     integer, parameter :: lfs_store_prop = 1  ! leaf-fnrt-sapw proportional storage
-     integer, parameter :: lfss_store_prop = 2 ! leaf-fnrt-sapw-struct proportional storage
-     integer, parameter :: fnrt_store_prop = 3 ! fineroot proportional storage
-     integer, parameter :: store_prop = fnrt_store_prop
+     integer, parameter :: lfs_store_prop = 1    ! leaf-sapwood proportional storage
+     integer, parameter :: lfss_store_prop = 2   ! leaf-fnrt-sapw-struct proportional storage
+     integer, parameter :: fnrt_store_prop = 3   ! fineroot proportional storage
+     integer, parameter :: cstore_store_prop = 4 ! As a proportion to carbon storage times mean CN
+     integer, parameter :: lf_store_prop = 5     ! leaf proportional storage
+     integer, parameter :: store_prop = lf_store_prop
 
      
      select case(element_id)
@@ -1449,8 +1390,12 @@ contains
         
         if (store_prop == lfs_store_prop) then
 
-           store_target  = prt_params%nitr_store_ratio(pft) * (leaf_target + fnrt_target + sapw_target)
+           store_target  = prt_params%nitr_store_ratio(pft) * (leaf_target + sapw_target)
 
+        elseif (store_prop == lf_store_prop) then
+           
+           store_target  = prt_params%nitr_store_ratio(pft) * leaf_target
+   
         elseif(store_prop==lfss_store_prop) then
            
            store_target  = prt_params%nitr_store_ratio(pft) * (leaf_target + fnrt_target + sapw_target + struct_target)
@@ -1459,6 +1404,30 @@ contains
 
            store_target  = prt_params%nitr_store_ratio(pft) * fnrt_target
 
+        elseif(store_prop==cstore_store_prop) then
+
+           !call bsap_allom(dbh,ipft,canopy_trim,sapw_area,target_sapw_c)
+           !call bagw_allom(dbh,ipft,agw_c_target)
+           !call bbgw_allom(dbh,ipft,bgw_c_target)
+           !call bdead_allom(agw_c_target,bgw_c_target,target_sapw_c,ipft,target_struct_c)
+           !call bleaf(dbh,ipft,canopy_trim, target_leaf_c)
+           !call bfineroot(dbh,ipft,canopy_trim, l2fr, target_fnrt_c)
+           !call bstore_allom(dbh,ipft,canopy_trim, target_store_c)
+
+           ! Strategy, store as much nutrient as needed to match carbon's growth potential
+           ! ie, nutrient storage is proportional to carbon storage times plant NC ratio
+
+           ! N_so = a * C_so * NC_p
+           ! NC_p = ( (N_so + N_lf + N_fr + N_sa + N_de)/C_tot )
+           ! N_so = a * C_so * ( N_so/C_tot)  + a * C_so * (N_lf + N_fr + N_sa + N_de)/C_tot )
+           ! N_so = (a * C_so * (N_lf + N_fr + N_sa + N_de)/C_tot ) / ( 1 - a * C_so/C_tot)
+
+           !store_target = (target_store_c * prt_params%nitr_store_ratio(pft) * &
+           !     (leaf_target + fnrt_target + sapw_target + struct_target)/total_c_target) / &
+           !     ( 1._r8 - target_store_c * prt_params%nitr_store_ratio(pft) / total_c_target )
+           write(fates_log(),*)'cstore_store_prop method of calculating target nutrient stores not available'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+           
         end if
         
              
@@ -1468,15 +1437,19 @@ contains
            
            store_target  = prt_params%phos_store_ratio(pft) * (leaf_target + fnrt_target + sapw_target)
 
+        elseif (store_prop == lf_store_prop) then
+           
+           store_target  = prt_params%phos_store_ratio(pft) * leaf_target
+    
         elseif(store_prop==lfss_store_prop) then
            
-           store_target  = prt_params%nitr_store_ratio(pft) * (leaf_target + fnrt_target + sapw_target + struct_target)
+           store_target  = prt_params%phos_store_ratio(pft) * (leaf_target + fnrt_target + sapw_target + struct_target)
     
         elseif(store_prop==fnrt_store_prop) then
            
            store_target  = prt_params%phos_store_ratio(pft) * fnrt_target
-           
-        end if
+
+         end if
      end select
      
      

@@ -57,7 +57,7 @@ module EDLoggingMortalityMod
    use FatesGlobals      , only : fates_global_verbose
    use shr_log_mod       , only : errMsg => shr_log_errMsg
    use FatesPlantHydraulicsMod, only : AccumulateMortalityWaterStorage
-   use PRTGenericMod     , only : all_carbon_elements,carbon12_element
+   use PRTGenericMod     , only : carbon12_element
    use PRTGenericMod     , only : sapw_organ, struct_organ, leaf_organ
    use PRTGenericMod     , only : fnrt_organ, store_organ, repro_organ
    use FatesAllometryMod , only : set_root_fraction
@@ -812,7 +812,7 @@ contains
       currentCohort => newPatch%shortest
       do while(associated(currentCohort))
          call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
-               currentCohort%pft,currentCohort%c_area)
+               currentCohort%pft,currentCohort%crowndamage,currentCohort%c_area)
          currentCohort => currentCohort%taller
       enddo
       

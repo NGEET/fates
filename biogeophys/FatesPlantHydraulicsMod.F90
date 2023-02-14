@@ -979,7 +979,8 @@ contains
     ! Get the target, or rather, maximum leaf carrying capacity of plant
     ! Lets also avoid super-low targets that have very low trimming functions
 
-    call bleaf(ccohort%dbh,ccohort%pft,max(ccohort%canopy_trim,min_trim),leaf_c_target)
+    call bleaf(ccohort%dbh,ccohort%pft,ccohort%crowndamage, &
+         max(ccohort%canopy_trim,min_trim),leaf_c_target)
 
     if( (ccohort%status_coh == leaves_on) .or. ccohort_hydr%is_newly_recruited ) then
        ccohort_hydr%v_ag(1:n_hypool_leaf) = max(leaf_c,min_leaf_frac*leaf_c_target) * &
@@ -994,7 +995,8 @@ contains
     ! v_stem       = c_stem_biom / (prt_params%wood_density(ft) * kg_per_g * cm3_per_m3 )
 
     ! calculate the sapwood cross-sectional area
-    call bsap_allom(ccohort%dbh,ccohort%pft,ccohort%canopy_trim,a_sapwood_target,sapw_c_target)
+    call bsap_allom(ccohort%dbh,ccohort%pft,ccohort%crowndamage, &
+         ccohort%canopy_trim,a_sapwood_target,sapw_c_target)
 
     ! uncomment this if you want to use
     ! the actual sapwood, which may be lower than target due to branchfall.
@@ -2748,6 +2750,7 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
         ccohort=>cpatch%tallest
         do while(associated(ccohort))
 
+           ccohort_hydr => ccohort%co_hydr
            sum_l_aroot = sum(ccohort_hydr%l_aroot_layer(:))
            ft = ccohort%pft 
            
@@ -2972,7 +2975,8 @@ subroutine UpdatePlantKmax(ccohort_hydr,ccohort,csite_hydr)
   pft   = ccohort%pft
 
   ! Get the cross-section of the plant's sapwood area [m2]
-  call bsap_allom(ccohort%dbh,pft,ccohort%canopy_trim,a_sapwood,c_sap_dummy)
+  call bsap_allom(ccohort%dbh,pft,ccohort%crowndamage, &
+       ccohort%canopy_trim,a_sapwood,c_sap_dummy)
 
   ! Leaf Maximum Hydraulic Conductance
   ! The starting hypothesis is that there is no resistance inside the
@@ -4606,56 +4610,63 @@ end subroutine shellGeom
 
 ! =====================================================================================
 
-function xylemtaper(p, dz) result(chi_tapnotap)
+function xylemtaper(pexp, dz) result(chi_tapnotap)
 
-   ! !ARGUMENTS:
-   real(r8) , intent(in) :: p      ! Savage et al. (2010) taper exponent
-   real(r8) , intent(in) :: dz     ! hydraulic distance from petiole to node of interest                                                [m]
-   !
-   ! !LOCAL VARIABLES:
-   real(r8) :: atap,btap           ! scaling exponents for total conductance ~ tree size (ratio of stem radius to terminal twig radius)
-   real(r8) :: anotap,bnotap       ! same as atap, btap, but not acounting for xylem taper (Savage et al. (2010) p = 0)
-   ! NOTE: these scaling exponents were digitized from Fig 2a of Savage et al. (2010)
-   ! Savage VM, Bentley LP, Enquist BJ, Sperry JS, Smith DD, Reich PB, von Allmen EI. 2010.
-   !    Hydraulic trade-offs and space filling enable better predictions of vascular structure
-   !    and function in plants. Proceedings of the National Academy of Sciences 107(52): 22722-22727.
-   real(r8) :: lN=0.04_r8          ! petiole length                                                                                     [m]
-   real(r8) :: little_n=2._r8      ! number of daughter branches per parent branch, assumed constant throughout tree (self-similarity)  [-]
-   real(r8) :: big_n               ! number of branching levels (allowed here to take on non-integer values): increases with tree size  [-]
-   real(r8) :: ktap                ! hydraulic conductance along the pathway, accounting for xylem taper                                [kg s-1 MPa-1]
-   real(r8) :: knotap              ! hydraulic conductance along the pathway, not accounting for xylem taper                            [kg s-1 MPa-1]
-   real(r8) :: num                 ! temporary
-   real(r8) :: den                 ! temporary
-   !
-   ! !RESULT
-   real(r8) :: chi_tapnotap        ! ratio of total tree conductance accounting for xylem taper to that without, over interval dz
-   !
-   !------------------------------------------------------------------------
+    use FatesConstantsMod, only : pi => pi_const
 
-   anotap  = 7.19903e-13_r8
-   bnotap  = 1.326105578_r8
-   if (p >= 1.0_r8) then
-      btap  = 2.00586217_r8
-      atap  = 1.82513E-12_r8
-   else if (p >= (1._r8/3._r8) .AND. p < 1._r8) then
-      btap  = 1.854812819_r8
-      atap  = 6.66908E-13_r8
-   else if (p >= (1._r8/6._r8) .AND. p < (1._r8/3._r8)) then
-      btap  = 1.628179741_r8
-      atap  = 6.58345E-13_r8
-   else
-      btap  = bnotap
-      atap  = anotap
-   end if
+    ! !DESCRIPTION: Following the theory presented i
+    ! Savage VM, Bentley LP, Enquist BJ, Sperry JS, Smith DD, Reich PB, von
+    ! Allmen EI. 2010.
+    ! Hydraulic trade-offs and space filling enable better predictions of
+    ! vascular structure
+    ! and function in plants. Proceedings of the National Academy of Sciences
+    ! 107(52): 22722-22727.
 
-   num          = 3._r8*log(1._r8 - dz/lN * (1._r8-little_n**(1._r8/3._r8)))
-   den          = log(little_n)
-   big_n        = num/den - 1._r8
-   ktap         = atap   * (little_n**(big_N*  btap/2._r8))
-   knotap       = anotap * (little_n**(big_N*bnotap/2._r8))
-   chi_tapnotap = ktap / knotap
+    ! Revised 2019-01-03 BOC: total conductance exponent (qexp) is now a
+    ! continuous function of the xylem taper exponent (pexp).
+                                    ! renamed btap to qexp, a[tap][notap] to kN,
+                                    ! little_n to n_ext, to match variable names
+                                    ! in Savage et al.
 
-   return
+    ! !ARGUMENTS:
+    real(r8) , intent(in) :: pexp   ! Savage et al. (2010) taper exponent[-]
+    real(r8) , intent(in) :: dz     ! hydraulic distance from petiole to node of interest[m]
+    !
+    ! !LOCAL VARIABLES:
+    real(r8) :: qexp                ! total conductance exponent (as in Fig. 2b of Savage et al. (2010) minus a0 term
+    real(r8) :: lN=0.005_r8         ! petiole length[m]
+    real(r8) :: n_ext=2._r8         ! number of daughter branches per parent branch, assumed constant throughout tree (self-similarity)  [-]
+    real(r8) :: big_n               ! number of branching levels (allowed here to take on non-integer values): increases with tree size  [-]
+    real(r8) :: r0rN                ! ratio of stem radius to terminal twig radius; r.ext0/r.extN (x-axis of Savage et al. (2010) Fig 2a)[-]
+    real(r8) :: num                 ! temporary
+    real(r8) :: den                 ! temporary
+    real(r8) :: a5,a4,a3,a2,a1,a0   ! coefficients of 5th-order polynomial fit to Savage et al. Fig. 2b (qexp vs. pexp)
+                                    ! NOTE: These were obtained by digitizing
+                                    ! Fig. 2b (dashed line) and fitting a
+                                    ! polynomial using nls() in R
+    !
+    ! !RESULT
+    real(r8) :: chi_tapnotap        ! ratio of total tree conductance accounting for xylem taper to that without, over interval dz
+    !
+    !------------------------------------------------------------------------
+
+    a5 = -3.555547_r8
+    a4 =  9.760275_r8
+    a3 = -8.468005_r8
+    a2 =  1.096488_r8
+    a1 =  1.844792_r8
+    a0 =  1.320732_r8
+    
+    qexp         = a5*pexp**5 + a4*pexp**4 + a3*pexp**3 + a2*pexp**2 + a1*pexp
+
+    num          = 3._r8*log(1._r8 - dz/lN * (1._r8-n_ext**(1._r8/3._r8)))
+    den          = log(n_ext)
+    big_N        = num/den - 1._r8
+    r0rN         = n_ext**(big_N/2._r8)
+    
+    chi_tapnotap = r0rN**qexp
+
+    return
 
 end function xylemtaper
 

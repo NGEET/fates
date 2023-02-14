@@ -63,8 +63,8 @@ module FatesInterfaceMod
    use FatesConstantsMod         , only : coupled_p_uptake
    use FatesConstantsMod         , only : coupled_n_uptake
    use FatesConstantsMod         , only : fates_np_comp_scaling
-   use FatesConstantsMod         , only : cohort_np_comp_scaling
-   use FatesConstantsMod         , only : pft_np_comp_scaling
+   use FatesConstantsMod         , only : coupled_np_comp_scaling
+   use FatesConstantsMod         , only : trivial_np_comp_scaling
    use PRTGenericMod             , only : num_elements
    use PRTGenericMod             , only : element_list
    use PRTGenericMod             , only : element_pos
@@ -84,10 +84,10 @@ module FatesInterfaceMod
    use FatesRunningMeanMod       , only : ema_24hr
    use FatesRunningMeanMod       , only : fixed_24hr
    use FatesRunningMeanMod       , only : ema_lpa
+   use FatesRunningMeanMod       , only : ema_60day
    use FatesRunningMeanMod       , only : moving_ema_window
    use FatesRunningMeanMod       , only : fixed_window
    use FatesHistoryInterfaceMod  , only : fates_hist
-
    
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -202,13 +202,13 @@ contains
     
     type(bc_pconst_type), intent(inout) :: bc_pconst
     integer             , intent(in)    :: nlevdecomp 
-    
+
+    allocate(bc_pconst%vmax_nh4(numpft))
+    allocate(bc_pconst%vmax_no3(numpft))    
+    allocate(bc_pconst%vmax_p(numpft))
     allocate(bc_pconst%eca_km_nh4(numpft))
-    allocate(bc_pconst%eca_vmax_nh4(numpft))
     allocate(bc_pconst%eca_km_no3(numpft))
-    allocate(bc_pconst%eca_vmax_no3(numpft))      
     allocate(bc_pconst%eca_km_p(numpft))
-    allocate(bc_pconst%eca_vmax_p(numpft))
     allocate(bc_pconst%eca_km_ptase(numpft))
     allocate(bc_pconst%eca_vmax_ptase(numpft))
     allocate(bc_pconst%eca_alpha_ptase(numpft))
@@ -226,24 +226,18 @@ contains
     integer             , intent(in)    :: nlevdecomp 
     integer                             :: j
     
+    bc_pconst%vmax_nh4(1:numpft)         = EDPftvarcon_inst%vmax_nh4(1:numpft)
+    bc_pconst%vmax_no3(1:numpft)         = EDPftvarcon_inst%vmax_no3(1:numpft)
+    bc_pconst%vmax_p(1:numpft)           = EDPftvarcon_inst%vmax_p(1:numpft)
+    
     bc_pconst%eca_km_nh4(1:numpft)       = EDPftvarcon_inst%eca_km_nh4(1:numpft)
-    bc_pconst%eca_vmax_nh4(1:numpft)     = EDPftvarcon_inst%eca_vmax_nh4(1:numpft)
     bc_pconst%eca_km_no3(1:numpft)       = EDPftvarcon_inst%eca_km_no3(1:numpft)
-    bc_pconst%eca_vmax_no3(1:numpft)     = EDPftvarcon_inst%eca_vmax_no3(1:numpft)
     bc_pconst%eca_km_p(1:numpft)         = EDPftvarcon_inst%eca_km_p(1:numpft)
-    bc_pconst%eca_vmax_p(1:numpft)       = EDPftvarcon_inst%eca_vmax_p(1:numpft)
     bc_pconst%eca_km_ptase(1:numpft)     = EDPftvarcon_inst%eca_km_ptase(1:numpft)
     bc_pconst%eca_vmax_ptase(1:numpft)   = EDPftvarcon_inst%eca_vmax_ptase(1:numpft)
     bc_pconst%eca_alpha_ptase(1:numpft)  = EDPftvarcon_inst%eca_alpha_ptase(1:numpft) 
     bc_pconst%eca_lambda_ptase(1:numpft) = EDPftvarcon_inst%eca_lambda_ptase(1:numpft)
     bc_pconst%eca_plant_escalar          = eca_plant_escalar
-    if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
-       bc_pconst%j_uptake(1:nlevdecomp)    = 1
-    else
-       do j=1,nlevdecomp
-          bc_pconst%j_uptake(j) = j
-       end do
-    end if
     
     return
   end subroutine set_bcpconst
@@ -453,15 +447,9 @@ contains
       ! Allocating differently could save a lot of memory and time
 
       if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-         if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
-            allocate(bc_in%plant_nh4_uptake_flux(max_comp_per_site,1))
-            allocate(bc_in%plant_no3_uptake_flux(max_comp_per_site,1))
-            allocate(bc_in%plant_p_uptake_flux(max_comp_per_site,1))
-         else
-            allocate(bc_in%plant_nh4_uptake_flux(max_comp_per_site,bc_in%nlevdecomp))
-            allocate(bc_in%plant_no3_uptake_flux(max_comp_per_site,bc_in%nlevdecomp))
-            allocate(bc_in%plant_p_uptake_flux(max_comp_per_site,bc_in%nlevdecomp))
-         end if
+         allocate(bc_in%plant_nh4_uptake_flux(max_comp_per_site,1))
+         allocate(bc_in%plant_no3_uptake_flux(max_comp_per_site,1))
+         allocate(bc_in%plant_p_uptake_flux(max_comp_per_site,1))
       else
          allocate(bc_in%plant_nh4_uptake_flux(1,1))
          allocate(bc_in%plant_no3_uptake_flux(1,1))
@@ -608,15 +596,17 @@ contains
       ! When FATES does not have nutrients enabled, these
       ! arrays are indexed by 1.
       
-      if(trim(hlm_nu_com).eq.'RD') then
-         allocate(bc_out%n_demand(max_comp_per_site))
-         allocate(bc_out%p_demand(max_comp_per_site))
-      end if
+      !if(trim(hlm_nu_com).eq.'RD') then
+      !   allocate(bc_out%n_demand(max_comp_per_site))
+      !   allocate(bc_out%p_demand(max_comp_per_site))
+      !end if
 
+      ! Used in both
+      allocate(bc_out%veg_rootc(max_comp_per_site,nlevdecomp_in))
+      allocate(bc_out%ft_index(max_comp_per_site))
+         
       if(trim(hlm_nu_com).eq.'ECA') then
-         allocate(bc_out%veg_rootc(max_comp_per_site,nlevdecomp_in))
          allocate(bc_out%decompmicc(nlevdecomp_in))
-         allocate(bc_out%ft_index(max_comp_per_site))
          allocate(bc_out%cn_scalar(max_comp_per_site))
          allocate(bc_out%cp_scalar(max_comp_per_site))
       end if
@@ -637,6 +627,9 @@ contains
          bc_out%rootfr_pa(0,1:nlevsoil_in)=1._r8/real(nlevsoil_in,r8)
       end if
 
+      bc_out%ema_npp = nan
+      
+      
       ! Fates -> BGC fragmentation mass fluxes
       select case(hlm_parteh_mode) 
       case(prt_carbon_allom_hyp)
@@ -645,6 +638,7 @@ contains
          allocate(bc_out%litt_flux_lab_c_si(nlevdecomp_in))
       case(prt_cnp_flex_allom_hyp) 
 
+         
          allocate(bc_out%litt_flux_cel_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lig_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lab_c_si(nlevdecomp_in))
@@ -856,17 +850,32 @@ contains
          ! Note: since BGC code may be active even when no nutrients
          ! present, we still need to allocate things when no nutrients
 
+
+         if (any(abs(EDPftvarcon_inst%prescribed_nuptake(:)) > nearzero )) then
+            n_uptake_mode = prescribed_n_uptake
+         else
+            n_uptake_mode = coupled_n_uptake
+         end if
+
+         if (any(abs(EDPftvarcon_inst%prescribed_puptake(:)) > nearzero )) then
+            p_uptake_mode = prescribed_p_uptake
+         else
+            p_uptake_mode = coupled_p_uptake
+         end if
+         
          if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp ) then
-            if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
+
+            if((p_uptake_mode==coupled_p_uptake) .or. (n_uptake_mode==coupled_n_uptake))then
                max_comp_per_site = fates_maxElementsPerSite
-            elseif(fates_np_comp_scaling.eq.pft_np_comp_scaling) then
-               max_comp_per_site = numpft
+               fates_np_comp_scaling = coupled_np_comp_scaling
             else
-               write(fates_log(), *) 'An unknown nutrient competitor scaling method was chosen?'
-               call endrun(msg=errMsg(sourcefile, __LINE__))
+               max_comp_per_site = 1
+               fates_np_comp_scaling = trivial_np_comp_scaling
             end if
+
          else
             max_comp_per_site = 1
+            fates_np_comp_scaling = trivial_np_comp_scaling
          end if
             
          ! calculate the bin edges for radiative transfer calculations
@@ -977,7 +986,13 @@ contains
       allocate(ema_lpa)
       call ema_lpa%define(photo_temp_acclim_timescale*sec_per_day, &
            hlm_stepsize,moving_ema_window)
-
+      
+      !allocate(ema_60day)
+      !call ema_60day%define(prt_params%fnrt_adapt_tscl*sec_per_day,sec_per_day,moving_ema_window)
+      !class(rmean_arr_type), pointer :: ema_fnrt_tscale(:)
+      !rmean_arr_type
+      
+      
       return
     end subroutine InitTimeAveragingGlobals
 
@@ -1525,24 +1540,25 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         ! TEMPORARY TESTING OVERRIDE !!!!!!!!
-         ! hlm_decomp = 'MIMICS'
-         
          if(trim(hlm_nu_com) .eq. 'unset') then
             write(fates_log(),*) 'FATES dimension/parameter unset: hlm_nu_com, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(hlm_use_tree_damage .eq. unset_int .or. hlm_use_tree_damage .eq. itrue) then
+         if(hlm_use_tree_damage .eq. unset_int) then
             write(fates_log(),*) 'FATES dimension/parameter unset: hlm_use_tree_damage, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
+         else
+            if((hlm_use_tree_damage .eq. itrue) .and. &
+                 (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp))then
+               write(fates_log(),*) 'FATES tree damage (use_fates_tree_damage = .true.) is not'
+               write(fates_log(),*) '(yet) compatible with CNP allocation (fates_parteh_mode = 2)'
+               call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(hlm_use_tree_damage .eq. itrue) then
-            write(fates_log(),*) 'hlm_use_tree_damage is not available yet, value: ',hlm_use_tree_damage,' ,set to false'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
+            
          end if
-         
+
          if(hlm_nitrogen_spec .eq. unset_int) then
             write(fates_log(),*) 'FATES parameters unset: hlm_nitrogen_spec, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1926,16 +1942,18 @@ contains
         ifp=0
         cpatch => sites(s)%oldest_patch
         do while(associated(cpatch))
+           if (cpatch%patchno .ne. 0) then
            ifp=ifp+1
            call cpatch%tveg24%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            call cpatch%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
 
-           !  (Keeping as an example)
+           
            !ccohort => cpatch%tallest
            !do while (associated(ccohort))
            !   call ccohort%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            !   ccohort => ccohort%shorter
            !end do
+           end if
            
            cpatch => cpatch%younger
         enddo
