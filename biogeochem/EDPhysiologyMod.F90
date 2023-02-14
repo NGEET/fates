@@ -1612,7 +1612,7 @@ contains
        site_seed_rain(:) = 0._r8
        site_disp_frac(:) = 0._r8
 
-       ! If the dispersal kernel is not turned on, set the dispersal fraction to zero
+       ! If the dispersal kernel is not turned on, keep the dispersal fraction at zero
        if (fates_dispersal_kernel_mode .ne. fates_dispersal_kernel_none) then
          site_disp_frac(:) = EDPftvarcon_inst%seed_dispersal_fraction(:)
        end if
