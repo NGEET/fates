@@ -1085,9 +1085,9 @@ contains
      
      real(r8) :: bl          ! Allometric target leaf biomass
      real(r8) :: dbldd       ! Allometric target change in leaf biomass per cm
+     real(r8) :: blmax       ! Allometric target leaf biomass (UNTRIMMED)
+     real(r8) :: dblmaxdd    ! Allometric target change in leaf biomass per cm (UNTRIMMED)
     
-     
-     ! TODO: allom_stmode needs to be added to the parameter file
      
      associate( allom_stmode => prt_params%allom_stmode(ipft), &
                 cushion      => prt_params%cushion(ipft) )
@@ -1098,7 +1098,12 @@ contains
           
           call bleaf(d,ipft, crowndamage, canopy_trim, bl, dbldd)
           call bstore_blcushion(d,bl,dbldd,cushion,ipft,bstore,dbstoredd)
-          
+
+       case(2) ! Storage is constant proportionality of untrimmed maximum leaf
+          ! biomass (ie cushion * bleaf_max)
+          call blmax_allom(d,ipft,blmax,dblmaxdd)
+          call bstore_blcushion(d,blmax,dblmaxdd,cushion,ipft,bstore,dbstoredd)
+
        case DEFAULT 
           write(fates_log(),*) 'An undefined fine storage allometry was specified: ', &
                 allom_stmode
@@ -2515,7 +2520,6 @@ subroutine ForceDBH( ipft, crowndamage, canopy_trim, d, h, bdead, bl )
      end if
 
      call h_allom(d,ipft,h)
-
      if(counter>20)then
         write(fates_log(),*) 'dbh counter: ',counter,' is woody: ',&
              (prt_params%woody(ipft) == itrue)

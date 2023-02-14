@@ -164,13 +164,17 @@ contains
     allocate(site_in%fmort_carbonflux_canopy(1:numpft))
     allocate(site_in%fmort_carbonflux_ustory(1:numpft))
     
+    allocate(site_in%term_abg_flux(1:nlevsclass,1:numpft))
+    allocate(site_in%imort_abg_flux(1:nlevsclass,1:numpft))
+    allocate(site_in%fmort_abg_flux(1:nlevsclass,1:numpft))
+    
     site_in%nlevsoil   = bc_in%nlevsoil
     allocate(site_in%rootfrac_scr(site_in%nlevsoil))
     allocate(site_in%zi_soil(0:site_in%nlevsoil))
     allocate(site_in%dz_soil(site_in%nlevsoil))
     allocate(site_in%z_soil(site_in%nlevsoil))
 
-    if (hlm_use_nocomp .eq. itrue) then
+    if (hlm_use_nocomp .eq. itrue .and. hlm_use_fixed_biogeog .eq. itrue) then
        allocate(site_in%area_pft(0:numpft))
     else  ! SP and nocomp require a bare-ground patch.
        allocate(site_in%area_pft(1:numpft))  
@@ -280,6 +284,10 @@ contains
     site_in%fmort_carbonflux_ustory(:) = 0._r8
     site_in%fmort_rate_cambial(:,:) = 0._r8
     site_in%fmort_rate_crown(:,:) = 0._r8
+    site_in%term_abg_flux(:,:) = 0._r8
+    site_in%imort_abg_flux(:,:) = 0._r8
+    site_in%fmort_abg_flux(:,:) = 0._r8
+
 
     ! fusoin-induced growth flux of individuals
     site_in%growthflux_fusion(:,:) = 0._r8
@@ -305,6 +313,8 @@ contains
     site_in%fmort_cflux_ustory_damage(:,:) = 0._r8
     
     ! Resources management (logging/harvesting, etc)
+    site_in%resources_management%harvest_debt = 0.0_r8
+    site_in%resources_management%harvest_debt_sec = 0.0_r8
     site_in%resources_management%trunk_product_site  = 0.0_r8
 
     ! canopy spread
@@ -386,6 +396,7 @@ contains
           sites(s)%acc_NI     = acc_NI
           sites(s)%NF         = 0.0_r8
           sites(s)%NF_successful  = 0.0_r8
+          sites(s)%area_pft(:) = 0.0_r8
 
           do ft =  1,numpft
              sites(s)%rec_l2fr(ft,:) = prt_params%allom_l2fr(ft)
@@ -401,7 +412,6 @@ contains
              ! where pft_areafrac is the area of land in each HLM PFT and (from surface dataset)
              ! hlm_pft_map is the area of that land in each FATES PFT (from param file)
 
-             sites(s)%area_pft(1:numpft) = 0._r8
              do hlm_pft = 1,size( EDPftvarcon_inst%hlm_pft_map,2)
                 do fates_pft = 1,numpft ! loop round all fates pfts for all hlm pfts
                    sites(s)%area_pft(fates_pft) = sites(s)%area_pft(fates_pft) + &
@@ -455,8 +465,6 @@ contains
 
                 if(sumarea.lt.area)then !make some bare ground
                    sites(s)%area_pft(0) = area - sumarea
-                else
-                   sites(s)%area_pft(0) = 0.0_r8
                 end if
              end if !sp mode
           end if !fixed biogeog

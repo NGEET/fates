@@ -23,6 +23,7 @@ module EDPhysiologyMod
   use FatesInterfaceTypesMod, only    : hlm_use_tree_damage
   use FatesConstantsMod, only    : r8 => fates_r8
   use FatesConstantsMod, only    : nearzero
+  use FatesConstantsMod, only    : nocomp_bareground
   use EDPftvarcon      , only    : EDPftvarcon_inst
   use PRTParametersMod , only    : prt_params
   use EDPftvarcon      , only    : GetDecompyFrac
@@ -1754,7 +1755,6 @@ contains
     ! !USES:
     use EDTypesMod, only : area
     use EDTypesMod, only : homogenize_seed_pfts
-
     !
     ! !ARGUMENTS
     type(ed_site_type), intent(inout), target  :: currentSite
@@ -2675,7 +2675,7 @@ contains
     catanf(t1) = 11.75_r8 +(29.7_r8 / pi) * atan( pi * 0.031_r8  * ( t1 - 15.4_r8 ))
     catanf_30 = catanf(30._r8)
 
-    if(currentPatch%nocomp_pft_label.ne.0)then
+    if(currentPatch%nocomp_pft_label.ne.nocomp_bareground)then
 
        ! Use the hlm temp and moisture decomp fractions by default
        if ( use_hlm_soil_scalar ) then

@@ -879,20 +879,21 @@ contains
     ! Check to see if there is any value in these pools?
     ! SHould not deallocate if there is any carbon left
 
-    do i_var = 1, prt_global%num_vars
-       deallocate( &
-            this%variables(i_var)%val, &
-            this%variables(i_var)%val0, &
-            this%variables(i_var)%net_alloc, &
-            this%variables(i_var)%turnover, &
-            this%variables(i_var)%burned, &
-            this%variables(i_var)%damaged, &
-            stat=istat, errmsg=smsg )
-       if (istat/=0) call endrun(msg='DeallocatePRTVartypes 1 stat/=0:'//trim(smsg)//errMsg(sourcefile, __LINE__))
-    end do
-
-    deallocate(this%variables, stat=istat, errmsg=smsg)
-    if (istat/=0) call endrun(msg='DeallocatePRTVartypes 2 stat/=0:'//trim(smsg)//errMsg(sourcefile, __LINE__))
+    if(allocated(this%variables)) then
+       do i_var = 1, prt_global%num_vars
+          deallocate( &
+               this%variables(i_var)%val, &
+               this%variables(i_var)%val0, &
+               this%variables(i_var)%net_alloc, &
+               this%variables(i_var)%turnover, &
+               this%variables(i_var)%burned, &
+               stat=istat, errmsg=smsg )
+          if (istat/=0) call endrun(msg='DeallocatePRTVartypes 1 stat/=0:'//trim(smsg)//errMsg(sourcefile, __LINE__))
+       end do
+   
+       deallocate(this%variables, stat=istat, errmsg=smsg)
+       if (istat/=0) call endrun(msg='DeallocatePRTVartypes 2 stat/=0:'//trim(smsg)//errMsg(sourcefile, __LINE__))
+    end if
 
     if(allocated(this%bc_in))then
        deallocate(this%bc_in, stat=istat, errmsg=smsg)
