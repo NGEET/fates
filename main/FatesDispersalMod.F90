@@ -206,6 +206,9 @@ contains
    !       to pass dispersed seeds to fates.  Set dispersed flag to false.  Given that this must 
    !       happen after WrapSeedGlobal, but can be threaded this takes place at the top of the 
    !       dynamics_driv call.
+   
+   use FatesInterfaceTypesMod, only : fates_dispersal_kernel_mode
+   use FatesInterfaceTypesMod, only : fates_dispersal_kernel_none
       
    ! Arguments
    logical, optional :: setdispersedflag ! Has the global dispersal been completed?
@@ -215,6 +218,10 @@ contains
    
    ! The default return value is false
    IsItDispersalTime = .false.
+   
+   ! Check if seed dispersal mode is 'turned on' by checking the parameter values
+   ! If it is off, return false by default
+   if (fates_dispersal_kernel_mode .eq. fates_dispersal_kernel_none) return
 
    ! Check if set dispersal flag is provided.  This should be provided during a check
    ! when the flag should be set to true after the global dispersal
