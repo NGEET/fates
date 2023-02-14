@@ -1582,6 +1582,8 @@ contains
     ! !USES:
     use EDTypesMod, only : area
     use EDTypesMod, only : homogenize_seed_pfts
+    use FatesInterfaceTypesMod, only : fates_dispersal_kernel_mode
+    use FatesInterfaceTypesMod, only : fates_dispersal_kernel_none
     !use FatesInterfaceTypesMod,  only : hlm_use_fixed_biogeog    ! For future reduced complexity?
     !
     ! !ARGUMENTS
@@ -1597,6 +1599,7 @@ contains
     integer  :: pft
     real(r8) :: store_m_to_repro       ! mass sent from storage to reproduction upon death [kg/plant]
     real(r8) :: site_seed_rain(maxpft) ! This is the sum of seed-rain for the site [kg/site/day]
+    real(r8) :: site_disp_frac(maxpft) ! Fraction of seeds to disperse out to other sites
     real(r8) :: seed_in_external       ! Mass of externally generated seeds [kg/m2/day]
     real(r8) :: seed_stoich            ! Mass ratio of nutrient per C12 in seeds [kg/kg]
     real(r8) :: seed_prod              ! Seed produced in this dynamics step [kg/day]
@@ -1607,8 +1610,12 @@ contains
     do el = 1, num_elements
 
        site_seed_rain(:) = 0._r8
+       site_disp_frac(:) = 0._r8
 
-       EDPftvarcon_inst%seed_dispersal_fraction(:) = 0.2       ! to be specified in the parameter file or calculated using dispersal kernel 
+       ! If the dispersal kernel is not turned on, set the dispersal fraction to zero
+       if (fates_dispersal_kernel_mode .ne. fates_dispersal_kernel_none) then
+         site_disp_frac(:) = EDPftvarcon_inst%seed_dispersal_fraction(:)
+       end if
 
        element_id = element_list(el)
 
@@ -1678,7 +1685,7 @@ contains
              if(currentSite%use_this_pft(pft).eq.itrue)then
              ! Seed input from local sources (within site)
 
-             litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)*(1-EDPftvarcon_inst%seed_dispersal_fraction(pft))/area ![kg/m2/day]
+             litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)*(1-site_disp_frac(pft))/area ![kg/m2/day]
              !write(fates_log(),*) 'pft, litt%seed_in_local(pft), site_seed_rain(pft): ', pft, litt%seed_in_local(pft), site_seed_rain(pft)
 
              ! If there is forced external seed rain, we calculate the input mass flux
@@ -1715,14 +1722,14 @@ contains
        enddo
 
         do pft = 1,numpft
-            site_mass%seed_out = site_mass%seed_out + site_seed_rain(pft)*EDPftvarcon_inst%seed_dispersal_fraction(pft) ![kg/site/day]
+            site_mass%seed_out = site_mass%seed_out + site_seed_rain(pft)*site_disp_frac(pft) ![kg/site/day]
             !write(fates_log(),*) 'pft, site_seed_rain(pft), site_mass%seed_out: ', pft, site_mass%seed_out
         end do
  
     end do
 
     do pft = 1,numpft
-        bc_out%seed_out(pft) = bc_out%seed_out(pft) + site_seed_rain(pft)*EDPftvarcon_inst%seed_dispersal_fraction(pft) ![kg/site/day]
+        bc_out%seed_out(pft) = bc_out%seed_out(pft) + site_seed_rain(pft)*site_disp_frac(pft) ![kg/site/day]
       !   write(fates_log(),*) 'pft, bc_in%seed_in(pft), bc_out%seed_out(pft): ', pft, bc_in%seed_in(pft), bc_out%seed_out(pft)
     end do
 
