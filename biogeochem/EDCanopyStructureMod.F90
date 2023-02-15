@@ -63,6 +63,9 @@ module EDCanopyStructureMod
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
 
+  integer :: istat           ! return status code
+  character(len=255) :: smsg ! Message string for deallocation errors
+  
   real(r8), parameter :: area_target_precision = 1.0E-11_r8  ! Area conservation
   ! will attempt to reduce errors
   ! below this level
@@ -337,10 +340,10 @@ contains
     use SFParamsMod, only : SF_val_CWD_frac
 
     ! !ARGUMENTS
-    type(ed_site_type), intent(inout), target  :: currentSite
-    type(ed_patch_type), intent(inout), target :: currentPatch
-    integer, intent(in)                        :: i_lyr   ! Current canopy layer of interest
-    type(bc_in_type), intent(in)               :: bc_in
+    type(ed_site_type), intent(inout)  :: currentSite
+    type(ed_patch_type), intent(inout) :: currentPatch
+    integer, intent(in)                :: i_lyr   ! Current canopy layer of interest
+    type(bc_in_type), intent(in)       :: bc_in
 
     ! !LOCAL VARIABLES:
     type(ed_cohort_type), pointer :: currentCohort
@@ -734,7 +737,11 @@ contains
                 ! put the litter from the terminated cohorts
                 ! straight into the fragmenting pools
                 call terminate_cohort(currentSite,currentPatch,currentCohort,bc_in)
-                deallocate(currentCohort)
+                deallocate(currentCohort, stat=istat, errmsg=smsg)
+                if (istat/=0) then
+                   write(fates_log(),*) 'dealloc012: fail on deallocate(currentCohort):'//trim(smsg)
+                   call endrun(msg=errMsg(sourcefile, __LINE__))
+                endif
              else
              call carea_allom(currentCohort%dbh,currentCohort%n, &
                   currentSite%spread,currentCohort%pft,currentCohort%crowndamage, &

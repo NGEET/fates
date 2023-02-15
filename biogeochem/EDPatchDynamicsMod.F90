@@ -141,6 +141,8 @@ module EDPatchDynamicsMod
   real(r8), parameter :: treefall_localization = 0.0_r8
   real(r8), parameter :: burn_localization = 0.0_r8
 
+  integer :: istat           ! return status code
+  character(len=255) :: smsg ! Message string for deallocation errors
   character(len=512) :: msg  ! Message string for warnings and logging
   
   ! 10/30/09: Created by Rosie Fisher
@@ -168,7 +170,7 @@ contains
 
   
     ! !ARGUMENTS:
-    type(ed_site_type) , intent(inout), target :: site_in
+    type(ed_site_type) , intent(inout) :: site_in
     type(bc_in_type) , intent(in) :: bc_in
     !
     ! !LOCAL VARIABLES:
@@ -408,8 +410,8 @@ contains
 
     !
     ! !ARGUMENTS:
-    type (ed_site_type), intent(inout), target :: currentSite
-    type (bc_in_type), intent(in)              :: bc_in
+    type (ed_site_type), intent(inout) :: currentSite
+    type (bc_in_type), intent(in)      :: bc_in
     !
     ! !LOCAL VARIABLES:
     type (ed_patch_type) , pointer :: new_patch
@@ -1106,8 +1108,11 @@ contains
 
                             ! Get rid of the new temporary cohort
                             call DeallocateCohort(nc)
-                            deallocate(nc)
-
+                            deallocate(nc, stat=istat, errmsg=smsg)
+                            if (istat/=0) then
+                               write(fates_log(),*) 'dealloc005: fail on deallocate(nc):'//trim(smsg)
+                               call endrun(msg=errMsg(sourcefile, __LINE__))
+                            endif
                          endif
 
                          currentCohort => currentCohort%taller
@@ -1245,7 +1250,7 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS:
-    type(ed_site_type), intent(inout), target  :: currentSite
+    type(ed_site_type), intent(inout) :: currentSite
     !
     ! !LOCAL VARIABLES:
     real(r8)                     :: areatot
@@ -1317,7 +1322,7 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS:
-    type(ed_site_type),intent(in), target :: currentSite 
+    type(ed_site_type),intent(in) :: currentSite 
     !
     ! !LOCAL VARIABLES:
     type(ed_patch_type), pointer :: currentPatch 
@@ -1399,11 +1404,11 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS:
-    type(ed_site_type)  , intent(in), target  :: currentSite        ! site
-    type(ed_patch_type) , intent(in), target  :: currentPatch       ! Donor patch
-    type(ed_patch_type) , intent(inout)       :: newPatch           ! New patch
-    real(r8)            , intent(in)          :: patch_site_areadis ! Area being donated
-                                                                    ! by current patch
+    type(ed_site_type)  , intent(in)    :: currentSite        ! site
+    type(ed_patch_type) , intent(in)    :: currentPatch       ! Donor patch
+    type(ed_patch_type) , intent(inout) :: newPatch           ! New patch
+    real(r8)            , intent(in)    :: patch_site_areadis ! Area being donated
+                                                              ! by current patch
 
     
     ! locals
@@ -2763,8 +2768,11 @@ contains
 
     ! We have no need for the dp pointer anymore, we have passed on it's legacy
     call dealloc_patch(dp)
-    deallocate(dp)
-
+    deallocate(dp, stat=istat, errmsg=smsg)
+    if (istat/=0) then
+       write(fates_log(),*) 'dealloc006: fail on deallocate(dp):'//trim(smsg)
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    endif
 
     if(associated(youngerp))then
        ! Update the younger patch's new older patch (because it isn't dp anymore)
@@ -3003,7 +3011,7 @@ contains
     ! to via the patch structure.  This subroutine DOES NOT deallocate the patch
     ! structure itself.
 
-    type(ed_patch_type), target :: cpatch
+    type(ed_patch_type) :: cpatch
 
     type(ed_cohort_type), pointer :: ccohort  ! current
     type(ed_cohort_type), pointer :: ncohort  ! next
@@ -3017,7 +3025,12 @@ contains
        ncohort => ccohort%taller
 
        call DeallocateCohort(ccohort)
-       deallocate(ccohort)
+       deallocate(ccohort, stat=istat, errmsg=smsg)
+       if (istat/=0) then
+          write(fates_log(),*) 'dealloc007: fail on deallocate(cchort):'//trim(smsg)
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       endif
+       
        ccohort => ncohort
 
     end do
@@ -3026,25 +3039,38 @@ contains
     do el=1,num_elements
        call cpatch%litter(el)%DeallocateLitt()
     end do
-    deallocate(cpatch%litter)
-
-    ! Secondly, and lastly, deallocate the allocatable vector spaces in the patch
-    if(allocated(cpatch%tr_soil_dir))then
-       deallocate(cpatch%tr_soil_dir)
-       deallocate(cpatch%tr_soil_dif)
-       deallocate(cpatch%tr_soil_dir_dif)
-       deallocate(cpatch%fab)
-       deallocate(cpatch%fabd)
-       deallocate(cpatch%fabi)
-       deallocate(cpatch%sabs_dir)
-       deallocate(cpatch%sabs_dif)
-       deallocate(cpatch%fragmentation_scaler)
-    end if
-
+    deallocate(cpatch%litter, stat=istat, errmsg=smsg)
+    if (istat/=0) then
+       write(fates_log(),*) 'dealloc008: fail on deallocate(cpatch%litter):'//trim(smsg)
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    endif
+    
+    ! Secondly, deallocate the allocatable vector spaces in the patch
+    deallocate(cpatch%tr_soil_dir, & 
+         cpatch%tr_soil_dif,       & 
+         cpatch%tr_soil_dir_dif,   & 
+         cpatch%fab,               &
+         cpatch%fabd,              &
+         cpatch%fabi,              &
+         cpatch%sabs_dir,          &
+         cpatch%sabs_dif,          &
+         cpatch%fragmentation_scaler, stat=istat, errmsg=smsg)
+    if (istat/=0) then
+       write(fates_log(),*) 'dealloc009: fail on deallocate patch vectors:'//trim(smsg)
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    endif
     
     ! Deallocate any running means
-    deallocate(cpatch%tveg24)
-    deallocate(cpatch%tveg_lpa)
+    deallocate(cpatch%tveg24, stat=istat, errmsg=smsg)
+    if (istat/=0) then
+       write(fates_log(),*) 'dealloc010: fail on deallocate(cpatch%tveg24):'//trim(smsg)
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    endif
+    deallocate(cpatch%tveg_lpa, stat=istat, errmsg=smsg)
+    if (istat/=0) then
+       write(fates_log(),*) 'dealloc011: fail on deallocate(cpatch%tveg_lpa):'//trim(smsg)
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    endif
     
     return
   end subroutine dealloc_patch
