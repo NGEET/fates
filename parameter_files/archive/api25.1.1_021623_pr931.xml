@@ -9,7 +9,7 @@
       <fates_dev_arbitrary_pft> 1.7560, 1.4995, 1.4995, 1.7560, 1.7560, 1.7560, 2.0749, 2.0749, 2.0749, 2.1956, 2.1956 </fates_dev_arbitrary_pft>
    </pft_group>
    <non_pft_group>
-      <fates_base_mr_20> 2.52e-06 </fates_base_mr_20>
+      <fates_base_mr_20> 2.525e-06 </fates_base_mr_20>
    </non_pft_group>
   </parameters>
 </all>

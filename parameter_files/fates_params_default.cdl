@@ -1404,7 +1404,7 @@ data:
  fates_turnover_leaf =
   1.5, 4, 1, 1.5, 1, 1, 1.5, 1, 1, 1, 1, 1 ;
 
- fates_base_mr_20 = 2.52e-06 ;
+ fates_base_mr_20 = 2.525e-06 ;
 
  fates_canopy_closure_thresh = 0.8 ;
 
