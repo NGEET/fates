@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<all>
+  <notes> This change is associated with FATES PR #931 </notes>
+  <base_file>archive/api25.1.0_021623_fates_params_default.cdl</base_file>
+  <new_file>fates_params_default.cdl</new_file>
+  <pft_trim_list> 1,2,3,4,5,6,7,8,9,10,11,12 </pft_trim_list>
+  <parameters>
+    <pft_group ids="1,2,3,4,5,6,7,8,9,10,11">
+      <fates_dev_arbitrary_pft> 1.7560, 1.4995, 1.4995, 1.7560, 1.7560, 1.7560, 2.0749, 2.0749, 2.0749, 2.1956, 2.1956 </fates_dev_arbitrary_pft>
+   </pft_group>
+   <non_pft_group>
+      <fates_base_mr_20> 2.52e-06 </fates_base_mr_20>
+   </non_pft_group>
+  </parameters>
+</all>
