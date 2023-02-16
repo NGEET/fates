@@ -459,23 +459,26 @@ contains
         return
 
      !When dbh is greater than the max size of a small branch (10 hr) but less than or 
-     !equal to the max size of a large branch we send the biomass that would have
-     !gone to trunk fuel to large branch fuel (100 hr) instead.
+     !equal to the max size of a large branch we redistribute the biomass among the smaller
+     !pools, keeping the biomass proportions the same among the combustible classes.
      else if (dbh > sb_max_diam .and. dbh .le. lb_max_diam) then
         SF_val_CWD_frac_adj(ncwd) = 0.0
-        SF_val_CWD_frac_adj(ncwd-1) = SF_val_CWD_frac(ncwd)
-	SF_val_CWD_frac_adj(ncwd-2) = SF_val_CWD_frac(ncwd-1)
-	SF_val_CWD_frac_adj(ncwd-3) = sum(SF_val_CWD_frac((ncwd-3):(ncwd-2)))
+        SF_val_CWD_frac_adj(ncwd-1) = SF_val_CWD_frac(ncwd-1) / (1.0_r - SF_val_CWD_frac(ncwd) )
+	SF_val_CWD_frac_adj(ncwd-2) = SF_val_CWD_frac(ncwd-2) / (1.0_r - SF_val_CWD_frac(ncwd) )
+	SF_val_CWD_frac_adj(ncwd-3) = SF_val_CWD_frac(ncwd-3) / (1.0_r - SF_val_CWD_frac(ncwd) )
+
 
      !When dbh is greater than the max size of a twig (1 hr) but less than or 
-     !equal to the max size of a small branch (10 hr) we send the biomass that would have
-     !gone to trunk fuel and large branch fuel to small branch fuel instead.
+     !equal to the max size of a small branch (10 hr) we redistribute the biomass among the smaller
+     !pools, keeping the biomass proportions the same among the combustible classes.
      else if (dbh > twig_max_diam .and. dbh .le. sb_max_diam) then
         SF_val_CWD_frac_adj(ncwd) = 0.0
         SF_val_CWD_frac_adj(ncwd-1) = 0.0
-        SF_val_CWD_frac_adj(ncwd-2) = SF_val_CWD_frac(ncwd)
-	SF_val_CWD_frac_adj(ncwd-3) = sum(SF_val_CWD_frac((ncwd-3):(ncwd-1)))
-     
+        SF_val_CWD_frac_adj(ncwd-2) = SF_val_CWD_frac(ncwd-2) / (1.0_r - (SF_val_CWD_frac(ncwd) + &
+                                      SF_val_CWD_frac(ncwd-1)))
+	SF_val_CWD_frac_adj(ncwd-3) = SF_val_CWD_frac(ncwd-3) / (1.0_r - (SF_val_CWD_frac(ncwd) + &
+                                      SF_val_CWD_frac(ncwd-1)))
+                                              
      !If dbh is less than or equal to the max size of a twig we send all 
      !biomass to twigs
      else if (dbh .le. twig_max_diam) then
