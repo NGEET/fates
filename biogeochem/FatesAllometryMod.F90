@@ -116,6 +116,7 @@ module FatesAllometryMod
   public :: bfineroot     ! Generic actual fine root biomass wrapper
   public :: bdead_allom   ! Generic bdead wrapper
   public :: carea_allom   ! Generic crown area wrapper
+  public :: carea_2pwr    ! crown area of single plant
   public :: bstore_allom  ! Generic maximum storage carbon wrapper
   public :: decay_coeff_kn
   public :: ForceDBH      ! Method to set DBH to sync with structure
