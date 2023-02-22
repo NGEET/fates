@@ -185,6 +185,7 @@ contains
 
     !FIX(SPM,032414) take this out.  On startup these values are all zero and on restart it
     !zeros out values read in the restart file
+    write(fates_log(),*) 'cwd fix 02223'
 
     ! Zero turnover rates and growth diagnostics
     call ZeroAllocationRates(currentSite)
