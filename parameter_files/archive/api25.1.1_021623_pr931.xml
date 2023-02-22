@@ -1,15 +1,31 @@
 <?xml version="1.0"?>
 <all>
-  <notes> This change is associated with FATES PR #931 </notes>
-  <base_file>archive/api25.1.0_021623_fates_params_default.cdl</base_file>
+  <!-- -->
+  <!-- This adds a new parameter for the Atkin respiration mode and -->
+  <!-- corrects a minor typo per PR 931 -->
+  <!-- Special mod types "variable_add": creates a new variable
+		 "dimension_add": creates a new dimension
+		 "variable_del": removes a variable, must include attribute "name" 
+		 "variable_change": change values in the parameter, possibly including the name, and
+                          this must also come with a name attribute as well -->
+  <!-- To change a dimension. The easiest way to script this, is to delete the variables
+		 that use it, delete the dimension. Re-add it with the new size, and then re-add
+		 the variables -->
+  <!-- -->
+  
+  <base_file>archive/api25.1.0_021623_fates_params_default.cdl </base_file>
   <new_file>fates_params_default.cdl</new_file>
-  <pft_trim_list> 1,2,3,4,5,6,7,8,9,10,11,12 </pft_trim_list>
-  <parameters>
-    <pft_group ids="1,2,3,4,5,6,7,8,9,10,11">
-      <fates_dev_arbitrary_pft> 1.7560, 1.4995, 1.4995, 1.7560, 1.7560, 1.7560, 2.0749, 2.0749, 2.0749, 2.1956, 2.1956 </fates_dev_arbitrary_pft>
-   </pft_group>
-   <non_pft_group>
-      <fates_base_mr_20> 2.525e-06 </fates_base_mr_20>
-   </non_pft_group>
-  </parameters>
+  <pft_list> 1,2,3,4,5,6,7,8,9,10,11,12 </pft_list>
+  <mods>
+   <mod type="variable_add">
+      <na> fates_maintresp_atkinetal2017model_baserate </na>
+      <di> fates_pft </di>
+      <un> umol CO2/m^2/s </un>
+      <ln> Leaf maintenance respiration base rate parameter (r0) per Atkin et al 2017  </ln>
+      <val> 1.7560, 1.4995, 1.4995, 1.7560, 1.7560, 1.7560, 2.0749, 2.0749, 2.0749, 2.1956, 2.1956, 0.0  </val>
+    </mod>
+    <mod type="variable_change" name="fates_base_mr_20">
+       <val> 2.525e-06 </val>
+     </mod>
+  </mods>
 </all>
