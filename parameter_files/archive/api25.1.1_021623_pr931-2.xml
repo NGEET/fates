@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<all>
+  <notes> This is PR 931 </notes>
+  <base_file>fates_params_default.cdl</base_file>
+  <new_file>fates_params_default.cdl</new_file>
+  <pft_trim_list>1,2,3,4,5,6,7,8,9,10,11,12</pft_trim_list>
+  <parameters>
+    <pft_group ids="1,2,3,4,5,6,7,8,9,10,11">
+      <fates_maintresp_atkinetal2017model_baserate> 1.7560, 1.4995, 1.4995, 1.7560, 1.7560, 1.7560, 2.0749, 2.0749, 2.0749, 2.1956, 2.1956  </fates_maintresp_atkinetal2017model_baserate>
+    </pft_group>
+  </parameters>
+</all>

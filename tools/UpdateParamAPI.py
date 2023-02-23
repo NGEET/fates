@@ -57,7 +57,6 @@ def str2ivec(numstr):
 def createvar(ncfile,paramname,dimnames,units,longname,dcode,sel_values):
 
     # Create a new netcdf variable inside an existing netcdf dataset (append)
-        
     ncvar = ncfile.createVariable(paramname,dcode,dimnames)
     ncvar.units = units
     ncvar.long_name = longname
@@ -226,7 +225,6 @@ def main():
     base_nc = os.popen('mktemp').read().rstrip('\n')
     gencmd = "ncgen -o "+base_nc+" "+base_cdl
     os.system(gencmd)
-    
     modlist = []
     for mod in modroot:
         if(not('type' in mod.attrib.keys())):
@@ -313,34 +311,41 @@ def main():
                 longname = mod.find('ln').text.strip()
             except:
                 print("no long-name (ln), exiting");exit(2)
-                
+
+            ncfile = netcdf.netcdf_file(base_nc,"a",mmap=False)
+
             try:
                 values = str2fvec(mod.find('val').text.strip())
             except:
-                try:
-                    values = mod.find('val').text.strip()
-                except:
-                    print("no values (val), exiting");exit(2)
+                # try:
+                if(isinstance(mod.find('val').text,type(None))):
+                    # values = mod.find('val').text.strip()
+                # except:
+                    print("Warning: no values (val). Setting undefined (i.e. '_'): {}\n".format(paramname))
+                    sel_values = ncfile.variables['fates_dev_arbitrary_pft'].data
+                    dcode = "d"
+                else:
+                    print("unknown values (val), exiting");exit(2)
 
+                    #print("no values (val), exiting");exit(2)
+            else:
             #code.interact(local=dict(globals(), **locals()))
             
-            if(dimnames[0]=='scalar' or dimnames[0]=='none' or dimnames[0]==''):
-                dimnames = ()
+                if(dimnames[0]=='scalar' or dimnames[0]=='none' or dimnames[0]==''):
+                    dimnames = ()
 
-            if(isinstance(values[0],str)):
-                dcode = "c"
-                values = values.split(',')
-                for i,val in enumerate(values):
-                    values[i] = val.strip()
-            elif(isinstance(values[0],float)):
-                dcode = "d"
-            else:
-                print("Unknown value type: {} {}".format(type(values[0]),paramname));exit(2)
+                if(isinstance(values[0],str)):
+                    dcode = "c"
+                    values = values.split(',')
+                    for i,val in enumerate(values):
+                        values[i] = val.strip()
+                elif(isinstance(values[0],float)):
+                    dcode = "d"
+                else:
+                    print("Unknown value type: {} {}".format(type(values[0]),paramname));exit(2)
 
-                
-            ncfile = netcdf.netcdf_file(base_nc,"a",mmap=False)
-            sel_values = selectvalues(ncfile,list(dimnames),ipft_list,values,dcode)
-            
+                sel_values = selectvalues(ncfile,list(dimnames),ipft_list,values,dcode)
+
             [ncfile,ncvar] = createvar(ncfile,paramname,dimnames,units,longname,dcode,sel_values)
             ncfile.flush()
             ncfile.close()
@@ -437,8 +442,6 @@ def main():
     # Dump the new file to the cdl
     os.system("ncdump "+new_nc+" > "+new_cdl)
 
-    
-    
     print("\nAPI update complete, see file: {}\n".format(new_cdl))
     
         

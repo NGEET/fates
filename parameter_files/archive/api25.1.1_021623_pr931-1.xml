@@ -1,8 +1,13 @@
 <?xml version="1.0"?>
 <all>
-  <!-- -->
+  <!-- NOTE: this xml patch file is the first of two patch files that must be -->
+  <!-- called sequentially.  To update the base parameter file (show below) take the -->
+  <!-- following steps from the parameter_file directory: -->
+  <!--    1. Run `python ../tools/UpdateParamAPI.py -\-f archive/api25.1.1_021623_pr931-1.xml` -->
+  <!--    2. Run `python ../tools/BatchPatchParams.py -\-f archive/api25.1.1_021623_pr931-2.xml` -->
   <!-- This adds a new parameter for the Atkin respiration mode and -->
   <!-- corrects a minor typo per PR 931 -->
+  <!-- General xml file usage notes: -->
   <!-- Special mod types "variable_add": creates a new variable
 		 "dimension_add": creates a new dimension
 		 "variable_del": removes a variable, must include attribute "name" 
@@ -22,7 +27,7 @@
       <di> fates_pft </di>
       <un> umol CO2/m^2/s </un>
       <ln> Leaf maintenance respiration base rate parameter (r0) per Atkin et al 2017  </ln>
-      <val> 1.7560, 1.4995, 1.4995, 1.7560, 1.7560, 1.7560, 2.0749, 2.0749, 2.0749, 2.1956, 2.1956, 0.0  </val>
+      <val></val>
     </mod>
     <mod type="variable_change" name="fates_base_mr_20">
        <val> 2.525e-06 </val>
