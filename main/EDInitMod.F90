@@ -62,7 +62,7 @@ module EDInitMod
   use FatesAllometryMod         , only : bsap_allom
   use FatesAllometryMod         , only : bdead_allom
   use FatesAllometryMod         , only : bstore_allom
-  use FatesAllometryMod         , only : carea_2pwr
+  use FatesAllometryMod         , only : carea_allom
   use PRTGenericMod             , only : StorageNutrientTarget
   use FatesInterfaceTypesMod,      only : hlm_parteh_mode
   use PRTGenericMod,          only : prt_carbon_allom_hyp
@@ -774,8 +774,8 @@ contains
     integer, parameter :: rstatus = 0
     integer init
 
-    logical  :: do_inverse
-    real(r8) :: c_area
+    real(r8) :: dummy_n    ! set cohort n to a dummy value of 1
+    real(r8) :: spread     ! dummy  value of canopy spread to estimate c_area
 
     !----------------------------------------------------------------------
 
@@ -822,8 +822,7 @@ contains
 
           if(EDPftvarcon_inst%initd(pft)>nearzero) then   ! interpret as initial density and calculate diameter
 
-             temp_cohort%n           = EDPftvarcon_inst%initd(pft) * patch_in%area
-
+        
              if(hlm_use_nocomp.eq.itrue)then !in nocomp mode we only have one PFT per patch
                 ! as opposed to numpft's. So we should up the initial density
                 ! to compensate (otherwise runs are very hard to compare)
@@ -832,7 +831,6 @@ contains
                 ! n.b. that this is the same as currentcohort%n = %initd(pft) &AREA
                 temp_cohort%n           =  temp_cohort%n * sum(site_in%use_this_pft)
              endif
-
 
              !  h,dbh,leafc,n from SP values or from small initial size.
              if(hlm_use_sp.eq.itrue)then
@@ -848,10 +846,6 @@ contains
                 ! Calculate the plant diameter from height
                 call h2d_allom(temp_cohort%hite,pft,temp_cohort%dbh)
 
-                ! Calculate the leaf biomass from allometry
-                ! (calculates a maximum first, then applies canopy trim)
-                call bleaf(temp_cohort%dbh,pft,temp_cohort%crowndamage, &
-                     temp_cohort%canopy_trim,c_leaf)
              endif  ! sp mode
 
           else ! interpret as initial diameter and calculate density 
@@ -859,18 +853,21 @@ contains
              temp_cohort%dbh = abs(EDPftvarcon_inst%initd(pft))
 
              ! calculate crown area of a single plant
-             do_inverse = .false.
+             dummy_n = 1.0_r8 ! make n=1 to get area of one tree
+             spread = 1.0_r8  ! fix this to 0 to remove dynamics of canopy clousre, assuming a closed canopy. 
 
-             call carea_2pwr(temp_cohort%dbh, site_in%spread, prt_params%allom_d2bl2(pft), &
-                  prt_params%allom_blca_expnt_diff(pft), prt_params%allom_d2ca_coefficient_min(pft), &
-                  prt_params%allom_d2ca_coefficient_max(pft), temp_cohort%crowndamage, &
-                  c_area, do_inverse)
+             call carea_allom(temp_cohort%dbh, dummy_n, spread, temp_cohort%pft, &
+                  temp_cohort%crowndamage, temp_cohort%c_area)
 
              ! calculate initial density required to close canopy 
-             temp_cohort%n  = patch_in%area / c_area
+             temp_cohort%n  = patch_in%area / temp_cohort%c_area
           endif
 
-
+          ! Calculate the leaf biomass from allometry
+          ! (calculates a maximum first, then applies canopy trim)
+          call bleaf(temp_cohort%dbh,pft,temp_cohort%crowndamage, &
+               temp_cohort%canopy_trim,c_leaf)
+          
           ! Calculate total above-ground biomass from allometry
           call bagw_allom(temp_cohort%dbh,pft,temp_cohort%crowndamage,c_agw)
 
@@ -989,6 +986,9 @@ contains
           call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, &
                temp_cohort%coage, temp_cohort%dbh, prt_obj, cstatus, rstatus,        &
                temp_cohort%canopy_trim, temp_cohort%c_area,1,temp_cohort%crowndamage, site_in%spread, bc_in)
+
+          write(fates_log(),*) 'c_area: ', temp_cohort%c_area
+          write(fates_log(),*) 'p_area: ', patch_in%area
 
           deallocate(temp_cohort) ! get rid of temporary cohort
 
