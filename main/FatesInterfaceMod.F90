@@ -32,6 +32,7 @@ module FatesInterfaceMod
    use EDTypesMod                , only : ed_patch_type
    use EDTypesMod                , only : ed_cohort_type
    use EDTypesMod                , only : area_inv
+   use EDTypesMod                , only : num_vegtemp_mem
    use FatesConstantsMod         , only : r8 => fates_r8
    use FatesConstantsMod         , only : itrue,ifalse
    use FatesConstantsMod         , only : nearzero
@@ -835,17 +836,14 @@ contains
          
          ! These values are used to define the restart file allocations and general structure
          ! of memory for the cohort arrays
-         
-         fates_maxElementsPerPatch = max(max_cohort_per_patch, ndcmpy*hlm_maxlevsoil ,ncwd*hlm_maxlevsoil)
-         
-         if (fates_maxPatchesPerSite * fates_maxElementsPerPatch <  numWaterMem) then
-            write(fates_log(), *) 'By using such a tiny number of maximum patches and maximum cohorts'
-            write(fates_log(), *) ' this could create problems for indexing in restart files'
-            write(fates_log(), *) ' The multiple of the two has to be greater than numWaterMem'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
+         if(hlm_use_sp.eq.itrue) then
+            fates_maxElementsPerPatch = maxSWb
+         else
+            fates_maxElementsPerPatch = max(maxSWb,max_cohort_per_patch, ndcmpy*hlm_maxlevsoil ,ncwd*hlm_maxlevsoil)
          end if
          
-         fates_maxElementsPerSite = fates_maxPatchesPerSite * fates_maxElementsPerPatch
+         fates_maxElementsPerSite = max(fates_maxPatchesPerSite * fates_maxElementsPerPatch, &
+              numWatermem, num_vegtemp_mem, num_elements, nlevsclass*numpft)
 
 
          ! Set the maximum number of nutrient aquisition competitors per site

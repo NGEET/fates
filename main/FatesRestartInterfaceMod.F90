@@ -974,115 +974,119 @@ contains
          long_name='are of the ED patch', units='m2', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_area_pa )
 
-    call this%set_restart_var(vname='fates_scorch_ht_pa_pft', vtype=cohort_r8, &
-         long_name='scorch height', units='m', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_scorch_ht_pa_pft)
-
-    call this%set_restart_var(vname='fates_litter_moisture_pa_nfsc', vtype=cohort_r8, &
-         long_name='scorch height', units='m', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_litter_moisture_pa_nfsc)
-
+    if(hlm_use_sp.eq.ifalse)then
+       call this%set_restart_var(vname='fates_scorch_ht_pa_pft', vtype=cohort_r8, &
+            long_name='scorch height', units='m', flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_scorch_ht_pa_pft)
+       
+       call this%set_restart_var(vname='fates_litter_moisture_pa_nfsc', vtype=cohort_r8, &
+            long_name='scorch height', units='m', flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_litter_moisture_pa_nfsc)
+    end if
+    
     ! Site Level Diagnostics over multiple nutrients
 
 
     ! Patch Level Litter Pools are potentially multi-element
-
-    call this%RegisterCohortVector(symbol_base='fates_ag_cwd', vtype=cohort_r8, &
+    if(hlm_use_sp.eq.ifalse)then
+       call this%RegisterCohortVector(symbol_base='fates_ag_cwd', vtype=cohort_r8, &
             long_name_base='above ground CWD',  &
             units='kg/m2', veclength=num_elements, flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_agcwd_litt)
 
-    call this%RegisterCohortVector(symbol_base='fates_bg_cwd', vtype=cohort_r8, &
+       call this%RegisterCohortVector(symbol_base='fates_bg_cwd', vtype=cohort_r8, &
             long_name_base='below ground CWD',  &
             units='kg/m2', veclength=num_elements, flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_bgcwd_litt)
 
-    call this%RegisterCohortVector(symbol_base='fates_leaf_fines', vtype=cohort_r8, &
+       call this%RegisterCohortVector(symbol_base='fates_leaf_fines', vtype=cohort_r8, &
             long_name_base='above ground leaf litter',  &
             units='kg/m2', veclength=num_elements, flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_leaf_litt)
 
-    call this%RegisterCohortVector(symbol_base='fates_fnrt_fines', vtype=cohort_r8, &
+       call this%RegisterCohortVector(symbol_base='fates_fnrt_fines', vtype=cohort_r8, &
             long_name_base='fine root litter',  &
             units='kg/m2', veclength=num_elements, flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fnrt_litt)
 
-    call this%RegisterCohortVector(symbol_base='fates_seed', vtype=cohort_r8, &
+       call this%RegisterCohortVector(symbol_base='fates_seed', vtype=cohort_r8, &
             long_name_base='seed bank (non-germinated)',  &
             units='kg/m2', veclength=num_elements, flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seed_litt)
 
-    call this%RegisterCohortVector(symbol_base='fates_seedgerm', vtype=cohort_r8, &
-           long_name_base='seed bank (germinated)',  &
-           units='kg/m2', veclength=num_elements, flushval = flushzero, &
-           hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seedgerm_litt)
+       call this%RegisterCohortVector(symbol_base='fates_seedgerm', vtype=cohort_r8, &
+            long_name_base='seed bank (germinated)',  &
+            units='kg/m2', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seedgerm_litt)
 
 
-    call this%RegisterCohortVector(symbol_base='fates_seed_frag', vtype=cohort_r8, &
+       call this%RegisterCohortVector(symbol_base='fates_seed_frag', vtype=cohort_r8, &
             long_name_base='seed bank fragmentation flux (non-germinated)',  &
             units='kg/m2', veclength=num_elements, flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seed_decay_litt)
 
-    call this%RegisterCohortVector(symbol_base='fates_seedgerm_frag', vtype=cohort_r8, &
-           long_name_base='seed bank fragmentation flux (germinated)',  &
-           units='kg/m2', veclength=num_elements, flushval = flushzero, &
-           hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seedgerm_decay_litt)
+       call this%RegisterCohortVector(symbol_base='fates_seedgerm_frag', vtype=cohort_r8, &
+            long_name_base='seed bank fragmentation flux (germinated)',  &
+            units='kg/m2', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seedgerm_decay_litt)
 
-    call this%RegisterCohortVector(symbol_base='fates_ag_cwd_frag', vtype=cohort_r8, &
+       call this%RegisterCohortVector(symbol_base='fates_ag_cwd_frag', vtype=cohort_r8, &
             long_name_base='above ground CWD frag flux',  &
             units='kg/m2/day', veclength=num_elements, flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_agcwd_frag_litt)
 
-    call this%RegisterCohortVector(symbol_base='fates_bg_cwd_frag', vtype=cohort_r8, &
+       call this%RegisterCohortVector(symbol_base='fates_bg_cwd_frag', vtype=cohort_r8, &
             long_name_base='below ground CWD frag flux',  &
             units='kg/m2/day', veclength=num_elements, flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_bgcwd_frag_litt)
 
-    call this%RegisterCohortVector(symbol_base='fates_lfines_frag', vtype=cohort_r8, &
+       call this%RegisterCohortVector(symbol_base='fates_lfines_frag', vtype=cohort_r8, &
             long_name_base='frag flux from leaf fines',  &
             units='kg/m2/day', veclength=num_elements, flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_lfines_frag_litt)
 
-    call this%RegisterCohortVector(symbol_base='fates_rfines_frag', vtype=cohort_r8, &
+       call this%RegisterCohortVector(symbol_base='fates_rfines_frag', vtype=cohort_r8, &
             long_name_base='frag flux from froot fines',  &
             units='kg/m2/day', veclength=num_elements, flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_rfines_frag_litt)
-
-
+    end if
+    
     ! Site level flux diagnostics for each element
-
-    call this%RegisterCohortVector(symbol_base='fates_cwdagin', vtype=cohort_r8, &
+    if(hlm_use_sp.eq.ifalse)then
+       call this%RegisterCohortVector(symbol_base='fates_cwdagin', vtype=cohort_r8, &
             long_name_base='Input flux of AG CWD', &
             units='kg/ha', veclength=num_elements, flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cwdagin_flxdg)
 
-    call this%RegisterCohortVector(symbol_base='fates_cwdbgin', vtype=cohort_r8, &
+       call this%RegisterCohortVector(symbol_base='fates_cwdbgin', vtype=cohort_r8, &
             long_name_base='Input flux of BG CWD', &
             units='kg/ha', veclength=num_elements, flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cwdbgin_flxdg)
 
-    call this%RegisterCohortVector(symbol_base='fates_leaflittin', vtype=cohort_r8, &
+       call this%RegisterCohortVector(symbol_base='fates_leaflittin', vtype=cohort_r8, &
             long_name_base='Input flux of leaf litter', &
             units='kg/ha', veclength=num_elements, flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_leaflittin_flxdg)
 
-    call this%RegisterCohortVector(symbol_base='fates_rootlittin', vtype=cohort_r8, &
-           long_name_base='Input flux of root litter', &
-           units='kg/ha', veclength=num_elements, flushval = flushzero, &
-           hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_rootlittin_flxdg)
+       call this%RegisterCohortVector(symbol_base='fates_rootlittin', vtype=cohort_r8, &
+            long_name_base='Input flux of root litter', &
+            units='kg/ha', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_rootlittin_flxdg)
 
-    ! Site level Mass Balance State Accounting
+       ! Site level Mass Balance State Accounting
 
-    call this%RegisterCohortVector(symbol_base='fates_oldstock', vtype=site_r8, &
-         long_name_base='Previous total mass of all fates state variables', &
-         units='kg/ha', veclength=num_elements, flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_oldstock_mbal)
+       call this%RegisterCohortVector(symbol_base='fates_oldstock', vtype=site_r8, &
+            long_name_base='Previous total mass of all fates state variables', &
+            units='kg/ha', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_oldstock_mbal)
 
-    call this%RegisterCohortVector(symbol_base='fates_errfates', vtype=site_r8, &
-         long_name_base='Previous total mass of error fates state variables', &
-         units='kg/ha', veclength=num_elements, flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_errfates_mbal)
+       call this%RegisterCohortVector(symbol_base='fates_errfates', vtype=site_r8, &
+            long_name_base='Previous total mass of error fates state variables', &
+            units='kg/ha', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_errfates_mbal)
 
+    end if
+    
     call this%RegisterCohortVector(symbol_base='fates_woodproduct', vtype=site_r8, &
          long_name_base='Current wood product flux', &
          units='kg/m2/day', veclength=num_elements, flushval = flushzero, &
@@ -2036,30 +2040,32 @@ contains
              rio_area_pft_sift(io_idx_co_1st+i_pft-1)      = sites(s)%area_pft(i_pft)
           end do
 
-          do el = 1, num_elements
 
-             io_idx_si_cwd = io_idx_co_1st
-             io_idx_si_pft = io_idx_co_1st
-             io_idx_si_scpf = io_idx_co_1st
+          if(hlm_use_sp.eq.ifalse)then
+             do el = 1, num_elements
 
-             do i_cwd=1,ncwd
-                this%rvars(ir_cwdagin_flxdg+el-1)%r81d(io_idx_si_cwd) = sites(s)%flux_diags(el)%cwd_ag_input(i_cwd)
-                this%rvars(ir_cwdbgin_flxdg+el-1)%r81d(io_idx_si_cwd) = sites(s)%flux_diags(el)%cwd_bg_input(i_cwd)
-                io_idx_si_cwd = io_idx_si_cwd + 1
+                io_idx_si_cwd = io_idx_co_1st
+                io_idx_si_pft = io_idx_co_1st
+                io_idx_si_scpf = io_idx_co_1st
+
+                do i_cwd=1,ncwd
+                   this%rvars(ir_cwdagin_flxdg+el-1)%r81d(io_idx_si_cwd) = sites(s)%flux_diags(el)%cwd_ag_input(i_cwd)
+                   this%rvars(ir_cwdbgin_flxdg+el-1)%r81d(io_idx_si_cwd) = sites(s)%flux_diags(el)%cwd_bg_input(i_cwd)
+                   io_idx_si_cwd = io_idx_si_cwd + 1
+                end do
+
+                do i_pft=1,numpft
+                   this%rvars(ir_leaflittin_flxdg+el-1)%r81d(io_idx_si_pft) = sites(s)%flux_diags(el)%leaf_litter_input(i_pft)
+                   this%rvars(ir_rootlittin_flxdg+el-1)%r81d(io_idx_si_pft) = sites(s)%flux_diags(el)%root_litter_input(i_pft)
+                   io_idx_si_pft = io_idx_si_pft + 1
+                end do
+
+                this%rvars(ir_oldstock_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%old_stock
+                this%rvars(ir_errfates_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%err_fates
+                this%rvars(ir_woodprod_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%wood_product
+
              end do
-
-             do i_pft=1,numpft
-                this%rvars(ir_leaflittin_flxdg+el-1)%r81d(io_idx_si_pft) = sites(s)%flux_diags(el)%leaf_litter_input(i_pft)
-                this%rvars(ir_rootlittin_flxdg+el-1)%r81d(io_idx_si_pft) = sites(s)%flux_diags(el)%root_litter_input(i_pft)
-                io_idx_si_pft = io_idx_si_pft + 1
-             end do
-
-             this%rvars(ir_oldstock_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%old_stock
-             this%rvars(ir_errfates_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%err_fates
-             this%rvars(ir_woodprod_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%wood_product
-             
-          end do
-
+          end if
 
           ! canopy spread term
           rio_spread_si(io_idx_si)   = sites(s)%spread
@@ -2246,67 +2252,70 @@ contains
                       ,io_idx_co,cohortsperpatch
              endif
 
-             io_idx_pa_pft  = io_idx_co_1st
-             do i = 1,numpft
-                this%rvars(ir_scorch_ht_pa_pft)%r81d(io_idx_pa_pft) = cpatch%scorch_ht(i)
-                io_idx_pa_pft      = io_idx_pa_pft + 1
-             end do
 
-             io_idx_pa_cwd  = io_idx_co_1st
-             do i = 1,nfsc
-                this%rvars(ir_litter_moisture_pa_nfsc)%r81d(io_idx_pa_cwd) = cpatch%litter_moisture(i)
-                io_idx_pa_cwd      = io_idx_pa_cwd + 1
-             end do
+             if(hlm_use_sp.eq.ifalse)then
 
-             ! --------------------------------------------------------------------------
-             ! Send litter to the restart arrays
-             ! Each element has its own variable, so we have to make sure
-             ! we keep re-setting this
-             ! --------------------------------------------------------------------------
+                io_idx_pa_pft  = io_idx_co_1st
+                do i = 1,numpft
+                   this%rvars(ir_scorch_ht_pa_pft)%r81d(io_idx_pa_pft) = cpatch%scorch_ht(i)
+                   io_idx_pa_pft      = io_idx_pa_pft + 1
+                end do
 
-             do el = 0, num_elements-1
+                io_idx_pa_cwd  = io_idx_co_1st
+                do i = 1,nfsc
+                   this%rvars(ir_litter_moisture_pa_nfsc)%r81d(io_idx_pa_cwd) = cpatch%litter_moisture(i)
+                   io_idx_pa_cwd      = io_idx_pa_cwd + 1
+                end do
 
-                 io_idx_pa_pft  = io_idx_co_1st
-                 io_idx_pa_cwd  = io_idx_co_1st
-                 io_idx_pa_cwsl = io_idx_co_1st
-                 io_idx_pa_dcsl = io_idx_co_1st
-                 io_idx_pa_dc   = io_idx_co_1st
+                ! --------------------------------------------------------------------------
+                ! Send litter to the restart arrays
+                ! Each element has its own variable, so we have to make sure
+                ! we keep re-setting this
+                ! --------------------------------------------------------------------------
 
-                 litt => cpatch%litter(el+1)
+                do el = 0, num_elements-1
 
-                 do i = 1,numpft
-                    this%rvars(ir_seed_litt+el)%r81d(io_idx_pa_pft) = litt%seed(i)
-                    this%rvars(ir_seedgerm_litt+el)%r81d(io_idx_pa_pft) = litt%seed_germ(i)
-                    this%rvars(ir_seed_decay_litt+el)%r81d(io_idx_pa_pft) = litt%seed_decay(i)
-                    this%rvars(ir_seedgerm_decay_litt+el)%r81d(io_idx_pa_pft) = litt%seed_germ_decay(i)
-                    io_idx_pa_pft = io_idx_pa_pft + 1
-                 end do
+                   io_idx_pa_pft  = io_idx_co_1st
+                   io_idx_pa_cwd  = io_idx_co_1st
+                   io_idx_pa_cwsl = io_idx_co_1st
+                   io_idx_pa_dcsl = io_idx_co_1st
+                   io_idx_pa_dc   = io_idx_co_1st
+
+                   litt => cpatch%litter(el+1)
+
+                   do i = 1,numpft
+                      this%rvars(ir_seed_litt+el)%r81d(io_idx_pa_pft) = litt%seed(i)
+                      this%rvars(ir_seedgerm_litt+el)%r81d(io_idx_pa_pft) = litt%seed_germ(i)
+                      this%rvars(ir_seed_decay_litt+el)%r81d(io_idx_pa_pft) = litt%seed_decay(i)
+                      this%rvars(ir_seedgerm_decay_litt+el)%r81d(io_idx_pa_pft) = litt%seed_germ_decay(i)
+                      io_idx_pa_pft = io_idx_pa_pft + 1
+                   end do
 
 
-                 do i = 1,ndcmpy
-                     this%rvars(ir_leaf_litt+el)%r81d(io_idx_pa_dc) = litt%leaf_fines(i)
-                     this%rvars(ir_lfines_frag_litt+el)%r81d(io_idx_pa_dc) = litt%leaf_fines_frag(i)
-                     io_idx_pa_dc = io_idx_pa_dc + 1
-                     do ilyr=1,sites(s)%nlevsoil
+                   do i = 1,ndcmpy
+                      this%rvars(ir_leaf_litt+el)%r81d(io_idx_pa_dc) = litt%leaf_fines(i)
+                      this%rvars(ir_lfines_frag_litt+el)%r81d(io_idx_pa_dc) = litt%leaf_fines_frag(i)
+                      io_idx_pa_dc = io_idx_pa_dc + 1
+                      do ilyr=1,sites(s)%nlevsoil
                          this%rvars(ir_fnrt_litt+el)%r81d(io_idx_pa_dcsl) = litt%root_fines(i,ilyr)
                          this%rvars(ir_rfines_frag_litt+el)%r81d(io_idx_pa_dcsl) = litt%root_fines_frag(i,ilyr)
                          io_idx_pa_dcsl = io_idx_pa_dcsl + 1
-                     end do
-                 end do
+                      end do
+                   end do
 
-                 do i = 1,ncwd
-                     this%rvars(ir_agcwd_litt+el)%r81d(io_idx_pa_cwd) = litt%ag_cwd(i)
-                     this%rvars(ir_agcwd_frag_litt+el)%r81d(io_idx_pa_cwd) = litt%ag_cwd_frag(i)
-                     io_idx_pa_cwd = io_idx_pa_cwd + 1
-                     do ilyr=1,sites(s)%nlevsoil
+                   do i = 1,ncwd
+                      this%rvars(ir_agcwd_litt+el)%r81d(io_idx_pa_cwd) = litt%ag_cwd(i)
+                      this%rvars(ir_agcwd_frag_litt+el)%r81d(io_idx_pa_cwd) = litt%ag_cwd_frag(i)
+                      io_idx_pa_cwd = io_idx_pa_cwd + 1
+                      do ilyr=1,sites(s)%nlevsoil
                          this%rvars(ir_bgcwd_litt+el)%r81d(io_idx_pa_cwsl) = litt%bg_cwd(i,ilyr)
                          this%rvars(ir_bgcwd_frag_litt+el)%r81d(io_idx_pa_cwsl) = litt%bg_cwd_frag(i,ilyr)
                          io_idx_pa_cwsl = io_idx_pa_cwsl + 1
-                     end do
-                 end do
+                      end do
+                   end do
 
-             end do
-
+                end do
+             end if
 
              do i = 1,maxSWb
                 rio_gnd_alb_dif_pasb(io_idx_pa_ib) = cpatch%gnd_alb_dif(i)
@@ -2930,29 +2939,31 @@ contains
           endif
 
           ! Mass balance and diagnostics across elements at the site level
-          do el = 1, num_elements
+          if(hlm_use_sp.eq.ifalse)then
+             do el = 1, num_elements
 
-             io_idx_si_cwd = io_idx_co_1st
-             io_idx_si_pft = io_idx_co_1st
-             io_idx_si_scpf = io_idx_co_1st
+                io_idx_si_cwd = io_idx_co_1st
+                io_idx_si_pft = io_idx_co_1st
+                io_idx_si_scpf = io_idx_co_1st
 
-             do i_cwd=1,ncwd
-                sites(s)%flux_diags(el)%cwd_ag_input(i_cwd) = this%rvars(ir_cwdagin_flxdg+el-1)%r81d(io_idx_si_cwd)
-                sites(s)%flux_diags(el)%cwd_bg_input(i_cwd) = this%rvars(ir_cwdbgin_flxdg+el-1)%r81d(io_idx_si_cwd)
-                io_idx_si_cwd = io_idx_si_cwd + 1
+                do i_cwd=1,ncwd
+                   sites(s)%flux_diags(el)%cwd_ag_input(i_cwd) = this%rvars(ir_cwdagin_flxdg+el-1)%r81d(io_idx_si_cwd)
+                   sites(s)%flux_diags(el)%cwd_bg_input(i_cwd) = this%rvars(ir_cwdbgin_flxdg+el-1)%r81d(io_idx_si_cwd)
+                   io_idx_si_cwd = io_idx_si_cwd + 1
+                end do
+
+                do i_pft=1,numpft
+                   sites(s)%flux_diags(el)%leaf_litter_input(i_pft) = this%rvars(ir_leaflittin_flxdg+el-1)%r81d(io_idx_si_pft)
+                   sites(s)%flux_diags(el)%root_litter_input(i_pft) = this%rvars(ir_rootlittin_flxdg+el-1)%r81d(io_idx_si_pft)
+                   io_idx_si_pft = io_idx_si_pft + 1
+                end do
+
+                sites(s)%mass_balance(el)%old_stock = this%rvars(ir_oldstock_mbal+el-1)%r81d(io_idx_si)
+                sites(s)%mass_balance(el)%err_fates = this%rvars(ir_errfates_mbal+el-1)%r81d(io_idx_si)
+                sites(s)%mass_balance(el)%wood_product = this%rvars(ir_woodprod_mbal+el-1)%r81d(io_idx_si)
              end do
-
-             do i_pft=1,numpft
-                sites(s)%flux_diags(el)%leaf_litter_input(i_pft) = this%rvars(ir_leaflittin_flxdg+el-1)%r81d(io_idx_si_pft)
-                sites(s)%flux_diags(el)%root_litter_input(i_pft) = this%rvars(ir_rootlittin_flxdg+el-1)%r81d(io_idx_si_pft)
-                io_idx_si_pft = io_idx_si_pft + 1
-             end do
-
-             sites(s)%mass_balance(el)%old_stock = this%rvars(ir_oldstock_mbal+el-1)%r81d(io_idx_si)
-             sites(s)%mass_balance(el)%err_fates = this%rvars(ir_errfates_mbal+el-1)%r81d(io_idx_si)
-             sites(s)%mass_balance(el)%wood_product = this%rvars(ir_woodprod_mbal+el-1)%r81d(io_idx_si)
-          end do
-
+          end if
+          
           sites(s)%spread = rio_spread_si(io_idx_si)
 
           ! Perform a check on the number of patches per site
@@ -3128,69 +3139,73 @@ contains
                      ,io_idx_co,cohortsperpatch
              endif
 
-             io_idx_pa_pft  = io_idx_co_1st
-             do i = 1,numpft
-                cpatch%scorch_ht(i) = this%rvars(ir_scorch_ht_pa_pft)%r81d(io_idx_pa_pft)
-                io_idx_pa_pft      = io_idx_pa_pft + 1
-             end do
+             if(hlm_use_sp.eq.ifalse)then
 
-             io_idx_pa_cwd  = io_idx_co_1st
-             do i = 1,nfsc
-                cpatch%litter_moisture(i) = this%rvars(ir_litter_moisture_pa_nfsc)%r81d(io_idx_pa_cwd)
-                io_idx_pa_cwd      = io_idx_pa_cwd + 1
-             end do
+                io_idx_pa_pft  = io_idx_co_1st
+                do i = 1,numpft
+                   cpatch%scorch_ht(i) = this%rvars(ir_scorch_ht_pa_pft)%r81d(io_idx_pa_pft)
+                   io_idx_pa_pft      = io_idx_pa_pft + 1
+                end do
 
-             ! --------------------------------------------------------------------------
-             ! Pull litter from the restart arrays
-             ! Each element has its own variable, so we have to make sure
-             ! we keep re-setting this
-             ! --------------------------------------------------------------------------
+                io_idx_pa_cwd  = io_idx_co_1st
+                do i = 1,nfsc
+                   cpatch%litter_moisture(i) = this%rvars(ir_litter_moisture_pa_nfsc)%r81d(io_idx_pa_cwd)
+                   io_idx_pa_cwd      = io_idx_pa_cwd + 1
+                end do
 
-             do el = 0, num_elements-1
+                ! --------------------------------------------------------------------------
+                ! Pull litter from the restart arrays
+                ! Each element has its own variable, so we have to make sure
+                ! we keep re-setting this
+                ! --------------------------------------------------------------------------
 
-                 io_idx_pa_pft  = io_idx_co_1st
-                 io_idx_pa_cwd  = io_idx_co_1st
-                 io_idx_pa_cwsl = io_idx_co_1st
-                 io_idx_pa_dcsl = io_idx_co_1st
-                 io_idx_pa_dc   = io_idx_co_1st
+                do el = 0, num_elements-1
 
-                 litt => cpatch%litter(el+1)
-                 nlevsoil = size(litt%bg_cwd,dim=2)
+                   io_idx_pa_pft  = io_idx_co_1st
+                   io_idx_pa_cwd  = io_idx_co_1st
+                   io_idx_pa_cwsl = io_idx_co_1st
+                   io_idx_pa_dcsl = io_idx_co_1st
+                   io_idx_pa_dc   = io_idx_co_1st
 
-                 do i = 1,numpft
-                     litt%seed(i)       = this%rvars(ir_seed_litt+el)%r81d(io_idx_pa_pft)
-                     litt%seed_germ(i)  = this%rvars(ir_seedgerm_litt+el)%r81d(io_idx_pa_pft)
-                     litt%seed_decay(i)       = this%rvars(ir_seed_decay_litt+el)%r81d(io_idx_pa_pft)
-                     litt%seed_germ_decay(i)  = this%rvars(ir_seedgerm_decay_litt+el)%r81d(io_idx_pa_pft)
-                     io_idx_pa_pft      = io_idx_pa_pft + 1
-                  end do
+                   litt => cpatch%litter(el+1)
+                   nlevsoil = size(litt%bg_cwd,dim=2)
 
-                  do i = 1,ndcmpy
-                     litt%leaf_fines(i) = this%rvars(ir_leaf_litt+el)%r81d(io_idx_pa_dc)
-                     litt%leaf_fines_frag(i) = this%rvars(ir_lfines_frag_litt+el)%r81d(io_idx_pa_dc)
-                     io_idx_pa_dc       = io_idx_pa_dc + 1
-                     do ilyr=1,nlevsoil
+                   do i = 1,numpft
+                      litt%seed(i)       = this%rvars(ir_seed_litt+el)%r81d(io_idx_pa_pft)
+                      litt%seed_germ(i)  = this%rvars(ir_seedgerm_litt+el)%r81d(io_idx_pa_pft)
+                      litt%seed_decay(i)       = this%rvars(ir_seed_decay_litt+el)%r81d(io_idx_pa_pft)
+                      litt%seed_germ_decay(i)  = this%rvars(ir_seedgerm_decay_litt+el)%r81d(io_idx_pa_pft)
+                      io_idx_pa_pft      = io_idx_pa_pft + 1
+                   end do
+
+                   do i = 1,ndcmpy
+                      litt%leaf_fines(i) = this%rvars(ir_leaf_litt+el)%r81d(io_idx_pa_dc)
+                      litt%leaf_fines_frag(i) = this%rvars(ir_lfines_frag_litt+el)%r81d(io_idx_pa_dc)
+                      io_idx_pa_dc       = io_idx_pa_dc + 1
+                      do ilyr=1,nlevsoil
                          litt%root_fines(i,ilyr)      = this%rvars(ir_fnrt_litt+el)%r81d(io_idx_pa_dcsl)
                          litt%root_fines_frag(i,ilyr) = this%rvars(ir_rfines_frag_litt+el)%r81d(io_idx_pa_dcsl)
                          io_idx_pa_dcsl = io_idx_pa_dcsl + 1
-                     end do
-                 end do
+                      end do
+                   end do
 
-                 do i = 1,ncwd
+                   do i = 1,ncwd
 
-                     litt%ag_cwd(i) = this%rvars(ir_agcwd_litt+el)%r81d(io_idx_pa_cwd)
-                     litt%ag_cwd_frag(i) = this%rvars(ir_agcwd_frag_litt+el)%r81d(io_idx_pa_cwd)
-                     io_idx_pa_cwd = io_idx_pa_cwd + 1
+                      litt%ag_cwd(i) = this%rvars(ir_agcwd_litt+el)%r81d(io_idx_pa_cwd)
+                      litt%ag_cwd_frag(i) = this%rvars(ir_agcwd_frag_litt+el)%r81d(io_idx_pa_cwd)
+                      io_idx_pa_cwd = io_idx_pa_cwd + 1
 
-                     do ilyr=1,nlevsoil
+                      do ilyr=1,nlevsoil
                          litt%bg_cwd(i,ilyr) = this%rvars(ir_bgcwd_litt+el)%r81d(io_idx_pa_cwsl)
                          litt%bg_cwd_frag(i,ilyr) = this%rvars(ir_bgcwd_frag_litt+el)%r81d(io_idx_pa_cwsl)
                          io_idx_pa_cwsl = io_idx_pa_cwsl + 1
-                     end do
-                 end do
+                      end do
+                   end do
 
-             end do
+                end do
+             end if
 
+             
              do i = 1,maxSWb
                 cpatch%gnd_alb_dif(i) = rio_gnd_alb_dif_pasb(io_idx_pa_ib)
                 cpatch%gnd_alb_dir(i) = rio_gnd_alb_dir_pasb(io_idx_pa_ib)
@@ -3447,10 +3462,8 @@ contains
                  bc_out(s)%fabi_parb(ifp,:) = 0.0_r8
                  do ib = 1,hlm_numSWb
 
-                    ! REQUIRES A FIX HERE albd vs albi
-
                     bc_out(s)%albd_parb(ifp,ib) = currentPatch%gnd_alb_dir(ib)
-                    bc_out(s)%albd_parb(ifp,ib) = currentPatch%gnd_alb_dif(ib)
+                    bc_out(s)%albi_parb(ifp,ib) = currentPatch%gnd_alb_dif(ib)
                     bc_out(s)%ftdd_parb(ifp,ib)= 1.0_r8
                     bc_out(s)%ftid_parb(ifp,ib)= 1.0_r8
                     bc_out(s)%ftii_parb(ifp,ib)= 1.0_r8
