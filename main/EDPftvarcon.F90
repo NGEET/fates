@@ -430,9 +430,9 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    !name = 'fates_maintresp_atkinetal2017model_baserate'
-    !call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-    !     dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    name = 'fates_maintresp_atkinetal2017model_baserate'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+        dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_prescribed_npp_canopy'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
@@ -782,9 +782,9 @@ contains
     call fates_params%RetrieveParameterAllocate(name=name, &
           data=this%maintresp_reduction_intercept)
 
-    !name = 'fates_maintresp_atkinetal2017model_baserate'
-    !call fates_params%RetrieveParameterAllocate(name=name, &
-    !      data=this%maintresp_atkinetal2017model_baserate)
+    name = 'fates_maintresp_atkinetal2017model_baserate'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%maintresp_atkinetal2017model_baserate)
 
     name = 'fates_prescribed_npp_canopy'
     call fates_params%RetrieveParameterAllocate(name=name, &
