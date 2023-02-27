@@ -42,7 +42,7 @@ module FATESPlantRespPhotosynthMod
   use PRTGenericMod,     only : max_nleafage
   use EDTypesMod,        only : do_fates_salinity
   use EDParamsMod,       only : q10_mr
-  use EDParamsMod,       only : maintresp_model
+  use EDParamsMod,       only : maintresp_leaf_model
   use FatesConstantsMod, only : lmrmodel_ryan_1991
   use FatesConstantsMod, only : lmrmodel_atkin_etal_2017
   use PRTGenericMod,     only : prt_carbon_allom_hyp
@@ -55,7 +55,7 @@ module FATESPlantRespPhotosynthMod
   use PRTGenericMod,     only : store_organ
   use PRTGenericMod,     only : repro_organ
   use PRTGenericMod,     only : struct_organ
-  use EDParamsMod,       only : ED_val_base_mr_20, stomatal_model, stomatal_assim_model
+  use EDParamsMod,       only : maintresp_nonleaf_baserate, stomatal_model, stomatal_assim_model
   use PRTParametersMod,  only : prt_params
   use EDPftvarcon         , only : EDPftvarcon_inst
   
@@ -527,12 +527,13 @@ contains
 
                                ! C3 plants
                                if_c3: if ( nint(EDPftvarcon_inst%c3psn(ft)) == 1 ) then
-                                  select case (maintresp_model)
+                                  select case (maintresp_leaf_model)
 
                                   case (lmrmodel_ryan_1991)
 
                                      call LeafLayerMaintenanceRespiration_Ryan_1991( lnc_top,     &  ! in
                                           nscaler,                  &  ! in
+                                          ft,                       &  ! in
                                           bc_in(s)%t_veg_pa(ifp),   &  ! in
                                           lmr_z(iv,ft,cl))             ! out
 
@@ -777,7 +778,7 @@ contains
                       if ( int(woody(ft)) == itrue) then
                          tcwood = q10_mr**((bc_in(s)%t_veg_pa(ifp)-tfrz - 20.0_r8)/10.0_r8)
                          ! kgC/s = kgN * kgC/kgN/s
-                         currentCohort%livestem_mr  = live_stem_n * ED_val_base_mr_20 * tcwood * maintresp_reduction_factor
+                         currentCohort%livestem_mr  = live_stem_n * maintresp_nonleaf_baserate * tcwood * maintresp_reduction_factor
                       else
                          currentCohort%livestem_mr  = 0._r8
                       end if
@@ -796,7 +797,7 @@ contains
                       do j = 1,bc_in(s)%nlevsoil
                          tcsoi  = q10_mr**((bc_in(s)%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
                          
-                         fnrt_mr_layer = fnrt_n * ED_val_base_mr_20 * tcsoi * rootfr_ft(ft,j) * maintresp_reduction_factor
+                         fnrt_mr_layer = fnrt_n * maintresp_nonleaf_baserate * tcsoi * rootfr_ft(ft,j) * maintresp_reduction_factor
 
                          ! calculate the cost of carbon for N fixation in each soil layer and calculate N fixation rate based on that [kgC / kgN]
 
@@ -817,7 +818,7 @@ contains
                             ! Soil temperature used to adjust base rate of MR
                             tcsoi  = q10_mr**((bc_in(s)%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
                             currentCohort%livecroot_mr = currentCohort%livecroot_mr + &
-                                 live_croot_n * ED_val_base_mr_20 * tcsoi * &
+                                 live_croot_n * maintresp_nonleaf_baserate * tcsoi * &
                                  rootfr_ft(ft,j) * maintresp_reduction_factor
                          enddo
                       else
@@ -2073,6 +2074,7 @@ end subroutine GetCanopyGasParameters
 
 subroutine LeafLayerMaintenanceRespiration_Ryan_1991(lnc_top, &
    nscaler,   &
+   ft, &
    veg_tempk,     &
    lmr)
 
@@ -2082,17 +2084,17 @@ subroutine LeafLayerMaintenanceRespiration_Ryan_1991(lnc_top, &
    use EDPftvarcon      , only : EDPftvarcon_inst
 
    ! -----------------------------------------------------------------------
-   ! Base maintenance respiration rate for plant tissues base_mr_20
+   ! Base maintenance respiration rate for plant tissues maintresp_leaf_ryan1991_baserate
    ! M. Ryan, 1991. Effects of climate change on plant respiration.
    ! Ecological Applications, 1(2), 157-167.
    ! Original expression is br = 0.0106 molC/(molN h)
    ! Conversion by molecular weights of C and N gives 2.525e-6 gC/(gN s)
-   ! Which is the default value of ED_val_base_mr_20
+   ! Which is the default value of maintresp_nonleaf_baserate
 
    ! Arguments
    real(r8), intent(in)  :: lnc_top       ! Leaf nitrogen content per unit area at canopy top [gN/m2]
-
    real(r8), intent(in)  :: nscaler      ! Scale for leaf nitrogen profile
+   integer,  intent(in)  :: ft           ! (plant) Functional Type Index
    real(r8), intent(in)  :: veg_tempk    ! vegetation temperature
    real(r8), intent(out) :: lmr          ! Leaf Maintenance Respiration  (umol CO2/m**2/s)
 
@@ -2107,7 +2109,7 @@ subroutine LeafLayerMaintenanceRespiration_Ryan_1991(lnc_top, &
    real(r8), parameter :: lmrc = 1.15912391_r8 ! scaling factor for high
    ! temperature inhibition (25 C = 1.0)
 
-   lmr25top = ED_val_base_mr_20 * (1.5_r8 ** ((25._r8 - 20._r8)/10._r8))
+   lmr25top = EDPftvarcon_inst%maintresp_leaf_ryan1991_baserate(ft) * (1.5_r8 ** ((25._r8 - 20._r8)/10._r8))
    lmr25top = lmr25top * lnc_top / (umolC_to_kgC * g_per_kg)
 
 
@@ -2149,7 +2151,6 @@ subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, &
    real(r8) :: lmr25   ! leaf layer: leaf maintenance respiration rate at 25C (umol CO2/m**2/s)
    real(r8) :: r_0     ! base respiration rate, PFT-dependent (umol CO2/m**2/s)
    real(r8) :: r_t_ref ! acclimated ref respiration rate (umol CO2/m**2/s)
-   real(r8) :: lnc     ! Leaf nitrogen content per unit area at this level [gN/m2] 
    real(r8) :: lmr25top  ! canopy top leaf maint resp rate at 25C for this pft (umol CO2/m**2/s)
 
    ! Parameters
@@ -2172,7 +2173,7 @@ subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, &
 
    ! r_0 currently put into the EDPftvarcon_inst%dev_arbitrary_pft
    ! all figs in Atkin et al 2017 stop at zero Celsius so we will assume acclimation is fixed below that
-   r_0 = EDPftvarcon_inst%maintresp_atkinetal2017model_baserate(ft)
+   r_0 = EDPftvarcon_inst%maintresp_leaf_atkin2017_baserate(ft)
    r_t_ref = nscaler * (r_0 + r_1 * lnc_top + r_2 * max(0._r8, (tgrowth - tfrz) ))
 
    lmr = r_t_ref * exp(b * (veg_tempk - tfrz - TrefC) + c * ((veg_tempk-tfrz)**2 - TrefC**2))
@@ -2192,12 +2193,12 @@ subroutine LeafLayerMaintenanceRespiration_C4(lnc_top, &
    use EDPftvarcon      , only : EDPftvarcon_inst
 
    ! -----------------------------------------------------------------------
-   ! Base maintenance respiration rate for plant tissues base_mr_20
+   ! Base maintenance respiration rate for plant tissues maintresp_nonleaf_baserate
    ! M. Ryan, 1991. Effects of climate change on plant respiration.
    ! Ecological Applications, 1(2), 157-167.
    ! Original expression is br = 0.0106 molC/(molN h)
    ! Conversion by molecular weights of C and N gives 2.525e-6 gC/(gN s)
-   ! Which is the default value of ED_val_base_mr_20
+   ! Which is the default value of maintresp_nonleaf_baserate
 
    ! This contains the original C4 dark respiraiton logic from CLM, which uses a different
    ! temperature scaling than for C3 plants
@@ -2214,7 +2215,7 @@ subroutine LeafLayerMaintenanceRespiration_C4(lnc_top, &
    real(r8) :: lmr25top  ! canopy top leaf maint resp rate at 25C for this pft (umol CO2/m**2/s)
 
 
-   lmr25top = ED_val_base_mr_20 * (1.5_r8 ** ((25._r8 - 20._r8)/10._r8))
+   lmr25top = maintresp_nonleaf_baserate * (1.5_r8 ** ((25._r8 - 20._r8)/10._r8))
    lmr25top = lmr25top * lnc_top / (umolC_to_kgC * g_per_kg)
 
 
