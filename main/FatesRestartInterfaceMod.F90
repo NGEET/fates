@@ -3463,7 +3463,7 @@ contains
                  do ib = 1,hlm_numSWb
 
                     bc_out(s)%albd_parb(ifp,ib) = currentPatch%gnd_alb_dir(ib)
-                    bc_out(s)%albi_parb(ifp,ib) = currentPatch%gnd_alb_dif(ib)
+                    bc_out(s)%albd_parb(ifp,ib) = currentPatch%gnd_alb_dif(ib)
                     bc_out(s)%ftdd_parb(ifp,ib)= 1.0_r8
                     bc_out(s)%ftid_parb(ifp,ib)= 1.0_r8
                     bc_out(s)%ftii_parb(ifp,ib)= 1.0_r8
