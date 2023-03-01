@@ -525,41 +525,31 @@ contains
 
                                ! Part VII: Calculate dark respiration (leaf maintenance) for this layer
 
-                               ! C3 plants
-                               if_c3: if ( nint(EDPftvarcon_inst%c3psn(ft)) == 1 ) then
-                                  select case (maintresp_model)
+                               select case (maintresp_model)
 
-                                  case (lmrmodel_ryan_1991)
+                               case (lmrmodel_ryan_1991)
 
-                                     call LeafLayerMaintenanceRespiration_Ryan_1991( lnc_top,     &  ! in
-                                          nscaler,                  &  ! in
-                                          bc_in(s)%t_veg_pa(ifp),   &  ! in
-                                          lmr_z(iv,ft,cl))             ! out
-
-                                  case (lmrmodel_atkin_etal_2017)
-
-                                     call LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, &  ! in
-                                          nscaler,                            &  ! in
-                                          ft,                                 &  ! in
-                                          bc_in(s)%t_veg_pa(ifp),             &  ! in
-                                          currentPatch%tveg_lpa%GetMean(),    &  ! in
-                                          lmr_z(iv,ft,cl))                       ! out
-
-                                  case default
-
-                                     write (fates_log(),*)'error, incorrect leaf respiration model specified'
-                                     call endrun(msg=errMsg(sourcefile, __LINE__))
-
-                                  end select
-
-                               else ! C4 plants
-
-                                  call LeafLayerMaintenanceRespiration_C4( lnc_top,     &  ! in
+                                  call LeafLayerMaintenanceRespiration_Ryan_1991( lnc_top,     &  ! in
                                        nscaler,                  &  ! in
+                                       ft,                       &  ! in
                                        bc_in(s)%t_veg_pa(ifp),   &  ! in
                                        lmr_z(iv,ft,cl))             ! out
 
-                               endif if_c3
+                               case (lmrmodel_atkin_etal_2017)
+
+                                  call LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, &  ! in
+                                       nscaler,                            &  ! in
+                                       ft,                                 &  ! in
+                                       bc_in(s)%t_veg_pa(ifp),             &  ! in
+                                       currentPatch%tveg_lpa%GetMean(),    &  ! in
+                                       lmr_z(iv,ft,cl))                       ! out
+
+                               case default
+
+                                  write (fates_log(),*)'error, incorrect leaf respiration model specified'
+                                  call endrun(msg=errMsg(sourcefile, __LINE__))
+
+                               end select
 
                                ! Part VII: Calculate (1) maximum rate of carboxylation (vcmax),
                                ! (2) maximum electron transport rate, (3) triose phosphate
@@ -2072,7 +2062,8 @@ end subroutine GetCanopyGasParameters
 ! ====================================================================================
 
 subroutine LeafLayerMaintenanceRespiration_Ryan_1991(lnc_top, &
-   nscaler,   &
+   nscaler,       &
+   ft,            &
    veg_tempk,     &
    lmr)
 
@@ -2090,8 +2081,8 @@ subroutine LeafLayerMaintenanceRespiration_Ryan_1991(lnc_top, &
    ! Which is the default value of ED_val_base_mr_20
 
    ! Arguments
-   real(r8), intent(in)  :: lnc_top       ! Leaf nitrogen content per unit area at canopy top [gN/m2]
-
+   real(r8), intent(in)  :: lnc_top      ! Leaf nitrogen content per unit area at canopy top [gN/m2]
+   integer,  intent(in)  :: ft           ! (plant) Functional Type Index
    real(r8), intent(in)  :: nscaler      ! Scale for leaf nitrogen profile
    real(r8), intent(in)  :: veg_tempk    ! vegetation temperature
    real(r8), intent(out) :: lmr          ! Leaf Maintenance Respiration  (umol CO2/m**2/s)
@@ -2115,8 +2106,15 @@ subroutine LeafLayerMaintenanceRespiration_Ryan_1991(lnc_top, &
    ! ----------------------------------------------------------------------------------
    lmr25 = lmr25top * nscaler
 
-   lmr = lmr25 * ft1_f(veg_tempk, lmrha) * &
-        fth_f(veg_tempk, lmrhd, lmrse, lmrc)
+   if (nint(EDPftvarcon_inst%c3psn(ft))  /=  1) then
+      ! temperature sensitivity of C3 plants
+      lmr = lmr25 * ft1_f(veg_tempk, lmrha) * &
+           fth_f(veg_tempk, lmrhd, lmrse, lmrc)
+   else
+      ! temperature sensitivity of C4 plants
+      lmr = lmr25 * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8)
+      lmr = lmr / (1._r8 + exp( 1.3_r8*(veg_tempk-(tfrz+55._r8)) ))
+   endif
 
    ! Any hydrodynamic limitations could go here, currently none
    ! lmr = lmr * (nothing)
@@ -2166,6 +2164,7 @@ subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, &
    ! Needle-leaf trees   1.4995
    ! Shrubs              2.0749
    ! C3 herbs/grasses    2.1956
+   ! In the absence of better information, we use the same value for C4 grasses as C3 grasses.
 
    ! note that this code uses the relationship between leaf N and respiration from Atkin et al 
    ! for the top of the canopy, but then assumes proportionality with N through the canopy.
@@ -2178,54 +2177,6 @@ subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, &
    lmr = r_t_ref * exp(b * (veg_tempk - tfrz - TrefC) + c * ((veg_tempk-tfrz)**2 - TrefC**2))
 
 end subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017
-
-! ====================================================================================
-
-subroutine LeafLayerMaintenanceRespiration_C4(lnc_top, &
-   nscaler,   &
-   veg_tempk,     &
-   lmr)
-
-   use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
-   use FatesConstantsMod, only : umolC_to_kgC
-   use FatesConstantsMod, only : g_per_kg
-   use EDPftvarcon      , only : EDPftvarcon_inst
-
-   ! -----------------------------------------------------------------------
-   ! Base maintenance respiration rate for plant tissues base_mr_20
-   ! M. Ryan, 1991. Effects of climate change on plant respiration.
-   ! Ecological Applications, 1(2), 157-167.
-   ! Original expression is br = 0.0106 molC/(molN h)
-   ! Conversion by molecular weights of C and N gives 2.525e-6 gC/(gN s)
-   ! Which is the default value of ED_val_base_mr_20
-
-   ! This contains the original C4 dark respiraiton logic from CLM, which uses a different
-   ! temperature scaling than for C3 plants
-
-   ! Arguments
-   real(r8), intent(in)  :: lnc_top       ! Leaf nitrogen content per unit area at canopy top [gN/m2]
-
-   real(r8), intent(in)  :: nscaler      ! Scale for leaf nitrogen profile
-   real(r8), intent(in)  :: veg_tempk    ! vegetation temperature
-   real(r8), intent(out) :: lmr          ! Leaf Maintenance Respiration  (umol CO2/m**2/s)
-
-   ! Locals
-   real(r8) :: lmr25   ! leaf layer: leaf maintenance respiration rate at 25C (umol CO2/m**2/s)
-   real(r8) :: lmr25top  ! canopy top leaf maint resp rate at 25C for this pft (umol CO2/m**2/s)
-
-
-   lmr25top = ED_val_base_mr_20 * (1.5_r8 ** ((25._r8 - 20._r8)/10._r8))
-   lmr25top = lmr25top * lnc_top / (umolC_to_kgC * g_per_kg)
-
-
-   ! Part I: Leaf Maintenance respiration: umol CO2 / m**2 [leaf] / s
-   ! ----------------------------------------------------------------------------------
-   lmr25 = lmr25top * nscaler
-
-   lmr = lmr25 * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8)
-   lmr = lmr / (1._r8 + exp( 1.3_r8*(veg_tempk-(tfrz+55._r8)) ))
-
-end subroutine LeafLayerMaintenanceRespiration_C4
 
 ! ====================================================================================
 
