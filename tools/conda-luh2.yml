@@ -7,4 +7,6 @@ dependencies:
   - xarray
   - netcdf4
   - scipy
+  - nco
+  - pynco
 prefix: /home/glemieux/local/conda/miniconda3/envs/luh2
