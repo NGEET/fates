@@ -525,7 +525,7 @@ contains
 
                                ! Part VII: Calculate dark respiration (leaf maintenance) for this layer
 
-                               select case (maintresp_model)
+                               select case (maintresp_leaf_model)
 
                                case (lmrmodel_ryan_1991)
 
