@@ -313,6 +313,9 @@ contains
        fates%bc_out(s)%litt_flux_cel_c_si(:) = 0._r8
        fates%bc_out(s)%litt_flux_lig_c_si(:) = 0._r8
        fates%bc_out(s)%litt_flux_lab_c_si(:) = 0._r8
+       fates%bc_out(s)%litt_flux_cel_n_si(:) = 0._r8
+       fates%bc_out(s)%litt_flux_lig_n_si(:) = 0._r8
+       fates%bc_out(s)%litt_flux_lab_n_si(:) = 0._r8
     case(prt_cnp_flex_allom_hyp) 
        
        fates%bc_in(s)%plant_nh4_uptake_flux(:,:) = 0._r8
@@ -636,8 +639,10 @@ contains
          allocate(bc_out%litt_flux_cel_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lig_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lab_c_si(nlevdecomp_in))
+         allocate(bc_out%litt_flux_cel_n_si(nlevdecomp_in))
+         allocate(bc_out%litt_flux_lig_n_si(nlevdecomp_in))
+         allocate(bc_out%litt_flux_lab_n_si(nlevdecomp_in))
       case(prt_cnp_flex_allom_hyp) 
-
          
          allocate(bc_out%litt_flux_cel_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lig_c_si(nlevdecomp_in))
