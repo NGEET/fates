@@ -1,0 +1,10 @@
+name: luh2
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.7.9
+  - xarray
+  - netcdf4
+  - scipy
+prefix: /home/glemieux/local/conda/miniconda3/envs/luh2
