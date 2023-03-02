@@ -873,33 +873,41 @@ contains
     ! ---------------------------------------------------------------------------------
 
     class(prt_vartypes) :: this
-    integer             :: i_var
+    integer             :: i_var, istat
+    character(len=255)  :: smsg
     
     ! Check to see if there is any value in these pools?
     ! SHould not deallocate if there is any carbon left
 
     if(allocated(this%variables)) then
        do i_var = 1, prt_global%num_vars
-          deallocate(this%variables(i_var)%val)
-          deallocate(this%variables(i_var)%val0)
-          deallocate(this%variables(i_var)%net_alloc)
-          deallocate(this%variables(i_var)%turnover)
-          deallocate(this%variables(i_var)%burned)
+          deallocate( &
+               this%variables(i_var)%val, &
+               this%variables(i_var)%val0, &
+               this%variables(i_var)%net_alloc, &
+               this%variables(i_var)%turnover, &
+               this%variables(i_var)%burned, &
+               stat=istat, errmsg=smsg )
+          if (istat/=0) call endrun(msg='DeallocatePRTVartypes 1 stat/=0:'//trim(smsg)//errMsg(sourcefile, __LINE__))
        end do
-
-       deallocate(this%variables)
+   
+       deallocate(this%variables, stat=istat, errmsg=smsg)
+       if (istat/=0) call endrun(msg='DeallocatePRTVartypes 2 stat/=0:'//trim(smsg)//errMsg(sourcefile, __LINE__))
     end if
 
     if(allocated(this%bc_in))then
-       deallocate(this%bc_in)
+       deallocate(this%bc_in, stat=istat, errmsg=smsg)
+       if (istat/=0) call endrun(msg='DeallocatePRTVartypes bc_in stat/=0:'//trim(smsg)//errMsg(sourcefile, __LINE__))
     end if
     
     if(allocated(this%bc_out))then
-       deallocate(this%bc_out)
+       deallocate(this%bc_out, stat=istat, errmsg=smsg)
+       if (istat/=0) call endrun(msg='DeallocatePRTVartypes bc_out stat/=0:'//trim(smsg)//errMsg(sourcefile, __LINE__))
     end if
 
     if(allocated(this%bc_inout))then
-       deallocate(this%bc_inout)
+       deallocate(this%bc_inout, stat=istat, errmsg=smsg)
+       if (istat/=0) call endrun(msg='DeallocatePRTVartypes bc_inout stat/=0:'//trim(smsg)//errMsg(sourcefile, __LINE__))
     end if
 
     return

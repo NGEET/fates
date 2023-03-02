@@ -89,6 +89,8 @@ module EDInitMod
 
   logical   ::  debug = .false.
 
+  integer :: istat           ! return status code
+  character(len=255) :: smsg ! Message string for deallocation errors
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
 
@@ -112,8 +114,8 @@ contains
     !
     ! !ARGUMENTS
     type(ed_site_type), intent(inout) :: site_in
-    type(bc_in_type),intent(in),target   :: bc_in
-    type(bc_out_type),intent(in),target  :: bc_out
+    type(bc_in_type),intent(in)       :: bc_in
+    type(bc_out_type),intent(in)      :: bc_out
     !
     ! !LOCAL VARIABLES:
     !----------------------------------------------------------------------
@@ -334,9 +336,9 @@ contains
     !
     ! !ARGUMENTS
 
-    integer, intent(in)                        :: nsites
-    type(ed_site_type) , intent(inout), target :: sites(nsites)
-    type(bc_in_type), intent(in)               :: bc_in(nsites)
+    integer, intent(in)                :: nsites
+    type(ed_site_type) , intent(inout) :: sites(nsites)
+    type(bc_in_type), intent(in)       :: bc_in(nsites)
     !
     ! !LOCAL VARIABLES:
     integer  :: s
@@ -990,7 +992,13 @@ contains
 
           deallocate(temp_cohort) ! get rid of temporary cohort
 
-
+             deallocate(temp_cohort, stat=istat, errmsg=smsg)
+             if (istat/=0) then
+                write(fates_log(),*) 'dealloc014: fail on deallocate(temp_cohort):'//trim(smsg)
+                call endrun(msg=errMsg(sourcefile, __LINE__))
+             endif
+             
+          endif
        endif !use_this_pft
     enddo !numpft
 
