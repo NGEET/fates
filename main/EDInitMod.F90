@@ -810,7 +810,7 @@ contains
        endif
     end do
 
-
+    
     do pft =  1,numpft
 
        if(use_pft_local(pft).eq.itrue)then
@@ -862,7 +862,7 @@ contains
                 ! calculate initial density required to close canopy 
                 temp_cohort%n  = patch_in%area / temp_cohort%c_area
              else
-                write(fates_log()*) 'Negative fates_recruit_init_density can only be used in no comp mode'
+                write(fates_log(),*) 'Negative fates_recruit_init_density can only be used in no comp mode'
                 call endrun(msg=errMsg(sourcefile, __LINE__))
              endif
           endif
@@ -871,7 +871,7 @@ contains
           ! (calculates a maximum first, then applies canopy trim)
           call bleaf(temp_cohort%dbh,pft,temp_cohort%crowndamage, &
                temp_cohort%canopy_trim,c_leaf)
-          
+
           ! Calculate total above-ground biomass from allometry
           call bagw_allom(temp_cohort%dbh,pft,temp_cohort%crowndamage,c_agw)
 
@@ -996,13 +996,12 @@ contains
 
           deallocate(temp_cohort) ! get rid of temporary cohort
 
-             deallocate(temp_cohort, stat=istat, errmsg=smsg)
-             if (istat/=0) then
-                write(fates_log(),*) 'dealloc014: fail on deallocate(temp_cohort):'//trim(smsg)
-                call endrun(msg=errMsg(sourcefile, __LINE__))
-             endif
-             
+          deallocate(temp_cohort, stat=istat, errmsg=smsg)
+          if (istat/=0) then
+             write(fates_log(),*) 'dealloc014: fail on deallocate(temp_cohort):'//trim(smsg)
+             call endrun(msg=errMsg(sourcefile, __LINE__))
           endif
+
        endif !use_this_pft
     enddo !numpft
 
