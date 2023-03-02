@@ -6618,12 +6618,12 @@ end subroutine update_history_hifrq
          hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
          index = ih_ts_net_uptake_si_cnlf)
 
-call this%set_history_var(vname='FATES_NET_C_UPTAKE_CLLLPF',                 &
+call this%set_history_var(vname='FATES_NET_C_UPTAKE_CLLL',                 &
          units='kg m-2 s-1',                                                   &
-         long='net carbon uptake in kg carbon per m2 per second by each canopy and leaf layer and PFT per unit ground area (i.e. divide by CROWNAREA_CLLL to make per leaf area)', &
-         use_default='inactive', avgflag='A', vtype=site_cnlfpft_r8,              &
+         long='net carbon uptake in kg carbon per m2 per second by each canopy and leaf layer per unit ground area (i.e. divide by CROWNAREA_CLLL to make per leaf area)', &
+         use_default='inactive', avgflag='A', vtype=site_cnlf_r8,              &
          hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
-         index = ih_ts_net_uptake_si_cnlfpft)
+         index = ih_ts_net_uptake_si_cnlf)
 
     call this%set_history_var(vname='FATES_CROWNAREA_CLLL', units='m2 m-2',    &
          long='total crown area that is occupied by leaves in each canopy and leaf layer', &
