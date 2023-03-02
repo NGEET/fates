@@ -4631,14 +4631,13 @@ end subroutine flush_hvars
                   endif
                 end associate
                endif
-               
+
                !!! canopy leaf carbon balance
                ican = ccohort%canopy_layer
                do ileaf=1,ccohort%nv
                   cnlf_indx = ileaf + (ican-1) * nlevleaf
                   hio_ts_net_uptake_si_cnlf(io_si, cnlf_indx) = hio_ts_net_uptake_si_cnlf(io_si, cnlf_indx) + &
                        ccohort%ts_net_uptake(ileaf) * per_dt_tstep * ccohort%c_area * area_inv
-
                end do
 
                ccohort => ccohort%taller
