@@ -6,7 +6,7 @@ from nco import Nco
 from nco.custom import Atted
 
 # Import luh2 data
-def importdata(inputarg,datasetout):
+def importdata(inputarg):
 
     # Open files
     # Check to see if a ValueError is raised which is likely due
@@ -21,6 +21,8 @@ def importdata(inputarg,datasetout):
        print()
        print(errmsg)
        # exit(2)
+
+    return(datasetout)
 
 # Modify the luh2 metadata to enable xarray to read in data
 # This issue here is that the luh2 time units start prior to
@@ -54,6 +56,14 @@ def attribupdate(inputarg,outputarg):
     #           ),
     # ])
 
-
-# Close files
-# management_ds.close()
+# General functionality needed
+# - collect data for specific user-defined time period
+# - collect subset of the data variables (e.g. pasture, rangeland, etc)
+# - write the subset to the necessary format to pass to regridding tools
+#   - This may need to be specific to the particular hlm tooling
+# - call regridding tooling in hlm model
+#   - this will need to point at existing mapping data files, which are external to hlm
+#   - this may need a new mksurf_xxxx module if it can't conform to existing modules due
+#     to needing to use new fields
+# future functionality:
+# - importdata function for aforestation and other data to add to luh2 data
