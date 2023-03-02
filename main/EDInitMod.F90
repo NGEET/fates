@@ -817,12 +817,11 @@ contains
           temp_cohort%pft         = pft
           temp_cohort%l2fr = prt_params%allom_l2fr(pft)
           temp_cohort%canopy_trim = 1.0_r8
-          ! Assume no damage to begin with
-          temp_cohort%crowndamage = 1
+          temp_cohort%crowndamage = 1  ! Assume no damage to begin with
 
           if(EDPftvarcon_inst%initd(pft)>nearzero) then   ! interpret as initial density and calculate diameter
 
-        
+             temp_cohort%n           = EDPftvarcon_inst%initd(pft) * patch_in%area
              if(hlm_use_nocomp.eq.itrue)then !in nocomp mode we only have one PFT per patch
                 ! as opposed to numpft's. So we should up the initial density
                 ! to compensate (otherwise runs are very hard to compare)
@@ -842,7 +841,6 @@ contains
 
              else
                 temp_cohort%hite        = EDPftvarcon_inst%hgt_min(pft)
-
                 ! Calculate the plant diameter from height
                 call h2d_allom(temp_cohort%hite,pft,temp_cohort%dbh)
 
