@@ -849,18 +849,22 @@ contains
              endif  ! sp mode
 
           else ! interpret as initial diameter and calculate density 
+             if(hlm_use_nocomp .eq. itrue)then
+                temp_cohort%dbh = abs(EDPftvarcon_inst%initd(pft))
 
-             temp_cohort%dbh = abs(EDPftvarcon_inst%initd(pft))
+                ! calculate crown area of a single plant
+                dummy_n = 1.0_r8 ! make n=1 to get area of one tree
+                spread = 1.0_r8  ! fix this to 0 to remove dynamics of canopy clousre, assuming a closed canopy. 
 
-             ! calculate crown area of a single plant
-             dummy_n = 1.0_r8 ! make n=1 to get area of one tree
-             spread = 1.0_r8  ! fix this to 0 to remove dynamics of canopy clousre, assuming a closed canopy. 
+                call carea_allom(temp_cohort%dbh, dummy_n, spread, temp_cohort%pft, &
+                     temp_cohort%crowndamage, temp_cohort%c_area)
 
-             call carea_allom(temp_cohort%dbh, dummy_n, spread, temp_cohort%pft, &
-                  temp_cohort%crowndamage, temp_cohort%c_area)
-
-             ! calculate initial density required to close canopy 
-             temp_cohort%n  = patch_in%area / temp_cohort%c_area
+                ! calculate initial density required to close canopy 
+                temp_cohort%n  = patch_in%area / temp_cohort%c_area
+             else
+                write(fates_log()*) 'Negative fates_recruit_init_density can only be used in no comp mode'
+                call endrun(msg=errMsg(sourcefile, __LINE__))
+             endif
           endif
 
           ! Calculate the leaf biomass from allometry
