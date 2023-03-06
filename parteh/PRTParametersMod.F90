@@ -51,6 +51,10 @@ module PRTParametersMod
      real(r8), allocatable :: leaf_long(:,:)             ! Leaf turnover time (longevity) (pft x age-class)
                                                          ! If there is >1 class, it is the longevity from
                                                          ! one class to the next [yr]
+                                                         !   For drought-deciduous PFTs, the sum of leaf
+                                                         !   longevity across all leaf age classes is also
+                                                         !   the maximum length of the growing (i.e., leaves on)
+                                                         !   season.
      real(r8), allocatable :: root_long(:)               ! root turnover time (longevity) (pft)             [yr]
      real(r8), allocatable :: branch_long(:)             ! Turnover time for branchfall on live trees (pft) [yr]
      real(r8), allocatable :: turnover_nitr_retrans(:,:) ! nitrogen re-translocation fraction (pft x organ)

@@ -547,7 +547,7 @@ variables:
 		fates_turnover_fnrt:long_name = "root longevity (alternatively, turnover time)" ;
 	double fates_turnover_leaf(fates_leafage_class, fates_pft) ;
 		fates_turnover_leaf:units = "yr" ;
-		fates_turnover_leaf:long_name = "Leaf longevity (ie turnover timescale)" ;
+		fates_turnover_leaf:long_name = "Leaf longevity (ie turnover timescale). For drought-deciduous PFTs, this also indicates the maximum length of the growing (i.e., leaves on) season." ;
 	double fates_turnover_senleaf_fdrought(fates_pft) ;
 		fates_turnover_senleaf_fdrought:units = "unitless[0-1]" ;
 		fates_turnover_senleaf_fdrought:long_name = "multiplication factor for leaf longevity of senescent leaves during drought" ;

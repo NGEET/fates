@@ -1220,12 +1220,12 @@ contains
        elongf_prev = currentSite%elong_factor(ipft)
 
 
-       ! PFT leaf lifespan in days. This is the shortest between the leaf longevity 
-       ! (defined as a PFT parameter) and the maximum canopy leaf life span allowed 
-       ! for drought deciduous (local parameter).
-       ! MLO: Need to double check that this will not cause unintended problems
+       ! PFT leaf lifespan in days. This is the shortest between the leaf longevity
+       ! (defined as a PFT parameter) and the maximum canopy leaf life span allowed
+       ! for drought deciduous (local parameter). The sum term accounts for the
+       ! total leaf life span of this cohort.
        pft_leaf_lifespan = min( canopy_leaf_lifespan, &
-                                nint(365*maxval(prt_params%leaf_long(ipft,:))) )
+                                nint(365*sum(prt_params%leaf_long(ipft,:))) )
 
 
 
