@@ -12,7 +12,7 @@
   <!-- Note that the non-leaf maintenance respiration is the same value as the Ryan 1991 leaf rate. -->
   <!-- This is being used until a more suitable model for non-leaf respiration is available. -->
   <!-- To use this patch file run the following command: -->
-  <!--    1. Run `python ../tools/UpdateParamAPI.py -\-f archive/api25.1.1_021623_pr931.xml` -->
+  <!--    1. Run `python ../tools/UpdateParamAPI.py -\-f archive/api25.1.0_021623_pr931.xml` -->
   <!-- To update a different CDL parameter file, change the file listed the `base_file`.  This requires -->
   <!-- that said file is up to date with API 25.1. -->
 
