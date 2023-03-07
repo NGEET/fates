@@ -377,12 +377,6 @@ variables:
 	double fates_leaf_vcmaxse(fates_pft) ;
 		fates_leaf_vcmaxse:units = "J/mol/K" ;
 		fates_leaf_vcmaxse:long_name = "entropy term for vcmax" ;
-	double fates_maintresp_leaf_atkin2017_baserate(fates_pft) ;
-		fates_maintresp_leaf_atkin2017_baserate:units = "umol CO2/m^2/s" ;
-		fates_maintresp_leaf_atkin2017_baserate:long_name = "Leaf maintenance respiration base rate parameter (r0) per Atkin et al 2017" ;
-	double fates_maintresp_leaf_ryan1991_baserate(fates_pft) ;
-		fates_maintresp_leaf_ryan1991_baserate:units = "gC/gN/s" ;
-		fates_maintresp_leaf_ryan1991_baserate:long_name = "Leaf maintenance respiration base rate per Ryan et al 1991" ;
 	double fates_maintresp_reduction_curvature(fates_pft) ;
 		fates_maintresp_reduction_curvature:units = "unitless (0-1)" ;
 		fates_maintresp_reduction_curvature:long_name = "curvature of MR reduction as f(carbon storage), 1=linear, 0=very curved" ;
@@ -587,6 +581,9 @@ variables:
 	double fates_frag_cwd_frac(fates_NCWD) ;
 		fates_frag_cwd_frac:units = "fraction" ;
 		fates_frag_cwd_frac:long_name = "fraction of woody (bdead+bsw) biomass destined for CWD pool" ;
+	double fates_base_mr_20 ;
+		fates_base_mr_20:units = "gC/gN/s" ;
+		fates_base_mr_20:long_name = "Base maintenance respiration rate for plant tissues, using Ryan 1991" ;
 	double fates_canopy_closure_thresh ;
 		fates_canopy_closure_thresh:units = "unitless" ;
 		fates_canopy_closure_thresh:long_name = "tree canopy coverage at which crown area allometry changes from savanna to forest value" ;
@@ -722,12 +719,9 @@ variables:
 	double fates_leaf_theta_cj_c4 ;
 		fates_leaf_theta_cj_c4:units = "unitless" ;
 		fates_leaf_theta_cj_c4:long_name = "Empirical curvature parameter for ac, aj photosynthesis co-limitation in c4 plants" ;
-	double fates_maintresp_leaf_model ;
-		fates_maintresp_leaf_model:units = "unitless" ;
-		fates_maintresp_leaf_model:long_name = "switch for choosing between maintenance respiration models. 1=Ryan (1991) (NOT USED)" ;
-	double fates_maintresp_nonleaf_baserate ;
-		fates_maintresp_nonleaf_baserate:units = "gC/gN/s" ;
-		fates_maintresp_nonleaf_baserate:long_name = "Base maintenance respiration rate for plant tissues, using Ryan 1991" ;
+	double fates_maintresp_model ;
+		fates_maintresp_model:units = "unitless" ;
+		fates_maintresp_model:long_name = "switch for choosing between maintenance respiration models. 1=Ryan (1991) (NOT USED)" ;
 	double fates_maxcohort ;
 		fates_maxcohort:units = "count" ;
 		fates_maxcohort:long_name = "maximum number of cohorts per patch. Actual number of cohorts also depend on cohort fusion tolerances" ;
@@ -1205,13 +1199,6 @@ data:
  fates_leaf_vcmaxse = 485, 485, 485, 485, 485, 485, 485, 485, 485, 485, 485, 
     485 ;
 
- fates_maintresp_leaf_atkin2017_baserate = 1.756, 1.4995, 1.4995, 1.756, 
-    1.756, 1.756, 2.0749, 2.0749, 2.0749, 2.1956, 2.1956, 2.1956 ;
-
- fates_maintresp_leaf_ryan1991_baserate = 2.525e-06, 2.525e-06, 2.525e-06, 
-    2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 
-    2.525e-06, 2.525e-06, 2.525e-06 ;
-
  fates_maintresp_reduction_curvature = 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 
     0.01, 0.01, 0.01, 0.01, 0.01, 0.01 ;
 
@@ -1414,6 +1401,8 @@ data:
 
  fates_frag_cwd_frac = 0.045, 0.075, 0.21, 0.67 ;
 
+ fates_base_mr_20 = 2.52e-06 ;
+
  fates_canopy_closure_thresh = 0.8 ;
 
  fates_cnp_eca_plant_escalar = 1.25e-05 ;
@@ -1504,9 +1493,7 @@ data:
 
  fates_leaf_theta_cj_c4 = 0.999 ;
 
- fates_maintresp_leaf_model = 1 ;
-
- fates_maintresp_nonleaf_baserate = 2.525e-06 ;
+ fates_maintresp_model = 1 ;
 
  fates_maxcohort = 100 ;
 

@@ -293,6 +293,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_gpp_understory_si
   integer :: ih_canopy_biomass_si
   integer :: ih_understory_biomass_si
+  integer :: ih_maint_resp_unreduced_si
 
   integer :: ih_npp_secondary_si
   integer :: ih_gpp_secondary_si
@@ -331,6 +332,7 @@ module FatesHistoryInterfaceMod
 
   ! Indices to (site) variables
   integer :: ih_tveg24_si
+  integer :: ih_tgrowth_si
   integer :: ih_tveg_si
   integer :: ih_nep_si
   integer :: ih_hr_si
@@ -2479,6 +2481,7 @@ end subroutine flush_hvars
                hio_dleafoff_si                      => this%hvars(ih_dleafoff_si)%r81d, &
                hio_dleafon_si                       => this%hvars(ih_dleafon_si)%r81d, &
                hio_tveg24                           => this%hvars(ih_tveg24_si)%r81d, &
+               hio_tgrowth                          => this%hvars(ih_tgrowth_si)%r81d, &
                hio_meanliqvol_si                    => this%hvars(ih_meanliqvol_si)%r81d, &
                hio_cbal_err_fates_si                => this%hvars(ih_cbal_err_fates_si)%r81d, &
                hio_err_fates_si                     => this%hvars(ih_err_fates_si)%r82d, &
@@ -2649,6 +2652,10 @@ end subroutine flush_hvars
          ! 24hr veg temperature
          hio_tveg24(io_si) = hio_tveg24(io_si) + &
               (cpatch%tveg24%GetMean()- t_water_freeze_k_1atm)*cpatch%area*AREA_INV
+
+         ! long-term running mean veg temperature (tgrowth)
+         hio_tgrowth(io_si) = hio_tgrowth(io_si) + &
+              (cpatch%tveg_lpa%GetMean()- t_water_freeze_k_1atm)*cpatch%area*AREA_INV
 
          ! Increment some patch-age-resolved diagnostics
          hio_lai_si_age(io_si,cpatch%age_class) = hio_lai_si_age(io_si,cpatch%age_class) &
@@ -4428,6 +4435,7 @@ end subroutine flush_hvars
                hio_fabi_sha_top_si_can  => this%hvars(ih_fabi_sha_top_si_can)%r82d, &
                hio_parsun_top_si_can     => this%hvars(ih_parsun_top_si_can)%r82d, &
                hio_parsha_top_si_can     => this%hvars(ih_parsha_top_si_can)%r82d, &
+               hio_maint_resp_unreduced_si  => this%hvars(ih_maint_resp_unreduced_si)%r81d, &
                hio_tveg   => this%hvars(ih_tveg_si)%r81d)
 
       ! Flush the relevant history variables
@@ -4516,6 +4524,9 @@ end subroutine flush_hvars
                         resp_g * n_perm2 * per_dt_tstep
                   hio_maint_resp_si(io_si) = hio_maint_resp_si(io_si) + &
                         ccohort%resp_m * n_perm2 * per_dt_tstep
+
+                  hio_maint_resp_unreduced_si(io_si) = hio_maint_resp_unreduced_si(io_si) + &
+                        ccohort%resp_m_unreduced * n_perm2 * per_dt_tstep
 
                   ! Secondary forest only
                   if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
@@ -6286,6 +6297,12 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_tveg24_si )
 
+    call this%set_history_var(vname='FATES_TGROWTH', units='degree_Celsius', &
+         long='fates long-term running mean vegetation temperature by site', &
+         use_default='inactive', &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_tgrowth_si )
+
     call this%set_history_var(vname='FATES_TVEG', units='degree_Celsius', &
          long='fates instantaneous mean vegetation temperature by site', &
          use_default='active', &
@@ -6360,6 +6377,12 @@ end subroutine update_history_hifrq
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=2, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_maint_resp_si)
+
+    call this%set_history_var(vname='FATES_MAINT_RESP_UNREDUCED', units='kg m-2 s-1',    &
+         long='diagnostic maintenance respiration if the low-carbon-storage reduction is ignored', &
+         use_default='inactive', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+         upfreq=2, ivar=ivar, initialize=initialize_variables,                 &
+         index = ih_maint_resp_unreduced_si)
 
     call this%set_history_var(vname='FATES_MAINT_RESP_SECONDARY', units='kg m-2 s-1',    &
          long='maintenance respiration in kg carbon per m2 land area per second', &
