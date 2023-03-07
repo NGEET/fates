@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 
 import re
+import numpy as np
 import xarray as xr
+import xesmf as xe
 from nco import Nco
 from nco.custom import Atted
+
+# Add version checking here in case environment.yml not used
 
 # Import luh2 data
 def importdata(inputarg):
@@ -26,7 +30,8 @@ def importdata(inputarg):
 
 # Modify the luh2 metadata to enable xarray to read in data
 # This issue here is that the luh2 time units start prior to
-#
+# year 1672, which cftime should be able to handle, but it
+# appears to need a specific unit name convention "common_years"
 def attribupdate(inputarg,outputarg):
 
     nco = Nco()
@@ -55,6 +60,9 @@ def attribupdate(inputarg,outputarg):
     #           stype="c"
     #           ),
     # ])
+
+# Update the formatting to meet HLM needs
+# def clmformatter():
 
 # General functionality needed
 # - collect data for specific user-defined time period
