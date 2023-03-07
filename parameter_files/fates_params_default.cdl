@@ -769,7 +769,7 @@ data:
  fates_history_sizeclass_bin_edges = 0, 5, 10, 15, 20, 30, 40, 50, 60, 70,
     80, 90, 100 ;
 
- fates_hydr_htftype_node = 2, 2, 2, 2 ;
+ fates_hydr_htftype_node = 1, 1, 1, 1 ;
 
  fates_prt_organ_id = 1, 2, 3, 6 ;
 
@@ -1445,7 +1445,7 @@ data:
 
  fates_maintresp_model = 1 ;
 
- fates_mort_disturb_frac = 0 ;
+ fates_mort_disturb_frac = 1 ;
 
  fates_mort_understorey_death = 0.55983 ;
 
