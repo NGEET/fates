@@ -3978,7 +3978,7 @@ end subroutine flush_hvars
          ! Sum up total seed bank (germinated and ungerminated)
          hio_seed_bank_si(io_si) = hio_seed_bank_si(io_si) + &
             (sum(litt%seed(:))+sum(litt%seed_germ(:))) * &
-            area_frac * days_per_sec
+            area_frac
 
          ! Sum up the input flux into the seed bank (local and external)
          hio_seeds_in_si(io_si) = hio_seeds_in_si(io_si) + &
@@ -4066,7 +4066,7 @@ end subroutine flush_hvars
                sum(litt%seed(:)) * cpatch%area / m2_per_ha
 
             hio_seed_germ_elem(io_si,el) = hio_seed_germ_elem(io_si,el) + &
-               sum(litt%seed_germ(:)) *  cpatch%area / m2_per_ha / sec_per_day
+               sum(litt%seed_germ(:)) *  cpatch%area / m2_per_ha
 
             hio_seed_decay_elem(io_si,el) = hio_seed_decay_elem(io_si,el) + &
                sum(litt%seed_decay(:) + litt%seed_germ_decay(:) ) *       &
@@ -5783,8 +5783,8 @@ end subroutine update_history_hifrq
          hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
          index = ih_seeds_in_extern_elem)
 
-    call this%set_history_var(vname='FATES_SEED_GERM_EL', units='kg m-2 s-1',  &
-         long='seed mass converted into new cohorts in kg element per m2 per s', &
+    call this%set_history_var(vname='FATES_SEED_GERM_EL', units='kg m-2',  &
+         long='element-level total germinated seed mass of all PFTs in kg element per m2', &
          use_default='active', avgflag='A', vtype=site_elem_r8,                &
          hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
          index = ih_seed_germ_elem)
