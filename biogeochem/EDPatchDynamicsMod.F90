@@ -39,6 +39,7 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : AREA_INV
   use FatesConstantsMod    , only : rsnbl_math_prec
   use FatesConstantsMod    , only : fates_tiny
+  use FatesConstantsMod    , only : nocomp_bareground
   use FatesInterfaceTypesMod    , only : hlm_use_planthydro
   use FatesInterfaceTypesMod    , only : hlm_numSWb
   use FatesInterfaceTypesMod    , only : bc_in_type
@@ -47,6 +48,7 @@ module EDPatchDynamicsMod
   use FatesInterfaceTypesMod    , only : hlm_use_sp
   use FatesInterfaceTypesMod    , only : hlm_use_nocomp
   use FatesInterfaceTypesMod    , only : hlm_use_fixed_biogeog
+  use FatesInterfaceTypesMod    , only : hlm_num_lu_harvest_cats
   use FatesGlobals         , only : endrun => fates_endrun
   use FatesConstantsMod    , only : r8 => fates_r8
   use FatesConstantsMod    , only : itrue, ifalse
@@ -57,6 +59,9 @@ module EDPatchDynamicsMod
   use EDLoggingMortalityMod, only : logging_litter_fluxes 
   use EDLoggingMortalityMod, only : logging_time
   use EDLoggingMortalityMod, only : get_harvest_rate_area
+  use EDLoggingMortalityMod, only : get_harvest_rate_carbon
+  use EDLoggingMortalityMod, only : get_harvestable_carbon
+  use EDLoggingMortalityMod, only : get_harvest_debt
   use EDParamsMod          , only : fates_mortality_disturbance_fraction
   use FatesAllometryMod    , only : carea_allom
   use FatesAllometryMod    , only : set_root_fraction
@@ -69,6 +74,7 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : n_anthro_disturbance_categories
   use FatesConstantsMod    , only : fates_unset_r8
   use FatesConstantsMod    , only : fates_unset_int
+  use FatesConstantsMod    , only : hlm_harvest_carbon
   use EDCohortDynamicsMod  , only : InitPRTObject
   use EDCohortDynamicsMod  , only : InitPRTBoundaryConditions
   use ChecksBalancesMod,      only : SiteMassStock
@@ -135,6 +141,8 @@ module EDPatchDynamicsMod
   real(r8), parameter :: treefall_localization = 0.0_r8
   real(r8), parameter :: burn_localization = 0.0_r8
 
+  integer :: istat           ! return status code
+  character(len=255) :: smsg ! Message string for deallocation errors
   character(len=512) :: msg  ! Message string for warnings and logging
   
   ! 10/30/09: Created by Rosie Fisher
@@ -162,7 +170,7 @@ contains
 
   
     ! !ARGUMENTS:
-    type(ed_site_type) , intent(inout), target :: site_in
+    type(ed_site_type) , intent(inout) :: site_in
     type(bc_in_type) , intent(in) :: bc_in
     !
     ! !LOCAL VARIABLES:
@@ -186,9 +194,12 @@ contains
     real(r8) :: dist_rate_ldist_notharvested
     integer  :: threshold_sizeclass
     integer  :: i_dist
+    integer  :: h_index
     real(r8) :: frac_site_primary
     real(r8) :: harvest_rate
     real(r8) :: tempsum
+    real(r8) :: harvestable_forest_c(hlm_num_lu_harvest_cats)
+    integer  :: harvest_tag(hlm_num_lu_harvest_cats)
 
     !----------------------------------------------------------------------------------------------
     ! Calculate Mortality Rates (these were previously calculated during growth derivatives)
@@ -197,6 +208,9 @@ contains
     
     ! first calculate the fractino of the site that is primary land
     call get_frac_site_primary(site_in, frac_site_primary)
+
+    ! get available biomass for harvest for all patches
+    call get_harvestable_carbon(site_in, bc_in%site_area, bc_in%hlm_harvest_catnames, harvestable_forest_c)
  
     currentPatch => site_in%oldest_patch
     do while (associated(currentPatch))   
@@ -227,7 +241,9 @@ contains
                 bc_in%hlm_harvest_units, &
                 currentPatch%anthro_disturbance_label, &
                 currentPatch%age_since_anthro_disturbance, &
-                frac_site_primary)
+                frac_site_primary, &
+                harvestable_forest_c, &
+                harvest_tag)
          
           currentCohort%lmort_direct     = lmort_direct
           currentCohort%lmort_collateral = lmort_collateral
@@ -236,8 +252,11 @@ contains
 
           currentCohort => currentCohort%taller
        end do
+
        currentPatch => currentPatch%younger
     end do
+
+    call get_harvest_debt(site_in, bc_in, harvest_tag)
 
     ! ---------------------------------------------------------------------------------------------
     ! Calculate Disturbance Rates based on the mortality rates just calculated
@@ -288,6 +307,11 @@ contains
                                currentCohort%lmort_infra +                           &
                                currentCohort%l_degrad ) *                            &
                                currentCohort%c_area/currentPatch%area
+
+             if(currentPatch%disturbance_rates(dtype_ilog)>1.0) then
+                 write(fates_log(),*) 'See luc mortalities:', currentCohort%lmort_direct, &
+                     currentCohort%lmort_collateral, currentCohort%lmort_infra, currentCohort%l_degrad
+             end if
              
              ! Non-harvested part of the logging disturbance rate
              dist_rate_ldist_notharvested = dist_rate_ldist_notharvested + currentCohort%l_degrad * &
@@ -298,13 +322,19 @@ contains
        enddo !currentCohort
 
        ! for non-closed-canopy areas subject to logging, add an additional increment of area disturbed
-       ! equivalent to the fradction logged to account for transfer of interstitial ground area to new secondary lands
+       ! equivalent to the fraction logged to account for transfer of interstitial ground area to new secondary lands
        if ( logging_time .and. &
             (currentPatch%area - currentPatch%total_canopy_area) .gt. fates_tiny ) then
           ! The canopy is NOT closed. 
 
-          call get_harvest_rate_area (currentPatch%anthro_disturbance_label, bc_in%hlm_harvest_catnames, &
-               bc_in%hlm_harvest_rates, frac_site_primary, currentPatch%age_since_anthro_disturbance, harvest_rate)
+          if(bc_in%hlm_harvest_units == hlm_harvest_carbon) then
+             call get_harvest_rate_carbon (currentPatch%anthro_disturbance_label, bc_in%hlm_harvest_catnames, &
+                   bc_in%hlm_harvest_rates, currentPatch%age_since_anthro_disturbance, harvestable_forest_c, &
+                   harvest_rate, harvest_tag)
+          else
+             call get_harvest_rate_area (currentPatch%anthro_disturbance_label, bc_in%hlm_harvest_catnames, &
+                  bc_in%hlm_harvest_rates, frac_site_primary, currentPatch%age_since_anthro_disturbance, harvest_rate)
+          end if
 
           currentPatch%disturbance_rates(dtype_ilog) = currentPatch%disturbance_rates(dtype_ilog) + &
                (currentPatch%area - currentPatch%total_canopy_area) * harvest_rate / currentPatch%area
@@ -313,6 +343,12 @@ contains
           dist_rate_ldist_notharvested = dist_rate_ldist_notharvested + &
                (currentPatch%area - currentPatch%total_canopy_area) * harvest_rate / currentPatch%area
        endif
+
+       ! For nocomp mode, we need to prevent producing too small patches, which may produce small patches
+       if ((hlm_use_nocomp .eq. itrue) .and. &
+           (currentPatch%disturbance_rates(dtype_ilog)*currentPatch%area .lt. min_patch_area_forced)) then
+          currentPatch%disturbance_rates(dtype_ilog) = 0._r8
+       end if
 
        ! fraction of the logging disturbance rate that is non-harvested
        if (currentPatch%disturbance_rates(dtype_ilog) .gt. nearzero) then
@@ -374,8 +410,8 @@ contains
 
     !
     ! !ARGUMENTS:
-    type (ed_site_type), intent(inout), target :: currentSite
-    type (bc_in_type), intent(in)              :: bc_in
+    type (ed_site_type), intent(inout) :: currentSite
+    type (bc_in_type), intent(in)      :: bc_in
     !
     ! !LOCAL VARIABLES:
     type (ed_patch_type) , pointer :: new_patch
@@ -725,6 +761,14 @@ contains
                                        (nc%n * ED_val_understorey_death / hlm_freq_day ) * &
                                        total_c * g_per_kg * days_per_sec * years_per_day * ha_per_m2
 
+                                  currentSite%imort_abg_flux(currentCohort%size_class, currentCohort%pft) = &
+                                       currentSite%imort_abg_flux(currentCohort%size_class, currentCohort%pft) + &
+                                       (nc%n * ED_val_understorey_death / hlm_freq_day ) * &
+                                       ( (sapw_c + struct_c + store_c) * prt_params%allom_agb_frac(currentCohort%pft) + &
+                                       leaf_c ) * &
+                                       g_per_kg * days_per_sec * years_per_day * ha_per_m2
+
+
                                   ! Step 2:  Apply survivor ship function based on the understory death fraction
                                   ! remaining of understory plants of those that are knocked over
                                   ! by the overstorey trees dying...
@@ -814,6 +858,14 @@ contains
                                     (nc%n * currentCohort%fire_mort) * &
                                     total_c * g_per_kg * days_per_sec * ha_per_m2
                             end if
+
+                            currentSite%fmort_abg_flux(currentCohort%size_class, currentCohort%pft) = &
+                                 currentSite%fmort_abg_flux(currentCohort%size_class, currentCohort%pft) + &
+                                 (nc%n * currentCohort%fire_mort) * &
+                                 ( (sapw_c + struct_c + store_c) * prt_params%allom_agb_frac(currentCohort%pft) + &
+                                 leaf_c ) * &
+                                 g_per_kg * days_per_sec * ha_per_m2
+                            
 
                             currentSite%fmort_rate_cambial(currentCohort%size_class, currentCohort%pft) = &
                                  currentSite%fmort_rate_cambial(currentCohort%size_class, currentCohort%pft) + &
@@ -1056,8 +1108,11 @@ contains
 
                             ! Get rid of the new temporary cohort
                             call DeallocateCohort(nc)
-                            deallocate(nc)
-
+                            deallocate(nc, stat=istat, errmsg=smsg)
+                            if (istat/=0) then
+                               write(fates_log(),*) 'dealloc005: fail on deallocate(nc):'//trim(smsg)
+                               call endrun(msg=errMsg(sourcefile, __LINE__))
+                            endif
                          endif
 
                          currentCohort => currentCohort%taller
@@ -1195,7 +1250,7 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS:
-    type(ed_site_type), intent(inout), target  :: currentSite
+    type(ed_site_type), intent(inout) :: currentSite
     !
     ! !LOCAL VARIABLES:
     real(r8)                     :: areatot
@@ -1267,7 +1322,7 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS:
-    type(ed_site_type),intent(in), target :: currentSite 
+    type(ed_site_type),intent(in) :: currentSite 
     !
     ! !LOCAL VARIABLES:
     type(ed_patch_type), pointer :: currentPatch 
@@ -1282,11 +1337,11 @@ contains
        currentPatch => currentPatch%younger
     enddo
 
-    if(hlm_use_sp.eq.itrue)then
+    if(hlm_use_fixed_biogeog.eq.itrue .and. hlm_use_nocomp.eq.itrue)then
       patchno = 1
       currentPatch => currentSite%oldest_patch
       do while(associated(currentPatch))
-        if(currentPatch%nocomp_pft_label.eq.0)then
+        if(currentPatch%nocomp_pft_label.eq.nocomp_bareground)then
          ! for bareground patch, we make the patch number 0
          ! we also do not count this in the veg. patch numbering scheme.
           currentPatch%patchno = 0
@@ -1349,11 +1404,11 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS:
-    type(ed_site_type)  , intent(in), target  :: currentSite        ! site
-    type(ed_patch_type) , intent(in), target  :: currentPatch       ! Donor patch
-    type(ed_patch_type) , intent(inout)       :: newPatch           ! New patch
-    real(r8)            , intent(in)          :: patch_site_areadis ! Area being donated
-                                                                    ! by current patch
+    type(ed_site_type)  , intent(in)    :: currentSite        ! site
+    type(ed_patch_type) , intent(in)    :: currentPatch       ! Donor patch
+    type(ed_patch_type) , intent(inout) :: newPatch           ! New patch
+    real(r8)            , intent(in)    :: patch_site_areadis ! Area being donated
+                                                              ! by current patch
 
     
     ! locals
@@ -2027,7 +2082,7 @@ contains
     real(r8), intent(in) :: age                  ! notional age of this patch in years
     real(r8), intent(in) :: areap                ! initial area of this patch in m2. 
     integer, intent(in)  :: label                ! anthropogenic disturbance label
-    integer, intent(in)  :: nocomp_pft
+    integer, intent(in)  :: nocomp_pft           ! no competition mode pft label
 
 
     ! Until bc's are pointed to by sites give veg a default temp [K]
@@ -2713,8 +2768,11 @@ contains
 
     ! We have no need for the dp pointer anymore, we have passed on it's legacy
     call dealloc_patch(dp)
-    deallocate(dp)
-
+    deallocate(dp, stat=istat, errmsg=smsg)
+    if (istat/=0) then
+       write(fates_log(),*) 'dealloc006: fail on deallocate(dp):'//trim(smsg)
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    endif
 
     if(associated(youngerp))then
        ! Update the younger patch's new older patch (because it isn't dp anymore)
@@ -2953,7 +3011,7 @@ contains
     ! to via the patch structure.  This subroutine DOES NOT deallocate the patch
     ! structure itself.
 
-    type(ed_patch_type), target :: cpatch
+    type(ed_patch_type) :: cpatch
 
     type(ed_cohort_type), pointer :: ccohort  ! current
     type(ed_cohort_type), pointer :: ncohort  ! next
@@ -2967,7 +3025,12 @@ contains
        ncohort => ccohort%taller
 
        call DeallocateCohort(ccohort)
-       deallocate(ccohort)
+       deallocate(ccohort, stat=istat, errmsg=smsg)
+       if (istat/=0) then
+          write(fates_log(),*) 'dealloc007: fail on deallocate(cchort):'//trim(smsg)
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       endif
+       
        ccohort => ncohort
 
     end do
@@ -2976,25 +3039,38 @@ contains
     do el=1,num_elements
        call cpatch%litter(el)%DeallocateLitt()
     end do
-    deallocate(cpatch%litter)
-
-    ! Secondly, and lastly, deallocate the allocatable vector spaces in the patch
-    if(allocated(cpatch%tr_soil_dir))then
-       deallocate(cpatch%tr_soil_dir)
-       deallocate(cpatch%tr_soil_dif)
-       deallocate(cpatch%tr_soil_dir_dif)
-       deallocate(cpatch%fab)
-       deallocate(cpatch%fabd)
-       deallocate(cpatch%fabi)
-       deallocate(cpatch%sabs_dir)
-       deallocate(cpatch%sabs_dif)
-       deallocate(cpatch%fragmentation_scaler)
-    end if
-
+    deallocate(cpatch%litter, stat=istat, errmsg=smsg)
+    if (istat/=0) then
+       write(fates_log(),*) 'dealloc008: fail on deallocate(cpatch%litter):'//trim(smsg)
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    endif
+    
+    ! Secondly, deallocate the allocatable vector spaces in the patch
+    deallocate(cpatch%tr_soil_dir, & 
+         cpatch%tr_soil_dif,       & 
+         cpatch%tr_soil_dir_dif,   & 
+         cpatch%fab,               &
+         cpatch%fabd,              &
+         cpatch%fabi,              &
+         cpatch%sabs_dir,          &
+         cpatch%sabs_dif,          &
+         cpatch%fragmentation_scaler, stat=istat, errmsg=smsg)
+    if (istat/=0) then
+       write(fates_log(),*) 'dealloc009: fail on deallocate patch vectors:'//trim(smsg)
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    endif
     
     ! Deallocate any running means
-    deallocate(cpatch%tveg24)
-    deallocate(cpatch%tveg_lpa)
+    deallocate(cpatch%tveg24, stat=istat, errmsg=smsg)
+    if (istat/=0) then
+       write(fates_log(),*) 'dealloc010: fail on deallocate(cpatch%tveg24):'//trim(smsg)
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    endif
+    deallocate(cpatch%tveg_lpa, stat=istat, errmsg=smsg)
+    if (istat/=0) then
+       write(fates_log(),*) 'dealloc011: fail on deallocate(cpatch%tveg_lpa):'//trim(smsg)
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    endif
     
     return
   end subroutine dealloc_patch

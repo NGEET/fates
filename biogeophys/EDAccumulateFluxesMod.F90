@@ -13,6 +13,7 @@ module EDAccumulateFluxesMod
   use FatesGlobals, only      : fates_log
   use shr_log_mod , only      : errMsg => shr_log_errMsg
   use FatesConstantsMod , only : r8 => fates_r8
+  use FatesConstantsMod , only : nocomp_bareground
 
 
   implicit none
@@ -64,7 +65,7 @@ contains
 
        cpatch => sites(s)%oldest_patch
        do while (associated(cpatch))                 
-          if(cpatch%nocomp_pft_label.ne.0)then
+          if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then
              ifp = ifp+1
 
              if( bc_in(s)%filter_photo_pa(ifp) == 3 ) then
