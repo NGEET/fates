@@ -16,7 +16,6 @@ module EDTypesMod
   use PRTGenericMod,         only : carbon12_element
   use FatesLitterMod,        only : litter_type
   use FatesLitterMod,        only : ncwd
-  use FatesConstantsMod,     only : n_anthro_disturbance_categories
   use FatesConstantsMod,     only : days_per_year
   use FatesConstantsMod,     only : fates_unset_r8
   use FatesRunningMeanMod,   only : rmean_type

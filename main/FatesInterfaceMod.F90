@@ -379,7 +379,8 @@ contains
 
   ! ===========================================================================
 
-   subroutine allocate_bcin(bc_in, nlevsoil_in, nlevdecomp_in, num_lu_harvest_cats,natpft_lb,natpft_ub)
+  subroutine allocate_bcin(bc_in, nlevsoil_in, nlevdecomp_in, num_lu_harvest_cats, num_luh2_states, &
+       num_luh2_transitions, natpft_lb,natpft_ub)
       
       ! ---------------------------------------------------------------------------------
       ! Allocate and Initialze the FATES boundary condition vectors
@@ -390,6 +391,8 @@ contains
       integer,intent(in)              :: nlevsoil_in
       integer,intent(in)              :: nlevdecomp_in
       integer,intent(in)              :: num_lu_harvest_cats
+      integer,intent(in)              :: num_luh2_states
+      integer,intent(in)              :: num_luh2_transitions
       integer,intent(in)              :: natpft_lb,natpft_ub ! dimension bounds of the array holding surface file pft data
       
       ! Allocate input boundaries
@@ -535,6 +538,10 @@ contains
       if (hlm_use_lu_harvest .gt. 0) then
          allocate(bc_in%hlm_harvest_rates(num_lu_harvest_cats))
          allocate(bc_in%hlm_harvest_catnames(num_lu_harvest_cats))
+         allocate(bc_in%hlm_luh_states(num_luh2_states))
+         allocate(bc_in%hlm_luh_state_names(num_luh2_states))
+         allocate(bc_in%hlm_luh_transitions(num_luh2_transitions))
+         allocate(bc_in%hlm_luh_transition_names(num_luh2_transitions))
       else ! LoggingMortality_frac needs these passed to it regardless of harvest
          allocate(bc_in%hlm_harvest_rates(0))
          allocate(bc_in%hlm_harvest_catnames(0))
@@ -1392,6 +1399,8 @@ contains
          hlm_use_planthydro = unset_int
          hlm_use_lu_harvest   = unset_int
          hlm_num_lu_harvest_cats   = unset_int
+         hlm_num_luh2_states       = unset_int
+         hlm_num_luh2_transitions  = unset_int
          hlm_use_cohort_age_tracking = unset_int
          hlm_use_logging   = unset_int
          hlm_use_ed_st3    = unset_int
@@ -1445,6 +1454,16 @@ contains
 
          if ( (hlm_num_lu_harvest_cats .lt. 0) ) then
             write(fates_log(), *) 'The FATES number of hlm harvest cats must be >= 0, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if ( (hlm_num_luh2_states .lt. 0) ) then
+            write(fates_log(), *) 'The FATES number of hlm luh state cats must be >= 0, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if ( (hlm_num_luh2_transitions .lt. 0) ) then
+            write(fates_log(), *) 'The FATES number of hlm luh state transition cats must be >= 0, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
@@ -1812,6 +1831,18 @@ contains
                hlm_num_lu_harvest_cats = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_num_lu_harvest_cats= ',ival,' to FATES'
+               end if
+
+            case('num_luh2_states')
+               hlm_num_luh2_states = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_num_luh2_states= ',ival,' to FATES'
+               end if
+
+            case('num_luh2_transitions')
+               hlm_num_luh2_transitions = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_num_luh2_transitions= ',ival,' to FATES'
                end if
 
             case('use_cohort_age_tracking')

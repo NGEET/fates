@@ -49,6 +49,8 @@ module EDPatchDynamicsMod
   use FatesInterfaceTypesMod    , only : hlm_use_nocomp
   use FatesInterfaceTypesMod    , only : hlm_use_fixed_biogeog
   use FatesInterfaceTypesMod    , only : hlm_num_lu_harvest_cats
+  use FatesInterfaceTypesMod    , only : hlm_num_luh2_states
+  use FatesInterfaceTypesMod    , only : hlm_num_luh2_transitions
   use FatesGlobals         , only : endrun => fates_endrun
   use FatesConstantsMod    , only : r8 => fates_r8
   use FatesConstantsMod    , only : itrue, ifalse
@@ -70,8 +72,9 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : days_per_sec
   use FatesConstantsMod    , only : years_per_day
   use FatesConstantsMod    , only : nearzero
-  use FatesConstantsMod    , only : primaryforest, secondaryforest
-  use FatesConstantsMod    , only : n_anthro_disturbance_categories
+  use FatesConstantsMod    , only : primarylands, secondarylands, pasture_rangelands, crops
+  use FatesConstantsMod    , only : n_landuse_cats
+  use FatesLandUseChangeMod, only : get_landuse_transition_rates
   use FatesConstantsMod    , only : fates_unset_r8
   use FatesConstantsMod    , only : fates_unset_int
   use FatesConstantsMod    , only : hlm_harvest_carbon
@@ -200,6 +203,7 @@ contains
     real(r8) :: tempsum
     real(r8) :: harvestable_forest_c(hlm_num_lu_harvest_cats)
     integer  :: harvest_tag(hlm_num_lu_harvest_cats)
+    real(r8) :: landuse_transition_matrix(n_landuse_cats, n_landuse_cats)
 
     !----------------------------------------------------------------------------------------------
     ! Calculate Mortality Rates (these were previously calculated during growth derivatives)
@@ -257,6 +261,8 @@ contains
     end do
 
     call get_harvest_debt(site_in, bc_in, harvest_tag)
+
+    call get_landuse_transition_rates(site_in, bc_in, landuse_transition_matrix)
 
     ! ---------------------------------------------------------------------------------------------
     ! Calculate Disturbance Rates based on the mortality rates just calculated
@@ -495,7 +501,7 @@ contains
                    ! figure out whether the receiver patch for disturbance from this patch will be
                    ! primary or secondary land receiver patch is primary forest only if both the
                    ! donor patch is primary forest and the current disturbance type is not logging
-                   if ( currentPatch%anthro_disturbance_label .eq. primaryforest .and. &
+                   if ( currentPatch%anthro_disturbance_label .eq. primarylands .and. &
                         (i_disturbance_type .ne. dtype_ilog) ) then
 
                       site_areadis_primary = site_areadis_primary + currentPatch%area * disturbance_rate
@@ -509,7 +515,7 @@ contains
                       site_areadis_secondary = site_areadis_secondary + currentPatch%area * disturbance_rate
 
                       ! track disturbance rates to output to history
-                      if (currentPatch%anthro_disturbance_label .eq. secondaryforest) then
+                      if (currentPatch%anthro_disturbance_label .eq. secondarylands) then
                          currentSite%disturbance_rates_secondary_to_secondary(i_disturbance_type) = &
                               currentSite%disturbance_rates_secondary_to_secondary(i_disturbance_type) + &
                               currentPatch%area * disturbance_rate * AREA_INV
@@ -539,7 +545,7 @@ contains
                 allocate(new_patch_primary)
 
                 call create_patch(currentSite, new_patch_primary, age, &
-                     site_areadis_primary, primaryforest, i_nocomp_pft)
+                     site_areadis_primary, primarylands, i_nocomp_pft)
 
                 ! Initialize the litter pools to zero, these
                 ! pools will be populated by looping over the existing patches
@@ -561,7 +567,7 @@ contains
              if ( site_areadis_secondary .gt. nearzero) then
                 allocate(new_patch_secondary)
                 call create_patch(currentSite, new_patch_secondary, age, &
-                     site_areadis_secondary, secondaryforest,i_nocomp_pft)
+                     site_areadis_secondary, secondarylands,i_nocomp_pft)
 
                 ! Initialize the litter pools to zero, these
                 ! pools will be populated by looping over the existing patches
@@ -601,7 +607,7 @@ contains
                       ! will be primary or secondary land receiver patch is primary forest
                       ! only if both the donor patch is primary forest and the current
                       ! disturbance type is not logging
-                      if (currentPatch%anthro_disturbance_label .eq. primaryforest .and. &
+                      if (currentPatch%anthro_disturbance_label .eq. primarylands .and. &
                            (i_disturbance_type .ne. dtype_ilog)) then
                          new_patch => new_patch_primary
                       else
@@ -618,7 +624,7 @@ contains
                       ! the current disturbance from this patch is non-anthropogenic,
                       ! we need to average in the time-since-anthropogenic-disturbance
                       ! from the donor patch into that of the receiver patch
-                      if ( currentPatch%anthro_disturbance_label .eq. secondaryforest .and. &
+                      if ( currentPatch%anthro_disturbance_label .eq. secondarylands .and. &
                            (i_disturbance_type .ne. dtype_ilog) ) then
 
                          new_patch%age_since_anthro_disturbance = new_patch%age_since_anthro_disturbance + &
@@ -1156,12 +1162,12 @@ contains
                 currentPatch               => currentSite%youngest_patch
                 ! insert new youngest primary patch after all the secondary patches, if there are any.
                 ! this requires first finding the current youngest primary to insert the new one ahead of
-                if (currentPatch%anthro_disturbance_label .eq. secondaryforest ) then
+                if (currentPatch%anthro_disturbance_label .eq. secondarylands ) then
                    found_youngest_primary = .false.
                    do while(associated(currentPatch) .and. .not. found_youngest_primary)
                       currentPatch => currentPatch%older
                       if (associated(currentPatch)) then
-                         if (currentPatch%anthro_disturbance_label .eq. primaryforest) then
+                         if (currentPatch%anthro_disturbance_label .eq. primarylands) then
                             found_youngest_primary = .true.
                          endif
                       endif
@@ -2139,7 +2145,7 @@ contains
 
     ! assign anthropgenic disturbance category and label
     new_patch%anthro_disturbance_label = label
-    if (label .eq. secondaryforest) then
+    if (label .eq. secondarylands) then
        new_patch%age_since_anthro_disturbance = age
     else
        new_patch%age_since_anthro_disturbance = fates_unset_r8
@@ -2329,14 +2335,14 @@ contains
     integer  :: ft,z        !counters for pft and height class
     real(r8) :: norm        !normalized difference between biomass profiles
     real(r8) :: profiletol  !tolerance of patch fusion routine. Starts off high and is reduced if there are too many patches.
-    integer  :: nopatches(n_anthro_disturbance_categories)   !number of patches presently in gridcell
+    integer  :: nopatches(n_landuse_cats)   !number of patches presently in gridcell
     integer  :: iterate     !switch of patch reduction iteration scheme. 1 to keep going, 0 to stop
     integer  :: fuse_flag   !do patches get fused (1) or not (0).
     integer  :: i_disttype  !iterator over anthropogenic disturbance categories
     integer  :: i_pftlabel  !nocomp pft iterator
     real(r8) :: primary_land_fraction_beforefusion,primary_land_fraction_afterfusion
     integer  :: pftlabelmin, pftlabelmax
-    real(r8) :: maxpatches(n_anthro_disturbance_categories)
+    real(r8) :: maxpatches(n_landuse_cats)
     !
     !---------------------------------------------------------------------
 
@@ -2347,23 +2353,28 @@ contains
     primary_land_fraction_beforefusion = 0._r8
     primary_land_fraction_afterfusion = 0._r8
 
-    nopatches(1:n_anthro_disturbance_categories) = 0
+    nopatches(1:n_landuse_cats) = 0
 
     ! Its possible that, in nocomp modes, there are more categorically distinct patches than we allow as 
     ! primary patches in non-nocomp mode.  So if this is the case, bump up the maximum number of primary patches
     ! to let there be one for each type of nocomp PFT on the site.  this is likely to lead to problems
     ! if anthropogenic disturance is enabled.
     if (hlm_use_nocomp.eq.itrue) then
-       maxpatches(primaryforest) = max(maxpatch_primary, sum(csite%use_this_pft))
-       maxpatches(secondaryforest) = maxpatch_total - maxpatches(primaryforest)
-       if (maxpatch_total .lt. maxpatches(primaryforest)) then
+       !!cdk this logic for how many patcehs to allow in nocomp will need to be changed
+       maxpatches(primarylands) = max(maxpatch_primary, sum(csite%use_this_pft))
+       maxpatches(crops) = maxpatch_crops
+       maxpatches(pasture_rangelands) = maxpatch_pasture_range
+       maxpatches(secondarylands) = maxpatch_total - maxpatches(primarylands) - maxpatches(crops) - maxpatches(pasture_rangelands)
+       if (maxpatch_total .lt. maxpatches(primarylands)) then
           write(fates_log(),*) 'too many PFTs and not enough patches for nocomp w/o fixed biogeog'
           write(fates_log(),*) 'maxpatch_total,numpft',maxpatch_total,numpft, sum(csite%use_this_pft)
           call endrun(msg=errMsg(sourcefile, __LINE__))
        endif
     else
-       maxpatches(primaryforest) = maxpatch_primary
-       maxpatches(secondaryforest) = maxpatch_secondary
+       maxpatches(primarylands) = maxpatch_primary
+       maxpatches(secondarylands) = maxpatch_secondary
+       maxpatches(crops) = maxpatch_crops
+       maxpatches(pasture_rangelands) = maxpatch_pasture_range
     endif
 
     currentPatch => currentSite%youngest_patch
@@ -2371,7 +2382,7 @@ contains
        nopatches(currentPatch%anthro_disturbance_label) = &
             nopatches(currentPatch%anthro_disturbance_label) + 1
        
-       if (currentPatch%anthro_disturbance_label .eq. primaryforest) then
+       if (currentPatch%anthro_disturbance_label .eq. primarylands) then
           primary_land_fraction_beforefusion = primary_land_fraction_beforefusion + &
                currentPatch%area * AREA_INV
        endif
@@ -2390,7 +2401,7 @@ contains
     ! iterate over anthropogenic disturbance categories
     !---------------------------------------------------------------------!    
 
-    disttype_loop: do i_disttype = 1, n_anthro_disturbance_categories
+    disttype_loop: do i_disttype = 1, n_landuse_cats
 
        !---------------------------------------------------------------------!
        !  We only really care about fusing patches if nopatches > 1          !
@@ -2605,7 +2616,7 @@ contains
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
 
-       if (currentPatch%anthro_disturbance_label .eq. primaryforest) then
+       if (currentPatch%anthro_disturbance_label .eq. primarylands) then
           primary_land_fraction_afterfusion = primary_land_fraction_afterfusion + &
                currentPatch%area * AREA_INV
        endif
@@ -3182,7 +3193,7 @@ contains
    frac_site_primary = 0._r8
    currentPatch => site_in%oldest_patch
    do while (associated(currentPatch))   
-      if (currentPatch%anthro_disturbance_label .eq. primaryforest) then
+      if (currentPatch%anthro_disturbance_label .eq. primarylands) then
          frac_site_primary = frac_site_primary + currentPatch%area * AREA_INV
       endif
       currentPatch => currentPatch%younger

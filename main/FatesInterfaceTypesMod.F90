@@ -527,8 +527,12 @@ module FatesInterfaceTypesMod
       ! Land use
       ! ---------------------------------------------------------------------------------
       real(r8),allocatable :: hlm_harvest_rates(:)    ! annual harvest rate per cat from hlm for a site
-
       character(len=64), allocatable :: hlm_harvest_catnames(:)  ! names of hlm_harvest d1
+      real(r8),allocatable :: hlm_luh_states(:)
+      character(len=64),allocatable :: hlm_luh_state_names(:)
+      real(r8),allocatable :: hlm_luh_transitions(:)
+      character(len=64),allocatable :: hlm_luh_transition_names(:)
+
 
       integer :: hlm_harvest_units  ! what units are the harvest rates specified in? [area vs carbon]
     
