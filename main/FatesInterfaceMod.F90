@@ -313,6 +313,9 @@ contains
        fates%bc_out(s)%litt_flux_cel_c_si(:) = 0._r8
        fates%bc_out(s)%litt_flux_lig_c_si(:) = 0._r8
        fates%bc_out(s)%litt_flux_lab_c_si(:) = 0._r8
+       ! Yes, zero out N flux arrays for c-only runs.
+       ! This is because we want these on (and zero)
+       ! with CLM. 
        fates%bc_out(s)%litt_flux_cel_n_si(:) = 0._r8
        fates%bc_out(s)%litt_flux_lig_n_si(:) = 0._r8
        fates%bc_out(s)%litt_flux_lab_n_si(:) = 0._r8
@@ -642,11 +645,13 @@ contains
          allocate(bc_out%litt_flux_cel_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lig_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lab_c_si(nlevdecomp_in))
+         ! Yes, allocate N flux arrays for c-only runs.
+         ! This is because we want these on (and zero)
+         ! with CLM. 
          allocate(bc_out%litt_flux_cel_n_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lig_n_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lab_n_si(nlevdecomp_in))
       case(prt_cnp_flex_allom_hyp) 
-         
          allocate(bc_out%litt_flux_cel_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lig_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lab_c_si(nlevdecomp_in))
@@ -656,10 +661,8 @@ contains
          allocate(bc_out%litt_flux_cel_p_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lig_p_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lab_p_si(nlevdecomp_in))
-
          allocate(bc_out%source_nh4(nlevdecomp_in))
          allocate(bc_out%source_p(nlevdecomp_in))
-
       case default
          write(fates_log(), *) 'An unknown parteh hypothesis was passed'
          write(fates_log(), *) 'to the site level output boundary conditions'
