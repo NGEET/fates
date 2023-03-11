@@ -31,11 +31,12 @@ module FatesConstantsMod
   integer, parameter, public :: ifalse = 0
 
   ! Labels for patch disturbance history
-  integer, parameter, public :: n_landuse_cats = 4
-  integer, parameter, public :: primarylands = 1
-  integer, parameter, public :: secondarylands = 2
-  integer, parameter, public :: pasture_rangelands = 3
-  integer, parameter, public :: crops = 4
+  integer, parameter, public :: n_landuse_cats = 5
+  integer, parameter, public :: primaryland = 1
+  integer, parameter, public :: secondaryland = 2
+  integer, parameter, public :: rangeland = 3
+  integer, parameter, public :: pasture = 4
+  integer, parameter, public :: cropland = 5
 
   ! Bareground label for no competition mode
   integer, parameter, public :: nocomp_bareground = 0

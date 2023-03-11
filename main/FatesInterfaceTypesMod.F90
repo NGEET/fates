@@ -120,6 +120,10 @@ module FatesInterfaceTypesMod
                                                          ! harvest_rates in dynHarvestMod
                                                          ! bc_in%hlm_harvest_rates and bc_in%hlm_harvest_catnames
 
+   integer, public :: hlm_num_luh2_states           ! number of land use state types provided in LUH2 forcing dataset
+
+   integer, public :: hlm_num_luh2_transitions      ! number of land use transition types provided in LUH2 forcing dataset
+
 
    integer, public :: hlm_sf_nofire_def               ! Definition of a no-fire case for hlm_spitfire_mode
    integer, public :: hlm_sf_scalar_lightning_def     ! Definition of a scalar-lightning case for hlm_spitfire_mode

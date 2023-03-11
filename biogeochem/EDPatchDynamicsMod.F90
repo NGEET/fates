@@ -262,7 +262,7 @@ contains
 
     call get_harvest_debt(site_in, bc_in, harvest_tag)
 
-    call get_landuse_transition_rates(site_in, bc_in, landuse_transition_matrix)
+    call get_landuse_transition_rates(bc_in, landuse_transition_matrix)
 
     ! ---------------------------------------------------------------------------------------------
     ! Calculate Disturbance Rates based on the mortality rates just calculated
@@ -2363,8 +2363,9 @@ contains
        !!cdk this logic for how many patcehs to allow in nocomp will need to be changed
        maxpatches(primarylands) = max(maxpatch_primary, sum(csite%use_this_pft))
        maxpatches(crops) = maxpatch_crops
-       maxpatches(pasture_rangelands) = maxpatch_pasture_range
-       maxpatches(secondarylands) = maxpatch_total - maxpatches(primarylands) - maxpatches(crops) - maxpatches(pasture_rangelands)
+       maxpatches(pasture) = maxpatch_pasture
+       maxpatches(rangelands) = maxpatch_rangeland
+       maxpatches(secondarylands) = maxpatch_total - maxpatches(primarylands) - maxpatches(crops) - maxpatches(pasture) - maxpatches(rangelands)
        if (maxpatch_total .lt. maxpatches(primarylands)) then
           write(fates_log(),*) 'too many PFTs and not enough patches for nocomp w/o fixed biogeog'
           write(fates_log(),*) 'maxpatch_total,numpft',maxpatch_total,numpft, sum(csite%use_this_pft)
@@ -2374,7 +2375,8 @@ contains
        maxpatches(primarylands) = maxpatch_primary
        maxpatches(secondarylands) = maxpatch_secondary
        maxpatches(crops) = maxpatch_crops
-       maxpatches(pasture_rangelands) = maxpatch_pasture_range
+       maxpatches(pasture) = maxpatch_pasture
+       maxpatches(rangelands) = maxpatch_rangeland
     endif
 
     currentPatch => currentSite%youngest_patch
