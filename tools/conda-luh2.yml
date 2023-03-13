@@ -9,4 +9,5 @@ dependencies:
   - scipy
   - nco
   - pynco
+  - xesmf
 prefix: /home/glemieux/local/conda/miniconda3/envs/luh2

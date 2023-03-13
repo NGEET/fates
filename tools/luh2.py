@@ -24,7 +24,6 @@ def importdata(inputarg):
                 "This can be done using the luh2.attribupdate function."
        print()
        print(errmsg)
-       # exit(2)
 
     return(datasetout)
 
@@ -60,6 +59,22 @@ def attribupdate(inputarg,outputarg):
     #           stype="c"
     #           ),
     # ])
+
+# Make necessary (?) changes to metadata for XESMF conservative regrid
+# Any LUH2 data set should work as the input dataset, but
+# we should have some sort of check to make sure that the
+# data sets being used are consistent in the final calling script
+def metadatachange(inputdataset,outputdataset):
+
+    # Drop the invalid lat, lon label names
+    outputdatatset = inputdataset.drop(labels=['lat_bounds','lon_bounds'])
+    outputdatatset["lat_b"] = np.insert(inputdataset.lat_bounds[:,1].data,0,inputdataset.lat_bounds[0,0].data)
+    outputdatatset["lon_b"] = np.insert(inputdataset.lon_bounds[:,1].data,0,inputdataset.lon_bounds[0,0].data)
+    # outputdatatset["time"] = np.arange(len(fin["time"]), dtype=np.int16) + 850
+    # outputdatatset["YEAR"] = xr.DataArray(np.arange(len(fin["time"]), dtype=np.int16) + 850, dims=("time"))
+
+    # make mask of LUH2 data
+    outputdatatset["mask"] = xr.where(~np.isnan(inputdataset["primf_to_range"].isel(time=0)), 1, 0)
 
 # Update the formatting to meet HLM needs
 # def clmformatter():
