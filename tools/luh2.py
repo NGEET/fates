@@ -10,13 +10,13 @@ from nco.custom import Atted
 # Add version checking here in case environment.yml not used
 
 # Import luh2 data
-def importdata(inputarg):
+def importdata(inputfile):
 
     # Open files
     # Check to see if a ValueError is raised which is likely due
     # to the LUH2 time units being undecodable by cftime module
     try:
-       datasetout = xr.open_dataset(inputarg)
+       datasetout = xr.open_dataset(inputfile)
     except ValueError as err:
        print("ValueError:", err)
        errmsg = "User direction: If error is due to units being 'years since ...' " \
@@ -31,12 +31,16 @@ def importdata(inputarg):
 # This issue here is that the luh2 time units start prior to
 # year 1672, which cftime should be able to handle, but it
 # appears to need a specific unit name convention "common_years"
-def attribupdate(inputarg,outputarg):
+def attribupdate(inputfile,output_append="modified"):
+
+    # Define the output filename
+    index = inputfile.find(".nc")
+    outputfile = inputfile[:index] + "_" + output_append + inputfile[index:]
 
     nco = Nco()
 
     # Get the 'time:units' string from the input using ncks
-    timeunitstr = nco.ncks(input=inputarg,variable="time",options=["-m"]).decode()
+    timeunitstr = nco.ncks(input=inputfile,variable="time",options=["-m"]).decode()
 
     # Grab the units string and replace "years" with "common_years"
     substr = re.search('time:units.*".*"',timeunitstr)
@@ -47,11 +51,15 @@ def attribupdate(inputarg,outputarg):
     var = "time"
     att_type = "c"
     opts = [" -a {0},{1},o,{2},{3}".format(att, var, att_type, newstr)]
-    nco.ncatted(input=inputarg, output=outputarg, options=opts)
+    nco.ncatted(input=inputfile, output=outputfile, options=opts)
+
+    print("Generated modified output file: {}".format(outputfile))
+
+    return(outputfile)
 
     # The following is fixed with PR #62 for pynco but isn't in that latest update yet
     # on conda
-    # nco.ncatted(input=inputarg,output=outputarg,options=[
+    # nco.ncatted(input=inputfile,output=outputfile,options=[
     #     Atted(mode="overwrite",
     #           att_name="units",
     #           var_name="time",
@@ -64,12 +72,19 @@ def attribupdate(inputarg,outputarg):
 # Any LUH2 data set should work as the input dataset, but
 # we should have some sort of check to make sure that the
 # data sets being used are consistent in the final calling script
-def MetadataUpdateLUH2(inputdataset,outputdataset):
+def MetadataUpdateLUH2(inputdataset):
 
     # if this is LUH2 data
     # Drop the invalid lat, lon variable labels and replace with "lat_b" and "lon_b"
     # This is only necessary for the conservative method (?) per xESMF docs
+
+    # Is dropping these variables really necessary?  Will xESMF get confused or is this
+    # for the users's sake?
     outputdatatset = inputdataset.drop(labels=['lat_bounds','lon_bounds'])
+
+    # Create lat and lon bounds as a single dimension array out of the LUH2 two dimensional
+    # _bounds array.
+    # xESMF needs these variable names for bounding the conservative regridding
     outputdatatset["lat_b"] = np.insert(inputdataset.lat_bounds[:,1].data,0,inputdataset.lat_bounds[0,0].data)
     outputdatatset["lon_b"] = np.insert(inputdataset.lon_bounds[:,1].data,0,inputdataset.lon_bounds[0,0].data)
     # outputdatatset["time"] = np.arange(len(fin["time"]), dtype=np.int16) + 850
@@ -87,8 +102,12 @@ def MetadataUpdateSurfDS(inputdataset,outputdataset):
     # Move this out to be handled by opening function
     # fin2 = xr.open_dataset('surfdata_4x5_hist_16pfts_Irrig_CMIP6_simyr2000_c190214.nc')
 
-    # make soem chagnes to metadata
+    # Rename the surface dataset dimensions to something recognizable by xESMF.
+    # That said, since regridder just needs the values, I'm not sure this is necessary.
+    # We might just be able to rename t
     fin2b = fin2.rename_dims(dims_dict={'lsmlat':'latitude','lsmlon':'longitude'})
+
+    # Populate the new surface dataset with the actual lat/lon values
     fin2b['longitude'] = fin2b.LONGXY.isel(latitude=0)
     fin2b['latitude'] = fin2b.LATIXY.isel(longitude=0)
 
