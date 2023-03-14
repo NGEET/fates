@@ -64,17 +64,44 @@ def attribupdate(inputarg,outputarg):
 # Any LUH2 data set should work as the input dataset, but
 # we should have some sort of check to make sure that the
 # data sets being used are consistent in the final calling script
-def metadatachange(inputdataset,outputdataset):
+def MetadataUpdateLUH2(inputdataset,outputdataset):
 
-    # Drop the invalid lat, lon label names
+    # if this is LUH2 data
+    # Drop the invalid lat, lon variable labels and replace with "lat_b" and "lon_b"
+    # This is only necessary for the conservative method (?) per xESMF docs
     outputdatatset = inputdataset.drop(labels=['lat_bounds','lon_bounds'])
     outputdatatset["lat_b"] = np.insert(inputdataset.lat_bounds[:,1].data,0,inputdataset.lat_bounds[0,0].data)
     outputdatatset["lon_b"] = np.insert(inputdataset.lon_bounds[:,1].data,0,inputdataset.lon_bounds[0,0].data)
     # outputdatatset["time"] = np.arange(len(fin["time"]), dtype=np.int16) + 850
     # outputdatatset["YEAR"] = xr.DataArray(np.arange(len(fin["time"]), dtype=np.int16) + 850, dims=("time"))
 
+def definemask(inputdataset,outputdataset,label_to_mask):
     # make mask of LUH2 data
     outputdatatset["mask"] = xr.where(~np.isnan(inputdataset["primf_to_range"].isel(time=0)), 1, 0)
+    # make mask of surface data file
+    fin2b["mask"] = fin2b["PCT_NATVEG"]> 0.
+
+# load CLM surface data file
+def MetadataUpdateSurfDS(inputdataset,outputdataset):
+
+    # Move this out to be handled by opening function
+    # fin2 = xr.open_dataset('surfdata_4x5_hist_16pfts_Irrig_CMIP6_simyr2000_c190214.nc')
+
+    # make soem chagnes to metadata
+    fin2b = fin2.rename_dims(dims_dict={'lsmlat':'latitude','lsmlon':'longitude'})
+    fin2b['longitude'] = fin2b.LONGXY.isel(latitude=0)
+    fin2b['latitude'] = fin2b.LATIXY.isel(longitude=0)
+
+def RegridConservative(datasets_in,datasets_out,regridder):
+    # define the regridder transformation
+    regridder = xe.Regridder(dataset_in, dataset_out, "conservative")
+
+    #regrid the various LUH2 datasets, from smallest to largest
+    fin_states_regrid = regridder(finb_states)
+    fin_management_regrid = regridder(finb_management)
+
+    ### memory crashes on the transition data
+    #fin_transitions_regrid = regridder(finb)
 
 # Update the formatting to meet HLM needs
 # def clmformatter():
