@@ -777,8 +777,7 @@ contains
     integer init
 
     real(r8) :: dummy_n    ! set cohort n to a dummy value of 1
-    real(r8) :: spread     ! dummy  value of canopy spread to estimate c_area
-
+ 
     !----------------------------------------------------------------------
 
     patch_in%tallest  => null()
@@ -854,9 +853,8 @@ contains
 
                 ! calculate crown area of a single plant
                 dummy_n = 1.0_r8 ! make n=1 to get area of one tree
-                spread = 1.0_r8  ! fix this to 0 to remove dynamics of canopy clousre, assuming a closed canopy. 
-
-                call carea_allom(temp_cohort%dbh, dummy_n, spread, temp_cohort%pft, &
+               
+                call carea_allom(temp_cohort%dbh, dummy_n, init_spread_inventory, temp_cohort%pft, &
                      temp_cohort%crowndamage, temp_cohort%c_area)
 
                 ! calculate initial density required to close canopy 
@@ -993,8 +991,6 @@ contains
 
           write(fates_log(),*) 'c_area: ', temp_cohort%c_area
           write(fates_log(),*) 'p_area: ', patch_in%area
-
-          deallocate(temp_cohort) ! get rid of temporary cohort
 
           deallocate(temp_cohort, stat=istat, errmsg=smsg)
           if (istat/=0) then
