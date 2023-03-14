@@ -831,7 +831,7 @@ contains
                 ! n.b. that this is the same as currentcohort%n = %initd(pft) &AREA
                 temp_cohort%n           =  temp_cohort%n * sum(site_in%use_this_pft)
              endif
-
+             
              !  h,dbh,leafc,n from SP values or from small initial size.
              if(hlm_use_sp.eq.itrue)then
                 init = itrue
@@ -988,9 +988,6 @@ contains
           call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, &
                temp_cohort%coage, temp_cohort%dbh, prt_obj, cstatus, rstatus,        &
                temp_cohort%canopy_trim, temp_cohort%c_area,1,temp_cohort%crowndamage, site_in%spread, bc_in)
-
-          write(fates_log(),*) 'c_area: ', temp_cohort%c_area
-          write(fates_log(),*) 'p_area: ', patch_in%area
 
           deallocate(temp_cohort, stat=istat, errmsg=smsg)
           if (istat/=0) then
