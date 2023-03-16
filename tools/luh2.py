@@ -68,6 +68,13 @@ def attribupdate(inputfile,output_append="modified"):
     #           ),
     # ])
 
+# Fix the boundaries of the LUH2 data
+# Each lat/lon boundary array is a 2D array corresponding to the bounds of each
+# coordinate position (e.g. lat_boundary would be 90.0 and 89.75 for lat coordinate
+# of 89.875).
+def BoundsFixLUH2():
+
+
 # Make necessary (?) changes to metadata for XESMF conservative regrid
 # Any LUH2 data set should work as the input dataset, but
 # we should have some sort of check to make sure that the
@@ -80,7 +87,7 @@ def MetadataUpdateLUH2(inputdataset):
 
     # Is dropping these variables really necessary?  Will xESMF get confused or is this
     # for the users's sake?
-    outputdatatset = inputdataset.drop(labels=['lat_bounds','lon_bounds'])
+    # outputdatatset = inputdataset.drop(labels=['lat_bounds','lon_bounds'])
 
     # Create lat and lon bounds as a single dimension array out of the LUH2 two dimensional
     # _bounds array.
