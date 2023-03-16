@@ -497,7 +497,6 @@ contains
       real(r8) :: struct_m               ! structure element mass [kg]
       real(r8) :: repro_m                ! reproductive mass [kg]
       real(r8) :: retain_frac            ! fraction of litter retained in the donor patch
-      real(r8) :: donate_frac            ! fraction of litter sent to newly formed patch
       real(r8) :: retain_m2              ! area normalization for litter mass destined to old patch [m-2]
       real(r8) :: donate_m2              ! area normalization for litter mass destined to new patch [m-2]
       real(r8) :: dcmpy_frac             ! fraction going into each decomposability pool
@@ -522,7 +521,6 @@ contains
       ! vis-a-vis the new and donor patch
       retain_frac = (1.0_r8-harvest_litter_localization) * &
             remainder_area/(newPatch%area+remainder_area)
-      donate_frac = 1.0_r8-retain_frac
 
       if(remainder_area > rsnbl_math_prec) then
          retain_m2 = retain_frac/remainder_area
