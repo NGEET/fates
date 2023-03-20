@@ -819,6 +819,12 @@ contains
           temp_cohort%l2fr = prt_params%allom_l2fr(pft)
           temp_cohort%canopy_trim = 1.0_r8
           temp_cohort%crowndamage = 1  ! Assume no damage to begin with
+          
+          ! If positive EDPftvarcon_inst%initd is interpreted as initial recruit density.
+          ! If negative EDPftvarcon_inst%initd is interpreted as initial dbh. 
+          ! Dbh-initialization can only be used in nocomp mode.
+          ! In the dbh-initialization case, we calculate crown area for a single tree and then calculate
+          ! the density of plants  needed for a full canopy. 
 
           if(EDPftvarcon_inst%initd(pft)>nearzero) then   ! interpret as initial density and calculate diameter
 
