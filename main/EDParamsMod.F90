@@ -23,19 +23,19 @@ module EDParamsMod
 
    real(r8),protected, public :: vai_top_bin_width           ! width in VAI units of uppermost leaf+stem
                                                              ! layer scattering element in each canopy layer [m2/m2]
-                                                             ! (NOT YET IMPLEMENTED)
    real(r8),protected, public :: vai_width_increase_factor   ! factor by which each leaf+stem scattering element
                                                              ! increases in VAI width (1 = uniform spacing)
-                                                             ! (NOT YET IMPLEMENTED)
    real(r8),protected, public :: photo_temp_acclim_timescale ! Length of the window for the exponential moving average (ema)
-                                                             ! of vegetation temperature used in photosynthesis
-                                                             ! temperature acclimation (NOT YET IMPLEMENTED)
-
+                                                             ! of vegetation temperature used in photosynthesis and respiration
+                                                             ! temperature acclimation [days]
+   real(r8),protected, public :: photo_temp_acclim_thome_time ! Length of the window for the long-term exponential moving average (ema)
+                                                              ! of vegetation temperature used in photosynthesis 
+                                                              ! T_home term in Kumarathunge parameterization [years]
    integer,protected, public :: maintresp_leaf_model  ! switch for choosing between leaf maintenance
                                                       ! respiration model. 1=Ryan (1991), 2=Atkin et al (2017)
    integer,protected, public :: photo_tempsens_model  ! switch for choosing the model that defines the temperature
                                                       ! sensitivity of photosynthetic parameters (vcmax, jmax).
-                                                      ! 1=non-acclimating (NOT YET IMPLEMENTED)
+                                                      ! 1=non-acclimating, 2=Kumarathunge et al., 2019
    
    real(r8),protected, public :: fates_mortality_disturbance_fraction ! the fraction of canopy mortality that results in disturbance
    real(r8),protected, public :: ED_val_comp_excln
@@ -94,6 +94,7 @@ module EDParamsMod
    integer, protected,allocatable,public :: hydr_htftype_node(:)
 
    character(len=param_string_length),parameter,public :: ED_name_photo_temp_acclim_timescale = "fates_leaf_photo_temp_acclim_timescale"
+   character(len=param_string_length),parameter,public :: ED_name_photo_temp_acclim_thome_time = "fates_leaf_photo_temp_acclim_thome_time"
    character(len=param_string_length),parameter,public :: name_photo_tempsens_model = "fates_leaf_photo_tempsens_model"
    character(len=param_string_length),parameter,public :: name_maintresp_model = "fates_maintresp_leaf_model"
    character(len=param_string_length),parameter,public :: ED_name_hydr_htftype_node = "fates_hydro_htftype_node"
@@ -264,6 +265,7 @@ contains
     vai_top_bin_width                     = nan
     vai_width_increase_factor             = nan
     photo_temp_acclim_timescale           = nan
+    photo_temp_acclim_thome_time          = nan
     photo_tempsens_model                  = -9
     maintresp_leaf_model                  = -9
     fates_mortality_disturbance_fraction  = nan
@@ -346,6 +348,9 @@ contains
     call FatesParamsInit()
 
     call fates_params%RegisterParameter(name=ED_name_photo_temp_acclim_timescale, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=ED_name_photo_temp_acclim_thome_time, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=name_photo_tempsens_model,dimension_shape=dimension_shape_scalar, &
@@ -443,7 +448,7 @@ contains
     
     call fates_params%RegisterParameter(name=hydr_name_solver, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
-    
+
     call fates_params%RegisterParameter(name=hydr_name_kmax_rsurf1, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
@@ -550,6 +555,9 @@ contains
     
     call fates_params%RetrieveParameter(name=ED_name_photo_temp_acclim_timescale, &
          data=photo_temp_acclim_timescale)
+
+    call fates_params%RetrieveParameter(name=ED_name_photo_temp_acclim_thome_time, &
+         data=photo_temp_acclim_thome_time)
 
     call fates_params%RetrieveParameter(name=name_photo_tempsens_model, &
          data=tmpreal)
@@ -768,7 +776,8 @@ contains
         write(fates_log(),*) '-----------  FATES Scalar Parameters -----------------'
         write(fates_log(),fmt0) 'vai_top_bin_width = ',vai_top_bin_width
         write(fates_log(),fmt0) 'vai_width_increase_factor = ',vai_width_increase_factor
-        write(fates_log(),fmt0) 'photo_temp_acclim_timescale = ',photo_temp_acclim_timescale
+        write(fates_log(),fmt0) 'photo_temp_acclim_timescale (days) = ',photo_temp_acclim_timescale
+        write(fates_log(),fmt0) 'photo_temp_acclim_thome_time (years) = ',photo_temp_acclim_thome_time
         write(fates_log(),fmti) 'hydr_htftype_node = ',hydr_htftype_node
         write(fates_log(),fmt0) 'fates_mortality_disturbance_fraction = ',fates_mortality_disturbance_fraction
         write(fates_log(),fmt0) 'ED_val_comp_excln = ',ED_val_comp_excln
