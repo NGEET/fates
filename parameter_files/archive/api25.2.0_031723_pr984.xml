@@ -13,7 +13,7 @@
 
   <!-- To use this patch file run the following command: -->
 
-  <!--   Run `python ../tools/UpdateParamAPI.py -\-f archive/api25.1.0_021623_pr931.xml` -->
+  <!--   Run `python ../tools/UpdateParamAPI.py -\-f archive/api25.2.0_031723_pr984.xml` -->
 
   <!-- To update a different CDL parameter file, change the file listed the `base_file`. -->
   <!-- This requires that said file is up to date with API 25.2. -->
