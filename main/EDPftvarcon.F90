@@ -1602,7 +1602,31 @@ contains
 
            end if
         end if
-
+        
+        ! If any PFTs are specified as either prescribed N or P uptake
+        ! then they all must be !
+        
+        if (any(EDPftvarcon_inst%prescribed_nuptake(:) < -nearzero ) .or. &
+             any(EDPftvarcon_inst%prescribed_nuptake(:) > 10._r8 ) ) then
+           write(fates_log(),*) 'Negative values for EDPftvarcon_inst%prescribed_nuptake(:)'
+           write(fates_log(),*) 'are not allowed. Reasonable ranges for this parameter are zero'
+           write(fates_log(),*) 'to something slightly larger than 1, so we set a cap at 10.'
+           write(fates_log(),*) 'Set to zero to turn off and use coupled nutrients.'
+           write(fates_log(),*) ' Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        elseif (any(abs(EDPftvarcon_inst%prescribed_nuptake(:)) > nearzero )) then
+           if(.not.all(abs(EDPftvarcon_inst%prescribed_nuptake(:)) > nearzero )) then
+              write(fates_log(),*) 'If any PFTs are specified as having prescribed N'
+              write(fates_log(),*) 'uptake, then they must all. Note, prescribed'
+              write(fates_log(),*) 'rates are associated with any value abs(x)>nearzero'
+              write(fates_log(),*) 'EDPftvarcon_inst%prescribed_nuptake(:):', &
+                   EDPftvarcon_inst%prescribed_nuptake(:)
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+        end if
+        
+        
      case (prt_carbon_allom_hyp)
         ! No additional checks needed for now.
         continue
@@ -1616,28 +1640,7 @@ contains
         call endrun(msg=errMsg(sourcefile, __LINE__))
      end select
 
-     ! If any PFTs are specified as either prescribed N or P uptake
-     ! then they all must be !
-
-     if (any(EDPftvarcon_inst%prescribed_nuptake(:) < -nearzero ) .or. &
-          any(EDPftvarcon_inst%prescribed_nuptake(:) > 10._r8 ) ) then
-        write(fates_log(),*) 'Negative values for EDPftvarcon_inst%prescribed_nuptake(:)'
-        write(fates_log(),*) 'are not allowed. Reasonable ranges for this parameter are zero'
-        write(fates_log(),*) 'to something slightly larger than 1, so we set a cap at 10.'
-        write(fates_log(),*) 'Set to zero to turn off and use coupled nutrients.'
-        write(fates_log(),*) ' Aborting'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     elseif (any(abs(EDPftvarcon_inst%prescribed_nuptake(:)) > nearzero )) then
-        if(.not.all(abs(EDPftvarcon_inst%prescribed_nuptake(:)) > nearzero )) then
-           write(fates_log(),*) 'If any PFTs are specified as having prescribed N'
-           write(fates_log(),*) 'uptake, then they must all. Note, prescribed'
-           write(fates_log(),*) 'rates are associated with any value abs(x)>nearzero'
-           write(fates_log(),*) 'EDPftvarcon_inst%prescribed_nuptake(:):', &
-                EDPftvarcon_inst%prescribed_nuptake(:)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-        end if
-     end if
+ 
 
      ! logging parameters, make sure they make sense
      if ( (logging_mechanical_frac + logging_collateral_frac + logging_direct_frac) .gt. 1._r8) then
