@@ -36,6 +36,7 @@ module FatesInterfaceMod
    use FatesConstantsMod         , only : itrue,ifalse
    use FatesConstantsMod         , only : nearzero
    use FatesConstantsMod         , only : sec_per_day
+   use FatesConstantsMod         , only : days_per_year
    use FatesGlobals              , only : fates_global_verbose
    use FatesGlobals              , only : fates_log
    use FatesGlobals              , only : endrun => fates_endrun
@@ -50,6 +51,7 @@ module FatesInterfaceMod
    use EDParamsMod               , only : bgc_soil_salinity
    use FatesPlantHydraulicsMod   , only : InitHydroGlobals
    use EDParamsMod               , only : photo_temp_acclim_timescale
+   use EDParamsMod               , only : photo_temp_acclim_thome_time
    use EDParamsMod               , only : ED_val_history_sizeclass_bin_edges
    use EDParamsMod               , only : ED_val_history_ageclass_bin_edges
    use EDParamsMod               , only : ED_val_history_height_bin_edges
@@ -84,6 +86,7 @@ module FatesInterfaceMod
    use FatesRunningMeanMod       , only : ema_24hr
    use FatesRunningMeanMod       , only : fixed_24hr
    use FatesRunningMeanMod       , only : ema_lpa
+   use FatesRunningMeanMod       , only : ema_longterm
    use FatesRunningMeanMod       , only : ema_60day
    use FatesRunningMeanMod       , only : moving_ema_window
    use FatesRunningMeanMod       , only : fixed_window
@@ -986,8 +989,11 @@ contains
       call ema_24hr%define(sec_per_day, hlm_stepsize, moving_ema_window)
       allocate(fixed_24hr)
       call fixed_24hr%define(sec_per_day, hlm_stepsize, fixed_window)
-      allocate(ema_lpa)
+      allocate(ema_lpa)  ! note that this parameter has units of days
       call ema_lpa%define(photo_temp_acclim_timescale*sec_per_day, &
+           hlm_stepsize,moving_ema_window)
+      allocate(ema_longterm)  ! note that this parameter has units of years
+      call ema_longterm%define(photo_temp_acclim_thome_time*days_per_year*sec_per_day, & 
            hlm_stepsize,moving_ema_window)
       
       !allocate(ema_60day)
@@ -1949,6 +1955,7 @@ contains
            ifp=ifp+1
            call cpatch%tveg24%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            call cpatch%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
+           call cpatch%tveg_longterm%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
 
            
            !ccohort => cpatch%tallest

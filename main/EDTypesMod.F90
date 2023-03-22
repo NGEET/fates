@@ -339,6 +339,7 @@ module EDTypesMod
 
      real(r8) ::  resp_g_tstep                           ! Growth respiration:  kgC/indiv/timestep
      real(r8) ::  resp_m                                 ! Maintenance respiration:  kgC/indiv/timestep 
+     real(r8) ::  resp_m_unreduced                       ! Diagnostic-only unreduced maintenance respiration:  kgC/indiv/timestep 
      real(r8) ::  resp_excess                            ! Respiration of excess carbon kgC/indiv/day
      real(r8) ::  livestem_mr                            ! Live stem        maintenance respiration: kgC/indiv/s
                                                          ! (Above ground)
@@ -439,6 +440,8 @@ module EDTypesMod
      class(rmean_type), pointer :: tveg24                        ! 24-hour mean vegetation temperature (K)
      class(rmean_type), pointer :: tveg_lpa                      ! Running mean of vegetation temperature at the
                                                                  ! leaf photosynthesis acclimation timescale [K]
+     class(rmean_type), pointer :: tveg_longterm                ! Long-Term Running mean of vegetation temperature at the
+                                                                 ! leaf photosynthesis acclimation timescale [K] (i.e T_home)
 
      integer  ::  nocomp_pft_label                               ! Where nocomp is active, use this label for patch ID.
                                                                  ! Each patch ID corresponds to a pft number since each

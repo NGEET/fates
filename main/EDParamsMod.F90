@@ -23,19 +23,19 @@ module EDParamsMod
 
    real(r8),protected, public :: vai_top_bin_width           ! width in VAI units of uppermost leaf+stem
                                                              ! layer scattering element in each canopy layer [m2/m2]
-                                                             ! (NOT YET IMPLEMENTED)
    real(r8),protected, public :: vai_width_increase_factor   ! factor by which each leaf+stem scattering element
                                                              ! increases in VAI width (1 = uniform spacing)
-                                                             ! (NOT YET IMPLEMENTED)
    real(r8),protected, public :: photo_temp_acclim_timescale ! Length of the window for the exponential moving average (ema)
-                                                             ! of vegetation temperature used in photosynthesis
-                                                             ! temperature acclimation (NOT YET IMPLEMENTED)
-
-   integer,protected, public :: maintresp_model       ! switch for choosing between leaf maintenance
-                                                      ! respiration model. 1=Ryan (1991) (NOT YET IMPLEMENTED)
+                                                             ! of vegetation temperature used in photosynthesis and respiration
+                                                             ! temperature acclimation [days]
+   real(r8),protected, public :: photo_temp_acclim_thome_time ! Length of the window for the long-term exponential moving average (ema)
+                                                              ! of vegetation temperature used in photosynthesis 
+                                                              ! T_home term in Kumarathunge parameterization [years]
+   integer,protected, public :: maintresp_leaf_model  ! switch for choosing between leaf maintenance
+                                                      ! respiration model. 1=Ryan (1991), 2=Atkin et al (2017)
    integer,protected, public :: photo_tempsens_model  ! switch for choosing the model that defines the temperature
                                                       ! sensitivity of photosynthetic parameters (vcmax, jmax).
-                                                      ! 1=non-acclimating (NOT YET IMPLEMENTED)
+                                                      ! 1=non-acclimating, 2=Kumarathunge et al., 2019
    
    real(r8),protected, public :: fates_mortality_disturbance_fraction ! the fraction of canopy mortality that results in disturbance
    real(r8),protected, public :: ED_val_comp_excln
@@ -45,7 +45,7 @@ module EDParamsMod
    real(r8),protected, public :: ED_val_understorey_death
    real(r8),protected, public :: ED_val_cwd_fcel
    real(r8),protected, public :: ED_val_cwd_flig
-   real(r8),protected, public :: ED_val_base_mr_20
+   real(r8),protected, public :: maintresp_nonleaf_baserate
    real(r8),protected, public :: ED_val_phen_drought_threshold
    real(r8),protected, public :: ED_val_phen_doff_time
    real(r8),protected, public :: ED_val_phen_a
@@ -94,8 +94,9 @@ module EDParamsMod
    integer, protected,allocatable,public :: hydr_htftype_node(:)
 
    character(len=param_string_length),parameter,public :: ED_name_photo_temp_acclim_timescale = "fates_leaf_photo_temp_acclim_timescale"
+   character(len=param_string_length),parameter,public :: ED_name_photo_temp_acclim_thome_time = "fates_leaf_photo_temp_acclim_thome_time"
    character(len=param_string_length),parameter,public :: name_photo_tempsens_model = "fates_leaf_photo_tempsens_model"
-   character(len=param_string_length),parameter,public :: name_maintresp_model = "fates_maintresp_model"
+   character(len=param_string_length),parameter,public :: name_maintresp_model = "fates_maintresp_leaf_model"
    character(len=param_string_length),parameter,public :: ED_name_hydr_htftype_node = "fates_hydro_htftype_node"
    character(len=param_string_length),parameter,public :: ED_name_mort_disturb_frac = "fates_mort_disturb_frac"
    character(len=param_string_length),parameter,public :: ED_name_comp_excln = "fates_comp_excln"
@@ -105,7 +106,7 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_understorey_death = "fates_mort_understorey_death"
    character(len=param_string_length),parameter,public :: ED_name_cwd_fcel= "fates_frag_cwd_fcel"   
    character(len=param_string_length),parameter,public :: ED_name_cwd_flig= "fates_frag_cwd_flig"   
-   character(len=param_string_length),parameter,public :: ED_name_base_mr_20= "fates_base_mr_20"   
+   character(len=param_string_length),parameter,public :: fates_name_maintresp_nonleaf_baserate= "fates_maintresp_nonleaf_baserate"
    character(len=param_string_length),parameter,public :: ED_name_phen_drought_threshold= "fates_phen_drought_threshold"   
    character(len=param_string_length),parameter,public :: ED_name_phen_doff_time= "fates_phen_mindaysoff"
    character(len=param_string_length),parameter,public :: ED_name_phen_a= "fates_phen_gddthresh_a"   
@@ -264,8 +265,9 @@ contains
     vai_top_bin_width                     = nan
     vai_width_increase_factor             = nan
     photo_temp_acclim_timescale           = nan
+    photo_temp_acclim_thome_time          = nan
     photo_tempsens_model                  = -9
-    maintresp_model                       = -9
+    maintresp_leaf_model                  = -9
     fates_mortality_disturbance_fraction  = nan
     ED_val_comp_excln                     = nan
     ED_val_vai_top_bin_width              = nan
@@ -274,7 +276,7 @@ contains
     ED_val_understorey_death              = nan
     ED_val_cwd_fcel                       = nan
     ED_val_cwd_flig                       = nan
-    ED_val_base_mr_20                     = nan
+    maintresp_nonleaf_baserate            = nan
     ED_val_phen_drought_threshold         = nan
     ED_val_phen_doff_time                 = nan
     ED_val_phen_a                         = nan
@@ -348,6 +350,9 @@ contains
     call fates_params%RegisterParameter(name=ED_name_photo_temp_acclim_timescale, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
+    call fates_params%RegisterParameter(name=ED_name_photo_temp_acclim_thome_time, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
     call fates_params%RegisterParameter(name=name_photo_tempsens_model,dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
@@ -384,7 +389,7 @@ contains
     call fates_params%RegisterParameter(name=ED_name_cwd_flig, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=ED_name_base_mr_20, dimension_shape=dimension_shape_scalar, &
+    call fates_params%RegisterParameter(name=fates_name_maintresp_nonleaf_baserate, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=ED_name_phen_drought_threshold, dimension_shape=dimension_shape_scalar, &
@@ -443,7 +448,7 @@ contains
     
     call fates_params%RegisterParameter(name=hydr_name_solver, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
-    
+
     call fates_params%RegisterParameter(name=hydr_name_kmax_rsurf1, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
@@ -551,13 +556,16 @@ contains
     call fates_params%RetrieveParameter(name=ED_name_photo_temp_acclim_timescale, &
          data=photo_temp_acclim_timescale)
 
+    call fates_params%RetrieveParameter(name=ED_name_photo_temp_acclim_thome_time, &
+         data=photo_temp_acclim_thome_time)
+
     call fates_params%RetrieveParameter(name=name_photo_tempsens_model, &
          data=tmpreal)
     photo_tempsens_model = nint(tmpreal)
 
     call fates_params%RetrieveParameter(name=name_maintresp_model, &
          data=tmpreal)
-    maintresp_model = nint(tmpreal)
+    maintresp_leaf_model = nint(tmpreal)
     
     call fates_params%RetrieveParameter(name=ED_name_mort_disturb_frac, &
           data=fates_mortality_disturbance_fraction)
@@ -583,8 +591,8 @@ contains
     call fates_params%RetrieveParameter(name=ED_name_cwd_flig, &
          data=ED_val_cwd_flig)
 
-    call fates_params%RetrieveParameter(name=ED_name_base_mr_20, &
-         data=ED_val_base_mr_20)
+    call fates_params%RetrieveParameter(name=fates_name_maintresp_nonleaf_baserate, &
+         data=maintresp_nonleaf_baserate)
 
     call fates_params%RetrieveParameter(name=ED_name_phen_drought_threshold, &
          data=ED_val_phen_drought_threshold)
@@ -768,7 +776,8 @@ contains
         write(fates_log(),*) '-----------  FATES Scalar Parameters -----------------'
         write(fates_log(),fmt0) 'vai_top_bin_width = ',vai_top_bin_width
         write(fates_log(),fmt0) 'vai_width_increase_factor = ',vai_width_increase_factor
-        write(fates_log(),fmt0) 'photo_temp_acclim_timescale = ',photo_temp_acclim_timescale
+        write(fates_log(),fmt0) 'photo_temp_acclim_timescale (days) = ',photo_temp_acclim_timescale
+        write(fates_log(),fmt0) 'photo_temp_acclim_thome_time (years) = ',photo_temp_acclim_thome_time
         write(fates_log(),fmti) 'hydr_htftype_node = ',hydr_htftype_node
         write(fates_log(),fmt0) 'fates_mortality_disturbance_fraction = ',fates_mortality_disturbance_fraction
         write(fates_log(),fmt0) 'ED_val_comp_excln = ',ED_val_comp_excln
@@ -778,7 +787,7 @@ contains
         write(fates_log(),fmt0) 'ED_val_understorey_death = ',ED_val_understorey_death
         write(fates_log(),fmt0) 'ED_val_cwd_fcel = ',ED_val_cwd_fcel
         write(fates_log(),fmt0) 'ED_val_cwd_flig = ',ED_val_cwd_flig
-        write(fates_log(),fmt0) 'ED_val_base_mr_20 = ', ED_val_base_mr_20
+        write(fates_log(),fmt0) 'fates_maintresp_nonleaf_baserate = ', maintresp_nonleaf_baserate
         write(fates_log(),fmt0) 'ED_val_phen_drought_threshold = ',ED_val_phen_drought_threshold
         write(fates_log(),fmt0) 'ED_val_phen_doff_time = ',ED_val_phen_doff_time
         write(fates_log(),fmt0) 'ED_val_phen_a = ',ED_val_phen_a
