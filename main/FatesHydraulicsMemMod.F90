@@ -14,8 +14,8 @@ module FatesHydraulicsMemMod
    ! Define the various different solver options for hydraulics
    
    integer, parameter, public :: hydr_solver_1DTaylor = 1
-   integer, parameter, public :: hydr_solver_2DNewton = 2
-   integer, parameter, public :: hydr_solver_2DPicard = 3
+   integer, parameter, public :: hydr_solver_2DNewton = 3
+   integer, parameter, public :: hydr_solver_2DPicard = 2
    
    ! Number of soil layers for indexing cohort fine root quanitities
    ! NOTE: The hydraulics code does have some capacity to run a single soil
@@ -33,7 +33,7 @@ module FatesHydraulicsMemMod
    integer, parameter, public                  :: n_hypool_stem  = 1
    integer, parameter, public                  :: n_hypool_troot = 1 ! CANNOT BE CHANGED
    integer, parameter, public                  :: n_hypool_aroot = 1 ! THIS IS "PER-SOIL-LAYER"
-   integer, parameter, public                  :: nshell         = 5
+   integer, parameter, public                  :: nshell         = 1
 
 
    ! number of aboveground plant water storage nodes

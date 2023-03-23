@@ -24,7 +24,7 @@ from scipy.io import netcdf
 # =======================================================================================
 
 pft_dim_name = 'fates_pft'
-prt_dim_name = 'fates_prt_organs'
+prt_dim_name = 'fates_plant_organs'
 hydro_dim_name = 'fates_hydr_organs'
 litt_dim_name = 'fates_litterclass'
 string_dim_name = 'fates_string_length'
@@ -86,8 +86,9 @@ def interp_args(argv):
     output_fname = "none"
     donor_pft_indices = -9
     donot_pft_indices_str = ''
+    histflag = True
     try:
-        opts, args = getopt.getopt(argv, 'h',["fin=","fout=","pft-indices="])
+        opts, args = getopt.getopt(argv, 'h',["fin=","fout=","pft-indices=","nohist"])
     except getopt.GetoptError as err:
         print('Argument error, see usage')
         usage()
@@ -103,6 +104,8 @@ def interp_args(argv):
             output_fname = a
         elif o in ("--pft-indices"):
             donor_pft_indices_str = a.strip()
+        elif o in ("--nohist"):
+            histflag = False
         else:
             assert False, "unhandled option"
 
@@ -127,7 +130,7 @@ def interp_args(argv):
             donor_pft_indices.append(int(strpft))
 
 
-    return (input_fname,output_fname,donor_pft_indices)
+    return (input_fname,output_fname,donor_pft_indices,histflag)
 
 
 # ========================================================================================
@@ -139,7 +142,7 @@ def interp_args(argv):
 def main(argv):
 
     # Interpret the arguments to the script
-    [input_fname,output_fname,donor_pft_indices] = interp_args(argv)
+    [input_fname,output_fname,donor_pft_indices,histflag] = interp_args(argv)
 
     num_pft_out = len(donor_pft_indices)
 
@@ -252,8 +255,9 @@ def main(argv):
         out_var.units     = in_var.units
         out_var.long_name = in_var.long_name
 
-    fp_out.history = "This file was made from FatesPFTIndexSwapper.py \n Input File = {} \n Indices = {}"\
-          .format(input_fname,donor_pft_indices)
+    if(histflag):
+        fp_out.history = "This file was made from FatesPFTIndexSwapper.py \n Input File = {} \n Indices = {}"\
+              .format(input_fname,donor_pft_indices)
 
     #var_out.mode = var.mode
     #fp.flush()

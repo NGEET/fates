@@ -917,7 +917,7 @@ contains
       real(r8) :: m_repro  ! Generic mass for reproductive tissues [kg]
       real(r8) :: stem_drop_fraction
       integer  :: i_pft, ncohorts_to_create
-
+     
       character(len=128),parameter    :: wr_fmt = &
            '(F7.1,2X,A20,2X,A20,2X,F5.2,2X,F5.2,2X,I4,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2)'
 
@@ -925,6 +925,7 @@ contains
       real(r8), parameter :: abnormal_large_dbh    = 500.0_r8   ! I've never heard of a tree > 3m
       integer,  parameter :: recruitstatus = 0
 
+     
       read(css_file_unit,fmt=*,iostat=ios) c_time, p_name, c_name, c_dbh, c_height, &
             c_pft, c_nplant, c_bdead, c_balive, c_avgRG
 
@@ -1018,55 +1019,49 @@ contains
 
          temp_cohort%n           = c_nplant * cpatch%area / real(ncohorts_to_create,r8)
          temp_cohort%dbh         = c_dbh
+         temp_cohort%crowndamage = 1  ! assume undamaged 
 
          call h_allom(c_dbh,temp_cohort%pft,temp_cohort%hite)
          temp_cohort%canopy_trim = 1.0_r8
 
-
-         call bagw_allom(temp_cohort%dbh,temp_cohort%pft,c_agw)
+         call bagw_allom(temp_cohort%dbh,temp_cohort%pft, &
+              temp_cohort%crowndamage, c_agw)
          ! Calculate coarse root biomass from allometry
          call bbgw_allom(temp_cohort%dbh,temp_cohort%pft,c_bgw)
 
          ! Calculate the leaf biomass (calculates a maximum first, then applies canopy trim
          ! and sla scaling factors)
-         call bleaf(temp_cohort%dbh,temp_cohort%pft,temp_cohort%canopy_trim,c_leaf)
-
+         call bleaf(temp_cohort%dbh,temp_cohort%pft,temp_cohort%crowndamage,&
+              temp_cohort%canopy_trim,c_leaf)
+         
          ! Calculate fine root biomass
-         call bfineroot(temp_cohort%dbh,temp_cohort%pft,temp_cohort%canopy_trim,c_fnrt)
+
+         temp_cohort%l2fr = prt_params%allom_l2fr(temp_cohort%pft)
+         call bfineroot(temp_cohort%dbh,temp_cohort%pft,temp_cohort%canopy_trim,temp_cohort%l2fr,c_fnrt)
 
          ! Calculate sapwood biomass
-         call bsap_allom(temp_cohort%dbh,temp_cohort%pft,temp_cohort%canopy_trim, a_sapw, c_sapw)
-
+         call bsap_allom(temp_cohort%dbh,temp_cohort%pft,temp_cohort%crowndamage, &
+              temp_cohort%canopy_trim, a_sapw, c_sapw)
+         
          call bdead_allom( c_agw, c_bgw, c_sapw, temp_cohort%pft, c_struct )
+         call bstore_allom(temp_cohort%dbh, temp_cohort%pft, temp_cohort%crowndamage,temp_cohort%canopy_trim, c_store)
 
-         call bstore_allom(temp_cohort%dbh, temp_cohort%pft, temp_cohort%canopy_trim, c_store)
-
-         temp_cohort%leafmemory = 0._r8
-         temp_cohort%sapwmemory = 0._r8
-         temp_cohort%structmemory = 0._r8
          cstatus = leaves_on
-
          stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(temp_cohort%pft)
 
          if( prt_params%season_decid(temp_cohort%pft) == itrue .and. &
               any(csite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
-            temp_cohort%leafmemory = c_leaf
-            temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
-            temp_cohort%structmemory = c_struct * stem_drop_fraction
             c_leaf  = 0._r8
-	         c_sapw = (1._r8 - stem_drop_fraction) * c_sapw
-	         c_struct  = (1._r8 - stem_drop_fraction) * c_struct
+            c_sapw = (1._r8 - stem_drop_fraction) * c_sapw
+            c_struct  = (1._r8 - stem_drop_fraction) * c_struct
             cstatus = leaves_off
          endif
 
          if ( prt_params%stress_decid(temp_cohort%pft) == itrue .and. &
               any(csite%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff])) then
-            temp_cohort%leafmemory = c_leaf
-            temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
-            temp_cohort%structmemory = c_struct * stem_drop_fraction
             c_leaf  = 0._r8
-	         c_sapw = (1._r8 - stem_drop_fraction) * c_sapw
-	         c_struct  = (1._r8 - stem_drop_fraction) * c_struct
+            c_sapw = (1._r8 - stem_drop_fraction) * c_sapw
+            c_struct  = (1._r8 - stem_drop_fraction) * c_struct
             cstatus = leaves_off
          endif
 
@@ -1097,21 +1092,17 @@ contains
             case(nitrogen_element)
 
                ! For inventory runs, initialize nutrient contents half way between max and min stoichiometries
-               m_struct = c_struct * 0.5_r8 * &
-                    (prt_params%nitr_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(struct_organ)) + &
-                    prt_params%nitr_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(struct_organ)))
+               m_struct = c_struct * &
+                    prt_params%nitr_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(struct_organ))
 
-               m_leaf   = c_leaf * 0.5_r8 * &
-                    (prt_params%nitr_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(leaf_organ)) + &
-                    prt_params%nitr_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(leaf_organ)))
+               m_leaf   = c_leaf * &
+                    prt_params%nitr_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(leaf_organ))
 
-               m_fnrt   = c_fnrt * 0.5_r8 * &
-                    (prt_params%nitr_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(fnrt_organ)) + &
-                    prt_params%nitr_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(fnrt_organ)))
+               m_fnrt   = c_fnrt * &
+                    prt_params%nitr_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(fnrt_organ))
 
-               m_sapw   = c_sapw * 0.5_r8 * &
-                    (prt_params%nitr_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(sapw_organ)) + &
-                    prt_params%nitr_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(sapw_organ)))
+               m_sapw   = c_sapw * &
+                    prt_params%nitr_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(sapw_organ))
 
                m_repro  = 0._r8
 
@@ -1119,21 +1110,17 @@ contains
 
             case(phosphorus_element)
 
-               m_struct = c_struct * 0.5_r8 * &
-                    (prt_params%phos_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(struct_organ)) + &
-                    prt_params%phos_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(struct_organ)))
+               m_struct = c_struct * &
+                    prt_params%phos_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(struct_organ))
 
-               m_leaf   = c_leaf * 0.5_r8 * &
-                    (prt_params%phos_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(leaf_organ)) + &
-                    prt_params%phos_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(leaf_organ)))
+               m_leaf   = c_leaf * &
+                    prt_params%phos_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(leaf_organ))
 
-               m_fnrt   = c_fnrt * 0.5_r8 * &
-                    (prt_params%phos_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(fnrt_organ)) + &
-                    prt_params%phos_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(fnrt_organ)))
-
-               m_sapw   = c_sapw * 0.5_r8 * &
-                    (prt_params%phos_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(sapw_organ)) + &
-                    prt_params%phos_stoich_p2(temp_cohort%pft,prt_params%organ_param_id(sapw_organ)))
+               m_fnrt   = c_fnrt * &
+                    prt_params%phos_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(fnrt_organ))
+                    
+               m_sapw   = c_sapw * &
+                    prt_params%phos_stoich_p1(temp_cohort%pft,prt_params%organ_param_id(sapw_organ))
 
                m_repro  = 0._r8
 
@@ -1164,14 +1151,10 @@ contains
 
          call prt_obj%CheckInitialConditions()
 
-
-         ! Since spread is a canopy level calculation, we need to provide an initial guess here.
-
          call create_cohort(csite, cpatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, &
               temp_cohort%coage, temp_cohort%dbh, &
-              prt_obj, temp_cohort%leafmemory,temp_cohort%sapwmemory, temp_cohort%structmemory, &
-              cstatus, rstatus, temp_cohort%canopy_trim,temp_cohort%c_area, &
-              1, csite%spread, bc_in)
+              prt_obj, cstatus, rstatus, temp_cohort%canopy_trim,temp_cohort%c_area, &
+              1, temp_cohort%crowndamage, csite%spread, bc_in)
 
          deallocate(temp_cohort) ! get rid of temporary cohort
 

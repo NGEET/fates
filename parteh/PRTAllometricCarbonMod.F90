@@ -51,6 +51,9 @@ module PRTAllometricCarbonMod
 
   use PRTParametersMod    , only : prt_params
 
+  use EDTypesMod          , only : leaves_on
+  use EDTypesMod          , only : leaves_off
+
   implicit none
   private
 
@@ -87,14 +90,17 @@ module PRTAllometricCarbonMod
 
   integer, public, parameter :: ac_bc_inout_id_dbh   = 1   ! Plant DBH
   integer, public, parameter :: ac_bc_inout_id_netdc = 2   ! Index for the net daily C input BC
+  
   integer, parameter         :: num_bc_inout         = 2   ! Number of in & output boundary conditions
 
 
   integer, public, parameter :: ac_bc_in_id_pft   = 1   ! Index for the PFT input BC
   integer, public, parameter :: ac_bc_in_id_ctrim = 2   ! Index for the canopy trim function
   integer, public, parameter :: ac_bc_in_id_lstat = 3   ! Leaf status (on or off)
-  integer, parameter         :: num_bc_in         = 3   ! Number of input boundary conditions
+  integer, public, parameter :: ac_bc_in_id_cdamage = 4 ! Index for the crowndamage input BC
+  integer, parameter         :: num_bc_in         = 4   ! Number of input boundary conditions
 
+  
   ! THere are no purely output boundary conditions
   integer, parameter         :: num_bc_out        = 0   ! Number of purely output boundary condtions
 
@@ -114,7 +120,7 @@ module PRTAllometricCarbonMod
   ! -------------------------------------------------------------------------------------
 
 
-  type, public, extends(prt_vartypes) :: callom_prt_vartypes
+   type, public, extends(prt_vartypes) :: callom_prt_vartypes
 
    contains
 
@@ -144,7 +150,7 @@ module PRTAllometricCarbonMod
    public :: InitPRTGlobalAllometricCarbon
 
 
-contains
+   contains
   
  
   subroutine InitPRTGlobalAllometricCarbon()
@@ -238,7 +244,7 @@ contains
   ! =====================================================================================
   
 
-  subroutine DailyPRTAllometricCarbon(this)
+  subroutine DailyPRTAllometricCarbon(this,phase)
 
     ! -----------------------------------------------------------------------------------
     !
@@ -280,21 +286,24 @@ contains
     !
     ! ----------------------------------------------------------------------------------
 
-    
-    ! The class is the only argument
+
     class(callom_prt_vartypes)   :: this          ! this class
+    integer,intent(in)           :: phase         ! the phase splits the routine into parts
+
 
     ! -----------------------------------------------------------------------------------
     ! These are local copies of the in/out boundary condition structure
     ! -----------------------------------------------------------------------------------
 
     real(r8),pointer :: dbh            ! Diameter at breast height [cm]
-                                       ! this local will point to both in and out bc's
+    ! this local will point to both in and out bc's
     real(r8),pointer :: carbon_balance ! Daily carbon balance for this cohort [kgC]
+
+    integer           :: crowndamage   ! which crown damage class
+
 
     real(r8) :: canopy_trim            ! The canopy trimming function [0-1]
     integer  :: ipft                   ! Plant Functional Type index
-
 
     real(r8) :: target_leaf_c         ! target leaf carbon [kgC]
     real(r8) :: target_fnrt_c         ! target fine-root carbon [kgC]
@@ -313,12 +322,15 @@ contains
     real(r8) :: struct_below_target   ! dead (structural) biomass below target amount [kgC]
     real(r8) :: total_below_target    ! total biomass below the allometric target [kgC]
 
+    real(r8) :: allocation_factor     ! allocation factor (relative to demand) to 
+    ! reconstruct tissues
+
     real(r8) :: flux_adj              ! adjustment made to growth flux term to minimize error [kgC]
     real(r8) :: store_target_fraction ! ratio between storage and leaf biomass when on allometry [kgC]
 
     real(r8) :: leaf_c_demand         ! leaf carbon that is demanded to replace maintenance turnover [kgC]
     real(r8) :: fnrt_c_demand         ! fineroot carbon that is demanded to replace 
-                                      ! maintenance turnover [kgC]
+    ! maintenance turnover [kgC]
     real(r8) :: total_c_demand        ! total carbon that is demanded to replace maintenance turnover [kgC]
     logical  :: step_pass             ! Did the integration step pass?
 
@@ -331,7 +343,7 @@ contains
 
     real(r8),dimension(max_nleafage) :: leaf_c0 
 
-                                      ! Initial value of carbon used to determine net flux
+    ! Initial value of carbon used to determine net flux
     real(r8) :: fnrt_c0               ! during this routine
     real(r8) :: sapw_c0               ! ""   
     real(r8) :: store_c0              ! ""
@@ -344,7 +356,7 @@ contains
     logical  :: grow_sapw             ! Is sapwood at allometric target and should be grown?
     logical  :: grow_store            ! Is storage at allometric target and should be grown?
 
-                                      ! integrator variables
+    ! integrator variables
     real(r8) :: deltaC                ! trial value for substep
     integer  :: ierr                  ! error flag for allometric growth step
     integer  :: nsteps                ! number of sub-steps
@@ -357,7 +369,6 @@ contains
     integer  :: nleafage              ! number of leaf age classifications
     integer  :: leaf_status           ! are leaves on (2) or off (1) 
     real(r8) :: leaf_age_flux         ! carbon mass flux between leaf age classification pools
-
 
     ! Integegrator variables c_pool is "mostly" carbon variables, it also includes
     ! dbh...
@@ -374,493 +385,508 @@ contains
     integer,  parameter :: ODESolve = 2                  ! 1=RKF45,  2=Euler
 
     integer,  parameter :: iexp_leaf = 1                 ! index 1 is the expanding (i.e. youngest)
-                                                         ! leaf age class, and therefore
-                                                         ! all new allocation goes into that pool
+    ! leaf age class, and therefore
+    ! all new allocation goes into that pool
     character(len= 9),  parameter :: fmti = '(a,1x,i5)'
     character(len=13),  parameter :: fmt0 = '(a,1x,es12.5)'
     character(len=19),  parameter :: fmth = '(a,1x,a5,3(1x,a12))'
     character(len=22),  parameter :: fmtg = '(a,5x,l1,3(1x,es12.5))'
 
-    real(r8) ::  intgr_params(num_bc_in)                 ! The boundary conditions to this routine,
-                                                         ! are pressed into an array that is also
-                                                         ! passed to the integrators
+    ! The boundary conditions to this routine,
+    ! are pressed into an array that is also
+    ! passed to the integrators
+    ! add one because we pass crown damage also
+    ! which is not a bc_in
+    
+    real(r8) ::  intgr_params(num_bc_in)
 
+
+    ipft = this%bc_in(ac_bc_in_id_pft)%ival
+    
     associate( & 
-          leaf_c   => this%variables(leaf_c_id)%val, &
-          fnrt_c   => this%variables(fnrt_c_id)%val(icd), &
-          sapw_c   => this%variables(sapw_c_id)%val(icd), &
-          store_c  => this%variables(store_c_id)%val(icd), &
-          repro_c  => this%variables(repro_c_id)%val(icd), &
-          struct_c => this%variables(struct_c_id)%val(icd))
+         
+         leaf_c   => this%variables(leaf_c_id)%val, &
+         fnrt_c   => this%variables(fnrt_c_id)%val(icd), &
+         sapw_c   => this%variables(sapw_c_id)%val(icd), &
+         store_c  => this%variables(store_c_id)%val(icd), &
+         repro_c  => this%variables(repro_c_id)%val(icd), &
+         struct_c => this%variables(struct_c_id)%val(icd), &
+         l2fr     => prt_params%allom_l2fr(ipft) )
 
 
-    ! -----------------------------------------------------------------------------------
-    ! 0.
-    ! Copy the boundary conditions into readable local variables.
-    ! We don't use pointers for bc's that ar "in" only, only "in-out" and "out"
-    ! -----------------------------------------------------------------------------------
+      ! -----------------------------------------------------------------------------------
+      ! 0.
+      ! Copy the boundary conditions into readable local variables.
+      ! We don't use pointers for bc's that ar "in" only, only "in-out" and "out"
+      ! -----------------------------------------------------------------------------------
 
-    dbh                             => this%bc_inout(ac_bc_inout_id_dbh)%rval
-    carbon_balance                  => this%bc_inout(ac_bc_inout_id_netdc)%rval
+      dbh                             => this%bc_inout(ac_bc_inout_id_dbh)%rval
+      carbon_balance                  => this%bc_inout(ac_bc_inout_id_netdc)%rval
+      
 
-    canopy_trim                     = this%bc_in(ac_bc_in_id_ctrim)%rval
-    ipft                            = this%bc_in(ac_bc_in_id_pft)%ival
-    leaf_status                     = this%bc_in(ac_bc_in_id_lstat)%ival
+      canopy_trim                     = this%bc_in(ac_bc_in_id_ctrim)%rval
+      leaf_status                     = this%bc_in(ac_bc_in_id_lstat)%ival
+      crowndamage                     = this%bc_in(ac_bc_in_id_cdamage)%ival
+      
+      nleafage = prt_global%state_descriptor(leaf_c_id)%num_pos ! Number of leaf age class
 
-    intgr_params(:)                 = un_initialized
-    intgr_params(ac_bc_in_id_ctrim) = this%bc_in(ac_bc_in_id_ctrim)%rval
-    intgr_params(ac_bc_in_id_pft)   = real(this%bc_in(ac_bc_in_id_pft)%ival)
-    
-    
+      ! -----------------------------------------------------------------------------------
+      ! I. Remember the values for the state variables at the beginning of this
+      ! routines. We will then use that to determine their net allocation and reactive
+      ! transport flux "%net_alloc" at the end.
+      ! -----------------------------------------------------------------------------------
 
-    nleafage = prt_global%state_descriptor(leaf_c_id)%num_pos ! Number of leaf age class
+      leaf_c0(1:nleafage) = leaf_c(1:nleafage)  ! Set initial leaf carbon 
+      fnrt_c0 = fnrt_c                          ! Set initial fine-root carbon
+      sapw_c0 = sapw_c                          ! Set initial sapwood carbon
+      store_c0 = store_c                        ! Set initial storage carbon 
+      repro_c0 = repro_c                        ! Set initial reproductive carbon
+      struct_c0 = struct_c                      ! Set initial structural carbon
 
-    ! -----------------------------------------------------------------------------------
-    ! Call the routine that advances leaves in age.
-    ! This will move a portion of the leaf mass in each
-    ! age bin, to the next bin. This will not handle movement
-    ! of mass from the oldest bin into the litter pool, that is something else.
-    ! -----------------------------------------------------------------------------------
+      ! -----------------------------------------------------------------------------------
+      ! II. Calculate target size of the biomass compartment for a given dbh.   
+      ! -----------------------------------------------------------------------------------
 
-    call this%AgeLeaves(ipft,sec_per_day)
+      ! Target sapwood biomass according to allometry and trimming [kgC]
+      call bsap_allom(dbh,ipft, crowndamage, canopy_trim,sapw_area,target_sapw_c)
 
-    ! -----------------------------------------------------------------------------------
-    ! I. Remember the values for the state variables at the beginning of this
-    ! routines. We will then use that to determine their net allocation and reactive
-    ! transport flux "%net_alloc" at the end.
-    ! -----------------------------------------------------------------------------------
-    
-    leaf_c0(1:nleafage) = leaf_c(1:nleafage)  ! Set initial leaf carbon 
-    fnrt_c0 = fnrt_c                          ! Set initial fine-root carbon
-    sapw_c0 = sapw_c                          ! Set initial sapwood carbon
-    store_c0 = store_c                        ! Set initial storage carbon 
-    repro_c0 = repro_c                        ! Set initial reproductive carbon
-    struct_c0 = struct_c                      ! Set initial structural carbon
-    
+      ! Target total above ground biomass in woody/fibrous tissues  [kgC]
+      call bagw_allom(dbh,ipft, crowndamage, target_agw_c)
 
-    ! -----------------------------------------------------------------------------------
-    ! II. Calculate target size of the biomass compartment for a given dbh.   
-    ! -----------------------------------------------------------------------------------
-    
-    ! Target sapwood biomass according to allometry and trimming [kgC]
-    call bsap_allom(dbh,ipft,canopy_trim,sapw_area,target_sapw_c)
-    
-    ! Target total above ground biomass in woody/fibrous tissues  [kgC]
-    call bagw_allom(dbh,ipft,target_agw_c)
-    
-    ! Target total below ground biomass in woody/fibrous tissues [kgC] 
-    call bbgw_allom(dbh,ipft,target_bgw_c)
-    
-    ! Target total dead (structrual) biomass [kgC]
-    call bdead_allom( target_agw_c, target_bgw_c, target_sapw_c, ipft, target_struct_c)
-    
-    ! Target leaf biomass according to allometry and trimming
-    if(leaf_status==2) then
-        call bleaf(dbh,ipft,canopy_trim,target_leaf_c)
-    else
-        target_leaf_c = 0._r8
-    end if
-    
-    ! Target fine-root biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
-    call bfineroot(dbh,ipft,canopy_trim,target_fnrt_c)
-    
-    ! Target storage carbon [kgC,kgC/cm]
-    call bstore_allom(dbh,ipft,canopy_trim,target_store_c)
+      ! Target total below ground biomass in woody/fibrous tissues [kgC] 
+      call bbgw_allom(dbh,ipft,target_bgw_c)
 
+      ! Target total dead (structrual) biomass [kgC]
+      call bdead_allom( target_agw_c, target_bgw_c, target_sapw_c, ipft, target_struct_c)
 
-    ! -----------------------------------------------------------------------------------
-    ! III.  Prioritize some amount of carbon to replace leaf/root turnover
-    !         Make sure it isnt a negative payment, and either pay what is available
-    !         or forcefully pay from storage. 
-    ! -----------------------------------------------------------------------------------
-    
-    if( prt_params%evergreen(ipft) ==1 ) then
-       leaf_c_demand   = max(0.0_r8, &
-             prt_params%leaf_stor_priority(ipft)*sum(this%variables(leaf_c_id)%turnover(:)))
-    else
-       leaf_c_demand   = 0.0_r8
-    end if
-    
-    fnrt_c_demand   = max(0.0_r8, &
-          prt_params%leaf_stor_priority(ipft)*this%variables(fnrt_c_id)%turnover(icd))
+      ! Target leaf biomass according to allometry and trimming
+      select case (leaf_status)
+      case (leaves_on)
+         call bleaf(dbh,ipft,crowndamage,canopy_trim,target_leaf_c)
+      case (leaves_off)
+         target_leaf_c = 0._r8
+      end select
 
-    total_c_demand = leaf_c_demand + fnrt_c_demand
-    
-    if (total_c_demand> nearzero ) then
+      ! Target fine-root biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
+      call bfineroot(dbh,ipft,canopy_trim,l2fr,target_fnrt_c)
 
-       ! We pay this even if we don't have the carbon
-       ! Just don't pay so much carbon that storage+carbon_balance can't pay for it
+      ! Target storage carbon [kgC,kgC/cm]
+      call bstore_allom(dbh,ipft,crowndamage,canopy_trim,target_store_c)
 
-       leaf_c_flux = min(leaf_c_demand, &
-                         max(0.0_r8,(store_c+carbon_balance)* &
-                         (leaf_c_demand/total_c_demand)))
-       
-       ! Add carbon to the youngest age pool (i.e iexp_leaf = index 1)
-       carbon_balance    = carbon_balance   - leaf_c_flux
-       leaf_c(iexp_leaf) = leaf_c(iexp_leaf) + leaf_c_flux
+      ! -----------------------------------------------------------------------------------
+      ! Phase 1: Replace losses, push pools towards targets
+      ! -----------------------------------------------------------------------------------
 
-       ! If we are testing b4b, then we pay this even if we don't have the carbon
-       fnrt_c_flux = min(fnrt_c_demand, &
-                         max(0.0_r8, (store_c+carbon_balance)* &
-                         (fnrt_c_demand/total_c_demand)))
+      if_phase1: if(phase.eq.1) then
 
-       carbon_balance = carbon_balance - fnrt_c_flux
-       fnrt_c         = fnrt_c + fnrt_c_flux
+         ! III.  Prioritize some amount of carbon to replace leaf/root turnover
+         !         Make sure it isn't a negative payment, and either pay what is available
+         !         or forcefully pay from storage. 
+         ! -----------------------------------------------------------------------------------
 
-    end if
+         if( prt_params%evergreen(ipft) == itrue ) then
+            leaf_c_demand   = max(0.0_r8, &
+                 prt_params%leaf_stor_priority(ipft)*sum(this%variables(leaf_c_id)%turnover(:)))
+         else
+            leaf_c_demand   = 0.0_r8
+         end if
 
-    ! -----------------------------------------------------------------------------------
-    ! IV. if carbon balance is negative, re-coup the losses from storage
-    !       if it is positive, give some love to storage carbon
-    ! -----------------------------------------------------------------------------------
+         fnrt_c_demand = max(0.0_r8, &
+              prt_params%leaf_stor_priority(ipft)*this%variables(fnrt_c_id)%turnover(icd))
 
-    if( carbon_balance < 0.0_r8 ) then
-       
-       store_c_flux           = carbon_balance
-       carbon_balance         = carbon_balance - store_c_flux
-       store_c                = store_c + store_c_flux
+         total_c_demand = leaf_c_demand + fnrt_c_demand
 
-    else
+         if (total_c_demand > nearzero) then
 
-       store_below_target     = max(target_store_c - store_c,0.0_r8)
-       store_target_fraction  = max(0.0_r8, store_c/target_store_c )
+            ! We pay this even if we don't have the carbon
+            ! Just don't pay so much carbon that storage+carbon_balance can't pay for it
+            allocation_factor = max(0.0_r8,min(1.0_r8,(store_c+carbon_balance)/total_c_demand))
 
-       store_c_flux           = min(store_below_target,carbon_balance * &
-                                max(exp(-1.*store_target_fraction**4._r8) - exp( -1.0_r8 ),0.0_r8))
+            ! MLO. Edited the code to switch the order of operations. The previous code would
+            !      subtract leaf flux from carbon balance before estimating the fine root flux,
+            !      potentially allowing less fluxes to fine roots than possible.
+            leaf_c_flux = leaf_c_demand * allocation_factor
+            fnrt_c_flux = fnrt_c_demand * allocation_factor
 
-       carbon_balance         = carbon_balance - store_c_flux
-       store_c                = store_c + store_c_flux
+            ! Add carbon to the youngest age pool (i.e iexp_leaf = index 1) and fine roots
+            leaf_c(iexp_leaf) = leaf_c(iexp_leaf) + leaf_c_flux
+            fnrt_c            = fnrt_c + fnrt_c_flux
 
-    end if
+            ! Remove fluxes from carbon balance. In case we may have drawn carbon from storage,
+            ! carbon_balance will become negative, in which case we will deplete carbon from
+            ! storage in the next step.
+            carbon_balance    = carbon_balance - ( leaf_c_flux + fnrt_c_flux )
+         end if
 
-    ! -----------------------------------------------------------------------------------
-    ! V.  If carbon is still available, prioritize some allocation to replace
-    !        the rest of the leaf/fineroot deficit
-    !        carbon balance is guaranteed to be >=0 beyond this point
-    ! -----------------------------------------------------------------------------------
-    
-    leaf_c_demand   = max(0.0_r8,(target_leaf_c - sum(leaf_c(1:nleafage))))
-    fnrt_c_demand   = max(0.0_r8,(target_fnrt_c - fnrt_c))
+         ! -----------------------------------------------------------------------------------
+         ! IV. if carbon balance is negative, re-coup the losses from storage
+         !       if it is positive, give some love to storage carbon
+         ! -----------------------------------------------------------------------------------
 
-    total_c_demand = leaf_c_demand + fnrt_c_demand
-    
-    if( (carbon_balance > nearzero ) .and. (total_c_demand>nearzero)) then
+         if( carbon_balance < 0.0_r8 ) then
 
-       leaf_c_flux    = min(leaf_c_demand, &
-                        carbon_balance*(leaf_c_demand/total_c_demand))
-       carbon_balance = carbon_balance - leaf_c_flux
-       leaf_c(iexp_leaf) = leaf_c(iexp_leaf) + leaf_c_flux
-       
-       fnrt_c_flux    = min(fnrt_c_demand, &
-                            carbon_balance*(fnrt_c_demand/total_c_demand))
-       carbon_balance = carbon_balance - fnrt_c_flux
-       fnrt_c         = fnrt_c + fnrt_c_flux
+            ! Store_c_flux will be negative, so store_c will be depleted
+            store_c_flux           = carbon_balance
+            carbon_balance         = carbon_balance - store_c_flux
+            store_c                = store_c + store_c_flux
 
-    end if
+         else
 
-    ! -----------------------------------------------------------------------------------
-    ! VI.  If carbon is still available, we try to push all live 
-    !        pools back towards allometry. But only upwards, if fusion happened
-    !        to generate some pools above allometric target, don't reduce the pool,
-    !        just ignore it until the rest of the plant grows to meet it.
-    ! -----------------------------------------------------------------------------------
-    if( carbon_balance > nearzero ) then
+            ! Accumulate some carbon in storage.  If storage is completely depleted, aim to
+            ! increase storage, but not to replenish completely so we can still use some
+            ! carbon for growth.
+            store_below_target     = max(0.0_r8,target_store_c - store_c)
+            store_target_fraction  = max(0.0_r8, store_c/target_store_c )
 
-       leaf_below_target  = max(target_leaf_c - sum(leaf_c(1:nleafage)),0.0_r8)
-       fnrt_below_target  = max(target_fnrt_c - fnrt_c,0.0_r8)
-       sapw_below_target  = max(target_sapw_c - sapw_c,0.0_r8)
-       store_below_target = max(target_store_c - store_c,0.0_r8)
-       
-       total_below_target = leaf_below_target + fnrt_below_target + &
-                            sapw_below_target + store_below_target
-    
-       if ( total_below_target > nearzero ) then
-          
-          if( total_below_target > carbon_balance) then
-             leaf_c_flux  = carbon_balance * leaf_below_target/total_below_target
-             fnrt_c_flux = carbon_balance * fnrt_below_target/total_below_target
-             sapw_c_flux  = carbon_balance * sapw_below_target/total_below_target
-             store_c_flux = carbon_balance * store_below_target/total_below_target
-          else
-             leaf_c_flux  = leaf_below_target
-             fnrt_c_flux = fnrt_below_target
-             sapw_c_flux = sapw_below_target
-             store_c_flux = store_below_target
-          end if
+            store_c_flux           = min(store_below_target,carbon_balance * &
+                 max(exp(-1.*store_target_fraction**4._r8) - exp( -1.0_r8 ),0.0_r8))
 
-          carbon_balance               = carbon_balance - leaf_c_flux
-          leaf_c(iexp_leaf)            = leaf_c(iexp_leaf) + leaf_c_flux
-          
-          carbon_balance               = carbon_balance - fnrt_c_flux
-          fnrt_c                       = fnrt_c + fnrt_c_flux
-          
-          carbon_balance               = carbon_balance - sapw_c_flux
-          sapw_c                       = sapw_c + sapw_c_flux
-          
-          carbon_balance               = carbon_balance - store_c_flux
-          store_c                      = store_c  +  store_c_flux
-          
-       end if
-    end if
-    
-    ! -----------------------------------------------------------------------------------
-    ! VII.  If carbon is still available, replenish the structural pool to get
-    !           back on allometry
-    ! -----------------------------------------------------------------------------------
+            ! Move carbon from carbon balance to storage
+            carbon_balance         = carbon_balance - store_c_flux
+            store_c                = store_c + store_c_flux
 
-    if( carbon_balance > nearzero ) then
-    
-       struct_below_target  = max(target_struct_c - struct_c ,0.0_r8)
-    
-       if ( struct_below_target > 0.0_r8) then
-       
-          struct_c_flux          = min(carbon_balance,struct_below_target)
-          carbon_balance         = carbon_balance - struct_c_flux
-          struct_c               = struct_c + struct_c_flux
-          
-       end if
+         end if
 
-    end if
-    
-    ! -----------------------------------------------------------------------------------
-    ! VIII.  If carbon is yet still available ...
-    !        Our pools are now either on allometry or above (from fusion).
-    !        We we can increment those pools at or below,
-    !        including structure and reproduction according to their rates
-    !        Use an adaptive euler integration. If the error is not nominal,
-    !        the carbon balance sub-step (deltaC) will be halved and tried again
-    !
-    ! Note that we compare against calloc_abs_error here because it is possible
-    ! that all the carbon was effectively used up, but a miniscule amount
-    ! remains due to numerical precision (ie -20 or so), so even though
-    ! the plant has not been brought to be "on allometry", it thinks it has carbon
-    ! left to allocate, and thus it must be on allometry when its not.
-    ! -----------------------------------------------------------------------------------
-    
-    if_stature_growth: if( carbon_balance > calloc_abs_error ) then
-       
-       ! This routine checks that actual carbon is not below that targets. It does
-       ! allow actual pools to be above the target, and in these cases, it sends
-       ! a false on the "grow_<>" flag, allowing the plant to grow into these pools.
-       ! It also checks to make sure that structural biomass is not above the target.
-       ! ( MLO. Removed the check for storage because the same test is done inside
-       !        sub-routine TargetAllometryCheck.)
+      end if if_phase1
 
-       call TargetAllometryCheck(sum(leaf_c0(1:nleafage)),fnrt_c0,sapw_c0,store_c0,struct_c0, &
-                                 sum(leaf_c(1:nleafage)), fnrt_c, sapw_c,store_c, struct_c, &
-                                 target_leaf_c, target_fnrt_c, target_sapw_c, &
-                                 target_store_c, target_struct_c, &
-                                 carbon_balance,ipft,leaf_status, &
-                                 grow_leaf, grow_fnrt, grow_sapw, grow_store, grow_struct)
+      
+      if_phase2: if(phase.eq.2)then
+         
+         ! -----------------------------------------------------------------------------------
+         ! V.  If carbon is still available, prioritize some allocation to replace
+         !        the rest of the leaf/fineroot deficit
+         !        carbon balance is guaranteed to be >=0 beyond this point
+         !     MLO. Renamed demand with below target to make it consistent with the
+         !          definitions at the variable declaration part.
+         ! -----------------------------------------------------------------------------------
 
-       ! --------------------------------------------------------------------------------
-       ! The numerical integration of growth requires that the instantaneous state
-       ! variables are passed in as an array.  We call it "c_pool".
-       !
-       ! Initialize the adaptive integrator arrays and flags
-       ! --------------------------------------------------------------------------------
+         leaf_below_target  = max(0.0_r8,target_leaf_c - sum(leaf_c(1:nleafage)))
+         fnrt_below_target  = max(0.0_r8,target_fnrt_c - fnrt_c)
 
-       ierr             = 1
-       totalC           = carbon_balance
-       nsteps           = 0
-       
-       c_pool(:) = 0.0_r8                        ! Zero state variable array
-       c_mask(:) = .false.                       ! This mask tells the integrator
-                                                 ! which indices are active. Its possible
-                                                 ! that due to fusion, or previous numerical
-                                                 ! truncation errors, that one of these pools
-                                                 ! may be larger than its target! We check
-                                                 ! this, and if true, then we flag that
-                                                 ! pool to be ignored. c_mask(i) = .false.
-                                                 ! For grasses, since they don't grow very 
-                                                 ! large and thus won't accumulate such large
-                                                 ! errors, we always mask as true.
+         total_below_target = leaf_below_target + fnrt_below_target
 
-       c_pool(leaf_c_id)   = sum(leaf_c(1:nleafage))
-       c_pool(fnrt_c_id)   = fnrt_c
-       c_pool(sapw_c_id)   = sapw_c
-       c_pool(store_c_id)  = store_c
-       c_pool(struct_c_id) = struct_c
-       c_pool(repro_c_id)  = repro_c
-       c_pool(dbh_id)      = dbh
+         if ( (carbon_balance > nearzero) .and. (total_below_target > nearzero) ) then
+            ! Find fraction of carbon to be allocated to leaves and fine roots
+            allocation_factor = min(1.0_r8, carbon_balance / total_below_target)
 
-       ! Only grow leaves if we are in a "leaf-on" status
-       if(leaf_status==2) then
-           c_mask(leaf_c_id) = grow_leaf
-       else
-           c_mask(leaf_c_id) = .false.
-       end if
-       c_mask(fnrt_c_id)   = grow_fnrt
-       c_mask(sapw_c_id)   = grow_sapw
-       c_mask(struct_c_id) = grow_struct
-       c_mask(store_c_id)  = grow_store
-       c_mask(repro_c_id)  = .true.                ! Always calculate reproduction on growth
-       c_mask(dbh_id)      = .true.                ! Always increment dbh on growth step
+            ! MLO. Edited the code to switch the order of operations. The previous code would
+            !      subtract leaf flux from carbon balance before estimating the fine root flux,
+            !      potentially allowing less fluxes to fine roots than possible.
+            leaf_c_flux       = leaf_below_target * allocation_factor
+            fnrt_c_flux       = fnrt_below_target * allocation_factor
 
+            leaf_c(iexp_leaf) = leaf_c(iexp_leaf) + leaf_c_flux
+            fnrt_c            = fnrt_c + fnrt_c_flux
 
-       ! When using the Euler method, we keep things simple.  We always try
-       ! to make the first integration step to span the entirety of the integration
-       ! window for the independent variable (available carbon)
+            carbon_balance    = carbon_balance - ( leaf_c_flux + fnrt_c_flux )
 
-       select case (ODESolve)
-       case (2)
-          this%ode_opt_step = totalC
-       end select
-       
-       do_solve_check: do while( ierr .ne. 0 )
-          
-          deltaC = min(totalC,this%ode_opt_step)
-          select_ODESolve: select case (ODESolve)
-          case (1)
-             call RKF45(AllomCGrowthDeriv,c_pool,c_mask,deltaC,totalC, &
-                   max_trunc_error,intgr_params,c_pool_out,this%ode_opt_step,step_pass)
-             
-          case (2)
-             call Euler(AllomCGrowthDeriv,c_pool,c_mask,deltaC,totalC,intgr_params,c_pool_out)
-             !  step_pass = .true.
-             
-             ! When integrating along the allometric curve, we have the luxury of perfect
-             ! hindsite.  Ie, after we have made our step, we can see if the amount
-             ! of each carbon we have matches the target associated with the new dbh.
-             ! The following call evaluates how close we are to the allometically defined
-             ! targets. If we are too far (governed by max_trunc_error), then we
-             ! pass back the pass/fail flag (step_pass) as false.  If false, then
-             ! we halve the step-size, and then retry.  If that step was fine, then
-             ! we remember the current step size as a good next guess.
-             
-             call CheckIntegratedAllometries(c_pool_out(dbh_id),ipft,canopy_trim,  &
-                   c_pool_out(leaf_c_id), c_pool_out(fnrt_c_id), c_pool_out(sapw_c_id), &
-                   c_pool_out(store_c_id), c_pool_out(struct_c_id), &
-                   c_mask(leaf_c_id), c_mask(fnrt_c_id), c_mask(sapw_c_id), &
-                   c_mask(store_c_id),c_mask(struct_c_id),  max_trunc_error, step_pass)
-             if(step_pass)  then
-                this%ode_opt_step = deltaC
-             else
-                this%ode_opt_step = 0.5*deltaC
-             end if
-          case default
-             write(fates_log(),*) 'An integrator was chosen that does not exist'
-             write(fates_log(),*) 'ODESolve = ',ODESolve
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          end select select_ODESolve
+         end if
 
-          nsteps = nsteps + 1
-          
-          if (step_pass) then ! If true, then step is accepted
-             totalC    = totalC - deltaC
-             c_pool(:) = c_pool_out(:)
-          end if
-          
-          if(nsteps > max_substeps ) then
-             write(fates_log(),fmt=*)    '---~---'
-             write(fates_log(),fmt=*)    'Plant Growth Integrator could not find'
-             write(fates_log(),fmt=*)    'a solution in less than ',max_substeps,' tries.'
-             write(fates_log(),fmt=*)    'Aborting!'
-             write(fates_log(),fmt=*)    '---~---'
-             write(fates_log(),fmt=fmti) 'Leaf status    =',leaf_status
-             write(fates_log(),fmt=fmt0) 'Carbon_balance =',carbon_balance
-             write(fates_log(),fmt=fmt0) 'deltaC         =',deltaC
-             write(fates_log(),fmt=fmt0) 'totalC         =',totalC
-             write(fates_log(),fmt=fmth) ' Tissue     |',         ' Grow','       Current','      Target'  ,'     Deficit'
-             write(fates_log(),fmt=fmtg) ' Leaf       |', grow_leaf      ,  sum(leaf_c(:)),target_leaf_c  , target_leaf_c - sum(leaf_c(:))
-             write(fates_log(),fmt=fmtg) ' Fine root  |', grow_fnrt      ,          fnrt_c,target_fnrt_c  , target_fnrt_c - fnrt_c
-             write(fates_log(),fmt=fmtg) ' Sapwood    |', grow_sapw      ,          sapw_c,target_sapw_c  , target_sapw_c - sapw_c
-             write(fates_log(),fmt=fmtg) ' Storage    |', grow_store     ,         store_c,target_store_c , target_store_c - store_c
-             write(fates_log(),fmt=fmtg) ' Structural |', grow_struct    ,        struct_c,target_struct_c, target_struct_c - struct_c
-             write(fates_log(),fmt=*)    '---~---'
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          end if
+         ! -----------------------------------------------------------------------------------
+         ! VI.  If carbon is still available, we try to push all live 
+         !        pools back towards allometry. But only upwards, if fusion happened
+         !        to generate some pools above allometric target, don't reduce the pool,
+         !        just ignore it until the rest of the plant grows to meet it.
+         ! -----------------------------------------------------------------------------------
+         if( carbon_balance > nearzero ) then
 
-          !
-          ! TotalC should eventually be whittled down to near zero.
-          ! The solvers are not perfect, so we can't expect it to be perfectly zero.
-          ! Note that calloc_abs_error is 1e-9, which is really small (1 microgram of carbon)
-          ! yet also six orders of magnitude greater than typical rounding errors (~1e-15).
-  
-          ! At that point, update the actual states
-          ! --------------------------------------------------------------------------------
-          if_step_pass: if( (totalC < calloc_abs_error) .and. (step_pass) )then
+            leaf_below_target  = max(target_leaf_c - sum(leaf_c(1:nleafage)),0.0_r8)
+            fnrt_below_target  = max(target_fnrt_c - fnrt_c,0.0_r8)
+            sapw_below_target  = max(target_sapw_c - sapw_c,0.0_r8)
+            store_below_target = max(target_store_c - store_c,0.0_r8)
 
-             ierr           = 0
-             leaf_c_flux    = c_pool(leaf_c_id)   - sum(leaf_c(1:nleafage))
-             fnrt_c_flux    = c_pool(fnrt_c_id)   - fnrt_c
-             sapw_c_flux    = c_pool(sapw_c_id)   - sapw_c
-             store_c_flux   = c_pool(store_c_id)  - store_c
-             struct_c_flux  = c_pool(struct_c_id) - struct_c
-             repro_c_flux   = c_pool(repro_c_id)  - repro_c
-             
-             ! Make an adjustment to flux partitions to make it match remaining c balance
-             flux_adj       = carbon_balance/(leaf_c_flux+fnrt_c_flux+sapw_c_flux + &
-                                              store_c_flux+struct_c_flux+repro_c_flux)
+            total_below_target = leaf_below_target + fnrt_below_target + &
+                 sapw_below_target + store_below_target
 
-             
-             leaf_c_flux    = leaf_c_flux*flux_adj
-             fnrt_c_flux    = fnrt_c_flux*flux_adj
-             sapw_c_flux    = sapw_c_flux*flux_adj
-             store_c_flux   = store_c_flux*flux_adj
-             struct_c_flux  = struct_c_flux*flux_adj
-             repro_c_flux   = repro_c_flux*flux_adj
-             
-             carbon_balance    = carbon_balance - leaf_c_flux
-             leaf_c(iexp_leaf) = leaf_c(iexp_leaf) + leaf_c_flux
-             
-             carbon_balance = carbon_balance - fnrt_c_flux
-             fnrt_c         = fnrt_c + fnrt_c_flux
-             
-             carbon_balance = carbon_balance - sapw_c_flux
-             sapw_c         = sapw_c + sapw_c_flux
-             
-             carbon_balance = carbon_balance - store_c_flux
-             store_c        = store_c + store_c_flux
-             
-             carbon_balance = carbon_balance - struct_c_flux
-             struct_c       = struct_c + struct_c_flux
-             
-             carbon_balance = carbon_balance - repro_c_flux
-             repro_c        = repro_c  + repro_c_flux
-             
-             dbh            = c_pool(dbh_id)
+            if ( total_below_target > nearzero ) then
+               ! Find allocation factor based on available carbon and total demand to meet target.
+               allocation_factor = min(1.0_r8, carbon_balance / total_below_target)
 
-             if( abs(carbon_balance)>calloc_abs_error ) then
-                write(fates_log(),*) 'carbon conservation error while integrating pools'
-                write(fates_log(),*) 'along alometric curve'
-                write(fates_log(),*) 'carbon_balance = ',carbon_balance,totalC
-                write(fates_log(),*) 'exiting'
-                call endrun(msg=errMsg(sourcefile, __LINE__))
-             end if
-             
-          end if if_step_pass
+               ! Find fluxes to individual pools
+               leaf_c_flux  = leaf_below_target  * allocation_factor
+               fnrt_c_flux  = fnrt_below_target  * allocation_factor
+               sapw_c_flux  = sapw_below_target  * allocation_factor
+               store_c_flux = store_below_target * allocation_factor
 
-       end do do_solve_check
-       
-    end if if_stature_growth
+               leaf_c(iexp_leaf) = leaf_c(iexp_leaf) + leaf_c_flux
+               fnrt_c            = fnrt_c + fnrt_c_flux
+               sapw_c            = sapw_c + sapw_c_flux
+               store_c           = store_c  +  store_c_flux
 
-    ! Track the net allocations and transport from this routine
-    ! (the AgeLeaves() routine handled tracking allocation through aging)
+               carbon_balance    = carbon_balance - &
+                    ( leaf_c_flux + fnrt_c_flux + sapw_c_flux + store_c_flux )
+            end if
+         end if
 
-    this%variables(leaf_c_id)%net_alloc(icd) = &
-          this%variables(leaf_c_id)%net_alloc(icd) + (leaf_c(icd) - leaf_c0(icd))
-    
-    this%variables(fnrt_c_id)%net_alloc(icd) = &
-         this%variables(fnrt_c_id)%net_alloc(icd) + (fnrt_c - fnrt_c0)
-    
-    this%variables(sapw_c_id)%net_alloc(icd) = &
-         this%variables(sapw_c_id)%net_alloc(icd) + (sapw_c - sapw_c0)
-    
-    this%variables(store_c_id)%net_alloc(icd) = &
-         this%variables(store_c_id)%net_alloc(icd) + (store_c - store_c0)
-    
-    this%variables(repro_c_id)%net_alloc(icd) = &
-         this%variables(repro_c_id)%net_alloc(icd) + (repro_c - repro_c0)
-    
-    this%variables(struct_c_id)%net_alloc(icd) = &
-         this%variables(struct_c_id)%net_alloc(icd) + (struct_c - struct_c0)
+         ! -----------------------------------------------------------------------------------
+         ! VII.  If carbon is still available, replenish the structural pool to get
+         !           back on allometry
+         ! -----------------------------------------------------------------------------------
+
+         if( carbon_balance > nearzero ) then
+
+            struct_below_target  = max(target_struct_c - struct_c ,0.0_r8)
+
+            if ( struct_below_target > 0.0_r8) then
+
+               struct_c_flux          = min(carbon_balance,struct_below_target)
+               carbon_balance         = carbon_balance - struct_c_flux
+               struct_c               = struct_c + struct_c_flux
+
+            end if
+
+         end if
+      end if if_phase2
+         
+      if_phase3: if( (phase.eq.3) .and. ( carbon_balance > calloc_abs_error )) then
+
+         ! -----------------------------------------------------------------------------------
+         ! VIII.  If carbon is yet still available ...
+         !        Our pools are now either on allometry or above (from fusion).
+         !        We we can increment those pools at or below,
+         !        including structure and reproduction according to their rates
+         !        Use an adaptive euler integration. If the error is not nominal,
+         !        the carbon balance sub-step (deltaC) will be halved and tried again
+         !
+         ! Note that we compare against calloc_abs_error here because it is possible
+         ! that all the carbon was effectively used up, but a miniscule amount
+         ! remains due to numerical precision (ie -20 or so), so even though
+         ! the plant has not been brought to be "on allometry", it thinks it has carbon
+         ! left to allocate, and thus it must be on allometry when its not.
+         ! -----------------------------------------------------------------------------------
+
+         intgr_params(:)                   = un_initialized
+         intgr_params(ac_bc_in_id_ctrim)   = this%bc_in(ac_bc_in_id_ctrim)%rval
+         intgr_params(ac_bc_in_id_pft)     = real(this%bc_in(ac_bc_in_id_pft)%ival)
+         intgr_params(ac_bc_in_id_cdamage) = real(this%bc_in(ac_bc_in_id_cdamage)%ival)
 
 
 
-   end associate
-  
-   return
+         ! This routine checks that actual carbon is not below that targets. It does
+         ! allow actual pools to be above the target, and in these cases, it sends
+         ! a false on the "grow_<>" flag, allowing the plant to grow into these pools.
+         ! It also checks to make sure that structural biomass is not above the target.
+         ! ( MLO. Removed the check for storage because the same test is done inside
+         !        sub-routine TargetAllometryCheck.)
+
+         call TargetAllometryCheck(sum(leaf_c0(1:nleafage)),fnrt_c0,sapw_c0,store_c0,struct_c0, &
+              sum(leaf_c(1:nleafage)), fnrt_c, sapw_c,store_c, struct_c, &
+              target_leaf_c, target_fnrt_c, target_sapw_c, &
+              target_store_c, target_struct_c, &
+              carbon_balance,ipft,leaf_status, &
+              grow_leaf, grow_fnrt, grow_sapw, grow_store, grow_struct)
+
+         ! --------------------------------------------------------------------------------
+         ! The numerical integration of growth requires that the instantaneous state
+         ! variables are passed in as an array.  We call it "c_pool".
+         !
+         ! Initialize the adaptive integrator arrays and flags
+         ! --------------------------------------------------------------------------------
+
+         ierr             = 1
+         totalC           = carbon_balance
+         nsteps           = 0
+
+         c_pool(:) = 0.0_r8                        ! Zero state variable array
+         c_mask(:) = .false.                       ! This mask tells the integrator
+         ! which indices are active. Its possible
+         ! that due to fusion, or previous numerical
+         ! truncation errors, that one of these pools
+         ! may be larger than its target! We check
+         ! this, and if true, then we flag that
+         ! pool to be ignored. c_mask(i) = .false.
+         ! For grasses, since they don't grow very 
+         ! large and thus won't accumulate such large
+         ! errors, we always mask as true.
+
+         c_pool(leaf_c_id)   = sum(leaf_c(1:nleafage))
+         c_pool(fnrt_c_id)   = fnrt_c
+         c_pool(sapw_c_id)   = sapw_c
+         c_pool(store_c_id)  = store_c
+         c_pool(struct_c_id) = struct_c
+         c_pool(repro_c_id)  = repro_c
+         c_pool(dbh_id)      = dbh
+
+         ! Only grow leaves if we are in a "leaf-on" status
+         select case (leaf_status)
+         case (leaves_on)
+            c_mask(leaf_c_id) = grow_leaf
+         case default
+            c_mask(leaf_c_id) = .false.
+         end select
+         c_mask(fnrt_c_id)   = grow_fnrt
+         c_mask(sapw_c_id)   = grow_sapw
+         c_mask(struct_c_id) = grow_struct
+         c_mask(store_c_id)  = grow_store
+         c_mask(repro_c_id)  = .true.                ! Always calculate reproduction on growth
+         c_mask(dbh_id)      = .true.                ! Always increment dbh on growth step
+
+
+         ! When using the Euler method, we keep things simple.  We always try
+         ! to make the first integration step to span the entirety of the integration
+         ! window for the independent variable (available carbon)
+
+         select case (ODESolve)
+         case (2)
+            this%ode_opt_step = totalC
+         end select
+
+         do_solve_check: do while( ierr .ne. 0 )
+
+            deltaC = min(totalC,this%ode_opt_step)
+            select_ODESolve: select case (ODESolve)
+            case (1)
+               call RKF45(AllomCGrowthDeriv,c_pool,c_mask,deltaC,totalC, &
+                    max_trunc_error,intgr_params,c_pool_out,this%ode_opt_step,step_pass)
+
+            case (2)
+               call Euler(AllomCGrowthDeriv,c_pool,c_mask,deltaC,totalC,intgr_params,c_pool_out)
+               !  step_pass = .true.
+
+               ! When integrating along the allometric curve, we have the luxury of perfect
+               ! hindsite.  Ie, after we have made our step, we can see if the amount
+               ! of each carbon we have matches the target associated with the new dbh.
+               ! The following call evaluates how close we are to the allometically defined
+               ! targets. If we are too far (governed by max_trunc_error), then we
+               ! pass back the pass/fail flag (step_pass) as false.  If false, then
+               ! we halve the step-size, and then retry.  If that step was fine, then
+               ! we remember the current step size as a good next guess.
+
+               call CheckIntegratedAllometries(c_pool_out(dbh_id),ipft,&
+                    crowndamage, canopy_trim, l2fr,  &
+                    c_pool_out(leaf_c_id), c_pool_out(fnrt_c_id), c_pool_out(sapw_c_id), &
+                    c_pool_out(store_c_id), c_pool_out(struct_c_id), &
+                    c_mask(leaf_c_id), c_mask(fnrt_c_id), c_mask(sapw_c_id), &
+                    c_mask(store_c_id), c_mask(struct_c_id),  max_trunc_error, step_pass)
+               if(step_pass)  then
+                  this%ode_opt_step = deltaC
+               else
+                  this%ode_opt_step = 0.5*deltaC
+               end if
+            case default
+               write(fates_log(),*) 'An integrator was chosen that does not exist'
+               write(fates_log(),*) 'ODESolve = ',ODESolve
+               call endrun(msg=errMsg(sourcefile, __LINE__))
+            end select select_ODESolve
+
+            nsteps = nsteps + 1
+
+            if (step_pass) then ! If true, then step is accepted
+               totalC    = totalC - deltaC
+               c_pool(:) = c_pool_out(:)
+            end if
+
+            if(nsteps > max_substeps ) then
+               write(fates_log(),fmt=*)    '---~---'
+               write(fates_log(),fmt=*)    'Plant Growth Integrator could not find'
+               write(fates_log(),fmt=*)    'a solution in less than ',max_substeps,' tries.'
+               write(fates_log(),fmt=*)    'Aborting!'
+               write(fates_log(),fmt=*)    '---~---'
+               write(fates_log(),fmt=fmti) 'Leaf status    =',leaf_status
+               write(fates_log(),fmt=fmt0) 'Carbon_balance =',carbon_balance
+               write(fates_log(),fmt=fmt0) 'deltaC         =',deltaC
+               write(fates_log(),fmt=fmt0) 'totalC         =',totalC
+               write(fates_log(),fmt=*)    'crowndamage : ', crowndamage
+               write(fates_log(),fmt=fmth) ' Tissue     |',         ' Grow','       Current','      Target'  ,'     Deficit'
+               write(fates_log(),fmt=fmtg) ' Leaf       |', grow_leaf      ,  sum(leaf_c(:)),target_leaf_c  , target_leaf_c - sum(leaf_c(:))
+               write(fates_log(),fmt=fmtg) ' Fine root  |', grow_fnrt      ,          fnrt_c,target_fnrt_c  , target_fnrt_c - fnrt_c
+               write(fates_log(),fmt=fmtg) ' Sapwood    |', grow_sapw      ,          sapw_c,target_sapw_c  , target_sapw_c - sapw_c
+               write(fates_log(),fmt=fmtg) ' Storage    |', grow_store     ,         store_c,target_store_c , target_store_c - store_c
+               write(fates_log(),fmt=fmtg) ' Structural |', grow_struct    ,        struct_c,target_struct_c, target_struct_c - struct_c
+               write(fates_log(),fmt=*)    '---~---'
+               call endrun(msg=errMsg(sourcefile, __LINE__))
+            end if
+
+            !
+            ! TotalC should eventually be whittled down to near zero.
+            ! The solvers are not perfect, so we can't expect it to be perfectly zero.
+            ! Note that calloc_abs_error is 1e-9, which is really small (1 microgram of carbon)
+            ! yet also six orders of magnitude greater than typical rounding errors (~1e-15).
+
+            ! At that point, update the actual states
+            ! --------------------------------------------------------------------------------
+            if_step_pass: if( (totalC < calloc_abs_error) .and. (step_pass) )then
+
+               ierr           = 0
+               leaf_c_flux    = c_pool(leaf_c_id)   - sum(leaf_c(1:nleafage))
+               fnrt_c_flux    = c_pool(fnrt_c_id)   - fnrt_c
+               sapw_c_flux    = c_pool(sapw_c_id)   - sapw_c
+               store_c_flux   = c_pool(store_c_id)  - store_c
+               struct_c_flux  = c_pool(struct_c_id) - struct_c
+               repro_c_flux   = c_pool(repro_c_id)  - repro_c
+
+               ! Make an adjustment to flux partitions to make it match remaining c balance
+               flux_adj       = carbon_balance/(leaf_c_flux+fnrt_c_flux+sapw_c_flux + &
+                    store_c_flux+struct_c_flux+repro_c_flux)
+
+
+               leaf_c_flux    = leaf_c_flux*flux_adj
+               fnrt_c_flux    = fnrt_c_flux*flux_adj
+               sapw_c_flux    = sapw_c_flux*flux_adj
+               store_c_flux   = store_c_flux*flux_adj
+               struct_c_flux  = struct_c_flux*flux_adj
+               repro_c_flux   = repro_c_flux*flux_adj
+
+               carbon_balance    = carbon_balance - leaf_c_flux
+               leaf_c(iexp_leaf) = leaf_c(iexp_leaf) + leaf_c_flux
+
+               carbon_balance = carbon_balance - fnrt_c_flux
+               fnrt_c         = fnrt_c + fnrt_c_flux
+
+               carbon_balance = carbon_balance - sapw_c_flux
+               sapw_c         = sapw_c + sapw_c_flux
+
+               carbon_balance = carbon_balance - store_c_flux
+               store_c        = store_c + store_c_flux
+
+               carbon_balance = carbon_balance - struct_c_flux
+               struct_c       = struct_c + struct_c_flux
+
+               carbon_balance = carbon_balance - repro_c_flux
+               repro_c        = repro_c  + repro_c_flux
+
+               dbh            = c_pool(dbh_id)
+
+               if( abs(carbon_balance)>calloc_abs_error ) then
+                  write(fates_log(),*) 'carbon conservation error while integrating pools'
+                  write(fates_log(),*) 'along alometric curve'
+                  write(fates_log(),*) 'carbon_balance = ',carbon_balance,totalC
+                  write(fates_log(),*) 'exiting'
+                  call endrun(msg=errMsg(sourcefile, __LINE__))
+               end if
+
+            end if if_step_pass
+
+         end do do_solve_check
+
+      end if if_phase3
+
+      ! Track the net allocations and transport from this routine
+      ! (the AgeLeaves() routine handled tracking allocation through aging)
+
+      this%variables(leaf_c_id)%net_alloc(icd) = &
+           this%variables(leaf_c_id)%net_alloc(icd) + (leaf_c(icd) - leaf_c0(icd))
+
+      this%variables(fnrt_c_id)%net_alloc(icd) = &
+           this%variables(fnrt_c_id)%net_alloc(icd) + (fnrt_c - fnrt_c0)
+
+      this%variables(sapw_c_id)%net_alloc(icd) = &
+           this%variables(sapw_c_id)%net_alloc(icd) + (sapw_c - sapw_c0)
+
+      this%variables(store_c_id)%net_alloc(icd) = &
+           this%variables(store_c_id)%net_alloc(icd) + (store_c - store_c0)
+
+      this%variables(repro_c_id)%net_alloc(icd) = &
+           this%variables(repro_c_id)%net_alloc(icd) + (repro_c - repro_c0)
+
+      this%variables(struct_c_id)%net_alloc(icd) = &
+           this%variables(struct_c_id)%net_alloc(icd) + (struct_c - struct_c0)
+
+
+
+    end associate
+
+    return
   end subroutine DailyPRTAllometricCarbon
   
   ! =====================================================================================
@@ -891,15 +917,17 @@ contains
       real(r8),dimension(lbound(c_pools,dim=1):ubound(c_pools,dim=1)) :: dCdx 
 
       ! locals
-      integer  :: ipft       ! PFT index
+      integer  :: ipft           ! PFT index
+      integer  :: crowndamage    ! Damage class
       real(r8) :: canopy_trim    ! Canopy trimming function (boundary condition [0-1]
-      real(r8) :: ct_leaf    ! target leaf biomass, dummy var (kgC)
-      real(r8) :: ct_fnrt   ! target fine-root biomass, dummy var (kgC)
-      real(r8) :: ct_sap     ! target sapwood biomass, dummy var (kgC)
-      real(r8) :: ct_agw     ! target aboveground wood, dummy var (kgC)
-      real(r8) :: ct_bgw     ! target belowground wood, dummy var (kgC)
-      real(r8) :: ct_store   ! target storage, dummy var (kgC)
-      real(r8) :: ct_dead    ! target structural biomas, dummy var (kgC)
+      real(r8) :: l2fr           ! Leaf to fine-root multiplier
+      real(r8) :: ct_leaf        ! target leaf biomass, dummy var (kgC)
+      real(r8) :: ct_fnrt        ! target fine-root biomass, dummy var (kgC)
+      real(r8) :: ct_sap         ! target sapwood biomass, dummy var (kgC)
+      real(r8) :: ct_agw         ! target aboveground wood, dummy var (kgC)
+      real(r8) :: ct_bgw         ! target belowground wood, dummy var (kgC)
+      real(r8) :: ct_store       ! target storage, dummy var (kgC)
+      real(r8) :: ct_dead        ! target structural biomas, dummy var (kgC)
       real(r8) :: sapw_area      ! dummy sapwood area
       real(r8) :: ct_dleafdd     ! target leaf biomass derivative wrt diameter, (kgC/cm)
       real(r8) :: ct_dfnrtdd     ! target fine-root biomass derivative wrt diameter, (kgC/cm)
@@ -929,17 +957,17 @@ contains
 
         canopy_trim = intgr_params(ac_bc_in_id_ctrim)
         ipft        = int(intgr_params(ac_bc_in_id_pft))
+        crowndamage = int(intgr_params(ac_bc_in_id_cdamage))
+        l2fr        = prt_params%allom_l2fr(ipft)
         
-
-        call bleaf(dbh,ipft,canopy_trim,ct_leaf,ct_dleafdd)
-        call bfineroot(dbh,ipft,canopy_trim,ct_fnrt,ct_dfnrtdd)
-        call bsap_allom(dbh,ipft,canopy_trim,sapw_area,ct_sap,ct_dsapdd)
-
-        call bagw_allom(dbh,ipft,ct_agw,ct_dagwdd)
-        call bbgw_allom(dbh,ipft,ct_bgw,ct_dbgwdd)
+        call bleaf(dbh,ipft,crowndamage,canopy_trim,ct_leaf, dbldd=ct_dleafdd)
+        call bfineroot(dbh,ipft,canopy_trim,l2fr,ct_fnrt,ct_dfnrtdd)
+        call bsap_allom(dbh,ipft, crowndamage, canopy_trim,sapw_area,ct_sap,ct_dsapdd)
+        call bagw_allom(dbh,ipft,crowndamage, ct_agw,ct_dagwdd)
+        call bbgw_allom(dbh,ipft,ct_bgw, ct_dbgwdd)        
         call bdead_allom(ct_agw,ct_bgw, ct_sap, ipft, ct_dead, &
                          ct_dagwdd, ct_dbgwdd, ct_dsapdd, ct_ddeaddd)
-        call bstore_allom(dbh,ipft,canopy_trim,ct_store,ct_dstoredd)
+        call bstore_allom(dbh,ipft,crowndamage, canopy_trim,ct_store,ct_dstoredd)
         
         ! fraction of carbon going towards reproduction
         if (dbh <= prt_params%dbh_repro_threshold(ipft)) then ! cap on leaf biomass
@@ -1113,8 +1141,8 @@ contains
 
 
       return
-   end subroutine FastPRTAllometricCarbon
+    end subroutine FastPRTAllometricCarbon
 
-
+   
 end module PRTAllometricCarbonMod
   

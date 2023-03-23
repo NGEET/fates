@@ -496,7 +496,7 @@ variables:
 		fates_recruit_height_min:long_name = "the minimum height (ie starting height) of a newly recruited plant" ;
 	double fates_recruit_init_density(fates_pft) ;
 		fates_recruit_init_density:units = "stems/m2" ;
-		fates_recruit_init_density:long_name = "initial seedling density for a cold-start near-bare-ground simulation. If negative sets initial tree dbh - only to be used in nocomp mode" ;
+		fates_recruit_init_density:long_name = "initial seedling density for a cold-start near-bare-ground simulation. If negative sets initial tree dbh - only  to be used in nocomp mode" ;
 	double fates_recruit_prescribed_rate(fates_pft) ;
 		fates_recruit_prescribed_rate:units = "n/yr" ;
 		fates_recruit_prescribed_rate:long_name = "recruitment rate for prescribed physiology mode" ;

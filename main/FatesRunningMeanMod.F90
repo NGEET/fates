@@ -91,6 +91,16 @@ module FatesRunningMeanMod
   class(rmean_def_type), public, pointer :: ema_24hr   ! Exponential moving average - 24hr window
   class(rmean_def_type), public, pointer :: fixed_24hr ! Fixed, 24-hour window
   class(rmean_def_type), public, pointer :: ema_lpa    ! Exponential moving average - leaf photo acclimation
+  class(rmean_def_type), public, pointer :: ema_longterm  ! Exponential moving average - long-term leaf photo acclimation
+  class(rmean_def_type), public, pointer :: ema_60day  ! Exponential moving average, 60 day
+                                                       ! Updated daily
+  class(rmean_def_type), public, pointer :: ema_storemem ! EMA used for smoothing N/C and P/C storage
+
+  ! If we want to have different running mean specs based on
+  ! pft or other types of constants
+  type, public :: rmean_arr_type
+     class(rmean_def_type), pointer :: p
+  end type rmean_arr_type
   
 contains
 
@@ -197,7 +207,11 @@ contains
        if(present(init_value))then
           this%c_mean  = init_value
           this%l_mean  = init_value
-          this%c_index = 1
+          if(present(init_offset))then
+             this%c_index = min(nint(init_offset/rmean_def%up_period),rmean_def%n_mem)
+          else
+             this%c_index = 1
+          end if
        else
           this%c_mean  = nan
           this%l_mean  = nan
@@ -296,12 +310,13 @@ contains
     class(rmean_type)          :: this
     class(rmean_type), pointer :: donor
     real(r8),intent(in)        :: recip_wgt  ! Weighting factor for recipient (0-1)
-    
-    if(this%def_type%n_mem .ne. donor%def_type%n_mem) then
-       write(fates_log(), *) 'memory size is somehow different during fusion'
-       write(fates_log(), *) 'of two running mean variables: '!,this%name,donor%name
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    end if
+
+    ! Unecessary
+    !if(this%def_type%n_mem .ne. donor%def_type%n_mem) then
+    !   write(fates_log(), *) 'memory size is somehow different during fusion'
+    !   write(fates_log(), *) 'of two running mean variables: '!,this%name,donor%name
+    !   call endrun(msg=errMsg(sourcefile, __LINE__))
+    !end if
 
     if(this%def_type%method .eq. fixed_window ) then
        if (this%c_index .ne. donor%c_index) then

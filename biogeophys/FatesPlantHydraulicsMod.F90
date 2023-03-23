@@ -42,13 +42,14 @@ module FatesPlantHydraulicsMod
   use FatesConstantsMod, only : cm3_per_m3
   use FatesConstantsMod, only : kg_per_g
   use FatesConstantsMod, only : fates_unset_r8
+  use FatesConstantsMod, only : nocomp_bareground
 
   use EDParamsMod       , only : hydr_kmax_rsurf1
   use EDParamsMod       , only : hydr_kmax_rsurf2
   use EDParamsMod       , only : hydr_psi0
   use EDParamsMod       , only : hydr_psicap
   use EDParamsMod       , only : hydr_htftype_node
-  use EDParamsMod       , only : hydr_solver_type
+  use EDParamsMod       , only : hydr_solver
 
   use EDTypesMod        , only : ed_site_type
   use EDTypesMod        , only : ed_patch_type
@@ -96,8 +97,6 @@ module FatesPlantHydraulicsMod
   use PRTGenericMod,          only : store_organ, repro_organ, struct_organ
   use PRTGenericMod,          only : num_elements
   use PRTGenericMod,          only : element_list
-
-  use clm_time_manager  , only : get_step_size, get_nstep
 
   use EDPftvarcon, only : EDPftvarcon_inst
   use PRTParametersMod, only : prt_params
@@ -925,12 +924,15 @@ contains
     integer  :: nlevrhiz                     ! number of rhizosphere levels
     real(r8) :: dbh                          ! the dbh of current cohort                                             [cm]   
     real(r8) :: z_fr                         ! rooting depth of a cohort                                             [cm]
-    
+    real(r8) :: v_leaf_donate(1:n_hypool_leaf)   ! the volume that leaf will donate to xylem     
+
     ! We allow the transporting root to donate a fraction of its volume to the absorbing
     ! roots to help mitigate numerical issues due to very small volumes. This is the
     ! fraction the transporting roots donate to those layers
     real(r8), parameter :: t2aroot_vol_donate_frac = 0.65_r8
-
+    real(r8), parameter :: l2sap_vol_donate_frac = 0.5_r8   ! Junyan added
+  
+    
     real(r8), parameter :: min_leaf_frac = 0.1_r8   ! Fraction of maximum leaf carbon that
     ! we set as our lower cap on leaf volume
     real(r8), parameter :: min_trim      = 0.1_r8   ! The lower cap on trimming function used
@@ -979,7 +981,8 @@ contains
     ! Get the target, or rather, maximum leaf carrying capacity of plant
     ! Lets also avoid super-low targets that have very low trimming functions
 
-    call bleaf(ccohort%dbh,ccohort%pft,max(ccohort%canopy_trim,min_trim),leaf_c_target)
+    call bleaf(ccohort%dbh,ccohort%pft,ccohort%crowndamage, &
+         max(ccohort%canopy_trim,min_trim),leaf_c_target)
 
     if( (ccohort%status_coh == leaves_on) .or. ccohort_hydr%is_newly_recruited ) then
        ccohort_hydr%v_ag(1:n_hypool_leaf) = max(leaf_c,min_leaf_frac*leaf_c_target) * &
@@ -994,7 +997,8 @@ contains
     ! v_stem       = c_stem_biom / (prt_params%wood_density(ft) * kg_per_g * cm3_per_m3 )
 
     ! calculate the sapwood cross-sectional area
-    call bsap_allom(ccohort%dbh,ccohort%pft,ccohort%canopy_trim,a_sapwood_target,sapw_c_target)
+    call bsap_allom(ccohort%dbh,ccohort%pft,ccohort%crowndamage, &
+         ccohort%canopy_trim,a_sapwood_target,sapw_c_target)
 
     ! uncomment this if you want to use
     ! the actual sapwood, which may be lower than target due to branchfall.
@@ -1007,8 +1011,16 @@ contains
     crown_depth  = min(ccohort%hite,0.1_r8)
     z_stem       = ccohort%hite - crown_depth
     v_sapwood    = a_sapwood * z_stem    ! + 0.333_r8*a_sapwood*crown_depth
-    ccohort_hydr%v_ag(n_hypool_leaf+1:n_hypool_ag) = v_sapwood / n_hypool_stem
 
+    ! Junyan changed the following code to calculate the above ground node volume
+    ! foliage donate half of its water volume to xylem for grass
+    if (prt_params%woody(ft)==1) then
+      ccohort_hydr%v_ag(n_hypool_leaf+1:n_hypool_ag) = v_sapwood / n_hypool_stem  ! original code
+    else
+      v_leaf_donate(1:n_hypool_leaf) = ccohort_hydr%v_ag(1:n_hypool_leaf) * l2sap_vol_donate_frac
+      ccohort_hydr%v_ag(1:n_hypool_leaf) = ccohort_hydr%v_ag(1:n_hypool_leaf) - v_leaf_donate(1:n_hypool_leaf)
+      ccohort_hydr%v_ag(n_hypool_leaf+1:n_hypool_ag) = (v_sapwood + sum(v_leaf_donate(1:n_hypool_leaf))) / n_hypool_stem
+    end if 
 
     ! Determine belowground biomass as a function of total (sapwood, heartwood,
     ! leaf, fine root) biomass then subtract out the fine root biomass to get
@@ -1094,7 +1106,6 @@ contains
     real(r8) :: th_uncorr                    ! Uncorrected water content
     real(r8), parameter :: small_theta_num = 1.e-7_r8  ! avoids theta values equalling thr or ths         [m3 m-3]
 
-    integer :: nstep !number of time steps
     !-----------------------------------------------------------------------
 
     ccohort_hydr => ccohort%co_hydr
@@ -1468,7 +1479,7 @@ subroutine InitHydrSites(sites,bc_in)
      case(rhizlayer_aggmeth_none)
 
         csite_hydr%nlevrhiz = bc_in(s)%nlevsoil
-        call sites(s)%si_hydr%InitHydrSite(numpft,nlevsclass,hydr_solver_type,bc_in(s)%nlevsoil)
+        call sites(s)%si_hydr%InitHydrSite(numpft,nlevsclass,hydr_solver,bc_in(s)%nlevsoil)
 
         do j=1,csite_hydr%nlevrhiz
            csite_hydr%map_r2s(j,1) = j
@@ -1480,7 +1491,7 @@ subroutine InitHydrSites(sites,bc_in)
      case(rhizlayer_aggmeth_combine12)
 
         csite_hydr%nlevrhiz     = max(1,bc_in(s)%nlevsoil-1)
-        call sites(s)%si_hydr%InitHydrSite(numpft,nlevsclass,hydr_solver_type,bc_in(s)%nlevsoil)
+        call sites(s)%si_hydr%InitHydrSite(numpft,nlevsclass,hydr_solver,bc_in(s)%nlevsoil)
         
         csite_hydr%map_r2s(1,1) = 1
         j_bc                 = min(2,bc_in(s)%nlevsoil) ! this protects 1 soil layer
@@ -1498,7 +1509,7 @@ subroutine InitHydrSites(sites,bc_in)
      case(rhizlayer_aggmeth_balN)
 
         csite_hydr%nlevrhiz = min(aggN,bc_in(s)%nlevsoil)
-        call sites(s)%si_hydr%InitHydrSite(numpft,nlevsclass,hydr_solver_type,bc_in(s)%nlevsoil)
+        call sites(s)%si_hydr%InitHydrSite(numpft,nlevsclass,hydr_solver,bc_in(s)%nlevsoil)
         
         ntoagg = int(ceiling(real(bc_in(s)%nlevsoil)/real(csite_hydr%nlevrhiz)-nearzero))
 
@@ -1771,12 +1782,8 @@ end subroutine HydrSiteColdStart
   type(ed_site_hydr_type), pointer :: csite_hydr
   integer :: s
   real(r8) :: balive_patch
-  integer :: nstep !number of time steps
 
-  !for debug only
-  nstep = get_nstep()
-
-    bc_out%plant_stored_h2o_si = 0.0_r8
+  bc_out%plant_stored_h2o_si = 0.0_r8
 
   if( hlm_use_planthydro.eq.ifalse ) return
 
@@ -1857,7 +1864,6 @@ subroutine RecruitWUptake(nsites,sites,bc_in,dtime,recruitflag)
   type(ed_cohort_hydr_type), pointer :: ccohort_hydr
   type(ed_site_hydr_type), pointer :: csite_hydr
   integer :: s, j, ft
-  integer :: nstep !number of time steps
   real(r8) :: rootfr !fraction of root in different soil layer
   real(r8) :: recruitw !water for newly recruited cohorts (kg water/m2/s)
   real(r8) :: recruitw_total ! total water for newly recruited cohorts (kg water/m2/s)
@@ -2544,7 +2550,7 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
      ifp = 0
      cpatch => sites(s)%oldest_patch
      do while (associated(cpatch))
-        if(cpatch%nocomp_pft_label.ne.0)then
+        if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then
            ifp = ifp + 1
 
            ! ----------------------------------------------------------------------------
@@ -2627,21 +2633,21 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
               ! from leaf to the current soil layer.  This does NOT
               ! update cohort%th_*
               
-              if(hydr_solver_type == hydr_solver_2DNewton) then
+              if(hydr_solver == hydr_solver_2DNewton) then
 
                  call MatSolve2D(csite_hydr,ccohort,ccohort_hydr, &
                       dtime,qflx_tran_veg_indiv, &
                       sapflow,rootuptake(1:nlevrhiz),wb_err_plant,dwat_plant, &
                       dth_layershell_col)
                  
-              elseif(hydr_solver_type == hydr_solver_2DPicard) then
+              elseif(hydr_solver == hydr_solver_2DPicard) then
 
                  call PicardSolve2D(csite_hydr,ccohort,ccohort_hydr, &
                       dtime,qflx_tran_veg_indiv, &
                       sapflow,rootuptake(1:nlevrhiz),wb_err_plant,dwat_plant, &
                       dth_layershell_col,csite_hydr%num_nodes)
                  
-              elseif(hydr_solver_type == hydr_solver_1DTaylor ) then
+              elseif(hydr_solver == hydr_solver_1DTaylor ) then
 
                  ! ---------------------------------------------------------------------------------
                  ! Approach: do nlevsoi_hyd sequential solutions to Richards' equation,
@@ -2748,6 +2754,7 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
         ccohort=>cpatch%tallest
         do while(associated(ccohort))
 
+           ccohort_hydr => ccohort%co_hydr
            sum_l_aroot = sum(ccohort_hydr%l_aroot_layer(:))
            ft = ccohort%pft 
            
@@ -2972,7 +2979,8 @@ subroutine UpdatePlantKmax(ccohort_hydr,ccohort,csite_hydr)
   pft   = ccohort%pft
 
   ! Get the cross-section of the plant's sapwood area [m2]
-  call bsap_allom(ccohort%dbh,pft,ccohort%canopy_trim,a_sapwood,c_sap_dummy)
+  call bsap_allom(ccohort%dbh,pft,ccohort%crowndamage, &
+       ccohort%canopy_trim,a_sapwood,c_sap_dummy)
 
   ! Leaf Maximum Hydraulic Conductance
   ! The starting hypothesis is that there is no resistance inside the
@@ -4606,56 +4614,63 @@ end subroutine shellGeom
 
 ! =====================================================================================
 
-function xylemtaper(p, dz) result(chi_tapnotap)
+function xylemtaper(pexp, dz) result(chi_tapnotap)
 
-   ! !ARGUMENTS:
-   real(r8) , intent(in) :: p      ! Savage et al. (2010) taper exponent
-   real(r8) , intent(in) :: dz     ! hydraulic distance from petiole to node of interest                                                [m]
-   !
-   ! !LOCAL VARIABLES:
-   real(r8) :: atap,btap           ! scaling exponents for total conductance ~ tree size (ratio of stem radius to terminal twig radius)
-   real(r8) :: anotap,bnotap       ! same as atap, btap, but not acounting for xylem taper (Savage et al. (2010) p = 0)
-   ! NOTE: these scaling exponents were digitized from Fig 2a of Savage et al. (2010)
-   ! Savage VM, Bentley LP, Enquist BJ, Sperry JS, Smith DD, Reich PB, von Allmen EI. 2010.
-   !    Hydraulic trade-offs and space filling enable better predictions of vascular structure
-   !    and function in plants. Proceedings of the National Academy of Sciences 107(52): 22722-22727.
-   real(r8) :: lN=0.04_r8          ! petiole length                                                                                     [m]
-   real(r8) :: little_n=2._r8      ! number of daughter branches per parent branch, assumed constant throughout tree (self-similarity)  [-]
-   real(r8) :: big_n               ! number of branching levels (allowed here to take on non-integer values): increases with tree size  [-]
-   real(r8) :: ktap                ! hydraulic conductance along the pathway, accounting for xylem taper                                [kg s-1 MPa-1]
-   real(r8) :: knotap              ! hydraulic conductance along the pathway, not accounting for xylem taper                            [kg s-1 MPa-1]
-   real(r8) :: num                 ! temporary
-   real(r8) :: den                 ! temporary
-   !
-   ! !RESULT
-   real(r8) :: chi_tapnotap        ! ratio of total tree conductance accounting for xylem taper to that without, over interval dz
-   !
-   !------------------------------------------------------------------------
+    use FatesConstantsMod, only : pi => pi_const
 
-   anotap  = 7.19903e-13_r8
-   bnotap  = 1.326105578_r8
-   if (p >= 1.0_r8) then
-      btap  = 2.00586217_r8
-      atap  = 1.82513E-12_r8
-   else if (p >= (1._r8/3._r8) .AND. p < 1._r8) then
-      btap  = 1.854812819_r8
-      atap  = 6.66908E-13_r8
-   else if (p >= (1._r8/6._r8) .AND. p < (1._r8/3._r8)) then
-      btap  = 1.628179741_r8
-      atap  = 6.58345E-13_r8
-   else
-      btap  = bnotap
-      atap  = anotap
-   end if
+    ! !DESCRIPTION: Following the theory presented i
+    ! Savage VM, Bentley LP, Enquist BJ, Sperry JS, Smith DD, Reich PB, von
+    ! Allmen EI. 2010.
+    ! Hydraulic trade-offs and space filling enable better predictions of
+    ! vascular structure
+    ! and function in plants. Proceedings of the National Academy of Sciences
+    ! 107(52): 22722-22727.
 
-   num          = 3._r8*log(1._r8 - dz/lN * (1._r8-little_n**(1._r8/3._r8)))
-   den          = log(little_n)
-   big_n        = num/den - 1._r8
-   ktap         = atap   * (little_n**(big_N*  btap/2._r8))
-   knotap       = anotap * (little_n**(big_N*bnotap/2._r8))
-   chi_tapnotap = ktap / knotap
+    ! Revised 2019-01-03 BOC: total conductance exponent (qexp) is now a
+    ! continuous function of the xylem taper exponent (pexp).
+                                    ! renamed btap to qexp, a[tap][notap] to kN,
+                                    ! little_n to n_ext, to match variable names
+                                    ! in Savage et al.
 
-   return
+    ! !ARGUMENTS:
+    real(r8) , intent(in) :: pexp   ! Savage et al. (2010) taper exponent[-]
+    real(r8) , intent(in) :: dz     ! hydraulic distance from petiole to node of interest[m]
+    !
+    ! !LOCAL VARIABLES:
+    real(r8) :: qexp                ! total conductance exponent (as in Fig. 2b of Savage et al. (2010) minus a0 term
+    real(r8) :: lN=0.005_r8         ! petiole length[m]
+    real(r8) :: n_ext=2._r8         ! number of daughter branches per parent branch, assumed constant throughout tree (self-similarity)  [-]
+    real(r8) :: big_n               ! number of branching levels (allowed here to take on non-integer values): increases with tree size  [-]
+    real(r8) :: r0rN                ! ratio of stem radius to terminal twig radius; r.ext0/r.extN (x-axis of Savage et al. (2010) Fig 2a)[-]
+    real(r8) :: num                 ! temporary
+    real(r8) :: den                 ! temporary
+    real(r8) :: a5,a4,a3,a2,a1,a0   ! coefficients of 5th-order polynomial fit to Savage et al. Fig. 2b (qexp vs. pexp)
+                                    ! NOTE: These were obtained by digitizing
+                                    ! Fig. 2b (dashed line) and fitting a
+                                    ! polynomial using nls() in R
+    !
+    ! !RESULT
+    real(r8) :: chi_tapnotap        ! ratio of total tree conductance accounting for xylem taper to that without, over interval dz
+    !
+    !------------------------------------------------------------------------
+
+    a5 = -3.555547_r8
+    a4 =  9.760275_r8
+    a3 = -8.468005_r8
+    a2 =  1.096488_r8
+    a1 =  1.844792_r8
+    a0 =  1.320732_r8
+    
+    qexp         = a5*pexp**5 + a4*pexp**4 + a3*pexp**3 + a2*pexp**2 + a1*pexp
+
+    num          = 3._r8*log(1._r8 - dz/lN * (1._r8-n_ext**(1._r8/3._r8)))
+    den          = log(n_ext)
+    big_N        = num/den - 1._r8
+    r0rN         = n_ext**(big_N/2._r8)
+    
+    chi_tapnotap = r0rN**qexp
+
+    return
 
 end function xylemtaper
 
@@ -4849,8 +4864,6 @@ subroutine MatSolve2D(csite_hydr,cohort,cohort_hydr, &
    integer :: kshell            ! rhizosphere shell index, 1->nshell
 
    integer :: info
-   integer :: nstep             !number of time steps
-
 
    ! This is a convergence test.  This is the maximum difference
    ! allowed between the flux balance and the change in storage
@@ -4937,12 +4950,8 @@ subroutine MatSolve2D(csite_hydr,cohort,cohort_hydr, &
       ft           => cohort%pft)
 
 
-   !for debug only
-   nstep = get_nstep()
-
-
    ! This NaN's the scratch arrays
-   call csite_hydr%FlushSiteScratch(hydr_solver_type)
+   call csite_hydr%FlushSiteScratch(hydr_solver)
 
    ! This is the maximum number of iterations needed for this cohort
    ! (each soil layer has a different number, this saves the max)
@@ -5625,8 +5634,6 @@ subroutine PicardSolve2D(csite_hydr,cohort,cohort_hydr, &
   integer :: kshell            ! rhizosphere shell index, 1->nshell
 
   integer :: info
-  integer :: nstep             !number of time steps
-
 
   ! This is a convergence test.  This is the maximum difference
   ! allowed between the flux balance and the change in storage
@@ -5719,13 +5726,8 @@ subroutine PicardSolve2D(csite_hydr,cohort,cohort_hydr, &
        dftc_dpsi_node => csite_hydr%dftc_dpsi_node, &
        ft           => cohort%pft)
 
-
-    !for debug only
-    nstep = get_nstep()
-
-
     ! This NaN's the scratch arrays
-    call csite_hydr%FlushSiteScratch(hydr_solver_type)
+    call csite_hydr%FlushSiteScratch(hydr_solver)
 
     ! This is the maximum number of iterations needed for this cohort
     ! (each soil layer has a different number, this saves the max)

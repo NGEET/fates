@@ -11,11 +11,11 @@ module EDSurfaceRadiationMod
 #include "shr_assert.h"
 
   use EDTypesMod        , only : ed_patch_type, ed_site_type
-  use EDTypesMod        , only : maxPatchesPerSite
   use EDTypesMod        , only : maxpft
   use FatesConstantsMod , only : r8 => fates_r8
   use FatesConstantsMod , only : itrue
   use FatesConstantsMod , only : pi_const
+  use FatesConstantsMod , only : nocomp_bareground
   use FatesInterfaceTypesMod , only : bc_in_type
   use FatesInterfaceTypesMod , only : bc_out_type
   use FatesInterfaceTypesMod , only : hlm_numSWb
@@ -101,7 +101,7 @@ contains
        ifp = 0
        currentpatch => sites(s)%oldest_patch
        do while (associated(currentpatch))
-          if(currentpatch%nocomp_pft_label.ne.0)then
+          if(currentpatch%nocomp_pft_label.ne.nocomp_bareground)then
              ! do not do albedo calculations for bare ground patch in SP mode
              ! and (more impotantly) do not iterate ifp or it will mess up the indexing wherein
              ! ifp=1 is the first vegetated patch.
@@ -1148,7 +1148,7 @@ subroutine ED_SunShadeFracs(nsites, sites,bc_in,bc_out)
      cpatch => sites(s)%oldest_patch
 
      do while (associated(cpatch))
-        if(cpatch%nocomp_pft_label.ne.0)then !only for veg patches
+        if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then !only for veg patches
            ! do not do albedo calculations for bare ground patch in SP mode
            ! and (more impotantly) do not iterate ifp or it will mess up the indexing wherein
            ! ifp=1 is the first vegetated patch.
