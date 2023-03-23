@@ -851,6 +851,11 @@ contains
                 ! Calculate the plant diameter from height
                 call h2d_allom(temp_cohort%hite,pft,temp_cohort%dbh)
 
+                ! Calculate the leaf biomass from allometry
+                ! (calculates a maximum first, then applies canopy trim)
+                call bleaf(temp_cohort%dbh,pft,temp_cohort%crowndamage, &
+                     temp_cohort%canopy_trim,c_leaf)
+
              endif  ! sp mode
 
           else ! interpret as initial diameter and calculate density 
@@ -865,16 +870,18 @@ contains
 
                 ! calculate initial density required to close canopy 
                 temp_cohort%n  = patch_in%area / temp_cohort%c_area
+
+                ! Calculate the leaf biomass from allometry
+                ! (calculates a maximum first, then applies canopy trim)
+                call bleaf(temp_cohort%dbh,pft,temp_cohort%crowndamage, &
+                     temp_cohort%canopy_trim,c_leaf)
+
              else
                 write(fates_log(),*) 'Negative fates_recruit_init_density can only be used in no comp mode'
                 call endrun(msg=errMsg(sourcefile, __LINE__))
              endif
           endif
 
-          ! Calculate the leaf biomass from allometry
-          ! (calculates a maximum first, then applies canopy trim)
-          call bleaf(temp_cohort%dbh,pft,temp_cohort%crowndamage, &
-               temp_cohort%canopy_trim,c_leaf)
 
           ! Calculate total above-ground biomass from allometry
           call bagw_allom(temp_cohort%dbh,pft,temp_cohort%crowndamage,c_agw)
