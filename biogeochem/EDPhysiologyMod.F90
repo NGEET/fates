@@ -140,7 +140,6 @@ module EDPhysiologyMod
   public :: UpdateRecruitStoicH
   public :: SetRecruitL2FR
   
->>>>>>> sci.1.65.2_api.25.4.0
   logical, parameter :: debug  = .false. ! local debug flag
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
