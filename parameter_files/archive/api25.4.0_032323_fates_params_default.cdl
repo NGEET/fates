@@ -515,18 +515,6 @@ variables:
 	double fates_recruit_seed_supplement(fates_pft) ;
 		fates_recruit_seed_supplement:units = "KgC/m2/yr" ;
 		fates_recruit_seed_supplement:long_name = "Supplemental external seed rain source term (non-mass conserving)" ;
-	double fates_seed_dispersal_fraction(fates_pft) ;
-		fates_seed_dispersal_fraction:units = "fraction" ;
-		fates_seed_dispersal_fraction:long_name = "fraction of seed rain to be dispersed to other grid cells" ;
-	double fates_seed_dispersal_max_dist(fates_pft) ;
-		fates_seed_dispersal_max_dist:units = "m" ;
-		fates_seed_dispersal_max_dist:long_name = "maximum seed dispersal distance for a given pft" ;
-	double fates_seed_dispersal_pdf_scale(fates_pft) ;
-		fates_seed_dispersal_pdf_scale:units = "unitless" ;
-		fates_seed_dispersal_pdf_scale:long_name = "seed dispersal probability density function scale parameter, A, Table 1 Bullock et al 2016" ;
-	double fates_seed_dispersal_pdf_shape(fates_pft) ;
-		fates_seed_dispersal_pdf_shape:units = "unitless" ;
-		fates_seed_dispersal_pdf_shape:long_name = "seed dispersal probability density function shape parameter, B, Table 1 Bullock et al 2016" ;
 	double fates_stoich_nitr(fates_plant_organs, fates_pft) ;
 		fates_stoich_nitr:units = "gN/gC" ;
 		fates_stoich_nitr:long_name = "target nitrogen concentration (ratio with carbon) of organs" ;
@@ -1345,14 +1333,6 @@ data:
     0.5, 0.5, 0.5, 0.5, 0.5 ;
 
  fates_recruit_seed_supplement = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
-
- fates_seed_dispersal_fraction = _, _, _, _, _, _, _, _, _, _, _, _ ;
-
- fates_seed_dispersal_max_dist = _, _, _, _, _, _, _, _, _, _, _, _ ;
-
- fates_seed_dispersal_pdf_scale = _, _, _, _, _, _, _, _, _, _, _, _ ;
-
- fates_seed_dispersal_pdf_shape = _, _, _, _, _, _, _, _, _, _, _, _ ;
 
  fates_stoich_nitr =
   0.033, 0.029, 0.04, 0.033, 0.04, 0.04, 0.033, 0.04, 0.04, 0.04, 0.04, 0.04,

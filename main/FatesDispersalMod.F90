@@ -140,7 +140,7 @@ contains
       ! Assuming simple exponential decay.  In the future perhaps this could be an interface
       ! for different weight calculations (and could be held only in fates)
       
-      PD_exponential = exp(-EDPftvarcon_inst%seed_dispersal_param_A(ipft)*dist)
+      PD_exponential = exp(-EDPftvarcon_inst%seed_dispersal_pdf_scale(ipft)*dist)
       write(fates_log(),*) 'ipft,dist,PD_exp: ', ipft, dist, PD_exponential
 
    end function PD_exponential
@@ -156,8 +156,8 @@ contains
       integer, intent(in)  :: ipft
       
       associate(&
-         param_a => EDPftvarcon_inst%seed_dispersal_param_A(ipft), &
-         param_b => EDPftvarcon_inst%seed_dispersal_param_B(ipft))      
+         param_a => EDPftvarcon_inst%seed_dispersal_pdf_scale(ipft), &
+         param_b => EDPftvarcon_inst%seed_dispersal_pdf_shape(ipft))      
       
       PD_exppower = (param_b / (2*pi_const*gamma(2/param_b))) * &
                     exp(-(dist**param_b)/(param_a**param_b))
@@ -177,8 +177,8 @@ contains
       integer, intent(in)  :: ipft
 
       associate(&
-         param_a => EDPftvarcon_inst%seed_dispersal_param_A(ipft), &
-         param_b => EDPftvarcon_inst%seed_dispersal_param_B(ipft))      
+         param_a => EDPftvarcon_inst%seed_dispersal_pdf_scale(ipft), &
+         param_b => EDPftvarcon_inst%seed_dispersal_pdf_shape(ipft))      
       
       PD_logsech = (1/(pi_const**2 * param_b * dist**2)) / &
                     ((dist/param_a)**(1/param_b) + &

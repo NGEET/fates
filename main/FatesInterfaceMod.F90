@@ -954,7 +954,7 @@ contains
          ! Set the fates dispersal kernel mode if there are any seed dispersal parameters set.
          ! The validation of the parameter values is check in FatesCheckParams prior to this check.
          ! This is currently hard coded.
-         if(any(EDPftvarcon_inst%seed_dispersal_param_A .lt. fates_check_param_set)) then
+         if(any(EDPftvarcon_inst%seed_dispersal_pdf_scale .lt. fates_check_param_set)) then
             fates_dispersal_kernel_mode = fates_dispersal_kernel_exponential
             ! fates_dispersal_kernel_mode = fates_dispersal_kernel_exppower
             ! fates_dispersal_kernel_mode = fates_dispersal_kernel_logsech
@@ -964,7 +964,7 @@ contains
          
          ! Set the fates dispersal cadence if seed dispersal parameters are set.
          ! This could be a parameter value setting as well.  Currently hardcoded
-         if(any(EDPftvarcon_inst%seed_dispersal_param_A .lt. fates_check_param_set)) then
+         if(any(EDPftvarcon_inst%seed_dispersal_pdf_scale .lt. fates_check_param_set)) then
             fates_dispersal_cadence = fates_dispersal_cadence_daily
             !fates_dispersal_cadence = fates_dispersal_cadence_monthly
             ! fates_dispersal_cadence = fates_dispersal_cadence_yearly
