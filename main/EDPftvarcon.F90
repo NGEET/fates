@@ -1544,6 +1544,7 @@ contains
     use EDParamsMod        , only : logging_mechanical_frac, logging_collateral_frac
     use EDParamsMod        , only : logging_direct_frac,logging_export_frac
     use FatesInterfaceTypesMod, only : hlm_use_fixed_biogeog,hlm_use_sp, hlm_name
+    use FatesInterfaceTypesMod, only : hlm_use_inventory_init
 
      ! Argument
      logical, intent(in) :: is_master    ! Only log if this is the master proc
@@ -1780,7 +1781,22 @@ contains
 
         end if
 
-
+        ! Check that in initial density is not equal to zero in a cold-start run
+        !-----------------------------------------------------------------------------------
+        
+        if ( hlm_use_inventory_init == ifalse .and. & 
+             abs( EDPftvarcon_inst%initd(ipft) ) < nearzero ) then
+          
+           write(fates_log(),*) ' In a cold start run initial density cannot be zero.'
+           write(fates_log(),*) ' For a bare ground run set to initial recruit density.'
+           write(fates_log(),*) ' If no-comp is on it is possible to initialize with larger  '
+           write(fates_log(),*) ' plants by setting fates_recruit_init_density to a negative number'
+           write(fates_log(),*) ' which will be interpreted as (absolute) initial dbh. '
+           write(fates_log(),*) ' Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+           
+        end if
+           
 
 
         ! Check if fraction of storage to reproduction is between 0-1
