@@ -1755,6 +1755,7 @@ contains
     use EDTypesMod, only : area
     use EDTypesMod, only : homogenize_seed_pfts
     use FatesInterfaceTypesMod, only : fates_dispersal_kernel_mode
+    use FatesInterfaceTypesMod, only : fates_dispersal_kernel_none
     !
     ! !ARGUMENTS
     type(ed_site_type), intent(inout), target  :: currentSite

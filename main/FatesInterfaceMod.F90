@@ -740,8 +740,6 @@ contains
        ! spmode,biogeog and nocomp mode flags have been passed prior to this call
        ! --------------------------------------------------------------------------------
       
-      use FatesConstantsMod,      only : fates_check_param_set
-
       implicit none
       
       logical,intent(in) :: use_fates    ! Is fates turned on?
@@ -810,6 +808,8 @@ contains
       ! This is the second FATES routine that is called.
       !
       ! --------------------------------------------------------------------------------
+
+      use FatesConstantsMod,      only : fates_check_param_set
 
       logical,intent(in) :: use_fates    ! Is fates turned on?
       integer :: i
@@ -2018,8 +2018,7 @@ contains
       use FatesDispersalMod     , only : neighborhood_type, neighbor_type, ProbabilityDensity
       use FatesUtilsMod         , only : GetNeighborDistance
       use EDPftvarcon           , only : EDPftvarcon_inst 
-      use FatesConstantsMod     , only : fates_check_param_set
-      
+
       ! Arguments
       type(neighborhood_type), intent(inout), pointer :: neighbors(:)
     
