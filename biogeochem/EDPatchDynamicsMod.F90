@@ -411,7 +411,7 @@ contains
     ! 10) Area checked, and patchno recalculated. 
     !
     ! !USES:
-    
+
     use EDParamsMod         , only : ED_val_understorey_death, logging_coll_under_frac
     use EDCohortDynamicsMod , only : zero_cohort, copy_cohort, terminate_cohorts
     use FatesConstantsMod   , only : rsnbl_math_prec
@@ -445,7 +445,7 @@ contains
     real(r8) :: struct_c                     ! structure carbon [kg]
     real(r8) :: total_c                      ! total carbon of plant [kg]
     real(r8) :: leaf_burn_frac               ! fraction of leaves burned in fire
-                                             ! for both woody and grass species
+    ! for both woody and grass species
     real(r8) :: leaf_m                       ! leaf mass during partial burn calculations
     logical  :: found_youngest_primary       ! logical for finding the first primary forest patch
     integer  :: min_nocomp_pft, max_nocomp_pft, i_nocomp_pft
@@ -478,112 +478,78 @@ contains
 
        disturbance_type_loop: do i_disturbance_type = 1,N_DIST_TYPES
 
-          ! calculate area of disturbed land, in this timestep, by summing contributions from each existing patch.
-          currentPatch => currentSite%youngest_patch
+          landuse_type_loop: do i_landuse_type = 1, n_landuse_cats
 
-          site_areadis_primary = 0.0_r8
-          site_areadis_secondary = 0.0_r8
+             ! calculate area of disturbed land, in this timestep, by summing contributions from each existing patch.
+             currentPatch => currentSite%youngest_patch
 
-          do while(associated(currentPatch))
+             site_areadis = 0.0_r8
 
-             cp_nocomp_matches_1_if: if ( hlm_use_nocomp .eq. ifalse .or. &
-                  currentPatch%nocomp_pft_label .eq. i_nocomp_pft ) then
-
-                disturbance_rate = currentPatch%disturbance_rates(i_disturbance_type)
-
-                if(disturbance_rate > (1.0_r8 + rsnbl_math_prec)) then
-                   write(fates_log(),*) 'patch disturbance rate > 1 ?',disturbance_rate
-                   call dump_patch(currentPatch)
-                   call endrun(msg=errMsg(sourcefile, __LINE__))
-                end if
-
-                ! Only create new patches that have non-negligible amount of land
-                if((currentPatch%area*disturbance_rate) > nearzero ) then
-
-                   ! figure out whether the receiver patch for disturbance from this patch will be
-                   ! primary or secondary land receiver patch is primary forest only if both the
-                   ! donor patch is primary forest and the current disturbance type is not logging
-                   if ( currentPatch%anthro_disturbance_label .eq. primarylands .and. &
-                        (i_disturbance_type .ne. dtype_ilog) ) then
-
-                      site_areadis_primary = site_areadis_primary + currentPatch%area * disturbance_rate
-
-                      ! track disturbance rates to output to history
-                      currentSite%disturbance_rates_primary_to_primary(i_disturbance_type) = &
-                           currentSite%disturbance_rates_primary_to_primary(i_disturbance_type) + &
-                           currentPatch%area * disturbance_rate * AREA_INV
-
-                   else
-                      site_areadis_secondary = site_areadis_secondary + currentPatch%area * disturbance_rate
-
-                      ! track disturbance rates to output to history
-                      if (currentPatch%anthro_disturbance_label .eq. secondarylands) then
-                         currentSite%disturbance_rates_secondary_to_secondary(i_disturbance_type) = &
-                              currentSite%disturbance_rates_secondary_to_secondary(i_disturbance_type) + &
-                              currentPatch%area * disturbance_rate * AREA_INV
-
-                      else
-                         currentSite%disturbance_rates_primary_to_secondary(i_disturbance_type) = &
-                              currentSite%disturbance_rates_primary_to_secondary(i_disturbance_type) + &
-                              currentPatch%area * disturbance_rate * AREA_INV
-                      endif
-
-                   endif
-
-                end if
-
-             end if cp_nocomp_matches_1_if
-             currentPatch => currentPatch%older
-          enddo ! end loop over patches. sum area disturbed for all patches.
-
-          ! It is possible that no disturbance area was generated
-          if ( (site_areadis_primary + site_areadis_secondary) > nearzero) then
-
-             age = 0.0_r8
-
-             ! create two empty patches, to absorb newly disturbed primary and secondary forest area
-             ! first create patch to receive primary forest area
-             if ( site_areadis_primary .gt. nearzero ) then
-                allocate(new_patch_primary)
-
-                call create_patch(currentSite, new_patch_primary, age, &
-                     site_areadis_primary, primarylands, i_nocomp_pft)
-
-                ! Initialize the litter pools to zero, these
-                ! pools will be populated by looping over the existing patches
-                ! and transfering in mass
-                do el=1,num_elements
-                   call new_patch_primary%litter(el)%InitConditions(init_leaf_fines=0._r8, &
-                        init_root_fines=0._r8, &
-                        init_ag_cwd=0._r8, &
-                        init_bg_cwd=0._r8, &
-                        init_seed=0._r8,   &
-                        init_seed_germ=0._r8)
-                end do
-                new_patch_primary%tallest  => null()
-                new_patch_primary%shortest => null()
-
+             ! figure out what land use label the receiver patch for disturbance from patches with
+             ! this disturbance label and disturbance of this type will have
+             if ( i_disturbance_type .eq. dtype_ilog) then
+                receiver_patch_lu_label = secondarylands
+             else
+                receiver_patch_lu_label = i_landuse_type
              endif
 
-             ! next create patch to receive secondary forest area
-             if ( site_areadis_secondary .gt. nearzero) then
-                allocate(new_patch_secondary)
-                call create_patch(currentSite, new_patch_secondary, age, &
-                     site_areadis_secondary, secondarylands,i_nocomp_pft)
+             patchloop: do while(associated(currentPatch))
+
+                cp_nocomp_matches_1_if: if ( hlm_use_nocomp .eq. ifalse .or. &
+                     currentPatch%nocomp_pft_label .eq. i_nocomp_pft ) then
+
+                   patchlabel_matches_lutype_if: if (currentPatch%anthro_disturbance_label .eq. i_landuse_type) then
+
+                      disturbance_rate = currentPatch%disturbance_rates(i_disturbance_type)
+
+                      if(disturbance_rate > (1.0_r8 + rsnbl_math_prec)) then
+                         write(fates_log(),*) 'patch disturbance rate > 1 ?',disturbance_rate
+                         call dump_patch(currentPatch)
+                         call endrun(msg=errMsg(sourcefile, __LINE__))
+                      end if
+
+                      ! Only create new patches that have non-negligible amount of land
+                      if((currentPatch%area*disturbance_rate) > nearzero ) then
+
+                         site_areadis = site_areadis + currentPatch%area * disturbance_rate
+
+                         ! track disturbance rates to output to history
+                         currentSite%disturbance_rates(i_disturbance_type) = &
+                              currentSite%disturbance_rates(i_disturbance_type) + &
+                              currentPatch%area * disturbance_rate * AREA_INV
+
+
+                      end if
+
+                   end if patchlabel_matches_lutype_if
+                end if cp_nocomp_matches_1_if
+                currentPatch => currentPatch%older
+             enddo patchloop ! end loop over patches. sum area disturbed for all patches.
+
+             ! It is possible that no disturbance area was generated
+             if ( site_areadis > nearzero) then
+
+                age = 0.0_r8
+
+                ! create an empty patch, to absorb newly disturbed area
+                allocate(new_patch)
+
+                call create_patch(currentSite, new_patch, age, &
+                     site_areadis, receiver_patch_lu_label, i_nocomp_pft)
 
                 ! Initialize the litter pools to zero, these
                 ! pools will be populated by looping over the existing patches
                 ! and transfering in mass
                 do el=1,num_elements
-                   call new_patch_secondary%litter(el)%InitConditions(init_leaf_fines=0._r8, &
+                   call new_patch%litter(el)%InitConditions(init_leaf_fines=0._r8, &
                         init_root_fines=0._r8, &
                         init_ag_cwd=0._r8, &
                         init_bg_cwd=0._r8, &
                         init_seed=0._r8,   &
                         init_seed_germ=0._r8)
                 end do
-                new_patch_secondary%tallest  => null()
-                new_patch_secondary%shortest => null()
+                new_patch%tallest  => null()
+                new_patch%shortest => null()
 
              endif
 
@@ -593,392 +559,290 @@ contains
              ! two new pointers.
 
              currentPatch => currentSite%oldest_patch
-             do while(associated(currentPatch))
+             patchloop: do while(associated(currentPatch))
 
                 cp_nocomp_matches_2_if: if ( hlm_use_nocomp .eq. ifalse .or. &
                      currentPatch%nocomp_pft_label .eq. i_nocomp_pft ) then
 
-                   ! This is the amount of patch area that is disturbed, and donated by the donor
-                   disturbance_rate = currentPatch%disturbance_rates(i_disturbance_type)
-                   patch_site_areadis = currentPatch%area * disturbance_rate
+                   patchlabel_matches_lutype_if: if (currentPatch%anthro_disturbance_label .eq. i_landuse_type) then
 
 
-                   if ( patch_site_areadis > nearzero ) then
-
-                      ! figure out whether the receiver patch for disturbance from this patch
-                      ! will be primary or secondary land receiver patch is primary forest
-                      ! only if both the donor patch is primary forest and the current
-                      ! disturbance type is not logging
-                      if (currentPatch%anthro_disturbance_label .eq. primarylands .and. &
-                           (i_disturbance_type .ne. dtype_ilog)) then
-                         new_patch => new_patch_primary
-                      else
-                         new_patch => new_patch_secondary
-                      endif
-
-                      if(.not.associated(new_patch))then
-                         write(fates_log(),*) 'Patch spawning has attempted to point to'
-                         write(fates_log(),*) 'an un-allocated patch'
-                         call endrun(msg=errMsg(sourcefile, __LINE__))
-                      end if
-
-                      ! for the case where the donating patch is secondary forest, if
-                      ! the current disturbance from this patch is non-anthropogenic,
-                      ! we need to average in the time-since-anthropogenic-disturbance
-                      ! from the donor patch into that of the receiver patch
-                      if ( currentPatch%anthro_disturbance_label .eq. secondarylands .and. &
-                           (i_disturbance_type .ne. dtype_ilog) ) then
-
-                         new_patch%age_since_anthro_disturbance = new_patch%age_since_anthro_disturbance + &
-                              currentPatch%age_since_anthro_disturbance * (patch_site_areadis / site_areadis_secondary)
-
-                      endif
+                      ! This is the amount of patch area that is disturbed, and donated by the donor
+                      disturbance_rate = currentPatch%disturbance_rates(i_disturbance_type)
+                      patch_site_areadis = currentPatch%area * disturbance_rate
 
 
-                      ! Transfer the litter existing already in the donor patch to the new patch
-                      ! This call will only transfer non-burned litter to new patch
-                      ! and burned litter to atmosphere. Thus it is important to zero burnt_frac_litter when
-                      ! fire is not the current disturbance regime.
+                      if ( patch_site_areadis > nearzero ) then
 
-                      if(i_disturbance_type .ne. dtype_ifire) then
-                         currentPatch%burnt_frac_litter(:) = 0._r8
-                      end if
+                         if(.not.associated(new_patch))then
+                            write(fates_log(),*) 'Patch spawning has attempted to point to'
+                            write(fates_log(),*) 'an un-allocated patch'
+                            call endrun(msg=errMsg(sourcefile, __LINE__))
+                         end if
 
-                      call TransLitterNewPatch( currentSite, currentPatch, new_patch, patch_site_areadis)
+                         ! CDK note 03/27 this logic needs to be updated for new logic
+                         ! ! for the case where the donating patch is secondary forest, if
+                         ! ! the current disturbance from this patch is non-anthropogenic,
+                         ! ! we need to average in the time-since-anthropogenic-disturbance
+                         ! ! from the donor patch into that of the receiver patch
+                         ! if ( currentPatch%anthro_disturbance_label .eq. secondarylands .and. &
+                         !      (i_disturbance_type .ne. dtype_ilog) ) then
 
-                      ! Transfer in litter fluxes from plants in various contexts of death and destruction
+                         !    new_patch%age_since_anthro_disturbance = new_patch%age_since_anthro_disturbance + &
+                         !         currentPatch%age_since_anthro_disturbance * (patch_site_areadis / site_areadis_secondary)
 
-                      if(i_disturbance_type .eq. dtype_ilog) then
-                         call logging_litter_fluxes(currentSite, currentPatch, &
-                              new_patch, patch_site_areadis,bc_in)
-                      elseif(i_disturbance_type .eq. dtype_ifire) then
-                         call fire_litter_fluxes(currentSite, currentPatch, &
-                              new_patch, patch_site_areadis,bc_in)
-                      else
-                         call mortality_litter_fluxes(currentSite, currentPatch, &
-                              new_patch, patch_site_areadis,bc_in)
-                      endif
+                         ! endif
 
 
-                      ! Copy any means or timers from the original patch to the new patch
-                      ! These values will inherit all info from the original patch
-                      ! --------------------------------------------------------------------------
-                      call new_patch%tveg24%CopyFromDonor(currentPatch%tveg24)
-                      call new_patch%tveg_lpa%CopyFromDonor(currentPatch%tveg_lpa)
+                         ! Transfer the litter existing already in the donor patch to the new patch
+                         ! This call will only transfer non-burned litter to new patch
+                         ! and burned litter to atmosphere. Thus it is important to zero burnt_frac_litter when
+                         ! fire is not the current disturbance regime.
+
+                         if(i_disturbance_type .ne. dtype_ifire) then
+                            currentPatch%burnt_frac_litter(:) = 0._r8
+                         end if
+
+                         call TransLitterNewPatch( currentSite, currentPatch, new_patch, patch_site_areadis)
+
+                         ! Transfer in litter fluxes from plants in various contexts of death and destruction
+
+                         if(i_disturbance_type .eq. dtype_ilog) then
+                            call logging_litter_fluxes(currentSite, currentPatch, &
+                                 new_patch, patch_site_areadis,bc_in)
+                         elseif(i_disturbance_type .eq. dtype_ifire) then
+                            call fire_litter_fluxes(currentSite, currentPatch, &
+                                 new_patch, patch_site_areadis,bc_in)
+                         else
+                            call mortality_litter_fluxes(currentSite, currentPatch, &
+                                 new_patch, patch_site_areadis,bc_in)
+                         endif
 
 
-                      ! --------------------------------------------------------------------------
-                      ! The newly formed patch from disturbance (new_patch), has now been given
-                      ! some litter from dead plants and pre-existing litter from the donor patches.
-                      !
-                      ! Next, we loop through the cohorts in the donor patch, copy them with
-                      ! area modified number density into the new-patch, and apply survivorship.
-                      ! -------------------------------------------------------------------------
-
-                      currentCohort => currentPatch%shortest
-                      do while(associated(currentCohort))
-
-                         allocate(nc)
-                         if(hlm_use_planthydro.eq.itrue) call InitHydrCohort(CurrentSite,nc)
-
-                         ! Initialize the PARTEH object and point to the
-                         ! correct boundary condition fields
-                         nc%prt => null()
-                         call InitPRTObject(nc%prt)
-                         call InitPRTBoundaryConditions(nc)
-
-                         !  (Keeping as an example)
-                         ! Allocate running mean functions
-                         !allocate(nc%tveg_lpa)
-                         !call nc%tveg_lpa%InitRMean(ema_lpa,init_value=new_patch%tveg_lpa%GetMean())
-
-                         call zero_cohort(nc)
-
-                         ! nc is the new cohort that goes in the disturbed patch (new_patch)... currentCohort
-                         ! is the curent cohort that stays in the donor patch (currentPatch)
-                         call copy_cohort(currentCohort, nc)
-
-                         !this is the case as the new patch probably doesn't have a closed canopy, and
-                         ! even if it does, that will be sorted out in canopy_structure.
-                         nc%canopy_layer = 1
-                         nc%canopy_layer_yesterday = 1._r8
-
-                         sapw_c   = currentCohort%prt%GetState(sapw_organ, carbon12_element)
-                         struct_c = currentCohort%prt%GetState(struct_organ, carbon12_element)
-                         leaf_c   = currentCohort%prt%GetState(leaf_organ, carbon12_element)
-                         fnrt_c   = currentCohort%prt%GetState(fnrt_organ, carbon12_element)
-                         store_c  = currentCohort%prt%GetState(store_organ, carbon12_element)
-                         total_c  = sapw_c + struct_c + leaf_c + fnrt_c + store_c
-
-                         ! treefall mortality is the current disturbance
-                         if(i_disturbance_type .eq. dtype_ifall) then
-
-                            if(currentCohort%canopy_layer == 1)then
-
-                               ! In the donor patch we are left with fewer trees because the area has decreased
-                               ! the plant density for large trees does not actually decrease in the donor patch
-                               ! because this is the part of the original patch where no trees have actually fallen
-                               ! The diagnostic cmort,bmort,hmort, and frmort  rates have already been saved
-
-                               currentCohort%n = currentCohort%n * (1.0_r8 - fates_mortality_disturbance_fraction * &
-                                    min(1.0_r8,currentCohort%dmort * hlm_freq_day))
-
-                               nc%n = 0.0_r8      ! kill all of the trees who caused the disturbance.
-
-                               nc%cmort = nan     ! The mortality diagnostics are set to nan
-                               ! because the cohort should dissappear
-                               nc%hmort = nan
-                               nc%bmort = nan
-                               nc%frmort = nan
-                               nc%smort = nan
-                               nc%asmort = nan
-                               nc%dgmort = nan
-                               nc%lmort_direct     = nan
-                               nc%lmort_collateral = nan
-                               nc%lmort_infra      = nan
-                               nc%l_degrad         = nan
-
-                            else
-                               ! small trees
-                               if( prt_params%woody(currentCohort%pft) == itrue)then
+                         ! Copy any means or timers from the original patch to the new patch
+                         ! These values will inherit all info from the original patch
+                         ! --------------------------------------------------------------------------
+                         call new_patch%tveg24%CopyFromDonor(currentPatch%tveg24)
+                         call new_patch%tveg_lpa%CopyFromDonor(currentPatch%tveg_lpa)
 
 
-                                  ! Survivorship of undestory woody plants.  Two step process.
-                                  ! Step 1:  Reduce current number of plants to reflect the
-                                  !          change in area.
-                                  !          The number density per square are doesn't change,
-                                  !          but since the patch is smaller and cohort counts
-                                  !          are absolute, reduce this number.
+                         ! --------------------------------------------------------------------------
+                         ! The newly formed patch from disturbance (new_patch), has now been given
+                         ! some litter from dead plants and pre-existing litter from the donor patches.
+                         !
+                         ! Next, we loop through the cohorts in the donor patch, copy them with
+                         ! area modified number density into the new-patch, and apply survivorship.
+                         ! -------------------------------------------------------------------------
 
-                                  nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
+                         currentCohort => currentPatch%shortest
+                         do while(associated(currentCohort))
 
-                                  ! because the mortality rate due to impact for the cohorts which
-                                  ! had been in the understory and are now in the newly-
-                                  ! disturbed patch is very high, passing the imort directly to history
-                                  ! results in large numerical errors, on account of the sharply
-                                  ! reduced number densities.  so instead pass this info via a
-                                  ! site-level diagnostic variable before reducing the number density.
+                            allocate(nc)
+                            if(hlm_use_planthydro.eq.itrue) call InitHydrCohort(CurrentSite,nc)
 
-                                  currentSite%imort_rate(currentCohort%size_class, currentCohort%pft) = &
-                                       currentSite%imort_rate(currentCohort%size_class, currentCohort%pft) + &
-                                       nc%n * ED_val_understorey_death / hlm_freq_day
+                            ! Initialize the PARTEH object and point to the
+                            ! correct boundary condition fields
+                            nc%prt => null()
+                            call InitPRTObject(nc%prt)
+                            call InitPRTBoundaryConditions(nc)
 
+                            !  (Keeping as an example)
+                            ! Allocate running mean functions
+                            !allocate(nc%tveg_lpa)
+                            !call nc%tveg_lpa%InitRMean(ema_lpa,init_value=new_patch%tveg_lpa%GetMean())
 
-                                  currentSite%imort_carbonflux(currentCohort%pft) = &
-                                       currentSite%imort_carbonflux(currentCohort%pft) + &
-                                       (nc%n * ED_val_understorey_death / hlm_freq_day ) * &
-                                       total_c * g_per_kg * days_per_sec * years_per_day * ha_per_m2
+                            call zero_cohort(nc)
 
-                                  currentSite%imort_abg_flux(currentCohort%size_class, currentCohort%pft) = &
-                                       currentSite%imort_abg_flux(currentCohort%size_class, currentCohort%pft) + &
-                                       (nc%n * ED_val_understorey_death / hlm_freq_day ) * &
-                                       ( (sapw_c + struct_c + store_c) * prt_params%allom_agb_frac(currentCohort%pft) + &
-                                       leaf_c ) * &
-                                       g_per_kg * days_per_sec * years_per_day * ha_per_m2
+                            ! nc is the new cohort that goes in the disturbed patch (new_patch)... currentCohort
+                            ! is the curent cohort that stays in the donor patch (currentPatch)
+                            call copy_cohort(currentCohort, nc)
 
+                            !this is the case as the new patch probably doesn't have a closed canopy, and
+                            ! even if it does, that will be sorted out in canopy_structure.
+                            nc%canopy_layer = 1
+                            nc%canopy_layer_yesterday = 1._r8
 
-                                  ! Step 2:  Apply survivor ship function based on the understory death fraction
-                                  ! remaining of understory plants of those that are knocked over
-                                  ! by the overstorey trees dying...
-                                  nc%n = nc%n * (1.0_r8 - ED_val_understorey_death)
+                            sapw_c   = currentCohort%prt%GetState(sapw_organ, carbon12_element)
+                            struct_c = currentCohort%prt%GetState(struct_organ, carbon12_element)
+                            leaf_c   = currentCohort%prt%GetState(leaf_organ, carbon12_element)
+                            fnrt_c   = currentCohort%prt%GetState(fnrt_organ, carbon12_element)
+                            store_c  = currentCohort%prt%GetState(store_organ, carbon12_element)
+                            total_c  = sapw_c + struct_c + leaf_c + fnrt_c + store_c
 
-                                  ! since the donor patch split and sent a fraction of its members
-                                  ! to the new patch and a fraction to be preserved in itself,
-                                  ! when reporting diagnostic rates, we must carry over the mortality rates from
-                                  ! the donor that were applied before the patch split.  Remember this is only
-                                  ! for diagnostics.  But think of it this way, the rates are weighted by
-                                  ! number density in EDCLMLink, and the number density of this new patch is donated
-                                  ! so with the number density must come the effective mortality rates.
+                            ! treefall mortality is the current disturbance
+                            if(i_disturbance_type .eq. dtype_ifall) then
 
-                                  nc%cmort            = currentCohort%cmort
-                                  nc%hmort            = currentCohort%hmort
-                                  nc%bmort            = currentCohort%bmort
-                                  nc%frmort           = currentCohort%frmort
-                                  nc%smort            = currentCohort%smort
-                                  nc%asmort           = currentCohort%asmort
-                                  nc%dgmort           = currentCohort%dgmort
-                                  nc%dmort            = currentCohort%dmort
-                                  nc%lmort_direct     = currentCohort%lmort_direct
-                                  nc%lmort_collateral = currentCohort%lmort_collateral
-                                  nc%lmort_infra      = currentCohort%lmort_infra
+                               if(currentCohort%canopy_layer == 1)then
 
-                                  ! understory trees that might potentially be knocked over in the disturbance.
-                                  ! The existing (donor) patch should not have any impact mortality, it should
-                                  ! only lose cohorts due to the decrease in area.  This is not mortality.
-                                  ! Besides, the current and newly created patch sum to unity
+                                  ! In the donor patch we are left with fewer trees because the area has decreased
+                                  ! the plant density for large trees does not actually decrease in the donor patch
+                                  ! because this is the part of the original patch where no trees have actually fallen
+                                  ! The diagnostic cmort,bmort,hmort, and frmort  rates have already been saved
 
-                                  currentCohort%n = currentCohort%n * (1._r8 -  patch_site_areadis/currentPatch%area)
+                                  currentCohort%n = currentCohort%n * (1.0_r8 - fates_mortality_disturbance_fraction * &
+                                       min(1.0_r8,currentCohort%dmort * hlm_freq_day))
+
+                                  nc%n = 0.0_r8      ! kill all of the trees who caused the disturbance.
+
+                                  nc%cmort = nan     ! The mortality diagnostics are set to nan
+                                  ! because the cohort should dissappear
+                                  nc%hmort = nan
+                                  nc%bmort = nan
+                                  nc%frmort = nan
+                                  nc%smort = nan
+                                  nc%asmort = nan
+                                  nc%dgmort = nan
+                                  nc%lmort_direct     = nan
+                                  nc%lmort_collateral = nan
+                                  nc%lmort_infra      = nan
+                                  nc%l_degrad         = nan
 
                                else
-                                  ! grass is not killed by mortality disturbance events. Just move it into the new patch area.
-                                  ! Just split the grass into the existing and new patch structures
-                                  nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
+                                  ! small trees
+                                  if( prt_params%woody(currentCohort%pft) == itrue)then
 
-                                  ! Those remaining in the existing
-                                  currentCohort%n = currentCohort%n * (1._r8 - patch_site_areadis/currentPatch%area)
 
-                                  nc%cmort            = currentCohort%cmort
-                                  nc%hmort            = currentCohort%hmort
-                                  nc%bmort            = currentCohort%bmort
-                                  nc%frmort           = currentCohort%frmort
-                                  nc%smort            = currentCohort%smort
-                                  nc%asmort           = currentCohort%asmort
-                                  nc%dgmort           = currentCohort%dgmort
-                                  nc%dmort            = currentCohort%dmort
-                                  nc%lmort_direct    = currentCohort%lmort_direct
-                                  nc%lmort_collateral = currentCohort%lmort_collateral
-                                  nc%lmort_infra      = currentCohort%lmort_infra
+                                     ! Survivorship of undestory woody plants.  Two step process.
+                                     ! Step 1:  Reduce current number of plants to reflect the
+                                     !          change in area.
+                                     !          The number density per square are doesn't change,
+                                     !          but since the patch is smaller and cohort counts
+                                     !          are absolute, reduce this number.
 
+                                     nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
+
+                                     ! because the mortality rate due to impact for the cohorts which
+                                     ! had been in the understory and are now in the newly-
+                                     ! disturbed patch is very high, passing the imort directly to history
+                                     ! results in large numerical errors, on account of the sharply
+                                     ! reduced number densities.  so instead pass this info via a
+                                     ! site-level diagnostic variable before reducing the number density.
+
+                                     currentSite%imort_rate(currentCohort%size_class, currentCohort%pft) = &
+                                          currentSite%imort_rate(currentCohort%size_class, currentCohort%pft) + &
+                                          nc%n * ED_val_understorey_death / hlm_freq_day
+
+
+                                     currentSite%imort_carbonflux(currentCohort%pft) = &
+                                          currentSite%imort_carbonflux(currentCohort%pft) + &
+                                          (nc%n * ED_val_understorey_death / hlm_freq_day ) * &
+                                          total_c * g_per_kg * days_per_sec * years_per_day * ha_per_m2
+
+                                     currentSite%imort_abg_flux(currentCohort%size_class, currentCohort%pft) = &
+                                          currentSite%imort_abg_flux(currentCohort%size_class, currentCohort%pft) + &
+                                          (nc%n * ED_val_understorey_death / hlm_freq_day ) * &
+                                          ( (sapw_c + struct_c + store_c) * prt_params%allom_agb_frac(currentCohort%pft) + &
+                                          leaf_c ) * &
+                                          g_per_kg * days_per_sec * years_per_day * ha_per_m2
+
+
+                                     ! Step 2:  Apply survivor ship function based on the understory death fraction
+                                     ! remaining of understory plants of those that are knocked over
+                                     ! by the overstorey trees dying...
+                                     nc%n = nc%n * (1.0_r8 - ED_val_understorey_death)
+
+                                     ! since the donor patch split and sent a fraction of its members
+                                     ! to the new patch and a fraction to be preserved in itself,
+                                     ! when reporting diagnostic rates, we must carry over the mortality rates from
+                                     ! the donor that were applied before the patch split.  Remember this is only
+                                     ! for diagnostics.  But think of it this way, the rates are weighted by
+                                     ! number density in EDCLMLink, and the number density of this new patch is donated
+                                     ! so with the number density must come the effective mortality rates.
+
+                                     nc%cmort            = currentCohort%cmort
+                                     nc%hmort            = currentCohort%hmort
+                                     nc%bmort            = currentCohort%bmort
+                                     nc%frmort           = currentCohort%frmort
+                                     nc%smort            = currentCohort%smort
+                                     nc%asmort           = currentCohort%asmort
+                                     nc%dgmort           = currentCohort%dgmort
+                                     nc%dmort            = currentCohort%dmort
+                                     nc%lmort_direct     = currentCohort%lmort_direct
+                                     nc%lmort_collateral = currentCohort%lmort_collateral
+                                     nc%lmort_infra      = currentCohort%lmort_infra
+
+                                     ! understory trees that might potentially be knocked over in the disturbance.
+                                     ! The existing (donor) patch should not have any impact mortality, it should
+                                     ! only lose cohorts due to the decrease in area.  This is not mortality.
+                                     ! Besides, the current and newly created patch sum to unity
+
+                                     currentCohort%n = currentCohort%n * (1._r8 -  patch_site_areadis/currentPatch%area)
+
+                                  else
+                                     ! grass is not killed by mortality disturbance events. Just move it into the new patch area.
+                                     ! Just split the grass into the existing and new patch structures
+                                     nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
+
+                                     ! Those remaining in the existing
+                                     currentCohort%n = currentCohort%n * (1._r8 - patch_site_areadis/currentPatch%area)
+
+                                     nc%cmort            = currentCohort%cmort
+                                     nc%hmort            = currentCohort%hmort
+                                     nc%bmort            = currentCohort%bmort
+                                     nc%frmort           = currentCohort%frmort
+                                     nc%smort            = currentCohort%smort
+                                     nc%asmort           = currentCohort%asmort
+                                     nc%dgmort           = currentCohort%dgmort
+                                     nc%dmort            = currentCohort%dmort
+                                     nc%lmort_direct    = currentCohort%lmort_direct
+                                     nc%lmort_collateral = currentCohort%lmort_collateral
+                                     nc%lmort_infra      = currentCohort%lmort_infra
+
+                                  endif
                                endif
-                            endif
 
-                            ! Fire is the current disturbance
-                         elseif (i_disturbance_type .eq. dtype_ifire ) then
+                               ! Fire is the current disturbance
+                            elseif (i_disturbance_type .eq. dtype_ifire ) then
 
-                            ! Number of members in the new patch, before we impose fire survivorship
-                            nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
+                               ! Number of members in the new patch, before we impose fire survivorship
+                               nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
 
-                            ! loss of individuals from source patch due to area shrinking
-                            currentCohort%n = currentCohort%n * (1._r8 - patch_site_areadis/currentPatch%area)
+                               ! loss of individuals from source patch due to area shrinking
+                               currentCohort%n = currentCohort%n * (1._r8 - patch_site_areadis/currentPatch%area)
 
-                            levcan = currentCohort%canopy_layer
+                               levcan = currentCohort%canopy_layer
 
-                            if(levcan==ican_upper) then
+                               if(levcan==ican_upper) then
 
-                               ! before changing number densities, track total rate of trees that died
-                               ! due to fire, as well as from each fire mortality term
-                               currentSite%fmort_rate_canopy(currentCohort%size_class, currentCohort%pft) = &
-                                    currentSite%fmort_rate_canopy(currentCohort%size_class, currentCohort%pft) + &
-                                    nc%n * currentCohort%fire_mort / hlm_freq_day
+                                  ! before changing number densities, track total rate of trees that died
+                                  ! due to fire, as well as from each fire mortality term
+                                  currentSite%fmort_rate_canopy(currentCohort%size_class, currentCohort%pft) = &
+                                       currentSite%fmort_rate_canopy(currentCohort%size_class, currentCohort%pft) + &
+                                       nc%n * currentCohort%fire_mort / hlm_freq_day
 
-                               currentSite%fmort_carbonflux_canopy(currentCohort%pft) = &
-                                    currentSite%fmort_carbonflux_canopy(currentCohort%pft) + &
-                                    (nc%n * currentCohort%fire_mort) * &
-                                    total_c * g_per_kg * days_per_sec * ha_per_m2
-
-                            else
-                               currentSite%fmort_rate_ustory(currentCohort%size_class, currentCohort%pft) = &
-                                    currentSite%fmort_rate_ustory(currentCohort%size_class, currentCohort%pft) + &
-                                    nc%n * currentCohort%fire_mort / hlm_freq_day
-
-                               currentSite%fmort_carbonflux_ustory(currentCohort%pft) = &
-                                    currentSite%fmort_carbonflux_ustory(currentCohort%pft) + &
-                                    (nc%n * currentCohort%fire_mort) * &
-                                    total_c * g_per_kg * days_per_sec * ha_per_m2
-                            end if
-
-                            currentSite%fmort_abg_flux(currentCohort%size_class, currentCohort%pft) = &
-                                 currentSite%fmort_abg_flux(currentCohort%size_class, currentCohort%pft) + &
-                                 (nc%n * currentCohort%fire_mort) * &
-                                 ( (sapw_c + struct_c + store_c) * prt_params%allom_agb_frac(currentCohort%pft) + &
-                                 leaf_c ) * &
-                                 g_per_kg * days_per_sec * ha_per_m2
-                            
-
-                            currentSite%fmort_rate_cambial(currentCohort%size_class, currentCohort%pft) = &
-                                 currentSite%fmort_rate_cambial(currentCohort%size_class, currentCohort%pft) + &
-                                 nc%n * currentCohort%cambial_mort / hlm_freq_day
-                            currentSite%fmort_rate_crown(currentCohort%size_class, currentCohort%pft) = &
-                                 currentSite%fmort_rate_crown(currentCohort%size_class, currentCohort%pft) + &
-                                 nc%n * currentCohort%crownfire_mort / hlm_freq_day
-
-                            ! loss of individual from fire in new patch.
-                            nc%n = nc%n * (1.0_r8 - currentCohort%fire_mort)
-
-                            nc%cmort            = currentCohort%cmort
-                            nc%hmort            = currentCohort%hmort
-                            nc%bmort            = currentCohort%bmort
-                            nc%frmort           = currentCohort%frmort
-                            nc%smort            = currentCohort%smort
-                            nc%asmort           = currentCohort%asmort
-                            nc%dgmort           = currentCohort%dgmort
-                            nc%dmort            = currentCohort%dmort
-                            nc%lmort_direct     = currentCohort%lmort_direct
-                            nc%lmort_collateral = currentCohort%lmort_collateral
-                            nc%lmort_infra      = currentCohort%lmort_infra
-
-
-                            ! Some of of the leaf mass from living plants has been
-                            ! burned off.  Here, we remove that mass, and
-                            ! tally it in the flux we sent to the atmosphere
-
-                            if(prt_params%woody(currentCohort%pft) == itrue)then
-                               leaf_burn_frac = currentCohort%fraction_crown_burned
-                            else
-
-                               ! Grasses determine their fraction of leaves burned here
-
-                               leaf_burn_frac = currentPatch%burnt_frac_litter(lg_sf)
-                            endif
-
-                            ! Perform a check to make sure that spitfire gave
-                            ! us reasonable mortality and burn fraction rates
-
-                            if( (leaf_burn_frac < 0._r8) .or. &
-                                 (leaf_burn_frac > 1._r8) .or. &
-                                 (currentCohort%fire_mort < 0._r8) .or. &
-                                 (currentCohort%fire_mort > 1._r8)) then
-                               write(fates_log(),*) 'unexpected fire fractions'
-                               write(fates_log(),*) prt_params%woody(currentCohort%pft)
-                               write(fates_log(),*) leaf_burn_frac
-                               write(fates_log(),*) currentCohort%fire_mort
-                               call endrun(msg=errMsg(sourcefile, __LINE__))
-                            end if
-
-                            do el = 1,num_elements
-
-                               leaf_m = nc%prt%GetState(leaf_organ, element_list(el))
-                               ! for woody plants burn only leaves
-                               if(int(prt_params%woody(currentCohort%pft)) == itrue)then
-
-                                  leaf_m = nc%prt%GetState(leaf_organ, element_list(el))
+                                  currentSite%fmort_carbonflux_canopy(currentCohort%pft) = &
+                                       currentSite%fmort_carbonflux_canopy(currentCohort%pft) + &
+                                       (nc%n * currentCohort%fire_mort) * &
+                                       total_c * g_per_kg * days_per_sec * ha_per_m2
 
                                else
-                               ! for grasses burn all aboveground tissues
-                                  leaf_m = nc%prt%GetState(leaf_organ, element_list(el)) + &
-                                       nc%prt%GetState(sapw_organ, element_list(el)) + &
-                                       nc%prt%GetState(struct_organ, element_list(el))
+                                  currentSite%fmort_rate_ustory(currentCohort%size_class, currentCohort%pft) = &
+                                       currentSite%fmort_rate_ustory(currentCohort%size_class, currentCohort%pft) + &
+                                       nc%n * currentCohort%fire_mort / hlm_freq_day
 
-                               endif
+                                  currentSite%fmort_carbonflux_ustory(currentCohort%pft) = &
+                                       currentSite%fmort_carbonflux_ustory(currentCohort%pft) + &
+                                       (nc%n * currentCohort%fire_mort) * &
+                                       total_c * g_per_kg * days_per_sec * ha_per_m2
+                               end if
 
-                               currentSite%mass_balance(el)%burn_flux_to_atm = &
-                                    currentSite%mass_balance(el)%burn_flux_to_atm + &
-                                    leaf_burn_frac * leaf_m * nc%n
-                            end do
-
-                            ! Here the mass is removed from the plant
-
-                            if(int(prt_params%woody(currentCohort%pft)) == itrue)then
-                               call PRTBurnLosses(nc%prt, leaf_organ, leaf_burn_frac)
-                            else
-                               call PRTBurnLosses(nc%prt, leaf_organ, leaf_burn_frac)
-                               call PRTBurnLosses(nc%prt, sapw_organ, leaf_burn_frac)
-                               call PRTBurnLosses(nc%prt, struct_organ, leaf_burn_frac)
-                            endif
-
-                            currentCohort%fraction_crown_burned = 0.0_r8
-                            nc%fraction_crown_burned            = 0.0_r8
+                               currentSite%fmort_abg_flux(currentCohort%size_class, currentCohort%pft) = &
+                                    currentSite%fmort_abg_flux(currentCohort%size_class, currentCohort%pft) + &
+                                    (nc%n * currentCohort%fire_mort) * &
+                                    ( (sapw_c + struct_c + store_c) * prt_params%allom_agb_frac(currentCohort%pft) + &
+                                    leaf_c ) * &
+                                    g_per_kg * days_per_sec * ha_per_m2
 
 
+                               currentSite%fmort_rate_cambial(currentCohort%size_class, currentCohort%pft) = &
+                                    currentSite%fmort_rate_cambial(currentCohort%size_class, currentCohort%pft) + &
+                                    nc%n * currentCohort%cambial_mort / hlm_freq_day
+                               currentSite%fmort_rate_crown(currentCohort%size_class, currentCohort%pft) = &
+                                    currentSite%fmort_rate_crown(currentCohort%size_class, currentCohort%pft) + &
+                                    nc%n * currentCohort%crownfire_mort / hlm_freq_day
 
-                            ! Logging is the current disturbance
-                         elseif (i_disturbance_type .eq. dtype_ilog ) then
-
-                            ! If this cohort is in the upper canopy. It generated
-                            if(currentCohort%canopy_layer == 1)then
-
-                               ! calculate the survivorship of disturbed trees because non-harvested
-                               nc%n = currentCohort%n * currentCohort%l_degrad
-                               ! nc%n            = (currentCohort%l_degrad / (currentCohort%l_degrad + &
-                               !      currentCohort%lmort_direct + currentCohort%lmort_collateral +
-                               !   currentCohort%lmort_infra) ) * &
-                               !      currentCohort%n * patch_site_areadis/currentPatch%area
-
-                               ! Reduce counts in the existing/donor patch according to the logging rate
-                               currentCohort%n = currentCohort%n * &
-                                    (1.0_r8 - min(1.0_r8,(currentCohort%lmort_direct +    &
-                                    currentCohort%lmort_collateral + &
-                                    currentCohort%lmort_infra + currentCohort%l_degrad)))
+                               ! loss of individual from fire in new patch.
+                               nc%n = nc%n * (1.0_r8 - currentCohort%fire_mort)
 
                                nc%cmort            = currentCohort%cmort
                                nc%hmort            = currentCohort%hmort
@@ -988,60 +852,92 @@ contains
                                nc%asmort           = currentCohort%asmort
                                nc%dgmort           = currentCohort%dgmort
                                nc%dmort            = currentCohort%dmort
+                               nc%lmort_direct     = currentCohort%lmort_direct
+                               nc%lmort_collateral = currentCohort%lmort_collateral
+                               nc%lmort_infra      = currentCohort%lmort_infra
 
-                               ! since these are the ones that weren't logged,
-                               ! set the logging mortality rates as zero
-                               nc%lmort_direct     = 0._r8
-                               nc%lmort_collateral = 0._r8
-                               nc%lmort_infra      = 0._r8
 
-                            else
-
-                               ! What to do with cohorts in the understory of a logging generated
-                               ! disturbance patch?
+                               ! Some of of the leaf mass from living plants has been
+                               ! burned off.  Here, we remove that mass, and
+                               ! tally it in the flux we sent to the atmosphere
 
                                if(prt_params%woody(currentCohort%pft) == itrue)then
+                                  leaf_burn_frac = currentCohort%fraction_crown_burned
+                               else
+
+                                  ! Grasses determine their fraction of leaves burned here
+
+                                  leaf_burn_frac = currentPatch%burnt_frac_litter(lg_sf)
+                               endif
+
+                               ! Perform a check to make sure that spitfire gave
+                               ! us reasonable mortality and burn fraction rates
+
+                               if( (leaf_burn_frac < 0._r8) .or. &
+                                    (leaf_burn_frac > 1._r8) .or. &
+                                    (currentCohort%fire_mort < 0._r8) .or. &
+                                    (currentCohort%fire_mort > 1._r8)) then
+                                  write(fates_log(),*) 'unexpected fire fractions'
+                                  write(fates_log(),*) prt_params%woody(currentCohort%pft)
+                                  write(fates_log(),*) leaf_burn_frac
+                                  write(fates_log(),*) currentCohort%fire_mort
+                                  call endrun(msg=errMsg(sourcefile, __LINE__))
+                               end if
+
+                               do el = 1,num_elements
+
+                                  leaf_m = nc%prt%GetState(leaf_organ, element_list(el))
+                                  ! for woody plants burn only leaves
+                                  if(int(prt_params%woody(currentCohort%pft)) == itrue)then
+
+                                     leaf_m = nc%prt%GetState(leaf_organ, element_list(el))
+
+                                  else
+                                     ! for grasses burn all aboveground tissues
+                                     leaf_m = nc%prt%GetState(leaf_organ, element_list(el)) + &
+                                          nc%prt%GetState(sapw_organ, element_list(el)) + &
+                                          nc%prt%GetState(struct_organ, element_list(el))
+
+                                  endif
+
+                                  currentSite%mass_balance(el)%burn_flux_to_atm = &
+                                       currentSite%mass_balance(el)%burn_flux_to_atm + &
+                                       leaf_burn_frac * leaf_m * nc%n
+                               end do
+
+                               ! Here the mass is removed from the plant
+
+                               if(int(prt_params%woody(currentCohort%pft)) == itrue)then
+                                  call PRTBurnLosses(nc%prt, leaf_organ, leaf_burn_frac)
+                               else
+                                  call PRTBurnLosses(nc%prt, leaf_organ, leaf_burn_frac)
+                                  call PRTBurnLosses(nc%prt, sapw_organ, leaf_burn_frac)
+                                  call PRTBurnLosses(nc%prt, struct_organ, leaf_burn_frac)
+                               endif
+
+                               currentCohort%fraction_crown_burned = 0.0_r8
+                               nc%fraction_crown_burned            = 0.0_r8
 
 
-                                  ! Survivorship of undestory woody plants.  Two step process.
-                                  ! Step 1:  Reduce current number of plants to reflect the
-                                  !          change in area.
-                                  !          The number density per square are doesn't change,
-                                  !          but since the patch is smaller
-                                  !          and cohort counts are absolute, reduce this number.
-                                  nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
 
-                                  ! because the mortality rate due to impact for the cohorts which had
-                                  ! been in the understory and are now in the newly-
-                                  ! disturbed patch is very high, passing the imort directly to
-                                  ! history results in large numerical errors, on account
-                                  ! of the sharply reduced number densities.  so instead pass this info
-                                  ! via a site-level diagnostic variable before reducing
-                                  ! the number density.
-                                  currentSite%imort_rate(currentCohort%size_class, currentCohort%pft) = &
-                                       currentSite%imort_rate(currentCohort%size_class, currentCohort%pft) + &
-                                       nc%n * currentPatch%fract_ldist_not_harvested * &
-                                       logging_coll_under_frac / hlm_freq_day
+                               ! Logging is the current disturbance
+                            elseif (i_disturbance_type .eq. dtype_ilog ) then
 
-                                  currentSite%imort_carbonflux(currentCohort%pft) = &
-                                       currentSite%imort_carbonflux(currentCohort%pft) + &
-                                       (nc%n * currentPatch%fract_ldist_not_harvested * &
-                                       logging_coll_under_frac/ hlm_freq_day ) * &
-                                       total_c * g_per_kg * days_per_sec * years_per_day * ha_per_m2
+                               ! If this cohort is in the upper canopy. It generated
+                               if(currentCohort%canopy_layer == 1)then
 
+                                  ! calculate the survivorship of disturbed trees because non-harvested
+                                  nc%n = currentCohort%n * currentCohort%l_degrad
+                                  ! nc%n            = (currentCohort%l_degrad / (currentCohort%l_degrad + &
+                                  !      currentCohort%lmort_direct + currentCohort%lmort_collateral +
+                                  !   currentCohort%lmort_infra) ) * &
+                                  !      currentCohort%n * patch_site_areadis/currentPatch%area
 
-                                  ! Step 2:  Apply survivor ship function based on the understory death fraction
-
-                                  ! remaining of understory plants of those that are knocked
-                                  ! over by the overstorey trees dying...
-                                  ! LOGGING SURVIVORSHIP OF UNDERSTORY PLANTS IS SET AS A NEW PARAMETER
-                                  ! in the fatesparameter files
-                                  nc%n = nc%n * (1.0_r8 - &
-                                       (1.0_r8-currentPatch%fract_ldist_not_harvested) * logging_coll_under_frac)
-
-                                  ! Step 3: Reduce the number count of cohorts in the
-                                  !         original/donor/non-disturbed patch to reflect the area change
-                                  currentCohort%n = currentCohort%n * (1._r8 -  patch_site_areadis/currentPatch%area)
+                                  ! Reduce counts in the existing/donor patch according to the logging rate
+                                  currentCohort%n = currentCohort%n * &
+                                       (1.0_r8 - min(1.0_r8,(currentCohort%lmort_direct +    &
+                                       currentCohort%lmort_collateral + &
+                                       currentCohort%lmort_infra + currentCohort%l_degrad)))
 
                                   nc%cmort            = currentCohort%cmort
                                   nc%hmort            = currentCohort%hmort
@@ -1051,117 +947,184 @@ contains
                                   nc%asmort           = currentCohort%asmort
                                   nc%dgmort           = currentCohort%dgmort
                                   nc%dmort            = currentCohort%dmort
-                                  nc%lmort_direct     = currentCohort%lmort_direct
-                                  nc%lmort_collateral = currentCohort%lmort_collateral
-                                  nc%lmort_infra      = currentCohort%lmort_infra
+
+                                  ! since these are the ones that weren't logged,
+                                  ! set the logging mortality rates as zero
+                                  nc%lmort_direct     = 0._r8
+                                  nc%lmort_collateral = 0._r8
+                                  nc%lmort_infra      = 0._r8
 
                                else
 
-                                  ! grass is not killed by mortality disturbance events.
-                                  ! Just move it into the new patch area.
-                                  ! Just split the grass into the existing and new patch structures
-                                  nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
+                                  ! What to do with cohorts in the understory of a logging generated
+                                  ! disturbance patch?
 
-                                  ! Those remaining in the existing
-                                  currentCohort%n = currentCohort%n * (1._r8 - patch_site_areadis/currentPatch%area)
+                                  if(prt_params%woody(currentCohort%pft) == itrue)then
 
-                                  ! No grass impact mortality imposed on the newly created patch
-                                  nc%cmort            = currentCohort%cmort
-                                  nc%hmort            = currentCohort%hmort
-                                  nc%bmort            = currentCohort%bmort
-                                  nc%frmort           = currentCohort%frmort
-                                  nc%smort            = currentCohort%smort
-                                  nc%asmort           = currentCohort%asmort
-                                  nc%dgmort           = currentCohort%dgmort
-                                  nc%dmort            = currentCohort%dmort
-                                  nc%lmort_direct     = currentCohort%lmort_direct
-                                  nc%lmort_collateral = currentCohort%lmort_collateral
-                                  nc%lmort_infra      = currentCohort%lmort_infra
 
-                               endif  ! is/is-not woody
+                                     ! Survivorship of undestory woody plants.  Two step process.
+                                     ! Step 1:  Reduce current number of plants to reflect the
+                                     !          change in area.
+                                     !          The number density per square are doesn't change,
+                                     !          but since the patch is smaller
+                                     !          and cohort counts are absolute, reduce this number.
+                                     nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
 
-                            endif  ! Select canopy layer
+                                     ! because the mortality rate due to impact for the cohorts which had
+                                     ! been in the understory and are now in the newly-
+                                     ! disturbed patch is very high, passing the imort directly to
+                                     ! history results in large numerical errors, on account
+                                     ! of the sharply reduced number densities.  so instead pass this info
+                                     ! via a site-level diagnostic variable before reducing
+                                     ! the number density.
+                                     currentSite%imort_rate(currentCohort%size_class, currentCohort%pft) = &
+                                          currentSite%imort_rate(currentCohort%size_class, currentCohort%pft) + &
+                                          nc%n * currentPatch%fract_ldist_not_harvested * &
+                                          logging_coll_under_frac / hlm_freq_day
 
-                         else
-                            write(fates_log(),*) 'unknown disturbance mode?'
-                            write(fates_log(),*) 'i_disturbance_type: ',i_disturbance_type
-                            call endrun(msg=errMsg(sourcefile, __LINE__))
-                         end if   ! Select disturbance mode
+                                     currentSite%imort_carbonflux(currentCohort%pft) = &
+                                          currentSite%imort_carbonflux(currentCohort%pft) + &
+                                          (nc%n * currentPatch%fract_ldist_not_harvested * &
+                                          logging_coll_under_frac/ hlm_freq_day ) * &
+                                          total_c * g_per_kg * days_per_sec * years_per_day * ha_per_m2
 
-                         if (nc%n > 0.0_r8) then
-                            storebigcohort   =>  new_patch%tallest
-                            storesmallcohort =>  new_patch%shortest
-                            if(associated(new_patch%tallest))then
-                               tnull = 0
+
+                                     ! Step 2:  Apply survivor ship function based on the understory death fraction
+
+                                     ! remaining of understory plants of those that are knocked
+                                     ! over by the overstorey trees dying...
+                                     ! LOGGING SURVIVORSHIP OF UNDERSTORY PLANTS IS SET AS A NEW PARAMETER
+                                     ! in the fatesparameter files
+                                     nc%n = nc%n * (1.0_r8 - &
+                                          (1.0_r8-currentPatch%fract_ldist_not_harvested) * logging_coll_under_frac)
+
+                                     ! Step 3: Reduce the number count of cohorts in the
+                                     !         original/donor/non-disturbed patch to reflect the area change
+                                     currentCohort%n = currentCohort%n * (1._r8 -  patch_site_areadis/currentPatch%area)
+
+                                     nc%cmort            = currentCohort%cmort
+                                     nc%hmort            = currentCohort%hmort
+                                     nc%bmort            = currentCohort%bmort
+                                     nc%frmort           = currentCohort%frmort
+                                     nc%smort            = currentCohort%smort
+                                     nc%asmort           = currentCohort%asmort
+                                     nc%dgmort           = currentCohort%dgmort
+                                     nc%dmort            = currentCohort%dmort
+                                     nc%lmort_direct     = currentCohort%lmort_direct
+                                     nc%lmort_collateral = currentCohort%lmort_collateral
+                                     nc%lmort_infra      = currentCohort%lmort_infra
+
+                                  else
+
+                                     ! grass is not killed by mortality disturbance events.
+                                     ! Just move it into the new patch area.
+                                     ! Just split the grass into the existing and new patch structures
+                                     nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
+
+                                     ! Those remaining in the existing
+                                     currentCohort%n = currentCohort%n * (1._r8 - patch_site_areadis/currentPatch%area)
+
+                                     ! No grass impact mortality imposed on the newly created patch
+                                     nc%cmort            = currentCohort%cmort
+                                     nc%hmort            = currentCohort%hmort
+                                     nc%bmort            = currentCohort%bmort
+                                     nc%frmort           = currentCohort%frmort
+                                     nc%smort            = currentCohort%smort
+                                     nc%asmort           = currentCohort%asmort
+                                     nc%dgmort           = currentCohort%dgmort
+                                     nc%dmort            = currentCohort%dmort
+                                     nc%lmort_direct     = currentCohort%lmort_direct
+                                     nc%lmort_collateral = currentCohort%lmort_collateral
+                                     nc%lmort_infra      = currentCohort%lmort_infra
+
+                                  endif  ! is/is-not woody
+
+                               endif  ! Select canopy layer
+
                             else
-                               tnull = 1
-                               new_patch%tallest => nc
-                               nc%taller => null()
-                            endif
-
-                            if(associated(new_patch%shortest))then
-                               snull = 0
-                            else
-                               snull = 1
-                               new_patch%shortest => nc
-                               nc%shorter => null()
-                            endif
-                            nc%patchptr => new_patch
-                            call insert_cohort(nc, new_patch%tallest, new_patch%shortest, &
-                                 tnull, snull, storebigcohort, storesmallcohort)
-
-                            new_patch%tallest  => storebigcohort
-                            new_patch%shortest => storesmallcohort
-                         else
-
-                            ! Get rid of the new temporary cohort
-                            call DeallocateCohort(nc)
-                            deallocate(nc, stat=istat, errmsg=smsg)
-                            if (istat/=0) then
-                               write(fates_log(),*) 'dealloc005: fail on deallocate(nc):'//trim(smsg)
+                               write(fates_log(),*) 'unknown disturbance mode?'
+                               write(fates_log(),*) 'i_disturbance_type: ',i_disturbance_type
                                call endrun(msg=errMsg(sourcefile, __LINE__))
+                            end if   ! Select disturbance mode
+
+                            if (nc%n > 0.0_r8) then
+                               storebigcohort   =>  new_patch%tallest
+                               storesmallcohort =>  new_patch%shortest
+                               if(associated(new_patch%tallest))then
+                                  tnull = 0
+                               else
+                                  tnull = 1
+                                  new_patch%tallest => nc
+                                  nc%taller => null()
+                               endif
+
+                               if(associated(new_patch%shortest))then
+                                  snull = 0
+                               else
+                                  snull = 1
+                                  new_patch%shortest => nc
+                                  nc%shorter => null()
+                               endif
+                               nc%patchptr => new_patch
+                               call insert_cohort(nc, new_patch%tallest, new_patch%shortest, &
+                                    tnull, snull, storebigcohort, storesmallcohort)
+
+                               new_patch%tallest  => storebigcohort
+                               new_patch%shortest => storesmallcohort
+                            else
+
+                               ! Get rid of the new temporary cohort
+                               call DeallocateCohort(nc)
+                               deallocate(nc, stat=istat, errmsg=smsg)
+                               if (istat/=0) then
+                                  write(fates_log(),*) 'dealloc005: fail on deallocate(nc):'//trim(smsg)
+                                  call endrun(msg=errMsg(sourcefile, __LINE__))
+                               endif
                             endif
-                         endif
 
-                         currentCohort => currentCohort%taller
-                      enddo ! currentCohort
-                      call sort_cohorts(currentPatch)
+                            currentCohort => currentCohort%taller
+                         enddo ! currentCohort
+                         call sort_cohorts(currentPatch)
 
-                      !update area of donor patch
-                      oldarea = currentPatch%area
-                      currentPatch%area = currentPatch%area - patch_site_areadis
+                         !update area of donor patch
+                         oldarea = currentPatch%area
+                         currentPatch%area = currentPatch%area - patch_site_areadis
 
-                      ! for all disturbance rates that haven't been resolved yet, increase their amount so that
-                      ! they are the same amount of gridcell-scale disturbance relative to the original patch size
-                      if (i_disturbance_type .ne. N_DIST_TYPES) then
-                         do i_dist2 = i_disturbance_type+1,N_DIST_TYPES
-                            currentPatch%disturbance_rates(i_dist2) = currentPatch%disturbance_rates(i_dist2) &
-                                 * oldarea / currentPatch%area
-                         end do
-                      end if
+                         ! for all disturbance rates that haven't been resolved yet, increase their amount so that
+                         ! they are the same amount of gridcell-scale disturbance relative to the original patch size
+                         if (i_disturbance_type .ne. N_DIST_TYPES) then
+                            do i_dist2 = i_disturbance_type+1,N_DIST_TYPES
+                               currentPatch%disturbance_rates(i_dist2) = currentPatch%disturbance_rates(i_dist2) &
+                                    * oldarea / currentPatch%area
+                            end do
+                         end if
 
-                      ! sort out the cohorts, since some of them may be so small as to need removing.
-                      ! the first call to terminate cohorts removes sparse number densities,
-                      ! the second call removes for all other reasons (sparse culling must happen
-                      ! before fusion)
-                      call terminate_cohorts(currentSite, currentPatch, 1,16,bc_in)
-                      call fuse_cohorts(currentSite,currentPatch, bc_in)
-                      call terminate_cohorts(currentSite, currentPatch, 2,16,bc_in)
-                      call sort_cohorts(currentPatch)
+                         ! sort out the cohorts, since some of them may be so small as to need removing.
+                         ! the first call to terminate cohorts removes sparse number densities,
+                         ! the second call removes for all other reasons (sparse culling must happen
+                         ! before fusion)
+                         call terminate_cohorts(currentSite, currentPatch, 1,16,bc_in)
+                         call fuse_cohorts(currentSite,currentPatch, bc_in)
+                         call terminate_cohorts(currentSite, currentPatch, 2,16,bc_in)
+                         call sort_cohorts(currentPatch)
 
-                   end if    ! if ( new_patch%area > nearzero ) then
+                      end if    ! if ( new_patch%area > nearzero ) then
+
+                   end if patchlabel_matches_lutype_if
 
                 end if cp_nocomp_matches_2_if
                 currentPatch => currentPatch%younger
 
-             enddo ! currentPatch patch loop.
+             enddo patchloop ! currentPatch patch loop.
 
              !*************************/
              !**  INSERT NEW PATCH(ES) INTO LINKED LIST
              !*************************/
 
-             if ( site_areadis_primary .gt. nearzero) then
+             if ( site_areadis .gt. nearzero) then
                 currentPatch               => currentSite%youngest_patch
+
+!!!CDK 3/27  need change this logic. put the new patch as younger than any patches with the same labels
                 ! insert new youngest primary patch after all the secondary patches, if there are any.
                 ! this requires first finding the current youngest primary to insert the new one ahead of
                 if (currentPatch%anthro_disturbance_label .eq. secondarylands ) then
@@ -1178,60 +1141,40 @@ contains
                       ! the case where we've found a youngest primary patch
                       new_patch_primary%older    => currentPatch
                       new_patch_primary%younger  => currentPatch%younger
-                      currentPatch%younger%older => new_patch_primary
-                      currentPatch%younger       => new_patch_primary
+                      currentPatch%younger%older => new_patch
+                      currentPatch%younger       => new_patch
                    else
                       ! the case where we haven't, because the patches are all secondaary,
                       ! and are putting a primary patch at the oldest end of the
                       ! linked list (not sure how this could happen, but who knows...)
                       new_patch_primary%older    => null()
                       new_patch_primary%younger  => currentSite%oldest_patch
-                      currentSite%oldest_patch%older   => new_patch_primary
-                      currentSite%oldest_patch   => new_patch_primary
+                      currentSite%oldest_patch%older   => new_patch
+                      currentSite%oldest_patch   => new_patch
                    endif
                 else
                    ! the case where there are no secondary patches at the start of the linked list (prior logic)
                    new_patch_primary%older    => currentPatch
                    new_patch_primary%younger  => null()
-                   currentPatch%younger       => new_patch_primary
-                   currentSite%youngest_patch => new_patch_primary
+                   currentPatch%younger       => new_patch
+                   currentSite%youngest_patch => new_patch
                 endif
+
+                ! sort out the cohorts, since some of them may be so small as to need removing.
+                ! the first call to terminate cohorts removes sparse number densities,
+                ! the second call removes for all other reasons (sparse culling must happen
+                ! before fusion)
+
+                call terminate_cohorts(currentSite, new_patch, 1,17, bc_in)
+                call fuse_cohorts(currentSite,new_patch, bc_in)
+                call terminate_cohorts(currentSite, new_patch, 2,17, bc_in)
+                call sort_cohorts(new_patch)
              endif
 
-             ! insert first secondary at the start of the list
-             if ( site_areadis_secondary .gt. nearzero) then
-                currentPatch               => currentSite%youngest_patch
-                new_patch_secondary%older  => currentPatch
-                new_patch_secondary%younger=> null()
-                currentPatch%younger       => new_patch_secondary
-                currentSite%youngest_patch => new_patch_secondary
-             endif
 
-
-             ! sort out the cohorts, since some of them may be so small as to need removing.
-             ! the first call to terminate cohorts removes sparse number densities,
-             ! the second call removes for all other reasons (sparse culling must happen
-             ! before fusion)
-
-             if ( site_areadis_primary .gt. nearzero) then
-                call terminate_cohorts(currentSite, new_patch_primary, 1,17, bc_in)
-                call fuse_cohorts(currentSite,new_patch_primary, bc_in)
-                call terminate_cohorts(currentSite, new_patch_primary, 2,17, bc_in)
-                call sort_cohorts(new_patch_primary)
-             endif
-
-             if ( site_areadis_secondary .gt. nearzero) then
-                call terminate_cohorts(currentSite, new_patch_secondary, 1,18,bc_in)
-                call fuse_cohorts(currentSite,new_patch_secondary, bc_in)
-                call terminate_cohorts(currentSite, new_patch_secondary, 2,18,bc_in)
-                call sort_cohorts(new_patch_secondary)
-             endif
-
-          endif !end new_patch area
-
-
-          call check_patch_area(currentSite)
-          call set_patchno(currentSite)
+             call check_patch_area(currentSite)
+             call set_patchno(currentSite)
+          end do landuse_type_loop
 
        end do disturbance_type_loop
 
