@@ -42,16 +42,26 @@ contains
 
     ! !ARGUMENTS:
     type(bc_in_type) , intent(in) :: bc_in
-    real(r8), intent(inout) :: landuse_transition_matrix(n_landuse_cats, n_landuse_cats)
+    real(r8), intent(inout) :: landuse_transition_matrix(n_landuse_cats, n_landuse_cats)  ! [m2/m2/year]
 
     ! !LOCAL VARIABLES:
-    integer :: i_donor, i_receiver, i_luh2_transitions
+    integer :: i_donor, i_receiver, i_luh2_transitions, i_luh2_states
     character(5) :: donor_name, receiver_name
     character(14) :: transition_name
+    real(r8) :: urban_fraction
 
     ! zero the transition matrix
     landuse_transition_matrix(:,:) = 0._r8
 
+    !!may need some logic here to ask whether or not ot perform land use cahnge on this timestep. current code occurs every day.
+
+    ! identify urban fraction so that it can be removed.
+    urban_fraction = 0._r8
+    do i_luh2_states = 1, hlm_num_luh2_states
+       if (bc_in%hlm_luh_state_names(i_luh2_states) .eq. 'urban') then
+          urban_fraction = bc_in%hlm_luh_states(i_luh2_states)
+    end do
+    
     ! loop over FATES donor and receiver land use types
     do i_donor = 1,n_landuse_cats
        do i_receiver = 1,n_landuse_cats
@@ -73,7 +83,7 @@ contains
                         any(luh2_fates_luype_map(:,i_receiver) == receiver_name)) then
 
                       landuse_transition_matrix(i_donor,i_receiver) = &
-                           landuse_transition_matrix(i_donor,i_receiver) +  bc_in%hlm_luh_transitions(i_luh2_transitions)
+                           landuse_transition_matrix(i_donor,i_receiver) +  bc_in%hlm_luh_transitions(i_luh2_transitions) / (1._r8 - urban_fraction)
 
                    end if
                 end do

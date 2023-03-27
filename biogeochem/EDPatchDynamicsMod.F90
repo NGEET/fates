@@ -203,7 +203,7 @@ contains
     real(r8) :: tempsum
     real(r8) :: harvestable_forest_c(hlm_num_lu_harvest_cats)
     integer  :: harvest_tag(hlm_num_lu_harvest_cats)
-    real(r8) :: landuse_transition_matrix(n_landuse_cats, n_landuse_cats)
+    real(r8) :: landuse_transition_matrix(n_landuse_cats, n_landuse_cats)  ! [m2/m2/year]
 
     !----------------------------------------------------------------------------------------------
     ! Calculate Mortality Rates (these were previously calculated during growth derivatives)
@@ -263,6 +263,8 @@ contains
     call get_harvest_debt(site_in, bc_in, harvest_tag)
 
     call get_landuse_transition_rates(bc_in, landuse_transition_matrix)
+
+    site_in%landuse_transition_matrix = landuse_transition_matrix
 
     ! ---------------------------------------------------------------------------------------------
     ! Calculate Disturbance Rates based on the mortality rates just calculated
