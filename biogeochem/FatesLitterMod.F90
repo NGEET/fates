@@ -471,6 +471,7 @@ contains
 	SF_val_CWD_frac_adj(ncwd-2) = SF_val_CWD_frac(ncwd-2) / (1.0_r8 - SF_val_CWD_frac(ncwd) )
 	SF_val_CWD_frac_adj(ncwd-3) = SF_val_CWD_frac(ncwd-3) / (1.0_r8 - SF_val_CWD_frac(ncwd) )
 
+     write(fates_log(),*) 'Using CWD scheme ahb 032823'
 
      !When dbh is greater than the max size of a twig (1 hr fuel) but less than or 
      !equal to the max size of a small branch (10 hr fuel) we redistribute the biomass among the smaller
