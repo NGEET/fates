@@ -135,7 +135,7 @@ Module EDCohortDynamicsMod
   public :: DamageRecovery
   
   logical, parameter :: debug  = .false. ! local debug flag
-
+  
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
 
@@ -185,7 +185,8 @@ contains
     real(r8), intent(in)      :: hite             ! height: meters
     real(r8), intent(in)      :: coage            ! cohort age in years
     real(r8), intent(in)      :: dbh              ! dbh: cm
-    class(prt_vartypes),target :: prt             ! The allocated PARTEH
+    class(prt_vartypes),intent(inout), pointer :: prt             ! The allocated PARTEH
+    !class(prt_vartypes),target :: prt             ! The allocated PARTEH
                                                   ! object
     real(r8), intent(in)      :: ctrim            ! What is the fraction of the maximum
                                                   ! leaf biomass that we are targeting?
@@ -612,6 +613,7 @@ contains
     !RESPIRATION
     currentCohort%rdark              = nan
     currentCohort%resp_m             = nan ! Maintenance respiration.  kGC/cohort/year
+    currentCohort%resp_m_unreduced   = nan ! Diagnostic-only unreduced Maintenance respiration.  kGC/cohort/year
     currentCohort%resp_excess        = nan ! Respiration of excess (unallocatable) carbon (kg/indiv/day)
     currentCohort%livestem_mr        = nan ! Live stem maintenance respiration. kgC/indiv/s-1
     currentCohort%livecroot_mr       = nan ! Coarse root maintenance respiration. kgC/indiv/s-1
@@ -669,6 +671,7 @@ contains
     currentCohort%status_coh         = 0
     currentCohort%rdark              = 0._r8
     currentCohort%resp_m             = 0._r8
+    currentCohort%resp_m_unreduced   = 0._r8
     currentCohort%resp_excess         = 0._r8
     currentCohort%resp_g_tstep       = 0._r8
     currentCohort%livestem_mr        = 0._r8
@@ -741,11 +744,11 @@ contains
     
     !
     ! !ARGUMENTS
-    type (ed_site_type) , intent(inout), target :: currentSite
-    type (ed_patch_type), intent(inout), target :: currentPatch
-    integer             , intent(in)            :: level
-    integer                                     :: call_index
-    type(bc_in_type), intent(in)                :: bc_in
+    type (ed_site_type) , intent(inout) :: currentSite
+    type (ed_patch_type), intent(inout) :: currentPatch
+    integer             , intent(in)    :: level
+    integer                             :: call_index
+    type(bc_in_type), intent(in)        :: bc_in
 
     ! Important point regarding termination levels.  Termination is typically
     ! called after fusion.  We do this so that we can re-capture the biomass that would
@@ -768,6 +771,8 @@ contains
     real(r8) :: repro_c   ! reproductive carbon [kg]
     real(r8) :: struct_c  ! structural carbon [kg]
     integer :: terminate  ! do we terminate (itrue) or not (ifalse)
+    integer :: istat      ! return status code
+    character(len=255) :: smsg
     !----------------------------------------------------------------------
 
     currentCohort => currentPatch%shortest
@@ -835,11 +840,15 @@ contains
 
       if (terminate == itrue) then
          call terminate_cohort(currentSite, currentPatch, currentCohort, bc_in)
-         deallocate(currentCohort)
+         deallocate(currentCohort, stat=istat, errmsg=smsg)
+         if (istat/=0) then
+            write(fates_log(),*) 'dealloc001: fail on terminate_cohorts:deallocate(currentCohort):'//trim(smsg)
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         endif
       endif
       currentCohort => tallerCohort
    enddo
-    
+
   end subroutine terminate_cohorts
 
   !-------------------------------------------------------------------------------------!
@@ -870,6 +879,7 @@ contains
    integer :: terminate  ! do we terminate (itrue) or not (ifalse)
    integer :: c           ! counter for litter size class.
    integer :: levcan      ! canopy level
+   
    !----------------------------------------------------------------------
 
    leaf_c  = currentCohort%prt%GetState(leaf_organ, carbon12_element)
@@ -899,6 +909,12 @@ contains
       currentSite%term_carbonflux_ustory(currentCohort%pft) = currentSite%term_carbonflux_ustory(currentCohort%pft) + &
             currentCohort%n * (struct_c+sapw_c+leaf_c+fnrt_c+store_c+repro_c)
    end if
+
+   currentSite%term_abg_flux(currentCohort%size_class, currentCohort%pft) = &
+        currentSite%term_abg_flux(currentCohort%size_class, currentCohort%pft) + &
+        currentCohort%n * ( (struct_c+sapw_c+store_c) * prt_params%allom_agb_frac(currentCohort%pft) + &
+        leaf_c )
+  
 
    ! put the litter from the terminated cohorts
    ! straight into the fragmenting pools
@@ -1076,6 +1092,8 @@ contains
      ! ----------------------------------------------------------------------------------
 
      type(ed_cohort_type),intent(inout) :: currentCohort
+     integer                            :: istat         ! return status code
+     character(len=255)                 :: smsg
 
      ! At this point, nothing should be pointing to current Cohort
      if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(currentCohort)
@@ -1084,7 +1102,12 @@ contains
      call currentCohort%prt%DeallocatePRTVartypes()
 
      ! Deallocate the PRT object
-     deallocate(currentCohort%prt)
+
+     deallocate(currentCohort%prt, stat=istat, errmsg=smsg)
+     if (istat/=0) then
+        write(fates_log(),*) 'dealloc002: fail in deallocate(currentCohort%prt):'//trim(smsg)
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+     endif
 
      return
   end subroutine DeallocateCohort
@@ -1105,9 +1128,9 @@ contains
 
      !
      ! !ARGUMENTS
-     type (ed_site_type), intent(inout),  target :: currentSite
-     type (ed_patch_type), intent(inout), target :: currentPatch
-     type (bc_in_type), intent(in)               :: bc_in
+     type (ed_site_type), intent(inout)           :: currentSite
+     type (ed_patch_type), intent(inout), pointer :: currentPatch
+     type (bc_in_type), intent(in)                :: bc_in
      !
 
      ! !LOCAL VARIABLES:
@@ -1142,6 +1165,8 @@ contains
 
      logical, parameter :: fuse_debug = .false.   ! This debug is over-verbose
                                                  ! and gets its own flag
+     integer  :: istat         ! return status code
+     character(len=255) :: smsg
 
      !----------------------------------------------------------------------
 
@@ -1564,9 +1589,11 @@ contains
                                    endif
 
                                    call DeallocateCohort(nextc)
-                                   deallocate(nextc)
-                                   nullify(nextc)
-
+                                   deallocate(nextc, stat=istat, errmsg=smsg)
+                                   if (istat/=0) then
+                                      write(fates_log(),*) 'dealloc003: fail on deallocate(nextc):'//trim(smsg)
+                                      call endrun(msg=errMsg(sourcefile, __LINE__))
+                                   endif
 
                                 endif ! if( currentCohort%isnew.eqv.nextc%isnew ) then
                              endif !canopy layer
@@ -1718,9 +1745,9 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS
-    type(ed_cohort_type) , intent(inout), target          :: pcc
-    type(ed_cohort_type) , intent(inout), target          :: ptall
-    type(ed_cohort_type) , intent(inout), target          :: pshort
+    type(ed_cohort_type) , intent(inout), pointer :: pcc
+    type(ed_cohort_type) , intent(inout), pointer :: ptall
+    type(ed_cohort_type) , intent(inout), pointer :: pshort
     integer              , intent(in)                     :: tnull
     integer              , intent(in)                     :: snull
     type(ed_cohort_type) , intent(inout),pointer,optional :: storesmallcohort ! storage of the smallest cohort for insertion routine
@@ -1920,6 +1947,7 @@ contains
     !RESPIRATION
     n%rdark           = o%rdark
     n%resp_m          = o%resp_m
+    n%resp_m_unreduced= o%resp_m_unreduced
     n%resp_excess     = o%resp_excess
     n%resp_g_tstep    = o%resp_g_tstep
     n%livestem_mr     = o%livestem_mr

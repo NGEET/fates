@@ -339,6 +339,7 @@ module EDTypesMod
 
      real(r8) ::  resp_g_tstep                           ! Growth respiration:  kgC/indiv/timestep
      real(r8) ::  resp_m                                 ! Maintenance respiration:  kgC/indiv/timestep 
+     real(r8) ::  resp_m_unreduced                       ! Diagnostic-only unreduced maintenance respiration:  kgC/indiv/timestep 
      real(r8) ::  resp_excess                            ! Respiration of excess carbon kgC/indiv/day
      real(r8) ::  livestem_mr                            ! Live stem        maintenance respiration: kgC/indiv/s
                                                          ! (Above ground)
@@ -439,8 +440,16 @@ module EDTypesMod
      class(rmean_type), pointer :: tveg24                        ! 24-hour mean vegetation temperature (K)
      class(rmean_type), pointer :: tveg_lpa                      ! Running mean of vegetation temperature at the
                                                                  ! leaf photosynthesis acclimation timescale [K]
+     class(rmean_type), pointer :: tveg_longterm                ! Long-Term Running mean of vegetation temperature at the
+                                                                 ! leaf photosynthesis acclimation timescale [K] (i.e T_home)
 
-     integer  ::  nocomp_pft_label                               ! where nocomp is active, use this label for patch ID.   
+     integer  ::  nocomp_pft_label                               ! Where nocomp is active, use this label for patch ID.
+                                                                 ! Each patch ID corresponds to a pft number since each
+                                                                 ! patch has only one pft.  Bareground patches are given
+                                                                 ! a zero integer as a label.
+                                                                 ! If nocomp is not active this is set to unset.
+                                                                 ! This is set in create_patch as an argument
+                                                                 ! to that procedure.
 
 
      ! LEAF ORGANIZATION
@@ -607,6 +616,9 @@ module EDTypesMod
   type, public :: ed_resources_management_type
     
      real(r8) ::  trunk_product_site                       ! Actual  trunk product at site level KgC/site
+     real(r8) ::  harvest_debt                             ! the amount of kgC per site that did not successfully harvested 
+     real(r8) ::  harvest_debt_sec                         ! the amount of kgC per site from secondary patches that did
+                                                           ! not successfully harvested
 
      !debug variables
      real(r8) ::  delta_litter_stock                       ! kgC/site = kgC/ha
@@ -775,7 +787,6 @@ module EDTypesMod
                                                                ! in runs that are restarted, regardless of
                                                                ! the conditions of restart
 
-     
      real(r8) ::  water_memory(numWaterMem)                             ! last 10 days of soil moisture memory...
 
 
@@ -838,6 +849,11 @@ module EDTypesMod
      real(r8), allocatable :: imort_carbonflux(:)        ! biomass of individuals killed due to impact mortality per year. [kgC/ha/day]
      real(r8), allocatable :: fmort_carbonflux_canopy(:) ! biomass of canopy indivs killed due to fire per year. [gC/m2/sec]
      real(r8), allocatable :: fmort_carbonflux_ustory(:) ! biomass of understory indivs killed due to fire per year [gC/m2/sec] 
+
+     real(r8), allocatable :: term_abg_flux(:,:)          ! aboveground biomass lost due to termination mortality x size x pft
+     real(r8), allocatable :: imort_abg_flux(:,:)         ! aboveground biomass lost due to impact mortality x size x pft
+     real(r8), allocatable :: fmort_abg_flux(:,:)         ! aboveground biomass lost due to fire mortality x size x pft
+
 
      real(r8) :: demotion_carbonflux                     ! biomass of demoted individuals from canopy to understory [kgC/ha/day]
      real(r8) :: promotion_carbonflux                    ! biomass of promoted individuals from understory to canopy [kgC/ha/day]
@@ -1160,6 +1176,10 @@ module EDTypesMod
      write(fates_log(),*) 'co%dgmort                 = ', ccohort%dgmort
      write(fates_log(),*) 'co%hmort                  = ', ccohort%hmort
      write(fates_log(),*) 'co%frmort                 = ', ccohort%frmort
+     write(fates_log(),*) 'co%asmort                 = ', ccohort%asmort
+     write(fates_log(),*) 'co%lmort_direct           = ', ccohort%lmort_direct
+     write(fates_log(),*) 'co%lmort_collateral       = ', ccohort%lmort_collateral
+     write(fates_log(),*) 'co%lmort_infra            = ', ccohort%lmort_infra
      write(fates_log(),*) 'co%isnew                  = ', ccohort%isnew
      write(fates_log(),*) 'co%dndt                   = ', ccohort%dndt
      write(fates_log(),*) 'co%dhdt                   = ', ccohort%dhdt
@@ -1171,6 +1191,7 @@ module EDTypesMod
      write(fates_log(),*) 'co%cambial_mort           = ', ccohort%cambial_mort
      write(fates_log(),*) 'co%size_class             = ', ccohort%size_class
      write(fates_log(),*) 'co%size_by_pft_class      = ', ccohort%size_by_pft_class
+
      if (associated(ccohort%co_hydr) ) then
         call dump_cohort_hydr(ccohort)
      endif 

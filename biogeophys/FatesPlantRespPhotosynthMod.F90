@@ -31,6 +31,9 @@ module FATESPlantRespPhotosynthMod
   use FatesConstantsMod, only : rgas_J_K_mol
   use FatesConstantsMod, only : fates_unset_r8
   use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
+  use FatesConstantsMod, only : nocomp_bareground
+  use FatesConstantsMod, only : photosynth_acclim_model_none
+  use FatesConstantsMod, only : photosynth_acclim_model_kumarathunge_etal_2019
   use FatesInterfaceTypesMod, only : hlm_use_planthydro
   use FatesInterfaceTypesMod, only : hlm_parteh_mode
   use FatesInterfaceTypesMod, only : numpft
@@ -41,6 +44,9 @@ module FATESPlantRespPhotosynthMod
   use PRTGenericMod,     only : max_nleafage
   use EDTypesMod,        only : do_fates_salinity
   use EDParamsMod,       only : q10_mr
+  use EDParamsMod,       only : maintresp_leaf_model
+  use FatesConstantsMod, only : lmrmodel_ryan_1991
+  use FatesConstantsMod, only : lmrmodel_atkin_etal_2017
   use PRTGenericMod,     only : prt_carbon_allom_hyp
   use PRTGenericMod,     only : prt_cnp_flex_allom_hyp
   use PRTGenericMod,     only : carbon12_element
@@ -51,10 +57,14 @@ module FATESPlantRespPhotosynthMod
   use PRTGenericMod,     only : store_organ
   use PRTGenericMod,     only : repro_organ
   use PRTGenericMod,     only : struct_organ
-  use EDParamsMod,       only : ED_val_base_mr_20, stomatal_model, stomatal_assim_model
+  use EDParamsMod,       only : maintresp_nonleaf_baserate
+  use EDParamsMod,       only : stomatal_model
+  use EDParamsMod,       only : stomatal_assim_model
+  use EDParamsMod,       only : photo_tempsens_model
   use PRTParametersMod,  only : prt_params
-  use EDPftvarcon         , only : EDPftvarcon_inst
-  
+  use EDPftvarcon      , only : EDPftvarcon_inst
+  use TemperatureType,   only : temperature_type
+   
   ! CIME Globals
   use shr_log_mod , only      : errMsg => shr_log_errMsg
 
@@ -126,7 +136,6 @@ contains
     use FatesInterfaceTypesMod , only : bc_out_type
     use EDCanopyStructureMod, only : calc_areaindex
     use FatesConstantsMod, only : umolC_to_kgC
-    use FatesConstantsMod, only : g_per_kg
     use FatesConstantsMod, only : umol_per_mmol
     use FatesConstantsMod, only : rgas => rgas_J_K_kmol
     use FatesParameterDerivedMod, only : param_derived
@@ -273,12 +282,6 @@ contains
     integer  :: iage                ! loop counter for leaf age classes
 
     ! Parameters
-    ! -----------------------------------------------------------------------
-    ! Base maintenance respiration rate for plant tissues base_mr_20
-    ! M. Ryan, 1991. Effects of climate change on plant respiration.
-    ! Ecological Applications, 1(2), 157-167.
-    ! Original expression is br = 0.0106 molC/(molN h)
-    ! Conversion by molecular weights of C and N gives 2.525e-6 gC/(gN s)
     !
     ! Base rate is at 20C. Adjust to 25C using the CN Q10 = 1.5
     ! (gC/gN/s)
@@ -324,7 +327,7 @@ contains
        ifp = 0
        currentpatch => sites(s)%oldest_patch
        do while (associated(currentpatch))
-          if(currentpatch%nocomp_pft_label.ne.0)then
+          if(currentpatch%nocomp_pft_label.ne.nocomp_bareground)then
              ifp   = ifp+1
              NCL_p = currentPatch%NCL_p
 
@@ -526,17 +529,33 @@ contains
 
                                end select
 
-                               ! MLO - Shouldn't these numbers be parameters too?
-                               lmr25top = 2.525e-6_r8 * (1.5_r8 ** ((25._r8 - 20._r8)/10._r8))
-                               lmr25top = lmr25top * lnc_top / (umolC_to_kgC * g_per_kg)
-
-
                                ! Part VII: Calculate dark respiration (leaf maintenance) for this layer
-                               call LeafLayerMaintenanceRespiration( lmr25top,                 &  ! in
-                                    nscaler,                  &  ! in
-                                    ft,                       &  ! in
-                                    bc_in(s)%t_veg_pa(ifp),   &  ! in
-                                    lmr_z(iv,ft,cl))             ! out
+
+                               select case (maintresp_leaf_model)
+
+                               case (lmrmodel_ryan_1991)
+
+                                  call LeafLayerMaintenanceRespiration_Ryan_1991( lnc_top,     &  ! in
+                                       nscaler,                  &  ! in
+                                       ft,                       &  ! in
+                                       bc_in(s)%t_veg_pa(ifp),   &  ! in
+                                       lmr_z(iv,ft,cl))             ! out
+
+                               case (lmrmodel_atkin_etal_2017)
+
+                                  call LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, &  ! in
+                                       nscaler,                            &  ! in
+                                       ft,                                 &  ! in
+                                       bc_in(s)%t_veg_pa(ifp),             &  ! in
+                                       currentPatch%tveg_lpa%GetMean(),    &  ! in
+                                       lmr_z(iv,ft,cl))                       ! out
+
+                               case default
+
+                                  write (fates_log(),*)'error, incorrect leaf respiration model specified'
+                                  call endrun(msg=errMsg(sourcefile, __LINE__))
+
+                               end select
 
                                ! Part VII: Calculate (1) maximum rate of carboxylation (vcmax),
                                ! (2) maximum electron transport rate, (3) triose phosphate
@@ -557,6 +576,8 @@ contains
                                     currentCohort%kp25top,              &  ! in
                                     nscaler,                            &  ! in
                                     bc_in(s)%t_veg_pa(ifp),             &  ! in
+                                    currentPatch%tveg_lpa%GetMean(),    &  ! in
+                                    currentPatch%tveg_longterm%GetMean(),&  ! in
                                     btran_eff,                          &  ! in
                                     vcmax_z,                            &  ! out
                                     jmax_z,                             &  ! out
@@ -754,7 +775,7 @@ contains
                       if ( int(woody(ft)) == itrue) then
                          tcwood = q10_mr**((bc_in(s)%t_veg_pa(ifp)-tfrz - 20.0_r8)/10.0_r8)
                          ! kgC/s = kgN * kgC/kgN/s
-                         currentCohort%livestem_mr  = live_stem_n * ED_val_base_mr_20 * tcwood * maintresp_reduction_factor
+                         currentCohort%livestem_mr  = live_stem_n * maintresp_nonleaf_baserate * tcwood * maintresp_reduction_factor
                       else
                          currentCohort%livestem_mr  = 0._r8
                       end if
@@ -773,7 +794,7 @@ contains
                       do j = 1,bc_in(s)%nlevsoil
                          tcsoi  = q10_mr**((bc_in(s)%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
                          
-                         fnrt_mr_layer = fnrt_n * ED_val_base_mr_20 * tcsoi * rootfr_ft(ft,j) * maintresp_reduction_factor
+                         fnrt_mr_layer = fnrt_n * maintresp_nonleaf_baserate * tcsoi * rootfr_ft(ft,j) * maintresp_reduction_factor
 
                          ! calculate the cost of carbon for N fixation in each soil layer and calculate N fixation rate based on that [kgC / kgN]
 
@@ -794,7 +815,7 @@ contains
                             ! Soil temperature used to adjust base rate of MR
                             tcsoi  = q10_mr**((bc_in(s)%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
                             currentCohort%livecroot_mr = currentCohort%livecroot_mr + &
-                                 live_croot_n * ED_val_base_mr_20 * tcsoi * &
+                                 live_croot_n * maintresp_nonleaf_baserate * tcsoi * &
                                  rootfr_ft(ft,j) * maintresp_reduction_factor
                          enddo
                       else
@@ -825,6 +846,9 @@ contains
                       !                    EDPftvarcon_inst%resp_drought_response(ft))
 
                       currentCohort%resp_m = currentCohort%resp_m + currentCohort%rdark
+
+                      ! save as a diagnostic the un-throttled maintenance respiration to be able to know how strong this is
+                      currentCohort%resp_m_unreduced = currentCohort%resp_m / maintresp_reduction_factor
 
                       ! convert from kgC/indiv/s to kgC/indiv/timestep
                       currentCohort%resp_m        = currentCohort%resp_m  * dtime
@@ -2045,22 +2069,35 @@ end subroutine GetCanopyGasParameters
 
 ! ====================================================================================
 
-subroutine LeafLayerMaintenanceRespiration(lmr25top_ft, &
-   nscaler,   &
-   ft,        &
+subroutine LeafLayerMaintenanceRespiration_Ryan_1991(lnc_top, &
+   nscaler,       &
+   ft,            &
    veg_tempk,     &
    lmr)
 
+   use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
+   use FatesConstantsMod, only : umolC_to_kgC
+   use FatesConstantsMod, only : g_per_kg
+   use EDPftvarcon      , only : EDPftvarcon_inst
+
+   ! -----------------------------------------------------------------------
+   ! Base maintenance respiration rate for plant tissues maintresp_leaf_ryan1991_baserate
+   ! M. Ryan, 1991. Effects of climate change on plant respiration.
+   ! Ecological Applications, 1(2), 157-167.
+   ! Original expression is br = 0.0106 molC/(molN h)
+   ! Conversion by molecular weights of C and N gives 2.525e-6 gC/(gN s)
+   ! Which is the default value of maintresp_nonleaf_baserate
+
    ! Arguments
-   real(r8), intent(in)  :: lmr25top_ft  ! canopy top leaf maint resp rate at 25C
-   ! for this pft (umol CO2/m**2/s)
-   integer,  intent(in)  :: ft           ! (plant) Functional Type Index
+   real(r8), intent(in)  :: lnc_top      ! Leaf nitrogen content per unit area at canopy top [gN/m2]
    real(r8), intent(in)  :: nscaler      ! Scale for leaf nitrogen profile
+   integer,  intent(in)  :: ft           ! (plant) Functional Type Index
    real(r8), intent(in)  :: veg_tempk    ! vegetation temperature
    real(r8), intent(out) :: lmr          ! Leaf Maintenance Respiration  (umol CO2/m**2/s)
 
    ! Locals
    real(r8) :: lmr25   ! leaf layer: leaf maintenance respiration rate at 25C (umol CO2/m**2/s)
+   real(r8) :: lmr25top  ! canopy top leaf maint resp rate at 25C for this pft (umol CO2/m**2/s)
 
    ! Parameter
    real(r8), parameter :: lmrha = 46390._r8    ! activation energy for lmr (J/mol)
@@ -2069,26 +2106,84 @@ subroutine LeafLayerMaintenanceRespiration(lmr25top_ft, &
    real(r8), parameter :: lmrc = 1.15912391_r8 ! scaling factor for high
    ! temperature inhibition (25 C = 1.0)
 
-
-
+   lmr25top = EDPftvarcon_inst%maintresp_leaf_ryan1991_baserate(ft) * (1.5_r8 ** ((25._r8 - 20._r8)/10._r8))
+   lmr25top = lmr25top * lnc_top / (umolC_to_kgC * g_per_kg)
 
 
    ! Part I: Leaf Maintenance respiration: umol CO2 / m**2 [leaf] / s
    ! ----------------------------------------------------------------------------------
-   lmr25 = lmr25top_ft * nscaler
+   lmr25 = lmr25top * nscaler
 
-   if ( nint(EDpftvarcon_inst%c3psn(ft)) == 1)then
+   if (nint(EDPftvarcon_inst%c3psn(ft))  /=  1) then
+      ! temperature sensitivity of C3 plants
       lmr = lmr25 * ft1_f(veg_tempk, lmrha) * &
-         fth_f(veg_tempk, lmrhd, lmrse, lmrc)
+           fth_f(veg_tempk, lmrhd, lmrse, lmrc)
    else
+      ! temperature sensitivity of C4 plants
       lmr = lmr25 * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8)
       lmr = lmr / (1._r8 + exp( 1.3_r8*(veg_tempk-(tfrz+55._r8)) ))
-   end if
+   endif
 
    ! Any hydrodynamic limitations could go here, currently none
    ! lmr = lmr * (nothing)
 
-end subroutine LeafLayerMaintenanceRespiration
+end subroutine LeafLayerMaintenanceRespiration_Ryan_1991
+
+! ====================================================================================   
+
+subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, &
+   nscaler,   &
+   ft,        &
+   veg_tempk, &
+   tgrowth,   &
+   lmr)
+
+   use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
+   use FatesConstantsMod, only : umolC_to_kgC
+   use FatesConstantsMod, only : g_per_kg
+   use EDPftvarcon      , only : EDPftvarcon_inst
+
+   ! Arguments
+   real(r8), intent(in)  :: lnc_top      ! Leaf nitrogen content per unit area at canopy top [gN/m2]
+   integer,  intent(in)  :: ft           ! (plant) Functional Type Index
+   real(r8), intent(in)  :: nscaler      ! Scale for leaf nitrogen profile
+   real(r8), intent(in)  :: veg_tempk    ! vegetation temperature  (degrees K)
+   real(r8), intent(in)  :: tgrowth      ! lagged vegetation temperature averaged over acclimation timescale (degrees K)
+   real(r8), intent(out) :: lmr          ! Leaf Maintenance Respiration  (umol CO2/m**2/s)
+
+   ! Locals
+   real(r8) :: lmr25   ! leaf layer: leaf maintenance respiration rate at 25C (umol CO2/m**2/s)
+   real(r8) :: r_0     ! base respiration rate, PFT-dependent (umol CO2/m**2/s)
+   real(r8) :: r_t_ref ! acclimated ref respiration rate (umol CO2/m**2/s)
+   real(r8) :: lmr25top  ! canopy top leaf maint resp rate at 25C for this pft (umol CO2/m**2/s)
+
+   ! Parameters
+   ! values from Atkin et al., 2017 https://doi.org/10.1007/978-3-319-68703-2_6
+   ! and Heskel et al., 2016 https://doi.org/10.1073/pnas.1520282113
+   real(r8), parameter :: b = 0.1012_r8       ! (degrees C**-1)
+   real(r8), parameter :: c = -0.0005_r8      ! (degrees C**-2)
+   real(r8), parameter :: TrefC = 25._r8      ! (degrees C)
+   real(r8), parameter :: r_1 = 0.2061_r8     ! (umol CO2/m**2/s / (gN/(m2 leaf))) 
+   real(r8), parameter :: r_2 = -0.0402_r8    ! (umol CO2/m**2/s/degree C)
+
+   ! parameter values of r_0 as listed in Atkin et al 2017: (umol CO2/m**2/s) 
+   ! Broad-leaved trees  1.7560
+   ! Needle-leaf trees   1.4995
+   ! Shrubs              2.0749
+   ! C3 herbs/grasses    2.1956
+   ! In the absence of better information, we use the same value for C4 grasses as C3 grasses.
+
+   ! note that this code uses the relationship between leaf N and respiration from Atkin et al 
+   ! for the top of the canopy, but then assumes proportionality with N through the canopy.
+
+   ! r_0 currently put into the EDPftvarcon_inst%dev_arbitrary_pft
+   ! all figs in Atkin et al 2017 stop at zero Celsius so we will assume acclimation is fixed below that
+   r_0 = EDPftvarcon_inst%maintresp_leaf_atkin2017_baserate(ft)
+   r_t_ref = nscaler * (r_0 + r_1 * lnc_top + r_2 * max(0._r8, (tgrowth - tfrz) ))
+
+   lmr = r_t_ref * exp(b * (veg_tempk - tfrz - TrefC) + c * ((veg_tempk-tfrz)**2 - TrefC**2))
+
+end subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017
 
 ! ====================================================================================
 
@@ -2099,6 +2194,8 @@ subroutine LeafLayerBiophysicalRates( parsun_lsl, &
    co2_rcurve_islope25top_ft, &
    nscaler,    &
    veg_tempk,      &
+   t_growth,   &
+   t_home,     &
    btran, &
    vcmax, &
    jmax, &
@@ -2132,6 +2229,8 @@ subroutine LeafLayerBiophysicalRates( parsun_lsl, &
    real(r8), intent(in) :: co2_rcurve_islope25top_ft ! initial slope of CO2 response curve
                                              ! (C4 plants) at 25C, canopy top, this pft
    real(r8), intent(in) :: veg_tempk           ! vegetation temperature
+   real(r8), intent(in) :: t_growth            ! T_growth (short-term running mean temperature) (K)
+   real(r8), intent(in) :: t_home              ! T_home (long-term running mean temperature) (K)
    real(r8), intent(in) :: btran           ! transpiration wetness factor (0 to 1)
 
    real(r8), intent(out) :: vcmax             ! maximum rate of carboxylation (umol co2/m**2/s)
@@ -2157,17 +2256,34 @@ subroutine LeafLayerBiophysicalRates( parsun_lsl, &
    real(r8) :: jmaxhd         ! deactivation energy for jmax (J/mol)
    real(r8) :: vcmaxse        ! entropy term for vcmax (J/mol/K)
    real(r8) :: jmaxse         ! entropy term for jmax (J/mol/K)
+   real(r8) :: t_growth_celsius ! average growing temperature
+   real(r8) :: t_home_celsius   ! average home temperature
+   real(r8) :: jvr            ! ratio of Jmax25 / Vcmax25
    real(r8) :: vcmaxc         ! scaling factor for high temperature inhibition (25 C = 1.0)
    real(r8) :: jmaxc          ! scaling factor for high temperature inhibition (25 C = 1.0)
 
-   vcmaxha = EDPftvarcon_inst%vcmaxha(FT)
-   jmaxha  = EDPftvarcon_inst%jmaxha(FT)
-
-   vcmaxhd = EDPftvarcon_inst%vcmaxhd(FT)
-   jmaxhd  = EDPftvarcon_inst%jmaxhd(FT)
-
-   vcmaxse = EDPftvarcon_inst%vcmaxse(FT)
-   jmaxse  = EDPftvarcon_inst%jmaxse(FT)
+   select case(photo_tempsens_model)
+   case (photosynth_acclim_model_none) !No temperature acclimation
+      vcmaxha = EDPftvarcon_inst%vcmaxha(FT)
+      jmaxha  = EDPftvarcon_inst%jmaxha(FT)
+      vcmaxhd = EDPftvarcon_inst%vcmaxhd(FT)
+      jmaxhd  = EDPftvarcon_inst%jmaxhd(FT)
+      vcmaxse = EDPftvarcon_inst%vcmaxse(FT)
+      jmaxse  = EDPftvarcon_inst%jmaxse(FT)
+   case (photosynth_acclim_model_kumarathunge_etal_2019) !Kumarathunge et al. temperature acclimation, Thome=30-year running mean
+      t_growth_celsius = t_growth-tfrz
+      t_home_celsius = t_home-tfrz
+      vcmaxha = (42.6_r8 + (1.14_r8*t_growth_celsius))*1e3_r8 !J/mol
+      jmaxha = 40.71_r8*1e3_r8 !J/mol
+      vcmaxhd = 200._r8*1e3_r8 !J/mol
+      jmaxhd = 200._r8*1e3_r8 !J/mol
+      vcmaxse = (645.13_r8 - (0.38_r8*t_growth_celsius))
+      jmaxse = 658.77_r8 - (0.84_r8*t_home_celsius) - 0.52_r8*(t_growth_celsius-t_home_celsius)
+      jvr = 2.56_r8 - (0.0375_r8*t_home_celsius)-(0.0202_r8*(t_growth_celsius-t_home_celsius))
+   case default
+      write (fates_log(),*)'error, incorrect leaf photosynthesis temperature acclimation model specified'
+      call endrun(msg=errMsg(sourcefile, __LINE__))
+   end select
 
    vcmaxc = fth25_f(vcmaxhd, vcmaxse)
    jmaxc  = fth25_f(jmaxhd, jmaxse)
@@ -2180,7 +2296,16 @@ subroutine LeafLayerBiophysicalRates( parsun_lsl, &
 
       ! Vcmax25top was already calculated to derive the nscaler function
       vcmax25 = vcmax25top_ft * nscaler
-      jmax25  = jmax25top_ft * nscaler
+      select case(photo_tempsens_model)
+      case (photosynth_acclim_model_none)
+         jmax25  = jmax25top_ft * nscaler
+      case (photosynth_acclim_model_kumarathunge_etal_2019) 
+         jmax25 = vcmax25*jvr
+      case default
+         write (fates_log(),*)'error, incorrect leaf photosynthesis temperature acclimation model specified'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end select
+
       co2_rcurve_islope25 = co2_rcurve_islope25top_ft * nscaler
 
       ! Adjust for temperature
@@ -2200,6 +2325,7 @@ subroutine LeafLayerBiophysicalRates( parsun_lsl, &
    vcmax = vcmax * btran
 
    return
+
  end subroutine LeafLayerBiophysicalRates
 
 subroutine lowstorage_maintresp_reduction(frac, pft, maintresp_reduction_factor)

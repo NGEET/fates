@@ -91,6 +91,7 @@ module FatesRunningMeanMod
   class(rmean_def_type), public, pointer :: ema_24hr   ! Exponential moving average - 24hr window
   class(rmean_def_type), public, pointer :: fixed_24hr ! Fixed, 24-hour window
   class(rmean_def_type), public, pointer :: ema_lpa    ! Exponential moving average - leaf photo acclimation
+  class(rmean_def_type), public, pointer :: ema_longterm  ! Exponential moving average - long-term leaf photo acclimation
   class(rmean_def_type), public, pointer :: ema_60day  ! Exponential moving average, 60 day
                                                        ! Updated daily
   class(rmean_def_type), public, pointer :: ema_storemem ! EMA used for smoothing N/C and P/C storage

@@ -80,6 +80,12 @@ module EDPftvarcon
                                                                ! 1=linear, 0=very curved
      real(r8), allocatable :: maintresp_reduction_intercept(:) ! intercept of MR reduction as f(carbon storage),
                                                                ! 0=no throttling, 1=max throttling
+
+     real(r8), allocatable :: maintresp_leaf_atkin2017_baserate(:) ! leaf maintenance respiration base rate (r0)
+                                                                   ! per Atkin et al 2017
+
+     real(r8), allocatable :: maintresp_leaf_ryan1991_baserate(:)  ! leaf maintenance respiration per Ryan et al 1991
+
      real(r8), allocatable :: bmort(:)
      real(r8), allocatable :: mort_ip_size_senescence(:)  ! inflection point of dbh dependent senescence
      real(r8), allocatable :: mort_r_size_senescence(:) ! rate of change in mortality with dbh
@@ -425,6 +431,14 @@ contains
     name = 'fates_maintresp_reduction_intercept'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_maintresp_leaf_atkin2017_baserate'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+        dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_maintresp_leaf_ryan1991_baserate'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+        dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_prescribed_npp_canopy'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
@@ -773,6 +787,14 @@ contains
     name = 'fates_maintresp_reduction_intercept'
     call fates_params%RetrieveParameterAllocate(name=name, &
           data=this%maintresp_reduction_intercept)
+
+    name = 'fates_maintresp_leaf_atkin2017_baserate'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%maintresp_leaf_atkin2017_baserate)
+
+    name = 'fates_maintresp_leaf_ryan1991_baserate'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%maintresp_leaf_ryan1991_baserate)
 
     name = 'fates_prescribed_npp_canopy'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -1522,6 +1544,7 @@ contains
     use EDParamsMod        , only : logging_mechanical_frac, logging_collateral_frac
     use EDParamsMod        , only : logging_direct_frac,logging_export_frac
     use FatesInterfaceTypesMod, only : hlm_use_fixed_biogeog,hlm_use_sp, hlm_name
+    use FatesInterfaceTypesMod, only : hlm_use_inventory_init
 
      ! Argument
      logical, intent(in) :: is_master    ! Only log if this is the master proc
@@ -1580,7 +1603,31 @@ contains
 
            end if
         end if
-
+        
+        ! If any PFTs are specified as either prescribed N or P uptake
+        ! then they all must be !
+        
+        if (any(EDPftvarcon_inst%prescribed_nuptake(:) < -nearzero ) .or. &
+             any(EDPftvarcon_inst%prescribed_nuptake(:) > 10._r8 ) ) then
+           write(fates_log(),*) 'Negative values for EDPftvarcon_inst%prescribed_nuptake(:)'
+           write(fates_log(),*) 'are not allowed. Reasonable ranges for this parameter are zero'
+           write(fates_log(),*) 'to something slightly larger than 1, so we set a cap at 10.'
+           write(fates_log(),*) 'Set to zero to turn off and use coupled nutrients.'
+           write(fates_log(),*) ' Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        elseif (any(abs(EDPftvarcon_inst%prescribed_nuptake(:)) > nearzero )) then
+           if(.not.all(abs(EDPftvarcon_inst%prescribed_nuptake(:)) > nearzero )) then
+              write(fates_log(),*) 'If any PFTs are specified as having prescribed N'
+              write(fates_log(),*) 'uptake, then they must all. Note, prescribed'
+              write(fates_log(),*) 'rates are associated with any value abs(x)>nearzero'
+              write(fates_log(),*) 'EDPftvarcon_inst%prescribed_nuptake(:):', &
+                   EDPftvarcon_inst%prescribed_nuptake(:)
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+        end if
+        
+        
      case (prt_carbon_allom_hyp)
         ! No additional checks needed for now.
         continue
@@ -1594,28 +1641,7 @@ contains
         call endrun(msg=errMsg(sourcefile, __LINE__))
      end select
 
-     ! If any PFTs are specified as either prescribed N or P uptake
-     ! then they all must be !
-
-     if (any(EDPftvarcon_inst%prescribed_nuptake(:) < -nearzero ) .or. &
-          any(EDPftvarcon_inst%prescribed_nuptake(:) > 10._r8 ) ) then
-        write(fates_log(),*) 'Negative values for EDPftvarcon_inst%prescribed_nuptake(:)'
-        write(fates_log(),*) 'are not allowed. Reasonable ranges for this parameter are zero'
-        write(fates_log(),*) 'to something slightly larger than 1, so we set a cap at 10.'
-        write(fates_log(),*) 'Set to zero to turn off and use coupled nutrients.'
-        write(fates_log(),*) ' Aborting'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     elseif (any(abs(EDPftvarcon_inst%prescribed_nuptake(:)) > nearzero )) then
-        if(.not.all(abs(EDPftvarcon_inst%prescribed_nuptake(:)) > nearzero )) then
-           write(fates_log(),*) 'If any PFTs are specified as having prescribed N'
-           write(fates_log(),*) 'uptake, then they must all. Note, prescribed'
-           write(fates_log(),*) 'rates are associated with any value abs(x)>nearzero'
-           write(fates_log(),*) 'EDPftvarcon_inst%prescribed_nuptake(:):', &
-                EDPftvarcon_inst%prescribed_nuptake(:)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-        end if
-     end if
+ 
 
      ! logging parameters, make sure they make sense
      if ( (logging_mechanical_frac + logging_collateral_frac + logging_direct_frac) .gt. 1._r8) then
@@ -1755,7 +1781,22 @@ contains
 
         end if
 
-
+        ! Check that in initial density is not equal to zero in a cold-start run
+        !-----------------------------------------------------------------------------------
+        
+        if ( hlm_use_inventory_init == ifalse .and. & 
+             abs( EDPftvarcon_inst%initd(ipft) ) < nearzero ) then
+          
+           write(fates_log(),*) ' In a cold start run initial density cannot be zero.'
+           write(fates_log(),*) ' For a bare ground run set to initial recruit density.'
+           write(fates_log(),*) ' If no-comp is on it is possible to initialize with larger  '
+           write(fates_log(),*) ' plants by setting fates_recruit_init_density to a negative number'
+           write(fates_log(),*) ' which will be interpreted as (absolute) initial dbh. '
+           write(fates_log(),*) ' Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+           
+        end if
+           
 
 
         ! Check if fraction of storage to reproduction is between 0-1

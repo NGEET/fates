@@ -23,6 +23,7 @@ module EDPhysiologyMod
   use FatesInterfaceTypesMod, only    : hlm_use_tree_damage
   use FatesConstantsMod, only    : r8 => fates_r8
   use FatesConstantsMod, only    : nearzero
+  use FatesConstantsMod, only    : nocomp_bareground
   use EDPftvarcon      , only    : EDPftvarcon_inst
   use PRTParametersMod , only    : prt_params
   use EDPftvarcon      , only    : GetDecompyFrac
@@ -144,6 +145,8 @@ module EDPhysiologyMod
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
 
+  integer :: istat           ! return status code
+  character(len=255) :: smsg ! Message string for deallocation errors
   integer, parameter :: dleafon_drycheck = 100 ! Drought deciduous leaves max days on check parameter
 
   ! ============================================================================
@@ -1084,9 +1087,9 @@ contains
     ! and thus %nchilldays will never go from zero to 1.  The following logic
     ! when coupled with this fact will essentially prevent cold-deciduous
     ! plants from re-emerging in areas without at least some cold days
-
+    
     if( (currentSite%cstatus == phen_cstat_notcold)  .and. &
-         (dayssincecleafoff > 400)) then           ! remove leaves after a whole year
+         (dayssincecleafoff > 400)) then           ! remove leaves after a whole year,
        ! when there is no 'off' period.
        currentSite%grow_deg_days  = 0._r8
 
@@ -1754,7 +1757,6 @@ contains
     ! !USES:
     use EDTypesMod, only : area
     use EDTypesMod, only : homogenize_seed_pfts
-
     !
     ! !ARGUMENTS
     type(ed_site_type), intent(inout), target  :: currentSite
@@ -1985,9 +1987,9 @@ contains
     
     !
     ! !ARGUMENTS
-    type(ed_site_type), intent(inout), target   :: currentSite
-    type(ed_patch_type), intent(inout), pointer :: currentPatch
-    type(bc_in_type), intent(in)                :: bc_in
+    type(ed_site_type), intent(inout)  :: currentSite
+    type(ed_patch_type), intent(inout),pointer :: currentPatch
+    type(bc_in_type), intent(in)       :: bc_in
     !
     ! !LOCAL VARIABLES:
     class(prt_vartypes), pointer :: prt
@@ -2287,8 +2289,13 @@ contains
        endif !use_this_pft
     enddo  !pft loop
 
-    deallocate(temp_cohort) ! delete temporary cohort
+    deallocate(temp_cohort, stat=istat, errmsg=smsg)
+    if (istat/=0) then
+       write(fates_log(),*) 'dealloc013: fail on deallocate(temp_cohort):'//trim(smsg)
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    endif
 
+    
   end subroutine recruitment
 
   ! ============================================================================
@@ -2677,7 +2684,7 @@ contains
     catanf(t1) = 11.75_r8 +(29.7_r8 / pi) * atan( pi * 0.031_r8  * ( t1 - 15.4_r8 ))
     catanf_30 = catanf(30._r8)
 
-    if(currentPatch%nocomp_pft_label.ne.0)then
+    if(currentPatch%nocomp_pft_label.ne.nocomp_bareground)then
 
        ! Use the hlm temp and moisture decomp fractions by default
        if ( use_hlm_soil_scalar ) then

@@ -158,6 +158,7 @@ module FatesRestartInterfaceMod
   ! Running Means
   integer :: ir_tveg24_pa
   integer :: ir_tveglpa_pa
+  integer :: ir_tveglongterm_pa
 
   !  (Keeping as an example)
   !!integer :: ir_tveglpa_co
@@ -228,6 +229,9 @@ module FatesRestartInterfaceMod
   integer :: ir_imortcflux_sipft
   integer :: ir_fmortcflux_cano_sipft
   integer :: ir_fmortcflux_usto_sipft
+  integer :: ir_abg_term_flux_siscpf
+  integer :: ir_abg_imort_flux_siscpf
+  integer :: ir_abg_fmort_flux_siscpf
 
   integer :: ir_cwdagin_flxdg
   integer :: ir_cwdbgin_flxdg
@@ -1288,7 +1292,22 @@ contains
    call this%set_restart_var(vname='fates_termcflux_ustory', vtype=cohort_r8, &
          long_name='fates diagnostic term carbon flux understory', &
          units='', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index =   ir_termcflux_usto_sipft )
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_termcflux_usto_sipft )
+
+   call this%set_restart_var(vname='fates_abg_term_flux', vtype=cohort_r8, &
+         long_name='fates aboveground biomass loss from termination mortality', &
+         units='', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_abg_term_flux_siscpf )
+
+   call this%set_restart_var(vname='fates_abg_imort_flux', vtype=cohort_r8, &
+         long_name='fates aboveground biomass loss from impact mortality', &
+         units='', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_abg_imort_flux_siscpf )
+
+   call this%set_restart_var(vname='fates_abg_fmort_flux', vtype=cohort_r8, &
+         long_name='fates aboveground biomass loss from fire mortality', &
+         units='', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_abg_fmort_flux_siscpf )
 
    call this%set_restart_var(vname='fates_democflux', vtype=site_r8, &
          long_name='fates diagnostic demotion carbon flux', &
@@ -1388,6 +1407,10 @@ contains
    call this%DefineRMeanRestartVar(vname='fates_tveglpapatch',vtype=cohort_r8, &
         long_name='running average (EMA) of patch veg temp for photo acclim', &
         units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveglpa_pa)
+
+   call this%DefineRMeanRestartVar(vname='fates_tveglongtermpatch',vtype=cohort_r8, &
+        long_name='long-term (T_home) running average (EMA) of patch veg temp for photo acclim', &
+        units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveglongterm_pa)
 
    !  (Keeping as an example)
    !call this%DefineRMeanRestartVar(vname='fates_tveglpacohort',vtype=cohort_r8, &
@@ -1955,6 +1978,10 @@ contains
            rio_imortcflux_sipft        => this%rvars(ir_imortcflux_sipft)%r81d, &
            rio_fmortcflux_cano_sipft   => this%rvars(ir_fmortcflux_cano_sipft)%r81d, &
            rio_fmortcflux_usto_sipft   => this%rvars(ir_fmortcflux_usto_sipft)%r81d, &
+           rio_abg_imort_flux_siscpf => this%rvars(ir_abg_imort_flux_siscpf)%r81d, &
+           rio_abg_fmort_flux_siscpf => this%rvars(ir_abg_fmort_flux_siscpf)%r81d, &
+           rio_abg_term_flux_siscpf  => this%rvars(ir_abg_term_flux_siscpf)%r81d, &
+
            rio_imortrate_sicdpf        => this%rvars(ir_imortrate_sicdpf)%r81d, &
            rio_imortcflux_sicdsc       => this%rvars(ir_imortcflux_sicdsc)%r81d, &
            rio_termcflux_cano_sicdsc   => this%rvars(ir_termcflux_cano_sicdsc)%r81d, &
@@ -2205,6 +2232,7 @@ contains
              ! Patch level running means
              call this%SetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
              call this%SetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
+             call this%SetRMeanRestartVar(cpatch%tveg_longterm, ir_tveglongterm_pa, io_idx_co_1st)
              
              ! set cohorts per patch for IO
              rio_ncohort_pa( io_idx_co_1st )   = cohortsperpatch
@@ -2334,6 +2362,10 @@ contains
                 rio_termnindiv_cano_siscpf(io_idx_si_scpf) = sites(s)%term_nindivs_canopy(i_scls,i_pft)
                 rio_termnindiv_usto_siscpf(io_idx_si_scpf) = sites(s)%term_nindivs_ustory(i_scls,i_pft)
                 rio_growflx_fusion_siscpf(io_idx_si_scpf)  = sites(s)%growthflux_fusion(i_scls, i_pft)
+
+                rio_abg_term_flux_siscpf(io_idx_si_scpf) = sites(s)%term_abg_flux(i_scls, i_pft)
+                rio_abg_imort_flux_siscpf(io_idx_si_scpf) = sites(s)%imort_abg_flux(i_scls, i_pft)
+                rio_abg_fmort_flux_siscpf(io_idx_si_scpf) = sites(s)%fmort_abg_flux(i_scls, i_pft)
 
                 io_idx_si_scpf = io_idx_si_scpf + 1
              end do
@@ -2853,7 +2885,10 @@ contains
           rio_crownarea_usto_damage_si=> this%rvars(ir_crownarea_usto_si)%r81d, &
           rio_imortcflux_sipft        => this%rvars(ir_imortcflux_sipft)%r81d, &
           rio_fmortcflux_cano_sipft   => this%rvars(ir_fmortcflux_cano_sipft)%r81d, &
-          rio_fmortcflux_usto_sipft   => this%rvars(ir_fmortcflux_usto_sipft)%r81d)
+          rio_fmortcflux_usto_sipft   => this%rvars(ir_fmortcflux_usto_sipft)%r81d, &
+          rio_abg_term_flux_siscpf   => this%rvars(ir_abg_term_flux_siscpf)%r81d, &
+          rio_abg_imort_flux_siscpf  => this%rvars(ir_abg_imort_flux_siscpf)%r81d, &
+          rio_abg_fmort_flux_siscpf  => this%rvars(ir_abg_fmort_flux_siscpf)%r81d )
 
 
        totalcohorts = 0
@@ -3091,6 +3126,7 @@ contains
 
              call this%GetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
              call this%GetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
+             call this%GetRMeanRestartVar(cpatch%tveg_longterm, ir_tveglongterm_pa, io_idx_co_1st)
              
              ! set cohorts per patch for IO
 
@@ -3262,6 +3298,11 @@ contains
                 sites(s)%term_nindivs_canopy(i_scls,i_pft) = rio_termnindiv_cano_siscpf(io_idx_si_scpf)
                 sites(s)%term_nindivs_ustory(i_scls,i_pft) = rio_termnindiv_usto_siscpf(io_idx_si_scpf)
                 sites(s)%growthflux_fusion(i_scls, i_pft)  = rio_growflx_fusion_siscpf(io_idx_si_scpf)
+
+                sites(s)%term_abg_flux(i_scls,i_pft) = rio_abg_term_flux_siscpf(io_idx_si_scpf)
+                sites(s)%imort_abg_flux(i_scls,i_pft) = rio_abg_imort_flux_siscpf(io_idx_si_scpf)
+                sites(s)%fmort_abg_flux(i_scls,i_pft) = rio_abg_fmort_flux_siscpf(io_idx_si_scpf)
+
                 io_idx_si_scpf = io_idx_si_scpf + 1
              end do
 
@@ -3413,10 +3454,8 @@ contains
                  bc_out(s)%fabi_parb(ifp,:) = 0.0_r8
                  do ib = 1,hlm_numSWb
 
-                    ! REQUIRES A FIX HERE albd vs albi
-
                     bc_out(s)%albd_parb(ifp,ib) = currentPatch%gnd_alb_dir(ib)
-                    bc_out(s)%albd_parb(ifp,ib) = currentPatch%gnd_alb_dif(ib)
+                    bc_out(s)%albi_parb(ifp,ib) = currentPatch%gnd_alb_dif(ib)
                     bc_out(s)%ftdd_parb(ifp,ib)= 1.0_r8
                     bc_out(s)%ftid_parb(ifp,ib)= 1.0_r8
                     bc_out(s)%ftii_parb(ifp,ib)= 1.0_r8

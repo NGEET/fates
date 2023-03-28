@@ -10,6 +10,7 @@ module EDCanopyStructureMod
   use FatesConstantsMod     , only : tinyr8
   use FatesConstantsMod     , only : nearzero
   use FatesConstantsMod     , only : rsnbl_math_prec
+  use FatesConstantsMod     , only : nocomp_bareground
   use FatesGlobals          , only : fates_log
   use EDPftvarcon           , only : EDPftvarcon_inst
   use PRTParametersMod      , only : prt_params
@@ -62,6 +63,9 @@ module EDCanopyStructureMod
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
 
+  integer :: istat           ! return status code
+  character(len=255) :: smsg ! Message string for deallocation errors
+  
   real(r8), parameter :: area_target_precision = 1.0E-11_r8  ! Area conservation
   ! will attempt to reduce errors
   ! below this level
@@ -336,10 +340,10 @@ contains
     use SFParamsMod, only : SF_val_CWD_frac
 
     ! !ARGUMENTS
-    type(ed_site_type), intent(inout), target  :: currentSite
-    type(ed_patch_type), intent(inout), target :: currentPatch
-    integer, intent(in)                        :: i_lyr   ! Current canopy layer of interest
-    type(bc_in_type), intent(in)               :: bc_in
+    type(ed_site_type), intent(inout)  :: currentSite
+    type(ed_patch_type), intent(inout) :: currentPatch
+    integer, intent(in)                :: i_lyr   ! Current canopy layer of interest
+    type(bc_in_type), intent(in)       :: bc_in
 
     ! !LOCAL VARIABLES:
     type(ed_cohort_type), pointer :: currentCohort
@@ -733,7 +737,11 @@ contains
                 ! put the litter from the terminated cohorts
                 ! straight into the fragmenting pools
                 call terminate_cohort(currentSite,currentPatch,currentCohort,bc_in)
-                deallocate(currentCohort)
+                deallocate(currentCohort, stat=istat, errmsg=smsg)
+                if (istat/=0) then
+                   write(fates_log(),*) 'dealloc012: fail on deallocate(currentCohort):'//trim(smsg)
+                   call endrun(msg=errMsg(sourcefile, __LINE__))
+                endif
              else
              call carea_allom(currentCohort%dbh,currentCohort%n, &
                   currentSite%spread,currentCohort%pft,currentCohort%crowndamage, &
@@ -1369,7 +1377,7 @@ contains
              endif
 
              ! adding checks for SP and NOCOMP modes.
-             if(currentPatch%nocomp_pft_label.eq.0)then
+             if(currentPatch%nocomp_pft_label.eq.nocomp_bareground)then
                 write(fates_log(),*) 'cohorts in barepatch',currentPatch%total_canopy_area,currentPatch%nocomp_pft_label
                 call endrun(msg=errMsg(sourcefile, __LINE__))
              end if
@@ -1828,7 +1836,7 @@ contains
        c = fcolumn(s)
        do while(associated(currentPatch))
 
-          if(currentPatch%nocomp_pft_label.ne.0)then  ! ignore the bare-ground-PFT patch entirely for these BC outs
+          if(currentPatch%nocomp_pft_label.ne.nocomp_bareground)then  ! ignore the bare-ground-PFT patch entirely for these BC outs
 
              ifp = ifp+1
 
@@ -1970,7 +1978,7 @@ contains
           currentPatch => sites(s)%oldest_patch
           ifp = 0
           do while(associated(currentPatch))
-             if(currentPatch%nocomp_pft_label.ne.0)then ! for vegetated patches only
+             if(currentPatch%nocomp_pft_label.ne.nocomp_bareground)then ! for vegetated patches only
                 ifp = ifp+1
                 bc_out(s)%canopy_fraction_pa(ifp) = bc_out(s)%canopy_fraction_pa(ifp)/total_patch_area
              endif ! veg patch
@@ -1994,7 +2002,7 @@ contains
 
        ! Pass FATES Harvested C to bc_out.
        call UpdateHarvestC(sites(s),bc_out(s))
-       
+
     end do
 
     ! This call to RecruitWaterStorage() makes an accounting of
@@ -2007,7 +2015,6 @@ contains
     if (hlm_use_planthydro.eq.itrue) then
        call RecruitWaterStorage(nsites,sites,bc_out)
     end if
-
 
   end subroutine update_hlm_dynamics
 
