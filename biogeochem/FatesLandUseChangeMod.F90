@@ -22,6 +22,7 @@ module FatesLandUseChangeMod
   !
   public :: get_landuse_transition_rates
   public :: init_luh2_fates_mapping
+  public :: get_landusechange_rules
 
   ! module data
   integer :: max_luh2_types_per_fates_lu_type = 5
@@ -116,5 +117,85 @@ contains
     luh2_fates_luype_map(1,rangelands) = 'range'
     
   end subroutine init_luh2_fates_mapping
+
+
+  subroutine get_landusechange_rules(clearing_vector)
+
+    ! the purpose of this is to define a ruleset for when to clear the vegetation in transitioning from one land use type to another
+
+    integer, intent(out) :: clearing_vector(n_landuse_cats)
+    integer, parameter    :: ruleset = 1   ! ruleset to apply from table 1 of Ma et al (2020) https://doi.org/10.5194/gmd-13-3203-2020
+
+    ! clearing vector applies to the receiver land use type of the newly-transferred patch area
+    ! values of clearing vector: 0 => do not clear; 1 => clear if preceding land is forested; 2 => clear always
+    ! in table 1 of Ma et al., 0 = 'O',  1 = 'F', 2 = 'X'
+
+    clearing_vector(:) = 0
+
+    select case(ruleset)
+
+    case(1)
+
+       clearing_vector(crops) = 2
+       clearing_vector(pasture) = 2
+       clearing_vector(rangelands) = 1
+
+    case(2)
+
+       clearing_vector(crops) = 2
+       clearing_vector(pasture) = 1
+       clearing_vector(rangelands) = 1
+
+    case(3)
+
+       clearing_vector(crops) = 2
+       clearing_vector(pasture) = 2
+       clearing_vector(rangelands) = 2
+
+    case(4)
+
+       clearing_vector(crops) = 2
+       clearing_vector(pasture) = 2
+       clearing_vector(rangelands) = 0
+
+    case(5)
+
+       clearing_vector(crops) = 2
+       clearing_vector(pasture) = 0
+       clearing_vector(rangelands) = 2
+
+    case(6)
+
+       clearing_vector(crops) = 2
+       clearing_vector(pasture) = 0
+       clearing_vector(rangelands) = 0
+
+    case(7)
+
+       clearing_vector(crops) = 0
+       clearing_vector(pasture) = 2
+       clearing_vector(rangelands) = 2
+
+    case(8)
+
+       clearing_vector(crops) = 0
+       clearing_vector(pasture) = 2
+       clearing_vector(rangelands) = 0
+
+    case(9)
+
+       clearing_vector(crops) = 0
+       clearing_vector(pasture) = 0
+       clearing_vector(rangelands) = 2
+
+    case(default)
+
+       write(fates_log(),*) 'unknown clearing ruleset?'
+       write(fates_log(),*) 'ruleset: ', ruleset
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+
+    end select
+
+  end subroutine get_landusechange_rules
 
 end module FatesLandUseChangeMod
