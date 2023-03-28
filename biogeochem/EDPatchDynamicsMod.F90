@@ -457,6 +457,8 @@ contains
     integer  :: i_disturbance_type, i_dist2  ! iterators for looping over disturbance types
     real(r8) :: disturbance_rate             ! rate of disturbance being resolved [fraction of patch area / day]
     real(r8) :: oldarea                      ! old patch area prior to disturbance
+    logical  :: clearing_matrix(n_landuse_cats,n_landuse_cats)  ! do we clear vegetation when transferring from one LU type to another?
+
     !---------------------------------------------------------------------
 
     storesmallcohort => null() ! storage of the smallest cohort for insertion routine
@@ -474,6 +476,9 @@ contains
     currentSite%disturbance_rates_primary_to_primary(1:N_DIST_TYPES) = 0._r8
     currentSite%disturbance_rates_primary_to_secondary(1:N_DIST_TYPES) = 0._r8
     currentSite%disturbance_rates_secondary_to_secondary(1:N_DIST_TYPES) = 0._r8
+
+    ! get rules for vegetation clearing during land use change
+    call get_landusechange_rules(clearing_matrix)
 
     ! in the nocomp cases, since every patch has a PFT identity, it can only receive patch area from patches
     ! that have the same identity. In order to allow this, we have this very high level loop over nocomp PFTs
@@ -1071,6 +1076,12 @@ s
                                   currentCohort%n = currentCohort%n * (1._r8 - patch_site_areadis/currentPatch%area)
 
                                   ! now apply survivorship based on the type of landuse transition
+                                  if ( clearing_matrix(i_donorpatch_landuse_type,receiver_patch_lu_label) ) then
+                                     ! kill everything
+
+
+
+                                  end if
 
                                else
                                   write(fates_log(),*) 'unknown disturbance mode?'

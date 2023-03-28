@@ -119,74 +119,76 @@ contains
   end subroutine init_luh2_fates_mapping
 
 
-  subroutine get_landusechange_rules(clearing_vector)
+  subroutine get_landusechange_rules(clearing_matrix)
 
     ! the purpose of this is to define a ruleset for when to clear the vegetation in transitioning from one land use type to another
 
-    integer, intent(out) :: clearing_vector(n_landuse_cats)
+    logical, intent(out) :: clearing_matrix(n_landuse_cats,n_landuse_cats)
     integer, parameter    :: ruleset = 1   ! ruleset to apply from table 1 of Ma et al (2020) https://doi.org/10.5194/gmd-13-3203-2020
 
-    ! clearing vector applies to the receiver land use type of the newly-transferred patch area
-    ! values of clearing vector: 0 => do not clear; 1 => clear if preceding land is forested; 2 => clear always
-    ! in table 1 of Ma et al., 0 = 'O',  1 = 'F', 2 = 'X'
+    ! clearing matrix applies from the donor to the receiver land use type of the newly-transferred patch area
+    ! values of clearing matrix: false => do not clear; true => clear
 
-    clearing_vector(:) = 0
+    clearing_matrix(:,:) = .false.
 
     select case(ruleset)
 
     case(1)
 
-       clearing_vector(crops) = 2
-       clearing_vector(pasture) = 2
-       clearing_vector(rangelands) = 1
+       clearing_matrix(:,crops) = .true.
+       clearing_matrix(:,pasture) = .true.
+       clearing_matrix(pasture,rangelands) = .true.
+       clearing_matrix(crops,rangelands) = .true.       
 
     case(2)
 
-       clearing_vector(crops) = 2
-       clearing_vector(pasture) = 1
-       clearing_vector(rangelands) = 1
+       clearing_matrix(:,crops) = .true.
+       clearing_matrix(rangelands,pasture) = .true.
+       clearing_matrix(crops,pasture) = .true.
+       clearing_matrix(pasture,rangelands) = .true.
+       clearing_matrix(crops,rangelands) = .true.
 
     case(3)
 
-       clearing_vector(crops) = 2
-       clearing_vector(pasture) = 2
-       clearing_vector(rangelands) = 2
+       clearing_matrix(:,crops) = .true.
+       clearing_matrix(:,pasture) = .true.
+       clearing_matrix(:,rangelands) = .true.
 
     case(4)
 
-       clearing_vector(crops) = 2
-       clearing_vector(pasture) = 2
-       clearing_vector(rangelands) = 0
+       clearing_matrix(:,crops) = .true.
+       clearing_matrix(:,pasture) = .true.
+       clearing_matrix(:,rangelands) = .false.
 
     case(5)
 
-       clearing_vector(crops) = 2
-       clearing_vector(pasture) = 0
-       clearing_vector(rangelands) = 2
+       clearing_matrix(:,crops) = .true.
+       clearing_matrix(:,pasture) = .false.
+       clearing_matrix(:,rangelands) = .true.
 
     case(6)
 
-       clearing_vector(crops) = 2
-       clearing_vector(pasture) = 0
-       clearing_vector(rangelands) = 0
+       clearing_matrix(:,crops) = .true.
+       clearing_matrix(:,pasture) = .false.
+       clearing_matrix(:,rangelands) = .false.
 
     case(7)
 
-       clearing_vector(crops) = 0
-       clearing_vector(pasture) = 2
-       clearing_vector(rangelands) = 2
+       clearing_matrix(:,crops) = .false.
+       clearing_matrix(:,pasture) = .true.
+       clearing_matrix(:,rangelands) = .true.
 
     case(8)
 
-       clearing_vector(crops) = 0
-       clearing_vector(pasture) = 2
-       clearing_vector(rangelands) = 0
+       clearing_matrix(:,crops) = .false.
+       clearing_matrix(:,pasture) = .true.
+       clearing_matrix(:,rangelands) = .false.
 
     case(9)
 
-       clearing_vector(crops) = 0
-       clearing_vector(pasture) = 0
-       clearing_vector(rangelands) = 2
+       clearing_matrix(:,crops) = .false.
+       clearing_matrix(:,pasture) = .false.
+       clearing_matrix(:,rangelands) = .true.
 
     case(default)
 
