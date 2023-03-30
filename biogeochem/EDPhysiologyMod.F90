@@ -1769,8 +1769,8 @@ contains
 
     integer  :: pft
     real(r8) :: store_m_to_repro       ! mass sent from storage to reproduction upon death [kg/plant]
-    real(r8) :: site_seed_rain(maxpft) ! This is the sum of seed-rain for the site [kg/site/day]
-    real(r8) :: site_disp_frac(maxpft) ! Fraction of seeds to disperse out to other sites
+    real(r8) :: site_seed_rain(numpft) ! This is the sum of seed-rain for the site [kg/site/day]
+    real(r8) :: site_disp_frac(numpft) ! Fraction of seeds to disperse out to other sites
     real(r8) :: seed_in_external       ! Mass of externally generated seeds [kg/m2/day]
     real(r8) :: seed_stoich            ! Mass ratio of nutrient per C12 in seeds [kg/kg]
     real(r8) :: seed_prod              ! Seed produced in this dynamics step [kg/day]

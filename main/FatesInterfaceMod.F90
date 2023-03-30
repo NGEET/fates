@@ -2049,13 +2049,8 @@ contains
          
       ! Allocate array neighbor type
       numg = size(ldecomp%gdc2glo)
-      ! call get_proc_global(ng=ngcheck,np=numproc)
-      
-      ! write(fates_log(),*)'DGCN: numg, ngcheck: ', numg, ngcheck
-      ! write(fates_log(),*)'DGCN: npes, numproc: ', npes, numproc
       
       allocate(neighbors(numg), stat=ier)
-      ! neighbors(:)%density_prob_tot = nan
       neighbors(:)%neighbor_count = 0
       
       allocate(gclat(numg))
@@ -2068,10 +2063,8 @@ contains
       ncells_array = -999
       begg_array = -999
       
-      write(fates_log(),*)'DGCN: procinfo%ncells: ', procinfo%ncells
-      write(fates_log(),*)'DGCN: procinfo%begg: ', procinfo%begg
-      
       call t_startf('fates-seed-init-allgather')
+
       ! Gather the sizes of the ldomain that each mpi rank is passing
       call MPI_Allgather(procinfo%ncells,1,MPI_INTEGER,ncells_array,1,MPI_INTEGER,mpicom,mpierr)
       
@@ -2079,6 +2072,7 @@ contains
       call MPI_Allgather(procinfo%begg-1,1,MPI_INTEGER,begg_array,1,MPI_INTEGER,mpicom,mpierr)
       
       ! Gather the domain information together into the neighbor type
+      ! Note that MPI_Allgatherv is only gathering a subset of ldomain
       call MPI_Allgatherv(ldomain%latc,procinfo%ncells,MPI_REAL8,gclat,ncells_array,begg_array,MPI_REAL8,mpicom,mpierr)
       call MPI_Allgatherv(ldomain%lonc,procinfo%ncells,MPI_REAL8,gclon,ncells_array,begg_array,MPI_REAL8,mpicom,mpierr)
       
@@ -2086,9 +2080,6 @@ contains
          write(fates_log(),*)'DGCN: ncells_array: ', ncells_array
          write(fates_log(),*)'DGCN: begg_array: ', begg_array
          write(fates_log(),*)'DGCN: sum(gclat):, sum(gclon): ', sum(gclat), sum(gclon)
-         do i = 1,numg
-            write(fates_log(),*)'DGCN: i, gclat, gclon: ', i, gclat(i), gclon(i)
-         end do
       end if
       
       call t_stopf('fates-seed-init-allgather')
@@ -2110,8 +2101,7 @@ contains
                allocate(current_neighbor)
                current_neighbor%next_neighbor => null()
                
-               ! ldomain and ldecomp indices match per initGridCells
-               current_neighbor%gindex = ldecomp%gdc2glo(gj) 
+               current_neighbor%gindex = gj
                
                current_neighbor%gc_dist = g2g_dist
                
@@ -2136,8 +2126,7 @@ contains
                allocate(another_neighbor)
                another_neighbor%next_neighbor => null()
                
-               ! ldomain and ldecomp indices match per initGridCells
-               another_neighbor%gindex = ldecomp%gdc2glo(gi) 
+               another_neighbor%gindex = gi 
                
                another_neighbor%gc_dist = current_neighbor%gc_dist
                allocate(another_neighbor%density_prob(numpft))

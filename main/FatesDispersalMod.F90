@@ -123,8 +123,6 @@ contains
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end select
 
-      write(fates_log(),*) 'ipft,dist,pd: ', ipft, dist, pd
-
    end subroutine ProbabilityDensity
 
    ! ====================================================================================
@@ -141,7 +139,6 @@ contains
       ! for different weight calculations (and could be held only in fates)
       
       PD_exponential = exp(-EDPftvarcon_inst%seed_dispersal_pdf_scale(ipft)*dist)
-      write(fates_log(),*) 'ipft,dist,PD_exp: ', ipft, dist, PD_exponential
 
    end function PD_exponential
 

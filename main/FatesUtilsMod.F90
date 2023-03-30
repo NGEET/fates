@@ -132,7 +132,7 @@ contains
  
   function GetNeighborDistance(gi,gj,latc,lonc) result(gcd)
    
-      integer,  intent(in) :: gi,gj     ! indices of gridcells
+      integer,  intent(in) :: gi,gj           ! indices of gridcells
       real(r8), intent(in) :: latc(:),lonc(:) ! lat/lon of gridcells
       real(r8) :: gcd
     
