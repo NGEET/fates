@@ -599,7 +599,7 @@ s
                          patch_site_areadis = currentPatch%area * disturbance_rate
 
 
-                         if ( patch_site_areadis > nearzero ) then
+                         areadis_gt_zero_if: if ( patch_site_areadis > nearzero ) then
 
                             if(.not.associated(new_patch))then
                                write(fates_log(),*) 'Patch spawning has attempted to point to'
@@ -632,15 +632,21 @@ s
                             ! Transfer in litter fluxes from plants in various contexts of death and destruction
 
                             ! CDK what do we do here for land use transitions?
-                            if(i_disturbance_type .eq. dtype_ilog) then
+
+                            select case(disturbance_type)
+                            case (dtype_ilog)
                                call logging_litter_fluxes(currentSite, currentPatch, &
                                     new_patch, patch_site_areadis,bc_in)
-                            elseif(i_disturbance_type .eq. dtype_ifire) then
+                            case (dtype_ifire)
                                call fire_litter_fluxes(currentSite, currentPatch, &
                                     new_patch, patch_site_areadis,bc_in)
-                            else
+                            case (dtype_ifall)
                                call mortality_litter_fluxes(currentSite, currentPatch, &
                                     new_patch, patch_site_areadis,bc_in)
+                            case (dtype_ilandusechange)
+                               call landusechange_litter_fluxes(currentSite, currentPatch, &
+                                    new_patch, patch_site_areadis,bc_in, &
+                                    clearing_matrix(i_donorpatch_landuse_type,receiver_patch_lu_label))
                             endif
 
 
@@ -694,10 +700,11 @@ s
                                store_c  = currentCohort%prt%GetState(store_organ, carbon12_element)
                                total_c  = sapw_c + struct_c + leaf_c + fnrt_c + store_c
 
-                               ! treefall mortality is the current disturbance
-                               if(i_disturbance_type .eq. dtype_ifall) then
-
-                                  if(currentCohort%canopy_layer == 1)then
+                               disttype_case: select case(disturbance_type)
+                                  ! treefall mortality is the current disturbance
+                               case (dtype_ifall)
+                               
+                                  in_canopy_if: if(currentCohort%canopy_layer == 1)then
 
                                      ! In the donor patch we are left with fewer trees because the area has decreased
                                      ! the plant density for large trees does not actually decrease in the donor patch
@@ -724,7 +731,7 @@ s
 
                                   else
                                      ! small trees
-                                     if( prt_params%woody(currentCohort%pft) == itrue)then
+                                     woody_if: if( prt_params%woody(currentCohort%pft) == itrue)then
 
 
                                         ! Survivorship of undestory woody plants.  Two step process.
@@ -813,11 +820,11 @@ s
                                         nc%lmort_collateral = currentCohort%lmort_collateral
                                         nc%lmort_infra      = currentCohort%lmort_infra
 
-                                     endif
-                                  endif
+                                     endif woody_if
+                                  endif in_canopy_if
 
                                   ! Fire is the current disturbance
-                               elseif (i_disturbance_type .eq. dtype_ifire ) then
+                               case (dtype_ifire)
 
                                   ! Number of members in the new patch, before we impose fire survivorship
                                   nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
@@ -946,10 +953,10 @@ s
 
 
                                   ! Logging is the current disturbance
-                               elseif (i_disturbance_type .eq. dtype_ilog ) then
+                               case (dtype_ilog)
 
                                   ! If this cohort is in the upper canopy. It generated
-                                  if(currentCohort%canopy_layer == 1)then
+                                  in_canopy_if: if(currentCohort%canopy_layer == 1)then
 
                                      ! calculate the survivorship of disturbed trees because non-harvested
                                      nc%n = currentCohort%n * currentCohort%l_degrad
@@ -984,7 +991,7 @@ s
                                      ! What to do with cohorts in the understory of a logging generated
                                      ! disturbance patch?
 
-                                     if(prt_params%woody(currentCohort%pft) == itrue)then
+                                     woody_if: if(prt_params%woody(currentCohort%pft) == itrue)then
 
 
                                         ! Survivorship of undestory woody plants.  Two step process.
@@ -1062,12 +1069,12 @@ s
                                         nc%lmort_collateral = currentCohort%lmort_collateral
                                         nc%lmort_infra      = currentCohort%lmort_infra
 
-                                     endif  ! is/is-not woody
+                                     endif woody_if  ! is/is-not woody
 
-                                  endif  ! Select canopy layer
+                                  endif in_canopy_if  ! Select canopy layer
 
 
-                               elseif (i_disturbance_type .eq. dtype_ilandusechange ) then
+                               case (dtype_ilandusechange)
 
                                   ! Number of members in the new patch, before we impose LUC survivorship
                                   nc%n = currentCohort%n * patch_site_areadis/currentPatch%area
@@ -1083,13 +1090,13 @@ s
 
                                   end if
 
-                               else
+                               case default
                                   write(fates_log(),*) 'unknown disturbance mode?'
                                   write(fates_log(),*) 'i_disturbance_type: ',i_disturbance_type
                                   call endrun(msg=errMsg(sourcefile, __LINE__))
-                               end if   ! Select disturbance mode
+                               end select disttype_case    ! Select disturbance mode
 
-                               if (nc%n > 0.0_r8) then
+                               cohort_n_gt_zero: if (nc%n > 0.0_r8) then
                                   storebigcohort   =>  new_patch%tallest
                                   storesmallcohort =>  new_patch%shortest
                                   if(associated(new_patch%tallest))then
@@ -1122,7 +1129,7 @@ s
                                      write(fates_log(),*) 'dealloc005: fail on deallocate(nc):'//trim(smsg)
                                      call endrun(msg=errMsg(sourcefile, __LINE__))
                                   endif
-                               endif
+                               endif cohort_n_gt_zero
 
                                currentCohort => currentCohort%taller
                             enddo ! currentCohort
@@ -1159,7 +1166,7 @@ s
                             call terminate_cohorts(currentSite, currentPatch, 2,16,bc_in)
                             call sort_cohorts(currentPatch)
 
-                         end if    ! if ( new_patch%area > nearzero ) then
+                         end if areadis_gt_zero_if   ! if ( new_patch%area > nearzero ) then
 
                       end if patchlabel_matches_lutype_if
 
