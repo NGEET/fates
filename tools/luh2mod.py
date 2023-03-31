@@ -129,32 +129,32 @@ def DimensionFixSurfData(surfdataset):
 def SetMask(inputdataset):
 
     # check what sort of inputdata is being provided; surface dataset or luh2
-    # make mask of LUH2 data "primf_to_range"
-    try:
-        dsflag = CheckDataSet(inputdataset)
-        if(dsflag == "LUH2"):
-            SetMaskLUH2(inputdataset,'primf_to_range') # temporary test
-        elif(dsflag == "Surface"):
+    # LUH2 data will need to be masked based on the variable input to mask
+    dsflag,dstype = CheckDataSet(inputdataset)
+    if (dsflag):
+        if(dstype == "LUH2"):
+            SetMaskLUH2(inputdataset,'primf') # temporary test
+        elif(dstype == "Surface"):
             SetMaskSurfData(inputdataset)
-        else:
-            raise
         print("mask added")
-    except:
-        print("nope")
 
 # Check which dataset we're working with
 def CheckDataSet(inputdataset):
 
-    try:
-        if(inputdataset.source.find("LUH2") != -1):
-            dsflag = 'LUH2'
-        elif(inpudataset.Version.find("mksurf") != -1):
-            dsflag = 'Surface'
-        else:
-            raise
-        return(dsflag)
-    except:
-        print("Unrecognized dataset provided")
+    dsflag = False
+    if('primf' in list(inputdataset.variables)):
+        dstype = 'LUH2'
+        dsflag = True
+        print("LUH2")
+    elif('natpft' in list(inputdataset.variables)):
+        dstype = 'Surface'
+        dsflag = True
+        print("Surface")
+    else:
+        dstype = 'Unknown'
+        print("Unrecognize data set")
+
+    return(dsflag,dstype)
 
 # LUH2 specific masking sub-function
 def SetMaskLUH2(inputdataset,label_to_mask):
@@ -165,7 +165,7 @@ def SetMaskLUH2(inputdataset,label_to_mask):
 # Surface dataset specific masking sub-function
 def SetMaskSurfData(inputdataset):
     # Instead of passing the label_to_mask, loop through this for all labels?
-    inputdataset["mask"] = inputdatatset["PCT_NATVEG"]> 0
+    inputdataset["mask"] = inputdataset["PCT_NATVEG"]> 0
     # return(outputdataset)
 
 def RegridConservative(dataset_from,dataset_to):
