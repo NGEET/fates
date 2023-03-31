@@ -32,6 +32,8 @@ module FATESPlantRespPhotosynthMod
   use FatesConstantsMod, only : fates_unset_r8
   use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
   use FatesConstantsMod, only : nocomp_bareground
+  use FatesConstantsMod, only : photosynth_acclim_model_none
+  use FatesConstantsMod, only : photosynth_acclim_model_kumarathunge_etal_2019
   use FatesInterfaceTypesMod, only : hlm_use_planthydro
   use FatesInterfaceTypesMod, only : hlm_parteh_mode
   use FatesInterfaceTypesMod, only : numpft
@@ -55,10 +57,14 @@ module FATESPlantRespPhotosynthMod
   use PRTGenericMod,     only : store_organ
   use PRTGenericMod,     only : repro_organ
   use PRTGenericMod,     only : struct_organ
-  use EDParamsMod,       only : maintresp_nonleaf_baserate, stomatal_model, stomatal_assim_model
+  use EDParamsMod,       only : maintresp_nonleaf_baserate
+  use EDParamsMod,       only : stomatal_model
+  use EDParamsMod,       only : stomatal_assim_model
+  use EDParamsMod,       only : photo_tempsens_model
   use PRTParametersMod,  only : prt_params
-  use EDPftvarcon         , only : EDPftvarcon_inst
-  
+  use EDPftvarcon      , only : EDPftvarcon_inst
+  use TemperatureType,   only : temperature_type
+   
   ! CIME Globals
   use shr_log_mod , only      : errMsg => shr_log_errMsg
 
@@ -570,6 +576,8 @@ contains
                                     currentCohort%kp25top,              &  ! in
                                     nscaler,                            &  ! in
                                     bc_in(s)%t_veg_pa(ifp),             &  ! in
+                                    currentPatch%tveg_lpa%GetMean(),    &  ! in
+                                    currentPatch%tveg_longterm%GetMean(),&  ! in
                                     btran_eff,                          &  ! in
                                     vcmax_z,                            &  ! out
                                     jmax_z,                             &  ! out
@@ -2186,6 +2194,8 @@ subroutine LeafLayerBiophysicalRates( parsun_lsl, &
    co2_rcurve_islope25top_ft, &
    nscaler,    &
    veg_tempk,      &
+   t_growth,   &
+   t_home,     &
    btran, &
    vcmax, &
    jmax, &
@@ -2219,6 +2229,8 @@ subroutine LeafLayerBiophysicalRates( parsun_lsl, &
    real(r8), intent(in) :: co2_rcurve_islope25top_ft ! initial slope of CO2 response curve
                                              ! (C4 plants) at 25C, canopy top, this pft
    real(r8), intent(in) :: veg_tempk           ! vegetation temperature
+   real(r8), intent(in) :: t_growth            ! T_growth (short-term running mean temperature) (K)
+   real(r8), intent(in) :: t_home              ! T_home (long-term running mean temperature) (K)
    real(r8), intent(in) :: btran           ! transpiration wetness factor (0 to 1)
 
    real(r8), intent(out) :: vcmax             ! maximum rate of carboxylation (umol co2/m**2/s)
@@ -2244,17 +2256,34 @@ subroutine LeafLayerBiophysicalRates( parsun_lsl, &
    real(r8) :: jmaxhd         ! deactivation energy for jmax (J/mol)
    real(r8) :: vcmaxse        ! entropy term for vcmax (J/mol/K)
    real(r8) :: jmaxse         ! entropy term for jmax (J/mol/K)
+   real(r8) :: t_growth_celsius ! average growing temperature
+   real(r8) :: t_home_celsius   ! average home temperature
+   real(r8) :: jvr            ! ratio of Jmax25 / Vcmax25
    real(r8) :: vcmaxc         ! scaling factor for high temperature inhibition (25 C = 1.0)
    real(r8) :: jmaxc          ! scaling factor for high temperature inhibition (25 C = 1.0)
 
-   vcmaxha = EDPftvarcon_inst%vcmaxha(FT)
-   jmaxha  = EDPftvarcon_inst%jmaxha(FT)
-
-   vcmaxhd = EDPftvarcon_inst%vcmaxhd(FT)
-   jmaxhd  = EDPftvarcon_inst%jmaxhd(FT)
-
-   vcmaxse = EDPftvarcon_inst%vcmaxse(FT)
-   jmaxse  = EDPftvarcon_inst%jmaxse(FT)
+   select case(photo_tempsens_model)
+   case (photosynth_acclim_model_none) !No temperature acclimation
+      vcmaxha = EDPftvarcon_inst%vcmaxha(FT)
+      jmaxha  = EDPftvarcon_inst%jmaxha(FT)
+      vcmaxhd = EDPftvarcon_inst%vcmaxhd(FT)
+      jmaxhd  = EDPftvarcon_inst%jmaxhd(FT)
+      vcmaxse = EDPftvarcon_inst%vcmaxse(FT)
+      jmaxse  = EDPftvarcon_inst%jmaxse(FT)
+   case (photosynth_acclim_model_kumarathunge_etal_2019) !Kumarathunge et al. temperature acclimation, Thome=30-year running mean
+      t_growth_celsius = t_growth-tfrz
+      t_home_celsius = t_home-tfrz
+      vcmaxha = (42.6_r8 + (1.14_r8*t_growth_celsius))*1e3_r8 !J/mol
+      jmaxha = 40.71_r8*1e3_r8 !J/mol
+      vcmaxhd = 200._r8*1e3_r8 !J/mol
+      jmaxhd = 200._r8*1e3_r8 !J/mol
+      vcmaxse = (645.13_r8 - (0.38_r8*t_growth_celsius))
+      jmaxse = 658.77_r8 - (0.84_r8*t_home_celsius) - 0.52_r8*(t_growth_celsius-t_home_celsius)
+      jvr = 2.56_r8 - (0.0375_r8*t_home_celsius)-(0.0202_r8*(t_growth_celsius-t_home_celsius))
+   case default
+      write (fates_log(),*)'error, incorrect leaf photosynthesis temperature acclimation model specified'
+      call endrun(msg=errMsg(sourcefile, __LINE__))
+   end select
 
    vcmaxc = fth25_f(vcmaxhd, vcmaxse)
    jmaxc  = fth25_f(jmaxhd, jmaxse)
@@ -2267,7 +2296,16 @@ subroutine LeafLayerBiophysicalRates( parsun_lsl, &
 
       ! Vcmax25top was already calculated to derive the nscaler function
       vcmax25 = vcmax25top_ft * nscaler
-      jmax25  = jmax25top_ft * nscaler
+      select case(photo_tempsens_model)
+      case (photosynth_acclim_model_none)
+         jmax25  = jmax25top_ft * nscaler
+      case (photosynth_acclim_model_kumarathunge_etal_2019) 
+         jmax25 = vcmax25*jvr
+      case default
+         write (fates_log(),*)'error, incorrect leaf photosynthesis temperature acclimation model specified'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end select
+
       co2_rcurve_islope25 = co2_rcurve_islope25top_ft * nscaler
 
       ! Adjust for temperature
@@ -2287,6 +2325,7 @@ subroutine LeafLayerBiophysicalRates( parsun_lsl, &
    vcmax = vcmax * btran
 
    return
+
  end subroutine LeafLayerBiophysicalRates
 
 subroutine lowstorage_maintresp_reduction(frac, pft, maintresp_reduction_factor)

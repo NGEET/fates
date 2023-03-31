@@ -191,6 +191,7 @@ contains
       return
    end subroutine IsItLoggingTime
 
+
    ! ======================================================================================
 
    subroutine LoggingMortality_frac( pft_i, dbh, canopy_layer, lmort_direct, &
@@ -343,6 +344,7 @@ contains
 
    end subroutine LoggingMortality_frac
 
+
    ! ============================================================================
 
    subroutine get_harvest_rate_area (patch_anthro_disturbance_label, hlm_harvest_catnames, hlm_harvest_rates, &
@@ -421,12 +423,13 @@ contains
         harvest_rate = harvest_rate / hlm_days_per_year
      else if(icode .eq. 4) then
         ! logging event once a month
-        if(hlm_current_day.eq.1  ) then
+        if(hlm_current_day.eq.1) then
            harvest_rate = harvest_rate / months_per_year
         end if
      end if
 
    end subroutine get_harvest_rate_area
+
 
    ! ============================================================================
 
@@ -710,12 +713,13 @@ contains
 
 
       !USES:
-      use SFParamsMod,  only : SF_val_cwd_frac
-      use EDtypesMod,   only : area
-      use EDtypesMod,   only : ed_site_type
-      use EDtypesMod,   only : ed_patch_type
-      use EDtypesMod,   only : ed_cohort_type
-      use FatesAllometryMod , only : carea_allom
+      use SFParamsMod,       only : SF_val_cwd_frac
+      use EDtypesMod,        only : area
+      use EDtypesMod,        only : ed_site_type
+      use EDtypesMod,        only : ed_patch_type
+      use EDtypesMod,        only : ed_cohort_type
+      use FatesConstantsMod, only : rsnbl_math_prec
+      use FatesAllometryMod, only : carea_allom
 
 
       ! !ARGUMENTS:
@@ -733,34 +737,35 @@ contains
       type(litter_type),pointer          :: new_litt
       type(litter_type),pointer          :: cur_litt
 
-      real(r8) :: direct_dead         ! Mortality count through direct logging
-      real(r8) :: indirect_dead       ! Mortality count through: impacts, infrastructure and collateral damage
-      real(r8) :: trunk_product_site  ! flux of carbon in trunk products exported off site      [ kgC/site ] 
-                                      ! (note we are accumulating over the patch, but scale is site level)
-      real(r8) :: delta_litter_stock  ! flux of carbon in total litter flux                     [ kgC/site ]
-      real(r8) :: delta_biomass_stock ! total flux of carbon through mortality (litter+product) [ kgC/site ]
-      real(r8) :: delta_individual    ! change in plant number through mortality [ plants/site ]
-      real(r8) :: leaf_litter         ! Leafy biomass transferred through mortality [kgC/site]
-      real(r8) :: root_litter         ! Rooty + storage biomass transferred through mort [kgC/site]
-      real(r8) :: ag_wood             ! above ground wood mass [kg]
-      real(r8) :: bg_wood             ! below ground wood mass [kg]
-      real(r8) :: remainder_area      ! current patch's remaining area after donation [m2]
-      real(r8) :: leaf_m              ! leaf element mass [kg]
-      real(r8) :: fnrt_m              ! fineroot element mass [kg]
-      real(r8) :: sapw_m              ! sapwood element mass [kg]
-      real(r8) :: store_m             ! storage element mass [kg]
-      real(r8) :: struct_m            ! structure element mass [kg]
-      real(r8) :: repro_m             ! reproductive mass [kg]
-      real(r8) :: retain_frac         ! fraction of litter retained in the donor patch
-      real(r8) :: donate_frac         ! fraction of litter sent to newly formed patch
-      real(r8) :: dcmpy_frac          ! fraction going into each decomposability pool
-      integer  :: dcmpy               ! index for decomposability pools
-      integer  :: element_id          ! parteh global element index
-      integer  :: pft                 ! pft index
-      integer  :: c                   ! cwd index
-      integer  :: nlevsoil            ! number of soil layers
-      integer  :: ilyr                ! soil layer loop index
-      integer  :: el                  ! elemend loop index
+      real(r8) :: direct_dead            ! Mortality count through direct logging
+      real(r8) :: indirect_dead          ! Mortality count through: impacts, infrastructure and collateral damage
+      real(r8) :: trunk_product_site     ! flux of carbon in trunk products exported off site      [ kgC/site ] 
+                                         ! (note we are accumulating over the patch, but scale is site level)
+      real(r8) :: delta_litter_stock     ! flux of carbon in total litter flux                     [ kgC/site ]
+      real(r8) :: delta_biomass_stock    ! total flux of carbon through mortality (litter+product) [ kgC/site ]
+      real(r8) :: delta_individual       ! change in plant number through mortality [ plants/site ]
+      real(r8) :: leaf_litter            ! Leafy biomass transferred through mortality [kgC/site]
+      real(r8) :: root_litter            ! Rooty + storage biomass transferred through mort [kgC/site]
+      real(r8) :: ag_wood                ! above ground wood mass [kg]
+      real(r8) :: bg_wood                ! below ground wood mass [kg]
+      real(r8) :: remainder_area         ! current patch's remaining area after donation [m2]
+      real(r8) :: leaf_m                 ! leaf element mass [kg]
+      real(r8) :: fnrt_m                 ! fineroot element mass [kg]
+      real(r8) :: sapw_m                 ! sapwood element mass [kg]
+      real(r8) :: store_m                ! storage element mass [kg]
+      real(r8) :: struct_m               ! structure element mass [kg]
+      real(r8) :: repro_m                ! reproductive mass [kg]
+      real(r8) :: retain_frac            ! fraction of litter retained in the donor patch
+      real(r8) :: retain_m2              ! area normalization for litter mass destined to old patch [m-2]
+      real(r8) :: donate_m2              ! area normalization for litter mass destined to new patch [m-2]
+      real(r8) :: dcmpy_frac             ! fraction going into each decomposability pool
+      integer  :: dcmpy                  ! index for decomposability pools
+      integer  :: element_id             ! parteh global element index
+      integer  :: pft                    ! pft index
+      integer  :: c                      ! cwd index
+      integer  :: nlevsoil               ! number of soil layers
+      integer  :: ilyr                   ! soil layer loop index
+      integer  :: el                     ! elemend loop index
       
 
       nlevsoil = currentSite%nlevsoil
@@ -769,17 +774,22 @@ contains
       ! mass sent to that patch, by the area it will have remaining
       ! after it donates area.
       ! i.e. subtract the area it is donating.
-      
       remainder_area = currentPatch%area - patch_site_areadis
-
 
       ! Calculate the fraction of litter to be retained versus donated
       ! vis-a-vis the new and donor patch
-      
       retain_frac = (1.0_r8-harvest_litter_localization) * &
             remainder_area/(newPatch%area+remainder_area)
-      donate_frac = 1.0_r8-retain_frac
 
+      if(remainder_area > rsnbl_math_prec) then
+         retain_m2 = retain_frac/remainder_area
+         donate_m2 = (1.0_r8-retain_frac)/newPatch%area
+      else
+         retain_m2 = 0._r8
+         donate_m2 = 1._r8/newPatch%area
+      end if
+  
+  
       do el = 1,num_elements
          
          element_id = element_list(el)
@@ -788,12 +798,12 @@ contains
          cur_litt  => currentPatch%litter(el)   ! Litter pool of "current" patch
          new_litt  => newPatch%litter(el)       ! Litter pool of "new" patch
          
-
          ! Zero some site level accumulator diagnsotics
          trunk_product_site  = 0.0_r8
          delta_litter_stock  = 0.0_r8
          delta_biomass_stock = 0.0_r8
          delta_individual    = 0.0_r8
+
 
          ! -----------------------------------------------------------------------------
          ! Part 1: Send parts of dying plants to the litter pool.
@@ -864,19 +874,19 @@ contains
             do c = 1,ncwd-1
                
                new_litt%ag_cwd(c)     = new_litt%ag_cwd(c) + &
-                     ag_wood * SF_val_CWD_frac(c) * donate_frac/newPatch%area
+                     ag_wood * SF_val_CWD_frac(c) * donate_m2
                cur_litt%ag_cwd(c)     = cur_litt%ag_cwd(c) + &
-                     ag_wood * SF_val_CWD_frac(c) * retain_frac/remainder_area
+                     ag_wood * SF_val_CWD_frac(c) * retain_m2
 
                do ilyr = 1,nlevsoil
                   
                   new_litt%bg_cwd(c,ilyr) = new_litt%bg_cwd(c,ilyr) + &
                         bg_wood * currentSite%rootfrac_scr(ilyr) * &
-                        SF_val_CWD_frac(c) * donate_frac/newPatch%area
+                        SF_val_CWD_frac(c) * donate_m2
                   
                   cur_litt%bg_cwd(c,ilyr) = cur_litt%bg_cwd(c,ilyr) + &
                         bg_wood * currentSite%rootfrac_scr(ilyr) * &
-                        SF_val_CWD_frac(c) * retain_frac/remainder_area
+                        SF_val_CWD_frac(c) * retain_m2
                end do
 
                
@@ -905,20 +915,20 @@ contains
                   (1._r8 - prt_params%allom_agb_frac(currentCohort%pft))
 
             new_litt%ag_cwd(ncwd) = new_litt%ag_cwd(ncwd) + ag_wood * &
-                  SF_val_CWD_frac(ncwd) * donate_frac/newPatch%area
+                  SF_val_CWD_frac(ncwd) * donate_m2
 
             cur_litt%ag_cwd(ncwd) = cur_litt%ag_cwd(ncwd) + ag_wood * &
-                  SF_val_CWD_frac(ncwd) * retain_frac/remainder_area
+                  SF_val_CWD_frac(ncwd) * retain_m2
             
             do ilyr = 1,nlevsoil
                
                new_litt%bg_cwd(ncwd,ilyr) = new_litt%bg_cwd(ncwd,ilyr) + &
                      bg_wood * currentSite%rootfrac_scr(ilyr) * &
-                     SF_val_CWD_frac(ncwd) * donate_frac/newPatch%area
+                     SF_val_CWD_frac(ncwd) * donate_m2
                
                cur_litt%bg_cwd(ncwd,ilyr) = cur_litt%bg_cwd(ncwd,ilyr) + &
                      bg_wood * currentSite%rootfrac_scr(ilyr) * &
-                     SF_val_CWD_frac(ncwd) * retain_frac/remainder_area
+                     SF_val_CWD_frac(ncwd) * retain_m2
 
             end do
 
@@ -943,11 +953,11 @@ contains
             do ilyr = 1,nlevsoil
                 new_litt%bg_cwd(ncwd,ilyr) = new_litt%bg_cwd(ncwd,ilyr) + &
                       bg_wood * currentSite%rootfrac_scr(ilyr) * &
-                      donate_frac/newPatch%area
+                      donate_m2
                 
                 cur_litt%bg_cwd(ncwd,ilyr) = cur_litt%bg_cwd(ncwd,ilyr) + &
                       bg_wood * currentSite%rootfrac_scr(ilyr) * &
-                      retain_frac/remainder_area
+                      retain_m2
             end do
             
             flux_diags%cwd_bg_input(ncwd) = flux_diags%cwd_bg_input(ncwd) + &
@@ -974,10 +984,10 @@ contains
                   ag_wood * logging_export_frac
 
             new_litt%ag_cwd(ncwd) = new_litt%ag_cwd(ncwd) + ag_wood * &
-                  (1._r8-logging_export_frac)*donate_frac/newPatch%area
+                  (1._r8-logging_export_frac)*donate_m2
             
             cur_litt%ag_cwd(ncwd) = cur_litt%ag_cwd(ncwd) + ag_wood * &
-                  (1._r8-logging_export_frac)*retain_frac/remainder_area
+                  (1._r8-logging_export_frac)*retain_m2
 
             ! ---------------------------------------------------------------------------
             ! Handle fluxes of leaf, root and storage carbon into litter pools. 
@@ -993,20 +1003,20 @@ contains
                dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
 
                new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + &
-                    leaf_litter * donate_frac/newPatch%area * dcmpy_frac
+                    leaf_litter * donate_m2 * dcmpy_frac
                
                cur_litt%leaf_fines(dcmpy) = cur_litt%leaf_fines(dcmpy) + &
-                    leaf_litter * retain_frac/remainder_area * dcmpy_frac
+                    leaf_litter * retain_m2 * dcmpy_frac
 
                dcmpy_frac = GetDecompyFrac(pft,fnrt_organ,dcmpy)
                do ilyr = 1,nlevsoil
                   new_litt%root_fines(dcmpy,ilyr) = new_litt%root_fines(dcmpy,ilyr) + &
                        root_litter * currentSite%rootfrac_scr(ilyr) * dcmpy_frac * &
-                       donate_frac/newPatch%area
+                       donate_m2
                   
                   cur_litt%root_fines(dcmpy,ilyr) = cur_litt%root_fines(dcmpy,ilyr) + &
                        root_litter * currentSite%rootfrac_scr(ilyr) * dcmpy_frac * &
-                       retain_frac/remainder_area
+                       retain_m2
                end do
             end do
                
@@ -1077,6 +1087,7 @@ contains
       
       return
    end subroutine logging_litter_fluxes
+
 
   ! =====================================================================================
 
