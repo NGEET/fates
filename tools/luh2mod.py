@@ -9,8 +9,32 @@ from nco.custom import Atted
 
 # Add version checking here in case environment.yml not used
 
-# Import luh2 data
-def importdata(inputfile):
+
+
+# Primary function to regrid luh2 data
+#
+# Prepare the
+def PrepDataSet(inputfile_luh2,inputfile_surface):
+
+    # Import the data
+    ds_luh2 = ImportData(inputfile_luh2)
+    ds_surfdata = ImportData(inputfile_surface)
+
+    # Correct the necessary variables for both datasets
+    ds_luh2 = BoundsVariableFixLUH2(ds_luh2)
+    ds_surfdata = DimensionFixSurfData(ds_surfdata)
+
+    # Set dataset masks
+    ds_luh2 = SetMask(ds_luh2)
+    ds_surfdata = SetMask(ds_surfdata)
+
+    # Define the xESMF regridder if necessary
+    regridder = RegridConservative(ds_luh2,ds_surfdata)
+
+    return(ds_luh2,ds_surfdata,regridder)
+
+# Import luh2 or surface data sets
+def ImportData(inputfile):
 
     # Open files
     # Check to see if a ValueError is raised which is likely due
@@ -32,7 +56,7 @@ def importdata(inputfile):
 # This issue here is that the luh2 time units start prior to
 # year 1672, which cftime should be able to handle, but it
 # appears to need a specific unit name convention "common_years"
-def attribupdate(inputfile,output_append="modified"):
+def AttribUpdateLUH2(inputfile,output_append="modified"):
 
     # Define the output filename
     index = inputfile.find(".nc")
@@ -69,26 +93,27 @@ def attribupdate(inputfile,output_append="modified"):
     #           ),
     # ])
 
-# Fix the boundaries of the LUH2 data
+# Create the necessary variable "lat_b" and "lon_b" for xESMF conservative regridding
 # Each lat/lon boundary array is a 2D array corresponding to the bounds of each
 # coordinate position (e.g. lat_boundary would be 90.0 and 89.75 for lat coordinate
 # of 89.875).
-def BoundsFixLUH2(inputdataset):
+def BoundsVariableFixLUH2(inputdataset):
 
-    # Create lat and lon bounds as a single dimension array out of the LUH2 two dimensional
-    # _bounds array.
-    # xESMF needs these variable names for bounding the conservative regridding
+    # Drop the old boundary names to avoid confusion
     outputdataset = inputdataset.drop(labels=['lat_bounds','lon_bounds'])
+
+    # Create lat and lon bounds as a single dimension array out of the LUH2 two dimensional_bounds array.
+    # Future todo: is it possible to have xESMF recognize and use the original 2D array?
     outputdataset["lat_b"] = np.insert(inputdataset.lat_bounds[:,1].data,0,inputdataset.lat_bounds[0,0].data)
     outputdataset["lon_b"] = np.insert(inputdataset.lon_bounds[:,1].data,0,inputdataset.lon_bounds[0,0].data)
-    print("LUH2 dataset bounds fixed")
+
+    print("LUH2 dataset lat/lon boundary variables formatted and added as new variable for xESMF")
 
     return(outputdataset)
 
-def DimensionFixSurfData(inputfile):
-
-    # Move this out to be handled by opening function
-    surfdataset = xr.open_dataset(inputfile)
+# The user will need to use a surface data set to regrid from, but the surface datasets
+# need to have their dimensions renamed to something recognizable by xESMF
+def DimensionFixSurfData(surfdataset):
 
     # Rename the surface dataset dimensions to something recognizable by xESMF.
     outputdataset = surfdataset.rename_dims(dims_dict={'lsmlat':'latitude','lsmlon':'longitude'})
@@ -97,59 +122,66 @@ def DimensionFixSurfData(inputfile):
     outputdataset['longitude'] = outputdataset.LONGXY.isel(latitude=0)
     outputdataset['latitude'] = outputdataset.LATIXY.isel(longitude=0)
 
-    print("Surface dataset regrid target loaded: {}".format(inputfile))
+    print("Surface dataset dimensions renamed for xESMF")
 
-    return(outputdataset, surfdataset)
+    return(outputdataset)
 
-def setmask(inputdataset,label_to_mask):
-
-    # note that the label will depend on the type of input file
+def SetMask(inputdataset):
 
     # check what sort of inputdata is being provided; surface dataset or luh2
     # make mask of LUH2 data "primf_to_range"
-    if(inputdataset.source.find("LUH2") != -1):
-        # Add check of variables to use as mask
-        inputdataset["mask"] = xr.where(~np.isnan(inputdataset[label_to_mask].isel(time=0)), 1, 0)
-    elif(inpudataset.source.version.find("mksurf") != -1):
-        inputdataset["mask"] = inputdatatset["PCT_NATVEG"]> 0
-    else:
-        print("Incorrect dataset provided")
-        inputdataset["mask"] = None
+    try:
+        dsflag = CheckDataSet(inputdataset)
+        if(dsflag == "LUH2"):
+            SetMaskLUH2(inputdataset,'primf_to_range') # temporary test
+        elif(dsflag == "Surface"):
+            SetMaskSurfData(inputdataset)
+        else:
+            raise
+        print("mask added")
+    except:
+        print("nope")
 
-    return(inputdataset)
+# Check which dataset we're working with
+def CheckDataSet(inputdataset):
+
+    try:
+        if(inputdataset.source.find("LUH2") != -1):
+            dsflag = 'LUH2'
+        elif(inpudataset.Version.find("mksurf") != -1):
+            dsflag = 'Surface'
+        else:
+            raise
+        return(dsflag)
+    except:
+        print("Unrecognized dataset provided")
+
+# LUH2 specific masking sub-function
+def SetMaskLUH2(inputdataset,label_to_mask):
+    # Instead of passing the label_to_mask, loop through this for all labels?
+    inputdataset["mask"] = xr.where(~np.isnan(inputdataset[label_to_mask].isel(time=0)), 1, 0)
+    # return(outputdataset)
+
+# Surface dataset specific masking sub-function
+def SetMaskSurfData(inputdataset):
+    # Instead of passing the label_to_mask, loop through this for all labels?
+    inputdataset["mask"] = inputdatatset["PCT_NATVEG"]> 0
+    # return(outputdataset)
 
 def RegridConservative(dataset_from,dataset_to):
     # define the regridder transformation
     regridder = xe.Regridder(dataset_from, dataset_to, "conservative")
 
-    regrid_states = regridder(finb_states)
-    regrid_management= regridder(finb_management)
-    regrid_transitions= regridder(finb_management)
+    return(regridder)
+
+
+    # Apply regridder
+    # regrid_states = regridder(finb_states)
+    # regrid_management= regridder(finb_management)
+    # regrid_transitions= regridder(finb_management)
 
     ### memory crashes on the transition data
     #fin_transitions_regrid = regridder(finb)
-    #
-# Make necessary (?) changes to metadata for XESMF conservative regrid
-# Any LUH2 data set should work as the input dataset, but
-# we should have some sort of check to make sure that the
-# data sets being used are consistent in the final calling script
-#def MetadataUpdateLUH2(inputdataset):
-
-    # if this is LUH2 data
-    # Drop the invalid lat, lon variable labels and replace with "lat_b" and "lon_b"
-    # This is only necessary for the conservative method (?) per xESMF docs
-
-    # Is dropping these variables really necessary?  Will xESMF get confused or is this
-    # for the users's sake?
-    # outputdatatset = inputdataset.drop(labels=['lat_bounds','lon_bounds'])
-
-    # outputdatatset["lat_b"] = np.insert(inputdataset.lat_bounds[:,1].data,0,inputdataset.lat_bounds[0,0].data)
-    # outputdatatset["lon_b"] = np.insert(inputdataset.lon_bounds[:,1].data,0,inputdataset.lon_bounds[0,0].data)
-    # outputdatatset["time"] = np.arange(len(fin["time"]), dtype=np.int16) + 850
-    # outputdatatset["YEAR"] = xr.DataArray(np.arange(len(fin["time"]), dtype=np.int16) + 850, dims=("time"))
-
-# Update the formatting to meet HLM needs
-# def clmformatter():
 
 # General functionality needed
 # - collect data for specific user-defined time period

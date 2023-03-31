@@ -16,21 +16,21 @@ mod_file_management = "/home/glemieux/Data/luh2/management_modified.nc"
 mod_file_transitions = "/home/glemieux/Data/luh2/transitions_modified.nc"
 
 # Open modified files
-ds_states = luh2.importdata(mod_file_states)
-ds_management = luh2.importdata(mod_file_management)
-ds_transitions = luh2.importdata(mod_file_transitions)
+ds_states = luh2.ImportData(mod_file_states)
+# ds_management = luh2.importdata(mod_file_management)
+# ds_transitions = luh2.importdata(mod_file_transitions)
 
-# Fix the bounds
-ds_states = luh2.BoundsFixLUH2(ds_states)
-ds_management= luh2.BoundsFixLUH2(ds_management)
-ds_transitions = luh2.BoundsFixLUH2(ds_transitions)
+# Fix the bounds of the LUH2 variable for xESMF
+ds_states = luh2.BoundsVariableFixLUH2(ds_states)
+# ds_management= luh2.BoundsFixLUH2(ds_management)
+# ds_transitions = luh2.BoundsFixLUH2(ds_transitions)
 
 # Grab surface data set to use as regrid "target"
 # Import the surface dataset
 file_surfdata = "/home/glemieux/Data/luh2/surfdata_4x5_16pfts_Irrig_CMIP6_simyr2000_c170824.nc"
-
+ds_surfdata = luh2.ImportData(file_surfdata)
 # modify the surface data set to enable xesmf regridder to find necessary data
-ds_surfdata = luh2.DimensionFixSurfData(file_surfdata)
+ = luh2.DimensionFixSurfData(file_surfdata)
 
 print("done")
 
