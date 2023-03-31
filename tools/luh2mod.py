@@ -29,9 +29,10 @@ def PrepDataSet(inputfile_luh2,inputfile_surface):
     ds_surfdata = SetMask(ds_surfdata)
 
     # Define the xESMF regridder if necessary
-    regridder = RegridConservative(ds_luh2,ds_surfdata)
+    # regridder = RegridConservative(ds_luh2,ds_surfdata)
 
-    return(ds_luh2,ds_surfdata,regridder)
+    # return(ds_luh2,ds_surfdata,regridder)
+    return(ds_luh2,ds_surfdata)
 
 # Import luh2 or surface data sets
 def ImportData(inputfile):
@@ -133,10 +134,12 @@ def SetMask(inputdataset):
     dsflag,dstype = CheckDataSet(inputdataset)
     if (dsflag):
         if(dstype == "LUH2"):
-            SetMaskLUH2(inputdataset,'primf') # temporary test
+            SetMaskLUH2(inputdataset,'primf') # temporary
         elif(dstype == "Surface"):
             SetMaskSurfData(inputdataset)
         print("mask added")
+
+    return(inputdataset)
 
 # Check which dataset we're working with
 def CheckDataSet(inputdataset):
@@ -161,12 +164,14 @@ def SetMaskLUH2(inputdataset,label_to_mask):
     # Instead of passing the label_to_mask, loop through this for all labels?
     inputdataset["mask"] = xr.where(~np.isnan(inputdataset[label_to_mask].isel(time=0)), 1, 0)
     # return(outputdataset)
+    return(inputdataset)
 
 # Surface dataset specific masking sub-function
 def SetMaskSurfData(inputdataset):
     # Instead of passing the label_to_mask, loop through this for all labels?
     inputdataset["mask"] = inputdataset["PCT_NATVEG"]> 0
     # return(outputdataset)
+    return(inputdataset)
 
 def RegridConservative(dataset_from,dataset_to):
     # define the regridder transformation
