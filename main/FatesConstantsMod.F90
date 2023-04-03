@@ -35,6 +35,13 @@ module FatesConstantsMod
   integer, parameter, public :: primaryforest = 1
   integer, parameter, public :: secondaryforest = 2
 
+
+  integer, parameter, public :: leaves_on  = 2  ! Flag specifying that a deciduous plant has leaves
+                                                ! and should be allocating to them as well
+  integer, parameter, public :: leaves_off = 1  ! Flag specifying that a deciduous plant has dropped
+                                                ! its leaves and should not be trying to allocate
+                                                ! towards any growth.
+
   ! Bareground label for no competition mode
   integer, parameter, public :: nocomp_bareground = 0
 

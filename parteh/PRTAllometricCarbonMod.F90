@@ -48,11 +48,8 @@ module PRTAllometricCarbonMod
   use FatesConstantsMod   , only : nearzero
   use FatesConstantsMod   , only : itrue
   use FatesConstantsMod   , only : years_per_day
-
   use PRTParametersMod    , only : prt_params
-
-  use EDTypesMod          , only : leaves_on
-  use EDTypesMod          , only : leaves_off
+  use FatesConstantsMod   , only : leaves_on, leaves_off
 
   implicit none
   private

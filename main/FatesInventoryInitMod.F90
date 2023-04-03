@@ -65,6 +65,7 @@ module FatesInventoryInitMod
    use FatesRunningMeanMod, only : ema_lpa
    use PRTGenericMod,       only : StorageNutrientTarget
    use FatesConstantsMod,   only : fates_unset_int
+   use EDCanopyStructureMod, only : canopy_summarization, canopy_structure
 
    implicit none
    private
@@ -94,7 +95,7 @@ module FatesInventoryInitMod
                                                            ! defined in model memory and a physical
                                                            ! site listed in the file
 
-   logical, parameter :: do_inventory_out = .false.
+   logical, parameter :: do_inventory_out = .true.
 
 
    public :: initialize_sites_by_inventory
@@ -141,6 +142,7 @@ contains
       real(r8)                                     :: area_init            ! dummy value for creating a patch
       integer                                      :: s                    ! site index
       integer                                      :: ipa                  ! patch index
+      integer                                      :: iv, ft, ic
       integer                                      :: total_cohorts        ! cohort counter for error checking
       integer,                         allocatable :: inv_format_list(:)   ! list of format specs
       character(len=path_strlen),      allocatable :: inv_css_list(:)      ! list of css file names
@@ -518,6 +520,7 @@ contains
 
          ! Report Basal Area (as a check on if things were read in)
          ! ----------------------------------------------------------------------------------------
+         !call canopy_structure(sites(s),bc_in(s))
          basal_area_postf = 0.0_r8
          currentpatch => sites(s)%youngest_patch
          do while(associated(currentpatch))
@@ -527,8 +530,11 @@ contains
                      currentcohort%n*0.25*((currentcohort%dbh/100.0_r8)**2.0_r8)*pi_const
                currentcohort => currentcohort%shorter
             end do
+            
             currentPatch => currentpatch%older
          enddo
+
+
 
          write(fates_log(),*) '-------------------------------------------------------'
          write(fates_log(),*) 'Basal Area from inventory, AFTER fusion'
@@ -538,11 +544,14 @@ contains
 
          ! If this is flagged as true, the post-fusion inventory will be written to file
          ! in the run directory.
+         
          if(do_inventory_out)then
              call write_inventory_type1(sites(s))
          end if
 
       end do
+      !call canopy_summarization(nsites, sites, bc_in)
+      
       deallocate(inv_format_list, inv_pss_list, inv_css_list, inv_lat_list, inv_lon_list)
 
       return

@@ -26,7 +26,8 @@ Module EDCohortDynamicsMod
   use EDPftvarcon           , only : GetDecompyFrac
   use PRTParametersMod      , only : prt_params
   use FatesParameterDerivedMod, only : param_derived
-  use EDTypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
+  use EDTypesMod            , only : ed_site_type, ed_patch_type
+  use FatesCohortMod        , only : fates_cohort_type
   use EDTypesMod            , only : nclmax
   use PRTGenericMod         , only : element_list
   use PRTGenericMod         , only : StorageNutrientTarget
@@ -85,7 +86,6 @@ Module EDCohortDynamicsMod
   use PRTGenericMod,          only : repro_organ
   use PRTGenericMod,          only : struct_organ
   use PRTGenericMod,          only : SetState
-
   use PRTAllometricCarbonMod, only : callom_prt_vartypes
   use PRTAllometricCarbonMod, only : ac_bc_inout_id_netdc
   use PRTAllometricCarbonMod, only : ac_bc_in_id_pft
@@ -117,7 +117,6 @@ Module EDCohortDynamicsMod
   !
   public :: create_cohort
   public :: zero_cohort
-  public :: nan_cohort
   public :: terminate_cohorts
   public :: terminate_cohort
   public :: fuse_cohorts
@@ -150,316 +149,225 @@ Module EDCohortDynamicsMod
 contains
 
   !-------------------------------------------------------------------------------------!
-  subroutine create_cohort(currentSite, patchptr, pft, nn, hite, coage, dbh,   &
-       prt, status, recruitstatus,ctrim, carea, clayer, crowndamage, spread, bc_in)
+subroutine create_cohort(currentSite, patchptr, pft, nn, hite, coage, dbh,   &
+   prt, status, recruitstatus,ctrim, carea, clayer, crowndamage, spread, bc_in)
 
-    !
-    ! !DESCRIPTION:
-    ! create new cohort
-    ! There are 4 places this is called
-    ! 1) Initializing new cohorts at the beginning of a cold-start simulation
-    ! 2) Initializing new recruits during dynamics
-    ! 3) Initializing new cohorts at the beginning of a inventory read
-    ! 4) Initializing new cohorts during restart
-    !
-    ! It is assumed that in the first 3, this is called with a reasonable amount of starter information.
-    !
-    ! !USES:
-    !
-    ! !ARGUMENTS
+!
+! !DESCRIPTION:
+! create new cohort
+! There are 4 places this is called
+! 1) Initializing new cohorts at the beginning of a cold-start simulation
+! 2) Initializing new recruits during dynamics
+! 3) Initializing new cohorts at the beginning of a inventory read
+! 4) Initializing new cohorts during restart
+!
+! It is assumed that in the first 3, this is called with a reasonable amount of starter information.
+!
+! !USES:
+!
+! !ARGUMENTS
 
-    type(ed_site_type), intent(inout),   target :: currentSite
-    type(ed_patch_type), intent(inout), pointer :: patchptr
+type(ed_site_type), intent(inout),   target :: currentSite
+type(ed_patch_type), intent(inout), pointer :: patchptr
 
-    integer,  intent(in)      :: pft              ! Cohort Plant Functional Type
-    integer,  intent(in)      :: crowndamage      ! Cohort damage class
-    integer,  intent(in)      :: clayer           ! canopy status of cohort 
-                                                  ! (1 = canopy, 2 = understorey, etc.)
-    integer,  intent(in)      :: status           ! growth status of plant
-                                                  ! (2 = leaves on , 1 = leaves off)
-    integer,  intent(in)      :: recruitstatus    ! recruit status of plant
-                                                  ! (1 = recruitment , 0 = other)
-    real(r8), intent(in)      :: nn               ! number of individuals in cohort
-                                                  ! per 'area' (10000m2 default)
-    real(r8), intent(in)      :: hite             ! height: meters
-    real(r8), intent(in)      :: coage            ! cohort age in years
-    real(r8), intent(in)      :: dbh              ! dbh: cm
-    class(prt_vartypes),intent(inout), pointer :: prt             ! The allocated PARTEH
-    !class(prt_vartypes),target :: prt             ! The allocated PARTEH
-                                                  ! object
-    real(r8), intent(in)      :: ctrim            ! What is the fraction of the maximum
-                                                  ! leaf biomass that we are targeting?
-    real(r8), intent(in)      :: spread           ! The community assembly effects how
-                                                  ! spread crowns are in horizontal space
-    real(r8), intent(in)       ::  carea          ! area of cohort ONLY USED IN SP MODE.
-    type(bc_in_type), intent(in) :: bc_in         ! External boundary conditions
-
-
-    ! !LOCAL VARIABLES:
-    type(ed_cohort_type), pointer :: new_cohort         ! Pointer to New Cohort structure.
-    type(ed_cohort_type), pointer :: storesmallcohort
-    type(ed_cohort_type), pointer :: storebigcohort
-    integer  :: iage                           ! loop counter for leaf age classes
-    real(r8) :: leaf_c                         ! total leaf carbon
-    integer  :: tnull,snull                    ! are the tallest and shortest cohorts allocate
-    integer  :: nlevrhiz                       ! number of rhizosphere layers
-    
-    !----------------------------------------------------------------------
-
-    allocate(new_cohort)
-
-    call nan_cohort(new_cohort)  ! Make everything in the cohort not-a-number
-    call zero_cohort(new_cohort) ! Zero things that need to be zeroed.
-
-    ! Point to the PARTEH object
-    new_cohort%prt => prt
-
-    ! The PARTEH cohort object should be allocated and already
-    ! initialized in this routine.
-    call new_cohort%prt%CheckInitialConditions()
-    
-    !**********************/
-    ! Define cohort state variable
-    !**********************/
-
-    new_cohort%indexnumber  = fates_unset_int ! Cohort indexing was not thread-safe, setting
-                                              ! bogus value for the time being (RGK-012017)
-
-    new_cohort%patchptr     => patchptr
-
-    new_cohort%pft          = pft
-    new_cohort%crowndamage  = crowndamage
-    new_cohort%status_coh   = status
-    new_cohort%n            = nn
-    new_cohort%hite         = hite
-    new_cohort%dbh          = dbh
-    new_cohort%coage        = coage
-    new_cohort%canopy_trim  = ctrim
-    new_cohort%canopy_layer = clayer
-    new_cohort%canopy_layer_yesterday = real(clayer, r8)
-
-    ! Initialize the leaf to fineroot biomass ratio
-    ! for C-only, this will stay constant, for nutrient enabled
-    ! this will be dynamic.  In both cases, new cohorts are
-    ! initialized with the minimum. This works in the nutrient
-    ! enabled case, because cohorts are also initialized with
-    ! full stores, which match with minimum fr biomass
-
-    new_cohort%l2fr = prt_params%allom_l2fr(pft)
-
-    if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-       new_cohort%cx_int      = 0._r8  ! Assume balanced N,P/C stores ie log(1) = 0
-       new_cohort%cx0         = 0._r8  ! Assume balanced N,P/C stores ie log(1) = 0
-       new_cohort%ema_dcxdt   = 0._r8  ! Assume unchanged dCX/dt
-       new_cohort%cnp_limiter = 0    ! Assume limitations are unknown
-    end if
-       
-    ! This sets things like vcmax25top, that depend on the
-    ! leaf age fractions (which are defined by PARTEH)
-    call UpdateCohortBioPhysRates(new_cohort)
-
-    call sizetype_class_index(new_cohort%dbh, new_cohort%pft, &
-                              new_cohort%size_class,new_cohort%size_by_pft_class)
-
-    ! If cohort age trackign is off we call this here once
-    ! just so everythin is in the first bin -
-    ! this makes it easier to copy and terminate cohorts later
-    ! we don't need to update this ever if cohort age tracking is off
-    call coagetype_class_index(new_cohort%coage, new_cohort%pft, &
-            new_cohort%coage_class,new_cohort%coage_by_pft_class)
-
-    ! This routine may be called during restarts, and at this point in the call sequence
-    ! the actual cohort data is unknown, as this is really only used for allocation
-    ! In these cases, testing if things like biomass are reasonable is pre-mature
-    ! However, in this part of the code, we will pass in nominal values for size, number and type
-
-    if (new_cohort%dbh <= 0._r8 .or. new_cohort%n == 0._r8 .or. new_cohort%pft == 0 ) then
-       write(fates_log(),*) 'ED: something is zero in create_cohort', &
-                             new_cohort%dbh,new_cohort%n, &
-                             new_cohort%pft
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    endif
-
-    ! Assign canopy extent and depth
-    if(hlm_use_sp.eq.ifalse)then
-       call carea_allom(new_cohort%dbh,new_cohort%n,spread,new_cohort%pft, &
-            new_cohort%crowndamage,new_cohort%c_area)
-    else
-      new_cohort%c_area = carea ! set this from previously precision-controlled value in SP mode
-    endif
-    ! Query PARTEH for the leaf carbon [kg]
-    leaf_c = new_cohort%prt%GetState(leaf_organ,carbon12_element)
-
-    new_cohort%treelai = tree_lai(leaf_c, new_cohort%pft, new_cohort%c_area,    &
-                                  new_cohort%n, new_cohort%canopy_layer,               &
-                                  patchptr%canopy_layer_tlai,new_cohort%vcmax25top )
-
-    if(hlm_use_sp.eq.ifalse)then
-       new_cohort%treesai = tree_sai(new_cohort%pft, new_cohort%dbh, &
-            new_cohort%crowndamage, new_cohort%canopy_trim,   &
-            new_cohort%c_area, new_cohort%n, new_cohort%canopy_layer, &
-            patchptr%canopy_layer_tlai, new_cohort%treelai,new_cohort%vcmax25top,2 )
-    end if
+integer,  intent(in)      :: pft              ! Cohort Plant Functional Type
+integer,  intent(in)      :: crowndamage      ! Cohort damage class
+integer,  intent(in)      :: clayer           ! canopy status of cohort 
+                                              ! (1 = canopy, 2 = understorey, etc.)
+integer,  intent(in)      :: status           ! growth status of plant
+                                              ! (2 = leaves on , 1 = leaves off)
+integer,  intent(in)      :: recruitstatus    ! recruit status of plant
+                                              ! (1 = recruitment , 0 = other)
+real(r8), intent(in)      :: nn               ! number of individuals in cohort
+                                              ! per 'area' (10000m2 default)
+real(r8), intent(in)      :: hite             ! height: meters
+real(r8), intent(in)      :: coage            ! cohort age in years
+real(r8), intent(in)      :: dbh              ! dbh: cm
+class(prt_vartypes),intent(inout), pointer :: prt             ! The allocated PARTEH
+!class(prt_vartypes),target :: prt             ! The allocated PARTEH
+                                              ! object
+real(r8), intent(in)      :: ctrim            ! What is the fraction of the maximum
+                                              ! leaf biomass that we are targeting?
+real(r8), intent(in)      :: spread           ! The community assembly effects how
+                                              ! spread crowns are in horizontal space
+real(r8), intent(in)       ::  carea          ! area of cohort ONLY USED IN SP MODE.
+type(bc_in_type), intent(in) :: bc_in         ! External boundary conditions
 
 
-    ! Put cohort at the right place in the linked list
-    storebigcohort   => patchptr%tallest
-    storesmallcohort => patchptr%shortest
+! !LOCAL VARIABLES:
+type(fates_cohort_type), pointer :: new_cohort         ! Pointer to New Cohort structure.
+type(fates_cohort_type), pointer :: storesmallcohort
+type(fates_cohort_type), pointer :: storebigcohort
+integer  :: iage                           ! loop counter for leaf age classes
+real(r8) :: leaf_c                         ! total leaf carbon
+integer  :: tnull,snull                    ! are the tallest and shortest cohorts allocate
+integer  :: nlevrhiz                       ! number of rhizosphere layers
 
-    if (associated(patchptr%tallest)) then
-       tnull = 0
-    else
-       tnull = 1
-       patchptr%tallest => new_cohort
-    endif
+!----------------------------------------------------------------------
 
-    if (associated(patchptr%shortest)) then
-       snull = 0
-    else
-       snull = 1
-       patchptr%shortest => new_cohort
-    endif
+allocate(new_cohort)
 
-    ! Allocate running mean functions
+new_cohort%init(prt)
 
-    !  (Keeping as an example)
-    !! allocate(new_cohort%tveg_lpa)
-    !! call new_cohort%tveg_lpa%InitRMean(ema_lpa,init_value=patchptr%tveg_lpa%GetMean())
+!**********************/
+! Define cohort state variable
+!**********************/
 
-    call InitPRTBoundaryConditions(new_cohort)
-    
-    
-    ! Recuits do not have mortality rates, nor have they moved any
-    ! carbon when they are created.  They will bias our statistics
-    ! until they have experienced a full day.  We need a newly recruited flag.
-    ! This flag will be set to false after it has experienced
-    ! growth, disturbance and mortality.
-    new_cohort%isnew = .true.
+new_cohort%indexnumber  = fates_unset_int ! Cohort indexing was not thread-safe, setting
+                                          ! bogus value for the time being (RGK-012017)
 
-    if( hlm_use_planthydro.eq.itrue ) then
+new_cohort%patchptr     => patchptr
 
-       nlevrhiz = currentSite%si_hydr%nlevrhiz
+new_cohort%pft          = pft
+new_cohort%crowndamage  = crowndamage
+new_cohort%status_coh   = status
+new_cohort%n            = nn
+new_cohort%hite         = hite
+new_cohort%dbh          = dbh
+new_cohort%coage        = coage
+new_cohort%canopy_trim  = ctrim
+new_cohort%canopy_layer = clayer
+new_cohort%canopy_layer_yesterday = real(clayer, r8)
 
-       ! This allocates array spaces
-       call InitHydrCohort(currentSite,new_cohort)
+! Initialize the leaf to fineroot biomass ratio
+! for C-only, this will stay constant, for nutrient enabled
+! this will be dynamic.  In both cases, new cohorts are
+! initialized with the minimum. This works in the nutrient
+! enabled case, because cohorts are also initialized with
+! full stores, which match with minimum fr biomass
 
-       ! zero out the water balance error
-       new_cohort%co_hydr%errh2o = 0._r8
+new_cohort%l2fr = prt_params%allom_l2fr(pft)
 
-       ! This calculates node heights
-       call UpdatePlantHydrNodes(new_cohort,new_cohort%pft, &
-                                new_cohort%hite,currentSite%si_hydr)
+if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
+   new_cohort%cx_int      = 0._r8  ! Assume balanced N,P/C stores ie log(1) = 0
+   new_cohort%cx0         = 0._r8  ! Assume balanced N,P/C stores ie log(1) = 0
+   new_cohort%ema_dcxdt   = 0._r8  ! Assume unchanged dCX/dt
+   new_cohort%cnp_limiter = 0    ! Assume limitations are unknown
+end if
+   
+! This sets things like vcmax25top, that depend on the
+! leaf age fractions (which are defined by PARTEH)
+call UpdateCohortBioPhysRates(new_cohort)
 
-       ! This calculates volumes and lengths
-       call UpdatePlantHydrLenVol(new_cohort,currentSite%si_hydr)
+call sizetype_class_index(new_cohort%dbh, new_cohort%pft, &
+                          new_cohort%size_class,new_cohort%size_by_pft_class)
 
-       ! This updates the Kmax's of the plant's compartments
-       call UpdatePlantKmax(new_cohort%co_hydr,new_cohort,currentSite%si_hydr)
+! If cohort age trackign is off we call this here once
+! just so everythin is in the first bin -
+! this makes it easier to copy and terminate cohorts later
+! we don't need to update this ever if cohort age tracking is off
+call coagetype_class_index(new_cohort%coage, new_cohort%pft, &
+        new_cohort%coage_class,new_cohort%coage_by_pft_class)
 
-       ! Since this is a newly initialized plant, we set the previous compartment-size
-       ! equal to the ones we just calculated.
-       call SavePreviousCompartmentVolumes(new_cohort%co_hydr)
+! This routine may be called during restarts, and at this point in the call sequence
+! the actual cohort data is unknown, as this is really only used for allocation
+! In these cases, testing if things like biomass are reasonable is pre-mature
+! However, in this part of the code, we will pass in nominal values for size, number and type
 
-       ! This comes up with starter suctions and then water contents
-       ! based on the soil values
-       call InitPlantHydStates(currentSite,new_cohort)
+if (new_cohort%dbh <= 0._r8 .or. new_cohort%n == 0._r8 .or. new_cohort%pft == 0 ) then
+   write(fates_log(),*) 'ED: something is zero in create_cohort', &
+                         new_cohort%dbh,new_cohort%n, &
+                         new_cohort%pft
+   call endrun(msg=errMsg(sourcefile, __LINE__))
+endif
 
-       if(recruitstatus==1)then
+! Assign canopy extent and depth
+if(hlm_use_sp.eq.ifalse)then
+   call carea_allom(new_cohort%dbh,new_cohort%n,spread,new_cohort%pft, &
+        new_cohort%crowndamage,new_cohort%c_area)
+else
+  new_cohort%c_area = carea ! set this from previously precision-controlled value in SP mode
+endif
+! Query PARTEH for the leaf carbon [kg]
+leaf_c = new_cohort%prt%GetState(leaf_organ,carbon12_element)
 
-          new_cohort%co_hydr%is_newly_recruited = .true.
+new_cohort%treelai = tree_lai(leaf_c, new_cohort%pft, new_cohort%c_area,    &
+                              new_cohort%n, new_cohort%canopy_layer,               &
+                              patchptr%canopy_layer_tlai,new_cohort%vcmax25top )
 
-          ! If plant hydraulics is active, we must constrain the
-          ! number density of the new recruits based on the moisture
-          ! available to be subsumed in the new plant tissues.
-          ! So we go through the process of pre-initializing the hydraulic
-          ! states in the temporary cohort, to calculate this new number density
-
-          call ConstrainRecruitNumber(currentSite,new_cohort, bc_in)
-
-       endif
-
-    endif
-
-    call insert_cohort(new_cohort, patchptr%tallest, patchptr%shortest, tnull, snull, &
-         storebigcohort, storesmallcohort)
-
-    patchptr%tallest  => storebigcohort
-    patchptr%shortest => storesmallcohort
-
-  end subroutine create_cohort
-
-  ! -------------------------------------------------------------------------------------
-
-  subroutine InitPRTBoundaryConditions(new_cohort)
-
-    ! Set the boundary conditions that flow in an out of the PARTEH
-    ! allocation hypotheses.  Each of these calls to "RegsterBC" are simply
-    ! setting pointers.
-    ! For instance, if the hypothesis wants to know what
-    ! the DBH of the plant is, then we pass in the dbh as an argument (new_cohort%dbh),
-    ! and also tell it which boundary condition we are talking about (which is
-    ! defined by an integer index (ac_bc_inout_id_dbh)
-    !
-    ! Again, elaborated Example:
-    ! "ac_bc_inout_id_dbh" is the unique integer that defines the object index
-    ! for the allometric carbon "ac" boundary condition "bc" for DBH "dbh"
-    ! that is classified as input and output "inout".
-    ! See PRTAllometricCarbonMod.F90 to track its usage.
-    ! bc_rval is used as the optional argument identifyer to specify a real
-    ! value boundary condition.
-    ! bc_ival is used as the optional argument identifyer to specify an integer
-    ! value boundary condition.
-
-    type(ed_cohort_type), intent(inout), target :: new_cohort
-    
-    select case(hlm_parteh_mode)
-    case (prt_carbon_allom_hyp)
-
-       ! Register boundary conditions for the Carbon Only Allometric Hypothesis
-
-       call new_cohort%prt%RegisterBCInOut(ac_bc_inout_id_dbh,bc_rval = new_cohort%dbh)
-       call new_cohort%prt%RegisterBCInOut(ac_bc_inout_id_netdc,bc_rval = new_cohort%npp_acc)
-       call new_cohort%prt%RegisterBCIn(ac_bc_in_id_cdamage,bc_ival = new_cohort%crowndamage)
-       call new_cohort%prt%RegisterBCIn(ac_bc_in_id_pft,bc_ival = new_cohort%pft)
-       call new_cohort%prt%RegisterBCIn(ac_bc_in_id_ctrim,bc_rval = new_cohort%canopy_trim)
-       call new_cohort%prt%RegisterBCIn(ac_bc_in_id_lstat,bc_ival = new_cohort%status_coh)
-       
-    case (prt_cnp_flex_allom_hyp)
-
-       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_pft,bc_ival = new_cohort%pft)
-       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_ctrim,bc_rval = new_cohort%canopy_trim)
-       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_lstat,bc_ival = new_cohort%status_coh)
-       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_netdc, bc_rval = new_cohort%npp_acc)
-
-       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_nc_repro,bc_rval = new_cohort%nc_repro)
-       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_pc_repro,bc_rval = new_cohort%pc_repro)
-       call new_cohort%prt%RegisterBCIn(acnp_bc_in_id_cdamage,bc_ival = new_cohort%crowndamage)
-       
-       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_dbh,bc_rval = new_cohort%dbh)
-       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_resp_excess,bc_rval = new_cohort%resp_excess)
-       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_l2fr,bc_rval = new_cohort%l2fr)
-       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_cx_int,bc_rval = new_cohort%cx_int)
-       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_emadcxdt,bc_rval = new_cohort%ema_dcxdt)
-       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_cx0,bc_rval = new_cohort%cx0)
-       
-       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdn, bc_rval = new_cohort%daily_n_gain)
-       call new_cohort%prt%RegisterBCInOut(acnp_bc_inout_id_netdp, bc_rval = new_cohort%daily_p_gain)
-       
-       call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_cefflux, bc_rval = new_cohort%daily_c_efflux)
-       call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_nefflux, bc_rval = new_cohort%daily_n_efflux)
-       call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_pefflux, bc_rval = new_cohort%daily_p_efflux)
-       call new_cohort%prt%RegisterBCOut(acnp_bc_out_id_limiter, bc_ival = new_cohort%cnp_limiter)
-       
-    case DEFAULT
-
-       write(fates_log(),*) 'You specified an unknown PRT module'
-       write(fates_log(),*) 'Aborting'
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-
-    end select
+if(hlm_use_sp.eq.ifalse)then
+   new_cohort%treesai = tree_sai(new_cohort%pft, new_cohort%dbh, &
+        new_cohort%crowndamage, new_cohort%canopy_trim,   &
+        new_cohort%c_area, new_cohort%n, new_cohort%canopy_layer, &
+        patchptr%canopy_layer_tlai, new_cohort%treelai,new_cohort%vcmax25top,2 )
+end if
 
 
-  end subroutine InitPRTBoundaryConditions
+! Put cohort at the right place in the linked list
+storebigcohort   => patchptr%tallest
+storesmallcohort => patchptr%shortest
+
+if (associated(patchptr%tallest)) then
+   tnull = 0
+else
+   tnull = 1
+   patchptr%tallest => new_cohort
+endif
+
+if (associated(patchptr%shortest)) then
+   snull = 0
+else
+   snull = 1
+   patchptr%shortest => new_cohort
+endif
+
+! Allocate running mean functions
+
+!  (Keeping as an example)
+!! allocate(new_cohort%tveg_lpa)
+!! call new_cohort%tveg_lpa%InitRMean(ema_lpa,init_value=patchptr%tveg_lpa%GetMean())
+
+if( hlm_use_planthydro.eq.itrue ) then
+
+   nlevrhiz = currentSite%si_hydr%nlevrhiz
+
+   ! This allocates array spaces
+   call InitHydrCohort(currentSite,new_cohort)
+
+   ! zero out the water balance error
+   new_cohort%co_hydr%errh2o = 0._r8
+
+   ! This calculates node heights
+   call UpdatePlantHydrNodes(new_cohort,new_cohort%pft, &
+                            new_cohort%hite,currentSite%si_hydr)
+
+   ! This calculates volumes and lengths
+   call UpdatePlantHydrLenVol(new_cohort,currentSite%si_hydr)
+
+   ! This updates the Kmax's of the plant's compartments
+   call UpdatePlantKmax(new_cohort%co_hydr,new_cohort,currentSite%si_hydr)
+
+   ! Since this is a newly initialized plant, we set the previous compartment-size
+   ! equal to the ones we just calculated.
+   call SavePreviousCompartmentVolumes(new_cohort%co_hydr)
+
+   ! This comes up with starter suctions and then water contents
+   ! based on the soil values
+   call InitPlantHydStates(currentSite,new_cohort)
+
+   if(recruitstatus==1)then
+
+      new_cohort%co_hydr%is_newly_recruited = .true.
+
+      ! If plant hydraulics is active, we must constrain the
+      ! number density of the new recruits based on the moisture
+      ! available to be subsumed in the new plant tissues.
+      ! So we go through the process of pre-initializing the hydraulic
+      ! states in the temporary cohort, to calculate this new number density
+
+      call ConstrainRecruitNumber(currentSite,new_cohort, bc_in)
+
+   endif
+
+endif
+
+call insert_cohort(new_cohort, patchptr%tallest, patchptr%shortest, tnull, snull, &
+     storebigcohort, storesmallcohort)
+
+patchptr%tallest  => storebigcohort
+patchptr%shortest => storesmallcohort
+
+end subroutine create_cohort
 
   ! ------------------------------------------------------------------------------------!
 
@@ -517,223 +425,6 @@ contains
 
   !-------------------------------------------------------------------------------------!
 
-  subroutine nan_cohort(cc_p)
-    !
-    ! !DESCRIPTION:
-    !  Make all the cohort variables NaN so they aren't used before defined.
-    !
-    ! !USES:
-
-    use FatesConstantsMod, only : fates_unset_int
-
-    !
-    ! !ARGUMENTS
-    type (ed_cohort_type), intent(inout), target  :: cc_p
-    !
-    ! !LOCAL VARIABLES:
-    type (ed_cohort_type)   , pointer             :: currentCohort
-    !----------------------------------------------------------------------
-
-    currentCohort => cc_p
-
-    currentCohort%taller      => null()       ! pointer to next tallest cohort
-    currentCohort%shorter     => null()       ! pointer to next shorter cohort
-    currentCohort%patchptr    => null()       ! pointer to patch that cohort is in
-
-    nullify(currentCohort%taller)
-    nullify(currentCohort%shorter)
-    nullify(currentCohort%patchptr)
-
-    ! VEGETATION STRUCTURE
-    currentCohort%pft                = fates_unset_int  ! pft number
-    currentCohort%crowndamage        = fates_unset_int  ! Crown damage class
-    currentCohort%indexnumber        = fates_unset_int  ! unique number for each cohort. (within clump?)
-    currentCohort%canopy_layer       = fates_unset_int  ! canopy status of cohort (1 = canopy, 2 = understorey, etc.)
-    currentCohort%canopy_layer_yesterday       = nan  ! recent canopy status of cohort (1 = canopy, 2 = understorey, etc.)
-    currentCohort%NV                 = fates_unset_int  ! Number of leaf layers: -
-    currentCohort%status_coh         = fates_unset_int  ! growth status of plant  (2 = leaves on , 1 = leaves off)
-    currentCohort%size_class         = fates_unset_int  ! size class index
-    currentCohort%size_class_lasttimestep = fates_unset_int  ! size class index
-    currentCohort%size_by_pft_class  = fates_unset_int  ! size by pft classification index
-    currentCohort%coage_class        = fates_unset_int  ! cohort age class index
-    currentCohort%coage_by_pft_class = fates_unset_int  ! cohort age by pft class index
-
-    currentCohort%n                  = nan ! number of individuals in cohort per 'area' (10000m2 default)
-    currentCohort%dbh                = nan ! 'diameter at breast height' in cm
-    currentCohort%coage              = nan ! age of the cohort in years
-    currentCohort%hite               = nan ! height: meters
-    currentCohort%g_sb_laweight      = nan ! Total leaf conductance of cohort (stomata+blayer) weighted by leaf-area [m/s]*[m2]
-    currentCohort%canopy_trim        = nan ! What is the fraction of the maximum leaf biomass that we are targeting? :-
-    currentCohort%leaf_cost          = nan ! How much does it cost to maintain leaves: kgC/m2/year-1
-    currentCohort%excl_weight        = nan ! How much of this cohort is demoted each year, as a proportion of all cohorts:-
-    currentCohort%prom_weight        = nan ! How much of this cohort is promoted each year, as a proportion of all cohorts:-
-    currentCohort%c_area             = nan ! areal extent of canopy (m2)
-    currentCohort%treelai            = nan ! lai of tree (total leaf area (m2) / canopy area (m2)
-    currentCohort%treesai            = nan ! stem area index of tree (total stem area (m2) / canopy area (m2)
-    currentCohort%seed_prod          = nan
-    currentCohort%vcmax25top = nan
-    currentCohort%jmax25top  = nan
-    currentCohort%tpu25top   = nan
-    currentCohort%kp25top    = nan
-
-    ! CARBON FLUXES
-    currentCohort%gpp_acc_hold       = nan ! GPP:  kgC/indiv/year
-    currentCohort%gpp_tstep          = nan ! GPP:  kgC/indiv/timestep
-    currentCohort%gpp_acc            = nan ! GPP:  kgC/indiv/day
-    currentCohort%npp_acc_hold       = nan ! NPP:  kgC/indiv/year
-    currentCohort%npp_tstep          = nan ! NPP:  kGC/indiv/timestep
-    currentCohort%npp_acc            = nan ! NPP:  kgC/indiv/day
-    currentCohort%year_net_uptake(:) = nan ! Net uptake of individual leaf layers kgC/m2/year
-    currentCohort%ts_net_uptake(:)   = nan ! Net uptake of individual leaf layers kgC/m2/s
-    currentCohort%resp_acc_hold      = nan ! RESP: kgC/indiv/year
-    currentCohort%resp_tstep         = nan ! RESP: kgC/indiv/timestep
-    currentCohort%resp_acc           = nan ! RESP: kGC/cohort/day
-
-    ! Fluxes from nutrient allocation
-    currentCohort%daily_nh4_uptake = nan
-    currentCohort%daily_no3_uptake = nan
-    currentCohort%daily_n_gain     = nan
-    currentCohort%sym_nfix_daily   = nan
-    currentCohort%sym_nfix_tstep   = nan
-    currentCohort%daily_p_gain     = nan
-    currentCohort%daily_c_efflux   = nan
-    currentCohort%daily_n_efflux   = nan
-    currentCohort%daily_p_efflux   = nan
-    currentCohort%daily_n_demand   = nan
-    currentCohort%daily_p_demand   = nan
-    currentCohort%cx_int           = nan
-    currentCohort%cx0              = nan
-    currentCohort%ema_dcxdt        = nan
-    currentCohort%cnp_limiter      = fates_unset_int 
-    
-    currentCohort%c13disc_clm        = nan ! C13 discrimination, per mil at indiv/timestep
-    currentCohort%c13disc_acc        = nan ! C13 discrimination, per mil at indiv/timestep at indiv/daily at the end of a day
-
-    !RESPIRATION
-    currentCohort%rdark              = nan
-    currentCohort%resp_m             = nan ! Maintenance respiration.  kGC/cohort/year
-    currentCohort%resp_m_unreduced   = nan ! Diagnostic-only unreduced Maintenance respiration.  kGC/cohort/year
-    currentCohort%resp_excess        = nan ! Respiration of excess (unallocatable) carbon (kg/indiv/day)
-    currentCohort%livestem_mr        = nan ! Live stem maintenance respiration. kgC/indiv/s-1
-    currentCohort%livecroot_mr       = nan ! Coarse root maintenance respiration. kgC/indiv/s-1
-    currentCohort%froot_mr           = nan ! Fine root maintenance respiration. kgC/indiv/s-1
-    currentCohort%resp_g_tstep       = nan ! Growth respiration.       kGC/indiv/timestep
-
-
-    ! ALLOCATION
-    currentCohort%dmort              = nan ! proportional mortality rate. (year-1)
-
-    ! logging
-    currentCohort%lmort_direct       = nan
-    currentCohort%lmort_infra        = nan
-    currentCohort%lmort_collateral   = nan
-    currentCohort%l_degrad           = nan
-
-    currentCohort%c_area             = nan ! areal extent of canopy (m2)
-    currentCohort%treelai            = nan ! lai of tree (total leaf area (m2) / canopy area (m2)
-    currentCohort%treesai            = nan ! stem area index of tree (total stem area (m2) / canopy area (m2)
-
-
-    ! VARIABLES NEEDED FOR INTEGRATION
-    currentCohort%dndt               = nan ! time derivative of cohort size
-    currentCohort%dhdt               = nan ! time derivative of height
-    currentCohort%ddbhdt             = nan ! time derivative of dbh
-
-    ! FIRE
-    currentCohort%fraction_crown_burned = nan ! proportion of crown affected by fire
-    currentCohort%cambial_mort          = nan ! probability that trees dies due to cambial char P&R (1986)
-    currentCohort%crownfire_mort        = nan ! probability of tree post-fire mortality due to crown scorch
-    currentCohort%fire_mort             = nan ! post-fire mortality from cambial and crown damage assuming two are independent
-
-  end subroutine nan_cohort
-
-  !-------------------------------------------------------------------------------------!
-
-  subroutine zero_cohort(cc_p)
-    !
-    ! !DESCRIPTION:
-    ! Zero variables that need to be accounted for if
-    ! this cohort is altered before they are defined.
-    !
-    ! !USES:
-    !
-    ! !ARGUMENTS
-    type (ed_cohort_type), intent(inout), target  :: cc_p
-    !
-    ! !LOCAL VARIABLES:
-    type (ed_cohort_type)   , pointer             :: currentCohort
-    !----------------------------------------------------------------------
-
-    currentCohort => cc_p
-
-    currentCohort%NV                 = 0
-    currentCohort%status_coh         = 0
-    currentCohort%rdark              = 0._r8
-    currentCohort%resp_m             = 0._r8
-    currentCohort%resp_m_unreduced   = 0._r8
-    currentCohort%resp_excess         = 0._r8
-    currentCohort%resp_g_tstep       = 0._r8
-    currentCohort%livestem_mr        = 0._r8
-    currentCohort%livecroot_mr       = 0._r8
-    currentCohort%froot_mr           = 0._r8
-    currentCohort%fire_mort          = 0._r8
-    currentcohort%npp_acc            = 0._r8
-    currentcohort%gpp_acc            = 0._r8
-    currentcohort%resp_acc           = 0._r8
-    currentcohort%npp_tstep          = 0._r8
-    currentcohort%gpp_tstep          = 0._r8
-    currentcohort%resp_tstep         = 0._r8
-    currentcohort%resp_acc_hold      = 0._r8
-
-    currentcohort%year_net_uptake(:) = 999._r8 ! this needs to be 999, or trimming of new cohorts will break.
-    currentcohort%ts_net_uptake(:)   = 0._r8
-    currentcohort%fraction_crown_burned = 0._r8
-    currentCohort%size_class            = 1
-    currentCohort%coage_class        = 1
-    currentCohort%seed_prod          = 0._r8
-    currentCohort%size_class_lasttimestep = 0
-    currentcohort%npp_acc_hold       = 0._r8
-    currentcohort%gpp_acc_hold       = 0._r8
-    currentcohort%dmort              = 0._r8
-    currentcohort%g_sb_laweight      = 0._r8
-    currentcohort%treesai            = 0._r8
-    currentCohort%lmort_direct       = 0._r8
-    currentCohort%lmort_infra        = 0._r8
-    currentCohort%lmort_collateral   = 0._r8
-    currentCohort%l_degrad           = 0._r8
-    currentCohort%leaf_cost          = 0._r8
-    currentcohort%excl_weight        = 0._r8
-    currentcohort%prom_weight        = 0._r8
-    currentcohort%crownfire_mort     = 0._r8
-    currentcohort%cambial_mort       = 0._r8
-    currentCohort%c13disc_clm        = 0._r8
-    currentCohort%c13disc_acc        = 0._r8
-
-    ! Daily nutrient fluxes are INTEGRATED over the course of the
-    ! day.  This variable MUST be zerod upon creation AND
-    ! after allocation. These variables exist in
-    ! carbon-only mode but are not used.
-
-    currentCohort%daily_nh4_uptake = 0._r8
-    currentCohort%daily_no3_uptake = 0._r8
-    currentCohort%daily_p_gain = 0._r8
-
-    currentCohort%daily_c_efflux = 0._r8
-    currentCohort%daily_n_efflux = 0._r8
-    currentCohort%daily_p_efflux = 0._r8
-
-    ! Initialize these as negative
-    currentCohort%daily_p_demand = -9._r8
-    currentCohort%daily_n_demand = -9._r8
-
-    ! Fixation is also integrated over the course of the day
-    ! and must be zeroed upon creation and after plant
-    ! resource allocation
-    currentCohort%sym_nfix_daily   = 0._r8
-    
-  end subroutine zero_cohort
-
-  !-------------------------------------------------------------------------------------!
   subroutine terminate_cohorts( currentSite, currentPatch, level , call_index, bc_in)
     !
     ! !DESCRIPTION:
@@ -759,9 +450,9 @@ contains
 
     !
     ! !LOCAL VARIABLES:
-    type (ed_cohort_type) , pointer :: currentCohort
-    type (ed_cohort_type) , pointer :: shorterCohort
-    type (ed_cohort_type) , pointer :: tallerCohort
+    type (fates_cohort_type) , pointer :: currentCohort
+    type (fates_cohort_type) , pointer :: shorterCohort
+    type (fates_cohort_type) , pointer :: tallerCohort
 
     real(r8) :: leaf_c    ! leaf carbon [kg]
     real(r8) :: store_c   ! storage carbon [kg]
@@ -862,12 +553,12 @@ contains
    ! !ARGUMENTS
    type (ed_site_type)  , intent(inout), target :: currentSite
    type (ed_patch_type) , intent(inout), target :: currentPatch
-   type (ed_cohort_type), intent(inout), target :: currentCohort
+   type (fates_cohort_type), intent(inout), target :: currentCohort
    type(bc_in_type), intent(in)                :: bc_in
 
    ! !LOCAL VARIABLES:
-   type (ed_cohort_type) , pointer :: shorterCohort
-   type (ed_cohort_type) , pointer :: tallerCohort
+   type (fates_cohort_type) , pointer :: shorterCohort
+   type (fates_cohort_type) , pointer :: tallerCohort
 
    real(r8) :: leaf_c    ! leaf carbon [kg]
    real(r8) :: store_c   ! storage carbon [kg]
@@ -968,7 +659,7 @@ contains
     ! Arguments
     type (ed_site_type)   , target  :: csite
     type (ed_patch_type)  , target  :: cpatch
-    type (ed_cohort_type) , target  :: ccohort
+    type (fates_cohort_type) , target  :: ccohort
     real(r8)                        :: nplant     ! Number (absolute)
                                                   ! of plants to transfer
     type(bc_in_type), intent(in)    :: bc_in
@@ -1087,7 +778,7 @@ contains
      ! the cohort structure itself.
      ! ----------------------------------------------------------------------------------
 
-     type(ed_cohort_type),intent(inout) :: currentCohort
+     type(fates_cohort_type),intent(inout) :: currentCohort
      integer                            :: istat         ! return status code
      character(len=255)                 :: smsg
 
@@ -1130,12 +821,12 @@ contains
      !
 
      ! !LOCAL VARIABLES:
-     type (ed_cohort_type) , pointer :: currentCohort
-     type (ed_cohort_type) , pointer :: nextc
-     type (ed_cohort_type) , pointer :: nextnextc
+     type (fates_cohort_type) , pointer :: currentCohort
+     type (fates_cohort_type) , pointer :: nextc
+     type (fates_cohort_type) , pointer :: nextnextc
 
-     type (ed_cohort_type) , pointer :: shorterCohort
-     type (ed_cohort_type) , pointer :: tallerCohort
+     type (fates_cohort_type) , pointer :: shorterCohort
+     type (fates_cohort_type) , pointer :: tallerCohort
 
      integer  :: i
      integer  :: fusion_took_place
@@ -1691,10 +1382,10 @@ contains
     type(ed_patch_type) , intent(inout), target :: patchptr
 
     type(ed_patch_type) , pointer :: current_patch
-    type(ed_cohort_type), pointer :: current_c, next_c
-    type(ed_cohort_type), pointer :: shortestc, tallestc
-    type(ed_cohort_type), pointer :: storesmallcohort
-    type(ed_cohort_type), pointer :: storebigcohort
+    type(fates_cohort_type), pointer :: current_c, next_c
+    type(fates_cohort_type), pointer :: shortestc, tallestc
+    type(fates_cohort_type), pointer :: storesmallcohort
+    type(fates_cohort_type), pointer :: storebigcohort
     integer :: snull,tnull
 
     current_patch => patchptr
@@ -1741,19 +1432,19 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS
-    type(ed_cohort_type) , intent(inout), pointer :: pcc
-    type(ed_cohort_type) , intent(inout), pointer :: ptall
-    type(ed_cohort_type) , intent(inout), pointer :: pshort
+    type(fates_cohort_type) , intent(inout), pointer :: pcc
+    type(fates_cohort_type) , intent(inout), pointer :: ptall
+    type(fates_cohort_type) , intent(inout), pointer :: pshort
     integer              , intent(in)                     :: tnull
     integer              , intent(in)                     :: snull
-    type(ed_cohort_type) , intent(inout),pointer,optional :: storesmallcohort ! storage of the smallest cohort for insertion routine
-    type(ed_cohort_type) , intent(inout),pointer,optional :: storebigcohort   ! storage of the largest cohort for insertion routine
+    type(fates_cohort_type) , intent(inout),pointer,optional :: storesmallcohort ! storage of the smallest cohort for insertion routine
+    type(fates_cohort_type) , intent(inout),pointer,optional :: storebigcohort   ! storage of the largest cohort for insertion routine
     !
     ! !LOCAL VARIABLES:
     type(ed_patch_type),  pointer :: currentPatch
-    type(ed_cohort_type), pointer :: current
-    type(ed_cohort_type), pointer :: tallptr, shortptr, icohort
-    type(ed_cohort_type), pointer :: ptallest, pshortest
+    type(fates_cohort_type), pointer :: current
+    type(fates_cohort_type), pointer :: tallptr, shortptr, icohort
+    type(fates_cohort_type), pointer :: ptallest, pshortest
     real(r8) :: tsp
     integer :: tallptrnull,exitloop
     !----------------------------------------------------------------------
@@ -1853,11 +1544,11 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS
-    type(ed_cohort_type), intent(inout) , target ::  copyc         ! New cohort argument.
-    type(ed_cohort_type), intent(in)    , target ::  currentCohort ! Old cohort argument.
+    type(fates_cohort_type), intent(inout) , target ::  copyc         ! New cohort argument.
+    type(fates_cohort_type), intent(in)    , target ::  currentCohort ! Old cohort argument.
     !
     ! !LOCAL VARIABLES:
-    type(ed_cohort_type), pointer ::  n,o           ! New and old cohort pointers
+    type(fates_cohort_type), pointer ::  n,o           ! New and old cohort pointers
     !----------------------------------------------------------------------
 
     o => currentCohort
@@ -2021,7 +1712,7 @@ contains
     type(ed_patch_type), intent(inout), target :: currentPatch      !new site
     !
     ! !LOCAL VARIABLES:
-    type(ed_cohort_type), pointer :: currentCohort   !new patch
+    type(fates_cohort_type), pointer :: currentCohort   !new patch
     integer                       :: backcount
     !----------------------------------------------------------------------
 
@@ -2063,7 +1754,7 @@ contains
        ! of different age classes are unchanged until the next day.
        ! --------------------------------------------------------------------------------
 
-       type(ed_cohort_type),intent(inout) :: currentCohort
+       type(fates_cohort_type),intent(inout) :: currentCohort
 
 
        real(r8) :: frac_leaf_aclass(max_nleafage)  ! Fraction of leaves in each age-class
@@ -2136,7 +1827,7 @@ contains
     ! -----------------------------------------------------------------------------------
     
     ! argument
-    type(ed_cohort_type),intent(inout) :: currentCohort
+    type(fates_cohort_type),intent(inout) :: currentCohort
     real(r8),intent(out)               :: delta_dbh
     real(r8),intent(out)               :: delta_hite
 
@@ -2234,11 +1925,11 @@ contains
 
     type(ed_site_type)   :: csite            ! Site of the current cohort
     type(ed_patch_type)  :: cpatch           ! patch of the current cohort
-    type(ed_cohort_type),pointer :: ccohort  ! Current (damaged) cohort
+    type(fates_cohort_type),pointer :: ccohort  ! Current (damaged) cohort
     logical              :: newly_recovered  ! true if we create a new cohort
 
     ! locals
-    type(ed_cohort_type), pointer :: rcohort ! New cohort that recovers by
+    type(fates_cohort_type), pointer :: rcohort ! New cohort that recovers by
                                              ! having a lower damage class
     real(r8) :: sapw_area                    ! sapwood area
     real(r8) :: target_sapw_c,target_sapw_m  ! sapwood mass, C and N/P
@@ -2442,6 +2133,83 @@ contains
     
     return
   end subroutine DamageRecovery
+
+
+  subroutine InitPRTBoundaryConditions(this)
+   !
+   ! DESCRIPTION:
+   ! Set the boundary conditions that flow in an out of the PARTEH
+   ! allocation hypotheses.  Each of these calls to "RegsterBC" are simply
+   ! setting pointers.
+   ! For instance, if the hypothesis wants to know what
+   ! the DBH of the plant is, then we pass in the dbh as an argument (this%dbh),
+   ! and also tell it which boundary condition we are talking about (which is
+   ! defined by an integer index (ac_bc_inout_id_dbh)
+   !
+   ! Again, elaborated Example:
+   ! "ac_bc_inout_id_dbh" is the unique integer that defines the object index
+   ! for the allometric carbon "ac" boundary condition "bc" for DBH "dbh"
+   ! that is classified as input and output "inout".
+   ! See PRTAllometricCarbonMod.F90 to track its usage.
+   ! bc_rval is used as the optional argument identifyer to specify a real
+   ! value boundary condition.
+   ! bc_ival is used as the optional argument identifyer to specify an integer
+   ! value boundary condition.
+   !
+
+   ! ARGUMENTS:
+   type(fates_cohort_type), intent(inout) :: this
+ 
+   select case(hlm_parteh_mode)
+     
+     case (prt_carbon_allom_hyp)
+
+       ! register boundary conditions for the Carbon Only Allometric Hypothesis
+       call this%prt%RegisterBCInOut(ac_bc_inout_id_dbh, bc_rval=this%dbh)
+       call this%prt%RegisterBCInOut(ac_bc_inout_id_netdc, bc_rval=this%npp_acc)
+       call this%prt%RegisterBCIn(ac_bc_in_id_cdamage, bc_ival=this%crowndamage)
+       call this%prt%RegisterBCIn(ac_bc_in_id_pft, bc_ival=this%pft)
+       call this%prt%RegisterBCIn(ac_bc_in_id_ctrim, bc_rval=this%canopy_trim)
+       call this%prt%RegisterBCIn(ac_bc_in_id_lstat, bc_ival=this%status_coh)
+    
+     case (prt_cnp_flex_allom_hyp)
+
+       call this%prt%RegisterBCIn(acnp_bc_in_id_pft, bc_ival=this%pft)
+       call this%prt%RegisterBCIn(acnp_bc_in_id_ctrim, bc_rval=this%canopy_trim)
+       call this%prt%RegisterBCIn(acnp_bc_in_id_lstat, bc_ival=this%status_coh)
+       call this%prt%RegisterBCIn(acnp_bc_in_id_netdc,  bc_rval=this%npp_acc)
+
+       call this%prt%RegisterBCIn(acnp_bc_in_id_nc_repro, bc_rval=this%nc_repro)
+       call this%prt%RegisterBCIn(acnp_bc_in_id_pc_repro, bc_rval=this%pc_repro)
+       call this%prt%RegisterBCIn(acnp_bc_in_id_cdamage, bc_ival=this%crowndamage)
+       
+       call this%prt%RegisterBCInOut(acnp_bc_inout_id_dbh, bc_rval=this%dbh)
+       call this%prt%RegisterBCInOut(acnp_bc_inout_id_resp_excess, bc_rval=this%resp_excess)
+       call this%prt%RegisterBCInOut(acnp_bc_inout_id_l2fr, bc_rval=this%l2fr)
+       call this%prt%RegisterBCInOut(acnp_bc_inout_id_cx_int, bc_rval=this%cx_int)
+       call this%prt%RegisterBCInOut(acnp_bc_inout_id_emadcxdt, bc_rval=this%ema_dcxdt)
+       call this%prt%RegisterBCInOut(acnp_bc_inout_id_cx0, bc_rval=this%cx0)
+       
+       call this%prt%RegisterBCInOut(acnp_bc_inout_id_netdn, bc_rval=this%daily_n_gain)
+       call this%prt%RegisterBCInOut(acnp_bc_inout_id_netdp, bc_rval=this%daily_p_gain)
+       
+       call this%prt%RegisterBCOut(acnp_bc_out_id_cefflux, bc_rval=this%daily_c_efflux)
+       call this%prt%RegisterBCOut(acnp_bc_out_id_nefflux, bc_rval=this%daily_n_efflux)
+       call this%prt%RegisterBCOut(acnp_bc_out_id_pefflux, bc_rval=this%daily_p_efflux)
+       call this%prt%RegisterBCOut(acnp_bc_out_id_limiter, bc_ival=this%cnp_limiter)
+    
+     case DEFAULT
+
+       write(fates_log(),*) 'You specified an unknown PRT module'
+       write(fates_log(),*) 'Aborting'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+
+   end select
+
+ end subroutine InitPRTBoundaryConditions
+
+!:.........................................................................:
+
   
 
 end module EDCohortDynamicsMod
