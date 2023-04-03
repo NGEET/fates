@@ -553,7 +553,7 @@ contains
     integer(i4),intent(in) :: ipft          ! PFT index
     integer(i4),intent(in) :: crowndamage   ! crown damage class [1: undamaged, >1: damaged]
     real(r8),intent(in)    :: canopy_trim   ! trimming function
-    real(r8),intent(out)   :: bl            ! plant leaf biomass [kg]
+    real(r8),intent(out)   :: bl            ! plant leaf biomass [kgC]
     real(r8),intent(out),optional :: dbldd  ! change leaf bio per diameter [kgC/cm]
     
     real(r8) :: blmax
