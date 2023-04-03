@@ -905,9 +905,9 @@ contains
     real(r8),intent(in)           :: canopy_trim
     real(r8),intent(out)          :: sapw_area   ! cross section area of
                                                  ! plant sapwood at reference [m2]
-    real(r8),intent(out)          :: bsap        ! plant leaf biomass [kgC]
-    real(r8),intent(out),optional :: dbsapdd     ! change leaf biomass
-                                                 !  per d [kgC/cm]
+    real(r8),intent(out)          :: bsap        ! sapwood biomass [kgC]
+    real(r8),intent(out),optional :: dbsapdd     ! change in sapwood biomass
+                                                 ! per d [kgC/cm]
 
     real(r8) :: h         ! Plant height [m]
     real(r8) :: dhdd
