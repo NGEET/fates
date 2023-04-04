@@ -127,7 +127,7 @@ contains
 
     use FatesSynchronizedParamsMod , only : FatesSynchronizedParamsInst
     use EDTypesMod        , only : ed_patch_type
-    use EDTypesMod        , only : ed_cohort_type
+    use EDTypesMod        , only : fates_cohort_type
     use EDTypesMod        , only : ed_site_type
     use EDTypesMod        , only : maxpft
     use EDTypesMod        , only : dinc_vai
@@ -161,7 +161,7 @@ contains
     ! LOCAL VARIABLES:
     ! -----------------------------------------------------------------------------------
     type (ed_patch_type) , pointer :: currentPatch
-    type (ed_cohort_type), pointer :: currentCohort
+    type (fates_cohort_type), pointer :: currentCohort
 
     ! -----------------------------------------------------------------------------------
     ! These three arrays hold leaf-level biophysical rates that are calculated
@@ -1893,11 +1893,11 @@ subroutine UpdateCanopyNCanNRadPresent(currentPatch)
 
 
    use EDTypesMod , only : ed_patch_type
-   use EDTypesMod , only : ed_cohort_type
+   use EDTypesMod , only : fates_cohort_type
 
    ! Arguments
    type(ed_patch_type), target :: currentPatch
-   type(ed_cohort_type), pointer :: currentCohort
+   type(fates_cohort_type), pointer :: currentCohort
 
    ! Locals
    integer :: cl  ! Canopy Layer Index

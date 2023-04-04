@@ -15,7 +15,7 @@ module EDLoggingMortalityMod
 
    use FatesConstantsMod , only : r8 => fates_r8
    use FatesConstantsMod , only : rsnbl_math_prec
-   use EDTypesMod        , only : ed_cohort_type
+   use EDTypesMod        , only : fates_cohort_type
    use EDTypesMod        , only : ed_patch_type
    use EDTypesMod        , only : site_massbal_type
    use EDTypesMod        , only : site_fluxdiags_type
@@ -461,7 +461,7 @@ contains
 
      ! Local Variables
      type(ed_patch_type), pointer  :: currentPatch
-     type(ed_cohort_type), pointer :: currentCohort
+     type(fates_cohort_type), pointer :: currentCohort
      real(r8) :: harvestable_patch_c     ! patch level total carbon available for harvest, kgC site-1
      real(r8) :: harvestable_cohort_c    ! cohort level total carbon available for harvest, kgC site-1
      real(r8) :: sapw_m      ! Biomass of sap wood
@@ -717,7 +717,7 @@ contains
       use EDtypesMod,        only : area
       use EDtypesMod,        only : ed_site_type
       use EDtypesMod,        only : ed_patch_type
-      use EDtypesMod,        only : ed_cohort_type
+      use EDtypesMod,        only : fates_cohort_type
       use FatesConstantsMod, only : rsnbl_math_prec
       use FatesAllometryMod, only : carea_allom
 
@@ -731,7 +731,7 @@ contains
 
 
       !LOCAL VARIABLES:
-      type(ed_cohort_type), pointer      :: currentCohort
+      type(fates_cohort_type), pointer      :: currentCohort
       type(site_massbal_type), pointer   :: site_mass
       type(site_fluxdiags_type), pointer :: flux_diags
       type(litter_type),pointer          :: new_litt

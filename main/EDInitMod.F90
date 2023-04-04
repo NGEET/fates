@@ -23,7 +23,7 @@ module EDInitMod
   use EDPhysiologyMod           , only : assign_cohort_sp_properties
   use ChecksBalancesMod         , only : SiteMassStock
   use FatesInterfaceTypesMod    , only : hlm_day_of_year
-  use EDTypesMod                , only : ed_site_type, ed_patch_type, ed_cohort_type
+  use EDTypesMod                , only : ed_site_type, ed_patch_type, fates_cohort_type
   use EDTypesMod                , only : numWaterMem
   use EDTypesMod                , only : num_vegtemp_mem
   use EDTypesMod                , only : maxpft
@@ -748,7 +748,7 @@ contains
     type(bc_in_type), intent(in)                 :: bc_in
     !
     ! !LOCAL VARIABLES:
-    type(ed_cohort_type),pointer :: temp_cohort
+    type(fates_cohort_type),pointer :: temp_cohort
     class(prt_vartypes),pointer  :: prt_obj
     integer  :: cstatus
     integer  :: pft

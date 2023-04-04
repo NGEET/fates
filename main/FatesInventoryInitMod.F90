@@ -34,7 +34,7 @@ module FatesInventoryInitMod
    use FatesLitterMod   , only : litter_type
    use EDTypesMod       , only : ed_site_type
    use EDTypesMod       , only : ed_patch_type
-   use EDTypesMod       , only : ed_cohort_type
+   use EDTypesMod       , only : fates_cohort_type
    use EDTypesMod       , only : area
    use EDTypesMod       , only : leaves_on
    use EDTypesMod       , only : leaves_off
@@ -125,7 +125,7 @@ contains
       ! Locals
       type(ed_site_type), pointer                  :: currentSite
       type(ed_patch_type), pointer                 :: currentpatch
-      type(ed_cohort_type), pointer                :: currentcohort
+      type(fates_cohort_type), pointer                :: currentcohort
       type(ed_patch_type), pointer                 :: newpatch
       type(ed_patch_type), pointer                 :: olderpatch
       type(ed_patch_type), pointer                 :: head_of_unsorted_patch_list
@@ -904,7 +904,7 @@ contains
       integer,parameter                           :: rstatus = 0   ! recruit status
 
       type(ed_patch_type), pointer                :: cpatch        ! current patch pointer
-      type(ed_cohort_type), pointer               :: temp_cohort   ! temporary patch (needed for allom funcs)
+      type(fates_cohort_type), pointer               :: temp_cohort   ! temporary patch (needed for allom funcs)
       integer                                     :: ipa           ! patch idex
       integer                                     :: iage
       integer                                     :: el
@@ -1193,7 +1193,7 @@ contains
 
        ! Locals
        type(ed_patch_type), pointer          :: currentpatch
-       type(ed_cohort_type), pointer         :: currentcohort
+       type(fates_cohort_type), pointer         :: currentcohort
 
        character(len=128)                    :: pss_name_out         ! output file string
        character(len=128)                    :: css_name_out         ! output file string

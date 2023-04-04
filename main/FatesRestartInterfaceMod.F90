@@ -1812,10 +1812,10 @@ contains
    use FatesInterfaceTypesMod, only : fates_maxElementsPerPatch
    use FatesInterfaceTypesMod, only : numpft
    use EDTypesMod, only : ed_site_type
-   use EDTypesMod, only : ed_cohort_type
+   use EDTypesMod, only : fates_cohort_type
    use EDTypesMod, only : ed_patch_type
-   use EDTypesMod, only : maxSWb
-   use EDTypesMod, only : nclmax
+   use EDParamsMod, only : maxSWb
+   use EDParamsMod, only : nclmax
    use EDTypesMod, only : numWaterMem
    use EDTypesMod, only : num_vegtemp_mem
    use FatesInterfaceTypesMod, only : nlevdamage
@@ -1885,7 +1885,7 @@ contains
     
     type(fates_restart_variable_type) :: rvar
     type(ed_patch_type),pointer  :: cpatch
-    type(ed_cohort_type),pointer :: ccohort
+    type(fates_cohort_type),pointer :: ccohort
 
 
     associate( rio_npatch_si           => this%rvars(ir_npatch_si)%int1d, &
@@ -2508,7 +2508,7 @@ contains
      ! ---------------------------------------------------------------------------------
 
      use EDTypesMod,           only : ed_site_type
-     use EDTypesMod,           only : ed_cohort_type
+     use EDTypesMod,           only : fates_cohort_type
      use EDTypesMod,           only : ed_patch_type
      use EDTypesMod,           only : maxSWb
      use FatesInterfaceTypesMod,    only : fates_maxElementsPerPatch
@@ -2534,8 +2534,8 @@ contains
      ! local variables
 
      type(ed_patch_type) , pointer     :: newp
-     type(ed_cohort_type), pointer     :: new_cohort
-     type(ed_cohort_type), pointer     :: prev_cohort
+     type(fates_cohort_type), pointer     :: new_cohort
+     type(fates_cohort_type), pointer     :: prev_cohort
      integer                           :: cohortstatus
      integer                           :: s             ! site index
      integer                           :: idx_pa        ! local patch index
@@ -2708,7 +2708,7 @@ contains
    subroutine get_restart_vectors(this, nc, nsites, sites)
 
      use EDTypesMod, only : ed_site_type
-     use EDTypesMod, only : ed_cohort_type
+     use EDTypesMod, only : fates_cohort_type
      use EDTypesMod, only : ed_patch_type
      use EDTypesMod, only : maxSWb
      use EDTypesMod, only : nclmax
@@ -2729,7 +2729,7 @@ contains
      ! ----------------------------------------------------------------------------------
      ! LL pointers
      type(ed_patch_type),pointer  :: cpatch      ! current patch
-     type(ed_cohort_type),pointer :: ccohort     ! current cohort
+     type(fates_cohort_type),pointer :: ccohort     ! current cohort
      type(litter_type), pointer   :: litt        ! litter object on the current patch
      ! loop indices
      integer :: s, i, j, k

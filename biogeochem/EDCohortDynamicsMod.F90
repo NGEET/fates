@@ -27,8 +27,8 @@ Module EDCohortDynamicsMod
   use PRTParametersMod      , only : prt_params
   use FatesParameterDerivedMod, only : param_derived
   use EDTypesMod            , only : ed_site_type, ed_patch_type
-  use FatesCohortMod        , only : fates_cohort_type
-  use EDTypesMod            , only : nclmax
+  use EDTypesMod            , only : fates_cohort_type
+  use EDParamsMod            , only : nclmax
   use PRTGenericMod         , only : element_list
   use PRTGenericMod         , only : StorageNutrientTarget
   use FatesLitterMod        , only : ncwd
@@ -2135,78 +2135,7 @@ end subroutine create_cohort
   end subroutine DamageRecovery
 
 
-  subroutine InitPRTBoundaryConditions(this)
-   !
-   ! DESCRIPTION:
-   ! Set the boundary conditions that flow in an out of the PARTEH
-   ! allocation hypotheses.  Each of these calls to "RegsterBC" are simply
-   ! setting pointers.
-   ! For instance, if the hypothesis wants to know what
-   ! the DBH of the plant is, then we pass in the dbh as an argument (this%dbh),
-   ! and also tell it which boundary condition we are talking about (which is
-   ! defined by an integer index (ac_bc_inout_id_dbh)
-   !
-   ! Again, elaborated Example:
-   ! "ac_bc_inout_id_dbh" is the unique integer that defines the object index
-   ! for the allometric carbon "ac" boundary condition "bc" for DBH "dbh"
-   ! that is classified as input and output "inout".
-   ! See PRTAllometricCarbonMod.F90 to track its usage.
-   ! bc_rval is used as the optional argument identifyer to specify a real
-   ! value boundary condition.
-   ! bc_ival is used as the optional argument identifyer to specify an integer
-   ! value boundary condition.
-   !
 
-   ! ARGUMENTS:
-   type(fates_cohort_type), intent(inout) :: this
- 
-   select case(hlm_parteh_mode)
-     
-     case (prt_carbon_allom_hyp)
-
-       ! register boundary conditions for the Carbon Only Allometric Hypothesis
-       call this%prt%RegisterBCInOut(ac_bc_inout_id_dbh, bc_rval=this%dbh)
-       call this%prt%RegisterBCInOut(ac_bc_inout_id_netdc, bc_rval=this%npp_acc)
-       call this%prt%RegisterBCIn(ac_bc_in_id_cdamage, bc_ival=this%crowndamage)
-       call this%prt%RegisterBCIn(ac_bc_in_id_pft, bc_ival=this%pft)
-       call this%prt%RegisterBCIn(ac_bc_in_id_ctrim, bc_rval=this%canopy_trim)
-       call this%prt%RegisterBCIn(ac_bc_in_id_lstat, bc_ival=this%status_coh)
-    
-     case (prt_cnp_flex_allom_hyp)
-
-       call this%prt%RegisterBCIn(acnp_bc_in_id_pft, bc_ival=this%pft)
-       call this%prt%RegisterBCIn(acnp_bc_in_id_ctrim, bc_rval=this%canopy_trim)
-       call this%prt%RegisterBCIn(acnp_bc_in_id_lstat, bc_ival=this%status_coh)
-       call this%prt%RegisterBCIn(acnp_bc_in_id_netdc,  bc_rval=this%npp_acc)
-
-       call this%prt%RegisterBCIn(acnp_bc_in_id_nc_repro, bc_rval=this%nc_repro)
-       call this%prt%RegisterBCIn(acnp_bc_in_id_pc_repro, bc_rval=this%pc_repro)
-       call this%prt%RegisterBCIn(acnp_bc_in_id_cdamage, bc_ival=this%crowndamage)
-       
-       call this%prt%RegisterBCInOut(acnp_bc_inout_id_dbh, bc_rval=this%dbh)
-       call this%prt%RegisterBCInOut(acnp_bc_inout_id_resp_excess, bc_rval=this%resp_excess)
-       call this%prt%RegisterBCInOut(acnp_bc_inout_id_l2fr, bc_rval=this%l2fr)
-       call this%prt%RegisterBCInOut(acnp_bc_inout_id_cx_int, bc_rval=this%cx_int)
-       call this%prt%RegisterBCInOut(acnp_bc_inout_id_emadcxdt, bc_rval=this%ema_dcxdt)
-       call this%prt%RegisterBCInOut(acnp_bc_inout_id_cx0, bc_rval=this%cx0)
-       
-       call this%prt%RegisterBCInOut(acnp_bc_inout_id_netdn, bc_rval=this%daily_n_gain)
-       call this%prt%RegisterBCInOut(acnp_bc_inout_id_netdp, bc_rval=this%daily_p_gain)
-       
-       call this%prt%RegisterBCOut(acnp_bc_out_id_cefflux, bc_rval=this%daily_c_efflux)
-       call this%prt%RegisterBCOut(acnp_bc_out_id_nefflux, bc_rval=this%daily_n_efflux)
-       call this%prt%RegisterBCOut(acnp_bc_out_id_pefflux, bc_rval=this%daily_p_efflux)
-       call this%prt%RegisterBCOut(acnp_bc_out_id_limiter, bc_ival=this%cnp_limiter)
-    
-     case DEFAULT
-
-       write(fates_log(),*) 'You specified an unknown PRT module'
-       write(fates_log(),*) 'Aborting'
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-
-   end select
-
- end subroutine InitPRTBoundaryConditions
 
 !:.........................................................................:
 

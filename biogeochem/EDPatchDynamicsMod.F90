@@ -19,12 +19,12 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : homogenize_seed_pfts
   use EDTypesMod           , only : n_dbh_bins, area, patchfusion_dbhbin_loweredges
   use EDtypesMod           , only : force_patchfuse_min_biomass
-  use EDTypesMod           , only : ed_site_type, ed_patch_type, ed_cohort_type
+  use EDTypesMod           , only : ed_site_type, ed_patch_type, fates_cohort_type
   use EDTypesMod           , only : site_massbal_type
   use EDTypesMod           , only : site_fluxdiags_type
   use EDTypesMod           , only : min_patch_area
   use EDTypesMod           , only : min_patch_area_forced
-  use EDTypesMod           , only : nclmax
+  use EDParamsMod           , only : nclmax
   use EDTypesMod           , only : maxpft
   use EDTypesMod           , only : dtype_ifall
   use EDTypesMod           , only : dtype_ilog
@@ -175,7 +175,7 @@ contains
     !
     ! !LOCAL VARIABLES:
     type (ed_patch_type) , pointer :: currentPatch
-    type (ed_cohort_type), pointer :: currentCohort
+    type (fates_cohort_type), pointer :: currentCohort
 
     real(r8) :: cmort
     real(r8) :: bmort
@@ -418,10 +418,10 @@ contains
     type (ed_patch_type) , pointer :: new_patch_primary
     type (ed_patch_type) , pointer :: new_patch_secondary
     type (ed_patch_type) , pointer :: currentPatch
-    type (ed_cohort_type), pointer :: currentCohort
-    type (ed_cohort_type), pointer :: nc
-    type (ed_cohort_type), pointer :: storesmallcohort
-    type (ed_cohort_type), pointer :: storebigcohort
+    type (fates_cohort_type), pointer :: currentCohort
+    type (fates_cohort_type), pointer :: nc
+    type (fates_cohort_type), pointer :: storesmallcohort
+    type (fates_cohort_type), pointer :: storebigcohort
     real(r8) :: site_areadis_primary         ! total area disturbed (to primary forest) in m2 per site per day
     real(r8) :: site_areadis_secondary       ! total area disturbed (to secondary forest) in m2 per site per day    
     real(r8) :: patch_site_areadis           ! total area disturbed in m2 per patch per day
@@ -1627,7 +1627,7 @@ contains
     !
     ! !LOCAL VARIABLES:
 
-    type(ed_cohort_type), pointer      :: currentCohort
+    type(fates_cohort_type), pointer      :: currentCohort
     type(litter_type), pointer         :: new_litt
     type(litter_type), pointer         :: curr_litt
     type(site_massbal_type), pointer   :: site_mass
@@ -1863,7 +1863,7 @@ contains
     type(bc_in_type)    , intent(in)            :: bc_in
     !
     ! !LOCAL VARIABLES:
-    type(ed_cohort_type), pointer      :: currentCohort
+    type(fates_cohort_type), pointer      :: currentCohort
     type(litter_type), pointer         :: new_litt
     type(litter_type), pointer         :: curr_litt
     type(site_massbal_type), pointer   :: site_mass
@@ -2640,10 +2640,10 @@ contains
 
     !
     ! !LOCAL VARIABLES:
-    type (ed_cohort_type), pointer :: currentCohort ! Current Cohort
-    type (ed_cohort_type), pointer :: nextc         ! Remembers next cohort in list 
-    type (ed_cohort_type), pointer :: storesmallcohort
-    type (ed_cohort_type), pointer :: storebigcohort  
+    type (fates_cohort_type), pointer :: currentCohort ! Current Cohort
+    type (fates_cohort_type), pointer :: nextc         ! Remembers next cohort in list 
+    type (fates_cohort_type), pointer :: storesmallcohort
+    type (fates_cohort_type), pointer :: storebigcohort  
     integer                        :: c,p          !counters for pft and litter size class. 
     integer                        :: tnull,snull  ! are the tallest and shortest cohorts associated?
     integer                        :: el           ! loop counting index for elements
@@ -3017,8 +3017,8 @@ contains
 
     type(ed_patch_type) :: cpatch
 
-    type(ed_cohort_type), pointer :: ccohort  ! current
-    type(ed_cohort_type), pointer :: ncohort  ! next
+    type(fates_cohort_type), pointer :: ccohort  ! current
+    type(fates_cohort_type), pointer :: ncohort  ! next
     integer                       :: el       ! loop counter for elements
     
     ! First Deallocate the cohort space
@@ -3097,7 +3097,7 @@ contains
     !
     ! !LOCAL VARIABLES:
     type(ed_patch_type) , pointer  :: currentPatch
-    type(ed_cohort_type), pointer  :: currentCohort
+    type(fates_cohort_type), pointer  :: currentCohort
     real(r8) :: mind(N_DBH_BINS) ! Bottom of DBH bin 
     real(r8) :: maxd(N_DBH_BINS) ! Top of DBH bin
     real(r8) :: delta_dbh   ! Size of DBH bin

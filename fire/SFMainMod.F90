@@ -25,15 +25,15 @@
   use PRTGenericMod         , only : element_pos
   use EDtypesMod            , only : ed_site_type
   use EDtypesMod            , only : ed_patch_type
-  use EDtypesMod            , only : ed_cohort_type
+  use EDtypesMod            , only : fates_cohort_type
   use EDtypesMod            , only : AREA
-  use EDtypesMod            , only : DL_SF
-  use EDTypesMod            , only : TW_SF
-  use EDtypesMod            , only : LB_SF
-  use EDtypesMod            , only : LG_SF
+  use FatesLitterMod        , only : DL_SF
+  use FatesLitterMod        , only : TW_SF
+  use FatesLitterMod        , only : LB_SF
+  use FatesLitterMod        , only : LG_SF
   use FatesLitterMod        , only : ncwd
-  use EDtypesMod            , only : NFSC
-  use EDtypesMod            , only : TR_SF
+  use FatesLitterMod        , only : NFSC
+  use FatesLitterMod        , only : TR_SF
   use FatesLitterMod        , only : litter_type
 
   use PRTGenericMod,          only : leaf_organ
@@ -182,7 +182,7 @@ contains
     type(ed_site_type), intent(in), target :: currentSite
 
     type(ed_patch_type),  pointer :: currentPatch
-    type(ed_cohort_type), pointer :: currentCohort
+    type(fates_cohort_type), pointer :: currentCohort
     type(litter_type), pointer    :: litt_c
 
     real(r8) alpha_FMC(nfsc)     ! Relative fuel moisture adjusted per drying ratio
@@ -358,7 +358,7 @@ contains
     type(bc_in_type)   , intent(in)            :: bc_in
 
     type(ed_patch_type) , pointer :: currentPatch
-    type(ed_cohort_type), pointer :: currentCohort
+    type(fates_cohort_type), pointer :: currentCohort
 
     real(r8) :: total_grass_area     ! per patch,in m2
     real(r8) :: tree_fraction        ! site level. no units
@@ -896,7 +896,7 @@ contains
     type(ed_site_type), intent(in), target :: currentSite
 
     type(ed_patch_type), pointer  :: currentPatch
-    type(ed_cohort_type), pointer :: currentCohort
+    type(fates_cohort_type), pointer :: currentCohort
 
     real(r8) ::  tree_ag_biomass ! total amount of above-ground tree biomass in patch. kgC/m2
     real(r8) ::  leaf_c          ! leaf carbon      [kg]
@@ -960,7 +960,7 @@ contains
     type(ed_site_type), intent(in), target :: currentSite
 
     type(ed_patch_type) , pointer :: currentPatch
-    type(ed_cohort_type), pointer :: currentCohort
+    type(fates_cohort_type), pointer :: currentCohort
     real(r8)                      :: crown_depth    ! Depth of crown in meters
     
     currentPatch => currentSite%oldest_patch
@@ -1027,7 +1027,7 @@ contains
     type(ed_site_type), intent(in), target :: currentSite
 
     type(ed_patch_type) , pointer :: currentPatch
-    type(ed_cohort_type), pointer :: currentCohort
+    type(fates_cohort_type), pointer :: currentCohort
 
     real(r8) :: tau_c !critical time taken to kill cambium (minutes) 
     real(r8) :: bt    !bark thickness in cm.
@@ -1083,7 +1083,7 @@ contains
     type(ed_site_type), intent(in), target :: currentSite
 
     type(ed_patch_type),  pointer :: currentPatch
-    type(ed_cohort_type), pointer :: currentCohort
+    type(fates_cohort_type), pointer :: currentCohort
 
     currentPatch => currentSite%oldest_patch
 

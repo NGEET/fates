@@ -11,10 +11,7 @@ module DamageMainMod
   use EDPftvarcon           , only : EDPftvarcon_inst
   use EDParamsMod           , only : damage_event_code
   use EDParamsMod           , only : ED_val_history_damage_bin_edges
-  use EDTypesMod            , only : ed_site_type
-  use EDTypesMod            , only : ed_patch_type
-  use EDTypesMod            , only : ed_cohort_type
-  use EDTypesMod            , only : AREA
+ ! use EDTypesMod            , only : ed_site_type
   use FatesInterfaceTypesMod, only : hlm_current_day
   use FatesInterfaceTypesMod, only : hlm_current_month
   use FatesInterfaceTypesMod, only : hlm_current_year
@@ -54,7 +51,7 @@ contains
 
 
 
-  subroutine IsItDamageTime(is_master, currentSite)
+  subroutine IsItDamageTime(is_master)
 
     !----------------------------------------------------------------------------
     ! This subroutine determines whether damage should occur (it is called daily)
@@ -63,7 +60,7 @@ contains
 
 
     integer, intent(in) :: is_master
-    type(ed_site_type), intent(inout), target :: currentSite
+    !type(ed_site_type), intent(inout), target :: currentSite
 
     integer :: icode     ! Integer equivalent of the event code (parameter file only allows reals)
     integer :: damage_date  ! Day of month for damage extracted from event code

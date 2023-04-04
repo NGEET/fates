@@ -19,7 +19,7 @@ module FatesHistoryInterfaceMod
   use PRTGenericMod            , only : prt_cnp_flex_allom_hyp
   use EDTypesMod               , only : site_fluxdiags_type
   use EDtypesMod               , only : ed_site_type
-  use EDtypesMod               , only : ed_cohort_type
+  use EDtypesMod               , only : fates_cohort_type
   use EDtypesMod               , only : ed_patch_type
   use EDtypesMod               , only : AREA
   use EDtypesMod               , only : AREA_INV
@@ -1919,7 +1919,7 @@ end subroutine flush_hvars
     type(ed_site_type), intent(in)      :: csite
 
     type(ed_patch_type), pointer     :: cpatch
-    type(ed_cohort_type), pointer    :: ccohort
+    type(fates_cohort_type), pointer    :: ccohort
     integer :: iclscpf  ! layer x size x pft class index
     integer :: iscpf    ! Size x pft class index
     integer :: io_si    ! site's global index in the history vector
@@ -2205,7 +2205,7 @@ end subroutine flush_hvars
     integer  :: return_code
     
     type(ed_patch_type),pointer  :: cpatch
-    type(ed_cohort_type),pointer :: ccohort
+    type(fates_cohort_type),pointer :: ccohort
 
     real(r8), parameter :: reallytalltrees = 1000.   ! some large number (m)
 
@@ -4363,7 +4363,7 @@ end subroutine flush_hvars
     integer  :: ipa2     ! patch incrementer
     integer :: cnlfpft_indx, cnlf_indx, ipft, ican, ileaf ! more iterators and indices
     type(ed_patch_type),pointer  :: cpatch
-    type(ed_cohort_type),pointer :: ccohort
+    type(fates_cohort_type),pointer :: ccohort
     real(r8) :: per_dt_tstep          ! Time step in frequency units (/s)
 
     associate( hio_gpp_si         => this%hvars(ih_gpp_si)%r81d, &
@@ -4855,7 +4855,7 @@ end subroutine update_history_hifrq
     real(r8) :: depth_frac       ! fraction of rhizosphere layer depth occupied by current soil layer
     character(2) :: fmt_char
     type(ed_patch_type),pointer  :: cpatch
-    type(ed_cohort_type),pointer :: ccohort
+    type(fates_cohort_type),pointer :: ccohort
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
     type(ed_site_hydr_type), pointer :: site_hydr
     real(r8) :: per_dt_tstep          ! Time step in frequency units (/s)

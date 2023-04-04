@@ -56,9 +56,8 @@ module PRTAllometricCNPMod
   use FatesConstantsMod   , only : fates_unset_int
   use FatesConstantsMod   , only : sec_per_day
   use PRTParametersMod    , only : prt_params
-  use EDTypesMod          , only : leaves_on,leaves_off
-  use EDTypesMod        , only : p_uptake_mode
-  use EDTypesMod        , only : n_uptake_mode
+  use FatesConstantsMod   , only : leaves_on, leaves_off
+  use EDParamsMod        , only : p_uptake_mode, n_uptake_mode
   use FatesConstantsMod , only : prescribed_p_uptake
   use FatesConstantsMod , only : prescribed_n_uptake
   use EDPftvarcon, only : EDPftvarcon_inst
@@ -2437,7 +2436,5 @@ contains
      
    return
  end subroutine EstimateGrowthNC
-
-   
 
 end module PRTAllometricCNPMod

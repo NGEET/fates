@@ -49,12 +49,12 @@ module EDPhysiologyMod
   use FatesLitterMod      , only : ilabile
   use FatesLitterMod      , only : ilignin
   use FatesLitterMod      , only : icellulose
-  use EDTypesMod          , only : nclmax
+  use EDParamsMod          , only : nclmax
   use EDTypesMod          , only : AREA,AREA_INV
-  use EDTypesMod          , only : nlevleaf
+  use EDParamsMod          , only : nlevleaf
   use EDTypesMod          , only : num_vegtemp_mem
   use EDTypesMod          , only : maxpft
-  use EDTypesMod          , only : ed_site_type, ed_patch_type, ed_cohort_type
+  use EDTypesMod          , only : ed_site_type, ed_patch_type, fates_cohort_type
   use EDTypesMod          , only : leaves_on
   use EDTypesMod          , only : leaves_off
   use EDTypesMod          , only : min_n_safemath
@@ -186,7 +186,7 @@ contains
     ! !ARGUMENTS
     type(ed_site_type), intent(inout), target  :: currentSite
     type(ed_patch_type), pointer               :: currentPatch
-    type(ed_cohort_type), pointer              :: currentCohort
+    type(fates_cohort_type), pointer              :: currentCohort
 
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
@@ -216,8 +216,8 @@ contains
     
 
     ! Locals
-    type(ed_cohort_type), pointer :: ccohort    ! Current cohort
-    type(ed_cohort_type), pointer :: ndcohort   ! New damage-class cohort
+    type(fates_cohort_type), pointer :: ccohort    ! Current cohort
+    type(fates_cohort_type), pointer :: ndcohort   ! New damage-class cohort
     type(litter_type), pointer :: litt     ! Points to the litter object
     type(site_fluxdiags_type), pointer :: flux_diags ! pointer to site level flux diagnostics object
     integer  :: cd               ! Damage class index
@@ -558,7 +558,7 @@ contains
     type (ed_site_type),intent(inout), target :: currentSite
     !
     ! !LOCAL VARIABLES:
-    type (ed_cohort_type) , pointer :: currentCohort
+    type (fates_cohort_type) , pointer :: currentCohort
     type (ed_patch_type)  , pointer :: currentPatch
 
     integer  :: z                     ! leaf layer
@@ -1255,7 +1255,7 @@ contains
     !
     ! !LOCAL VARIABLES:
     type(ed_patch_type) , pointer :: currentPatch
-    type(ed_cohort_type), pointer :: currentCohort
+    type(fates_cohort_type), pointer :: currentCohort
 
     real(r8) :: leaf_c                 ! leaf carbon [kg]
     real(r8) :: sapw_c                 ! sapwood carbon [kg]
@@ -1515,7 +1515,7 @@ contains
 
     ! !LOCAL VARIABLES:
     type(ed_patch_type) , pointer :: currentPatch
-    type(ed_cohort_type), pointer :: currentCohort
+    type(fates_cohort_type), pointer :: currentCohort
 
     real(r8) ::  spread        ! dummy value of canopy spread to estimate c_area
     real(r8) ::  leaf_c        ! leaf carbon estimated to generate target tlai
@@ -1630,7 +1630,7 @@ contains
     ! -----------------------------------------------------------------------------------!
    
 
-    type(ed_cohort_type), intent(inout), target :: currentCohort
+    type(fates_cohort_type), intent(inout), target :: currentCohort
 
     real(r8), intent(in) :: tlai ! target leaf area index from SP inputs
     real(r8), intent(in) :: tsai ! target stem area index from SP inputs
@@ -1762,7 +1762,7 @@ contains
 
     type(ed_patch_type), pointer     :: currentPatch
     type(litter_type), pointer       :: litt
-    type(ed_cohort_type), pointer    :: currentCohort
+    type(fates_cohort_type), pointer    :: currentCohort
     type(site_massbal_type), pointer :: site_mass
 
     integer  :: pft
@@ -1993,7 +1993,7 @@ contains
     class(prt_vartypes), pointer :: prt
     integer :: ft
     integer :: c 
-    type (ed_cohort_type) , pointer :: temp_cohort
+    type (fates_cohort_type) , pointer :: temp_cohort
     type (litter_type), pointer     :: litt          ! The litter object (carbon right now)
     type(site_massbal_type), pointer :: site_mass    ! For accounting total in-out mass fluxes
     integer :: cohortstatus
@@ -2319,7 +2319,7 @@ contains
 
     !
     ! !LOCAL VARIABLES:
-    type(ed_cohort_type), pointer      :: currentCohort
+    type(fates_cohort_type), pointer      :: currentCohort
     type(site_fluxdiags_type), pointer :: flux_diags
     type(site_massbal_type), pointer   :: site_mass
     integer  :: c
@@ -2790,7 +2790,7 @@ contains
     
     type(ed_site_type) :: csite
     type(ed_patch_type), pointer :: cpatch
-    type(ed_cohort_type), pointer :: ccohort
+    type(fates_cohort_type), pointer :: ccohort
 
     real(r8) :: rec_n(maxpft,nclmax)     ! plant count
     real(r8) :: rec_l2fr0(maxpft,nclmax) ! mean l2fr for this day
@@ -2858,7 +2858,7 @@ contains
 
     type(ed_site_type) :: csite
     type(ed_patch_type), pointer :: cpatch
-    type(ed_cohort_type), pointer :: ccohort
+    type(fates_cohort_type), pointer :: ccohort
     integer  :: ft                       ! functional type index
     integer  :: cl                       ! canopy layer index
     real(r8) :: rec_l2fr_pft             ! Actual l2fr of a pft in it's patch
@@ -2901,7 +2901,7 @@ contains
 
     type(ed_site_type) :: csite
     type(ed_patch_type), pointer :: cpatch
-    type(ed_cohort_type), pointer :: ccohort
+    type(fates_cohort_type), pointer :: ccohort
     integer :: ft,cl
     
     if(hlm_parteh_mode .ne. prt_cnp_flex_allom_hyp) return

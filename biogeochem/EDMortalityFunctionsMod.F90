@@ -9,7 +9,7 @@ module EDMortalityFunctionsMod
    use FatesGlobals          , only : endrun => fates_endrun
    use FatesGlobals          , only : fates_log
    use EDPftvarcon           , only : EDPftvarcon_inst
-   use EDTypesMod            , only : ed_cohort_type
+   use EDTypesMod            , only : fates_cohort_type
    use EDTypesMod            , only : ed_site_type
    use EDTypesMod            , only : ed_patch_type
    use FatesConstantsMod     , only : itrue,ifalse
@@ -62,7 +62,7 @@ contains
     use FatesConstantsMod,  only : fates_check_param_set
     use DamageMainMod,      only : GetDamageMortality
     
-    type (ed_cohort_type), intent(in) :: cohort_in 
+    type (fates_cohort_type), intent(in) :: cohort_in 
     type (bc_in_type), intent(in) :: bc_in
     real(r8),intent(out) :: bmort ! background mortality : Fraction per year
     real(r8),intent(out) :: cmort  ! carbon starvation mortality
@@ -239,7 +239,7 @@ contains
     !
     ! !ARGUMENTS    
     type(ed_site_type), intent(inout), target  :: currentSite
-    type(ed_cohort_type),intent(inout), target :: currentCohort
+    type(fates_cohort_type),intent(inout), target :: currentCohort
     type(bc_in_type), intent(in)               :: bc_in
     real(r8), intent(in)                       :: frac_site_primary
 
@@ -322,7 +322,7 @@ contains
    ! ============================================================================
 
    ! Arguments
-   type(ed_cohort_type),intent(in), target :: ccohort
+   type(fates_cohort_type),intent(in), target :: ccohort
 
    logical :: is_exempt ! if true, then treat all mortality from this cohort as non-disturbance-generating
 

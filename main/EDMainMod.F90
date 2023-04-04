@@ -66,7 +66,7 @@ module EDMainMod
   use FatesLitterMod           , only : ncwd
   use EDtypesMod               , only : ed_site_type
   use EDtypesMod               , only : ed_patch_type
-  use EDtypesMod               , only : ed_cohort_type
+  use EDtypesMod               , only : fates_cohort_type
   use EDTypesMod               , only : AREA
   use EDTypesMod               , only : site_massbal_type
   use PRTGenericMod            , only : num_elements
@@ -178,7 +178,7 @@ contains
     call IsItLoggingTime(hlm_masterproc,currentSite)
 
     ! Call a routine that identifies if damage should occur
-    call IsItDamageTime(hlm_masterproc, currentSite)
+    call IsItDamageTime(hlm_masterproc)
  
     !**************************************************************************
     ! Fire, growth, biogeochemistry.
@@ -356,10 +356,10 @@ contains
     ! !LOCAL VARIABLES:
     type(site_massbal_type), pointer :: site_cmass
     type(ed_patch_type)  , pointer :: currentPatch
-    type(ed_cohort_type) , pointer :: currentCohort
-    type(ed_cohort_type) , pointer :: nc
-    type(ed_cohort_type) , pointer :: storesmallcohort
-    type(ed_cohort_type) , pointer :: storebigcohort
+    type(fates_cohort_type) , pointer :: currentCohort
+    type(fates_cohort_type) , pointer :: nc
+    type(fates_cohort_type) , pointer :: storesmallcohort
+    type(fates_cohort_type) , pointer :: storebigcohort
     
     integer :: snull
     integer :: tnull 
@@ -887,7 +887,7 @@ contains
     ! we can account for the changing areas of patches.
 
     type(ed_patch_type)  , pointer :: currentPatch
-    type(ed_cohort_type) , pointer :: currentCohort
+    type(fates_cohort_type) , pointer :: currentCohort
     type(litter_type), pointer     :: litt
     logical, parameter :: print_cohorts = .true.   ! Set to true if you want
                                                     ! to print cohort data
@@ -1042,7 +1042,7 @@ contains
 
     ! Locals
     type(ed_patch_type), pointer :: currentPatch
-    type(ed_cohort_type), pointer :: currentCohort
+    type(fates_cohort_type), pointer :: currentCohort
 
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))

@@ -19,18 +19,18 @@ module FatesInterfaceMod
    use EDParamsMod               , only : maxpatch_primary
    use EDParamsMod               , only : maxpatch_secondary
    use EDParamsMod               , only : max_cohort_per_patch
-   use EDTypesMod                , only : maxSWb
-   use EDTypesMod                , only : ivis
-   use EDTypesMod                , only : inir
-   use EDTypesMod                , only : nclmax
-   use EDTypesMod                , only : nlevleaf
+   use EDParamsMod                , only : maxSWb
+   use EDParamsMod                , only : ivis
+   use EDParamsMod                , only : inir
+   use EDParamsMod                , only : nclmax
+   use EDParamsMod                , only : nlevleaf
    use EDTypesMod                , only : maxpft
    use EDTypesMod                , only : do_fates_salinity
    use EDTypesMod                , only : numWaterMem
    use EDTypesMod                , only : numlevsoil_max
    use EDTypesMod                , only : ed_site_type
    use EDTypesMod                , only : ed_patch_type
-   use EDTypesMod                , only : ed_cohort_type
+   use EDTypesMod                , only : fates_cohort_type
    use EDTypesMod                , only : area_inv
    use FatesConstantsMod         , only : r8 => fates_r8
    use FatesConstantsMod         , only : itrue,ifalse
@@ -57,8 +57,8 @@ module FatesInterfaceMod
    use EDParamsMod               , only : ED_val_history_height_bin_edges
    use EDParamsMod               , only : ED_val_history_coageclass_bin_edges
    use CLMFatesParamInterfaceMod , only : FatesReadParameters
-   use EDTypesMod                , only : p_uptake_mode
-   use EDTypesMod                , only : n_uptake_mode
+   use EDParamsMod                , only : p_uptake_mode
+   use EDParamsMod                , only : n_uptake_mode
    use EDTypesMod                , only : ed_site_type
    use FatesConstantsMod         , only : prescribed_p_uptake
    use FatesConstantsMod         , only : prescribed_n_uptake
@@ -1943,7 +1943,7 @@ contains
      type(bc_in_type), intent(in)      :: bc_in(:)
      
      type(ed_patch_type),  pointer :: cpatch
-     type(ed_cohort_type), pointer :: ccohort
+     type(fates_cohort_type), pointer :: ccohort
      integer :: s, ifp, io_si
 
      do s = 1,size(sites,dim=1)

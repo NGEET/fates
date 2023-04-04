@@ -11,7 +11,7 @@ module EDBtranMod
   use FatesConstantsMod , only : nocomp_bareground
   use EDTypesMod        , only : ed_site_type,       &
        ed_patch_type,      &
-       ed_cohort_type,     &
+       fates_cohort_type,     &
        maxpft
   use shr_kind_mod      , only : r8 => shr_kind_r8
   use FatesInterfaceTypesMod , only : bc_in_type, &
@@ -111,7 +111,7 @@ contains
     !
     ! !LOCAL VARIABLES:
     type(ed_patch_type),pointer             :: cpatch ! Current Patch Pointer
-    type(ed_cohort_type),pointer            :: ccohort ! Current cohort pointer
+    type(fates_cohort_type),pointer            :: ccohort ! Current cohort pointer
     integer  :: s                 ! site
     integer  :: j                 ! soil layer
     integer  :: ifp               ! patch vector index for the site
