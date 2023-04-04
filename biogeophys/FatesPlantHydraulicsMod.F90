@@ -980,7 +980,7 @@ contains
     ! Lets also avoid super-low targets that have very low trimming functions
 
     call bleaf(ccohort%dbh,ccohort%pft,ccohort%crowndamage, &
-         max(ccohort%canopy_trim,min_trim),leaf_c_target)
+         max(ccohort%canopy_trim,min_trim),ccohort%efleaf_coh, leaf_c_target)
 
     if( (ccohort%status_coh == leaves_on) .or. ccohort_hydr%is_newly_recruited ) then
        ccohort_hydr%v_ag(1:n_hypool_leaf) = max(leaf_c,min_leaf_frac*leaf_c_target) * &
@@ -996,7 +996,7 @@ contains
 
     ! calculate the sapwood cross-sectional area
     call bsap_allom(ccohort%dbh,ccohort%pft,ccohort%crowndamage, &
-         ccohort%canopy_trim,a_sapwood_target,sapw_c_target)
+         ccohort%canopy_trim, ccohort%efstem_coh, a_sapwood_target,sapw_c_target)
 
     ! uncomment this if you want to use
     ! the actual sapwood, which may be lower than target due to branchfall.
@@ -2976,7 +2976,7 @@ subroutine UpdatePlantKmax(ccohort_hydr,ccohort,csite_hydr)
 
   ! Get the cross-section of the plant's sapwood area [m2]
   call bsap_allom(ccohort%dbh,pft,ccohort%crowndamage, &
-       ccohort%canopy_trim,a_sapwood,c_sap_dummy)
+       ccohort%canopy_trim, ccohort%efstem_coh, a_sapwood,c_sap_dummy)
 
   ! Leaf Maximum Hydraulic Conductance
   ! The starting hypothesis is that there is no resistance inside the

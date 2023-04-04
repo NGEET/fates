@@ -83,10 +83,10 @@ module EDTypesMod
                                                 ! can be approximated to be equal to the visible band
 
 
-  integer, parameter, public :: leaves_pshed = 3  ! Flag specifying that a deciduous plant has leaves
-                                                  ! but is shedding them (partial shedding). This plant
-                                                  ! should not allocate carbon towards growth or 
-                                                  ! reproduction.
+  integer, parameter, public :: leaves_shedding = 3  ! Flag specifying that a deciduous plant has leaves
+                                                     ! but is shedding them (partial shedding). This plant
+                                                     ! should not allocate carbon towards growth or 
+                                                     ! reproduction.
   integer, parameter, public :: leaves_on  = 2  ! Flag specifying that a deciduous plant has leaves
                                                 ! and should be allocating to them as well
   integer, parameter, public :: leaves_off = 1  ! Flag specifying that a deciduous plant has dropped

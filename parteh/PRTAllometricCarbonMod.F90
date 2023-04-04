@@ -34,7 +34,6 @@ module PRTAllometricCarbonMod
   use FatesAllometryMod   , only : bagw_allom
   use FatesAllometryMod   , only : h_allom
   use FatesAllometryMod   , only : CheckIntegratedAllometries
-  use FatesAllometryMod   , only : ForceDBH
 
   use FatesGlobals        , only : endrun => fates_endrun
   use FatesGlobals        , only : fates_log
@@ -53,7 +52,7 @@ module PRTAllometricCarbonMod
 
   use EDTypesMod          , only : leaves_on
   use EDTypesMod          , only : leaves_off
-  use EDTypesMod          , only : leaves_pshed
+  use EDTypesMod          , only : leaves_shedding
   use EDTypesMod          , only : ihard_stress_decid
   use EDTypesMod          , only : isemi_stress_decid
 
@@ -428,7 +427,7 @@ module PRTAllometricCarbonMod
     elongf_stem  = this%bc_in(ac_bc_in_id_efstem)%rval
     !--- Set some logical flags to simplify "if" blocks
     is_hydecid_dormant = any(prt_params%stress_decid(ipft) == [ihard_stress_decid,isemi_stress_decid] ) &
-                         .and. any(leaf_status == [leaves_off,leaves_pshed] )
+                         .and. any(leaf_status == [leaves_off,leaves_shedding] )
     is_deciduous       = any(prt_params%stress_decid(ipft) == [ihard_stress_decid,isemi_stress_decid] ) &
                          .or. ( prt_params%season_decid(ipft) == itrue )
 
@@ -472,22 +471,22 @@ module PRTAllometricCarbonMod
       ! -----------------------------------------------------------------------------------
 
       ! Target sapwood biomass according to allometry and trimming [kgC]
-      call bsap_allom(dbh,ipft, crowndamage, canopy_trim,sapw_area,target_sapw_c)
+      call bsap_allom(dbh,ipft, crowndamage, canopy_trim, elongf_stem, sapw_area,target_sapw_c)
 
       ! Target total above ground biomass in woody/fibrous tissues  [kgC]
-      call bagw_allom(dbh,ipft, crowndamage, target_agw_c)
+      call bagw_allom(dbh,ipft, crowndamage, elongf_stem, target_agw_c)
 
       ! Target total below ground biomass in woody/fibrous tissues [kgC] 
-      call bbgw_allom(dbh,ipft,target_bgw_c)
+      call bbgw_allom(dbh,ipft, elongf_stem, target_bgw_c)
 
       ! Target total dead (structrual) biomass [kgC]
       call bdead_allom( target_agw_c, target_bgw_c, target_sapw_c, ipft, target_struct_c)
 
       ! Target leaf biomass according to allometry and trimming
-      call bleaf(dbh,ipft,crowndamage,canopy_trim,target_leaf_c)
+      call bleaf(dbh,ipft,crowndamage,canopy_trim, elongf_leaf, target_leaf_c)
 
       ! Target fine-root biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
-      call bfineroot(dbh,ipft,canopy_trim,l2fr,target_fnrt_c)
+      call bfineroot(dbh,ipft,canopy_trim,l2fr, elongf_fnrt, target_fnrt_c)
 
       ! Target storage carbon [kgC,kgC/cm]
       call bstore_allom(dbh,ipft,crowndamage,canopy_trim,target_store_c)
@@ -507,11 +506,6 @@ module PRTAllometricCarbonMod
          target_sapw_c   = 0.0_r8
          target_struct_c = 0.0_r8
          target_store_c  = target_store_c + max(0.0_r8,carbon_balance)
-      else
-         target_leaf_c   = elongf_leaf * target_leaf_c
-         target_fnrt_c   = elongf_fnrt * target_fnrt_c
-         target_sapw_c   = elongf_stem * target_sapw_c
-         target_struct_c = elongf_stem * target_struct_c
       end if
 
 
@@ -704,7 +698,7 @@ module PRTAllometricCarbonMod
          !          should not invest in growth.
          ! -----------------------------------------------------------------------------------
          select_stash_grow: select case (leaf_status)
-         case (leaves_off,leaves_pshed)
+         case (leaves_off,leaves_shedding)
             ! There is carbon balance, but plant is shedding leaves. We stash the carbon
             ! to storage even if it makes their storage too large.
             store_c_flux   = carbon_balance
@@ -1051,25 +1045,14 @@ module PRTAllometricCarbonMod
         crowndamage = int(intgr_params(ac_bc_in_id_cdamage))
         l2fr        = prt_params%allom_l2fr(ipft)
 
-        call bleaf(dbh,ipft,crowndamage,canopy_trim,ct_leaf, dbldd=ct_dleafdd)
-        call bfineroot(dbh,ipft,canopy_trim,l2fr,ct_fnrt,ct_dfnrtdd)
-        call bsap_allom(dbh,ipft, crowndamage, canopy_trim,sapw_area,ct_sap,ct_dsapdd)
-        call bagw_allom(dbh,ipft,crowndamage, ct_agw,ct_dagwdd)
-        call bbgw_allom(dbh,ipft,ct_bgw, ct_dbgwdd)        
+        call bleaf(dbh,ipft,crowndamage,canopy_trim, elongf_leaf, ct_leaf, dbldd=ct_dleafdd)
+        call bfineroot(dbh,ipft,canopy_trim,l2fr, elongf_fnrt, ct_fnrt,ct_dfnrtdd)
+        call bsap_allom(dbh,ipft, crowndamage, canopy_trim, elongf_stem, sapw_area,ct_sap,ct_dsapdd)
+        call bagw_allom(dbh,ipft,crowndamage, elongf_stem, ct_agw,ct_dagwdd)
+        call bbgw_allom(dbh,ipft, elongf_stem, ct_bgw, ct_dbgwdd)
         call bdead_allom(ct_agw,ct_bgw, ct_sap, ipft, ct_dead, &
                          ct_dagwdd, ct_dbgwdd, ct_dsapdd, ct_ddeaddd)
         call bstore_allom(dbh,ipft,crowndamage, canopy_trim,ct_store,ct_dstoredd)
-
-        ! Apply elongation factor correction to targets
-        ct_leaf    = elongf_leaf * ct_leaf
-        ct_fnrt    = elongf_fnrt * ct_fnrt
-        ct_sap     = elongf_stem * ct_sap
-        ct_dead    = elongf_stem * ct_dead
-        ! MLO - Need to double check that it is correct to multiply derivatives too.
-        ct_dleafdd = elongf_leaf * ct_dleafdd
-        ct_dfnrtdd = elongf_fnrt * ct_dfnrtdd
-        ct_dsapdd  = elongf_stem * ct_dsapdd
-        ct_ddeaddd = elongf_stem * ct_ddeaddd
 
         ! fraction of carbon going towards reproduction
         if (dbh <= prt_params%dbh_repro_threshold(ipft)) then ! cap on leaf biomass
@@ -1141,7 +1124,7 @@ module PRTAllometricCarbonMod
    ! ====================================================================================
 
    subroutine TargetAllometryCheck(b0_leaf,b0_fnrt,b0_sapw,b0_store,b0_struct, &
-                                   bleaf,bfnrt,bsapw,bstore,bstruct, &
+                                   ba_leaf,ba_fnrt,ba_sapw,ba_store,ba_struct, &
                                    bt_leaf,bt_fnrt,bt_sapw,bt_store,bt_struct, &
                                    carbon_balance,elongf_leaf,elongf_fnrt,elongf_stem, &
                                    ipft,leaf_status, &
@@ -1153,11 +1136,11 @@ module PRTAllometricCarbonMod
       real(r8),intent(in) :: b0_sapw
       real(r8),intent(in) :: b0_store
       real(r8),intent(in) :: b0_struct
-      real(r8),intent(in) :: bleaf          !actual
-      real(r8),intent(in) :: bfnrt
-      real(r8),intent(in) :: bsapw
-      real(r8),intent(in) :: bstore
-      real(r8),intent(in) :: bstruct
+      real(r8),intent(in) :: ba_leaf        !actual
+      real(r8),intent(in) :: ba_fnrt
+      real(r8),intent(in) :: ba_sapw
+      real(r8),intent(in) :: ba_store
+      real(r8),intent(in) :: ba_struct
       real(r8),intent(in) :: bt_leaf        !target
       real(r8),intent(in) :: bt_fnrt
       real(r8),intent(in) :: bt_sapw
@@ -1189,22 +1172,22 @@ module PRTAllometricCarbonMod
 
 
       ! First test whether or not each pool looks reasonable.
-      fine_leaf   = (bt_leaf   - bleaf  ) <= calloc_abs_error
-      fine_fnrt   = (bt_fnrt   - bfnrt  ) <= calloc_abs_error
-      fine_sapw   = (bt_sapw   - bsapw  ) <= calloc_abs_error
-      fine_store  = (bt_store  - bstore ) <= calloc_abs_error
-      fine_struct = (bt_struct - bstruct) <= calloc_abs_error
+      fine_leaf   = (bt_leaf   - ba_leaf  ) <= calloc_abs_error
+      fine_fnrt   = (bt_fnrt   - ba_fnrt  ) <= calloc_abs_error
+      fine_sapw   = (bt_sapw   - ba_sapw  ) <= calloc_abs_error
+      fine_store  = (bt_store  - ba_store ) <= calloc_abs_error
+      fine_struct = (bt_struct - ba_struct) <= calloc_abs_error
       all_fine    = fine_leaf .and. fine_fnrt .and. fine_sapw .and. &
                     fine_store .and. fine_struct
 
       ! Decide whether or not to grow tissues (but only if all tissues look fine).
       ! We grow only when biomass is less than target biomass (with tolerance).
       if (all_fine) then
-         grow_leaf   = ( bleaf   - bt_leaf   ) <= calloc_abs_error
-         grow_fnrt   = ( bfnrt   - bt_fnrt   ) <= calloc_abs_error
-         grow_sapw   = ( bsapw   - bt_sapw   ) <= calloc_abs_error
-         grow_store  = ( bstore  - bt_store  ) <= calloc_abs_error
-         grow_struct = ( bstruct - bt_struct ) <= calloc_abs_error
+         grow_leaf   = ( ba_leaf   - bt_leaf   ) <= calloc_abs_error
+         grow_fnrt   = ( ba_fnrt   - bt_fnrt   ) <= calloc_abs_error
+         grow_sapw   = ( ba_sapw   - bt_sapw   ) <= calloc_abs_error
+         grow_store  = ( ba_store  - bt_store  ) <= calloc_abs_error
+         grow_struct = ( ba_struct - bt_struct ) <= calloc_abs_error
       else
          ! If anything looks not fine, write a detailed report 
          write(fates_log(),fmt=fmth) '======'
@@ -1214,11 +1197,11 @@ module PRTAllometricCarbonMod
          write(fates_log(),fmt=fmth) ' Biomass and on-allometry test (''F'' means problem)'
          write(fates_log(),fmt=fmth) '------'
          write(fates_log(),fmt=fmth) ' Tissue     | Initial      | Current      | Target       | On-allometry'
-         write(fates_log(),fmt=fmtb) ' Leaf       |',b0_leaf   ,'|',bleaf     ,'|',bt_leaf   ,'|',fine_leaf
-         write(fates_log(),fmt=fmtb) ' Fine root  |',b0_fnrt   ,'|',bfnrt     ,'|',bt_fnrt   ,'|',fine_fnrt
-         write(fates_log(),fmt=fmtb) ' Sap wood   |',b0_sapw   ,'|',bsapw     ,'|',bt_sapw   ,'|',fine_sapw
-         write(fates_log(),fmt=fmtb) ' Storage    |',b0_store  ,'|',bstore    ,'|',bt_store  ,'|',fine_store
-         write(fates_log(),fmt=fmtb) ' Structural |',b0_struct ,'|',bstruct   ,'|',bt_struct ,'|',fine_struct
+         write(fates_log(),fmt=fmtb) ' Leaf       |',b0_leaf   ,'|',ba_leaf   ,'|',bt_leaf   ,'|',fine_leaf
+         write(fates_log(),fmt=fmtb) ' Fine root  |',b0_fnrt   ,'|',ba_fnrt   ,'|',bt_fnrt   ,'|',fine_fnrt
+         write(fates_log(),fmt=fmtb) ' Sap wood   |',b0_sapw   ,'|',ba_sapw   ,'|',bt_sapw   ,'|',fine_sapw
+         write(fates_log(),fmt=fmtb) ' Storage    |',b0_store  ,'|',ba_store  ,'|',bt_store  ,'|',fine_store
+         write(fates_log(),fmt=fmtb) ' Structural |',b0_struct ,'|',ba_struct ,'|',bt_struct ,'|',fine_struct
          write(fates_log(),fmt=fmth) ''
          write(fates_log(),fmt=fmth) ' Ancillary information'
          write(fates_log(),fmt=fmth) '------'

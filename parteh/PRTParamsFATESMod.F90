@@ -1105,7 +1105,6 @@ contains
      pftloop: do ipft = 1,npft
 
         ! Check to see if evergreen, deciduous flags are mutually exclusive
-        ! MLO. Changed the check because season_decid can be 1 or 2.
         !      By the way, if these are mutually exclusive, shouldn't we define a
         !      single prt_params%leaf_phenology and a list of codes for the different
         !      types (i.e., ievergreen, iseason_decid, istress_hard, istress_semi, etc.)?
@@ -1559,12 +1558,13 @@ contains
 
      integer, parameter :: not_damaged = 1 ! this is also in MainDamageMod, here for dependency purposes
 
+     ! For all tissues, assume tissues of new recruits will be fully flushed.
      call h2d_allom(EDPftvarcon_inst%hgt_min(ft),ft,dbh)
-     call bleaf(dbh,ft,not_damaged,init_recruit_trim,c_leaf)
-     call bfineroot(dbh,ft,init_recruit_trim,l2fr,c_fnrt)
-     call bsap_allom(dbh,ft,not_damaged,init_recruit_trim,a_sapw, c_sapw)
-     call bagw_allom(dbh,ft,not_damaged,c_agw)
-     call bbgw_allom(dbh,ft,c_bgw)
+     call bleaf(dbh,ft,not_damaged,init_recruit_trim, 1.0_r8, c_leaf)
+     call bfineroot(dbh,ft,init_recruit_trim,l2fr, 1.0_r8,c_fnrt)
+     call bsap_allom(dbh,ft,not_damaged,init_recruit_trim, 1.0_r8,a_sapw, c_sapw)
+     call bagw_allom(dbh,ft,not_damaged, 1.0_r8,c_agw)
+     call bbgw_allom(dbh,ft, 1.0_r8,c_bgw)
      call bdead_allom(c_agw,c_bgw,c_sapw,ft,c_struct)
      call bstore_allom(dbh,ft,not_damaged,init_recruit_trim,c_store)
 

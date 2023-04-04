@@ -893,7 +893,6 @@ contains
       real(r8)                                    :: c_avgRG       ! avg radial growth (NOT USED)
       real(r8)                                    :: site_spread   ! initial guess of site spread
                                                                    ! should be quickly re-calculated
-      integer                                     :: cstatus       ! cohort status
       integer,parameter                           :: rstatus = 0   ! recruit status
 
       type(ed_patch_type), pointer                :: cpatch        ! current patch pointer
@@ -917,9 +916,6 @@ contains
       real(r8) :: m_sapw   ! Generic mass for sapwood [kg]
       real(r8) :: m_store  ! Generic mass for storage [kg]
       real(r8) :: m_repro  ! Generic mass for reproductive tissues [kg]
-      real(r8) :: elongf_leaf        ! Leaf elongation factor
-      real(r8) :: elongf_fnrt        ! Fine-root "elongation factor"
-      real(r8) :: elongf_stem        ! Stem "elongation factor"
       real(r8) :: fnrt_drop_fraction ! Fine-root abscission fraction
       real(r8) :: stem_drop_fraction ! Stem abscission fraction
       integer  :: i_pft, ncohorts_to_create
@@ -1030,48 +1026,20 @@ contains
          call h_allom(c_dbh,temp_cohort%pft,temp_cohort%hite)
          temp_cohort%canopy_trim = 1.0_r8
 
-         call bagw_allom(temp_cohort%dbh,temp_cohort%pft, &
-              temp_cohort%crowndamage, c_agw)
-         ! Calculate coarse root biomass from allometry
-         call bbgw_allom(temp_cohort%dbh,temp_cohort%pft,c_bgw)
-
-         ! Calculate the leaf biomass (calculates a maximum first, then applies canopy trim
-         ! and sla scaling factors)
-         call bleaf(temp_cohort%dbh,temp_cohort%pft,temp_cohort%crowndamage,&
-              temp_cohort%canopy_trim,c_leaf)
-         
-         ! Calculate fine root biomass
-
-         temp_cohort%l2fr = prt_params%allom_l2fr(temp_cohort%pft)
-         call bfineroot(temp_cohort%dbh,temp_cohort%pft,temp_cohort%canopy_trim,temp_cohort%l2fr,c_fnrt)
-
-         ! Calculate sapwood biomass
-         call bsap_allom(temp_cohort%dbh,temp_cohort%pft,temp_cohort%crowndamage, &
-              temp_cohort%canopy_trim, a_sapw, c_sapw)
-         
-         call bdead_allom( c_agw, c_bgw, c_sapw, temp_cohort%pft, c_struct )
-         call bstore_allom(temp_cohort%dbh, temp_cohort%pft, temp_cohort%crowndamage,temp_cohort%canopy_trim, c_store)
-
-         cstatus = leaves_on
-         elongf_leaf = 1.0_r8
-         elongf_fnrt = 1.0_r8
-         elongf_stem = 1.0_r8
-
+         ! Determine the phenology status and the elongation factors.
          fnrt_drop_fraction = prt_params%phen_fnrt_drop_fraction(temp_cohort%pft)
          stem_drop_fraction = prt_params%phen_stem_drop_fraction(temp_cohort%pft)
 
          if( prt_params%season_decid(temp_cohort%pft) == itrue .and. &
               any(csite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
-            elongf_leaf = 0.0_r8
-            elongf_fnrt = 1._r8 - fnrt_drop_fraction
-            elongf_stem = 1._r8 - stem_drop_fraction
+            ! Cold deciduous and season is for leaves off. Set leaf status and 
+            ! elongation factors accordingly
+            temp_cohort%efleaf_coh = 0.0_r8
+            temp_cohort%effnrt_coh = 1._r8 - fnrt_drop_fraction
+            temp_cohort%efstem_coh = 1._r8 - stem_drop_fraction
 
-            c_leaf       = elongf_leaf * c_leaf
-            c_fnrt       = elongf_fnrt * c_fnrt
-            c_sapw       = elongf_stem * c_sapw
-            c_struct     = elongf_stem * c_struct
+            temp_cohort%status_coh = leaves_off
 
-            cstatus      = leaves_off
          elseif ( any(prt_params%stress_decid(temp_cohort%pft) == [ihard_stress_decid,isemi_stress_decid])) then
             ! Drought deciduous.  For the default approach, elongation factor is either
             ! zero (full abscission) or one (fully flushed), but this can also be a
@@ -1083,23 +1051,48 @@ contains
             ! of the elongation factor (e) and the drop fraction (x), which will ensure
             ! that the remaining tissue biomass will be exactly e when x=1, and exactly
             ! the original biomass when x = 0.
-            elongf_leaf = csite%elong_factor(temp_cohort%pft)
-            elongf_fnrt = 1.0_r8 - (1.0_r8 - elongf_leaf ) * fnrt_drop_fraction
-            elongf_stem = 1.0_r8 - (1.0_r8 - elongf_leaf ) * stem_drop_fraction
+            temp_cohort%efleaf_coh = csite%elong_factor(temp_cohort%pft)
+            temp_cohort%effnrt_coh = 1.0_r8 - (1.0_r8 - temp_cohort%efleaf_coh ) * fnrt_drop_fraction
+            temp_cohort%efstem_coh = 1.0_r8 - (1.0_r8 - temp_cohort%efleaf_coh ) * stem_drop_fraction
 
-
-            c_leaf   = elongf_leaf * c_leaf
-            c_fnrt   = elongf_fnrt * c_fnrt
-            c_sapw   = elongf_stem * c_sapw
-            c_struct = elongf_stem * c_struct
-            if (elongf_leaf > 0.0_r8) then
+            if (temp_cohort%efleaf_coh > 0.0_r8) then
                ! Assume leaves are growing even if they are not fully flushed.
-               cstatus = leaves_on
+               temp_cohort%status_coh = leaves_on
             else
                ! Leaves are off (abscissing).
-               cstatus = leaves_off
+               temp_cohort%status_coh = leaves_off
             end if
+         else
+            ! Evergreen, or deciduous PFT during the growing season. Assume tissues are fully flushed.
+            temp_cohort%efleaf_coh = 1.0_r8
+            temp_cohort%effnrt_coh = 1.0_r8
+            temp_cohort%efstem_coh = 1.0_r8
+
+            temp_cohort%status_coh = leaves_on
          end if
+
+         call bagw_allom(temp_cohort%dbh,temp_cohort%pft, &
+              temp_cohort%crowndamage, temp_cohort%efstem_coh, c_agw)
+         ! Calculate coarse root biomass from allometry
+         call bbgw_allom(temp_cohort%dbh,temp_cohort%pft, temp_cohort%efstem_coh, c_bgw)
+
+         ! Calculate the leaf biomass (calculates a maximum first, then applies canopy trim
+         ! and sla scaling factors)
+         call bleaf(temp_cohort%dbh,temp_cohort%pft,temp_cohort%crowndamage,&
+              temp_cohort%canopy_trim, temp_cohort%efleaf_coh, c_leaf)
+         
+         ! Calculate fine root biomass
+
+         temp_cohort%l2fr = prt_params%allom_l2fr(temp_cohort%pft)
+         call bfineroot(temp_cohort%dbh,temp_cohort%pft,temp_cohort%canopy_trim,temp_cohort%l2fr, &
+              temp_cohort%effnrt_coh, c_fnrt)
+
+         ! Calculate sapwood biomass
+         call bsap_allom(temp_cohort%dbh,temp_cohort%pft,temp_cohort%crowndamage, &
+              temp_cohort%canopy_trim, temp_cohort%efstem_coh, a_sapw, c_sapw)
+         
+         call bdead_allom( c_agw, c_bgw, c_sapw, temp_cohort%pft, c_struct )
+         call bstore_allom(temp_cohort%dbh, temp_cohort%pft, temp_cohort%crowndamage,temp_cohort%canopy_trim, c_store)
 
          prt_obj => null()
          call InitPRTObject(prt_obj)
@@ -1189,7 +1182,8 @@ contains
 
          call create_cohort(csite, cpatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, &
               temp_cohort%coage, temp_cohort%dbh, &
-              prt_obj, elongf_leaf, elongf_fnrt, elongf_stem, cstatus, rstatus, &
+              prt_obj, temp_cohort%efleaf_coh, temp_cohort%effnrt_coh, &
+              temp_cohort%efstem_coh, temp_cohort%status_coh, rstatus, &
               temp_cohort%canopy_trim,temp_cohort%c_area, &
               1, temp_cohort%crowndamage, csite%spread, bc_in)
 

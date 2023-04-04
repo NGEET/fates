@@ -56,7 +56,7 @@ module PRTAllometricCNPMod
   use FatesConstantsMod   , only : fates_unset_int
   use FatesConstantsMod   , only : sec_per_day
   use PRTParametersMod    , only : prt_params
-  use EDTypesMod          , only : leaves_on,leaves_off,leaves_pshed
+  use EDTypesMod          , only : leaves_on,leaves_off,leaves_shedding
   use EDTypesMod        , only : p_uptake_mode
   use EDTypesMod        , only : n_uptake_mode
   use FatesConstantsMod , only : prescribed_p_uptake
@@ -471,27 +471,16 @@ contains
     ! Set carbon targets based on the plant's current stature
     target_c(:) = fates_unset_r8
     target_dcdd(:) = fates_unset_r8
-    call bsap_allom(dbh,ipft,crown_damage,canopy_trim,sapw_area,target_c(sapw_organ),target_dcdd(sapw_organ))
-    call bagw_allom(dbh,ipft,crown_damage,agw_c_target,agw_dcdd_target)
-    call bbgw_allom(dbh,ipft,bgw_c_target,bgw_dcdd_target)
+    call bsap_allom(dbh,ipft,crown_damage,canopy_trim,elongf_stem,sapw_area,target_c(sapw_organ),target_dcdd(sapw_organ))
+    call bagw_allom(dbh,ipft,crown_damage,elongf_stem,agw_c_target,agw_dcdd_target)
+    call bbgw_allom(dbh,ipft,elongf_stem,bgw_c_target,bgw_dcdd_target)
     call bdead_allom(agw_c_target,bgw_c_target,target_c(sapw_organ),ipft,target_c(struct_organ), &
                      agw_dcdd_target,bgw_dcdd_target,target_dcdd(sapw_organ),target_dcdd(struct_organ))
-    call bleaf(dbh,ipft,crown_damage,canopy_trim, target_c(leaf_organ), target_dcdd(leaf_organ))
-    call bfineroot(dbh,ipft,canopy_trim, l2fr, target_c(fnrt_organ), target_dcdd(fnrt_organ))
+    call bleaf(dbh,ipft,crown_damage,canopy_trim, elongf_leaf, target_c(leaf_organ), target_dcdd(leaf_organ))
+    call bfineroot(dbh,ipft,canopy_trim, l2fr, elongf_fnrt, target_c(fnrt_organ), target_dcdd(fnrt_organ))
     call bstore_allom(dbh,ipft,crown_damage, canopy_trim, target_c(store_organ), target_dcdd(store_organ))
     target_c(repro_organ) = 0._r8
     target_dcdd(repro_organ) = 0._r8
-
-    ! Correct tissue targets based on the elongation factor
-    target_c(leaf_id)      = elongf_leaf * target_c(leaf_id)
-    target_c(fnrt_id)      = elongf_fnrt * target_c(fnrt_id)
-    target_c(sapw_id)      = elongf_stem * target_c(sapw_id)
-    target_c(struct_id)    = elongf_stem * target_c(struct_id)
-    ! MLO - Need to check whether or not the multiplication for the growth is correct or not.
-    target_dcdd(leaf_id)   = elongf_leaf * target_dcdd(leaf_id)
-    target_dcdd(fnrt_id)   = elongf_fnrt * target_dcdd(fnrt_id)
-    target_dcdd(sapw_id)   = elongf_stem * target_dcdd(sapw_id)
-    target_dcdd(struct_id) = elongf_stem * target_dcdd(struct_id)
 
     ! ===================================================================================
     ! Step 1: Evaluate nutrient storage in the plant. Depending on how low
@@ -738,6 +727,7 @@ contains
     real(r8)          :: canopy_trim
     integer  :: leaf_status
     integer, pointer :: limiter
+    real(r8) :: elongf_fnrt
     real(r8) :: store_c_max, store_c_act
     real(r8) :: store_nut_max, store_nut_act
     real(r8) :: l2fr_delta
@@ -752,7 +742,8 @@ contains
                                                         ! of the process function in the PID controller
 
     leaf_status = this%bc_in(acnp_bc_in_id_lstat)%ival
-    ipft        =  this%bc_in(acnp_bc_in_id_pft)%ival
+    ipft        = this%bc_in(acnp_bc_in_id_pft)%ival
+    elongf_fnrt = this%bc_in(acnp_bc_in_id_effnrt)%rval
     l2fr        => this%bc_inout(acnp_bc_inout_id_l2fr)%rval
     dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval
     canopy_trim =  this%bc_in(acnp_bc_in_id_ctrim)%rval
@@ -760,7 +751,6 @@ contains
     cx0         => this%bc_inout(acnp_bc_inout_id_cx0)%rval
     ema_dcxdt   => this%bc_inout(acnp_bc_inout_id_emadcxdt)%rval
     limiter     => this%bc_out(acnp_bc_out_id_limiter)%ival
-    
     ! Abort if leaves are off
     if(leaf_status.eq.leaves_off) return
 
@@ -863,7 +853,7 @@ contains
     l2fr = max(l2fr_min, l2fr + l2fr_delta)
 
     ! Find the updated target fineroot biomass
-    call bfineroot(dbh,ipft,canopy_trim, l2fr, target_c(fnrt_organ),target_dcdd(fnrt_organ))
+    call bfineroot(dbh,ipft,canopy_trim, l2fr, elongf_fnrt, target_c(fnrt_organ),target_dcdd(fnrt_organ))
 
     return
   end subroutine CNPAdjustFRootTargets
@@ -898,10 +888,11 @@ contains
     associate( ipft         => this%bc_in(acnp_bc_in_id_pft)%ival,  &
          l2fr         => this%bc_inout(acnp_bc_inout_id_l2fr)%rval, &
          dbh          => this%bc_inout(acnp_bc_inout_id_dbh)%rval,  &
+         elongf_fnrt  => this%bc_in(acnp_bc_in_id_effnrt)%rval,     &
          canopy_trim  => this%bc_in(acnp_bc_in_id_ctrim)%rval)
 
       ! Find the updated target fineroot biomass
-      call bfineroot(dbh,ipft,canopy_trim, l2fr, target_fnrt_c)
+      call bfineroot(dbh,ipft,canopy_trim, l2fr, elongf_fnrt, target_fnrt_c)
 
       fnrt_flux_c = max(0._r8,this%variables(fnrt_c_id)%val(1)*(1._r8-nday_buffer*(years_per_day / prt_params%root_long(ipft))) - target_fnrt_c )
 
@@ -1037,7 +1028,7 @@ contains
        ! Don't allow allocation to leaves if they are in an "off" status.
        ! Also, dont allocate to replace turnover if this is not evergreen
        ! (this prevents accidental re-flushing on the day they drop)
-       if( ( any(leaf_status == [leaves_off,leaves_pshed]) .or. &
+       if( ( any(leaf_status == [leaves_off,leaves_shedding]) .or. &
              (prt_params%evergreen(ipft) /= itrue) ) &
             .and. (i_org == leaf_organ)) cycle
 
@@ -1190,7 +1181,7 @@ contains
           
           ! Don't allow allocation to leaves if they are in an "off" status.
           ! (this prevents accidental re-flushing on the day they drop)
-          if( any(leaf_status == [leaves_off,leaves_pshed]) .and. &
+          if( any(leaf_status == [leaves_off,leaves_shedding]) .and. &
               (i_org == leaf_organ) ) cycle
 
           if( priority_code == i_pri ) then
@@ -1402,7 +1393,7 @@ contains
     if( c_gain <= calloc_abs_error .or. &
         n_gain <= 0.1_r8*calloc_abs_error .or. &
         p_gain <= 0.02_r8*calloc_abs_error .or. &
-        any(leaf_status == [leaves_off,leaves_pshed]) ) then
+        any(leaf_status == [leaves_off,leaves_shedding]) ) then
        return
     end if
        
@@ -1712,19 +1703,13 @@ contains
                storec_tp1  = state_array_out(store_id)
                structc_tp1 = state_array_out(struct_id)
                
-               call bleaf(dbh_tp1,ipft,crown_damage,canopy_trim,leaf_c_target_tp1)
-               call bfineroot(dbh_tp1,ipft,canopy_trim,l2fr,fnrt_c_target_tp1)
-               call bsap_allom(dbh_tp1,ipft,crown_damage,canopy_trim,sapw_area,sapw_c_target_tp1)
-               call bagw_allom(dbh_tp1,ipft,crown_damage,agw_c_target_tp1)
-               call bbgw_allom(dbh_tp1,ipft,bgw_c_target_tp1)
+               call bleaf(dbh_tp1,ipft,crown_damage,canopy_trim, elongf_leaf, leaf_c_target_tp1)
+               call bfineroot(dbh_tp1,ipft,canopy_trim,l2fr, elongf_fnrt, fnrt_c_target_tp1)
+               call bsap_allom(dbh_tp1,ipft,crown_damage,canopy_trim, elongf_stem, sapw_area,sapw_c_target_tp1)
+               call bagw_allom(dbh_tp1,ipft,crown_damage, elongf_stem, agw_c_target_tp1)
+               call bbgw_allom(dbh_tp1,ipft, elongf_stem, bgw_c_target_tp1)
                call bdead_allom(agw_c_target_tp1,bgw_c_target_tp1, sapw_c_target_tp1, ipft, struct_c_target_tp1)
                call bstore_allom(dbh_tp1,ipft,crown_damage,canopy_trim,store_c_target_tp1)
-
-               ! Correct the targets based on the elongation factors
-               leaf_c_target_tp1   = elongf_leaf * leaf_c_target_tp1
-               fnrt_c_target_tp1   = elongf_fnrt * fnrt_c_target_tp1
-               sapw_c_target_tp1   = elongf_stem * sapw_c_target_tp1
-               struct_c_target_tp1 = elongf_stem * struct_c_target_tp1
 
                write(fates_log(),*) 'leaf_c: ',leafc_tp1, leaf_c_target_tp1,leafc_tp1-leaf_c_target_tp1
                write(fates_log(),*) 'fnrt_c: ',fnrtc_tp1, fnrt_c_target_tp1,fnrtc_tp1- fnrt_c_target_tp1
@@ -2063,18 +2048,12 @@ contains
     
     if(organ_id == store_organ) then
 
-       call bleaf(dbh,ipft,crown_damage,canopy_trim,leaf_c_target)
-       call bfineroot(dbh,ipft,canopy_trim,l2fr,fnrt_c_target)
-       call bsap_allom(dbh,ipft,crown_damage,canopy_trim,sapw_area,sapw_c_target)
-       call bagw_allom(dbh,ipft,crown_damage,agw_c_target)
-       call bbgw_allom(dbh,ipft,bgw_c_target)
+       call bleaf(dbh,ipft,crown_damage,canopy_trim, elongf_leaf, leaf_c_target)
+       call bfineroot(dbh,ipft,canopy_trim,l2fr, elongf_fnrt, fnrt_c_target)
+       call bsap_allom(dbh,ipft,crown_damage,canopy_trim, elongf_stem, sapw_area,sapw_c_target)
+       call bagw_allom(dbh,ipft,crown_damage, elongf_stem, agw_c_target)
+       call bbgw_allom(dbh,ipft, elongf_stem, bgw_c_target)
        call bdead_allom(agw_c_target,bgw_c_target, sapw_c_target, ipft, struct_c_target)
-
-       ! Correct the targets based on the elongation factors
-       leaf_c_target   = elongf_leaf * leaf_c_target
-       fnrt_c_target   = elongf_fnrt * fnrt_c_target
-       sapw_c_target   = elongf_stem * sapw_c_target
-       struct_c_target = elongf_stem * struct_c_target
 
        ! Target for storage is a fraction of the sum target of all
        ! non-reproductive organs
@@ -2300,25 +2279,14 @@ contains
         elongf_fnrt  = intgr_params(acnp_bc_in_id_effnrt)
         elongf_stem  = intgr_params(acnp_bc_in_id_efstem)
 
-        call bleaf(dbh,ipft,crown_damage,canopy_trim,leaf_c_target,leaf_dcdd_target)
-        call bfineroot(dbh,ipft,canopy_trim,l2fr,fnrt_c_target,fnrt_dcdd_target)
-        call bsap_allom(dbh,ipft,crown_damage,canopy_trim,sapw_area,sapw_c_target,sapw_dcdd_target)
-        call bagw_allom(dbh,ipft,crown_damage,agw_c_target,agw_dcdd_target)
-        call bbgw_allom(dbh,ipft,bgw_c_target,bgw_dcdd_target)
+        call bleaf(dbh,ipft,crown_damage,canopy_trim, elongf_leaf, leaf_c_target,leaf_dcdd_target)
+        call bfineroot(dbh,ipft,canopy_trim,l2fr, elongf_fnrt, fnrt_c_target,fnrt_dcdd_target)
+        call bsap_allom(dbh,ipft,crown_damage,canopy_trim, elongf_stem, sapw_area,sapw_c_target,sapw_dcdd_target)
+        call bagw_allom(dbh,ipft,crown_damage, elongf_stem,agw_c_target,agw_dcdd_target)
+        call bbgw_allom(dbh,ipft, elongf_stem,bgw_c_target,bgw_dcdd_target)
         call bdead_allom(agw_c_target,bgw_c_target, sapw_c_target, ipft, struct_c_target, &
                          agw_dcdd_target, bgw_dcdd_target, sapw_dcdd_target, struct_dcdd_target)
         call bstore_allom(dbh,ipft,crown_damage,canopy_trim,store_c_target,store_dcdd_target)
-
-        ! Apply correction for partially deciduous plants.
-        leaf_c_target      = elongf_leaf * leaf_c_target
-        fnrt_c_target      = elongf_fnrt * fnrt_c_target
-        sapw_c_target      = elongf_stem * sapw_c_target
-        struct_c_target    = elongf_stem * struct_c_target
-        ! MLO - Need to double check that it is correct to apply factor to both stocks and growth
-        leaf_dcdd_target   = elongf_leaf * leaf_dcdd_target
-        fnrt_dcdd_target   = elongf_fnrt * fnrt_dcdd_target
-        sapw_dcdd_target   = elongf_stem * sapw_dcdd_target
-        struct_dcdd_target = elongf_stem * struct_dcdd_target
 
         if (mask_repro) then
            ! fraction of carbon going towards reproduction

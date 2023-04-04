@@ -211,8 +211,7 @@ contains
      l_pass = .true.  ! Default assumption is that step passed
 
      if (grow_leaf) then
-        call bleaf(dbh,ipft,crowndamage, canopy_trim,bl_diag)
-        bl_diag = bl_diag * elongf_leaf
+        call bleaf(dbh,ipft,crowndamage, canopy_trim, elongf_leaf, bl_diag)
         if( abs(bl_diag-bl) > max_err ) then
            if(verbose_logging) then
               write(fates_log(),*) 'disparity in integrated/diagnosed leaf carbon'
@@ -226,8 +225,7 @@ contains
      end if
         
      if (grow_fr) then
-        call bfineroot(dbh,ipft,canopy_trim,l2fr,bfr_diag)
-        bfr_diag = bfr_diag * elongf_fnrt
+        call bfineroot(dbh,ipft,canopy_trim,l2fr, elongf_fnrt, bfr_diag)
         if( abs(bfr_diag-bfr) > max_err ) then
            if(verbose_logging) then
               write(fates_log(),*) 'disparity in integrated/diagnosed fineroot carbon'
@@ -241,8 +239,7 @@ contains
      end if
 
      if (grow_sap) then
-        call bsap_allom(dbh,ipft,crowndamage, canopy_trim,asap_diag,bsap_diag)
-        bsap_diag = bsap_diag * elongf_stem
+        call bsap_allom(dbh,ipft,crowndamage, canopy_trim, elongf_stem, asap_diag,bsap_diag)
         if( abs(bsap_diag-bsap) > max_err ) then
            if(verbose_logging) then
               write(fates_log(),*) 'disparity in integrated/diagnosed sapwood carbon'
@@ -270,11 +267,10 @@ contains
      end if
 
      if (grow_dead) then
-        call bsap_allom(dbh,ipft,crowndamage, canopy_trim,asap_diag,bsap_diag)
-        call bagw_allom(dbh,ipft,crowndamage, bagw_diag)
-        call bbgw_allom(dbh,ipft,bbgw_diag)
-        call bdead_allom( bagw_diag, bbgw_diag, bsap_diag, ipft, bdead_diag )        
-        bdead_diag = bdead_diag * elongf_stem
+        call bsap_allom(dbh,ipft,crowndamage, canopy_trim, elongf_stem,asap_diag,bsap_diag)
+        call bagw_allom(dbh,ipft,crowndamage, elongf_stem, bagw_diag)
+        call bbgw_allom(dbh,ipft, elongf_stem,bbgw_diag)
+        call bdead_allom( bagw_diag, bbgw_diag, bsap_diag, ipft, bdead_diag )
 
         if( abs(bdead_diag-bdead) > max_err ) then
            if(verbose_logging) then
@@ -373,7 +369,7 @@ contains
   ! Generic AGB interface
   ! ============================================================================
   
-  subroutine bagw_allom(d,ipft,crowndamage, bagw,dbagwdd)
+  subroutine bagw_allom(d,ipft,crowndamage, elongf_stem, bagw,dbagwdd)
 
     use DamageMainMod, only : GetCrownReduction
     use FatesParameterDerivedMod, only : param_derived
@@ -381,6 +377,7 @@ contains
     real(r8),intent(in)    :: d       ! plant diameter [cm]
     integer(i4),intent(in) :: ipft    ! PFT index
     integer(i4),intent(in) :: crowndamage ! crowndamage [1: undamaged, >1: damaged]
+    real(r8),intent(in)    :: elongf_stem ! Stem elongation factor
     real(r8),intent(out)   :: bagw    ! biomass above ground woody tissues
     real(r8),intent(out),optional :: dbagwdd  ! change in agbw per diameter [kgC/cm]
 
@@ -416,15 +413,22 @@ contains
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end select
       
+      ! Potentially reduce AGB based on crown damage (crown_reduction) and/or 
+      ! phenology (elongf_stem).
       if(crowndamage > 1) then
          call GetCrownReduction(crowndamage, crown_reduction)
-         bagw = bagw - (bagw * branch_frac * crown_reduction)
+         bagw = elongf_stem * ( bagw - (bagw * branch_frac * crown_reduction) )
          if(present(dbagwdd))then
-            dbagwdd = dbagwdd - (dbagwdd * branch_frac * crown_reduction)
+            dbagwdd = elongf_stem * ( dbagwdd - (dbagwdd * branch_frac * crown_reduction) )
+         end if
+      else
+         bagw = elongf_stem * bagw
+         if (present(dbagwdd)) then
+            dbagwdd = elongf_stem * dbagwdd
          end if
       end if
 
-      
+
     end associate
     return
   end subroutine bagw_allom
@@ -547,7 +551,7 @@ contains
 
   ! =====================================================================================
         
-  subroutine bleaf(d,ipft,crowndamage,canopy_trim,bl,dbldd)
+  subroutine bleaf(d,ipft,crowndamage,canopy_trim,elongf_leaf,bl,dbldd)
     
     ! -------------------------------------------------------------------------
     ! This subroutine calculates the actual target bleaf
@@ -562,6 +566,7 @@ contains
     integer(i4),intent(in) :: ipft          ! PFT index
     integer(i4),intent(in) :: crowndamage   ! crown damage class [1: undamaged, >1: damaged]
     real(r8),intent(in)    :: canopy_trim   ! trimming function
+    real(r8),intent(in)    :: elongf_leaf   ! Leaf elongation factor (phenology)
     real(r8),intent(out)   :: bl            ! plant leaf biomass [kg]
     real(r8),intent(out),optional :: dbldd  ! change leaf bio per diameter [kgC/cm]
     
@@ -584,15 +589,23 @@ contains
        dbldd = dblmaxdd * canopy_trim
     end if
 
+
+    ! Potentially reduce leaf biomass based on crown damage (crown_reduction) and/or
+    ! phenology (elongf_leaf).
     if ( crowndamage > 1 ) then
 
        call  GetCrownReduction(crowndamage, crown_reduction)
-       bl = bl * (1.0_r8 - crown_reduction)
+       bl = elongf_leaf * bl * (1.0_r8 - crown_reduction)
        if(present(dbldd))then
-          dbldd = dblmaxdd * canopy_trim * (1.0_r8 - crown_reduction)
+          dbldd = elongf_leaf * dblmaxdd * canopy_trim * (1.0_r8 - crown_reduction)
+       end if
+    else
+       bl = elongf_leaf * bl
+       if (present(dbldd)) then
+          dbldd = elongf_leaf * dbldd
        end if
     end if
-    
+
     return
   end subroutine bleaf
   
@@ -749,8 +762,8 @@ contains
 
   ! ============================================================================
 
-  real(r8) function tree_sai(pft, dbh, crowndamage, canopy_trim, c_area, nplant, cl, &
-                              canopy_lai, treelai, vcmax25top, call_id )
+  real(r8) function tree_sai(pft, dbh, crowndamage, canopy_trim, elongf_stem, c_area, nplant, &
+                             cl, canopy_lai, treelai, vcmax25top, call_id )
 
     ! ============================================================================
     !  SAI of individual trees is a function of the LAI of individual trees
@@ -760,6 +773,7 @@ contains
     real(r8), intent(in) :: dbh
     integer, intent(in)  :: crowndamage
     real(r8), intent(in) :: canopy_trim        ! trimming function (0-1)
+    real(r8), intent(in) :: elongf_stem        ! Elongation factor for stems.
     real(r8), intent(in) :: c_area             ! crown area (m2)
     real(r8), intent(in) :: nplant             ! number of plants
     integer, intent(in)  :: cl                 ! canopy layer index
@@ -773,12 +787,14 @@ contains
     real(r8)             :: target_lai
     real(r8)             :: target_bleaf
 
-    call bleaf(dbh, pft, crowndamage, canopy_trim, target_bleaf)
-  
+    ! Assume fully flushed leaves, so stem area index is independent on leaf phenology.
+    ! SAI can be downscaled by stem phenology (typically applied to grasses only).
+    call bleaf(dbh, pft, crowndamage, canopy_trim, 1.0_r8, target_bleaf)
+
     target_lai = tree_lai(target_bleaf, pft, c_area, nplant, cl,&
          canopy_lai, vcmax25top) 
 
-    tree_sai   =  prt_params%allom_sai_scaler(pft) * target_lai
+    tree_sai   =  elongf_stem * prt_params%allom_sai_scaler(pft) * target_lai
 
     if( (treelai + tree_sai) > (sum(dinc_vai)) )then
 
@@ -903,7 +919,7 @@ contains
   ! Generic sapwood biomass interface
   ! ============================================================================
 
-  subroutine bsap_allom(d,ipft,crowndamage,canopy_trim,sapw_area,bsap,dbsapdd)
+  subroutine bsap_allom(d,ipft,crowndamage,canopy_trim,elongf_stem, sapw_area,bsap,dbsapdd)
 
     use DamageMainMod , only : GetCrownReduction
     use FatesParameterDerivedMod, only : param_derived
@@ -912,6 +928,7 @@ contains
     integer(i4),intent(in)        :: ipft        ! PFT index
     integer(i4),intent(in)        :: crowndamage ! Crown damage class [1: undamaged, >1: damaged]
     real(r8),intent(in)           :: canopy_trim
+    real(r8),intent(in)           :: elongf_stem ! Elongation factor for stems (phenology)
     real(r8),intent(out)          :: sapw_area   ! cross section area of
                                                  ! plant sapwood at reference [m2]
     real(r8),intent(out)          :: bsap        ! plant leaf biomass [kgC]
@@ -950,8 +967,10 @@ contains
     case(1) ! linearly related to leaf area based on target leaf biomass
             ! and slatop (no provisions for slamax)
 
+       !  We assume fully flushed leaves, so sapwood biomass is independent of leaf phenology
+       ! (but could be modulated by stem phenology).
        call h_allom(d,ipft,h,dhdd)
-       call bleaf(d,ipft,1,canopy_trim,bl,dbldd)
+       call bleaf(d,ipft,1,canopy_trim,1.0_r8,bl,dbldd)
        call bsap_ltarg_slatop(d,h,dhdd,bl,dbldd,ipft,sapw_area,bsap,dbsapdd)
 
        ! if trees are damaged reduce bsap by percent crown loss *
@@ -959,16 +978,22 @@ contains
        if(crowndamage > 1)then
 
           call GetCrownReduction(crowndamage, crown_reduction)
-          bsap = bsap - (bsap * agb_frac *  branch_frac * crown_reduction)
+          bsap = elongf_stem * ( bsap - (bsap * agb_frac *  branch_frac * crown_reduction) )
           if(present(dbsapdd))then
-             dbsapdd = dbsapdd - (dbsapdd * agb_frac * branch_frac * crown_reduction)
+             dbsapdd = elongf_stem * &
+                       ( dbsapdd - (dbsapdd * agb_frac * branch_frac * crown_reduction) )
+          end if
+       else
+          bsap = elongf_stem * bsap
+          if (present(dbsapdd)) then
+             dbsapdd = elongf_stem * dbsapdd
           end if
        end if
        
        
        ! Perform a capping/check on total woody biomass
-       call bagw_allom(d,ipft,crowndamage, bagw,dbagwdd)
-       call bbgw_allom(d,ipft,bbgw,dbbgwdd)
+       call bagw_allom(d,ipft,crowndamage, elongf_stem, bagw,dbagwdd)
+       call bbgw_allom(d,ipft, elongf_stem,bbgw,dbbgwdd)
        
        ! Force sapwood to be less than a maximum fraction of total biomass
        ! We omit the sapwood area from this calculation
@@ -997,20 +1022,24 @@ contains
   ! non-fineroot biomass.
   ! ============================================================================
 
-  subroutine bbgw_allom(d,ipft,bbgw,dbbgwdd)
+  subroutine bbgw_allom(d,ipft,elongf_stem,bbgw,dbbgwdd)
 
-    real(r8),intent(in)           :: d          ! plant diameter [cm]
-    integer(i4),intent(in)        :: ipft       ! PFT index
-    real(r8),intent(out)          :: bbgw       ! below ground woody biomass [kgC]
-    real(r8),intent(out),optional :: dbbgwdd    ! change bbgw  per diam [kgC/cm]
+    real(r8),intent(in)           :: d           ! plant diameter [cm]
+    integer(i4),intent(in)        :: ipft        ! PFT index
+    real(r8),intent(in)           :: elongf_stem ! Elongation factor for stems (phenology)
+    real(r8),intent(out)          :: bbgw        ! below ground woody biomass [kgC]
+    real(r8),intent(out),optional :: dbbgwdd     ! change bbgw  per diam [kgC/cm]
     
     real(r8)    :: bagw       ! above ground biomass [kgC]
     real(r8)    :: dbagwdd    ! change in agb per diameter [kgC/cm]
     
     select case(int(prt_params%allom_cmode(ipft)))
     case(1) !"constant")
-       ! bbgw not affected by damage so use target allometry no damage
-       call bagw_allom(d,ipft,1, bagw,dbagwdd)
+       ! bbgw not affected by damage so use target allometry no damage. But note that bbgw
+       ! is affected by stem phenology (typically applied only to grasses). We do not need
+       ! to account for stem phenology in bbgw_const because bbgw will be proportional to
+       ! bagw, and bagw is downscaled due to stem phenology.
+       call bagw_allom(d,ipft,1, elongf_stem, bagw,dbagwdd)
        call bbgw_const(d,bagw,dbagwdd,ipft,bbgw,dbbgwdd)
     case DEFAULT
        write(fates_log(),*) 'An undefined coarse root allometry was specified: ', &
@@ -1025,7 +1054,7 @@ contains
   ! Fine root biomass allometry wrapper
   ! ============================================================================
   
-  subroutine bfineroot(d,ipft,canopy_trim,l2fr,bfr,dbfrdd)
+  subroutine bfineroot(d,ipft,canopy_trim,l2fr,elongf_fnrt,bfr,dbfrdd)
     
     ! -------------------------------------------------------------------------
     ! This subroutine calculates the actual target fineroot biomass
@@ -1039,6 +1068,7 @@ contains
                                             ! this is either a PFT parameter
                                             ! constant (when no nutrient model)
                                             ! or dynamic (with nutrient model)
+    real(r8),intent(in)    :: elongf_fnrt   ! Elongation factor for fine roots
     real(r8),intent(out)   :: bfr           ! fine root biomass [kgC]
     real(r8),intent(out),optional :: dbfrdd ! change leaf bio per diameter [kgC/cm]
     
@@ -1074,7 +1104,15 @@ contains
        write(fates_log(),*) 'Aborting'
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end select
-    
+
+
+    ! Reduce fine-root biomass due to phenology.
+    bfr = elongf_fnrt * bfr
+    if (present(dbfrdd)) then
+       dbfrdd = elongf_fnrt * dbfrdd
+    end if
+
+
     return
   end subroutine bfineroot
 
@@ -1103,9 +1141,8 @@ contains
 
        select case(int(allom_stmode))
        case(1) ! Storage is constant proportionality of trimmed maximum leaf
-          ! biomass (ie cushion * bleaf)
-          
-          call bleaf(d,ipft, crowndamage, canopy_trim, bl, dbldd)
+          ! biomass (ie cushion * bleaf), and thus leaf phenology is ignored.
+          call bleaf(d,ipft, crowndamage, canopy_trim, 1.0_r8, bl, dbldd)
           call bstore_blcushion(d,bl,dbldd,cushion,ipft,bstore,dbstoredd)
           
        case DEFAULT 
@@ -1520,7 +1557,7 @@ contains
     
     ! "d2h_poorter2006"
     ! "d to height via Poorter et al. 2006, these routines use natively
-    !  asymtotic functions"
+    !  asymtotic functions (Weibull function)"
     !
     ! Poorter et al calculated height diameter allometries over a variety of
     ! species in Bolivia, including those that could be classified in guilds
@@ -2394,13 +2431,13 @@ contains
   end function decay_coeff_kn
 
   ! =====================================================================================
-subroutine ForceDBH( ipft, crowndamage, canopy_trim, d, h, bdead, bl )
+subroutine ForceDBH( ipft, crowndamage, canopy_trim, elongf_leaf, elongf_stem, d, h, bdead, bl )
 
      ! =========================================================================
      ! This subroutine estimates the diameter based on either the structural biomass
      ! (if woody) or the leaf biomass using the allometric 
      ! functions. Since allometry is specified with diameter
-     ! as the independant variable, we must do this through a search algorithm.
+     ! as the independent variable, we must do this through a search algorithm.
      ! Here, we keep searching until the difference between actual structure and
      ! the predicted structure based on the searched diameter is within a tolerance.
      ! ============================================================================
@@ -2411,6 +2448,8 @@ subroutine ForceDBH( ipft, crowndamage, canopy_trim, d, h, bdead, bl )
      integer(i4),intent(in)        :: ipft  ! PFT index
      integer(i4),intent(in)        :: crowndamage ! crowndamage [1: undamaged, >1: damaged]
      real(r8),intent(in)           :: canopy_trim
+     real(r8),intent(in)           :: elongf_leaf ! Elongation factor: leaves (phenology)
+     real(r8),intent(in)           :: elongf_stem ! Elongation factor: stem (phenology)
      real(r8),intent(inout)        :: d     ! plant diameter [cm]
      real(r8),intent(out)          :: h     ! plant height
      real(r8),intent(in),optional  :: bdead ! Structural biomass
@@ -2444,9 +2483,9 @@ subroutine ForceDBH( ipft, crowndamage, canopy_trim, d, h, bdead, bl )
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
         
-        call bsap_allom(d,ipft,crowndamage, canopy_trim,at_sap,bt_sap,dbt_sap_dd)
-        call bagw_allom(d,ipft,crowndamage, bt_agw,dbt_agw_dd)
-        call bbgw_allom(d,ipft,bt_bgw,dbt_bgw_dd)
+        call bsap_allom(d,ipft,crowndamage, canopy_trim, elongf_stem,at_sap,bt_sap,dbt_sap_dd)
+        call bagw_allom(d,ipft,crowndamage, elongf_stem, bt_agw,dbt_agw_dd)
+        call bbgw_allom(d,ipft, elongf_stem,bt_bgw,dbt_bgw_dd)
 
         call bdead_allom(bt_agw,bt_bgw, bt_sap, ipft, bt_dead, dbt_agw_dd, &
              dbt_bgw_dd, dbt_sap_dd, dbt_dead_dd)
@@ -2462,9 +2501,10 @@ subroutine ForceDBH( ipft, crowndamage, canopy_trim, d, h, bdead, bl )
            dd    = step_frac*(bdead-bt_dead)/dbt_dead_dd
            d_try = d + dd
         
-           call bsap_allom(d_try,ipft,crowndamage, canopy_trim,at_sap,bt_sap,dbt_sap_dd)
-           call bagw_allom(d_try,ipft,crowndamage,  bt_agw,dbt_agw_dd)
-           call bbgw_allom(d_try,ipft, bt_bgw,dbt_bgw_dd)
+           call bsap_allom(d_try,ipft,crowndamage, canopy_trim, elongf_stem,at_sap, &
+                bt_sap,dbt_sap_dd)
+           call bagw_allom(d_try,ipft,crowndamage, elongf_stem,  bt_agw,dbt_agw_dd)
+           call bbgw_allom(d_try,ipft, elongf_stem, bt_bgw,dbt_bgw_dd)
 
 
            call bdead_allom(bt_agw,bt_bgw, bt_sap, ipft, bt_dead_try, dbt_agw_dd, &
@@ -2494,7 +2534,7 @@ subroutine ForceDBH( ipft, crowndamage, canopy_trim, d, h, bdead, bl )
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
 
-        call bleaf(d,ipft,crowndamage,canopy_trim,bt_leaf,dbt_leaf_dd)
+        call bleaf(d,ipft,crowndamage,canopy_trim,elongf_leaf,bt_leaf,dbt_leaf_dd)
 
         counter = 0
         step_frac = step_frac0
@@ -2503,7 +2543,7 @@ subroutine ForceDBH( ipft, crowndamage, canopy_trim, d, h, bdead, bl )
            dd    = step_frac*(bl-bt_leaf)/dbt_leaf_dd
            d_try = d + dd
            
-           call bleaf(d_try,ipft,crowndamage,canopy_trim,bt_leaf_try,dbt_leaf_dd_try)
+           call bleaf(d_try,ipft,crowndamage,canopy_trim,elongf_stem,bt_leaf_try,dbt_leaf_dd_try)
 
            ! Prevent overshooting                                                                                           
            if(bt_leaf_try > (bl+calloc_abs_error)) then
