@@ -860,7 +860,7 @@ module EDTypesMod
   public :: dump_site
   public :: dump_patch
   public :: dump_cohort_hydr
-  public :: CanUpperUnder  
+  public :: InitPRTBoundaryConditions  
   contains
 
     ! =====================================================================================

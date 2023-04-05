@@ -39,8 +39,8 @@ module FATESPlantRespPhotosynthMod
   use FatesInterfaceTypesMod, only : numpft
   use FatesInterfaceTypesMod, only : nleafage
   use EDTypesMod,        only : maxpft
-  use EDTypesMod,        only : nlevleaf
-  use EDTypesMod,        only : nclmax
+  use EDParamsMod,       only : nlevleaf
+  use EDParamsMod,       only : nclmax
   use PRTGenericMod,     only : max_nleafage
   use EDTypesMod,        only : do_fates_salinity
   use EDParamsMod,       only : q10_mr
@@ -130,8 +130,8 @@ contains
     use EDTypesMod        , only : fates_cohort_type
     use EDTypesMod        , only : ed_site_type
     use EDTypesMod        , only : maxpft
-    use EDTypesMod        , only : dinc_vai
-    use EDTypesMod        , only : dlower_vai
+    use EDParamsMod       , only : dinc_vai
+    use EDParamsMod       , only : dlower_vai
     use FatesInterfaceTypesMod , only : bc_in_type
     use FatesInterfaceTypesMod , only : bc_out_type
     use EDCanopyStructureMod, only : calc_areaindex

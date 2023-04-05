@@ -28,6 +28,7 @@ Module EDCohortDynamicsMod
   use FatesParameterDerivedMod, only : param_derived
   use EDTypesMod            , only : ed_site_type, ed_patch_type
   use EDTypesMod            , only : fates_cohort_type
+  use EDTypesMod            , only : InitPRTBoundaryConditions
   use EDParamsMod            , only : nclmax
   use PRTGenericMod         , only : element_list
   use PRTGenericMod         , only : StorageNutrientTarget
@@ -38,12 +39,12 @@ Module EDCohortDynamicsMod
   use EDTypesMod            , only : AREA
   use EDTypesMod            , only : min_npm2, min_nppatch
   use EDTypesMod            , only : min_n_safemath
-  use EDTypesMod            , only : nlevleaf
+  use EDParamsMod            , only : nlevleaf
   use PRTGenericMod         , only : max_nleafage
   use EDTypesMod            , only : ican_upper
   use EDTypesMod            , only : site_fluxdiags_type
   use PRTGenericMod          , only : num_elements
-  use EDTypesMod            , only : leaves_on
+  use FatesConstantsMod      , only : leaves_on
   use EDParamsMod           , only : ED_val_cohort_age_fusion_tol
   use FatesInterfaceTypesMod      , only : hlm_use_planthydro
   use FatesInterfaceTypesMod      , only : hlm_parteh_mode
@@ -116,7 +117,6 @@ Module EDCohortDynamicsMod
   private
   !
   public :: create_cohort
-  public :: zero_cohort
   public :: terminate_cohorts
   public :: terminate_cohort
   public :: fuse_cohorts
@@ -125,7 +125,6 @@ Module EDCohortDynamicsMod
   public :: copy_cohort
   public :: count_cohorts
   public :: InitPRTObject
-  public :: InitPRTBoundaryConditions
   public :: SendCohortToLitter
   public :: UpdateCohortBioPhysRates
   public :: DeallocateCohort
@@ -200,6 +199,7 @@ type(fates_cohort_type), pointer :: storesmallcohort
 type(fates_cohort_type), pointer :: storebigcohort
 integer  :: iage                           ! loop counter for leaf age classes
 real(r8) :: leaf_c                         ! total leaf carbon
+real(r8) :: rmean_temp                     ! running mean temperature
 integer  :: tnull,snull                    ! are the tallest and shortest cohorts allocate
 integer  :: nlevrhiz                       ! number of rhizosphere layers
 
@@ -207,7 +207,7 @@ integer  :: nlevrhiz                       ! number of rhizosphere layers
 
 allocate(new_cohort)
 
-new_cohort%init(prt)
+call new_cohort%init(prt)
 
 !**********************/
 ! Define cohort state variable
@@ -215,9 +215,6 @@ new_cohort%init(prt)
 
 new_cohort%indexnumber  = fates_unset_int ! Cohort indexing was not thread-safe, setting
                                           ! bogus value for the time being (RGK-012017)
-
-new_cohort%patchptr     => patchptr
-
 new_cohort%pft          = pft
 new_cohort%crowndamage  = crowndamage
 new_cohort%status_coh   = status
@@ -354,14 +351,15 @@ if( hlm_use_planthydro.eq.itrue ) then
       ! available to be subsumed in the new plant tissues.
       ! So we go through the process of pre-initializing the hydraulic
       ! states in the temporary cohort, to calculate this new number density
-
-      call ConstrainRecruitNumber(currentSite,new_cohort, bc_in)
+      rmean_temp = patchptr%tveg24%GetMean()
+      call ConstrainRecruitNumber(currentSite, new_cohort, patchptr,           &
+         bc_in, rmean_temp)
 
    endif
 
 endif
 
-call insert_cohort(new_cohort, patchptr%tallest, patchptr%shortest, tnull, snull, &
+call insert_cohort(patchptr, new_cohort, patchptr%tallest, patchptr%shortest, tnull, snull, &
      storebigcohort, storesmallcohort)
 
 patchptr%tallest  => storebigcohort
@@ -1413,7 +1411,8 @@ end subroutine create_cohort
           shortestc => current_c
        endif
 
-       call insert_cohort(current_c, tallestc, shortestc, tnull, snull, storebigcohort, storesmallcohort)
+       call insert_cohort(current_patch, current_c, tallestc, shortestc,       &
+         tnull, snull, storebigcohort, storesmallcohort)
 
        current_patch%tallest  => storebigcohort
        current_patch%shortest => storesmallcohort
@@ -1424,7 +1423,7 @@ end subroutine create_cohort
   end subroutine sort_cohorts
 
   !-------------------------------------------------------------------------------------!
-  subroutine insert_cohort(pcc, ptall, pshort, tnull, snull, storebigcohort, storesmallcohort)
+  subroutine insert_cohort(currentPatch, pcc, ptall, pshort, tnull, snull, storebigcohort, storesmallcohort)
     !
     ! !DESCRIPTION:
     ! Insert cohort into linked list
@@ -1432,6 +1431,7 @@ end subroutine create_cohort
     ! !USES:
     !
     ! !ARGUMENTS
+    type(ed_patch_type),  intent(inout),     target :: currentPatch
     type(fates_cohort_type) , intent(inout), pointer :: pcc
     type(fates_cohort_type) , intent(inout), pointer :: ptall
     type(fates_cohort_type) , intent(inout), pointer :: pshort
@@ -1441,7 +1441,7 @@ end subroutine create_cohort
     type(fates_cohort_type) , intent(inout),pointer,optional :: storebigcohort   ! storage of the largest cohort for insertion routine
     !
     ! !LOCAL VARIABLES:
-    type(ed_patch_type),  pointer :: currentPatch
+    !type(ed_patch_type),  pointer :: currentPatch
     type(fates_cohort_type), pointer :: current
     type(fates_cohort_type), pointer :: tallptr, shortptr, icohort
     type(fates_cohort_type), pointer :: ptallest, pshortest
@@ -1449,7 +1449,6 @@ end subroutine create_cohort
     integer :: tallptrnull,exitloop
     !----------------------------------------------------------------------
 
-    currentPatch => pcc%patchptr
     ptallest => ptall
     pshortest => pshort
 
@@ -1498,7 +1497,7 @@ end subroutine create_cohort
           storebigcohort => icohort
        end if
        currentPatch%tallest => icohort
-       icohort%patchptr%tallest => icohort
+       !icohort%patchptr%tallest => icohort
        !new cohort is not tallest
     else
        !next shorter cohort to new cohort is the next shorter cohort
@@ -1519,7 +1518,7 @@ end subroutine create_cohort
           storesmallcohort => icohort
        end if
        currentPatch%shortest => icohort
-       icohort%patchptr%shortest => icohort
+       !icohort%patchptr%shortest => icohort
     else
        !new cohort is not shortest and becomes next taller cohort
        !to the cohort just below it as defined in the previous block
@@ -1694,7 +1693,7 @@ end subroutine create_cohort
     !Pointers
     n%taller          => NULL()     ! pointer to next tallest cohort
     n%shorter         => NULL()     ! pointer to next shorter cohort
-    n%patchptr        => o%patchptr ! pointer to patch that cohort is in
+    !n%patchptr        => o%patchptr ! pointer to patch that cohort is in
 
 
 

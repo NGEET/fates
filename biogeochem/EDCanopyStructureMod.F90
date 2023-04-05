@@ -17,7 +17,7 @@ module EDCanopyStructureMod
   use FatesAllometryMod     , only : carea_allom
   use EDCohortDynamicsMod   , only : copy_cohort, terminate_cohorts, terminate_cohort, fuse_cohorts
   use EDCohortDynamicsMod   , only : InitPRTObject
-  use EDCohortDynamicsMod   , only : InitPRTBoundaryConditions
+  use EDTypesMod            , only : InitPRTBoundaryConditions
   use FatesAllometryMod     , only : tree_lai
   use FatesAllometryMod     , only : tree_sai
   use EDtypesMod            , only : ed_site_type, ed_patch_type, fates_cohort_type
@@ -1499,7 +1499,8 @@ contains
 
     ! !USES:
 
-    use EDtypesMod           , only : area, dinc_vai, dlower_vai, hitemax, n_hite_bins
+    use EDtypesMod           , only : area, hitemax, n_hite_bins
+    use EDParamsMod,           only : dinc_vai, dlower_vai
 
     !
     ! !ARGUMENTS
@@ -2126,7 +2127,7 @@ contains
    ! ---------------------------------------------------------------------------------------------
 
    ! Uses
-   use EDtypesMod, only : dlower_vai
+   use EDParamsMod, only : dlower_vai
 
    ! Arguments
    type(ed_patch_type),intent(inout), target   :: currentPatch
@@ -2175,7 +2176,7 @@ contains
    ! Update LAI and related variables for a given cohort
    
    ! Uses
-   use EDtypesMod, only : dlower_vai
+   use EDParamsMod, only : dlower_vai
    
    ! Arguments
    type(fates_cohort_type),intent(inout), target   :: currentCohort

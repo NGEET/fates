@@ -10,8 +10,8 @@ module FatesInterfaceMod
    ! ------------------------------------------------------------------------------------
 
    use EDTypesMod                , only : ed_site_type
-   use EDTypesMod                , only : dinc_vai
-   use EDTypesMod                , only : dlower_vai
+   use EDParamsMod                , only : dinc_vai
+   use EDParamsMod                , only : dlower_vai
    use EDParamsMod               , only : ED_val_vai_top_bin_width
    use EDParamsMod               , only : ED_val_vai_width_increase_factor
    use EDParamsMod               , only : ED_val_history_damage_bin_edges
@@ -1057,9 +1057,9 @@ contains
     
     subroutine fates_history_maps
        
-       use EDTypesMod, only : NFSC
-       use EDTypesMod, only : nclmax
-       use EDTypesMod, only : nlevleaf
+       use FatesLitterMod, only : NFSC
+       use EDParamsMod, only : nclmax
+       use EDParamsMod, only : nlevleaf
        use EDParamsMod, only : ED_val_history_sizeclass_bin_edges
        use EDParamsMod, only : ED_val_history_ageclass_bin_edges
        use EDParamsMod, only : ED_val_history_height_bin_edges

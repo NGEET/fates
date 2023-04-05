@@ -56,7 +56,7 @@ module FatesPlantHydraulicsMod
   use EDTypesMod        , only : fates_cohort_type
   use EDTypesMod        , only : AREA_INV
   use EDTypesMod        , only : AREA
-  use EDParamsMod       , only : leaves_on
+  use FatesConstantsMod , only : leaves_on
 
   use FatesInterfaceTypesMod  , only : bc_in_type
   use FatesInterfaceTypesMod  , only : bc_out_type
@@ -1925,7 +1925,7 @@ end subroutine RecruitWUptake
 
 !=====================================================================================
 
-subroutine ConstrainRecruitNumber(csite,ccohort, bc_in)
+subroutine ConstrainRecruitNumber(csite,ccohort, cpatch, bc_in, mean_temp)
 
   ! ---------------------------------------------------------------------------
   ! This subroutine constrains the number of plants so that there is enought water
@@ -1935,12 +1935,13 @@ subroutine ConstrainRecruitNumber(csite,ccohort, bc_in)
   ! Arguments
   type(ed_site_type), intent(inout), target     :: csite
   type(fates_cohort_type) , intent(inout), target  :: ccohort
+  type(ed_patch_type), intent(inout), target       :: cpatch
   type(bc_in_type)    , intent(in)              :: bc_in
+  real(r8),             intent(in)              :: mean_temp
 
   ! Locals
   type(ed_cohort_hydr_type), pointer :: ccohort_hydr
   type(ed_site_hydr_type), pointer :: csite_hydr
-  type(ed_patch_type), pointer :: cpatch
   real(r8) :: tmp1
   real(r8) :: watres_local              ! minum water content [m3/m3]
   real(r8) :: total_water               ! total water in rhizosphere at a specific layer (m^3 ha-1)
@@ -1956,7 +1957,6 @@ subroutine ConstrainRecruitNumber(csite,ccohort, bc_in)
   real(r8) :: leaf_m, store_m, sapw_m   ! Element mass in organ tissues
   real(r8) :: fnrt_m, struct_m, repro_m ! Element mass in organ tissues
 
-  cpatch => ccohort%patchptr
   csite_hydr => csite%si_hydr
   ccohort_hydr =>ccohort%co_hydr
   recruitw =  (sum(ccohort_hydr%th_ag(:)*ccohort_hydr%v_ag(:))    + &
@@ -1990,7 +1990,7 @@ subroutine ConstrainRecruitNumber(csite,ccohort, bc_in)
   end do
 
   ! Prevent recruitment when temperatures are freezing or below
-  if (cpatch%tveg24%GetMean() <= 273.15_r8) then
+  if (mean_temp <= 273.15_r8) then
      nmin = 0._r8
   end if
 

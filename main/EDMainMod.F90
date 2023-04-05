@@ -335,11 +335,11 @@ contains
     use PRTGenericMod        , only : fnrt_organ
     use FatesInterfaceTypesMod, only : hlm_use_cohort_age_tracking
     use FatesConstantsMod, only : itrue
-    use EDCohortDynamicsMod   , only : zero_cohort, copy_cohort, insert_cohort
+    use EDCohortDynamicsMod   , only : copy_cohort, insert_cohort
     use EDCohortDynamicsMod   , only : DeallocateCohort
     use FatesPlantHydraulicsMod, only : InitHydrCohort
     use EDCohortDynamicsMod   , only : InitPRTObject
-    use EDCohortDynamicsMod   , only : InitPRTBoundaryConditions
+    use EDTypesMod            , only : InitPRTBoundaryConditions
     use FatesConstantsMod     , only : nearzero
     use EDCanopyStructureMod  , only : canopy_structure
     use PRTLossFluxesMod      , only : PRTDamageRecoveryFluxes
@@ -375,6 +375,7 @@ contains
     logical  :: is_drought            ! logical for if the plant (site) is in a drought state
     real(r8) :: delta_dbh             ! correction for dbh
     real(r8) :: delta_hite            ! correction for hite
+    real(r8) :: mean_temp
 
     logical  :: newly_recovered       ! If the current loop is dealing with a newly created cohort, which
                                       ! was created because it is a clone of the previous cohort in
@@ -478,8 +479,12 @@ contains
 
 
              ! Calculate the mortality derivatives
-             call Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary, &
-                 harvestable_forest_c, harvest_tag )
+             mean_temp = currentPatch%tveg24%GetMean()
+             call Mortality_Derivative(currentSite, currentCohort, bc_in,      &
+               currentPatch%btran_ft, mean_temp,                               &
+               currentPatch%anthro_disturbance_label,                          &
+               currentPatch%age_since_anthro_disturbance, frac_site_primary,   &
+                 harvestable_forest_c, harvest_tag)
 
              ! -----------------------------------------------------------------------------
              ! Apply Plant Allocation and Reactive Transport

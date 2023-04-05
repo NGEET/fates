@@ -36,8 +36,7 @@ module FatesInventoryInitMod
    use EDTypesMod       , only : ed_patch_type
    use EDTypesMod       , only : fates_cohort_type
    use EDTypesMod       , only : area
-   use EDTypesMod       , only : leaves_on
-   use EDTypesMod       , only : leaves_off
+   use FatesConstantsMod, only : leaves_on, leaves_off
    use PRTGenericMod    , only : num_elements
    use PRTGenericMod    , only : element_list
    use EDTypesMod       , only : phen_cstat_nevercold

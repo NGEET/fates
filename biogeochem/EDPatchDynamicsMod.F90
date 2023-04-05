@@ -32,8 +32,8 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : ican_upper
   use PRTGenericMod        , only : num_elements
   use PRTGenericMod        , only : element_list
-  use EDTypesMod           , only : lg_sf
-  use EDTypesMod           , only : dl_sf
+  use FatesLitterMod       , only : lg_sf
+  use FatesLitterMod       , only : dl_sf
   use EDTypesMod           , only : dump_patch
   use EDTypesMod           , only : N_DIST_TYPES
   use EDTypesMod           , only : AREA_INV
@@ -76,7 +76,7 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : fates_unset_int
   use FatesConstantsMod    , only : hlm_harvest_carbon
   use EDCohortDynamicsMod  , only : InitPRTObject
-  use EDCohortDynamicsMod  , only : InitPRTBoundaryConditions
+  use EDTypesMod           , only : InitPRTBoundaryConditions
   use ChecksBalancesMod,      only : SiteMassStock
   use PRTGenericMod,          only : carbon12_element
   use PRTGenericMod,          only : leaf_organ
@@ -198,6 +198,7 @@ contains
     real(r8) :: frac_site_primary
     real(r8) :: harvest_rate
     real(r8) :: tempsum
+    real(r8) :: mean_temp
     real(r8) :: harvestable_forest_c(hlm_num_lu_harvest_cats)
     integer  :: harvest_tag(hlm_num_lu_harvest_cats)
 
@@ -218,9 +219,10 @@ contains
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort))        
           ! Mortality for trees in the understorey.
-          currentCohort%patchptr => currentPatch
-
-          call mortality_rates(currentCohort,bc_in,cmort,hmort,bmort,frmort,smort,asmort,dgmort)
+          !currentCohort%patchptr => currentPatch
+          mean_temp = currentPatch%tveg24%GetMean()
+          call mortality_rates(currentCohort,bc_in,currentPatch%btran_ft,      &
+            mean_temp, cmort,hmort,bmort,frmort,smort,asmort,dgmort)
           currentCohort%dmort  = cmort+hmort+bmort+frmort+smort+asmort+dgmort
           call carea_allom(currentCohort%dbh,currentCohort%n,site_in%spread,currentCohort%pft, &
                currentCohort%crowndamage,currentCohort%c_area)
@@ -405,7 +407,7 @@ contains
     ! !USES:
     
     use EDParamsMod         , only : ED_val_understorey_death, logging_coll_under_frac
-    use EDCohortDynamicsMod , only : zero_cohort, copy_cohort, terminate_cohorts
+    use EDCohortDynamicsMod , only : copy_cohort, terminate_cohorts
     use FatesConstantsMod   , only : rsnbl_math_prec
 
     !
@@ -1099,8 +1101,8 @@ contains
                                new_patch%shortest => nc
                                nc%shorter => null()
                             endif
-                            nc%patchptr => new_patch
-                            call insert_cohort(nc, new_patch%tallest, new_patch%shortest, &
+                            !nc%patchptr => new_patch
+                            call insert_cohort(new_patch, nc, new_patch%tallest, new_patch%shortest, &
                                  tnull, snull, storebigcohort, storesmallcohort)
 
                             new_patch%tallest  => storebigcohort
@@ -2736,12 +2738,13 @@ contains
              rp%shortest => currentCohort
           endif
 
-          call insert_cohort(currentCohort, rp%tallest, rp%shortest, tnull, snull, storebigcohort, storesmallcohort)
+          call insert_cohort(rp, currentCohort, rp%tallest, rp%shortest,       &
+            tnull, snull, storebigcohort, storesmallcohort)
 
           rp%tallest  => storebigcohort 
           rp%shortest => storesmallcohort    
 
-          currentCohort%patchptr => rp
+          !currentCohort%patchptr => rp
 
           currentCohort => nextc
 

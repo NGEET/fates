@@ -9,9 +9,9 @@ module EDInitMod
   use FatesConstantsMod         , only : itrue
   use FatesConstantsMod         , only : fates_unset_int
   use FatesConstantsMod         , only : primaryforest
-  use FatesConstantsMod   , only : nearzero
+  use FatesConstantsMod         , only : nearzero
   use FatesGlobals              , only : endrun => fates_endrun
-  use EDTypesMod                , only : nclmax
+  use EDParamsMod               , only : nclmax
   use FatesGlobals              , only : fates_log
   use FatesInterfaceTypesMod    , only : hlm_is_restart
   use EDPftvarcon               , only : EDPftvarcon_inst
@@ -30,8 +30,7 @@ module EDInitMod
   use EDTypesMod                , only : AREA
   use EDTypesMod                , only : init_spread_near_bare_ground
   use EDTypesMod                , only : init_spread_inventory
-  use EDTypesMod                , only : leaves_on
-  use EDTypesMod                , only : leaves_off
+  use FatesConstantsMod         , only : leaves_on, leaves_off
   use PRTGenericMod             , only : num_elements
   use PRTGenericMod             , only : element_list
   use EDTypesMod                , only : phen_cstat_nevercold

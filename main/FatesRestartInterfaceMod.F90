@@ -32,17 +32,16 @@ module FatesRestartInterfaceMod
   use FatesPlantHydraulicsMod, only : UpdatePlantPsiFTCFromTheta
   use PRTGenericMod,           only : prt_global
   use PRTGenericMod,           only : prt_cnp_flex_allom_hyp
-  use EDCohortDynamicsMod,     only : nan_cohort
-  use EDCohortDynamicsMod,     only : zero_cohort
   use EDCohortDynamicsMod,     only : InitPRTObject
-  use EDCohortDynamicsMod,     only : InitPRTBoundaryConditions
+  use EDTypesMod,              only : InitPRTBoundaryConditions
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesInterfaceTypesMod,       only : nlevsclass
   use FatesInterfaceTypesMod,  only : nlevdamage
   use FatesLitterMod,          only : litter_type
-  use FatesLitterMod,          only : ncwd
+  use FatesLitterMod,          only : ncwd, nfsc
   use FatesLitterMod,          only : ndcmpy
-  use EDTypesMod,              only : nfsc, nlevleaf, area
+  use EDTypesMod,              only : area
+  use EDParamsMod,             only : nlevleaf
   use PRTGenericMod,           only : prt_global
   use PRTGenericMod,           only : num_elements
   use FatesRunningMeanMod,     only : rmean_type
@@ -2510,7 +2509,7 @@ contains
      use EDTypesMod,           only : ed_site_type
      use EDTypesMod,           only : fates_cohort_type
      use EDTypesMod,           only : ed_patch_type
-     use EDTypesMod,           only : maxSWb
+     use EDParamsMod,          only : maxSWb
      use FatesInterfaceTypesMod,    only : fates_maxElementsPerPatch
 
      use EDTypesMod,           only : maxpft
@@ -2616,9 +2615,8 @@ contains
              do fto = 1, rio_ncohort_pa( io_idx_co_1st )
 
                 allocate(new_cohort)
-                call nan_cohort(new_cohort)
-                call zero_cohort(new_cohort)
-                new_cohort%patchptr => newp
+                call new_cohort%nan_values()
+                call new_cohort%zero_values()
 
                 ! If this is the first in the list, it is tallest
                 if (.not.associated(newp%tallest)) then
@@ -2710,8 +2708,8 @@ contains
      use EDTypesMod, only : ed_site_type
      use EDTypesMod, only : fates_cohort_type
      use EDTypesMod, only : ed_patch_type
-     use EDTypesMod, only : maxSWb
-     use EDTypesMod, only : nclmax
+     use EDParamsMod, only : maxSWb
+     use EDParamsMod, only : nclmax
      use FatesInterfaceTypesMod, only : numpft
      use FatesInterfaceTypesMod, only : fates_maxElementsPerPatch
      use EDTypesMod, only : numWaterMem

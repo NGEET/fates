@@ -29,10 +29,9 @@ module EDPhysiologyMod
   use EDPftvarcon      , only    : GetDecompyFrac
   use FatesInterfaceTypesMod, only    : bc_in_type
   use FatesInterfaceTypesMod, only    : bc_out_type
-  use EDCohortDynamicsMod , only : zero_cohort
   use EDCohortDynamicsMod , only : create_cohort, sort_cohorts
   use EDCohortDynamicsMod , only : InitPRTObject
-  use EDCohortDynamicsMod , only : InitPRTBoundaryConditions
+  use EDTypesMod,           only : InitPRTBoundaryConditions
   use EDCohortDynamicsMod , only : copy_cohort
   use FatesAllometryMod   , only : tree_lai
   use FatesAllometryMod   , only : tree_sai
@@ -42,7 +41,9 @@ module EDPhysiologyMod
   use EDTypesMod          , only : site_massbal_type
   use EDTypesMod          , only : numlevsoil_max
   use EDTypesMod          , only : numWaterMem
-  use EDTypesMod          , only : dl_sf, dinc_vai, dlower_vai, area_inv
+  use FatesLitterMod      , only : dl_sf
+  use EDParamsMod         , only : dinc_vai, dlower_vai
+  use EDTypesMod          , only : area_inv
   use EDTypesMod          , only : AREA
   use FatesLitterMod      , only : ncwd
   use FatesLitterMod      , only : ndcmpy
@@ -55,8 +56,8 @@ module EDPhysiologyMod
   use EDTypesMod          , only : num_vegtemp_mem
   use EDTypesMod          , only : maxpft
   use EDTypesMod          , only : ed_site_type, ed_patch_type, fates_cohort_type
-  use EDTypesMod          , only : leaves_on
-  use EDTypesMod          , only : leaves_off
+  use FatesConstantsMod   , only : leaves_on
+  use FatesConstantsMod   , only : leaves_off
   use EDTypesMod          , only : min_n_safemath
   use PRTGenericMod       , only : num_elements
   use PRTGenericMod       , only : element_list
@@ -272,7 +273,7 @@ contains
 
              call InitPRTObject(ndcohort%prt)
              call InitPRTBoundaryConditions(ndcohort)
-             call zero_cohort(ndcohort)
+             call ndcohort%zero_values()
              
              ! nc_canopy_d is the new cohort that gets damaged 
              call copy_cohort(ccohort, ndcohort)
@@ -2026,7 +2027,7 @@ contains
     !----------------------------------------------------------------------
 
     allocate(temp_cohort) ! create temporary cohort
-    call zero_cohort(temp_cohort)
+    call temp_cohort%zero_values()
 
 
     do ft = 1,numpft

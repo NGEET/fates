@@ -69,7 +69,7 @@ module FatesCohortWrapMod
 
   use FatesConstantsMod   , only : nearzero
 
-  use EDTypesMod            , only : nclmax
+  use EDParamsMod         , only : nclmax
 
   use FatesGlobals          , only : endrun => fates_endrun
   use FatesGlobals          , only : fates_log
