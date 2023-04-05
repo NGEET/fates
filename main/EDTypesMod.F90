@@ -1410,7 +1410,7 @@ end subroutine dump
            call check_var_real(currentCohort%n,'cohort%n',return_code)
            if(.not.(return_code.eq.0)) then
               call dump_patch(currentPatch)
-              call dump_cohort(currentCohort)
+              call currentCohort%dump()
               return
            end if
            currentCohort => currentCohort%taller
@@ -1424,7 +1424,7 @@ end subroutine dump
            call check_var_real(currentCohort%dbh,'cohort%dbh',return_code)
            if(.not.(return_code.eq.0)) then
               call dump_patch(currentPatch)
-              call dump_cohort(currentCohort)
+              call currentCohort%dump()
               return
            end if
            currentCohort => currentCohort%taller

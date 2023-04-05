@@ -687,7 +687,7 @@ contains
                          !allocate(nc%tveg_lpa)
                          !call nc%tveg_lpa%InitRMean(ema_lpa,init_value=new_patch%tveg_lpa%GetMean())
 
-                         call zero_cohort(nc)
+                         call nc%zero_values()
 
                          ! nc is the new cohort that goes in the disturbed patch (new_patch)... currentCohort
                          ! is the curent cohort that stays in the donor patch (currentPatch)
