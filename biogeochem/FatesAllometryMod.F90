@@ -553,7 +553,7 @@ contains
     integer(i4),intent(in) :: ipft          ! PFT index
     integer(i4),intent(in) :: crowndamage   ! crown damage class [1: undamaged, >1: damaged]
     real(r8),intent(in)    :: canopy_trim   ! trimming function
-    real(r8),intent(out)   :: bl            ! plant leaf biomass [kg]
+    real(r8),intent(out)   :: bl            ! plant leaf biomass [kgC]
     real(r8),intent(out),optional :: dbldd  ! change leaf bio per diameter [kgC/cm]
     
     real(r8) :: blmax
@@ -905,9 +905,9 @@ contains
     real(r8),intent(in)           :: canopy_trim
     real(r8),intent(out)          :: sapw_area   ! cross section area of
                                                  ! plant sapwood at reference [m2]
-    real(r8),intent(out)          :: bsap        ! plant leaf biomass [kgC]
-    real(r8),intent(out),optional :: dbsapdd     ! change leaf biomass
-                                                 !  per d [kgC/cm]
+    real(r8),intent(out)          :: bsap        ! sapwood biomass [kgC]
+    real(r8),intent(out),optional :: dbsapdd     ! change in sapwood biomass
+                                                 ! per d [kgC/cm]
 
     real(r8) :: h         ! Plant height [m]
     real(r8) :: dhdd

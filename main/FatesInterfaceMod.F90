@@ -1464,7 +1464,7 @@ contains
            (hlm_use_cohort_age_tracking .eq.0 ) ) then
            write(fates_log(),*) 'Age dependent mortality cannot be on if'
            write(fates_log(),*) 'cohort age tracking is off.'
-           write(fates_log(),*) 'Set hlm_use_cohort_age_tracking = .true.'
+           write(fates_log(),*) 'Set use_fates_cohort_age_tracking = .true.'
            write(fates_log(),*) 'in FATES namelist options'
            write(fates_log(),*) 'Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1488,7 +1488,7 @@ contains
 
          if ( hlm_use_inventory_init.eq.1  .and. hlm_use_cohort_age_tracking .eq.1) then
             write(fates_log(), *) 'Fates inventory init cannot be used with age dependent mortality'
-            write(fates_log(), *) 'Set hlm_use_cohort_age_tracking to 0 or turn off inventory init'
+            write(fates_log(), *) 'Set use_fates_cohort_age_tracking to 0 or turn off inventory init'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
          
@@ -1636,7 +1636,7 @@ contains
          
         if(hlm_use_fixed_biogeog.eq.unset_int) then
            if(fates_global_verbose()) then
-             write(fates_log(), *) 'switch for fixed biogeog unset: him_use_fixed_biogeog, exiting'
+             write(fates_log(), *) 'switch for fixed biogeog unset: hlm_use_fixed_biogeog, exiting'
            end if
            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
