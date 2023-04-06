@@ -144,6 +144,7 @@ module EDPatchDynamicsMod
   real(r8), parameter :: existing_litt_localization = 1.0_r8
   real(r8), parameter :: treefall_localization = 0.0_r8
   real(r8), parameter :: burn_localization = 0.0_r8
+  real(r8), parameter :: landusechange_localization = 1.0_r8
 
   integer :: istat           ! return status code
   character(len=255) :: smsg ! Message string for deallocation errors
@@ -1086,9 +1087,7 @@ s
                                   ! now apply survivorship based on the type of landuse transition
                                   if ( clearing_matrix(i_donorpatch_landuse_type,receiver_patch_lu_label) ) then
                                      ! kill everything
-
-
-
+                                     currentCohort%n = 0._r8
                                   end if
 
                                case default
@@ -2074,6 +2073,269 @@ s
 
     return
   end subroutine mortality_litter_fluxes
+
+    ! ============================================================================
+
+  subroutine landusechange_litter_fluxes(currentSite, currentPatch, &
+       newPatch, patch_site_areadis, bc_in, &
+       clearing_matrix_element)
+    !
+    ! !DESCRIPTION:
+    !  CWD pool from land use change.
+    !  Carbon going from felled trees into CWD pool
+    !  Either kill everything or nothing on disturbed land, depending on clearing matrix
+    !
+    ! !USES:
+    use SFParamsMod,          only : SF_VAL_CWD_FRAC
+    !
+    ! !ARGUMENTS:
+    type(ed_site_type)  , intent(inout), target :: currentSite
+    type(ed_patch_type) , intent(inout), target :: currentPatch   ! Donor Patch
+    type(ed_patch_type) , intent(inout), target :: newPatch   ! New Patch
+    real(r8)            , intent(in)            :: patch_site_areadis ! Area being donated
+    type(bc_in_type)    , intent(in)            :: bc_in
+    logical             , intent(in)            :: clearing_matrix_element ! whether or not to clear vegetation
+
+    !
+    ! !LOCAL VARIABLES:
+
+    type(ed_cohort_type), pointer      :: currentCohort
+    type(litter_type), pointer         :: new_litt
+    type(litter_type), pointer         :: curr_litt
+    type(site_massbal_type), pointer   :: site_mass
+    type(site_fluxdiags_type), pointer :: flux_diags
+
+    real(r8) :: donatable_mass       ! non-burned litter mass provided by the donor [kg]
+                                     ! some may or may not be retained by the donor
+    real(r8) :: burned_mass          ! the mass of litter that was supposed to be provided
+                                     ! by the donor, but was burned [kg]
+    real(r8) :: remainder_area       ! current patch's remaining area after donation [m2]
+    real(r8) :: retain_frac          ! the fraction of litter mass retained by the donor patch
+    real(r8) :: bcroot               ! amount of below ground coarse root per cohort kg
+    real(r8) :: bstem                ! amount of above ground stem biomass per cohort kg
+    real(r8) :: leaf_burn_frac       ! fraction of leaves burned
+    real(r8) :: leaf_m               ! leaf mass [kg]
+    real(r8) :: fnrt_m               ! fineroot mass [kg]
+    real(r8) :: sapw_m               ! sapwood mass [kg]
+    real(r8) :: store_m              ! storage mass [kg]
+    real(r8) :: struct_m             ! structure mass [kg]
+    real(r8) :: repro_m              ! Reproductive mass (seeds/flowers) [kg]
+    real(r8) :: num_dead_trees       ! total number of dead trees passed in with the burn area
+    real(r8) :: num_live_trees       ! total number of live trees passed in with the burn area
+    real(r8) :: donate_m2            ! area normalization for litter mass destined to new patch [m-2]
+    real(r8) :: retain_m2            ! area normalization for litter mass staying in donor patch [m-2]
+    real(r8) :: dcmpy_frac           ! fraction of mass going to each decomposability partition
+    integer  :: el                   ! element loop index
+    integer  :: sl                   ! soil layer index
+    integer  :: c                    ! loop index for coarse woody debris pools
+    integer  :: pft                  ! loop index for plant functional types
+    integer  :: dcmpy                ! loop index for decomposability pool
+    integer  :: element_id           ! parteh compatible global element index
+    real(r8) :: trunk_product_site   ! flux of carbon in trunk products exported off site      [ kgC/site ]
+                                     ! (note we are accumulating over the patch, but scale is site level)
+    real(r8) :: woodproduct_mass     ! mass that ends up in wood products [kg]
+
+    ! the following two parameters are new to this logic.
+    real(r8), parameter :: burn_frac_landusetransition = 0.5_r8  ! what fraction of plant fines are burned during a land use transition?
+    real(r8), parameter :: woodproduct_frac_landusetransition = 0.5_r8  ! what fraction of trunk carbon is turned into wood products during a land use transition?
+
+    !---------------------------------------------------------------------
+
+    clear_veg_if: if (clearing_matrix_element) then
+
+       ! If plant hydraulics are turned on, account for water leaving the plant-soil
+       ! mass balance through the dead trees
+       if (hlm_use_planthydro == itrue) then
+          currentCohort => currentPatch%shortest
+          do while(associated(currentCohort))
+             num_dead_trees  = (currentCohort%n*patch_site_areadis/currentPatch%area)
+             call AccumulateMortalityWaterStorage(currentSite,currentCohort,num_dead_trees)
+             currentCohort => currentCohort%taller
+          end do
+       end if
+
+
+       ! If/when sending litter fluxes to the donor patch, we divide the total 
+       ! mass sent to that patch, by the area it will have remaining
+       ! after it donates area.
+       ! i.e. subtract the area it is donating.
+
+       remainder_area = currentPatch%area - patch_site_areadis
+
+       ! Calculate the fraction of litter to be retained versus donated
+       ! vis-a-vis the new and donor patch (if the area remaining
+       ! in the original donor patch is small, don't bother
+       ! retaining anything.)
+       retain_frac = (1.0_r8-landusechange_localization) * &
+            remainder_area/(newPatch%area+remainder_area)
+
+       if(remainder_area > rsnbl_math_prec) then
+          retain_m2 = retain_frac/remainder_area
+          donate_m2 = (1.0_r8-retain_frac)/newPatch%area
+       else
+          retain_m2 = 0._r8
+          donate_m2 = 1.0_r8/newPatch%area
+       end if
+
+       do el = 1,num_elements
+
+          ! Zero some site level accumulator diagnsotics
+          trunk_product_site  = 0.0_r8
+
+          element_id = element_list(el)
+          site_mass  => currentSite%mass_balance(el)
+          flux_diags => currentSite%flux_diags(el)
+          curr_litt  => currentPatch%litter(el)      ! Litter pool of "current" patch
+          new_litt   => newPatch%litter(el)          ! Litter pool of "new" patch
+
+          ! -----------------------------------------------------------------------------
+          ! PART 1) Handle mass fluxes associated with plants that died in the land use transition
+          ! ------------------------------------------------------------------------------
+
+          currentCohort => currentPatch%shortest
+          do while(associated(currentCohort))
+
+             pft = currentCohort%pft
+
+             ! Number of trees that died because of the land use transition, per m2 of ground.
+             ! Divide their litter into the four litter streams, and spread
+             ! across ground surface.
+             ! -----------------------------------------------------------------------
+
+             fnrt_m   = currentCohort%prt%GetState(fnrt_organ, element_id)
+             store_m  = currentCohort%prt%GetState(store_organ, element_id)
+             repro_m  = currentCohort%prt%GetState(repro_organ, element_id)
+
+             if (prt_params%woody(currentCohort%pft) == itrue) then
+                ! Assumption: for woody plants fluxes from deadwood and sapwood go together in CWD pool
+                leaf_m          = currentCohort%prt%GetState(leaf_organ,element_id)
+                sapw_m          = currentCohort%prt%GetState(sapw_organ,element_id)
+                struct_m        = currentCohort%prt%GetState(struct_organ,element_id)
+             else
+                ! for non-woody plants all stem fluxes go into the same leaf litter pool
+                leaf_m          = currentCohort%prt%GetState(leaf_organ,element_id) + &
+                     currentCohort%prt%GetState(sapw_organ,element_id) + &
+                     currentCohort%prt%GetState(struct_organ,element_id)
+                sapw_m          = 0._r8
+                struct_m        = 0._r8
+             end if
+
+
+             ! Absolute number of dead trees being transfered in with the donated area
+             num_dead_trees = (currentCohort%n * &
+                  patch_site_areadis/currentPatch%area)
+
+             ! Contribution of dead trees to leaf litter
+             donatable_mass = num_dead_trees * (leaf_m+repro_m) * &
+                  (1.0_r8-burn_frac_landusetransition)
+
+             ! Contribution of dead trees to leaf burn-flux
+             burned_mass  = num_dead_trees * (leaf_m+repro_m) * burn_frac_landusetransition
+
+             do dcmpy=1,ndcmpy
+                dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
+                new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + &
+                     donatable_mass*donate_m2*dcmpy_frac
+                curr_litt%leaf_fines(dcmpy) = curr_litt%leaf_fines(dcmpy) + &
+                     donatable_mass*retain_m2*dcmpy_frac
+             end do
+
+             site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
+
+             call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
+                  bc_in%max_rooting_depth_index_col)
+
+             ! Contribution of dead trees to root litter (no root burn flux to atm)
+             do dcmpy=1,ndcmpy
+                dcmpy_frac = GetDecompyFrac(pft,fnrt_organ,dcmpy)
+                do sl = 1,currentSite%nlevsoil
+                   donatable_mass = num_dead_trees * (fnrt_m+store_m) * currentSite%rootfrac_scr(sl)
+                   new_litt%root_fines(dcmpy,sl) = new_litt%root_fines(dcmpy,sl) + &
+                        donatable_mass*donate_m2*dcmpy_frac
+                   curr_litt%root_fines(dcmpy,sl) = curr_litt%root_fines(dcmpy,sl) + &
+                        donatable_mass*retain_m2*dcmpy_frac
+                end do
+             end do
+
+             ! Track as diagnostic fluxes
+             flux_diags%leaf_litter_input(pft) = &
+                  flux_diags%leaf_litter_input(pft) + &
+                  num_dead_trees * (leaf_m+repro_m) * (1.0_r8-burn_frac_landusetransition)
+
+             flux_diags%root_litter_input(pft) = &
+                  flux_diags%root_litter_input(pft) + &
+                  (fnrt_m + store_m) * num_dead_trees
+
+             ! coarse root biomass per tree
+             bcroot = (sapw_m + struct_m) * (1.0_r8 - prt_params%allom_agb_frac(pft) )
+
+             ! below ground coarse woody debris from felled trees
+             do c = 1,ncwd
+                do sl = 1,currentSite%nlevsoil
+                   donatable_mass =  num_dead_trees * SF_val_CWD_frac(c) * &
+                        bcroot * currentSite%rootfrac_scr(sl)
+
+                   new_litt%bg_cwd(c,sl) = new_litt%bg_cwd(c,sl) + &
+                        donatable_mass * donate_m2
+                   curr_litt%bg_cwd(c,sl) = curr_litt%bg_cwd(c,sl) + &
+                        donatable_mass * retain_m2
+
+                   ! track diagnostics
+                   flux_diags%cwd_bg_input(c) = &
+                        flux_diags%cwd_bg_input(c) + &
+                        donatable_mass
+                enddo
+             end do
+
+             ! stem biomass per tree
+             bstem  = (sapw_m + struct_m) * prt_params%allom_agb_frac(pft)
+
+             ! Above ground coarse woody debris from twigs and small branches
+             ! a portion of this pool may burn
+             ! a portion may also be carried offsite as wood product
+             do c = 1,ncwd
+                donatable_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem
+                if (c == 1 .or. c == 2) then  ! these pools can burn
+                   donatable_mass = donatable_mass * (1.0_r8-burn_frac_landusetransition)
+                   burned_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem * &
+                        burn_frac_landusetransition
+
+                   site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
+                else ! all other pools can end up as timber products but not burn
+                   donatable_mass = donatable_mass * (1.0_r8-woodproduct_frac_landusetransition)
+
+                   woodproduct_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem * &
+                        woodproduct_frac_landusetransition
+
+                   trunk_product_site = trunk_product_site + &
+                        woodproduct_mass
+
+                   site_mass%wood_product = site_mass%wood_product + &
+                        woodproduct_mass
+                endif
+                new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * donate_m2
+                curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass * retain_m2
+                flux_diags%cwd_ag_input(c) = flux_diags%cwd_ag_input(c) + donatable_mass
+             enddo
+
+             currentCohort => currentCohort%taller
+          enddo
+
+          ! Update the amount of carbon exported from the site through logging.
+
+          if(element_id .eq. carbon12_element) then
+             currentSite%resources_management%trunk_product_site  = &
+                  currentSite%resources_management%trunk_product_site + &
+                  trunk_product_site
+          end if
+
+
+       end do
+
+    end if clear_veg_if
+    return
+  end subroutine landusechange_litter_fluxes
+
 
   ! ============================================================================
 
