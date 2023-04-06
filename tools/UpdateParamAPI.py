@@ -54,14 +54,12 @@ def str2ivec(numstr):
 
 # =======================================================================================
 
-def createvar(ncfile,paramname,dimnames,units,longname,usecase,dcode,sel_values):
+def createvar(ncfile,paramname,dimnames,units,longname,dcode,sel_values):
 
     # Create a new netcdf variable inside an existing netcdf dataset (append)
-        
     ncvar = ncfile.createVariable(paramname,dcode,dimnames)
     ncvar.units = units
     ncvar.long_name = longname
-    ncvar.use_case = usecase
     if( not dimnames):
         ncvar.assignValue(sel_values)
     else:
@@ -227,7 +225,6 @@ def main():
     base_nc = os.popen('mktemp').read().rstrip('\n')
     gencmd = "ncgen -o "+base_nc+" "+base_cdl
     os.system(gencmd)
-    
     modlist = []
     for mod in modroot:
         if(not('type' in mod.attrib.keys())):
@@ -314,40 +311,42 @@ def main():
                 longname = mod.find('ln').text.strip()
             except:
                 print("no long-name (ln), exiting");exit(2)
-                
-            #try:
-            #    usecase = mod.find('uc').text.strip()
-            #except:
-            #    print("no use case (uc), exiting");exit(2)
-                
+
+            ncfile = netcdf.netcdf_file(base_nc,"a",mmap=False)
+
             try:
                 values = str2fvec(mod.find('val').text.strip())
             except:
-                try:
-                    values = mod.find('val').text.strip()
-                except:
-                    print("no values (val), exiting");exit(2)
+                # try:
+                if(isinstance(mod.find('val').text,type(None))):
+                    # values = mod.find('val').text.strip()
+                # except:
+                    print("Warning: no values (val). Setting undefined (i.e. '_'): {}\n".format(paramname))
+                    sel_values = ncfile.variables['fates_dev_arbitrary_pft'].data
+                    dcode = "d"
+                else:
+                    print("unknown values (val), exiting");exit(2)
 
+                    #print("no values (val), exiting");exit(2)
+            else:
             #code.interact(local=dict(globals(), **locals()))
             
-            if(dimnames[0]=='scalar' or dimnames[0]=='none' or dimnames[0]==''):
-                dimnames = ()
+                if(dimnames[0]=='scalar' or dimnames[0]=='none' or dimnames[0]==''):
+                    dimnames = ()
 
-            if(isinstance(values[0],str)):
-                dcode = "c"
-                values = values.split(',')
-                for i,val in enumerate(values):
-                    values[i] = val.strip()
-            elif(isinstance(values[0],float)):
-                dcode = "d"
-            else:
-                print("Unknown value type: {} {}".format(type(values[0]),paramname));exit(2)
+                if(isinstance(values[0],str)):
+                    dcode = "c"
+                    values = values.split(',')
+                    for i,val in enumerate(values):
+                        values[i] = val.strip()
+                elif(isinstance(values[0],float)):
+                    dcode = "d"
+                else:
+                    print("Unknown value type: {} {}".format(type(values[0]),paramname));exit(2)
 
-                
-            sel_values = selectvalues(ncfile,list(dimnames),ipft_list,values,dcode)
-                
-            ncfile = netcdf.netcdf_file(base_nc,"a",mmap=False)
-            [ncfile,ncvar] = createvar(ncfile,paramname,dimnames,units,longname,usecase,dcode,sel_values)
+                sel_values = selectvalues(ncfile,list(dimnames),ipft_list,values,dcode)
+
+            [ncfile,ncvar] = createvar(ncfile,paramname,dimnames,units,longname,dcode,sel_values)
             ncfile.flush()
             ncfile.close()
 
@@ -378,10 +377,6 @@ def main():
             dtype_o = ncvar_o.typecode()
             units_o = ncvar_o.units.decode("utf-8")
             longname_o = ncvar_o.long_name.decode("utf-8")
-            try:
-                usecase_o = ncvar_o.use_case.decode("utf-8")
-            except:
-                usecase_o = 'undefined'
                 
             try:
                 paramname = mod.find('na').text.strip()
@@ -391,9 +386,9 @@ def main():
             # Change the parameter's name
             if(not isinstance(paramname,type(None))):
                 if not dims_o:
-                    [ncfile,ncvar] = createvar(ncfile,paramname,dims_o,units_o,longname_o,usecase_o,dtype_o,float(ncvar_o.data))
+                    [ncfile,ncvar] = createvar(ncfile,paramname,dims_o,units_o,longname_o,dtype_o,float(ncvar_o.data))
                 else:
-                    [ncfile,ncvar] = createvar(ncfile,paramname,dims_o,units_o,longname_o,usecase_o,dtype_o,ncvar_o[:].copy())
+                    [ncfile,ncvar] = createvar(ncfile,paramname,dims_o,units_o,longname_o,dtype_o,ncvar_o[:].copy())
             else:
                 ncvar = ncvar_o
                
@@ -411,13 +406,6 @@ def main():
                 longname = None
             if(not isinstance(longname,type(None))):
                 ncvar.long_name = longname
-                
-            #try:
-            #    usecase = mod.find('uc').text.strip()
-            #except:
-            usecase = None
-            #if(not isinstance(usecase,type(None))):
-            #    ncvar.use_case = use_case
                 
             try:
                 values = str2fvec(mod.find('val').text.strip())
@@ -444,7 +432,7 @@ def main():
                removevar(base_nc,paramname_o)
                paramname = paramname_o
                
-            print("parameter: {}, modified".format(paramname))
+            print("parameter: {}, modified".format(paramname_o))
 
                
     # Sort the new file
@@ -454,8 +442,6 @@ def main():
     # Dump the new file to the cdl
     os.system("ncdump "+new_nc+" > "+new_cdl)
 
-    
-    
     print("\nAPI update complete, see file: {}\n".format(new_cdl))
     
         

@@ -151,16 +151,16 @@ variables:
 		fates_allom_stmode:long_name = "storage allometry function index: 1) Storage proportional to leaf biomass (with trimming), 2) Storage proportional to maximum leaf biomass (not trimmed)" ;
 	double fates_allom_zroot_k(fates_pft) ;
 		fates_allom_zroot_k:units = "unitless" ;
-		fates_allom_zroot_k:long_name = "scale coefficient of logistic rooting depth model (NOT USED)" ;
+		fates_allom_zroot_k:long_name = "scale coefficient of logistic rooting depth model" ;
 	double fates_allom_zroot_max_dbh(fates_pft) ;
 		fates_allom_zroot_max_dbh:units = "cm" ;
-		fates_allom_zroot_max_dbh:long_name = "dbh at which a plant reaches the maximum value for its maximum rooting depth (NOT USED)" ;
+		fates_allom_zroot_max_dbh:long_name = "dbh at which a plant reaches the maximum value for its maximum rooting depth" ;
 	double fates_allom_zroot_max_z(fates_pft) ;
 		fates_allom_zroot_max_z:units = "m" ;
-		fates_allom_zroot_max_z:long_name = "the maximum rooting depth defined at dbh = fates_allom_zroot_max_dbh (NOT USED). note: max_z=min_z=large, sets rooting depth to soil depth" ;
+		fates_allom_zroot_max_z:long_name = "the maximum rooting depth defined at dbh = fates_allom_zroot_max_dbh. note: max_z=min_z=large, sets rooting depth to soil depth" ;
 	double fates_allom_zroot_min_dbh(fates_pft) ;
 		fates_allom_zroot_min_dbh:units = "cm" ;
-		fates_allom_zroot_min_dbh:long_name = "dbh at which the maximum rooting depth for a recruit is defined (NOT USED)" ;
+		fates_allom_zroot_min_dbh:long_name = "dbh at which the maximum rooting depth for a recruit is defined" ;
 	double fates_allom_zroot_min_z(fates_pft) ;
 		fates_allom_zroot_min_z:units = "m" ;
 		fates_allom_zroot_min_z:long_name = "the maximum rooting depth defined at dbh = fates_allom_zroot_min_dbh. note: max_z=min_z=large, sets rooting depth to soil depth" ;
@@ -461,60 +461,6 @@ variables:
 	double fates_prescribed_npp_understory(fates_pft) ;
 		fates_prescribed_npp_understory:units = "kgC / m^2 / yr" ;
 		fates_prescribed_npp_understory:long_name = "NPP per unit crown area of understory trees for prescribed physiology mode" ;
-        double fates_repro_alloc_a(fates_pft) ;
-                fates_repro_alloc_a:units = "fraction" ;
-                fates_repro_alloc_a:long_name = "shape parameter for sigmoidal function relating dbh to reproductive allocation" ;
-        double fates_repro_alloc_b(fates_pft) ;
-                fates_repro_alloc_b:units = "fraction" ;
-                fates_repro_alloc_b:long_name = "intercept parameter for sigmoidal function relating dbh to reproductive allocation" ;        
-        double fates_repro_frac_seed(fates_pft) ;
-                fates_repro_frac_seed:units = "fraction" ;
-                fates_repro_frac_seed:long_name = "fraction of reproductive mass that is seed" ;
-        double fates_a_emerg(fates_pft) ;
-                fates_a_emerg:units = "day -1" ;
-                fates_a_emerg:long_name = "mean fraction of seed bank emerging" ;
-        double fates_b_emerg(fates_pft) ;
-                fates_b_emerg:units = "day -1" ;
-                fates_b_emerg:long_name = "seedling emergence sensitivity to soil moisture" ;
-        double fates_par_crit_germ(fates_pft) ;
-                fates_par_crit_germ:units = "Megajoules m2-1 day-1 " ;
-                fates_par_crit_germ:long_name = "critical light level for germination" ;
-        double fates_seedling_root_depth(fates_pft) ;
-                fates_seedling_root_depth:units = "m" ;
-                fates_seedling_root_depth:long_name = "rooting depth of seedlings" ;
-        double fates_seedling_psi_emerg(fates_pft) ;
-                fates_seedling_psi_emerg:units = "mm h20 suction" ;
-                fates_seedling_psi_emerg:long_name = "critical soil moisture for seedling emergence" ;
-        double fates_seedling_psi_crit(fates_pft) ;
-                fates_seedling_psi_crit:units = "mm h20 suction" ;
-                fates_seedling_psi_crit:long_name = "critical soil moisture for seedling stress" ;                          
-	double fates_seedling_mdd_crit(fates_pft) ;
-		fates_seedling_mdd_crit:units = "moisture deficit days (mm h2o suction * days)" ;
-		fates_seedling_mdd_crit:long_name = "critical moisture deficit day accumulation for seedling moisture-based seedling mortality to begin" ;  	
-	double fates_seedling_h2o_mort_a(fates_pft) ;
-		fates_seedling_h2o_mort_a:units = "-" ;
-		fates_seedling_h2o_mort_a:long_name = "coefficient in moisture-based seedling mortality" ;    
-	double fates_seedling_h2o_mort_b(fates_pft) ;
-		fates_seedling_h2o_mort_b:units = "-" ;
-		fates_seedling_h2o_mort_b:long_name = "coefficient in moisture-based seedling mortality" ;
-	double fates_seedling_h2o_mort_c(fates_pft) ;
-		fates_seedling_h2o_mort_c:units = "-" ;
-		fates_seedling_h2o_mort_c:long_name = "coefficient in moisture-based seedling mortality" ;
-        double fates_seedling_light_mort_a(fates_pft) ;
-                fates_seedling_light_mort_a:units = "-" ;
-                fates_seedling_light_mort_a:long_name = "light-based seedling mortality coefficient" ;
-        double fates_seedling_light_mort_b(fates_pft) ;
-                fates_seedling_light_mort_b:units = "-" ;
-                fates_seedling_light_mort_b:long_name = "light-based seedling mortality coefficient" ;
-        double fates_background_seedling_mort(fates_pft) ;
-                fates_background_seedling_mort:units = "yr-1" ;
-                fates_background_seedling_mort:long_name = "background seedling mortality rate" ;
-	double fates_seedling_light_rec_a(fates_pft) ;
-		fates_seedling_light_rec_a:units = "-" ;
-		fates_seedling_light_rec_a:long_name = "coefficient in light-based seedling to sapling transition" ; 
-	double fates_seedling_light_rec_b(fates_pft) ;
-		fates_seedling_light_rec_b:units = "-" ;
-		fates_seedling_light_rec_b:long_name = "coefficient in light-based seedling to sapling transition" ; 
 	double fates_rad_leaf_clumping_index(fates_pft) ;
 		fates_rad_leaf_clumping_index:units = "fraction (0-1)" ;
 		fates_rad_leaf_clumping_index:long_name = "factor describing how much self-occlusion of leaf scattering elements decreases light interception" ;
@@ -550,7 +496,7 @@ variables:
 		fates_recruit_height_min:long_name = "the minimum height (ie starting height) of a newly recruited plant" ;
 	double fates_recruit_init_density(fates_pft) ;
 		fates_recruit_init_density:units = "stems/m2" ;
-		fates_recruit_init_density:long_name = "initial seedling density for a cold-start near-bare-ground simulation. If negative sets initial tree dbh - only to be used in nocomp mode" ;
+		fates_recruit_init_density:long_name = "initial seedling density for a cold-start near-bare-ground simulation. If negative sets initial tree dbh - only  to be used in nocomp mode" ;
 	double fates_recruit_prescribed_rate(fates_pft) ;
 		fates_recruit_prescribed_rate:units = "n/yr" ;
 		fates_recruit_prescribed_rate:long_name = "recruitment rate for prescribed physiology mode" ;
@@ -773,9 +719,6 @@ variables:
 	double fates_leaf_stomatal_model ;
 		fates_leaf_stomatal_model:units = "unitless" ;
 		fates_leaf_stomatal_model:long_name = "switch for choosing between Ball-Berry (1) stomatal conductance model and Medlyn (2) model" ;
-        double fates_regeneration_model ;
-		fates_regeneration_model:units = "unitless" ;
-		fates_regeneration_model:long_name = "switch for choosing between FATES's default regeneration scheme (1) or the Tree Recruitment Scheme (Hanbury-Brown et al., 2022;2)" ;
 	double fates_leaf_theta_cj_c3 ;
 		fates_leaf_theta_cj_c3:units = "unitless" ;
 		fates_leaf_theta_cj_c3:long_name = "Empirical curvature parameter for ac, aj photosynthesis co-limitation in c3 plants" ;
@@ -839,18 +782,6 @@ variables:
 	double fates_phen_ncolddayslim ;
 		fates_phen_ncolddayslim:units = "days" ;
 		fates_phen_ncolddayslim:long_name = "day threshold exceedance for temperature leaf-drop" ;
-        double  fates_sdlng_emerg_h2o_timescale ;
-		fates_sdlng_emerg_h2o_timescale:units = "days" ;
-		fates_sdlng_emerg_h2o_timescale:long_name = "Length of the window for the exponential moving average of smp used to calculate seedling emergence" ;
-        double  fates_sdlng_mort_par_timescale ;
-                fates_sdlng_mort_par_timescale:units = "days" ;
-                fates_sdlng_mort_par_timescale:long_name = "Length of the window for the exponential moving average of par at the seedling layer used to calculate seedling mortality" ;
-        double  fates_sdlng_mdd_timescale ;
-                fates_sdlng_mdd_timescale:units = "days" ;
-                fates_sdlng_mdd_timescale:long_name = "Length of the window for the exponential moving average of moisture deficit days used to calculate seedling mortality" ;
-        double  fates_sdlng2sap_par_timescale ;
-                fates_sdlng2sap_par_timescale:units = "days" ;
-		fates_sdlng2sap_par_timescale:long_name = "Length of the window for the exponential moving average of par at the seedling layer used to calculate seedling to sapling transition rates" ;
 	double fates_q10_froz ;
 		fates_q10_froz:units = "unitless" ;
 		fates_q10_froz:long_name = "Q10 for frozen-soil respiration rates" ;
@@ -1389,63 +1320,6 @@ data:
  fates_recruit_prescribed_rate = 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 
     0.02, 0.02, 0.02, 0.02, 0.02 ;
 
- fates_repro_alloc_a = 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 
-    0.0049, 0.0049, 0.0049, 0.0049, 0.0049 ;
- 
- fates_repro_alloc_b = -2.6171, -2.6171, -2.6171, -2.6171, -2.6171, -2.6171, 
-    -2.6171, -2.6171, -2.6171, -2.6171, -2.6171, -2.6171 ;
-
- fates_repro_frac_seed = 0.24, 0.24, 0.24, 0.24, 0.24, 0.24, 0.24, 0.24, 0.24, 
-    0.24, 0.24, 0.24 ; 
-
- fates_a_emerg = 0.0003, 0.0003, 0.0003, 0.0003, 0.0003, 0.0003, 0.0003, 0.0003,
-    0.0003, 0.0003, 0.0003, 0.0003 ;
-
- fates_b_emerg = 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2 ;
-
- fates_par_crit_germ = 0.656, 0.656, 0.656, 0.656, 0.656, 0.656, 
-    0.656, 0.656, 0.656, 0.656, 0.656, 0.656 ;
-
- fates_seedling_psi_emerg = -15744.65, -15744.65, -15744.65, -15744.65, -15744.65,
-    -15744.65, -15744.65, -15744.65, -15744.65, -15744.65, -15744.65, -15744.65 ;
- 
- fates_seedling_psi_crit = -251995.7, -251995.7, -251995.7, -251995.7, -251995.7, 
-    -251995.7, -251995.7, -251995.7, -251995.7, -251995.7, -251995.7, -251995.7 ;
-                                     
- fates_seedling_mdd_crit = 1400000.0, 1400000.0, 1400000.0, 1400000.0, 1400000.0, 
-    1400000.0, 1400000.0, 1400000.0, 1400000.0, 1400000.0, 1400000.0, 1400000.0 ;
-                
- fates_seedling_h2o_mort_a = 4.070565e-17, 4.070565e-17, 4.070565e-17, 
-   4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17, 
-   4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17 ;
-              
- fates_seedling_h2o_mort_b = -6.390757e-11, -6.390757e-11, -6.390757e-11, 
-   -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11, 
-   -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11 ;
-               
- fates_seedling_h2o_mort_c = 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 
-    1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 
-    1.268992e-05, 1.268992e-05 ;
-
- fates_seedling_light_mort_a = -0.009897694, -0.009897694, -0.009897694, -0.009897694, 
-    -0.009897694, -0.009897694, -0.009897694, -0.009897694, -0.009897694, -0.009897694,
-    -0.009897694, -0.009897694 ;
-
- fates_seedling_light_mort_b = -7.154063, -7.154063, -7.154063, -7.154063, -7.154063, 
-    -7.154063, -7.154063, -7.154063, -7.154063, -7.154063, -7.154063, -7.154063 ;
-
- fates_background_seedling_mort = 0.1085371, 0.1085371, 0.1085371, 0.1085371, 0.1085371, 
-    0.1085371, 0.1085371, 0.1085371, 0.1085371, 0.1085371, 0.1085371, 0.1085371 ;
-
- fates_seedling_root_depth = 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 
-    0.06, 0.06, 0.06, 0.06, 0.06, 0.06 ;
-
- fates_seedling_light_rec_a = 0.007, 0.007, 0.007, 0.007, 0.007, 0.007, 0.007, 0.007, 0.007, 
-    0.007, 0.007, 0.007 ;
-              
- fates_seedling_light_rec_b = 0.8615, 0.8615, 0.8615, 0.8615, 0.8615, 
-    0.8615, 0.8615, 0.8615, 0.8615, 0.8615, 0.8615, 0.8615 ;
-
  fates_recruit_seed_alloc = 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 
     0.1, 0.1 ;
 
@@ -1603,8 +1477,6 @@ data:
 
  fates_landuse_logging_coll_under_frac = 0.55983 ;
 
- fates_regeneration_model = 2 ;
-
  fates_landuse_logging_collateral_frac = 0.05 ;
 
  fates_landuse_logging_dbhmax = _ ;
@@ -1672,14 +1544,6 @@ data:
  fates_phen_mindayson = 90 ;
 
  fates_phen_moist_threshold = 0.18 ;
-
- fates_sdlng_emerg_h2o_timescale = 7 ;
-
- fates_sdlng_mort_par_timescale = 32 ;
-
- fates_sdlng_mdd_timescale = 126 ;
-
- fates_sdlng2sap_par_timescale = 32 ;
 
  fates_phen_ncolddayslim = 5 ;
 

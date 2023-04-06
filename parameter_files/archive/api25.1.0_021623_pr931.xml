@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+<all>
+  <!-- This parameter patch file updates the parameter file with the necessary changes -->
+  <!-- per PR 931.  This makes the following changes: -->
+
+  <!-- - Fixes a typo in `fates_base_mr_20`. -->
+  <!-- - Changes that same variable to a new name with a more consistent and descriptive namespace. -->
+  <!--   This clarifies that this base rate is used for all non-leaf maintenance respiration. -->
+  <!-- - Adds the Atkin leaf maintenance respiration baserate. -->
+  <!-- - Adds a similar leaf maintenance respiration baserate for Ryan 1991 that is per pft. -->
+
+  <!-- Note that the non-leaf maintenance respiration is the same value as the Ryan 1991 leaf rate. -->
+  <!-- This is being used until a more suitable model for non-leaf respiration is available. -->
+  <!-- To use this patch file run the following command: -->
+  <!--    1. Run `python ../tools/UpdateParamAPI.py -\-f archive/api25.1.0_021623_pr931.xml` -->
+  <!-- To update a different CDL parameter file, change the file listed the `base_file`.  This requires -->
+  <!-- that said file is up to date with API 25.1. -->
+
+  <!-- General xml file usage notes: -->
+  <!-- Special mod types "variable_add": creates a new variable
+		 "dimension_add": creates a new dimension
+		 "variable_del": removes a variable, must include attribute "name" 
+		 "variable_change": change values in the parameter, possibly including the name, and
+                          this must also come with a name attribute as well -->
+  <!-- To change a dimension. The easiest way to script this, is to delete the variables
+		 that use it, delete the dimension. Re-add it with the new size, and then re-add
+		 the variables -->
+  <!-- -->
+  
+  <base_file>archive/api25.1.0_021623_fates_params_default.cdl </base_file>
+  <new_file>fates_params_default.cdl</new_file>
+  <pft_list> 1,2,3,4,5,6,7,8,9,10,11,12 </pft_list>
+  <mods>
+    <mod type="variable_add">
+      <na> fates_maintresp_leaf_atkin2017_baserate </na>
+      <di> fates_pft </di>
+      <un> umol CO2/m^2/s </un>
+      <ln> Leaf maintenance respiration base rate parameter (r0) per Atkin et al 2017  </ln>
+      <val> 1.7560, 1.4995, 1.4995, 1.7560, 1.7560, 1.7560, 2.0749, 2.0749, 2.0749, 2.1956, 2.1956, 2.1956 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_maintresp_leaf_ryan1991_baserate </na>
+      <di> fates_pft </di>
+      <un> gC/gN/s </un>
+      <ln> Leaf maintenance respiration base rate per Ryan et al 1991  </ln>
+      <val> 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06 </val>
+    </mod>
+    <mod type="variable_change" name="fates_base_mr_20">
+		  <na> fates_maintresp_nonleaf_baserate </na>
+      <val> 2.525e-06 </val>
+    </mod>
+    <mod type="variable_change" name="fates_maintresp_model">
+		  <na> fates_maintresp_leaf_model </na>
+    </mod>
+  </mods>
+</all>

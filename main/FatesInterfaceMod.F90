@@ -36,6 +36,7 @@ module FatesInterfaceMod
    use FatesConstantsMod         , only : itrue,ifalse
    use FatesConstantsMod         , only : nearzero
    use FatesConstantsMod         , only : sec_per_day
+   use FatesConstantsMod         , only : days_per_year
    use FatesGlobals              , only : fates_global_verbose
    use FatesGlobals              , only : fates_log
    use FatesGlobals              , only : endrun => fates_endrun
@@ -50,6 +51,7 @@ module FatesInterfaceMod
    use EDParamsMod               , only : bgc_soil_salinity
    use FatesPlantHydraulicsMod   , only : InitHydroGlobals
    use EDParamsMod               , only : photo_temp_acclim_timescale
+   use EDParamsMod               , only : photo_temp_acclim_thome_time
    use EDParamsMod               , only : sdlng_emerg_h2o_timescale
    use EDParamsMod               , only : sdlng_mort_par_timescale
    use EDParamsMod               , only : sdlng2sap_par_timescale
@@ -67,8 +69,8 @@ module FatesInterfaceMod
    use FatesConstantsMod         , only : coupled_p_uptake
    use FatesConstantsMod         , only : coupled_n_uptake
    use FatesConstantsMod         , only : fates_np_comp_scaling
-   use FatesConstantsMod         , only : cohort_np_comp_scaling
-   use FatesConstantsMod         , only : pft_np_comp_scaling
+   use FatesConstantsMod         , only : coupled_np_comp_scaling
+   use FatesConstantsMod         , only : trivial_np_comp_scaling
    use PRTGenericMod             , only : num_elements
    use PRTGenericMod             , only : element_list
    use PRTGenericMod             , only : element_pos
@@ -90,10 +92,11 @@ module FatesInterfaceMod
    use FatesRunningMeanMod       , only : ema_sdlng_mdd, ema_sdlng2sap_par
    use FatesRunningMeanMod       , only : fixed_24hr
    use FatesRunningMeanMod       , only : ema_lpa
+   use FatesRunningMeanMod       , only : ema_longterm
+   use FatesRunningMeanMod       , only : ema_60day
    use FatesRunningMeanMod       , only : moving_ema_window
    use FatesRunningMeanMod       , only : fixed_window
    use FatesHistoryInterfaceMod  , only : fates_hist
-
    
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -208,13 +211,13 @@ contains
     
     type(bc_pconst_type), intent(inout) :: bc_pconst
     integer             , intent(in)    :: nlevdecomp 
-    
+
+    allocate(bc_pconst%vmax_nh4(numpft))
+    allocate(bc_pconst%vmax_no3(numpft))    
+    allocate(bc_pconst%vmax_p(numpft))
     allocate(bc_pconst%eca_km_nh4(numpft))
-    allocate(bc_pconst%eca_vmax_nh4(numpft))
     allocate(bc_pconst%eca_km_no3(numpft))
-    allocate(bc_pconst%eca_vmax_no3(numpft))      
     allocate(bc_pconst%eca_km_p(numpft))
-    allocate(bc_pconst%eca_vmax_p(numpft))
     allocate(bc_pconst%eca_km_ptase(numpft))
     allocate(bc_pconst%eca_vmax_ptase(numpft))
     allocate(bc_pconst%eca_alpha_ptase(numpft))
@@ -232,24 +235,18 @@ contains
     integer             , intent(in)    :: nlevdecomp 
     integer                             :: j
     
+    bc_pconst%vmax_nh4(1:numpft)         = EDPftvarcon_inst%vmax_nh4(1:numpft)
+    bc_pconst%vmax_no3(1:numpft)         = EDPftvarcon_inst%vmax_no3(1:numpft)
+    bc_pconst%vmax_p(1:numpft)           = EDPftvarcon_inst%vmax_p(1:numpft)
+    
     bc_pconst%eca_km_nh4(1:numpft)       = EDPftvarcon_inst%eca_km_nh4(1:numpft)
-    bc_pconst%eca_vmax_nh4(1:numpft)     = EDPftvarcon_inst%eca_vmax_nh4(1:numpft)
     bc_pconst%eca_km_no3(1:numpft)       = EDPftvarcon_inst%eca_km_no3(1:numpft)
-    bc_pconst%eca_vmax_no3(1:numpft)     = EDPftvarcon_inst%eca_vmax_no3(1:numpft)
     bc_pconst%eca_km_p(1:numpft)         = EDPftvarcon_inst%eca_km_p(1:numpft)
-    bc_pconst%eca_vmax_p(1:numpft)       = EDPftvarcon_inst%eca_vmax_p(1:numpft)
     bc_pconst%eca_km_ptase(1:numpft)     = EDPftvarcon_inst%eca_km_ptase(1:numpft)
     bc_pconst%eca_vmax_ptase(1:numpft)   = EDPftvarcon_inst%eca_vmax_ptase(1:numpft)
     bc_pconst%eca_alpha_ptase(1:numpft)  = EDPftvarcon_inst%eca_alpha_ptase(1:numpft) 
     bc_pconst%eca_lambda_ptase(1:numpft) = EDPftvarcon_inst%eca_lambda_ptase(1:numpft)
     bc_pconst%eca_plant_escalar          = eca_plant_escalar
-    if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
-       bc_pconst%j_uptake(1:nlevdecomp)    = 1
-    else
-       do j=1,nlevdecomp
-          bc_pconst%j_uptake(j) = j
-       end do
-    end if
     
     return
   end subroutine set_bcpconst
@@ -380,6 +377,9 @@ contains
     end if
     fates%bc_out(s)%plant_stored_h2o_si = 0.0_r8
 
+    ! Land Use realated
+    fates%bc_out(s)%gpp_site = 0.0_r8
+    fates%bc_out(s)%ar_site = 0.0_r8
     fates%bc_out(s)%hrv_deadstemc_to_prod10c = 0.0_r8
     fates%bc_out(s)%hrv_deadstemc_to_prod100c = 0.0_r8
     
@@ -459,15 +459,9 @@ contains
       ! Allocating differently could save a lot of memory and time
 
       if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-         if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
-            allocate(bc_in%plant_nh4_uptake_flux(max_comp_per_site,1))
-            allocate(bc_in%plant_no3_uptake_flux(max_comp_per_site,1))
-            allocate(bc_in%plant_p_uptake_flux(max_comp_per_site,1))
-         else
-            allocate(bc_in%plant_nh4_uptake_flux(max_comp_per_site,bc_in%nlevdecomp))
-            allocate(bc_in%plant_no3_uptake_flux(max_comp_per_site,bc_in%nlevdecomp))
-            allocate(bc_in%plant_p_uptake_flux(max_comp_per_site,bc_in%nlevdecomp))
-         end if
+         allocate(bc_in%plant_nh4_uptake_flux(max_comp_per_site,1))
+         allocate(bc_in%plant_no3_uptake_flux(max_comp_per_site,1))
+         allocate(bc_in%plant_p_uptake_flux(max_comp_per_site,1))
       else
          allocate(bc_in%plant_nh4_uptake_flux(1,1))
          allocate(bc_in%plant_no3_uptake_flux(1,1))
@@ -614,15 +608,17 @@ contains
       ! When FATES does not have nutrients enabled, these
       ! arrays are indexed by 1.
       
-      if(trim(hlm_nu_com).eq.'RD') then
-         allocate(bc_out%n_demand(max_comp_per_site))
-         allocate(bc_out%p_demand(max_comp_per_site))
-      end if
+      !if(trim(hlm_nu_com).eq.'RD') then
+      !   allocate(bc_out%n_demand(max_comp_per_site))
+      !   allocate(bc_out%p_demand(max_comp_per_site))
+      !end if
 
+      ! Used in both
+      allocate(bc_out%veg_rootc(max_comp_per_site,nlevdecomp_in))
+      allocate(bc_out%ft_index(max_comp_per_site))
+         
       if(trim(hlm_nu_com).eq.'ECA') then
-         allocate(bc_out%veg_rootc(max_comp_per_site,nlevdecomp_in))
          allocate(bc_out%decompmicc(nlevdecomp_in))
-         allocate(bc_out%ft_index(max_comp_per_site))
          allocate(bc_out%cn_scalar(max_comp_per_site))
          allocate(bc_out%cp_scalar(max_comp_per_site))
       end if
@@ -643,6 +639,9 @@ contains
          bc_out%rootfr_pa(0,1:nlevsoil_in)=1._r8/real(nlevsoil_in,r8)
       end if
 
+      bc_out%ema_npp = nan
+      
+      
       ! Fates -> BGC fragmentation mass fluxes
       select case(hlm_parteh_mode) 
       case(prt_carbon_allom_hyp)
@@ -651,6 +650,7 @@ contains
          allocate(bc_out%litt_flux_lab_c_si(nlevdecomp_in))
       case(prt_cnp_flex_allom_hyp) 
 
+         
          allocate(bc_out%litt_flux_cel_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lig_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lab_c_si(nlevdecomp_in))
@@ -862,17 +862,32 @@ contains
          ! Note: since BGC code may be active even when no nutrients
          ! present, we still need to allocate things when no nutrients
 
+
+         if (any(abs(EDPftvarcon_inst%prescribed_nuptake(:)) > nearzero )) then
+            n_uptake_mode = prescribed_n_uptake
+         else
+            n_uptake_mode = coupled_n_uptake
+         end if
+
+         if (any(abs(EDPftvarcon_inst%prescribed_puptake(:)) > nearzero )) then
+            p_uptake_mode = prescribed_p_uptake
+         else
+            p_uptake_mode = coupled_p_uptake
+         end if
+         
          if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp ) then
-            if(fates_np_comp_scaling.eq.cohort_np_comp_scaling) then
+
+            if((p_uptake_mode==coupled_p_uptake) .or. (n_uptake_mode==coupled_n_uptake))then
                max_comp_per_site = fates_maxElementsPerSite
-            elseif(fates_np_comp_scaling.eq.pft_np_comp_scaling) then
-               max_comp_per_site = numpft
+               fates_np_comp_scaling = coupled_np_comp_scaling
             else
-               write(fates_log(), *) 'An unknown nutrient competitor scaling method was chosen?'
-               call endrun(msg=errMsg(sourcefile, __LINE__))
+               max_comp_per_site = 1
+               fates_np_comp_scaling = trivial_np_comp_scaling
             end if
+
          else
             max_comp_per_site = 1
+            fates_np_comp_scaling = trivial_np_comp_scaling
          end if
             
          ! calculate the bin edges for radiative transfer calculations
@@ -983,7 +998,7 @@ contains
       call ema_24hr%define(sec_per_day, hlm_stepsize, moving_ema_window)
       allocate(fixed_24hr)
       call fixed_24hr%define(sec_per_day, hlm_stepsize, fixed_window)
-      allocate(ema_lpa)
+      allocate(ema_lpa)  ! note that this parameter has units of days
       call ema_lpa%define(photo_temp_acclim_timescale*sec_per_day, &
            hlm_stepsize,moving_ema_window)
       allocate(ema_sdlng_emerg_h2o)
@@ -998,7 +1013,16 @@ contains
       allocate(ema_sdlng_mdd)
       call ema_sdlng_mdd%define(sdlng_mdd_timescale*sec_per_day, &
            hlm_stepsize,moving_ema_window)
-
+      allocate(ema_longterm)  ! note that this parameter has units of years
+      call ema_longterm%define(photo_temp_acclim_thome_time*days_per_year*sec_per_day, & 
+           hlm_stepsize,moving_ema_window)
+      
+      !allocate(ema_60day)
+      !call ema_60day%define(prt_params%fnrt_adapt_tscl*sec_per_day,sec_per_day,moving_ema_window)
+      !class(rmean_arr_type), pointer :: ema_fnrt_tscale(:)
+      !rmean_arr_type
+      
+      
       return
     end subroutine InitTimeAveragingGlobals
 
@@ -1461,7 +1485,7 @@ contains
            (hlm_use_cohort_age_tracking .eq.0 ) ) then
            write(fates_log(),*) 'Age dependent mortality cannot be on if'
            write(fates_log(),*) 'cohort age tracking is off.'
-           write(fates_log(),*) 'Set hlm_use_cohort_age_tracking = .true.'
+           write(fates_log(),*) 'Set use_fates_cohort_age_tracking = .true.'
            write(fates_log(),*) 'in FATES namelist options'
            write(fates_log(),*) 'Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1485,7 +1509,7 @@ contains
 
          if ( hlm_use_inventory_init.eq.1  .and. hlm_use_cohort_age_tracking .eq.1) then
             write(fates_log(), *) 'Fates inventory init cannot be used with age dependent mortality'
-            write(fates_log(), *) 'Set hlm_use_cohort_age_tracking to 0 or turn off inventory init'
+            write(fates_log(), *) 'Set use_fates_cohort_age_tracking to 0 or turn off inventory init'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
          
@@ -1546,24 +1570,25 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         ! TEMPORARY TESTING OVERRIDE !!!!!!!!
-         ! hlm_decomp = 'MIMICS'
-         
          if(trim(hlm_nu_com) .eq. 'unset') then
             write(fates_log(),*) 'FATES dimension/parameter unset: hlm_nu_com, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(hlm_use_tree_damage .eq. unset_int .or. hlm_use_tree_damage .eq. itrue) then
+         if(hlm_use_tree_damage .eq. unset_int) then
             write(fates_log(),*) 'FATES dimension/parameter unset: hlm_use_tree_damage, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
+         else
+            if((hlm_use_tree_damage .eq. itrue) .and. &
+                 (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp))then
+               write(fates_log(),*) 'FATES tree damage (use_fates_tree_damage = .true.) is not'
+               write(fates_log(),*) '(yet) compatible with CNP allocation (fates_parteh_mode = 2)'
+               call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(hlm_use_tree_damage .eq. itrue) then
-            write(fates_log(),*) 'hlm_use_tree_damage is not available yet, value: ',hlm_use_tree_damage,' ,set to false'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
+            
          end if
-         
+
          if(hlm_nitrogen_spec .eq. unset_int) then
             write(fates_log(),*) 'FATES parameters unset: hlm_nitrogen_spec, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1632,7 +1657,7 @@ contains
          
         if(hlm_use_fixed_biogeog.eq.unset_int) then
            if(fates_global_verbose()) then
-             write(fates_log(), *) 'switch for fixed biogeog unset: him_use_fixed_biogeog, exiting'
+             write(fates_log(), *) 'switch for fixed biogeog unset: hlm_use_fixed_biogeog, exiting'
            end if
            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
@@ -1960,9 +1985,11 @@ contains
         ifp=0
         cpatch => sites(s)%oldest_patch
         do while(associated(cpatch))
+           if (cpatch%patchno .ne. 0) then
            ifp=ifp+1
            call cpatch%tveg24%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            call cpatch%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
+           call cpatch%tveg_longterm%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            
            !updating seedling layer par, soil matric potential and 
            !moisture deficit days (mdd) in the seedling layer; ahb, August 2021
@@ -1999,20 +2026,7 @@ contains
            call cpatch%sdlng_mort_par%UpdateRMean(new_seedling_layer_par)
            call cpatch%sdlng2sap_par%UpdateRMean(new_seedling_layer_par)
 
-           !write(fates_log(),*) 'patchno', cpatch%patchno
-           !write(fates_log(),*) 'patcharea', cpatch%area
-           !write(fates_log(),*) 'laiSun',sum(cpatch%ed_laisun_z(cpatch%ncl_p,:,n_leaf))
-           !write(fates_log(),*) 'laiShade',sum(cpatch%ed_laisha_z(cpatch%ncl_p,:,n_leaf))
-           !write(fates_log(),*) 'patchlaiSunFrac', lai_sun_frac
-           !write(fates_log(),*) 'patchlaiShadeFrac', lai_shade_frac
-           !write(fates_log(),*) 'parprof_dir', cpatch%parprof_dir_z(cpatch%ncl_p,n_leaf)
-           !write(fates_log(),*) 'parprof_dif', cpatch%parprof_dif_z(cpatch%ncl_p,n_leaf)
-           !write(fates_log(),*) 'bc_in par d', bc_in(s)%solad_parb(ifp,ipar)
-           !write(fates_log(),*) 'bc_in par i', bc_in(s)%solad_parb(ifp,ipar)
            !write(fates_log(),*) 'new_seedling_layer_par', new_seedling_layer_par
-           !write(fates_log(),*) 'par24', cpatch%seedling_layer_par24%GetMean()
-           !write(fates_log(),*) 'parMort', cpatch%sdlng_mort_par%GetMean()
-
 
            do pft = 1,numpft
            !calculate the soil moisture at the seedling rooting depth for each pft
@@ -2043,14 +2057,13 @@ contains
            enddo
            !END ahb's changes 
            !---------------------------------------------------------------------------------------
-
-
-           !  (Keeping as an example)
+           
            !ccohort => cpatch%tallest
            !do while (associated(ccohort))
            !   call ccohort%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            !   ccohort => ccohort%shorter
            !end do
+           end if
            
            cpatch => cpatch%younger
         enddo

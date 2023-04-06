@@ -80,22 +80,28 @@ module EDPftvarcon
                                                                ! 1=linear, 0=very curved
      real(r8), allocatable :: maintresp_reduction_intercept(:) ! intercept of MR reduction as f(carbon storage),
                                                                ! 0=no throttling, 1=max throttling
+
+     real(r8), allocatable :: maintresp_leaf_atkin2017_baserate(:) ! leaf maintenance respiration base rate (r0)
+                                                                   ! per Atkin et al 2017
+
+     real(r8), allocatable :: maintresp_leaf_ryan1991_baserate(:)  ! leaf maintenance respiration per Ryan et al 1991
+
      real(r8), allocatable :: bmort(:)
-     real(r8), allocatable :: mort_ip_size_senescence(:)  ! inflection point of dbh dependent senescence
-     real(r8), allocatable :: mort_r_size_senescence(:) ! rate of change in mortality with dbh
-     real(r8), allocatable :: mort_ip_age_senescence(:) ! inflection point of age dependent senescence
-     real(r8), allocatable :: mort_r_age_senescence(:) ! rate of change in mortality with age
-     real(r8), allocatable :: mort_scalar_coldstress(:)
-     real(r8), allocatable :: mort_scalar_cstarvation(:)
-     real(r8), allocatable :: mort_scalar_hydrfailure(:)
-     real(r8), allocatable :: hf_sm_threshold(:)
-     real(r8), allocatable :: hf_flc_threshold(:)
-     real(r8), allocatable :: vcmaxha(:)
-     real(r8), allocatable :: jmaxha(:)
-     real(r8), allocatable :: vcmaxhd(:)
-     real(r8), allocatable :: jmaxhd(:)
-     real(r8), allocatable :: vcmaxse(:)
-     real(r8), allocatable :: jmaxse(:)
+     real(r8), allocatable :: mort_ip_size_senescence(:) ! inflection point of dbh dependent senescence
+     real(r8), allocatable :: mort_r_size_senescence(:)  ! rate of change in mortality with dbh
+     real(r8), allocatable :: mort_ip_age_senescence(:)  ! inflection point of age dependent senescence
+     real(r8), allocatable :: mort_r_age_senescence(:)   ! rate of change in mortality with age
+     real(r8), allocatable :: mort_scalar_coldstress(:)  ! maximum mortality rate from cold stress
+     real(r8), allocatable :: mort_scalar_cstarvation(:) ! maximum mortality rate from carbon starvation
+     real(r8), allocatable :: mort_scalar_hydrfailure(:) ! maximum mortality rate from hydraulic failure
+     real(r8), allocatable :: hf_sm_threshold(:)         ! soil moisture (btran units) at which drought mortality begins for non-hydraulic model
+     real(r8), allocatable :: hf_flc_threshold(:)        ! plant fractional loss of conductivity at which drought mortality begins for hydraulic model
+     real(r8), allocatable :: vcmaxha(:)                 ! activation energy for vcmax
+     real(r8), allocatable :: jmaxha(:)                  ! activation energy for jmax
+     real(r8), allocatable :: vcmaxhd(:)                 ! deactivation energy for vcmax
+     real(r8), allocatable :: jmaxhd(:)                  ! deactivation energy for jmax
+     real(r8), allocatable :: vcmaxse(:)                 ! entropy term for vcmax
+     real(r8), allocatable :: jmaxse(:)                  ! entropy term for jmax
      real(r8), allocatable :: germination_rate(:)        ! Fraction of seed mass germinating per year (yr-1)
      real(r8), allocatable :: seed_decay_rate(:)         ! Fraction of seed mass (both germinated and
                                                          ! ungerminated), decaying per year    (yr-1)
@@ -119,10 +125,10 @@ module EDPftvarcon
 
      real(r8), allocatable :: trim_limit(:)              ! Limit to reductions in leaf area w stress (m2/m2)
      real(r8), allocatable :: trim_inc(:)                ! Incremental change in trimming function   (m2/m2)
-     real(r8), allocatable :: rhol(:, :)
-     real(r8), allocatable :: rhos(:, :)
-     real(r8), allocatable :: taul(:, :)
-     real(r8), allocatable :: taus(:, :)
+     real(r8), allocatable :: rhol(:, :)                 ! Leaf reflectance; second dim: 1 = vis, 2 = nir
+     real(r8), allocatable :: rhos(:, :)                 ! Stem reflectance; second dim: 1 = vis, 2 = nir
+     real(r8), allocatable :: taul(:, :)                 ! Leaf transmittance; second dim: 1 = vis, 2 = nir
+     real(r8), allocatable :: taus(:, :)                 ! Stem transmittance; second dim: 1 = vis, 2 = nir
 
      ! Fire Parameters (No PFT vector capabilities in their own routines)
      ! See fire/SFParamsMod.F90 for bulk of fire parameters
@@ -148,13 +154,32 @@ module EDPftvarcon
      real(r8), allocatable :: prescribed_recruitment(:)          ! this is only for the
                                                                  ! prescribed_physiology_mode
 
+
+     ! Damage Parameters
+
+     real(r8), allocatable :: damage_frac(:)             ! Fraction of each cohort damaged per year
+     real(r8), allocatable :: damage_mort_p1(:)          ! Inflection point for damage mortality function
+     real(r8), allocatable :: damage_mort_p2(:)          ! Rate parameter for damage mortality function
+     real(r8), allocatable :: damage_recovery_scalar(:)  ! what fraction of cohort gets to recover
+
      ! Nutrient Aquisition (ECA & RD)
 
 
-     !real(r8), allocatable :: rd_vmax_n(:)             ! maximum production rate for plant n uptake   [gN/gC/s]
      real(r8), allocatable :: decompmicc(:)             ! microbial decomposer biomass gC/m3
                                                         ! on root surface
 
+     real(r8), allocatable :: vmax_nh4(:) ! maximum production rate for plant NH4 uptake   [gN/gC/s]
+     real(r8), allocatable :: vmax_no3(:) ! maximum production rate for plant NO3 uptake   [gN/gC/s]
+                                          ! For ECA: these rates will be applied separately to
+                                          ! draw from mineralized nh4 and no3 pools independantly.
+                                          ! For RD: these rates will be added, to construct a total
+                                          ! N demand, which will be applied to NH4 and then NO3
+                                          ! sequentially
+     real(r8), allocatable :: vmax_p(:)   ! maximum production rate for plant p uptake     [gP/gC/s]
+
+     
+
+     
      ! ECA Parameters: See Zhu et al. Multiple soil nutrient competition between plants,
      !                     microbes, and mineral surfaces: model development, parameterization,
      !                     and example applications in several tropical forests.  Biogeosciences,
@@ -162,13 +187,13 @@ module EDPftvarcon
      ! KM: Michaeles-Menten half-saturation constants for ECA (plant–enzyme affinity)
      ! VMAX: Product of the reaction-rate and enzyme abundance for each PFT in ECA
      ! Note*: units of [gC] is grams carbon of fine-root
-
+     
      real(r8), allocatable :: eca_km_nh4(:)   ! half-saturation constant for plant nh4 uptake  [gN/m3]
-     real(r8), allocatable :: eca_vmax_nh4(:) ! maximum production rate for plant nh4 uptake   [gN/gC/s]
+     
      real(r8), allocatable :: eca_km_no3(:)   ! half-saturation constant for plant no3 uptake  [gN/m3]
-     real(r8), allocatable :: eca_vmax_no3(:) ! maximum production rate for plant no3 uptake   [gN/gC/s]
+    
      real(r8), allocatable :: eca_km_p(:)     ! half-saturation constant for plant p uptake    [gP/m3]
-     real(r8), allocatable :: eca_vmax_p(:)   ! maximum production rate for plant p uptake     [gP/gC/s]
+     
      real(r8), allocatable :: eca_km_ptase(:)     ! half-saturation constant for biochemical P production [gP/m3]
      real(r8), allocatable :: eca_vmax_ptase(:)   ! maximum production rate for biochemical P prod        [gP/gC/s]
      real(r8), allocatable :: eca_alpha_ptase(:)  ! Fraction of min P generated from ptase activity
@@ -176,9 +201,6 @@ module EDPftvarcon
      real(r8), allocatable :: eca_lambda_ptase(:) ! critical value for Ptase that incurs
                                                   ! biochemical production, fraction based how much
                                                   ! more in need a plant is for P versus N [/]
-
-     !real(r8), allocatable :: nfix1(:)   ! nitrogen fixation parameter 1
-
 
      ! Turnover related things
 
@@ -427,6 +449,14 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_maintresp_leaf_atkin2017_baserate'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+        dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_maintresp_leaf_ryan1991_baserate'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+        dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     name = 'fates_prescribed_npp_canopy'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -444,6 +474,22 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_recruit_prescribed_rate'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_damage_frac'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_damage_mort_p1'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_damage_mort_p2'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_damage_recovery_scalar'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -653,7 +699,6 @@ contains
 
     ! Nutrient competition parameters
 
-
     name = 'fates_cnp_eca_decompmicc'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -662,7 +707,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_cnp_eca_vmax_nh4'
+    name = 'fates_cnp_vmax_nh4'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -670,7 +715,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_cnp_eca_vmax_no3'
+    name = 'fates_cnp_vmax_no3'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -824,6 +869,14 @@ contains
     call fates_params%RetrieveParameterAllocate(name=name, &
           data=this%maintresp_reduction_intercept)
 
+    name = 'fates_maintresp_leaf_atkin2017_baserate'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%maintresp_leaf_atkin2017_baserate)
+
+    name = 'fates_maintresp_leaf_ryan1991_baserate'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%maintresp_leaf_ryan1991_baserate)
+
     name = 'fates_prescribed_npp_canopy'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%prescribed_npp_canopy)
@@ -843,6 +896,22 @@ contains
     name = 'fates_recruit_prescribed_rate'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%prescribed_recruitment)
+
+    name = 'fates_damage_frac'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%damage_frac)
+
+    name = 'fates_damage_mort_p1'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%damage_mort_p1)
+
+    name = 'fates_damage_mort_p2'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%damage_mort_p2)
+    
+    name = 'fates_damage_recovery_scalar'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%damage_recovery_scalar)
 
     name = 'fates_fire_alpha_SH'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -1077,18 +1146,18 @@ contains
     name = 'fates_cnp_eca_km_nh4'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%eca_km_nh4)
-
-    name = 'fates_cnp_eca_vmax_nh4'
+    
+    name = 'fates_cnp_vmax_nh4'
     call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%eca_vmax_nh4)
+         data=this%vmax_nh4)
 
     name = 'fates_cnp_eca_km_no3'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%eca_km_no3)
 
-    name = 'fates_cnp_eca_vmax_no3'
+    name = 'fates_cnp_vmax_no3'
     call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%eca_vmax_no3)
+         data=this%vmax_no3)
 
     name = 'fates_cnp_eca_km_p'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -1096,7 +1165,7 @@ contains
 
     name = 'fates_cnp_vmax_p'
     call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%eca_vmax_p)
+         data=this%vmax_p)
 
     name = 'fates_cnp_eca_km_ptase'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -1173,8 +1242,6 @@ contains
     name = 'fates_rad_stem_taunir'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names)
-
-
 
   end subroutine Register_PFT_numrad
 
@@ -1636,6 +1703,7 @@ contains
     use EDParamsMod        , only : logging_mechanical_frac, logging_collateral_frac
     use EDParamsMod        , only : logging_direct_frac,logging_export_frac
     use FatesInterfaceTypesMod, only : hlm_use_fixed_biogeog,hlm_use_sp, hlm_name
+    use FatesInterfaceTypesMod, only : hlm_use_inventory_init
 
      ! Argument
      logical, intent(in) :: is_master    ! Only log if this is the master proc
@@ -1670,6 +1738,7 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
 
+        
         ! If nitrogen is turned on, check to make sure there are valid ammonium
         ! parameters
         if(hlm_nitrogen_spec>0)then
@@ -1693,7 +1762,31 @@ contains
 
            end if
         end if
-
+        
+        ! If any PFTs are specified as either prescribed N or P uptake
+        ! then they all must be !
+        
+        if (any(EDPftvarcon_inst%prescribed_nuptake(:) < -nearzero ) .or. &
+             any(EDPftvarcon_inst%prescribed_nuptake(:) > 10._r8 ) ) then
+           write(fates_log(),*) 'Negative values for EDPftvarcon_inst%prescribed_nuptake(:)'
+           write(fates_log(),*) 'are not allowed. Reasonable ranges for this parameter are zero'
+           write(fates_log(),*) 'to something slightly larger than 1, so we set a cap at 10.'
+           write(fates_log(),*) 'Set to zero to turn off and use coupled nutrients.'
+           write(fates_log(),*) ' Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        elseif (any(abs(EDPftvarcon_inst%prescribed_nuptake(:)) > nearzero )) then
+           if(.not.all(abs(EDPftvarcon_inst%prescribed_nuptake(:)) > nearzero )) then
+              write(fates_log(),*) 'If any PFTs are specified as having prescribed N'
+              write(fates_log(),*) 'uptake, then they must all. Note, prescribed'
+              write(fates_log(),*) 'rates are associated with any value abs(x)>nearzero'
+              write(fates_log(),*) 'EDPftvarcon_inst%prescribed_nuptake(:):', &
+                   EDPftvarcon_inst%prescribed_nuptake(:)
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+        end if
+        
+        
      case (prt_carbon_allom_hyp)
         ! No additional checks needed for now.
         continue
@@ -1707,31 +1800,7 @@ contains
         call endrun(msg=errMsg(sourcefile, __LINE__))
      end select
 
-     ! If any PFTs are specified as either prescribed N or P uptake
-     ! then they all must be !
-
-     if (any(EDPftvarcon_inst%prescribed_nuptake(:) < -nearzero ) .or. &
-          any(EDPftvarcon_inst%prescribed_nuptake(:) > 10._r8 ) ) then
-        write(fates_log(),*) 'Negative values for EDPftvarcon_inst%prescribed_nuptake(:)'
-        write(fates_log(),*) 'are not allowed. Reasonable ranges for this parameter are zero'
-        write(fates_log(),*) 'to something slightly larger than 1, so we set a cap at 10.'
-        write(fates_log(),*) 'Set to zero to turn off and use coupled nutrients.'
-        write(fates_log(),*) ' Aborting'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     elseif (any(abs(EDPftvarcon_inst%prescribed_nuptake(:)) > nearzero )) then
-        if(.not.all(abs(EDPftvarcon_inst%prescribed_nuptake(:)) > nearzero )) then
-           write(fates_log(),*) 'If any PFTs are specified as having prescribed N'
-           write(fates_log(),*) 'uptake, then they must all. Note, prescribed'
-           write(fates_log(),*) 'rates are associated with any value abs(x)>nearzero'
-           write(fates_log(),*) 'EDPftvarcon_inst%prescribed_nuptake(:):', &
-                EDPftvarcon_inst%prescribed_nuptake(:)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-        end if
-        n_uptake_mode = prescribed_n_uptake
-     else
-        n_uptake_mode = coupled_n_uptake
-     end if
+ 
 
      ! logging parameters, make sure they make sense
      if ( (logging_mechanical_frac + logging_collateral_frac + logging_direct_frac) .gt. 1._r8) then
@@ -1760,12 +1829,7 @@ contains
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
-        p_uptake_mode = prescribed_p_uptake
-     else
-        p_uptake_mode = coupled_p_uptake
      end if
-
-
 
      do ipft = 1,npft
 
@@ -1849,6 +1913,15 @@ contains
            end if
         end if
 
+        if( (prt_params%woody(ipft) == itrue) .and. &
+            (EDPftvarcon_inst%phen_stem_drop_fraction(ipft) > nearzero ) ) then
+           write(fates_log(),*) ' Non-zero stem-drop fractions are not allowed for woody plants'
+           write(fates_log(),*) ' PFT#: ',ipft
+           write(fates_log(),*) ' part_params%woody:',prt_params%woody(ipft)
+           write(fates_log(),*) ' phen_stem_drop_fraction: ', EDPFtvarcon_inst%phen_stem_drop_fraction(ipft)
+           write(fates_log(),*) ' Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
 
         ! Check if freezing tolerance is within reasonable bounds
         ! ----------------------------------------------------------------------------------
@@ -1867,7 +1940,22 @@ contains
 
         end if
 
-
+        ! Check that in initial density is not equal to zero in a cold-start run
+        !-----------------------------------------------------------------------------------
+        
+        if ( hlm_use_inventory_init == ifalse .and. & 
+             abs( EDPftvarcon_inst%initd(ipft) ) < nearzero ) then
+          
+           write(fates_log(),*) ' In a cold start run initial density cannot be zero.'
+           write(fates_log(),*) ' For a bare ground run set to initial recruit density.'
+           write(fates_log(),*) ' If no-comp is on it is possible to initialize with larger  '
+           write(fates_log(),*) ' plants by setting fates_recruit_init_density to a negative number'
+           write(fates_log(),*) ' which will be interpreted as (absolute) initial dbh. '
+           write(fates_log(),*) ' Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+           
+        end if
+           
 
 
         ! Check if fraction of storage to reproduction is between 0-1

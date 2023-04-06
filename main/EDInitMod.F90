@@ -13,7 +13,7 @@ module EDInitMod
   use FatesGlobals              , only : endrun => fates_endrun
   use EDTypesMod                , only : nclmax
   use FatesGlobals              , only : fates_log
-  use FatesInterfaceTypesMod         , only : hlm_is_restart
+  use FatesInterfaceTypesMod    , only : hlm_is_restart
   use EDPftvarcon               , only : EDPftvarcon_inst
   use PRTParametersMod          , only : prt_params
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
@@ -22,6 +22,7 @@ module EDInitMod
   use EDPatchDynamicsMod        , only : set_patchno
   use EDPhysiologyMod           , only : assign_cohort_sp_properties
   use ChecksBalancesMod         , only : SiteMassStock
+  use FatesInterfaceTypesMod    , only : hlm_day_of_year
   use EDTypesMod                , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod                , only : numWaterMem
   use EDTypesMod                , only : num_vegtemp_mem
@@ -43,11 +44,13 @@ module EDInitMod
   use FatesInterfaceTypesMod         , only : hlm_use_planthydro
   use FatesInterfaceTypesMod         , only : hlm_use_inventory_init
   use FatesInterfaceTypesMod         , only : hlm_use_fixed_biogeog
+  use FatesInterfaceTypesMod         , only : hlm_use_tree_damage
   use FatesInterfaceTypesMod         , only : hlm_use_sp
   use FatesInterfaceTypesMod         , only : numpft
   use FatesInterfaceTypesMod         , only : nleafage
   use FatesInterfaceTypesMod         , only : nlevsclass
   use FatesInterfaceTypesMod         , only : nlevcoage
+  use FatesInterfaceTypesMod         , only : nlevdamage
   use FatesInterfaceTypesMod         , only : hlm_use_nocomp
   use FatesInterfaceTypesMod         , only : nlevage
 
@@ -59,6 +62,7 @@ module EDInitMod
   use FatesAllometryMod         , only : bsap_allom
   use FatesAllometryMod         , only : bdead_allom
   use FatesAllometryMod         , only : bstore_allom
+  use FatesAllometryMod         , only : carea_allom
   use PRTGenericMod             , only : StorageNutrientTarget
   use FatesInterfaceTypesMod,      only : hlm_parteh_mode
   use PRTGenericMod,          only : prt_carbon_allom_hyp
@@ -75,7 +79,8 @@ module EDInitMod
   use PRTGenericMod,          only : phosphorus_element
   use PRTGenericMod,          only : SetState
   use FatesSizeAgeTypeIndicesMod,only : get_age_class_index
-  
+  use DamageMainMod,          only : undamaged_class
+
   ! CIME GLOBALS
   use shr_log_mod               , only : errMsg => shr_log_errMsg
 
@@ -84,6 +89,8 @@ module EDInitMod
 
   logical   ::  debug = .false.
 
+  integer :: istat           ! return status code
+  character(len=255) :: smsg ! Message string for deallocation errors
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
 
@@ -107,8 +114,8 @@ contains
     !
     ! !ARGUMENTS
     type(ed_site_type), intent(inout) :: site_in
-    type(bc_in_type),intent(in),target   :: bc_in
-    type(bc_out_type),intent(in),target  :: bc_out
+    type(bc_in_type),intent(in)       :: bc_in
+    type(bc_out_type),intent(in)      :: bc_out
     !
     ! !LOCAL VARIABLES:
     !----------------------------------------------------------------------
@@ -127,20 +134,48 @@ contains
     allocate(site_in%growthflux_fusion(1:nlevsclass,1:numpft))
     allocate(site_in%mass_balance(1:num_elements))
     allocate(site_in%flux_diags(1:num_elements))
-    
+
+    if (hlm_use_tree_damage .eq. itrue) then 
+       allocate(site_in%term_nindivs_canopy_damage(1:nlevdamage, 1:nlevsclass, 1:numpft))
+       allocate(site_in%term_nindivs_ustory_damage(1:nlevdamage, 1:nlevsclass, 1:numpft))
+       allocate(site_in%imort_rate_damage(1:nlevdamage, 1:nlevsclass, 1:numpft))
+       allocate(site_in%imort_cflux_damage(1:nlevdamage, 1:nlevsclass))
+       allocate(site_in%term_cflux_canopy_damage(1:nlevdamage, 1:nlevsclass))
+       allocate(site_in%term_cflux_ustory_damage(1:nlevdamage, 1:nlevsclass))
+       allocate(site_in%fmort_rate_canopy_damage(1:nlevdamage, 1:nlevsclass, 1:numpft))
+       allocate(site_in%fmort_rate_ustory_damage(1:nlevdamage, 1:nlevsclass, 1:numpft)) 
+       allocate(site_in%fmort_cflux_canopy_damage(1:nlevdamage, 1:nlevsclass))
+       allocate(site_in%fmort_cflux_ustory_damage(1:nlevdamage, 1:nlevsclass)) 
+    else
+       allocate(site_in%term_nindivs_canopy_damage(1,1,1))
+       allocate(site_in%term_nindivs_ustory_damage(1,1,1))
+       allocate(site_in%imort_rate_damage(1,1,1))
+       allocate(site_in%imort_cflux_damage(1,1))
+       allocate(site_in%term_cflux_canopy_damage(1,1))
+       allocate(site_in%term_cflux_ustory_damage(1,1))
+       allocate(site_in%fmort_rate_canopy_damage(1,1,1))
+       allocate(site_in%fmort_rate_ustory_damage(1,1,1))
+       allocate(site_in%fmort_cflux_canopy_damage(1,1))
+       allocate(site_in%fmort_cflux_ustory_damage(1,1))
+    end if
+
     allocate(site_in%term_carbonflux_canopy(1:numpft))
     allocate(site_in%term_carbonflux_ustory(1:numpft))
     allocate(site_in%imort_carbonflux(1:numpft))
     allocate(site_in%fmort_carbonflux_canopy(1:numpft))
     allocate(site_in%fmort_carbonflux_ustory(1:numpft))
-    
+
+    allocate(site_in%term_abg_flux(1:nlevsclass,1:numpft))
+    allocate(site_in%imort_abg_flux(1:nlevsclass,1:numpft))
+    allocate(site_in%fmort_abg_flux(1:nlevsclass,1:numpft))
+
     site_in%nlevsoil   = bc_in%nlevsoil
     allocate(site_in%rootfrac_scr(site_in%nlevsoil))
     allocate(site_in%zi_soil(0:site_in%nlevsoil))
     allocate(site_in%dz_soil(site_in%nlevsoil))
     allocate(site_in%z_soil(site_in%nlevsoil))
 
-    if (hlm_use_nocomp .eq. itrue) then
+    if (hlm_use_nocomp .eq. itrue .and. hlm_use_fixed_biogeog .eq. itrue) then
        allocate(site_in%area_pft(0:numpft))
     else  ! SP and nocomp require a bare-ground patch.
        allocate(site_in%area_pft(1:numpft))  
@@ -149,7 +184,11 @@ contains
     allocate(site_in%use_this_pft(1:numpft))
     allocate(site_in%area_by_age(1:nlevage))
 
-    
+    ! for CNP dynamics, track the mean l2fr of recruits
+    ! for different pfts and canopy positions
+    allocate(site_in%rec_l2fr(1:numpft,nclmax))
+
+
     ! SP mode
     allocate(site_in%sp_tlai(1:numpft))
     allocate(site_in%sp_tsai(1:numpft))
@@ -158,9 +197,6 @@ contains
     do el=1,num_elements
        allocate(site_in%flux_diags(el)%leaf_litter_input(1:numpft))
        allocate(site_in%flux_diags(el)%root_litter_input(1:numpft))
-       allocate(site_in%flux_diags(el)%nutrient_efflux_scpf(nlevsclass*numpft))
-       allocate(site_in%flux_diags(el)%nutrient_uptake_scpf(nlevsclass*numpft))
-        allocate(site_in%flux_diags(el)%nutrient_need_scpf(nlevsclass*numpft))
     end do
 
     ! Initialize the static soil
@@ -200,12 +236,14 @@ contains
     site_in%snow_depth       = nan
     site_in%nchilldays       = fates_unset_int
     site_in%ncolddays        = fates_unset_int
-    site_in%cleafondate      = fates_unset_int  ! doy of leaf on
-    site_in%cleafoffdate     = fates_unset_int  ! doy of leaf off
-    site_in%dleafondate      = fates_unset_int  ! doy of leaf on drought
-    site_in%dleafoffdate     = fates_unset_int  ! doy of leaf on drought
+    site_in%cleafondate      = fates_unset_int
+    site_in%cleafoffdate     = fates_unset_int
+    site_in%dleafondate      = fates_unset_int
+    site_in%dleafoffdate     = fates_unset_int
     site_in%water_memory(:)  = nan
     site_in%vegtemp_memory(:) = nan              ! record of last 10 days temperature for senescence model.
+
+    site_in%phen_model_date  = fates_unset_int
 
     ! Disturbance rates tracking
     site_in%primary_land_patchfusion_error = 0.0_r8
@@ -231,6 +269,11 @@ contains
     ! termination and recruitment info
     site_in%term_nindivs_canopy(:,:) = 0._r8
     site_in%term_nindivs_ustory(:,:) = 0._r8
+    site_in%term_crownarea_canopy = 0._r8
+    site_in%term_crownarea_ustory = 0._r8
+    site_in%imort_crownarea = 0._r8
+    site_in%fmort_crownarea_canopy = 0._r8
+    site_in%fmort_crownarea_ustory = 0._r8
     site_in%term_carbonflux_canopy(:) = 0._r8
     site_in%term_carbonflux_ustory(:) = 0._r8
     site_in%recruitment_rate(:) = 0._r8
@@ -242,6 +285,10 @@ contains
     site_in%fmort_carbonflux_ustory(:) = 0._r8
     site_in%fmort_rate_cambial(:,:) = 0._r8
     site_in%fmort_rate_crown(:,:) = 0._r8
+    site_in%term_abg_flux(:,:) = 0._r8
+    site_in%imort_abg_flux(:,:) = 0._r8
+    site_in%fmort_abg_flux(:,:) = 0._r8
+
 
     ! fusoin-induced growth flux of individuals
     site_in%growthflux_fusion(:,:) = 0._r8
@@ -252,7 +299,23 @@ contains
     site_in%promotion_rate(:) = 0._r8
     site_in%promotion_carbonflux = 0._r8
 
+    ! damage transition info
+    site_in%imort_rate_damage(:,:,:) = 0._r8
+    site_in%term_nindivs_canopy_damage(:,:,:) = 0._r8
+    site_in%term_nindivs_ustory_damage(:,:,:) = 0._r8
+    site_in%imort_cflux_damage(:,:) = 0._r8
+    site_in%term_cflux_canopy_damage(:,:) = 0._r8
+    site_in%term_cflux_ustory_damage(:,:) = 0._r8
+    site_in%crownarea_canopy_damage = 0._r8
+    site_in%crownarea_ustory_damage = 0._r8
+    site_in%fmort_rate_canopy_damage(:,:,:) = 0._r8
+    site_in%fmort_rate_ustory_damage(:,:,:) = 0._r8
+    site_in%fmort_cflux_canopy_damage(:,:) = 0._r8
+    site_in%fmort_cflux_ustory_damage(:,:) = 0._r8
+
     ! Resources management (logging/harvesting, etc)
+    site_in%resources_management%harvest_debt = 0.0_r8
+    site_in%resources_management%harvest_debt_sec = 0.0_r8
     site_in%resources_management%trunk_product_site  = 0.0_r8
 
     ! canopy spread
@@ -261,7 +324,7 @@ contains
     site_in%area_pft(:) = 0._r8
     site_in%use_this_pft(:) = fates_unset_int
     site_in%area_by_age(:) = 0._r8
-    
+
   end subroutine zero_site
 
   ! ============================================================================
@@ -273,9 +336,9 @@ contains
     !
     ! !ARGUMENTS
 
-    integer, intent(in)                        :: nsites
-    type(ed_site_type) , intent(inout), target :: sites(nsites)
-    type(bc_in_type), intent(in)               :: bc_in(nsites)
+    integer, intent(in)                :: nsites
+    type(ed_site_type) , intent(inout) :: sites(nsites)
+    type(bc_in_type), intent(in)       :: bc_in(nsites)
     !
     ! !LOCAL VARIABLES:
     integer  :: s
@@ -318,12 +381,12 @@ contains
           ! immediately, so yes this
           ! is memory-less, but needed
           ! for first value in history file
-
-          sites(s)%cleafondate   = cleafon
-          sites(s)%cleafoffdate  = cleafoff
-          sites(s)%dleafoffdate  = dleafoff
-          sites(s)%dleafondate   = dleafon
-          sites(s)%grow_deg_days = GDD
+          sites(s)%phen_model_date = 0
+          sites(s)%cleafondate     = cleafon  - hlm_day_of_year
+          sites(s)%cleafoffdate    = cleafoff - hlm_day_of_year
+          sites(s)%dleafoffdate    = dleafoff - hlm_day_of_year
+          sites(s)%dleafondate     = dleafon  - hlm_day_of_year
+          sites(s)%grow_deg_days   = GDD
 
           sites(s)%water_memory(1:numWaterMem) = watermem
           sites(s)%vegtemp_memory(1:num_vegtemp_mem) = 0._r8
@@ -334,6 +397,15 @@ contains
           sites(s)%acc_NI     = acc_NI
           sites(s)%NF         = 0.0_r8
           sites(s)%NF_successful  = 0.0_r8
+          sites(s)%area_pft(:) = 0.0_r8
+
+          do ft =  1,numpft
+             sites(s)%rec_l2fr(ft,:) = prt_params%allom_l2fr(ft)
+          end do
+
+          ! Its difficult to come up with a resonable starting smoothing value, so
+          ! we initialize on a cold-start to -1
+          sites(s)%ema_npp = -9999._r8
 
           if(hlm_use_fixed_biogeog.eq.itrue)then
              ! MAPPING OF FATES PFTs on to HLM_PFTs
@@ -341,7 +413,6 @@ contains
              ! where pft_areafrac is the area of land in each HLM PFT and (from surface dataset)
              ! hlm_pft_map is the area of that land in each FATES PFT (from param file)
 
-             sites(s)%area_pft(1:numpft) = 0._r8
              do hlm_pft = 1,size( EDPftvarcon_inst%hlm_pft_map,2)
                 do fates_pft = 1,numpft ! loop round all fates pfts for all hlm pfts
                    sites(s)%area_pft(fates_pft) = sites(s)%area_pft(fates_pft) + &
@@ -382,21 +453,19 @@ contains
                 end do !ft
              else ! for sp and nocomp mode, assert a bare ground patch if needed
                 sumarea = sum(sites(s)%area_pft(1:numpft))
-                
-               ! In all the other FATES modes, bareground is the area in which plants
-               ! do not grow of their own accord. In SP mode we assert that the canopy is full for
-               ! each PFT patch. Thus, we also need to assert a bare ground area in
-               ! order to not have all of the ground filled by leaves.
 
-               ! Further to that, one could calculate bare ground as the remaining area when
-               ! all fhe canopies are accounted for, but this means we don't pass balance checks
-               ! on canopy are inside FATES, and so in SP mode, we define the bare groud
-               ! patch as having a PFT identifier as zero.
+                ! In all the other FATES modes, bareground is the area in which plants
+                ! do not grow of their own accord. In SP mode we assert that the canopy is full for
+                ! each PFT patch. Thus, we also need to assert a bare ground area in
+                ! order to not have all of the ground filled by leaves.
+
+                ! Further to that, one could calculate bare ground as the remaining area when
+                ! all fhe canopies are accounted for, but this means we don't pass balance checks
+                ! on canopy are inside FATES, and so in SP mode, we define the bare groud
+                ! patch as having a PFT identifier as zero.
 
                 if(sumarea.lt.area)then !make some bare ground
                    sites(s)%area_pft(0) = area - sumarea
-                else
-                   sites(s)%area_pft(0) = 0.0_r8
                 end if
              end if !sp mode
           end if !fixed biogeog
@@ -428,9 +497,6 @@ contains
     ! This may be call a near bare ground initialization, or it may
     ! load patches from an inventory.
 
-    !
-
-
     use FatesPlantHydraulicsMod, only : updateSizeDepRhizHydProps
     use FatesInventoryInitMod,   only : initialize_sites_by_inventory
 
@@ -445,7 +511,7 @@ contains
     integer  :: el
     real(r8) :: age !notional age of this patch
     integer  :: ageclass
-    
+
     ! dummy locals
     real(r8) :: biomass_stock
     real(r8) :: litter_stock
@@ -625,34 +691,34 @@ contains
        enddo !s
     end if
 
-     ! zero all the patch fire variables for the first timestep
+    ! zero all the patch fire variables for the first timestep
     do s = 1, nsites
-      currentPatch => sites(s)%youngest_patch
-      do while(associated(currentPatch))
+       currentPatch => sites(s)%youngest_patch
+       do while(associated(currentPatch))
 
-         currentPatch%litter_moisture(:)         = 0._r8
-         currentPatch%fuel_eff_moist             = 0._r8
-         currentPatch%livegrass                  = 0._r8
-         currentPatch%sum_fuel                   = 0._r8
-         currentPatch%fuel_bulkd                 = 0._r8
-         currentPatch%fuel_sav                   = 0._r8
-         currentPatch%fuel_mef                   = 0._r8
-         currentPatch%ros_front                  = 0._r8
-         currentPatch%effect_wspeed              = 0._r8
-         currentPatch%tau_l                      = 0._r8
-         currentPatch%fuel_frac(:)               = 0._r8
-         currentPatch%tfc_ros                    = 0._r8
-         currentPatch%fi                         = 0._r8
-         currentPatch%fire                       = 0
-         currentPatch%fd                         = 0._r8
-         currentPatch%ros_back                   = 0._r8
-         currentPatch%scorch_ht(:)               = 0._r8
-         currentPatch%frac_burnt                 = 0._r8
-         currentPatch%burnt_frac_litter(:)       = 0._r8
+          currentPatch%litter_moisture(:)         = 0._r8
+          currentPatch%fuel_eff_moist             = 0._r8
+          currentPatch%livegrass                  = 0._r8
+          currentPatch%sum_fuel                   = 0._r8
+          currentPatch%fuel_bulkd                 = 0._r8
+          currentPatch%fuel_sav                   = 0._r8
+          currentPatch%fuel_mef                   = 0._r8
+          currentPatch%ros_front                  = 0._r8
+          currentPatch%effect_wspeed              = 0._r8
+          currentPatch%tau_l                      = 0._r8
+          currentPatch%fuel_frac(:)               = 0._r8
+          currentPatch%tfc_ros                    = 0._r8
+          currentPatch%fi                         = 0._r8
+          currentPatch%fire                       = 0
+          currentPatch%fd                         = 0._r8
+          currentPatch%ros_back                   = 0._r8
+          currentPatch%scorch_ht(:)               = 0._r8
+          currentPatch%frac_burnt                 = 0._r8
+          currentPatch%burnt_frac_litter(:)       = 0._r8
 
-         currentPatch => currentPatch%older
-      enddo
-   enddo
+          currentPatch => currentPatch%older
+       enddo
+    enddo
 
     ! This sets the rhizosphere shells based on the plant initialization
     ! The initialization of the plant-relevant hydraulics variables
@@ -674,6 +740,7 @@ contains
     ! initialize new cohorts on bare ground
     !
     ! !USES:
+
     !
     ! !ARGUMENTS
     type(ed_site_type), intent(inout),  pointer  :: site_in
@@ -685,6 +752,7 @@ contains
     class(prt_vartypes),pointer  :: prt_obj
     integer  :: cstatus
     integer  :: pft
+    integer  :: crowndamage ! which crown damage class
     integer  :: iage       ! index for leaf age loop
     integer  :: el         ! index for element loop
     integer  :: element_id ! element index consistent with defs in PRTGeneric
@@ -707,6 +775,9 @@ contains
 
     integer, parameter :: rstatus = 0
     integer init
+
+    real(r8) :: dummy_n    ! set cohort n to a dummy value of 1
+ 
     !----------------------------------------------------------------------
 
     patch_in%tallest  => null()
@@ -736,15 +807,27 @@ contains
              use_pft_local(pft) = ifalse ! Case 4
           endif
        endif
-
     end do
+
+    
     do pft =  1,numpft
+
        if(use_pft_local(pft).eq.itrue)then
-          if(EDPftvarcon_inst%initd(pft)>nearzero) then
 
-             allocate(temp_cohort) ! temporary cohort
+          allocate(temp_cohort) ! temporary cohort
+          temp_cohort%pft         = pft
+          temp_cohort%l2fr = prt_params%allom_l2fr(pft)
+          temp_cohort%canopy_trim = 1.0_r8
+          temp_cohort%crowndamage = 1  ! Assume no damage to begin with
+          
+          ! If positive EDPftvarcon_inst%initd is interpreted as initial recruit density.
+          ! If negative EDPftvarcon_inst%initd is interpreted as initial dbh. 
+          ! Dbh-initialization can only be used in nocomp mode.
+          ! In the dbh-initialization case, we calculate crown area for a single tree and then calculate
+          ! the density of plants  needed for a full canopy. 
 
-             temp_cohort%pft         = pft
+          if(EDPftvarcon_inst%initd(pft)>nearzero) then   ! interpret as initial density and calculate diameter
+
              temp_cohort%n           = EDPftvarcon_inst%initd(pft) * patch_in%area
              if(hlm_use_nocomp.eq.itrue)then !in nocomp mode we only have one PFT per patch
                 ! as opposed to numpft's. So we should up the initial density
@@ -754,11 +837,8 @@ contains
                 ! n.b. that this is the same as currentcohort%n = %initd(pft) &AREA
                 temp_cohort%n           =  temp_cohort%n * sum(site_in%use_this_pft)
              endif
-
-             temp_cohort%canopy_trim = 1.0_r8
-
+             
              !  h,dbh,leafc,n from SP values or from small initial size.
-
              if(hlm_use_sp.eq.itrue)then
                 init = itrue
                 ! At this point, we do not know the bc_in values of tlai tsai and htop,
@@ -768,146 +848,166 @@ contains
 
              else
                 temp_cohort%hite        = EDPftvarcon_inst%hgt_min(pft)
-
                 ! Calculate the plant diameter from height
                 call h2d_allom(temp_cohort%hite,pft,temp_cohort%dbh)
 
                 ! Calculate the leaf biomass from allometry
                 ! (calculates a maximum first, then applies canopy trim)
-                call bleaf(temp_cohort%dbh,pft,temp_cohort%canopy_trim,c_leaf)
-             end if  ! sp mode
+                call bleaf(temp_cohort%dbh,pft,temp_cohort%crowndamage, &
+                     temp_cohort%canopy_trim,c_leaf)
 
-             ! Calculate total above-ground biomass from allometry
-             call bagw_allom(temp_cohort%dbh,pft,c_agw)
+             endif  ! sp mode
 
-             ! Calculate coarse root biomass from allometry
-             call bbgw_allom(temp_cohort%dbh,pft,c_bgw)
+          else ! interpret as initial diameter and calculate density 
+             if(hlm_use_nocomp .eq. itrue)then
+                temp_cohort%dbh = abs(EDPftvarcon_inst%initd(pft))
 
-             ! Calculate fine root biomass from allometry
-             ! (calculates a maximum and then trimming value)
-             call bfineroot(temp_cohort%dbh,pft,temp_cohort%canopy_trim,c_fnrt)
+                ! calculate crown area of a single plant
+                dummy_n = 1.0_r8 ! make n=1 to get area of one tree
+               
+                call carea_allom(temp_cohort%dbh, dummy_n, init_spread_inventory, temp_cohort%pft, &
+                     temp_cohort%crowndamage, temp_cohort%c_area)
 
-             ! Calculate sapwood biomass
-             call bsap_allom(temp_cohort%dbh,pft,temp_cohort%canopy_trim,a_sapw,c_sapw)
+                ! calculate initial density required to close canopy 
+                temp_cohort%n  = patch_in%area / temp_cohort%c_area
 
-             call bdead_allom( c_agw, c_bgw, c_sapw, pft, c_struct )
+                ! Calculate the leaf biomass from allometry
+                ! (calculates a maximum first, then applies canopy trim)
+                call bleaf(temp_cohort%dbh,pft,temp_cohort%crowndamage, &
+                     temp_cohort%canopy_trim,c_leaf)
 
-             call bstore_allom(temp_cohort%dbh, pft, temp_cohort%canopy_trim, c_store)
-
-             temp_cohort%leafmemory = 0._r8
-             temp_cohort%sapwmemory = 0._r8
-             temp_cohort%structmemory = 0._r8
-             cstatus = leaves_on
-
-             stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(temp_cohort%pft)
-
-             if(hlm_use_sp.eq.ifalse)then ! do not override SP vales with phenology
-
-                if( prt_params%season_decid(pft) == itrue .and. &
-                    any(site_in%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
-                   temp_cohort%leafmemory = c_leaf
-                   temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
-                   temp_cohort%structmemory = c_struct * stem_drop_fraction
-                   c_leaf = 0._r8
-                   c_sapw = (1.0_r8-stem_drop_fraction) * c_sapw
-                   c_struct  = (1.0_r8-stem_drop_fraction) * c_struct
-                   cstatus = leaves_off
-                endif
-
-                if ( prt_params%stress_decid(pft) == itrue .and. &
-                     any(site_in%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff])) then
-                   temp_cohort%leafmemory = c_leaf
-                   temp_cohort%sapwmemory = c_sapw * stem_drop_fraction
-                   temp_cohort%structmemory = c_struct * stem_drop_fraction
-                   c_leaf = 0._r8
-                   c_sapw = (1.0_r8-stem_drop_fraction) * c_sapw
-                   c_struct  = (1.0_r8-stem_drop_fraction) * c_struct
-                   cstatus = leaves_off
-                endif
-
-             end if ! SP mode
-
-             if ( debug ) write(fates_log(),*) 'EDInitMod.F90 call create_cohort '
-
-             temp_cohort%coage = 0.0_r8
-
-
-             ! --------------------------------------------------------------------------------
-             ! Initialize the mass of every element in every organ of the organ
-             ! --------------------------------------------------------------------------------
-
-             prt_obj => null()
-             call InitPRTObject(prt_obj)
-
-             do el = 1,num_elements
-
-                element_id = element_list(el)
-
-                ! If this is carbon12, then the initialization is straight forward
-                ! otherwise, we use stoichiometric ratios
-                select case(element_id)
-                case(carbon12_element)
-
-                   m_struct = c_struct
-                   m_leaf   = c_leaf
-                   m_fnrt   = c_fnrt
-                   m_sapw   = c_sapw
-                   m_store  = c_store
-                   m_repro  = 0._r8
-
-                case(nitrogen_element)
-
-                   m_struct = c_struct*prt_params%nitr_stoich_p1(pft,prt_params%organ_param_id(struct_organ))
-                   m_leaf   = c_leaf*prt_params%nitr_stoich_p1(pft,prt_params%organ_param_id(leaf_organ))
-                   m_fnrt   = c_fnrt*prt_params%nitr_stoich_p1(pft,prt_params%organ_param_id(fnrt_organ))
-                   m_sapw   = c_sapw*prt_params%nitr_stoich_p1(pft,prt_params%organ_param_id(sapw_organ))
-                   m_repro  = 0._r8
-                   m_store  = StorageNutrientTarget(pft,element_id,m_leaf,m_fnrt,m_sapw,m_struct)
-
-                case(phosphorus_element)
-
-                   m_struct = c_struct*prt_params%phos_stoich_p1(pft,prt_params%organ_param_id(struct_organ))
-                   m_leaf   = c_leaf*prt_params%phos_stoich_p1(pft,prt_params%organ_param_id(leaf_organ))
-                   m_fnrt   = c_fnrt*prt_params%phos_stoich_p1(pft,prt_params%organ_param_id(fnrt_organ))
-                   m_sapw   = c_sapw*prt_params%phos_stoich_p1(pft,prt_params%organ_param_id(sapw_organ))
-                   m_repro  = 0._r8
-                   m_store  = StorageNutrientTarget(pft,element_id,m_leaf,m_fnrt,m_sapw,m_struct)
-
-                end select
-
-                select case(hlm_parteh_mode)
-                case (prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp )
-
-                   ! Put all of the leaf mass into the first bin
-                   call SetState(prt_obj,leaf_organ, element_id,m_leaf,1)
-                   do iage = 2,nleafage
-                      call SetState(prt_obj,leaf_organ, element_id,0._r8,iage)
-                   end do
-
-                   call SetState(prt_obj,fnrt_organ, element_id, m_fnrt)
-                   call SetState(prt_obj,sapw_organ, element_id, m_sapw)
-                   call SetState(prt_obj,store_organ, element_id, m_store)
-                   call SetState(prt_obj,struct_organ, element_id, m_struct)
-                   call SetState(prt_obj,repro_organ, element_id, m_repro)
-
-                case default
-                   write(fates_log(),*) 'Unspecified PARTEH module during create_cohort'
-                   call endrun(msg=errMsg(sourcefile, __LINE__))
-                end select
-
-             end do
-
-             call prt_obj%CheckInitialConditions()
-
-             call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, &
-                  temp_cohort%coage, temp_cohort%dbh, prt_obj, temp_cohort%leafmemory, &
-                  temp_cohort%sapwmemory, temp_cohort%structmemory, cstatus, rstatus,        &
-                  temp_cohort%canopy_trim, temp_cohort%c_area,1, site_in%spread, bc_in)
-
-
-             deallocate(temp_cohort) ! get rid of temporary cohort
-
+             else
+                write(fates_log(),*) 'Negative fates_recruit_init_density can only be used in no comp mode'
+                call endrun(msg=errMsg(sourcefile, __LINE__))
+             endif
           endif
+
+
+          ! Calculate total above-ground biomass from allometry
+          call bagw_allom(temp_cohort%dbh,pft,temp_cohort%crowndamage,c_agw)
+
+          ! Calculate coarse root biomass from allometry
+          call bbgw_allom(temp_cohort%dbh,pft,c_bgw)
+
+          ! Calculate fine root biomass from allometry
+          ! (calculates a maximum and then trimming value)
+          call bfineroot(temp_cohort%dbh,pft,temp_cohort%canopy_trim,temp_cohort%l2fr,c_fnrt)
+
+          ! Calculate sapwood biomass
+          call bsap_allom(temp_cohort%dbh,pft,temp_cohort%crowndamage, &
+               temp_cohort%canopy_trim,a_sapw,c_sapw)
+
+          call bdead_allom( c_agw, c_bgw, c_sapw, pft, c_struct )
+
+          call bstore_allom(temp_cohort%dbh, pft, temp_cohort%crowndamage, &
+               temp_cohort%canopy_trim, c_store)
+
+          cstatus = leaves_on
+
+          stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(temp_cohort%pft)
+
+          if(hlm_use_sp.eq.ifalse)then ! do not override SP vales with phenology
+
+             if( prt_params%season_decid(pft) == itrue .and. &
+                  any(site_in%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
+                c_leaf = 0._r8
+                c_sapw = (1.0_r8-stem_drop_fraction) * c_sapw
+                c_struct  = (1.0_r8-stem_drop_fraction) * c_struct
+                cstatus = leaves_off
+             endif
+
+             if ( prt_params%stress_decid(pft) == itrue .and. &
+                  any(site_in%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff])) then
+                c_leaf = 0._r8
+                c_sapw = (1.0_r8-stem_drop_fraction) * c_sapw
+                c_struct  = (1.0_r8-stem_drop_fraction) * c_struct
+                cstatus = leaves_off
+             endif
+
+          end if ! SP mode
+
+          if ( debug ) write(fates_log(),*) 'EDInitMod.F90 call create_cohort '
+
+          temp_cohort%coage = 0.0_r8
+
+
+          ! --------------------------------------------------------------------------------
+          ! Initialize the mass of every element in every organ of the organ
+          ! --------------------------------------------------------------------------------
+
+          prt_obj => null()
+          call InitPRTObject(prt_obj)
+
+          do el = 1,num_elements
+
+             element_id = element_list(el)
+
+             ! If this is carbon12, then the initialization is straight forward
+             ! otherwise, we use stoichiometric ratios
+             select case(element_id)
+             case(carbon12_element)
+
+                m_struct = c_struct
+                m_leaf   = c_leaf
+                m_fnrt   = c_fnrt
+                m_sapw   = c_sapw
+                m_store  = c_store
+                m_repro  = 0._r8
+
+             case(nitrogen_element)
+
+                m_struct = c_struct*prt_params%nitr_stoich_p1(pft,prt_params%organ_param_id(struct_organ))
+                m_leaf   = c_leaf*prt_params%nitr_stoich_p1(pft,prt_params%organ_param_id(leaf_organ))
+                m_fnrt   = c_fnrt*prt_params%nitr_stoich_p1(pft,prt_params%organ_param_id(fnrt_organ))
+                m_sapw   = c_sapw*prt_params%nitr_stoich_p1(pft,prt_params%organ_param_id(sapw_organ))
+                m_repro  = 0._r8
+                m_store  = StorageNutrientTarget(pft,element_id,m_leaf,m_fnrt,m_sapw,m_struct)
+
+             case(phosphorus_element)
+
+                m_struct = c_struct*prt_params%phos_stoich_p1(pft,prt_params%organ_param_id(struct_organ))
+                m_leaf   = c_leaf*prt_params%phos_stoich_p1(pft,prt_params%organ_param_id(leaf_organ))
+                m_fnrt   = c_fnrt*prt_params%phos_stoich_p1(pft,prt_params%organ_param_id(fnrt_organ))
+                m_sapw   = c_sapw*prt_params%phos_stoich_p1(pft,prt_params%organ_param_id(sapw_organ))
+                m_repro  = 0._r8
+                m_store  = StorageNutrientTarget(pft,element_id,m_leaf,m_fnrt,m_sapw,m_struct)
+
+             end select
+
+             select case(hlm_parteh_mode)
+             case (prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp )
+
+                ! Put all of the leaf mass into the first bin
+                call SetState(prt_obj,leaf_organ, element_id,m_leaf,1)
+                do iage = 2,nleafage
+                   call SetState(prt_obj,leaf_organ, element_id,0._r8,iage)
+                end do
+
+                call SetState(prt_obj,fnrt_organ, element_id, m_fnrt)
+                call SetState(prt_obj,sapw_organ, element_id, m_sapw)
+                call SetState(prt_obj,store_organ, element_id, m_store)
+                call SetState(prt_obj,struct_organ, element_id, m_struct)
+                call SetState(prt_obj,repro_organ, element_id, m_repro)
+
+             case default
+                write(fates_log(),*) 'Unspecified PARTEH module during create_cohort'
+                call endrun(msg=errMsg(sourcefile, __LINE__))
+             end select
+
+          end do
+
+          call prt_obj%CheckInitialConditions()
+
+          call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, &
+               temp_cohort%coage, temp_cohort%dbh, prt_obj, cstatus, rstatus,        &
+               temp_cohort%canopy_trim, temp_cohort%c_area,1,temp_cohort%crowndamage, site_in%spread, bc_in)
+
+          deallocate(temp_cohort, stat=istat, errmsg=smsg)
+          if (istat/=0) then
+             write(fates_log(),*) 'dealloc014: fail on deallocate(temp_cohort):'//trim(smsg)
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          endif
+
        endif !use_this_pft
     enddo !numpft
 
@@ -915,8 +1015,8 @@ contains
     ! Pass patch level temperature to the new cohorts (this is a nominal 15C right now)
     !temp_cohort => patch_in%tallest
     !do while(associated(temp_cohort))
-        !call temp_cohort%tveg_lpa%UpdateRmean(patch_in%tveg_lpa%GetMean())
-        !temp_cohort => temp_cohort%shorter
+    !call temp_cohort%tveg_lpa%UpdateRmean(patch_in%tveg_lpa%GetMean())
+    !temp_cohort => temp_cohort%shorter
     !end do
 
     call fuse_cohorts(site_in, patch_in,bc_in)

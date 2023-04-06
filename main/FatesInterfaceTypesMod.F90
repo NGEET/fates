@@ -532,6 +532,8 @@ module FatesInterfaceTypesMod
 
       integer :: hlm_harvest_units  ! what units are the harvest rates specified in? [area vs carbon]
     
+      real(r8) :: site_area    ! Actual area of current site [m2], only used in carbon-based harvest
+
       ! Fixed biogeography mode 
       real(r8), allocatable :: pft_areafrac(:)     ! Fractional area of the FATES column occupied by each PFT  
     
@@ -657,10 +659,10 @@ module FatesInterfaceTypesMod
       ! RD Nutrient Boundary Conditions
       ! ---------------------------------------------------------------------------------
 
-      real(r8), pointer :: n_demand(:)       ! Nitrogen demand from each competitor
-                                             ! for use in ELMs CTC/RD [g/m2/s] 
-      real(r8), pointer :: p_demand(:)       ! Phosophorus demand from each competitor
-                                             ! for use in ELMs CTC/RD [g/m2/s] 
+      !real(r8), pointer :: n_demand(:)       ! Nitrogen demand from each competitor
+      !                                       ! for use in ELMs CTC/RD [g/m2/s] 
+      !real(r8), pointer :: p_demand(:)       ! Phosophorus demand from each competitor
+      !                                       ! for use in ELMs CTC/RD [g/m2/s] 
 
 
 
@@ -677,6 +679,8 @@ module FatesInterfaceTypesMod
       real(r8), pointer :: woody_frac_aere_pa(:) ! Woody plant fraction (by crown area) of all plants
                                                  ! used for calculating patch-level aerenchyma porosity
       
+      real(r8)          :: ema_npp               ! site-level NPP smoothed over time, see PrepCH4BCs()
+                                                 ! used for N fixation in ELM/CLM right now
       ! Canopy Structure
 
       real(r8), allocatable :: elai_pa(:)  ! exposed leaf area index
@@ -722,10 +726,13 @@ module FatesInterfaceTypesMod
                                                        ! small fluxes for various reasons
                                                        ! [mm H2O/s]
 
+
       ! FATES LULCC
       real(r8) :: hrv_deadstemc_to_prod10c   ! Harvested C flux to 10-yr wood product pool [Site-Level, gC m-2 s-1]
       real(r8) :: hrv_deadstemc_to_prod100c  ! Harvested C flux to 100-yr wood product pool [Site-Level, gC m-2 s-1]
-      
+      real(r8) :: gpp_site  ! Site level GPP, for NBP diagnosis in HLM [Site-Level, gC m-2 s-1]
+      real(r8) :: ar_site   ! Site level Autotrophic Resp, for NBP diagnosis in HLM [Site-Level, gC m-2 s-1]
+
    end type bc_out_type
 
 
@@ -741,12 +748,15 @@ module FatesInterfaceTypesMod
        ! each column is inefficient. Each of these are dimensioned by PFT.
        
        integer           :: max_plant_comps
+
+       real(r8), pointer :: vmax_nh4(:)
+       real(r8), pointer :: vmax_no3(:)
+       real(r8), pointer :: vmax_p(:)
+       
        real(r8), pointer :: eca_km_nh4(:)
-       real(r8), pointer :: eca_vmax_nh4(:)
        real(r8), pointer :: eca_km_no3(:)
-       real(r8), pointer :: eca_vmax_no3(:)
-       real(r8), pointer :: eca_km_p(:)     
-       real(r8), pointer :: eca_vmax_p(:)
+       real(r8), pointer :: eca_km_p(:)
+       
        real(r8), pointer :: eca_km_ptase(:)     
        real(r8), pointer :: eca_vmax_ptase(:)
        real(r8), pointer :: eca_alpha_ptase(:)

@@ -35,6 +35,8 @@ module FatesConstantsMod
   integer, parameter, public :: primaryforest = 1
   integer, parameter, public :: secondaryforest = 2
 
+  ! Bareground label for no competition mode
+  integer, parameter, public :: nocomp_bareground = 0
 
   ! Flags specifying how phosphorous uptake and turnover interacts
   ! with the host model.
@@ -45,7 +47,8 @@ module FatesConstantsMod
   ! with the host model.
   integer, public, parameter :: prescribed_n_uptake = 1
   integer, public, parameter :: coupled_n_uptake    = 2
-
+  integer, public, parameter :: coupled_np_comp_scaling = 1 ! This flag signals that at least 1 chemical element (ie N or P)
+  
   !Flags specifying how tree regeneration works
   integer, public, parameter :: TRS = 2 !Constant defining the Tree Recruitment Scheme switch
   integer, public, parameter :: default_regeneration = 1 !Constant defining FATES's default regeneration scheme switch
@@ -54,16 +57,7 @@ module FatesConstantsMod
                                                       !will use the default regeneration scheme. This is to avoid
                                                       !the TRS being used for shrubs and grasses.
 
-
-  integer, public, parameter :: cohort_np_comp_scaling = 1  ! This flag definition indicates that EVERY cohort on
-                                                            ! the column should compete independently in the soil
-                                                            ! BGC nitrogen and phosphorus acquisition scheme.
-
-  integer, public, parameter :: pft_np_comp_scaling    = 2  ! This flag definition indicates that cohorts should
-                                                            ! be grouped into PFTs, and each PFT will be represented
-                                                            ! as the competitor, in the BGC N and P acquisition scheme
-
-  integer, public, parameter :: trivial_np_comp_scaling = 3 ! This flag definition indicates that either
+  integer, public, parameter :: trivial_np_comp_scaling = 2 ! This flag definition indicates that either
                                                             ! nutrients are turned off in FATES, or, that the
                                                             ! plants are not coupled with below ground chemistry. In
                                                             ! this situation, we send token boundary condition information.
@@ -71,17 +65,24 @@ module FatesConstantsMod
 
   ! This flag specifies the scaling of how we present
   ! nutrient competitors to the HLM's soil BGC model
-
-  integer, public, parameter :: fates_np_comp_scaling = cohort_np_comp_scaling
+  
+  integer, public :: fates_np_comp_scaling = fates_unset_int
 
   real(fates_r8), parameter, public :: secondary_age_threshold = 94._fates_r8 ! less than this value is young secondary land
                                                             ! based on average age of global
                                                             ! secondary 1900s land in hurtt-2011
 
   ! integer labels for specifying harvest units
+  integer, parameter, public :: photosynth_acclim_model_none = 1
+  integer, parameter, public :: photosynth_acclim_model_kumarathunge_etal_2019 = 2
+
+  ! integer labels for specifying harvest units
   integer, parameter, public :: hlm_harvest_area_fraction = 1 ! Code for harvesting by area
   integer, parameter, public :: hlm_harvest_carbon = 2 ! Code for harvesting based on carbon extracted.
 
+  ! integer labels for specifying leaf maintenance respiration models
+  integer, parameter, public :: lmrmodel_ryan_1991         = 1
+  integer, parameter, public :: lmrmodel_atkin_etal_2017   = 2
 
   ! Error Tolerances
 
@@ -140,6 +141,9 @@ module FatesConstantsMod
   ! Conversion factor: micromoles per mole
   real(fates_r8), parameter, public :: umol_per_mol = 1.0E6_fates_r8
 
+  ! Conversion factor: moles per micromole
+  real(fates_r8), parameter, public :: mol_per_umol = 1.0E-6_fates_r8
+  
   ! Conversion factor: umols per kilomole
   real(fates_r8), parameter, public :: umol_per_kmol = 1.0E9_fates_r8
 

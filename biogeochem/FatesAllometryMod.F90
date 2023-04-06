@@ -98,7 +98,7 @@ module FatesAllometryMod
   use FatesGlobals     , only : FatesWarn,N2S,A2S,I2S
   use EDTypesMod       , only : nlevleaf, dinc_vai
   use EDTypesMod       , only : nclmax
-
+  use DamageMainMod    , only : GetCrownReduction
 
   implicit none
 
@@ -160,8 +160,8 @@ contains
    
    ! ============================================================================
    
-  subroutine CheckIntegratedAllometries(dbh,ipft,canopy_trim, &
-       bl,bfr,bsap,bstore,bdead, &
+  subroutine CheckIntegratedAllometries(dbh,ipft,crowndamage, &
+       canopy_trim,l2fr, bl,bfr,bsap,bstore,bdead, &
        grow_leaf, grow_fr, grow_sap, grow_store, grow_dead, &
        max_err, l_pass)
 
@@ -175,7 +175,9 @@ contains
 
      real(r8),intent(in) :: dbh    ! diameter of plant [cm]
      integer,intent(in)  :: ipft   ! plant functional type index
+     integer,intent(in)  :: crowndamage ! crowndamage [1: undamaged, >1 damaged]
      real(r8),intent(in) :: canopy_trim ! trimming function
+     real(r8),intent(in) :: l2fr   ! leaf to fine-root biomass multiplier (fr/leaf)
      real(r8),intent(in) :: bl     ! integrated leaf biomass [kgC]
      real(r8),intent(in) :: bfr    ! integrated fine root biomass [kgC]
      real(r8),intent(in) :: bsap   ! integrated sapwood biomass [kgC]
@@ -205,7 +207,7 @@ contains
      l_pass = .true.  ! Default assumption is that step passed
 
      if (grow_leaf) then
-        call bleaf(dbh,ipft,canopy_trim,bl_diag)
+        call bleaf(dbh,ipft,crowndamage, canopy_trim,bl_diag)
         if( abs(bl_diag-bl) > max_err ) then
            if(verbose_logging) then
               write(fates_log(),*) 'disparity in integrated/diagnosed leaf carbon'
@@ -219,7 +221,7 @@ contains
      end if
         
      if (grow_fr) then
-        call bfineroot(dbh,ipft,canopy_trim,bfr_diag)
+        call bfineroot(dbh,ipft,canopy_trim,l2fr,bfr_diag)
         if( abs(bfr_diag-bfr) > max_err ) then
            if(verbose_logging) then
               write(fates_log(),*) 'disparity in integrated/diagnosed fineroot carbon'
@@ -233,7 +235,7 @@ contains
      end if
 
      if (grow_sap) then
-        call bsap_allom(dbh,ipft,canopy_trim,asap_diag,bsap_diag)
+        call bsap_allom(dbh,ipft,crowndamage, canopy_trim,asap_diag,bsap_diag)
         if( abs(bsap_diag-bsap) > max_err ) then
            if(verbose_logging) then
               write(fates_log(),*) 'disparity in integrated/diagnosed sapwood carbon'
@@ -247,7 +249,7 @@ contains
      end if
         
      if (grow_store) then
-        call bstore_allom(dbh,ipft,canopy_trim,bstore_diag)
+        call bstore_allom(dbh,ipft,crowndamage, canopy_trim,bstore_diag)
         if( abs(bstore_diag-bstore) > max_err ) then
            if(verbose_logging) then
               write(fates_log(),*) 'disparity in integrated/diagnosed storage carbon'
@@ -261,8 +263,8 @@ contains
      end if
 
      if (grow_dead) then
-        call bsap_allom(dbh,ipft,canopy_trim,asap_diag,bsap_diag)
-        call bagw_allom(dbh,ipft,bagw_diag)
+        call bsap_allom(dbh,ipft,crowndamage, canopy_trim,asap_diag,bsap_diag)
+        call bagw_allom(dbh,ipft,crowndamage, bagw_diag)
         call bbgw_allom(dbh,ipft,bbgw_diag)
         call bdead_allom( bagw_diag, bbgw_diag, bsap_diag, ipft, bdead_diag )        
         if( abs(bdead_diag-bdead) > max_err ) then
@@ -362,17 +364,22 @@ contains
   ! Generic AGB interface
   ! ============================================================================
   
-  subroutine bagw_allom(d,ipft,bagw,dbagwdd)
+  subroutine bagw_allom(d,ipft,crowndamage, bagw,dbagwdd)
 
-
+    use DamageMainMod, only : GetCrownReduction
+    use FatesParameterDerivedMod, only : param_derived
+    
     real(r8),intent(in)    :: d       ! plant diameter [cm]
     integer(i4),intent(in) :: ipft    ! PFT index
+    integer(i4),intent(in) :: crowndamage ! crowndamage [1: undamaged, >1: damaged]
     real(r8),intent(out)   :: bagw    ! biomass above ground woody tissues
     real(r8),intent(out),optional :: dbagwdd  ! change in agbw per diameter [kgC/cm]
 
     real(r8)               :: h       ! height
     real(r8)               :: dhdd    ! change in height wrt d
-
+    real(r8)               :: crown_reduction  ! crown reduction from damage
+    real(r8)               :: branch_frac ! fraction of aboveground woody biomass in branches
+   
     associate( p1           => prt_params%allom_agb1(ipft), &
                p2           => prt_params%allom_agb2(ipft), &
                p3           => prt_params%allom_agb3(ipft), &
@@ -381,6 +388,8 @@ contains
                c2b          => prt_params%c2b(ipft), &
                agb_frac     => prt_params%allom_agb_frac(ipft), &
                allom_amode  => prt_params%allom_amode(ipft))
+
+      branch_frac = param_derived%branch_frac(ipft)
       
       select case(int(allom_amode))
       case (1) !"salda")
@@ -397,6 +406,15 @@ contains
          write(fates_log(),*) 'Aborting'
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end select
+      
+      if(crowndamage > 1) then
+         call GetCrownReduction(crowndamage, crown_reduction)
+         bagw = bagw - (bagw * branch_frac * crown_reduction)
+         if(present(dbagwdd))then
+            dbagwdd = dbagwdd - (dbagwdd * branch_frac * crown_reduction)
+         end if
+      end if
+
       
     end associate
     return
@@ -442,12 +460,13 @@ contains
   ! Generic crown area allometry wrapper
   ! ============================================================================
   
-  subroutine carea_allom(dbh,nplant,site_spread,ipft,c_area,inverse)
+  subroutine carea_allom(dbh,nplant,site_spread,ipft,crowndamage,c_area,inverse)
      
      real(r8),intent(inout) :: dbh          ! plant diameter at breast (reference) height [cm]
      real(r8),intent(in)    :: site_spread  ! site level spread factor (crowdedness)
      real(r8),intent(in)    :: nplant       ! number of plants [1/ha]
      integer(i4),intent(in) :: ipft         ! PFT index
+     integer(i4),intent(in) :: crowndamage  ! crown damage class [1: undamaged, >1: damaged]
      real(r8),intent(inout) :: c_area       ! crown area per cohort (m2)
      logical,optional,intent(in) :: inverse ! if true, calculate dbh from crown area 
                                             ! instead of crown area from dbh
@@ -478,14 +497,17 @@ contains
        select case(int(allom_lmode))
        case(1)
           dbh_eff = min(dbh,dbh_maxh)
-          call carea_2pwr(dbh_eff,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area,do_inverse)
+          call carea_2pwr(dbh_eff,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max, &
+               crowndamage,c_area, do_inverse)
           capped_allom = .true.
        case(2)   ! "2par_pwr")
-          call carea_2pwr(dbh,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area,do_inverse)
+          call carea_2pwr(dbh,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max, & 
+               crowndamage, c_area, do_inverse)
           capped_allom = .false.
        case(3)
           dbh_eff = min(dbh,dbh_maxh)
-          call carea_2pwr(dbh_eff,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area,do_inverse)
+          call carea_2pwr(dbh_eff,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max, &
+               crowndamage, c_area, do_inverse)
           capped_allom = .true.
        case DEFAULT
           write(fates_log(),*) 'An undefined leaf allometry was specified: ', &
@@ -516,7 +538,7 @@ contains
 
   ! =====================================================================================
         
-  subroutine bleaf(d,ipft,canopy_trim,bl,dbldd)
+  subroutine bleaf(d,ipft,crowndamage,canopy_trim,bl,dbldd)
     
     ! -------------------------------------------------------------------------
     ! This subroutine calculates the actual target bleaf
@@ -524,15 +546,19 @@ contains
     ! is not allometry and rather an emergent property,
     ! this routine is not name-spaced with allom_
     ! -------------------------------------------------------------------------
+
+    use DamageMainMod      , only : GetCrownReduction
     
     real(r8),intent(in)    :: d             ! plant diameter [cm]
     integer(i4),intent(in) :: ipft          ! PFT index
+    integer(i4),intent(in) :: crowndamage   ! crown damage class [1: undamaged, >1: damaged]
     real(r8),intent(in)    :: canopy_trim   ! trimming function
-    real(r8),intent(out)   :: bl            ! plant leaf biomass [kg]
+    real(r8),intent(out)   :: bl            ! plant leaf biomass [kgC]
     real(r8),intent(out),optional :: dbldd  ! change leaf bio per diameter [kgC/cm]
     
     real(r8) :: blmax
     real(r8) :: dblmaxdd
+    real(r8) :: crown_reduction
     
     call blmax_allom(d,ipft,blmax,dblmaxdd)
     
@@ -544,9 +570,18 @@ contains
     ! -------------------------------------------------------------------------
     
     bl = blmax * canopy_trim
-    
+
     if(present(dbldd))then
        dbldd = dblmaxdd * canopy_trim
+    end if
+
+    if ( crowndamage > 1 ) then
+
+       call  GetCrownReduction(crowndamage, crown_reduction)
+       bl = bl * (1.0_r8 - crown_reduction)
+       if(present(dbldd))then
+          dbldd = dblmaxdd * canopy_trim * (1.0_r8 - crown_reduction)
+       end if
     end if
     
     return
@@ -705,15 +740,16 @@ contains
 
   ! ============================================================================
 
-  real(r8) function tree_sai( pft, dbh, canopy_trim, c_area, nplant, cl, &
+  real(r8) function tree_sai(pft, dbh, crowndamage, canopy_trim, c_area, nplant, cl, &
                               canopy_lai, treelai, vcmax25top, call_id )
 
     ! ============================================================================
     !  SAI of individual trees is a function of the LAI of individual trees
     ! ============================================================================
 
-    integer, intent(in)  :: pft                
-    real(r8), intent(in) :: dbh                
+    integer, intent(in)  :: pft
+    real(r8), intent(in) :: dbh
+    integer, intent(in)  :: crowndamage
     real(r8), intent(in) :: canopy_trim        ! trimming function (0-1)
     real(r8), intent(in) :: c_area             ! crown area (m2)
     real(r8), intent(in) :: nplant             ! number of plants
@@ -725,12 +761,13 @@ contains
     integer,intent(in)   :: call_id            ! flag specifying where this is called
                                                ! from
     real(r8)             :: h
-    real(r8)             :: target_bleaf
     real(r8)             :: target_lai
+    real(r8)             :: target_bleaf
 
-    call bleaf(dbh,pft,canopy_trim,target_bleaf)
-
-    target_lai = tree_lai( target_bleaf, pft, c_area, nplant, cl, canopy_lai, vcmax25top) 
+    call bleaf(dbh, pft, crowndamage, canopy_trim, target_bleaf)
+  
+    target_lai = tree_lai(target_bleaf, pft, c_area, nplant, cl,&
+         canopy_lai, vcmax25top) 
 
     tree_sai   =  prt_params%allom_sai_scaler(pft) * target_lai
 
@@ -741,18 +778,18 @@ contains
        write(fates_log(),*) 'The leaf and stem are predicted for a cohort, maxed out the array size'
        write(fates_log(),*) 'lai: ',treelai
        write(fates_log(),*) 'sai: ',tree_sai
-       write(fates_log(),*) 'target_lai: ',target_lai
        write(fates_log(),*) 'lai+sai: ',treelai+tree_sai
+       write(fates_log(),*) 'target_bleaf: ', target_bleaf
+       write(fates_log(),*) 'area: ', c_area
+       write(fates_log(),*) 'target_lai: ',target_lai
        write(fates_log(),*) 'dinc_vai:',dinc_vai
        write(fates_log(),*) 'nlevleaf,sum(dinc_vai):',nlevleaf,sum(dinc_vai)
        write(fates_log(),*) 'pft: ',pft
        write(fates_log(),*) 'call id: ',call_id
        write(fates_log(),*) 'n: ',nplant
-       write(fates_log(),*) 'c_area: ',c_area
        write(fates_log(),*) 'dbh: ',dbh,' dbh_max: ',prt_params%allom_dbh_maxheight(pft)
        write(fates_log(),*) 'h: ',h
        write(fates_log(),*) 'canopy_trim: ',canopy_trim
-       write(fates_log(),*) 'target_bleaf: ',target_bleaf
        write(fates_log(),*) 'canopy layer: ',cl
        write(fates_log(),*) 'canopy_tlai: ',canopy_lai(:)
        write(fates_log(),*) 'vcmax25top: ',vcmax25top
@@ -857,16 +894,20 @@ contains
   ! Generic sapwood biomass interface
   ! ============================================================================
 
-  subroutine bsap_allom(d,ipft,canopy_trim,sapw_area,bsap,dbsapdd)
+  subroutine bsap_allom(d,ipft,crowndamage,canopy_trim,sapw_area,bsap,dbsapdd)
+
+    use DamageMainMod , only : GetCrownReduction
+    use FatesParameterDerivedMod, only : param_derived
     
     real(r8),intent(in)           :: d           ! plant diameter [cm]
     integer(i4),intent(in)        :: ipft        ! PFT index
+    integer(i4),intent(in)        :: crowndamage ! Crown damage class [1: undamaged, >1: damaged]
     real(r8),intent(in)           :: canopy_trim
     real(r8),intent(out)          :: sapw_area   ! cross section area of
                                                  ! plant sapwood at reference [m2]
-    real(r8),intent(out)          :: bsap        ! plant leaf biomass [kgC]
-    real(r8),intent(out),optional :: dbsapdd     ! change leaf biomass
-                                                 !  per d [kgC/cm]
+    real(r8),intent(out)          :: bsap        ! sapwood biomass [kgC]
+    real(r8),intent(out),optional :: dbsapdd     ! change in sapwood biomass
+                                                 ! per d [kgC/cm]
 
     real(r8) :: h         ! Plant height [m]
     real(r8) :: dhdd
@@ -880,10 +921,18 @@ contains
                           ! than some specified proportion of woody biomass
                           ! should not trip, and only in small plants
 
+    real(r8) :: crown_reduction  ! amount that crown is damage by
+    real(r8) :: agb_frac         ! aboveground biomass fraction
+    real(r8) :: branch_frac      ! fraction of aboveground woody biomass in branches
+    
     ! Constrain sapwood so that its above ground portion be no larger than 
     ! X% of total woody/fibrous (ie non leaf/fineroot) tissues
     real(r8),parameter :: max_frac = 0.95_r8 
 
+    agb_frac = prt_params%allom_agb_frac(ipft)
+    branch_frac = param_derived%branch_frac(ipft)
+      
+    
     select case(int(prt_params%allom_smode(ipft)))
        ! ---------------------------------------------------------------------
        ! Currently only one sapwood allometry model. the slope
@@ -893,11 +942,23 @@ contains
             ! and slatop (no provisions for slamax)
 
        call h_allom(d,ipft,h,dhdd)
-       call bleaf(d,ipft,canopy_trim,bl,dbldd)
+       call bleaf(d,ipft,1,canopy_trim,bl,dbldd)
        call bsap_ltarg_slatop(d,h,dhdd,bl,dbldd,ipft,sapw_area,bsap,dbsapdd)
 
+       ! if trees are damaged reduce bsap by percent crown loss *
+       ! fraction of biomass that would be in branches (pft specific)
+       if(crowndamage > 1)then
+
+          call GetCrownReduction(crowndamage, crown_reduction)
+          bsap = bsap - (bsap * agb_frac *  branch_frac * crown_reduction)
+          if(present(dbsapdd))then
+             dbsapdd = dbsapdd - (dbsapdd * agb_frac * branch_frac * crown_reduction)
+          end if
+       end if
+       
+       
        ! Perform a capping/check on total woody biomass
-       call bagw_allom(d,ipft,bagw,dbagwdd)
+       call bagw_allom(d,ipft,crowndamage, bagw,dbagwdd)
        call bbgw_allom(d,ipft,bbgw,dbbgwdd)
        
        ! Force sapwood to be less than a maximum fraction of total biomass
@@ -939,7 +1000,8 @@ contains
     
     select case(int(prt_params%allom_cmode(ipft)))
     case(1) !"constant")
-       call bagw_allom(d,ipft,bagw,dbagwdd)
+       ! bbgw not affected by damage so use target allometry no damage
+       call bagw_allom(d,ipft,1, bagw,dbagwdd)
        call bbgw_const(d,bagw,dbagwdd,ipft,bbgw,dbbgwdd)
     case DEFAULT
        write(fates_log(),*) 'An undefined coarse root allometry was specified: ', &
@@ -954,18 +1016,22 @@ contains
   ! Fine root biomass allometry wrapper
   ! ============================================================================
   
-  subroutine bfineroot(d,ipft,canopy_trim,bfr,dbfrdd)
+  subroutine bfineroot(d,ipft,canopy_trim,l2fr,bfr,dbfrdd)
     
     ! -------------------------------------------------------------------------
     ! This subroutine calculates the actual target fineroot biomass
     ! based on functions that may or may not have prognostic properties. 
     ! -------------------------------------------------------------------------
     
-    real(r8),intent(in)    :: d              ! plant diameter [cm]
-    integer(i4),intent(in) :: ipft           ! PFT index
-    real(r8),intent(in)    :: canopy_trim    ! trimming function
-    real(r8),intent(out)   :: bfr            ! fine root biomass [kgC]
-    real(r8),intent(out),optional :: dbfrdd  ! change leaf bio per diameter [kgC/cm]
+    real(r8),intent(in)    :: d             ! plant diameter [cm]
+    integer(i4),intent(in) :: ipft          ! PFT index
+    real(r8),intent(in)    :: canopy_trim   ! trimming function
+    real(r8),intent(in)    :: l2fr          ! leaf to fineroot scaler
+                                            ! this is either a PFT parameter
+                                            ! constant (when no nutrient model)
+                                            ! or dynamic (with nutrient model)
+    real(r8),intent(out)   :: bfr           ! fine root biomass [kgC]
+    real(r8),intent(out),optional :: dbfrdd ! change leaf bio per diameter [kgC/cm]
     
     real(r8) :: blmax      ! maximum leaf biomss per allometry
     real(r8) :: dblmaxdd
@@ -977,18 +1043,20 @@ contains
     case(1) ! "constant proportionality with TRIMMED target bleaf"
        
        call blmax_allom(d,ipft,blmax,dblmaxdd)
-       call bfrmax_const(d,blmax,dblmaxdd,ipft,bfrmax,dbfrmaxdd)
-       bfr    = bfrmax * canopy_trim
+
+       bfr = blmax*l2fr*canopy_trim
+       
        if(present(dbfrdd))then
-          dbfrdd = dbfrmaxdd * canopy_trim
+          dbfrdd = dblmaxdd*l2fr * canopy_trim
+          
        end if
     case(2) ! "constant proportionality with UNTRIMMED target bleaf"
        
        call blmax_allom(d,ipft,blmax,dblmaxdd)
-       call bfrmax_const(d,blmax,dblmaxdd,ipft,bfrmax,dbfrmaxdd)
-       bfr    = bfrmax
+
+       bfr = blmax*l2fr
        if(present(dbfrdd))then
-          dbfrdd = dbfrmaxdd
+          dbfrdd = dblmaxdd*l2fr
        end if
 
     case DEFAULT 
@@ -1006,19 +1074,20 @@ contains
   ! Storage biomass interface
   ! ============================================================================
   
-  subroutine bstore_allom(d,ipft,canopy_trim,bstore,dbstoredd)
+  subroutine bstore_allom(d,ipft,crowndamage, canopy_trim,bstore,dbstoredd)
 
      real(r8),intent(in)           :: d            ! plant diameter [cm]
      integer(i4),intent(in)        :: ipft         ! PFT index
+     integer(i4),intent(in)        :: crowndamage  ! Crowndamage class [1: undamaged, >1: damaged]
      real(r8),intent(in)           :: canopy_trim  ! Crown trimming function [0-1]
      real(r8),intent(out)          :: bstore       ! allometric target storage [kgC]
      real(r8),intent(out),optional :: dbstoredd    ! change storage per cm [kgC/cm]
      
      real(r8) :: bl          ! Allometric target leaf biomass
      real(r8) :: dbldd       ! Allometric target change in leaf biomass per cm
+     real(r8) :: blmax       ! Allometric target leaf biomass (UNTRIMMED)
+     real(r8) :: dblmaxdd    ! Allometric target change in leaf biomass per cm (UNTRIMMED)
     
-     
-     ! TODO: allom_stmode needs to be added to the parameter file
      
      associate( allom_stmode => prt_params%allom_stmode(ipft), &
                 cushion      => prt_params%cushion(ipft) )
@@ -1027,9 +1096,14 @@ contains
        case(1) ! Storage is constant proportionality of trimmed maximum leaf
           ! biomass (ie cushion * bleaf)
           
-          call bleaf(d,ipft,canopy_trim,bl,dbldd)
+          call bleaf(d,ipft, crowndamage, canopy_trim, bl, dbldd)
           call bstore_blcushion(d,bl,dbldd,cushion,ipft,bstore,dbstoredd)
-          
+
+       case(2) ! Storage is constant proportionality of untrimmed maximum leaf
+          ! biomass (ie cushion * bleaf_max)
+          call blmax_allom(d,ipft,blmax,dblmaxdd)
+          call bstore_blcushion(d,blmax,dblmaxdd,cushion,ipft,bstore,dbstoredd)
+
        case DEFAULT 
           write(fates_log(),*) 'An undefined fine storage allometry was specified: ', &
                 allom_stmode
@@ -1099,32 +1173,6 @@ contains
     return
   end subroutine bdead_allom
 
-  ! ============================================================================
-  ! Specific bfrmax relationships
-  ! ============================================================================
-  
-  subroutine bfrmax_const(d,blmax,dblmaxdd,ipft,bfrmax,dbfrmaxdd)
-
-    
-    real(r8),intent(in)    :: d         ! plant diameter [cm]
-    real(r8),intent(in)    :: blmax     ! max leaf biomass [kgC]
-    real(r8),intent(in)    :: dblmaxdd  ! change in blmax per diam [kgC/cm]
-    integer(i4),intent(in) :: ipft      ! PFT index
-    real(r8),intent(out)   :: bfrmax    ! max fine-root root biomass [kgC]
-    real(r8),intent(out),optional :: dbfrmaxdd ! change frmax bio per diam [kgC/cm]
-    
-    associate( l2fr => prt_params%allom_l2fr(ipft) )
-      
-      bfrmax = blmax*l2fr
-      
-      ! dbfr/dd = dbfrmax/dblmax * dblmax/dd
-      if(present(dbfrmaxdd))then
-         dbfrmaxdd = dblmaxdd*l2fr
-      end if
-      
-    end associate
-    return
-  end subroutine bfrmax_const
 
   ! ============================================================================
   ! Specific bbgw relationships
@@ -2021,7 +2069,8 @@ contains
   ! =============================================================================
 
   
-  subroutine carea_2pwr(dbh,spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max,c_area,inverse)
+  subroutine carea_2pwr(dbh,spread,d2bl_p2,d2bl_ediff,d2ca_min, & 
+                       d2ca_max,crowndamage,c_area,inverse)
 
      ! ============================================================================
      ! Calculate area of ground covered by entire cohort. (m2)
@@ -2034,11 +2083,13 @@ contains
      real(r8),intent(in) :: d2bl_ediff  ! area difference factor in the diameter-bleaf allometry (exponent)
      real(r8),intent(in) :: d2ca_min    ! minimum diameter to crown area scaling factor
      real(r8),intent(in) :: d2ca_max    ! maximum diameter to crown area scaling factor
+     integer,intent(in)  :: crowndamage ! crowndamage class [1: undamaged, >1: damaged]
      real(r8),intent(inout) :: c_area   ! crown area for one plant [m2]
      logical,intent(in)  :: inverse     ! if true, calculate dbh from crown area rather than its reverse
      
      real(r8)            :: crown_area_to_dbh_exponent
      real(r8)            :: spreadterm  ! Effective 2bh to crown area scaling factor
+     real(r8)            :: crown_reduction
      
      ! default is to use the same exponent as the dbh to bleaf exponent so that per-plant 
      ! canopy depth remains invariant during growth, but allowed to vary via the 
@@ -2061,7 +2112,17 @@ contains
      
      if ( .not. inverse) then
         c_area = spreadterm * dbh ** crown_area_to_dbh_exponent
+
+        if(crowndamage > 1) then
+           call GetCrownReduction(crowndamage, crown_reduction)
+           c_area = c_area * (1.0_r8 - crown_reduction)
+        end if
+        
      else
+        if(crowndamage > 1) then
+           call GetCrownReduction(crowndamage, crown_reduction)
+           c_area = c_area/(1.0_r8 - crown_reduction)
+        end if
         dbh = (c_area / spreadterm) ** (1./crown_area_to_dbh_exponent)
      endif
      
@@ -2329,9 +2390,7 @@ contains
   end function decay_coeff_kn
 
   ! =====================================================================================
-
-
-  subroutine ForceDBH( ipft, canopy_trim, d, h, bdead, bl )
+subroutine ForceDBH( ipft, crowndamage, canopy_trim, d, h, bdead, bl )
 
      ! =========================================================================
      ! This subroutine estimates the diameter based on either the structural biomass
@@ -2341,18 +2400,18 @@ contains
      ! Here, we keep searching until the difference between actual structure and
      ! the predicted structure based on the searched diameter is within a tolerance.
      ! ============================================================================
-
-     use FatesConstantsMod     , only : calloc_abs_error
+  use FatesConstantsMod     , only : calloc_abs_error
      ! Arguments
 
 
      integer(i4),intent(in)        :: ipft  ! PFT index
+     integer(i4),intent(in)        :: crowndamage ! crowndamage [1: undamaged, >1: damaged]
      real(r8),intent(in)           :: canopy_trim
      real(r8),intent(inout)        :: d     ! plant diameter [cm]
      real(r8),intent(out)          :: h     ! plant height
      real(r8),intent(in),optional  :: bdead ! Structural biomass
      real(r8),intent(in),optional  :: bl    ! Leaf biomass
-
+   
      
      ! Locals
      real(r8)  :: bt_sap,dbt_sap_dd  ! target sap wood at current d
@@ -2371,6 +2430,7 @@ contains
      integer   :: counter 
      real(r8), parameter :: step_frac0  = 0.9_r8
      integer, parameter  :: max_counter = 200
+  
      
      ! Do reduce "if" calls, we break this call into two parts
      if ( prt_params%woody(ipft) == itrue ) then
@@ -2380,9 +2440,10 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
         
-        call bsap_allom(d,ipft,canopy_trim,at_sap,bt_sap,dbt_sap_dd)
-        call bagw_allom(d,ipft,bt_agw,dbt_agw_dd)
+        call bsap_allom(d,ipft,crowndamage, canopy_trim,at_sap,bt_sap,dbt_sap_dd)
+        call bagw_allom(d,ipft,crowndamage, bt_agw,dbt_agw_dd)
         call bbgw_allom(d,ipft,bt_bgw,dbt_bgw_dd)
+
         call bdead_allom(bt_agw,bt_bgw, bt_sap, ipft, bt_dead, dbt_agw_dd, &
              dbt_bgw_dd, dbt_sap_dd, dbt_dead_dd)
 
@@ -2397,13 +2458,15 @@ contains
            dd    = step_frac*(bdead-bt_dead)/dbt_dead_dd
            d_try = d + dd
         
-           call bsap_allom(d_try,ipft,canopy_trim,at_sap,bt_sap,dbt_sap_dd)
-           call bagw_allom(d_try,ipft,bt_agw,dbt_agw_dd)
-           call bbgw_allom(d_try,ipft,bt_bgw,dbt_bgw_dd)
+           call bsap_allom(d_try,ipft,crowndamage, canopy_trim,at_sap,bt_sap,dbt_sap_dd)
+           call bagw_allom(d_try,ipft,crowndamage,  bt_agw,dbt_agw_dd)
+           call bbgw_allom(d_try,ipft, bt_bgw,dbt_bgw_dd)
+
+
            call bdead_allom(bt_agw,bt_bgw, bt_sap, ipft, bt_dead_try, dbt_agw_dd, &
                 dbt_bgw_dd, dbt_sap_dd, dbt_dead_dd_try)
            
-           ! Prevent overshooting
+           ! Prevent overshooting   
            if(bt_dead_try > (bdead+calloc_abs_error)) then
               step_frac = step_frac*0.5_r8
            else
@@ -2427,7 +2490,7 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
 
-        call bleaf(d,ipft,canopy_trim,bt_leaf,dbt_leaf_dd)
+        call bleaf(d,ipft,crowndamage,canopy_trim,bt_leaf,dbt_leaf_dd)
 
         counter = 0
         step_frac = step_frac0
@@ -2436,7 +2499,7 @@ contains
            dd    = step_frac*(bl-bt_leaf)/dbt_leaf_dd
            d_try = d + dd
            
-           call bleaf(d_try,ipft,canopy_trim,bt_leaf_try,dbt_leaf_dd_try)
+           call bleaf(d_try,ipft,crowndamage,canopy_trim,bt_leaf_try,dbt_leaf_dd_try)
 
            ! Prevent overshooting                                                                                           
            if(bt_leaf_try > (bl+calloc_abs_error)) then
@@ -2457,7 +2520,6 @@ contains
      end if
 
      call h_allom(d,ipft,h)
-
      if(counter>20)then
         write(fates_log(),*) 'dbh counter: ',counter,' is woody: ',&
              (prt_params%woody(ipft) == itrue)
@@ -2515,4 +2577,6 @@ contains
     return
   end subroutine cspline
   
+
+
 end module FatesAllometryMod

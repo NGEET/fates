@@ -138,8 +138,10 @@ def main():
                     otherdimpresent = False
                 elif var.dimensions[i] in ['fates_history_age_bins','fates_history_size_bins', \
                                            'fates_history_coage_bins','fates_history_height_bins', \
+                                           'fates_history_damage_bins',
                                            'fates_NCWD','fates_litterclass','fates_leafage_class', \
-                                           'fates_prt_organs','fates_hydr_organs','fates_hlm_pftno']:
+                                           'fates_plant_organs','fates_hydr_organs','fates_hlm_pftno', \
+                                           'fates_leafage_class']:
                     otherdimpresent = True
                     otherdimname = var.dimensions[i]
                     otherdimlength = var.shape[i]

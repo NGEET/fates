@@ -42,6 +42,7 @@ module FatesPlantHydraulicsMod
   use FatesConstantsMod, only : cm3_per_m3
   use FatesConstantsMod, only : kg_per_g
   use FatesConstantsMod, only : fates_unset_r8
+  use FatesConstantsMod, only : nocomp_bareground
 
   use EDParamsMod       , only : hydr_kmax_rsurf1
   use EDParamsMod       , only : hydr_kmax_rsurf2
@@ -96,8 +97,6 @@ module FatesPlantHydraulicsMod
   use PRTGenericMod,          only : store_organ, repro_organ, struct_organ
   use PRTGenericMod,          only : num_elements
   use PRTGenericMod,          only : element_list
-
-  use clm_time_manager  , only : get_step_size, get_nstep
 
   use EDPftvarcon, only : EDPftvarcon_inst
   use PRTParametersMod, only : prt_params
@@ -925,12 +924,15 @@ contains
     integer  :: nlevrhiz                     ! number of rhizosphere levels
     real(r8) :: dbh                          ! the dbh of current cohort                                             [cm]   
     real(r8) :: z_fr                         ! rooting depth of a cohort                                             [cm]
-    
+    real(r8) :: v_leaf_donate(1:n_hypool_leaf)   ! the volume that leaf will donate to xylem     
+
     ! We allow the transporting root to donate a fraction of its volume to the absorbing
     ! roots to help mitigate numerical issues due to very small volumes. This is the
     ! fraction the transporting roots donate to those layers
     real(r8), parameter :: t2aroot_vol_donate_frac = 0.65_r8
-
+    real(r8), parameter :: l2sap_vol_donate_frac = 0.5_r8   ! Junyan added
+  
+    
     real(r8), parameter :: min_leaf_frac = 0.1_r8   ! Fraction of maximum leaf carbon that
     ! we set as our lower cap on leaf volume
     real(r8), parameter :: min_trim      = 0.1_r8   ! The lower cap on trimming function used
@@ -979,7 +981,8 @@ contains
     ! Get the target, or rather, maximum leaf carrying capacity of plant
     ! Lets also avoid super-low targets that have very low trimming functions
 
-    call bleaf(ccohort%dbh,ccohort%pft,max(ccohort%canopy_trim,min_trim),leaf_c_target)
+    call bleaf(ccohort%dbh,ccohort%pft,ccohort%crowndamage, &
+         max(ccohort%canopy_trim,min_trim),leaf_c_target)
 
     if( (ccohort%status_coh == leaves_on) .or. ccohort_hydr%is_newly_recruited ) then
        ccohort_hydr%v_ag(1:n_hypool_leaf) = max(leaf_c,min_leaf_frac*leaf_c_target) * &
@@ -994,7 +997,8 @@ contains
     ! v_stem       = c_stem_biom / (prt_params%wood_density(ft) * kg_per_g * cm3_per_m3 )
 
     ! calculate the sapwood cross-sectional area
-    call bsap_allom(ccohort%dbh,ccohort%pft,ccohort%canopy_trim,a_sapwood_target,sapw_c_target)
+    call bsap_allom(ccohort%dbh,ccohort%pft,ccohort%crowndamage, &
+         ccohort%canopy_trim,a_sapwood_target,sapw_c_target)
 
     ! uncomment this if you want to use
     ! the actual sapwood, which may be lower than target due to branchfall.
@@ -1007,8 +1011,16 @@ contains
     crown_depth  = min(ccohort%hite,0.1_r8)
     z_stem       = ccohort%hite - crown_depth
     v_sapwood    = a_sapwood * z_stem    ! + 0.333_r8*a_sapwood*crown_depth
-    ccohort_hydr%v_ag(n_hypool_leaf+1:n_hypool_ag) = v_sapwood / n_hypool_stem
 
+    ! Junyan changed the following code to calculate the above ground node volume
+    ! foliage donate half of its water volume to xylem for grass
+    if (prt_params%woody(ft)==1) then
+      ccohort_hydr%v_ag(n_hypool_leaf+1:n_hypool_ag) = v_sapwood / n_hypool_stem  ! original code
+    else
+      v_leaf_donate(1:n_hypool_leaf) = ccohort_hydr%v_ag(1:n_hypool_leaf) * l2sap_vol_donate_frac
+      ccohort_hydr%v_ag(1:n_hypool_leaf) = ccohort_hydr%v_ag(1:n_hypool_leaf) - v_leaf_donate(1:n_hypool_leaf)
+      ccohort_hydr%v_ag(n_hypool_leaf+1:n_hypool_ag) = (v_sapwood + sum(v_leaf_donate(1:n_hypool_leaf))) / n_hypool_stem
+    end if 
 
     ! Determine belowground biomass as a function of total (sapwood, heartwood,
     ! leaf, fine root) biomass then subtract out the fine root biomass to get
@@ -1094,7 +1106,6 @@ contains
     real(r8) :: th_uncorr                    ! Uncorrected water content
     real(r8), parameter :: small_theta_num = 1.e-7_r8  ! avoids theta values equalling thr or ths         [m3 m-3]
 
-    integer :: nstep !number of time steps
     !-----------------------------------------------------------------------
 
     ccohort_hydr => ccohort%co_hydr
@@ -1771,12 +1782,8 @@ end subroutine HydrSiteColdStart
   type(ed_site_hydr_type), pointer :: csite_hydr
   integer :: s
   real(r8) :: balive_patch
-  integer :: nstep !number of time steps
 
-  !for debug only
-  nstep = get_nstep()
-
-    bc_out%plant_stored_h2o_si = 0.0_r8
+  bc_out%plant_stored_h2o_si = 0.0_r8
 
   if( hlm_use_planthydro.eq.ifalse ) return
 
@@ -1857,7 +1864,6 @@ subroutine RecruitWUptake(nsites,sites,bc_in,dtime,recruitflag)
   type(ed_cohort_hydr_type), pointer :: ccohort_hydr
   type(ed_site_hydr_type), pointer :: csite_hydr
   integer :: s, j, ft
-  integer :: nstep !number of time steps
   real(r8) :: rootfr !fraction of root in different soil layer
   real(r8) :: recruitw !water for newly recruited cohorts (kg water/m2/s)
   real(r8) :: recruitw_total ! total water for newly recruited cohorts (kg water/m2/s)
@@ -2544,7 +2550,7 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
      ifp = 0
      cpatch => sites(s)%oldest_patch
      do while (associated(cpatch))
-        if(cpatch%nocomp_pft_label.ne.0)then
+        if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then
            ifp = ifp + 1
 
            ! ----------------------------------------------------------------------------
@@ -2748,6 +2754,7 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
         ccohort=>cpatch%tallest
         do while(associated(ccohort))
 
+           ccohort_hydr => ccohort%co_hydr
            sum_l_aroot = sum(ccohort_hydr%l_aroot_layer(:))
            ft = ccohort%pft 
            
@@ -2972,7 +2979,8 @@ subroutine UpdatePlantKmax(ccohort_hydr,ccohort,csite_hydr)
   pft   = ccohort%pft
 
   ! Get the cross-section of the plant's sapwood area [m2]
-  call bsap_allom(ccohort%dbh,pft,ccohort%canopy_trim,a_sapwood,c_sap_dummy)
+  call bsap_allom(ccohort%dbh,pft,ccohort%crowndamage, &
+       ccohort%canopy_trim,a_sapwood,c_sap_dummy)
 
   ! Leaf Maximum Hydraulic Conductance
   ! The starting hypothesis is that there is no resistance inside the
@@ -4856,8 +4864,6 @@ subroutine MatSolve2D(csite_hydr,cohort,cohort_hydr, &
    integer :: kshell            ! rhizosphere shell index, 1->nshell
 
    integer :: info
-   integer :: nstep             !number of time steps
-
 
    ! This is a convergence test.  This is the maximum difference
    ! allowed between the flux balance and the change in storage
@@ -4942,10 +4948,6 @@ subroutine MatSolve2D(csite_hydr,cohort,cohort_hydr, &
       h_node       => csite_hydr%h_node, &
       dftc_dpsi_node => csite_hydr%dftc_dpsi_node, &
       ft           => cohort%pft)
-
-
-   !for debug only
-   nstep = get_nstep()
 
 
    ! This NaN's the scratch arrays
@@ -5632,8 +5634,6 @@ subroutine PicardSolve2D(csite_hydr,cohort,cohort_hydr, &
   integer :: kshell            ! rhizosphere shell index, 1->nshell
 
   integer :: info
-  integer :: nstep             !number of time steps
-
 
   ! This is a convergence test.  This is the maximum difference
   ! allowed between the flux balance and the change in storage
@@ -5725,11 +5725,6 @@ subroutine PicardSolve2D(csite_hydr,cohort,cohort_hydr, &
        h_node       => csite_hydr%h_node, &
        dftc_dpsi_node => csite_hydr%dftc_dpsi_node, &
        ft           => cohort%pft)
-
-
-    !for debug only
-    nstep = get_nstep()
-
 
     ! This NaN's the scratch arrays
     call csite_hydr%FlushSiteScratch(hydr_solver)
