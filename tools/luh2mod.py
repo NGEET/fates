@@ -9,30 +9,40 @@ from nco.custom import Atted
 
 # Add version checking here in case environment.yml not used
 
-
-
-# Primary function to regrid luh2 data
-#
-# Prepare the
-def PrepDataSet(inputfile_luh2,inputfile_surface):
+# Prepare the inputfile to be used for regridding
+def PrepDataSet(inputfile,start,stop):
 
     # Import the data
-    ds_luh2 = ImportData(inputfile_luh2)
-    ds_surfdata = ImportData(inputfile_surface)
+    inputdataset = ImportData(inputfile)
+
+    # Truncate the data to the user defined range
+    try:
+        inputdataset = inputdataset.sel(time=slice(start,stop))
+    except TypeError as err:
+        print("TypeError:", err)
+        print("Input must be a string")
 
     # Correct the necessary variables for both datasets
-    ds_luh2 = BoundsVariableFixLUH2(ds_luh2)
-    ds_surfdata = DimensionFixSurfData(ds_surfdata)
+    PrepDataSet_ESMF(inputdataset)
 
     # Set dataset masks
-    ds_luh2 = SetMask(ds_luh2)
-    ds_surfdata = SetMask(ds_surfdata)
+    SetMask(inputdataset)
 
-    # Define the xESMF regridder if necessary
-    # regridder = RegridConservative(ds_luh2,ds_surfdata)
+    return(inputdataset)
 
-    # return(ds_luh2,ds_surfdata,regridder)
-    return(ds_luh2,ds_surfdata)
+# Updating datasets to work with xESMF
+def PrepDataSet_ESMF(inputdataset):
+
+    # Check the dataset type
+    dsflag, dstype = CheckDataSet(inputdataset)
+    if (dsflag):
+        if(dstype == "LUH2"):
+            BoundsVariableFixLUH2(inputdataset)
+        elif(dstype == "Surface"):
+            DimensionFixSurfData(inputdataset)
+        print("data set updated for xESMF")
+
+    return(inputdataset)
 
 # Import luh2 or surface data sets
 def ImportData(inputfile):
@@ -101,31 +111,31 @@ def AttribUpdateLUH2(inputfile,output_append="modified"):
 def BoundsVariableFixLUH2(inputdataset):
 
     # Drop the old boundary names to avoid confusion
-    outputdataset = inputdataset.drop(labels=['lat_bounds','lon_bounds'])
+    # outputdataset = inputdataset.drop(labels=['lat_bounds','lon_bounds'])
 
     # Create lat and lon bounds as a single dimension array out of the LUH2 two dimensional_bounds array.
     # Future todo: is it possible to have xESMF recognize and use the original 2D array?
-    outputdataset["lat_b"] = np.insert(inputdataset.lat_bounds[:,1].data,0,inputdataset.lat_bounds[0,0].data)
-    outputdataset["lon_b"] = np.insert(inputdataset.lon_bounds[:,1].data,0,inputdataset.lon_bounds[0,0].data)
+    inputdataset["lat_b"] = np.insert(inputdataset.lat_bounds[:,1].data,0,inputdataset.lat_bounds[0,0].data)
+    inputdataset["lon_b"] = np.insert(inputdataset.lon_bounds[:,1].data,0,inputdataset.lon_bounds[0,0].data)
 
     print("LUH2 dataset lat/lon boundary variables formatted and added as new variable for xESMF")
 
-    return(outputdataset)
+    return(inputdataset)
 
 # The user will need to use a surface data set to regrid from, but the surface datasets
 # need to have their dimensions renamed to something recognizable by xESMF
 def DimensionFixSurfData(surfdataset):
 
     # Rename the surface dataset dimensions to something recognizable by xESMF.
-    outputdataset = surfdataset.rename_dims(dims_dict={'lsmlat':'latitude','lsmlon':'longitude'})
+    inputdataset = surfdataset.rename_dims(dims_dict={'lsmlat':'latitude','lsmlon':'longitude'})
 
     # Populate the new surface dataset with the actual lat/lon values
-    outputdataset['longitude'] = outputdataset.LONGXY.isel(latitude=0)
-    outputdataset['latitude'] = outputdataset.LATIXY.isel(longitude=0)
+    inputdataset['longitude'] = outputdataset.LONGXY.isel(latitude=0)
+    inputdataset['latitude']  = outputdataset.LATIXY.isel(longitude=0)
 
     print("Surface dataset dimensions renamed for xESMF")
 
-    return(outputdataset)
+    return(inputdataset)
 
 def SetMask(inputdataset):
 

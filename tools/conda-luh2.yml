@@ -3,11 +3,8 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python
-  - xarray=0.19.0
-  - netcdf4
-  - scipy
-  - nco
-  - pynco
   - xesmf
+  # xarray which is autodownloaded as xesmf dependency, uses scipy, which needs netcdf4 to open datasets
+  - netcdf4
+  - pynco
 prefix: /home/glemieux/local/conda/miniconda3/envs/luh2
