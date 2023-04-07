@@ -80,6 +80,7 @@ module EDInitMod
   use PRTGenericMod,          only : SetState
   use FatesSizeAgeTypeIndicesMod,only : get_age_class_index
   use DamageMainMod,          only : undamaged_class
+  use FatesInterfaceTypesMod    , only : hlm_num_luh2_transitions
 
   ! CIME GLOBALS
   use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -523,6 +524,10 @@ contains
     real(r8) :: newparea
     real(r8) :: tota !check on area
     integer  :: is_first_patch
+    integer  :: n_luh_states
+    integer  :: luh_state_counter
+    real(r8) :: state_vector(n_landuse_cats)  ! [m2/m2]
+
 
     type(ed_site_type),  pointer :: sitep
     type(ed_patch_type), pointer :: newppft(:)
@@ -582,7 +587,25 @@ contains
              num_new_patches = 1
           end if !nocomp
 
+          ! read in luh state data to determine initial land use types
+          if (use_luh) then
+             call get_luh_statedata(bc_in(s), state_vector)
+             n_luh_states = 0
+             do i_lu = 1, hlm_num_luh2_transitions
+                if ( state_vector(i_lu) .gt. nearzero ) then
+                   n_luh_states = n_luh_states +1
+             end do
+
+             if (n_luh_states .eq. 0) then
+                write(fates_log(),*) 'error. n_luh_states .eq. 0.'
+                call endrun(msg=errMsg(sourcefile, __LINE__))
+             endif
+
+             num_new_patches = num_new_patches * n_luh_states
+          endif
+
           is_first_patch = itrue
+          luh_state_counter = 0
           do n = start_patch, num_new_patches
 
              ! set the PFT index for patches if in nocomp mode.

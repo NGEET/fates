@@ -23,6 +23,7 @@ module FatesLandUseChangeMod
   public :: get_landuse_transition_rates
   public :: init_luh2_fates_mapping
   public :: get_landusechange_rules
+  public :: get_luh_statedata
 
   ! module data
   integer :: max_luh2_types_per_fates_lu_type = 5
@@ -95,6 +96,8 @@ contains
 
   end subroutine get_landuse_transition_rates
 
+  !----------------------------------------------------------------------------------------------------
+
   subroutine init_luh2_fates_mapping
 
     ! initialize the character mapping of the LUH2 : FATES correspondance
@@ -118,6 +121,7 @@ contains
     
   end subroutine init_luh2_fates_mapping
 
+  !----------------------------------------------------------------------------------------------------
 
   subroutine get_landusechange_rules(clearing_matrix)
 
@@ -199,5 +203,38 @@ contains
     end select
 
   end subroutine get_landusechange_rules
+
+  !----------------------------------------------------------------------------------------------------
+
+  subroutine get_luh_statedata(bc_in, state_vector)
+
+    type(bc_in_type) , intent(in) :: bc_in
+    real(r8), intent(out) :: state_vector(n_landuse_cats)  ! [m2/m2]
+    real(r8) :: urban_fraction
+    integer  :: i_luh2_states
+    integer  :: ii
+
+    ! zero state vector
+    state_vector(:) = 0._r8
+
+    ! identify urban fraction so that it can be removed.
+    urban_fraction = 0._r8
+    do i_luh2_states = 1, hlm_num_luh2_states
+       if (bc_in%hlm_luh_state_names(i_luh2_states) .eq. 'urban') then
+          urban_fraction = bc_in%hlm_luh_states(i_luh2_states)
+    end do
+
+    ! loop over all states and add up the ones that correspond to a given fates land use type
+    do i_luh2_states = 1, hlm_num_luh2_states
+       state_name = bc_in%hlm_luh_state_names(i_luh2_states)
+       do ii = 1, max_luh2_types_per_fates_lu_type
+          if (state_name .eq. luh2_fates_luype_map(i_luh2_states, ii)) then
+             state_vector(i_luh2_states) = state_vector(i_luh2_states) + &
+                  bc_in%hlm_luh_states(i_luh2_states) / (1._r8 - urban_fraction)
+          end if
+       end do
+    end do
+
+  end subroutine get_luh_statedata
 
 end module FatesLandUseChangeMod
