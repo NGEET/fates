@@ -589,7 +589,7 @@ contains
           end if !nocomp
 
           ! read in luh state data to determine initial land use types
-          if (hlm_use_luh) then
+          if (hlm_use_luh .eq. itrue) then
              call get_luh_statedata(bc_in(s), state_vector)
              n_luh_states = 0
              do i_lu = 1, hlm_num_luh2_transitions

@@ -55,7 +55,7 @@ contains
     ! zero the transition matrix
     landuse_transition_matrix(:,:) = 0._r8
 
-    use_luh_if: if ( hlm_use_luh ) then
+    use_luh_if: if ( hlm_use_luh .eq. itrue ) then
        
        !!may need some logic here to ask whether or not ot perform land use cahnge on this timestep. current code occurs every day.
        
