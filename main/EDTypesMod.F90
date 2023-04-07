@@ -30,7 +30,6 @@ module EDTypesMod
   use EDParamsMod,           only : maxSWb, nclmax, nlevleaf
   use shr_log_mod,           only : errMsg => shr_log_errMsg
 
-  
   implicit none
   private               ! By default everything is private
   save

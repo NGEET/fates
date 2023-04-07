@@ -56,7 +56,6 @@ module EDMainMod
   use EDPhysiologyMod          , only : GenerateDamageAndLitterFluxes
   use FatesSoilBGCFluxMod      , only : FluxIntoLitterPools
   use FatesSoilBGCFluxMod      , only : EffluxIntoLitterPools
-  use EDCohortDynamicsMod      , only : UpdateCohortBioPhysRates
   use FatesSoilBGCFluxMod      , only : PrepNutrientAquisitionBCs
   use FatesSoilBGCFluxMod      , only : PrepCH4BCs
   use SFMainMod                , only : fire_model
@@ -636,7 +635,7 @@ contains
           ! mass in the different leaf age classes. Following growth
           ! and turnover, these proportions won't change again. This
           ! routine is also called following fusion
-          call UpdateCohortBioPhysRates(currentCohort)
+          call currentCohort%UpdateCohortBioPhysRates()
 
           ! This cohort has grown, it is no longer "new"
           currentCohort%isnew = .false.

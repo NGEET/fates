@@ -1,28 +1,35 @@
 module FatesCohortMod
 
-  use FatesConstantsMod,      only : r8 => fates_r8
-  use FatesConstantsMod,      only : fates_unset_int
-  use FatesConstantsMod,      only : ican_upper, ican_ustory
-  use EDParamsMod,            only : nlevleaf
-  use FatesGlobals,           only : endrun => fates_endrun
-  use FatesGlobals,           only : fates_log
-  use PRTGenericMod,          only : max_nleafage
-  use PRTGenericMod,          only : prt_vartypes
-  use PRTGenericMod,          only : prt_carbon_allom_hyp
-  use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
-  use PRTGenericMod,          only : leaf_organ, fnrt_organ, sapw_organ
-  use PRTGenericMod,          only : repro_organ, store_organ, struct_organ
-  use PRTGenericMod,          only : carbon12_element
-  use PRTParametersMod,       only : prt_params
-  use FatesHydraulicsMemMod,  only : ed_cohort_hydr_type
-  use FatesInterfaceTypesMod, only : hlm_parteh_mode
-  use FatesInterfaceTypesMod, only : hlm_use_sp
-  use FatesInterfaceTypesMod, only : nleafage
-  use FatesAllometryMod,      only : carea_allom, tree_lai, tree_sai
-  use PRTAllometricCarbonMod, only : ac_bc_inout_id_dbh, ac_bc_inout_id_netdc, &
-                                     ac_bc_in_id_cdamage, ac_bc_in_id_pft,     &
-                                     ac_bc_in_id_ctrim, ac_bc_in_id_lstat
-  use PRTAllometricCNPMod,    only : acnp_bc_in_id_pft, acnp_bc_in_id_ctrim,             &
+  use FatesConstantsMod,          only : r8 => fates_r8
+  use FatesConstantsMod,          only : fates_unset_int
+  use FatesConstantsMod,          only : ifalse, itrue
+  use FatesConstantsMod,          only : nearzero
+  use FatesConstantsMod,          only : ican_upper, ican_ustory
+  use EDParamsMod,                only : nlevleaf
+  use EDParamsMod,                only : nclmax
+  use FatesGlobals,               only : endrun => fates_endrun
+  use FatesGlobals,               only : fates_log
+  use PRTGenericMod,              only : max_nleafage
+  use PRTGenericMod,              only : prt_vartypes
+  use PRTGenericMod,              only : prt_carbon_allom_hyp
+  use PRTGenericMod,              only : prt_cnp_flex_allom_hyp
+  use PRTGenericMod,              only : leaf_organ, fnrt_organ, sapw_organ
+  use PRTGenericMod,              only : repro_organ, store_organ, struct_organ
+  use PRTGenericMod,              only : carbon12_element
+  use PRTParametersMod,           only : prt_params
+  use FatesParameterDerivedMod,   only : param_derived
+  use FatesHydraulicsMemMod,      only : ed_cohort_hydr_type
+  use FatesInterfaceTypesMod,     only : hlm_parteh_mode
+  use FatesInterfaceTypesMod,     only : hlm_use_sp
+  use FatesInterfaceTypesMod,     only : nleafage
+  use EDPftvarcon,                only : EDPftvarcon_inst
+  use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
+  use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
+  use FatesAllometryMod,          only : carea_allom, tree_lai, tree_sai
+  use PRTAllometricCarbonMod,     only : ac_bc_inout_id_dbh, ac_bc_inout_id_netdc, &
+                                       ac_bc_in_id_cdamage, ac_bc_in_id_pft,       &
+                                       ac_bc_in_id_ctrim, ac_bc_in_id_lstat
+  use PRTAllometricCNPMod,        only : acnp_bc_in_id_pft, acnp_bc_in_id_ctrim,         &
                                      acnp_bc_in_id_lstat, acnp_bc_in_id_netdc,           &
                                      acnp_bc_in_id_netdc, acnp_bc_in_id_nc_repro,        &
                                      acnp_bc_in_id_pc_repro, acnp_bc_in_id_cdamage,      &
@@ -33,8 +40,8 @@ module FatesCohortMod
                                      acnp_bc_out_id_cefflux, acnp_bc_out_id_nefflux,     &
                                      acnp_bc_out_id_pefflux, acnp_bc_out_id_limiter
 
-  use shr_infnan_mod,         only : nan => shr_infnan_nan, assignment(=)
-  use shr_log_mod,            only : errMsg => shr_log_errMsg
+  use shr_infnan_mod,             only : nan => shr_infnan_nan, assignment(=)
+  use shr_log_mod,                only : errMsg => shr_log_errMsg
 
   implicit none
   private
@@ -563,13 +570,13 @@ module FatesCohortMod
       ! dynamic.  In both cases, new cohorts are initialized with the minimum. 
       ! This works in the nutrient enabled case because cohorts are also 
       ! initialized with full stores, which match with minimum fineroot biomass
-      new_cohort%l2fr = prt_params%allom_l2fr(pft)
+      this%l2fr = prt_params%allom_l2fr(pft)
 
       if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-        new_cohort%cx_int      = 0._r8  ! Assume balanced N,P/C stores ie log(1) = 0
-        new_cohort%cx0         = 0._r8  ! Assume balanced N,P/C stores ie log(1) = 0
-        new_cohort%ema_dcxdt   = 0._r8  ! Assume unchanged dCX/dt
-        new_cohort%cnp_limiter = 0      ! Assume limitations are unknown
+        this%cx_int      = 0._r8  ! Assume balanced N,P/C stores ie log(1) = 0
+        this%cx0         = 0._r8  ! Assume balanced N,P/C stores ie log(1) = 0
+        this%ema_dcxdt   = 0._r8  ! Assume unchanged dCX/dt
+        this%cnp_limiter = 0      ! Assume limitations are unknown
       end if
 
       ! This sets things like vcmax25top, that depend on the leaf age fractions 
@@ -719,7 +726,7 @@ module FatesCohortMod
       ! We assume that leaf age does not effect the specific leaf area, so the mass
       ! fractions are applicable to these rates
 
-      ipft = currentCohort%pft
+      ipft = this%pft
 
       if (sum(frac_leaf_aclass(1:nleafage)) > nearzero .and.                   &
         hlm_use_sp .eq. ifalse) then

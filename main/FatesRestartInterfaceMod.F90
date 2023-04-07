@@ -24,7 +24,6 @@ module FatesRestartInterfaceMod
   use FatesInterfaceTypesMod,       only : hlm_use_nocomp, hlm_use_fixed_biogeog
   use FatesInterfaceTypesMod,       only : fates_maxElementsPerSite
   use FatesInterfaceTypesMod, only : hlm_use_tree_damage
-  use EDCohortDynamicsMod,     only : UpdateCohortBioPhysRates
   use FatesHydraulicsMemMod,   only : nshell
   use FatesHydraulicsMemMod,   only : n_hypool_ag
   use FatesHydraulicsMemMod,   only : n_hypool_troot
@@ -3063,7 +3062,7 @@ contains
                 ccohort%isnew        = ( rio_isnew_co(io_idx_co) .eq. new_cohort )
 
                 call ccohort%InitPRTBoundaryConditions()
-                call UpdateCohortBioPhysRates(ccohort)
+                call ccohort%UpdateCohortBioPhysRates()
 
                 ! Initialize Plant Hydraulics
 

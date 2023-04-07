@@ -125,7 +125,6 @@ Module EDCohortDynamicsMod
   public :: count_cohorts
   public :: InitPRTObject
   public :: SendCohortToLitter
-  public :: UpdateCohortBioPhysRates
   public :: DeallocateCohort
   public :: EvaluateAndCorrectDBH
   public :: DamageRecovery
@@ -204,7 +203,7 @@ integer  :: nlevrhiz                       ! number of rhizosphere layers
 
 ! create new cohort
 allocate(new_cohort)
-call new_cohort%create(pft, prt, nn, hite, coage, dbh, status, ctrim, carea,   &
+call new_cohort%create(prt, pft, nn, hite, coage, dbh, status, ctrim, carea,   &
    clayer, crowndamage, spread, patchptr%canopy_layer_tlai)
 
 ! Put cohort at the right place in the linked list
@@ -891,7 +890,7 @@ end subroutine create_cohort
 
                                    ! Leaf biophysical rates (use leaf mass weighting)
                                    ! -----------------------------------------------------------------
-                                   call UpdateCohortBioPhysRates(currentCohort)
+                                   call currentCohort%UpdateCohortBioPhysRates()
                                    
                                    currentCohort%l2fr = (currentCohort%n*currentCohort%l2fr &
                                         + nextc%n*nextc%l2fr)/newn
@@ -1657,81 +1656,6 @@ end subroutine create_cohort
   end subroutine count_cohorts
 
   ! ===================================================================================
-
-  subroutine UpdateCohortBioPhysRates(currentCohort)
-
-       ! --------------------------------------------------------------------------------
-       ! This routine updates the four key biophysical rates of leaves
-       ! based on the changes in a cohort's leaf age proportions
-       !
-       ! This should be called after growth.  Growth occurs
-       ! after turnover and damage states are applied to the tree.
-       ! Therefore, following growth, the leaf mass fractions
-       ! of different age classes are unchanged until the next day.
-       ! --------------------------------------------------------------------------------
-
-       type(fates_cohort_type),intent(inout) :: currentCohort
-
-
-       real(r8) :: frac_leaf_aclass(max_nleafage)  ! Fraction of leaves in each age-class
-       integer  :: iage                            ! loop index for leaf ages
-       integer  :: ipft                            ! plant functional type index
-
-       ! First, calculate the fraction of leaves in each age class
-       ! It is assumed that each class has the same proportion
-       ! across leaf layers
-
-       do iage = 1, nleafage
-          frac_leaf_aclass(iage) = &
-                currentCohort%prt%GetState(leaf_organ, carbon12_element,iage)
-       end do
-
-       ! If there are leaves, then perform proportional weighting on the four rates
-       ! We assume that leaf age does not effect the specific leaf area, so the mass
-       ! fractions are applicable to these rates
-
-       ipft = currentCohort%pft
-
-       if(sum(frac_leaf_aclass(1:nleafage))>nearzero .and. hlm_use_sp .eq. ifalse) then
-
-
-          frac_leaf_aclass(1:nleafage) =  frac_leaf_aclass(1:nleafage) / &
-                sum(frac_leaf_aclass(1:nleafage))
-
-          currentCohort%vcmax25top = sum(EDPftvarcon_inst%vcmax25top(ipft,1:nleafage) * &
-                frac_leaf_aclass(1:nleafage))
-
-          currentCohort%jmax25top  = sum(param_derived%jmax25top(ipft,1:nleafage) * &
-                frac_leaf_aclass(1:nleafage))
-
-          currentCohort%tpu25top   = sum(param_derived%tpu25top(ipft,1:nleafage) * &
-                frac_leaf_aclass(1:nleafage))
-
-          currentCohort%kp25top    = sum(param_derived%kp25top(ipft,1:nleafage) * &
-                frac_leaf_aclass(1:nleafage))
-
-       elseif (hlm_use_sp .eq. itrue) then
-         
-          currentCohort%vcmax25top = EDPftvarcon_inst%vcmax25top(ipft,1)
-          currentCohort%jmax25top  = param_derived%jmax25top(ipft,1)
-          currentCohort%tpu25top   = param_derived%tpu25top(ipft,1)
-          currentCohort%kp25top    = param_derived%kp25top(ipft,1)
-       
-       else
-
-          currentCohort%vcmax25top = 0._r8
-          currentCohort%jmax25top  = 0._r8
-          currentCohort%tpu25top   = 0._r8
-          currentCohort%kp25top    = 0._r8
-
-       end if
-
-
-       return
-    end subroutine UpdateCohortBioPhysRates
-
-
-  ! ============================================================================
 
 
   subroutine EvaluateAndCorrectDBH(currentCohort,delta_dbh,delta_hite)
