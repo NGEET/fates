@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import re
+import argparse, os, re
 import numpy as np
 import xarray as xr
 import xesmf as xe
@@ -9,6 +9,38 @@ from nco.custom import Atted
 
 # Add version checking here in case environment.yml not used
 
+def main():
+
+    # Add argument parser - subfunction? Seperate common module?
+    # inputfiles and range should be the only arguments
+    # Allow variable input files (state and/or transitions and/or management)
+    # parser = argparse.ArgumentParser()
+    # args = parser.parse_args()
+
+    # Prep the LUH2 data
+    ds_luh2 = PrepDataSet(args.luh2file,args.start,args.stop)
+
+    # Prep the regrid target (assuming surface dataset)
+    ds_regridtarget= PrepDataSet(args.regridtargetfile,args.start,args.stop)
+
+    # Build regridder
+    regridder = xe.Regridder(ds_luh2, ds_regridtarget, "conservative")
+
+    # Regrid the dataset(s)
+    regrid_luh2 = regridder(ds_states)
+
+    # Rename the dimensions for the output
+    regrid_luh2 = regrid_luh2.rename_dims(dims_dict={'latitude':'lsmlat','longitude':'lsmlon'})
+    regrid_luh2["LONGXY"] = ds_regridtarget["LONGXY"]
+    regrid_luh2["LATIXY"] = ds_regridtarget["LATIXY"]
+
+    # Write the files
+    outputfile = os.path.join()
+    regrid_luh2.to_netcdf(outputfile)
+
+# write to netcdf
+finb_luh2_all_regrid.to_netcdf('LUH2_historical_1850_2015_4x5_cdk_220302.nc')
+
 # Prepare the inputfile to be used for regridding
 def PrepDataSet(inputfile,start,stop):
 
@@ -16,6 +48,8 @@ def PrepDataSet(inputfile,start,stop):
     inputdataset = ImportData(inputfile)
 
     # Truncate the data to the user defined range
+    # This might need some more error handling for when
+    # the start/stop is out of range
     try:
         inputdataset = inputdataset.sel(time=slice(start,stop))
     except TypeError as err:
@@ -183,11 +217,11 @@ def SetMaskSurfData(inputdataset):
     # return(outputdataset)
     return(inputdataset)
 
-def RegridConservative(dataset_from,dataset_to):
+# def RegridConservative(dataset_from,dataset_to):
     # define the regridder transformation
-    regridder = xe.Regridder(dataset_from, dataset_to, "conservative")
+    # regridder = xe.Regridder(dataset_from, dataset_to, "conservative")
 
-    return(regridder)
+    # return(regridder)
 
 
     # Apply regridder
