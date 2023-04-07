@@ -277,7 +277,7 @@ contains
                                bc_in%hlm_harvest_rates, &
                                bc_in%hlm_harvest_catnames, &
                                bc_in%hlm_harvest_units, &
-                               currentCohort%patchptr%anthro_disturbance_label, &
+                               currentCohort%patchptr%land_use_label, &
                                currentCohort%patchptr%age_since_anthro_disturbance, &
                                frac_site_primary, harvestable_forest_c, harvest_tag)
 

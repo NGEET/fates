@@ -433,7 +433,7 @@ module EDTypesMod
      real(r8) ::  area                                             ! patch area: m2  
      integer  ::  countcohorts                                     ! Number of cohorts in patch
      integer  ::  ncl_p                                            ! Number of occupied canopy layers
-     integer  ::  anthro_disturbance_label                         ! patch label for anthropogenic disturbance classification
+     integer  ::  land_use_label                                   ! patch label for land use classification (primarylands, secondarylands, etc)
      real(r8) ::  age_since_anthro_disturbance                     ! average age for secondary forest since last anthropogenic disturbance
 
 
@@ -1102,7 +1102,7 @@ module EDTypesMod
      write(fates_log(),*) 'pa%c_stomata          = ',cpatch%c_stomata
      write(fates_log(),*) 'pa%c_lblayer          = ',cpatch%c_lblayer
      write(fates_log(),*) 'pa%disturbance_rates  = ',cpatch%disturbance_rates(:)
-     write(fates_log(),*) 'pa%anthro_disturbance_label = ',cpatch%anthro_disturbance_label
+     write(fates_log(),*) 'pa%land_use_label     = ',cpatch%land_use_label
      write(fates_log(),*) '----------------------------------------'
      do el = 1,num_elements
         write(fates_log(),*) 'element id: ',element_list(el)

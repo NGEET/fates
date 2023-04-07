@@ -8,7 +8,7 @@ module FatesRestartInterfaceMod
   use FatesConstantsMod,       only : itrue
   use FatesConstantsMod,       only : ifalse
   use FatesConstantsMod,       only : fates_unset_r8, fates_unset_int
-  use FatesConstantsMod,       only : primaryforest
+  use FatesConstantsMod,       only : primarylands
   use FatesConstantsMod,       only : nearzero
   use FatesGlobals,            only : fates_log
   use FatesGlobals,            only : endrun => fates_endrun
@@ -2224,7 +2224,7 @@ contains
              !
              rio_livegrass_pa(io_idx_co_1st)   = cpatch%livegrass
              rio_age_pa(io_idx_co_1st)         = cpatch%age
-             rio_patchdistturbcat_pa(io_idx_co_1st)   = cpatch%anthro_disturbance_label
+             rio_patchdistturbcat_pa(io_idx_co_1st)   = cpatch%land_use_label
              rio_agesinceanthrodist_pa(io_idx_co_1st) = cpatch%age_since_anthro_disturbance
              rio_nocomp_pft_label_pa(io_idx_co_1st)= cpatch%nocomp_pft_label
              rio_area_pa(io_idx_co_1st)        = cpatch%area
@@ -2586,7 +2586,7 @@ contains
              nocomp_pft = fates_unset_int
              ! the nocomp_pft label is set after patch creation has occured in 'get_restart_vectors'
              ! make new patch
-             call create_patch(sites(s), newp, fates_unset_r8, fates_unset_r8, primaryforest, nocomp_pft )
+             call create_patch(sites(s), newp, fates_unset_r8, fates_unset_r8, primarylands, nocomp_pft )
 
              ! Initialize the litter pools to zero, these
              ! pools will be populated by looping over the existing patches
@@ -3112,7 +3112,7 @@ contains
              !
              cpatch%livegrass          = rio_livegrass_pa(io_idx_co_1st)
              cpatch%age                = rio_age_pa(io_idx_co_1st)
-             cpatch%anthro_disturbance_label       = rio_patchdistturbcat_pa(io_idx_co_1st)
+             cpatch%land_use_label       = rio_patchdistturbcat_pa(io_idx_co_1st)
              cpatch%age_since_anthro_disturbance   = rio_agesinceanthrodist_pa(io_idx_co_1st)
              cpatch%nocomp_pft_label               = rio_nocomp_pft_label_pa(io_idx_co_1st)
              cpatch%area               = rio_area_pa(io_idx_co_1st)

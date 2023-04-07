@@ -62,7 +62,7 @@ module EDLoggingMortalityMod
    use PRTGenericMod     , only : sapw_organ, struct_organ, leaf_organ
    use PRTGenericMod     , only : fnrt_organ, store_organ, repro_organ
    use FatesAllometryMod , only : set_root_fraction
-   use FatesConstantsMod , only : primaryforest, secondaryforest, secondary_age_threshold
+   use FatesConstantsMod , only : primarylands, secondarylands, secondary_age_threshold
    use FatesConstantsMod , only : fates_tiny
    use FatesConstantsMod , only : months_per_year, days_per_sec, years_per_day, g_per_kg
    use FatesConstantsMod , only : hlm_harvest_area_fraction
@@ -198,7 +198,7 @@ contains
                                      lmort_collateral,lmort_infra, l_degrad, &
                                      hlm_harvest_rates, hlm_harvest_catnames, &
                                      hlm_harvest_units, &
-                                     patch_anthro_disturbance_label, secondary_age, &
+                                     patch_land_use_label, secondary_age, &
                                      frac_site_primary, harvestable_forest_c, &
                                      harvest_tag)
 
@@ -209,7 +209,7 @@ contains
       real(r8), intent(in) :: hlm_harvest_rates(:) ! annual harvest rate per hlm category
       character(len=64), intent(in) :: hlm_harvest_catnames(:) ! names of hlm harvest categories
       integer, intent(in) :: hlm_harvest_units     ! unit type of hlm harvest rates: [area vs. mass]
-      integer, intent(in) :: patch_anthro_disturbance_label    ! patch level anthro_disturbance_label
+      integer, intent(in) :: patch_land_use_label    ! patch level land_use_label
       real(r8), intent(in) :: secondary_age     ! patch level age_since_anthro_disturbance
       real(r8), intent(in) :: harvestable_forest_c(:)  ! total harvestable forest carbon 
                                                        ! of all hlm harvest categories
@@ -264,7 +264,7 @@ contains
             ! HARVEST_SH3 = harvest from secondary non-forest (assume this is young for biomass)
 
             ! Get the area-based harvest rates based on info passed to FATES from the boundary condition
-            call get_harvest_rate_area (patch_anthro_disturbance_label, hlm_harvest_catnames, &
+            call get_harvest_rate_area (patch_land_use_label, hlm_harvest_catnames, &
                  hlm_harvest_rates, frac_site_primary, secondary_age, harvest_rate)
 
             ! For area-based harvest, harvest_tag shall always be 2 (not applicable).
@@ -279,7 +279,7 @@ contains
             ! 2=use carbon from hlm
             ! shall call another subroutine, which transfers biomass/carbon into fraction
 
-            call get_harvest_rate_carbon (patch_anthro_disturbance_label, hlm_harvest_catnames, &
+            call get_harvest_rate_carbon (patch_land_use_label, hlm_harvest_catnames, &
                   hlm_harvest_rates, secondary_age, harvestable_forest_c, &
                   harvest_rate, harvest_tag, cur_harvest_tag)
 
@@ -347,7 +347,7 @@ contains
 
    ! ============================================================================
 
-   subroutine get_harvest_rate_area (patch_anthro_disturbance_label, hlm_harvest_catnames, hlm_harvest_rates, &
+   subroutine get_harvest_rate_area (patch_land_use_label, hlm_harvest_catnames, hlm_harvest_rates, &
                  frac_site_primary, secondary_age, harvest_rate)
 
 
@@ -360,7 +360,7 @@ contains
       ! Arguments
       real(r8), intent(in) :: hlm_harvest_rates(:) ! annual harvest rate per hlm category
       character(len=64), intent(in) :: hlm_harvest_catnames(:) ! names of hlm harvest categories
-      integer, intent(in) :: patch_anthro_disturbance_label    ! patch level anthro_disturbance_label
+      integer, intent(in) :: patch_land_use_label    ! patch level land_use_label
       real(r8), intent(in) :: secondary_age     ! patch level age_since_anthro_disturbance
       real(r8), intent(in) :: frac_site_primary
       real(r8), intent(out) :: harvest_rate
@@ -373,17 +373,17 @@ contains
      ! We do account forest only since non-forest harvest has geographical mismatch to LUH2 dataset
      harvest_rate = 0._r8
      do h_index = 1,hlm_num_lu_harvest_cats
-        if (patch_anthro_disturbance_label .eq. primaryforest) then
+        if (patch_land_use_label .eq. primarylands) then
            if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1"  .or. &
                 hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2") then
               harvest_rate = harvest_rate + hlm_harvest_rates(h_index)
            endif
-        else if (patch_anthro_disturbance_label .eq. secondaryforest .and. &
+        else if (patch_land_use_label .eq. secondarylands .and. &
              secondary_age >= secondary_age_threshold) then
            if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1") then
               harvest_rate = harvest_rate + hlm_harvest_rates(h_index)
            endif
-        else if (patch_anthro_disturbance_label .eq. secondaryforest .and. &
+        else if (patch_land_use_label .eq. secondarylands .and. &
              secondary_age < secondary_age_threshold) then
            if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2" .or. &
                 hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3") then
@@ -395,7 +395,7 @@ contains
      !  Normalize by site-level primary or secondary forest fraction
      !  since harvest_rate is specified as a fraction of the gridcell
      !  also need to put a cap so as not to harvest more primary or secondary area than there is in a gridcell
-     if (patch_anthro_disturbance_label .eq. primaryforest) then
+     if (patch_land_use_label .eq. primarylands) then
         if (frac_site_primary .gt. fates_tiny) then
            harvest_rate = min((harvest_rate / frac_site_primary),frac_site_primary)
         else
@@ -510,18 +510,18 @@ contains
         ! since we have not separated forest vs. non-forest
         ! all carbon belongs to the forest categories
         do h_index = 1,hlm_num_lu_harvest_cats
-           if (currentPatch%anthro_disturbance_label .eq. primaryforest) then
+           if (currentPatch%land_use_label .eq. primarylands) then
               ! Primary
               if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1") then
                  harvestable_forest_c(h_index) = harvestable_forest_c(h_index) + harvestable_patch_c
               end if
-           else if (currentPatch%anthro_disturbance_label .eq. secondaryforest .and. &
+           else if (currentPatch%land_use_label .eq. secondarylands .and. &
                 currentPatch%age_since_anthro_disturbance >= secondary_age_threshold) then
               ! Secondary mature
               if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1") then
                  harvestable_forest_c(h_index) = harvestable_forest_c(h_index) + harvestable_patch_c
               end if
-           else if (currentPatch%anthro_disturbance_label .eq. secondaryforest .and. &
+           else if (currentPatch%land_use_label .eq. secondarylands .and. &
                 currentPatch%age_since_anthro_disturbance < secondary_age_threshold) then
               ! Secondary young
               if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2") then
@@ -536,7 +536,7 @@ contains
 
    ! ============================================================================
 
-   subroutine get_harvest_rate_carbon (patch_anthro_disturbance_label, hlm_harvest_catnames, &
+   subroutine get_harvest_rate_carbon (patch_land_use_label, hlm_harvest_catnames, &
                  hlm_harvest_rates, secondary_age, harvestable_forest_c, &
                  harvest_rate, harvest_tag, cur_harvest_tag)
 
@@ -549,7 +549,7 @@ contains
       ! Arguments
       real(r8), intent(in) :: hlm_harvest_rates(:) ! annual harvest rate per hlm category
       character(len=64), intent(in) :: hlm_harvest_catnames(:) ! names of hlm harvest categories
-      integer, intent(in) :: patch_anthro_disturbance_label    ! patch level anthro_disturbance_label
+      integer, intent(in) :: patch_land_use_label    ! patch level land_use_label
       real(r8), intent(in) :: secondary_age     ! patch level age_since_anthro_disturbance
       real(r8), intent(in) :: harvestable_forest_c(:)  ! site level forest c matching criteria available for harvest, kgC site-1
       real(r8), intent(out) :: harvest_rate      ! area fraction
@@ -583,17 +583,17 @@ contains
      ! mature and secondary young).
      ! Get the harvest rate from HLM
      do h_index = 1,hlm_num_lu_harvest_cats
-        if (patch_anthro_disturbance_label .eq. primaryforest) then
+        if (patch_land_use_label .eq. primarylands) then
            if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1"  .or. &
                 hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2") then
               harvest_rate_c = harvest_rate_c + hlm_harvest_rates(h_index)
            endif
-        else if (patch_anthro_disturbance_label .eq. secondaryforest .and. &
+        else if (patch_land_use_label .eq. secondarylands .and. &
              secondary_age >= secondary_age_threshold) then
            if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1") then
               harvest_rate_c = harvest_rate_c + hlm_harvest_rates(h_index)
            endif
-        else if (patch_anthro_disturbance_label .eq. secondaryforest .and. &
+        else if (patch_land_use_label .eq. secondarylands .and. &
              secondary_age < secondary_age_threshold) then
            if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2" .or. &
                 hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3") then
@@ -605,7 +605,7 @@ contains
      ! Determine harvest status (succesful or not)
      ! Here only three categories are used
      do h_index = 1,hlm_num_lu_harvest_cats
-        if (patch_anthro_disturbance_label .eq. primaryforest) then
+        if (patch_land_use_label .eq. primarylands) then
            if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1" ) then
               if(harvestable_forest_c(h_index) >= harvest_rate_c) then
                  harvest_rate_supply = harvest_rate_supply + harvestable_forest_c(h_index)
@@ -614,7 +614,7 @@ contains
                  harvest_tag(h_index) = 1
               end if
            end if
-        else if (patch_anthro_disturbance_label .eq. secondaryforest .and. &
+        else if (patch_land_use_label .eq. secondarylands .and. &
               secondary_age >= secondary_age_threshold) then
            if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1" ) then
               if(harvestable_forest_c(h_index) >= harvest_rate_c) then
@@ -624,7 +624,7 @@ contains
                  harvest_tag(h_index) = 1
               end if
            end if
-        else if (patch_anthro_disturbance_label .eq. secondaryforest .and. &
+        else if (patch_land_use_label .eq. secondarylands .and. &
               secondary_age < secondary_age_threshold) then
            if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2" ) then
                if(harvestable_forest_c(h_index) >= harvest_rate_c) then

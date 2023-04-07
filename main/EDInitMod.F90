@@ -8,7 +8,7 @@ module EDInitMod
   use FatesConstantsMod         , only : ifalse
   use FatesConstantsMod         , only : itrue
   use FatesConstantsMod         , only : fates_unset_int
-  use FatesConstantsMod         , only : primaryforest
+  use FatesConstantsMod         , only : primarylands
   use FatesConstantsMod   , only : nearzero
   use FatesGlobals              , only : endrun => fates_endrun
   use EDTypesMod                , only : nclmax

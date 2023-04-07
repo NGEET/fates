@@ -245,7 +245,7 @@ contains
                 bc_in%hlm_harvest_rates, &
                 bc_in%hlm_harvest_catnames, &
                 bc_in%hlm_harvest_units, &
-                currentPatch%anthro_disturbance_label, &
+                currentPatch%land_use_label, &
                 currentPatch%age_since_anthro_disturbance, &
                 frac_site_primary, &
                 harvestable_forest_c, &
@@ -270,8 +270,8 @@ contains
     current_fates_landuse_state_vector(:) = 0._r8
     currentPatch => site_in%oldest_patch
     do while (associated(currentPatch))
-       current_fates_landuse_state_vector(currentPatch%labelanthro_disturbance_label) = &
-            current_fates_landuse_state_vector(currentPatch%labelanthro_disturbance_label) + &
+       current_fates_landuse_state_vector(currentPatch%land_use_label) = &
+            current_fates_landuse_state_vector(currentPatch%land_use_label) + &
             currentPatch%area/AREA
        currentPatch => currentPatch%younger
     end do
@@ -307,8 +307,8 @@ contains
        dist_rate_ldist_notharvested = 0.0_r8
        
        currentPatch%landuse_transition_rates(1:n_landuse_cats) = min(1._r8, &
-            landuse_transition_matrix(currentPatch%anthro_disturbance_label,1:n_landuse_cats) / &
-            current_fates_landuse_state_vector(currentPatch%labelanthro_disturbance_label))
+            landuse_transition_matrix(currentPatch%land_use_label,1:n_landuse_cats) / &
+            current_fates_landuse_state_vector(currentPatch%land_use_label))
        
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort))   
@@ -350,11 +350,11 @@ contains
           ! The canopy is NOT closed. 
 
           if(bc_in%hlm_harvest_units == hlm_harvest_carbon) then
-             call get_harvest_rate_carbon (currentPatch%anthro_disturbance_label, bc_in%hlm_harvest_catnames, &
+             call get_harvest_rate_carbon (currentPatch%land_use_label, bc_in%hlm_harvest_catnames, &
                    bc_in%hlm_harvest_rates, currentPatch%age_since_anthro_disturbance, harvestable_forest_c, &
                    harvest_rate, harvest_tag)
           else
-             call get_harvest_rate_area (currentPatch%anthro_disturbance_label, bc_in%hlm_harvest_catnames, &
+             call get_harvest_rate_area (currentPatch%land_use_label, bc_in%hlm_harvest_catnames, &
                   bc_in%hlm_harvest_rates, frac_site_primary, currentPatch%age_since_anthro_disturbance, harvest_rate)
           end if
 
@@ -528,7 +528,7 @@ s
                    cp_nocomp_matches_1_if: if ( hlm_use_nocomp .eq. ifalse .or. &
                         currentPatch%nocomp_pft_label .eq. i_nocomp_pft ) then
 
-                      patchlabel_matches_lutype_if: if (currentPatch%anthro_disturbance_label .eq. i_donorpatch_landuse_type) then
+                      patchlabel_matches_lutype_if: if (currentPatch%land_use_label .eq. i_donorpatch_landuse_type) then
 
                          if ( i_disturbance_type .ne. dtype_ilandusechange) then
                             disturbance_rate = currentPatch%disturbance_rates(i_disturbance_type)
@@ -598,7 +598,7 @@ s
                    cp_nocomp_matches_2_if: if ( hlm_use_nocomp .eq. ifalse .or. &
                         currentPatch%nocomp_pft_label .eq. i_nocomp_pft ) then
 
-                      patchlabel_matches_lutype_if: if (currentPatch%anthro_disturbance_label .eq. i_donorpatch_landuse_type) then
+                      patchlabel_matches_lutype_if: if (currentPatch%land_use_label .eq. i_donorpatch_landuse_type) then
 
 
                          ! This is the amount of patch area that is disturbed, and donated by the donor
@@ -623,7 +623,7 @@ s
                             ! the current disturbance from this patch is non-anthropogenic,
                             ! we need to average in the time-since-anthropogenic-disturbance
                             ! from the donor patch into that of the receiver patch
-                            if ( currentPatch%anthro_disturbance_label .gt. primarylands .and. &
+                            if ( currentPatch%land_use_label .gt. primarylands .and. &
                                  (i_disturbance_type .lt. dtype_ilog) ) then
 
                                new_patch%age_since_anthro_disturbance = new_patch%age_since_anthro_disturbance + &
@@ -1196,12 +1196,12 @@ s
 !!!CDK 3/27  need change this logic. put the new patch as younger than any patches with the same labels
                    ! insert new youngest primary patch after all the secondary patches, if there are any.
                    ! this requires first finding the current youngest primary to insert the new one ahead of
-                   if (currentPatch%anthro_disturbance_label .eq. secondarylands ) then
+                   if (currentPatch%land_use_label .eq. secondarylands ) then
                       found_youngest_primary = .false.
                       do while(associated(currentPatch) .and. .not. found_youngest_primary)
                          currentPatch => currentPatch%older
                          if (associated(currentPatch)) then
-                            if (currentPatch%anthro_disturbance_label .eq. primarylands) then
+                            if (currentPatch%land_use_label .eq. primarylands) then
                                found_youngest_primary = .true.
                             endif
                          endif
@@ -2424,7 +2424,7 @@ s
     new_patch%area               = areap 
 
     ! assign anthropgenic disturbance category and label
-    new_patch%anthro_disturbance_label = label
+    new_patch%land_use_label = label
     if (label .gt. primarylands) then
        new_patch%age_since_anthro_disturbance = age
     else
@@ -2661,10 +2661,10 @@ s
 
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
-       nopatches(currentPatch%anthro_disturbance_label) = &
-            nopatches(currentPatch%anthro_disturbance_label) + 1
+       nopatches(currentPatch%land_use_label) = &
+            nopatches(currentPatch%land_use_label) + 1
        
-       if (currentPatch%anthro_disturbance_label .eq. primarylands) then
+       if (currentPatch%land_use_label .eq. primarylands) then
           primary_land_fraction_beforefusion = primary_land_fraction_beforefusion + &
                currentPatch%area * AREA_INV
        endif
@@ -2725,8 +2725,8 @@ s
                    ! only fuse patches whose anthropogenic disturbance category matches !
                    ! that of the outer loop that we are in                              !
                    !--------------------------------------------------------------------!
-                   anthro_dist_labels_match_if: if ( tpp%anthro_disturbance_label .eq. i_disttype .and. &
-                        currentPatch%anthro_disturbance_label .eq. i_disttype) then
+                   anthro_dist_labels_match_if: if ( tpp%land_use_label .eq. i_disttype .and. &
+                        currentPatch%land_use_label .eq. i_disttype) then
 
                     nocomp_pft_labels_match_if: if (hlm_use_nocomp .eq. ifalse .or. &
                          (tpp%nocomp_pft_label .eq. i_pftlabel .and. &
@@ -2862,7 +2862,7 @@ s
           nopatches(i_disttype) = 0
           currentPatch => currentSite%youngest_patch
           do while(associated(currentPatch))
-             if (currentPatch%anthro_disturbance_label .eq. i_disttype) then
+             if (currentPatch%land_use_label .eq. i_disttype) then
                 nopatches(i_disttype) = nopatches(i_disttype) +1
              endif
              currentPatch => currentPatch%older
@@ -2898,7 +2898,7 @@ s
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
 
-       if (currentPatch%anthro_disturbance_label .eq. primarylands) then
+       if (currentPatch%land_use_label .eq. primarylands) then
           primary_land_fraction_afterfusion = primary_land_fraction_afterfusion + &
                currentPatch%area * AREA_INV
        endif
@@ -2956,8 +2956,8 @@ s
        call rp%litter(el)%FuseLitter(rp%area,dp%area,dp%litter(el))
     end do
 
-    if ( rp%anthro_disturbance_label .ne. dp%anthro_disturbance_label) then
-       write(fates_log(),*) 'trying to fuse patches with different anthro_disturbance_label values'
+    if ( rp%land_use_label .ne. dp%land_use_label) then
+       write(fates_log(),*) 'trying to fuse patches with different land_use_label values'
        call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
 
@@ -3131,7 +3131,7 @@ s
              do while(associated(patchpointer))
                 if ( .not.associated(currentPatch,patchpointer) .and. &
                      patchpointer%nocomp_pft_label .eq. currentPatch%nocomp_pft_label .and. &
-                     patchpointer%anthro_disturbance_label .eq. currentPatch%anthro_disturbance_label .and. &
+                     patchpointer%land_use_label .eq. currentPatch%land_use_label .and. &
                      .not. gotfused) then
 
                    call fuse_2_patches(currentSite, patchpointer, currentPatch)
@@ -3145,7 +3145,7 @@ s
              if ( .not. gotfused ) then
                 !! somehow didn't find a patch to fuse with.
                 write(fates_log(),*) 'Warning. small nocomp patch wasnt able to find another patch to fuse with.', &
-                     currentPatch%nocomp_pft_label, currentPatch%anthro_disturbance_label
+                     currentPatch%nocomp_pft_label, currentPatch%land_use_label
              endif
 
           else nocomp_if
@@ -3173,7 +3173,7 @@ s
                 
                 olderPatch => currentPatch%older
 
-                distlabel_1_if: if (currentPatch%anthro_disturbance_label .eq. olderPatch%anthro_disturbance_label) then
+                distlabel_1_if: if (currentPatch%land_use_label .eq. olderPatch%land_use_label) then
                    
                    call fuse_2_patches(currentSite, olderPatch, currentPatch)
                 
@@ -3189,7 +3189,7 @@ s
                       ! if we're having an incredibly hard time fusing patches because of their differing anthropogenic disturbance labels, 
                       ! since the size is so small, let's sweep the problem under the rug and change the tiny patch's label to that of its older sibling
                       ! and then allow them to fuse together. 
-                      currentPatch%anthro_disturbance_label = olderPatch%anthro_disturbance_label
+                      currentPatch%land_use_label = olderPatch%land_use_label
                       call fuse_2_patches(currentSite, olderPatch, currentPatch)
                       gotfused = .true.
                    endif countcycles_if
@@ -3204,7 +3204,7 @@ s
 
                 youngerPatch => currentPatch%younger
 
-                distlabel_2_if: if (currentPatch%anthro_disturbance_label .eq. youngerPatch% anthro_disturbance_label) then
+                distlabel_2_if: if (currentPatch%land_use_label .eq. youngerPatch% land_use_label) then
                    
                    call fuse_2_patches(currentSite, youngerPatch, currentPatch)
                    
@@ -3214,7 +3214,7 @@ s
                    if (count_cycles .gt. 0) then
                       ! if we're having an incredibly hard time fusing patches because of their differing anthropogenic disturbance labels, 
                       ! since the size is so small, let's sweep the problem under the rug and change the tiny patch's label to that of its younger sibling
-                      currentPatch%anthro_disturbance_label = youngerPatch%anthro_disturbance_label
+                      currentPatch%land_use_label = youngerPatch%land_use_label
                       call fuse_2_patches(currentSite, youngerPatch, currentPatch)
                       gotfused = .true.
                    endif ! count cycles
@@ -3481,7 +3481,7 @@ s
    frac_site_primary = 0._r8
    currentPatch => site_in%oldest_patch
    do while (associated(currentPatch))   
-      if (currentPatch%anthro_disturbance_label .eq. primarylands) then
+      if (currentPatch%land_use_label .eq. primarylands) then
          frac_site_primary = frac_site_primary + currentPatch%area * AREA_INV
       endif
       currentPatch => currentPatch%younger

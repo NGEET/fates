@@ -80,7 +80,7 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : umol_per_mol,mol_per_umol
   use FatesConstantsMod        , only : pa_per_mpa
   use FatesLitterMod           , only : litter_type
-  use FatesConstantsMod        , only : secondaryforest
+  use FatesConstantsMod        , only : secondarylands
 
   use PRTGenericMod            , only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod            , only : struct_organ, store_organ, repro_organ
@@ -596,7 +596,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_c_stomata_si_age
   integer :: ih_c_lblayer_si_age
   integer :: ih_agesince_anthrodist_si_age
-  integer :: ih_secondaryforest_area_si_age
+  integer :: ih_secondarylands_area_si_age
   integer :: ih_area_burnt_si_age
   ! integer :: ih_fire_rate_of_spread_front_si_age
   integer :: ih_fire_intensity_si_age
@@ -2446,7 +2446,7 @@ end subroutine flush_hvars
                hio_biomass_secondary_forest_si    => this%hvars(ih_biomass_secondary_forest_si)%r81d, &
                hio_woodproduct_si                 => this%hvars(ih_woodproduct_si)%r81d, &
                hio_agesince_anthrodist_si_age     => this%hvars(ih_agesince_anthrodist_si_age)%r82d, &
-               hio_secondaryforest_area_si_age    => this%hvars(ih_secondaryforest_area_si_age)%r82d, &
+               hio_secondarylands_area_si_age    => this%hvars(ih_secondarylands_area_si_age)%r82d, &
                hio_area_burnt_si_age              => this%hvars(ih_area_burnt_si_age)%r82d, &
                ! hio_fire_rate_of_spread_front_si_age  => this%hvars(ih_fire_rate_of_spread_front_si_age)%r82d, &
                hio_fire_intensity_si_age          => this%hvars(ih_fire_intensity_si_age)%r82d, &
@@ -2641,7 +2641,7 @@ end subroutine flush_hvars
 
          ! Increment the number of patches per site
          hio_npatches_si(io_si) = hio_npatches_si(io_si) + 1._r8
-         if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+         if ( cpatch%land_use_label .eq. secondarylands ) then
             hio_npatches_sec_si(io_si) = hio_npatches_sec_si(io_si) + 1._r8
          end if
 
@@ -2680,7 +2680,7 @@ end subroutine flush_hvars
          endif
 
          ! some diagnostics on secondary forest area and its age distribution
-         if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+         if ( cpatch%land_use_label .eq. secondarylands ) then
             hio_fraction_secondary_forest_si(io_si) = hio_fraction_secondary_forest_si(io_si) + &
                cpatch%area * AREA_INV
 
@@ -2690,13 +2690,13 @@ end subroutine flush_hvars
                hio_agesince_anthrodist_si_age(io_si,ageclass_since_anthrodist)  &
                + cpatch%area * AREA_INV
 
-            hio_secondaryforest_area_si_age(io_si,cpatch%age_class) = &
-               hio_secondaryforest_area_si_age(io_si,cpatch%age_class)  &
+            hio_secondarylands_area_si_age(io_si,cpatch%age_class) = &
+               hio_secondarylands_area_si_age(io_si,cpatch%age_class)  &
                + cpatch%area * AREA_INV
          endif
 
          ! Secondary forest mean LAI
-         if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+         if ( cpatch%land_use_label .eq. secondarylands ) then
             hio_lai_secondary_si(io_si) = hio_lai_secondary_si(io_si) &
                 + sum(cpatch%tlai_profile(:,:,:)) * cpatch%total_canopy_area
          end if
@@ -2766,7 +2766,7 @@ end subroutine flush_hvars
             ! Increment the number of cohorts per site
             hio_ncohorts_si(io_si) = hio_ncohorts_si(io_si) + 1._r8
 
-            if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+            if ( cpatch%land_use_label .eq. secondarylands ) then
                hio_ncohorts_sec_si(io_si) = hio_ncohorts_sec_si(io_si) + 1._r8
             end if
 
@@ -2882,7 +2882,7 @@ end subroutine flush_hvars
                   hio_nindivs_si_pft(io_si,ft) = hio_nindivs_si_pft(io_si,ft) + &
                      ccohort%n * AREA_INV
 
-                  if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+                  if ( cpatch%land_use_label .eq. secondarylands ) then
                      hio_nindivs_sec_si_pft(io_si,ft) = hio_nindivs_sec_si_pft(io_si,ft) + &
                         ccohort%n * AREA_INV
                   end if
@@ -2890,7 +2890,7 @@ end subroutine flush_hvars
                   hio_biomass_si_pft(io_si, ft) = hio_biomass_si_pft(io_si, ft) + &
                      (ccohort%n * AREA_INV) * total_m
 
-                  if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+                  if ( cpatch%land_use_label .eq. secondarylands ) then
                      hio_biomass_sec_si_pft(io_si, ft) = hio_biomass_sec_si_pft(io_si, ft) + &
                         (ccohort%n * AREA_INV) * total_m
                   end if
@@ -2900,7 +2900,7 @@ end subroutine flush_hvars
                      + total_m * ccohort%n * AREA_INV
 
                   ! track the total biomass on all secondary lands
-                  if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+                  if ( cpatch%land_use_label .eq. secondarylands ) then
                      hio_biomass_secondary_forest_si(io_si) = hio_biomass_secondary_forest_si(io_si) + &
                      total_m * ccohort%n * AREA_INV
                   endif
@@ -3021,7 +3021,7 @@ end subroutine flush_hvars
             hio_npp_si_pft(io_si, ft) = hio_npp_si_pft(io_si, ft) + &
                ccohort%npp_acc_hold * n_perm2 / days_per_year / sec_per_day
 
-            if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+            if ( cpatch%land_use_label .eq. secondarylands ) then
                hio_gpp_sec_si_pft(io_si, ft) = hio_gpp_sec_si_pft(io_si, ft) + &
                   ccohort%gpp_acc_hold * n_perm2 / days_per_year / sec_per_day
                hio_npp_sec_si_pft(io_si, ft) = hio_npp_sec_si_pft(io_si, ft) + &
@@ -3171,7 +3171,7 @@ end subroutine flush_hvars
                hio_m9_si_scls(io_si,scls) = hio_m9_si_scls(io_si,scls) + ccohort%smort*ccohort%n / m2_per_ha
 
                ! Examine secondary forest mortality and mortality rates
-               if(cpatch%anthro_disturbance_label .eq. secondaryforest) then
+               if(cpatch%land_use_label .eq. secondarylands) then
 
                   if (hlm_use_cohort_age_tracking .eq.itrue) then
                      hio_m10_sec_si_scls(io_si,scls) = hio_m10_sec_si_scls(io_si,scls) +  &
@@ -3483,7 +3483,7 @@ end subroutine flush_hvars
                   hio_m3_mortality_understory_si_scpf(io_si,scpf) = hio_m3_mortality_understory_si_scpf(io_si,scpf) + &
                        ccohort%cmort * ccohort%n / m2_per_ha
 
-                  if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+                  if ( cpatch%land_use_label .eq. secondarylands ) then
                      hio_mortality_canopy_secondary_si_scls(io_si,scls) = hio_mortality_canopy_secondary_si_scls(io_si,scls) + &
                         (ccohort%bmort + ccohort%hmort + ccohort%cmort +   &
                      ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha + &
@@ -3803,7 +3803,7 @@ end subroutine flush_hvars
                sites(s)%fmort_rate_canopy(i_scls, i_pft) / m2_per_ha
 
             ! Shijie: Think about how to add later?
-            !if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+            !if ( cpatch%land_use_label .eq. secondarylands ) then
             !   hio_mortality_canopy_secondary_si_scls(io_si,i_scls) = hio_mortality_canopy_secondary_si_scls(io_si,i_scls) + &
             !      sites(s)%term_nindivs_canopy(i_scls,i_pft) * days_per_year / m2_per_ha
             !end if
@@ -4536,7 +4536,7 @@ end subroutine flush_hvars
                         ccohort%resp_m_unreduced * n_perm2 * per_dt_tstep
 
                   ! Secondary forest only
-                  if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+                  if ( cpatch%land_use_label .eq. secondarylands ) then
                       hio_npp_secondary_si(io_si) = hio_npp_secondary_si(io_si) + &
                             npp * n_perm2 * per_dt_tstep
                       hio_gpp_secondary_si(io_si) = hio_gpp_secondary_si(io_si) + &
@@ -5608,7 +5608,7 @@ end subroutine update_history_hifrq
          long='secondary forest patch area age distribution since any kind of disturbance', &
          use_default='inactive', avgflag='A', vtype=site_age_r8,               &
          hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
-         index=ih_secondaryforest_area_si_age)
+         index=ih_secondarylands_area_si_age)
 
     ! Fire Variables
 
