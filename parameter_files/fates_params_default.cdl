@@ -775,7 +775,7 @@ variables:
 		fates_leaf_stomatal_model:long_name = "switch for choosing between Ball-Berry (1) stomatal conductance model and Medlyn (2) model" ;
         double fates_regeneration_model ;
 		fates_regeneration_model:units = "unitless" ;
-		fates_regeneration_model:long_name = "switch for choosing between FATES's default regeneration scheme (1) or the Tree Recruitment Scheme (Hanbury-Brown et al., 2022;2)" ;
+		fates_regeneration_model:long_name = "switch for choosing between FATES's default regeneration scheme (1), the full Tree Recruitment Scheme (2; Hanbury-Brown et al., 2022), or (3) the Tree Recruitment Scheme without seedling dynamics" ;
 	double fates_leaf_theta_cj_c3 ;
 		fates_leaf_theta_cj_c3:units = "unitless" ;
 		fates_leaf_theta_cj_c3:long_name = "Empirical curvature parameter for ac, aj photosynthesis co-limitation in c3 plants" ;
@@ -1603,7 +1603,7 @@ data:
 
  fates_landuse_logging_coll_under_frac = 0.55983 ;
 
- fates_regeneration_model = 2 ;
+ fates_regeneration_model = 1 ;
 
  fates_landuse_logging_collateral_frac = 0.05 ;
 

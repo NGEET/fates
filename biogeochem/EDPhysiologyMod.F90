@@ -1861,7 +1861,7 @@ contains
              litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)/area
 
              !START ahb's changes
-             if ( regeneration_model == TRS .and. &
+             if ( regeneration_model >= TRS .and. &
                   prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees) then
              
              !Send a fraction of reproductive carbon to litter to account for 
@@ -1957,7 +1957,7 @@ contains
              EDPftvarcon_inst%seed_decay_rate(pft)*years_per_day
 
        !If the TRS is switched on and the pft is a tree then use the TRS
-       else if ( regeneration_model == TRS .and. &
+       else if ( regeneration_model >= TRS .and. &
                   prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees ) then
   
        !----------------------------------------------------------------------

@@ -50,6 +50,8 @@ module FatesConstantsMod
   integer, public, parameter :: coupled_np_comp_scaling = 1 ! This flag signals that at least 1 chemical element (ie N or P)
   
   !Flags specifying how tree regeneration works
+  
+  integer, public, parameter :: TRS_no_seedling_dyn = 3 !Constant defining the Tree Recruitment Scheme switch
   integer, public, parameter :: TRS = 2 !Constant defining the Tree Recruitment Scheme switch
   integer, public, parameter :: default_regeneration = 1 !Constant defining FATES's default regeneration scheme switch
   real(fates_r8), public, parameter :: min_max_dbh_for_trees = 15._fates_r8 !cm; if pfts have a max dbh less 

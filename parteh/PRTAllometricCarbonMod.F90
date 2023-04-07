@@ -990,7 +990,7 @@ module PRTAllometricCarbonMod
            repro_fraction = prt_params%seed_alloc(ipft) + prt_params%seed_alloc_mature(ipft)
         end if
         
-        else if ( regeneration_model == TRS .and. &
+        else if ( regeneration_model >= TRS .and. &
                   prt_params%allom_dbh_maxheight(ipft) > min_max_dbh_for_trees ) then
 
         !-------------------------------------------------------------------------------------
@@ -1011,16 +1011,16 @@ module PRTAllometricCarbonMod
 
 
         !ahb diagnostic
-        if (debug_trs) then
-        if (hlm_day_of_year == 40 .OR. hlm_day_of_year == 270) then
+        !if (debug_trs) then
+        !if (hlm_day_of_year == 40 .OR. hlm_day_of_year == 270) then
               
-              write(fates_log(),*) 'day_of_year:', hlm_day_of_year
-              write(fates_log(),*) 'pft:', ipft
-              write(fates_log(),*) 'dbh (cm):', dbh
-              write(fates_log(),*) 'repro_fraction:', repro_fraction
+        !      write(fates_log(),*) 'day_of_year:', hlm_day_of_year
+        !      write(fates_log(),*) 'pft:', ipft
+        !      write(fates_log(),*) 'dbh (cm):', dbh
+        !      write(fates_log(),*) 'repro_fraction:', repro_fraction
         
-        end if !day condition
-        end if !debug condition
+        !end if !day condition
+        !end if !debug condition
         !end ahb diagnostic
 
 
