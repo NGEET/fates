@@ -6,14 +6,19 @@ module FatesCohortMod
   use EDParamsMod,            only : nlevleaf
   use FatesGlobals,           only : endrun => fates_endrun
   use FatesGlobals,           only : fates_log
+  use PRTGenericMod,          only : max_nleafage
   use PRTGenericMod,          only : prt_vartypes
   use PRTGenericMod,          only : prt_carbon_allom_hyp
   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
   use PRTGenericMod,          only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod,          only : repro_organ, store_organ, struct_organ
   use PRTGenericMod,          only : carbon12_element
+  use PRTParametersMod,       only : prt_params
   use FatesHydraulicsMemMod,  only : ed_cohort_hydr_type
   use FatesInterfaceTypesMod, only : hlm_parteh_mode
+  use FatesInterfaceTypesMod, only : hlm_use_sp
+  use FatesInterfaceTypesMod, only : nleafage
+  use FatesAllometryMod,      only : carea_allom, tree_lai, tree_sai
   use PRTAllometricCarbonMod, only : ac_bc_inout_id_dbh, ac_bc_inout_id_netdc, &
                                      ac_bc_in_id_cdamage, ac_bc_in_id_pft,     &
                                      ac_bc_in_id_ctrim, ac_bc_in_id_lstat
@@ -255,8 +260,10 @@ module FatesCohortMod
     procedure :: dump
     procedure :: nan_values
     procedure :: zero_values
+    procedure :: create
     procedure :: CanUpperUnder
     procedure :: InitPRTBoundaryConditions
+    procedure :: UpdateCohortBioPhysRates
 
   end type fates_cohort_type
 
@@ -281,7 +288,6 @@ module FatesCohortMod
       ! The PARTEH cohort object should be allocated and already
       ! initialized in this routine.
       call this%prt%CheckInitialConditions()
-  
       call this%InitPRTBoundaryConditions()
     
       ! new cohorts do not have mortality rates, nor have they moved any
@@ -501,8 +507,115 @@ module FatesCohortMod
    
     !:.........................................................................:
 
-    subroutine InitPRTBoundaryConditions(this)
+    subroutine create(this, prt, pft, nn, hite, coage, dbh, status,            &
+      ctrim, carea, clayer, crowndamage, spread, can_tlai)
+      !
+      ! DESCRIPTION:
+      ! set up values for a newly created cohort
 
+      ! ARGUMENTS
+      class(fates_cohort_type), intent(inout)          :: this             ! cohort object
+      class(prt_vartypes),      intent(inout), pointer :: prt              ! The allocated PARTEH object
+      integer,                  intent(in)             :: pft              ! cohort Plant Functional Type
+      integer,                  intent(in)             :: crowndamage      ! cohort damage class 
+      integer,                  intent(in)             :: clayer           ! canopy status of cohort [canopy/understory]
+      integer,                  intent(in)             :: status           ! growth status of cohort [leaves on/off]
+      real(r8),                 intent(in)             :: nn               ! number of individuals in cohort [/m2]
+      real(r8),                 intent(in)             :: hite             ! cohort height [m]
+      real(r8),                 intent(in)             :: coage            ! cohort age [yr]
+      real(r8),                 intent(in)             :: dbh              ! cohort diameter at breat height [cm]
+      real(r8),                 intent(in)             :: ctrim            ! fraction of the maximum leaf biomass 
+      real(r8),                 intent(in)             :: spread           ! how spread crowns are in horizontal space
+      real(r8),                 intent(in)             :: carea            ! area of cohort, for SP mode [m2]
+      real(r8),                 intent(in)             :: can_tlai(nclmax) ! patch-level total LAI of each leaf layer
+
+      ! LOCAL VARIABLES:
+      integer  :: iage        ! loop counter for leaf age classes
+      real(r8) :: leaf_c      ! total leaf carbon [kgC]
+
+      ! initialize cohort
+      call this%init(prt)
+
+      ! set values
+      this%pft          = pft
+      this%crowndamage  = crowndamage
+      this%canopy_layer = clayer
+      this%canopy_layer_yesterday = real(clayer, r8)
+      this%status_coh   = status
+      this%n            = nn
+      this%hite         = hite
+      this%dbh          = dbh
+      this%coage        = coage
+      this%canopy_trim  = ctrim
+
+      ! This routine may be called during restarts, and at this point in the call sequence
+      ! the actual cohort data is unknown, as this is really only used for allocation
+      ! In these cases, testing if things like biomass are reasonable is premature
+      ! However, in this part of the code, we will pass in nominal values for size, number and type
+      if (this%dbh <= 0._r8 .or. this%n == 0._r8 .or. this%pft == 0) then
+        write(fates_log(),*) 'FATES: something is zero in cohort%create',      &
+          this%dbh, this%n, this%pft
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+      endif
+
+      ! Initialize the leaf to fineroot biomass ratio.
+      ! For C-only, this will stay constant, for nutrient-enabled this will be
+      ! dynamic.  In both cases, new cohorts are initialized with the minimum. 
+      ! This works in the nutrient enabled case because cohorts are also 
+      ! initialized with full stores, which match with minimum fineroot biomass
+      new_cohort%l2fr = prt_params%allom_l2fr(pft)
+
+      if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
+        new_cohort%cx_int      = 0._r8  ! Assume balanced N,P/C stores ie log(1) = 0
+        new_cohort%cx0         = 0._r8  ! Assume balanced N,P/C stores ie log(1) = 0
+        new_cohort%ema_dcxdt   = 0._r8  ! Assume unchanged dCX/dt
+        new_cohort%cnp_limiter = 0      ! Assume limitations are unknown
+      end if
+
+      ! This sets things like vcmax25top, that depend on the leaf age fractions 
+      ! (which are defined by PARTEH)
+      call this%UpdateCohortBioPhysRates()
+
+      ! calculate size classes
+      call sizetype_class_index(this%dbh, this%pft, this%size_class,           &
+        this%size_by_pft_class)
+
+      ! If cohort age tracking is off we call this here once, just so everything
+      ! is in the first bin. This makes it easier to copy and terminate cohorts 
+      ! later.
+      ! We don't need to update this ever if cohort age tracking is off
+      call coagetype_class_index(this%coage, this%pft, this%coage_class,       &
+        this%coage_by_pft_class)
+
+      ! asssign or calculate canopy extent and depth
+      if (hlm_use_sp .eq. ifalse) then
+        call carea_allom(this%dbh, this%n, spread, this%pft, this%crowndamage, &
+          this%c_area)
+      else
+        ! set this from previously precision-controlled value in SP mode
+        this%c_area = carea 
+      endif
+
+      ! Query PARTEH for the leaf carbon [kg]
+      leaf_c = this%prt%GetState(leaf_organ, carbon12_element)
+
+      ! calculate tree lai
+      this%treelai = tree_lai(leaf_c, this%pft, this%c_area, this%n,           &
+        this%canopy_layer, can_tlai, this%vcmax25top)
+
+      if (hlm_use_sp .eq. ifalse) then
+        this%treesai = tree_sai(this%pft, this%dbh, this%crowndamage,          &
+          this%canopy_trim, this%c_area, this%n, this%canopy_layer, can_tlai,  &
+          this%treelai,this%vcmax25top, 2)
+      end if
+
+    end subroutine create
+
+    !:.........................................................................:
+
+    subroutine InitPRTBoundaryConditions(this)      
+      !
+      ! DESCRIPTION:
       ! Set the boundary conditions that flow in an out of the PARTEH
       ! allocation hypotheses.  Each of these calls to "RegsterBC" are simply
       ! setting pointers.
@@ -520,7 +633,8 @@ module FatesCohortMod
       ! value boundary condition.
       ! bc_ival is used as the optional argument identifyer to specify an integer
       ! value boundary condition.
-   
+      
+      ! ARGUMENTS:
       class(fates_cohort_type), intent(inout) :: this
       
       select case(hlm_parteh_mode)
@@ -574,7 +688,79 @@ module FatesCohortMod
     end subroutine InitPRTBoundaryConditions
    
     !:.........................................................................:
-   
+
+    subroutine UpdateCohortBioPhysRates(this)
+      !
+      ! DESCRIPTION:
+      ! Update the four key biophysical rates of leaves based on the changes 
+      ! in a cohort's leaf age proportions.
+      !
+      ! This should be called after growth.  Growth occurs
+      ! after turnover and damage states are applied to the tree.
+      ! Therefore, following growth, the leaf mass fractions
+      ! of different age classes are unchanged until the next day.
+
+      ! ARGUMENTS
+      class(fates_cohort_type), intent(inout) :: this ! cohort object
+
+      ! LOCAL VARIABLES
+      real(r8) :: frac_leaf_aclass(max_nleafage)  ! fraction of leaves in each age-class
+      integer  :: iage                            ! loop index for leaf ages
+      integer  :: ipft                            ! plant functional type index
+
+      ! First, calculate the fraction of leaves in each age class
+      ! It is assumed that each class has the same proportion across leaf layers
+      do iage = 1, nleafage
+         frac_leaf_aclass(iage) = this%prt%GetState(leaf_organ,                &
+          carbon12_element, iage)
+      end do
+
+      ! If there are leaves, then perform proportional weighting on the four rates
+      ! We assume that leaf age does not effect the specific leaf area, so the mass
+      ! fractions are applicable to these rates
+
+      ipft = currentCohort%pft
+
+      if (sum(frac_leaf_aclass(1:nleafage)) > nearzero .and.                   &
+        hlm_use_sp .eq. ifalse) then
+
+        frac_leaf_aclass(1:nleafage) = frac_leaf_aclass(1:nleafage)/           &
+          sum(frac_leaf_aclass(1:nleafage))
+
+        this%vcmax25top = sum(EDPftvarcon_inst%vcmax25top(ipft, 1:nleafage)*   &
+          frac_leaf_aclass(1:nleafage))
+
+        this%jmax25top = sum(param_derived%jmax25top(ipft, 1:nleafage)*        &
+          frac_leaf_aclass(1:nleafage))
+
+        this%tpu25top = sum(param_derived%tpu25top(ipft, 1:nleafage)*          &
+          frac_leaf_aclass(1:nleafage))
+
+        this%kp25top = sum(param_derived%kp25top(ipft, 1:nleafage)*            &
+          frac_leaf_aclass(1:nleafage))
+
+        else if (hlm_use_sp .eq. itrue) then
+          
+          this%vcmax25top = EDPftvarcon_inst%vcmax25top(ipft, 1)
+          this%jmax25top = param_derived%jmax25top(ipft, 1)
+          this%tpu25top = param_derived%tpu25top(ipft, 1)
+          this%kp25top = param_derived%kp25top(ipft, 1)
+
+      else
+        
+        this%vcmax25top = 0._r8
+        this%jmax25top  = 0._r8
+        this%tpu25top   = 0._r8
+        this%kp25top    = 0._r8
+
+      end if
+
+      return
+
+    end subroutine UpdateCohortBioPhysRates
+
+    !:.........................................................................:
+
     function CanUpperUnder(this) result(can_position)
       !
       ! DESCRIPTION:
@@ -588,7 +774,7 @@ module FatesCohortMod
    
       ! ARGUMENTS:
       class(fates_cohort_type) :: this         ! current cohort of interest
-      integer                 :: can_position ! canopy position 
+      integer                  :: can_position ! canopy position 
       
       if (this%canopy_layer == 1)then
         can_position = ican_upper

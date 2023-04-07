@@ -196,98 +196,16 @@ type(bc_in_type), intent(in) :: bc_in         ! External boundary conditions
 type(fates_cohort_type), pointer :: new_cohort         ! Pointer to New Cohort structure.
 type(fates_cohort_type), pointer :: storesmallcohort
 type(fates_cohort_type), pointer :: storebigcohort
-integer  :: iage                           ! loop counter for leaf age classes
-real(r8) :: leaf_c                         ! total leaf carbon
 real(r8) :: rmean_temp                     ! running mean temperature
 integer  :: tnull,snull                    ! are the tallest and shortest cohorts allocate
 integer  :: nlevrhiz                       ! number of rhizosphere layers
 
 !----------------------------------------------------------------------
 
+! create new cohort
 allocate(new_cohort)
-
-call new_cohort%init(prt)
-
-!**********************/
-! Define cohort state variable
-!**********************/
-
-new_cohort%indexnumber  = fates_unset_int ! Cohort indexing was not thread-safe, setting
-                                          ! bogus value for the time being (RGK-012017)
-new_cohort%pft          = pft
-new_cohort%crowndamage  = crowndamage
-new_cohort%status_coh   = status
-new_cohort%n            = nn
-new_cohort%hite         = hite
-new_cohort%dbh          = dbh
-new_cohort%coage        = coage
-new_cohort%canopy_trim  = ctrim
-new_cohort%canopy_layer = clayer
-new_cohort%canopy_layer_yesterday = real(clayer, r8)
-
-! Initialize the leaf to fineroot biomass ratio
-! for C-only, this will stay constant, for nutrient enabled
-! this will be dynamic.  In both cases, new cohorts are
-! initialized with the minimum. This works in the nutrient
-! enabled case, because cohorts are also initialized with
-! full stores, which match with minimum fr biomass
-
-new_cohort%l2fr = prt_params%allom_l2fr(pft)
-
-if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-   new_cohort%cx_int      = 0._r8  ! Assume balanced N,P/C stores ie log(1) = 0
-   new_cohort%cx0         = 0._r8  ! Assume balanced N,P/C stores ie log(1) = 0
-   new_cohort%ema_dcxdt   = 0._r8  ! Assume unchanged dCX/dt
-   new_cohort%cnp_limiter = 0    ! Assume limitations are unknown
-end if
-   
-! This sets things like vcmax25top, that depend on the
-! leaf age fractions (which are defined by PARTEH)
-call UpdateCohortBioPhysRates(new_cohort)
-
-call sizetype_class_index(new_cohort%dbh, new_cohort%pft, &
-                          new_cohort%size_class,new_cohort%size_by_pft_class)
-
-! If cohort age trackign is off we call this here once
-! just so everythin is in the first bin -
-! this makes it easier to copy and terminate cohorts later
-! we don't need to update this ever if cohort age tracking is off
-call coagetype_class_index(new_cohort%coage, new_cohort%pft, &
-        new_cohort%coage_class,new_cohort%coage_by_pft_class)
-
-! This routine may be called during restarts, and at this point in the call sequence
-! the actual cohort data is unknown, as this is really only used for allocation
-! In these cases, testing if things like biomass are reasonable is pre-mature
-! However, in this part of the code, we will pass in nominal values for size, number and type
-
-if (new_cohort%dbh <= 0._r8 .or. new_cohort%n == 0._r8 .or. new_cohort%pft == 0 ) then
-   write(fates_log(),*) 'ED: something is zero in create_cohort', &
-                         new_cohort%dbh,new_cohort%n, &
-                         new_cohort%pft
-   call endrun(msg=errMsg(sourcefile, __LINE__))
-endif
-
-! Assign canopy extent and depth
-if(hlm_use_sp.eq.ifalse)then
-   call carea_allom(new_cohort%dbh,new_cohort%n,spread,new_cohort%pft, &
-        new_cohort%crowndamage,new_cohort%c_area)
-else
-  new_cohort%c_area = carea ! set this from previously precision-controlled value in SP mode
-endif
-! Query PARTEH for the leaf carbon [kg]
-leaf_c = new_cohort%prt%GetState(leaf_organ,carbon12_element)
-
-new_cohort%treelai = tree_lai(leaf_c, new_cohort%pft, new_cohort%c_area,    &
-                              new_cohort%n, new_cohort%canopy_layer,               &
-                              patchptr%canopy_layer_tlai,new_cohort%vcmax25top )
-
-if(hlm_use_sp.eq.ifalse)then
-   new_cohort%treesai = tree_sai(new_cohort%pft, new_cohort%dbh, &
-        new_cohort%crowndamage, new_cohort%canopy_trim,   &
-        new_cohort%c_area, new_cohort%n, new_cohort%canopy_layer, &
-        patchptr%canopy_layer_tlai, new_cohort%treelai,new_cohort%vcmax25top,2 )
-end if
-
+call new_cohort%create(pft, prt, nn, hite, coage, dbh, status, ctrim, carea,   &
+   clayer, crowndamage, spread, patchptr%canopy_layer_tlai)
 
 ! Put cohort at the right place in the linked list
 storebigcohort   => patchptr%tallest
