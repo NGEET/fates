@@ -46,6 +46,7 @@ module EDInitMod
   use FatesInterfaceTypesMod         , only : hlm_use_fixed_biogeog
   use FatesInterfaceTypesMod         , only : hlm_use_tree_damage
   use FatesInterfaceTypesMod         , only : hlm_use_sp
+  use FatesInterfaceTypesMod         , only : hlm_use_luh
   use FatesInterfaceTypesMod         , only : numpft
   use FatesInterfaceTypesMod         , only : nleafage
   use FatesInterfaceTypesMod         , only : nlevsclass
@@ -566,7 +567,7 @@ contains
 
     else
 
-       do s = 1, nsites
+       sites_loop: do s = 1, nsites
           sites(s)%sp_tlai(:) = 0._r8
           sites(s)%sp_tsai(:) = 0._r8
           sites(s)%sp_htop(:) = 0._r8
@@ -588,12 +589,13 @@ contains
           end if !nocomp
 
           ! read in luh state data to determine initial land use types
-          if (use_luh) then
+          if (hlm_use_luh) then
              call get_luh_statedata(bc_in(s), state_vector)
              n_luh_states = 0
              do i_lu = 1, hlm_num_luh2_transitions
                 if ( state_vector(i_lu) .gt. nearzero ) then
                    n_luh_states = n_luh_states +1
+                end if
              end do
 
              if (n_luh_states .eq. 0) then
@@ -601,12 +603,15 @@ contains
                 call endrun(msg=errMsg(sourcefile, __LINE__))
              endif
 
-             num_new_patches = num_new_patches * n_luh_states
+          else
+             state_vector(:) = 0._r8
+             state_vector(primarylands) = 1._r8
+             n_luh_states = 1
           endif
 
           is_first_patch = itrue
           luh_state_counter = 0
-          do n = start_patch, num_new_patches
+          new_patch_nocomp_loop: do n = start_patch, num_new_patches
 
              ! set the PFT index for patches if in nocomp mode.
              if(hlm_use_nocomp.eq.itrue)then
@@ -631,51 +636,59 @@ contains
                 newparea = area
              end if  !nocomp mode
 
-             if(newparea.gt.0._r8)then ! Stop patches being initilialized when PFT not present in nocomop mode
-                allocate(newp)
+             luh_state_loop: do i_lu_state = 1, n_landuse_cats
+                lu_state_present_if: if ( state_vector(i_lu_state) .gt. nearzero ) then
 
-                call create_patch(sites(s), newp, age, newparea, primaryforest, nocomp_pft)
+                   newparea_withlanduse = newparea / state_vector(i_lu_state)
+                   ! for now, spread nocomp PFTs evenly across land use types
 
-                if(is_first_patch.eq.itrue)then !is this the first patch?
-                   ! set poointers for first patch (or only patch, if nocomp is false)
-                   newp%patchno = 1
-                   newp%younger => null()
-                   newp%older   => null()
-                   sites(s)%youngest_patch => newp
-                   sites(s)%oldest_patch   => newp
-                   is_first_patch = ifalse
-                else
-                   ! Set pointers for N>1 patches. Note this only happens when nocomp mode s on.
-                   ! The new patch is the 'youngest' one, arbitrarily.
-                   newp%patchno = nocomp_pft
-                   newp%older     => sites(s)%youngest_patch
-                   newp%younger   => null()
-                   sites(s)%youngest_patch%younger => newp
-                   sites(s)%youngest_patch   => newp
-                end if
+                   new_patch_area_gt_zero: if(newparea_withlanduse.gt.0._r8)then ! Stop patches being initilialized when PFT not present in nocomop mode
+                      allocate(newp)
 
-                ! Initialize the litter pools to zero, these
-                ! pools will be populated by looping over the existing patches
-                ! and transfering in mass
-                do el=1,num_elements
-                   call newp%litter(el)%InitConditions(init_leaf_fines=0._r8, &
-                        init_root_fines=0._r8, &
-                        init_ag_cwd=0._r8, &
-                        init_bg_cwd=0._r8, &
-                        init_seed=0._r8,   &
-                        init_seed_germ=0._r8)
-                end do
+                      call create_patch(sites(s), newp, age, newparea_withlanduse, i_lu_state, nocomp_pft)
 
-                sitep => sites(s)
-                if(hlm_use_sp.eq.itrue)then
-                   if(nocomp_pft.ne.0)then !don't initialize cohorts for SP bare ground patch
-                      call init_cohorts(sitep, newp, bc_in(s))
-                   end if
-                else ! normal non SP case always call init cohorts
-                   call init_cohorts(sitep, newp, bc_in(s))
-                end if
-             end if
-          end do !no new patches
+                      if(is_first_patch.eq.itrue)then !is this the first patch?
+                         ! set poointers for first patch (or only patch, if nocomp is false)
+                         newp%patchno = 1
+                         newp%younger => null()
+                         newp%older   => null()
+                         sites(s)%youngest_patch => newp
+                         sites(s)%oldest_patch   => newp
+                         is_first_patch = ifalse
+                      else
+                         ! Set pointers for N>1 patches. Note this only happens when nocomp mode s on.
+                         ! The new patch is the 'youngest' one, arbitrarily.
+                         newp%patchno = nocomp_pft + (i_lu_state-1) * numpft
+                         newp%older     => sites(s)%youngest_patch
+                         newp%younger   => null()
+                         sites(s)%youngest_patch%younger => newp
+                         sites(s)%youngest_patch   => newp
+                      end if
+
+                      ! Initialize the litter pools to zero, these
+                      ! pools will be populated by looping over the existing patches
+                      ! and transfering in mass
+                      do el=1,num_elements
+                         call newp%litter(el)%InitConditions(init_leaf_fines=0._r8, &
+                              init_root_fines=0._r8, &
+                              init_ag_cwd=0._r8, &
+                              init_bg_cwd=0._r8, &
+                              init_seed=0._r8,   &
+                              init_seed_germ=0._r8)
+                      end do
+
+                      sitep => sites(s)
+                      if(hlm_use_sp.eq.itrue)then
+                         if(nocomp_pft.ne.0)then !don't initialize cohorts for SP bare ground patch
+                            call init_cohorts(sitep, newp, bc_in(s))
+                         end if
+                      else ! normal non SP case always call init cohorts
+                         call init_cohorts(sitep, newp, bc_in(s))
+                      end if
+                   end if new_patch_area_gt_zero
+                end if lu_state_present_if
+             end do luh_state_loop
+          end do new_patch_nocomp_loop !no new patches
 
           !check if the total area adds to the same as site area
           tota = 0.0_r8
@@ -711,7 +724,7 @@ contains
 
           call set_patchno(sites(s))
 
-       enddo !s
+       enddo sites_loop !s
     end if
 
     ! zero all the patch fire variables for the first timestep

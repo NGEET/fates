@@ -55,45 +55,48 @@ contains
     ! zero the transition matrix
     landuse_transition_matrix(:,:) = 0._r8
 
-    !!may need some logic here to ask whether or not ot perform land use cahnge on this timestep. current code occurs every day.
-
-    ! identify urban fraction so that it can be removed.
-    urban_fraction = 0._r8
-    do i_luh2_states = 1, hlm_num_luh2_states
-       if (bc_in%hlm_luh_state_names(i_luh2_states) .eq. 'urban') then
-          urban_fraction = bc_in%hlm_luh_states(i_luh2_states)
-    end do
-    
-    ! loop over FATES donor and receiver land use types
-    do i_donor = 1,n_landuse_cats
-       do i_receiver = 1,n_landuse_cats
-
-          ! ignore diagonals of transition matrix
-          if ( i_donor .ne. i_receiver ) then
-
-             ! ignore special case of primary -> secondary, which is handled by harvest mechanism
-             if ( .not. ((i_donor .eq. primarylands) .and. (i_receiver .eq. secondarylands)) ) then
-
-                do i_luh2_transitions = 1, hlm_num_luh2_transitions
-
-                   ! transition names are written in form xxxxx_to_yyyyy where x and y are donor and receiver state names
-                   transition_name = bc_in%hlm_luh_transition_names(i_luh2_transitions)
-                   donor_name = transition_name(1:5)
-                   receiver_name = transition_name(10:14)
-
-                   if (any(luh2_fates_luype_map(:,i_donor) == donor_name) .and. &
-                        any(luh2_fates_luype_map(:,i_receiver) == receiver_name)) then
-
-                      landuse_transition_matrix(i_donor,i_receiver) = &
-                           landuse_transition_matrix(i_donor,i_receiver) +  bc_in%hlm_luh_transitions(i_luh2_transitions) / (1._r8 - urban_fraction)
-
-                   end if
-                end do
-             end if
+    use_luh_if: if ( hlm_use_luh ) then
+       
+       !!may need some logic here to ask whether or not ot perform land use cahnge on this timestep. current code occurs every day.
+       
+       ! identify urban fraction so that it can be removed.
+       urban_fraction = 0._r8
+       do i_luh2_states = 1, hlm_num_luh2_states
+          if (bc_in%hlm_luh_state_names(i_luh2_states) .eq. 'urban') then
+             urban_fraction = bc_in%hlm_luh_states(i_luh2_states)
           end if
        end do
-    end do
+    
+       ! loop over FATES donor and receiver land use types
+       donor_loop: do i_donor = 1,n_landuse_cats
+          receiver_loop: do i_receiver = 1,n_landuse_cats
 
+             ! ignore diagonals of transition matrix
+             not_diagonal: if ( i_donor .ne. i_receiver ) then
+
+                ! ignore special case of primary -> secondary, which is handled by harvest mechanism
+                not_primary_to_secondary: if ( .not. ((i_donor .eq. primarylands) .and. (i_receiver .eq. secondarylands)) ) then
+
+                   transitions_loop: do i_luh2_transitions = 1, hlm_num_luh2_transitions
+
+                      ! transition names are written in form xxxxx_to_yyyyy where x and y are donor and receiver state names
+                      transition_name = bc_in%hlm_luh_transition_names(i_luh2_transitions)
+                      donor_name = transition_name(1:5)
+                      receiver_name = transition_name(10:14)
+
+                      if (any(luh2_fates_luype_map(:,i_donor) == donor_name) .and. &
+                           any(luh2_fates_luype_map(:,i_receiver) == receiver_name)) then
+
+                         landuse_transition_matrix(i_donor,i_receiver) = &
+                              landuse_transition_matrix(i_donor,i_receiver) +  bc_in%hlm_luh_transitions(i_luh2_transitions) / (1._r8 - urban_fraction)
+
+                      end if
+                   end do transitions_loop
+                end if not_primary_to_secondary
+             end if not_diagonal
+          end do receiver_loop
+       end do donor_loop
+    end if use_luh_if
   end subroutine get_landuse_transition_rates
 
   !----------------------------------------------------------------------------------------------------
@@ -222,6 +225,7 @@ contains
     do i_luh2_states = 1, hlm_num_luh2_states
        if (bc_in%hlm_luh_state_names(i_luh2_states) .eq. 'urban') then
           urban_fraction = bc_in%hlm_luh_states(i_luh2_states)
+       end if
     end do
 
     ! loop over all states and add up the ones that correspond to a given fates land use type
@@ -234,6 +238,14 @@ contains
           end if
        end do
     end do
+
+    ! check to ensure total area == 1, and correct if not
+    if ( abs(sum(state_vector(:)) - 1._r8) .gt. nearzero ) then
+       write(fates_log(),*) 'warning: sum(state_vector) = ', sum(state_vector(:))
+       do ii = 1, n_landuse_cats
+          state_vector(ii) = state_vector(ii) / sum(state_vector(:))
+       end do
+    end if
 
   end subroutine get_luh_statedata
 
