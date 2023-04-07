@@ -974,8 +974,8 @@ module PRTAllometricCarbonMod
         call bbgw_allom(dbh,ipft,ct_bgw, ct_dbgwdd)        
         call bdead_allom(ct_agw,ct_bgw, ct_sap, ipft, ct_dead, &
                          ct_dagwdd, ct_dbgwdd, ct_dsapdd, ct_ddeaddd)
-        call bstore_allom(dbh,ipft,canopy_trim,ct_store,ct_dstoredd)
         call bstore_allom(dbh,ipft,crowndamage, canopy_trim,ct_store,ct_dstoredd)
+        
         ! fraction of carbon going towards reproduction
         
         !START ahb's changes

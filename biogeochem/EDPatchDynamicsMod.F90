@@ -3115,13 +3115,16 @@ contains
     deallocate(cpatch%seedling_layer_par24)
     deallocate(cpatch%sdlng_mort_par)
     deallocate(cpatch%sdlng2sap_par)
-    deallocate(cpatch%sdlng_mdd)
-    deallocate(cpatch%sdlng_emerg_smp)
 
     do pft = 1, maxpft
      deallocate(cpatch%sdlng_mdd(pft)%p)
      deallocate(cpatch%sdlng_emerg_smp(pft)%p)
     enddo
+
+
+    deallocate(cpatch%sdlng_mdd)
+    deallocate(cpatch%sdlng_emerg_smp)
+
 
     deallocate(cpatch%tveg24, stat=istat, errmsg=smsg)
     if (istat/=0) then
@@ -3138,7 +3141,6 @@ contains
        write(fates_log(),*) 'dealloc012: fail on deallocate(cpatch%tveg_longterm):'//trim(smsg)
        call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
-    
     return
   end subroutine dealloc_patch
 

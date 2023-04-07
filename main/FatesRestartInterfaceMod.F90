@@ -1405,7 +1405,6 @@ contains
          long_name='fates area lost from damage each year', &
          units='m2/ha/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_crownarea_usto_si)
->>>>>>> main
 
    call this%DefineRMeanRestartVar(vname='fates_tveg24patch',vtype=cohort_r8, &
         long_name='24-hour patch veg temp', &
