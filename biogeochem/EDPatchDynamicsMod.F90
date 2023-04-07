@@ -206,7 +206,7 @@ contains
     real(r8) :: harvestable_forest_c(hlm_num_lu_harvest_cats)
     integer  :: harvest_tag(hlm_num_lu_harvest_cats)
     real(r8) :: landuse_transition_matrix(n_landuse_cats, n_landuse_cats)  ! [m2/m2/year]
-
+    real(r8) :: current_fates_landuse_state_vector(n_landuse_cats)  ! [m2/m2]
     !----------------------------------------------------------------------------------------------
     ! Calculate Mortality Rates (these were previously calculated during growth derivatives)
     ! And the same rates in understory plants have already been applied to %dndt
@@ -266,6 +266,16 @@ contains
 
     call get_landuse_transition_rates(bc_in, landuse_transition_matrix)
 
+    ! calculate total area in each landuse category
+    current_fates_landuse_state_vector(:) = 0._r8
+    currentPatch => site_in%oldest_patch
+    do while (associated(currentPatch))
+       current_fates_landuse_state_vector(currentPatch%labelanthro_disturbance_label) = &
+            current_fates_landuse_state_vector(currentPatch%labelanthro_disturbance_label) + &
+            currentPatch%area/AREA
+       currentPatch => currentPatch%younger
+    end do
+
     ! ---------------------------------------------------------------------------------------------
     ! Calculate Disturbance Rates based on the mortality rates just calculated
     ! ---------------------------------------------------------------------------------------------
@@ -296,9 +306,10 @@ contains
 
        dist_rate_ldist_notharvested = 0.0_r8
        
-       currentPatch%landuse_transition_rates(1:n_landuse_cats) = &
-            landuse_transition_matrix(currentPatch%anthro_disturbance_label,1:n_landuse_cats)
-
+       currentPatch%landuse_transition_rates(1:n_landuse_cats) = min(1._r8, &
+            landuse_transition_matrix(currentPatch%anthro_disturbance_label,1:n_landuse_cats) / &
+            current_fates_landuse_state_vector(currentPatch%labelanthro_disturbance_label))
+       
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort))   
 
