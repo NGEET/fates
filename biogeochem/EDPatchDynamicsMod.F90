@@ -1087,7 +1087,7 @@ s
                                   ! now apply survivorship based on the type of landuse transition
                                   if ( clearing_matrix(i_donorpatch_landuse_type,receiver_patch_lu_label) ) then
                                      ! kill everything
-                                     currentCohort%n = 0._r8
+                                     nc%n = 0._r8
                                   end if
 
                                case default
