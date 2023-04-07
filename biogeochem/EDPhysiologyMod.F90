@@ -1956,20 +1956,30 @@ contains
        litt%seed_decay(pft) = litt%seed(pft) * &
              EDPftvarcon_inst%seed_decay_rate(pft)*years_per_day
 
-       !If the TRS is switched on and the pft is a tree then use the TRS
-       else if ( regeneration_model >= TRS .and. &
+       end if !end default regeneration model
+
+       ! If the TRS is fully switched on, or if it is switched on without seedling dynamics
+       ! (regeneration_model = TRS_no_seedling_dyn), 
+       ! and the pft is a tree then make sure the non-seed reproductive biomass is added the
+       ! the seed decay flux.
+       if ( regeneration_model >= TRS .and. &
                   prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees ) then
   
        !----------------------------------------------------------------------
        !With respect to seed decay, the only difference with the TRS here is adding the flux 
        !from non-seed reproductive biomass (which was sent to litt%seed_decay in the SeedIn subroutine) 
                                                      
-       litt%seed_decay(pft) = litt%seed_decay(pft) + &!from non-seed reproductive biomass; working?
+       litt%seed_decay(pft) = litt%seed_decay(pft) + &!from non-seed reproductive biomass.
                               litt%seed(pft) * EDPftvarcon_inst%seed_decay_rate(pft)*years_per_day
     
-       end if !regeneration model switch
+       end if !Send non-seed reproductive biomass to seed decay flux.
 
-       ! 2. Seedling mortality (i.e. fluxes from seedling pool (seed_germ) to litter)
+
+       ! If the full TRS model is switch on (regeneration_model == TRS) then calculate seedling mortality.
+       if ( regeneration_model == TRS .and. &
+                         prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees ) then
+       
+       !Seedling mortality (i.e. fluxes from seedling pool (seed_germ) to litter)
        !----------------------------------------------------------------------
        !Step 1. Calculate the daily seedling mortality rate from light stress
 
@@ -1982,15 +1992,10 @@ contains
        seedling_light_mort_rate = exp( EDPftvarcon_inst%seedling_light_mort_a(pft) * &
                                        seedling_layer_par + EDPftvarcon_inst%seedling_light_mort_b(pft) ) 
         
-       !TEMP
-       !write(fates_log(),*) 'seedling layer par ', seedling_layer_par
-       !write(fates_log(),*) 'seedling light mort rate ', seedling_light_mort_rate
-                             
        !Step 3. Calculate the daily seedling mortality rate from moisture stress
        
        !Get the current seedling moisture deficit days
        !Calculated as (abs(seedling_psi_crit) - abs(seedling_layer_smp))* -1 * mddWindow
-
        seedling_mdds = currentPatch%sdlng_mdd(pft)%p%GetMean()     
     
        !Calculate seedling mortality as a function of moisture deficit days
@@ -2000,26 +2005,28 @@ contains
 
        if (seedling_mdds < EDPftvarcon_inst%seedling_mdd_crit(pft)) then
            seedling_h2o_mort_rate = 0.0_r8
-       end if
+       end if !mdd threshold check
      
        !Step 4. Add background mortality and send dead seedling carbon to litter (i.e. to seed_germ_decay flux)        
        litt%seed_germ_decay(pft) = (litt%seed_germ(pft) * seedling_light_mort_rate) + &
                                    (litt%seed_germ(pft) * seedling_h2o_mort_rate) + &
                                    (litt%seed_germ(pft) * EDPftvarcon_inst%background_seedling_mort(pft) &
                                                         * years_per_day)
-        !ahb diagnostic
-          if (debug_trs) then
-          if (hlm_day_of_year == 40 .OR. hlm_day_of_year == 270) then
-              write(fates_log(),*) 'day_of_year:', hlm_day_of_year
-              write(fates_log(),*) 'patch_age:', currentPatch%age
-              write(fates_log(),*) 'pft', pft
-              write(fates_log(),*) 'seedling_light_mort_rate (day -1):', seedling_light_mort_rate
-              write(fates_log(),*) 'seedling_h2o_mort_rate (day -1):', seedling_h2o_mort_rate
-              write(fates_log(),*) 'seedling mdds ([0,1]):', seedling_mdds
-          end if
+       end if !Use full TRS
 
-          end if !debug flag
-         !end ahb diagnostic
+        !ahb diagnostic
+        !  if (debug_trs) then
+        !  if (hlm_day_of_year == 40 .OR. hlm_day_of_year == 270) then
+        !      write(fates_log(),*) 'day_of_year:', hlm_day_of_year
+        !      write(fates_log(),*) 'patch_age:', currentPatch%age
+        !      write(fates_log(),*) 'pft', pft
+        !      write(fates_log(),*) 'seedling_light_mort_rate (day -1):', seedling_light_mort_rate
+        !      write(fates_log(),*) 'seedling_h2o_mort_rate (day -1):', seedling_h2o_mort_rate
+        !      write(fates_log(),*) 'seedling mdds ([0,1]):', seedling_mdds
+        !  end if
+
+        !  end if !debug flag
+        !end ahb diagnostic
         
     !-----------------------------------------------------------------------
     !END ahb's changes
