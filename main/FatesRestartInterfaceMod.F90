@@ -33,7 +33,6 @@ module FatesRestartInterfaceMod
   use PRTGenericMod,           only : prt_global
   use PRTGenericMod,           only : prt_cnp_flex_allom_hyp
   use EDCohortDynamicsMod,     only : InitPRTObject
-  use EDTypesMod,              only : InitPRTBoundaryConditions
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesInterfaceTypesMod,       only : nlevsclass
   use FatesInterfaceTypesMod,  only : nlevdamage
@@ -1811,7 +1810,7 @@ contains
    use FatesInterfaceTypesMod, only : fates_maxElementsPerPatch
    use FatesInterfaceTypesMod, only : numpft
    use EDTypesMod, only : ed_site_type
-   use EDTypesMod, only : fates_cohort_type
+   use FatesCohortMod, only : fates_cohort_type
    use EDTypesMod, only : ed_patch_type
    use EDParamsMod, only : maxSWb
    use EDParamsMod, only : nclmax
@@ -2507,7 +2506,7 @@ contains
      ! ---------------------------------------------------------------------------------
 
      use EDTypesMod,           only : ed_site_type
-     use EDTypesMod,           only : fates_cohort_type
+     use FatesCohortMod,           only : fates_cohort_type
      use EDTypesMod,           only : ed_patch_type
      use EDParamsMod,          only : maxSWb
      use FatesInterfaceTypesMod,    only : fates_maxElementsPerPatch
@@ -2706,7 +2705,7 @@ contains
    subroutine get_restart_vectors(this, nc, nsites, sites)
 
      use EDTypesMod, only : ed_site_type
-     use EDTypesMod, only : fates_cohort_type
+     use FatesCohortMod, only : fates_cohort_type
      use EDTypesMod, only : ed_patch_type
      use EDParamsMod, only : maxSWb
      use EDParamsMod, only : nclmax
@@ -3064,7 +3063,7 @@ contains
                 ccohort%status_coh   = rio_status_co(io_idx_co)
                 ccohort%isnew        = ( rio_isnew_co(io_idx_co) .eq. new_cohort )
 
-                call InitPRTBoundaryConditions(ccohort)
+                call ccohort%InitPRTBoundaryConditions()
                 call UpdateCohortBioPhysRates(ccohort)
 
                 ! Initialize Plant Hydraulics

@@ -17,10 +17,10 @@ module EDCanopyStructureMod
   use FatesAllometryMod     , only : carea_allom
   use EDCohortDynamicsMod   , only : copy_cohort, terminate_cohorts, terminate_cohort, fuse_cohorts
   use EDCohortDynamicsMod   , only : InitPRTObject
-  use EDTypesMod            , only : InitPRTBoundaryConditions
   use FatesAllometryMod     , only : tree_lai
   use FatesAllometryMod     , only : tree_sai
-  use EDtypesMod            , only : ed_site_type, ed_patch_type, fates_cohort_type
+  use EDtypesMod            , only : ed_site_type, ed_patch_type
+  use FatesCohortMod,         only : fates_cohort_type
   use EDParamsMod            , only : nclmax
   use EDParamsMod            , only : nlevleaf
   use EDtypesMod            , only : AREA
@@ -683,7 +683,7 @@ contains
                 endif
 
                 call copy_cohort(currentCohort, copyc)
-                call InitPRTBoundaryConditions(copyc)
+                call copyc%InitPRTBoundaryConditions()
                 
                 newarea = currentCohort%c_area - cc_loss
                 copyc%n = currentCohort%n*newarea/currentCohort%c_area
@@ -1158,7 +1158,7 @@ contains
                    !     init_value=currentPatch%tveg_lpa%GetMean())
                    
                    call copy_cohort(currentCohort, copyc) !makes an identical copy...
-                   call InitPRTBoundaryConditions(copyc)
+                   call copyc%InitPRTBoundaryConditions()
                    
                    newarea = currentCohort%c_area - cc_gain !new area of existing cohort
 
@@ -1802,7 +1802,7 @@ contains
     ! to vegetation coverage to the host land model.
     ! ----------------------------------------------------------------------------------
 
-    use EDTypesMod        , only : ed_patch_type, fates_cohort_type, &
+    use EDTypesMod        , only : ed_patch_type,  &
          ed_site_type, AREA
     use FatesInterfaceTypesMod , only : bc_out_type
 

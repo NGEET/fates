@@ -25,7 +25,7 @@
   use PRTGenericMod         , only : element_pos
   use EDtypesMod            , only : ed_site_type
   use EDtypesMod            , only : ed_patch_type
-  use EDtypesMod            , only : fates_cohort_type
+  use FatesCohortMod        , only : fates_cohort_type
   use EDtypesMod            , only : AREA
   use FatesLitterMod        , only : DL_SF
   use FatesLitterMod        , only : TW_SF

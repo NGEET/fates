@@ -4,7 +4,7 @@ module ChecksBalancesMod
    use shr_const_mod,     only : SHR_CONST_CDAY
    use EDtypesMod,        only : ed_site_type
    use EDTypesMod,        only : ed_patch_type
-   use EDTypesMod,        only : fates_cohort_type
+   use FatesCohortMod,    only : fates_cohort_type
    use EDTypesMod,        only : AREA
    use EDTypesMod,        only : site_massbal_type
    use PRTGenericMod,     only : num_elements

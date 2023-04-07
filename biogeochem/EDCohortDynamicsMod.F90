@@ -27,8 +27,7 @@ Module EDCohortDynamicsMod
   use PRTParametersMod      , only : prt_params
   use FatesParameterDerivedMod, only : param_derived
   use EDTypesMod            , only : ed_site_type, ed_patch_type
-  use EDTypesMod            , only : fates_cohort_type
-  use EDTypesMod            , only : InitPRTBoundaryConditions
+  use FatesCohortMod       , only : fates_cohort_type
   use EDParamsMod            , only : nclmax
   use PRTGenericMod         , only : element_list
   use PRTGenericMod         , only : StorageNutrientTarget
@@ -41,7 +40,7 @@ Module EDCohortDynamicsMod
   use EDTypesMod            , only : min_n_safemath
   use EDParamsMod            , only : nlevleaf
   use PRTGenericMod         , only : max_nleafage
-  use EDTypesMod            , only : ican_upper
+  use FatesConstantsMod     , only : ican_upper
   use EDTypesMod            , only : site_fluxdiags_type
   use PRTGenericMod          , only : num_elements
   use FatesConstantsMod      , only : leaves_on
@@ -367,7 +366,7 @@ patchptr%shortest => storesmallcohort
 
 end subroutine create_cohort
 
-  ! ------------------------------------------------------------------------------------!
+! ------------------------------------------------------------------------------------!
 
   subroutine InitPRTObject(prt)
 
@@ -2095,7 +2094,7 @@ end subroutine create_cohort
          ! correct boundary condition fields
          rcohort%prt => null()
          call InitPRTObject(rcohort%prt)
-         call InitPRTBoundaryConditions(rcohort)
+         call rcohort%InitPRTBoundaryConditions()
          call copy_cohort(ccohort, rcohort)
 
          rcohort%n = nplant_recover

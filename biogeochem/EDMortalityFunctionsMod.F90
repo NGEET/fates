@@ -9,7 +9,7 @@ module EDMortalityFunctionsMod
    use FatesGlobals          , only : endrun => fates_endrun
    use FatesGlobals          , only : fates_log
    use EDPftvarcon           , only : EDPftvarcon_inst
-   use EDTypesMod            , only : fates_cohort_type
+   use FatesCohortMod        , only : fates_cohort_type
    use EDTypesMod            , only : ed_site_type
    use EDTypesMod            , only : ed_patch_type
    use EDTypesMod            , only : maxpft

@@ -19,7 +19,8 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : homogenize_seed_pfts
   use EDTypesMod           , only : n_dbh_bins, area, patchfusion_dbhbin_loweredges
   use EDtypesMod           , only : force_patchfuse_min_biomass
-  use EDTypesMod           , only : ed_site_type, ed_patch_type, fates_cohort_type
+  use EDTypesMod           , only : ed_site_type, ed_patch_type
+  use FatesCohortMod       , only : fates_cohort_type
   use EDTypesMod           , only : site_massbal_type
   use EDTypesMod           , only : site_fluxdiags_type
   use EDTypesMod           , only : min_patch_area
@@ -29,7 +30,7 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : dtype_ifall
   use EDTypesMod           , only : dtype_ilog
   use EDTypesMod           , only : dtype_ifire
-  use EDTypesMod           , only : ican_upper
+  use FatesConstantsMod    , only : ican_upper
   use PRTGenericMod        , only : num_elements
   use PRTGenericMod        , only : element_list
   use FatesLitterMod       , only : lg_sf
@@ -76,7 +77,6 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : fates_unset_int
   use FatesConstantsMod    , only : hlm_harvest_carbon
   use EDCohortDynamicsMod  , only : InitPRTObject
-  use EDTypesMod           , only : InitPRTBoundaryConditions
   use ChecksBalancesMod,      only : SiteMassStock
   use PRTGenericMod,          only : carbon12_element
   use PRTGenericMod,          only : leaf_organ
@@ -680,7 +680,7 @@ contains
                          ! correct boundary condition fields
                          nc%prt => null()
                          call InitPRTObject(nc%prt)
-                         call InitPRTBoundaryConditions(nc)
+                         call nc%InitPRTBoundaryConditions()
 
                          !  (Keeping as an example)
                          ! Allocate running mean functions

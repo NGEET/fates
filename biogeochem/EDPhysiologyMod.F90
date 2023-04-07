@@ -31,7 +31,6 @@ module EDPhysiologyMod
   use FatesInterfaceTypesMod, only    : bc_out_type
   use EDCohortDynamicsMod , only : create_cohort, sort_cohorts
   use EDCohortDynamicsMod , only : InitPRTObject
-  use EDTypesMod,           only : InitPRTBoundaryConditions
   use EDCohortDynamicsMod , only : copy_cohort
   use FatesAllometryMod   , only : tree_lai
   use FatesAllometryMod   , only : tree_sai
@@ -55,7 +54,8 @@ module EDPhysiologyMod
   use EDParamsMod          , only : nlevleaf
   use EDTypesMod          , only : num_vegtemp_mem
   use EDTypesMod          , only : maxpft
-  use EDTypesMod          , only : ed_site_type, ed_patch_type, fates_cohort_type
+  use EDTypesMod          , only : ed_site_type, ed_patch_type
+  use FatesCohortMod,       only : fates_cohort_type
   use FatesConstantsMod   , only : leaves_on
   use FatesConstantsMod   , only : leaves_off
   use EDTypesMod          , only : min_n_safemath
@@ -272,7 +272,7 @@ contains
              ndcohort%prt => null()
 
              call InitPRTObject(ndcohort%prt)
-             call InitPRTBoundaryConditions(ndcohort)
+             call ndcohort%InitPRTBoundaryConditions()
              call ndcohort%zero_values()
              
              ! nc_canopy_d is the new cohort that gets damaged 

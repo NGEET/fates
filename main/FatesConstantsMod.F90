@@ -42,6 +42,10 @@ module FatesConstantsMod
                                                 ! its leaves and should not be trying to allocate
                                                 ! towards any growth.
 
+  integer, parameter, public :: ican_upper = 1  ! nominal index for the upper canopy
+  integer, parameter, public :: ican_ustory = 2 ! nominal index for diagnostics that refer to understory layers 
+                                                !  (all layers that are not the top canopy layer)
+
   ! Bareground label for no competition mode
   integer, parameter, public :: nocomp_bareground = 0
 

@@ -38,8 +38,9 @@ contains
     !
     ! !USES:
 
-    use EDTypesMod        , only : ed_patch_type, fates_cohort_type, &
+    use EDTypesMod        , only : ed_patch_type,  &
          ed_site_type, AREA
+    use FatesCohortMod,     only : fates_cohort_type
     use FatesInterfaceTypesMod , only : bc_in_type,bc_out_type
 
     !

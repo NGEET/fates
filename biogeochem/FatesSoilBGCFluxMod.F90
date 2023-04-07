@@ -45,7 +45,7 @@ module FatesSoilBGCFluxMod
   use EDParamsMod        , only : n_uptake_mode
   use EDTypesMod          , only : ed_site_type
   use EDTypesMod          , only : ed_patch_type
-  use EDTypesMod          , only : fates_cohort_type
+  use FatesCohortMod      , only : fates_cohort_type
   use EDTypesMod          , only : AREA,AREA_INV
   use FatesInterfaceTypesMod, only    : bc_in_type
   use FatesInterfaceTypesMod, only    : bc_out_type

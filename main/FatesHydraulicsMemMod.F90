@@ -2,6 +2,7 @@ module FatesHydraulicsMemMod
 
    use FatesConstantsMod, only : r8 => fates_r8
    use FatesConstantsMod, only : fates_unset_r8
+   use FatesGlobals,       only : fates_log
    use shr_infnan_mod,    only : nan => shr_infnan_nan, assignment(=)
    use FatesConstantsMod, only : itrue,ifalse
    use FatesHydroWTFMod,  only : wrf_arr_type
@@ -314,6 +315,7 @@ module FatesHydraulicsMemMod
      
      procedure :: AllocateHydrCohortArrays
      procedure :: DeallocateHydrCohortArrays
+     procedure :: dump
      
   end type ed_cohort_hydr_type
    
@@ -362,6 +364,23 @@ module FatesHydraulicsMemMod
     end subroutine DeallocateHydrCohortArrays
 
     ! ===================================================================================
+
+    subroutine dump(this)
+
+      class(ed_cohort_hydr_type), intent(in) :: this
+      
+      write(fates_log(),*) '--------------------------------------------'
+      write(fates_log(),*) ' Dumping Cohort Plant Hydraulic Information '
+      write(fates_log(),*) 'ccohort_hydr%th_aroot(:) = ', this%th_aroot(:)
+      write(fates_log(),*) 'ccohort_hydr%v_aroot_layer_init(:) = ', this%v_aroot_layer_init(:)
+      write(fates_log(),*) 'ccohort_hydr%v_aroot_layer(:) = ', this%v_aroot_layer(:)
+      write(fates_log(),*) '--------------------------------------------'
+      
+      return
+
+   end subroutine dump
+
+   !:..........................................................................:
 
     subroutine InitHydrSite(this,numpft,numlevsclass,hydr_solver_type,nlevsoil)
        

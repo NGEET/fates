@@ -34,7 +34,7 @@ module FatesInventoryInitMod
    use FatesLitterMod   , only : litter_type
    use EDTypesMod       , only : ed_site_type
    use EDTypesMod       , only : ed_patch_type
-   use EDTypesMod       , only : fates_cohort_type
+   use FatesCohortMod   , only : fates_cohort_type
    use EDTypesMod       , only : area
    use FatesConstantsMod, only : leaves_on, leaves_off
    use PRTGenericMod    , only : num_elements

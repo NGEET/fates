@@ -13,13 +13,13 @@ module FatesHistoryInterfaceMod
   use FatesGlobals             , only : fates_log
   use FatesGlobals             , only : endrun => fates_endrun
   use EDParamsMod              , only : nclmax
-  use EDTypesMod               , only : ican_upper
+  use FatesConstantsMod        , only : ican_upper
   use PRTGenericMod            , only : element_pos
   use PRTGenericMod            , only : num_elements
   use PRTGenericMod            , only : prt_cnp_flex_allom_hyp
   use EDTypesMod               , only : site_fluxdiags_type
   use EDtypesMod               , only : ed_site_type
-  use EDtypesMod               , only : fates_cohort_type
+  use FatesCohortMod           , only : fates_cohort_type
   use EDtypesMod               , only : ed_patch_type
   use EDtypesMod               , only : AREA
   use EDtypesMod               , only : AREA_INV
@@ -2105,8 +2105,8 @@ end subroutine flush_hvars
 
     use FatesLitterMod      , only : nfsc
     use FatesLitterMod      , only : ncwd
-    use EDtypesMod          , only : ican_upper
-    use EDtypesMod          , only : ican_ustory
+    use FatesConstantsMod   , only : ican_upper
+    use FatesConstantsMod   , only : ican_ustory
     use FatesSizeAgeTypeIndicesMod, only : get_sizeage_class_index
     use FatesSizeAgeTypeIndicesMod, only : get_sizeagepft_class_index
     use FatesSizeAgeTypeIndicesMod, only : get_agepft_class_index

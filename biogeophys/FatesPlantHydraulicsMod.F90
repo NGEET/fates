@@ -53,7 +53,7 @@ module FatesPlantHydraulicsMod
 
   use EDTypesMod        , only : ed_site_type
   use EDTypesMod        , only : ed_patch_type
-  use EDTypesMod        , only : fates_cohort_type
+  use FatesCohortMod    , only : fates_cohort_type
   use EDTypesMod        , only : AREA_INV
   use EDTypesMod        , only : AREA
   use FatesConstantsMod , only : leaves_on

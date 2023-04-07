@@ -11,8 +11,8 @@ module EDBtranMod
   use FatesConstantsMod , only : nocomp_bareground
   use EDTypesMod        , only : ed_site_type,       &
        ed_patch_type,      &
-       fates_cohort_type,     &
        maxpft
+  use FatesCohortMod,     only : fates_cohort_type
   use shr_kind_mod      , only : r8 => shr_kind_r8
   use FatesInterfaceTypesMod , only : bc_in_type, &
        bc_out_type, &

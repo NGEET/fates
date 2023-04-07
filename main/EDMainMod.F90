@@ -66,7 +66,7 @@ module EDMainMod
   use FatesLitterMod           , only : ncwd
   use EDtypesMod               , only : ed_site_type
   use EDtypesMod               , only : ed_patch_type
-  use EDtypesMod               , only : fates_cohort_type
+  use FatesCohortMod           , only : fates_cohort_type
   use EDTypesMod               , only : AREA
   use EDTypesMod               , only : site_massbal_type
   use PRTGenericMod            , only : num_elements
@@ -324,9 +324,6 @@ contains
     !
     ! !USES:
     use FatesInterfaceTypesMod, only : hlm_num_lu_harvest_cats
-    use FatesInterfaceTypesMod, only : nlevdamage
-    use FatesAllometryMod    , only : bleaf
-    use FatesAllometryMod    , only : carea_allom
     use PRTGenericMod        , only : leaf_organ
     use PRTGenericMod        , only : repro_organ
     use PRTGenericMod        , only : sapw_organ
@@ -335,16 +332,8 @@ contains
     use PRTGenericMod        , only : fnrt_organ
     use FatesInterfaceTypesMod, only : hlm_use_cohort_age_tracking
     use FatesConstantsMod, only : itrue
-    use EDCohortDynamicsMod   , only : copy_cohort, insert_cohort
-    use EDCohortDynamicsMod   , only : DeallocateCohort
-    use FatesPlantHydraulicsMod, only : InitHydrCohort
-    use EDCohortDynamicsMod   , only : InitPRTObject
-    use EDTypesMod            , only : InitPRTBoundaryConditions
     use FatesConstantsMod     , only : nearzero
     use EDCanopyStructureMod  , only : canopy_structure
-    use PRTLossFluxesMod      , only : PRTDamageRecoveryFluxes
-    use PRTGenericMod         , only : max_nleafage
-    use PRTGenericMod         , only : prt_global
     
     ! !ARGUMENTS:
 

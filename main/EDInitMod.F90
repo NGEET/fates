@@ -23,7 +23,8 @@ module EDInitMod
   use EDPhysiologyMod           , only : assign_cohort_sp_properties
   use ChecksBalancesMod         , only : SiteMassStock
   use FatesInterfaceTypesMod    , only : hlm_day_of_year
-  use EDTypesMod                , only : ed_site_type, ed_patch_type, fates_cohort_type
+  use EDTypesMod                , only : ed_site_type, ed_patch_type
+  use FatesCohortMod            , only : fates_cohort_type
   use EDTypesMod                , only : numWaterMem
   use EDTypesMod                , only : num_vegtemp_mem
   use EDTypesMod                , only : maxpft
