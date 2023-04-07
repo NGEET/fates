@@ -68,7 +68,6 @@ contains
 
     !
     ! !USES:
-    use EDPftvarcon       , only : EDPftvarcon_inst
     use EDtypesMod        , only : ed_patch_type
     use EDTypesMod        , only : ed_site_type
 

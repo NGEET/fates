@@ -2071,7 +2071,7 @@ contains
 
   subroutine create_patch(currentSite, new_patch, age, areap, label,nocomp_pft)
 
-    use FatesInterfaceTypesMod, only : hlm_current_tod,hlm_current_date,hlm_reference_date
+    use FatesInterfaceTypesMod, only : hlm_current_tod
     
     !
     ! !DESCRIPTION:

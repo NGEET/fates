@@ -616,7 +616,6 @@ contains
 
     
     use FatesInterfaceTypesMod, only : bc_in_type, bc_out_type
-    use FatesInterfaceTypesMod, only : hlm_use_vertsoilc
     use FatesConstantsMod, only : itrue
     use FatesGlobals, only : endrun => fates_endrun
     use EDParamsMod , only : ED_val_cwd_flig, ED_val_cwd_fcel

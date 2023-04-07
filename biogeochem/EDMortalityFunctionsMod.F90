@@ -59,8 +59,7 @@ contains
     !  background and freezing and size and age dependent senescence
     ! ============================================================================
     
-    use FatesConstantsMod,  only : tfrz => t_water_freeze_k_1atm
-    use FatesInterfaceTypesMod        , only : hlm_hio_ignore_val   
+    use FatesConstantsMod,  only : tfrz => t_water_freeze_k_1atm 
     use FatesConstantsMod,  only : fates_check_param_set
     use DamageMainMod,      only : GetDamageMortality
     

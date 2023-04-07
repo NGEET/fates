@@ -126,8 +126,6 @@ contains
 
 
     ! !USES:
-
-    use FatesSynchronizedParamsMod , only : FatesSynchronizedParamsInst
     use EDTypesMod        , only : ed_site_type
     use EDTypesMod        , only : maxpft
     use EDParamsMod       , only : dinc_vai

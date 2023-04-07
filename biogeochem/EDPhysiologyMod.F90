@@ -2652,8 +2652,6 @@ contains
     ! currentPatch%fragmentation_scaler
     !
     ! !USES:
-
-    use FatesSynchronizedParamsMod  , only : FatesSynchronizedParamsInst
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
     use FatesConstantsMod, only : pi => pi_const
     !

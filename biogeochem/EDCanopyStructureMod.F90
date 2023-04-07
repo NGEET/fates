@@ -337,7 +337,6 @@ contains
   subroutine DemoteFromLayer(currentSite,currentPatch,i_lyr,bc_in)
 
     use EDParamsMod, only : ED_val_comp_excln
-    use SFParamsMod, only : SF_val_CWD_frac
 
     ! !ARGUMENTS
     type(ed_site_type), intent(inout)  :: currentSite
@@ -2125,9 +2124,6 @@ contains
    ! This subroutine works through the current patch cohorts and updates the canopy_layer_tlai
    ! and related variables
    ! ---------------------------------------------------------------------------------------------
-
-   ! Uses
-   use EDParamsMod, only : dlower_vai
 
    ! Arguments
    type(ed_patch_type),intent(inout), target   :: currentPatch

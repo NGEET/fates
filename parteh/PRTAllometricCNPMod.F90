@@ -707,9 +707,6 @@ contains
   
   subroutine CNPAdjustFRootTargets(this, target_c, target_dcdd)
 
-    use FatesInterfaceTypesMod        , only : hlm_day_of_year
-    use FatesInterfaceTypesMod        , only : hlm_current_year
-
     class(cnp_allom_prt_vartypes) :: this
     real(r8)                      :: target_c(:)
     real(r8)                      :: target_dcdd(:)

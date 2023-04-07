@@ -1542,8 +1542,8 @@ contains
     use FatesConstantsMod  , only : fates_check_param_set
     use FatesConstantsMod  , only : itrue, ifalse
     use EDParamsMod        , only : logging_mechanical_frac, logging_collateral_frac
-    use EDParamsMod        , only : logging_direct_frac,logging_export_frac
-    use FatesInterfaceTypesMod, only : hlm_use_fixed_biogeog,hlm_use_sp, hlm_name
+    use EDParamsMod        , only : logging_direct_frac
+    use FatesInterfaceTypesMod, only : hlm_use_fixed_biogeog
     use FatesInterfaceTypesMod, only : hlm_use_inventory_init
 
      ! Argument

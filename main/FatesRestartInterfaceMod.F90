@@ -2517,7 +2517,6 @@ contains
      use EDInitMod,            only : zero_site
      use EDInitMod,            only : init_site_vars
      use EDPatchDynamicsMod,   only : create_patch
-     use EDPftvarcon,          only : EDPftvarcon_inst
      use FatesAllometryMod,    only : h2d_allom
 
 

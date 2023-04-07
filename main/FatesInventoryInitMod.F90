@@ -751,7 +751,6 @@ contains
 
       use FatesSizeAgeTypeIndicesMod, only: get_age_class_index
       use EDtypesMod, only: AREA
-      use SFParamsMod , only : SF_val_CWD_frac
 
       ! Arguments
       type(ed_patch_type),intent(inout), target   :: newpatch      ! Patch structure
