@@ -14,17 +14,16 @@ def main():
     # Add argument parser - subfunction? Seperate common module?
     # inputfiles and range should be the only arguments
     # Allow variable input files (state and/or transitions and/or management)
-    # parser = argparse.ArgumentParser()
-    # args = parser.parse_args()
+    args = CommandLineArgs()
 
     # Prep the LUH2 data
-    ds_luh2 = PrepDataSet(args.luh2file,args.start,args.stop)
+    ds_luh2 = PrepDataSet(args.luh2file,args.begin,args.end)
 
     # Prep the regrid target (assuming surface dataset)
-    ds_regridtarget= PrepDataSet(args.regridtargetfile,args.start,args.stop)
+    ds_regridtarget= PrepDataSet(args.regridtargetfile,args.begin,args.end)
 
     # Build regridder
-    regridder = xe.Regridder(ds_luh2, ds_regridtarget, "conservative")
+    regridder = RegridConservative(ds_luh2, ds_regridtarget, save=True)
 
     # Regrid the dataset(s)
     regrid_luh2 = regridder(ds_states)
@@ -38,8 +37,30 @@ def main():
     outputfile = os.path.join()
     regrid_luh2.to_netcdf(outputfile)
 
-# write to netcdf
-finb_luh2_all_regrid.to_netcdf('LUH2_historical_1850_2015_4x5_cdk_220302.nc')
+    # Example of file naming scheme
+    # finb_luh2_all_regrid.to_netcdf('LUH2_historical_1850_2015_4x5_cdk_220302.nc')
+
+def CommandLineArgs():
+
+    parser = argparse.ArgumentParser(description="placeholder desc")
+
+    # Required input luh2 datafile
+    # TO DO: using the checking function to report back if invalid file input
+    parser.add_argument("-l","--luh2file", require=True)
+
+    # Provide mutually exlusive arguments for regridding input selection
+    # Currently assuming that if a target is provided that a regridder file will be saved
+    regridtarget = parser.add_mutually_exclusive_group(required=True)
+    regridtarget.add_argument("-rf","--regridderfile") # use previously save regridder file
+    regridtarget.add_argument("-rt","--regriddertarget")  # use a dataset to regrid to
+
+    # Optional input to subset the time range of the data
+    parser.add_argument("-b","--begin")
+    parser.add_argument("-e","--end")
+
+    args = parser.parse_args()
+
+    return(args)
 
 # Prepare the inputfile to be used for regridding
 def PrepDataSet(inputfile,start,stop):
@@ -217,11 +238,17 @@ def SetMaskSurfData(inputdataset):
     # return(outputdataset)
     return(inputdataset)
 
-# def RegridConservative(dataset_from,dataset_to):
+def RegridConservative(ds_to_regrid,ds_regrid_target,save=False):
     # define the regridder transformation
-    # regridder = xe.Regridder(dataset_from, dataset_to, "conservative")
+    regridder = xe.Regridder(ds_to_regrid, ds_regrid_target, "conservative")
 
-    # return(regridder)
+    # If save flag is set, write regridder to a file
+    # TO DO: define a more useful name based on inputs
+    if(save):
+        filename = regridder.to_netcdf("regridder.nc")
+        print("regridder saved to file: ", filename)
+
+    return(regridder)
 
 
     # Apply regridder
