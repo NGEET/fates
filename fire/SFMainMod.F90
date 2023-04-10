@@ -24,7 +24,7 @@
   
   use PRTGenericMod         , only : element_pos
   use EDtypesMod            , only : ed_site_type
-  use EDtypesMod            , only : ed_patch_type
+  use FatesPatchMod         , only : fates_patch_type
   use FatesCohortMod        , only : fates_cohort_type
   use EDtypesMod            , only : AREA
   use FatesLitterMod        , only : DL_SF
@@ -85,7 +85,7 @@ contains
     type(bc_in_type)       , intent(in)            :: bc_in
     
 
-    type (ed_patch_type), pointer :: currentPatch
+    type (fates_patch_type), pointer :: currentPatch
 
     !zero fire things
     currentPatch => currentSite%youngest_patch
@@ -127,7 +127,7 @@ contains
     type(ed_site_type)     , intent(inout), target :: currentSite
     type(bc_in_type)       , intent(in)            :: bc_in
 
-    type(ed_patch_type),  pointer :: currentPatch
+    type(fates_patch_type),  pointer :: currentPatch
 
     real(r8) :: temp_in_C  ! daily averaged temperature in celcius
     real(r8) :: rainfall   ! daily precip in mm/day
@@ -181,7 +181,7 @@ contains
 
     type(ed_site_type), intent(in), target :: currentSite
 
-    type(ed_patch_type),  pointer :: currentPatch
+    type(fates_patch_type),  pointer :: currentPatch
     type(fates_cohort_type), pointer :: currentCohort
     type(litter_type), pointer    :: litt_c
 
@@ -357,7 +357,7 @@ contains
     type(ed_site_type) , intent(inout), target :: currentSite
     type(bc_in_type)   , intent(in)            :: bc_in
 
-    type(ed_patch_type) , pointer :: currentPatch
+    type(fates_patch_type) , pointer :: currentPatch
     type(fates_cohort_type), pointer :: currentCohort
 
     real(r8) :: total_grass_area     ! per patch,in m2
@@ -458,7 +458,7 @@ contains
     
     type(ed_site_type), intent(in), target :: currentSite
 
-    type(ed_patch_type), pointer :: currentPatch
+    type(fates_patch_type), pointer :: currentPatch
 
     ! Rothermal fire spread model parameters. 
     real(r8) beta,beta_op         ! weighted average of packing ratio (unitless)
@@ -601,7 +601,7 @@ contains
          SF_val_mid_moisture_Coeff, SF_val_mid_moisture_Slope
 
     type(ed_site_type) , intent(in), target :: currentSite
-    type(ed_patch_type), pointer    :: currentPatch
+    type(fates_patch_type), pointer    :: currentPatch
     type(litter_type), pointer      :: litt_c           ! carbon 12 litter pool
     
     real(r8) :: moist           !effective fuel moisture
@@ -703,7 +703,7 @@ contains
          SF_val_max_durat, SF_val_durat_slope, SF_val_fire_threshold
     
     type(ed_site_type), intent(inout), target :: currentSite
-    type(ed_patch_type), pointer :: currentPatch
+    type(fates_patch_type), pointer :: currentPatch
     type(bc_in_type), intent(in) :: bc_in
 
     real(r8) ROS !m/s
@@ -895,7 +895,7 @@ contains
 
     type(ed_site_type), intent(in), target :: currentSite
 
-    type(ed_patch_type), pointer  :: currentPatch
+    type(fates_patch_type), pointer  :: currentPatch
     type(fates_cohort_type), pointer :: currentCohort
 
     real(r8) ::  tree_ag_biomass ! total amount of above-ground tree biomass in patch. kgC/m2
@@ -959,7 +959,7 @@ contains
 
     type(ed_site_type), intent(in), target :: currentSite
 
-    type(ed_patch_type) , pointer :: currentPatch
+    type(fates_patch_type) , pointer :: currentPatch
     type(fates_cohort_type), pointer :: currentCohort
     real(r8)                      :: crown_depth    ! Depth of crown in meters
     
@@ -1026,7 +1026,7 @@ contains
 
     type(ed_site_type), intent(in), target :: currentSite
 
-    type(ed_patch_type) , pointer :: currentPatch
+    type(fates_patch_type) , pointer :: currentPatch
     type(fates_cohort_type), pointer :: currentCohort
 
     real(r8) :: tau_c !critical time taken to kill cambium (minutes) 
@@ -1082,7 +1082,7 @@ contains
 
     type(ed_site_type), intent(in), target :: currentSite
 
-    type(ed_patch_type),  pointer :: currentPatch
+    type(fates_patch_type),  pointer :: currentPatch
     type(fates_cohort_type), pointer :: currentCohort
 
     currentPatch => currentSite%oldest_patch

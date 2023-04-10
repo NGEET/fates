@@ -44,7 +44,7 @@ module FatesSoilBGCFluxMod
   use EDParamsMod        , only : p_uptake_mode
   use EDParamsMod        , only : n_uptake_mode
   use EDTypesMod          , only : ed_site_type
-  use EDTypesMod          , only : ed_patch_type
+  use FatesPatchMod     , only : fates_patch_type
   use FatesCohortMod      , only : fates_cohort_type
   use EDTypesMod          , only : AREA,AREA_INV
   use FatesInterfaceTypesMod, only    : bc_in_type
@@ -126,7 +126,7 @@ contains
     integer                       :: icomp         ! competitor index
     integer                       :: id            ! decomp layer index
     integer                       :: pft           ! pft index
-    type(ed_patch_type), pointer  :: cpatch        ! current patch pointer
+    type(fates_patch_type), pointer  :: cpatch        ! current patch pointer
     type(fates_cohort_type), pointer :: ccohort       ! current cohort pointer
     real(r8) :: fnrt_c                             ! fine-root carbon [kg]
 
@@ -249,7 +249,7 @@ contains
     
     type(bc_out_type), intent(inout)  :: bc_out
     type(bc_in_type), intent(in)  :: bc_in
-    type(ed_patch_type), pointer  :: cpatch        ! current patch pointer
+    type(fates_patch_type), pointer  :: cpatch        ! current patch pointer
     type(fates_cohort_type), pointer :: ccohort       ! current cohort pointer
     integer                       :: pft           ! plant functional type
     integer                       :: fp            ! patch index of the site
@@ -419,7 +419,7 @@ contains
     integer                       :: j       ! soil layer index
     integer                       :: id      ! decomp index (might == j)
     integer                       :: pft     ! plant functional type
-    type(ed_patch_type), pointer  :: cpatch  ! current patch pointer
+    type(fates_patch_type), pointer  :: cpatch  ! current patch pointer
     type(fates_cohort_type), pointer :: ccohort ! current cohort pointer
     real(r8) :: fnrt_c                       ! fine-root carbon [kg]
     real(r8) :: veg_rootc                    ! fine root carbon in each layer [g/m3]
@@ -532,7 +532,7 @@ contains
 
     ! Arguments
     type(ed_site_type), intent(inout)   :: csite
-    type(ed_patch_type), intent(inout) :: cpatch
+    type(fates_patch_type), intent(inout) :: cpatch
     type(fates_cohort_type), intent(inout),target :: ccohort
     type(bc_in_type), intent(in) :: bc_in
 
@@ -630,7 +630,7 @@ contains
     type(bc_out_type)  , intent(inout),target  :: bc_out
 
     ! !LOCAL VARIABLES:
-    type (ed_patch_type),  pointer :: currentPatch
+    type (fates_patch_type),  pointer :: currentPatch
     type (fates_cohort_type), pointer :: ccohort
     real(r8), pointer              :: flux_cel_si(:)
     real(r8), pointer              :: flux_lab_si(:)

@@ -16,17 +16,18 @@ module EDPatchDynamicsMod
   use FatesLitterMod       , only : ncwd
   use FatesLitterMod       , only : ndcmpy
   use FatesLitterMod       , only : litter_type
+  use FatesConstantsMod,     only : n_dbh_bins
   use EDTypesMod           , only : homogenize_seed_pfts
-  use EDTypesMod           , only : n_dbh_bins, area, patchfusion_dbhbin_loweredges
+  use EDTypesMod           , only : area, patchfusion_dbhbin_loweredges
   use EDtypesMod           , only : force_patchfuse_min_biomass
-  use EDTypesMod           , only : ed_site_type, ed_patch_type
+  use EDTypesMod           , only : ed_site_type
+  use FatesPatchMod,         only : fates_patch_type
   use FatesCohortMod       , only : fates_cohort_type
   use EDTypesMod           , only : site_massbal_type
   use EDTypesMod           , only : site_fluxdiags_type
   use EDTypesMod           , only : min_patch_area
   use EDTypesMod           , only : min_patch_area_forced
-  use EDParamsMod           , only : nclmax
-  use EDTypesMod           , only : maxpft
+  use EDParamsMod          , only : nclmax
   use EDTypesMod           , only : dtype_ifall
   use EDTypesMod           , only : dtype_ilog
   use EDTypesMod           , only : dtype_ifire
@@ -36,7 +37,7 @@ module EDPatchDynamicsMod
   use FatesLitterMod       , only : lg_sf
   use FatesLitterMod       , only : dl_sf
   use EDTypesMod           , only : dump_patch
-  use EDTypesMod           , only : N_DIST_TYPES
+  use FatesConstantsMod    , only : N_DIST_TYPES
   use EDTypesMod           , only : AREA_INV
   use FatesConstantsMod    , only : rsnbl_math_prec
   use FatesConstantsMod    , only : fates_tiny
@@ -174,7 +175,7 @@ contains
     type(bc_in_type) , intent(in) :: bc_in
     !
     ! !LOCAL VARIABLES:
-    type (ed_patch_type) , pointer :: currentPatch
+    type (fates_patch_type) , pointer :: currentPatch
     type (fates_cohort_type), pointer :: currentCohort
 
     real(r8) :: cmort
@@ -416,10 +417,10 @@ contains
     type (bc_in_type), intent(in)      :: bc_in
     !
     ! !LOCAL VARIABLES:
-    type (ed_patch_type) , pointer :: new_patch
-    type (ed_patch_type) , pointer :: new_patch_primary
-    type (ed_patch_type) , pointer :: new_patch_secondary
-    type (ed_patch_type) , pointer :: currentPatch
+    type (fates_patch_type) , pointer :: new_patch
+    type (fates_patch_type) , pointer :: new_patch_primary
+    type (fates_patch_type) , pointer :: new_patch_secondary
+    type (fates_patch_type) , pointer :: currentPatch
     type (fates_cohort_type), pointer :: currentCohort
     type (fates_cohort_type), pointer :: nc
     type (fates_cohort_type), pointer :: storesmallcohort
@@ -1257,8 +1258,8 @@ contains
     !
     ! !LOCAL VARIABLES:
     real(r8)                     :: areatot
-    type(ed_patch_type), pointer :: currentPatch 
-    type(ed_patch_type), pointer :: largestPatch
+    type(fates_patch_type), pointer :: currentPatch 
+    type(fates_patch_type), pointer :: largestPatch
     real(r8)                     :: largest_area
     integer                      :: el
     real(r8)                     :: live_stock
@@ -1328,7 +1329,7 @@ contains
     type(ed_site_type),intent(in) :: currentSite 
     !
     ! !LOCAL VARIABLES:
-    type(ed_patch_type), pointer :: currentPatch 
+    type(fates_patch_type), pointer :: currentPatch 
     integer patchno
     !---------------------------------------------------------------------
 
@@ -1408,8 +1409,8 @@ contains
     !
     ! !ARGUMENTS:
     type(ed_site_type)  , intent(in)    :: currentSite        ! site
-    type(ed_patch_type) , intent(in)    :: currentPatch       ! Donor patch
-    type(ed_patch_type) , intent(inout) :: newPatch           ! New patch
+    type(fates_patch_type) , intent(in)    :: currentPatch       ! Donor patch
+    type(fates_patch_type) , intent(inout) :: newPatch           ! New patch
     real(r8)            , intent(in)    :: patch_site_areadis ! Area being donated
                                                               ! by current patch
 
@@ -1621,8 +1622,8 @@ contains
     !
     ! !ARGUMENTS:
     type(ed_site_type)  , intent(inout), target :: currentSite
-    type(ed_patch_type) , intent(inout), target :: currentPatch   ! Donor Patch
-    type(ed_patch_type) , intent(inout), target :: newPatch   ! New Patch
+    type(fates_patch_type) , intent(inout), target :: currentPatch   ! Donor Patch
+    type(fates_patch_type) , intent(inout), target :: newPatch   ! New Patch
     real(r8)            , intent(in)            :: patch_site_areadis ! Area being donated
     type(bc_in_type)    , intent(in)            :: bc_in
     
@@ -1859,8 +1860,8 @@ contains
     !
     ! !ARGUMENTS:
     type(ed_site_type)  , intent(inout), target :: currentSite 
-    type(ed_patch_type) , intent(inout), target :: currentPatch
-    type(ed_patch_type) , intent(inout), target :: newPatch
+    type(fates_patch_type) , intent(inout), target :: currentPatch
+    type(fates_patch_type) , intent(inout), target :: newPatch
     real(r8)            , intent(in)            :: patch_site_areadis
     type(bc_in_type)    , intent(in)            :: bc_in
     !
@@ -2081,7 +2082,7 @@ contains
     !
     ! !ARGUMENTS:
     type(ed_site_type) , intent(inout), target :: currentSite
-    type(ed_patch_type), intent(inout), target :: new_patch
+    type(fates_patch_type), intent(inout), target :: new_patch
     real(r8), intent(in) :: age                  ! notional age of this patch in years
     real(r8), intent(in) :: areap                ! initial area of this patch in m2. 
     integer, intent(in)  :: label                ! anthropogenic disturbance label
@@ -2204,10 +2205,10 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS:
-    type(ed_patch_type), intent(inout), target :: cp_p
+    type(fates_patch_type), intent(inout), target :: cp_p
     !
     ! !LOCAL VARIABLES:
-    type(ed_patch_type), pointer :: currentPatch
+    type(fates_patch_type), pointer :: currentPatch
     !---------------------------------------------------------------------
 
     currentPatch  => cp_p  
@@ -2330,7 +2331,7 @@ contains
     !
     ! !LOCAL VARIABLES:
     type(ed_site_type) , pointer :: currentSite
-    type(ed_patch_type), pointer :: currentPatch,tpp,tmpptr
+    type(fates_patch_type), pointer :: currentPatch,tpp,tmpptr
     integer  :: ft,z        !counters for pft and height class
     real(r8) :: norm        !normalized difference between biomass profiles
     real(r8) :: profiletol  !tolerance of patch fusion routine. Starts off high and is reduced if there are too many patches.
@@ -2637,8 +2638,8 @@ contains
     !
     ! !ARGUMENTS:
     type (ed_site_type), intent(inout),target :: csite  ! Current site 
-    type (ed_patch_type) , pointer :: dp                ! Donor Patch
-    type (ed_patch_type) , target, intent(inout) :: rp  ! Recipient Patch
+    type (fates_patch_type) , pointer :: dp                ! Donor Patch
+    type (fates_patch_type) , target, intent(inout) :: rp  ! Recipient Patch
 
     !
     ! !LOCAL VARIABLES:
@@ -2649,8 +2650,8 @@ contains
     integer                        :: c,p          !counters for pft and litter size class. 
     integer                        :: tnull,snull  ! are the tallest and shortest cohorts associated?
     integer                        :: el           ! loop counting index for elements
-    type(ed_patch_type), pointer   :: youngerp     ! pointer to the patch younger than donor
-    type(ed_patch_type), pointer   :: olderp       ! pointer to the patch older than donor
+    type(fates_patch_type), pointer   :: youngerp     ! pointer to the patch younger than donor
+    type(fates_patch_type), pointer   :: olderp       ! pointer to the patch older than donor
     real(r8)                       :: inv_sum_area ! Inverse of the sum of the two patches areas
     !-----------------------------------------------------------------------------------------------
 
@@ -2819,10 +2820,10 @@ contains
     type(ed_site_type), target, intent(inout) :: currentSite
     !
     ! !LOCAL VARIABLES:
-    type(ed_patch_type), pointer :: currentPatch
-    type(ed_patch_type), pointer :: olderPatch
-    type(ed_patch_type), pointer :: youngerPatch
-    type(ed_patch_type), pointer :: patchpointer
+    type(fates_patch_type), pointer :: currentPatch
+    type(fates_patch_type), pointer :: olderPatch
+    type(fates_patch_type), pointer :: youngerPatch
+    type(fates_patch_type), pointer :: patchpointer
     integer, parameter           :: max_cycles = 10  ! After 10 loops through
                                                      ! You should had fused
     integer                      :: count_cycles
@@ -2988,7 +2989,7 @@ contains
       integer, intent(in)                       :: pft          ! pft index
 
       ! !LOCAL VARIABLES:
-      type(ed_patch_type), pointer              :: currentPatch
+      type(fates_patch_type), pointer              :: currentPatch
       type(litter_type), pointer                :: litt
 
       
@@ -3018,7 +3019,7 @@ contains
     ! to via the patch structure.  This subroutine DOES NOT deallocate the patch
     ! structure itself.
 
-    type(ed_patch_type) :: cpatch
+    type(fates_patch_type) :: cpatch
 
     type(fates_cohort_type), pointer :: ccohort  ! current
     type(fates_cohort_type), pointer :: ncohort  ! next
@@ -3096,10 +3097,10 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS:
-    type(ed_patch_type), target, intent(inout) :: cp_pnt
+    type(fates_patch_type), target, intent(inout) :: cp_pnt
     !
     ! !LOCAL VARIABLES:
-    type(ed_patch_type) , pointer  :: currentPatch
+    type(fates_patch_type) , pointer  :: currentPatch
     type(fates_cohort_type), pointer  :: currentCohort
     real(r8) :: mind(N_DBH_BINS) ! Bottom of DBH bin 
     real(r8) :: maxd(N_DBH_BINS) ! Top of DBH bin
@@ -3156,7 +3157,7 @@ contains
     type(ed_site_type) , intent(inout), target :: sites(nsites)
     !
     ! !LOCAL VARIABLES:
-    type (ed_patch_type), pointer :: currentPatch
+    type (fates_patch_type), pointer :: currentPatch
     integer :: totNumPatches  ! total number of patches.  
     integer :: s
     !---------------------------------------------------------------------
@@ -3189,7 +3190,7 @@ contains
     real(r8)           , intent(out)        :: frac_site_primary
 
     ! !LOCAL VARIABLES:
-    type (ed_patch_type), pointer :: currentPatch
+    type (fates_patch_type), pointer :: currentPatch
 
    frac_site_primary = 0._r8
    currentPatch => site_in%oldest_patch

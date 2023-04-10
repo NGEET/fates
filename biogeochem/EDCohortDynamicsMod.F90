@@ -26,7 +26,8 @@ Module EDCohortDynamicsMod
   use EDPftvarcon           , only : GetDecompyFrac
   use PRTParametersMod      , only : prt_params
   use FatesParameterDerivedMod, only : param_derived
-  use EDTypesMod            , only : ed_site_type, ed_patch_type
+  use EDTypesMod            , only : ed_site_type
+  use FatesPatchMod,          only : fates_patch_type
   use FatesCohortMod       , only : fates_cohort_type
   use EDParamsMod            , only : nclmax
   use PRTGenericMod         , only : element_list
@@ -165,7 +166,7 @@ subroutine create_cohort(currentSite, patchptr, pft, nn, hite, coage, dbh,   &
 ! !ARGUMENTS
 
 type(ed_site_type), intent(inout),   target :: currentSite
-type(ed_patch_type), intent(inout), pointer :: patchptr
+type(fates_patch_type), intent(inout), pointer :: patchptr
 
 integer,  intent(in)      :: pft              ! Cohort Plant Functional Type
 integer,  intent(in)      :: crowndamage      ! Cohort damage class
@@ -349,7 +350,7 @@ end subroutine create_cohort
     !
     ! !ARGUMENTS
     type (ed_site_type) , intent(inout) :: currentSite
-    type (ed_patch_type), intent(inout) :: currentPatch
+    type (fates_patch_type), intent(inout) :: currentPatch
     integer             , intent(in)    :: level
     integer                             :: call_index
     type(bc_in_type), intent(in)        :: bc_in
@@ -466,7 +467,7 @@ end subroutine create_cohort
    !
    ! !ARGUMENTS
    type (ed_site_type)  , intent(inout), target :: currentSite
-   type (ed_patch_type) , intent(inout), target :: currentPatch
+   type (fates_patch_type) , intent(inout), target :: currentPatch
    type (fates_cohort_type), intent(inout), target :: currentCohort
    type(bc_in_type), intent(in)                :: bc_in
 
@@ -572,7 +573,7 @@ end subroutine create_cohort
 
     ! Arguments
     type (ed_site_type)   , target  :: csite
-    type (ed_patch_type)  , target  :: cpatch
+    type (fates_patch_type)  , target  :: cpatch
     type (fates_cohort_type) , target  :: ccohort
     real(r8)                        :: nplant     ! Number (absolute)
                                                   ! of plants to transfer
@@ -679,10 +680,7 @@ end subroutine create_cohort
     return
   end subroutine SendCohortToLitter
 
-
   !--------------------------------------------------------------------------------------
-
-
 
   subroutine DeallocateCohort(currentCohort)
 
@@ -730,7 +728,7 @@ end subroutine create_cohort
      !
      ! !ARGUMENTS
      type (ed_site_type), intent(inout)           :: currentSite
-     type (ed_patch_type), intent(inout), pointer :: currentPatch
+     type (fates_patch_type), intent(inout), pointer :: currentPatch
      type (bc_in_type), intent(in)                :: bc_in
      !
 
@@ -1293,9 +1291,9 @@ end subroutine create_cohort
     !                 sort cohorts into the correct order   DO NOT CHANGE THIS IT WILL BREAK
     ! ============================================================================
 
-    type(ed_patch_type) , intent(inout), target :: patchptr
+    type(fates_patch_type) , intent(inout), target :: patchptr
 
-    type(ed_patch_type) , pointer :: current_patch
+    type(fates_patch_type) , pointer :: current_patch
     type(fates_cohort_type), pointer :: current_c, next_c
     type(fates_cohort_type), pointer :: shortestc, tallestc
     type(fates_cohort_type), pointer :: storesmallcohort
@@ -1347,7 +1345,7 @@ end subroutine create_cohort
     ! !USES:
     !
     ! !ARGUMENTS
-    type(ed_patch_type),  intent(inout),     target :: currentPatch
+    type(fates_patch_type),  intent(inout),     target :: currentPatch
     type(fates_cohort_type) , intent(inout), pointer :: pcc
     type(fates_cohort_type) , intent(inout), pointer :: ptall
     type(fates_cohort_type) , intent(inout), pointer :: pshort
@@ -1357,7 +1355,7 @@ end subroutine create_cohort
     type(fates_cohort_type) , intent(inout),pointer,optional :: storebigcohort   ! storage of the largest cohort for insertion routine
     !
     ! !LOCAL VARIABLES:
-    !type(ed_patch_type),  pointer :: currentPatch
+    !type(fates_patch_type),  pointer :: currentPatch
     type(fates_cohort_type), pointer :: current
     type(fates_cohort_type), pointer :: tallptr, shortptr, icohort
     type(fates_cohort_type), pointer :: ptallest, pshortest
@@ -1624,7 +1622,7 @@ end subroutine create_cohort
     ! !USES:
     !
     ! !ARGUMENTS
-    type(ed_patch_type), intent(inout), target :: currentPatch      !new site
+    type(fates_patch_type), intent(inout), target :: currentPatch      !new site
     !
     ! !LOCAL VARIABLES:
     type(fates_cohort_type), pointer :: currentCohort   !new patch
@@ -1764,7 +1762,7 @@ end subroutine create_cohort
     ! --------------------------------------------------------------------------
 
     type(ed_site_type)   :: csite            ! Site of the current cohort
-    type(ed_patch_type)  :: cpatch           ! patch of the current cohort
+    type(fates_patch_type)  :: cpatch           ! patch of the current cohort
     type(fates_cohort_type),pointer :: ccohort  ! Current (damaged) cohort
     logical              :: newly_recovered  ! true if we create a new cohort
 

@@ -1810,7 +1810,7 @@ contains
    use FatesInterfaceTypesMod, only : numpft
    use EDTypesMod, only : ed_site_type
    use FatesCohortMod, only : fates_cohort_type
-   use EDTypesMod, only : ed_patch_type
+   use FatesPatchMod, only : fates_patch_type
    use EDParamsMod, only : maxSWb
    use EDParamsMod, only : nclmax
    use EDTypesMod, only : numWaterMem
@@ -1881,7 +1881,7 @@ contains
     integer  :: icdj             ! loop counter for damage
     
     type(fates_restart_variable_type) :: rvar
-    type(ed_patch_type),pointer  :: cpatch
+    type(fates_patch_type),pointer  :: cpatch
     type(fates_cohort_type),pointer :: ccohort
 
 
@@ -2506,11 +2506,11 @@ contains
 
      use EDTypesMod,           only : ed_site_type
      use FatesCohortMod,           only : fates_cohort_type
-     use EDTypesMod,           only : ed_patch_type
+     use FatesPatchMod,           only : fates_patch_type
      use EDParamsMod,          only : maxSWb
      use FatesInterfaceTypesMod,    only : fates_maxElementsPerPatch
 
-     use EDTypesMod,           only : maxpft
+     use FatesConstantsMod,    only : maxpft
      use EDTypesMod,           only : area
      use EDPatchDynamicsMod,   only : zero_patch
      use EDInitMod,            only : zero_site
@@ -2529,7 +2529,7 @@ contains
 
      ! local variables
 
-     type(ed_patch_type) , pointer     :: newp
+     type(fates_patch_type) , pointer     :: newp
      type(fates_cohort_type), pointer     :: new_cohort
      type(fates_cohort_type), pointer     :: prev_cohort
      integer                           :: cohortstatus
@@ -2704,7 +2704,7 @@ contains
 
      use EDTypesMod, only : ed_site_type
      use FatesCohortMod, only : fates_cohort_type
-     use EDTypesMod, only : ed_patch_type
+     use FatesPatchMod, only : fates_patch_type
      use EDParamsMod, only : maxSWb
      use EDParamsMod, only : nclmax
      use FatesInterfaceTypesMod, only : numpft
@@ -2723,7 +2723,7 @@ contains
      ! locals
      ! ----------------------------------------------------------------------------------
      ! LL pointers
-     type(ed_patch_type),pointer  :: cpatch      ! current patch
+     type(fates_patch_type),pointer  :: cpatch      ! current patch
      type(fates_cohort_type),pointer :: ccohort     ! current cohort
      type(litter_type), pointer   :: litt        ! litter object on the current patch
      ! loop indices
@@ -3386,7 +3386,7 @@ contains
      ! -------------------------------------------------------------------------
 
      use EDTypesMod, only            : ed_site_type
-     use EDTypesMod, only            : ed_patch_type
+     use FatesPatchMod, only         : fates_patch_type
      use EDSurfaceRadiationMod, only : PatchNormanRadiation
      use FatesInterfaceTypesMod, only     : hlm_numSWb
 
@@ -3398,7 +3398,7 @@ contains
 
      ! locals
      ! ----------------------------------------------------------------------------------
-     type(ed_patch_type),pointer  :: currentPatch  ! current patch
+     type(fates_patch_type),pointer  :: currentPatch  ! current patch
      integer                      :: s             ! site counter
      integer                      :: ib            ! radiation band counter
      integer                      :: ifp           ! patch counter

@@ -33,7 +33,7 @@ module FatesInventoryInitMod
    use FatesInterfaceTypesMod, only : nleafage
    use FatesLitterMod   , only : litter_type
    use EDTypesMod       , only : ed_site_type
-   use EDTypesMod       , only : ed_patch_type
+   use FatesPatchMod    , only : fates_patch_type
    use FatesCohortMod   , only : fates_cohort_type
    use EDTypesMod       , only : area
    use FatesConstantsMod, only : leaves_on, leaves_off
@@ -75,7 +75,7 @@ module FatesInventoryInitMod
    ! with a patch.  BY having a vector of patch pointers that lines up with the string
    ! identifier array, this can be done quickly.
    type pp_array
-      type(ed_patch_type), pointer :: cpatch
+      type(fates_patch_type), pointer :: cpatch
    end type pp_array
 
    character(len=*), parameter, private :: sourcefile =  __FILE__
@@ -123,12 +123,12 @@ contains
 
       ! Locals
       type(ed_site_type), pointer                  :: currentSite
-      type(ed_patch_type), pointer                 :: currentpatch
+      type(fates_patch_type), pointer                 :: currentpatch
       type(fates_cohort_type), pointer                :: currentcohort
-      type(ed_patch_type), pointer                 :: newpatch
-      type(ed_patch_type), pointer                 :: olderpatch
-      type(ed_patch_type), pointer                 :: head_of_unsorted_patch_list
-      type(ed_patch_type), pointer                 :: next_in_unsorted_patch_list
+      type(fates_patch_type), pointer                 :: newpatch
+      type(fates_patch_type), pointer                 :: olderpatch
+      type(fates_patch_type), pointer                 :: head_of_unsorted_patch_list
+      type(fates_patch_type), pointer                 :: next_in_unsorted_patch_list
       integer                                      :: sitelist_file_unit   ! fortran file unit for site list
       integer                                      :: pss_file_unit        ! fortran file unit for the pss file
       integer                                      :: css_file_unit        ! fortran file unit for the css file
@@ -753,7 +753,7 @@ contains
       use EDtypesMod, only: AREA
 
       ! Arguments
-      type(ed_patch_type),intent(inout), target   :: newpatch      ! Patch structure
+      type(fates_patch_type),intent(inout), target   :: newpatch      ! Patch structure
       integer,intent(in)                          :: pss_file_unit ! Self explanatory
       integer,intent(in)                          :: ipa           ! Patch index (line number)
       integer,intent(out)                         :: ios           ! Return flag
@@ -901,7 +901,7 @@ contains
       integer                                     :: cstatus       ! cohort status
       integer,parameter                           :: rstatus = 0   ! recruit status
 
-      type(ed_patch_type), pointer                :: cpatch        ! current patch pointer
+      type(fates_patch_type), pointer                :: cpatch        ! current patch pointer
       type(fates_cohort_type), pointer               :: temp_cohort   ! temporary patch (needed for allom funcs)
       integer                                     :: ipa           ! patch idex
       integer                                     :: iage
@@ -1190,7 +1190,7 @@ contains
        type(ed_site_type), target :: currentSite
 
        ! Locals
-       type(ed_patch_type), pointer          :: currentpatch
+       type(fates_patch_type), pointer          :: currentpatch
        type(fates_cohort_type), pointer         :: currentcohort
 
        character(len=128)                    :: pss_name_out         ! output file string

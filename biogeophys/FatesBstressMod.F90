@@ -7,9 +7,9 @@ module FatesBstressMod
    !
    use FatesConstantsMod , only : tfrz => t_water_freeze_k_1atm 
    use FatesConstantsMod , only : itrue,ifalse
-   use EDTypesMod        , only : ed_site_type,       &
-                                  ed_patch_type,      &
-                                  maxpft
+   use FatesConstantsMod,  only : maxpft
+   use EDTypesMod        , only : ed_site_type
+   use FatesPatchMod,      only : fates_patch_type
    use FatesCohortMod    , only : fates_cohort_type
    use shr_kind_mod      , only : r8 => shr_kind_r8
    use FatesInterfaceTypesMod , only : bc_in_type, &
@@ -48,7 +48,7 @@ contains
      
       !
       ! !LOCAL VARIABLES:
-      type(ed_patch_type),pointer             :: cpatch ! Current Patch Pointer
+      type(fates_patch_type),pointer             :: cpatch ! Current Patch Pointer
       type(fates_cohort_type),pointer            :: ccohort ! Current cohort pointer
       integer  :: s                 ! site
       integer  :: j                 ! soil layer

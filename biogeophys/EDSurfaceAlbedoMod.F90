@@ -10,8 +10,9 @@ module EDSurfaceRadiationMod
 
 #include "shr_assert.h"
 
-  use EDTypesMod        , only : ed_patch_type, ed_site_type
-  use EDTypesMod        , only : maxpft
+  use EDTypesMod        , only : ed_site_type
+  use FatesPatchMod,      only : fates_patch_type
+  use FatesConstantsMod, only : maxpft
   use FatesConstantsMod , only : r8 => fates_r8
   use FatesConstantsMod , only : itrue
   use FatesConstantsMod , only : pi_const
@@ -68,7 +69,7 @@ contains
 
     !
     ! !USES:
-    use EDtypesMod        , only : ed_patch_type
+    use FatesPatchMod     , only : fates_patch_type
     use EDTypesMod        , only : ed_site_type
 
 
@@ -84,7 +85,7 @@ contains
     integer :: s                                   ! site loop counter
     integer :: ifp                                 ! patch loop counter
     integer :: ib                                  ! radiation broad band counter
-    type(ed_patch_type), pointer :: currentPatch   ! patch pointer
+    type(fates_patch_type), pointer :: currentPatch   ! patch pointer
 
     !-----------------------------------------------------------------------
     ! -------------------------------------------------------------------------------
@@ -196,13 +197,13 @@ contains
     !
     ! !USES:
     use EDPftvarcon       , only : EDPftvarcon_inst
-    use EDtypesMod        , only : ed_patch_type
+    use FatesPatchMod     , only : fates_patch_type
 
     ! -----------------------------------------------------------------------------------
     ! !ARGUMENTS:
     ! -----------------------------------------------------------------------------------
 
-    type(ed_patch_type), intent(inout), target :: currentPatch
+    type(fates_patch_type), intent(inout), target :: currentPatch
     real(r8), intent(inout) :: albd_parb_out(hlm_numSWb)
     real(r8), intent(inout) :: albi_parb_out(hlm_numSWb)
     real(r8), intent(inout) :: fabd_parb_out(hlm_numSWb)
@@ -1130,7 +1131,7 @@ subroutine ED_SunShadeFracs(nsites, sites,bc_in,bc_out)
 
 
   ! locals
-  type (ed_patch_type),pointer :: cpatch   ! c"urrent" patch
+  type (fates_patch_type),pointer :: cpatch   ! c"urrent" patch
   real(r8)          :: sunlai
   real(r8)          :: shalai
   real(r8)          :: elai

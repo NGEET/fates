@@ -64,7 +64,7 @@ module EDMainMod
   use FatesLitterMod           , only : litter_type
   use FatesLitterMod           , only : ncwd
   use EDtypesMod               , only : ed_site_type
-  use EDtypesMod               , only : ed_patch_type
+  use FatesPatchMod            , only : fates_patch_type
   use FatesCohortMod           , only : fates_cohort_type
   use EDTypesMod               , only : AREA
   use EDTypesMod               , only : site_massbal_type
@@ -149,7 +149,7 @@ contains
     type(bc_out_type)       , intent(inout)          :: bc_out
     !
     ! !LOCAL VARIABLES:
-    type(ed_patch_type), pointer :: currentPatch
+    type(fates_patch_type), pointer :: currentPatch
     integer :: el                ! Loop counter for variables 
     integer :: do_patch_dynamics ! for some modes, we turn off patch dynamics
 
@@ -343,7 +343,7 @@ contains
     !
     ! !LOCAL VARIABLES:
     type(site_massbal_type), pointer :: site_cmass
-    type(ed_patch_type)  , pointer :: currentPatch
+    type(fates_patch_type)  , pointer :: currentPatch
     type(fates_cohort_type) , pointer :: currentCohort
     type(fates_cohort_type) , pointer :: nc
     type(fates_cohort_type) , pointer :: storesmallcohort
@@ -780,7 +780,7 @@ contains
     type(bc_out_type)  , intent(inout)    :: bc_out
     !
     ! !LOCAL VARIABLES:
-    type (ed_patch_type) , pointer :: currentPatch
+    type (fates_patch_type) , pointer :: currentPatch
     !-----------------------------------------------------------------------
     if(hlm_use_sp.eq.ifalse)then
       call canopy_spread(currentSite)
@@ -879,7 +879,7 @@ contains
     ! Also, the carbon pools are per site/gridcell, so that
     ! we can account for the changing areas of patches.
 
-    type(ed_patch_type)  , pointer :: currentPatch
+    type(fates_patch_type)  , pointer :: currentPatch
     type(fates_cohort_type) , pointer :: currentCohort
     type(litter_type), pointer     :: litt
     logical, parameter :: print_cohorts = .true.   ! Set to true if you want
@@ -1034,7 +1034,7 @@ contains
     type(ed_site_type)      , intent(inout), target  :: currentSite
 
     ! Locals
-    type(ed_patch_type), pointer :: currentPatch
+    type(fates_patch_type), pointer :: currentPatch
     type(fates_cohort_type), pointer :: currentCohort
 
     currentPatch => currentSite%youngest_patch

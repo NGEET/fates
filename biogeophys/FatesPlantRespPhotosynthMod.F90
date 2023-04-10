@@ -38,13 +38,13 @@ module FATESPlantRespPhotosynthMod
   use FatesInterfaceTypesMod, only : hlm_parteh_mode
   use FatesInterfaceTypesMod, only : numpft
   use FatesInterfaceTypesMod, only : nleafage
-  use EDTypesMod,        only : maxpft
+  use FatesConstantsMod, only : maxpft
   use EDParamsMod,       only : nlevleaf
   use EDParamsMod,       only : nclmax
   use PRTGenericMod,     only : max_nleafage
   use EDTypesMod,        only : do_fates_salinity
   use EDParamsMod,       only : q10_mr
-  use EDTypesMod,        only : ed_patch_type
+  use FatesPatchMod,     only : fates_patch_type
   use FatesCohortMod,    only : fates_cohort_type
   use EDParamsMod,       only : maintresp_leaf_model
   use FatesConstantsMod, only : lmrmodel_ryan_1991
@@ -127,7 +127,7 @@ contains
 
     ! !USES:
     use EDTypesMod        , only : ed_site_type
-    use EDTypesMod        , only : maxpft
+    use FatesConstantsMod , only : maxpft
     use EDParamsMod       , only : dinc_vai
     use EDParamsMod       , only : dlower_vai
     use FatesInterfaceTypesMod , only : bc_in_type
@@ -158,7 +158,7 @@ contains
 
     ! LOCAL VARIABLES:
     ! -----------------------------------------------------------------------------------
-    type (ed_patch_type) , pointer :: currentPatch
+    type (fates_patch_type) , pointer :: currentPatch
     type (fates_cohort_type), pointer :: currentCohort
 
     ! -----------------------------------------------------------------------------------
@@ -1890,7 +1890,7 @@ subroutine UpdateCanopyNCanNRadPresent(currentPatch)
   ! ---------------------------------------------------------------------------------
 
    ! Arguments
-   type(ed_patch_type), target :: currentPatch
+   type(fates_patch_type), target :: currentPatch
    type(fates_cohort_type), pointer :: currentCohort
 
    ! Locals

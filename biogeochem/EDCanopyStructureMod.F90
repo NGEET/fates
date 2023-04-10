@@ -19,7 +19,8 @@ module EDCanopyStructureMod
   use EDCohortDynamicsMod   , only : InitPRTObject
   use FatesAllometryMod     , only : tree_lai
   use FatesAllometryMod     , only : tree_sai
-  use EDtypesMod            , only : ed_site_type, ed_patch_type
+  use EDtypesMod            , only : ed_site_type
+  use FatesPatchMod,          only : fates_patch_type
   use FatesCohortMod,         only : fates_cohort_type
   use EDParamsMod            , only : nclmax
   use EDParamsMod            , only : nlevleaf
@@ -136,7 +137,7 @@ contains
 
     !
     ! !LOCAL VARIABLES:
-    type(ed_patch_type) , pointer :: currentPatch
+    type(fates_patch_type) , pointer :: currentPatch
     type(fates_cohort_type), pointer :: currentCohort
     integer  :: i_lyr                  ! current layer index
     integer  :: z                      ! Current number of canopy layers. (1= canopy, 2 = understorey)
@@ -340,7 +341,7 @@ contains
 
     ! !ARGUMENTS
     type(ed_site_type), intent(inout)  :: currentSite
-    type(ed_patch_type), intent(inout) :: currentPatch
+    type(fates_patch_type), intent(inout) :: currentPatch
     integer, intent(in)                :: i_lyr   ! Current canopy layer of interest
     type(bc_in_type), intent(in)       :: bc_in
 
@@ -796,7 +797,7 @@ contains
 
     ! !ARGUMENTS
     type(ed_site_type), intent(inout), target  :: currentSite
-    type(ed_patch_type), intent(inout), target :: currentPatch
+    type(fates_patch_type), intent(inout), target :: currentPatch
     integer, intent(in)                        :: i_lyr   ! Current canopy layer of interest
 
     ! !LOCAL VARIABLES:
@@ -1243,7 +1244,7 @@ contains
     !
     ! !LOCAL VARIABLES:
     type (fates_cohort_type), pointer :: currentCohort
-    type (ed_patch_type) , pointer :: currentPatch
+    type (fates_patch_type) , pointer :: currentPatch
     real(r8) :: sitelevel_canopyarea  ! Amount of canopy in top layer at the site level
     real(r8) :: inc                   ! Arbitrary daily incremental change in canopy area
     integer  :: z
@@ -1307,7 +1308,7 @@ contains
     type(bc_in_type)        , intent(in)            :: bc_in(nsites)
     !
     ! !LOCAL VARIABLES:
-    type (ed_patch_type)  , pointer :: currentPatch
+    type (fates_patch_type)  , pointer :: currentPatch
     type (fates_cohort_type) , pointer :: currentCohort
     integer  :: s
     integer  :: ft               ! plant functional type
@@ -1508,7 +1509,7 @@ contains
 
     !
     ! !LOCAL VARIABLES:
-    type (ed_patch_type)  , pointer :: currentPatch
+    type (fates_patch_type)  , pointer :: currentPatch
     type (fates_cohort_type) , pointer :: currentCohort
     real(r8) :: remainder                !Thickness of layer at bottom of canopy.
     real(r8) :: fleaf                    ! fraction of cohort incepting area that is leaves.
@@ -1801,8 +1802,8 @@ contains
     ! to vegetation coverage to the host land model.
     ! ----------------------------------------------------------------------------------
 
-    use EDTypesMod        , only : ed_patch_type,  &
-         ed_site_type, AREA
+    use EDTypesMod        , only : ed_site_type, AREA
+    use FatesPatchMod,      only : fates_patch_type
     use FatesInterfaceTypesMod , only : bc_out_type
 
     !
@@ -1815,7 +1816,7 @@ contains
     ! Locals
     type (fates_cohort_type) , pointer :: currentCohort
     integer :: s, ifp, c, p
-    type (ed_patch_type)  , pointer :: currentPatch
+    type (fates_patch_type)  , pointer :: currentPatch
     real(r8) :: bare_frac_area
     real(r8) :: total_patch_area
     real(r8) :: total_canopy_area
@@ -2031,7 +2032,7 @@ contains
     ! ----------------------------------------------------------------------------------
 
     ! Arguments
-    type(ed_patch_type),intent(in), target :: cpatch
+    type(fates_patch_type),intent(in), target :: cpatch
     character(len=*),intent(in)            :: ai_type
 
     integer :: cl,ft
@@ -2095,7 +2096,7 @@ contains
     ! ---------------------------------------------------------------------------------------------
 
     ! Arguments
-    type(ed_patch_type),intent(inout), target   :: currentPatch
+    type(fates_patch_type),intent(inout), target   :: currentPatch
     real(r8),intent(in)                         :: site_spread
     integer,intent(in)                          :: layer_index
     real(r8),intent(inout)                      :: layer_area
@@ -2126,7 +2127,7 @@ contains
    ! ---------------------------------------------------------------------------------------------
 
    ! Arguments
-   type(ed_patch_type),intent(inout), target   :: currentPatch
+   type(fates_patch_type),intent(inout), target   :: currentPatch
 
    ! Local Variables
    type(fates_cohort_type), pointer :: currentCohort
@@ -2217,7 +2218,7 @@ contains
     ! the understory in the event the understory has reached maximum allowable area.
     ! --------------------------------------------------------------------------------------------
 
-    type(ed_patch_type),target   :: currentPatch
+    type(fates_patch_type),target   :: currentPatch
     real(r8),intent(in)          :: site_spread
     logical                      :: include_substory
 

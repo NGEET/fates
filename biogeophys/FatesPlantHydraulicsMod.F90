@@ -52,7 +52,7 @@ module FatesPlantHydraulicsMod
   use EDParamsMod       , only : hydr_solver
 
   use EDTypesMod        , only : ed_site_type
-  use EDTypesMod        , only : ed_patch_type
+  use FatesPatchMod     , only : fates_patch_type
   use FatesCohortMod    , only : fates_cohort_type
   use EDTypesMod        , only : AREA_INV
   use EDTypesMod        , only : AREA
@@ -336,8 +336,8 @@ contains
     ! locals
     ! ----------------------------------------------------------------------------------
     ! LL pointers
-    type(ed_patch_type),pointer         :: cpatch      ! current patch
-    type(fates_cohort_type),pointer        :: ccohort     ! current cohort
+    type(fates_patch_type),pointer      :: cpatch      ! current patch
+    type(fates_cohort_type),pointer     :: ccohort     ! current cohort
     type(ed_cohort_hydr_type),pointer   :: ccohort_hydr
     type(ed_site_hydr_type),pointer     :: csite_hydr
     integer                             :: s           ! site loop counter
@@ -1777,7 +1777,7 @@ end subroutine HydrSiteColdStart
 
   ! Locals
   type(fates_cohort_type), pointer :: currentCohort
-  type(ed_patch_type), pointer :: currentPatch
+  type(fates_patch_type), pointer :: currentPatch
   type(ed_cohort_hydr_type), pointer :: ccohort_hydr
   type(ed_site_hydr_type), pointer :: csite_hydr
   integer :: s
@@ -1860,7 +1860,7 @@ subroutine RecruitWUptake(nsites,sites,bc_in,dtime,recruitflag)
 
   ! Locals
   type(fates_cohort_type), pointer :: currentCohort
-  type(ed_patch_type), pointer :: currentPatch
+  type(fates_patch_type), pointer :: currentPatch
   type(ed_cohort_hydr_type), pointer :: ccohort_hydr
   type(ed_site_hydr_type), pointer :: csite_hydr
   integer :: s, j, ft
@@ -1935,7 +1935,7 @@ subroutine ConstrainRecruitNumber(csite,ccohort, cpatch, bc_in, mean_temp)
   ! Arguments
   type(ed_site_type), intent(inout), target     :: csite
   type(fates_cohort_type) , intent(inout), target  :: ccohort
-  type(ed_patch_type), intent(inout), target       :: cpatch
+  type(fates_patch_type), intent(inout), target       :: cpatch
   type(bc_in_type)    , intent(in)              :: bc_in
   real(r8),             intent(in)              :: mean_temp
 
@@ -2060,7 +2060,7 @@ subroutine UpdateSizeDepRhizVolLenCon(currentSite, bc_in)
   !
   ! !LOCAL VARIABLES:
   type(ed_site_hydr_type), pointer :: csite_hydr
-  type(ed_patch_type)  , pointer :: cPatch
+  type(fates_patch_type)  , pointer :: cPatch
   type(fates_cohort_type) , pointer :: cCohort
   type(ed_cohort_hydr_type), pointer :: ccohort_hydr
   real(r8)                       :: hksat_s                      ! hksat converted to units of 10^6sec
@@ -2197,7 +2197,7 @@ subroutine BTranForHLMDiagnosticsFromCohortHydr(nsites,sites,bc_out)
   integer                                 :: s
   integer                                 :: ifp
   real(r8)                                :: balive_patch
-  type(ed_patch_type),pointer             :: cpatch
+  type(fates_patch_type),pointer             :: cpatch
   type(fates_cohort_type),pointer            :: ccohort
 
   do s = 1,nsites
@@ -2427,7 +2427,7 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
 
   !----------------------------------------------------------------------
 
-  type (ed_patch_type),  pointer     :: cpatch       ! current patch pointer
+  type (fates_patch_type),  pointer     :: cpatch       ! current patch pointer
   type (fates_cohort_type), pointer     :: ccohort      ! current cohort pointer
   type(ed_site_hydr_type), pointer   :: csite_hydr    ! site hydraulics pointer
   type(ed_cohort_hydr_type), pointer :: ccohort_hydr ! cohort hydraulics pointer
@@ -4346,7 +4346,7 @@ subroutine RecruitWaterStorage(nsites,sites,bc_out)
 
    ! Locals
    type(fates_cohort_type), pointer :: currentCohort
-   type(ed_patch_type), pointer :: currentPatch
+   type(fates_patch_type), pointer :: currentPatch
    type(ed_cohort_hydr_type), pointer :: ccohort_hydr
    type(ed_site_hydr_type), pointer :: csite_hydr
    integer :: s

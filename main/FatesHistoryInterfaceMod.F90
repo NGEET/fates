@@ -20,14 +20,14 @@ module FatesHistoryInterfaceMod
   use EDTypesMod               , only : site_fluxdiags_type
   use EDtypesMod               , only : ed_site_type
   use FatesCohortMod           , only : fates_cohort_type
-  use EDtypesMod               , only : ed_patch_type
+  use FatesPatchMod            , only : fates_patch_type
   use EDtypesMod               , only : AREA
   use EDtypesMod               , only : AREA_INV
   use EDTypesMod               , only : numWaterMem
   use EDTypesMod               , only : num_vegtemp_mem
   use EDTypesMod               , only : site_massbal_type
   use PRTGenericMod            , only : element_list
-  use EDTypesMod               , only : N_DIST_TYPES
+  use FatesConstantsMod        , only : N_DIST_TYPES, maxpft
   use EDTypesMod               , only : dtype_ifall
   use EDTypesMod               , only : dtype_ifire
   use EDTypesMod               , only : dtype_ilog
@@ -1918,7 +1918,7 @@ end subroutine flush_hvars
     class(fates_history_interface_type) :: this
     type(ed_site_type), intent(in)      :: csite
 
-    type(ed_patch_type), pointer     :: cpatch
+    type(fates_patch_type), pointer     :: cpatch
     type(fates_cohort_type), pointer    :: ccohort
     integer :: iclscpf  ! layer x size x pft class index
     integer :: iscpf    ! Size x pft class index
@@ -2204,7 +2204,7 @@ end subroutine flush_hvars
     
     integer  :: return_code
     
-    type(ed_patch_type),pointer  :: cpatch
+    type(fates_patch_type),pointer  :: cpatch
     type(fates_cohort_type),pointer :: ccohort
 
     real(r8), parameter :: reallytalltrees = 1000.   ! some large number (m)
@@ -4365,7 +4365,7 @@ end subroutine flush_hvars
     real(r8) :: site_area_veg               ! area of the site that is not bare-ground 
     integer  :: ipa2     ! patch incrementer
     integer :: cnlfpft_indx, cnlf_indx, ipft, ican, ileaf ! more iterators and indices
-    type(ed_patch_type),pointer  :: cpatch
+    type(fates_patch_type),pointer  :: cpatch
     type(fates_cohort_type),pointer :: ccohort
     real(r8) :: per_dt_tstep          ! Time step in frequency units (/s)
 
@@ -4812,8 +4812,6 @@ end subroutine update_history_hifrq
 
     use FatesHydraulicsMemMod, only : ed_cohort_hydr_type, nshell
     use FatesHydraulicsMemMod, only : ed_site_hydr_type
-    use EDTypesMod           , only : maxpft
-
 
     ! Arguments
     class(fates_history_interface_type)             :: this
@@ -4857,7 +4855,7 @@ end subroutine update_history_hifrq
     real(r8) :: psi              ! matric potential of soil layer
     real(r8) :: depth_frac       ! fraction of rhizosphere layer depth occupied by current soil layer
     character(2) :: fmt_char
-    type(ed_patch_type),pointer  :: cpatch
+    type(fates_patch_type),pointer  :: cpatch
     type(fates_cohort_type),pointer :: ccohort
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
     type(ed_site_hydr_type), pointer :: site_hydr

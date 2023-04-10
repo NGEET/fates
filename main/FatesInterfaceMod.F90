@@ -24,12 +24,12 @@ module FatesInterfaceMod
    use EDParamsMod                , only : inir
    use EDParamsMod                , only : nclmax
    use EDParamsMod                , only : nlevleaf
-   use EDTypesMod                , only : maxpft
+   use FatesConstantsMod         , only : maxpft
    use EDTypesMod                , only : do_fates_salinity
    use EDTypesMod                , only : numWaterMem
    use EDTypesMod                , only : numlevsoil_max
    use EDTypesMod                , only : ed_site_type
-   use EDTypesMod                , only : ed_patch_type
+   use FatesPatchMod             , only : fates_patch_type
    use FatesCohortMod            , only : fates_cohort_type
    use EDTypesMod                , only : area_inv
    use FatesConstantsMod         , only : r8 => fates_r8
@@ -1942,7 +1942,7 @@ contains
      type(ed_site_type), intent(inout) :: sites(:)
      type(bc_in_type), intent(in)      :: bc_in(:)
      
-     type(ed_patch_type),  pointer :: cpatch
+     type(fates_patch_type),  pointer :: cpatch
      type(fates_cohort_type), pointer :: ccohort
      integer :: s, ifp, io_si
 

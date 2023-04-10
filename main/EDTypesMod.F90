@@ -27,18 +27,16 @@ module EDTypesMod
   use FatesInterfaceTypesMod,only : bc_out_type
   use FatesInterfaceTypesMod,only : hlm_parteh_mode
   use FatesCohortMod,        only : fates_cohort_type
+  use FatesPatchMod,         only : fates_patch_type
   use EDParamsMod,           only : maxSWb, nclmax, nlevleaf
+  use FatesConstantsMod,     only : maxpft
+  use FatesConstantsMod,     only : n_dbh_bins, n_dist_types
   use shr_log_mod,           only : errMsg => shr_log_errMsg
 
   implicit none
   private               ! By default everything is private
   save
-
-  integer, parameter, public :: maxpft = 16               ! maximum number of PFTs allowed
-                                                          ! the parameter file may determine that fewer
-                                                          ! are used, but this helps allocate scratch
-                                                          ! space and output arrays.
-                                                  
+              
   real(r8), parameter, public :: init_recruit_trim = 0.8_r8    ! This is the initial trimming value that
                                                                ! new recruits start with
 
@@ -87,7 +85,6 @@ module EDTypesMod
 
   ! BIOLOGY/BIOGEOCHEMISTRY        
   integer , parameter, public :: num_vegtemp_mem      = 10         ! Window of time over which we track temp for cold sensecence (days)
-  integer , parameter, public :: N_DIST_TYPES         = 3          ! Disturbance Modes 1) tree-fall, 2) fire, 3) logging
   integer , parameter, public :: dtype_ifall          = 1          ! index for naturally occuring tree-fall generated event
   integer , parameter, public :: dtype_ifire          = 2          ! index for fire generated disturbance event
   integer , parameter, public :: dtype_ilog           = 3          ! index for logging generated disturbance event
@@ -106,7 +103,6 @@ module EDTypesMod
 
   ! PATCH FUSION 
   real(r8), parameter, public :: force_patchfuse_min_biomass = 0.005_r8   ! min biomass (kg / m2 patch area) below which to force-fuse patches
-  integer , parameter, public :: N_DBH_BINS           = 6                 ! no. of dbh bins used when comparing patches
   real(r8), parameter, public :: patchfusion_dbhbin_loweredges(N_DBH_BINS) = &
        (/0._r8, 5._r8, 20._r8, 50._r8, 100._r8, 150._r8/)                 ! array of bin lower edges for comparing patches
   real(r8), parameter, public :: patch_fusion_tolerance_relaxation_increment = 1.1_r8 ! amount by which to increment patch fusion threshold
@@ -133,205 +129,6 @@ module EDTypesMod
   logical, parameter, public :: homogenize_seed_pfts  = .false.
   character(len=*), parameter, private :: sourcefile = __FILE__
 
-  !************************************
-  !** Patch type structure           **
-  !************************************
-
-  type, public :: ed_patch_type
-
-     ! POINTERS
-     type (fates_cohort_type), pointer :: tallest => null()           ! pointer to patch's tallest cohort    
-     type (fates_cohort_type), pointer :: shortest => null()          ! pointer to patch's shortest cohort
-     type (ed_patch_type),  pointer :: older => null()             ! pointer to next older patch   
-     type (ed_patch_type),  pointer :: younger => null()           ! pointer to next younger patch      
-
-     !INDICES
-     integer  :: patchno                                           ! unique number given to each new patch created for tracking
-
-     ! PATCH INFO
-     real(r8) ::  age                                              ! average patch age: years                   
-     integer  ::  age_class                                        ! age class of the patch for history binning purposes
-     real(r8) ::  area                                             ! patch area: m2  
-     integer  ::  countcohorts                                     ! Number of cohorts in patch
-     integer  ::  ncl_p                                            ! Number of occupied canopy layers
-     integer  ::  anthro_disturbance_label                         ! patch label for anthropogenic disturbance classification
-     real(r8) ::  age_since_anthro_disturbance                     ! average age for secondary forest since last anthropogenic disturbance
-
-
-     ! Running means
-     !class(rmean_type), pointer :: t2m                          ! Place-holder for 2m air temperature (variable window-size)
-     class(rmean_type), pointer :: tveg24                        ! 24-hour mean vegetation temperature (K)
-     class(rmean_type), pointer :: tveg_lpa                      ! Running mean of vegetation temperature at the
-                                                                 ! leaf photosynthesis acclimation timescale [K]
-     class(rmean_type), pointer :: tveg_longterm                ! Long-Term Running mean of vegetation temperature at the
-                                                                 ! leaf photosynthesis acclimation timescale [K] (i.e T_home)
-
-     integer  ::  nocomp_pft_label                               ! Where nocomp is active, use this label for patch ID.
-                                                                 ! Each patch ID corresponds to a pft number since each
-                                                                 ! patch has only one pft.  Bareground patches are given
-                                                                 ! a zero integer as a label.
-                                                                 ! If nocomp is not active this is set to unset.
-                                                                 ! This is set in create_patch as an argument
-                                                                 ! to that procedure.
-
-
-     ! LEAF ORGANIZATION
-     real(r8) ::  pft_agb_profile(maxpft,n_dbh_bins)            ! binned above ground biomass, for patch fusion: KgC/m2
-     real(r8) ::  canopy_layer_tlai(nclmax)                     ! total leaf area index of each canopy layer
-                                                                ! used to determine attenuation of parameters during
-                                                                ! photosynthesis m2 veg / m2 of canopy area (patch without bare ground)
-     real(r8) ::  total_canopy_area                             ! area that is covered by vegetation : m2
-     real(r8) ::  total_tree_area                               ! area that is covered by woody vegetation : m2
-     real(r8) ::  zstar                                         ! height of smallest canopy tree -- only meaningful in "strict PPA" mode
-
-     real(r8) :: c_stomata                                      ! Mean stomatal conductance of all leaves in the patch   [umol/m2/s]
-     real(r8) :: c_lblayer                                      ! Mean boundary layer conductance of all leaves in the patch [umol/m2/s]
-      
-                                                                ! UNITS for the ai profiles
-                                                                ! [ m2 leaf / m2 contributing crown footprints]
-     real(r8) ::  tlai_profile(nclmax,maxpft,nlevleaf)          ! total   leaf area in each canopy layer, pft, and leaf layer. 
-     real(r8) ::  elai_profile(nclmax,maxpft,nlevleaf)          ! exposed leaf area in each canopy layer, pft, and leaf layer
-     real(r8) ::  tsai_profile(nclmax,maxpft,nlevleaf)          ! total   stem area in each canopy layer, pft, and leaf layer
-     real(r8) ::  esai_profile(nclmax,maxpft,nlevleaf)          ! exposed stem area in each canopy layer, pft, and leaf layer
-     real(r8) ::  radiation_error                               ! radiation error (w/m2)
-     real(r8) ::  layer_height_profile(nclmax,maxpft,nlevleaf)
-     real(r8) ::  canopy_area_profile(nclmax,maxpft,nlevleaf)   ! fraction of crown area per canopy area in each layer
-                                                                ! they will sum to 1.0 in the fully closed canopy layers
-                                                                ! but only in leaf-layers that contain contributions
-                                                                ! from all cohorts that donate to canopy_area
-
-
-     ! layer, pft, and leaf layer:-
-     integer  ::  canopy_mask(nclmax,maxpft)                    ! is there any of this pft in this canopy layer?      
-     integer  ::  nrad(nclmax,maxpft)                           ! number of exposed leaf layers for each canopy layer and pft
-     integer  ::  ncan(nclmax,maxpft)                           ! number of total   leaf layers for each canopy layer and pft
-
-     !RADIATION FLUXES      
-     real(r8) :: fcansno                                        ! Fraction of canopy covered in snow
-
-     logical  ::  solar_zenith_flag                             ! integer flag specifying daylight (based on zenith angle)
-     real(r8) ::  solar_zenith_angle                            ! solar zenith angle (radians)
-
-     real(r8) ::  gnd_alb_dif(maxSWb)                           ! ground albedo for diffuse rad, both bands (fraction)
-     real(r8) ::  gnd_alb_dir(maxSWb)                           ! ground albedo for direct rad, both bands (fraction)
-     
-     real(r8) ::  fabd_sun_z(nclmax,maxpft,nlevleaf)            ! sun fraction of direct light absorbed by each canopy 
-     ! layer, pft, and leaf layer:-
-     real(r8) ::  fabd_sha_z(nclmax,maxpft,nlevleaf)            ! shade fraction of direct light absorbed by each canopy 
-     ! layer, pft, and leaf layer:-
-     real(r8) ::  fabi_sun_z(nclmax,maxpft,nlevleaf)            ! sun fraction of indirect light absorbed by each canopy 
-     ! layer, pft, and leaf layer:-
-     real(r8) ::  fabi_sha_z(nclmax,maxpft,nlevleaf)            ! shade fraction of indirect light absorbed by each canopy 
-     ! layer, pft, and leaf layer:-
-
-     real(r8) ::  ed_laisun_z(nclmax,maxpft,nlevleaf)           ! amount of LAI in the sun   in each canopy layer, 
-     ! pft, and leaf layer. m2/m2
-     real(r8) ::  ed_laisha_z(nclmax,maxpft,nlevleaf)           ! amount of LAI in the shade in each canopy layer,
-     real(r8) ::  ed_parsun_z(nclmax,maxpft,nlevleaf)           ! PAR absorbed  in the sun   in each canopy layer,
-     real(r8) ::  ed_parsha_z(nclmax,maxpft,nlevleaf)           ! PAR absorbed  in the shade in each canopy layer,
-     real(r8) ::  f_sun(nclmax,maxpft,nlevleaf)                 ! fraction of leaves in the sun in each canopy layer, pft, 
-
-     ! radiation profiles for comparison against observations
-
-     ! normalized direct photosynthetically active radiation profiles by 
-     ! incident type (direct/diffuse at top of canopy),leaf,pft,leaf (unitless)
-     real(r8) ::  nrmlzd_parprof_pft_dir_z(n_rad_stream_types,nclmax,maxpft,nlevleaf)  
-
-     ! normalized diffuse photosynthetically active radiation profiles by 
-     ! incident type (direct/diffuse at top of canopy),leaf,pft,leaf (unitless)
-     real(r8) ::  nrmlzd_parprof_pft_dif_z(n_rad_stream_types,nclmax,maxpft,nlevleaf)  
-
-     ! normalized direct photosynthetically active radiation profiles by 
-     ! incident type (direct/diffuse at top of canopy),leaf,leaf (unitless) 
-     real(r8) ::  nrmlzd_parprof_dir_z(n_rad_stream_types,nclmax,nlevleaf)         
-
-     ! normalized diffuse photosynthetically active radiation profiles by 
-     ! incident type (direct/diffuse at top of canopy),leaf,leaf (unitless) 
-     real(r8) ::  nrmlzd_parprof_dif_z(n_rad_stream_types,nclmax,nlevleaf)
-         
-     real(r8) ::  parprof_pft_dir_z(nclmax,maxpft,nlevleaf)   ! direct-beam PAR profile through canopy, by canopy,PFT,leaf level (w/m2)
-     real(r8) ::  parprof_pft_dif_z(nclmax,maxpft,nlevleaf)   ! diffuse     PAR profile through canopy, by canopy,PFT,leaf level (w/m2)
-     real(r8) ::  parprof_dir_z(nclmax,nlevleaf)              ! direct-beam PAR profile through canopy, by canopy,leaf level (w/m2)
-     real(r8) ::  parprof_dif_z(nclmax,nlevleaf)              ! diffuse     PAR profile through canopy, by canopy,leaf level (w/m2)
-
-     ! and leaf layer. m2/m2
-     real(r8),allocatable ::  tr_soil_dir(:)                              ! fraction of incoming direct  radiation that (cm_numSWb)
-     ! is transmitted to the soil as direct
-     real(r8),allocatable ::  tr_soil_dif(:)                              ! fraction of incoming diffuse radiation that 
-     ! is transmitted to the soil as diffuse
-     real(r8),allocatable ::  tr_soil_dir_dif(:)                          ! fraction of incoming direct  radiation that 
-     ! is transmitted to the soil as diffuse
-     real(r8),allocatable ::  fab(:)                                      ! fraction of incoming total   radiation that is absorbed by the canopy
-     real(r8),allocatable ::  fabd(:)                                     ! fraction of incoming direct  radiation that is absorbed by the canopy
-     real(r8),allocatable ::  fabi(:)                                     ! fraction of incoming diffuse radiation that is absorbed by the canopy
-     real(r8),allocatable ::  sabs_dir(:)                                 ! fraction of incoming direct  radiation that is absorbed by the canopy
-     real(r8),allocatable ::  sabs_dif(:)                                 ! fraction of incoming diffuse radiation that is absorbed by the canopy
-
-
-     ! PHOTOSYNTHESIS       
-
-     real(r8) ::  psn_z(nclmax,maxpft,nlevleaf)               ! carbon assimilation in each canopy layer, pft, and leaf layer. umolC/m2/s
-
-     ! ROOTS
-     real(r8) ::  btran_ft(maxpft)                ! btran calculated seperately for each PFT:-
-     real(r8) ::  bstress_sal_ft(maxpft)          ! bstress from salinity calculated seperately for each PFT:-   
-
-
-     ! These two variables are only used for external seed rain currently.
-     real(r8) :: nitr_repro_stoich(maxpft)        ! The NC ratio of a new recruit in this patch
-     real(r8) :: phos_repro_stoich(maxpft)        ! The PC ratio of a new recruit in this patch
-
-     
-     ! DISTURBANCE 
-     real(r8) ::  disturbance_rates(n_dist_types)                  ! disturbance rate from 1) mortality 
-                                                                   !                       2) fire: fraction/day 
-                                                                   !                       3) logging mortatliy
-     real(r8) ::  fract_ldist_not_harvested                        ! fraction of logged area that is canopy trees that weren't harvested
-
-
-     ! Litter and Coarse Woody Debris
-
-     type(litter_type), pointer :: litter(:)  ! Litter (leaf,fnrt,CWD and seeds) for different elements
-
-     real(r8),allocatable :: fragmentation_scaler(:)            ! Scale rate of litter fragmentation based on soil layer. 0 to 1.
-
-     !FUEL CHARECTERISTICS
-     real(r8) ::  sum_fuel                                         ! total ground fuel related to ros (omits 1000hr fuels): KgC/m2
-     real(r8) ::  fuel_frac(nfsc)                                  ! fraction of each litter class in the ros_fuel:-.  
-     real(r8) ::  livegrass                                        ! total aboveground grass biomass in patch.  KgC/m2
-     real(r8) ::  fuel_bulkd                                       ! average fuel bulk density of the ground fuel. kgBiomass/m3
-                                                                   ! (incl. live grasses. omits 1000hr fuels). KgC/m3
-     real(r8) ::  fuel_sav                                         ! average surface area to volume ratio of the ground fuel. cm-1
-                                                                   ! (incl. live grasses. omits 1000hr fuels).
-     real(r8) ::  fuel_mef                                         ! average moisture of extinction factor 
-                                                                   ! of the ground fuel (incl. live grasses. omits 1000hr fuels).
-     real(r8) ::  fuel_eff_moist                                   ! effective avearage fuel moisture content of the ground fuel 
-                                                                   ! (incl. live grasses. omits 1000hr fuels)
-     real(r8) ::  litter_moisture(nfsc)
-
-     ! FIRE SPREAD
-     real(r8) ::  ros_front                                        ! rate of forward  spread of fire: m/min
-     real(r8) ::  ros_back                                         ! rate of backward spread of fire: m/min
-     real(r8) ::  effect_wspeed                                    ! windspeed modified by fraction of relative grass and tree cover: m/min
-     real(r8) ::  tau_l                                            ! Duration of lethal heating: mins
-     real(r8) ::  fi                                               ! average fire intensity of flaming front:  kj/m/s or kw/m
-     integer  ::  fire                                             ! Is there a fire? 1=yes 0=no
-     real(r8) ::  fd                                               ! fire duration: mins
-
-     ! FIRE EFFECTS     
-     real(r8) ::  scorch_ht(maxpft)                                ! scorch height: m 
-     real(r8) ::  frac_burnt                                       ! fraction burnt: frac patch/day  
-     real(r8) ::  tfc_ros                                          ! total intensity-relevant fuel consumed - no trunks.  KgC/m2 of burned ground/day
-     real(r8) ::  burnt_frac_litter(nfsc)                          ! fraction of each litter pool burned, conditional on it being burned
-
-
-     ! PLANT HYDRAULICS   (not currently used in hydraulics RGK 03-2018)  
-     ! type(ed_patch_hydr_type) , pointer :: pa_hydr              ! All patch hydraulics data, see FatesHydraulicsMemMod.F90
-
-
-  end type ed_patch_type
-
-  
   !************************************
   !** Resources management type      **
   ! YX
@@ -436,8 +233,8 @@ module EDTypesMod
   type, public :: ed_site_type
      
      ! POINTERS  
-     type (ed_patch_type), pointer :: oldest_patch => null()   ! pointer to oldest patch at the site  
-     type (ed_patch_type), pointer :: youngest_patch => null() ! pointer to yngest patch at the site
+     type (fates_patch_type), pointer :: oldest_patch => null()   ! pointer to oldest patch at the site  
+     type (fates_patch_type), pointer :: youngest_patch => null() ! pointer to yngest patch at the site
      
      ! Resource management
      type (ed_resources_management_type) :: resources_management ! resources_management at the site 
@@ -691,7 +488,7 @@ module EDTypesMod
      use FatesUtilsMod,only : check_var_real
 
      ! Arguments
-     type(ed_patch_type),intent(in), target :: currentPatch
+     type(fates_patch_type),intent(in), target :: currentPatch
      character(len=*),intent(in)            :: var_aliases
      integer,intent(out)                    :: return_code ! return 0 for all fine
                                                            ! return 1 if a nan detected
@@ -769,7 +566,7 @@ module EDTypesMod
 
   subroutine dump_patch(cpatch)
 
-     type(ed_patch_type),intent(in),target :: cpatch
+     type(fates_patch_type),intent(in),target :: cpatch
 
      ! locals
      integer :: el  ! element loop counting index
@@ -812,6 +609,4 @@ module EDTypesMod
 
   ! =====================================================================================
   
-  
-
 end module EDTypesMod

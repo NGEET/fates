@@ -51,10 +51,11 @@ module EDPhysiologyMod
   use FatesLitterMod      , only : icellulose
   use EDParamsMod          , only : nclmax
   use EDTypesMod          , only : AREA,AREA_INV
-  use EDParamsMod          , only : nlevleaf
+  use EDParamsMod         , only : nlevleaf
   use EDTypesMod          , only : num_vegtemp_mem
-  use EDTypesMod          , only : maxpft
-  use EDTypesMod          , only : ed_site_type, ed_patch_type
+  use FatesConstantsMod   , only : maxpft
+  use EDTypesMod          , only : ed_site_type
+  use FatesPatchMod,        only : fates_patch_type
   use FatesCohortMod,       only : fates_cohort_type
   use FatesConstantsMod   , only : leaves_on
   use FatesConstantsMod   , only : leaves_off
@@ -164,7 +165,7 @@ contains
 
     ! !ARGUMENTS
     type(ed_site_type), intent(inout), target  :: currentSite
-    type(ed_patch_type), pointer               :: currentPatch
+    type(fates_patch_type), pointer               :: currentPatch
 
     integer :: el
 
@@ -186,7 +187,7 @@ contains
 
     ! !ARGUMENTS
     type(ed_site_type), intent(inout), target  :: currentSite
-    type(ed_patch_type), pointer               :: currentPatch
+    type(fates_patch_type), pointer               :: currentPatch
     type(fates_cohort_type), pointer              :: currentCohort
 
     currentPatch => currentSite%youngest_patch
@@ -212,7 +213,7 @@ contains
 
     ! Arguments
     type(ed_site_type)  :: csite
-    type(ed_patch_type) :: cpatch
+    type(fates_patch_type) :: cpatch
     type(bc_in_type), intent(in) :: bc_in
     
 
@@ -399,7 +400,7 @@ contains
 
     ! !ARGUMENTS
     type(ed_site_type), intent(inout)  :: currentSite
-    type(ed_patch_type), intent(inout) :: currentPatch
+    type(fates_patch_type), intent(inout) :: currentPatch
     type(bc_in_type), intent(in)       :: bc_in
 
     !
@@ -476,7 +477,7 @@ contains
     ! -----------------------------------------------------------------------------------
 
     ! Arguments
-    type(ed_patch_type),intent(inout),target :: currentPatch
+    type(fates_patch_type),intent(inout),target :: currentPatch
 
 
     ! Locals
@@ -560,7 +561,7 @@ contains
     !
     ! !LOCAL VARIABLES:
     type (fates_cohort_type) , pointer :: currentCohort
-    type (ed_patch_type)  , pointer :: currentPatch
+    type (fates_patch_type)  , pointer :: currentPatch
 
     integer  :: z                     ! leaf layer
     integer  :: ipft                  ! pft index
@@ -881,7 +882,7 @@ contains
     !
     ! !LOCAL VARIABLES:
 
-    type(ed_patch_type),pointer :: cpatch
+    type(fates_patch_type),pointer :: cpatch
     integer  :: model_day_int     ! integer model day 1 - inf
     integer  :: ncolddays         ! no days underneath the threshold for leaf drop
     integer  :: i_wmem            ! Loop counter for water mem days
@@ -1255,7 +1256,7 @@ contains
     type(ed_site_type), intent(inout), target :: currentSite
     !
     ! !LOCAL VARIABLES:
-    type(ed_patch_type) , pointer :: currentPatch
+    type(fates_patch_type) , pointer :: currentPatch
     type(fates_cohort_type), pointer :: currentCohort
 
     real(r8) :: leaf_c                 ! leaf carbon [kg]
@@ -1515,7 +1516,7 @@ contains
     class(prt_vartypes), pointer :: prt
 
     ! !LOCAL VARIABLES:
-    type(ed_patch_type) , pointer :: currentPatch
+    type(fates_patch_type) , pointer :: currentPatch
     type(fates_cohort_type), pointer :: currentCohort
 
     real(r8) ::  spread        ! dummy value of canopy spread to estimate c_area
@@ -1761,7 +1762,7 @@ contains
     type(ed_site_type), intent(inout), target  :: currentSite
     type(bc_in_type), intent(in)               :: bc_in
 
-    type(ed_patch_type), pointer     :: currentPatch
+    type(fates_patch_type), pointer     :: currentPatch
     type(litter_type), pointer       :: litt
     type(fates_cohort_type), pointer    :: currentCohort
     type(site_massbal_type), pointer :: site_mass
@@ -1987,7 +1988,7 @@ contains
     !
     ! !ARGUMENTS
     type(ed_site_type), intent(inout)  :: currentSite
-    type(ed_patch_type), intent(inout),pointer :: currentPatch
+    type(fates_patch_type), intent(inout),pointer :: currentPatch
     type(bc_in_type), intent(in)       :: bc_in
     !
     ! !LOCAL VARIABLES:
@@ -2314,7 +2315,7 @@ contains
     !
     ! !ARGUMENTS
     type(ed_site_type), intent(inout), target :: currentSite
-    type(ed_patch_type),intent(inout), target :: currentPatch
+    type(fates_patch_type),intent(inout), target :: currentPatch
     type(litter_type),intent(inout),target    :: litt
     type(bc_in_type),intent(in)               :: bc_in
 
@@ -2656,7 +2657,7 @@ contains
     use FatesConstantsMod, only : pi => pi_const
     !
     ! !ARGUMENTS
-    type(ed_patch_type), intent(inout) :: currentPatch
+    type(fates_patch_type), intent(inout) :: currentPatch
     type(bc_in_type),    intent(in)    :: bc_in
 
     !
@@ -2788,7 +2789,7 @@ contains
     ! and less than the max_count cohort.
     
     type(ed_site_type) :: csite
-    type(ed_patch_type), pointer :: cpatch
+    type(fates_patch_type), pointer :: cpatch
     type(fates_cohort_type), pointer :: ccohort
 
     real(r8) :: rec_n(maxpft,nclmax)     ! plant count
@@ -2856,7 +2857,7 @@ contains
   subroutine UpdateRecruitStoich(csite)
 
     type(ed_site_type) :: csite
-    type(ed_patch_type), pointer :: cpatch
+    type(fates_patch_type), pointer :: cpatch
     type(fates_cohort_type), pointer :: ccohort
     integer  :: ft                       ! functional type index
     integer  :: cl                       ! canopy layer index
@@ -2899,7 +2900,7 @@ contains
 
 
     type(ed_site_type) :: csite
-    type(ed_patch_type), pointer :: cpatch
+    type(fates_patch_type), pointer :: cpatch
     type(fates_cohort_type), pointer :: ccohort
     integer :: ft,cl
     

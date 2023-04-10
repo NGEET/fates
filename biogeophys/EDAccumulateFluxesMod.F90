@@ -38,8 +38,8 @@ contains
     !
     ! !USES:
 
-    use EDTypesMod        , only : ed_patch_type,  &
-         ed_site_type, AREA
+    use EDTypesMod        , only : ed_site_type, AREA
+    use FatesPatchMod,      only : fates_patch_type
     use FatesCohortMod,     only : fates_cohort_type
     use FatesInterfaceTypesMod , only : bc_in_type,bc_out_type
 
@@ -53,7 +53,7 @@ contains
     !
     ! !LOCAL VARIABLES:
     type(fates_cohort_type), pointer  :: ccohort ! current cohort
-    type(ed_patch_type) , pointer  :: cpatch ! current patch
+    type(fates_patch_type) , pointer  :: cpatch ! current patch
     integer :: iv !leaf layer
     integer :: c  ! clm/alm column
     integer :: s  ! ed site

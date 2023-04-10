@@ -11,8 +11,7 @@ module EDMortalityFunctionsMod
    use EDPftvarcon           , only : EDPftvarcon_inst
    use FatesCohortMod        , only : fates_cohort_type
    use EDTypesMod            , only : ed_site_type
-   use EDTypesMod            , only : ed_patch_type
-   use EDTypesMod            , only : maxpft
+   use FatesConstantsMod,      only : maxpft
    use FatesConstantsMod     , only : itrue,ifalse
    use FatesAllometryMod     , only : bleaf
    use FatesAllometryMod     , only : storage_fraction_of_target
@@ -48,8 +47,6 @@ module EDMortalityFunctionsMod
 
 
 contains
-
-
 
   subroutine mortality_rates( cohort_in,bc_in,btran_ft, mean_temp,             &
       cmort,hmort,bmort, frmort,smort,asmort,dgmort )

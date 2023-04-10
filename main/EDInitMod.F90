@@ -23,11 +23,11 @@ module EDInitMod
   use EDPhysiologyMod           , only : assign_cohort_sp_properties
   use ChecksBalancesMod         , only : SiteMassStock
   use FatesInterfaceTypesMod    , only : hlm_day_of_year
-  use EDTypesMod                , only : ed_site_type, ed_patch_type
+  use EDTypesMod                , only : ed_site_type
+  use FatesPatchMod             , only : fates_patch_type
   use FatesCohortMod            , only : fates_cohort_type
   use EDTypesMod                , only : numWaterMem
   use EDTypesMod                , only : num_vegtemp_mem
-  use EDTypesMod                , only : maxpft
   use EDTypesMod                , only : AREA
   use EDTypesMod                , only : init_spread_near_bare_ground
   use EDTypesMod                , only : init_spread_inventory
@@ -525,9 +525,9 @@ contains
     integer  :: is_first_patch
 
     type(ed_site_type),  pointer :: sitep
-    type(ed_patch_type), pointer :: newppft(:)
-    type(ed_patch_type), pointer :: newp
-    type(ed_patch_type), pointer :: currentPatch
+    type(fates_patch_type), pointer :: newppft(:)
+    type(fates_patch_type), pointer :: newp
+    type(fates_patch_type), pointer :: currentPatch
 
     ! List out some nominal patch values that are used for Near Bear Ground initializations
     ! as well as initializing inventory
@@ -744,7 +744,7 @@ contains
     !
     ! !ARGUMENTS
     type(ed_site_type), intent(inout),  pointer  :: site_in
-    type(ed_patch_type), intent(inout), pointer  :: patch_in
+    type(fates_patch_type), intent(inout), pointer  :: patch_in
     type(bc_in_type), intent(in)                 :: bc_in
     !
     ! !LOCAL VARIABLES:
