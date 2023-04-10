@@ -343,13 +343,13 @@ variables:
 		fates_leaf_c3psn:long_name = "Photosynthetic pathway (1=c3, 0=c4)" ;
 	double fates_leaf_jmaxha(fates_pft) ;
 		fates_leaf_jmaxha:units = "J/mol" ;
-		fates_leaf_jmaxha:long_name = "activation energy for jmax. NOTE: if fates_leaf_photo_tempsens_model=2 then these values are NOT USED" ;
+		fates_leaf_jmaxha:long_name = "activation energy for jmax" ;
 	double fates_leaf_jmaxhd(fates_pft) ;
 		fates_leaf_jmaxhd:units = "J/mol" ;
-		fates_leaf_jmaxhd:long_name = "deactivation energy for jmax. NOTE: if fates_leaf_photo_tempsens_model=2 then these values are NOT USED" ;
+		fates_leaf_jmaxhd:long_name = "deactivation energy for jmax" ;
 	double fates_leaf_jmaxse(fates_pft) ;
 		fates_leaf_jmaxse:units = "J/mol/K" ;
-		fates_leaf_jmaxse:long_name = "entropy term for jmax. NOTE: if fates_leaf_photo_tempsens_model=2 then these values are NOT USED" ;
+		fates_leaf_jmaxse:long_name = "entropy term for jmax" ;
 	double fates_leaf_slamax(fates_pft) ;
 		fates_leaf_slamax:units = "m^2/gC" ;
 		fates_leaf_slamax:long_name = "Maximum Specific Leaf Area (SLA), even if under a dense canopy" ;
@@ -370,13 +370,13 @@ variables:
 		fates_leaf_vcmax25top:long_name = "maximum carboxylation rate of Rub. at 25C, canopy top" ;
 	double fates_leaf_vcmaxha(fates_pft) ;
 		fates_leaf_vcmaxha:units = "J/mol" ;
-		fates_leaf_vcmaxha:long_name = "activation energy for vcmax. NOTE: if fates_leaf_photo_tempsens_model=2 then these values are NOT USED" ;
+		fates_leaf_vcmaxha:long_name = "activation energy for vcmax" ;
 	double fates_leaf_vcmaxhd(fates_pft) ;
 		fates_leaf_vcmaxhd:units = "J/mol" ;
-		fates_leaf_vcmaxhd:long_name = "deactivation energy for vcmax. NOTE: if fates_leaf_photo_tempsens_model=2 then these values are NOT USED" ;
+		fates_leaf_vcmaxhd:long_name = "deactivation energy for vcmax" ;
 	double fates_leaf_vcmaxse(fates_pft) ;
 		fates_leaf_vcmaxse:units = "J/mol/K" ;
-		fates_leaf_vcmaxse:long_name = "entropy term for vcmax. NOTE: if fates_leaf_photo_tempsens_model=2 then these values are NOT USED" ;
+		fates_leaf_vcmaxse:long_name = "entropy term for vcmax" ;
 	double fates_maintresp_leaf_atkin2017_baserate(fates_pft) ;
 		fates_maintresp_leaf_atkin2017_baserate:units = "umol CO2/m^2/s" ;
 		fates_maintresp_leaf_atkin2017_baserate:long_name = "Leaf maintenance respiration base rate parameter (r0) per Atkin et al 2017" ;
@@ -496,7 +496,7 @@ variables:
 		fates_recruit_height_min:long_name = "the minimum height (ie starting height) of a newly recruited plant" ;
 	double fates_recruit_init_density(fates_pft) ;
 		fates_recruit_init_density:units = "stems/m2" ;
-		fates_recruit_init_density:long_name = "initial seedling density for a cold-start near-bare-ground simulation. If negative sets initial tree dbh - only to be used in nocomp mode" ;
+		fates_recruit_init_density:long_name = "initial seedling density for a cold-start near-bare-ground simulation" ;
 	double fates_recruit_prescribed_rate(fates_pft) ;
 		fates_recruit_prescribed_rate:units = "n/yr" ;
 		fates_recruit_prescribed_rate:long_name = "recruitment rate for prescribed physiology mode" ;
@@ -704,15 +704,12 @@ variables:
 	double fates_landuse_pprodharv10_forest_mean ;
 		fates_landuse_pprodharv10_forest_mean:units = "fraction" ;
 		fates_landuse_pprodharv10_forest_mean:long_name = "mean harvest mortality proportion of deadstem to 10-yr product (pprodharv10) of all woody PFT types" ;
-	double fates_leaf_photo_temp_acclim_thome_time ;
-		fates_leaf_photo_temp_acclim_thome_time:units = "years" ;
-		fates_leaf_photo_temp_acclim_thome_time:long_name = "Length of the window for the long-term (i.e. T_home in Kumarathunge et al 2019) exponential moving average (ema) of vegetation temperature used in photosynthesis temperature acclimation (used if fates_leaf_photo_tempsens_model = 2)" ;
 	double fates_leaf_photo_temp_acclim_timescale ;
 		fates_leaf_photo_temp_acclim_timescale:units = "days" ;
-		fates_leaf_photo_temp_acclim_timescale:long_name = "Length of the window for the exponential moving average (ema) of vegetation temperature used in photosynthesis temperature acclimation (used if fates_maintresp_leaf_model=2 or fates_leaf_photo_tempsens_model = 2)" ;
+		fates_leaf_photo_temp_acclim_timescale:long_name = "Length of the window for the exponential moving average (ema) of vegetation temperature used in photosynthesis temperature acclimation (NOT USED)" ;
 	double fates_leaf_photo_tempsens_model ;
 		fates_leaf_photo_tempsens_model:units = "unitless" ;
-		fates_leaf_photo_tempsens_model:long_name = "switch for choosing the model that defines the temperature sensitivity of photosynthetic parameters (vcmax, jmax). 1=non-acclimating; 2=Kumarathunge et al 2019" ;
+		fates_leaf_photo_tempsens_model:long_name = "switch for choosing the model that defines the temperature sensitivity of photosynthetic parameters (vcmax, jmax). 1=non-acclimating (NOT USED)" ;
 	double fates_leaf_stomatal_assim_model ;
 		fates_leaf_stomatal_assim_model:units = "unitless" ;
 		fates_leaf_stomatal_assim_model:long_name = "a switch designating whether to use net (1) or gross (2) assimilation in the stomatal model" ;
@@ -727,7 +724,7 @@ variables:
 		fates_leaf_theta_cj_c4:long_name = "Empirical curvature parameter for ac, aj photosynthesis co-limitation in c4 plants" ;
 	double fates_maintresp_leaf_model ;
 		fates_maintresp_leaf_model:units = "unitless" ;
-		fates_maintresp_leaf_model:long_name = "switch for choosing between maintenance respiration models. 1=Ryan (1991), 2=Atkin et al., (2017)" ;
+		fates_maintresp_leaf_model:long_name = "switch for choosing between maintenance respiration models. 1=Ryan (1991) (NOT USED)" ;
 	double fates_maintresp_nonleaf_baserate ;
 		fates_maintresp_nonleaf_baserate:units = "gC/gN/s" ;
 		fates_maintresp_nonleaf_baserate:long_name = "Base maintenance respiration rate for plant tissues, using Ryan 1991" ;
@@ -1494,8 +1491,6 @@ data:
  fates_landuse_logging_mechanical_frac = 0.05 ;
 
  fates_landuse_pprodharv10_forest_mean = 0.8125 ;
-
- fates_leaf_photo_temp_acclim_thome_time = 30 ;
 
  fates_leaf_photo_temp_acclim_timescale = 30 ;
 

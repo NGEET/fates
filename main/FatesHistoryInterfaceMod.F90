@@ -293,6 +293,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_gpp_understory_si
   integer :: ih_canopy_biomass_si
   integer :: ih_understory_biomass_si
+  integer :: ih_maint_resp_unreduced_si
 
   integer :: ih_npp_secondary_si
   integer :: ih_gpp_secondary_si
@@ -331,6 +332,8 @@ module FatesHistoryInterfaceMod
 
   ! Indices to (site) variables
   integer :: ih_tveg24_si
+  integer :: ih_tlongterm_si
+  integer :: ih_tgrowth_si
   integer :: ih_tveg_si
   integer :: ih_nep_si
   integer :: ih_hr_si
@@ -2470,8 +2473,10 @@ end subroutine flush_hvars
                hio_mortality_canopy_si_scag         => this%hvars(ih_mortality_canopy_si_scag)%r82d, &
                hio_mortality_understory_si_scag     => this%hvars(ih_mortality_understory_si_scag)%r82d, &
                hio_site_cstatus_si                  => this%hvars(ih_site_cstatus_si)%r81d, &
-               hio_site_dstatus_si                  => this%hvars(ih_site_dstatus_si)%r81d, &
-               hio_gdd_si                           => this%hvars(ih_gdd_si)%r81d, &
+               hio_site_dstatus_si                  => this%hvars(ih_site_dstatus_si)%r81d )
+
+    ! Split up the associate statement as the nag compiler has a limit on line continuation  
+    associate( hio_gdd_si                           => this%hvars(ih_gdd_si)%r81d, &
                hio_site_ncolddays_si                => this%hvars(ih_site_ncolddays_si)%r81d, &
                hio_site_nchilldays_si               => this%hvars(ih_site_nchilldays_si)%r81d, &
                hio_cleafoff_si                      => this%hvars(ih_cleafoff_si)%r81d, &
@@ -2479,6 +2484,8 @@ end subroutine flush_hvars
                hio_dleafoff_si                      => this%hvars(ih_dleafoff_si)%r81d, &
                hio_dleafon_si                       => this%hvars(ih_dleafon_si)%r81d, &
                hio_tveg24                           => this%hvars(ih_tveg24_si)%r81d, &
+               hio_tlongterm                           => this%hvars(ih_tlongterm_si)%r81d, &
+               hio_tgrowth                          => this%hvars(ih_tgrowth_si)%r81d, &
                hio_meanliqvol_si                    => this%hvars(ih_meanliqvol_si)%r81d, &
                hio_cbal_err_fates_si                => this%hvars(ih_cbal_err_fates_si)%r81d, &
                hio_err_fates_si                     => this%hvars(ih_err_fates_si)%r82d, &
@@ -2649,6 +2656,14 @@ end subroutine flush_hvars
          ! 24hr veg temperature
          hio_tveg24(io_si) = hio_tveg24(io_si) + &
               (cpatch%tveg24%GetMean()- t_water_freeze_k_1atm)*cpatch%area*AREA_INV
+
+         ! long-term veg temperature
+         hio_tlongterm(io_si) = hio_tlongterm(io_si) + &
+              (cpatch%tveg_longterm%GetMean()- t_water_freeze_k_1atm)*cpatch%area*AREA_INV
+
+         ! long-term running mean veg temperature (tgrowth)
+         hio_tgrowth(io_si) = hio_tgrowth(io_si) + &
+              (cpatch%tveg_lpa%GetMean()- t_water_freeze_k_1atm)*cpatch%area*AREA_INV
 
          ! Increment some patch-age-resolved diagnostics
          hio_lai_si_age(io_si,cpatch%age_class) = hio_lai_si_age(io_si,cpatch%age_class) &
@@ -3978,7 +3993,7 @@ end subroutine flush_hvars
          ! Sum up total seed bank (germinated and ungerminated)
          hio_seed_bank_si(io_si) = hio_seed_bank_si(io_si) + &
             (sum(litt%seed(:))+sum(litt%seed_germ(:))) * &
-            area_frac * days_per_sec
+            area_frac
 
          ! Sum up the input flux into the seed bank (local and external)
          hio_seeds_in_si(io_si) = hio_seeds_in_si(io_si) + &
@@ -4066,7 +4081,7 @@ end subroutine flush_hvars
                sum(litt%seed(:)) * cpatch%area / m2_per_ha
 
             hio_seed_germ_elem(io_si,el) = hio_seed_germ_elem(io_si,el) + &
-               sum(litt%seed_germ(:)) *  cpatch%area / m2_per_ha / sec_per_day
+               sum(litt%seed_germ(:)) *  cpatch%area / m2_per_ha
 
             hio_seed_decay_elem(io_si,el) = hio_seed_decay_elem(io_si,el) + &
                sum(litt%seed_decay(:) + litt%seed_germ_decay(:) ) *       &
@@ -4311,6 +4326,7 @@ end subroutine flush_hvars
    enddo siteloop ! site loop
 
    end associate
+   end associate
 
    return
   end subroutine update_history_dyn
@@ -4428,6 +4444,7 @@ end subroutine flush_hvars
                hio_fabi_sha_top_si_can  => this%hvars(ih_fabi_sha_top_si_can)%r82d, &
                hio_parsun_top_si_can     => this%hvars(ih_parsun_top_si_can)%r82d, &
                hio_parsha_top_si_can     => this%hvars(ih_parsha_top_si_can)%r82d, &
+               hio_maint_resp_unreduced_si  => this%hvars(ih_maint_resp_unreduced_si)%r81d, &
                hio_tveg   => this%hvars(ih_tveg_si)%r81d)
 
       ! Flush the relevant history variables
@@ -4510,12 +4527,16 @@ end subroutine flush_hvars
 
                   hio_gpp_si(io_si) = hio_gpp_si(io_si) + &
                         ccohort%gpp_tstep * n_perm2 * per_dt_tstep
+
                   hio_aresp_si(io_si) = hio_aresp_si(io_si) + &
                         aresp * n_perm2 * per_dt_tstep
                   hio_growth_resp_si(io_si) = hio_growth_resp_si(io_si) + &
                         resp_g * n_perm2 * per_dt_tstep
                   hio_maint_resp_si(io_si) = hio_maint_resp_si(io_si) + &
                         ccohort%resp_m * n_perm2 * per_dt_tstep
+
+                  hio_maint_resp_unreduced_si(io_si) = hio_maint_resp_unreduced_si(io_si) + &
+                        ccohort%resp_m_unreduced * n_perm2 * per_dt_tstep
 
                   ! Secondary forest only
                   if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
@@ -4588,6 +4609,7 @@ end subroutine flush_hvars
                      ! bulk fluxes are in gC / m2 / s
                      hio_gpp_canopy_si(io_si) = hio_gpp_canopy_si(io_si) + &
                           ccohort%gpp_tstep * n_perm2 * per_dt_tstep
+
                      hio_ar_canopy_si(io_si) = hio_ar_canopy_si(io_si) + &
                           aresp * n_perm2 * per_dt_tstep
 
@@ -4611,6 +4633,8 @@ end subroutine flush_hvars
                      ! bulk fluxes are in gC / m2 / s
                      hio_gpp_understory_si(io_si) = hio_gpp_understory_si(io_si) + &
                           ccohort%gpp_tstep * n_perm2 * per_dt_tstep
+
+
                      hio_ar_understory_si(io_si) = hio_ar_understory_si(io_si) + &
                           aresp * n_perm2 * per_dt_tstep
 
@@ -5783,8 +5807,8 @@ end subroutine update_history_hifrq
          hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
          index = ih_seeds_in_extern_elem)
 
-    call this%set_history_var(vname='FATES_SEED_GERM_EL', units='kg m-2 s-1',  &
-         long='seed mass converted into new cohorts in kg element per m2 per s', &
+    call this%set_history_var(vname='FATES_SEED_GERM_EL', units='kg m-2',  &
+         long='element-level total germinated seed mass of all PFTs in kg element per m2', &
          use_default='active', avgflag='A', vtype=site_elem_r8,                &
          hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
          index = ih_seed_germ_elem)
@@ -6286,6 +6310,18 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1, &
          ivar=ivar, initialize=initialize_variables, index = ih_tveg24_si )
 
+    call this%set_history_var(vname='FATES_TLONGTERM', units='degree_Celsius', &
+         long='fates 30-year running mean vegetation temperature by site', &
+         use_default='inactive', &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_tlongterm_si )
+
+    call this%set_history_var(vname='FATES_TGROWTH', units='degree_Celsius', &
+         long='fates long-term running mean vegetation temperature by site', &
+         use_default='inactive', &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1, &
+         ivar=ivar, initialize=initialize_variables, index = ih_tgrowth_si )
+
     call this%set_history_var(vname='FATES_TVEG', units='degree_Celsius', &
          long='fates instantaneous mean vegetation temperature by site', &
          use_default='active', &
@@ -6293,11 +6329,15 @@ end subroutine update_history_hifrq
          ivar=ivar, initialize=initialize_variables, index = ih_tveg_si )
 
     ! radiation error
-
     call this%set_history_var(vname='FATES_RAD_ERROR', units='W m-2 ',          &
          long='radiation error in FATES RTM', use_default='active',            &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,                 &
          ivar=ivar, initialize=initialize_variables, index = ih_rad_error_si)
+
+    call this%set_history_var(vname='FATES_AR', units='gC/m^2/s',                 &
+         long='autotrophic respiration', use_default='active',                  &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_aresp_si )
 
     call this%set_history_var(vname='FATES_HARVEST_DEBT', units='kg C',                   &
          long='Accumulated carbon failed to be harvested',  use_default='active',     &
@@ -6361,6 +6401,12 @@ end subroutine update_history_hifrq
          upfreq=2, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_maint_resp_si)
 
+    call this%set_history_var(vname='FATES_MAINT_RESP_UNREDUCED', units='kg m-2 s-1',    &
+         long='diagnostic maintenance respiration if the low-carbon-storage reduction is ignored', &
+         use_default='inactive', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+         upfreq=2, ivar=ivar, initialize=initialize_variables,                 &
+         index = ih_maint_resp_unreduced_si)
+
     call this%set_history_var(vname='FATES_MAINT_RESP_SECONDARY', units='kg m-2 s-1',    &
          long='maintenance respiration in kg carbon per m2 land area per second', &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
@@ -6374,12 +6420,16 @@ end subroutine update_history_hifrq
          index = ih_excess_resp_si)
     
     ! Canopy resistance
-
     call this%set_history_var(vname='FATES_STOMATAL_COND_AP',                  &
          units='mol m-2 s-1', long='mean stomatal conductance - by patch age', &
          use_default='inactive', avgflag='A', vtype=site_age_r8,               &
          hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
          index = ih_c_stomata_si_age)
+
+    call this%set_history_var(vname='FATES_AR_CANOPY', units='gC/m^2/s',                 &
+         long='autotrophic respiration of canopy plants', use_default='active',       &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_ar_canopy_si )
 
     call this%set_history_var(vname='FATES_LBLAYER_COND_AP',                   &
          units='mol m-2 s-1',                                                  &
@@ -6400,6 +6450,11 @@ end subroutine update_history_hifrq
          use_default='inactive', avgflag='A', vtype=site_age_r8,               &
          hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
          index = ih_gpp_si_age)
+
+    call this%set_history_var(vname='FATES_AR_UNDERSTORY', units='gC/m^2/s',                 &
+         long='autotrophic respiration of understory plants', use_default='active',       &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,   &
+         ivar=ivar, initialize=initialize_variables, index = ih_ar_understory_si )
 
     ! fast fluxes separated canopy/understory
     call this%set_history_var(vname='FATES_GPP_CANOPY', units='kg m-2 s-1',    &

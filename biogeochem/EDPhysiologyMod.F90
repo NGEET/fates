@@ -1085,9 +1085,9 @@ contains
     ! and thus %nchilldays will never go from zero to 1.  The following logic
     ! when coupled with this fact will essentially prevent cold-deciduous
     ! plants from re-emerging in areas without at least some cold days
-
+    
     if( (currentSite%cstatus == phen_cstat_notcold)  .and. &
-         (dayssincecleafoff > 400)) then           ! remove leaves after a whole year
+         (dayssincecleafoff > 400)) then           ! remove leaves after a whole year,
        ! when there is no 'off' period.
        currentSite%grow_deg_days  = 0._r8
 
