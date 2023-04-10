@@ -89,6 +89,8 @@ module FatesInterfaceMod
    use FatesRunningMeanMod       , only : moving_ema_window
    use FatesRunningMeanMod       , only : fixed_window
    use FatesHistoryInterfaceMod  , only : fates_hist
+   use FatesHydraulicsMemMod     , only : nshell
+   use FatesHydraulicsMemMod     , only : nlevsoi_hyd_max
    
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -405,20 +407,20 @@ contains
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 
-      if( (nlevsoil_in*ndcmpy) > fates_maxElementsPerPatch .or. &
-          (nlevsoil_in*ncwd) > fates_maxElementsPerPatch) then
-          write(fates_log(), *) 'The restart files require that space is allocated'
-          write(fates_log(), *) 'to accomodate the multi-dimensional patch arrays'
-          write(fates_log(), *) 'that are nlevsoil*numpft and nlevsoil*ncwd'
-          write(fates_log(), *) 'fates_maxElementsPerPatch = ',fates_maxElementsPerPatch
-          write(fates_log(), *) 'nlevsoil = ',nlevsoil_in
-          write(fates_log(), *) 'dcmpy = ',ndcmpy
-          write(fates_log(), *) 'ncwd  = ',ncwd
-          write(fates_log(), *) 'numpft*nlevsoil = ',nlevsoil_in*numpft
-          write(fates_log(), *) 'ncwd*nlevsoil = ',ncwd * nlevsoil_in
-          write(fates_log(), *) 'To increase max_elements, change numlevsoil_max'
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-      end if
+      !if( (nlevsoil_in*ndcmpy) > fates_maxElementsPerPatch .or. &
+      !    (nlevsoil_in*ncwd) > fates_maxElementsPerPatch) then
+      !    write(fates_log(), *) 'The restart files require that space is allocated'
+      !    write(fates_log(), *) 'to accomodate the multi-dimensional patch arrays'
+      !    write(fates_log(), *) 'that are nlevsoil*numpft and nlevsoil*ncwd'
+      !    write(fates_log(), *) 'fates_maxElementsPerPatch = ',fates_maxElementsPerPatch
+      !    write(fates_log(), *) 'nlevsoil = ',nlevsoil_in
+      !    write(fates_log(), *) 'dcmpy = ',ndcmpy
+      !    write(fates_log(), *) 'ncwd  = ',ncwd
+      !    write(fates_log(), *) 'numpft*nlevsoil = ',nlevsoil_in*numpft
+      !    write(fates_log(), *) 'ncwd*nlevsoil = ',ncwd * nlevsoil_in
+      !    write(fates_log(), *) 'To increase max_elements, change numlevsoil_max'
+      !    call endrun(msg=errMsg(sourcefile, __LINE__))
+      !end if
 
       bc_in%nlevdecomp = nlevdecomp_in
 
@@ -845,7 +847,11 @@ contains
          fates_maxElementsPerSite = max(fates_maxPatchesPerSite * fates_maxElementsPerPatch, &
               numWatermem, num_vegtemp_mem, num_elements, nlevsclass*numpft)
 
-
+         if(hlm_use_planthydro==itrue)then
+            fates_maxElementsPerSite = max(fates_maxElementsPerSite, nshell*nlevsoi_hyd_max )
+         end if
+         
+         
          ! Set the maximum number of nutrient aquisition competitors per site
          ! This is used to set array sizes for the boundary conditions.
          ! Note: since BGC code may be active even when no nutrients
