@@ -424,9 +424,8 @@ module EDTypesMod
   end type ed_site_type
 
   ! Make public necessary subroutines and functions
-  public :: val_check_ed_vars
   public :: dump_site
-  public :: dump_patch
+
   contains
       
     ! =====================================================================================
@@ -475,138 +474,23 @@ module EDTypesMod
   end subroutine ZeroMassBalFlux
    
   ! =====================================================================================
-  
-  subroutine val_check_ed_vars(currentPatch,var_aliases,return_code)
-
-     ! ----------------------------------------------------------------------------------
-     ! Perform numerical checks on variables of interest.
-     ! The input string is of the form:  'VAR1_NAME:VAR2_NAME:VAR3_NAME'
-     ! ----------------------------------------------------------------------------------
-
-
-     use FatesUtilsMod,only : check_hlm_list
-     use FatesUtilsMod,only : check_var_real
-
-     ! Arguments
-     type(fates_patch_type),intent(in), target :: currentPatch
-     character(len=*),intent(in)            :: var_aliases
-     integer,intent(out)                    :: return_code ! return 0 for all fine
-                                                           ! return 1 if a nan detected
-                                                           ! return 10+ if an overflow
-                                                           ! return 100% if an underflow
-     ! Locals
-     type(fates_cohort_type), pointer          :: currentCohort
-
-     
-     ! Check through a registry of variables to check
-     
-     if ( check_hlm_list(trim(var_aliases),'co_n') ) then
-
-        currentCohort => currentPatch%shortest
-        do while(associated(currentCohort))
-           call check_var_real(currentCohort%n,'cohort%n',return_code)
-           if(.not.(return_code.eq.0)) then
-              call dump_patch(currentPatch)
-              call currentCohort%dump()
-              return
-           end if
-           currentCohort => currentCohort%taller
-        end do
-     end if
-     
-     if ( check_hlm_list(trim(var_aliases),'co_dbh') ) then
-
-        currentCohort => currentPatch%shortest
-        do while(associated(currentCohort))        
-           call check_var_real(currentCohort%dbh,'cohort%dbh',return_code)
-           if(.not.(return_code.eq.0)) then
-              call dump_patch(currentPatch)
-              call currentCohort%dump()
-              return
-           end if
-           currentCohort => currentCohort%taller
-        end do
-     end if
-
-     if ( check_hlm_list(trim(var_aliases),'pa_area') ) then
-
-        call check_var_real(currentPatch%area,'patch%area',return_code)
-        if(.not.(return_code.eq.0)) then
-           call dump_patch(currentPatch)
-           return
-        end if
-     end if
-     
-
-
-     return
-  end subroutine val_check_ed_vars
-
-  ! =====================================================================================
 
   subroutine dump_site(csite) 
 
-     type(ed_site_type),intent(in),target :: csite
+   type(ed_site_type),intent(in),target :: csite
 
 
-     ! EDTypes is 
+   ! EDTypes is 
 
-     write(fates_log(),*) '----------------------------------------'
-     write(fates_log(),*) ' Site Coordinates                       '
-     write(fates_log(),*) '----------------------------------------'
-     write(fates_log(),*) 'latitude                    = ', csite%lat
-     write(fates_log(),*) 'longitude                   = ', csite%lon
-     write(fates_log(),*) '----------------------------------------'
-     return
+   write(fates_log(),*) '----------------------------------------'
+   write(fates_log(),*) ' Site Coordinates                       '
+   write(fates_log(),*) '----------------------------------------'
+   write(fates_log(),*) 'latitude                    = ', csite%lat
+   write(fates_log(),*) 'longitude                   = ', csite%lon
+   write(fates_log(),*) '----------------------------------------'
+   return
 
-  end subroutine dump_site
-
-  ! =====================================================================================
-
-
-  subroutine dump_patch(cpatch)
-
-     type(fates_patch_type),intent(in),target :: cpatch
-
-     ! locals
-     integer :: el  ! element loop counting index
-
-     write(fates_log(),*) '----------------------------------------'
-     write(fates_log(),*) ' Dumping Patch Information              '
-     write(fates_log(),*) ' (omitting arrays)                      '
-     write(fates_log(),*) '----------------------------------------'
-     write(fates_log(),*) 'pa%patchno            = ',cpatch%patchno
-     write(fates_log(),*) 'pa%age                = ',cpatch%age
-     write(fates_log(),*) 'pa%age_class          = ',cpatch%age_class
-     write(fates_log(),*) 'pa%area               = ',cpatch%area
-     write(fates_log(),*) 'pa%countcohorts       = ',cpatch%countcohorts
-     write(fates_log(),*) 'pa%ncl_p              = ',cpatch%ncl_p
-     write(fates_log(),*) 'pa%total_canopy_area  = ',cpatch%total_canopy_area
-     write(fates_log(),*) 'pa%total_tree_area    = ',cpatch%total_tree_area
-     write(fates_log(),*) 'pa%zstar              = ',cpatch%zstar
-     write(fates_log(),*) 'pa%solar_zenith_flag  = ',cpatch%solar_zenith_flag
-     write(fates_log(),*) 'pa%solar_zenith_angle = ',cpatch%solar_zenith_angle
-     write(fates_log(),*) 'pa%gnd_alb_dif        = ',cpatch%gnd_alb_dif(:)
-     write(fates_log(),*) 'pa%gnd_alb_dir        = ',cpatch%gnd_alb_dir(:)
-     write(fates_log(),*) 'pa%c_stomata          = ',cpatch%c_stomata
-     write(fates_log(),*) 'pa%c_lblayer          = ',cpatch%c_lblayer
-     write(fates_log(),*) 'pa%disturbance_rates  = ',cpatch%disturbance_rates(:)
-     write(fates_log(),*) 'pa%anthro_disturbance_label = ',cpatch%anthro_disturbance_label
-     write(fates_log(),*) '----------------------------------------'
-     do el = 1,num_elements
-        write(fates_log(),*) 'element id: ',element_list(el)
-        write(fates_log(),*) 'seed mass: ',sum(cpatch%litter(el)%seed)
-        write(fates_log(),*) 'seed germ mass: ',sum(cpatch%litter(el)%seed_germ)
-        write(fates_log(),*) 'leaf fines(pft): ',sum(cpatch%litter(el)%leaf_fines)
-        write(fates_log(),*) 'root fines(pft,sl): ',sum(cpatch%litter(el)%root_fines)
-        write(fates_log(),*) 'ag_cwd(c): ',sum(cpatch%litter(el)%ag_cwd)
-        write(fates_log(),*) 'bg_cwd(c,sl): ',sum(cpatch%litter(el)%bg_cwd)
-     end do
-
-     return
-
-  end subroutine dump_patch
-
-  ! =====================================================================================
+end subroutine dump_site
+  
   
 end module EDTypesMod

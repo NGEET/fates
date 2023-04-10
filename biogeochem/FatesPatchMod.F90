@@ -4,6 +4,9 @@ module FatesPatchMod
   use FatesConstantsMod,   only : fates_unset_r8
   use FatesConstantsMod,   only : fates_unset_int
   use FatesConstantsMod,   only : primaryforest, secondaryforest
+  use FatesGlobals,        only : fates_log
+  use FatesUtilsMod,       only : check_hlm_list
+  use FatesUtilsMod,       only : check_var_real
   use FatesCohortMod,      only : fates_cohort_type
   use FatesRunningMeanMod, only : rmean_type
   use FatesLitterMod,      only : nfsc
@@ -16,7 +19,7 @@ module FatesPatchMod
   use FatesConstantsMod,   only : t_water_freeze_k_1atm
   use FatesRunningMeanMod, only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm
 
-  use shr_infnan_mod,             only : nan => shr_infnan_nan, assignment(=)
+  use shr_infnan_mod,      only : nan => shr_infnan_nan, assignment(=)
 
   implicit none
   private
@@ -198,6 +201,8 @@ module FatesPatchMod
       procedure :: nan_values 
       procedure :: zero_values
       procedure :: create
+      procedure :: dump
+      procedure :: check_vars
 
   end type fates_patch_type
 
@@ -503,6 +508,114 @@ module FatesPatchMod
       this%tr_soil_dif(:) = 1.0_r8
       this%NCL_p          = 1
 
-  end subroutine create
+    end subroutine create
+
+    !:.........................................................................:
+
+    subroutine dump(this)
+      !
+      ! DESCRIPTION:
+      ! print attributes of a patch
+      !
+
+      ! ARGUMENTS:
+      class(fates_patch_type), intent(in) :: this ! patch object
+
+      ! LOCALS:
+      integer :: el  ! element loop counting index
+
+      write(fates_log(),*) '----------------------------------------'
+      write(fates_log(),*) ' Dumping Patch Information              '
+      write(fates_log(),*) ' (omitting arrays)                      '
+      write(fates_log(),*) '----------------------------------------'
+      write(fates_log(),*) 'pa%patchno            = ',this%patchno
+      write(fates_log(),*) 'pa%age                = ',this%age
+      write(fates_log(),*) 'pa%age_class          = ',this%age_class
+      write(fates_log(),*) 'pa%area               = ',this%area
+      write(fates_log(),*) 'pa%countcohorts       = ',this%countcohorts
+      write(fates_log(),*) 'pa%ncl_p              = ',this%ncl_p
+      write(fates_log(),*) 'pa%total_canopy_area  = ',this%total_canopy_area
+      write(fates_log(),*) 'pa%total_tree_area    = ',this%total_tree_area
+      write(fates_log(),*) 'pa%zstar              = ',this%zstar
+      write(fates_log(),*) 'pa%solar_zenith_flag  = ',this%solar_zenith_flag
+      write(fates_log(),*) 'pa%solar_zenith_angle = ',this%solar_zenith_angle
+      write(fates_log(),*) 'pa%gnd_alb_dif        = ',this%gnd_alb_dif(:)
+      write(fates_log(),*) 'pa%gnd_alb_dir        = ',this%gnd_alb_dir(:)
+      write(fates_log(),*) 'pa%c_stomata          = ',this%c_stomata
+      write(fates_log(),*) 'pa%c_lblayer          = ',this%c_lblayer
+      write(fates_log(),*) 'pa%disturbance_rates  = ',this%disturbance_rates(:)
+      write(fates_log(),*) 'pa%anthro_disturbance_label = ',this%anthro_disturbance_label
+      write(fates_log(),*) '----------------------------------------'
+
+      do el = 1, num_elements
+        write(fates_log(),*) 'element id: ',element_list(el)
+        write(fates_log(),*) 'seed mass: ',sum(this%litter(el)%seed)
+        write(fates_log(),*) 'seed germ mass: ',sum(this%litter(el)%seed_germ)
+        write(fates_log(),*) 'leaf fines(pft): ',sum(this%litter(el)%leaf_fines)
+        write(fates_log(),*) 'root fines(pft,sl): ',sum(this%litter(el)%root_fines)
+        write(fates_log(),*) 'ag_cwd(c): ',sum(this%litter(el)%ag_cwd)
+        write(fates_log(),*) 'bg_cwd(c,sl): ',sum(this%litter(el)%bg_cwd)
+      end do
+
+    end subroutine dump
+
+    !:.........................................................................:
+
+    subroutine check_vars(this, var_aliases, return_code)
+      !
+      ! DESCRIPTION:
+      ! perform numerical checks on patch variables of interest
+      ! The input string is of the form:  'VAR1_NAME:VAR2_NAME:VAR3_NAME'
+      !
+
+      ! ARGUMENTS:
+      class(fates_patch_type), intent(in)  :: this        ! patch object
+      character(len=*),        intent(in)  :: var_aliases
+      integer,                 intent(out) :: return_code ! return 0 for all fine
+                                                          ! return 1 if a nan detected
+                                                          ! return 10+ if an overflow
+                                                          ! return 100% if an underflow
+      ! LOCALS:
+      type(fates_cohort_type), pointer :: currentCohort
+
+      ! Check through a registry of variables to check
+
+      if (check_hlm_list(trim(var_aliases), 'co_n')) then
+        currentCohort => this%shortest
+        do while(associated(currentCohort))
+            call check_var_real(currentCohort%n, 'cohort%n', return_code)
+            if (.not.(return_code .eq. 0)) then
+                call this%dump()
+                call currentCohort%dump()
+                return
+            end if
+            currentCohort => currentCohort%taller
+        end do
+      end if
   
+      if (check_hlm_list(trim(var_aliases), 'co_dbh')) then
+        currentCohort => this%shortest
+        do while(associated(currentCohort))        
+            call check_var_real(currentCohort%dbh, 'cohort%dbh', return_code)
+            if (.not. (return_code .eq. 0)) then
+              call this%dump()
+              call currentCohort%dump()
+              return
+            end if
+            currentCohort => currentCohort%taller
+        end do
+      end if
+
+      if (check_hlm_list(trim(var_aliases), 'pa_area')) then
+        call check_var_real(this%area, 'patch%area', return_code)
+        if (.not. (return_code .eq. 0)) then
+            call this%dump()
+            return
+        end if
+      end if
+
+end subroutine check_vars
+
+!:.........................................................................:
+
 end module FatesPatchMod

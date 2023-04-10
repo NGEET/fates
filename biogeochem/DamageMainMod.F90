@@ -11,7 +11,6 @@ module DamageMainMod
   use EDPftvarcon           , only : EDPftvarcon_inst
   use EDParamsMod           , only : damage_event_code
   use EDParamsMod           , only : ED_val_history_damage_bin_edges
- ! use EDTypesMod            , only : ed_site_type
   use FatesInterfaceTypesMod, only : hlm_current_day
   use FatesInterfaceTypesMod, only : hlm_current_month
   use FatesInterfaceTypesMod, only : hlm_current_year

@@ -37,7 +37,6 @@ module EDPatchDynamicsMod
   use PRTGenericMod        , only : element_list
   use FatesLitterMod       , only : lg_sf
   use FatesLitterMod       , only : dl_sf
-  use EDTypesMod           , only : dump_patch
   use FatesConstantsMod    , only : N_DIST_TYPES
   use EDTypesMod           , only : AREA_INV
   use FatesConstantsMod    , only : rsnbl_math_prec
@@ -487,7 +486,7 @@ contains
 
                 if(disturbance_rate > (1.0_r8 + rsnbl_math_prec)) then
                    write(fates_log(),*) 'patch disturbance rate > 1 ?',disturbance_rate
-                   call dump_patch(currentPatch)
+                   call currentPatch%dump()
                    call endrun(msg=errMsg(sourcefile, __LINE__))
                 end if
 
