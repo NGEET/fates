@@ -31,6 +31,9 @@ module FatesInventoryInitMod
    use FatesInterfaceTypesMod, only : bc_in_type
    use FatesInterfaceTypesMod, only : hlm_inventory_ctrl_file
    use FatesInterfaceTypesMod, only : nleafage
+   use FatesInterfaceTypesMod, only : hlm_current_tod
+   use FatesInterfaceTypesMod, only : hlm_numSWb
+   use FatesInterfaceTypesMod, only : numpft
    use FatesLitterMod   , only : litter_type
    use EDTypesMod       , only : ed_site_type
    use FatesPatchMod    , only : fates_patch_type
@@ -109,7 +112,6 @@ contains
       use shr_file_mod, only        : shr_file_getUnit
       use shr_file_mod, only        : shr_file_freeUnit
       use FatesConstantsMod, only   : nearzero
-      use EDPatchDynamicsMod, only  : create_patch
       use EDPatchDynamicsMod, only  : fuse_patches
       use EDCohortDynamicsMod, only : fuse_cohorts
       use EDCohortDynamicsMod, only : sort_cohorts
@@ -266,12 +268,6 @@ contains
 
          do ipa=1,npatches
 
-            allocate(newpatch)
-
-            newpatch%patchno = ipa
-            newpatch%younger => null()
-            newpatch%older   => null()
-
             ! This call doesn't do much asside from initializing the patch with
             ! nominal values, NaNs, zero's and allocating some vectors. We should
             ! be able to get the following values from the patch files. But on
@@ -279,8 +275,14 @@ contains
 
             age_init            = 0.0_r8
             area_init           = 0.0_r8
+            allocate(newpatch)
+            call newpatch%create(age_init, area_init, primaryforest,           &
+               fates_unset_int, hlm_numSWb, numpft, sites(s)%nlevsoil,         &
+               hlm_current_tod)
 
-            call create_patch(sites(s), newpatch, age_init, area_init, primaryforest, fates_unset_int )
+            newpatch%patchno = ipa
+            newpatch%younger => null()
+            newpatch%older   => null()
 
 
             if( inv_format_list(invsite) == 1 ) then

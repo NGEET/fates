@@ -2509,13 +2509,12 @@ contains
      use FatesPatchMod,           only : fates_patch_type
      use EDParamsMod,          only : maxSWb
      use FatesInterfaceTypesMod,    only : fates_maxElementsPerPatch
+     use FatesInterfaceTypesMod,    only : hlm_current_tod, hlm_numSWb, numpft
 
      use FatesConstantsMod,    only : maxpft
      use EDTypesMod,           only : area
-     use EDPatchDynamicsMod,   only : zero_patch
      use EDInitMod,            only : zero_site
      use EDInitMod,            only : init_site_vars
-     use EDPatchDynamicsMod,   only : create_patch
      use FatesAllometryMod,    only : h2d_allom
 
 
@@ -2582,7 +2581,9 @@ contains
              nocomp_pft = fates_unset_int
              ! the nocomp_pft label is set after patch creation has occured in 'get_restart_vectors'
              ! make new patch
-             call create_patch(sites(s), newp, fates_unset_r8, fates_unset_r8, primaryforest, nocomp_pft )
+             call newp%create(fates_unset_r8, fates_unset_r8, primaryforest,   &
+               nocomp_pft, hlm_numSWb, numpft, sites(s)%nlevsoil,              &
+               hlm_current_tod)
 
              ! Initialize the litter pools to zero, these
              ! pools will be populated by looping over the existing patches

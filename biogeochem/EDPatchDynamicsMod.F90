@@ -5,7 +5,8 @@ module EDPatchDynamicsMod
   ! ============================================================================
   use FatesGlobals         , only : fates_log
   use FatesGlobals         , only : FatesWarn,N2S,A2S
-  use FatesInterfaceTypesMod    , only : hlm_freq_day
+  use FatesInterfaceTypesMod, only : hlm_freq_day
+  use FatesInterfaceTypesMod, only : hlm_current_tod
   use EDPftvarcon          , only : EDPftvarcon_inst
   use EDPftvarcon          , only : GetDecompyFrac
   use PRTParametersMod      , only : prt_params
@@ -105,10 +106,8 @@ module EDPatchDynamicsMod
   !
   implicit none
   private
-  !
-  public :: create_patch
+  
   public :: spawn_patches
-  public :: zero_patch
   public :: fuse_patches
   public :: terminate_patches
   public :: patch_pft_size_profile
@@ -540,9 +539,9 @@ contains
              ! first create patch to receive primary forest area
              if ( site_areadis_primary .gt. nearzero ) then
                 allocate(new_patch_primary)
-
-                call create_patch(currentSite, new_patch_primary, age, &
-                     site_areadis_primary, primaryforest, i_nocomp_pft)
+                call new_patch_primary%create(age, site_areadis_primary,       &
+                  primaryforest, i_nocomp_pft, hlm_numSWb, numpft,             &
+                  currentSite%nlevsoil, hlm_current_tod)
 
                 ! Initialize the litter pools to zero, these
                 ! pools will be populated by looping over the existing patches
@@ -561,10 +560,10 @@ contains
              endif
 
              ! next create patch to receive secondary forest area
-             if ( site_areadis_secondary .gt. nearzero) then
-                allocate(new_patch_secondary)
-                call create_patch(currentSite, new_patch_secondary, age, &
-                     site_areadis_secondary, secondaryforest,i_nocomp_pft)
+             if (site_areadis_secondary .gt. nearzero) then
+               call new_patch_secondary%create(age, site_areadis_secondary,    &
+                  secondaryforest, i_nocomp_pft, hlm_numSWb, numpft,           &
+                  currentSite%nlevsoil, hlm_current_tod)
 
                 ! Initialize the litter pools to zero, these
                 ! pools will be populated by looping over the existing patches
@@ -2069,252 +2068,7 @@ contains
   end subroutine mortality_litter_fluxes
 
   ! ============================================================================
-
-  subroutine create_patch(currentSite, new_patch, age, areap, label,nocomp_pft)
-
-    use FatesInterfaceTypesMod, only : hlm_current_tod
-    
-    !
-    ! !DESCRIPTION:
-    !  Set default values for creating a new patch
-    !
-    ! !USES:
-    !
-    ! !ARGUMENTS:
-    type(ed_site_type) , intent(inout), target :: currentSite
-    type(fates_patch_type), intent(inout), target :: new_patch
-    real(r8), intent(in) :: age                  ! notional age of this patch in years
-    real(r8), intent(in) :: areap                ! initial area of this patch in m2. 
-    integer, intent(in)  :: label                ! anthropogenic disturbance label
-    integer, intent(in)  :: nocomp_pft           ! no competition mode pft label
-
-
-    ! Until bc's are pointed to by sites give veg a default temp [K]
-    real(r8), parameter :: temp_init_veg = 15._r8+t_water_freeze_k_1atm 
-    
-
-    ! !LOCAL VARIABLES:
-    !---------------------------------------------------------------------
-    integer :: el                                ! element loop index
-
-
-    allocate(new_patch%tr_soil_dir(hlm_numSWb))
-    allocate(new_patch%tr_soil_dif(hlm_numSWb))
-    allocate(new_patch%tr_soil_dir_dif(hlm_numSWb))
-    allocate(new_patch%fab(hlm_numSWb))
-    allocate(new_patch%fabd(hlm_numSWb))
-    allocate(new_patch%fabi(hlm_numSWb))
-    allocate(new_patch%sabs_dir(hlm_numSWb))
-    allocate(new_patch%sabs_dif(hlm_numSWb))
-    allocate(new_patch%fragmentation_scaler(currentSite%nlevsoil))
-
-    allocate(new_patch%tveg24)
-    call new_patch%tveg24%InitRMean(fixed_24hr,init_value=temp_init_veg,init_offset=real(hlm_current_tod,r8) )
-    allocate(new_patch%tveg_lpa)
-    call new_patch%tveg_lpa%InitRmean(ema_lpa,init_value=temp_init_veg)
-    allocate(new_patch%tveg_longterm)
-    call new_patch%tveg_longterm%InitRmean(ema_longterm,init_value=temp_init_veg)
-    
-    ! Litter
-    ! Allocate, Zero Fluxes, and Initialize to "unset" values
-
-    allocate(new_patch%litter(num_elements))
-    do el=1,num_elements
-        call new_patch%litter(el)%InitAllocate(numpft,currentSite%nlevsoil,element_list(el))
-        call new_patch%litter(el)%ZeroFlux()
-        call new_patch%litter(el)%InitConditions(init_leaf_fines = fates_unset_r8, &
-              init_root_fines = fates_unset_r8, &
-              init_ag_cwd = fates_unset_r8, &
-              init_bg_cwd = fates_unset_r8, &
-              init_seed = fates_unset_r8,   &
-              init_seed_germ = fates_unset_r8)
-    end do
-
-    call zero_patch(new_patch) !The nan value in here is not working??
-
-    new_patch%tallest  => null() ! pointer to patch's tallest cohort    
-    new_patch%shortest => null() ! pointer to patch's shortest cohort   
-    new_patch%older    => null() ! pointer to next older patch   
-    new_patch%younger  => null() ! pointer to next shorter patch      
-
-    ! assign known patch attributes 
-
-    new_patch%age                = age   
-    new_patch%age_class          = 1
-    new_patch%area               = areap 
-
-    ! assign anthropgenic disturbance category and label
-    new_patch%anthro_disturbance_label = label
-    if (label .eq. secondaryforest) then
-       new_patch%age_since_anthro_disturbance = age
-    else
-       new_patch%age_since_anthro_disturbance = fates_unset_r8
-    endif
-    new_patch%nocomp_pft_label = nocomp_pft
-
-    ! This new value will be generated when the calculate disturbance
-    ! rates routine is called. This does not need to be remembered or in the restart file.
- 
-    new_patch%f_sun              = 0._r8
-    new_patch%ed_laisun_z(:,:,:) = 0._r8 
-    new_patch%ed_laisha_z(:,:,:) = 0._r8 
-    new_patch%ed_parsun_z(:,:,:) = 0._r8 
-    new_patch%ed_parsha_z(:,:,:) = 0._r8 
-    new_patch%fabi               = 0._r8
-    new_patch%fabd               = 0._r8
-    new_patch%tr_soil_dir(:)     = 1._r8
-    new_patch%tr_soil_dif(:)     = 1._r8
-    new_patch%tr_soil_dir_dif(:) = 0._r8
-    new_patch%fabd_sun_z(:,:,:)  = 0._r8 
-    new_patch%fabd_sha_z(:,:,:)  = 0._r8 
-    new_patch%fabi_sun_z(:,:,:)  = 0._r8 
-    new_patch%fabi_sha_z(:,:,:)  = 0._r8  
-    new_patch%scorch_ht(:)       = 0._r8  
-    new_patch%frac_burnt         = 0._r8  
-    new_patch%litter_moisture(:) = 0._r8
-    new_patch%fuel_eff_moist     = 0._r8
-    new_patch%livegrass          = 0._r8
-    new_patch%sum_fuel           = 0._r8
-    new_patch%fuel_bulkd         = 0._r8
-    new_patch%fuel_sav           = 0._r8
-    new_patch%fuel_mef           = 0._r8
-    new_patch%ros_front          = 0._r8
-    new_patch%effect_wspeed      = 0._r8
-    new_patch%tau_l              = 0._r8
-    new_patch%fuel_frac(:)       = 0._r8
-    new_patch%tfc_ros            = 0._r8
-    new_patch%fi                 = 0._r8
-    new_patch%fd                 = 0._r8
-    new_patch%ros_back           = 0._r8
-    new_patch%scorch_ht(:)       = 0._r8
-    new_patch%burnt_frac_litter(:) = 0._r8
-    new_patch%total_tree_area    = 0.0_r8  
-    new_patch%NCL_p              = 1
-
-   
-    return
-  end subroutine create_patch
-
-  ! ============================================================================
-  subroutine zero_patch(cp_p)
-    !
-    ! !DESCRIPTION:
-    !  Sets all the variables in the patch to nan or zero 
-    ! (this needs to be two seperate routines, one for nan & one for zero
-    !
-    ! !USES:
-    !
-    ! !ARGUMENTS:
-    type(fates_patch_type), intent(inout), target :: cp_p
-    !
-    ! !LOCAL VARIABLES:
-    type(fates_patch_type), pointer :: currentPatch
-    !---------------------------------------------------------------------
-
-    currentPatch  => cp_p  
-
-    currentPatch%tallest  => null()          
-    currentPatch%shortest => null()         
-    currentPatch%older    => null()               
-    currentPatch%younger  => null()           
-
-    currentPatch%patchno  = 999                            
-
-    currentPatch%age                        = nan                          
-    currentPatch%age_class                  = 1
-    currentPatch%area                       = nan                                           
-    currentPatch%canopy_layer_tlai(:)       = nan               
-    currentPatch%total_canopy_area          = nan
-
-    currentPatch%tlai_profile(:,:,:)        = nan 
-    currentPatch%elai_profile(:,:,:)        = 0._r8 
-    currentPatch%tsai_profile(:,:,:)        = nan 
-    currentPatch%esai_profile(:,:,:)        = nan       
-    currentPatch%canopy_area_profile(:,:,:) = nan       
-
-    currentPatch%fabd_sun_z(:,:,:)          = nan 
-    currentPatch%fabd_sha_z(:,:,:)          = nan 
-    currentPatch%fabi_sun_z(:,:,:)          = nan 
-    currentPatch%fabi_sha_z(:,:,:)          = nan  
-
-    currentPatch%ed_laisun_z(:,:,:)         = nan 
-    currentPatch%ed_laisha_z(:,:,:)         = nan 
-    currentPatch%ed_parsun_z(:,:,:)         = nan 
-    currentPatch%ed_parsha_z(:,:,:)         = nan 
-    currentPatch%psn_z(:,:,:)               = 0._r8   
-
-    currentPatch%f_sun(:,:,:)               = nan
-    currentPatch%tr_soil_dir(:)             = nan    ! fraction of incoming direct  radiation that is transmitted to the soil as direct
-    currentPatch%tr_soil_dif(:)             = nan    ! fraction of incoming diffuse radiation that is transmitted to the soil as diffuse
-    currentPatch%tr_soil_dir_dif(:)         = nan    ! fraction of incoming direct  radiation that is transmitted to the soil as diffuse
-    currentPatch%fabd(:)                    = nan    ! fraction of incoming direct  radiation that is absorbed by the canopy
-    currentPatch%fabi(:)                    = nan    ! fraction of incoming diffuse radiation that is absorbed by the canopy
-
-    currentPatch%canopy_mask(:,:)           = 999    ! is there any of this pft in this layer?
-    currentPatch%nrad(:,:)                  = 999    ! number of exposed leaf layers for each canopy layer and pft
-    currentPatch%ncan(:,:)                  = 999    ! number of total leaf layers for each canopy layer and pft
-    currentPatch%pft_agb_profile(:,:)       = nan    
-
-    ! DISTURBANCE 
-    currentPatch%disturbance_rates(:)       = 0._r8 
-    currentPatch%fract_ldist_not_harvested  = 0._r8
-
-
-    ! FIRE
-    currentPatch%litter_moisture(:)         = nan    ! litter moisture
-    currentPatch%fuel_eff_moist             = nan    ! average fuel moisture content of the ground fuel 
-    ! (incl. live grasses. omits 1000hr fuels)
-    currentPatch%livegrass                  = nan    ! total ag grass biomass in patch. 1=c3 grass, 2=c4 grass. gc/m2
-    currentPatch%sum_fuel                   = nan    ! total ground fuel related to ros (omits 1000hr fuels). gc/m2
-    currentPatch%fuel_bulkd                 = nan    ! average fuel bulk density of the ground fuel 
-    ! (incl. live grasses. omits 1000hr fuels). kgc/m3
-    currentPatch%fuel_sav                   = nan    ! average surface area to volume ratio of the ground fuel 
-    ! (incl. live grasses. omits 1000hr fuels).
-    currentPatch%fuel_mef                   = nan    ! average moisture of extinction factor of the ground fuel
-    ! (incl. live grasses. omits 1000hr fuels).
-    currentPatch%ros_front                  = nan    ! average rate of forward spread of each fire in the patch. m/min.
-    currentPatch%effect_wspeed              = nan    ! dailywind modified by fraction of relative grass and tree cover. m/min.
-    currentPatch%tau_l                      = nan    ! mins p&r(1986)
-    currentPatch%fuel_frac(:)               = nan    ! fraction of each litter class in the sum_fuel 
-    !- for purposes of calculating weighted averages. 
-    currentPatch%tfc_ros                    = nan    ! used in fi calc
-    currentPatch%fi                         = nan    ! average fire intensity of flaming front during day.  
-    ! backward ros plays no role. kj/m/s or kw/m.
-    currentPatch%fire                       = 999    ! sr decide_fire.1=fire hot enough to proceed. 0=stop everything- no fires today
-    currentPatch%fd                         = nan    ! fire duration (mins)
-    currentPatch%ros_back                   = nan    ! backward ros (m/min)
-    currentPatch%scorch_ht(:)               = nan    ! scorch height of flames on a given PFT
-    currentPatch%frac_burnt                 = nan    ! fraction burnt daily  
-    currentPatch%burnt_frac_litter(:)       = nan    
-    currentPatch%btran_ft(:)                = 0.0_r8
-
-    currentPatch%canopy_layer_tlai(:)       = 0.0_r8
-
-    currentPatch%fab(:)                     = 0.0_r8
-    currentPatch%sabs_dir(:)                = 0.0_r8
-    currentPatch%sabs_dif(:)                = 0.0_r8
-    currentPatch%zstar                      = 0.0_r8
-    currentPatch%c_stomata                  = 0.0_r8 ! This is calculated immediately before use
-    currentPatch%c_lblayer                  = 0.0_r8
-    currentPatch%fragmentation_scaler(:)    = 0.0_r8
-    currentPatch%radiation_error            = 0.0_r8
-
-    ! diagnostic radiation profiles
-    currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
-    currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
-    currentPatch%nrmlzd_parprof_dir_z(:,:,:)       = 0._r8
-    currentPatch%nrmlzd_parprof_dif_z(:,:,:)       = 0._r8
-
-    currentPatch%solar_zenith_flag          = .false.
-    currentPatch%solar_zenith_angle         = nan
-    currentPatch%fcansno                    = nan
-
-    currentPatch%gnd_alb_dir(:)             = nan
-    currentPatch%gnd_alb_dif(:)             = nan
-
-  end subroutine zero_patch
-
-  ! ============================================================================
+  
   subroutine fuse_patches( csite, bc_in )
     !
     ! !DESCRIPTION:

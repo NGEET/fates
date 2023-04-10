@@ -1,13 +1,22 @@
 module FatesPatchMod
 
   use FatesConstantsMod,   only : r8 => fates_r8
+  use FatesConstantsMod,   only : fates_unset_r8
+  use FatesConstantsMod,   only : fates_unset_int
+  use FatesConstantsMod,   only : primaryforest, secondaryforest
   use FatesCohortMod,      only : fates_cohort_type
   use FatesRunningMeanMod, only : rmean_type
   use FatesLitterMod,      only : nfsc
   use FatesLitterMod,      only : litter_type
+  use PRTGenericMod,       only : num_elements
+  use PRTGenericMod,       only : element_list
   use EDParamsMod,         only : maxSWb, nlevleaf, nclmax
   use FatesConstantsMod,   only : n_dbh_bins, maxpft, n_dist_types
   use FatesConstantsMod,   only : n_rad_stream_types
+  use FatesConstantsMod,   only : t_water_freeze_k_1atm
+  use FatesRunningMeanMod, only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm
+
+  use shr_infnan_mod,             only : nan => shr_infnan_nan, assignment(=)
 
   implicit none
   private
@@ -75,10 +84,9 @@ module FatesPatchMod
     integer  :: ncan(nclmax,maxpft)                         ! number of total   leaf layers for each canopy layer and pft
     real(r8) :: c_stomata                                   ! mean stomatal conductance of all leaves in the patch   [umol/m2/s]
     real(r8) :: c_lblayer                                   ! mean boundary layer conductance of all leaves in the patch [umol/m2/s]
-    real(r8) ::  layer_height_profile(nclmax,maxpft,nlevleaf)
-
     !:.........................................................................:
 
+    real(r8) :: layer_height_profile(nclmax,maxpft,nlevleaf)
     real(r8) :: psn_z(nclmax,maxpft,nlevleaf) 
     real(r8) :: nrmlzd_parprof_pft_dir_z(n_rad_stream_types,nclmax,maxpft,nlevleaf)
     real(r8) :: nrmlzd_parprof_pft_dif_z(n_rad_stream_types,nclmax,maxpft,nlevleaf)
@@ -179,6 +187,322 @@ module FatesPatchMod
     real(r8) :: tfc_ros                 ! total intensity-relevant fuel consumed - no trunks [kgC/m2 of burned ground/day]
     real(r8) :: burnt_frac_litter(nfsc) ! fraction of each litter pool burned, conditional on it being burned [0-1]
 
+    !:.........................................................................:
+    
+    ! PLANT HYDRAULICS (not currently used in hydraulics RGK 03-2018)  
+    ! type(ed_patch_hydr_type), pointer :: pa_hydr ! All patch hydraulics data, see FatesHydraulicsMemMod.F90
+    
+    contains
+
+      procedure :: init
+      procedure :: nan_values 
+      procedure :: zero_values
+      procedure :: create
+
   end type fates_patch_type
 
+  contains 
+
+    subroutine init(this, numSWb, numpft, nlevsoil, current_tod)
+      !
+      !  DESCRIPTION:
+      !  Initialize a new patch
+      !
+
+      ! ARGUMENTS:
+      class(fates_patch_type), intent(inout) :: this        ! patch object
+      integer,                 intent(in)    :: numSWb      ! number of shortwave broad-bands to track
+      integer,                 intent(in)    :: numpft      ! number of pfts to simulate
+      integer,                 intent(in)    :: nlevsoil    ! number of soil layers
+      integer,                 intent(in)    :: current_tod ! time of day [seconds past 0Z]
+
+      ! LOCAL VARIABLES:
+      integer :: el ! element loop index
+
+      ! Until bc's are pointed to by sites give veg a default temp [K]
+      real(r8), parameter :: temp_init_veg = 15._r8 + t_water_freeze_k_1atm
+
+      ! allocate arrays 
+      allocate(this%tr_soil_dir(numSWb))
+      allocate(this%tr_soil_dif(numSWb))
+      allocate(this%tr_soil_dir_dif(numSWb))
+      allocate(this%fab(numSWb))
+      allocate(this%fabd(numSWb))
+      allocate(this%fabi(numSWb))
+      allocate(this%sabs_dir(numSWb))
+      allocate(this%sabs_dif(numSWb))
+      allocate(this%fragmentation_scaler(nlevsoil))
+      allocate(this%tveg24)
+      allocate(this%tveg_lpa)
+      allocate(this%tveg_longterm)
+      allocate(this%litter(num_elements))
+
+      ! initialize values to nan
+      call this%nan_values()
+
+      ! zero values that should be zeroed
+      call this%zero_values()
+
+      ! set initial values for running means
+      call this%tveg24%InitRMean(fixed_24hr, init_value=temp_init_veg,         &
+        init_offset=real(current_tod, r8))
+      call this%tveg_lpa%InitRmean(ema_lpa, init_value=temp_init_veg)
+      call this%tveg_longterm%InitRmean(ema_longterm, init_value=temp_init_veg)
+
+      ! set initial values for litter
+      do el = 1, num_elements
+          call this%litter(el)%InitAllocate(numpft, nlevsoil, element_list(el))
+          call this%litter(el)%ZeroFlux()
+          call this%litter(el)%InitConditions(init_leaf_fines=fates_unset_r8,  &
+            init_root_fines=fates_unset_r8, init_ag_cwd=fates_unset_r8,        &
+            init_bg_cwd=fates_unset_r8, init_seed=fates_unset_r8,              &
+            init_seed_germ=fates_unset_r8)
+      end do
+
+    end subroutine init
+
+    !:.........................................................................:
+
+    subroutine nan_values(this)
+      !
+      !  DESCRIPTION:
+      !  Sets all values in patch to nan
+      !
+
+      ! ARGUMENTS:
+      class(fates_patch_type), intent(inout) :: this ! patch object
+
+      ! set pointers to null
+      this%tallest  => null()   
+      this%shortest => null()  
+      this%older    => null()  
+      this%younger  => null()
+      nullify(this%tallest)
+      nullify(this%shortest)
+      nullify(this%older)
+      nullify(this%younger)
+
+      ! INDICES
+      this%patchno                      = fates_unset_int
+      this%nocomp_pft_label             = fates_unset_int                  
+  
+      ! PATCH INFO
+      this%age                          = nan                          
+      this%age_class                    = fates_unset_int
+      this%area                         = nan    
+      this%countcohorts                 = fates_unset_int 
+      this%ncl_p                        = fates_unset_int
+      this%anthro_disturbance_label     = fates_unset_int
+      this%age_since_anthro_disturbance = nan
+      
+      ! LEAF ORGANIZATION
+      this%pft_agb_profile(:,:)         = nan
+      this%canopy_layer_tlai(:)         = nan               
+      this%total_canopy_area            = nan
+      this%total_tree_area              = nan 
+      this%zstar                        = nan 
+      this%elai_profile(:,:,:)          = nan 
+      this%esai_profile(:,:,:)          = nan   
+      this%tlai_profile(:,:,:)          = nan 
+      this%tsai_profile(:,:,:)          = nan 
+      this%canopy_area_profile(:,:,:)   = nan  
+      this%canopy_mask(:,:)             = fates_unset_int
+      this%nrad(:,:)                    = fates_unset_int
+      this%ncan(:,:)                    = fates_unset_int
+      this%c_stomata                    = nan 
+      this%c_lblayer                    = nan
+      this%layer_height_profile(:,:,:)  = nan
+      
+      this%psn_z(:,:,:)                 = nan 
+      this%nrmlzd_parprof_pft_dir_z(:,:,:,:) = nan
+      this%nrmlzd_parprof_pft_dif_z(:,:,:,:) = nan
+      this%nrmlzd_parprof_dir_z(:,:,:)  = nan
+      this%nrmlzd_parprof_dir_z(:,:,:) = nan
+
+      ! RADIATION
+      this%radiation_error              = nan 
+      this%fcansno                      = nan 
+      this%solar_zenith_flag            = .false. 
+      this%solar_zenith_angle           = nan 
+      this%gnd_alb_dif(:)               = nan 
+      this%gnd_alb_dir(:)               = nan
+      this%fabd_sun_z(:,:,:)            = nan 
+      this%fabd_sha_z(:,:,:)            = nan 
+      this%fabi_sun_z(:,:,:)            = nan 
+      this%fabi_sha_z(:,:,:)            = nan  
+      this%ed_laisun_z(:,:,:)           = nan 
+      this%ed_laisha_z(:,:,:)           = nan 
+      this%ed_parsun_z(:,:,:)           = nan 
+      this%ed_parsha_z(:,:,:)           = nan 
+      this%f_sun(:,:,:)                 = nan
+      this%parprof_pft_dir_z(:,:,:)     = nan 
+      this%parprof_pft_dif_z(:,:,:)     = nan
+      this%parprof_dir_z(:,:)           = nan
+      this%parprof_dif_z(:,:)           = nan
+      this%tr_soil_dir(:)               = nan    
+      this%tr_soil_dif(:)               = nan    
+      this%tr_soil_dir_dif(:)           = nan
+      this%fab(:)                       = nan    
+      this%fabd(:)                      = nan    
+      this%fabi(:)                      = nan
+      this%sabs_dir(:)                  = nan 
+      this%sabs_dif(:)                  = nan 
+      
+      ! ROOTS
+      this%btran_ft(:)                  = nan 
+      this%bstress_sal_ft(:)            = nan 
+
+      ! EXTERNAL SEED RAIN 
+      this%nitr_repro_stoich(:)         = nan 
+      this%phos_repro_stoich(:)         = nan 
+  
+      ! DISTURBANCE 
+      this%disturbance_rates(:)         = nan
+      this%fract_ldist_not_harvested    = nan 
+
+      ! LITTER AND COARSE WOODY DEBRIS
+      this%fragmentation_scaler(:)      = nan 
+  
+      ! FUELS AND FIRE
+      this%sum_fuel                     = nan 
+      this%fuel_frac(:)                 = nan 
+      this%livegrass                    = nan 
+      this%fuel_bulkd                   = nan 
+      this%fuel_sav                     = nan
+      this%fuel_mef                     = nan 
+      this%fuel_eff_moist               = nan 
+      this%litter_moisture(:)           = nan
+      this%ros_front                    = nan
+      this%ros_back                     = nan   
+      this%effect_wspeed                = nan    
+      this%tau_l                        = nan
+      this%fi                           = nan 
+      this%fire                         = fates_unset_int
+      this%fd                           = nan 
+      this%scorch_ht(:)                 = nan 
+      this%frac_burnt                   = nan
+      this%tfc_ros                      = nan    
+      this%burnt_frac_litter(:)         = nan    
+  
+    end subroutine nan_values
+
+    !:.........................................................................:
+
+    subroutine zero_values(this)
+      !
+      ! DESCRIPTION:
+      !  sets specific variables in patch to zero
+      !  these should only be values that are incremented, so that we can
+      !  catch all other uninitialized variables with nans
+
+      ! ARGUMENTS:
+      class(fates_patch_type), intent(inout) :: this
+          
+      ! LEAF ORGANIZATION
+      this%canopy_layer_tlai(:)              = 0.0_r8
+      this%total_tree_area                   = 0.0_r8  
+      this%zstar                             = 0.0_r8
+      this%elai_profile(:,:,:)               = 0.0_r8
+      this%c_stomata                         = 0.0_r8 
+      this%c_lblayer                         = 0.0_r8
+      this%psn_z(:,:,:)                      = 0.0_r8
+      this%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0.0_r8
+      this%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0.0_r8
+      this%nrmlzd_parprof_dir_z(:,:,:)       = 0.0_r8
+      this%nrmlzd_parprof_dif_z(:,:,:)       = 0.0_r8
+
+      ! RADIATION
+      this%radiation_error                   = 0.0_r8
+      this%fabd_sun_z(:,:,:)                 = 0.0_r8 
+      this%fabd_sha_z(:,:,:)                 = 0.0_r8 
+      this%fabi_sun_z(:,:,:)                 = 0.0_r8 
+      this%fabi_sha_z(:,:,:)                 = 0.0_r8  
+      this%ed_parsun_z(:,:,:)                = 0.0_r8 
+      this%ed_parsha_z(:,:,:)                = 0.0_r8 
+      this%ed_laisun_z(:,:,:)                = 0.0_r8
+      this%ed_laisha_z(:,:,:)                = 0.0_r8 
+      this%f_sun                             = 0.0_r8
+      this%tr_soil_dir_dif(:)                = 0.0_r8
+      this%fab(:)                            = 0.0_r8
+      this%fabi(:)                           = 0.0_r8
+      this%fabd(:)                           = 0.0_r8
+      this%sabs_dir(:)                       = 0.0_r8
+      this%sabs_dif(:)                       = 0.0_r8
+
+      ! ROOTS
+      this%btran_ft(:)                       = 0.0_r8
+
+      ! DISTURBANCE 
+      this%disturbance_rates(:)              = 0.0_r8 
+      this%fract_ldist_not_harvested         = 0.0_r8
+
+      ! LITTER AND COARSE WOODY DEBRIS
+      this%fragmentation_scaler(:)           = 0.0_r8
+
+      ! FIRE
+      this%sum_fuel                          = 0.0_r8
+      this%fuel_frac(:)                      = 0.0_r8
+      this%livegrass                         = 0.0_r8
+      this%fuel_bulkd                        = 0.0_r8
+      this%fuel_sav                          = 0.0_r8
+      this%fuel_mef                          = 0.0_r8
+      this%fuel_eff_moist                    = 0.0_r8
+      this%litter_moisture(:)                = 0.0_r8
+      this%ros_front                         = 0.0_r8
+      this%ros_back                          = 0.0_r8
+      this%effect_wspeed                     = 0.0_r8
+      this%tau_l                             = 0.0_r8
+      this%fi                                = 0.0_r8
+      this%fd                                = 0.0_r8
+      this%scorch_ht(:)                      = 0.0_r8  
+      this%frac_burnt                        = 0.0_r8  
+      this%tfc_ros                           = 0.0_r8
+      this%burnt_frac_litter(:)              = 0.0_r8
+
+    end subroutine zero_values
+
+    !:.........................................................................:
+
+    subroutine create(this, age, areap, label, nocomp_pft, numSWb, numpft,     &
+      nlevsoil, current_tod) 
+      !
+      ! DESCRIPTION:
+      ! create a new patch with input and default values
+      !
+
+      ! ARGUMENTS:
+      class(fates_patch_type), intent(inout) :: this        ! patch object
+      real(r8),               intent(in)     :: age         ! notional age of this patch in years
+      real(r8),               intent(in)     :: areap       ! initial area of this patch in m2. 
+      integer,                intent(in)     :: label       ! anthropogenic disturbance label
+      integer,                intent(in)     :: nocomp_pft  ! no-competition mode pft label
+      integer,                intent(in)     :: numSWb      ! number of shortwave broad-bands to track
+      integer,                intent(in)     :: numpft      ! number of pfts to simulate
+      integer,                intent(in)     :: nlevsoil    ! number of soil layers
+      integer,                intent(in)     :: current_tod ! time of day [seconds past 0Z]
+    
+      ! initialize patch
+      ! also sets all values to nan, then some values to zero
+      call this%init(numSWb, numpft, nlevsoil, current_tod)
+    
+      ! assign known patch attributes 
+      this%age       = age   
+      this%age_class = 1
+      this%area      = areap 
+
+      ! assign anthropgenic disturbance category and label
+      this%anthro_disturbance_label = label
+      if (label .eq. secondaryforest) then
+        this%age_since_anthro_disturbance = age
+      else
+        this%age_since_anthro_disturbance = fates_unset_r8
+      endif
+      this%nocomp_pft_label = nocomp_pft
+
+      this%tr_soil_dir(:) = 1.0_r8
+      this%tr_soil_dif(:) = 1.0_r8
+      this%NCL_p          = 1
+
+  end subroutine create
+  
 end module FatesPatchMod

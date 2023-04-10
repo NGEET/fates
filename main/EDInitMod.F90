@@ -14,11 +14,12 @@ module EDInitMod
   use EDParamsMod               , only : nclmax
   use FatesGlobals              , only : fates_log
   use FatesInterfaceTypesMod    , only : hlm_is_restart
+  use FatesInterfaceTypesMod    , only : hlm_current_tod
+  use FatesInterfaceTypesMod    , only : hlm_numSWb
   use EDPftvarcon               , only : EDPftvarcon_inst
   use PRTParametersMod          , only : prt_params
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
   use EDCohortDynamicsMod       , only : InitPRTObject
-  use EDPatchDynamicsMod        , only : create_patch
   use EDPatchDynamicsMod        , only : set_patchno
   use EDPhysiologyMod           , only : assign_cohort_sp_properties
   use ChecksBalancesMod         , only : SiteMassStock
@@ -610,8 +611,8 @@ contains
 
              if(newparea.gt.0._r8)then ! Stop patches being initilialized when PFT not present in nocomop mode
                 allocate(newp)
-
-                call create_patch(sites(s), newp, age, newparea, primaryforest, nocomp_pft)
+                call newp%create(age, newparea, primaryforest, nocomp_pft,     &
+                  hlm_numSWb, numpft, sites(s)%nlevsoil, hlm_current_tod)
 
                 if(is_first_patch.eq.itrue)then !is this the first patch?
                    ! set poointers for first patch (or only patch, if nocomp is false)
