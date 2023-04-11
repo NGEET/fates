@@ -2571,7 +2571,6 @@ contains
              ! keep track of how many individuals were recruited for passing to history
              currentSite%recruitment_rate(ft) = currentSite%recruitment_rate(ft) + temp_cohort%n
 
-
         endif any_recruits
        endif !use_this_pft
     enddo  !pft loop

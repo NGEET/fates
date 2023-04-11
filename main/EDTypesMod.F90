@@ -624,7 +624,6 @@ module EDTypesMod
      ! PLANT HYDRAULICS   (not currently used in hydraulics RGK 03-2018)  
      ! type(ed_patch_hydr_type) , pointer :: pa_hydr              ! All patch hydraulics data, see FatesHydraulicsMemMod.F90
 
-
   end type ed_patch_type
 
   
