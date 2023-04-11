@@ -104,10 +104,10 @@ module EDParamsMod
    ! to be used at each node (compartment/organ)
    ! 1  = Christofferson et al. 2016 (TFS),   2 = Van Genuchten 1980
    
-   character(len=param_string_length),parameter,public :: ED_name_sdlng_emerg_h2o_timescale = "fates_sdlng_emerg_h2o_timescale"
-   character(len=param_string_length),parameter,public :: ED_name_sdlng_mort_par_timescale = "fates_sdlng_mort_par_timescale"
-   character(len=param_string_length),parameter,public :: ED_name_sdlng_mdd_timescale = "fates_sdlng_mdd_timescale"
-   character(len=param_string_length),parameter,public :: ED_name_sdlng2sap_par_timescale = "fates_sdlng2sap_par_timescale"
+   character(len=param_string_length),parameter,public :: ED_name_sdlng_emerg_h2o_timescale = "fates_trs_seedling_emerg_h2o_timescale"
+   character(len=param_string_length),parameter,public :: ED_name_sdlng_mort_par_timescale = "fates_trs_seedling_mort_par_timescale"
+   character(len=param_string_length),parameter,public :: ED_name_sdlng_mdd_timescale = "fates_trs_seedling_mdd_timescale"
+   character(len=param_string_length),parameter,public :: ED_name_sdlng2sap_par_timescale = "fates_trs_seedling2sap_par_timescale"
    integer, protected,allocatable,public :: hydr_htftype_node(:)
    character(len=param_string_length),parameter,public :: ED_name_photo_temp_acclim_timescale = "fates_leaf_photo_temp_acclim_timescale"
    character(len=param_string_length),parameter,public :: ED_name_photo_temp_acclim_thome_time = "fates_leaf_photo_temp_acclim_thome_time"

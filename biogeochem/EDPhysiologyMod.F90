@@ -24,8 +24,9 @@ module EDPhysiologyMod
   use FatesConstantsMod, only    : r8 => fates_r8
   use FatesConstantsMod, only    : nearzero
   use FatesConstantsMod, only    : sec_per_day
-  use FatesConstantsMod, only    : TRS
   use FatesConstantsMod, only    : default_regeneration
+  use FatesConstantsMod, only    : TRS
+  use FatesConstantsMod, only    : TRS_no_seedling_dyn
   use FatesConstantsMod, only    : min_max_dbh_for_trees
   use FatesConstantsMod, only    : megajoules_per_joule
   use FatesConstantsMod, only    : mpa_per_mm_suction
@@ -1785,8 +1786,6 @@ contains
     integer  :: n_litt_types           ! number of litter element types (c,n,p, etc)
     integer  :: el                     ! loop counter for litter element types
     integer  :: element_id             ! element id consistent with parteh/PRTGenericMod.F90
-    integer, parameter :: TRS = 2      ! Switch option to use the Tree Recruitment Scheme
-    integer, parameter :: default_regeneration = 1 !Switch option to use FATES's default regeneration scheme
     !------------------------------------------------------------------------------------
 
     do el = 1, num_elements
@@ -2087,7 +2086,8 @@ contains
     !==============================================================================================
      do pft = 1,numpft
        if ( regeneration_model == default_regeneration .or. &
-             prt_params%allom_dbh_maxheight(pft) < min_max_dbh_for_trees ) then
+            regeneration_model == TRS_no_seedling_dyn .or. & 
+            prt_params%allom_dbh_maxheight(pft) < min_max_dbh_for_trees ) then
 
        !FATES default germination scheme
        litt%seed_germ_in(pft) =  min(litt%seed(pft) * EDPftvarcon_inst%germination_rate(pft), &  
@@ -2141,19 +2141,20 @@ contains
        !Step 4. Calculate the amount of carbon germinating out of the seed bank                                                                                
        litt%seed_germ_in(pft) = litt%seed(pft) * seedling_emerg_rate
      
-         !ahb diagnostic
-          if (debug_trs) then
-          if (hlm_day_of_year == 40 .OR. hlm_day_of_year == 270) then
-              write(fates_log(),*) 'day_of_year:', hlm_day_of_year
-              write(fates_log(),*) 'patch_age:', currentPatch%age
-              write(fates_log(),*) 'pft', pft
-              write(fates_log(),*) 'seedling_layer_par (MJ m-2 day-1):', seedling_layer_par
-              write(fates_log(),*) 'seedling_layer_smp (mm h2o suction):', seedling_layer_smp
-              write(fates_log(),*) 'photoblastic_germ_modifier ([0,1]):', photoblastic_germ_modifier
-              write(fates_log(),*) 'seedling_emerg_rate (day-1):', seedling_emerg_rate
-          end if
+       !  !ahb diagnostic
+       !   if (debug_trs) then
+       !   if (hlm_day_of_year == 40 .OR. hlm_day_of_year == 270) then
+       !       write(fates_log(),*) 'day_of_year:', hlm_day_of_year
+       !       write(fates_log(),*) 'patch_age:', currentPatch%age
+       !       write(fates_log(),*) 'pft', pft
+       
+       !      write(fates_log(),*) 'seedling_layer_par (MJ m-2 day-1):', seedling_layer_par
+       !       write(fates_log(),*) 'seedling_layer_smp (mm h2o suction):', seedling_layer_smp
+       !       write(fates_log(),*) 'photoblastic_germ_modifier ([0,1]):', photoblastic_germ_modifier
+       !       write(fates_log(),*) 'seedling_emerg_rate (day-1):', seedling_emerg_rate
+       !   end if
 
-          end if !debug flag
+       !   end if !debug flag
          !end ahb diagnostic
  
       end if !regeneration model switch
@@ -2386,6 +2387,7 @@ contains
                 !START ahb's changes
                 !=================================================================================
                 if ( regeneration_model == default_regeneration .or. &
+                     regeneration_model == TRS_no_seedling_dyn .or. & 
                      prt_params%allom_dbh_maxheight(ft) < min_max_dbh_for_trees ) then
 
                 mass_avail = currentPatch%area * currentPatch%litter(el)%seed_germ(ft)

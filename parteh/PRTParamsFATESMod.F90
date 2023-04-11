@@ -230,11 +230,11 @@ contains
 
     !ahb added the params below
     !-------------------------------------------------------------------------------------
-    name = 'fates_repro_alloc_a'
+    name = 'fates_trs_repro_alloc_a'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_repro_alloc_b'
+    name = 'fates_trs_repro_alloc_b'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
     !--------------------------------------------------------------------------------------
@@ -507,11 +507,11 @@ contains
 
     !ahb added the code below
     !--------------------------------------------------------
-    name = 'fates_repro_alloc_a'
+    name = 'fates_trs_repro_alloc_a'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%repro_alloc_a)
 
-    name = 'fates_repro_alloc_b'
+    name = 'fates_trs_repro_alloc_b'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%repro_alloc_b)
     !---------------------------------------------------------

@@ -597,67 +597,67 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_repro_frac_seed'
+    name = 'fates_trs_repro_frac_seed'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_a_emerg'
+    name = 'fates_trs_seedling_a_emerg'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
                  
-    name = 'fates_b_emerg'
+    name = 'fates_trs_seedling_b_emerg'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
                  
-    name = 'fates_par_crit_germ'
+    name = 'fates_trs_seedling_par_crit_germ'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_seedling_psi_emerg'
+    name = 'fates_trs_seedling_psi_emerg'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
-    name = 'fates_seedling_psi_crit'
+    name = 'fates_trs_seedling_psi_crit'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
-    name = 'fates_seedling_light_rec_a'
+    name = 'fates_trs_seedling_light_rec_a'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
-    name = 'fates_seedling_light_rec_b'
+    name = 'fates_trs_seedling_light_rec_b'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
-    name = 'fates_seedling_mdd_crit'
+    name = 'fates_trs_seedling_mdd_crit'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
-    name = 'fates_seedling_h2o_mort_a'
+    name = 'fates_trs_seedling_h2o_mort_a'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
-    name = 'fates_seedling_h2o_mort_b'
+    name = 'fates_trs_seedling_h2o_mort_b'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_seedling_h2o_mort_c'
+    name = 'fates_trs_seedling_h2o_mort_c'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_seedling_root_depth'
+    name = 'fates_trs_seedling_root_depth'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
                  
-    name = 'fates_seedling_light_mort_a'
+    name = 'fates_trs_seedling_light_mort_a'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
                  
-    name = 'fates_seedling_light_mort_b'
+    name = 'fates_trs_seedling_light_mort_b'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_background_seedling_mort'
+    name = 'fates_trs_seedling_background_mort'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
                               
@@ -1027,67 +1027,67 @@ contains
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%germination_rate)
 
-    name = 'fates_repro_frac_seed'
+    name = 'fates_trs_repro_frac_seed'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%repro_frac_seed)
 
-    name = 'fates_a_emerg'
+    name = 'fates_trs_seedling_a_emerg'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%a_emerg)
              
-    name = 'fates_b_emerg'
+    name = 'fates_trs_seedling_b_emerg'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%b_emerg)
     
-    name = 'fates_par_crit_germ'
+    name = 'fates_trs_seedling_par_crit_germ'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%par_crit_germ)
 
-    name = 'fates_seedling_psi_emerg'
+    name = 'fates_trs_seedling_psi_emerg'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%seedling_psi_emerg)
    
-    name = 'fates_seedling_psi_crit'
+    name = 'fates_trs_seedling_psi_crit'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%seedling_psi_crit)
     
-    name = 'fates_seedling_light_rec_a'
+    name = 'fates_trs_seedling_light_rec_a'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%seedling_light_rec_a)
     
-    name = 'fates_seedling_light_rec_b'
+    name = 'fates_trs_seedling_light_rec_b'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%seedling_light_rec_b)
 
-    name = 'fates_seedling_mdd_crit'
+    name = 'fates_trs_seedling_mdd_crit'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%seedling_mdd_crit)
 
-    name = 'fates_seedling_h2o_mort_a'
+    name = 'fates_trs_seedling_h2o_mort_a'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%seedling_h2o_mort_a)
     
-    name = 'fates_seedling_h2o_mort_b'
+    name = 'fates_trs_seedling_h2o_mort_b'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%seedling_h2o_mort_b)
 
-    name = 'fates_seedling_h2o_mort_c'
+    name = 'fates_trs_seedling_h2o_mort_c'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%seedling_h2o_mort_c)
 
-    name = 'fates_seedling_root_depth'
+    name = 'fates_trs_seedling_root_depth'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%seedling_root_depth)
                      
-    name = 'fates_seedling_light_mort_a'
+    name = 'fates_trs_seedling_light_mort_a'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%seedling_light_mort_a)
 
-    name = 'fates_seedling_light_mort_b'
+    name = 'fates_trs_seedling_light_mort_b'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%seedling_light_mort_b)
 
-    name = 'fates_background_seedling_mort'
+    name = 'fates_trs_seedling_background_mort'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%background_seedling_mort)
                               
