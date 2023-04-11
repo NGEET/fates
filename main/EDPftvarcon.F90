@@ -106,22 +106,23 @@ module EDPftvarcon
      real(r8), allocatable :: seed_decay_rate(:)         ! Fraction of seed mass (both germinated and
                                                          ! ungerminated), decaying per year    (yr-1)
      
-     real(r8), allocatable :: repro_frac_seed(:)         ! added by ahb 7/15/2021
-     real(r8), allocatable :: a_emerg(:)                 !added by ahb 7/19/2021
-     real(r8), allocatable :: b_emerg(:)                 !added by ahb 7/19/2021
-     real(r8), allocatable :: par_crit_germ(:)           !added by ahb 7/19/2021
-     real(r8), allocatable :: seedling_psi_emerg(:)      !added by ahb 7/19/2021
-     real(r8), allocatable :: seedling_psi_crit(:)       !added by ahb 7/19/2021
-     real(r8), allocatable :: seedling_light_rec_a(:)       !added by ahb 7/19/2021
-     real(r8), allocatable :: seedling_light_rec_b(:)       !added by ahb 7/19/2021
-     real(r8), allocatable :: seedling_mdd_crit(:)       !added by ahb 7/19/2021
-     real(r8), allocatable :: seedling_h2o_mort_a(:)       !added by ahb 7/19/2021
-     real(r8), allocatable :: seedling_h2o_mort_b(:)       !added by ahb 7/19/2021
-     real(r8), allocatable :: seedling_h2o_mort_c(:)       !added by ahb 7/19/2021
-     real(r8), allocatable :: seedling_root_depth(:)     !added by ahb 7/27/2021
-     real(r8), allocatable :: seedling_light_mort_a(:)   !added by ahb on 7/27/2021
-     real(r8), allocatable :: seedling_light_mort_b(:)   !added by ahb on 7/27/2021
-     real(r8), allocatable :: background_seedling_mort(:)!added by ahb on 7/27/2021
+     real(r8), allocatable :: repro_frac_seed(:)         ! fraciton of reproductive carbon that is seed
+     real(r8), allocatable :: a_emerg(:)                 ! mean fraction of seed bank emerging [day-1]
+     real(r8), allocatable :: b_emerg(:)                 ! seedling emergence sensitivity to soil moisture
+     real(r8), allocatable :: par_crit_germ(:)           ! critical light level for germination [MJ m2-1 day-1]
+     real(r8), allocatable :: seedling_psi_emerg(:)      ! critical soil moisture for seedling emergence [mm h2o suction]
+     real(r8), allocatable :: seedling_psi_crit(:)       ! critical soil moisture initiating seedling stress
+     real(r8), allocatable :: seedling_light_rec_a(:)    ! coefficient in light-based seedling to sapling transition rate
+     real(r8), allocatable :: seedling_light_rec_b(:)    ! coefficient in light-based seedling to sapling transition rate
+     real(r8), allocatable :: seedling_mdd_crit(:)       ! critical moisture deficit day accumulation for seedling moisture-based
+                                                         ! seedling mortality to begin
+     real(r8), allocatable :: seedling_h2o_mort_a(:)     ! coefficient in moisture-based seedling mortality
+     real(r8), allocatable :: seedling_h2o_mort_b(:)     ! coefficient in moisture-based seedling mortality
+     real(r8), allocatable :: seedling_h2o_mort_c(:)     ! coefficient in moisture-based seedling mortality
+     real(r8), allocatable :: seedling_root_depth(:)     ! rooting depth of seedlings [m]
+     real(r8), allocatable :: seedling_light_mort_a(:)   ! light-based seedling mortality coefficient
+     real(r8), allocatable :: seedling_light_mort_b(:)   ! light-based seedling mortality coefficient
+     real(r8), allocatable :: background_seedling_mort(:)! background seedling mortality [yr-1]
 
      real(r8), allocatable :: trim_limit(:)              ! Limit to reductions in leaf area w stress (m2/m2)
      real(r8), allocatable :: trim_inc(:)                ! Incremental change in trimming function   (m2/m2)

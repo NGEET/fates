@@ -663,11 +663,10 @@ contains
                       call new_patch%seedling_layer_par24%CopyFromDonor(currentPatch%seedling_layer_par24) 
                       call new_patch%sdlng_mort_par%CopyFromDonor(currentPatch%sdlng_mort_par) 
                       call new_patch%sdlng2sap_par%CopyFromDonor(currentPatch%sdlng2sap_par) 
-             
 
                       do pft = 1,maxpft
-                         call new_patch%sdlng_emerg_smp(pft)%p%CopyFromDonor(currentPatch%sdlng_emerg_smp(pft)%p) !ahb
-                         call new_patch%sdlng_mdd(pft)%p%CopyFromDonor(currentPatch%sdlng_mdd(pft)%p) !ahb
+                         call new_patch%sdlng_emerg_smp(pft)%p%CopyFromDonor(currentPatch%sdlng_emerg_smp(pft)%p)
+                         call new_patch%sdlng_mdd(pft)%p%CopyFromDonor(currentPatch%sdlng_mdd(pft)%p)
                       enddo
 
                       call new_patch%tveg_longterm%CopyFromDonor(currentPatch%tveg_longterm)
@@ -1482,9 +1481,6 @@ contains
           new_litt%seed_decay(pft) = new_litt%seed_decay(pft) + &
                curr_litt%seed_decay(pft)*patch_site_areadis/newPatch%area
 
-          new_litt%non_seed_repro_mass_decay(pft) = new_litt%non_seed_repro_mass_decay(pft) + &  !ahb added this
-               curr_litt%non_seed_repro_mass_decay(pft)*patch_site_areadis/newPatch%area !ahb added this
-
           new_litt%seed_germ_decay(pft) = new_litt%seed_germ_decay(pft) + &
                curr_litt%seed_germ_decay(pft)*patch_site_areadis/newPatch%area
           
@@ -2104,11 +2100,11 @@ contains
     ! Until bc's are pointed to by sites give veg a default temp [K]
     real(r8), parameter :: temp_init_veg = 15._r8+t_water_freeze_k_1atm 
     
-    real(r8), parameter :: init_seedling_par = 5.0_r8                      !arbtrary initialization, ahb
+    real(r8), parameter :: init_seedling_par = 5.0_r8          !arbtrary initialization for 
+                                                               !seedling layer PAR [MJ m-2 d-1]
 
-    real(r8), parameter :: init_seedling_smp = -26652.0_r8                 !mean smp (mm) from prior ED2
-                                                                           !simulation at BCI (arbitrary)
-    integer             :: pft                                             !pft index
+    real(r8), parameter :: init_seedling_smp = -26652.0_r8     !arbitrary initialization of smp [mm]
+    integer             :: pft                                 !pft index
 
     ! !LOCAL VARIABLES:
     !---------------------------------------------------------------------
@@ -2682,7 +2678,7 @@ contains
     type (ed_cohort_type), pointer :: nextc         ! Remembers next cohort in list 
     type (ed_cohort_type), pointer :: storesmallcohort
     type (ed_cohort_type), pointer :: storebigcohort  
-    integer                        :: c,p,pft      !counters for pft and litter size class. ahb added pft here.
+    integer                        :: c,p,pft      ! counters for pft and litter size class
     integer                        :: tnull,snull  ! are the tallest and shortest cohorts associated?
     integer                        :: el           ! loop counting index for elements
     type(ed_patch_type), pointer   :: youngerp     ! pointer to the patch younger than donor

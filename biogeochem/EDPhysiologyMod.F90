@@ -150,7 +150,6 @@ module EDPhysiologyMod
   public :: SetRecruitL2FR
   
   logical, parameter :: debug  = .false. ! local debug flag
-  logical, parameter :: debug_trs  = .true. ! local debug flag
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
 
@@ -436,7 +435,7 @@ contains
        ! germination from occuring when the site is in a drought
        ! (for drought deciduous) or too cold (for cold deciduous)
       
-       call SeedGermination(litt, currentSite%cstatus, currentSite%dstatus, bc_in, currentPatch) !ahb added currentPatch
+       call SeedGermination(litt, currentSite%cstatus, currentSite%dstatus, bc_in, currentPatch)
        
        ! Send fluxes from newly created litter into the litter pools
        ! This litter flux is from non-disturbance inducing mortality, as well
@@ -455,7 +454,6 @@ contains
        site_mass%frag_out = site_mass%frag_out + currentPatch%area * &
             ( sum(litt%ag_cwd_frag) + sum(litt%bg_cwd_frag) + &
             sum(litt%leaf_fines_frag) + sum(litt%root_fines_frag) + &
-            !sum(litt%non_seed_repro_mass_decay) + & !ahb added this line on 7/8/2021
             sum(litt%seed_decay) + sum(litt%seed_germ_decay))
 
     end do
@@ -1801,7 +1799,6 @@ contains
        do while (associated(currentPatch))
 
           currentCohort => currentPatch%tallest
-          !litt => currentPatch%litter(el) !added by ahb
           do while (associated(currentCohort))
 
              pft = currentCohort%pft
@@ -1856,24 +1853,21 @@ contains
           do pft = 1,numpft
 
              if(currentSite%use_this_pft(pft).eq.itrue)then
+             
              ! Seed input from local sources (within site)
              litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)/area
 
-             !START ahb's changes
+             ! If we are using the Tree Recruitment Scheme (TRS) with or w/o seedling dynamics
              if ( regeneration_model >= TRS .and. &
                   prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees) then
              
-             !Send a fraction of reproductive carbon to litter to account for 
-             !non-seed reproductive carbon (e.g. flowers, fruit, etc.)
-             !If using default_regeneration then all reproductive carbon becomes seed
-             !This process will be more important if/when FATES fixes the structural issue
-             !that all carbon used to make recruits comes from reproductive carbon.
+             ! Send a fraction of reproductive carbon to litter to account for 
+             ! non-seed reproductive carbon (e.g. flowers, fruit, etc.)
                 litt%seed_decay(pft) = litt%seed_in_local(pft) * (1.0_r8 - EDPftvarcon_inst%repro_frac_seed(pft)) 
              
+             ! Note: The default regeneration scheme sends all reproductive carbon to seed
              end if !Use TRS
 
-             !Default regeneration scheme sends all reproductive carbon to seed (i.e. do nothing here)
-             !END ahb's changes
 
              ! If there is forced external seed rain, we calculate the input mass flux
              ! from the different elements, using the mean stoichiometry of new
@@ -1916,7 +1910,9 @@ contains
     !
     ! !DESCRIPTION:
     ! 1. Flux from seed pool into leaf litter pool
-    ! 2. (if TRS is on) Seedling mortality (i.e. flux from seedling pool into leaf litter pool)   
+    ! 2. If the TRS with seedling dynamics is on (regeneration_model = 3)
+    !    then we calculate seedling mortality here (i.e. flux from seedling pool
+    !    (into leaf litter pool)   
     !
     ! !ARGUMENTS
     type(litter_type) :: litt
@@ -1925,11 +1921,12 @@ contains
     !
     ! !LOCAL VARIABLES:
     integer  ::  pft
-    real(r8) ::  seedling_layer_par          !cumulative light at the seedling layer (MJ) over prior window of days 
-                                             !(defined by 'light_mort_window' param)
-    real(r8) ::  seedling_light_mort_rate    !the daily seedling mortality rate from light stress
-    real(r8) ::  seedling_h2o_mort_rate      !the daily seedling mortality rate from moisture stress
-    real(r8) ::  seedling_mdds               !moisture deficit days accumulated in the seedling layer
+    real(r8) ::  seedling_layer_par          ! cumulative sum of PAR at the seedling layer (MJ)
+                                             ! over prior window of days defined by 
+                                             ! fates_trs_seedling_mort_par_timescale
+    real(r8) ::  seedling_light_mort_rate    ! daily seedling mortality rate from light stress
+    real(r8) ::  seedling_h2o_mort_rate      ! daily seedling mortality rate from moisture stress
+    real(r8) ::  seedling_mdds               ! moisture deficit days accumulated in the seedling layer
    
     !----------------------------------------------------------------------
 
@@ -1942,93 +1939,76 @@ contains
     ! seed_decay is kg/day
     ! Assume that decay rates are same for all chemical species
 
-    ! START ahb's changes
     !=====================================================================================
     do pft = 1,numpft 
     
-       !If the TRS is switched off or the pft is not a tree then use the default
-       !regeneration scheme.
+       ! If the TRS is switched off or the pft can't get big enough to be considered a tree 
+       ! then use FATES default regeneration.
        if ( regeneration_model == default_regeneration .or. &
             prt_params%allom_dbh_maxheight(pft) < min_max_dbh_for_trees ) then
 
-       !Default seed decay scheme (original code)
+       ! Default seed decay (TRS is off)
        litt%seed_decay(pft) = litt%seed(pft) * &
              EDPftvarcon_inst%seed_decay_rate(pft)*years_per_day
 
-       end if !end default regeneration model
+       end if ! End default regeneration model
 
-       ! If the TRS is fully switched on, or if it is switched on without seedling dynamics
-       ! (regeneration_model = TRS_no_seedling_dyn), 
-       ! and the pft is a tree then make sure the non-seed reproductive biomass is added the
-       ! the seed decay flux.
+       ! If the TRS is switched on and the pft is a tree then add non-seed reproductive biomass
+       ! to the seed decay flux. This was added to litt%seed_decay in the previously called SeedIn 
+       ! subroutine
        if ( regeneration_model >= TRS .and. &
                   prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees ) then
   
-       !----------------------------------------------------------------------
-       !With respect to seed decay, the only difference with the TRS here is adding the flux 
-       !from non-seed reproductive biomass (which was sent to litt%seed_decay in the SeedIn subroutine) 
-                                                     
-       litt%seed_decay(pft) = litt%seed_decay(pft) + &!from non-seed reproductive biomass.
+       litt%seed_decay(pft) = litt%seed_decay(pft) + &! From non-seed reproductive biomass (added in
+                                                      ! in the SeedIn subroutine.
                               litt%seed(pft) * EDPftvarcon_inst%seed_decay_rate(pft)*years_per_day
     
-       end if !Send non-seed reproductive biomass to seed decay flux.
+       end if ! End use TRS
 
 
-       ! If the full TRS model is switch on (regeneration_model == TRS) then calculate seedling mortality.
+       ! If the TRS is switched on with seedling dynamics (regeneration_model = 3) 
+       ! then calculate seedling mortality.
        if ( regeneration_model == TRS .and. &
                          prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees ) then
        
-       !Seedling mortality (i.e. fluxes from seedling pool (seed_germ) to litter)
        !----------------------------------------------------------------------
-       !Step 1. Calculate the daily seedling mortality rate from light stress
+       ! Seedling mortality (flux from seedling pool to litter)
+       ! Note: The TRS uses the litt%seed_germ data struture to track seedlings
+       
+       ! Step 1. Calculate the daily seedling mortality rate from light stress
 
-       !Calculate the cumulative light at the seedling layer over a prior number of 
-       !days set by the "sdlng_mort_par_timescale" parameter
-
+       ! Calculate the cumulative light at the seedling layer over a prior number of 
+       ! days determined by the "fates_tres_seedling_mort_par_timescale" parameter.
        seedling_layer_par = currentPatch%sdlng_mort_par%GetMean() * megajoules_per_joule * & 
         sec_per_day * sdlng_mort_par_timescale 
 
+       ! Calculate daily seedling mortality rate from light
        seedling_light_mort_rate = exp( EDPftvarcon_inst%seedling_light_mort_a(pft) * &
                                        seedling_layer_par + EDPftvarcon_inst%seedling_light_mort_b(pft) ) 
         
-       !Step 3. Calculate the daily seedling mortality rate from moisture stress
+       ! Step 2. Calculate the daily seedling mortality rate from moisture stress
        
-       !Get the current seedling moisture deficit days
-       !Calculated as (abs(seedling_psi_crit) - abs(seedling_layer_smp))* -1 * mddWindow
+       ! Get the current seedling moisture deficit days (tracked as a pft-specific exponential
+       ! average)
        seedling_mdds = currentPatch%sdlng_mdd(pft)%p%GetMean()     
     
-       !Calculate seedling mortality as a function of moisture deficit days
+       ! Calculate seedling mortality as a function of moisture deficit days (mdd)
        seedling_h2o_mort_rate = EDPftvarcon_inst%seedling_h2o_mort_a(pft) * seedling_mdds**2 + &
                                 EDPftvarcon_inst%seedling_h2o_mort_b(pft) * seedling_mdds + &
                                 EDPftvarcon_inst%seedling_h2o_mort_c(pft)
 
+       ! If the seedling mmd value is below a critical threshold then moisture-based mortality is zero
        if (seedling_mdds < EDPftvarcon_inst%seedling_mdd_crit(pft)) then
            seedling_h2o_mort_rate = 0.0_r8
-       end if !mdd threshold check
+       end if ! mdd threshold check
      
-       !Step 4. Add background mortality and send dead seedling carbon to litter (i.e. to seed_germ_decay flux)        
+       ! Step 3. Sum modes of mortality (including background mortality) and send dead seedlings
+       ! to litter        
        litt%seed_germ_decay(pft) = (litt%seed_germ(pft) * seedling_light_mort_rate) + &
                                    (litt%seed_germ(pft) * seedling_h2o_mort_rate) + &
                                    (litt%seed_germ(pft) * EDPftvarcon_inst%background_seedling_mort(pft) &
                                                         * years_per_day)
-       end if !Use full TRS
-
-        !ahb diagnostic
-        !  if (debug_trs) then
-        !  if (hlm_day_of_year == 40 .OR. hlm_day_of_year == 270) then
-        !      write(fates_log(),*) 'day_of_year:', hlm_day_of_year
-        !      write(fates_log(),*) 'patch_age:', currentPatch%age
-        !      write(fates_log(),*) 'pft', pft
-        !      write(fates_log(),*) 'seedling_light_mort_rate (day -1):', seedling_light_mort_rate
-        !      write(fates_log(),*) 'seedling_h2o_mort_rate (day -1):', seedling_h2o_mort_rate
-        !      write(fates_log(),*) 'seedling mdds ([0,1]):', seedling_mdds
-        !  end if
-
-        !  end if !debug flag
-        !end ahb diagnostic
-        
-    !-----------------------------------------------------------------------
-    !END ahb's changes
+       end if ! End use TRS with seedling dynamics
 
     enddo
 
@@ -2036,7 +2016,7 @@ contains
   end subroutine SeedDecay
 
   ! ============================================================================
-  subroutine SeedGermination( litt, cold_stat, drought_stat, bc_in, currentPatch ) !ahb added currentPatch and bc_in
+  subroutine SeedGermination( litt, cold_stat, drought_stat, bc_in, currentPatch )
     !
     ! !DESCRIPTION:
     !  Flux from seed bank into the seedling pool    
@@ -2048,8 +2028,8 @@ contains
     type(litter_type) :: litt  
     integer, intent(in) :: cold_stat                   ! Is the site in cold leaf-off status?
     integer, intent(in) :: drought_stat                ! Is the site in drought leaf-off status?
-    type(bc_in_type), intent(in) :: bc_in              ! ahb added this July 2021
-    type(ed_patch_type), intent(in) :: currentPatch    ! ahb added this July 2021
+    type(bc_in_type), intent(in) :: bc_in              
+    type(ed_patch_type), intent(in) :: currentPatch    
     !
     ! !LOCAL VARIABLES:
     integer :: pft
@@ -2058,15 +2038,15 @@ contains
 
     !Light and moisture-sensitive seedling emergence variables (ahb)
     !------------------------------------------------------------------------------------------------------------
-    integer  :: ilayer_seedling_root                            ! the soil layer at seedling rooting depth
-    real(r8) :: seedling_layer_smp                              ! soil matric potential at seedling rooting depth
-    real(r8) :: wetness_index                                   ! a soil 'wetness index' (1 / - SoilMatricPotetial (MPa) )
-    real(r8) :: seedling_layer_par                              ! par at the seedling layer (MJ m-2 day-1)
-    real(r8) :: slsmp_emerg                                     !temp
-    real(r8) :: slparmort                                       !temp
-    real(r8) :: slpartrans                                      !temp
-    real(r8) :: photoblastic_germ_modifier                      ! seedling emergence rate modifier for light-sensitive germination
-    real(r8) :: seedling_emerg_rate                             ! the fraction of the seed bank emerging in the current time step
+    integer  :: ilayer_seedling_root           ! the soil layer at seedling rooting depth
+    real(r8) :: seedling_layer_smp             ! soil matric potential at seedling rooting depth
+    real(r8) :: wetness_index                  ! a soil 'wetness index' (1 / - SoilMatricPotetial (MPa) )
+    real(r8) :: seedling_layer_par             ! par at the seedling layer (MJ m-2 day-1)
+    real(r8) :: slsmp_emerg                    ! temp
+    real(r8) :: slparmort                      ! temp
+    real(r8) :: slpartrans                     ! temp
+    real(r8) :: photoblastic_germ_modifier     ! seedling emergence rate modifier for light-sensitive germination
+    real(r8) :: seedling_emerg_rate            ! the fraction of the seed bank emerging in the current time step
     !-------------------------------------------------------------------------------------------------------------
 
 
@@ -2082,53 +2062,49 @@ contains
     ! and thus the mortality rate (in units of individuals) is the product of
     ! that times the ratio of (hypothetical) seed mass to recruit biomass
     
-    !START ahb's CHANGES
     !==============================================================================================
      do pft = 1,numpft
+       
+       ! If the TRS's seedling dynamics is switched off, then we use FATES's default approach
+       ! to germination 
        if ( regeneration_model == default_regeneration .or. &
             regeneration_model == TRS_no_seedling_dyn .or. & 
             prt_params%allom_dbh_maxheight(pft) < min_max_dbh_for_trees ) then
 
-       !FATES default germination scheme
        litt%seed_germ_in(pft) =  min(litt%seed(pft) * EDPftvarcon_inst%germination_rate(pft), &  
                                      max_germination)*years_per_day
-       !end FATES default germination scheme
       
-       !-------------------------------------------------------------------------------------------
-       !The Tree Recruitment Scheme calculates seedling emergence (i.e. germination) as a pft-specific
-       !function of understory light and soil moisture
-
+       ! If TRS seedling dynamics is switched on we calculate seedling emergence (i.e. germination)
+       ! as a pft-specific function of understory light and soil moisture.
        else if ( regeneration_model == TRS .and. &
                   prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees ) then	    
  
-       !Step 1. Calculate how germination rate is modified by understory light.
-       !        This applies to photoblastic germinators (e.g. many tropical pioneers) 
+       ! Step 1. Calculate how germination rate is modified by understory light
+       ! This applies to photoblastic germinators (e.g. many tropical pioneers) 
 
-       !Calculate par at the seedling layer (MJ m-2 day-1)
-       !The running mean variable is in W m-2 over prior 24 hours. It is converted to MJ m-2 day-1
-       !to work with the TRS function.
- 
+       ! Calculate mean PAR at the seedling layer (MJ m-2 day-1) over the prior 24 hours
        seedling_layer_par = currentPatch%seedling_layer_par24%GetMean() * sec_per_day * megajoules_per_joule
 
-       !Calculate the photoblastic germination rate modifier (see eqn. 3 of Hanbury-Brown et al., 2022) 
+       ! Calculate the photoblastic germination rate modifier (Eq. 3 Hanbury-Brown et al., 2022) 
        photoblastic_germ_modifier = seedling_layer_par / &
                 (seedling_layer_par + EDPftvarcon_inst%par_crit_germ(pft))
 
-       !Step 2. Calculate the soil matric potential at the seedling rooting depth
-        
-       !Define soil layer based on pft-specific rooting depth
-       !ilayer_seedling_root = minloc(abs(bc_in%z_sisl(:)-EDPftvarcon_inst%seedling_root_depth(pft)),dim=1) 
+       ! Step 2. Calculate how germination rate is modified by soil moisture in the rooting zone of
+       ! the seedlings. This is a pft-specific running mean based on pft-specific seedling rooting
+       ! depth.
 
-       !Get running mean of soil matric potential (mm of H2O suction) at the seedling rooting depth
+       ! Get running mean of soil matric potential (mm of H2O suction) at the seedling rooting depth
+       ! This running mean based on pft-specific seedling rooting depth.
        seedling_layer_smp = currentPatch%sdlng_emerg_smp(pft)%p%GetMean()    
 
-       !Calculate a soil wetness index (1 / -soil matric pontential (MPa) ) used by the TRS moisture-based 
-       !seedling mortality function
+       ! Calculate a soil wetness index (1 / -soil matric pontential (MPa) ) used by the TRS
+       ! to calculate seedling mortality from moisture stress. 
        wetness_index = 1.0_r8 / (seedling_layer_smp * (-1.0_r8) * mpa_per_mm_suction)          
 
-       !Step 3. Calculate the seedling emergence rate based on soil moisture and germination
-       ! rate modifier (i.e. Step 1). See eqn. 4 of Hanbury-Brown et al., 2022
+       ! Step 3. Calculate the seedling emergence rate based on soil moisture and germination
+       ! rate modifier (Step 1). See Eq. 4 of Hanbury-Brown et al., 2022
        
+       ! If SMP is below a pft-specific value, then no germination occurs
        if ( seedling_layer_smp .GE. EDPftvarcon_inst%seedling_psi_emerg(pft) ) then
        seedling_emerg_rate = photoblastic_germ_modifier * EDPftvarcon_inst%a_emerg(pft) * &
                wetness_index**EDPftvarcon_inst%b_emerg(pft)
@@ -2136,47 +2112,13 @@ contains
 
        seedling_emerg_rate = 0.0_r8
 
-       end if !soil-moisture based seedling emergence rate
+       end if ! End soil-moisture based seedling emergence rate
       
-       !Step 4. Calculate the amount of carbon germinating out of the seed bank                                                                                
+       ! Step 4. Calculate the amount of carbon germinating out of the seed bank                                                                                
        litt%seed_germ_in(pft) = litt%seed(pft) * seedling_emerg_rate
-     
-       !  !ahb diagnostic
-       !   if (debug_trs) then
-       !   if (hlm_day_of_year == 40 .OR. hlm_day_of_year == 270) then
-       !       write(fates_log(),*) 'day_of_year:', hlm_day_of_year
-       !       write(fates_log(),*) 'patch_age:', currentPatch%age
-       !       write(fates_log(),*) 'pft', pft
-       
-       !      write(fates_log(),*) 'seedling_layer_par (MJ m-2 day-1):', seedling_layer_par
-       !       write(fates_log(),*) 'seedling_layer_smp (mm h2o suction):', seedling_layer_smp
-       !       write(fates_log(),*) 'photoblastic_germ_modifier ([0,1]):', photoblastic_germ_modifier
-       !       write(fates_log(),*) 'seedling_emerg_rate (day-1):', seedling_emerg_rate
-       !   end if
-
-       !   end if !debug flag
-         !end ahb diagnostic
- 
-      end if !regeneration model switch
-      !--------------------------------------------------------------------------------------------
-       !TEMP
-       !slsmp_emerg = currentPatch%sdlng_emerg_smp%GetMean()
-       !slparmort = currentPatch%sdlng_mort_par%GetMean()
-       !slpartrans = currentPatch%sdlng2sap_par%GetMean()
-
-       ! write(fates_log(),*) 'nrm parprof', currentPatch%nrmlzd_parprof_dir_z(:,:,:)
-       ! write(fates_log(),*) 'parprof', currentPatch%parprof_dif_z(1,:)
-       ! write(fates_log(),*) 'number_leaf_layers_in_second_canopy_layer', maxval(currentPatch%ncan(currentPatch%ncl_p,:))
-        
-       ! write(fates_log(),*) 'patchno', currentPatch%patchno
-       ! write(fates_log(),*) 'seedling_layer_par', seedling_layer_par
-       ! write(fates_log(),*) 'seedling_emerg_smp', slsmp_emerg
-       ! write(fates_log(),*) 'seedling_mort_par', slparmort
-       ! write(fates_log(),*) 'seedling2sap_trans_par', slpartrans
-       ! write(fates_log(),*) 'tveg_lpa', currentPatch%tveg_lpa%GetMean()
-      !================================================================================================    
-      !END ahb changes
-
+      
+      end if !End use TRS with seedling dynamics
+    
       !set the germination only under the growing season...c.xu
 
       if ((prt_params%season_decid(pft) == itrue ) .and. &
@@ -2277,15 +2219,7 @@ contains
           temp_cohort%crowndamage = 1       ! new recruits are undamaged
           
           call h2d_allom(temp_cohort%hite,ft,temp_cohort%dbh)
-          
-          !ahb diagnostic
-          if (debug_trs) then
-          if (hlm_day_of_year == 40 .OR. hlm_day_of_year == 270) then
-              write(fates_log(),*) 'min_dbh:', temp_cohort%dbh
-          end if !day condition
-          end if !debug condition
-          !end ahb diagnostic
-       
+               
           ! Initialize live pools
           call bleaf(temp_cohort%dbh,ft,temp_cohort%crowndamage,&
                temp_cohort%canopy_trim,c_leaf)
@@ -2347,12 +2281,6 @@ contains
 
                   mass_demand = c_struct+c_leaf+c_fnrt+c_sapw+c_store
                   
-                  !ahb diagnostic
-                  if (hlm_day_of_year == 40) then
-                     write(fates_log(),*) 'mass demand:', mass_demand
-                  end if
-                  !end ahb diagnostic
-
                 case(nitrogen_element)
 
                      mass_demand = &
@@ -2384,14 +2312,16 @@ contains
                    call endrun(msg=errMsg(sourcefile, __LINE__))
                 end select
 
-                !START ahb's changes
-                !=================================================================================
+                ! If TRS seedling dynamics is switched off then the available mass to make new recruits
+                ! is everything in the seed_germ pool.
                 if ( regeneration_model == default_regeneration .or. &
                      regeneration_model == TRS_no_seedling_dyn .or. & 
                      prt_params%allom_dbh_maxheight(ft) < min_max_dbh_for_trees ) then
 
                 mass_avail = currentPatch%area * currentPatch%litter(el)%seed_germ(ft)
-
+                
+                ! If TRS seedling dynamics is on then calculate the available mass to make new recruits
+                ! as a pft-specific function of light and soil moisture in the seedling layer.
                 else if ( regeneration_model == TRS .and. &
                           prt_params%allom_dbh_maxheight(ft) > min_max_dbh_for_trees ) then
 
@@ -2401,24 +2331,9 @@ contains
                               EDPftvarcon_inst%seedling_light_rec_a(ft) * &
                               sdlng2sap_par**EDPftvarcon_inst%seedling_light_rec_b(ft) 
              
-
-                 !ahb diagnostic
-                  if (debug_trs) then
-                  if (hlm_day_of_year == 40 .OR. hlm_day_of_year == 270) then
-                      write(fates_log(),*) 'day_of_year:', hlm_day_of_year
-                      write(fates_log(),*) 'patch_age:', currentPatch%age
-                      write(fates_log(),*) 'pft', ft
-                      write(fates_log(),*) 'sdlng2sap_par (MJ m-2 day-1):', sdlng2sap_par
-                      write(fates_log(),*) 'seedling_2_sapling_transition_rate (day -1):', & 
-                              EDPftvarcon_inst%seedling_light_rec_a(ft) * &
-                              sdlng2sap_par**EDPftvarcon_inst%seedling_light_rec_b(ft)
-                  end if
-                  end if !debug flag
-                 !end ahb diagnostic
-
-
- 
-                !If soil moisture is below the moisture stress threshold recruitment does not occur
+                  
+                ! If soil moisture is below pft-specific seedling  moisture stress threshold the 
+                ! recruitment does not occur.
                 ilayer_seedling_root = minloc(abs(bc_in%z_sisl(:)-EDPftvarcon_inst%seedling_root_depth(ft)),dim=1)
                 
                 seedling_layer_smp = bc_in%smp_sl(ilayer_seedling_root)
@@ -2427,12 +2342,10 @@ contains
                 
                 mass_avail = 0.0_r8
                
-                end if !check on soil moisture
+                end if ! End check if soil moisture is sufficient for recruitment
                 
-                end if !regeneration model
-         
-                !==================================================================================  
-                !END ahb's changes
+                end if ! End use TRS with seedling dynamics
+                
                 ! ------------------------------------------------------------------------
                 ! Update number density if this is the limiting mass
                 ! ------------------------------------------------------------------------

@@ -42,10 +42,10 @@ module PRTAllometricCarbonMod
   use FatesConstantsMod   , only : r8 => fates_r8
   use FatesConstantsMod   , only : i4 => fates_int
   use FatesConstantsMod   , only : sec_per_day
-  use FatesConstantsMod   , only : mm_per_cm !ahb
-  use FatesConstantsMod   , only : TRS        !ahb
-  use FatesConstantsMod   , only : default_regeneration !ahb
-  use FatesConstantsMod   , only : min_max_dbh_for_trees !ahb
+  use FatesConstantsMod   , only : mm_per_cm 
+  use FatesConstantsMod   , only : TRS        
+  use FatesConstantsMod   , only : default_regeneration
+  use FatesConstantsMod   , only : min_max_dbh_for_trees 
   use FatesIntegratorsMod , only : RKF45
   use FatesIntegratorsMod , only : Euler
   use FatesConstantsMod   , only : calloc_abs_error
@@ -77,7 +77,6 @@ module PRTAllometricCarbonMod
   integer, parameter :: repro_c_id  = 5   ! Unique object index for reproductive carbon
   integer, parameter :: struct_c_id = 6   ! Unique object index for structural carbon
   integer, parameter :: num_vars = 6      ! THIS MUST MATCH THE LARGEST INDEX ABOVE
-  logical, parameter :: debug_trs  = .true. ! local debug flag
   
   
   ! For this hypothesis, we integrate dbh along with the other 6. Since this
@@ -976,56 +975,29 @@ module PRTAllometricCarbonMod
                          ct_dagwdd, ct_dbgwdd, ct_dsapdd, ct_ddeaddd)
         call bstore_allom(dbh,ipft,crowndamage, canopy_trim,ct_store,ct_dstoredd)
         
-        ! fraction of carbon going towards reproduction
         
-        !START ahb's changes
+        ! If the TRS is switched off then we use FATES's default reproductive allocation.
         if ( regeneration_model == default_regeneration .or. &
              prt_params%allom_dbh_maxheight(ipft) < min_max_dbh_for_trees ) then !The Tree Recruitment Scheme 
                                                                                  !is only for tree pfts
-
-        !Default reproductive allocation
+        ! Calculate fraction of carbon going towards reproduction
         if (dbh <= prt_params%dbh_repro_threshold(ipft)) then ! cap on leaf biomass
            repro_fraction = prt_params%seed_alloc(ipft)
         else
            repro_fraction = prt_params%seed_alloc(ipft) + prt_params%seed_alloc_mature(ipft)
-        end if
+        end if ! End dbh check on if to add additional carbon to reproduction.
         
+        ! If the TRS is switched on (with or w/o seedling dynamics) then reproductive allocation is
+        ! a pft-specific function of dbh. This allows for the representation of different
+        ! reproductive schedules (Wenk and Falster, 2015)
         else if ( regeneration_model >= TRS .and. &
                   prt_params%allom_dbh_maxheight(ipft) > min_max_dbh_for_trees ) then
-
-        !-------------------------------------------------------------------------------------
-        !Use Tree Recruitment Scheme's (TRS) approach to reproductive allocation.
-        !This reproductive allocation function calculates the fraction of available carbon
-        !allocated to reproductive tissue based on a cohort's dbh (mm). This function is based on
-        !empirical data and analysis at BCI (Visser et al., 2016). See Hanbury-Brown et al., 2022
-        !for more details.
-
-        !Visser MD, Bruijning M, Wright SJ, Muller-Landau HC, Jongejans E, Comita LS, 
-        !de Kroon H. 2016. Functional traits as predictors of vital rates across the life cycle 
-        !of tropical trees. Functional Ecology 30: 168–180. 
-        !-------------------------------------------------------------------------------------
 
         repro_fraction = prt_params%seed_alloc(ipft) * &
         (exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm) / &
         (1 + exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm)))
 
-
-        !ahb diagnostic
-        !if (debug_trs) then
-        !if (hlm_day_of_year == 40 .OR. hlm_day_of_year == 270) then
-              
-        !      write(fates_log(),*) 'day_of_year:', hlm_day_of_year
-        !      write(fates_log(),*) 'pft:', ipft
-        !      write(fates_log(),*) 'dbh (cm):', dbh
-        !      write(fates_log(),*) 'repro_fraction:', repro_fraction
-        
-        !end if !day condition
-        !end if !debug condition
-        !end ahb diagnostic
-
-
-        end if !regeneration model switch
-        !END ahb's changes
+        end if ! TRS switch 
 
         dCdx = 0.0_r8
 

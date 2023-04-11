@@ -51,15 +51,20 @@ module FatesConstantsMod
   
   !Flags specifying how tree regeneration works
   
-  integer, public, parameter :: TRS_no_seedling_dyn = 3 ! Constant defining the Tree Recruitment Scheme switch. This value
-                                                        ! turns on size-based reproductive allocation and allocation to non-seed 
-                                                        ! reproductive biomass, but does not turn on seedling dynamics.
-  integer, public, parameter :: TRS = 2 !Constant defining the Tree Recruitment Scheme switch. This value turns on the full TRS.
-  integer, public, parameter :: default_regeneration = 1 !Constant defining FATES's default regeneration scheme switch.
-  real(fates_r8), public, parameter :: min_max_dbh_for_trees = 15._fates_r8 !cm; if pfts have a max dbh less 
-                                                      !than this value FATES 
-                                                      !will use the default regeneration scheme. This is to avoid
-                                                      !the TRS being used for shrubs and grasses.
+  integer, public, parameter :: TRS_no_seedling_dyn = 3                          ! Constant defining the Tree Recruitment
+                                                                                 ! Scheme switch. This value turns on 
+                                                                                 ! size-based reproductive allocation 
+                                                                                 ! and allocation to non-seed 
+                                                                                 ! reproductive biomass, but does not turn 
+                                                                                 ! on seedling dynamics.
+  integer, public, parameter :: TRS = 2                                          ! Constant defining the Tree Recruitment
+                                                                                 ! Scheme switch. Turns on full TRS.
+  integer, public, parameter :: default_regeneration = 1                         ! Constant defining FATES's default 
+                                                                                 ! regeneration scheme switch.
+  real(fates_r8), public, parameter :: min_max_dbh_for_trees = 15._fates_r8      ! If pfts have a max dbh less 
+                                                                                 ! than this value FATES 
+                                                                                 ! will use the default regeneration scheme.
+                                                                                 ! Avoids TRS for shrubs / grasses.
 
   integer, public, parameter :: trivial_np_comp_scaling = 2 ! This flag definition indicates that either
                                                             ! nutrients are turned off in FATES, or, that the

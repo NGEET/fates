@@ -70,8 +70,10 @@ module EDParamsMod
    real(r8),protected, public :: ED_val_patch_fusion_tol              ! minimum fraction in difference in profiles between patches
    real(r8),protected, public :: ED_val_canopy_closure_thresh         ! site-level canopy closure point where trees take on forest (narrow) versus savannah (wide) crown allometry
    integer,protected, public  :: stomatal_model                       ! switch for choosing between stomatal conductance models, 1 for Ball-Berry, 2 for Medlyn
-   integer,protected, public  :: regeneration_model                   ! switch for choosing between regeneration  models, 1 for Fates basic, 2 for the Tree Recruitment Scheme
-                                                                      ! Hanbury-Brown et al., 2022
+   integer,protected, public  :: regeneration_model                   ! Switch for choosing between regeneration models:
+                                                                      ! (1) for Fates default
+                                                                      ! (2) for the Tree Recruitment Scheme (Hanbury-Brown et al., 2022)
+                                                                      ! (3) for the Tree Recruitment Scheme without seedling dynamics
    
    
    logical,protected, public :: active_crown_fire        ! flag, 1=active crown fire 0=no active crown fire
