@@ -8,12 +8,12 @@ program FatesUnitTestRadiation
   use FatesUnitTestOrbitalMod, only : SHR_KIND_R8
   use FatesUnitTestOrbitalMod, only : get_orbital_vals, shr_orb_cosz
   use FatesUnitTestOrbitalMod, only : shr_orb_decl
-  use EDParamsMod,             only : nlevleaf, nclmax
+  !use EDParamsMod,             only : nlevleaf, nclmax
 
   implicit none
     
   ! LOCALS:
-  character(len=MAX_PATH) :: param_file, patch_file, out_file  ! file names
+  character(len=256) :: param_file, patch_file, out_file  ! file names
   integer                 :: numpft, numSWb
   ! real(r8) :: rhol(num_pft,num_swb)   ! leaf reflectance (0-1)
   ! real(r8) :: rhos(num_pft,num_swb)   ! stem reflectance (0-1)
@@ -49,11 +49,10 @@ program FatesUnitTestRadiation
 
       use FatesUnitTestIOMod, only : MAX_PATH, MAX_CHAR, open_file
 
-        implicit none
+      implicit none
 
-        character(len=MAX_PATH), intent(out) :: param_file, patch_file, out_file  ! file names
-        integer,                 intent(out) :: numpft, numSWb
-
+      character(len=MAX_PATH), intent(out) :: param_file, patch_file, out_file  ! file names
+      integer,                 intent(out) :: numpft, numSWb
 
     end subroutine read_radiation_namelist
 
@@ -120,8 +119,8 @@ subroutine read_radiation_namelist(numpft, numSWb, param_file, patch_file,     &
 
   ! LOCALS:
   character(len=MAX_PATH) :: rad_nl = 'radiation_nl' ! radiation namelist name
-  character(len=MAX_CHAR) :: message                 ! Error message
-  character(len=MAX_CHAR) :: msg                     ! I/O Error message
+  character(len=MAX_PATH) :: message                 ! Error message
+  character(len=MAX_PATH) :: msg                     ! I/O Error message
   integer                 :: rad_nl_file             ! unit number for namelist
   integer                 :: ios                     ! I/O status
   

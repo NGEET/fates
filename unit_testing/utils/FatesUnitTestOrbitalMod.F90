@@ -6,7 +6,7 @@ module FatesUnitTestOrbitalMod
   !
   !
 
-  use IOMod
+  use FatesUnitTestIOMod
 
   implicit none
 
@@ -69,7 +69,7 @@ module FatesUnitTestOrbitalMod
     !
     !---------------------------------------------------------------------------
 
-    !----------------------------- Arguments ------------------------------------
+    !----------------------------- Arguments -----------------------------------
     integer(SHR_KIND_IN), intent(in)    :: iyear_AD  ! Year to calculate orbit for
     real(SHR_KIND_R8),    intent(inout) :: eccen     ! orbital eccentricity
     real(SHR_KIND_R8),    intent(inout) :: obliq     ! obliquity in degrees
