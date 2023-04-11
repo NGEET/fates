@@ -58,6 +58,8 @@ program FatesUnitTestRadiation
     end subroutine read_radiation_namelist
 
   end interface
+
+  print *, 'Hello, unit test'
     
   ! file_names
   ! logf = open_file("log.txt")
