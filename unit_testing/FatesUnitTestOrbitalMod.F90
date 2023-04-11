@@ -1,4 +1,4 @@
-module OrbitalValsMod
+module FatesUnitTestOrbitalMod
   !
   ! DESCRIPTION:
   !		Helper procedures for getting orbital values
@@ -578,4 +578,4 @@ module OrbitalValsMod
     
   end function shr_orb_cosz
 
-end module OrbitalValsMod
+end module FatesUnitTestOrbitalMod
