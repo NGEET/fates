@@ -1966,7 +1966,7 @@ contains
        end if ! End use TRS
 
 
-       ! If the TRS is switched on with seedling dynamics (regeneration_model = 3) 
+       ! If the TRS is switched on with seedling dynamics (regeneration_model = 2) 
        ! then calculate seedling mortality.
        if ( regeneration_model == TRS .and. &
                          prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees ) then
