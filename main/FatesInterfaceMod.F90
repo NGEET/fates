@@ -541,16 +541,20 @@ contains
       if (hlm_use_lu_harvest .gt. 0) then
          allocate(bc_in%hlm_harvest_rates(num_lu_harvest_cats))
          allocate(bc_in%hlm_harvest_catnames(num_lu_harvest_cats))
-         allocate(bc_in%hlm_luh_states(num_luh2_states))
-         allocate(bc_in%hlm_luh_state_names(num_luh2_states))
-         allocate(bc_in%hlm_luh_transitions(num_luh2_transitions))
-         allocate(bc_in%hlm_luh_transition_names(num_luh2_transitions))
       else ! LoggingMortality_frac needs these passed to it regardless of harvest
          allocate(bc_in%hlm_harvest_rates(0))
          allocate(bc_in%hlm_harvest_catnames(0))
       end if
 
       allocate(bc_in%pft_areafrac(natpft_lb:natpft_ub))
+
+      ! LUH2 state and transition data
+      if (hlm_use_luh .gt. 0) then
+        allocate(bc_in%hlm_luh_states(num_luh2_states))
+        allocate(bc_in%hlm_luh_state_names(num_luh2_states))
+        allocate(bc_in%hlm_luh_transitions(num_luh2_transitions))
+        allocate(bc_in%hlm_luh_transition_names(num_luh2_transitions))
+      end if
 
       ! Variables for SP mode. 
       if(hlm_use_sp.eq.itrue) then
