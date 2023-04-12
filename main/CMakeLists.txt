@@ -11,5 +11,8 @@ list(APPEND clm_sources
   FatesUtilsMod.F90
   )
 
-sourcelist_to_parent(clm_sources)
+list(APPEND utils_sources
+  FatesConstantsMod.F90)
 
+sourcelist_to_parent(clm_sources)
+sourcelist_to_parent(utils_sources)
