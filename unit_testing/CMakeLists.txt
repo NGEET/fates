@@ -7,8 +7,13 @@ project(radiation_tests Fortran C)
 
 include(CIME_utils)
 
-add_subdirectory(radiation)
+set(CLM_ROOT "..")
 
-add_subdirectory(utils)
+add_subdirectory(${CLM_ROOT}/src/fates/unit_testing/utils)
+add_subdirectory(${CLM_ROOT}/src/fates/unit_testing/utils)
 
+add_library(utils ${utils_sources})
+add_dependencies(utils)
 
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+link_directories(${CMAKE_CURRENT_BINARY_DIR})
