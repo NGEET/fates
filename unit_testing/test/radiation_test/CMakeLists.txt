@@ -11,4 +11,7 @@ extract_sources("${sources_needed}" "${utils_sources}" test_sources)
 
 add_executable(FATES_rad_test ${test_sources})
 
+add_test(rad_test FATES_rad_test)
 
+# Tell CTest how to figure out that "STOP 1" fails for the current
+define_Fortran_stop_failure(rad_test)
