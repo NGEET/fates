@@ -87,31 +87,31 @@ module EDPftvarcon
      real(r8), allocatable :: maintresp_leaf_ryan1991_baserate(:)  ! leaf maintenance respiration per Ryan et al 1991
 
      real(r8), allocatable :: bmort(:)
-     real(r8), allocatable :: mort_ip_size_senescence(:)  ! inflection point of dbh dependent senescence
-     real(r8), allocatable :: mort_r_size_senescence(:) ! rate of change in mortality with dbh
-     real(r8), allocatable :: mort_ip_age_senescence(:) ! inflection point of age dependent senescence
-     real(r8), allocatable :: mort_r_age_senescence(:) ! rate of change in mortality with age
-     real(r8), allocatable :: mort_scalar_coldstress(:)
-     real(r8), allocatable :: mort_scalar_cstarvation(:)
-     real(r8), allocatable :: mort_scalar_hydrfailure(:)
-     real(r8), allocatable :: hf_sm_threshold(:)
-     real(r8), allocatable :: hf_flc_threshold(:)
-     real(r8), allocatable :: vcmaxha(:)
-     real(r8), allocatable :: jmaxha(:)
-     real(r8), allocatable :: vcmaxhd(:)
-     real(r8), allocatable :: jmaxhd(:)
-     real(r8), allocatable :: vcmaxse(:)
-     real(r8), allocatable :: jmaxse(:)
+     real(r8), allocatable :: mort_ip_size_senescence(:) ! inflection point of dbh dependent senescence
+     real(r8), allocatable :: mort_r_size_senescence(:)  ! rate of change in mortality with dbh
+     real(r8), allocatable :: mort_ip_age_senescence(:)  ! inflection point of age dependent senescence
+     real(r8), allocatable :: mort_r_age_senescence(:)   ! rate of change in mortality with age
+     real(r8), allocatable :: mort_scalar_coldstress(:)  ! maximum mortality rate from cold stress
+     real(r8), allocatable :: mort_scalar_cstarvation(:) ! maximum mortality rate from carbon starvation
+     real(r8), allocatable :: mort_scalar_hydrfailure(:) ! maximum mortality rate from hydraulic failure
+     real(r8), allocatable :: hf_sm_threshold(:)         ! soil moisture (btran units) at which drought mortality begins for non-hydraulic model
+     real(r8), allocatable :: hf_flc_threshold(:)        ! plant fractional loss of conductivity at which drought mortality begins for hydraulic model
+     real(r8), allocatable :: vcmaxha(:)                 ! activation energy for vcmax
+     real(r8), allocatable :: jmaxha(:)                  ! activation energy for jmax
+     real(r8), allocatable :: vcmaxhd(:)                 ! deactivation energy for vcmax
+     real(r8), allocatable :: jmaxhd(:)                  ! deactivation energy for jmax
+     real(r8), allocatable :: vcmaxse(:)                 ! entropy term for vcmax
+     real(r8), allocatable :: jmaxse(:)                  ! entropy term for jmax
      real(r8), allocatable :: germination_rate(:)        ! Fraction of seed mass germinating per year (yr-1)
      real(r8), allocatable :: seed_decay_rate(:)         ! Fraction of seed mass (both germinated and
                                                          ! ungerminated), decaying per year    (yr-1)
 
      real(r8), allocatable :: trim_limit(:)              ! Limit to reductions in leaf area w stress (m2/m2)
      real(r8), allocatable :: trim_inc(:)                ! Incremental change in trimming function   (m2/m2)
-     real(r8), allocatable :: rhol(:, :)
-     real(r8), allocatable :: rhos(:, :)
-     real(r8), allocatable :: taul(:, :)
-     real(r8), allocatable :: taus(:, :)
+     real(r8), allocatable :: rhol(:, :)                 ! Leaf reflectance; second dim: 1 = vis, 2 = nir
+     real(r8), allocatable :: rhos(:, :)                 ! Stem reflectance; second dim: 1 = vis, 2 = nir
+     real(r8), allocatable :: taul(:, :)                 ! Leaf transmittance; second dim: 1 = vis, 2 = nir
+     real(r8), allocatable :: taus(:, :)                 ! Stem transmittance; second dim: 1 = vis, 2 = nir
 
      ! Fire Parameters (No PFT vector capabilities in their own routines)
      ! See fire/SFParamsMod.F90 for bulk of fire parameters

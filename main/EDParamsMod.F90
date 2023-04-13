@@ -38,39 +38,38 @@ module EDParamsMod
                                                       ! 1=non-acclimating, 2=Kumarathunge et al., 2019
    
    real(r8),protected, public :: fates_mortality_disturbance_fraction ! the fraction of canopy mortality that results in disturbance
-   real(r8),protected, public :: ED_val_comp_excln
-   real(r8),protected, public :: ED_val_vai_top_bin_width
-   real(r8),protected, public :: ED_val_vai_width_increase_factor
-   real(r8),protected, public :: ED_val_nignitions
-   real(r8),protected, public :: ED_val_understorey_death
-   real(r8),protected, public :: ED_val_cwd_fcel
-   real(r8),protected, public :: ED_val_cwd_flig
-   real(r8),protected, public :: maintresp_nonleaf_baserate
-   real(r8),protected, public :: ED_val_phen_drought_threshold
-   real(r8),protected, public :: ED_val_phen_doff_time
-   real(r8),protected, public :: ED_val_phen_a
-   real(r8),protected, public :: ED_val_phen_b
-   real(r8),protected, public :: ED_val_phen_c
-   real(r8),protected, public :: ED_val_phen_chiltemp
-   real(r8),protected, public :: ED_val_phen_mindayson
-   real(r8),protected, public :: ED_val_phen_ncolddayslim
-   real(r8),protected, public :: ED_val_phen_coldtemp
-   real(r8),protected, public :: ED_val_cohort_size_fusion_tol
-   real(r8),protected, public :: ED_val_cohort_age_fusion_tol
-   real(r8),protected, public :: ED_val_patch_fusion_tol
-   real(r8),protected, public :: ED_val_canopy_closure_thresh ! site-level canopy closure point where trees take on forest (narrow) versus savannah (wide) crown allometry
-   integer,protected, public  :: stomatal_model  !switch for choosing between stomatal conductance models, 1 for Ball-Berry, 2 for Medlyn
+   real(r8),protected, public :: ED_val_comp_excln                    ! weighting factor for canopy layer exclusion and promotion
+   real(r8),protected, public :: ED_val_vai_top_bin_width             ! width in VAI units of uppermost leaf+stem layer scattering element
+   real(r8),protected, public :: ED_val_vai_width_increase_factor     ! factor by which each leaf+stem scattering element increases in VAI width
+   real(r8),protected, public :: ED_val_nignitions                    ! number of annual ignitions per square km
+   real(r8),protected, public :: ED_val_understorey_death             ! fraction of plants in understorey cohort impacted by overstorey tree-fall
+   real(r8),protected, public :: ED_val_cwd_fcel                      ! Cellulose fraction for CWD
+   real(r8),protected, public :: ED_val_cwd_flig                      ! Lignin fraction of coarse woody debris
+   real(r8),protected, public :: maintresp_nonleaf_baserate           ! Base maintenance respiration rate for plant tissues
+   real(r8),protected, public :: ED_val_phen_drought_threshold        ! threshold for drought phenology
+   real(r8),protected, public :: ED_val_phen_doff_time                ! day threshold compared against days since leaves became off-allometry
+   real(r8),protected, public :: ED_val_phen_a                        ! GDD accumulation function, intercept parameter: gdd_thesh = a + b exp(c*ncd)
+   real(r8),protected, public :: ED_val_phen_b                        ! GDD accumulation function, multiplier parameter: gdd_thesh = a + b exp(c*ncd)
+   real(r8),protected, public :: ED_val_phen_c                        ! GDD accumulation function, exponent parameter: gdd_thesh = a + b exp(c*ncd)
+   real(r8),protected, public :: ED_val_phen_chiltemp                 ! chilling day counting threshold for vegetation
+   real(r8),protected, public :: ED_val_phen_mindayson                ! day threshold compared against days since leaves became on-allometry
+   real(r8),protected, public :: ED_val_phen_ncolddayslim             ! day threshold exceedance for temperature leaf-drop
+   real(r8),protected, public :: ED_val_phen_coldtemp                 ! vegetation temperature exceedance that flags a cold-day for leaf-drop
+   real(r8),protected, public :: ED_val_cohort_size_fusion_tol        ! minimum fraction in difference in dbh between cohorts
+   real(r8),protected, public :: ED_val_cohort_age_fusion_tol         ! minimum fraction in differece in cohort age between cohorts
+   real(r8),protected, public :: ED_val_patch_fusion_tol              ! minimum fraction in difference in profiles between patches
+   real(r8),protected, public :: ED_val_canopy_closure_thresh         ! site-level canopy closure point where trees take on forest (narrow) versus savannah (wide) crown allometry
+   integer,protected, public  :: stomatal_model                       ! switch for choosing between stomatal conductance models, 1 for Ball-Berry, 2 for Medlyn
    
    logical,protected, public :: active_crown_fire        ! flag, 1=active crown fire 0=no active crown fire
    character(len=param_string_length),parameter :: fates_name_active_crown_fire = "fates_fire_active_crown_fire"
-
 
    real(r8), protected, public :: cg_strikes             ! fraction of cloud to ground lightning strikes (0-1)
    character(len=param_string_length),parameter :: fates_name_cg_strikes="fates_fire_cg_strikes"
 
    ! empirical curvature parameters for ac, aj photosynthesis co-limitation, c3 and c4 plants respectively
-   real(r8),protected,public  :: theta_cj_c3
-   real(r8),protected,public  :: theta_cj_c4
+   real(r8),protected,public  :: theta_cj_c3    ! Empirical curvature parameter for ac, aj photosynthesis co-limitation in c3 plants
+   real(r8),protected,public  :: theta_cj_c4    ! Empirical curvature parameter for ac, aj photosynthesis co-limitation in c4 plants
    
    real(r8),protected,public  :: q10_mr     ! Q10 for respiration rate (for soil fragmenation and plant respiration)    (unitless)
    real(r8),protected,public  :: q10_froz   ! Q10 for frozen-soil respiration rates (for soil fragmentation)            (unitless)
@@ -78,7 +77,7 @@ module EDParamsMod
    ! Unassociated pft dimensioned free parameter that developers can use for testing arbitrary new hypotheses
    ! (THIS PARAMETER IS UNUSED, FEEL FREE TO USE IT FOR WHATEVER PURPOSE YOU LIKE. WE CAN
    !  HELP MIGRATE YOUR USAGE OF THE PARMETER TO A PERMANENT HOME LATER)
-   real(r8),protected,public  :: dev_arbitrary 
+   real(r8),protected,public  :: dev_arbitrary  ! Unassociated free parameter that developers can use for testing arbitrary new hypotheses
    character(len=param_string_length),parameter,public :: name_dev_arbitrary = "fates_dev_arbitrary"
    
    ! parameters whose size is defined in the parameter file
