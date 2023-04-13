@@ -1,6 +1,6 @@
 module FatesUnitTestIOMod
   use FatesConstantsMod, only : r8 => fates_r8
-  !use netcdf
+  use netcdf
   
   implicit none
 
