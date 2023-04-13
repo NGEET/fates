@@ -1,0 +1,17 @@
+/Users/afoster/Documents/ncar/CTSM/src/fates/build/__command_line_test__/__command_line_test__/CMakeFiles/utils.dir
+/Users/afoster/Documents/ncar/CTSM/src/fates/build/__command_line_test__/__command_line_test__/CMakeFiles/test.dir
+/Users/afoster/Documents/ncar/CTSM/src/fates/build/__command_line_test__/__command_line_test__/CMakeFiles/edit_cache.dir
+/Users/afoster/Documents/ncar/CTSM/src/fates/build/__command_line_test__/__command_line_test__/CMakeFiles/rebuild_cache.dir
+/Users/afoster/Documents/ncar/CTSM/src/fates/build/__command_line_test__/__command_line_test__/main/CMakeFiles/test.dir
+/Users/afoster/Documents/ncar/CTSM/src/fates/build/__command_line_test__/__command_line_test__/main/CMakeFiles/edit_cache.dir
+/Users/afoster/Documents/ncar/CTSM/src/fates/build/__command_line_test__/__command_line_test__/main/CMakeFiles/rebuild_cache.dir
+/Users/afoster/Documents/ncar/CTSM/src/fates/build/__command_line_test__/__command_line_test__/unit_testing/utils/CMakeFiles/test.dir
+/Users/afoster/Documents/ncar/CTSM/src/fates/build/__command_line_test__/__command_line_test__/unit_testing/utils/CMakeFiles/edit_cache.dir
+/Users/afoster/Documents/ncar/CTSM/src/fates/build/__command_line_test__/__command_line_test__/unit_testing/utils/CMakeFiles/rebuild_cache.dir
+/Users/afoster/Documents/ncar/CTSM/src/fates/build/__command_line_test__/__command_line_test__/unit_testing/test/CMakeFiles/test.dir
+/Users/afoster/Documents/ncar/CTSM/src/fates/build/__command_line_test__/__command_line_test__/unit_testing/test/CMakeFiles/edit_cache.dir
+/Users/afoster/Documents/ncar/CTSM/src/fates/build/__command_line_test__/__command_line_test__/unit_testing/test/CMakeFiles/rebuild_cache.dir
+/Users/afoster/Documents/ncar/CTSM/src/fates/build/__command_line_test__/__command_line_test__/unit_testing/test/radiation_test/CMakeFiles/FATES_rad_test.dir
+/Users/afoster/Documents/ncar/CTSM/src/fates/build/__command_line_test__/__command_line_test__/unit_testing/test/radiation_test/CMakeFiles/test.dir
+/Users/afoster/Documents/ncar/CTSM/src/fates/build/__command_line_test__/__command_line_test__/unit_testing/test/radiation_test/CMakeFiles/edit_cache.dir
+/Users/afoster/Documents/ncar/CTSM/src/fates/build/__command_line_test__/__command_line_test__/unit_testing/test/radiation_test/CMakeFiles/rebuild_cache.dir

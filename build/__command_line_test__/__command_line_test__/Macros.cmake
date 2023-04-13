@@ -1,0 +1,1 @@
+/Users/afoster/Documents/ncar/CTSM/src/fates/build/Macros.cmake

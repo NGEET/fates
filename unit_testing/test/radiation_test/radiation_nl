@@ -1,0 +1,13 @@
+&radiation
+! parameters for the radiation unit test
+! see FatesUnitTestRadiation.F90
+numSWb = 2
+year = 2000
+jday = 165
+lat = 45.0
+lon = 238.0
+fcansno = 0.0
+param_file = '/Users/afoster/Documents/ncar/fates/albedo_calib/fates_params_default.nc' 
+patch_file = 'patch_data.nc'
+out_file = 'radiation_out.nc'
+/

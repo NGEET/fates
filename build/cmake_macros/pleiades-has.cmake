@@ -1,0 +1,6 @@
+string(APPEND CFLAGS " -axCORE-AVX2 -xSSE4.2 -no-fma")
+string(APPEND FFLAGS " -axCORE-AVX2 -xSSE4.2 -no-fma")
+set(MPICC "icc")
+set(MPI_PATH "$ENV{MPI_ROOT}")
+set(NETCDF_PATH "$ENV{NETCDF}")
+set(PNETCDF_PATH "/home6/fvitt/pnetcdf/pnetcdf-1.12.2")

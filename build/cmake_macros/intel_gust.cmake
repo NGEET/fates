@@ -1,0 +1,6 @@
+set(CONFIG_ARGS "--host=cray")
+string(APPEND CFLAGS " -march=core-avx2")
+string(APPEND FFLAGS " -march=core-avx2")
+if (COMP_NAME STREQUAL gptl)
+  string(APPEND CPPDEFS " -DHAVE_SLASHPROC")
+endif()

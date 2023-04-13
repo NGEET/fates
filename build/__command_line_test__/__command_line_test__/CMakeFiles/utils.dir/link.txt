@@ -1,0 +1,2 @@
+/usr/bin/ar qc libutils.a CMakeFiles/utils.dir/main/FatesConstantsMod.F90.o CMakeFiles/utils.dir/unit_testing/utils/FatesUnitTestIOMod.F90.o CMakeFiles/utils.dir/unit_testing/utils/FatesUnitTestOrbitalMod.F90.o
+/usr/bin/ranlib libutils.a
