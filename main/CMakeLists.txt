@@ -11,8 +11,14 @@ list(APPEND clm_sources
   FatesUtilsMod.F90
   )
 
-list(APPEND utils_sources
-  FatesConstantsMod.F90)
+list(APPEND fates_sources
+  FatesConstantsMod.F90
+  EDPftvarcon.F90
+  EDParamsMod.F90
+  FatesGlobals.F90 
+  FatesInterfaceTypesMod.F90
+  FatesParametersInterface.F90
+  )
 
 sourcelist_to_parent(clm_sources)
-sourcelist_to_parent(utils_sources)
+sourcelist_to_parent(fates_sources)

@@ -1,7 +1,6 @@
 &radiation
 ! parameters for the radiation unit test
 ! see FatesUnitTestRadiation.F90
-numSWb = 2
 year = 2000
 jday = 165
 lat = 45.0

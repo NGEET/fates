@@ -1,42 +1,39 @@
 cmake_minimum_required(VERSION 3.4)
 
-project(radiation_tests Fortran C)
+list(APPEND CMAKE_MODULE_PATH ${CIME_CMAKE_MODULE_DIRECTORY})
+include(CIME_initial_setup)
+
+project(FATES_tests Fortran C)
 
 enable_language(Fortran)
 
-list(APPEND CMAKE_MODULE_PATH ${CIME_CMAKE_MODULE_DIRECTORY})
-include(CIME_initial_setup)
 include(CIME_utils)
 
 set(CLM_ROOT "../../")
-add_subdirectory(${CLM_ROOT}/src/fates/main)
-add_subdirectory(${CLM_ROOT}/src/fates/unit_testing/utils)
-add_subdirectory(${CLM_ROOT}/src/fates/unit_testing/test)
 
-set(NETCDF_C_DIR "/usr/local/Cellar/netcdf/4.9.2")
-set(NETCDF_FORTRAN_DIR "/usr/local/Cellar/netcdf-fortran/4.6.0")
-MESSAGE(">> CISM_NETCDF_C_DIR set to : ${NETCDF_C_DIR}")
-MESSAGE(">> CISM_NETCDF_FORTRAN_DIR set to : ${NETCDF_FORTRAN_DIR}")
+# Add source directories from other share code (csm_share, etc.)
+add_subdirectory(${CLM_ROOT}/share/src csm_share)
 
-FIND_PATH(NETCDFC_FOUND libnetcdf.a ${NETCDF_C_DIR}/lib)
-FIND_PATH(NETCDFF_FOUND libnetcdff.a ${NETCDF_FORTRAN_DIR}/lib)
-MESSAGE(" NETCDFC_FOUND = ${NETCDFC_FOUND}")
-MESSAGE(" NETCDFF_FOUND = ${NETCDFF_FOUND}")
+# Add FATES source directories
+add_subdirectory(${CLM_ROOT}/src/fates/main fates_main)
+add_subdirectory(${CLM_ROOT}/src/fates/parteh fates_parteh)
+add_subdirectory(${CLM_ROOT}/src/fates/unit_testing/utils fates_test_utils)
 
-IF (${NETCDFC_FOUND} STREQUAL ${NETCDF_C_DIR}/lib )
-   SET(NETCDF_C_LIBS "netcdff;netcdf" CACHE STRING "Netcdf Library Names(s)")
-ELSE()
-   SET(NETCDF_C_LIBS "netcdf" CACHE STRING "Netcdf Library Names(s)") 
-ENDIF()
-MESSAGE(">> NETCDF_LIBS Library(s) set to : ${NETCDF_C_LIBS}")
+# Build libraries containing stuff needed for the unit tests.
+# Eventually, these add_library calls should probably be distributed into the correct location, rather than being in this top-level CMakeLists.txt file.
+add_library(csm_share ${share_sources})
+declare_generated_dependencies(csm_share "${share_genf90_sources}")
 
-
-include_directories(${NETCDF_C_DIR}/include
-                    ${NETCDF_FORTRAN_DIR}/include)
-link_directories(${NETCDF_C_DIR}/lib
-                ${NETCDF_FORTRAN_DIR}/lib)
-
+add_library(fates ${fates_sources})
 add_library(utils ${utils_sources})
+add_dependencies(fates csm_share)
+
+add_subdirectory(${CLM_ROOT}/src/fates/unit_testing/radiation_test fates_testing)
+
+# We need to look for header files here, in order to pick up shr_assert.h
+include_directories(${CLM_ROOT}/share/include)
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 link_directories(${CMAKE_CURRENT_BINARY_DIR})
+
+# Add the test directories
