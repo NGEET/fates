@@ -21,11 +21,6 @@ target_link_libraries(FATES_rad_exe
                   fates
                   csm_share)
 
-#target_include_directories(FATES_rad_exe PUBLIC
-#        "${PROJECT_BINARY_DIR}"
-#        "${PROJECT_SOURCE_DIR}/fates_main"
-#        )
-
 add_test(rad_test FATES_rad_exe)
 
 # Tell CTest how to figure out that "STOP 1" fails for the current

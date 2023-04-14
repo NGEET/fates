@@ -13,12 +13,16 @@ set(CLM_ROOT "../../")
 
 # Add source directories from other share code (csm_share, etc.)
 add_subdirectory(${CLM_ROOT}/share/src csm_share)
+add_subdirectory(${CLM_ROOT}/share/unit_test_stubs/util csm_share_stubs)
+#add_subdirectory(${CLM_ROOT}/src/unit_test_shr clm_unit_shr)
+#add_subdirectory(${CLM_ROOT}/src/unit_test_stubs clm_unit_stubs)
 
 ## shr sources we need
 ## shr_log_mod.F90
-## shr_infnan_mod.F90.in
+## shr_infnan_mod.F90
 ## shr_kind_mod.F90
-## shr_strconvert_mod
+## shr_strconvert_mod.F90
+## shr_sys_mod.F90
 
 # Extract just the files we need from csm_share
 set (shr_sources_needed_base
@@ -26,13 +30,14 @@ set (shr_sources_needed_base
     shr_infnan_mod.F90
     shr_kind_mod.F90
     shr_sys_mod.F90
-    shr_abort_mod.F90
     shr_strconvert_mod.F90
+    shr_abort_mod.abortthrows.F90
   )
 extract_sources("${shr_sources_needed_base}" "${share_sources}" shr_sources_needed)
 
 # Add FATES source directories
 add_subdirectory(${CLM_ROOT}/src/fates/main fates_main)
+add_subdirectory(${CLM_ROOT}/src/fates/biogeochem fates_biogeochem)
 add_subdirectory(${CLM_ROOT}/src/fates/parteh fates_parteh)
 
 # Add general unit test directories (stubbed out files, etc.)
@@ -78,6 +83,19 @@ add_dependencies(fates csm_share)
 
 # We need to look for header files here, in order to pick up shr_assert.h
 include_directories(${CLM_ROOT}/share/include)
+
+set(NETCDF_C_DIR "/usr/local/Cellar/netcdf/4.9.2")
+set(NETCDF_FORTRAN_DIR "/usr/local/Cellar/netcdf-fortran/4.6.0")
+
+FIND_PATH(NETCDFC_FOUND libnetcdf.a ${NETCDF_C_DIR}/lib)
+FIND_PATH(NETCDFF_FOUND libnetcdff.a ${NETCDF_FORTRAN_DIR}/lib)
+MESSAGE(" NETCDFC_FOUND = ${NETCDFC_FOUND}")
+MESSAGE(" NETCDFF_FOUND = ${NETCDFF_FOUND}")
+
+include_directories(${NETCDF_C_DIR}/include
+                    ${NETCDF_FORTRAN_DIR}/include)
+link_directories(${NETCDF_C_DIR}/lib
+                ${NETCDF_FORTRAN_DIR}/lib)
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 link_directories(${CMAKE_CURRENT_BINARY_DIR})

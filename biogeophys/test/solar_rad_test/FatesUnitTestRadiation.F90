@@ -80,8 +80,8 @@ program FatesUnitTestRadiation
   call read_radiation_params(param_file, numSWb, rhol, rhos, taul, taus, xl, ci)
 
   ! read in patch data
-  call read_patch_data(patch_file, canopy_area_profile, elai_profile,          &
-    esai_profile, nrad_r)
+ !call read_patch_data(patch_file, canopy_area_profile, elai_profile,          &
+ !   esai_profile, nrad_r)
 
   ! call get_orbital_vals(year, logf, eccen, mvelp, obliqr, lambm0, mvelpp)
 
