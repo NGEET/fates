@@ -28,8 +28,6 @@ add_library(fates ${fates_sources})
 add_library(utils ${utils_sources})
 add_dependencies(fates csm_share)
 
-add_subdirectory(${CLM_ROOT}/src/fates/unit_testing/radiation_test fates_testing)
-
 # We need to look for header files here, in order to pick up shr_assert.h
 include_directories(${CLM_ROOT}/share/include)
 
@@ -37,3 +35,4 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 link_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 # Add the test directories
+add_subdirectory(${CLM_ROOT}/src/fates/unit_testing/radiation_test fates_testing)
