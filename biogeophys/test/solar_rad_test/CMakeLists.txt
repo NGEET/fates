@@ -1,4 +1,3 @@
-# Local files
 set(rad_sources FatesUnitTestRadiation.F90)
 
 set(NETCDF_C_DIR "/usr/local/Cellar/netcdf/4.9.2")
@@ -16,17 +15,16 @@ link_directories(${NETCDF_C_DIR}/lib
 
 add_executable(FATES_rad_exe ${rad_sources})
 
-target_link_libraries(FATES_rad_exe PUBLIC
+target_link_libraries(FATES_rad_exe 
                   netcdff 
                   netcdf
                   fates
-                  utils
                   csm_share)
 
-target_include_directories(FATES_rad_exe PUBLIC
-        "${PROJECT_BINARY_DIR}"
-        "${PROJECT_SOURCE_DIR}/fates_main"
-        )
+#target_include_directories(FATES_rad_exe PUBLIC
+#        "${PROJECT_BINARY_DIR}"
+#        "${PROJECT_SOURCE_DIR}/fates_main"
+#        )
 
 add_test(rad_test FATES_rad_exe)
 
