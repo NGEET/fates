@@ -98,8 +98,6 @@ module FatesPlantHydraulicsMod
   use PRTGenericMod,          only : num_elements
   use PRTGenericMod,          only : element_list
 
-  use clm_time_manager  , only : get_step_size, get_nstep
-
   use EDPftvarcon, only : EDPftvarcon_inst
   use PRTParametersMod, only : prt_params
 
@@ -1097,7 +1095,6 @@ contains
     real(r8) :: th_uncorr                    ! Uncorrected water content
     real(r8), parameter :: small_theta_num = 1.e-7_r8  ! avoids theta values equalling thr or ths         [m3 m-3]
 
-    integer :: nstep !number of time steps
     !-----------------------------------------------------------------------
 
     ccohort_hydr => ccohort%co_hydr
@@ -1774,10 +1771,6 @@ end subroutine HydrSiteColdStart
   type(ed_site_hydr_type), pointer :: csite_hydr
   integer :: s
   real(r8) :: balive_patch
-  integer :: nstep !number of time steps
-
-  !for debug only
-  nstep = get_nstep()
 
     bc_out%plant_stored_h2o_si = 0.0_r8
 
@@ -1860,7 +1853,6 @@ subroutine RecruitWUptake(nsites,sites,bc_in,dtime,recruitflag)
   type(ed_cohort_hydr_type), pointer :: ccohort_hydr
   type(ed_site_hydr_type), pointer :: csite_hydr
   integer :: s, j, ft
-  integer :: nstep !number of time steps
   real(r8) :: rootfr !fraction of root in different soil layer
   real(r8) :: recruitw !water for newly recruited cohorts (kg water/m2/s)
   real(r8) :: recruitw_total ! total water for newly recruited cohorts (kg water/m2/s)
@@ -4861,7 +4853,6 @@ subroutine MatSolve2D(csite_hydr,cohort,cohort_hydr, &
    integer :: kshell            ! rhizosphere shell index, 1->nshell
 
    integer :: info
-   integer :: nstep             !number of time steps
 
 
    ! This is a convergence test.  This is the maximum difference
@@ -4947,10 +4938,6 @@ subroutine MatSolve2D(csite_hydr,cohort,cohort_hydr, &
       h_node       => csite_hydr%h_node, &
       dftc_dpsi_node => csite_hydr%dftc_dpsi_node, &
       ft           => cohort%pft)
-
-
-   !for debug only
-   nstep = get_nstep()
 
 
    ! This NaN's the scratch arrays
@@ -5637,8 +5624,6 @@ subroutine PicardSolve2D(csite_hydr,cohort,cohort_hydr, &
   integer :: kshell            ! rhizosphere shell index, 1->nshell
 
   integer :: info
-  integer :: nstep             !number of time steps
-
 
   ! This is a convergence test.  This is the maximum difference
   ! allowed between the flux balance and the change in storage
@@ -5730,10 +5715,6 @@ subroutine PicardSolve2D(csite_hydr,cohort,cohort_hydr, &
        h_node       => csite_hydr%h_node, &
        dftc_dpsi_node => csite_hydr%dftc_dpsi_node, &
        ft           => cohort%pft)
-
-
-    !for debug only
-    nstep = get_nstep()
 
 
     ! This NaN's the scratch arrays
