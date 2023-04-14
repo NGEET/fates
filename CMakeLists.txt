@@ -14,14 +14,20 @@ set(CLM_ROOT "../../")
 # Add source directories from other share code (csm_share, etc.)
 add_subdirectory(${CLM_ROOT}/share/src csm_share)
 
+set (csm_share_sources_needed
+   shr_log_mod.F90
+ )
+extract_sources("${csm_share_sources_needed}" "${share_sources}" share_sources_needed)
+
 # Add FATES source directories
 add_subdirectory(${CLM_ROOT}/src/fates/main fates_main)
 add_subdirectory(${CLM_ROOT}/src/fates/parteh fates_parteh)
 add_subdirectory(${CLM_ROOT}/src/fates/unit_testing/utils fates_test_utils)
+add_subdirectory(${CLM_ROOT}/src/fates/unit_testing/radiation_test fates_testing)
 
 # Build libraries containing stuff needed for the unit tests.
 # Eventually, these add_library calls should probably be distributed into the correct location, rather than being in this top-level CMakeLists.txt file.
-add_library(csm_share ${share_sources})
+add_library(csm_share ${share_sources_needed})
 declare_generated_dependencies(csm_share "${share_genf90_sources}")
 
 add_library(fates ${fates_sources})
@@ -34,5 +40,3 @@ include_directories(${CLM_ROOT}/share/include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 link_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-# Add the test directories
-add_subdirectory(${CLM_ROOT}/src/fates/unit_testing/radiation_test fates_testing)
