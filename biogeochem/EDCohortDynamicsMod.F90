@@ -41,8 +41,12 @@ Module EDCohortDynamicsMod
   use PRTGenericMod         , only : max_nleafage
   use EDTypesMod            , only : ican_upper
   use EDTypesMod            , only : site_fluxdiags_type
-  use PRTGenericMod          , only : num_elements
+  use PRTGenericMod         , only : num_elements
   use EDTypesMod            , only : leaves_on
+  use EDTypesMod            , only : leaves_off
+  use EDTypesMod            , only : leaves_shedding
+  use EDTypesMod            , only : ihard_stress_decid
+  use EDTypesMod            , only : isemi_stress_decid
   use EDParamsMod           , only : ED_val_cohort_age_fusion_tol
   use FatesInterfaceTypesMod      , only : hlm_use_planthydro
   use FatesInterfaceTypesMod      , only : hlm_parteh_mode
@@ -2275,6 +2279,9 @@ contains
     real(r8) :: nplant_recover                  ! number of plants in cohort that will
                                                 ! recover to the next class
     integer  :: el                                ! element loop counter
+
+    logical  :: is_hydecid_dormant    ! Flag to signal that the cohort is drought deciduous and dormant
+    logical  :: is_sedecid_dormant    ! Flag to signal this is a deciduous PFT
     
     associate(dbh => ccohort%dbh, &
          ipft => ccohort%pft, &
@@ -2295,6 +2302,16 @@ contains
          return
       end if
 
+
+      !--- Set some logical flags to simplify "if" blocks
+      is_hydecid_dormant = &
+         any(prt_params%stress_decid(ipft) == [ihard_stress_decid,isemi_stress_decid] ) &
+         .and. any(ccohort%status_coh == [leaves_off,leaves_shedding] )
+      is_sedecid_dormant = &
+         ( prt_params%season_decid(ipft) == itrue ) &
+         .and. any(ccohort%status_coh == [leaves_off,leaves_shedding] )
+
+
       
       ! If we have not returned, then this cohort both has
       ! a damaged status, and the ability to recover from that damage
@@ -2303,7 +2320,7 @@ contains
       ! To determine recovery, the first priority is to determine how much
       ! resources (C,N,P) are required to recover the plant to the target
       ! pool sizes of the next (less) damage class
-      
+
       ! Target sapwood biomass according to allometry, trimming and phenology [kgC]
       call bsap_allom(dbh,ipft, ccohort%crowndamage-1, canopy_trim, elongf_stem, &
            sapw_area,target_sapw_c)
@@ -2321,6 +2338,20 @@ contains
       call bstore_allom(dbh,ipft,ccohort%crowndamage-1, canopy_trim,target_store_c)
       ! Target leaf biomass according to allometry, trimming and phenology [kgC]
       call bleaf(dbh,ipft,ccohort%crowndamage-1, canopy_trim, elongf_leaf, target_leaf_c)
+
+
+      ! If plants are drought deciduous and are losing or lost all leaves, halt all
+      ! the growth.
+      if (is_hydecid_dormant) then
+         ! Drought-deciduous. Do not recover any tissue until the growing season
+         target_leaf_c   = 0._r8
+         target_fnrt_c   = 0._r8
+         target_sapw_c   = 0._r8
+         target_struct_c = 0._r8
+      elseif (is_sedecid_dormant) then
+         ! Cold-deciduous. Do not recover leaves until the growing season
+         target_leaf_c   = 0._r8
+      end if
 
       ! We will be taking the number of recovering plants
       ! based on minimum of available resources for C/N/P (initialize high)

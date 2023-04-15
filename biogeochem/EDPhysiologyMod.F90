@@ -23,6 +23,8 @@ module EDPhysiologyMod
   use FatesInterfaceTypesMod, only    : hlm_use_tree_damage
   use FatesConstantsMod, only    : r8 => fates_r8
   use FatesConstantsMod, only    : nearzero
+  use FatesConstantsMod, only    : g_per_kg
+  use FatesConstantsMod, only    : ndays_per_year
   use EDPftvarcon      , only    : EDPftvarcon_inst
   use PRTParametersMod , only    : prt_params
   use EDPftvarcon      , only    : GetDecompyFrac
@@ -149,6 +151,27 @@ module EDPhysiologyMod
 
   integer, parameter :: dleafon_drycheck = 100 ! Drought deciduous leaves max days on check parameter
 
+  real(r8), parameter :: decid_leaf_long_max = 1.0_r8 ! Maximum leaf lifespan for
+                                                      !    deciduous PFTs [years]
+
+  integer, parameter :: min_daysoff_dforcedflush = 30 ! This is the number of days that must had elapsed
+                                                      ! since leaves had dropped, in order to forcably
+                                                      ! flush leaves again.  This does not impact flushing
+                                                      ! due to real moisture constraints, and will prevent
+                                                      ! drought deciduous in perennially wet environments
+                                                      ! that have been forced to drop their leaves, from
+                                                      ! flushing them back immediately.
+
+  integer, parameter  :: dd_offon_toler = 30          ! When flushing or shedding leaves, we check that
+                                                      ! the dates are near last year's dates. This controls
+                                                      ! the tolerance for deviating from last year.
+
+  real(r8), parameter :: elongf_min = 0.05_r8         ! Minimum elongation factor. If elongation factor
+                                                      !    reaches or falls below elongf_min, we assume
+                                                      !    complete abscission.  This avoids carrying out
+                                                      !    a residual amount of leaves, which may create
+                                                      !    computational problems. The current threshold
+                                                      !    is the same used in ED-2.2.
 
   ! ============================================================================
 
@@ -616,6 +639,8 @@ contains
     real(r8) :: optimum_trim              ! Optimum trim value
 
     real(r8) :: target_c_area
+
+    real(r8) :: pft_leaf_lifespan         ! Leaf lifespan of each PFT [years]
     !----------------------------------------------------------------------
 
     ipatch = 1 ! Start counting patches
@@ -638,7 +663,7 @@ contains
           initial_trim = currentCohort%canopy_trim
 
 
-          ! Add debug diagnstic output to determine which cohort
+          ! Add debug diagnostic output to determine which cohort
           if (debug) then
              write(fates_log(),*) 'Current cohort:', icohort
              write(fates_log(),*) 'Starting canopy trim:', initial_trim
@@ -655,7 +680,7 @@ contains
                currentCohort%n, currentCohort%canopy_layer,               &
                currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )
 
-          ! We don't need check on sp mode here since we don't trim_canopy with sp mode
+          ! We don't need to check on sp mode here since we don't trim_canopy with sp mode
           currentCohort%treesai = tree_sai(currentCohort%pft, &
                currentCohort%dbh, currentCohort%crowndamage,  &
                currentCohort%canopy_trim, &
@@ -673,14 +698,15 @@ contains
              call endrun(msg=errMsg(sourcefile, __LINE__))
           endif
 
-
+          ! Find target leaf biomass. Here we assume that leaves would be fully flushed 
+          ! (elongation factor = 1)
           call bleaf(currentcohort%dbh,ipft,&
-               currentCohort%crowndamage, currentcohort%canopy_trim,currentCohort%efleaf_coh, tar_bl)
+               currentCohort%crowndamage, currentcohort%canopy_trim,1.0_r8, tar_bl)
 
           if ( int(prt_params%allom_fmode(ipft)) .eq. 1 ) then
              ! only query fine root biomass if using a fine root allometric model that takes leaf trim into account
-             call bfineroot(currentcohort%dbh,ipft,currentcohort%canopy_trim,currentcohort%l2fr, &
-                  currentCohort%effnrt_coh, tar_bfr)
+             call bfineroot(currentcohort%dbh,ipft,currentcohort%canopy_trim, &
+                  currentcohort%l2fr,1.0_r8, tar_bfr)
              bfr_per_bleaf = tar_bfr/tar_bl
           endif
 
@@ -694,7 +720,7 @@ contains
           nnu_clai_a(:,:) = 0._r8
           nnu_clai_b(:,:) = 0._r8
 
-          !Leaf cost vs netuptake for each leaf layer.
+          !Leaf cost vs net uptake for each leaf layer.
           do z = 1, currentCohort%nv
 
              ! Calculate the cumulative total vegetation area index (no snow occlusion, stems and leaves)
@@ -720,47 +746,39 @@ contains
                 ! Nscaler value at leaf level z
                 nscaler_levleaf = exp(-kn * cumulative_lai)
                 ! Sla value at leaf level z after nitrogen profile scaling (m2/gC)
-                sla_levleaf = prt_params%slatop(ipft)/nscaler_levleaf
+                sla_levleaf = min(sla_max,prt_params%slatop(ipft)/nscaler_levleaf)
 
-                if(sla_levleaf > sla_max)then
-                   sla_levleaf = sla_max
+                ! Find the realised leaf lifespan, depending on the leaf phenology.
+                if (prt_params%season_decid(ipft) ==  itrue) then
+                   ! Cold-deciduous costs. Assume time-span to be 1 year to be consistent
+                   ! with FATES default
+                   pft_leaf_lifespan = decid_leaf_long_max
+
+                elseif (any(prt_params%stress_decid(ipft) == [ihard_stress_decid,isemi_stress_decid]) )then
+                   ! Drought-decidous costs. Assume time-span to be the least between
+                   !    1 year and the life span provided by the parameter file.
+                   pft_leaf_lifespan = &
+                      min(decid_leaf_long_max,sum(prt_params%leaf_long(ipft,:)))
+
+                else !evergreen costs
+                   pft_leaf_lifespan = sum(prt_params%leaf_long(ipft,:))
                 end if
 
-                !Leaf Cost kgC/m2/year-1
-                !decidous costs.
-                if (prt_params%season_decid(ipft) ==  itrue .or. &
-                     prt_params%stress_decid(ipft) == itrue )then
-
-                   ! Leaf cost at leaf level z accounting for sla profile (kgC/m2)
-                   currentCohort%leaf_cost =  1._r8/(sla_levleaf*1000.0_r8)
-
-                   if ( int(prt_params%allom_fmode(ipft)) .eq. 1 ) then
-                      ! if using trimmed leaf for fine root biomass allometry, add the cost of the root increment
-                      ! to the leaf increment; otherwise do not.
-                      currentCohort%leaf_cost = currentCohort%leaf_cost + &
-                           1.0_r8/(sla_levleaf*1000.0_r8) * &
-                           bfr_per_bleaf / prt_params%root_long(ipft)
-                   endif
-
-                   currentCohort%leaf_cost = currentCohort%leaf_cost * &
-                        (prt_params%grperc(ipft) + 1._r8)
-                else !evergreen costs
-
-                   ! Leaf cost at leaf level z accounting for sla profile
-                   currentCohort%leaf_cost = 1.0_r8/(sla_levleaf* &
-                        sum(prt_params%leaf_long(ipft,:))*1000.0_r8) !convert from sla in m2g-1 to m2kg-1
+                ! Leaf cost at leaf level z (kgC m-2 year-1) accounting for sla profile
+                ! (Convert from SLA in m2g-1 to m2kg-1)
+                currentCohort%leaf_cost = &
+                   1.0_r8/(sla_levleaf*pft_leaf_lifespan*g_per_kg)
 
 
-                   if ( int(prt_params%allom_fmode(ipft)) .eq. 1 ) then
-                      ! if using trimmed leaf for fine root biomass allometry, add the cost of the root increment
-                      ! to the leaf increment; otherwise do not.
-                      currentCohort%leaf_cost = currentCohort%leaf_cost + &
-                           1.0_r8/(sla_levleaf*1000.0_r8) * &
-                           bfr_per_bleaf / prt_params%root_long(ipft)
-                   endif
-                   currentCohort%leaf_cost = currentCohort%leaf_cost * &
-                        (prt_params%grperc(ipft) + 1._r8)
-                endif
+                if ( int(prt_params%allom_fmode(ipft)) == 1 ) then
+                   ! if using trimmed leaf for fine root biomass allometry, add the cost of the root increment
+                   ! to the leaf increment; otherwise do not.
+                   currentCohort%leaf_cost = currentCohort%leaf_cost + &
+                        1.0_r8/(sla_levleaf*g_per_kg) * &
+                        bfr_per_bleaf / prt_params%root_long(ipft)
+                end if
+                currentCohort%leaf_cost = currentCohort%leaf_cost * &
+                     (prt_params%grperc(ipft) + 1._r8)
 
                 ! Construct the arrays for a least square fit of the net_net_uptake versus the cumulative lai
                 ! if at least nll leaf layers are present in the current cohort and only for the bottom nll
@@ -907,10 +925,11 @@ contains
     real(r8) :: temp_in_C         ! daily averaged temperature in celsius
     real(r8) :: elongf_prev       ! Elongation factor from previous time
     real(r8) :: elongf_1st        ! First guess for elongation factor
-    integer  :: pft_leaf_lifespan ! PFT life span of drought deciduous.
-                                  !    This is the shortest between the PFT leaf lifespan
-                                  !    and the maximum lifespan of drought deciduous
-                                  !    (see canopy_leaf_lifespan below)
+    integer  :: ndays_pft_leaf_lifespan ! PFT life span of drought deciduous [days].
+                                        !    This is the shortest between the PFT leaf 
+                                        !    lifespan and the maximum lifespan of drought 
+                                        !    deciduous (see parameter decid_leaf_long_max
+                                        !    at the beginning of this file).
      real(r8) :: phen_drought_threshold ! For drought hard-deciduous, this is the threshold
                                         !   below which plants will abscise leaves, and
                                         !   above which plants will flush leaves. For semi-
@@ -941,26 +960,6 @@ contains
     logical  :: prolonged_off_period     ! Have leaves been abscissed for too long?
     logical  :: last_flush_long_ago      ! Has it been a very long time since last flushing?
 
-    integer, parameter :: canopy_leaf_lifespan = 365    ! Maximum lifespan of drought decid leaves
-
-    integer, parameter :: min_daysoff_dforcedflush = 30 ! This is the number of days that must had elapsed
-                                                        ! since leaves had dropped, in order to forcably
-                                                        ! flush leaves again.  This does not impact flushing
-                                                        ! due to real moisture constraints, and will prevent
-                                                        ! drought deciduous in perennially wet environments
-                                                        ! that have been forced to drop their leaves, from
-                                                        ! flushing them back immediately.
-
-    integer, parameter  :: dd_offon_toler = 30          ! When flushing or shedding leaves, we check that
-                                                        ! the dates are near last year's dates. This controls
-                                                        ! the tolerance for deviating from last year.
-
-    real(r8), parameter :: elongf_min = 0.05_r8         ! Minimum elongation factor. If elongation factor
-                                                        !    reaches or falls below elongf_min, we assume
-                                                        !    complete abscission.  This avoids carrying out
-                                                        !    a residual amount of leaves, which may create
-                                                        !    computational problems. The current threshold
-                                                        !    is the same used in ED-2.2.
 
     ! This is the integer model day. The first day of the simulation is 1, and it
     ! continues monotonically, indefinitely
@@ -1040,7 +1039,7 @@ contains
 
     !this logic is to prevent GDD accumulating after the leaves have fallen and before the
     ! beginnning of the accumulation period, to prevend erroneous autumn leaf flushing.
-    if(model_day_int>365)then !only do this after the first year to prevent odd behaviour
+    if(model_day_int> ndays_per_year)then !only do this after the first year to prevent odd behaviour
 
        if(currentSite%lat .gt. 0.0_r8)then !Northern Hemisphere
           ! In the north, don't accumulate when we are past the leaf fall date.
@@ -1063,13 +1062,13 @@ contains
     ! not had occured yet, so set it to last year to get things rolling
 
     if (model_day_int < currentSite%cleafoffdate) then
-       currentSite%cndaysleafoff = model_day_int - (currentSite%cleafoffdate - 365)
+       currentSite%cndaysleafoff = model_day_int - (currentSite%cleafoffdate - ndays_per_year)
     else
        currentSite%cndaysleafoff = model_day_int - currentSite%cleafoffdate
     end if
 
     if (model_day_int < currentSite%cleafondate) then
-       currentSite%cndaysleafon = model_day_int - (currentSite%cleafondate-365)
+       currentSite%cndaysleafon = model_day_int - (currentSite%cleafondate - ndays_per_year)
     else
        currentSite%cndaysleafon = model_day_int - currentSite%cleafondate
     end if
@@ -1208,12 +1207,12 @@ contains
        ! for the first year of simulation, we have to assume leaf drop / leaf flush
        ! dates to start, so if that is in the future, set it to last year
        if (model_day_int < currentSite%dleafoffdate(ipft)) then
-          currentSite%dndaysleafoff(ipft) = model_day_int - (currentSite%dleafoffdate(ipft)-365)
+          currentSite%dndaysleafoff(ipft) = model_day_int - (currentSite%dleafoffdate(ipft)-ndays_per_year)
        else
           currentSite%dndaysleafoff(ipft) = model_day_int - currentSite%dleafoffdate(ipft)
        end if
        if (model_day_int < currentSite%dleafondate(ipft)) then
-          currentSite%dndaysleafon(ipft) = model_day_int - (currentSite%dleafondate(ipft)-365)
+          currentSite%dndaysleafon(ipft) = model_day_int - (currentSite%dleafondate(ipft)-ndays_per_year)
        else
           currentSite%dndaysleafon(ipft) = model_day_int - currentSite%dleafondate(ipft)
        end if
@@ -1227,9 +1226,8 @@ contains
        ! (defined as a PFT parameter) and the maximum canopy leaf life span allowed
        ! for drought deciduous (local parameter). The sum term accounts for the
        ! total leaf life span of this cohort.
-       pft_leaf_lifespan = min( canopy_leaf_lifespan, &
-                                nint(365*sum(prt_params%leaf_long(ipft,:))) )
-
+       ndays_pft_leaf_lifespan = &
+          nint(ndays_per_year*min(decid_leaf_long_max,sum(prt_params%leaf_long(ipft,:))))
 
 
        !---~---
@@ -1275,24 +1273,25 @@ contains
           ! Leaves have been "on" for longer than the leaf lifetime.
           prolonged_on_period      = &
              any( currentSite%dstatus(ipft) == [phen_dstat_timeon,phen_dstat_moiston] )   .and. &
-             ( currentSite%dndaysleafon(ipft) > pft_leaf_lifespan )
+             ( currentSite%dndaysleafon(ipft) > ndays_pft_leaf_lifespan )
           ! Leaves have been "off" for a sufficiently long time and the last flushing
           ! was about one year ago (+/- tolerance).
           prolonged_off_period     = &
              any( currentSite%dstatus(ipft) == [phen_dstat_timeoff,phen_dstat_moistoff] ) .and. &
              ( currentSite%dndaysleafoff(ipft) > phen_doff_time     )                     .and. &
-             ( currentSite%dndaysleafon(ipft) >= 365-dd_offon_toler )                     .and. &
-             ( currentSite%dndaysleafon(ipft) <= 365+dd_offon_toler )
+             ( currentSite%dndaysleafon(ipft) >= ndays_per_year-dd_offon_toler )                     .and. &
+             ( currentSite%dndaysleafon(ipft) <= ndays_per_year+dd_offon_toler )
           ! Last flushing was a very long time ago.
           last_flush_long_ago      = &
-             ( currentSite%dstatus(ipft)      == phen_dstat_moistoff ) .and. &
-             ( currentSite%dndaysleafon(ipft) >  365+dd_offon_toler  )
+             ( currentSite%dstatus(ipft)      == phen_dstat_moistoff            ) .and. &
+             ( currentSite%dndaysleafon(ipft) >  ndays_per_year+dd_offon_toler  )
           !---~---
 
 
           !---~---
           ! Revision of the conditions, added an if/elseif/else structure to ensure only 
-          ! up to one change occurs at any given time (ML 20211120)
+          ! up to one change occurs at any given time. Also, prevent changes until the
+          ! soil moisture memory is populated (the outer if check).
           !---~---
           past_spinup_ifelse: if (model_day_int > numWaterMem) then
              drought_smoist_ifelse: if ( prolonged_off_period .and. &
@@ -1392,10 +1391,10 @@ contains
                                  ( currentSite%dndaysleafoff(ipft) <=  min_daysoff_dforcedflush )
           !  Leaves have been flushing for longer than their time span.
           prolonged_on_period  = all( [elongf_prev,elongf_1st] >= elongf_min ) .and. &
-                                 ( currentSite%dndaysleafon(ipft)  > pft_leaf_lifespan )
+                                 ( currentSite%dndaysleafon(ipft)  > ndays_pft_leaf_lifespan )
           !  It's been a long time since the plants had flushed their leaves.
           last_flush_long_ago  = all( [elongf_prev,elongf_1st] <  elongf_min ) .and. &
-                                 ( currentSite%dndaysleafon(ipft) >  365+dd_offon_toler )
+                                 ( currentSite%dndaysleafon(ipft) >  ndays_per_year+dd_offon_toler )
           !---~---
 
 
