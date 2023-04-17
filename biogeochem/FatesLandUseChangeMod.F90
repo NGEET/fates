@@ -3,7 +3,7 @@ module FatesLandUseChangeMod
   ! Controls the transfer and initialization of patch structure to land use types
 
   use FatesGlobals         , only : fates_log
-  use FatesConstantsMod    , only : primarylands, secondarylands, pasture, rangelands, crops
+  use FatesConstantsMod    , only : primaryland, secondaryland, pasture, rangelands, crops
   use FatesConstantsMod    , only : n_landuse_cats
   use FatesGlobals         , only : endrun => fates_endrun
   use FatesConstantsMod    , only : r8 => fates_r8
@@ -75,7 +75,7 @@ contains
              not_diagonal: if ( i_donor .ne. i_receiver ) then
 
                 ! ignore special case of primary -> secondary, which is handled by harvest mechanism
-                not_primary_to_secondary: if ( .not. ((i_donor .eq. primarylands) .and. (i_receiver .eq. secondarylands)) ) then
+                not_primary_to_secondary: if ( .not. ((i_donor .eq. primaryland) .and. (i_receiver .eq. secondaryland)) ) then
 
                    transitions_loop: do i_luh2_transitions = 1, hlm_num_luh2_transitions
 
@@ -106,11 +106,11 @@ contains
     ! initialize the character mapping of the LUH2 : FATES correspondance
     luh2_fates_luype_map(:,:) = ''
     
-    luh2_fates_luype_map(1,primarylands) = 'primf'
-    luh2_fates_luype_map(2,primarylands) = 'primn'
+    luh2_fates_luype_map(1,primaryland) = 'primf'
+    luh2_fates_luype_map(2,primaryland) = 'primn'
 
-    luh2_fates_luype_map(1,secondarylands) = 'secdf'
-    luh2_fates_luype_map(2,secondarylands) = 'secdn'
+    luh2_fates_luype_map(1,secondaryland) = 'secdf'
+    luh2_fates_luype_map(2,secondaryland) = 'secdn'
 
     luh2_fates_luype_map(1,crops) = 'c3ann'
     luh2_fates_luype_map(2,crops) = 'c4ann'
