@@ -26,8 +26,9 @@ module FatesLandUseChangeMod
   public :: get_luh_statedata
 
   ! module data
-  integer :: max_luh2_types_per_fates_lu_type = 5
-  CHARACTER(len = 5), protected, DIMENSION(n_landuse_cats,max_luh2_types_per_fates_lu_type) :: luh2_fates_luype_map
+  integer, parameter :: max_luh2_types_per_fates_lu_type = 5
+  CHARACTER(len=5), protected, DIMENSION(n_landuse_cats,max_luh2_types_per_fates_lu_type) :: luh2_fates_luype_map
+
 
   ! 03/10/2023 Created By Charlie Koven
   ! ============================================================================
