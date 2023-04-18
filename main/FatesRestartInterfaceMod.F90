@@ -8,7 +8,7 @@ module FatesRestartInterfaceMod
   use FatesConstantsMod,       only : itrue
   use FatesConstantsMod,       only : ifalse
   use FatesConstantsMod,       only : fates_unset_r8, fates_unset_int
-  use FatesConstantsMod,       only : primarylands
+  use FatesConstantsMod,       only : primaryland
   use FatesConstantsMod,       only : nearzero
   use FatesGlobals,            only : fates_log
   use FatesGlobals,            only : endrun => fates_endrun
@@ -2586,7 +2586,7 @@ contains
              nocomp_pft = fates_unset_int
              ! the nocomp_pft label is set after patch creation has occured in 'get_restart_vectors'
              ! make new patch
-             call create_patch(sites(s), newp, fates_unset_r8, fates_unset_r8, primarylands, nocomp_pft )
+             call create_patch(sites(s), newp, fates_unset_r8, fates_unset_r8, primaryland, nocomp_pft )
 
              ! Initialize the litter pools to zero, these
              ! pools will be populated by looping over the existing patches

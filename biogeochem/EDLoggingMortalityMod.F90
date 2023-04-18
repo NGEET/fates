@@ -62,7 +62,7 @@ module EDLoggingMortalityMod
    use PRTGenericMod     , only : sapw_organ, struct_organ, leaf_organ
    use PRTGenericMod     , only : fnrt_organ, store_organ, repro_organ
    use FatesAllometryMod , only : set_root_fraction
-   use FatesConstantsMod , only : primarylands, secondarylands, secondary_age_threshold
+   use FatesConstantsMod , only : primaryland, secondaryland, secondary_age_threshold
    use FatesConstantsMod , only : fates_tiny
    use FatesConstantsMod , only : months_per_year, days_per_sec, years_per_day, g_per_kg
    use FatesConstantsMod , only : hlm_harvest_area_fraction
@@ -373,17 +373,17 @@ contains
      ! We do account forest only since non-forest harvest has geographical mismatch to LUH2 dataset
      harvest_rate = 0._r8
      do h_index = 1,hlm_num_lu_harvest_cats
-        if (patch_land_use_label .eq. primarylands) then
+        if (patch_land_use_label .eq. primaryland) then
            if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1"  .or. &
                 hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2") then
               harvest_rate = harvest_rate + hlm_harvest_rates(h_index)
            endif
-        else if (patch_land_use_label .eq. secondarylands .and. &
+        else if (patch_land_use_label .eq secondaryland .and. &
              secondary_age >= secondary_age_threshold) then
            if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1") then
               harvest_rate = harvest_rate + hlm_harvest_rates(h_index)
            endif
-        else if (patch_land_use_label .eq. secondarylands .and. &
+        else if (patch_land_use_label .eq secondaryland .and. &
              secondary_age < secondary_age_threshold) then
            if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2" .or. &
                 hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3") then
@@ -395,7 +395,7 @@ contains
      !  Normalize by site-level primary or secondary forest fraction
      !  since harvest_rate is specified as a fraction of the gridcell
      !  also need to put a cap so as not to harvest more primary or secondary area than there is in a gridcell
-     if (patch_land_use_label .eq. primarylands) then
+     if (patch_land_use_label .eq. primaryland) then
         if (frac_site_primary .gt. fates_tiny) then
            harvest_rate = min((harvest_rate / frac_site_primary),frac_site_primary)
         else
@@ -510,18 +510,18 @@ contains
         ! since we have not separated forest vs. non-forest
         ! all carbon belongs to the forest categories
         do h_index = 1,hlm_num_lu_harvest_cats
-           if (currentPatch%land_use_label .eq. primarylands) then
+           if (currentPatch%land_use_label .eq. primaryland) then
               ! Primary
               if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1") then
                  harvestable_forest_c(h_index) = harvestable_forest_c(h_index) + harvestable_patch_c
               end if
-           else if (currentPatch%land_use_label .eq. secondarylands .and. &
+           else if (currentPatch%land_use_label .eq secondaryland .and. &
                 currentPatch%age_since_anthro_disturbance >= secondary_age_threshold) then
               ! Secondary mature
               if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1") then
                  harvestable_forest_c(h_index) = harvestable_forest_c(h_index) + harvestable_patch_c
               end if
-           else if (currentPatch%land_use_label .eq. secondarylands .and. &
+           else if (currentPatch%land_use_label .eq secondaryland .and. &
                 currentPatch%age_since_anthro_disturbance < secondary_age_threshold) then
               ! Secondary young
               if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2") then
@@ -583,17 +583,17 @@ contains
      ! mature and secondary young).
      ! Get the harvest rate from HLM
      do h_index = 1,hlm_num_lu_harvest_cats
-        if (patch_land_use_label .eq. primarylands) then
+        if (patch_land_use_label .eq. primaryland) then
            if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1"  .or. &
                 hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2") then
               harvest_rate_c = harvest_rate_c + hlm_harvest_rates(h_index)
            endif
-        else if (patch_land_use_label .eq. secondarylands .and. &
+        else if (patch_land_use_label .eq secondaryland .and. &
              secondary_age >= secondary_age_threshold) then
            if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1") then
               harvest_rate_c = harvest_rate_c + hlm_harvest_rates(h_index)
            endif
-        else if (patch_land_use_label .eq. secondarylands .and. &
+        else if (patch_land_use_label .eq secondaryland .and. &
              secondary_age < secondary_age_threshold) then
            if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2" .or. &
                 hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3") then
@@ -605,7 +605,7 @@ contains
      ! Determine harvest status (succesful or not)
      ! Here only three categories are used
      do h_index = 1,hlm_num_lu_harvest_cats
-        if (patch_land_use_label .eq. primarylands) then
+        if (patch_land_use_label .eq. primaryland) then
            if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1" ) then
               if(harvestable_forest_c(h_index) >= harvest_rate_c) then
                  harvest_rate_supply = harvest_rate_supply + harvestable_forest_c(h_index)
@@ -614,7 +614,7 @@ contains
                  harvest_tag(h_index) = 1
               end if
            end if
-        else if (patch_land_use_label .eq. secondarylands .and. &
+        else if (patch_land_use_label .eq secondaryland .and. &
               secondary_age >= secondary_age_threshold) then
            if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1" ) then
               if(harvestable_forest_c(h_index) >= harvest_rate_c) then
@@ -624,7 +624,7 @@ contains
                  harvest_tag(h_index) = 1
               end if
            end if
-        else if (patch_land_use_label .eq. secondarylands .and. &
+        else if (patch_land_use_label .eq secondaryland .and. &
               secondary_age < secondary_age_threshold) then
            if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2" ) then
                if(harvestable_forest_c(h_index) >= harvest_rate_c) then

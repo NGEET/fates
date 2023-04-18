@@ -8,7 +8,7 @@ module EDInitMod
   use FatesConstantsMod         , only : ifalse
   use FatesConstantsMod         , only : itrue
   use FatesConstantsMod         , only : fates_unset_int
-  use FatesConstantsMod         , only : primarylands
+  use FatesConstantsMod         , only : primaryland
   use FatesConstantsMod   , only : nearzero
   use FatesGlobals              , only : endrun => fates_endrun
   use EDTypesMod                , only : nclmax
@@ -605,7 +605,7 @@ contains
 
           else
              state_vector(:) = 0._r8
-             state_vector(primarylands) = 1._r8
+             state_vector(primaryland) = 1._r8
              n_luh_states = 1
           endif
 

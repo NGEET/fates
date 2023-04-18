@@ -73,7 +73,7 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : days_per_sec
   use FatesConstantsMod    , only : years_per_day
   use FatesConstantsMod    , only : nearzero
-  use FatesConstantsMod    , only : primarylands, secondarylands, pasture_rangelands, crops
+  use FatesConstantsMod    , only : primaryland, secondaryland, pasture, rangeland, crops
   use FatesConstantsMod    , only : n_landuse_cats
   use FatesLandUseChangeMod, only : get_landuse_transition_rates
   use FatesConstantsMod    , only : fates_unset_r8
@@ -518,7 +518,7 @@ s
                 ! figure out what land use label the receiver patch for disturbance from patches with
                 ! this disturbance label and disturbance of this type will have
                 if ( i_disturbance_type .eq. dtype_ilog) then
-                   receiver_patch_lu_label = secondarylands
+                   receiver_patch_lu_label =secondaryland
                 else
                    receiver_patch_lu_label = i_donorpatch_landuse_type
                 endif
@@ -623,7 +623,7 @@ s
                             ! the current disturbance from this patch is non-anthropogenic,
                             ! we need to average in the time-since-anthropogenic-disturbance
                             ! from the donor patch into that of the receiver patch
-                            if ( currentPatch%land_use_label .gt. primarylands .and. &
+                            if ( currentPatch%land_use_label .gt. primaryland .and. &
                                  (i_disturbance_type .lt. dtype_ilog) ) then
 
                                new_patch%age_since_anthro_disturbance = new_patch%age_since_anthro_disturbance + &
@@ -1196,12 +1196,12 @@ s
 !!!CDK 3/27  need change this logic. put the new patch as younger than any patches with the same labels
                    ! insert new youngest primary patch after all the secondary patches, if there are any.
                    ! this requires first finding the current youngest primary to insert the new one ahead of
-                   if (currentPatch%land_use_label .eq. secondarylands ) then
+                   if (currentPatch%land_use_label .eq secondaryland ) then
                       found_youngest_primary = .false.
                       do while(associated(currentPatch) .and. .not. found_youngest_primary)
                          currentPatch => currentPatch%older
                          if (associated(currentPatch)) then
-                            if (currentPatch%land_use_label .eq. primarylands) then
+                            if (currentPatch%land_use_label .eq. primaryland) then
                                found_youngest_primary = .true.
                             endif
                          endif
@@ -2425,7 +2425,7 @@ s
 
     ! assign anthropgenic disturbance category and label
     new_patch%land_use_label = label
-    if (label .gt. primarylands) then
+    if (label .gt. primaryland) then
        new_patch%age_since_anthro_disturbance = age
     else
        new_patch%age_since_anthro_disturbance = fates_unset_r8
@@ -2641,22 +2641,22 @@ s
     ! if anthropogenic disturance is enabled.
     if (hlm_use_nocomp.eq.itrue) then
        !!cdk this logic for how many patcehs to allow in nocomp will need to be changed
-       maxpatches(primarylands) = max(maxpatch_primary, sum(csite%use_this_pft))
-       maxpatches(crops) = maxpatch_crops
+       maxpatches(primaryland) = max(maxpatch_primary, sum(csite%use_this_pft))
+       maxpatches(cropland) = maxpatch_cropland
        maxpatches(pasture) = maxpatch_pasture
-       maxpatches(rangelands) = maxpatch_rangeland
-       maxpatches(secondarylands) = maxpatch_total - maxpatches(primarylands) - maxpatches(crops) - maxpatches(pasture) - maxpatches(rangelands)
-       if (maxpatch_total .lt. maxpatches(primarylands)) then
+       maxpatches(rangeland) = maxpatch_rangeland
+       maxpatches(secondaryland) = maxpatch_total - maxpatches(primaryland) - maxpatches(cropland) - maxpatches(pasture) - maxpatches(rangeland)
+       if (maxpatch_total .lt. maxpatches(primaryland)) then
           write(fates_log(),*) 'too many PFTs and not enough patches for nocomp w/o fixed biogeog'
           write(fates_log(),*) 'maxpatch_total,numpft',maxpatch_total,numpft, sum(csite%use_this_pft)
           call endrun(msg=errMsg(sourcefile, __LINE__))
        endif
     else
-       maxpatches(primarylands) = maxpatch_primary
-       maxpatches(secondarylands) = maxpatch_secondary
-       maxpatches(crops) = maxpatch_crops
+       maxpatches(primaryland) = maxpatch_primary
+       maxpatches(secondaryland) = maxpatch_secondary
+       maxpatches(cropland) = maxpatch_cropland
        maxpatches(pasture) = maxpatch_pasture
-       maxpatches(rangelands) = maxpatch_rangeland
+       maxpatches(rangeland) = maxpatch_rangeland
     endif
 
     currentPatch => currentSite%youngest_patch
@@ -2664,7 +2664,7 @@ s
        nopatches(currentPatch%land_use_label) = &
             nopatches(currentPatch%land_use_label) + 1
        
-       if (currentPatch%land_use_label .eq. primarylands) then
+       if (currentPatch%land_use_label .eq. primaryland) then
           primary_land_fraction_beforefusion = primary_land_fraction_beforefusion + &
                currentPatch%area * AREA_INV
        endif
@@ -2898,7 +2898,7 @@ s
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
 
-       if (currentPatch%land_use_label .eq. primarylands) then
+       if (currentPatch%land_use_label .eq. primaryland) then
           primary_land_fraction_afterfusion = primary_land_fraction_afterfusion + &
                currentPatch%area * AREA_INV
        endif
@@ -3481,7 +3481,7 @@ s
    frac_site_primary = 0._r8
    currentPatch => site_in%oldest_patch
    do while (associated(currentPatch))   
-      if (currentPatch%land_use_label .eq. primarylands) then
+      if (currentPatch%land_use_label .eq. primaryland) then
          frac_site_primary = frac_site_primary + currentPatch%area * AREA_INV
       endif
       currentPatch => currentPatch%younger

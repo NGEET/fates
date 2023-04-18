@@ -734,9 +734,9 @@ variables:
 	double fates_maxcohort ;
 		fates_maxcohort:units = "count" ;
 		fates_maxcohort:long_name = "maximum number of cohorts per patch. Actual number of cohorts also depend on cohort fusion tolerances" ;
-	double fates_maxpatch_crops ;
-		fates_maxpatch_crops:units = "count" ;
-		fates_maxpatch_crops:long_name = "maximum number of crop patches per site" ;
+	double fates_maxpatch_cropland ;
+		fates_maxpatch_cropland:units = "count" ;
+		fates_maxpatch_cropland:long_name = "maximum number of crop patches per site" ;
 	double fates_maxpatch_pasture ;
 		fates_maxpatch_pasture:units = "count" ;
 		fates_maxpatch_pasture:long_name = "maximum number of pasture patches per site" ;
@@ -1524,7 +1524,7 @@ data:
 
  fates_maxcohort = 100 ;
 
- fates_maxpatch_crops = 1 ;
+ fates_maxpatch_cropland = 1 ;
 
  fates_maxpatch_pasture = 1 ;
 

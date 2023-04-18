@@ -117,8 +117,8 @@ contains
     luh2_fates_luype_map(1,primaryland) = 'primf'
     luh2_fates_luype_map(2,primaryland) = 'primn'
 
-    luh2_fates_luype_map(1,secondaryland) = 'secdf'
-    luh2_fates_luype_map(2,secondaryland) = 'secdn'
+    luh2_fates_luype_map(1, secondaryland) = 'secdf'
+    luh2_fates_luype_map(2, secondaryland) = 'secdn'
 
     luh2_fates_luype_map(1,cropland) = 'c3ann'
     luh2_fates_luype_map(2,cropland) = 'c4ann'

@@ -61,7 +61,7 @@ module FatesInventoryInitMod
    use PRTGenericMod,       only : nitrogen_element
    use PRTGenericMod,       only : phosphorus_element
    use PRTGenericMod,       only : SetState
-   use FatesConstantsMod,   only : primarylands
+   use FatesConstantsMod,   only : primaryland
    use FatesRunningMeanMod, only : ema_lpa
    use PRTGenericMod,       only : StorageNutrientTarget
    use FatesConstantsMod,   only : fates_unset_int
@@ -279,7 +279,7 @@ contains
             age_init            = 0.0_r8
             area_init           = 0.0_r8
 
-            call create_patch(sites(s), newpatch, age_init, area_init, primarylands, fates_unset_int )
+            call create_patch(sites(s), newpatch, age_init, area_init, primaryland, fates_unset_int )
 
 
             if( inv_format_list(invsite) == 1 ) then

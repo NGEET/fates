@@ -75,7 +75,7 @@ module EDMainMod
   use EDTypesMod               , only : phen_dstat_moiston
   use EDTypesMod               , only : phen_dstat_timeon
   use FatesConstantsMod        , only : itrue,ifalse
-  use FatesConstantsMod        , only : primarylands, secondarylands
+  use FatesConstantsMod        , only : primaryland, secondaryland
   use FatesConstantsMod        , only : nearzero
   use FatesConstantsMod        , only : m2_per_ha
   use FatesConstantsMod        , only : sec_per_day
@@ -448,7 +448,7 @@ contains
        endif
 
        ! add age increment to secondary forest patches as well
-       if (currentPatch%land_use_label .ne. primarylands) then
+       if (currentPatch%land_use_label .ne. primaryland) then
           currentPatch%age_since_anthro_disturbance = &
                currentPatch%age_since_anthro_disturbance + hlm_freq_day
        endif

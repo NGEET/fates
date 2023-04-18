@@ -433,7 +433,7 @@ module EDTypesMod
      real(r8) ::  area                                             ! patch area: m2  
      integer  ::  countcohorts                                     ! Number of cohorts in patch
      integer  ::  ncl_p                                            ! Number of occupied canopy layers
-     integer  ::  land_use_label                                   ! patch label for land use classification (primarylands, secondarylands, etc)
+     integer  ::  land_use_label                                   ! patch label for land use classification (primaryland, secondaryland, etc)
      real(r8) ::  age_since_anthro_disturbance                     ! average age for secondary forest since last anthropogenic disturbance
 
 
