@@ -2,13 +2,16 @@ module FatesLandUseChangeMod
 
   ! Controls the transfer and initialization of patch structure to land use types
 
-  use FatesGlobals         , only : fates_log
-  use FatesConstantsMod    , only : primaryland, secondaryland, pasture, rangeland, cropland
-  use FatesConstantsMod    , only : n_landuse_cats
-  use FatesGlobals         , only : endrun => fates_endrun
-  use FatesConstantsMod    , only : r8 => fates_r8
-  use FatesConstantsMod    , only : itrue, ifalse
+  use FatesGlobals              , only : fates_log
+  use FatesConstantsMod         , only : primaryland, secondaryland, pasture, rangeland, cropland
+  use FatesConstantsMod         , only : n_landuse_cats
+  use FatesConstantsMod         , only : nearzero
+  use FatesGlobals              , only : endrun => fates_endrun
+  use FatesConstantsMod         , only : r8 => fates_r8
+  use FatesConstantsMod         , only : itrue, ifalse
   use FatesInterfaceTypesMod    , only : bc_in_type
+  use FatesInterfaceTypesMod    , only : hlm_use_luh
+  use FatesInterfaceTypesMod    , only : hlm_num_luh2_states
   use FatesInterfaceTypesMod    , only : hlm_num_luh2_transitions
   use EDTypesMod           , only : area_site => area
 
@@ -19,11 +22,15 @@ module FatesLandUseChangeMod
   !
   implicit none
   private
+
+  character(len=*), parameter :: sourcefile = __FILE__
+
   !
   public :: get_landuse_transition_rates
   public :: init_luh2_fates_mapping
   public :: get_landusechange_rules
   public :: get_luh_statedata
+
 
   ! module data
   integer, parameter :: max_luh2_types_per_fates_lu_type = 5
@@ -198,7 +205,7 @@ contains
        clearing_matrix(:,pasture) = .false.
        clearing_matrix(:,rangeland) = .true.
 
-    case(default)
+    case default
 
        write(fates_log(),*) 'unknown clearing ruleset?'
        write(fates_log(),*) 'ruleset: ', ruleset
@@ -217,6 +224,7 @@ contains
     real(r8) :: urban_fraction
     integer  :: i_luh2_states
     integer  :: ii
+    character(5) :: state_name
 
     ! zero state vector
     state_vector(:) = 0._r8
