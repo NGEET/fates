@@ -1075,6 +1075,7 @@ contains
        use EDParamsMod, only : ED_val_history_ageclass_bin_edges
        use EDParamsMod, only : ED_val_history_height_bin_edges
        use EDParamsMod, only : ED_val_history_coageclass_bin_edges
+       use FatesConstantsMod, only : n_landuse_cats
 
        ! ------------------------------------------------------------------------------------------
        ! This subroutine allocates and populates the variables
@@ -1096,11 +1097,13 @@ contains
        integer :: iheight
        integer :: icoage
        integer :: iel
+       integer :: ilu
 
        allocate( fates_hdim_levsclass(1:nlevsclass   ))
        allocate( fates_hdim_pfmap_levscpf(1:nlevsclass*numpft))
        allocate( fates_hdim_scmap_levscpf(1:nlevsclass*numpft))
        allocate( fates_hdim_levpft(1:numpft   ))
+       allocate( fates_hdim_levlanduse(1:n_landuse_cats))
        allocate( fates_hdim_levfuel(1:NFSC   ))
        allocate( fates_hdim_levcwdsc(1:NCWD   ))
        allocate( fates_hdim_levage(1:nlevage   ))
@@ -1167,6 +1170,11 @@ contains
        ! make canopy array
        do ican = 1,nclmax
           fates_hdim_levcan(ican) = ican
+       end do
+
+       ! make land use label array
+       do ilu = 1, n_landuse_cats
+          fates_hdim_levlanduse(ilu) = ilu
        end do
 
        ! Make an element array, each index is the PARTEH global identifier index

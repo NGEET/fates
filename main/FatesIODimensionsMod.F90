@@ -35,6 +35,8 @@ module FatesIODimensionsMod
     character(*), parameter, public  :: levelpft = 'fates_levelpft'
     character(*), parameter, public  :: levelcwd = 'fates_levelcwd'
     character(*), parameter, public  :: levelage = 'fates_levelage'
+    character(*), parameter, public  :: levlanduse = 'fates_levlanduse'
+    character(*), parameter, public  :: levlulu = 'fates_lulu'
     
     ! column = This is a structure that records where FATES column boundaries
     ! on each thread point to in the host IO array, this structure
@@ -115,6 +117,12 @@ module FatesIODimensionsMod
 
     ! levcdam = This is the structure that records the boundaries for the
     ! number of crown damage classes dimension
+
+    ! levlanduse = this is the structure that records the boundaries for the
+    ! land use class dimension
+
+    ! levlulu = this is the structure that records the boundaries for the
+    ! (land use class) x (land use class) dimension
     
     type, public :: fates_bounds_type
        integer :: cohort_begin
@@ -171,6 +179,10 @@ module FatesIODimensionsMod
        integer :: agefuel_end
        integer :: clscpf_begin
        integer :: clscpf_end
+       integer :: landuse_begin
+       integer :: landuse_end
+       integer :: lulu_begin
+       integer :: lulu_end
     end type fates_bounds_type
     
 

@@ -761,6 +761,7 @@ module FatesHistoryInterfaceMod
      integer, private :: levelcwd_index_, levelage_index_
      integer, private :: levcacls_index_, levcapf_index_
      integer, private :: levclscpf_index_
+     integer, private :: levlanduse_index_, levlulu_index_
 
    contains
 
@@ -803,6 +804,8 @@ module FatesHistoryInterfaceMod
      procedure :: levelage_index
      procedure :: levagefuel_index
      procedure :: levclscpf_index
+     procedure :: levlanduse_index
+     procedure :: levlulu_index
      
      ! private work functions
      procedure, private :: define_history_vars
@@ -831,6 +834,8 @@ module FatesHistoryInterfaceMod
      procedure, private :: set_levheight_index
      procedure, private :: set_levagefuel_index
      procedure, private :: set_levclscpf_index
+     procedure, private :: set_levlanduse_index
+     procedure, private :: set_levlulu_index
      
      procedure, private :: set_levelem_index
      procedure, private :: set_levelpft_index
@@ -869,6 +874,7 @@ contains
     use FatesIODimensionsMod, only : levelem, levelpft
     use FatesIODimensionsMod, only : levelcwd, levelage, levclscpf
     use FatesIODimensionsMod, only : levcdpf, levcdsc, levcdam
+    use FatesIODimensionsMod, only : levlanduse, levlulu
 
     implicit none
 
@@ -1008,6 +1014,16 @@ contains
     call this%dim_bounds(dim_count)%Init(levclscpf, num_threads, &
          fates_bounds%clscpf_begin, fates_bounds%clscpf_end)
     
+    dim_count = dim_count + 1
+    call this%set_levlanduse_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levlanduse, num_threads, &
+         fates_bounds%landuse_begin, fates_bounds%landuse_end)
+
+    dim_count = dim_count + 1
+    call this%set_levlulu_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levlulu, num_threads, &
+         fates_bounds%lulu_begin, fates_bounds%lulu_end)
+
   end subroutine Init
 
   ! ======================================================================
@@ -1128,6 +1144,14 @@ contains
     call this%dim_bounds(index)%SetThreadBounds(thread_index, &
          thread_bounds%clscpf_begin, thread_bounds%clscpf_end)
 
+    index = this%levlanduse_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+         thread_bounds%landuse_begin, thread_bounds%landuse_end)
+
+    index = this%levlulu_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+         thread_bounds%lulu_begin, thread_bounds%lulu_end)
+
   end subroutine SetThreadBoundsEach
 
   ! ===================================================================================
@@ -1143,6 +1167,7 @@ contains
     use FatesIOVariableKindMod, only : site_elem_r8, site_elpft_r8
     use FatesIOVariableKindMod, only : site_elcwd_r8, site_elage_r8, site_clscpf_r8
     use FatesIOVariableKindMod, only : site_cdpf_r8, site_cdsc_r8, site_cdam_r8
+    use FatesIOVariableKindMod, only : site_landuse_r8, site_lulu_r8
     
    implicit none
 
@@ -1226,7 +1251,13 @@ contains
 
     call this%set_dim_indices(site_clscpf_r8, 1, this%column_index())
     call this%set_dim_indices(site_clscpf_r8, 2, this%levclscpf_index())
-    
+
+    call this%set_dim_indices(site_landuse_r8, 1, this%column_index())
+    call this%set_dim_indices(site_landuse_r8, 2, this%levlanduse_index())
+
+    call this%set_dim_indices(site_lulu_r8, 1, this%column_index())
+    call this%set_dim_indices(site_lulu_r8, 2, this%levlulu_index())
+
   end subroutine assemble_history_output_types
 
   ! ===================================================================================
@@ -1640,6 +1671,36 @@ end function levcapf_index
 
    ! ======================================================================================
 
+   subroutine set_levlanduse_index(this, index)
+     implicit none
+     class(fates_history_interface_type), intent(inout) :: this
+     integer, intent(in) :: index
+     this%levlanduse_index_ = index
+   end subroutine set_levlanduse_index
+
+   integer function levlanduse_index(this)
+     implicit none
+     class(fates_history_interface_type), intent(in) :: this
+     levlanduse_index = this%levlanduse_index_
+   end function levlanduse_index
+
+   ! ======================================================================================
+
+   subroutine set_levlulu_index(this, index)
+     implicit none
+     class(fates_history_interface_type), intent(inout) :: this
+     integer, intent(in) :: index
+     this%levlulu_index_ = index
+   end subroutine set_levlulu_index
+
+   integer function levlulu_index(this)
+     implicit none
+     class(fates_history_interface_type), intent(in) :: this
+     levlulu_index = this%levlulu_index_
+   end function levlulu_index
+
+   ! ======================================================================================
+
    subroutine zero_site_hvars(this, currentSite, upfreq_in)
 
      ! This routine zero's a history diagnostic variable
@@ -1786,6 +1847,7 @@ end subroutine flush_hvars
     use FatesIOVariableKindMod, only : site_elem_r8, site_elpft_r8
     use FatesIOVariableKindMod, only : site_elcwd_r8, site_elage_r8, site_clscpf_r8
     use FatesIOVariableKindMod, only : site_cdpf_r8, site_cdsc_r8, site_cdam_r8
+    use FatesIOVariableKindMod, only : site_landuse_r8, site_lulu_r8
     
     implicit none
 
@@ -1898,6 +1960,14 @@ end subroutine flush_hvars
     ! site x age x fuel size class
     index = index + 1
     call this%dim_kinds(index)%Init(site_clscpf_r8, 2)
+
+    ! site x land use class
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_landuse_r8, 2)
+
+    ! site x land use x land use class
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_lulu_r8, 2)
 
     ! FIXME(bja, 2016-10) assert(index == fates_history_num_dim_kinds)
   end subroutine init_dim_kinds_maps
@@ -2435,6 +2505,7 @@ end subroutine flush_hvars
                hio_yesterdaycanopylevel_canopy_si_scls     => this%hvars(ih_yesterdaycanopylevel_canopy_si_scls)%r82d, &
                hio_yesterdaycanopylevel_understory_si_scls => this%hvars(ih_yesterdaycanopylevel_understory_si_scls)%r82d, &
                hio_area_si_age         => this%hvars(ih_area_si_age)%r82d, &
+               hio_area_si_landuse     => this%hvars(ih_area_si_landuse)%r82d, &
                hio_lai_si_age          => this%hvars(ih_lai_si_age)%r82d, &
                hio_lai_secondary_si          => this%hvars(ih_lai_secondary_si)%r81d, &
                hio_canopy_area_si_age  => this%hvars(ih_canopy_area_si_age)%r82d, &
@@ -2650,6 +2721,9 @@ end subroutine flush_hvars
          ! Increment the fractional area in each age class bin
          hio_area_si_age(io_si,cpatch%age_class) = hio_area_si_age(io_si,cpatch%age_class) &
             + cpatch%area * AREA_INV
+
+         hio_area_si_landuse(io_si, cpatch%land_use_label) = hio_area_si_landuse(io_si, cpatch%land_use_label)&
+              + cpatch%area * AREA_INV
 
          ! 24hr veg temperature
          hio_tveg24(io_si) = hio_tveg24(io_si) + &
@@ -5574,6 +5648,12 @@ end subroutine update_history_hifrq
          use_default='inactive', avgflag='A', vtype=site_age_r8,               &
          hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
          index=ih_biomass_si_age)
+
+    ! land use type resolved variables
+    call this%set_history_var(vname='FATES_PATCHAREA_LU', units='m2 m-2',      &
+         long='patch area by land use type', use_default='active',  &
+         avgflag='A', vtype=site_landuse_r8, hlms='CLM:ALM', upfreq=1, ivar=ivar,  &
+         initialize=initialize_variables, index=ih_area_si_landuse)
 
     ! Secondary forest area and age diagnostics
 
