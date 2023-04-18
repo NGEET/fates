@@ -509,7 +509,7 @@ contains
           landusechange_type_loop: do i_landusechange_type = 1, n_luctype
 
              landuse_type_loop: do i_donorpatch_landuse_type = 1, n_landuse_cats
-s
+
                 ! calculate area of disturbed land, in this timestep, by summing contributions from each existing patch.
                 currentPatch => currentSite%youngest_patch
 
@@ -523,12 +523,12 @@ s
                    receiver_patch_lu_label = i_donorpatch_landuse_type
                 endif
 
-                patchloop: do while(associated(currentPatch))
+                patchloop_areadis: do while(associated(currentPatch))
 
                    cp_nocomp_matches_1_if: if ( hlm_use_nocomp .eq. ifalse .or. &
                         currentPatch%nocomp_pft_label .eq. i_nocomp_pft ) then
 
-                      patchlabel_matches_lutype_if: if (currentPatch%land_use_label .eq. i_donorpatch_landuse_type) then
+                      patchlabel_matches_lutype_if_areadis: if (currentPatch%land_use_label .eq. i_donorpatch_landuse_type) then
 
                          if ( i_disturbance_type .ne. dtype_ilandusechange) then
                             disturbance_rate = currentPatch%disturbance_rates(i_disturbance_type)
@@ -555,10 +555,10 @@ s
 
                          end if
 
-                      end if patchlabel_matches_lutype_if
+                      end if patchlabel_matches_lutype_if_areadis
                    end if cp_nocomp_matches_1_if
                    currentPatch => currentPatch%older
-                enddo patchloop ! end loop over patches. sum area disturbed for all patches.
+                enddo patchloop_areadis! end loop over patches. sum area disturbed for all patches.
 
                 ! It is possible that no disturbance area was generated
                 if ( site_areadis > nearzero) then
@@ -659,7 +659,6 @@ s
                                call landusechange_litter_fluxes(currentSite, currentPatch, &
                                     new_patch, patch_site_areadis,bc_in, &
                                     clearing_matrix(i_donorpatch_landuse_type,receiver_patch_lu_label))
-                            endif
 
 
                             ! Copy any means or timers from the original patch to the new patch
@@ -717,7 +716,7 @@ s
                                   ! treefall mortality is the current disturbance
                                case (dtype_ifall)
                                
-                                  in_canopy_if: if(currentCohort%canopy_layer == 1)then
+                                  in_canopy_if_falldtype: if(currentCohort%canopy_layer == 1)then
 
                                      ! In the donor patch we are left with fewer trees because the area has decreased
                                      ! the plant density for large trees does not actually decrease in the donor patch
@@ -744,7 +743,7 @@ s
 
                                   else
                                      ! small trees
-                                     woody_if: if( prt_params%woody(currentCohort%pft) == itrue)then
+                                     woody_if_falldtype: if( prt_params%woody(currentCohort%pft) == itrue)then
 
 
                                         ! Survivorship of undestory woody plants.  Two step process.
@@ -833,8 +832,8 @@ s
                                         nc%lmort_collateral = currentCohort%lmort_collateral
                                         nc%lmort_infra      = currentCohort%lmort_infra
 
-                                     endif woody_if
-                                  endif in_canopy_if
+                                     endif woody_if_falldtyp
+                                  endif in_canopy_if_falldtype
 
                                   ! Fire is the current disturbance
                                case (dtype_ifire)
@@ -969,7 +968,7 @@ s
                                case (dtype_ilog)
 
                                   ! If this cohort is in the upper canopy. It generated
-                                  in_canopy_if: if(currentCohort%canopy_layer == 1)then
+                                  in_canopy_if_logdtype: if(currentCohort%canopy_layer == 1)then
 
                                      ! calculate the survivorship of disturbed trees because non-harvested
                                      nc%n = currentCohort%n * currentCohort%l_degrad
@@ -1004,7 +1003,7 @@ s
                                      ! What to do with cohorts in the understory of a logging generated
                                      ! disturbance patch?
 
-                                     woody_if: if(prt_params%woody(currentCohort%pft) == itrue)then
+                                     woody_if_logdtype: if(prt_params%woody(currentCohort%pft) == itrue)then
 
 
                                         ! Survivorship of undestory woody plants.  Two step process.
@@ -1082,9 +1081,9 @@ s
                                         nc%lmort_collateral = currentCohort%lmort_collateral
                                         nc%lmort_infra      = currentCohort%lmort_infra
 
-                                     endif woody_if  ! is/is-not woody
+                                     endif woody_if_logdtyp  ! is/is-not woody
 
-                                  endif in_canopy_if  ! Select canopy layer
+                                  endif in_canopy_if_logdtyp  ! Select canopy layer
 
 
                                case (dtype_ilandusechange)
