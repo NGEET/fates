@@ -35,7 +35,7 @@ module FatesConstantsMod
   integer, parameter, public :: primaryland = 1
   integer, parameter, public :: secondaryland = 2
   integer, parameter, public :: rangeland = 3
-  integer, parameter, public :: pasture = 4
+  integer, parameter, public :: pastureland = 4
   integer, parameter, public :: cropland = 5
 
   ! Bareground label for no competition mode

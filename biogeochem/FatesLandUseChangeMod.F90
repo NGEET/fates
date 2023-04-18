@@ -3,7 +3,7 @@ module FatesLandUseChangeMod
   ! Controls the transfer and initialization of patch structure to land use types
 
   use FatesGlobals              , only : fates_log
-  use FatesConstantsMod         , only : primaryland, secondaryland, pasture, rangeland, cropland
+  use FatesConstantsMod         , only : primaryland, secondaryland, pastureland, rangeland, cropland
   use FatesConstantsMod         , only : n_landuse_cats
   use FatesConstantsMod         , only : nearzero
   use FatesGlobals              , only : endrun => fates_endrun
@@ -126,7 +126,7 @@ contains
     luh2_fates_luype_map(4,cropland) = 'c4per'
     luh2_fates_luype_map(5,cropland) = 'c3nfx'
 
-    luh2_fates_luype_map(1,pasture) = 'pastr'
+    luh2_fates_luype_map(1,pastureland) = 'pastr'
 
     luh2_fates_luype_map(1,rangeland) = 'range'
     
@@ -151,58 +151,58 @@ contains
     case(1)
 
        clearing_matrix(:,cropland) = .true.
-       clearing_matrix(:,pasture) = .true.
-       clearing_matrix(pasture,rangeland) = .true.
+       clearing_matrix(:,pastureland) = .true.
+       clearing_matrix(pastureland,rangeland) = .true.
        clearing_matrix(cropland,rangeland) = .true.
 
     case(2)
 
        clearing_matrix(:,cropland) = .true.
-       clearing_matrix(rangeland,pasture) = .true.
-       clearing_matrix(cropland,pasture) = .true.
-       clearing_matrix(pasture,rangeland) = .true.
+       clearing_matrix(rangeland,pastureland) = .true.
+       clearing_matrix(cropland,pastureland) = .true.
+       clearing_matrix(pastureland,rangeland) = .true.
        clearing_matrix(cropland,rangeland) = .true.
 
     case(3)
 
        clearing_matrix(:,cropland) = .true.
-       clearing_matrix(:,pasture) = .true.
+       clearing_matrix(:,pastureland) = .true.
        clearing_matrix(:,rangeland) = .true.
 
     case(4)
 
        clearing_matrix(:,cropland) = .true.
-       clearing_matrix(:,pasture) = .true.
+       clearing_matrix(:,pastureland) = .true.
        clearing_matrix(:,rangeland) = .false.
 
     case(5)
 
        clearing_matrix(:,cropland) = .true.
-       clearing_matrix(:,pasture) = .false.
+       clearing_matrix(:,pastureland) = .false.
        clearing_matrix(:,rangeland) = .true.
 
     case(6)
 
        clearing_matrix(:,cropland) = .true.
-       clearing_matrix(:,pasture) = .false.
+       clearing_matrix(:,pastureland) = .false.
        clearing_matrix(:,rangeland) = .false.
 
     case(7)
 
        clearing_matrix(:,cropland) = .false.
-       clearing_matrix(:,pasture) = .true.
+       clearing_matrix(:,pastureland) = .true.
        clearing_matrix(:,rangeland) = .true.
 
     case(8)
 
        clearing_matrix(:,cropland) = .false.
-       clearing_matrix(:,pasture) = .true.
+       clearing_matrix(:,pastureland) = .true.
        clearing_matrix(:,rangeland) = .false.
 
     case(9)
 
        clearing_matrix(:,cropland) = .false.
-       clearing_matrix(:,pasture) = .false.
+       clearing_matrix(:,pastureland) = .false.
        clearing_matrix(:,rangeland) = .true.
 
     case default

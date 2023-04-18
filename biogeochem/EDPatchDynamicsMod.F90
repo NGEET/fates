@@ -73,7 +73,7 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : days_per_sec
   use FatesConstantsMod    , only : years_per_day
   use FatesConstantsMod    , only : nearzero
-  use FatesConstantsMod    , only : primaryland, secondaryland, pasture, rangeland, crops
+  use FatesConstantsMod    , only : primaryland, secondaryland, pastureland, rangeland, cropland
   use FatesConstantsMod    , only : n_landuse_cats
   use FatesLandUseChangeMod, only : get_landuse_transition_rates
   use FatesConstantsMod    , only : fates_unset_r8
@@ -2643,9 +2643,9 @@ s
        !!cdk this logic for how many patcehs to allow in nocomp will need to be changed
        maxpatches(primaryland) = max(maxpatch_primary, sum(csite%use_this_pft))
        maxpatches(cropland) = maxpatch_cropland
-       maxpatches(pasture) = maxpatch_pasture
+       maxpatches(pastureland) = maxpatch_pastureland
        maxpatches(rangeland) = maxpatch_rangeland
-       maxpatches(secondaryland) = maxpatch_total - maxpatches(primaryland) - maxpatches(cropland) - maxpatches(pasture) - maxpatches(rangeland)
+       maxpatches(secondaryland) = maxpatch_total - maxpatches(primaryland) - maxpatches(cropland) - maxpatches(pastureland) - maxpatches(rangeland)
        if (maxpatch_total .lt. maxpatches(primaryland)) then
           write(fates_log(),*) 'too many PFTs and not enough patches for nocomp w/o fixed biogeog'
           write(fates_log(),*) 'maxpatch_total,numpft',maxpatch_total,numpft, sum(csite%use_this_pft)
@@ -2655,7 +2655,7 @@ s
        maxpatches(primaryland) = maxpatch_primary
        maxpatches(secondaryland) = maxpatch_secondary
        maxpatches(cropland) = maxpatch_cropland
-       maxpatches(pasture) = maxpatch_pasture
+       maxpatches(pastureland) = maxpatch_pastureland
        maxpatches(rangeland) = maxpatch_rangeland
     endif
 

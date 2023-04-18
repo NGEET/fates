@@ -737,9 +737,9 @@ variables:
 	double fates_maxpatch_cropland ;
 		fates_maxpatch_cropland:units = "count" ;
 		fates_maxpatch_cropland:long_name = "maximum number of crop patches per site" ;
-	double fates_maxpatch_pasture ;
-		fates_maxpatch_pasture:units = "count" ;
-		fates_maxpatch_pasture:long_name = "maximum number of pasture patches per site" ;
+	double fates_maxpatch_pastureland ;
+		fates_maxpatch_pastureland:units = "count" ;
+		fates_maxpatch_pastureland:long_name = "maximum number of pasture patches per site" ;
 	double fates_maxpatch_rangeland ;
 		fates_maxpatch_rangeland:units = "count" ;
 		fates_maxpatch_rangeland:long_name = "maximum number of rangeland patches per site" ;
@@ -1526,7 +1526,7 @@ data:
 
  fates_maxpatch_cropland = 1 ;
 
- fates_maxpatch_pasture = 1 ;
+ fates_maxpatch_pastureland = 1 ;
 
  fates_maxpatch_primary = 10 ;
 
