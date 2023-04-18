@@ -378,12 +378,12 @@ contains
                 hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2") then
               harvest_rate = harvest_rate + hlm_harvest_rates(h_index)
            endif
-        else if (patch_land_use_label .eq secondaryland .and. &
+        else if (patch_land_use_label .eq. secondaryland .and. &
              secondary_age >= secondary_age_threshold) then
            if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1") then
               harvest_rate = harvest_rate + hlm_harvest_rates(h_index)
            endif
-        else if (patch_land_use_label .eq secondaryland .and. &
+        else if (patch_land_use_label .eq. secondaryland .and. &
              secondary_age < secondary_age_threshold) then
            if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2" .or. &
                 hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3") then
@@ -515,13 +515,13 @@ contains
               if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1") then
                  harvestable_forest_c(h_index) = harvestable_forest_c(h_index) + harvestable_patch_c
               end if
-           else if (currentPatch%land_use_label .eq secondaryland .and. &
+           else if (currentPatch%land_use_label .eq. secondaryland .and. &
                 currentPatch%age_since_anthro_disturbance >= secondary_age_threshold) then
               ! Secondary mature
               if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1") then
                  harvestable_forest_c(h_index) = harvestable_forest_c(h_index) + harvestable_patch_c
               end if
-           else if (currentPatch%land_use_label .eq secondaryland .and. &
+           else if (currentPatch%land_use_label .eq. secondaryland .and. &
                 currentPatch%age_since_anthro_disturbance < secondary_age_threshold) then
               ! Secondary young
               if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2") then
@@ -588,12 +588,12 @@ contains
                 hlm_harvest_catnames(h_index) .eq. "HARVEST_VH2") then
               harvest_rate_c = harvest_rate_c + hlm_harvest_rates(h_index)
            endif
-        else if (patch_land_use_label .eq secondaryland .and. &
+        else if (patch_land_use_label .eq. secondaryland .and. &
              secondary_age >= secondary_age_threshold) then
            if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1") then
               harvest_rate_c = harvest_rate_c + hlm_harvest_rates(h_index)
            endif
-        else if (patch_land_use_label .eq secondaryland .and. &
+        else if (patch_land_use_label .eq. secondaryland .and. &
              secondary_age < secondary_age_threshold) then
            if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2" .or. &
                 hlm_harvest_catnames(h_index) .eq. "HARVEST_SH3") then
@@ -614,7 +614,7 @@ contains
                  harvest_tag(h_index) = 1
               end if
            end if
-        else if (patch_land_use_label .eq secondaryland .and. &
+        else if (patch_land_use_label .eq. secondaryland .and. &
               secondary_age >= secondary_age_threshold) then
            if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1" ) then
               if(harvestable_forest_c(h_index) >= harvest_rate_c) then
@@ -624,7 +624,7 @@ contains
                  harvest_tag(h_index) = 1
               end if
            end if
-        else if (patch_land_use_label .eq secondaryland .and. &
+        else if (patch_land_use_label .eq. secondaryland .and. &
               secondary_age < secondary_age_threshold) then
            if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2" ) then
                if(harvestable_forest_c(h_index) >= harvest_rate_c) then

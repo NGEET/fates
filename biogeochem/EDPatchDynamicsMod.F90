@@ -1196,7 +1196,7 @@ s
 !!!CDK 3/27  need change this logic. put the new patch as younger than any patches with the same labels
                    ! insert new youngest primary patch after all the secondary patches, if there are any.
                    ! this requires first finding the current youngest primary to insert the new one ahead of
-                   if (currentPatch%land_use_label .eq secondaryland ) then
+                   if (currentPatch%land_use_label .eq. secondaryland ) then
                       found_youngest_primary = .false.
                       do while(associated(currentPatch) .and. .not. found_youngest_primary)
                          currentPatch => currentPatch%older
