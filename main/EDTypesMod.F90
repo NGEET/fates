@@ -565,6 +565,7 @@ module EDTypesMod
      real(r8) ::  disturbance_rates(n_dist_types)                  ! disturbance rate from 1) mortality 
                                                                    !                       2) fire: fraction/day 
                                                                    !                       3) logging mortatliy
+     real(r8) ::  landuse_transition_rates(n_landuse_cats)         ! land use tranision rate
      real(r8) ::  fract_ldist_not_harvested                        ! fraction of logged area that is canopy trees that weren't harvested
 
 
