@@ -302,9 +302,11 @@ module FatesHistoryInterfaceMod
   integer :: ih_growth_resp_secondary_si
 
   integer :: ih_primaryland_fusion_error_si
-  integer :: ih_disturbance_rate_p2p_si
-  integer :: ih_disturbance_rate_p2s_si
-  integer :: ih_disturbance_rate_s2s_si
+  ! integer :: ih_disturbance_rate_p2p_si
+  ! integer :: ih_disturbance_rate_p2s_si
+  ! integer :: ih_disturbance_rate_s2s_si
+  ! integer :: ih_disturbance_rate_si
+  integer :: ih_area_si_landuse
   integer :: ih_fire_disturbance_rate_si
   integer :: ih_logging_disturbance_rate_si
   integer :: ih_fall_disturbance_rate_si
@@ -2342,9 +2344,9 @@ end subroutine flush_hvars
                hio_canopy_biomass_si   => this%hvars(ih_canopy_biomass_si)%r81d, &
                hio_understory_biomass_si   => this%hvars(ih_understory_biomass_si)%r81d, &
                hio_primaryland_fusion_error_si    => this%hvars(ih_primaryland_fusion_error_si)%r81d, &
-               hio_disturbance_rate_p2p_si       => this%hvars(ih_disturbance_rate_p2p_si)%r81d, &
-               hio_disturbance_rate_p2s_si       => this%hvars(ih_disturbance_rate_p2s_si)%r81d, &
-               hio_disturbance_rate_s2s_si       => this%hvars(ih_disturbance_rate_s2s_si)%r81d, &
+               ! hio_disturbance_rate_p2p_si       => this%hvars(ih_disturbance_rate_p2p_si)%r81d, &
+               ! hio_disturbance_rate_p2s_si       => this%hvars(ih_disturbance_rate_p2s_si)%r81d, &
+               ! hio_disturbance_rate_s2s_si       => this%hvars(ih_disturbance_rate_s2s_si)%r81d, &
                hio_fire_disturbance_rate_si      => this%hvars(ih_fire_disturbance_rate_si)%r81d, &
                hio_logging_disturbance_rate_si   => this%hvars(ih_logging_disturbance_rate_si)%r81d, &
                hio_fall_disturbance_rate_si      => this%hvars(ih_fall_disturbance_rate_si)%r81d, &
@@ -5298,6 +5300,7 @@ end subroutine update_history_hifrq
     use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8
     use FatesIOVariableKindMod, only : site_elem_r8, site_elpft_r8, site_clscpf_r8
     use FatesIOVariableKindMod, only : site_elcwd_r8, site_elage_r8
+    use FatesIOVariableKindMod, only : site_landuse_r8, site_lulu_r8
 
 
     implicit none
@@ -6313,26 +6316,26 @@ end subroutine update_history_hifrq
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_primaryland_fusion_error_si)
 
-    call this%set_history_var(vname='FATES_DISTURBANCE_RATE_P2P',              &
-         units='m2 m-2 yr-1',                                                  &
-         long='disturbance rate from primary to primary lands',                &
-         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
-         index = ih_disturbance_rate_p2p_si)
+    ! call this%set_history_var(vname='FATES_DISTURBANCE_RATE_P2P',              &
+    !      units='m2 m-2 yr-1',                                                  &
+    !      long='disturbance rate from primary to primary lands',                &
+    !      use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+    !      upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+    !      index = ih_disturbance_rate_p2p_si)
 
-    call this%set_history_var(vname='FATES_DISTURBANCE_RATE_P2S',              &
-         units='m2 m-2 yr-1',                                                  &
-         long='disturbance rate from primary to secondary lands',              &
-         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
-         index = ih_disturbance_rate_p2s_si )
+    ! call this%set_history_var(vname='FATES_DISTURBANCE_RATE_P2S',              &
+    !      units='m2 m-2 yr-1',                                                  &
+    !      long='disturbance rate from primary to secondary lands',              &
+    !      use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+    !      upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+    !      index = ih_disturbance_rate_p2s_si )
 
-    call this%set_history_var(vname='FATES_DISTURBANCE_RATE_S2S',              &
-         units='m2 m-2 yr-1',                                                  &
-         long='disturbance rate from secondary to secondary lands',            &
-         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
-         index = ih_disturbance_rate_s2s_si)
+    ! call this%set_history_var(vname='FATES_DISTURBANCE_RATE_S2S',              &
+    !      units='m2 m-2 yr-1',                                                  &
+    !      long='disturbance rate from secondary to secondary lands',            &
+    !      use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+    !      upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+    !      index = ih_disturbance_rate_s2s_si)
 
     call this%set_history_var(vname='FATES_DISTURBANCE_RATE_FIRE',             &
          units='m2 m-2 yr-1', long='disturbance rate from fire',               &

@@ -448,8 +448,9 @@ contains
     type (ed_cohort_type), pointer :: storesmallcohort
     type (ed_cohort_type), pointer :: storebigcohort
     real(r8) :: site_areadis_primary         ! total area disturbed (to primary forest) in m2 per site per day
-    real(r8) :: site_areadis_secondary       ! total area disturbed (to secondary forest) in m2 per site per day    
+    real(r8) :: site_areadis_secondary       ! total area disturbed (to secondary forest) in m2 per site per day
     real(r8) :: patch_site_areadis           ! total area disturbed in m2 per patch per day
+    real(r8) :: site_areadis                 ! total site area disturbed in m2 per day
     real(r8) :: age                          ! notional age of this patch in years
     integer  :: el                           ! element loop index
     integer  :: tnull                        ! is there a tallest cohort?
@@ -467,6 +468,10 @@ contains
     logical  :: found_youngest_primary       ! logical for finding the first primary forest patch
     integer  :: min_nocomp_pft, max_nocomp_pft, i_nocomp_pft
     integer  :: i_disturbance_type, i_dist2  ! iterators for looping over disturbance types
+    integer  :: i_landusechange_type         ! iterator for the land use change types
+    integer  :: i_donorpatch_landuse_type    ! iterator for the land use change types donor patch
+    integer  :: n_luctype                    ! pass through variable for number of landuse types
+    integer  :: receiver_patch_lu_label      ! pass through variable for reciever patch land use type label
     real(r8) :: disturbance_rate             ! rate of disturbance being resolved [fraction of patch area / day]
     real(r8) :: oldarea                      ! old patch area prior to disturbance
     logical  :: clearing_matrix(n_landuse_cats,n_landuse_cats)  ! do we clear vegetation when transferring from one LU type to another?
@@ -643,7 +648,7 @@ contains
 
                             ! CDK what do we do here for land use transitions?
 
-                            select case(disturbance_type)
+                            select case(i_disturbance_type)
                             case (dtype_ilog)
                                call logging_litter_fluxes(currentSite, currentPatch, &
                                     new_patch, patch_site_areadis,bc_in)
@@ -715,7 +720,7 @@ contains
                                store_c  = currentCohort%prt%GetState(store_organ, carbon12_element)
                                total_c  = sapw_c + struct_c + leaf_c + fnrt_c + store_c
 
-                               disttype_case: select case(disturbance_type)
+                               disttype_case: select case(i_disturbance_type)
                                   ! treefall mortality is the current disturbance
                                case (dtype_ifall)
                                
@@ -1159,13 +1164,13 @@ contains
                                   currentPatch%disturbance_rates(i_dist2) = currentPatch%disturbance_rates(i_dist2) &
                                        * oldarea / currentPatch%area
                                end do
-                               do i_dist = 1,n_landuse_cats
-                                  currentPatch%landuse_transition_rates(i_dist) = currentPatch%landuse_transition_rates(i_dist) &
+                               do i_dist2 = 1,n_landuse_cats
+                                  currentPatch%landuse_transition_rates(i_dist2) = currentPatch%landuse_transition_rates(i_dist2) &
                                        * oldarea / currentPatch%area
                                end do
                             else
-                               do i_dist = i_lu_change+1,n_landuse_cats
-                                  currentPatch%landuse_transition_rates(i_dist) = currentPatch%landuse_transition_rates(i_dist) &
+                               do i_dist2 = i_landusechange_type+1,n_landuse_cats
+                                  currentPatch%landuse_transition_rates(i_dist2) = currentPatch%landuse_transition_rates(i_dist2) &
                                        * oldarea / currentPatch%area
                                end do
                             end if
@@ -2654,8 +2659,8 @@ contains
           call endrun(msg=errMsg(sourcefile, __LINE__))
        endif
     else
-       maxpatches(primaryland) = maxpatch_primary
-       maxpatches(secondaryland) = maxpatch_secondary
+       maxpatches(primaryland) = maxpatch_primaryland
+       maxpatches(secondaryland) = maxpatch_secondaryland
        maxpatches(cropland) = maxpatch_cropland
        maxpatches(pastureland) = maxpatch_pastureland
        maxpatches(rangeland) = maxpatch_rangeland

@@ -9,7 +9,8 @@ module EDInitMod
   use FatesConstantsMod         , only : itrue
   use FatesConstantsMod         , only : fates_unset_int
   use FatesConstantsMod         , only : primaryland
-  use FatesConstantsMod   , only : nearzero
+  use FatesConstantsMod         , only : nearzero
+  use FatesConstantsMod         , only : n_landuse_cats
   use FatesGlobals              , only : endrun => fates_endrun
   use EDTypesMod                , only : nclmax
   use FatesGlobals              , only : fates_log
@@ -520,12 +521,13 @@ contains
     integer  :: start_patch
     integer  :: num_new_patches
     integer  :: nocomp_pft
-    real(r8) :: newparea
+    real(r8) :: newparea, newparea_withlanduse
     real(r8) :: tota !check on area
     integer  :: is_first_patch
     integer  :: n_luh_states
     integer  :: luh_state_counter
     real(r8) :: state_vector(n_landuse_cats)  ! [m2/m2]
+    integer  :: i_lu, i_lu_state
 
 
     type(ed_site_type),  pointer :: sitep

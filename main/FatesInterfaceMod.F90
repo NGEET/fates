@@ -16,8 +16,8 @@ module FatesInterfaceMod
    use EDParamsMod               , only : ED_val_vai_width_increase_factor
    use EDParamsMod               , only : ED_val_history_damage_bin_edges
    use EDParamsMod               , only : maxpatch_total
-   use EDParamsMod               , only : maxpatch_primary
-   use EDParamsMod               , only : maxpatch_secondary
+   use EDParamsMod               , only : maxpatch_primaryland, maxpatch_secondaryland
+   use EDParamsMod               , only : maxpatch_pastureland, maxpatch_rangeland, maxpatch_cropland
    use EDParamsMod               , only : max_cohort_per_patch
    use EDTypesMod                , only : maxSWb
    use EDTypesMod                , only : ivis
@@ -765,8 +765,11 @@ contains
             ! to hold all PFTs.  So create the same number of
             ! patches as the number of PFTs
 
-            maxpatch_primary   = fates_numpft
-            maxpatch_secondary = 0
+            maxpatch_primaryland   = fates_numpft
+            maxpatch_secondaryland = 0
+            maxpatch_pastureland = 0
+            maxpatch_rangeland = 0
+            maxpatch_cropland = 0
             maxpatch_total     = fates_numpft
             
             ! If this is an SP run, we actually need enough patches on the
@@ -781,13 +784,16 @@ contains
          else
 
             ! If we are using fixed biogeography or no-comp then we
-            ! can also apply those constraints to maxpatch_primary and secondary
+            ! can also apply those constraints to maxpatch_primaryland and secondary
             ! and that value will match fates_maxPatchesPerSite
             
             if(hlm_use_nocomp==itrue) then
 
-               maxpatch_primary = max(maxpatch_primary,fates_numpft)
-               maxpatch_total = maxpatch_primary + maxpatch_secondary
+               maxpatch_primaryland = max(maxpatch_primaryland,fates_numpft)
+               maxpatch_total = maxpatch_primaryland + maxpatch_secondaryland + &
+                                maxpatch_pastureland + maxpatch_rangeland + &
+                                maxpatch_cropland
+
                !if(maxpatch_primary<fates_numpft)then
                !   write(fates_log(),*) 'warning: lower number of patches than pfts'
                !   write(fates_log(),*) 'this may become a problem in nocomp mode'
