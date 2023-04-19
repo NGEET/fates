@@ -659,6 +659,11 @@ contains
                                call landusechange_litter_fluxes(currentSite, currentPatch, &
                                     new_patch, patch_site_areadis,bc_in, &
                                     clearing_matrix(i_donorpatch_landuse_type,receiver_patch_lu_label))
+                            case default
+                               write(fates_log(),*) 'unknown disturbance mode?'
+                               write(fates_log(),*) 'i_disturbance_type: ',i_disturbance_type
+                               call endrun(msg=errMsg(sourcefile, __LINE__))
+                            end select
 
 
                             ! Copy any means or timers from the original patch to the new patch
@@ -832,7 +837,7 @@ contains
                                         nc%lmort_collateral = currentCohort%lmort_collateral
                                         nc%lmort_infra      = currentCohort%lmort_infra
 
-                                     endif woody_if_falldtyp
+                                     endif woody_if_falldtype
                                   endif in_canopy_if_falldtype
 
                                   ! Fire is the current disturbance
@@ -1081,9 +1086,9 @@ contains
                                         nc%lmort_collateral = currentCohort%lmort_collateral
                                         nc%lmort_infra      = currentCohort%lmort_infra
 
-                                     endif woody_if_logdtyp  ! is/is-not woody
+                                     endif woody_if_logdtype  ! is/is-not woody
 
-                                  endif in_canopy_if_logdtyp  ! Select canopy layer
+                                  endif in_canopy_if_logdtype ! Select canopy layer
 
 
                                case (dtype_ilandusechange)
