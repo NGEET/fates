@@ -185,11 +185,20 @@ module EDParamsMod
    ! For instance, in SP mode, we want the same number of primary patches as the number of PFTs
    ! in the fates parameter file, and zero secondary.
    
-   integer, public :: maxpatch_primary
-   character(len=param_string_length), parameter, public :: maxpatch_primary_name = "fates_maxpatch_primary"
+   integer, public :: maxpatch_primaryland
+   character(len=param_string_length), parameter, public :: maxpatch_primaryland_name = "fates_maxpatch_primaryland"
    
-   integer, public :: maxpatch_secondary
-   character(len=param_string_length), parameter, public :: maxpatch_secondary_name = "fates_maxpatch_secondary"
+   integer, public :: maxpatch_secondaryland
+   character(len=param_string_length), parameter, public :: maxpatch_secondaryland_name = "fates_maxpatch_secondaryland"
+
+   integer, public :: maxpatch_pastureland
+   character(len=param_string_length), parameter, public :: maxpatch_pastureland_name = "fates_maxpatch_pastureland"
+
+   integer, public :: maxpatch_rangeland
+   character(len=param_string_length), parameter, public :: maxpatch_rangeland_name = "fates_maxpatch_rangeland"
+
+   integer, public :: maxpatch_cropland
+   character(len=param_string_length), parameter, public :: maxpatch_cropland_name = "fates_maxpatch_cropland"
 
    integer, public :: maxpatch_total
 
@@ -292,8 +301,11 @@ contains
     ED_val_canopy_closure_thresh          = nan
     stomatal_model                        = -9
     stomatal_assim_model                  = -9
-    maxpatch_primary                      = -9
-    maxpatch_secondary                    = -9
+    maxpatch_primaryland                  = -9
+    maxpatch_secondaryland                = -9
+    maxpatch_pastureland                  = -9
+    maxpatch_rangeland                    = -9
+    maxpatch_cropland                     = -9
     max_cohort_per_patch                  = -9
     hydr_kmax_rsurf1                      = nan
     hydr_kmax_rsurf2                      = nan
@@ -437,10 +449,19 @@ contains
     call fates_params%RegisterParameter(name=stomatal_assim_name, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=maxpatch_primary_name, dimension_shape=dimension_shape_scalar, &
+    call fates_params%RegisterParameter(name=maxpatch_primaryland_name, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=maxpatch_secondary_name, dimension_shape=dimension_shape_scalar, &
+    call fates_params%RegisterParameter(name=maxpatch_secondaryland_name, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=maxpatch_pastureland_name, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=maxpatch_rangeland_name, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=maxpatch_cropland_name, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=maxcohort_name, dimension_shape=dimension_shape_scalar, &
@@ -641,15 +662,29 @@ contains
          data=tmpreal)
     stomatal_assim_model = nint(tmpreal)
 
-    call fates_params%RetrieveParameter(name=maxpatch_primary_name, &
+    call fates_params%RetrieveParameter(name=maxpatch_primaryland_name, &
          data=tmpreal)
-    maxpatch_primary = nint(tmpreal)
+    maxpatch_primaryland = nint(tmpreal)
 
-    call fates_params%RetrieveParameter(name=maxpatch_secondary_name, &
+    call fates_params%RetrieveParameter(name=maxpatch_secondaryland_name, &
          data=tmpreal)
-    maxpatch_secondary = nint(tmpreal)
+    maxpatch_secondaryland = nint(tmpreal)
 
-    maxpatch_total = maxpatch_primary+maxpatch_secondary
+    call fates_params%RetrieveParameter(name=maxpatch_pastureland_name, &
+         data=tmpreal)
+    maxpatch_pastureland = nint(tmpreal)
+
+    call fates_params%RetrieveParameter(name=maxpatch_rangeland_name, &
+         data=tmpreal)
+    maxpatch_rangeland = nint(tmpreal)
+
+    call fates_params%RetrieveParameter(name=maxpatch_cropland_name, &
+         data=tmpreal)
+    maxpatch_cropland = nint(tmpreal)
+
+    maxpatch_total = maxpatch_primaryland + maxpatch_secondaryland + &
+                     maxpatch_pastureland + maxpatch_rangeland + &
+                     maxpatch_cropland
     
     call fates_params%RetrieveParameter(name=maxcohort_name, &
          data=tmpreal)

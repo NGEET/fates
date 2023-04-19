@@ -96,8 +96,8 @@ module EDPatchDynamicsMod
   use SFParamsMod,            only : SF_VAL_CWD_FRAC
   use EDParamsMod,            only : logging_event_code
   use EDParamsMod,            only : logging_export_frac
-  use EDParamsMod,            only : maxpatch_primary
-  use EDParamsMod,            only : maxpatch_secondary
+  use EDParamsMod,            only : maxpatch_primaryland, maxpatch_secondaryland
+  use EDParamsMod,            only : maxpatch_pastureland, maxpatch_rangeland, maxpatch_cropland
   use EDParamsMod,            only : maxpatch_total
   use FatesRunningMeanMod,    only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm
   
@@ -2643,7 +2643,7 @@ contains
     ! if anthropogenic disturance is enabled.
     if (hlm_use_nocomp.eq.itrue) then
        !!cdk this logic for how many patcehs to allow in nocomp will need to be changed
-       maxpatches(primaryland) = max(maxpatch_primary, sum(csite%use_this_pft))
+       maxpatches(primaryland) = max(maxpatch_primaryland, sum(csite%use_this_pft))
        maxpatches(cropland) = maxpatch_cropland
        maxpatches(pastureland) = maxpatch_pastureland
        maxpatches(rangeland) = maxpatch_rangeland
