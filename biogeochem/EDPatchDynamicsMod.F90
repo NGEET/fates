@@ -485,9 +485,7 @@ contains
     endif
 
     ! zero the diagnostic disturbance rate fields
-    currentSite%disturbance_rates_primary_to_primary(1:N_DIST_TYPES) = 0._r8
-    currentSite%disturbance_rates_primary_to_secondary(1:N_DIST_TYPES) = 0._r8
-    currentSite%disturbance_rates_secondary_to_secondary(1:N_DIST_TYPES) = 0._r8
+    currentSite%disturbance_rates(:) = 0._r8
 
     ! get rules for vegetation clearing during land use change
     call get_landusechange_rules(clearing_matrix)

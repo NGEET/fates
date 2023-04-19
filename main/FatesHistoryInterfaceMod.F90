@@ -2681,25 +2681,25 @@ end subroutine flush_hvars
       ! error in primary lands from patch fusion [m2 m-2 day-1] -> [m2 m-2 yr-1]
       hio_primaryland_fusion_error_si(io_si) = sites(s)%primary_land_patchfusion_error * days_per_year
 
-      ! output site-level disturbance rates [m2 m-2 day-1] -> [m2 m-2 yr-1]
-      hio_disturbance_rate_p2p_si(io_si) = sum(sites(s)%disturbance_rates_primary_to_primary(1:N_DIST_TYPES)) * days_per_year
-      hio_disturbance_rate_p2s_si(io_si) = sum(sites(s)%disturbance_rates_primary_to_secondary(1:N_DIST_TYPES)) * days_per_year
-      hio_disturbance_rate_s2s_si(io_si) = sum(sites(s)%disturbance_rates_secondary_to_secondary(1:N_DIST_TYPES)) * days_per_year
+      ! output site-level disturbance rates [m2 m-2 day-1] -> [m2 m-2 yr-1] - TO DO rework this
+      ! hio_disturbance_rate_p2p_si(io_si) = sum(sites(s)%disturbance_rates_primary_to_primary(1:N_DIST_TYPES)) * days_per_year
+      ! hio_disturbance_rate_p2s_si(io_si) = sum(sites(s)%disturbance_rates_primary_to_secondary(1:N_DIST_TYPES)) * days_per_year
+      ! hio_disturbance_rate_s2s_si(io_si) = sum(sites(s)%disturbance_rates_secondary_to_secondary(1:N_DIST_TYPES)) * days_per_year
 
-      hio_fire_disturbance_rate_si(io_si) = (sites(s)%disturbance_rates_primary_to_primary(dtype_ifire) + &
-         sites(s)%disturbance_rates_primary_to_secondary(dtype_ifire) +        &
-         sites(s)%disturbance_rates_secondary_to_secondary(dtype_ifire)) *     &
-         days_per_year
+      ! hio_fire_disturbance_rate_si(io_si) = (sites(s)%disturbance_rates_primary_to_primary(dtype_ifire) + &
+      !    sites(s)%disturbance_rates_primary_to_secondary(dtype_ifire) +        &
+      !    sites(s)%disturbance_rates_secondary_to_secondary(dtype_ifire)) *     &
+      !    days_per_year
 
-      hio_logging_disturbance_rate_si(io_si) = (sites(s)%disturbance_rates_primary_to_primary(dtype_ilog) + &
-         sites(s)%disturbance_rates_primary_to_secondary(dtype_ilog) +         &
-         sites(s)%disturbance_rates_secondary_to_secondary(dtype_ilog)) *      &
-         days_per_year
+      ! hio_logging_disturbance_rate_si(io_si) = (sites(s)%disturbance_rates_primary_to_primary(dtype_ilog) + &
+      !    sites(s)%disturbance_rates_primary_to_secondary(dtype_ilog) +         &
+      !    sites(s)%disturbance_rates_secondary_to_secondary(dtype_ilog)) *      &
+      !    days_per_year
 
-      hio_fall_disturbance_rate_si(io_si) = (sites(s)%disturbance_rates_primary_to_primary(dtype_ifall) + &
-         sites(s)%disturbance_rates_primary_to_secondary(dtype_ifall) +     &
-         sites(s)%disturbance_rates_secondary_to_secondary(dtype_ifall)) *  &
-         days_per_year
+      ! hio_fall_disturbance_rate_si(io_si) = (sites(s)%disturbance_rates_primary_to_primary(dtype_ifall) + &
+      !    sites(s)%disturbance_rates_primary_to_secondary(dtype_ifall) +     &
+      !    sites(s)%disturbance_rates_secondary_to_secondary(dtype_ifall)) *  &
+      !    days_per_year
 
       hio_potential_disturbance_rate_si(io_si) = sum(sites(s)%potential_disturbance_rates(1:N_DIST_TYPES)) * days_per_year
 

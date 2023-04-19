@@ -565,6 +565,7 @@ module EDTypesMod
      real(r8) ::  disturbance_rates(n_dist_types)                  ! disturbance rate from 1) mortality 
                                                                    !                       2) fire: fraction/day 
                                                                    !                       3) logging mortatliy
+                                                                   !                       4) land use change
      real(r8) ::  landuse_transition_rates(n_landuse_cats)         ! land use tranision rate
      real(r8) ::  fract_ldist_not_harvested                        ! fraction of logged area that is canopy trees that weren't harvested
 
@@ -898,12 +899,9 @@ module EDTypesMod
      real(r8) ::  spread                                          ! dynamic canopy allometric term [unitless]
 
      ! site-level variables to keep track of the disturbance rates, both actual and "potential"
-     real(r8) :: disturbance_rates_primary_to_primary(N_DIST_TYPES)      ! actual disturbance rates from primary patches to primary patches [m2/m2/day]
-     real(r8) :: disturbance_rates_primary_to_secondary(N_DIST_TYPES)    ! actual disturbance rates from primary patches to secondary patches [m2/m2/day]
-     real(r8) :: disturbance_rates_secondary_to_secondary(N_DIST_TYPES)  ! actual disturbance rates from secondary patches to secondary patches [m2/m2/day]
-     real(r8) :: potential_disturbance_rates(N_DIST_TYPES)               ! "potential" disturb rates (i.e. prior to the "which is most" logic) [m2/m2/day]
-     real(r8) :: primary_land_patchfusion_error                          ! error term in total area of primary patches associated with patch fusion [m2/m2/day]
-
+     real(r8) :: disturbance_rates(N_DIST_TYPES)            ! actual disturbance rates for each disturbance type  [m2/m2/day]
+     real(r8) :: potential_disturbance_rates(N_DIST_TYPES)  ! "potential" disturbance rates (i.e. prior to the "which is most" logic) [m2/m2/day]
+     real(r8) :: primary_land_patchfusion_error             ! error term in total area of primary patches associated with patch fusion [m2/m2/day]
      real(r8) :: landuse_transition_matrix(n_landuse_cats, n_landuse_cats) ! land use transition matrix as read in from HLM and aggregated to FATES land use types [m2/m2/year]
 
   end type ed_site_type
