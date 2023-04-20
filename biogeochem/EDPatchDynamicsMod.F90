@@ -280,9 +280,6 @@ contains
     ! Calculate Disturbance Rates based on the mortality rates just calculated
     ! ---------------------------------------------------------------------------------------------
 
-    ! zero the diagnostic disturbance rate fields
-    site_in%potential_disturbance_rates(1:N_DIST_TYPES) = 0._r8
-
     ! Recalculate total canopy area prior to resolving the disturbance
     currentPatch => site_in%oldest_patch
     do while (associated(currentPatch))
@@ -380,12 +377,6 @@ contains
 
        ! Fire Disturbance Rate
        currentPatch%disturbance_rates(dtype_ifire) = currentPatch%frac_burnt
-
-       ! calculate a disgnostic sum of disturbance rates for different classes of disturbance across all patches in this site. 
-       do i_dist = 1,N_DIST_TYPES
-          site_in%potential_disturbance_rates(i_dist) = site_in%potential_disturbance_rates(i_dist) + &
-               currentPatch%disturbance_rates(i_dist) * currentPatch%area * AREA_INV
-       end do
 
        ! Fires can't burn the whole patch, as this causes /0 errors. 
        if (currentPatch%disturbance_rates(dtype_ifire) > 0.98_r8)then
@@ -492,7 +483,7 @@ contains
     endif
 
     ! zero the diagnostic disturbance rate fields
-    currentSite%disturbance_rates(:) = 0._r8
+    currentSite%disturbance_rates(:,:,:) = 0._r8
 
     ! get rules for vegetation clearing during land use change
     call get_landusechange_rules(clearing_matrix)
@@ -555,8 +546,8 @@ contains
                             site_areadis = site_areadis + currentPatch%area * disturbance_rate
 
                             ! track disturbance rates to output to history
-                            currentSite%disturbance_rates(i_disturbance_type) = &
-                                 currentSite%disturbance_rates(i_disturbance_type) + &
+                            currentSite%disturbance_rates(i_disturbance_type,i_donorpatch_landuse_type,receiver_patch_lu_label) = &
+                                 currentSite%disturbance_rates(i_disturbance_type,i_donorpatch_landuse_type,receiver_patch_lu_label) + &
                                  currentPatch%area * disturbance_rate * AREA_INV
 
 

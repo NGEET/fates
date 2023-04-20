@@ -302,15 +302,11 @@ module FatesHistoryInterfaceMod
   integer :: ih_growth_resp_secondary_si
 
   integer :: ih_primaryland_fusion_error_si
-  ! integer :: ih_disturbance_rate_p2p_si
-  ! integer :: ih_disturbance_rate_p2s_si
-  ! integer :: ih_disturbance_rate_s2s_si
-  ! integer :: ih_disturbance_rate_si
   integer :: ih_area_si_landuse
+  integer :: ih_disturbance_rate_si_lulu
   integer :: ih_fire_disturbance_rate_si
   integer :: ih_logging_disturbance_rate_si
   integer :: ih_fall_disturbance_rate_si
-  integer :: ih_potential_disturbance_rate_si
   integer :: ih_harvest_carbonflux_si
   integer :: ih_harvest_debt_si
   integer :: ih_harvest_debt_sec_si
@@ -2275,6 +2271,7 @@ end subroutine flush_hvars
     real(r8) :: storec_understory_scpf(numpft*nlevsclass)
     
     integer  :: return_code
+    integer  :: i_dist, j_dist
     
     type(ed_patch_type),pointer  :: cpatch
     type(ed_cohort_type),pointer :: ccohort
@@ -2344,13 +2341,10 @@ end subroutine flush_hvars
                hio_canopy_biomass_si   => this%hvars(ih_canopy_biomass_si)%r81d, &
                hio_understory_biomass_si   => this%hvars(ih_understory_biomass_si)%r81d, &
                hio_primaryland_fusion_error_si    => this%hvars(ih_primaryland_fusion_error_si)%r81d, &
-               ! hio_disturbance_rate_p2p_si       => this%hvars(ih_disturbance_rate_p2p_si)%r81d, &
-               ! hio_disturbance_rate_p2s_si       => this%hvars(ih_disturbance_rate_p2s_si)%r81d, &
-               ! hio_disturbance_rate_s2s_si       => this%hvars(ih_disturbance_rate_s2s_si)%r81d, &
+               hio_disturbance_rate_si_lulu      => this%hvars(ih_disturbance_rate_si_lulu)%r82d, &
                hio_fire_disturbance_rate_si      => this%hvars(ih_fire_disturbance_rate_si)%r81d, &
                hio_logging_disturbance_rate_si   => this%hvars(ih_logging_disturbance_rate_si)%r81d, &
                hio_fall_disturbance_rate_si      => this%hvars(ih_fall_disturbance_rate_si)%r81d, &
-               hio_potential_disturbance_rate_si => this%hvars(ih_potential_disturbance_rate_si)%r81d, &
                hio_harvest_carbonflux_si => this%hvars(ih_harvest_carbonflux_si)%r81d, &
                hio_harvest_debt_si     => this%hvars(ih_harvest_debt_si)%r81d, &
                hio_harvest_debt_sec_si => this%hvars(ih_harvest_debt_sec_si)%r81d, &
@@ -2683,27 +2677,23 @@ end subroutine flush_hvars
       ! error in primary lands from patch fusion [m2 m-2 day-1] -> [m2 m-2 yr-1]
       hio_primaryland_fusion_error_si(io_si) = sites(s)%primary_land_patchfusion_error * days_per_year
 
+      do i_dist = 1, n_landuse_cats
+         do j_dist = 1, n_landuse_cats
+            hio_disturbance_rate_si_lulu(io_si, i_dist, j_dist) = sum(site%disturbance_rates(1:n_dist_types,i_dist, j_dist) * &
+                 days_per_year
+         end do
+      end do
+
       ! output site-level disturbance rates [m2 m-2 day-1] -> [m2 m-2 yr-1] - TO DO rework this
-      ! hio_disturbance_rate_p2p_si(io_si) = sum(sites(s)%disturbance_rates_primary_to_primary(1:N_DIST_TYPES)) * days_per_year
-      ! hio_disturbance_rate_p2s_si(io_si) = sum(sites(s)%disturbance_rates_primary_to_secondary(1:N_DIST_TYPES)) * days_per_year
-      ! hio_disturbance_rate_s2s_si(io_si) = sum(sites(s)%disturbance_rates_secondary_to_secondary(1:N_DIST_TYPES)) * days_per_year
 
-      ! hio_fire_disturbance_rate_si(io_si) = (sites(s)%disturbance_rates_primary_to_primary(dtype_ifire) + &
-      !    sites(s)%disturbance_rates_primary_to_secondary(dtype_ifire) +        &
-      !    sites(s)%disturbance_rates_secondary_to_secondary(dtype_ifire)) *     &
-      !    days_per_year
+      hio_fire_disturbance_rate_si(io_si) = sum(sites(s)%disturbance_rates_primary_to_primary(dtype_ifire,1:n_landuse_cats,1:n_landuse_cats)) * &
+          days_per_year
 
-      ! hio_logging_disturbance_rate_si(io_si) = (sites(s)%disturbance_rates_primary_to_primary(dtype_ilog) + &
-      !    sites(s)%disturbance_rates_primary_to_secondary(dtype_ilog) +         &
-      !    sites(s)%disturbance_rates_secondary_to_secondary(dtype_ilog)) *      &
-      !    days_per_year
+      hio_logging_disturbance_rate_si(io_si) = sum(sites(s)%disturbance_rates_primary_to_primary(dtype_ilog,1:n_landuse_cats,1:n_landuse_cats)) * &
+           days_per_year
 
-      ! hio_fall_disturbance_rate_si(io_si) = (sites(s)%disturbance_rates_primary_to_primary(dtype_ifall) + &
-      !    sites(s)%disturbance_rates_primary_to_secondary(dtype_ifall) +     &
-      !    sites(s)%disturbance_rates_secondary_to_secondary(dtype_ifall)) *  &
-      !    days_per_year
-
-      hio_potential_disturbance_rate_si(io_si) = sum(sites(s)%potential_disturbance_rates(1:N_DIST_TYPES)) * days_per_year
+      hio_fall_disturbance_rate_si(io_si) = sum(sites(s)%disturbance_rates_primary_to_primary(dtype_ifall,1:n_landuse_cats,1:n_landuse_cats)) * &
+           days_per_year
 
       hio_harvest_carbonflux_si(io_si) = sites(s)%mass_balance(element_pos(carbon12_element))%wood_product * AREA_INV
       
@@ -5658,6 +5648,11 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_landuse_r8, hlms='CLM:ALM', upfreq=1, ivar=ivar,  &
          initialize=initialize_variables, index=ih_area_si_landuse)
 
+    call this%set_history_var(vname='FATES_DISTURBANCE_RATE_MATRIX_LULU', units='m2 m-2 yr-1',      &
+         long='disturbance rates by land use type x land use type matrix', use_default='active',  &
+         avgflag='A', vtype=site_lulu_r8, hlms='CLM:ALM', upfreq=1, ivar=ivar,  &
+         initialize=initialize_variables, index=ih_disturbance_rate_si_lulu)
+
     ! Secondary forest area and age diagnostics
 
     call this%set_history_var(vname='FATES_SECONDARY_FOREST_FRACTION',         &
@@ -6316,27 +6311,6 @@ end subroutine update_history_hifrq
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_primaryland_fusion_error_si)
 
-    ! call this%set_history_var(vname='FATES_DISTURBANCE_RATE_P2P',              &
-    !      units='m2 m-2 yr-1',                                                  &
-    !      long='disturbance rate from primary to primary lands',                &
-    !      use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-    !      upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
-    !      index = ih_disturbance_rate_p2p_si)
-
-    ! call this%set_history_var(vname='FATES_DISTURBANCE_RATE_P2S',              &
-    !      units='m2 m-2 yr-1',                                                  &
-    !      long='disturbance rate from primary to secondary lands',              &
-    !      use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-    !      upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
-    !      index = ih_disturbance_rate_p2s_si )
-
-    ! call this%set_history_var(vname='FATES_DISTURBANCE_RATE_S2S',              &
-    !      units='m2 m-2 yr-1',                                                  &
-    !      long='disturbance rate from secondary to secondary lands',            &
-    !      use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-    !      upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
-    !      index = ih_disturbance_rate_s2s_si)
-
     call this%set_history_var(vname='FATES_DISTURBANCE_RATE_FIRE',             &
          units='m2 m-2 yr-1', long='disturbance rate from fire',               &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
@@ -6354,13 +6328,6 @@ end subroutine update_history_hifrq
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_fall_disturbance_rate_si)
-
-    call this%set_history_var(vname='FATES_DISTURBANCE_RATE_POTENTIAL',        &
-         units='m2 m-2 yr-1',                                                  &
-         long='potential (i.e., including unresolved) disturbance rate',       &
-         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
-         index = ih_potential_disturbance_rate_si)
 
     call this%set_history_var(vname='FATES_HARVEST_CARBON_FLUX',               &
          units='kg m-2 yr-1',                                                  &
