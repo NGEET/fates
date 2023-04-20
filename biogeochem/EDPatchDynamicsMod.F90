@@ -429,9 +429,11 @@ contains
     !
     ! !USES:
 
-    use EDParamsMod         , only : ED_val_understorey_death, logging_coll_under_frac
-    use EDCohortDynamicsMod , only : zero_cohort, copy_cohort, terminate_cohorts
-    use FatesConstantsMod   , only : rsnbl_math_prec
+    use EDParamsMod          , only : ED_val_understorey_death, logging_coll_under_frac
+    use EDCohortDynamicsMod  , only : zero_cohort, copy_cohort, terminate_cohorts
+    use FatesConstantsMod    , only : rsnbl_math_prec
+    use FatesLandUseChangeMod, only : get_landuse_transition_rates
+    use FatesLandUseChangeMod, only : get_landusechange_rules
 
     !
     ! !ARGUMENTS:

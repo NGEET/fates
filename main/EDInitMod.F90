@@ -500,6 +500,7 @@ contains
 
     use FatesPlantHydraulicsMod, only : updateSizeDepRhizHydProps
     use FatesInventoryInitMod,   only : initialize_sites_by_inventory
+    use FatesLandUseChangeMod,   only : get_luh_statedata
 
     !
     ! !ARGUMENTS
