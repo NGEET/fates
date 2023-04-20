@@ -468,7 +468,7 @@ contains
     logical  :: found_youngest_primary       ! logical for finding the first primary forest patch
     integer  :: min_nocomp_pft, max_nocomp_pft, i_nocomp_pft
     integer  :: i_disturbance_type, i_dist2  ! iterators for looping over disturbance types
-    integer  :: i_landusechange_type         ! iterator for the land use change types
+    integer  :: i_landusechange_receiverpatchlabel  ! iterator for the land use change types
     integer  :: i_donorpatch_landuse_type    ! iterator for the land use change types donor patch
     integer  :: n_luctype                    ! pass through variable for number of landuse types
     integer  :: receiver_patch_lu_label      ! pass through variable for reciever patch land use type label
@@ -509,9 +509,9 @@ contains
              n_luctype = 1
           endif
 
-          landusechange_type_loop: do i_landusechange_type = 1, n_luctype
+          landusechange_receiverpatchlabel_loop: do i_landusechange_receiverpatchlabel = 1, n_luctype
 
-             landuse_type_loop: do i_donorpatch_landuse_type = 1, n_landuse_cats
+             landuse_donortype_loop: do i_donorpatch_landuse_type = 1, n_landuse_cats
 
                 ! calculate area of disturbed land, in this timestep, by summing contributions from each existing patch.
                 currentPatch => currentSite%youngest_patch
@@ -522,6 +522,8 @@ contains
                 ! this disturbance label and disturbance of this type will have
                 if ( i_disturbance_type .eq. dtype_ilog) then
                    receiver_patch_lu_label =secondaryland
+                else if ( i_disturbance_type .eq. dtype_ilandusechange) then
+                   receiver_patch_lu_label = i_landusechange_receiverpatchlabel
                 else
                    receiver_patch_lu_label = i_donorpatch_landuse_type
                 endif
@@ -536,7 +538,7 @@ contains
                          if ( i_disturbance_type .ne. dtype_ilandusechange) then
                             disturbance_rate = currentPatch%disturbance_rates(i_disturbance_type)
                          else
-                            disturbance_rate = currentPatch%landuse_transition_rates(i_landusechange_type)
+                            disturbance_rate = currentPatch%landuse_transition_rates(i_landusechange_receiverpatchlabel)
                          endif
 
                          if(disturbance_rate > (1.0_r8 + rsnbl_math_prec)) then
@@ -608,7 +610,7 @@ contains
                          if ( i_disturbance_type .ne. dtype_ilandusechange) then
                             disturbance_rate = currentPatch%disturbance_rates(i_disturbance_type)
                          else
-                            disturbance_rate = currentPatch%landuse_transition_rates(i_landusechange_type)
+                            disturbance_rate = currentPatch%landuse_transition_rates(i_landusechange_receiverpatchlabel)
                          endif
 
                          patch_site_areadis = currentPatch%area * disturbance_rate
@@ -1169,7 +1171,7 @@ contains
                                        * oldarea / currentPatch%area
                                end do
                             else
-                               do i_dist2 = i_landusechange_type+1,n_landuse_cats
+                               do i_dist2 = i_landusechange_receiverpatchlabel+1,n_landuse_cats
                                   currentPatch%landuse_transition_rates(i_dist2) = currentPatch%landuse_transition_rates(i_dist2) &
                                        * oldarea / currentPatch%area
                                end do
@@ -1250,9 +1252,9 @@ contains
 
                 call check_patch_area(currentSite)
                 call set_patchno(currentSite)
-             end do landuse_type_loop
+             end do landuse_donortype_loop
 
-          end do landusechange_type_loop
+          end do landusechange_receiverpatchlabel_loop
        end do disturbance_type_loop
 
     end do nocomp_pft_loop
