@@ -2677,9 +2677,10 @@ end subroutine flush_hvars
       ! error in primary lands from patch fusion [m2 m-2 day-1] -> [m2 m-2 yr-1]
       hio_primaryland_fusion_error_si(io_si) = sites(s)%primary_land_patchfusion_error * days_per_year
 
+      ! roll up disturbance rates in land-use x land-use array into a single dimension
       do i_dist = 1, n_landuse_cats
          do j_dist = 1, n_landuse_cats
-            hio_disturbance_rate_si_lulu(io_si, i_dist, j_dist) = sum(site%disturbance_rates(1:n_dist_types,i_dist, j_dist) * &
+            hio_disturbance_rate_si_lulu(io_si, i_dist+n_landuse_cats*(j_dist-1)) = sum(site%disturbance_rates(1:n_dist_types,i_dist, j_dist) * &
                  days_per_year
          end do
       end do
