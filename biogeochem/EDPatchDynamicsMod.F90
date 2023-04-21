@@ -496,22 +496,21 @@ contains
 
        disturbance_type_loop: do i_disturbance_type = 1,N_DIST_TYPES
 
-          ! figure out what land use label(s) the receiver patch for disturbance from patches with
-          ! this disturbance label and disturbance of this type will have, and set receiver label loop bounds accordingly
-          if ( i_disturbance_type .eq. dtype_ilog) then
-             start_receiver_lulabel = secondaryland
-             end_receiver_lulabel = secondaryland
-          else if ( i_disturbance_type .eq. dtype_ilandusechange) then
-             start_receiver_lulabel = 1  ! this should actually maybe be 2, as primaryland column of matrix should all be zeros, but leave as 1 for now
-             end_receiver_lulabel = n_landuse_cats
-          else
-             start_receiver_lulabel = i_donorpatch_landuse_type
-             end_receiver_lulabel = i_donorpatch_landuse_type
-          endif
+          landuse_donortype_loop: do i_donorpatch_landuse_type = 1, n_landuse_cats
+             ! figure out what land use label(s) the receiver patch for disturbance from patches with
+             ! this disturbance label and disturbance of this type will have, and set receiver label loop bounds accordingly
+             if ( i_disturbance_type .eq. dtype_ilog) then
+                start_receiver_lulabel = secondaryland
+                end_receiver_lulabel = secondaryland
+             else if ( i_disturbance_type .eq. dtype_ilandusechange) then
+                start_receiver_lulabel = 1  ! this could actually maybe be 2, as primaryland column of matrix should all be zeros, but leave as 1 for now
+                end_receiver_lulabel = n_landuse_cats
+             else
+                start_receiver_lulabel = i_donorpatch_landuse_type
+                end_receiver_lulabel = i_donorpatch_landuse_type
+             endif
 
-          landusechange_receiverpatchlabel_loop: do i_landusechange_receiverpatchlabel = start_receiver_lulabel, end_receiver_lulabel
-
-             landuse_donortype_loop: do i_donorpatch_landuse_type = 1, n_landuse_cats
+             landusechange_receiverpatchlabel_loop: do i_landusechange_receiverpatchlabel = start_receiver_lulabel, end_receiver_lulabel
 
                 ! calculate area of disturbed land, in this timestep, by summing contributions from each existing patch.
                 currentPatch => currentSite%youngest_patch
@@ -1242,9 +1241,9 @@ contains
 
                 call check_patch_area(currentSite)
                 call set_patchno(currentSite)
-             end do landuse_donortype_loop
 
-          end do landusechange_receiverpatchlabel_loop
+             end do landusechange_receiverpatchlabel_loop
+          end do landuse_donortype_loop
        end do disturbance_type_loop
 
     end do nocomp_pft_loop
