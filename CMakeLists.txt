@@ -14,15 +14,8 @@ set(CLM_ROOT "../../")
 # Add source directories from other share code (csm_share, etc.)
 add_subdirectory(${CLM_ROOT}/share/src csm_share)
 add_subdirectory(${CLM_ROOT}/share/unit_test_stubs/util csm_share_stubs)
-#add_subdirectory(${CLM_ROOT}/src/unit_test_shr clm_unit_shr)
-#add_subdirectory(${CLM_ROOT}/src/unit_test_stubs clm_unit_stubs)
-
-## shr sources we need
-## shr_log_mod.F90
-## shr_infnan_mod.F90
-## shr_kind_mod.F90
-## shr_strconvert_mod.F90
-## shr_sys_mod.F90
+add_subdirectory(${CLM_ROOT}/src/utils clm_utils)
+add_subdirectory(${CLM_ROOT}/src/main clm_main)
 
 # Extract just the files we need from csm_share
 set (shr_sources_needed_base
@@ -38,9 +31,11 @@ extract_sources("${shr_sources_needed_base}" "${share_sources}" shr_sources_need
 # Add FATES source directories
 add_subdirectory(${CLM_ROOT}/src/fates/main fates_main)
 add_subdirectory(${CLM_ROOT}/src/fates/biogeochem fates_biogeochem)
+add_subdirectory(${CLM_ROOT}/src/fates/biogeophys fates_biogephys)
 add_subdirectory(${CLM_ROOT}/src/fates/parteh fates_parteh)
+add_subdirectory(${CLM_ROOT}/src/fates/fire fates_fire)
 
-# Add general unit test directories (stubbed out files, etc.)
+# Add general unit test directories
 add_subdirectory(${CLM_ROOT}/src/fates/unit_test_shr)
 
 # Remove shr_mpi_mod from share_sources.

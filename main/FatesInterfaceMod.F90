@@ -95,6 +95,7 @@ module FatesInterfaceMod
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
    use shr_infnan_mod            , only : nan => shr_infnan_nan, assignment(=)
+   use shr_kind_mod              , only : SHR_KIND_CL
 
    ! Just use everything from FatesInterfaceTypesMod, this is
    ! its sister code
@@ -723,7 +724,8 @@ contains
 
     ! ===================================================================================
     
-    subroutine SetFatesGlobalElements1(use_fates,surf_numpft,surf_numcft)
+    subroutine SetFatesGlobalElements1(use_fates,surf_numpft,surf_numcft,      &
+        masterproc, paramfile, fates_paramfile)
 
        ! --------------------------------------------------------------------------------
        !
@@ -735,16 +737,19 @@ contains
 
       implicit none
       
-      logical,intent(in) :: use_fates    ! Is fates turned on?
-      integer,intent(in) :: surf_numpft  ! Number of PFTs in surface dataset
-      integer,intent(in) :: surf_numcft  ! Number of CFTs in surface dataset
+      logical,                    intent(in) :: use_fates    ! Is fates turned on?
+      logical,                    intent(in) :: masterproc   ! proc 0 logical for printing msgs
+      integer,                    intent(in) :: surf_numpft  ! Number of PFTs in surface dataset
+      integer,                    intent(in) :: surf_numcft  ! Number of CFTs in surface dataset
+      character(len=SHR_KIND_CL), intent(in) :: paramfile       ! ASCII data file (host model)
+      character(len=SHR_KIND_CL), intent(in) :: fates_paramfile ! ASCII data file with PFT physiological constants (FATES)
 
       integer :: fates_numpft  ! Number of PFTs tracked in FATES
       
       if (use_fates) then
          
          ! Self explanatory, read the fates parameter file
-         call FatesReadParameters()
+         call FatesReadParameters(paramfile, fates_paramfile, masterproc)
 
          fates_numpft = size(prt_params%wood_density,dim=1)
          
