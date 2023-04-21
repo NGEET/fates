@@ -34,7 +34,8 @@ def main():
     regrid_luh2["LATIXY"] = ds_regridtarget["LATIXY"]
 
     # Write the files
-    outputfile = os.path.join()
+    outputfile = os.path.join(os.getcwd(),'LUH2_states_transitions_management.timeseries_4x5_hist_simyr1850-2015_c230415.nc')
+
     regrid_luh2.to_netcdf(outputfile)
 
     # Example of file naming scheme
@@ -179,14 +180,17 @@ def BoundsVariableFixLUH2(inputdataset):
 
 # The user will need to use a surface data set to regrid from, but the surface datasets
 # need to have their dimensions renamed to something recognizable by xESMF
-def DimensionFixSurfData(surfdataset):
+def DimensionFixSurfData(inputdataset):
 
     # Rename the surface dataset dimensions to something recognizable by xESMF.
-    inputdataset = surfdataset.rename_dims(dims_dict={'lsmlat':'latitude','lsmlon':'longitude'})
+    # inputdataset = surfdataset.rename_dims(dims_dict={'lsmlat':'latitude','lsmlon':'longitude'})
+    inputdataset = inputdataset.rename_dims(dims_dict={'lsmlat':'lat','lsmlon':'lon'})
 
     # Populate the new surface dataset with the actual lat/lon values
-    inputdataset['longitude'] = outputdataset.LONGXY.isel(latitude=0)
-    inputdataset['latitude']  = outputdataset.LATIXY.isel(longitude=0)
+    # inputdataset['longitude'] = inputdataset.LONGXY.isel(latitude=0)
+    # inputdataset['latitude']  = inputdataset.LATIXY.isel(longitude=0)
+    inputdataset['lon'] = inputdataset.LONGXY.isel(lat=0)
+    inputdataset['lat']  = inputdataset.LATIXY.isel(lon=0)
 
     print("Surface dataset dimensions renamed for xESMF")
 
