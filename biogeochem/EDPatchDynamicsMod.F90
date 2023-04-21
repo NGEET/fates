@@ -463,8 +463,8 @@ contains
     integer  :: i_disturbance_type, i_dist2  ! iterators for looping over disturbance types
     integer  :: i_landusechange_receiverpatchlabel  ! iterator for the land use change types
     integer  :: i_donorpatch_landuse_type    ! iterator for the land use change types donor patch
-    integer  :: n_luctype                    ! pass through variable for number of landuse types
-    integer  :: receiver_patch_lu_label      ! pass through variable for reciever patch land use type label
+    integer  :: start_receiver_lulabel       ! starting bound for receiver landuse label type loop
+    integer  :: end_receiver_lulabel         ! ending bound for receiver landuse label type loop
     real(r8) :: disturbance_rate             ! rate of disturbance being resolved [fraction of patch area / day]
     real(r8) :: oldarea                      ! old patch area prior to disturbance
     logical  :: clearing_matrix(n_landuse_cats,n_landuse_cats)  ! do we clear vegetation when transferring from one LU type to another?
@@ -496,13 +496,20 @@ contains
 
        disturbance_type_loop: do i_disturbance_type = 1,N_DIST_TYPES
 
-          if ( i_disturbance_type .eq. dtype_ilandusechange) then
-             n_luctype = n_landuse_cats
+          ! figure out what land use label(s) the receiver patch for disturbance from patches with
+          ! this disturbance label and disturbance of this type will have, and set receiver label loop bounds accordingly
+          if ( i_disturbance_type .eq. dtype_ilog) then
+             start_receiver_lulabel = secondaryland
+             end_receiver_lulabel = secondaryland
+          else if ( i_disturbance_type .eq. dtype_ilandusechange) then
+             start_receiver_lulabel = 1  ! this should actually maybe be 2, as primaryland column of matrix should all be zeros, but leave as 1 for now
+             end_receiver_lulabel = n_landuse_cats
           else
-             n_luctype = 1
+             start_receiver_lulabel = i_donorpatch_landuse_type
+             end_receiver_lulabel = i_donorpatch_landuse_type
           endif
 
-          landusechange_receiverpatchlabel_loop: do i_landusechange_receiverpatchlabel = 1, n_luctype
+          landusechange_receiverpatchlabel_loop: do i_landusechange_receiverpatchlabel = start_receiver_lulabel, end_receiver_lulabel
 
              landuse_donortype_loop: do i_donorpatch_landuse_type = 1, n_landuse_cats
 
@@ -510,16 +517,6 @@ contains
                 currentPatch => currentSite%youngest_patch
 
                 site_areadis = 0.0_r8
-
-                ! figure out what land use label the receiver patch for disturbance from patches with
-                ! this disturbance label and disturbance of this type will have
-                if ( i_disturbance_type .eq. dtype_ilog) then
-                   receiver_patch_lu_label =secondaryland
-                else if ( i_disturbance_type .eq. dtype_ilandusechange) then
-                   receiver_patch_lu_label = i_landusechange_receiverpatchlabel
-                else
-                   receiver_patch_lu_label = i_donorpatch_landuse_type
-                endif
 
                 patchloop_areadis: do while(associated(currentPatch))
 
@@ -546,8 +543,8 @@ contains
                             site_areadis = site_areadis + currentPatch%area * disturbance_rate
 
                             ! track disturbance rates to output to history
-                            currentSite%disturbance_rates(i_disturbance_type,i_donorpatch_landuse_type,receiver_patch_lu_label) = &
-                                 currentSite%disturbance_rates(i_disturbance_type,i_donorpatch_landuse_type,receiver_patch_lu_label) + &
+                            currentSite%disturbance_rates(i_disturbance_type,i_donorpatch_landuse_type,i_landusechange_receiverpatchlabel) = &
+                                 currentSite%disturbance_rates(i_disturbance_type,i_donorpatch_landuse_type,i_landusechange_receiverpatchlabel) + &
                                  currentPatch%area * disturbance_rate * AREA_INV
 
 
@@ -567,7 +564,7 @@ contains
                    allocate(new_patch)
 
                    call create_patch(currentSite, new_patch, age, &
-                        site_areadis, receiver_patch_lu_label, i_nocomp_pft)
+                        site_areadis, i_landusechange_receiverpatchlabel, i_nocomp_pft)
 
                    ! Initialize the litter pools to zero, these
                    ! pools will be populated by looping over the existing patches
@@ -656,7 +653,7 @@ contains
                             case (dtype_ilandusechange)
                                call landusechange_litter_fluxes(currentSite, currentPatch, &
                                     new_patch, patch_site_areadis,bc_in, &
-                                    clearing_matrix(i_donorpatch_landuse_type,receiver_patch_lu_label))
+                                    clearing_matrix(i_donorpatch_landuse_type,i_landusechange_receiverpatchlabel))
                             case default
                                write(fates_log(),*) 'unknown disturbance mode?'
                                write(fates_log(),*) 'i_disturbance_type: ',i_disturbance_type
@@ -1098,7 +1095,7 @@ contains
                                   currentCohort%n = currentCohort%n * (1._r8 - patch_site_areadis/currentPatch%area)
 
                                   ! now apply survivorship based on the type of landuse transition
-                                  if ( clearing_matrix(i_donorpatch_landuse_type,receiver_patch_lu_label) ) then
+                                  if ( clearing_matrix(i_donorpatch_landuse_type,i_landusechange_receiverpatchlabel) ) then
                                      ! kill everything
                                      nc%n = 0._r8
                                   end if
