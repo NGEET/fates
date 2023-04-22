@@ -22,12 +22,36 @@
 		 the variables -->
   <!-- -->
   
-  <base_file>archive/api25.3.0_032223_fates_params_default.cdl </base_file>
+  <base_file>archive/api25.4.0_042223_fates_params_default.cdl </base_file>
   <new_file>fates_params_default.cdl</new_file>
   <pft_list> 1,2,3,4,5,6,7,8,9,10,11,12 </pft_list>
   <mods>
-    <mod type="variable_change" name="fates_recruit_init_density">
-      <ln> initial seedling density for a cold-start near-bare-ground simulation. If negative sets initial tree dbh - only to be used in nocomp mode </ln>
+    <mod type="variable_add">
+       <na> fates_maxpatch_cropland </na>
+		   <di> scalar </di>
+       <un> count </un>
+       <ln> maximum number of cropland patches per site </ln>
+       <val> 1 </val>
+    </mod>
+    <mod type="variable_add">
+       <na> fates_maxpatch_pastureland </na>
+		   <di> scalar </di>
+       <un> count </un>
+       <ln> maximum number of pastureland patches per site </ln>
+       <val> 1 </val>
+    </mod>
+    <mod type="variable_add">
+       <na> fates_maxpatch_rangeland</na>
+		   <di> scalar </di>
+       <un> count </un>
+       <ln> maximum number of rangeland patches per site </ln>
+       <val> 1 </val>
+    </mod>
+    <mod type="variable_change" name="fates_maxpatch_primary">
+       <na> fates_maxpatch_primaryland </na>
+    </mod>
+    <mod type="variable_change" name="fates_maxpatch_secondary">
+       <na> fates_maxpatch_secondaryland</na>
     </mod>
   </mods>
 </all>
