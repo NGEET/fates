@@ -2540,8 +2540,10 @@ end subroutine flush_hvars
                hio_mortality_canopy_si_scag         => this%hvars(ih_mortality_canopy_si_scag)%r82d, &
                hio_mortality_understory_si_scag     => this%hvars(ih_mortality_understory_si_scag)%r82d, &
                hio_site_cstatus_si                  => this%hvars(ih_site_cstatus_si)%r81d, &
-               hio_site_dstatus_si                  => this%hvars(ih_site_dstatus_si)%r81d, &
-               hio_gdd_si                           => this%hvars(ih_gdd_si)%r81d, &
+               hio_site_dstatus_si                  => this%hvars(ih_site_dstatus_si)%r81d )
+
+    ! Split up the associate statement as the nag compiler has a limit on line continuation  
+    associate( hio_gdd_si                           => this%hvars(ih_gdd_si)%r81d, &
                hio_site_ncolddays_si                => this%hvars(ih_site_ncolddays_si)%r81d, &
                hio_site_nchilldays_si               => this%hvars(ih_site_nchilldays_si)%r81d, &
                hio_cleafoff_si                      => this%hvars(ih_cleafoff_si)%r81d, &
@@ -4390,6 +4392,7 @@ end subroutine flush_hvars
 
    enddo siteloop ! site loop
 
+   end associate
    end associate
 
    return
