@@ -21,12 +21,6 @@ program FatesUnitTestRadiation
   integer                 :: year, jday ! year and day of year to simulate
   real(r8)                :: lat, lon   ! latitude/longitude to simulate [degrees]
   real(r8)                :: fcansno    ! fraction of canopy covered by snow [0-1]
-  real(r8), allocatable   :: rhol(:,:)  ! leaf reflectance [0-1]
-  real(r8), allocatable   :: rhos(:,:)  ! stem reflectance [0-1]
-  real(r8), allocatable   :: taul(:,:)  ! leaf transmittance [0-1]
-  real(r8), allocatable   :: taus(:,:)  ! stem transmittance [0-1]
-  real(r8), allocatable   :: xl(:)      ! leaf orientation index
-  real(r8), allocatable   :: ci(:)      ! clumping index
 
   ! PARAMETERS
   integer, parameter :: numSWb = 2 ! number of shortwave bands to simulate
@@ -48,36 +42,20 @@ program FatesUnitTestRadiation
 
     end subroutine read_radiation_namelist
 
-    subroutine read_radiation_params(file, numSWb, rhol, rhos, taul, taus, xl, &
-      ci)
-
-      use FatesUnitTestIOMod, only : MAX_PATH, check, read_in_parameter
-      use FatesConstantsMod,  only : r8 => fates_r8
-      use netcdf
-
-      implicit none
-    
-      character(len=MAX_PATH), intent(in)  :: file          
-      integer,                 intent(in)  :: numSWb    
-      real(r8), allocatable,   intent(out) :: rhol(:,:) 
-      real(r8), allocatable,   intent(out) :: rhos(:,:) 
-      real(r8), allocatable,   intent(out) :: taul(:,:) 
-      real(r8), allocatable,   intent(out) :: taus(:,:) 
-      real(r8), allocatable,   intent(out) :: xl(:)     
-      real(r8), allocatable,   intent(out) :: ci(:)     
-
-    end subroutine read_radiation_params
-
   end interface
 
-  call read_radiation_namelist(year, jday, lat, lon, fcansno,                  &
-    param_file, patch_file, out_file)
+  !:...........................................................................:
   
   ! open log file
   logf = open_file("log.txt")
 
-  ! read in FATES parameter file
-  call read_radiation_params(param_file, numSWb, rhol, rhos, taul, taus, xl, ci)
+  ! read in namelist to get some runtime parameters
+  call read_radiation_namelist(year, jday, lat, lon, fcansno, param_file,      &
+    patch_file, out_file)
+  
+  ! read in parameter file and initialize EDPFTvarcon_inst 
+  
+
 
   ! read in patch data
  !call read_patch_data(patch_file, canopy_area_profile, elai_profile,          &
@@ -149,9 +127,8 @@ subroutine read_radiation_namelist(year, jday, lat, lon, fcansno, param_file,  &
   
   if (ios /= 0) then
     ! Problem reading file - tell user.
-    write(message, '(A, I6, A, A)') "Error reading radiation namelist file",   &
+    write(logf, '(A, I6, A, A)') "Error reading radiation namelist file",      &
       ios, "IOMSG: ", msg
-    write(*,*) message
     stop "Stopped"
   end if
 
@@ -160,76 +137,6 @@ subroutine read_radiation_namelist(year, jday, lat, lon, fcansno, param_file,  &
 end subroutine read_radiation_namelist
 
 !:.............................................................................:
-
-subroutine read_radiation_params(file, numSWb, rhol, rhos, taul, taus, xl, ci)
-  !
-  ! DESCRIPTION: 
-  ! read in the parameters we need for this test
-  !
-
-  use FatesUnitTestIOMod, only : MAX_PATH, check, read_in_parameter
-  use FatesConstantsMod,  only : r8 => fates_r8
-  use netcdf
-
-  implicit none
-
-  ! ARGUMENTS:
-  character(len=MAX_PATH), intent(in)  :: file           ! parameter file name
-  integer,                 intent(in)  :: numSWb         ! number of shortwave bands to simulate
-  real(r8), allocatable,   intent(out) :: rhol(:,:)      ! leaf reflectance [0-1]
-  real(r8), allocatable,   intent(out) :: rhos(:,:)      ! stem reflectance [0-1]
-  real(r8), allocatable,   intent(out) :: taul(:,:)      ! leaf transmittance [0-1]
-  real(r8), allocatable,   intent(out) :: taus(:,:)      ! stem transmittance [0-1]
-  real(r8), allocatable,   intent(out) :: xl(:)          ! leaf orientation index
-  real(r8), allocatable,   intent(out) :: ci(:)          ! clumping index
-
-  ! LOCALS:
-  integer               :: funit      ! file unit number
-  real(r8), allocatable :: rholvis(:) ! leaf visible reflectance [0-1]
-  real(r8), allocatable :: rholnir(:) ! leaf NIR reflectance [0-1]
-  real(r8), allocatable :: rhosvis(:) ! stem visible reflectance [0-1]
-  real(r8), allocatable :: rhosnir(:) ! stem NIR reflectance [0-1]
-  real(r8), allocatable :: taulvis(:) ! leaf visible transmittance [0-1]
-  real(r8), allocatable :: taulnir(:) ! leaf NIR transmittance [0-1]
-  real(r8), allocatable :: tausvis(:) ! stem visible transmittance [0-1]
-  real(r8), allocatable :: tausnir(:) ! stem NIR transmittance [0-1]
-
-  ! open file
-  call check(nf90_open(trim(file), 0, funit))
-
-  ! read in parameters
-  call read_in_parameter(funit, 'fates_rad_leaf_rhovis', 'fates_pft', rholvis)
-  call read_in_parameter(funit, 'fates_rad_leaf_rhonir', 'fates_pft', rholnir)
-  call read_in_parameter(funit, 'fates_rad_stem_rhovis', 'fates_pft', rhosvis)
-  call read_in_parameter(funit, 'fates_rad_stem_rhonir', 'fates_pft', rhosnir)
-  call read_in_parameter(funit, 'fates_rad_leaf_tauvis', 'fates_pft', taulvis)
-  call read_in_parameter(funit, 'fates_rad_leaf_taunir', 'fates_pft', taulnir)
-  call read_in_parameter(funit, 'fates_rad_stem_tauvis', 'fates_pft', tausvis)
-  call read_in_parameter(funit, 'fates_rad_stem_taunir', 'fates_pft', tausnir)
-  call read_in_parameter(funit, 'fates_rad_leaf_xl', 'fates_pft', xl)
-  call read_in_parameter(funit, 'fates_rad_leaf_clumping_index', 'fates_pft',  &
-    ci)
-
-  ! allocate the arrays correctly
-  allocate(rhol(size(rholvis, 1), numSWb))
-  allocate(rhos(size(rhosvis, 1), numSWb))
-  allocate(taul(size(taulvis, 1), numSWb))
-  allocate(taus(size(tausvis, 1), numSWb))
-
-  ! put arrays together
-  rhol(:,1) = rholvis
-  rhol(:,2) = rholnir 
-  rhos(:,1) = rhosvis
-  rhos(:,2) = rhosnir 
-  taul(:,1) = taulvis 
-  taul(:,2) = taulnir 
-  taus(:,1) = tausvis
-  taus(:,2) = tausnir
-
-  ! close file
-  call check(nf90_close(funit))
-
-end subroutine read_radiation_params
 
 
 

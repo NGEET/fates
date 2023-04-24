@@ -724,8 +724,7 @@ contains
 
     ! ===================================================================================
     
-    subroutine SetFatesGlobalElements1(use_fates,surf_numpft,surf_numcft,      &
-        masterproc, paramfile, fates_paramfile)
+    subroutine SetFatesGlobalElements1(use_fates,surf_numpft,surf_numcft)
 
        ! --------------------------------------------------------------------------------
        !
@@ -749,7 +748,7 @@ contains
       if (use_fates) then
          
          ! Self explanatory, read the fates parameter file
-         call FatesReadParameters(paramfile, fates_paramfile, masterproc)
+         call FatesReadParameters()
 
          fates_numpft = size(prt_params%wood_density,dim=1)
          
