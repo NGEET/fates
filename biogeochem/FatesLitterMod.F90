@@ -447,15 +447,15 @@ contains
      !LOCAL VARIABLES
      !These diameter ranges are based on work by Fosberg et al., 1971 
      
-     real(r8), parameter :: lb_max_diam        = 7.6 !max diameter [cm] for large branch
-     real(r8), parameter :: sb_max_diam        = 2.5 !max diameter [cm] for small branch
-     real(r8), parameter :: twig_max_diam      = 0.6 !max diameter [cm] for twig
+     real(r8), parameter :: lb_max_diam        = 7.6 !max diameter [cm] for large branch (100 hr fuel)
+     real(r8), parameter :: sb_max_diam        = 2.5 !max diameter [cm] for small branch (10 hr fuel)
+     real(r8), parameter :: twig_max_diam      = 0.6 !max diameter [cm] for twig (1 hr fuel)
      !------------------------------------------------------------------------------------
 
      
      SF_val_CWD_frac_adj = SF_val_CWD_frac
      
-     !If dbh is larger than max size of a large branch (1,000 hr fuel) then we don't change
+     !If dbh is > 7.6 cm diameter then the main stem is 1,000 hr fuel and we don't change
      !how biomass is partitioned among cwd classes.
      if (dbh > lb_max_diam) then
         return
