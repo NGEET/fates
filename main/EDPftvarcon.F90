@@ -1672,9 +1672,9 @@ contains
 
      do ipft = 1,npft
 
-        ! xl must be between -0.6 and 0.4 according to Bonan (2019) doi:10.1017/9781107339217 pg. 238
+        ! xl must be between -0.4 and 0.6 according to Bonan (2019) doi:10.1017/9781107339217 pg. 238
         !-----------------------------------------------------------------------------------
-        if (EDPftvarcon_inst%xl(ipft) < -0.6 .or. EDPftvarcon_inst%xl(ipft) > 0.4) then
+        if (EDPftvarcon_inst%xl(ipft) < -0.4 .or. EDPftvarcon_inst%xl(ipft) > 0.6) then
           write(fates_log(),*) 'fates_rad_leaf_xl for pft ', ipft, ' is outside the allowed range of -0.6 to 0.4'
           write(fates_log(),*) 'Aborting'
           call endrun(msg=errMsg(sourcefile, __LINE__))
