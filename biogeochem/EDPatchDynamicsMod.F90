@@ -2616,7 +2616,7 @@ contains
     integer  :: nopatches(n_landuse_cats)   !number of patches presently in gridcell
     integer  :: iterate     !switch of patch reduction iteration scheme. 1 to keep going, 0 to stop
     integer  :: fuse_flag   !do patches get fused (1) or not (0).
-    integer  :: i_disttype  !iterator over anthropogenic disturbance categories
+    integer  :: i_lulabel    !iterator over anthropogenic disturbance categories
     integer  :: i_pftlabel  !nocomp pft iterator
     real(r8) :: primary_land_fraction_beforefusion,primary_land_fraction_afterfusion
     integer  :: pftlabelmin, pftlabelmax
@@ -2678,10 +2678,10 @@ contains
     endif
 
     !---------------------------------------------------------------------!
-    ! iterate over anthropogenic disturbance categories
+    ! iterate over land use categories
     !---------------------------------------------------------------------!    
 
-    disttype_loop: do i_disttype = 1, n_landuse_cats
+    lulabel_loop: do i_lulabel = 1, n_landuse_cats
 
        !---------------------------------------------------------------------!
        !  We only really care about fusing patches if nopatches > 1          !
@@ -2723,8 +2723,8 @@ contains
                    ! only fuse patches whose anthropogenic disturbance category matches !
                    ! that of the outer loop that we are in                              !
                    !--------------------------------------------------------------------!
-                   anthro_dist_labels_match_if: if ( tpp%land_use_label .eq. i_disttype .and. &
-                        currentPatch%land_use_label .eq. i_disttype) then
+                   landuse_labels_match_if: if ( tpp%land_use_label .eq. i_lulabel .and. &
+                        currentPatch%land_use_label .eq. i_lulabel) then
 
                     nocomp_pft_labels_match_if: if (hlm_use_nocomp .eq. ifalse .or. &
                          (tpp%nocomp_pft_label .eq. i_pftlabel .and. &
@@ -2838,7 +2838,7 @@ contains
                          endif fuseflagset_if
                       endif different_patches_if
                     endif nocomp_pft_labels_match_if
-                   endif anthro_dist_labels_match_if
+                   endif landuse_labels_match_if
                 endif both_associated_if
 
                 tpp => tpp%older
@@ -2857,16 +2857,16 @@ contains
           !---------------------------------------------------------------------!
           ! Is the number of patches larger than the maximum?                   !
           !---------------------------------------------------------------------!   
-          nopatches(i_disttype) = 0
+          nopatches(i_lulabel) = 0
           currentPatch => currentSite%youngest_patch
           do while(associated(currentPatch))
-             if (currentPatch%land_use_label .eq. i_disttype) then
-                nopatches(i_disttype) = nopatches(i_disttype) +1
+             if (currentPatch%land_use_label .eq. i_lulabel) then
+                nopatches(i_lulabel) = nopatches(i_lulabel) +1
              endif
              currentPatch => currentPatch%older
           enddo
 
-          if(nopatches(i_disttype) > maxpatches(i_disttype))then
+          if(nopatches(i_lulabel) > maxpatches(i_lulabel))then
              iterate = 1
              profiletol = profiletol * patch_fusion_tolerance_relaxation_increment
 
@@ -2891,7 +2891,7 @@ contains
 
        enddo iterate_eq_1_loop ! iterate .eq. 1 ==> nopatches>maxpatch_total
 
-    end do disttype_loop
+    end do lulabel_loop
 
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
