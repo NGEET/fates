@@ -36,7 +36,7 @@ module FatesIODimensionsMod
     character(*), parameter, public  :: levelcwd = 'fates_levelcwd'
     character(*), parameter, public  :: levelage = 'fates_levelage'
     character(*), parameter, public  :: levlanduse = 'fates_levlanduse'
-    character(*), parameter, public  :: levlulu = 'fates_lulu'
+    character(*), parameter, public  :: levlulu = 'fates_levlulu'
     
     ! column = This is a structure that records where FATES column boundaries
     ! on each thread point to in the host IO array, this structure
