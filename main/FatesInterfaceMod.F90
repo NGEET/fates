@@ -2060,8 +2060,8 @@ contains
       
       allocate(ncells_array(0:npes-1))
       allocate(begg_array(0:npes-1))
-      ncells_array = -999
-      begg_array = -999
+      ncells_array = fates_unset_r8
+      begg_array = fates_unset_r8
       
       call t_startf('fates-seed-init-allgather')
 

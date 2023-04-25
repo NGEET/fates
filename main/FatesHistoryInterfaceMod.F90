@@ -5503,7 +5503,7 @@ end subroutine update_history_hifrq
 
    call this%set_history_var(vname='FATES_SEEDS_OUT_GRIDCELL_PF',                    &
          units='kg',                                                      &
-         long='Site-level seed mass output from neighboring gridcells per pft',  &
+         long='Site-level seed mass output to neighboring gridcells per pft',  &
          use_default='inactive', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_seeds_out_gc_si_pft)
