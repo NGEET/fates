@@ -8,6 +8,7 @@ module EDBtranMod
   use EDPftvarcon       , only : EDPftvarcon_inst
   use FatesConstantsMod , only : tfrz => t_water_freeze_k_1atm 
   use FatesConstantsMod , only : itrue,ifalse,nearzero
+  use FatesConstantsMod , only : nocomp_bareground
   use EDTypesMod        , only : ed_site_type,       &
        ed_patch_type,      &
        ed_cohort_type,     &
@@ -138,7 +139,7 @@ contains
        ifp = 0
        cpatch => sites(s)%oldest_patch
        do while (associated(cpatch))                 
-          if(cpatch%nocomp_pft_label.ne.0)then ! only for veg patches
+          if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then ! only for veg patches
              ifp=ifp+1
 
              ! THIS SHOULD REALLY BE A COHORT LOOP ONCE WE HAVE rootfr_ft FOR COHORTS (RGK)

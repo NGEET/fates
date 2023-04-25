@@ -87,6 +87,7 @@ module EDMainMod
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
   use FatesAllometryMod        , only : h_allom,tree_sai,tree_lai
   use EDLoggingMortalityMod    , only : IsItLoggingTime
+  use EDLoggingMortalityMod    , only : get_harvestable_carbon
   use DamageMainMod            , only : IsItDamageTime
   use EDPatchDynamicsMod       , only : get_frac_site_primary
   use FatesGlobals             , only : endrun => fates_endrun
@@ -208,7 +209,15 @@ contains
 
 
     if (hlm_use_ed_st3.eq.ifalse.and.hlm_use_sp.eq.ifalse) then   ! Bypass if ST3
-       call fire_model(currentSite, bc_in)
+       
+       ! Check that the site doesn't consist solely of a single bareground patch.
+       ! If so, skip the fire model.  Since the bareground patch should be the
+       ! oldest patch per set_patchno, we check that the youngest patch isn't zero.
+       ! If there are multiple patches on the site, the bareground patch is avoided
+       ! at the level of the fire_model subroutines.
+       if (currentSite%youngest_patch%patchno .ne. 0) then 
+          call fire_model(currentSite, bc_in)
+       end if
 
        ! Calculate disturbance and mortality based on previous timestep vegetation.
        ! disturbance_rates calls logging mortality and other mortalities, Yi Xu
@@ -314,6 +323,7 @@ contains
     ! FIX(SPM,032414) refactor so everything goes through interface
     !
     ! !USES:
+    use FatesInterfaceTypesMod, only : hlm_num_lu_harvest_cats
     use FatesInterfaceTypesMod, only : nlevdamage
     use FatesAllometryMod    , only : bleaf
     use FatesAllometryMod    , only : carea_allom
@@ -373,6 +383,9 @@ contains
     real(r8) :: target_leaf_c
     real(r8) :: frac_site_primary
 
+    real(r8) :: harvestable_forest_c(hlm_num_lu_harvest_cats)
+    integer  :: harvest_tag(hlm_num_lu_harvest_cats)
+
     real(r8) :: n_old
     real(r8) :: n_recover
     real(r8) :: sapw_c
@@ -405,6 +418,13 @@ contains
     !-----------------------------------------------------------------------
 
     call get_frac_site_primary(currentSite, frac_site_primary)
+
+    ! Clear site GPP and AR passing to HLM
+    bc_out%gpp_site = 0._r8
+    bc_out%ar_site = 0._r8
+
+    ! Patch level biomass are required for C-based harvest
+    call get_harvestable_carbon(currentSite, bc_in%site_area, bc_in%hlm_harvest_catnames, harvestable_forest_c)
 
     ! Set a pointer to this sites carbon12 mass balance
     site_cmass => currentSite%mass_balance(element_pos(carbon12_element))
@@ -448,7 +468,6 @@ contains
        do while(associated(currentCohort))
 
           ft = currentCohort%pft
-          
           ! Some cohorts are created and inserted to the list while
           ! the loop is going. These are pointed to the "taller" position
           ! of current, and then inherit properties of their donor (current)
@@ -457,8 +476,10 @@ contains
           
           if_not_newlyrecovered: if(.not.newly_recovered) then
 
+
              ! Calculate the mortality derivatives
-             call Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary )
+             call Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary, &
+                 harvestable_forest_c, harvest_tag )
 
              ! -----------------------------------------------------------------------------
              ! Apply Plant Allocation and Reactive Transport
@@ -469,6 +490,7 @@ contains
              !    decrement the available carbon pool to zero.
              ! -----------------------------------------------------------------------------
 
+
              if (hlm_use_ed_prescribed_phys .eq. itrue) then
                 if (currentCohort%canopy_layer .eq. 1) then
                    currentCohort%npp_acc = EDPftvarcon_inst%prescribed_npp_canopy(ft) &
@@ -477,14 +499,14 @@ contains
                    currentCohort%npp_acc = EDPftvarcon_inst%prescribed_npp_understory(ft) &
                         * currentCohort%c_area / currentCohort%n / hlm_days_per_year
                 endif
-                
+
                 ! We don't explicitly define a respiration rate for prescribe phys
                 ! but we do need to pass mass balance. So we say it is zero respiration
                 currentCohort%gpp_acc  = currentCohort%npp_acc
                 currentCohort%resp_acc = 0._r8
-                
+
              end if
-             
+
              ! -----------------------------------------------------------------------------
              ! Save NPP/GPP/R in these "hold" style variables. These variables
              ! persist after this routine is complete, and used in I/O diagnostics.
@@ -496,10 +518,16 @@ contains
              ! <x>_acc will be reset soon and will be accumulated on the next leaf
              !         photosynthesis step
              ! -----------------------------------------------------------------------------
-             
+
              currentCohort%npp_acc_hold  = currentCohort%npp_acc  * real(hlm_days_per_year,r8)
              currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * real(hlm_days_per_year,r8)
              currentCohort%resp_acc_hold = currentCohort%resp_acc * real(hlm_days_per_year,r8)
+
+             ! Passing gpp_acc_hold to HLM 
+             bc_out%gpp_site = bc_out%gpp_site + currentCohort%gpp_acc_hold * &
+                  AREA_INV * currentCohort%n / hlm_days_per_year / sec_per_day
+             bc_out%ar_site = bc_out%ar_site + currentCohort%resp_acc_hold * & 
+                  AREA_INV * currentCohort%n / hlm_days_per_year / sec_per_day
 
              ! Conduct Maintenance Turnover (parteh)
              if(debug) call currentCohort%prt%CheckMassConservation(ft,3)
@@ -510,7 +538,7 @@ contains
              end if
 
              call PRTMaintTurnover(currentCohort%prt,ft,is_drought)
-
+             
              ! -----------------------------------------------------------------------------------
              ! Call the routine that advances leaves in age.
              ! This will move a portion of the leaf mass in each

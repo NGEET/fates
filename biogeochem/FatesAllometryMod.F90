@@ -567,7 +567,7 @@ contains
     integer(i4),intent(in) :: crowndamage   ! crown damage class [1: undamaged, >1: damaged]
     real(r8),intent(in)    :: canopy_trim   ! trimming function
     real(r8),intent(in)    :: elongf_leaf   ! Leaf elongation factor (phenology)
-    real(r8),intent(out)   :: bl            ! plant leaf biomass [kg]
+    real(r8),intent(out)   :: bl            ! plant leaf biomass [kgC]
     real(r8),intent(out),optional :: dbldd  ! change leaf bio per diameter [kgC/cm]
     
     real(r8) :: blmax
@@ -931,9 +931,9 @@ contains
     real(r8),intent(in)           :: elongf_stem ! Elongation factor for stems (phenology)
     real(r8),intent(out)          :: sapw_area   ! cross section area of
                                                  ! plant sapwood at reference [m2]
-    real(r8),intent(out)          :: bsap        ! plant leaf biomass [kgC]
-    real(r8),intent(out),optional :: dbsapdd     ! change leaf biomass
-                                                 !  per d [kgC/cm]
+    real(r8),intent(out)          :: bsap        ! sapwood biomass [kgC]
+    real(r8),intent(out),optional :: dbsapdd     ! change in sapwood biomass
+                                                 ! per d [kgC/cm]
 
     real(r8) :: h         ! Plant height [m]
     real(r8) :: dhdd
@@ -1132,9 +1132,9 @@ contains
      
      real(r8) :: bl          ! Allometric target leaf biomass
      real(r8) :: dbldd       ! Allometric target change in leaf biomass per cm
+     real(r8) :: blmax       ! Allometric target leaf biomass (UNTRIMMED)
+     real(r8) :: dblmaxdd    ! Allometric target change in leaf biomass per cm (UNTRIMMED)
     
-     
-     ! TODO: allom_stmode needs to be added to the parameter file
      
      associate( allom_stmode => prt_params%allom_stmode(ipft), &
                 cushion      => prt_params%cushion(ipft) )
@@ -1144,7 +1144,12 @@ contains
           ! biomass (ie cushion * bleaf), and thus leaf phenology is ignored.
           call bleaf(d,ipft, crowndamage, canopy_trim, 1.0_r8, bl, dbldd)
           call bstore_blcushion(d,bl,dbldd,cushion,ipft,bstore,dbstoredd)
-          
+
+       case(2) ! Storage is constant proportionality of untrimmed maximum leaf
+          ! biomass (ie cushion * bleaf_max)
+          call blmax_allom(d,ipft,blmax,dblmaxdd)
+          call bstore_blcushion(d,blmax,dblmaxdd,cushion,ipft,bstore,dbstoredd)
+
        case DEFAULT 
           write(fates_log(),*) 'An undefined fine storage allometry was specified: ', &
                 allom_stmode
@@ -2564,7 +2569,6 @@ subroutine ForceDBH( ipft, crowndamage, canopy_trim, elongf_leaf, elongf_stem, d
      end if
 
      call h_allom(d,ipft,h)
-
      if(counter>20)then
         write(fates_log(),*) 'dbh counter: ',counter,' is woody: ',&
              (prt_params%woody(ipft) == itrue)

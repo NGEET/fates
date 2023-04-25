@@ -343,13 +343,13 @@ variables:
 		fates_leaf_c3psn:long_name = "Photosynthetic pathway (1=c3, 0=c4)" ;
 	double fates_leaf_jmaxha(fates_pft) ;
 		fates_leaf_jmaxha:units = "J/mol" ;
-		fates_leaf_jmaxha:long_name = "activation energy for jmax. NOTE: if fates_leaf_photo_tempsens_model=2 then these values are NOT USED" ;
+		fates_leaf_jmaxha:long_name = "activation energy for jmax" ;
 	double fates_leaf_jmaxhd(fates_pft) ;
 		fates_leaf_jmaxhd:units = "J/mol" ;
-		fates_leaf_jmaxhd:long_name = "deactivation energy for jmax. NOTE: if fates_leaf_photo_tempsens_model=2 then these values are NOT USED" ;
+		fates_leaf_jmaxhd:long_name = "deactivation energy for jmax" ;
 	double fates_leaf_jmaxse(fates_pft) ;
 		fates_leaf_jmaxse:units = "J/mol/K" ;
-		fates_leaf_jmaxse:long_name = "entropy term for jmax. NOTE: if fates_leaf_photo_tempsens_model=2 then these values are NOT USED" ;
+		fates_leaf_jmaxse:long_name = "entropy term for jmax" ;
 	double fates_leaf_slamax(fates_pft) ;
 		fates_leaf_slamax:units = "m^2/gC" ;
 		fates_leaf_slamax:long_name = "Maximum Specific Leaf Area (SLA), even if under a dense canopy" ;
@@ -370,13 +370,13 @@ variables:
 		fates_leaf_vcmax25top:long_name = "maximum carboxylation rate of Rub. at 25C, canopy top" ;
 	double fates_leaf_vcmaxha(fates_pft) ;
 		fates_leaf_vcmaxha:units = "J/mol" ;
-		fates_leaf_vcmaxha:long_name = "activation energy for vcmax. NOTE: if fates_leaf_photo_tempsens_model=2 then these values are NOT USED" ;
+		fates_leaf_vcmaxha:long_name = "activation energy for vcmax" ;
 	double fates_leaf_vcmaxhd(fates_pft) ;
 		fates_leaf_vcmaxhd:units = "J/mol" ;
-		fates_leaf_vcmaxhd:long_name = "deactivation energy for vcmax. NOTE: if fates_leaf_photo_tempsens_model=2 then these values are NOT USED" ;
+		fates_leaf_vcmaxhd:long_name = "deactivation energy for vcmax" ;
 	double fates_leaf_vcmaxse(fates_pft) ;
 		fates_leaf_vcmaxse:units = "J/mol/K" ;
-		fates_leaf_vcmaxse:long_name = "entropy term for vcmax. NOTE: if fates_leaf_photo_tempsens_model=2 then these values are NOT USED" ;
+		fates_leaf_vcmaxse:long_name = "entropy term for vcmax" ;
 	double fates_maintresp_leaf_atkin2017_baserate(fates_pft) ;
 		fates_maintresp_leaf_atkin2017_baserate:units = "umol CO2/m^2/s" ;
 		fates_maintresp_leaf_atkin2017_baserate:long_name = "Leaf maintenance respiration base rate parameter (r0) per Atkin et al 2017" ;
@@ -437,24 +437,15 @@ variables:
 	double fates_phen_cold_size_threshold(fates_pft) ;
 		fates_phen_cold_size_threshold:units = "cm" ;
 		fates_phen_cold_size_threshold:long_name = "the dbh size above which will lead to phenology-related stem and leaf drop" ;
-	double fates_phen_drought_threshold(fates_pft) ;
-		fates_phen_drought_threshold:units = "m3/m3 or mm" ;
-		fates_phen_drought_threshold:long_name = "threshold for drought phenology (or lower threshold for semi-deciduous PFTs); the quantity depends on the sign: if positive, the threshold is volumetric soil moisture (m3/m3). If negative, the threshold is soil matric potentical (mm)" ;
 	double fates_phen_evergreen(fates_pft) ;
 		fates_phen_evergreen:units = "logical flag" ;
 		fates_phen_evergreen:long_name = "Binary flag for evergreen leaf habit" ;
 	double fates_phen_flush_fraction(fates_pft) ;
 		fates_phen_flush_fraction:units = "fraction" ;
 		fates_phen_flush_fraction:long_name = "Upon bud-burst, the maximum fraction of storage carbon used for flushing leaves" ;
-	double fates_phen_fnrt_drop_fraction(fates_pft) ;
-		fates_phen_fnrt_drop_fraction:units = "fraction" ;
-		fates_phen_fnrt_drop_fraction:long_name = "fraction of fine roots to drop during drought/cold" ;
-	double fates_phen_doff_time(fates_pft) ;
-		fates_phen_mindaysoff:units = "days" ;
-		fates_phen_mindaysoff:long_name = "day threshold compared against days since leaves abscised (shed)" ;
-	double fates_phen_moist_threshold(fates_pft) ;
-		fates_phen_moist_threshold:units = "m3/m3 or mm" ;
-		fates_phen_moist_threshold:long_name = "upper threshold for drought phenology (only for drought semi-deciduous PFTs); the quantity depends on the sign: if positive, the threshold is volumetric soil moisture (m3/m3). If negative, the threshold is soil matric potentical (mm)" ;
+	double fates_phen_fnrt_drop_frac(fates_pft) ;
+		fates_phen_fnrt_drop_frac:units = "fraction" ;
+		fates_phen_fnrt_drop_frac:long_name = "fraction of fine roots to drop during drought or cold" ;
 	double fates_phen_season_decid(fates_pft) ;
 		fates_phen_season_decid:units = "logical flag" ;
 		fates_phen_season_decid:long_name = "Binary flag for seasonal-deciduous leaf habit" ;
@@ -505,7 +496,7 @@ variables:
 		fates_recruit_height_min:long_name = "the minimum height (ie starting height) of a newly recruited plant" ;
 	double fates_recruit_init_density(fates_pft) ;
 		fates_recruit_init_density:units = "stems/m2" ;
-		fates_recruit_init_density:long_name = "initial seedling density for a cold-start near-bare-ground simulation. If negative sets initial tree dbh - only to be used in nocomp mode" ;
+		fates_recruit_init_density:long_name = "initial seedling density for a cold-start near-bare-ground simulation" ;
 	double fates_recruit_prescribed_rate(fates_pft) ;
 		fates_recruit_prescribed_rate:units = "n/yr" ;
 		fates_recruit_prescribed_rate:long_name = "recruitment rate for prescribed physiology mode" ;
@@ -553,7 +544,7 @@ variables:
 		fates_turnover_fnrt:long_name = "root longevity (alternatively, turnover time)" ;
 	double fates_turnover_leaf(fates_leafage_class, fates_pft) ;
 		fates_turnover_leaf:units = "yr" ;
-		fates_turnover_leaf:long_name = "Leaf longevity (ie turnover timescale). For drought-deciduous PFTs, this also indicates the maximum length of the growing (i.e., leaves on) season." ;
+		fates_turnover_leaf:long_name = "Leaf longevity (ie turnover timescale)" ;
 	double fates_turnover_senleaf_fdrought(fates_pft) ;
 		fates_turnover_senleaf_fdrought:units = "unitless[0-1]" ;
 		fates_turnover_senleaf_fdrought:long_name = "multiplication factor for leaf longevity of senescent leaves during drought" ;
@@ -713,15 +704,12 @@ variables:
 	double fates_landuse_pprodharv10_forest_mean ;
 		fates_landuse_pprodharv10_forest_mean:units = "fraction" ;
 		fates_landuse_pprodharv10_forest_mean:long_name = "mean harvest mortality proportion of deadstem to 10-yr product (pprodharv10) of all woody PFT types" ;
-	double fates_leaf_photo_temp_acclim_thome_time ;
-		fates_leaf_photo_temp_acclim_thome_time:units = "years" ;
-		fates_leaf_photo_temp_acclim_thome_time:long_name = "Length of the window for the long-term (i.e. T_home in Kumarathunge et al 2019) exponential moving average (ema) of vegetation temperature used in photosynthesis temperature acclimation (used if fates_leaf_photo_tempsens_model = 2)" ;
 	double fates_leaf_photo_temp_acclim_timescale ;
 		fates_leaf_photo_temp_acclim_timescale:units = "days" ;
-		fates_leaf_photo_temp_acclim_timescale:long_name = "Length of the window for the exponential moving average (ema) of vegetation temperature used in photosynthesis temperature acclimation (used if fates_maintresp_leaf_model=2 or fates_leaf_photo_tempsens_model = 2)" ;
+		fates_leaf_photo_temp_acclim_timescale:long_name = "Length of the window for the exponential moving average (ema) of vegetation temperature used in photosynthesis temperature acclimation (NOT USED)" ;
 	double fates_leaf_photo_tempsens_model ;
 		fates_leaf_photo_tempsens_model:units = "unitless" ;
-		fates_leaf_photo_tempsens_model:long_name = "switch for choosing the model that defines the temperature sensitivity of photosynthetic parameters (vcmax, jmax). 1=non-acclimating; 2=Kumarathunge et al 2019" ;
+		fates_leaf_photo_tempsens_model:long_name = "switch for choosing the model that defines the temperature sensitivity of photosynthetic parameters (vcmax, jmax). 1=non-acclimating (NOT USED)" ;
 	double fates_leaf_stomatal_assim_model ;
 		fates_leaf_stomatal_assim_model:units = "unitless" ;
 		fates_leaf_stomatal_assim_model:long_name = "a switch designating whether to use net (1) or gross (2) assimilation in the stomatal model" ;
@@ -736,7 +724,7 @@ variables:
 		fates_leaf_theta_cj_c4:long_name = "Empirical curvature parameter for ac, aj photosynthesis co-limitation in c4 plants" ;
 	double fates_maintresp_leaf_model ;
 		fates_maintresp_leaf_model:units = "unitless" ;
-		fates_maintresp_leaf_model:long_name = "switch for choosing between maintenance respiration models. 1=Ryan (1991), 2=Atkin et al., (2017)" ;
+		fates_maintresp_leaf_model:long_name = "switch for choosing between maintenance respiration models. 1=Ryan (1991) (NOT USED)" ;
 	double fates_maintresp_nonleaf_baserate ;
 		fates_maintresp_nonleaf_baserate:units = "gC/gN/s" ;
 		fates_maintresp_nonleaf_baserate:long_name = "Base maintenance respiration rate for plant tissues, using Ryan 1991" ;
@@ -764,6 +752,12 @@ variables:
 	double fates_phen_coldtemp ;
 		fates_phen_coldtemp:units = "degrees C" ;
 		fates_phen_coldtemp:long_name = "vegetation temperature exceedance that flags a cold-day for leaf-drop" ;
+	double fates_phen_drought_model ;
+		fates_phen_drought_model:units = "unitless" ;
+		fates_phen_drought_model:long_name = "which method to use for drought phenology: 0 - FATES default; 1 - Semi-deciduous (ED2-like)" ;
+	double fates_phen_drought_threshold ;
+		fates_phen_drought_threshold:units = "m3/m3 or mm" ;
+		fates_phen_drought_threshold:long_name = "threshold for drought phenology (or lower threshold when fates_phen_drought_model = 1); the quantity depends on the sign: if positive, the threshold is volumetric soil moisture (m3/m3). If negative, the threshold is soil matric potentical (mm)" ;
 	double fates_phen_gddthresh_a ;
 		fates_phen_gddthresh_a:units = "none" ;
 		fates_phen_gddthresh_a:long_name = "GDD accumulation function, intercept parameter: gdd_thesh = a + b exp(c*ncd)" ;
@@ -773,9 +767,15 @@ variables:
 	double fates_phen_gddthresh_c ;
 		fates_phen_gddthresh_c:units = "none" ;
 		fates_phen_gddthresh_c:long_name = "GDD accumulation function, exponent parameter: gdd_thesh = a + b exp(c*ncd)" ;
+	double fates_phen_mindaysoff ;
+		fates_phen_mindaysoff:units = "days" ;
+		fates_phen_mindaysoff:long_name = "day threshold compared against days since leaves became off-allometry" ;
 	double fates_phen_mindayson ;
 		fates_phen_mindayson:units = "days" ;
 		fates_phen_mindayson:long_name = "day threshold compared against days since leaves became on-allometry" ;
+	double fates_phen_moist_threshold ;
+		fates_phen_moist_threshold:units = "m3/m3 or mm" ;
+		fates_phen_moist_threshold:long_name = "upper threshold for drought phenology (only for fates_phen_drought_model=1); the quantity depends on the sign: if positive, the threshold is volumetric soil moisture (m3/m3). If negative, the threshold is soil matric potentical (mm)" ;
 	double fates_phen_ncolddayslim ;
 		fates_phen_ncolddayslim:units = "days" ;
 		fates_phen_ncolddayslim:long_name = "day threshold exceedance for temperature leaf-drop" ;
@@ -1259,20 +1259,12 @@ data:
 
  fates_phen_cold_size_threshold = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
- fates_phen_drought_threshold = -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, 
-    -152957.4, -152957.4, -152957.4, -152957.4, -152957.4,  -152957.4, -152957.4 ;
-
  fates_phen_evergreen = 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0 ;
 
  fates_phen_flush_fraction = _, _, 0.5, _, 0.5, 0.5, _, 0.5, 0.5, 0.5, 0.5, 
     0.5 ;
 
- fates_phen_fnrt_drop_fraction = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
-
- fates_phen_mindaysoff = 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100 ;
-
- fates_phen_moist_threshold = -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, 
-    -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9 ;
+ fates_phen_fnrt_drop_frac = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
  fates_phen_season_decid = 0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 0, 0 ;
 
@@ -1500,8 +1492,6 @@ data:
 
  fates_landuse_pprodharv10_forest_mean = 0.8125 ;
 
- fates_leaf_photo_temp_acclim_thome_time = 30 ;
-
  fates_leaf_photo_temp_acclim_timescale = 30 ;
 
  fates_leaf_photo_tempsens_model = 1 ;
@@ -1534,13 +1524,21 @@ data:
 
  fates_phen_coldtemp = 7.5 ;
 
+ fates_phen_drought_model = 0 ;
+
+ fates_phen_drought_threshold = 0.15 ;
+
  fates_phen_gddthresh_a = -68 ;
 
  fates_phen_gddthresh_b = 638 ;
 
  fates_phen_gddthresh_c = -0.01 ;
 
+ fates_phen_mindaysoff = 100 ;
+
  fates_phen_mindayson = 90 ;
+
+ fates_phen_moist_threshold = 0.18 ;
 
  fates_phen_ncolddayslim = 5 ;
 

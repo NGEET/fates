@@ -290,10 +290,14 @@ contains
      ! -----------------------------------------------------------------------------------
 
      integer :: nleafage
+     integer :: istat
+     character(len=255) :: smsg
 
-     allocate(prt_global_acnp)
-     allocate(prt_global_acnp%state_descriptor(num_vars))
-
+     allocate(prt_global_acnp, stat=istat, errmsg=smsg)
+     if (istat/=0) call endrun(msg='allocate stat/=0:'//trim(smsg)//errMsg(sourcefile, __LINE__))
+     allocate(prt_global_acnp%state_descriptor(num_vars), stat=istat, errmsg=smsg)
+     if (istat/=0) call endrun(msg='allocate stat/=0:'//trim(smsg)//errMsg(sourcefile, __LINE__))
+     
      prt_global_acnp%hyp_name = 'Allometric Flexible C+N+P'
 
      prt_global_acnp%hyp_id = prt_cnp_flex_allom_hyp
@@ -1958,6 +1962,8 @@ contains
     
     
 
+    nullify(dbh)
+
     return
   end subroutine CNPAllocateRemainder
 
@@ -2127,7 +2133,9 @@ contains
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
     end if
-    
+
+    nullify(dbh)
+
     return
   end function GetNutrientTargetCNP
 

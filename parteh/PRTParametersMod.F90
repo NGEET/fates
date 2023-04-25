@@ -129,7 +129,11 @@ module PRTParametersMod
      real(r8), allocatable :: allom_amode(:)                ! AGB allometry function type
      real(r8), allocatable :: allom_cmode(:)                ! Coarse root allometry function type
      real(r8), allocatable :: allom_smode(:)                ! sapwood allometry function type
-     real(r8), allocatable :: allom_stmode(:)               ! storage allometry functional type 
+     real(r8), allocatable :: allom_stmode(:)               ! storage allometry functional type
+                                                            !   0 - storage is proportional to maximum leaf biomass 
+                                                            !       (considering trimmed)
+                                                            !   1 - storage is proportional to maximum leaf biomass 
+                                                            !       (untrimmed)
                                                             ! (HARD-CODED FOR TIME BEING, RGK 11-2017)
      real(r8), allocatable :: allom_la_per_sa_int(:)        ! Leaf area to sap area conversion, intercept 
                                                             ! (sapwood area / leaf area) [cm2/m2]
