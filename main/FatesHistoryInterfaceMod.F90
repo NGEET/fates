@@ -2175,6 +2175,7 @@ end subroutine flush_hvars
     use FatesLitterMod      , only : ncwd
     use EDtypesMod          , only : ican_upper
     use EDtypesMod          , only : ican_ustory
+    use FatesConstantsMod   , only : n_landuse_cats
     use FatesSizeAgeTypeIndicesMod, only : get_sizeage_class_index
     use FatesSizeAgeTypeIndicesMod, only : get_sizeagepft_class_index
     use FatesSizeAgeTypeIndicesMod, only : get_agepft_class_index
@@ -2682,7 +2683,7 @@ end subroutine flush_hvars
       ! roll up disturbance rates in land-use x land-use array into a single dimension
       do i_dist = 1, n_landuse_cats
          do j_dist = 1, n_landuse_cats
-            hio_disturbance_rate_si_lulu(io_si, i_dist+n_landuse_cats*(j_dist-1)) = sum(sites(s)%disturbance_rates(1:n_dist_types,i_dist, j_dist) * &
+            hio_disturbance_rate_si_lulu(io_si, i_dist+n_landuse_cats*(j_dist-1)) = sum(sites(s)%disturbance_rates(1:n_dist_types,i_dist, j_dist)) * &
                  days_per_year
          end do
       end do
