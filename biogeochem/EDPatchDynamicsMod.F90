@@ -50,6 +50,7 @@ module EDPatchDynamicsMod
   use FatesInterfaceTypesMod    , only : hlm_use_nocomp
   use FatesInterfaceTypesMod    , only : hlm_use_fixed_biogeog
   use FatesInterfaceTypesMod    , only : hlm_num_lu_harvest_cats
+  use FatesInterfaceTypesMod    , only : hlm_use_luh
   use FatesInterfaceTypesMod    , only : hlm_num_luh2_states
   use FatesInterfaceTypesMod    , only : hlm_num_luh2_transitions
   use FatesGlobals         , only : endrun => fates_endrun
@@ -302,10 +303,13 @@ contains
        currentPatch%disturbance_rates(dtype_ifire) = 0.0_r8
 
        dist_rate_ldist_notharvested = 0.0_r8
-       
-       currentPatch%landuse_transition_rates(1:n_landuse_cats) = min(1._r8, &
-            landuse_transition_matrix(currentPatch%land_use_label,1:n_landuse_cats) / &
-            current_fates_landuse_state_vector(currentPatch%land_use_label))
+
+       ! Avoid this calculation to avoid NaN result if luh is not used
+       if (hlm_use_luh .eq. itrue) then
+          currentPatch%landuse_transition_rates(1:n_landuse_cats) = min(1._r8, &
+               landuse_transition_matrix(currentPatch%land_use_label,1:n_landuse_cats) / &
+               current_fates_landuse_state_vector(currentPatch%land_use_label))
+       end if
        
        currentCohort => currentPatch%shortest
        do while(associated(currentCohort))   
@@ -433,8 +437,8 @@ contains
     !
     ! !LOCAL VARIABLES:
     type (ed_patch_type) , pointer :: new_patch
-    type (ed_patch_type) , pointer :: new_patch_primary
-    type (ed_patch_type) , pointer :: new_patch_secondary
+    ! type (ed_patch_type) , pointer :: new_patch_primary
+    ! type (ed_patch_type) , pointer :: new_patch_secondary
     type (ed_patch_type) , pointer :: currentPatch
     type (ed_cohort_type), pointer :: currentCohort
     type (ed_cohort_type), pointer :: nc
@@ -471,6 +475,8 @@ contains
 
     !---------------------------------------------------------------------
 
+    ! write(fates_log(),*) 'calling spawn patches'
+
     storesmallcohort => null() ! storage of the smallest cohort for insertion routine
     storebigcohort   => null() ! storage of the largest cohort for insertion routine 
 
@@ -484,6 +490,7 @@ contains
 
     ! zero the diagnostic disturbance rate fields
     currentSite%disturbance_rates(:,:,:) = 0._r8
+    ! disturbance_rate = 0._8
 
     ! get rules for vegetation clearing during land use change
     call get_landusechange_rules(clearing_matrix)
@@ -519,6 +526,9 @@ contains
 
                 patchloop_areadis: do while(associated(currentPatch))
 
+                   write(fates_log(),*) 'indices: ncpft, dt, dplt, lcrpl: ', i_nocomp_pft, i_disturbance_type, i_donorpatch_landuse_type, i_landusechange_receiverpatchlabel
+                   write(fates_log(),*) 'labels: lul, ncpl', currentPatch%land_use_label, currentPatch%nocomp_pft_label
+
                    cp_nocomp_matches_1_if: if ( hlm_use_nocomp .eq. ifalse .or. &
                         currentPatch%nocomp_pft_label .eq. i_nocomp_pft ) then
 
@@ -529,6 +539,10 @@ contains
                          else
                             disturbance_rate = currentPatch%landuse_transition_rates(i_landusechange_receiverpatchlabel)
                          endif
+
+                         ! disturbance_rate = 0._8
+                         write(fates_log(),*) 'patch disturbance rate: ',currentPatch%disturbance_rates(i_disturbance_type)
+                         write(fates_log(),*) 'disturbance type: ', i_disturbance_type
 
                          if(disturbance_rate > (1.0_r8 + rsnbl_math_prec)) then
                             write(fates_log(),*) 'patch disturbance rate > 1 ?',disturbance_rate
@@ -1206,23 +1220,23 @@ contains
                       end do
                       if (associated(currentPatch)) then
                          ! the case where we've found a youngest primary patch
-                         new_patch_primary%older    => currentPatch
-                         new_patch_primary%younger  => currentPatch%younger
+                         new_patch%older    => currentPatch
+                         new_patch%younger  => currentPatch%younger
                          currentPatch%younger%older => new_patch
                          currentPatch%younger       => new_patch
                       else
                          ! the case where we haven't, because the patches are all secondaary,
                          ! and are putting a primary patch at the oldest end of the
                          ! linked list (not sure how this could happen, but who knows...)
-                         new_patch_primary%older    => null()
-                         new_patch_primary%younger  => currentSite%oldest_patch
+                         new_patch%older    => null()
+                         new_patch%younger  => currentSite%oldest_patch
                          currentSite%oldest_patch%older   => new_patch
                          currentSite%oldest_patch   => new_patch
                       endif
                    else
                       ! the case where there are no secondary patches at the start of the linked list (prior logic)
-                      new_patch_primary%older    => currentPatch
-                      new_patch_primary%younger  => null()
+                      new_patch%older    => currentPatch
+                      new_patch%younger  => null()
                       currentPatch%younger       => new_patch
                       currentSite%youngest_patch => new_patch
                    endif

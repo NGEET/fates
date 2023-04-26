@@ -567,6 +567,8 @@ contains
 
     else
 
+       ! state_vector(:) = 0._r8
+
        sites_loop: do s = 1, nsites
           sites(s)%sp_tlai(:) = 0._r8
           sites(s)%sp_tsai(:) = 0._r8
