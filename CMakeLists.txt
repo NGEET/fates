@@ -14,19 +14,17 @@ set(CLM_ROOT "../../")
 # Add source directories from other share code (csm_share, etc.)
 add_subdirectory(${CLM_ROOT}/share/src csm_share)
 add_subdirectory(${CLM_ROOT}/share/unit_test_stubs/util csm_share_stubs)
-add_subdirectory(${CLM_ROOT}/src/utils clm_utils)
-add_subdirectory(${CLM_ROOT}/src/main clm_main)
 
 # Extract just the files we need from csm_share
-set (shr_sources_needed_base
-    shr_log_mod.F90
-    shr_infnan_mod.F90
-    shr_kind_mod.F90
-    shr_sys_mod.F90
-    shr_strconvert_mod.F90
-    shr_abort_mod.abortthrows.F90
-  )
-extract_sources("${shr_sources_needed_base}" "${share_sources}" shr_sources_needed)
+# set (shr_sources_needed_base
+#     shr_log_mod.F90
+#     shr_infnan_mod.F90
+#     shr_kind_mod.F90
+#     shr_sys_mod.F90
+#     shr_strconvert_mod.F90
+#     shr_abort_mod.abortthrows.F90
+#   )
+# extract_sources("${shr_sources_needed_base}" "${share_sources}" shr_sources_needed)
 
 # Add FATES source directories
 add_subdirectory(${CLM_ROOT}/src/fates/main fates_main)
@@ -34,6 +32,10 @@ add_subdirectory(${CLM_ROOT}/src/fates/biogeochem fates_biogeochem)
 add_subdirectory(${CLM_ROOT}/src/fates/biogeophys fates_biogephys)
 add_subdirectory(${CLM_ROOT}/src/fates/parteh fates_parteh)
 add_subdirectory(${CLM_ROOT}/src/fates/fire fates_fire)
+
+# Add general unit test directories (stubbed out files, etc.)
+add_subdirectory(${CLM_ROOT}/src/unit_test_stubs clm_stubs)
+add_subdirectory(${CLM_ROOT}/src/unit_test_shr clm_tests)
 
 # Add general unit test directories
 add_subdirectory(${CLM_ROOT}/src/fates/unit_test_shr)
@@ -71,7 +73,7 @@ endforeach()
 
 # Build libraries containing stuff needed for the unit tests.
 # Eventually, these add_library calls should probably be distributed into the correct location, rather than being in this top-level CMakeLists.txt file.
-add_library(csm_share ${shr_sources_needed})
+add_library(csm_share ${share_sources})
 declare_generated_dependencies(csm_share "${share_genf90_sources}")
 add_library(fates ${fates_sources})
 add_dependencies(fates csm_share)

@@ -96,7 +96,7 @@ subroutine read_radiation_namelist(year, jday, lat, lon, fcansno, param_file,  &
   !   initialize values
   !
 
-  use FatesUnitTestIOMod, only : MAX_PATH, MAX_CHAR, open_file
+  use FatesUnitTestIOMod, only : MAX_PATH, MAX_CHAR, open_file, logf
   use FatesConstantsMod,  only : r8 => fates_r8
   
   implicit none
@@ -111,7 +111,6 @@ subroutine read_radiation_namelist(year, jday, lat, lon, fcansno, param_file,  &
   
   ! LOCALS:
   character(len=MAX_PATH) :: rad_nl = 'radiation_nl' ! radiation namelist name
-  character(len=MAX_CHAR) :: message                 ! Error message
   character(len=MAX_CHAR) :: msg                     ! I/O Error message
   integer                 :: rad_nl_file             ! unit number for namelist
   integer                 :: ios                     ! I/O status

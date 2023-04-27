@@ -1,5 +1,12 @@
 module FatesUnitTestIOMod
-  use FatesConstantsMod, only : r8 => fates_r8
+  use FatesConstantsMod,          only : r8 => fates_r8
+  use FatesParametersInterface,   only : fates_parameters_type
+  use FatesParametersInterface,   only : param_string_length, max_used_dimensions
+  use EDParamsMod,                only : FatesRegisterParams, FatesReceiveParams
+  use SFParamsMod,                only : SpitFireRegisterParams, SpitFireReceiveParams
+  use PRTInitParamsFATESMod,      only : PRTRegisterParams, PRTReceiveParams
+  use shr_kind_mod,               only : SHR_KIND_CL
+  use FatesSynchronizedParamsMod, only : FatesSynchronizedParamsInst
   use netcdf
   
   implicit none
@@ -136,37 +143,124 @@ module FatesUnitTestIOMod
 
     !:.........................................................................:
 
-    subroutine read_in_parameter(funit, param_name, bounds, out_array)
+    subroutine read_parameters(fates_paramfile)
       !
       ! DESCRIPTION:
       !		Reads in parameters from the FATES parameter file
       !
     
       ! ARGUMENTS:
-      integer,                       intent(in)  :: funit        ! file unit number
-      character(len=*),              intent(in)  :: param_name   ! parameter name
-      character(len=*),              intent(in)  :: bounds       ! bounds name
-      real(r8),         allocatable, intent(out) :: out_array(:) ! parameter values    
+      character(len=SHR_KIND_CL), intent(in) :: fates_paramfile ! parameter file name
+   
+      ! LOCALS:
+      class(fates_parameters_type), allocatable :: fates_params
+
+      allocate(fates_params)
+      call fates_params%Init()
+      call FatesRegisterParams(fates_params)
+      call SpitFireRegisterParams(fates_params)
+      call PRTRegisterParams(fates_params)
+      call FatesSynchronizedParamsInst%RegisterParams(fates_params)
+
+    end subroutine read_parameters
+
+    !:.........................................................................:
+
+    subroutine read_netcdf_params(filename, fates_params)
+      !
+      ! DESCRIPTION:
+      !   Calls actual netcdf library methods for reading FATES parameters from netcdf
+      !
+
+      ! ARGUMENTS:
+      character(len=*),             intent(in)    :: filename     ! full path of parameter file
+      class(fates_parameters_type), intent(inout) :: fates_params ! fates parameters type
       
       ! LOCALS:
-      integer :: paramID             ! parameter ID
-      integer :: dimID_axis_nbounds  ! dimension ID
-      integer :: nbounds             ! parameter bounds
+      logical :: file_exists  ! does the file exist?
+      integer :: ncid         ! netcdf file unit number
+      integer :: max_dim_size !
 
-      ! get axis id
-      call check(nf90_inq_dimid(funit, trim(bounds), dimID_axis_nbounds))
+      ! check if file is on disk
+      inquire(file=trim(adjustl(filename)), exist=file_exists)
+      if (.not. file_exists) then 
+        write(logf,'(a)') 'File ', filename, ' does not exist.'
+        stop "Stopping"
+      end if 
+      
+      ! open the file
+      call check(nf90_open(trim(adjustl(filename)), 0, ncid))
 
-      ! get parameter bounds
-      call check(nf90_inquire_dimension(funit, dimID_axis_nbounds, len=nbounds))
+      ! get and set the correct dimensions for the parameters
+      call set_param_dimensions(ncid, fates_params)
+
+      ! max_dim_size = fates_params%GetMaxDimensionSize()
+      ! num_params = fates_params%num_params()
+      ! do i = 1, num_params
+      !    call fates_params%GetMetaData(i, name, dimension_shape, dimension_sizes, dimension_names, is_host_param)
+      !    if (is_host_file .eqv. is_host_param) then
+      !       select case(dimension_shape)
+      !       case(dimension_shape_scalar)
+      !          size_dim_1 = 1
+      !          size_dim_2 = 1
+      !       case(dimension_shape_1d)
+      !          size_dim_1 = dimension_sizes(1)
+      !          size_dim_2 = 1
+      !       case(dimension_shape_2d)
+      !          size_dim_1 = dimension_sizes(1)
+      !          size_dim_2 = dimension_sizes(2)
+      !       case default
+      !          write(fates_log(),*) 'dimension shape:',dimension_shape
+      !          call endrun(msg='unsupported number of dimensions reading parameters.')
+   
+      !       end select
+      !       if (masterproc) then
+      !          write(fates_log(), *) 'clmfates_interfaceMod.F90:: reading '//trim(name)
+      !       end if
+      !       call readNcdio(ncid, name, dimension_shape, dimension_names, subname, data(1:size_dim_1, 1:size_dim_2))
+      !       call fates_params%SetData(i, data(1:size_dim_1, 1:size_dim_2))
+      !    end if
+      ! end do
+      ! deallocate(data)
+      ! call ncd_pio_closefile(ncid)
+
+    end subroutine read_netcdf_params
+
+    !:.........................................................................:
+
+    subroutine set_param_dimensions(ncid, fates_params)
+      !
+      ! DESCRIPTION:
+      !   get the list of dimensions used by the FATES parameters
+      !
+
+      ! ARGUMENTS:
+      integer,                      intent(inout) :: ncid         ! netcdf unit number
+      class(fates_parameters_type), intent(inout) :: fates_params ! fates parameters
+
+      ! LOCALS:
+      integer                            :: num_dimensions
+      character(len=param_string_length) :: dimension_names(max_used_dimensions)
+      integer                            :: dimension_sizes(max_used_dimensions)
+      integer                            :: d
+      integer                            :: dim_id
     
-      ! read parameter values
-      call check(nf90_inq_varid(funit, trim(param_name), paramID))
+      dimension_sizes(:) = 0
 
-      ! allocate
-      allocate(out_array(nbounds)) 
-      call check(nf90_get_var(funit, paramID, out_array))
-    
-    end subroutine read_in_parameter
+      call fates_params%GetUsedDimensions(.false., num_dimensions,             &
+        dimension_names)
+
+      do d = 1, num_dimensions
+        call check(nf90_inq_dimid(ncid, dimension_names(d), dim_id))
+        call check(nf90_inquire_dimension(ncid, dim_id, len=dimension_sizes(d)))
+      end do
+
+      call fates_params%SetDimensionSizes(.false., num_dimensions,             &
+        dimension_names, dimension_sizes)
+
+    end subroutine set_param_dimensions
+
+    !:.........................................................................:
 
     ! subroutine read_patch_data(file, canopy_area, elai, esai, nrad)
     !   !
