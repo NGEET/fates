@@ -33,6 +33,9 @@ def main():
     regrid_luh2["LONGXY"] = ds_regridtarget["LONGXY"]
     regrid_luh2["LATIXY"] = ds_regridtarget["LATIXY"]
 
+    # Add 'YEAR' as a variable.  This is an old requirement of the HLM and should simply be a copy of the `time` dimension
+    regrid_luh2["YEAR"] = regrid_luh2.time
+
     # Write the files
     outputfile = os.path.join(os.getcwd(),'LUH2_states_transitions_management.timeseries_4x5_hist_simyr1850-2015_c230415.nc')
 
