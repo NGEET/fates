@@ -2339,8 +2339,15 @@ contains
          ( prt_params%season_decid(ipft) == itrue ) &
          .and. any(ccohort%status_coh == [leaves_off,leaves_shedding] )
 
+      ! If plants are drought deciduous and are losing or lost all leaves, they cannot
+      ! allocate carbon to any growth or recovery. Return a null pointer and wait until
+      ! the growing season.
+      if (is_hydecid_dormant) then
+         newly_recovered = .false.
+         return
+      end if
 
-      
+
       ! If we have not returned, then this cohort both has
       ! a damaged status, and the ability to recover from that damage
       ! -----------------------------------------------------------------
@@ -2368,16 +2375,10 @@ contains
       call bleaf(dbh,ipft,ccohort%crowndamage-1, canopy_trim, elongf_leaf, target_leaf_c)
 
 
-      ! If plants are drought deciduous and are losing or lost all leaves, halt all
-      ! the growth.
-      if (is_hydecid_dormant) then
-         ! Drought-deciduous. Do not recover any tissue until the growing season
-         target_leaf_c   = 0._r8
-         target_fnrt_c   = 0._r8
-         target_sapw_c   = 0._r8
-         target_struct_c = 0._r8
-      elseif (is_sedecid_dormant) then
-         ! Cold-deciduous. Do not recover leaves until the growing season
+      ! If plants are cold deciduous, we do not let them recover leaves, but we allow
+      ! them to recover other tissues. This is due to back-compatibility, but we may
+      ! want to revisit this later.
+      if (is_sedecid_dormant) then
          target_leaf_c   = 0._r8
       end if
 
