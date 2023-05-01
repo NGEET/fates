@@ -899,7 +899,6 @@ module EDTypesMod
      real(r8) ::  spread                                          ! dynamic canopy allometric term [unitless]
 
      ! site-level variables to keep track of the disturbance rates, both actual and "potential"
-     real(r8) :: disturbance_rates_primary_to_primary(N_DIST_TYPES,n_landuse_cats,n_landuse_cats)
      real(r8) :: disturbance_rates(N_DIST_TYPES,n_landuse_cats, n_landuse_cats)  ! actual disturbance rates for each disturbance type  [m2/m2/day]
      real(r8) :: primary_land_patchfusion_error             ! error term in total area of primary patches associated with patch fusion [m2/m2/day]
      real(r8) :: landuse_transition_matrix(n_landuse_cats, n_landuse_cats) ! land use transition matrix as read in from HLM and aggregated to FATES land use types [m2/m2/year]

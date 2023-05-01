@@ -2690,13 +2690,13 @@ end subroutine flush_hvars
 
       ! output site-level disturbance rates [m2 m-2 day-1] -> [m2 m-2 yr-1] - TO DO rework this
 
-      hio_fire_disturbance_rate_si(io_si) = sum(sites(s)%disturbance_rates_primary_to_primary(dtype_ifire,1:n_landuse_cats,1:n_landuse_cats)) * &
+      hio_fire_disturbance_rate_si(io_si) = sum(sites(s)%disturbance_rates(dtype_ifire,1:n_landuse_cats,1:n_landuse_cats)) * &
           days_per_year
 
-      hio_logging_disturbance_rate_si(io_si) = sum(sites(s)%disturbance_rates_primary_to_primary(dtype_ilog,1:n_landuse_cats,1:n_landuse_cats)) * &
+      hio_logging_disturbance_rate_si(io_si) = sum(sites(s)%disturbance_rates(dtype_ilog,1:n_landuse_cats,1:n_landuse_cats)) * &
            days_per_year
 
-      hio_fall_disturbance_rate_si(io_si) = sum(sites(s)%disturbance_rates_primary_to_primary(dtype_ifall,1:n_landuse_cats,1:n_landuse_cats)) * &
+      hio_fall_disturbance_rate_si(io_si) = sum(sites(s)%disturbance_rates(dtype_ifall,1:n_landuse_cats,1:n_landuse_cats)) * &
            days_per_year
 
       hio_harvest_carbonflux_si(io_si) = sites(s)%mass_balance(element_pos(carbon12_element))%wood_product * AREA_INV

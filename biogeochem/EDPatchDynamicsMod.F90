@@ -489,7 +489,6 @@ contains
 
     ! zero the diagnostic disturbance rate fields
     currentSite%disturbance_rates(:,:,:) = 0._r8
-    currentSite%disturbance_rates_primary_to_primary(:,:,:) = 0._r8
 
     ! get rules for vegetation clearing during land use change
     call get_landusechange_rules(clearing_matrix)
@@ -557,14 +556,6 @@ contains
                             currentSite%disturbance_rates(i_disturbance_type,i_donorpatch_landuse_type,i_landusechange_receiverpatchlabel) = &
                                  currentSite%disturbance_rates(i_disturbance_type,i_donorpatch_landuse_type,i_landusechange_receiverpatchlabel) + &
                                  currentPatch%area * disturbance_rate * AREA_INV
-
-                            ! track disturbance rates for primary to primary disturbance
-                            if (currentPatch%land_use_label .eq. primaryland) then
-                            currentSite%disturbance_rates_primary_to_primary(i_disturbance_type,i_donorpatch_landuse_type,i_landusechange_receiverpatchlabel) = &
-                                 currentSite%disturbance_rates_primary_to_primary(i_disturbance_type,i_donorpatch_landuse_type,i_landusechange_receiverpatchlabel) + &
-                                 currentPatch%area * disturbance_rate * AREA_INV
-                            end if
-
                          end if
 
                       end if patchlabel_matches_lutype_if_areadis
