@@ -1,12 +1,6 @@
 module FatesUnitTestIOMod
-  use FatesConstantsMod,          only : r8 => fates_r8
-  use FatesParametersInterface,   only : fates_parameters_type
-  use FatesParametersInterface,   only : param_string_length, max_used_dimensions
-  use EDParamsMod,                only : FatesRegisterParams, FatesReceiveParams
-  use SFParamsMod,                only : SpitFireRegisterParams, SpitFireReceiveParams
-  use PRTInitParamsFATESMod,      only : PRTRegisterParams, PRTReceiveParams
-  use shr_kind_mod,               only : SHR_KIND_CL
-  use FatesSynchronizedParamsMod, only : FatesSynchronizedParamsInst
+  use FatesConstantsMod, only : r8 => fates_r8
+  use shr_kind_mod,      only : SHR_KIND_CL
   use netcdf
   
   implicit none
@@ -16,6 +10,15 @@ module FatesUnitTestIOMod
   integer, parameter :: MAX_PATH = 256  ! Maximum path length
   integer, parameter :: MAX_CHAR = 80   ! Maximum length for messages
   integer            :: logf            ! Unit number for output log file
+
+  interface get_var
+    module procedure get_var1D_real
+    module procedure get_var2D_real
+    module procedure get_var3D_real
+    module procedure get_var1D_int
+    module procedure get_var2D_int
+    module procedure get_var3D_int
+  end interface
   
   contains
 
@@ -142,163 +145,248 @@ module FatesUnitTestIOMod
     end subroutine check
 
     !:.........................................................................:
-
-    subroutine read_parameters(fates_paramfile)
+    
+    subroutine read_patch_data(file, num_pft, canopy_area, elai, esai, nrad)
       !
       ! DESCRIPTION:
-      !		Reads in parameters from the FATES parameter file
+      ! Reads and return patch data
       !
     
       ! ARGUMENTS:
-      character(len=SHR_KIND_CL), intent(in) :: fates_paramfile ! parameter file name
-   
+      character(len=MAX_PATH), intent(in)  :: file               ! patch file name
+      integer,                 intent(in)  :: num_pft            ! number of PFTs
+      real(r8), allocatable,   intent(out) :: canopy_area(:,:,:) ! canopy area profile
+      real(r8), allocatable,   intent(out) :: elai(:,:,:)        ! exposed lai profile
+      real(r8), allocatable,   intent(out) :: esai(:,:,:)        ! exposed sai profile
+      integer,  allocatable,   intent(out) :: nrad(:,:)          ! number of exposed leaf layers
+
       ! LOCALS:
-      class(fates_parameters_type), allocatable :: fates_params
+      integer :: ncid ! netcdf file unit number
 
-      allocate(fates_params)
-      call fates_params%Init()
-      call FatesRegisterParams(fates_params)
-      call SpitFireRegisterParams(fates_params)
-      call PRTRegisterParams(fates_params)
-      call FatesSynchronizedParamsInst%RegisterParams(fates_params)
+      ! open file
+      call check(nf90_open(trim(file), 0, ncid))
+      
+      ! read in data
+      call get_var(ncid, 'can_area', canopy_area)
+      call get_var(ncid, 'elai', elai)
+      call get_var(ncid, 'esai', esai)
+      call get_var(ncid, 'nrad', nrad)
 
-    end subroutine read_parameters
+      ! close file
+      call check(nf90_close(ncid))
+
+    end subroutine read_patch_data
 
     !:.........................................................................:
 
-    subroutine read_netcdf_params(filename, fates_params)
+    subroutine get_dims(ncid, varID, dim_lens)
       !
       ! DESCRIPTION:
-      !   Calls actual netcdf library methods for reading FATES parameters from netcdf
+      ! Get dimensions for a netcdf variable
       !
 
-      ! ARGUMENTS:
-      character(len=*),             intent(in)    :: filename     ! full path of parameter file
-      class(fates_parameters_type), intent(inout) :: fates_params ! fates parameters type
-      
-      ! LOCALS:
-      logical :: file_exists  ! does the file exist?
-      integer :: ncid         ! netcdf file unit number
-      integer :: max_dim_size !
-
-      ! check if file is on disk
-      inquire(file=trim(adjustl(filename)), exist=file_exists)
-      if (.not. file_exists) then 
-        write(logf,'(a)') 'File ', filename, ' does not exist.'
-        stop "Stopping"
-      end if 
-      
-      ! open the file
-      call check(nf90_open(trim(adjustl(filename)), 0, ncid))
-
-      ! get and set the correct dimensions for the parameters
-      call set_param_dimensions(ncid, fates_params)
-
-      ! max_dim_size = fates_params%GetMaxDimensionSize()
-      ! num_params = fates_params%num_params()
-      ! do i = 1, num_params
-      !    call fates_params%GetMetaData(i, name, dimension_shape, dimension_sizes, dimension_names, is_host_param)
-      !    if (is_host_file .eqv. is_host_param) then
-      !       select case(dimension_shape)
-      !       case(dimension_shape_scalar)
-      !          size_dim_1 = 1
-      !          size_dim_2 = 1
-      !       case(dimension_shape_1d)
-      !          size_dim_1 = dimension_sizes(1)
-      !          size_dim_2 = 1
-      !       case(dimension_shape_2d)
-      !          size_dim_1 = dimension_sizes(1)
-      !          size_dim_2 = dimension_sizes(2)
-      !       case default
-      !          write(fates_log(),*) 'dimension shape:',dimension_shape
-      !          call endrun(msg='unsupported number of dimensions reading parameters.')
-   
-      !       end select
-      !       if (masterproc) then
-      !          write(fates_log(), *) 'clmfates_interfaceMod.F90:: reading '//trim(name)
-      !       end if
-      !       call readNcdio(ncid, name, dimension_shape, dimension_names, subname, data(1:size_dim_1, 1:size_dim_2))
-      !       call fates_params%SetData(i, data(1:size_dim_1, 1:size_dim_2))
-      !    end if
-      ! end do
-      ! deallocate(data)
-      ! call ncd_pio_closefile(ncid)
-
-    end subroutine read_netcdf_params
-
-    !:.........................................................................:
-
-    subroutine set_param_dimensions(ncid, fates_params)
-      !
-      ! DESCRIPTION:
-      !   get the list of dimensions used by the FATES parameters
-      !
-
-      ! ARGUMENTS:
-      integer,                      intent(inout) :: ncid         ! netcdf unit number
-      class(fates_parameters_type), intent(inout) :: fates_params ! fates parameters
+      ! ARGUMENTS
+      integer,              intent(in)  :: ncid        ! netcdf file unit ID
+      integer,              intent(in)  :: varID       ! variable ID
+      integer, allocatable, intent(out) :: dim_lens(:) ! dimension lengths
 
       ! LOCALS:
-      integer                            :: num_dimensions
-      character(len=param_string_length) :: dimension_names(max_used_dimensions)
-      integer                            :: dimension_sizes(max_used_dimensions)
-      integer                            :: d
-      integer                            :: dim_id
-    
-      dimension_sizes(:) = 0
+      integer              :: numDims   ! number of dimensions
+      integer, allocatable :: dimIDs(:) ! dimension IDs
+      integer              :: i         ! looping index
+  
+      ! find dimensions of data 
+      call check(nf90_inquire_variable(ncid, varID, ndims=numDims))
 
-      call fates_params%GetUsedDimensions(.false., num_dimensions,             &
-        dimension_names)
+      ! allocate data to grab dimension information
+      allocate(dim_lens(numDims))
+      allocate(dimIDs(numDims))
 
-      do d = 1, num_dimensions
-        call check(nf90_inq_dimid(ncid, dimension_names(d), dim_id))
-        call check(nf90_inquire_dimension(ncid, dim_id, len=dimension_sizes(d)))
+      ! get dimIDs
+      call check(nf90_inquire_variable(ncid, varID, dimids=dimIDs))
+
+      ! grab these dimensions
+      do i = 1, numDims
+        call check(nf90_inquire_dimension(ncid, dimIDs(i), len=dim_lens(i)))
       end do
 
-      call fates_params%SetDimensionSizes(.false., num_dimensions,             &
-        dimension_names, dimension_sizes)
-
-    end subroutine set_param_dimensions
+    end subroutine get_dims
 
     !:.........................................................................:
 
-    ! subroutine read_patch_data(file, canopy_area, elai, esai, nrad)
-    !   !
-    !   ! DESCRIPTION:
-    !   ! Reads and return patch data
-    
-    !   ! ARGUMENTS:
-    !   character(len=MAX_PATH), intent(in)  :: file                                  ! patch file name
-    !   real(r8),                intent(out) :: canopy_area(num_can,num_pft,nlevleaf) ! canopy area profile
-    !   real(r8),                intent(out) :: elai(num_can,num_pft,nlevleaf)        ! exposed lai profile
-    !   real(r8),                intent(out) :: esai(num_can,num_pft,nlevleaf)        ! exposed sai profile
-    !   real(r8),                intent(out) :: nrad(num_can,num_pft)                 ! number of exposed leaf layers
+    subroutine get_var1D_real(ncid, var_name, data)
+      !
+      ! DESCRIPTION:
+      ! Read in variables for 1D real data
+      !
 
-    !   ! LOCALS:
-    !   real(r8) :: nrad_r(num_can,num_pft) ! number of exposed leaf layers
-    !   integer  :: fidA, varID
+      ! ARGUMENTS:
+      integer,                       intent(in)  :: ncid     ! netcdf file unit ID
+      character(len=*),              intent(in)  :: var_name ! variable name
+      real(r8),         allocatable, intent(out) :: data(:)  ! data values
 
-    !   ! open file
-    !   call check(nf90_open(trim(file), 0, fidA))
+      ! LOCALS:
+      integer              :: varID       ! variable ID
+      integer, allocatable :: dim_lens(:) ! dimension lengths 
 
-    !   ! read patch data values
-    !   call check(nf90_inq_varid(fidA, "can_area", varID))
-    !   call check(nf90_get_var(fidA, varID, canopy_area))
+      ! find variable ID first
+      call check(nf90_inq_varid(ncid, var_name, varID))
 
-    !   call check(nf90_inq_varid(fidA, "elai", varID))
-    !   call check(nf90_get_var(fidA, varID, elai))
+      ! get dimensions of data
+      call get_dims(ncid, varID, dim_lens)
 
-    !   call check(nf90_inq_varid(fidA, "esai", varID))
-    !   call check(nf90_get_var(fidA, varID, esai))
-
-    !   call check(nf90_inq_varid(fidA, "nrad", varID))
-    !   call check(nf90_get_var(fidA, varID, nrad))
-
-    ! end subroutine read_patch_data
+      ! read data
+      allocate(data(dim_lens(1)))
+      call check(nf90_get_var(ncid, varID, data))
+  
+    end subroutine get_var1D_real
 
     !:.........................................................................:
 
-    
+    subroutine get_var1D_int(ncid, var_name, data)
+      !
+      ! DESCRIPTION:
+      ! Read in variables for 1D integer data
+      !
+
+      ! ARGUMENTS:
+      integer,                       intent(in)  :: ncid     ! netcdf file unit ID
+      character(len=*),              intent(in)  :: var_name ! variable name
+      integer,          allocatable, intent(out) :: data(:)  ! data values
+
+      ! LOCALS:
+      integer              :: varID       ! variable ID
+      integer, allocatable :: dim_lens(:) ! dimension lengths 
+
+      ! find variable ID first
+      call check(nf90_inq_varid(ncid, var_name, varID))
+
+      ! get dimensions of data
+      call get_dims(ncid, varID, dim_lens)
+
+      ! read data
+      allocate(data(dim_lens(1)))
+      call check(nf90_get_var(ncid, varID, data))
+  
+    end subroutine get_var1D_int
+
+    !:.........................................................................:
+
+    subroutine get_var2D_real(ncid, var_name, data)
+      !
+      ! DESCRIPTION:
+      ! Read in variables for 2D real data
+      !
+
+      ! ARGUMENTS:
+      integer,                       intent(in)  :: ncid      ! netcdf file unit ID
+      character(len=*),              intent(in)  :: var_name  ! variable name
+      real(r8),         allocatable, intent(out) :: data(:,:) ! data values
+
+      ! LOCALS:
+      integer              :: varID       ! variable ID
+      integer, allocatable :: dim_lens(:) ! dimension lengths 
+
+      ! find variable ID first
+      call check(nf90_inq_varid(ncid, var_name, varID))
+
+      ! get dimensions of data
+      call get_dims(ncid, varID, dim_lens)
+
+      ! read data
+      allocate(data(dim_lens(1), dim_lens(2)))
+      call check(nf90_get_var(ncid, varID, data))
+  
+    end subroutine get_var2D_real
+
+    !:.........................................................................:
+
+    subroutine get_var2D_int(ncid, var_name, data)
+      !
+      ! DESCRIPTION:
+      ! Read in variables for 2D integer data
+      !
+
+      ! ARGUMENTS:
+      integer,                       intent(in)  :: ncid      ! netcdf file unit ID
+      character(len=*),              intent(in)  :: var_name  ! variable name
+      integer,          allocatable, intent(out) :: data(:,:) ! data values
+
+      ! LOCALS:
+      integer              :: varID       ! variable ID
+      integer, allocatable :: dim_lens(:) ! dimension lengths 
+
+      ! find variable ID first
+      call check(nf90_inq_varid(ncid, var_name, varID))
+
+      ! get dimensions of data
+      call get_dims(ncid, varID, dim_lens)
+
+      ! read data
+      allocate(data(dim_lens(1), dim_lens(2)))
+      call check(nf90_get_var(ncid, varID, data))
+  
+    end subroutine get_var2D_int
+
+    !:.........................................................................:
+
+    subroutine get_var3D_real(ncid, var_name, data)
+      !
+      ! DESCRIPTION:
+      ! Read in variables for 3D real data
+      !
+
+      ! ARGUMENTS:
+      integer,                       intent(in)  :: ncid        ! netcdf file unit ID
+      character(len=*),              intent(in)  :: var_name    ! variable name
+      real(r8),         allocatable, intent(out) :: data(:,:,:) ! data values
+
+      ! LOCALS:
+      integer              :: varID       ! variable ID
+      integer, allocatable :: dim_lens(:) ! dimension lengths 
+
+      ! find variable ID first
+      call check(nf90_inq_varid(ncid, var_name, varID))
+
+      ! get dimensions of data
+      call get_dims(ncid, varID, dim_lens)
+
+      ! read data
+      allocate(data(dim_lens(1), dim_lens(2), dim_lens(3)))
+      call check(nf90_get_var(ncid, varID, data))
+  
+    end subroutine get_var3D_real
+
+    !:.........................................................................:
+
+    subroutine get_var3D_int(ncid, var_name, data)
+      !
+      ! DESCRIPTION:
+      ! Read in variables for 3D integer data
+      !
+
+      ! ARGUMENTS:
+      integer,                       intent(in)  :: ncid        ! netcdf file unit ID
+      character(len=*),              intent(in)  :: var_name    ! variable name
+      integer,          allocatable, intent(out) :: data(:,:,:) ! data values
+
+      ! LOCALS:
+      integer              :: varID       ! variable ID
+      integer, allocatable :: dim_lens(:) ! dimension lengths 
+
+      ! find variable ID first
+      call check(nf90_inq_varid(ncid, var_name, varID))
+
+      ! get dimensions of data
+      call get_dims(ncid, varID, dim_lens)
+
+      ! read data
+      allocate(data(dim_lens(1), dim_lens(2), dim_lens(3)))
+      call check(nf90_get_var(ncid, varID, data))
+  
+    end subroutine get_var3D_int
+
+    !:.........................................................................:
 
   !   subroutine write_radiation_data(file, kdir, declin)
   !     !

@@ -203,12 +203,14 @@ module FatesPatchMod
       procedure :: create
       procedure :: dump
       procedure :: check_vars
+      procedure :: init_running_means
+      procedure :: init_litter
 
   end type fates_patch_type
 
   contains 
 
-    subroutine init(this, numSWb, numpft, nlevsoil, current_tod)
+    subroutine init(this, numSWb, nlevsoil)
       !
       !  DESCRIPTION:
       !  Initialize a new patch
@@ -217,15 +219,10 @@ module FatesPatchMod
       ! ARGUMENTS:
       class(fates_patch_type), intent(inout) :: this        ! patch object
       integer,                 intent(in)    :: numSWb      ! number of shortwave broad-bands to track
-      integer,                 intent(in)    :: numpft      ! number of pfts to simulate
       integer,                 intent(in)    :: nlevsoil    ! number of soil layers
-      integer,                 intent(in)    :: current_tod ! time of day [seconds past 0Z]
 
       ! LOCAL VARIABLES:
       integer :: el ! element loop index
-
-      ! Until bc's are pointed to by sites give veg a default temp [K]
-      real(r8), parameter :: temp_init_veg = 15._r8 + t_water_freeze_k_1atm
 
       ! allocate arrays 
       allocate(this%tr_soil_dir(numSWb))
@@ -237,10 +234,6 @@ module FatesPatchMod
       allocate(this%sabs_dir(numSWb))
       allocate(this%sabs_dif(numSWb))
       allocate(this%fragmentation_scaler(nlevsoil))
-      allocate(this%tveg24)
-      allocate(this%tveg_lpa)
-      allocate(this%tveg_longterm)
-      allocate(this%litter(num_elements))
 
       ! initialize values to nan
       call this%nan_values()
@@ -248,23 +241,7 @@ module FatesPatchMod
       ! zero values that should be zeroed
       call this%zero_values()
 
-      ! set initial values for running means
-      call this%tveg24%InitRMean(fixed_24hr, init_value=temp_init_veg,         &
-        init_offset=real(current_tod, r8))
-      call this%tveg_lpa%InitRmean(ema_lpa, init_value=temp_init_veg)
-      call this%tveg_longterm%InitRmean(ema_longterm, init_value=temp_init_veg)
-
-      ! set initial values for litter
-      do el = 1, num_elements
-          call this%litter(el)%InitAllocate(numpft, nlevsoil, element_list(el))
-          call this%litter(el)%ZeroFlux()
-          call this%litter(el)%InitConditions(init_leaf_fines=fates_unset_r8,  &
-            init_root_fines=fates_unset_r8, init_ag_cwd=fates_unset_r8,        &
-            init_bg_cwd=fates_unset_r8, init_seed=fates_unset_r8,              &
-            init_seed_germ=fates_unset_r8)
-      end do
-
-    end subroutine init
+    end subroutine init 
 
     !:.........................................................................:
 
@@ -468,6 +445,63 @@ module FatesPatchMod
 
     !:.........................................................................:
 
+    subroutine init_running_means(this, current_tod)
+      !
+      ! DESCRIPTION:
+      ! set initial values for patch running means
+      !
+
+      ! ARGUMENTS:
+      class(fates_patch_type), intent(inout) :: this        ! patch object
+      integer,                 intent(in)    :: current_tod ! time of day [seconds past 0Z]
+
+      ! PARAMETERS:
+      ! Until bc's are pointed to by sites give veg a default temp [K]
+      real(r8), parameter :: temp_init_veg = 15._r8 + t_water_freeze_k_1atm
+
+      allocate(this%tveg24)
+      allocate(this%tveg_lpa)
+      allocate(this%tveg_longterm)
+
+      ! set initial values for running means
+      call this%tveg24%InitRMean(fixed_24hr, init_value=temp_init_veg,         &
+        init_offset=real(current_tod, r8))
+      call this%tveg_lpa%InitRmean(ema_lpa, init_value=temp_init_veg)
+      call this%tveg_longterm%InitRmean(ema_longterm, init_value=temp_init_veg)
+
+    end subroutine init_running_means
+
+    !:.........................................................................:
+
+    subroutine init_litter(this, numpft, nlevsoil)
+      !
+      ! DESCRIPTION:
+      ! set initial values for litter
+      !
+
+      ! ARGUMENTS:
+      class(fates_patch_type), intent(inout) :: this     ! patch object
+      integer,                 intent(in)    :: numpft   ! number of pfts to simulate
+      integer,                 intent(in)    :: nlevsoil ! number of soil layers
+
+      ! LOCALS:
+      integer :: el ! looping index
+
+      allocate(this%litter(num_elements))
+
+      do el = 1, num_elements
+        call this%litter(el)%InitAllocate(numpft, nlevsoil, element_list(el))
+        call this%litter(el)%ZeroFlux()
+        call this%litter(el)%InitConditions(init_leaf_fines=fates_unset_r8,  &
+          init_root_fines=fates_unset_r8, init_ag_cwd=fates_unset_r8,        &
+          init_bg_cwd=fates_unset_r8, init_seed=fates_unset_r8,              &
+          init_seed_germ=fates_unset_r8)
+     end do
+
+    end subroutine init_litter
+
+    !:.........................................................................:
+
     subroutine create(this, age, areap, label, nocomp_pft, numSWb, numpft,     &
       nlevsoil, current_tod) 
       !
@@ -487,8 +521,14 @@ module FatesPatchMod
       integer,                intent(in)     :: current_tod ! time of day [seconds past 0Z]
     
       ! initialize patch
-      ! also sets all values to nan, then some values to zero
-      call this%init(numSWb, numpft, nlevsoil, current_tod)
+      ! sets all values to nan, then some values to zero
+      call this%init(numSWb, nlevsoil)
+
+      ! initialize running means for patch
+      call this%init_running_means(current_tod)
+      
+      ! initialize litter
+      call this%init_litter(numpft, nlevsoil)
     
       ! assign known patch attributes 
       this%age       = age   

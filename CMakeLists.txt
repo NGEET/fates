@@ -15,16 +15,16 @@ set(CLM_ROOT "../../")
 add_subdirectory(${CLM_ROOT}/share/src csm_share)
 add_subdirectory(${CLM_ROOT}/share/unit_test_stubs/util csm_share_stubs)
 
-# Extract just the files we need from csm_share
-# set (shr_sources_needed_base
-#     shr_log_mod.F90
-#     shr_infnan_mod.F90
-#     shr_kind_mod.F90
-#     shr_sys_mod.F90
-#     shr_strconvert_mod.F90
-#     shr_abort_mod.abortthrows.F90
-#   )
-# extract_sources("${shr_sources_needed_base}" "${share_sources}" shr_sources_needed)
+#Extract just the files we need from csm_share
+set (shr_sources_needed_base
+    shr_log_mod.F90
+    shr_infnan_mod.F90
+    shr_kind_mod.F90
+    shr_sys_mod.F90
+    shr_strconvert_mod.F90
+    shr_abort_mod.abortthrows.F90
+  )
+extract_sources("${shr_sources_needed_base}" "${share_sources}" shr_sources_needed)
 
 # Add FATES source directories
 add_subdirectory(${CLM_ROOT}/src/fates/main fates_main)
@@ -73,7 +73,7 @@ endforeach()
 
 # Build libraries containing stuff needed for the unit tests.
 # Eventually, these add_library calls should probably be distributed into the correct location, rather than being in this top-level CMakeLists.txt file.
-add_library(csm_share ${share_sources})
+add_library(csm_share ${shr_sources_needed})
 declare_generated_dependencies(csm_share "${share_genf90_sources}")
 add_library(fates ${fates_sources})
 add_dependencies(fates csm_share)
