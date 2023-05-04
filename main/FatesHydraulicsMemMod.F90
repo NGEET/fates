@@ -315,12 +315,74 @@ module FatesHydraulicsMemMod
      
      procedure :: AllocateHydrCohortArrays
      procedure :: DeallocateHydrCohortArrays
+     procedure :: CopyCohortHydraulics
      procedure :: dump
      
   end type ed_cohort_hydr_type
    
  contains
-    
+
+    subroutine CopyCohortHydraulics(ncohort_hydr, ocohort_hydr)
+
+      ! Arguments
+      class(ed_cohort_hydr_type), intent(inout) :: ncohort_hydr
+      class(ed_cohort_hydr_type), intent(inout) :: ocohort_hydr
+
+      ! Node heights
+      ncohort_hydr%z_node_ag             = ocohort_hydr%z_node_ag
+      ncohort_hydr%z_upper_ag            = ocohort_hydr%z_upper_ag
+      ncohort_hydr%z_lower_ag            = ocohort_hydr%z_lower_ag
+      ncohort_hydr%z_node_troot          = ocohort_hydr%z_node_troot
+
+      ! Compartment kmax's
+      ncohort_hydr%kmax_petiole_to_leaf  = ocohort_hydr%kmax_petiole_to_leaf
+      ncohort_hydr%kmax_stem_lower       = ocohort_hydr%kmax_stem_lower
+      ncohort_hydr%kmax_stem_upper       = ocohort_hydr%kmax_stem_upper
+      ncohort_hydr%kmax_troot_upper      = ocohort_hydr%kmax_troot_upper
+      ncohort_hydr%kmax_troot_lower      = ocohort_hydr%kmax_troot_lower
+      ncohort_hydr%kmax_aroot_upper      = ocohort_hydr%kmax_aroot_upper
+      ncohort_hydr%kmax_aroot_lower      = ocohort_hydr%kmax_aroot_lower
+      ncohort_hydr%kmax_aroot_radial_in  = ocohort_hydr%kmax_aroot_radial_in
+      ncohort_hydr%kmax_aroot_radial_out = ocohort_hydr%kmax_aroot_radial_out
+
+      ! Compartment volumes
+      ncohort_hydr%v_ag_init             = ocohort_hydr%v_ag_init
+      ncohort_hydr%v_ag                  = ocohort_hydr%v_ag
+      ncohort_hydr%v_troot_init          = ocohort_hydr%v_troot_init
+      ncohort_hydr%v_troot               = ocohort_hydr%v_troot
+      ncohort_hydr%v_aroot_layer_init    = ocohort_hydr%v_aroot_layer_init
+      ncohort_hydr%v_aroot_layer         = ocohort_hydr%v_aroot_layer
+      ncohort_hydr%l_aroot_layer         = ocohort_hydr%l_aroot_layer
+
+      ! State Variables
+      ncohort_hydr%th_ag                 = ocohort_hydr%th_ag
+      ncohort_hydr%th_troot              = ocohort_hydr%th_troot
+      ncohort_hydr%th_aroot              = ocohort_hydr%th_aroot
+      ncohort_hydr%psi_ag                = ocohort_hydr%psi_ag
+      ncohort_hydr%psi_troot             = ocohort_hydr%psi_troot
+      ncohort_hydr%psi_aroot             = ocohort_hydr%psi_aroot
+      ncohort_hydr%ftc_ag                = ocohort_hydr%ftc_ag
+      ncohort_hydr%ftc_troot             = ocohort_hydr%ftc_troot
+      ncohort_hydr%ftc_aroot             = ocohort_hydr%ftc_aroot
+
+      ! Other
+      ncohort_hydr%btran                 = ocohort_hydr%btran
+      ncohort_hydr%supsub_flag           = ocohort_hydr%supsub_flag
+      ncohort_hydr%iterh1                = ocohort_hydr%iterh1
+      ncohort_hydr%iterh2                = ocohort_hydr%iterh2
+      ncohort_hydr%iterlayer             = ocohort_hydr%iterlayer
+      ncohort_hydr%errh2o                = ocohort_hydr%errh2o
+
+
+      ! BC PLANT HYDRAULICS - flux terms
+      ncohort_hydr%qtop                  = ocohort_hydr%qtop
+
+      ncohort_hydr%is_newly_recruited    = ocohort_hydr%is_newly_recruited
+
+    end subroutine CopyCohortHydraulics
+
+    ! ==========================================================================
+
     subroutine AllocateHydrCohortArrays(this,nlevrhiz)
        
        ! Arguments

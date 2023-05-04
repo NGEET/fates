@@ -19,9 +19,9 @@ module FatesCohortMod
   use PRTParametersMod,           only : prt_params
   use FatesParameterDerivedMod,   only : param_derived
   use FatesHydraulicsMemMod,      only : ed_cohort_hydr_type
-  use FatesPlantHydraulicsMod,    only : CopyCohortHydraulics
   use FatesInterfaceTypesMod,     only : hlm_parteh_mode
   use FatesInterfaceTypesMod,     only : hlm_use_sp
+  use FatesInterfaceTypesMod,     only : hlm_use_planthydro
   use FatesInterfaceTypesMod,     only : nleafage
   use EDPftvarcon,                only : EDPftvarcon_inst
   use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
@@ -270,6 +270,7 @@ module FatesCohortMod
     procedure :: zero_values
     procedure :: create
     procedure :: copy
+    procedure :: free_memory
     procedure :: CanUpperUnder
     procedure :: InitPRTBoundaryConditions
     procedure :: UpdateCohortBioPhysRates
@@ -630,7 +631,7 @@ module FatesCohortMod
 
       ! ARGUMENTS
       class(fates_cohort_type), intent(in)    :: this        ! old cohort 
-      class(fates_cohort_type), intent(inout) :: copy_cohort ! new cohort 
+      class(fates_cohort_type), intent(inout) :: copy_cohort ! new cohort
 
       copy_cohort%indexnumber = fates_unset_int
       
@@ -687,11 +688,6 @@ module FatesCohortMod
       copy_cohort%ts_net_uptake           = this%ts_net_uptake
       copy_cohort%year_net_uptake         = this%year_net_uptake
       copy_cohort%cnp_limiter             = this%cnp_limiter
-
-      if (debug .and. .not. this%isnew) then 
-        write(fates_log(),*) 'EDcohortDyn Ia ', this%npp_acc
-        write(fates_log(),*) 'EDcohortDyn Ib ', this%resp_acc
-      end if
 
       if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then 
         copy_cohort%cx_int                  = this%cx_int
@@ -753,9 +749,8 @@ module FatesCohortMod
       copy_cohort%fire_mort               = this%fire_mort
 
       ! HYDRAULICS
-  
       if (hlm_use_planthydro .eq. itrue) then
-        call CopyCohortHydraulics(copy_cohort, this)
+        call copy_cohort%co_hydr%CopyCohortHydraulics(this%co_hydr)
       endif
 
     end subroutine copy
@@ -770,14 +765,17 @@ module FatesCohortMod
       !
 
       ! ARGUMENTS
-      type(fates_cohort_type), intent(inout) :: this ! cohort object
+      class(fates_cohort_type), intent(inout) :: this ! cohort object
 
       ! LOCALS:
       integer            :: istat ! return status code
       character(len=255) :: smsg  ! error message
  
       ! at this point, nothing should be pointing to current cohort
-      if (hlm_use_planthydro .eq. itrue) call DeallocateHydrCohort(this)
+      if (hlm_use_planthydro .eq. itrue) then
+        call this%co_hydr%DeAllocateHydrCohortArrays()
+        deallocate(this%co_hydr)
+      end if
  
       ! deallocate the cohort's PRT structures
       call this%prt%DeallocatePRTVartypes()

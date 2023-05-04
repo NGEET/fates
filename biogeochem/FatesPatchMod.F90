@@ -5,6 +5,7 @@ module FatesPatchMod
   use FatesConstantsMod,   only : fates_unset_int
   use FatesConstantsMod,   only : primaryforest, secondaryforest
   use FatesGlobals,        only : fates_log
+  use FatesGlobals,        only : endrun => fates_endrun
   use FatesUtilsMod,       only : check_hlm_list
   use FatesUtilsMod,       only : check_var_real
   use FatesCohortMod,      only : fates_cohort_type
@@ -20,6 +21,7 @@ module FatesPatchMod
   use FatesRunningMeanMod, only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm
 
   use shr_infnan_mod,      only : nan => shr_infnan_nan, assignment(=)
+  use shr_log_mod,         only : errMsg => shr_log_errMsg
 
   implicit none
   private
@@ -558,18 +560,18 @@ module FatesPatchMod
 
       ! ARGUMENTS:
       class(fates_patch_type), intent(inout) :: this        ! patch object
-      real(r8),               intent(in)     :: age         ! notional age of this patch in years
-      real(r8),               intent(in)     :: areap       ! initial area of this patch in m2. 
-      integer,                intent(in)     :: label       ! anthropogenic disturbance label
-      integer,                intent(in)     :: nocomp_pft  ! no-competition mode pft label
-      integer,                intent(in)     :: numSWb      ! number of shortwave broad-bands to track
-      integer,                intent(in)     :: numpft      ! number of pfts to simulate
-      integer,                intent(in)     :: nlevsoil    ! number of soil layers
-      integer,                intent(in)     :: current_tod ! time of day [seconds past 0Z]
+      real(r8),                intent(in)    :: age         ! notional age of this patch in years
+      real(r8),                intent(in)    :: areap       ! initial area of this patch in m2. 
+      integer,                 intent(in)    :: label       ! anthropogenic disturbance label
+      integer,                 intent(in)    :: nocomp_pft  ! no-competition mode pft label
+      integer,                 intent(in)    :: numSWb      ! number of shortwave broad-bands to track
+      integer,                 intent(in)    :: numpft      ! number of pfts to simulate
+      integer,                 intent(in)    :: nlevsoil    ! number of soil layers
+      integer,                 intent(in)    :: current_tod ! time of day [seconds past 0Z]
     
       ! initialize patch
       ! sets all values to nan, then some values to zero
-      call this%init(numSWb, nlevsoil)
+      call this%init(numpft, numSWb, nlevsoil)
 
       ! initialize running means for patch
       call this%init_running_means(current_tod)
