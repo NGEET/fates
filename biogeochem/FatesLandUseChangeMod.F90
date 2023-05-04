@@ -48,8 +48,7 @@ module FatesLandUseChangeMod
 
      contains
 
-       ! procedure :: Init => init_luh2_fates_mapping
-       procedure :: GetIndex => GetLUH2CategoryFromStateName
+       procedure :: GetIndex => GetLUCategoryFromStateName
 
   end type luh2_fates_lutype_map
 
