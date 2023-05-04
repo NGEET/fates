@@ -110,7 +110,7 @@ contains
 
   !----------------------------------------------------------------------------------------------------
 
-  function GetLUH2CategoryFromStateName(this, state_name) result(landuse_category)
+  function GetLUCategoryFromStateName(this, state_name) result(landuse_category)
 
     class(luh2_fates_lutype_map) :: this
     character(len=5), intent(in) :: state_name
@@ -118,7 +118,7 @@ contains
 
     landuse_category = this%landuse_categories(findloc(this%state_names,state_name,dim=1))
 
-  end function GetLUH2CategoryFromStateName
+  end function GetLUCategoryFromStateName
 
   !----------------------------------------------------------------------------------------------------
 
