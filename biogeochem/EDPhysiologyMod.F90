@@ -31,7 +31,6 @@ module EDPhysiologyMod
   use FatesInterfaceTypesMod, only    : bc_out_type
   use EDCohortDynamicsMod , only : create_cohort, sort_cohorts
   use EDCohortDynamicsMod , only : InitPRTObject
-  use EDCohortDynamicsMod , only : copy_cohort
   use FatesAllometryMod   , only : tree_lai
   use FatesAllometryMod   , only : tree_sai
   use FatesAllometryMod   , only : leafc_from_treelai
@@ -277,7 +276,7 @@ contains
              call ndcohort%zero_values()
              
              ! nc_canopy_d is the new cohort that gets damaged 
-             call copy_cohort(ccohort, ndcohort)
+             call ccohort%copy(ndcohort)
              
              ! new number densities - we just do damaged cohort here -
              ! undamaged at the end of the cohort loop once we know how many damaged to

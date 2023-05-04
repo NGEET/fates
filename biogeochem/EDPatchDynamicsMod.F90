@@ -406,7 +406,7 @@ contains
     ! !USES:
     
     use EDParamsMod         , only : ED_val_understorey_death, logging_coll_under_frac
-    use EDCohortDynamicsMod , only : copy_cohort, terminate_cohorts
+    use EDCohortDynamicsMod , only : terminate_cohorts
     use FatesConstantsMod   , only : rsnbl_math_prec
 
     !
@@ -691,7 +691,7 @@ contains
 
                          ! nc is the new cohort that goes in the disturbed patch (new_patch)... currentCohort
                          ! is the curent cohort that stays in the donor patch (currentPatch)
-                         call copy_cohort(currentCohort, nc)
+                         call currentCohort%copy(nc)
 
                          !this is the case as the new patch probably doesn't have a closed canopy, and
                          ! even if it does, that will be sorted out in canopy_structure.
@@ -2529,7 +2529,7 @@ contains
     end if
 
     ! We have no need for the dp pointer anymore, we have passed on it's legacy
-    call dealloc_patch(dp)
+    call dp%free_memory()
     deallocate(dp, stat=istat, errmsg=smsg)
     if (istat/=0) then
        write(fates_log(),*) 'dealloc006: fail on deallocate(dp):'//trim(smsg)
@@ -2763,84 +2763,6 @@ contains
 
       return
   end subroutine DistributeSeeds
-
-
-  ! =====================================================================================
-
-  subroutine dealloc_patch(cpatch)
-
-    ! This Subroutine is intended to de-allocate the allocatable memory that is pointed
-    ! to via the patch structure.  This subroutine DOES NOT deallocate the patch
-    ! structure itself.
-
-    type(fates_patch_type) :: cpatch
-
-    type(fates_cohort_type), pointer :: ccohort  ! current
-    type(fates_cohort_type), pointer :: ncohort  ! next
-    integer                       :: el       ! loop counter for elements
-    
-    ! First Deallocate the cohort space
-    ! -----------------------------------------------------------------------------------
-    ccohort => cpatch%shortest
-    do while(associated(ccohort))
-       
-       ncohort => ccohort%taller
-
-       call DeallocateCohort(ccohort)
-       deallocate(ccohort, stat=istat, errmsg=smsg)
-       if (istat/=0) then
-          write(fates_log(),*) 'dealloc007: fail on deallocate(cchort):'//trim(smsg)
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       endif
-       
-       ccohort => ncohort
-
-    end do
-
-    ! Deallocate all litter objects
-    do el=1,num_elements
-       call cpatch%litter(el)%DeallocateLitt()
-    end do
-    deallocate(cpatch%litter, stat=istat, errmsg=smsg)
-    if (istat/=0) then
-       write(fates_log(),*) 'dealloc008: fail on deallocate(cpatch%litter):'//trim(smsg)
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    endif
-    
-    ! Secondly, deallocate the allocatable vector spaces in the patch
-    deallocate(cpatch%tr_soil_dir, & 
-         cpatch%tr_soil_dif,       & 
-         cpatch%tr_soil_dir_dif,   & 
-         cpatch%fab,               &
-         cpatch%fabd,              &
-         cpatch%fabi,              &
-         cpatch%sabs_dir,          &
-         cpatch%sabs_dif,          &
-         cpatch%fragmentation_scaler, stat=istat, errmsg=smsg)
-    if (istat/=0) then
-       write(fates_log(),*) 'dealloc009: fail on deallocate patch vectors:'//trim(smsg)
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    endif
-    
-    ! Deallocate any running means
-    deallocate(cpatch%tveg24, stat=istat, errmsg=smsg)
-    if (istat/=0) then
-       write(fates_log(),*) 'dealloc010: fail on deallocate(cpatch%tveg24):'//trim(smsg)
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    endif
-    deallocate(cpatch%tveg_lpa, stat=istat, errmsg=smsg)
-    if (istat/=0) then
-       write(fates_log(),*) 'dealloc011: fail on deallocate(cpatch%tveg_lpa):'//trim(smsg)
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    endif
-    deallocate(cpatch%tveg_longterm, stat=istat, errmsg=smsg)
-    if (istat/=0) then
-       write(fates_log(),*) 'dealloc012: fail on deallocate(cpatch%tveg_longterm):'//trim(smsg)
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    endif
-    
-    return
-  end subroutine dealloc_patch
 
   ! ============================================================================
   subroutine patch_pft_size_profile(cp_pnt)

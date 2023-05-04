@@ -19,6 +19,7 @@ module FatesCohortMod
   use PRTParametersMod,           only : prt_params
   use FatesParameterDerivedMod,   only : param_derived
   use FatesHydraulicsMemMod,      only : ed_cohort_hydr_type
+  use FatesPlantHydraulicsMod,    only : CopyCohortHydraulics
   use FatesInterfaceTypesMod,     only : hlm_parteh_mode
   use FatesInterfaceTypesMod,     only : hlm_use_sp
   use FatesInterfaceTypesMod,     only : nleafage
@@ -268,6 +269,7 @@ module FatesCohortMod
     procedure :: nan_values
     procedure :: zero_values
     procedure :: create
+    procedure :: copy
     procedure :: CanUpperUnder
     procedure :: InitPRTBoundaryConditions
     procedure :: UpdateCohortBioPhysRates
@@ -620,6 +622,146 @@ module FatesCohortMod
 
     !:.........................................................................:
 
+    subroutine copy(this, copy_cohort) 
+      !
+      ! DESCRIPTION:
+      ! copies all the variables in one cohort into a new cohort
+      !
+
+      ! ARGUMENTS
+      class(fates_cohort_type), intent(in)    :: this        ! old cohort 
+      class(fates_cohort_type), intent(inout) :: copy_cohort ! new cohort 
+
+      copy_cohort%indexnumber = fates_unset_int
+      
+      ! POINTERS
+      copy_cohort%taller  => NULL() 
+      copy_cohort%shorter => NULL() 
+
+      ! PRT
+      call copy_cohort%prt%CopyPRTVartypes(this%prt)
+      copy_cohort%l2fr                    = this%l2fr
+      
+      ! VEGETATION STRUCTURE
+      copy_cohort%pft                     = this%pft
+      copy_cohort%n                       = this%n
+      copy_cohort%dbh                     = this%dbh
+      copy_cohort%coage                   = this%coage
+      copy_cohort%hite                    = this%hite
+      copy_cohort%canopy_layer            = this%canopy_layer
+      copy_cohort%canopy_layer_yesterday  = this%canopy_layer_yesterday
+      copy_cohort%crowndamage             = this%crowndamage
+      copy_cohort%g_sb_laweight           = this%g_sb_laweight
+      copy_cohort%canopy_trim             = this%canopy_trim
+      copy_cohort%leaf_cost               = this%leaf_cost
+      copy_cohort%excl_weight             = this%excl_weight
+      copy_cohort%prom_weight             = this%prom_weight
+      copy_cohort%nv                      = this%nv
+      copy_cohort%status_coh              = this%status_coh
+      copy_cohort%c_area                  = this%c_area
+      copy_cohort%treelai                 = this%treelai
+      copy_cohort%treesai                 = this%treesai
+      copy_cohort%isnew                   = this%isnew
+      copy_cohort%size_class              = this%size_class
+      copy_cohort%coage_class             = this%coage_class
+      copy_cohort%size_by_pft_class       = this%size_by_pft_class
+      copy_cohort%coage_by_pft_class      = this%coage_by_pft_class
+      copy_cohort%size_class_lasttimestep = this%size_class_lasttimestep
+
+      ! CARBON AND NUTRIENT FLUXES
+      copy_cohort%gpp_tstep               = this%gpp_tstep
+      copy_cohort%gpp_acc                 = this%gpp_acc
+      copy_cohort%gpp_acc_hold            = this%gpp_acc_hold
+      copy_cohort%npp_tstep               = this%npp_tstep
+      copy_cohort%npp_acc                 = this%npp_acc
+      copy_cohort%npp_acc_hold            = this%npp_acc_hold
+      copy_cohort%resp_tstep              = this%resp_tstep
+      copy_cohort%resp_acc                = this%resp_acc
+      copy_cohort%resp_acc_hold           = this%resp_acc_hold
+      copy_cohort%c13disc_clm             = this%c13disc_clm
+      copy_cohort%c13disc_acc             = this%c13disc_acc
+      copy_cohort%vcmax25top              = this%vcmax25top
+      copy_cohort%jmax25top               = this%jmax25top
+      copy_cohort%tpu25top                = this%tpu25top
+      copy_cohort%kp25top                 = this%kp25top
+      copy_cohort%ts_net_uptake           = this%ts_net_uptake
+      copy_cohort%year_net_uptake         = this%year_net_uptake
+      copy_cohort%cnp_limiter             = this%cnp_limiter
+
+      if (debug .and. .not. this%isnew) then 
+        write(fates_log(),*) 'EDcohortDyn Ia ', this%npp_acc
+        write(fates_log(),*) 'EDcohortDyn Ib ', this%resp_acc
+      end if
+
+      if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then 
+        copy_cohort%cx_int                  = this%cx_int
+        copy_cohort%ema_dcxdt               = this%ema_dcxdt
+        copy_cohort%cx0                     = this%cx0
+      end if 
+
+      copy_cohort%nc_repro                = this%nc_repro
+      copy_cohort%daily_nh4_uptake        = this%daily_nh4_uptake
+      copy_cohort%daily_no3_uptake        = this%daily_no3_uptake
+      copy_cohort%sym_nfix_daily          = this%sym_nfix_daily
+      copy_cohort%sym_nfix_tstep          = this%sym_nfix_tstep
+      copy_cohort%daily_n_gain            = this%daily_n_gain
+      copy_cohort%daily_p_gain            = this%daily_p_gain
+      copy_cohort%daily_c_efflux          = this%daily_c_efflux
+      copy_cohort%daily_n_efflux          = this%daily_n_efflux
+      copy_cohort%daily_p_efflux          = this%daily_p_efflux
+      copy_cohort%daily_n_demand          = this%daily_n_demand
+      copy_cohort%daily_p_demand          = this%daily_p_demand
+      copy_cohort%seed_prod               = this%seed_prod
+
+      ! RESPIRATION COMPONENTS
+      copy_cohort%rdark                   = this%rdark
+      copy_cohort%resp_g_tstep            = this%resp_g_tstep
+      copy_cohort%resp_m                  = this%resp_m
+      copy_cohort%resp_m_unreduced        = this%resp_m_unreduced
+      copy_cohort%resp_excess             = this%resp_excess
+      copy_cohort%livestem_mr             = this%livestem_mr
+      copy_cohort%livecroot_mr            = this%livecroot_mr
+      copy_cohort%froot_mr                = this%froot_mr
+
+      ! DAMAGE
+      copy_cohort%branch_frac             = this%branch_frac
+
+      ! MORTALITY
+      copy_cohort%dmort                   = this%dmort
+      copy_cohort%bmort                   = this%bmort
+      copy_cohort%cmort                   = this%cmort
+      copy_cohort%hmort                   = this%hmort
+      copy_cohort%frmort                  = this%frmort
+      copy_cohort%smort                   = this%smort
+      copy_cohort%asmort                  = this%asmort
+      copy_cohort%dgmort                  = this%dgmort
+      copy_cohort%lmort_direct            = this%lmort_direct
+      copy_cohort%lmort_collateral        = this%lmort_collateral
+      copy_cohort%lmort_infra             = this%lmort_infra
+      copy_cohort%l_degrad                = this%l_degrad
+
+      ! GROWTH DERIVATIVES
+      copy_cohort%dndt                    = this%dndt
+      copy_cohort%dhdt                    = this%dhdt
+      copy_cohort%ddbhdt                  = this%ddbhdt
+      copy_cohort%dbdeaddt                = this%dbdeaddt
+
+      ! FIRE
+      copy_cohort%fraction_crown_burned   = this%fraction_crown_burned
+      copy_cohort%cambial_mort            = this%cambial_mort
+      copy_cohort%crownfire_mort          = this%crownfire_mort
+      copy_cohort%fire_mort               = this%fire_mort
+
+      ! HYDRAULICS
+  
+      if (hlm_use_planthydro .eq. itrue) then
+        call CopyCohortHydraulics(copy_cohort, this)
+      endif
+
+    end subroutine copy
+
+    !:.........................................................................:
+  
     subroutine InitPRTBoundaryConditions(this)      
       !
       ! DESCRIPTION:
@@ -627,7 +769,7 @@ module FatesCohortMod
       ! allocation hypotheses.  Each of these calls to "RegsterBC" are simply
       ! setting pointers.
       ! For instance, if the hypothesis wants to know what
-      ! the DBH of the plant is, then we pass in the dbh as an argument (new_cohort%dbh),
+      ! the DBH of the plant is, then we pass in the dbh as an argument (copy_cohort%dbh),
       ! and also tell it which boundary condition we are talking about (which is
       ! defined by an integer index (ac_bc_inout_id_dbh)
       !
@@ -647,48 +789,48 @@ module FatesCohortMod
       select case(hlm_parteh_mode)
       case (prt_carbon_allom_hyp)
    
-         ! Register boundary conditions for the Carbon Only Allometric Hypothesis
-   
-         call this%prt%RegisterBCInOut(ac_bc_inout_id_dbh, bc_rval=this%dbh)
-         call this%prt%RegisterBCInOut(ac_bc_inout_id_netdc, bc_rval=this%npp_acc)
-         call this%prt%RegisterBCIn(ac_bc_in_id_cdamage, bc_ival=this%crowndamage)
-         call this%prt%RegisterBCIn(ac_bc_in_id_pft, bc_ival=this%pft)
-         call this%prt%RegisterBCIn(ac_bc_in_id_ctrim, bc_rval=this%canopy_trim)
-         call this%prt%RegisterBCIn(ac_bc_in_id_lstat, bc_ival=this%status_coh)
-         
+        ! Register boundary conditions for the Carbon Only Allometric Hypothesis
+  
+        call this%prt%RegisterBCInOut(ac_bc_inout_id_dbh, bc_rval=this%dbh)
+        call this%prt%RegisterBCInOut(ac_bc_inout_id_netdc, bc_rval=this%npp_acc)
+        call this%prt%RegisterBCIn(ac_bc_in_id_cdamage, bc_ival=this%crowndamage)
+        call this%prt%RegisterBCIn(ac_bc_in_id_pft, bc_ival=this%pft)
+        call this%prt%RegisterBCIn(ac_bc_in_id_ctrim, bc_rval=this%canopy_trim)
+        call this%prt%RegisterBCIn(ac_bc_in_id_lstat, bc_ival=this%status_coh)
+        
       case (prt_cnp_flex_allom_hyp)
    
-         ! Register boundary conditions for the CNP Allometric Hypothesis
+        ! Register boundary conditions for the CNP Allometric Hypothesis
    
-         call this%prt%RegisterBCIn(acnp_bc_in_id_pft, bc_ival=this%pft)
-         call this%prt%RegisterBCIn(acnp_bc_in_id_ctrim, bc_rval=this%canopy_trim)
-         call this%prt%RegisterBCIn(acnp_bc_in_id_lstat, bc_ival=this%status_coh)
-         call this%prt%RegisterBCIn(acnp_bc_in_id_netdc, bc_rval=this%npp_acc)
-   
-         call this%prt%RegisterBCIn(acnp_bc_in_id_nc_repro, bc_rval=this%nc_repro)
-         call this%prt%RegisterBCIn(acnp_bc_in_id_pc_repro, bc_rval=this%pc_repro)
-         call this%prt%RegisterBCIn(acnp_bc_in_id_cdamage, bc_ival=this%crowndamage)
-         
-         call this%prt%RegisterBCInOut(acnp_bc_inout_id_dbh, bc_rval=this%dbh)
-         call this%prt%RegisterBCInOut(acnp_bc_inout_id_resp_excess, bc_rval=this%resp_excess)
-         call this%prt%RegisterBCInOut(acnp_bc_inout_id_l2fr, bc_rval=this%l2fr)
-         call this%prt%RegisterBCInOut(acnp_bc_inout_id_cx_int, bc_rval=this%cx_int)
-         call this%prt%RegisterBCInOut(acnp_bc_inout_id_emadcxdt, bc_rval=this%ema_dcxdt)
-         call this%prt%RegisterBCInOut(acnp_bc_inout_id_cx0, bc_rval=this%cx0)
-         
-         call this%prt%RegisterBCInOut(acnp_bc_inout_id_netdn, bc_rval=this%daily_n_gain)
-         call this%prt%RegisterBCInOut(acnp_bc_inout_id_netdp, bc_rval=this%daily_p_gain)
-         
-         call this%prt%RegisterBCOut(acnp_bc_out_id_cefflux, bc_rval=this%daily_c_efflux)
-         call this%prt%RegisterBCOut(acnp_bc_out_id_nefflux, bc_rval=this%daily_n_efflux)
-         call this%prt%RegisterBCOut(acnp_bc_out_id_pefflux, bc_rval=this%daily_p_efflux)
-         call this%prt%RegisterBCOut(acnp_bc_out_id_limiter, bc_ival=this%cnp_limiter)
-         
+        call this%prt%RegisterBCIn(acnp_bc_in_id_pft, bc_ival=this%pft)
+        call this%prt%RegisterBCIn(acnp_bc_in_id_ctrim, bc_rval=this%canopy_trim)
+        call this%prt%RegisterBCIn(acnp_bc_in_id_lstat, bc_ival=this%status_coh)
+        call this%prt%RegisterBCIn(acnp_bc_in_id_netdc, bc_rval=this%npp_acc)
+  
+        call this%prt%RegisterBCIn(acnp_bc_in_id_nc_repro, bc_rval=this%nc_repro)
+        call this%prt%RegisterBCIn(acnp_bc_in_id_pc_repro, bc_rval=this%pc_repro)
+        call this%prt%RegisterBCIn(acnp_bc_in_id_cdamage, bc_ival=this%crowndamage)
+        
+        call this%prt%RegisterBCInOut(acnp_bc_inout_id_dbh, bc_rval=this%dbh)
+        call this%prt%RegisterBCInOut(acnp_bc_inout_id_resp_excess, bc_rval=this%resp_excess)
+        call this%prt%RegisterBCInOut(acnp_bc_inout_id_l2fr, bc_rval=this%l2fr)
+        call this%prt%RegisterBCInOut(acnp_bc_inout_id_cx_int, bc_rval=this%cx_int)
+        call this%prt%RegisterBCInOut(acnp_bc_inout_id_emadcxdt, bc_rval=this%ema_dcxdt)
+        call this%prt%RegisterBCInOut(acnp_bc_inout_id_cx0, bc_rval=this%cx0)
+        
+        call this%prt%RegisterBCInOut(acnp_bc_inout_id_netdn, bc_rval=this%daily_n_gain)
+        call this%prt%RegisterBCInOut(acnp_bc_inout_id_netdp, bc_rval=this%daily_p_gain)
+        
+        call this%prt%RegisterBCOut(acnp_bc_out_id_cefflux, bc_rval=this%daily_c_efflux)
+        call this%prt%RegisterBCOut(acnp_bc_out_id_nefflux, bc_rval=this%daily_n_efflux)
+        call this%prt%RegisterBCOut(acnp_bc_out_id_pefflux, bc_rval=this%daily_p_efflux)
+        call this%prt%RegisterBCOut(acnp_bc_out_id_limiter, bc_ival=this%cnp_limiter)
+        
       case DEFAULT
    
-         write(fates_log(),*) 'You specified an unknown PRT module'
-         write(fates_log(),*) 'Aborting'
-         call endrun(msg=errMsg(sourcefile, __LINE__))
+        write(fates_log(),*) 'You specified an unknown PRT module'
+        write(fates_log(),*) 'Aborting'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
    
       end select
    
@@ -746,23 +888,21 @@ module FatesCohortMod
         this%kp25top = sum(param_derived%kp25top(ipft, 1:nleafage)*            &
           frac_leaf_aclass(1:nleafage))
 
-        else if (hlm_use_sp .eq. itrue) then
+      else if (hlm_use_sp .eq. itrue) then
           
-          this%vcmax25top = EDPftvarcon_inst%vcmax25top(ipft, 1)
-          this%jmax25top = param_derived%jmax25top(ipft, 1)
-          this%tpu25top = param_derived%tpu25top(ipft, 1)
-          this%kp25top = param_derived%kp25top(ipft, 1)
+        this%vcmax25top = EDPftvarcon_inst%vcmax25top(ipft, 1)
+        this%jmax25top = param_derived%jmax25top(ipft, 1)
+        this%tpu25top = param_derived%tpu25top(ipft, 1)
+        this%kp25top = param_derived%kp25top(ipft, 1)
 
       else
-        
+      
         this%vcmax25top = 0._r8
         this%jmax25top  = 0._r8
         this%tpu25top   = 0._r8
         this%kp25top    = 0._r8
 
       end if
-
-      return
 
     end subroutine UpdateCohortBioPhysRates
 
@@ -805,79 +945,77 @@ module FatesCohortMod
       write(fates_log(),*) '----------------------------------------'
       write(fates_log(),*) ' Dumping Cohort Information             '
       write(fates_log(),*) '----------------------------------------'
-      write(fates_log(),*) 'co%pft                    = ', this%pft
-      write(fates_log(),*) 'co%n                      = ', this%n                         
-      write(fates_log(),*) 'co%dbh                    = ', this%dbh                                        
-      write(fates_log(),*) 'co%hite                   = ', this%hite
-      write(fates_log(),*) 'co%crowndamage            = ', this%crowndamage
-      write(fates_log(),*) 'co%coage                  = ', this%coage
-      write(fates_log(),*) 'co%l2fr                   = ', this%l2fr
+      write(fates_log(),*) 'cthis%pft                    = ', this%pft
+      write(fates_log(),*) 'cthis%n                      = ', this%n                         
+      write(fates_log(),*) 'cthis%dbh                    = ', this%dbh                                        
+      write(fates_log(),*) 'cthis%hite                   = ', this%hite
+      write(fates_log(),*) 'cthis%crowndamage            = ', this%crowndamage
+      write(fates_log(),*) 'cthis%coage                  = ', this%coage
+      write(fates_log(),*) 'cthis%l2fr                   = ', this%l2fr
       write(fates_log(),*) 'leaf carbon               = ', this%prt%GetState(leaf_organ,carbon12_element) 
       write(fates_log(),*) 'fineroot carbon           = ', this%prt%GetState(fnrt_organ,carbon12_element) 
       write(fates_log(),*) 'sapwood carbon            = ', this%prt%GetState(sapw_organ,carbon12_element) 
       write(fates_log(),*) 'structural (dead) carbon  = ', this%prt%GetState(struct_organ,carbon12_element) 
       write(fates_log(),*) 'storage carbon            = ', this%prt%GetState(store_organ,carbon12_element) 
       write(fates_log(),*) 'reproductive carbon       = ', this%prt%GetState(repro_organ,carbon12_element) 
-      write(fates_log(),*) 'co%g_sb_laweight          = ', this%g_sb_laweight
-      write(fates_log(),*) 'co%leaf_cost              = ', this%leaf_cost
-      write(fates_log(),*) 'co%canopy_layer           = ', this%canopy_layer
-      write(fates_log(),*) 'co%canopy_layer_yesterday = ', this%canopy_layer_yesterday
-      write(fates_log(),*) 'co%nv                     = ', this%nv
-      write(fates_log(),*) 'co%status_coh             = ', this%status_coh
-      write(fates_log(),*) 'co%canopy_trim            = ', this%canopy_trim
-      write(fates_log(),*) 'co%excl_weight            = ', this%excl_weight               
-      write(fates_log(),*) 'co%prom_weight            = ', this%prom_weight               
-      write(fates_log(),*) 'co%size_class             = ', this%size_class
-      write(fates_log(),*) 'co%size_by_pft_class      = ', this%size_by_pft_class
-      write(fates_log(),*) 'co%coage_class            = ', this%coage_class
-      write(fates_log(),*) 'co%coage_by_pft_class     = ', this%coage_by_pft_class
-      write(fates_log(),*) 'co%gpp_acc_hold           = ', this%gpp_acc_hold
-      write(fates_log(),*) 'co%gpp_acc                = ', this%gpp_acc
-      write(fates_log(),*) 'co%gpp_tstep              = ', this%gpp_tstep
-      write(fates_log(),*) 'co%npp_acc_hold           = ', this%npp_acc_hold
-      write(fates_log(),*) 'co%npp_tstep              = ', this%npp_tstep
-      write(fates_log(),*) 'co%npp_acc                = ', this%npp_acc
-      write(fates_log(),*) 'co%resp_tstep             = ', this%resp_tstep
-      write(fates_log(),*) 'co%resp_acc               = ', this%resp_acc
-      write(fates_log(),*) 'co%resp_acc_hold          = ', this%resp_acc_hold
-      write(fates_log(),*) 'co%rdark                  = ', this%rdark
-      write(fates_log(),*) 'co%resp_m                 = ', this%resp_m
-      write(fates_log(),*) 'co%resp_g_tstep           = ', this%resp_g_tstep
-      write(fates_log(),*) 'co%livestem_mr            = ', this%livestem_mr
-      write(fates_log(),*) 'co%livecroot_mr           = ', this%livecroot_mr
-      write(fates_log(),*) 'co%froot_mr               = ', this%froot_mr
-      write(fates_log(),*) 'co%dgmort                 = ', this%dgmort
-      write(fates_log(),*) 'co%treelai                = ', this%treelai
-      write(fates_log(),*) 'co%treesai                = ', this%treesai
-      write(fates_log(),*) 'co%c_area                 = ', this%c_area
-      write(fates_log(),*) 'co%cmort                  = ', this%cmort
-      write(fates_log(),*) 'co%bmort                  = ', this%bmort
-      write(fates_log(),*) 'co%smort                  = ', this%smort
-      write(fates_log(),*) 'co%asmort                 = ', this%asmort
-      write(fates_log(),*) 'co%dgmort                 = ', this%dgmort
-      write(fates_log(),*) 'co%hmort                  = ', this%hmort
-      write(fates_log(),*) 'co%frmort                 = ', this%frmort
-      write(fates_log(),*) 'co%asmort                 = ', this%asmort
-      write(fates_log(),*) 'co%lmort_direct           = ', this%lmort_direct
-      write(fates_log(),*) 'co%lmort_collateral       = ', this%lmort_collateral
-      write(fates_log(),*) 'co%lmort_infra            = ', this%lmort_infra
-      write(fates_log(),*) 'co%isnew                  = ', this%isnew
-      write(fates_log(),*) 'co%dndt                   = ', this%dndt
-      write(fates_log(),*) 'co%dhdt                   = ', this%dhdt
-      write(fates_log(),*) 'co%ddbhdt                 = ', this%ddbhdt
-      write(fates_log(),*) 'co%dbdeaddt               = ', this%dbdeaddt
-      write(fates_log(),*) 'co%fraction_crown_burned  = ', this%fraction_crown_burned
-      write(fates_log(),*) 'co%fire_mort              = ', this%fire_mort
-      write(fates_log(),*) 'co%crownfire_mort         = ', this%crownfire_mort
-      write(fates_log(),*) 'co%cambial_mort           = ', this%cambial_mort
-      write(fates_log(),*) 'co%size_class             = ', this%size_class
-      write(fates_log(),*) 'co%size_by_pft_class      = ', this%size_by_pft_class
+      write(fates_log(),*) 'cthis%g_sb_laweight          = ', this%g_sb_laweight
+      write(fates_log(),*) 'cthis%leaf_cost              = ', this%leaf_cost
+      write(fates_log(),*) 'cthis%canopy_layer           = ', this%canopy_layer
+      write(fates_log(),*) 'cthis%canopy_layer_yesterday = ', this%canopy_layer_yesterday
+      write(fates_log(),*) 'cthis%nv                     = ', this%nv
+      write(fates_log(),*) 'cthis%status_coh             = ', this%status_coh
+      write(fates_log(),*) 'cthis%canopy_trim            = ', this%canopy_trim
+      write(fates_log(),*) 'cthis%excl_weight            = ', this%excl_weight               
+      write(fates_log(),*) 'cthis%prom_weight            = ', this%prom_weight               
+      write(fates_log(),*) 'cthis%size_class             = ', this%size_class
+      write(fates_log(),*) 'cthis%size_by_pft_class      = ', this%size_by_pft_class
+      write(fates_log(),*) 'cthis%coage_class            = ', this%coage_class
+      write(fates_log(),*) 'cthis%coage_by_pft_class     = ', this%coage_by_pft_class
+      write(fates_log(),*) 'cthis%gpp_acc_hold           = ', this%gpp_acc_hold
+      write(fates_log(),*) 'cthis%gpp_acc                = ', this%gpp_acc
+      write(fates_log(),*) 'cthis%gpp_tstep              = ', this%gpp_tstep
+      write(fates_log(),*) 'cthis%npp_acc_hold           = ', this%npp_acc_hold
+      write(fates_log(),*) 'cthis%npp_tstep              = ', this%npp_tstep
+      write(fates_log(),*) 'cthis%npp_acc                = ', this%npp_acc
+      write(fates_log(),*) 'cthis%resp_tstep             = ', this%resp_tstep
+      write(fates_log(),*) 'cthis%resp_acc               = ', this%resp_acc
+      write(fates_log(),*) 'cthis%resp_acc_hold          = ', this%resp_acc_hold
+      write(fates_log(),*) 'cthis%rdark                  = ', this%rdark
+      write(fates_log(),*) 'cthis%resp_m                 = ', this%resp_m
+      write(fates_log(),*) 'cthis%resp_g_tstep           = ', this%resp_g_tstep
+      write(fates_log(),*) 'cthis%livestem_mr            = ', this%livestem_mr
+      write(fates_log(),*) 'cthis%livecroot_mr           = ', this%livecroot_mr
+      write(fates_log(),*) 'cthis%froot_mr               = ', this%froot_mr
+      write(fates_log(),*) 'cthis%dgmort                 = ', this%dgmort
+      write(fates_log(),*) 'cthis%treelai                = ', this%treelai
+      write(fates_log(),*) 'cthis%treesai                = ', this%treesai
+      write(fates_log(),*) 'cthis%c_area                 = ', this%c_area
+      write(fates_log(),*) 'cthis%cmort                  = ', this%cmort
+      write(fates_log(),*) 'cthis%bmort                  = ', this%bmort
+      write(fates_log(),*) 'cthis%smort                  = ', this%smort
+      write(fates_log(),*) 'cthis%asmort                 = ', this%asmort
+      write(fates_log(),*) 'cthis%dgmort                 = ', this%dgmort
+      write(fates_log(),*) 'cthis%hmort                  = ', this%hmort
+      write(fates_log(),*) 'cthis%frmort                 = ', this%frmort
+      write(fates_log(),*) 'cthis%asmort                 = ', this%asmort
+      write(fates_log(),*) 'cthis%lmort_direct           = ', this%lmort_direct
+      write(fates_log(),*) 'cthis%lmort_collateral       = ', this%lmort_collateral
+      write(fates_log(),*) 'cthis%lmort_infra            = ', this%lmort_infra
+      write(fates_log(),*) 'cthis%isnew                  = ', this%isnew
+      write(fates_log(),*) 'cthis%dndt                   = ', this%dndt
+      write(fates_log(),*) 'cthis%dhdt                   = ', this%dhdt
+      write(fates_log(),*) 'cthis%ddbhdt                 = ', this%ddbhdt
+      write(fates_log(),*) 'cthis%dbdeaddt               = ', this%dbdeaddt
+      write(fates_log(),*) 'cthis%fraction_crown_burned  = ', this%fraction_crown_burned
+      write(fates_log(),*) 'cthis%fire_mort              = ', this%fire_mort
+      write(fates_log(),*) 'cthis%crownfire_mort         = ', this%crownfire_mort
+      write(fates_log(),*) 'cthis%cambial_mort           = ', this%cambial_mort
+      write(fates_log(),*) 'cthis%size_class             = ', this%size_class
+      write(fates_log(),*) 'cthis%size_by_pft_class      = ', this%size_by_pft_class
    
       if (associated(this%co_hydr)) call this%co_hydr%dump()
    
       write(fates_log(),*) '----------------------------------------'
-   
-      return
    
     end subroutine dump
    

@@ -1,9 +1,10 @@
 Module EDCohortDynamicsMod
   !
-  ! !DESCRIPTION:
-  ! Cohort stuctures in ED.
+  ! DESCRIPTION:
+  ! Cohort stuctures in FATES
   !
-  ! !USES:
+  
+  ! USES:
   use FatesGlobals          , only : endrun => fates_endrun
   use FatesGlobals          , only : fates_log
   use FatesInterfaceTypesMod     , only : hlm_freq_day
@@ -49,7 +50,6 @@ Module EDCohortDynamicsMod
   use FatesInterfaceTypesMod      , only : hlm_use_planthydro
   use FatesInterfaceTypesMod      , only : hlm_parteh_mode
   use FatesPlantHydraulicsMod, only : FuseCohortHydraulics
-  use FatesPlantHydraulicsMod, only : CopyCohortHydraulics
   use FatesPlantHydraulicsMod, only : UpdateSizeDepPlantHydProps
   use FatesPlantHydraulicsMod, only : InitPlantHydStates
   use FatesPlantHydraulicsMod, only : InitHydrCohort
@@ -122,7 +122,6 @@ Module EDCohortDynamicsMod
   public :: fuse_cohorts
   public :: insert_cohort
   public :: sort_cohorts
-  public :: copy_cohort
   public :: count_cohorts
   public :: InitPRTObject
   public :: SendCohortToLitter
@@ -1449,172 +1448,7 @@ end subroutine create_cohort
   end subroutine insert_cohort
 
   !-------------------------------------------------------------------------------------!
-  subroutine copy_cohort( currentCohort,copyc )
-    !
-    ! !DESCRIPTION:
-    ! Copies all the variables in one cohort into another empty cohort
-    !
-    ! !USES:
-    !
-    ! !ARGUMENTS
-    type(fates_cohort_type), intent(inout) , target ::  copyc         ! New cohort argument.
-    type(fates_cohort_type), intent(in)    , target ::  currentCohort ! Old cohort argument.
-    !
-    ! !LOCAL VARIABLES:
-    type(fates_cohort_type), pointer ::  n,o           ! New and old cohort pointers
-    !----------------------------------------------------------------------
 
-    o => currentCohort
-    n => copyc
-
-    n%indexnumber     = fates_unset_int
-
-    ! VEGETATION STRUCTURE
-    n%pft             = o%pft
-    n%crowndamage     = o%crowndamage
-    n%n               = o%n
-    n%dbh             = o%dbh
-    n%coage           = o%coage
-    n%hite            = o%hite
-    n%g_sb_laweight   = o%g_sb_laweight
-    n%leaf_cost       = o%leaf_cost
-    n%canopy_layer    = o%canopy_layer
-    n%canopy_layer_yesterday    = o%canopy_layer_yesterday
-    n%nv              = o%nv
-    n%status_coh      = o%status_coh
-    n%canopy_trim     = o%canopy_trim
-    n%excl_weight     = o%excl_weight
-    n%prom_weight     = o%prom_weight
-    n%size_class      = o%size_class
-    n%size_class_lasttimestep = o%size_class_lasttimestep
-    n%size_by_pft_class = o%size_by_pft_class
-    n%coage_class     = o%coage_class
-    n%coage_by_pft_class = o%coage_by_pft_class
-
-    ! This transfers the PRT objects over.
-    call n%prt%CopyPRTVartypes(o%prt)
-    n%l2fr                 = o%l2fr
-    
-    ! Leaf biophysical rates
-    n%vcmax25top = o%vcmax25top
-    n%jmax25top  = o%jmax25top
-    n%tpu25top   = o%tpu25top
-    n%kp25top    = o%kp25top
-
-    ! Copy over running means
-    if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-       n%cx_int    = o%cx_int
-       n%ema_dcxdt = o%ema_dcxdt
-       n%cx0       = o%cx0
-    end if
-    
-    ! CARBON FLUXES
-    n%gpp_acc_hold    = o%gpp_acc_hold
-    n%gpp_acc         = o%gpp_acc
-    n%gpp_tstep       = o%gpp_tstep
-
-    n%npp_acc_hold    = o%npp_acc_hold
-    n%npp_tstep       = o%npp_tstep
-    n%npp_acc         = o%npp_acc
-
-    if ( debug .and. .not.o%isnew ) write(fates_log(),*) 'EDcohortDyn Ia ',o%npp_acc
-    if ( debug .and. .not.o%isnew ) write(fates_log(),*) 'EDcohortDyn Ib ',o%resp_acc
-
-    n%resp_tstep      = o%resp_tstep
-    n%resp_acc        = o%resp_acc
-    n%resp_acc_hold   = o%resp_acc_hold
-    n%year_net_uptake = o%year_net_uptake
-    n%ts_net_uptake   = o%ts_net_uptake
-
-    ! These do not need to be copied because they
-    ! are written to history before dynamics occurs
-    ! and cohorts are reformed
-    n%daily_nh4_uptake = o%daily_nh4_uptake
-    n%daily_no3_uptake = o%daily_no3_uptake
-    n%sym_nfix_daily   = o%sym_nfix_daily
-    n%daily_n_gain     = o%daily_n_gain
-    n%daily_p_gain   = o%daily_p_gain
-    n%daily_c_efflux = o%daily_c_efflux
-    n%daily_n_efflux = o%daily_n_efflux
-    n%daily_p_efflux = o%daily_p_efflux
-    n%daily_n_demand = o%daily_n_demand
-    n%daily_p_demand = o%daily_p_demand
-
-    ! C13 discrimination
-    n%c13disc_clm   = o%c13disc_clm
-    n%c13disc_acc   = o%c13disc_acc
-
-    !RESPIRATION
-    n%rdark           = o%rdark
-    n%resp_m          = o%resp_m
-    n%resp_m_unreduced= o%resp_m_unreduced
-    n%resp_excess     = o%resp_excess
-    n%resp_g_tstep    = o%resp_g_tstep
-    n%livestem_mr     = o%livestem_mr
-    n%livecroot_mr    = o%livecroot_mr
-    n%froot_mr        = o%froot_mr
-
-    ! ALLOCATION
-    n%dmort           = o%dmort
-    n%seed_prod       = o%seed_prod
-
-    n%treelai         = o%treelai
-    n%treesai         = o%treesai
-    n%c_area          = o%c_area
-
-    ! Mortality diagnostics
-    n%cmort = o%cmort
-    n%bmort = o%bmort
-    n%hmort = o%hmort
-    n%smort = o%smort
-    n%asmort = o%asmort
-    n%frmort = o%frmort
-    n%dgmort = o%dgmort
-    
-    ! logging mortalities, Yi Xu
-    n%lmort_direct     =o%lmort_direct
-    n%lmort_collateral =o%lmort_collateral
-    n%lmort_infra      =o%lmort_infra
-    n%l_degrad         =o%l_degrad
-
-    ! Flags
-    n%isnew = o%isnew
-
-    ! VARIABLES NEEDED FOR INTEGRATION
-    n%dndt            = o%dndt
-    n%dhdt            = o%dhdt
-    n%ddbhdt          = o%ddbhdt
-
-    ! FIRE
-    n%fraction_crown_burned = o%fraction_crown_burned
-    n%fire_mort             = o%fire_mort
-    n%crownfire_mort        = o%crownfire_mort
-    n%cambial_mort          = o%cambial_mort
-
-    ! Plant Hydraulics
-
-    if( hlm_use_planthydro.eq.itrue ) then
-      call CopyCohortHydraulics(n,o)
-    endif
-
-    ! indices for binning
-    n%size_class      = o%size_class
-    n%size_class_lasttimestep      = o%size_class_lasttimestep
-    n%size_by_pft_class   = o%size_by_pft_class
-    n%coage_class     = o%coage_class
-    n%coage_by_pft_class   = o%coage_by_pft_class
-
-    !Pointers
-    n%taller          => NULL()     ! pointer to next tallest cohort
-    n%shorter         => NULL()     ! pointer to next shorter cohort
-    !n%patchptr        => o%patchptr ! pointer to patch that cohort is in
-
-
-
-    
-  end subroutine copy_cohort
-
-  !-------------------------------------------------------------------------------------!
   subroutine count_cohorts( currentPatch )
     !
     ! !DESCRIPTION:
@@ -1935,7 +1769,7 @@ end subroutine create_cohort
          rcohort%prt => null()
          call InitPRTObject(rcohort%prt)
          call rcohort%InitPRTBoundaryConditions()
-         call copy_cohort(ccohort, rcohort)
+         call ccohort%copy(rcohort)
 
          rcohort%n = nplant_recover
           
