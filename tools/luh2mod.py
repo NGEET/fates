@@ -12,34 +12,34 @@ from nco.custom import Atted
 def main():
 
     # Add argument parser - subfunction? Seperate common module?
-    # inputfiles and range should be the only arguments
+    # input_files and range should be the only arguments
     # Allow variable input files (state and/or transitions and/or management)
     args = CommandLineArgs()
 
     # Prep the LUH2 data
-    ds_luh2 = PrepDataSet(args.luh2file,args.begin,args.end)
+    ds_luh2 = PrepDataSet(args.luh2_file,args.begin,args.end)
 
     # Prep the regrid target (assuming surface dataset)
-    ds_regridtarget= PrepDataSet(args.regridtargetfile,args.begin,args.end)
+    ds_regrid_target= PrepDataSet(args.regrid_target_file,args.begin,args.end)
 
     # Build regridder
-    regridder = RegridConservative(ds_luh2, ds_regridtarget, save=True)
+    regridder = RegridConservative(ds_luh2, ds_regrid_target, save=True)
 
     # Regrid the dataset(s)
     regrid_luh2 = regridder(ds_states)
 
     # Rename the dimensions for the output
     regrid_luh2 = regrid_luh2.rename_dims(dims_dict={'latitude':'lsmlat','longitude':'lsmlon'})
-    regrid_luh2["LONGXY"] = ds_regridtarget["LONGXY"]
-    regrid_luh2["LATIXY"] = ds_regridtarget["LATIXY"]
+    regrid_luh2["LONGXY"] = ds_regrid_target["LONGXY"]
+    regrid_luh2["LATIXY"] = ds_regrid_target["LATIXY"]
 
     # Add 'YEAR' as a variable.  This is an old requirement of the HLM and should simply be a copy of the `time` dimension
     regrid_luh2["YEAR"] = regrid_luh2.time
 
     # Write the files
-    outputfile = os.path.join(os.getcwd(),'LUH2_states_transitions_management.timeseries_4x5_hist_simyr1850-2015_c230415.nc')
+    output_file = os.path.join(os.getcwd(),'LUH2_states_transitions_management.timeseries_4x5_hist_simyr1850-2015_c230415.nc')
 
-    regrid_luh2.to_netcdf(outputfile)
+    regrid_luh2.to_netcdf(output_file)
 
     # Example of file naming scheme
     # finb_luh2_all_regrid.to_netcdf('LUH2_historical_1850_2015_4x5_cdk_220302.nc')
@@ -50,13 +50,13 @@ def CommandLineArgs():
 
     # Required input luh2 datafile
     # TO DO: using the checking function to report back if invalid file input
-    parser.add_argument("-l","--luh2file", require=True)
+    parser.add_argument("-l","--luh2_file", require=True)
 
     # Provide mutually exlusive arguments for regridding input selection
     # Currently assuming that if a target is provided that a regridder file will be saved
-    regridtarget = parser.add_mutually_exclusive_group(required=True)
-    regridtarget.add_argument("-rf","--regridderfile") # use previously save regridder file
-    regridtarget.add_argument("-rt","--regriddertarget")  # use a dataset to regrid to
+    regrid_target = parser.add_mutually_exclusive_group(required=True)
+    regrid_target.add_argument("-rf","--regridderfile") # use previously save regridder file
+    regrid_target.add_argument("-rt","--regriddertarget")  # use a dataset to regrid to
 
     # Optional input to subset the time range of the data
     parser.add_argument("-b","--begin")
@@ -66,52 +66,52 @@ def CommandLineArgs():
 
     return(args)
 
-# Prepare the inputfile to be used for regridding
-def PrepDataSet(inputfile,start,stop):
+# Prepare the input_file to be used for regridding
+def PrepDataSet(input_file,start,stop):
 
     # Import the data
-    inputdataset = ImportData(inputfile)
+    input_dataset = ImportData(input_file)
 
     # Truncate the data to the user defined range
     # This might need some more error handling for when
     # the start/stop is out of range
     try:
-        inputdataset = inputdataset.sel(time=slice(start,stop))
+        input_dataset = input_dataset.sel(time=slice(start,stop))
     except TypeError as err:
         print("TypeError:", err)
         print("Input must be a string")
 
     # Correct the necessary variables for both datasets
-    PrepDataSet_ESMF(inputdataset)
+    PrepDataSet_ESMF(input_dataset)
 
     # Set dataset masks
-    SetMask(inputdataset)
+    SetMask(input_dataset)
 
-    return(inputdataset)
+    return(input_dataset)
 
 # Updating datasets to work with xESMF
-def PrepDataSet_ESMF(inputdataset):
+def PrepDataSet_ESMF(input_dataset):
 
     # Check the dataset type
-    dsflag, dstype = CheckDataSet(inputdataset)
+    dsflag, dstype = CheckDataSet(input_dataset)
     if (dsflag):
         if(dstype == "LUH2"):
-            BoundsVariableFixLUH2(inputdataset)
+            BoundsVariableFixLUH2(input_dataset)
         elif(dstype == "Surface"):
-            DimensionFixSurfData(inputdataset)
+            DimensionFixSurfData(input_dataset)
         print("data set updated for xESMF")
 
-    return(inputdataset)
+    return(input_dataset)
 
 # Import luh2 or surface data sets
-def ImportData(inputfile):
+def ImportData(input_file):
 
     # Open files
     # Check to see if a ValueError is raised which is likely due
     # to the LUH2 time units being undecodable by cftime module
     try:
-       datasetout = xr.open_dataset(inputfile)
-       print("Input file dataset opened: {}".format(inputfile))
+       datasetout = xr.open_dataset(input_file)
+       print("Input file dataset opened: {}".format(input_file))
        return(datasetout)
     except ValueError as err:
        print("ValueError:", err)
@@ -126,19 +126,19 @@ def ImportData(inputfile):
 # This issue here is that the luh2 time units start prior to
 # year 1672, which cftime should be able to handle, but it
 # appears to need a specific unit name convention "common_years"
-def AttribUpdateLUH2(inputfile,output_append="modified"):
+def AttribUpdateLUH2(input_file,output_append="modified"):
 
     # Define the output filename
-    index = inputfile.find(".nc")
-    outputfile = inputfile[:index] + "_" + output_append + inputfile[index:]
+    index = input_file.find(".nc")
+    output_file = input_file[:index] + "_" + output_append + input_file[index:]
 
     nco = Nco()
 
     # Get the 'time:units' string from the input using ncks
-    timeunitstr = nco.ncks(input=inputfile,variable="time",options=["-m"]).decode()
+    time_unit_string = nco.ncks(input=input_file,variable="time",options=["-m"]).decode()
 
     # Grab the units string and replace "years" with "common_years"
-    substr = re.search('time:units.*".*"',timeunitstr)
+    substr = re.search('time:units.*".*"',time_unit_string)
     newstr = substr.group().replace("time:units = \"years","\"common_years")
 
     # Use ncatted to update the time units
@@ -146,15 +146,15 @@ def AttribUpdateLUH2(inputfile,output_append="modified"):
     var = "time"
     att_type = "c"
     opts = [" -a {0},{1},o,{2},{3}".format(att, var, att_type, newstr)]
-    nco.ncatted(input=inputfile, output=outputfile, options=opts)
+    nco.ncatted(input=input_file, output=output_file, options=opts)
 
-    print("Generated modified output file: {}".format(outputfile))
+    print("Generated modified output file: {}".format(output_file))
 
-    return(outputfile)
+    return(output_file)
 
     # The following is fixed with PR #62 for pynco but isn't in that latest update yet
     # on conda
-    # nco.ncatted(input=inputfile,output=outputfile,options=[
+    # nco.ncatted(input=input_file,output=output_file,options=[
     #     Atted(mode="overwrite",
     #           att_name="units",
     #           var_name="time",
@@ -167,61 +167,61 @@ def AttribUpdateLUH2(inputfile,output_append="modified"):
 # Each lat/lon boundary array is a 2D array corresponding to the bounds of each
 # coordinate position (e.g. lat_boundary would be 90.0 and 89.75 for lat coordinate
 # of 89.875).
-def BoundsVariableFixLUH2(inputdataset):
+def BoundsVariableFixLUH2(input_dataset):
 
     # Drop the old boundary names to avoid confusion
-    # outputdataset = inputdataset.drop(labels=['lat_bounds','lon_bounds'])
+    # outputdataset = input_dataset.drop(labels=['lat_bounds','lon_bounds'])
 
     # Create lat and lon bounds as a single dimension array out of the LUH2 two dimensional_bounds array.
     # Future todo: is it possible to have xESMF recognize and use the original 2D array?
-    inputdataset["lat_b"] = np.insert(inputdataset.lat_bounds[:,1].data,0,inputdataset.lat_bounds[0,0].data)
-    inputdataset["lon_b"] = np.insert(inputdataset.lon_bounds[:,1].data,0,inputdataset.lon_bounds[0,0].data)
+    input_dataset["lat_b"] = np.insert(input_dataset.lat_bounds[:,1].data,0,input_dataset.lat_bounds[0,0].data)
+    input_dataset["lon_b"] = np.insert(input_dataset.lon_bounds[:,1].data,0,input_dataset.lon_bounds[0,0].data)
 
     print("LUH2 dataset lat/lon boundary variables formatted and added as new variable for xESMF")
 
-    return(inputdataset)
+    return(input_dataset)
 
 # The user will need to use a surface data set to regrid from, but the surface datasets
 # need to have their dimensions renamed to something recognizable by xESMF
-def DimensionFixSurfData(inputdataset):
+def DimensionFixSurfData(input_dataset):
 
     # Rename the surface dataset dimensions to something recognizable by xESMF.
-    # inputdataset = surfdataset.rename_dims(dims_dict={'lsmlat':'latitude','lsmlon':'longitude'})
-    inputdataset = inputdataset.rename_dims(dims_dict={'lsmlat':'lat','lsmlon':'lon'})
+    # input_dataset = surfdataset.rename_dims(dims_dict={'lsmlat':'latitude','lsmlon':'longitude'})
+    input_dataset = input_dataset.rename_dims(dims_dict={'lsmlat':'lat','lsmlon':'lon'})
 
     # Populate the new surface dataset with the actual lat/lon values
-    # inputdataset['longitude'] = inputdataset.LONGXY.isel(latitude=0)
-    # inputdataset['latitude']  = inputdataset.LATIXY.isel(longitude=0)
-    inputdataset['lon'] = inputdataset.LONGXY.isel(lat=0)
-    inputdataset['lat']  = inputdataset.LATIXY.isel(lon=0)
+    # input_dataset['longitude'] = input_dataset.LONGXY.isel(latitude=0)
+    # input_dataset['latitude']  = input_dataset.LATIXY.isel(longitude=0)
+    input_dataset['lon'] = input_dataset.LONGXY.isel(lat=0)
+    input_dataset['lat']  = input_dataset.LATIXY.isel(lon=0)
 
     print("Surface dataset dimensions renamed for xESMF")
 
-    return(inputdataset)
+    return(input_dataset)
 
-def SetMask(inputdataset):
+def SetMask(input_dataset):
 
     # check what sort of inputdata is being provided; surface dataset or luh2
     # LUH2 data will need to be masked based on the variable input to mask
-    dsflag,dstype = CheckDataSet(inputdataset)
+    dsflag,dstype = CheckDataSet(input_dataset)
     if (dsflag):
         if(dstype == "LUH2"):
-            SetMaskLUH2(inputdataset,'primf') # temporary
+            SetMaskLUH2(input_dataset,'primf') # temporary
         elif(dstype == "Surface"):
-            SetMaskSurfData(inputdataset)
+            SetMaskSurfData(input_dataset)
         print("mask added")
 
-    return(inputdataset)
+    return(input_dataset)
 
 # Check which dataset we're working with
-def CheckDataSet(inputdataset):
+def CheckDataSet(input_dataset):
 
     dsflag = False
-    if('primf' in list(inputdataset.variables)):
+    if('primf' in list(input_dataset.variables)):
         dstype = 'LUH2'
         dsflag = True
         print("LUH2")
-    elif('natpft' in list(inputdataset.variables)):
+    elif('natpft' in list(input_dataset.variables)):
         dstype = 'Surface'
         dsflag = True
         print("Surface")
@@ -232,18 +232,19 @@ def CheckDataSet(inputdataset):
     return(dsflag,dstype)
 
 # LUH2 specific masking sub-function
-def SetMaskLUH2(inputdataset,label_to_mask):
+def SetMaskLUH2(input_dataset,static_data_set):
     # Instead of passing the label_to_mask, loop through this for all labels?
-    inputdataset["mask"] = xr.where(~np.isnan(inputdataset[label_to_mask].isel(time=0)), 1, 0)
+    # input_dataset["mask"] = xr.where(~np.isnan(input_dataset[label_to_mask].isel(time=0)), 1, 0)
+    input_dataset["mask"] = xr.where(state_data_set.icwtr == 1)
     # return(outputdataset)
-    return(inputdataset)
+    return(input_dataset)
 
 # Surface dataset specific masking sub-function
-def SetMaskSurfData(inputdataset):
+def SetMaskSurfData(input_dataset):
     # Instead of passing the label_to_mask, loop through this for all labels?
-    inputdataset["mask"] = inputdataset["PCT_NATVEG"]> 0
+    input_dataset["mask"] = input_dataset["PCT_NATVEG"]> 0
     # return(outputdataset)
-    return(inputdataset)
+    return(input_dataset)
 
 def RegridConservative(ds_to_regrid,ds_regrid_target,save=False):
     # define the regridder transformation
