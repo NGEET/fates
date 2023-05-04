@@ -125,7 +125,6 @@ Module EDCohortDynamicsMod
   public :: count_cohorts
   public :: InitPRTObject
   public :: SendCohortToLitter
-  public :: DeallocateCohort
   public :: EvaluateAndCorrectDBH
   public :: DamageRecovery
   
@@ -546,7 +545,7 @@ end subroutine create_cohort
       shorterCohort%taller => tallerCohort
    endif
 
-   call DeallocateCohort(currentCohort)
+   call currentCohort%free_memory()
 
  end subroutine terminate_cohort  
   
@@ -681,34 +680,7 @@ end subroutine create_cohort
 
   !--------------------------------------------------------------------------------------
 
-  subroutine DeallocateCohort(currentCohort)
 
-     ! ----------------------------------------------------------------------------------
-     ! This subroutine deallocates all dynamic memory and objects
-     ! inside the cohort structure.  This DOES NOT deallocate
-     ! the cohort structure itself.
-     ! ----------------------------------------------------------------------------------
-
-     type(fates_cohort_type),intent(inout) :: currentCohort
-     integer                            :: istat         ! return status code
-     character(len=255)                 :: smsg
-
-     ! At this point, nothing should be pointing to current Cohort
-     if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(currentCohort)
-
-     ! Deallocate the cohort's PRT structures
-     call currentCohort%prt%DeallocatePRTVartypes()
-
-     ! Deallocate the PRT object
-
-     deallocate(currentCohort%prt, stat=istat, errmsg=smsg)
-     if (istat/=0) then
-        write(fates_log(),*) 'dealloc002: fail in deallocate(currentCohort%prt):'//trim(smsg)
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     endif
-
-     return
-  end subroutine DeallocateCohort
 
   subroutine fuse_cohorts(currentSite, currentPatch, bc_in)
 
@@ -1186,7 +1158,7 @@ end subroutine create_cohort
                                       call UpdateSizeDepPlantHydProps(currentSite,currentCohort, bc_in)
                                    endif
 
-                                   call DeallocateCohort(nextc)
+                                   call nextc%free_memory()
                                    deallocate(nextc, stat=istat, errmsg=smsg)
                                    if (istat/=0) then
                                       write(fates_log(),*) 'dealloc003: fail on deallocate(nextc):'//trim(smsg)

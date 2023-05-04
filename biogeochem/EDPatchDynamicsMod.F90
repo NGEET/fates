@@ -11,7 +11,6 @@ module EDPatchDynamicsMod
   use EDPftvarcon          , only : GetDecompyFrac
   use PRTParametersMod      , only : prt_params
   use EDCohortDynamicsMod  , only : fuse_cohorts, sort_cohorts, insert_cohort
-  use EDCohortDynamicsMod  , only : DeallocateCohort
   use EDTypesMod           , only : area_site => area
   use ChecksBalancesMod    , only : PatchMassStock
   use FatesLitterMod       , only : ncwd
@@ -1110,7 +1109,7 @@ contains
                          else
 
                             ! Get rid of the new temporary cohort
-                            call DeallocateCohort(nc)
+                            call nc%free_memory()
                             deallocate(nc, stat=istat, errmsg=smsg)
                             if (istat/=0) then
                                write(fates_log(),*) 'dealloc005: fail on deallocate(nc):'//trim(smsg)

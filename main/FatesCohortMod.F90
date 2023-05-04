@@ -761,6 +761,37 @@ module FatesCohortMod
     end subroutine copy
 
     !:.........................................................................:
+
+    subroutine free_memory(this)
+      !
+      ! DESCRIPTION:
+      ! deallocates all dynamic memory and objects within the cohort structure
+      ! DOES NOT deallocate the cohort structure itself
+      !
+
+      ! ARGUMENTS
+      type(fates_cohort_type), intent(inout) :: this ! cohort object
+
+      ! LOCALS:
+      integer            :: istat ! return status code
+      character(len=255) :: smsg  ! error message
+ 
+      ! at this point, nothing should be pointing to current cohort
+      if (hlm_use_planthydro .eq. itrue) call DeallocateHydrCohort(this)
+ 
+      ! deallocate the cohort's PRT structures
+      call this%prt%DeallocatePRTVartypes()
+ 
+      ! Deallocate the PRT object
+      deallocate(this%prt, stat=istat, errmsg=smsg)
+      if (istat /= 0) then
+        write(fates_log(),*) 'dealloc002: fail in deallocate(currentCohort%prt):'//trim(smsg)
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+      endif
+
+    end subroutine free_memory
+
+    !:.........................................................................:
   
     subroutine InitPRTBoundaryConditions(this)      
       !

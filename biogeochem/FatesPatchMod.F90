@@ -620,7 +620,7 @@ module FatesPatchMod
       ccohort => this%shortest
       do while(associated(ccohort))
         ncohort => ccohort%taller
-        call DeallocateCohort(ccohort)
+        call ccohort%free_memory()
         deallocate(ccohort, stat=istat, errmsg=smsg)
         if (istat /= 0) then
           write(fates_log(),*) 'dealloc007: fail on deallocate(cchort):'//trim(smsg)
