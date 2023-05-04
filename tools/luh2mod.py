@@ -16,17 +16,34 @@ def main():
     # Allow variable input files (state and/or transitions and/or management)
     args = CommandLineArgs()
 
-    # Prep the LUH2 data
+    # Prep the LUH2 datasets and regrid target
     ds_luh2 = PrepDataSet(args.luh2_file,args.begin,args.end)
-
-    # Prep the regrid target (assuming surface dataset)
     ds_regrid_target= PrepDataSet(args.regrid_target_file,args.begin,args.end)
 
-    # Build regridder
-    regridder = RegridConservative(ds_luh2, ds_regrid_target, save=True)
+    # Import the LUH2 static data to use for masking
+    ds_luh2_static = ImportData(args.luh2_static_file)
 
-    # Regrid the dataset(s)
-    regrid_luh2 = regridder(ds_states)
+    # Create new variable where the ice water fraction is inverted
+    ds_luh2_static["landfrac"] = 1 - ds_luh2_static.icwtr
+
+    # Mask all LUH2 input data using the ice/water fraction for the LUH2 static data
+    ds_luh2 = SetMaskLUH2(ds_luh2, ds_luh2_static)
+    ds_luh2_static = SetMaskLUH2(ds_luh2_static, ds_luh2_static)
+
+    # Mask the regrid target
+    ds_regrid_target = SetMaskSurfData(ds_regrid_target)
+
+    # Regrid the luh2 data to the target grid
+    regridder_luh2 = RegridConservative(ds_luh2, ds_regrid_target, save=True)
+    regrid_luh2 = regridder_luh2(ds_luh2)
+
+    # Regrid the inverted ice/water fraction data to the target grid
+    regridder_land_fraction = RegridConservative(ds_luh2_static, ds_regrid_target)
+    regrid_land_fraction = regridder_land_fraction(ds_luh2_static)
+
+    # Adjust the luh2 data by the land fraction
+    regrid_luh2 = regrid_luh2 / regrid_land_fraction.landfrac
+
 
     # Rename the dimensions for the output
     regrid_luh2 = regrid_luh2.rename_dims(dims_dict={'latitude':'lsmlat','longitude':'lsmlon'})
@@ -85,7 +102,7 @@ def PrepDataSet(input_file,start,stop):
     PrepDataSet_ESMF(input_dataset)
 
     # Set dataset masks
-    SetMask(input_dataset)
+    # SetMask(input_dataset)
 
     return(input_dataset)
 
@@ -199,18 +216,33 @@ def DimensionFixSurfData(input_dataset):
 
     return(input_dataset)
 
-def SetMask(input_dataset):
+# def SetMask(input_dataset, masking_dataset):
 
-    # check what sort of inputdata is being provided; surface dataset or luh2
-    # LUH2 data will need to be masked based on the variable input to mask
-    dsflag,dstype = CheckDataSet(input_dataset)
-    if (dsflag):
-        if(dstype == "LUH2"):
-            SetMaskLUH2(input_dataset,'primf') # temporary
-        elif(dstype == "Surface"):
-            SetMaskSurfData(input_dataset)
-        print("mask added")
+#     # check what sort of inputdata is being provided; surface dataset or luh2
+#     # LUH2 data will need to be masked based on the variable input to mask
+#     dsflag,dstype = CheckDataSet(input_dataset)
+#     if (dsflag):
+#         if(dstype == "LUH2"):
+#             SetMaskLUH2(input_dataset) # temporary
+#         elif(dstype == "Surface"):
+#             SetMaskSurfData(input_dataset)
+#         print("mask added")
+#
+#     return(input_dataset)
 
+# LUH2 specific masking sub-function
+def SetMaskLUH2(input_dataset,static_data_set):
+
+    # Mask the luh2 data where the ice/water fraction is unity (i.e. fully ice covered gridcell)
+    input_dataset["mask"] = input_dataset.where(static_data_set.icwtr != 1)
+    # return(outputdataset)
+    return(input_dataset)
+
+# Surface dataset specific masking sub-function
+def SetMaskSurfData(input_dataset):
+    # Instead of passing the label_to_mask, loop through this for all labels?
+    input_dataset["mask"] = input_dataset["PCT_NATVEG"] > 0
+    # return(outputdataset)
     return(input_dataset)
 
 # Check which dataset we're working with
@@ -231,21 +263,6 @@ def CheckDataSet(input_dataset):
 
     return(dsflag,dstype)
 
-# LUH2 specific masking sub-function
-def SetMaskLUH2(input_dataset,static_data_set):
-    # Instead of passing the label_to_mask, loop through this for all labels?
-    # input_dataset["mask"] = xr.where(~np.isnan(input_dataset[label_to_mask].isel(time=0)), 1, 0)
-    input_dataset["mask"] = xr.where(state_data_set.icwtr == 1)
-    # return(outputdataset)
-    return(input_dataset)
-
-# Surface dataset specific masking sub-function
-def SetMaskSurfData(input_dataset):
-    # Instead of passing the label_to_mask, loop through this for all labels?
-    input_dataset["mask"] = input_dataset["PCT_NATVEG"]> 0
-    # return(outputdataset)
-    return(input_dataset)
-
 def RegridConservative(ds_to_regrid,ds_regrid_target,save=False):
     # define the regridder transformation
     regridder = xe.Regridder(ds_to_regrid, ds_regrid_target, "conservative")
@@ -257,15 +274,6 @@ def RegridConservative(ds_to_regrid,ds_regrid_target,save=False):
         print("regridder saved to file: ", filename)
 
     return(regridder)
-
-
-    # Apply regridder
-    # regrid_states = regridder(finb_states)
-    # regrid_management= regridder(finb_management)
-    # regrid_transitions= regridder(finb_management)
-
-    ### memory crashes on the transition data
-    #fin_transitions_regrid = regridder(finb)
 
 # General functionality needed
 # - collect data for specific user-defined time period
