@@ -76,6 +76,7 @@ def CommandLineArgs():
     regrid_target.add_argument("-rt","--regriddertarget")  # use a dataset to regrid to
 
     # Optional input to subset the time range of the data
+    # TO DO: howto
     parser.add_argument("-b","--begin")
     parser.add_argument("-e","--end")
 
@@ -84,10 +85,17 @@ def CommandLineArgs():
     return(args)
 
 # Prepare the input_file to be used for regridding
-def PrepDataSet(input_file,start,stop):
+def PrepDataSet(input_file,start=None,stop=None):
 
     # Import the data
     input_dataset = ImportData(input_file)
+
+    # Use the maximum span if start and stop are not present
+    if (start == None):
+        start = input_dataset.time[0]
+
+    if (stop == None):
+        stop = input_dataset.time[-1]
 
     # Truncate the data to the user defined range
     # This might need some more error handling for when
@@ -99,7 +107,7 @@ def PrepDataSet(input_file,start,stop):
         print("Input must be a string")
 
     # Correct the necessary variables for both datasets
-    PrepDataSet_ESMF(input_dataset)
+    input_dataset = PrepDataSet_ESMF(input_dataset)
 
     # Set dataset masks
     # SetMask(input_dataset)
@@ -113,9 +121,11 @@ def PrepDataSet_ESMF(input_dataset):
     dsflag, dstype = CheckDataSet(input_dataset)
     if (dsflag):
         if(dstype == "LUH2"):
-            BoundsVariableFixLUH2(input_dataset)
+            print("PrepDataSet: LUH2")
+            input_dataset = BoundsVariableFixLUH2(input_dataset)
         elif(dstype == "Surface"):
-            DimensionFixSurfData(input_dataset)
+            print("PrepDataSet: SurfData")
+            input_dataset = DimensionFixSurfData(input_dataset)
         print("data set updated for xESMF")
 
     return(input_dataset)
@@ -210,7 +220,7 @@ def DimensionFixSurfData(input_dataset):
     # input_dataset['longitude'] = input_dataset.LONGXY.isel(latitude=0)
     # input_dataset['latitude']  = input_dataset.LATIXY.isel(longitude=0)
     input_dataset['lon'] = input_dataset.LONGXY.isel(lat=0)
-    input_dataset['lat']  = input_dataset.LATIXY.isel(lon=0)
+    input_dataset['lat'] = input_dataset.LATIXY.isel(lon=0)
 
     print("Surface dataset dimensions renamed for xESMF")
 
@@ -234,7 +244,7 @@ def DimensionFixSurfData(input_dataset):
 def SetMaskLUH2(input_dataset,static_data_set):
 
     # Mask the luh2 data where the ice/water fraction is unity (i.e. fully ice covered gridcell)
-    input_dataset["mask"] = input_dataset.where(static_data_set.icwtr != 1)
+    input_dataset["mask"] = (static_data_set.icwtr != 1)
     # return(outputdataset)
     return(input_dataset)
 
