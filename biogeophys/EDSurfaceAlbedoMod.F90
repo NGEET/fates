@@ -363,9 +363,6 @@ contains
     cosz = max(0.001_r8, currentPatch%solar_zenith_angle ) !copied from previous radiation code...
     do ft = 1,numpft
        sb = (90._r8 - (acos(cosz)*180._r8/pi_const)) * (pi_const / 180._r8)
-       !chil should be between -0.4 and 0.6
-       !   Bonan (2019) doi:10.1017/9781107339217 pg. 238
-       chil = min(max(xl(ft), -0.4_r8), 0.6_r8 )
        ! chil being close to zero shouldn't affect things
        !if ( abs(chil) <= 0.01_r8) then
        !   chil  = 0.01_r8
