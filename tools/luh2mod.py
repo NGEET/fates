@@ -1,88 +1,11 @@
 #!/usr/bin/env python3
 
-import argparse, os, re
+import re
 import numpy as np
 import xarray as xr
 import xesmf as xe
 from nco import Nco
 from nco.custom import Atted
-
-# Add version checking here in case environment.yml not used
-
-def main():
-
-    # Add argument parser - subfunction? Seperate common module?
-    # input_files and range should be the only arguments
-    # Allow variable input files (state and/or transitions and/or management)
-    args = CommandLineArgs()
-
-    # Prep the LUH2 datasets and regrid target
-    ds_luh2 = PrepDataSet(args.luh2_file,args.begin,args.end)
-    ds_regrid_target= PrepDataSet(args.regrid_target_file,args.begin,args.end)
-
-    # Import the LUH2 static data to use for masking
-    ds_luh2_static = ImportData(args.luh2_static_file)
-
-    # Create new variable where the ice water fraction is inverted
-    ds_luh2_static["landfrac"] = 1 - ds_luh2_static.icwtr
-
-    # Mask all LUH2 input data using the ice/water fraction for the LUH2 static data
-    ds_luh2 = SetMaskLUH2(ds_luh2, ds_luh2_static)
-    ds_luh2_static = SetMaskLUH2(ds_luh2_static, ds_luh2_static)
-
-    # Mask the regrid target
-    ds_regrid_target = SetMaskSurfData(ds_regrid_target)
-
-    # Regrid the luh2 data to the target grid
-    regridder_luh2 = RegridConservative(ds_luh2, ds_regrid_target, save=True)
-    regrid_luh2 = regridder_luh2(ds_luh2)
-
-    # Regrid the inverted ice/water fraction data to the target grid
-    regridder_land_fraction = RegridConservative(ds_luh2_static, ds_regrid_target)
-    regrid_land_fraction = regridder_land_fraction(ds_luh2_static)
-
-    # Adjust the luh2 data by the land fraction
-    regrid_luh2 = regrid_luh2 / regrid_land_fraction.landfrac
-
-
-    # Rename the dimensions for the output
-    regrid_luh2 = regrid_luh2.rename_dims(dims_dict={'latitude':'lsmlat','longitude':'lsmlon'})
-    regrid_luh2["LONGXY"] = ds_regrid_target["LONGXY"]
-    regrid_luh2["LATIXY"] = ds_regrid_target["LATIXY"]
-
-    # Add 'YEAR' as a variable.  This is an old requirement of the HLM and should simply be a copy of the `time` dimension
-    regrid_luh2["YEAR"] = regrid_luh2.time
-
-    # Write the files
-    output_file = os.path.join(os.getcwd(),'LUH2_states_transitions_management.timeseries_4x5_hist_simyr1850-2015_c230415.nc')
-
-    regrid_luh2.to_netcdf(output_file)
-
-    # Example of file naming scheme
-    # finb_luh2_all_regrid.to_netcdf('LUH2_historical_1850_2015_4x5_cdk_220302.nc')
-
-def CommandLineArgs():
-
-    parser = argparse.ArgumentParser(description="placeholder desc")
-
-    # Required input luh2 datafile
-    # TO DO: using the checking function to report back if invalid file input
-    parser.add_argument("-l","--luh2_file", require=True)
-
-    # Provide mutually exlusive arguments for regridding input selection
-    # Currently assuming that if a target is provided that a regridder file will be saved
-    regrid_target = parser.add_mutually_exclusive_group(required=True)
-    regrid_target.add_argument("-rf","--regridderfile") # use previously save regridder file
-    regrid_target.add_argument("-rt","--regriddertarget")  # use a dataset to regrid to
-
-    # Optional input to subset the time range of the data
-    # TO DO: howto
-    parser.add_argument("-b","--begin")
-    parser.add_argument("-e","--end")
-
-    args = parser.parse_args()
-
-    return(args)
 
 # Prepare the input_file to be used for regridding
 def PrepDataSet(input_file,start=None,stop=None):
@@ -104,7 +27,7 @@ def PrepDataSet(input_file,start=None,stop=None):
         input_dataset = input_dataset.sel(time=slice(start,stop))
     except TypeError as err:
         print("TypeError:", err)
-        print("Input must be a string")
+        print("Input must be a string\n")
 
     # Correct the necessary variables for both datasets
     input_dataset = PrepDataSet_ESMF(input_dataset)
@@ -126,7 +49,7 @@ def PrepDataSet_ESMF(input_dataset):
         elif(dstype == "Surface"):
             print("PrepDataSet: SurfData")
             input_dataset = DimensionFixSurfData(input_dataset)
-        print("data set updated for xESMF")
+        print("data set updated for xESMF\n")
 
     return(input_dataset)
 
@@ -144,7 +67,7 @@ def ImportData(input_file):
        print("ValueError:", err)
        errmsg = "User direction: If error is due to units being 'years since ...' " \
                 "update the input data file to change to 'common_years since...'. " \
-                "This can be done using the luh2.attribupdate function."
+                "This can be done using the luh2.attribupdate function\n."
        print()
        print(errmsg)
 
@@ -175,7 +98,7 @@ def AttribUpdateLUH2(input_file,output_append="modified"):
     opts = [" -a {0},{1},o,{2},{3}".format(att, var, att_type, newstr)]
     nco.ncatted(input=input_file, output=output_file, options=opts)
 
-    print("Generated modified output file: {}".format(output_file))
+    print("Generated modified output file: {}\n".format(output_file))
 
     return(output_file)
 
@@ -274,6 +197,10 @@ def CheckDataSet(input_dataset):
     return(dsflag,dstype)
 
 def RegridConservative(ds_to_regrid,ds_regrid_target,save=False):
+
+
+    print("\nDefining regridder")
+
     # define the regridder transformation
     regridder = xe.Regridder(ds_to_regrid, ds_regrid_target, "conservative")
 
@@ -283,7 +210,23 @@ def RegridConservative(ds_to_regrid,ds_regrid_target,save=False):
         filename = regridder.to_netcdf("regridder.nc")
         print("regridder saved to file: ", filename)
 
-    return(regridder)
+    ds_regrid = ds_to_regrid.copy()
+    print("regridding")
+
+    # Loop through the variables one at a time to conserve memory
+    # To Do: implement dask
+    # To Do: can we skip time, lat, and lon variables?
+    ds_varnames = list(ds_to_regrid.variables.keys())
+    varlen = len(ds_to_regrid.variables)
+    for i in range(varlen-1):
+        if (not(ds_varnames[i] == 'time' or  ds_varnames[i] == 'lon' or
+            ds_varnames[i] == 'lat')):
+            print("regridding variable {}/{}: {}".format(i+1, varlen, ds_varnames[i]))
+            ds_regrid[ds_varnames[i]] = regridder(ds_to_regrid[ds_varnames[i]])
+        else:
+            print("skipping variable {}/{}: {}".format(i+1, varlen, ds_varnames[i]))
+
+    return(ds_regrid)
 
 # General functionality needed
 # - collect data for specific user-defined time period
