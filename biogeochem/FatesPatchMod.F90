@@ -605,6 +605,7 @@ module FatesPatchMod
                  this%fabi,                     &
                  this%sabs_dir,                 &
                  this%sabs_dif,                 &
+                 this%fragmentation_scaler,     &
                  stat=istat, errmsg=smsg)
 
       if (istat/=0) then
