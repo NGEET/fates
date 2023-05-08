@@ -238,6 +238,7 @@ module FatesPatchMod
       allocate(this%fabi(numSWb))
       allocate(this%sabs_dir(numSWb))
       allocate(this%sabs_dif(numSWb))
+      allocate(this%fragmentation_scaler(nlevsoil))
 
       ! initialize all values to nan
       call this%nan_values()
