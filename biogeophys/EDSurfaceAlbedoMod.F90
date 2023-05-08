@@ -367,7 +367,7 @@ contains
        !if ( abs(chil) <= 0.01_r8) then
        !   chil  = 0.01_r8
        !end if
-       phi1b(ft) = 0.5_r8 - 0.633_r8*chil - 0.330_r8*chil*chil
+       phi1b(ft) = 0.5_r8 - 0.633_r8*xl(ft) - 0.330_r8*xl(ft)*xl(ft)
        phi2b(ft) = 0.877_r8 * (1._r8 - 2._r8*phi1b(ft)) !0 = horiz leaves, 1 - vert leaves.
        gdir = phi1b(ft) + phi2b(ft) * sin(sb)
        !how much direct light penetrates a singleunit of lai?
