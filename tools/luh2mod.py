@@ -227,6 +227,8 @@ def RegridConservative(ds_to_regrid,ds_regrid_target,save=False):
                 ds_regrid[ds_varnames[i]] = regridder(ds_to_regrid[ds_varnames[i]])
             else:
                 print("skipping variable {}/{}: {}".format(i+1, varlen, ds_varnames[i]))
+        else:
+            print("skipping variable {}/{}: {}".format(i+1, varlen, ds_varnames[i]))
 
     return(regridder,ds_regrid)
 

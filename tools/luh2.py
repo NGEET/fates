@@ -13,25 +13,31 @@ def main():
     args = CommandLineArgs()
 
     # Prep the LUH2 datasets and regrid target
-    # To Do: need logic to handle taking in a saved regrid file
     ds_luh2 = PrepDataSet(args.luh2_file,args.begin,args.end)
-    ds_regrid_target= PrepDataSet(args.regridder_target_file,args.begin,args.end)
 
-    # Import the LUH2 static data to use for masking
-    ds_luh2_static = ImportData(args.luh2_static_file)
+    if (args.regridder_file == None):
+        ds_regrid_target = PrepDataSet(args.regridder_target_file,args.begin,args.end)
 
-    # Create new variable where the ice water fraction is inverted
-    ds_luh2_static["landfrac"] = 1 - ds_luh2_static.icwtr
+        # Import the LUH2 static data to use for masking
+        ds_luh2_static = ImportData(args.luh2_static_file)
 
-    # Mask all LUH2 input data using the ice/water fraction for the LUH2 static data
-    ds_luh2 = SetMaskLUH2(ds_luh2, ds_luh2_static)
-    ds_luh2_static = SetMaskLUH2(ds_luh2_static, ds_luh2_static)
+        # Create new variable where the ice water fraction is inverted
+        ds_luh2_static["landfrac"] = 1 - ds_luh2_static.icwtr
 
-    # Mask the regrid target
-    ds_regrid_target = SetMaskSurfData(ds_regrid_target)
+        # Mask all LUH2 input data using the ice/water fraction for the LUH2 static data
+        ds_luh2 = SetMaskLUH2(ds_luh2, ds_luh2_static)
+        ds_luh2_static = SetMaskLUH2(ds_luh2_static, ds_luh2_static)
 
-    # Regrid the luh2 data to the target grid
-    regridder_luh2,regrid_luh2 = RegridConservative(ds_luh2, ds_regrid_target, save=True)
+        # Mask the regrid target
+        ds_regrid_target = SetMaskSurfData(ds_regrid_target)
+
+        # Regrid the luh2 data to the target grid
+        regridder_luh2,regrid_luh2 = RegridConservative(ds_luh2, ds_regrid_target, save=True)
+
+    elif (args.regridder_target_file == None):
+        regridder_luhs = ImportData(args.regridder_file)
+        # TO DO: check that the time bounds match the argument bounds
+        # TO DO: create bypass option to regridder function
 
     # # Regrid the inverted ice/water fraction data to the target grid
     #regridder_land_fraction = RegridConservative(ds_luh2_static, ds_regrid_target)
@@ -53,11 +59,13 @@ def main():
 
     # # Write the files
     # # TO DO: add check to handle if the user enters the full path
-    output_filename = args.output
     if (args.output == None):
         output_filename = 'LUH2_timeseries.nc'
+    else:
+        output_filename = args.output
 
     output_file = os.path.join(os.getcwd(),output_filename)
+    print("generating output: {}".format(output_file))
     regrid_luh2.to_netcdf(output_file)
 
     # Example of file naming scheme
