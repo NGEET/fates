@@ -31,34 +31,34 @@ def main():
     ds_regrid_target = SetMaskSurfData(ds_regrid_target)
 
     # Regrid the luh2 data to the target grid
-    regridder_luh2 = RegridConservative(ds_luh2, ds_regrid_target, save=True)
-    regrid_luh2 = regridder_luh2(ds_luh2)
+    regridder_luh2,regrid_luh2 = RegridConservative(ds_luh2, ds_regrid_target, save=True)
 
     # # Regrid the inverted ice/water fraction data to the target grid
-    # # regridder_land_fraction = RegridConservative(ds_luh2_static, ds_regrid_target)
-    # # regrid_land_fraction = regridder_land_fraction(ds_luh2_static)
-    # regrid_land_fraction = regridder_luh2(ds_luh2_static)
+    #regridder_land_fraction = RegridConservative(ds_luh2_static, ds_regrid_target)
+    #regrid_land_fraction = regridder_land_fraction(ds_luh2_static)
+    regrid_land_fraction = regridder_luh2(ds_luh2_static)
 
     # # Adjust the luh2 data by the land fraction
     # # To Do: check if we need to do this for transition and management data as well
-    # regrid_luh2 = regrid_luh2 / regrid_land_fraction.landfrac
+    regrid_luh2 = regrid_luh2 / regrid_land_fraction.landfrac
 
     # # Rename the dimensions for the output
+    # TO DO: double check if this is necessary
     # regrid_luh2 = regrid_luh2.rename_dims(dims_dict={'latitude':'lsmlat','longitude':'lsmlon'})
-    # regrid_luh2["LONGXY"] = ds_regrid_target["LONGXY"]
-    # regrid_luh2["LATIXY"] = ds_regrid_target["LATIXY"]
+    regrid_luh2["LONGXY"] = ds_regrid_target["LONGXY"]
+    regrid_luh2["LATIXY"] = ds_regrid_target["LATIXY"]
 
     # # Add 'YEAR' as a variable.  This is an old requirement of the HLM and should simply be a copy of the `time` dimension
-    # regrid_luh2["YEAR"] = regrid_luh2.time
+    regrid_luh2["YEAR"] = regrid_luh2.time
 
     # # Write the files
     # # TO DO: add check to handle if the user enters the full path
-    # output_filename = args.output
-    # if (args.output == None):
-    #     output_filename = 'LUH2_timeseries.nc'
+    output_filename = args.output
+    if (args.output == None):
+        output_filename = 'LUH2_timeseries.nc'
 
-    # output_file = os.path.join(os.getcwd(),output_filename)
-    # regrid_luh2.to_netcdf(output_file)
+    output_file = os.path.join(os.getcwd(),output_filename)
+    regrid_luh2.to_netcdf(output_file)
 
     # Example of file naming scheme
     # finb_luh2_all_regrid.to_netcdf('LUH2_historical_1850_2015_4x5_cdk_220302.nc')

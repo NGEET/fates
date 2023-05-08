@@ -219,14 +219,16 @@ def RegridConservative(ds_to_regrid,ds_regrid_target,save=False):
     ds_varnames = list(ds_to_regrid.variables.keys())
     varlen = len(ds_to_regrid.variables)
     for i in range(varlen-1):
-        if (not(ds_varnames[i] == 'time' or  ds_varnames[i] == 'lon' or
-            ds_varnames[i] == 'lat')):
-            print("regridding variable {}/{}: {}".format(i+1, varlen, ds_varnames[i]))
-            ds_regrid[ds_varnames[i]] = regridder(ds_to_regrid[ds_varnames[i]])
-        else:
-            print("skipping variable {}/{}: {}".format(i+1, varlen, ds_varnames[i]))
+        # Skip time variable
+        if (ds_varnames[i] != "time"):
+            # Only regrid variables that match the lat/lon shape
+            if (ds_regrid[ds_varnames[i]][0].shape == (ds_regrid.lat.shape[0], ds_regrid.lon.shape[0])):
+                print("regridding variable {}/{}: {}".format(i+1, varlen, ds_varnames[i]))
+                ds_regrid[ds_varnames[i]] = regridder(ds_to_regrid[ds_varnames[i]])
+            else:
+                print("skipping variable {}/{}: {}".format(i+1, varlen, ds_varnames[i]))
 
-    return(ds_regrid)
+    return(regridder,ds_regrid)
 
 # General functionality needed
 # - collect data for specific user-defined time period
