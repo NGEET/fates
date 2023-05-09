@@ -45,7 +45,7 @@ module FatesPatchMod
                                  !   each patch ID corresponds to a pft number since each
                                  !   patch has only one pft.  Bareground patches are given
                                  !   a zero integer as a label. If nocomp is not active this 
-                                 !   is set to unset. This is set in patch%create as an argument
+                                 !   is set to unset. This is set in patch%Create as an argument
                                  !   to that procedure.
 
     !---------------------------------------------------------------------------
@@ -578,7 +578,7 @@ module FatesPatchMod
       ccohort => this%shortest
       do while(associated(ccohort))
         ncohort => ccohort%taller
-        call ccohort%free_memory()
+        call ccohort%FreeMemory()
         deallocate(ccohort, stat=istat, errmsg=smsg)
         if (istat /= 0) then
           write(fates_log(),*) 'dealloc007: fail on deallocate(cchort):'//trim(smsg)
@@ -708,8 +708,8 @@ module FatesPatchMod
         do while(associated(currentCohort))
             call check_var_real(currentCohort%n, 'cohort%n', return_code)
             if (.not.(return_code .eq. 0)) then
-                call this%dump()
-                call currentCohort%dump()
+                call this%Dump()
+                call currentCohort%Dump()
                 return
             end if
             currentCohort => currentCohort%taller
@@ -721,8 +721,8 @@ module FatesPatchMod
         do while(associated(currentCohort))        
             call check_var_real(currentCohort%dbh, 'cohort%dbh', return_code)
             if (.not. (return_code .eq. 0)) then
-              call this%dump()
-              call currentCohort%dump()
+              call this%Dump()
+              call currentCohort%Dump()
               return
             end if
             currentCohort => currentCohort%taller
@@ -732,7 +732,7 @@ module FatesPatchMod
       if (check_hlm_list(trim(var_aliases), 'pa_area')) then
         call check_var_real(this%area, 'patch%area', return_code)
         if (.not. (return_code .eq. 0)) then
-            call this%dump()
+            call this%Dump()
             return
         end if
       end if

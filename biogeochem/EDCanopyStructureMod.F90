@@ -682,7 +682,7 @@ contains
                    call InitHydrCohort(currentSite,copyc)
                 endif
 
-                call currentCohort%copy(copyc)
+                call currentCohort%Copy(copyc)
                 call copyc%InitPRTBoundaryConditions()
                 
                 newarea = currentCohort%c_area - cc_loss
@@ -1157,7 +1157,7 @@ contains
                    !call copyc%tveg_lpa%InitRMean(ema_lpa,&
                    !     init_value=currentPatch%tveg_lpa%GetMean())
                    
-                   call currentCohort%copy(copyc) !makes an identical copy...
+                   call currentCohort%Copy(copyc) !makes an identical copy...
                    call copyc%InitPRTBoundaryConditions()
                    
                    newarea = currentCohort%c_area - cc_gain !new area of existing cohort

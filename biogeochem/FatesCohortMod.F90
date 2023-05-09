@@ -57,7 +57,7 @@ module FatesCohortMod
     type (fates_cohort_type), pointer :: taller   => null() ! pointer to next tallest cohort     
     type (fates_cohort_type), pointer :: shorter  => null() ! pointer to next shorter cohort
     
-    !:.........................................................................:
+    !---------------------------------------------------------------------------
 
     ! Multi-species, multi-organ Plant Reactive Transport (PRT)
     ! Contains carbon and nutrient state variables for various plant organs
@@ -70,7 +70,7 @@ module FatesCohortMod
                                          !      parameters, with a tendency driven by
                                          !      nutrient storage) [kg root / kg leaf]
 
-    !:.........................................................................:
+    !---------------------------------------------------------------------------
 
     ! VEGETATION STRUCTURE
     
@@ -110,7 +110,7 @@ module FatesCohortMod
     integer  :: coage_by_pft_class      ! index that indicates the cohorts position of the join cohort age class x PFT 
     integer  :: size_class_lasttimestep ! size class of the cohort at the last time step
 
-    !:.........................................................................:
+    !---------------------------------------------------------------------------
 
     ! CARBON AND NUTRIENT FLUXES 
 
@@ -188,7 +188,7 @@ module FatesCohortMod
 
     real(r8) :: seed_prod                 ! diagnostic seed production rate [kgC/plant/day]
 
-    !:.........................................................................:
+    !---------------------------------------------------------------------------
 
     ! RESPIRATION COMPONENTS
     real(r8) :: rdark            ! dark respiration [kgC/indiv/s]
@@ -200,12 +200,12 @@ module FatesCohortMod
     real(r8) :: livecroot_mr     ! belowground live stem maintenance respiration [kgC/indiv/s]
     real(r8) :: froot_mr         ! live fine root maintenance respiration [kgC/indiv/s]
 
-    !:.........................................................................:
+    !---------------------------------------------------------------------------
 
     ! DAMAGE
     real(r8) :: branch_frac ! fraction of aboveground woody biomass in branches [0-1]
 
-    !:.........................................................................:
+    !---------------------------------------------------------------------------
 
     ! MORTALITY
     real(r8) :: dmort            ! proportional mortality rate [/year]
@@ -228,7 +228,7 @@ module FatesCohortMod
                                  !  (i.e. they are moved to newly-anthro-disturbed secondary 
                                  !  forest patch)  [fraction/logging activity]
 
-    !:.........................................................................:
+    !---------------------------------------------------------------------------
 
     ! NITROGEN POOLS      
     ! --------------------------------------------------------------------------
@@ -237,7 +237,7 @@ module FatesCohortMod
     ! Local values are used in that routine.
     ! --------------------------------------------------------------------------
 
-    !:.........................................................................:
+    !---------------------------------------------------------------------------
 
     ! GROWTH DERIVIATIVES
     real(r8) :: dndt      ! time derivative of cohort size [n/year]
@@ -245,7 +245,7 @@ module FatesCohortMod
     real(r8) :: ddbhdt    ! time derivative of dbh [cm/year]
     real(r8) :: dbdeaddt  ! time derivative of dead biomass [kgC/year]
 
-    !:.........................................................................:
+    !---------------------------------------------------------------------------
 
     ! FIRE
     real(r8) ::  fraction_crown_burned ! proportion of crown affected by fire [0-1]
@@ -255,31 +255,31 @@ module FatesCohortMod
                                        !  (conditional on the tree being subjected to the fire)
     real(r8) ::  fire_mort             ! post-fire mortality from cambial and crown damage assuming two are independent [0-1]
 
-    !:.........................................................................:
+    !---------------------------------------------------------------------------
 
     ! HYDRAULICS
     type(ed_cohort_hydr_type), pointer :: co_hydr ! all cohort hydraulics data, see FatesHydraulicsMemMod.F90
 
-    !:.........................................................................:
-
     contains
     
-    procedure :: init
-    procedure :: dump
-    procedure :: nan_values
-    procedure :: zero_values
-    procedure :: create
-    procedure :: copy
-    procedure :: free_memory
+    procedure :: Init
+    procedure :: NanValues
+    procedure :: ZeroValues
+    procedure :: Create
+    procedure :: Copy
+    procedure :: FreeMemory
     procedure :: CanUpperUnder
     procedure :: InitPRTBoundaryConditions
     procedure :: UpdateCohortBioPhysRates
+    procedure :: Dump
 
   end type fates_cohort_type
 
   contains
 
-    subroutine init(this, prt)
+    !===========================================================================
+
+    subroutine Init(this, prt)
       !
       !  DESCRIPTION:
       !  Create new cohort and set default values for all variables
@@ -289,8 +289,8 @@ module FatesCohortMod
       class(fates_cohort_type), intent(inout), target  :: this
       class(prt_vartypes),      intent(inout), pointer :: prt ! allocated PARTEH object
   
-      call this%nan_values()  ! make everything in the cohort not-a-number
-      call this%zero_values() ! zero things that need to be zeroed
+      call this%NanValues()  ! make everything in the cohort not-a-number
+      call this%ZeroValues() ! zero things that need to be zeroed
       
       ! point to the PARTEH object
       this%prt => prt
@@ -307,11 +307,11 @@ module FatesCohortMod
       ! growth, disturbance and mortality.
       this%isnew = .true.
   
-    end subroutine init
+    end subroutine Init
   
-    !:.........................................................................:
+    !===========================================================================
 
-    subroutine nan_values(this)
+    subroutine NanValues(this)
       !
       ! DESCRIPTION:
       !  make all the cohort variables NaN or unset so they aren't used before defined
@@ -433,11 +433,11 @@ module FatesCohortMod
       this%crownfire_mort          = nan 
       this%fire_mort               = nan 
    
-    end subroutine nan_values
+    end subroutine NanValues
    
-    !:.........................................................................:
+    !===========================================================================
    
-    subroutine zero_values(this)
+    subroutine ZeroValues(this)
       !
       ! DESCRIPTION:
       ! Zero variables that need to be accounted for if this cohort is altered 
@@ -513,11 +513,11 @@ module FatesCohortMod
       this%crownfire_mort          = 0._r8
       this%fire_mort               = 0._r8
     
-    end subroutine zero_values
+    end subroutine ZeroValues
    
-    !:.........................................................................:
+    !===========================================================================
 
-    subroutine create(this, prt, pft, nn, hite, coage, dbh, status,            &
+    subroutine Create(this, prt, pft, nn, hite, coage, dbh, status,            &
       ctrim, carea, clayer, crowndamage, spread, can_tlai)
       !
       ! DESCRIPTION:
@@ -544,7 +544,7 @@ module FatesCohortMod
       real(r8) :: leaf_c      ! total leaf carbon [kgC]
 
       ! initialize cohort
-      call this%init(prt)
+      call this%Init(prt)
 
       ! set values
       this%pft          = pft
@@ -563,7 +563,7 @@ module FatesCohortMod
       ! In these cases, testing if things like biomass are reasonable is premature
       ! However, in this part of the code, we will pass in nominal values for size, number and type
       if (this%dbh <= 0._r8 .or. this%n == 0._r8 .or. this%pft == 0) then
-        write(fates_log(),*) 'FATES: something is zero in cohort%create',      &
+        write(fates_log(),*) 'FATES: something is zero in cohort%Create',      &
           this%dbh, this%n, this%pft
         call endrun(msg=errMsg(sourcefile, __LINE__))
       endif
@@ -619,11 +619,11 @@ module FatesCohortMod
           this%treelai,this%vcmax25top, 2)
       end if
 
-    end subroutine create
+    end subroutine Create
 
-    !:.........................................................................:
+    !===========================================================================
 
-    subroutine copy(this, copy_cohort) 
+    subroutine Copy(this, copy_cohort) 
       !
       ! DESCRIPTION:
       ! copies all the variables in one cohort into a new cohort
@@ -753,11 +753,11 @@ module FatesCohortMod
         call copy_cohort%co_hydr%CopyCohortHydraulics(this%co_hydr)
       endif
 
-    end subroutine copy
+    end subroutine Copy
 
-    !:.........................................................................:
+    !===========================================================================
 
-    subroutine free_memory(this)
+    subroutine FreeMemory(this)
       !
       ! DESCRIPTION:
       ! deallocates all dynamic memory and objects within the cohort structure
@@ -787,9 +787,9 @@ module FatesCohortMod
         call endrun(msg=errMsg(sourcefile, __LINE__))
       endif
 
-    end subroutine free_memory
+    end subroutine FreeMemory
 
-    !:.........................................................................:
+    !===========================================================================
   
     subroutine InitPRTBoundaryConditions(this)      
       !
@@ -865,7 +865,7 @@ module FatesCohortMod
    
     end subroutine InitPRTBoundaryConditions
    
-    !:.........................................................................:
+    !===========================================================================
 
     subroutine UpdateCohortBioPhysRates(this)
       !
@@ -935,7 +935,7 @@ module FatesCohortMod
 
     end subroutine UpdateCohortBioPhysRates
 
-    !:.........................................................................:
+    !===========================================================================
 
     function CanUpperUnder(this) result(can_position)
       !
@@ -960,9 +960,9 @@ module FatesCohortMod
       
     end function CanUpperUnder
    
-    !:.........................................................................:
+    !===========================================================================
 
-    subroutine dump(this)
+    subroutine Dump(this)
       !
       !  DESCRIPTION:
       !  Print out attributes of a cohort
@@ -1042,12 +1042,12 @@ module FatesCohortMod
       write(fates_log(),*) 'cthis%size_class             = ', this%size_class
       write(fates_log(),*) 'cthis%size_by_pft_class      = ', this%size_by_pft_class
    
-      if (associated(this%co_hydr)) call this%co_hydr%dump()
+      if (associated(this%co_hydr)) call this%co_hydr%Dump()
    
       write(fates_log(),*) '----------------------------------------'
    
-    end subroutine dump
+    end subroutine Dump
    
-    !:.........................................................................:
+    !===========================================================================
    
 end module FatesCohortMod

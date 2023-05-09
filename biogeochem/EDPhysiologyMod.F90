@@ -273,10 +273,10 @@ contains
 
              call InitPRTObject(ndcohort%prt)
              call ndcohort%InitPRTBoundaryConditions()
-             call ndcohort%zero_values()
+             call ndcohort%ZeroValues()
              
              ! nc_canopy_d is the new cohort that gets damaged 
-             call ccohort%copy(ndcohort)
+             call ccohort%Copy(ndcohort)
              
              ! new number densities - we just do damaged cohort here -
              ! undamaged at the end of the cohort loop once we know how many damaged to
@@ -2027,7 +2027,7 @@ contains
     !----------------------------------------------------------------------
 
     allocate(temp_cohort) ! create temporary cohort
-    call temp_cohort%zero_values()
+    call temp_cohort%ZeroValues()
 
 
     do ft = 1,numpft

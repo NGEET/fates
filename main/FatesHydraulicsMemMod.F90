@@ -316,7 +316,7 @@ module FatesHydraulicsMemMod
      procedure :: AllocateHydrCohortArrays
      procedure :: DeallocateHydrCohortArrays
      procedure :: CopyCohortHydraulics
-     procedure :: dump
+     procedure :: Dump
      
   end type ed_cohort_hydr_type
    
@@ -425,9 +425,9 @@ module FatesHydraulicsMemMod
        return
     end subroutine DeallocateHydrCohortArrays
 
-    ! ===================================================================================
+    ! ==========================================================================
 
-    subroutine dump(this)
+    subroutine Dump(this)
 
       class(ed_cohort_hydr_type), intent(in) :: this
       
@@ -440,9 +440,9 @@ module FatesHydraulicsMemMod
       
       return
 
-   end subroutine dump
+   end subroutine Dump
 
-   !:..........................................................................:
+   ! ==========================================================================
 
     subroutine InitHydrSite(this,numpft,numlevsclass,hydr_solver_type,nlevsoil)
        

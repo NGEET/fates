@@ -485,7 +485,7 @@ contains
 
                 if(disturbance_rate > (1.0_r8 + rsnbl_math_prec)) then
                    write(fates_log(),*) 'patch disturbance rate > 1 ?',disturbance_rate
-                   call currentPatch%dump()
+                   call currentPatch%Dump()
                    call endrun(msg=errMsg(sourcefile, __LINE__))
                 end if
 
@@ -686,11 +686,11 @@ contains
                          !allocate(nc%tveg_lpa)
                          !call nc%tveg_lpa%InitRMean(ema_lpa,init_value=new_patch%tveg_lpa%GetMean())
 
-                         call nc%zero_values()
+                         call nc%ZeroValues()
 
                          ! nc is the new cohort that goes in the disturbed patch (new_patch)... currentCohort
                          ! is the curent cohort that stays in the donor patch (currentPatch)
-                         call currentCohort%copy(nc)
+                         call currentCohort%Copy(nc)
 
                          !this is the case as the new patch probably doesn't have a closed canopy, and
                          ! even if it does, that will be sorted out in canopy_structure.
@@ -1109,7 +1109,7 @@ contains
                          else
 
                             ! Get rid of the new temporary cohort
-                            call nc%free_memory()
+                            call nc%FreeMemory()
                             deallocate(nc, stat=istat, errmsg=smsg)
                             if (istat/=0) then
                                write(fates_log(),*) 'dealloc005: fail on deallocate(nc):'//trim(smsg)
@@ -2528,7 +2528,7 @@ contains
     end if
 
     ! We have no need for the dp pointer anymore, we have passed on it's legacy
-    call dp%free_memory()
+    call dp%FreeMemory()
     deallocate(dp, stat=istat, errmsg=smsg)
     if (istat/=0) then
        write(fates_log(),*) 'dealloc006: fail on deallocate(dp):'//trim(smsg)

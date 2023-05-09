@@ -2622,8 +2622,8 @@ contains
              do fto = 1, rio_ncohort_pa( io_idx_co_1st )
 
                 allocate(new_cohort)
-                call new_cohort%nan_values()
-                call new_cohort%zero_values()
+                call new_cohort%NanValues()
+                call new_cohort%ZeroValues()
 
                 ! If this is the first in the list, it is tallest
                 if (.not.associated(newp%tallest)) then

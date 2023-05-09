@@ -202,7 +202,7 @@ integer  :: nlevrhiz                       ! number of rhizosphere layers
 
 ! create new cohort
 allocate(new_cohort)
-call new_cohort%create(prt, pft, nn, hite, coage, dbh, status, ctrim, carea,   &
+call new_cohort%Create(prt, pft, nn, hite, coage, dbh, status, ctrim, carea,   &
    clayer, crowndamage, spread, patchptr%canopy_layer_tlai)
 
 ! Put cohort at the right place in the linked list
@@ -545,7 +545,7 @@ end subroutine create_cohort
       shorterCohort%taller => tallerCohort
    endif
 
-   call currentCohort%free_memory()
+   call currentCohort%FreeMemory()
 
  end subroutine terminate_cohort  
   
@@ -1158,7 +1158,7 @@ end subroutine create_cohort
                                       call UpdateSizeDepPlantHydProps(currentSite,currentCohort, bc_in)
                                    endif
 
-                                   call nextc%free_memory()
+                                   call nextc%FreeMemory()
                                    deallocate(nextc, stat=istat, errmsg=smsg)
                                    if (istat/=0) then
                                       write(fates_log(),*) 'dealloc003: fail on deallocate(nextc):'//trim(smsg)
@@ -1741,7 +1741,7 @@ end subroutine create_cohort
          rcohort%prt => null()
          call InitPRTObject(rcohort%prt)
          call rcohort%InitPRTBoundaryConditions()
-         call ccohort%copy(rcohort)
+         call ccohort%Copy(rcohort)
 
          rcohort%n = nplant_recover
           
