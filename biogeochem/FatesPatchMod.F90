@@ -72,82 +72,82 @@ module FatesPatchMod
     !:.........................................................................:
 
     ! LEAF ORGANIZATION
-    real(r8), allocatable :: pft_agb_profile(:,:)      ! binned aboveground biomass, for patch fusion [kgC/m2]
-    real(r8)              :: canopy_layer_tlai(nclmax) ! total leaf area index of each canopy layer [m2 veg/m2 canopy area]
-                                                          !   (patch without bare ground)
-                                                          !   used to determine attenuation of parameters during photosynthesis
-    real(r8)              :: total_canopy_area         ! area that is covered by vegetation [m2]
-    real(r8)              :: total_tree_area           ! area that is covered by woody vegetation [m2]
-    real(r8)              :: zstar                     ! height of smallest canopy tree, only meaningful in "strict PPA" mode [m]
-    real(r8), allocatable :: elai_profile(:,:,:)       ! exposed leaf area in each canopy layer, pft, and leaf layer [m2 leaf/m2 contributing crown area]
-    real(r8), allocatable :: esai_profile(:,:,:)       ! exposed stem area in each canopy layer, pft, and leaf layer [m2 leaf/m2 contributing crown area]
-    real(r8), allocatable :: tlai_profile(:,:,:)
-    real(r8), allocatable :: tsai_profile(:,:,:)
-    real(r8), allocatable :: canopy_area_profile(:,:,:) ! fraction of crown area per canopy area in each layer
-                                                          !   they will sum to 1.0 in the fully closed canopy layers
-                                                          !   but only in leaf-layers that contain contributions
-                                                          !   from all cohorts that donate to canopy_area
-    integer, allocatable  :: canopy_mask(:,:)           ! is there any of this pft in this canopy layer?      
-    integer, allocatable  :: nrad(:,:)                  ! number of exposed leaf layers for each canopy layer and pft
-    integer, allocatable  :: ncan(:,:)                  ! number of total   leaf layers for each canopy layer and pft
-    real(r8)              :: c_stomata                  ! mean stomatal conductance of all leaves in the patch   [umol/m2/s]
-    real(r8)              :: c_lblayer                  ! mean boundary layer conductance of all leaves in the patch [umol/m2/s]
+    real(r8) :: pft_agb_profile(maxpft,n_dbh_bins)          ! binned aboveground biomass, for patch fusion [kgC/m2]
+    real(r8) :: canopy_layer_tlai(nclmax)                   ! total leaf area index of each canopy layer [m2 veg/m2 canopy area]
+                                                              !   (patch without bare ground)
+                                                              !   used to determine attenuation of parameters during photosynthesis
+    real(r8) :: total_canopy_area                           ! area that is covered by vegetation [m2]
+    real(r8) :: total_tree_area                             ! area that is covered by woody vegetation [m2]
+    real(r8) :: zstar                                       ! height of smallest canopy tree, only meaningful in "strict PPA" mode [m]
+    real(r8) :: elai_profile(nclmax,maxpft,nlevleaf)        ! exposed leaf area in each canopy layer, pft, and leaf layer [m2 leaf/m2 contributing crown area]
+    real(r8) :: esai_profile(nclmax,maxpft,nlevleaf)        ! exposed stem area in each canopy layer, pft, and leaf layer [m2 leaf/m2 contributing crown area]
+    real(r8) :: tlai_profile(nclmax,maxpft,nlevleaf) 
+    real(r8) :: tsai_profile(nclmax,maxpft,nlevleaf) 
+    real(r8) :: canopy_area_profile(nclmax,maxpft,nlevleaf) ! fraction of crown area per canopy area in each layer
+                                                              !   they will sum to 1.0 in the fully closed canopy layers
+                                                              !   but only in leaf-layers that contain contributions
+                                                              !   from all cohorts that donate to canopy_area
+    integer  :: canopy_mask(nclmax,maxpft)                  ! is there any of this pft in this canopy layer?      
+    integer  :: nrad(nclmax,maxpft)                         ! number of exposed leaf layers for each canopy layer and pft
+    integer  :: ncan(nclmax,maxpft)                         ! number of total   leaf layers for each canopy layer and pft
+    real(r8) :: c_stomata                                   ! mean stomatal conductance of all leaves in the patch   [umol/m2/s]
+    real(r8) :: c_lblayer                                   ! mean boundary layer conductance of all leaves in the patch [umol/m2/s]
     !:.........................................................................:
 
-    real(r8), allocatable :: layer_height_profile(:,:,:)
-    real(r8), allocatable :: psn_z(:,:,:)
-    real(r8), allocatable :: nrmlzd_parprof_pft_dir_z(:,:,:,:)
-    real(r8), allocatable :: nrmlzd_parprof_pft_dif_z(:,:,:,:)
-    real(r8), allocatable :: nrmlzd_parprof_dir_z(:,:,:)
-    real(r8), allocatable :: nrmlzd_parprof_dif_z(:,:,:)
+    real(r8) :: layer_height_profile(nclmax,maxpft,nlevleaf)
+    real(r8) :: psn_z(nclmax,maxpft,nlevleaf)
+    real(r8) :: nrmlzd_parprof_pft_dir_z(n_rad_stream_types,nclmax,maxpft,nlevleaf)
+    real(r8) :: nrmlzd_parprof_pft_dif_z(n_rad_stream_types,nclmax,maxpft,nlevleaf)
+    real(r8) :: nrmlzd_parprof_dir_z(n_rad_stream_types,nclmax,nlevleaf)
+    real(r8) :: nrmlzd_parprof_dif_z(n_rad_stream_types,nclmax,nlevleaf)
 
     !:.........................................................................:
 
     ! RADIATION
-    real(r8)              :: radiation_error          ! radiation error [W/m2] 
-    real(r8)              :: fcansno                  ! fraction of canopy covered in snow [0-1]
-    logical               :: solar_zenith_flag        ! integer flag specifying daylight (based on zenith angle)
-    real(r8)              :: solar_zenith_angle       ! solar zenith angle [radians]
-    real(r8), allocatable :: gnd_alb_dif(:)           ! ground albedo for diffuse rad, both bands [0-1]
-    real(r8), allocatable :: gnd_alb_dir(:)           ! ground albedo for direct rad, both bands [0-1]
+    real(r8) :: radiation_error                           ! radiation error [W/m2] 
+    real(r8) :: fcansno                                   ! fraction of canopy covered in snow [0-1]
+    logical  :: solar_zenith_flag                         ! integer flag specifying daylight (based on zenith angle)
+    real(r8) :: solar_zenith_angle                        ! solar zenith angle [radians]
+    real(r8) :: gnd_alb_dif(maxSWb)                       ! ground albedo for diffuse rad, both bands [0-1]
+    real(r8) :: gnd_alb_dir(maxSWb)                       ! ground albedo for direct rad, both bands [0-1]
 
     ! organized by canopy layer, pft, and leaf layer
-    real(r8), allocatable :: fabd_sun_z(:,:,:)        ! sun fraction of direct light absorbed [0-1]
-    real(r8), allocatable :: fabd_sha_z(:,:,:)        ! shade fraction of direct light absorbed [0-1]
-    real(r8), allocatable :: fabi_sun_z(:,:,:)        ! sun fraction of indirect light absorbed [0-1]
-    real(r8), allocatable :: fabi_sha_z(:,:,:)        ! shade fraction of indirect light absorbed [0-1]
-    real(r8), allocatable :: ed_parsun_z(:,:,:)       ! PAR absorbed in the sun [W/m2]   
-    real(r8), allocatable :: ed_parsha_z(:,:,:)       ! PAR absorbed in the shade [W/m2]
-    real(r8), allocatable :: ed_laisun_z(:,:,:) 
-    real(r8), allocatable :: ed_laisha_z(:,:,:) 
-    real(r8), allocatable :: f_sun(:,:,:)             ! fraction of leaves in the sun [0-1]
+    real(r8) :: fabd_sun_z(nclmax,maxpft,nlevleaf)        ! sun fraction of direct light absorbed [0-1]
+    real(r8) :: fabd_sha_z(nclmax,maxpft,nlevleaf)        ! shade fraction of direct light absorbed [0-1]
+    real(r8) :: fabi_sun_z(nclmax,maxpft,nlevleaf)        ! sun fraction of indirect light absorbed [0-1]
+    real(r8) :: fabi_sha_z(nclmax,maxpft,nlevleaf)        ! shade fraction of indirect light absorbed [0-1]
+    real(r8) :: ed_parsun_z(nclmax,maxpft,nlevleaf)       ! PAR absorbed in the sun [W/m2]   
+    real(r8) :: ed_parsha_z(nclmax,maxpft,nlevleaf)       ! PAR absorbed in the shade [W/m2]
+    real(r8) :: ed_laisun_z(nclmax,maxpft,nlevleaf)
+    real(r8) :: ed_laisha_z(nclmax,maxpft,nlevleaf)
+    real(r8) :: f_sun(nclmax,maxpft,nlevleaf)             ! fraction of leaves in the sun [0-1]
 
     ! radiation profiles for comparison against observations
-    real(r8), allocatable :: parprof_pft_dir_z(:,:,:) ! direct-beam PAR profile through canopy, by canopy, PFT, leaf level [W/m2]
-    real(r8), allocatable :: parprof_pft_dif_z(:,:,:) ! diffuse     PAR profile through canopy, by canopy, PFT, leaf level [W/m2]
-    real(r8), allocatable :: parprof_dir_z(:,:)       ! direct-beam PAR profile through canopy, by canopy, leaf level [W/m2]
-    real(r8), allocatable :: parprof_dif_z(:,:)       ! diffuse     PAR profile through canopy, by canopy, leaf level [W/m2]
+    real(r8) :: parprof_pft_dir_z(nclmax,maxpft,nlevleaf) ! direct-beam PAR profile through canopy, by canopy, PFT, leaf level [W/m2]
+    real(r8) :: parprof_pft_dif_z(nclmax,maxpft,nlevleaf) ! diffuse     PAR profile through canopy, by canopy, PFT, leaf level [W/m2]
+    real(r8) :: parprof_dir_z(nclmax,nlevleaf)            ! direct-beam PAR profile through canopy, by canopy, leaf level [W/m2]
+    real(r8) :: parprof_dif_z(nclmax,nlevleaf)            ! diffuse     PAR profile through canopy, by canopy, leaf level [W/m2]
     
-    real(r8), allocatable :: tr_soil_dir(:)           ! fraction of incoming direct radiation transmitted to the soil as direct, by numSWB [0-1]
-    real(r8), allocatable :: tr_soil_dif(:)           ! fraction of incoming diffuse radiation that is transmitted to the soil as diffuse [0-1]
-    real(r8), allocatable :: tr_soil_dir_dif(:)       ! fraction of incoming direct radiation that is transmitted to the soil as diffuse [0-1]
-    real(r8), allocatable :: fab(:)                   ! fraction of incoming total   radiation that is absorbed by the canopy
-    real(r8), allocatable :: fabd(:)                  ! fraction of incoming direct  radiation that is absorbed by the canopy
-    real(r8), allocatable :: fabi(:)                  ! fraction of incoming diffuse radiation that is absorbed by the canopy
-    real(r8), allocatable :: sabs_dir(:)              ! fraction of incoming direct  radiation that is absorbed by the canopy
-    real(r8), allocatable :: sabs_dif(:)              ! fraction of incoming diffuse radiation that is absorbed by the canopy
+    real(r8), allocatable :: tr_soil_dir(:)               ! fraction of incoming direct radiation transmitted to the soil as direct, by numSWB [0-1]
+    real(r8), allocatable :: tr_soil_dif(:)               ! fraction of incoming diffuse radiation that is transmitted to the soil as diffuse [0-1]
+    real(r8), allocatable :: tr_soil_dir_dif(:)           ! fraction of incoming direct radiation that is transmitted to the soil as diffuse [0-1]
+    real(r8), allocatable :: fab(:)                       ! fraction of incoming total   radiation that is absorbed by the canopy
+    real(r8), allocatable :: fabd(:)                      ! fraction of incoming direct  radiation that is absorbed by the canopy
+    real(r8), allocatable :: fabi(:)                      ! fraction of incoming diffuse radiation that is absorbed by the canopy
+    real(r8), allocatable :: sabs_dir(:)                  ! fraction of incoming direct  radiation that is absorbed by the canopy
+    real(r8), allocatable :: sabs_dif(:)                  ! fraction of incoming diffuse radiation that is absorbed by the canopy
 
     !:.........................................................................:
 
     ! ROOTS
-    real(r8), allocatable :: btran_ft(:)       ! btran calculated seperately for each PFT
-    real(r8), allocatable :: bstress_sal_ft(:) ! bstress from salinity calculated seperately for each PFT
+    real(r8) :: btran_ft(maxpft)       ! btran calculated seperately for each PFT
+    real(r8) :: bstress_sal_ft(maxpft) ! bstress from salinity calculated seperately for each PFT
     
     !:.........................................................................:
 
     ! EXTERNAL SEED RAIN
-    real(r8), allocatable :: nitr_repro_stoich(:) ! The NC ratio of a new recruit in this patch
-    real(r8), allocatable :: phos_repro_stoich(:) ! The PC ratio of a new recruit in this patch
+    real(r8) :: nitr_repro_stoich(maxpft) ! The NC ratio of a new recruit in this patch
+    real(r8) :: phos_repro_stoich(maxpft) ! The PC ratio of a new recruit in this patch
 
     !:.........................................................................:
     
@@ -190,7 +190,7 @@ module FatesPatchMod
     real(r8)              :: fd                      ! fire duration [min]
 
     ! fire effects      
-    real(r8), allocatable :: scorch_ht(:)            ! scorch height [m] 
+    real(r8)              :: scorch_ht(maxpft)       ! scorch height [m] 
     real(r8)              :: frac_burnt              ! fraction burnt [0-1/day]  
     real(r8)              :: tfc_ros                 ! total intensity-relevant fuel consumed - no trunks [kgC/m2 of burned ground/day]
     real(r8)              :: burnt_frac_litter(nfsc) ! fraction of each litter pool burned, conditional on it being burned [0-1]
@@ -216,7 +216,7 @@ module FatesPatchMod
 
   contains 
 
-    subroutine init(this, numpft, numSWb, nlevsoil)
+    subroutine init(this, numSWb, nlevsoil)
       !
       !  DESCRIPTION:
       !  Initialize a new patch - allocate arrays and set values to nan and/or 
@@ -225,46 +225,10 @@ module FatesPatchMod
 
       ! ARGUMENTS:
       class(fates_patch_type), intent(inout) :: this        ! patch object
-      integer,                 intent(in)    :: numpft      ! number of pfts
       integer,                 intent(in)    :: numSWb      ! number of shortwave broad-bands to track
       integer,                 intent(in)    :: nlevsoil    ! number of soil layers
 
       ! allocate arrays 
-      allocate(this%pft_agb_profile(numpft, N_DBH_BINS))
-      allocate(this%elai_profile(nclmax,numpft,nlevleaf))
-      allocate(this%esai_profile(nclmax,numpft,nlevleaf))
-      allocate(this%tlai_profile(nclmax,numpft,nlevleaf))
-      allocate(this%tsai_profile(nclmax,numpft,nlevleaf))
-      allocate(this%canopy_area_profile(nclmax,numpft,nlevleaf))
-
-      allocate(this%canopy_mask(nclmax,numpft))
-      allocate(this%nrad(nclmax,numpft))
-      allocate(this%ncan(nclmax,numpft))
-
-      allocate(this%layer_height_profile(nclmax,numpft,nlevleaf))
-      allocate(this%psn_z(nclmax,numpft,nlevleaf))
-      allocate(this%nrmlzd_parprof_pft_dir_z(n_rad_stream_types,nclmax,numpft,nlevleaf))
-      allocate(this%nrmlzd_parprof_pft_dif_z(n_rad_stream_types,nclmax,numpft,nlevleaf))
-      allocate(this%nrmlzd_parprof_dir_z(n_rad_stream_types,nclmax,nlevleaf))
-      allocate(this%nrmlzd_parprof_dif_z(n_rad_stream_types,nclmax,nlevleaf))
-
-      allocate(this%gnd_alb_dif(numSWb))
-      allocate(this%gnd_alb_dir(numSWb))
-      allocate(this%fabd_sun_z(nclmax,numpft,nlevleaf))
-      allocate(this%fabd_sha_z(nclmax,numpft,nlevleaf))
-      allocate(this%fabi_sun_z(nclmax,numpft,nlevleaf))
-      allocate(this%fabi_sha_z(nclmax,numpft,nlevleaf))
-      allocate(this%ed_parsun_z(nclmax,numpft,nlevleaf))
-      allocate(this%ed_parsha_z(nclmax,numpft,nlevleaf))
-      allocate(this%ed_laisun_z(nclmax,numpft,nlevleaf))
-      allocate(this%ed_laisha_z(nclmax,numpft,nlevleaf))
-      allocate(this%f_sun(nclmax,numpft,nlevleaf))
-
-      allocate(this%parprof_pft_dir_z(nclmax,numpft,nlevleaf))
-      allocate(this%parprof_pft_dif_z(nclmax,numpft,nlevleaf))
-      allocate(this%parprof_dir_z(nclmax,nlevleaf))
-      allocate(this%parprof_dif_z(nclmax,nlevleaf))
-
       allocate(this%tr_soil_dir(numSWb))
       allocate(this%tr_soil_dif(numSWb))
       allocate(this%tr_soil_dir_dif(numSWb))
@@ -273,16 +237,7 @@ module FatesPatchMod
       allocate(this%fabi(numSWb))
       allocate(this%sabs_dir(numSWb))
       allocate(this%sabs_dif(numSWb))
-
-      allocate(this%btran_ft(numpft))
-      allocate(this%bstress_sal_ft(numpft))
-
-      allocate(this%nitr_repro_stoich(numpft))
-      allocate(this%phos_repro_stoich(numpft))
-
       allocate(this%fragmentation_scaler(nlevsoil))
-
-      allocate(this%scorch_ht(numpft))
 
       ! initialize all values to nan
       call this%nan_values()
@@ -294,7 +249,7 @@ module FatesPatchMod
 
     !:.........................................................................:
 
-    subroutine nan_values(this)
+    subroutine nanValues(this)
       !
       !  DESCRIPTION:
       !  Sets all values in patch to nan
@@ -642,37 +597,7 @@ module FatesPatchMod
       endif
       
       ! deallocate the allocatable arrays
-      deallocate(this%pft_agb_profile,          &
-                 this%elai_profile,             &
-                 this%esai_profile,             &
-                 this%tlai_profile,             &
-                 this%tsai_profile,             &
-                 this%canopy_area_profile,      &
-                 this%canopy_mask,              &
-                 this%nrad,                     &
-                 this%ncan,                     &
-                 this%layer_height_profile,     &
-                 this%psn_z,                    &
-                 this%nrmlzd_parprof_pft_dir_z, &
-                 this%nrmlzd_parprof_pft_dif_z, &
-                 this%nrmlzd_parprof_dir_z,     &
-                 this%nrmlzd_parprof_dif_z,     &
-                 this%gnd_alb_dif,              &
-                 this%gnd_alb_dir,              &
-                 this%fabd_sun_z,               &
-                 this%fabd_sha_z,               &
-                 this%fabi_sun_z,               &
-                 this%fabi_sha_z,               &
-                 this%ed_parsun_z,              &
-                 this%ed_parsha_z,              &
-                 this%ed_laisun_z,              &
-                 this%ed_laisha_z,              &
-                 this%f_sun,                    &
-                 this%parprof_pft_dir_z,        &
-                 this%parprof_pft_dif_z,        &
-                 this%parprof_dir_z,            &
-                 this%parprof_dif_z,            &  
-                 this%tr_soil_dir,              & 
+      deallocate(this%tr_soil_dir,              & 
                  this%tr_soil_dif,              & 
                  this%tr_soil_dir_dif,          & 
                  this%fab,                      &
@@ -680,12 +605,7 @@ module FatesPatchMod
                  this%fabi,                     &
                  this%sabs_dir,                 &
                  this%sabs_dif,                 &
-                 this%btran_ft,                 &
-                 this%bstress_sal_ft,           &
-                 this%nitr_repro_stoich,        &
-                 this%phos_repro_stoich,        &
                  this%fragmentation_scaler,     &
-                 this%scorch_ht,                &
                  stat=istat, errmsg=smsg)
 
       if (istat/=0) then
