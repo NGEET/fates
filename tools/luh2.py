@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse, os
+import xarray as xr
 from luh2mod import PrepDataSet, ImportData, SetMaskLUH2, SetMaskSurfData
 from luh2mod import RegridConservative
 
@@ -32,10 +33,10 @@ def main():
         ds_regrid_target = SetMaskSurfData(ds_regrid_target)
 
         # Regrid the luh2 data to the target grid
-        regridder_luh2,regrid_luh2 = RegridConservative(ds_luh2, ds_regrid_target, save=True)
+        regrid_luh2,regridder_luh2 = RegridConservative(ds_luh2, ds_regrid_target, save=True)
 
     elif (args.regridder_target_file == None):
-        regridder_luhs = ImportData(args.regridder_file)
+        regridder_luh2 = ImportData(args.regridder_file)
         # TO DO: check that the time bounds match the argument bounds
         # TO DO: create bypass option to regridder function
 
@@ -50,12 +51,18 @@ def main():
 
     # # Rename the dimensions for the output
     # TO DO: double check if this is necessary
-    # regrid_luh2 = regrid_luh2.rename_dims(dims_dict={'latitude':'lsmlat','longitude':'lsmlon'})
+    regrid_luh2 = regrid_luh2.rename_dims(dims_dict={'lat':'lsmlat','lon':'lsmlon'})
     regrid_luh2["LONGXY"] = ds_regrid_target["LONGXY"]
     regrid_luh2["LATIXY"] = ds_regrid_target["LATIXY"]
 
     # # Add 'YEAR' as a variable.  This is an old requirement of the HLM and should simply be a copy of the `time` dimension
     regrid_luh2["YEAR"] = regrid_luh2.time
+
+    # Merge existing regrided luh2 file with merge input target
+    # TO DO: check that the grid resolution and time bounds match
+    if (args.luh2_merge_file != None):
+        ds_luh2_merge = ImportData(args.luh2_merge_file)
+        regrid_luh2 = regrid_luhs.merge(ds_luh2_merge)
 
     # # Write the files
     # # TO DO: add check to handle if the user enters the full path
@@ -94,6 +101,9 @@ def CommandLineArgs():
 
     # Optional output argument
     parser.add_argument("-o","--output")
+
+    # Optional merge argument to enable merging of other files
+    parser.add_argument("-m", "--luh2_merge_file")
 
     args = parser.parse_args()
 

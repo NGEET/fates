@@ -198,10 +198,52 @@ def CheckDataSet(input_dataset):
 
 def RegridConservative(ds_to_regrid,ds_regrid_target,save=False):
 
+    # define the regridder transformation
+    regridder = GenerateRegridder(ds_to_regrid, ds_regrid_target, save)
+
+    # Loop through the variables to regrid
+    ds_regrid = RegridLoop(ds_to_regrid, regridder)
+
+    return (ds_regrid, regridder)
+
+def RegridLoop(ds_to_regrid, regridder):
+
+    # To Do: implement this with dask
+    print("\nRegridding")
+
+    # Loop through the variables one at a time to conserve memory
+    ds_varnames = list(ds_to_regrid.variables.keys())
+    varlen = len(ds_to_regrid.variables)
+    first_var = False
+    for i in range(varlen-1):
+
+        # Skip time variable
+        if (ds_varnames[i] != "time"):
+
+            # Only regrid variables that match the lat/lon shape.
+            if (ds_to_regrid[ds_varnames[i]][0].shape == (ds_to_regrid.lat.shape[0], ds_to_regrid.lon.shape[0])):
+                print("regridding variable {}/{}: {}".format(i+1, varlen, ds_varnames[i]))
+
+                # For the first non-coordinate variable, copy and regrid the dataset as a whole.
+                # This makes sure to correctly include the lat/lon in the regridding.
+                if (not(first_var)):
+                    ds_regrid = ds_to_regrid[ds_varnames[i]].to_dataset() # convert data array to dataset
+                    ds_regrid = regridder(ds_regrid)
+                    first_var = True
+
+                # Once the first variable has been included, then we can regrid by variable
+                else:
+                    ds_regrid[ds_varnames[i]] = regridder(ds_to_regrid[ds_varnames[i]])
+            else:
+                print("skipping variable {}/{}: {}".format(i+1, varlen, ds_varnames[i]))
+        else:
+            print("skipping variable {}/{}: {}".format(i+1, varlen, ds_varnames[i]))
+
+    return(ds_regrid)
+
+def GenerateRegridder(ds_to_regrid, ds_regrid_target,save=False):
 
     print("\nDefining regridder")
-
-    # define the regridder transformation
     regridder = xe.Regridder(ds_to_regrid, ds_regrid_target, "conservative")
 
     # If save flag is set, write regridder to a file
@@ -210,27 +252,8 @@ def RegridConservative(ds_to_regrid,ds_regrid_target,save=False):
         filename = regridder.to_netcdf("regridder.nc")
         print("regridder saved to file: ", filename)
 
-    ds_regrid = ds_to_regrid.copy()
-    print("regridding")
+    return(regridder)
 
-    # Loop through the variables one at a time to conserve memory
-    # To Do: implement dask
-    # To Do: can we skip time, lat, and lon variables?
-    ds_varnames = list(ds_to_regrid.variables.keys())
-    varlen = len(ds_to_regrid.variables)
-    for i in range(varlen-1):
-        # Skip time variable
-        if (ds_varnames[i] != "time"):
-            # Only regrid variables that match the lat/lon shape
-            if (ds_regrid[ds_varnames[i]][0].shape == (ds_regrid.lat.shape[0], ds_regrid.lon.shape[0])):
-                print("regridding variable {}/{}: {}".format(i+1, varlen, ds_varnames[i]))
-                ds_regrid[ds_varnames[i]] = regridder(ds_to_regrid[ds_varnames[i]])
-            else:
-                print("skipping variable {}/{}: {}".format(i+1, varlen, ds_varnames[i]))
-        else:
-            print("skipping variable {}/{}: {}".format(i+1, varlen, ds_varnames[i]))
-
-    return(regridder,ds_regrid)
 
 # General functionality needed
 # - collect data for specific user-defined time period
