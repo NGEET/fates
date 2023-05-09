@@ -37,7 +37,7 @@ module FatesPatchMod
     type (fates_patch_type),  pointer :: older => null()    ! pointer to next older patch   
     type (fates_patch_type),  pointer :: younger => null()  ! pointer to next younger patch
   
-    !:.........................................................................:
+    !---------------------------------------------------------------------------
 
     ! INDICES
     integer  :: patchno          ! unique number given to each new patch created for tracking
@@ -48,7 +48,7 @@ module FatesPatchMod
                                  !   is set to unset. This is set in patch%create as an argument
                                  !   to that procedure.
 
-    !:.........................................................................:
+    !---------------------------------------------------------------------------
 
     ! PATCH INFO
     real(r8) :: age                          ! average patch age [years]                  
@@ -59,7 +59,7 @@ module FatesPatchMod
     integer  :: anthro_disturbance_label     ! patch label for anthropogenic disturbance classification
     real(r8) :: age_since_anthro_disturbance ! average age for secondary forest since last anthropogenic disturbance [years]
 
-    !:.........................................................................:
+    !---------------------------------------------------------------------------
 
     ! RUNNING MEANS
     !class(rmean_type), pointer :: t2m          ! place-holder for 2m air temperature (variable window-size)
@@ -69,7 +69,7 @@ module FatesPatchMod
     class(rmean_type), pointer :: tveg_longterm ! long-term running mean of vegetation temperature at the
                                                 !   leaf photosynthesis acclimation timescale [K] (i.e T_home)
 
-    !:.........................................................................:
+    !---------------------------------------------------------------------------
 
     ! LEAF ORGANIZATION
     real(r8) :: pft_agb_profile(maxpft,n_dbh_bins)          ! binned aboveground biomass, for patch fusion [kgC/m2]
@@ -92,8 +92,8 @@ module FatesPatchMod
     integer  :: ncan(nclmax,maxpft)                         ! number of total   leaf layers for each canopy layer and pft
     real(r8) :: c_stomata                                   ! mean stomatal conductance of all leaves in the patch   [umol/m2/s]
     real(r8) :: c_lblayer                                   ! mean boundary layer conductance of all leaves in the patch [umol/m2/s]
-    !:.........................................................................:
-
+    
+    !TODO - can we delete these?
     real(r8) :: layer_height_profile(nclmax,maxpft,nlevleaf)
     real(r8) :: psn_z(nclmax,maxpft,nlevleaf)
     real(r8) :: nrmlzd_parprof_pft_dir_z(n_rad_stream_types,nclmax,maxpft,nlevleaf)
@@ -101,7 +101,7 @@ module FatesPatchMod
     real(r8) :: nrmlzd_parprof_dir_z(n_rad_stream_types,nclmax,nlevleaf)
     real(r8) :: nrmlzd_parprof_dif_z(n_rad_stream_types,nclmax,nlevleaf)
 
-    !:.........................................................................:
+    !---------------------------------------------------------------------------
 
     ! RADIATION
     real(r8) :: radiation_error                           ! radiation error [W/m2] 
@@ -137,19 +137,19 @@ module FatesPatchMod
     real(r8), allocatable :: sabs_dir(:)                  ! fraction of incoming direct  radiation that is absorbed by the canopy
     real(r8), allocatable :: sabs_dif(:)                  ! fraction of incoming diffuse radiation that is absorbed by the canopy
 
-    !:.........................................................................:
+    !---------------------------------------------------------------------------
 
     ! ROOTS
     real(r8) :: btran_ft(maxpft)       ! btran calculated seperately for each PFT
     real(r8) :: bstress_sal_ft(maxpft) ! bstress from salinity calculated seperately for each PFT
     
-    !:.........................................................................:
+    !---------------------------------------------------------------------------
 
     ! EXTERNAL SEED RAIN
     real(r8) :: nitr_repro_stoich(maxpft) ! The NC ratio of a new recruit in this patch
     real(r8) :: phos_repro_stoich(maxpft) ! The PC ratio of a new recruit in this patch
 
-    !:.........................................................................:
+    !---------------------------------------------------------------------------
     
    ! DISTURBANCE 
     real(r8) :: disturbance_rates(n_dist_types) ! disturbance rate [0-1/day] from 1) mortality 
@@ -157,13 +157,13 @@ module FatesPatchMod
                                                 !                                 3) logging mortatliy
     real(r8) :: fract_ldist_not_harvested       ! fraction of logged area that is canopy trees that weren't harvested [0-1]
 
-    !:.........................................................................:
+    !---------------------------------------------------------------------------
 
     ! LITTER AND COARSE WOODY DEBRIS
     type(litter_type), pointer :: litter(:)               ! litter (leaf,fnrt,CWD and seeds) for different elements
     real(r8), allocatable      :: fragmentation_scaler(:) ! scale rate of litter fragmentation based on soil layer [0-1]
 
-    !:.........................................................................:
+    !---------------------------------------------------------------------------
 
     ! FUELS AND FIRE
     ! fuel characteristics
@@ -195,61 +195,62 @@ module FatesPatchMod
     real(r8)              :: tfc_ros                 ! total intensity-relevant fuel consumed - no trunks [kgC/m2 of burned ground/day]
     real(r8)              :: burnt_frac_litter(nfsc) ! fraction of each litter pool burned, conditional on it being burned [0-1]
 
-    !:.........................................................................:
+    !---------------------------------------------------------------------------
     
     ! PLANT HYDRAULICS (not currently used in hydraulics RGK 03-2018)  
     ! type(ed_patch_hydr_type), pointer :: pa_hydr ! All patch hydraulics data, see FatesHydraulicsMemMod.F90
     
     contains
 
-      procedure :: init
-      procedure :: nan_values 
-      procedure :: zero_values
-      procedure :: init_running_means
-      procedure :: init_litter
-      procedure :: create
-      procedure :: free_memory
-      procedure :: dump
-      procedure :: check_vars
+      procedure :: Init
+      procedure :: NanValues 
+      procedure :: ZeroValues
+      procedure :: InitRunningMeans
+      procedure :: InitLitter
+      procedure :: Create
+      procedure :: FreeMemory
+      procedure :: Dump
+      procedure :: CheckVars
 
   end type fates_patch_type
 
   contains 
 
-    subroutine init(this, numSWb, nlevsoil)
+    !===========================================================================
+
+    subroutine Init(this, num_swb, num_levsoil)
       !
       !  DESCRIPTION:
-      !  Initialize a new patch - allocate arrays and set values to nan and/or 
-      !     0.0
+      !  Initialize a new patch - allocate arrays and set values to nan and/or 0.0
       !
 
       ! ARGUMENTS:
       class(fates_patch_type), intent(inout) :: this        ! patch object
-      integer,                 intent(in)    :: numSWb      ! number of shortwave broad-bands to track
-      integer,                 intent(in)    :: nlevsoil    ! number of soil layers
+      integer,                 intent(in)    :: num_swb     ! number of shortwave broad-bands to track
+      integer,                 intent(in)    :: num_levsoil ! number of soil layers
 
       ! allocate arrays 
-      allocate(this%tr_soil_dir(numSWb))
-      allocate(this%tr_soil_dif(numSWb))
-      allocate(this%tr_soil_dir_dif(numSWb))
-      allocate(this%fab(numSWb))
-      allocate(this%fabd(numSWb))
-      allocate(this%fabi(numSWb))
-      allocate(this%sabs_dir(numSWb))
-      allocate(this%sabs_dif(numSWb))
-      allocate(this%fragmentation_scaler(nlevsoil))
+      allocate(this%tr_soil_dir(num_swb))
+      allocate(this%tr_soil_dif(num_swb))
+      allocate(this%tr_soil_dir_dif(num_swb))
+      allocate(this%fab(num_swb))
+      allocate(this%fabd(num_swb))
+      allocate(this%fabi(num_swb))
+      allocate(this%sabs_dir(num_swb))
+      allocate(this%sabs_dif(num_swb))
+      allocate(this%fragmentation_scaler(num_levsoil))
 
       ! initialize all values to nan
-      call this%nan_values()
+      call this%NanValues()
 
       ! zero values that should be zeroed
-      call this%zero_values()
+      call this%ZeroValues()
 
-    end subroutine init 
+    end subroutine Init 
 
-    !:.........................................................................:
+    !===========================================================================
 
-    subroutine nanValues(this)
+    subroutine NanValues(this)
       !
       !  DESCRIPTION:
       !  Sets all values in patch to nan
@@ -370,11 +371,11 @@ module FatesPatchMod
       this%tfc_ros                      = nan    
       this%burnt_frac_litter(:)         = nan    
   
-    end subroutine nan_values
+    end subroutine NanValues
 
-    !:.........................................................................:
+    !===========================================================================
 
-    subroutine zero_values(this)
+    subroutine ZeroValues(this)
       !
       ! DESCRIPTION:
       !  sets specific variables in patch to zero
@@ -445,11 +446,11 @@ module FatesPatchMod
       this%tfc_ros                           = 0.0_r8
       this%burnt_frac_litter(:)              = 0.0_r8
 
-    end subroutine zero_values
+    end subroutine ZeroValues
 
-    !:.........................................................................:
+    !===========================================================================
 
-    subroutine init_running_means(this, current_tod)
+    subroutine InitRunningMeans(this, current_tod)
       !
       ! DESCRIPTION:
       ! set initial values for patch running means
@@ -473,20 +474,20 @@ module FatesPatchMod
       call this%tveg_lpa%InitRmean(ema_lpa, init_value=temp_init_veg)
       call this%tveg_longterm%InitRmean(ema_longterm, init_value=temp_init_veg)
 
-    end subroutine init_running_means
+    end subroutine InitRunningMeans
 
-    !:.........................................................................:
+    !===========================================================================
 
-    subroutine init_litter(this, numpft, nlevsoil)
+    subroutine InitLitter(this, num_pft, num_levsoil)
       !
       ! DESCRIPTION:
       ! set initial values for litter
       !
 
       ! ARGUMENTS:
-      class(fates_patch_type), intent(inout) :: this     ! patch object
-      integer,                 intent(in)    :: numpft   ! number of pfts to simulate
-      integer,                 intent(in)    :: nlevsoil ! number of soil layers
+      class(fates_patch_type), intent(inout) :: this        ! patch object
+      integer,                 intent(in)    :: num_pft     ! number of pfts to simulate
+      integer,                 intent(in)    :: num_levsoil ! number of soil layers
 
       ! LOCALS:
       integer :: el ! looping index
@@ -494,7 +495,7 @@ module FatesPatchMod
       allocate(this%litter(num_elements))
 
       do el = 1, num_elements
-        call this%litter(el)%InitAllocate(numpft, nlevsoil, element_list(el))
+        call this%litter(el)%InitAllocate(num_pft, num_levsoil, element_list(el))
         call this%litter(el)%ZeroFlux()
         call this%litter(el)%InitConditions(init_leaf_fines=fates_unset_r8,  &
           init_root_fines=fates_unset_r8, init_ag_cwd=fates_unset_r8,        &
@@ -502,12 +503,12 @@ module FatesPatchMod
           init_seed_germ=fates_unset_r8)
      end do
 
-    end subroutine init_litter
+    end subroutine InitLitter
 
-    !:.........................................................................:
+    !===========================================================================
 
-    subroutine create(this, age, areap, label, nocomp_pft, numSWb, numpft,     &
-      nlevsoil, current_tod) 
+    subroutine Create(this, age, area, label, nocomp_pft, num_swb, num_pft,    &
+      num_levsoil, current_tod) 
       !
       ! DESCRIPTION:
       ! create a new patch with input and default values
@@ -516,28 +517,28 @@ module FatesPatchMod
       ! ARGUMENTS:
       class(fates_patch_type), intent(inout) :: this        ! patch object
       real(r8),                intent(in)    :: age         ! notional age of this patch in years
-      real(r8),                intent(in)    :: areap       ! initial area of this patch in m2. 
+      real(r8),                intent(in)    :: area        ! initial area of this patch in m2. 
       integer,                 intent(in)    :: label       ! anthropogenic disturbance label
       integer,                 intent(in)    :: nocomp_pft  ! no-competition mode pft label
-      integer,                 intent(in)    :: numSWb      ! number of shortwave broad-bands to track
-      integer,                 intent(in)    :: numpft      ! number of pfts to simulate
-      integer,                 intent(in)    :: nlevsoil    ! number of soil layers
+      integer,                 intent(in)    :: num_swb     ! number of shortwave broad-bands to track
+      integer,                 intent(in)    :: num_pft     ! number of pfts to simulate
+      integer,                 intent(in)    :: num_levsoil ! number of soil layers
       integer,                 intent(in)    :: current_tod ! time of day [seconds past 0Z]
     
       ! initialize patch
       ! sets all values to nan, then some values to zero
-      call this%init(numpft, numSWb, nlevsoil)
+      call this%Init(num_swb, num_levsoil)
 
       ! initialize running means for patch
-      call this%init_running_means(current_tod)
+      call this%InitRunningMeans(current_tod)
       
       ! initialize litter
-      call this%init_litter(numpft, nlevsoil)
+      call this%InitLitter(num_pft, num_levsoil)
     
       ! assign known patch attributes 
       this%age       = age   
       this%age_class = 1
-      this%area      = areap 
+      this%area      = area 
 
       ! assign anthropgenic disturbance category and label
       this%anthro_disturbance_label = label
@@ -552,11 +553,11 @@ module FatesPatchMod
       this%tr_soil_dif(:) = 1.0_r8
       this%NCL_p          = 1
 
-    end subroutine create
+    end subroutine Create
 
-    !:.........................................................................:
+    !===========================================================================
 
-    subroutine free_memory(this)
+    subroutine FreeMemory(this)
       !
       ! DESCRIPTION:
       ! deallocate the allocatable memory associated with this patch
@@ -630,11 +631,11 @@ module FatesPatchMod
         call endrun(msg=errMsg(sourcefile, __LINE__))
       endif
       
-    end subroutine free_memory
+    end subroutine FreeMemory
 
-    !:.........................................................................:
+    !===========================================================================
 
-    subroutine dump(this)
+    subroutine Dump(this)
       !
       ! DESCRIPTION:
       ! print attributes of a patch
@@ -679,11 +680,11 @@ module FatesPatchMod
         write(fates_log(),*) 'bg_cwd(c,sl): ',sum(this%litter(el)%bg_cwd)
       end do
 
-    end subroutine dump
+    end subroutine Dump
 
-    !:.........................................................................:
+    !===========================================================================
 
-    subroutine check_vars(this, var_aliases, return_code)
+    subroutine CheckVars(this, var_aliases, return_code)
       !
       ! DESCRIPTION:
       ! perform numerical checks on patch variables of interest
@@ -736,8 +737,8 @@ module FatesPatchMod
         end if
       end if
 
-end subroutine check_vars
+    end subroutine CheckVars
 
-!:.........................................................................:
+    !===========================================================================  
 
 end module FatesPatchMod

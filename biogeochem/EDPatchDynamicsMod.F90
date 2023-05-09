@@ -537,7 +537,7 @@ contains
              ! first create patch to receive primary forest area
              if ( site_areadis_primary .gt. nearzero ) then
                 allocate(new_patch_primary)
-                call new_patch_primary%create(age, site_areadis_primary,       &
+                call new_patch_primary%Create(age, site_areadis_primary,       &
                   primaryforest, i_nocomp_pft, hlm_numSWb, numpft,             &
                   currentSite%nlevsoil, hlm_current_tod)
 
@@ -560,7 +560,7 @@ contains
              ! next create patch to receive secondary forest area
              if (site_areadis_secondary .gt. nearzero) then
                allocate(new_patch_secondary)
-               call new_patch_secondary%create(age, site_areadis_secondary,    &
+               call new_patch_secondary%Create(age, site_areadis_secondary,    &
                   secondaryforest, i_nocomp_pft, hlm_numSWb, numpft,           &
                   currentSite%nlevsoil, hlm_current_tod)
 

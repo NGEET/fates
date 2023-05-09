@@ -2590,7 +2590,7 @@ contains
              nocomp_pft = fates_unset_int
              ! the nocomp_pft label is set after patch creation has occured in 'get_restart_vectors'
              ! make new patch
-             call newp%create(fates_unset_r8, fates_unset_r8, primaryforest,   &
+             call newp%Create(fates_unset_r8, fates_unset_r8, primaryforest,   &
                nocomp_pft, hlm_numSWb, numpft, sites(s)%nlevsoil,              &
                hlm_current_tod)
 

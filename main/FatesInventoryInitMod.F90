@@ -276,7 +276,7 @@ contains
             age_init            = 0.0_r8
             area_init           = 0.0_r8
             allocate(newpatch)
-            call newpatch%create(age_init, area_init, primaryforest,           &
+            call newpatch%Create(age_init, area_init, primaryforest,           &
                fates_unset_int, hlm_numSWb, numpft, sites(s)%nlevsoil,         &
                hlm_current_tod)
 
