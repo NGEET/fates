@@ -216,7 +216,7 @@ module FatesPatchMod
 
   contains 
 
-    subroutine init(this, numpft, numSWb, nlevsoil)
+    subroutine init(this, numSWb, nlevsoil)
       !
       !  DESCRIPTION:
       !  Initialize a new patch - allocate arrays and set values to nan and/or 
@@ -225,7 +225,6 @@ module FatesPatchMod
 
       ! ARGUMENTS:
       class(fates_patch_type), intent(inout) :: this        ! patch object
-      integer,                 intent(in)    :: numpft      ! number of pfts
       integer,                 intent(in)    :: numSWb      ! number of shortwave broad-bands to track
       integer,                 intent(in)    :: nlevsoil    ! number of soil layers
 
@@ -250,7 +249,7 @@ module FatesPatchMod
 
     !:.........................................................................:
 
-    subroutine nan_values(this)
+    subroutine nanValues(this)
       !
       !  DESCRIPTION:
       !  Sets all values in patch to nan
