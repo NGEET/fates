@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse, os
-import xarray as xr
 from luh2mod import PrepDataSet, ImportData, SetMaskLUH2, SetMaskSurfData
 from luh2mod import RegridConservative
 
