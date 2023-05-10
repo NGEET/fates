@@ -813,7 +813,7 @@ module FatesCohortMod
       ! value boundary condition.
       
       ! ARGUMENTS:
-      class(fates_cohort_type), intent(inout) :: this
+      class(fates_cohort_type), intent(inout), target :: this
       
       select case(hlm_parteh_mode)
       case (prt_carbon_allom_hyp)
