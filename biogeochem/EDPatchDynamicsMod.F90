@@ -761,14 +761,13 @@ contains
                                   currentSite%imort_carbonflux(currentCohort%pft) = &
                                        currentSite%imort_carbonflux(currentCohort%pft) + &
                                        (nc%n * ED_val_understorey_death / hlm_freq_day ) * &
-                                       total_c * g_per_kg * days_per_sec * years_per_day * ha_per_m2
+                                       total_c * days_per_sec * years_per_day * ha_per_m2
 
                                   currentSite%imort_abg_flux(currentCohort%size_class, currentCohort%pft) = &
                                        currentSite%imort_abg_flux(currentCohort%size_class, currentCohort%pft) + &
                                        (nc%n * ED_val_understorey_death / hlm_freq_day ) * &
                                        ( (sapw_c + struct_c + store_c) * prt_params%allom_agb_frac(currentCohort%pft) + &
-                                       leaf_c ) * &
-                                       g_per_kg * days_per_sec * years_per_day * ha_per_m2
+                                       leaf_c ) * days_per_sec * years_per_day * ha_per_m2
 
 
                                   ! Step 2:  Apply survivor ship function based on the understory death fraction
@@ -1021,7 +1020,14 @@ contains
                                        currentSite%imort_carbonflux(currentCohort%pft) + &
                                        (nc%n * currentPatch%fract_ldist_not_harvested * &
                                        logging_coll_under_frac/ hlm_freq_day ) * &
-                                       total_c * g_per_kg * days_per_sec * years_per_day * ha_per_m2
+                                       total_c * days_per_sec * years_per_day * ha_per_m2
+
+                                  currentSite%imort_abg_flux(currentCohort%size_class, currentCohort%pft) = &
+                                       currentSite%imort_abg_flux(currentCohort%size_class, currentCohort%pft) + &
+                                       (nc%n * currentPatch%fract_ldist_not_harvested * &
+                                       logging_coll_under_frac/ hlm_freq_day ) * &
+                                       ( ( sapw_c + struct_c + store_c) * prt_params%allom_agb_frac(currentCohort%pft) + &
+                                       leaf_c ) * days_per_sec * years_per_day * ha_per_m2
 
 
                                   ! Step 2:  Apply survivor ship function based on the understory death fraction
