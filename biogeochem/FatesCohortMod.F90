@@ -623,134 +623,134 @@ module FatesCohortMod
 
     !===========================================================================
 
-    subroutine Copy(this, copy_cohort) 
+    subroutine Copy(this, copyCohort) 
       !
       ! DESCRIPTION:
       ! copies all the variables in one cohort into a new cohort
       !
 
       ! ARGUMENTS
-      class(fates_cohort_type), intent(in)    :: this        ! old cohort 
-      class(fates_cohort_type), intent(inout) :: copy_cohort ! new cohort
+      class(fates_cohort_type), intent(in)    :: this       ! old cohort 
+      class(fates_cohort_type), intent(inout) :: copyCohort ! new cohort
 
-      copy_cohort%indexnumber = fates_unset_int
+      copyCohort%indexnumber = fates_unset_int
       
       ! POINTERS
-      copy_cohort%taller  => NULL() 
-      copy_cohort%shorter => NULL() 
+      copyCohort%taller  => NULL() 
+      copyCohort%shorter => NULL() 
 
       ! PRT
-      call copy_cohort%prt%CopyPRTVartypes(this%prt)
-      copy_cohort%l2fr                    = this%l2fr
+      call copyCohort%prt%CopyPRTVartypes(this%prt)
+      copyCohort%l2fr                    = this%l2fr
       
       ! VEGETATION STRUCTURE
-      copy_cohort%pft                     = this%pft
-      copy_cohort%n                       = this%n
-      copy_cohort%dbh                     = this%dbh
-      copy_cohort%coage                   = this%coage
-      copy_cohort%hite                    = this%hite
-      copy_cohort%canopy_layer            = this%canopy_layer
-      copy_cohort%canopy_layer_yesterday  = this%canopy_layer_yesterday
-      copy_cohort%crowndamage             = this%crowndamage
-      copy_cohort%g_sb_laweight           = this%g_sb_laweight
-      copy_cohort%canopy_trim             = this%canopy_trim
-      copy_cohort%leaf_cost               = this%leaf_cost
-      copy_cohort%excl_weight             = this%excl_weight
-      copy_cohort%prom_weight             = this%prom_weight
-      copy_cohort%nv                      = this%nv
-      copy_cohort%status_coh              = this%status_coh
-      copy_cohort%c_area                  = this%c_area
-      copy_cohort%treelai                 = this%treelai
-      copy_cohort%treesai                 = this%treesai
-      copy_cohort%isnew                   = this%isnew
-      copy_cohort%size_class              = this%size_class
-      copy_cohort%coage_class             = this%coage_class
-      copy_cohort%size_by_pft_class       = this%size_by_pft_class
-      copy_cohort%coage_by_pft_class      = this%coage_by_pft_class
-      copy_cohort%size_class_lasttimestep = this%size_class_lasttimestep
+      copyCohort%pft                     = this%pft
+      copyCohort%n                       = this%n
+      copyCohort%dbh                     = this%dbh
+      copyCohort%coage                   = this%coage
+      copyCohort%hite                    = this%hite
+      copyCohort%canopy_layer            = this%canopy_layer
+      copyCohort%canopy_layer_yesterday  = this%canopy_layer_yesterday
+      copyCohort%crowndamage             = this%crowndamage
+      copyCohort%g_sb_laweight           = this%g_sb_laweight
+      copyCohort%canopy_trim             = this%canopy_trim
+      copyCohort%leaf_cost               = this%leaf_cost
+      copyCohort%excl_weight             = this%excl_weight
+      copyCohort%prom_weight             = this%prom_weight
+      copyCohort%nv                      = this%nv
+      copyCohort%status_coh              = this%status_coh
+      copyCohort%c_area                  = this%c_area
+      copyCohort%treelai                 = this%treelai
+      copyCohort%treesai                 = this%treesai
+      copyCohort%isnew                   = this%isnew
+      copyCohort%size_class              = this%size_class
+      copyCohort%coage_class             = this%coage_class
+      copyCohort%size_by_pft_class       = this%size_by_pft_class
+      copyCohort%coage_by_pft_class      = this%coage_by_pft_class
+      copyCohort%size_class_lasttimestep = this%size_class_lasttimestep
 
       ! CARBON AND NUTRIENT FLUXES
-      copy_cohort%gpp_tstep               = this%gpp_tstep
-      copy_cohort%gpp_acc                 = this%gpp_acc
-      copy_cohort%gpp_acc_hold            = this%gpp_acc_hold
-      copy_cohort%npp_tstep               = this%npp_tstep
-      copy_cohort%npp_acc                 = this%npp_acc
-      copy_cohort%npp_acc_hold            = this%npp_acc_hold
-      copy_cohort%resp_tstep              = this%resp_tstep
-      copy_cohort%resp_acc                = this%resp_acc
-      copy_cohort%resp_acc_hold           = this%resp_acc_hold
-      copy_cohort%c13disc_clm             = this%c13disc_clm
-      copy_cohort%c13disc_acc             = this%c13disc_acc
-      copy_cohort%vcmax25top              = this%vcmax25top
-      copy_cohort%jmax25top               = this%jmax25top
-      copy_cohort%tpu25top                = this%tpu25top
-      copy_cohort%kp25top                 = this%kp25top
-      copy_cohort%ts_net_uptake           = this%ts_net_uptake
-      copy_cohort%year_net_uptake         = this%year_net_uptake
-      copy_cohort%cnp_limiter             = this%cnp_limiter
+      copyCohort%gpp_tstep               = this%gpp_tstep
+      copyCohort%gpp_acc                 = this%gpp_acc
+      copyCohort%gpp_acc_hold            = this%gpp_acc_hold
+      copyCohort%npp_tstep               = this%npp_tstep
+      copyCohort%npp_acc                 = this%npp_acc
+      copyCohort%npp_acc_hold            = this%npp_acc_hold
+      copyCohort%resp_tstep              = this%resp_tstep
+      copyCohort%resp_acc                = this%resp_acc
+      copyCohort%resp_acc_hold           = this%resp_acc_hold
+      copyCohort%c13disc_clm             = this%c13disc_clm
+      copyCohort%c13disc_acc             = this%c13disc_acc
+      copyCohort%vcmax25top              = this%vcmax25top
+      copyCohort%jmax25top               = this%jmax25top
+      copyCohort%tpu25top                = this%tpu25top
+      copyCohort%kp25top                 = this%kp25top
+      copyCohort%ts_net_uptake           = this%ts_net_uptake
+      copyCohort%year_net_uptake         = this%year_net_uptake
+      copyCohort%cnp_limiter             = this%cnp_limiter
 
       if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then 
-        copy_cohort%cx_int                  = this%cx_int
-        copy_cohort%ema_dcxdt               = this%ema_dcxdt
-        copy_cohort%cx0                     = this%cx0
+        copyCohort%cx_int                  = this%cx_int
+        copyCohort%ema_dcxdt               = this%ema_dcxdt
+        copyCohort%cx0                     = this%cx0
       end if 
 
-      copy_cohort%nc_repro                = this%nc_repro
-      copy_cohort%daily_nh4_uptake        = this%daily_nh4_uptake
-      copy_cohort%daily_no3_uptake        = this%daily_no3_uptake
-      copy_cohort%sym_nfix_daily          = this%sym_nfix_daily
-      copy_cohort%sym_nfix_tstep          = this%sym_nfix_tstep
-      copy_cohort%daily_n_gain            = this%daily_n_gain
-      copy_cohort%daily_p_gain            = this%daily_p_gain
-      copy_cohort%daily_c_efflux          = this%daily_c_efflux
-      copy_cohort%daily_n_efflux          = this%daily_n_efflux
-      copy_cohort%daily_p_efflux          = this%daily_p_efflux
-      copy_cohort%daily_n_demand          = this%daily_n_demand
-      copy_cohort%daily_p_demand          = this%daily_p_demand
-      copy_cohort%seed_prod               = this%seed_prod
+      copyCohort%nc_repro                = this%nc_repro
+      copyCohort%daily_nh4_uptake        = this%daily_nh4_uptake
+      copyCohort%daily_no3_uptake        = this%daily_no3_uptake
+      copyCohort%sym_nfix_daily          = this%sym_nfix_daily
+      copyCohort%sym_nfix_tstep          = this%sym_nfix_tstep
+      copyCohort%daily_n_gain            = this%daily_n_gain
+      copyCohort%daily_p_gain            = this%daily_p_gain
+      copyCohort%daily_c_efflux          = this%daily_c_efflux
+      copyCohort%daily_n_efflux          = this%daily_n_efflux
+      copyCohort%daily_p_efflux          = this%daily_p_efflux
+      copyCohort%daily_n_demand          = this%daily_n_demand
+      copyCohort%daily_p_demand          = this%daily_p_demand
+      copyCohort%seed_prod               = this%seed_prod
 
       ! RESPIRATION COMPONENTS
-      copy_cohort%rdark                   = this%rdark
-      copy_cohort%resp_g_tstep            = this%resp_g_tstep
-      copy_cohort%resp_m                  = this%resp_m
-      copy_cohort%resp_m_unreduced        = this%resp_m_unreduced
-      copy_cohort%resp_excess             = this%resp_excess
-      copy_cohort%livestem_mr             = this%livestem_mr
-      copy_cohort%livecroot_mr            = this%livecroot_mr
-      copy_cohort%froot_mr                = this%froot_mr
+      copyCohort%rdark                   = this%rdark
+      copyCohort%resp_g_tstep            = this%resp_g_tstep
+      copyCohort%resp_m                  = this%resp_m
+      copyCohort%resp_m_unreduced        = this%resp_m_unreduced
+      copyCohort%resp_excess             = this%resp_excess
+      copyCohort%livestem_mr             = this%livestem_mr
+      copyCohort%livecroot_mr            = this%livecroot_mr
+      copyCohort%froot_mr                = this%froot_mr
 
       ! DAMAGE
-      copy_cohort%branch_frac             = this%branch_frac
+      copyCohort%branch_frac             = this%branch_frac
 
       ! MORTALITY
-      copy_cohort%dmort                   = this%dmort
-      copy_cohort%bmort                   = this%bmort
-      copy_cohort%cmort                   = this%cmort
-      copy_cohort%hmort                   = this%hmort
-      copy_cohort%frmort                  = this%frmort
-      copy_cohort%smort                   = this%smort
-      copy_cohort%asmort                  = this%asmort
-      copy_cohort%dgmort                  = this%dgmort
-      copy_cohort%lmort_direct            = this%lmort_direct
-      copy_cohort%lmort_collateral        = this%lmort_collateral
-      copy_cohort%lmort_infra             = this%lmort_infra
-      copy_cohort%l_degrad                = this%l_degrad
+      copyCohort%dmort                   = this%dmort
+      copyCohort%bmort                   = this%bmort
+      copyCohort%cmort                   = this%cmort
+      copyCohort%hmort                   = this%hmort
+      copyCohort%frmort                  = this%frmort
+      copyCohort%smort                   = this%smort
+      copyCohort%asmort                  = this%asmort
+      copyCohort%dgmort                  = this%dgmort
+      copyCohort%lmort_direct            = this%lmort_direct
+      copyCohort%lmort_collateral        = this%lmort_collateral
+      copyCohort%lmort_infra             = this%lmort_infra
+      copyCohort%l_degrad                = this%l_degrad
 
       ! GROWTH DERIVATIVES
-      copy_cohort%dndt                    = this%dndt
-      copy_cohort%dhdt                    = this%dhdt
-      copy_cohort%ddbhdt                  = this%ddbhdt
-      copy_cohort%dbdeaddt                = this%dbdeaddt
+      copyCohort%dndt                    = this%dndt
+      copyCohort%dhdt                    = this%dhdt
+      copyCohort%ddbhdt                  = this%ddbhdt
+      copyCohort%dbdeaddt                = this%dbdeaddt
 
       ! FIRE
-      copy_cohort%fraction_crown_burned   = this%fraction_crown_burned
-      copy_cohort%cambial_mort            = this%cambial_mort
-      copy_cohort%crownfire_mort          = this%crownfire_mort
-      copy_cohort%fire_mort               = this%fire_mort
+      copyCohort%fraction_crown_burned   = this%fraction_crown_burned
+      copyCohort%cambial_mort            = this%cambial_mort
+      copyCohort%crownfire_mort          = this%crownfire_mort
+      copyCohort%fire_mort               = this%fire_mort
 
       ! HYDRAULICS
       if (hlm_use_planthydro .eq. itrue) then
-        call copy_cohort%co_hydr%CopyCohortHydraulics(this%co_hydr)
+        call copyCohort%co_hydr%CopyCohortHydraulics(this%co_hydr)
       endif
 
     end subroutine Copy
@@ -798,7 +798,7 @@ module FatesCohortMod
       ! allocation hypotheses.  Each of these calls to "RegsterBC" are simply
       ! setting pointers.
       ! For instance, if the hypothesis wants to know what
-      ! the DBH of the plant is, then we pass in the dbh as an argument (copy_cohort%dbh),
+      ! the DBH of the plant is, then we pass in the dbh as an argument (copyCohort%dbh),
       ! and also tell it which boundary condition we are talking about (which is
       ! defined by an integer index (ac_bc_inout_id_dbh)
       !
@@ -974,73 +974,73 @@ module FatesCohortMod
       write(fates_log(),*) '----------------------------------------'
       write(fates_log(),*) ' Dumping Cohort Information             '
       write(fates_log(),*) '----------------------------------------'
-      write(fates_log(),*) 'cthis%pft                    = ', this%pft
-      write(fates_log(),*) 'cthis%n                      = ', this%n                         
-      write(fates_log(),*) 'cthis%dbh                    = ', this%dbh                                        
-      write(fates_log(),*) 'cthis%hite                   = ', this%hite
-      write(fates_log(),*) 'cthis%crowndamage            = ', this%crowndamage
-      write(fates_log(),*) 'cthis%coage                  = ', this%coage
-      write(fates_log(),*) 'cthis%l2fr                   = ', this%l2fr
-      write(fates_log(),*) 'leaf carbon               = ', this%prt%GetState(leaf_organ,carbon12_element) 
-      write(fates_log(),*) 'fineroot carbon           = ', this%prt%GetState(fnrt_organ,carbon12_element) 
-      write(fates_log(),*) 'sapwood carbon            = ', this%prt%GetState(sapw_organ,carbon12_element) 
-      write(fates_log(),*) 'structural (dead) carbon  = ', this%prt%GetState(struct_organ,carbon12_element) 
-      write(fates_log(),*) 'storage carbon            = ', this%prt%GetState(store_organ,carbon12_element) 
-      write(fates_log(),*) 'reproductive carbon       = ', this%prt%GetState(repro_organ,carbon12_element) 
-      write(fates_log(),*) 'cthis%g_sb_laweight          = ', this%g_sb_laweight
-      write(fates_log(),*) 'cthis%leaf_cost              = ', this%leaf_cost
-      write(fates_log(),*) 'cthis%canopy_layer           = ', this%canopy_layer
-      write(fates_log(),*) 'cthis%canopy_layer_yesterday = ', this%canopy_layer_yesterday
-      write(fates_log(),*) 'cthis%nv                     = ', this%nv
-      write(fates_log(),*) 'cthis%status_coh             = ', this%status_coh
-      write(fates_log(),*) 'cthis%canopy_trim            = ', this%canopy_trim
-      write(fates_log(),*) 'cthis%excl_weight            = ', this%excl_weight               
-      write(fates_log(),*) 'cthis%prom_weight            = ', this%prom_weight               
-      write(fates_log(),*) 'cthis%size_class             = ', this%size_class
-      write(fates_log(),*) 'cthis%size_by_pft_class      = ', this%size_by_pft_class
-      write(fates_log(),*) 'cthis%coage_class            = ', this%coage_class
-      write(fates_log(),*) 'cthis%coage_by_pft_class     = ', this%coage_by_pft_class
-      write(fates_log(),*) 'cthis%gpp_acc_hold           = ', this%gpp_acc_hold
-      write(fates_log(),*) 'cthis%gpp_acc                = ', this%gpp_acc
-      write(fates_log(),*) 'cthis%gpp_tstep              = ', this%gpp_tstep
-      write(fates_log(),*) 'cthis%npp_acc_hold           = ', this%npp_acc_hold
-      write(fates_log(),*) 'cthis%npp_tstep              = ', this%npp_tstep
-      write(fates_log(),*) 'cthis%npp_acc                = ', this%npp_acc
-      write(fates_log(),*) 'cthis%resp_tstep             = ', this%resp_tstep
-      write(fates_log(),*) 'cthis%resp_acc               = ', this%resp_acc
-      write(fates_log(),*) 'cthis%resp_acc_hold          = ', this%resp_acc_hold
-      write(fates_log(),*) 'cthis%rdark                  = ', this%rdark
-      write(fates_log(),*) 'cthis%resp_m                 = ', this%resp_m
-      write(fates_log(),*) 'cthis%resp_g_tstep           = ', this%resp_g_tstep
-      write(fates_log(),*) 'cthis%livestem_mr            = ', this%livestem_mr
-      write(fates_log(),*) 'cthis%livecroot_mr           = ', this%livecroot_mr
-      write(fates_log(),*) 'cthis%froot_mr               = ', this%froot_mr
-      write(fates_log(),*) 'cthis%dgmort                 = ', this%dgmort
-      write(fates_log(),*) 'cthis%treelai                = ', this%treelai
-      write(fates_log(),*) 'cthis%treesai                = ', this%treesai
-      write(fates_log(),*) 'cthis%c_area                 = ', this%c_area
-      write(fates_log(),*) 'cthis%cmort                  = ', this%cmort
-      write(fates_log(),*) 'cthis%bmort                  = ', this%bmort
-      write(fates_log(),*) 'cthis%smort                  = ', this%smort
-      write(fates_log(),*) 'cthis%asmort                 = ', this%asmort
-      write(fates_log(),*) 'cthis%dgmort                 = ', this%dgmort
-      write(fates_log(),*) 'cthis%hmort                  = ', this%hmort
-      write(fates_log(),*) 'cthis%frmort                 = ', this%frmort
-      write(fates_log(),*) 'cthis%asmort                 = ', this%asmort
-      write(fates_log(),*) 'cthis%lmort_direct           = ', this%lmort_direct
-      write(fates_log(),*) 'cthis%lmort_collateral       = ', this%lmort_collateral
-      write(fates_log(),*) 'cthis%lmort_infra            = ', this%lmort_infra
-      write(fates_log(),*) 'cthis%isnew                  = ', this%isnew
-      write(fates_log(),*) 'cthis%dndt                   = ', this%dndt
-      write(fates_log(),*) 'cthis%dhdt                   = ', this%dhdt
-      write(fates_log(),*) 'cthis%ddbhdt                 = ', this%ddbhdt
-      write(fates_log(),*) 'cthis%dbdeaddt               = ', this%dbdeaddt
-      write(fates_log(),*) 'cthis%fraction_crown_burned  = ', this%fraction_crown_burned
-      write(fates_log(),*) 'cthis%fire_mort              = ', this%fire_mort
-      write(fates_log(),*) 'cthis%crownfire_mort         = ', this%crownfire_mort
-      write(fates_log(),*) 'cthis%cambial_mort           = ', this%cambial_mort
-      write(fates_log(),*) 'cthis%size_class             = ', this%size_class
-      write(fates_log(),*) 'cthis%size_by_pft_class      = ', this%size_by_pft_class
+      write(fates_log(),*) 'cohort%pft                    = ', this%pft
+      write(fates_log(),*) 'cohort%n                      = ', this%n                         
+      write(fates_log(),*) 'cohort%dbh                    = ', this%dbh                                        
+      write(fates_log(),*) 'cohort%hite                   = ', this%hite
+      write(fates_log(),*) 'cohort%crowndamage            = ', this%crowndamage
+      write(fates_log(),*) 'cohort%coage                  = ', this%coage
+      write(fates_log(),*) 'cohort%l2fr                   = ', this%l2fr
+      write(fates_log(),*) 'leaf carbon                   = ', this%prt%GetState(leaf_organ,carbon12_element) 
+      write(fates_log(),*) 'fineroot carbon               = ', this%prt%GetState(fnrt_organ,carbon12_element) 
+      write(fates_log(),*) 'sapwood carbon                = ', this%prt%GetState(sapw_organ,carbon12_element) 
+      write(fates_log(),*) 'structural (dead) carbon      = ', this%prt%GetState(struct_organ,carbon12_element) 
+      write(fates_log(),*) 'storage carbon                = ', this%prt%GetState(store_organ,carbon12_element) 
+      write(fates_log(),*) 'reproductive carbon           = ', this%prt%GetState(repro_organ,carbon12_element) 
+      write(fates_log(),*) 'cohort%g_sb_laweight          = ', this%g_sb_laweight
+      write(fates_log(),*) 'cohort%leaf_cost              = ', this%leaf_cost
+      write(fates_log(),*) 'cohort%canopy_layer           = ', this%canopy_layer
+      write(fates_log(),*) 'cohort%canopy_layer_yesterday = ', this%canopy_layer_yesterday
+      write(fates_log(),*) 'cohort%nv                     = ', this%nv
+      write(fates_log(),*) 'cohort%status_coh             = ', this%status_coh
+      write(fates_log(),*) 'cohort%canopy_trim            = ', this%canopy_trim
+      write(fates_log(),*) 'cohort%excl_weight            = ', this%excl_weight               
+      write(fates_log(),*) 'cohort%prom_weight            = ', this%prom_weight               
+      write(fates_log(),*) 'cohort%size_class             = ', this%size_class
+      write(fates_log(),*) 'cohort%size_by_pft_class      = ', this%size_by_pft_class
+      write(fates_log(),*) 'cohort%coage_class            = ', this%coage_class
+      write(fates_log(),*) 'cohort%coage_by_pft_class     = ', this%coage_by_pft_class
+      write(fates_log(),*) 'cohort%gpp_acc_hold           = ', this%gpp_acc_hold
+      write(fates_log(),*) 'cohort%gpp_acc                = ', this%gpp_acc
+      write(fates_log(),*) 'cohort%gpp_tstep              = ', this%gpp_tstep
+      write(fates_log(),*) 'cohort%npp_acc_hold           = ', this%npp_acc_hold
+      write(fates_log(),*) 'cohort%npp_tstep              = ', this%npp_tstep
+      write(fates_log(),*) 'cohort%npp_acc                = ', this%npp_acc
+      write(fates_log(),*) 'cohort%resp_tstep             = ', this%resp_tstep
+      write(fates_log(),*) 'cohort%resp_acc               = ', this%resp_acc
+      write(fates_log(),*) 'cohort%resp_acc_hold          = ', this%resp_acc_hold
+      write(fates_log(),*) 'cohort%rdark                  = ', this%rdark
+      write(fates_log(),*) 'cohort%resp_m                 = ', this%resp_m
+      write(fates_log(),*) 'cohort%resp_g_tstep           = ', this%resp_g_tstep
+      write(fates_log(),*) 'cohort%livestem_mr            = ', this%livestem_mr
+      write(fates_log(),*) 'cohort%livecroot_mr           = ', this%livecroot_mr
+      write(fates_log(),*) 'cohort%froot_mr               = ', this%froot_mr
+      write(fates_log(),*) 'cohort%dgmort                 = ', this%dgmort
+      write(fates_log(),*) 'cohort%treelai                = ', this%treelai
+      write(fates_log(),*) 'cohort%treesai                = ', this%treesai
+      write(fates_log(),*) 'cohort%c_area                 = ', this%c_area
+      write(fates_log(),*) 'cohort%cmort                  = ', this%cmort
+      write(fates_log(),*) 'cohort%bmort                  = ', this%bmort
+      write(fates_log(),*) 'cohort%smort                  = ', this%smort
+      write(fates_log(),*) 'cohort%asmort                 = ', this%asmort
+      write(fates_log(),*) 'cohort%dgmort                 = ', this%dgmort
+      write(fates_log(),*) 'cohort%hmort                  = ', this%hmort
+      write(fates_log(),*) 'cohort%frmort                 = ', this%frmort
+      write(fates_log(),*) 'cohort%asmort                 = ', this%asmort
+      write(fates_log(),*) 'cohort%lmort_direct           = ', this%lmort_direct
+      write(fates_log(),*) 'cohort%lmort_collateral       = ', this%lmort_collateral
+      write(fates_log(),*) 'cohort%lmort_infra            = ', this%lmort_infra
+      write(fates_log(),*) 'cohort%isnew                  = ', this%isnew
+      write(fates_log(),*) 'cohort%dndt                   = ', this%dndt
+      write(fates_log(),*) 'cohort%dhdt                   = ', this%dhdt
+      write(fates_log(),*) 'cohort%ddbhdt                 = ', this%ddbhdt
+      write(fates_log(),*) 'cohort%dbdeaddt               = ', this%dbdeaddt
+      write(fates_log(),*) 'cohort%fraction_crown_burned  = ', this%fraction_crown_burned
+      write(fates_log(),*) 'cohort%fire_mort              = ', this%fire_mort
+      write(fates_log(),*) 'cohort%crownfire_mort         = ', this%crownfire_mort
+      write(fates_log(),*) 'cohort%cambial_mort           = ', this%cambial_mort
+      write(fates_log(),*) 'cohort%size_class             = ', this%size_class
+      write(fates_log(),*) 'cohort%size_by_pft_class      = ', this%size_by_pft_class
    
       if (associated(this%co_hydr)) call this%co_hydr%Dump()
    
