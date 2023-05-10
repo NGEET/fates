@@ -1770,7 +1770,8 @@ contains
     integer  :: pft
     real(r8) :: store_m_to_repro       ! mass sent from storage to reproduction upon death [kg/plant]
     real(r8) :: site_seed_rain(numpft) ! This is the sum of seed-rain for the site [kg/site/day]
-    real(r8) :: site_disp_frac(numpft) ! Fraction of seeds to disperse out to other sites
+    real(r8) :: site_disp_frac(numpft) ! Fraction of seeds from prodeced in current grid cell to
+                                       ! disperse out to other gridcells
     real(r8) :: seed_in_external       ! Mass of externally generated seeds [kg/m2/day]
     real(r8) :: seed_stoich            ! Mass ratio of nutrient per C12 in seeds [kg/kg]
     real(r8) :: seed_prod              ! Seed produced in this dynamics step [kg/day]
@@ -1854,12 +1855,14 @@ contains
           do pft = 1,numpft
 
              if(currentSite%use_this_pft(pft).eq.itrue)then
-                ! Seed input from local sources (within site)
+
+                ! Seed input from local sources (within site).  Note that a fraction of the
+                ! internal seed rain is sent out to neighboring gridcells.
                 litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)*(1-site_disp_frac(pft))/area ![kg/m2/day]
+
                 ! If there is forced external seed rain, we calculate the input mass flux
                 ! from the different elements, using the mean stoichiometry of new
                 ! recruits for the current patch and lowest canopy position
-
                 select case(element_id)
                 case(carbon12_element)
                    seed_stoich = 1._r8
@@ -1971,7 +1974,7 @@ contains
        !set the germination only under the growing season...c.xu
 
        if ((prt_params%season_decid(pft) == itrue ) .and. &
-             (any(cold_stat == [phen_cstat_nevercold,phen_cstat_iscold]))) then
+            (any(cold_stat == [phen_cstat_nevercold,phen_cstat_iscold]))) then
           ! no germination for all PFTs when cold
           litt%seed_germ_in(pft) = 0.0_r8
        endif
