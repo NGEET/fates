@@ -32,9 +32,6 @@ def PrepDataSet(input_file,start=None,stop=None):
     # Correct the necessary variables for both datasets
     input_dataset = PrepDataSet_ESMF(input_dataset)
 
-    # Set dataset masks
-    # SetMask(input_dataset)
-
     return(input_dataset)
 
 # Updating datasets to work with xESMF
@@ -61,8 +58,6 @@ def ImportData(input_file):
     # to the LUH2 time units being undecodable by cftime module
     try:
        datasetout = xr.open_dataset(input_file)
-       print("Input file dataset opened: {}".format(input_file))
-       return(datasetout)
     except ValueError as err:
        print("ValueError:", err)
        errmsg = "User direction: If error is due to units being 'years since ...' " \
@@ -70,7 +65,9 @@ def ImportData(input_file):
                 "This can be done using the luh2.attribupdate function\n."
        print()
        print(errmsg)
-
+    else:
+       print("Input file dataset opened: {}".format(input_file))
+       return(datasetout)
 
 # Modify the luh2 metadata to enable xarray to read in data
 # This issue here is that the luh2 time units start prior to
@@ -119,13 +116,13 @@ def AttribUpdateLUH2(input_file,output_append="modified"):
 # of 89.875).
 def BoundsVariableFixLUH2(input_dataset):
 
-    # Drop the old boundary names to avoid confusion
-    # outputdataset = input_dataset.drop(labels=['lat_bounds','lon_bounds'])
-
     # Create lat and lon bounds as a single dimension array out of the LUH2 two dimensional_bounds array.
     # Future todo: is it possible to have xESMF recognize and use the original 2D array?
     input_dataset["lat_b"] = np.insert(input_dataset.lat_bounds[:,1].data,0,input_dataset.lat_bounds[0,0].data)
     input_dataset["lon_b"] = np.insert(input_dataset.lon_bounds[:,1].data,0,input_dataset.lon_bounds[0,0].data)
+
+    # Drop the old boundary names to avoid confusion
+    input_dataset = input_dataset.drop(labels=['lat_bounds','lon_bounds'])
 
     print("LUH2 dataset lat/lon boundary variables formatted and added as new variable for xESMF")
 
@@ -254,6 +251,28 @@ def GenerateRegridder(ds_to_regrid, ds_regrid_target,save=False):
 
     return(regridder)
 
+# Temporary: Add minor correction factor to assure states sum to one
+def CorrectStateSum(input_dataset):
+
+    # Do this only for the state data set
+    if (not(any('irrig' in var for var in input_dataset) or
+            any('_to_' in var for var in input_dataset))):
+
+        # Drop the secma and secmb variables temporarily
+        temp_dataset = input_dataset.drop({'secma','secmb'})
+
+        # Sum the remaining state variables and normalize
+        state_sum = temp_dataset.to_array().sum(dim='variable')
+        state_sum = state_sum.where(state_sum != 0)
+        temp_dataset = temp_dataset / state_sum
+
+        # Update dataset with new scaled values
+        input_dataset.update(temp_dataset)
+
+        # Save the correction value
+        input_dataset["stscf"] = 1.0 / state_sum
+
+        return(input_dataset)
 
 # General functionality needed
 # - collect data for specific user-defined time period
