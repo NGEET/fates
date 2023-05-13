@@ -42,25 +42,23 @@ def PrepDataset(input_dataset,start=None,stop=None):
         if (isinstance(stop,type(None))):
             stop = input_dataset.time[-1]
 
-    # Truncate the data to the user defined range
-    # This might need some more error handling for when
-    # the start/stop is out of range
-    try:
-        input_dataset = input_dataset.sel(time=slice(start,stop))
-    except TypeError as type_err:
-        print("Input must be a string\n")
-        raise TypeError(type_err)
+        # Truncate the data to the user defined range
+        # This might need some more error handling for when
+        # the start/stop is out of range
+        try:
+            input_dataset = input_dataset.sel(time=slice(start,stop))
+        except TypeError as type_err:
+            print("Input must be a string\n")
+            raise TypeError(type_err)
 
-    # Correct the necessary variables for both datasets
-    input_dataset = PrepDataset_ESMF(input_dataset)
+        # Correct the necessary variables for both datasets
+        input_dataset = PrepDataset_ESMF(input_dataset,dsflag,dstype)
 
     return(input_dataset)
 
 # Updating datasets to work with xESMF
-def PrepDataset_ESMF(input_dataset):
+def PrepDataset_ESMF(input_dataset,dsflag,dstype):
 
-    # Check the dataset type
-    dsflag, dstype = CheckDataset(input_dataset)
     if (dsflag):
         if(dstype == "LUH2"):
             print("PrepDataset: LUH2")
