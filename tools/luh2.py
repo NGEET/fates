@@ -17,11 +17,11 @@ def main():
 
 
     # Prep the LUH2 datasets and regrid target
-    ds_luh2 = PrepDataSet(args.luh2_file,args.begin,args.end)
+    ds_luh2 = ImportData(args.luh2_file,args.begin,args.end)
 
 
     if (args.regridder_file == None):
-        ds_regrid_target = PrepDataSet(args.regridder_target_file,args.begin,args.end)
+        ds_regrid_target = ImportData(args.regridder_target_file,args.begin,args.end)
 
         # Import the LUH2 static data to use for masking
         ds_luh2_static = ImportData(args.luh2_static_file)
@@ -52,7 +52,6 @@ def main():
     elif (args.regridder_target_file == None):
         regridder_luh2 = ImportData(args.regridder_file)
         # TO DO: check that the time bounds match the argument bounds
-        # TO DO: create bypass option to regridder function
 
     # # Regrid the inverted ice/water fraction data to the target grid
     #regridder_land_fraction = RegridConservative(ds_luh2_static, ds_regrid_target)

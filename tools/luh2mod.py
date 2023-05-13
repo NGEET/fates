@@ -7,51 +7,8 @@ import xesmf as xe
 from nco import Nco
 from nco.custom import Atted
 
-# Prepare the input_file to be used for regridding
-def PrepDataSet(input_file,start=None,stop=None):
-
-    # Import the data
-    input_dataset = ImportData(input_file)
-
-    # Use the maximum span if start and stop are not present
-    if (start == None):
-        start = input_dataset.time[0]
-
-    if (stop == None):
-        stop = input_dataset.time[-1]
-
-    # Truncate the data to the user defined range
-    # This might need some more error handling for when
-    # the start/stop is out of range
-    try:
-        input_dataset = input_dataset.sel(time=slice(start,stop))
-    except TypeError as err:
-        print("TypeError:", err)
-        print("Input must be a string\n")
-
-    # Correct the necessary variables for both datasets
-    input_dataset = PrepDataSet_ESMF(input_dataset)
-
-    return(input_dataset)
-
-# Updating datasets to work with xESMF
-def PrepDataSet_ESMF(input_dataset):
-
-    # Check the dataset type
-    dsflag, dstype = CheckDataSet(input_dataset)
-    if (dsflag):
-        if(dstype == "LUH2"):
-            print("PrepDataSet: LUH2")
-            input_dataset = BoundsVariableFixLUH2(input_dataset)
-        elif(dstype == "Surface"):
-            print("PrepDataSet: SurfData")
-            input_dataset = DimensionFixSurfData(input_dataset)
-        print("data set updated for xESMF\n")
-
-    return(input_dataset)
-
 # Import luh2 or surface data sets
-def ImportData(input_file):
+def ImportData(input_file,start=None,stop=None):
 
     # Open files
     # Check to see if a ValueError is raised which is likely due
@@ -67,7 +24,52 @@ def ImportData(input_file):
        print(errmsg)
     else:
        print("Input file dataset opened: {}".format(input_file))
+
+       datasetout = PrepDataset(datasetout,start,stop)
+
        return(datasetout)
+
+
+# Prepare the input_file to be used for regridding
+def PrepDataset(input_dataset,start=None,stop=None):
+
+    # Use the maximum span if start and stop are not present
+    if (isinstance(start,type(None))):
+        start = input_dataset.time[0]
+
+    if (isinstance(stop,type(None))):
+        stop = input_dataset.time[-1]
+
+    # Truncate the data to the user defined range
+    # This might need some more error handling for when
+    # the start/stop is out of range
+    try:
+        input_dataset = input_dataset.sel(time=slice(start,stop))
+    except TypeError as err:
+        print("TypeError:", err)
+        print("Input must be a string\n")
+
+    # Correct the necessary variables for both datasets
+    input_dataset = PrepDataset_ESMF(input_dataset)
+
+    return(input_dataset)
+
+# Updating datasets to work with xESMF
+def PrepDataset_ESMF(input_dataset):
+
+    # Check the dataset type
+    dsflag, dstype = CheckDataSet(input_dataset)
+    if (dsflag):
+        if(dstype == "LUH2"):
+            print("PrepDataset: LUH2")
+            input_dataset = BoundsVariableFixLUH2(input_dataset)
+        elif(dstype == "Surface"):
+            print("PrepDataset: SurfData")
+            input_dataset = DimensionFixSurfData(input_dataset)
+        print("data set updated for xESMF\n")
+
+    return(input_dataset)
+
 
 # Modify the luh2 metadata to enable xarray to read in data
 # This issue here is that the luh2 time units start prior to
