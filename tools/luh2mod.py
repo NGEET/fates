@@ -45,9 +45,11 @@ def PrepDataset(input_dataset,start=None,stop=None):
     # the start/stop is out of range
     try:
         input_dataset = input_dataset.sel(time=slice(start,stop))
-    except TypeError as err:
-        print("TypeError:", err)
+    except TypeError as type_err:
         print("Input must be a string\n")
+        raise TypeError(type_err)
+    except AttributeError:
+        pass # likely due to input_dataset not having time for surface dataset
 
     # Correct the necessary variables for both datasets
     input_dataset = PrepDataset_ESMF(input_dataset)
