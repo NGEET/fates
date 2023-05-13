@@ -4,7 +4,7 @@
 # Usage: python luh2.py -l <luh2file> -s <luh2staticfile>
 
 import argparse, os
-from luh2mod import PrepDataSet, ImportData, SetMaskLUH2, SetMaskSurfData
+from luh2mod import ImportData, SetMaskLUH2, SetMaskSurfData
 from luh2mod import RegridConservative, CorrectStateSum
 
 # Add version checking here in case environment.yml not used
@@ -71,15 +71,14 @@ def main():
     regrid_luh2["LONGXY"] = ds_regrid_target["LONGXY"] # TO DO: double check if this is strictly necessary
     regrid_luh2["LATIXY"] = ds_regrid_target["LATIXY"] # TO DO: double check if this is strictly necessary
 
-
     # Rename the dimensions for the output
     regrid_luh2 = regrid_luh2.rename_dims({'lat':'lsmlat','lon':'lsmlon'})
 
     # Merge existing regrided luh2 file with merge input target
     # TO DO: check that the grid resolution and time bounds match
-    if (args.luh2_merge_file != None):
+    if (not(isinstance(args.luh2_merge_file,type(None)))):
         ds_luh2_merge = ImportData(args.luh2_merge_file)
-        regrid_luh2 = regrid_luhs.merge(ds_luh2_merge)
+        regrid_luh2 = regrid_luh2.merge(ds_luh2_merge)
 
     # Write the files
     # TO DO: add check to handle if the user enters the full path

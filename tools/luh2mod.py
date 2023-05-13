@@ -257,7 +257,7 @@ def GenerateRegridder(ds_to_regrid, ds_regrid_target,regridder_save_file):
 # Temporary: Add minor correction factor to assure states sum to one
 def CorrectStateSum(input_dataset):
 
-    # Do this only for the state data set
+    # Only calculate the state sum to unity correction for the appropiate dataset
     if (not(any('irrig' in var for var in input_dataset) or
             any('_to_' in var for var in input_dataset))):
 
@@ -275,7 +275,10 @@ def CorrectStateSum(input_dataset):
         # Save the correction value
         input_dataset["stscf"] = 1.0 / state_sum
 
-        return(input_dataset)
+    # If this is the transitions data apply the state correction to the transitions
+    # elif (any('_to_' in var for var in input_dataset)):
+
+    return(input_dataset)
 
 # General functionality needed
 # - collect data for specific user-defined time period
