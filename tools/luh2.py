@@ -43,7 +43,7 @@ def main():
             regridder_save_file = None
             print("Warning: Regridder will not be saved to file")
         else:
-            output_filename = regridder_save_name
+            output_filename = args.regridder_save_name
 
         # Regrid the luh2 data to the target grid
         # TO DO: provide a check for the save argument based on the input arguments
