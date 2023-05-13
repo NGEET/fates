@@ -34,11 +34,13 @@ def ImportData(input_file,start=None,stop=None):
 def PrepDataset(input_dataset,start=None,stop=None):
 
     # Use the maximum span if start and stop are not present
-    if (isinstance(start,type(None))):
-        start = input_dataset.time[0]
+    dsflag, dstype = CheckDataset(input_dataset)
+    if(dstype != "static"):
+        if (isinstance(start,type(None))):
+            start = input_dataset.time[0]
 
-    if (isinstance(stop,type(None))):
-        stop = input_dataset.time[-1]
+        if (isinstance(stop,type(None))):
+            stop = input_dataset.time[-1]
 
     # Truncate the data to the user defined range
     # This might need some more error handling for when
@@ -48,8 +50,6 @@ def PrepDataset(input_dataset,start=None,stop=None):
     except TypeError as type_err:
         print("Input must be a string\n")
         raise TypeError(type_err)
-    except AttributeError:
-        pass # likely due to input_dataset not having time for surface dataset
 
     # Correct the necessary variables for both datasets
     input_dataset = PrepDataset_ESMF(input_dataset)
@@ -60,7 +60,7 @@ def PrepDataset(input_dataset,start=None,stop=None):
 def PrepDataset_ESMF(input_dataset):
 
     # Check the dataset type
-    dsflag, dstype = CheckDataSet(input_dataset)
+    dsflag, dstype = CheckDataset(input_dataset)
     if (dsflag):
         if(dstype == "LUH2"):
             print("PrepDataset: LUH2")
@@ -154,7 +154,7 @@ def DimensionFixSurfData(input_dataset):
 
 #     # check what sort of inputdata is being provided; surface dataset or luh2
 #     # LUH2 data will need to be masked based on the variable input to mask
-#     dsflag,dstype = CheckDataSet(input_dataset)
+#     dsflag,dstype = CheckDataset(input_dataset)
 #     if (dsflag):
 #         if(dstype == "LUH2"):
 #             SetMaskLUH2(input_dataset) # temporary
@@ -180,17 +180,21 @@ def SetMaskSurfData(input_dataset):
     return(input_dataset)
 
 # Check which dataset we're working with
-def CheckDataSet(input_dataset):
+def CheckDataset(input_dataset):
 
     dsflag = False
-    if('primf' in list(input_dataset.variables)):
+    dsvars = list(input_dataset.variables)
+    if('primf' in dsvars):
         dstype = 'LUH2'
         dsflag = True
         print("LUH2")
-    elif('natpft' in list(input_dataset.variables)):
+    elif('natpft' in dsvars):
         dstype = 'Surface'
         dsflag = True
         print("Surface")
+    elif('icwtr' in dsvars):
+        dstype = 'static'
+        dsflag = True
     else:
         dstype = 'Unknown'
         print("Unrecognize data set")
