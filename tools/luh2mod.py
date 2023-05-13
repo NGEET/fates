@@ -35,7 +35,8 @@ def PrepDataset(input_dataset,start=None,stop=None):
 
     # Use the maximum span if start and stop are not present
     dsflag, dstype = CheckDataset(input_dataset)
-    if(dstype != "static"):
+     
+    if(not(dstype in ('static','regrid'))):
         if (isinstance(start,type(None))):
             start = input_dataset.time[0]
 
@@ -182,7 +183,7 @@ def CheckDataset(input_dataset):
 
     dsflag = False
     dsvars = list(input_dataset.variables)
-    if('primf' in dsvars):
+    if('primf' in dsvars or 'primf_to_secdn' in dsvars or 'irrig' in dsvars):
         dstype = 'LUH2'
         dsflag = True
         print("LUH2")
@@ -192,6 +193,9 @@ def CheckDataset(input_dataset):
         print("Surface")
     elif('icwtr' in dsvars):
         dstype = 'static'
+        dsflag = True
+    elif('col' in dsvars):
+        dstype = 'regrid'
         dsflag = True
     else:
         dstype = 'Unknown'
@@ -262,6 +266,7 @@ def GenerateRegridder(ds_to_regrid, ds_regrid_target,regridder_save_file):
 def CorrectStateSum(input_dataset):
 
     # Only calculate the state sum to unity correction for the appropiate dataset
+    # TO DO: Update this to use the check function
     if (not(any('irrig' in var for var in input_dataset) or
             any('_to_' in var for var in input_dataset))):
 

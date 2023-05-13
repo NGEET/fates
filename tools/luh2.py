@@ -5,7 +5,7 @@
 
 import argparse, os
 from luh2mod import ImportData, SetMaskLUH2, SetMaskSurfData
-from luh2mod import RegridConservative, CorrectStateSum
+from luh2mod import RegridConservative, RegridLoop, CorrectStateSum
 
 # Add version checking here in case environment.yml not used
 def main():
@@ -43,7 +43,7 @@ def main():
             regridder_save_file = None
             print("Warning: Regridder will not be saved to file")
         else:
-            output_filename = args.regridder_save_name
+            regridder_save_file = args.regridder_save_name
 
         # Regrid the luh2 data to the target grid
         # TO DO: provide a check for the save argument based on the input arguments
@@ -51,6 +51,7 @@ def main():
 
     elif (args.regridder_target_file == None):
         regridder_luh2 = ImportData(args.regridder_file)
+        regrid_luh2 = RegridLoop(ds_luh2,regridder_luh2)
         # TO DO: check that the time bounds match the argument bounds
 
     # # Regrid the inverted ice/water fraction data to the target grid
