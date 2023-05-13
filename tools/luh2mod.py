@@ -193,10 +193,10 @@ def CheckDataSet(input_dataset):
 
     return(dsflag,dstype)
 
-def RegridConservative(ds_to_regrid,ds_regrid_target,save=False):
+def RegridConservative(ds_to_regrid,ds_regrid_target,regridder_save_file):
 
     # define the regridder transformation
-    regridder = GenerateRegridder(ds_to_regrid, ds_regrid_target, save)
+    regridder = GenerateRegridder(ds_to_regrid, ds_regrid_target, regridder_save_file)
 
     # Loop through the variables to regrid
     ds_regrid = RegridLoop(ds_to_regrid, regridder)
@@ -238,15 +238,16 @@ def RegridLoop(ds_to_regrid, regridder):
 
     return(ds_regrid)
 
-def GenerateRegridder(ds_to_regrid, ds_regrid_target,save=False):
+def GenerateRegridder(ds_to_regrid, ds_regrid_target,regridder_save_file):
 
-    print("\nDefining regridder")
-    regridder = xe.Regridder(ds_to_regrid, ds_regrid_target, "conservative")
+    regrid_method = "conservative"
+    print("\nDefining regridder, method: ", regrid_method)
+    regridder = xe.Regridder(ds_to_regrid, ds_regrid_target, regrid_method)
 
     # If save flag is set, write regridder to a file
     # TO DO: define a more useful name based on inputs
-    if(save):
-        filename = regridder.to_netcdf("regridder.nc")
+    if(not(isinstance(regridder_save_file,type(None)))):
+        filename = regridder.to_netcdf(regridder_save_file)
         print("regridder saved to file: ", filename)
 
     return(regridder)

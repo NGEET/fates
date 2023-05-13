@@ -15,6 +15,7 @@ def main():
     # Allow variable input files (state and/or transitions and/or management)
     args = CommandLineArgs()
 
+
     # Prep the LUH2 datasets and regrid target
     ds_luh2 = PrepDataSet(args.luh2_file,args.begin,args.end)
 
@@ -35,9 +36,18 @@ def main():
         # Mask the regrid target
         ds_regrid_target = SetMaskSurfData(ds_regrid_target)
 
+        # Handle regridder file save name
+        # TO DO: add check to handle if the user enters the full path
+        # TO DO: check if its possible to enter nothing with the argument
+        if (args.regridder_save_name == None):
+            regridder_save_file = None
+            print("Warning: Regridder will not be saved to file")
+        else:
+            output_filename = regridder_save_name
+
         # Regrid the luh2 data to the target grid
         # TO DO: provide a check for the save argument based on the input arguments
-        regrid_luh2,regridder_luh2 = RegridConservative(ds_luh2, ds_regrid_target, save=True)
+        regrid_luh2,regridder_luh2 = RegridConservative(ds_luh2, ds_regrid_target, regridder_save_file)
 
     elif (args.regridder_target_file == None):
         regridder_luh2 = ImportData(args.regridder_file)
@@ -52,6 +62,7 @@ def main():
     # Adjust the luh2 data by the land fraction
     regrid_luh2 = regrid_luh2 / regrid_land_fraction.landfrac
 
+    # Correct the state sum (will be returned as if in not state values)
     regrid_luh2 = CorrectStateSum(regrid_luh2)
 
     # Add additional required variables for the host land model
@@ -71,8 +82,8 @@ def main():
         ds_luh2_merge = ImportData(args.luh2_merge_file)
         regrid_luh2 = regrid_luhs.merge(ds_luh2_merge)
 
-    # # Write the files
-    # # TO DO: add check to handle if the user enters the full path
+    # Write the files
+    # TO DO: add check to handle if the user enters the full path
     if (args.output == None):
         output_filename = 'LUH2_timeseries.nc'
     else:
