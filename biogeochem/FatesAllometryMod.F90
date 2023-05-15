@@ -98,6 +98,8 @@ module FatesAllometryMod
   use FatesGlobals     , only : FatesWarn,N2S,A2S,I2S
   use EDTypesMod       , only : nlevleaf, dinc_vai
   use EDTypesMod       , only : nclmax
+  use EDTypesMod       , only : dinc_vai
+  use EDTypesMod       , only : dlower_vai
   use DamageMainMod    , only : GetCrownReduction
 
   implicit none
@@ -125,7 +127,8 @@ module FatesAllometryMod
   public :: set_root_fraction  ! Generic wrapper to calculate normalized
                                ! root profiles
   public :: leafc_from_treelai ! Calculate target leaf carbon for a given treelai for SP mode
-
+  public :: VegAreaLayer
+  
   logical         , parameter :: verbose_logging = .false.
   character(len=*), parameter :: sourcefile = __FILE__
 
@@ -2390,7 +2393,8 @@ contains
   end function decay_coeff_kn
 
   ! =====================================================================================
-subroutine ForceDBH( ipft, crowndamage, canopy_trim, d, h, bdead, bl )
+
+  subroutine ForceDBH( ipft, crowndamage, canopy_trim, d, h, bdead, bl )
 
      ! =========================================================================
      ! This subroutine estimates the diameter based on either the structural biomass
@@ -2537,6 +2541,110 @@ subroutine ForceDBH( ipft, crowndamage, canopy_trim, d, h, bdead, bl )
      return
   end subroutine ForceDBH
 
+  ! =========================================================================
+
+  subroutine VegAreaLayer(tree_lai,tree_sai,tree_height,iv,nv,pft,snow_depth, & 
+       vai_top,vai_bot, & 
+       elai_layer,esai_layer,tlai_layer,tsai_layer)
+
+    ! -----------------------------------------------------------------------------------
+    ! This routine returns the exposed leaf area (m2 of leaf) per m2 of
+    ! ground inside the crown, for the leaf-layer specified.
+    ! -----------------------------------------------------------------------------------
+
+    real(r8),intent(in) :: tree_lai         ! the in-crown leaf area index for the plant
+                                            ! [m2 leaf/m2 crown footprint]
+    real(r8),intent(in) :: tree_sai         ! the in-crown stem area index for the plant
+                                            ! [m2 stem/m2 crown footprint]
+    real(r8),intent(in) :: tree_height      ! the height of the plant [m]
+    integer,intent(in)  :: iv               ! vegetation layer index
+    integer,intent(in)  :: nv               ! this plants total number of veg layers
+    integer,intent(in)  :: pft              ! plant functional type index
+    real(r8),intent(in) :: snow_depth       ! the depth of snow on the ground [m]
+    real(r8),intent(out) :: vai_top
+    real(r8),intent(out) :: vai_bot          ! the VAI of the bin top and bottom
+    real(r8),intent(out) :: elai_layer       ! exposed leaf area index of the layer
+    real(r8),intent(out) :: esai_layer       ! exposed stem area index of the layer
+    real(r8),optional,intent(out) :: tlai_layer       ! total leaf area index of the layer
+    real(r8),optional,intent(out) :: tsai_layer       ! total stem area index of the layer
+
+                                 ! [m2 of leaf in bin / m2 crown footprint]
+    real(r8) :: tree_vai         ! the in-crown veg area index for the plant
+    real(r8) :: fraction_exposed ! fraction of the veg media that is above snow
+    real(r8) :: layer_top_height ! Physical height of the layer top relative to ground [m]
+    real(r8) :: layer_bot_height ! Physical height of the layer bottom relative to ground [m]
+    real(r8) :: tlai,tsai        ! temporary total area indices [m2/m2]
+    integer, parameter :: layer_height_const_depth = 1 ! constant physical depth assumption
+    integer, parameter :: layer_height_const_lad   = 2 ! constant leaf area depth assumption
+    integer, parameter :: layer_height_method = layer_height_const_depth
+
+    tree_vai = tree_lai + tree_sai
+
+    if(tree_vai>0._r8)then
+
+       if(iv==0)then
+          vai_top = 0.0
+          vai_bot = tree_vai
+       else
+
+          if(iv>1)then
+             vai_top = dlower_vai(iv) - dinc_vai(iv)
+          else
+             vai_top = 0._r8
+          end if
+
+          if(iv<nv) then
+             vai_bot = dlower_vai(iv)
+          else
+             vai_bot = tree_vai
+          end if
+       end if
+
+       if(layer_height_method .eq. layer_height_const_depth)then
+          if(iv==0)then
+             layer_top_height = tree_height
+             layer_bot_height = tree_height*(1._r8 - prt_params%crown_depth_frac(pft))
+          else
+             layer_top_height = tree_height*(1._r8 - real(iv-1,r8)/real(nv,r8)*prt_params%crown_depth_frac(pft))
+             layer_bot_height = tree_height*(1._r8 - real(iv,r8)/real(nv,r8)*prt_params%crown_depth_frac(pft))
+          end if
+       else
+          layer_top_height = tree_height*(1._r8 - prt_params%crown_depth_frac(pft)*vai_top/tree_vai)
+          layer_bot_height = tree_height*(1._r8 - prt_params%crown_depth_frac(pft)*vai_bot/tree_vai)
+       end if
+
+       fraction_exposed =  1._r8 - max(0._r8,(min(1._r8, (snow_depth-layer_bot_height)/(layer_top_height-layer_bot_height))))
+
+       tlai = (vai_bot-vai_top) * tree_lai / tree_vai
+       tsai = (vai_bot-vai_top) * tree_sai / tree_vai
+
+       if(present(tlai_layer)) tlai_layer = tlai
+       if(present(tsai_layer)) tsai_layer = tsai
+
+       elai_layer = fraction_exposed * tlai
+       esai_layer = fraction_exposed * tsai
+
+       ! Update the vai at the bottom to be removed/decreased if there is no exposure
+       ! set the vai top and bottoms to the snow layer if below
+       !vai_top = min(vai_top,fraction_exposed*tree_vai)
+
+       vai_bot = vai_top + fraction_exposed*(vai_bot-vai_top)
+
+    else
+
+       if(present(tlai_layer)) tlai_layer = 0._r8
+       if(present(tsai_layer)) tsai_layer = 0._r8
+       elai_layer = 0._r8
+       esai_layer = 0._r8
+       vai_bot = 0._r8
+       vai_top = 0._r8
+
+    end if
+
+
+    return
+  end subroutine VegAreaLayer
+  
   ! =========================================================================
   
   subroutine cspline(x1,x2,y1,y2,dydx1,dydx2,x,y,dydx)

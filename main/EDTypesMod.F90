@@ -22,6 +22,9 @@ module EDTypesMod
   use FatesRunningMeanMod,   only : rmean_type
   use FatesInterfaceTypesMod,only : bc_in_type
   use FatesInterfaceTypesMod,only : bc_out_type
+  use TwoStreamMLPEMod,      only : twostream_type
+  use FatesRadiationMemMod,  only : num_swb
+  use FatesRadiationMemMod,  only : num_rad_stream_types
   
   implicit none
   private               ! By default everything is private
@@ -48,39 +51,10 @@ module EDTypesMod
   ! -------------------------------------------------------------------------------------
 
 
-  integer, parameter, public :: n_rad_stream_types = 2    ! The number of radiation streams used (direct/diffuse)
- 
-  integer, parameter, public :: idirect   = 1             ! This is the array index for direct radiation
-  integer, parameter, public :: idiffuse  = 2             ! This is the array index for diffuse radiation
-
   ! parameters that govern the VAI (LAI+SAI) bins used in radiative transfer code
   integer, parameter, public :: nlevleaf = 30             ! number of leaf+stem layers in canopy layer
   real(r8), public :: dinc_vai(nlevleaf)   = fates_unset_r8 ! VAI bin widths array
   real(r8), public :: dlower_vai(nlevleaf) = fates_unset_r8 ! lower edges of VAI bins
-
-  ! TODO: we use this cp_maxSWb only because we have a static array q(size=2) of
-  ! land-ice abledo for vis and nir.  This should be a parameter, which would
-  ! get us on track to start using multi-spectral or hyper-spectral (RGK 02-2017)
-
-  integer, parameter, public :: maxSWb = 2      ! maximum number of broad-bands in the
-                                                ! shortwave spectrum cp_numSWb <= cp_maxSWb
-                                                ! this is just for scratch-array purposes
-                                                ! if cp_numSWb is larger than this value
-                                                ! simply bump this number up as needed
-
-  integer, parameter, public :: ivis = 1        ! This is the array index for short-wave
-                                                ! radiation in the visible spectrum, as expected
-                                                ! in boundary condition files and parameter
-                                                ! files.  This will be compared with 
-                                                ! the HLM's expectation in FatesInterfaceMod
-  integer, parameter, public :: inir = 2        ! This is the array index for short-wave
-                                                ! radiation in the near-infrared spectrum, as expected
-                                                ! in boundary condition files and parameter
-                                                ! files.  This will be compared with 
-                                                ! the HLM's expectation in FatesInterfaceMod
-
-  integer, parameter, public :: ipar = ivis     ! The photosynthetically active band
-                                                ! can be approximated to be equal to the visible band
 
 
   integer, parameter, public :: leaves_on  = 2  ! Flag specifying that a deciduous plant has leaves
@@ -253,6 +227,12 @@ module EDTypesMod
      integer  ::  coage_by_pft_class                     ! An index that indicates the cohorts position of the join cohort age class x PFT 
      integer ::  size_class_lasttimestep                 ! size class of the cohort at the last time step
 
+
+     ! Two-stream radiation
+
+     integer :: twostr_col  ! The column index in the two-stream solution that this cohort is part of
+
+     
      ! CARBON FLUXES 
      
      ! ----------------------------------------------------------------------------------
@@ -451,7 +431,8 @@ module EDTypesMod
                                                                  ! This is set in create_patch as an argument
                                                                  ! to that procedure.
 
-
+     type(twostream_type) :: twostr                             ! This holds all two-stream data for the patch
+     
      ! LEAF ORGANIZATION
      real(r8) ::  pft_agb_profile(maxpft,n_dbh_bins)            ! binned above ground biomass, for patch fusion: KgC/m2
      real(r8) ::  canopy_layer_tlai(nclmax)                     ! total leaf area index of each canopy layer
@@ -489,8 +470,8 @@ module EDTypesMod
      logical  ::  solar_zenith_flag                             ! integer flag specifying daylight (based on zenith angle)
      real(r8) ::  solar_zenith_angle                            ! solar zenith angle (radians)
 
-     real(r8) ::  gnd_alb_dif(maxSWb)                           ! ground albedo for diffuse rad, both bands (fraction)
-     real(r8) ::  gnd_alb_dir(maxSWb)                           ! ground albedo for direct rad, both bands (fraction)
+     real(r8) ::  gnd_alb_dif(num_swb)                           ! ground albedo for diffuse rad, both bands (fraction)
+     real(r8) ::  gnd_alb_dir(num_swb)                           ! ground albedo for direct rad, both bands (fraction)
      
      real(r8) ::  fabd_sun_z(nclmax,maxpft,nlevleaf)            ! sun fraction of direct light absorbed by each canopy 
      ! layer, pft, and leaf layer:-
@@ -512,19 +493,19 @@ module EDTypesMod
 
      ! normalized direct photosynthetically active radiation profiles by 
      ! incident type (direct/diffuse at top of canopy),leaf,pft,leaf (unitless)
-     real(r8) ::  nrmlzd_parprof_pft_dir_z(n_rad_stream_types,nclmax,maxpft,nlevleaf)  
+     real(r8) ::  nrmlzd_parprof_pft_dir_z(num_rad_stream_types,nclmax,maxpft,nlevleaf)  
 
      ! normalized diffuse photosynthetically active radiation profiles by 
      ! incident type (direct/diffuse at top of canopy),leaf,pft,leaf (unitless)
-     real(r8) ::  nrmlzd_parprof_pft_dif_z(n_rad_stream_types,nclmax,maxpft,nlevleaf)  
+     real(r8) ::  nrmlzd_parprof_pft_dif_z(num_rad_stream_types,nclmax,maxpft,nlevleaf)  
 
      ! normalized direct photosynthetically active radiation profiles by 
      ! incident type (direct/diffuse at top of canopy),leaf,leaf (unitless) 
-     real(r8) ::  nrmlzd_parprof_dir_z(n_rad_stream_types,nclmax,nlevleaf)         
+     real(r8) ::  nrmlzd_parprof_dir_z(num_rad_stream_types,nclmax,nlevleaf)         
 
      ! normalized diffuse photosynthetically active radiation profiles by 
      ! incident type (direct/diffuse at top of canopy),leaf,leaf (unitless) 
-     real(r8) ::  nrmlzd_parprof_dif_z(n_rad_stream_types,nclmax,nlevleaf)
+     real(r8) ::  nrmlzd_parprof_dif_z(num_rad_stream_types,nclmax,nlevleaf)
          
      real(r8) ::  parprof_pft_dir_z(nclmax,maxpft,nlevleaf)   ! direct-beam PAR profile through canopy, by canopy,PFT,leaf level (w/m2)
      real(r8) ::  parprof_pft_dif_z(nclmax,maxpft,nlevleaf)   ! diffuse     PAR profile through canopy, by canopy,PFT,leaf level (w/m2)

@@ -19,9 +19,7 @@ module FatesInterfaceMod
    use EDParamsMod               , only : maxpatch_primary
    use EDParamsMod               , only : maxpatch_secondary
    use EDParamsMod               , only : max_cohort_per_patch
-   use EDTypesMod                , only : maxSWb
-   use EDTypesMod                , only : ivis
-   use EDTypesMod                , only : inir
+   use FatesRadiationMemMod      , only : num_swb,ivis,inir
    use EDTypesMod                , only : nclmax
    use EDTypesMod                , only : nlevleaf
    use EDTypesMod                , only : maxpft
@@ -94,6 +92,7 @@ module FatesInterfaceMod
    use FatesHistoryInterfaceMod  , only : fates_hist
    use FatesHydraulicsMemMod     , only : nshell
    use FatesHydraulicsMemMod     , only : nlevsoi_hyd_max
+   use FatesTwoStreamInterfaceMod, only : TransferRadParams
    
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -826,9 +825,9 @@ contains
          ! These values are used to define the restart file allocations and general structure
          ! of memory for the cohort arrays
          if(hlm_use_sp.eq.itrue) then
-            fates_maxElementsPerPatch = maxSWb
+            fates_maxElementsPerPatch = num_swb
          else
-            fates_maxElementsPerPatch = max(maxSWb,max_cohort_per_patch, ndcmpy*hlm_maxlevsoil ,ncwd*hlm_maxlevsoil)
+            fates_maxElementsPerPatch = max(num_swb,max_cohort_per_patch, ndcmpy*hlm_maxlevsoil ,ncwd*hlm_maxlevsoil)
          end if
          
          fates_maxElementsPerSite = max(fates_maxPatchesPerSite * fates_maxElementsPerPatch, &
@@ -1408,13 +1407,13 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(hlm_numSWb > maxSWb) then
+         if(hlm_numSWb > num_swb) then
             write(fates_log(), *) 'FATES sets a maximum number of shortwave bands'
-            write(fates_log(), *) 'for some scratch-space, maxSWb'
+            write(fates_log(), *) 'for some scratch-space, num_swb'
             write(fates_log(), *) 'it defaults to 2, but can be increased as needed'
             write(fates_log(), *) 'your driver or host model is intending to drive'
             write(fates_log(), *) 'FATES with:',hlm_numSWb,' bands.'
-            write(fates_log(), *) 'please increase maxSWb in EDTypes to match'
+            write(fates_log(), *) 'please increase num_swb in FatesRadiationMemMod to match'
             write(fates_log(), *) 'or exceed this value'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
@@ -1913,7 +1912,7 @@ contains
       call PRTDerivedParams()              ! Update PARTEH derived constants
       call PRTCheckParams(masterproc)      ! Check PARTEH parameters
       call SpitFireCheckParams(masterproc)
-      
+      call TransferRadParams()
 
       
       return

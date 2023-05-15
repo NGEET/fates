@@ -1,4 +1,4 @@
-module EDSurfaceRadiationMod
+module FatesRadiationDriveMod
 
   !-------------------------------------------------------------------------------------
   ! EDSurfaceRadiation
@@ -20,51 +20,40 @@ module EDSurfaceRadiationMod
   use FatesInterfaceTypesMod , only : bc_out_type
   use FatesInterfaceTypesMod , only : hlm_numSWb
   use FatesInterfaceTypesMod , only : numpft
-  use EDTypesMod        , only : maxSWb
   use EDTypesMod        , only : nclmax
   use EDTypesMod        , only : nlevleaf
-  use EDTypesMod        , only : n_rad_stream_types
-  use EDTypesMod        , only : idiffuse
-  use EDTypesMod        , only : idirect
-  use EDTypesMod        , only : ivis
-  use EDTypesMod        , only : inir
-  use EDTypesMod        , only : ipar
   use EDCanopyStructureMod, only: calc_areaindex
   use FatesGlobals      , only : fates_log
   use FatesGlobals, only      : endrun => fates_endrun
-
+  use FatesRadiationMemMod, only : num_rad_stream_types
+  use FatesRadiationMemMod, only : idirect, idiffuse
+  use FatesRadiationMemMod, only : num_swb, ivis, inir, ipar
+  use FatesRadiationMemMod, only : alb_ice, rho_snow, tau_snow
+  use FatesRadiationMemMod, only : norman_solver
+  use FatesRadiationMemMod, only : twostr_solver
+  use FatesRadiationMemMod, only : rad_solver
+  use TwoStreamMLPEMod, only : normalized_upper_boundary
+  use FatesTwoStreamInterfaceMod, only : FatesPatchFSun
+  use FatesTwoStreamInterfaceMod, only : CheckPatchRadiationBalance
+  
   ! CIME globals
   use shr_log_mod       , only : errMsg => shr_log_errMsg
 
   implicit none
 
   private
-  public :: ED_Norman_Radiation  ! Surface albedo and two-stream fluxes
+  public :: FatesNormalizedCanopyRadiation  ! Surface albedo and two-stream fluxes
   public :: PatchNormanRadiation
-  public :: ED_SunShadeFracs
+  public :: FatesSunShadeFracs
 
   logical :: debug = .false.  ! for debugging this module
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
 
-  !  real(r8), public  :: albice(maxSWb) = &       ! albedo land ice by waveband (1=vis, 2=nir)
-  !       (/ 0.80_r8, 0.55_r8 /)
 
-  !parameters of canopy snow reflectance model.
-  ! the parameters in the 2-stream model are not directly analagous to those here
-  ! and so they are stored here for now in common with the ice parameters above.
-  ! in principle these could be moved to the parameter file.
-
-  real(r8), public  :: albice(maxSWb) = &       ! albedo land ice by waveband (1=vis, 2=nir)
-       (/ 0.80_r8, 0.55_r8 /)
-  real(r8), public  :: rho_snow(maxSWb) = &       ! albedo land ice by waveband (1=vis, 2=nir)
-       (/ 0.80_r8, 0.55_r8 /)
-  real(r8), public  :: tau_snow(maxSWb) = &       ! albedo land ice by waveband (1=vis, 2=nir)
-       (/ 0.01_r8, 0.01_r8 /)
 contains
 
-  subroutine ED_Norman_Radiation (nsites, sites, bc_in, bc_out )
-    !
+  subroutine FatesNormalizedCanopyRadiation(nsites, sites, bc_in, bc_out )
 
     !
     ! !USES:
@@ -174,7 +163,7 @@ contains
     enddo           ! Loop Sites
 
     return
-  end subroutine ED_Norman_Radiation
+  end subroutine FatesNormalizedCanopyRadiation
 
 
   ! ======================================================================================
@@ -227,25 +216,25 @@ contains
     real(r8) :: tr_dif_z(nclmax,maxpft,nlevleaf)         ! Exponential transmittance of diffuse radiation through a single layer
     real(r8) :: weighted_dir_tr(nclmax)
     real(r8) :: weighted_fsun(nclmax)
-    real(r8) :: weighted_dif_ratio(nclmax,maxSWb)
+    real(r8) :: weighted_dif_ratio(nclmax,num_swb)
     real(r8) :: weighted_dif_down(nclmax)
     real(r8) :: weighted_dif_up(nclmax)
-    real(r8) :: refl_dif(nclmax,maxpft,nlevleaf,maxSWb)  ! Term for diffuse radiation reflected by laye
-    real(r8) :: tran_dif(nclmax,maxpft,nlevleaf,maxSWb)  ! Term for diffuse radiation transmitted by layer
-    real(r8) :: dif_ratio(nclmax,maxpft,nlevleaf,maxSWb) ! Ratio of upward to forward diffuse fluxes
+    real(r8) :: refl_dif(nclmax,maxpft,nlevleaf,num_swb)  ! Term for diffuse radiation reflected by laye
+    real(r8) :: tran_dif(nclmax,maxpft,nlevleaf,num_swb)  ! Term for diffuse radiation transmitted by layer
+    real(r8) :: dif_ratio(nclmax,maxpft,nlevleaf,num_swb) ! Ratio of upward to forward diffuse fluxes
     real(r8) :: Dif_dn(nclmax,maxpft,nlevleaf)           ! Forward diffuse flux onto canopy layer J (W/m**2 ground area)
     real(r8) :: Dif_up(nclmax,maxpft,nlevleaf)           ! Upward diffuse flux above canopy layer J (W/m**2 ground area)
     real(r8) :: lai_change(nclmax,maxpft,nlevleaf)       ! Forward diffuse flux onto canopy layer J (W/m**2 ground area)
 
     real(r8) :: frac_lai                                ! Fraction of lai in each layer
     real(r8) :: frac_sai                                ! Fraction of sai in each layer
-    real(r8) :: f_abs(nclmax,maxpft,nlevleaf,maxSWb)    ! Fraction of light absorbed by surfaces.
-    real(r8) :: rho_layer(nclmax,maxpft,nlevleaf,maxSWb)! Weighted verage reflectance of layer
-    real(r8) :: tau_layer(nclmax,maxpft,nlevleaf,maxSWb)! Weighted average transmittance of layer
-    real(r8) :: f_abs_leaf(nclmax,maxpft,nlevleaf,maxSWb)
+    real(r8) :: f_abs(nclmax,maxpft,nlevleaf,num_swb)    ! Fraction of light absorbed by surfaces.
+    real(r8) :: rho_layer(nclmax,maxpft,nlevleaf,num_swb)! Weighted verage reflectance of layer
+    real(r8) :: tau_layer(nclmax,maxpft,nlevleaf,num_swb)! Weighted average transmittance of layer
+    real(r8) :: f_abs_leaf(nclmax,maxpft,nlevleaf,num_swb)
     real(r8) :: Abs_dir_z(maxpft,nlevleaf)
     real(r8) :: Abs_dif_z(maxpft,nlevleaf)
-    real(r8) :: abs_rad(maxSWb)                               !radiation absorbed by soil
+    real(r8) :: abs_rad(num_swb)                               !radiation absorbed by soil
     real(r8) :: tr_soili                                      ! Radiation transmitted to the soil surface.
     real(r8) :: tr_soild                                      ! Radiation transmitted to the soil surface.
     real(r8) :: phi1b(maxpft)                                 ! Radiation transmitted to the soil surface.
@@ -268,8 +257,8 @@ contains
     real(r8) :: gdir
 
 
-    real(r8), parameter :: forc_dir(n_rad_stream_types) = (/ 1.0_r8, 0.0_r8 /)   ! These are binary switches used
-    real(r8), parameter :: forc_dif(n_rad_stream_types) = (/ 0.0_r8, 1.0_r8 /)   ! to turn off and on radiation streams
+    real(r8), parameter :: forc_dir(num_rad_stream_types) = (/ 1.0_r8, 0.0_r8 /)   ! These are binary switches used
+    real(r8), parameter :: forc_dif(num_rad_stream_types) = (/ 0.0_r8, 1.0_r8 /)   ! to turn off and on radiation streams
 
 
 
@@ -373,7 +362,7 @@ contains
 
 
     !do this once for one unit of diffuse, and once for one unit of direct radiation
-    do radtype = 1, n_rad_stream_types
+    do radtype = 1, num_rad_stream_types
 
        ! Extract information that needs to be provided by ED into local array.
        ! RGK: NOT SURE WHY WE NEED FTWEIGHT ...
@@ -1114,7 +1103,7 @@ end subroutine PatchNormanRadiation
 
 ! ======================================================================================
 
-subroutine ED_SunShadeFracs(nsites, sites,bc_in,bc_out)
+subroutine FatesSunShadeFracs(nsites, sites,bc_in,bc_out)
 
   implicit none
 
@@ -1297,7 +1286,7 @@ subroutine ED_SunShadeFracs(nsites, sites,bc_in,bc_out)
   enddo
   return
 
-end subroutine ED_SunShadeFracs
+end subroutine FatesSunShadeFracs
 
 
 !      ! MOVE TO THE INTERFACE
@@ -1330,4 +1319,4 @@ end subroutine ED_SunShadeFracs
 !      end subroutine ED_CheckSolarBalance
 
 
-end module EDSurfaceRadiationMod
+end module FatesRadiationDriveMod

@@ -6,7 +6,7 @@ module EDPftvarcon
   ! read and initialize vegetation (PFT) constants.
   !
   ! !USES:
-  use EDTypesMod  ,   only : maxSWb, ivis, inir
+  use FatesRadiationMemMod, only: num_swb,ivis,inir
   use EDTypesMod  ,   only : n_uptake_mode, p_uptake_mode
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesConstantsMod, only : nearzero
@@ -1140,7 +1140,7 @@ contains
     lower_bound_1 = lower_bound_pft
     upper_bound_1 = lower_bound_pft + dimension_sizes(1) - 1
     lower_bound_2 = lower_bound_general
-    upper_bound_2 = maxSWb      ! When we have radiation parameters read in as a vector
+    upper_bound_2 = num_swb      ! When we have radiation parameters read in as a vector
                                 ! We will compare the vector dimension size that we
                                 ! read-in to the parameterized size that fates expects
 
