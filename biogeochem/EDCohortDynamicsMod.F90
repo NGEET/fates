@@ -191,7 +191,7 @@ type(bc_in_type), intent(in) :: bc_in         ! External boundary conditions
 
 
 ! !LOCAL VARIABLES:
-type(fates_cohort_type), pointer :: new_cohort         ! Pointer to New Cohort structure.
+type(fates_cohort_type), pointer :: newCohort        ! Pointer to New Cohort structure.
 type(fates_cohort_type), pointer :: storesmallcohort
 type(fates_cohort_type), pointer :: storebigcohort
 real(r8) :: rmean_temp                     ! running mean temperature
@@ -201,8 +201,8 @@ integer  :: nlevrhiz                       ! number of rhizosphere layers
 !----------------------------------------------------------------------
 
 ! create new cohort
-allocate(new_cohort)
-call new_cohort%Create(prt, pft, nn, hite, coage, dbh, status, ctrim, carea,   &
+allocate(newCohort)
+call newCohort%Create(prt, pft, nn, hite, coage, dbh, status, ctrim, carea,    &
    clayer, crowndamage, spread, patchptr%canopy_layer_tlai)
 
 ! Put cohort at the right place in the linked list
@@ -213,53 +213,53 @@ if (associated(patchptr%tallest)) then
    tnull = 0
 else
    tnull = 1
-   patchptr%tallest => new_cohort
+   patchptr%tallest => newCohort
 endif
 
 if (associated(patchptr%shortest)) then
    snull = 0
 else
    snull = 1
-   patchptr%shortest => new_cohort
+   patchptr%shortest => newCohort
 endif
 
 ! Allocate running mean functions
 
 !  (Keeping as an example)
-!! allocate(new_cohort%tveg_lpa)
-!! call new_cohort%tveg_lpa%InitRMean(ema_lpa,init_value=patchptr%tveg_lpa%GetMean())
+!! allocate(newCohort%tveg_lpa)
+!! call newCohort%tveg_lpa%InitRMean(ema_lpa,init_value=patchptr%tveg_lpa%GetMean())
 
 if( hlm_use_planthydro.eq.itrue ) then
 
    nlevrhiz = currentSite%si_hydr%nlevrhiz
 
    ! This allocates array spaces
-   call InitHydrCohort(currentSite,new_cohort)
+   call InitHydrCohort(currentSite, newCohort)
 
    ! zero out the water balance error
-   new_cohort%co_hydr%errh2o = 0._r8
+   newCohort%co_hydr%errh2o = 0._r8
 
    ! This calculates node heights
-   call UpdatePlantHydrNodes(new_cohort,new_cohort%pft, &
-                            new_cohort%hite,currentSite%si_hydr)
+   call UpdatePlantHydrNodes(newCohort, newCohort%pft, &
+    newCohort%hite,currentSite%si_hydr)
 
    ! This calculates volumes and lengths
-   call UpdatePlantHydrLenVol(new_cohort,currentSite%si_hydr)
+   call UpdatePlantHydrLenVol(newCohort,currentSite%si_hydr)
 
    ! This updates the Kmax's of the plant's compartments
-   call UpdatePlantKmax(new_cohort%co_hydr,new_cohort,currentSite%si_hydr)
+   call UpdatePlantKmax(newCohort%co_hydr,newCohort,currentSite%si_hydr)
 
    ! Since this is a newly initialized plant, we set the previous compartment-size
    ! equal to the ones we just calculated.
-   call SavePreviousCompartmentVolumes(new_cohort%co_hydr)
+   call SavePreviousCompartmentVolumes(newCohort%co_hydr)
 
    ! This comes up with starter suctions and then water contents
    ! based on the soil values
-   call InitPlantHydStates(currentSite,new_cohort)
+   call InitPlantHydStates(currentSite,newCohort)
 
    if(recruitstatus==1)then
 
-      new_cohort%co_hydr%is_newly_recruited = .true.
+    newCohort%co_hydr%is_newly_recruited = .true.
 
       ! If plant hydraulics is active, we must constrain the
       ! number density of the new recruits based on the moisture
@@ -267,14 +267,14 @@ if( hlm_use_planthydro.eq.itrue ) then
       ! So we go through the process of pre-initializing the hydraulic
       ! states in the temporary cohort, to calculate this new number density
       rmean_temp = patchptr%tveg24%GetMean()
-      call ConstrainRecruitNumber(currentSite, new_cohort, patchptr,           &
+      call ConstrainRecruitNumber(currentSite, newCohort, patchptr,           &
          bc_in, rmean_temp)
 
    endif
 
 endif
 
-call insert_cohort(patchptr, new_cohort, patchptr%tallest, patchptr%shortest, tnull, snull, &
+call insert_cohort(patchptr, newCohort, patchptr%tallest, patchptr%shortest, tnull, snull, &
      storebigcohort, storesmallcohort)
 
 patchptr%tallest  => storebigcohort

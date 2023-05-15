@@ -286,7 +286,7 @@ module FatesCohortMod
       !
   
       ! ARGUMENTS:
-      class(fates_cohort_type), intent(inout), target  :: this
+      class(fates_cohort_type), intent(inout)          :: this
       class(prt_vartypes),      intent(inout), pointer :: prt ! allocated PARTEH object
   
       call this%NanValues()  ! make everything in the cohort not-a-number
@@ -298,7 +298,6 @@ module FatesCohortMod
       ! The PARTEH cohort object should be allocated and already
       ! initialized in this routine.
       call this%prt%CheckInitialConditions()
-      call this%InitPRTBoundaryConditions()
     
       ! new cohorts do not have mortality rates, nor have they moved any
       ! carbon when they are created.  They will bias our statistics
@@ -618,6 +617,8 @@ module FatesCohortMod
           this%canopy_trim, this%c_area, this%n, this%canopy_layer, can_tlai,  &
           this%treelai,this%vcmax25top, 2)
       end if
+
+      call this%InitPRTBoundaryConditions()
 
     end subroutine Create
 
