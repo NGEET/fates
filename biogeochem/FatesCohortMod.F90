@@ -62,13 +62,12 @@ module FatesCohortMod
     ! Multi-species, multi-organ Plant Reactive Transport (PRT)
     ! Contains carbon and nutrient state variables for various plant organs
     class(prt_vartypes), pointer :: prt
-    real(r8)                     :: l2fr ! leaf to fineroot biomass ratio (this is constant
-                                         !      in carbon only simulationss, and is set by the
-                                         !      allom_l2fr_min parameter.  In nutrient
-                                         !      enabled simulations, this is dynamic, will
-                                         !      vary between allom_l2fr_min and allom_l2fr_max
-                                         !      parameters, with a tendency driven by
-                                         !      nutrient storage) [kg root / kg leaf]
+    real(r8)                     :: l2fr ! leaf to fineroot biomass ratio [kg root / kg leaf]
+                                            ! (this is constant in carbon only simulationss, and 
+                                            ! is set by the allom_l2fr parameter).  
+                                            ! For nutrient enabled simulations, this is dynamic.  
+                                            ! In cold-start simulations, the allom_l2fr 
+                                            ! parameter sets the starter value. 
 
     !---------------------------------------------------------------------------
 
