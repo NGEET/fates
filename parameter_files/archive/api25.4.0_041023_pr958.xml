@@ -1,12 +1,12 @@
 <?xml version="1.0"?>
 <all>
   <!-- This parameter patch file updates the parameter file with the necessary changes -->
-  <!-- per PR 995.  This makes the following changes: -->
+  <!-- per PR 958.  This makes the following changes: -->
   <!-- - updates the meta data for the initial seed density -->
 
   <!-- To use this patch file run the following command: -->
 
-  <!--   Run `python ../tools/UpdateParamAPI.py -\-f archive/api25.3.0_032223_pr995.xml` -->
+  <!--   Run `python ../tools/UpdateParamAPI.py -\-f archive/api25.3.0_032223_pr958.xml` -->
 
   <!-- To update a different CDL parameter file, change the file listed the `base_file`. -->
   <!-- This requires that said file is up to date with API 25.3. -->
@@ -36,14 +36,17 @@
     <mod type="variable_change" name="fates_phen_drought_threshold">
       <di> fates_pft </di>
       <val> -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4 </val>
+      <ln> threshold for drought phenology (or lower threshold for semi-deciduous PFTs); the quantity depends on the sign: if positive, the threshold is volumetric soil moisture (m3/m3). If negative, the threshold is soil matric potentical (mm) </ln>
     </mod>
     <mod type="variable_change" name="fates_phen_moist_threshold">
       <di> fates_pft </di>
       <val>  -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9 </val>
+      <ln> upper threshold for drought phenology (only for drought semi-deciduous PFTs); the quantity depends on the sign: if positive, the threshold is volumetric soil moisture (m3/m3). If negative, the threshold is soil matric potentical (mm) </ln>
     </mod>
     <mod type="variable_change" name="fates_phen_mindaysoff">
       <di> fates_pft </di>
       <val> 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100 </val>
+      <ln> day threshold compared against days since leaves abscised (shed) </ln>
     </mod>
     <mod type="variable_del">
       <na> fates_phen_drought_model </na>

@@ -346,7 +346,7 @@ def main():
 
                 sel_values = selectvalues(ncfile,list(dimnames),ipft_list,values,dcode)
 
-            [ncfile,ncvar] = createvar(ncfile,paramname,dimnames,units,longname,dcode,sel_values)
+            [ncfile,ncvar] = reatevar(ncfile,paramname,dimnames,units,longname,dcode,sel_values)
             ncfile.flush()
             ncfile.close()
 
@@ -373,25 +373,71 @@ def main():
                 
             ncfile = netcdf.netcdf_file(base_nc,"a",mmap=False)
             ncvar_o = ncfile.variables[paramname_o]
-            dims_o  = ncvar_o.dimensions
+            # dims_o  = ncvar_o.dimensions
             dtype_o = ncvar_o.typecode()
             units_o = ncvar_o.units.decode("utf-8")
             longname_o = ncvar_o.long_name.decode("utf-8")
-                
-            try:
-                paramname = mod.find('na').text.strip()
-            except:
-                paramname = None
 
-            # Change the parameter's name
-            if(not isinstance(paramname,type(None))):
-                if not dims_o:
-                    [ncfile,ncvar] = createvar(ncfile,paramname,dims_o,units_o,longname_o,dtype_o,float(ncvar_o.data))
+            # Check for a parameter name change
+            try:
+                newparamname = mod.find('na').text.strip()
+            except:
+                newparamname = None
+
+            # Check for a dimensionality change
+            try:
+                dimnames = tuple(mod.find('di').text.replace(" ","").split(','))
+            except:
+                dimnames = None
+
+            # Change the parameter's name and/or the dimensionality
+            if(not isinstance(newparamname,type(None)) or not isinstance(dimnames,type(None))):
+
+                # Initialize the parameter name to pass to the create variable function
+                # If this is None, a dimension update is happening and this will be updated
+                # below
+                paramname = newparamname
+
+                # If no dimension change, use the previous dimensions
+                if not dimnames:
+                    dims_o = ncvar_o.dimensions
                 else:
-                    [ncfile,ncvar] = createvar(ncfile,paramname,dims_o,units_o,longname_o,dtype_o,ncvar_o[:].copy())
+                    # If dimension to change to is scalar, set dims_o to an empty list
+                    if(dimnames[0]=='scalar' or dimnames[0]=='none' or dimnames[0]==''):
+                        dims_o = ()
+                    else:
+                        dims_o = dimnames
+
+                # If there is no dimension change grab the original data
+                if (isinstance(dimnames,type(None))):
+                    if not dims_o:
+                        ncvardata = float(ncvar_o.data)
+                        # [ncfile,ncvar] = createvar(ncfile,paramname,dims_o,units_o,longname_o,dtype_o,float(ncvar_o.data))
+                    else:
+                        ncvardata = ncvar_o[:].copy()
+                        # [ncfile,ncvar] = createvar(ncfile,paramname,dims_o,units_o,longname_o,dtype_o,ncvar_o[:].copy())
+                # If there is a dimension change create zero filled data
+                else:
+                    # If there isn't a parameter name change, grab the old name
+                    if (isinstance(paramname,type(None))):
+                        paramname = paramname_o
+
+                    # If changing to scalar
+                    if not dims_o:
+                        ncvardata = 0.
+                    # read the dimensions and create a
+                    else:
+                        dimsize = []
+                        for idim,name in enumerate(dimnames):
+                            dimsize.append(ncfile.dimensions[name])
+                        ncvardata = np.zeros(dimsize)
+
+                # Create the new variable
+                [ncfile,ncvar] = createvar(ncfile,paramname,dims_o,units_o,longname_o,dtype_o,ncvardata)
+
             else:
                 ncvar = ncvar_o
-               
+
             # Change the metadata:
             try:
                 units = mod.find('un').text.strip()
@@ -426,9 +472,9 @@ def main():
             ncfile.close()
             
             # Finally, if we did perform a re-name, and
-            # created a new variable. We need to delete the
-            # old one
-            if(not isinstance(paramname,type(None))):
+            # created a new variable. We need to delete the old one
+            # This is not necessary for a dimension only change
+            if(not isinstance(newparamname,type(None))):
                removevar(base_nc,paramname_o)
                paramname = paramname_o
                
