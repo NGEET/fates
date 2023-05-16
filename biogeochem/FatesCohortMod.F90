@@ -522,7 +522,7 @@ module FatesCohortMod
       ! set up values for a newly created cohort
 
       ! ARGUMENTS
-      class(fates_cohort_type), intent(inout),         :: this             ! cohort object
+      class(fates_cohort_type), intent(inout), target  :: this             ! cohort object
       class(prt_vartypes),      intent(inout), pointer :: prt              ! The allocated PARTEH object
       integer,                  intent(in)             :: pft              ! cohort Plant Functional Type
       integer,                  intent(in)             :: crowndamage      ! cohort damage class 
