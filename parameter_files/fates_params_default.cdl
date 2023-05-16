@@ -449,7 +449,7 @@ variables:
 	double fates_phen_fnrt_drop_fraction(fates_pft) ;
 		fates_phen_fnrt_drop_fraction:units = "fraction" ;
 		fates_phen_fnrt_drop_fraction:long_name = "fraction of fine roots to drop during drought/cold" ;
-	double fates_phen_doff_time(fates_pft) ;
+	double fates_phen_mindaysoff(fates_pft) ;
 		fates_phen_mindaysoff:units = "days" ;
 		fates_phen_mindaysoff:long_name = "day threshold compared against days since leaves abscised (shed)" ;
 	double fates_phen_moist_threshold(fates_pft) ;
@@ -1259,8 +1259,9 @@ data:
 
  fates_phen_cold_size_threshold = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
- fates_phen_drought_threshold = -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, 
-    -152957.4, -152957.4, -152957.4, -152957.4, -152957.4,  -152957.4, -152957.4 ;
+ fates_phen_drought_threshold = -152957.4, -152957.4, -152957.4, -152957.4, 
+    -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, 
+    -152957.4, -152957.4 ;
 
  fates_phen_evergreen = 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0 ;
 
@@ -1269,10 +1270,12 @@ data:
 
  fates_phen_fnrt_drop_fraction = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
- fates_phen_mindaysoff = 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100 ;
+ fates_phen_mindaysoff = 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 
+    100, 100 ;
 
- fates_phen_moist_threshold = -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, 
-    -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9 ;
+ fates_phen_moist_threshold = -122365.9, -122365.9, -122365.9, -122365.9, 
+    -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, 
+    -122365.9, -122365.9 ;
 
  fates_phen_season_decid = 0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 0, 0 ;
 

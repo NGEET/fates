@@ -23,7 +23,7 @@
   <!-- -->
   
   <base_file>archive/api25.4.0_041023_fates_params_default.cdl </base_file>
-  <new_file>fates_params_default_test.cdl</new_file>
+  <new_file>fates_params_default.cdl</new_file>
   <pft_list> 1,2,3,4,5,6,7,8,9,10,11,12 </pft_list>
   <mods>
     <mod type="variable_change" name="fates_phen_fnrt_drop_frac">
