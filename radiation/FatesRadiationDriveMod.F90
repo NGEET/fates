@@ -54,7 +54,17 @@ module FatesRadiationDriveMod
 contains
 
   subroutine FatesNormalizedCanopyRadiation(nsites, sites, bc_in, bc_out )
-
+    
+    ! Perform normalized (ie per unit downwelling radiative forcing) radiation
+    ! scattering of the vegetation canopy.
+    ! This call is normalized because the host wants an albedo for the next time
+    ! step, but it does not have the absolute beam and diffuse forcing for the
+    ! next step yet.
+    ! However, with both Norman and Two stream, we save normalized scattering
+    ! and absorption profiles amonst the vegetation, and that can
+    ! be scaled by the forcing when we perform diagnostics, calculate heating
+    ! rates (HLM side), and calculate absorbed leaf PAR for photosynthesis.
+    
     !
     ! !USES:
     use EDPftvarcon       , only : EDPftvarcon_inst
@@ -75,7 +85,13 @@ contains
     integer :: ifp                                 ! patch loop counter
     integer :: ib                                  ! radiation broad band counter
     type(ed_patch_type), pointer :: currentPatch   ! patch pointer
-
+    real(r8) :: Rdiff_up_atm_beam  ! Upwelling diffuse radiation at top from beam scattering [W/m2 ground]
+    real(r8) :: Rdiff_up_atm_diff  ! Upwelling diffuse radiation at top from diffuse scattering [W/m2 ground]
+    real(r8) :: Rbeam_can_abs      ! Total beam radiation absorbed by the canopy [W/m2 ground]
+    real(r8) :: Rdiff_can_abs      ! Total diffuse radiation absorbed by the canopy [W/m2 ground]
+    real(r8) :: Rbeam_dn_grnd_beam ! Average beam radiation at ground [W/m2 ground]
+    real(r8) :: Rdiff_dn_grnd_beam ! Average downward diffuse radiation at ground due to beam sourcing [W/m2 ground]
+    real(r8) :: Rdiff_dn_grnd_diff ! Average downward diffuse radiation at ground from diffuse sourcing [W/m2 ground]
     !-----------------------------------------------------------------------
     ! -------------------------------------------------------------------------------
     ! TODO (mv, 2014-10-29) the filter here is different than below
@@ -90,7 +106,7 @@ contains
        ifp = 0
        currentpatch => sites(s)%oldest_patch
        do while (associated(currentpatch))
-          if(currentpatch%nocomp_pft_label.ne.nocomp_bareground)then
+          if_notbareground: if(currentpatch%nocomp_pft_label.ne.nocomp_bareground)then
              ! do not do albedo calculations for bare ground patch in SP mode
              ! and (more impotantly) do not iterate ifp or it will mess up the indexing wherein
              ! ifp=1 is the first vegetated patch.
@@ -116,7 +132,14 @@ contains
              currentPatch%gnd_alb_dir(1:hlm_numSWb) = bc_in(s)%albgr_dir_rb(1:hlm_numSWb)
              currentPatch%fcansno                   = bc_in(s)%fcansno_pa(ifp)
 
-             if(currentPatch%solar_zenith_flag )then
+             ! RGK: The ZenithPrep should only be necessary if the flag is true
+             ! Move and test this.
+             if(rad_solver.eq.twostr_solver) then
+                call currentPatch%twostr%CanopyPrep(bc_in(s)%fcansno_pa(ifp))
+                call currentPatch%twostr%ZenithPrep(bc_in(s)%coszen_pa(ifp))
+             end if
+             
+             if_zenith_flag: if(currentPatch%solar_zenith_flag )then
 
                 bc_out(s)%albd_parb(ifp,:)            = 0._r8  ! output HLM
                 bc_out(s)%albi_parb(ifp,:)            = 0._r8  ! output HLM
@@ -126,7 +149,7 @@ contains
                 bc_out(s)%ftid_parb(ifp,:)            = 1._r8 ! output HLM
                 bc_out(s)%ftii_parb(ifp,:)            = 1._r8 ! output HLM
 
-                if (maxval(currentPatch%nrad(1,:))==0)then
+                if_nrad: if (maxval(currentPatch%nrad(1,:))==0)then
                    !there are no leaf layers in this patch. it is effectively bare ground.
                    ! no radiation is absorbed
                    bc_out(s)%fabd_parb(ifp,:) = 0.0_r8
@@ -137,27 +160,54 @@ contains
                       bc_out(s)%albd_parb(ifp,ib) = bc_in(s)%albgr_dir_rb(ib)
                       bc_out(s)%albi_parb(ifp,ib) = bc_in(s)%albgr_dif_rb(ib)
                       bc_out(s)%ftdd_parb(ifp,ib)= 1.0_r8
-                      !bc_out(s)%ftid_parb(ifp,ib)= 1.0_r8
                       bc_out(s)%ftid_parb(ifp,ib)= 0.0_r8
                       bc_out(s)%ftii_parb(ifp,ib)= 1.0_r8
                    enddo
 
                 else
 
-                   call PatchNormanRadiation (currentPatch, &
-                        bc_out(s)%albd_parb(ifp,:), &
-                        bc_out(s)%albi_parb(ifp,:), &
-                        bc_out(s)%fabd_parb(ifp,:), &
-                        bc_out(s)%fabi_parb(ifp,:), &
-                        bc_out(s)%ftdd_parb(ifp,:), &
-                        bc_out(s)%ftid_parb(ifp,:), &
-                        bc_out(s)%ftii_parb(ifp,:))
+                   if_solver: if(rad_solver.eq.norman_solver) then
 
+                      call PatchNormanRadiation (currentPatch, &
+                           bc_out(s)%albd_parb(ifp,:), &   ! Surface Albedo direct
+                           bc_out(s)%albi_parb(ifp,:), &   ! Surface Albedo (indirect) diffuse
+                           bc_out(s)%fabd_parb(ifp,:), &   ! Fraction direct absorbed by canopy per unit incident
+                           bc_out(s)%fabi_parb(ifp,:), &   ! Fraction diffuse absorbed by canopy per unit incident
+                           bc_out(s)%ftdd_parb(ifp,:), &   ! Down direct flux below canopy per unit direct at top
+                           bc_out(s)%ftid_parb(ifp,:), &   ! Down diffuse flux below canopy per unit direct at top
+                           bc_out(s)%ftii_parb(ifp,:))     ! Down diffuse flux below canopy per unit diffuse at top
 
-                endif ! is there vegetation?
+                   else
 
-             end if    ! if the vegetation and zenith filter is active
-          endif ! not bare ground
+                      associate( twostr => currentPatch%twostr)
+
+                        !call twostr%CanopyPrep(bc_in(s)%fcansno_pa(ifp))
+                        !call twostr%ZenithPrep(bc_in(s)%coszen_pa(ifp))
+
+                        do ib = 1,hlm_numSWb
+
+                           twostr%band(ib)%albedo_grnd_diff = bc_in(s)%albgr_dif_rb(ib)
+                           twostr%band(ib)%albedo_grnd_beam = bc_in(s)%albgr_dir_rb(ib)
+
+                           call twostr%Solve(ib,             &  ! in
+                                normalized_upper_boundary,   &  ! in
+                                1.0_r8,1.0_r8,               &  ! in
+                                bc_out(s)%albd_parb(ifp,ib), &  ! out
+                                bc_out(s)%albi_parb(ifp,ib), &  ! out
+                                bc_out(s)%fabd_parb(ifp,ib), &  ! out
+                                bc_out(s)%fabi_parb(ifp,ib), &  ! out
+                                bc_out(s)%ftdd_parb(ifp,ib), &  ! out
+                                bc_out(s)%ftid_parb(ifp,ib), &  ! out
+                                bc_out(s)%ftii_parb(ifp,ib))
+
+                        end do
+                      end associate
+
+                   end if if_solver
+                end if if_nrad
+             endif if_zenith_flag
+          end if if_notbareground
+          
           currentPatch => currentPatch%younger
        end do       ! Loop linked-list patches
     enddo           ! Loop Sites
@@ -1132,7 +1182,7 @@ subroutine FatesSunShadeFracs(nsites, sites,bc_in,bc_out)
      cpatch => sites(s)%oldest_patch
 
      do while (associated(cpatch))
-        if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then !only for veg patches
+        if_notbareground:if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then !only for veg patches
            ! do not do albedo calculations for bare ground patch in SP mode
            ! and (more impotantly) do not iterate ifp or it will mess up the indexing wherein
            ! ifp=1 is the first vegetated patch.
@@ -1156,6 +1206,8 @@ subroutine FatesSunShadeFracs(nsites, sites,bc_in,bc_out)
            cpatch%parprof_dir_z(:,:) = 0._r8
            cpatch%parprof_dif_z(:,:) = 0._r8
 
+           if_norm_twostr: if (rad_solver.eq.norman_solver) then
+           
            ! Loop over patches to calculate laisun_z and laisha_z for each layer.
            ! Derive canopy laisun, laisha, and fsun from layer sums.
            ! If sun/shade big leaf code, nrad=1 and fsun_z(p,1) and tlai_z(p,1) from
@@ -1278,7 +1330,36 @@ subroutine FatesSunShadeFracs(nsites, sites,bc_in,bc_out)
                       cpatch%nrmlzd_parprof_dif_z(idiffuse,CL,iv))
               end do    ! iv
            end do       ! CL
-        endif ! not bareground patch
+
+           else
+
+              ! Two-stream 
+              ! -----------------------------------------------------------
+              do ib = 1,hlm_numSWb
+                 cpatch%twostr%band(ib)%Rbeam_atm = bc_in(s)%solad_parb(ifp,ib)
+                 cpatch%twostr%band(ib)%Rdiff_atm = bc_in(s)%solai_parb(ifp,ib)
+              end do
+              
+              if(cpatch%solar_zenith_flag )then
+                 call FatesPatchFSun(cpatch,    &
+                      bc_out(s)%fsun_pa(ifp),   &
+                      bc_out(s)%laisun_pa(ifp), &
+                      bc_out(s)%laisha_pa(ifp))
+                 
+                 call CheckPatchRadiationBalance(cpatch, sites(s)%snow_depth, ivis,bc_out(s)%fabd_parb(ifp,ivis), bc_out(s)%fabi_parb(ifp,ivis))
+                 call CheckPatchRadiationBalance(cpatch, sites(s)%snow_depth, inir,bc_out(s)%fabd_parb(ifp,inir), bc_out(s)%fabi_parb(ifp,inir))
+              else
+                 
+                 bc_out(s)%fsun_pa(ifp) = 0.5_r8
+                 bc_out(s)%laisun_pa(ifp) = 0.5_r8*calc_areaindex(cpatch,'elai')
+                 bc_out(s)%laisha_pa(ifp) = 0.5_r8*calc_areaindex(cpatch,'elai')
+                 
+              end if
+              
+              
+           end if if_norm_twostr
+           
+        endif if_notbareground
         cpatch => cpatch%younger
      enddo
 

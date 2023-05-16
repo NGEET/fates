@@ -20,6 +20,7 @@ module EDCanopyStructureMod
   use EDCohortDynamicsMod   , only : InitPRTBoundaryConditions
   use FatesAllometryMod     , only : tree_lai
   use FatesAllometryMod     , only : tree_sai
+  use FatesAllometryMod     , only : VegAreaLayer
   use EDtypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
   use EDTypesMod            , only : nclmax
   use EDTypesMod            , only : nlevleaf
@@ -42,7 +43,9 @@ module EDCanopyStructureMod
   use PRTGenericMod,          only : struct_organ
   use PRTGenericMod,          only : SetState
   use PRTGenericMod,          only : carbon12_element
-
+  use FatesAllometryMod     , only : VegAreaLayer
+  use FatesTwoStreamInterfaceMod, only : FatesConstructRadElements
+  
   ! CIME Globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
 
@@ -1432,10 +1435,11 @@ contains
           currentPatch => currentPatch%younger
        end do !patch loop
 
-
-    
        call leaf_area_profile(sites(s))
 
+       call FatesConstructRadElements(sites(s),bc_in(s)%fcansno_pa,bc_in(s)%coszen_pa)
+       
+       
     end do ! site loop
 
     return
@@ -1493,8 +1497,6 @@ contains
     ! currentPatch%esai_profile(cl,ft,iv)  ! non-snow covered m2 of stems per m2 of PFT footprint
     ! currentPatch%canopy_area_profile(cl,ft,iv)  ! Fractional area of leaf layer
     !                                             ! relative to vegetated area
-    ! currentPatch%layer_height_profile(cl,ft,iv) ! Elevation of layer in m
-    !
     ! -----------------------------------------------------------------------------------
 
     ! !USES:
@@ -1516,17 +1518,16 @@ contains
     integer  :: iv                       ! Vertical leaf layer index
     integer  :: cl                       ! Canopy layer index
     real(r8) :: fraction_exposed         ! how much of this layer is not covered by snow?
-    real(r8) :: layer_top_hite           ! notional top height of this canopy layer (m)
-    real(r8) :: layer_bottom_hite        ! notional bottom height of this canopy layer (m)
     real(r8) :: frac_canopy(N_HITE_BINS) ! amount of canopy in each height class
     real(r8) :: minh(N_HITE_BINS)        ! minimum height in height class (m)
     real(r8) :: maxh(N_HITE_BINS)        ! maximum height in height class (m)
     real(r8) :: dh                       ! vertical detph of height class (m)
     real(r8) :: min_chite                ! bottom of cohort canopy  (m)
     real(r8) :: max_chite                ! top of cohort canopy      (m)
-    real(r8) :: lai                      ! leaf area per canopy area
-    real(r8) :: sai                      ! stem area per canopy area
-
+    real(r8) :: elai_layer,tlai_layer    ! leaf area per canopy area
+    real(r8) :: esai_layer,tsai_layer    ! stem area per canopy area
+    real(r8) :: vai_top,vai_bot          ! integrated top down veg area index at boundary of layer
+    
     !----------------------------------------------------------------------
 
 
@@ -1550,7 +1551,6 @@ contains
        currentPatch%tsai_profile(:,:,:)         = 0._r8
        currentPatch%elai_profile(:,:,:)         = 0._r8
        currentPatch%esai_profile(:,:,:)         = 0._r8
-       currentPatch%layer_height_profile(:,:,:) = 0._r8
        currentPatch%canopy_area_profile(:,:,:)  = 0._r8
        currentPatch%canopy_mask(:,:)            = 0
        
@@ -1563,6 +1563,8 @@ contains
 
           call UpdatePatchLAI(currentPatch)
 
+          currentPatch%nrad(:,:) = currentPatch%ncan(:,:)
+          
           ! -----------------------------------------------------------------------------
           ! Standard canopy layering model.
           ! Go through all cohorts and add their leaf area
@@ -1573,102 +1575,31 @@ contains
           do while(associated(currentCohort))
              ft = currentCohort%pft
              cl = currentCohort%canopy_layer
-
-             ! ----------------------------------------------------------------
-             ! How much of each tree is stem area index? Assuming that there is
-             ! This may indeed be zero if there is a sensecent grass
-             ! ----------------------------------------------------------------
-             lai = currentCohort%treelai * currentCohort%c_area/currentPatch%total_canopy_area
-             sai = currentCohort%treesai * currentCohort%c_area/currentPatch%total_canopy_area
-             if( (currentCohort%treelai+currentCohort%treesai) > nearzero)then
-                
-                ! See issue: https://github.com/NGEET/fates/issues/899
-                ! fleaf = currentCohort%treelai / (currentCohort%treelai + currentCohort%treesai)
-                fleaf = lai / (lai+sai)
-             else
-                fleaf = 0._r8
-             endif
-
-             currentPatch%nrad(cl,ft) = currentPatch%ncan(cl,ft)
-
-             if (currentPatch%nrad(cl,ft) > nlevleaf ) then
-                write(fates_log(), *) 'Number of radiative leaf layers is larger'
-                write(fates_log(), *) ' than the maximum allowed.'
-                write(fates_log(), *) ' cl: ',cl
-                write(fates_log(), *) ' ft: ',ft
-                write(fates_log(), *) ' nlevleaf: ',nlevleaf
-                write(fates_log(), *) ' currentPatch%nrad(cl,ft): ', currentPatch%nrad(cl,ft)
-                call endrun(msg=errMsg(sourcefile, __LINE__))
-             end if
-
-
-             ! --------------------------------------------------------------------------
-             ! Whole layers.  Make a weighted average of the leaf area in each layer
-             ! before dividing it by the total area. Fill up layer for whole layers.
-             ! --------------------------------------------------------------------------
-
+             
              do iv = 1,currentCohort%NV
 
-                ! This loop builds the arrays that define the effective (not snow covered)
-                ! and total (includes snow covered) area indices for leaves and stems
-                ! We calculate the absolute elevation of each layer to help determine if the layer
-                ! is obscured by snow.
-
-                layer_top_hite = currentCohort%hite - &
-                     ( real(iv-1,r8)/currentCohort%NV * currentCohort%hite *  &
-                     prt_params%crown_depth_frac(currentCohort%pft) )
-
-                layer_bottom_hite = currentCohort%hite - &
-                     ( real(iv,r8)/currentCohort%NV * currentCohort%hite * &
-                     prt_params%crown_depth_frac(currentCohort%pft) )
-
-                fraction_exposed = 1.0_r8
-                if(currentSite%snow_depth  > layer_top_hite)then
-                   fraction_exposed = 0._r8
-                endif
-                if(currentSite%snow_depth < layer_bottom_hite)then
-                   fraction_exposed = 1._r8
-                endif
-                if(currentSite%snow_depth >= layer_bottom_hite .and. &
-                     currentSite%snow_depth <= layer_top_hite) then !only partly hidden...
-                   fraction_exposed =  1._r8 - max(0._r8,(min(1.0_r8,(currentSite%snow_depth -layer_bottom_hite)/ &
-                        (layer_top_hite-layer_bottom_hite ))))
-                endif
-
-                if(iv==currentCohort%NV) then
-                   remainder = (currentCohort%treelai + currentCohort%treesai) - &
-                        (dlower_vai(iv) - dinc_vai(iv))
-                   if(remainder > dinc_vai(iv) )then
-                      write(fates_log(), *)'ED: issue with remainder', &
-                           currentCohort%treelai,currentCohort%treesai,dinc_vai(iv), & 
-                           currentCohort%NV,remainder
-
-                      call endrun(msg=errMsg(sourcefile, __LINE__))
-                   endif
-                else
-                   remainder = dinc_vai(iv)
-                end if
+                call VegAreaLayer(currentCohort%treelai,     &
+                     currentCohort%treesai,                  &
+                     currentCohort%hite,                     &
+                     iv,currentCohort%nv,currentCohort%pft,  &
+                     currentSite%snow_depth,                    &
+                     vai_top,vai_bot,                          &
+                     elai_layer,esai_layer,tlai_layer,tsai_layer)
 
                 currentPatch%tlai_profile(cl,ft,iv) = currentPatch%tlai_profile(cl,ft,iv) + &
-                     remainder * fleaf * currentCohort%c_area/currentPatch%total_canopy_area
+                     tlai_layer * currentCohort%c_area/currentPatch%total_canopy_area
 
                 currentPatch%elai_profile(cl,ft,iv) = currentPatch%elai_profile(cl,ft,iv) + &
-                     remainder * fleaf * currentCohort%c_area/currentPatch%total_canopy_area * &
-                     fraction_exposed
+                     elai_layer * currentCohort%c_area/currentPatch%total_canopy_area
 
                 currentPatch%tsai_profile(cl,ft,iv) = currentPatch%tsai_profile(cl,ft,iv) + &
-                     remainder * (1._r8 - fleaf) * currentCohort%c_area/currentPatch%total_canopy_area
-
+                     tsai_layer * currentCohort%c_area/currentPatch%total_canopy_area
+                
                 currentPatch%esai_profile(cl,ft,iv) = currentPatch%esai_profile(cl,ft,iv) + &
-                     remainder * (1._r8 - fleaf) * currentCohort%c_area/currentPatch%total_canopy_area * &
-                     fraction_exposed
+                     esai_layer * currentCohort%c_area/currentPatch%total_canopy_area
 
                 currentPatch%canopy_area_profile(cl,ft,iv) = currentPatch%canopy_area_profile(cl,ft,iv) + &
                      currentCohort%c_area/currentPatch%total_canopy_area
-
-                currentPatch%layer_height_profile(cl,ft,iv) = currentPatch%layer_height_profile(cl,ft,iv) + &
-                     (remainder * fleaf * currentCohort%c_area/currentPatch%total_canopy_area * &
-                     (layer_top_hite+layer_bottom_hite)/2.0_r8) !average height of layer.
 
              end do
 
@@ -1758,11 +1689,6 @@ contains
                            currentPatch%canopy_area_profile(cl,ft,iv)
                    end if
 
-                   if(currentPatch%tlai_profile(cl,ft,iv)>nearzero )then
-                      currentPatch%layer_height_profile(cl,ft,iv) = currentPatch%layer_height_profile(cl,ft,iv) &
-                           /currentPatch%tlai_profile(cl,ft,iv)
-                   end if
-
                 enddo
 
              enddo
@@ -1770,16 +1696,22 @@ contains
 
           ! --------------------------------------------------------------------------
           ! Set the mask that identifies which PFT x can-layer combinations have
-          ! scattering elements in them.
+          ! scattering elements in them for radiation.
+          ! RGK: I'm not sure we need nrad ... I can't see a scenario where
+          !      canopy_area_profile for these layers is not >0 for layers in ncan ...
+          !      Leaving this for the time being.
           ! --------------------------------------------------------------------------
-
+          currentPatch%canopy_mask(:,:) = 0
           do cl = 1,currentPatch%NCL_p
              do ft = 1,numpft
-                do  iv = 1, currentPatch%nrad(cl,ft)
+                do_leaflayer: do  iv = 1, currentPatch%nrad(cl,ft)
                    if(currentPatch%canopy_area_profile(cl,ft,iv) > 0._r8)then
                       currentPatch%canopy_mask(cl,ft) = 1
+                      exit do_leaflayer
+                   else
+                      exit do_leaflayer
                    endif
-                end do !iv
+                end do do_leaflayer !iv
              enddo !ft
           enddo ! loop over cl
 

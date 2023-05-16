@@ -2269,7 +2269,7 @@ end subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017
 
 ! ====================================================================================
 
-subroutine LeafLayerBiophysicalRates( parsun_lsl, &
+subroutine LeafLayerBiophysicalRates( parsun_per_la, &
    ft,            &
    vcmax25top_ft, &
    jmax25top_ft, &
@@ -2301,7 +2301,7 @@ subroutine LeafLayerBiophysicalRates( parsun_lsl, &
    ! Arguments
    ! ------------------------------------------------------------------------------
 
-   real(r8), intent(in) :: parsun_lsl      ! PAR absorbed in sunlit leaves for this layer
+   real(r8), intent(in) :: parsun_per_la   ! PAR absorbed per sunlit leaves for this layer
    integer,  intent(in) :: ft              ! (plant) Functional Type Index
    real(r8), intent(in) :: nscaler         ! Scale for leaf nitrogen profile
    real(r8), intent(in) :: vcmax25top_ft   ! canopy top maximum rate of carboxylation at 25C
@@ -2370,7 +2370,7 @@ subroutine LeafLayerBiophysicalRates( parsun_lsl, &
    vcmaxc = fth25_f(vcmaxhd, vcmaxse)
    jmaxc  = fth25_f(jmaxhd, jmaxse)
 
-   if ( parsun_lsl <= 0._r8) then           ! night time
+   if ( parsun_per_la <= nearzero) then           ! night time
       vcmax             = 0._r8
       jmax              = 0._r8
       co2_rcurve_islope = 0._r8
