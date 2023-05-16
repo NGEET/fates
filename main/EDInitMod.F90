@@ -751,13 +751,12 @@ contains
     class(prt_vartypes),     pointer :: prt                   ! PARTEH object
     integer                          :: leaf_status           ! cohort phenology status [leaves on/off]
     integer                          :: pft                   ! index for PFT
-    integer                          :: crowndamage           ! crown damage class
     integer                          :: iage                  ! index for leaf age loop
     integer                          :: el                    ! index for element loop
     integer                          :: element_id            ! element index consistent with defs in PRTGeneric
     integer                          :: use_pft_local(numpft) ! determine whether this PFT is used for this patch and site
     integer                          :: crown_damage          ! crown damage class of the cohort [1 = undamaged, >1 = damaged] 
-    real(r8)                         :: l2fr                  ! leaf to fineroot biomass ratio [0-1]
+    real(r8)                         :: l2fr                  ! leaf to fineroot biomass ratio [kg kg-1]
     real(r8)                         :: canopy_trim           ! fraction of the maximum leaf biomass that we are targeting [0-1]
     real(r8)                         :: cohort_n              ! cohort density
     real(r8)                         :: dbh                   ! cohort dbh [cm]
@@ -847,14 +846,14 @@ contains
 
             ! Calculate the leaf biomass from allometry
             ! (calculates a maximum first, then applies canopy trim)
-            call bleaf(dbh, pft, crowndamage, canopy_trim, c_leaf)
+            call bleaf(dbh, pft, crown_damage, canopy_trim, c_leaf)
           endif  ! sp mode
 
         else ! interpret as initial diameter and calculate density 
           if (hlm_use_nocomp .eq. itrue) then
             dbh = abs(EDPftvarcon_inst%initd(pft))
             ! calculate crown area of a single plant
-            call carea_allom(dbh, 1.0_r8, init_spread_inventory, pft, crowndamage,       &
+            call carea_allom(dbh, 1.0_r8, init_spread_inventory, pft, crown_damage,       &
               c_area)
 
             ! calculate initial density required to close canopy 
@@ -862,7 +861,7 @@ contains
 
             ! Calculate the leaf biomass from allometry
             ! (calculates a maximum first, then applies canopy trim)
-            call bleaf(dbh, pft, crowndamage, canopy_trim, c_leaf)
+            call bleaf(dbh, pft, crown_damage, canopy_trim, c_leaf)
 
           else
             write(fates_log(),*) 'Negative fates_recruit_init_density can only be used in no comp mode'
@@ -871,7 +870,7 @@ contains
         endif
 
         ! calculate total above-ground biomass from allometry
-        call bagw_allom(dbh, pft, crowndamage, c_agw)
+        call bagw_allom(dbh, pft, crown_damage, c_agw)
 
         ! calculate coarse root biomass from allometry
         call bbgw_allom(dbh, pft, c_bgw)
@@ -881,10 +880,10 @@ contains
         call bfineroot(dbh, pft, canopy_trim, l2fr, c_fnrt)
 
         ! Calculate sapwood biomass
-        call bsap_allom(dbh, pft, crowndamage, canopy_trim, a_sapw, c_sapw)
+        call bsap_allom(dbh, pft, crown_damage, canopy_trim, a_sapw, c_sapw)
 
         call bdead_allom(c_agw, c_bgw, c_sapw, pft, c_struct)
-        call bstore_allom(dbh, pft, crowndamage, canopy_trim, c_store)
+        call bstore_allom(dbh, pft, crown_damage, canopy_trim, c_store)
 
         leaf_status = leaves_on
 
@@ -979,7 +978,7 @@ contains
 
         call create_cohort(site_in, patch_in, pft, cohort_n,                             &
           EDPftvarcon_inst%hgt_min(pft), 0.0_r8, dbh, prt, leaf_status, recruitstatus,   &
-          canopy_trim, c_area, 1, crowndamage, site_in%spread, bc_in)
+          canopy_trim, c_area, 1, crown_damage, site_in%spread, bc_in)
 
       endif !use_this_pft
     enddo !numpft
