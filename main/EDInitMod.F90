@@ -21,7 +21,7 @@ module EDInitMod
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
   use EDCohortDynamicsMod       , only : InitPRTObject
   use EDPatchDynamicsMod        , only : set_patchno
-  use EDPhysiologyMod           , only : assign_cohort_sp_properties
+  use EDPhysiologyMod           , only : calculate_sp_properties
   use ChecksBalancesMod         , only : SiteMassStock
   use FatesInterfaceTypesMod    , only : hlm_day_of_year
   use EDTypesMod                , only : ed_site_type
@@ -802,7 +802,7 @@ contains
           use_pft_local(pft) = ifalse ! Case 3
         endif
       else
-        if (hlm_use_nocomp .eq. itrue .and pft .ne. patch_in%nocomp_pft_label) then
+        if (hlm_use_nocomp .eq. itrue .and. pft .ne. patch_in%nocomp_pft_label) then
           ! This case has all PFTs on their own patch everywhere
           use_pft_local(pft) = ifalse ! Case 4
         endif
@@ -838,8 +838,9 @@ contains
             ! At this point, we do not know the bc_in values of tlai tsai and htop,
             ! so this is initializing to an arbitrary value for the very first timestep.
             ! Not sure if there's a way around this or not.
-            call assign_cohort_SP_properties(temp_cohort, 0.5_r8, 0.2_r8, 0.1_r8,        &
-              patch_in%area, itrue, c_leaf)
+            call calculate_SP_properties(0.5_r8, 0.2_r8, 0.1_r8, patch_in%area, pft,     &
+              crown_damage, 1, EDPftvarcon_inst%vcmax25top(pft, 1), c_leaf, dbh,         &
+              cohort_n, c_area)
           else
             ! calculate the plant diameter from height
             call h2d_allom(EDPftvarcon_inst%hgt_min(pft), pft, dbh)
@@ -873,7 +874,7 @@ contains
         call bagw_allom(dbh, pft, crowndamage, c_agw)
 
         ! calculate coarse root biomass from allometry
-        call bbgw_allom(dbh pft, c_bgw)
+        call bbgw_allom(dbh, pft, c_bgw)
 
         ! Calculate fine root biomass from allometry
         ! (calculates a maximum and then trimming value)
@@ -896,7 +897,7 @@ contains
             c_leaf = 0._r8
             c_sapw = (1.0_r8 - stem_drop_fraction)*c_sapw
             c_struct  = (1.0_r8 - stem_drop_fraction)*c_struct
-            cstatus = leaves_off
+            leaf_status = leaves_off
           endif
 
           if (prt_params%stress_decid(pft) == itrue .and.                                &
@@ -904,7 +905,7 @@ contains
             c_leaf = 0._r8
             c_sapw = (1.0_r8 - stem_drop_fraction)*c_sapw
             c_struct  = (1.0_r8-stem_drop_fraction)*c_struct
-            cstatus = leaves_off
+            leaf_status = leaves_off
           endif
         end if ! SP mode
 
@@ -955,17 +956,17 @@ contains
           select case(hlm_parteh_mode)
           case (prt_carbon_allom_hyp, prt_cnp_flex_allom_hyp )
 
-          ! Put all of the leaf mass into the first bin
-            call SetState(prt_obj, leaf_organ, element_id, m_leaf, 1)
+            ! Put all of the leaf mass into the first bin
+            call SetState(prt, leaf_organ, element_id, m_leaf, 1)
             do iage = 2,nleafage
-              call SetState(prt_obj, leaf_organ, element_id, 0._r8, iage)
+              call SetState(prt, leaf_organ, element_id, 0._r8, iage)
             end do
 
-            call SetState(prt_obj, fnrt_organ, element_id, m_fnrt)
-            call SetState(prt_obj, sapw_organ, element_id, m_sapw)
-            call SetState(prt_obj, store_organ, element_id, m_store)
-            call SetState(prt_obj, struct_organ, element_id, m_struct)
-            call SetState(prt_obj, repro_organ, element_id, m_repro)
+            call SetState(prt, fnrt_organ, element_id, m_fnrt)
+            call SetState(prt, sapw_organ, element_id, m_sapw)
+            call SetState(prt, store_organ, element_id, m_store)
+            call SetState(prt, struct_organ, element_id, m_struct)
+            call SetState(prt, repro_organ, element_id, m_repro)
 
           case default
             write(fates_log(),*) 'Unspecified PARTEH module during create_cohort'
@@ -974,7 +975,7 @@ contains
 
         end do
 
-        call prt_obj%CheckInitialConditions()
+        call prt%CheckInitialConditions()
 
         call create_cohort(site_in, patch_in, pft, cohort_n,                             &
           EDPftvarcon_inst%hgt_min(pft), 0.0_r8, dbh, prt, leaf_status, recruitstatus,   &
@@ -997,6 +998,5 @@ contains
   end subroutine init_cohorts
 
   ! ======================================================================================
-
 
 end module EDInitMod

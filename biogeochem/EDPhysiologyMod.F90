@@ -130,6 +130,7 @@ module EDPhysiologyMod
   public :: phenology
   public :: satellite_phenology
   public :: assign_cohort_SP_properties
+  public :: calculate_SP_properties
   public :: recruitment
   public :: ZeroLitterFluxes
 
@@ -1621,120 +1622,143 @@ contains
 
   end subroutine satellite_phenology
 
-  ! =====================================================================================
+  ! ======================================================================================
 
-  subroutine assign_cohort_SP_properties(currentCohort,htop,tlai,tsai,parea,init,leaf_c)
+  subroutine calculate_SP_properties(htop, tlai, tsai, parea, pft, crown_damage,         &
+      canopy_layer, vcmax25top, leaf_c, dbh, cohort_n, c_area)
+    !
+    ! DESCRIPTION:
+    !  Takes the daily inputs of leaf area index, stem area index and canopy height and
+    !  translates them into a FATES structure with one patch and one cohort per PFT.
+    !  The leaf area of the cohort is modified each day to match that asserted by the HLM
+    !
 
-    ! -----------------------------------------------------------------------------------!
-    ! Takes the daily inputs of leaf area index, stem area index and canopy height and
-    ! translates them into a FATES structure with one patch and one cohort per PFT
-    ! The leaf area of the cohort is modified each day to match that asserted by the HLM
-    ! -----------------------------------------------------------------------------------!
-   
+    ! ARGUMENTS:
+    real(r8), intent(in)  :: tlai         ! target leaf area index from SP inputs [m2 m-2]
+    real(r8), intent(in)  :: tsai         ! target stem area index from SP inputs [m2 m-2]
+    real(r8), intent(in)  :: htop         ! target tree height from SP inputs [m]
+    real(r8), intent(in)  :: parea        ! patch area for this PFT [m2]
+    real(r8), intent(in)  :: vcmax25top   ! maximum carboxylation at canopy top and 25degC [umol CO2/m2/s]
+    integer,  intent(in)  :: pft          ! cohort PFT index
+    integer,  intent(in)  :: crown_damage ! cohort crown damage status
+    integer,  intent(in)  :: canopy_layer ! canopy status of cohort [1 = canopy, 2 = understorey, etc.]
+    real(r8), intent(out) :: leaf_c       ! leaf carbon estimated to generate target tlai [kgC]
+    real(r8), intent(out) :: dbh          ! cohort diameter at breast height [cm]
+    real(r8), intent(out) :: cohort_n     ! cohort density [/m2]
+    real(r8), intent(out) :: c_area
 
-    type(fates_cohort_type), intent(inout), target :: currentCohort
+    ! LOCAL VARIABLES:
+    real(r8) :: check_treelai       ! check tree LAI against input tlai [m2/m2]
+    real(r8) :: canopylai(1:nclmax) ! canopy LAI [m2/m2]
+    real(r8) :: oldcarea            ! save value of crown area [m2]
 
-    real(r8), intent(in) :: tlai ! target leaf area index from SP inputs
-    real(r8), intent(in) :: tsai ! target stem area index from SP inputs
-    real(r8), intent(in) :: htop ! target tree height from SP inputs
-    real(r8), intent(in) :: parea ! patch area for this PFT
-    integer, intent(in)  :: init ! are we in the initialization routine? if so do not set leaf_c
-    real(r8), intent(out) ::  leaf_c        ! leaf carbon estimated to generate target tlai
+    ! calculate DBH from input height
+    call h2d_allom(htop, pft, dbh)
 
-    real(r8) :: dummy_n       ! set cohort n to a dummy value of 1.0
-    integer  :: fates_pft     ! fates pft numer for weighting loop
-    real(r8) :: spread        ! dummy value of canopy spread to estimate c_area
-    real(r8) :: check_treelai
-    real(r8) :: canopylai(1:nclmax)
-    real(r8) :: fracerr
-    real(r8) :: oldcarea
+    ! calculate canopy area, assuming n = 1.0 and spread = 1.0_r8
+    call carea_allom(dbh, 1.0_r8, 1.0_r8, pft, crown_damage, c_area)
 
-    ! Do some checks
-    if(associated(currentCohort%shorter))then
-       write(fates_log(),*) 'SP mode has >1 cohort'
-       write(fates_log(),*) "SP mode >1 cohort: PFT",currentCohort%pft, currentCohort%shorter%pft
-       write(fates_log(),*) "SP mode >1 cohort: CL",currentCohort%canopy_layer, currentCohort%shorter%canopy_layer
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    end if
+    ! calculate canopy N assuming patch area is full
+    cohort_n = parea/c_area
 
-    !------------------------------------------
-    !  Calculate dbh from input height, and c_area from dbh
-    !------------------------------------------
-    currentCohort%hite = htop
+    ! correct c_area for the new nplant, assuming spread = 1.0
+    call carea_allom(dbh, cohort_n, 1.0_r8, pft, crown_damage, c_area)
 
-    fates_pft = currentCohort%pft
-    call h2d_allom(currentCohort%hite,fates_pft,currentCohort%dbh)
-
-    dummy_n = 1.0_r8 ! make n=1 to get area of one tree.
-    spread = 1.0_r8  ! fix this to 0 to remove dynamics of canopy closure, assuming a closed canopy.
-    ! n.b. the value of this will only affect 'n', which isn't/shouldn't be a diagnostic in
-    ! SP mode.
-    call carea_allom(currentCohort%dbh,dummy_n,spread,currentCohort%pft,&
-         currentCohort%crowndamage,currentCohort%c_area)
-
-    !------------------------------------------
-    !  Calculate canopy N assuming patch area is full
-    !------------------------------------------
-    currentCohort%n = parea / currentCohort%c_area
-
-    ! correct c_area for the new nplant
-    call carea_allom(currentCohort%dbh,currentCohort%n,spread,currentCohort%pft,&
-         currentCohort%crowndamage,currentCohort%c_area)
-
-    ! ------------------------------------------
-    ! Calculate leaf carbon from target treelai
-    ! ------------------------------------------
-    currentCohort%treelai = tlai
+    ! calculate leaf carbon from target treelai
     canopylai(:) = 0._r8
-    if(init.eq.itrue)then
-       ! If we are initializing, the canopy layer has not been set yet, so just set to 1
-       currentCohort%canopy_layer = 1
-       ! We need to get the vcmax25top
-       currentCohort%vcmax25top = EDPftvarcon_inst%vcmax25top(currentCohort%pft,1)
-    endif
-    leaf_c = leafc_from_treelai( currentCohort%treelai, currentCohort%pft, currentCohort%c_area,&
-         currentCohort%n, currentCohort%canopy_layer, currentCohort%vcmax25top)
+    leaf_c = leafc_from_treelai(tlai, pft, c_area, cohort_n, canopy_layer, vcmax25top)
 
-    !check that the inverse calculation of leafc from treelai is the same as the
+    ! check that the inverse calculation of leafc from treelai is the same as the
     ! standard calculation of treelai from leafc. Maybe can delete eventually?
+    check_treelai = tree_lai(leaf_c, pft, c_area, cohort_n, canopy_layer,                &
+         canopylai, vcmax25top)
 
-    check_treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, &
-         currentCohort%n, currentCohort%canopy_layer,               &
-         canopylai,currentCohort%vcmax25top )
-
-    if( abs(currentCohort%treelai-check_treelai).gt.1.0e-12)then !this is not as precise as nearzero
-       write(fates_log(),*) 'error in validate treelai',currentCohort%treelai,check_treelai,currentCohort%treelai-check_treelai
-       write(fates_log(),*) 'tree_lai inputs: ', currentCohort%pft, currentCohort%c_area, currentCohort%n, &
-               currentCohort%canopy_layer, currentCohort%vcmax25top
+    if (abs(tlai - check_treelai) .gt. 1.0e-12) then !this is not as precise as nearzero
+      write(fates_log(),*) 'error in validate treelai', tlai, check_treelai, tlai - check_treelai
+      write(fates_log(),*) 'tree_lai inputs: ', pft, c_area, cohort_n,                   &
+        canopy_layer, vcmax25top
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
     ! the carea_allom routine sometimes generates precision-tolerance level errors in the canopy area
     ! these mean that the canopy area does not exactly add up to the patch area, which causes chaos in
     ! the radiation routines.  Correct both the area and the 'n' to remove error, and don't use
-    !! carea_allom in SP mode after this point.
+    ! carea_allom in SP mode after this point.
 
-    if(abs(currentCohort%c_area-parea).gt.nearzero)then ! there is an error
-       if(abs(currentCohort%c_area-parea).lt.10.e-9)then !correct this if it's a very small error
-          oldcarea = currentCohort%c_area
-          !generate new cohort area
-          currentCohort%c_area = currentCohort%c_area - (currentCohort%c_area- parea)
-          currentCohort%n = currentCohort%n * (currentCohort%c_area/oldcarea)
-          if(abs(currentCohort%c_area-parea).gt.nearzero)then
-             write(fates_log(),*) 'SPassign, c_area still broken',currentCohort%c_area-parea,currentCohort%c_area-oldcarea
-             call endrun(msg=errMsg(sourcefile, __LINE__))
+    if (abs(c_area - parea) .gt. nearzero) then ! there is an error
+      if (abs(c_area - parea) .lt. 10.e-9) then ! correct this if it's a very small error
+          oldcarea = c_area
+          ! generate new cohort area
+          c_area = c_area - (c_area - parea)
+          cohort_n = cohort_n*(c_area/oldcarea)
+          if (abs(c_area-parea) .gt. nearzero) then
+            write(fates_log(),*) 'SPassign, c_area still broken', c_area - parea, c_area - oldcarea
+            call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
        else
-          write(fates_log(),*) 'SPassign, big error in c_area',currentCohort%c_area-parea,currentCohort%pft
+          write(fates_log(),*) 'SPassign, big error in c_area', c_area - parea, pft
        end if ! still broken
     end if !small error
 
-    if(init.eq.ifalse)then
-       call SetState(currentCohort%prt, leaf_organ, carbon12_element, leaf_c, 1)
+  end subroutine calculate_SP_properties
+
+  ! ======================================================================================
+
+  subroutine assign_cohort_SP_properties(currentCohort, htop, tlai, tsai, parea, init,   &
+    leaf_c)
+    !
+    ! DESCRIPTION:
+    !  Takes the daily inputs of leaf area index, stem area index and canopy height and
+    !  translates them into a FATES structure with one patch and one cohort per PFT.
+    !  The leaf area of the cohort is modified each day to match that asserted by the HLM
+
+   
+    ! ARGUMENTS
+    type(fates_cohort_type), intent(inout), target :: currentCohort ! cohort object
+    real(r8),                intent(in)            :: tlai          ! target leaf area index from SP inputs [m2/m2]
+    real(r8),                intent(in)            :: tsai          ! target stem area index from SP inputs [m2/m2]
+    real(r8),                intent(in)            :: htop          ! target tree height from SP inputs [m]
+    real(r8),                intent(in)            :: parea         ! patch area for this PFT [m2]
+    integer,                 intent(in)            :: init          ! are we in the initialization routine? if so do not set leaf_c
+    real(r8),                intent(out)           :: leaf_c       ! leaf carbon estimated to generate target tlai [kgC]
+
+    ! LOCAL VARIABLES
+    real(r8) :: dbh      ! cohort dbh [cm]
+    real(r8) :: cohort_n ! cohort density [/m2]
+    real(r8) :: c_area   ! cohort canopy area [m2]
+
+    if (associated(currentCohort%shorter)) then
+      write(fates_log(),*) 'SP mode has >1 cohort'
+      write(fates_log(),*) "SP mode >1 cohort: PFT", currentCohort%pft, currentCohort%shorter%pft
+      write(fates_log(),*) "SP mode >1 cohort: CL", currentCohort%canopy_layer, currentCohort%shorter%canopy_layer
+      call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
+
+    if (init .eq. itrue) then
+      ! If we are initializing, the canopy layer has not been set yet, so just set to 1
+      currentCohort%canopy_layer = 1
+      ! We need to get the vcmax25top
+      currentCohort%vcmax25top = EDPftvarcon_inst%vcmax25top(currentCohort%pft, 1)
     endif
 
-    ! assert sai
+    call calculate_SP_properties(htop, tlai, tsai, parea, currentCohort%pft,             &
+      currentCohort%crowndamage, currentCohort%canopy_layer, currentCohort%vcmax25top,   &
+      leaf_c, dbh, cohort_n, c_area)
+
+    ! set allometric characteristics
+    currentCohort%hite = htop
+    currentCohort%dbh = dbh
+    currentCohort%n = cohort_n
+    currentCohort%c_area = c_area
+    currentCohort%treelai = tlai
     currentCohort%treesai = tsai
+
+    leaf_c = leafc_from_treelai(tlai, currentCohort%pft, currentCohort%c_area,           &
+      currentCohort%n, currentCohort%canopy_layer, currentCohort%vcmax25top)
+    
+    if (init .eq. ifalse) then
+      call SetState(currentCohort%prt, leaf_organ, carbon12_element, leaf_c, 1)
+    endif
 
   end subroutine assign_cohort_SP_properties
 
