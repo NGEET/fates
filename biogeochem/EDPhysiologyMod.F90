@@ -1858,7 +1858,7 @@ contains
              litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)/area
 
              ! If we are using the Tree Recruitment Scheme (TRS) with or w/o seedling dynamics
-             if ( regeneration_model >= TRS .and. &
+             if ( any(regeneration_model == [TRS, TRS_no_seedling_dyn]) .and. &
                   prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees) then
              
              ! Send a fraction of reproductive carbon to litter to account for 
