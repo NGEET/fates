@@ -1956,7 +1956,7 @@ contains
        ! If the TRS is switched on and the pft is a tree then add non-seed reproductive biomass
        ! to the seed decay flux. This was added to litt%seed_decay in the previously called SeedIn 
        ! subroutine
-       if ( regeneration_model >= TRS .and. &
+       if ( any(regeneration_model == [TRS, TRS_no_seedling_dyn]) .and. &
                   prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees ) then
   
        litt%seed_decay(pft) = litt%seed_decay(pft) + &! From non-seed reproductive biomass (added in
