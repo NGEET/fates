@@ -990,7 +990,7 @@ module PRTAllometricCarbonMod
         ! If the TRS is switched on (with or w/o seedling dynamics) then reproductive allocation is
         ! a pft-specific function of dbh. This allows for the representation of different
         ! reproductive schedules (Wenk and Falster, 2015)
-        else if ( regeneration_model >= TRS .and. &
+        else if ( any(regeneration_model == [TRS, TRS_no_seedling_dyn]) .and. &
                   prt_params%allom_dbh_maxheight(ipft) > min_max_dbh_for_trees ) then
 
         repro_fraction = prt_params%seed_alloc(ipft) * &

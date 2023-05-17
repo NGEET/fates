@@ -2100,7 +2100,7 @@ contains
     ! Until bc's are pointed to by sites give veg a default temp [K]
     real(r8), parameter :: temp_init_veg = 15._r8+t_water_freeze_k_1atm 
     
-    real(r8), parameter :: init_seedling_par = 5.0_r8          !arbtrary initialization for 
+    real(r8), parameter :: init_seedling_par = 5.0_r8          !arbitrary initialization for 
                                                                !seedling layer PAR [MJ m-2 d-1]
 
     real(r8), parameter :: init_seedling_smp = -26652.0_r8     !arbitrary initialization of smp [mm]

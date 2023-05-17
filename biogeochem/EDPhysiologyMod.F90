@@ -1858,7 +1858,7 @@ contains
              litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)/area
 
              ! If we are using the Tree Recruitment Scheme (TRS) with or w/o seedling dynamics
-             if ( regeneration_model >= TRS .and. &
+             if ( any(regeneration_model == [TRS, TRS_no_seedling_dyn]) .and. &
                   prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees) then
              
              ! Send a fraction of reproductive carbon to litter to account for 
@@ -1956,7 +1956,7 @@ contains
        ! If the TRS is switched on and the pft is a tree then add non-seed reproductive biomass
        ! to the seed decay flux. This was added to litt%seed_decay in the previously called SeedIn 
        ! subroutine
-       if ( regeneration_model >= TRS .and. &
+       if ( any(regeneration_model == [TRS, TRS_no_seedling_dyn]) .and. &
                   prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees ) then
   
        litt%seed_decay(pft) = litt%seed_decay(pft) + &! From non-seed reproductive biomass (added in
@@ -1993,13 +1993,13 @@ contains
        seedling_mdds = currentPatch%sdlng_mdd(pft)%p%GetMean()     
     
        ! Calculate seedling mortality as a function of moisture deficit days (mdd)
-       seedling_h2o_mort_rate = EDPftvarcon_inst%seedling_h2o_mort_a(pft) * seedling_mdds**2 + &
-                                EDPftvarcon_inst%seedling_h2o_mort_b(pft) * seedling_mdds + &
-                                EDPftvarcon_inst%seedling_h2o_mort_c(pft)
-
        ! If the seedling mmd value is below a critical threshold then moisture-based mortality is zero
        if (seedling_mdds < EDPftvarcon_inst%seedling_mdd_crit(pft)) then
            seedling_h2o_mort_rate = 0.0_r8
+        else
+          seedling_h2o_mort_rate = EDPftvarcon_inst%seedling_h2o_mort_a(pft) * seedling_mdds**2 + &
+                                   EDPftvarcon_inst%seedling_h2o_mort_b(pft) * seedling_mdds + &
+                                   EDPftvarcon_inst%seedling_h2o_mort_c(pft)
        end if ! mdd threshold check
      
        ! Step 3. Sum modes of mortality (including background mortality) and send dead seedlings
