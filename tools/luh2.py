@@ -15,71 +15,66 @@ def main():
     # Allow variable input files (state and/or transitions and/or management)
     args = CommandLineArgs()
 
-
-    # Prep the LUH2 datasets and regrid target
+    # Import and prep the LUH2 datasets and regrid target
     ds_luh2 = ImportData(args.luh2_file,args.begin,args.end)
+    ds_regrid_target = ImportData(args.regridder_target_file,args.begin,args.end)
 
 
-    if (args.regridder_file == None):
-        ds_regrid_target = ImportData(args.regridder_target_file,args.begin,args.end)
+    # Import the LUH2 static data to use for masking
+    ds_luh2_static = ImportData(args.luh2_static_file)
 
-        # Import the LUH2 static data to use for masking
-        ds_luh2_static = ImportData(args.luh2_static_file)
+    # Create new variable where the ice water fraction is inverted w
+    ds_luh2_static["landfrac"] = 1 - ds_luh2_static.icwtr
 
-        # Create new variable where the ice water fraction is inverted w
-        ds_luh2_static["landfrac"] = 1 - ds_luh2_static.icwtr
+    # Mask all LUH2 input data using the ice/water fraction for the LUH2 static data
+    ds_luh2 = SetMaskLUH2(ds_luh2, ds_luh2_static)
+    ds_luh2_static = SetMaskLUH2(ds_luh2_static, ds_luh2_static)
 
-        # Mask all LUH2 input data using the ice/water fraction for the LUH2 static data
-        ds_luh2 = SetMaskLUH2(ds_luh2, ds_luh2_static)
-        ds_luh2_static = SetMaskLUH2(ds_luh2_static, ds_luh2_static)
+    # Mask the regrid target
+    ds_regrid_target = SetMaskSurfData(ds_regrid_target)
 
-        # Mask the regrid target
-        ds_regrid_target = SetMaskSurfData(ds_regrid_target)
+    # Determine if we are saving a new regridder or using an old one
+    # TO DO: add check to handle if the user enters the full path
+    # TO DO: check if its possible to enter nothing with the argument
+    regrid_reuse = False
+    # If we are merging files together, we assume that the weights file
+    # being supplied exists on file
+    if (not isinstance(args.luh2_merge_file,type(None))):
+        regrid_reuse = True
 
-        # Handle regridder file save name
-        # TO DO: add check to handle if the user enters the full path
-        # TO DO: check if its possible to enter nothing with the argument
-        if (args.regridder_save_name == None):
-            regridder_save_file = None
-            print("Warning: Regridder will not be saved to file")
-        else:
-            regridder_save_file = args.regridder_save_name
+    # Regrid the luh2 data to the target grid
+    # TO DO: provide a check for the save argument based on the input arguments
+    regrid_luh2,regridder_luh2 = RegridConservative(ds_luh2, ds_regrid_target,
+                                                    args.regridder_weights, regrid_reuse)
 
-        # Regrid the luh2 data to the target grid
-        # TO DO: provide a check for the save argument based on the input arguments
-        regrid_luh2,regridder_luh2 = RegridConservative(ds_luh2, ds_regrid_target, regridder_save_file)
-
-    elif (args.regridder_target_file == None):
-        regridder_luh2 = ImportData(args.regridder_file)
-        regrid_luh2 = RegridLoop(ds_luh2,regridder_luh2)
-        # TO DO: check that the time bounds match the argument bounds
-
-    # # Regrid the inverted ice/water fraction data to the target grid
-    #regridder_land_fraction = RegridConservative(ds_luh2_static, ds_regrid_target)
-    #regrid_land_fraction = regridder_land_fraction(ds_luh2_static)
+    # Regrid the inverted ice/water fraction data to the target grid
     regrid_land_fraction = regridder_luh2(ds_luh2_static)
 
     # Adjust the luh2 data by the land fraction
+    # TO DO: determine if this is necessary for the transitions and management data
     regrid_luh2 = regrid_luh2 / regrid_land_fraction.landfrac
 
-    # Correct the state sum (will be returned as if in not state values)
+    # Correct the state sum (checks if argument passed is state file in the function)
     regrid_luh2 = CorrectStateSum(regrid_luh2)
-
-    # Add additional required variables for the host land model
-    # Add 'YEAR' as a variable.
-    # This is an old requirement of the HLM and should simply be a copy of the `time` dimension
-    regrid_luh2["YEAR"] = regrid_luh2.time
-    regrid_luh2["LONGXY"] = ds_regrid_target["LONGXY"] # TO DO: double check if this is strictly necessary
-    regrid_luh2["LATIXY"] = ds_regrid_target["LATIXY"] # TO DO: double check if this is strictly necessary
-
-    # Rename the dimensions for the output
-    regrid_luh2 = regrid_luh2.rename_dims({'lat':'lsmlat','lon':'lsmlon'})
 
     # Merge existing regrided luh2 file with merge input target
     # TO DO: check that the grid resolution and time bounds match
     if (not(isinstance(args.luh2_merge_file,type(None)))):
         ds_luh2_merge = ImportData(args.luh2_merge_file)
         regrid_luh2 = regrid_luh2.merge(ds_luh2_merge)
+
+    # Add additional required variables for the host land model
+    # Add 'YEAR' as a variable.
+    # This is an old requirement of the HLM and should simply be a copy of the `time` dimension
+    # If we are merging, we might not need to do this, so check to see if its there already
+    if (not "YEAR" in list(regrid_luh2.variables)):
+        regrid_luh2["YEAR"] = regrid_luh2.time
+        regrid_luh2["LONGXY"] = ds_regrid_target["LONGXY"] # TO DO: double check if this is strictly necessary
+        regrid_luh2["LATIXY"] = ds_regrid_target["LATIXY"] # TO DO: double check if this is strictly necessary
+
+    # Rename the dimensions for the output.  This needs to happen after the "LONGXY/LATIXY" assignment
+    if ('lat' in list(regrid_luh2.dims)):
+        regrid_luh2 = regrid_luh2.rename_dims({'lat':'lsmlat','lon':'lsmlon'})
 
     # Write the files
     # TO DO: add check to handle if the user enters the full path
@@ -103,18 +98,14 @@ def CommandLineArgs():
     # TO DO: using the checking function to report back if invalid file input
     parser.add_argument("-l","--luh2_file", required=True)
 
-    # Provide mutually exlusive arguments for regridding input selection
-    # Currently assuming that if a target is provided that a regridder file will be saved
-    regrid_target = parser.add_mutually_exclusive_group(required=True)
-    regrid_target.add_argument("-rf","--regridder_file") # use previously save regridder file
-    regrid_target.add_argument("-rt","--regridder_target_file")  # use a dataset to regrid to
+    # Required static luh2 data to get the ice/water fraction for masking
+    parser.add_argument("-s", "--luh2_static_file", required=True)
 
-    # TO DO: static file is required if regridder file argument is not used
-    # Required static luh2 data to get the ice/water fraction
-    parser.add_argument("-s", "--luh2_static_file")
+    # File to use as regridder target (e.g. a surface dataset)
+    parser.add_argument("-r","--regridder_target_file", required=True)
 
-    # Optional argument for defining the regridder file name
-    parser.add_argument("-rs", "--regridder_save_name")
+    # Filename to use or save for the regridder weights
+    parser.add_argument("-w", "--regridder_weights", required=True)
 
     # Optional input to subset the time range of the data
     parser.add_argument("-b","--begin")

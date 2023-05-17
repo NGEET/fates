@@ -203,15 +203,32 @@ def CheckDataset(input_dataset):
 
     return(dsflag,dstype)
 
-def RegridConservative(ds_to_regrid,ds_regrid_target,regridder_save_file):
+def RegridConservative(ds_to_regrid, ds_regrid_target, regridder_weights, regrid_reuse):
 
     # define the regridder transformation
-    regridder = GenerateRegridder(ds_to_regrid, ds_regrid_target, regridder_save_file)
+    regridder = GenerateRegridder(ds_to_regrid, ds_regrid_target, regridder_weights, regrid_reuse)
 
     # Loop through the variables to regrid
     ds_regrid = RegridLoop(ds_to_regrid, regridder)
 
     return (ds_regrid, regridder)
+
+def GenerateRegridder(ds_to_regrid, ds_regrid_target, regridder_weights_file, regrid_reuse):
+
+    regrid_method = "conservative"
+    print("\nDefining regridder, method: ", regrid_method)
+
+    if (regrid_reuse):
+        regridder = xe.Regridder(ds_to_regrid, ds_regrid_target,
+                                 regrid_method, weights=regridder_weights_file)
+    else:
+        regridder = xe.Regridder(ds_to_regrid, ds_regrid_target, regrid_method)
+
+        # If we are not reusing the regridder weights file, then save the regridder
+        filename = regridder.to_netcdf(regridder_weights_file)
+        print("regridder saved to file: ", filename)
+
+    return(regridder)
 
 def RegridLoop(ds_to_regrid, regridder):
 
@@ -247,20 +264,6 @@ def RegridLoop(ds_to_regrid, regridder):
             print("skipping variable {}/{}: {}".format(i+1, varlen, ds_varnames[i]))
 
     return(ds_regrid)
-
-def GenerateRegridder(ds_to_regrid, ds_regrid_target,regridder_save_file):
-
-    regrid_method = "conservative"
-    print("\nDefining regridder, method: ", regrid_method)
-    regridder = xe.Regridder(ds_to_regrid, ds_regrid_target, regrid_method)
-
-    # If save flag is set, write regridder to a file
-    # TO DO: define a more useful name based on inputs
-    if(not(isinstance(regridder_save_file,type(None)))):
-        filename = regridder.to_netcdf(regridder_save_file)
-        print("regridder saved to file: ", filename)
-
-    return(regridder)
 
 # Temporary: Add minor correction factor to assure states sum to one
 def CorrectStateSum(input_dataset):
