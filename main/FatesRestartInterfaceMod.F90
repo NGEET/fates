@@ -3179,8 +3179,8 @@ contains
              call this%GetRMeanRestartVar(cpatch%sdlng2sap_par, ir_sdlng2sap_par_pa,io_idx_co_1st)
              
              do pft = 1, maxpft 
-             call this%GetRMeanRestartVar(cpatch%sdlng_mdd(pft)%p, ir_sdlng_mdd_pa,io_idx_co_1st)
-             call this%GetRMeanRestartVar(cpatch%sdlng_emerg_smp(pft)%p, ir_sdlng_emerg_smp_pa,io_idx_co_1st)
+                call this%GetRMeanRestartVar(cpatch%sdlng_mdd(pft)%p, ir_sdlng_mdd_pa,io_idx_co_1st)
+                call this%GetRMeanRestartVar(cpatch%sdlng_emerg_smp(pft)%p, ir_sdlng_emerg_smp_pa,io_idx_co_1st)
              enddo
 
              ! set cohorts per patch for IO

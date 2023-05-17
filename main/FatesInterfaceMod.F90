@@ -1990,13 +1990,6 @@ contains
            ! Calculate new_seedling_layer_par (total PAR at the lowest leaf layer of the lowest canopy layer)
            ! using the weighted average of direct and diffuse par.
            
-           ! Notes to code reviewers on calculating "new_seedling_layer_par" (4-11-2023):
-           ! 1. Charlie or Ryan, can you please verify that weighted-avg approach is indeed getting
-           ! *total* par at the lowest leaf layer of the lowest canopy layer?
-           ! 2. This variable currently might create a seedling layer par that is too dark because
-           ! it assumes that all seedlings are hiding under larger trees? Where the canopy is closed this is
-           ! OK, but in open forest it will overesimtae shade expected by seedlings I think?
-           ! What if the sun_frac weight above were multiplied by bc_in(s)%solad_parb(ifp,ipar) instead?
            new_seedling_layer_par = & 
              (cpatch%parprof_dir_z(cpatch%ncl_p,n_leaf) * lai_sun_frac) + &
              (cpatch%parprof_dif_z(cpatch%ncl_p,n_leaf) * (1.0_r8 - lai_sun_frac))
@@ -2016,26 +2009,27 @@ contains
            !write(fates_log(),*) 'new_seedling_layer_par', new_seedling_layer_par
 
            do pft = 1,numpft
+               
+               ! Calculate the soil moisture at the seedling rooting depth for each pft
+               
+               ilayer_seedling_root(pft) = minloc(abs(bc_in(s)%z_sisl(:)-EDPftvarcon_inst%seedling_root_depth(pft)),dim=1)
+               new_seedling_layer_smp(pft) = bc_in(s)%smp_sl(ilayer_seedling_root(pft))
+               
+               ! Calculate the new moisture deficit day (mdd) value for each pft
+               new_seedling_mdd(pft) = (abs(EDPftvarcon_inst%seedling_psi_crit(pft)) - abs(new_seedling_layer_smp(pft))) &
+               * (-1.0_r8) * sdlng_mdd_timescale
+               
+               ! If mdds are negative then it means that soil is wetter than smp_crit and the moisture
+               ! deficit is 0  
+               if (new_seedling_mdd(pft) < 0.0_r8) then
+               new_seedling_mdd(pft) = 0.0_r8
+               endif 
+               
+               ! Update the seedling layer smp and mdd running means
+               call cpatch%sdlng_emerg_smp(pft)%p%UpdateRMean(new_seedling_layer_smp(pft))
+               call cpatch%sdlng_mdd(pft)%p%UpdateRMean(new_seedling_mdd(pft))
            
-           ! Calculate the soil moisture at the seedling rooting depth for each pft
-
-           ilayer_seedling_root(pft) = minloc(abs(bc_in(s)%z_sisl(:)-EDPftvarcon_inst%seedling_root_depth(pft)),dim=1)
-           new_seedling_layer_smp(pft) = bc_in(s)%smp_sl(ilayer_seedling_root(pft))
-
-           ! Calculate the new moisture deficit day (mdd) value for each pft
-           new_seedling_mdd(pft) = (abs(EDPftvarcon_inst%seedling_psi_crit(pft)) - abs(new_seedling_layer_smp(pft))) &
-                                   * (-1.0_r8) * sdlng_mdd_timescale
-          
-           ! If mdds are negative then it means that soil is wetter than smp_crit and the moisture
-           ! deficit is 0  
-           if (new_seedling_mdd(pft) < 0.0_r8) then
-                  new_seedling_mdd(pft) = 0.0_r8
-           endif 
-
-           ! Update the seedling layer smp and mdd running means
-           call cpatch%sdlng_emerg_smp(pft)%p%UpdateRMean(new_seedling_layer_smp(pft))
-           call cpatch%sdlng_mdd(pft)%p%UpdateRMean(new_seedling_mdd(pft))
-           enddo !
+           enddo !end pft loop
            
            !ccohort => cpatch%tallest
            !do while (associated(ccohort))
