@@ -19,7 +19,6 @@ def main():
     ds_luh2 = ImportData(args.luh2_file,args.begin,args.end)
     ds_regrid_target = ImportData(args.regridder_target_file,args.begin,args.end)
 
-
     # Import the LUH2 static data to use for masking
     ds_luh2_static = ImportData(args.luh2_static_file)
 
@@ -60,7 +59,7 @@ def main():
     # Merge existing regrided luh2 file with merge input target
     # TO DO: check that the grid resolution and time bounds match
     if (not(isinstance(args.luh2_merge_file,type(None)))):
-        ds_luh2_merge = ImportData(args.luh2_merge_file)
+        ds_luh2_merge = ImportData(args.luh2_merge_file,True)
         regrid_luh2 = regrid_luh2.merge(ds_luh2_merge)
 
     # Add additional required variables for the host land model

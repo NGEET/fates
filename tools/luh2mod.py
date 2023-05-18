@@ -8,7 +8,7 @@ from nco import Nco
 from nco.custom import Atted
 
 # Import luh2 or surface data sets
-def ImportData(input_file,start=None,stop=None):
+def ImportData(input_file,start=None,stop=None,merge_flag=False):
 
     # Open files
     # Check to see if a ValueError is raised which is likely due
@@ -25,13 +25,13 @@ def ImportData(input_file,start=None,stop=None):
     else:
        print("Input file dataset opened: {}".format(input_file))
 
-       datasetout = PrepDataset(datasetout,start,stop)
+       datasetout = PrepDataset(datasetout,start,stop,merge_flag)
 
        return(datasetout)
 
 
 # Prepare the input_file to be used for regridding
-def PrepDataset(input_dataset,start=None,stop=None):
+def PrepDataset(input_dataset,start=None,stop=None,merge_flag=False):
 
     # Use the maximum span if start and stop are not present
     dsflag, dstype = CheckDataset(input_dataset)
@@ -53,7 +53,9 @@ def PrepDataset(input_dataset,start=None,stop=None):
             raise TypeError(type_err)
 
         # Correct the necessary variables for both datasets
-        input_dataset = PrepDataset_ESMF(input_dataset,dsflag,dstype)
+        # We don't need to Prep the incoming dataset if it's being opened to merge
+        if(not merge_flag):
+            input_dataset = PrepDataset_ESMF(input_dataset,dsflag,dstype)
 
     return(input_dataset)
 
@@ -183,7 +185,9 @@ def CheckDataset(input_dataset):
 
     dsflag = False
     dsvars = list(input_dataset.variables)
-    if('primf' in dsvars or 'primf_to_secdn' in dsvars or 'irrig' in dsvars):
+    if('primf' in dsvars or
+       'primf_to_secdn' in dsvars or
+       any('irrig' in subname for subname in dsvars)):
         dstype = 'LUH2'
         dsflag = True
         print("LUH2")
