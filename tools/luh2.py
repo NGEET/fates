@@ -56,12 +56,6 @@ def main():
     # Correct the state sum (checks if argument passed is state file in the function)
     regrid_luh2 = CorrectStateSum(regrid_luh2)
 
-    # Merge existing regrided luh2 file with merge input target
-    # TO DO: check that the grid resolution and time bounds match
-    if (not(isinstance(args.luh2_merge_file,type(None)))):
-        ds_luh2_merge = ImportData(args.luh2_merge_file,True)
-        regrid_luh2 = regrid_luh2.merge(ds_luh2_merge)
-
     # Add additional required variables for the host land model
     # Add 'YEAR' as a variable.
     # This is an old requirement of the HLM and should simply be a copy of the `time` dimension
@@ -72,22 +66,29 @@ def main():
         regrid_luh2["LATIXY"] = ds_regrid_target["LATIXY"] # TO DO: double check if this is strictly necessary
 
     # Rename the dimensions for the output.  This needs to happen after the "LONGXY/LATIXY" assignment
-    if ('lat' in list(regrid_luh2.dims)):
+    if (not 'lsmlat' in list(regrid_luh2.dims)):
         regrid_luh2 = regrid_luh2.rename_dims({'lat':'lsmlat','lon':'lsmlon'})
+
+    # Merge existing regrided luh2 file with merge input target
+    # TO DO: check that the grid resolution 
+    # We could do this with an append during the write phase instead of the merge
+    if (not(isinstance(args.luh2_merge_file,type(None)))):
+        ds_luh2_merge = ImportData(args.luh2_merge_file,args.begin,args.end,merge_flag=True)
+        #ds_luh2_merge = ds_luh2_merge.merge(regrid_luh2)
+        regrid_luh2 = regrid_luh2.merge(ds_luh2_merge)
 
     # Write the files
     # TO DO: add check to handle if the user enters the full path
+    # TO DO: add check if user sets the output the same as the input
     if (args.output == None):
         output_filename = 'LUH2_timeseries.nc'
     else:
         output_filename = args.output
 
+
     output_file = os.path.join(os.getcwd(),output_filename)
     print("generating output: {}".format(output_file))
     regrid_luh2.to_netcdf(output_file)
-
-    # Example of file naming scheme
-    # finb_luh2_all_regrid.to_netcdf('LUH2_historical_1850_2015_4x5_cdk_220302.nc')
 
 def CommandLineArgs():
 

@@ -267,6 +267,7 @@ def RegridLoop(ds_to_regrid, regridder):
         else:
             print("skipping variable {}/{}: {}".format(i+1, varlen, ds_varnames[i]))
 
+    print("\n")
     return(ds_regrid)
 
 # Temporary: Add minor correction factor to assure states sum to one
