@@ -73,13 +73,13 @@ def PrepDataset_ESMF(input_dataset,dsflag,dstype):
 
     return(input_dataset)
 
-
 # Modify the luh2 metadata to enable xarray to read in data
 # This issue here is that the luh2 time units start prior to
 # year 1672, which cftime should be able to handle, but it
 # appears to need a specific unit name convention "common_years"
-def AttribUpdateLUH2(input_file,output_append="modified"):
+def AttributeUpdateLUH2(input_file,output_append="modified"):
 
+    # TO DO: Make this so that it can handle more than just absolute file location
     # Define the output filename
     index = input_file.find(".nc")
     output_file = input_file[:index] + "_" + output_append + input_file[index:]
@@ -100,20 +100,21 @@ def AttribUpdateLUH2(input_file,output_append="modified"):
     opts = [" -a {0},{1},o,{2},{3}".format(att, var, att_type, newstr)]
     nco.ncatted(input=input_file, output=output_file, options=opts)
 
-    print("Generated modified output file: {}\n".format(output_file))
-
-    return(output_file)
-
     # The following is fixed with PR #62 for pynco but isn't in that latest update yet
     # on conda
     # nco.ncatted(input=input_file,output=output_file,options=[
     #     Atted(mode="overwrite",
     #           att_name="units",
     #           var_name="time",
-    #           value=newstr
+    #           value=newstr,
     #           stype="c"
     #           ),
     # ])
+
+    print("Generated modified output file: {}\n".format(output_file))
+
+    return(output_file)
+
 
 # Create the necessary variable "lat_b" and "lon_b" for xESMF conservative regridding
 # Each lat/lon boundary array is a 2D array corresponding to the bounds of each
@@ -291,9 +292,6 @@ def CorrectStateSum(input_dataset):
 
         # Save the correction value
         input_dataset["stscf"] = 1.0 / state_sum
-
-    # If this is the transitions data apply the state correction to the transitions
-    # elif (any('_to_' in var for var in input_dataset)):
 
     return(input_dataset)
 
