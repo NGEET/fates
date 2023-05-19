@@ -644,7 +644,7 @@ contains
                                   !                   depth interval and ground footprint (m2)
                                   ! cohort_layer_elai*fsun       Leaf area in sunlight within this interval and ground footprint
                                   ! cohort_layer_elai*(1-fsun)   Leaf area in shade within this interval and ground footprint
-                                  
+
                                   if(fsun>nearzero) then
                                      par_per_sunla = (rd_abs_leaf*fsun + rb_abs_leaf) / (fsun*cohort_layer_elai(iv))
                                   else
@@ -662,9 +662,6 @@ contains
                                
                             end if if_radsolver
                             
-
-
-                            
                             ! Part VII: Calculate (1) maximum rate of carboxylation (vcmax),
                             ! (2) maximum electron transport rate, (3) triose phosphate
                             ! utilization rate and (4) the initial slope of CO2 response curve
@@ -674,8 +671,6 @@ contains
                             ! These rates are the specific rates used in the actual photosynthesis
                             ! calculations that take localized environmental effects (temperature)
                             ! into consideration.
-
-
 
                             call LeafLayerBiophysicalRates(par_per_sunla, & ! in
                                  ft,                                 &  ! in
@@ -1722,11 +1717,11 @@ subroutine ScaleLeafLayerFluxToCohort(nv,          & ! in   currentCohort%nv
       ! [m/s] * [m2 cohort's leaf layer]
       g_sb_laweight = g_sb_laweight + 1.0_r8/(rs_llz(il)+rb) * cohort_layer_eleaf_area
 
-      ! GPP    [umolC/m2leaf/s] * [m2 leaf ] -> [umolC/s]   (This is cohort group sum)
+      ! GPP    [umolC/m2leaf/s] * [m2 leaf ] -> [umolC/s]
       gpp = gpp + psn_llz(il) * cohort_layer_eleaf_area
 
       ! Dark respiration
-      ! [umolC/m2leaf/s] * [m2 leaf]    (This is the cohort group sum)
+      ! [umolC/m2leaf/s] * [m2 leaf] 
       rdark = rdark + lmr_llz(il) * cohort_layer_eleaf_area
 
    end do
@@ -2181,6 +2176,8 @@ subroutine LeafLayerMaintenanceRespiration_Ryan_1991(lnc_top, &
    real(r8) :: lmr25   ! leaf layer: leaf maintenance respiration rate at 25C (umol CO2/m**2/s)
    real(r8) :: lmr25top  ! canopy top leaf maint resp rate at 25C for this pft (umol CO2/m**2/s)
 
+   
+   
    ! Parameter
    real(r8), parameter :: lmrha = 46390._r8    ! activation energy for lmr (J/mol)
    real(r8), parameter :: lmrhd = 150650._r8   ! deactivation energy for lmr (J/mol)

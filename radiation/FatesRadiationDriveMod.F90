@@ -1171,7 +1171,7 @@ subroutine FatesSunShadeFracs(nsites, sites,bc_in,bc_out)
   real(r8)          :: elai
   integer           :: CL
   integer           :: FT
-  integer           :: iv
+  integer           :: iv,ib
   integer           :: s
   integer           :: ifp
 

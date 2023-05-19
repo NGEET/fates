@@ -432,7 +432,7 @@ contains
     real(r8), intent(out) :: R_abs_stem    ! Absorbed beam+diff radiation stems  [W/m2 ground]
     real(r8), intent(out) :: R_abs_snow    ! Absorbed beam+diff radiation snow   [W/m2 ground]
     real(r8), intent(out) :: leaf_sun_frac ! Fraction of leaves in the interval exposed
-    ! to sunlight
+                                           ! to sunlight
 
     real(r8)              :: dvai,dlai     ! Amount of VAI and LAI in this interval [m2/m2]
     real(r8)              :: Rd_net        ! Difference in diffuse radiation at upper and lower boundaries [W/m2]
@@ -443,7 +443,7 @@ contains
     real(r8)              :: diff_wt_stem  ! diffuse absorption weighting for stems
     real(r8)              :: beam_wt_leaf  ! beam absorption weighting for leaves
     real(r8)              :: beam_wt_stem  ! beam absorption weighting for stems
-
+    real(r8)              :: lai_bot,lai_top
     
     associate(scelb => this%band(ib)%scelb(ican,icol), &
          scelg => this%scelg(ican,icol), &
@@ -465,11 +465,23 @@ contains
       vai_max = scelg%lai +  scelg%sai
 
       dvai = vai_bot - vai_top
-      dlai = dvai *  scelg%lai/( scelg%lai+ scelg%sai)
 
-      leaf_sun_frac = max(0.001_r8,min(0.999_r8,scelb%Rbeam0/ &
-           (dvai*scelg%Kb/rad_params%clumping_index(ft)) * (exp(-scelg%Kb*vai_top) - exp(-scelg%Kb*vai_bot)) ))
-               
+      lai_top = vai_top*scelg%lai/( scelg%lai+ scelg%sai)
+      lai_bot = vai_bot*scelg%lai/( scelg%lai+ scelg%sai)
+      dlai    = dvai *  scelg%lai/( scelg%lai+ scelg%sai)
+
+      
+      !!if(dlai>nearzero)then
+      !!   leaf_sun_frac = max(0.001_r8,min(0.999_r8,scelb%Rbeam0/(dlai*scelg%Kb_leaf/rad_params%clumping_index(ft)) &
+      !!        *(exp(-scelg%Kb_leaf*lai_top) - exp(-scelg%Kb_leaf*lai_bot))))
+      !!else
+      !!  leaf_sun_frac = 0001._r8
+      !!end if
+
+      leaf_sun_frac = max(0.001_r8,min(0.999_r8,scelb%Rbeam0/(dvai*scelg%Kb/rad_params%clumping_index(ft)) &
+           *(exp(-scelg%Kb*vai_top) - exp(-scelg%Kb*vai_bot))))
+
+      
       if(debug) then
          if(leaf_sun_frac>1.0_r8 .or. leaf_sun_frac<0._r8) then
             print*,"impossible leaf sun fraction"
@@ -940,9 +952,9 @@ contains
     !real(r8),allocatable :: TAU(:)
     !real(r8),allocatable :: LAMBDA(:)
 
-    real(r8) :: OMEGA(100,100)
-    real(r8) :: TAU(100)
-    real(r8) :: LAMBDA(100)
+    real(r8) :: OMEGA(200,200)
+    real(r8) :: TAU(200)
+    real(r8) :: LAMBDA(200)
     
     integer :: isol  ! Solution index loop (beam, beam+diff)
     integer :: ican  ! Loop index for canopy layers
@@ -980,7 +992,6 @@ contains
     real(r8) :: work(workmax)                       ! Work array
     integer  :: lwork                               ! Dimension of work array
     integer :: info                                 ! Procedure diagnostic ouput
-    integer :: alloc_err                            ! Allocation error code
     ! Testing switch
     ! If true, then allow elements
     ! of different layers, but same row, to have priority

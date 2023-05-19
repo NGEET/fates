@@ -37,7 +37,7 @@ Module FatesTwoStreamInterfaceMod
 
   public :: FatesConstructRadElements
   public :: FatesGetCohortAbsRad
-  public :: FatesPatchFsun
+  public :: FatesPatchFSun
   public :: CheckPatchRadiationBalance
   
 contains

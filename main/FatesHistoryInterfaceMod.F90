@@ -725,6 +725,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_fabi_sha_top_si_can
   integer :: ih_crownarea_si_can
 
+  integer :: ih_fsun_si
+  
   ! indices to (patch age x fuel size class) variables
   integer :: ih_fuel_amount_age_fuel
 
@@ -4333,7 +4335,7 @@ end subroutine flush_hvars
    return
   end subroutine update_history_dyn
 
-  subroutine update_history_hifrq(this,nc,nsites,sites,bc_in,dt_tstep)
+  subroutine update_history_hifrq(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
 
     ! ---------------------------------------------------------------------------------
     ! This is the call to update the history IO arrays that are expected to only change
@@ -4348,6 +4350,7 @@ end subroutine flush_hvars
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
     type(bc_in_type)        , intent(in)            :: bc_in(nsites)
+    type(bc_out_type)       , intent(in)            :: bc_out(nsites)
     real(r8)                , intent(in)            :: dt_tstep
 
     ! Locals
@@ -4370,7 +4373,8 @@ end subroutine flush_hvars
     type(ed_patch_type),pointer  :: cpatch
     type(ed_cohort_type),pointer :: ccohort
     real(r8) :: per_dt_tstep          ! Time step in frequency units (/s)
-
+    real(r8) :: elai_tot
+    
     associate( hio_gpp_si         => this%hvars(ih_gpp_si)%r81d, &
                hio_gpp_secondary_si   => this%hvars(ih_gpp_secondary_si)%r81d, &
                hio_npp_si         => this%hvars(ih_npp_si)%r81d, &
@@ -4447,7 +4451,8 @@ end subroutine flush_hvars
                hio_parsun_top_si_can     => this%hvars(ih_parsun_top_si_can)%r82d, &
                hio_parsha_top_si_can     => this%hvars(ih_parsha_top_si_can)%r82d, &
                hio_maint_resp_unreduced_si  => this%hvars(ih_maint_resp_unreduced_si)%r81d, &
-               hio_tveg   => this%hvars(ih_tveg_si)%r81d)
+               hio_tveg   => this%hvars(ih_tveg_si)%r81d, &
+               hio_fsun_si => this%hvars(ih_fsun_si)%r81d)
 
       ! Flush the relevant history variables
       call this%flush_hvars(nc,upfreq_in=2)
@@ -4467,6 +4472,8 @@ end subroutine flush_hvars
          
          patch_area_by_age(1:nlevage) = 0._r8
          canopy_area_by_age(1:nlevage) = 0._r8
+
+         elai_tot = 0._r8
          
          ! Calculate the site-level total vegetated area (i.e. non-bareground)
          site_area_veg = area
@@ -4477,6 +4484,10 @@ end subroutine flush_hvars
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
 
+
+            hio_fsun_si = hio_fsun_si + bc_out(s)%laisun_pa(ifp)*cpatch%area
+            elai_tot    = elai_tot    + (bc_out(s)%laisun_pa(ifp)+bc_out(s)%laisha_pa(ifp))*cpatch%area
+            
             patch_area_by_age(cpatch%age_class)  = &
                  patch_area_by_age(cpatch%age_class) + cpatch%area
 
@@ -4765,6 +4776,13 @@ end subroutine flush_hvars
             cpatch => cpatch%younger
          end do !patch loop
 
+         if(elai_tot<nearzero .or. .not.sites(s)%oldest_patch%solar_zenith_flag)then
+            hio_fsun_si = hlm_hio_ignore_val
+         else
+            hio_fsun_si = hio_fsun_si/elai_tot
+         end if
+
+         
          do ipa2 = 1, nlevage
             if (patch_area_by_age(ipa2) .gt. nearzero) then
                hio_gpp_si_age(io_si, ipa2) = hio_gpp_si_age(io_si, ipa2) / (patch_area_by_age(ipa2))
@@ -6330,6 +6348,12 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2, &
          ivar=ivar, initialize=initialize_variables, index = ih_tveg_si )
 
+    call this%set_history_var(vname='FATES_FSUN', units='degree_Celsius', &
+         long='Mean sunlit fraction of leaves across all patches', &
+         use_default='active', &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2, &
+         ivar=ivar, initialize=initialize_variables, index = ih_fsun_si )
+    
     ! radiation error
     call this%set_history_var(vname='FATES_RAD_ERROR', units='W m-2 ',          &
          long='radiation error in FATES RTM', use_default='active',            &
@@ -6405,7 +6429,7 @@ end subroutine update_history_hifrq
 
     call this%set_history_var(vname='FATES_MAINT_RESP_UNREDUCED', units='kg m-2 s-1',    &
          long='diagnostic maintenance respiration if the low-carbon-storage reduction is ignored', &
-         use_default='inactive', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+         use_default='unactive', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=2, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_maint_resp_unreduced_si)
 
