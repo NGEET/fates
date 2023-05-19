@@ -2283,9 +2283,9 @@ contains
         ipft         = int(intgr_params(intgr_parm_pft))
         l2fr         = intgr_params(intgr_parm_l2fr)
         crown_damage = int(intgr_params(intgr_parm_cdamage))
-        elongf_leaf  = intgr_params(acnp_bc_in_id_efleaf)
-        elongf_fnrt  = intgr_params(acnp_bc_in_id_effnrt)
-        elongf_stem  = intgr_params(acnp_bc_in_id_efstem)
+        elongf_leaf  = intgr_params(intgr_parm_efleaf)
+        elongf_fnrt  = intgr_params(intgr_parm_effnrt)
+        elongf_stem  = intgr_params(intgr_parm_efstem)
 
         call bleaf(dbh,ipft,crown_damage,canopy_trim, elongf_leaf, leaf_c_target,leaf_dcdd_target)
         call bfineroot(dbh,ipft,canopy_trim,l2fr, elongf_fnrt, fnrt_c_target,fnrt_dcdd_target)
