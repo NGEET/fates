@@ -49,6 +49,7 @@ module FatesHistoryInterfaceMod
   use FatesInterfaceTypesMod        , only : nlevsclass, nlevage
   use FatesInterfaceTypesMod        , only : nlevheight
   use FatesInterfaceTypesMod        , only : bc_in_type
+  use FatesInterfaceTypesMod        , only : bc_out_type
   use FatesInterfaceTypesMod        , only : hlm_model_day
   use FatesInterfaceTypesMod        , only : nlevcoage
   use FatesInterfaceTypesMod        , only : hlm_use_nocomp
@@ -4485,8 +4486,8 @@ end subroutine flush_hvars
          do while(associated(cpatch))
 
 
-            hio_fsun_si = hio_fsun_si + bc_out(s)%laisun_pa(ifp)*cpatch%area
-            elai_tot    = elai_tot    + (bc_out(s)%laisun_pa(ifp)+bc_out(s)%laisha_pa(ifp))*cpatch%area
+            hio_fsun_si = hio_fsun_si + bc_out(s)%laisun_pa(ipa)*cpatch%area
+            elai_tot    = elai_tot    + (bc_out(s)%laisun_pa(ipa)+bc_out(s)%laisha_pa(ipa))*cpatch%area
             
             patch_area_by_age(cpatch%age_class)  = &
                  patch_area_by_age(cpatch%age_class) + cpatch%area
