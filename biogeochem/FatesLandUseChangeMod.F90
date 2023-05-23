@@ -207,21 +207,44 @@ contains
 
   subroutine get_luh_statedata(bc_in, state_vector)
 
+    use shr_infnan_mod   , only : isnan => shr_infnan_isnan
+
     type(bc_in_type) , intent(in) :: bc_in
     real(r8), intent(out) :: state_vector(n_landuse_cats)  ! [m2/m2]
 
     ! LOCALS
     type(luh2_fates_lutype_map) :: lumap
+    real(r8) :: temp_vector(hlm_num_luh2_states)  ! [m2/m2]
     real(r8) :: urban_fraction
     integer  :: i_luh2_states
     integer  :: ii
     character(5) :: state_name
 
-    ! zero state vector
+    ! zero state vector and temporary state vector
     state_vector(:) = 0._r8
+    temp_vector = 0._r8
 
     ! identify urban fraction so that it can be factored into the land use state output
-    urban_fraction = bc_in%hlm_luh_states(findloc(bc_in%hlm_luh_state_names,'urban',dim=1))
+    urban_fraction = 0._r8
+
+    ! Check to see if the incoming state vector is NaN.
+    ! This suggests that there is a discepency where the HLM and LUH2 states
+    ! there is vegetated ground.  In this case, states should be Nan.  If so,
+    ! set the current state to be all primary forest.
+    ! If only a portion of the vector is NaN, there is something  amiss with
+    ! the data, so end the run.
+    if (all(isnan(bc_in%hlm_luh_states))) then
+       temp_vector(1) = 1._r8
+       write(fates_log(),*) 'WARNING: land use state is all NaN; setting state as all primary forest.'
+    else if (any(isnan(bc_in%hlm_luh_states))) then
+       if (any(.not. isnan(bc_in%hlm_luh_states))) then
+          write(fates_log(),*) 'ERROR: land use state has NaN: ', bc_in%hlm_luh_states
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+    else
+       temp_vector = bc_in%hlm_luh_states
+       urban_fraction = bc_in%hlm_luh_states(findloc(bc_in%hlm_luh_state_names,'urban',dim=1))
+    end if
 
     ! loop over all states and add up the ones that correspond to a given fates land use type
     do i_luh2_states = 1, hlm_num_luh2_states
@@ -231,20 +254,17 @@ contains
        state_name = bc_in%hlm_luh_state_names(i_luh2_states)
        ii = lumap%GetIndex(state_name)
 
-      ! Avoid 'urban' states whose indices have been given unset values
-      if (ii .ne. fates_unset_int) then
-        state_vector(ii) = state_vector(ii) + &
-            bc_in%hlm_luh_states(i_luh2_states) / (1._r8 - urban_fraction)
+       ! Avoid 'urban' states whose indices have been given unset values
+       if (ii .ne. fates_unset_int) then
+          state_vector(ii) = state_vector(ii) + &
+               temp_vector(i_luh2_states) / (1._r8 - urban_fraction)
        end if
-       ! end do
     end do
 
     ! check to ensure total area == 1, and correct if not
     if ( abs(sum(state_vector(:)) - 1._r8) .gt. nearzero ) then
        write(fates_log(),*) 'warning: sum(state_vector) = ', sum(state_vector(:))
-       do ii = 1, n_landuse_cats
-          state_vector(ii) = state_vector(ii) / sum(state_vector(:))
-       end do
+       state_vector = state_vector / sum(state_vector)
     end if
 
   end subroutine get_luh_statedata

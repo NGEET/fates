@@ -524,10 +524,11 @@ contains
     real(r8) :: newparea, newparea_withlanduse
     real(r8) :: tota !check on area
     integer  :: is_first_patch
-    integer  :: n_luh_states
-    integer  :: luh_state_counter
+    ! integer  :: n_luh_states
+    ! integer  :: luh_state_counter
     real(r8) :: state_vector(n_landuse_cats)  ! [m2/m2]
     integer  :: i_lu, i_lu_state
+    integer  :: n_active_landuse_cats
 
 
     type(ed_site_type),  pointer :: sitep
@@ -592,27 +593,33 @@ contains
 
           ! read in luh state data to determine initial land use types
           if (hlm_use_luh .eq. itrue) then
+
+             ! Set the number of active land use categories to the maximum number
+             ! This could be updated in the future to allow a variable number of
+             ! categories based on which states are zero
+             n_active_landuse_cats = n_landuse_cats
              call get_luh_statedata(bc_in(s), state_vector)
-             n_luh_states = 0
-             do i_lu = 1, hlm_num_luh2_transitions
-                if ( state_vector(i_lu) .gt. nearzero ) then
-                   n_luh_states = n_luh_states +1
-                end if
-             end do
+          !    n_luh_states = 0
+          !    do i_lu = 1, hlm_num_luh2_transitions
+          !       if ( state_vector(i_lu) .gt. nearzero ) then
+          !          n_luh_states = n_luh_states +1
+          !       end if
+          !    end do
 
-             if (n_luh_states .eq. 0) then
-                write(fates_log(),*) 'error. n_luh_states .eq. 0.'
-                call endrun(msg=errMsg(sourcefile, __LINE__))
-             endif
-
+          !    if (n_luh_states .eq. 0) then
+          !       write(fates_log(),*) 'error. n_luh_states .eq. 0.'
+          !       call endrun(msg=errMsg(sourcefile, __LINE__))
+          !    endif
           else
+             ! If LUH2 data is not being used, we initialize with primarylands,
+             ! i.e. array index equals '1'
+             n_active_landuse_cats = primaryland
              state_vector(:) = 0._r8
              state_vector(primaryland) = 1._r8
-             n_luh_states = 1
           endif
 
           is_first_patch = itrue
-          luh_state_counter = 0
+          ! luh_state_counter = 0
           new_patch_nocomp_loop: do n = start_patch, num_new_patches
 
              ! set the PFT index for patches if in nocomp mode.
@@ -638,12 +645,13 @@ contains
                 newparea = area
              end if  !nocomp mode
 
-             luh_state_loop: do i_lu_state = 1, n_landuse_cats
+             luh_state_loop: do i_lu_state = 1, n_active_landuse_cats
                 lu_state_present_if: if ( state_vector(i_lu_state) .gt. nearzero ) then
 
-                   newparea_withlanduse = newparea / state_vector(i_lu_state)
-                   ! for now, spread nocomp PFTs evenly across land use types
+                   newparea_withlanduse = newparea * state_vector(i_lu_state)
+                   write(fates_log(),*) 'init_patches: istate, state_vector: ', i_lu_state, state_vector(i_lu_state)
 
+                   ! for now, spread nocomp PFTs evenly across land use types
                    new_patch_area_gt_zero: if(newparea_withlanduse.gt.0._r8)then ! Stop patches being initilialized when PFT not present in nocomop mode
                       allocate(newp)
 
@@ -697,6 +705,7 @@ contains
           newp => sites(s)%oldest_patch
           do while (associated(newp))
              tota=tota+newp%area
+             write(fates_log(),*) 'init_patches: area, tota, lul: ', newp%area, tota, newp%land_use_label
              newp=>newp%younger
           end do
 
