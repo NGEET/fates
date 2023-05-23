@@ -83,7 +83,7 @@ contains
     ! This subroutine was derived from CLM's
     ! endrun_vanilla() in abortutils.F90
     !
-    !use shr_sys_mod , only: shr_sys_abort
+    use shr_sys_mod , only: shr_sys_abort
     !
     ! !ARGUMENTS:
     implicit none
@@ -91,8 +91,7 @@ contains
     !-----------------------------------------------------------------------
 
     write(fates_log(),*)'ENDRUN:', msg
-    !call shr_sys_abort()
-    stop
+    call shr_sys_abort()
 
   end subroutine fates_endrun
 

@@ -1,9 +1,10 @@
 Module EDCohortDynamicsMod
   !
-  ! !DESCRIPTION:
-  ! Cohort stuctures in ED.
+  ! DESCRIPTION:
+  ! Cohort stuctures in FATES
   !
-  ! !USES:
+  
+  ! USES:
   use FatesGlobals          , only : endrun => fates_endrun
   use FatesGlobals          , only : fates_log
   use FatesInterfaceTypesMod     , only : hlm_freq_day
@@ -49,7 +50,6 @@ Module EDCohortDynamicsMod
   use FatesInterfaceTypesMod      , only : hlm_use_planthydro
   use FatesInterfaceTypesMod      , only : hlm_parteh_mode
   use FatesPlantHydraulicsMod, only : FuseCohortHydraulics
-  use FatesPlantHydraulicsMod, only : CopyCohortHydraulics
   use FatesPlantHydraulicsMod, only : UpdateSizeDepPlantHydProps
   use FatesPlantHydraulicsMod, only : InitPlantHydStates
   use FatesPlantHydraulicsMod, only : InitHydrCohort
@@ -122,11 +122,9 @@ Module EDCohortDynamicsMod
   public :: fuse_cohorts
   public :: insert_cohort
   public :: sort_cohorts
-  public :: copy_cohort
   public :: count_cohorts
   public :: InitPRTObject
   public :: SendCohortToLitter
-  public :: DeallocateCohort
   public :: EvaluateAndCorrectDBH
   public :: DamageRecovery
   
@@ -193,7 +191,7 @@ type(bc_in_type), intent(in) :: bc_in         ! External boundary conditions
 
 
 ! !LOCAL VARIABLES:
-type(fates_cohort_type), pointer :: new_cohort         ! Pointer to New Cohort structure.
+type(fates_cohort_type), pointer :: newCohort        ! Pointer to New Cohort structure.
 type(fates_cohort_type), pointer :: storesmallcohort
 type(fates_cohort_type), pointer :: storebigcohort
 real(r8) :: rmean_temp                     ! running mean temperature
@@ -203,8 +201,8 @@ integer  :: nlevrhiz                       ! number of rhizosphere layers
 !----------------------------------------------------------------------
 
 ! create new cohort
-allocate(new_cohort)
-call new_cohort%create(prt, pft, nn, hite, coage, dbh, status, ctrim, carea,   &
+allocate(newCohort)
+call newCohort%Create(prt, pft, nn, hite, coage, dbh, status, ctrim, carea,    &
    clayer, crowndamage, spread, patchptr%canopy_layer_tlai)
 
 ! Put cohort at the right place in the linked list
@@ -215,53 +213,53 @@ if (associated(patchptr%tallest)) then
    tnull = 0
 else
    tnull = 1
-   patchptr%tallest => new_cohort
+   patchptr%tallest => newCohort
 endif
 
 if (associated(patchptr%shortest)) then
    snull = 0
 else
    snull = 1
-   patchptr%shortest => new_cohort
+   patchptr%shortest => newCohort
 endif
 
 ! Allocate running mean functions
 
 !  (Keeping as an example)
-!! allocate(new_cohort%tveg_lpa)
-!! call new_cohort%tveg_lpa%InitRMean(ema_lpa,init_value=patchptr%tveg_lpa%GetMean())
+!! allocate(newCohort%tveg_lpa)
+!! call newCohort%tveg_lpa%InitRMean(ema_lpa,init_value=patchptr%tveg_lpa%GetMean())
 
 if( hlm_use_planthydro.eq.itrue ) then
 
    nlevrhiz = currentSite%si_hydr%nlevrhiz
 
    ! This allocates array spaces
-   call InitHydrCohort(currentSite,new_cohort)
+   call InitHydrCohort(currentSite, newCohort)
 
    ! zero out the water balance error
-   new_cohort%co_hydr%errh2o = 0._r8
+   newCohort%co_hydr%errh2o = 0._r8
 
    ! This calculates node heights
-   call UpdatePlantHydrNodes(new_cohort,new_cohort%pft, &
-                            new_cohort%hite,currentSite%si_hydr)
+   call UpdatePlantHydrNodes(newCohort, newCohort%pft, &
+    newCohort%hite,currentSite%si_hydr)
 
    ! This calculates volumes and lengths
-   call UpdatePlantHydrLenVol(new_cohort,currentSite%si_hydr)
+   call UpdatePlantHydrLenVol(newCohort,currentSite%si_hydr)
 
    ! This updates the Kmax's of the plant's compartments
-   call UpdatePlantKmax(new_cohort%co_hydr,new_cohort,currentSite%si_hydr)
+   call UpdatePlantKmax(newCohort%co_hydr,newCohort,currentSite%si_hydr)
 
    ! Since this is a newly initialized plant, we set the previous compartment-size
    ! equal to the ones we just calculated.
-   call SavePreviousCompartmentVolumes(new_cohort%co_hydr)
+   call SavePreviousCompartmentVolumes(newCohort%co_hydr)
 
    ! This comes up with starter suctions and then water contents
    ! based on the soil values
-   call InitPlantHydStates(currentSite,new_cohort)
+   call InitPlantHydStates(currentSite,newCohort)
 
    if(recruitstatus==1)then
 
-      new_cohort%co_hydr%is_newly_recruited = .true.
+    newCohort%co_hydr%is_newly_recruited = .true.
 
       ! If plant hydraulics is active, we must constrain the
       ! number density of the new recruits based on the moisture
@@ -269,14 +267,14 @@ if( hlm_use_planthydro.eq.itrue ) then
       ! So we go through the process of pre-initializing the hydraulic
       ! states in the temporary cohort, to calculate this new number density
       rmean_temp = patchptr%tveg24%GetMean()
-      call ConstrainRecruitNumber(currentSite, new_cohort, patchptr,           &
+      call ConstrainRecruitNumber(currentSite, newCohort, patchptr,           &
          bc_in, rmean_temp)
 
    endif
 
 endif
 
-call insert_cohort(patchptr, new_cohort, patchptr%tallest, patchptr%shortest, tnull, snull, &
+call insert_cohort(patchptr, newCohort, patchptr%tallest, patchptr%shortest, tnull, snull, &
      storebigcohort, storesmallcohort)
 
 patchptr%tallest  => storebigcohort
@@ -547,7 +545,7 @@ end subroutine create_cohort
       shorterCohort%taller => tallerCohort
    endif
 
-   call DeallocateCohort(currentCohort)
+   call currentCohort%FreeMemory()
 
  end subroutine terminate_cohort  
   
@@ -682,34 +680,7 @@ end subroutine create_cohort
 
   !--------------------------------------------------------------------------------------
 
-  subroutine DeallocateCohort(currentCohort)
 
-     ! ----------------------------------------------------------------------------------
-     ! This subroutine deallocates all dynamic memory and objects
-     ! inside the cohort structure.  This DOES NOT deallocate
-     ! the cohort structure itself.
-     ! ----------------------------------------------------------------------------------
-
-     type(fates_cohort_type),intent(inout) :: currentCohort
-     integer                            :: istat         ! return status code
-     character(len=255)                 :: smsg
-
-     ! At this point, nothing should be pointing to current Cohort
-     if (hlm_use_planthydro.eq.itrue) call DeallocateHydrCohort(currentCohort)
-
-     ! Deallocate the cohort's PRT structures
-     call currentCohort%prt%DeallocatePRTVartypes()
-
-     ! Deallocate the PRT object
-
-     deallocate(currentCohort%prt, stat=istat, errmsg=smsg)
-     if (istat/=0) then
-        write(fates_log(),*) 'dealloc002: fail in deallocate(currentCohort%prt):'//trim(smsg)
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     endif
-
-     return
-  end subroutine DeallocateCohort
 
   subroutine fuse_cohorts(currentSite, currentPatch, bc_in)
 
@@ -1187,7 +1158,7 @@ end subroutine create_cohort
                                       call UpdateSizeDepPlantHydProps(currentSite,currentCohort, bc_in)
                                    endif
 
-                                   call DeallocateCohort(nextc)
+                                   call nextc%FreeMemory()
                                    deallocate(nextc, stat=istat, errmsg=smsg)
                                    if (istat/=0) then
                                       write(fates_log(),*) 'dealloc003: fail on deallocate(nextc):'//trim(smsg)
@@ -1449,172 +1420,7 @@ end subroutine create_cohort
   end subroutine insert_cohort
 
   !-------------------------------------------------------------------------------------!
-  subroutine copy_cohort( currentCohort,copyc )
-    !
-    ! !DESCRIPTION:
-    ! Copies all the variables in one cohort into another empty cohort
-    !
-    ! !USES:
-    !
-    ! !ARGUMENTS
-    type(fates_cohort_type), intent(inout) , target ::  copyc         ! New cohort argument.
-    type(fates_cohort_type), intent(in)    , target ::  currentCohort ! Old cohort argument.
-    !
-    ! !LOCAL VARIABLES:
-    type(fates_cohort_type), pointer ::  n,o           ! New and old cohort pointers
-    !----------------------------------------------------------------------
 
-    o => currentCohort
-    n => copyc
-
-    n%indexnumber     = fates_unset_int
-
-    ! VEGETATION STRUCTURE
-    n%pft             = o%pft
-    n%crowndamage     = o%crowndamage
-    n%n               = o%n
-    n%dbh             = o%dbh
-    n%coage           = o%coage
-    n%hite            = o%hite
-    n%g_sb_laweight   = o%g_sb_laweight
-    n%leaf_cost       = o%leaf_cost
-    n%canopy_layer    = o%canopy_layer
-    n%canopy_layer_yesterday    = o%canopy_layer_yesterday
-    n%nv              = o%nv
-    n%status_coh      = o%status_coh
-    n%canopy_trim     = o%canopy_trim
-    n%excl_weight     = o%excl_weight
-    n%prom_weight     = o%prom_weight
-    n%size_class      = o%size_class
-    n%size_class_lasttimestep = o%size_class_lasttimestep
-    n%size_by_pft_class = o%size_by_pft_class
-    n%coage_class     = o%coage_class
-    n%coage_by_pft_class = o%coage_by_pft_class
-
-    ! This transfers the PRT objects over.
-    call n%prt%CopyPRTVartypes(o%prt)
-    n%l2fr                 = o%l2fr
-    
-    ! Leaf biophysical rates
-    n%vcmax25top = o%vcmax25top
-    n%jmax25top  = o%jmax25top
-    n%tpu25top   = o%tpu25top
-    n%kp25top    = o%kp25top
-
-    ! Copy over running means
-    if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
-       n%cx_int    = o%cx_int
-       n%ema_dcxdt = o%ema_dcxdt
-       n%cx0       = o%cx0
-    end if
-    
-    ! CARBON FLUXES
-    n%gpp_acc_hold    = o%gpp_acc_hold
-    n%gpp_acc         = o%gpp_acc
-    n%gpp_tstep       = o%gpp_tstep
-
-    n%npp_acc_hold    = o%npp_acc_hold
-    n%npp_tstep       = o%npp_tstep
-    n%npp_acc         = o%npp_acc
-
-    if ( debug .and. .not.o%isnew ) write(fates_log(),*) 'EDcohortDyn Ia ',o%npp_acc
-    if ( debug .and. .not.o%isnew ) write(fates_log(),*) 'EDcohortDyn Ib ',o%resp_acc
-
-    n%resp_tstep      = o%resp_tstep
-    n%resp_acc        = o%resp_acc
-    n%resp_acc_hold   = o%resp_acc_hold
-    n%year_net_uptake = o%year_net_uptake
-    n%ts_net_uptake   = o%ts_net_uptake
-
-    ! These do not need to be copied because they
-    ! are written to history before dynamics occurs
-    ! and cohorts are reformed
-    n%daily_nh4_uptake = o%daily_nh4_uptake
-    n%daily_no3_uptake = o%daily_no3_uptake
-    n%sym_nfix_daily   = o%sym_nfix_daily
-    n%daily_n_gain     = o%daily_n_gain
-    n%daily_p_gain   = o%daily_p_gain
-    n%daily_c_efflux = o%daily_c_efflux
-    n%daily_n_efflux = o%daily_n_efflux
-    n%daily_p_efflux = o%daily_p_efflux
-    n%daily_n_demand = o%daily_n_demand
-    n%daily_p_demand = o%daily_p_demand
-
-    ! C13 discrimination
-    n%c13disc_clm   = o%c13disc_clm
-    n%c13disc_acc   = o%c13disc_acc
-
-    !RESPIRATION
-    n%rdark           = o%rdark
-    n%resp_m          = o%resp_m
-    n%resp_m_unreduced= o%resp_m_unreduced
-    n%resp_excess     = o%resp_excess
-    n%resp_g_tstep    = o%resp_g_tstep
-    n%livestem_mr     = o%livestem_mr
-    n%livecroot_mr    = o%livecroot_mr
-    n%froot_mr        = o%froot_mr
-
-    ! ALLOCATION
-    n%dmort           = o%dmort
-    n%seed_prod       = o%seed_prod
-
-    n%treelai         = o%treelai
-    n%treesai         = o%treesai
-    n%c_area          = o%c_area
-
-    ! Mortality diagnostics
-    n%cmort = o%cmort
-    n%bmort = o%bmort
-    n%hmort = o%hmort
-    n%smort = o%smort
-    n%asmort = o%asmort
-    n%frmort = o%frmort
-    n%dgmort = o%dgmort
-    
-    ! logging mortalities, Yi Xu
-    n%lmort_direct     =o%lmort_direct
-    n%lmort_collateral =o%lmort_collateral
-    n%lmort_infra      =o%lmort_infra
-    n%l_degrad         =o%l_degrad
-
-    ! Flags
-    n%isnew = o%isnew
-
-    ! VARIABLES NEEDED FOR INTEGRATION
-    n%dndt            = o%dndt
-    n%dhdt            = o%dhdt
-    n%ddbhdt          = o%ddbhdt
-
-    ! FIRE
-    n%fraction_crown_burned = o%fraction_crown_burned
-    n%fire_mort             = o%fire_mort
-    n%crownfire_mort        = o%crownfire_mort
-    n%cambial_mort          = o%cambial_mort
-
-    ! Plant Hydraulics
-
-    if( hlm_use_planthydro.eq.itrue ) then
-      call CopyCohortHydraulics(n,o)
-    endif
-
-    ! indices for binning
-    n%size_class      = o%size_class
-    n%size_class_lasttimestep      = o%size_class_lasttimestep
-    n%size_by_pft_class   = o%size_by_pft_class
-    n%coage_class     = o%coage_class
-    n%coage_by_pft_class   = o%coage_by_pft_class
-
-    !Pointers
-    n%taller          => NULL()     ! pointer to next tallest cohort
-    n%shorter         => NULL()     ! pointer to next shorter cohort
-    !n%patchptr        => o%patchptr ! pointer to patch that cohort is in
-
-
-
-    
-  end subroutine copy_cohort
-
-  !-------------------------------------------------------------------------------------!
   subroutine count_cohorts( currentPatch )
     !
     ! !DESCRIPTION:
@@ -1935,7 +1741,7 @@ end subroutine create_cohort
          rcohort%prt => null()
          call InitPRTObject(rcohort%prt)
          call rcohort%InitPRTBoundaryConditions()
-         call copy_cohort(ccohort, rcohort)
+         call ccohort%Copy(rcohort)
 
          rcohort%n = nplant_recover
           

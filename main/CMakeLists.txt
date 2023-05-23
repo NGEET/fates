@@ -11,7 +11,7 @@ list(APPEND clm_sources
   FatesUtilsMod.F90
   )
 
-list(APPEND fates_sources
+  list(APPEND fates_sources
   FatesConstantsMod.F90
   EDTypesMod.F90
   EDPftvarcon.F90

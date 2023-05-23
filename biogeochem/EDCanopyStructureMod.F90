@@ -15,7 +15,7 @@ module EDCanopyStructureMod
   use EDPftvarcon           , only : EDPftvarcon_inst
   use PRTParametersMod      , only : prt_params
   use FatesAllometryMod     , only : carea_allom
-  use EDCohortDynamicsMod   , only : copy_cohort, terminate_cohorts, terminate_cohort, fuse_cohorts
+  use EDCohortDynamicsMod   , only : terminate_cohorts, terminate_cohort, fuse_cohorts
   use EDCohortDynamicsMod   , only : InitPRTObject
   use FatesAllometryMod     , only : tree_lai
   use FatesAllometryMod     , only : tree_sai
@@ -670,7 +670,7 @@ contains
                 !allocate(copyc%tveg_lpa)
                 !!allocate(copyc%l2fr_ema)
                 !  Note, no need to give a starter value here,
-                !  that will be taken care of in copy_cohort()
+                !  that will be taken care of in copy()
                 !!call copyc%l2fr_ema%InitRMean(ema_60day)
                      
                 ! Initialize the PARTEH object and point to the
@@ -682,7 +682,7 @@ contains
                    call InitHydrCohort(currentSite,copyc)
                 endif
 
-                call copy_cohort(currentCohort, copyc)
+                call currentCohort%Copy(copyc)
                 call copyc%InitPRTBoundaryConditions()
                 
                 newarea = currentCohort%c_area - cc_loss
@@ -1138,7 +1138,7 @@ contains
 
                    !!allocate(copyc%l2fr_ema)
                    ! Note, no need to give a starter value here,
-                   ! that will be taken care of in copy_cohort()
+                   ! that will be taken care of in copy()
                    !!call copyc%l2fr_ema%InitRMean(ema_60day)
                    
                    ! Initialize the PARTEH object and point to the
@@ -1157,7 +1157,7 @@ contains
                    !call copyc%tveg_lpa%InitRMean(ema_lpa,&
                    !     init_value=currentPatch%tveg_lpa%GetMean())
                    
-                   call copy_cohort(currentCohort, copyc) !makes an identical copy...
+                   call currentCohort%Copy(copyc) !makes an identical copy...
                    call copyc%InitPRTBoundaryConditions()
                    
                    newarea = currentCohort%c_area - cc_gain !new area of existing cohort

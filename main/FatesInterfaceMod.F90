@@ -32,6 +32,7 @@ module FatesInterfaceMod
    use FatesPatchMod             , only : fates_patch_type
    use FatesCohortMod            , only : fates_cohort_type
    use EDTypesMod                , only : area_inv
+   use EDTypesMod                , only : num_vegtemp_mem
    use FatesConstantsMod         , only : r8 => fates_r8
    use FatesConstantsMod         , only : itrue,ifalse
    use FatesConstantsMod         , only : nearzero
@@ -91,6 +92,8 @@ module FatesInterfaceMod
    use FatesRunningMeanMod       , only : moving_ema_window
    use FatesRunningMeanMod       , only : fixed_window
    use FatesHistoryInterfaceMod  , only : fates_hist
+   use FatesHydraulicsMemMod     , only : nshell
+   use FatesHydraulicsMemMod     , only : nlevsoi_hyd_max
    
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -408,23 +411,7 @@ contains
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 
-      if( (nlevsoil_in*ndcmpy) > fates_maxElementsPerPatch .or. &
-          (nlevsoil_in*ncwd) > fates_maxElementsPerPatch) then
-          write(fates_log(), *) 'The restart files require that space is allocated'
-          write(fates_log(), *) 'to accomodate the multi-dimensional patch arrays'
-          write(fates_log(), *) 'that are nlevsoil*numpft and nlevsoil*ncwd'
-          write(fates_log(), *) 'fates_maxElementsPerPatch = ',fates_maxElementsPerPatch
-          write(fates_log(), *) 'nlevsoil = ',nlevsoil_in
-          write(fates_log(), *) 'dcmpy = ',ndcmpy
-          write(fates_log(), *) 'ncwd  = ',ncwd
-          write(fates_log(), *) 'numpft*nlevsoil = ',nlevsoil_in*numpft
-          write(fates_log(), *) 'ncwd*nlevsoil = ',ncwd * nlevsoil_in
-          write(fates_log(), *) 'To increase max_elements, change numlevsoil_max'
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-      end if
-
       bc_in%nlevdecomp = nlevdecomp_in
-
 
       if (hlm_use_vertsoilc == itrue) then
          if(bc_in%nlevdecomp .ne. bc_in%nlevsoil) then
@@ -839,19 +826,20 @@ contains
          
          ! These values are used to define the restart file allocations and general structure
          ! of memory for the cohort arrays
-         
-         fates_maxElementsPerPatch = max(max_cohort_per_patch, ndcmpy*hlm_maxlevsoil ,ncwd*hlm_maxlevsoil)
-         
-         if (fates_maxPatchesPerSite * fates_maxElementsPerPatch <  numWaterMem) then
-            write(fates_log(), *) 'By using such a tiny number of maximum patches and maximum cohorts'
-            write(fates_log(), *) ' this could create problems for indexing in restart files'
-            write(fates_log(), *) ' The multiple of the two has to be greater than numWaterMem'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
+         if(hlm_use_sp.eq.itrue) then
+            fates_maxElementsPerPatch = maxSWb
+         else
+            fates_maxElementsPerPatch = max(maxSWb,max_cohort_per_patch, ndcmpy*hlm_maxlevsoil ,ncwd*hlm_maxlevsoil)
          end if
          
-         fates_maxElementsPerSite = fates_maxPatchesPerSite * fates_maxElementsPerPatch
+         fates_maxElementsPerSite = max(fates_maxPatchesPerSite * fates_maxElementsPerPatch, &
+              numWatermem, num_vegtemp_mem, num_elements, nlevsclass*numpft)
 
-
+         if(hlm_use_planthydro==itrue)then
+            fates_maxElementsPerSite = max(fates_maxElementsPerSite, nshell*nlevsoi_hyd_max )
+         end if
+         
+         
          ! Set the maximum number of nutrient aquisition competitors per site
          ! This is used to set array sizes for the boundary conditions.
          ! Note: since BGC code may be active even when no nutrients
