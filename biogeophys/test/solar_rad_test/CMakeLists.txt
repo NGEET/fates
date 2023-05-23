@@ -1,4 +1,4 @@
-set(rad_sources FatesUnitTestRadiation.F90)
+set(rad_sources FatesUnitTestRadiation.F90 FatesUnitTestRadiationMod.F90)
 
 set(NETCDF_C_DIR "/usr/local/Cellar/netcdf/4.9.2")
 set(NETCDF_FORTRAN_DIR "/usr/local/Cellar/netcdf-fortran/4.6.0")

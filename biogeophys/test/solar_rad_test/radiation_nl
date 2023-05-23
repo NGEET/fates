@@ -6,6 +6,7 @@ jday = 165
 lat = 45.0
 lon = 238.0
 num_pft = 12
+num_swb = 2
 fcansno = 0.0
 patch_file = 'patch_data.nc'
 out_file = 'radiation_out.nc'

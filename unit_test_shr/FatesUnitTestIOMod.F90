@@ -11,18 +11,18 @@ module FatesUnitTestIOMod
   integer, parameter :: MAX_CHAR = 80   ! Maximum length for messages
   integer            :: logf            ! Unit number for output log file
 
-  interface get_var
-    module procedure get_var1D_real
-    module procedure get_var2D_real
-    module procedure get_var3D_real
-    module procedure get_var1D_int
-    module procedure get_var2D_int
-    module procedure get_var3D_int
+  interface GetVar
+    module procedure GetVar1DReal
+    module procedure GetVar2DReal
+    module procedure GetVar3DReal
+    module procedure GetVar1DInt
+    module procedure GetVar2DInt
+    module procedure GetVar3DInt
   end interface
   
   contains
 
-    integer function unit_number()
+    integer function UnitNumber()
       !
       ! DESCRIPTION:
       ! Generates a unit number to be used in opening files
@@ -43,13 +43,13 @@ module FatesUnitTestIOMod
       endif
 
       ! Set to output
-      unit_number = iunit
+      UnitNumber = iunit
 
-    end function unit_number
+    end function UnitNumber
 
-    !:.........................................................................:
+    !=====================================================================================
 
-    integer function open_file(filename, mode)
+    integer function OpenFile(filename, mode)
       !
       ! DESCRIPTION:
       ! Opens the file filename if it can, returns a unit number for it.
@@ -106,80 +106,76 @@ module FatesUnitTestIOMod
 
       ! Open file if conditions are correct
       if (file_exists .and. fmode == 'write') then
-        write(logf,'(A,A,A)') "File ", fname(1:len_trim(fname)),               &
+        write(logf,'(A,A,A)') "File ", fname(1:len_trim(fname)),                         &
           " exists. Cannot open write only."
         stop 
       else if (.not. file_exists .and. fmode == 'read') then
-        write(logf, '(A,A,A)') "File ", fname(1:len_trim(fname)),              &
+        write(logf, '(A,A,A)') "File ", fname(1:len_trim(fname)),                        &
           " does not exist. Can't read."
         stop 
       else
-        iunit = unit_number()
+        iunit = UnitNumber()
         open(iunit, file=fname, action=fmode, iostat=ios)
         if (ios /= 0) then
-          write(logf,'(A,A,A,I6)') "Problem opening",                          &
+          write(logf,'(A,A,A,I6)') "Problem opening",                                    &
             fname(1:len_trim(fname)), " ios: ", ios
           stop 
         endif
       endif
 
-      open_file = iunit
+      OpenFile = iunit
 
-    end function open_file 
+    end function OpenFile 
 
-    !:.........................................................................:
+    !=====================================================================================
 
-    subroutine check(status)
+    subroutine Check(status)
       !
       ! DESCRIPTION:
       ! Checks status of netcdf operations
     
       ! ARGUMENTS:
-      integer, intent (in) :: status ! return status code from a netcdf procedure
+      integer, intent(in) :: status ! return status code from a netcdf procedure
       
       if (status /= nf90_noerr) then 
         write(logf,*) trim(nf90_strerror(status))
         stop 
       end if
 
-    end subroutine check
+    end subroutine Check
 
-    !:.........................................................................:
-    
-    subroutine read_patch_data(file, num_pft, canopy_area, elai, esai, nrad)
+    !=====================================================================================
+
+    subroutine OpenNCFile(nc_file, ncid)
       !
       ! DESCRIPTION:
-      ! Reads and return patch data
-      !
+      ! Opens a netcdf file
     
       ! ARGUMENTS:
-      character(len=MAX_PATH), intent(in)  :: file               ! patch file name
-      integer,                 intent(in)  :: num_pft            ! number of PFTs
-      real(r8), allocatable,   intent(out) :: canopy_area(:,:,:) ! canopy area profile
-      real(r8), allocatable,   intent(out) :: elai(:,:,:)        ! exposed lai profile
-      real(r8), allocatable,   intent(out) :: esai(:,:,:)        ! exposed sai profile
-      integer,  allocatable,   intent(out) :: nrad(:,:)          ! number of exposed leaf layers
+      character(len=*), intent(in)  :: nc_file ! file name
+      integer,          intent(out) :: ncid    ! netcdf file unit number
 
-      ! LOCALS:
-      integer :: ncid ! netcdf file unit number
+      call Check(nf90_open(trim(nc_file), 0, ncid))
 
-      ! open file
-      call check(nf90_open(trim(file), 0, ncid))
-      
-      ! read in data
-      call get_var(ncid, 'can_area', canopy_area)
-      call get_var(ncid, 'elai', elai)
-      call get_var(ncid, 'esai', esai)
-      call get_var(ncid, 'nrad', nrad)
+    end subroutine OpenNCFile
 
-      ! close file
-      call check(nf90_close(ncid))
+    !=====================================================================================
 
-    end subroutine read_patch_data
+    subroutine CloseNCFile(ncid)
+      !
+      ! DESCRIPTION:
+      ! Closes a netcdf file
+    
+      ! ARGUMENTS:
+      integer, intent(in) :: ncid ! netcdf file unit number
 
-    !:.........................................................................:
+      call Check(nf90_close(ncid))
 
-    subroutine get_dims(ncid, varID, dim_lens)
+    end subroutine CloseNCFile
+
+    !=====================================================================================
+  
+    subroutine GetDims(ncid, varID, dim_lens)
       !
       ! DESCRIPTION:
       ! Get dimensions for a netcdf variable
@@ -196,25 +192,25 @@ module FatesUnitTestIOMod
       integer              :: i         ! looping index
   
       ! find dimensions of data 
-      call check(nf90_inquire_variable(ncid, varID, ndims=numDims))
+      call Check(nf90_inquire_variable(ncid, varID, ndims=numDims))
 
       ! allocate data to grab dimension information
       allocate(dim_lens(numDims))
       allocate(dimIDs(numDims))
 
       ! get dimIDs
-      call check(nf90_inquire_variable(ncid, varID, dimids=dimIDs))
+      call Check(nf90_inquire_variable(ncid, varID, dimids=dimIDs))
 
       ! grab these dimensions
       do i = 1, numDims
-        call check(nf90_inquire_dimension(ncid, dimIDs(i), len=dim_lens(i)))
+        call Check(nf90_inquire_dimension(ncid, dimIDs(i), len=dim_lens(i)))
       end do
 
-    end subroutine get_dims
+    end subroutine GetDims
 
-    !:.........................................................................:
+    !=====================================================================================
 
-    subroutine get_var1D_real(ncid, var_name, data)
+    subroutine GetVar1DReal(ncid, var_name, data)
       !
       ! DESCRIPTION:
       ! Read in variables for 1D real data
@@ -230,20 +226,20 @@ module FatesUnitTestIOMod
       integer, allocatable :: dim_lens(:) ! dimension lengths 
 
       ! find variable ID first
-      call check(nf90_inq_varid(ncid, var_name, varID))
+      call Check(nf90_inq_varid(ncid, var_name, varID))
 
       ! get dimensions of data
-      call get_dims(ncid, varID, dim_lens)
+      call GetDims(ncid, varID, dim_lens)
 
       ! read data
       allocate(data(dim_lens(1)))
-      call check(nf90_get_var(ncid, varID, data))
+      call Check(nf90_get_var(ncid, varID, data))
   
-    end subroutine get_var1D_real
+    end subroutine GetVar1DReal
 
-    !:.........................................................................:
+    !=====================================================================================
 
-    subroutine get_var1D_int(ncid, var_name, data)
+    subroutine GetVar1DInt(ncid, var_name, data)
       !
       ! DESCRIPTION:
       ! Read in variables for 1D integer data
@@ -259,20 +255,20 @@ module FatesUnitTestIOMod
       integer, allocatable :: dim_lens(:) ! dimension lengths 
 
       ! find variable ID first
-      call check(nf90_inq_varid(ncid, var_name, varID))
+      call Check(nf90_inq_varid(ncid, var_name, varID))
 
       ! get dimensions of data
-      call get_dims(ncid, varID, dim_lens)
+      call GetDims(ncid, varID, dim_lens)
 
       ! read data
       allocate(data(dim_lens(1)))
-      call check(nf90_get_var(ncid, varID, data))
+      call Check(nf90_get_var(ncid, varID, data))
   
-    end subroutine get_var1D_int
+    end subroutine GetVar1DInt
 
-    !:.........................................................................:
+    !=====================================================================================
 
-    subroutine get_var2D_real(ncid, var_name, data)
+    subroutine GetVar2DReal(ncid, var_name, data)
       !
       ! DESCRIPTION:
       ! Read in variables for 2D real data
@@ -288,20 +284,20 @@ module FatesUnitTestIOMod
       integer, allocatable :: dim_lens(:) ! dimension lengths 
 
       ! find variable ID first
-      call check(nf90_inq_varid(ncid, var_name, varID))
+      call Check(nf90_inq_varid(ncid, var_name, varID))
 
       ! get dimensions of data
-      call get_dims(ncid, varID, dim_lens)
+      call GetDims(ncid, varID, dim_lens)
 
       ! read data
       allocate(data(dim_lens(1), dim_lens(2)))
-      call check(nf90_get_var(ncid, varID, data))
+      call Check(nf90_get_var(ncid, varID, data))
   
-    end subroutine get_var2D_real
+    end subroutine GetVar2DReal
 
-    !:.........................................................................:
+    !=====================================================================================
 
-    subroutine get_var2D_int(ncid, var_name, data)
+    subroutine GetVar2DInt(ncid, var_name, data)
       !
       ! DESCRIPTION:
       ! Read in variables for 2D integer data
@@ -317,20 +313,20 @@ module FatesUnitTestIOMod
       integer, allocatable :: dim_lens(:) ! dimension lengths 
 
       ! find variable ID first
-      call check(nf90_inq_varid(ncid, var_name, varID))
+      call Check(nf90_inq_varid(ncid, var_name, varID))
 
       ! get dimensions of data
-      call get_dims(ncid, varID, dim_lens)
+      call GetDims(ncid, varID, dim_lens)
 
       ! read data
       allocate(data(dim_lens(1), dim_lens(2)))
-      call check(nf90_get_var(ncid, varID, data))
+      call Check(nf90_get_var(ncid, varID, data))
   
-    end subroutine get_var2D_int
+    end subroutine GetVar2DInt
 
-    !:.........................................................................:
+    !=====================================================================================
 
-    subroutine get_var3D_real(ncid, var_name, data)
+    subroutine GetVar3DReal(ncid, var_name, data)
       !
       ! DESCRIPTION:
       ! Read in variables for 3D real data
@@ -346,20 +342,20 @@ module FatesUnitTestIOMod
       integer, allocatable :: dim_lens(:) ! dimension lengths 
 
       ! find variable ID first
-      call check(nf90_inq_varid(ncid, var_name, varID))
+      call Check(nf90_inq_varid(ncid, var_name, varID))
 
       ! get dimensions of data
-      call get_dims(ncid, varID, dim_lens)
+      call GetDims(ncid, varID, dim_lens)
 
       ! read data
       allocate(data(dim_lens(1), dim_lens(2), dim_lens(3)))
-      call check(nf90_get_var(ncid, varID, data))
+      call Check(nf90_get_var(ncid, varID, data))
   
-    end subroutine get_var3D_real
+    end subroutine GetVar3DReal
 
-    !:.........................................................................:
+    !=====================================================================================
 
-    subroutine get_var3D_int(ncid, var_name, data)
+    subroutine GetVar3DInt(ncid, var_name, data)
       !
       ! DESCRIPTION:
       ! Read in variables for 3D integer data
@@ -375,18 +371,18 @@ module FatesUnitTestIOMod
       integer, allocatable :: dim_lens(:) ! dimension lengths 
 
       ! find variable ID first
-      call check(nf90_inq_varid(ncid, var_name, varID))
+      call Check(nf90_inq_varid(ncid, var_name, varID))
 
       ! get dimensions of data
-      call get_dims(ncid, varID, dim_lens)
+      call GetDims(ncid, varID, dim_lens)
 
       ! read data
       allocate(data(dim_lens(1), dim_lens(2), dim_lens(3)))
-      call check(nf90_get_var(ncid, varID, data))
+      call Check(nf90_get_var(ncid, varID, data))
   
-    end subroutine get_var3D_int
+    end subroutine GetVar3DInt
 
-    !:.........................................................................:
+    !=====================================================================================
 
   !   subroutine write_radiation_data(file, kdir, declin)
   !     !
