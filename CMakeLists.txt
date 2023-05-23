@@ -5,40 +5,23 @@ include(CIME_initial_setup)
 
 project(FATES_tests Fortran C)
 
-enable_language(Fortran)
-
 include(CIME_utils)
 
-set(CLM_ROOT "../../")
+set(HLM_ROOT "../../")
 
 # Add source directories from other share code (csm_share, etc.)
-add_subdirectory(${CLM_ROOT}/share/src csm_share)
-add_subdirectory(${CLM_ROOT}/share/unit_test_stubs/util csm_share_stubs)
-
-#Extract just the files we need from csm_share
-set (shr_sources_needed_base
-    shr_log_mod.F90
-    shr_infnan_mod.F90
-    shr_kind_mod.F90
-    shr_sys_mod.F90
-    shr_strconvert_mod.F90
-    shr_abort_mod.abortthrows.F90
-  )
-extract_sources("${shr_sources_needed_base}" "${share_sources}" shr_sources_needed)
+add_subdirectory(${HLM_ROOT}/share/src csm_share)
+add_subdirectory(${HLM_ROOT}/share/unit_test_stubs/util csm_share_stubs)
 
 # Add FATES source directories
-add_subdirectory(${CLM_ROOT}/src/fates/main fates_main)
-add_subdirectory(${CLM_ROOT}/src/fates/biogeochem fates_biogeochem)
-add_subdirectory(${CLM_ROOT}/src/fates/biogeophys fates_biogephys)
-add_subdirectory(${CLM_ROOT}/src/fates/parteh fates_parteh)
-add_subdirectory(${CLM_ROOT}/src/fates/fire fates_fire)
-
-# Add general unit test directories (stubbed out files, etc.)
-add_subdirectory(${CLM_ROOT}/src/unit_test_stubs clm_stubs)
-add_subdirectory(${CLM_ROOT}/src/unit_test_shr clm_tests)
+add_subdirectory(${HLM_ROOT}/src/fates/main fates_main)
+add_subdirectory(${HLM_ROOT}/src/fates/biogeochem fates_biogeochem)
+add_subdirectory(${HLM_ROOT}/src/fates/biogeophys fates_biogephys)
+add_subdirectory(${HLM_ROOT}/src/fates/parteh fates_parteh)
+add_subdirectory(${HLM_ROOT}/src/fates/fire fates_fire)
 
 # Add general unit test directories
-add_subdirectory(${CLM_ROOT}/src/fates/unit_test_shr)
+add_subdirectory(${HLM_ROOT}/src/fates/unit_test_shr)
 
 # Remove shr_mpi_mod from share_sources.
 # This is needed because we want to use the mock shr_mpi_mod in place of the real one
@@ -73,14 +56,15 @@ endforeach()
 
 # Build libraries containing stuff needed for the unit tests.
 # Eventually, these add_library calls should probably be distributed into the correct location, rather than being in this top-level CMakeLists.txt file.
-add_library(csm_share ${shr_sources_needed})
+add_library(csm_share ${share_sources})
 declare_generated_dependencies(csm_share "${share_genf90_sources}")
 add_library(fates ${fates_sources})
 add_dependencies(fates csm_share)
 
 # We need to look for header files here, in order to pick up shr_assert.h
-include_directories(${CLM_ROOT}/share/include)
+include_directories(${HLM_ROOT}/share/include)
 
+# This needs to be something we add dynamically
 set(NETCDF_C_DIR "/usr/local/Cellar/netcdf/4.9.2")
 set(NETCDF_FORTRAN_DIR "/usr/local/Cellar/netcdf-fortran/4.6.0")
 
@@ -94,6 +78,7 @@ include_directories(${NETCDF_C_DIR}/include
 link_directories(${NETCDF_C_DIR}/lib
                 ${NETCDF_FORTRAN_DIR}/lib)
 
+# Tell cmake to look for libraries & mod files here, because this is where we built libraries
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 link_directories(${CMAKE_CURRENT_BINARY_DIR})
 
@@ -102,4 +87,4 @@ link_directories(${CMAKE_CURRENT_BINARY_DIR})
 # has tests in it. However, it appears that the order needs to be done
 # carefully: for example, include_directories and link_directories needs to be
 # done before adding the tests themselves.
-add_subdirectory(${CLM_ROOT}/src/fates/biogeophys/test fates_biogeophys_test)
+add_subdirectory(${HLM_ROOT}/src/fates/biogeophys/test fates_biogeophys_test)
