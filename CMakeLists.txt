@@ -5,7 +5,7 @@ include(CIME_initial_setup)
 
 project(FATES_tests Fortran C)
 
-#enable_language(Fortran)
+enable_language(Fortran)
 
 include(CIME_utils)
 
