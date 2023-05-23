@@ -22,7 +22,6 @@ list(APPEND clm_sources
   FatesParameterDerivedMod.F90
   FatesHydraulicsMemMod.F90
   FatesRunningMeanMod.F90
-  FatesCohortMod.F90
   FatesSizeAgeTypeIndicesMod.F90
   FatesIntegratorsMod.F90
   FatesUtilsMod.F90
