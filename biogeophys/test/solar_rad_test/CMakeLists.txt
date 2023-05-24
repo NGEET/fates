@@ -11,7 +11,8 @@ MESSAGE(" NETCDFF_FOUND = ${NETCDFF_FOUND}")
 include_directories(${NETCDF_C_DIR}/include
                     ${NETCDF_FORTRAN_DIR}/include)
 link_directories(${NETCDF_C_DIR}/lib
-                ${NETCDF_FORTRAN_DIR}/lib)
+                ${NETCDF_FORTRAN_DIR}/lib
+                ${PFUNIT_TOP_DIR}/lib)
 
 add_executable(FATES_rad_exe ${rad_sources})
 
@@ -19,9 +20,14 @@ target_link_libraries(FATES_rad_exe
                   netcdff 
                   netcdf
                   fates
-                  csm_share)
+                  csm_share
+                  funit)
 
 add_test(rad_test FATES_rad_exe)
+
+# add_pfunit_ctest(balance
+#   TEST_SOURCES "test_Balance.pf"
+#   LINK_LIBRARIES clm csm_share esmf_wrf_timemgr)
 
 # Tell CTest how to figure out that "STOP 1" fails for the current
 define_Fortran_stop_failure(rad_test)

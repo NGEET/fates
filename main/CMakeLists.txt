@@ -26,6 +26,7 @@ list(APPEND clm_sources
   FatesIntegratorsMod.F90
   FatesUtilsMod.F90
   FatesSynchronizedParamsMod.F90
+  ChecksBalancesMod.F90
   )
 
 sourcelist_to_parent(clm_sources)

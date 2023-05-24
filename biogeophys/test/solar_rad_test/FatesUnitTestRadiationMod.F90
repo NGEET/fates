@@ -10,17 +10,21 @@ module FatesUnitTestRadiationMod
   use FatesParametersInterface, only : fates_parameters_type
   use FatesPatchMod,            only : fates_patch_type
 
-  use shr_kind_mod,             only : SHR_KIND_R8 
-  use shr_orb_mod,              only : shr_orb_cosz, shr_orb_decl
+  use shr_kind_mod,             only : SHR_KIND_R8
+  use shr_orb_mod,              only : SHR_ORB_UNDEF_INT, SHR_ORB_UNDEF_REAL
+  use shr_orb_mod,              only : shr_orb_cosz, shr_orb_decl, shr_orb_params
 
   implicit none
   private
+
+  real, parameter :: PI = 4.0*atan(1.0)   ! Pi (3.1415..)
+  real, parameter :: DEG2RAD = PI/180.0   ! Convert from degrees to radians
 
   type, public :: fates_rad_test
     
     real(r8)                :: lat         ! latitude to simulate [degrees]
     real(r8)                :: lon         ! longitude to simulate [degrees]
-    integer                 :: year_start  ! year to start simulation 
+    integer                 :: year        ! year to simulate
     integer                 :: jday_start  ! Julian day to start simulation
     real(SHR_KIND_R8)       :: eccen       ! orbital eccentricity
     real(SHR_KIND_R8)       :: mvelp       ! moving vernal equinox long
@@ -41,6 +45,8 @@ module FatesUnitTestRadiationMod
       procedure :: ReadPftNamelist
       procedure :: ReadPatchData
       procedure :: InitPatch
+      procedure :: GetOrbitalParams
+      procedure :: CalcCosZ
 
   end type fates_rad_test
 
@@ -66,6 +72,10 @@ module FatesUnitTestRadiationMod
     ! read in pft parameters
     call this%InitPftData(EDPftvarconInst, pft_nl_file)
 
+    ! set these to undefined so we can catch errors later
+    this%eccen = SHR_ORB_UNDEF_REAL
+    this%mvelp = SHR_ORB_UNDEF_REAL
+
   end subroutine Init
 
   !=======================================================================================
@@ -88,7 +98,7 @@ module FatesUnitTestRadiationMod
     integer                 :: year, jday ! year and day of year to start simulation
     integer                 :: num_pft    ! number of pfts
     integer                 :: num_swb    ! number of shortwave bands
-    real(r8)                :: lat, lon   ! latitude and longitude [degrees]
+    real(r8)                :: lat, lon   ! latitude and longitude [radians]
     real(r8)                :: fcansno    ! fraction of canopy covered by snow [0-1]
     character(len=MAX_CHAR) :: msg        ! I/O Error message
     integer                 :: rad_nl     ! unit number for namelist
@@ -102,10 +112,10 @@ module FatesUnitTestRadiationMod
     rad_nl = OpenFile(trim(rad_nl_file), 'r')
     read(rad_nl, radiation, iostat=ios, iomsg=msg)
 
-    this%year_start = year
+    this%year = year
     this%jday_start = jday 
-    this%lat = lat
-    this%lon = lon 
+    this%lat = lat*DEG2RAD
+    this%lon = lon*DEG2RAD
     this%num_pft = num_pft 
     this%fcansno = fcansno 
     this%patch_file = patch_file 
@@ -259,7 +269,7 @@ module FatesUnitTestRadiationMod
 
   end subroutine ReadPatchData
 
-   !=======================================================================================
+  !=======================================================================================
 
   subroutine InitPatch(this, fatesPatch)
     !
@@ -289,6 +299,60 @@ module FatesUnitTestRadiationMod
     fatesPatch%esai_profile = esai
     fatesPatch%nrad = nrad
 
+    ! set the fcansno
+    fatesPatch%fcansno = this%fcansno
+
   end subroutine InitPatch
+
+  !=======================================================================================
+
+  subroutine GetOrbitalParams(this)
+    !
+    ! DESCRIPTION:
+    ! Calculates orbital values
+    !
+  
+    ! ARGUMENTS:
+    class(fates_rad_test), intent(inout) :: this ! rad object
+
+    ! LOCALS:
+    real(SHR_KIND_R8) :: obliq ! obliquity in degrees
+
+    obliq = SHR_ORB_UNDEF_REAL
+    call shr_orb_params(this%year, this%eccen, obliq, this%mvelp, this%obliqr,           &
+      this%lambm0, this%mvelpp, .false.)
+
+  end subroutine GetOrbitalParams
+
+  !=======================================================================================
+
+  subroutine CalcCosZ(this, time_step, cosz)
+    !
+    ! DESCRIPTION:
+    ! Calculates cosine of the solar zenith angle.
+    ! Assumes 365.0 days/year.
+    !
+  
+    ! ARGUMENTS:
+    class(fates_rad_test), intent(inout) :: this      ! rad object
+    integer,               intent(in)    :: time_step ! time step
+    real(SHR_KIND_R8),     intent(out)   :: cosz      ! cosine of solar zenith angle [radians]
+
+    ! LOCALS:
+    real(SHR_KIND_R8) :: cal_day ! Julian cal day (1.xx to 365.xx)
+    real(SHR_KIND_R8) :: declin  ! solar declination [radians]
+    real(SHR_KIND_R8) :: eccf    ! Earth-sun distance factor (ie. (1/r)**2)
+    
+    ! calculate proportional day
+    cal_day = float(this%jday_start) + float(time_step)*0.02083333_SHR_KIND_R8
+    
+    ! calculate solar declination
+    call shr_orb_decl(cal_day, this%eccen, this%mvelpp, this%lambm0, this%obliqr,        &
+      declin, eccf)
+
+    ! calculate cosine of solar zenith angle
+    cosz = shr_orb_cosz(cal_day, this%lat, this%lon, declin)
+
+  end subroutine CalcCosZ
 
 end module FatesUnitTestRadiationMod
