@@ -17,7 +17,6 @@ module FatesLandUseChangeMod
   use EDTypesMod           , only : area_site => area
 
   ! CIME globals
-  use shr_infnan_mod       , only : nan => shr_infnan_nan, assignment(=)
   use shr_log_mod          , only : errMsg => shr_log_errMsg
   
   !
@@ -217,8 +216,6 @@ contains
   !----------------------------------------------------------------------------------------------------
 
   subroutine get_luh_statedata(bc_in, state_vector)
-
-    use shr_infnan_mod   , only : isnan => shr_infnan_isnan
 
     type(bc_in_type) , intent(in) :: bc_in
     real(r8), intent(out) :: state_vector(n_landuse_cats)  ! [m2/m2]
