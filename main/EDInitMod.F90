@@ -649,7 +649,6 @@ contains
                 lu_state_present_if: if ( state_vector(i_lu_state) .gt. nearzero ) then
 
                    newparea_withlanduse = newparea * state_vector(i_lu_state)
-                   write(fates_log(),*) 'init_patches: istate, state_vector: ', i_lu_state, state_vector(i_lu_state)
 
                    ! for now, spread nocomp PFTs evenly across land use types
                    new_patch_area_gt_zero: if(newparea_withlanduse.gt.0._r8)then ! Stop patches being initilialized when PFT not present in nocomop mode
@@ -705,7 +704,6 @@ contains
           newp => sites(s)%oldest_patch
           do while (associated(newp))
              tota=tota+newp%area
-             write(fates_log(),*) 'init_patches: area, tota, lul: ', newp%area, tota, newp%land_use_label
              newp=>newp%younger
           end do
 
