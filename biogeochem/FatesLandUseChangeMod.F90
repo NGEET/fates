@@ -76,16 +76,26 @@ contains
     character(5) :: donor_name, receiver_name
     character(14) :: transition_name
     real(r8) :: urban_fraction
+    real(r8) :: temp_vector(hlm_num_luh2_transitions)
+    logical  :: modified_flag
 
-    ! zero the transition matrix
+    ! zero the transition matrix and the urban fraction
     landuse_transition_matrix(:,:) = 0._r8
+    urban_fraction = 0._r8
 
     use_luh_if: if ( hlm_use_luh .eq. itrue ) then
-       
+
+       ! Check the LUH data incoming to see if any of the transitions are NaN
+       temp_vector = bc_in%hlm_luh_transitions
+       call CheckLUHData(temp_vector,modified_flag)
+       if (.not. modified_flag) then
+          ! identify urban fraction so that it can be factored into the land use state output
+          urban_fraction = bc_in%hlm_luh_states(findloc(bc_in%hlm_luh_state_names,'urban',dim=1))
+       end if
        !!may need some logic here to ask whether or not ot perform land use cahnge on this timestep. current code occurs every day.
        
        ! identify urban fraction so that it can be accounted for in the fates land use aggregation
-       urban_fraction = bc_in%hlm_luh_states(findloc(bc_in%hlm_luh_state_names,'urban',dim=1))
+       ! urban_fraction = bc_in%hlm_luh_states(findloc(bc_in%hlm_luh_state_names,'urban',dim=1))
 
        transitions_loop: do i_luh2_transitions = 1, hlm_num_luh2_transitions
 
@@ -101,7 +111,8 @@ contains
           ! Avoid transitions with 'urban' as those are handled seperately
           if (.not.(i_donor .eq. fates_unset_int .or. i_receiver .eq. fates_unset_int)) then
              landuse_transition_matrix(i_donor,i_receiver) = &
-                  landuse_transition_matrix(i_donor,i_receiver) +  bc_in%hlm_luh_transitions(i_luh2_transitions) / (1._r8 - urban_fraction)
+                  landuse_transition_matrix(i_donor,i_receiver) +  temp_vector(i_luh2_transitions) / (1._r8 - urban_fraction)
+                  !landuse_transition_matrix(i_donor,i_receiver) +  bc_in%hlm_luh_transitions(i_luh2_transitions) / (1._r8 - urban_fraction)
 
           end if
        end do transitions_loop
@@ -219,30 +230,17 @@ contains
     integer  :: i_luh2_states
     integer  :: ii
     character(5) :: state_name
+    logical :: modified_flag
 
-    ! zero state vector and temporary state vector
+    ! zero state vector and urban fraction
     state_vector(:) = 0._r8
-    temp_vector = 0._r8
-
-    ! identify urban fraction so that it can be factored into the land use state output
     urban_fraction = 0._r8
 
     ! Check to see if the incoming state vector is NaN.
-    ! This suggests that there is a discepency where the HLM and LUH2 states
-    ! there is vegetated ground.  In this case, states should be Nan.  If so,
-    ! set the current state to be all primary forest.
-    ! If only a portion of the vector is NaN, there is something  amiss with
-    ! the data, so end the run.
-    if (all(isnan(bc_in%hlm_luh_states))) then
-       temp_vector(1) = 1._r8
-       write(fates_log(),*) 'WARNING: land use state is all NaN; setting state as all primary forest.'
-    else if (any(isnan(bc_in%hlm_luh_states))) then
-       if (any(.not. isnan(bc_in%hlm_luh_states))) then
-          write(fates_log(),*) 'ERROR: land use state has NaN: ', bc_in%hlm_luh_states
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       end if
-    else
-       temp_vector = bc_in%hlm_luh_states
+    temp_vector = bc_in%hlm_luh_states
+    call CheckLUHData(temp_vector,modified_flag)
+    if (.not. modified_flag) then
+       ! identify urban fraction so that it can be factored into the land use state output
        urban_fraction = bc_in%hlm_luh_states(findloc(bc_in%hlm_luh_state_names,'urban',dim=1))
     end if
 
@@ -268,5 +266,39 @@ contains
     end if
 
   end subroutine get_luh_statedata
+
+  !----------------------------------------------------------------------------------------------------
+
+  subroutine CheckLUHData(luh_vector,modified_flag)
+
+    use shr_infnan_mod   , only : isnan => shr_infnan_isnan
+
+    real(r8), intent(inout) :: luh_vector(:)  ! [m2/m2]
+    logical, intent(out)    :: modified_flag
+
+    ! Check to see if the incoming luh2 vector is NaN.
+    ! This suggests that there is a discepency where the HLM and LUH2 states
+    ! there is vegetated ground.  In this case, states should be Nan.  If so,
+    ! set the current state to be all primary forest.
+    ! If only a portion of the vector is NaN, there is something  amiss with
+    ! the data, so end the run.
+
+    modified_flag = .false.
+    if (all(isnan(luh_vector))) then
+       luh_vector = 0._r8
+       ! Check if this is a state vector, otherwise leave transitions as zero
+       if (size(luh_vector) .eq. hlm_num_luh2_states) then
+          luh_vector(1) = 1._r8
+       end if
+       modified_flag = .true.
+       write(fates_log(),*) 'WARNING: land use state is all NaN; setting state as all primary forest.'
+    else if (any(isnan(luh_vector))) then
+       if (any(.not. isnan(luh_vector))) then
+          write(fates_log(),*) 'ERROR: land use vector has NaN'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+    end if
+
+  end subroutine CheckLUHData
 
 end module FatesLandUseChangeMod
