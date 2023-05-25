@@ -14,8 +14,6 @@ from shutil import rmtree, copy
 
 def main(build_dir):
   os.chdir("..")
-  if os.path.isdir(build_dir):
-    rmtree(build_dir)
 
   ## super hacky right now!!
   run_command = ["../../cime/scripts/fortran_unit_testing/run_tests.py",

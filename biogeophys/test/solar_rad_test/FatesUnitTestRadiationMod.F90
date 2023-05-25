@@ -17,25 +17,31 @@ module FatesUnitTestRadiationMod
   implicit none
   private
 
-  real, parameter :: PI = 4.0*atan(1.0)   ! Pi (3.1415..)
-  real, parameter :: DEG2RAD = PI/180.0   ! Convert from degrees to radians
+  public :: ZeroPatchRadVars
+
+  real(r8), parameter :: const_pi      = 3.14159265358979323846_R8      ! pi
+  real(r8), parameter :: const_deg2rad = const_pi/180.0_r8
 
   type, public :: fates_rad_test
     
-    real(r8)                :: lat         ! latitude to simulate [degrees]
-    real(r8)                :: lon         ! longitude to simulate [degrees]
-    integer                 :: year        ! year to simulate
-    integer                 :: jday_start  ! Julian day to start simulation
-    real(SHR_KIND_R8)       :: eccen       ! orbital eccentricity
-    real(SHR_KIND_R8)       :: mvelp       ! moving vernal equinox long
-    real(SHR_KIND_R8)       :: obliqr      ! Earth's obliquity [radians]
-    real(SHR_KIND_R8)       :: lambm0      ! mean long of perihelion at vernal equinox [radians]
-    real(SHR_KIND_R8)       :: mvelpp      ! moving vernal equinox long of perihelion plus pi [radians]
-    integer                 :: num_pft     ! number of pfts to simulate
-    integer                 :: num_swb     ! number of shortwave bands to simulate
-    real(r8)                :: fcansno     ! fraction of canopy covered by snow [0-1]
-    character(len=MAX_PATH) :: patch_file  ! patch data file name
-    character(len=MAX_PATH) :: out_file    ! output file name
+    real(r8)                :: lat           ! latitude to simulate [degrees]
+    real(r8)                :: lon           ! longitude to simulate [degrees]
+    integer                 :: year          ! year to simulate
+    integer                 :: jday_start    ! Julian day to start simulation
+    integer                 :: time_step     ! time step length [minutes]
+    integer                 :: num_steps     ! number of time steps to simulate
+    real(r8)                :: step_length   ! length of time step, proportional to day [0-1]
+    real(SHR_KIND_R8)       :: eccen         ! orbital eccentricity
+    real(SHR_KIND_R8)       :: mvelp         ! moving vernal equinox long
+    real(SHR_KIND_R8)       :: obliqr        ! Earth's obliquity [radians]
+    real(SHR_KIND_R8)       :: lambm0        ! mean long of perihelion at vernal equinox [radians]
+    real(SHR_KIND_R8)       :: mvelpp        ! moving vernal equinox long of perihelion plus pi [radians]
+    integer                 :: num_pft       ! number of pfts to simulate
+    integer                 :: num_swb       ! number of shortwave bands to simulate
+    real(r8)                :: fcansno       ! fraction of canopy covered by snow [0-1]
+    real(r8)                :: ground_albedo ! albedo of ground (direct/diffuse, all bands)
+    character(len=MAX_PATH) :: patch_file    ! patch data file name
+    character(len=MAX_PATH) :: out_file      ! output file name
 
     contains 
 
@@ -93,20 +99,23 @@ module FatesUnitTestRadiationMod
 
     
     ! LOCALS:
-    character(len=MAX_PATH) :: patch_file ! patch data file name
-    character(len=MAX_PATH) :: out_file   ! output file name
-    integer                 :: year, jday ! year and day of year to start simulation
-    integer                 :: num_pft    ! number of pfts
-    integer                 :: num_swb    ! number of shortwave bands
-    real(r8)                :: lat, lon   ! latitude and longitude [radians]
-    real(r8)                :: fcansno    ! fraction of canopy covered by snow [0-1]
-    character(len=MAX_CHAR) :: msg        ! I/O Error message
-    integer                 :: rad_nl     ! unit number for namelist
-    integer                 :: ios        ! I/O status
+    character(len=MAX_PATH) :: patch_file    ! patch data file name
+    character(len=MAX_PATH) :: out_file      ! output file name
+    integer                 :: year, jday    ! year and day of year to start simulation
+    integer                 :: time_step     ! time step to simulate [minutes]
+    integer                 :: num_steps     ! number of time steps to simulate
+    integer                 :: num_pft       ! number of pfts
+    integer                 :: num_swb       ! number of shortwave bands
+    real(r8)                :: lat, lon      ! latitude and longitude [radians]
+    real(r8)                :: fcansno       ! fraction of canopy covered by snow [0-1]
+    real(r8)                :: ground_albedo ! albedo of ground (direct and diffuse, all bands)
+    character(len=MAX_CHAR) :: msg           ! I/O Error message
+    integer                 :: rad_nl        ! unit number for namelist
+    integer                 :: ios           ! I/O status
 
     ! Namelist of radiation parameters
-    namelist /radiation/ year, jday, lat, lon, num_pft, num_swb, fcansno, patch_file,    &
-      out_file
+    namelist /radiation/ year, jday, num_steps, time_step, lat, lon, num_pft, num_swb,   &
+      fcansno, ground_albedo, patch_file, out_file
   
     ! Now read parameters namelist
     rad_nl = OpenFile(trim(rad_nl_file), 'r')
@@ -114,14 +123,22 @@ module FatesUnitTestRadiationMod
 
     this%year = year
     this%jday_start = jday 
-    this%lat = lat*DEG2RAD
-    this%lon = lon*DEG2RAD
+    this%num_steps = num_steps
+    this%time_step = time_step
+    this%lat = lat*const_deg2rad
+    this%lon = lon*const_deg2rad
     this%num_pft = num_pft 
     this%fcansno = fcansno 
     this%patch_file = patch_file 
     this%out_file = out_file
     this%num_pft = num_pft
     this%num_swb = num_swb
+    this%ground_albedo = ground_albedo
+
+    
+
+    ! calculate step length
+    this%step_length = 1.0_r8/(24.0_r8*60.0_r8/this%time_step)
     
     if (ios /= 0) then
       ! Problem reading file - tell user.
@@ -288,7 +305,7 @@ module FatesUnitTestRadiationMod
     integer,  allocatable :: nrad(:,:)          ! number of exposed leaf layers
 
     ! PARAMETERS
-    integer, parameter :: nlev_soil   = 5 ! this shouldn't really matter
+    integer, parameter :: nlev_soil = 5 ! this shouldn't really matter
 
     call this%ReadPatchData(canopy_area, elai, esai, nrad)
 
@@ -301,6 +318,7 @@ module FatesUnitTestRadiationMod
 
     ! set the fcansno
     fatesPatch%fcansno = this%fcansno
+    fatesPatch%ncl_p = 2
 
   end subroutine InitPatch
 
@@ -344,8 +362,8 @@ module FatesUnitTestRadiationMod
     real(SHR_KIND_R8) :: eccf    ! Earth-sun distance factor (ie. (1/r)**2)
     
     ! calculate proportional day
-    cal_day = float(this%jday_start) + float(time_step)*0.02083333_SHR_KIND_R8
-    
+    cal_day = float(this%jday_start) + float(time_step - 1)*this%step_length
+
     ! calculate solar declination
     call shr_orb_decl(cal_day, this%eccen, this%mvelpp, this%lambm0, this%obliqr,        &
       declin, eccf)
@@ -354,5 +372,31 @@ module FatesUnitTestRadiationMod
     cosz = shr_orb_cosz(cal_day, this%lat, this%lon, declin)
 
   end subroutine CalcCosZ
+
+  !=======================================================================================
+
+  subroutine ZeroPatchRadVars(fatesPatch)
+    !
+    ! DESCRIPTION:
+    ! zeros patch-level values that we need to zero for the radiation routines
+    !
+  
+    ! ARGUMENTS:
+    class(fates_patch_type), intent(inout) :: fatesPatch
+
+    fatesPatch%f_sun(:,:,:)      = 0._r8
+    fatesPatch%fabd_sun_z(:,:,:) = 0._r8
+    fatesPatch%fabd_sha_z(:,:,:) = 0._r8
+    fatesPatch%fabi_sun_z(:,:,:) = 0._r8
+    fatesPatch%fabi_sha_z(:,:,:) = 0._r8
+    fatesPatch%fabd(:)           = 0._r8
+    fatesPatch%fabi(:)           = 0._r8
+
+    fatesPatch%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
+    fatesPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
+    fatesPatch%nrmlzd_parprof_dir_z(:,:,:)       = 0._r8
+    fatesPatch%nrmlzd_parprof_dif_z(:,:,:)       = 0._r8
+
+  end subroutine ZeroPatchRadVars
 
 end module FatesUnitTestRadiationMod

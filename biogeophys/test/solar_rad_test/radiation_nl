@@ -3,11 +3,14 @@
 ! see FatesUnitTestRadiation.F90
 year = 2000
 jday = 165
-lat = 45.0
-lon = 238.0
+lat = 43.0
+lon = 288.0
 num_pft = 12
 num_swb = 2
 fcansno = 0.0
+ground_albedo = 0.2
+num_steps = 48
+time_step = 30
 patch_file = 'patch_data.nc'
 out_file = 'radiation_out.nc'
 /
