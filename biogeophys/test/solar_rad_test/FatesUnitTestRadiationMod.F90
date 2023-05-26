@@ -5,7 +5,7 @@ module FatesUnitTestRadiationMod
   !
   use FatesConstantsMod,        only : r8 => fates_r8
   use FatesUnitTestIOMod,       only : MAX_PATH, MAX_CHAR, OpenFile, logf
-  use FatesUnitTestIOMod,       only : GetVar, OpenNCFile, CloseNCFile
+  use FatesUnitTestIOMod,       only : GetVar, OpenNCFile, CloseNCFile, WriteVar2DReal
   use EDPftvarcon,              only : EDPftvarcon_type
   use FatesParametersInterface, only : fates_parameters_type
   use FatesPatchMod,            only : fates_patch_type
@@ -53,6 +53,7 @@ module FatesUnitTestRadiationMod
       procedure :: InitPatch
       procedure :: GetOrbitalParams
       procedure :: CalcCosZ
+      procedure :: WriteRadiationData
 
   end type fates_rad_test
 
@@ -79,9 +80,12 @@ module FatesUnitTestRadiationMod
     call this%InitPftData(EDPftvarconInst, pft_nl_file)
 
     ! set these to undefined so we can catch errors later
-    this%eccen = SHR_ORB_UNDEF_REAL
-    this%mvelp = SHR_ORB_UNDEF_REAL
-
+    this%eccen  = SHR_ORB_UNDEF_REAL
+    this%mvelp  = SHR_ORB_UNDEF_REAL
+    this%obliqr = SHR_ORB_UNDEF_REAL
+    this%lambm0 = SHR_ORB_UNDEF_REAL
+    this%mvelpp = SHR_ORB_UNDEF_REAL
+    
   end subroutine Init
 
   !=======================================================================================
@@ -134,8 +138,6 @@ module FatesUnitTestRadiationMod
     this%num_pft = num_pft
     this%num_swb = num_swb
     this%ground_albedo = ground_albedo
-
-    
 
     ! calculate step length
     this%step_length = 1.0_r8/(24.0_r8*60.0_r8/this%time_step)
@@ -273,7 +275,7 @@ module FatesUnitTestRadiationMod
     integer :: ncid ! netcdf file unit number
 
     ! open file
-    call OpenNCFile(trim(this%patch_file), ncid)
+    call OpenNCFile(trim(this%patch_file), ncid, 'read')
     
     ! read in data
     call GetVar(ncid, 'can_area', canopy_area)
@@ -364,12 +366,16 @@ module FatesUnitTestRadiationMod
     ! calculate proportional day
     cal_day = float(this%jday_start) + float(time_step - 1)*this%step_length
 
+    !print *, cal_day
+
     ! calculate solar declination
     call shr_orb_decl(cal_day, this%eccen, this%mvelpp, this%lambm0, this%obliqr,        &
       declin, eccf)
 
     ! calculate cosine of solar zenith angle
     cosz = shr_orb_cosz(cal_day, this%lat, this%lon, declin)
+
+    print *, cosz
 
   end subroutine CalcCosZ
 
@@ -398,5 +404,30 @@ module FatesUnitTestRadiationMod
     fatesPatch%nrmlzd_parprof_dif_z(:,:,:)       = 0._r8
 
   end subroutine ZeroPatchRadVars
+
+  !=======================================================================================
+
+  subroutine WriteRadiationData(this, alb_dir)
+    !
+    ! DESCRIPTION:
+    ! writes out data from the unit test
+    !
+  
+    ! ARGUMENTS:
+    class(fates_rad_test), intent(inout) :: this         ! rad object
+    real(r8),              intent(in)    :: alb_dir(:,:) ! albedo
+
+    ! LOCALS:
+    integer          :: ncid         ! netcdf id
+    character(len=8) :: dim_names(2) ! dimension names
+    dim_names = [character(len=8) :: 'band', 'time']
+
+    call OpenNCFile(trim(this%out_file), ncid, 'write')
+
+    call WriteVar2DReal(ncid, dim_names, alb_dir)
+
+    call CloseNCFile(ncid)
+
+  end subroutine WriteRadiationData
 
 end module FatesUnitTestRadiationMod

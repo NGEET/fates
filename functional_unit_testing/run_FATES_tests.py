@@ -10,7 +10,7 @@ sys.path.insert(1, _CTSM_PYTHON)
 from ctsm import add_cime_to_path
 from CIME.utils import run_cmd_no_fail
 
-from shutil import rmtree, copy
+from shutil import copy
 
 def main(build_dir):
   os.chdir("..")

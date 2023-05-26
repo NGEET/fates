@@ -49,6 +49,84 @@ module FatesUnitTestIOMod
 
     !=====================================================================================
 
+    character(len=9) function FileMode(mode)
+      !
+      ! DESCRIPTION:
+      ! Gets a file mode
+      !
+
+      ! ARGUMENTS:
+      character(len=*), intent(in), optional :: mode     ! Optional mode ('r', 'w', 'rw')
+      
+      ! Get mode of open (read, write, or read/write)
+      select case(mode)
+      case ('r', 'R')
+        FileMode = 'read'
+      case ('w', 'W')
+        FileMode = 'write'
+      case ('rw', 'RW', 'wr', 'WR')
+        FileMode = 'readwrite'
+      case DEFAULT
+        FileMode = 'readwrite'
+      end select
+
+    end function FileMode
+
+    !=====================================================================================
+
+    logical function CheckFile(filename, fmode)
+      !
+      ! DESCRIPTION:
+      ! Checks to see if a file exists and checks against the mode
+      !
+
+      ! ARGUMENTS:
+      character(len=*), intent(in) :: filename ! Name of file to open
+      character(len=*), intent(in) :: fmode    ! File mode
+
+      ! LOCALS:
+      character(len=MAX_PATH)      :: fname       ! Local filename (trimmed)
+      integer, dimension(MAX_PATH) :: farray      ! Array of characters of file name
+      integer                      :: i           ! looping index
+      integer                      :: ios         ! I/O status
+      logical                      :: file_exists ! Does the file exist?
+      
+      ! trim filename of whitespace
+      fname = trim(adjustl(filename))
+
+      if (fmode == 'read' .or. fmode == 'readwrite') then
+        ! Check for valid name of file
+        farray = 0
+        do i = 1, len_trim(fname)
+          farray(i) = ichar(fname(i:i))
+        enddo
+        if (any(farray > MAX_PATH)) then
+          write(logf,'(A)') "Invalid filename"
+          CheckFile = .false.
+          return 
+        endif
+      endif
+
+      ! Does the file exist?
+      inquire(file=fname, exist=file_exists)
+
+      ! Open file if conditions are correct
+      if (file_exists .and. fmode == 'write') then
+        write(logf,'(A,A,A)') "File ", fname(1:len_trim(fname)),                         &
+          " exists. Cannot open write only."
+        CheckFile = .false.
+      else if (.not. file_exists .and. fmode == 'read') then
+        write(logf, '(A,A,A)') "File ", fname(1:len_trim(fname)),                        &
+          " does not exist. Can't read."
+        CheckFile = .false.
+      else
+        CheckFile = .true.
+      endif
+
+    end function CheckFile
+
+    !=====================================================================================
+
     integer function OpenFile(filename, mode)
       !
       ! DESCRIPTION:
@@ -61,59 +139,23 @@ module FatesUnitTestIOMod
       character(len = *), intent(in), optional :: mode     ! Optional mode ('r', 'w', 'rw')
 
       ! LOCALS:
-      character(len = 9)           :: fmode             ! File open mode
-      logical                      :: file_exists       ! Does the file exist?
-      character(len = MAX_PATH)    :: fname             ! Local filename (trimmed)
-      integer                      :: i                 ! Looping index
-      integer                      :: ios               ! I/O status
-      integer                      :: iunit = BASE_UNIT ! File unit number
-      integer, dimension(MAX_PATH) :: farray            ! Array of characters of file name
-
-      ! Get mode of open (read, write, or read/write)
-      ! Defaults to read/write
-      if (present(mode)) then
-        select case(mode)
-        case ('r', 'R')
-          fmode = 'read'
-        case ('w', 'W')
-          fmode = 'write'
-        case ('rw', 'RW', 'wr', 'WR')
-          fmode = 'readwrite'
-        case DEFAULT
-          fmode = 'readwrite'
-        end select
-      else
+      character(len=9)        :: fmode      ! file mode
+      integer                 :: iunit      ! file unit number
+      integer                 :: ios        ! I/O status
+      character(len=MAX_PATH) :: fname      ! Local filename (trimmed)
+      
+      ! get the file mode, defaults to readwrite
+      if (present(mode)) then 
+        fmode = FileMode(mode)
+      else 
         fmode = 'readwrite'
-      endif
+      end if 
 
-      ! trim filename of whitespace
-      fname = trim(adjustl(filename))
+      if (CheckFile(filename, fmode)) then 
+        
+        ! trim filename of whitespace
+        fname = trim(adjustl(filename))
 
-      if (fmode == 'read' .or. fmode == 'readwrite') then
-        ! Check for valid name of file
-        farray = 0
-        do i = 1, len_trim(fname)
-          farray(i) = ichar(fname(i:i))
-        enddo
-        if (any(farray > 126)) then
-          write(logf,'(A)') "Invalid filename"
-          stop 
-        endif
-      endif
-
-      ! Does the file exist?
-      inquire(file = fname, exist = file_exists)
-
-      ! Open file if conditions are correct
-      if (file_exists .and. fmode == 'write') then
-        write(logf,'(A,A,A)') "File ", fname(1:len_trim(fname)),                         &
-          " exists. Cannot open write only."
-        stop 
-      else if (.not. file_exists .and. fmode == 'read') then
-        write(logf, '(A,A,A)') "File ", fname(1:len_trim(fname)),                        &
-          " does not exist. Can't read."
-        stop 
-      else
         iunit = UnitNumber()
         open(iunit, file=fname, action=fmode, iostat=ios)
         if (ios /= 0) then
@@ -121,7 +163,9 @@ module FatesUnitTestIOMod
             fname(1:len_trim(fname)), " ios: ", ios
           stop 
         endif
-      endif
+      else 
+        stop
+      end if
 
       OpenFile = iunit
 
@@ -146,7 +190,7 @@ module FatesUnitTestIOMod
 
     !=====================================================================================
 
-    subroutine OpenNCFile(nc_file, ncid)
+    subroutine OpenNCFile(nc_file, ncid, fmode)
       !
       ! DESCRIPTION:
       ! Opens a netcdf file
@@ -154,8 +198,25 @@ module FatesUnitTestIOMod
       ! ARGUMENTS:
       character(len=*), intent(in)  :: nc_file ! file name
       integer,          intent(out) :: ncid    ! netcdf file unit number
+      character(len=*)              :: fmode   ! file mode
 
-      call Check(nf90_open(trim(nc_file), 0, ncid))
+      if (CheckFile(nc_file, fmode)) then
+        ! depending on mode
+        select case(fmode)
+        case ('read')
+          call Check(nf90_open(trim(nc_file), NF90_NOCLOBBER, ncid))
+        case ('write')
+          call Check(nf90_create(trim(nc_file), 0, ncid))
+        case ('readwrite')
+          call Check(nf90_open(trim(nc_file), 0, ncid))
+        case DEFAULT
+          write(logf,*) 'Need to specify read, write, or readwrite'
+          stop
+        end select
+      else 
+        write(logf,*) 'Problem reading file'
+        stop
+      end if 
 
     end subroutine OpenNCFile
 
@@ -384,47 +445,26 @@ module FatesUnitTestIOMod
 
     !=====================================================================================
 
-  !   subroutine write_radiation_data(file, kdir, declin)
-  !     !
-  !     ! DESCRIPTION:
-  !     ! Opens the file filename if it can, returns a unit number for it.
-  !     ! The first time the function is called, it returns BASE_UNIT
-  !     !
-      
-  !     ! ARGUMENTS:
-  !     character(len=MAX_PATH), intent(in) :: file             ! output file name
-  !     real(r8),                intent(in) :: kdir(num_pft,48) ! direct beam extinction coefficient
-  !     real(r8),                intent(in) :: declin(48)
+    subroutine WriteVar2DReal(ncid, dim_names, data)
+      !
+      ! DESCRIPTION:
+      ! Writes variables for 2D real data
+      !
 
-  !     ! LOCALS:
-  !     integer :: ncid
-  !     integer :: pft_dimid, time_dimid
-  !     integer :: kdir_id, declin_id
-  !     integer :: dimids(2)
+      ! ARGUMENTS: 
+      integer,               intent(in) :: ncid         ! netcdf file id 
+      character(len=*),      intent(in) :: dim_names(2) ! dimension names
+      real(r8),              intent(in) :: data(:,:)    ! data to write out
 
-  !     ! Create the netCDF file. The nf90_clobber parameter tells netCDF to
-  !     ! overwrite this file, if it already exists.
-  !     call check(nf90_create(trim(file), NF90_CLOBBER, ncid))
+      ! LOCALS:
+      integer :: dimID(2) ! dimension IDs
+      integer :: i        ! looping index
 
-  !     ! define dimensions
-  !     call check(nf90_def_dim(ncid, "pft", num_pft, pft_dimid))
-  !     call check(nf90_def_dim(ncid, "time", 48, time_dimid))
+      do i = 1, 2
+        call Check(nf90_def_dim(ncid, dim_names(i), size(data, i), dimID(i)))
+        
+      end do 
 
-  !     ! define the variables
-  !     dimids =  (/ pft_dimid, time_dimid/)
-  !     call check(nf90_def_var(ncid, "kdir", NF90_REAL8, dimids, kdir_id))
-  !     call check(nf90_def_var(ncid, "declin", NF90_REAL8, time_dimid, declin_id))
-
-  !     ! end define mode
-  !     call check(nf90_enddef(ncid))
-
-  !     ! write to file. 
-  !     call check(nf90_put_var(ncid, kdir_id, kdir))
-  !     call check(nf90_put_var(ncid, declin_id, declin))
-
-  !     ! close the file.
-  !     call check(nf90_close(ncid))
-
-  !   end subroutine write_radiation_data
+    end subroutine WriteVar2DReal
 
 end module FatesUnitTestIOMod
