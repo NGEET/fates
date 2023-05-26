@@ -10,6 +10,8 @@ module FatesUnitTestIOMod
   integer, parameter :: MAX_PATH = 256  ! Maximum path length
   integer, parameter :: MAX_CHAR = 80   ! Maximum length for messages
   integer            :: logf            ! Unit number for output log file
+  integer, parameter :: type_double = 1 ! type 
+  integer, parameter :: type_int = 2    ! type
 
   interface GetVar
     module procedure GetVar1DReal
@@ -206,9 +208,9 @@ module FatesUnitTestIOMod
         case ('read')
           call Check(nf90_open(trim(nc_file), NF90_NOCLOBBER, ncid))
         case ('write')
-          call Check(nf90_create(trim(nc_file), 0, ncid))
+          call Check(nf90_create(trim(nc_file), NF90_CLOBBER, ncid))
         case ('readwrite')
-          call Check(nf90_open(trim(nc_file), 0, ncid))
+          call Check(nf90_open(trim(nc_file), NF90_NOCLOBBER, ncid))
         case DEFAULT
           write(logf,*) 'Need to specify read, write, or readwrite'
           stop
@@ -445,26 +447,68 @@ module FatesUnitTestIOMod
 
     !=====================================================================================
 
-    subroutine WriteVar2DReal(ncid, dim_names, data)
+    subroutine RegisterNCDims(ncid, dim_names, dim_lens, num_dims, dim_IDs)
       !
       ! DESCRIPTION:
-      ! Writes variables for 2D real data
+      ! Defines variables and dimensions 
       !
 
       ! ARGUMENTS: 
-      integer,               intent(in) :: ncid         ! netcdf file id 
-      character(len=*),      intent(in) :: dim_names(2) ! dimension names
-      real(r8),              intent(in) :: data(:,:)    ! data to write out
+      integer,          intent(in)  :: ncid                ! netcdf file id
+      character(len=*), intent(in)  :: dim_names(num_dims) ! dimension names
+      integer,          intent(in)  :: dim_lens(num_dims)  ! dimension lengths
+      integer,          intent(in)  :: num_dims            ! number of dimensions
+      integer,          intent(out) :: dim_IDs(num_dims)   ! dimension IDs
 
       ! LOCALS:
-      integer :: dimID(2) ! dimension IDs
-      integer :: i        ! looping index
+      integer :: i ! looping index
 
-      do i = 1, 2
-        call Check(nf90_def_dim(ncid, dim_names(i), size(data, i), dimID(i)))
-        
+      do i = 1, num_dims 
+        call Check(nf90_def_dim(ncid, dim_names(i), dim_lens(i), dim_IDs(i)))
       end do 
 
-    end subroutine WriteVar2DReal
+    end subroutine RegisterNCDims
+
+    !=====================================================================================
+
+    subroutine RegisterVar1D(ncid, var_name, dimID, type, att_names, atts, num_atts, varID)
+      !
+      ! DESCRIPTION:
+      ! Defines variables and dimensions 
+      !
+
+      ! ARGUMENTS: 
+      integer,          intent(in)  :: ncid                ! netcdf file id
+      character(len=*), intent(in)  :: var_name            ! dimension names
+      integer,          intent(in)  :: dimID(1)            ! dimension ID
+      integer,          intent(in)  :: type                ! type: int or double
+      character(len=*), intent(in)  :: att_names(num_atts) ! attribute names
+      character(len=*), intent(in)  :: atts(num_atts)      ! attribute values 
+      integer,          intent(in)  :: num_atts            ! number of attributes
+      integer,          intent(out) :: varID               ! variable ID
+
+
+      ! LOCALS:
+      integer :: i       ! looping index
+      integer :: nc_type ! netcdf type
+
+      if (type == type_double) then 
+        nc_type = NF90_DOUBLE
+      else if (type == type_int) then 
+        nc_type = NF90_INT
+      else
+        write(logf, *) "Must pick correct type"
+        stop
+      end if 
+
+      call Check(nf90_def_var(ncid, var_name, nc_type, dimID, varID))
+
+      do i = 1, num_atts 
+        call Check(nf90_put_att(ncid, varID, att_names(i), atts(i)))
+      end do
+    
+    end subroutine RegisterVar1D
+
+    !=====================================================================================
 
 end module FatesUnitTestIOMod

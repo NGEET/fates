@@ -4,8 +4,9 @@ module FatesUnitTestRadiationMod
   !		Module to support testing the FATES radiation schemes
   !
   use FatesConstantsMod,        only : r8 => fates_r8
-  use FatesUnitTestIOMod,       only : MAX_PATH, MAX_CHAR, OpenFile, logf
-  use FatesUnitTestIOMod,       only : GetVar, OpenNCFile, CloseNCFile, WriteVar2DReal
+  use FatesUnitTestIOMod,       only : MAX_PATH, MAX_CHAR, OpenFile, logf, Check, RegisterVar1D
+  use FatesUnitTestIOMod,       only : type_int, type_double
+  use FatesUnitTestIOMod,       only : GetVar, OpenNCFile, CloseNCFile, RegisterNCDims
   use EDPftvarcon,              only : EDPftvarcon_type
   use FatesParametersInterface, only : fates_parameters_type
   use FatesPatchMod,            only : fates_patch_type
@@ -13,6 +14,8 @@ module FatesUnitTestRadiationMod
   use shr_kind_mod,             only : SHR_KIND_R8
   use shr_orb_mod,              only : SHR_ORB_UNDEF_INT, SHR_ORB_UNDEF_REAL
   use shr_orb_mod,              only : shr_orb_cosz, shr_orb_decl, shr_orb_params
+
+  use netcdf
 
   implicit none
   private
@@ -85,6 +88,7 @@ module FatesUnitTestRadiationMod
     this%obliqr = SHR_ORB_UNDEF_REAL
     this%lambm0 = SHR_ORB_UNDEF_REAL
     this%mvelpp = SHR_ORB_UNDEF_REAL
+    this%lon    = 0.0_r8
     
   end subroutine Init
 
@@ -110,7 +114,7 @@ module FatesUnitTestRadiationMod
     integer                 :: num_steps     ! number of time steps to simulate
     integer                 :: num_pft       ! number of pfts
     integer                 :: num_swb       ! number of shortwave bands
-    real(r8)                :: lat, lon      ! latitude and longitude [radians]
+    real(r8)                :: lat           ! latitude [radians]
     real(r8)                :: fcansno       ! fraction of canopy covered by snow [0-1]
     real(r8)                :: ground_albedo ! albedo of ground (direct and diffuse, all bands)
     character(len=MAX_CHAR) :: msg           ! I/O Error message
@@ -118,7 +122,7 @@ module FatesUnitTestRadiationMod
     integer                 :: ios           ! I/O status
 
     ! Namelist of radiation parameters
-    namelist /radiation/ year, jday, num_steps, time_step, lat, lon, num_pft, num_swb,   &
+    namelist /radiation/ year, jday, num_steps, time_step, lat, num_pft, num_swb,        &
       fcansno, ground_albedo, patch_file, out_file
   
     ! Now read parameters namelist
@@ -130,7 +134,6 @@ module FatesUnitTestRadiationMod
     this%num_steps = num_steps
     this%time_step = time_step
     this%lat = lat*const_deg2rad
-    this%lon = lon*const_deg2rad
     this%num_pft = num_pft 
     this%fcansno = fcansno 
     this%patch_file = patch_file 
@@ -366,16 +369,12 @@ module FatesUnitTestRadiationMod
     ! calculate proportional day
     cal_day = float(this%jday_start) + float(time_step - 1)*this%step_length
 
-    !print *, cal_day
-
     ! calculate solar declination
     call shr_orb_decl(cal_day, this%eccen, this%mvelpp, this%lambm0, this%obliqr,        &
       declin, eccf)
 
     ! calculate cosine of solar zenith angle
     cosz = shr_orb_cosz(cal_day, this%lat, this%lon, declin)
-
-    print *, cosz
 
   end subroutine CalcCosZ
 
@@ -407,24 +406,59 @@ module FatesUnitTestRadiationMod
 
   !=======================================================================================
 
-  subroutine WriteRadiationData(this, alb_dir)
+  subroutine WriteRadiationData(this, time_counter, alb_dir, cosz)
     !
     ! DESCRIPTION:
     ! writes out data from the unit test
     !
   
     ! ARGUMENTS:
-    class(fates_rad_test), intent(inout) :: this         ! rad object
-    real(r8),              intent(in)    :: alb_dir(:,:) ! albedo
+    class(fates_rad_test), intent(inout) :: this            ! rad object
+    integer,               intent(in)    :: time_counter(:)
+    real(r8),              intent(in)    :: alb_dir(:,:)    ! albedo
+    real(r8),              intent(in)    :: cosz(:)
 
     ! LOCALS:
     integer          :: ncid         ! netcdf id
-    character(len=8) :: dim_names(2) ! dimension names
-    dim_names = [character(len=8) :: 'band', 'time']
+    character(len=8) :: dim_names(1) ! dimension names
+    integer          :: dimIDs(1)    ! dimension IDs
+    integer          :: timeID
+    integer          :: coszID
+    integer          :: albID
+    
+    ! dimension names
+    dim_names = [character(len=8) :: 'time']
 
+    ! open file
     call OpenNCFile(trim(this%out_file), ncid, 'write')
 
-    call WriteVar2DReal(ncid, dim_names, alb_dir)
+    ! register dimensions
+    call RegisterNCDims(ncid, dim_names, (/this%num_steps/), 1, dimIDs)
+
+    ! register time
+    call RegisterVar1D(ncid, 'time', dimIDs(1), type_int,                                &
+      [character(len=20)  :: 'time_origin', 'units', 'calendar', 'long_name'],           &
+      [character(len=150) :: '2000-06-14 00:00:00', 'seconds since 2000-06-14 00:00:00', &
+        'gregorian', 'time'],                                                            &
+      4, timeID)
+
+    ! register cosz
+    call RegisterVar1D(ncid, 'cosz', dimIDs(1), type_double,                             &
+      [character(len=20)  :: 'coordinates', 'units', 'long_name'],                       &
+      [character(len=150) :: 'time', 'radians', 'cosine of solar zenith angle'],         &                                                  
+      3, coszID)
+
+    ! register albedo
+    call RegisterVar1D(ncid, 'alb_dir', dimIDs(1), type_double,                          &
+      [character(len=20)  :: 'coordinates', 'units', 'long_name'],                       &
+      [character(len=150) :: 'time', '0-1', 'albedo direct'],                            &                                                  
+      3, albID)
+
+    call Check(NF90_ENDDEF(ncid))
+
+    call Check(NF90_PUT_VAR(ncid, timeID, time_counter))
+    call Check(NF90_PUT_VAR(ncid, albID, alb_dir(:,2)))
+    call Check(NF90_PUT_VAR(ncid, coszID, cosz))
 
     call CloseNCFile(ncid)
 
