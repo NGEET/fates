@@ -430,7 +430,7 @@ module FatesUnitTestRadiationMod
     dim_names = [character(len=8) :: 'time']
 
     ! open file
-    call OpenNCFile(trim(this%out_file), ncid, 'write')
+    call OpenNCFile(trim(this%out_file), ncid, 'readwrite')
 
     ! register dimensions
     call RegisterNCDims(ncid, dim_names, (/this%num_steps/), 1, dimIDs)

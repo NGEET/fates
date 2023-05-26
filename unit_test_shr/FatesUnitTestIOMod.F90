@@ -210,7 +210,7 @@ module FatesUnitTestIOMod
         case ('write')
           call Check(nf90_create(trim(nc_file), NF90_CLOBBER, ncid))
         case ('readwrite')
-          call Check(nf90_open(trim(nc_file), NF90_NOCLOBBER, ncid))
+          call Check(nf90_create(trim(nc_file), NF90_CLOBBER, ncid))
         case DEFAULT
           write(logf,*) 'Need to specify read, write, or readwrite'
           stop
