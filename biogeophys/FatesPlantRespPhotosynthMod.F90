@@ -576,6 +576,7 @@ contains
                                     currentCohort%kp25top,              &  ! in
                                     nscaler,                            &  ! in
                                     bc_in(s)%t_veg_pa(ifp),             &  ! in
+                                    bc_in(s)%dayl_factor_pa(ifp),       &  ! in
                                     currentPatch%tveg_lpa%GetMean(),    &  ! in
                                     currentPatch%tveg_longterm%GetMean(),&  ! in
                                     btran_eff,                          &  ! in
@@ -2194,6 +2195,7 @@ subroutine LeafLayerBiophysicalRates( parsun_lsl, &
    co2_rcurve_islope25top_ft, &
    nscaler,    &
    veg_tempk,      &
+   dayl_factor, &
    t_growth,   &
    t_home,     &
    btran, &
@@ -2229,6 +2231,7 @@ subroutine LeafLayerBiophysicalRates( parsun_lsl, &
    real(r8), intent(in) :: co2_rcurve_islope25top_ft ! initial slope of CO2 response curve
                                              ! (C4 plants) at 25C, canopy top, this pft
    real(r8), intent(in) :: veg_tempk           ! vegetation temperature
+   real(r8), intent(in) :: dayl_factor       ! daylength scaling factor (0-1)
    real(r8), intent(in) :: t_growth            ! T_growth (short-term running mean temperature) (K)
    real(r8), intent(in) :: t_home              ! T_home (long-term running mean temperature) (K)
    real(r8), intent(in) :: btran           ! transpiration wetness factor (0 to 1)
@@ -2295,10 +2298,10 @@ subroutine LeafLayerBiophysicalRates( parsun_lsl, &
    else                                     ! day time
 
       ! Vcmax25top was already calculated to derive the nscaler function
-      vcmax25 = vcmax25top_ft * nscaler
+      vcmax25 = vcmax25top_ft * nscaler * dayl_factor
       select case(photo_tempsens_model)
       case (photosynth_acclim_model_none)
-         jmax25  = jmax25top_ft * nscaler
+         jmax25  = jmax25top_ft * nscaler * dayl_factor
       case (photosynth_acclim_model_kumarathunge_etal_2019) 
          jmax25 = vcmax25*jvr
       case default
