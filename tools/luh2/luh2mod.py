@@ -14,7 +14,7 @@ def ImportData(input_file,start=None,stop=None,merge_flag=False):
     # Check to see if a ValueError is raised which is likely due
     # to the LUH2 time units being undecodable by cftime module
     try:
-       datasetout = xr.open_dataset(input_file)
+       datasetout = xr.open_dataset(input_file, cache=False)
     except ValueError as err:
        print("ValueError:", err)
        errmsg = "User direction: If error is due to units being 'years since ...' " \
