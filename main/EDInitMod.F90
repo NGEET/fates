@@ -557,8 +557,9 @@ contains
              call SiteMassStock(sites(s),el,sites(s)%mass_balance(el)%old_stock, &
                   biomass_stock,litter_stock,seed_stock)
           end do
+          call set_patchno(sites(s))
        enddo
-
+       
     else
 
        do s = 1, nsites

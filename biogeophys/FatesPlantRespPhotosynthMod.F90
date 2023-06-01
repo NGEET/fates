@@ -279,9 +279,12 @@ contains
     real(r8),dimension(50) :: cohort_vaibot
     real(r8),dimension(50) :: cohort_layer_elai
     real(r8),dimension(50) :: cohort_layer_esai
+    real(r8),dimension(50) :: cohort_layer_tlai
+    real(r8),dimension(50) :: cohort_layer_tsai
     real(r8)               :: cohort_elai
     real(r8)               :: cohort_esai
     real(r8)               :: elai_layer
+    real(r8)               :: laisun,laisha
     
     ! -----------------------------------------------------------------------------------
     ! Keeping these two definitions in case they need to be added later
@@ -440,7 +443,9 @@ contains
                               cohort_vaitop(iv),                  &
                               cohort_vaibot(iv),                  & 
                               cohort_layer_elai(iv),              &
-                              cohort_layer_esai(iv))
+                              cohort_layer_esai(iv))!,              &
+                         !cohort_layer_tlai(iv),              &
+                         !     cohort_layer_tsai(iv))
                       end do
 
                       cohort_elai = sum(cohort_layer_elai(1:currentCohort%nv))
@@ -489,6 +494,7 @@ contains
                          rate_mask_if: if ( .not.rate_mask_z(iv,ft,cl) .or. &
                               (hlm_use_planthydro.eq.itrue) .or. &
                               (rad_solver .eq. twostr_solver ) .or. &
+                              (rad_solver .eq. norman_solver ) .or. &
                               (nleafage > 1) .or. &
                               (hlm_parteh_mode .ne. prt_carbon_allom_hyp )   ) then
 
@@ -542,8 +548,10 @@ contains
                             kn = decay_coeff_kn(ft,currentCohort%vcmax25top)
 
                             ! Scale for leaf nitrogen profile
-                            nscaler = exp(-kn * cumulative_lai)
+                            !nscaler = exp(-kn * cumulative_lai)
 
+                            nscaler = 1.0_r8
+                            
                             ! Leaf maintenance respiration to match the base rate used in CN
                             ! but with the new temperature functions for C3 and C4 plants.
 
@@ -608,25 +616,37 @@ contains
                             ! ------------------------------------------------------------------
                             
                             if_radsolver: if(rad_solver.eq.norman_solver) then
-                               
-                               if(((currentPatch%ed_laisun_z(cl,ft,iv)*currentPatch%canopy_area_profile(cl,ft,iv)) >nearzero) .and. &
+
+                               laisun = currentPatch%elai_profile(cl,ft,iv)*currentPatch%f_sun(cl,ft,iv)
+                               laisha = currentPatch%elai_profile(cl,ft,iv)*(1._r8-currentPatch%f_sun(cl,ft,iv))
+
+                               if(((laisun*currentPatch%canopy_area_profile(cl,ft,iv)) >nearzero) .and. &
                                    (currentPatch%ed_parsun_z(cl,ft,iv)>nearzero)) then
+
+                                  ! laisun:      m2 of exposed leaf, per m2 of crown. If this is the lowest layer
+                                  !              for the pft/canopy group, than the m2 per crown is probably not
+                                  !              as large as the layer above.
+                                  ! ed_parsun_z: this is W/m2 ground times the canopy_area_profile, which is the
+                                  !              fraction of m2 of ground in the crown per m2 ground in the
+                                  !              total canopy area. This results in W/m2 of total canopy.
+                                  
                                   par_per_sunla = currentPatch%ed_parsun_z(cl,ft,iv) / &
-                                       (currentPatch%ed_laisun_z(cl,ft,iv)*currentPatch%canopy_area_profile(cl,ft,iv))
+                                       (laisun*currentPatch%canopy_area_profile(cl,ft,iv))
+                                  
                                else
                                   par_per_sunla = 0._r8
                                end if
                                
-                               if(((currentPatch%ed_laisha_z(cl,ft,iv)*currentPatch%canopy_area_profile(cl,ft,iv)) >nearzero) .and. &
+                               if(((laisha*currentPatch%canopy_area_profile(cl,ft,iv)) >nearzero) .and. &
                                     (currentPatch%ed_parsha_z(cl,ft,iv)>nearzero)) then
                                   par_per_shala = currentPatch%ed_parsha_z(cl,ft,iv) / &
-                                       (currentPatch%ed_laisha_z(cl,ft,iv)*currentPatch%canopy_area_profile(cl,ft,iv))
+                                       (laisha*currentPatch%canopy_area_profile(cl,ft,iv))
                                else
                                   par_per_shala = 0._r8
                                end if
                                
                                fsun = currentPatch%f_sun(cl,ft,iv)
-                               elai_layer = currentPatch%ed_laisha_z(cl,ft,iv) + currentPatch%ed_laisun_z(cl,ft,iv)
+                               elai_layer = currentPatch%elai_profile(cl,ft,iv)
                                
                             else
                                
@@ -653,6 +673,7 @@ contains
                                   par_per_shala = rd_abs_leaf*(1._r8-fsun) / ((1._r8 - fsun)*cohort_layer_elai(iv))
                                   
                                else
+                                  
                                   par_per_sunla = 0._r8
                                   par_per_shala = 0._r8
                                   fsun = 0.5_r8 !avoid div0, should have no impact
@@ -2169,7 +2190,7 @@ subroutine LeafLayerMaintenanceRespiration_Ryan_1991(lnc_top, &
    real(r8), intent(in)  :: lnc_top      ! Leaf nitrogen content per unit area at canopy top [gN/m2]
    real(r8), intent(in)  :: nscaler      ! Scale for leaf nitrogen profile
    integer,  intent(in)  :: ft           ! (plant) Functional Type Index
-   real(r8), intent(in)  :: veg_tempk    ! vegetation temperature
+   real(r8)              :: veg_tempk    ! vegetation temperature
    real(r8), intent(out) :: lmr          ! Leaf Maintenance Respiration  (umol CO2/m**2/s)
 
    ! Locals
@@ -2185,6 +2206,8 @@ subroutine LeafLayerMaintenanceRespiration_Ryan_1991(lnc_top, &
    real(r8), parameter :: lmrc = 1.15912391_r8 ! scaling factor for high
    ! temperature inhibition (25 C = 1.0)
 
+   !veg_tempk = 27._r8+271._r8
+   
    lmr25top = EDPftvarcon_inst%maintresp_leaf_ryan1991_baserate(ft) * (1.5_r8 ** ((25._r8 - 20._r8)/10._r8))
    lmr25top = lmr25top * lnc_top / (umolC_to_kgC * g_per_kg)
 

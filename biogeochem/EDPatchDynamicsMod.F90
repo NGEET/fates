@@ -2163,8 +2163,6 @@ contains
     ! rates routine is called. This does not need to be remembered or in the restart file.
  
     new_patch%f_sun              = 0._r8
-    new_patch%ed_laisun_z(:,:,:) = 0._r8 
-    new_patch%ed_laisha_z(:,:,:) = 0._r8 
     new_patch%ed_parsun_z(:,:,:) = 0._r8 
     new_patch%ed_parsha_z(:,:,:) = 0._r8 
     new_patch%fabi               = 0._r8
@@ -2244,8 +2242,6 @@ contains
     currentPatch%fabi_sun_z(:,:,:)          = nan 
     currentPatch%fabi_sha_z(:,:,:)          = nan  
 
-    currentPatch%ed_laisun_z(:,:,:)         = nan 
-    currentPatch%ed_laisha_z(:,:,:)         = nan 
     currentPatch%ed_parsun_z(:,:,:)         = nan 
     currentPatch%ed_parsha_z(:,:,:)         = nan 
     currentPatch%psn_z(:,:,:)               = 0._r8   
@@ -2309,8 +2305,6 @@ contains
     ! diagnostic radiation profiles
     currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
     currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
-    currentPatch%nrmlzd_parprof_dir_z(:,:,:)       = 0._r8
-    currentPatch%nrmlzd_parprof_dif_z(:,:,:)       = 0._r8
 
     currentPatch%solar_zenith_flag          = .false.
     currentPatch%solar_zenith_angle         = nan

@@ -47,7 +47,8 @@ module FatesRestartInterfaceMod
   use PRTGenericMod,           only : num_elements
   use FatesRunningMeanMod,     only : rmean_type
   use FatesRunningMeanMod,     only : ema_lpa
-  use FatesRadiationMemMod,    only : num_swb
+  use FatesRadiationMemMod,    only : num_swb,rad_solver,norman_solver
+  use TwoStreamMLPEMod, only : normalized_upper_boundary
   
   ! CIME GLOBALS
   use shr_log_mod       , only : errMsg => shr_log_errMsg
@@ -3439,8 +3440,6 @@ contains
            ! zero diagnostic radiation profiles
            currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
            currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
-           currentPatch%nrmlzd_parprof_dir_z(:,:,:)       = 0._r8
-           currentPatch%nrmlzd_parprof_dif_z(:,:,:)       = 0._r8
 
            ! -----------------------------------------------------------
            ! When calling norman radiation from the short-timestep
@@ -3475,15 +3474,46 @@ contains
                  enddo
               else
 
-                 call PatchNormanRadiation (currentPatch, &
-                      bc_out(s)%albd_parb(ifp,:), &
-                      bc_out(s)%albi_parb(ifp,:), &
-                      bc_out(s)%fabd_parb(ifp,:), &
-                      bc_out(s)%fabi_parb(ifp,:), &
-                      bc_out(s)%ftdd_parb(ifp,:), &
-                      bc_out(s)%ftid_parb(ifp,:), &
-                      bc_out(s)%ftii_parb(ifp,:))
+                 if_solver: if(rad_solver.eq.norman_solver) then
+                 
+                    call PatchNormanRadiation (currentPatch, &
+                         bc_out(s)%albd_parb(ifp,:), &
+                         bc_out(s)%albi_parb(ifp,:), &
+                         bc_out(s)%fabd_parb(ifp,:), &
+                         bc_out(s)%fabi_parb(ifp,:), &
+                         bc_out(s)%ftdd_parb(ifp,:), &
+                         bc_out(s)%ftid_parb(ifp,:), &
+                         bc_out(s)%ftii_parb(ifp,:))
 
+
+                 else
+                    associate( twostr => currentPatch%twostr)
+
+                      call twostr%CanopyPrep(currentPatch%fcansno)
+                      call twostr%ZenithPrep(currentPatch%solar_zenith_angle)
+                      
+                      do ib = 1,hlm_numSWb
+                         
+                         twostr%band(ib)%albedo_grnd_diff = currentPatch%gnd_alb_dif(ib)
+                         twostr%band(ib)%albedo_grnd_beam = currentPatch%gnd_alb_dir(ib)
+                         
+                         call twostr%Solve(ib,             &  ! in
+                              normalized_upper_boundary,   &  ! in
+                              1.0_r8,1.0_r8,               &  ! in
+                              bc_out(s)%albd_parb(ifp,ib), &  ! out
+                              bc_out(s)%albi_parb(ifp,ib), &  ! out
+                              bc_out(s)%fabd_parb(ifp,ib), &  ! out
+                              bc_out(s)%fabi_parb(ifp,ib), &  ! out
+                              bc_out(s)%ftdd_parb(ifp,ib), &  ! out
+                              bc_out(s)%ftid_parb(ifp,ib), &  ! out
+                              bc_out(s)%ftii_parb(ifp,ib))
+                                                  
+                      end do
+                      
+                    end associate
+                    
+                 end if if_solver
+                    
               endif ! is there vegetation?
 
            end if    ! if the vegetation and zenith filter is active

@@ -16,11 +16,13 @@ module FatesRadiationDriveMod
   use FatesConstantsMod , only : itrue
   use FatesConstantsMod , only : pi_const
   use FatesConstantsMod , only : nocomp_bareground
+  use FatesConstantsMod , only : nearzero
   use FatesInterfaceTypesMod , only : bc_in_type
   use FatesInterfaceTypesMod , only : bc_out_type
   use FatesInterfaceTypesMod , only : hlm_numSWb
   use FatesInterfaceTypesMod , only : numpft
   use EDTypesMod        , only : nclmax
+  use EDTypesMod        , only : dinc_vai,dlower_vai
   use EDTypesMod        , only : nlevleaf
   use EDCanopyStructureMod, only: calc_areaindex
   use FatesGlobals      , only : fates_log
@@ -35,6 +37,7 @@ module FatesRadiationDriveMod
   use TwoStreamMLPEMod, only : normalized_upper_boundary
   use FatesTwoStreamInterfaceMod, only : FatesPatchFSun
   use FatesTwoStreamInterfaceMod, only : CheckPatchRadiationBalance
+  use FatesInterfaceTypesMod        , only : hlm_hio_ignore_val
   
   ! CIME globals
   use shr_log_mod       , only : errMsg => shr_log_errMsg
@@ -45,7 +48,7 @@ module FatesRadiationDriveMod
   public :: FatesNormalizedCanopyRadiation  ! Surface albedo and two-stream fluxes
   public :: PatchNormanRadiation
   public :: FatesSunShadeFracs
-
+  
   logical :: debug = .false.  ! for debugging this module
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
@@ -123,8 +126,6 @@ contains
              ! zero diagnostic radiation profiles
              currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
              currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
-             currentPatch%nrmlzd_parprof_dir_z(:,:,:) = 0._r8
-             currentPatch%nrmlzd_parprof_dif_z(:,:,:) = 0._r8
 
              currentPatch%solar_zenith_flag         = bc_in(s)%filter_vegzen_pa(ifp)
              currentPatch%solar_zenith_angle        = bc_in(s)%coszen_pa(ifp)
@@ -965,17 +966,10 @@ contains
                       do iv = 1, currentPatch%nrad(L,ft)
                          currentPatch%nrmlzd_parprof_pft_dir_z(radtype,L,ft,iv) = &
                               forc_dir(radtype) * tr_dir_z(L,ft,iv)
+                         
                          currentPatch%nrmlzd_parprof_pft_dif_z(radtype,L,ft,iv) = &
                               Dif_dn(L,ft,iv) + Dif_up(L,ft,iv)
-                         !
-                         currentPatch%nrmlzd_parprof_dir_z(radtype,L,iv) = &
-                              currentPatch%nrmlzd_parprof_dir_z(radtype,L,iv) + &
-                              (forc_dir(radtype) * tr_dir_z(L,ft,iv)) * &
-                              (ftweight(L,ft,iv) / sum(ftweight(L,1:numpft,iv)))
-                         currentPatch%nrmlzd_parprof_dif_z(radtype,L,iv) = &
-                              currentPatch%nrmlzd_parprof_dif_z(radtype,L,iv) + &
-                              (Dif_dn(L,ft,iv) + Dif_up(L,ft,iv)) * &
-                              (ftweight(L,ft,iv) / sum(ftweight(L,1:numpft,iv)))
+
                       end do
                    end if ! ib = visible
                 end if ! present
@@ -1146,14 +1140,13 @@ contains
 
     enddo ! rad-type
 
-
   end associate
   return
 end subroutine PatchNormanRadiation
 
 ! ======================================================================================
 
-subroutine FatesSunShadeFracs(nsites, sites,bc_in,bc_out)
+subroutine FatesSunShadeFracs(nsites, sites,bc_in,bc_out,cold_init)
 
   implicit none
 
@@ -1162,8 +1155,8 @@ subroutine FatesSunShadeFracs(nsites, sites,bc_in,bc_out)
   type(ed_site_type),intent(inout),target :: sites(nsites)
   type(bc_in_type),intent(in)             :: bc_in(nsites)
   type(bc_out_type),intent(inout)         :: bc_out(nsites)
-
-
+  logical,intent(in)                      :: cold_init ! If true, then we have not run the solver yet
+  
   ! locals
   type (ed_patch_type),pointer :: cpatch   ! c"urrent" patch
   real(r8)          :: sunlai
@@ -1174,40 +1167,57 @@ subroutine FatesSunShadeFracs(nsites, sites,bc_in,bc_out)
   integer           :: iv,ib
   integer           :: s
   integer           :: ifp
-
-
+  integer           :: nv
+  integer           :: icol
+  ! Fraction of the canopy area associated with each pft and layer
+  ! (used for weighting diagnostics)
+  real(r8) :: area_vlpfcl(nlevleaf,maxpft,nclmax) 
+  real(r8) :: vai_top,vai_bot
+  real(r8) :: area_frac
+  real(r8) :: Rb_abs,Rd_abs,Rd_abs_leaf,Rb_abs_leaf,R_abs_stem,R_abs_snow,leaf_sun_frac
+  real(r8) :: vai
+  
   do s = 1,nsites
 
      ifp = 0
      cpatch => sites(s)%oldest_patch
 
      do while (associated(cpatch))
-        if_notbareground:if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then !only for veg patches
+
+         if_notbareground:if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then !only for veg patches
            ! do not do albedo calculations for bare ground patch in SP mode
            ! and (more impotantly) do not iterate ifp or it will mess up the indexing wherein
            ! ifp=1 is the first vegetated patch.
            ifp=ifp+1
 
-           if( debug ) write(fates_log(),*) 'edsurfRad_5600',ifp,s,cpatch%NCL_p,numpft
 
-           ! zero out various datas
+           ! If there is no sun out, we have a trivial solution
+           if_zenithflag: if( .not.cpatch%solar_zenith_flag ) then
+           
+              cpatch%ed_parsun_z(1:cpatch%ncl_p,1:numpft,:) = 0._r8
+              cpatch%ed_parsha_z(1:cpatch%ncl_p,1:numpft,:) = 0._r8
+              cpatch%parprof_pft_dir_z(1:cpatch%ncl_p,1:numpft,:) = hlm_hio_ignore_val
+              cpatch%parprof_pft_dif_z(1:cpatch%ncl_p,1:numpft,:) = hlm_hio_ignore_val
+
+              !cpatch%f_sun(1:cpatch%ncl_p,1:numpft,:) = hlm_hio_ignore_val
+              
+              bc_out(s)%fsun_pa(ifp) = 0._r8
+              bc_out(s)%laisun_pa(ifp) = 0._r8
+              bc_out(s)%laisha_pa(ifp) = calc_areaindex(cpatch,'elai')
+
+           else
+              
+           ! zero out arrays
            cpatch%ed_parsun_z(:,:,:) = 0._r8
            cpatch%ed_parsha_z(:,:,:) = 0._r8
-           cpatch%ed_laisun_z(:,:,:) = 0._r8
-           cpatch%ed_laisha_z(:,:,:) = 0._r8
-
            bc_out(s)%fsun_pa(ifp) = 0._r8
-
            sunlai  = 0._r8
            shalai  = 0._r8
-
            cpatch%parprof_pft_dir_z(:,:,:) = 0._r8
            cpatch%parprof_pft_dif_z(:,:,:) = 0._r8
-           cpatch%parprof_dir_z(:,:) = 0._r8
-           cpatch%parprof_dif_z(:,:) = 0._r8
 
            if_norm_twostr: if (rad_solver.eq.norman_solver) then
-           
+              
            ! Loop over patches to calculate laisun_z and laisha_z for each layer.
            ! Derive canopy laisun, laisha, and fsun from layer sums.
            ! If sun/shade big leaf code, nrad=1 and fsun_z(p,1) and tlai_z(p,1) from
@@ -1218,31 +1228,15 @@ subroutine FatesSunShadeFracs(nsites, sites,bc_in,bc_out)
            do CL = 1, cpatch%NCL_p
               do FT = 1,numpft
 
-                 if( debug ) write(fates_log(),*) 'edsurfRad_5601',CL,FT,cpatch%nrad(CL,ft)
-
-                 do iv = 1, cpatch%nrad(CL,ft) !NORMAL CASE.
-
-                    ! FIX(SPM,040114) - existing comment
-                    ! ** Should this be elai or tlai? Surely we only do radiation for elai?
-
-                    cpatch%ed_laisun_z(CL,ft,iv) = cpatch%elai_profile(CL,ft,iv) * &
-                         cpatch%f_sun(CL,ft,iv)
-
-                    if ( debug ) write(fates_log(),*) 'edsurfRad 570 ',cpatch%elai_profile(CL,ft,iv)
-                    if ( debug ) write(fates_log(),*) 'edsurfRad 571 ',cpatch%f_sun(CL,ft,iv)
-
-                    cpatch%ed_laisha_z(CL,ft,iv) = cpatch%elai_profile(CL,ft,iv) * &
-                         (1._r8 - cpatch%f_sun(CL,ft,iv))
-
-                 end do
-
                  !needed for the VOC emissions, etc.
-                 sunlai = sunlai + sum(cpatch%ed_laisun_z(CL,ft,1:cpatch%nrad(CL,ft)))
-                 shalai = shalai + sum(cpatch%ed_laisha_z(CL,ft,1:cpatch%nrad(CL,ft)))
+                 sunlai = sunlai + sum(cpatch%elai_profile(CL,ft,1:cpatch%nrad(CL,ft))*cpatch%f_sun(CL,ft,1:cpatch%nrad(CL,ft)))
+                 shalai = shalai + sum(cpatch%elai_profile(CL,ft,1:cpatch%nrad(CL,ft)))
 
               end do
            end do
 
+           shalai = shalai-sunlai
+           
            if(sunlai+shalai > 0._r8)then
               bc_out(s)%fsun_pa(ifp) = sunlai / (sunlai+shalai)
            else
@@ -1274,14 +1268,6 @@ subroutine FatesSunShadeFracs(nsites, sites,bc_in,bc_out)
 
                  do iv = 1, cpatch%nrad(CL,ft)
 
-                    if ( debug ) then
-                       write(fates_log(),*) 'edsurfRad 653 ', cpatch%ed_parsun_z(CL,ft,iv)
-                       write(fates_log(),*) 'edsurfRad 654 ', bc_in(s)%solad_parb(ifp,ipar)
-                       write(fates_log(),*) 'edsurfRad 655 ', bc_in(s)%solai_parb(ifp,ipar)
-                       write(fates_log(),*) 'edsurfRad 656 ', cpatch%fabd_sun_z(CL,ft,iv)
-                       write(fates_log(),*) 'edsurfRad 657 ', cpatch%fabi_sun_z(CL,ft,iv)
-                    endif
-
                     cpatch%ed_parsun_z(CL,ft,iv) = &
                          bc_in(s)%solad_parb(ifp,ipar)*cpatch%fabd_sun_z(CL,ft,iv) + &
                          bc_in(s)%solai_parb(ifp,ipar)*cpatch%fabi_sun_z(CL,ft,iv)
@@ -1310,28 +1296,17 @@ subroutine FatesSunShadeFracs(nsites, sites,bc_in,bc_out)
                          cpatch%nrmlzd_parprof_pft_dir_z(idirect,CL,FT,iv)) + &
                          (bc_in(s)%solai_parb(ifp,ipar) * &
                          cpatch%nrmlzd_parprof_pft_dir_z(idiffuse,CL,FT,iv))
+                    
                     cpatch%parprof_pft_dif_z(CL,FT,iv) = (bc_in(s)%solad_parb(ifp,ipar) * &
                          cpatch%nrmlzd_parprof_pft_dif_z(idirect,CL,FT,iv)) + &
                          (bc_in(s)%solai_parb(ifp,ipar) * &
                          cpatch%nrmlzd_parprof_pft_dif_z(idiffuse,CL,FT,iv))
+                    
                  end do ! iv
               end do    ! FT
            end do       ! CL
 
-           do CL = 1, cpatch%NCL_p
-              do iv = 1, maxval(cpatch%nrad(CL,:))
-                 cpatch%parprof_dir_z(CL,iv) = (bc_in(s)%solad_parb(ifp,ipar) * &
-                      cpatch%nrmlzd_parprof_dir_z(idirect,CL,iv)) + &
-                      (bc_in(s)%solai_parb(ifp,ipar) * &
-                      cpatch%nrmlzd_parprof_dir_z(idiffuse,CL,iv))
-                 cpatch%parprof_dif_z(CL,iv) = (bc_in(s)%solad_parb(ifp,ipar) * &
-                      cpatch%nrmlzd_parprof_dif_z(idirect,CL,iv)) + &
-                      (bc_in(s)%solai_parb(ifp,ipar) * &
-                      cpatch%nrmlzd_parprof_dif_z(idiffuse,CL,iv))
-              end do    ! iv
-           end do       ! CL
-
-           else
+        else
 
               ! Two-stream 
               ! -----------------------------------------------------------
@@ -1339,27 +1314,77 @@ subroutine FatesSunShadeFracs(nsites, sites,bc_in,bc_out)
                  cpatch%twostr%band(ib)%Rbeam_atm = bc_in(s)%solad_parb(ifp,ib)
                  cpatch%twostr%band(ib)%Rdiff_atm = bc_in(s)%solai_parb(ifp,ib)
               end do
+
+              area_vlpfcl(:,:,:) = 0._r8
+              cpatch%parprof_pft_dir_z(:,:,:) = 0._r8
+              cpatch%parprof_pft_dif_z(:,:,:) = 0._r8
+              cpatch%f_sun(:,:,:) = 0._r8
+              cpatch%ed_parsun_z(:,:,:) = 0._r8
+              cpatch%ed_parsha_z(:,:,:) = 0._r8
               
-              if(cpatch%solar_zenith_flag )then
-                 call FatesPatchFSun(cpatch,    &
-                      bc_out(s)%fsun_pa(ifp),   &
-                      bc_out(s)%laisun_pa(ifp), &
-                      bc_out(s)%laisha_pa(ifp))
+              call FatesPatchFSun(cpatch,    &
+                   bc_out(s)%fsun_pa(ifp),   &
+                   bc_out(s)%laisun_pa(ifp), &
+                   bc_out(s)%laisha_pa(ifp))
                  
-                 call CheckPatchRadiationBalance(cpatch, sites(s)%snow_depth, ivis,bc_out(s)%fabd_parb(ifp,ivis), bc_out(s)%fabi_parb(ifp,ivis))
-                 call CheckPatchRadiationBalance(cpatch, sites(s)%snow_depth, inir,bc_out(s)%fabd_parb(ifp,inir), bc_out(s)%fabi_parb(ifp,inir))
-              else
-                 
-                 bc_out(s)%fsun_pa(ifp) = 0.5_r8
-                 bc_out(s)%laisun_pa(ifp) = 0.5_r8*calc_areaindex(cpatch,'elai')
-                 bc_out(s)%laisha_pa(ifp) = 0.5_r8*calc_areaindex(cpatch,'elai')
-                 
-              end if
+              call CheckPatchRadiationBalance(cpatch, sites(s)%snow_depth, ivis,bc_out(s)%fabd_parb(ifp,ivis), bc_out(s)%fabi_parb(ifp,ivis))
+              call CheckPatchRadiationBalance(cpatch, sites(s)%snow_depth, inir,bc_out(s)%fabd_parb(ifp,inir), bc_out(s)%fabi_parb(ifp,inir))
               
+              associate(twostr => cpatch%twostr)
+                
+                do cl = 1,twostr%n_lyr
+                   do icol = 1,twostr%n_col(cl)
+                      
+                      ft = twostr%scelg(cl,icol)%pft
+                      if_notair: if (ft>0) then
+                         area_frac = twostr%scelg(cl,icol)%area
+                         vai = twostr%scelg(cl,icol)%sai+twostr%scelg(cl,icol)%lai
+                         nv = minloc(dlower_vai, DIM=1, MASK=(dlower_vai>vai))
+                         do iv = 1, nv
+                            
+                            vai_top = dlower_vai(iv)-dinc_vai(iv)
+                            vai_bot = min(dlower_vai(iv),twostr%scelg(cl,icol)%sai+twostr%scelg(cl,icol)%lai)
+                            
+                            cpatch%parprof_pft_dir_z(cl,ft,iv) = cpatch%parprof_pft_dir_z(cl,ft,iv) + &
+                                 area_frac*twostr%GetRb(cl,icol,ivis,vai_top)
+                            cpatch%parprof_pft_dif_z(cl,ft,iv) = cpatch%parprof_pft_dif_z(cl,ft,iv) + &
+                                 area_frac*twostr%GetRdDn(cl,icol,ivis,vai_top) + &
+                                 area_frac*twostr%GetRdUp(cl,icol,ivis,vai_top)
+                            
+                            call twostr%GetAbsRad(cl,icol,ipar,vai_top,vai_bot, &
+                                 Rb_abs,Rd_abs,Rd_abs_leaf,Rb_abs_leaf,R_abs_stem,R_abs_snow,leaf_sun_frac)
+                            
+                            cpatch%f_sun(cl,ft,iv) = cpatch%f_sun(cl,ft,iv) + &
+                                 area_frac*leaf_sun_frac
+                            cpatch%ed_parsun_z(cl,ft,iv) = cpatch%ed_parsun_z(cl,ft,iv) + &
+                                 area_frac*(rd_abs_leaf*leaf_sun_frac + rb_abs_leaf)
+                            cpatch%ed_parsha_z(cl,ft,iv) = cpatch%ed_parsha_z(cl,ft,iv) + &
+                                 area_frac*rd_abs_leaf*(1._r8-leaf_sun_frac)
+                            
+                            area_vlpfcl(iv,ft,cl) = area_vlpfcl(iv,ft,cl) + area_frac
+                         end do
+                      end if if_notair
+                   end do
+                   
+                   do ft = 1,numpft
+                      do_iv: do iv = 1, nlevleaf
+                         if(area_vlpfcl(iv,ft,cl)<nearzero) exit do_iv
+                         cpatch%parprof_pft_dir_z(cl,ft,iv) = cpatch%parprof_pft_dir_z(cl,ft,iv) / area_vlpfcl(iv,ft,cl)
+                         cpatch%parprof_pft_dif_z(cl,ft,iv) = cpatch%parprof_pft_dif_z(cl,ft,iv) / area_vlpfcl(iv,ft,cl)
+                         cpatch%f_sun(cl,ft,iv) = cpatch%f_sun(cl,ft,iv) / area_vlpfcl(iv,ft,cl)
+                         cpatch%ed_parsun_z(cl,ft,iv) = cpatch%ed_parsun_z(cl,ft,iv) / area_vlpfcl(iv,ft,cl)
+                         cpatch%ed_parsha_z(cl,ft,iv) = cpatch%ed_parsha_z(cl,ft,iv) / area_vlpfcl(iv,ft,cl)
+                      end do do_iv
+                   end do
+                   
+                end do
+                
+              end associate
               
            end if if_norm_twostr
-           
-        endif if_notbareground
+           endif if_zenithflag
+        end if if_notbareground
+        
         cpatch => cpatch%younger
      enddo
 

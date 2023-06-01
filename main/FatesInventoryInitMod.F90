@@ -94,7 +94,7 @@ module FatesInventoryInitMod
                                                            ! defined in model memory and a physical
                                                            ! site listed in the file
 
-   logical, parameter :: do_inventory_out = .false.
+   logical, parameter :: do_inventory_out = .true.
 
 
    public :: initialize_sites_by_inventory
@@ -1021,6 +1021,8 @@ contains
          temp_cohort%dbh         = c_dbh
          temp_cohort%crowndamage = 1  ! assume undamaged 
 
+         
+         
          call h_allom(c_dbh,temp_cohort%pft,temp_cohort%hite)
          temp_cohort%canopy_trim = 1.0_r8
 

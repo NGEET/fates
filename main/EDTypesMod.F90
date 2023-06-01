@@ -30,7 +30,7 @@ module EDTypesMod
   private               ! By default everything is private
   save
 
-  integer, parameter, public :: nclmax = 2                ! Maximum number of canopy layers
+  integer, parameter, public :: nclmax = 3                ! Maximum number of canopy layers
   integer, parameter, public :: ican_upper = 1            ! Nominal index for the upper canopy
   integer, parameter, public :: ican_ustory = 2           ! Nominal index for diagnostics that refer
                                                           ! to understory layers (all layers that
@@ -482,9 +482,6 @@ module EDTypesMod
      real(r8) ::  fabi_sha_z(nclmax,maxpft,nlevleaf)            ! shade fraction of indirect light absorbed by each canopy 
      ! layer, pft, and leaf layer:-
 
-     real(r8) ::  ed_laisun_z(nclmax,maxpft,nlevleaf)           ! amount of LAI in the sun   in each canopy layer, 
-     ! pft, and leaf layer. m2/m2
-     real(r8) ::  ed_laisha_z(nclmax,maxpft,nlevleaf)           ! amount of LAI in the shade in each canopy layer,
      real(r8) ::  ed_parsun_z(nclmax,maxpft,nlevleaf)           ! PAR absorbed  in the sun   in each canopy layer,
      real(r8) ::  ed_parsha_z(nclmax,maxpft,nlevleaf)           ! PAR absorbed  in the shade in each canopy layer,
      real(r8) ::  f_sun(nclmax,maxpft,nlevleaf)                 ! fraction of leaves in the sun in each canopy layer, pft, 
@@ -499,19 +496,10 @@ module EDTypesMod
      ! incident type (direct/diffuse at top of canopy),leaf,pft,leaf (unitless)
      real(r8) ::  nrmlzd_parprof_pft_dif_z(num_rad_stream_types,nclmax,maxpft,nlevleaf)  
 
-     ! normalized direct photosynthetically active radiation profiles by 
-     ! incident type (direct/diffuse at top of canopy),leaf,leaf (unitless) 
-     real(r8) ::  nrmlzd_parprof_dir_z(num_rad_stream_types,nclmax,nlevleaf)         
-
-     ! normalized diffuse photosynthetically active radiation profiles by 
-     ! incident type (direct/diffuse at top of canopy),leaf,leaf (unitless) 
-     real(r8) ::  nrmlzd_parprof_dif_z(num_rad_stream_types,nclmax,nlevleaf)
-         
      real(r8) ::  parprof_pft_dir_z(nclmax,maxpft,nlevleaf)   ! direct-beam PAR profile through canopy, by canopy,PFT,leaf level (w/m2)
      real(r8) ::  parprof_pft_dif_z(nclmax,maxpft,nlevleaf)   ! diffuse     PAR profile through canopy, by canopy,PFT,leaf level (w/m2)
-     real(r8) ::  parprof_dir_z(nclmax,nlevleaf)              ! direct-beam PAR profile through canopy, by canopy,leaf level (w/m2)
-     real(r8) ::  parprof_dif_z(nclmax,nlevleaf)              ! diffuse     PAR profile through canopy, by canopy,leaf level (w/m2)
 
+     
      ! and leaf layer. m2/m2
      real(r8),allocatable ::  tr_soil_dir(:)                              ! fraction of incoming direct  radiation that (cm_numSWb)
      ! is transmitted to the soil as direct

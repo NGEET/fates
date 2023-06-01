@@ -839,7 +839,7 @@ contains
     if( hlm_day_of_year == hlm_days_per_year-1) then
 
      if(hlm_use_sp.eq.ifalse)then
-       call trim_canopy(currentSite)
+        call trim_canopy(currentSite)
      endif
     endif
 

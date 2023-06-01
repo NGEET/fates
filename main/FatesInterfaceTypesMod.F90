@@ -120,7 +120,10 @@ module FatesInterfaceTypesMod
                                                          ! harvest_rates in dynHarvestMod
                                                          ! bc_in%hlm_harvest_rates and bc_in%hlm_harvest_catnames
 
-
+   ! Switch indicating if high-frequency multi-dimensional history output should be
+   ! used in this run
+   logical, public, parameter :: hio_include_hifr_multi = .true.        
+   
    integer, public :: hlm_sf_nofire_def               ! Definition of a no-fire case for hlm_spitfire_mode
    integer, public :: hlm_sf_scalar_lightning_def     ! Definition of a scalar-lightning case for hlm_spitfire_mode
    integer, public :: hlm_sf_successful_ignitions_def ! Definition of a successful-ignition dataset case for hlm_spitfire_mode
@@ -245,7 +248,7 @@ module FatesInterfaceTypesMod
    integer , public, allocatable :: fates_hdim_levfuel(:)          ! fire fuel size class (fsc) dimension
    integer , public, allocatable :: fates_hdim_levcwdsc(:)         ! cwd class dimension
    integer , public, allocatable :: fates_hdim_levcan(:)           ! canopy-layer dimension 
-   integer , public, allocatable :: fates_hdim_levleaf(:)          ! leaf-layer dimension 
+   real(r8), public, allocatable :: fates_hdim_levleaf(:)          ! leaf-layer dimension, integrated VAI [m2/m2]
    integer , public, allocatable :: fates_hdim_levelem(:)              ! element dimension
    integer , public, allocatable :: fates_hdim_canmap_levcnlf(:)   ! canopy-layer map into the canopy-layer x leaf-layer dim
    integer , public, allocatable :: fates_hdim_lfmap_levcnlf(:)    ! leaf-layer map into the can-layer x leaf-layer dimension

@@ -210,11 +210,12 @@ Module TwoStreamMLPEMod
      procedure :: GetNSCel
      procedure :: AllocInitTwoStream
      procedure :: DeallocTwoStream
-
+     
      procedure :: GetRdUp
      procedure :: GetRdDn
      procedure :: GetRb
      procedure :: GetAbsRad
+     
 
   end type twostream_type
 
@@ -344,6 +345,7 @@ contains
            scelb%B2d*scelb%lambda2_diff*exp(-scelb%a*vai))
 
       if(r_diff_dn.ne.r_diff_dn)then
+         print*,"GETRDN"
          print*,scelg%Kb
          print*,scelb%a
          print*,vai
@@ -471,15 +473,15 @@ contains
       dlai    = dvai *  scelg%lai/( scelg%lai+ scelg%sai)
 
       
-      !!if(dlai>nearzero)then
-      !!   leaf_sun_frac = max(0.001_r8,min(0.999_r8,scelb%Rbeam0/(dlai*scelg%Kb_leaf/rad_params%clumping_index(ft)) &
-      !!        *(exp(-scelg%Kb_leaf*lai_top) - exp(-scelg%Kb_leaf*lai_bot))))
-      !!else
-      !!  leaf_sun_frac = 0001._r8
-      !!end if
-
-      leaf_sun_frac = max(0.001_r8,min(0.999_r8,scelb%Rbeam0/(dvai*scelg%Kb/rad_params%clumping_index(ft)) &
-           *(exp(-scelg%Kb*vai_top) - exp(-scelg%Kb*vai_bot))))
+      if(dlai>nearzero)then
+         leaf_sun_frac = max(0.001_r8,min(0.999_r8,scelb%Rbeam0/(dlai*scelg%Kb_leaf/rad_params%clumping_index(ft)) &
+              *(exp(-scelg%Kb_leaf*lai_top) - exp(-scelg%Kb_leaf*lai_bot))))
+      else
+         leaf_sun_frac = 0001._r8
+      end if
+         
+      !leaf_sun_frac = max(0.001_r8,min(0.999_r8,scelb%Rbeam0/(dvai*scelg%Kb/rad_params%clumping_index(ft)) &
+      !     *(exp(-scelg%Kb*vai_top) - exp(-scelg%Kb*vai_bot))))
 
       
       if(debug) then
@@ -643,6 +645,9 @@ contains
     real(r8) :: betad_om   ! multiplication of diffuse backscatter and reflectance
     real(r8) :: area_check ! Checks to make sure each layer has 100% coverage
 
+
+    print*,"CANOPY PREP"
+    
     this%frac_snow = frac_snow
 
     if(.not.this%force_prep) then
@@ -766,6 +771,8 @@ contains
     real(r8) :: betab_om   ! multiplication of beam backscatter and reflectance
     real(r8) :: om_veg     ! scattering coefficient for vegetation (no snow)
 
+    print*,"ZENITH PREP"
+    
     if( (cosz-1.0) > nearzero ) then
        print*,"The cosine of the zenith angle cannot exceed 1"
        print*,"cosz: ",cosz
@@ -862,8 +869,6 @@ contains
           end associate
        end do do_ical
     end do do_ican
-
-    !this%band(ib)%albedo_grnd_beam = 1.e-36  ! Must fill this in
 
     return
   end subroutine ZenithPrep
@@ -1039,6 +1044,8 @@ contains
     ! upper canopy.
     ! --------------------------------------------------------------------------
 
+    print*,"SOLVE"
+    
     if((Rbeam_atm+Rdiff_atm)<nearzero)then
        print*,"No radiation"
        print*,"Two stream should not had been called"

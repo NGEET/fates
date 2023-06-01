@@ -282,7 +282,7 @@ contains
          call twostr%CanopyPrep(fcansno_pa(ifp))
          call twostr%ZenithPrep(coszen_pa(ifp))
          
-     end associate
+       end associate
 
       
 
@@ -294,7 +294,7 @@ contains
   end subroutine FatesConstructRadElements
 
   ! =============================================================================================
-
+  
   subroutine FatesPatchFSun(patch,fsun,laisun,laisha)
 
     type(ed_patch_type) :: patch
