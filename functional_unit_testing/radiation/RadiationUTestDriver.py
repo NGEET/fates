@@ -144,16 +144,16 @@ def main(argv):
     # Process the core 2Stream parameters from parameters in file
     iret = param_prep_call(ci(n_pft))
 
-    if(False):
+    if(True):
         ParallelElementPerturbDist()
 
     if(True):
         SunFracTests()
 
-    if(False):
+    if(True):
         SingleElementPerturbTest()
 
-    if(False):
+    if(True):
         SerialParallelCanopyTest()
 
     plt.show()

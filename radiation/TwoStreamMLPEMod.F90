@@ -24,6 +24,9 @@ Module TwoStreamMLPEMod
   !                         3 = thermal (not used at the moment)
   !
 
+  use shr_log_mod   , only: errMsg => shr_log_errMsg
+  use shr_sys_mod   , only: shr_sys_abort
+  
   implicit none
   private
 
@@ -47,7 +50,7 @@ Module TwoStreamMLPEMod
   integer,public, parameter :: normalized_upper_boundary = 1
   integer,public, parameter :: absolute_upper_boundary   = 2
   
-
+  integer :: log_unit ! fortran output unit for logging
   
   ! These are parameter constants, ie things that are specific to the plant material
   ! and radiation band.  Not all of these need to be used. 2-stream ultimately wants
@@ -221,13 +224,43 @@ Module TwoStreamMLPEMod
 
   public :: ParamPrep
   public :: AllocateRadParams
-
+  public :: TwoStreamLogInit
+  
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
 
   
 contains
 
+  subroutine TwoStreamLogInit(log_unit_in)
+    integer,intent(in) :: log_unit_in
+    
+    log_unit = log_unit_in
+    
+  end subroutine TwoStreamLogInit
+
+  subroutine endrun(msg) 
+
+    !-----------------------------------------------------------------------
+    ! !DESCRIPTION:
+    ! Abort the model for abnormal termination
+    ! This subroutine was derived from CLM's
+    ! endrun_vanilla() in abortutils.F90
+    !
+    !
+    ! !ARGUMENTS:
+    implicit none
+    character(len=*), intent(in) :: msg    ! string to be printed
+    !-----------------------------------------------------------------------
+
+    write(log_unit,*)'ENDRUN:', msg
+    call shr_sys_abort()
+
+  end subroutine endrun
+
+  
+  ! ===============================================================================================
+  
   subroutine AllocInitTwoStream(this,band_indices,ncan,ncol)
 
     class(twostream_type) :: this
@@ -326,16 +359,6 @@ contains
     associate(scelb => this%band(ib)%scelb(ican,icol), &
          scelg => this%scelg(ican,icol) )
 
-      !print*,'-----'
-      !print*,this%band(ib)%Rbeam_atm,this%band(ib)%Rdiff_atm
-      !print*,scelb%Ad,scelg%Kb,vai
-      !print*,scelb%B1d,scelb%lambda1_beam,scelb%a
-      !print*,scelb%B2d,scelb%lambda2_beam
-      !print*,scelb%lambda1_diff,scelb%lambda2_diff
-      !print*,exp(-scelg%Kb*vai)
-      !print*,exp(scelb%a*vai)
-      !print*,exp(-scelb%a*vai)
-      
       r_diff_dn = this%band(ib)%Rbeam_atm*( &
            scelb%Ad*exp(-scelg%Kb*vai) + &
            scelb%B1d*scelb%lambda1_beam*exp(scelb%a*vai) + &
@@ -345,19 +368,19 @@ contains
            scelb%B2d*scelb%lambda2_diff*exp(-scelb%a*vai))
 
       if(r_diff_dn.ne.r_diff_dn)then
-         print*,"GETRDN"
-         print*,scelg%Kb
-         print*,scelb%a
-         print*,vai
-         print*,scelb%Ad
-         print*,scelb%B1d,scelb%B2d
-         print*,scelb%lambda1_beam,scelb%lambda2_beam
-         print*,scelb%lambda1_diff,scelb%lambda2_diff
-         print*,this%band(ib)%Rbeam_atm
-         print*,this%band(ib)%Rdiff_atm
-         print*,exp(-scelg%Kb*vai)
-         print*,exp(scelb%a*vai)
-         stop
+         write(log_unit,*)"GETRDN"
+         write(log_unit,*)scelg%Kb
+         write(log_unit,*)scelb%a
+         write(log_unit,*)vai
+         write(log_unit,*)scelb%Ad
+         write(log_unit,*)scelb%B1d,scelb%B2d
+         write(log_unit,*)scelb%lambda1_beam,scelb%lambda2_beam
+         write(log_unit,*)scelb%lambda1_diff,scelb%lambda2_diff
+         write(log_unit,*)this%band(ib)%Rbeam_atm
+         write(log_unit,*)this%band(ib)%Rdiff_atm
+         write(log_unit,*)exp(-scelg%Kb*vai)
+         write(log_unit,*)exp(scelb%a*vai)
+         call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
       
       
@@ -486,8 +509,8 @@ contains
       
       if(debug) then
          if(leaf_sun_frac>1.0_r8 .or. leaf_sun_frac<0._r8) then
-            print*,"impossible leaf sun fraction"
-            stop
+            write(log_unit,*)"impossible leaf sun fraction"
+            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
       end if
 
@@ -506,21 +529,21 @@ contains
 
       if(debug) then
          if( (vai_bot-vai_max)>rel_err_thresh)then
-            print*,"During decomposition of the 2-stream radiation solution"
-            print*,"A vegetation area index (VAI) was requested in GetAbsRad()"
-            print*,"that is larger than the total integrated VAI of the "
-            print*,"computation element of interest."
-            print*,"vai_max: ",vai_max
-            print*,"vai_bot: ",vai_bot
-            stop
+            write(log_unit,*)"During decomposition of the 2-stream radiation solution"
+            write(log_unit,*)"A vegetation area index (VAI) was requested in GetAbsRad()"
+            write(log_unit,*)"that is larger than the total integrated VAI of the "
+            write(log_unit,*)"computation element of interest."
+            write(log_unit,*)"vai_max: ",vai_max
+            write(log_unit,*)"vai_bot: ",vai_bot
+            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
          if( (vai_bot-vai_top)<-rel_err_thresh ) then
-            print*,"During decomposition of the 2-stream radiation solution"
-            print*,"the vegetation area index at the lower position was set"
-            print*,"as greater than the value at the upper position."
-            print*,"vai_max: ",vai_max
-            print*,"vai_bot: ",vai_bot
-            stop
+            write(log_unit,*)"During decomposition of the 2-stream radiation solution"
+            write(log_unit,*)"the vegetation area index at the lower position was set"
+            write(log_unit,*)"as greater than the value at the upper position."
+            write(log_unit,*)"vai_max: ",vai_max
+            write(log_unit,*)"vai_bot: ",vai_bot
+            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
       end if
 
@@ -580,9 +603,9 @@ contains
        ! just let it go, dont worry about it.
 
        if(rad_params%xl(ft)<-0.4_r8 .or. rad_params%xl(ft)>0.6_r8) then
-          print*,"Leaf orientation factors (xl) should be between -0.4 and 0.6"
-          print*,"ft: ",ft,"xl: ",rad_params%xl(ft)
-          stop
+          write(log_unit,*)"Leaf orientation factors (xl) should be between -0.4 and 0.6"
+          write(log_unit,*)"ft: ",ft,"xl: ",rad_params%xl(ft)
+          call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
 
        ! There is a singularity of leaf orientation is exactly 0
@@ -645,9 +668,6 @@ contains
     real(r8) :: betad_om   ! multiplication of diffuse backscatter and reflectance
     real(r8) :: area_check ! Checks to make sure each layer has 100% coverage
 
-
-    print*,"CANOPY PREP"
-    
     this%frac_snow = frac_snow
 
     if(.not.this%force_prep) then
@@ -727,17 +747,17 @@ contains
 
        ! RE-ENABLE THIS CHECK WHEN FATES IS BETTER AT CONSERVING AREA!!
        if(.false.)then
-       !if( abs(area_check-1._r8) > 10._r8*area_err_thresh  )then
-          print*,"Only a partial canopy was specified"
-          print*,"Scattering elements must constitute 100% of the ground cover."
-          print*,"for open spaces, create an air element with the respective area."
-          print*,"total area (out of 1): ",area_check,ican
-          print*,"layer: ",ican," of: ",this%n_lyr
+          !if( abs(area_check-1._r8) > 10._r8*area_err_thresh  )then
+          write(log_unit,*)"Only a partial canopy was specified"
+          write(log_unit,*)"Scattering elements must constitute 100% of the ground cover."
+          write(log_unit,*)"for open spaces, create an air element with the respective area."
+          write(log_unit,*)"total area (out of 1): ",area_check,ican
+          write(log_unit,*)"layer: ",ican," of: ",this%n_lyr
           do icol = 1,this%n_col(ican)
-             print*,this%scelg(ican,icol)%area,this%scelg(ican,icol)%pft
+             write(log_unit,*)this%scelg(ican,icol)%area,this%scelg(ican,icol)%pft
           end do
-          print*,"TwoStreamMLPEMod.F90:CanopyPrep"
-          stop
+          write(log_unit,*)"TwoStreamMLPEMod.F90:CanopyPrep"
+          call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
             
     end do do_can
@@ -771,19 +791,17 @@ contains
     real(r8) :: betab_om   ! multiplication of beam backscatter and reflectance
     real(r8) :: om_veg     ! scattering coefficient for vegetation (no snow)
 
-    print*,"ZENITH PREP"
-    
     if( (cosz-1.0) > nearzero ) then
-       print*,"The cosine of the zenith angle cannot exceed 1"
-       print*,"cosz: ",cosz
-       print*,"TwoStreamMLPEMod.F90:ZenithPrep"
-       stop
+       write(log_unit,*)"The cosine of the zenith angle cannot exceed 1"
+       write(log_unit,*)"cosz: ",cosz
+       write(log_unit,*)"TwoStreamMLPEMod.F90:ZenithPrep"
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     elseif(cosz<0._r8)then
-       print*,"The cosine of the zenith angle should not be less than zero"
-       print*,"It can be exactly zero, but not less than"
-       print*,"cosz: ",cosz
-       print*,"TwoStreamMLPEMod.F90:ZenithPrep"
-       stop
+       write(log_unit,*)"The cosine of the zenith angle should not be less than zero"
+       write(log_unit,*)"It can be exactly zero, but not less than"
+       write(log_unit,*)"cosz: ",cosz
+       write(log_unit,*)"TwoStreamMLPEMod.F90:ZenithPrep"
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
        
     cosz = max(nearzero,cosz)
@@ -804,7 +822,7 @@ contains
                !how much direct light penetrates a singleunit of lai?
                scelg%Kb_leaf = min(kb_max,rad_params%clumping_index(ft) * gdir / cosz)
 
-               !print*,"Kb_leaf: ",scelg%Kb_leaf,gdir , cosz
+               !write(log_unit,*)"Kb_leaf: ",scelg%Kb_leaf,gdir , cosz
                
 
                ! RGK: My sense is that snow should be adding optical depth
@@ -855,12 +873,13 @@ contains
 
                     scelb%betab = betab_om / scelb%om
 
-                    if( .not.(scelb%betab==scelb%betab))then
-                       print*,"Beam backscatter fraction is NaN"
-                       print*, betab_om,scelb%om,om_veg,this%frac_snow,betab_veg,asu,avmu,scelg%Kb
-                       stop
+                    if(debug)then
+                       if( .not.(scelb%betab==scelb%betab))then
+                          write(log_unit,*)"Beam backscatter fraction is NaN"
+                          write(log_unit,*) betab_om,scelb%om,om_veg,this%frac_snow,betab_veg,asu,avmu,scelg%Kb
+                          call endrun(msg=errMsg(sourcefile, __LINE__))
+                       end if
                     end if
-                    
 
                  end if
 
@@ -1044,13 +1063,11 @@ contains
     ! upper canopy.
     ! --------------------------------------------------------------------------
 
-    print*,"SOLVE"
-    
     if((Rbeam_atm+Rdiff_atm)<nearzero)then
-       print*,"No radiation"
-       print*,"Two stream should not had been called"
-       print*,Rbeam_atm,Rdiff_atm
-       stop
+       write(log_unit,*)"No radiation"
+       write(log_unit,*)"Two stream should not had been called"
+       write(log_unit,*)Rbeam_atm,Rdiff_atm
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
     
     Rbeam_top = 1.0_r8
@@ -1080,8 +1097,8 @@ contains
           a2 = scelgp%Kd*scelgp%Kd*(scelbp%om-1._r8)*(scelbp%om-1._r8-2._r8*scelbp%om*scelbp%betad)
 
           if(a2<0._r8) then
-             print*,'a^2 is less than zero'
-             stop
+             write(log_unit,*)'a^2 is less than zero'
+             call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
 
           scelbp%a  = sqrt(a2)
@@ -1097,8 +1114,8 @@ contains
              nu_sqrd = (1._r8-scelbp%om+2._r8*scelbp%om*scelbp%betad)/(1._r8-scelbp%om)
 
              if(nu_sqrd<0._r8)then
-                print*,'nu_sqrd is less than zero'
-                stop
+                write(log_unit,*)'nu_sqrd is less than zero'
+                call endrun(msg=errMsg(sourcefile, __LINE__))
              end if
 
              ! B_1 up term from documentation:
@@ -1202,8 +1219,8 @@ contains
        end if
 
        if(n_eq>100)then
-          print*,"NEED A BIGGER MATRIX"
-          stop
+          write(log_unit,*)"NEED A BIGGER MATRIX"
+          call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
 
        OMEGA(1:n_eq,1:n_eq) = 0._r8
@@ -1382,7 +1399,7 @@ contains
 
        end do
 
-       !print*,"TAU: ",TAU(:)
+       !write(log_unit,*)"TAU: ",TAU(:)
        
        
        LAMBDA(1:n_eq) = TAU(1:n_eq)
@@ -1535,35 +1552,35 @@ contains
     
     !if( abs(rel_err) > rel_err_thresh ) then
     if( rel_err.ne.rel_err) then
-       print*,"Total canopy flux balance not closing in TwoStrteamMLPEMod:Solve"
-       print*,"Relative Error, delta/(Rbeam_atm+Rdiff_atm) :",rel_err
-       print*,"Max Error: ",rel_err_thresh
-       print*,"ib: ",ib
-       print*, beam_err,diff_err
-       print*,this%band(ib)%albedo_grnd_diff
-       print*, frac_diff_grnd_beam*(1._r8-this%band(ib)%albedo_grnd_diff) + &
+       write(log_unit,*)"Total canopy flux balance not closing in TwoStrteamMLPEMod:Solve"
+       write(log_unit,*)"Relative Error, delta/(Rbeam_atm+Rdiff_atm) :",rel_err
+       write(log_unit,*)"Max Error: ",rel_err_thresh
+       write(log_unit,*)"ib: ",ib
+       write(log_unit,*) beam_err,diff_err
+       write(log_unit,*)this%band(ib)%albedo_grnd_diff
+       write(log_unit,*) frac_diff_grnd_beam*(1._r8-this%band(ib)%albedo_grnd_diff) + &
             frac_beam_grnd_beam*(1._r8-this%band(ib)%albedo_grnd_beam)
-       print*, frac_diff_grnd_diff*(1._r8-this%band(ib)%albedo_grnd_diff)
-       print*, albedo_beam,albedo_diff
-       print*, frac_abs_can_beam,frac_abs_can_diff
-       print*, frac_diff_grnd_beam,frac_beam_grnd_beam,frac_diff_grnd_diff
-       print*, "scattering coeff: ",(2*rad_params%om_leaf(ib,1)+0.5*rad_params%om_stem(ib,1))/2.5
-       print*, "Breakdown:",this%n_lyr
+       write(log_unit,*) frac_diff_grnd_diff*(1._r8-this%band(ib)%albedo_grnd_diff)
+       write(log_unit,*) albedo_beam,albedo_diff
+       write(log_unit,*) frac_abs_can_beam,frac_abs_can_diff
+       write(log_unit,*) frac_diff_grnd_beam,frac_beam_grnd_beam,frac_diff_grnd_diff
+       write(log_unit,*) "scattering coeff: ",(2*rad_params%om_leaf(ib,1)+0.5*rad_params%om_stem(ib,1))/2.5
+       write(log_unit,*) "Breakdown:",this%n_lyr
        do ican = 1,this%n_lyr
           do icol = 1,this%n_col(ican)
              scelgp => this%scelg(ican,icol)
              scelbp => this%band(ib)%scelb(ican,icol)
-             print*,"    ",ican,icol
-             print*,"    ",scelgp%lai+scelgp%sai,scelgp%pft,scelgp%area
-             print*,"    ",scelbp%om,scelgp%Kb,scelgp%Kd,scelbp%betab,scelbp%betad
-             print*,"    ",scelbp%om*(1.0-scelbp%betad)
-             print*,"    ",scelbp%lambda1_beam,scelbp%lambda2_beam
-             print*,"    ",scelbp%lambda1_diff,scelbp%lambda2_diff
-             print*,"AB TERMS: ",scelbp%Ad,scelbp%Au,scelbp%B1d,scelbp%B2d,scelbp%B2d,scelbp%B2u,scelbp%a
-             print*,"LAMBDA TERMS: ",scelbp%lambda1_diff,scelbp%lambda2_diff,scelbp%lambda1_beam,scelbp%lambda2_beam
+             write(log_unit,*)"    ",ican,icol
+             write(log_unit,*)"    ",scelgp%lai+scelgp%sai,scelgp%pft,scelgp%area
+             write(log_unit,*)"    ",scelbp%om,scelgp%Kb,scelgp%Kd,scelbp%betab,scelbp%betad
+             write(log_unit,*)"    ",scelbp%om*(1.0-scelbp%betad)
+             write(log_unit,*)"    ",scelbp%lambda1_beam,scelbp%lambda2_beam
+             write(log_unit,*)"    ",scelbp%lambda1_diff,scelbp%lambda2_diff
+             write(log_unit,*)"AB TERMS: ",scelbp%Ad,scelbp%Au,scelbp%B1d,scelbp%B2d,scelbp%B2d,scelbp%B2u,scelbp%a
+             write(log_unit,*)"LAMBDA TERMS: ",scelbp%lambda1_diff,scelbp%lambda2_diff,scelbp%lambda1_beam,scelbp%lambda2_beam
           end do
        end do
-       stop
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
     
