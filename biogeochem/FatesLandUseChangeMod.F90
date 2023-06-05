@@ -10,6 +10,7 @@ module FatesLandUseChangeMod
   use FatesConstantsMod         , only : r8 => fates_r8
   use FatesConstantsMod         , only : itrue, ifalse
   use FatesConstantsMod         , only : fates_unset_int
+  use FatesConstantsMod         , only : years_per_day
   use FatesInterfaceTypesMod    , only : bc_in_type
   use FatesInterfaceTypesMod    , only : hlm_use_luh
   use FatesInterfaceTypesMod    , only : hlm_num_luh2_states
@@ -67,7 +68,7 @@ contains
 
     ! !ARGUMENTS:
     type(bc_in_type) , intent(in) :: bc_in
-    real(r8), intent(inout) :: landuse_transition_matrix(n_landuse_cats, n_landuse_cats)  ! [m2/m2/year]
+    real(r8), intent(inout) :: landuse_transition_matrix(n_landuse_cats, n_landuse_cats)  ! [m2/m2/day]
 
     ! !LOCAL VARIABLES:
     type(luh2_fates_lutype_map) :: lumap
@@ -91,10 +92,9 @@ contains
           ! identify urban fraction so that it can be factored into the land use state output
           urban_fraction = bc_in%hlm_luh_states(findloc(bc_in%hlm_luh_state_names,'urban',dim=1))
        end if
-       !!may need some logic here to ask whether or not ot perform land use cahnge on this timestep. current code occurs every day.
-       
-       ! identify urban fraction so that it can be accounted for in the fates land use aggregation
-       ! urban_fraction = bc_in%hlm_luh_states(findloc(bc_in%hlm_luh_state_names,'urban',dim=1))
+
+       !!TODO: may need some logic here to ask whether or not ot perform land use change on this timestep. current code occurs every day.
+       !!If not doing transition every day, need to update units.
 
        transitions_loop: do i_luh2_transitions = 1, hlm_num_luh2_transitions
 
@@ -110,8 +110,7 @@ contains
           ! Avoid transitions with 'urban' as those are handled seperately
           if (.not.(i_donor .eq. fates_unset_int .or. i_receiver .eq. fates_unset_int)) then
              landuse_transition_matrix(i_donor,i_receiver) = &
-                  landuse_transition_matrix(i_donor,i_receiver) +  temp_vector(i_luh2_transitions) / (1._r8 - urban_fraction)
-                  !landuse_transition_matrix(i_donor,i_receiver) +  bc_in%hlm_luh_transitions(i_luh2_transitions) / (1._r8 - urban_fraction)
+                  landuse_transition_matrix(i_donor,i_receiver) +  temp_vector(i_luh2_transitions) * years_per_day / (1._r8 - urban_fraction)
 
           end if
        end do transitions_loop
@@ -275,17 +274,18 @@ contains
 
     ! Check to see if the incoming luh2 vector is NaN.
     ! This suggests that there is a discepency where the HLM and LUH2 states
-    ! there is vegetated ground.  In this case, states should be Nan.  If so,
-    ! set the current state to be all primary forest.
+    ! there is vegetated ground. E.g. LUH2 data is missing for glacier-margin regions such as Antarctica.
+    ! In this case, states should be Nan.  If so,
+    ! set the current state to be all primary forest, and all transitions to be zero.
     ! If only a portion of the vector is NaN, there is something  amiss with
     ! the data, so end the run.
 
     modified_flag = .false.
     if (all(isnan(luh_vector))) then
-       luh_vector = 0._r8
+       luh_vector(:) = 0._r8
        ! Check if this is a state vector, otherwise leave transitions as zero
        if (size(luh_vector) .eq. hlm_num_luh2_states) then
-          luh_vector(1) = 1._r8
+          luh_vector(primaryland) = 1._r8
        end if
        modified_flag = .true.
        write(fates_log(),*) 'WARNING: land use state is all NaN; setting state as all primary forest.'
