@@ -545,6 +545,8 @@ contains
                             write(fates_log(),*) 'patch disturbance rate > 1 ?',disturbance_rate
                             call dump_patch(currentPatch)
                             call endrun(msg=errMsg(sourcefile, __LINE__))
+                         else if (disturbance_rate > 1.0_r8) then
+                            disturbance_rate = 1.0_r8
                          end if
 
                          ! Only create new patches that have non-negligible amount of land
