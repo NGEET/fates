@@ -306,8 +306,6 @@ contains
 
        ! Avoid this calculation to avoid NaN due to division by zero result if luh is not used
        if (hlm_use_luh .eq. itrue) then
-          maxval(landuse_transition_matrix(currentPatch%land_use_label,1:n_landuse_cats)), &
-                  current_fates_landuse_state_vector(currentPatch%land_use_label), currentPatch%land_use_label
           currentPatch%landuse_transition_rates(1:n_landuse_cats) = min(1._r8, &
                landuse_transition_matrix(currentPatch%land_use_label,1:n_landuse_cats) / &
                current_fates_landuse_state_vector(currentPatch%land_use_label))
