@@ -66,5 +66,166 @@
       <ln> switch designating the model for canopy radiation, 1 = Norman, 2 = Two-stream (experimental) </ln>
       <val> 1 </val>
     </mod>
+    <mod type="variable_add">
+      <na> fates_trs_repro_alloc_a </na>
+      <di> fates_pft </di>
+      <un> fraction </un>
+      <ln> shape parameter for sigmoidal function relating dbh to reproductive allocation </ln>
+      <val> 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.0049 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_repro_alloc_b </na>
+      <di> fates_pft </di>
+      <un> fraction </un>
+      <ln> intercept parameter for sigmoidal function relating dbh to reproductive allocation </ln>
+      <val> -2.6171, -2.6171, -2.6171, -2.6171, -2.6171, -2.6171, -2.6171, -2.6171, -2.6171, -2.6171, -2.6171, -2.6171 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_repro_frac_seed </na>
+      <di> fates_pft </di>
+      <un> fraction </un>
+      <ln> fraction of reproductive mass that is seed </ln>
+      <val> 0.24, 0.24, 0.24, 0.24, 0.24, 0.24, 0.24, 0.24, 0.24, 0.24, 0.24, 0.24 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_a_emerg </na>
+      <di> fates_pft </di>
+      <un> day -1 </un>
+      <ln> mean fraction of seed bank emerging </ln>
+      <val> 0.0003, 0.0003, 0.0003, 0.0003, 0.0003, 0.0003, 0.0003, 0.0003, 0.0003, 0.0003, 0.0003, 0.0003 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_b_emerg </na>
+      <di> fates_pft </di>
+      <un> day -1 </un>
+      <ln> seedling emergence sensitivity to soil moisture </ln>
+      <val> 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_par_crit_germ </na>
+      <di> fates_pft </di>
+      <un> MJ m-2 day-1 </un>
+      <ln> critical light level for germination </ln>
+      <val> 0.656, 0.656, 0.656, 0.656, 0.656, 0.656, 0.656, 0.656, 0.656, 0.656, 0.656, 0.656 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_root_depth </na>
+      <di> fates_pft </di>
+      <un> m </un>
+      <ln> rooting depth of seedlings </ln>
+      <val> 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_psi_emerg </na>
+      <di> fates_pft </di>
+      <un> mm h20 suction </un>
+      <ln> critical soil moisture for seedling emergence </ln>
+      <val> -15744.65, -15744.65, -15744.65, -15744.65, -15744.65, -15744.65, -15744.65, -15744.65, -15744.65, -15744.65, -15744.65, -15744.65 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_psi_crit </na>
+      <di> fates_pft </di>
+      <un> mm H2O </un>
+      <ln> critical soil moisture (suction) for seedling stress </ln>
+      <val> -251995.7, -251995.7, -251995.7, -251995.7, -251995.7, -251995.7, -251995.7, -251995.7, -251995.7, -251995.7, -251995.7, -251995.7 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_mdd_crit </na>
+      <di> fates_pft </di>
+      <un> mm H2O day </un>
+      <ln> critical moisture deficit (suction) day accumulation for seedling moisture-based seedling mortality to begin </ln>
+      <val> 1400000.0, 1400000.0, 1400000.0, 1400000.0, 1400000.0, 1400000.0, 1400000.0, 1400000.0, 1400000.0, 1400000.0, 1400000.0, 1400000.0 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_h2o_mort_a </na>
+      <di> fates_pft </di>
+      <un> - </un>
+      <ln> coefficient in moisture-based seedling mortality </ln>
+      <val> 4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_h2o_mort_b </na>
+      <di> fates_pft </di>
+      <un> - </un>
+      <ln> coefficient in moisture-based seedling mortality </ln>
+      <val> -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_h2o_mort_c </na>
+      <di> fates_pft </di>
+      <un> - </un>
+      <ln> coefficient in moisture-based seedling mortality </ln>
+      <val> 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_light_mort_a </na>
+      <di> fates_pft </di>
+      <un> - </un>
+      <ln> light-based seedling mortality coefficient </ln>
+      <val> -0.009897694, -0.009897694, -0.009897694, -0.009897694, -0.009897694, -0.009897694, -0.009897694, -0.009897694, -0.009897694, -0.009897694, -0.009897694, -0.009897694 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_light_mort_b </na>
+      <di> fates_pft </di>
+      <un> - </un>
+      <ln> light-based seedling mortality coefficient </ln>
+      <val> -7.154063, -7.154063, -7.154063, -7.154063, -7.154063, -7.154063, -7.154063, -7.154063, -7.154063, -7.154063, -7.154063, -7.154063 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_background_mort </na>
+      <di> fates_pft </di>
+      <un> yr-1 </un>
+      <ln> background seedling mortality rate </ln>
+      <val> 0.1085371, 0.1085371, 0.1085371, 0.1085371, 0.1085371, 0.1085371, 0.1085371, 0.1085371, 0.1085371, 0.1085371, 0.1085371, 0.1085371 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_light_rec_a </na>
+      <di> fates_pft </di>
+      <un> - </un>
+      <ln> coefficient in light-based seedling to sapling transition </ln>
+      <val> 0.007, 0.007, 0.007, 0.007, 0.007, 0.007, 0.007, 0.007, 0.007, 0.007, 0.007, 0.007 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_light_rec_b </na>
+      <di> fates_pft </di>
+      <un> - </un>
+      <ln> coefficient in light-based seedling to sapling transition </ln>
+      <val> 0.8615, 0.8615, 0.8615, 0.8615, 0.8615, 0.8615, 0.8615, 0.8615, 0.8615, 0.8615, 0.8615, 0.8615 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_regeneration_model </na>
+      <di> scalar </di>
+      <un> - </un>
+      <ln> switch for choosing between FATES's: 1) default regeneration scheme , 2) the Tree Recruitment Scheme (Hanbury-Brown et al., 2022), or (3) the Tree Recruitment Scheme without seedling dynamics </ln>
+      <val> 1 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_emerg_h2o_timescale </na>
+      <di> scalar </di>
+      <un> days </un>
+      <ln> Length of the window for the exponential moving average of smp used to calculate seedling emergence </ln>
+      <val> 7 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_mort_par_timescale </na>
+      <di> scalar </di>
+      <un> days </un>
+      <ln> Length of the window for the exponential moving average of par at the seedling layer used to calculate seedling mortality </ln>
+      <val> 32 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_mdd_timescale </na>
+      <di> scalar </di>
+      <un> days </un>
+      <ln> Length of the window for the exponential moving average of moisture deficit days used to calculate seedling mortality</ln>
+      <val> 126 </val>
+    </mod>
+   <mod type="variable_add">
+      <na> fates_trs_seedling2sap_par_timescale </na>
+      <di> scalar </di>
+      <un> days </un>
+      <ln> Length of the window for the exponential moving average of par at the seedling layer used to calculate seedling to sapling transition rates </ln>
+      <val> 32 </val>
+    </mod>
   </mods>
 </all>
