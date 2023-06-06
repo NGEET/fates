@@ -6,7 +6,7 @@
 
   <!-- To use this patch file run the following command: -->
 
-  <!--   Run `python ../tools/UpdateParamAPI.py -\-f archive/api25.3.0_032223_pr958.xml` -->
+  <!--   Run `python ../tools/UpdateParamAPI.py -/-f archive/api25.4.0_041023_pr958.xml` -->
 
   <!-- To update a different CDL parameter file, change the file listed the `base_file`. -->
   <!-- This requires that said file is up to date with API 25.3. -->
@@ -58,6 +58,13 @@
     </mod>
     <mod type="variable_del">
       <na> fates_phen_drought_model </na>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_rad_model </na>
+      <di> scalar </di>
+      <un> unitless </un>
+      <ln> switch designating the model for canopy radiation, 1 = Norman, 2 = Two-stream (experimental) </ln>
+      <val> 1 </val>
     </mod>
   </mods>
 </all>

@@ -346,7 +346,7 @@ def main():
 
                 sel_values = selectvalues(ncfile,list(dimnames),ipft_list,values,dcode)
 
-            [ncfile,ncvar] = reatevar(ncfile,paramname,dimnames,units,longname,dcode,sel_values)
+            [ncfile,ncvar] = createvar(ncfile,paramname,dimnames,units,longname,dcode,sel_values)
             ncfile.flush()
             ncfile.close()
 

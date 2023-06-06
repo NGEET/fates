@@ -36,6 +36,8 @@ module EDParamsMod
    integer,protected, public :: photo_tempsens_model  ! switch for choosing the model that defines the temperature
                                                       ! sensitivity of photosynthetic parameters (vcmax, jmax).
                                                       ! 1=non-acclimating, 2=Kumarathunge et al., 2019
+
+   integer,protected, public :: radiation_model       ! Switch betrween Norman (1) and Two-stream (2) radiation models
    
    real(r8),protected, public :: fates_mortality_disturbance_fraction ! the fraction of canopy mortality that results in disturbance
    real(r8),protected, public :: ED_val_comp_excln                    ! weighting factor for canopy layer exclusion and promotion
@@ -94,6 +96,7 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_photo_temp_acclim_thome_time = "fates_leaf_photo_temp_acclim_thome_time"
    character(len=param_string_length),parameter,public :: name_photo_tempsens_model = "fates_leaf_photo_tempsens_model"
    character(len=param_string_length),parameter,public :: name_maintresp_model = "fates_maintresp_leaf_model"
+   character(len=param_string_length),parameter,public :: name_radiation_model = "fates_rad_model"
    character(len=param_string_length),parameter,public :: ED_name_hydr_htftype_node = "fates_hydro_htftype_node"
    character(len=param_string_length),parameter,public :: ED_name_mort_disturb_frac = "fates_mort_disturb_frac"
    character(len=param_string_length),parameter,public :: ED_name_comp_excln = "fates_comp_excln"
@@ -263,6 +266,7 @@ contains
     photo_temp_acclim_thome_time          = nan
     photo_tempsens_model                  = -9
     maintresp_leaf_model                  = -9
+    radiation_model                       = -9
     fates_mortality_disturbance_fraction  = nan
     ED_val_comp_excln                     = nan
     ED_val_vai_top_bin_width              = nan
@@ -349,6 +353,9 @@ contains
     call fates_params%RegisterParameter(name=name_photo_tempsens_model,dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
+    call fates_params%RegisterParameter(name=name_radiation_model,dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+    
     call fates_params%RegisterParameter(name=name_maintresp_model,dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
     
@@ -550,6 +557,10 @@ contains
          data=tmpreal)
     photo_tempsens_model = nint(tmpreal)
 
+    call fates_params%RetrieveParameter(name=name_radiation_model, &
+         data=tmpreal)
+    radiation_model = nint(tmpreal)
+    
     call fates_params%RetrieveParameter(name=name_maintresp_model, &
          data=tmpreal)
     maintresp_leaf_model = nint(tmpreal)
