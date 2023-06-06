@@ -105,6 +105,24 @@ module EDPftvarcon
      real(r8), allocatable :: germination_rate(:)        ! Fraction of seed mass germinating per year (yr-1)
      real(r8), allocatable :: seed_decay_rate(:)         ! Fraction of seed mass (both germinated and
                                                          ! ungerminated), decaying per year    (yr-1)
+     
+     real(r8), allocatable :: repro_frac_seed(:)         ! fraciton of reproductive carbon that is seed
+     real(r8), allocatable :: a_emerg(:)                 ! mean fraction of seed bank emerging [day-1]
+     real(r8), allocatable :: b_emerg(:)                 ! seedling emergence sensitivity to soil moisture
+     real(r8), allocatable :: par_crit_germ(:)           ! critical light level for germination [MJ m2-1 day-1]
+     real(r8), allocatable :: seedling_psi_emerg(:)      ! critical soil moisture for seedling emergence [mm h2o suction]
+     real(r8), allocatable :: seedling_psi_crit(:)       ! critical soil moisture initiating seedling stress
+     real(r8), allocatable :: seedling_light_rec_a(:)    ! coefficient in light-based seedling to sapling transition rate
+     real(r8), allocatable :: seedling_light_rec_b(:)    ! coefficient in light-based seedling to sapling transition rate
+     real(r8), allocatable :: seedling_mdd_crit(:)       ! critical moisture deficit day accumulation for seedling moisture-based
+                                                         ! seedling mortality to begin
+     real(r8), allocatable :: seedling_h2o_mort_a(:)     ! coefficient in moisture-based seedling mortality
+     real(r8), allocatable :: seedling_h2o_mort_b(:)     ! coefficient in moisture-based seedling mortality
+     real(r8), allocatable :: seedling_h2o_mort_c(:)     ! coefficient in moisture-based seedling mortality
+     real(r8), allocatable :: seedling_root_depth(:)     ! rooting depth of seedlings [m]
+     real(r8), allocatable :: seedling_light_mort_a(:)   ! light-based seedling mortality coefficient
+     real(r8), allocatable :: seedling_light_mort_b(:)   ! light-based seedling mortality coefficient
+     real(r8), allocatable :: background_seedling_mort(:)! background seedling mortality [yr-1]
 
      real(r8), allocatable :: trim_limit(:)              ! Limit to reductions in leaf area w stress (m2/m2)
      real(r8), allocatable :: trim_inc(:)                ! Incremental change in trimming function   (m2/m2)
@@ -578,6 +596,70 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_trs_repro_frac_seed'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_trs_seedling_a_emerg'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+                 
+    name = 'fates_trs_seedling_b_emerg'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+                 
+    name = 'fates_trs_seedling_par_crit_germ'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_trs_seedling_psi_emerg'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_trs_seedling_psi_crit'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_trs_seedling_light_rec_a'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_trs_seedling_light_rec_b'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_trs_seedling_mdd_crit'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_trs_seedling_h2o_mort_a'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_trs_seedling_h2o_mort_b'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_trs_seedling_h2o_mort_c'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_trs_seedling_root_depth'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+                 
+    name = 'fates_trs_seedling_light_mort_a'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+                 
+    name = 'fates_trs_seedling_light_mort_b'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_trs_seedling_background_mort'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+                              
     name = 'fates_frag_seed_decay_rate'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -941,6 +1023,70 @@ contains
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%germination_rate)
 
+    name = 'fates_trs_repro_frac_seed'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%repro_frac_seed)
+
+    name = 'fates_trs_seedling_a_emerg'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%a_emerg)
+             
+    name = 'fates_trs_seedling_b_emerg'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%b_emerg)
+    
+    name = 'fates_trs_seedling_par_crit_germ'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%par_crit_germ)
+
+    name = 'fates_trs_seedling_psi_emerg'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%seedling_psi_emerg)
+   
+    name = 'fates_trs_seedling_psi_crit'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%seedling_psi_crit)
+    
+    name = 'fates_trs_seedling_light_rec_a'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%seedling_light_rec_a)
+    
+    name = 'fates_trs_seedling_light_rec_b'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%seedling_light_rec_b)
+
+    name = 'fates_trs_seedling_mdd_crit'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%seedling_mdd_crit)
+
+    name = 'fates_trs_seedling_h2o_mort_a'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%seedling_h2o_mort_a)
+    
+    name = 'fates_trs_seedling_h2o_mort_b'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%seedling_h2o_mort_b)
+
+    name = 'fates_trs_seedling_h2o_mort_c'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%seedling_h2o_mort_c)
+
+    name = 'fates_trs_seedling_root_depth'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%seedling_root_depth)
+                     
+    name = 'fates_trs_seedling_light_mort_a'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%seedling_light_mort_a)
+
+    name = 'fates_trs_seedling_light_mort_b'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%seedling_light_mort_b)
+
+    name = 'fates_trs_seedling_background_mort'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%background_seedling_mort)
+                              
     name = 'fates_frag_seed_decay_rate'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%seed_decay_rate)
@@ -1479,6 +1625,20 @@ contains
         write(fates_log(),fmt0) 'jmaxse = ',EDPftvarcon_inst%jmaxse
         write(fates_log(),fmt0) 'germination_timescale = ',EDPftvarcon_inst%germination_rate
         write(fates_log(),fmt0) 'seed_decay_turnover = ',EDPftvarcon_inst%seed_decay_rate
+        write(fates_log(),fmt0) 'repro_frac_seed = ',EDPftvarcon_inst%repro_frac_seed
+        write(fates_log(),fmt0) 'a_emerg = ',EDPftvarcon_inst%a_emerg
+        write(fates_log(),fmt0) 'b_emerg = ',EDPftvarcon_inst%b_emerg
+        write(fates_log(),fmt0) 'par_crit_germ = ',EDPftvarcon_inst%par_crit_germ
+        write(fates_log(),fmt0) 'seedling_psi_emerg = ',EDPftvarcon_inst%seedling_psi_emerg
+        write(fates_log(),fmt0) 'seedling_psi_crit = ',EDPftvarcon_inst%seedling_psi_crit
+        write(fates_log(),fmt0) 'seedling_mdd_crit = ',EDPftvarcon_inst%seedling_mdd_crit
+        write(fates_log(),fmt0) 'seedling_light_rec_a = ',EDPftvarcon_inst%seedling_light_rec_a
+        write(fates_log(),fmt0) 'seedling_light_rec_b = ',EDPftvarcon_inst%seedling_light_rec_b
+        write(fates_log(),fmt0) 'background_seedling_mort = ',EDPftvarcon_inst%background_seedling_mort
+        write(fates_log(),fmt0) 'seedling_root_depth = ',EDPftvarcon_inst%seedling_root_depth        
+        write(fates_log(),fmt0) 'seedling_h2o_mort_a = ',EDPftvarcon_inst%seedling_h2o_mort_a        
+        write(fates_log(),fmt0) 'seedling_h2o_mort_b = ',EDPftvarcon_inst%seedling_h2o_mort_b        
+        write(fates_log(),fmt0) 'seedling_h2o_mort_c = ',EDPftvarcon_inst%seedling_h2o_mort_c        
         write(fates_log(),fmt0) 'trim_limit = ',EDPftvarcon_inst%trim_limit
         write(fates_log(),fmt0) 'trim_inc = ',EDPftvarcon_inst%trim_inc
         write(fates_log(),fmt0) 'rhol = ',EDPftvarcon_inst%rhol
