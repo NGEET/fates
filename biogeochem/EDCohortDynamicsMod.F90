@@ -33,6 +33,7 @@ Module EDCohortDynamicsMod
   use FatesLitterMod        , only : ncwd
   use FatesLitterMod        , only : ndcmpy
   use FatesLitterMod        , only : litter_type
+  use FatesLitterMod        , only : adjust_SF_CWD_frac
   use EDParamsMod           , only : max_cohort_per_patch
   use EDTypesMod            , only : AREA
   use EDTypesMod            , only : min_npm2, min_nppatch
@@ -990,7 +991,7 @@ contains
     integer  :: crowndamage ! the crown damage class of the cohort
     integer  :: sl        ! loop index for soil layers
     integer  :: dcmpy     ! loop index for decomposability
-
+    real(r8) :: SF_val_CWD_frac_adj(4) !Updated wood partitioning to CWD based on dbh
     !----------------------------------------------------------------------
 
     pft = ccohort%pft
@@ -1020,29 +1021,32 @@ contains
        litt => cpatch%litter(el)
        flux_diags => csite%flux_diags(el)
 
+       !adjust how wood is partitioned between the cwd classes based on cohort dbh
+       call adjust_SF_CWD_frac(ccohort%dbh,ncwd,SF_val_CWD_frac,SF_val_CWD_frac_adj)
+
        do c=1,ncwd
 
           ! above ground CWD
           litt%ag_cwd(c) = litt%ag_cwd(c) + plant_dens * &
-               (struct_m+sapw_m)  * SF_val_CWD_frac(c) * &
+               (struct_m+sapw_m)  * SF_val_CWD_frac_adj(c) * &
                prt_params%allom_agb_frac(pft)
 
           ! below ground CWD
           do sl=1,csite%nlevsoil
              litt%bg_cwd(c,sl) = litt%bg_cwd(c,sl) + plant_dens * &
-                  (struct_m+sapw_m) * SF_val_CWD_frac(c) * &
+                  (struct_m+sapw_m) * SF_val_CWD_frac_adj(c) * &
                   (1.0_r8 - prt_params%allom_agb_frac(pft)) * &
                   csite%rootfrac_scr(sl)
           enddo
 
           ! above ground
           flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
-                (struct_m+sapw_m) * SF_val_CWD_frac(c) * &
+                (struct_m+sapw_m) * SF_val_CWD_frac_adj(c) * &
                 prt_params%allom_agb_frac(pft) * nplant
 
           ! below ground
           flux_diags%cwd_bg_input(c)  = flux_diags%cwd_bg_input(c) + &
-                (struct_m + sapw_m) * SF_val_CWD_frac(c) * &
+                (struct_m + sapw_m) * SF_val_CWD_frac_adj(c) * &
                 (1.0_r8 - prt_params%allom_agb_frac(pft)) * nplant
 
        enddo
