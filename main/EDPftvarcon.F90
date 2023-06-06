@@ -25,7 +25,7 @@ module EDPftvarcon
   use FatesConstantsMod   , only : prescribed_n_uptake
   use FatesConstantsMod   , only : coupled_p_uptake
   use FatesConstantsMod   , only : coupled_n_uptake
-
+  
 
    ! CIME Globals
   use shr_log_mod ,   only : errMsg => shr_log_errMsg
@@ -1533,6 +1533,7 @@ contains
     use FatesConstantsMod  , only : itrue, ifalse
     use EDParamsMod        , only : logging_mechanical_frac, logging_collateral_frac
     use EDParamsMod        , only : logging_direct_frac,logging_export_frac
+    use EDParamsMod        , only : radiation_model
     use FatesInterfaceTypesMod, only : hlm_use_fixed_biogeog,hlm_use_sp, hlm_name
     use FatesInterfaceTypesMod, only : hlm_use_inventory_init
 
@@ -1555,6 +1556,15 @@ contains
 
      if(.not.is_master) return
 
+     if(radiation_model.ne.1) then
+        write(fates_log(),*) 'The only available canopoy radiation model'
+        write(fates_log(),*) 'is the Norman scheme: fates_rad_model = 1'
+        write(fates_log(),*) 'The two-stream scheme is not available yet'
+        write(fates_log(),*) 'You specified fates_rad_model = ',radiation_model
+        write(fates_log(),*) 'Aborting'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+     end if
+     
 
      select case (hlm_parteh_mode)
      case (prt_cnp_flex_allom_hyp)

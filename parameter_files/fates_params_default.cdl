@@ -1,4 +1,4 @@
-netcdf fates_params_default {
+netcdf tmp {
 dimensions:
 	fates_NCWD = 4 ;
 	fates_history_age_bins = 7 ;
@@ -365,7 +365,7 @@ variables:
 	double fates_leaf_stomatal_slope_medlyn(fates_pft) ;
 		fates_leaf_stomatal_slope_medlyn:units = "KPa**0.5" ;
 		fates_leaf_stomatal_slope_medlyn:long_name = "stomatal slope parameter, as per Medlyn" ;
-	double fates_leaf_vcmax25top(fates_leafage_class, fates_pft) ;
+	double fates_leaf_vcmax25top(fates_pft) ;
 		fates_leaf_vcmax25top:units = "umol CO2/m^2/s" ;
 		fates_leaf_vcmax25top:long_name = "maximum carboxylation rate of Rub. at 25C, canopy top" ;
 	double fates_leaf_vcmaxha(fates_pft) ;
@@ -785,6 +785,9 @@ variables:
 	double fates_q10_mr ;
 		fates_q10_mr:units = "unitless" ;
 		fates_q10_mr:long_name = "Q10 for maintenance respiration" ;
+	double fates_rad_model ;
+		fates_rad_model:units = "unitless" ;
+		fates_rad_model:long_name = "switch designating the model for canopy radiation, 1 = Norman, 2 = Two-stream (experimental)" ;
 	double fates_soil_salinity ;
 		fates_soil_salinity:units = "ppt" ;
 		fates_soil_salinity:long_name = "soil salinity used for model when not coupled to dynamic soil salinity" ;
@@ -854,7 +857,7 @@ data:
   3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
   4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4 ;
 
- fates_alloc_storage_cushion = 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 
+ fates_alloc_storage_cushion = 1.2, 1.2, 1.2, 1.2, 2.4, 1.2, 1.2, 2.4, 1.2, 
     1.2, 1.2, 1.2 ;
 
  fates_alloc_store_priority_frac = 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 
@@ -1193,8 +1196,7 @@ data:
  fates_leaf_stomatal_slope_medlyn = 4.1, 2.3, 2.3, 4.1, 4.4, 4.4, 4.7, 4.7, 
     4.7, 2.2, 5.3, 1.6 ;
 
- fates_leaf_vcmax25top =
-  50, 62, 39, 61, 41, 58, 62, 54, 54, 78, 78, 78 ;
+ fates_leaf_vcmax25top = 50, 62, 39, 61, 58, 58, 62, 54, 54, 78, 78, 78 ;
 
  fates_leaf_vcmaxha = 65330, 65330, 65330, 65330, 65330, 65330, 65330, 65330, 
     65330, 65330, 65330, 65330 ;
@@ -1550,6 +1552,8 @@ data:
  fates_q10_froz = 1.5 ;
 
  fates_q10_mr = 1.5 ;
+
+ fates_rad_model = 1 ;
 
  fates_soil_salinity = 0.4 ;
 
