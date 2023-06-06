@@ -844,7 +844,7 @@ variables:
 		fates_rad_model:long_name = "switch designating the model for canopy radiation, 1 = Norman, 2 = Two-stream (experimental)" ;
 	double fates_regeneration_model ;
 		fates_regeneration_model:units = "-" ;
-		fates_regeneration_model:long_name = "switch for choosing between FATES\'s default regeneration scheme (1), the full Tree Recruitment Scheme (2; Hanbury-Brown et al., 2022), or (3) the Tree Recruitment Scheme without seedling dynamics" ;
+		fates_regeneration_model:long_name = "switch for choosing between FATES\'s: 1) default regeneration scheme , 2) the Tree Recruitment Scheme (Hanbury-Brown et al., 2022), or (3) the Tree Recruitment Scheme without seedling dynamics" ;
 	double fates_soil_salinity ;
 		fates_soil_salinity:units = "ppt" ;
 		fates_soil_salinity:long_name = "soil salinity used for model when not coupled to dynamic soil salinity" ;

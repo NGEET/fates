@@ -196,7 +196,7 @@
       <na> fates_regeneration_model </na>
       <di> scalar </di>
       <un> - </un>
-      <ln> switch for choosing between FATES's default regeneration scheme (1), the full Tree Recruitment Scheme (2; Hanbury-Brown et al., 2022), or (3) the Tree Recruitment Scheme without seedling dynamics </ln>
+      <ln> switch for choosing between FATES's: 1) default regeneration scheme , 2) the Tree Recruitment Scheme (Hanbury-Brown et al., 2022), or (3) the Tree Recruitment Scheme without seedling dynamics </ln>
       <val> 1 </val>
     </mod>
     <mod type="variable_add">
