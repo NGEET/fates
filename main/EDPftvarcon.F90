@@ -1694,6 +1694,7 @@ contains
     use EDParamsMod        , only : logging_mechanical_frac, logging_collateral_frac
     use EDParamsMod        , only : logging_direct_frac,logging_export_frac
     use EDParamsMod        , only : radiation_model
+    use EDParamsMod        , only : regeneration_model
     use FatesInterfaceTypesMod, only : hlm_use_fixed_biogeog,hlm_use_sp, hlm_name
     use FatesInterfaceTypesMod, only : hlm_use_inventory_init
 
@@ -1717,10 +1718,19 @@ contains
      if(.not.is_master) return
 
      if(radiation_model.ne.1) then
-        write(fates_log(),*) 'The only available canopoy radiation model'
+        write(fates_log(),*) 'The only available canopy radiation model'
         write(fates_log(),*) 'is the Norman scheme: fates_rad_model = 1'
         write(fates_log(),*) 'The two-stream scheme is not available yet'
         write(fates_log(),*) 'You specified fates_rad_model = ',radiation_model
+        write(fates_log(),*) 'Aborting'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+     end if
+
+     if(regeneration_model.ne.1) then
+        write(fates_log(),*) 'The only available regeneration model'
+        write(fates_log(),*) 'is the default, ie 1'
+        write(fates_log(),*) 'The Hanbury-Brown models are not available yet'
+        write(fates_log(),*) 'You specified fates_regeneration_model = ',regeneration_model
         write(fates_log(),*) 'Aborting'
         call endrun(msg=errMsg(sourcefile, __LINE__))
      end if
