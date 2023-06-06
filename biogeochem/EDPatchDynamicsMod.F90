@@ -3185,7 +3185,6 @@ contains
                    
                    call fuse_2_patches(currentSite, olderPatch, currentPatch)
                 
-                      write(fates_log(),*) 'term1apost: currage: ', currentPatch%age
                    ! The fusion process has updated the "older" pointer on currentPatch
                    ! for us.
                 
