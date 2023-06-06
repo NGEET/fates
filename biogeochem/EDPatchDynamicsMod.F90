@@ -306,8 +306,7 @@ contains
 
        ! Avoid this calculation to avoid NaN due to division by zero result if luh is not used
        if (hlm_use_luh .eq. itrue) then
-          write(fates_log(),*) 'disturb1: max rate, lustatevec, lbl: ', &
-                  maxval(landuse_transition_matrix(currentPatch%land_use_label,1:n_landuse_cats)), &
+          maxval(landuse_transition_matrix(currentPatch%land_use_label,1:n_landuse_cats)), &
                   current_fates_landuse_state_vector(currentPatch%land_use_label), currentPatch%land_use_label
           currentPatch%landuse_transition_rates(1:n_landuse_cats) = min(1._r8, &
                landuse_transition_matrix(currentPatch%land_use_label,1:n_landuse_cats) / &
@@ -396,18 +395,13 @@ contains
        ! if the sum of all disturbance rates is such that they will exceed total patch area on this day, then reduce them all proportionally.
        if ( (sum(currentPatch%disturbance_rates(:)) + sum(currentPatch%landuse_transition_rates(1:n_landuse_cats))) .gt. 1.0_r8 ) then
           tempsum = sum(currentPatch%disturbance_rates(:)) + sum(currentPatch%landuse_transition_rates(1:n_landuse_cats))
-          write(fates_log(),*) 'disturb2: tempsum: ', tempsum
           do i_dist = 1,N_DIST_TYPES
              currentPatch%disturbance_rates(i_dist) = currentPatch%disturbance_rates(i_dist) / tempsum
-             write(fates_log(),*) 'disturb2: distrate, lbl: ', currentPatch%disturbance_rates(i_dist), currentPatch%land_use_label
           end do
           do i_dist = 1,n_landuse_cats
              currentPatch%landuse_transition_rates(i_dist) = currentPatch%landuse_transition_rates(i_dist) / tempsum
-             write(fates_log(),*) 'disturb2: landtransrate, lbl: ', currentPatch%landuse_transition_rates(i_dist), currentPatch%land_use_label
           end do
        endif
-
-       write(fates_log(),*) 'disturb3: landtransrate, lbl: ', currentPatch%landuse_transition_rates, currentPatch%land_use_label
 
        currentPatch => currentPatch%younger
 
@@ -484,8 +478,6 @@ contains
 
     !---------------------------------------------------------------------
 
-    ! write(fates_log(),*) 'calling spawn patches'
-
     storesmallcohort => null() ! storage of the smallest cohort for insertion routine
     storebigcohort   => null() ! storage of the largest cohort for insertion routine 
 
@@ -534,9 +526,6 @@ contains
 
                 patchloop_areadis: do while(associated(currentPatch))
 
-                   !write(fates_log(),*) 'indices: ncpft, dt, dplt, lcrpl: ', i_nocomp_pft, i_disturbance_type, i_donorpatch_landuse_type, i_landusechange_receiverpatchlabel
-                   !write(fates_log(),*) 'labels: lul, ncpl', currentPatch%land_use_label, currentPatch%nocomp_pft_label
-
                    cp_nocomp_matches_1_if: if ( hlm_use_nocomp .eq. ifalse .or. &
                         currentPatch%nocomp_pft_label .eq. i_nocomp_pft ) then
 
@@ -549,12 +538,6 @@ contains
                             disturbance_rate = currentPatch%landuse_transition_rates(i_landusechange_receiverpatchlabel)
                          endif
                          
-                         if (currentPatch%land_use_label .eq. 4) then
-                         write(fates_log(),*) 'spawn1a: lulabel, dtype: ',currentPatch%land_use_label, i_disturbance_type
-                         write(fates_log(),*) 'spawn1a: donor, rcvr: ', i_donorpatch_landuse_type, i_landusechange_receiverpatchlabel
-                         write(fates_log(),*) 'spawn1a: parea, distrate: ',currentPatch%area, disturbance_rate
-                         endif
-
                          if(disturbance_rate > (1.0_r8 + rsnbl_math_prec)) then
                             write(fates_log(),*) 'patch disturbance rate > 1 ?',disturbance_rate
                             call dump_patch(currentPatch)
@@ -562,12 +545,6 @@ contains
                          else if (disturbance_rate > 1.0_r8) then
                             disturbance_rate = 1.0_r8
                          end if
-
-                         !if(disturbance_rate .ge. 1.0_r8) then
-                         !   write(fates_log(),*) 'patch disturbance rate > 1 ?',disturbance_rate
-                         !   write(fates_log(),*) 'pdistrate, dtype, label: ', disturbance_rate, i_disturbance_type, &
-                         !                                                  currentPatch%land_use_label
-                         !end if
 
                          ! Only create new patches that have non-negligible amount of land
                          if((currentPatch%area*disturbance_rate) > nearzero ) then
@@ -592,9 +569,6 @@ contains
 
                    ! create an empty patch, to absorb newly disturbed area
                    allocate(new_patch)
-
-                   write(fates_log(),*) 'spawn1b: lulabel, dtype: ',new_patch%land_use_label, i_disturbance_type
-                   write(fates_log(),*) 'spawn1b: donor, rcvr: ',i_donorpatch_landuse_type, i_landusechange_receiverpatchlabel
 
                    call create_patch(currentSite, new_patch, age, &
                         site_areadis, i_landusechange_receiverpatchlabel, i_nocomp_pft)
@@ -639,14 +613,6 @@ contains
 
                          patch_site_areadis = currentPatch%area * disturbance_rate
                          
-                         if (currentPatch%land_use_label .eq. 4) then
-                         write(fates_log(),*) 'spawn2a: lulabel, dtype: ',currentPatch%land_use_label, i_disturbance_type
-                         write(fates_log(),*) 'spawn2a: donor, rcvr: ',i_donorpatch_landuse_type, i_landusechange_receiverpatchlabel
-                         write(fates_log(),*) 'spawn2a: parea, disrate areadis: ',currentPatch%area, disturbance_rate, &
-                                                                                  patch_site_areadis
-                         endif
-
-
                          areadis_gt_zero_if: if ( patch_site_areadis > nearzero ) then
 
                             if(.not.associated(new_patch))then
@@ -661,16 +627,6 @@ contains
                             ! from the donor patch into that of the receiver patch
                             if ( currentPatch%land_use_label .gt. primaryland .and. &
                                  (i_disturbance_type .lt. dtype_ilog) ) then
-
-                               if (currentPatch%land_use_label .eq. 4) then
-                               write(fates_log(),*) 'spawn2b: lulabel, dtype: ',currentPatch%land_use_label, i_disturbance_type
-                               write(fates_log(),*) 'spawn2b: donor, rcvr: ',i_donorpatch_landuse_type, i_landusechange_receiverpatchlabel
-                               write(fates_log(),*) 'spawn2b: curragedist, newagedist: ',currentPatch%age_since_anthro_disturbance, &
-                                                                                       new_patch%age_since_anthro_disturbance
-                               write(fates_log(),*) 'spawn2b: currage, newage: ', currentPatch%age, new_patch%age 
-                               write(fates_log(),*) 'spawn2b: currageclass, newageclass: ', currentPatch%age_class, new_patch%age_class 
-                               write(fates_log(),*) 'spawn2b: currarea, newarea: ', currentPatch%area,new_patch%area
-                               endif
 
                                new_patch%age_since_anthro_disturbance = new_patch%age_since_anthro_disturbance + &
                                      currentPatch%age_since_anthro_disturbance * (patch_site_areadis / site_areadis)
@@ -1200,11 +1156,6 @@ contains
                             !update area of donor patch
                             oldarea = currentPatch%area
                             currentPatch%area = currentPatch%area - patch_site_areadis
-                            if (currentPatch%land_use_label .eq. 4) then
-                            write(fates_log(),*) 'spawnareaadj: lulabel, dtype: ',currentPatch%land_use_label, i_disturbance_type
-                            write(fates_log(),*) 'spawnareaadj: donor, rcvr: ',i_donorpatch_landuse_type, i_landusechange_receiverpatchlabel
-                            write(fates_log(),*) 'spawnareaadj: old, curr, areadis: ', oldarea, currentPatch%area, patch_site_areadis
-                            endif
 
                             ! for all disturbance rates that haven't been resolved yet, increase their amount so that
                             ! they are the same amount of gridcell-scale disturbance relative to the original patch size
@@ -1223,14 +1174,6 @@ contains
                                        * oldarea / currentPatch%area
                                end do
                             end if
-
-                            if (currentPatch%land_use_label .eq. 4) then
-                            write(fates_log(),*) 'spawnareaadj: lulabel, dtype: ',currentPatch%land_use_label, i_disturbance_type
-                            write(fates_log(),*) 'spawnareaadj: donor, rcvr: ',i_donorpatch_landuse_type, i_landusechange_receiverpatchlabel
-                            write(fates_log(),*) 'spawnareaadj: old, curr, areadis: ', oldarea, currentPatch%area, patch_site_areadis
-                            write(fates_log(),*) 'spawnareaadj: transrates: ', currentPatch%landuse_transition_rates
-                            write(fates_log(),*) 'spawnareaadj: distrates: ', currentPatch%disturbance_rates
-                            endif
 
                             ! sort out the cohorts, since some of them may be so small as to need removing.
                             ! the first call to terminate cohorts removes sparse number densities,
@@ -2492,7 +2435,6 @@ contains
     new_patch%land_use_label = label
     if (label .gt. primaryland) then
        new_patch%age_since_anthro_disturbance = age
-       write(fates_log(),*) 'create_patch: asad, label: ', new_patch%age_since_anthro_disturbance, new_patch%land_use_label
     else
        new_patch%age_since_anthro_disturbance = fates_unset_r8
     endif
@@ -2885,16 +2827,9 @@ contains
                             !-----------------------!
                             
                             tmpptr => currentPatch%older       
-                            write(fates_log(),*) 'fuse: tmpptrlbl, tmpptrage: ', tmpptr%land_use_label, tmpptr%age
-                            write(fates_log(),*) 'fuse: currlabel, tpplabel: ', currentPatch%land_use_label, tpp%land_use_label
-                            write(fates_log(),*) 'fuse: currage, tppage: ', currentPatch%age, tpp%age
-                            write(fates_log(),*) 'fuse: curragedist, tppagedist: ', currentPatch%age_since_anthro_disturbance, &
-                              tpp%age_since_anthro_disturbance
                             call fuse_2_patches(csite, currentPatch, tpp)
-                            write(fates_log(),*) 'fusepost1: tppage: ', tpp%age
                             call fuse_cohorts(csite,tpp, bc_in)
                             call sort_cohorts(tpp)
-                            write(fates_log(),*) 'fusepost2: tppage: ', tpp%age
                             currentPatch => tmpptr
 
                             !------------------------------------------------------------------------!
@@ -3019,8 +2954,6 @@ contains
 
     inv_sum_area = 1.0_r8/(dp%area + rp%area)
     
-    write(fates_log(),*) 'fuse2: dpage,rpage: ', dp%age, rp%age
-    write(fates_log(),*) 'fuse2: dparea,rparea,invarea: ', dp%area, rp%area, inv_sum_area
     rp%age = (dp%age * dp%area + rp%age * rp%area) * inv_sum_area
     rp%age_since_anthro_disturbance = (dp%age_since_anthro_disturbance * dp%area &
          + rp%age_since_anthro_disturbance * rp%area) * inv_sum_area
@@ -3120,7 +3053,6 @@ contains
     endif !are there any cohorts?
 
     call patch_pft_size_profile(rp) ! Recalculate the patch size profile for the resulting patch
-    write(fates_log(),*) 'fuse2_postprofile: dpage,rpage: ', dp%age, rp%age
 
     ! Define some aliases for the donor patches younger and older neighbors
     ! which may or may not exist.  After we set them, we will remove the donor
@@ -3143,7 +3075,6 @@ contains
        write(fates_log(),*) 'dealloc006: fail on deallocate(dp):'//trim(smsg)
        call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
-    write(fates_log(),*) 'fuse2_postdealloc: rpage: ', rp%age
 
     if(associated(youngerp))then
        ! Update the younger patch's new older patch (because it isn't dp anymore)
@@ -3211,14 +3142,8 @@ contains
                      patchpointer%land_use_label .eq. currentPatch%land_use_label .and. &
                      .not. gotfused) then
 
-                   write(fates_log(),*) 'term: currlabel, ptrlabel: ', currentPatch%land_use_label, patchpointer%land_use_label
-                   write(fates_log(),*) 'term: currage, ptrage: ', currentPatch%age, patchpointer%age
-                   write(fates_log(),*) 'term: curragedist, ptragedist: ', currentPatch%age_since_anthro_disturbance, &
-                              patchpointer%age_since_anthro_disturbance
-
                    call fuse_2_patches(currentSite, patchpointer, currentPatch)
                    
-                   write(fates_log(),*) 'termpost: currage: ', currentPatch%age
                    gotfused = .true.
                 else
                    patchpointer => patchpointer%older
@@ -3258,11 +3183,6 @@ contains
 
                 distlabel_1_if: if (currentPatch%land_use_label .eq. olderPatch%land_use_label) then
                    
-                      write(fates_log(),*) 'term1a: currlabel, oldlabel: ', currentPatch%land_use_label, olderPatch%land_use_label
-                      write(fates_log(),*) 'term1a: currage, oldage: ', currentPatch%age, olderPatch%age
-                      write(fates_log(),*) 'term1a: curragedist, oldagedist: ', currentPatch%age_since_anthro_disturbance, &
-                              olderPatch%age_since_anthro_disturbance
-
                    call fuse_2_patches(currentSite, olderPatch, currentPatch)
                 
                       write(fates_log(),*) 'term1apost: currage: ', currentPatch%age
@@ -3280,14 +3200,9 @@ contains
                       ! and then allow them to fuse together. 
                       ! We also assigned the age since disturbance value to be the younger (donor) patch to avoid combining a valid
                       ! age with fates_unset_r8 (i.e. the age for primaryland) in the fuse_2_patches procedure
-                      write(fates_log(),*) 'term1b: currlabel, oldlabel: ', currentPatch%land_use_label, olderPatch%land_use_label
-                      write(fates_log(),*) 'term1b: currage, oldage: ', currentPatch%age, olderPatch%age
-                      write(fates_log(),*) 'term1b: curragedist, oldagedist: ', currentPatch%age_since_anthro_disturbance, &
-                              olderPatch%age_since_anthro_disturbance
                       currentPatch%land_use_label = olderPatch%land_use_label
                       currentPatch%age_since_anthro_disturbance = olderPatch%age_since_anthro_disturbance
                       call fuse_2_patches(currentSite, olderPatch, currentPatch)
-                      write(fates_log(),*) 'term1bpost: currage: ', currentPatch%age
                       gotfused = .true.
                    endif countcycles_if
                 endif distlabel_1_if
@@ -3303,12 +3218,7 @@ contains
 
                 distlabel_2_if: if (currentPatch%land_use_label .eq. youngerPatch% land_use_label) then
                    
-                      write(fates_log(),*) 'term2a: currlabel, ynglabel: ', currentPatch%land_use_label, youngerPatch%land_use_label
-                      write(fates_log(),*) 'term2a: currage, yngage: ', currentPatch%age, youngerPatch%age
-                      write(fates_log(),*) 'term2a: curragedist, yngagedist: ', currentPatch%age_since_anthro_disturbance, &
-                              youngerPatch%age_since_anthro_disturbance
                    call fuse_2_patches(currentSite, youngerPatch, currentPatch)
-                      write(fates_log(),*) 'term2apost: currage: ', currentPatch%age
                    
                    ! The fusion process has updated the "younger" pointer on currentPatch
                    
@@ -3320,14 +3230,9 @@ contains
                       ! since the size is so small, let's sweep the problem under the rug and change the tiny patch's label to that of its younger sibling
                       ! We also assigned the age since disturbance value to be the younger (donor) patch to avoid combining a valid
                       ! age with fates_unset_r8 (i.e. the age for primaryland) in the fuse_2_patches procedure
-                      write(fates_log(),*) 'term2b: currlabel, ynglabel: ', currentPatch%land_use_label, youngerPatch%land_use_label
-                      write(fates_log(),*) 'term2b: currage, yngage: ', currentPatch%age, youngerPatch%age
-                      write(fates_log(),*) 'term2b: curragedist, yngagedist: ', currentPatch%age_since_anthro_disturbance, &
-                              youngerPatch%age_since_anthro_disturbance
                       currentPatch%land_use_label = youngerPatch%land_use_label
                       currentPatch%age_since_anthro_disturbance = youngerPatch%age_since_anthro_disturbance
                       call fuse_2_patches(currentSite, youngerPatch, currentPatch)
-                      write(fates_log(),*) 'term2bpost: currage: ', currentPatch%age
                       gotfused = .true.
                    endif ! count cycles
                 endif distlabel_2_if     ! anthro labels
