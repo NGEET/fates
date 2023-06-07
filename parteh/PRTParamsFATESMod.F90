@@ -249,6 +249,14 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_trs_repro_alloc_a'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_trs_repro_alloc_b'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
     name = 'fates_c2b'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -531,11 +539,19 @@ contains
     name = 'fates_recruit_seed_alloc_mature'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%seed_alloc_mature)
-
+    
     name = 'fates_recruit_seed_alloc'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%seed_alloc)
 
+    name = 'fates_trs_repro_alloc_a'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=prt_params%repro_alloc_a)
+
+    name = 'fates_trs_repro_alloc_b'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=prt_params%repro_alloc_b)
+    
     name = 'fates_c2b'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%c2b)
@@ -927,6 +943,8 @@ contains
         write(fates_log(),fmt0) 'senleaf_long_fdrought = ',prt_params%senleaf_long_fdrought
         write(fates_log(),fmt0) 'seed_alloc_mature = ',prt_params%seed_alloc_mature
         write(fates_log(),fmt0) 'seed_alloc = ',prt_params%seed_alloc
+        write(fates_log(),fmt0) 'repro_alloc_a = ',prt_params%repro_alloc_a
+        write(fates_log(),fmt0) 'repro_alloc_b = ',prt_params%repro_alloc_b
         write(fates_log(),fmt0) 'slamax = ',prt_params%slamax
         write(fates_log(),fmt0) 'slatop = ',prt_params%slatop
         write(fates_log(),fmt0) 'allom_sai_scaler = ',prt_params%allom_sai_scaler
