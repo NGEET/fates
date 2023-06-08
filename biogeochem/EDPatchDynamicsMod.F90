@@ -3485,7 +3485,6 @@ contains
     type (ed_patch_type), pointer :: currentPatch
     integer                       :: insert_method   ! Temporary dev
     logical                       :: found_landuselabel_match
-    logical                       :: found_primaryland
 
     insert_method = 1
 
@@ -3576,6 +3575,7 @@ contains
                 currentPatch%younger       => newPatch
                 currentSite%youngest_patch => newPatch
              endif
+          endif
        elseif (insert_method .eq. 3) then
           ! Option 3 - groups are numerically ordered with primaryland group starting at oldest end.
           ! If the youngest patch land use label number is greater than the new
