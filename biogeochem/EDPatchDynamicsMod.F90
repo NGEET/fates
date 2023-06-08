@@ -3484,7 +3484,7 @@ contains
     integer                       :: insert_method   ! Temporary dev
     logical                       :: found_landuselabel_match
 
-    insert_method = 4
+    insert_method = 2
 
     ! Start from the youngest patch and work to oldest
     currentPatch => currentSite%youngest_patch
@@ -3568,9 +3568,9 @@ contains
              else
                 ! If the new patch land use type is not primary land and we are at the
                 ! oldest end of the list, add it to the beginning
-                newPatch%older    => currentPatch
+                newPatch%older    => currentSite%youngest_patch
                 newPatch%younger  => null()
-                currentPatch%younger       => newPatch
+                currentSite%youngest_patch%younger => newPatch
                 currentSite%youngest_patch => newPatch
              endif
           endif
