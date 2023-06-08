@@ -463,7 +463,6 @@ contains
     real(r8) :: leaf_burn_frac               ! fraction of leaves burned in fire
     ! for both woody and grass species
     real(r8) :: leaf_m                       ! leaf mass during partial burn calculations
-    logical  :: found_youngest_landuselabel  ! logical for finding the first primary forest patch
     integer  :: min_nocomp_pft, max_nocomp_pft, i_nocomp_pft
     integer  :: i_disturbance_type, i_dist2  ! iterators for looping over disturbance types
     integer  :: i_landusechange_receiverpatchlabel  ! iterator for the land use change types
@@ -1196,6 +1195,8 @@ contains
                 !*************************/
 
                 if ( site_areadis .gt. nearzero) then
+
+                   call insert_patch(currentSite, new_patch)
 
                    ! sort out the cohorts, since some of them may be so small as to need removing.
                    ! the first call to terminate cohorts removes sparse number densities,
@@ -3482,46 +3483,66 @@ contains
 
     ! !LOCAL VARIABLES:
     type (ed_patch_type), pointer :: currentPatch
+    integer                       :: insert_method   ! Temporary dev
+    logical                       :: found_landuselabel
+
+    insert_method = 1
 
     ! Start from the youngest patch and work to oldest
     currentPatch               => currentSite%youngest_patch
 
+    ! TODO: Test alternate methods
     ! Insert new patch as the youngest patch in the group of patches with the same land use type.
-    ! On a given site, the patches are grouped together by land use type.  The order of the
-    ! groups within the site doesn't matter, except that the older patch group are primarylands.
+    ! On a given site, the patches are grouped together by land use type.
+    ! Option 1: The landuse type group order doesn't matter at all
+    ! Option 2: Abitrarily set the group order to numerical order with first being primaryland
+    ! Option 3: The order of the groups within the site doesn't matter, except that the older
+    ! patch group are primarylands.
+    ! Option 4: landuse type order doesn't matter, only age
 
-    if (currentPatch%land_use_label .eq. new_patch%land_use_label ) then
-       found_youngest_landuselabel = .false.
-       do while(associated(currentPatch) .and. .not. found_youngest_landuselabel)
-          currentPatch => currentPatch%older
-          if (associated(currentPatch)) then
-             if (currentPatch%land_use_label .eq. new_patch%land_use_label) then
-                found_youngest_landuselabel = .true.
+    if (insert_method .eq. 1) then
+    ! Option 1
+       if (currentPatch%land_use_label .ne. new_patch%land_use_label ) then
+          found_landuselabel = .false.
+          do while(associated(currentPatch) .and. .not. found_landuselabel)
+             currentPatch => currentPatch%older
+             if (associated(currentPatch)) then
+                if (currentPatch%land_use_label .eq. new_patch%land_use_label) then
+                   found_landuselabel = .true.
+                endif
              endif
+          end do
+          if (associated(currentPatch)) then
+             ! The case where we've found a patch type matching the new patch type.
+             ! In this case the new_patch will be the youngest patch for that
+             ! land use type
+             new_patch%older    => currentPatch
+             new_patch%younger  => currentPatch%younger
+             currentPatch%younger%older => new_patch
+             currentPatch%younger       => new_patch
+          else
+             ! The case in which we get to the end of the list and haven't found
+             ! a landuse type match.  If this is the case, simply add the new patch
+             ! to the end of the list
+             new_patch%older    => null()
+             new_patch%younger  => currentSite%oldest_patch
+             currentSite%oldest_patch%older   => new_patch
+             currentSite%oldest_patch   => new_patch
           endif
-       end do
-       if (associated(currentPatch)) then
-          ! the case where we've found a youngest patch type matching the new patch type
-          new_patch%older    => currentPatch
-          new_patch%younger  => currentPatch%younger
-          currentPatch%younger%older => new_patch
-          currentPatch%younger       => new_patch
        else
-          ! the case where we haven't, because the patches are all non-primaryland,
-          ! and are putting a primaryland patch at the oldest end of the
-          ! linked list (not sure how this could happen, but who knows...)
-          new_patch%older    => null()
-          new_patch%younger  => currentSite%oldest_patch
-          currentSite%oldest_patch%older   => new_patch
-          currentSite%oldest_patch   => new_patch
+          ! The case in which the first patch in the list matches the new patch type
+          new_patch%older    => currentPatch
+          new_patch%younger  => null()
+          currentPatch%younger       => new_patch
+          currentSite%youngest_patch => new_patch
        endif
-    else
-       ! the case where the youngest patch on the site matches the new patch type
-       new_patch%older    => currentPatch
-       new_patch%younger  => null()
-       currentPatch%younger       => new_patch
-       currentSite%youngest_patch => new_patch
-    endif
+    elseif (insert_method .eq. 2) then
+    ! Option 2
+    elseif (insert_method .eq. 3) then
+    ! Option 3
+    elseif (insert_method .eq. 4) then
+    ! Option 4
+    end if
 
 
  end subroutine insert_patch
