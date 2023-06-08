@@ -437,9 +437,9 @@ contains
     type (bc_in_type), intent(in)      :: bc_in
     !
     ! !LOCAL VARIABLES:
-    type (ed_patch_type) , pointer :: new_patch
-    ! type (ed_patch_type) , pointer :: new_patch_primary
-    ! type (ed_patch_type) , pointer :: new_patch_secondary
+    type (ed_patch_type) , pointer :: newPatch
+    ! type (ed_patch_type) , pointer :: newPatch_primary
+    ! type (ed_patch_type) , pointer :: newPatch_secondary
     type (ed_patch_type) , pointer :: currentPatch
     type (ed_cohort_type), pointer :: currentCohort
     type (ed_cohort_type), pointer :: nc
@@ -565,24 +565,24 @@ contains
                    age = 0.0_r8
 
                    ! create an empty patch, to absorb newly disturbed area
-                   allocate(new_patch)
+                   allocate(newPatch)
 
-                   call create_patch(currentSite, new_patch, age, &
+                   call create_patch(currentSite, newPatch, age, &
                         site_areadis, i_landusechange_receiverpatchlabel, i_nocomp_pft)
 
                    ! Initialize the litter pools to zero, these
                    ! pools will be populated by looping over the existing patches
                    ! and transfering in mass
                    do el=1,num_elements
-                      call new_patch%litter(el)%InitConditions(init_leaf_fines=0._r8, &
+                      call newPatch%litter(el)%InitConditions(init_leaf_fines=0._r8, &
                            init_root_fines=0._r8, &
                            init_ag_cwd=0._r8, &
                            init_bg_cwd=0._r8, &
                            init_seed=0._r8,   &
                            init_seed_germ=0._r8)
                    end do
-                   new_patch%tallest  => null()
-                   new_patch%shortest => null()
+                   newPatch%tallest  => null()
+                   newPatch%shortest => null()
 
                 endif
 
@@ -612,7 +612,7 @@ contains
                          
                          areadis_gt_zero_if: if ( patch_site_areadis > nearzero ) then
 
-                            if(.not.associated(new_patch))then
+                            if(.not.associated(newPatch))then
                                write(fates_log(),*) 'Patch spawning has attempted to point to'
                                write(fates_log(),*) 'an un-allocated patch'
                                call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -625,7 +625,7 @@ contains
                             if ( currentPatch%land_use_label .gt. primaryland .and. &
                                  (i_disturbance_type .lt. dtype_ilog) ) then
 
-                               new_patch%age_since_anthro_disturbance = new_patch%age_since_anthro_disturbance + &
+                               newPatch%age_since_anthro_disturbance = newPatch%age_since_anthro_disturbance + &
                                      currentPatch%age_since_anthro_disturbance * (patch_site_areadis / site_areadis)
                                   
                             endif
@@ -639,7 +639,7 @@ contains
                                currentPatch%burnt_frac_litter(:) = 0._r8
                             end if
 
-                            call TransLitterNewPatch( currentSite, currentPatch, new_patch, patch_site_areadis)
+                            call TransLitterNewPatch( currentSite, currentPatch, newPatch, patch_site_areadis)
 
                             ! Transfer in litter fluxes from plants in various contexts of death and destruction
 
@@ -648,16 +648,16 @@ contains
                             select case(i_disturbance_type)
                             case (dtype_ilog)
                                call logging_litter_fluxes(currentSite, currentPatch, &
-                                    new_patch, patch_site_areadis,bc_in)
+                                    newPatch, patch_site_areadis,bc_in)
                             case (dtype_ifire)
                                call fire_litter_fluxes(currentSite, currentPatch, &
-                                    new_patch, patch_site_areadis,bc_in)
+                                    newPatch, patch_site_areadis,bc_in)
                             case (dtype_ifall)
                                call mortality_litter_fluxes(currentSite, currentPatch, &
-                                    new_patch, patch_site_areadis,bc_in)
+                                    newPatch, patch_site_areadis,bc_in)
                             case (dtype_ilandusechange)
                                call landusechange_litter_fluxes(currentSite, currentPatch, &
-                                    new_patch, patch_site_areadis,bc_in, &
+                                    newPatch, patch_site_areadis,bc_in, &
                                     clearing_matrix(i_donorpatch_landuse_type,i_landusechange_receiverpatchlabel))
                             case default
                                write(fates_log(),*) 'unknown disturbance mode?'
@@ -669,13 +669,13 @@ contains
                             ! Copy any means or timers from the original patch to the new patch
                             ! These values will inherit all info from the original patch
                             ! --------------------------------------------------------------------------
-                            call new_patch%tveg24%CopyFromDonor(currentPatch%tveg24)
-                            call new_patch%tveg_lpa%CopyFromDonor(currentPatch%tveg_lpa)
-                            call new_patch%tveg_longterm%CopyFromDonor(currentPatch%tveg_longterm)
+                            call newPatch%tveg24%CopyFromDonor(currentPatch%tveg24)
+                            call newPatch%tveg_lpa%CopyFromDonor(currentPatch%tveg_lpa)
+                            call newPatch%tveg_longterm%CopyFromDonor(currentPatch%tveg_longterm)
 
 
                             ! --------------------------------------------------------------------------
-                            ! The newly formed patch from disturbance (new_patch), has now been given
+                            ! The newly formed patch from disturbance (newPatch), has now been given
                             ! some litter from dead plants and pre-existing litter from the donor patches.
                             !
                             ! Next, we loop through the cohorts in the donor patch, copy them with
@@ -697,11 +697,11 @@ contains
                                !  (Keeping as an example)
                                ! Allocate running mean functions
                                !allocate(nc%tveg_lpa)
-                               !call nc%tveg_lpa%InitRMean(ema_lpa,init_value=new_patch%tveg_lpa%GetMean())
+                               !call nc%tveg_lpa%InitRMean(ema_lpa,init_value=newPatch%tveg_lpa%GetMean())
 
                                call zero_cohort(nc)
 
-                               ! nc is the new cohort that goes in the disturbed patch (new_patch)... currentCohort
+                               ! nc is the new cohort that goes in the disturbed patch (newPatch)... currentCohort
                                ! is the curent cohort that stays in the donor patch (currentPatch)
                                call copy_cohort(currentCohort, nc)
 
@@ -1112,29 +1112,29 @@ contains
                                end select disttype_case    ! Select disturbance mode
 
                                cohort_n_gt_zero: if (nc%n > 0.0_r8) then
-                                  storebigcohort   =>  new_patch%tallest
-                                  storesmallcohort =>  new_patch%shortest
-                                  if(associated(new_patch%tallest))then
+                                  storebigcohort   =>  newPatch%tallest
+                                  storesmallcohort =>  newPatch%shortest
+                                  if(associated(newPatch%tallest))then
                                      tnull = 0
                                   else
                                      tnull = 1
-                                     new_patch%tallest => nc
+                                     newPatch%tallest => nc
                                      nc%taller => null()
                                   endif
 
-                                  if(associated(new_patch%shortest))then
+                                  if(associated(newPatch%shortest))then
                                      snull = 0
                                   else
                                      snull = 1
-                                     new_patch%shortest => nc
+                                     newPatch%shortest => nc
                                      nc%shorter => null()
                                   endif
-                                  nc%patchptr => new_patch
-                                  call insert_cohort(nc, new_patch%tallest, new_patch%shortest, &
+                                  nc%patchptr => newPatch
+                                  call insert_cohort(nc, newPatch%tallest, newPatch%shortest, &
                                        tnull, snull, storebigcohort, storesmallcohort)
 
-                                  new_patch%tallest  => storebigcohort
-                                  new_patch%shortest => storesmallcohort
+                                  newPatch%tallest  => storebigcohort
+                                  newPatch%shortest => storesmallcohort
                                else
 
                                   ! Get rid of the new temporary cohort
@@ -1181,7 +1181,7 @@ contains
                             call terminate_cohorts(currentSite, currentPatch, 2,16,bc_in)
                             call sort_cohorts(currentPatch)
 
-                         end if areadis_gt_zero_if   ! if ( new_patch%area > nearzero ) then
+                         end if areadis_gt_zero_if   ! if ( newPatch%area > nearzero ) then
 
                       end if patchlabel_matches_lutype_if
 
@@ -1196,17 +1196,17 @@ contains
 
                 if ( site_areadis .gt. nearzero) then
 
-                   call insert_patch(currentSite, new_patch)
+                   call insert_patch(currentSite, newPatch)
 
                    ! sort out the cohorts, since some of them may be so small as to need removing.
                    ! the first call to terminate cohorts removes sparse number densities,
                    ! the second call removes for all other reasons (sparse culling must happen
                    ! before fusion)
 
-                   call terminate_cohorts(currentSite, new_patch, 1,17, bc_in)
-                   call fuse_cohorts(currentSite,new_patch, bc_in)
-                   call terminate_cohorts(currentSite, new_patch, 2,17, bc_in)
-                   call sort_cohorts(new_patch)
+                   call terminate_cohorts(currentSite, newPatch, 1,17, bc_in)
+                   call fuse_cohorts(currentSite,newPatch, bc_in)
+                   call terminate_cohorts(currentSite, newPatch, 2,17, bc_in)
+                   call sort_cohorts(newPatch)
                 endif
 
 
@@ -2319,7 +2319,7 @@ contains
 
   ! ============================================================================
 
-  subroutine create_patch(currentSite, new_patch, age, areap, label,nocomp_pft)
+  subroutine create_patch(currentSite, newPatch, age, areap, label,nocomp_pft)
 
     use FatesInterfaceTypesMod, only : hlm_current_tod,hlm_current_date,hlm_reference_date
     
@@ -2331,7 +2331,7 @@ contains
     !
     ! !ARGUMENTS:
     type(ed_site_type) , intent(inout), target :: currentSite
-    type(ed_patch_type), intent(inout), target :: new_patch
+    type(ed_patch_type), intent(inout), target :: newPatch
     real(r8), intent(in) :: age                  ! notional age of this patch in years
     real(r8), intent(in) :: areap                ! initial area of this patch in m2. 
     integer, intent(in)  :: label                ! anthropogenic disturbance label
@@ -2347,31 +2347,31 @@ contains
     integer :: el                                ! element loop index
 
 
-    allocate(new_patch%tr_soil_dir(hlm_numSWb))
-    allocate(new_patch%tr_soil_dif(hlm_numSWb))
-    allocate(new_patch%tr_soil_dir_dif(hlm_numSWb))
-    allocate(new_patch%fab(hlm_numSWb))
-    allocate(new_patch%fabd(hlm_numSWb))
-    allocate(new_patch%fabi(hlm_numSWb))
-    allocate(new_patch%sabs_dir(hlm_numSWb))
-    allocate(new_patch%sabs_dif(hlm_numSWb))
-    allocate(new_patch%fragmentation_scaler(currentSite%nlevsoil))
+    allocate(newPatch%tr_soil_dir(hlm_numSWb))
+    allocate(newPatch%tr_soil_dif(hlm_numSWb))
+    allocate(newPatch%tr_soil_dir_dif(hlm_numSWb))
+    allocate(newPatch%fab(hlm_numSWb))
+    allocate(newPatch%fabd(hlm_numSWb))
+    allocate(newPatch%fabi(hlm_numSWb))
+    allocate(newPatch%sabs_dir(hlm_numSWb))
+    allocate(newPatch%sabs_dif(hlm_numSWb))
+    allocate(newPatch%fragmentation_scaler(currentSite%nlevsoil))
 
-    allocate(new_patch%tveg24)
-    call new_patch%tveg24%InitRMean(fixed_24hr,init_value=temp_init_veg,init_offset=real(hlm_current_tod,r8) )
-    allocate(new_patch%tveg_lpa)
-    call new_patch%tveg_lpa%InitRmean(ema_lpa,init_value=temp_init_veg)
-    allocate(new_patch%tveg_longterm)
-    call new_patch%tveg_longterm%InitRmean(ema_longterm,init_value=temp_init_veg)
+    allocate(newPatch%tveg24)
+    call newPatch%tveg24%InitRMean(fixed_24hr,init_value=temp_init_veg,init_offset=real(hlm_current_tod,r8) )
+    allocate(newPatch%tveg_lpa)
+    call newPatch%tveg_lpa%InitRmean(ema_lpa,init_value=temp_init_veg)
+    allocate(newPatch%tveg_longterm)
+    call newPatch%tveg_longterm%InitRmean(ema_longterm,init_value=temp_init_veg)
     
     ! Litter
     ! Allocate, Zero Fluxes, and Initialize to "unset" values
 
-    allocate(new_patch%litter(num_elements))
+    allocate(newPatch%litter(num_elements))
     do el=1,num_elements
-        call new_patch%litter(el)%InitAllocate(numpft,currentSite%nlevsoil,element_list(el))
-        call new_patch%litter(el)%ZeroFlux()
-        call new_patch%litter(el)%InitConditions(init_leaf_fines = fates_unset_r8, &
+        call newPatch%litter(el)%InitAllocate(numpft,currentSite%nlevsoil,element_list(el))
+        call newPatch%litter(el)%ZeroFlux()
+        call newPatch%litter(el)%InitConditions(init_leaf_fines = fates_unset_r8, &
               init_root_fines = fates_unset_r8, &
               init_ag_cwd = fates_unset_r8, &
               init_bg_cwd = fates_unset_r8, &
@@ -2379,66 +2379,66 @@ contains
               init_seed_germ = fates_unset_r8)
     end do
 
-    call zero_patch(new_patch) !The nan value in here is not working??
+    call zero_patch(newPatch) !The nan value in here is not working??
 
-    new_patch%tallest  => null() ! pointer to patch's tallest cohort    
-    new_patch%shortest => null() ! pointer to patch's shortest cohort   
-    new_patch%older    => null() ! pointer to next older patch   
-    new_patch%younger  => null() ! pointer to next shorter patch      
+    newPatch%tallest  => null() ! pointer to patch's tallest cohort
+    newPatch%shortest => null() ! pointer to patch's shortest cohort
+    newPatch%older    => null() ! pointer to next older patch
+    newPatch%younger  => null() ! pointer to next shorter patch
 
     ! assign known patch attributes 
 
-    new_patch%age                = age   
-    new_patch%age_class          = 1
-    new_patch%area               = areap 
+    newPatch%age                = age
+    newPatch%age_class          = 1
+    newPatch%area               = areap
 
     ! assign anthropgenic disturbance category and label
-    new_patch%land_use_label = label
+    newPatch%land_use_label = label
     if (label .gt. primaryland) then
-       new_patch%age_since_anthro_disturbance = age
+       newPatch%age_since_anthro_disturbance = age
     else
-       new_patch%age_since_anthro_disturbance = fates_unset_r8
+       newPatch%age_since_anthro_disturbance = fates_unset_r8
     endif
-    new_patch%nocomp_pft_label = nocomp_pft
+    newPatch%nocomp_pft_label = nocomp_pft
 
     ! This new value will be generated when the calculate disturbance
     ! rates routine is called. This does not need to be remembered or in the restart file.
  
-    new_patch%f_sun              = 0._r8
-    new_patch%ed_laisun_z(:,:,:) = 0._r8 
-    new_patch%ed_laisha_z(:,:,:) = 0._r8 
-    new_patch%ed_parsun_z(:,:,:) = 0._r8 
-    new_patch%ed_parsha_z(:,:,:) = 0._r8 
-    new_patch%fabi               = 0._r8
-    new_patch%fabd               = 0._r8
-    new_patch%tr_soil_dir(:)     = 1._r8
-    new_patch%tr_soil_dif(:)     = 1._r8
-    new_patch%tr_soil_dir_dif(:) = 0._r8
-    new_patch%fabd_sun_z(:,:,:)  = 0._r8 
-    new_patch%fabd_sha_z(:,:,:)  = 0._r8 
-    new_patch%fabi_sun_z(:,:,:)  = 0._r8 
-    new_patch%fabi_sha_z(:,:,:)  = 0._r8  
-    new_patch%scorch_ht(:)       = 0._r8  
-    new_patch%frac_burnt         = 0._r8  
-    new_patch%litter_moisture(:) = 0._r8
-    new_patch%fuel_eff_moist     = 0._r8
-    new_patch%livegrass          = 0._r8
-    new_patch%sum_fuel           = 0._r8
-    new_patch%fuel_bulkd         = 0._r8
-    new_patch%fuel_sav           = 0._r8
-    new_patch%fuel_mef           = 0._r8
-    new_patch%ros_front          = 0._r8
-    new_patch%effect_wspeed      = 0._r8
-    new_patch%tau_l              = 0._r8
-    new_patch%fuel_frac(:)       = 0._r8
-    new_patch%tfc_ros            = 0._r8
-    new_patch%fi                 = 0._r8
-    new_patch%fd                 = 0._r8
-    new_patch%ros_back           = 0._r8
-    new_patch%scorch_ht(:)       = 0._r8
-    new_patch%burnt_frac_litter(:) = 0._r8
-    new_patch%total_tree_area    = 0.0_r8  
-    new_patch%NCL_p              = 1
+    newPatch%f_sun              = 0._r8
+    newPatch%ed_laisun_z(:,:,:) = 0._r8
+    newPatch%ed_laisha_z(:,:,:) = 0._r8
+    newPatch%ed_parsun_z(:,:,:) = 0._r8
+    newPatch%ed_parsha_z(:,:,:) = 0._r8
+    newPatch%fabi               = 0._r8
+    newPatch%fabd               = 0._r8
+    newPatch%tr_soil_dir(:)     = 1._r8
+    newPatch%tr_soil_dif(:)     = 1._r8
+    newPatch%tr_soil_dir_dif(:) = 0._r8
+    newPatch%fabd_sun_z(:,:,:)  = 0._r8
+    newPatch%fabd_sha_z(:,:,:)  = 0._r8
+    newPatch%fabi_sun_z(:,:,:)  = 0._r8
+    newPatch%fabi_sha_z(:,:,:)  = 0._r8
+    newPatch%scorch_ht(:)       = 0._r8
+    newPatch%frac_burnt         = 0._r8
+    newPatch%litter_moisture(:) = 0._r8
+    newPatch%fuel_eff_moist     = 0._r8
+    newPatch%livegrass          = 0._r8
+    newPatch%sum_fuel           = 0._r8
+    newPatch%fuel_bulkd         = 0._r8
+    newPatch%fuel_sav           = 0._r8
+    newPatch%fuel_mef           = 0._r8
+    newPatch%ros_front          = 0._r8
+    newPatch%effect_wspeed      = 0._r8
+    newPatch%tau_l              = 0._r8
+    newPatch%fuel_frac(:)       = 0._r8
+    newPatch%tfc_ros            = 0._r8
+    newPatch%fi                 = 0._r8
+    newPatch%fd                 = 0._r8
+    newPatch%ros_back           = 0._r8
+    newPatch%scorch_ht(:)       = 0._r8
+    newPatch%burnt_frac_litter(:) = 0._r8
+    newPatch%total_tree_area    = 0.0_r8
+    newPatch%NCL_p              = 1
 
    
     return
@@ -3485,6 +3485,7 @@ contains
     type (ed_patch_type), pointer :: currentPatch
     integer                       :: insert_method   ! Temporary dev
     logical                       :: found_landuselabel_match
+    logical                       :: found_primaryland
 
     insert_method = 1
 
@@ -3500,56 +3501,119 @@ contains
     ! patch group are primarylands (similar to the previous logic)
     ! Option 4: landuse type order doesn't matter, only age
 
-    if (insert_method .eq. 1) then
-       ! Option 1
-       if (currentPatch%land_use_label .ne. new_patch%land_use_label ) then
-          ! If the current site youngest patch lutype doesn't match the new patch lutype
-          ! work through the list until you find the matching type.  If a match is not
-          ! found, the currentPatch will be unassociated once it hits the end of the list
+    if (currentPatch%land_use_label .eq. newPatch%land_use_label ) then
+       ! Regardless of method, if the land use type of the youngest patch on the site
+       ! is a match to the new patch land use type, simply insert it as the new youngest
+       newPatch%older    => currentPatch
+       newPatch%younger  => null()
+       currentPatch%younger       => newPatch
+       currentSite%youngest_patch => newPatch
+    else
+       ! If the current site youngest patch lutype doesn't match the new patch lutype
+       ! work through the list until you find the matching type.  If a match is not
+       ! found, the currentPatch will be unassociated once it hits the end of the list
+       if (insert_method .eq. 1) then
+          ! Option 1 - order of lutype groups does not matter
           found_landuselabel_match = .false.
           do while(associated(currentPatch) .and. .not. found_landuselabel_match)
              currentPatch => currentPatch%older
              if (associated(currentPatch)) then
-                if (currentPatch%land_use_label .eq. new_patch%land_use_label) then
+                if (currentPatch%land_use_label .eq. newPatch%land_use_label) then
                    found_landuselabel_match = .true.
                 endif
              endif
           end do
           if (associated(currentPatch)) then
              ! The case where we've found a patch type matching the new patch type.
-             ! In this case insert the new_patch will as the youngest patch for that
+             ! In this case insert the newPatch will as the youngest patch for that
              ! land use type.
-             new_patch%older    => currentPatch
-             new_patch%younger  => currentPatch%younger
-             currentPatch%younger%older => new_patch
-             currentPatch%younger       => new_patch
+             newPatch%older    => currentPatch
+             newPatch%younger  => currentPatch%younger
+             currentPatch%younger%older => newPatch
+             currentPatch%younger       => newPatch
           else
              ! The case in which we get to the end of the list and haven't found
              ! a landuse type match.  If this is the case, simply add the new patch
              ! to the end of the list
-             new_patch%older    => null()
-             new_patch%younger  => currentSite%oldest_patch
-             currentSite%oldest_patch%older   => new_patch
-             currentSite%oldest_patch   => new_patch
+             newPatch%older    => null()
+             newPatch%younger  => currentSite%oldest_patch
+             currentSite%oldest_patch%older   => newPatch
+             currentSite%oldest_patch   => newPatch
           endif
-       else
-          ! In the case in which the youngest patch in the site list matches the new patch type,
-          ! immediately add that patch as the new youngest patch for that type and the whole list
-          new_patch%older    => currentPatch
-          new_patch%younger  => null()
-          currentPatch%younger       => new_patch
-          currentSite%youngest_patch => new_patch
-       endif
-    elseif (insert_method .eq. 2) then
-    ! Option 2
-    elseif (insert_method .eq. 3) then
-    ! Option 3
-    elseif (insert_method .eq. 4) then
-    ! Option 4
-       new_patch%older    => currentPatch
-       new_patch%younger  => null()
-       currentPatch%younger       => new_patch
-       currentSite%youngest_patch => new_patch
+       elseif (insert_method .eq. 2) then
+          ! Option 2 - primaryland group must be on the oldest end
+          found_landuselabel_match = .false.
+          do while(associated(currentPatch) .and. .not. found_landuselabel_match)
+             currentPatch => currentPatch%older
+             if (associated(currentPatch)) then
+                if (currentPatch%land_use_label .eq. newPatch%land_use_label) then
+                   found_landuselabel_match = .true.
+                endif
+             endif
+          end do
+          if (associated(currentPatch)) then
+             ! The case where we've found a patch type matching the new patch type.
+             ! In this case insert the newPatch will as the youngest patch for that
+             ! land use type.
+             newPatch%older    => currentPatch
+             newPatch%younger  => currentPatch%younger
+             currentPatch%younger%older => newPatch
+             currentPatch%younger       => newPatch
+          else
+             if (newPatch%land_use_label .eq. primaryland) then
+                ! The case in which we get to the end of the list and haven't found
+                ! a landuse type match.  If this is the case, add it to the oldest side
+                ! if primarland
+                newPatch%older    => null()
+                newPatch%younger  => currentSite%oldest_patch
+                currentSite%oldest_patch%older   => newPatch
+                currentSite%oldest_patch   => newPatch
+             else
+                ! If the new patch land use type is not primary land and we are at the
+                ! oldest end of the list, add it to the beginning
+                newPatch%older    => currentPatch
+                newPatch%younger  => null()
+                currentPatch%younger       => newPatch
+                currentSite%youngest_patch => newPatch
+             endif
+       elseif (insert_method .eq. 3) then
+          ! Option 3 - groups are numerically ordered with primaryland group starting at oldest end.
+          ! If the youngest patch land use label number is greater than the new
+          ! patch land use label number, the new patch must be inserted somewhere
+          ! in between oldest and youngest
+          found_landuselabel_match = .false.
+          do while(associated(currentPatch) .and. .not. found_landuselabel_match)
+             currentPatch => currentPatch%older
+             if (associated(currentPatch)) then
+                if (newPatch%land_use_label .eq. currentPatch%land_use_label .or. &
+                    newPatch%land_use_label .gt. currentPatch%land_use_label) then
+                   found_landuselabel_match = .true.
+                endif
+             endif
+          end do
+          if (associated(currentPatch)) then
+             ! The case where we've found a patch type matching the new patch type.
+             ! In this case insert the newPatch will as the youngest patch for that
+             ! land use type.
+             newPatch%older    => currentPatch
+             newPatch%younger  => currentPatch%younger
+             currentPatch%younger%older => newPatch
+             currentPatch%younger       => newPatch
+          else
+             ! In the case were we get to the end, the new patch
+             ! must be numerically the smallest, so put it at the oldest position
+             newPatch%older    => null()
+             newPatch%younger  => currentSite%oldest_patch
+             currentSite%oldest_patch%older   => newPatch
+             currentSite%oldest_patch   => newPatch
+          endif
+       elseif (insert_method .eq. 4) then
+          ! Option 4 - always add the new patch as the youngest regardless of lutype match
+          newPatch%older    => currentPatch
+          newPatch%younger  => null()
+          currentPatch%younger       => newPatch
+          currentSite%youngest_patch => newPatch
+       end if
     end if
 
 
