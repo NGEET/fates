@@ -1,5 +1,5 @@
-module EDPatchDynamicsMod
 
+module EDPatchDynamicsMod
   ! ============================================================================
   ! Controls formation, creation, fusing and termination of patch level processes. 
   ! ============================================================================
@@ -1196,7 +1196,7 @@ contains
 
                 if ( site_areadis .gt. nearzero) then
 
-                   call insert_patch(currentSite, newPatch)
+                   call InsertPatch(currentSite, newPatch)
 
                    ! sort out the cohorts, since some of them may be so small as to need removing.
                    ! the first call to terminate cohorts removes sparse number densities,
@@ -3468,17 +3468,15 @@ contains
 
   ! =====================================================================================
 
- subroutine insert_patch(currentSite, newPatch)
+ subroutine InsertPatch(currentSite, newPatch)
 
     ! !DESCRIPTION:
     ! Insert patch into linked list
     !
     ! !USES:
-    use EDTypesMod , only : ed_site_type
-    use EDTypesMod , only : ed_patch_type
     !
     ! !ARGUMENTS:
-    type (ed_site_type), intent(inout), pointer  :: currentSite
+    type (ed_site_type), intent(inout)           :: currentSite
     type (ed_patch_type), intent(inout), pointer :: newPatch
 
     ! !LOCAL VARIABLES:
@@ -3486,10 +3484,10 @@ contains
     integer                       :: insert_method   ! Temporary dev
     logical                       :: found_landuselabel_match
 
-    insert_method = 1
+    insert_method = 4
 
     ! Start from the youngest patch and work to oldest
-    currentPatch               => currentSite%youngest_patch
+    currentPatch => currentSite%youngest_patch
 
     ! TODO: Test alternate methods
     ! Insert new patch as the youngest patch in the group of patches with the same land use type.
@@ -3617,6 +3615,6 @@ contains
     end if
 
 
- end subroutine insert_patch
+ end subroutine InsertPatch
 
  end module EDPatchDynamicsMod
