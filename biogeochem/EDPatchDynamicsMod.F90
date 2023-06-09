@@ -1,4 +1,4 @@
-odule EDPatchDynamicsMod
+module EDPatchDynamicsMod
 
   ! ============================================================================
   ! Controls formation, creation, fusing and termination of patch level processes. 
