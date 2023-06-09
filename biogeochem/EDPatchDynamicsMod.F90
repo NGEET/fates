@@ -3120,6 +3120,7 @@ contains
                                                      ! You should had fused
     integer                      :: count_cycles
     logical                      :: gotfused
+    logical                      :: current_patch_is_youngest_lutype
 
     real(r8) areatot ! variable for checking whether the total patch area is wrong. 
     !---------------------------------------------------------------------
@@ -3156,13 +3157,19 @@ contains
 
           else nocomp_if
 
+          ! Determine if the current patch is the youngest in the land use grouping
+          ! If the 'younger' patch is a different land use then the current is the youngest
+          ! per the InsertPatch subroutine.  That said it could also be the only patch and
+          ! also the oldest.  Should we handle that distinction?
+          current_patch_is_youngest_lutype = .false.
+          if (currentPatch%younger%land_use_label .ne. currentPatch%land_use_label) current_patch_is_youngest_lutype = .true.
+
           ! Even if the patch area is small, avoid fusing it into its neighbor
           ! if it is the youngest of all patches. We do this in attempts to maintain
           ! a discrete patch for very young patches
           ! However, if the patch to be fused is excessivlely small, then fuse
           ! at all costs.  If it is not fused, it will make
-
-          notyoungest_if: if ( .not.associated(currentPatch,currentSite%youngest_patch) .or. &
+          notyoungest_if: if ( .not. current_patch_is_youngest_lutype .or. &
                currentPatch%area <= min_patch_area_forced ) then
              
              gotfused = .false.
