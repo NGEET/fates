@@ -43,8 +43,9 @@ module PRTAllometricCarbonMod
   use FatesConstantsMod   , only : i4 => fates_int
   use FatesConstantsMod   , only : sec_per_day
   use FatesConstantsMod   , only : mm_per_cm 
-  use FatesConstantsMod   , only : TRS        
+  use FatesConstantsMod   , only : TRS_regeneration        
   use FatesConstantsMod   , only : default_regeneration
+  use FatesConstantsMod   , only : TRS_no_seedling_dyn
   use FatesConstantsMod   , only : min_max_dbh_for_trees 
   use FatesIntegratorsMod , only : RKF45
   use FatesIntegratorsMod , only : Euler
@@ -990,7 +991,7 @@ module PRTAllometricCarbonMod
         ! If the TRS is switched on (with or w/o seedling dynamics) then reproductive allocation is
         ! a pft-specific function of dbh. This allows for the representation of different
         ! reproductive schedules (Wenk and Falster, 2015)
-        else if ( any(regeneration_model == [TRS, TRS_no_seedling_dyn]) .and. &
+        else if ( any(regeneration_model == [TRS_regeneration, TRS_no_seedling_dyn]) .and. &
                   prt_params%allom_dbh_maxheight(ipft) > min_max_dbh_for_trees ) then
 
         repro_fraction = prt_params%seed_alloc(ipft) * &

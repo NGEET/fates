@@ -25,7 +25,7 @@ module EDPhysiologyMod
   use FatesConstantsMod, only    : nearzero
   use FatesConstantsMod, only    : sec_per_day
   use FatesConstantsMod, only    : default_regeneration
-  use FatesConstantsMod, only    : TRS
+  use FatesConstantsMod, only    : TRS_regeneration
   use FatesConstantsMod, only    : TRS_no_seedling_dyn
   use FatesConstantsMod, only    : min_max_dbh_for_trees
   use FatesConstantsMod, only    : megajoules_per_joule
@@ -1858,7 +1858,7 @@ contains
              litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)/area
 
              ! If we are using the Tree Recruitment Scheme (TRS) with or w/o seedling dynamics
-             if ( any(regeneration_model == [TRS, TRS_no_seedling_dyn]) .and. &
+             if ( any(regeneration_model == [TRS_regeneration, TRS_no_seedling_dyn]) .and. &
                   prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees) then
              
              ! Send a fraction of reproductive carbon to litter to account for 
@@ -1956,7 +1956,7 @@ contains
        ! If the TRS is switched on and the pft is a tree then add non-seed reproductive biomass
        ! to the seed decay flux. This was added to litt%seed_decay in the previously called SeedIn 
        ! subroutine
-       if ( any(regeneration_model == [TRS, TRS_no_seedling_dyn]) .and. &
+       if ( any(regeneration_model == [TRS_regeneration, TRS_no_seedling_dyn]) .and. &
                   prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees ) then
   
        litt%seed_decay(pft) = litt%seed_decay(pft) + &! From non-seed reproductive biomass (added in
@@ -1968,7 +1968,7 @@ contains
 
        ! If the TRS is switched on with seedling dynamics (regeneration_model = 2) 
        ! then calculate seedling mortality.
-       if ( regeneration_model == TRS .and. &
+       if ( regeneration_model == TRS_regeneration .and. &
                          prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees ) then
        
        !----------------------------------------------------------------------
@@ -2076,7 +2076,7 @@ contains
       
        ! If TRS seedling dynamics is switched on we calculate seedling emergence (i.e. germination)
        ! as a pft-specific function of understory light and soil moisture.
-       else if ( regeneration_model == TRS .and. &
+       else if ( regeneration_model == TRS_regeneration .and. &
                   prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees ) then	    
  
        ! Step 1. Calculate how germination rate is modified by understory light
@@ -2322,7 +2322,7 @@ contains
                 
                 ! If TRS seedling dynamics is on then calculate the available mass to make new recruits
                 ! as a pft-specific function of light and soil moisture in the seedling layer.
-                else if ( regeneration_model == TRS .and. &
+                else if ( regeneration_model == TRS_regeneration .and. &
                           prt_params%allom_dbh_maxheight(ft) > min_max_dbh_for_trees ) then
 
                 sdlng2sap_par = currentPatch%sdlng2sap_par%GetMean() * sec_per_day * megajoules_per_joule

@@ -57,7 +57,7 @@ module FatesConstantsMod
                                                                                  ! and allocation to non-seed 
                                                                                  ! reproductive biomass, but does not turn 
                                                                                  ! on seedling dynamics.
-  integer, public, parameter :: TRS = 2                                          ! Constant defining the Tree Recruitment
+  integer, public, parameter :: TRS_regeneration = 2                             ! Constant defining the Tree Recruitment
                                                                                  ! Scheme switch. Turns on full TRS.
   integer, public, parameter :: default_regeneration = 1                         ! Constant defining FATES's default 
                                                                                  ! regeneration scheme switch.
