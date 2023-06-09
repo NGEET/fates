@@ -3204,6 +3204,8 @@ contains
                       ! and then allow them to fuse together. 
                       ! We also assigned the age since disturbance value to be the younger (donor) patch to avoid combining a valid
                       ! age with fates_unset_r8 (i.e. the age for primaryland) in the fuse_2_patches procedure
+                      ! Note that given the grouping of landuse types in the linked list, this could result in very small patches
+                      ! being fused to much larger patches
                       currentPatch%land_use_label = olderPatch%land_use_label
                       currentPatch%age_since_anthro_disturbance = olderPatch%age_since_anthro_disturbance
                       call fuse_2_patches(currentSite, olderPatch, currentPatch)
@@ -3234,6 +3236,8 @@ contains
                       ! since the size is so small, let's sweep the problem under the rug and change the tiny patch's label to that of its younger sibling
                       ! We also assigned the age since disturbance value to be the younger (donor) patch to avoid combining a valid
                       ! age with fates_unset_r8 (i.e. the age for primaryland) in the fuse_2_patches procedure
+                      ! Note that given the grouping of landuse types in the linked list, this could result in very small patches
+                      ! being fused to much larger patches
                       currentPatch%land_use_label = youngerPatch%land_use_label
                       currentPatch%age_since_anthro_disturbance = youngerPatch%age_since_anthro_disturbance
                       call fuse_2_patches(currentSite, youngerPatch, currentPatch)
