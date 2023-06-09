@@ -1,4 +1,4 @@
-module EDPatchDynamicsMod
+odule EDPatchDynamicsMod
 
   ! ============================================================================
   ! Controls formation, creation, fusing and termination of patch level processes. 
@@ -3218,9 +3218,7 @@ contains
                    call fuse_2_patches(currentSite, youngerPatch, currentPatch)
                    
                    ! The fusion process has updated the "younger" pointer on currentPatch
-                   
-                   ! GL: ADD MISSING GOTFUSED?
-                   !gotfused = .true.
+                   gotfused = .true.
                 else distlabel_2_if
                    if (count_cycles .gt. 0) then
                       ! if we're having an incredibly hard time fusing patches because of their differing anthropogenic disturbance labels, 
