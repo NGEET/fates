@@ -1146,7 +1146,7 @@ end subroutine PatchNormanRadiation
 
 ! ======================================================================================
 
-subroutine FatesSunShadeFracs(nsites, sites,bc_in,bc_out,cold_init)
+subroutine FatesSunShadeFracs(nsites, sites,bc_in,bc_out)
 
   implicit none
 
@@ -1155,7 +1155,6 @@ subroutine FatesSunShadeFracs(nsites, sites,bc_in,bc_out,cold_init)
   type(ed_site_type),intent(inout),target :: sites(nsites)
   type(bc_in_type),intent(in)             :: bc_in(nsites)
   type(bc_out_type),intent(inout)         :: bc_out(nsites)
-  logical,intent(in)                      :: cold_init ! If true, then we have not run the solver yet
   
   ! locals
   type (ed_patch_type),pointer :: cpatch   ! c"urrent" patch
