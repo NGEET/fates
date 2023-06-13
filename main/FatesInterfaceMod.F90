@@ -1973,33 +1973,21 @@ contains
            call cpatch%tveg24%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            call cpatch%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            call cpatch%tveg_longterm%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
+
+           ! Return the par intensity at the ground. This routine
+           ! breaks it up into high and low light levels. The high
+           ! levels are the light on the exposed ground at the surface
+           ! and the low levels are the intensity under the bottom-most
+           ! vegetation.
            
-           ! Update seedling layer running means of PAR, soil matric potential and 
-           ! moisture deficit days (mdd).
-           n_leaf = maxval(cpatch%ncan(cpatch%ncl_p,:)) ! Calculate the number of leaf layers
-                                                        ! in the lowest canopy layer
+           call SeedlingParPatch(cpatch, &
+                bc_in(s)%solad_parb(ifp,ipar) + bc_in(s)%solai_parb(ifp,ipar), &
+                seedling_par_high, &
+                par_high_frac, &
+                seedling_par_low, &
+                par_low_frac)
            
-           ! Calculate the fraction of total lai (summed across pfts) in sun vs. shade
-           ! at the lowest leaf level of the lowest canopy level           
-           lai_sun_frac = sum(cpatch%ed_laisun_z(cpatch%ncl_p,:,n_leaf)) &
-            / ( sum(cpatch%ed_laisun_z(cpatch%ncl_p,:,n_leaf)) + &   !summed across pfts  
-                sum(cpatch%ed_laisha_z(cpatch%ncl_p,:,n_leaf)) )    !summed across pfts
-           
-           lai_shade_frac = 1.0_r8 - lai_sun_frac     
-           
-           ! Calculate new_seedling_layer_par (total PAR at the lowest leaf layer of the lowest canopy layer)
-           ! using the weighted average of direct and diffuse par.
-           
-           new_seedling_layer_par = & 
-             (cpatch%parprof_dir_z(cpatch%ncl_p,n_leaf) * lai_sun_frac) + &
-             (cpatch%parprof_dif_z(cpatch%ncl_p,n_leaf) * (1.0_r8 - lai_sun_frac))
-           
-           ! If there is no lai on the patch then new seedling layer par becomes nan (because
-           ! lai_sun_frac is Inf). If this is the case then PAR at the seedling layer is
-           ! taken from the hlm boundary conditions (i.e. same as top of canopy).
-           if (new_seedling_layer_par /= new_seedling_layer_par) then
-                   new_seedling_layer_par = bc_in(s)%solad_parb(ifp,ipar) + bc_in(s)%solai_parb(ifp,ipar)
-           end if
+           new_seedling_layer_par = seedling_par_high*par_high_frac + seedling_par_low*par_low_frac
 
            ! Update the seedling layer par running means
            call cpatch%seedling_layer_par24%UpdateRMean(new_seedling_layer_par)
