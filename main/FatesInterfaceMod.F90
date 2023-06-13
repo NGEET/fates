@@ -1954,14 +1954,16 @@ contains
      type(ed_patch_type),  pointer :: cpatch
      type(ed_cohort_type), pointer :: ccohort
      integer :: s, ifp, io_si, pft 
-     real(r8) :: new_seedling_layer_par                !seedling layer par in the current timestep
-     real(r8) :: new_seedling_layer_smp(maxpft)        !seedling layer smp in the current timestep
-     real(r8) :: new_seedling_mdd(maxpft)              !seedling layer moisture deficit days in the current timestep
-     integer  :: ilayer_seedling_root(maxpft)          !the soil layer at seedling rooting depth
-     integer :: n_leaf                                 !number of leaf layers per canopy layer in patch
-     real(r8) :: lai_sun_frac
-     real(r8) :: lai_shade_frac
-     integer,parameter :: ipar = 1                     !solar radiation in the shortwave band (i.e. par)
+     real(r8) :: new_seedling_layer_par                ! seedling layer par in the current timestep
+     real(r8) :: new_seedling_layer_smp(maxpft)        ! seedling layer smp in the current timestep
+     real(r8) :: new_seedling_mdd(maxpft)              ! seedling layer moisture deficit days in the current timestep
+     integer  :: ilayer_seedling_root(maxpft)          ! the soil layer at seedling rooting depth
+     integer  :: n_leaf                                ! number of leaf layers per canopy layer in patch
+     real(r8) :: seedling_par_high                     ! higher intensity par for seedlings (par at exposed ground) [W/m2]
+     real(r8) :: par_high_frac                         ! fraction of ground where PAR is high
+     real(r8) :: seedling_par_low                      ! lower intensity par for seedlings (par under the undergrowth) [W/m2]
+     real(r8) :: par_low_frac                          ! fraction of ground where PAR is low
+     integer,parameter :: ipar = 1                     ! solar radiation in the shortwave band (i.e. par)
 
      do s = 1,size(sites,dim=1)
 
@@ -2010,7 +2012,7 @@ contains
                ! If mdds are negative then it means that soil is wetter than smp_crit and the moisture
                ! deficit is 0  
                if (new_seedling_mdd(pft) < 0.0_r8) then
-               new_seedling_mdd(pft) = 0.0_r8
+                  new_seedling_mdd(pft) = 0.0_r8
                endif 
                
                ! Update the seedling layer smp and mdd running means
@@ -2024,13 +2026,105 @@ contains
            !   call ccohort%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            !   ccohort => ccohort%shorter
            !end do
-           end if
-           
-           cpatch => cpatch%younger
-        enddo
-     end do
+        end if
 
-     return
-   end subroutine UpdateFatesRMeansTStep
-      
- end module FatesInterfaceMod
+        cpatch => cpatch%younger
+     enddo
+  end do
+
+  return
+end subroutine UpdateFatesRMeansTStep
+
+! ========================================================================================
+
+subroutine SeedlingParPatch(cpatch, & 
+     atm_par, & 
+     seedling_par_high, par_high_frac, &
+     seedling_par_low, par_low_frac)
+
+  ! Calculate the intensity of PAR for seedlings in the current patch.
+  ! To do this, we need to get a weighted average of light penetrating
+  ! though (parprof) the lowest leaf layers. We will need to identify
+  ! how closed (area) the lowest canopy layer is, because we will use
+  ! an area weighted average of the light coming from the canopy above
+  ! and an area weighted average of the light penetrating through the
+  ! existing portino of the lowest layer.
+  !
+  ! This routine will generate two intensities, light levels on the exposed
+  ! ground in the lowest layer, and light levels under the existing
+  ! vegetation in the lowest layer, along with the area fraction
+  ! of those two (which should sum to unity).
+
+  ! Arguments
+  type(ed_patch_type)   :: cpatch             ! the current patch
+  real(r8), intent(in)  :: atm_par            ! direct+diffuse PAR at canopy top [W/m2]
+  real(r8), intent(out) :: seedling_par_high  ! High intensity PAR for seedlings [W/m2]
+  real(r8), intent(out) :: par_high_frac      ! Area fraction with high intensity
+  real(r8), intent(out) :: seedling_par_low   ! Low intensity PAR for seedlings [W/m2]
+  real(r8), intent(out) :: par_low_frac       ! Area fraction with low intensity
+
+  ! Locals
+  real(r8) :: upper_par  ! The PAR intensity coming from the canopy layer above [w/m2]
+  real(r8) :: upper_area ! The area fraction of the upper canopy
+  real(r8) :: lower_par  ! The PAR intensity under the lower-most canopy [W/m2]
+  real(r8) :: lower_area ! The area fractino of the lower canopy
+  integer  :: cl         ! current canopy layer
+  integer  :: ipft       ! current PFT index
+  integer  :: iv         ! lower-most leaf layer index for the cl & pft combo
+
+  ! Radiation intensity exiting the layer above the bottom-most
+  upper_par = 0._r8
+  upper_area = 0._r8
+  cl = max(1,cpatch%NCL_p-1)
+  do ipft = 1,numpft
+     iv = cpatch%ncan(cl,ipft)
+     upper_par = upper_par + cpatch%canopy_area_profile(cl,ipft,1)* &
+          (cpatch%parprof_pft_dir_z(cl,ipft,iv)+cpatch%parprof_pft_dif_z(cl,ipft,iv))
+     upper_area = upper_area + cpatch%canopy_area_profile(cl,ipft,1)
+  end do
+  if(upper_area>nearzero)then
+     upper_par = upper_par/upper_area
+  else
+     upper_par = 0._r8
+  end if
+
+  ! If we do have more than one layer, then we need to figure out
+  ! the average of light on the exposed ground under the veg
+
+  if(cpatch%NCL_p>1) then
+
+     cl = cpatch%NCL_p
+     lower_area = 0._r8
+     lower_par  = 0._r8
+     do ipft = 1,numpft
+        iv = cpatch%ncan(cl,ipft)
+        lower_area = lower_area+cpatch%canopy_area_profile(cl,ipft,1)
+        lower_par = lower_par + &
+             cpatch%canopy_area_profile(cl,ipft,1)*&
+             (cpatch%parprof_pft_dir_z(cl,ipft,iv) + cpatch%parprof_pft_dif_z(cl,ipft,iv))
+     end do
+     if(lower_area>nearzero)then
+        lower_par = lower_par / lower_area
+     else
+        lower_par = 0._r8
+     end if
+
+     seedling_par_high = upper_par
+     par_high_frac     = (1._r8-lower_area)
+     seedling_par_low  = lower_par/lower_area
+     par_low_frac      = lower_area
+
+  else
+
+     seedling_par_high = atm_par
+     par_high_frac     = 1._r8-cpatch%total_canopy_area
+     seedling_par_low  = upper_par
+     par_low_frac      = cpatch%total_canopy_area
+
+  end if
+
+  return
+end subroutine SeedlingParPatch
+
+
+end module FatesInterfaceMod
