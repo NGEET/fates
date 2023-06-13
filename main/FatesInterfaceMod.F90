@@ -1958,7 +1958,6 @@ contains
      real(r8) :: new_seedling_layer_smp(maxpft)        ! seedling layer smp in the current timestep
      real(r8) :: new_seedling_mdd(maxpft)              ! seedling layer moisture deficit days in the current timestep
      integer  :: ilayer_seedling_root(maxpft)          ! the soil layer at seedling rooting depth
-     integer  :: n_leaf                                ! number of leaf layers per canopy layer in patch
      real(r8) :: seedling_par_high                     ! higher intensity par for seedlings (par at exposed ground) [W/m2]
      real(r8) :: par_high_frac                         ! fraction of ground where PAR is high
      real(r8) :: seedling_par_low                      ! lower intensity par for seedlings (par under the undergrowth) [W/m2]
