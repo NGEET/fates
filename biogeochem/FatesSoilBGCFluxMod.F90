@@ -43,7 +43,7 @@ module FatesSoilBGCFluxMod
   use FatesAllometryMod , only : carea_allom
   use EDParamsMod        , only : p_uptake_mode
   use EDParamsMod        , only : n_uptake_mode
-  use EDTypesMod          , only : ed_site_type
+  use FatesSiteMod       , only : fates_site_type
   use FatesPatchMod     , only : fates_patch_type
   use FatesCohortMod      , only : fates_cohort_type
   use EDTypesMod          , only : AREA,AREA_INV
@@ -116,7 +116,7 @@ contains
 
 
     ! !ARGUMENTS    
-    type(ed_site_type), intent(inout) :: sites(:)
+    type(fates_site_type), intent(inout) :: sites(:)
     type(bc_in_type), intent(in)     :: bc_in(:)
 
     ! Locals
@@ -245,7 +245,7 @@ contains
     
     
     ! !ARGUMENTS    
-    type(ed_site_type), intent(inout) :: csite
+    type(fates_site_type), intent(inout) :: csite
     
     type(bc_out_type), intent(inout)  :: bc_out
     type(bc_in_type), intent(in)  :: bc_in
@@ -410,7 +410,7 @@ contains
     ! -----------------------------------------------------------------------------------
 
     ! !ARGUMENTS    
-    type(ed_site_type), intent(inout) :: csite
+    type(fates_site_type), intent(inout) :: csite
     type(bc_in_type), intent(in)      :: bc_in
     type(bc_out_type), intent(inout)  :: bc_out
 
@@ -531,7 +531,7 @@ contains
     ! -----------------------------------------------------------------------------------
 
     ! Arguments
-    type(ed_site_type), intent(inout)   :: csite
+    type(fates_site_type), intent(inout)   :: csite
     type(fates_patch_type), intent(inout) :: cpatch
     type(fates_cohort_type), intent(inout),target :: ccohort
     type(bc_in_type), intent(in) :: bc_in
@@ -625,7 +625,7 @@ contains
     implicit none   
 
     ! !ARGUMENTS    
-    type(ed_site_type) , intent(inout)         :: csite
+    type(fates_site_type) , intent(inout)         :: csite
     type(bc_in_type)   , intent(in)            :: bc_in
     type(bc_out_type)  , intent(inout),target  :: bc_out
 

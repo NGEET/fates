@@ -27,7 +27,7 @@ Module EDCohortDynamicsMod
   use EDPftvarcon           , only : GetDecompyFrac
   use PRTParametersMod      , only : prt_params
   use FatesParameterDerivedMod, only : param_derived
-  use EDTypesMod            , only : ed_site_type
+  use FatesSiteMod          , only : fates_site_type
   use FatesPatchMod,          only : fates_patch_type
   use FatesCohortMod       , only : fates_cohort_type
   use EDParamsMod            , only : nclmax
@@ -163,7 +163,7 @@ subroutine create_cohort(currentSite, patchptr, pft, nn, hite, coage, dbh,   &
 !
 ! !ARGUMENTS
 
-type(ed_site_type), intent(inout),   target :: currentSite
+type(fates_site_type), intent(inout),   target :: currentSite
 type(fates_patch_type), intent(inout), pointer :: patchptr
 
 integer,  intent(in)      :: pft              ! Cohort Plant Functional Type
@@ -347,7 +347,7 @@ end subroutine create_cohort
     
     !
     ! !ARGUMENTS
-    type (ed_site_type) , intent(inout) :: currentSite
+    type (fates_site_type) , intent(inout) :: currentSite
     type (fates_patch_type), intent(inout) :: currentPatch
     integer             , intent(in)    :: level
     integer                             :: call_index
@@ -464,7 +464,7 @@ end subroutine create_cohort
    ! !USES:
    !
    ! !ARGUMENTS
-   type (ed_site_type)  , intent(inout), target :: currentSite
+   type(fates_site_type)  , intent(inout), target :: currentSite
    type (fates_patch_type) , intent(inout), target :: currentPatch
    type (fates_cohort_type), intent(inout), target :: currentCohort
    type(bc_in_type), intent(in)                :: bc_in
@@ -570,7 +570,7 @@ end subroutine create_cohort
     ! -----------------------------------------------------------------------------------
 
     ! Arguments
-    type (ed_site_type)   , target  :: csite
+    type(fates_site_type)   , target  :: csite
     type (fates_patch_type)  , target  :: cpatch
     type (fates_cohort_type) , target  :: ccohort
     real(r8)                        :: nplant     ! Number (absolute)
@@ -698,7 +698,7 @@ end subroutine create_cohort
 
      !
      ! !ARGUMENTS
-     type (ed_site_type), intent(inout)           :: currentSite
+     type(fates_site_type), intent(inout)           :: currentSite
      type (fates_patch_type), intent(inout), pointer :: currentPatch
      type (bc_in_type), intent(in)                :: bc_in
      !
@@ -1567,7 +1567,7 @@ end subroutine create_cohort
     ! d = damage class
     ! --------------------------------------------------------------------------
 
-    type(ed_site_type)   :: csite            ! Site of the current cohort
+    type(fates_site_type)   :: csite            ! Site of the current cohort
     type(fates_patch_type)  :: cpatch           ! patch of the current cohort
     type(fates_cohort_type),pointer :: ccohort  ! Current (damaged) cohort
     logical              :: newly_recovered  ! true if we create a new cohort

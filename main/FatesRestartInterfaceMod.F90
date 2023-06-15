@@ -39,6 +39,7 @@ module FatesRestartInterfaceMod
   use FatesLitterMod,          only : ncwd, nfsc
   use FatesLitterMod,          only : ndcmpy
   use EDTypesMod,              only : area
+  use FatesSiteMod,            only : fates_site_type
   use EDParamsMod,             only : nlevleaf
   use PRTGenericMod,           only : prt_global
   use PRTGenericMod,           only : num_elements
@@ -1812,7 +1813,6 @@ contains
 
    use FatesInterfaceTypesMod, only : fates_maxElementsPerPatch
    use FatesInterfaceTypesMod, only : numpft
-   use EDTypesMod, only : ed_site_type
    use FatesCohortMod, only : fates_cohort_type
    use FatesPatchMod, only : fates_patch_type
    use EDParamsMod, only : maxSWb
@@ -1825,7 +1825,7 @@ contains
     class(fates_restart_interface_type)             :: this
     integer                 , intent(in)            :: nc   ! clump index
     integer                 , intent(in)            :: nsites
-    type(ed_site_type)      , intent(inout), target :: sites(nsites)
+    type(fates_site_type)      , intent(inout), target :: sites(nsites)
 
     ! Locals
     integer  :: s                         ! The local site index
@@ -2513,7 +2513,6 @@ contains
      ! linked-list state structure.
      ! ---------------------------------------------------------------------------------
 
-     use EDTypesMod,           only : ed_site_type
      use FatesCohortMod,           only : fates_cohort_type
      use FatesPatchMod,           only : fates_patch_type
      use EDParamsMod,          only : maxSWb
@@ -2531,7 +2530,7 @@ contains
      class(fates_restart_interface_type) , intent(inout) :: this
      integer                     , intent(in)            :: nc
      integer                     , intent(in)            :: nsites
-     type(ed_site_type)          , intent(inout), target :: sites(nsites)
+     type(fates_site_type)          , intent(inout), target :: sites(nsites)
      type(bc_in_type)                                    :: bc_in(nsites)
      type(bc_out_type)                                   :: bc_out(nsites)
 
@@ -2712,7 +2711,6 @@ contains
 
    subroutine get_restart_vectors(this, nc, nsites, sites)
 
-     use EDTypesMod, only : ed_site_type
      use FatesCohortMod, only : fates_cohort_type
      use FatesPatchMod, only : fates_patch_type
      use EDParamsMod, only : maxSWb
@@ -2727,7 +2725,7 @@ contains
      class(fates_restart_interface_type) , intent(inout) :: this
      integer                     , intent(in)            :: nc
      integer                     , intent(in)            :: nsites
-     type(ed_site_type)          , intent(inout), target :: sites(nsites)
+     type(fates_site_type)          , intent(inout), target :: sites(nsites)
 
 
      ! locals
@@ -3401,7 +3399,6 @@ contains
      ! called upon restart reads.
      ! -------------------------------------------------------------------------
 
-     use EDTypesMod, only            : ed_site_type
      use FatesPatchMod, only         : fates_patch_type
      use EDSurfaceRadiationMod, only : PatchNormanRadiation
      use FatesInterfaceTypesMod, only     : hlm_numSWb
@@ -3409,7 +3406,7 @@ contains
      ! !ARGUMENTS:
      class(fates_restart_interface_type) , intent(inout) :: this
      integer                     , intent(in)            :: nsites
-     type(ed_site_type)          , intent(inout), target :: sites(nsites)
+     type(fates_site_type)          , intent(inout), target :: sites(nsites)
      type(bc_out_type)           , intent(inout)         :: bc_out(nsites)
 
      ! locals

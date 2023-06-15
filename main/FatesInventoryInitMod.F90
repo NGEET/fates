@@ -35,7 +35,7 @@ module FatesInventoryInitMod
    use FatesInterfaceTypesMod, only : hlm_numSWb
    use FatesInterfaceTypesMod, only : numpft
    use FatesLitterMod   , only : litter_type
-   use EDTypesMod       , only : ed_site_type
+   use FatesSiteMod     , only : fates_site_type
    use FatesPatchMod    , only : fates_patch_type
    use FatesCohortMod   , only : fates_cohort_type
    use EDTypesMod       , only : area
@@ -120,11 +120,11 @@ contains
 
       ! Arguments
       integer,            intent(in)               :: nsites
-      type(ed_site_type), intent(inout), target    :: sites(nsites)
+      type(fates_site_type), intent(inout), target    :: sites(nsites)
       type(bc_in_type),   intent(in)               :: bc_in(nsites)
 
       ! Locals
-      type(ed_site_type), pointer                  :: currentSite
+      type(fates_site_type), pointer                  :: currentSite
       type(fates_patch_type), pointer                 :: currentpatch
       type(fates_cohort_type), pointer                :: currentcohort
       type(fates_patch_type), pointer                 :: newpatch
@@ -878,7 +878,7 @@ contains
       use FatesInterfaceTypesMod   , only : numpft
 
       ! Arguments
-      type(ed_site_type),intent(inout), target    :: csite         ! current site
+      type(fates_site_type),intent(inout), target    :: csite         ! current site
       type(bc_in_type),intent(in)                 :: bc_in         ! boundary conditions
       integer, intent(in)                         :: css_file_unit     ! Self explanatory
       integer, intent(in)                         :: npatches      ! number of patches
@@ -1189,7 +1189,7 @@ contains
        use shr_file_mod, only        : shr_file_freeUnit
 
        ! Arguments
-       type(ed_site_type), target :: currentSite
+       type(fates_site_type), target :: currentSite
 
        ! Locals
        type(fates_patch_type), pointer          :: currentpatch

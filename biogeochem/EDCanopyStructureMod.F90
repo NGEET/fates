@@ -19,7 +19,7 @@ module EDCanopyStructureMod
   use EDCohortDynamicsMod   , only : InitPRTObject
   use FatesAllometryMod     , only : tree_lai
   use FatesAllometryMod     , only : tree_sai
-  use EDtypesMod            , only : ed_site_type
+  use FatesSiteMod          , only : fates_site_type
   use FatesPatchMod,          only : fates_patch_type
   use FatesCohortMod,         only : fates_cohort_type
   use EDParamsMod            , only : nclmax
@@ -132,7 +132,7 @@ contains
 
     !
     ! !ARGUMENTS
-    type(ed_site_type) , intent(inout), target   :: currentSite
+    type(fates_site_type) , intent(inout), target   :: currentSite
     type(bc_in_type), intent(in)                 :: bc_in
 
     !
@@ -340,7 +340,7 @@ contains
     use EDParamsMod, only : ED_val_comp_excln
 
     ! !ARGUMENTS
-    type(ed_site_type), intent(inout)  :: currentSite
+    type(fates_site_type), intent(inout)  :: currentSite
     type(fates_patch_type), intent(inout) :: currentPatch
     integer, intent(in)                :: i_lyr   ! Current canopy layer of interest
     type(bc_in_type), intent(in)       :: bc_in
@@ -796,7 +796,7 @@ contains
     use EDParamsMod, only : ED_val_comp_excln
 
     ! !ARGUMENTS
-    type(ed_site_type), intent(inout), target  :: currentSite
+    type(fates_site_type), intent(inout), target  :: currentSite
     type(fates_patch_type), intent(inout), target :: currentPatch
     integer, intent(in)                        :: i_lyr   ! Current canopy layer of interest
 
@@ -1240,7 +1240,7 @@ contains
     use EDParamsMod, only : ED_val_canopy_closure_thresh
     !
     ! !ARGUMENTS
-    type (ed_site_type), intent(inout), target :: currentSite
+    type (fates_site_type), intent(inout), target :: currentSite
     !
     ! !LOCAL VARIABLES:
     type (fates_cohort_type), pointer :: currentCohort
@@ -1304,7 +1304,7 @@ contains
 
     ! !ARGUMENTS
     integer                 , intent(in)            :: nsites
-    type(ed_site_type)      , intent(inout), target :: sites(nsites)
+    type(fates_site_type)      , intent(inout), target :: sites(nsites)
     type(bc_in_type)        , intent(in)            :: bc_in(nsites)
     !
     ! !LOCAL VARIABLES:
@@ -1449,7 +1449,7 @@ contains
     ! Currently this average takes into account the depth of snow and the
     ! areal coverage fraction
 
-    type(ed_site_type)      , intent(inout), target :: sites(:)
+    type(fates_site_type)      , intent(inout), target :: sites(:)
     type(bc_in_type)        , intent(in)            :: bc_in(:)
 
     integer  :: s
@@ -1504,7 +1504,7 @@ contains
 
     !
     ! !ARGUMENTS
-    type(ed_site_type)     , intent(inout) :: currentSite
+    type(fates_site_type)     , intent(inout) :: currentSite
 
 
     !
@@ -1802,14 +1802,14 @@ contains
     ! to vegetation coverage to the host land model.
     ! ----------------------------------------------------------------------------------
 
-    use EDTypesMod        , only : ed_site_type, AREA
+    use EDTypesMod        , only : AREA
     use FatesPatchMod,      only : fates_patch_type
     use FatesInterfaceTypesMod , only : bc_out_type
 
     !
     ! !ARGUMENTS
     integer,            intent(in)            :: nsites
-    type(ed_site_type), intent(inout), target :: sites(nsites)
+    type(fates_site_type), intent(inout), target :: sites(nsites)
     integer,            intent(in)            :: fcolumn(nsites)
     type(bc_out_type),  intent(inout)         :: bc_out(nsites)
 

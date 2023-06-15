@@ -9,7 +9,7 @@ module EDBtranMod
   use FatesConstantsMod , only : tfrz => t_water_freeze_k_1atm 
   use FatesConstantsMod , only : itrue,ifalse,nearzero
   use FatesConstantsMod , only : nocomp_bareground
-  use EDTypesMod        , only : ed_site_type
+  use FatesSiteMod      , only : fates_site_type
   use FatesPatchMod,      only : fates_patch_type
   use FatesConstantsMod,  only : maxpft
   use FatesCohortMod,     only : fates_cohort_type
@@ -62,7 +62,7 @@ contains
     ! Arguments
 
     integer,intent(in)                      :: nsites
-    type(ed_site_type),intent(inout),target :: sites(nsites)
+    type(fates_site_type),intent(inout),target :: sites(nsites)
     type(bc_in_type),intent(in)             :: bc_in(nsites)
     type(bc_out_type),intent(inout)         :: bc_out(nsites)
 
@@ -104,7 +104,7 @@ contains
     ! Arguments
 
     integer,intent(in)                      :: nsites
-    type(ed_site_type),intent(inout),target :: sites(nsites)
+    type(fates_site_type),intent(inout),target :: sites(nsites)
     type(bc_in_type),intent(in)             :: bc_in(nsites)
     type(bc_out_type),intent(inout)         :: bc_out(nsites)
 

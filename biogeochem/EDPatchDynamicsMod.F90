@@ -20,7 +20,7 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : homogenize_seed_pfts
   use EDTypesMod           , only : area, patchfusion_dbhbin_loweredges
   use EDtypesMod           , only : force_patchfuse_min_biomass
-  use EDTypesMod           , only : ed_site_type
+  use FatesSiteMod         , only : fates_site_type
   use FatesPatchMod,         only : fates_patch_type
   use FatesCohortMod       , only : fates_cohort_type
   use EDTypesMod           , only : site_massbal_type
@@ -168,7 +168,7 @@ contains
 
   
     ! !ARGUMENTS:
-    type(ed_site_type) , intent(inout) :: site_in
+    type(fates_site_type) , intent(inout) :: site_in
     type(bc_in_type) , intent(in) :: bc_in
     !
     ! !LOCAL VARIABLES:
@@ -410,7 +410,7 @@ contains
 
     !
     ! !ARGUMENTS:
-    type (ed_site_type), intent(inout) :: currentSite
+    type (fates_site_type), intent(inout) :: currentSite
     type (bc_in_type), intent(in)      :: bc_in
     !
     ! !LOCAL VARIABLES:
@@ -1258,7 +1258,7 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS:
-    type(ed_site_type), intent(inout) :: currentSite
+    type(fates_site_type), intent(inout) :: currentSite
     !
     ! !LOCAL VARIABLES:
     real(r8)                     :: areatot
@@ -1330,7 +1330,7 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS:
-    type(ed_site_type),intent(in) :: currentSite 
+    type(fates_site_type),intent(in) :: currentSite 
     !
     ! !LOCAL VARIABLES:
     type(fates_patch_type), pointer :: currentPatch 
@@ -1412,7 +1412,7 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS:
-    type(ed_site_type)  , intent(in)    :: currentSite        ! site
+    type(fates_site_type)  , intent(in)    :: currentSite        ! site
     type(fates_patch_type) , intent(in)    :: currentPatch       ! Donor patch
     type(fates_patch_type) , intent(inout) :: newPatch           ! New patch
     real(r8)            , intent(in)    :: patch_site_areadis ! Area being donated
@@ -1625,7 +1625,7 @@ contains
     use SFParamsMod,          only : SF_VAL_CWD_FRAC
     !
     ! !ARGUMENTS:
-    type(ed_site_type)  , intent(inout), target :: currentSite
+    type(fates_site_type)  , intent(inout), target :: currentSite
     type(fates_patch_type) , intent(inout), target :: currentPatch   ! Donor Patch
     type(fates_patch_type) , intent(inout), target :: newPatch   ! New Patch
     real(r8)            , intent(in)            :: patch_site_areadis ! Area being donated
@@ -1863,7 +1863,7 @@ contains
     use SFParamsMod,  only : SF_val_cwd_frac
     !
     ! !ARGUMENTS:
-    type(ed_site_type)  , intent(inout), target :: currentSite 
+    type(fates_site_type)  , intent(inout), target :: currentSite 
     type(fates_patch_type) , intent(inout), target :: currentPatch
     type(fates_patch_type) , intent(inout), target :: newPatch
     real(r8)            , intent(in)            :: patch_site_areadis
@@ -2085,11 +2085,11 @@ contains
     use EDTypesMod , only : max_age_of_second_oldest_patch
     !
     ! !ARGUMENTS:
-    type(ed_site_type), intent(inout), target  :: csite
+    type(fates_site_type), intent(inout), target  :: csite
     type(bc_in_type), intent(in)               :: bc_in
     !
     ! !LOCAL VARIABLES:
-    type(ed_site_type) , pointer :: currentSite
+    type(fates_site_type) , pointer :: currentSite
     type(fates_patch_type), pointer :: currentPatch,tpp,tmpptr
     integer  :: ft,z        !counters for pft and height class
     real(r8) :: norm        !normalized difference between biomass profiles
@@ -2396,7 +2396,7 @@ contains
     use FatesSizeAgeTypeIndicesMod, only: get_age_class_index
     !
     ! !ARGUMENTS:
-    type (ed_site_type), intent(inout),target :: csite  ! Current site 
+    type(fates_site_type), intent(inout),target :: csite  ! Current site 
     type (fates_patch_type) , pointer :: dp                ! Donor Patch
     type (fates_patch_type) , target, intent(inout) :: rp  ! Recipient Patch
 
@@ -2576,7 +2576,7 @@ contains
     !
     !
     ! !ARGUMENTS:
-    type(ed_site_type), target, intent(inout) :: currentSite
+    type(fates_site_type), target, intent(inout) :: currentSite
     !
     ! !LOCAL VARIABLES:
     type(fates_patch_type), pointer :: currentPatch
@@ -2742,7 +2742,7 @@ contains
   subroutine DistributeSeeds(currentSite,seed_mass,el,pft)
       
       ! !ARGUMENTS:
-      type(ed_site_type), target, intent(inout) :: currentSite  !
+      type(fates_site_type), target, intent(inout) :: currentSite  !
       real(r8), intent(in)                      :: seed_mass    ! mass of seed input [kg]
       integer, intent(in)                       :: el           ! element index
       integer, intent(in)                       :: pft          ! pft index
@@ -2831,11 +2831,10 @@ contains
     !  Loop over all Patches to count how many there are
     !
     ! !USES:
-    use EDTypesMod , only : ed_site_type
     !
     ! !ARGUMENTS:
     integer,             intent(in)            :: nsites
-    type(ed_site_type) , intent(inout), target :: sites(nsites)
+    type(fates_site_type) , intent(inout), target :: sites(nsites)
     !
     ! !LOCAL VARIABLES:
     type (fates_patch_type), pointer :: currentPatch
@@ -2864,10 +2863,9 @@ contains
     !  Calculate how much of a site is primary land
     !
     ! !USES:
-    use EDTypesMod , only : ed_site_type
     !
     ! !ARGUMENTS:
-    type(ed_site_type) , intent(in), target :: site_in
+    type(fates_site_type) , intent(in), target :: site_in
     real(r8)           , intent(out)        :: frac_site_primary
 
     ! !LOCAL VARIABLES:

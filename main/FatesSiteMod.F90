@@ -1,10 +1,15 @@
 module FatesSiteMod 
 
-  use FatesConstantsMod, only : r8 => fates_r8
-  use FatesPatchMod,     only : fates_patch_type
-  use EDTypesMod,        only : ed_resources_management_type
-  use EDTypesMod,        only : site_fluxdiags_type
-  use EDTypesMod,        only : site_massbal_type
+  use FatesConstantsMod,     only : r8 => fates_r8
+  use FatesGlobals,          only : fates_log
+  use FatesPatchMod,         only : fates_patch_type
+  use EDTypesMod,            only : ed_resources_management_type
+  use EDTypesMod,            only : site_fluxdiags_type
+  use EDTypesMod,            only : site_massbal_type
+  use EDTypesMod,            only : numWaterMem, num_vegtemp_mem
+  use FatesConstantsMod,     only : N_DIST_TYPES
+  use FatesHydraulicsMemMod, only : ed_site_hydr_type
+  use FatesConstantsMod,     only : maxpft
 
   implicit none
   private
@@ -32,7 +37,7 @@ module FatesSiteMod
 
      ! Fixed Biogeography mode inputs
      real(r8), allocatable :: area_PFT(:)                      ! Area allocated to individual PFTs    
-     integer, allocatable  :: use_this_pft(:)                  ! Is area_PFT > 0 ? (1=yes, 0=no)
+     integer,  allocatable :: use_this_pft(:)                  ! Is area_PFT > 0 ? (1=yes, 0=no)
 
      ! Total area of patches in each age bin [m2]
      real(r8), allocatable :: area_by_age(:)
@@ -201,5 +206,26 @@ module FatesSiteMod
      real(r8) :: primary_land_patchfusion_error                          ! error term in total area of primary patches associated with patch fusion [m2/m2/day]
      
   end type fates_site_type
+
+  public :: dump_site
+
+  contains 
+
+  subroutine dump_site(csite) 
+
+    type(fates_site_type),intent(in),target :: csite
+ 
+ 
+    ! EDTypes is 
+ 
+    write(fates_log(),*) '----------------------------------------'
+    write(fates_log(),*) ' Site Coordinates                       '
+    write(fates_log(),*) '----------------------------------------'
+    write(fates_log(),*) 'latitude                    = ', csite%lat
+    write(fates_log(),*) 'longitude                   = ', csite%lon
+    write(fates_log(),*) '----------------------------------------'
+    return
+ 
+ end subroutine dump_site
 
 end module FatesSiteMod

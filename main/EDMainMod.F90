@@ -63,7 +63,7 @@ module EDMainMod
   use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
   use FatesLitterMod           , only : litter_type
   use FatesLitterMod           , only : ncwd
-  use EDtypesMod               , only : ed_site_type
+  use FatesSiteMod             , only : fates_site_type
   use FatesPatchMod            , only : fates_patch_type
   use FatesCohortMod           , only : fates_cohort_type
   use EDTypesMod               , only : AREA
@@ -144,7 +144,7 @@ contains
     !  Core of ed model, calling all subsequent vegetation dynamics routines
     !
     ! !ARGUMENTS:
-    type(ed_site_type)      , intent(inout), target  :: currentSite
+    type(fates_site_type)      , intent(inout), target  :: currentSite
     type(bc_in_type)        , intent(in)             :: bc_in
     type(bc_out_type)       , intent(inout)          :: bc_out
     !
@@ -336,7 +336,7 @@ contains
     
     ! !ARGUMENTS:
 
-    type(ed_site_type)     , intent(inout) :: currentSite
+    type(fates_site_type)     , intent(inout) :: currentSite
     type(bc_in_type)        , intent(in)   :: bc_in
     type(bc_out_type)       , intent(inout)  :: bc_out
 
@@ -775,7 +775,7 @@ contains
     use EDCanopyStructureMod , only : canopy_spread, canopy_structure
     !
     ! !ARGUMENTS:
-    type(ed_site_type) , intent(inout), target :: currentSite
+    type(fates_site_type) , intent(inout), target :: currentSite
     type(bc_in_type)   , intent(in)       :: bc_in
     type(bc_out_type)  , intent(inout)    :: bc_out
     !
@@ -849,7 +849,7 @@ contains
     ! Fluxes in are NPP. Fluxes out are decay of CWD and litter into SOM pools.
     !
     ! !ARGUMENTS:
-    type(ed_site_type) , intent(inout) :: currentSite
+    type(fates_site_type) , intent(inout) :: currentSite
     integer            , intent(in)    :: call_index
     !
     ! !LOCAL VARIABLES:
@@ -1031,7 +1031,7 @@ contains
     ! ----------------------------------------------------------------------------------
 
     ! Arguments
-    type(ed_site_type)      , intent(inout), target  :: currentSite
+    type(fates_site_type)      , intent(inout), target  :: currentSite
 
     ! Locals
     type(fates_patch_type), pointer :: currentPatch

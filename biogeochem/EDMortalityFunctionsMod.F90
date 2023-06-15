@@ -10,7 +10,7 @@ module EDMortalityFunctionsMod
    use FatesGlobals          , only : fates_log
    use EDPftvarcon           , only : EDPftvarcon_inst
    use FatesCohortMod        , only : fates_cohort_type
-   use EDTypesMod            , only : ed_site_type
+   use FatesSiteMod          , only : fates_site_type
    use FatesConstantsMod,      only : maxpft
    use FatesConstantsMod     , only : itrue,ifalse
    use FatesAllometryMod     , only : bleaf
@@ -239,7 +239,7 @@ contains
     use FatesInterfaceTypesMod, only : hlm_freq_day
     !
     ! !ARGUMENTS    
-    type(ed_site_type), intent(inout), target  :: currentSite
+    type(fates_site_type), intent(inout), target  :: currentSite
     type(fates_cohort_type),intent(inout), target :: currentCohort
     type(bc_in_type), intent(in)               :: bc_in
     real(r8),         intent(in)               :: btran_ft(maxpft)

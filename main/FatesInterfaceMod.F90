@@ -9,7 +9,7 @@ module FatesInterfaceMod
    ! which is allocated by thread
    ! ------------------------------------------------------------------------------------
 
-   use EDTypesMod                , only : ed_site_type
+   use FatesSiteMod              , only : fates_site_type
    use EDParamsMod                , only : dinc_vai
    use EDParamsMod                , only : dlower_vai
    use EDParamsMod               , only : ED_val_vai_top_bin_width
@@ -28,7 +28,6 @@ module FatesInterfaceMod
    use EDTypesMod                , only : do_fates_salinity
    use EDTypesMod                , only : numWaterMem
    use EDTypesMod                , only : numlevsoil_max
-   use EDTypesMod                , only : ed_site_type
    use FatesPatchMod             , only : fates_patch_type
    use FatesCohortMod            , only : fates_cohort_type
    use EDTypesMod                , only : area_inv
@@ -60,7 +59,6 @@ module FatesInterfaceMod
    use CLMFatesParamInterfaceMod , only : FatesReadParameters
    use EDParamsMod                , only : p_uptake_mode
    use EDParamsMod                , only : n_uptake_mode
-   use EDTypesMod                , only : ed_site_type
    use FatesConstantsMod         , only : prescribed_p_uptake
    use FatesConstantsMod         , only : prescribed_n_uptake
    use FatesConstantsMod         , only : coupled_p_uptake
@@ -116,7 +114,7 @@ module FatesInterfaceMod
 
       integer                         :: nsites
 
-      type(ed_site_type), pointer :: sites(:)
+      type(fates_site_type), pointer :: sites(:)
 
       ! These are boundary conditions that the FATES models are required to be filled.  
       ! These values are filled by the driver or HLM.  Once filled, these have an 
@@ -1928,7 +1926,7 @@ contains
      ! we calculate running means. It is assumed that this buffer is updated
      ! on the model time-step.
 
-     type(ed_site_type), intent(inout) :: sites(:)
+     type(fates_site_type), intent(inout) :: sites(:)
      type(bc_in_type), intent(in)      :: bc_in(:)
      
      type(fates_patch_type),  pointer :: cpatch

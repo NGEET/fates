@@ -54,7 +54,7 @@ module EDPhysiologyMod
   use EDParamsMod         , only : nlevleaf
   use EDTypesMod          , only : num_vegtemp_mem
   use FatesConstantsMod   , only : maxpft
-  use EDTypesMod          , only : ed_site_type
+  use FatesSiteMod        , only : fates_site_type
   use FatesPatchMod,        only : fates_patch_type
   use FatesCohortMod,       only : fates_cohort_type
   use FatesConstantsMod   , only : leaves_on
@@ -165,7 +165,7 @@ contains
 
 
     ! !ARGUMENTS
-    type(ed_site_type), intent(inout), target  :: currentSite
+    type(fates_site_type), intent(inout), target  :: currentSite
     type(fates_patch_type), pointer               :: currentPatch
 
     integer :: el
@@ -187,7 +187,7 @@ contains
   subroutine ZeroAllocationRates( currentSite )
 
     ! !ARGUMENTS
-    type(ed_site_type), intent(inout), target  :: currentSite
+    type(fates_site_type), intent(inout), target  :: currentSite
     type(fates_patch_type), pointer               :: currentPatch
     type(fates_cohort_type), pointer              :: currentCohort
 
@@ -213,7 +213,7 @@ contains
   subroutine GenerateDamageAndLitterFluxes( csite, cpatch, bc_in )
 
     ! Arguments
-    type(ed_site_type)  :: csite
+    type(fates_site_type)  :: csite
     type(fates_patch_type) :: cpatch
     type(bc_in_type), intent(in) :: bc_in
     
@@ -400,7 +400,7 @@ contains
 
 
     ! !ARGUMENTS
-    type(ed_site_type), intent(inout)  :: currentSite
+    type(fates_site_type), intent(inout)  :: currentSite
     type(fates_patch_type), intent(inout) :: currentPatch
     type(bc_in_type), intent(in)       :: bc_in
 
@@ -558,7 +558,7 @@ contains
     ! !USES:
 
     ! !ARGUMENTS
-    type (ed_site_type),intent(inout), target :: currentSite
+    type (fates_site_type),intent(inout), target :: currentSite
     !
     ! !LOCAL VARIABLES:
     type (fates_cohort_type) , pointer :: currentCohort
@@ -877,7 +877,7 @@ contains
 
     !
     ! !ARGUMENTS:
-    type(ed_site_type), intent(inout), target :: currentSite
+    type(fates_site_type), intent(inout), target :: currentSite
     type(bc_in_type),   intent(in)            :: bc_in
 
     !
@@ -1254,7 +1254,7 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS:
-    type(ed_site_type), intent(inout), target :: currentSite
+    type(fates_site_type), intent(inout), target :: currentSite
     !
     ! !LOCAL VARIABLES:
     type(fates_patch_type) , pointer :: currentPatch
@@ -1511,7 +1511,7 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS:
-    type(ed_site_type), intent(inout), target :: currentSite
+    type(fates_site_type), intent(inout), target :: currentSite
     type(bc_in_type),   intent(in)            :: bc_in
 
     class(prt_vartypes), pointer :: prt
@@ -1783,7 +1783,7 @@ contains
     use EDTypesMod, only : homogenize_seed_pfts
     !
     ! !ARGUMENTS
-    type(ed_site_type), intent(inout), target  :: currentSite
+    type(fates_site_type), intent(inout), target  :: currentSite
     type(bc_in_type), intent(in)               :: bc_in
 
     type(fates_patch_type), pointer     :: currentPatch
@@ -2002,7 +2002,7 @@ contains
     !
     
     ! !ARGUMENTS
-    type(ed_site_type),     intent(inout)          :: currentSite
+    type(fates_site_type),     intent(inout)          :: currentSite
     type(fates_patch_type), intent(inout), pointer :: currentPatch
     type(bc_in_type),       intent(in)             :: bc_in
     
@@ -2287,7 +2287,7 @@ contains
 
     !
     ! !ARGUMENTS
-    type(ed_site_type), intent(inout), target :: currentSite
+    type(fates_site_type), intent(inout), target :: currentSite
     type(fates_patch_type),intent(inout), target :: currentPatch
     type(litter_type),intent(inout),target    :: litt
     type(bc_in_type),intent(in)               :: bc_in
@@ -2761,7 +2761,7 @@ contains
     ! are within recruit size limitations (less than recruit size + delta)
     ! and less than the max_count cohort.
     
-    type(ed_site_type) :: csite
+    type(fates_site_type) :: csite
     type(fates_patch_type), pointer :: cpatch
     type(fates_cohort_type), pointer :: ccohort
 
@@ -2829,7 +2829,7 @@ contains
 
   subroutine UpdateRecruitStoich(csite)
 
-    type(ed_site_type) :: csite
+    type(fates_site_type) :: csite
     type(fates_patch_type), pointer :: cpatch
     type(fates_cohort_type), pointer :: ccohort
     integer  :: ft                       ! functional type index
@@ -2872,7 +2872,7 @@ contains
   subroutine SetRecruitL2FR(csite)
 
 
-    type(ed_site_type) :: csite
+    type(fates_site_type) :: csite
     type(fates_patch_type), pointer :: cpatch
     type(fates_cohort_type), pointer :: ccohort
     integer :: ft,cl

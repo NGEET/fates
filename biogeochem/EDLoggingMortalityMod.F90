@@ -22,7 +22,7 @@ module EDLoggingMortalityMod
    use FatesLitterMod    , only : ncwd
    use FatesLitterMod    , only : ndcmpy
    use FatesLitterMod    , only : litter_type
-   use EDTypesMod        , only : ed_site_type
+   use FatesSiteMod      , only : fates_site_type
    use EDTypesMod        , only : ed_resources_management_type
    use EDTypesMod        , only : dtype_ilog
    use EDTypesMod        , only : dtype_ifall
@@ -112,7 +112,7 @@ contains
       ! -------------------------------------------------------------------------------
      
       integer, intent(in) :: is_master
-      type(ed_site_type), intent(inout), target :: currentSite     ! site structure
+      type(fates_site_type), intent(inout), target :: currentSite     ! site structure
 
       integer :: icode   ! Integer equivalent of the event code (parameter file only allows reals)
       integer :: log_date  ! Day of month for logging exctracted from event code
@@ -453,7 +453,7 @@ contains
      !  for each cohort.
 
      ! Arguments
-     type(ed_site_type), intent(in), target :: csite
+     type(fates_site_type), intent(in), target :: csite
      real(r8), intent(in) :: site_area    ! temporary variable
      character(len=64), intent(in) :: hlm_harvest_catnames(:) ! names of hlm harvest categories
 
@@ -715,14 +715,13 @@ contains
       !USES:
       use SFParamsMod,       only : SF_val_cwd_frac
       use EDtypesMod,        only : area
-      use EDtypesMod,        only : ed_site_type
       use FatesCohortMod,    only : fates_cohort_type
       use FatesConstantsMod, only : rsnbl_math_prec
       use FatesAllometryMod, only : carea_allom
 
 
       ! !ARGUMENTS:
-      type(ed_site_type)  , intent(inout), target  :: currentSite 
+      type(fates_site_type)  , intent(inout), target  :: currentSite 
       type(fates_patch_type) , intent(inout), target  :: currentPatch
       type(fates_patch_type) , intent(inout), target  :: newPatch
       real(r8)            , intent(in)             :: patch_site_areadis
@@ -1097,7 +1096,6 @@ contains
       ! This subroutine is called when logging is completed and need to update 
       ! Harvested C flux in HLM.
       ! ----------------------------------------------------------------------------------
-      use EDtypesMod             , only : ed_site_type
       use EDTypesMod             , only : AREA_INV
       use PRTGenericMod          , only : element_pos
       use PRTGenericMod          , only : carbon12_element
@@ -1105,7 +1103,7 @@ contains
       use EDParamsMod            , only : pprodharv10_forest_mean
   
       ! Arguments
-      type(ed_site_type), intent(inout), target :: currentSite     ! site structure
+      type(fates_site_type), intent(inout), target :: currentSite     ! site structure
       type(bc_out_type), intent(inout)          :: bc_out
   
       integer :: icode
@@ -1146,7 +1144,7 @@ contains
       ! harvest, thus the harvest tag for non-forest is not applicable (= 2)
       !
       ! !ARGUMENTS:
-      type(ed_site_type) , intent(inout), target :: site_in
+      type(fates_site_type) , intent(inout), target :: site_in
       type(bc_in_type),    intent(in)         :: bc_in
       integer  :: harvest_tag(hlm_num_lu_harvest_cats)
 

@@ -24,7 +24,7 @@ module EDInitMod
   use EDPhysiologyMod           , only : calculate_sp_properties
   use ChecksBalancesMod         , only : SiteMassStock
   use FatesInterfaceTypesMod    , only : hlm_day_of_year
-  use EDTypesMod                , only : ed_site_type
+  use FatesSiteMod              , only : fates_site_type
   use FatesPatchMod             , only : fates_patch_type
   use FatesCohortMod            , only : fates_cohort_type
   use EDTypesMod                , only : numWaterMem
@@ -114,7 +114,7 @@ contains
     !
     !
     ! !ARGUMENTS
-    type(ed_site_type), intent(inout) :: site_in
+    type(fates_site_type), intent(inout) :: site_in
     type(bc_in_type),intent(in)       :: bc_in
     type(bc_out_type),intent(in)      :: bc_out
     !
@@ -219,7 +219,7 @@ contains
     use shr_infnan_mod , only : nan => shr_infnan_nan, assignment(=)
     !
     ! !ARGUMENTS
-    type(ed_site_type), intent(inout) ::  site_in
+    type(fates_site_type), intent(inout) ::  site_in
     !
     ! !LOCAL VARIABLES:
     integer :: el
@@ -338,7 +338,7 @@ contains
     ! !ARGUMENTS
 
     integer, intent(in)                :: nsites
-    type(ed_site_type) , intent(inout) :: sites(nsites)
+    type(fates_site_type) , intent(inout) :: sites(nsites)
     type(bc_in_type), intent(in)       :: bc_in(nsites)
     !
     ! !LOCAL VARIABLES:
@@ -504,7 +504,7 @@ contains
     !
     ! !ARGUMENTS
     integer, intent(in)                        :: nsites
-    type(ed_site_type) , intent(inout), target :: sites(nsites)
+    type(fates_site_type) , intent(inout), target :: sites(nsites)
     type(bc_in_type), intent(in)               :: bc_in(nsites)
     !
     ! !LOCAL VARIABLES:
@@ -525,7 +525,7 @@ contains
     real(r8) :: tota !check on area
     integer  :: is_first_patch
 
-    type(ed_site_type),  pointer :: sitep
+    type(fates_site_type),  pointer :: sitep
     type(fates_patch_type), pointer :: newppft(:)
     type(fates_patch_type), pointer :: newp
     type(fates_patch_type), pointer :: currentPatch
@@ -743,7 +743,7 @@ contains
     !
     
     ! ARGUMENTS
-    type(ed_site_type),     intent(inout),  pointer  :: site_in
+    type(fates_site_type),     intent(inout),  pointer  :: site_in
     type(fates_patch_type), intent(inout),  pointer  :: patch_in
     type(bc_in_type),       intent(in)               :: bc_in
     

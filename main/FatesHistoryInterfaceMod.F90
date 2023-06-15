@@ -18,7 +18,7 @@ module FatesHistoryInterfaceMod
   use PRTGenericMod            , only : num_elements
   use PRTGenericMod            , only : prt_cnp_flex_allom_hyp
   use EDTypesMod               , only : site_fluxdiags_type
-  use EDtypesMod               , only : ed_site_type
+  use FatesSiteMod             , only : fates_site_type
   use FatesCohortMod           , only : fates_cohort_type
   use FatesPatchMod            , only : fates_patch_type
   use EDtypesMod               , only : AREA
@@ -1649,7 +1649,7 @@ end function levcapf_index
 
      class(fates_history_interface_type)    :: this        ! hvars_interface instance
      integer, intent(in)                    :: upfreq_in   !
-     type(ed_site_type), intent(in), target :: currentSite ! site instance
+     type(fates_site_type), intent(in), target :: currentSite ! site instance
 
      integer :: ivar     ! history variable index
      integer :: ndims    ! number of dimensions
@@ -1916,7 +1916,7 @@ end subroutine flush_hvars
 
     ! Arguments
     class(fates_history_interface_type) :: this
-    type(ed_site_type), intent(in)      :: csite
+    type(fates_site_type), intent(in)      :: csite
 
     type(fates_patch_type), pointer     :: cpatch
     type(fates_cohort_type), pointer    :: ccohort
@@ -2126,7 +2126,7 @@ end subroutine flush_hvars
     class(fates_history_interface_type)             :: this
     integer                 , intent(in)            :: nc   ! clump index
     integer                 , intent(in)            :: nsites
-    type(ed_site_type)      , intent(inout), target :: sites(nsites)
+    type(fates_site_type)      , intent(inout), target :: sites(nsites)
     type(bc_in_type)        , intent(in)            :: bc_in(nsites)
     
     ! Locals
@@ -4346,7 +4346,7 @@ end subroutine flush_hvars
     class(fates_history_interface_type)                 :: this
     integer                 , intent(in)            :: nc   ! clump index
     integer                 , intent(in)            :: nsites
-    type(ed_site_type)      , intent(inout), target :: sites(nsites)
+    type(fates_site_type)      , intent(inout), target :: sites(nsites)
     type(bc_in_type)        , intent(in)            :: bc_in(nsites)
     real(r8)                , intent(in)            :: dt_tstep
 
@@ -4819,7 +4819,7 @@ end subroutine update_history_hifrq
     class(fates_history_interface_type)             :: this
     integer                 , intent(in)            :: nc   ! clump index
     integer                 , intent(in)            :: nsites
-    type(ed_site_type)      , intent(inout), target :: sites(nsites)
+    type(fates_site_type)      , intent(inout), target :: sites(nsites)
     type(bc_in_type)        , intent(in)            :: bc_in(nsites)
     real(r8)                , intent(in)            :: dt_tstep
 

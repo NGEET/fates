@@ -23,7 +23,7 @@
   use PRTParametersMod      , only : prt_params
   
   use PRTGenericMod         , only : element_pos
-  use EDtypesMod            , only : ed_site_type
+  use FatesSiteMod          , only : fates_site_type
   use FatesPatchMod         , only : fates_patch_type
   use FatesCohortMod        , only : fates_cohort_type
   use EDtypesMod            , only : AREA
@@ -81,7 +81,7 @@ contains
 
     
 
-    type(ed_site_type)     , intent(inout), target :: currentSite
+    type(fates_site_type)     , intent(inout), target :: currentSite
     type(bc_in_type)       , intent(in)            :: bc_in
     
 
@@ -124,7 +124,7 @@ contains
     use FatesConstantsMod , only : tfrz => t_water_freeze_k_1atm
     use FatesConstantsMod , only : sec_per_day
 
-    type(ed_site_type)     , intent(inout), target :: currentSite
+    type(fates_site_type)     , intent(inout), target :: currentSite
     type(bc_in_type)       , intent(in)            :: bc_in
 
     type(fates_patch_type),  pointer :: currentPatch
@@ -179,7 +179,7 @@ contains
 
     use SFParamsMod, only  : SF_val_drying_ratio, SF_val_SAV, SF_val_FBD
 
-    type(ed_site_type), intent(in), target :: currentSite
+    type(fates_site_type), intent(in), target :: currentSite
 
     type(fates_patch_type),  pointer :: currentPatch
     type(fates_cohort_type), pointer :: currentCohort
@@ -354,7 +354,7 @@ contains
 
     use FatesConstantsMod, only : sec_per_min
 
-    type(ed_site_type) , intent(inout), target :: currentSite
+    type(fates_site_type) , intent(inout), target :: currentSite
     type(bc_in_type)   , intent(in)            :: bc_in
 
     type(fates_patch_type) , pointer :: currentPatch
@@ -456,7 +456,7 @@ contains
                              SF_val_miner_damp,  &
                              SF_val_fuel_energy
     
-    type(ed_site_type), intent(in), target :: currentSite
+    type(fates_site_type), intent(in), target :: currentSite
 
     type(fates_patch_type), pointer :: currentPatch
 
@@ -600,7 +600,7 @@ contains
          SF_val_mid_moisture, SF_val_low_moisture_Coeff, SF_val_low_moisture_Slope, &
          SF_val_mid_moisture_Coeff, SF_val_mid_moisture_Slope
 
-    type(ed_site_type) , intent(in), target :: currentSite
+    type(fates_site_type) , intent(in), target :: currentSite
     type(fates_patch_type), pointer    :: currentPatch
     type(litter_type), pointer      :: litt_c           ! carbon 12 litter pool
     
@@ -702,7 +702,7 @@ contains
     use SFParamsMod,       only : SF_val_fdi_alpha,SF_val_fuel_energy, &
          SF_val_max_durat, SF_val_durat_slope, SF_val_fire_threshold
     
-    type(ed_site_type), intent(inout), target :: currentSite
+    type(fates_site_type), intent(inout), target :: currentSite
     type(fates_patch_type), pointer :: currentPatch
     type(bc_in_type), intent(in) :: bc_in
 
@@ -893,7 +893,7 @@ contains
     !currentPatch%FI       average fire intensity of flaming front during day.  kW/m.
     !currentPatch%SH(pft)  scorch height for all cohorts of a given PFT on a given patch (m)
 
-    type(ed_site_type), intent(in), target :: currentSite
+    type(fates_site_type), intent(in), target :: currentSite
 
     type(fates_patch_type), pointer  :: currentPatch
     type(fates_cohort_type), pointer :: currentCohort
@@ -957,7 +957,7 @@ contains
     !returns the updated currentCohort%fraction_crown_burned for each tree cohort within each patch.
     !currentCohort%fraction_crown_burned is the proportion of crown affected by fire
 
-    type(ed_site_type), intent(in), target :: currentSite
+    type(fates_site_type), intent(in), target :: currentSite
 
     type(fates_patch_type) , pointer :: currentPatch
     type(fates_cohort_type), pointer :: currentCohort
@@ -1024,7 +1024,7 @@ contains
     ! returns the probability that trees dies due to cambial char
     ! currentPatch%tau_l = duration of lethal stem heating (min). Calculated at patch level.
 
-    type(ed_site_type), intent(in), target :: currentSite
+    type(fates_site_type), intent(in), target :: currentSite
 
     type(fates_patch_type) , pointer :: currentPatch
     type(fates_cohort_type), pointer :: currentCohort
@@ -1080,7 +1080,7 @@ contains
     !  currentCohort%cambial_mort  probability of tree post-fire mortality due to cambial char
     !  currentCohort%fire_mort  post-fire mortality from cambial and crown damage assuming two are independent.
 
-    type(ed_site_type), intent(in), target :: currentSite
+    type(fates_site_type), intent(in), target :: currentSite
 
     type(fates_patch_type),  pointer :: currentPatch
     type(fates_cohort_type), pointer :: currentCohort

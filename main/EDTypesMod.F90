@@ -226,9 +226,6 @@ module EDTypesMod
   end type site_massbal_type
   
 
-  ! Make public necessary subroutines and functions
-  public :: dump_site
-
   contains
       
     ! =====================================================================================
@@ -277,23 +274,6 @@ module EDTypesMod
   end subroutine ZeroMassBalFlux
    
   ! =====================================================================================
-
-  subroutine dump_site(csite) 
-
-   type(ed_site_type),intent(in),target :: csite
-
-
-   ! EDTypes is 
-
-   write(fates_log(),*) '----------------------------------------'
-   write(fates_log(),*) ' Site Coordinates                       '
-   write(fates_log(),*) '----------------------------------------'
-   write(fates_log(),*) 'latitude                    = ', csite%lat
-   write(fates_log(),*) 'longitude                   = ', csite%lon
-   write(fates_log(),*) '----------------------------------------'
-   return
-
-end subroutine dump_site
   
   
 end module EDTypesMod

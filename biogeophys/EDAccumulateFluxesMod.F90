@@ -38,7 +38,8 @@ contains
     !
     ! !USES:
 
-    use EDTypesMod        , only : ed_site_type, AREA
+    use FatesSiteMod        , only : fates_site_type
+    use EDTypesMod,           only : AREA
     use FatesPatchMod,      only : fates_patch_type
     use FatesCohortMod,     only : fates_cohort_type
     use FatesInterfaceTypesMod , only : bc_in_type,bc_out_type
@@ -46,7 +47,7 @@ contains
     !
     ! !ARGUMENTS    
     integer,            intent(in)            :: nsites
-    type(ed_site_type), intent(inout), target :: sites(nsites)
+    type(fates_site_type), intent(inout), target :: sites(nsites)
     type(bc_in_type),   intent(in)            :: bc_in(nsites)
     type(bc_out_type),  intent(inout)         :: bc_out(nsites)
     real(r8),           intent(in)            :: dt_time  ! timestep interval

@@ -2,7 +2,7 @@ module ChecksBalancesMod
 
    use shr_kind_mod,      only : r8 => shr_kind_r8
    use shr_const_mod,     only : SHR_CONST_CDAY
-   use EDtypesMod,        only : ed_site_type
+   use FatesSiteMod,      only : fates_site_type
    use FatesPatchMod,     only : fates_patch_type
    use FatesCohortMod,    only : fates_cohort_type
    use EDTypesMod,        only : AREA
@@ -41,7 +41,7 @@ contains
   
   subroutine SiteMassStock(currentSite,el,total_stock,biomass_stock,litter_stock,seed_stock)
   
-     type(ed_site_type),intent(inout),target :: currentSite
+     type(fates_site_type),intent(inout),target :: currentSite
      integer,intent(in)                      :: el           ! This is the element index
                                                              ! in FATES (not the parteh global id)
      real(r8),intent(out)                    :: total_stock    ! kg
@@ -142,7 +142,7 @@ contains
     ! -----------------------------------------------------------------------------------
 
     
-    type(ed_site_type), intent(inout), target  :: currentSite
+    type(fates_site_type), intent(inout), target  :: currentSite
     type(bc_in_type), intent(in)               :: bc_in
     
     ! Local variables

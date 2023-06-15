@@ -10,7 +10,7 @@ module EDSurfaceRadiationMod
 
 #include "shr_assert.h"
 
-  use EDTypesMod        , only : ed_site_type
+  use FatesSiteMod        , only : fates_site_type
   use FatesPatchMod,      only : fates_patch_type
   use FatesConstantsMod, only : maxpft
   use FatesConstantsMod , only : r8 => fates_r8
@@ -70,13 +70,11 @@ contains
     !
     ! !USES:
     use FatesPatchMod     , only : fates_patch_type
-    use EDTypesMod        , only : ed_site_type
-
 
     ! !ARGUMENTS:
 
     integer,            intent(in)            :: nsites
-    type(ed_site_type), intent(inout), target :: sites(nsites)      ! FATES site vector
+    type(fates_site_type), intent(inout), target :: sites(nsites)      ! FATES site vector
     type(bc_in_type),   intent(in)            :: bc_in(nsites)
     type(bc_out_type),  intent(inout)         :: bc_out(nsites)
 
@@ -1120,7 +1118,7 @@ subroutine ED_SunShadeFracs(nsites, sites,bc_in,bc_out)
 
   ! Arguments
   integer,intent(in)                      :: nsites
-  type(ed_site_type),intent(inout),target :: sites(nsites)
+  type(fates_site_type),intent(inout),target :: sites(nsites)
   type(bc_in_type),intent(in)             :: bc_in(nsites)
   type(bc_out_type),intent(inout)         :: bc_out(nsites)
 

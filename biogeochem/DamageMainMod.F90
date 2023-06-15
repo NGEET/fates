@@ -59,8 +59,6 @@ contains
 
 
     integer, intent(in) :: is_master
-    !type(ed_site_type), intent(inout), target :: currentSite
-
     integer :: icode     ! Integer equivalent of the event code (parameter file only allows reals)
     integer :: damage_date  ! Day of month for damage extracted from event code
     integer :: damage_month ! Month of year for damage extracted from event code

@@ -126,7 +126,7 @@ contains
 
 
     ! !USES:
-    use EDTypesMod        , only : ed_site_type
+    use FatesSiteMod      , only : fates_site_type
     use FatesConstantsMod , only : maxpft
     use EDParamsMod       , only : dinc_vai
     use EDParamsMod       , only : dlower_vai
@@ -150,7 +150,7 @@ contains
     ! ARGUMENTS:
     ! -----------------------------------------------------------------------------------
     integer,intent(in)                      :: nsites
-    type(ed_site_type),intent(inout),target :: sites(nsites)
+    type(fates_site_type),intent(inout),target :: sites(nsites)
     type(bc_in_type),intent(in)             :: bc_in(nsites)
     type(bc_out_type),intent(inout)         :: bc_out(nsites)
     real(r8),intent(in)                     :: dtime

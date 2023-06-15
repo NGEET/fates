@@ -8,7 +8,7 @@ module FatesBstressMod
    use FatesConstantsMod , only : tfrz => t_water_freeze_k_1atm 
    use FatesConstantsMod , only : itrue,ifalse
    use FatesConstantsMod,  only : maxpft
-   use EDTypesMod        , only : ed_site_type
+   use FatesSiteMod      , only : fates_site_type
    use FatesPatchMod,      only : fates_patch_type
    use FatesCohortMod    , only : fates_cohort_type
    use shr_kind_mod      , only : r8 => shr_kind_r8
@@ -43,7 +43,7 @@ contains
       ! Arguments
       
       integer,intent(in)                      :: nsites
-      type(ed_site_type),intent(inout),target :: sites(nsites)
+      type(fates_site_type),intent(inout),target :: sites(nsites)
       type(bc_in_type),intent(in)             :: bc_in(nsites)
      
       !

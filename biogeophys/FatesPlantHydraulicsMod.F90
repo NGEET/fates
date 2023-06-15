@@ -51,7 +51,7 @@ module FatesPlantHydraulicsMod
   use EDParamsMod       , only : hydr_htftype_node
   use EDParamsMod       , only : hydr_solver
 
-  use EDTypesMod        , only : ed_site_type
+  use FatesSiteMod      , only : fates_site_type
   use FatesPatchMod     , only : fates_patch_type
   use FatesCohortMod    , only : fates_cohort_type
   use EDTypesMod        , only : AREA_INV
@@ -284,7 +284,7 @@ contains
     ! ARGUMENTS:
     ! -----------------------------------------------------------------------------------
     integer,intent(in)                      :: nsites
-    type(ed_site_type),intent(inout),target :: sites(nsites)
+    type(fates_site_type),intent(inout),target :: sites(nsites)
     type(bc_in_type),intent(in)             :: bc_in(nsites)
     type(bc_out_type),intent(inout)         :: bc_out(nsites)
     real(r8),intent(in)                     :: dtime
@@ -328,7 +328,7 @@ contains
     ! states such as carbon pools and plant geometry.
 
     integer                     , intent(in)            :: nsites
-    type(ed_site_type)          , intent(inout), target :: sites(nsites)
+    type(fates_site_type)          , intent(inout), target :: sites(nsites)
     type(bc_in_type)            , intent(in)            :: bc_in(nsites)
     type(bc_out_type)           , intent(inout)         :: bc_out(nsites)
 
@@ -531,7 +531,7 @@ contains
     ! !USES:
 
     ! !ARGUMENTS:
-    type(ed_site_type), intent(inout), target   :: site   ! current site pointer
+    type(fates_site_type), intent(inout), target   :: site   ! current site pointer
     type(fates_cohort_type), intent(inout), target :: cohort ! current cohort pointer
     !
     ! !LOCAL VARIABLES:
@@ -843,7 +843,7 @@ contains
     use shr_sys_mod        , only : shr_sys_abort
 
     ! ARGUMENTS:
-    type(ed_site_type)     , intent(in)             :: currentSite ! Site stuff
+    type(fates_site_type)     , intent(in)             :: currentSite ! Site stuff
     type(fates_cohort_type)   , intent(inout)          :: ccohort     ! current cohort pointer
     type(bc_in_type)       , intent(in)             :: bc_in       ! Boundary Conditions
 
@@ -1094,7 +1094,7 @@ contains
     use FatesUtilsMod  , only : check_var_real
 
     ! !ARGUMENTS:
-    type(ed_site_type)    , intent(in)    :: currentSite ! Site stuff
+    type(fates_site_type)    , intent(in)    :: currentSite ! Site stuff
     type(fates_cohort_type)   , intent(inout) :: ccohort
     !
     ! !LOCAL VARIABLES:
@@ -1199,7 +1199,7 @@ subroutine FuseCohortHydraulics(currentSite,currentCohort, nextCohort, bc_in, ne
 
   type(fates_cohort_type), intent(inout), target :: currentCohort ! current cohort
   type(fates_cohort_type), intent(inout), target :: nextCohort    ! next (donor) cohort
-  type(ed_site_type), intent(inout), target :: currentSite    ! current site
+  type(fates_site_type), intent(inout), target :: currentSite    ! current site
 
   type(bc_in_type), intent(in)                :: bc_in
   real(r8), intent(in)                        :: newn
@@ -1302,7 +1302,7 @@ subroutine FuseCohortHydraulics(currentSite,currentCohort, nextCohort, bc_in, ne
 subroutine InitHydrCohort(currentSite,currentCohort)
 
   ! Arguments
-  type(ed_site_type), target   :: currentSite
+  type(fates_site_type), target   :: currentSite
   type(fates_cohort_type), target :: currentCohort
   type(ed_cohort_hydr_type), pointer :: ccohort_hydr
 
@@ -1336,7 +1336,7 @@ end subroutine DeallocateHydrCohort
 subroutine InitHydrSites(sites,bc_in)
 
   ! Arguments
-  type(ed_site_type),intent(inout),target :: sites(:)
+  type(fates_site_type),intent(inout),target :: sites(:)
   type(bc_in_type),intent(in)             :: bc_in(:)
 
   ! Locals
@@ -1510,7 +1510,7 @@ subroutine HydrSiteColdStart(sites, bc_in )
 
 
   ! Arguments
-  type(ed_site_type),intent(inout),target :: sites(:)
+  type(fates_site_type),intent(inout),target :: sites(:)
   type(bc_in_type),intent(in)             :: bc_in(:)
 
   ! Local
@@ -1695,7 +1695,7 @@ end subroutine HydrSiteColdStart
   ! ----------------------------------------------------------------------------------
 
   ! Arguments
-  type(ed_site_type), intent(inout), target :: csite
+  type(fates_site_type), intent(inout), target :: csite
   type(bc_out_type), intent(inout)          :: bc_out
 
   ! The total site water balance at a previous point in time.
@@ -1784,7 +1784,7 @@ subroutine RecruitWUptake(nsites,sites,bc_in,dtime,recruitflag)
 
   ! Arguments
   integer, intent(in)                       :: nsites
-  type(ed_site_type), intent(inout), target :: sites(nsites)
+  type(fates_site_type), intent(inout), target :: sites(nsites)
   type(bc_in_type), intent(in)              :: bc_in(nsites)
   real(r8), intent(in)                      :: dtime !time (seconds)
   logical, intent(out)                      :: recruitflag      !flag to check if there is newly recruited cohorts
@@ -1864,7 +1864,7 @@ subroutine ConstrainRecruitNumber(csite,ccohort, cpatch, bc_in, mean_temp)
   ! ---------------------------------------------------------------------------
 
   ! Arguments
-  type(ed_site_type), intent(inout), target     :: csite
+  type(fates_site_type), intent(inout), target     :: csite
   type(fates_cohort_type) , intent(inout), target  :: ccohort
   type(fates_patch_type), intent(inout), target       :: cpatch
   type(bc_in_type)    , intent(in)              :: bc_in
@@ -1960,7 +1960,7 @@ end subroutine ConstrainRecruitNumber
 subroutine SavePreviousRhizVolumes(currentSite)
 
   ! !ARGUMENTS:
-  type(ed_site_type)     , intent(inout), target :: currentSite
+  type(fates_site_type)     , intent(inout), target :: currentSite
   type(ed_site_hydr_type), pointer    :: csite_hydr
 
   csite_hydr => currentSite%si_hydr
@@ -1985,7 +1985,7 @@ subroutine UpdateSizeDepRhizVolLenCon(currentSite, bc_in)
 
 
   ! !ARGUMENTS:
-  type(ed_site_type)     , intent(inout), target :: currentSite
+  type(fates_site_type)     , intent(inout), target :: currentSite
   type(bc_in_type)       , intent(in) :: bc_in
 
   !
@@ -2097,7 +2097,7 @@ subroutine UpdateSizeDepRhizHydProps(currentSite, bc_in )
   ! !USES:
 
   ! !ARGUMENTS:
-  type(ed_site_type)     , intent(inout), target :: currentSite
+  type(fates_site_type)     , intent(inout), target :: currentSite
   type(bc_in_type)       , intent(in) :: bc_in
 
 
@@ -2121,7 +2121,7 @@ subroutine BTranForHLMDiagnosticsFromCohortHydr(nsites,sites,bc_out)
 
   ! Arguments
   integer,intent(in)                      :: nsites
-  type(ed_site_type),intent(inout),target :: sites(nsites)
+  type(fates_site_type),intent(inout),target :: sites(nsites)
   type(bc_out_type),intent(inout)         :: bc_out(nsites)
 
   ! Locals
@@ -2191,7 +2191,7 @@ subroutine FillDrainRhizShells(nsites, sites, bc_in, bc_out)
   !
   ! !ARGUMENTS:
   integer, intent(in)                       :: nsites
-  type(ed_site_type), intent(inout), target :: sites(nsites)
+  type(fates_site_type), intent(inout), target :: sites(nsites)
   type(bc_in_type), intent(in)              :: bc_in(nsites)
   type(bc_out_type), intent(inout)          :: bc_out(nsites)
 
@@ -2340,7 +2340,7 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
   ! ARGUMENTS:
   ! -----------------------------------------------------------------------------------
   integer,intent(in)                      :: nsites
-  type(ed_site_type),intent(inout),target :: sites(nsites)
+  type(fates_site_type),intent(inout),target :: sites(nsites)
   type(bc_in_type),intent(in)             :: bc_in(nsites)
   type(bc_out_type),intent(inout)         :: bc_out(nsites)
   real(r8),intent(in)                     :: dtime
@@ -4231,7 +4231,7 @@ subroutine AccumulateMortalityWaterStorage(csite,ccohort,delta_n)
 
   ! Arguments
 
-   type(ed_site_type), intent(inout), target     :: csite
+   type(fates_site_type), intent(inout), target     :: csite
    type(fates_cohort_type) , intent(inout), target  :: ccohort
    real(r8), intent(in)                          :: delta_n ! Loss in number density
    ! for this cohort /ha/day
@@ -4272,7 +4272,7 @@ subroutine RecruitWaterStorage(nsites,sites,bc_out)
 
   ! Arguments
    integer, intent(in)                       :: nsites
-   type(ed_site_type), intent(inout), target :: sites(nsites)
+   type(fates_site_type), intent(inout), target :: sites(nsites)
    type(bc_out_type), intent(inout)          :: bc_out(nsites)
 
    ! Locals
