@@ -23,7 +23,7 @@ module EDLoggingMortalityMod
    use FatesLitterMod    , only : ndcmpy
    use FatesLitterMod    , only : litter_type
    use FatesSiteMod      , only : fates_site_type
-   use EDTypesMod        , only : ed_resources_management_type
+   use FatesResourcesManagementMod, only : fates_resources_management_type
    use EDTypesMod        , only : dtype_ilog
    use EDTypesMod        , only : dtype_ifall
    use EDTypesMod        , only : dtype_ifire

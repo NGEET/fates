@@ -129,24 +129,4 @@ module EDTypesMod
   logical, parameter, public :: homogenize_seed_pfts  = .false.
   character(len=*), parameter, private :: sourcefile = __FILE__
 
-  !************************************
-  !** Resources management type      **
-  ! YX
-  !************************************
-  type, public :: ed_resources_management_type
-    
-     real(r8) ::  trunk_product_site                       ! Actual  trunk product at site level KgC/site
-     real(r8) ::  harvest_debt                             ! the amount of kgC per site that did not successfully harvested 
-     real(r8) ::  harvest_debt_sec                         ! the amount of kgC per site from secondary patches that did
-                                                           ! not successfully harvested
-
-     !debug variables
-     real(r8) ::  delta_litter_stock                       ! kgC/site = kgC/ha
-     real(r8) ::  delta_biomass_stock                      ! kgC/site
-     real(r8) ::  delta_individual                         ! 
-  
-  end type ed_resources_management_type
-
-  ! =====================================================================================
-
 end module EDTypesMod

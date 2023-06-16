@@ -1,25 +1,25 @@
 module FatesSiteMod 
 
-  use FatesConstantsMod,      only : r8 => fates_r8
-  use FatesConstantsMod,      only : fates_unset_int
-  use FatesConstantsMod,      only : ifalse
-  use FatesConstantsMod,      only : itrue
-  use EDParamsMod,            only : nclmax
-  use FatesGlobals,           only : fates_log
-  use FatesPatchMod,          only : fates_patch_type
-  use EDTypesMod,             only : ed_resources_management_type
-  use FatesMassBalTypeMod,    only : site_massbal_type
-  use EDTypesMod,             only : numWaterMem, num_vegtemp_mem
-  use FatesConstantsMod,      only : N_DIST_TYPES
-  use FatesHydraulicsMemMod,  only : ed_site_hydr_type
-  use PRTGenericMod,          only : num_elements
-  use FatesConstantsMod,      only : maxpft
-  use FatesLitterMod,         only : ncwd
-  use FatesInterfaceTypesMod, only : nlevage, nlevdamage, nlevsclass, numpft
-  use FatesInterfaceTypesMod, only : hlm_use_nocomp, hlm_use_fixed_biogeog
-  use FatesInterfaceTypesMod, only : hlm_use_tree_damage
+  use FatesConstantsMod,           only : r8 => fates_r8
+  use FatesConstantsMod,           only : fates_unset_int
+  use FatesConstantsMod,           only : ifalse
+  use FatesConstantsMod,           only : itrue
+  use EDParamsMod,                 only : nclmax
+  use FatesGlobals,                only : fates_log
+  use FatesPatchMod,               only : fates_patch_type
+  use FatesResourcesManagementMod, only : fates_resources_management_type
+  use FatesMassBalTypeMod,         only : site_massbal_type
+  use EDTypesMod,                  only : numWaterMem, num_vegtemp_mem
+  use FatesConstantsMod,           only : N_DIST_TYPES
+  use FatesHydraulicsMemMod,       only : ed_site_hydr_type
+  use PRTGenericMod,               only : num_elements
+  use FatesConstantsMod,           only : maxpft
+  use FatesLitterMod,              only : ncwd
+  use FatesInterfaceTypesMod,      only : nlevage, nlevdamage, nlevsclass, numpft
+  use FatesInterfaceTypesMod,      only : hlm_use_nocomp, hlm_use_fixed_biogeog
+  use FatesInterfaceTypesMod,      only : hlm_use_tree_damage
 
-  use shr_infnan_mod,         only : nan => shr_infnan_nan, assignment(=)
+  use shr_infnan_mod,              only : nan => shr_infnan_nan, assignment(=)
 
   implicit none
   private
@@ -36,7 +36,7 @@ module FatesSiteMod
     !-------------------------------------------------------------------------------------
      
     ! RESOURCE MANAGEMENT
-    type(ed_resources_management_type) :: resources_management ! resources_management at the site
+    type(fates_resources_management_type) :: resources_management ! resources_management at the site
 
     !-------------------------------------------------------------------------------------
 
@@ -468,18 +468,16 @@ module FatesSiteMod
       ! LOCALS:
       integer :: el ! looping index
 
+      ! zero the state variables used for checking mass conservation
       do el = 1, num_elements
-        ! zero the state variables used for checking mass conservation
         call this%mass_balance(el)%ZeroMassBalState()
         call this%mass_balance(el)%ZeroMassBalFlux()
         call this%flux_diags(el)%ZeroFluxDiags()
       end do
 
-      ! Resources management (logging/harvesting, etc)
-      this%resources_management%harvest_debt           = 0.0_r8
-      this%resources_management%harvest_debt_sec       = 0.0_r8
-      this%resources_management%trunk_product_site     = 0.0_r8
-   
+      ! zero resources management variables
+      call this%resources_management%ZeroVals()
+
       this%primary_land_patchfusion_error              = 0.0_r8
       this%potential_disturbance_rates(:)              = 0.0_r8
       this%disturbance_rates_secondary_to_secondary(:) = 0.0_r8
