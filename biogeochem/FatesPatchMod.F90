@@ -74,8 +74,8 @@ module FatesPatchMod
     ! LEAF ORGANIZATION
     real(r8) :: pft_agb_profile(maxpft,n_dbh_bins)          ! binned aboveground biomass, for patch fusion [kgC/m2]
     real(r8) :: canopy_layer_tlai(nclmax)                   ! total leaf area index of each canopy layer [m2 veg/m2 canopy area]
-                                                              !   (patch without bare ground)
-                                                              !   used to determine attenuation of parameters during photosynthesis
+                                                            !   (patch without bare ground)
+                                                            !   used to determine attenuation of parameters during photosynthesis
     real(r8) :: total_canopy_area                           ! area that is covered by vegetation [m2]
     real(r8) :: total_tree_area                             ! area that is covered by woody vegetation [m2]
     real(r8) :: zstar                                       ! height of smallest canopy tree, only meaningful in "strict PPA" mode [m]
@@ -84,9 +84,9 @@ module FatesPatchMod
     real(r8) :: tlai_profile(nclmax,maxpft,nlevleaf) 
     real(r8) :: tsai_profile(nclmax,maxpft,nlevleaf) 
     real(r8) :: canopy_area_profile(nclmax,maxpft,nlevleaf) ! fraction of crown area per canopy area in each layer
-                                                              !   they will sum to 1.0 in the fully closed canopy layers
-                                                              !   but only in leaf-layers that contain contributions
-                                                              !   from all cohorts that donate to canopy_area
+                                                            !   they will sum to 1.0 in the fully closed canopy layers
+                                                            !   but only in leaf-layers that contain contributions
+                                                            !   from all cohorts that donate to canopy_area
     integer  :: canopy_mask(nclmax,maxpft)                  ! is there any of this pft in this canopy layer?      
     integer  :: nrad(nclmax,maxpft)                         ! number of exposed leaf layers for each canopy layer and pft
     integer  :: ncan(nclmax,maxpft)                         ! number of total   leaf layers for each canopy layer and pft
@@ -171,13 +171,13 @@ module FatesPatchMod
     real(r8)              :: fuel_frac(nfsc)         ! fraction of each litter class in the ros_fuel [0-1]
     real(r8)              :: livegrass               ! total aboveground grass biomass in patch [kgC/m2]
     real(r8)              :: fuel_bulkd              ! average fuel bulk density of the ground fuel. [kg/m3]
-                                                       ! (incl. live grasses, omits 1000hr fuels)
+                                                     !  (incl. live grasses, omits 1000hr fuels)
     real(r8)              :: fuel_sav                ! average surface area to volume ratio of the ground fuel [cm-1]
-                                                       ! (incl. live grasses, omits 1000hr fuels)
+                                                     !  (incl. live grasses, omits 1000hr fuels)
     real(r8)              :: fuel_mef                ! average moisture of extinction factor 
-                                                       ! of the ground fuel (incl. live grasses, omits 1000hr fuels)
+                                                     !  of the ground fuel (incl. live grasses, omits 1000hr fuels)
     real(r8)              :: fuel_eff_moist          ! effective avearage fuel moisture content of the ground fuel 
-                                                       ! (incl. live grasses. omits 1000hr fuels)
+                                                     !  (incl. live grasses. omits 1000hr fuels)
     real(r8)              :: litter_moisture(nfsc)   ! moisture of litter [m3/m3]
 
     ! fire spread

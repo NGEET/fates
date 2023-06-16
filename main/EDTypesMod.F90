@@ -149,30 +149,6 @@ module EDTypesMod
 
   ! =====================================================================================
 
-  type, public :: site_fluxdiags_type
-
-     ! ----------------------------------------------------------------------------------
-     ! Diagnostics for fluxes into the litter pool from plants
-     ! these fluxes are the total from 
-     ! (1) turnover from living plants
-     ! (2) mass transfer from non-disturbance inducing mortality events
-     ! (3) mass transfer from disturbance inducing mortality events
-     ! [kg / ha / day]
-     ! ---------------------------------------------------------------------------------
-
-     real(r8) :: cwd_ag_input(1:ncwd)               
-     real(r8) :: cwd_bg_input(1:ncwd)               
-     real(r8),allocatable :: leaf_litter_input(:)
-     real(r8),allocatable :: root_litter_input(:)
-     
-   contains
-
-     procedure :: ZeroFluxDiags
-     
-  end type site_fluxdiags_type
-
-  ! ====================================================================================
-
   type, public ::  site_massbal_type
 
      ! ----------------------------------------------------------------------------------
@@ -227,23 +203,7 @@ module EDTypesMod
   
 
   contains
-      
-    ! =====================================================================================
-
-    subroutine ZeroFluxDiags(this)
-      
-      class(site_fluxdiags_type) :: this
-      
-      this%cwd_ag_input(:)      = 0._r8
-      this%cwd_bg_input(:)      = 0._r8
-      this%leaf_litter_input(:) = 0._r8
-      this%root_litter_input(:) = 0._r8
-      
-      return
-    end subroutine ZeroFluxDiags
-
-    ! =====================================================================================
-    
+       
     subroutine ZeroMassBalState(this)
       
       class(site_massbal_type) :: this

@@ -27,8 +27,8 @@ module FatesCohortMod
   use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
   use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
   use FatesAllometryMod,          only : carea_allom, tree_lai, tree_sai
-  use PRTAllometricCarbonMod,     only : ac_bc_inout_id_dbh, ac_bc_inout_id_netdc, &
-                                       ac_bc_in_id_cdamage, ac_bc_in_id_pft,       &
+  use PRTAllometricCarbonMod,     only : ac_bc_inout_id_dbh, ac_bc_inout_id_netdc,       &
+                                       ac_bc_in_id_cdamage, ac_bc_in_id_pft,             &
                                        ac_bc_in_id_ctrim, ac_bc_in_id_lstat
   use PRTAllometricCNPMod,        only : acnp_bc_in_id_pft, acnp_bc_in_id_ctrim,         &
                                      acnp_bc_in_id_lstat, acnp_bc_in_id_netdc,           &
@@ -57,7 +57,7 @@ module FatesCohortMod
     type (fates_cohort_type), pointer :: taller   => null() ! pointer to next tallest cohort     
     type (fates_cohort_type), pointer :: shorter  => null() ! pointer to next shorter cohort
     
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------------------
 
     ! Multi-species, multi-organ Plant Reactive Transport (PRT)
     ! Contains carbon and nutrient state variables for various plant organs
@@ -69,7 +69,7 @@ module FatesCohortMod
                                             ! In cold-start simulations, the allom_l2fr 
                                             ! parameter sets the starter value. 
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------------------
 
     ! VEGETATION STRUCTURE
     
@@ -109,11 +109,11 @@ module FatesCohortMod
     integer  :: coage_by_pft_class      ! index that indicates the cohorts position of the join cohort age class x PFT 
     integer  :: size_class_lasttimestep ! size class of the cohort at the last time step
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------------------
 
     ! CARBON AND NUTRIENT FLUXES 
 
-    ! --------------------------------------------------------------------------
+    ! ------------------------------------------------------------------------------------
     ! NPP, GPP and RESP: Instantaneous, accumulated and accumulated-hold types*
     ! 
     ! _tstep:    The instantaneous estimate that is calculated at each rapid plant biophysics
@@ -125,7 +125,7 @@ module FatesCohortMod
     !            _acc_hold "holds" the integrated value until the next time dynamics is 
     !            called. This is necessary for restarts. This variable also has units
     !            converted to a useful rate [kgC/indiv/yr]
-    ! --------------------------------------------------------------------------
+    ! ------------------------------------------------------------------------------------
 
     real(r8) :: gpp_tstep                 ! Gross Primary Production (see above *)
     real(r8) :: gpp_acc
@@ -187,7 +187,7 @@ module FatesCohortMod
 
     real(r8) :: seed_prod                 ! diagnostic seed production rate [kgC/plant/day]
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------------------
 
     ! RESPIRATION COMPONENTS
     real(r8) :: rdark            ! dark respiration [kgC/indiv/s]
@@ -199,12 +199,12 @@ module FatesCohortMod
     real(r8) :: livecroot_mr     ! belowground live stem maintenance respiration [kgC/indiv/s]
     real(r8) :: froot_mr         ! live fine root maintenance respiration [kgC/indiv/s]
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------------------
 
     ! DAMAGE
     real(r8) :: branch_frac ! fraction of aboveground woody biomass in branches [0-1]
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------------------
 
     ! MORTALITY
     real(r8) :: dmort            ! proportional mortality rate [/year]
@@ -227,16 +227,16 @@ module FatesCohortMod
                                  !  (i.e. they are moved to newly-anthro-disturbed secondary 
                                  !  forest patch)  [fraction/logging activity]
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------------------
 
     ! NITROGEN POOLS      
-    ! --------------------------------------------------------------------------
+    ! ------------------------------------------------------------------------------------
     ! Nitrogen pools are not prognostic in the current implementation.
     ! They are diagnosed during photosynthesis using a simple C2N parameter. 
     ! Local values are used in that routine.
-    ! --------------------------------------------------------------------------
+    ! ------------------------------------------------------------------------------------
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------------------
 
     ! GROWTH DERIVIATIVES
     real(r8) :: dndt      ! time derivative of cohort size [n/year]
@@ -244,7 +244,7 @@ module FatesCohortMod
     real(r8) :: ddbhdt    ! time derivative of dbh [cm/year]
     real(r8) :: dbdeaddt  ! time derivative of dead biomass [kgC/year]
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------------------
 
     ! FIRE
     real(r8) ::  fraction_crown_burned ! proportion of crown affected by fire [0-1]
@@ -254,7 +254,7 @@ module FatesCohortMod
                                        !  (conditional on the tree being subjected to the fire)
     real(r8) ::  fire_mort             ! post-fire mortality from cambial and crown damage assuming two are independent [0-1]
 
-    !---------------------------------------------------------------------------
+    !-------------------------------------------------------------------------------------
 
     ! HYDRAULICS
     type(ed_cohort_hydr_type), pointer :: co_hydr ! all cohort hydraulics data, see FatesHydraulicsMemMod.F90
@@ -276,7 +276,7 @@ module FatesCohortMod
 
   contains
 
-    !===========================================================================
+    !=====================================================================================
 
     subroutine Init(this, prt)
       !
@@ -307,7 +307,7 @@ module FatesCohortMod
   
     end subroutine Init
   
-    !===========================================================================
+    !=====================================================================================
 
     subroutine NanValues(this)
       !
@@ -433,7 +433,7 @@ module FatesCohortMod
    
     end subroutine NanValues
    
-    !===========================================================================
+    !=====================================================================================
    
     subroutine ZeroValues(this)
       !
@@ -513,9 +513,9 @@ module FatesCohortMod
     
     end subroutine ZeroValues
    
-    !===========================================================================
+    !=====================================================================================
 
-    subroutine Create(this, prt, pft, nn, hite, coage, dbh, status,            &
+    subroutine Create(this, prt, pft, nn, hite, coage, dbh, status,                      &
       ctrim, carea, clayer, crowndamage, spread, can_tlai)
       !
       ! DESCRIPTION:
@@ -561,7 +561,7 @@ module FatesCohortMod
       ! In these cases, testing if things like biomass are reasonable is premature
       ! However, in this part of the code, we will pass in nominal values for size, number and type
       if (this%dbh <= 0._r8 .or. this%n == 0._r8 .or. this%pft == 0) then
-        write(fates_log(),*) 'FATES: something is zero in cohort%Create',      &
+        write(fates_log(),*) 'FATES: something is zero in cohort%Create',                &
           this%dbh, this%n, this%pft
         call endrun(msg=errMsg(sourcefile, __LINE__))
       endif
@@ -585,19 +585,19 @@ module FatesCohortMod
       call this%UpdateCohortBioPhysRates()
 
       ! calculate size classes
-      call sizetype_class_index(this%dbh, this%pft, this%size_class,           &
+      call sizetype_class_index(this%dbh, this%pft, this%size_class,                     &
         this%size_by_pft_class)
 
       ! If cohort age tracking is off we call this here once, just so everything
       ! is in the first bin. This makes it easier to copy and terminate cohorts 
       ! later.
       ! We don't need to update this ever if cohort age tracking is off
-      call coagetype_class_index(this%coage, this%pft, this%coage_class,       &
+      call coagetype_class_index(this%coage, this%pft, this%coage_class,                 &
         this%coage_by_pft_class)
 
       ! asssign or calculate canopy extent and depth
       if (hlm_use_sp .eq. ifalse) then
-        call carea_allom(this%dbh, this%n, spread, this%pft, this%crowndamage, &
+        call carea_allom(this%dbh, this%n, spread, this%pft, this%crowndamage,           &
           this%c_area)
       else
         ! set this from previously precision-controlled value in SP mode
@@ -608,12 +608,12 @@ module FatesCohortMod
       leaf_c = this%prt%GetState(leaf_organ, carbon12_element)
 
       ! calculate tree lai
-      this%treelai = tree_lai(leaf_c, this%pft, this%c_area, this%n,           &
+      this%treelai = tree_lai(leaf_c, this%pft, this%c_area, this%n,                     &
         this%canopy_layer, can_tlai, this%vcmax25top)
 
       if (hlm_use_sp .eq. ifalse) then
-        this%treesai = tree_sai(this%pft, this%dbh, this%crowndamage,          &
-          this%canopy_trim, this%c_area, this%n, this%canopy_layer, can_tlai,  &
+        this%treesai = tree_sai(this%pft, this%dbh, this%crowndamage,                    &
+          this%canopy_trim, this%c_area, this%n, this%canopy_layer, can_tlai,            &
           this%treelai,this%vcmax25top, 2)
       end if
 
@@ -621,7 +621,7 @@ module FatesCohortMod
 
     end subroutine Create
 
-    !===========================================================================
+    !=====================================================================================
 
     subroutine Copy(this, copyCohort) 
       !
@@ -755,7 +755,7 @@ module FatesCohortMod
 
     end subroutine Copy
 
-    !===========================================================================
+    !=====================================================================================
 
     subroutine FreeMemory(this)
       !
@@ -789,7 +789,7 @@ module FatesCohortMod
 
     end subroutine FreeMemory
 
-    !===========================================================================
+    !=====================================================================================
   
     subroutine InitPRTBoundaryConditions(this)      
       !
@@ -865,7 +865,7 @@ module FatesCohortMod
    
     end subroutine InitPRTBoundaryConditions
    
-    !===========================================================================
+    !=====================================================================================
 
     subroutine UpdateCohortBioPhysRates(this)
       !
@@ -889,8 +889,7 @@ module FatesCohortMod
       ! First, calculate the fraction of leaves in each age class
       ! It is assumed that each class has the same proportion across leaf layers
       do iage = 1, nleafage
-         frac_leaf_aclass(iage) = this%prt%GetState(leaf_organ,                &
-          carbon12_element, iage)
+         frac_leaf_aclass(iage) = this%prt%GetState(leaf_organ, carbon12_element, iage)
       end do
 
       ! If there are leaves, then perform proportional weighting on the four rates
@@ -899,22 +898,21 @@ module FatesCohortMod
 
       ipft = this%pft
 
-      if (sum(frac_leaf_aclass(1:nleafage)) > nearzero .and.                   &
-        hlm_use_sp .eq. ifalse) then
+      if (sum(frac_leaf_aclass(1:nleafage)) > nearzero .and. hlm_use_sp .eq. ifalse) then
 
-        frac_leaf_aclass(1:nleafage) = frac_leaf_aclass(1:nleafage)/           &
+        frac_leaf_aclass(1:nleafage) = frac_leaf_aclass(1:nleafage)/                     &
           sum(frac_leaf_aclass(1:nleafage))
 
-        this%vcmax25top = sum(EDPftvarcon_inst%vcmax25top(ipft, 1:nleafage)*   &
+        this%vcmax25top = sum(EDPftvarcon_inst%vcmax25top(ipft, 1:nleafage)*             &
           frac_leaf_aclass(1:nleafage))
 
-        this%jmax25top = sum(param_derived%jmax25top(ipft, 1:nleafage)*        &
+        this%jmax25top = sum(param_derived%jmax25top(ipft, 1:nleafage)*                  &
           frac_leaf_aclass(1:nleafage))
 
-        this%tpu25top = sum(param_derived%tpu25top(ipft, 1:nleafage)*          &
+        this%tpu25top = sum(param_derived%tpu25top(ipft, 1:nleafage)*                    &
           frac_leaf_aclass(1:nleafage))
 
-        this%kp25top = sum(param_derived%kp25top(ipft, 1:nleafage)*            &
+        this%kp25top = sum(param_derived%kp25top(ipft, 1:nleafage)*                      &
           frac_leaf_aclass(1:nleafage))
 
       else if (hlm_use_sp .eq. itrue) then
@@ -935,7 +933,7 @@ module FatesCohortMod
 
     end subroutine UpdateCohortBioPhysRates
 
-    !===========================================================================
+    !=====================================================================================
 
     function CanUpperUnder(this) result(can_position)
       !
@@ -960,7 +958,7 @@ module FatesCohortMod
       
     end function CanUpperUnder
    
-    !===========================================================================
+    !=====================================================================================
 
     subroutine Dump(this)
       !
@@ -1048,6 +1046,6 @@ module FatesCohortMod
    
     end subroutine Dump
    
-    !===========================================================================
+    !=====================================================================================
    
 end module FatesCohortMod

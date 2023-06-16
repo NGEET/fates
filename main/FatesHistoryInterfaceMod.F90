@@ -17,7 +17,7 @@ module FatesHistoryInterfaceMod
   use PRTGenericMod            , only : element_pos
   use PRTGenericMod            , only : num_elements
   use PRTGenericMod            , only : prt_cnp_flex_allom_hyp
-  use EDTypesMod               , only : site_fluxdiags_type
+  use FatesSiteMod             , only : site_fluxdiags_type
   use FatesSiteMod             , only : fates_site_type
   use FatesCohortMod           , only : fates_cohort_type
   use FatesPatchMod            , only : fates_patch_type

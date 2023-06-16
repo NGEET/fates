@@ -2521,8 +2521,6 @@ contains
 
      use FatesConstantsMod,    only : maxpft
      use EDTypesMod,           only : area
-     use EDInitMod,            only : zero_site
-     use EDInitMod,            only : init_site_vars
      use FatesAllometryMod,    only : h2d_allom
 
 
@@ -2564,8 +2562,8 @@ contains
           io_idx_si  = this%restart_map(nc)%site_index(s)
           io_idx_co_1st  = this%restart_map(nc)%cohort1_index(s)
 
-          call init_site_vars( sites(s), bc_in(s), bc_out(s) )
-          call zero_site( sites(s) )
+          call sites(s)%Init(bc_in(s)%nlevsoil, bc_in(s)%zi_sisl, bc_in(s)%dz_sisl,      &
+            bc_in(s)%z_sisl)
 
           if ( rio_npatch_si(io_idx_si)<0 .or. rio_npatch_si(io_idx_si) > 10000 ) then
              write(fates_log(),*) 'a column was expected to contain a valid number of patches'

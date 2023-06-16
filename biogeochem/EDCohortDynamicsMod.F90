@@ -43,7 +43,7 @@ Module EDCohortDynamicsMod
   use EDParamsMod            , only : nlevleaf
   use PRTGenericMod         , only : max_nleafage
   use FatesConstantsMod     , only : ican_upper
-  use EDTypesMod            , only : site_fluxdiags_type
+  use FatesSiteMod          , only : site_fluxdiags_type
   use PRTGenericMod          , only : num_elements
   use FatesConstantsMod      , only : leaves_on
   use EDParamsMod           , only : ED_val_cohort_age_fusion_tol

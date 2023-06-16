@@ -63,7 +63,7 @@ module EDPhysiologyMod
   use PRTGenericMod       , only : num_elements
   use PRTGenericMod       , only : element_list
   use PRTGenericMod       , only : element_pos
-  use EDTypesMod          , only : site_fluxdiags_type
+  use FatesSiteMod        , only : site_fluxdiags_type
   use EDTypesMod          , only : phen_cstat_nevercold
   use EDTypesMod          , only : phen_cstat_iscold
   use EDTypesMod          , only : phen_cstat_notcold

@@ -1,15 +1,25 @@
 module FatesSiteMod 
 
-  use FatesConstantsMod,     only : r8 => fates_r8
-  use FatesGlobals,          only : fates_log
-  use FatesPatchMod,         only : fates_patch_type
-  use EDTypesMod,            only : ed_resources_management_type
-  use EDTypesMod,            only : site_fluxdiags_type
-  use EDTypesMod,            only : site_massbal_type
-  use EDTypesMod,            only : numWaterMem, num_vegtemp_mem
-  use FatesConstantsMod,     only : N_DIST_TYPES
-  use FatesHydraulicsMemMod, only : ed_site_hydr_type
-  use FatesConstantsMod,     only : maxpft
+  use FatesConstantsMod,      only : r8 => fates_r8
+  use FatesConstantsMod,      only : fates_unset_int
+  use FatesConstantsMod,      only : ifalse
+  use FatesConstantsMod,      only : itrue
+  use EDParamsMod,            only : nclmax
+  use FatesGlobals,           only : fates_log
+  use FatesPatchMod,          only : fates_patch_type
+  use EDTypesMod,             only : ed_resources_management_type
+  use EDTypesMod,             only : site_massbal_type
+  use EDTypesMod,             only : numWaterMem, num_vegtemp_mem
+  use FatesConstantsMod,      only : N_DIST_TYPES
+  use FatesHydraulicsMemMod,  only : ed_site_hydr_type
+  use PRTGenericMod,          only : num_elements
+  use FatesConstantsMod,      only : maxpft
+  use FatesLitterMod,         only : ncwd
+  use FatesInterfaceTypesMod, only : nlevage, nlevdamage, nlevsclass, numpft
+  use FatesInterfaceTypesMod, only : hlm_use_nocomp, hlm_use_fixed_biogeog
+  use FatesInterfaceTypesMod, only : hlm_use_tree_damage
+
+  use shr_infnan_mod,         only : nan => shr_infnan_nan, assignment(=)
 
   implicit none
   private
@@ -59,7 +69,7 @@ module FatesSiteMod
                                             !   in FatesSoilBGCFluxMod. Used solely to inform bc_out%ema_npp
                                             !   which is used for fixation
     real(r8) :: snow_depth                  ! site-level snow depth [m] (used for ELAI/TLAI calcs)
-    real(r8) :: spread                     ! canopy spread, dynamic canopy allometric term [unitless]
+    real(r8) :: spread                      ! canopy spread, dynamic canopy allometric term [unitless]
 
     !-------------------------------------------------------------------------------------
 
@@ -187,13 +197,343 @@ module FatesSiteMod
 
     contains 
 
+    procedure :: Init
+    procedure :: NanValues
+    procedure :: ZeroValues
     procedure :: Dump
 
   end type fates_site_type
 
-  contains 
+  !=======================================================================================
+
+  type, public :: site_fluxdiags_type
+
+    ! ------------------------------------------------------------------------------------
+    ! Diagnostics for fluxes into the litter pool from plants
+    ! these fluxes are the total from 
+    ! (1) turnover from living plants
+    ! (2) mass transfer from non-disturbance inducing mortality events
+    ! (3) mass transfer from disturbance inducing mortality events
+    ! [kg / ha / day]
+    ! ------------------------------------------------------------------------------------
+
+    real(r8)              :: cwd_ag_input(1:ncwd)               
+    real(r8)              :: cwd_bg_input(1:ncwd)               
+    real(r8), allocatable :: leaf_litter_input(:)
+    real(r8), allocatable :: root_litter_input(:)
+  
+  contains
+
+    procedure :: ZeroFluxDiags
+  
+  end type site_fluxdiags_type
+
+  !=======================================================================================
+
+  contains
+
+    subroutine Init(this, num_levsoil, zi_sisl, dz_sisl, z_sisl)
+      !
+      !  DESCRIPTION:
+      !  Initialize variables for the site type
+      !
+
+      ! ARGUMENTS:
+      class(fates_site_type), intent(inout) :: this        ! site object
+      integer,               intent(in)     :: num_levsoil ! the number of soil layers in this column
+      real(r8),               intent(in)    :: zi_sisl(:)  ! soil interface level below a "z" level [m]
+      real(r8),               intent(in)    :: dz_sisl(:)  ! soil layer thickness [m]
+      real(r8),               intent(in)    :: z_sisl(:)   ! soil layer depth [m]
+
+      ! LOCALS:
+      integer :: el ! looping index
+
+      ! allocate arrays
+      allocate(this%term_nindivs_canopy(1:nlevsclass,1:numpft))
+      allocate(this%term_nindivs_ustory(1:nlevsclass,1:numpft))
+      allocate(this%demotion_rate(1:nlevsclass))
+      allocate(this%promotion_rate(1:nlevsclass))
+      allocate(this%imort_rate(1:nlevsclass,1:numpft))
+      allocate(this%fmort_rate_canopy(1:nlevsclass,1:numpft))
+      allocate(this%fmort_rate_ustory(1:nlevsclass,1:numpft))
+      allocate(this%fmort_rate_cambial(1:nlevsclass,1:numpft))
+      allocate(this%fmort_rate_crown(1:nlevsclass,1:numpft))
+      allocate(this%growthflux_fusion(1:nlevsclass,1:numpft))
+      allocate(this%mass_balance(1:num_elements))
+      allocate(this%flux_diags(1:num_elements))
+
+      if (hlm_use_tree_damage .eq. itrue) then 
+        allocate(this%term_nindivs_canopy_damage(1:nlevdamage,1:nlevsclass,1:numpft))
+        allocate(this%term_nindivs_ustory_damage(1:nlevdamage,1:nlevsclass,1:numpft))
+        allocate(this%imort_rate_damage(1:nlevdamage,1:nlevsclass,1:numpft))
+        allocate(this%imort_cflux_damage(1:nlevdamage,1:nlevsclass))
+        allocate(this%term_cflux_canopy_damage(1:nlevdamage,1:nlevsclass))
+        allocate(this%term_cflux_ustory_damage(1:nlevdamage,1:nlevsclass))
+        allocate(this%fmort_rate_canopy_damage(1:nlevdamage,1:nlevsclass,1:numpft))
+        allocate(this%fmort_rate_ustory_damage(1:nlevdamage,1:nlevsclass,1:numpft)) 
+        allocate(this%fmort_cflux_canopy_damage(1:nlevdamage,1:nlevsclass))
+        allocate(this%fmort_cflux_ustory_damage(1:nlevdamage,1:nlevsclass)) 
+      else
+        allocate(this%term_nindivs_canopy_damage(1,1,1))
+        allocate(this%term_nindivs_ustory_damage(1,1,1))
+        allocate(this%imort_rate_damage(1,1,1))
+        allocate(this%imort_cflux_damage(1,1))
+        allocate(this%term_cflux_canopy_damage(1,1))
+        allocate(this%term_cflux_ustory_damage(1,1))
+        allocate(this%fmort_rate_canopy_damage(1,1,1))
+        allocate(this%fmort_rate_ustory_damage(1,1,1))
+        allocate(this%fmort_cflux_canopy_damage(1,1))
+        allocate(this%fmort_cflux_ustory_damage(1,1))
+      end if
+
+      allocate(this%term_carbonflux_canopy(1:numpft))
+      allocate(this%term_carbonflux_ustory(1:numpft))
+      allocate(this%imort_carbonflux(1:numpft))
+      allocate(this%fmort_carbonflux_canopy(1:numpft))
+      allocate(this%fmort_carbonflux_ustory(1:numpft))
+
+      allocate(this%term_abg_flux(1:nlevsclass,1:numpft))
+      allocate(this%imort_abg_flux(1:nlevsclass,1:numpft))
+      allocate(this%fmort_abg_flux(1:nlevsclass,1:numpft))
+
+      allocate(this%rootfrac_scr(num_levsoil))
+      allocate(this%zi_soil(0:num_levsoil))
+      allocate(this%dz_soil(num_levsoil))
+      allocate(this%z_soil(num_levsoil))
+
+      if (hlm_use_nocomp .eq. itrue .and. hlm_use_fixed_biogeog .eq. itrue) then
+        ! SP and nocomp require a bare-ground patch.
+        allocate(this%area_pft(0:numpft))
+      else  
+        allocate(this%area_pft(1:numpft))  
+      endif
+
+      allocate(this%use_this_pft(1:numpft))
+      allocate(this%area_by_age(1:nlevage))
+
+      ! for CNP dynamics, track the mean l2fr of recruits
+      ! for different pfts and canopy positions
+      allocate(this%rec_l2fr(1:numpft,nclmax))
+
+      ! SP mode
+      allocate(this%sp_tlai(1:numpft))
+      allocate(this%sp_tsai(1:numpft))
+      allocate(this%sp_htop(1:numpft))
+
+      do el = 1, num_elements
+        allocate(this%flux_diags(el)%leaf_litter_input(1:numpft))
+        allocate(this%flux_diags(el)%root_litter_input(1:numpft))
+      end do
+
+      ! initialize all values to nan
+      call this%NanValues()
+
+      ! set some values to zero
+      call this%ZeroValues()
+
+      ! initialize the static soil arrays from the boundary (initial) condition
+      this%nlevsoil = num_levsoil
+      this%zi_soil(:) = zi_sisl(:)
+      this%dz_soil(:) = dz_sisl(:)
+      this%z_soil(:)  = z_sisl(:)
+
+    end subroutine Init
 
     !=====================================================================================
+
+    subroutine NanValues(this)
+      !
+      !  DESCRIPTION:
+      !  Sets all values in site to nan
+      !
+
+      ! ARGUMENTS:
+      class(fates_site_type), intent(inout) :: this
+
+      ! set pointers to null
+      this%oldest_patch    => null()   
+      this%youngest_patch  => null()
+      nullify(this%oldest_patch)
+      nullify(this%youngest_patch)
+
+      ! INDICES
+      this%h_gid                                      = fates_unset_int
+      this%lat                                        = nan 
+      this%lon                                        = nan 
+
+      ! FIXED BIOGEOGRAPHY MODE INPUTS
+      this%area_PFT(:)                                = nan
+      this%use_this_pft(:)                            = fates_unset_int
+
+      ! SP MODE TARGET PFT-LEVEL VARIABLES
+      this%sp_tlai(:)                                 = nan
+      this%sp_tsai(:)                                 = nan 
+      this%sp_htop(:)                                 = nan 
+
+      ! SITE CHARACTERISTICS
+      this%area_by_age(:)                              = nan 
+      this%rec_l2fr(:,:)                               = nan
+      this%ema_npp                                     = nan 
+      this%snow_depth                                  = nan 
+      this%spread                                      = nan 
+
+      ! PHENOLOGY 
+      this%grow_deg_days                               = nan                
+      this%nchilldays                                  = fates_unset_int                 
+      this%ncolddays                                   = fates_unset_int                  
+      this%cstatus                                     = fates_unset_int                       
+      this%dstatus                                     = fates_unset_int                      
+      this%cleafondate                                 = fates_unset_int          
+      this%cleafoffdate                                = fates_unset_int              
+      this%dleafondate                                 = fates_unset_int 
+      this%dleafoffdate                                = fates_unset_int             
+      this%phen_model_date                             = fates_unset_int 
+      this%water_memory(:)                             = nan      
+      this%vegtemp_memory(:)                           = nan 
+
+      ! FIRE
+      this%wind                                        = nan          
+      this%acc_ni                                      = nan     
+      this%fdi                                         = nan          
+      this%NF                                          = nan        
+      this%NF_successful                               = nan 
+
+      ! SOIL LAYERS
+      this%nlevsoil                                    = fates_unset_int 
+      this%zi_soil(:)                                  = nan       
+      this%dz_soil(:)                                  = nan     
+      this%z_soil(:)                                   = nan     
+      this%rootfrac_scr(:)                             = nan 
+
+      ! TERMINATION, RECRUITMENT, DEMOTION, and DISTURBANCE DIAGNOSTICS
+      this%term_crownarea_canopy                       = nan       
+      this%term_crownarea_ustory                       = nan            
+      this%imort_crownarea                             = nan                  
+      this%fmort_crownarea_canopy                      = nan         
+      this%fmort_crownarea_ustory                      = nan           
+      this%term_nindivs_canopy(:,:)                    = nan                                 
+      this%term_nindivs_ustory(:,:)                    = nan                                                                      
+      this%term_carbonflux_canopy(:)                   = nan                                                               
+      this%term_carbonflux_ustory(:)                   = nan                                                        
+      this%imort_carbonflux(:)                         = nan               
+      this%fmort_carbonflux_canopy(:)                  = nan         
+      this%fmort_carbonflux_ustory(:)                  = nan         
+      this%term_abg_flux(:,:)                          = nan              
+      this%imort_abg_flux(:,:)                         = nan               
+      this%fmort_abg_flux(:,:)                         = nan               
+      this%demotion_carbonflux                         = nan              
+      this%promotion_carbonflux                        = nan             
+      this%recruitment_rate(:)                         = nan         
+      this%demotion_rate(:)                            = nan                  
+      this%promotion_rate(:)                           = nan                  
+      this%imort_rate(:,:)                             = nan                    
+      this%fmort_rate_canopy(:,:)                      = nan                                                                         
+      this%fmort_rate_ustory(:,:)                      = nan                                                                         
+      this%fmort_rate_cambial(:,:)                     = nan                                                             
+      this%fmort_rate_crown(:,:)                       = nan                   
+      this%imort_rate_damage(:,:,:)                    = nan           
+      this%term_nindivs_canopy_damage(:,:,:)           = nan  
+      this%term_nindivs_ustory_damage(:,:,:)           = nan  
+      this%fmort_rate_canopy_damage(:,:,:)             = nan     
+      this%fmort_rate_ustory_damage(:,:,:)             = nan    
+      this%fmort_cflux_canopy_damage(:,:)              = nan     
+      this%fmort_cflux_ustory_damage(:,:)              = nan     
+      this%imort_cflux_damage(:,:)                     = nan            
+      this%term_cflux_canopy_damage(:,:)               = nan   
+      this%term_cflux_ustory_damage(:,:)               = nan      
+      this%growthflux_fusion(:,:)                      = nan        
+      this%crownarea_canopy_damage                     = nan             
+      this%crownarea_ustory_damage                     = nan       
+
+      ! ACTUAL AND POTENTIAL DISTURBANCE RATES
+      this%disturbance_rates_primary_to_primary(:)     = nan     
+      this%disturbance_rates_primary_to_secondary(:)   = nan     
+      this%disturbance_rates_secondary_to_secondary(:) = nan  
+      this%potential_disturbance_rates(:)              = nan               
+      this%primary_land_patchfusion_error              = nan     
+
+    end subroutine NanValues
+
+    !=====================================================================================
+
+    subroutine ZeroValues(this)
+      !
+      ! DESCRIPTION:
+      !     sets specific variables in the site to zero
+      !
+
+      ! ARGUMENTS:
+      class(fates_site_type), intent(inout) :: this
+
+      ! LOCALS:
+      integer :: el ! looping index
+
+      do el = 1, num_elements
+        ! zero the state variables used for checking mass conservation
+        call this%mass_balance(el)%ZeroMassBalState()
+        call this%mass_balance(el)%ZeroMassBalFlux()
+        call this%flux_diags(el)%ZeroFluxDiags()
+      end do
+
+      ! Resources management (logging/harvesting, etc)
+      this%resources_management%harvest_debt           = 0.0_r8
+      this%resources_management%harvest_debt_sec       = 0.0_r8
+      this%resources_management%trunk_product_site     = 0.0_r8
+   
+      this%primary_land_patchfusion_error              = 0.0_r8
+      this%potential_disturbance_rates(:)              = 0.0_r8
+      this%disturbance_rates_secondary_to_secondary(:) = 0.0_r8
+      this%disturbance_rates_primary_to_secondary(:)   = 0.0_r8
+      this%disturbance_rates_primary_to_primary(:)     = 0.0_r8
+      this%acc_ni                                      = 0.0_r8    
+      this%FDI                                         = 0.0_r8     
+      this%NF                                          = 0.0_r8     
+      this%NF_successful                               = 0.0_r8     
+      this%term_nindivs_canopy(:,:)                    = 0.0_r8
+      this%term_nindivs_ustory(:,:)                    = 0.0_r8
+      this%term_crownarea_canopy                       = 0.0_r8
+      this%term_crownarea_ustory                       = 0.0_r8
+      this%imort_crownarea                             = 0.0_r8
+      this%fmort_crownarea_canopy                      = 0.0_r8
+      this%fmort_crownarea_ustory                      = 0.0_r8
+      this%term_carbonflux_canopy(:)                   = 0.0_r8
+      this%term_carbonflux_ustory(:)                   = 0.0_r8
+      this%recruitment_rate(:)                         = 0.0_r8
+      this%imort_rate(:,:)                             = 0.0_r8
+      this%imort_carbonflux(:)                         = 0.0_r8
+      this%fmort_rate_canopy(:,:)                      = 0.0_r8
+      this%fmort_rate_ustory(:,:)                      = 0.0_r8
+      this%fmort_carbonflux_canopy(:)                  = 0.0_r8
+      this%fmort_carbonflux_ustory(:)                  = 0.0_r8
+      this%fmort_rate_cambial(:,:)                     = 0.0_r8
+      this%fmort_rate_crown(:,:)                       = 0.0_r8
+      this%term_abg_flux(:,:)                          = 0.0_r8
+      this%imort_abg_flux(:,:)                         = 0.0_r8
+      this%fmort_abg_flux(:,:)                         = 0.0_r8
+      this%growthflux_fusion(:,:)                      = 0.0_r8
+      this%demotion_rate(:)                            = 0.0_r8
+      this%demotion_carbonflux                         = 0.0_r8
+      this%promotion_rate(:)                           = 0.0_r8
+      this%promotion_carbonflux                        = 0.0_r8
+      this%imort_rate_damage(:,:,:)                    = 0.0_r8
+      this%term_nindivs_canopy_damage(:,:,:)           = 0.0_r8
+      this%term_nindivs_ustory_damage(:,:,:)           = 0.0_r8
+      this%imort_cflux_damage(:,:)                     = 0.0_r8
+      this%term_cflux_canopy_damage(:,:)               = 0.0_r8
+      this%term_cflux_ustory_damage(:,:)               = 0.0_r8
+      this%crownarea_canopy_damage                     = 0.0_r8
+      this%crownarea_ustory_damage                     = 0.0_r8
+      this%fmort_rate_canopy_damage(:,:,:)             = 0.0_r8
+      this%fmort_rate_ustory_damage(:,:,:)             = 0.0_r8
+      this%fmort_cflux_canopy_damage(:,:)              = 0.0_r8
+      this%fmort_cflux_ustory_damage(:,:)              = 0.0_r8
+      this%spread                                      = 0.0_r8
+      this%area_pft(:)                                 = 0.0_r8
+      this%area_by_age(:)                              = 0.0_r8
+
+    end subroutine ZeroValues
+  
+    ! ====================================================================================
 
     subroutine Dump(this) 
       !
@@ -202,7 +542,7 @@ module FatesSiteMod
       !
   
       ! ARGUMENTS:
-      type(fates_site_type), intent(in) :: this ! site object
+      class(fates_site_type), intent(in) :: this ! site object
   
       write(fates_log(),*) '----------------------------------------'
       write(fates_log(),*) ' Site Coordinates                       '
@@ -212,7 +552,25 @@ module FatesSiteMod
       write(fates_log(),*) '----------------------------------------'
   
     end subroutine Dump
-    
+
+    !=====================================================================================
+
+    subroutine ZeroFluxDiags(this)
+      !
+      !  DESCRIPTION:
+      !  Zero all variables for the flux diags type
+      !
+      
+      ! ARGUMENTS:
+      class(site_fluxdiags_type) :: this ! flux diags object
+      
+      this%cwd_ag_input(:)      = 0.0_r8
+      this%cwd_bg_input(:)      = 0.0_r8
+      this%leaf_litter_input(:) = 0.0_r8
+      this%root_litter_input(:) = 0.0_r8
+      
+    end subroutine ZeroFluxDiags
+
     !=====================================================================================
 
 end module FatesSiteMod

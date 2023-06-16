@@ -54,7 +54,6 @@ module EDInitMod
   use FatesInterfaceTypesMod         , only : nlevdamage
   use FatesInterfaceTypesMod         , only : hlm_use_nocomp
   use FatesInterfaceTypesMod         , only : nlevage
-
   use FatesAllometryMod         , only : h2d_allom
   use FatesAllometryMod         , only : bagw_allom
   use FatesAllometryMod         , only : bbgw_allom
@@ -95,12 +94,9 @@ module EDInitMod
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
 
-  public  :: zero_site
-  public  :: init_site_vars
   public  :: init_patches
   public  :: set_site_properties
   private :: init_cohorts
-
 
   ! ============================================================================
 
@@ -108,227 +104,7 @@ contains
 
   ! ============================================================================
 
-  subroutine init_site_vars( site_in, bc_in, bc_out )
-    !
-    ! !DESCRIPTION:
-    !
-    !
-    ! !ARGUMENTS
-    type(fates_site_type), intent(inout) :: site_in
-    type(bc_in_type),intent(in)       :: bc_in
-    type(bc_out_type),intent(in)      :: bc_out
-    !
-    ! !LOCAL VARIABLES:
-    !----------------------------------------------------------------------
-    integer :: el
-
-    !
-    allocate(site_in%term_nindivs_canopy(1:nlevsclass,1:numpft))
-    allocate(site_in%term_nindivs_ustory(1:nlevsclass,1:numpft))
-    allocate(site_in%demotion_rate(1:nlevsclass))
-    allocate(site_in%promotion_rate(1:nlevsclass))
-    allocate(site_in%imort_rate(1:nlevsclass,1:numpft))
-    allocate(site_in%fmort_rate_canopy(1:nlevsclass,1:numpft))
-    allocate(site_in%fmort_rate_ustory(1:nlevsclass,1:numpft))
-    allocate(site_in%fmort_rate_cambial(1:nlevsclass,1:numpft))
-    allocate(site_in%fmort_rate_crown(1:nlevsclass,1:numpft))
-    allocate(site_in%growthflux_fusion(1:nlevsclass,1:numpft))
-    allocate(site_in%mass_balance(1:num_elements))
-    allocate(site_in%flux_diags(1:num_elements))
-
-    if (hlm_use_tree_damage .eq. itrue) then 
-       allocate(site_in%term_nindivs_canopy_damage(1:nlevdamage, 1:nlevsclass, 1:numpft))
-       allocate(site_in%term_nindivs_ustory_damage(1:nlevdamage, 1:nlevsclass, 1:numpft))
-       allocate(site_in%imort_rate_damage(1:nlevdamage, 1:nlevsclass, 1:numpft))
-       allocate(site_in%imort_cflux_damage(1:nlevdamage, 1:nlevsclass))
-       allocate(site_in%term_cflux_canopy_damage(1:nlevdamage, 1:nlevsclass))
-       allocate(site_in%term_cflux_ustory_damage(1:nlevdamage, 1:nlevsclass))
-       allocate(site_in%fmort_rate_canopy_damage(1:nlevdamage, 1:nlevsclass, 1:numpft))
-       allocate(site_in%fmort_rate_ustory_damage(1:nlevdamage, 1:nlevsclass, 1:numpft)) 
-       allocate(site_in%fmort_cflux_canopy_damage(1:nlevdamage, 1:nlevsclass))
-       allocate(site_in%fmort_cflux_ustory_damage(1:nlevdamage, 1:nlevsclass)) 
-    else
-       allocate(site_in%term_nindivs_canopy_damage(1,1,1))
-       allocate(site_in%term_nindivs_ustory_damage(1,1,1))
-       allocate(site_in%imort_rate_damage(1,1,1))
-       allocate(site_in%imort_cflux_damage(1,1))
-       allocate(site_in%term_cflux_canopy_damage(1,1))
-       allocate(site_in%term_cflux_ustory_damage(1,1))
-       allocate(site_in%fmort_rate_canopy_damage(1,1,1))
-       allocate(site_in%fmort_rate_ustory_damage(1,1,1))
-       allocate(site_in%fmort_cflux_canopy_damage(1,1))
-       allocate(site_in%fmort_cflux_ustory_damage(1,1))
-    end if
-
-    allocate(site_in%term_carbonflux_canopy(1:numpft))
-    allocate(site_in%term_carbonflux_ustory(1:numpft))
-    allocate(site_in%imort_carbonflux(1:numpft))
-    allocate(site_in%fmort_carbonflux_canopy(1:numpft))
-    allocate(site_in%fmort_carbonflux_ustory(1:numpft))
-
-    allocate(site_in%term_abg_flux(1:nlevsclass,1:numpft))
-    allocate(site_in%imort_abg_flux(1:nlevsclass,1:numpft))
-    allocate(site_in%fmort_abg_flux(1:nlevsclass,1:numpft))
-
-    site_in%nlevsoil   = bc_in%nlevsoil
-    allocate(site_in%rootfrac_scr(site_in%nlevsoil))
-    allocate(site_in%zi_soil(0:site_in%nlevsoil))
-    allocate(site_in%dz_soil(site_in%nlevsoil))
-    allocate(site_in%z_soil(site_in%nlevsoil))
-
-    if (hlm_use_nocomp .eq. itrue .and. hlm_use_fixed_biogeog .eq. itrue) then
-       allocate(site_in%area_pft(0:numpft))
-    else  ! SP and nocomp require a bare-ground patch.
-       allocate(site_in%area_pft(1:numpft))  
-    endif
-
-    allocate(site_in%use_this_pft(1:numpft))
-    allocate(site_in%area_by_age(1:nlevage))
-
-    ! for CNP dynamics, track the mean l2fr of recruits
-    ! for different pfts and canopy positions
-    allocate(site_in%rec_l2fr(1:numpft,nclmax))
-
-
-    ! SP mode
-    allocate(site_in%sp_tlai(1:numpft))
-    allocate(site_in%sp_tsai(1:numpft))
-    allocate(site_in%sp_htop(1:numpft))
-
-    do el=1,num_elements
-       allocate(site_in%flux_diags(el)%leaf_litter_input(1:numpft))
-       allocate(site_in%flux_diags(el)%root_litter_input(1:numpft))
-    end do
-
-    ! Initialize the static soil
-    ! arrays from the boundary (initial) condition
-
-    site_in%zi_soil(:) = bc_in%zi_sisl(:)
-    site_in%dz_soil(:) = bc_in%dz_sisl(:)
-    site_in%z_soil(:)  = bc_in%z_sisl(:)
-
-    !
-  end subroutine init_site_vars
-
-  ! ============================================================================
-  subroutine zero_site( site_in )
-    !
-    ! !DESCRIPTION:
-    !
-    ! !USES:
-    use shr_infnan_mod , only : nan => shr_infnan_nan, assignment(=)
-    !
-    ! !ARGUMENTS
-    type(fates_site_type), intent(inout) ::  site_in
-    !
-    ! !LOCAL VARIABLES:
-    integer :: el
-    !----------------------------------------------------------------------
-
-    site_in%oldest_patch     => null() ! pointer to oldest patch at the site
-    site_in%youngest_patch   => null() ! pointer to yngest patch at the site
-
-
-    ! PHENOLOGY
-
-    site_in%cstatus          = fates_unset_int    ! are leaves in this pixel on or off?
-    site_in%dstatus          = fates_unset_int
-    site_in%grow_deg_days    = nan  ! growing degree days
-    site_in%snow_depth       = nan
-    site_in%nchilldays       = fates_unset_int
-    site_in%ncolddays        = fates_unset_int
-    site_in%cleafondate      = fates_unset_int
-    site_in%cleafoffdate     = fates_unset_int
-    site_in%dleafondate      = fates_unset_int
-    site_in%dleafoffdate     = fates_unset_int
-    site_in%water_memory(:)  = nan
-    site_in%vegtemp_memory(:) = nan              ! record of last 10 days temperature for senescence model.
-
-    site_in%phen_model_date  = fates_unset_int
-
-    ! Disturbance rates tracking
-    site_in%primary_land_patchfusion_error = 0.0_r8
-    site_in%potential_disturbance_rates(:) = 0.0_r8
-    site_in%disturbance_rates_secondary_to_secondary(:) = 0.0_r8
-    site_in%disturbance_rates_primary_to_secondary(:) = 0.0_r8
-    site_in%disturbance_rates_primary_to_primary(:) = 0.0_r8
-
-    ! FIRE
-    site_in%acc_ni           = 0.0_r8     ! daily nesterov index accumulating over time. time unlimited theoretically.
-    site_in%FDI              = 0.0_r8     ! daily fire danger index (0-1)
-    site_in%NF               = 0.0_r8     ! daily lightning strikes per km2
-    site_in%NF_successful    = 0.0_r8     ! daily successful iginitions per km2
-
-    do el=1,num_elements
-       ! Zero the state variables used for checking mass conservation
-       call site_in%mass_balance(el)%ZeroMassBalState()
-       call site_in%mass_balance(el)%ZeroMassBalFlux()
-       call site_in%flux_diags(el)%ZeroFluxDiags()
-    end do
-
-
-    ! termination and recruitment info
-    site_in%term_nindivs_canopy(:,:) = 0._r8
-    site_in%term_nindivs_ustory(:,:) = 0._r8
-    site_in%term_crownarea_canopy = 0._r8
-    site_in%term_crownarea_ustory = 0._r8
-    site_in%imort_crownarea = 0._r8
-    site_in%fmort_crownarea_canopy = 0._r8
-    site_in%fmort_crownarea_ustory = 0._r8
-    site_in%term_carbonflux_canopy(:) = 0._r8
-    site_in%term_carbonflux_ustory(:) = 0._r8
-    site_in%recruitment_rate(:) = 0._r8
-    site_in%imort_rate(:,:) = 0._r8
-    site_in%imort_carbonflux(:) = 0._r8
-    site_in%fmort_rate_canopy(:,:) = 0._r8
-    site_in%fmort_rate_ustory(:,:) = 0._r8
-    site_in%fmort_carbonflux_canopy(:) = 0._r8
-    site_in%fmort_carbonflux_ustory(:) = 0._r8
-    site_in%fmort_rate_cambial(:,:) = 0._r8
-    site_in%fmort_rate_crown(:,:) = 0._r8
-    site_in%term_abg_flux(:,:) = 0._r8
-    site_in%imort_abg_flux(:,:) = 0._r8
-    site_in%fmort_abg_flux(:,:) = 0._r8
-
-
-    ! fusoin-induced growth flux of individuals
-    site_in%growthflux_fusion(:,:) = 0._r8
-
-    ! demotion/promotion info
-    site_in%demotion_rate(:) = 0._r8
-    site_in%demotion_carbonflux = 0._r8
-    site_in%promotion_rate(:) = 0._r8
-    site_in%promotion_carbonflux = 0._r8
-
-    ! damage transition info
-    site_in%imort_rate_damage(:,:,:) = 0._r8
-    site_in%term_nindivs_canopy_damage(:,:,:) = 0._r8
-    site_in%term_nindivs_ustory_damage(:,:,:) = 0._r8
-    site_in%imort_cflux_damage(:,:) = 0._r8
-    site_in%term_cflux_canopy_damage(:,:) = 0._r8
-    site_in%term_cflux_ustory_damage(:,:) = 0._r8
-    site_in%crownarea_canopy_damage = 0._r8
-    site_in%crownarea_ustory_damage = 0._r8
-    site_in%fmort_rate_canopy_damage(:,:,:) = 0._r8
-    site_in%fmort_rate_ustory_damage(:,:,:) = 0._r8
-    site_in%fmort_cflux_canopy_damage(:,:) = 0._r8
-    site_in%fmort_cflux_ustory_damage(:,:) = 0._r8
-
-    ! Resources management (logging/harvesting, etc)
-    site_in%resources_management%harvest_debt = 0.0_r8
-    site_in%resources_management%harvest_debt_sec = 0.0_r8
-    site_in%resources_management%trunk_product_site  = 0.0_r8
-
-    ! canopy spread
-    site_in%spread = 0._r8
-
-    site_in%area_pft(:) = 0._r8
-    site_in%use_this_pft(:) = fates_unset_int
-    site_in%area_by_age(:) = 0._r8
-
-  end subroutine zero_site
-
-  ! ============================================================================
+  
   subroutine set_site_properties( nsites, sites,bc_in )
     !
     ! !DESCRIPTION:

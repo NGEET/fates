@@ -18,7 +18,7 @@ module EDLoggingMortalityMod
    use FatesCohortMod    , only : fates_cohort_type
    use FatesPatchMod     , only : fates_patch_type
    use EDTypesMod        , only : site_massbal_type
-   use EDTypesMod        , only : site_fluxdiags_type
+   use FatesSiteMod      , only : site_fluxdiags_type
    use FatesLitterMod    , only : ncwd
    use FatesLitterMod    , only : ndcmpy
    use FatesLitterMod    , only : litter_type
