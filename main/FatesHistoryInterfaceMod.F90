@@ -25,7 +25,7 @@ module FatesHistoryInterfaceMod
   use EDtypesMod               , only : AREA_INV
   use EDTypesMod               , only : numWaterMem
   use EDTypesMod               , only : num_vegtemp_mem
-  use EDTypesMod               , only : site_massbal_type
+  use FatesMassBalTypeMod      , only : site_massbal_type
   use PRTGenericMod            , only : element_list
   use FatesConstantsMod        , only : N_DIST_TYPES, maxpft
   use EDTypesMod               , only : dtype_ifall

@@ -37,7 +37,7 @@ module EDPhysiologyMod
   use FatesAllometryMod   , only : leafc_from_treelai
   use FatesAllometryMod   , only : decay_coeff_kn
   use FatesLitterMod      , only : litter_type
-  use EDTypesMod          , only : site_massbal_type
+  use FatesMassBalTypeMod , only : site_massbal_type
   use EDTypesMod          , only : numlevsoil_max
   use EDTypesMod          , only : numWaterMem
   use FatesLitterMod      , only : dl_sf

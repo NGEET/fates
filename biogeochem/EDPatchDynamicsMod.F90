@@ -23,7 +23,7 @@ module EDPatchDynamicsMod
   use FatesSiteMod         , only : fates_site_type
   use FatesPatchMod,         only : fates_patch_type
   use FatesCohortMod       , only : fates_cohort_type
-  use EDTypesMod           , only : site_massbal_type
+  use FatesMassBalTypeMod  , only : site_massbal_type
   use FatesSiteMod         , only : site_fluxdiags_type
   use EDTypesMod           , only : min_patch_area
   use EDTypesMod           , only : min_patch_area_forced

@@ -8,7 +8,7 @@ module FatesSiteMod
   use FatesGlobals,           only : fates_log
   use FatesPatchMod,          only : fates_patch_type
   use EDTypesMod,             only : ed_resources_management_type
-  use EDTypesMod,             only : site_massbal_type
+  use FatesMassBalTypeMod,    only : site_massbal_type
   use EDTypesMod,             only : numWaterMem, num_vegtemp_mem
   use FatesConstantsMod,      only : N_DIST_TYPES
   use FatesHydraulicsMemMod,  only : ed_site_hydr_type

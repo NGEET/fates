@@ -16,8 +16,8 @@ module EDLoggingMortalityMod
    use FatesConstantsMod , only : r8 => fates_r8
    use FatesConstantsMod , only : rsnbl_math_prec
    use FatesCohortMod    , only : fates_cohort_type
-   use FatesPatchMod     , only : fates_patch_type
-   use EDTypesMod        , only : site_massbal_type
+   use FatesPatchMod     ,  only : fates_patch_type
+   use FatesMassBalTypeMod, only : site_massbal_type
    use FatesSiteMod      , only : site_fluxdiags_type
    use FatesLitterMod    , only : ncwd
    use FatesLitterMod    , only : ndcmpy

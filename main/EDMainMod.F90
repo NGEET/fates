@@ -67,7 +67,7 @@ module EDMainMod
   use FatesPatchMod            , only : fates_patch_type
   use FatesCohortMod           , only : fates_cohort_type
   use EDTypesMod               , only : AREA
-  use EDTypesMod               , only : site_massbal_type
+  use FatesMassBalTypeMod,       only : site_massbal_type
   use PRTGenericMod            , only : num_elements
   use PRTGenericMod            , only : element_list
   use PRTGenericMod            , only : element_pos
