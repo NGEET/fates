@@ -1326,13 +1326,17 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
         gstoma  = 0._r8
 
         do  sunsha = 1,2
+
            ! Electron transport rate for C3 plants.
            ! Convert par from W/m2 to umol photons/m**2/s using the factor 4.6
            ! Convert from units of par absorbed per unit ground area to par
            ! absorbed per unit leaf area.
+           ! The 0.5 term here accounts for half of the light going to photosystem
+           ! 2, as mentioned in Biochemical models of leaf photosynthesis
+           ! (von Caemmerer) and Farquhar 1980
 
            if(sunsha == 1)then !sunlit
-              qabs = parsun_lsl * qabs * 0.5_r8 * (1._r8 - fnps) *  4.6_r8
+              qabs = parsun_lsl * 0.5_r8 * (1._r8 - fnps) *  4.6_r8
            else
               qabs = parsha_lsl * 0.5_r8 * (1._r8 - fnps) *  4.6_r8
            end if
