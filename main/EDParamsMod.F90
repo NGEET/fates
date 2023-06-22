@@ -9,7 +9,7 @@ module EDParamsMod
    use FatesParametersInterface, only : param_string_length
    use FatesGlobals        , only : fates_log
    use FatesGlobals        , only : endrun => fates_endrun
-   use FatesConstantsMod,    only : fates_unset_r8
+   use FatesConstantsMod,    only : fates_unset_r8, fates_unset_int
 
    ! CIME Globals
    use shr_log_mod         , only : errMsg => shr_log_errMsg
@@ -71,6 +71,10 @@ module EDParamsMod
    ! empirical curvature parameters for ac, aj photosynthesis co-limitation, c3 and c4 plants respectively
    real(r8),protected,public  :: theta_cj_c3    ! Empirical curvature parameter for ac, aj photosynthesis co-limitation in c3 plants
    real(r8),protected,public  :: theta_cj_c4    ! Empirical curvature parameter for ac, aj photosynthesis co-limitation in c4 plants
+
+     ! This flag specifies the scaling of how we present
+  ! nutrient competitors to the HLM's soil BGC model
+  integer, public :: fates_np_comp_scaling = fates_unset_int
 
      ! Global identifier of how nutrients interact with the host land model
   ! either they are fully coupled, or they generate uptake rates synthetically

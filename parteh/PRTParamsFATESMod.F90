@@ -7,6 +7,7 @@ module PRTInitParamsFatesMod
   use FatesConstantsMod, only : itrue,ifalse
   use FatesConstantsMod, only : nearzero
   use FatesConstantsMod, only : years_per_day
+  use FatesConstantsMod, only : init_recruit_trim
   use FatesInterfaceTypesMod, only : hlm_parteh_mode
   use PRTParametersMod,  only : prt_params
   use PRTGenericMod,     only : num_organ_types
@@ -31,7 +32,7 @@ module PRTInitParamsFatesMod
   use FatesAllometryMod  , only : CheckIntegratedAllometries
   use FatesAllometryMod, only : set_root_fraction
   use PRTGenericMod, only : StorageNutrientTarget
-  use EDTypesMod,          only : init_recruit_trim
+  
   
   !
   ! !PUBLIC TYPES:
