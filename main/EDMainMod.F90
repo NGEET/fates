@@ -66,13 +66,13 @@ module EDMainMod
   use FatesSiteMod             , only : fates_site_type
   use FatesPatchMod            , only : fates_patch_type
   use FatesCohortMod           , only : fates_cohort_type
-  use EDTypesMod               , only : AREA
+  use FatesConstantsMod        , only : AREA
   use FatesMassBalTypeMod,       only : site_massbal_type
   use PRTGenericMod            , only : num_elements
   use PRTGenericMod            , only : element_list
   use PRTGenericMod            , only : element_pos
-  use EDTypesMod               , only : phen_dstat_moiston
-  use EDTypesMod               , only : phen_dstat_timeon
+  use FatesConstantsMod        , only : phen_dstat_moiston
+  use FatesConstantsMod        , only : phen_dstat_timeon
   use FatesConstantsMod        , only : itrue,ifalse
   use FatesConstantsMod        , only : primaryforest, secondaryforest
   use FatesConstantsMod        , only : nearzero
@@ -92,7 +92,7 @@ module EDMainMod
   use FatesGlobals             , only : endrun => fates_endrun
   use ChecksBalancesMod        , only : SiteMassStock
   use EDMortalityFunctionsMod  , only : Mortality_Derivative
-  use EDTypesMod               , only : AREA_INV
+  use FatesConstantsMod               , only : AREA_INV
   use PRTGenericMod,          only : carbon12_element
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : fnrt_organ

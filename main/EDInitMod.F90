@@ -27,20 +27,20 @@ module EDInitMod
   use FatesSiteMod              , only : fates_site_type
   use FatesPatchMod             , only : fates_patch_type
   use FatesCohortMod            , only : fates_cohort_type
-  use EDTypesMod                , only : numWaterMem
-  use EDTypesMod                , only : num_vegtemp_mem
-  use EDTypesMod                , only : AREA
-  use EDTypesMod                , only : init_spread_near_bare_ground
-  use EDTypesMod                , only : init_spread_inventory
+  use FatesConstantsMod         , only : numWaterMem
+  use FatesConstantsMod         , only : num_vegtemp_mem
+  use FatesConstantsMod         , only : AREA
+  use FatesConstantsMod         , only : init_spread_near_bare_ground
+  use FatesConstantsMod         , only : init_spread_inventory
   use FatesConstantsMod         , only : leaves_on, leaves_off
   use PRTGenericMod             , only : num_elements
   use PRTGenericMod             , only : element_list
-  use EDTypesMod                , only : phen_cstat_nevercold
-  use EDTypesMod                , only : phen_cstat_iscold
-  use EDTypesMod                , only : phen_dstat_timeoff
-  use EDTypesMod                , only : phen_dstat_moistoff
-  use EDTypesMod                , only : phen_cstat_notcold
-  use EDTypesMod                , only : phen_dstat_moiston
+  use FatesConstantsMod                , only : phen_cstat_nevercold
+  use FatesConstantsMod                , only : phen_cstat_iscold
+  use FatesConstantsMod                , only : phen_dstat_timeoff
+  use FatesConstantsMod                , only : phen_dstat_moistoff
+  use FatesConstantsMod                , only : phen_cstat_notcold
+  use FatesConstantsMod                , only : phen_dstat_moiston
   use FatesInterfaceTypesMod         , only : bc_in_type,bc_out_type
   use FatesInterfaceTypesMod         , only : hlm_use_planthydro
   use FatesInterfaceTypesMod         , only : hlm_use_inventory_init

@@ -54,8 +54,8 @@ module FatesPlantHydraulicsMod
   use FatesSiteMod      , only : fates_site_type
   use FatesPatchMod     , only : fates_patch_type
   use FatesCohortMod    , only : fates_cohort_type
-  use EDTypesMod        , only : AREA_INV
-  use EDTypesMod        , only : AREA
+  use FatesConstantsMod        , only : AREA_INV
+  use FatesConstantsMod        , only : AREA
   use FatesConstantsMod , only : leaves_on
 
   use FatesInterfaceTypesMod  , only : bc_in_type

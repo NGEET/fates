@@ -3,7 +3,6 @@
 
 list(APPEND clm_sources
   FatesGlobals.F90
-  EDTypesMod.F90
   EDPftvarcon.F90
   FatesConstantsMod.F90
   FatesHydraulicsMemMod.F90

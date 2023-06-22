@@ -13,62 +13,66 @@ module EDLoggingMortalityMod
    !  Date: 09/2017
    ! ====================================================================================
 
-   use FatesConstantsMod , only : r8 => fates_r8
-   use FatesConstantsMod , only : rsnbl_math_prec
-   use FatesCohortMod    , only : fates_cohort_type
-   use FatesPatchMod     ,  only : fates_patch_type
-   use FatesMassBalTypeMod, only : site_massbal_type
-   use FatesSiteMod      , only : site_fluxdiags_type
-   use FatesLitterMod    , only : ncwd
-   use FatesLitterMod    , only : ndcmpy
-   use FatesLitterMod    , only : litter_type
-   use FatesSiteMod      , only : fates_site_type
-   use FatesResourcesManagementMod, only : fates_resources_management_type
-   use EDTypesMod        , only : dtype_ilog
-   use EDTypesMod        , only : dtype_ifall
-   use EDTypesMod        , only : dtype_ifire
-   use EDPftvarcon       , only : EDPftvarcon_inst
-   use EDPftvarcon       , only : GetDecompyFrac
-   use PRTParametersMod  , only : prt_params
-   use PRTGenericMod     , only : num_elements
-   use PRTGenericMod     , only : element_list
-   use EDParamsMod       , only : logging_export_frac
-   use EDParamsMod       , only : logging_event_code
-   use EDParamsMod       , only : logging_dbhmin
-   use EDParamsMod       , only : logging_dbhmax
-   use EDParamsMod       , only : logging_collateral_frac 
-   use EDParamsMod       , only : logging_direct_frac
-   use EDParamsMod       , only : logging_mechanical_frac 
-   use EDParamsMod       , only : logging_coll_under_frac 
-   use EDParamsMod       , only : logging_dbhmax_infra
-   use FatesInterfaceTypesMod , only : bc_in_type
-   use FatesInterfaceTypesMod , only : hlm_current_year
-   use FatesInterfaceTypesMod , only : hlm_current_month
-   use FatesInterfaceTypesMod , only : hlm_current_day
-   use FatesInterfaceTypesMod , only : hlm_model_day
-   use FatesInterfaceTypesMod , only : hlm_day_of_year 
-   use FatesInterfaceTypesMod , only : hlm_days_per_year
-   use FatesInterfaceTypesMod , only : hlm_use_lu_harvest
-   use FatesInterfaceTypesMod , only : hlm_num_lu_harvest_cats
-   use FatesInterfaceTypesMod , only : hlm_use_logging 
-   use FatesInterfaceTypesMod , only : hlm_use_planthydro
-   use FatesConstantsMod , only : itrue,ifalse
-   use FatesGlobals      , only : endrun => fates_endrun 
-   use FatesGlobals      , only : fates_log
-   use FatesGlobals      , only : fates_global_verbose
-   use shr_log_mod       , only : errMsg => shr_log_errMsg
+   use FatesConstantsMod,       only : r8 => fates_r8
+   use FatesConstantsMod,       only : rsnbl_math_prec
+   use FatesConstantsMod,       only : itrue, ifalse
+   use FatesConstantsMod,       only : primaryforest
+   use FatesConstantsMod,       only : secondaryforest, secondary_age_threshold
+   use FatesConstantsMod,       only : fates_tiny
+   use FatesConstantsMod,       only : months_per_year, days_per_sec, g_per_kg
+   use FatesConstantsMod,       only : hlm_harvest_area_fraction
+   use FatesConstantsMod,       only : hlm_harvest_carbon
+   use FatesConstantsMod,       only : fates_check_param_set
+   use FatesConstantsMod,       only : area
+   use FatesConstantsMod,       only : area_inv
+   use FatesGlobals,            only : endrun => fates_endrun 
+   use FatesGlobals,            only : fates_log
+   use FatesGlobals,            only : fates_global_verbose
+   use EDParamsMod,             only : logging_export_frac
+   use EDParamsMod,             only : logging_event_code
+   use EDParamsMod,             only : logging_dbhmin
+   use EDParamsMod,             only : logging_dbhmax
+   use EDParamsMod,             only : logging_collateral_frac 
+   use EDParamsMod,             only : logging_direct_frac
+   use EDParamsMod,             only : logging_mechanical_frac 
+   use EDParamsMod,             only : logging_coll_under_frac 
+   use EDParamsMod,             only : logging_dbhmax_infra
+   use EDParamsMod,             only : pprodharv10_forest_mean
+   use FatesInterfaceTypesMod,  only : bc_in_type
+   use FatesInterfaceTypesMod,  only : bc_out_type
+   use FatesInterfaceTypesMod,  only : hlm_current_year
+   use FatesInterfaceTypesMod,  only : hlm_current_month
+   use FatesInterfaceTypesMod,  only : hlm_current_day
+   use FatesInterfaceTypesMod,  only : hlm_model_day
+   use FatesInterfaceTypesMod,  only : hlm_day_of_year 
+   use FatesInterfaceTypesMod,  only : hlm_days_per_year
+   use FatesInterfaceTypesMod,  only : hlm_use_lu_harvest
+   use FatesInterfaceTypesMod,  only : hlm_num_lu_harvest_cats
+   use FatesInterfaceTypesMod,  only : hlm_use_logging 
+   use FatesInterfaceTypesMod,  only : hlm_use_planthydro
+   use EDPftvarcon,             only : EDPftvarcon_inst
+   use EDPftvarcon,             only : GetDecompyFrac
+   use FatesSiteMod,            only : fates_site_type
+   use FatesSiteMod,            only : site_fluxdiags_type
+   use FatesPatchMod,           only : fates_patch_type
+   use FatesCohortMod,          only : fates_cohort_type
+   use FatesMassBalTypeMod,     only : site_massbal_type
+   use FatesLitterMod,          only : ncwd
+   use FatesLitterMod,          only : ndcmpy
+   use FatesLitterMod,          only : litter_type
+   use PRTParametersMod,        only : prt_params
+   use PRTGenericMod,           only : num_elements
+   use PRTGenericMod,           only : element_list
+   use PRTGenericMod,           only : carbon12_element
+   use PRTGenericMod,           only : sapw_organ, struct_organ, leaf_organ
+   use PRTGenericMod,           only : fnrt_organ, store_organ, repro_organ
+   use PRTGenericMod,           only : element_pos
    use FatesPlantHydraulicsMod, only : AccumulateMortalityWaterStorage
-   use PRTGenericMod     , only : carbon12_element
-   use PRTGenericMod     , only : sapw_organ, struct_organ, leaf_organ
-   use PRTGenericMod     , only : fnrt_organ, store_organ, repro_organ
-   use FatesAllometryMod , only : set_root_fraction
-   use FatesConstantsMod , only : primaryforest, secondaryforest, secondary_age_threshold
-   use FatesConstantsMod , only : fates_tiny
-   use FatesConstantsMod , only : months_per_year, days_per_sec, years_per_day, g_per_kg
-   use FatesConstantsMod , only : hlm_harvest_area_fraction
-   use FatesConstantsMod , only : hlm_harvest_carbon
-   use FatesConstantsMod, only : fates_check_param_set
-
+   use FatesAllometryMod,       only : set_root_fraction
+   use FatesAllometryMod,       only : carea_allom
+   use SFParamsMod,             only : SF_val_cwd_frac
+   use shr_log_mod,             only : errMsg => shr_log_errMsg
+   
    implicit none
    private
 
@@ -435,11 +439,6 @@ contains
 
    subroutine get_harvestable_carbon (csite, site_area, hlm_harvest_catnames, harvestable_forest_c )
 
-     !USES:
-     use SFParamsMod,  only : SF_val_cwd_frac
-     use EDTypesMod,   only : AREA_INV
-
-
      ! -------------------------------------------------------------------------------------------
      !
      !  DESCRIPTION:
@@ -491,7 +490,7 @@ contains
               harvestable_cohort_c = logging_direct_frac * ( sapw_m + struct_m ) * &
                      prt_params%allom_agb_frac(currentCohort%pft) * &
                      SF_val_CWD_frac(ncwd) * logging_export_frac * &
-                     currentCohort%n * AREA_INV * site_area
+                     currentCohort%n * area_inv * site_area
 
               ! No harvest for trees without canopy 
               if (currentCohort%canopy_layer>=1) then
@@ -710,15 +709,6 @@ contains
       !        collateral damage mortality.
       !        
       ! -------------------------------------------------------------------------------------------
-
-
-      !USES:
-      use SFParamsMod,       only : SF_val_cwd_frac
-      use EDtypesMod,        only : area
-      use FatesCohortMod,    only : fates_cohort_type
-      use FatesConstantsMod, only : rsnbl_math_prec
-      use FatesAllometryMod, only : carea_allom
-
 
       ! !ARGUMENTS:
       type(fates_site_type)  , intent(inout), target  :: currentSite 
@@ -1096,11 +1086,6 @@ contains
       ! This subroutine is called when logging is completed and need to update 
       ! Harvested C flux in HLM.
       ! ----------------------------------------------------------------------------------
-      use EDTypesMod             , only : AREA_INV
-      use PRTGenericMod          , only : element_pos
-      use PRTGenericMod          , only : carbon12_element
-      use FatesInterfaceTypesMod , only : bc_out_type
-      use EDParamsMod            , only : pprodharv10_forest_mean
   
       ! Arguments
       type(fates_site_type), intent(inout), target :: currentSite     ! site structure
@@ -1119,10 +1104,10 @@ contains
 
       bc_out%hrv_deadstemc_to_prod10c = bc_out%hrv_deadstemc_to_prod10c + &
           currentSite%mass_balance(element_pos(carbon12_element))%wood_product * &
-          AREA_INV * pprodharv10_forest_mean * unit_trans_factor
+          area_inv * pprodharv10_forest_mean * unit_trans_factor
       bc_out%hrv_deadstemc_to_prod100c = bc_out%hrv_deadstemc_to_prod100c + &
           currentSite%mass_balance(element_pos(carbon12_element))%wood_product * &
-          AREA_INV * (1._r8 - pprodharv10_forest_mean) * unit_trans_factor  
+          area_inv * (1._r8 - pprodharv10_forest_mean) * unit_trans_factor  
   
       return
 

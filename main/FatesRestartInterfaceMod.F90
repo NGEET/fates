@@ -38,7 +38,7 @@ module FatesRestartInterfaceMod
   use FatesLitterMod,          only : litter_type
   use FatesLitterMod,          only : ncwd, nfsc
   use FatesLitterMod,          only : ndcmpy
-  use EDTypesMod,              only : area
+  use FatesConstantsMod,              only : area
   use FatesSiteMod,            only : fates_site_type
   use EDParamsMod,             only : nlevleaf
   use PRTGenericMod,           only : prt_global
@@ -1817,8 +1817,8 @@ contains
    use FatesPatchMod, only : fates_patch_type
    use EDParamsMod, only : maxSWb
    use EDParamsMod, only : nclmax
-   use EDTypesMod, only : numWaterMem
-   use EDTypesMod, only : num_vegtemp_mem
+   use FatesConstantsMod, only : numWaterMem
+   use FatesConstantsMod, only : num_vegtemp_mem
    use FatesInterfaceTypesMod, only : nlevdamage
 
     ! Arguments
@@ -2520,7 +2520,7 @@ contains
      use FatesInterfaceTypesMod,    only : hlm_current_tod, hlm_numSWb, numpft
 
      use FatesConstantsMod,    only : maxpft
-     use EDTypesMod,           only : area
+     use FatesConstantsMod,           only : area
      use FatesAllometryMod,    only : h2d_allom
 
 
@@ -2715,8 +2715,8 @@ contains
      use EDParamsMod, only : nclmax
      use FatesInterfaceTypesMod, only : numpft
      use FatesInterfaceTypesMod, only : fates_maxElementsPerPatch
-     use EDTypesMod, only : numWaterMem
-     use EDTypesMod, only : num_vegtemp_mem
+     use FatesConstantsMod, only : numWaterMem
+     use FatesConstantsMod, only : num_vegtemp_mem
      use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
      
      ! !ARGUMENTS:

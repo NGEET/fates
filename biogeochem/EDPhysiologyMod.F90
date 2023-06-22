@@ -5,123 +5,104 @@ module EDPhysiologyMod
   ! ============================================================================
   ! Miscellaneous physiology routines from ED.
   ! ============================================================================
-
-  use FatesGlobals, only         : fates_log
-  use FatesInterfaceTypesMod, only    : hlm_days_per_year
-  use FatesInterfaceTypesMod, only    : hlm_model_day
-  use FatesInterfaceTypesMod, only    : hlm_freq_day
-  use FatesInterfaceTypesMod, only    : hlm_day_of_year
-  use FatesInterfaceTypesMod, only    : numpft
-  use FatesInterfaceTypesMod, only    : nleafage
-  use FatesInterfaceTypesMod, only    : nlevdamage
-  use FatesInterfaceTypesMod, only    : hlm_use_planthydro
-  use FatesInterfaceTypesMod, only    : hlm_parteh_mode
-  use FatesInterfaceTypesMod, only    : hlm_use_fixed_biogeog
-  use FatesInterfaceTypesMod, only    : hlm_use_nocomp
-  use FatesInterfaceTypesMod, only    : hlm_nitrogen_spec
-  use FatesInterfaceTypesMod, only    : hlm_phosphorus_spec
-  use FatesInterfaceTypesMod, only    : hlm_use_tree_damage
-  use FatesInterfaceTypesMod, only : hlm_use_ed_prescribed_phys
-  use FatesConstantsMod, only    : r8 => fates_r8
-  use FatesConstantsMod, only    : nearzero
-  use FatesConstantsMod, only    : nocomp_bareground
-  use EDPftvarcon      , only    : EDPftvarcon_inst
-  use PRTParametersMod , only    : prt_params
-  use EDPftvarcon      , only    : GetDecompyFrac
-  use FatesInterfaceTypesMod, only    : bc_in_type
-  use FatesInterfaceTypesMod, only    : bc_out_type
-  use EDCohortDynamicsMod , only : create_cohort, sort_cohorts
-  use EDCohortDynamicsMod , only : InitPRTObject
-  use FatesAllometryMod   , only : tree_lai
-  use FatesAllometryMod   , only : tree_sai
-  use FatesAllometryMod   , only : leafc_from_treelai
-  use FatesAllometryMod   , only : decay_coeff_kn
-  use FatesLitterMod      , only : litter_type
-  use FatesMassBalTypeMod , only : site_massbal_type
-  use EDTypesMod          , only : numlevsoil_max
-  use EDTypesMod          , only : numWaterMem
-  use FatesLitterMod      , only : dl_sf
-  use EDParamsMod         , only : dinc_vai, dlower_vai
-  use EDTypesMod          , only : area_inv
-  use EDTypesMod          , only : AREA
-  use FatesLitterMod      , only : ncwd
-  use FatesLitterMod      , only : ndcmpy
-  use FatesLitterMod      , only : ilabile
-  use FatesLitterMod      , only : ilignin
-  use FatesLitterMod      , only : icellulose
-  use EDParamsMod          , only : nclmax
-  use EDTypesMod          , only : AREA,AREA_INV
-  use EDParamsMod         , only : nlevleaf
-  use EDTypesMod          , only : num_vegtemp_mem
-  use FatesConstantsMod   , only : maxpft
-  use FatesSiteMod        , only : fates_site_type
-  use FatesPatchMod,        only : fates_patch_type
-  use FatesCohortMod,       only : fates_cohort_type
-  use FatesConstantsMod   , only : leaves_on
-  use FatesConstantsMod   , only : leaves_off
-  use EDTypesMod          , only : min_n_safemath
-  use PRTGenericMod       , only : num_elements
-  use PRTGenericMod       , only : element_list
-  use PRTGenericMod       , only : element_pos
-  use FatesSiteMod        , only : site_fluxdiags_type
-  use EDTypesMod          , only : phen_cstat_nevercold
-  use EDTypesMod          , only : phen_cstat_iscold
-  use EDTypesMod          , only : phen_cstat_notcold
-  use EDTypesMod          , only : phen_dstat_timeoff
-  use EDTypesMod          , only : phen_dstat_moistoff
-  use EDTypesMod          , only : phen_dstat_moiston
-  use EDTypesMod          , only : phen_dstat_timeon
-  use EDTypesMod          , only : init_recruit_trim
-  use shr_log_mod           , only : errMsg => shr_log_errMsg
-  use FatesGlobals          , only : fates_log
-  use FatesGlobals          , only : endrun => fates_endrun
-  use EDParamsMod           , only : fates_mortality_disturbance_fraction
-  use EDParamsMod           , only : q10_mr
-  use EDParamsMod           , only : q10_froz
-  use EDParamsMod           , only : logging_export_frac
-  use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
-  use FatesConstantsMod     , only : itrue,ifalse
-  use FatesConstantsMod     , only : calloc_abs_error
-  use FatesConstantsMod     , only : years_per_day
-  use FatesAllometryMod  , only : h_allom
-  use FatesAllometryMod  , only : h2d_allom
-  use FatesAllometryMod  , only : bagw_allom
-  use FatesAllometryMod  , only : bsap_allom
-  use FatesAllometryMod  , only : bleaf
-  use FatesAllometryMod  , only : bfineroot
-  use FatesAllometryMod  , only : bdead_allom
-  use FatesAllometryMod  , only : bstore_allom
-  use FatesAllometryMod  , only : bbgw_allom
-  use FatesAllometryMod  , only : carea_allom
-  use FatesAllometryMod  , only : CheckIntegratedAllometries
-  use FatesAllometryMod, only : set_root_fraction
-  use PRTGenericMod, only : prt_carbon_allom_hyp
-  use PRTGenericMod, only : prt_cnp_flex_allom_hyp
-  use PRTGenericMod, only : prt_vartypes
-  use PRTGenericMod, only : leaf_organ
-  use PRTGenericMod, only : sapw_organ, struct_organ
-  use PRTGenericMod, only : carbon12_element
-  use PRTGenericMod, only : nitrogen_element
-  use PRTGenericMod, only : phosphorus_element
-  use PRTGenericMod, only : leaf_organ
-  use PRTGenericMod, only : fnrt_organ
-  use PRTGenericMod, only : sapw_organ
-  use PRTGenericMod, only : store_organ
-  use PRTGenericMod, only : repro_organ
-  use PRTGenericMod, only : struct_organ
-  use PRTGenericMod, only : SetState
-  use PRTLossFluxesMod, only  : PRTPhenologyFlush
-  use PRTLossFluxesMod, only  : PRTDeciduousTurnover
-  use PRTLossFluxesMod, only  : PRTReproRelease
-  use PRTLossFluxesMod, only  : PRTDamageLosses
-  use PRTGenericMod, only     : StorageNutrientTarget
-  use DamageMainMod, only     : damage_time
-  use DamageMainMod, only     : GetCrownReduction
-  use DamageMainMod, only     : GetDamageFrac
-  use SFParamsMod, only       : SF_val_CWD_frac
+  use FatesConstantsMod,        only : r8 => fates_r8
+  use FatesConstantsMod,        only : nearzero
+  use FatesConstantsMod,        only : area_inv
+  use FatesConstantsMod,        only : area
+  use FatesConstantsMod,        only : nocomp_bareground
+  use FatesConstantsMod,        only : numWaterMem
+  use FatesConstantsMod,        only : num_vegtemp_mem
+  use FatesConstantsMod,        only : maxpft
+  use FatesConstantsMod,        only : homogenize_seed_pfts
+  use FatesConstantsMod,        only : leaves_on
+  use FatesConstantsMod,        only : leaves_off
+  use FatesConstantsMod,        only : min_n_safemath
+  use FatesConstantsMod,        only : phen_cstat_nevercold
+  use FatesConstantsMod,        only : phen_cstat_iscold
+  use FatesConstantsMod,        only : phen_cstat_notcold
+  use FatesConstantsMod,        only : phen_dstat_timeoff
+  use FatesConstantsMod,        only : phen_dstat_moistoff
+  use FatesConstantsMod,        only : phen_dstat_moiston
+  use FatesConstantsMod,        only : phen_dstat_timeon
+  use FatesConstantsMod,        only : init_recruit_trim
+  use FatesConstantsMod,        only : itrue, ifalse
+  use FatesConstantsMod,        only : years_per_day
+  use FatesGlobals,             only : fates_log
+  use FatesGlobals,             only : endrun => fates_endrun
+  use FatesInterfaceTypesMod,   only : bc_in_type
+  use FatesInterfaceTypesMod,   only : hlm_freq_day
+  use FatesInterfaceTypesMod,   only : hlm_day_of_year
+  use FatesInterfaceTypesMod,   only : numpft
+  use FatesInterfaceTypesMod,   only : nleafage
+  use FatesInterfaceTypesMod,   only : nlevdamage
+  use FatesInterfaceTypesMod,   only : hlm_use_planthydro
+  use FatesInterfaceTypesMod,   only : hlm_parteh_mode
+  use FatesInterfaceTypesMod,   only : hlm_use_nocomp
+  use FatesInterfaceTypesMod,   only : hlm_use_tree_damage
+  use FatesInterfaceTypesMod,   only : hlm_use_ed_prescribed_phys
+  use EDParamsMod,              only : dinc_vai, dlower_vai
+  use EDParamsMod,              only : nclmax
+  use EDParamsMod,              only : nlevleaf
+  use EDParamsMod,              only : q10_mr
+  use EDParamsMod,              only : q10_froz
+  use EDParamsMod,              only : logging_export_frac
+  use EDPftvarcon,              only : EDPftvarcon_inst
+  use EDPftvarcon,              only : GetDecompyFrac
+  use EDCohortDynamicsMod,      only : create_cohort
+  use EDCohortDynamicsMod,      only : InitPRTObject
+  use FatesAllometryMod,        only : tree_lai
+  use FatesAllometryMod,        only : tree_sai
+  use FatesAllometryMod,        only : leafc_from_treelai
+  use FatesAllometryMod,        only : decay_coeff_kn
+  use FatesAllometryMod,        only : h2d_allom
+  use FatesAllometryMod,        only : bagw_allom
+  use FatesAllometryMod,        only : bsap_allom
+  use FatesAllometryMod,        only : bleaf
+  use FatesAllometryMod,        only : bfineroot
+  use FatesAllometryMod,        only : bdead_allom
+  use FatesAllometryMod,        only : bstore_allom
+  use FatesAllometryMod,        only : bbgw_allom
+  use FatesAllometryMod,        only : carea_allom
+  use FatesAllometryMod,        only : set_root_fraction
+  use FatesLitterMod,           only : litter_type
+  use FatesLitterMod,           only : dl_sf
+  use FatesLitterMod,           only : ncwd
+  use FatesLitterMod,           only : ndcmpy
+  use FatesSiteMod,             only : fates_site_type
+  use FatesSiteMod,             only : site_fluxdiags_type
+  use FatesPatchMod,            only : fates_patch_type
+  use FatesCohortMod,           only : fates_cohort_type
+  use FatesMassBalTypeMod,      only : site_massbal_type
+  use PRTInitParamsFatesMod,    only : NewRecruitTotalStoichiometry
+  use PRTParametersMod,         only : prt_params
+  use PRTGenericMod,            only : num_elements
+  use PRTGenericMod,            only : element_list
+  use PRTGenericMod,            only : element_pos
+  use PRTGenericMod,            only : prt_carbon_allom_hyp
+  use PRTGenericMod,            only : prt_cnp_flex_allom_hyp
+  use PRTGenericMod,            only : prt_vartypes
+  use PRTGenericMod,            only : leaf_organ
+  use PRTGenericMod,            only : sapw_organ, struct_organ
+  use PRTGenericMod,            only : carbon12_element
+  use PRTGenericMod,            only : nitrogen_element
+  use PRTGenericMod,            only : phosphorus_element
+  use PRTGenericMod,            only : fnrt_organ
+  use PRTGenericMod,            only : store_organ
+  use PRTGenericMod,            only : repro_organ
+  use PRTGenericMod,            only : SetState
+  use PRTGenericMod,            only : StorageNutrientTarget
+  use PRTLossFluxesMod,         only : PRTPhenologyFlush
+  use PRTLossFluxesMod,         only : PRTDeciduousTurnover
+  use PRTLossFluxesMod,         only : PRTReproRelease
+  use PRTLossFluxesMod,         only : PRTDamageLosses 
+  use DamageMainMod,            only : damage_time
+  use DamageMainMod,            only : GetCrownReduction
+  use DamageMainMod,            only : GetDamageFrac
+  use SFParamsMod,              only : SF_val_CWD_frac
   use FatesParameterDerivedMod, only : param_derived
-  use FatesPlantHydraulicsMod, only : InitHydrCohort
-  use PRTInitParamsFatesMod, only : NewRecruitTotalStoichiometry
+  use FatesPlantHydraulicsMod,  only : InitHydrCohort
+  
+  use shr_log_mod,              only : errMsg => shr_log_errMsg
   
   implicit none
   private
@@ -1777,10 +1758,6 @@ contains
     !       parameter allom_frbstor_repro
     ! -----------------------------------------------------------------------------------
 
-
-    ! !USES:
-    use EDTypesMod, only : area
-    use EDTypesMod, only : homogenize_seed_pfts
     !
     ! !ARGUMENTS
     type(fates_site_type), intent(inout), target  :: currentSite

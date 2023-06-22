@@ -39,7 +39,7 @@ contains
     ! !USES:
 
     use FatesSiteMod        , only : fates_site_type
-    use EDTypesMod,           only : AREA
+    use FatesConstantsMod,  only : AREA
     use FatesPatchMod,      only : fates_patch_type
     use FatesCohortMod,     only : fates_cohort_type
     use FatesInterfaceTypesMod , only : bc_in_type,bc_out_type

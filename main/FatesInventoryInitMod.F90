@@ -38,14 +38,14 @@ module FatesInventoryInitMod
    use FatesSiteMod     , only : fates_site_type
    use FatesPatchMod    , only : fates_patch_type
    use FatesCohortMod   , only : fates_cohort_type
-   use EDTypesMod       , only : area
+   use FatesConstantsMod, only : area
    use FatesConstantsMod, only : leaves_on, leaves_off
    use PRTGenericMod    , only : num_elements
    use PRTGenericMod    , only : element_list
-   use EDTypesMod       , only : phen_cstat_nevercold
-   use EDTypesMod       , only : phen_cstat_iscold
-   use EDTypesMod       , only : phen_dstat_timeoff
-   use EDTypesMod       , only : phen_dstat_moistoff
+   use FatesConstantsMod, only : phen_cstat_nevercold
+   use FatesConstantsMod, only : phen_cstat_iscold
+   use FatesConstantsMod, only : phen_dstat_timeoff
+   use FatesConstantsMod, only : phen_dstat_moistoff
    use PRTParametersMod , only : prt_params
    use EDPftvarcon      , only : EDPftvarcon_inst
    use FatesInterfaceTypesMod, only : hlm_parteh_mode
@@ -752,7 +752,7 @@ contains
       ! --------------------------------------------------------------------------------------------
 
       use FatesSizeAgeTypeIndicesMod, only: get_age_class_index
-      use EDtypesMod, only: AREA
+      use FatesConstantsMod, only: AREA
 
       ! Arguments
       type(fates_patch_type),intent(inout), target   :: newpatch      ! Patch structure

@@ -25,13 +25,13 @@ module FatesInterfaceMod
    use EDParamsMod                , only : nclmax
    use EDParamsMod                , only : nlevleaf
    use FatesConstantsMod         , only : maxpft
-   use EDTypesMod                , only : do_fates_salinity
-   use EDTypesMod                , only : numWaterMem
-   use EDTypesMod                , only : numlevsoil_max
+   use FatesConstantsMod         , only : do_fates_salinity
+   use FatesConstantsMod         , only : numWaterMem
+   use FatesConstantsMod         , only : numlevsoil_max
    use FatesPatchMod             , only : fates_patch_type
    use FatesCohortMod            , only : fates_cohort_type
-   use EDTypesMod                , only : area_inv
-   use EDTypesMod                , only : num_vegtemp_mem
+   use FatesConstantsMod                , only : area_inv
+   use FatesConstantsMod                , only : num_vegtemp_mem
    use FatesConstantsMod         , only : r8 => fates_r8
    use FatesConstantsMod         , only : itrue,ifalse
    use FatesConstantsMod         , only : nearzero
@@ -63,7 +63,7 @@ module FatesInterfaceMod
    use FatesConstantsMod         , only : prescribed_n_uptake
    use FatesConstantsMod         , only : coupled_p_uptake
    use FatesConstantsMod         , only : coupled_n_uptake
-   use FatesConstantsMod         , only : fates_np_comp_scaling
+   use EDParamsMod               , only : fates_np_comp_scaling
    use FatesConstantsMod         , only : coupled_np_comp_scaling
    use FatesConstantsMod         , only : trivial_np_comp_scaling
    use PRTGenericMod             , only : num_elements
@@ -405,7 +405,7 @@ contains
          write(fates_log(), *) 'The number of soil layers imposed by the host model'
          write(fates_log(), *) 'is larger than what we have allocated in our static'
          write(fates_log(), *) 'arrays. Please increase the size of numlevsoil_max'
-         write(fates_log(), *) 'found in EDTypesMod.F90'
+         write(fates_log(), *) 'found in FatesConstantsMod.F90'
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 

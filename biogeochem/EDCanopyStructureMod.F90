@@ -11,6 +11,8 @@ module EDCanopyStructureMod
   use FatesConstantsMod     , only : nearzero
   use FatesConstantsMod     , only : rsnbl_math_prec
   use FatesConstantsMod     , only : nocomp_bareground
+  use FatesConstantsMod     , only : area
+  use FatesConstantsMod,      only : min_patch_area
   use FatesGlobals          , only : fates_log
   use EDPftvarcon           , only : EDPftvarcon_inst
   use PRTParametersMod      , only : prt_params
@@ -24,7 +26,7 @@ module EDCanopyStructureMod
   use FatesCohortMod,         only : fates_cohort_type
   use EDParamsMod            , only : nclmax
   use EDParamsMod            , only : nlevleaf
-  use EDtypesMod            , only : AREA
+  
   use EDLoggingMortalityMod , only : UpdateHarvestC
   use FatesGlobals          , only : endrun => fates_endrun
   use FatesInterfaceTypesMod     , only : hlm_days_per_year
@@ -128,7 +130,7 @@ contains
     ! !USES:
 
     use EDParamsMod, only : ED_val_comp_excln
-    use EDTypesMod , only : min_patch_area
+    
 
     !
     ! !ARGUMENTS
@@ -1236,7 +1238,6 @@ contains
     !  Calculates the spatial spread of tree canopies based on canopy closure.
     !
     ! !USES:
-    use EDTypesMod        , only : AREA
     use EDParamsMod, only : ED_val_canopy_closure_thresh
     !
     ! !ARGUMENTS
@@ -1299,7 +1300,6 @@ contains
     use EDPatchDynamicsMod   , only : set_patchno
     use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
     use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
-    use EDtypesMod           , only : area
     use FatesConstantsMod    , only : itrue
 
     ! !ARGUMENTS
@@ -1499,8 +1499,8 @@ contains
 
     ! !USES:
 
-    use EDtypesMod           , only : area, hitemax, n_hite_bins
-    use EDParamsMod,           only : dinc_vai, dlower_vai
+    use FatesConstantsMod, only : area, hitemax, n_hite_bins
+    use EDParamsMod,       only : dinc_vai, dlower_vai
 
     !
     ! !ARGUMENTS
@@ -1802,7 +1802,6 @@ contains
     ! to vegetation coverage to the host land model.
     ! ----------------------------------------------------------------------------------
 
-    use EDTypesMod        , only : AREA
     use FatesPatchMod,      only : fates_patch_type
     use FatesInterfaceTypesMod , only : bc_out_type
 

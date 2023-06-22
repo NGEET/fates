@@ -11,33 +11,33 @@ module EDPatchDynamicsMod
   use EDPftvarcon          , only : GetDecompyFrac
   use PRTParametersMod      , only : prt_params
   use EDCohortDynamicsMod  , only : fuse_cohorts, sort_cohorts, insert_cohort
-  use EDTypesMod           , only : area_site => area
+  use FatesConstantsMod           , only : area_site => area
   use ChecksBalancesMod    , only : PatchMassStock
   use FatesLitterMod       , only : ncwd
   use FatesLitterMod       , only : ndcmpy
   use FatesLitterMod       , only : litter_type
   use FatesConstantsMod,     only : n_dbh_bins
-  use EDTypesMod           , only : homogenize_seed_pfts
-  use EDTypesMod           , only : area, patchfusion_dbhbin_loweredges
-  use EDtypesMod           , only : force_patchfuse_min_biomass
+  use FatesConstantsMod           , only : homogenize_seed_pfts
+  use FatesConstantsMod           , only : area, patchfusion_dbhbin_loweredges
+  use FatesConstantsMod           , only : force_patchfuse_min_biomass
   use FatesSiteMod         , only : fates_site_type
   use FatesPatchMod,         only : fates_patch_type
   use FatesCohortMod       , only : fates_cohort_type
   use FatesMassBalTypeMod  , only : site_massbal_type
   use FatesSiteMod         , only : site_fluxdiags_type
-  use EDTypesMod           , only : min_patch_area
-  use EDTypesMod           , only : min_patch_area_forced
+  use FatesConstantsMod           , only : min_patch_area
+  use FatesConstantsMod           , only : min_patch_area_forced
   use EDParamsMod          , only : nclmax
-  use EDTypesMod           , only : dtype_ifall
-  use EDTypesMod           , only : dtype_ilog
-  use EDTypesMod           , only : dtype_ifire
+  use FatesConstantsMod           , only : dtype_ifall
+  use FatesConstantsMod           , only : dtype_ilog
+  use FatesConstantsMod           , only : dtype_ifire
   use FatesConstantsMod    , only : ican_upper
   use PRTGenericMod        , only : num_elements
   use PRTGenericMod        , only : element_list
   use FatesLitterMod       , only : lg_sf
   use FatesLitterMod       , only : dl_sf
   use FatesConstantsMod    , only : N_DIST_TYPES
-  use EDTypesMod           , only : AREA_INV
+  use FatesConstantsMod           , only : AREA_INV
   use FatesConstantsMod    , only : rsnbl_math_prec
   use FatesConstantsMod    , only : fates_tiny
   use FatesConstantsMod    , only : nocomp_bareground
@@ -2081,8 +2081,8 @@ contains
     !
     ! !USES:
     use EDParamsMod , only : ED_val_patch_fusion_tol
-    use EDTypesMod , only : patch_fusion_tolerance_relaxation_increment
-    use EDTypesMod , only : max_age_of_second_oldest_patch
+    use FatesConstantsMod , only : patch_fusion_tolerance_relaxation_increment
+    use FatesConstantsMod , only : max_age_of_second_oldest_patch
     !
     ! !ARGUMENTS:
     type(fates_site_type), intent(inout), target  :: csite

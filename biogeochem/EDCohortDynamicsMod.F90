@@ -5,117 +5,89 @@ Module EDCohortDynamicsMod
   !
   
   ! USES:
-  use FatesGlobals          , only : endrun => fates_endrun
-  use FatesGlobals          , only : fates_log
-  use FatesInterfaceTypesMod     , only : hlm_freq_day
-  use FatesInterfaceTypesMod     , only : bc_in_type
-  use FatesInterfaceTypesMod     , only : hlm_use_planthydro
-  use FatesInterfaceTypesMod     , only : hlm_use_sp
-  use FatesInterfaceTypesMod     , only : hlm_use_cohort_age_tracking
-  use FatesInterfaceTypesMod     , only : hlm_use_tree_damage
-  use FatesInterfaceTypesMod     , only : hlm_is_restart
-  use FatesConstantsMod     , only : r8 => fates_r8
-  use FatesConstantsMod     , only : fates_unset_int
-  use FatesConstantsMod     , only : itrue,ifalse
-  use FatesConstantsMod     , only : fates_unset_r8
-  use FatesConstantsMod     , only : nearzero
-  use FatesConstantsMod     , only : calloc_abs_error
-  use FatesInterfaceTypesMod     , only : hlm_days_per_year
-  use FatesInterfaceTypesMod     , only : nleafage
-  use SFParamsMod           , only : SF_val_CWD_frac
-  use EDPftvarcon           , only : EDPftvarcon_inst
-  use EDPftvarcon           , only : GetDecompyFrac
-  use PRTParametersMod      , only : prt_params
-  use FatesParameterDerivedMod, only : param_derived
-  use FatesSiteMod          , only : fates_site_type
-  use FatesPatchMod,          only : fates_patch_type
-  use FatesCohortMod       , only : fates_cohort_type
-  use EDParamsMod            , only : nclmax
-  use PRTGenericMod         , only : element_list
-  use PRTGenericMod         , only : StorageNutrientTarget
-  use FatesLitterMod        , only : ncwd
-  use FatesLitterMod        , only : ndcmpy
-  use FatesLitterMod        , only : litter_type
-  use EDParamsMod           , only : max_cohort_per_patch
-  use EDTypesMod            , only : AREA
-  use EDTypesMod            , only : min_npm2, min_nppatch
-  use EDTypesMod            , only : min_n_safemath
-  use EDParamsMod            , only : nlevleaf
-  use PRTGenericMod         , only : max_nleafage
-  use FatesConstantsMod     , only : ican_upper
-  use FatesSiteMod          , only : site_fluxdiags_type
-  use PRTGenericMod          , only : num_elements
-  use FatesConstantsMod      , only : leaves_on
-  use EDParamsMod           , only : ED_val_cohort_age_fusion_tol
-  use FatesInterfaceTypesMod      , only : hlm_use_planthydro
-  use FatesInterfaceTypesMod      , only : hlm_parteh_mode
-  use FatesPlantHydraulicsMod, only : FuseCohortHydraulics
-  use FatesPlantHydraulicsMod, only : UpdateSizeDepPlantHydProps
-  use FatesPlantHydraulicsMod, only : InitPlantHydStates
-  use FatesPlantHydraulicsMod, only : InitHydrCohort
-  use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
-  use FatesPlantHydraulicsMod, only : AccumulateMortalityWaterStorage
-  use FatesPlantHydraulicsMod, only : UpdatePlantHydrNodes
-  use FatesPlantHydraulicsMod, only : UpdatePlantHydrLenVol
-  use FatesPlantHydraulicsMod, only : UpdatePlantKmax
-  use FatesPlantHydraulicsMod, only : SavePreviousCompartmentVolumes
-  use FatesPlantHydraulicsMod, only : ConstrainRecruitNumber
+  use FatesConstantsMod,          only : r8 => fates_r8
+  use FatesConstantsMod,          only : itrue, ifalse
+  use FatesConstantsMod,          only : fates_unset_r8
+  use FatesConstantsMod,          only : nearzero
+  use FatesConstantsMod,          only : calloc_abs_error
+  use FatesConstantsMod,          only : area
+  use FatesConstantsMod,          only : min_npm2, min_nppatch
+  use FatesConstantsMod,          only : min_n_safemath
+  use FatesConstantsMod,          only : ican_upper
+  use FatesConstantsMod,          only : leaves_on
+  use FatesGlobals,               only : endrun => fates_endrun
+  use FatesGlobals,               only : fates_log
+  use EDParamsMod,                only : ED_val_cohort_size_fusion_tol
+  use EDParamsMod,                only : ED_val_cohort_age_fusion_tol
+  use EDParamsMod,                only : max_cohort_per_patch
+  use EDParamsMod,                only : nlevleaf
+  use EDParamsMod,                only : nclmax
+  use FatesInterfaceTypesMod,     only : bc_in_type
+  use FatesInterfaceTypesMod,     only : hlm_use_planthydro
+  use FatesInterfaceTypesMod,     only : hlm_use_cohort_age_tracking
+  use FatesInterfaceTypesMod,     only : nleafage
+  use FatesInterfaceTypesMod,     only : hlm_parteh_mode
+  use EDPftvarcon,                only : EDPftvarcon_inst
+  use EDPftvarcon,                only : GetDecompyFrac
+  use FatesSiteMod,               only : fates_site_type
+  use FatesPatchMod,              only : fates_patch_type
+  use FatesCohortMod,             only : fates_cohort_type
+  use FatesSiteMod,               only : site_fluxdiags_type
+  use FatesLitterMod,             only : ncwd
+  use FatesLitterMod,             only : ndcmpy
+  use FatesLitterMod,             only : litter_type
+  use SFParamsMod,                only : SF_val_CWD_frac
+  use PRTParametersMod,           only : prt_params
+  use PRTGenericMod,              only : element_list
+  use PRTGenericMod,              only : StorageNutrientTarget
+  use PRTGenericMod,              only : max_nleafage
+  use PRTGenericMod,              only : num_elements
+  use PRTGenericMod,              only : prt_carbon_allom_hyp
+  use PRTGenericMod,              only : prt_cnp_flex_allom_hyp
+  use PRTGenericMod,              only : prt_vartypes
+  use PRTGenericMod,              only : carbon12_element
+  use PRTGenericMod,              only : nitrogen_element
+  use PRTGenericMod,              only : phosphorus_element
+  use PRTGenericMod,              only : leaf_organ
+  use PRTGenericMod,              only : fnrt_organ
+  use PRTGenericMod,              only : sapw_organ
+  use PRTGenericMod,              only : store_organ
+  use PRTGenericMod,              only : repro_organ
+  use PRTGenericMod,              only : struct_organ
+  use PRTGenericMod,              only : SetState
+  use PRTAllometricCarbonMod,     only : callom_prt_vartypes
+  use PRTAllometricCNPMod,        only : cnp_allom_prt_vartypes
+  use FatesPlantHydraulicsMod,    only : FuseCohortHydraulics
+  use FatesPlantHydraulicsMod,    only : UpdateSizeDepPlantHydProps
+  use FatesPlantHydraulicsMod,    only : InitPlantHydStates
+  use FatesPlantHydraulicsMod,    only : InitHydrCohort
+  use FatesPlantHydraulicsMod,    only : AccumulateMortalityWaterStorage
+  use FatesPlantHydraulicsMod,    only : UpdatePlantHydrNodes
+  use FatesPlantHydraulicsMod,    only : UpdatePlantHydrLenVol
+  use FatesPlantHydraulicsMod,    only : UpdatePlantKmax
+  use FatesPlantHydraulicsMod,    only : SavePreviousCompartmentVolumes
+  use FatesPlantHydraulicsMod,    only : ConstrainRecruitNumber
   use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
   use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
-  use FatesAllometryMod  , only : bleaf
-  use FatesAllometryMod  , only : bfineroot
-  use FatesAllometryMod  , only : bsap_allom
-  use FatesAllometryMod  , only : bagw_allom
-  use FatesAllometryMod  , only : bbgw_allom
-  use FatesAllometryMod  , only : bdead_allom
-  use FatesAllometryMod  , only : h_allom
-  use FatesAllometryMod  , only : carea_allom
-  use FatesAllometryMod  , only : bstore_allom
-  use FatesAllometryMod  , only : ForceDBH
-  use FatesAllometryMod  , only : tree_lai, tree_sai
-  use FatesAllometryMod    , only : set_root_fraction
-  use PRTGenericMod,          only : prt_carbon_allom_hyp
-  use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
-  use PRTGenericMod,          only : prt_vartypes
-  use PRTGenericMod,          only : carbon12_element
-  use PRTGenericMod,          only : nitrogen_element
-  use PRTGenericMod,          only : phosphorus_element
-  use PRTGenericMod,          only : leaf_organ
-  use PRTGenericMod,          only : fnrt_organ
-  use PRTGenericMod,          only : sapw_organ
-  use PRTGenericMod,          only : store_organ
-  use PRTGenericMod,          only : repro_organ
-  use PRTGenericMod,          only : struct_organ
-  use PRTGenericMod,          only : SetState
-  use PRTAllometricCarbonMod, only : callom_prt_vartypes
-  use PRTAllometricCarbonMod, only : ac_bc_inout_id_netdc
-  use PRTAllometricCarbonMod, only : ac_bc_in_id_pft
-  use PRTAllometricCarbonMod, only : ac_bc_in_id_ctrim
-  use PRTAllometricCarbonMod, only : ac_bc_inout_id_dbh
-  use PRTAllometricCarbonMod, only : ac_bc_in_id_lstat, ac_bc_in_id_cdamage
-  use PRTAllometricCNPMod,    only : cnp_allom_prt_vartypes
-  use PRTAllometricCNPMod,    only : acnp_bc_in_id_pft, acnp_bc_in_id_ctrim
-  use PRTAllometricCNPMod,    only : acnp_bc_in_id_lstat, acnp_bc_inout_id_dbh
-  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_l2fr
-  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_cx_int
-  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_cx0
-  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_emadcxdt
-  use PRTAllometricCNPMod,    only : acnp_bc_in_id_nc_repro
-  use PRTAllometricCNPMod,    only : acnp_bc_in_id_pc_repro
-  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_resp_excess, acnp_bc_in_id_netdc
-  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_netdn, acnp_bc_inout_id_netdp
-  use PRTAllometricCNPMod,    only : acnp_bc_out_id_cefflux, acnp_bc_out_id_nefflux
-  use PRTAllometricCNPMod,    only : acnp_bc_out_id_pefflux, acnp_bc_out_id_limiter
-  use PRTAllometricCNPMod,    only : acnp_bc_in_id_cdamage
-  use DamageMainMod,          only : undamaged_class
+  use FatesAllometryMod,          only : bleaf
+  use FatesAllometryMod,          only : bfineroot
+  use FatesAllometryMod,          only : bsap_allom
+  use FatesAllometryMod,          only : bagw_allom
+  use FatesAllometryMod,          only : bbgw_allom
+  use FatesAllometryMod,          only : bdead_allom
+  use FatesAllometryMod,          only : h_allom
+  use FatesAllometryMod,          only : carea_allom
+  use FatesAllometryMod,          only : bstore_allom
+  use FatesAllometryMod,          only : ForceDBH
+  use FatesAllometryMod,          only : set_root_fraction
+  use DamageMainMod,              only : undamaged_class
 
-  use shr_infnan_mod,         only : nan => shr_infnan_nan, assignment(=)  
-  use shr_log_mod,            only : errMsg => shr_log_errMsg
+  use shr_infnan_mod,             only : nan => shr_infnan_nan, assignment(=)  
+  use shr_log_mod,                only : errMsg => shr_log_errMsg
 
-  !
   implicit none
   private
-  !
+
   public :: create_cohort
   public :: terminate_cohorts
   public :: terminate_cohort
@@ -130,8 +102,7 @@ Module EDCohortDynamicsMod
   
   logical, parameter :: debug  = .false. ! local debug flag
   
-  character(len=*), parameter, private :: sourcefile = &
-       __FILE__
+  character(len=*), parameter, private :: sourcefile = __FILE__
 
 
   integer, parameter, private :: conserve_crownarea_and_number_not_dbh = 1
@@ -343,8 +314,7 @@ end subroutine create_cohort
     ! !DESCRIPTION:
     ! terminates all cohorts when they get too small
     !
-    ! !USES:
-    
+ 
     !
     ! !ARGUMENTS
     type (fates_site_type) , intent(inout) :: currentSite
@@ -461,8 +431,7 @@ end subroutine create_cohort
    ! Terminates an individual cohort and updates the site-level
    ! updates the carbon flux and nuber of individuals appropriately
    !
-   ! !USES:
-   !
+   
    ! !ARGUMENTS
    type(fates_site_type)  , intent(inout), target :: currentSite
    type (fates_patch_type) , intent(inout), target :: currentPatch
@@ -688,13 +657,6 @@ end subroutine create_cohort
      ! !DESCRIPTION:
      ! Join similar cohorts to reduce total number
      !
-     ! !USES:
-     use EDParamsMod , only :  ED_val_cohort_size_fusion_tol
-     use EDParamsMod , only :  ED_val_cohort_age_fusion_tol
-     use FatesInterfaceTypesMod , only :  hlm_use_cohort_age_tracking
-     use FatesConstantsMod , only : itrue
-     use FatesConstantsMod, only : days_per_year
-     
 
      !
      ! !ARGUMENTS
@@ -1313,8 +1275,7 @@ end subroutine create_cohort
     ! !DESCRIPTION:
     ! Insert cohort into linked list
     !
-    ! !USES:
-    !
+  
     ! !ARGUMENTS
     type(fates_patch_type),  intent(inout),     target :: currentPatch
     type(fates_cohort_type) , intent(inout), pointer :: pcc
@@ -1424,8 +1385,7 @@ end subroutine create_cohort
   subroutine count_cohorts( currentPatch )
     !
     ! !DESCRIPTION:
-    !
-    ! !USES:
+  
     !
     ! !ARGUMENTS
     type(fates_patch_type), intent(inout), target :: currentPatch      !new site

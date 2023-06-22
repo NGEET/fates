@@ -9,8 +9,8 @@
   use FatesConstantsMod     , only : itrue, ifalse
   use FatesConstantsMod     , only : pi_const
   use FatesConstantsMod     , only : nocomp_bareground
-  use FatesInterfaceTypesMod     , only : hlm_masterproc ! 1= master process, 0=not master process
-  use EDTypesMod            , only : numWaterMem
+  use FatesInterfaceTypesMod, only : hlm_masterproc ! 1= master process, 0=not master process
+  use FatesConstantsMod     , only : numWaterMem
   use FatesGlobals          , only : fates_log
   use FatesInterfaceTypesMod, only : hlm_spitfire_mode
   use FatesInterfaceTypesMod, only : hlm_sf_nofire_def
@@ -26,7 +26,7 @@
   use FatesSiteMod          , only : fates_site_type
   use FatesPatchMod         , only : fates_patch_type
   use FatesCohortMod        , only : fates_cohort_type
-  use EDtypesMod            , only : AREA
+  use FatesConstantsMod     , only : AREA
   use FatesLitterMod        , only : DL_SF
   use FatesLitterMod        , only : TW_SF
   use FatesLitterMod        , only : LB_SF

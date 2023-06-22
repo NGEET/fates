@@ -46,7 +46,7 @@ module FatesSoilBGCFluxMod
   use FatesSiteMod       , only : fates_site_type
   use FatesPatchMod     , only : fates_patch_type
   use FatesCohortMod      , only : fates_cohort_type
-  use EDTypesMod          , only : AREA,AREA_INV
+  use FatesConstantsMod          , only : AREA,AREA_INV
   use FatesInterfaceTypesMod, only    : bc_in_type
   use FatesInterfaceTypesMod, only    : bc_out_type
   use FatesInterfaceTypesMod, only    : numpft
@@ -61,7 +61,7 @@ module FatesSoilBGCFluxMod
   use FatesConstantsMod, only    : days_per_sec
   use FatesConstantsMod, only    : g_per_kg
   use FatesConstantsMod, only    : kg_per_g
-  use FatesConstantsMod, only    : fates_np_comp_scaling
+  use EDParamsMod,       only    : fates_np_comp_scaling
   use FatesConstantsMod, only    : coupled_np_comp_scaling
   use FatesConstantsMod, only    : trivial_np_comp_scaling
   use FatesConstantsMod, only    : rsnbl_math_prec

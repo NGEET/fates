@@ -42,7 +42,7 @@ module FATESPlantRespPhotosynthMod
   use EDParamsMod,       only : nlevleaf
   use EDParamsMod,       only : nclmax
   use PRTGenericMod,     only : max_nleafage
-  use EDTypesMod,        only : do_fates_salinity
+  use FatesConstantsMod, only : do_fates_salinity
   use EDParamsMod,       only : q10_mr
   use FatesPatchMod,     only : fates_patch_type
   use FatesCohortMod,    only : fates_cohort_type

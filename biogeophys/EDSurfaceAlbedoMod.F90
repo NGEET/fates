@@ -24,9 +24,9 @@ module EDSurfaceRadiationMod
   use EDParamsMod        , only : maxSWb
   use EDParamsMod        , only : nclmax
   use EDParamsMod        , only : nlevleaf
-  use EDTypesMod        , only : n_rad_stream_types
-  use EDTypesMod        , only : idiffuse
-  use EDTypesMod        , only : idirect
+  use FatesConstantsMod        , only : n_rad_stream_types
+  use FatesConstantsMod        , only : idiffuse
+  use FatesConstantsMod        , only : idirect
   use EDParamsMod        , only : ivis
   use EDParamsMod        , only : inir
   use EDParamsMod        , only : ipar

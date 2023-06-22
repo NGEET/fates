@@ -21,16 +21,16 @@ module FatesHistoryInterfaceMod
   use FatesSiteMod             , only : fates_site_type
   use FatesCohortMod           , only : fates_cohort_type
   use FatesPatchMod            , only : fates_patch_type
-  use EDtypesMod               , only : AREA
-  use EDtypesMod               , only : AREA_INV
-  use EDTypesMod               , only : numWaterMem
-  use EDTypesMod               , only : num_vegtemp_mem
+  use FatesConstantsMod        , only : AREA
+  use FatesConstantsMod        , only : AREA_INV
+  use FatesConstantsMod        , only : numWaterMem
+  use FatesConstantsMod        , only : num_vegtemp_mem
   use FatesMassBalTypeMod      , only : site_massbal_type
   use PRTGenericMod            , only : element_list
   use FatesConstantsMod        , only : N_DIST_TYPES, maxpft
-  use EDTypesMod               , only : dtype_ifall
-  use EDTypesMod               , only : dtype_ifire
-  use EDTypesMod               , only : dtype_ilog
+  use FatesConstantsMod               , only : dtype_ifall
+  use FatesConstantsMod               , only : dtype_ifire
+  use FatesConstantsMod               , only : dtype_ilog
   use FatesIODimensionsMod     , only : fates_io_dimension_type
   use FatesIOVariableKindMod   , only : fates_io_variable_kind_type
   use FatesIOVariableKindMod   , only : site_int
