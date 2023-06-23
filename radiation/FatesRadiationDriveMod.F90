@@ -13,6 +13,7 @@ module FatesRadiationDriveMod
   use EDTypesMod        , only : ed_patch_type, ed_site_type
   use EDTypesMod        , only : maxpft
   use FatesConstantsMod , only : r8 => fates_r8
+  use FatesConstantsMod , only : fates_unset_r8
   use FatesConstantsMod , only : itrue
   use FatesConstantsMod , only : pi_const
   use FatesConstantsMod , only : nocomp_bareground
@@ -88,13 +89,6 @@ contains
     integer :: ifp                                 ! patch loop counter
     integer :: ib                                  ! radiation broad band counter
     type(ed_patch_type), pointer :: currentPatch   ! patch pointer
-    real(r8) :: Rdiff_up_atm_beam  ! Upwelling diffuse radiation at top from beam scattering [W/m2 ground]
-    real(r8) :: Rdiff_up_atm_diff  ! Upwelling diffuse radiation at top from diffuse scattering [W/m2 ground]
-    real(r8) :: Rbeam_can_abs      ! Total beam radiation absorbed by the canopy [W/m2 ground]
-    real(r8) :: Rdiff_can_abs      ! Total diffuse radiation absorbed by the canopy [W/m2 ground]
-    real(r8) :: Rbeam_dn_grnd_beam ! Average beam radiation at ground [W/m2 ground]
-    real(r8) :: Rdiff_dn_grnd_beam ! Average downward diffuse radiation at ground due to beam sourcing [W/m2 ground]
-    real(r8) :: Rdiff_dn_grnd_diff ! Average downward diffuse radiation at ground from diffuse sourcing [W/m2 ground]
     !-----------------------------------------------------------------------
     ! -------------------------------------------------------------------------------
     ! TODO (mv, 2014-10-29) the filter here is different than below
@@ -139,32 +133,25 @@ contains
                 call currentPatch%twostr%CanopyPrep(bc_in(s)%fcansno_pa(ifp))
                 call currentPatch%twostr%ZenithPrep(bc_in(s)%coszen_pa(ifp))
              end if
-             
-             if_zenith_flag: if(currentPatch%solar_zenith_flag )then
 
-                bc_out(s)%albd_parb(ifp,:)            = 0._r8  ! output HLM
-                bc_out(s)%albi_parb(ifp,:)            = 0._r8  ! output HLM
-                bc_out(s)%fabi_parb(ifp,:)            = 0._r8  ! output HLM
-                bc_out(s)%fabd_parb(ifp,:)            = 0._r8  ! output HLM
-                bc_out(s)%ftdd_parb(ifp,:)            = 1._r8 ! output HLM
-                bc_out(s)%ftid_parb(ifp,:)            = 1._r8 ! output HLM
-                bc_out(s)%ftii_parb(ifp,:)            = 1._r8 ! output HLM
+             if_zenith_flag: if(currentPatch%solar_zenith_flag )then
 
                 if_nrad: if (maxval(currentPatch%nrad(1,:))==0)then
                    !there are no leaf layers in this patch. it is effectively bare ground.
                    ! no radiation is absorbed
-                   bc_out(s)%fabd_parb(ifp,:) = 0.0_r8
-                   bc_out(s)%fabi_parb(ifp,:) = 0.0_r8
+
                    currentPatch%radiation_error = 0.0_r8
 
                    do ib = 1,hlm_numSWb
                       bc_out(s)%albd_parb(ifp,ib) = bc_in(s)%albgr_dir_rb(ib)
                       bc_out(s)%albi_parb(ifp,ib) = bc_in(s)%albgr_dif_rb(ib)
+                      bc_out(s)%fabd_parb(ifp,ib) = 0.0_r8
+                      bc_out(s)%fabi_parb(ifp,ib) = 0.0_r8
                       bc_out(s)%ftdd_parb(ifp,ib)= 1.0_r8
                       bc_out(s)%ftid_parb(ifp,ib)= 0.0_r8
                       bc_out(s)%ftii_parb(ifp,ib)= 1.0_r8
                    enddo
-
+ 
                 else
 
                    if_solver: if(rad_solver.eq.norman_solver) then
@@ -189,7 +176,7 @@ contains
 
                            twostr%band(ib)%albedo_grnd_diff = bc_in(s)%albgr_dif_rb(ib)
                            twostr%band(ib)%albedo_grnd_beam = bc_in(s)%albgr_dir_rb(ib)
-
+                           
                            call twostr%Solve(ib,             &  ! in
                                 normalized_upper_boundary,   &  ! in
                                 1.0_r8,1.0_r8,               &  ! in
@@ -201,11 +188,35 @@ contains
                                 bc_out(s)%ftid_parb(ifp,ib), &  ! out
                                 bc_out(s)%ftii_parb(ifp,ib))
 
+                           if(debug) then
+                              currentPatch%twostr%band(ib)%Rbeam_atm = 1._r8
+                              currentPatch%twostr%band(ib)%Rdiff_atm = 1._r8
+                              call CheckPatchRadiationBalance(currentPatch, sites(s)%snow_depth, & 
+                                   ib, bc_out(s)%fabd_parb(ifp,ib),bc_out(s)%fabi_parb(ifp,ib))
+                              currentPatch%twostr%band(ib)%Rbeam_atm = fates_unset_r8
+                              currentPatch%twostr%band(ib)%Rdiff_atm = fates_unset_r8
+                           
+                              if(bc_out(s)%fabi_parb(ifp,ib)>1.0 .or. bc_out(s)%fabd_parb(ifp,ib)>1.0)then
+                                 write(fates_log(),*) 'absorbed fraction > 1.0?'
+                                 write(fates_log(),*) ifp,ib,bc_out(s)%fabi_parb(ifp,ib),bc_out(s)%fabd_parb(ifp,ib)
+                                 call twostr%Dump(ib,bc_in(s)%coszen_pa(ifp),lat=sites(s)%lat,lon=sites(s)%lon)
+                                 call endrun(msg=errMsg(sourcefile, __LINE__))
+                              end if
+                           end if
+
                         end do
                       end associate
 
                    end if if_solver
                 end if if_nrad
+             else
+                bc_out(s)%albd_parb(ifp,:)            = 1._r8
+                bc_out(s)%albi_parb(ifp,:)            = 1._r8
+                bc_out(s)%fabi_parb(ifp,:)            = 0._r8
+                bc_out(s)%fabd_parb(ifp,:)            = 0._r8
+                bc_out(s)%ftdd_parb(ifp,:)            = 0._r8
+                bc_out(s)%ftid_parb(ifp,:)            = 0._r8
+                bc_out(s)%ftii_parb(ifp,:)            = 0._r8
              endif if_zenith_flag
           end if if_notbareground
           
@@ -721,14 +732,13 @@ contains
                               tran_dif(L,ft,iv,ib) * lai_change(L,ft,iv)/ftweight(L,ft,1)
                          Dif_up(L,ft,iv) = Dif_up(L,ft,iv) + Dif_up(L,ft,iv+1) * &
                               (ftweight(L,ft,1)-ftweight(L,ft,iv))/ftweight(L,ft,1)
-                         !nb is this the right constuction?
+                        !nb is this the right constuction?
                          ! the radiation that hits the empty space is not reflected.
                       else
                          Dif_up(L,ft,iv) = dif_ratio(L,ft,iv,ib) * Dif_dn(L,ft,iv) * ftweight(L,ft,iv)
                          Dif_up(L,ft,iv) = Dif_up(L,ft,iv) + Dif_up(L,ft,iv+1) * (1.0_r8-ftweight(L,ft,iv))
                       endif
                    end do
-
                    weighted_dif_up(L) = weighted_dif_up(L) + Dif_up(L,ft,1) * ftweight(L,ft,1)
                    !instance where the first layer ftweight is used a proxy for the whole column. FTWA
                 endif !present
@@ -1189,7 +1199,6 @@ subroutine FatesSunShadeFracs(nsites, sites,bc_in,bc_out)
            ! ifp=1 is the first vegetated patch.
            ifp=ifp+1
 
-
            ! If there is no sun out, we have a trivial solution
            if_zenithflag: if( .not.cpatch%solar_zenith_flag ) then
            
@@ -1325,10 +1334,7 @@ subroutine FatesSunShadeFracs(nsites, sites,bc_in,bc_out)
                    bc_out(s)%fsun_pa(ifp),   &
                    bc_out(s)%laisun_pa(ifp), &
                    bc_out(s)%laisha_pa(ifp))
-                 
-              call CheckPatchRadiationBalance(cpatch, sites(s)%snow_depth, ivis,bc_out(s)%fabd_parb(ifp,ivis), bc_out(s)%fabi_parb(ifp,ivis))
-              call CheckPatchRadiationBalance(cpatch, sites(s)%snow_depth, inir,bc_out(s)%fabd_parb(ifp,inir), bc_out(s)%fabi_parb(ifp,inir))
-              
+               
               associate(twostr => cpatch%twostr)
                 
                 do cl = 1,twostr%n_lyr

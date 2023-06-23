@@ -196,12 +196,19 @@ contains
                               site%snow_depth,       &
                               vai_top, vai_bot,      & 
                               elai_cohort,esai_cohort)
-            
-            twostr%scelg(ican,n_col(ican))%pft = ft
+
+            ! Its possible that this layer is covered by snow
+            ! if so, then just consider it an air layer
+            if((elai_cohort+esai_cohort)>nearzero)then
+               twostr%scelg(ican,n_col(ican))%pft = ft
+            else
+               twostr%scelg(ican,n_col(ican))%pft = air_ft
+            end if
+
             twostr%scelg(ican,n_col(ican))%area = cohort%c_area/patch%total_canopy_area
             twostr%scelg(ican,n_col(ican))%lai  = elai_cohort
             twostr%scelg(ican,n_col(ican))%sai  = esai_cohort
-
+            
             ! Cohort needs to know which column its in
             cohort%twostr_col = n_col(ican)
 
@@ -238,10 +245,11 @@ contains
                twostr%scelg(ican,1)%lai  = twostr%scelg(ican,1)%lai / area_ratio
                twostr%scelg(ican,1)%sai  = twostr%scelg(ican,1)%sai / area_ratio
 
-               
-               
+               write(fates_log(),*) 'overfull areas'
+               call twostr%Dump(1,coszen_pa(ifp),lat=site%lat,lon=site%lon)
+               call endrun(msg=errMsg(sourcefile, __LINE__))
             end if
-            
+
          end do
 
          ! Go ahead an temporarily squeeze crown areas
@@ -348,7 +356,6 @@ contains
     ! absorbed radiation, then compare the amount absorbed
     ! to the fraction the solver calculated
 
-
     type(ed_patch_type) :: patch
     integer             :: ib      ! broadband index
     real(r8)            :: snow_depth
@@ -407,7 +414,8 @@ contains
 
       if( abs(check_fab-in_fab) > in_fab*10._r8*rel_err_thresh ) then
          write(fates_log(),*)'Absorbed radiation didnt balance after cohort sum'
-         write(fates_log(),*) ib,in_fab,check_fab
+         write(fates_log(),*) ib,in_fab,check_fab,snow_depth
+         call twostr%Dump(ib,patch%solar_zenith_angle)
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
       
@@ -454,12 +462,16 @@ contains
     associate(scelg => patch%twostr%scelg(cohort%canopy_layer,cohort%twostr_col), &
          scelb => patch%twostr%band(ib)%scelb(cohort%canopy_layer,cohort%twostr_col) )
 
-      evai_cvai = (scelg%lai+scelg%sai)/(cohort_elai+cohort_esai)
-      
-      if(abs(evai_cvai-1._r8)>1.e-8_r8)then
-         print*,"EVAI_CVAI: ",evai_cvai
-         stop
+      if((cohort_elai+cohort_esai)<nearzero)then
+          rb_abs  = 0._r8
+          rd_abs  = 0._r8
+          rb_abs_leaf = 0._r8
+          rd_abs_leaf = 0._r8
+          leaf_sun_frac = 0._r8
+         return
       end if
+
+      evai_cvai = (scelg%lai+scelg%sai)/(cohort_elai+cohort_esai)
       
       ! Convert the vai coordinate from the cohort to the element
       vai_top_el = vaitop * evai_cvai
@@ -469,6 +481,7 @@ contains
       call patch%twostr%GetAbsRad(cohort%canopy_layer,cohort%twostr_col,ib,vai_top_el,vai_bot_el, & 
            Rb_abs_el,Rd_abs_el,rd_abs_leaf_el,rb_abs_leaf_el,r_abs_stem_el,r_abs_snow_el,leaf_sun_frac)
 
+      ! Note that rd_abs_el and rb_abs_el both contain absorption by water, the abs_leaf terms do not
       rd_abs = rd_abs_el / evai_cvai
       rb_abs = rb_abs_el / evai_cvai
       
@@ -478,13 +491,6 @@ contains
       beam_wt_leaf = (1._r8-patch%twostr%frac_snow)*cohort_elai*(1._r8-rad_params%om_leaf(ib,cohort%pft))*scelg%Kb_leaf
       beam_wt_elem = (cohort_elai+cohort_esai)*(1._r8-scelb%om)*scelg%Kb
 
-      !print*,"---"
-      !print*,diff_wt_leaf,diff_wt_elem
-      !print*,cohort_elai,cohort_esai
-      !print*,rad_params%om_leaf(ib,cohort%pft),rad_params%Kd_leaf(cohort%pft)
-      !print*,scelb%om,scelg%Kd
-
-      
       rd_abs_leaf = rd_abs * min(1.0_r8,diff_wt_leaf / diff_wt_elem)
       rb_abs_leaf = rb_abs * min(1.0_r8,beam_wt_leaf / beam_wt_elem)
 

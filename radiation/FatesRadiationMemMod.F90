@@ -16,7 +16,7 @@ Module FatesRadiationMemMod
 
   integer, parameter, public :: norman_solver = 1
   integer, parameter, public :: twostr_solver = 2
-  integer, parameter, public :: rad_solver = norman_solver
+  integer, parameter, public :: rad_solver = twostr_solver
   
 
   integer, parameter, public :: num_rad_stream_types = 2    ! The number of radiation streams used (direct/diffuse)

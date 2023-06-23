@@ -4646,10 +4646,11 @@ end subroutine flush_hvars
             site_area_veg_inv = site_area_veg_inv + cpatch%total_canopy_area
             cpatch => cpatch%younger
          end do !patch loop
-         site_area_veg_inv = 1._r8/site_area_veg_inv
 
          ! If there is no vegetation, go to the next site
          if(site_area_veg_inv < nearzero) cycle do_sites
+
+         site_area_veg_inv = 1._r8/site_area_veg_inv
 
          io_si  = sites(s)%h_gid
 

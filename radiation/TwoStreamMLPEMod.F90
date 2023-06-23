@@ -100,7 +100,6 @@ Module TwoStreamMLPEMod
      real(r8), allocatable :: kd_stem(:)    ! Mean optical depth per unit area stems in diffuse
      real(r8), allocatable :: om_leaf(:,:)  ! Leaf scattering coefficient (band x pft)
      real(r8), allocatable :: om_stem(:,:)  ! Stem scattering coefficient (band x pft)
-
   end type rad_params_type
 
   type(rad_params_type),public :: rad_params
@@ -186,7 +185,8 @@ Module TwoStreamMLPEMod
 
      type(scelg_type), pointer :: scelg(:,:)    ! array of scattering elements (layer, column)
                                                 ! can be sparse, will only solve indices up to
-                                                ! n_lyr,n_col(n_lyr)
+                                                ! n_lyr,n_col(n_lyr). This is for band (wavelength)
+                                                ! independent information
 
      type(band_type), pointer  :: band(:)       ! Holds scattering coefficients for each band
                                                 ! vis,nir,etc (nothing that emits though, no thermal)
@@ -210,6 +210,7 @@ Module TwoStreamMLPEMod
      procedure :: ZenithPrep     ! Update coefficients as zenith changes
      procedure :: CanopyPrep     ! Update coefficients as canopy changes
      procedure :: Solve          ! Perform the scattering solution
+     procedure :: Dump           ! Dump out (print out) the site of interest
      procedure :: GetNSCel
      procedure :: AllocInitTwoStream
      procedure :: DeallocTwoStream
@@ -367,22 +368,23 @@ contains
            scelb%B1d*scelb%lambda1_diff*exp(scelb%a*vai) + &
            scelb%B2d*scelb%lambda2_diff*exp(-scelb%a*vai))
 
-      if(r_diff_dn.ne.r_diff_dn)then
-         write(log_unit,*)"GETRDN"
-         write(log_unit,*)scelg%Kb
-         write(log_unit,*)scelb%a
-         write(log_unit,*)vai
-         write(log_unit,*)scelb%Ad
-         write(log_unit,*)scelb%B1d,scelb%B2d
-         write(log_unit,*)scelb%lambda1_beam,scelb%lambda2_beam
-         write(log_unit,*)scelb%lambda1_diff,scelb%lambda2_diff
-         write(log_unit,*)this%band(ib)%Rbeam_atm
-         write(log_unit,*)this%band(ib)%Rdiff_atm
-         write(log_unit,*)exp(-scelg%Kb*vai)
-         write(log_unit,*)exp(scelb%a*vai)
-         call endrun(msg=errMsg(sourcefile, __LINE__))
+      if(debug)then
+         if(r_diff_dn.ne.r_diff_dn)then
+            write(log_unit,*)"GETRDN"
+            write(log_unit,*)scelg%Kb
+            write(log_unit,*)scelb%a
+            write(log_unit,*)vai
+            write(log_unit,*)scelb%Ad
+            write(log_unit,*)scelb%B1d,scelb%B2d
+            write(log_unit,*)scelb%lambda1_beam,scelb%lambda2_beam
+            write(log_unit,*)scelb%lambda1_diff,scelb%lambda2_diff
+            write(log_unit,*)this%band(ib)%Rbeam_atm
+            write(log_unit,*)this%band(ib)%Rdiff_atm
+            write(log_unit,*)exp(-scelg%Kb*vai)
+            write(log_unit,*)exp(scelb%a*vai)
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
       end if
-      
       
     end associate
   end function GetRdDn
@@ -583,6 +585,59 @@ contains
   end subroutine GetAbsRad
 
   ! ================================================================================================
+  
+  subroutine Dump(this,ib,cosz,lat,lon)
+
+    ! Dump out everything we know about these two-stream elements
+
+    class(twostream_type) :: this
+    integer,intent(in)    :: ib
+    real(r8),intent(in)   :: cosz
+    real(r8),optional,intent(in)   :: lat
+    real(r8),optional,intent(in)   :: lon
+    integer  :: ican
+    integer  :: icol
+
+    write(log_unit,*) 'Dumping Two-stream elements for band ', ib
+    write(log_unit,*)
+    write(log_unit,*) 'rbeam atm: ',this%band(ib)%Rbeam_atm
+    write(log_unit,*) 'rdiff_atm: ',this%band(ib)%Rdiff_atm
+    write(log_unit,*) 'alb grnd diff: ',this%band(ib)%albedo_grnd_diff
+    write(log_unit,*) 'alb grnd beam: ',this%band(ib)%albedo_grnd_beam
+    write(log_unit,*) 'cosz: ',cosz
+    write(log_unit,*) 'snow fraction: ',this%frac_snow
+    if(present(lat)) write(log_unit,*) 'lat: ',lat
+    if(present(lon)) write(log_unit,*) 'lon: ',lon
+
+    do_can: do ican = 1,this%n_lyr
+       do_col: do icol = 1,this%n_col(ican)
+          associate(scelg => this%scelg(ican,icol), &
+                    scelb => this%band(ib)%scelb(ican,icol))
+            write(log_unit,*) '--',ican,icol,'--'
+            write(log_unit,*) 'pft:',scelg%pft
+            write(log_unit,*) 'area: ',scelg%area
+            write(log_unit,*) 'lai,sai: ',scelg%lai,scelg%sai
+            write(log_unit,*) 'Kb: ',scelg%Kb
+            write(log_unit,*) 'Kb leaf: ',scelg%Kb_leaf
+            write(log_unit,*) 'Kd: ',scelg%Kd
+            write(log_unit,*) 'Rb0: ',scelb%Rbeam0
+            write(log_unit,*) 'om: ',scelb%om
+            write(log_unit,*) 'betad: ',scelb%betad
+            write(log_unit,*) 'betab:',scelb%betab
+            write(log_unit,*) 'a: ',scelb%a
+            this%band(ib)%Rbeam_atm = 1.0_r8
+            this%band(ib)%Rdiff_atm = 1.0_r8
+            write(log_unit,*)'RDiff Down @ bottom: ',this%GetRdDn(ican,icol,ib,scelg%lai+scelg%sai)
+            write(log_unit,*)'RDiff Up @ bottom: ',this%GetRdUp(ican,icol,ib,scelg%lai+scelg%sai)
+            write(log_unit,*)'Rbeam @ bottom: ',this%GetRb(ican,icol,ib,scelg%lai+scelg%sai)
+          end associate
+       end do do_col
+    end do do_can
+
+  end subroutine Dump
+
+
+  ! ================================================================================================
 
   subroutine ParamPrep()
 
@@ -693,9 +748,17 @@ contains
 
             ! Mean element transmission coefficients w/o snow effects
 
-            if(ft==0) then
+            if(ft==air_ft) then
                scelg%Kd = k_air
             else
+               if(debug)then
+                  if(vai<nearzero)then
+                     write(log_unit,*)"zero vai in non-air element?"
+                     write(log_unit,*) lai,sai,ican,icol,this%n_lyr,this%n_col(ican)
+                     write(log_unit,*)"TwoStreamMLPEMod.F90:CanopyPrep"
+                     call endrun(msg=errMsg(sourcefile, __LINE__))
+                  end if
+               end if
                scelg%Kd =  (lai * rad_params%Kd_leaf(ft) + &
                     sai * rad_params%Kd_stem(ft))/vai
             end if
@@ -706,7 +769,7 @@ contains
 
                associate(scelb => this%band(ib)%scelb(ican,icol))
 
-                 if (ft==0) then
+                 if (ft==air_ft) then
 
                     scelb%om = om_air
                     scelb%betad = beta_air
@@ -738,6 +801,15 @@ contains
                          om_snow(ib)*betad_snow(ib)*this%frac_snow
 
                     scelb%betad = betad_om / scelb%om
+
+                    if(debug)then
+                       if(scelb%betad /= scelb%betad)then
+                          write(log_unit,*)"nans in canopy prep"
+                          write(log_unit,*) ib,ican,icol,ft,scelb%betad,scelb%om,lai,sai,this%frac_snow,om_snow(ib),vai,om_veg
+                          write(log_unit,*)"TwoStreamMLPEMod.F90:CanopyPrep"
+                          call endrun(msg=errMsg(sourcefile, __LINE__))
+                       end if
+                    end if                    
                     
                  end if
                end associate
@@ -804,7 +876,7 @@ contains
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
        
-    cosz = max(nearzero,cosz)
+    cosz = max(0.001,cosz)
 
     do_ican: do ican = 1,this%n_lyr
        do_ical: do icol = 1,this%n_col(ican)
@@ -812,7 +884,7 @@ contains
           associate(ft => this%scelg(ican,icol)%pft, &
                scelg => this%scelg(ican,icol))
 
-            if(ft==0)then
+            if(ft==air_ft)then
                ! Simple provisions for a ghost element (air)
                scelg%Kb_leaf = k_air
                scelg%Kb = k_air
@@ -849,7 +921,7 @@ contains
 
                associate( scelb => this%band(ib)%scelb(ican,icol) )
 
-                 if(ft==0)then
+                 if(ft==air_ft)then
 
                     ! Simple provisions for a ghost element (air)
                     scelb%betab = beta_air
@@ -979,7 +1051,8 @@ contains
     real(r8) :: OMEGA(200,200)
     real(r8) :: TAU(200)
     real(r8) :: LAMBDA(200)
-    
+    integer  :: ipiv(200)
+
     integer :: isol  ! Solution index loop (beam, beam+diff)
     integer :: ican  ! Loop index for canopy layers
     integer :: ibot  ! layer index for top side of layer divide
@@ -1218,8 +1291,8 @@ contains
           this%band(ib)%Rdiff_atm = 1.0_r8
        end if
 
-       if(n_eq>100)then
-          write(log_unit,*)"NEED A BIGGER MATRIX"
+       if(n_eq>200)then
+          write(log_unit,*)"NEED A BIGGER MATRIX, n_eq:",n_eq
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
 
@@ -1406,14 +1479,22 @@ contains
        ! Solution borrowed from Greg Lemieux's usage during FATES canopy trimming:
        ! Compute the optimum size of the work array
 
-       lwork = -1 ! Ask dgels to compute optimal number of entries for work
-       call dgels(trans, n_eq, n_eq, 1, OMEGA(1:n_eq,1:n_eq), n_eq, LAMBDA(1:n_eq), n_eq, work, lwork, info)
-       lwork = int(work(1)) ! Pick the optimum.  TBD, can work(1) come back with greater than work size?
+
+       call dgesv(n_eq, 1, OMEGA(1:n_eq,1:n_eq), n_eq, ipiv(1:n_eq),  LAMBDA(1:n_eq), n_eq, info)
+
+       !lwork = -1 ! Ask dgels to compute optimal number of entries for work
+       !call dgels(trans, n_eq, n_eq, 1, OMEGA(1:n_eq,1:n_eq), n_eq, LAMBDA(1:n_eq), n_eq, work, lwork, info)
+       !lwork = int(work(1)) ! Pick the optimum.  TBD, can work(1) come back with greater than work size?
 
        ! Compute the minimum of 2-norm of of the least squares fit to solve for X
        ! Note that dgels returns the solution by overwriting the LAMBDA array.
        ! The result has the form: X = [b; m]
-       call dgels(trans, n_eq, n_eq, 1, OMEGA(1:n_eq,1:n_eq), n_eq, LAMBDA(1:n_eq), n_eq, work, lwork, info)
+       !call dgels(trans, n_eq, n_eq, 1, OMEGA(1:n_eq,1:n_eq), n_eq, LAMBDA(1:n_eq), n_eq, work, lwork, info)
+
+       if(info.ne.0)then
+          write(log_unit,*) 'Could not find a solution via dgesv'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
 
        ! Save the solution terms
 

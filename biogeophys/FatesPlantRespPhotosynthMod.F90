@@ -443,19 +443,17 @@ contains
                               cohort_vaitop(iv),                  &
                               cohort_vaibot(iv),                  & 
                               cohort_layer_elai(iv),              &
-                              cohort_layer_esai(iv))!,              &
-                         !cohort_layer_tlai(iv),              &
-                         !     cohort_layer_tsai(iv))
+                              cohort_layer_esai(iv))
                       end do
 
                       cohort_elai = sum(cohort_layer_elai(1:currentCohort%nv))
                       cohort_esai = sum(cohort_layer_esai(1:currentCohort%nv))
 
                    else
-                      cohort_layer_elai(1:nv)   = 0._r8
-                      cohort_layer_esai(1:nv)   = 0._r8
-                      cohort_vaitop(1:nv) = 0._r8
-                      cohort_vaibot(1:nv) = 0._r8
+                      cohort_layer_elai(:)   = 0._r8
+                      cohort_layer_esai(:)   = 0._r8
+                      cohort_vaitop(:) = 0._r8
+                      cohort_vaibot(:) = 0._r8
                       cohort_elai = 0._r8
                       cohort_esai = 0._r8
                    end if
