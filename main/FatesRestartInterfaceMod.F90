@@ -2087,6 +2087,8 @@ contains
           io_idx_si_cacls= io_idx_co_1st
           io_idx_si_cdsc = io_idx_co_1st
           io_idx_si_cdpf = io_idx_co_1st
+          io_idx_si_scpf = io_idx_co_1st
+          io_idx_si_pft  = io_idx_co_1st
 
           ! recruitment rate
           do i_pft = 1,numpft
@@ -2099,6 +2101,32 @@ contains
 
           do i_pft = 1,numpft
              rio_area_pft_sift(io_idx_co_1st+i_pft-1)      = sites(s)%area_pft(i_pft)
+          end do
+
+          do i_scls = 1, nlevsclass
+             do i_pft = 1, numpft
+                rio_fmortrate_cano_siscpf(io_idx_si_scpf)  = sites(s)%fmort_rate_canopy(i_scls, i_pft)
+                rio_fmortrate_usto_siscpf(io_idx_si_scpf)  = sites(s)%fmort_rate_ustory(i_scls, i_pft)
+                rio_imortrate_siscpf(io_idx_si_scpf)       = sites(s)%imort_rate(i_scls, i_pft)
+                rio_fmortrate_crown_siscpf(io_idx_si_scpf) = sites(s)%fmort_rate_crown(i_scls, i_pft)
+                rio_fmortrate_cambi_siscpf(io_idx_si_scpf) = sites(s)%fmort_rate_cambial(i_scls, i_pft)
+                rio_termnindiv_cano_siscpf(io_idx_si_scpf) = sites(s)%term_nindivs_canopy(i_scls,i_pft)
+                rio_termnindiv_usto_siscpf(io_idx_si_scpf) = sites(s)%term_nindivs_ustory(i_scls,i_pft)
+                rio_growflx_fusion_siscpf(io_idx_si_scpf)  = sites(s)%growthflux_fusion(i_scls, i_pft)
+                rio_abg_term_flux_siscpf(io_idx_si_scpf) = sites(s)%term_abg_flux(i_scls, i_pft)
+                rio_abg_imort_flux_siscpf(io_idx_si_scpf) = sites(s)%imort_abg_flux(i_scls, i_pft)
+                rio_abg_fmort_flux_siscpf(io_idx_si_scpf) = sites(s)%fmort_abg_flux(i_scls, i_pft)
+                io_idx_si_scpf = io_idx_si_scpf + 1
+             end do
+          end do
+
+          do i_pft = 1, numpft
+             rio_termcflux_cano_sipft(io_idx_si_pft)  = sites(s)%term_carbonflux_canopy(i_pft)
+             rio_termcflux_usto_sipft(io_idx_si_pft)  = sites(s)%term_carbonflux_ustory(i_pft)
+             rio_fmortcflux_cano_sipft(io_idx_si_pft) = sites(s)%fmort_carbonflux_canopy(i_pft)
+             rio_fmortcflux_usto_sipft(io_idx_si_pft) = sites(s)%fmort_carbonflux_ustory(i_pft)
+             rio_imortcflux_sipft(io_idx_si_pft)      = sites(s)%imort_carbonflux(i_pft)
+             io_idx_si_pft = io_idx_si_pft + 1
           end do
 
 
@@ -2128,6 +2156,8 @@ contains
              end do
           end if
 
+
+
           ! canopy spread term
           rio_spread_si(io_idx_si)   = sites(s)%spread
 
@@ -2136,7 +2166,7 @@ contains
           ! new column, reset num patches
           patchespersite = 0
 
-          do while(associated(cpatch))
+          do_patch: do while(associated(cpatch))
 
              ! found patch, increment
              patchespersite = patchespersite + 1
@@ -2414,31 +2444,12 @@ contains
 
              cpatch => cpatch%younger
 
-          enddo ! cpatch do while
-
-          io_idx_si_scpf = io_idx_co_1st
+          enddo do_patch ! cpatch do while
 
           ! Fill the site level diagnostics arrays
           do i_scls = 1, nlevsclass
-             do i_pft = 1, numpft
 
-                rio_fmortrate_cano_siscpf(io_idx_si_scpf)  = sites(s)%fmort_rate_canopy(i_scls, i_pft)
-                rio_fmortrate_usto_siscpf(io_idx_si_scpf)  = sites(s)%fmort_rate_ustory(i_scls, i_pft)
-                rio_imortrate_siscpf(io_idx_si_scpf)       = sites(s)%imort_rate(i_scls, i_pft)
-                rio_fmortrate_crown_siscpf(io_idx_si_scpf) = sites(s)%fmort_rate_crown(i_scls, i_pft)
-                rio_fmortrate_cambi_siscpf(io_idx_si_scpf) = sites(s)%fmort_rate_cambial(i_scls, i_pft)
-                rio_termnindiv_cano_siscpf(io_idx_si_scpf) = sites(s)%term_nindivs_canopy(i_scls,i_pft)
-                rio_termnindiv_usto_siscpf(io_idx_si_scpf) = sites(s)%term_nindivs_ustory(i_scls,i_pft)
-                rio_growflx_fusion_siscpf(io_idx_si_scpf)  = sites(s)%growthflux_fusion(i_scls, i_pft)
-
-                rio_abg_term_flux_siscpf(io_idx_si_scpf) = sites(s)%term_abg_flux(i_scls, i_pft)
-                rio_abg_imort_flux_siscpf(io_idx_si_scpf) = sites(s)%imort_abg_flux(i_scls, i_pft)
-                rio_abg_fmort_flux_siscpf(io_idx_si_scpf) = sites(s)%fmort_abg_flux(i_scls, i_pft)
-
-                io_idx_si_scpf = io_idx_si_scpf + 1
-             end do
-
-              rio_demorate_sisc(io_idx_si_sc) = sites(s)%demotion_rate(i_scls)
+             rio_demorate_sisc(io_idx_si_sc) = sites(s)%demotion_rate(i_scls)
              rio_promrate_sisc(io_idx_si_sc) = sites(s)%promotion_rate(i_scls)
 
              io_idx_si_sc = io_idx_si_sc + 1
@@ -2478,16 +2489,6 @@ contains
           
           rio_democflux_si(io_idx_si)       = sites(s)%demotion_carbonflux
           rio_promcflux_si(io_idx_si)       = sites(s)%promotion_carbonflux
-
-          io_idx_si_pft = io_idx_co_1st
-          do i_pft = 1, numpft
-             rio_termcflux_cano_sipft(io_idx_si_pft)  = sites(s)%term_carbonflux_canopy(i_pft)
-             rio_termcflux_usto_sipft(io_idx_si_pft)  = sites(s)%term_carbonflux_ustory(i_pft)
-             rio_fmortcflux_cano_sipft(io_idx_si_pft) = sites(s)%fmort_carbonflux_canopy(i_pft)
-             rio_fmortcflux_usto_sipft(io_idx_si_pft) = sites(s)%fmort_carbonflux_ustory(i_pft)
-             rio_imortcflux_sipft(io_idx_si_pft)      = sites(s)%imort_carbonflux(i_pft)
-             io_idx_si_pft = io_idx_si_pft + 1
-          end do
 
           rio_imortcarea_si(io_idx_si)      = sites(s)%imort_crownarea
           rio_fmortcarea_cano_si(io_idx_si) = sites(s)%fmort_crownarea_canopy
@@ -3008,6 +3009,8 @@ contains
           io_idx_si_cacls= io_idx_co_1st
           io_idx_si_cdsc = io_idx_co_1st
           io_idx_si_cdpf = io_idx_co_1st
+          io_idx_si_scpf = io_idx_co_1st
+          io_idx_si_pft = io_idx_co_1st
           
           ! read seed_bank info(site-level, but PFT-resolved)
           do i_pft = 1,numpft
@@ -3028,6 +3031,33 @@ contains
                 sites(s)%area_pft(0) = 0.0_r8
              endif
           endif
+
+          do i_scls = 1,nlevsclass
+             do i_pft = 1, numpft
+                sites(s)%fmort_rate_canopy(i_scls, i_pft)  = rio_fmortrate_cano_siscpf(io_idx_si_scpf)
+                sites(s)%fmort_rate_ustory(i_scls, i_pft)  = rio_fmortrate_usto_siscpf(io_idx_si_scpf)
+                sites(s)%imort_rate(i_scls, i_pft)         = rio_imortrate_siscpf(io_idx_si_scpf)
+                sites(s)%fmort_rate_crown(i_scls, i_pft)   = rio_fmortrate_crown_siscpf(io_idx_si_scpf)
+                sites(s)%fmort_rate_cambial(i_scls, i_pft) = rio_fmortrate_cambi_siscpf(io_idx_si_scpf)
+                sites(s)%term_nindivs_canopy(i_scls,i_pft) = rio_termnindiv_cano_siscpf(io_idx_si_scpf)
+                sites(s)%term_nindivs_ustory(i_scls,i_pft) = rio_termnindiv_usto_siscpf(io_idx_si_scpf)
+                sites(s)%growthflux_fusion(i_scls, i_pft)  = rio_growflx_fusion_siscpf(io_idx_si_scpf)
+                sites(s)%term_abg_flux(i_scls,i_pft) = rio_abg_term_flux_siscpf(io_idx_si_scpf)
+                sites(s)%imort_abg_flux(i_scls,i_pft) = rio_abg_imort_flux_siscpf(io_idx_si_scpf)
+                sites(s)%fmort_abg_flux(i_scls,i_pft) = rio_abg_fmort_flux_siscpf(io_idx_si_scpf)
+                io_idx_si_scpf = io_idx_si_scpf + 1
+             end do
+          end do
+
+          do i_pft = 1, numpft
+             sites(s)%term_carbonflux_canopy(i_pft)   = rio_termcflux_cano_sipft(io_idx_si_pft)
+             sites(s)%term_carbonflux_ustory(i_pft)   = rio_termcflux_usto_sipft(io_idx_si_pft)
+             sites(s)%fmort_carbonflux_canopy(i_pft)  = rio_fmortcflux_cano_sipft(io_idx_si_pft)
+             sites(s)%fmort_carbonflux_ustory(i_pft)  = rio_fmortcflux_usto_sipft(io_idx_si_pft)
+             sites(s)%imort_carbonflux(i_pft)         = rio_imortcflux_sipft(io_idx_si_pft)
+             io_idx_si_pft = io_idx_si_pft + 1
+          end do
+
 
           ! Mass balance and diagnostics across elements at the site level
           if(hlm_use_sp.eq.ifalse)then
@@ -3061,7 +3091,7 @@ contains
           patchespersite = 0
 
           cpatch => sites(s)%oldest_patch
-          do while(associated(cpatch))
+          do_patch: do while(associated(cpatch))
 
              patchespersite = patchespersite + 1
 
@@ -3333,8 +3363,7 @@ contains
              end if
 
              cpatch => cpatch%younger
-
-          enddo ! patch do while
+          enddo do_patch
 
           if(patchespersite .ne. rio_npatch_si(io_idx_si)) then
              write(fates_log(),*) 'Number of patches per site during retrieval does not match allocation'
@@ -3391,30 +3420,11 @@ contains
 
           ! Fill the site level diagnostics arrays
           ! -----------------------------------------------------------------------------
-
-          io_idx_si_scpf = io_idx_co_1st
-
           do i_scls = 1,nlevsclass
-             do i_pft = 1, numpft
-                sites(s)%fmort_rate_canopy(i_scls, i_pft)  = rio_fmortrate_cano_siscpf(io_idx_si_scpf)
-                sites(s)%fmort_rate_ustory(i_scls, i_pft)  = rio_fmortrate_usto_siscpf(io_idx_si_scpf)
-                sites(s)%imort_rate(i_scls, i_pft)         = rio_imortrate_siscpf(io_idx_si_scpf)
-                sites(s)%fmort_rate_crown(i_scls, i_pft)   = rio_fmortrate_crown_siscpf(io_idx_si_scpf)
-                sites(s)%fmort_rate_cambial(i_scls, i_pft) = rio_fmortrate_cambi_siscpf(io_idx_si_scpf)
-                sites(s)%term_nindivs_canopy(i_scls,i_pft) = rio_termnindiv_cano_siscpf(io_idx_si_scpf)
-                sites(s)%term_nindivs_ustory(i_scls,i_pft) = rio_termnindiv_usto_siscpf(io_idx_si_scpf)
-                sites(s)%growthflux_fusion(i_scls, i_pft)  = rio_growflx_fusion_siscpf(io_idx_si_scpf)
-
-                sites(s)%term_abg_flux(i_scls,i_pft) = rio_abg_term_flux_siscpf(io_idx_si_scpf)
-                sites(s)%imort_abg_flux(i_scls,i_pft) = rio_abg_imort_flux_siscpf(io_idx_si_scpf)
-                sites(s)%fmort_abg_flux(i_scls,i_pft) = rio_abg_fmort_flux_siscpf(io_idx_si_scpf)
-
-                io_idx_si_scpf = io_idx_si_scpf + 1
-             end do
 
              sites(s)%demotion_rate(i_scls)  = rio_demorate_sisc(io_idx_si_sc)
              sites(s)%promotion_rate(i_scls) = rio_promrate_sisc(io_idx_si_sc)
-
+             
              io_idx_si_sc = io_idx_si_sc + 1
           end do
           
@@ -3451,16 +3461,6 @@ contains
           sites(s)%fmort_crownarea_ustory  = rio_fmortcarea_usto_si(io_idx_si)
           sites(s)%demotion_carbonflux      = rio_democflux_si(io_idx_si)
           sites(s)%promotion_carbonflux     = rio_promcflux_si(io_idx_si)
-
-          io_idx_si_pft = io_idx_co_1st
-          do i_pft = 1, numpft
-             sites(s)%term_carbonflux_canopy(i_pft)   = rio_termcflux_cano_sipft(io_idx_si_pft)
-             sites(s)%term_carbonflux_ustory(i_pft)   = rio_termcflux_usto_sipft(io_idx_si_pft)
-             sites(s)%fmort_carbonflux_canopy(i_pft)  = rio_fmortcflux_cano_sipft(io_idx_si_pft)
-             sites(s)%fmort_carbonflux_ustory(i_pft)  = rio_fmortcflux_usto_sipft(io_idx_si_pft)
-             sites(s)%imort_carbonflux(i_pft)         = rio_imortcflux_sipft(io_idx_si_pft)
-             io_idx_si_pft = io_idx_si_pft + 1
-          end do
 
           ! Site level phenology status flags
 
