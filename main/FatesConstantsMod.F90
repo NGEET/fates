@@ -183,7 +183,7 @@ module FatesConstantsMod
   integer,        parameter, public :: init_cleafoff           = 300
   integer,        parameter, public :: init_dleafon            = 100
   integer,        parameter, public :: init_dleafoff           = 300
-  real(fates_r8), parameter, public :: ini_watermem            = 0.5_fates_r8     ! initial moisture in the site water_memory array
+  real(fates_r8), parameter, public :: init_watermem           = 0.5_fates_r8     ! initial moisture in the site water_memory array
 
   ! PATCH FUSION 
   real(fates_r8), parameter, public :: force_patchfuse_min_biomass                 = 0.005_fates_r8 ! min biomass below which to force-fuse patches [kg/m2 patch area]

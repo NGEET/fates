@@ -4,14 +4,18 @@ module FatesSiteMod
   use FatesConstantsMod,           only : fates_unset_int
   use FatesConstantsMod,           only : ifalse
   use FatesConstantsMod,           only : itrue
+  use FatesConstantsMod,           only : area
   use FatesConstantsMod,           only : numWaterMem, num_vegtemp_mem
   use FatesConstantsMod,           only : init_site_GDD
   use FatesConstantsMod,           only : init_cleafon, init_cleafoff
   use FatesConstantsMod,           only : init_dleafon, init_dleafoff
   use FatesConstantsMod,           only : init_watermem
+  use FatesConstantsMod,           only : min_patch_area
+  use FatesConstantsMod,           only : phen_cstat_notcold, phen_dstat_moiston
   use FatesConstantsMod,           only : n_dist_types
   use FatesConstantsMod,           only : maxpft
   use FatesGlobals,                only : fates_log
+  use FatesGlobals,                only : endrun => fates_endrun
   use EDParamsMod,                 only : nclmax
   use EDPftvarcon,                 only : EDPftvarcon_inst
   use FatesInterfaceTypesMod,      only : nlevage, nlevdamage, nlevsclass, numpft
@@ -22,10 +26,11 @@ module FatesSiteMod
   use FatesMassBalTypeMod,         only : site_massbal_type
   use FatesHydraulicsMemMod,       only : ed_site_hydr_type
   use PRTGenericMod,               only : num_elements
-  use PRTGenericMod,               only : prt_params
+  use PRTParametersMod,            only : prt_params
   use FatesLitterMod,              only : ncwd
 
   use shr_infnan_mod,              only : nan => shr_infnan_nan, assignment(=)
+  use shr_log_mod,                 only : errMsg => shr_log_errMsg
 
   implicit none
   private
@@ -269,7 +274,7 @@ module FatesSiteMod
       allocate(this%mass_balance(1:num_elements))
       allocate(this%flux_diags(1:num_elements))
 
-      if (hlm_use_tree_damage .eq. itrue) then 
+      if (hlm_use_tree_damage == itrue) then 
         allocate(this%term_nindivs_canopy_damage(1:nlevdamage,1:nlevsclass,1:numpft))
         allocate(this%term_nindivs_ustory_damage(1:nlevdamage,1:nlevsclass,1:numpft))
         allocate(this%imort_rate_damage(1:nlevdamage,1:nlevsclass,1:numpft))
@@ -308,7 +313,7 @@ module FatesSiteMod
       allocate(this%dz_soil(num_levsoil))
       allocate(this%z_soil(num_levsoil))
 
-      if (hlm_use_nocomp .eq. itrue .and. hlm_use_fixed_biogeog .eq. itrue) then
+      if (hlm_use_nocomp == itrue .and. hlm_use_fixed_biogeog == itrue) then
         ! SP and nocomp require a bare-ground patch.
         allocate(this%area_pft(0:numpft))
       else  
@@ -549,16 +554,20 @@ module FatesSiteMod
 
       ! ARGUMENTS:
       class(fates_site_type), intent(inout) :: this             ! site object
-      logical,                intent(in)    :: fixed_biogeog    ! are we using fixed biogegraphy mode?
-      logical,                intent(in)    :: no_comp          ! are we using no-comp mode?
+      integer,                intent(in)    :: fixed_biogeog    ! are we using fixed biogegraphy mode?
+      integer,                intent(in)    :: no_comp          ! are we using no-comp mode?
       integer,                intent(in)    :: day_of_year      ! HLM day of year
       real(r8),               intent(in)    :: pft_areafrac(:)  ! fractional area of the FATES column occupied by each PFT [0-1]
 
       ! LOCALS:
-      integer  :: ft        ! looping index
-      integer  :: hlm_pft   ! looping index for HLM pfts
-      integer  :: fates_pft ! looping index for FATES pfts
-      real(r8) :: sumarea   ! area of PFTs in no competition mode
+      integer  :: ft              ! looping index
+      integer  :: hlm_pft         ! looping index for HLM pfts
+      integer  :: fates_pft       ! looping index for FATES pfts
+      real(r8) :: sumarea         ! area of PFTs in no competition mode
+      logical  :: debug = .false. ! for printing verbose output
+
+      ! for printing
+      character(len=*), parameter :: sourcefile = __FILE__
 
       this%nchilldays                        = 0
       this%ncolddays                         = 0  ! recalculated in phenology immediately, but need this 
@@ -586,7 +595,7 @@ module FatesSiteMod
       ! we initialize on a cold-start to -1
       this%ema_npp = -9999._r8
 
-      if (fixed_biogeog .eq. itrue) then
+      if (fixed_biogeog == itrue) then
         ! MAPPING OF FATES PFTs on to HLM_PFTs
         ! add up the area associated with each FATES PFT
         ! where pft_areafrac is the area of land in each HLM PFT and (from surface dataset)
@@ -603,11 +612,11 @@ module FatesSiteMod
         do ft = 1, numpft
           if (this%area_pft(ft) < min_patch_area .and. this%area_pft(ft) > 0.0_r8) then
             ! remove tiny patches to prevent numerical errors in terminate patches
-            if (debug) write(fates_log(),*) 'removing small pft patches', s, ft, this%area_pft(ft)
+            if (debug) write(fates_log(),*) 'removing small pft patches', ft, this%area_pft(ft)
             this%area_pft(ft) = 0.0_r8
           endif
           if (this%area_pft(ft) < 0._r8) then
-            write(fates_log(),*) 'negative area', s, ft, this%area_pft(ft)
+            write(fates_log(),*) 'negative area', ft, this%area_pft(ft)
             call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
           this%area_pft(ft) = this%area_pft(ft)*area ! rescale units to m2
@@ -618,7 +627,7 @@ module FatesSiteMod
         ! the bare ground will no longer be prescribed and should emerge from FATES
         ! this may or may not be the right way to deal with this?
         sumarea = sum(this%area_pft(1:numpft))
-        if (no_comp .eq. ifalse) then ! when not in nocomp (i.e. or SP) mode, 
+        if (no_comp == ifalse) then ! when not in nocomp (i.e. or SP) mode, 
           ! subsume bare ground evenly into the existing patches.
           do ft = 1, numpft
             if (sumarea > 0._r8) then
@@ -653,7 +662,7 @@ module FatesSiteMod
         ! Setting this to true ensures that all pfts
         ! are used for nocomp with no biogeog
         this%use_this_pft(ft) = itrue
-        if (fixed_biogeog .eq. itrue) then
+        if (fixed_biogeog == itrue) then
           if (this%area_pft(ft) > 0.0_r8) then
             this%use_this_pft(ft) = itrue
           else
