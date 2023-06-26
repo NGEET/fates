@@ -2126,9 +2126,14 @@ contains
              rio_fmortcflux_cano_sipft(io_idx_si_pft) = sites(s)%fmort_carbonflux_canopy(i_pft)
              rio_fmortcflux_usto_sipft(io_idx_si_pft) = sites(s)%fmort_carbonflux_ustory(i_pft)
              rio_imortcflux_sipft(io_idx_si_pft)      = sites(s)%imort_carbonflux(i_pft)
+             rio_dd_status_sift(io_idx_si_pft)     = sites(s)%dstatus(i_pft)
+             rio_dleafondate_sift(io_idx_si_pft)   = sites(s)%dleafondate(i_pft)
+             rio_dleafoffdate_sift(io_idx_si_pft)  = sites(s)%dleafoffdate(i_pft)
+             rio_dndaysleafon_sift(io_idx_si_pft)  = sites(s)%dndaysleafon(i_pft)
+             rio_dndaysleafoff_sift(io_idx_si_pft) = sites(s)%dndaysleafoff(i_pft)
+             rio_elong_factor_sift(io_idx_si_pft)  = sites(s)%elong_factor(i_pft)
              io_idx_si_pft = io_idx_si_pft + 1
           end do
-
 
           if(hlm_use_sp.eq.ifalse)then
              do el = 1, num_elements
@@ -2504,18 +2509,7 @@ contains
           rio_gdd_si(io_idx_si)           = sites(s)%grow_deg_days
           rio_phenmodeldate_si(io_idx_si) = sites(s)%phen_model_date
 
-          ! Drought-deciduous phenology are now PFT dependent
-          io_idx_si_pft = io_idx_co_1st
-          do i_pft = 1,numpft
-             rio_dd_status_sift(io_idx_si_pft)     = sites(s)%dstatus(i_pft)
-             rio_dleafondate_sift(io_idx_si_pft)   = sites(s)%dleafondate(i_pft)
-             rio_dleafoffdate_sift(io_idx_si_pft)  = sites(s)%dleafoffdate(i_pft)
-             rio_dndaysleafon_sift(io_idx_si_pft)  = sites(s)%dndaysleafon(i_pft)
-             rio_dndaysleafoff_sift(io_idx_si_pft) = sites(s)%dndaysleafoff(i_pft)
-             rio_elong_factor_sift(io_idx_si_pft)  = sites(s)%elong_factor(i_pft)
-
-             io_idx_si_pft = io_idx_si_pft + 1
-          end do
+ 
 
 
           rio_acc_ni_si(io_idx_si)       = sites(s)%acc_NI
@@ -3055,9 +3049,14 @@ contains
              sites(s)%fmort_carbonflux_canopy(i_pft)  = rio_fmortcflux_cano_sipft(io_idx_si_pft)
              sites(s)%fmort_carbonflux_ustory(i_pft)  = rio_fmortcflux_usto_sipft(io_idx_si_pft)
              sites(s)%imort_carbonflux(i_pft)         = rio_imortcflux_sipft(io_idx_si_pft)
+             sites(s)%dstatus(i_pft)        = rio_dd_status_sift(io_idx_si_pft)
+             sites(s)%dleafondate(i_pft)    = rio_dleafondate_sift(io_idx_si_pft)
+             sites(s)%dleafoffdate(i_pft)   = rio_dleafoffdate_sift(io_idx_si_pft)
+             sites(s)%dndaysleafon(i_pft)   = rio_dndaysleafon_sift(io_idx_si_pft)
+             sites(s)%dndaysleafoff(i_pft)  = rio_dndaysleafoff_sift(io_idx_si_pft)
+             sites(s)%elong_factor(i_pft)   = rio_elong_factor_sift(io_idx_si_pft)
              io_idx_si_pft = io_idx_si_pft + 1
           end do
-
 
           ! Mass balance and diagnostics across elements at the site level
           if(hlm_use_sp.eq.ifalse)then
@@ -3474,17 +3473,7 @@ contains
           sites(s)%grow_deg_days  = rio_gdd_si(io_idx_si)
           sites(s)%phen_model_date= rio_phenmodeldate_si(io_idx_si)
 
-          ! Fill drought-deciduous variables, which are now PFT variables.
-          io_idx_si_pft = io_idx_co_1st
-          do i_pft = 1,numpft
-             sites(s)%dstatus(i_pft)        = rio_dd_status_sift(io_idx_si_pft)
-             sites(s)%dleafondate(i_pft)    = rio_dleafondate_sift(io_idx_si_pft)
-             sites(s)%dleafoffdate(i_pft)   = rio_dleafoffdate_sift(io_idx_si_pft)
-             sites(s)%dndaysleafon(i_pft)   = rio_dndaysleafon_sift(io_idx_si_pft)
-             sites(s)%dndaysleafoff(i_pft)  = rio_dndaysleafoff_sift(io_idx_si_pft)
-             sites(s)%elong_factor(i_pft)   = rio_elong_factor_sift(io_idx_si_pft)
-             io_idx_si_pft = io_idx_si_pft + 1
-          end do
+         
 
           sites(s)%acc_NI         = rio_acc_ni_si(io_idx_si)
           sites(s)%snow_depth     = rio_snow_depth_si(io_idx_si)
