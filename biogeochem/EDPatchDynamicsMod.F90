@@ -1666,7 +1666,7 @@ contains
     integer  :: pft                  ! loop index for plant functional types
     integer  :: dcmpy                ! loop index for decomposability pool
     integer  :: element_id           ! parteh compatible global element index
-
+    real(r8) :: SF_val_CWD_frac_adj(4) !Updated wood partitioning to CWD based on dbh
     !---------------------------------------------------------------------
 
     ! Only do this if there was a fire in this actual patch. 
@@ -1799,9 +1799,13 @@ contains
              bcroot = (sapw_m + struct_m) * (1.0_r8 - prt_params%allom_agb_frac(pft) )
 
              ! below ground coarse woody debris from burned trees
+
+             !adjust the how wood is partitioned between the cwd classes based on cohort dbh
+	     call adjust_SF_CWD_frac(currentCohort%dbh,ncwd,SF_val_CWD_frac,SF_val_CWD_frac_adj)
+
              do c = 1,ncwd
                 do sl = 1,currentSite%nlevsoil
-                   donatable_mass =  num_dead_trees * SF_val_CWD_frac(c) * &
+                   donatable_mass =  num_dead_trees * SF_val_CWD_frac_adj(c) * &
                          bcroot * currentSite%rootfrac_scr(sl)
 
                    new_litt%bg_cwd(c,sl) = new_litt%bg_cwd(c,sl) + &
@@ -1822,10 +1826,10 @@ contains
              ! Above ground coarse woody debris from twigs and small branches
              ! a portion of this pool may burn
              do c = 1,ncwd
-                 donatable_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem
+                 donatable_mass = num_dead_trees * SF_val_CWD_frac_adj(c) * bstem
                  if (c == 1 .or. c == 2) then
                       donatable_mass = donatable_mass * (1.0_r8-currentCohort%fraction_crown_burned)
-                      burned_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem * &
+                      burned_mass = num_dead_trees * SF_val_CWD_frac_adj(c) * bstem * &
                       currentCohort%fraction_crown_burned
                       site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
                 endif
@@ -1898,7 +1902,8 @@ contains
     integer  :: el                   ! element loop index
     integer  :: sl                   ! soil layer index
     integer  :: element_id           ! parteh compatible global element index
-    real(r8) :: dcmpy_frac           ! decomposability fraction 
+    real(r8) :: dcmpy_frac           ! decomposability fraction
+    real(r8) :: SF_val_CWD_frac_adj(4) !Updated wood partitioning to CWD based on dbh
     !---------------------------------------------------------------------
 
     remainder_area = currentPatch%area - patch_site_areadis
@@ -1996,24 +2001,26 @@ contains
           call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
                bc_in%max_rooting_depth_index_col)
 
+          ! Adjust how wood is partitioned between the cwd classes based on cohort dbh
+	  call adjust_SF_CWD_frac(currentCohort%dbh,ncwd,SF_val_CWD_frac,SF_val_CWD_frac_adj)
 
           do c=1,ncwd
-
+             
              ! Transfer wood of dying trees to AG CWD pools
              new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + ag_wood * &
-                    SF_val_CWD_frac(c) * donate_m2
+                    SF_val_CWD_frac_adj(c) * donate_m2
 
              curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + ag_wood * &
-                   SF_val_CWD_frac(c) * retain_m2
+                   SF_val_CWD_frac_adj(c) * retain_m2
              
              ! Transfer wood of dying trees to BG CWD pools
              do sl = 1,currentSite%nlevsoil
                 new_litt%bg_cwd(c,sl) = new_litt%bg_cwd(c,sl) + bg_wood * &
-                       currentSite%rootfrac_scr(sl) * SF_val_CWD_frac(c) * &
+                       currentSite%rootfrac_scr(sl) * SF_val_CWD_frac_adj(c) * &
                        donate_m2
 
                 curr_litt%bg_cwd(c,sl) = curr_litt%bg_cwd(c,sl) + bg_wood * &
-                      currentSite%rootfrac_scr(sl) * SF_val_CWD_frac(c) * &
+                      currentSite%rootfrac_scr(sl) * SF_val_CWD_frac_adj(c) * &
                       retain_m2
              end do
           end do
@@ -2049,10 +2056,10 @@ contains
           ! track diagnostic fluxes
           do c=1,ncwd
              flux_diags%cwd_ag_input(c) = & 
-                  flux_diags%cwd_ag_input(c) + SF_val_CWD_frac(c) * ag_wood
+                  flux_diags%cwd_ag_input(c) + SF_val_CWD_frac_adj(c) * ag_wood
              
              flux_diags%cwd_bg_input(c) = &
-                  flux_diags%cwd_bg_input(c) + SF_val_CWD_frac(c) * bg_wood
+                  flux_diags%cwd_bg_input(c) + SF_val_CWD_frac_adj(c) * bg_wood
           end do
 
           flux_diags%leaf_litter_input(pft) = flux_diags%leaf_litter_input(pft) + &
