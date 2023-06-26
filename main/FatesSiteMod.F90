@@ -5,20 +5,25 @@ module FatesSiteMod
   use FatesConstantsMod,           only : ifalse
   use FatesConstantsMod,           only : itrue
   use FatesConstantsMod,           only : numWaterMem, num_vegtemp_mem
-  use EDParamsMod,                 only : nclmax
-  use FatesGlobals,                only : fates_log
-  use FatesPatchMod,               only : fates_patch_type
-  use FatesResourcesManagementMod, only : fates_resources_management_type
-  use FatesMassBalTypeMod,         only : site_massbal_type
-  
-  use FatesConstantsMod,           only : N_DIST_TYPES
-  use FatesHydraulicsMemMod,       only : ed_site_hydr_type
-  use PRTGenericMod,               only : num_elements
+  use FatesConstantsMod,           only : init_site_GDD
+  use FatesConstantsMod,           only : init_cleafon, init_cleafoff
+  use FatesConstantsMod,           only : init_dleafon, init_dleafoff
+  use FatesConstantsMod,           only : init_watermem
+  use FatesConstantsMod,           only : n_dist_types
   use FatesConstantsMod,           only : maxpft
-  use FatesLitterMod,              only : ncwd
+  use FatesGlobals,                only : fates_log
+  use EDParamsMod,                 only : nclmax
+  use EDPftvarcon,                 only : EDPftvarcon_inst
   use FatesInterfaceTypesMod,      only : nlevage, nlevdamage, nlevsclass, numpft
   use FatesInterfaceTypesMod,      only : hlm_use_nocomp, hlm_use_fixed_biogeog
   use FatesInterfaceTypesMod,      only : hlm_use_tree_damage
+  use FatesPatchMod,               only : fates_patch_type
+  use FatesResourcesManagementMod, only : fates_resources_management_type
+  use FatesMassBalTypeMod,         only : site_massbal_type
+  use FatesHydraulicsMemMod,       only : ed_site_hydr_type
+  use PRTGenericMod,               only : num_elements
+  use PRTGenericMod,               only : prt_params
+  use FatesLitterMod,              only : ncwd
 
   use shr_infnan_mod,              only : nan => shr_infnan_nan, assignment(=)
 
@@ -201,6 +206,7 @@ module FatesSiteMod
     procedure :: Init
     procedure :: NanValues
     procedure :: ZeroValues
+    procedure :: Create
     procedure :: Dump
 
   end type fates_site_type
@@ -358,9 +364,9 @@ module FatesSiteMod
       nullify(this%youngest_patch)
 
       ! INDICES
-      this%h_gid                                      = fates_unset_int
-      this%lat                                        = nan 
-      this%lon                                        = nan 
+      !this%h_gid                                      = fates_unset_int
+      !this%lat                                        = nan 
+      !this%lon                                        = nan 
 
       ! FIXED BIOGEOGRAPHY MODE INPUTS
       this%area_PFT(:)                                = nan
@@ -428,8 +434,9 @@ module FatesSiteMod
       this%demotion_rate(:)                            = nan                  
       this%promotion_rate(:)                           = nan                  
       this%imort_rate(:,:)                             = nan                    
-      this%fmort_rate_canopy(:,:)                      = nan                                                                         
-      this%fmort_rate_ustory(:,:)                      = nan                                                                         
+      this%fmort_rate_canopy(:,:)                      = nan
+      this%fmort_rate_ustory(:,:)                      = nan
+                                                                        
       this%fmort_rate_cambial(:,:)                     = nan                                                             
       this%fmort_rate_crown(:,:)                       = nan                   
       this%imort_rate_damage(:,:,:)                    = nan           
@@ -532,6 +539,131 @@ module FatesSiteMod
 
     end subroutine ZeroValues
   
+    ! ====================================================================================
+
+    subroutine Create(this, fixed_biogeog, no_comp, day_of_year, pft_areafrac)
+      !
+      ! DESCRIPTION:
+      !   creates a new site object
+      !
+
+      ! ARGUMENTS:
+      class(fates_site_type), intent(inout) :: this             ! site object
+      logical,                intent(in)    :: fixed_biogeog    ! are we using fixed biogegraphy mode?
+      logical,                intent(in)    :: no_comp          ! are we using no-comp mode?
+      integer,                intent(in)    :: day_of_year      ! HLM day of year
+      real(r8),               intent(in)    :: pft_areafrac(:)  ! fractional area of the FATES column occupied by each PFT [0-1]
+
+      ! LOCALS:
+      integer  :: ft        ! looping index
+      integer  :: hlm_pft   ! looping index for HLM pfts
+      integer  :: fates_pft ! looping index for FATES pfts
+      real(r8) :: sumarea   ! area of PFTs in no competition mode
+
+      this%nchilldays                        = 0
+      this%ncolddays                         = 0  ! recalculated in phenology immediately, but need this 
+                                                  ! first value in the history file
+      this%phen_model_date                   = 0
+      this%cleafondate                       = init_cleafon - day_of_year
+      this%cleafoffdate                      = init_cleafoff - day_of_year
+      this%dleafoffdate                      = init_dleafoff - day_of_year
+      this%dleafondate                       = init_dleafon - day_of_year
+      this%grow_deg_days                     = init_site_GDD
+      this%water_memory(1:numWaterMem)       = init_watermem
+      this%vegtemp_memory(1:num_vegtemp_mem) = 0.0_r8
+      this%cstatus                           = phen_cstat_notcold ! leaves are on
+      this%dstatus                           = phen_dstat_moiston ! leaves are on
+      this%acc_NI                            = 0.0_r8
+      this%NF                                = 0.0_r8
+      this%NF_successful                     = 0.0_r8
+      this%area_pft(:)                       = 0.0_r8
+
+      do ft = 1, numpft
+        this%rec_l2fr(ft,:) = prt_params%allom_l2fr(ft)
+      end do
+
+      ! It's difficult to come up with a resonable starting smoothing value, so
+      ! we initialize on a cold-start to -1
+      this%ema_npp = -9999._r8
+
+      if (fixed_biogeog .eq. itrue) then
+        ! MAPPING OF FATES PFTs on to HLM_PFTs
+        ! add up the area associated with each FATES PFT
+        ! where pft_areafrac is the area of land in each HLM PFT and (from surface dataset)
+        ! hlm_pft_map is the area of that land in each FATES PFT (from param file)
+        do hlm_pft = 1, size(EDPftvarcon_inst%hlm_pft_map, 2)
+          do fates_pft = 1, numpft ! loop round all fates pfts for all hlm pfts
+            this%area_pft(fates_pft) = this%area_pft(fates_pft) +                      &
+              EDPftvarcon_inst%hlm_pft_map(fates_pft,hlm_pft)*pft_areafrac(hlm_pft)
+          end do
+        end do 
+
+        ! check area_pft to make sure the values make sense
+        ! rescale to m2
+        do ft = 1, numpft
+          if (this%area_pft(ft) < min_patch_area .and. this%area_pft(ft) > 0.0_r8) then
+            ! remove tiny patches to prevent numerical errors in terminate patches
+            if (debug) write(fates_log(),*) 'removing small pft patches', s, ft, this%area_pft(ft)
+            this%area_pft(ft) = 0.0_r8
+          endif
+          if (this%area_pft(ft) < 0._r8) then
+            write(fates_log(),*) 'negative area', s, ft, this%area_pft(ft)
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+          this%area_pft(ft) = this%area_pft(ft)*area ! rescale units to m2
+        end do
+
+        ! re-normalize PFT area to ensure it sums to one.
+        ! note that in areas of 'bare ground' (PFT 0 in CLM/ELM)
+        ! the bare ground will no longer be prescribed and should emerge from FATES
+        ! this may or may not be the right way to deal with this?
+        sumarea = sum(this%area_pft(1:numpft))
+        if (no_comp .eq. ifalse) then ! when not in nocomp (i.e. or SP) mode, 
+          ! subsume bare ground evenly into the existing patches.
+          do ft = 1, numpft
+            if (sumarea > 0._r8) then
+              this%area_pft(ft) = area*this%area_pft(ft)/sumarea
+            else
+              ! in nocomp mode where there is only bare ground, we assign equal area to
+              ! all pfts and let the model figure out whether land should be bare or not.
+              this%area_pft(ft) = area/numpft
+            end if
+          end do
+        else
+          ! for sp and nocomp mode, assert a bare ground patch if needed
+
+          ! In all the other FATES modes, bareground is the area in which plants
+          ! do not grow of their own accord. In SP mode we assert that the canopy is full for
+          ! each PFT patch. Thus, we also need to assert a bare ground area in
+          ! order to not have all of the ground filled by leaves.
+
+          ! Further to that, one could calculate bare ground as the remaining area when
+          ! all fhe canopies are accounted for, but this means we don't pass balance checks
+          ! on canopy are inside FATES, and so in SP mode, we define the bare groud
+          ! patch as having a PFT identifier as zero.
+
+          if (sumarea < area) then ! make some bare ground
+            this%area_pft(0) = area - sumarea
+          end if
+        end if 
+      end if 
+
+      ! set up which PFTs are used
+      do ft = 1, numpft
+        ! Setting this to true ensures that all pfts
+        ! are used for nocomp with no biogeog
+        this%use_this_pft(ft) = itrue
+        if (fixed_biogeog .eq. itrue) then
+          if (this%area_pft(ft) > 0.0_r8) then
+            this%use_this_pft(ft) = itrue
+          else
+            this%use_this_pft(ft) = ifalse
+          end if 
+        end if 
+      end do 
+  
+    end subroutine Create
+
     ! ====================================================================================
 
     subroutine Dump(this) 

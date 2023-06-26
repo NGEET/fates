@@ -178,6 +178,12 @@ module FatesConstantsMod
                                                                                   !   new recruits start with
   real(fates_r8), parameter, public :: area                    = 10000.0_fates_r8 ! notional area of simulated forest [m2]
   real(fates_r8), parameter, public :: area_inv                = 1/area           ! inverse of the notion area (faster math) [/m2]
+  real(fates_r8), parameter, public :: init_site_GDD           = 30.0_fates_r8    ! initial growing degree-days for sites (non-restart)
+  integer,        parameter, public :: init_cleafon            = 100
+  integer,        parameter, public :: init_cleafoff           = 300
+  integer,        parameter, public :: init_dleafon            = 100
+  integer,        parameter, public :: init_dleafoff           = 300
+  real(fates_r8), parameter, public :: ini_watermem            = 0.5_fates_r8     ! initial moisture in the site water_memory array
 
   ! PATCH FUSION 
   real(fates_r8), parameter, public :: force_patchfuse_min_biomass                 = 0.005_fates_r8 ! min biomass below which to force-fuse patches [kg/m2 patch area]

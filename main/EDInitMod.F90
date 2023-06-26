@@ -119,19 +119,6 @@ contains
     !
     ! !LOCAL VARIABLES:
     integer  :: s
-    integer  :: cstat      ! cold status phenology flag
-    real(r8) :: GDD
-    integer  :: dstat      ! drought status phenology flag
-    real(r8) :: acc_NI
-    real(r8) :: watermem
-    integer  :: cleafon    ! DOY for cold-decid leaf-on, initial guess
-    integer  :: cleafoff   ! DOY for cold-decid leaf-off, initial guess
-    integer  :: dleafoff   ! DOY for drought-decid leaf-off, initial guess
-    integer  :: dleafon    ! DOY for drought-decid leaf-on, initial guess
-    integer  :: ft         ! PFT loop
-    real(r8) :: sumarea    ! area of PFTs in nocomp mode.
-    integer  :: hlm_pft    ! used in fixed biogeog mode
-    integer  :: fates_pft  ! used in fixed biogeog mode
     !----------------------------------------------------------------------
 
 
@@ -140,129 +127,14 @@ contains
     ! as unset ints and reals, and let the restart values be read in
     ! after this routine
 
-    if ( hlm_is_restart == ifalse ) then
+    if (hlm_is_restart == ifalse) then
 
-       GDD      = 30.0_r8
-       cleafon  = 100
-       cleafoff = 300
-       cstat    = phen_cstat_notcold     ! Leaves are on
-       acc_NI   = 0.0_r8
-       dstat    = phen_dstat_moiston     ! Leaves are on
-       dleafoff = 300
-       dleafon  = 100
-       watermem = 0.5_r8
-
-       do s = 1,nsites
-          sites(s)%nchilldays    = 0
-          sites(s)%ncolddays     = 0        ! recalculated in phenology
-          ! immediately, so yes this
-          ! is memory-less, but needed
-          ! for first value in history file
-          sites(s)%phen_model_date = 0
-          sites(s)%cleafondate     = cleafon  - hlm_day_of_year
-          sites(s)%cleafoffdate    = cleafoff - hlm_day_of_year
-          sites(s)%dleafoffdate    = dleafoff - hlm_day_of_year
-          sites(s)%dleafondate     = dleafon  - hlm_day_of_year
-          sites(s)%grow_deg_days   = GDD
-
-          sites(s)%water_memory(1:numWaterMem) = watermem
-          sites(s)%vegtemp_memory(1:num_vegtemp_mem) = 0._r8
-
-          sites(s)%cstatus = cstat
-          sites(s)%dstatus = dstat
-
-          sites(s)%acc_NI     = acc_NI
-          sites(s)%NF         = 0.0_r8
-          sites(s)%NF_successful  = 0.0_r8
-          sites(s)%area_pft(:) = 0.0_r8
-
-          do ft =  1,numpft
-             sites(s)%rec_l2fr(ft,:) = prt_params%allom_l2fr(ft)
-          end do
-
-          ! Its difficult to come up with a resonable starting smoothing value, so
-          ! we initialize on a cold-start to -1
-          sites(s)%ema_npp = -9999._r8
-
-          if(hlm_use_fixed_biogeog.eq.itrue)then
-             ! MAPPING OF FATES PFTs on to HLM_PFTs
-             ! add up the area associated with each FATES PFT
-             ! where pft_areafrac is the area of land in each HLM PFT and (from surface dataset)
-             ! hlm_pft_map is the area of that land in each FATES PFT (from param file)
-
-             do hlm_pft = 1,size( EDPftvarcon_inst%hlm_pft_map,2)
-                do fates_pft = 1,numpft ! loop round all fates pfts for all hlm pfts
-                   sites(s)%area_pft(fates_pft) = sites(s)%area_pft(fates_pft) + &
-                        EDPftvarcon_inst%hlm_pft_map(fates_pft,hlm_pft) * bc_in(s)%pft_areafrac(hlm_pft)
-                end do
-             end do !hlm_pft
-
-             do ft =  1,numpft
-                if(sites(s)%area_pft(ft).lt.0.01_r8.and.sites(s)%area_pft(ft).gt.0.0_r8)then
-                   if(debug) write(fates_log(),*)  'removing small pft patches',s,ft,sites(s)%area_pft(ft)
-                   sites(s)%area_pft(ft)=0.0_r8
-                   ! remove tiny patches to prevent numerical errors in terminate patches
-                endif
-                if(sites(s)%area_pft(ft).lt.0._r8)then
-                   write(fates_log(),*) 'negative area',s,ft,sites(s)%area_pft(ft)
-                   call endrun(msg=errMsg(sourcefile, __LINE__))
-                end if
-                sites(s)%area_pft(ft)= sites(s)%area_pft(ft) * AREA ! rescale units to m2.
-             end do
-
-             ! re-normalize PFT area to ensure it sums to one.
-             ! note that in areas of 'bare ground' (PFT 0 in CLM/ELM)
-             ! the bare ground will no longer be proscribed and should emerge from FATES
-             ! this may or may not be the right way to deal with this?
-
-             if(hlm_use_nocomp.eq.ifalse)then ! when not in nocomp (i.e. or SP) mode, 
-                ! subsume bare ground evenly into the existing patches.
-
-                sumarea = sum(sites(s)%area_pft(1:numpft))
-                do ft =  1,numpft
-                   if(sumarea.gt.0._r8)then
-                      sites(s)%area_pft(ft) = area * sites(s)%area_pft(ft)/sumarea
-                   else
-                      sites(s)%area_pft(ft) = area/numpft
-                      ! in nocomp mode where there is only bare ground, we assign equal area to
-                      ! all pfts and let the model figure out whether land should be bare or not.
-                   end if
-                end do !ft
-             else ! for sp and nocomp mode, assert a bare ground patch if needed
-                sumarea = sum(sites(s)%area_pft(1:numpft))
-
-                ! In all the other FATES modes, bareground is the area in which plants
-                ! do not grow of their own accord. In SP mode we assert that the canopy is full for
-                ! each PFT patch. Thus, we also need to assert a bare ground area in
-                ! order to not have all of the ground filled by leaves.
-
-                ! Further to that, one could calculate bare ground as the remaining area when
-                ! all fhe canopies are accounted for, but this means we don't pass balance checks
-                ! on canopy are inside FATES, and so in SP mode, we define the bare groud
-                ! patch as having a PFT identifier as zero.
-
-                if(sumarea.lt.area)then !make some bare ground
-                   sites(s)%area_pft(0) = area - sumarea
-                end if
-             end if !sp mode
-          end if !fixed biogeog
-
-          do ft = 1,numpft
-             ! Setting this to true ensures that all pfts
-             ! are used for nocomp with no biogeog
-             sites(s)%use_this_pft(ft) = itrue
-             if(hlm_use_fixed_biogeog.eq.itrue)then
-                if(sites(s)%area_pft(ft).gt.0.0_r8)then
-                   sites(s)%use_this_pft(ft) = itrue
-                else
-                   sites(s)%use_this_pft(ft) = ifalse
-                end if !area
-             end if !SBG
-          end do !ft
+       do s = 1, nsites
+        call sites(s)%Create(hlm_use_fixed_biogeog, hlm_use_nocomp, hlm_day_of_year,     &
+          bc_in(s)%pft_areafrac)
        end do !site loop
     end if !restart
 
-    return
   end subroutine set_site_properties
 
 
