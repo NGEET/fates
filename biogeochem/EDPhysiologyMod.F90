@@ -68,6 +68,7 @@ module EDPhysiologyMod
   use FatesLitterMod,           only : dl_sf
   use FatesLitterMod,           only : ncwd
   use FatesLitterMod,           only : ndcmpy
+  use FatesLitterMod,           only : adjust_SF_CWD_frac
   use FatesSiteMod,             only : fates_site_type
   use FatesSiteMod,             only : site_fluxdiags_type
   use FatesPatchMod,            only : fates_patch_type
