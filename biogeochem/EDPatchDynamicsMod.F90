@@ -36,6 +36,7 @@ module EDPatchDynamicsMod
   use PRTGenericMod        , only : element_list
   use FatesLitterMod       , only : lg_sf
   use FatesLitterMod       , only : dl_sf
+  use FatesLitterMod,        only : adjust_SF_CWD_frac
   use FatesConstantsMod    , only : N_DIST_TYPES
   use FatesConstantsMod           , only : AREA_INV
   use FatesConstantsMod    , only : rsnbl_math_prec

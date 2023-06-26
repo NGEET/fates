@@ -60,6 +60,7 @@ module EDLoggingMortalityMod
    use FatesLitterMod,          only : ncwd
    use FatesLitterMod,          only : ndcmpy
    use FatesLitterMod,          only : litter_type
+   use FatesLitterMod,          only : adjust_SF_CWD_frac
    use PRTParametersMod,        only : prt_params
    use PRTGenericMod,           only : num_elements
    use PRTGenericMod,           only : element_list
