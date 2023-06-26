@@ -380,7 +380,7 @@ module FatesSiteMod
       ! SITE CHARACTERISTICS
       this%area_by_age(:)                              = nan 
       this%rec_l2fr(:,:)                               = nan
-      this%ema_npp                                     = nan 
+      !this%ema_npp                                     = nan 
       this%snow_depth                                  = nan 
       this%spread                                      = nan 
 
