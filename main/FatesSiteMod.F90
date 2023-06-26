@@ -358,9 +358,9 @@ module FatesSiteMod
       nullify(this%youngest_patch)
 
       ! INDICES
-      this%h_gid                                      = fates_unset_int
-      this%lat                                        = nan 
-      this%lon                                        = nan 
+      !this%h_gid                                      = fates_unset_int
+      !this%lat                                        = nan 
+      !this%lon                                        = nan 
 
       ! FIXED BIOGEOGRAPHY MODE INPUTS
       this%area_PFT(:)                                = nan
@@ -374,7 +374,7 @@ module FatesSiteMod
       ! SITE CHARACTERISTICS
       this%area_by_age(:)                              = nan 
       this%rec_l2fr(:,:)                               = nan
-      this%ema_npp                                     = nan 
+      !this%ema_npp                                     = nan 
       this%snow_depth                                  = nan 
       this%spread                                      = nan 
 
