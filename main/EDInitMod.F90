@@ -104,41 +104,6 @@ contains
 
   ! ============================================================================
 
-  
-  subroutine set_site_properties( nsites, sites,bc_in )
-    !
-    ! !DESCRIPTION:
-    !
-    ! !USES:
-    !
-    ! !ARGUMENTS
-
-    integer, intent(in)                :: nsites
-    type(fates_site_type) , intent(inout) :: sites(nsites)
-    type(bc_in_type), intent(in)       :: bc_in(nsites)
-    !
-    ! !LOCAL VARIABLES:
-    integer  :: s
-    !----------------------------------------------------------------------
-
-
-    ! If this is not a restart, we need to start with some reasonable
-    ! starting points. If this is a restart, we leave the values
-    ! as unset ints and reals, and let the restart values be read in
-    ! after this routine
-
-    if (hlm_is_restart == ifalse) then
-
-       do s = 1, nsites
-        call sites(s)%Create(hlm_use_fixed_biogeog, hlm_use_nocomp, hlm_day_of_year,     &
-          bc_in(s)%pft_areafrac)
-       end do !site loop
-    end if !restart
-
-  end subroutine set_site_properties
-
-
-  ! ============================================================================
   subroutine init_patches( nsites, sites, bc_in)
     !
     ! !DESCRIPTION:

@@ -252,7 +252,7 @@ module FatesSiteMod
 
       ! ARGUMENTS:
       class(fates_site_type), intent(inout) :: this        ! site object
-      integer,               intent(in)     :: num_levsoil ! the number of soil layers in this column
+      integer,                intent(in)    :: num_levsoil ! the number of soil layers in this column
       real(r8),               intent(in)    :: zi_sisl(:)  ! soil interface level below a "z" level [m]
       real(r8),               intent(in)    :: dz_sisl(:)  ! soil layer thickness [m]
       real(r8),               intent(in)    :: z_sisl(:)   ! soil layer depth [m]
@@ -491,6 +491,9 @@ module FatesSiteMod
       ! zero resources management variables
       call this%resources_management%ZeroVals()
 
+      this%nchilldays                                  = 0
+      this%ncolddays                                   = 0  
+      this%phen_model_date                             = 0
       this%primary_land_patchfusion_error              = 0.0_r8
       this%potential_disturbance_rates(:)              = 0.0_r8
       this%disturbance_rates_secondary_to_secondary(:) = 0.0_r8
@@ -499,7 +502,8 @@ module FatesSiteMod
       this%acc_ni                                      = 0.0_r8    
       this%FDI                                         = 0.0_r8     
       this%NF                                          = 0.0_r8     
-      this%NF_successful                               = 0.0_r8     
+      this%NF_successful                               = 0.0_r8
+      this%vegtemp_memory(1:num_vegtemp_mem)           = 0.0_r8 
       this%term_nindivs_canopy(:,:)                    = 0.0_r8
       this%term_nindivs_ustory(:,:)                    = 0.0_r8
       this%term_crownarea_canopy                       = 0.0_r8
@@ -546,18 +550,23 @@ module FatesSiteMod
   
     ! ====================================================================================
 
-    subroutine Create(this, fixed_biogeog, no_comp, day_of_year, pft_areafrac)
+    subroutine Create(this, num_levsoil, zi_sisl, dz_sisl, z_sisl, fixed_biogeog,        &
+        no_comp, day_of_year, pft_areafrac)
       !
       ! DESCRIPTION:
       !   creates a new site object
       !
 
       ! ARGUMENTS:
-      class(fates_site_type), intent(inout) :: this             ! site object
-      integer,                intent(in)    :: fixed_biogeog    ! are we using fixed biogegraphy mode?
-      integer,                intent(in)    :: no_comp          ! are we using no-comp mode?
-      integer,                intent(in)    :: day_of_year      ! HLM day of year
-      real(r8),               intent(in)    :: pft_areafrac(:)  ! fractional area of the FATES column occupied by each PFT [0-1]
+      class(fates_site_type), intent(inout) :: this            ! site object
+      integer,                intent(in)    :: num_levsoil     ! the number of soil layers in this column
+      real(r8),               intent(in)    :: zi_sisl(:)      ! soil interface level below a "z" level [m]
+      real(r8),               intent(in)    :: dz_sisl(:)      ! soil layer thickness [m]
+      real(r8),               intent(in)    :: z_sisl(:)       ! soil layer depth [m]
+      integer,                intent(in)    :: fixed_biogeog   ! are we using fixed biogegraphy mode?
+      integer,                intent(in)    :: no_comp         ! are we using no-comp mode?
+      integer,                intent(in)    :: day_of_year     ! HLM day of year
+      real(r8),               intent(in)    :: pft_areafrac(:) ! fractional area of the FATES column occupied by each PFT [0-1]
 
       ! LOCALS:
       integer  :: ft              ! looping index
@@ -569,23 +578,17 @@ module FatesSiteMod
       ! for printing
       character(len=*), parameter :: sourcefile = __FILE__
 
-      this%nchilldays                        = 0
-      this%ncolddays                         = 0  ! recalculated in phenology immediately, but need this 
-                                                  ! first value in the history file
-      this%phen_model_date                   = 0
+      ! allocate arrays, nan, and zero values
+      call this%Init(num_levsoil, zi_sisl, dz_sisl, z_sisl)
+      
       this%cleafondate                       = init_cleafon - day_of_year
       this%cleafoffdate                      = init_cleafoff - day_of_year
       this%dleafoffdate                      = init_dleafoff - day_of_year
       this%dleafondate                       = init_dleafon - day_of_year
       this%grow_deg_days                     = init_site_GDD
       this%water_memory(1:numWaterMem)       = init_watermem
-      this%vegtemp_memory(1:num_vegtemp_mem) = 0.0_r8
       this%cstatus                           = phen_cstat_notcold ! leaves are on
       this%dstatus                           = phen_dstat_moiston ! leaves are on
-      this%acc_NI                            = 0.0_r8
-      this%NF                                = 0.0_r8
-      this%NF_successful                     = 0.0_r8
-      this%area_pft(:)                       = 0.0_r8
 
       do ft = 1, numpft
         this%rec_l2fr(ft,:) = prt_params%allom_l2fr(ft)
@@ -602,7 +605,7 @@ module FatesSiteMod
         ! hlm_pft_map is the area of that land in each FATES PFT (from param file)
         do hlm_pft = 1, size(EDPftvarcon_inst%hlm_pft_map, 2)
           do fates_pft = 1, numpft ! loop round all fates pfts for all hlm pfts
-            this%area_pft(fates_pft) = this%area_pft(fates_pft) +                      &
+            this%area_pft(fates_pft) = this%area_pft(fates_pft) +                        &
               EDPftvarcon_inst%hlm_pft_map(fates_pft,hlm_pft)*pft_areafrac(hlm_pft)
           end do
         end do 
