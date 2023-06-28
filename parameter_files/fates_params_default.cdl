@@ -389,6 +389,9 @@ variables:
 	double fates_maintresp_reduction_intercept(fates_pft) ;
 		fates_maintresp_reduction_intercept:units = "unitless (0-1)" ;
 		fates_maintresp_reduction_intercept:long_name = "intercept of MR reduction as f(carbon storage), 0=no throttling, 1=max throttling" ;
+	double fates_maintresp_reduction_upthresh(fates_pft) ;
+		fates_maintresp_reduction_upthresh:units = "unitless (0-1)" ;
+		fates_maintresp_reduction_upthresh:long_name = "upper threshold for storage biomass (relative to leaf biomass) above which MR is not reduced" ;
 	double fates_mort_bmort(fates_pft) ;
 		fates_mort_bmort:units = "1/yr" ;
 		fates_mort_bmort:long_name = "background mortality rate" ;
@@ -428,6 +431,9 @@ variables:
 	double fates_mort_scalar_hydrfailure(fates_pft) ;
 		fates_mort_scalar_hydrfailure:units = "1/yr" ;
 		fates_mort_scalar_hydrfailure:long_name = "maximum mortality rate from hydraulic failure" ;
+	double fates_mort_upthresh_cstarvation(fates_pft) ;
+		fates_mort_upthresh_cstarvation:units = "unitless" ;
+		fates_mort_upthresh_cstarvation:long_name = "threshold for storage biomass (relative to target leaf biomass) above which carbon starvation is zero" ;
 	double fates_nonhydro_smpsc(fates_pft) ;
 		fates_nonhydro_smpsc:units = "mm" ;
 		fates_nonhydro_smpsc:long_name = "Soil water potential at full stomatal closure" ;
@@ -1289,6 +1295,8 @@ data:
 
  fates_maintresp_reduction_intercept = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
+ fates_maintresp_reduction_upthresh = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
+
  fates_mort_bmort = 0.014, 0.014, 0.014, 0.014, 0.014, 0.014, 0.014, 0.014, 
     0.014, 0.014, 0.014, 0.014 ;
 
@@ -1322,6 +1330,8 @@ data:
 
  fates_mort_scalar_hydrfailure = 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 
     0.6, 0.6, 0.6 ;
+
+ fates_mort_upthresh_cstarvation = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
  fates_nonhydro_smpsc = -255000, -255000, -255000, -255000, -255000, -255000, 
     -255000, -255000, -255000, -255000, -255000, -255000 ;

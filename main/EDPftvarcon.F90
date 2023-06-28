@@ -80,6 +80,8 @@ module EDPftvarcon
                                                                ! 1=linear, 0=very curved
      real(r8), allocatable :: maintresp_reduction_intercept(:) ! intercept of MR reduction as f(carbon storage),
                                                                ! 0=no throttling, 1=max throttling
+     real(r8), allocatable :: maintresp_reduction_upthresh (:) ! Upper threshold for storage biomass (relative 
+                                                               !    to leaf biomass) above which MR is not reduced
 
      real(r8), allocatable :: maintresp_leaf_atkin2017_baserate(:) ! leaf maintenance respiration base rate (r0)
                                                                    ! per Atkin et al 2017
@@ -94,6 +96,7 @@ module EDPftvarcon
      real(r8), allocatable :: mort_scalar_coldstress(:)  ! maximum mortality rate from cold stress
      real(r8), allocatable :: mort_scalar_cstarvation(:) ! maximum mortality rate from carbon starvation
      real(r8), allocatable :: mort_scalar_hydrfailure(:) ! maximum mortality rate from hydraulic failure
+     real(r8), allocatable :: mort_upthresh_cstarvation(:) ! threshold for storage biomass (relative to target leaf biomass) above which carbon starvation is zero
      real(r8), allocatable :: hf_sm_threshold(:)         ! soil moisture (btran units) at which drought mortality begins for non-hydraulic model
      real(r8), allocatable :: hf_flc_threshold(:)        ! plant fractional loss of conductivity at which drought mortality begins for hydraulic model
      real(r8), allocatable :: vcmaxha(:)                 ! activation energy for vcmax
@@ -448,6 +451,10 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_maintresp_reduction_upthresh'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     name = 'fates_maintresp_leaf_atkin2017_baserate'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
         dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -557,6 +564,10 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_mort_scalar_hydrfailure'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_mort_upthresh_cstarvation'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -865,6 +876,10 @@ contains
     call fates_params%RetrieveParameterAllocate(name=name, &
           data=this%maintresp_reduction_intercept)
 
+    name = 'fates_maintresp_reduction_upthresh'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+          data=this%maintresp_reduction_upthresh)
+
     name = 'fates_maintresp_leaf_atkin2017_baserate'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%maintresp_leaf_atkin2017_baserate)
@@ -961,6 +976,10 @@ contains
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%mort_scalar_hydrfailure)
 
+    name = 'fates_mort_upthresh_cstarvation'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%mort_upthresh_cstarvation)
+
 
     name = 'fates_mort_ip_size_senescence'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -985,6 +1004,10 @@ contains
     name = 'fates_mort_scalar_cstarvation'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%mort_scalar_cstarvation)
+
+    name = 'fates_mort_upthresh_cstarvation'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%mort_upthresh_cstarvation)
 
 
     name = 'fates_mort_hf_sm_threshold'
@@ -1615,6 +1638,7 @@ contains
         write(fates_log(),fmt0) 'mort_scalar_coldstress = ',EDPftvarcon_inst%mort_scalar_coldstress
         write(fates_log(),fmt0) 'mort_scalar_cstarvation = ',EDPftvarcon_inst%mort_scalar_cstarvation
         write(fates_log(),fmt0) 'mort_scalar_hydrfailure = ',EDPftvarcon_inst%mort_scalar_hydrfailure
+        write(fates_log(),fmt0) 'mort_upthresh_cstarvation = ',EDPftvarcon_inst%mort_upthresh_cstarvation
         write(fates_log(),fmt0) 'hf_sm_threshold = ',EDPftvarcon_inst%hf_sm_threshold
         write(fates_log(),fmt0) 'hf_flc_threshold = ',EDPftvarcon_inst%hf_flc_threshold
         write(fates_log(),fmt0) 'vcmaxha = ',EDPftvarcon_inst%vcmaxha
