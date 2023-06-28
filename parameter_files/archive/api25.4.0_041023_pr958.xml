@@ -3,7 +3,7 @@
   <!-- This parameter patch file updates the parameter file with the necessary changes -->
   <!-- for a number of pull requests. These updates are condensed into PR 958 as they -->
   <!-- are being integrated in succession in relatively quick succession.  This will help -->
-  <!-- reduce the number of API updates the user may need to apply to their own parameter file -->
+  <!-- reduce the number of API updates the user may need to apply to their own parameter file. -->
 
   <!-- Per PR 958: -->
   <!-- - updates the meta data for the initial seed density -->
@@ -18,6 +18,9 @@
 
   <!-- Per PR 1021 (tree recruitment): -->
   <!-- - adds new parameters for the Tree Recruitment Scheme by Hanbury-Brown et al., 2022 -->
+
+  <!-- Per issue 1014 (storage maintenance respiration): -->
+  <!-- - adds two new parameters in anticipation for a forthcoming pull request to address issue 1041 -->
 
   <!-- To use this patch file run the following command: -->
   <!--   Run `python ../tools/UpdateParamAPI.py -/-f archive/api25.4.0_041023_pr958.xml` -->
@@ -267,6 +270,20 @@
       <di> fates_pft </di>
       <un> unitless </un>
       <ln> seed dispersal probability density function shape parameter, B, Table 1 Bullock et al 2016 </ln>
+      <val> 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_maintresp_reduction_upthresh </na>
+      <di> fates_pft </di>
+      <un> unitless (0-1) </un>
+      <ln> upper threshold for storage biomass (relative to leaf biomass) above which MR is not reduced </ln>
+      <val> 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_mort_upthresh_cstarvation </na>
+      <di> fates_pft </di>
+      <un> unitless </un>
+      <ln> threshold for storage biomass (relative to target leaf biomass) above which carbon starvation is zero </ln>
       <val></val>
     </mod>
   </mods>
