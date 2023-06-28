@@ -822,6 +822,7 @@ contains
             nleafage = size(prt_params%leaf_long,dim=2)
          end if
 
+         nlevsclass = size(ED_val_history_sizeclass_bin_edges,dim=1)
          
          ! These values are used to define the restart file allocations and general structure
          ! of memory for the cohort arrays
@@ -885,7 +886,6 @@ contains
 
          ! Identify number of size and age class bins for history output
          ! assume these arrays are 1-indexed
-         nlevsclass = size(ED_val_history_sizeclass_bin_edges,dim=1)
          nlevage = size(ED_val_history_ageclass_bin_edges,dim=1)
          nlevheight = size(ED_val_history_height_bin_edges,dim=1)
          nlevcoage = size(ED_val_history_coageclass_bin_edges,dim=1)

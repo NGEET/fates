@@ -365,7 +365,7 @@ variables:
 	double fates_leaf_stomatal_slope_medlyn(fates_pft) ;
 		fates_leaf_stomatal_slope_medlyn:units = "KPa**0.5" ;
 		fates_leaf_stomatal_slope_medlyn:long_name = "stomatal slope parameter, as per Medlyn" ;
-	double fates_leaf_vcmax25top(fates_pft) ;
+	double fates_leaf_vcmax25top(fates_leafage_class, fates_pft) ;
 		fates_leaf_vcmax25top:units = "umol CO2/m^2/s" ;
 		fates_leaf_vcmax25top:long_name = "maximum carboxylation rate of Rub. at 25C, canopy top" ;
 	double fates_leaf_vcmaxha(fates_pft) ;
@@ -1271,7 +1271,8 @@ data:
  fates_leaf_stomatal_slope_medlyn = 4.1, 2.3, 2.3, 4.1, 4.4, 4.4, 4.7, 4.7, 
     4.7, 2.2, 5.3, 1.6 ;
 
- fates_leaf_vcmax25top = 50, 62, 39, 61, 58, 58, 62, 54, 54, 78, 78, 78 ;
+ fates_leaf_vcmax25top =
+  50, 62, 39, 61, 58, 58, 62, 54, 54, 78, 78, 78 ;
 
  fates_leaf_vcmaxha = 65330, 65330, 65330, 65330, 65330, 65330, 65330, 65330, 
     65330, 65330, 65330, 65330 ;

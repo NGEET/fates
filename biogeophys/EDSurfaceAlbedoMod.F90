@@ -265,7 +265,6 @@ contains
     integer  :: fp,iv,s      ! array indices
     integer  :: ib               ! waveband number
     real(r8) :: cosz             ! 0.001 <= coszen <= 1.000
-    real(r8) :: chil
     real(r8) :: gdir
 
 
@@ -363,11 +362,7 @@ contains
     cosz = max(0.001_r8, currentPatch%solar_zenith_angle ) !copied from previous radiation code...
     do ft = 1,numpft
        sb = (90._r8 - (acos(cosz)*180._r8/pi_const)) * (pi_const / 180._r8)
-       chil = xl(ft) !min(max(xl(ft), -0.4_r8), 0.6_r8 )
-       if ( abs(chil) <= 0.01_r8) then
-          chil  = 0.01_r8
-       end if
-       phi1b(ft) = 0.5_r8 - 0.633_r8*chil - 0.330_r8*chil*chil
+       phi1b(ft) = 0.5_r8 - 0.633_r8*xl(ft) - 0.330_r8*xl(ft)*xl(ft)
        phi2b(ft) = 0.877_r8 * (1._r8 - 2._r8*phi1b(ft)) !0 = horiz leaves, 1 - vert leaves.
        gdir = phi1b(ft) + phi2b(ft) * sin(sb)
        !how much direct light penetrates a singleunit of lai?

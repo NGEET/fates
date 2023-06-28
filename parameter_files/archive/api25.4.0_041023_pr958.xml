@@ -26,6 +26,20 @@
   <new_file>fates_params_default.cdl</new_file>
   <pft_list> 1,2,3,4,5,6,7,8,9,10,11,12 </pft_list>
   <mods>
+    <mod type="variable_add">
+      <na> fates_maintresp_reduction_upthresh </na>
+      <di> fates_pft </di>
+      <un> unitless (0-1) </un>
+      <ln> upper threshold for storage biomass (relative to leaf biomass) above which MR is not reduced </ln>
+      <val> 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_mort_upthresh_cstarvation </na>
+      <di> fates_pft </di>
+      <un> unitless </un>
+      <ln> threshold for storage biomass (relative to target leaf biomass) above which carbon starvation is zero </ln>
+      <val> 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 </val>
+    </mod>
     <mod type="variable_change" name="fates_phen_fnrt_drop_frac">
       <na> fates_phen_fnrt_drop_fraction </na>
       <ln> fraction of fine roots to drop during drought/cold </ln>
@@ -53,7 +67,6 @@
       <ln> day threshold compared against days since leaves abscised (shed) </ln>
     </mod>
     <mod type="variable_change" name="fates_leaf_vcmax25top">
-      <di> fates_pft </di>
       <val>  50, 62, 39, 61, 58, 58, 62, 54, 54, 78, 78, 78 </val>
     </mod>
     <mod type="variable_del">
