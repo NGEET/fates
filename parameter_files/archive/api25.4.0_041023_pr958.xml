@@ -27,7 +27,7 @@
   <pft_list> 1,2,3,4,5,6,7,8,9,10,11,12 </pft_list>
   <mods>
     <mod type="variable_add">
-      <na> maintresp_reduction_upthresh </na>
+      <na> fates_maintresp_reduction_upthresh </na>
       <di> fates_pft </di>
       <un> unitless (0-1) </un>
       <ln> upper threshold for storage biomass (relative to leaf biomass) above which MR is not reduced </ln>

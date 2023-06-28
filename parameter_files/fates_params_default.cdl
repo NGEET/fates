@@ -389,6 +389,9 @@ variables:
 	double fates_maintresp_reduction_intercept(fates_pft) ;
 		fates_maintresp_reduction_intercept:units = "unitless (0-1)" ;
 		fates_maintresp_reduction_intercept:long_name = "intercept of MR reduction as f(carbon storage), 0=no throttling, 1=max throttling" ;
+	double fates_maintresp_reduction_upthresh(fates_pft) ;
+		fates_maintresp_reduction_upthresh:units = "unitless (0-1)" ;
+		fates_maintresp_reduction_upthresh:long_name = "upper threshold for storage biomass (relative to leaf biomass) above which MR is not reduced" ;
 	double fates_mort_bmort(fates_pft) ;
 		fates_mort_bmort:units = "1/yr" ;
 		fates_mort_bmort:long_name = "background mortality rate" ;
@@ -620,9 +623,6 @@ variables:
 	double fates_woody(fates_pft) ;
 		fates_woody:units = "logical flag" ;
 		fates_woody:long_name = "Binary woody lifeform flag" ;
-	double maintresp_reduction_upthresh(fates_pft) ;
-		maintresp_reduction_upthresh:units = "unitless (0-1)" ;
-		maintresp_reduction_upthresh:long_name = "upper threshold for storage biomass (relative to leaf biomass) above which MR is not reduced" ;
 	double fates_hlm_pft_map(fates_hlm_pftno, fates_pft) ;
 		fates_hlm_pft_map:units = "area fraction" ;
 		fates_hlm_pft_map:long_name = "In fixed biogeog mode, fraction of HLM area associated with each FATES PFT" ;
@@ -1295,6 +1295,8 @@ data:
 
  fates_maintresp_reduction_intercept = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
+ fates_maintresp_reduction_upthresh = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
+
  fates_mort_bmort = 0.014, 0.014, 0.014, 0.014, 0.014, 0.014, 0.014, 0.014, 
     0.014, 0.014, 0.014, 0.014 ;
 
@@ -1530,8 +1532,6 @@ data:
     0.7 ;
 
  fates_woody = 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0 ;
-
- maintresp_reduction_upthresh = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
  fates_hlm_pft_map =
   0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
