@@ -898,7 +898,7 @@ contains
     use EDParamsMod, only : ED_val_phen_mindayson
     use EDParamsMod, only : ED_val_phen_ncolddayslim
     use EDParamsMod, only : ED_val_phen_coldtemp
-
+    use EDBtranMod, only  : check_layer_water
     !
     ! !ARGUMENTS:
     type(ed_site_type), intent(inout), target :: currentSite
@@ -913,6 +913,7 @@ contains
     integer  :: i_wmem            ! Loop counter for water mem days
     integer  :: i_tmem            ! Loop counter for veg temp mem days
     integer  :: ipft              ! plant functional type index
+    integer  :: j                 ! Soil layer index
     real(r8) :: mean_10day_liqvol ! mean soil liquid volume over last 10 days [m3/m3]
     real(r8) :: mean_10day_smp    ! mean soil matric potential over last 10 days [mm]
     real(r8) :: leaf_c            ! leaf carbon [kg]
@@ -1183,12 +1184,25 @@ contains
 
        ! Set the memory to be the weighted average of the soil properties, using the
        ! root fraction of each layer (except the topmost one) as the weighting factor.
+
        currentSite%liqvol_memory(1,ipft) = sum( bc_in%h2o_liqvol_sl     (2:nlevroot) * &
                                                 currentSite%rootfrac_scr(2:nlevroot) ) / &
-                                           rootfrac_notop
-       currentSite%smp_memory   (1,ipft) = sum( bc_in%smp_sl            (2:nlevroot) * &
-                                                currentSite%rootfrac_scr(2:nlevroot) ) / &
-                                           rootfrac_notop
+                                                rootfrac_notop
+       currentSite%smp_memory   (1,ipft)  = 0._r8
+       do j = 2,nlevroot
+          if(check_layer_water(bc_in%h2o_liqvol_sl(j),bc_in%tempk_sl(j)) ) then
+             currentSite%smp_memory   (1,ipft) = currentSite%smp_memory   (1,ipft) + & 
+                  bc_in%smp_sl            (j) * &
+                  currentSite%rootfrac_scr(j)  / &
+                  rootfrac_notop
+          else
+             ! Nominal extreme suction for frozen or unreasonably dry soil
+             currentSite%smp_memory   (1,ipft) = currentSite%smp_memory   (1,ipft) + & 
+                  -10000._r8* &
+                  currentSite%rootfrac_scr(j)  / &
+                  rootfrac_notop
+          end if
+       end do
 
        ! Calculate the mean soil moisture ( liquid volume (m3/m3) and matric potential (mm))
        !    over the last 10 days
