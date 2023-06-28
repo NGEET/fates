@@ -270,7 +270,7 @@
       <di> fates_pft </di>
       <un> unitless </un>
       <ln> seed dispersal probability density function shape parameter, B, Table 1 Bullock et al 2016 </ln>
-      <val> 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 </val>
+      <val></val>
     </mod>
     <mod type="variable_add">
       <na> fates_maintresp_reduction_upthresh </na>
@@ -284,7 +284,7 @@
       <di> fates_pft </di>
       <un> unitless </un>
       <ln> threshold for storage biomass (relative to target leaf biomass) above which carbon starvation is zero </ln>
-      <val></val>
+      <val> 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 </val>
     </mod>
   </mods>
 </all>
