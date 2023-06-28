@@ -51,6 +51,7 @@ module EDPhysiologyMod
   use FatesLitterMod      , only : ilabile
   use FatesLitterMod      , only : ilignin
   use FatesLitterMod      , only : icellulose
+  use FatesLitterMod      , only : adjust_SF_CWD_frac
   use EDTypesMod          , only : nclmax
   use EDTypesMod          , only : AREA,AREA_INV
   use EDTypesMod          , only : nlevleaf
@@ -152,6 +153,7 @@ module EDPhysiologyMod
 
   integer :: istat           ! return status code
   character(len=255) :: smsg ! Message string for deallocation errors
+  
   integer, parameter :: dleafon_drycheck = 100 ! Drought deciduous leaves max days on check parameter
 
   real(r8), parameter :: decid_leaf_long_max = 1.0_r8 ! Maximum leaf lifespan for
@@ -262,7 +264,7 @@ contains
     real(r8) :: store_loss       ! "" [kg]
     real(r8) :: struct_loss      ! "" [kg]       
     real(r8) :: dcmpy_frac       ! fraction of mass going to each decomposition pool
-
+    real(r8) :: SF_val_CWD_frac_adj(4) !SF_val_CWD_frac adjusted based on cohort dbh 
     
     if(hlm_use_tree_damage .ne. itrue) return
 
@@ -352,16 +354,18 @@ contains
                 flux_diags%leaf_litter_input(ipft) = &
                      flux_diags%leaf_litter_input(ipft) +  &
                      (store_loss+leaf_loss+repro_loss) * ndcohort%n
+                
+                call adjust_SF_CWD_frac(ndcohort%dbh,ncwd,SF_val_CWD_frac,SF_val_CWD_frac_adj)
 
                 do c = 1,ncwd
                    litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + &
                         (sapw_loss + struct_loss) * &
-                        SF_val_CWD_frac(c) * ndcohort%n / &
+                        SF_val_CWD_frac_adj(c) * ndcohort%n / &
                         cpatch%area
                    
                    flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
                         (struct_loss + sapw_loss) * &
-                        SF_val_CWD_frac(c) * ndcohort%n
+                        SF_val_CWD_frac_adj(c) * ndcohort%n
                 end do
                 
              end do do_element
@@ -2611,6 +2615,8 @@ contains
     integer  :: pft
     integer  :: dcmpy             ! decomposability pool index
     integer  :: numlevsoil        ! Actual number of soil layers
+
+    real(r8) :: SF_val_CWD_frac_adj(4) !SF_val_CWD_frac adjusted based on cohort dbh
     !----------------------------------------------------------------------
 
     ! -----------------------------------------------------------------------------------
@@ -2629,6 +2635,7 @@ contains
 
     currentCohort => currentPatch%shortest
     do while(associated(currentCohort))
+
        pft = currentCohort%pft
        call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
            bc_in%max_rooting_depth_index_col)
@@ -2701,18 +2708,22 @@ contains
 
        ! Assumption: turnover from deadwood and sapwood are lumped together in CWD pool
 
+       !update partitioning of stem wood (struct + sapw) to cwd based on cohort dbh
+       call adjust_SF_CWD_frac(currentCohort%dbh,ncwd,SF_val_CWD_frac,SF_val_CWD_frac_adj)
+
+
        do c = 1,ncwd
           litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + &
                (sapw_m_turnover + struct_m_turnover) * &
-               SF_val_CWD_frac(c) * plant_dens * &
+               SF_val_CWD_frac_adj(c) * plant_dens * &
                prt_params%allom_agb_frac(pft)
 
           flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
-               (struct_m_turnover + sapw_m_turnover) * SF_val_CWD_frac(c) * &
+               (struct_m_turnover + sapw_m_turnover) * SF_val_CWD_frac_adj(c) * &
                prt_params%allom_agb_frac(pft) * currentCohort%n
 
           bg_cwd_tot = (sapw_m_turnover + struct_m_turnover) * &
-               SF_val_CWD_frac(c) * plant_dens * &
+               SF_val_CWD_frac_adj(c) * plant_dens * &
                (1.0_r8-prt_params%allom_agb_frac(pft))
 
           do ilyr = 1, numlevsoil
@@ -2793,7 +2804,7 @@ contains
           ! Below-ground
 
           bg_cwd_tot = (struct_m + sapw_m) * &
-               SF_val_CWD_frac(c) * dead_n * &
+               SF_val_CWD_frac_adj(c) * dead_n * &
                (1.0_r8-prt_params%allom_agb_frac(pft))
 
           do ilyr = 1, numlevsoil
@@ -2812,7 +2823,7 @@ contains
 
 
              trunk_wood =  (struct_m + sapw_m) * &
-                  SF_val_CWD_frac(c) * dead_n_dlogging * &
+                  SF_val_CWD_frac_adj(c) * dead_n_dlogging * &
                   prt_params%allom_agb_frac(pft)
 
              site_mass%wood_product = site_mass%wood_product + &
@@ -2830,21 +2841,21 @@ contains
              ! Add AG wood to litter from indirect anthro sources
 
              litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + (struct_m + sapw_m) * &
-                  SF_val_CWD_frac(c) * (dead_n_natural+dead_n_ilogging)  * &
+                  SF_val_CWD_frac_adj(c) * (dead_n_natural+dead_n_ilogging)  * &
                   prt_params%allom_agb_frac(pft)
 
              flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
-                  SF_val_CWD_frac(c) * (dead_n_natural+dead_n_ilogging) * &
+                  SF_val_CWD_frac_adj(c) * (dead_n_natural+dead_n_ilogging) * &
                   currentPatch%area * prt_params%allom_agb_frac(pft)
 
           else
 
              litt%ag_cwd_in(c) = litt%ag_cwd_in(c) + (struct_m + sapw_m) * &
-                  SF_val_CWD_frac(c) * dead_n  * &
+                  SF_val_CWD_frac_adj(c) * dead_n  * &
                   prt_params%allom_agb_frac(pft)
 
              flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
-                  SF_val_CWD_frac(c) * dead_n * (struct_m + sapw_m) * &
+                  SF_val_CWD_frac_adj(c) * dead_n * (struct_m + sapw_m) * &
                   currentPatch%area * prt_params%allom_agb_frac(pft)
 
           end if
@@ -2874,13 +2885,13 @@ contains
              currentSite%resources_management%delta_litter_stock  = &
                   currentSite%resources_management%delta_litter_stock + &
                   (struct_m + sapw_m) * &
-                  SF_val_CWD_frac(c) * (dead_n_natural+dead_n_ilogging) * &
+                  SF_val_CWD_frac_adj(c) * (dead_n_natural+dead_n_ilogging) * &
                   currentPatch%area
 
              currentSite%resources_management%delta_biomass_stock = &
                   currentSite%resources_management%delta_biomass_stock + &
                   (struct_m + sapw_m) * &
-                  SF_val_CWD_frac(c) * dead_n * currentPatch%area
+                  SF_val_CWD_frac_adj(c) * dead_n * currentPatch%area
           end do
 
           ! Update diagnostics that track resource management
@@ -3182,5 +3193,5 @@ contains
     
     return
   end subroutine SetRecruitL2FR
-  
+
 end module EDPhysiologyMod
