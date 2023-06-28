@@ -178,6 +178,9 @@ module EDPhysiologyMod
                                                       !    computational problems. The current threshold
                                                       !    is the same used in ED-2.2.
 
+  real(r8), parameter :: smp_lwr_bound = -1000000._r8 ! Imposed soil matric potential lower bound for 
+                                                      !    frozen or excessively dry soils, used when
+                                                      !    computing water stress.
   ! ============================================================================
 
 contains
@@ -1202,7 +1205,7 @@ contains
           else
              ! Nominal extreme suction for frozen or unreasonably dry soil
              currentSite%smp_memory   (1,ipft) = currentSite%smp_memory   (1,ipft) + & 
-                  -10000._r8* &
+                  smp_lwr_bound * &
                   currentSite%rootfrac_scr(j)  / &
                   rootfrac_notop
           end if
