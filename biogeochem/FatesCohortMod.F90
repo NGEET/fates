@@ -5,8 +5,8 @@ module FatesCohortMod
   use FatesConstantsMod,          only : ifalse, itrue
   use FatesConstantsMod,          only : nearzero
   use FatesConstantsMod,          only : ican_upper, ican_ustory
-  use EDParamsMod,                only : nlevleaf
-  use EDParamsMod,                only : nclmax
+  use FatesConstantsMod,          only : nlevleaf
+  use FatesConstantsMod,          only : nclmax
   use FatesGlobals,               only : endrun => fates_endrun
   use FatesGlobals,               only : fates_log
   use PRTGenericMod,              only : max_nleafage

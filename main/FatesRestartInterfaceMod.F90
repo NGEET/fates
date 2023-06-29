@@ -40,7 +40,7 @@ module FatesRestartInterfaceMod
   use FatesLitterMod,          only : ndcmpy
   use FatesConstantsMod,              only : area
   use FatesSiteMod,            only : fates_site_type
-  use EDParamsMod,             only : nlevleaf
+  use FatesConstantsMod,       only : nlevleaf
   use PRTGenericMod,           only : prt_global
   use PRTGenericMod,           only : num_elements
   use FatesRunningMeanMod,     only : rmean_type
@@ -1815,8 +1815,8 @@ contains
    use FatesInterfaceTypesMod, only : numpft
    use FatesCohortMod, only : fates_cohort_type
    use FatesPatchMod, only : fates_patch_type
-   use EDParamsMod, only : maxSWb
-   use EDParamsMod, only : nclmax
+   use FatesConstantsMod, only : maxSWb
+   use FatesConstantsMod, only : nclmax
    use FatesConstantsMod, only : numWaterMem
    use FatesConstantsMod, only : num_vegtemp_mem
    use FatesInterfaceTypesMod, only : nlevdamage
@@ -2515,7 +2515,7 @@ contains
 
      use FatesCohortMod,           only : fates_cohort_type
      use FatesPatchMod,           only : fates_patch_type
-     use EDParamsMod,          only : maxSWb
+     use FatesConstantsMod,          only : maxSWb
      use FatesInterfaceTypesMod,    only : fates_maxElementsPerPatch
      use FatesInterfaceTypesMod,    only : hlm_current_tod, hlm_numSWb, numpft
 
@@ -2711,8 +2711,8 @@ contains
 
      use FatesCohortMod, only : fates_cohort_type
      use FatesPatchMod, only : fates_patch_type
-     use EDParamsMod, only : maxSWb
-     use EDParamsMod, only : nclmax
+     use FatesConstantsMod, only : maxSWb
+     use FatesConstantsMod, only : nclmax
      use FatesInterfaceTypesMod, only : numpft
      use FatesInterfaceTypesMod, only : fates_maxElementsPerPatch
      use FatesConstantsMod, only : numWaterMem

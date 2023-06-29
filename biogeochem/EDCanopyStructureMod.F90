@@ -24,8 +24,8 @@ module EDCanopyStructureMod
   use FatesSiteMod          , only : fates_site_type
   use FatesPatchMod,          only : fates_patch_type
   use FatesCohortMod,         only : fates_cohort_type
-  use EDParamsMod            , only : nclmax
-  use EDParamsMod            , only : nlevleaf
+  use FatesConstantsMod      , only : nclmax
+  use FatesConstantsMod      , only : nlevleaf
   
   use EDLoggingMortalityMod , only : UpdateHarvestC
   use FatesGlobals          , only : endrun => fates_endrun

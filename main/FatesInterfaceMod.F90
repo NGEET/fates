@@ -19,11 +19,11 @@ module FatesInterfaceMod
    use EDParamsMod               , only : maxpatch_primary
    use EDParamsMod               , only : maxpatch_secondary
    use EDParamsMod               , only : max_cohort_per_patch
-   use EDParamsMod                , only : maxSWb
-   use EDParamsMod                , only : ivis
-   use EDParamsMod                , only : inir
-   use EDParamsMod                , only : nclmax
-   use EDParamsMod                , only : nlevleaf
+   use FatesConstantsMod         , only : maxSWb
+   use FatesConstantsMod         , only : ivis
+   use FatesConstantsMod         , only : inir
+   use FatesConstantsMod         , only : nclmax
+   use FatesConstantsMod         , only : nlevleaf
    use FatesConstantsMod         , only : maxpft
    use FatesConstantsMod         , only : do_fates_salinity
    use FatesConstantsMod         , only : numWaterMem
@@ -1045,8 +1045,8 @@ contains
     subroutine fates_history_maps
        
        use FatesLitterMod, only : NFSC
-       use EDParamsMod, only : nclmax
-       use EDParamsMod, only : nlevleaf
+       use FatesConstantsMod, only : nclmax
+       use FatesConstantsMod, only : nlevleaf
        use EDParamsMod, only : ED_val_history_sizeclass_bin_edges
        use EDParamsMod, only : ED_val_history_ageclass_bin_edges
        use EDParamsMod, only : ED_val_history_height_bin_edges

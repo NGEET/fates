@@ -6,7 +6,7 @@ module EDPftvarcon
   ! read and initialize vegetation (PFT) constants.
   !
   ! !USES:
-  use EDParamsMod  ,   only : maxSWb, ivis, inir
+  use FatesConstantsMod,   only : maxSWb, ivis, inir
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesConstantsMod, only : nearzero
   use FatesConstantsMod, only : itrue, ifalse

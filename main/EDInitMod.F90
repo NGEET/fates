@@ -11,7 +11,6 @@ module EDInitMod
   use FatesConstantsMod         , only : primaryforest
   use FatesConstantsMod         , only : nearzero
   use FatesGlobals              , only : endrun => fates_endrun
-  use EDParamsMod               , only : nclmax
   use FatesGlobals              , only : fates_log
   use FatesInterfaceTypesMod    , only : hlm_is_restart
   use FatesInterfaceTypesMod    , only : hlm_current_tod
@@ -95,7 +94,6 @@ module EDInitMod
        __FILE__
 
   public  :: init_patches
-  public  :: set_site_properties
   private :: init_cohorts
 
   ! ============================================================================

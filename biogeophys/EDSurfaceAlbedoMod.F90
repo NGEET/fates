@@ -21,15 +21,15 @@ module EDSurfaceRadiationMod
   use FatesInterfaceTypesMod , only : bc_out_type
   use FatesInterfaceTypesMod , only : hlm_numSWb
   use FatesInterfaceTypesMod , only : numpft
-  use EDParamsMod        , only : maxSWb
-  use EDParamsMod        , only : nclmax
-  use EDParamsMod        , only : nlevleaf
+  use FatesConstantsMod        , only : maxSWb
+  use FatesConstantsMod        , only : nclmax
+  use FatesConstantsMod        , only : nlevleaf
   use FatesConstantsMod        , only : n_rad_stream_types
   use FatesConstantsMod        , only : idiffuse
   use FatesConstantsMod        , only : idirect
-  use EDParamsMod        , only : ivis
-  use EDParamsMod        , only : inir
-  use EDParamsMod        , only : ipar
+  use FatesConstantsMod        , only : ivis
+  use FatesConstantsMod        , only : inir
+  use FatesConstantsMod        , only : ipar
   use EDCanopyStructureMod, only: calc_areaindex
   use FatesGlobals      , only : fates_log
   use FatesGlobals, only      : endrun => fates_endrun

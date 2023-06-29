@@ -12,7 +12,7 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : t_water_freeze_k_1atm
   use FatesGlobals             , only : fates_log
   use FatesGlobals             , only : endrun => fates_endrun
-  use EDParamsMod              , only : nclmax
+  use FatesConstantsMod        , only : nclmax
   use FatesConstantsMod        , only : ican_upper
   use PRTGenericMod            , only : element_pos
   use PRTGenericMod            , only : num_elements
@@ -2118,7 +2118,7 @@ end subroutine flush_hvars
     use FatesSizeAgeTypeIndicesMod, only : get_cdamagesizepft_class_index
     use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
     
-    use EDParamsMod               , only : nlevleaf
+    use FatesConstantsMod         , only : nlevleaf
     use EDParamsMod               , only : ED_val_history_height_bin_edges
     use FatesInterfaceTypesMod    , only : nlevdamage
     
@@ -4340,7 +4340,7 @@ end subroutine flush_hvars
     ! after rapid timescale productivity calculations (gpp and respiration).
     ! ---------------------------------------------------------------------------------
 
-    use EDParamsMod          , only : nclmax, nlevleaf
+    use FatesConstantsMod          , only : nclmax, nlevleaf
     !
     ! Arguments
     class(fates_history_interface_type)                 :: this

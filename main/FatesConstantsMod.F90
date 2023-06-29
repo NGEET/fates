@@ -25,48 +25,56 @@ module FatesConstantsMod
   integer, parameter, public :: ifalse = 0 ! integer equivalent of false (in case come compilers dont auto convert)
 
   ! INDEXING AND LABELS
-  integer, parameter, public :: n_dbh_bins              = 6  ! no. of dbh bins used when comparing patches
-  integer, parameter, public :: maxpft                  = 16 ! maximum number of PFTs allowed
-                                                             !  the parameter file may determine that fewer
-                                                             !  are used, but this helps allocate scratch
-                                                             !  space and output arrays.
-  integer, parameter, public  :: numWaterMem            = 10 ! watermemory saved as site level var
-  integer, parameter, public  :: numlevsoil_max         = 30 ! scratch space used for static arrays
-                                                             !  The actual number of soil layers should not exceed this
-  integer, parameter, public :: num_vegtemp_mem        = 10 ! window of time over which we track temp for cold sensecence (days)
-  integer, parameter, public :: n_rad_stream_types      = 2  ! number of radiation streams used (direct/diffuse)
-  integer, parameter, public :: idirect                 = 1  ! array index for direct radiation
-  integer, parameter, public :: idiffuse                = 2  ! array index for diffuse radiation
-  integer, parameter, public :: n_dist_types            = 3  ! disturbance modes 1) tree-fall, 2) fire, 3) logging
-  integer, parameter, public :: leaves_on               = 2  ! flag specifying that a deciduous plant has leaves
-                                                             !   and should be allocating to them as well
-  integer, parameter, public :: leaves_off              = 1  ! flag specifying that a deciduous plant has dropped
-                                                             !   its leaves and should not be trying to allocate
-                                                             !   towards any growth
-  integer, parameter, public :: phen_cstat_nevercold    = 0  ! site has not experienced a cold period over a large number
-                                                             !  of days, leaves are dropped and flagged as non-cold region
-  integer, parameter, public :: phen_cstat_iscold       = 1  ! site is in a cold-state where leaves should have fallen
-  integer, parameter, public :: phen_cstat_notcold      = 2  ! site is in a warm-state where leaves are allowed to flush
-  integer, parameter, public :: phen_dstat_timeoff      = 0  ! site has off due to time exceedance (drought phenology)
-  integer, parameter, public :: phen_dstat_moistoff     = 1  ! site has off due to moisture avail (drought phenology)
-  integer, parameter, public :: phen_dstat_moiston      = 2  ! site has on due to moisture avail (drought phenology)
-  integer, parameter, public :: phen_dstat_timeon       = 3  ! site has on due to time exceedance (drought phenology)
-  integer, parameter, public :: ican_upper              = 1  ! nominal index for the upper canopy
-  integer, parameter, public :: ican_ustory             = 2  ! nominal index for diagnostics that refer to understory layers 
-                                                             !  (all layers that are not the top canopy layer)
-  integer, parameter, public :: nocomp_bareground       = 0  ! bareground label for no competition mode
-  integer, parameter, public :: dtype_ifall             = 1  ! index for naturally occuring tree-fall generated event
-  integer, parameter, public :: dtype_ifire             = 2  ! index for fire generated disturbance event
-  integer, parameter, public :: dtype_ilog              = 3  ! index for logging generated disturbance event
-  integer, parameter, public :: prescribed_p_uptake     = 1  ! flag specifying prescribed phosophorous uptake/turnover 
-  integer, parameter, public :: coupled_p_uptake        = 2  ! flag specifying coupled phosophorous uptake/turnover from host model
-  integer, parameter, public :: prescribed_n_uptake     = 1  ! flag specifying prescribed nitrogen uptake/turnover 
-  integer, parameter, public :: coupled_n_uptake        = 2  ! flag specifying coupled nitrogen uptake/turnover from host model
-  integer, parameter, public :: coupled_np_comp_scaling = 1  ! flag signaling at least 1 chemical element (ie N or P)
-  integer, parameter, public :: trivial_np_comp_scaling = 2  ! flag definition indicates that either
-                                                             !  nutrients are turned off in FATES, or, that the
-                                                             !  plants are not coupled with below ground chemistry. In
-                                                             !  this situation, we send token boundary condition information
+  integer, parameter, public :: n_dbh_bins              = 6    ! no. of dbh bins used when comparing patches
+  integer, parameter, public :: maxpft                  = 16   ! maximum number of PFTs allowed
+                                                               !  the parameter file may determine that fewer
+                                                               !  are used, but this helps allocate scratch
+                                                               !  space and output arrays.
+  integer, parameter, public  :: numWaterMem            = 10   ! watermemory saved as site level var
+  integer, parameter, public  :: numlevsoil_max         = 30   ! scratch space used for static arrays
+                                                               !  The actual number of soil layers should not exceed this
+  integer, parameter, public :: num_vegtemp_mem        = 10    ! window of time over which we track temp for cold sensecence (days)
+  integer, parameter, public :: n_rad_stream_types      = 2    ! number of radiation streams used (direct/diffuse)
+  integer, parameter, public :: idirect                 = 1    ! array index for direct radiation
+  integer, parameter, public :: idiffuse                = 2    ! array index for diffuse radiation
+  integer, parameter, public :: maxSWb                  = 2    ! maximum number of broad-bands in the shortwave spectrum 
+  integer, parameter, public :: ivis                    = 1    ! array index for short-wave radiation in the visible band, as expected
+                                                               !   in boundary condition files and parameter files
+                                                               !   will be compared with the HLM's expectation in FatesInterfaceMod
+  integer, parameter, public :: inir                    = 2    ! array index for short-wave radiation in the NIR band, as expected
+                                                               !   in boundary condition files and parameter files
+                                                               !   will be compared with the HLM's expectation in FatesInterfaceMod
+  integer, parameter, public :: ipar                    = ivis ! The photosynthetically active band, can be approximated to be equal to visible
+  integer, parameter, public :: n_dist_types            = 3    ! disturbance modes 1) tree-fall, 2) fire, 3) logging
+  integer, parameter, public :: leaves_on               = 2    ! flag specifying that a deciduous plant has leaves
+                                                               !   and should be allocating to them as well
+  integer, parameter, public :: leaves_off              = 1    ! flag specifying that a deciduous plant has dropped
+                                                               !   its leaves and should not be trying to allocate
+                                                               !   towards any growth
+  integer, parameter, public :: phen_cstat_nevercold    = 0    ! site has not experienced a cold period over a large number
+                                                               !  of days, leaves are dropped and flagged as non-cold region
+  integer, parameter, public :: phen_cstat_iscold       = 1    ! site is in a cold-state where leaves should have fallen
+  integer, parameter, public :: phen_cstat_notcold      = 2    ! site is in a warm-state where leaves are allowed to flush
+  integer, parameter, public :: phen_dstat_timeoff      = 0    ! site has off due to time exceedance (drought phenology)
+  integer, parameter, public :: phen_dstat_moistoff     = 1    ! site has off due to moisture avail (drought phenology)
+  integer, parameter, public :: phen_dstat_moiston      = 2    ! site has on due to moisture avail (drought phenology)
+  integer, parameter, public :: phen_dstat_timeon       = 3    ! site has on due to time exceedance (drought phenology)
+  integer, parameter, public :: ican_upper              = 1    ! nominal index for the upper canopy
+  integer, parameter, public :: ican_ustory             = 2    ! nominal index for diagnostics that refer to understory layers 
+                                                               !  (all layers that are not the top canopy layer)
+  integer, parameter, public :: nocomp_bareground       = 0    ! bareground label for no competition mode
+  integer, parameter, public :: dtype_ifall             = 1    ! index for naturally occuring tree-fall generated event
+  integer, parameter, public :: dtype_ifire             = 2    ! index for fire generated disturbance event
+  integer, parameter, public :: dtype_ilog              = 3    ! index for logging generated disturbance event
+  integer, parameter, public :: prescribed_p_uptake     = 1    ! flag specifying prescribed phosophorous uptake/turnover 
+  integer, parameter, public :: coupled_p_uptake        = 2    ! flag specifying coupled phosophorous uptake/turnover from host model
+  integer, parameter, public :: prescribed_n_uptake     = 1    ! flag specifying prescribed nitrogen uptake/turnover 
+  integer, parameter, public :: coupled_n_uptake        = 2    ! flag specifying coupled nitrogen uptake/turnover from host model
+  integer, parameter, public :: coupled_np_comp_scaling = 1    ! flag signaling at least 1 chemical element (ie N or P)
+  integer, parameter, public :: trivial_np_comp_scaling = 2    ! flag definition indicates that either
+                                                               !  nutrients are turned off in FATES, or, that the
+                                                               !  plants are not coupled with below ground chemistry. In
+                                                               !  this situation, we send token boundary condition information
   
   ! integer labels for specifying photosynthetic acclimation model
   integer, parameter, public :: photosynth_acclim_model_none                   = 1
@@ -191,6 +199,10 @@ module FatesConstantsMod
                                                                     (/0._fates_r8, 5._fates_r8, 20._fates_r8, 50._fates_r8, 100._fates_r8, 150._fates_r8/)                 
   real(fates_r8), parameter, public :: patch_fusion_tolerance_relaxation_increment = 1.1_fates_r8   ! amount by which to increment patch fusion threshold
   real(fates_r8), parameter, public :: max_age_of_second_oldest_patch              = 200._fates_r8  ! age above which to combine all patches [years]
+
+  ! LEAF LAYERING
+  integer, parameter, public :: nclmax = 2    ! maximum number of canopy layers
+  integer, parameter, public :: nlevleaf = 30 ! number of leaf+stem layers in each canopy layer
 
   ! COHORT FUSION AND TERMINATION
   real(fates_r8), parameter, public :: hitemax               = 30.0_fates_r8   ! max dbh value used in hgt profile comparison [cm]

@@ -27,7 +27,7 @@ module EDPatchDynamicsMod
   use FatesSiteMod         , only : site_fluxdiags_type
   use FatesConstantsMod           , only : min_patch_area
   use FatesConstantsMod           , only : min_patch_area_forced
-  use EDParamsMod          , only : nclmax
+  use FatesConstantsMod          , only : nclmax
   use FatesConstantsMod           , only : dtype_ifall
   use FatesConstantsMod           , only : dtype_ilog
   use FatesConstantsMod           , only : dtype_ifire

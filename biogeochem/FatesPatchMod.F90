@@ -4,6 +4,10 @@ module FatesPatchMod
   use FatesConstantsMod,   only : fates_unset_r8
   use FatesConstantsMod,   only : fates_unset_int
   use FatesConstantsMod,   only : primaryforest, secondaryforest
+  use FatesConstantsMod,   only : maxSWb, nlevleaf, nclmax
+  use FatesConstantsMod,   only : n_dbh_bins, maxpft, n_dist_types
+  use FatesConstantsMod,   only : n_rad_stream_types
+  use FatesConstantsMod,   only : t_water_freeze_k_1atm
   use FatesGlobals,        only : fates_log
   use FatesGlobals,        only : endrun => fates_endrun
   use FatesUtilsMod,       only : check_hlm_list
@@ -14,10 +18,6 @@ module FatesPatchMod
   use FatesLitterMod,      only : litter_type
   use PRTGenericMod,       only : num_elements
   use PRTGenericMod,       only : element_list
-  use EDParamsMod,         only : maxSWb, nlevleaf, nclmax
-  use FatesConstantsMod,   only : n_dbh_bins, maxpft, n_dist_types
-  use FatesConstantsMod,   only : n_rad_stream_types
-  use FatesConstantsMod,   only : t_water_freeze_k_1atm
   use FatesRunningMeanMod, only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm
 
   use shr_infnan_mod,      only : nan => shr_infnan_nan, assignment(=)

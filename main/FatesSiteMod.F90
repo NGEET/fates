@@ -14,9 +14,9 @@ module FatesSiteMod
   use FatesConstantsMod,           only : phen_cstat_notcold, phen_dstat_moiston
   use FatesConstantsMod,           only : n_dist_types
   use FatesConstantsMod,           only : maxpft
+  use FatesConstantsMod,           only : nclmax
   use FatesGlobals,                only : fates_log
   use FatesGlobals,                only : endrun => fates_endrun
-  use EDParamsMod,                 only : nclmax
   use EDPftvarcon,                 only : EDPftvarcon_inst
   use FatesInterfaceTypesMod,      only : nlevage, nlevdamage, nlevsclass, numpft
   use FatesInterfaceTypesMod,      only : hlm_use_nocomp, hlm_use_fixed_biogeog

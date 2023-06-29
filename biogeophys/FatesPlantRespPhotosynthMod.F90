@@ -39,8 +39,8 @@ module FATESPlantRespPhotosynthMod
   use FatesInterfaceTypesMod, only : numpft
   use FatesInterfaceTypesMod, only : nleafage
   use FatesConstantsMod, only : maxpft
-  use EDParamsMod,       only : nlevleaf
-  use EDParamsMod,       only : nclmax
+  use FatesConstantsMod,       only : nlevleaf
+  use FatesConstantsMod,       only : nclmax
   use PRTGenericMod,     only : max_nleafage
   use FatesConstantsMod, only : do_fates_salinity
   use EDParamsMod,       only : q10_mr

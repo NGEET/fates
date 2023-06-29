@@ -15,13 +15,13 @@ Module EDCohortDynamicsMod
   use FatesConstantsMod,          only : min_n_safemath
   use FatesConstantsMod,          only : ican_upper
   use FatesConstantsMod,          only : leaves_on
+  use FatesConstantsMod,          only : nlevleaf
+  use FatesConstantsMod,          only : nclmax
   use FatesGlobals,               only : endrun => fates_endrun
   use FatesGlobals,               only : fates_log
   use EDParamsMod,                only : ED_val_cohort_size_fusion_tol
   use EDParamsMod,                only : ED_val_cohort_age_fusion_tol
   use EDParamsMod,                only : max_cohort_per_patch
-  use EDParamsMod,                only : nlevleaf
-  use EDParamsMod,                only : nclmax
   use FatesInterfaceTypesMod,     only : bc_in_type
   use FatesInterfaceTypesMod,     only : hlm_use_planthydro
   use FatesInterfaceTypesMod,     only : hlm_use_cohort_age_tracking

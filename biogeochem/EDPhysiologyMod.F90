@@ -27,6 +27,8 @@ module EDPhysiologyMod
   use FatesConstantsMod,        only : init_recruit_trim
   use FatesConstantsMod,        only : itrue, ifalse
   use FatesConstantsMod,        only : years_per_day
+  use FatesConstantsMod,        only : nclmax
+  use FatesConstantsMod,        only : nlevleaf
   use FatesGlobals,             only : fates_log
   use FatesGlobals,             only : endrun => fates_endrun
   use FatesInterfaceTypesMod,   only : bc_in_type
@@ -41,8 +43,6 @@ module EDPhysiologyMod
   use FatesInterfaceTypesMod,   only : hlm_use_tree_damage
   use FatesInterfaceTypesMod,   only : hlm_use_ed_prescribed_phys
   use EDParamsMod,              only : dinc_vai, dlower_vai
-  use EDParamsMod,              only : nclmax
-  use EDParamsMod,              only : nlevleaf
   use EDParamsMod,              only : q10_mr
   use EDParamsMod,              only : q10_froz
   use EDParamsMod,              only : logging_export_frac
