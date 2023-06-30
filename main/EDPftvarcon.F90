@@ -25,7 +25,7 @@ module EDPftvarcon
   use FatesConstantsMod   , only : prescribed_n_uptake
   use FatesConstantsMod   , only : coupled_p_uptake
   use FatesConstantsMod   , only : coupled_n_uptake
-
+  
 
    ! CIME Globals
   use shr_log_mod ,   only : errMsg => shr_log_errMsg
@@ -80,6 +80,8 @@ module EDPftvarcon
                                                                ! 1=linear, 0=very curved
      real(r8), allocatable :: maintresp_reduction_intercept(:) ! intercept of MR reduction as f(carbon storage),
                                                                ! 0=no throttling, 1=max throttling
+     real(r8), allocatable :: maintresp_reduction_upthresh (:) ! Upper threshold for storage biomass (relative 
+                                                               !    to leaf biomass) above which MR is not reduced
 
      real(r8), allocatable :: maintresp_leaf_atkin2017_baserate(:) ! leaf maintenance respiration base rate (r0)
                                                                    ! per Atkin et al 2017
@@ -94,6 +96,7 @@ module EDPftvarcon
      real(r8), allocatable :: mort_scalar_coldstress(:)  ! maximum mortality rate from cold stress
      real(r8), allocatable :: mort_scalar_cstarvation(:) ! maximum mortality rate from carbon starvation
      real(r8), allocatable :: mort_scalar_hydrfailure(:) ! maximum mortality rate from hydraulic failure
+     real(r8), allocatable :: mort_upthresh_cstarvation(:) ! threshold for storage biomass (relative to target leaf biomass) above which carbon starvation is zero
      real(r8), allocatable :: hf_sm_threshold(:)         ! soil moisture (btran units) at which drought mortality begins for non-hydraulic model
      real(r8), allocatable :: hf_flc_threshold(:)        ! plant fractional loss of conductivity at which drought mortality begins for hydraulic model
      real(r8), allocatable :: vcmaxha(:)                 ! activation energy for vcmax
@@ -203,14 +206,12 @@ module EDPftvarcon
                                                   ! biochemical production, fraction based how much
                                                   ! more in need a plant is for P versus N [/]
 
-     ! Turnover related things
+     ! Phenology related things
 
      real(r8), allocatable :: phenflush_fraction(:)       ! Maximum fraction of storage carbon used to flush leaves
                                                           ! on bud-burst [kgC/kgC]
      real(r8), allocatable :: phen_cold_size_threshold(:) ! stem/leaf drop occurs on DBH size of decidious non-woody
                                                           ! (coastal grass) plants larger than the threshold value
-     real(r8), allocatable :: phen_stem_drop_fraction(:)  ! Fraction of stem dropped/senescened for decidious
-                                                          ! non-woody (grass) plants
 
      ! Nutrient Aquisition parameters
      real(r8), allocatable :: prescribed_nuptake(:)   ! If there is no soil BGC model active,
@@ -450,6 +451,10 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_maintresp_reduction_upthresh'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     name = 'fates_maintresp_leaf_atkin2017_baserate'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
         dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -559,6 +564,10 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_mort_scalar_hydrfailure'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_mort_upthresh_cstarvation'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -694,9 +703,6 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_phen_stem_drop_fraction'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     ! Nutrient competition parameters
 
@@ -870,6 +876,10 @@ contains
     call fates_params%RetrieveParameterAllocate(name=name, &
           data=this%maintresp_reduction_intercept)
 
+    name = 'fates_maintresp_reduction_upthresh'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+          data=this%maintresp_reduction_upthresh)
+
     name = 'fates_maintresp_leaf_atkin2017_baserate'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%maintresp_leaf_atkin2017_baserate)
@@ -966,6 +976,10 @@ contains
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%mort_scalar_hydrfailure)
 
+    name = 'fates_mort_upthresh_cstarvation'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%mort_upthresh_cstarvation)
+
 
     name = 'fates_mort_ip_size_senescence'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -990,6 +1004,10 @@ contains
     name = 'fates_mort_scalar_cstarvation'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%mort_scalar_cstarvation)
+
+    name = 'fates_mort_upthresh_cstarvation'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%mort_upthresh_cstarvation)
 
 
     name = 'fates_mort_hf_sm_threshold'
@@ -1123,10 +1141,6 @@ contains
     name = 'fates_phen_cold_size_threshold'
     call fates_params%RetrieveParameterAllocate(name=name, &
           data=this%phen_cold_size_threshold)
-
-    name = 'fates_phen_stem_drop_fraction'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-          data=this%phen_stem_drop_fraction)
 
     name = 'fates_cnp_prescribed_nuptake'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -1624,6 +1638,7 @@ contains
         write(fates_log(),fmt0) 'mort_scalar_coldstress = ',EDPftvarcon_inst%mort_scalar_coldstress
         write(fates_log(),fmt0) 'mort_scalar_cstarvation = ',EDPftvarcon_inst%mort_scalar_cstarvation
         write(fates_log(),fmt0) 'mort_scalar_hydrfailure = ',EDPftvarcon_inst%mort_scalar_hydrfailure
+        write(fates_log(),fmt0) 'mort_upthresh_cstarvation = ',EDPftvarcon_inst%mort_upthresh_cstarvation
         write(fates_log(),fmt0) 'hf_sm_threshold = ',EDPftvarcon_inst%hf_sm_threshold
         write(fates_log(),fmt0) 'hf_flc_threshold = ',EDPftvarcon_inst%hf_flc_threshold
         write(fates_log(),fmt0) 'vcmaxha = ',EDPftvarcon_inst%vcmaxha
@@ -1656,7 +1671,6 @@ contains
         write(fates_log(),fmt0) 'taus = ',EDPftvarcon_inst%taus
         write(fates_log(),fmt0) 'phen_flush_fraction',EDpftvarcon_inst%phenflush_fraction
         write(fates_log(),fmt0) 'phen_cold_size_threshold = ',EDPftvarcon_inst%phen_cold_size_threshold
-        write(fates_log(),fmt0) 'phen_stem_drop_fraction',EDpftvarcon_inst%phen_stem_drop_fraction
         write(fates_log(),fmt0) 'fire_alpha_SH = ',EDPftvarcon_inst%fire_alpha_SH
         write(fates_log(),fmt0) 'allom_frbstor_repro = ',EDPftvarcon_inst%allom_frbstor_repro
         write(fates_log(),fmt0) 'hydro_p_taper = ',EDPftvarcon_inst%hydr_p_taper
@@ -1703,6 +1717,8 @@ contains
     use FatesConstantsMod  , only : itrue, ifalse
     use EDParamsMod        , only : logging_mechanical_frac, logging_collateral_frac
     use EDParamsMod        , only : logging_direct_frac,logging_export_frac
+    use EDParamsMod        , only : radiation_model
+    use EDParamsMod        , only : regeneration_model
     use FatesInterfaceTypesMod, only : hlm_use_fixed_biogeog,hlm_use_sp, hlm_name
     use FatesInterfaceTypesMod, only : hlm_use_inventory_init
 
@@ -1725,6 +1741,24 @@ contains
 
      if(.not.is_master) return
 
+     if(radiation_model.ne.1) then
+        write(fates_log(),*) 'The only available canopy radiation model'
+        write(fates_log(),*) 'is the Norman scheme: fates_rad_model = 1'
+        write(fates_log(),*) 'The two-stream scheme is not available yet'
+        write(fates_log(),*) 'You specified fates_rad_model = ',radiation_model
+        write(fates_log(),*) 'Aborting'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+     end if
+
+     if(regeneration_model.ne.1) then
+        write(fates_log(),*) 'The only available regeneration model'
+        write(fates_log(),*) 'is the default, ie 1'
+        write(fates_log(),*) 'The Hanbury-Brown models are not available yet'
+        write(fates_log(),*) 'You specified fates_regeneration_model = ',regeneration_model
+        write(fates_log(),*) 'Aborting'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+     end if
+     
 
      select case (hlm_parteh_mode)
      case (prt_cnp_flex_allom_hyp)
@@ -1801,8 +1835,6 @@ contains
         call endrun(msg=errMsg(sourcefile, __LINE__))
      end select
 
- 
-
      ! logging parameters, make sure they make sense
      if ( (logging_mechanical_frac + logging_collateral_frac + logging_direct_frac) .gt. 1._r8) then
         write(fates_log(),*) 'the sum of logging_mechanical_frac + logging_collateral_frac + logging_direct_frac'
@@ -1834,6 +1866,13 @@ contains
 
      do ipft = 1,npft
 
+        ! xl must be between -0.4 and 0.6 according to Bonan (2019) doi:10.1017/9781107339217 pg. 238
+        !-----------------------------------------------------------------------------------
+        if (EDPftvarcon_inst%xl(ipft) < -0.4 .or. EDPftvarcon_inst%xl(ipft) > 0.6) then
+          write(fates_log(),*) 'fates_rad_leaf_xl for pft ', ipft, ' is outside the allowed range of -0.6 to 0.4'
+          write(fates_log(),*) 'Aborting'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if 
 
         ! Check that parameter ranges for age-dependent mortality make sense
         !-----------------------------------------------------------------------------------
@@ -1888,8 +1927,7 @@ contains
 
         ! Check if the fraction of storage used for flushing deciduous trees
         ! is greater than zero, and less than or equal to 1.
-
-        if ( int(prt_params%evergreen(ipft)) .ne. 1 ) then
+        if (prt_params%evergreen(ipft) == ifalse) then
            if ( ( EDPftvarcon_inst%phenflush_fraction(ipft) < nearzero ) .or. &
                 ( EDPFtvarcon_inst%phenflush_fraction(ipft) > 1 ) ) then
 
@@ -1897,31 +1935,11 @@ contains
               write(fates_log(),*) ' on bud-burst. If phenflush_fraction is not greater than 0'
               write(fates_log(),*) ' it will not be able to put out any leaves. Plants need leaves.'
               write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' evergreen flag: (shold be 0):',int(prt_params%evergreen(ipft))
+              write(fates_log(),*) ' evergreen flag: (should be 0):',int(prt_params%evergreen(ipft))
               write(fates_log(),*) ' phenflush_fraction: ', EDPFtvarcon_inst%phenflush_fraction(ipft)
               write(fates_log(),*) ' Aborting'
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
-           if ( ( EDPftvarcon_inst%phen_stem_drop_fraction(ipft) < 0.0_r8 ) .or. &
-                ( EDPFtvarcon_inst%phen_stem_drop_fraction(ipft) > 1 ) ) then
-              write(fates_log(),*) ' Deciduous non-wood plants must keep 0-100% of their stems'
-              write(fates_log(),*) ' during the deciduous period.'
-              write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' evergreen flag: (shold be 0):',int(prt_params%evergreen(ipft))
-              write(fates_log(),*) ' phen_stem_drop_fraction: ', EDPFtvarcon_inst%phen_stem_drop_fraction(ipft)
-              write(fates_log(),*) ' Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
-           end if
-        end if
-
-        if( (prt_params%woody(ipft) == itrue) .and. &
-            (EDPftvarcon_inst%phen_stem_drop_fraction(ipft) > nearzero ) ) then
-           write(fates_log(),*) ' Non-zero stem-drop fractions are not allowed for woody plants'
-           write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' part_params%woody:',prt_params%woody(ipft)
-           write(fates_log(),*) ' phen_stem_drop_fraction: ', EDPFtvarcon_inst%phen_stem_drop_fraction(ipft)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
 
         ! Check if freezing tolerance is within reasonable bounds
@@ -2031,7 +2049,6 @@ contains
 !!
 !!        end if
 !!    end do
-
 
      return
   end subroutine FatesCheckParams
