@@ -32,6 +32,8 @@ module EDInitMod
   use EDTypesMod                , only : init_spread_inventory
   use EDTypesMod                , only : leaves_on
   use EDTypesMod                , only : leaves_off
+  use EDTypesMod                , only : ihard_stress_decid
+  use EDTypesMod                , only : isemi_stress_decid
   use PRTGenericMod             , only : num_elements
   use PRTGenericMod             , only : element_list
   use EDTypesMod                , only : phen_cstat_nevercold
@@ -231,16 +233,23 @@ contains
     ! PHENOLOGY
 
     site_in%cstatus          = fates_unset_int    ! are leaves in this pixel on or off?
-    site_in%dstatus          = fates_unset_int
+    site_in%dstatus(:)       = fates_unset_int
     site_in%grow_deg_days    = nan  ! growing degree days
     site_in%snow_depth       = nan
     site_in%nchilldays       = fates_unset_int
     site_in%ncolddays        = fates_unset_int
-    site_in%cleafondate      = fates_unset_int
-    site_in%cleafoffdate     = fates_unset_int
-    site_in%dleafondate      = fates_unset_int
-    site_in%dleafoffdate     = fates_unset_int
-    site_in%water_memory(:)  = nan
+    site_in%cleafondate      = fates_unset_int  ! doy of leaf on (cold)
+    site_in%cleafoffdate     = fates_unset_int  ! doy of leaf off (cold)
+    site_in%dleafondate(:)   = fates_unset_int  ! doy of leaf on (drought)
+    site_in%dleafoffdate(:)  = fates_unset_int  ! doy of leaf off (drought)
+    site_in%cndaysleafon     = fates_unset_int  ! days since leaf on (cold)
+    site_in%cndaysleafoff    = fates_unset_int  ! days since leaf off (cold)
+    site_in%dndaysleafon(:)  = fates_unset_int  ! days since leaf on (drought)
+    site_in%dndaysleafoff(:) = fates_unset_int  ! days since leaf off (drought)
+    site_in%elong_factor(:)  = nan              ! Elongation factor (0 - full abscission; 1 - fully flushed)
+
+    site_in%liqvol_memory(:,:)  = nan
+    site_in%smp_memory(:,:)  = nan
     site_in%vegtemp_memory(:) = nan              ! record of last 10 days temperature for senescence model.
 
     site_in%phen_model_date  = fates_unset_int
@@ -346,11 +355,17 @@ contains
     real(r8) :: GDD
     integer  :: dstat      ! drought status phenology flag
     real(r8) :: acc_NI
-    real(r8) :: watermem
+    real(r8) :: liqvolmem
+    real(r8) :: smpmem
+    real(r8) :: elong_factor ! Elongation factor (0 - fully off; 1 - fully on)
     integer  :: cleafon    ! DOY for cold-decid leaf-on, initial guess
     integer  :: cleafoff   ! DOY for cold-decid leaf-off, initial guess
     integer  :: dleafoff   ! DOY for drought-decid leaf-off, initial guess
     integer  :: dleafon    ! DOY for drought-decid leaf-on, initial guess
+    integer  :: cndleafon  ! days since leaf on  (cold), initial guess
+    integer  :: cndleafoff ! days since leaf off  (cold), initial guess
+    integer  :: dndleafon  ! days since leaf on  (drought), initial guess
+    integer  :: dndleafoff ! days since leaf off (drought), initial guess
     integer  :: ft         ! PFT loop
     real(r8) :: sumarea    ! area of PFTs in nocomp mode.
     integer  :: hlm_pft    ! used in fixed biogeog mode
@@ -368,31 +383,43 @@ contains
        GDD      = 30.0_r8
        cleafon  = 100
        cleafoff = 300
+       cndleafon  = 0
+       cndleafoff = 0
        cstat    = phen_cstat_notcold     ! Leaves are on
        acc_NI   = 0.0_r8
        dstat    = phen_dstat_moiston     ! Leaves are on
        dleafoff = 300
        dleafon  = 100
-       watermem = 0.5_r8
+       dndleafon  = 0
+       dndleafoff = 0
+       liqvolmem  = 0.5_r8 
+       smpmem     = 0._r8
+       elong_factor = 1._r8
 
        do s = 1,nsites
           sites(s)%nchilldays    = 0
           sites(s)%ncolddays     = 0        ! recalculated in phenology
-          ! immediately, so yes this
-          ! is memory-less, but needed
-          ! for first value in history file
-          sites(s)%phen_model_date = 0
-          sites(s)%cleafondate     = cleafon  - hlm_day_of_year
-          sites(s)%cleafoffdate    = cleafoff - hlm_day_of_year
-          sites(s)%dleafoffdate    = dleafoff - hlm_day_of_year
-          sites(s)%dleafondate     = dleafon  - hlm_day_of_year
+                                            ! immediately, so yes this
+                                            ! is memory-less, but needed
+                                            ! for first value in history file
+          sites(s)%phen_model_date         = 0
+          sites(s)%cleafondate             = cleafon    - hlm_day_of_year
+          sites(s)%cleafoffdate            = cleafoff   - hlm_day_of_year
+          sites(s)%cndaysleafon            = cndleafon
+          sites(s)%cndaysleafoff           = cndleafoff
+          sites(s)%dleafoffdate (1:numpft) = dleafoff   - hlm_day_of_year
+          sites(s)%dleafondate  (1:numpft) = dleafon    - hlm_day_of_year
+          sites(s)%dndaysleafon (1:numpft) = dndleafon
+          sites(s)%dndaysleafoff(1:numpft) = dndleafoff
           sites(s)%grow_deg_days   = GDD
 
-          sites(s)%water_memory(1:numWaterMem) = watermem
+          sites(s)%liqvol_memory(1:numWaterMem,1:numpft) = liqvolmem
+          sites(s)%smp_memory(1:numWaterMem,1:numpft) = smpmem
           sites(s)%vegtemp_memory(1:num_vegtemp_mem) = 0._r8
 
           sites(s)%cstatus = cstat
-          sites(s)%dstatus = dstat
+          sites(s)%dstatus(1:numpft) = dstat
+          sites(s)%elong_factor(1:numpft) = elong_factor
 
           sites(s)%acc_NI     = acc_NI
           sites(s)%NF         = 0.0_r8
@@ -750,7 +777,6 @@ contains
     ! !LOCAL VARIABLES:
     type(ed_cohort_type),pointer :: temp_cohort
     class(prt_vartypes),pointer  :: prt_obj
-    integer  :: cstatus
     integer  :: pft
     integer  :: crowndamage ! which crown damage class
     integer  :: iage       ! index for leaf age loop
@@ -771,7 +797,8 @@ contains
     real(r8) :: m_sapw     ! Generic mass for sapwood [kg]
     real(r8) :: m_store    ! Generic mass for storage [kg]
     real(r8) :: m_repro    ! Generic mass for reproductive tissues [kg]
-    real(r8) :: stem_drop_fraction
+    real(r8) :: fnrt_drop_fraction ! Fraction of fine roots to absciss when leaves absciss
+    real(r8) :: stem_drop_fraction ! Fraction of stems to absciss when leaves absciss
 
     integer, parameter :: rstatus = 0
     integer init
@@ -809,16 +836,64 @@ contains
        endif
     end do
 
-    
-    do pft =  1,numpft
 
-       if(use_pft_local(pft).eq.itrue)then
+    pft_loop: do pft =  1,numpft
+
+       if_use_this_pft: if(use_pft_local(pft).eq.itrue)then
 
           allocate(temp_cohort) ! temporary cohort
           temp_cohort%pft         = pft
           temp_cohort%l2fr = prt_params%allom_l2fr(pft)
           temp_cohort%canopy_trim = 1.0_r8
           temp_cohort%crowndamage = 1  ! Assume no damage to begin with
+
+
+          ! Initialise phenology variables.
+          spmode_case: select case (hlm_use_sp)
+          case (itrue)
+             ! Satellite phenology: do not override SP values with built-in phenology
+             temp_cohort%efleaf_coh = 1.0_r8
+             temp_cohort%effnrt_coh = 1.0_r8
+             temp_cohort%efstem_coh = 1.0_r8
+
+             temp_cohort%status_coh = leaves_on
+          case (ifalse)
+             ! Use built-in phenology
+
+             if( prt_params%season_decid(pft) == itrue .and. &
+                 any(site_in%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
+                ! Cold deciduous, off season, assume complete abscission.
+                temp_cohort%efleaf_coh = 0._r8
+                temp_cohort%effnrt_coh = 1.0_r8 - fnrt_drop_fraction
+                temp_cohort%efstem_coh = 1.0_r8 - stem_drop_fraction
+
+                temp_cohort%status_coh = leaves_off
+             elseif ( any(prt_params%stress_decid(pft) == [ihard_stress_decid,isemi_stress_decid])) then
+                ! If the plant is drought deciduous, make sure leaf status is
+                ! always consistent with the leaf elongation factor.  For tissues
+                ! other than leaves, the actual drop fraction is a combination of the
+                ! elongation factor (e) and the drop fraction (x), which will ensure
+                ! that the remaining tissue biomass will be exactly e when x=1, and
+                ! exactly the original biomass when x = 0.
+                temp_cohort%efleaf_coh = site_in%elong_factor(pft)
+                temp_cohort%effnrt_coh = 1.0_r8 - (1.0_r8 - temp_cohort%efleaf_coh ) * fnrt_drop_fraction
+                temp_cohort%efstem_coh = 1.0_r8 - (1.0_r8 - temp_cohort%efleaf_coh ) * stem_drop_fraction
+
+                if (temp_cohort%efleaf_coh > 0.0_r8) then
+                   temp_cohort%status_coh = leaves_on
+                else
+                   temp_cohort%status_coh = leaves_off
+                end if
+             else
+                ! Evergreens, or deciduous during growing season. 
+                ! Assume leaves are fully flushed.
+                temp_cohort%efleaf_coh = 1.0_r8
+                temp_cohort%effnrt_coh = 1.0_r8
+                temp_cohort%efstem_coh = 1.0_r8
+
+                temp_cohort%status_coh = leaves_on
+             end if
+          end select spmode_case
           
           ! If positive EDPftvarcon_inst%initd is interpreted as initial recruit density.
           ! If negative EDPftvarcon_inst%initd is interpreted as initial dbh. 
@@ -826,7 +901,7 @@ contains
           ! In the dbh-initialization case, we calculate crown area for a single tree and then calculate
           ! the density of plants  needed for a full canopy. 
 
-          if(EDPftvarcon_inst%initd(pft)>nearzero) then   ! interpret as initial density and calculate diameter
+          if_init_dens: if (EDPftvarcon_inst%initd(pft)>nearzero) then   ! interpret as initial density and calculate diameter
 
              temp_cohort%n           = EDPftvarcon_inst%initd(pft) * patch_in%area
              if(hlm_use_nocomp.eq.itrue)then !in nocomp mode we only have one PFT per patch
@@ -837,7 +912,13 @@ contains
                 ! n.b. that this is the same as currentcohort%n = %initd(pft) &AREA
                 temp_cohort%n           =  temp_cohort%n * sum(site_in%use_this_pft)
              endif
-             
+
+             ! Retrieve drop fraction of non-leaf tissues for phenology initialisation
+             fnrt_drop_fraction = prt_params%phen_fnrt_drop_fraction(temp_cohort%pft)
+             stem_drop_fraction = prt_params%phen_stem_drop_fraction(temp_cohort%pft)
+
+
+
              !  h,dbh,leafc,n from SP values or from small initial size.
              if(hlm_use_sp.eq.itrue)then
                 init = itrue
@@ -854,9 +935,8 @@ contains
                 ! Calculate the leaf biomass from allometry
                 ! (calculates a maximum first, then applies canopy trim)
                 call bleaf(temp_cohort%dbh,pft,temp_cohort%crowndamage, &
-                     temp_cohort%canopy_trim,c_leaf)
-
-             endif  ! sp mode
+                     temp_cohort%canopy_trim, temp_cohort%efleaf_coh, c_leaf)
+             end if  ! sp mode
 
           else ! interpret as initial diameter and calculate density 
              if(hlm_use_nocomp .eq. itrue)then
@@ -874,57 +954,35 @@ contains
                 ! Calculate the leaf biomass from allometry
                 ! (calculates a maximum first, then applies canopy trim)
                 call bleaf(temp_cohort%dbh,pft,temp_cohort%crowndamage, &
-                     temp_cohort%canopy_trim,c_leaf)
+                     temp_cohort%canopy_trim, temp_cohort%efleaf_coh,c_leaf)
 
              else
                 write(fates_log(),*) 'Negative fates_recruit_init_density can only be used in no comp mode'
                 call endrun(msg=errMsg(sourcefile, __LINE__))
-             endif
-          endif
+             end if
+          end if if_init_dens
+
 
 
           ! Calculate total above-ground biomass from allometry
-          call bagw_allom(temp_cohort%dbh,pft,temp_cohort%crowndamage,c_agw)
+          call bagw_allom(temp_cohort%dbh,pft,temp_cohort%crowndamage, temp_cohort%efstem_coh, c_agw)
 
           ! Calculate coarse root biomass from allometry
-          call bbgw_allom(temp_cohort%dbh,pft,c_bgw)
+          call bbgw_allom(temp_cohort%dbh,pft, temp_cohort%efstem_coh, c_bgw)
 
           ! Calculate fine root biomass from allometry
           ! (calculates a maximum and then trimming value)
-          call bfineroot(temp_cohort%dbh,pft,temp_cohort%canopy_trim,temp_cohort%l2fr,c_fnrt)
+          call bfineroot(temp_cohort%dbh,pft,temp_cohort%canopy_trim,temp_cohort%l2fr, &
+               temp_cohort%effnrt_coh, c_fnrt)
 
           ! Calculate sapwood biomass
           call bsap_allom(temp_cohort%dbh,pft,temp_cohort%crowndamage, &
-               temp_cohort%canopy_trim,a_sapw,c_sapw)
+               temp_cohort%canopy_trim, temp_cohort%efstem_coh, a_sapw, c_sapw)
 
           call bdead_allom( c_agw, c_bgw, c_sapw, pft, c_struct )
 
           call bstore_allom(temp_cohort%dbh, pft, temp_cohort%crowndamage, &
                temp_cohort%canopy_trim, c_store)
-
-          cstatus = leaves_on
-
-          stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(temp_cohort%pft)
-
-          if(hlm_use_sp.eq.ifalse)then ! do not override SP vales with phenology
-
-             if( prt_params%season_decid(pft) == itrue .and. &
-                  any(site_in%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
-                c_leaf = 0._r8
-                c_sapw = (1.0_r8-stem_drop_fraction) * c_sapw
-                c_struct  = (1.0_r8-stem_drop_fraction) * c_struct
-                cstatus = leaves_off
-             endif
-
-             if ( prt_params%stress_decid(pft) == itrue .and. &
-                  any(site_in%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff])) then
-                c_leaf = 0._r8
-                c_sapw = (1.0_r8-stem_drop_fraction) * c_sapw
-                c_struct  = (1.0_r8-stem_drop_fraction) * c_struct
-                cstatus = leaves_off
-             endif
-
-          end if ! SP mode
 
           if ( debug ) write(fates_log(),*) 'EDInitMod.F90 call create_cohort '
 
@@ -938,7 +996,7 @@ contains
           prt_obj => null()
           call InitPRTObject(prt_obj)
 
-          do el = 1,num_elements
+          element_loop: do el = 1,num_elements
 
              element_id = element_list(el)
 
@@ -994,22 +1052,25 @@ contains
                 call endrun(msg=errMsg(sourcefile, __LINE__))
              end select
 
-          end do
+          end do element_loop
 
           call prt_obj%CheckInitialConditions()
 
           call create_cohort(site_in, patch_in, pft, temp_cohort%n, temp_cohort%hite, &
-               temp_cohort%coage, temp_cohort%dbh, prt_obj, cstatus, rstatus,        &
-               temp_cohort%canopy_trim, temp_cohort%c_area,1,temp_cohort%crowndamage, site_in%spread, bc_in)
+               temp_cohort%coage, temp_cohort%dbh, prt_obj, temp_cohort%efleaf_coh, &
+               temp_cohort%effnrt_coh, temp_cohort%efstem_coh, temp_cohort%status_coh, &
+               rstatus, temp_cohort%canopy_trim, &
+               temp_cohort%c_area,1,temp_cohort%crowndamage, site_in%spread, bc_in)
+
 
           deallocate(temp_cohort, stat=istat, errmsg=smsg)
           if (istat/=0) then
              write(fates_log(),*) 'dealloc014: fail on deallocate(temp_cohort):'//trim(smsg)
              call endrun(msg=errMsg(sourcefile, __LINE__))
-          endif
+          end if
 
-       endif !use_this_pft
-    enddo !numpft
+       end if if_use_this_pft
+    end do pft_loop
 
     ! (Keeping as an example)
     ! Pass patch level temperature to the new cohorts (this is a nominal 15C right now)
