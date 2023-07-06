@@ -1983,10 +1983,8 @@ contains
            
            call SeedlingParPatch(cpatch, &
                 bc_in(s)%solad_parb(ifp,ipar) + bc_in(s)%solai_parb(ifp,ipar), &
-                seedling_par_high, &
-                par_high_frac, &
-                seedling_par_low, &
-                par_low_frac)
+                seedling_par_high, par_high_frac, seedling_par_low,&
+                & par_low_frac)
            
            new_seedling_layer_par = seedling_par_high*par_high_frac + seedling_par_low*par_low_frac
 
@@ -2071,25 +2069,34 @@ subroutine SeedlingParPatch(cpatch, &
   integer  :: ipft       ! current PFT index
   integer  :: iv         ! lower-most leaf layer index for the cl & pft combo
 
-  ! Radiation intensity exiting the layer above the bottom-most
-  upper_par = 0._r8
-  upper_area = 0._r8
-  cl = max(1,cpatch%NCL_p-1)
-  do ipft = 1,numpft
-     iv = cpatch%ncan(cl,ipft)
-     upper_par = upper_par + cpatch%canopy_area_profile(cl,ipft,1)* &
-          (cpatch%parprof_pft_dir_z(cl,ipft,iv)+cpatch%parprof_pft_dif_z(cl,ipft,iv))
-     upper_area = upper_area + cpatch%canopy_area_profile(cl,ipft,1)
-  end do
-  if(upper_area>nearzero)then
-     upper_par = upper_par/upper_area
-  else
+
+  ! Check that there are cohorts on the current patch as this calculation is
+  ! not relevant in that case (and will result in an index error due to ncan being zero)
+  if (cpatch%countcohorts .gt. 0) then
+
+     ! Radiation intensity exiting the layer above the bottom-most
      upper_par = 0._r8
+     upper_area = 0._r8
+     cl = max(1,cpatch%NCL_p-1)
+     do ipft = 1,numpft
+        iv = cpatch%ncan(cl,ipft)
+        upper_par = upper_par + cpatch%canopy_area_profile(cl,ipft,1)* &
+             (cpatch%parprof_pft_dir_z(cl,ipft,iv)+cpatch%parprof_pft_dif_z(cl,ipft,iv))
+        upper_area = upper_area + cpatch%canopy_area_profile(cl,ipft,1)
+     end do
+     if(upper_area>nearzero)then
+        upper_par = upper_par/upper_area
+     else
+        upper_par = 0._r8
+     end if
+  else
+     upper_par = fates_unset_r8
   end if
 
   ! If we do have more than one layer, then we need to figure out
   ! the average of light on the exposed ground under the veg
-
+  ! Note that newly spawned patches without cohorts have a default
+  ! NCL_p of one.
   if(cpatch%NCL_p>1) then
 
      cl = cpatch%NCL_p
@@ -2115,6 +2122,8 @@ subroutine SeedlingParPatch(cpatch, &
 
   else
 
+     ! In the case where the patch is newly spawned and has no cohorts,
+     ! total_canopy_area should be zero
      seedling_par_high = atm_par
      par_high_frac     = 1._r8-cpatch%total_canopy_area
      seedling_par_low  = upper_par
