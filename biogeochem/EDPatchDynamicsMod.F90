@@ -206,14 +206,14 @@ contains
     real(r8) :: tempsum
     real(r8) :: harvestable_forest_c(hlm_num_lu_harvest_cats)
     integer  :: harvest_tag(hlm_num_lu_harvest_cats)
-    real(r8) :: landuse_transition_matrix(n_landuse_cats, n_landuse_cats)  ! [m2/m2/year]
+    real(r8) :: landuse_transition_matrix(n_landuse_cats, n_landuse_cats)  ! [m2/m2/day]
     real(r8) :: current_fates_landuse_state_vector(n_landuse_cats)  ! [m2/m2]
     !----------------------------------------------------------------------------------------------
     ! Calculate Mortality Rates (these were previously calculated during growth derivatives)
     ! And the same rates in understory plants have already been applied to %dndt
     !----------------------------------------------------------------------------------------------
     
-    ! first calculate the fractino of the site that is primary land
+    ! first calculate the fraction of the site that is primary land
     call get_frac_site_primary(site_in, frac_site_primary)
 
     ! get available biomass for harvest for all patches
@@ -304,11 +304,13 @@ contains
 
        dist_rate_ldist_notharvested = 0.0_r8
 
-       ! Avoid this calculation to avoid NaN result if luh is not used
+       ! Avoid this calculation to avoid NaN due to division by zero result if luh is not used
        if (hlm_use_luh .eq. itrue) then
           currentPatch%landuse_transition_rates(1:n_landuse_cats) = min(1._r8, &
                landuse_transition_matrix(currentPatch%land_use_label,1:n_landuse_cats) / &
                current_fates_landuse_state_vector(currentPatch%land_use_label))
+       else
+          currentPatch%landuse_transition_rates = 0.0_r8
        end if
        
        currentCohort => currentPatch%shortest
@@ -461,7 +463,7 @@ contains
     real(r8) :: leaf_burn_frac               ! fraction of leaves burned in fire
     ! for both woody and grass species
     real(r8) :: leaf_m                       ! leaf mass during partial burn calculations
-    logical  :: found_youngest_primary       ! logical for finding the first primary forest patch
+    logical  :: found_youngest_landuselabel  ! logical for finding the first primary forest patch
     integer  :: min_nocomp_pft, max_nocomp_pft, i_nocomp_pft
     integer  :: i_disturbance_type, i_dist2  ! iterators for looping over disturbance types
     integer  :: i_landusechange_receiverpatchlabel  ! iterator for the land use change types
@@ -473,8 +475,6 @@ contains
     logical  :: clearing_matrix(n_landuse_cats,n_landuse_cats)  ! do we clear vegetation when transferring from one LU type to another?
 
     !---------------------------------------------------------------------
-
-    ! write(fates_log(),*) 'calling spawn patches'
 
     storesmallcohort => null() ! storage of the smallest cohort for insertion routine
     storebigcohort   => null() ! storage of the largest cohort for insertion routine 
@@ -524,27 +524,24 @@ contains
 
                 patchloop_areadis: do while(associated(currentPatch))
 
-                   write(fates_log(),*) 'indices: ncpft, dt, dplt, lcrpl: ', i_nocomp_pft, i_disturbance_type, i_donorpatch_landuse_type, i_landusechange_receiverpatchlabel
-                   write(fates_log(),*) 'labels: lul, ncpl', currentPatch%land_use_label, currentPatch%nocomp_pft_label
-
                    cp_nocomp_matches_1_if: if ( hlm_use_nocomp .eq. ifalse .or. &
                         currentPatch%nocomp_pft_label .eq. i_nocomp_pft ) then
 
                       patchlabel_matches_lutype_if_areadis: if (currentPatch%land_use_label .eq. i_donorpatch_landuse_type) then
 
+                         disturbance_rate = 0.0_r8
                          if ( i_disturbance_type .ne. dtype_ilandusechange) then
                             disturbance_rate = currentPatch%disturbance_rates(i_disturbance_type)
                          else
                             disturbance_rate = currentPatch%landuse_transition_rates(i_landusechange_receiverpatchlabel)
                          endif
-
-                         write(fates_log(),*) 'patch disturbance rate: ',currentPatch%disturbance_rates(i_disturbance_type)
-                         write(fates_log(),*) 'disturbance type: ', i_disturbance_type
-
+                         
                          if(disturbance_rate > (1.0_r8 + rsnbl_math_prec)) then
                             write(fates_log(),*) 'patch disturbance rate > 1 ?',disturbance_rate
                             call dump_patch(currentPatch)
                             call endrun(msg=errMsg(sourcefile, __LINE__))
+                         else if (disturbance_rate > 1.0_r8) then
+                            disturbance_rate = 1.0_r8
                          end if
 
                          ! Only create new patches that have non-negligible amount of land
@@ -605,6 +602,7 @@ contains
 
 
                          ! This is the amount of patch area that is disturbed, and donated by the donor
+                         disturbance_rate = 0.0_r8
                          if ( i_disturbance_type .ne. dtype_ilandusechange) then
                             disturbance_rate = currentPatch%disturbance_rates(i_disturbance_type)
                          else
@@ -612,8 +610,7 @@ contains
                          endif
 
                          patch_site_areadis = currentPatch%area * disturbance_rate
-
-
+                         
                          areadis_gt_zero_if: if ( patch_site_areadis > nearzero ) then
 
                             if(.not.associated(new_patch))then
@@ -630,7 +627,8 @@ contains
                                  (i_disturbance_type .lt. dtype_ilog) ) then
 
                                new_patch%age_since_anthro_disturbance = new_patch%age_since_anthro_disturbance + &
-                                    currentPatch%age_since_anthro_disturbance * (patch_site_areadis / site_areadis)
+                                     currentPatch%age_since_anthro_disturbance * (patch_site_areadis / site_areadis)
+                                  
                             endif
 
                             ! Transfer the litter existing already in the donor patch to the new patch
@@ -1200,28 +1198,29 @@ contains
                 if ( site_areadis .gt. nearzero) then
                    currentPatch               => currentSite%youngest_patch
 
-!!!CDK 3/27  need change this logic. put the new patch as younger than any patches with the same labels
-                   ! insert new youngest primary patch after all the secondary patches, if there are any.
-                   ! this requires first finding the current youngest primary to insert the new one ahead of
-                   if (currentPatch%land_use_label .eq. secondaryland ) then
-                      found_youngest_primary = .false.
-                      do while(associated(currentPatch) .and. .not. found_youngest_primary)
+                   ! Insert new patch as the youngest patch in the group of patches with the same land use type.
+                   ! On a given site, the patches are grouped together by land use type.  The order of the 
+                   ! groups within the site doesn't matter, except that the older patch group are primarylands.
+
+                   if (currentPatch%land_use_label .eq. new_patch%land_use_label ) then
+                      found_youngest_landuselabel = .false.
+                      do while(associated(currentPatch) .and. .not. found_youngest_landuselabel)
                          currentPatch => currentPatch%older
                          if (associated(currentPatch)) then
-                            if (currentPatch%land_use_label .eq. primaryland) then
-                               found_youngest_primary = .true.
+                            if (currentPatch%land_use_label .eq. new_patch%land_use_label) then
+                               found_youngest_landuselabel = .true.
                             endif
                          endif
                       end do
                       if (associated(currentPatch)) then
-                         ! the case where we've found a youngest primary patch
+                         ! the case where we've found a youngest patch type matching the new patch type
                          new_patch%older    => currentPatch
                          new_patch%younger  => currentPatch%younger
                          currentPatch%younger%older => new_patch
                          currentPatch%younger       => new_patch
                       else
-                         ! the case where we haven't, because the patches are all secondaary,
-                         ! and are putting a primary patch at the oldest end of the
+                         ! the case where we haven't, because the patches are all non-primaryland,
+                         ! and are putting a primaryland patch at the oldest end of the
                          ! linked list (not sure how this could happen, but who knows...)
                          new_patch%older    => null()
                          new_patch%younger  => currentSite%oldest_patch
@@ -1229,7 +1228,7 @@ contains
                          currentSite%oldest_patch   => new_patch
                       endif
                    else
-                      ! the case where there are no secondary patches at the start of the linked list (prior logic)
+                      ! the case where the youngest patch on the site matches the new patch type
                       new_patch%older    => currentPatch
                       new_patch%younger  => null()
                       currentPatch%younger       => new_patch
@@ -3196,7 +3195,10 @@ contains
                       ! if we're having an incredibly hard time fusing patches because of their differing anthropogenic disturbance labels, 
                       ! since the size is so small, let's sweep the problem under the rug and change the tiny patch's label to that of its older sibling
                       ! and then allow them to fuse together. 
+                      ! We also assigned the age since disturbance value to be the younger (donor) patch to avoid combining a valid
+                      ! age with fates_unset_r8 (i.e. the age for primaryland) in the fuse_2_patches procedure
                       currentPatch%land_use_label = olderPatch%land_use_label
+                      currentPatch%age_since_anthro_disturbance = olderPatch%age_since_anthro_disturbance
                       call fuse_2_patches(currentSite, olderPatch, currentPatch)
                       gotfused = .true.
                    endif countcycles_if
@@ -3216,12 +3218,15 @@ contains
                    call fuse_2_patches(currentSite, youngerPatch, currentPatch)
                    
                    ! The fusion process has updated the "younger" pointer on currentPatch
-                   
+                   gotfused = .true.
                 else distlabel_2_if
                    if (count_cycles .gt. 0) then
                       ! if we're having an incredibly hard time fusing patches because of their differing anthropogenic disturbance labels, 
                       ! since the size is so small, let's sweep the problem under the rug and change the tiny patch's label to that of its younger sibling
+                      ! We also assigned the age since disturbance value to be the younger (donor) patch to avoid combining a valid
+                      ! age with fates_unset_r8 (i.e. the age for primaryland) in the fuse_2_patches procedure
                       currentPatch%land_use_label = youngerPatch%land_use_label
+                      currentPatch%age_since_anthro_disturbance = youngerPatch%age_since_anthro_disturbance
                       call fuse_2_patches(currentSite, youngerPatch, currentPatch)
                       gotfused = .true.
                    endif ! count cycles

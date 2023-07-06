@@ -32,7 +32,7 @@ module FatesHistoryVariableType
   ! This type is instanteated in the HLM-FATES interface (clmfates_interfaceMod.F90)
 
   type, public :: fates_history_variable_type
-     character(len=32)    :: vname
+     character(len=40)    :: vname
      character(len=24)    :: units
      character(len=128)   :: long
      character(len=24)    :: use_default ! States whether a variable should be turned
