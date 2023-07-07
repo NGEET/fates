@@ -917,11 +917,6 @@ contains
                 temp_cohort%n           =  temp_cohort%n * sum(site_in%use_this_pft)
              endif
 
-             ! Retrieve drop fraction of non-leaf tissues for phenology initialisation
-             fnrt_drop_fraction = prt_params%phen_fnrt_drop_fraction(temp_cohort%pft)
-             stem_drop_fraction = prt_params%phen_stem_drop_fraction(temp_cohort%pft)
-
-
 
              !  h,dbh,leafc,n from SP values or from small initial size.
              if(hlm_use_sp.eq.itrue)then
