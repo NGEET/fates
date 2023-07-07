@@ -82,6 +82,26 @@ module EDTypesMod
   integer, parameter, public  :: numlevsoil_max       = 30         ! This is scratch space used for static arrays
                                                                    ! The actual number of soil layers should not exceed this
 
+  integer, parameter, public :: leaves_shedding = 3  ! Flag specifying that a deciduous plant has leaves
+                                                     ! but is shedding them (partial shedding). This plant
+                                                     ! should not allocate carbon towards growth or 
+                                                     ! reproduction.
+  integer, parameter, public :: ihard_stress_decid = 1 ! If the PFT is stress (drought) deciduous,
+  !  this flag is used to tell that the PFT
+  !  is a "hard" deciduous (i.e., the plant
+  !  has only two statuses, the plant either
+  !  sheds all leaves when it's time, or seeks
+  !  to flush the leaves back to allometry 
+  !  when conditions improve.
+integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (drought) deciduous,
+  !  this flag is used to tell that the PFT
+  !  is a semi-deciduous (i.e., the plant
+  !  can downregulate the amount of leaves
+  !  relative to the allometry based on 
+  !  soil moisture conditions. It can still
+  !  shed all leaves if conditions are very
+  !  dry.
+
 
   ! BIOLOGY/BIOGEOCHEMISTRY        
   integer , parameter, public :: num_vegtemp_mem      = 10         ! Window of time over which we track temp for cold sensecence (days)
@@ -100,6 +120,7 @@ module EDTypesMod
   integer, parameter, public :: phen_dstat_moistoff  = 1       ! Leaves off due to moisture avail  (drought phenology)
   integer, parameter, public :: phen_dstat_moiston   = 2       ! Leaves on due to moisture avail   (drought phenology)
   integer, parameter, public :: phen_dstat_timeon    = 3       ! Leaves on due to time exceedance  (drought phenology)
+  integer, parameter, public :: phen_dstat_pshed    = 4 ! Leaves partially abscissing       (drought phenology)
 
   ! PATCH FUSION 
   real(r8), parameter, public :: force_patchfuse_min_biomass = 0.005_r8   ! min biomass (kg / m2 patch area) below which to force-fuse patches
@@ -290,24 +311,32 @@ module EDTypesMod
                                                                !     400 days, leaves are dropped and flagged as non-cold region
                                                                ! 1 = this site is in a cold-state where leaves should have fallen
                                                                ! 2 = this site is in a warm-state where leaves are allowed to flush
-     integer  ::  dstatus                                      ! are leaves in this pixel on or off for drought decid
+     integer  ::  dstatus(maxpft)                              ! are leaves in this pixel on or off for drought decid
                                                                ! 0 = leaves off due to time exceedance
                                                                ! 1 = leaves off due to moisture avail
                                                                ! 2 = leaves on due to moisture avail
                                                                ! 3 = leaves on due to time exceedance
+                                                               ! 4 = leaves partially on (ED2-like phenology)
      integer  ::  nchilldays                                   ! num chilling days: (for botta gdd trheshold calculation)
      integer  ::  ncolddays                                    ! num cold days: (must exceed threshold to drop leaves)
      real(r8) ::  vegtemp_memory(num_vegtemp_mem)              ! record of last 10 days temperature for senescence model. deg C
      integer  ::  cleafondate                                  ! model date (day integer) of leaf on (cold):-
      integer  ::  cleafoffdate                                 ! model date (day integer) of leaf off (cold):-
-     integer  ::  dleafondate                                  ! model date (day integer) of leaf on drought:-
-     integer  ::  dleafoffdate                                 ! model date (day integer) of leaf off drought:-
+     integer  ::  cndaysleafon                                 ! number of days since leaf on period started (cold)
+     integer  ::  cndaysleafoff                                ! number of days since leaf off period started (cold)
+     integer  ::  dleafondate(maxpft)                          ! model date (day integer) of leaf on drought:-
+     integer  ::  dleafoffdate(maxpft)                         ! model date (day integer) of leaf off drought:-
+     integer  ::  dndaysleafon(maxpft)                         ! number of days since leaf on period started (drought)
+     integer  ::  dndaysleafoff(maxpft)                        ! number of days since leaf off period started (drought)
+     real(r8) ::  elong_factor(maxpft)                         ! Elongation factor (ED2-like phenology). This is zero when leaves are
+                                                               ! completely off, and one when they are completely flushed.
      integer  ::  phen_model_date                              ! current model date (day integer)
                                                                ! this date stays continuous when
                                                                ! in runs that are restarted, regardless of
                                                                ! the conditions of restart
 
-     real(r8) ::  water_memory(numWaterMem)                             ! last 10 days of soil moisture memory...
+     real(r8) ::  liqvol_memory(numWaterMem,maxpft)            ! last 10 days of soil liquid water volume (drought phenology)
+     real(r8) ::  smp_memory(numWaterMem,maxpft)               ! last 10 days of soil matric potential (drought phenology)
 
 
      ! FIRE

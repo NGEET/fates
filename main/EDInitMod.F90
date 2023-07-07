@@ -32,7 +32,10 @@ module EDInitMod
   use EDTypesMod                , only : AREA
   use EDTypesMod                , only : init_spread_near_bare_ground
   use EDTypesMod                , only : init_spread_inventory
-  use FatesConstantsMod         , only : leaves_on, leaves_off
+  use FatesConstantsMod         , only : leaves_on
+  use FatesConstantsMod         , only : leaves_off
+  use EDTypesMod                , only : ihard_stress_decid
+  use EDTypesMod                , only : isemi_stress_decid
   use PRTGenericMod             , only : num_elements
   use PRTGenericMod             , only : element_list
   use EDTypesMod                , only : phen_cstat_nevercold
@@ -232,16 +235,23 @@ contains
     ! PHENOLOGY
 
     site_in%cstatus          = fates_unset_int    ! are leaves in this pixel on or off?
-    site_in%dstatus          = fates_unset_int
+    site_in%dstatus(:)       = fates_unset_int
     site_in%grow_deg_days    = nan  ! growing degree days
     site_in%snow_depth       = nan
     site_in%nchilldays       = fates_unset_int
     site_in%ncolddays        = fates_unset_int
-    site_in%cleafondate      = fates_unset_int
-    site_in%cleafoffdate     = fates_unset_int
-    site_in%dleafondate      = fates_unset_int
-    site_in%dleafoffdate     = fates_unset_int
-    site_in%water_memory(:)  = nan
+    site_in%cleafondate      = fates_unset_int  ! doy of leaf on (cold)
+    site_in%cleafoffdate     = fates_unset_int  ! doy of leaf off (cold)
+    site_in%dleafondate(:)   = fates_unset_int  ! doy of leaf on (drought)
+    site_in%dleafoffdate(:)  = fates_unset_int  ! doy of leaf off (drought)
+    site_in%cndaysleafon     = fates_unset_int  ! days since leaf on (cold)
+    site_in%cndaysleafoff    = fates_unset_int  ! days since leaf off (cold)
+    site_in%dndaysleafon(:)  = fates_unset_int  ! days since leaf on (drought)
+    site_in%dndaysleafoff(:) = fates_unset_int  ! days since leaf off (drought)
+    site_in%elong_factor(:)  = nan              ! Elongation factor (0 - full abscission; 1 - fully flushed)
+
+    site_in%liqvol_memory(:,:)  = nan
+    site_in%smp_memory(:,:)  = nan
     site_in%vegtemp_memory(:) = nan              ! record of last 10 days temperature for senescence model.
 
     site_in%phen_model_date  = fates_unset_int
@@ -347,11 +357,17 @@ contains
     real(r8) :: GDD
     integer  :: dstat      ! drought status phenology flag
     real(r8) :: acc_NI
-    real(r8) :: watermem
+    real(r8) :: liqvolmem
+    real(r8) :: smpmem
+    real(r8) :: elong_factor ! Elongation factor (0 - fully off; 1 - fully on)
     integer  :: cleafon    ! DOY for cold-decid leaf-on, initial guess
     integer  :: cleafoff   ! DOY for cold-decid leaf-off, initial guess
     integer  :: dleafoff   ! DOY for drought-decid leaf-off, initial guess
     integer  :: dleafon    ! DOY for drought-decid leaf-on, initial guess
+    integer  :: cndleafon  ! days since leaf on  (cold), initial guess
+    integer  :: cndleafoff ! days since leaf off  (cold), initial guess
+    integer  :: dndleafon  ! days since leaf on  (drought), initial guess
+    integer  :: dndleafoff ! days since leaf off (drought), initial guess
     integer  :: ft         ! PFT loop
     real(r8) :: sumarea    ! area of PFTs in nocomp mode.
     integer  :: hlm_pft    ! used in fixed biogeog mode
@@ -369,31 +385,43 @@ contains
        GDD      = 30.0_r8
        cleafon  = 100
        cleafoff = 300
+       cndleafon  = 0
+       cndleafoff = 0
        cstat    = phen_cstat_notcold     ! Leaves are on
        acc_NI   = 0.0_r8
        dstat    = phen_dstat_moiston     ! Leaves are on
        dleafoff = 300
        dleafon  = 100
-       watermem = 0.5_r8
+       dndleafon  = 0
+       dndleafoff = 0
+       liqvolmem  = 0.5_r8 
+       smpmem     = 0._r8
+       elong_factor = 1._r8
 
        do s = 1,nsites
           sites(s)%nchilldays    = 0
           sites(s)%ncolddays     = 0        ! recalculated in phenology
-          ! immediately, so yes this
-          ! is memory-less, but needed
-          ! for first value in history file
-          sites(s)%phen_model_date = 0
-          sites(s)%cleafondate     = cleafon  - hlm_day_of_year
-          sites(s)%cleafoffdate    = cleafoff - hlm_day_of_year
-          sites(s)%dleafoffdate    = dleafoff - hlm_day_of_year
-          sites(s)%dleafondate     = dleafon  - hlm_day_of_year
+                                            ! immediately, so yes this
+                                            ! is memory-less, but needed
+                                            ! for first value in history file
+          sites(s)%phen_model_date         = 0
+          sites(s)%cleafondate             = cleafon    - hlm_day_of_year
+          sites(s)%cleafoffdate            = cleafoff   - hlm_day_of_year
+          sites(s)%cndaysleafon            = cndleafon
+          sites(s)%cndaysleafoff           = cndleafoff
+          sites(s)%dleafoffdate (1:numpft) = dleafoff   - hlm_day_of_year
+          sites(s)%dleafondate  (1:numpft) = dleafon    - hlm_day_of_year
+          sites(s)%dndaysleafon (1:numpft) = dndleafon
+          sites(s)%dndaysleafoff(1:numpft) = dndleafoff
           sites(s)%grow_deg_days   = GDD
 
-          sites(s)%water_memory(1:numWaterMem) = watermem
+          sites(s)%liqvol_memory(1:numWaterMem,1:numpft) = liqvolmem
+          sites(s)%smp_memory(1:numWaterMem,1:numpft) = smpmem
           sites(s)%vegtemp_memory(1:num_vegtemp_mem) = 0._r8
 
           sites(s)%cstatus = cstat
-          sites(s)%dstatus = dstat
+          sites(s)%dstatus(1:numpft) = dstat
+          sites(s)%elong_factor(1:numpft) = elong_factor
 
           sites(s)%acc_NI     = acc_NI
           sites(s)%NF         = 0.0_r8
@@ -736,265 +764,283 @@ contains
 
   ! ============================================================================
  
-  subroutine init_cohorts(site_in, patch_in, bc_in)
-    !
-    ! DESCRIPTION:
-    ! initialize new cohorts on bare ground
-    !
-    
-    ! ARGUMENTS
-    type(ed_site_type),     intent(inout),  pointer  :: site_in
-    type(fates_patch_type), intent(inout),  pointer  :: patch_in
-    type(bc_in_type),       intent(in)               :: bc_in
-    
-    ! LOCAL VARIABLES:
-    class(prt_vartypes),     pointer :: prt                   ! PARTEH object
-    integer                          :: leaf_status           ! cohort phenology status [leaves on/off]
-    integer                          :: pft                   ! index for PFT
-    integer                          :: iage                  ! index for leaf age loop
-    integer                          :: el                    ! index for element loop
-    integer                          :: element_id            ! element index consistent with defs in PRTGeneric
-    integer                          :: use_pft_local(numpft) ! determine whether this PFT is used for this patch and site
-    integer                          :: crown_damage          ! crown damage class of the cohort [1 = undamaged, >1 = damaged] 
-    real(r8)                         :: l2fr                  ! leaf to fineroot biomass ratio [kg kg-1]
-    real(r8)                         :: canopy_trim           ! fraction of the maximum leaf biomass that we are targeting [0-1]
-    real(r8)                         :: cohort_n              ! cohort density
-    real(r8)                         :: dbh                   ! cohort dbh [cm]
-    real(r8)                         :: c_area                ! cohort crown area [m2]
-    real(r8)                         :: c_agw                 ! above ground (non-leaf) biomass [kgC]
-    real(r8)                         :: c_bgw                 ! below ground (non-fineroot) biomss [kgC]
-    real(r8)                         :: c_leaf                ! leaf biomass [kgC]
-    real(r8)                         :: c_fnrt                ! fine root biomss [kgC]
-    real(r8)                         :: c_sapw                ! sapwood biomass [kgC]
-    real(r8)                         :: c_struct              ! structural (dead) biomass [kgC]
-    real(r8)                         :: c_store               ! storage biomass [kgC]
-    real(r8)                         :: a_sapw                ! sapwood area [m2]
-    real(r8)                         :: m_struct              ! generic (any element) mass for structure [kg]
-    real(r8)                         :: m_leaf                ! generic mass for leaf  [kg]
-    real(r8)                         :: m_fnrt                ! generic mass for fine-root  [kg]
-    real(r8)                         :: m_sapw                ! generic mass for sapwood [kg]
-    real(r8)                         :: m_store               ! generic mass for storage [kg]
-    real(r8)                         :: m_repro               ! generic mass for reproductive tissues [kg]
-    real(r8)                         :: stem_drop_fraction    ! of all the organs in the recruits. Used for both [kg per plant] and [kg per cohort]
-    integer, parameter               :: recruitstatus = 0     ! whether the newly created cohorts are recruited or initialized
- 
-    !-------------------------------------------------------------------------------------
+   subroutine init_cohorts(site_in, patch_in, bc_in)
+      !
+      ! DESCRIPTION:
+      ! initialize new cohorts on bare ground
+      !
 
-    patch_in%tallest  => null()
-    patch_in%shortest => null()
+      ! ARGUMENTS
+      type(ed_site_type),     intent(inout),  pointer  :: site_in
+      type(fates_patch_type), intent(inout),  pointer  :: patch_in
+      type(bc_in_type),       intent(in)               :: bc_in
 
-    ! Manage interactions of fixed biogeog (site level filter) and nocomp (patch level filter)
-    ! Need to cover all potential biogeog x nocomp combinations
-    ! 1. biogeog = false. nocomp = false: all PFTs on (DEFAULT)
-    ! 2. biogeog = true.  nocomp = false: site level filter
-    ! 3. biogeog = false. nocomp = true : patch level filter
-    ! 4. biogeog = true.  nocomp = true : patch and site level filter
-    ! in principle this could be a patch level variable.
-    do pft = 1, numpft
-      ! first turn every PFT ON, unless we are in a special case
-      use_pft_local(pft) = itrue ! Case 1
-      if (hlm_use_fixed_biogeog .eq. itrue) then !filter geographically
-        use_pft_local(pft) = site_in%use_this_pft(pft) ! Case 2
-        if (hlm_use_nocomp .eq. itrue .and. pft .ne. patch_in%nocomp_pft_label) then
-          ! having set the biogeog filter as on or off, turn off all PFTs
-          ! whose identity does not correspond to this patch label
-          use_pft_local(pft) = ifalse ! Case 3
-        endif
-      else
-        if (hlm_use_nocomp .eq. itrue .and. pft .ne. patch_in%nocomp_pft_label) then
-          ! This case has all PFTs on their own patch everywhere
-          use_pft_local(pft) = ifalse ! Case 4
-        endif
-      endif
-    end do
+      ! LOCAL VARIABLES:
+      class(prt_vartypes),     pointer :: prt                   ! PARTEH object
+      integer                          :: leaf_status           ! cohort phenology status [leaves on/off]
+      integer                          :: pft                   ! index for PFT
+      integer                          :: iage                  ! index for leaf age loop
+      integer                          :: el                    ! index for element loop
+      integer                          :: element_id            ! element index consistent with defs in PRTGeneric
+      integer                          :: use_pft_local(numpft) ! determine whether this PFT is used for this patch and site
+      integer                          :: crown_damage          ! crown damage class of the cohort [1 = undamaged, >1 = damaged] 
+      real(r8)                         :: l2fr                  ! leaf to fineroot biomass ratio [kg kg-1]
+      real(r8)                         :: canopy_trim           ! fraction of the maximum leaf biomass that we are targeting [0-1]
+      real(r8)                         :: cohort_n              ! cohort density
+      real(r8)                         :: dbh                   ! cohort dbh [cm]
+      real(r8)                         :: c_area                ! cohort crown area [m2]
+      real(r8)                         :: c_agw                 ! above ground (non-leaf) biomass [kgC]
+      real(r8)                         :: c_bgw                 ! below ground (non-fineroot) biomss [kgC]
+      real(r8)                         :: c_leaf                ! leaf biomass [kgC]
+      real(r8)                         :: c_fnrt                ! fine root biomss [kgC]
+      real(r8)                         :: c_sapw                ! sapwood biomass [kgC]
+      real(r8)                         :: c_struct              ! structural (dead) biomass [kgC]
+      real(r8)                         :: c_store               ! storage biomass [kgC]
+      real(r8)                         :: a_sapw                ! sapwood area [m2]
+      real(r8)                         :: m_struct              ! generic (any element) mass for structure [kg]
+      real(r8)                         :: m_leaf                ! generic mass for leaf  [kg]
+      real(r8)                         :: m_fnrt                ! generic mass for fine-root  [kg]
+      real(r8)                         :: m_sapw                ! generic mass for sapwood [kg]
+      real(r8)                         :: m_store               ! generic mass for storage [kg]
+      real(r8)                         :: m_repro               ! generic mass for reproductive tissues [kg]
+                                                                ! of all the organs in the recruits. Used for both [kg per plant] and [kg per cohort]
+      real(r8)                         :: efleaf_coh         
+      real(r8)                         :: effnrt_coh 
+      real(r8)                         :: efstem_coh 
+      real(r8)                         :: stem_drop_fraction    ! fraction of stem to absciss when leaves absciss
+      real(r8)                         :: fnrt_drop_fraction    ! fraction of fine roots to absciss when leaves absciss
+      integer, parameter               :: recruitstatus = 0     ! whether the newly created cohorts are recruited or initialized
 
-    do pft =  1, numpft
-      if (use_pft_local(pft) .eq. itrue) then
+      !-------------------------------------------------------------------------------------
 
-        l2fr         = prt_params%allom_l2fr(pft)
-        canopy_trim  = 1.0_r8
-        crown_damage = 1  ! Assume no damage to begin with
-          
-        ! If positive EDPftvarcon_inst%initd is interpreted as initial recruit density.
-        ! If negative EDPftvarcon_inst%initd is interpreted as initial dbh. 
-        ! Dbh-initialization can only be used in nocomp mode.
-        ! In the dbh-initialization case, we calculate crown area for a single tree and then calculate
-        ! the density of plants  needed for a full canopy. 
-        if (EDPftvarcon_inst%initd(pft) > nearzero) then  ! interpret as initial density and calculate diameter
-          
-          cohort_n = EDPftvarcon_inst%initd(pft)*patch_in%area
-          if (hlm_use_nocomp .eq. itrue) then !in nocomp mode we only have one PFT per patch
-            ! as opposed to numpft's. So we should up the initial density
-            ! to compensate (otherwise runs are very hard to compare)
-            ! this multiplies it by the number of PFTs there would have been in
-            ! the single shared patch in competition mode.
-            ! n.b. that this is the same as currentcohort%n = %initd(pft) &AREA
-            cohort_n = cohort_n*sum(site_in%use_this_pft)
-          endif
-             
-          ! h, dbh, leafc, n from SP values or from small initial size
-          if (hlm_use_sp .eq. itrue) then
-            ! At this point, we do not know the bc_in values of tlai tsai and htop,
-            ! so this is initializing to an arbitrary value for the very first timestep.
-            ! Not sure if there's a way around this or not.
-            call calculate_SP_properties(0.5_r8, 0.2_r8, 0.1_r8, patch_in%area, pft,     &
-              crown_damage, 1, EDPftvarcon_inst%vcmax25top(pft, 1), c_leaf, dbh,         &
-              cohort_n, c_area)
-          else
-            ! calculate the plant diameter from height
-            call h2d_allom(EDPftvarcon_inst%hgt_min(pft), pft, dbh)
+      patch_in%tallest  => null()
+      patch_in%shortest => null()
 
-            ! Calculate the leaf biomass from allometry
-            ! (calculates a maximum first, then applies canopy trim)
-            call bleaf(dbh, pft, crown_damage, canopy_trim, c_leaf)
-          endif  ! sp mode
+      ! Manage interactions of fixed biogeog (site level filter) and nocomp (patch level filter)
+      ! Need to cover all potential biogeog x nocomp combinations
+      ! 1. biogeog = false. nocomp = false: all PFTs on (DEFAULT)
+      ! 2. biogeog = true.  nocomp = false: site level filter
+      ! 3. biogeog = false. nocomp = true : patch level filter
+      ! 4. biogeog = true.  nocomp = true : patch and site level filter
+      ! in principle this could be a patch level variable.
+      do pft = 1, numpft
+         ! first turn every PFT ON, unless we are in a special case
+         use_pft_local(pft) = itrue ! Case 1
+         if (hlm_use_fixed_biogeog .eq. itrue) then !filter geographically
+            use_pft_local(pft) = site_in%use_this_pft(pft) ! Case 2
+            if (hlm_use_nocomp .eq. itrue .and. pft .ne. patch_in%nocomp_pft_label) then
+               ! having set the biogeog filter as on or off, turn off all PFTs
+               ! whose identity does not correspond to this patch label
+               use_pft_local(pft) = ifalse ! Case 3
+            endif
+         else
+            if (hlm_use_nocomp .eq. itrue .and. pft .ne. patch_in%nocomp_pft_label) then
+               ! This case has all PFTs on their own patch everywhere
+               use_pft_local(pft) = ifalse ! Case 4
+            endif
+         endif
+      end do
 
-        else ! interpret as initial diameter and calculate density 
-          if (hlm_use_nocomp .eq. itrue) then
-            dbh = abs(EDPftvarcon_inst%initd(pft))
-            ! calculate crown area of a single plant
-            call carea_allom(dbh, 1.0_r8, init_spread_inventory, pft, crown_damage,       &
-              c_area)
+      pft_loop: do pft =  1, numpft
+         if_use_this_pft: if (use_pft_local(pft) .eq. itrue) then
+            l2fr         = prt_params%allom_l2fr(pft)
+            canopy_trim  = 1.0_r8
+            crown_damage = 1  ! Assume no damage to begin with
 
-            ! calculate initial density required to close canopy 
-            cohort_n = patch_in%area/c_area
+            ! retrieve drop fraction of non-leaf tissues for phenology initialization
+            fnrt_drop_fraction = prt_params%phen_fnrt_drop_fraction(pft)
+            stem_drop_fraction = prt_params%phen_stem_drop_fraction(pft)
 
-            ! Calculate the leaf biomass from allometry
-            ! (calculates a maximum first, then applies canopy trim)
-            call bleaf(dbh, pft, crown_damage, canopy_trim, c_leaf)
+            ! initialize phenology variables
+            if_spmode: if (hlm_use_sp == itrue) then 
+               ! satellite phenology: do not override SP values with build-in phenology
+               efleaf_coh = 1.0_r8 
+               effnrt_coh = 1.0_r8
+               efstem_coh = 1.0_r8 
+               leaf_status = leaves_on
+            else 
+               ! use built-in phenology 
+               if (prt_params%season_decid(pft) == itrue .and.                 &
+                  any(site_in%cstatus == [phen_cstat_nevercold, phen_cstat_iscold])) then 
+                  ! Cold deciduous, off season, assume complete abscission
+                  efleaf_coh = 0.0_r8
+                  effnrt_coh = 1.0_r8 - fnrt_drop_fraction 
+                  efstem_coh = 1.0_r8 - stem_drop_fraction
+                  leaf_status = leaves_off 
+               else if (any(prt_params%stress_decid(pft) == [ihard_stress_decid, isemi_stress_decid])) then 
+                  ! If the plant is drought deciduous, make sure leaf status is
+                  ! always consistent with the leaf elongation factor.  For tissues
+                  ! other than leaves, the actual drop fraction is a combination of the
+                  ! elongation factor (e) and the drop fraction (x), which will ensure
+                  ! that the remaining tissue biomass will be exactly e when x=1, and
+                  ! exactly the original biomass when x = 0.
+                  efleaf_coh = site_in%elong_factor(pft)
+                  effnrt_coh = 1.0_r8 - (1.0_r8 - efleaf_coh)*fnrt_drop_fraction
+                  efstem_coh = 1.0_r8 - (1.0_r8 - efleaf_coh)*stem_drop_fraction
 
-          else
-            write(fates_log(),*) 'Negative fates_recruit_init_density can only be used in no comp mode'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-          endif
-        endif
+                  if (efleaf_coh > 0.0_r8) then 
+                     leaf_status = leaves_on 
+                  else 
+                     leaf_status = leaves_off 
+                  end if 
+               else 
+                  ! Evergreens, or deciduous during growing season 
+                  ! Assume leaves fully flushed 
+                  efleaf_coh = 1.0_r8 
+                  effnrt_coh = 1.0_r8 
+                  efstem_coh = 1.0_r8 
+                  leaf_status = leaves_on 
+               end if 
+            end if if_spmode 
 
-        ! calculate total above-ground biomass from allometry
-        call bagw_allom(dbh, pft, crown_damage, c_agw)
+            ! If positive EDPftvarcon_inst%initd is interpreted as initial recruit density.
+            ! If negative EDPftvarcon_inst%initd is interpreted as initial dbh. 
+            ! Dbh-initialization can only be used in nocomp mode.
+            ! In the dbh-initialization case, we calculate crown area for a single tree and then calculate
+            ! the density of plants  needed for a full canopy. 
+            if_init_dens: if (EDPftvarcon_inst%initd(pft) > nearzero) then  ! interpret as initial density and calculate diameter
 
-        ! calculate coarse root biomass from allometry
-        call bbgw_allom(dbh, pft, c_bgw)
+               cohort_n = EDPftvarcon_inst%initd(pft)*patch_in%area
+               if (hlm_use_nocomp .eq. itrue) then !in nocomp mode we only have one PFT per patch
+                  ! as opposed to numpft's. So we should up the initial density
+                  ! to compensate (otherwise runs are very hard to compare)
+                  ! this multiplies it by the number of PFTs there would have been in
+                  ! the single shared patch in competition mode.
+                  ! n.b. that this is the same as currentcohort%n = %initd(pft) &AREA
+                  cohort_n = cohort_n*sum(site_in%use_this_pft)
+               endif
 
-        ! Calculate fine root biomass from allometry
-        ! (calculates a maximum and then trimming value)
-        call bfineroot(dbh, pft, canopy_trim, l2fr, c_fnrt)
+               ! h, dbh, leafc, n from SP values or from small initial size
+               if (hlm_use_sp .eq. itrue) then
+                  ! At this point, we do not know the bc_in values of tlai tsai and htop,
+                  ! so this is initializing to an arbitrary value for the very first timestep.
+                  ! Not sure if there's a way around this or not.
+                  call calculate_SP_properties(0.5_r8, 0.2_r8, 0.1_r8,         &
+                     patch_in%area, pft, crown_damage, 1,                      &
+                     EDPftvarcon_inst%vcmax25top(pft, 1), c_leaf, dbh,         &
+                     cohort_n, c_area)
+               else
+                  ! calculate the plant diameter from height
+                  call h2d_allom(EDPftvarcon_inst%hgt_min(pft), pft, dbh)
 
-        ! Calculate sapwood biomass
-        call bsap_allom(dbh, pft, crown_damage, canopy_trim, a_sapw, c_sapw)
+                  ! Calculate the leaf biomass from allometry
+                  ! (calculates a maximum first, then applies canopy trim)
+                  call bleaf(dbh, pft, crown_damage, canopy_trim, c_leaf)
+               endif  ! sp mode
 
-        call bdead_allom(c_agw, c_bgw, c_sapw, pft, c_struct)
-        call bstore_allom(dbh, pft, crown_damage, canopy_trim, c_store)
+            else ! interpret as initial diameter and calculate density 
+               if (hlm_use_nocomp .eq. itrue) then
+                  
+                  dbh = abs(EDPftvarcon_inst%initd(pft))
 
-        leaf_status = leaves_on
+                  ! calculate crown area of a single plant
+                  call carea_allom(dbh, 1.0_r8, init_spread_inventory, pft, crown_damage,       &
+                  c_area)
 
-        stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(pft)
+                  ! calculate initial density required to close canopy 
+                  cohort_n = patch_in%area/c_area
 
-        if (hlm_use_sp .eq. ifalse) then ! do not override SP vales with phenology
+                  ! Calculate the leaf biomass from allometry
+                  ! (calculates a maximum first, then applies canopy trim)
+                  call bleaf(dbh, pft, crown_damage, canopy_trim, efleaf_coh,  &
+                     c_leaf)
 
-          if (prt_params%season_decid(pft) == itrue .and.                                &
-            any(site_in%cstatus == [phen_cstat_nevercold, phen_cstat_iscold])) then
-            c_leaf = 0._r8
-            c_sapw = (1.0_r8 - stem_drop_fraction)*c_sapw
-            c_struct  = (1.0_r8 - stem_drop_fraction)*c_struct
-            leaf_status = leaves_off
-          endif
+               else
+                  write(fates_log(),*) 'Negative fates_recruit_init_density can only be used in no comp mode'
+                  call endrun(msg=errMsg(sourcefile, __LINE__))
+               endif
+            endif if_init_dens 
 
-          if (prt_params%stress_decid(pft) == itrue .and.                                &
-            any(site_in%dstatus == [phen_dstat_timeoff, phen_dstat_moistoff])) then
-            c_leaf = 0._r8
-            c_sapw = (1.0_r8 - stem_drop_fraction)*c_sapw
-            c_struct  = (1.0_r8-stem_drop_fraction)*c_struct
-            leaf_status = leaves_off
-          endif
-        end if ! SP mode
+            ! calculate total above-ground biomass from allometry
+            call bagw_allom(dbh, pft, crown_damage, efstem_coh, c_agw)
 
-        if (debug) write(fates_log(),*) 'EDInitMod.F90 call create_cohort '
+            ! calculate coarse root biomass from allometry
+            call bbgw_allom(dbh, pft, efstem_coh, c_bgw)
 
-        ! --------------------------------------------------------------------------------
-        ! Initialize the mass of every element in every organ of the organ
-        ! --------------------------------------------------------------------------------
+            ! Calculate fine root biomass from allometry
+            ! (calculates a maximum and then trimming value)
+            call bfineroot(dbh, pft, canopy_trim, l2fr, effnrt_coh, c_fnrt)
 
-        prt => null()
-        call InitPRTObject(prt)
+            ! Calculate sapwood biomass
+            call bsap_allom(dbh, pft, crown_damage, canopy_trim, efstem_coh,   &
+               a_sapw, c_sapw)
 
-        do el = 1, num_elements
+            call bdead_allom(c_agw, c_bgw, c_sapw, pft, c_struct)
+            call bstore_allom(dbh, pft, crown_damage, canopy_trim, c_store)
 
-          element_id = element_list(el)
-          ! If this is carbon12, then the initialization is straight forward
-          ! otherwise, we use stoichiometric ratios
-          select case(element_id)
-          case(carbon12_element)
+            if (debug) write(fates_log(),*) 'EDInitMod.F90 call create_cohort '
 
-            m_struct = c_struct
-            m_leaf   = c_leaf
-            m_fnrt   = c_fnrt
-            m_sapw   = c_sapw
-            m_store  = c_store
-            m_repro  = 0._r8
+            ! --------------------------------------------------------------------------------
+            ! Initialize the mass of every element in every organ of the organ
+            ! --------------------------------------------------------------------------------
 
-          case(nitrogen_element)
+            prt => null()
+            call InitPRTObject(prt)
 
-            m_struct = c_struct*prt_params%nitr_stoich_p1(pft, prt_params%organ_param_id(struct_organ))
-            m_leaf   = c_leaf*prt_params%nitr_stoich_p1(pft, prt_params%organ_param_id(leaf_organ))
-            m_fnrt   = c_fnrt*prt_params%nitr_stoich_p1(pft, prt_params%organ_param_id(fnrt_organ))
-            m_sapw   = c_sapw*prt_params%nitr_stoich_p1(pft, prt_params%organ_param_id(sapw_organ))
-            m_repro  = 0._r8
-            m_store  = StorageNutrientTarget(pft, element_id, m_leaf, m_fnrt, m_sapw, m_struct)
+            element_loop: do el = 1, num_elements
 
-          case(phosphorus_element)
+               element_id = element_list(el)
+               ! If this is carbon12, then the initialization is straight forward
+               ! otherwise, we use stoichiometric ratios
+               select case(element_id)
+               case(carbon12_element)
+                  m_struct = c_struct
+                  m_leaf   = c_leaf
+                  m_fnrt   = c_fnrt
+                  m_sapw   = c_sapw
+                  m_store  = c_store
+                  m_repro  = 0._r8
+               case(nitrogen_element)
+                  m_struct = c_struct*prt_params%nitr_stoich_p1(pft, prt_params%organ_param_id(struct_organ))
+                  m_leaf   = c_leaf*prt_params%nitr_stoich_p1(pft, prt_params%organ_param_id(leaf_organ))
+                  m_fnrt   = c_fnrt*prt_params%nitr_stoich_p1(pft, prt_params%organ_param_id(fnrt_organ))
+                  m_sapw   = c_sapw*prt_params%nitr_stoich_p1(pft, prt_params%organ_param_id(sapw_organ))
+                  m_repro  = 0._r8
+                  m_store  = StorageNutrientTarget(pft, element_id, m_leaf, m_fnrt, m_sapw, m_struct)
+               case(phosphorus_element)
 
-            m_struct = c_struct*prt_params%phos_stoich_p1(pft, prt_params%organ_param_id(struct_organ))
-            m_leaf   = c_leaf*prt_params%phos_stoich_p1(pft, prt_params%organ_param_id(leaf_organ))
-            m_fnrt   = c_fnrt*prt_params%phos_stoich_p1(pft, prt_params%organ_param_id(fnrt_organ))
-            m_sapw   = c_sapw*prt_params%phos_stoich_p1(pft, prt_params%organ_param_id(sapw_organ))
-            m_repro  = 0._r8
-            m_store  = StorageNutrientTarget(pft, element_id, m_leaf, m_fnrt, m_sapw, m_struct)
+                  m_struct = c_struct*prt_params%phos_stoich_p1(pft, prt_params%organ_param_id(struct_organ))
+                  m_leaf   = c_leaf*prt_params%phos_stoich_p1(pft, prt_params%organ_param_id(leaf_organ))
+                  m_fnrt   = c_fnrt*prt_params%phos_stoich_p1(pft, prt_params%organ_param_id(fnrt_organ))
+                  m_sapw   = c_sapw*prt_params%phos_stoich_p1(pft, prt_params%organ_param_id(sapw_organ))
+                  m_repro  = 0._r8
+                  m_store  = StorageNutrientTarget(pft, element_id, m_leaf, m_fnrt, m_sapw, m_struct)
+               end select
 
-          end select
+               select case(hlm_parteh_mode)
+               case (prt_carbon_allom_hyp, prt_cnp_flex_allom_hyp )
+                  ! Put all of the leaf mass into the first bin
+                  call SetState(prt, leaf_organ, element_id, m_leaf, 1)
+                  do iage = 2,nleafage
+                     call SetState(prt, leaf_organ, element_id, 0._r8, iage)
+                  end do
+                  call SetState(prt, fnrt_organ, element_id, m_fnrt)
+                  call SetState(prt, sapw_organ, element_id, m_sapw)
+                  call SetState(prt, store_organ, element_id, m_store)
+                  call SetState(prt, struct_organ, element_id, m_struct)
+                  call SetState(prt, repro_organ, element_id, m_repro)
 
-          select case(hlm_parteh_mode)
-          case (prt_carbon_allom_hyp, prt_cnp_flex_allom_hyp )
+               case default
+                  write(fates_log(),*) 'Unspecified PARTEH module during create_cohort'
+                  call endrun(msg=errMsg(sourcefile, __LINE__))
+               end select
 
-            ! Put all of the leaf mass into the first bin
-            call SetState(prt, leaf_organ, element_id, m_leaf, 1)
-            do iage = 2,nleafage
-              call SetState(prt, leaf_organ, element_id, 0._r8, iage)
-            end do
+            end do element_loop
 
-            call SetState(prt, fnrt_organ, element_id, m_fnrt)
-            call SetState(prt, sapw_organ, element_id, m_sapw)
-            call SetState(prt, store_organ, element_id, m_store)
-            call SetState(prt, struct_organ, element_id, m_struct)
-            call SetState(prt, repro_organ, element_id, m_repro)
+            call prt%CheckInitialConditions()
 
-          case default
-            write(fates_log(),*) 'Unspecified PARTEH module during create_cohort'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-          end select
+            call create_cohort(site_in, patch_in, pft, cohort_n,               &
+               EDPftvarcon_inst%hgt_min(pft), 0.0_r8, dbh, prt, efleaf_coh,    &
+               effnrt_coh, efstem_coh, leaf_status, recruitstatus,             &
+               canopy_trim, c_area, 1, crown_damage, site_in%spread, bc_in)
 
-        end do
+         endif if_use_this_pft
+      enddo pft_loop
 
-        call prt%CheckInitialConditions()
+      call fuse_cohorts(site_in, patch_in,bc_in)
+      call sort_cohorts(patch_in)
 
-        call create_cohort(site_in, patch_in, pft, cohort_n,                             &
-          EDPftvarcon_inst%hgt_min(pft), 0.0_r8, dbh, prt, leaf_status, recruitstatus,   &
-          canopy_trim, c_area, 1, crown_damage, site_in%spread, bc_in)
-
-      endif !use_this_pft
-    enddo !numpft
-
-    ! (Keeping as an example)
-    ! Pass patch level temperature to the new cohorts (this is a nominal 15C right now)
-    !temp_cohort => patch_in%tallest
-    !do while(associated(temp_cohort))
-    !call temp_cohort%tveg_lpa%UpdateRmean(patch_in%tveg_lpa%GetMean())
-    !temp_cohort => temp_cohort%shorter
-    !end do
-
-    call fuse_cohorts(site_in, patch_in,bc_in)
-    call sort_cohorts(patch_in)
-
-  end subroutine init_cohorts
+   end subroutine init_cohorts
 
   ! ======================================================================================
 

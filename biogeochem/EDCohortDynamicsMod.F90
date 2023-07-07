@@ -45,8 +45,12 @@ Module EDCohortDynamicsMod
   use PRTGenericMod         , only : max_nleafage
   use FatesConstantsMod     , only : ican_upper
   use EDTypesMod            , only : site_fluxdiags_type
-  use PRTGenericMod          , only : num_elements
-  use FatesConstantsMod      , only : leaves_on
+  use PRTGenericMod         , only : num_elements
+  use FatesConstantsMod     , only : leaves_on
+  use FatesConstantsMod     , only : leaves_off
+  use EDTypesMod            , only : leaves_shedding
+  use EDTypesMod            , only : ihard_stress_decid
+  use EDTypesMod            , only : isemi_stress_decid
   use EDParamsMod           , only : ED_val_cohort_age_fusion_tol
   use FatesInterfaceTypesMod      , only : hlm_use_planthydro
   use FatesInterfaceTypesMod      , only : hlm_parteh_mode
@@ -93,10 +97,17 @@ Module EDCohortDynamicsMod
   use PRTAllometricCarbonMod, only : ac_bc_in_id_pft
   use PRTAllometricCarbonMod, only : ac_bc_in_id_ctrim
   use PRTAllometricCarbonMod, only : ac_bc_inout_id_dbh
-  use PRTAllometricCarbonMod, only : ac_bc_in_id_lstat, ac_bc_in_id_cdamage
+  use PRTAllometricCarbonMod, only : ac_bc_in_id_lstat
+  use PRTAllometricCarbonMod, only : ac_bc_in_id_cdamage
+  use PRTAllometricCarbonMod, only : ac_bc_in_id_efleaf
+  use PRTAllometricCarbonMod, only : ac_bc_in_id_effnrt
+  use PRTAllometricCarbonMod, only : ac_bc_in_id_efstem
   use PRTAllometricCNPMod,    only : cnp_allom_prt_vartypes
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_pft, acnp_bc_in_id_ctrim
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_lstat, acnp_bc_inout_id_dbh
+  use PRTAllometricCNPMod,    only : acnp_bc_in_id_efleaf
+  use PRTAllometricCNPMod,    only : acnp_bc_in_id_effnrt
+  use PRTAllometricCNPMod,    only : acnp_bc_in_id_efstem
   use PRTAllometricCNPMod,    only : acnp_bc_inout_id_l2fr
   use PRTAllometricCNPMod,    only : acnp_bc_inout_id_cx_int
   use PRTAllometricCNPMod,    only : acnp_bc_inout_id_cx0
@@ -146,11 +157,12 @@ Module EDCohortDynamicsMod
 contains
 
   !-------------------------------------------------------------------------------------!
-subroutine create_cohort(currentSite, patchptr, pft, nn, hite, coage, dbh,   &
-   prt, status, recruitstatus,ctrim, carea, clayer, crowndamage, spread, bc_in)
+subroutine create_cohort(currentSite, patchptr, pft, nn, hite, coage, dbh,     &
+   prt, elongf_leaf, elongf_fnrt, elongf_stem, status, recruitstatus, ctrim,   &
+   carea, clayer, crowndamage, spread, bc_in)
 
 !
-! !DESCRIPTION:
+! DESCRIPTION:
 ! create new cohort
 ! There are 4 places this is called
 ! 1) Initializing new cohorts at the beginning of a cold-start simulation
@@ -160,44 +172,35 @@ subroutine create_cohort(currentSite, patchptr, pft, nn, hite, coage, dbh,   &
 !
 ! It is assumed that in the first 3, this is called with a reasonable amount of starter information.
 !
-! !USES:
-!
-! !ARGUMENTS
 
-type(ed_site_type), intent(inout),   target :: currentSite
-type(fates_patch_type), intent(inout), pointer :: patchptr
+! ARGUMENTS:
+type(ed_site_type),     intent(inout), target  :: currentSite   ! site object
+type(fates_patch_type), intent(inout), pointer :: patchptr      ! pointer to patch object
+integer,                intent(in)             :: pft           ! cohort Plant Functional Type
+integer,                intent(in)             :: crowndamage   ! cohort damage class
+integer,                intent(in)             :: clayer        ! canopy status of cohort [1=canopy; 2=understorey]
+integer,                intent(in)             :: status        ! growth status of plant [1=leaves off; 2=leaves on]
+integer,                intent(in)             :: recruitstatus ! recruit status of plant [1 = recruitment , 0 = other]                
+real(r8),               intent(in)             :: nn            ! number of individuals in cohort [/m2]
+real(r8),               intent(in)             :: hite          ! cohort height [m]
+real(r8),               intent(in)             :: coage         ! cohort age [m]
+real(r8),               intent(in)             :: dbh           ! cohort diameter at breast height [cm]
+real(r8),               intent(in)             :: elongf_leaf   ! leaf elongation factor [fraction] - 0: fully abscissed; 1: fully flushed
+real(r8),               intent(in)             :: elongf_fnrt   ! fine-root "elongation factor" [fraction]
+real(r8),               intent(in)             :: elongf_stem   ! stem "elongation factor" [fraction]
+class(prt_vartypes),    intent(inout), pointer :: prt           ! allocated PARTEH object
+real(r8),               intent(in)             :: ctrim         ! fraction of the maximum leaf biomass we are targeting
+real(r8),               intent(in)             :: spread        ! how spread crowns are in horizontal space
+real(r8),               intent(in)             :: carea         ! area of cohort - ONLY USED IN SP MODE [m2]
+type(bc_in_type),       intent(in)             :: bc_in         ! external boundary conditions
 
-integer,  intent(in)      :: pft              ! Cohort Plant Functional Type
-integer,  intent(in)      :: crowndamage      ! Cohort damage class
-integer,  intent(in)      :: clayer           ! canopy status of cohort 
-                                              ! (1 = canopy, 2 = understorey, etc.)
-integer,  intent(in)      :: status           ! growth status of plant
-                                              ! (2 = leaves on , 1 = leaves off)
-integer,  intent(in)      :: recruitstatus    ! recruit status of plant
-                                              ! (1 = recruitment , 0 = other)
-real(r8), intent(in)      :: nn               ! number of individuals in cohort
-                                              ! per 'area' (10000m2 default)
-real(r8), intent(in)      :: hite             ! height: meters
-real(r8), intent(in)      :: coage            ! cohort age in years
-real(r8), intent(in)      :: dbh              ! dbh: cm
-class(prt_vartypes),intent(inout), pointer :: prt             ! The allocated PARTEH
-!class(prt_vartypes),target :: prt             ! The allocated PARTEH
-                                              ! object
-real(r8), intent(in)      :: ctrim            ! What is the fraction of the maximum
-                                              ! leaf biomass that we are targeting?
-real(r8), intent(in)      :: spread           ! The community assembly effects how
-                                              ! spread crowns are in horizontal space
-real(r8), intent(in)       ::  carea          ! area of cohort ONLY USED IN SP MODE.
-type(bc_in_type), intent(in) :: bc_in         ! External boundary conditions
-
-
-! !LOCAL VARIABLES:
-type(fates_cohort_type), pointer :: newCohort        ! Pointer to New Cohort structure.
-type(fates_cohort_type), pointer :: storesmallcohort
+! LOCAL VARIABLES:
+type(fates_cohort_type), pointer :: newCohort        ! pointer to New Cohort structure.
+type(fates_cohort_type), pointer :: storesmallcohort 
 type(fates_cohort_type), pointer :: storebigcohort
-real(r8) :: rmean_temp                     ! running mean temperature
-integer  :: tnull,snull                    ! are the tallest and shortest cohorts allocate
-integer  :: nlevrhiz                       ! number of rhizosphere layers
+real(r8)                         :: rmean_temp       ! running mean temperature
+integer                          :: tnull, snull     ! are the tallest and shortest cohorts allocate
+integer                          :: nlevrhiz         ! number of rhizosphere layers
 
 !----------------------------------------------------------------------
 
@@ -230,7 +233,7 @@ endif
 !! allocate(newCohort%tveg_lpa)
 !! call newCohort%tveg_lpa%InitRMean(ema_lpa,init_value=patchptr%tveg_lpa%GetMean())
 
-if( hlm_use_planthydro.eq.itrue ) then
+if (hlm_use_planthydro .eq. itrue) then
 
    nlevrhiz = currentSite%si_hydr%nlevrhiz
 
@@ -931,6 +934,7 @@ end subroutine create_cohort
 
                                             call ForceDBH( currentCohort%pft, currentCohort%crowndamage, & 
                                                  currentCohort%canopy_trim, &
+                                                 currentCohort%efleaf_coh, currentCohort%efstem_coh, &
                                                  currentCohort%dbh, currentCohort%hite, &
                                                  bdead = currentCohort%prt%GetState(struct_organ,carbon12_element))
 
@@ -969,6 +973,7 @@ end subroutine create_cohort
                                       if( prt_params%woody(currentCohort%pft) == itrue ) then
                                          call ForceDBH( currentCohort%pft, currentCohort%crowndamage, & 
                                               currentCohort%canopy_trim, &
+                                              currentCohort%efleaf_coh, currentCohort%efstem_coh, &
                                               currentCohort%dbh, currentCohort%hite, &
                                               bdead = currentCohort%prt%GetState(struct_organ,carbon12_element))
 
@@ -1494,11 +1499,15 @@ end subroutine create_cohort
     real(r8) :: hite_out
     real(r8) :: leaf_c
     real(r8) :: crown_reduction
+    real(r8) :: elongf_leaf
+    real(r8) :: elongf_stem
     
     dbh  = currentCohort%dbh
     ipft = currentCohort%pft
     icrowndamage = currentCohort%crowndamage
     canopy_trim = currentCohort%canopy_trim
+    elongf_leaf = currentCohort%efleaf_coh
+    elongf_stem = currentCohort%efstem_coh
 
     delta_dbh   = 0._r8
     delta_hite  = 0._r8
@@ -1507,14 +1516,16 @@ end subroutine create_cohort
 
        struct_c = currentCohort%prt%GetState(struct_organ, carbon12_element)
 
-       ! Target sapwood biomass according to allometry and trimming [kgC]
-       call bsap_allom(dbh,ipft,icrowndamage,canopy_trim,sapw_area,target_sapw_c)
+       ! Target sapwood biomass according to allometry, trimming and phenology [kgC]
+       call bsap_allom(dbh,ipft,icrowndamage,canopy_trim, elongf_stem, sapw_area,target_sapw_c)
        
-       ! Target total above ground biomass in woody/fibrous tissues  [kgC]
-       call bagw_allom(dbh,ipft, icrowndamage,target_agw_c)
+       ! Target total above ground biomass in woody/fibrous tissues
+       ! according to allometry, trimming and phenology [kgC]
+       call bagw_allom(dbh,ipft, icrowndamage, elongf_stem, target_agw_c)
        
-       ! Target total below ground biomass in woody/fibrous tissues [kgC] 
-       call bbgw_allom(dbh,ipft,target_bgw_c)
+       ! Target total below ground biomass in woody/fibrous tissues
+       ! according to allometry, trimming and phenology [kgC]
+       call bbgw_allom(dbh,ipft, elongf_stem, target_bgw_c)
 
        ! Target total dead (structrual) biomass [kgC]
        call bdead_allom( target_agw_c, target_bgw_c, target_sapw_c, ipft, target_struct_c)
@@ -1527,7 +1538,8 @@ end subroutine create_cohort
 
        if( (struct_c - target_struct_c ) > calloc_abs_error ) then
 
-          call ForceDBH( ipft,icrowndamage,canopy_trim, dbh, hite_out, bdead=struct_c)
+          call ForceDBH( ipft,icrowndamage,canopy_trim, elongf_leaf, elongf_stem, &
+               dbh, hite_out, bdead=struct_c)
 
           delta_dbh = dbh - currentCohort%dbh 
           delta_hite = hite_out - currentCohort%hite
@@ -1540,11 +1552,12 @@ end subroutine create_cohort
        ! This returns the sum of leaf carbon over all (age) bins
        leaf_c  = currentCohort%prt%GetState(leaf_organ, carbon12_element)
 
-       ! Target leaf biomass according to allometry and trimming
-       call bleaf(dbh,ipft,icrowndamage, canopy_trim,target_leaf_c)
+       ! Target leaf biomass according to allometry, trimming and phenology
+       call bleaf(dbh,ipft,icrowndamage, canopy_trim, elongf_leaf, target_leaf_c)
 
        if( ( leaf_c - target_leaf_c ) > calloc_abs_error ) then
-          call ForceDBH( ipft, icrowndamage, canopy_trim, dbh, hite_out, bl=leaf_c )
+          call ForceDBH( ipft, icrowndamage, canopy_trim, elongf_leaf, elongf_stem, &
+               dbh, hite_out, bl=leaf_c )
           delta_dbh = dbh - currentCohort%dbh
           delta_hite = hite_out - currentCohort%hite
           currentCohort%dbh = dbh
@@ -1601,10 +1614,16 @@ end subroutine create_cohort
     real(r8) :: nplant_recover                  ! number of plants in cohort that will
                                                 ! recover to the next class
     integer  :: el                                ! element loop counter
+
+    logical  :: is_hydecid_dormant    ! Flag to signal that the cohort is drought deciduous and dormant
+    logical  :: is_sedecid_dormant    ! Flag to signal this is a deciduous PFT
     
     associate(dbh => ccohort%dbh, &
          ipft => ccohort%pft, &
-         canopy_trim => ccohort%canopy_trim)
+         canopy_trim => ccohort%canopy_trim, &
+         elongf_leaf => ccohort%efleaf_coh,  &
+         elongf_fnrt => ccohort%effnrt_coh,  &
+         elongf_stem => ccohort%efstem_coh)
 
       ! If we are currently undamaged, no recovery
       ! necessary, do nothing and return a null pointer
@@ -1618,7 +1637,24 @@ end subroutine create_cohort
          return
       end if
 
-      
+
+      !--- Set some logical flags to simplify "if" blocks
+      is_hydecid_dormant = &
+         any(prt_params%stress_decid(ipft) == [ihard_stress_decid,isemi_stress_decid] ) &
+         .and. any(ccohort%status_coh == [leaves_off,leaves_shedding] )
+      is_sedecid_dormant = &
+         ( prt_params%season_decid(ipft) == itrue ) &
+         .and. any(ccohort%status_coh == [leaves_off,leaves_shedding] )
+
+      ! If plants are drought deciduous and are losing or lost all leaves, they cannot
+      ! allocate carbon to any growth or recovery. Return a null pointer and wait until
+      ! the growing season.
+      if (is_hydecid_dormant) then
+         newly_recovered = .false.
+         return
+      end if
+
+
       ! If we have not returned, then this cohort both has
       ! a damaged status, and the ability to recover from that damage
       ! -----------------------------------------------------------------
@@ -1626,24 +1662,31 @@ end subroutine create_cohort
       ! To determine recovery, the first priority is to determine how much
       ! resources (C,N,P) are required to recover the plant to the target
       ! pool sizes of the next (less) damage class
-      
-      ! Target sapwood biomass according to allometry and trimming [kgC]
-      call bsap_allom(dbh,ipft, ccohort%crowndamage-1, canopy_trim,sapw_area,target_sapw_c)
-      ! Target total above ground biomass in woody/fibrous tissues  [kgC]
-      call bagw_allom(dbh,ipft, ccohort%crowndamage-1, target_agw_c)
-      ! Target total below ground biomass in woody/fibrous tissues [kgC] 
-      call bbgw_allom(dbh,ipft,target_bgw_c)
+
+      ! Target sapwood biomass according to allometry, trimming and phenology [kgC]
+      call bsap_allom(dbh,ipft, ccohort%crowndamage-1, canopy_trim, elongf_stem, &
+           sapw_area,target_sapw_c)
+      ! Target total above ground biomass in woody/fibrous tissues
+      ! according to allometry, trimming and phenology [kgC]
+      call bagw_allom(dbh,ipft, ccohort%crowndamage-1, elongf_stem, target_agw_c)
+      ! Target total below ground biomass in woody/fibrous tissues
+      ! according to allometry, trimming and phenology [kgC]
+      call bbgw_allom(dbh,ipft, elongf_stem, target_bgw_c)
       ! Target total dead (structrual) biomass [kgC]
       call bdead_allom( target_agw_c, target_bgw_c, target_sapw_c, ipft, target_struct_c)
-      ! Target fine-root biomass and deriv. according to allometry and trimming [kgC, kgC/cm]
-      call bfineroot(dbh,ipft,canopy_trim,ccohort%l2fr,target_fnrt_c)
-      ! Target storage carbon [kgC,kgC/cm]
+      ! Target fine-root biomass according to allometry, trimming and phenology [kgC]
+      call bfineroot(dbh,ipft,canopy_trim,ccohort%l2fr, elongf_fnrt, target_fnrt_c)
+      ! Target storage carbon [kgC]
       call bstore_allom(dbh,ipft,ccohort%crowndamage-1, canopy_trim,target_store_c)
-      ! Target leaf biomass according to allometry and trimming
-      if(ccohort%status_coh==leaves_on) then
-         call bleaf(dbh,ipft,ccohort%crowndamage-1, canopy_trim,target_leaf_c)
-      else
-         target_leaf_c = 0._r8
+      ! Target leaf biomass according to allometry, trimming and phenology [kgC]
+      call bleaf(dbh,ipft,ccohort%crowndamage-1, canopy_trim, elongf_leaf, target_leaf_c)
+
+
+      ! If plants are cold deciduous, we do not let them recover leaves, but we allow
+      ! them to recover other tissues. This is due to back-compatibility, but we may
+      ! want to revisit this later.
+      if (is_sedecid_dormant) then
+         target_leaf_c   = 0._r8
       end if
 
       ! We will be taking the number of recovering plants
