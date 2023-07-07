@@ -2069,28 +2069,23 @@ subroutine SeedlingParPatch(cpatch, &
   integer  :: ipft       ! current PFT index
   integer  :: iv         ! lower-most leaf layer index for the cl & pft combo
 
-
-  ! Check that there are cohorts on the current patch as this calculation is
-  ! not relevant in that case (and will result in an index error due to ncan being zero)
-  if (cpatch%countcohorts .gt. 0) then
-
-     ! Radiation intensity exiting the layer above the bottom-most
-     upper_par = 0._r8
-     upper_area = 0._r8
-     cl = max(1,cpatch%NCL_p-1)
-     do ipft = 1,numpft
-        iv = cpatch%ncan(cl,ipft)
+  ! Radiation intensity exiting the layer above the bottom-most
+  upper_par = 0._r8
+  upper_area = 0._r8
+  cl = max(1,cpatch%NCL_p-1)
+  do ipft = 1,numpft
+     iv = cpatch%ncan(cl,ipft)
+     ! Avoid cases where ncan is zero for a given pft
+     if (iv .ne. 0) then
         upper_par = upper_par + cpatch%canopy_area_profile(cl,ipft,1)* &
              (cpatch%parprof_pft_dir_z(cl,ipft,iv)+cpatch%parprof_pft_dif_z(cl,ipft,iv))
         upper_area = upper_area + cpatch%canopy_area_profile(cl,ipft,1)
-     end do
-     if(upper_area>nearzero)then
-        upper_par = upper_par/upper_area
-     else
-        upper_par = 0._r8
      end if
+  end do
+  if(upper_area>nearzero)then
+     upper_par = upper_par/upper_area
   else
-     upper_par = fates_unset_r8
+     upper_par = 0._r8
   end if
 
   ! If we do have more than one layer, then we need to figure out
@@ -2104,10 +2099,13 @@ subroutine SeedlingParPatch(cpatch, &
      lower_par  = 0._r8
      do ipft = 1,numpft
         iv = cpatch%ncan(cl,ipft)
-        lower_area = lower_area+cpatch%canopy_area_profile(cl,ipft,1)
-        lower_par = lower_par + &
-             cpatch%canopy_area_profile(cl,ipft,1)*&
-             (cpatch%parprof_pft_dir_z(cl,ipft,iv) + cpatch%parprof_pft_dif_z(cl,ipft,iv))
+        ! Avoid cases where ncan is zero for a given pft
+        if (iv .ne. 0) then
+           lower_area = lower_area+cpatch%canopy_area_profile(cl,ipft,1)
+           lower_par = lower_par + &
+                cpatch%canopy_area_profile(cl,ipft,1)*&
+                (cpatch%parprof_pft_dir_z(cl,ipft,iv) + cpatch%parprof_pft_dif_z(cl,ipft,iv))
+        end if
      end do
      if(lower_area>nearzero)then
         lower_par = lower_par / lower_area
