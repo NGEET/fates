@@ -2104,6 +2104,7 @@ subroutine SeedlingParPatch(cpatch, &
      else
         seedling_par_low  = upper_par
      end if
+  end do
 
   return
 end subroutine SeedlingParPatch
