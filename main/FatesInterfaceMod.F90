@@ -2061,49 +2061,53 @@ subroutine SeedlingParPatch(cpatch, &
   real(r8), intent(out) :: par_low_frac       ! Area fraction with low intensity
 
   ! Locals
-  real(r8) :: upper_par  ! The PAR intensity coming from the canopy layer above [w/m2]
-  real(r8) :: upper_area ! The area fraction of the upper canopy
-  real(r8) :: lower_par  ! The PAR intensity under the lower-most canopy [W/m2]
-  real(r8) :: lower_area ! The area fractino of the lower canopy
+  real(r8) :: cl_par     ! The PAR intensity coming from the canopy layer [w/m2]
+  real(r8) :: cl_area    ! The area fraction of the given canopy layer
   integer  :: cl         ! current canopy layer
   integer  :: ipft       ! current PFT index
   integer  :: iv         ! lower-most leaf layer index for the cl & pft combo
 
-  ! Assuming there is a single canopy layer
+  ! Start with the assumption that there is a single canopy layer
   seedling_par_high = atm_par
   par_high_frac     = 1._r8-cpatch%total_canopy_area
   par_low_frac      = cpatch%total_canopy_area
 
+  ! Work up through the canopy layers from the bottom layer
   do cl = cpatch%NCL_p,max(1,cpatch%NCL_p-1),-1
-     upper_par = 0._r8
-     upper_area = 0._r8
+     cl_par = 0._r8
+     cl_area = 0._r8
      do ipft = 1,numpft
         iv = cpatch%ncan(cl,ipft)
-        ! Avoid calculating when there are no leaf layers for the given pft
+        ! Avoid calculating when there are no leaf layers for the given pft in the current canopy layer
         if (iv .ne. 0) then
-           upper_par = upper_par + cpatch%canopy_area_profile(cl,ipft,1)* &
+           cl_par = cl_par + cpatch%canopy_area_profile(cl,ipft,1)* &
                 (cpatch%parprof_pft_dir_z(cl,ipft,iv)+cpatch%parprof_pft_dif_z(cl,ipft,iv))
-           upper_area = upper_area + cpatch%canopy_area_profile(cl,ipft,1)
+           cl_area = cl_area + cpatch%canopy_area_profile(cl,ipft,1)
         end if
      end do
-     if(upper_area>nearzero)then
-        upper_par = upper_par/upper_area
+
+     ! Set the cl_par to zero if the area is near zero.  Otherwise scale the par by the area
+     if(cl_area>nearzero)then
+        cl_par = cl_par/cl_area
      else
-        upper_par = 0._r8
+        cl_par = 0._r8
      end if
 
      ! If we do have more than one layer, then we need to figure out
      ! the average of light on the exposed ground under the veg
-     ! Note that newly spawned patches without cohorts have a default
-     ! NCL_p of one.
+     ! Since we are working up through the canopy layers from the ground,
+     ! set the par_high to the previous par_low value and update 
+     ! the par_low to the new cl_par value
      if(cl .lt. cpatch%NCL_p) then
         seedling_par_high = seedling_par_low
-        par_high_frac     = (1._r8-upper_area)
-        seedling_par_low  = upper_par/upper_area
-        par_low_frac      = upper_area
+        par_high_frac     = (1._r8-cl_area)
+        seedling_par_low  = cl_par
+        par_low_frac      = cl_area
+     ! If we only have one layer, only set the seedling_par_low
      else
-        seedling_par_low  = upper_par
+        seedling_par_low  = cl_par
      end if
+
   end do
 
   return
