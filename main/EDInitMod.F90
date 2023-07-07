@@ -847,6 +847,10 @@ contains
           temp_cohort%canopy_trim = 1.0_r8
           temp_cohort%crowndamage = 1  ! Assume no damage to begin with
 
+          ! Retrieve drop fraction of non-leaf tissues for phenology initialisation
+          fnrt_drop_fraction = prt_params%phen_fnrt_drop_fraction(pft)
+          stem_drop_fraction = prt_params%phen_stem_drop_fraction(pft)
+
 
           ! Initialise phenology variables.
           spmode_case: select case (hlm_use_sp)
