@@ -342,6 +342,9 @@ variables:
 	double fates_hydro_vg_n_node(fates_hydr_organs, fates_pft) ;
 		fates_hydro_vg_n_node:units = "unitless" ;
 		fates_hydro_vg_n_node:long_name = "(used if hydr_htftype_node = 2),n in van Genuchten 1980 model, pore size distribution parameter" ;
+	double fates_landuse_grazing_palatability(fates_pft) ;
+		fates_landuse_grazing_palatability:units = "unitless 0-1" ;
+		fates_landuse_grazing_palatability:long_name = "Relative intensity of leaf grazing/browsing per PFT" ;
 	double fates_leaf_c3psn(fates_pft) ;
 		fates_leaf_c3psn:units = "flag" ;
 		fates_leaf_c3psn:long_name = "Photosynthetic pathway (1=c3, 0=c4)" ;
@@ -684,6 +687,18 @@ variables:
 	double fates_hydro_solver ;
 		fates_hydro_solver:units = "unitless" ;
 		fates_hydro_solver:long_name = "switch designating which numerical solver for plant hydraulics, 1 = 1D taylor, 2 = 2D Picard, 3 = 2D Newton (deprecated)" ;
+	double fates_landuse_grazing_carbon_use_eff ;
+		fates_landuse_grazing_carbon_use_eff:units = "unitless" ;
+		fates_landuse_grazing_carbon_use_eff:long_name = "carbon use efficiency of material eaten by grazers/browsers (i.e. amount in manure / amount consumed)" ;
+	double fates_landuse_grazing_maxheight ;
+		fates_landuse_grazing_maxheight:units = "m" ;
+		fates_landuse_grazing_maxheight:long_name = "maximum height that grazers (browsers, actually) can reach" ;
+	double fates_landuse_grazing_nitrogen_use_eff ;
+		fates_landuse_grazing_nitrogen_use_eff:units = "unitless" ;
+		fates_landuse_grazing_nitrogen_use_eff:long_name = "nitrogen use efficiency of material eaten by grazers/browsers (i.e. amount in manure / amount consumed)" ;
+	double fates_landuse_grazing_phosphorus_use_eff ;
+		fates_landuse_grazing_phosphorus_use_eff:units = "unitless" ;
+		fates_landuse_grazing_phosphorus_use_eff:long_name = "phosphorus use efficiency of material eaten by grazers/browsers (i.e. amount in manure / amount consumed)" ;
 	double fates_landuse_logging_coll_under_frac ;
 		fates_landuse_logging_coll_under_frac:units = "fraction" ;
 		fates_landuse_logging_coll_under_frac:long_name = "Fraction of stems killed in the understory when logging generates disturbance" ;
@@ -1197,6 +1212,8 @@ data:
   2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
   2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ;
 
+ fates_landuse_grazing_palatability =  0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1 ;
+
  fates_leaf_c3psn = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 ;
 
  fates_leaf_jmaxha = 43540, 43540, 43540, 43540, 43540, 43540, 43540, 43540, 
@@ -1509,6 +1526,14 @@ data:
  fates_hydro_psicap = -0.6 ;
 
  fates_hydro_solver = 1 ;
+
+ fates_landuse_grazing_carbon_use_eff = 0. ;
+
+ fates_landuse_grazing_maxheight =  1 ;
+
+ fates_landuse_grazing_nitrogen_use_eff = 0.25 ;
+
+ fates_landuse_grazing_phosphorus_use_eff = 0.5 ;
 
  fates_landuse_logging_coll_under_frac = 0.55983 ;
 
