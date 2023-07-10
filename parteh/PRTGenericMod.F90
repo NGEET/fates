@@ -1407,12 +1407,12 @@ contains
 
         elseif(store_prop==cstore_store_prop) then
 
-           !call bsap_allom(dbh,ipft,canopy_trim,sapw_area,target_sapw_c)
-           !call bagw_allom(dbh,ipft,agw_c_target)
-           !call bbgw_allom(dbh,ipft,bgw_c_target)
+           !call bsap_allom(dbh,ipft,canopy_trim,elongf_stem,sapw_area,target_sapw_c)
+           !call bagw_allom(dbh,ipft,elongf_stem,agw_c_target)
+           !call bbgw_allom(dbh,ipft,elongf_stem,bgw_c_target)
            !call bdead_allom(agw_c_target,bgw_c_target,target_sapw_c,ipft,target_struct_c)
-           !call bleaf(dbh,ipft,canopy_trim, target_leaf_c)
-           !call bfineroot(dbh,ipft,canopy_trim, l2fr, target_fnrt_c)
+           !call bleaf(dbh,ipft,canopy_trim, elongf_leaf, target_leaf_c)
+           !call bfineroot(dbh,ipft,canopy_trim, l2fr, elongf_fnrt, target_fnrt_c)
            !call bstore_allom(dbh,ipft,canopy_trim, target_store_c)
 
            ! Strategy, store as much nutrient as needed to match carbon's growth potential
