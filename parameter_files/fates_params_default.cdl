@@ -597,9 +597,6 @@ variables:
 	double fates_landuse_grazing_rate(fates_landuseclass) ;
 		fates_landuse_grazing_rate:units = "1/day" ;
 		fates_landuse_grazing_rate:long_name = "fraction of leaf biomass consumed by grazers per day" ;
-	double fates_landuse_pft_maxcancov(fates_landuseclass, fates_pft) ;
-		fates_landuse_pft_maxcancov:units = "area fraction" ;
-		fates_landuse_pft_maxcancov:long_name = "Maximum canopy coverage of each PFT in each land use class" ;
 	double fates_canopy_closure_thresh ;
 		fates_canopy_closure_thresh:units = "unitless" ;
 		fates_canopy_closure_thresh:long_name = "tree canopy coverage at which crown area allometry changes from savanna to forest value" ;
@@ -1461,13 +1458,6 @@ data:
  fates_frag_cwd_frac = 0.045, 0.075, 0.21, 0.67 ;
 
  fates_landuse_grazing_rate = 0.0, 0.0, 0.07, 0.07, 0.0 ;
-
- fates_landuse_pft_maxcancov =
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-  0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 1, 1, 1,
-  0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 1, 1, 1,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 ;
 
  fates_canopy_closure_thresh = 0.8 ;
 

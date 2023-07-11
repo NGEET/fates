@@ -29,6 +29,7 @@ module FatesLandUseChangeMod
   public :: get_landuse_transition_rates
   public :: get_landusechange_rules
   public :: get_luh_statedata
+  public :: fates_grazing
 
 
   ! module data
@@ -297,5 +298,35 @@ contains
     end if
 
   end subroutine CheckLUHData
+
+  !----------------------------------------------------------------------------------------------------
+
+  subroutine fates_grazing(prt, ft, land_use_label, hite)
+
+    use PRTGenericMod,    only : leaf_organ
+    use PRTGenericMod,    only : prt_vartypes
+    use PRTLossFluxesMod, only : PRTHerbivoryLosses
+
+    ! apply grazing and browsing to plants as a function of PFT, height (for woody plants), and land use label.
+
+    class(prt_vartypes), intent(inout), pointer :: prt
+    integer, intent(in)  :: ft
+    integer, intent(in)  :: land_use-label
+    real(r8), intent(in) :: hite
+
+    real(r8) :: grazing_rate    ! rate of grazing (or browsing) of leaf tissue [day -1]
+
+    grazing_rate = fates_landuse_grazing_rate(land_use_label) * fates_landuse_grazing_palatability(ft)
+
+    if ( grazing_rate .gt. 0._r8) then
+       if (woody(ft)) then
+          grazing_rate = grazing_rate * &
+               max(0._r8, min(1._r8, (fates_landuse_grazing_maxheight - hite*fates_allom_crown_depth_frac(ft)/(hite - hite*fates_allom_crown_depth_frac(ft)))))
+       endif
+
+       call PRTHerbivoryLosses(prt, leaf_organ, grazing_rate)
+    end if
+
+  end subroutine fates_grazing
 
 end module FatesLandUseChangeMod

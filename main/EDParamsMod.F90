@@ -134,6 +134,7 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_history_coageclass_bin_edges = "fates_history_coageclass_bin_edges"
    character(len=param_string_length),parameter,public :: ED_name_history_damage_bin_edges = "fates_history_damage_bin_edges"
 
+
    ! Hydraulics Control Parameters (ONLY RELEVANT WHEN USE_FATES_HYDR = TRUE)
    ! ----------------------------------------------------------------------------------------------
    real(r8),protected,public :: hydr_kmax_rsurf1         !  maximum conducitivity for unit root surface 
@@ -245,6 +246,14 @@ module EDParamsMod
    real(r8),protected,public :: pprodharv10_forest_mean ! "mean harvest mortality proportion of deadstem to 10-yr 
                                                         ! product pool (pprodharv10) of all woody PFT types
    character(len=param_string_length),parameter,public :: logging_name_pprodharv10="fates_landuse_pprodharv10_forest_mean"
+
+   ! grazing-related parameters
+   character(len=param_string_length),parameter,public :: ED_name_landuse_grazing_palatability = "fates_landuse_grazing_palatability"
+   character(len=param_string_length),parameter,public :: ED_name_landuse_grazing_rate = "fates_landuse_grazing_rate"
+   character(len=param_string_length),parameter,public :: ED_name_landuse_grazing_carbon_use_eff = "fates_landuse_grazing_carbon_use_eff"
+   character(len=param_string_length),parameter,public :: ED_name_landuse_grazing_maxheight = "fates_landuse_grazing_maxheight"
+   character(len=param_string_length),parameter,public :: ED_name_landuse_grazing_nitrogen_use_eff = "fates_landuse_grazing_nitrogen_use_eff"
+   character(len=param_string_length),parameter,public :: ED_name_landuse_grazing_phosphorus_use_eff = "fates_landuse_grazing_phosphorus_use_eff"
 
    real(r8),protected,public :: eca_plant_escalar  ! scaling factor for plant fine root biomass to 
                                                ! calculate nutrient carrier enzyme abundance (ECA)
