@@ -988,6 +988,9 @@ contains
        upper_boundary_type, & 
        Rbeam_atm, & 
        Rdiff_atm, &
+       taulamb,   &
+       omega,     &
+       ipiv,      &
        albedo_beam, & 
        albedo_diff, & 
        frac_abs_can_beam, &
@@ -1024,8 +1027,9 @@ contains
     real(r8)  :: Rbeam_atm          ! Intensity of beam radiation at top of canopy [W/m2 ground]
     real(r8)  :: Rdiff_atm          ! Intensity of diffuse radiation at top of canopy [W/m2 ground]
                                     ! 
-
-
+    real(r8)  :: taulamb(:)         ! both the coefficient vector and constant side of the linear equation
+    real(r8)  :: omega(:)           ! the square matrix to be inverted
+    integer   :: ipiv(:)            ! pivot indices for LAPACK (not optional output, we don't use)
     
     real(r8) :: albedo_beam    ! Mean albedo at canopy top generated from beam radiation [-]
     real(r8) :: albedo_diff    ! Mean albedo at canopy top generated from downwelling diffuse [-]
@@ -1043,15 +1047,6 @@ contains
     ! TAU(:) = OMEGA(:,:) * LAMBDA(:)
     !
     ! Where, we invert to solve for the coefficients LAMBDA
-
-    !real(r8),allocatable :: OMEGA(:,:)
-    !real(r8),allocatable :: TAU(:)
-    !real(r8),allocatable :: LAMBDA(:)
-
-    real(r8) :: OMEGA(200,200)
-    real(r8) :: TAU(200)
-    real(r8) :: LAMBDA(200)
-    integer  :: ipiv(200)
 
     integer :: isol  ! Solution index loop (beam, beam+diff)
     integer :: ican  ! Loop index for canopy layers
@@ -1291,13 +1286,8 @@ contains
           this%band(ib)%Rdiff_atm = 1.0_r8
        end if
 
-       if(n_eq>200)then
-          write(log_unit,*)"NEED A BIGGER MATRIX, n_eq:",n_eq
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       end if
-
-       OMEGA(1:n_eq,1:n_eq) = 0._r8
-       TAU(1:n_eq)          = 0._r8
+       omega(1:n_eq,1:n_eq) = 0._r8
+       taulamb(1:n_eq)          = 0._r8
        
        ! --------------------------------------------------------------------
        ! I. Flux equations with the atmospheric boundary
@@ -1313,9 +1303,9 @@ contains
           qp   = qp   + 1
           k1 = 2*(ilem-1)+1
           k2 = k1+1
-          TAU(qp)      =  this%band(ib)%Rdiff_atm - this%band(ib)%Rbeam_atm*scelbp%Ad
-          OMEGA(qp,k1) =  scelbp%B1d
-          OMEGA(qp,k2) =  scelbp%B2d
+          taulamb(qp)      =  this%band(ib)%Rdiff_atm - this%band(ib)%Rbeam_atm*scelbp%Ad
+          omega(qp,k1) =  scelbp%B1d
+          omega(qp,k2) =  scelbp%B2d
        end do
 
 
@@ -1354,9 +1344,9 @@ contains
                 ! Include the self terms for the current element
                 ! This term is at v=0
 
-                TAU(qp) = this%band(ib)%Rbeam_atm*this%band(ib)%scelb(ibot,jcol)%Ad
-                OMEGA(qp,k1) = OMEGA(qp,k1) - this%band(ib)%scelb(ibot,jcol)%B1d
-                OMEGA(qp,k2) = OMEGA(qp,k2) - this%band(ib)%scelb(ibot,jcol)%B2d
+                taulamb(qp) = this%band(ib)%Rbeam_atm*this%band(ib)%scelb(ibot,jcol)%Ad
+                omega(qp,k1) = omega(qp,k1) - this%band(ib)%scelb(ibot,jcol)%B1d
+                omega(qp,k2) = omega(qp,k2) - this%band(ib)%scelb(ibot,jcol)%B2d
 
                 ! We need to include the terms from
                 ! all elements above the current element of interest
@@ -1372,9 +1362,9 @@ contains
 
                    vai = scelgp%lai + scelgp%sai
 
-                   TAU(qp) = TAU(qp) - scelgp%area * this%band(ib)%Rbeam_atm*scelbp%Ad *exp(-scelgp%Kb*vai)
-                   OMEGA(qp,k1) = OMEGA(qp,k1) + scelgp%area * scelbp%B1d*exp(scelbp%a*vai)
-                   OMEGA(qp,k2) = OMEGA(qp,k2) + scelgp%area * scelbp%B2d*exp(-scelbp%a*vai)
+                   taulamb(qp) = taulamb(qp) - scelgp%area * this%band(ib)%Rbeam_atm*scelbp%Ad *exp(-scelgp%Kb*vai)
+                   omega(qp,k1) = omega(qp,k1) + scelgp%area * scelbp%B1d*exp(scelbp%a*vai)
+                   omega(qp,k2) = omega(qp,k2) + scelgp%area * scelbp%B2d*exp(-scelbp%a*vai)
 
                 end do
 
@@ -1415,9 +1405,9 @@ contains
                 scelbp => this%band(ib)%scelb(itop,icol)
 
                 vai = scelgp%lai + scelgp%sai
-                TAU(qp) = this%band(ib)%Rbeam_atm*scelbp%Au*exp(-scelgp%Kb*vai)
-                OMEGA(qp,k1) = OMEGA(qp,k1) - scelbp%B1u*exp(scelbp%a*vai)
-                OMEGA(qp,k2) = OMEGA(qp,k2) - scelbp%B2u*exp(-scelbp%a*vai)
+                taulamb(qp) = this%band(ib)%Rbeam_atm*scelbp%Au*exp(-scelgp%Kb*vai)
+                omega(qp,k1) = omega(qp,k1) - scelbp%B1u*exp(scelbp%a*vai)
+                omega(qp,k2) = omega(qp,k2) - scelbp%B2u*exp(-scelbp%a*vai)
 
                 ! Terms for mean diffuse exiting lower elements (move out of this loop for efficiency)
                 do jcol = 1,this%n_col(ibot)
@@ -1427,9 +1417,9 @@ contains
                    scelgp => this%scelg(ibot,jcol)
                    scelbp => this%band(ib)%scelb(ibot,jcol)
 
-                   TAU(qp) = TAU(qp) - this%band(ib)%Rbeam_atm*scelgp%area*scelbp%Au
-                   OMEGA(qp,k1) = OMEGA(qp,k1) + scelgp%area*scelbp%B1u
-                   OMEGA(qp,k2) = OMEGA(qp,k2) + scelgp%area*scelbp%B2u
+                   taulamb(qp) = taulamb(qp) - this%band(ib)%Rbeam_atm*scelgp%area*scelbp%Au
+                   omega(qp,k1) = omega(qp,k1) + scelgp%area*scelbp%B1u
+                   omega(qp,k2) = omega(qp,k2) + scelgp%area*scelbp%B2u
                 end do
 
              end do
@@ -1460,36 +1450,33 @@ contains
 
           vai = scelgp%lai + scelgp%sai
 
-          TAU(qp) = this%band(ib)%Rbeam_atm*(scelbp%Au*exp(-scelgp%Kb*vai)  &
+          taulamb(qp) = this%band(ib)%Rbeam_atm*(scelbp%Au*exp(-scelgp%Kb*vai)  &
                - this%band(ib)%albedo_grnd_diff*scelbp%Ad*exp(-scelgp%Kb*vai) &
                - this%band(ib)%albedo_grnd_beam*scelbp%Rbeam0*exp(-scelgp%Kb*vai))
 
-          OMEGA(qp,k1) = OMEGA(qp,k1) - scelbp%B1u*exp(scelbp%a*vai)
-          OMEGA(qp,k2) = OMEGA(qp,k2) - scelbp%B2u*exp(-scelbp%a*vai)
+          omega(qp,k1) = omega(qp,k1) - scelbp%B1u*exp(scelbp%a*vai)
+          omega(qp,k2) = omega(qp,k2) - scelbp%B2u*exp(-scelbp%a*vai)
 
-          OMEGA(qp,k1) = OMEGA(qp,k1) + this%band(ib)%albedo_grnd_diff*scelbp%B1d*exp(scelbp%a*vai)
-          OMEGA(qp,k2) = OMEGA(qp,k2) + this%band(ib)%albedo_grnd_diff*scelbp%B2d*exp(-scelbp%a*vai)
+          omega(qp,k1) = omega(qp,k1) + this%band(ib)%albedo_grnd_diff*scelbp%B1d*exp(scelbp%a*vai)
+          omega(qp,k2) = omega(qp,k2) + this%band(ib)%albedo_grnd_diff*scelbp%B2d*exp(-scelbp%a*vai)
 
        end do
 
-       !write(log_unit,*)"TAU: ",TAU(:)
-       
-       
-       LAMBDA(1:n_eq) = TAU(1:n_eq)
+       !LAMBDA(1:n_eq) = TAU(1:n_eq)
        ! Solution borrowed from Greg Lemieux's usage during FATES canopy trimming:
        ! Compute the optimum size of the work array
 
 
-       call dgesv(n_eq, 1, OMEGA(1:n_eq,1:n_eq), n_eq, ipiv(1:n_eq),  LAMBDA(1:n_eq), n_eq, info)
+       call dgesv(n_eq, 1, omega(1:n_eq,1:n_eq), n_eq, ipiv(1:n_eq),  taulamb(1:n_eq), n_eq, info)
 
        !lwork = -1 ! Ask dgels to compute optimal number of entries for work
-       !call dgels(trans, n_eq, n_eq, 1, OMEGA(1:n_eq,1:n_eq), n_eq, LAMBDA(1:n_eq), n_eq, work, lwork, info)
+       !call dgels(trans, n_eq, n_eq, 1, omega(1:n_eq,1:n_eq), n_eq, taulamb(1:n_eq), n_eq, work, lwork, info)
        !lwork = int(work(1)) ! Pick the optimum.  TBD, can work(1) come back with greater than work size?
 
        ! Compute the minimum of 2-norm of of the least squares fit to solve for X
-       ! Note that dgels returns the solution by overwriting the LAMBDA array.
+       ! Note that dgels returns the solution by overwriting the taulamb array.
        ! The result has the form: X = [b; m]
-       !call dgels(trans, n_eq, n_eq, 1, OMEGA(1:n_eq,1:n_eq), n_eq, LAMBDA(1:n_eq), n_eq, work, lwork, info)
+       !call dgels(trans, n_eq, n_eq, 1, omega(1:n_eq,1:n_eq), n_eq, taulamb(1:n_eq), n_eq, work, lwork, info)
 
        if(info.ne.0)then
           write(log_unit,*) 'Could not find a solution via dgesv'
@@ -1507,8 +1494,8 @@ contains
                 k2 = k1 + 1
                 scelgp => this%scelg(ican,icol)
                 scelbp => this%band(ib)%scelb(ican,icol)
-                scelbp%lambda1_beam = LAMBDA(k1)
-                scelbp%lambda2_beam = LAMBDA(k2)
+                scelbp%lambda1_beam = taulamb(k1)
+                scelbp%lambda2_beam = taulamb(k2)
                 ! The lambda diff terms will be
                 ! multiplied by zero before we use them
                 ! but, we dont want things like nan's
@@ -1526,8 +1513,8 @@ contains
                 k2 = k1 + 1
                 scelgp => this%scelg(ican,icol)
                 scelbp => this%band(ib)%scelb(ican,icol)
-                scelbp%lambda1_diff = LAMBDA(k1)
-                scelbp%lambda2_diff = LAMBDA(k2)
+                scelbp%lambda1_diff = taulamb(k1)
+                scelbp%lambda2_diff = taulamb(k2)
              end do
              ilem_off = ilem_off + this%n_col(ican)
           end do
@@ -1607,10 +1594,6 @@ contains
        end if if_beam
        
     end do do_isol
-
-    !deallocate(OMEGA)
-    !deallocate(TAU)
-    !deallocate(LAMBDA)
 
     
     ! Check the error balance

@@ -715,6 +715,23 @@ module EDTypesMod
                                             ! in FatesSoilBGCFluxMod. Used solely to inform bc_out%ema_npp
                                             ! which is used for fixation
 
+                                                ! Two-stream scratch arrays
+     real(r8), allocatable :: omega_2str(:,:)   ! This is the matrix that is inverted to solve
+                                                ! the linear system of equations in the two-stream
+                                                ! radiation module. This array will grow
+                                                ! and shrink depending on how many scattering
+                                                ! elements there are. This matrix is square,
+                                                ! and needs to be larger than 2 x number-of-elements
+                                                ! for each patch on the site
+
+     real(r8), allocatable :: taulambda_2str(:) ! These are the coefficients of the two-stream
+                                                ! linear system of equations (ie the unknowns, "lambda")
+                                                ! As well as the left-side (constants, "tau"). Since
+                                                ! the LAPACK solver dgesv uses the latter
+                                                ! as the argument and over-writes, we only
+                                                ! need one array
+     
+     integer, allocatable :: ipiv_2str(:)       ! pivot indices for the lapack 2str solver
      
      
      ! SP mode target PFT level variables

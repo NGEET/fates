@@ -180,6 +180,9 @@ contains
                            call twostr%Solve(ib,             &  ! in
                                 normalized_upper_boundary,   &  ! in
                                 1.0_r8,1.0_r8,               &  ! in
+                                csite%taulambda_2str,        &  ! inout (scratch)
+                                csite%omega_2str,            &  ! inout (scratch)
+                                csite%ipiv_2str,             &  ! inout (scratch)
                                 bc_out(s)%albd_parb(ifp,ib), &  ! out
                                 bc_out(s)%albi_parb(ifp,ib), &  ! out
                                 bc_out(s)%fabd_parb(ifp,ib), &  ! out

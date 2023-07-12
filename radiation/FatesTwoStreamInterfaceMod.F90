@@ -74,6 +74,9 @@ contains
                            ! applied to increase LAI and SAI in the cohorts
                            ! and elements as well (to preserve mass and volume).
 
+    integer :: max_elements     ! Maximum number of scattering elements on the site
+    integer :: n_scr            ! The size of the scratch arrays
+    logical :: allocate_scratch ! Whether to re-allocate the scratch arrays
     
     ! These parameters are not used yet
     !real(r8) :: max_vai_diff_per_elem ! The maximum vai difference in any element
@@ -86,6 +89,7 @@ contains
     
     if(rad_solver.ne.twostr_solver)return
 
+    max_elements = -1
     ifp=0
     patch => site%oldest_patch
     do while (associated(patch))
@@ -284,6 +288,8 @@ contains
 
          call twostr%GetNSCel()       ! Total number of elements
 
+         max_elements = max(max_elements,twostr%n_scel)
+         
          twostr%force_prep = .true.   ! This signals that two-stream scattering coefficients
 
          ! that are dependent on geometry need to be updated
@@ -291,13 +297,33 @@ contains
          call twostr%ZenithPrep(coszen_pa(ifp))
          
        end associate
-
-      
-
        
        patch => patch%younger
     end do
 
+    if(allocated(site%taulambda_2str) .and. max_elements>0 )then
+       n_scr = ubound(site%taulambda_2str,dim=1)
+       allocate_scratch = .false.
+       if(2*max_elements > n_scr) then
+          allocate_scratch = .true.
+          deallocate(site%taulambda_2str,site%ipiv_2str,site%omega_2str)
+       elseif(2*max_elements < (n_scr-24)) then
+          allocate_scratch = .true.
+          deallocate(site%taulambda_2str,site%ipiv_2str,site%omega_2str)
+       end if
+    else
+       allocate_stratch = .true.
+    end if
+
+    if(allocate_scratch)then
+       ! Twice as many spaces as there are elements, plus some
+       ! extra to prevent allocating/deallocating on the next step
+       n_scr = 2*max_elements+8
+       allocate(site%taulambda_2str(n_scr))
+       allocate(site%omega_2str(n_scr,n_scr))
+       allocate(site%ipiv_2str(n_scr))
+    end if
+       
     return
   end subroutine FatesConstructRadElements
 
