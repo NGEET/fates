@@ -26,6 +26,7 @@ module EDPhysiologyMod
   use FatesConstantsMod, only    : g_per_kg
   use FatesConstantsMod, only    : ndays_per_year
   use FatesConstantsMod, only    : nocomp_bareground
+  use FatesConstantsMod, only    : calloc_abs_error
   use EDPftvarcon      , only    : EDPftvarcon_inst
   use PRTParametersMod , only    : prt_params
   use EDPftvarcon      , only    : GetDecompyFrac
@@ -1962,19 +1963,20 @@ contains
     ! the radiation routines.  Correct both the area and the 'n' to remove error, and don't use
     !! carea_allom in SP mode after this point.
 
-    if(abs(currentCohort%c_area-parea).gt.nearzero)then ! there is an error
-       if(abs(currentCohort%c_area-parea).lt.10.e-9)then !correct this if it's a very small error
-          oldcarea = currentCohort%c_area
-          !generate new cohort area
-          currentCohort%c_area = currentCohort%c_area - (currentCohort%c_area- parea)
-          currentCohort%n = currentCohort%n * (currentCohort%c_area/oldcarea)
-          if(abs(currentCohort%c_area-parea).gt.nearzero)then
-             write(fates_log(),*) 'SPassign, c_area still broken',currentCohort%c_area-parea,currentCohort%c_area-oldcarea
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          end if
-       else
-          write(fates_log(),*) 'SPassign, big error in c_area',currentCohort%c_area-parea,currentCohort%pft
-       end if ! still broken
+    if (abs(currentCohort%c_area - parea) > nearzero) then ! there is an error
+      if (abs(currentCohort%c_area - parea) < calloc_abs_error) then !correct this if it's a very small error
+        oldcarea = currentCohort%c_area
+        ! generate new cohort area
+        currentCohort%c_area = currentCohort%c_area - (currentCohort%c_area - parea)
+        currentCohort%n = currentCohort%n*(currentCohort%c_area/oldcarea)
+        if (abs(currentCohort%c_area - parea) > nearzero) then
+          write(fates_log(),*) 'SPassign, c_area still broken', currentCohort%c_area - parea, currentCohort%c_area - oldcarea
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+      else
+        write(fates_log(),*) 'SPassign, big error in c_area', currentCohort%c_area - parea, currentCohort%pft
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if ! still broken
     end if !small error
 
     if(init.eq.ifalse)then
