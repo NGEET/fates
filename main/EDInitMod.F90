@@ -1083,8 +1083,10 @@ contains
     !temp_cohort => temp_cohort%shorter
     !end do
 
-    call fuse_cohorts(site_in, patch_in,bc_in)
-    call sort_cohorts(patch_in)
+    if (hlm_use_sp == ifalse) then
+      call fuse_cohorts(site_in, patch_in,bc_in)
+      call sort_cohorts(patch_in)
+    end if 
 
 
   end subroutine init_cohorts
