@@ -27,19 +27,25 @@ module FatesCohortMod
   use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
   use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
   use FatesAllometryMod,          only : carea_allom, tree_lai, tree_sai
-  use PRTAllometricCarbonMod,     only : ac_bc_inout_id_dbh, ac_bc_inout_id_netdc,       &
-                                       ac_bc_in_id_cdamage, ac_bc_in_id_pft,             &
-                                       ac_bc_in_id_ctrim, ac_bc_in_id_lstat
-  use PRTAllometricCNPMod,        only : acnp_bc_in_id_pft, acnp_bc_in_id_ctrim,         &
-                                     acnp_bc_in_id_lstat, acnp_bc_in_id_netdc,           &
-                                     acnp_bc_in_id_netdc, acnp_bc_in_id_nc_repro,        &
-                                     acnp_bc_in_id_pc_repro, acnp_bc_in_id_cdamage,      &
-                                     acnp_bc_inout_id_dbh, acnp_bc_inout_id_resp_excess, &
-                                     acnp_bc_inout_id_l2fr, acnp_bc_inout_id_cx_int,     &
-                                     acnp_bc_inout_id_emadcxdt, acnp_bc_inout_id_cx0,    &
-                                     acnp_bc_inout_id_netdn, acnp_bc_inout_id_netdp,     &
-                                     acnp_bc_out_id_cefflux, acnp_bc_out_id_nefflux,     &
-                                     acnp_bc_out_id_pefflux, acnp_bc_out_id_limiter
+  use PRTAllometricCarbonMod,     only : ac_bc_inout_id_dbh, ac_bc_inout_id_netdc
+  use PRTAllometricCarbonMod,     only : ac_bc_in_id_cdamage, ac_bc_in_id_pft
+  use PRTAllometricCarbonMod,     only : ac_bc_in_id_ctrim, ac_bc_in_id_lstat
+  use PRTAllometricCarbonMod,     only : ac_bc_in_id_efleaf
+  use PRTAllometricCarbonMod,     only : ac_bc_in_id_effnrt
+  use PRTAllometricCarbonMod,     only : ac_bc_in_id_efstem
+  use PRTAllometricCNPMod,        only : acnp_bc_in_id_pft, acnp_bc_in_id_ctrim
+  use PRTAllometricCNPMod,        only : acnp_bc_in_id_lstat, acnp_bc_in_id_netdc
+  use PRTAllometricCNPMod,        only : acnp_bc_in_id_netdc, acnp_bc_in_id_nc_repro
+  use PRTAllometricCNPMod,        only : acnp_bc_in_id_pc_repro, acnp_bc_in_id_cdamage
+  use PRTAllometricCNPMod,        only : acnp_bc_inout_id_dbh, acnp_bc_inout_id_resp_excess
+  use PRTAllometricCNPMod,        only : acnp_bc_inout_id_l2fr, acnp_bc_inout_id_cx_int
+  use PRTAllometricCNPMod,        only : acnp_bc_inout_id_emadcxdt, acnp_bc_inout_id_cx0
+  use PRTAllometricCNPMod,        only : acnp_bc_inout_id_netdn, acnp_bc_inout_id_netdp
+  use PRTAllometricCNPMod,        only : acnp_bc_out_id_cefflux, acnp_bc_out_id_nefflux
+  use PRTAllometricCNPMod,        only : acnp_bc_out_id_pefflux, acnp_bc_out_id_limiter
+  use PRTAllometricCNPMod,        only : acnp_bc_in_id_efleaf
+  use PRTAllometricCNPMod,        only : acnp_bc_in_id_effnrt
+  use PRTAllometricCNPMod,        only : acnp_bc_in_id_efstem
 
   use shr_infnan_mod,             only : nan => shr_infnan_nan, assignment(=)
   use shr_log_mod,                only : errMsg => shr_log_errMsg
@@ -91,6 +97,11 @@ module FatesCohortMod
     real(r8) :: prom_weight             ! how much of this cohort is promoted each year, as a proportion of all cohorts
     integer  :: nv                      ! number of leaf layers
     integer  :: status_coh              ! growth status of plant  [2 = leaves on , 1 = leaves off]
+    real(r8) :: efleaf_coh              ! elongation factor for leaves [fraction]
+    real(r8) ::  effnrt_coh             ! elongation factor for fine roots [fraction]
+    real(r8) ::  efstem_coh             ! elongation factor for stem [fraction]
+                                        !   for all the elongation factors, 0 means fully abscissed, and 
+                                        !   1 means fully flushed.
     real(r8) :: c_area                  ! areal extent of canopy [m2]
     real(r8) :: treelai                 ! lai of an individual within cohort leaf area [m2 leaf area/m2 crown area]
     real(r8) :: treesai                 ! stem area index of an individual within cohort [m2 stem area/m2 crown area]
@@ -346,6 +357,9 @@ module FatesCohortMod
       this%prom_weight             = nan 
       this%nv                      = fates_unset_int  
       this%status_coh              = fates_unset_int
+      this%efleaf_coh              = nan
+      this%effnrt_coh              = nan 
+      this%efstem_coh              = nan
       this%c_area                  = nan 
       this%treelai                 = nan
       this%treesai                 = nan
@@ -451,6 +465,9 @@ module FatesCohortMod
       this%prom_weight             = 0._r8
       this%nv                      = 0
       this%status_coh              = 0
+      this%efleaf_coh              = 0.0_r8
+      this%effnrt_coh              = 0.0_r8 
+      this%efstem_coh              = 0.0_r8
     
       this%treesai                 = 0._r8
       this%size_class              = 1
@@ -515,8 +532,9 @@ module FatesCohortMod
    
     !=====================================================================================
 
-    subroutine Create(this, prt, pft, nn, hite, coage, dbh, status,                      &
-      ctrim, carea, clayer, crowndamage, spread, can_tlai)
+    subroutine Create(this, prt, pft, nn, hite, coage, dbh, status,            &
+      ctrim, carea, clayer, crowndamage, spread, can_tlai, elongf_leaf,        &
+      elongf_fnrt, elongf_stem)
       !
       ! DESCRIPTION:
       ! set up values for a newly created cohort
@@ -536,6 +554,9 @@ module FatesCohortMod
       real(r8),                 intent(in)             :: spread           ! how spread crowns are in horizontal space
       real(r8),                 intent(in)             :: carea            ! area of cohort, for SP mode [m2]
       real(r8),                 intent(in)             :: can_tlai(nclmax) ! patch-level total LAI of each leaf layer
+      real(r8),                 intent(in)             :: elongf_leaf      ! leaf elongation factor [fraction]
+      real(r8),                 intent(in)             :: elongf_fnrt      ! fine-root "elongation factor" [fraction]
+      real(r8),                 intent(in)             :: elongf_stem      ! stem "elongation factor" [fraction]
 
       ! LOCAL VARIABLES:
       integer  :: iage        ! loop counter for leaf age classes
@@ -555,6 +576,9 @@ module FatesCohortMod
       this%dbh          = dbh
       this%coage        = coage
       this%canopy_trim  = ctrim
+      this%efleaf_coh   = elongf_leaf
+      this%effnrt_coh   = elongf_fnrt
+      this%efstem_coh   = elongf_stem
 
       ! This routine may be called during restarts, and at this point in the call sequence
       ! the actual cohort data is unknown, as this is really only used for allocation
@@ -612,9 +636,9 @@ module FatesCohortMod
         this%canopy_layer, can_tlai, this%vcmax25top)
 
       if (hlm_use_sp .eq. ifalse) then
-        this%treesai = tree_sai(this%pft, this%dbh, this%crowndamage,                    &
-          this%canopy_trim, this%c_area, this%n, this%canopy_layer, can_tlai,            &
-          this%treelai,this%vcmax25top, 2)
+        this%treesai = tree_sai(this%pft, this%dbh, this%crowndamage,          &
+          this%canopy_trim, this%efstem_coh, this%c_area, this%n,              &
+          this%canopy_layer, can_tlai, this%treelai,this%vcmax25top, 2)
       end if
 
       call this%InitPRTBoundaryConditions()
@@ -659,6 +683,9 @@ module FatesCohortMod
       copyCohort%prom_weight             = this%prom_weight
       copyCohort%nv                      = this%nv
       copyCohort%status_coh              = this%status_coh
+      copyCohort%efleaf_coh              = this%efleaf_coh 
+      copyCohort%effnrt_coh              = this%effnrt_coh 
+      copyCohort%efstem_coh              = this%efstem_coh
       copyCohort%c_area                  = this%c_area
       copyCohort%treelai                 = this%treelai
       copyCohort%treesai                 = this%treesai
@@ -826,6 +853,9 @@ module FatesCohortMod
         call this%prt%RegisterBCIn(ac_bc_in_id_pft, bc_ival=this%pft)
         call this%prt%RegisterBCIn(ac_bc_in_id_ctrim, bc_rval=this%canopy_trim)
         call this%prt%RegisterBCIn(ac_bc_in_id_lstat, bc_ival=this%status_coh)
+        call this%prt%RegisterBCIn(ac_bc_in_id_efleaf, bc_rval = this%efleaf_coh)
+        call this%prt%RegisterBCIn(ac_bc_in_id_effnrt, bc_rval = this%effnrt_coh)
+        call this%prt%RegisterBCIn(ac_bc_in_id_efstem, bc_rval = this%efstem_coh)
         
       case (prt_cnp_flex_allom_hyp)
    
@@ -834,6 +864,9 @@ module FatesCohortMod
         call this%prt%RegisterBCIn(acnp_bc_in_id_pft, bc_ival=this%pft)
         call this%prt%RegisterBCIn(acnp_bc_in_id_ctrim, bc_rval=this%canopy_trim)
         call this%prt%RegisterBCIn(acnp_bc_in_id_lstat, bc_ival=this%status_coh)
+        call this%prt%RegisterBCIn(acnp_bc_in_id_efleaf, bc_rval = this%efleaf_coh)
+        call this%prt%RegisterBCIn(acnp_bc_in_id_effnrt, bc_rval = this%effnrt_coh)
+        call this%prt%RegisterBCIn(acnp_bc_in_id_efstem, bc_rval = this%efstem_coh)
         call this%prt%RegisterBCIn(acnp_bc_in_id_netdc, bc_rval=this%npp_acc)
   
         call this%prt%RegisterBCIn(acnp_bc_in_id_nc_repro, bc_rval=this%nc_repro)
@@ -991,6 +1024,10 @@ module FatesCohortMod
       write(fates_log(),*) 'cohort%canopy_layer_yesterday = ', this%canopy_layer_yesterday
       write(fates_log(),*) 'cohort%nv                     = ', this%nv
       write(fates_log(),*) 'cohort%status_coh             = ', this%status_coh
+      write(fates_log(),*) 'co%status_coh                 = ', this%status_coh
+      write(fates_log(),*) 'co%efleaf_coh                 = ', this%efleaf_coh
+      write(fates_log(),*) 'co%effnrt_coh                 = ', this%effnrt_coh
+      write(fates_log(),*) 'co%efstem_coh                 = ', this%efstem_coh
       write(fates_log(),*) 'cohort%canopy_trim            = ', this%canopy_trim
       write(fates_log(),*) 'cohort%excl_weight            = ', this%excl_weight               
       write(fates_log(),*) 'cohort%prom_weight            = ', this%prom_weight               

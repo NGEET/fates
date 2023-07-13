@@ -38,8 +38,11 @@ module FatesInventoryInitMod
    use FatesSiteMod     , only : fates_site_type
    use FatesPatchMod    , only : fates_patch_type
    use FatesCohortMod   , only : fates_cohort_type
-   use FatesConstantsMod, only : area
-   use FatesConstantsMod, only : leaves_on, leaves_off
+   use EDTypesMod       , only : area
+   use FatesConstantsMod, only : leaves_on
+   use FatesConstantsMod, only : leaves_off
+   use FatesConstantsMod, only : ihard_stress_decid
+   use FatesConstantsMod, only : isemi_stress_decid
    use PRTGenericMod    , only : num_elements
    use PRTGenericMod    , only : element_list
    use FatesConstantsMod, only : phen_cstat_nevercold
@@ -900,7 +903,6 @@ contains
       real(r8)                                    :: c_avgRG       ! avg radial growth (NOT USED)
       real(r8)                                    :: site_spread   ! initial guess of site spread
                                                                    ! should be quickly re-calculated
-      integer                                     :: cstatus       ! cohort status
       integer,parameter                           :: rstatus = 0   ! recruit status
 
       type(fates_patch_type), pointer                :: cpatch        ! current patch pointer
@@ -924,7 +926,8 @@ contains
       real(r8) :: m_sapw   ! Generic mass for sapwood [kg]
       real(r8) :: m_store  ! Generic mass for storage [kg]
       real(r8) :: m_repro  ! Generic mass for reproductive tissues [kg]
-      real(r8) :: stem_drop_fraction
+      real(r8) :: fnrt_drop_fraction ! Fine-root abscission fraction
+      real(r8) :: stem_drop_fraction ! Stem abscission fraction
       integer  :: i_pft, ncohorts_to_create
      
       character(len=128),parameter    :: wr_fmt = &
@@ -1033,46 +1036,73 @@ contains
          call h_allom(c_dbh,temp_cohort%pft,temp_cohort%hite)
          temp_cohort%canopy_trim = 1.0_r8
 
+         ! Determine the phenology status and the elongation factors.
+         fnrt_drop_fraction = prt_params%phen_fnrt_drop_fraction(temp_cohort%pft)
+         stem_drop_fraction = prt_params%phen_stem_drop_fraction(temp_cohort%pft)
+
+         if( prt_params%season_decid(temp_cohort%pft) == itrue .and. &
+              any(csite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
+            ! Cold deciduous and season is for leaves off. Set leaf status and 
+            ! elongation factors accordingly
+            temp_cohort%efleaf_coh = 0.0_r8
+            temp_cohort%effnrt_coh = 1._r8 - fnrt_drop_fraction
+            temp_cohort%efstem_coh = 1._r8 - stem_drop_fraction
+
+            temp_cohort%status_coh = leaves_off
+
+         elseif ( any(prt_params%stress_decid(temp_cohort%pft) == [ihard_stress_decid,isemi_stress_decid])) then
+            ! Drought deciduous.  For the default approach, elongation factor is either
+            ! zero (full abscission) or one (fully flushed), but this can also be a
+            ! fraction in other approaches. Here we assume that leaves are "on" (i.e.
+            ! either fully flushed or growing) if elongation factor is not 0 for the 
+            ! initial conditions.
+            ! 
+            ! For tissues other than leaves, the actual drop fraction is a combination
+            ! of the elongation factor (e) and the drop fraction (x), which will ensure
+            ! that the remaining tissue biomass will be exactly e when x=1, and exactly
+            ! the original biomass when x = 0.
+            temp_cohort%efleaf_coh = csite%elong_factor(temp_cohort%pft)
+            temp_cohort%effnrt_coh = 1.0_r8 - (1.0_r8 - temp_cohort%efleaf_coh ) * fnrt_drop_fraction
+            temp_cohort%efstem_coh = 1.0_r8 - (1.0_r8 - temp_cohort%efleaf_coh ) * stem_drop_fraction
+
+            if (temp_cohort%efleaf_coh > 0.0_r8) then
+               ! Assume leaves are growing even if they are not fully flushed.
+               temp_cohort%status_coh = leaves_on
+            else
+               ! Leaves are off (abscissing).
+               temp_cohort%status_coh = leaves_off
+            end if
+         else
+            ! Evergreen, or deciduous PFT during the growing season. Assume tissues are fully flushed.
+            temp_cohort%efleaf_coh = 1.0_r8
+            temp_cohort%effnrt_coh = 1.0_r8
+            temp_cohort%efstem_coh = 1.0_r8
+
+            temp_cohort%status_coh = leaves_on
+         end if
+
          call bagw_allom(temp_cohort%dbh,temp_cohort%pft, &
-              temp_cohort%crowndamage, c_agw)
+              temp_cohort%crowndamage, temp_cohort%efstem_coh, c_agw)
          ! Calculate coarse root biomass from allometry
-         call bbgw_allom(temp_cohort%dbh,temp_cohort%pft,c_bgw)
+         call bbgw_allom(temp_cohort%dbh,temp_cohort%pft, temp_cohort%efstem_coh, c_bgw)
 
          ! Calculate the leaf biomass (calculates a maximum first, then applies canopy trim
          ! and sla scaling factors)
          call bleaf(temp_cohort%dbh,temp_cohort%pft,temp_cohort%crowndamage,&
-              temp_cohort%canopy_trim,c_leaf)
+              temp_cohort%canopy_trim, temp_cohort%efleaf_coh, c_leaf)
          
          ! Calculate fine root biomass
 
          temp_cohort%l2fr = prt_params%allom_l2fr(temp_cohort%pft)
-         call bfineroot(temp_cohort%dbh,temp_cohort%pft,temp_cohort%canopy_trim,temp_cohort%l2fr,c_fnrt)
+         call bfineroot(temp_cohort%dbh,temp_cohort%pft,temp_cohort%canopy_trim,temp_cohort%l2fr, &
+              temp_cohort%effnrt_coh, c_fnrt)
 
          ! Calculate sapwood biomass
          call bsap_allom(temp_cohort%dbh,temp_cohort%pft,temp_cohort%crowndamage, &
-              temp_cohort%canopy_trim, a_sapw, c_sapw)
+              temp_cohort%canopy_trim, temp_cohort%efstem_coh, a_sapw, c_sapw)
          
          call bdead_allom( c_agw, c_bgw, c_sapw, temp_cohort%pft, c_struct )
          call bstore_allom(temp_cohort%dbh, temp_cohort%pft, temp_cohort%crowndamage,temp_cohort%canopy_trim, c_store)
-
-         cstatus = leaves_on
-         stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(temp_cohort%pft)
-
-         if( prt_params%season_decid(temp_cohort%pft) == itrue .and. &
-              any(csite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
-            c_leaf  = 0._r8
-            c_sapw = (1._r8 - stem_drop_fraction) * c_sapw
-            c_struct  = (1._r8 - stem_drop_fraction) * c_struct
-            cstatus = leaves_off
-         endif
-
-         if ( prt_params%stress_decid(temp_cohort%pft) == itrue .and. &
-              any(csite%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff])) then
-            c_leaf  = 0._r8
-            c_sapw = (1._r8 - stem_drop_fraction) * c_sapw
-            c_struct  = (1._r8 - stem_drop_fraction) * c_struct
-            cstatus = leaves_off
-         endif
 
          prt_obj => null()
          call InitPRTObject(prt_obj)
@@ -1162,7 +1192,9 @@ contains
 
          call create_cohort(csite, cpatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, &
               temp_cohort%coage, temp_cohort%dbh, &
-              prt_obj, cstatus, rstatus, temp_cohort%canopy_trim,temp_cohort%c_area, &
+              prt_obj, temp_cohort%efleaf_coh, temp_cohort%effnrt_coh, &
+              temp_cohort%efstem_coh, temp_cohort%status_coh, rstatus, &
+              temp_cohort%canopy_trim,temp_cohort%c_area, &
               1, temp_cohort%crowndamage, csite%spread, bc_in)
 
          deallocate(temp_cohort) ! get rid of temporary cohort
