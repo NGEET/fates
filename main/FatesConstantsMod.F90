@@ -53,6 +53,25 @@ module FatesConstantsMod
   integer, parameter, public :: leaves_off = 1  ! Flag specifying that a deciduous plant has dropped
                                                 ! its leaves and should not be trying to allocate
                                                 ! towards any growth.
+  integer, parameter, public :: leaves_shedding = 3  ! Flag specifying that a deciduous plant has leaves
+                                                     ! but is shedding them (partial shedding). This plant
+                                                     ! should not allocate carbon towards growth or 
+                                                     ! reproduction.
+integer, parameter, public :: ihard_stress_decid = 1 ! If the PFT is stress (drought) deciduous,
+                                                     !  this flag is used to tell that the PFT
+                                                     !  is a "hard" deciduous (i.e., the plant
+                                                     !  has only two statuses, the plant either
+                                                     !  sheds all leaves when it's time, or seeks
+                                                     !  to flush the leaves back to allometry 
+                                                     !  when conditions improve.
+integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (drought) deciduous,
+                                                     !  this flag is used to tell that the PFT
+                                                     !  is a semi-deciduous (i.e., the plant
+                                                     !  can downregulate the amount of leaves
+                                                     !  relative to the allometry based on 
+                                                     !  soil moisture conditions. It can still
+                                                     !  shed all leaves if conditions are very
+                                                     !  dry.
 
   integer, parameter, public :: ican_upper = 1  ! nominal index for the upper canopy
   integer, parameter, public :: ican_ustory = 2 ! nominal index for diagnostics that refer to understory layers 

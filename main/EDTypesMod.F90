@@ -82,25 +82,7 @@ module EDTypesMod
   integer, parameter, public  :: numlevsoil_max       = 30         ! This is scratch space used for static arrays
                                                                    ! The actual number of soil layers should not exceed this
 
-  integer, parameter, public :: leaves_shedding = 3  ! Flag specifying that a deciduous plant has leaves
-                                                     ! but is shedding them (partial shedding). This plant
-                                                     ! should not allocate carbon towards growth or 
-                                                     ! reproduction.
-  integer, parameter, public :: ihard_stress_decid = 1 ! If the PFT is stress (drought) deciduous,
-  !  this flag is used to tell that the PFT
-  !  is a "hard" deciduous (i.e., the plant
-  !  has only two statuses, the plant either
-  !  sheds all leaves when it's time, or seeks
-  !  to flush the leaves back to allometry 
-  !  when conditions improve.
-integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (drought) deciduous,
-  !  this flag is used to tell that the PFT
-  !  is a semi-deciduous (i.e., the plant
-  !  can downregulate the amount of leaves
-  !  relative to the allometry based on 
-  !  soil moisture conditions. It can still
-  !  shed all leaves if conditions are very
-  !  dry.
+
 
 
   ! BIOLOGY/BIOGEOCHEMISTRY        

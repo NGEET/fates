@@ -48,9 +48,9 @@ Module EDCohortDynamicsMod
   use PRTGenericMod         , only : num_elements
   use FatesConstantsMod     , only : leaves_on
   use FatesConstantsMod     , only : leaves_off
-  use EDTypesMod            , only : leaves_shedding
-  use EDTypesMod            , only : ihard_stress_decid
-  use EDTypesMod            , only : isemi_stress_decid
+  use FatesConstantsMod     , only : leaves_shedding
+  use FatesConstantsMod     , only : ihard_stress_decid
+  use FatesConstantsMod     , only : isemi_stress_decid
   use EDParamsMod           , only : ED_val_cohort_age_fusion_tol
   use FatesInterfaceTypesMod      , only : hlm_use_planthydro
   use FatesInterfaceTypesMod      , only : hlm_parteh_mode
@@ -206,8 +206,10 @@ integer                          :: nlevrhiz         ! number of rhizosphere lay
 
 ! create new cohort
 allocate(newCohort)
-call newCohort%Create(prt, pft, nn, hite, coage, dbh, status, ctrim, carea,    &
-   clayer, crowndamage, spread, patchptr%canopy_layer_tlai)
+call newCohort%Create(prt, pft, nn, hite, coage, dbh, status, ctrim, carea,              &
+   clayer, crowndamage, spread, patchptr%canopy_layer_tlai, elongf_leaf, elongf_fnrt,    &
+   elongf_stem)
+
 
 ! Put cohort at the right place in the linked list
 storebigcohort   => patchptr%tallest

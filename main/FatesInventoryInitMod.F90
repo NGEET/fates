@@ -41,8 +41,8 @@ module FatesInventoryInitMod
    use EDTypesMod       , only : area
    use FatesConstantsMod, only : leaves_on
    use FatesConstantsMod, only : leaves_off
-   use EDTypesMod       , only : ihard_stress_decid
-   use EDTypesMod       , only : isemi_stress_decid
+   use FatesConstantsMod, only : ihard_stress_decid
+   use FatesConstantsMod, only : isemi_stress_decid
    use PRTGenericMod    , only : num_elements
    use PRTGenericMod    , only : element_list
    use EDTypesMod       , only : phen_cstat_nevercold

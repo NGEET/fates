@@ -34,8 +34,8 @@ module EDInitMod
   use EDTypesMod                , only : init_spread_inventory
   use FatesConstantsMod         , only : leaves_on
   use FatesConstantsMod         , only : leaves_off
-  use EDTypesMod                , only : ihard_stress_decid
-  use EDTypesMod                , only : isemi_stress_decid
+  use FatesConstantsMod         , only : ihard_stress_decid
+  use FatesConstantsMod         , only : isemi_stress_decid
   use PRTGenericMod             , only : num_elements
   use PRTGenericMod             , only : element_list
   use EDTypesMod                , only : phen_cstat_nevercold
@@ -925,7 +925,7 @@ contains
 
                   ! Calculate the leaf biomass from allometry
                   ! (calculates a maximum first, then applies canopy trim)
-                  call bleaf(dbh, pft, crown_damage, canopy_trim, c_leaf)
+                  call bleaf(dbh, pft, crown_damage, canopy_trim, efleaf_coh, c_leaf)
                endif  ! sp mode
 
             else ! interpret as initial diameter and calculate density 

@@ -56,9 +56,9 @@ module EDPhysiologyMod
   use FatesLitterMod      , only : adjust_SF_CWD_frac
   use EDParamsMod         , only : nclmax
   use EDTypesMod          , only : AREA,AREA_INV
-  use EDTypesMod          , only : leaves_shedding
-  use EDTypesMod          , only : ihard_stress_decid
-  use EDTypesMod          , only : isemi_stress_decid
+  use FatesConstantsMod   , only : leaves_shedding
+  use FatesConstantsMod   , only : ihard_stress_decid
+  use FatesConstantsMod   , only : isemi_stress_decid
   use EDParamsMod         , only : nlevleaf
   use EDTypesMod          , only : num_vegtemp_mem
   use FatesConstantsMod   , only : maxpft
@@ -2318,8 +2318,8 @@ contains
             (ft .eq. currentPatch%nocomp_pft_label))) then
 
             hite               = EDPftvarcon_inst%hgt_min(ft)
-            stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(ft)
-            fnrt_drop_fraction = EDPftvarcon_inst%phen_fnrt_drop_fraction(ft)
+            stem_drop_fraction = prt_params%phen_stem_drop_fraction(ft)
+            fnrt_drop_fraction = prt_params%phen_fnrt_drop_fraction(ft)
             l2fr               = currentSite%rec_l2fr(ft, currentPatch%NCL_p)
             crowndamage        = 1 ! new recruits are undamaged
 
@@ -2373,7 +2373,7 @@ contains
             call bsap_allom(dbh, ft, crowndamage, init_recruit_trim,           &
                efstem_coh, a_sapw, c_sapw)
             call bagw_allom(dbh, ft, crowndamage, efstem_coh, c_agw)
-            call bbgw_allom(dbh, ft, c_bgw)
+            call bbgw_allom(dbh, ft, efstem_coh, c_bgw)
             call bdead_allom(c_agw, c_bgw, c_sapw, ft, c_struct)
             call bstore_allom(dbh, ft, crowndamage, init_recruit_trim, c_store)
 
