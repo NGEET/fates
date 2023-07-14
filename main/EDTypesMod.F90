@@ -435,6 +435,7 @@ module EDTypesMod
      integer  ::  ncl_p                                            ! Number of occupied canopy layers
      integer  ::  land_use_label                                   ! patch label for land use classification (primaryland, secondaryland, etc)
      real(r8) ::  age_since_anthro_disturbance                     ! average age for secondary forest since last anthropogenic disturbance
+     logical  ::  changed_landuse_this_ts                          ! logical flag to track patches that have just undergone land use change
 
 
      ! Running means

@@ -473,6 +473,7 @@ contains
     real(r8) :: disturbance_rate             ! rate of disturbance being resolved [fraction of patch area / day]
     real(r8) :: oldarea                      ! old patch area prior to disturbance
     logical  :: clearing_matrix(n_landuse_cats,n_landuse_cats)  ! do we clear vegetation when transferring from one LU type to another?
+    type (ed_patch_type) , pointer :: buffer_patch
 
     !---------------------------------------------------------------------
 
@@ -644,8 +645,6 @@ contains
 
                             ! Transfer in litter fluxes from plants in various contexts of death and destruction
 
-                            ! CDK what do we do here for land use transitions?
-
                             select case(i_disturbance_type)
                             case (dtype_ilog)
                                call logging_litter_fluxes(currentSite, currentPatch, &
@@ -660,6 +659,8 @@ contains
                                call landusechange_litter_fluxes(currentSite, currentPatch, &
                                     new_patch, patch_site_areadis,bc_in, &
                                     clearing_matrix(i_donorpatch_landuse_type,i_landusechange_receiverpatchlabel))
+
+                               new_patch%changed_landuse_this_ts = .true.
                             case default
                                write(fates_log(),*) 'unknown disturbance mode?'
                                write(fates_log(),*) 'i_disturbance_type: ',i_disturbance_type
@@ -1255,6 +1256,89 @@ contains
        end do disturbance_type_loop
 
     end do nocomp_pft_loop
+
+    nocomp_and_luh_if: if ( use_fates_nocomp .eq. itrue .and. use_fates_luh .eq. itrue ) then
+
+       ! disturbance has just hapopened, and now the nocomp PFT identities of the newly-disturbed patches
+       ! need to be remapped to those associated with the new land use type.
+
+       ! logic:  loop over land use types. figure out the nocomp PFT fractions for all newly-disturbed patches that have ebcome that land use type.
+       ! if the
+
+       lu_loop: do i_land_use_label = 1, n_landuse_cats
+
+          nocomp_pft_area_vector(:) = 0._r8
+          nocomp_pft_area_vector_allocated(:) = 0._r8
+          
+          currentPatch => currentSite%oldest_patch
+          do while(associated(currentPatch))
+             if (currentPatch%changed_landuse_this_ts) then
+                nocomp_pft_area_vector(currentPatch%nocomp_pft_label) = nocomp_pft_area_vector(currentPatch%nocomp_pft_label) + currentPatch%area
+             end if
+             currentPatch => currentPatch%younger
+          end do
+
+          ! create buffer patch to put all of the pieces carved off of other patches
+          call create_patch(currentSite, buffer_patch, 0._r8, &
+                        0._r8, i_land_use_label, 0)
+
+          ! Initialize the litter pools to zero
+          do el=1,num_elements
+             call buffer_patch%litter(el)%InitConditions(init_leaf_fines=0._r8, &
+                  init_root_fines=0._r8, &
+                  init_ag_cwd=0._r8, &
+                  init_bg_cwd=0._r8, &
+                  init_seed=0._r8,   &
+                  init_seed_germ=0._r8)
+          end do
+          buffer_patch%tallest  => null()
+          buffer_patch%shortest => null()
+          
+          currentPatch => currentSite%oldest_patch
+          do while(associated(currentPatch))
+             if (currentPatch%changed_landuse_this_ts) then
+                fraction_to_keep = currentSite%area_pft(currentPatch%nocomp_pft_label,i_land_use_label) * area / nocomp_pft_area_vector(currentPatch%nocomp_pft_label)
+                if (fraction_to_keep .lt. nearzero) then
+                   ! we don't want any patch area with this PFT idendity at all anymore. Fuse it into the buffer patch.
+                   currentPatch%nocomp_pft_label = 0
+                   call fuse_2_patches(currentSite, currentPatch, buffer_patch)
+                elseif (fraction_to_keep .lt. (1._r8 - nearzero)) then
+                   ! we want to split the patch into two here. leave one patch as-is, and put the rest into the buffer patch.
+                   !cdkcdk TODO
+                else
+                   ! we want to keep all of this patch (and possibly more)
+                   nocomp_pft_area_vector_allocated(currentPatch%nocomp_pft_label) = &
+                        nocomp_pft_area_vector_allocated(currentPatch%nocomp_pft_label) + currentPatch%area
+                   currentPatch%changed_landuse_this_ts = .false.
+                endif
+             end if
+             currentPatch => currentPatch%younger
+          end do
+
+          ! now we need to loop through the nocomp PFTs, and split the buffer patch into a set of patches to put back in the linked list
+          nocomp_pft_loop: do i_pft = 1, numpft
+
+             if (nocomp_pft_area_vector_allocated(i_pft) .lt. currentSite%area_pft(i_pft,i_land_use_label) * area) then
+
+                newp_area = currentSite%area_pft(i_pft,i_land_use_label) * area - nocomp_pft_area_vector_allocated(i_pft)
+
+                if (newp_area .lt. buffer_patch%area) then
+
+                   ! split patch in two, and put one of them into the linked list cdkcdk TODO
+                   
+                else
+
+                   ! put the buffer patch directly into the linked list cdkcdk TODO
+                   
+                end if
+
+             end if
+
+          end do nocomp_pft_loop
+
+
+       end do lu_loop
+    endif nocomp_and_luh_if
 
     !zero disturbance rate trackers on all patches
     currentPatch => currentSite%oldest_patch
@@ -2476,6 +2560,7 @@ contains
     new_patch%burnt_frac_litter(:) = 0._r8
     new_patch%total_tree_area    = 0.0_r8  
     new_patch%NCL_p              = 1
+    new_patch%changed_landuse_this_ts = .false.
 
    
     return
