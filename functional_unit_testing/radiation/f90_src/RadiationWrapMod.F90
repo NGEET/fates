@@ -156,7 +156,7 @@ contains
   
   subroutine WrapSolve(ib,boundary_type,Rbeam_atm,Rdiff_atm, &
        albedo_beam, & 
-       albedo_diff, & 
+       albedo_diff, &
        frac_abs_can_beam, &
        frac_abs_can_diff, &
        frac_beam_grnd_beam, &
@@ -175,9 +175,16 @@ contains
     real(r8)  :: frac_diff_grnd_diff
     real(r8)  :: Rbeam_atm          ! Intensity of beam radiation at top of canopy [W/m2 ground]
     real(r8)  :: Rdiff_atm          ! Intensity of diffuse radiation at top of canopy [W/m2 ground]
+
+    real(r8) :: taulamb(50)
+    real(r8) :: omega(50,50)
+    integer  :: ipiv(50)
     
     call twostream%Solve(ib,boundary_type, & 
          Rbeam_atm,Rdiff_atm, &
+         taulamb, &
+         omega, &
+         ipiv, &
          albedo_beam, & 
          albedo_diff, & 
          frac_abs_can_beam, &

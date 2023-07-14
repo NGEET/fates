@@ -1028,7 +1028,7 @@ contains
     real(r8)  :: Rdiff_atm          ! Intensity of diffuse radiation at top of canopy [W/m2 ground]
                                     ! 
     real(r8)  :: taulamb(:)         ! both the coefficient vector and constant side of the linear equation
-    real(r8)  :: omega(:)           ! the square matrix to be inverted
+    real(r8)  :: omega(:,:)         ! the square matrix to be inverted
     integer   :: ipiv(:)            ! pivot indices for LAPACK (not optional output, we don't use)
     
     real(r8) :: albedo_beam    ! Mean albedo at canopy top generated from beam radiation [-]

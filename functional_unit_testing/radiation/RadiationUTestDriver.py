@@ -38,6 +38,7 @@ matplotlib.rc('font', **font)
 
 
 # Instantiate the F90 modules
+f90_shr_obj = ctypes.CDLL('bld/WrapShrMod.o',mode=ctypes.RTLD_GLOBAL)
 f90_mem_obj = ctypes.CDLL('bld/FatesRadiationMemMod.o',mode=ctypes.RTLD_GLOBAL)
 f90_twostr_obj = ctypes.CDLL('bld/TwoStreamMLPEMod.o',mode=ctypes.RTLD_GLOBAL)
 f90_wrap_obj = ctypes.CDLL('bld/RadiationWrapMod.o',mode=ctypes.RTLD_GLOBAL)
@@ -144,7 +145,7 @@ def main(argv):
     # Process the core 2Stream parameters from parameters in file
     iret = param_prep_call(ci(n_pft))
 
-    if(True):
+    if(False):
         ParallelElementPerturbDist()
 
     if(True):
