@@ -386,7 +386,7 @@ contains
   ! ===========================================================================
 
   subroutine allocate_bcin(bc_in, nlevsoil_in, nlevdecomp_in, num_lu_harvest_cats, num_luh2_states, &
-       num_luh2_transitions, natpft_lb,natpft_ub)
+       num_luh2_transitions, surfpft_lb,surfpft_ub)
       
       ! ---------------------------------------------------------------------------------
       ! Allocate and Initialze the FATES boundary condition vectors
@@ -399,7 +399,7 @@ contains
       integer,intent(in)              :: num_lu_harvest_cats
       integer,intent(in)              :: num_luh2_states
       integer,intent(in)              :: num_luh2_transitions
-      integer,intent(in)              :: natpft_lb,natpft_ub ! dimension bounds of the array holding surface file pft data
+      integer,intent(in)              :: surfpft_lb,surfpft_ub ! dimension bounds of the array holding surface file pft data
       
       ! Allocate input boundaries
 
@@ -533,7 +533,13 @@ contains
          allocate(bc_in%hlm_harvest_catnames(0))
       end if
 
-      allocate(bc_in%pft_areafrac(natpft_lb:natpft_ub))
+      if ( hlm_use_fixed_biogeog .eq. itrue) then
+         if (hlm_use_luh .gt. 0 ) then
+            allocate(bc_in%pft_areafrac_lu(fates_hlm_num_natpfts,num_luh2_states))
+         else
+            allocate(bc_in%pft_areafrac(surfpft_lb:surfpft_ub))
+         endif
+      endif
 
       ! LUH2 state and transition data
       if (hlm_use_luh .gt. 0) then
@@ -545,10 +551,11 @@ contains
 
       ! Variables for SP mode. 
       if(hlm_use_sp.eq.itrue) then
-        allocate(bc_in%hlm_sp_tlai(natpft_lb:natpft_ub))
-        allocate(bc_in%hlm_sp_tsai(natpft_lb:natpft_ub))     
-        allocate(bc_in%hlm_sp_htop(natpft_lb:natpft_ub))
-      end if 
+        allocate(bc_in%hlm_sp_tlai(surfpft_lb:surfpft_ub))
+        allocate(bc_in%hlm_sp_tsai(surfpft_lb:surfpft_ub))
+        allocate(bc_in%hlm_sp_htop(surfpft_lb:surfpft_ub))
+     end if
+
       return
    end subroutine allocate_bcin
 
@@ -767,6 +774,10 @@ contains
             ! maxpatch_total does not include the bare ground (so add 1)
             
             fates_maxPatchesPerSite = max(surf_numpft+surf_numcft,maxpatch_total+1)
+
+            ! if this is nocomp with land use, track things differently.
+            ! we want the number of natpfts minus the bare ground PFT.
+            fates_hlm_num_natpfts = surf_numpft -1
 
          else
 

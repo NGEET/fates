@@ -736,7 +736,9 @@ module EDTypesMod
      real(r8) ::  lon                                          ! longitude: degrees 
 
      ! Fixed Biogeography mode inputs
-     real(r8), allocatable :: area_PFT(:)                      ! Area allocated to individual PFTs    
+     real(r8), allocatable :: area_PFT(:,:)                    ! Area allocated to individual PFTs, indexed by land use class  [ha/ha of non-bareground area]
+     real(r8) :: area_bareground                               ! Area allocated to bare ground in nocomp configurations (corresponds to HLM PFT 0) [ha/ha]
+
      integer, allocatable  :: use_this_pft(:)                  ! Is area_PFT > 0 ? (1=yes, 0=no)
 
      ! Total area of patches in each age bin [m2]

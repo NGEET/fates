@@ -38,7 +38,10 @@ module FatesConstantsMod
   integer, parameter, public :: pastureland = 4
   integer, parameter, public :: cropland = 5
 
-  ! Bareground label for no competition mode
+  ! Bareground nocomp land use label
+  integer, parameter, public :: nocomp_bareground_land = 0  ! not a real land use type, only for labeling any bare-ground nocomp patches
+
+  ! Bareground nocomp PFT label for no competition mode
   integer, parameter, public :: nocomp_bareground = 0
 
   ! Flags specifying how phosphorous uptake and turnover interacts

@@ -4537,7 +4537,7 @@ end subroutine flush_hvars
          ! Calculate the site-level total vegetated area (i.e. non-bareground)
          site_area_veg = area
          if (hlm_use_nocomp .eq. itrue .and. hlm_use_fixed_biogeog .eq. itrue) then
-            site_area_veg = area - sites(s)%area_pft(0)
+            site_area_veg = area - sites(s)%area_bareground * area
          end if
 
          cpatch => sites(s)%oldest_patch
