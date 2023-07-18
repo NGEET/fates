@@ -1061,27 +1061,35 @@ module PRTAllometricCarbonMod
                          ct_dagwdd, ct_dbgwdd, ct_dsapdd, ct_ddeaddd)
         call bstore_allom(dbh,ipft,crowndamage, canopy_trim,ct_store,ct_dstoredd)
 
-        ! If the TRS is switched off then we use FATES's default reproductive allocation.
-        if ( regeneration_model == default_regeneration .or. &
-             prt_params%allom_dbh_maxheight(ipft) < min_max_dbh_for_trees ) then !The Tree Recruitment Scheme 
-                                                                                 !is only for tree pfts
-        ! Calculate fraction of carbon going towards reproduction
-        if (dbh <= prt_params%dbh_repro_threshold(ipft)) then ! cap on leaf biomass
-           repro_fraction = prt_params%seed_alloc(ipft)
-        else
-           repro_fraction = prt_params%seed_alloc(ipft) + prt_params%seed_alloc_mature(ipft)
-        end if ! End dbh check on if to add additional carbon to reproduction.
+        ! If the TRS is switched off, or if the plant is a shrub or grass
+        ! then we use FATES's default reproductive allocation.
+        ! We designate a plant a shrub or grass if its dbh at maximum height
+        ! is less than 15 cm
         
-        ! If the TRS is switched on (with or w/o seedling dynamics) then reproductive allocation is
-        ! a pft-specific function of dbh. This allows for the representation of different
-        ! reproductive schedules (Wenk and Falster, 2015)
+        if ( regeneration_model == default_regeneration .or. &
+             prt_params%allom_dbh_maxheight(ipft) < min_max_dbh_for_trees ) then
+
+           ! TRS is only for tree pfts
+           ! Calculate fraction of carbon going towards reproduction
+           if (dbh <= prt_params%dbh_repro_threshold(ipft)) then ! cap on leaf biomass
+              repro_fraction = prt_params%seed_alloc(ipft)
+           else
+              repro_fraction = prt_params%seed_alloc(ipft) + prt_params%seed_alloc_mature(ipft)
+           end if ! End dbh check on if to add additional carbon to reproduction.
+
+           ! If the TRS is switched on (with or w/o seedling dynamics) then reproductive allocation is
+           ! a pft-specific function of dbh. This allows for the representation of different
+           ! reproductive schedules (Wenk and Falster, 2015)
         else if ( any(regeneration_model == [TRS_regeneration, TRS_no_seedling_dyn]) .and. &
-                  prt_params%allom_dbh_maxheight(ipft) > min_max_dbh_for_trees ) then
+             prt_params%allom_dbh_maxheight(ipft) > min_max_dbh_for_trees ) then
 
-        repro_fraction = prt_params%seed_alloc(ipft) * &
-        (exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm) / &
-        (1 + exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm)))
-
+           repro_fraction = prt_params%seed_alloc(ipft) * &
+                (exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm) / &
+                (1 + exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm)))
+        else
+           write(fates_log(),*) 'unknown seed allocation and regeneration model, exiting'
+           write(fates_log(),*) 'regeneration_model: ',regeneration_model
+           call endrun(msg=errMsg(sourcefile, __LINE__))
         end if ! TRS switch 
 
         dCdx = 0.0_r8

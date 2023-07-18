@@ -1954,15 +1954,15 @@ contains
      type(ed_patch_type),  pointer :: cpatch
      type(ed_cohort_type), pointer :: ccohort
      integer :: s, ifp, io_si, pft 
-     real(r8) :: new_seedling_layer_par                ! seedling layer par in the current timestep
-     real(r8) :: new_seedling_layer_smp(maxpft)        ! seedling layer smp in the current timestep
-     real(r8) :: new_seedling_mdd(maxpft)              ! seedling layer moisture deficit days in the current timestep
-     integer  :: ilayer_seedling_root(maxpft)          ! the soil layer at seedling rooting depth
-     real(r8) :: seedling_par_high                     ! higher intensity par for seedlings (par at exposed ground) [W/m2]
-     real(r8) :: par_high_frac                         ! fraction of ground where PAR is high
-     real(r8) :: seedling_par_low                      ! lower intensity par for seedlings (par under the undergrowth) [W/m2]
-     real(r8) :: par_low_frac                          ! fraction of ground where PAR is low
-     integer,parameter :: ipar = 1                     ! solar radiation in the shortwave band (i.e. par)
+     real(r8) :: new_seedling_layer_par ! seedling layer par in the current timestep
+     real(r8) :: new_seedling_layer_smp ! seedling layer smp in the current timestep
+     real(r8) :: new_seedling_mdd       ! seedling layer moisture deficit days in the current timestep
+     integer  :: ilayer_seedling_root   ! the soil layer at seedling rooting depth
+     real(r8) :: seedling_par_high      ! higher intensity par for seedlings (par at exposed ground) [W/m2]
+     real(r8) :: par_high_frac          ! fraction of ground where PAR is high
+     real(r8) :: seedling_par_low       ! lower intensity par for seedlings (par under the undergrowth) [W/m2]
+     real(r8) :: par_low_frac           ! fraction of ground where PAR is low
+     integer,parameter :: ipar = 1      ! solar radiation in the shortwave band (i.e. par)
 
      do s = 1,size(sites,dim=1)
 
@@ -1975,49 +1975,53 @@ contains
            call cpatch%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            call cpatch%tveg_longterm%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
 
-           ! Return the par intensity at the ground. This routine
-           ! breaks it up into high and low light levels. The high
-           ! levels are the light on the exposed ground at the surface
-           ! and the low levels are the intensity under the bottom-most
-           ! vegetation.
-           
-           call SeedlingParPatch(cpatch, &
-                bc_in(s)%solad_parb(ifp,ipar) + bc_in(s)%solai_parb(ifp,ipar), &
-                seedling_par_high, par_high_frac, seedling_par_low,&
-                & par_low_frac)
-           
-           new_seedling_layer_par = seedling_par_high*par_high_frac + seedling_par_low*par_low_frac
+     
 
            ! Update the seedling layer par running means
-           call cpatch%seedling_layer_par24%UpdateRMean(new_seedling_layer_par)
-           call cpatch%sdlng_mort_par%UpdateRMean(new_seedling_layer_par)
-           call cpatch%sdlng2sap_par%UpdateRMean(new_seedling_layer_par)
+           if ( regeneration_model == TRS_regeneration ) then
 
-           !write(fates_log(),*) 'new_seedling_layer_par', new_seedling_layer_par
+              ! Return the par intensity at the ground. This routine
+              ! breaks it up into high and low light levels. The high
+              ! levels are the light on the exposed ground at the surface
+              ! and the low levels are the intensity under the bottom-most
+              ! vegetation.
+              
+              call SeedlingParPatch(cpatch, &
+                   bc_in(s)%solad_parb(ifp,ipar) + bc_in(s)%solai_parb(ifp,ipar), &
+                   seedling_par_high, par_high_frac, seedling_par_low,&
+                   & par_low_frac)
+              
+              new_seedling_layer_par = seedling_par_high*par_high_frac + seedling_par_low*par_low_frac
+              
+              call cpatch%seedling_layer_par24%UpdateRMean(new_seedling_layer_par)
+              call cpatch%sdlng_mort_par%UpdateRMean(new_seedling_layer_par)
+              call cpatch%sdlng2sap_par%UpdateRMean(new_seedling_layer_par)
 
-           do pft = 1,numpft
-               
-               ! Calculate the soil moisture at the seedling rooting depth for each pft
-               
-               ilayer_seedling_root(pft) = minloc(abs(bc_in(s)%z_sisl(:)-EDPftvarcon_inst%seedling_root_depth(pft)),dim=1)
-               new_seedling_layer_smp(pft) = bc_in(s)%smp_sl(ilayer_seedling_root(pft))
-               
-               ! Calculate the new moisture deficit day (mdd) value for each pft
-               new_seedling_mdd(pft) = (abs(EDPftvarcon_inst%seedling_psi_crit(pft)) - abs(new_seedling_layer_smp(pft))) &
-               * (-1.0_r8) * sdlng_mdd_timescale
-               
-               ! If mdds are negative then it means that soil is wetter than smp_crit and the moisture
-               ! deficit is 0  
-               if (new_seedling_mdd(pft) < 0.0_r8) then
-                  new_seedling_mdd(pft) = 0.0_r8
-               endif 
-               
-               ! Update the seedling layer smp and mdd running means
-               call cpatch%sdlng_emerg_smp(pft)%p%UpdateRMean(new_seedling_layer_smp(pft))
-               call cpatch%sdlng_mdd(pft)%p%UpdateRMean(new_seedling_mdd(pft))
-           
-           enddo !end pft loop
-           
+              do pft = 1,numpft
+
+                 ! Calculate the soil moisture at the seedling rooting depth for each pft
+
+                 ilayer_seedling_root = minloc(abs(bc_in(s)%z_sisl(:)-EDPftvarcon_inst%seedling_root_depth(pft)),dim=1)
+                 new_seedling_layer_smp = bc_in(s)%smp_sl(ilayer_seedling_root)
+
+                 ! Calculate the new moisture deficit day (mdd) value for each pft
+                 new_seedling_mdd = (abs(EDPftvarcon_inst%seedling_psi_crit(pft)) - abs(new_seedling_layer_smp)) &
+                      * (-1.0_r8) * sdlng_mdd_timescale
+
+                 ! If mdds are negative then it means that soil is wetter than smp_crit and the moisture
+                 ! deficit is 0  
+                 if (new_seedling_mdd < 0.0_r8) then
+                    new_seedling_mdd = 0.0_r8
+                 endif
+
+                 ! Update the seedling layer smp and mdd running means
+                 call cpatch%sdlng_emerg_smp(pft)%p%UpdateRMean(new_seedling_layer_smp)
+                 call cpatch%sdlng_mdd(pft)%p%UpdateRMean(new_seedling_mdd)
+
+              enddo !end pft loop
+              
+           end if
+
            !ccohort => cpatch%tallest
            !do while (associated(ccohort))
            !   call ccohort%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))

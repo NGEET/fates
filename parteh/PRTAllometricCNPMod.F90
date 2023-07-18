@@ -1487,11 +1487,15 @@ contains
     ! just different from the other pools. It is not based on proportionality,
     ! so its mask is set differently.  We (inefficiently) just included
     ! reproduction in the previous loop, but oh well, we over-write now.
-   
-    ! If the TRS is switched off then we use FATES's default reproductive allocation.
+
+    ! If the TRS is switched off, or if the plant is a shrub or grass
+    ! then we use FATES's default reproductive allocation.
+    ! We designate a plant a shrub or grass if its dbh at maximum height
+    ! is less than 15 cm
+
     if ( regeneration_model == default_regeneration .or. &
-         prt_params%allom_dbh_maxheight(ipft) < min_max_dbh_for_trees ) then ! The Tree Recruitment Scheme 
-                                                                             ! is only for trees
+         prt_params%allom_dbh_maxheight(ipft) < min_max_dbh_for_trees ) then
+
        if (dbh <= prt_params%dbh_repro_threshold(ipft)) then
           repro_c_frac = prt_params%seed_alloc(ipft)
        else
@@ -1508,6 +1512,12 @@ contains
        (exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm) / &
        (1 + exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm)))
 
+    else
+       
+       write(fates_log(),*) 'unknown seed allocation and regeneration model, exiting'
+       write(fates_log(),*) 'regeneration_model: ',regeneration_model
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+       
     end if ! regeneration switch 
 
 
@@ -2342,7 +2352,10 @@ contains
               repro_fraction = prt_params%seed_alloc(ipft) * &
               (exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm) / &
               (1 + exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm)))
-
+           else
+              write(fates_log(),*) 'unknown seed allocation and regeneration model, exiting'
+              write(fates_log(),*) 'regeneration_model: ',regeneration_model
+              call endrun(msg=errMsg(sourcefile, __LINE__))
            end if ! regeneration switch 
           
         else ! mask repro
@@ -2475,7 +2488,10 @@ contains
            repro_c_frac = prt_params%seed_alloc(ipft) * &
            (exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm) / &
            (1 + exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm)))
-
+        else
+           write(fates_log(),*) 'unknown seed allocation and regeneration model, exiting'
+           write(fates_log(),*) 'regeneration_model: ',regeneration_model
+           call endrun(msg=errMsg(sourcefile, __LINE__))
         end if ! regeneration switch 
 
      else ! state mask
