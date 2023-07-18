@@ -1999,7 +1999,7 @@ contains
       ! neighbor for later use.  This should be called after decompInit_lnd and surf_get_grid
       ! as it relies on ldecomp and ldomain information.
 
-      use decompMod             , only : ldecomp, procinfo, get_proc_global
+      use decompMod             , only : procinfo, get_proc_global
       use domainMod             , only : ldomain
       use spmdMod               , only : MPI_REAL8, MPI_INTEGER, mpicom, npes, masterproc, iam
       use perf_mod              , only : t_startf, t_stopf
@@ -2015,12 +2015,12 @@ contains
       type (neighbor_type), pointer :: current_neighbor
       type (neighbor_type), pointer :: another_neighbor
       
-      integer :: i, gi,gj  ! indices
-      integer :: numg   ! number of land gridcells
-      integer :: ngcheck   ! number of land gridcells, globally
-      integer :: numproc   ! number of processors, globally
-      integer :: ier,mpierr   ! error code
-      integer :: ipft         ! pft index
+      integer :: i, gi,gj   ! indices
+      integer :: numg       ! number of land gridcells
+      integer :: ngcheck    ! number of land gridcells, globally
+      integer :: numproc    ! number of processors, globally
+      integer :: ier,mpierr ! error code
+      integer :: ipft       ! pft index
       
       integer :: ldsize ! ldomain size
       integer, allocatable :: ncells_array(:), begg_array(:)
@@ -2037,8 +2037,7 @@ contains
      
          
       ! Allocate array neighbor type
-      numg = size(ldecomp%gdc2glo)
-      
+      call get_proc_global(ng=numg)
       allocate(neighbors(numg), stat=ier)
       neighbors(:)%neighbor_count = 0
       
