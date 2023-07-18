@@ -2005,6 +2005,7 @@ contains
       use perf_mod              , only : t_startf, t_stopf
       use FatesDispersalMod     , only : neighborhood_type, neighbor_type, ProbabilityDensity
       use FatesUtilsMod         , only : GetNeighborDistance
+      use FatesConstantsMod     , only : fates_unset_int
       use EDPftvarcon           , only : EDPftvarcon_inst 
 
       ! Arguments
@@ -2048,8 +2049,8 @@ contains
       
       allocate(ncells_array(0:npes-1))
       allocate(begg_array(0:npes-1))
-      ncells_array = fates_unset_r8
-      begg_array = fates_unset_r8
+      ncells_array(:) = fates_unset_int
+      begg_array(:) = fates_unset_int
       
       call t_startf('fates-seed-init-allgather')
 
