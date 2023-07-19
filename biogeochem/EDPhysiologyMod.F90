@@ -1781,7 +1781,7 @@ contains
     integer  :: el                     ! loop counter for litter element types
     integer  :: element_id             ! element id consistent with parteh/PRTGenericMod.F90
 
-    do el = 1, num_elements
+    el_loop: do el = 1, num_elements
 
        site_seed_rain(:) = 0._r8
        site_disp_frac(:) = 0._r8
@@ -1797,7 +1797,7 @@ contains
 
        ! Loop over all patches and sum up the seed input for each PFT
        currentPatch => currentSite%oldest_patch
-       do while (associated(currentPatch))
+       seed_rain_loop: do while (associated(currentPatch))
 
           currentCohort => currentPatch%tallest
           do while (associated(currentCohort))
@@ -1834,7 +1834,7 @@ contains
           enddo !cohort loop
 
           currentPatch => currentPatch%younger
-       enddo
+       enddo seed_rain_loop
 
        ! We can choose to homogenize seeds. This is simple, we just
        ! add up all the seed from each pft at the site level, and then
@@ -1843,15 +1843,11 @@ contains
           site_seed_rain(1:numpft) = sum(site_seed_rain(:))/real(numpft,r8)
        end if
 
-
        ! Loop over all patches again and disperse the mixed seeds into the input flux
        ! arrays
-
        ! Loop over all patches and sum up the seed input for each PFT
        currentPatch => currentSite%oldest_patch
-       
-
-       do while (associated(currentPatch))
+       seed_in_loop: do while (associated(currentPatch))
 
           litt => currentPatch%litter(el)
           do pft = 1,numpft
@@ -1889,13 +1885,13 @@ contains
           enddo
           
           currentPatch => currentPatch%younger
-       enddo
+       enddo seed_in_loop
 
-        do pft = 1,numpft
-            site_mass%seed_out = site_mass%seed_out + site_seed_rain(pft)*site_disp_frac(pft) ![kg/site/day]
-        end do
+       do pft = 1,numpft
+          site_mass%seed_out = site_mass%seed_out + site_seed_rain(pft)*site_disp_frac(pft) ![kg/site/day]
+       end do
  
-    end do
+    end do el_loop
 
     do pft = 1,numpft
         bc_out%seed_out(pft) = bc_out%seed_out(pft) + site_seed_rain(pft)*site_disp_frac(pft) ![kg/site/day]
