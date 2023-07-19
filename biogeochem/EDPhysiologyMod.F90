@@ -1781,16 +1781,15 @@ contains
     integer  :: el                     ! loop counter for litter element types
     integer  :: element_id             ! element id consistent with parteh/PRTGenericMod.F90
 
+    ! If the dispersal kernel is not turned on, keep the dispersal fraction at zero
+    site_disp_frac(:) = 0._r8
+    if (fates_dispersal_kernel_mode .ne. fates_dispersal_kernel_none) then
+      site_disp_frac(:) = EDPftvarcon_inst%seed_dispersal_fraction(:)
+    end if
+
     el_loop: do el = 1, num_elements
 
        site_seed_rain(:) = 0._r8
-       site_disp_frac(:) = 0._r8
-
-       ! If the dispersal kernel is not turned on, keep the dispersal fraction at zero
-       if (fates_dispersal_kernel_mode .ne. fates_dispersal_kernel_none) then
-         site_disp_frac(:) = EDPftvarcon_inst%seed_dispersal_fraction(:)
-       end if
-
        element_id = element_list(el)
 
        site_mass => currentSite%mass_balance(el)
