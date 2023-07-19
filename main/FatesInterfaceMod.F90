@@ -373,9 +373,6 @@ contains
     end if
     fates%bc_out(s)%plant_stored_h2o_si = 0.0_r8
 
-    fates%bc_in(s)%seed_in(:) = 0.0_r8
-    fates%bc_out(s)%seed_out(:) = 0.0_r8
-
     ! Land Use realated
     fates%bc_out(s)%gpp_site = 0.0_r8
     fates%bc_out(s)%ar_site = 0.0_r8
@@ -519,9 +516,6 @@ contains
          allocate(bc_in%hksat_sisl(nlevsoil_in))
          allocate(bc_in%h2o_liq_sisl(nlevsoil_in)); bc_in%h2o_liq_sisl = nan
       end if
-
-      ! Seed dispersal
-      allocate(bc_in%seed_in(1:numpft))
 
       ! Land use
 
@@ -680,9 +674,6 @@ contains
          allocate(bc_out%qflx_soil2root_sisl(nlevsoil_in))
          allocate(bc_out%qflx_ro_sisl(nlevsoil_in))
       end if
-
-      ! Seed dispersal
-      allocate(bc_out%seed_out(1:numpft))
 
       return
    end subroutine allocate_bcout

@@ -3941,8 +3941,8 @@ end subroutine flush_hvars
          hio_recruitment_si_pft(io_si,i_pft) = sites(s)%recruitment_rate(i_pft) * days_per_year / m2_per_ha
          
          ! Gridcell output and inputs
-         hio_seeds_out_gc_si_pft(io_si,i_pft) = bc_out(s)%seed_out(i_pft)
-         hio_seeds_in_gc_si_pft(io_si,i_pft) = bc_in(s)%seed_in(i_pft)
+         hio_seeds_out_gc_si_pft(io_si,i_pft) = sites(s)%seed_out(i_pft)
+         hio_seeds_in_gc_si_pft(io_si,i_pft) = sites(s)%seed_in(i_pft)
       end do
       sites(s)%recruitment_rate(:) = 0._r8
 

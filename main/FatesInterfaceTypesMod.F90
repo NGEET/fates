@@ -539,8 +539,7 @@ module FatesInterfaceTypesMod
       real(r8),allocatable :: hksat_sisl(:)        ! hydraulic conductivity at saturation (mm H2O /s)
       real(r8),allocatable :: h2o_liq_sisl(:)      ! Liquid water mass in each layer (kg/m2)
       real(r8) :: smpmin_si                        ! restriction for min of soil potential (mm)
-      real(r8), allocatable :: seed_in(:)          ! amount of seed dispersed into the site from neighbouring cells  [kg/site/day]
- 
+
       ! Land use
       ! ---------------------------------------------------------------------------------
       real(r8),allocatable :: hlm_harvest_rates(:)    ! annual harvest rate per cat from hlm for a site
@@ -743,8 +742,6 @@ module FatesInterfaceTypesMod
                                                        ! small fluxes for various reasons
                                                        ! [mm H2O/s]
 
-      real(r8),allocatable :: seed_out(:)            ! amount of seed leaving the site [kg/site/day]
-      
       ! FATES LULCC
       real(r8) :: hrv_deadstemc_to_prod10c   ! Harvested C flux to 10-yr wood product pool [Site-Level, gC m-2 s-1]
       real(r8) :: hrv_deadstemc_to_prod100c  ! Harvested C flux to 100-yr wood product pool [Site-Level, gC m-2 s-1]
