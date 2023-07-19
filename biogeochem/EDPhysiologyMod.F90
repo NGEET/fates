@@ -2312,61 +2312,61 @@ contains
     ! that times the ratio of (hypothetical) seed mass to recruit biomass
     
     !==============================================================================================
-     do pft = 1,numpft
-       
+    do pft = 1,numpft
+
        ! If the TRS's seedling dynamics is switched off, then we use FATES's default approach
        ! to germination 
-       if ( regeneration_model == default_regeneration .or. &
+       if_tfs_or_def: if ( regeneration_model == default_regeneration .or. &
             regeneration_model == TRS_no_seedling_dyn .or. & 
             prt_params%allom_dbh_maxheight(pft) < min_max_dbh_for_trees ) then
 
-       litt%seed_germ_in(pft) =  min(litt%seed(pft) * EDPftvarcon_inst%germination_rate(pft), &  
-                                     max_germination)*years_per_day
-      
-       ! If TRS seedling dynamics is switched on we calculate seedling emergence (i.e. germination)
-       ! as a pft-specific function of understory light and soil moisture.
+          litt%seed_germ_in(pft) =  min(litt%seed(pft) * EDPftvarcon_inst%germination_rate(pft), &  
+               max_germination)*years_per_day
+
+          ! If TRS seedling dynamics is switched on we calculate seedling emergence (i.e. germination)
+          ! as a pft-specific function of understory light and soil moisture.
        else if ( regeneration_model == TRS_regeneration .and. &
-                  prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees ) then	    
- 
-       ! Step 1. Calculate how germination rate is modified by understory light
-       ! This applies to photoblastic germinators (e.g. many tropical pioneers) 
+            prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees ) then	    
 
-       ! Calculate mean PAR at the seedling layer (MJ m-2 day-1) over the prior 24 hours
-       seedling_layer_par = currentPatch%seedling_layer_par24%GetMean() * sec_per_day * megajoules_per_joule
+          ! Step 1. Calculate how germination rate is modified by understory light
+          ! This applies to photoblastic germinators (e.g. many tropical pioneers) 
 
-       ! Calculate the photoblastic germination rate modifier (Eq. 3 Hanbury-Brown et al., 2022) 
-       photoblastic_germ_modifier = seedling_layer_par / &
-                (seedling_layer_par + EDPftvarcon_inst%par_crit_germ(pft))
+          ! Calculate mean PAR at the seedling layer (MJ m-2 day-1) over the prior 24 hours
+          seedling_layer_par = currentPatch%seedling_layer_par24%GetMean() * sec_per_day * megajoules_per_joule
 
-       ! Step 2. Calculate how germination rate is modified by soil moisture in the rooting zone of
-       ! the seedlings. This is a pft-specific running mean based on pft-specific seedling rooting
-       ! depth.
+          ! Calculate the photoblastic germination rate modifier (Eq. 3 Hanbury-Brown et al., 2022) 
+          photoblastic_germ_modifier = seedling_layer_par / &
+               (seedling_layer_par + EDPftvarcon_inst%par_crit_germ(pft))
 
-       ! Get running mean of soil matric potential (mm of H2O suction) at the seedling rooting depth
-       ! This running mean based on pft-specific seedling rooting depth.
-       seedling_layer_smp = currentPatch%sdlng_emerg_smp(pft)%p%GetMean()    
+          ! Step 2. Calculate how germination rate is modified by soil moisture in the rooting zone of
+          ! the seedlings. This is a pft-specific running mean based on pft-specific seedling rooting
+          ! depth.
 
-       ! Calculate a soil wetness index (1 / -soil matric pontential (MPa) ) used by the TRS
-       ! to calculate seedling mortality from moisture stress. 
-       wetness_index = 1.0_r8 / (seedling_layer_smp * (-1.0_r8) * mpa_per_mm_suction)          
+          ! Get running mean of soil matric potential (mm of H2O suction) at the seedling rooting depth
+          ! This running mean based on pft-specific seedling rooting depth.
+          seedling_layer_smp = currentPatch%sdlng_emerg_smp(pft)%p%GetMean()    
 
-       ! Step 3. Calculate the seedling emergence rate based on soil moisture and germination
-       ! rate modifier (Step 1). See Eq. 4 of Hanbury-Brown et al., 2022
-       
-       ! If SMP is below a pft-specific value, then no germination occurs
-       if ( seedling_layer_smp .GE. EDPftvarcon_inst%seedling_psi_emerg(pft) ) then
-       seedling_emerg_rate = photoblastic_germ_modifier * EDPftvarcon_inst%a_emerg(pft) * &
-               wetness_index**EDPftvarcon_inst%b_emerg(pft)
-       else 
+          ! Calculate a soil wetness index (1 / -soil matric pontential (MPa) ) used by the TRS
+          ! to calculate seedling mortality from moisture stress. 
+          wetness_index = 1.0_r8 / (seedling_layer_smp * (-1.0_r8) * mpa_per_mm_suction)          
 
-       seedling_emerg_rate = 0.0_r8
+          ! Step 3. Calculate the seedling emergence rate based on soil moisture and germination
+          ! rate modifier (Step 1). See Eq. 4 of Hanbury-Brown et al., 2022
 
-       end if ! End soil-moisture based seedling emergence rate
-      
-       ! Step 4. Calculate the amount of carbon germinating out of the seed bank                                                                                
-       litt%seed_germ_in(pft) = litt%seed(pft) * seedling_emerg_rate
-      
-      end if !End use TRS with seedling dynamics
+          ! If SMP is below a pft-specific value, then no germination occurs
+          if ( seedling_layer_smp .GE. EDPftvarcon_inst%seedling_psi_emerg(pft) ) then
+             seedling_emerg_rate = photoblastic_germ_modifier * EDPftvarcon_inst%a_emerg(pft) * &
+                  wetness_index**EDPftvarcon_inst%b_emerg(pft)
+          else 
+
+             seedling_emerg_rate = 0.0_r8
+
+          end if ! End soil-moisture based seedling emergence rate
+
+          ! Step 4. Calculate the amount of carbon germinating out of the seed bank
+          litt%seed_germ_in(pft) = litt%seed(pft) * seedling_emerg_rate
+
+       end if if_tfs_or_def
     
       !set the germination only under the growing season...c.xu
 
