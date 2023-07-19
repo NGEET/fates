@@ -19,6 +19,7 @@ module FatesInterfaceMod
    use EDParamsMod               , only : maxpatch_primary
    use EDParamsMod               , only : maxpatch_secondary
    use EDParamsMod               , only : max_cohort_per_patch
+   use EDParamsMod               , only : regeneration_model
    use EDTypesMod                , only : maxSWb
    use EDTypesMod                , only : ivis
    use EDTypesMod                , only : inir
@@ -38,6 +39,7 @@ module FatesInterfaceMod
    use FatesConstantsMod         , only : nearzero
    use FatesConstantsMod         , only : sec_per_day
    use FatesConstantsMod         , only : days_per_year
+   use FatesConstantsMod         , only : TRS_regeneration
    use FatesGlobals              , only : fates_global_verbose
    use FatesGlobals              , only : fates_log
    use FatesGlobals              , only : endrun => fates_endrun
