@@ -1990,12 +1990,13 @@ contains
       ! neighbor for later use.  This should be called after decompInit_lnd and surf_get_grid
       ! as it relies on ldecomp and ldomain information.
 
-      use decompMod             , only : ldecomp, procinfo, get_proc_global
+      use decompMod             , only : procinfo, get_proc_global
       use domainMod             , only : ldomain
       use spmdMod               , only : MPI_REAL8, MPI_INTEGER, mpicom, npes, masterproc, iam
       use perf_mod              , only : t_startf, t_stopf
       use FatesDispersalMod     , only : neighborhood_type, neighbor_type, ProbabilityDensity
       use FatesUtilsMod         , only : GetNeighborDistance
+      use FatesConstantsMod     , only : fates_unset_int
       use EDPftvarcon           , only : EDPftvarcon_inst 
 
       ! Arguments
@@ -2005,12 +2006,12 @@ contains
       type (neighbor_type), pointer :: current_neighbor
       type (neighbor_type), pointer :: another_neighbor
       
-      integer :: i, gi,gj  ! indices
-      integer :: numg   ! number of land gridcells
-      integer :: ngcheck   ! number of land gridcells, globally
-      integer :: numproc   ! number of processors, globally
-      integer :: ier,mpierr   ! error code
-      integer :: ipft         ! pft index
+      integer :: i, gi,gj   ! indices
+      integer :: numg       ! number of land gridcells
+      integer :: ngcheck    ! number of land gridcells, globally
+      integer :: numproc    ! number of processors, globally
+      integer :: ier,mpierr ! error code
+      integer :: ipft       ! pft index
       
       integer :: ldsize ! ldomain size
       integer, allocatable :: ncells_array(:), begg_array(:)
@@ -2027,8 +2028,7 @@ contains
      
          
       ! Allocate array neighbor type
-      numg = size(ldecomp%gdc2glo)
-      
+      call get_proc_global(ng=numg)
       allocate(neighbors(numg), stat=ier)
       neighbors(:)%neighbor_count = 0
       
@@ -2039,8 +2039,8 @@ contains
       
       allocate(ncells_array(0:npes-1))
       allocate(begg_array(0:npes-1))
-      ncells_array = fates_unset_r8
-      begg_array = fates_unset_r8
+      ncells_array(:) = fates_unset_int
+      begg_array(:) = fates_unset_int
       
       call t_startf('fates-seed-init-allgather')
 
