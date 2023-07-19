@@ -274,6 +274,10 @@ contains
        call site_in%flux_diags(el)%ZeroFluxDiags()
     end do
 
+    ! This will be initialized in FatesSoilBGCFluxMod:PrepCH4BCs()
+    ! It checks to see if the value is below -9000. If it is,
+    ! it will assume the first value of the smoother is set
+    site_in%ema_npp = -9999.9_r8
 
     ! termination and recruitment info
     site_in%term_nindivs_canopy(:,:) = 0._r8
@@ -847,6 +851,10 @@ contains
           temp_cohort%canopy_trim = 1.0_r8
           temp_cohort%crowndamage = 1  ! Assume no damage to begin with
 
+          ! Retrieve drop fraction of non-leaf tissues for phenology initialisation
+          fnrt_drop_fraction = prt_params%phen_fnrt_drop_fraction(pft)
+          stem_drop_fraction = prt_params%phen_stem_drop_fraction(pft)
+
 
           ! Initialise phenology variables.
           spmode_case: select case (hlm_use_sp)
@@ -912,11 +920,6 @@ contains
                 ! n.b. that this is the same as currentcohort%n = %initd(pft) &AREA
                 temp_cohort%n           =  temp_cohort%n * sum(site_in%use_this_pft)
              endif
-
-             ! Retrieve drop fraction of non-leaf tissues for phenology initialisation
-             fnrt_drop_fraction = prt_params%phen_fnrt_drop_fraction(temp_cohort%pft)
-             stem_drop_fraction = prt_params%phen_stem_drop_fraction(temp_cohort%pft)
-
 
 
              !  h,dbh,leafc,n from SP values or from small initial size.
