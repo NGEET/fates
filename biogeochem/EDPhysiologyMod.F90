@@ -26,7 +26,7 @@ module EDPhysiologyMod
   use FatesConstantsMod, only    : g_per_kg
   use FatesConstantsMod, only    : ndays_per_year
   use FatesConstantsMod, only    : nocomp_bareground
-  use FatesConstantsMod, only    : canopy_sum_error
+  use FatesConstantsMod, only    : area_error
   use EDPftvarcon      , only    : EDPftvarcon_inst
   use PRTParametersMod , only    : prt_params
   use EDPftvarcon      , only    : GetDecompyFrac
@@ -1951,7 +1951,7 @@ contains
          currentCohort%n, currentCohort%canopy_layer,               &
          canopylai,currentCohort%vcmax25top )
 
-    if (abs(currentCohort%treelai - check_treelai) > canopy_sum_error) then !this is not as precise as nearzero
+    if (abs(currentCohort%treelai - check_treelai) > area_error) then !this is not as precise as nearzero
        write(fates_log(),*) 'error in validate treelai',currentCohort%treelai,check_treelai,currentCohort%treelai-check_treelai
        write(fates_log(),*) 'tree_lai inputs: ', currentCohort%pft, currentCohort%c_area, currentCohort%n, &
                currentCohort%canopy_layer, currentCohort%vcmax25top

@@ -9,6 +9,7 @@ module EDInitMod
   use FatesConstantsMod         , only : itrue
   use FatesConstantsMod         , only : fates_unset_int
   use FatesConstantsMod         , only : primaryforest
+  use FatesConstantsMod         , only : area_error
   use FatesConstantsMod   , only : nearzero
   use FatesGlobals              , only : endrun => fates_endrun
   use EDTypesMod                , only : nclmax
@@ -696,7 +697,7 @@ contains
          
           area_diff = total - area
           if (abs(area_diff) > nearzero) then
-             if (abs(area_diff) < canopy_sum_error) then ! this is a precision error
+             if (abs(area_diff) < area_error) then ! this is a precision error
                 if (sites(s)%oldest_patch%area > area_diff + nearzero) then
                    ! remove or add extra area
                    ! if the oldest patch has enough area, use that
