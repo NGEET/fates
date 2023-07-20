@@ -552,7 +552,8 @@ contains
     integer  :: num_new_patches
     integer  :: nocomp_pft
     real(r8) :: newparea
-    real(r8) :: tota !check on area
+    real(r8) :: total !check on area
+    real(r8) :: area_diff
     integer  :: is_first_patch
 
     type(ed_site_type),  pointer :: sitep
@@ -686,28 +687,29 @@ contains
           end do !no new patches
 
           !check if the total area adds to the same as site area
-          tota = 0.0_r8
+          total = 0.0_r8
           newp => sites(s)%oldest_patch
           do while (associated(newp))
-             tota=tota+newp%area
-             newp=>newp%younger
+             total = total + newp%area
+             newp => newp%younger
           end do
-
-          if(abs(tota-area).gt.nearzero*area)then
-             if(abs(tota-area).lt.1.0e-10_r8)then ! this is a precision error
-                if(sites(s)%oldest_patch%area.gt.(tota-area+nearzero))then
+         
+          area_diff = total - area
+          if (abs(area_diff) > nearzero) then
+             if (abs(area_diff) < canopy_sum_error) then ! this is a precision error
+                if (sites(s)%oldest_patch%area > area_diff + nearzero) then
                    ! remove or add extra area
                    ! if the oldest patch has enough area, use that
-                   sites(s)%oldest_patch%area = sites(s)%oldest_patch%area - (tota-area)
-                   if(debug) write(fates_log(),*) 'fixing patch precision - oldest',s, tota-area
+                   sites(s)%oldest_patch%area = sites(s)%oldest_patch%area - area_diff
+                   if (debug) write(fates_log(),*) 'fixing patch precision - oldest', s, area_diff
                 else ! or otherwise take the area from the youngest patch.
-                   sites(s)%youngest_patch%area = sites(s)%oldest_patch%area - (tota-area)
-                   if(debug) write(fates_log(),*) 'fixing patch precision -youngest ',s, tota-area
-                endif
+                   sites(s)%youngest_patch%area = sites(s)%youngest_patch%area - area_diff
+                   if (debug) write(fates_log(),*) 'fixing patch precision -youngest ', s, area_diff
+                end if
              else !this is a big error not just a precision error.
-                write(fates_log(),*) 'issue with patch area in EDinit',tota-area,tota
+                write(fates_log(),*) 'issue with patch area in EDinit', area_diff, total
                 call endrun(msg=errMsg(sourcefile, __LINE__))
-             endif  ! big error
+             end if  ! big error
           end if ! too much patch area
 
           ! For carbon balance checks, we need to initialize the

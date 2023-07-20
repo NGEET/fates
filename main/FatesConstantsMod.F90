@@ -83,6 +83,7 @@ module FatesConstantsMod
   ! of carbon conservation in units of kgC/plant.  This gives an effective
   ! error tolerance of 1 microgram.
   real(fates_r8), parameter, public :: calloc_abs_error = 1.0e-9_fates_r8
+  real(fates_r8), parameter, public :: canopy_sum_error = 1.0e-9_fates_r8
 
   ! Rounding errors seem to hover around 1e-15 for the gnu compiler
   ! when not applying compiler directives for safe math.  An example
