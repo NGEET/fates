@@ -2098,7 +2098,7 @@ end subroutine flush_hvars
 
   ! ====================================================================================
 
-  subroutine update_history_dyn(this,nc,nsites,sites,bc_in,bc_out)
+  subroutine update_history_dyn(this,nc,nsites,sites,bc_in)
 
     ! ---------------------------------------------------------------------------------
     ! This is the call to update the history IO arrays that are expected to only change
@@ -2130,7 +2130,6 @@ end subroutine flush_hvars
     integer                 , intent(in)            :: nc   ! clump index
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
-    type(bc_out_type)       , intent(in)            :: bc_out(nsites)
     type(bc_in_type)        , intent(in)            :: bc_in(nsites)
     ! Locals
     type(litter_type), pointer         :: litt_c   ! Pointer to the carbon12 litter pool
