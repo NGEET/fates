@@ -8,6 +8,7 @@ module EDInitMod
   use FatesConstantsMod         , only : ifalse
   use FatesConstantsMod         , only : itrue
   use FatesConstantsMod         , only : fates_unset_int
+  use FatesConstantsMod         , only : fates_unset_r8
   use FatesConstantsMod         , only : primaryforest
   use FatesConstantsMod   , only : nearzero
   use FatesGlobals              , only : endrun => fates_endrun
@@ -553,6 +554,7 @@ contains
     integer  :: nocomp_pft
     real(r8) :: newparea
     real(r8) :: tota !check on area
+    real(r8) :: litt_init  !invalid for satphen, 0 otherwise
     integer  :: is_first_patch
 
     type(ed_site_type),  pointer :: sitep
@@ -665,13 +667,18 @@ contains
                 ! Initialize the litter pools to zero, these
                 ! pools will be populated by looping over the existing patches
                 ! and transfering in mass
+                if(hlm_use_sp.eq.itrue)then
+                   litt_init = fates_unset_r8
+                else
+                   litt_init = 0._r8
+                end if
                 do el=1,num_elements
-                   call newp%litter(el)%InitConditions(init_leaf_fines=0._r8, &
-                        init_root_fines=0._r8, &
-                        init_ag_cwd=0._r8, &
-                        init_bg_cwd=0._r8, &
-                        init_seed=0._r8,   &
-                        init_seed_germ=0._r8)
+                   call newp%litter(el)%InitConditions(init_leaf_fines=litt_init, &
+                        init_root_fines=litt_init, &
+                        init_ag_cwd=litt_init, &
+                        init_bg_cwd=litt_init, &
+                        init_seed=litt_init,   &
+                        init_seed_germ=litt_init)
                 end do
 
                 sitep => sites(s)
