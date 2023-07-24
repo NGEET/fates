@@ -4,31 +4,20 @@ import re
 import numpy as np
 import xarray as xr
 import xesmf as xe
-from nco import Nco
-from nco.custom import Atted
 
 # Import luh2 or surface data sets
 def ImportData(input_file,start=None,stop=None,merge_flag=False):
 
     # Open files
-    # Check to see if a ValueError is raised which is likely due
-    # to the LUH2 time units being undecodable by cftime module
-    try:
-       datasetout = xr.open_dataset(input_file, cache=False)
-    except ValueError as err:
-       print("ValueError:", err)
-       errmsg = "User direction: If error is due to units being 'years since ...' " \
-                "update the input data file to change to 'common_years since...'. " \
-                "This can be done using the luh2.attribupdate function\n."
-       print()
-       print(errmsg)
-    else:
-       print("Input file dataset opened: {}".format(input_file))
+    # Set decode_times to false as the luh2 raw data is outside the range
+    # of the standard NetCDF datetime format.
+    datasetout = xr.open_dataset(input_file, cache=False, decode_times=False)
+    print("Input file dataset opened: {}".format(input_file))
 
-       datasetout = PrepDataset(datasetout,start,stop,merge_flag)
+    # Prep the input data for use
+    datasetout = PrepDataset(datasetout,start,stop,merge_flag)
 
-       return(datasetout)
-
+    return(datasetout)
 
 # Prepare the input_file to be used for regridding
 def PrepDataset(input_dataset,start=None,stop=None,merge_flag=False):
@@ -43,11 +32,15 @@ def PrepDataset(input_dataset,start=None,stop=None,merge_flag=False):
         if (isinstance(stop,type(None))):
             stop = input_dataset.time[-1]
 
+        # Convert the date to years since 0850
+        years_since_start = start - 850 
+        years_since_stop = stop - 850 
+
         # Truncate the data to the user defined range
         # This might need some more error handling for when
         # the start/stop is out of range
         try:
-            input_dataset = input_dataset.sel(time=slice(start,stop))
+            input_dataset = input_dataset.sel(time=slice(years_since_start,years_since_stop))
         except TypeError as type_err:
             print("Input must be a string\n")
             raise TypeError(type_err)
@@ -72,49 +65,6 @@ def PrepDataset_ESMF(input_dataset,dsflag,dstype):
         print("data set updated for xESMF\n")
 
     return(input_dataset)
-
-# Modify the luh2 metadata to enable xarray to read in data
-# This issue here is that the luh2 time units start prior to
-# year 1672, which cftime should be able to handle, but it
-# appears to need a specific unit name convention "common_years"
-def AttributeUpdateLUH2(input_file,output_append="modified"):
-
-    # TO DO: Make this so that it can handle more than just absolute file location
-    # Define the output filename
-    index = input_file.find(".nc")
-    output_file = input_file[:index] + "_" + output_append + input_file[index:]
-
-    nco = Nco()
-
-    # Get the 'time:units' string from the input using ncks
-    time_unit_string = nco.ncks(input=input_file,variable="time",options=["-m"]).decode()
-
-    # Grab the units string and replace "years" with "common_years"
-    substr = re.search('time:units.*".*"',time_unit_string)
-    newstr = substr.group().replace("time:units = \"years","\"common_years")
-
-    # Use ncatted to update the time units
-    att = "units"
-    var = "time"
-    att_type = "c"
-    opts = [" -a {0},{1},o,{2},{3}".format(att, var, att_type, newstr)]
-    nco.ncatted(input=input_file, output=output_file, options=opts)
-
-    # The following is fixed with PR #62 for pynco but isn't in that latest update yet
-    # on conda
-    # nco.ncatted(input=input_file,output=output_file,options=[
-    #     Atted(mode="overwrite",
-    #           att_name="units",
-    #           var_name="time",
-    #           value=newstr,
-    #           stype="c"
-    #           ),
-    # ])
-
-    print("Generated modified output file: {}\n".format(output_file))
-
-    return(output_file)
-
 
 # Create the necessary variable "lat_b" and "lon_b" for xESMF conservative regridding
 # Each lat/lon boundary array is a 2D array corresponding to the bounds of each

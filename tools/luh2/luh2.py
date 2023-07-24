@@ -3,8 +3,7 @@
 # LUH2 python script
 # Usage: python luh2.py -l <luh2file> -s <luh2staticfile>
 
-import argparse, os
-from cftime import date2num
+import argparse, os, sys
 from luh2mod import ImportData, SetMaskLUH2, SetMaskSurfData
 from luh2mod import RegridConservative, RegridLoop, CorrectStateSum
 
@@ -62,7 +61,7 @@ def main():
     # This is an old requirement of the HLM and should simply be a copy of the `time` dimension
     # If we are merging, we might not need to do this, so check to see if its there already
     if (not "YEAR" in list(regrid_luh2.variables)):
-        regrid_luh2["YEAR"] = date2num(regrid_luh2.time,'common_years since 0-01-01 00:00:00')
+        regrid_luh2["YEAR"] = regrid_luh2.time
         regrid_luh2["LONGXY"] = ds_regrid_target["LONGXY"] # TO DO: double check if this is strictly necessary
         regrid_luh2["LATIXY"] = ds_regrid_target["LATIXY"] # TO DO: double check if this is strictly necessary
 
@@ -109,8 +108,11 @@ def CommandLineArgs():
     parser.add_argument("-w", "--regridder_weights", required=True)
 
     # Optional input to subset the time range of the data
-    parser.add_argument("-b","--begin")
-    parser.add_argument("-e","--end")
+    # TODO: add support for parsing the input and checking against the allowable date range
+    parser.add_argument("-b","--begin", type=int, choices=range(850,2015), 
+                        help="beginning of date range to slice (allowable range is 0850-2015)")
+    parser.add_argument("-e","--end", type=int, choices=range(850,2015), 
+                        help="ending of date range to slice (allowable range is 0850-2015)")
 
     # Optional output argument
     parser.add_argument("-o","--output")
@@ -121,7 +123,6 @@ def CommandLineArgs():
     args = parser.parse_args()
 
     return(args)
-
 
 if __name__ == "__main__":
     main()
