@@ -16,6 +16,7 @@ module EDPatchDynamicsMod
   use FatesLitterMod       , only : ncwd
   use FatesLitterMod       , only : ndcmpy
   use FatesLitterMod       , only : litter_type
+  use FatesLitterMod       , only : adjust_SF_CWD_frac
   use EDTypesMod           , only : homogenize_seed_pfts
   use EDTypesMod           , only : n_dbh_bins, area, patchfusion_dbhbin_loweredges
   use EDtypesMod           , only : force_patchfuse_min_biomass
@@ -53,6 +54,7 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : r8 => fates_r8
   use FatesConstantsMod    , only : itrue, ifalse
   use FatesConstantsMod    , only : t_water_freeze_k_1atm
+  use FatesConstantsMod    , only : TRS_regeneration
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesPlantHydraulicsMod, only : AccumulateMortalityWaterStorage
   use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
@@ -63,6 +65,7 @@ module EDPatchDynamicsMod
   use EDLoggingMortalityMod, only : get_harvestable_carbon
   use EDLoggingMortalityMod, only : get_harvest_debt
   use EDParamsMod          , only : fates_mortality_disturbance_fraction
+  use EDParamsMod          , only : regeneration_model
   use FatesAllometryMod    , only : carea_allom
   use FatesAllometryMod    , only : set_root_fraction
   use FatesConstantsMod    , only : g_per_kg
@@ -92,6 +95,8 @@ module EDPatchDynamicsMod
   use SFParamsMod,            only : SF_VAL_CWD_FRAC
   use EDParamsMod,            only : logging_event_code
   use EDParamsMod,            only : logging_export_frac
+  use FatesRunningMeanMod,    only : ema_sdlng_mdd
+  use FatesRunningMeanMod,    only : ema_sdlng_emerg_h2o, ema_sdlng_mort_par, ema_sdlng2sap_par
   use EDParamsMod,            only : maxpatch_primary
   use EDParamsMod,            only : maxpatch_secondary
   use EDParamsMod,            only : maxpatch_total
@@ -427,6 +432,7 @@ contains
     real(r8) :: patch_site_areadis           ! total area disturbed in m2 per patch per day
     real(r8) :: age                          ! notional age of this patch in years
     integer  :: el                           ! element loop index
+    integer  :: pft                          ! pft loop index
     integer  :: tnull                        ! is there a tallest cohort?
     integer  :: snull                        ! is there a shortest cohort?
     integer  :: levcan                       ! canopy level
@@ -595,7 +601,7 @@ contains
                    patch_site_areadis = currentPatch%area * disturbance_rate
 
 
-                   if ( patch_site_areadis > nearzero ) then
+                  if ( patch_site_areadis > nearzero ) then
 
                       ! figure out whether the receiver patch for disturbance from this patch
                       ! will be primary or secondary land receiver patch is primary forest
@@ -657,9 +663,19 @@ contains
                       ! --------------------------------------------------------------------------
                       call new_patch%tveg24%CopyFromDonor(currentPatch%tveg24)
                       call new_patch%tveg_lpa%CopyFromDonor(currentPatch%tveg_lpa)
+
+                      if ( regeneration_model == TRS_regeneration ) then
+                         call new_patch%seedling_layer_par24%CopyFromDonor(currentPatch%seedling_layer_par24)
+                         call new_patch%sdlng_mort_par%CopyFromDonor(currentPatch%sdlng_mort_par)
+                         call new_patch%sdlng2sap_par%CopyFromDonor(currentPatch%sdlng2sap_par)
+                         do pft = 1,numpft
+                            call new_patch%sdlng_emerg_smp(pft)%p%CopyFromDonor(currentPatch%sdlng_emerg_smp(pft)%p)
+                            call new_patch%sdlng_mdd(pft)%p%CopyFromDonor(currentPatch%sdlng_mdd(pft)%p)
+                         enddo
+                      end if
+
                       call new_patch%tveg_longterm%CopyFromDonor(currentPatch%tveg_longterm)
-
-
+                      
                       ! --------------------------------------------------------------------------
                       ! The newly formed patch from disturbance (new_patch), has now been given
                       ! some litter from dead plants and pre-existing litter from the donor patches.
@@ -760,14 +776,13 @@ contains
                                   currentSite%imort_carbonflux(currentCohort%pft) = &
                                        currentSite%imort_carbonflux(currentCohort%pft) + &
                                        (nc%n * ED_val_understorey_death / hlm_freq_day ) * &
-                                       total_c * g_per_kg * days_per_sec * years_per_day * ha_per_m2
+                                       total_c * days_per_sec * years_per_day * ha_per_m2
 
                                   currentSite%imort_abg_flux(currentCohort%size_class, currentCohort%pft) = &
                                        currentSite%imort_abg_flux(currentCohort%size_class, currentCohort%pft) + &
                                        (nc%n * ED_val_understorey_death / hlm_freq_day ) * &
                                        ( (sapw_c + struct_c + store_c) * prt_params%allom_agb_frac(currentCohort%pft) + &
-                                       leaf_c ) * &
-                                       g_per_kg * days_per_sec * years_per_day * ha_per_m2
+                                       leaf_c ) * days_per_sec * years_per_day * ha_per_m2
 
 
                                   ! Step 2:  Apply survivor ship function based on the understory death fraction
@@ -1020,7 +1035,14 @@ contains
                                        currentSite%imort_carbonflux(currentCohort%pft) + &
                                        (nc%n * currentPatch%fract_ldist_not_harvested * &
                                        logging_coll_under_frac/ hlm_freq_day ) * &
-                                       total_c * g_per_kg * days_per_sec * years_per_day * ha_per_m2
+                                       total_c * days_per_sec * years_per_day * ha_per_m2
+
+                                  currentSite%imort_abg_flux(currentCohort%size_class, currentCohort%pft) = &
+                                       currentSite%imort_abg_flux(currentCohort%size_class, currentCohort%pft) + &
+                                       (nc%n * currentPatch%fract_ldist_not_harvested * &
+                                       logging_coll_under_frac/ hlm_freq_day ) * &
+                                       ( ( sapw_c + struct_c + store_c) * prt_params%allom_agb_frac(currentCohort%pft) + &
+                                       leaf_c ) * days_per_sec * years_per_day * ha_per_m2
 
 
                                   ! Step 2:  Apply survivor ship function based on the understory death fraction
@@ -1659,7 +1681,7 @@ contains
     integer  :: pft                  ! loop index for plant functional types
     integer  :: dcmpy                ! loop index for decomposability pool
     integer  :: element_id           ! parteh compatible global element index
-
+    real(r8) :: SF_val_CWD_frac_adj(4) !Updated wood partitioning to CWD based on dbh
     !---------------------------------------------------------------------
 
     ! Only do this if there was a fire in this actual patch. 
@@ -1792,9 +1814,13 @@ contains
              bcroot = (sapw_m + struct_m) * (1.0_r8 - prt_params%allom_agb_frac(pft) )
 
              ! below ground coarse woody debris from burned trees
+
+             !adjust the how wood is partitioned between the cwd classes based on cohort dbh
+	     call adjust_SF_CWD_frac(currentCohort%dbh,ncwd,SF_val_CWD_frac,SF_val_CWD_frac_adj)
+
              do c = 1,ncwd
                 do sl = 1,currentSite%nlevsoil
-                   donatable_mass =  num_dead_trees * SF_val_CWD_frac(c) * &
+                   donatable_mass =  num_dead_trees * SF_val_CWD_frac_adj(c) * &
                          bcroot * currentSite%rootfrac_scr(sl)
 
                    new_litt%bg_cwd(c,sl) = new_litt%bg_cwd(c,sl) + &
@@ -1815,10 +1841,10 @@ contains
              ! Above ground coarse woody debris from twigs and small branches
              ! a portion of this pool may burn
              do c = 1,ncwd
-                 donatable_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem
+                 donatable_mass = num_dead_trees * SF_val_CWD_frac_adj(c) * bstem
                  if (c == 1 .or. c == 2) then
                       donatable_mass = donatable_mass * (1.0_r8-currentCohort%fraction_crown_burned)
-                      burned_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem * &
+                      burned_mass = num_dead_trees * SF_val_CWD_frac_adj(c) * bstem * &
                       currentCohort%fraction_crown_burned
                       site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
                 endif
@@ -1891,7 +1917,8 @@ contains
     integer  :: el                   ! element loop index
     integer  :: sl                   ! soil layer index
     integer  :: element_id           ! parteh compatible global element index
-    real(r8) :: dcmpy_frac           ! decomposability fraction 
+    real(r8) :: dcmpy_frac           ! decomposability fraction
+    real(r8) :: SF_val_CWD_frac_adj(4) !Updated wood partitioning to CWD based on dbh
     !---------------------------------------------------------------------
 
     remainder_area = currentPatch%area - patch_site_areadis
@@ -1989,24 +2016,26 @@ contains
           call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
                bc_in%max_rooting_depth_index_col)
 
+          ! Adjust how wood is partitioned between the cwd classes based on cohort dbh
+	  call adjust_SF_CWD_frac(currentCohort%dbh,ncwd,SF_val_CWD_frac,SF_val_CWD_frac_adj)
 
           do c=1,ncwd
-
+             
              ! Transfer wood of dying trees to AG CWD pools
              new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + ag_wood * &
-                    SF_val_CWD_frac(c) * donate_m2
+                    SF_val_CWD_frac_adj(c) * donate_m2
 
              curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + ag_wood * &
-                   SF_val_CWD_frac(c) * retain_m2
+                   SF_val_CWD_frac_adj(c) * retain_m2
              
              ! Transfer wood of dying trees to BG CWD pools
              do sl = 1,currentSite%nlevsoil
                 new_litt%bg_cwd(c,sl) = new_litt%bg_cwd(c,sl) + bg_wood * &
-                       currentSite%rootfrac_scr(sl) * SF_val_CWD_frac(c) * &
+                       currentSite%rootfrac_scr(sl) * SF_val_CWD_frac_adj(c) * &
                        donate_m2
 
                 curr_litt%bg_cwd(c,sl) = curr_litt%bg_cwd(c,sl) + bg_wood * &
-                      currentSite%rootfrac_scr(sl) * SF_val_CWD_frac(c) * &
+                      currentSite%rootfrac_scr(sl) * SF_val_CWD_frac_adj(c) * &
                       retain_m2
              end do
           end do
@@ -2042,10 +2071,10 @@ contains
           ! track diagnostic fluxes
           do c=1,ncwd
              flux_diags%cwd_ag_input(c) = & 
-                  flux_diags%cwd_ag_input(c) + SF_val_CWD_frac(c) * ag_wood
+                  flux_diags%cwd_ag_input(c) + SF_val_CWD_frac_adj(c) * ag_wood
              
              flux_diags%cwd_bg_input(c) = &
-                  flux_diags%cwd_bg_input(c) + SF_val_CWD_frac(c) * bg_wood
+                  flux_diags%cwd_bg_input(c) + SF_val_CWD_frac_adj(c) * bg_wood
           end do
 
           flux_diags%leaf_litter_input(pft) = flux_diags%leaf_litter_input(pft) + &
@@ -2089,6 +2118,11 @@ contains
     ! Until bc's are pointed to by sites give veg a default temp [K]
     real(r8), parameter :: temp_init_veg = 15._r8+t_water_freeze_k_1atm 
     
+    real(r8), parameter :: init_seedling_par = 5.0_r8          !arbitrary initialization for 
+                                                               !seedling layer PAR [MJ m-2 d-1]
+
+    real(r8), parameter :: init_seedling_smp = -26652.0_r8     !arbitrary initialization of smp [mm]
+    integer             :: pft                                 !pft index
 
     ! !LOCAL VARIABLES:
     !---------------------------------------------------------------------
@@ -2109,9 +2143,30 @@ contains
     call new_patch%tveg24%InitRMean(fixed_24hr,init_value=temp_init_veg,init_offset=real(hlm_current_tod,r8) )
     allocate(new_patch%tveg_lpa)
     call new_patch%tveg_lpa%InitRmean(ema_lpa,init_value=temp_init_veg)
+
+    
+    if ( regeneration_model == TRS_regeneration ) then
+       allocate(new_patch%seedling_layer_par24)
+       call new_patch%seedling_layer_par24%InitRMean(fixed_24hr,init_value=init_seedling_par, init_offset=real(hlm_current_tod,r8))
+       allocate(new_patch%sdlng_mort_par)
+       call new_patch%sdlng_mort_par%InitRMean(ema_sdlng_mort_par,init_value=temp_init_veg)
+       allocate(new_patch%sdlng2sap_par)
+       call new_patch%sdlng2sap_par%InitRMean(ema_sdlng2sap_par,init_value=init_seedling_par)
+       allocate(new_patch%sdlng_mdd(numpft))
+       allocate(new_patch%sdlng_emerg_smp(numpft))
+       do pft = 1,numpft
+          allocate(new_patch%sdlng_mdd(pft)%p)
+          call new_patch%sdlng_mdd(pft)%p%InitRMean(ema_sdlng_mdd, init_value=0.0_r8)
+          allocate(new_patch%sdlng_emerg_smp(pft)%p)
+          call new_patch%sdlng_emerg_smp(pft)%p%InitRMean(ema_sdlng_emerg_h2o,init_value=init_seedling_smp)
+       enddo
+    end if
+ 
+
     allocate(new_patch%tveg_longterm)
     call new_patch%tveg_longterm%InitRmean(ema_longterm,init_value=temp_init_veg)
     
+
     ! Litter
     ! Allocate, Zero Fluxes, and Initialize to "unset" values
 
@@ -2644,7 +2699,7 @@ contains
     type (ed_cohort_type), pointer :: nextc         ! Remembers next cohort in list 
     type (ed_cohort_type), pointer :: storesmallcohort
     type (ed_cohort_type), pointer :: storebigcohort  
-    integer                        :: c,p          !counters for pft and litter size class. 
+    integer                        :: c,p,pft      ! counters for pft and litter size class
     integer                        :: tnull,snull  ! are the tallest and shortest cohorts associated?
     integer                        :: el           ! loop counting index for elements
     type(ed_patch_type), pointer   :: youngerp     ! pointer to the patch younger than donor
@@ -2682,8 +2737,19 @@ contains
     ! Weighted mean of the running means
     call rp%tveg24%FuseRMean(dp%tveg24,rp%area*inv_sum_area)
     call rp%tveg_lpa%FuseRMean(dp%tveg_lpa,rp%area*inv_sum_area)
-    call rp%tveg_longterm%FuseRMean(dp%tveg_longterm,rp%area*inv_sum_area)
+
+    if ( regeneration_model == TRS_regeneration ) then
+       call rp%seedling_layer_par24%FuseRMean(dp%seedling_layer_par24,rp%area*inv_sum_area)
+       call rp%sdlng_mort_par%FuseRMean(dp%sdlng_mort_par,rp%area*inv_sum_area)
+       call rp%sdlng2sap_par%FuseRMean(dp%sdlng2sap_par,rp%area*inv_sum_area)
+       do pft = 1,numpft
+          call rp%sdlng_emerg_smp(pft)%p%FuseRMean(dp%sdlng_emerg_smp(pft)%p,rp%area*inv_sum_area)
+          call rp%sdlng_mdd(pft)%p%FuseRMean(dp%sdlng_mdd(pft)%p,rp%area*inv_sum_area)
+       enddo
+    end if
     
+    call rp%tveg_longterm%FuseRMean(dp%tveg_longterm,rp%area*inv_sum_area)
+
     rp%fuel_eff_moist       = (dp%fuel_eff_moist*dp%area + rp%fuel_eff_moist*rp%area) * inv_sum_area
     rp%livegrass            = (dp%livegrass*dp%area + rp%livegrass*rp%area) * inv_sum_area
     rp%sum_fuel             = (dp%sum_fuel*dp%area + rp%sum_fuel*rp%area) * inv_sum_area
@@ -3019,7 +3085,7 @@ contains
 
     type(ed_cohort_type), pointer :: ccohort  ! current
     type(ed_cohort_type), pointer :: ncohort  ! next
-    integer                       :: el       ! loop counter for elements
+    integer                       :: el,pft       ! loop counter for elements and pfts
     
     ! First Deallocate the cohort space
     ! -----------------------------------------------------------------------------------
@@ -3065,6 +3131,18 @@ contains
     endif
     
     ! Deallocate any running means
+    if ( regeneration_model == TRS_regeneration ) then
+       deallocate(cpatch%seedling_layer_par24)
+       deallocate(cpatch%sdlng_mort_par)
+       deallocate(cpatch%sdlng2sap_par)
+       do pft = 1, numpft
+          deallocate(cpatch%sdlng_mdd(pft)%p)
+          deallocate(cpatch%sdlng_emerg_smp(pft)%p)
+       enddo
+       deallocate(cpatch%sdlng_mdd)
+       deallocate(cpatch%sdlng_emerg_smp)
+    end if
+
     deallocate(cpatch%tveg24, stat=istat, errmsg=smsg)
     if (istat/=0) then
        write(fates_log(),*) 'dealloc010: fail on deallocate(cpatch%tveg24):'//trim(smsg)
@@ -3080,7 +3158,6 @@ contains
        write(fates_log(),*) 'dealloc012: fail on deallocate(cpatch%tveg_longterm):'//trim(smsg)
        call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
-    
     return
   end subroutine dealloc_patch
 

@@ -19,6 +19,7 @@ module FatesInterfaceMod
    use EDParamsMod               , only : maxpatch_primary
    use EDParamsMod               , only : maxpatch_secondary
    use EDParamsMod               , only : max_cohort_per_patch
+   use EDParamsMod               , only : regeneration_model
    use EDTypesMod                , only : maxSWb
    use EDTypesMod                , only : ivis
    use EDTypesMod                , only : inir
@@ -32,11 +33,13 @@ module FatesInterfaceMod
    use EDTypesMod                , only : ed_patch_type
    use EDTypesMod                , only : ed_cohort_type
    use EDTypesMod                , only : area_inv
+   use EDTypesMod                , only : num_vegtemp_mem
    use FatesConstantsMod         , only : r8 => fates_r8
    use FatesConstantsMod         , only : itrue,ifalse
    use FatesConstantsMod         , only : nearzero
    use FatesConstantsMod         , only : sec_per_day
    use FatesConstantsMod         , only : days_per_year
+   use FatesConstantsMod         , only : TRS_regeneration
    use FatesGlobals              , only : fates_global_verbose
    use FatesGlobals              , only : fates_log
    use FatesGlobals              , only : endrun => fates_endrun
@@ -52,6 +55,10 @@ module FatesInterfaceMod
    use FatesPlantHydraulicsMod   , only : InitHydroGlobals
    use EDParamsMod               , only : photo_temp_acclim_timescale
    use EDParamsMod               , only : photo_temp_acclim_thome_time
+   use EDParamsMod               , only : sdlng_emerg_h2o_timescale
+   use EDParamsMod               , only : sdlng_mort_par_timescale
+   use EDParamsMod               , only : sdlng2sap_par_timescale
+   use EDParamsMod               , only : sdlng_mdd_timescale
    use EDParamsMod               , only : ED_val_history_sizeclass_bin_edges
    use EDParamsMod               , only : ED_val_history_ageclass_bin_edges
    use EDParamsMod               , only : ED_val_history_height_bin_edges
@@ -84,6 +91,8 @@ module FatesInterfaceMod
    use PRTAllometricCarbonMod    , only : InitPRTGlobalAllometricCarbon
    use PRTAllometricCNPMod       , only : InitPRTGlobalAllometricCNP
    use FatesRunningMeanMod       , only : ema_24hr
+   use FatesRunningMeanMod       , only : ema_sdlng_emerg_h2o, ema_sdlng_mort_par
+   use FatesRunningMeanMod       , only : ema_sdlng_mdd, ema_sdlng2sap_par
    use FatesRunningMeanMod       , only : fixed_24hr
    use FatesRunningMeanMod       , only : ema_lpa
    use FatesRunningMeanMod       , only : ema_longterm
@@ -91,6 +100,8 @@ module FatesInterfaceMod
    use FatesRunningMeanMod       , only : moving_ema_window
    use FatesRunningMeanMod       , only : fixed_window
    use FatesHistoryInterfaceMod  , only : fates_hist
+   use FatesHydraulicsMemMod     , only : nshell
+   use FatesHydraulicsMemMod     , only : nlevsoi_hyd_max
    
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -413,23 +424,7 @@ contains
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 
-      if( (nlevsoil_in*ndcmpy) > fates_maxElementsPerPatch .or. &
-          (nlevsoil_in*ncwd) > fates_maxElementsPerPatch) then
-          write(fates_log(), *) 'The restart files require that space is allocated'
-          write(fates_log(), *) 'to accomodate the multi-dimensional patch arrays'
-          write(fates_log(), *) 'that are nlevsoil*numpft and nlevsoil*ncwd'
-          write(fates_log(), *) 'fates_maxElementsPerPatch = ',fates_maxElementsPerPatch
-          write(fates_log(), *) 'nlevsoil = ',nlevsoil_in
-          write(fates_log(), *) 'dcmpy = ',ndcmpy
-          write(fates_log(), *) 'ncwd  = ',ncwd
-          write(fates_log(), *) 'numpft*nlevsoil = ',nlevsoil_in*numpft
-          write(fates_log(), *) 'ncwd*nlevsoil = ',ncwd * nlevsoil_in
-          write(fates_log(), *) 'To increase max_elements, change numlevsoil_max'
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-      end if
-
       bc_in%nlevdecomp = nlevdecomp_in
-
 
       if (hlm_use_vertsoilc == itrue) then
          if(bc_in%nlevdecomp .ne. bc_in%nlevsoil) then
@@ -639,8 +634,7 @@ contains
          bc_out%rootfr_pa(0,1:nlevsoil_in)=1._r8/real(nlevsoil_in,r8)
       end if
 
-      bc_out%ema_npp = nan
-      
+      bc_out%ema_npp = -9999.9_r8
       
       ! Fates -> BGC fragmentation mass fluxes
       select case(hlm_parteh_mode) 
@@ -843,22 +837,24 @@ contains
             nleafage = size(prt_params%leaf_long,dim=2)
          end if
 
+         nlevsclass = size(ED_val_history_sizeclass_bin_edges,dim=1)
          
          ! These values are used to define the restart file allocations and general structure
          ! of memory for the cohort arrays
-         
-         fates_maxElementsPerPatch = max(max_cohort_per_patch, ndcmpy*hlm_maxlevsoil ,ncwd*hlm_maxlevsoil)
-         
-         if (fates_maxPatchesPerSite * fates_maxElementsPerPatch <  numWaterMem) then
-            write(fates_log(), *) 'By using such a tiny number of maximum patches and maximum cohorts'
-            write(fates_log(), *) ' this could create problems for indexing in restart files'
-            write(fates_log(), *) ' The multiple of the two has to be greater than numWaterMem'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
+         if(hlm_use_sp.eq.itrue) then
+            fates_maxElementsPerPatch = maxSWb
+         else
+            fates_maxElementsPerPatch = max(maxSWb,max_cohort_per_patch, ndcmpy*hlm_maxlevsoil ,ncwd*hlm_maxlevsoil)
          end if
          
-         fates_maxElementsPerSite = fates_maxPatchesPerSite * fates_maxElementsPerPatch
+         fates_maxElementsPerSite = max(fates_maxPatchesPerSite * fates_maxElementsPerPatch, &
+              numWatermem*numpft, num_vegtemp_mem, num_elements, nlevsclass*numpft)
 
-
+         if(hlm_use_planthydro==itrue)then
+            fates_maxElementsPerSite = max(fates_maxElementsPerSite, nshell*nlevsoi_hyd_max )
+         end if
+         
+         
          ! Set the maximum number of nutrient aquisition competitors per site
          ! This is used to set array sizes for the boundary conditions.
          ! Note: since BGC code may be active even when no nutrients
@@ -905,7 +901,6 @@ contains
 
          ! Identify number of size and age class bins for history output
          ! assume these arrays are 1-indexed
-         nlevsclass = size(ED_val_history_sizeclass_bin_edges,dim=1)
          nlevage = size(ED_val_history_ageclass_bin_edges,dim=1)
          nlevheight = size(ED_val_history_height_bin_edges,dim=1)
          nlevcoage = size(ED_val_history_coageclass_bin_edges,dim=1)
@@ -969,6 +964,9 @@ contains
          ! These will not be used if use_ed or use_fates is false
          call fates_history_maps()
 
+         
+
+
        
 
       else
@@ -999,6 +997,18 @@ contains
       call fixed_24hr%define(sec_per_day, hlm_stepsize, fixed_window)
       allocate(ema_lpa)  ! note that this parameter has units of days
       call ema_lpa%define(photo_temp_acclim_timescale*sec_per_day, &
+           hlm_stepsize,moving_ema_window)
+      allocate(ema_sdlng_emerg_h2o)
+      call ema_sdlng_emerg_h2o%define(sdlng_emerg_h2o_timescale*sec_per_day, &
+           hlm_stepsize,moving_ema_window)
+      allocate(ema_sdlng_mort_par)
+      call ema_sdlng_mort_par%define(sdlng_mort_par_timescale*sec_per_day, &
+           hlm_stepsize,moving_ema_window)
+      allocate(ema_sdlng2sap_par)
+      call ema_sdlng2sap_par%define(sdlng2sap_par_timescale*sec_per_day, &
+           hlm_stepsize,moving_ema_window)
+      allocate(ema_sdlng_mdd)
+      call ema_sdlng_mdd%define(sdlng_mdd_timescale*sec_per_day, &
            hlm_stepsize,moving_ema_window)
       allocate(ema_longterm)  ! note that this parameter has units of years
       call ema_longterm%define(photo_temp_acclim_thome_time*days_per_year*sec_per_day, & 
@@ -1952,7 +1962,16 @@ contains
      
      type(ed_patch_type),  pointer :: cpatch
      type(ed_cohort_type), pointer :: ccohort
-     integer :: s, ifp, io_si
+     integer :: s, ifp, io_si, pft 
+     real(r8) :: new_seedling_layer_par ! seedling layer par in the current timestep
+     real(r8) :: new_seedling_layer_smp ! seedling layer smp in the current timestep
+     real(r8) :: new_seedling_mdd       ! seedling layer moisture deficit days in the current timestep
+     integer  :: ilayer_seedling_root   ! the soil layer at seedling rooting depth
+     real(r8) :: seedling_par_high      ! higher intensity par for seedlings (par at exposed ground) [W/m2]
+     real(r8) :: par_high_frac          ! fraction of ground where PAR is high
+     real(r8) :: seedling_par_low       ! lower intensity par for seedlings (par under the undergrowth) [W/m2]
+     real(r8) :: par_low_frac           ! fraction of ground where PAR is low
+     integer,parameter :: ipar = 1      ! solar radiation in the shortwave band (i.e. par)
 
      do s = 1,size(sites,dim=1)
 
@@ -1965,19 +1984,147 @@ contains
            call cpatch%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            call cpatch%tveg_longterm%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
 
-           
+     
+
+           ! Update the seedling layer par running means
+           if ( regeneration_model == TRS_regeneration ) then
+
+              ! Return the par intensity at the ground. This routine
+              ! breaks it up into high and low light levels. The high
+              ! levels are the light on the exposed ground at the surface
+              ! and the low levels are the intensity under the bottom-most
+              ! vegetation.
+              
+              call SeedlingParPatch(cpatch, &
+                   bc_in(s)%solad_parb(ifp,ipar) + bc_in(s)%solai_parb(ifp,ipar), &
+                   seedling_par_high, par_high_frac, seedling_par_low,&
+                   & par_low_frac)
+              
+              new_seedling_layer_par = seedling_par_high*par_high_frac + seedling_par_low*par_low_frac
+              
+              call cpatch%seedling_layer_par24%UpdateRMean(new_seedling_layer_par)
+              call cpatch%sdlng_mort_par%UpdateRMean(new_seedling_layer_par)
+              call cpatch%sdlng2sap_par%UpdateRMean(new_seedling_layer_par)
+
+              do pft = 1,numpft
+
+                 ! Calculate the soil moisture at the seedling rooting depth for each pft
+
+                 ilayer_seedling_root = minloc(abs(bc_in(s)%z_sisl(:)-EDPftvarcon_inst%seedling_root_depth(pft)),dim=1)
+                 new_seedling_layer_smp = bc_in(s)%smp_sl(ilayer_seedling_root)
+
+                 ! Calculate the new moisture deficit day (mdd) value for each pft
+                 new_seedling_mdd = (abs(EDPftvarcon_inst%seedling_psi_crit(pft)) - abs(new_seedling_layer_smp)) &
+                      * (-1.0_r8) * sdlng_mdd_timescale
+
+                 ! If mdds are negative then it means that soil is wetter than smp_crit and the moisture
+                 ! deficit is 0  
+                 if (new_seedling_mdd < 0.0_r8) then
+                    new_seedling_mdd = 0.0_r8
+                 endif
+
+                 ! Update the seedling layer smp and mdd running means
+                 call cpatch%sdlng_emerg_smp(pft)%p%UpdateRMean(new_seedling_layer_smp)
+                 call cpatch%sdlng_mdd(pft)%p%UpdateRMean(new_seedling_mdd)
+
+              enddo !end pft loop
+              
+           end if
+
            !ccohort => cpatch%tallest
            !do while (associated(ccohort))
            !   call ccohort%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            !   ccohort => ccohort%shorter
            !end do
-           end if
-           
-           cpatch => cpatch%younger
-        enddo
+        end if
+
+        cpatch => cpatch%younger
+     enddo
+  end do
+
+  return
+end subroutine UpdateFatesRMeansTStep
+
+! ========================================================================================
+
+subroutine SeedlingParPatch(cpatch, & 
+     atm_par, & 
+     seedling_par_high, par_high_frac, &
+     seedling_par_low, par_low_frac)
+
+  ! Calculate the intensity of PAR for seedlings in the current patch.
+  ! To do this, we need to get a weighted average of light penetrating
+  ! though (parprof) the lowest leaf layers. We will need to identify
+  ! how closed (area) the lowest canopy layer is, because we will use
+  ! an area weighted average of the light coming from the canopy above
+  ! and an area weighted average of the light penetrating through the
+  ! existing portino of the lowest layer.
+  !
+  ! This routine will generate two intensities, light levels on the exposed
+  ! ground in the lowest layer, and light levels under the existing
+  ! vegetation in the lowest layer, along with the area fraction
+  ! of those two (which should sum to unity).
+
+  ! Arguments
+  type(ed_patch_type)   :: cpatch             ! the current patch
+  real(r8), intent(in)  :: atm_par            ! direct+diffuse PAR at canopy top [W/m2]
+  real(r8), intent(out) :: seedling_par_high  ! High intensity PAR for seedlings [W/m2]
+  real(r8), intent(out) :: par_high_frac      ! Area fraction with high intensity
+  real(r8), intent(out) :: seedling_par_low   ! Low intensity PAR for seedlings [W/m2]
+  real(r8), intent(out) :: par_low_frac       ! Area fraction with low intensity
+
+  ! Locals
+  real(r8) :: cl_par     ! The PAR intensity coming from the canopy layer [w/m2]
+  real(r8) :: cl_area    ! The area fraction of the given canopy layer
+  integer  :: cl         ! current canopy layer
+  integer  :: ipft       ! current PFT index
+  integer  :: iv         ! lower-most leaf layer index for the cl & pft combo
+
+  ! Start with the assumption that there is a single canopy layer
+  seedling_par_high = atm_par
+  par_high_frac     = 1._r8-cpatch%total_canopy_area
+  par_low_frac      = cpatch%total_canopy_area
+
+  ! Work up through the canopy layers from the bottom layer
+  do cl = cpatch%NCL_p,max(1,cpatch%NCL_p-1),-1
+     cl_par = 0._r8
+     cl_area = 0._r8
+     do ipft = 1,numpft
+        iv = cpatch%ncan(cl,ipft)
+        ! Avoid calculating when there are no leaf layers for the given pft in the current canopy layer
+        if (iv .ne. 0) then
+           cl_par = cl_par + cpatch%canopy_area_profile(cl,ipft,1)* &
+                (cpatch%parprof_pft_dir_z(cl,ipft,iv)+cpatch%parprof_pft_dif_z(cl,ipft,iv))
+           cl_area = cl_area + cpatch%canopy_area_profile(cl,ipft,1)
+        end if
      end do
 
-     return
-   end subroutine UpdateFatesRMeansTStep
-      
- end module FatesInterfaceMod
+     ! Set the cl_par to zero if the area is near zero.  Otherwise scale the par by the area
+     if(cl_area>nearzero)then
+        cl_par = cl_par/cl_area
+     else
+        cl_par = 0._r8
+     end if
+
+     ! If we do have more than one layer, then we need to figure out
+     ! the average of light on the exposed ground under the veg
+     ! Since we are working up through the canopy layers from the ground,
+     ! set the par_high to the previous par_low value and update 
+     ! the par_low to the new cl_par value
+     if(cl .lt. cpatch%NCL_p) then
+        seedling_par_high = seedling_par_low
+        par_high_frac     = (1._r8-cl_area)
+        seedling_par_low  = cl_par
+        par_low_frac      = cl_area
+     ! If we only have one layer, only set the seedling_par_low
+     else
+        seedling_par_low  = cl_par
+     end if
+
+  end do
+
+  return
+end subroutine SeedlingParPatch
+
+
+end module FatesInterfaceMod

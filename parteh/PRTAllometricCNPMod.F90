@@ -47,6 +47,7 @@ module PRTAllometricCNPMod
   use FatesConstantsMod   , only : calloc_abs_error
   use FatesConstantsMod   , only : rsnbl_math_prec
   use FatesConstantsMod   , only : years_per_day
+  use FatesConstantsMod   , only : mm_per_cm
   use FatesIntegratorsMod , only : RKF45
   use FatesIntegratorsMod , only : Euler
   use FatesConstantsMod   , only : calloc_abs_error
@@ -55,13 +56,20 @@ module PRTAllometricCNPMod
   use FatesConstantsMod   , only : fates_unset_r8
   use FatesConstantsMod   , only : fates_unset_int
   use FatesConstantsMod   , only : sec_per_day
+  use FatesConstantsMod   , only : TRS_regeneration
+  use FatesConstantsMod   , only : default_regeneration
+  use FatesConstantsMod   , only : TRS_no_seedling_dyn
+  use FatesConstantsMod   , only : min_max_dbh_for_trees
   use PRTParametersMod    , only : prt_params
-  use EDTypesMod          , only : leaves_on,leaves_off
+  use EDTypesMod          , only : leaves_on,leaves_off,leaves_shedding
   use EDTypesMod        , only : p_uptake_mode
   use EDTypesMod        , only : n_uptake_mode
   use FatesConstantsMod , only : prescribed_p_uptake
   use FatesConstantsMod , only : prescribed_n_uptake
   use EDPftvarcon, only : EDPftvarcon_inst
+  use EDParamsMod       , only : regeneration_model
+
+
   
   implicit none
   private
@@ -157,16 +165,17 @@ module PRTAllometricCNPMod
   ! Input only Boundary Indices (These are public)
   ! -------------------------------------------------------------------------------------
 
-  integer, public, parameter :: acnp_bc_in_id_pft      = 1 ! Index for the PFT input BC
-  integer, public, parameter :: acnp_bc_in_id_ctrim    = 2 ! Index for the canopy trim function
-  integer, public, parameter :: acnp_bc_in_id_lstat    = 3 ! phenology status logical
-  integer, public, parameter :: acnp_bc_in_id_netdc    = 4 ! Index for the net daily C input BC
-  integer, public, parameter :: acnp_bc_in_id_nc_repro = 5
-  integer, public, parameter :: acnp_bc_in_id_pc_repro = 6
-  integer, public, parameter :: acnp_bc_in_id_cdamage  = 7
-  
-  ! 0=leaf off, 1=leaf on
-  integer, parameter         :: num_bc_in             = 7
+  integer, public, parameter :: acnp_bc_in_id_pft      =  1 ! Index for the PFT input BC
+  integer, public, parameter :: acnp_bc_in_id_ctrim    =  2 ! Index for the canopy trim function
+  integer, public, parameter :: acnp_bc_in_id_lstat    =  3 ! phenology status logical
+  integer, public, parameter :: acnp_bc_in_id_netdc    =  4 ! Index for the net daily C input BC
+  integer, public, parameter :: acnp_bc_in_id_nc_repro =  5
+  integer, public, parameter :: acnp_bc_in_id_pc_repro =  6
+  integer, public, parameter :: acnp_bc_in_id_cdamage  =  7 ! Index for the crowndamage input BC
+  integer, public, parameter :: acnp_bc_in_id_efleaf   =  8 ! Leaf elongation factor
+  integer, public, parameter :: acnp_bc_in_id_effnrt   =  9 ! Fine-root "elongation factor"
+  integer, public, parameter :: acnp_bc_in_id_efstem   = 10 ! Stem "elongation factor"
+  integer, parameter         :: num_bc_in              = 10
 
   ! -------------------------------------------------------------------------------------
   ! Output Boundary Indices (These are public)
@@ -185,7 +194,10 @@ module PRTAllometricCNPMod
   integer,private, parameter :: intgr_parm_pft     = 2
   integer,private, parameter :: intgr_parm_l2fr    = 3
   integer,private, parameter :: intgr_parm_cdamage = 4
-  integer,private, parameter :: num_intgr_parm     = 4
+  integer,private, parameter :: intgr_parm_efleaf  = 5
+  integer,private, parameter :: intgr_parm_effnrt  = 6
+  integer,private, parameter :: intgr_parm_efstem  = 7
+  integer,private, parameter :: num_intgr_parm     = 7
   
   ! -------------------------------------------------------------------------------------
   ! Define the size of the coorindate vector.  For this hypothesis, there is only
@@ -369,13 +381,16 @@ contains
     real(r8),pointer :: l2fr         ! Leaf to fineroot ratio of target biomass
     
     ! Input only bcs
-    integer  :: ipft           ! Plant Functional Type index
-    real(r8) :: c_gain         ! Daily carbon balance for this cohort [kgC]
-    real(r8),pointer :: n_gain ! Daily nitrogen uptake through fine-roots [kgN]
-    real(r8),pointer :: p_gain ! Daily phosphorus uptake through fine-roots [kgN]
-    real(r8) :: canopy_trim    ! The canopy trimming function [0-1]
-    integer :: crown_damage    ! Damage status of the crown (for allometry)
-    
+    integer          :: ipft         ! Plant Functional Type index
+    real(r8)         :: c_gain       ! Daily carbon balance for this cohort [kgC]
+    real(r8),pointer :: n_gain       ! Daily nitrogen uptake through fine-roots [kgN]
+    real(r8),pointer :: p_gain       ! Daily phosphorus uptake through fine-roots [kgN]
+    real(r8)         :: canopy_trim  ! The canopy trimming function [0-1]
+    integer          :: crown_damage ! which crown damage clas
+    real(r8)         :: elongf_leaf  ! Leaf elongation factor [0-1]
+    real(r8)         :: elongf_fnrt  ! Fine-root "elongation factor" [0-1]
+    real(r8)         :: elongf_stem  ! Stem "elongation factor" [0-1]
+
     ! Pointers to output bcs
     real(r8),pointer :: c_efflux   ! Total plant efflux of carbon (kgC)
     real(r8),pointer :: n_efflux   ! Total plant efflux of nitrogen (kgN)
@@ -443,7 +458,10 @@ contains
     canopy_trim = this%bc_in(acnp_bc_in_id_ctrim)%rval
     ipft        = this%bc_in(acnp_bc_in_id_pft)%ival
     crown_damage = this%bc_in(acnp_bc_in_id_cdamage)%ival
-    
+    elongf_leaf  = this%bc_in(acnp_bc_in_id_efleaf)%rval
+    elongf_fnrt  = this%bc_in(acnp_bc_in_id_effnrt)%rval
+    elongf_stem  = this%bc_in(acnp_bc_in_id_efstem)%rval
+
     ! If either n or p uptake is in prescribed mode
     ! set the gains to something massive. 1 kilo of pure
     ! nutrient should be wayyy more than enough
@@ -465,13 +483,13 @@ contains
     ! Set carbon targets based on the plant's current stature
     target_c(:) = fates_unset_r8
     target_dcdd(:) = fates_unset_r8
-    call bsap_allom(dbh,ipft,crown_damage,canopy_trim,sapw_area,target_c(sapw_organ),target_dcdd(sapw_organ))
-    call bagw_allom(dbh,ipft,crown_damage,agw_c_target,agw_dcdd_target)
-    call bbgw_allom(dbh,ipft,bgw_c_target,bgw_dcdd_target)
+    call bsap_allom(dbh,ipft,crown_damage,canopy_trim,elongf_stem,sapw_area,target_c(sapw_organ),target_dcdd(sapw_organ))
+    call bagw_allom(dbh,ipft,crown_damage,elongf_stem,agw_c_target,agw_dcdd_target)
+    call bbgw_allom(dbh,ipft,elongf_stem,bgw_c_target,bgw_dcdd_target)
     call bdead_allom(agw_c_target,bgw_c_target,target_c(sapw_organ),ipft,target_c(struct_organ), &
                      agw_dcdd_target,bgw_dcdd_target,target_dcdd(sapw_organ),target_dcdd(struct_organ))
-    call bleaf(dbh,ipft,crown_damage,canopy_trim, target_c(leaf_organ), target_dcdd(leaf_organ))
-    call bfineroot(dbh,ipft,canopy_trim, l2fr, target_c(fnrt_organ), target_dcdd(fnrt_organ))
+    call bleaf(dbh,ipft,crown_damage,canopy_trim, elongf_leaf, target_c(leaf_organ), target_dcdd(leaf_organ))
+    call bfineroot(dbh,ipft,canopy_trim, l2fr, elongf_fnrt, target_c(fnrt_organ), target_dcdd(fnrt_organ))
     call bstore_allom(dbh,ipft,crown_damage, canopy_trim, target_c(store_organ), target_dcdd(store_organ))
     target_c(repro_organ) = 0._r8
     target_dcdd(repro_organ) = 0._r8
@@ -721,6 +739,7 @@ contains
     real(r8)          :: canopy_trim
     integer  :: leaf_status
     integer, pointer :: limiter
+    real(r8) :: elongf_fnrt
     real(r8) :: store_c_max, store_c_act
     real(r8) :: store_nut_max, store_nut_act
     real(r8) :: l2fr_delta
@@ -735,7 +754,8 @@ contains
                                                         ! of the process function in the PID controller
 
     leaf_status = this%bc_in(acnp_bc_in_id_lstat)%ival
-    ipft        =  this%bc_in(acnp_bc_in_id_pft)%ival
+    ipft        = this%bc_in(acnp_bc_in_id_pft)%ival
+    elongf_fnrt = this%bc_in(acnp_bc_in_id_effnrt)%rval
     l2fr        => this%bc_inout(acnp_bc_inout_id_l2fr)%rval
     dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval
     canopy_trim =  this%bc_in(acnp_bc_in_id_ctrim)%rval
@@ -743,7 +763,6 @@ contains
     cx0         => this%bc_inout(acnp_bc_inout_id_cx0)%rval
     ema_dcxdt   => this%bc_inout(acnp_bc_inout_id_emadcxdt)%rval
     limiter     => this%bc_out(acnp_bc_out_id_limiter)%ival
-    
     ! Abort if leaves are off
     if(leaf_status.eq.leaves_off) return
 
@@ -846,7 +865,7 @@ contains
     l2fr = max(l2fr_min, l2fr + l2fr_delta)
 
     ! Find the updated target fineroot biomass
-    call bfineroot(dbh,ipft,canopy_trim, l2fr, target_c(fnrt_organ),target_dcdd(fnrt_organ))
+    call bfineroot(dbh,ipft,canopy_trim, l2fr, elongf_fnrt, target_c(fnrt_organ),target_dcdd(fnrt_organ))
 
     return
   end subroutine CNPAdjustFRootTargets
@@ -881,10 +900,11 @@ contains
     associate( ipft         => this%bc_in(acnp_bc_in_id_pft)%ival,  &
          l2fr         => this%bc_inout(acnp_bc_inout_id_l2fr)%rval, &
          dbh          => this%bc_inout(acnp_bc_inout_id_dbh)%rval,  &
+         elongf_fnrt  => this%bc_in(acnp_bc_in_id_effnrt)%rval,     &
          canopy_trim  => this%bc_in(acnp_bc_in_id_ctrim)%rval)
 
       ! Find the updated target fineroot biomass
-      call bfineroot(dbh,ipft,canopy_trim, l2fr, target_fnrt_c)
+      call bfineroot(dbh,ipft,canopy_trim, l2fr, elongf_fnrt, target_fnrt_c)
 
       fnrt_flux_c = max(0._r8,this%variables(fnrt_c_id)%val(1)*(1._r8-nday_buffer*(years_per_day / prt_params%root_long(ipft))) - target_fnrt_c )
 
@@ -950,6 +970,9 @@ contains
     real(r8) :: canopy_trim              ! trim factor for maximum leaf biomass
     real(r8) :: target_n                 ! Target mass of N for a given organ [kg]
     real(r8) :: target_p                 ! Target mass of P for a given organ [kg]
+    real(r8) :: elongf_leaf              ! Leaf elongation factor
+    real(r8) :: elongf_fnrt              ! Fine-root "elongation factor"
+    real(r8) :: elongf_stem              ! Stem "elongation factor"
     integer  :: priority_code            ! Index for priority level of each organ
     real(r8) :: sum_c_demand             ! Carbon demanded to bring tissues up to allometry (kg)
     real(r8) :: store_below_target       ! The amount of storage that is less than the target (kg)
@@ -966,6 +989,9 @@ contains
     
     
     leaf_status     = this%bc_in(acnp_bc_in_id_lstat)%ival
+    elongf_leaf     = this%bc_in(acnp_bc_in_id_efleaf)%rval
+    elongf_fnrt     = this%bc_in(acnp_bc_in_id_effnrt)%rval
+    elongf_stem     = this%bc_in(acnp_bc_in_id_efstem)%rval
     ipft            = this%bc_in(acnp_bc_in_id_pft)%ival
     canopy_trim     = this%bc_in(acnp_bc_in_id_ctrim)%rval
 
@@ -1014,12 +1040,13 @@ contains
        ! Don't allow allocation to leaves if they are in an "off" status.
        ! Also, dont allocate to replace turnover if this is not evergreen
        ! (this prevents accidental re-flushing on the day they drop)
-       if( ((leaf_status.eq.leaves_off) .or. (prt_params%evergreen(ipft) .ne. itrue)) &
-            .and. (i_org.eq.leaf_organ)) cycle
+       if( ( any(leaf_status == [leaves_off,leaves_shedding]) .or. &
+             (prt_params%evergreen(ipft) /= itrue) ) &
+            .and. (i_org == leaf_organ)) cycle
 
        ! The priority code associated with this organ
        priority_code = int(prt_params%alloc_priority(ipft, ii))
-       
+
        ! 1 is the highest priority code possible
        if( priority_code == 1 ) then
           i = i + 1
@@ -1166,8 +1193,9 @@ contains
           
           ! Don't allow allocation to leaves if they are in an "off" status.
           ! (this prevents accidental re-flushing on the day they drop)
-          if((leaf_status.eq.leaves_off) .and. (i_org.eq.leaf_organ)) cycle
-          
+          if( any(leaf_status == [leaves_off,leaves_shedding]) .and. &
+              (i_org == leaf_organ) ) cycle
+
           if( priority_code == i_pri ) then
              i = i + 1
              curpri_org(i) = i_org
@@ -1270,6 +1298,9 @@ contains
     integer, pointer  :: limiter                 ! Integer flagging which (C,N,P) is limiting
     real(r8)          :: canopy_trim             ! fraction of crown trimmed
     integer           :: crown_damage            ! Damage status level
+    real(r8)          :: elongf_leaf             ! Elongation factor (leaves)
+    real(r8)          :: elongf_fnrt             ! Elongation factor (fine roots)
+    real(r8)          :: elongf_stem             ! Elongation factor (woods)
     real(r8)          :: leaf_status             ! leaves on or off?
     real(r8)          :: l2fr                    ! leaf to fineroot allometry multiplier
     integer  :: i, ii                            ! organ index loops (masked and unmasked)
@@ -1341,6 +1372,9 @@ contains
     
 
     leaf_status = this%bc_in(acnp_bc_in_id_lstat)%ival
+    elongf_leaf = this%bc_in(acnp_bc_in_id_efleaf)%rval
+    elongf_fnrt = this%bc_in(acnp_bc_in_id_effnrt)%rval
+    elongf_stem = this%bc_in(acnp_bc_in_id_efstem)%rval
     dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval
     ipft        = this%bc_in(acnp_bc_in_id_pft)%ival
     crown_damage = this%bc_in(acnp_bc_in_id_cdamage)%ival
@@ -1368,20 +1402,21 @@ contains
     ! signaled a drop. If this is the case, we can't grow stature
     ! cause that would force the leaves back on, so just leave.
 
-    
-    if( c_gain <= calloc_abs_error  .or. &
-         leaf_status.eq.leaves_off  .or. &
-         n_gain <= 0.1_r8*calloc_abs_error .or. &
-         p_gain <= 0.02_r8*calloc_abs_error ) then
+    if( c_gain <= calloc_abs_error .or. &
+        n_gain <= 0.1_r8*calloc_abs_error .or. &
+        p_gain <= 0.02_r8*calloc_abs_error .or. &
+        any(leaf_status == [leaves_off,leaves_shedding]) ) then
        return
     end if
        
-    intgr_params(:)              = fates_unset_r8
-    intgr_params(intgr_parm_ctrim) = this%bc_in(acnp_bc_in_id_ctrim)%rval
-    intgr_params(intgr_parm_pft)   = real(this%bc_in(acnp_bc_in_id_pft)%ival)
-    intgr_params(intgr_parm_l2fr)  = this%bc_inout(acnp_bc_inout_id_l2fr)%rval
-    intgr_params(intgr_parm_cdamage) = real(this%bc_in(acnp_bc_in_id_cdamage)%ival)
-    
+    intgr_params(:)                  = fates_unset_r8
+    intgr_params(intgr_parm_ctrim)   = this%bc_in(acnp_bc_in_id_ctrim)%rval
+    intgr_params(intgr_parm_pft)     = real(this%bc_in(acnp_bc_in_id_pft)%ival,r8)
+    intgr_params(intgr_parm_l2fr)    = this%bc_inout(acnp_bc_inout_id_l2fr)%rval
+    intgr_params(intgr_parm_cdamage) = real(this%bc_in(acnp_bc_in_id_cdamage)%ival,r8)
+    intgr_params(intgr_parm_efleaf)  = this%bc_in(acnp_bc_in_id_efleaf)%rval
+    intgr_params(intgr_parm_effnrt)  = this%bc_in(acnp_bc_in_id_effnrt)%rval
+    intgr_params(intgr_parm_efstem)  = this%bc_in(acnp_bc_in_id_efstem)%rval
     state_mask(:) = .false.
     mask_organs(:) = fates_unset_int
     mask_gorgans(:) = fates_unset_int
@@ -1452,13 +1487,40 @@ contains
     ! just different from the other pools. It is not based on proportionality,
     ! so its mask is set differently.  We (inefficiently) just included
     ! reproduction in the previous loop, but oh well, we over-write now.
+
+    ! If the TRS is switched off, or if the plant is a shrub or grass
+    ! then we use FATES's default reproductive allocation.
+    ! We designate a plant a shrub or grass if its dbh at maximum height
+    ! is less than 15 cm
+
+    if ( regeneration_model == default_regeneration .or. &
+         prt_params%allom_dbh_maxheight(ipft) < min_max_dbh_for_trees ) then
+
+       if (dbh <= prt_params%dbh_repro_threshold(ipft)) then
+          repro_c_frac = prt_params%seed_alloc(ipft)
+       else
+          repro_c_frac = prt_params%seed_alloc(ipft) + prt_params%seed_alloc_mature(ipft)
+       end if
     
-    if (dbh <= prt_params%dbh_repro_threshold(ipft)) then
-       repro_c_frac = prt_params%seed_alloc(ipft)
+    ! If the TRS is switched on (with or w/o seedling dynamics) then reproductive allocation is
+    ! a pft-specific function of dbh. This allows for the representation of different
+    ! reproductive schedules (Wenk and Falster, 2015)
+    else if ( any(regeneration_model == [TRS_regeneration, TRS_no_seedling_dyn]) .and. &
+                  prt_params%allom_dbh_maxheight(ipft) > min_max_dbh_for_trees ) then
+
+       repro_c_frac = prt_params%seed_alloc(ipft) * &
+       (exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm) / &
+       (1 + exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm)))
+
     else
-       repro_c_frac = prt_params%seed_alloc(ipft) + prt_params%seed_alloc_mature(ipft)
-    end if
-    
+       
+       write(fates_log(),*) 'unknown seed allocation and regeneration model, exiting'
+       write(fates_log(),*) 'regeneration_model: ',regeneration_model
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+       
+    end if ! regeneration switch 
+
+
     if(repro_c_frac>nearzero)then
        state_mask(repro_id)            = .true.
        n_mask_organs = n_mask_organs + 1
@@ -1579,8 +1641,9 @@ contains
             do i = 2,nbins
                leafc_tp1 = leafc_tp1 + this%variables(i_var)%val(i)
             end do
-            
-            call CheckIntegratedAllometries(state_array_out(dbh_id),ipft,crown_damage,canopy_trim, l2fr,  &
+
+            call CheckIntegratedAllometries(state_array_out(dbh_id),ipft,crown_damage,canopy_trim,  &
+                 elongf_leaf, elongf_fnrt, elongf_stem, l2fr, &
                  leafc_tp1, state_array_out(fnrt_id), state_array_out(sapw_id), &
                  state_array_out(store_id), state_array_out(struct_id), &
                  state_mask(leaf_id), state_mask(fnrt_id), state_mask(sapw_id), &
@@ -1663,6 +1726,9 @@ contains
                write(fates_log(),*) 'trim: ',canopy_trim
                write(fates_log(),*) 'l2fr: ',l2fr
                write(fates_log(),*) 'dbh: ',dbh
+               write(fates_log(),*) 'elongf_leaf: ',elongf_leaf
+               write(fates_log(),*) 'elongf_fnrt: ',elongf_fnrt
+               write(fates_log(),*) 'elongf_stem: ',elongf_stem
                write(fates_log(),*) 'dCleaf_dd: ',target_dcdd(leaf_organ)
                write(fates_log(),*) 'dCfnrt_dd: ',target_dcdd(fnrt_organ)
                write(fates_log(),*) 'dCstore_dd: ',target_dcdd(store_organ)
@@ -1676,14 +1742,14 @@ contains
                storec_tp1  = state_array_out(store_id)
                structc_tp1 = state_array_out(struct_id)
                
-               call bleaf(dbh_tp1,ipft,crown_damage,canopy_trim,leaf_c_target_tp1)
-               call bfineroot(dbh_tp1,ipft,canopy_trim,l2fr,fnrt_c_target_tp1)
-               call bsap_allom(dbh_tp1,ipft,crown_damage,canopy_trim,sapw_area,sapw_c_target_tp1)
-               call bagw_allom(dbh_tp1,ipft,crown_damage,agw_c_target_tp1)
-               call bbgw_allom(dbh_tp1,ipft,bgw_c_target_tp1)
+               call bleaf(dbh_tp1,ipft,crown_damage,canopy_trim, elongf_leaf, leaf_c_target_tp1)
+               call bfineroot(dbh_tp1,ipft,canopy_trim,l2fr, elongf_fnrt, fnrt_c_target_tp1)
+               call bsap_allom(dbh_tp1,ipft,crown_damage,canopy_trim, elongf_stem, sapw_area,sapw_c_target_tp1)
+               call bagw_allom(dbh_tp1,ipft,crown_damage, elongf_stem, agw_c_target_tp1)
+               call bbgw_allom(dbh_tp1,ipft, elongf_stem, bgw_c_target_tp1)
                call bdead_allom(agw_c_target_tp1,bgw_c_target_tp1, sapw_c_target_tp1, ipft, struct_c_target_tp1)
                call bstore_allom(dbh_tp1,ipft,crown_damage,canopy_trim,store_c_target_tp1)
-               
+
                write(fates_log(),*) 'leaf_c: ',leafc_tp1, leaf_c_target_tp1,leafc_tp1-leaf_c_target_tp1
                write(fates_log(),*) 'fnrt_c: ',fnrtc_tp1, fnrt_c_target_tp1,fnrtc_tp1- fnrt_c_target_tp1
                write(fates_log(),*) 'sapw_c: ',sapwc_tp1, sapw_c_target_tp1 ,sapwc_tp1- sapw_c_target_tp1
@@ -1998,11 +2064,18 @@ contains
     real(r8)         :: leaf_c_target,fnrt_c_target
     real(r8)         :: sapw_c_target,agw_c_target
     real(r8)         :: bgw_c_target,struct_c_target
+    real(r8)         :: elongf_leaf
+    real(r8)         :: elongf_fnrt
+    real(r8)         :: elongf_stem
     real(r8)         :: nc_repro,pc_repro
-    
+
+
     dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval
     canopy_trim = this%bc_in(acnp_bc_in_id_ctrim)%rval
     ipft        = this%bc_in(acnp_bc_in_id_pft)%ival
+    elongf_leaf = this%bc_in(acnp_bc_in_id_efleaf)%rval
+    elongf_fnrt = this%bc_in(acnp_bc_in_id_effnrt)%rval
+    elongf_stem = this%bc_in(acnp_bc_in_id_efstem)%rval
     i_cvar      = prt_global%sp_organ_map(organ_id,carbon12_element)
     l2fr        = this%bc_inout(acnp_bc_inout_id_l2fr)%rval
     nc_repro    = this%bc_in(acnp_bc_in_id_nc_repro)%rval
@@ -2016,11 +2089,11 @@ contains
     
     if(organ_id == store_organ) then
 
-       call bleaf(dbh,ipft,crown_damage,canopy_trim,leaf_c_target)
-       call bfineroot(dbh,ipft,canopy_trim,l2fr,fnrt_c_target)
-       call bsap_allom(dbh,ipft,crown_damage,canopy_trim,sapw_area,sapw_c_target)
-       call bagw_allom(dbh,ipft,crown_damage,agw_c_target)
-       call bbgw_allom(dbh,ipft,bgw_c_target)
+       call bleaf(dbh,ipft,crown_damage,canopy_trim, elongf_leaf, leaf_c_target)
+       call bfineroot(dbh,ipft,canopy_trim,l2fr, elongf_fnrt, fnrt_c_target)
+       call bsap_allom(dbh,ipft,crown_damage,canopy_trim, elongf_stem, sapw_area,sapw_c_target)
+       call bagw_allom(dbh,ipft,crown_damage, elongf_stem, agw_c_target)
+       call bbgw_allom(dbh,ipft, elongf_stem, bgw_c_target)
        call bdead_allom(agw_c_target,bgw_c_target, sapw_c_target, ipft, struct_c_target)
 
        ! Target for storage is a fraction of the sum target of all
@@ -2221,7 +2294,10 @@ contains
       real(r8) :: struct_dcdd_target    ! target structural biomass derivative wrt d, (kgC/cm)
       real(r8) :: repro_fraction        ! fraction of carbon balance directed towards reproduction (kgC/kgC)
       real(r8) :: total_dcostdd         ! carbon cost for non-reproductive pools per unit increment of dbh
-      
+      real(r8) :: elongf_leaf           ! Leaf elongation factor (0-1)
+      real(r8) :: elongf_fnrt           ! Fine-root "elongation factor" (0-1)
+      real(r8) :: elongf_stem           ! Stem "elongation factor" (0-1)
+
 
       associate( dbh         => l_state_array(dbh_id),      &
                  leaf_c      => l_state_array(leaf_id),   &
@@ -2238,30 +2314,53 @@ contains
                  mask_struct => l_state_mask(struct_id),  &
                  mask_repro  => l_state_mask(repro_id) )
 
-        canopy_trim = intgr_params(intgr_parm_ctrim)
-        ipft        = int(intgr_params(intgr_parm_pft))
-        l2fr        = intgr_params(intgr_parm_l2fr)
+        canopy_trim  = intgr_params(intgr_parm_ctrim)
+        ipft         = int(intgr_params(intgr_parm_pft))
+        l2fr         = intgr_params(intgr_parm_l2fr)
         crown_damage = int(intgr_params(intgr_parm_cdamage))
-        
-        call bleaf(dbh,ipft,crown_damage,canopy_trim,leaf_c_target,leaf_dcdd_target)
-        call bfineroot(dbh,ipft,canopy_trim,l2fr,fnrt_c_target,fnrt_dcdd_target)
-        call bsap_allom(dbh,ipft,crown_damage,canopy_trim,sapw_area,sapw_c_target,sapw_dcdd_target)
-        call bagw_allom(dbh,ipft,crown_damage,agw_c_target,agw_dcdd_target)
-        call bbgw_allom(dbh,ipft,bgw_c_target,bgw_dcdd_target)
+        elongf_leaf  = intgr_params(intgr_parm_efleaf)
+        elongf_fnrt  = intgr_params(intgr_parm_effnrt)
+        elongf_stem  = intgr_params(intgr_parm_efstem)
+
+        call bleaf(dbh,ipft,crown_damage,canopy_trim, elongf_leaf, leaf_c_target,leaf_dcdd_target)
+        call bfineroot(dbh,ipft,canopy_trim,l2fr, elongf_fnrt, fnrt_c_target,fnrt_dcdd_target)
+        call bsap_allom(dbh,ipft,crown_damage,canopy_trim, elongf_stem, sapw_area,sapw_c_target,sapw_dcdd_target)
+        call bagw_allom(dbh,ipft,crown_damage, elongf_stem,agw_c_target,agw_dcdd_target)
+        call bbgw_allom(dbh,ipft, elongf_stem,bgw_c_target,bgw_dcdd_target)
         call bdead_allom(agw_c_target,bgw_c_target, sapw_c_target, ipft, struct_c_target, &
                          agw_dcdd_target, bgw_dcdd_target, sapw_dcdd_target, struct_dcdd_target)
         call bstore_allom(dbh,ipft,crown_damage,canopy_trim,store_c_target,store_dcdd_target)
 
         if (mask_repro) then
-           ! fraction of carbon going towards reproduction
-           if (dbh <= prt_params%dbh_repro_threshold(ipft)) then
-              repro_fraction = prt_params%seed_alloc(ipft)
+
+           ! If the TRS is switched off then we use FATES's default reproductive allocation.
+           if ( regeneration_model == default_regeneration .or. &
+                prt_params%allom_dbh_maxheight(ipft) < min_max_dbh_for_trees ) then ! The Tree Recruitment Scheme 
+                                                                             ! is only for trees
+              if (dbh <= prt_params%dbh_repro_threshold(ipft)) then
+                 repro_fraction = prt_params%seed_alloc(ipft)
+              else
+                 repro_fraction = prt_params%seed_alloc(ipft) + prt_params%seed_alloc_mature(ipft)
+              end if
+   
+           ! If the TRS is switched on (with or w/o seedling dynamics) then reproductive allocation is
+           ! a pft-specific function of dbh. This allows for the representation of different
+           ! reproductive schedules (Wenk and Falster, 2015)
+           else if ( any(regeneration_model == [TRS_regeneration, TRS_no_seedling_dyn]) .and. &
+                     prt_params%allom_dbh_maxheight(ipft) > min_max_dbh_for_trees ) then
+
+              repro_fraction = prt_params%seed_alloc(ipft) * &
+              (exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm) / &
+              (1 + exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm)))
            else
-              repro_fraction = prt_params%seed_alloc(ipft) + prt_params%seed_alloc_mature(ipft)
-           end if
-        else
+              write(fates_log(),*) 'unknown seed allocation and regeneration model, exiting'
+              write(fates_log(),*) 'regeneration_model: ',regeneration_model
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if ! regeneration switch 
+          
+        else ! mask repro
            repro_fraction = 0._r8
-        end if
+        end if !mask repro
 
         total_dcostdd = 0._r8
         if (mask_struct) then
@@ -2369,14 +2468,35 @@ contains
           pc_repro    => this%bc_in(acnp_bc_in_id_pc_repro)%rval)
      
      if(state_mask(repro_id)) then
-        if (dbh <= prt_params%dbh_repro_threshold(ipft)) then
-           repro_c_frac = prt_params%seed_alloc(ipft)
+        
+        ! If the TRS is switched off then we use FATES's default reproductive allocation.
+        if ( regeneration_model == default_regeneration .or. &
+             prt_params%allom_dbh_maxheight(ipft) < min_max_dbh_for_trees ) then ! The Tree Recruitment Scheme 
+                                                                                 ! is only for trees
+           if (dbh <= prt_params%dbh_repro_threshold(ipft)) then
+              repro_c_frac = prt_params%seed_alloc(ipft)
+           else
+              repro_c_frac = prt_params%seed_alloc(ipft) + prt_params%seed_alloc_mature(ipft)
+           end if
+   
+        ! If the TRS is switched on (with or w/o seedling dynamics) then reproductive allocation is
+        ! a pft-specific function of dbh. This allows for the representation of different
+        ! reproductive schedules (Wenk and Falster, 2015)
+        else if ( any(regeneration_model == [TRS_regeneration, TRS_no_seedling_dyn]) .and. &
+                  prt_params%allom_dbh_maxheight(ipft) > min_max_dbh_for_trees ) then
+
+           repro_c_frac = prt_params%seed_alloc(ipft) * &
+           (exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm) / &
+           (1 + exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm)))
         else
-           repro_c_frac = prt_params%seed_alloc(ipft) + prt_params%seed_alloc_mature(ipft)
-        end if
-     else
+           write(fates_log(),*) 'unknown seed allocation and regeneration model, exiting'
+           write(fates_log(),*) 'regeneration_model: ',regeneration_model
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if ! regeneration switch 
+
+     else ! state mask
         repro_c_frac = 0._r8
-     end if
+     end if ! state mask
         
      ! Estimate the total weight
      total_w = 0._r8
@@ -2418,7 +2538,6 @@ contains
 
      if(state_mask(repro_id)) then
 
-        ! total = total_w + repro_w
         ! repro_w = total*repro_c_frac
         ! repro_w = (total_w + repro_w)*repro_c_frac = total_w*repro_c_frac + repro_w*repro_c_frac
         ! repro_w * (1 - repro_c_frac) = total_w*repro_c_frac
