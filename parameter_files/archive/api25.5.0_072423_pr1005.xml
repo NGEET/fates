@@ -12,7 +12,7 @@
 
   <!-- This is being used until a more suitable model for non-leaf respiration is available. -->
   <!-- To use this patch file run the following command: -->
-  <!--    1. Run `python ../tools/UpdateParamAPI.py -\-f archive/api25.4.0_032323_pr1005.xml` -->
+  <!--    1. Run `python ../tools/UpdateParamAPI.py -\-f archive/api25.5.0_072423_pr1005.xml` -->
   <!-- To update a different CDL parameter file, change the file listed the `base_file`.  This requires -->
   <!-- that said file is up to date with API 25.4. -->
 
@@ -27,7 +27,7 @@
 		 the variables -->
   <!-- -->
   
-  <base_file>archive/api25.4.0_032323_fates_params_default.cdl </base_file>
+  <base_file>archive/api25.4.0_041023_fates_params_default.cdl </base_file>
   <new_file>fates_params_default.cdl</new_file>
   <pft_list> 1,2,3,4,5,6,7,8,9,10,11,12 </pft_list>
   <mods>
