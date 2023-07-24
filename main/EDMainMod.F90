@@ -533,11 +533,12 @@ contains
 
              ! Conduct Maintenance Turnover (parteh)
              if(debug) call currentCohort%prt%CheckMassConservation(ft,3)
-             if(any(currentSite%dstatus == [phen_dstat_moiston,phen_dstat_timeon])) then
+             if(any(currentSite%dstatus(ft) == [phen_dstat_moiston,phen_dstat_timeon])) then
                 is_drought = .false.
              else
                 is_drought = .true.
              end if
+
              call PRTMaintTurnover(currentCohort%prt,ft,is_drought)
              
              ! -----------------------------------------------------------------------------------
