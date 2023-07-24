@@ -1873,7 +1873,7 @@ contains
 
                 ! Seed input from external sources (user param seed rain, or dispersal model)
                 ! Include both prescribed seed_suppl and seed_in dispersed from neighbouring gridcells
-                seed_in_external = currentSite%seed_in(pft)/area + seed_stoich*EDPftvarcon_inst%seed_suppl(pft)*years_per_day ![kg/m2/day]
+                seed_in_external = seed_stoich*(currentSite%seed_in(pft)/area + EDPftvarcon_inst%seed_suppl(pft)*years_per_day) ![kg/m2/day]
                 litt%seed_in_extern(pft) = litt%seed_in_extern(pft) + seed_in_external
 
                 ! Seeds entering externally [kg/site/day]
@@ -1884,16 +1884,14 @@ contains
           currentPatch => currentPatch%younger
        enddo seed_in_loop
 
-       ! Determine the total site-level seed output for the current element
+       ! Determine the total site-level seed output for the current element and update the seed_out mass
+       ! for each element loop since the site_seed_rain is resent and updated for each element loop iteration
        do pft = 1,numpft
           site_mass%seed_out = site_mass%seed_out + site_seed_rain(pft)*site_disp_frac(pft) ![kg/site/day]
+          currentSite%seed_out(pft) = currentSite%seed_out(pft) + site_seed_rain(pft)*site_disp_frac(pft) ![kg/site/day]
        end do
  
     end do el_loop
-
-    do pft = 1,numpft
-        currentSite%seed_out(pft) = currentSite%seed_out(pft) + site_seed_rain(pft)*site_disp_frac(pft) ![kg/site/day]
-    end do
 
     return
   end subroutine SeedUpdate
