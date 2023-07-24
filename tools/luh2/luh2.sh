@@ -34,8 +34,6 @@ export REGRIDDER=${DATA_LOC}/${REGRID_SAVE}
 # Regrid the luh2 data against a target surface data set and then remove the states_modified file
 echo "starting storage"
 du -h ${DATA_LOC}
-echo "Correcting LUH2 time data for ${STATES}"
-python -c "from luh2mod import AttributeUpdateLUH2; AttributeUpdateLUH2('${STATES}')"
 export STATES=${DATA_LOC}/states_modified.nc
 python luh2.py  -l ${STATES} -s ${STATIC} -r ${REGRID_TARGET} -w ${REGRIDDER} -o ${DATA_LOC}/states_regrid.nc
 echo -e"storage status:\n"
@@ -43,8 +41,6 @@ du -h ${DATA_LOC}
 rm ${STATES}
 
 # Regrid the luh2 transitions data using the saved regridder weights file and merge into previous regrid output
-echo "Correcting LUH2 time data for ${TRANSITIONS}"
-python -c "from luh2mod import AttributeUpdateLUH2; AttributeUpdateLUH2('${TRANSITIONS}')"
 export TRANSITIONS=${DATA_LOC}/transitions_modified.nc
 python luh2.py  -l ${TRANSITIONS} -s ${STATIC} -r ${REGRID_TARGET} -w ${REGRIDDER} \
                 -m ${DATA_LOC}/states_regrid.nc -o ${DATA_LOC}/states_trans_regrid.nc
@@ -54,8 +50,6 @@ rm ${TRANSITIONS}
 rm ${DATA_LOC}/states_regrid.nc
 
 # Regrid the luh2 management data using the saved regridder file and merge into previous regrid output
-echo "Correcting LUH2 time data for ${MANAGE}"
-python -c "from luh2mod import AttributeUpdateLUH2; AttributeUpdateLUH2('${MANAGE}')"
 export MANAGE=${DATA_LOC}/management_modified.nc
 python luh2.py  -l ${MANAGE} -s ${STATIC} -r ${REGRID_TARGET} -w ${REGRIDDER} \
                 -m ${DATA_LOC}/states_trans_regrid.nc -o ${OUTPUT}
