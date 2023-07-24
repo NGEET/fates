@@ -98,7 +98,7 @@ module PRTParametersMod
      real(r8), allocatable :: seed_alloc(:)              ! fraction of carbon balance allocated to seeds.
      real(r8), allocatable :: repro_alloc_a(:)           ! ahb added this; sigmoidal shape param relating dbh to seed allocation fraction
      real(r8), allocatable :: repro_alloc_b(:)           ! ahb added this; intercept param relating dbh to seed allocation fraction
-     
+
      ! Derived parameters
 
      integer, allocatable :: organ_param_id(:)           ! This is the sparse reverse lookup index map. This is dimensioned

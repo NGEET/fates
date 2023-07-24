@@ -18,8 +18,8 @@ module EDTypesMod
   use FatesLitterMod,        only : ncwd
   use FatesConstantsMod,     only : n_anthro_disturbance_categories
   use FatesConstantsMod,     only : days_per_year
+  use FatesRunningMeanMod,   only : rmean_type,rmean_arr_type
   use FatesConstantsMod,     only : fates_unset_r8
-  use FatesRunningMeanMod,   only : rmean_type
   use FatesInterfaceTypesMod,only : bc_in_type
   use FatesInterfaceTypesMod,only : bc_out_type
   
@@ -466,7 +466,8 @@ module EDTypesMod
      class(rmean_type), pointer :: tveg24                        ! 24-hour mean vegetation temperature (K)
      class(rmean_type), pointer :: tveg_lpa                      ! Running mean of vegetation temperature at the
                                                                  ! leaf photosynthesis acclimation timescale [K]
-     class(rmean_type), pointer :: tveg_longterm                ! Long-Term Running mean of vegetation temperature at the
+
+     class(rmean_type), pointer :: tveg_longterm                 ! Long-Term Running mean of vegetation temperature at the
                                                                  ! leaf photosynthesis acclimation timescale [K] (i.e T_home)
 
      integer  ::  nocomp_pft_label                               ! Where nocomp is active, use this label for patch ID.
@@ -476,7 +477,25 @@ module EDTypesMod
                                                                  ! If nocomp is not active this is set to unset.
                                                                  ! This is set in create_patch as an argument
                                                                  ! to that procedure.
+     
+     class(rmean_type), pointer :: seedling_layer_par24          ! 24-hour mean of photosynthetically active radiation
+                                                                 ! at the seedling layer (w-m2) 
 
+     class(rmean_arr_type), pointer :: sdlng_emerg_smp(:)           
+                                                                 ! Running mean of soil matric potential at the seedling
+                                                                 ! rooting depth at the h2o seedling emergence 
+                                                                 ! timescale (see sdlng_emerg_h2o_timescale parameter) 
+     class(rmean_type), pointer :: sdlng_mort_par                ! Running mean of photosythetically active radiation
+                                                                 ! at the seedling layer and at the par-based seedling  
+                                                                 ! mortality timescale (sdlng_mort_par_timescale)
+     class(rmean_arr_type), pointer :: sdlng_mdd(:)                  ! Running mean of moisture deficit days
+                                                                 ! at the seedling layer and at the mdd-based seedling  
+                                                                 ! mortality timescale (sdlng_mdd_timescale) 
+                                                                 ! (sdlng2sap_par_timescale)
+     class(rmean_type), pointer :: sdlng2sap_par                 ! Running mean of photosythetically active radiation
+                                                                 ! at the seedling layer and at the par-based seedling  
+                                                                 ! to sapling transition timescale 
+                                                                 ! (sdlng2sap_par_timescale)
 
      ! LEAF ORGANIZATION
      real(r8) ::  pft_agb_profile(maxpft,n_dbh_bins)            ! binned above ground biomass, for patch fusion: KgC/m2
@@ -630,7 +649,6 @@ module EDTypesMod
 
      ! PLANT HYDRAULICS   (not currently used in hydraulics RGK 03-2018)  
      ! type(ed_patch_hydr_type) , pointer :: pa_hydr              ! All patch hydraulics data, see FatesHydraulicsMemMod.F90
-
 
   end type ed_patch_type
 
@@ -1257,5 +1275,6 @@ module EDTypesMod
      write(fates_log(),*) '--------------------------------------------'
      return
   end subroutine dump_cohort_hydr
+
 
 end module EDTypesMod

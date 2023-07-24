@@ -247,13 +247,15 @@ module FatesHistoryInterfaceMod
   integer :: ih_litter_out_elem
   integer :: ih_seed_bank_elem
   integer :: ih_fates_fraction_si
+  integer :: ih_litter_in_si            ! carbon only
+  integer :: ih_litter_out_si           ! carbon only
+  integer :: ih_seed_bank_si            ! carbon only
+  integer :: ih_seeds_in_si             ! carbon only
+  integer :: ih_seeds_in_local_si       ! carbon only
+  integer :: ih_ungerm_seed_bank_si        ! carbon only
+  integer :: ih_seedling_pool_si    ! carbon only
   integer :: ih_ba_weighted_height_si
   integer :: ih_ca_weighted_height_si
-  integer :: ih_litter_in_si    ! carbon only
-  integer :: ih_litter_out_si   ! carbon only
-  integer :: ih_seed_bank_si    ! carbon only
-  integer :: ih_seeds_in_si     ! carbon only
-  
   integer :: ih_seeds_in_local_elem
   integer :: ih_seeds_in_extern_elem
   integer :: ih_seed_decay_elem
@@ -2267,7 +2269,10 @@ end subroutine flush_hvars
                hio_litter_in_si        => this%hvars(ih_litter_in_si)%r81d, &
                hio_litter_out_si       => this%hvars(ih_litter_out_si)%r81d, &
                hio_seed_bank_si        => this%hvars(ih_seed_bank_si)%r81d, &
+               hio_ungerm_seed_bank_si => this%hvars(ih_ungerm_seed_bank_si)%r81d, &
+               hio_seedling_pool_si    => this%hvars(ih_seedling_pool_si)%r81d, &
                hio_seeds_in_si         => this%hvars(ih_seeds_in_si)%r81d, &
+               hio_seeds_in_local_si   => this%hvars(ih_seeds_in_local_si)%r81d, &
                hio_litter_in_elem      => this%hvars(ih_litter_in_elem)%r82d, &
                hio_litter_out_elem     => this%hvars(ih_litter_out_elem)%r82d, &
                hio_seed_bank_elem      => this%hvars(ih_seed_bank_elem)%r82d, &
@@ -4004,7 +4009,10 @@ end subroutine flush_hvars
 
       hio_litter_out_si(io_si) = 0._r8
       hio_seed_bank_si(io_si)  = 0._r8
+      hio_ungerm_seed_bank_si(io_si)  = 0._r8
+      hio_seedling_pool_si(io_si)  = 0._r8
       hio_seeds_in_si(io_si)   = 0._r8
+      hio_seeds_in_local_si(io_si)   = 0._r8
 
       cpatch => sites(s)%oldest_patch
       do while(associated(cpatch))
@@ -4027,11 +4035,25 @@ end subroutine flush_hvars
          hio_seed_bank_si(io_si) = hio_seed_bank_si(io_si) + &
             (sum(litt%seed(:))+sum(litt%seed_germ(:))) * &
             area_frac
+        
+         ! Sum up total seed bank (just ungerminated)
+         hio_ungerm_seed_bank_si(io_si) = hio_ungerm_seed_bank_si(io_si) + &
+            sum(litt%seed(:)) * area_frac
+
+         ! Sum up total seedling pool  
+         hio_seedling_pool_si(io_si) = hio_seedling_pool_si(io_si) + &
+            sum(litt%seed_germ(:)) * area_frac
 
          ! Sum up the input flux into the seed bank (local and external)
          hio_seeds_in_si(io_si) = hio_seeds_in_si(io_si) + &
             (sum(litt%seed_in_local(:)) + sum(litt%seed_in_extern(:))) * &
             area_frac * days_per_sec
+        
+         hio_seeds_in_local_si(io_si) = hio_seeds_in_local_si(io_si) + &
+            sum(litt%seed_in_local(:)) * &
+            area_frac * days_per_sec
+
+
 
          cpatch => cpatch%younger
       end do
@@ -5456,7 +5478,7 @@ end subroutine update_history_hifrq
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_gpp_si_pft)
 
-    call this%set_history_var(vname='FATES_NPP_PF', units='kg m-2 yr-1',       &
+    call this%set_history_var(vname='FATES_NPP_PF', units='kg m-2 s-1',       &
          long='total PFT-level NPP in kg carbon per m2 land area per second',  &
          use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
@@ -5831,12 +5853,30 @@ end subroutine update_history_hifrq
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_seed_bank_si)
+   
+    call this%set_history_var(vname='FATES_UNGERM_SEED_BANK', units='kg m-2',         &
+         long='ungerminated seed mass of all PFTs in kg carbon per m2 land area',     &
+         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+         index = ih_ungerm_seed_bank_si)
+
+    call this%set_history_var(vname='FATES_SEEDLING_POOL', units='kg m-2',         &
+         long='total seedling (ie germinated seeds) mass of all PFTs in kg carbon per m2 land area',     &
+         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+         index = ih_seedling_pool_si)
 
     call this%set_history_var(vname='FATES_SEEDS_IN', units='kg m-2 s-1',      &
          long='seed production rate in kg carbon per m2 second',               &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_seeds_in_si)
+
+    call this%set_history_var(vname='FATES_SEEDS_IN_LOCAL', units='kg m-2 s-1',      &
+         long='local seed production rate in kg carbon per m2 second',               &
+         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+         index = ih_seeds_in_local_si)
 
     call this%set_history_var(vname='FATES_LITTER_IN_EL', units='kg m-2 s-1',  &
          long='litter flux in in kg element per m2 per second',                &
