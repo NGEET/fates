@@ -261,7 +261,8 @@ module FatesRestartInterfaceMod
   integer :: ir_fmortcflux_usto_sicdsc
   integer :: ir_crownarea_cano_si
   integer :: ir_crownarea_usto_si
-
+  integer :: ir_emanpp_si
+  
 
   ! Hydraulic indices
   integer :: ir_hydro_th_ag_covec
@@ -1448,6 +1449,11 @@ contains
          units='m2/ha/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_crownarea_usto_si)
 
+    call this%set_restart_var(vname='fates_emanpp', vtype=site_r8, &
+         long_name='smoothed NPP (exp. moving avg) at the site level (for fixation)', &
+         units='kg/m2/yr', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_emanpp_si)
+    
    call this%DefineRMeanRestartVar(vname='fates_tveg24patch',vtype=cohort_r8, &
         long_name='24-hour patch veg temp', &
         units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveg24_pa)
@@ -2050,7 +2056,8 @@ contains
            rio_fmortcflux_cano_sicdsc  => this%rvars(ir_fmortcflux_cano_sicdsc)%r81d, &
            rio_fmortcflux_usto_sicdsc  => this%rvars(ir_fmortcflux_usto_sicdsc)%r81d, &
            rio_crownarea_cano_damage_si=> this%rvars(ir_crownarea_cano_si)%r81d, &
-           rio_crownarea_usto_damage_si=> this%rvars(ir_crownarea_usto_si)%r81d)
+           rio_crownarea_usto_damage_si=> this%rvars(ir_crownarea_usto_si)%r81d, &
+           rio_emanpp_si               => this%rvars(ir_emanpp_si)%r81d)
       
        totalCohorts = 0
 
@@ -2456,9 +2463,10 @@ contains
 
              io_idx_si_sc = io_idx_si_sc + 1
           end do
+          
           rio_termcarea_cano_si(io_idx_si)  = sites(s)%term_crownarea_canopy
           rio_termcarea_usto_si(io_idx_si)  = sites(s)%term_crownarea_ustory
-          
+          rio_emanpp_si(io_idx_si)          = sites(s)%ema_npp
 
           ! this only copies live portions of transitions - but that's ok because the mortality
           ! bit only needs to be added for history outputs
@@ -2968,6 +2976,7 @@ contains
           rio_fmortcflux_usto_sicdsc  => this%rvars(ir_fmortcflux_usto_sicdsc)%r81d, &
           rio_crownarea_cano_damage_si=> this%rvars(ir_crownarea_cano_si)%r81d, &
           rio_crownarea_usto_damage_si=> this%rvars(ir_crownarea_usto_si)%r81d, &
+          rio_emanpp_si               => this%rvars(ir_emanpp_si)%r81d, &
           rio_imortcflux_sipft        => this%rvars(ir_imortcflux_sipft)%r81d, &
           rio_fmortcflux_cano_sipft   => this%rvars(ir_fmortcflux_cano_sipft)%r81d, &
           rio_fmortcflux_usto_sipft   => this%rvars(ir_fmortcflux_usto_sipft)%r81d, &
@@ -3445,12 +3454,13 @@ contains
 
              sites(s)%crownarea_canopy_damage = rio_crownarea_cano_damage_si(io_idx_si)
              sites(s)%crownarea_ustory_damage = rio_crownarea_usto_damage_si(io_idx_si)
-
+             
+             
           end if
 
+          sites(s)%ema_npp                 = rio_emanpp_si(io_idx_si)
           sites(s)%term_crownarea_canopy    = rio_termcarea_cano_si(io_idx_si)
           sites(s)%term_crownarea_ustory    = rio_termcarea_usto_si(io_idx_si)
-
           sites(s)%imort_crownarea          = rio_imortcarea_si(io_idx_si)
           sites(s)%fmort_crownarea_canopy  = rio_fmortcarea_cano_si(io_idx_si)
           sites(s)%fmort_crownarea_ustory  = rio_fmortcarea_usto_si(io_idx_si)

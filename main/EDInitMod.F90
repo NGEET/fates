@@ -276,6 +276,10 @@ contains
        call site_in%flux_diags(el)%ZeroFluxDiags()
     end do
 
+    ! This will be initialized in FatesSoilBGCFluxMod:PrepCH4BCs()
+    ! It checks to see if the value is below -9000. If it is,
+    ! it will assume the first value of the smoother is set
+    site_in%ema_npp = -9999.9_r8
 
     ! termination and recruitment info
     site_in%term_nindivs_canopy(:,:) = 0._r8

@@ -621,8 +621,7 @@ contains
          bc_out%rootfr_pa(0,1:nlevsoil_in)=1._r8/real(nlevsoil_in,r8)
       end if
 
-      bc_out%ema_npp = nan
-      
+      bc_out%ema_npp = -9999.9_r8
       
       ! Fates -> BGC fragmentation mass fluxes
       select case(hlm_parteh_mode) 
