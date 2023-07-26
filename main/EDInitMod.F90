@@ -847,17 +847,9 @@ contains
             canopy_trim  = 1.0_r8
             crown_damage = 1  ! Assume no damage to begin with
 
-<<<<<<< HEAD
             ! retrieve drop fraction of non-leaf tissues for phenology initialization
             fnrt_drop_fraction = prt_params%phen_fnrt_drop_fraction(pft)
             stem_drop_fraction = prt_params%phen_stem_drop_fraction(pft)
-||||||| parent of 7c8a53cf (Fix EDInitMod.F90 initialisation of drought deciduous variables)
-=======
-          ! Retrieve drop fraction of non-leaf tissues for phenology initialisation
-          fnrt_drop_fraction = prt_params%phen_fnrt_drop_fraction(pft)
-          stem_drop_fraction = prt_params%phen_stem_drop_fraction(pft)
-
->>>>>>> 7c8a53cf (Fix EDInitMod.F90 initialisation of drought deciduous variables)
 
             ! initialize phenology variables
             if_spmode: if (hlm_use_sp == itrue) then 
