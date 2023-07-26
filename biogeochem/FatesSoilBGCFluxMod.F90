@@ -788,7 +788,6 @@ contains
           ! decaying seeds from the litter pool
           do ipft = 1,numpft
              do id = 1,nlev_eff_decomp
-
                 flux_lab_si(id) = flux_lab_si(id) + &
                      (litt%seed_decay(ipft) + litt%seed_germ_decay(ipft)) * &
                      EDPftvarcon_inst%lf_flab(ipft) * area_frac* surface_prof(id)

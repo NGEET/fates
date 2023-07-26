@@ -47,8 +47,24 @@ module FatesConstantsMod
   ! with the host model.
   integer, public, parameter :: prescribed_n_uptake = 1
   integer, public, parameter :: coupled_n_uptake    = 2
-
   integer, public, parameter :: coupled_np_comp_scaling = 1 ! This flag signals that at least 1 chemical element (ie N or P)
+  
+  !Flags specifying how tree regeneration works
+  
+  integer, public, parameter :: TRS_no_seedling_dyn = 3                          ! Constant defining the Tree Recruitment
+                                                                                 ! Scheme switch. This value turns on 
+                                                                                 ! size-based reproductive allocation 
+                                                                                 ! and allocation to non-seed 
+                                                                                 ! reproductive biomass, but does not turn 
+                                                                                 ! on seedling dynamics.
+  integer, public, parameter :: TRS_regeneration = 2                             ! Constant defining the Tree Recruitment
+                                                                                 ! Scheme switch. Turns on full TRS.
+  integer, public, parameter :: default_regeneration = 1                         ! Constant defining FATES's default 
+                                                                                 ! regeneration scheme switch.
+  real(fates_r8), public, parameter :: min_max_dbh_for_trees = 15._fates_r8      ! If pfts have a max dbh less 
+                                                                                 ! than this value FATES 
+                                                                                 ! will use the default regeneration scheme.
+                                                                                 ! Avoids TRS for shrubs / grasses.
 
   integer, public, parameter :: trivial_np_comp_scaling = 2 ! This flag definition indicates that either
                                                             ! nutrients are turned off in FATES, or, that the
@@ -147,6 +163,9 @@ module FatesConstantsMod
   ! Conversion factor: milimeters per meter
   real(fates_r8), parameter, public :: mm_per_m = 1.0E3_fates_r8
 
+  ! Conversion factor: millimeters per centimeter (ahb added this 7/7/2021)
+  real(fates_r8), parameter, public :: mm_per_cm = 10.0_fates_r8
+  
   ! Conversion factor: meters per centimeter
   real(fates_r8), parameter, public :: m_per_cm = 1.0E-2_fates_r8
 
@@ -176,6 +195,10 @@ module FatesConstantsMod
   ! Conversion: seconds per day
   real(fates_r8), parameter, public :: sec_per_day = 86400.0_fates_r8
 
+  ! Conversion: megajoules per joule
+  real(fates_r8), parameter, public :: megajoules_per_joule = 1.0E-6_fates_r8
+ 
+  
   ! Conversion: days per second
   real(fates_r8), parameter, public :: days_per_sec = 1.0_fates_r8/86400.0_fates_r8
 
@@ -227,6 +250,10 @@ module FatesConstantsMod
 
   ! Pascals to megapascals
   real(fates_r8), parameter, public :: mpa_per_pa = 1.e-6_fates_r8
+
+  ! Conversion: megapascals per mm H2O suction
+  real(fates_r8), parameter, public :: mpa_per_mm_suction = dens_fresh_liquid_water * &
+                                       grav_earth * 1.0E-9_fates_r8
 
   ! For numerical inquiry
   real(fates_r8), parameter, public :: fates_huge = huge(g_per_kg)
