@@ -2537,9 +2537,6 @@ contains
                else 
                   leaf_status = leaves_off
                end if
-            case default 
-               write(fates_log(),*) 'Undefined stress deciduous type'
-               call endrun(msg=errMsg(sourcefile, __LINE__))
             end select
 
             ! calculate live pools
