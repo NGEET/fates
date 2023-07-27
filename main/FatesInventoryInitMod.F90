@@ -28,6 +28,7 @@ module FatesInventoryInitMod
    use FatesConstantsMod, only : itrue
    use FatesGlobals     , only : endrun => fates_endrun
    use FatesGlobals     , only : fates_log
+   use EDParamsMod      , only : regeneration_model
    use FatesInterfaceTypesMod, only : bc_in_type
    use FatesInterfaceTypesMod, only : hlm_inventory_ctrl_file
    use FatesInterfaceTypesMod, only : nleafage
@@ -281,7 +282,7 @@ contains
             allocate(newpatch)
             call newpatch%Create(age_init, area_init, primaryforest,           &
                fates_unset_int, hlm_numSWb, numpft, sites(s)%nlevsoil,         &
-               hlm_current_tod)
+               hlm_current_tod, regeneration_model)
 
             newpatch%patchno = ipa
             newpatch%younger => null()

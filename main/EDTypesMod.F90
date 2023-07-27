@@ -21,8 +21,8 @@ module EDTypesMod
   use FatesLitterMod,        only : ncwd, NFSC
   use FatesConstantsMod,     only : n_anthro_disturbance_categories
   use FatesConstantsMod,     only : days_per_year
+  use FatesRunningMeanMod,   only : rmean_type,rmean_arr_type
   use FatesConstantsMod,     only : fates_unset_r8
-  use FatesRunningMeanMod,   only : rmean_type
   use FatesInterfaceTypesMod,only : bc_in_type
   use FatesInterfaceTypesMod,only : bc_out_type
   use FatesInterfaceTypesMod,only : hlm_parteh_mode

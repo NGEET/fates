@@ -55,6 +55,7 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : r8 => fates_r8
   use FatesConstantsMod    , only : itrue, ifalse
   use FatesConstantsMod    , only : t_water_freeze_k_1atm
+  use FatesConstantsMod    , only : TRS_regeneration
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesPlantHydraulicsMod, only : AccumulateMortalityWaterStorage
   use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
@@ -65,6 +66,7 @@ module EDPatchDynamicsMod
   use EDLoggingMortalityMod, only : get_harvestable_carbon
   use EDLoggingMortalityMod, only : get_harvest_debt
   use EDParamsMod          , only : fates_mortality_disturbance_fraction
+  use EDParamsMod          , only : regeneration_model
   use FatesAllometryMod    , only : carea_allom
   use FatesAllometryMod    , only : set_root_fraction
   use FatesConstantsMod    , only : g_per_kg
@@ -93,6 +95,8 @@ module EDPatchDynamicsMod
   use SFParamsMod,            only : SF_VAL_CWD_FRAC
   use EDParamsMod,            only : logging_event_code
   use EDParamsMod,            only : logging_export_frac
+  use FatesRunningMeanMod,    only : ema_sdlng_mdd
+  use FatesRunningMeanMod,    only : ema_sdlng_emerg_h2o, ema_sdlng_mort_par, ema_sdlng2sap_par
   use EDParamsMod,            only : maxpatch_primary
   use EDParamsMod,            only : maxpatch_secondary
   use EDParamsMod,            only : maxpatch_total
@@ -428,6 +432,7 @@ contains
     real(r8) :: patch_site_areadis           ! total area disturbed in m2 per patch per day
     real(r8) :: age                          ! notional age of this patch in years
     integer  :: el                           ! element loop index
+    integer  :: pft                          ! pft loop index
     integer  :: tnull                        ! is there a tallest cohort?
     integer  :: snull                        ! is there a shortest cohort?
     integer  :: levcan                       ! canopy level
@@ -540,7 +545,7 @@ contains
                 allocate(new_patch_primary)
                 call new_patch_primary%Create(age, site_areadis_primary,       &
                   primaryforest, i_nocomp_pft, hlm_numSWb, numpft,             &
-                  currentSite%nlevsoil, hlm_current_tod)
+                  currentSite%nlevsoil, hlm_current_tod, regeneration_model)
 
                 ! Initialize the litter pools to zero, these
                 ! pools will be populated by looping over the existing patches
@@ -563,7 +568,7 @@ contains
                allocate(new_patch_secondary)
                call new_patch_secondary%Create(age, site_areadis_secondary,    &
                   secondaryforest, i_nocomp_pft, hlm_numSWb, numpft,           &
-                  currentSite%nlevsoil, hlm_current_tod)
+                  currentSite%nlevsoil, hlm_current_tod, regeneration_model)
 
                 ! Initialize the litter pools to zero, these
                 ! pools will be populated by looping over the existing patches
@@ -597,7 +602,7 @@ contains
                    patch_site_areadis = currentPatch%area * disturbance_rate
 
 
-                   if ( patch_site_areadis > nearzero ) then
+                  if ( patch_site_areadis > nearzero ) then
 
                       ! figure out whether the receiver patch for disturbance from this patch
                       ! will be primary or secondary land receiver patch is primary forest
@@ -659,9 +664,19 @@ contains
                       ! --------------------------------------------------------------------------
                       call new_patch%tveg24%CopyFromDonor(currentPatch%tveg24)
                       call new_patch%tveg_lpa%CopyFromDonor(currentPatch%tveg_lpa)
+
+                      if ( regeneration_model == TRS_regeneration ) then
+                         call new_patch%seedling_layer_par24%CopyFromDonor(currentPatch%seedling_layer_par24)
+                         call new_patch%sdlng_mort_par%CopyFromDonor(currentPatch%sdlng_mort_par)
+                         call new_patch%sdlng2sap_par%CopyFromDonor(currentPatch%sdlng2sap_par)
+                         do pft = 1,numpft
+                            call new_patch%sdlng_emerg_smp(pft)%p%CopyFromDonor(currentPatch%sdlng_emerg_smp(pft)%p)
+                            call new_patch%sdlng_mdd(pft)%p%CopyFromDonor(currentPatch%sdlng_mdd(pft)%p)
+                         enddo
+                      end if
+
                       call new_patch%tveg_longterm%CopyFromDonor(currentPatch%tveg_longterm)
-
-
+                      
                       ! --------------------------------------------------------------------------
                       ! The newly formed patch from disturbance (new_patch), has now been given
                       ! some litter from dead plants and pre-existing litter from the donor patches.
@@ -2417,6 +2432,7 @@ contains
     integer                        :: c,p          !counters for pft and litter size class. 
     integer                        :: tnull,snull  ! are the tallest and shortest cohorts associated?
     integer                        :: el           ! loop counting index for elements
+    integer                        :: pft          ! loop counter for pfts
     type(fates_patch_type), pointer   :: youngerp     ! pointer to the patch younger than donor
     type(fates_patch_type), pointer   :: olderp       ! pointer to the patch older than donor
     real(r8)                       :: inv_sum_area ! Inverse of the sum of the two patches areas
@@ -2452,8 +2468,19 @@ contains
     ! Weighted mean of the running means
     call rp%tveg24%FuseRMean(dp%tveg24,rp%area*inv_sum_area)
     call rp%tveg_lpa%FuseRMean(dp%tveg_lpa,rp%area*inv_sum_area)
-    call rp%tveg_longterm%FuseRMean(dp%tveg_longterm,rp%area*inv_sum_area)
+
+    if ( regeneration_model == TRS_regeneration ) then
+       call rp%seedling_layer_par24%FuseRMean(dp%seedling_layer_par24,rp%area*inv_sum_area)
+       call rp%sdlng_mort_par%FuseRMean(dp%sdlng_mort_par,rp%area*inv_sum_area)
+       call rp%sdlng2sap_par%FuseRMean(dp%sdlng2sap_par,rp%area*inv_sum_area)
+       do pft = 1,numpft
+          call rp%sdlng_emerg_smp(pft)%p%FuseRMean(dp%sdlng_emerg_smp(pft)%p,rp%area*inv_sum_area)
+          call rp%sdlng_mdd(pft)%p%FuseRMean(dp%sdlng_mdd(pft)%p,rp%area*inv_sum_area)
+       enddo
+    end if
     
+    call rp%tveg_longterm%FuseRMean(dp%tveg_longterm,rp%area*inv_sum_area)
+
     rp%fuel_eff_moist       = (dp%fuel_eff_moist*dp%area + rp%fuel_eff_moist*rp%area) * inv_sum_area
     rp%livegrass            = (dp%livegrass*dp%area + rp%livegrass*rp%area) * inv_sum_area
     rp%sum_fuel             = (dp%sum_fuel*dp%area + rp%sum_fuel*rp%area) * inv_sum_area

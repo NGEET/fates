@@ -41,13 +41,22 @@ module PRTAllometricCarbonMod
   use FatesConstantsMod   , only : r8 => fates_r8
   use FatesConstantsMod   , only : i4 => fates_int
   use FatesConstantsMod   , only : sec_per_day
+  use FatesConstantsMod   , only : mm_per_cm 
+  use FatesConstantsMod   , only : TRS_regeneration        
+  use FatesConstantsMod   , only : default_regeneration
+  use FatesConstantsMod   , only : TRS_no_seedling_dyn
+  use FatesConstantsMod   , only : min_max_dbh_for_trees 
   use FatesIntegratorsMod , only : RKF45
   use FatesIntegratorsMod , only : Euler
   use FatesConstantsMod   , only : calloc_abs_error
   use FatesConstantsMod   , only : nearzero
   use FatesConstantsMod   , only : itrue
   use FatesConstantsMod   , only : years_per_day
+  use FatesInterfaceTypesMod, only    : hlm_day_of_year
+
+
   use PRTParametersMod    , only : prt_params
+  use EDParamsMod         , only : regeneration_model
 
   use FatesConstantsMod   , only : leaves_on
   use FatesConstantsMod   , only : leaves_off
@@ -1020,7 +1029,6 @@ module PRTAllometricCarbonMod
       real(r8) :: ct_dtotaldd    ! target total (not reproductive) biomass derivative wrt diameter, (kgC/cm)
       real(r8) :: repro_fraction ! fraction of carbon balance directed towards reproduction (kgC/kgC)
 
-
       associate( dbh    => c_pools(dbh_id), &
                  cleaf  => c_pools(leaf_c_id), &
                  cfnrt  => c_pools(fnrt_c_id), &
@@ -1053,12 +1061,36 @@ module PRTAllometricCarbonMod
                          ct_dagwdd, ct_dbgwdd, ct_dsapdd, ct_ddeaddd)
         call bstore_allom(dbh,ipft,crowndamage, canopy_trim,ct_store,ct_dstoredd)
 
-        ! fraction of carbon going towards reproduction
-        if (dbh <= prt_params%dbh_repro_threshold(ipft)) then ! cap on leaf biomass
-           repro_fraction = prt_params%seed_alloc(ipft)
+        ! If the TRS is switched off, or if the plant is a shrub or grass
+        ! then we use FATES's default reproductive allocation.
+        ! We designate a plant a shrub or grass if its dbh at maximum height
+        ! is less than 15 cm
+        
+        if ( regeneration_model == default_regeneration .or. &
+             prt_params%allom_dbh_maxheight(ipft) < min_max_dbh_for_trees ) then
+
+           ! TRS is only for tree pfts
+           ! Calculate fraction of carbon going towards reproduction
+           if (dbh <= prt_params%dbh_repro_threshold(ipft)) then ! cap on leaf biomass
+              repro_fraction = prt_params%seed_alloc(ipft)
+           else
+              repro_fraction = prt_params%seed_alloc(ipft) + prt_params%seed_alloc_mature(ipft)
+           end if ! End dbh check on if to add additional carbon to reproduction.
+
+           ! If the TRS is switched on (with or w/o seedling dynamics) then reproductive allocation is
+           ! a pft-specific function of dbh. This allows for the representation of different
+           ! reproductive schedules (Wenk and Falster, 2015)
+        else if ( any(regeneration_model == [TRS_regeneration, TRS_no_seedling_dyn]) .and. &
+             prt_params%allom_dbh_maxheight(ipft) > min_max_dbh_for_trees ) then
+
+           repro_fraction = prt_params%seed_alloc(ipft) * &
+                (exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm) / &
+                (1 + exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm)))
         else
-           repro_fraction = prt_params%seed_alloc(ipft) + prt_params%seed_alloc_mature(ipft)
-        end if
+           write(fates_log(),*) 'unknown seed allocation and regeneration model, exiting'
+           write(fates_log(),*) 'regeneration_model: ',regeneration_model
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if ! TRS switch 
 
         dCdx = 0.0_r8
 

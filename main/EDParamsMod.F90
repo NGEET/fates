@@ -152,7 +152,6 @@ integer, parameter, public :: ipar = ivis     ! The photosynthetically active ba
    character(len=param_string_length),parameter,public :: ED_name_sdlng_mdd_timescale = "fates_trs_seedling_mdd_timescale"
    character(len=param_string_length),parameter,public :: ED_name_sdlng2sap_par_timescale = "fates_trs_seedling2sap_par_timescale"
    integer, protected,allocatable,public :: hydr_htftype_node(:)
-
    character(len=param_string_length),parameter,public :: ED_name_photo_temp_acclim_timescale = "fates_leaf_photo_temp_acclim_timescale"
    character(len=param_string_length),parameter,public :: ED_name_photo_temp_acclim_thome_time = "fates_leaf_photo_temp_acclim_thome_time"
    character(len=param_string_length),parameter,public :: name_photo_tempsens_model = "fates_leaf_photo_tempsens_model"

@@ -4,12 +4,13 @@ module FatesPatchMod
   use FatesConstantsMod,   only : fates_unset_r8
   use FatesConstantsMod,   only : fates_unset_int
   use FatesConstantsMod,   only : primaryforest, secondaryforest
+  use FatesConstantsMod,   only : TRS_regeneration
   use FatesGlobals,        only : fates_log
   use FatesGlobals,        only : endrun => fates_endrun
   use FatesUtilsMod,       only : check_hlm_list
   use FatesUtilsMod,       only : check_var_real
   use FatesCohortMod,      only : fates_cohort_type
-  use FatesRunningMeanMod, only : rmean_type
+  use FatesRunningMeanMod, only : rmean_type, rmean_arr_type
   use FatesLitterMod,      only : nfsc
   use FatesLitterMod,      only : litter_type
   use PRTGenericMod,       only : num_elements
@@ -19,6 +20,8 @@ module FatesPatchMod
   use FatesConstantsMod,   only : n_rad_stream_types
   use FatesConstantsMod,   only : t_water_freeze_k_1atm
   use FatesRunningMeanMod, only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm
+  use FatesRunningMeanMod, only : ema_sdlng_emerg_h2o, ema_sdlng_mort_par
+  use FatesRunningMeanMod, only : ema_sdlng2sap_par, ema_sdlng_mdd
 
   use shr_infnan_mod,      only : nan => shr_infnan_nan, assignment(=)
   use shr_log_mod,         only : errMsg => shr_log_errMsg
@@ -62,13 +65,27 @@ module FatesPatchMod
     !---------------------------------------------------------------------------
 
     ! RUNNING MEANS
-    !class(rmean_type), pointer :: t2m          ! place-holder for 2m air temperature (variable window-size)
-    class(rmean_type), pointer :: tveg24        ! 24-hour mean vegetation temperature [K]
-    class(rmean_type), pointer :: tveg_lpa      ! running mean of vegetation temperature at the
-                                                !   leaf photosynthesis acclimation timescale [K]
-    class(rmean_type), pointer :: tveg_longterm ! long-term running mean of vegetation temperature at the
-                                                !   leaf photosynthesis acclimation timescale [K] (i.e T_home)
-
+    !class(rmean_type),    pointer :: t2m                  ! place-holder for 2m air temperature (variable window-size)
+    class(rmean_type),     pointer :: tveg24               ! 24-hour mean vegetation temperature [K]
+    class(rmean_type),     pointer :: tveg_lpa             ! running mean of vegetation temperature at the
+                                                           !   leaf photosynthesis acclimation timescale [K]
+    class(rmean_type),     pointer :: tveg_longterm        ! long-term running mean of vegetation temperature at the
+                                                           !   leaf photosynthesis acclimation timescale [K] (i.e T_home)
+    class(rmean_type),     pointer :: seedling_layer_par24 ! 24-hour mean of photosynthetically active radiation at seedling layer [W/m2]
+    class(rmean_arr_type), pointer :: sdlng_emerg_smp(:)   ! running mean of soil matric potential at the seedling
+                                                           !   rooting depth at the H2O seedling emergence timescale (see sdlng_emerg_h2o_timescale parameter)
+    class(rmean_type),     pointer :: sdlng_mort_par       ! running mean of photosythetically active radiation
+                                                           ! at the seedling layer and at the par-based seedling  
+                                                           ! mortality timescale (sdlng_mort_par_timescale)
+    class(rmean_arr_type), pointer :: sdlng_mdd(:)         ! running mean of moisture deficit days
+                                                           ! at the seedling layer and at the mdd-based seedling  
+                                                           ! mortality timescale (sdlng_mdd_timescale) 
+                                                           ! (sdlng2sap_par_timescale)
+    class(rmean_type), pointer :: sdlng2sap_par            ! running mean of photosythetically active radiation
+                                                           ! at the seedling layer and at the par-based seedling  
+                                                           ! to sapling transition timescale 
+                                                           ! (sdlng2sap_par_timescale)
+    
     !---------------------------------------------------------------------------
 
     ! LEAF ORGANIZATION
@@ -450,19 +467,24 @@ module FatesPatchMod
 
     !===========================================================================
 
-    subroutine InitRunningMeans(this, current_tod)
+    subroutine InitRunningMeans(this, current_tod, regeneration_model, numpft)
       !
       ! DESCRIPTION:
       ! set initial values for patch running means
       !
 
       ! ARGUMENTS:
-      class(fates_patch_type), intent(inout) :: this        ! patch object
-      integer,                 intent(in)    :: current_tod ! time of day [seconds past 0Z]
+      class(fates_patch_type), intent(inout) :: this               ! patch object
+      integer,                 intent(in)    :: current_tod        ! time of day [seconds past 0Z]
+      integer,                 intent(in)    :: regeneration_model ! regeneration model type
+      integer,                 intent(in)    :: numpft             ! number of pfts on patch
 
       ! PARAMETERS:
       ! Until bc's are pointed to by sites give veg a default temp [K]
-      real(r8), parameter :: temp_init_veg = 15._r8 + t_water_freeze_k_1atm
+      real(r8), parameter :: temp_init_veg     = 15._r8 + t_water_freeze_k_1atm
+      real(r8), parameter :: init_seedling_par = 5.0_r8      ! arbitrary initialization for seedling layer [MJ m-2 d-1]
+      real(r8), parameter :: init_seedling_smp = -26652.0_r8 ! abitrary initialization of smp [mm]
+      integer             :: pft                             ! pft looping index
 
       allocate(this%tveg24)
       allocate(this%tveg_lpa)
@@ -473,6 +495,31 @@ module FatesPatchMod
         init_offset=real(current_tod, r8))
       call this%tveg_lpa%InitRmean(ema_lpa, init_value=temp_init_veg)
       call this%tveg_longterm%InitRmean(ema_longterm, init_value=temp_init_veg)
+
+      if (regeneration_model == TRS_regeneration) then
+        allocate(this%seedling_layer_par24)
+        allocate(this%sdlng_mdd(numpft))
+        allocate(this%sdlng_emerg_smp(numpft))
+        allocate(this%sdlng_mort_par)
+        allocate(this%sdlng2sap_par)
+
+        call this%seedling_layer_par24%InitRMean(fixed_24hr,                   &
+          init_value=init_seedling_par, init_offset=real(current_tod, r8))
+        call this%sdlng_mort_par%InitRMean(ema_sdlng_mort_par,                 &
+          init_value=temp_init_veg)
+        call this%sdlng2sap_par%InitRMean(ema_sdlng2sap_par,                   &
+          init_value=init_seedling_par)
+
+        do pft = 1,numpft
+          allocate(this%sdlng_mdd(pft)%p)
+          allocate(this%sdlng_emerg_smp(pft)%p)
+
+          call this%sdlng_mdd(pft)%p%InitRMean(ema_sdlng_mdd,             &
+            init_value=0.0_r8)
+          call this%sdlng_emerg_smp(pft)%p%InitRMean(ema_sdlng_emerg_h2o, &
+            init_value=init_seedling_smp)
+        end do
+     end if
 
     end subroutine InitRunningMeans
 
@@ -508,29 +555,30 @@ module FatesPatchMod
     !===========================================================================
 
     subroutine Create(this, age, area, label, nocomp_pft, num_swb, num_pft,    &
-      num_levsoil, current_tod) 
+      num_levsoil, current_tod, regeneration_model) 
       !
       ! DESCRIPTION:
       ! create a new patch with input and default values
       !
 
       ! ARGUMENTS:
-      class(fates_patch_type), intent(inout) :: this        ! patch object
-      real(r8),                intent(in)    :: age         ! notional age of this patch in years
-      real(r8),                intent(in)    :: area        ! initial area of this patch in m2. 
-      integer,                 intent(in)    :: label       ! anthropogenic disturbance label
-      integer,                 intent(in)    :: nocomp_pft  ! no-competition mode pft label
-      integer,                 intent(in)    :: num_swb     ! number of shortwave broad-bands to track
-      integer,                 intent(in)    :: num_pft     ! number of pfts to simulate
-      integer,                 intent(in)    :: num_levsoil ! number of soil layers
-      integer,                 intent(in)    :: current_tod ! time of day [seconds past 0Z]
+      class(fates_patch_type), intent(inout) :: this               ! patch object
+      real(r8),                intent(in)    :: age                ! notional age of this patch in years
+      real(r8),                intent(in)    :: area               ! initial area of this patch in m2. 
+      integer,                 intent(in)    :: label              ! anthropogenic disturbance label
+      integer,                 intent(in)    :: nocomp_pft         ! no-competition mode pft label
+      integer,                 intent(in)    :: num_swb            ! number of shortwave broad-bands to track
+      integer,                 intent(in)    :: num_pft            ! number of pfts to simulate
+      integer,                 intent(in)    :: num_levsoil        ! number of soil layers
+      integer,                 intent(in)    :: current_tod        ! time of day [seconds past 0Z]
+      integer,                 intent(in)    :: regeneration_model ! regeneration model version
     
       ! initialize patch
       ! sets all values to nan, then some values to zero
       call this%Init(num_swb, num_levsoil)
 
       ! initialize running means for patch
-      call this%InitRunningMeans(current_tod)
+      call this%InitRunningMeans(current_tod, regeneration_model, num_pft)
       
       ! initialize litter
       call this%InitLitter(num_pft, num_levsoil)
@@ -571,6 +619,8 @@ module FatesPatchMod
       type(fates_cohort_type), pointer :: ccohort ! current cohort
       type(fates_cohort_type), pointer :: ncohort ! next cohort
       integer                          :: el      ! loop counter for elements
+      integer                          :: numpft  ! size of pft-indexed arrays
+      integer                          :: pft     ! loop counter for pfts
       integer                          :: istat   ! return status code
       character(len=255)               :: smsg    ! message string for deallocation errors
       
@@ -630,6 +680,26 @@ module FatesPatchMod
         write(fates_log(),*) 'dealloc012: fail on deallocate(this%tveg_longterm):'//trim(smsg)
         call endrun(msg=errMsg(sourcefile, __LINE__))
       endif
+
+      if (associated(this%seedling_layer_par24)) deallocate(this%seedling_layer_par24)
+      if (associated(this%sdlng_mort_par))       deallocate(this%sdlng_mort_par)
+      if (associated(this%sdlng2sap_par))        deallocate(this%sdlng2sap_par)
+
+      if (associated(this%sdlng_mdd)) then
+        numpft = size(this%sdlng_mdd)
+        do pft = 1, numpft 
+          if (associated(this%sdlng_mdd(pft)%p)) deallocate(this%sdlng_mdd(pft)%p)
+        end do 
+        deallocate(this%sdlng_mdd)
+      end if 
+
+      if (associated(this%sdlng_emerg_smp)) then 
+        numpft = size(this%sdlng_emerg_smp)
+        do pft = 1, numpft 
+          if (associated(this%sdlng_emerg_smp(pft)%p)) deallocate(this%sdlng_emerg_smp(pft)%p)
+        end do 
+        deallocate(this%sdlng_emerg_smp)
+      end if 
       
     end subroutine FreeMemory
 
