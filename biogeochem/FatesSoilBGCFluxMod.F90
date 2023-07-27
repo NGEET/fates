@@ -268,8 +268,9 @@ contains
 
     real(r8), parameter :: ema_npp_tscale = 10._r8  ! 10 day
     
+
     ! Exit if we need not communicate with the hlm's ch4 module
-    if(.not.(hlm_use_ch4==itrue) .and. .not.(hlm_parteh_mode==prt_cnp_flex_allom_hyp) ) return
+   ! if(.not.(hlm_use_ch4==itrue) .and. .not.(hlm_parteh_mode==prt_cnp_flex_allom_hyp) ) return
     
     ! Initialize to zero
     bc_out%annavg_agnpp_pa(:) = 0._r8
@@ -279,12 +280,17 @@ contains
     bc_out%frootc_pa(:)    = 0._r8
     bc_out%root_resp(:)  = 0._r8
     bc_out%woody_frac_aere_pa(:) = 0._r8
+    bc_out%ema_npp = 0._r8
+
     site_npp = 0._r8
+
+    ! Process CH4 variables first
+    !if(.not.(hlm_use_ch4==itrue) .and. .not.(hlm_parteh_mode==prt_cnp_flex_allom_hyp) )
     
     fp = 0
     cpatch => csite%oldest_patch
     do while (associated(cpatch))
-
+       
        ! Patch ordering when passing boundary conditions
        ! always goes from oldest to youngest, following
        ! the convention of EDPatchDynamics::set_patchno()
@@ -298,7 +304,7 @@ contains
        
        ccohort => cpatch%tallest
        do while (associated(ccohort))
-
+          
           ! For consistency, only apply calculations to non-new
           ! cohorts. New cohorts will not have respiration rates
           ! at this point in the call sequence.
@@ -306,23 +312,12 @@ contains
           if(.not.ccohort%isnew) then
              
              pft   = ccohort%pft
-
+             
              call set_root_fraction(csite%rootfrac_scr, pft, csite%zi_soil, &
                   bc_in%max_rooting_depth_index_col )
-
+             
              fnrt_c   = ccohort%prt%GetState(fnrt_organ, carbon12_element)
-
-             ! Fine root fraction over depth
-
-             bc_out%rootfr_pa(fp,1:bc_in%nlevsoil) = &
-                  bc_out%rootfr_pa(fp,1:bc_in%nlevsoil) + &
-                  csite%rootfrac_scr(1:bc_in%nlevsoil)
-
-             ! Fine root carbon, convert [kg/plant] -> [g/m2]
-             bc_out%frootc_pa(fp) = &
-                  bc_out%frootc_pa(fp) + &
-                  fnrt_c*ccohort%n/cpatch%area * g_per_kg
-
+             
              ! [kgC/day]
              sapw_net_alloc   = ccohort%prt%GetNetAlloc(sapw_organ, carbon12_element) * days_per_sec
              store_net_alloc  = ccohort%prt%GetNetAlloc(store_organ, carbon12_element) * days_per_sec
@@ -330,23 +325,37 @@ contains
              fnrt_net_alloc   = ccohort%prt%GetNetAlloc(fnrt_organ, carbon12_element) * days_per_sec
              struct_net_alloc = ccohort%prt%GetNetAlloc(struct_organ, carbon12_element) * days_per_sec
              repro_net_alloc  = ccohort%prt%GetNetAlloc(repro_organ, carbon12_element) * days_per_sec
-
+             
              ! [kgC/plant/day] -> [gC/m2/s]
              agnpp = agnpp + ccohort%n/cpatch%area * (leaf_net_alloc + repro_net_alloc + &
                   prt_params%allom_agb_frac(pft)*(sapw_net_alloc+store_net_alloc+struct_net_alloc)) * g_per_kg
-
+             
              ! [kgC/plant/day] -> [gC/m2/s]
              bgnpp = bgnpp + ccohort%n/cpatch%area * (fnrt_net_alloc  + &
                   (1._r8-prt_params%allom_agb_frac(pft))*(sapw_net_alloc+store_net_alloc+struct_net_alloc)) * g_per_kg
-
-             ! (gC/m2/s) root respiration (fine root MR + total root GR)
-             ! RGK: We do not save root respiration and average over the day. Until we do
-             !      this is a best (bad) guess at fine root MR + total root GR
-             !      (kgC/indiv/yr) -> gC/m2/s
-             bc_out%root_resp(1:bc_in%nlevsoil) = bc_out%root_resp(1:bc_in%nlevsoil) + &
-                  ccohort%resp_acc_hold*years_per_day*g_per_kg*days_per_sec* &
-                  ccohort%n*area_inv*(1._r8-prt_params%allom_agb_frac(pft)) * csite%rootfrac_scr(1:bc_in%nlevsoil)
-
+             
+             if(hlm_use_ch4==itrue)then
+                
+                ! Fine root fraction over depth
+                bc_out%rootfr_pa(fp,1:bc_in%nlevsoil) = &
+                     bc_out%rootfr_pa(fp,1:bc_in%nlevsoil) + &
+                     csite%rootfrac_scr(1:bc_in%nlevsoil)
+                
+                ! Fine root carbon, convert [kg/plant] -> [g/m2]
+                bc_out%frootc_pa(fp) = &
+                     bc_out%frootc_pa(fp) + &
+                     fnrt_c*ccohort%n/cpatch%area * g_per_kg
+                
+                ! (gC/m2/s) root respiration (fine root MR + total root GR)
+                ! RGK: We do not save root respiration and average over the day. Until we do
+                !      this is a best (bad) guess at fine root MR + total root GR
+                !      (kgC/indiv/yr) -> gC/m2/s
+                bc_out%root_resp(1:bc_in%nlevsoil) = bc_out%root_resp(1:bc_in%nlevsoil) + &
+                     ccohort%resp_acc_hold*years_per_day*g_per_kg*days_per_sec* &
+                     ccohort%n*area_inv*(1._r8-prt_params%allom_agb_frac(pft)) * csite%rootfrac_scr(1:bc_in%nlevsoil)
+                
+             end if
+             
              if( prt_params%woody(pft)==itrue ) then
                 woody_area = woody_area + ccohort%c_area
              end if
@@ -357,33 +366,38 @@ contains
           
           ccohort => ccohort%shorter
        end do
-
-       if( sum(bc_out%rootfr_pa(fp,1:bc_in%nlevsoil)) > nearzero) then
-          bc_out%rootfr_pa(fp,1:bc_in%nlevsoil) = &
-               bc_out%rootfr_pa(fp,1:bc_in%nlevsoil) / &
-               sum(bc_out%rootfr_pa(fp,1:bc_in%nlevsoil)) 
-       end if
+       
+       if(hlm_use_ch4==itrue)then
+          if( sum(bc_out%rootfr_pa(fp,1:bc_in%nlevsoil)) > nearzero) then
+             bc_out%rootfr_pa(fp,1:bc_in%nlevsoil) = &
+                  bc_out%rootfr_pa(fp,1:bc_in%nlevsoil) / &
+                  sum(bc_out%rootfr_pa(fp,1:bc_in%nlevsoil)) 
+          end if
           
-       ! RGK: These averages should switch to the new patch averaging methods
-       !      when available.  Right now we are not doing any time averaging
-       !      because it would be mixing the memory of patches, which
-       !      would be arguably worse than just using the instantaneous value
-       
-       ! gC/m2/s
-       bc_out%annavg_agnpp_pa(fp) = agnpp
-       bc_out%annavg_bgnpp_pa(fp) = bgnpp
-       ! gc/m2/yr
-       bc_out%annsum_npp_pa(fp) = (bgnpp+agnpp)*days_per_year*sec_per_day
-
-       site_npp = site_npp + bc_out%annsum_npp_pa(fp)*cpatch%area*area_inv
-       
-       if(plant_area>nearzero) then
-          bc_out%woody_frac_aere_pa(fp) = woody_area/plant_area
+          ! RGK: These averages should switch to the new patch averaging methods
+          !      when available.  Right now we are not doing any time averaging
+          !      because it would be mixing the memory of patches, which
+          !      would be arguably worse than just using the instantaneous value
+          
+          ! gC/m2/s
+          bc_out%annavg_agnpp_pa(fp) = agnpp
+          bc_out%annavg_bgnpp_pa(fp) = bgnpp
+          ! gc/m2/yr
+          bc_out%annsum_npp_pa(fp) = (bgnpp+agnpp)*days_per_year*sec_per_day
+          
+          site_npp = site_npp + (bgnpp+agnpp)*days_per_year*sec_per_day*cpatch%area*area_inv
+          
+          if(plant_area>nearzero) then
+             bc_out%woody_frac_aere_pa(fp) = woody_area/plant_area
+          end if
+    
        end if
+       
+       site_npp = site_npp + (bgnpp+agnpp)*days_per_year*sec_per_day*cpatch%area*area_inv
        
        cpatch => cpatch%younger
     end do
-
+    
     ! Smoothed [gc/m2/yr]
     if(csite%ema_npp<-9000._r8)then
        ! For cold starts, we initialize the ema_npp value at -9999, so that
@@ -394,7 +408,7 @@ contains
     end if
     
     bc_out%ema_npp = csite%ema_npp
-    
+
     return
   end subroutine PrepCH4BCs
   
@@ -701,6 +715,12 @@ contains
     do id = 1,nlev_eff_decomp
        surface_prof(id) = surface_prof(id)/surface_prof_tot
     end do
+
+
+    !bc_out%litt_flux_cel_n_si(:) = 100._r8
+    !bc_out%litt_flux_lab_n_si(:) = 100._r8
+    !bc_out%litt_flux_lig_n_si(:) = 100._r8
+
     
     ! Loop over the different elements. 
     do el = 1, num_elements
@@ -711,9 +731,9 @@ contains
        
        select case (element_list(el))
        case (carbon12_element)
-          bc_out%litt_flux_cel_c_si(:) = 0._r8
-          bc_out%litt_flux_lig_c_si(:) = 0._r8
-          bc_out%litt_flux_lab_c_si(:) = 0._r8
+          bc_out%litt_flux_cel_c_si(:) = 0.0_r8
+          bc_out%litt_flux_lig_c_si(:) = 0.0_r8
+          bc_out%litt_flux_lab_c_si(:) = 0.0_r8
           flux_cel_si => bc_out%litt_flux_cel_c_si(:)
           flux_lab_si => bc_out%litt_flux_lab_c_si(:)
           flux_lig_si => bc_out%litt_flux_lig_c_si(:)
@@ -732,6 +752,10 @@ contains
           flux_lab_si => bc_out%litt_flux_lab_p_si(:)
           flux_lig_si => bc_out%litt_flux_lig_p_si(:)
        end select
+
+    !end do
+    !return
+    !do el = 1, num_elements
 
        currentPatch => csite%oldest_patch
        do while (associated(currentPatch))

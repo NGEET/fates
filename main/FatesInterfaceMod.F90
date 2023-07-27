@@ -463,7 +463,6 @@ contains
          allocate(bc_in%plant_p_uptake_flux(1,1))
       end if
 
-
       allocate(bc_in%zi_sisl(0:nlevsoil_in))
       allocate(bc_in%dz_sisl(nlevsoil_in))
       allocate(bc_in%z_sisl(nlevsoil_in))
@@ -620,7 +619,7 @@ contains
 
       ! Include the bare-ground patch for these patch-level boundary conditions
       ! (it will always be zero for all of these)
-      if(hlm_use_ch4.eq.itrue) then
+      !if(hlm_use_ch4.eq.itrue) then
          allocate(bc_out%annavg_agnpp_pa(0:maxpatch_total));bc_out%annavg_agnpp_pa(:)=nan
          allocate(bc_out%annavg_bgnpp_pa(0:maxpatch_total));bc_out%annavg_bgnpp_pa(:)=nan
          allocate(bc_out%annsum_npp_pa(0:maxpatch_total));bc_out%annsum_npp_pa(:)=nan
@@ -632,7 +631,7 @@ contains
 
          ! Give the bare-ground root fractions a nominal fraction of unity over depth
          bc_out%rootfr_pa(0,1:nlevsoil_in)=1._r8/real(nlevsoil_in,r8)
-      end if
+      !end if
 
       bc_out%ema_npp = -9999.9_r8
       
