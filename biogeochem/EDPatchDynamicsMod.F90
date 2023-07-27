@@ -29,6 +29,8 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : min_patch_area
   use EDTypesMod           , only : min_patch_area_forced
   use EDParamsMod          , only : nclmax
+  use EDParamsMod          , only : regeneration_model
+  use FatesInterfaceTypesMod, only : numpft
   use EDTypesMod           , only : dtype_ifall
   use EDTypesMod           , only : dtype_ilog
   use EDTypesMod           , only : dtype_ifire
@@ -2569,7 +2571,7 @@ contains
     end if
 
     ! We have no need for the dp pointer anymore, we have passed on it's legacy
-    call dp%FreeMemory()
+    call dp%FreeMemory(regeneration_model, numpft)
     deallocate(dp, stat=istat, errmsg=smsg)
     if (istat/=0) then
        write(fates_log(),*) 'dealloc006: fail on deallocate(dp):'//trim(smsg)

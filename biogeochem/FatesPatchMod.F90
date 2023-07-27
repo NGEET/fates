@@ -605,7 +605,7 @@ module FatesPatchMod
 
     !===========================================================================
 
-    subroutine FreeMemory(this)
+    subroutine FreeMemory(this, regeneration_model, numpft)
       !
       ! DESCRIPTION:
       ! deallocate the allocatable memory associated with this patch
@@ -614,12 +614,13 @@ module FatesPatchMod
   
       ! ARGUMENTS:
       class(fates_patch_type), intent(inout) :: this
+      integer,                 intent(in)    :: regeneration_model
+      integer,                 intent(in)    :: numpft
   
       ! LOCALS:
       type(fates_cohort_type), pointer :: ccohort ! current cohort
       type(fates_cohort_type), pointer :: ncohort ! next cohort
       integer                          :: el      ! loop counter for elements
-      integer                          :: numpft  ! size of pft-indexed arrays
       integer                          :: pft     ! loop counter for pfts
       integer                          :: istat   ! return status code
       character(len=255)               :: smsg    ! message string for deallocation errors
@@ -681,22 +682,16 @@ module FatesPatchMod
         call endrun(msg=errMsg(sourcefile, __LINE__))
       endif
 
-      if (associated(this%seedling_layer_par24)) deallocate(this%seedling_layer_par24)
-      if (associated(this%sdlng_mort_par))       deallocate(this%sdlng_mort_par)
-      if (associated(this%sdlng2sap_par))        deallocate(this%sdlng2sap_par)
-
-      if (associated(this%sdlng_mdd)) then
-        numpft = size(this%sdlng_mdd)
+      if (regeneration_model == TRS_regeneration) then 
+        deallocate(this%seedling_layer_par24)
+        deallocate(this%sdlng_mort_par)
+        deallocate(this%sdlng2sap_par)
         do pft = 1, numpft 
-          if (associated(this%sdlng_mdd(pft)%p)) deallocate(this%sdlng_mdd(pft)%p)
+          deallocate(this%sdlng_mdd(pft)%p)
         end do 
         deallocate(this%sdlng_mdd)
-      end if 
-
-      if (associated(this%sdlng_emerg_smp)) then 
-        numpft = size(this%sdlng_emerg_smp)
         do pft = 1, numpft 
-          if (associated(this%sdlng_emerg_smp(pft)%p)) deallocate(this%sdlng_emerg_smp(pft)%p)
+          deallocate(this%sdlng_emerg_smp(pft)%p)
         end do 
         deallocate(this%sdlng_emerg_smp)
       end if 
