@@ -30,17 +30,21 @@ module FatesConstantsMod
   ! Integer equivalent of false (in case come compilers dont auto convert)
   integer, parameter, public :: ifalse = 0
 
-  integer , parameter, public :: N_DBH_BINS = 6  ! no. of dbh bins used when comparing patches
-
-  integer, parameter, public :: maxpft = 16               ! maximum number of PFTs allowed
   ! the parameter file may determine that fewer
   ! are used, but this helps allocate scratch
   ! space and output arrays.
 
   integer, parameter, public :: n_rad_stream_types = 2    ! The number of radiation streams used (direct/diffuse)
 
+  integer , parameter, public       :: N_DBH_BINS = 6  ! no. of dbh bins used when comparing patches
+  real(fates_r8), parameter, public :: patchfusion_dbhbin_loweredges(N_DBH_BINS) = &
+  (/0._fates_r8, 5._fates_r8, 20._fates_r8, 50._fates_r8, 100._fates_r8, 150._fates_r8/) ! array of bin lower edges for comparing patches
+
 
   integer , parameter, public :: N_DIST_TYPES = 3 ! Disturbance Modes 1) tree-fall, 2) fire, 3) logging
+  integer , parameter, public :: dtype_ifall  = 1          ! index for naturally occuring tree-fall generated event
+  integer , parameter, public :: dtype_ifire  = 2          ! index for fire generated disturbance event
+  integer , parameter, public :: dtype_ilog   = 3          ! index for logging generated disturbance event
 
   ! Labels for patch disturbance history
   integer, parameter, public :: n_anthro_disturbance_categories = 2

@@ -66,7 +66,7 @@ module EDPhysiologyMod
   use FatesConstantsMod   , only : isemi_stress_decid
   use EDParamsMod         , only : nlevleaf
   use EDTypesMod          , only : num_vegtemp_mem
-  use FatesConstantsMod   , only : maxpft
+  use EDParamsMod         , only : maxpft
   use EDTypesMod          , only : ed_site_type
   use FatesPatchMod,        only : fates_patch_type
   use FatesCohortMod,       only : fates_cohort_type

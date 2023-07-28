@@ -25,7 +25,7 @@ module FatesInterfaceMod
    use EDParamsMod               , only : inir
    use EDParamsMod               , only : nclmax
    use EDParamsMod               , only : nlevleaf
-   use FatesConstantsMod         , only : maxpft
+   use EDParamsMod               , only : maxpft
    use EDTypesMod                , only : do_fates_salinity
    use EDTypesMod                , only : numWaterMem
    use EDTypesMod                , only : numlevsoil_max

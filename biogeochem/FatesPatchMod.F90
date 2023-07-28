@@ -15,8 +15,8 @@ module FatesPatchMod
   use FatesLitterMod,      only : litter_type
   use PRTGenericMod,       only : num_elements
   use PRTGenericMod,       only : element_list
-  use EDParamsMod,         only : maxSWb, nlevleaf, nclmax
-  use FatesConstantsMod,   only : n_dbh_bins, maxpft, n_dist_types
+  use EDParamsMod,         only : maxSWb, nlevleaf, nclmax, maxpft
+  use FatesConstantsMod,   only : n_dbh_bins, n_dist_types
   use FatesConstantsMod,   only : n_rad_stream_types
   use FatesConstantsMod,   only : t_water_freeze_k_1atm
   use FatesRunningMeanMod, only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm

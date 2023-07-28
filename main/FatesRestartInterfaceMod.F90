@@ -1906,7 +1906,6 @@ contains
    use EDParamsMod, only : nclmax
    use EDTypesMod, only : numWaterMem
    use EDTypesMod, only : num_vegtemp_mem
-   use FatesConstantsMod, only : maxpft
    use FatesInterfaceTypesMod, only : nlevdamage
 
     ! Arguments
@@ -2646,7 +2645,6 @@ contains
      use FatesInterfaceTypesMod,    only : fates_maxElementsPerPatch
      use FatesInterfaceTypesMod,    only : hlm_current_tod, hlm_numSWb, numpft
 
-     use FatesConstantsMod,    only : maxpft
      use EDTypesMod,           only : area
      use EDInitMod,            only : zero_site
      use EDInitMod,            only : init_site_vars
@@ -2846,7 +2844,6 @@ contains
      use FatesInterfaceTypesMod, only : numpft
      use FatesInterfaceTypesMod, only : fates_maxElementsPerPatch
      use EDTypesMod, only : numWaterMem
-     use FatesConstantsMod, only : maxpft
      use EDTypesMod, only : num_vegtemp_mem
      use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
      

@@ -28,8 +28,7 @@ module EDTypesMod
   use FatesInterfaceTypesMod,only : hlm_parteh_mode
   use FatesCohortMod,        only : fates_cohort_type
   use FatesPatchMod,         only : fates_patch_type
-  use EDParamsMod,           only : maxSWb, nclmax, nlevleaf
-  use FatesConstantsMod,     only : maxpft
+  use EDParamsMod,           only : maxSWb, nclmax, nlevleaf, maxpft
   use FatesConstantsMod,     only : n_dbh_bins, n_dist_types
   use shr_log_mod,           only : errMsg => shr_log_errMsg
 
@@ -87,9 +86,7 @@ module EDTypesMod
 
   ! BIOLOGY/BIOGEOCHEMISTRY        
   integer , parameter, public :: num_vegtemp_mem      = 10         ! Window of time over which we track temp for cold sensecence (days)
-  integer , parameter, public :: dtype_ifall          = 1          ! index for naturally occuring tree-fall generated event
-  integer , parameter, public :: dtype_ifire          = 2          ! index for fire generated disturbance event
-  integer , parameter, public :: dtype_ilog           = 3          ! index for logging generated disturbance event
+
 
   ! Phenology status flag definitions (cold type is cstat, dry type is dstat)
 
@@ -106,8 +103,6 @@ module EDTypesMod
 
   ! PATCH FUSION 
   real(r8), parameter, public :: force_patchfuse_min_biomass = 0.005_r8   ! min biomass (kg / m2 patch area) below which to force-fuse patches
-  real(r8), parameter, public :: patchfusion_dbhbin_loweredges(N_DBH_BINS) = &
-       (/0._r8, 5._r8, 20._r8, 50._r8, 100._r8, 150._r8/)                 ! array of bin lower edges for comparing patches
   real(r8), parameter, public :: patch_fusion_tolerance_relaxation_increment = 1.1_r8 ! amount by which to increment patch fusion threshold
   real(r8), parameter, public :: max_age_of_second_oldest_patch = 200._r8 ! age in years above which to combine all patches
 

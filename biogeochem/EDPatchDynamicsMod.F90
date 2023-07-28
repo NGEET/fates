@@ -19,7 +19,8 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : n_dbh_bins 
   use FatesLitterMod       , only : adjust_SF_CWD_frac
   use EDTypesMod           , only : homogenize_seed_pfts
-  use EDTypesMod           , only : area, patchfusion_dbhbin_loweredges
+  use EDTypesMod           , only : area
+  use FatesConstantsMod    , only : patchfusion_dbhbin_loweredges
   use EDtypesMod           , only : force_patchfuse_min_biomass
   use EDTypesMod           , only : ed_site_type
   use FatesPatchMod,         only : fates_patch_type
@@ -31,9 +32,9 @@ module EDPatchDynamicsMod
   use EDParamsMod          , only : nclmax
   use EDParamsMod          , only : regeneration_model
   use FatesInterfaceTypesMod, only : numpft
-  use EDTypesMod           , only : dtype_ifall
-  use EDTypesMod           , only : dtype_ilog
-  use EDTypesMod           , only : dtype_ifire
+  use FatesConstantsMod     , only : dtype_ifall
+  use FatesConstantsMod     , only : dtype_ilog
+  use FatesConstantsMod     , only : dtype_ifire
   use FatesConstantsMod    , only : ican_upper
   use PRTGenericMod        , only : num_elements
   use PRTGenericMod        , only : element_list

@@ -38,7 +38,7 @@ module FATESPlantRespPhotosynthMod
   use FatesInterfaceTypesMod, only : hlm_parteh_mode
   use FatesInterfaceTypesMod, only : numpft
   use FatesInterfaceTypesMod, only : nleafage
-  use FatesConstantsMod, only : maxpft
+  use EDParamsMod,           only : maxpft
   use EDParamsMod,       only : nlevleaf
   use EDParamsMod,       only : nclmax
   use PRTGenericMod,     only : max_nleafage
@@ -124,10 +124,8 @@ contains
     ! a multi-layer canopy
     ! -----------------------------------------------------------------------------------
 
-
     ! !USES:
     use EDTypesMod        , only : ed_site_type
-    use FatesConstantsMod , only : maxpft
     use EDParamsMod       , only : dinc_vai
     use EDParamsMod       , only : dlower_vai
     use FatesInterfaceTypesMod , only : bc_in_type

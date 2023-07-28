@@ -25,9 +25,9 @@ module EDLoggingMortalityMod
    use FatesLitterMod    , only : adjust_SF_CWD_frac
    use EDTypesMod        , only : ed_site_type
    use EDTypesMod        , only : ed_resources_management_type
-   use EDTypesMod        , only : dtype_ilog
-   use EDTypesMod        , only : dtype_ifall
-   use EDTypesMod        , only : dtype_ifire
+   use FatesConstantsMod , only : dtype_ilog
+   use FatesConstantsMod , only : dtype_ifall
+   use FatesConstantsMod , only : dtype_ifire
    use EDPftvarcon       , only : EDPftvarcon_inst
    use EDPftvarcon       , only : GetDecompyFrac
    use PRTParametersMod  , only : prt_params

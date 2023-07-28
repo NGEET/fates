@@ -1393,7 +1393,6 @@ end subroutine create_cohort
           storebigcohort => icohort
        end if
        currentPatch%tallest => icohort
-       !icohort%patchptr%tallest => icohort
        !new cohort is not tallest
     else
        !next shorter cohort to new cohort is the next shorter cohort

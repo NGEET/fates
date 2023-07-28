@@ -126,6 +126,10 @@ integer, parameter, public :: inir = 2        ! This is the array index for shor
 
 integer, parameter, public :: ipar = ivis     ! The photosynthetically active band
   ! can be approximated to be equal to the visible band
+
+
+
+integer, parameter, public :: maxpft = 16      ! maximum number of PFTs allowed
    
    real(r8),protected,public  :: q10_mr     ! Q10 for respiration rate (for soil fragmenation and plant respiration)    (unitless)
    real(r8),protected,public  :: q10_froz   ! Q10 for frozen-soil respiration rates (for soil fragmentation)            (unitless)

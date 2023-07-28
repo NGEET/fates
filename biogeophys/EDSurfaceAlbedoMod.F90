@@ -12,7 +12,7 @@ module EDSurfaceRadiationMod
 
   use EDTypesMod        , only : ed_site_type
   use FatesPatchMod,      only : fates_patch_type
-  use FatesConstantsMod, only : maxpft
+  use EDParamsMod,        only : maxpft
   use FatesConstantsMod , only : r8 => fates_r8
   use FatesConstantsMod , only : itrue
   use FatesConstantsMod , only : pi_const
@@ -33,6 +33,7 @@ module EDSurfaceRadiationMod
   use EDCanopyStructureMod, only: calc_areaindex
   use FatesGlobals      , only : fates_log
   use FatesGlobals, only      : endrun => fates_endrun
+  use EDPftvarcon,        only : EDPftvarcon_inst
 
   ! CIME globals
   use shr_log_mod       , only : errMsg => shr_log_errMsg
@@ -66,13 +67,8 @@ contains
 
   subroutine ED_Norman_Radiation (nsites, sites, bc_in, bc_out )
     !
-
     !
-    ! !USES:
-    use FatesPatchMod     , only : fates_patch_type
-    use EDTypesMod        , only : ed_site_type
-
-
+ 
     ! !ARGUMENTS:
 
     integer,            intent(in)            :: nsites
@@ -193,11 +189,6 @@ contains
     ! This routine performs the Norman Radiation scattering for each patch.
     !
     ! -----------------------------------------------------------------------------------
-
-    !
-    ! !USES:
-    use EDPftvarcon       , only : EDPftvarcon_inst
-    use FatesPatchMod     , only : fates_patch_type
 
     ! -----------------------------------------------------------------------------------
     ! !ARGUMENTS:

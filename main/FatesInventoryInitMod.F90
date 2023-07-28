@@ -555,7 +555,6 @@ contains
          end if
 
       end do
-      !call canopy_summarization(nsites, sites, bc_in)
       
       deallocate(inv_format_list, inv_pss_list, inv_css_list, inv_lat_list, inv_lon_list)
 
