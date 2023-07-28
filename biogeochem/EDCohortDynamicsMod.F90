@@ -1413,7 +1413,6 @@ end subroutine create_cohort
           storesmallcohort => icohort
        end if
        currentPatch%shortest => icohort
-       !icohort%patchptr%shortest => icohort
     else
        !new cohort is not shortest and becomes next taller cohort
        !to the cohort just below it as defined in the previous block
