@@ -109,9 +109,9 @@ def CommandLineArgs():
 
     # Optional input to subset the time range of the data
     # TODO: add support for parsing the input and checking against the allowable date range
-    parser.add_argument("-b","--begin", type=int, choices=range(850,2015), 
+    parser.add_argument("-b","--begin", type=int, choices=range(850,2016), 
                         help="beginning of date range to slice (allowable range is 0850-2015)")
-    parser.add_argument("-e","--end", type=int, choices=range(850,2015), 
+    parser.add_argument("-e","--end", type=int, choices=range(850,2016), 
                         help="ending of date range to slice (allowable range is 0850-2015)")
 
     # Optional output argument
