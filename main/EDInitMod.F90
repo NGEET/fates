@@ -416,8 +416,8 @@ contains
                 do i_landusetype = 1, n_landuse_cats
                    do hlm_pft = 1,fates_hlm_num_natpfts
                       do fates_pft = 1,numpft ! loop round all fates pfts for all hlm pfts
-                         sites(s)%area_pft(fates_pft,i_landusetype) = sites(s)%area_pft_luh(fates_pft,i_landusetype) + &
-                              EDPftvarcon_inst%hlm_pft_map(fates_pft,hlm_pft) * bc_in(s)%pft_areafrac(hlm_pft)
+                         sites(s)%area_pft(fates_pft,i_landusetype) = sites(s)%area_pft(fates_pft,i_landusetype) + &
+                              EDPftvarcon_inst%hlm_pft_map(fates_pft,hlm_pft) * bc_in(s)%pft_areafrac_luh(hlm_pft,i_landusetype)
                       end do
                    end do !hlm_pft                   
                 end do
@@ -442,16 +442,15 @@ contains
 
              do i_landusetype = 1, n_landuse_cats
                 do ft =  1,numpft
-                   if(sites(s)%area_pft(ft).lt.0.01_r8.and.sites(s)%area_pft(ft).gt.0.0_r8)then
-                      if(debug) write(fates_log(),*)  'removing small pft patches',s,ft,sites(s)%area_pft(ft)
-                      sites(s)%area_pft(ft)=0.0_r8
+                   if(sites(s)%area_pft(ft, i_landusetype).lt.0.01_r8.and.sites(s)%area_pft(ft, i_landusetype).gt.0.0_r8)then
+                      if(debug) write(fates_log(),*)  'removing small pft patches',s,ft,i_landusetype,sites(s)%area_pft(ft, i_landusetype)
+                      sites(s)%area_pft(ft, i_landusetype)=0.0_r8
                       ! remove tiny patches to prevent numerical errors in terminate patches
                    endif
-                   if(sites(s)%area_pft(ft).lt.0._r8)then
-                      write(fates_log(),*) 'negative area',s,ft,sites(s)%area_pft(ft)
+                   if(sites(s)%area_pft(ft, i_landusetype).lt.0._r8)then
+                      write(fates_log(),*) 'negative area',s,ft,i_landusetype,sites(s)%area_pft(ft, i_landusetype)
                       call endrun(msg=errMsg(sourcefile, __LINE__))
                    end if
-                   sites(s)%area_pft(ft)= sites(s)%area_pft(ft) * AREA ! rescale units to m2.
                 end do
              end do
 
@@ -477,7 +476,7 @@ contains
           do ft = 1,numpft
              ! Setting this to true ensures that all pfts
              ! are used for nocomp with no biogeog
-             sites(s)%use_this_pft(ft) = itrue
+             sites(s)%use_this_pft(ft) = itrues
              if(hlm_use_fixed_biogeog.eq.itrue)then
                 if(any(sites(s)%area_pft(ft,:).gt.0.0_r8))then
                    sites(s)%use_this_pft(ft) = itrue
@@ -663,7 +662,7 @@ contains
                       ! i.e. each grid cell is divided exactly into the number of FATES PFTs.
 
                       if(hlm_use_fixed_biogeog.eq.itrue)then
-                         newparea = sites(s)%area_pft(nocomp_pft) * area / state_vector(i_lu_state)
+                         newparea = sites(s)%area_pft(nocomp_pft,i_lu_state) * area / state_vector(i_lu_state)
                       else
                          newparea = area / ( numpft * vector(i_lu_state))
                       end if
