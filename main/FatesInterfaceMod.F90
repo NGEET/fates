@@ -40,6 +40,7 @@ module FatesInterfaceMod
    use FatesConstantsMod         , only : sec_per_day
    use FatesConstantsMod         , only : days_per_year
    use FatesConstantsMod         , only : TRS_regeneration
+   use FatesConstantsMod         , only : g_per_kg
    use FatesGlobals              , only : fates_global_verbose
    use FatesGlobals              , only : fates_log
    use FatesGlobals              , only : endrun => fates_endrun
@@ -633,7 +634,7 @@ contains
          bc_out%rootfr_pa(0,1:nlevsoil_in)=1._r8/real(nlevsoil_in,r8)
       !end if
 
-      bc_out%ema_npp = -9999.9_r8
+      bc_out%ema_npp = nan
       
       ! Fates -> BGC fragmentation mass fluxes
       select case(hlm_parteh_mode) 
@@ -1962,6 +1963,7 @@ contains
      type(ed_patch_type),  pointer :: cpatch
      type(ed_cohort_type), pointer :: ccohort
      integer :: s, ifp, io_si, pft 
+     real(r8) :: site_npp               ! Site level NPP gC/m2/year
      real(r8) :: new_seedling_layer_par ! seedling layer par in the current timestep
      real(r8) :: new_seedling_layer_smp ! seedling layer smp in the current timestep
      real(r8) :: new_seedling_mdd       ! seedling layer moisture deficit days in the current timestep
@@ -1971,10 +1973,12 @@ contains
      real(r8) :: seedling_par_low       ! lower intensity par for seedlings (par under the undergrowth) [W/m2]
      real(r8) :: par_low_frac           ! fraction of ground where PAR is low
      integer,parameter :: ipar = 1      ! solar radiation in the shortwave band (i.e. par)
+     real(r8), parameter :: ema_npp_tscale = 480._r8  ! 10 day (10*48 steps)
 
      do s = 1,size(sites,dim=1)
 
         ifp=0
+        site_npp = 0._r8
         cpatch => sites(s)%oldest_patch
         do while(associated(cpatch))
            if (cpatch%patchno .ne. 0) then
@@ -1982,8 +1986,6 @@ contains
            call cpatch%tveg24%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            call cpatch%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            call cpatch%tveg_longterm%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
-
-     
 
            ! Update the seedling layer par running means
            if ( regeneration_model == TRS_regeneration ) then
@@ -2030,15 +2032,29 @@ contains
               
            end if
 
-           !ccohort => cpatch%tallest
-           !do while (associated(ccohort))
-           !   call ccohort%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
-           !   ccohort => ccohort%shorter
-           !end do
+           ccohort => cpatch%tallest
+           do while (associated(ccohort))
+              !   call ccohort%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
+
+              ! [kgC/plant/yr] -> [gC/m2/s]
+              site_npp = site_npp + ccohort%npp_acc_hold * ccohort%n*area_inv * &
+                   g_per_kg * hlm_days_per_year / sec_per_day
+
+              ccohort => ccohort%shorter
+           end do
+
         end if
 
         cpatch => cpatch%younger
      enddo
+
+     ! Smoothed [gc/m2/yr]
+     if(sites(s)%ema_npp<-9000._r8)then
+        sites(s)%ema_npp = site_npp
+     else
+        sites(s)%ema_npp = (1._r8-1._r8/ema_npp_tscale)*sites(s)%ema_npp + (1._r8/ema_npp_tscale)*site_npp
+     end if
+
   end do
 
   return

@@ -255,7 +255,6 @@ contains
     integer                       :: fp            ! patch index of the site
     real(r8) :: agnpp   ! Above ground daily npp
     real(r8) :: bgnpp   ! Below ground daily npp
-    real(r8) :: site_npp ! Site level NPP gC/m2/year
     real(r8) :: plant_area ! crown area (m2) of all plants in patch
     real(r8) :: woody_area ! corwn area (m2) of woody plants in patch
     real(r8) :: fnrt_c  ! Fine root carbon [kg/plant]
@@ -281,8 +280,6 @@ contains
     bc_out%root_resp(:)  = 0._r8
     bc_out%woody_frac_aere_pa(:) = 0._r8
     bc_out%ema_npp = 0._r8
-
-    site_npp = 0._r8
 
     ! Process CH4 variables first
     !if(.not.(hlm_use_ch4==itrue) .and. .not.(hlm_parteh_mode==prt_cnp_flex_allom_hyp) )
@@ -384,28 +381,15 @@ contains
           bc_out%annavg_bgnpp_pa(fp) = bgnpp
           ! gc/m2/yr
           bc_out%annsum_npp_pa(fp) = (bgnpp+agnpp)*days_per_year*sec_per_day
-          
-          site_npp = site_npp + (bgnpp+agnpp)*days_per_year*sec_per_day*cpatch%area*area_inv
-          
+
           if(plant_area>nearzero) then
              bc_out%woody_frac_aere_pa(fp) = woody_area/plant_area
           end if
     
        end if
        
-       site_npp = site_npp + (bgnpp+agnpp)*days_per_year*sec_per_day*cpatch%area*area_inv
-       
        cpatch => cpatch%younger
     end do
-    
-    ! Smoothed [gc/m2/yr]
-    if(csite%ema_npp<-9000._r8)then
-       ! For cold starts, we initialize the ema_npp value at -9999, so that
-       ! it becomes memoryless and uses the first calculated value
-       csite%ema_npp = site_npp
-    else
-       csite%ema_npp = (1._r8-1._r8/ema_npp_tscale)*csite%ema_npp + (1._r8/ema_npp_tscale)*site_npp
-    end if
     
     bc_out%ema_npp = csite%ema_npp
 
@@ -716,12 +700,6 @@ contains
        surface_prof(id) = surface_prof(id)/surface_prof_tot
     end do
 
-
-    !bc_out%litt_flux_cel_n_si(:) = 100._r8
-    !bc_out%litt_flux_lab_n_si(:) = 100._r8
-    !bc_out%litt_flux_lig_n_si(:) = 100._r8
-
-    
     ! Loop over the different elements. 
     do el = 1, num_elements
        
@@ -753,10 +731,12 @@ contains
           flux_lig_si => bc_out%litt_flux_lig_p_si(:)
        end select
 
-    !end do
-    !return
-    !do el = 1, num_elements
-
+       ! These lines are for testing and should be removed
+       ! when the fates bgc pathway PR is integrated
+       !end do
+       !return
+       !do el = 1, num_elements
+       
        currentPatch => csite%oldest_patch
        do while (associated(currentPatch))
 
