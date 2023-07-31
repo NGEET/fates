@@ -463,7 +463,6 @@ contains
     real(r8) :: leaf_burn_frac               ! fraction of leaves burned in fire
     ! for both woody and grass species
     real(r8) :: leaf_m                       ! leaf mass during partial burn calculations
-    logical  :: found_youngest_landuselabel  ! logical for finding the first primary forest patch
     integer  :: min_nocomp_pft, max_nocomp_pft, i_nocomp_pft
     integer  :: i_disturbance_type, i_dist2  ! iterators for looping over disturbance types
     integer  :: i_landusechange_receiverpatchlabel  ! iterator for the land use change types
@@ -1197,44 +1196,8 @@ contains
                 !*************************/
 
                 if ( site_areadis .gt. nearzero) then
-                   currentPatch               => currentSite%youngest_patch
 
-                   ! Insert new patch as the youngest patch in the group of patches with the same land use type.
-                   ! On a given site, the patches are grouped together by land use type.  The order of the 
-                   ! groups within the site doesn't matter, except that the older patch group are primarylands.
-
-                   if (currentPatch%land_use_label .eq. new_patch%land_use_label ) then
-                      found_youngest_landuselabel = .false.
-                      do while(associated(currentPatch) .and. .not. found_youngest_landuselabel)
-                         currentPatch => currentPatch%older
-                         if (associated(currentPatch)) then
-                            if (currentPatch%land_use_label .eq. new_patch%land_use_label) then
-                               found_youngest_landuselabel = .true.
-                            endif
-                         endif
-                      end do
-                      if (associated(currentPatch)) then
-                         ! the case where we've found a youngest patch type matching the new patch type
-                         new_patch%older    => currentPatch
-                         new_patch%younger  => currentPatch%younger
-                         currentPatch%younger%older => new_patch
-                         currentPatch%younger       => new_patch
-                      else
-                         ! the case where we haven't, because the patches are all non-primaryland,
-                         ! and are putting a primaryland patch at the oldest end of the
-                         ! linked list (not sure how this could happen, but who knows...)
-                         new_patch%older    => null()
-                         new_patch%younger  => currentSite%oldest_patch
-                         currentSite%oldest_patch%older   => new_patch
-                         currentSite%oldest_patch   => new_patch
-                      endif
-                   else
-                      ! the case where the youngest patch on the site matches the new patch type
-                      new_patch%older    => currentPatch
-                      new_patch%younger  => null()
-                      currentPatch%younger       => new_patch
-                      currentSite%youngest_patch => new_patch
-                   endif
+                   call insert_patch_into_sitelist(currentSite, new_patch)
 
                    ! sort out the cohorts, since some of them may be so small as to need removing.
                    ! the first call to terminate cohorts removes sparse number densities,
@@ -1331,11 +1294,20 @@ contains
                    ! split buffer patch in two, keeping the smaller buffer patch to put into new patches
                    call split_patch(currentSite, buffer_patch, temp_patch, newp_area/buffer_patch%area)
 
-                   ! put the new patch into the linked list cdkcdk TODO
+                   ! give the new patch the intended nocomp PFT label
+                   temp_patch%nocomp_pft_label = i_pft
+
+                   ! put the new patch into the linked list
+                   call insert_patch_into_sitelist(currentSite, temp_patch)
+
+                   ! CDK QUESTION: HOW DO WE ERASE OUT THE TEMP_PATCH INFO SO THAT IT CAN HOLD A NEW PATCH WHEN IT GOES BACK THROUGH THE LOOP?
                    
                 else
+                   ! give the buffer patch the intended nocomp PFT label
+                   buffer_patch%nocomp_pft_label = i_pft
 
-                   ! put the buffer patch directly into the linked list cdkcdk TODO
+                   ! put the buffer patch directly into the linked list
+                   call insert_patch_into_sitelist(currentSite, buffer_patch)
                    
                 end if
 
@@ -1358,6 +1330,63 @@ contains
     return
   end subroutine spawn_patches
 
+  ! -----------------------------------------------------------------------------------------
+
+  subroutine insert_patch_into_sitelist(currentSite, new_patch)
+    !
+    ! !DESCRIPTION:
+    !  Insert a new patch into the site linked list structure.
+    !
+    ! !USES:
+    !
+    ! !ARGUMENTS:
+    type(ed_site_type),intent(in) :: currentSite
+    type(ed_patch_type) , intent(inout), target :: new_patch      ! New Patch
+    !
+    ! !LOCAL VARIABLES:
+    type (ed_patch_type) , pointer :: currentPatch
+    logical  :: found_youngest_landuselabel  ! logical for finding the first primary forest patch
+
+    currentPatch               => currentSite%youngest_patch
+
+    ! Insert new patch as the youngest patch in the group of patches with the same land use type.
+    ! On a given site, the patches are grouped together by land use type.  The order of the 
+    ! groups within the site doesn't matter, except that the older patch group are primarylands.
+
+    if (currentPatch%land_use_label .eq. new_patch%land_use_label ) then
+       found_youngest_landuselabel = .false.
+       do while(associated(currentPatch) .and. .not. found_youngest_landuselabel)
+          currentPatch => currentPatch%older
+          if (associated(currentPatch)) then
+             if (currentPatch%land_use_label .eq. new_patch%land_use_label) then
+                found_youngest_landuselabel = .true.
+             endif
+          endif
+       end do
+       if (associated(currentPatch)) then
+          ! the case where we've found a youngest patch type matching the new patch type
+          new_patch%older    => currentPatch
+          new_patch%younger  => currentPatch%younger
+          currentPatch%younger%older => new_patch
+          currentPatch%younger       => new_patch
+       else
+          ! the case where we haven't, because the patches are all non-primaryland,
+          ! and are putting a primaryland patch at the oldest end of the
+          ! linked list (not sure how this could happen, but who knows...)
+          new_patch%older    => null()
+          new_patch%younger  => currentSite%oldest_patch
+          currentSite%oldest_patch%older   => new_patch
+          currentSite%oldest_patch   => new_patch
+       endif
+    else
+       ! the case where the youngest patch on the site matches the new patch type
+       new_patch%older    => currentPatch
+       new_patch%younger  => null()
+       currentPatch%younger       => new_patch
+       currentSite%youngest_patch => new_patch
+    endif
+
+  end subroutine insert_patch_into_sitelist
   ! ============================================================================
 
   subroutine split_patch(currentSite, currentPatch, new_patch, fraction_to_keep)
@@ -1372,6 +1401,14 @@ contains
     type(ed_patch_type) , intent(inout), target :: currentPatch   ! Donor Patch
     type(ed_patch_type) , intent(inout), target :: new_patch      ! New Patch
     real(r8), intent(in)    :: fraction_to_keep  ! fraction of currentPatch to keep, the rest goes to newpatch
+    !
+    ! !LOCAL VARIABLES:
+    integer  :: el                           ! element loop index
+    type (ed_cohort_type), pointer :: nc
+    type (ed_cohort_type), pointer :: storesmallcohort
+    type (ed_cohort_type), pointer :: storebigcohort
+    integer  :: tnull                        ! is there a tallest cohort?
+    integer  :: snull                        ! is there a shortest cohort?
 
     ! first we need to make the new patch
     call create_patch(currentSite, new_patch, 0._r8, &
