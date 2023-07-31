@@ -473,7 +473,7 @@ contains
     real(r8) :: disturbance_rate             ! rate of disturbance being resolved [fraction of patch area / day]
     real(r8) :: oldarea                      ! old patch area prior to disturbance
     logical  :: clearing_matrix(n_landuse_cats,n_landuse_cats)  ! do we clear vegetation when transferring from one LU type to another?
-    type (ed_patch_type) , pointer :: buffer_patch
+    type (ed_patch_type) , pointer :: buffer_patch, temp_patch
 
     !---------------------------------------------------------------------
 
@@ -1262,7 +1262,7 @@ contains
        ! disturbance has just hapopened, and now the nocomp PFT identities of the newly-disturbed patches
        ! need to be remapped to those associated with the new land use type.
 
-       ! logic:  loop over land use types. figure out the nocomp PFT fractions for all newly-disturbed patches that have ebcome that land use type.
+       ! logic:  loop over land use types. figure out the nocomp PFT fractions for all newly-disturbed patches that have become that land use type.
        ! if the
 
        lu_loop: do i_land_use_label = 1, n_landuse_cats
@@ -1303,8 +1303,12 @@ contains
                    currentPatch%nocomp_pft_label = 0
                    call fuse_2_patches(currentSite, currentPatch, buffer_patch)
                 elseif (fraction_to_keep .lt. (1._r8 - nearzero)) then
+                   ! we have more patch are of this PFT than we want, but we do want to keep some of it.
                    ! we want to split the patch into two here. leave one patch as-is, and put the rest into the buffer patch.
-                   !cdkcdk TODO
+                   call split_patch(currentSite, currentPatch, temp_patch, fraction_to_keep)
+                   !
+                   temp_patch%nocomp_pft_label = 0
+                   call fuse_2_patches(currentSite, temp_patch, buffer_patch)
                 else
                    ! we want to keep all of this patch (and possibly more)
                    nocomp_pft_area_vector_allocated(currentPatch%nocomp_pft_label) = &
@@ -1324,7 +1328,10 @@ contains
 
                 if (newp_area .lt. buffer_patch%area) then
 
-                   ! split patch in two, and put one of them into the linked list cdkcdk TODO
+                   ! split buffer patch in two, keeping the smaller buffer patch to put into new patches
+                   call split_patch(currentSite, buffer_patch, temp_patch, newp_area/buffer_patch%area)
+
+                   ! put the new patch into the linked list cdkcdk TODO
                    
                 else
 
@@ -1350,6 +1357,116 @@ contains
 
     return
   end subroutine spawn_patches
+
+  ! ============================================================================
+
+  subroutine split_patch(currentSite, currentPatch, new_patch, fraction_to_keep)
+    !
+    ! !DESCRIPTION:
+    !  Split a patch into two patches that are identical except in their areas
+    !
+    ! !USES:
+    !
+    ! !ARGUMENTS:
+    type(ed_site_type),intent(in) :: currentSite
+    type(ed_patch_type) , intent(inout), target :: currentPatch   ! Donor Patch
+    type(ed_patch_type) , intent(inout), target :: new_patch      ! New Patch
+    real(r8), intent(in)    :: fraction_to_keep  ! fraction of currentPatch to keep, the rest goes to newpatch
+
+    ! first we need to make the new patch
+    call create_patch(currentSite, new_patch, 0._r8, &
+         currentPatch%area * (1._r8 - fraction_to_keep), currentPatch%land_use_label, currentPatch%nocomp_pft_label)
+
+    ! Initialize the litter pools to zero, these
+    ! pools will be populated shortly
+    do el=1,num_elements
+       call new_patch%litter(el)%InitConditions(init_leaf_fines=0._r8, &
+            init_root_fines=0._r8, &
+            init_ag_cwd=0._r8, &
+            init_bg_cwd=0._r8, &
+            init_seed=0._r8,   &
+            init_seed_germ=0._r8)
+    end do
+
+    new_patch%tallest  => null()
+    new_patch%shortest => null()
+
+    ! Copy any means or timers from the original patch to the new patch
+    ! These values will inherit all info from the original patch
+    ! --------------------------------------------------------------------------
+    call new_patch%tveg24%CopyFromDonor(currentPatch%tveg24)
+    call new_patch%tveg_lpa%CopyFromDonor(currentPatch%tveg_lpa)
+    call new_patch%tveg_longterm%CopyFromDonor(currentPatch%tveg_longterm)
+
+    currentPatch%burnt_frac_litter(:) = 0._r8
+    call TransLitterNewPatch( currentSite, currentPatch, new_patch, currentPatch%area * fraction_to_keep)
+
+    ! Next, we loop through the cohorts in the donor patch, copy them with
+    ! area modified number density into the new-patch, and apply survivorship.
+    ! -------------------------------------------------------------------------
+
+    currentCohort => currentPatch%shortest
+    do while(associated(currentCohort))
+
+       allocate(nc)
+       if(hlm_use_planthydro.eq.itrue) call InitHydrCohort(CurrentSite,nc)
+
+       ! Initialize the PARTEH object and point to the
+       ! correct boundary condition fields
+       nc%prt => null()
+       call InitPRTObject(nc%prt)
+       call InitPRTBoundaryConditions(nc)
+
+       !  (Keeping as an example)
+       ! Allocate running mean functions
+       !allocate(nc%tveg_lpa)
+       !call nc%tveg_lpa%InitRMean(ema_lpa,init_value=new_patch%tveg_lpa%GetMean())
+
+       call zero_cohort(nc)
+
+       ! nc is the new cohort that goes in the disturbed patch (new_patch)... currentCohort
+       ! is the curent cohort that stays in the donor patch (currentPatch)
+       call copy_cohort(currentCohort, nc)
+
+       ! Number of members in the new patch
+       nc%n = currentCohort%n * fraction_to_keep
+
+       ! loss of individuals from source patch due to area shrinking
+       currentCohort%n = currentCohort%n * (1._r8 - fraction_to_keep)
+
+       storebigcohort   =>  new_patch%tallest
+       storesmallcohort =>  new_patch%shortest
+       if(associated(new_patch%tallest))then
+          tnull = 0
+       else
+          tnull = 1
+          new_patch%tallest => nc
+          nc%taller => null()
+       endif
+
+       if(associated(new_patch%shortest))then
+          snull = 0
+       else
+          snull = 1
+          new_patch%shortest => nc
+          nc%shorter => null()
+       endif
+       nc%patchptr => new_patch
+       call insert_cohort(nc, new_patch%tallest, new_patch%shortest, &
+            tnull, snull, storebigcohort, storesmallcohort)
+
+       new_patch%tallest  => storebigcohort
+       new_patch%shortest => storesmallcohort
+
+       currentCohort => currentCohort%taller
+    enddo ! currentCohort
+
+    call sort_cohorts(currentPatch)
+
+    !update area of donor patch
+    currentPatch%area = currentPatch%area * (1._r8 - fraction_to_keep)
+
+  end subroutine split_patch
 
   ! ============================================================================
 
