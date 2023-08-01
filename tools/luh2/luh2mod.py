@@ -93,28 +93,12 @@ def DimensionFixSurfData(input_dataset):
     input_dataset = input_dataset.rename_dims(dims_dict={'lsmlat':'lat','lsmlon':'lon'})
 
     # Populate the new surface dataset with the actual lat/lon values
-    # input_dataset['longitude'] = input_dataset.LONGXY.isel(latitude=0)
-    # input_dataset['latitude']  = input_dataset.LATIXY.isel(longitude=0)
     input_dataset['lon'] = input_dataset.LONGXY.isel(lat=0)
     input_dataset['lat'] = input_dataset.LATIXY.isel(lon=0)
 
     print("Surface dataset dimensions renamed for xESMF")
 
     return(input_dataset)
-
-# def SetMask(input_dataset, masking_dataset):
-
-#     # check what sort of inputdata is being provided; surface dataset or luh2
-#     # LUH2 data will need to be masked based on the variable input to mask
-#     dsflag,dstype = CheckDataset(input_dataset)
-#     if (dsflag):
-#         if(dstype == "LUH2"):
-#             SetMaskLUH2(input_dataset) # temporary
-#         elif(dstype == "Surface"):
-#             SetMaskSurfData(input_dataset)
-#         print("mask added")
-#
-#     return(input_dataset)
 
 # LUH2 specific masking sub-function
 def SetMaskLUH2(input_dataset,static_data_set):
@@ -244,15 +228,3 @@ def CorrectStateSum(input_dataset):
         input_dataset["stscf"] = 1.0 / state_sum
 
     return(input_dataset)
-
-# General functionality needed
-# - collect data for specific user-defined time period
-# - collect subset of the data variables (e.g. pasture, rangeland, etc)
-# - write the subset to the necessary format to pass to regridding tools
-#   - This may need to be specific to the particular hlm tooling
-# - call regridding tooling in hlm model
-#   - this will need to point at existing mapping data files, which are external to hlm
-#   - this may need a new mksurf_xxxx module if it can't conform to existing modules due
-#     to needing to use new fields
-# future functionality:
-# - importdata function for aforestation and other data to add to luh2 data
