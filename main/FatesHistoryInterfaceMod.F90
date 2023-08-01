@@ -6475,7 +6475,7 @@ end subroutine update_history_hifrq
          index = ih_growth_resp_secondary_si)
 
     call this%set_history_var(vname='FATES_MAINT_RESP', units='kg m-2 s-1',    &
-         long='maintenance respiration in kg carbon per m2 land area per second, secondary patches', &
+         long='maintenance respiration in kg carbon per m2 land area per second', &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=2, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_maint_resp_si)
@@ -6487,7 +6487,7 @@ end subroutine update_history_hifrq
          index = ih_maint_resp_unreduced_si)
 
     call this%set_history_var(vname='FATES_MAINT_RESP_SECONDARY', units='kg m-2 s-1',    &
-         long='maintenance respiration in kg carbon per m2 land area per second', &
+         long='maintenance respiration in kg carbon per m2 land area per second, secondary patches', &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=2, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_maint_resp_secondary_si)
