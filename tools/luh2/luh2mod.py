@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import re
+import re, sys
 import numpy as np
 import xarray as xr
 import xesmf as xe
@@ -138,7 +138,7 @@ def CheckDataset(input_dataset):
         dsflag = True
     else:
         dstype = 'Unknown'
-        print("Unrecognize data set")
+        sys.exit("CheckDataSetError: Unrecognize data set")
 
     return(dsflag,dstype)
 
