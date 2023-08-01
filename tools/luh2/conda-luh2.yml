@@ -1,3 +1,6 @@
+# This yaml file is intended for users who wish to utilize the luh2.py tool on their own machines.
+# The file is not yet tested regularly to determine if the latest versions of the dependencies will
+# always work.  This regular testing is expected to be implemented in the future.
 name: luh2
 channels:
   - conda-forge
@@ -6,5 +9,3 @@ dependencies:
   - xesmf
   # xarray which is autodownloaded as xesmf dependency, uses scipy, which needs netcdf4 to open datasets
   - netcdf4
-  - pynco
-prefix: /home/glemieux/local/conda/miniconda3/envs/luh2
