@@ -22,28 +22,49 @@ def ImportData(input_file,start=None,stop=None,merge_flag=False):
 # Prepare the input_file to be used for regridding
 def PrepDataset(input_dataset,start=None,stop=None,merge_flag=False):
 
-    # Use the maximum span if start and stop are not present
+    # Check that the input dataset is a valid type
     dsflag, dstype = CheckDataset(input_dataset)
-     
+
+    # Use the maximum span if start and stop are not present
+    # This assumes that the luh2 raw data will always use a
+    # 'years since' style format.
     if(not(dstype in ('static','regrid'))):
-        if (isinstance(start,type(None))):
-            start = input_dataset.time[0]
 
-        if (isinstance(stop,type(None))):
-            stop = input_dataset.time[-1]
+        if (dstype == 'LUH2'):
+            # Get the units to determine the file time
+            # It is expected that the units of time is 'years since ...'
+            time_since_array = input_dataset.time.units.split()
+            if (time_since_array[0] != 'years'):
+                sys.exit("FileTimeUnitsError: input file units of time is not 'years since ...'")
 
-        # Convert the date to years since 0850
-        years_since_start = start - 850 
-        years_since_stop = stop - 850 
+            # Note that datetime package is not used as the date range might
+            # be beyond the bounds of the packages applicable bounds
+            time_since = int(time_since_array[2].split('-')[0])
 
-        # Truncate the data to the user defined range
-        # This might need some more error handling for when
-        # the start/stop is out of range
-        try:
+            # Get the time bounds of the input file
+            start_bound = input_dataset.time.values[0]
+            stop_bound = input_dataset.time.values[-1]
+
+            # If no input provided, simply get the bounds of the time
+            if (isinstance(start,type(None))):
+               start = start_bound + time_since
+
+            if (isinstance(stop,type(None))):
+               stop = stop_bound + time_since
+
+            # Convert the input dates to years since 0850
+            years_since_start = start - time_since
+            years_since_stop = stop - time_since
+
+            # Abort if the times provided are outside the applicable range
+            if (years_since_start < start_bound or years_since_stop < start_bound or
+                years_since_start > stop_bound or years_since_stop > stop_bound):
+                sys.exit("StartStopBoundError: the input start or stop date is outside the applicable range of {} to {}".format(time_since+start_bound,time_since+stop_bound))
+
+            # Truncate the data to the user defined range
+            # This might need some more error handling for when
+            # the start/stop is out of range
             input_dataset = input_dataset.sel(time=slice(years_since_start,years_since_stop))
-        except TypeError as type_err:
-            print("Input must be a string\n")
-            raise TypeError(type_err)
 
         # Correct the necessary variables for both datasets
         # We don't need to Prep the incoming dataset if it's being opened to merge
@@ -59,7 +80,7 @@ def PrepDataset_ESMF(input_dataset,dsflag,dstype):
         if(dstype == "LUH2"):
             print("PrepDataset: LUH2")
             input_dataset = BoundsVariableFixLUH2(input_dataset)
-        elif(dstype == "Surface"):
+        elif(dstype == "surface"):
             print("PrepDataset: SurfData")
             input_dataset = DimensionFixSurfData(input_dataset)
         print("data set updated for xESMF\n")
@@ -89,7 +110,6 @@ def BoundsVariableFixLUH2(input_dataset):
 def DimensionFixSurfData(input_dataset):
 
     # Rename the surface dataset dimensions to something recognizable by xESMF.
-    # input_dataset = surfdataset.rename_dims(dims_dict={'lsmlat':'latitude','lsmlon':'longitude'})
     input_dataset = input_dataset.rename_dims(dims_dict={'lsmlat':'lat','lsmlon':'lon'})
 
     # Populate the new surface dataset with the actual lat/lon values
@@ -105,14 +125,12 @@ def SetMaskLUH2(input_dataset,static_data_set):
 
     # Mask the luh2 data where the ice/water fraction is unity (i.e. fully ice covered gridcell)
     input_dataset["mask"] = (static_data_set.icwtr != 1)
-    # return(outputdataset)
     return(input_dataset)
 
 # Surface dataset specific masking sub-function
 def SetMaskSurfData(input_dataset):
     # Instead of passing the label_to_mask, loop through this for all labels?
     input_dataset["mask"] = input_dataset["PCT_NATVEG"] > 0
-    # return(outputdataset)
     return(input_dataset)
 
 # Check which dataset we're working with
@@ -127,7 +145,7 @@ def CheckDataset(input_dataset):
         dsflag = True
         print("LUH2")
     elif('natpft' in dsvars):
-        dstype = 'Surface'
+        dstype = 'surface'
         dsflag = True
         print("Surface")
     elif('icwtr' in dsvars):
