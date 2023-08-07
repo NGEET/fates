@@ -2013,9 +2013,6 @@ contains
     currentCohort%treelai = tlai
     currentCohort%treesai = tsai
 
-    leaf_c = leafc_from_treelai(tlai, currentCohort%pft, currentCohort%c_area,           &
-      currentCohort%n, currentCohort%canopy_layer, currentCohort%vcmax25top)
-    
     if (init .eq. ifalse) then
       call SetState(currentCohort%prt, leaf_organ, carbon12_element, leaf_c, 1)
     endif
