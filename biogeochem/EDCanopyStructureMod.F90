@@ -15,14 +15,15 @@ module EDCanopyStructureMod
   use EDPftvarcon           , only : EDPftvarcon_inst
   use PRTParametersMod      , only : prt_params
   use FatesAllometryMod     , only : carea_allom
-  use EDCohortDynamicsMod   , only : copy_cohort, terminate_cohorts, terminate_cohort, fuse_cohorts
+  use EDCohortDynamicsMod   , only : terminate_cohorts, terminate_cohort, fuse_cohorts
   use EDCohortDynamicsMod   , only : InitPRTObject
-  use EDCohortDynamicsMod   , only : InitPRTBoundaryConditions
   use FatesAllometryMod     , only : tree_lai
   use FatesAllometryMod     , only : tree_sai
-  use EDtypesMod            , only : ed_site_type, ed_patch_type, ed_cohort_type
-  use EDTypesMod            , only : nclmax
-  use EDTypesMod            , only : nlevleaf
+  use EDtypesMod            , only : ed_site_type
+  use FatesPatchMod,          only : fates_patch_type
+  use FatesCohortMod,         only : fates_cohort_type
+  use EDParamsMod            , only : nclmax
+  use EDParamsMod            , only : nlevleaf
   use EDtypesMod            , only : AREA
   use EDLoggingMortalityMod , only : UpdateHarvestC
   use FatesGlobals          , only : endrun => fates_endrun
@@ -136,8 +137,8 @@ contains
 
     !
     ! !LOCAL VARIABLES:
-    type(ed_patch_type) , pointer :: currentPatch
-    type(ed_cohort_type), pointer :: currentCohort
+    type(fates_patch_type) , pointer :: currentPatch
+    type(fates_cohort_type), pointer :: currentCohort
     integer  :: i_lyr                  ! current layer index
     integer  :: z                      ! Current number of canopy layers. (1= canopy, 2 = understorey)
     integer  :: ipft
@@ -337,18 +338,17 @@ contains
   subroutine DemoteFromLayer(currentSite,currentPatch,i_lyr,bc_in)
 
     use EDParamsMod, only : ED_val_comp_excln
-    use SFParamsMod, only : SF_val_CWD_frac
 
     ! !ARGUMENTS
     type(ed_site_type), intent(inout)  :: currentSite
-    type(ed_patch_type), intent(inout) :: currentPatch
+    type(fates_patch_type), intent(inout) :: currentPatch
     integer, intent(in)                :: i_lyr   ! Current canopy layer of interest
     type(bc_in_type), intent(in)       :: bc_in
 
     ! !LOCAL VARIABLES:
-    type(ed_cohort_type), pointer :: currentCohort
-    type(ed_cohort_type), pointer :: copyc
-    type(ed_cohort_type), pointer :: nextc  ! The next cohort in line
+    type(fates_cohort_type), pointer :: currentCohort
+    type(fates_cohort_type), pointer :: copyc
+    type(fates_cohort_type), pointer :: nextc  ! The next cohort in line
     integer  :: i_cwd                  ! Index for CWD pool
     real(r8) :: cc_loss                ! cohort crown area loss in demotion (m2)
     real(r8) :: leaf_c             ! leaf carbon [kg]
@@ -670,7 +670,7 @@ contains
                 !allocate(copyc%tveg_lpa)
                 !!allocate(copyc%l2fr_ema)
                 !  Note, no need to give a starter value here,
-                !  that will be taken care of in copy_cohort()
+                !  that will be taken care of in copy()
                 !!call copyc%l2fr_ema%InitRMean(ema_60day)
                      
                 ! Initialize the PARTEH object and point to the
@@ -682,8 +682,8 @@ contains
                    call InitHydrCohort(currentSite,copyc)
                 endif
 
-                call copy_cohort(currentCohort, copyc)
-                call InitPRTBoundaryConditions(copyc)
+                call currentCohort%Copy(copyc)
+                call copyc%InitPRTBoundaryConditions()
                 
                 newarea = currentCohort%c_area - cc_loss
                 copyc%n = currentCohort%n*newarea/currentCohort%c_area
@@ -797,13 +797,13 @@ contains
 
     ! !ARGUMENTS
     type(ed_site_type), intent(inout), target  :: currentSite
-    type(ed_patch_type), intent(inout), target :: currentPatch
+    type(fates_patch_type), intent(inout), target :: currentPatch
     integer, intent(in)                        :: i_lyr   ! Current canopy layer of interest
 
     ! !LOCAL VARIABLES:
-    type(ed_cohort_type), pointer :: currentCohort
-    type(ed_cohort_type), pointer :: copyc
-    type(ed_cohort_type), pointer :: nextc   ! the next cohort, or used for looping
+    type(fates_cohort_type), pointer :: currentCohort
+    type(fates_cohort_type), pointer :: copyc
+    type(fates_cohort_type), pointer :: nextc   ! the next cohort, or used for looping
     ! cohorts against the current
 
     real(r8) :: scale_factor       ! for prob. exclusion - scales weight to a fraction
@@ -1138,7 +1138,7 @@ contains
 
                    !!allocate(copyc%l2fr_ema)
                    ! Note, no need to give a starter value here,
-                   ! that will be taken care of in copy_cohort()
+                   ! that will be taken care of in copy()
                    !!call copyc%l2fr_ema%InitRMean(ema_60day)
                    
                    ! Initialize the PARTEH object and point to the
@@ -1157,8 +1157,8 @@ contains
                    !call copyc%tveg_lpa%InitRMean(ema_lpa,&
                    !     init_value=currentPatch%tveg_lpa%GetMean())
                    
-                   call copy_cohort(currentCohort, copyc) !makes an identical copy...
-                   call InitPRTBoundaryConditions(copyc)
+                   call currentCohort%Copy(copyc) !makes an identical copy...
+                   call copyc%InitPRTBoundaryConditions()
                    
                    newarea = currentCohort%c_area - cc_gain !new area of existing cohort
 
@@ -1243,8 +1243,8 @@ contains
     type (ed_site_type), intent(inout), target :: currentSite
     !
     ! !LOCAL VARIABLES:
-    type (ed_cohort_type), pointer :: currentCohort
-    type (ed_patch_type) , pointer :: currentPatch
+    type (fates_cohort_type), pointer :: currentCohort
+    type (fates_patch_type) , pointer :: currentPatch
     real(r8) :: sitelevel_canopyarea  ! Amount of canopy in top layer at the site level
     real(r8) :: inc                   ! Arbitrary daily incremental change in canopy area
     integer  :: z
@@ -1308,8 +1308,8 @@ contains
     type(bc_in_type)        , intent(in)            :: bc_in(nsites)
     !
     ! !LOCAL VARIABLES:
-    type (ed_patch_type)  , pointer :: currentPatch
-    type (ed_cohort_type) , pointer :: currentCohort
+    type (fates_patch_type)  , pointer :: currentPatch
+    type (fates_cohort_type) , pointer :: currentCohort
     integer  :: s
     integer  :: ft               ! plant functional type
     integer  :: ifp              ! the number of the vegetated patch (1,2,3). In SP mode bareground patch is 0
@@ -1499,7 +1499,8 @@ contains
 
     ! !USES:
 
-    use EDtypesMod           , only : area, dinc_vai, dlower_vai, hitemax, n_hite_bins
+    use EDtypesMod           , only : area, hitemax, n_hite_bins
+    use EDParamsMod,           only : dinc_vai, dlower_vai
 
     !
     ! !ARGUMENTS
@@ -1508,8 +1509,8 @@ contains
 
     !
     ! !LOCAL VARIABLES:
-    type (ed_patch_type)  , pointer :: currentPatch
-    type (ed_cohort_type) , pointer :: currentCohort
+    type (fates_patch_type)  , pointer :: currentPatch
+    type (fates_cohort_type) , pointer :: currentCohort
     real(r8) :: remainder                !Thickness of layer at bottom of canopy.
     real(r8) :: fleaf                    ! fraction of cohort incepting area that is leaves.
     integer  :: ft                       ! Plant functional type index.
@@ -1801,8 +1802,8 @@ contains
     ! to vegetation coverage to the host land model.
     ! ----------------------------------------------------------------------------------
 
-    use EDTypesMod        , only : ed_patch_type, ed_cohort_type, &
-         ed_site_type, AREA
+    use EDTypesMod        , only : ed_site_type, AREA
+    use FatesPatchMod,      only : fates_patch_type
     use FatesInterfaceTypesMod , only : bc_out_type
 
     !
@@ -1813,9 +1814,9 @@ contains
     type(bc_out_type),  intent(inout)         :: bc_out(nsites)
 
     ! Locals
-    type (ed_cohort_type) , pointer :: currentCohort
+    type (fates_cohort_type) , pointer :: currentCohort
     integer :: s, ifp, c, p
-    type (ed_patch_type)  , pointer :: currentPatch
+    type (fates_patch_type)  , pointer :: currentPatch
     real(r8) :: bare_frac_area
     real(r8) :: total_patch_area
     real(r8) :: total_canopy_area
@@ -2031,7 +2032,7 @@ contains
     ! ----------------------------------------------------------------------------------
 
     ! Arguments
-    type(ed_patch_type),intent(in), target :: cpatch
+    type(fates_patch_type),intent(in), target :: cpatch
     character(len=*),intent(in)            :: ai_type
 
     integer :: cl,ft
@@ -2095,12 +2096,12 @@ contains
     ! ---------------------------------------------------------------------------------------------
 
     ! Arguments
-    type(ed_patch_type),intent(inout), target   :: currentPatch
+    type(fates_patch_type),intent(inout), target   :: currentPatch
     real(r8),intent(in)                         :: site_spread
     integer,intent(in)                          :: layer_index
     real(r8),intent(inout)                      :: layer_area
 
-    type(ed_cohort_type), pointer :: currentCohort
+    type(fates_cohort_type), pointer :: currentCohort
     
     
     layer_area = 0.0_r8
@@ -2125,14 +2126,11 @@ contains
    ! and related variables
    ! ---------------------------------------------------------------------------------------------
 
-   ! Uses
-   use EDtypesMod, only : dlower_vai
-
    ! Arguments
-   type(ed_patch_type),intent(inout), target   :: currentPatch
+   type(fates_patch_type),intent(inout), target   :: currentPatch
 
    ! Local Variables
-   type(ed_cohort_type), pointer :: currentCohort
+   type(fates_cohort_type), pointer :: currentCohort
    integer  :: cl                                  ! Canopy layer index
    integer  :: ft                                  ! Plant functional type index
 
@@ -2175,10 +2173,10 @@ contains
    ! Update LAI and related variables for a given cohort
    
    ! Uses
-   use EDtypesMod, only : dlower_vai
+   use EDParamsMod, only : dlower_vai
    
    ! Arguments
-   type(ed_cohort_type),intent(inout), target   :: currentCohort
+   type(fates_cohort_type),intent(inout), target   :: currentCohort
    real(r8), intent(in) :: canopy_layer_tlai(nclmax)  ! total leaf area index of each canopy layer
    real(r8), intent(in) :: total_canopy_area                  ! either patch%total_canopy_area or patch%area
    
@@ -2220,11 +2218,11 @@ contains
     ! the understory in the event the understory has reached maximum allowable area.
     ! --------------------------------------------------------------------------------------------
 
-    type(ed_patch_type),target   :: currentPatch
+    type(fates_patch_type),target   :: currentPatch
     real(r8),intent(in)          :: site_spread
     logical                      :: include_substory
 
-    type(ed_cohort_type),pointer :: currentCohort
+    type(fates_cohort_type),pointer :: currentCohort
 
     integer :: z
     real(r8) :: c_area

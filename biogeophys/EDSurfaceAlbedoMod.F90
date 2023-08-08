@@ -10,8 +10,9 @@ module EDSurfaceRadiationMod
 
 #include "shr_assert.h"
 
-  use EDTypesMod        , only : ed_patch_type, ed_site_type
-  use EDTypesMod        , only : maxpft
+  use EDTypesMod        , only : ed_site_type
+  use FatesPatchMod,      only : fates_patch_type
+  use EDParamsMod,        only : maxpft
   use FatesConstantsMod , only : r8 => fates_r8
   use FatesConstantsMod , only : itrue
   use FatesConstantsMod , only : pi_const
@@ -20,18 +21,19 @@ module EDSurfaceRadiationMod
   use FatesInterfaceTypesMod , only : bc_out_type
   use FatesInterfaceTypesMod , only : hlm_numSWb
   use FatesInterfaceTypesMod , only : numpft
-  use EDTypesMod        , only : maxSWb
-  use EDTypesMod        , only : nclmax
-  use EDTypesMod        , only : nlevleaf
+  use EDParamsMod        , only : maxSWb
+  use EDParamsMod        , only : nclmax
+  use EDParamsMod        , only : nlevleaf
   use EDTypesMod        , only : n_rad_stream_types
   use EDTypesMod        , only : idiffuse
   use EDTypesMod        , only : idirect
-  use EDTypesMod        , only : ivis
-  use EDTypesMod        , only : inir
-  use EDTypesMod        , only : ipar
+  use EDParamsMod        , only : ivis
+  use EDParamsMod        , only : inir
+  use EDParamsMod        , only : ipar
   use EDCanopyStructureMod, only: calc_areaindex
   use FatesGlobals      , only : fates_log
   use FatesGlobals, only      : endrun => fates_endrun
+  use EDPftvarcon,        only : EDPftvarcon_inst
 
   ! CIME globals
   use shr_log_mod       , only : errMsg => shr_log_errMsg
@@ -65,14 +67,8 @@ contains
 
   subroutine ED_Norman_Radiation (nsites, sites, bc_in, bc_out )
     !
-
     !
-    ! !USES:
-    use EDPftvarcon       , only : EDPftvarcon_inst
-    use EDtypesMod        , only : ed_patch_type
-    use EDTypesMod        , only : ed_site_type
-
-
+ 
     ! !ARGUMENTS:
 
     integer,            intent(in)            :: nsites
@@ -85,7 +81,7 @@ contains
     integer :: s                                   ! site loop counter
     integer :: ifp                                 ! patch loop counter
     integer :: ib                                  ! radiation broad band counter
-    type(ed_patch_type), pointer :: currentPatch   ! patch pointer
+    type(fates_patch_type), pointer :: currentPatch   ! patch pointer
 
     !-----------------------------------------------------------------------
     ! -------------------------------------------------------------------------------
@@ -194,16 +190,11 @@ contains
     !
     ! -----------------------------------------------------------------------------------
 
-    !
-    ! !USES:
-    use EDPftvarcon       , only : EDPftvarcon_inst
-    use EDtypesMod        , only : ed_patch_type
-
     ! -----------------------------------------------------------------------------------
     ! !ARGUMENTS:
     ! -----------------------------------------------------------------------------------
 
-    type(ed_patch_type), intent(inout), target :: currentPatch
+    type(fates_patch_type), intent(inout), target :: currentPatch
     real(r8), intent(inout) :: albd_parb_out(hlm_numSWb)
     real(r8), intent(inout) :: albi_parb_out(hlm_numSWb)
     real(r8), intent(inout) :: fabd_parb_out(hlm_numSWb)
@@ -1126,7 +1117,7 @@ subroutine ED_SunShadeFracs(nsites, sites,bc_in,bc_out)
 
 
   ! locals
-  type (ed_patch_type),pointer :: cpatch   ! c"urrent" patch
+  type (fates_patch_type),pointer :: cpatch   ! c"urrent" patch
   real(r8)          :: sunlai
   real(r8)          :: shalai
   real(r8)          :: elai

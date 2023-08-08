@@ -28,18 +28,22 @@ module FatesInventoryInitMod
    use FatesConstantsMod, only : itrue
    use FatesGlobals     , only : endrun => fates_endrun
    use FatesGlobals     , only : fates_log
+   use EDParamsMod      , only : regeneration_model
    use FatesInterfaceTypesMod, only : bc_in_type
    use FatesInterfaceTypesMod, only : hlm_inventory_ctrl_file
    use FatesInterfaceTypesMod, only : nleafage
+   use FatesInterfaceTypesMod, only : hlm_current_tod
+   use FatesInterfaceTypesMod, only : hlm_numSWb
+   use FatesInterfaceTypesMod, only : numpft
    use FatesLitterMod   , only : litter_type
    use EDTypesMod       , only : ed_site_type
-   use EDTypesMod       , only : ed_patch_type
-   use EDTypesMod       , only : ed_cohort_type
+   use FatesPatchMod    , only : fates_patch_type
+   use FatesCohortMod   , only : fates_cohort_type
    use EDTypesMod       , only : area
-   use EDTypesMod       , only : leaves_on
-   use EDTypesMod       , only : leaves_off
-   use EDTypesMod       , only : ihard_stress_decid
-   use EDTypesMod       , only : isemi_stress_decid
+   use FatesConstantsMod, only : leaves_on
+   use FatesConstantsMod, only : leaves_off
+   use FatesConstantsMod, only : ihard_stress_decid
+   use FatesConstantsMod, only : isemi_stress_decid
    use PRTGenericMod    , only : num_elements
    use PRTGenericMod    , only : element_list
    use EDTypesMod       , only : phen_cstat_nevercold
@@ -67,6 +71,7 @@ module FatesInventoryInitMod
    use FatesRunningMeanMod, only : ema_lpa
    use PRTGenericMod,       only : StorageNutrientTarget
    use FatesConstantsMod,   only : fates_unset_int
+   use EDCanopyStructureMod, only : canopy_summarization, canopy_structure
 
    implicit none
    private
@@ -77,7 +82,7 @@ module FatesInventoryInitMod
    ! with a patch.  BY having a vector of patch pointers that lines up with the string
    ! identifier array, this can be done quickly.
    type pp_array
-      type(ed_patch_type), pointer :: cpatch
+      type(fates_patch_type), pointer :: cpatch
    end type pp_array
 
    character(len=*), parameter, private :: sourcefile =  __FILE__
@@ -111,7 +116,6 @@ contains
       use shr_file_mod, only        : shr_file_getUnit
       use shr_file_mod, only        : shr_file_freeUnit
       use FatesConstantsMod, only   : nearzero
-      use EDPatchDynamicsMod, only  : create_patch
       use EDPatchDynamicsMod, only  : fuse_patches
       use EDCohortDynamicsMod, only : fuse_cohorts
       use EDCohortDynamicsMod, only : sort_cohorts
@@ -125,12 +129,12 @@ contains
 
       ! Locals
       type(ed_site_type), pointer                  :: currentSite
-      type(ed_patch_type), pointer                 :: currentpatch
-      type(ed_cohort_type), pointer                :: currentcohort
-      type(ed_patch_type), pointer                 :: newpatch
-      type(ed_patch_type), pointer                 :: olderpatch
-      type(ed_patch_type), pointer                 :: head_of_unsorted_patch_list
-      type(ed_patch_type), pointer                 :: next_in_unsorted_patch_list
+      type(fates_patch_type), pointer                 :: currentpatch
+      type(fates_cohort_type), pointer                :: currentcohort
+      type(fates_patch_type), pointer                 :: newpatch
+      type(fates_patch_type), pointer                 :: olderpatch
+      type(fates_patch_type), pointer                 :: head_of_unsorted_patch_list
+      type(fates_patch_type), pointer                 :: next_in_unsorted_patch_list
       integer                                      :: sitelist_file_unit   ! fortran file unit for site list
       integer                                      :: pss_file_unit        ! fortran file unit for the pss file
       integer                                      :: css_file_unit        ! fortran file unit for the css file
@@ -143,6 +147,7 @@ contains
       real(r8)                                     :: area_init            ! dummy value for creating a patch
       integer                                      :: s                    ! site index
       integer                                      :: ipa                  ! patch index
+      integer                                      :: iv, ft, ic
       integer                                      :: total_cohorts        ! cohort counter for error checking
       integer,                         allocatable :: inv_format_list(:)   ! list of format specs
       character(len=path_strlen),      allocatable :: inv_css_list(:)      ! list of css file names
@@ -267,12 +272,6 @@ contains
 
          do ipa=1,npatches
 
-            allocate(newpatch)
-
-            newpatch%patchno = ipa
-            newpatch%younger => null()
-            newpatch%older   => null()
-
             ! This call doesn't do much asside from initializing the patch with
             ! nominal values, NaNs, zero's and allocating some vectors. We should
             ! be able to get the following values from the patch files. But on
@@ -280,8 +279,14 @@ contains
 
             age_init            = 0.0_r8
             area_init           = 0.0_r8
+            allocate(newpatch)
+            call newpatch%Create(age_init, area_init, primaryforest,           &
+               fates_unset_int, hlm_numSWb, numpft, sites(s)%nlevsoil,         &
+               hlm_current_tod, regeneration_model)
 
-            call create_patch(sites(s), newpatch, age_init, area_init, primaryforest, fates_unset_int )
+            newpatch%patchno = ipa
+            newpatch%younger => null()
+            newpatch%older   => null()
 
 
             if( inv_format_list(invsite) == 1 ) then
@@ -520,6 +525,7 @@ contains
 
          ! Report Basal Area (as a check on if things were read in)
          ! ----------------------------------------------------------------------------------------
+         !call canopy_structure(sites(s),bc_in(s))
          basal_area_postf = 0.0_r8
          currentpatch => sites(s)%youngest_patch
          do while(associated(currentpatch))
@@ -529,8 +535,11 @@ contains
                      currentcohort%n*0.25*((currentcohort%dbh/100.0_r8)**2.0_r8)*pi_const
                currentcohort => currentcohort%shorter
             end do
+            
             currentPatch => currentpatch%older
          enddo
+
+
 
          write(fates_log(),*) '-------------------------------------------------------'
          write(fates_log(),*) 'Basal Area from inventory, AFTER fusion'
@@ -540,11 +549,13 @@ contains
 
          ! If this is flagged as true, the post-fusion inventory will be written to file
          ! in the run directory.
+         
          if(do_inventory_out)then
              call write_inventory_type1(sites(s))
          end if
 
       end do
+      
       deallocate(inv_format_list, inv_pss_list, inv_css_list, inv_lat_list, inv_lon_list)
 
       return
@@ -745,10 +756,9 @@ contains
 
       use FatesSizeAgeTypeIndicesMod, only: get_age_class_index
       use EDtypesMod, only: AREA
-      use SFParamsMod , only : SF_val_CWD_frac
 
       ! Arguments
-      type(ed_patch_type),intent(inout), target   :: newpatch      ! Patch structure
+      type(fates_patch_type),intent(inout), target   :: newpatch      ! Patch structure
       integer,intent(in)                          :: pss_file_unit ! Self explanatory
       integer,intent(in)                          :: ipa           ! Patch index (line number)
       integer,intent(out)                         :: ios           ! Return flag
@@ -895,8 +905,8 @@ contains
                                                                    ! should be quickly re-calculated
       integer,parameter                           :: rstatus = 0   ! recruit status
 
-      type(ed_patch_type), pointer                :: cpatch        ! current patch pointer
-      type(ed_cohort_type), pointer               :: temp_cohort   ! temporary patch (needed for allom funcs)
+      type(fates_patch_type), pointer                :: cpatch        ! current patch pointer
+      type(fates_cohort_type), pointer               :: temp_cohort   ! temporary patch (needed for allom funcs)
       integer                                     :: ipa           ! patch idex
       integer                                     :: iage
       integer                                     :: el
@@ -1214,8 +1224,8 @@ contains
        type(ed_site_type), target :: currentSite
 
        ! Locals
-       type(ed_patch_type), pointer          :: currentpatch
-       type(ed_cohort_type), pointer         :: currentcohort
+       type(fates_patch_type), pointer          :: currentpatch
+       type(fates_cohort_type), pointer         :: currentcohort
 
        character(len=128)                    :: pss_name_out         ! output file string
        character(len=128)                    :: css_name_out         ! output file string

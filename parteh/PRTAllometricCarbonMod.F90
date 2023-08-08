@@ -58,11 +58,11 @@ module PRTAllometricCarbonMod
   use PRTParametersMod    , only : prt_params
   use EDParamsMod         , only : regeneration_model
 
-  use EDTypesMod          , only : leaves_on
-  use EDTypesMod          , only : leaves_off
-  use EDTypesMod          , only : leaves_shedding
-  use EDTypesMod          , only : ihard_stress_decid
-  use EDTypesMod          , only : isemi_stress_decid
+  use FatesConstantsMod   , only : leaves_on
+  use FatesConstantsMod   , only : leaves_off
+  use FatesConstantsMod   , only : leaves_shedding
+  use FatesConstantsMod   , only : ihard_stress_decid
+  use FatesConstantsMod   , only : isemi_stress_decid
 
   implicit none
   private
@@ -1266,6 +1266,6 @@ module PRTAllometricCarbonMod
       return
     end subroutine FastPRTAllometricCarbon
 
-   
+
 end module PRTAllometricCarbonMod
   
