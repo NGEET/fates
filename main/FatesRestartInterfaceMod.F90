@@ -10,20 +10,22 @@ module FatesRestartInterfaceMod
   use FatesConstantsMod,       only : fates_unset_r8, fates_unset_int
   use FatesConstantsMod,       only : primaryland
   use FatesConstantsMod,       only : nearzero
+  use FatesConstantsMod,       only : default_regeneration
+  use FatesConstantsMod,       only : TRS_regeneration
   use FatesGlobals,            only : fates_log
   use FatesGlobals,            only : endrun => fates_endrun
   use FatesIODimensionsMod,    only : fates_io_dimension_type
   use FatesIOVariableKindMod,  only : fates_io_variable_kind_type
   use FatesRestartVariableMod, only : fates_restart_variable_type
-  use FatesInterfaceTypesMod,       only : nlevcoage
-  use FatesInterfaceTypesMod,       only : bc_in_type
-  use FatesInterfaceTypesMod,       only : bc_out_type
-  use FatesInterfaceTypesMod,       only : hlm_use_planthydro
-  use FatesInterfaceTypesMod,       only : hlm_parteh_mode
-  use FatesInterfaceTypesMod,       only : hlm_use_sp
-  use FatesInterfaceTypesMod,       only : hlm_use_nocomp, hlm_use_fixed_biogeog
-  use FatesInterfaceTypesMod,       only : fates_maxElementsPerSite
-  use FatesInterfaceTypesMod, only : hlm_use_tree_damage
+  use FatesInterfaceTypesMod,  only : nlevcoage
+  use FatesInterfaceTypesMod,  only : bc_in_type
+  use FatesInterfaceTypesMod,  only : bc_out_type
+  use FatesInterfaceTypesMod,  only : hlm_use_planthydro
+  use FatesInterfaceTypesMod,  only : hlm_parteh_mode
+  use FatesInterfaceTypesMod,  only : hlm_use_sp
+  use FatesInterfaceTypesMod,  only : hlm_use_nocomp, hlm_use_fixed_biogeog
+  use FatesInterfaceTypesMod,  only : fates_maxElementsPerSite
+  use FatesInterfaceTypesMod,  only : hlm_use_tree_damage
   use EDCohortDynamicsMod,     only : UpdateCohortBioPhysRates
   use FatesHydraulicsMemMod,   only : nshell
   use FatesHydraulicsMemMod,   only : n_hypool_ag
@@ -37,7 +39,7 @@ module FatesRestartInterfaceMod
   use EDCohortDynamicsMod,     only : InitPRTObject
   use EDCohortDynamicsMod,     only : InitPRTBoundaryConditions
   use FatesPlantHydraulicsMod, only : InitHydrCohort
-  use FatesInterfaceTypesMod,       only : nlevsclass
+  use FatesInterfaceTypesMod,  only : nlevsclass
   use FatesInterfaceTypesMod,  only : nlevdamage
   use FatesLitterMod,          only : litter_type
   use FatesLitterMod,          only : ncwd
@@ -47,7 +49,8 @@ module FatesRestartInterfaceMod
   use PRTGenericMod,           only : num_elements
   use FatesRunningMeanMod,     only : rmean_type
   use FatesRunningMeanMod,     only : ema_lpa
-
+  use EDParamsMod,             only : regeneration_model
+  
   ! CIME GLOBALS
   use shr_log_mod       , only : errMsg => shr_log_errMsg
 
@@ -157,11 +160,18 @@ module FatesRestartInterfaceMod
   ! Running Means
   integer :: ir_tveg24_pa
   integer :: ir_tveglpa_pa
+  integer :: ir_seedling_layer_par24_pa
+  integer :: ir_sdlng_emerg_smp_pa
+  integer :: ir_sdlng_mort_par_pa
+  integer :: ir_sdlng2sap_par_pa
+  integer :: ir_sdlng_mdd_pa
   integer :: ir_tveglongterm_pa
 
   !  (Keeping as an example)
   !!integer :: ir_tveglpa_co
   
+
+
   integer :: ir_ddbhdt_co
   integer :: ir_resp_tstep_co
   integer :: ir_pft_co
@@ -264,7 +274,8 @@ module FatesRestartInterfaceMod
   integer :: ir_fmortcflux_usto_sicdsc
   integer :: ir_crownarea_cano_si
   integer :: ir_crownarea_usto_si
-
+  integer :: ir_emanpp_si
+  
 
   ! Hydraulic indices
   integer :: ir_hydro_th_ag_covec
@@ -1451,10 +1462,39 @@ contains
          units='m2/ha/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_crownarea_usto_si)
 
+    call this%set_restart_var(vname='fates_emanpp', vtype=site_r8, &
+         long_name='smoothed NPP (exp. moving avg) at the site level (for fixation)', &
+         units='kg/m2/yr', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_emanpp_si)
+    
    call this%DefineRMeanRestartVar(vname='fates_tveg24patch',vtype=cohort_r8, &
         long_name='24-hour patch veg temp', &
         units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveg24_pa)
 
+   if ( regeneration_model == TRS_regeneration ) then
+      
+      call this%DefineRMeanRestartVar(vname='fates_seedling_layer_par24',vtype=cohort_r8, &
+           long_name='24-hour seedling layer PAR', &
+           units='W m2-1', initialize=initialize_variables,ivar=ivar, index = ir_seedling_layer_par24_pa)
+      
+      call this%DefineRMeanRestartVar(vname='fates_sdlng_emerg_smp',vtype=cohort_r8, &
+           long_name='seedling layer PAR on the seedling emergence timescale', &
+           units='mm suction', initialize=initialize_variables,ivar=ivar, index = ir_sdlng_emerg_smp_pa)
+      
+      call this%DefineRMeanRestartVar(vname='fates_sdlng_mort_par',vtype=cohort_r8, &
+           long_name='seedling layer PAR on the seedling mortality timescale', &
+           units='W m2-1', initialize=initialize_variables,ivar=ivar, index = ir_sdlng_mort_par_pa)
+      
+      call this%DefineRMeanRestartVar(vname='fates_sdlng2sap_par',vtype=cohort_r8, &
+           long_name='seedling layer PAR on the seedling to sapling transition timescale', &
+           units='W m2-1', initialize=initialize_variables,ivar=ivar, index = ir_sdlng2sap_par_pa)
+      
+      call this%DefineRMeanRestartVar(vname='fates_sdlng_mdd',vtype=cohort_r8, &
+           long_name='seedling moisture deficit days', &
+           units='mm days', initialize=initialize_variables,ivar=ivar, index = ir_sdlng_mdd_pa)
+
+   end if
+      
    call this%DefineRMeanRestartVar(vname='fates_tveglpapatch',vtype=cohort_r8, &
         long_name='running average (EMA) of patch veg temp for photo acclim', &
         units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveglpa_pa)
@@ -1869,6 +1909,7 @@ contains
    use EDTypesMod, only : nclmax
    use EDTypesMod, only : numWaterMem
    use EDTypesMod, only : num_vegtemp_mem
+   use EDTypesMod, only : maxpft
    use FatesInterfaceTypesMod, only : nlevdamage
 
     ! Arguments
@@ -2053,7 +2094,8 @@ contains
            rio_fmortcflux_cano_sicdsc  => this%rvars(ir_fmortcflux_cano_sicdsc)%r81d, &
            rio_fmortcflux_usto_sicdsc  => this%rvars(ir_fmortcflux_usto_sicdsc)%r81d, &
            rio_crownarea_cano_damage_si=> this%rvars(ir_crownarea_cano_si)%r81d, &
-           rio_crownarea_usto_damage_si=> this%rvars(ir_crownarea_usto_si)%r81d)
+           rio_crownarea_usto_damage_si=> this%rvars(ir_crownarea_usto_si)%r81d, &
+           rio_emanpp_si               => this%rvars(ir_emanpp_si)%r81d)
       
        totalCohorts = 0
 
@@ -2333,7 +2375,19 @@ contains
              call this%SetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
              call this%SetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
              call this%SetRMeanRestartVar(cpatch%tveg_longterm, ir_tveglongterm_pa, io_idx_co_1st)
-             
+
+             if ( regeneration_model == TRS_regeneration ) then
+                call this%SetRMeanRestartVar(cpatch%seedling_layer_par24, ir_seedling_layer_par24_pa, io_idx_co_1st)
+                call this%SetRMeanRestartVar(cpatch%sdlng_mort_par, ir_sdlng_mort_par_pa,io_idx_co_1st)
+                call this%SetRMeanRestartVar(cpatch%sdlng2sap_par, ir_sdlng2sap_par_pa,io_idx_co_1st)
+                io_idx_pa_pft  = io_idx_co_1st
+                do i_pft = 1, numpft
+                   call this%SetRMeanRestartVar(cpatch%sdlng_mdd(i_pft)%p, ir_sdlng_mdd_pa,io_idx_pa_pft) 
+                   call this%SetRMeanRestartVar(cpatch%sdlng_emerg_smp(i_pft)%p, ir_sdlng_emerg_smp_pa,io_idx_pa_pft)
+                   io_idx_pa_pft      = io_idx_pa_pft + 1
+                enddo
+             end if
+
              ! set cohorts per patch for IO
              rio_ncohort_pa( io_idx_co_1st )   = cohortsperpatch
 
@@ -2459,9 +2513,10 @@ contains
 
              io_idx_si_sc = io_idx_si_sc + 1
           end do
+          
           rio_termcarea_cano_si(io_idx_si)  = sites(s)%term_crownarea_canopy
           rio_termcarea_usto_si(io_idx_si)  = sites(s)%term_crownarea_ustory
-          
+          rio_emanpp_si(io_idx_si)          = sites(s)%ema_npp
 
           ! this only copies live portions of transitions - but that's ok because the mortality
           ! bit only needs to be added for history outputs
@@ -2795,6 +2850,7 @@ contains
      use FatesInterfaceTypesMod, only : numpft
      use FatesInterfaceTypesMod, only : fates_maxElementsPerPatch
      use EDTypesMod, only : numWaterMem
+     use EDTypesMod, only : maxpft
      use EDTypesMod, only : num_vegtemp_mem
      use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
      
@@ -2812,7 +2868,7 @@ contains
      type(ed_cohort_type),pointer :: ccohort     ! current cohort
      type(litter_type), pointer   :: litt        ! litter object on the current patch
      ! loop indices
-     integer :: s, i, j, k
+     integer :: s, i, j, k, pft                 
 
      ! ----------------------------------------------------------------------------------
      ! The following group of integers indicate the positional index (idx)
@@ -2972,6 +3028,7 @@ contains
           rio_fmortcflux_usto_sicdsc  => this%rvars(ir_fmortcflux_usto_sicdsc)%r81d, &
           rio_crownarea_cano_damage_si=> this%rvars(ir_crownarea_cano_si)%r81d, &
           rio_crownarea_usto_damage_si=> this%rvars(ir_crownarea_usto_si)%r81d, &
+          rio_emanpp_si               => this%rvars(ir_emanpp_si)%r81d, &
           rio_imortcflux_sipft        => this%rvars(ir_imortcflux_sipft)%r81d, &
           rio_fmortcflux_cano_sipft   => this%rvars(ir_fmortcflux_cano_sipft)%r81d, &
           rio_fmortcflux_usto_sipft   => this%rvars(ir_fmortcflux_usto_sipft)%r81d, &
@@ -3255,7 +3312,19 @@ contains
              call this%GetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
              call this%GetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
              call this%GetRMeanRestartVar(cpatch%tveg_longterm, ir_tveglongterm_pa, io_idx_co_1st)
-             
+
+             if ( regeneration_model == TRS_regeneration ) then
+                call this%GetRMeanRestartVar(cpatch%seedling_layer_par24, ir_seedling_layer_par24_pa, io_idx_co_1st)
+                call this%GetRMeanRestartVar(cpatch%sdlng_mort_par, ir_sdlng_mort_par_pa,io_idx_co_1st)
+                call this%GetRMeanRestartVar(cpatch%sdlng2sap_par, ir_sdlng2sap_par_pa,io_idx_co_1st)
+                io_idx_pa_pft  = io_idx_co_1st
+                do pft = 1, numpft 
+                   call this%GetRMeanRestartVar(cpatch%sdlng_mdd(pft)%p, ir_sdlng_mdd_pa,io_idx_pa_pft)
+                   call this%GetRMeanRestartVar(cpatch%sdlng_emerg_smp(pft)%p, ir_sdlng_emerg_smp_pa,io_idx_pa_pft)
+                   io_idx_pa_pft      = io_idx_pa_pft + 1
+                enddo
+             end if
+
              ! set cohorts per patch for IO
 
              if ( debug ) then
@@ -3449,12 +3518,13 @@ contains
 
              sites(s)%crownarea_canopy_damage = rio_crownarea_cano_damage_si(io_idx_si)
              sites(s)%crownarea_ustory_damage = rio_crownarea_usto_damage_si(io_idx_si)
-
+             
+             
           end if
 
+          sites(s)%ema_npp                 = rio_emanpp_si(io_idx_si)
           sites(s)%term_crownarea_canopy    = rio_termcarea_cano_si(io_idx_si)
           sites(s)%term_crownarea_ustory    = rio_termcarea_usto_si(io_idx_si)
-
           sites(s)%imort_crownarea          = rio_imortcarea_si(io_idx_si)
           sites(s)%fmort_crownarea_canopy  = rio_fmortcarea_cano_si(io_idx_si)
           sites(s)%fmort_crownarea_ustory  = rio_fmortcarea_usto_si(io_idx_si)

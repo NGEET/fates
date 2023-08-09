@@ -11,6 +11,8 @@ module EDInitMod
   use FatesConstantsMod         , only : primaryland
   use FatesConstantsMod         , only : nearzero
   use FatesConstantsMod         , only : n_landuse_cats
+  use FatesConstantsMod         , only : fates_unset_r8
+  use FatesConstantsMod         , only : nearzero
   use FatesGlobals              , only : endrun => fates_endrun
   use EDTypesMod                , only : nclmax
   use FatesGlobals              , only : fates_log
@@ -274,6 +276,10 @@ contains
        call site_in%flux_diags(el)%ZeroFluxDiags()
     end do
 
+    ! This will be initialized in FatesSoilBGCFluxMod:PrepCH4BCs()
+    ! It checks to see if the value is below -9000. If it is,
+    ! it will assume the first value of the smoother is set
+    site_in%ema_npp = -9999.9_r8
 
     ! termination and recruitment info
     site_in%term_nindivs_canopy(:,:) = 0._r8
@@ -550,6 +556,7 @@ contains
     integer  :: nocomp_pft
     real(r8) :: newparea, newparea_withlanduse
     real(r8) :: tota !check on area
+    real(r8) :: litt_init  !invalid for satphen, 0 otherwise
     integer  :: is_first_patch
     ! integer  :: n_luh_states
     ! integer  :: luh_state_counter
@@ -704,13 +711,18 @@ contains
                       ! Initialize the litter pools to zero, these
                       ! pools will be populated by looping over the existing patches
                       ! and transfering in mass
+                      if(hlm_use_sp.eq.itrue)then
+                         litt_init = fates_unset_r8
+                      else
+                         litt_init = 0._r8
+                      end if
                       do el=1,num_elements
-                         call newp%litter(el)%InitConditions(init_leaf_fines=0._r8, &
-                              init_root_fines=0._r8, &
-                              init_ag_cwd=0._r8, &
-                              init_bg_cwd=0._r8, &
-                              init_seed=0._r8,   &
-                              init_seed_germ=0._r8)
+                         call newp%litter(el)%InitConditions(init_leaf_fines=litt_init, &
+                              init_root_fines=litt_init, &
+                              init_ag_cwd=litt_init, &
+                              init_bg_cwd=litt_init, &
+                              init_seed=litt_init,   &
+                              init_seed_germ=litt_init)
                       end do
 
                       sitep => sites(s)
@@ -892,6 +904,10 @@ contains
           temp_cohort%canopy_trim = 1.0_r8
           temp_cohort%crowndamage = 1  ! Assume no damage to begin with
 
+          ! Retrieve drop fraction of non-leaf tissues for phenology initialisation
+          fnrt_drop_fraction = prt_params%phen_fnrt_drop_fraction(pft)
+          stem_drop_fraction = prt_params%phen_stem_drop_fraction(pft)
+
 
           ! Initialise phenology variables.
           spmode_case: select case (hlm_use_sp)
@@ -957,11 +973,6 @@ contains
                 ! n.b. that this is the same as currentcohort%n = %initd(pft) &AREA
                 temp_cohort%n           =  temp_cohort%n * sum(site_in%use_this_pft)
              endif
-
-             ! Retrieve drop fraction of non-leaf tissues for phenology initialisation
-             fnrt_drop_fraction = prt_params%phen_fnrt_drop_fraction(temp_cohort%pft)
-             stem_drop_fraction = prt_params%phen_stem_drop_fraction(temp_cohort%pft)
-
 
 
              !  h,dbh,leafc,n from SP values or from small initial size.
