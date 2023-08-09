@@ -3911,13 +3911,15 @@ end subroutine flush_hvars
       
       ! treat carbon flux from imort the same way
       hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
-         sum(sites(s)%imort_carbonflux(:)) / g_per_kg
+         sum(sites(s)%imort_carbonflux(:)) 
 
       do i_pft = 1, numpft
          hio_mortality_carbonflux_si_pft(io_si,i_pft) = hio_mortality_carbonflux_si_pft(io_si,i_pft) + &
               (sites(s)%fmort_carbonflux_canopy(i_pft) + &
-              sites(s)%fmort_carbonflux_ustory(i_pft) + &
-              sites(s)%imort_carbonflux(i_pft) ) / g_per_kg  ! cdk
+              sites(s)%fmort_carbonflux_ustory(i_pft) ) / g_per_kg + &
+              sites(s)%imort_carbonflux(i_pft) + & 
+              sites(s)%term_carbonflux_ustory(i_pft) * days_per_sec * ha_per_m2 + &
+              sites(s)%term_carbonflux_canopy(i_pft) * days_per_sec * ha_per_m2 
    
          hio_firemortality_carbonflux_si_pft(io_si,i_pft) = sites(s)%fmort_carbonflux_canopy(i_pft) / g_per_kg
       end do
@@ -3928,8 +3930,8 @@ end subroutine flush_hvars
             i_scpf = (i_pft-1)*nlevsclass + i_scls
             hio_abg_mortality_cflux_si_scpf(io_si,i_scpf) = hio_abg_mortality_cflux_si_scpf(io_si,i_scpf) + &
                  (sites(s)%fmort_abg_flux(i_scls,i_pft) / g_per_kg ) + &
-                 (sites(s)%imort_abg_flux(i_scls,i_pft) / g_per_kg) + &
-                 (sites(s)%term_abg_flux(i_scls,i_pft)  * days_per_sec * ha_per_m2 ) ! jfn
+                 sites(s)%imort_abg_flux(i_scls,i_pft)  +  &
+                 (sites(s)%term_abg_flux(i_scls,i_pft)  * days_per_sec * ha_per_m2 ) 
          end do
       end do
 
@@ -6768,7 +6770,7 @@ end subroutine update_history_hifrq
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_firemortality_carbonflux_si_pft)
 
-    call this%set_history_var(vname='FATES_MORTALITY_HYDRAULIC_CFLUX_PF', units='kg m-2 s-1',    &
+    call this%set_history_var(vname='FATES_MORTALITY_HYDRO_CFLUX_PF', units='kg m-2 s-1',    &
          long='PFT-level flux of biomass carbon from live to dead pool from hydraulic failure mortality', &
          use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
