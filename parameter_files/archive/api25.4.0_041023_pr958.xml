@@ -1,0 +1,303 @@
+<?xml version="1.0"?>
+<all>
+  <!-- This parameter patch file updates the parameter file with the necessary changes -->
+  <!-- for a number of pull requests. These updates are condensed into PR 958 as they -->
+  <!-- are being integrated in succession in relatively quick succession.  This will help -->
+  <!-- reduce the number of API updates the user may need to apply to their own parameter file. -->
+
+  <!-- Per PR 958: -->
+  <!-- - updates the meta data for the initial seed density -->
+
+  <!-- Per PR 1005 (seed dispersal): -->
+  <!-- - adds the PDF shape and scale parameters from Bullock et al 2016 for the dispersal kernel -->
+  <!-- - adds a parameter to set the maximum dispersal distance to pass to the nearest neighbor -->
+  <!--   algorithm.  This acts to reduce the number of gridcells that the model needs to communicate -->
+  <!--   across. -->
+  <!-- - Adds a parameter to let the user define the fraction of seed rain to be dispersed on a per -->
+  <!--   pft basis. -->
+
+  <!-- Per PR 1021 (tree recruitment): -->
+  <!-- - adds new parameters for the Tree Recruitment Scheme by Hanbury-Brown et al., 2022 -->
+
+  <!-- Per issue 1014 (storage maintenance respiration): -->
+  <!-- - adds two new parameters in anticipation for a forthcoming pull request to address issue 1041 -->
+
+  <!-- To use this patch file run the following command: -->
+  <!--   Run `python ../tools/UpdateParamAPI.py -/-f archive/api25.4.0_041023_pr958.xml` -->
+
+  <!-- To update a different CDL parameter file, change the file listed the `base_file`. -->
+  <!-- This requires that said file is up to date with API 25.3. -->
+
+  <!-- General xml file usage notes: -->
+  <!-- Special mod types "variable_add": creates a new variable
+		 "dimension_add": creates a new dimension
+		 "variable_del": removes a variable, must include attribute "name" 
+		 "variable_change": change values in the parameter, possibly including the name, and
+                          this must also come with a name attribute as well -->
+  <!-- To change a dimension. The easiest way to script this, is to delete the variables
+		 that use it, delete the dimension. Re-add it with the new size, and then re-add
+		 the variables -->
+  <!-- -->
+  
+  <base_file>archive/api25.4.0_041023_fates_params_default.cdl </base_file>
+  <new_file>fates_params_default.cdl</new_file>
+  <pft_list> 1,2,3,4,5,6,7,8,9,10,11,12 </pft_list>
+  <mods>
+    <mod type="variable_add">
+      <na> fates_maintresp_reduction_upthresh </na>
+      <di> fates_pft </di>
+      <un> unitless (0-1) </un>
+      <ln> upper threshold for storage biomass (relative to leaf biomass) above which MR is not reduced </ln>
+      <val> 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_mort_upthresh_cstarvation </na>
+      <di> fates_pft </di>
+      <un> unitless </un>
+      <ln> threshold for storage biomass (relative to target leaf biomass) above which carbon starvation is zero </ln>
+      <val> 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 </val>
+    </mod>
+    <mod type="variable_change" name="fates_phen_fnrt_drop_frac">
+      <na> fates_phen_fnrt_drop_fraction </na>
+      <ln> fraction of fine roots to drop during drought/cold </ln>
+    </mod>
+    <mod type="variable_change" name="fates_turnover_leaf">
+      <ln> Leaf longevity (ie turnover timescale). For drought-deciduous PFTs, this also indicates the maximum length of the growing (i.e., leaves on) season. </ln>
+    </mod>
+    <mod type="variable_change" name="fates_alloc_storage_cushion">
+      <di> fates_pft </di>
+      <val>  1.2, 1.2, 1.2, 1.2, 2.4, 1.2, 1.2, 2.4, 1.2, 1.2, 1.2, 1.2 </val>
+    </mod>
+    <mod type="variable_change" name="fates_phen_drought_threshold">
+      <di> fates_pft </di>
+      <val> -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4 </val>
+      <ln> threshold for drought phenology (or lower threshold for semi-deciduous PFTs); the quantity depends on the sign: if positive, the threshold is volumetric soil moisture (m3/m3). If negative, the threshold is soil matric potentical (mm) </ln>
+    </mod>
+    <mod type="variable_change" name="fates_phen_moist_threshold">
+      <di> fates_pft </di>
+      <val>  -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9 </val>
+      <ln> upper threshold for drought phenology (only for drought semi-deciduous PFTs); the quantity depends on the sign: if positive, the threshold is volumetric soil moisture (m3/m3). If negative, the threshold is soil matric potentical (mm) </ln>
+    </mod>
+    <mod type="variable_change" name="fates_phen_mindaysoff">
+      <di> fates_pft </di>
+      <val> 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100 </val>
+      <ln> day threshold compared against days since leaves abscised (shed) </ln>
+    </mod>
+    <mod type="variable_change" name="fates_leaf_vcmax25top">
+      <val>  50, 62, 39, 61, 58, 58, 62, 54, 54, 78, 78, 78 </val>
+    </mod>
+    <mod type="variable_del">
+      <na> fates_phen_drought_model </na>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_rad_model </na>
+      <di> scalar </di>
+      <un> unitless </un>
+      <ln> switch designating the model for canopy radiation, 1 = Norman, 2 = Two-stream (experimental) </ln>
+      <val> 1 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_repro_alloc_a </na>
+      <di> fates_pft </di>
+      <un> fraction </un>
+      <ln> shape parameter for sigmoidal function relating dbh to reproductive allocation </ln>
+      <val> 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.0049 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_repro_alloc_b </na>
+      <di> fates_pft </di>
+      <un> fraction </un>
+      <ln> intercept parameter for sigmoidal function relating dbh to reproductive allocation </ln>
+      <val> -2.6171, -2.6171, -2.6171, -2.6171, -2.6171, -2.6171, -2.6171, -2.6171, -2.6171, -2.6171, -2.6171, -2.6171 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_repro_frac_seed </na>
+      <di> fates_pft </di>
+      <un> fraction </un>
+      <ln> fraction of reproductive mass that is seed </ln>
+      <val> 0.24, 0.24, 0.24, 0.24, 0.24, 0.24, 0.24, 0.24, 0.24, 0.24, 0.24, 0.24 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_a_emerg </na>
+      <di> fates_pft </di>
+      <un> day -1 </un>
+      <ln> mean fraction of seed bank emerging </ln>
+      <val> 0.0003, 0.0003, 0.0003, 0.0003, 0.0003, 0.0003, 0.0003, 0.0003, 0.0003, 0.0003, 0.0003, 0.0003 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_b_emerg </na>
+      <di> fates_pft </di>
+      <un> day -1 </un>
+      <ln> seedling emergence sensitivity to soil moisture </ln>
+      <val> 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_par_crit_germ </na>
+      <di> fates_pft </di>
+      <un> MJ m-2 day-1 </un>
+      <ln> critical light level for germination </ln>
+      <val> 0.656, 0.656, 0.656, 0.656, 0.656, 0.656, 0.656, 0.656, 0.656, 0.656, 0.656, 0.656 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_root_depth </na>
+      <di> fates_pft </di>
+      <un> m </un>
+      <ln> rooting depth of seedlings </ln>
+      <val> 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_psi_emerg </na>
+      <di> fates_pft </di>
+      <un> mm h20 suction </un>
+      <ln> critical soil moisture for seedling emergence </ln>
+      <val> -15744.65, -15744.65, -15744.65, -15744.65, -15744.65, -15744.65, -15744.65, -15744.65, -15744.65, -15744.65, -15744.65, -15744.65 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_psi_crit </na>
+      <di> fates_pft </di>
+      <un> mm H2O </un>
+      <ln> critical soil moisture (suction) for seedling stress </ln>
+      <val> -251995.7, -251995.7, -251995.7, -251995.7, -251995.7, -251995.7, -251995.7, -251995.7, -251995.7, -251995.7, -251995.7, -251995.7 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_mdd_crit </na>
+      <di> fates_pft </di>
+      <un> mm H2O day </un>
+      <ln> critical moisture deficit (suction) day accumulation for seedling moisture-based seedling mortality to begin </ln>
+      <val> 1400000.0, 1400000.0, 1400000.0, 1400000.0, 1400000.0, 1400000.0, 1400000.0, 1400000.0, 1400000.0, 1400000.0, 1400000.0, 1400000.0 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_h2o_mort_a </na>
+      <di> fates_pft </di>
+      <un> - </un>
+      <ln> coefficient in moisture-based seedling mortality </ln>
+      <val> 4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_h2o_mort_b </na>
+      <di> fates_pft </di>
+      <un> - </un>
+      <ln> coefficient in moisture-based seedling mortality </ln>
+      <val> -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_h2o_mort_c </na>
+      <di> fates_pft </di>
+      <un> - </un>
+      <ln> coefficient in moisture-based seedling mortality </ln>
+      <val> 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_light_mort_a </na>
+      <di> fates_pft </di>
+      <un> - </un>
+      <ln> light-based seedling mortality coefficient </ln>
+      <val> -0.009897694, -0.009897694, -0.009897694, -0.009897694, -0.009897694, -0.009897694, -0.009897694, -0.009897694, -0.009897694, -0.009897694, -0.009897694, -0.009897694 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_light_mort_b </na>
+      <di> fates_pft </di>
+      <un> - </un>
+      <ln> light-based seedling mortality coefficient </ln>
+      <val> -7.154063, -7.154063, -7.154063, -7.154063, -7.154063, -7.154063, -7.154063, -7.154063, -7.154063, -7.154063, -7.154063, -7.154063 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_background_mort </na>
+      <di> fates_pft </di>
+      <un> yr-1 </un>
+      <ln> background seedling mortality rate </ln>
+      <val> 0.1085371, 0.1085371, 0.1085371, 0.1085371, 0.1085371, 0.1085371, 0.1085371, 0.1085371, 0.1085371, 0.1085371, 0.1085371, 0.1085371 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_light_rec_a </na>
+      <di> fates_pft </di>
+      <un> - </un>
+      <ln> coefficient in light-based seedling to sapling transition </ln>
+      <val> 0.007, 0.007, 0.007, 0.007, 0.007, 0.007, 0.007, 0.007, 0.007, 0.007, 0.007, 0.007 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_light_rec_b </na>
+      <di> fates_pft </di>
+      <un> - </un>
+      <ln> coefficient in light-based seedling to sapling transition </ln>
+      <val> 0.8615, 0.8615, 0.8615, 0.8615, 0.8615, 0.8615, 0.8615, 0.8615, 0.8615, 0.8615, 0.8615, 0.8615 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_regeneration_model </na>
+      <di> scalar </di>
+      <un> - </un>
+      <ln> switch for choosing between FATES's: 1) default regeneration scheme , 2) the Tree Recruitment Scheme (Hanbury-Brown et al., 2022), or (3) the Tree Recruitment Scheme without seedling dynamics </ln>
+      <val> 1 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_emerg_h2o_timescale </na>
+      <di> scalar </di>
+      <un> days </un>
+      <ln> Length of the window for the exponential moving average of smp used to calculate seedling emergence </ln>
+      <val> 7 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_mort_par_timescale </na>
+      <di> scalar </di>
+      <un> days </un>
+      <ln> Length of the window for the exponential moving average of par at the seedling layer used to calculate seedling mortality </ln>
+      <val> 32 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling_mdd_timescale </na>
+      <di> scalar </di>
+      <un> days </un>
+      <ln> Length of the window for the exponential moving average of moisture deficit days used to calculate seedling mortality</ln>
+      <val> 126 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_trs_seedling2sap_par_timescale </na>
+      <di> scalar </di>
+      <un> days </un>
+      <ln> Length of the window for the exponential moving average of par at the seedling layer used to calculate seedling to sapling transition rates </ln>
+      <val> 32 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_seed_dispersal_max_dist </na>
+      <di> fates_pft </di>
+      <un> m </un>
+      <ln> maximum seed dispersal distance for a given pft </ln>
+      <val></val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_seed_dispersal_fraction </na>
+      <di> fates_pft </di>
+      <un> fraction </un>
+      <ln> fraction of seed rain to be dispersed to other grid cells </ln>
+      <val></val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_seed_dispersal_pdf_scale </na>
+      <di> fates_pft </di>
+      <un> unitless </un>
+      <ln> seed dispersal probability density function scale parameter, A, Table 1 Bullock et al 2016 </ln>
+      <val></val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_seed_dispersal_pdf_shape </na>
+      <di> fates_pft </di>
+      <un> unitless </un>
+      <ln> seed dispersal probability density function shape parameter, B, Table 1 Bullock et al 2016 </ln>
+      <val></val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_maintresp_reduction_upthresh </na>
+      <di> fates_pft </di>
+      <un> unitless (0-1) </un>
+      <ln> upper threshold for storage biomass (relative to leaf biomass) above which MR is not reduced </ln>
+      <val> 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_mort_upthresh_cstarvation </na>
+      <di> fates_pft </di>
+      <un> unitless </un>
+      <ln> threshold for storage biomass (relative to target leaf biomass) above which carbon starvation is zero </ln>
+      <val> 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 </val>
+    </mod>
+  </mods>
+</all>

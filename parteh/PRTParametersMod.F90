@@ -13,17 +13,48 @@ module PRTParametersMod
 
      ! The following three PFT classes 
      ! are mutually exclusive
-     integer, allocatable :: stress_decid(:)        ! Is the plant stress deciduous? (1=yes, 0=no)
+     ! MLO: perhaps we should replace these three parameters with a single
+     !      parameter (phenology(:)) that is assigned different indices?
+     integer, allocatable :: stress_decid(:)        ! Is the plant stress deciduous?
+                                                    ! 0 - No
+                                                    ! 1 - Drought "hard" deciduous (i.e., PFT
+                                                    !     sheds leaves all at once when stressed)
+                                                    ! 2 - Drought semi-deciduous (i.e., PFT
+                                                    !     sheds leaves gradually as drought
+                                                    !     conditions deteriorate)
      integer, allocatable :: season_decid(:)        ! Is the plant seasonally deciduous (1=yes, 0=no)
      integer, allocatable :: evergreen(:)           ! Is the plant an evergreen (1=yes, 0=no)
 
-     
+     ! Drop fraction for tissues other than leaves (PFT-dependent)
+     real(r8), allocatable :: phen_fnrt_drop_fraction(:) ! Abscission fraction of fine roots
+     real(r8), allocatable :: phen_stem_drop_fraction(:) ! Abscission fraction of stems
+     real(r8), allocatable :: phen_drought_threshold(:)   ! For obligate (hard) drought deciduous, this is the threshold
+                                                          !    below which plants will abscise leaves, and 
+                                                          !    above which plants will flush leaves. For semi-deciduous
+                                                          !    plants, this is the threshold below which abscission will
+                                                          !    be complete. This depends on the sign. If positive, these
+                                                          !    are soil volumetric water content [m3/m3]. If
+                                                          !    negative, the values are soil matric potential [mm].
+                                                          !    Ignored for non-deciduous plants.
+     real(r8), allocatable :: phen_moist_threshold(:)     ! For semi-deciduous, this is the threshold above which flushing 
+                                                          !    will be complete.  This depends on the sign. If positive, these
+                                                          !    are soil volumetric water content [m3/m3]. If
+                                                          !    negative, the values are soil matric potential [mm].
+                                                          !    Ignored for non-deciduous plants.
+     real(r8), allocatable :: phen_doff_time(:)           ! Minimum number of days that plants must remain leafless before
+                                                          !   flushing leaves again.
+
+
      ! Growth and Turnover Parameters
      real(r8), allocatable :: senleaf_long_fdrought(:)   ! Multiplication factor for leaf longevity of senescent 
                                                          ! leaves during drought( 1.0 indicates no change)
      real(r8), allocatable :: leaf_long(:,:)             ! Leaf turnover time (longevity) (pft x age-class)
                                                          ! If there is >1 class, it is the longevity from
                                                          ! one class to the next [yr]
+                                                         !   For drought-deciduous PFTs, the sum of leaf
+                                                         !   longevity across all leaf age classes is also
+                                                         !   the maximum length of the growing (i.e., leaves on)
+                                                         !   season.
      real(r8), allocatable :: root_long(:)               ! root turnover time (longevity) (pft)             [yr]
      real(r8), allocatable :: branch_long(:)             ! Turnover time for branchfall on live trees (pft) [yr]
      real(r8), allocatable :: turnover_nitr_retrans(:,:) ! nitrogen re-translocation fraction (pft x organ)
@@ -65,8 +96,9 @@ module PRTParametersMod
      real(r8), allocatable :: seed_alloc_mature(:)       ! fraction of carbon balance allocated to 
                                                          ! clonal reproduction.
      real(r8), allocatable :: seed_alloc(:)              ! fraction of carbon balance allocated to seeds.
-
-
+     real(r8), allocatable :: repro_alloc_a(:)           ! ahb added this; sigmoidal shape param relating dbh to seed allocation fraction
+     real(r8), allocatable :: repro_alloc_b(:)           ! ahb added this; intercept param relating dbh to seed allocation fraction
+     
      ! Derived parameters
 
      integer, allocatable :: organ_param_id(:)           ! This is the sparse reverse lookup index map. This is dimensioned

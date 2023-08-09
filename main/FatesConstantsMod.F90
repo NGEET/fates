@@ -185,6 +185,9 @@ module FatesConstantsMod
   ! If we need to link to 365.25-day-calendared HLM, rewire to pass through interface
   real(fates_r8), parameter, public :: days_per_year = 365.00_fates_r8
 
+  ! Integer version of days per year.
+  integer, parameter, public :: ndays_per_year = nint(days_per_year)
+
   ! Conversion: years per day. assume HLM uses 365 day calendar.
   ! If we need to link to 365.25-day-calendared HLM, rewire to pass through interface
   real(fates_r8), parameter, public :: years_per_day = 1.0_fates_r8/365.00_fates_r8

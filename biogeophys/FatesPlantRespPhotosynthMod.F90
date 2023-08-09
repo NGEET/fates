@@ -413,8 +413,11 @@ contains
                       ft = currentCohort%pft
                       cl = currentCohort%canopy_layer
 
+                      ! MLO. Assuming target to be related to leaf biomass when leaves are fully
+                      ! flushed. But unsure whether this call is correct or not, shouldn't we get
+                      ! the target value directly from the bstore_allom?
                       call bleaf(currentCohort%dbh,currentCohort%pft,&
-                           currentCohort%crowndamage,currentCohort%canopy_trim,store_c_target)
+                           currentCohort%crowndamage,currentCohort%canopy_trim,1.0_r8,store_c_target)
                       !                     call bstore_allom(currentCohort%dbh,currentCohort%pft, &
                       !                                       currentCohort%canopy_trim,store_c_target)
 
