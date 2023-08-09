@@ -479,6 +479,7 @@ contains
     integer  :: i_land_use_label
     integer  :: i_pft
     real(r8) :: newp_area
+    logical  :: buffer_patch_in_linked_list
 
     !---------------------------------------------------------------------
 
@@ -1249,7 +1250,10 @@ contains
 
           ! create buffer patch to put all of the pieces carved off of other patches
           call create_patch(currentSite, buffer_patch, 0._r8, &
-                        0._r8, i_land_use_label, 0)
+               0._r8, i_land_use_label, 0)
+
+          ! make a note that this buffer patch has not been put into the linked list
+          buffer_patch_in_linked_list = .false.
 
           ! Initialize the litter pools to zero
           do el=1,num_elements
@@ -1306,7 +1310,9 @@ contains
                    ! put the new patch into the linked list
                    call insert_patch_into_sitelist(currentSite, temp_patch)
 
-                   ! CDK QUESTION: HOW DO WE ERASE OUT THE TEMP_PATCH INFO SO THAT IT CAN HOLD A NEW PATCH WHEN IT GOES BACK THROUGH THE LOOP?
+                   ! now that the patch that temp_patch points to is in the site linked list, we want to null temp_patch so that it can be
+                   ! refilled the next time through the loop.
+                   temp_patch => null()
                    
                 else
                    ! give the buffer patch the intended nocomp PFT label
@@ -1314,6 +1320,8 @@ contains
 
                    ! put the buffer patch directly into the linked list
                    call insert_patch_into_sitelist(currentSite, buffer_patch)
+
+                   buffer_patch_in_linked_list = .true.
                    
                 end if
 
@@ -1321,6 +1329,24 @@ contains
 
           end do nocomp_pft_loop_2
 
+          ! now we want to make sure that either the buffer_patch either has zero area (presumably it was never used), in which case it should be deallocated,
+          ! or else it does have area but it has been put into the site linked list, and so buffer patch should be nulled before next pass through outer loop.
+          ! if either of those, that means everything worked properly, if not, then something has gone wrong.
+          if (buffer_patch_in_linked_list) then
+             buffer_patch => null()
+          else if (buffer_patch%area .lt. fates_tiny) then
+             ! here we need to deallocate the buffer patch so that we don't get a memory leak/
+             call dealloc_patch(buffer_patch)
+             deallocate(buffer_patch, stat=istat, errmsg=smsg)
+             if (istat/=0) then
+                write(fates_log(),*) 'dealloc: fail on deallocate(dp):'//trim(smsg)
+                call endrun(msg=errMsg(sourcefile, __LINE__))
+             endif
+          else
+             write(fates_log(),*) 'Buffer patch still has area and it wasnt put into the linked list'
+             write(fates_log(),*) 'buffer_patch%area', buffer_patch%area
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
 
        end do lu_loop
     endif nocomp_and_luh_if
