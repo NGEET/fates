@@ -473,6 +473,12 @@ contains
     real(r8) :: oldarea                      ! old patch area prior to disturbance
     logical  :: clearing_matrix(n_landuse_cats,n_landuse_cats)  ! do we clear vegetation when transferring from one LU type to another?
     type (ed_patch_type) , pointer :: buffer_patch, temp_patch
+    real(r8) :: nocomp_pft_area_vector(numpft)
+    real(r8) :: nocomp_pft_area_vector_allocated(numpft)
+    real(r8) :: fraction_to_keep
+    integer  :: i_land_use_label
+    integer  :: i_pft
+    real(r8) :: newp_area
 
     !---------------------------------------------------------------------
 
@@ -1220,7 +1226,7 @@ contains
 
     end do nocomp_pft_loop
 
-    nocomp_and_luh_if: if ( use_fates_nocomp .eq. itrue .and. use_fates_luh .eq. itrue ) then
+    nocomp_and_luh_if: if ( hlm_use_nocomp .eq. itrue .and. hlm_use_luh .eq. itrue ) then
 
        ! disturbance has just hapopened, and now the nocomp PFT identities of the newly-disturbed patches
        ! need to be remapped to those associated with the new land use type.
@@ -1283,7 +1289,7 @@ contains
           end do
 
           ! now we need to loop through the nocomp PFTs, and split the buffer patch into a set of patches to put back in the linked list
-          nocomp_pft_loop: do i_pft = 1, numpft
+          nocomp_pft_loop_2: do i_pft = 1, numpft
 
              if (nocomp_pft_area_vector_allocated(i_pft) .lt. currentSite%area_pft(i_pft,i_land_use_label) * area) then
 
@@ -1313,7 +1319,7 @@ contains
 
              end if
 
-          end do nocomp_pft_loop
+          end do nocomp_pft_loop_2
 
 
        end do lu_loop
@@ -1340,7 +1346,7 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS:
-    type(ed_site_type),intent(in) :: currentSite
+    type(ed_site_type),intent(inout) :: currentSite
     type(ed_patch_type) , intent(inout), target :: new_patch      ! New Patch
     !
     ! !LOCAL VARIABLES:
@@ -1397,7 +1403,7 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS:
-    type(ed_site_type),intent(in) :: currentSite
+    type(ed_site_type),intent(inout) :: currentSite
     type(ed_patch_type) , intent(inout), target :: currentPatch   ! Donor Patch
     type(ed_patch_type) , intent(inout), target :: new_patch      ! New Patch
     real(r8), intent(in)    :: fraction_to_keep  ! fraction of currentPatch to keep, the rest goes to newpatch
@@ -1407,8 +1413,10 @@ contains
     type (ed_cohort_type), pointer :: nc
     type (ed_cohort_type), pointer :: storesmallcohort
     type (ed_cohort_type), pointer :: storebigcohort
+    type (ed_cohort_type), pointer :: currentCohort
     integer  :: tnull                        ! is there a tallest cohort?
     integer  :: snull                        ! is there a shortest cohort?
+
 
     ! first we need to make the new patch
     call create_patch(currentSite, new_patch, 0._r8, &

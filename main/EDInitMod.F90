@@ -83,6 +83,7 @@ module EDInitMod
   use FatesSizeAgeTypeIndicesMod,only : get_age_class_index
   use DamageMainMod,          only : undamaged_class
   use FatesInterfaceTypesMod    , only : hlm_num_luh2_transitions
+  use FatesConstantsMod,      only : nocomp_bareground_land, nocomp_bareground
 
   ! CIME GLOBALS
   use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -408,7 +409,7 @@ contains
 
           if(hlm_use_fixed_biogeog.eq.itrue)then
 
-             use_fates_luh_if: if (use_fates_luh .eq. itrue.) then
+             use_fates_luh_if: if (hlm_use_luh .eq. itrue) then
                 ! MAPPING OF FATES PFTs on to HLM_PFTs with land use
                 ! add up the area associated with each FATES PFT
                 ! where pft_areafrac_lu is the area of land in each HLM PFT and land use type (from surface dataset)
@@ -417,14 +418,14 @@ contains
                    do hlm_pft = 1,fates_hlm_num_natpfts
                       do fates_pft = 1,numpft ! loop round all fates pfts for all hlm pfts
                          sites(s)%area_pft(fates_pft,i_landusetype) = sites(s)%area_pft(fates_pft,i_landusetype) + &
-                              EDPftvarcon_inst%hlm_pft_map(fates_pft,hlm_pft) * bc_in(s)%pft_areafrac_luh(hlm_pft,i_landusetype)
+                              EDPftvarcon_inst%hlm_pft_map(fates_pft,hlm_pft) * bc_in(s)%pft_areafrac_lu(hlm_pft,i_landusetype)
                       end do
                    end do !hlm_pft                   
                 end do
 
                 sites(s)%area_bareground = bc_in(s)%baregroundfrac * area
 
-             else use_fates_luh_if
+             else
                 ! MAPPING OF FATES PFTs on to HLM_PFTs
                 ! add up the area associated with each FATES PFT
                 ! where pft_areafrac is the area of land in each HLM PFT and (from surface dataset)
@@ -432,7 +433,7 @@ contains
 
                 do hlm_pft = 1,size( EDPftvarcon_inst%hlm_pft_map,2)
                    do fates_pft = 1,numpft ! loop round all fates pfts for all hlm pfts
-                      sites(s)%area_pft(fates_pft,primarylands) = sites(s)%area_pft(fates_pft,primarylands) + &
+                      sites(s)%area_pft(fates_pft,primaryland) = sites(s)%area_pft(fates_pft,primaryland) + &
                            EDPftvarcon_inst%hlm_pft_map(fates_pft,hlm_pft) * bc_in(s)%pft_areafrac(hlm_pft)
                    end do
                    sites(s)%area_bareground = bc_in(s)%pft_areafrac(0)
@@ -464,7 +465,7 @@ contains
                       sites(s)%area_pft(ft, i_landusetype) = sites(s)%area_pft(ft, i_landusetype)/sumarea
                    else
                       ! if no PFT area in primary lands, set bare ground fraction to one.
-                      if ( i_landusetype .eq. primarylands) then
+                      if ( i_landusetype .eq. primaryland) then
                          sites(s)%area_bareground = 1._r8
                       endif
                    end if
@@ -476,7 +477,7 @@ contains
           do ft = 1,numpft
              ! Setting this to true ensures that all pfts
              ! are used for nocomp with no biogeog
-             sites(s)%use_this_pft(ft) = itrues
+             sites(s)%use_this_pft(ft) = itrue
              if(hlm_use_fixed_biogeog.eq.itrue)then
                 if(any(sites(s)%area_pft(ft,:).gt.0.0_r8))then
                    sites(s)%use_this_pft(ft) = itrue
@@ -532,7 +533,7 @@ contains
     real(r8) :: state_vector(n_landuse_cats)  ! [m2/m2]
     integer  :: i_lu, i_lu_state
     integer  :: n_active_landuse_cats
-
+    integer  :: end_landuse_idx
 
     type(ed_site_type),  pointer :: sitep
     type(ed_patch_type), pointer :: newppft(:)
@@ -637,7 +638,7 @@ contains
              end do
           endif make_bareground_patch_if
 
-          if (use_fates_luh2 .eq. itrue) then
+          if (hlm_use_luh .eq. itrue) then
              end_landuse_idx = n_landuse_cats
           else
              end_landuse_idx = 1
@@ -664,7 +665,7 @@ contains
                       if(hlm_use_fixed_biogeog.eq.itrue)then
                          newparea = sites(s)%area_pft(nocomp_pft,i_lu_state) * area / state_vector(i_lu_state)
                       else
-                         newparea = area / ( numpft * vector(i_lu_state))
+                         newparea = area / ( numpft * state_vector(i_lu_state))
                       end if
                    else  ! The default case is initialized w/ one patch with the area of the whole site.
                       newparea = area / state_vector(i_lu_state)
