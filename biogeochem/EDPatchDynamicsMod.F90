@@ -1401,6 +1401,7 @@ contains
     !  Split a patch into two patches that are identical except in their areas
     !
     ! !USES:
+    use EDCohortDynamicsMod  , only : zero_cohort, copy_cohort
     !
     ! !ARGUMENTS:
     type(ed_site_type),intent(inout) :: currentSite

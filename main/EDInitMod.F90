@@ -55,7 +55,7 @@ module EDInitMod
   use FatesInterfaceTypesMod         , only : nlevdamage
   use FatesInterfaceTypesMod         , only : hlm_use_nocomp
   use FatesInterfaceTypesMod         , only : nlevage
-
+  use FatesInterfaceTypesMod         , only : fates_hlm_num_natpfts
   use FatesAllometryMod         , only : h2d_allom
   use FatesAllometryMod         , only : bagw_allom
   use FatesAllometryMod         , only : bbgw_allom

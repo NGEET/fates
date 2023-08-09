@@ -10,6 +10,7 @@ module FatesRestartInterfaceMod
   use FatesConstantsMod,       only : fates_unset_r8, fates_unset_int
   use FatesConstantsMod,       only : primaryland
   use FatesConstantsMod,       only : nearzero
+  use FatesConstantsMod,       only : n_landuse_cats
   use FatesGlobals,            only : fates_log
   use FatesGlobals,            only : endrun => fates_endrun
   use FatesIODimensionsMod,    only : fates_io_dimension_type
@@ -1886,7 +1887,8 @@ contains
     integer  :: i_cdam           ! loop counter for damage
     integer  :: icdi             ! loop counter for damage
     integer  :: icdj             ! loop counter for damage
-    
+    integer  :: i_landuse,i_pflu ! loop counter for land use class
+
     type(fates_restart_variable_type) :: rvar
     type(ed_patch_type),pointer  :: cpatch
     type(ed_cohort_type),pointer :: ccohort
@@ -2042,9 +2044,13 @@ contains
           end do
 
           do i_pft = 1,numpft
-             rio_area_pft_sift(io_idx_co_1st+i_pft-1)      = sites(s)%area_pft(i_pft)
+              do i_landuse = 1, n_landuse_cats
+                i_pflu = i_landuse + (i_pft - 1) * n_landuse_cats
+                rio_area_pft_sift(io_idx_co_1st+i_pflu-1)      = sites(s)%area_pft(i_pft, i_landuse)
+             end do
           end do
 
+          !! need to restart area_bareground
 
           if(hlm_use_sp.eq.ifalse)then
              do el = 1, num_elements
@@ -2792,7 +2798,8 @@ contains
      integer  :: i_cacls          ! loop counter for cohort age class
      integer  :: i_cdam           ! loop counter for damage class
      integer  :: icdj             ! loop counter for damage class
-     integer  :: icdi             ! loop counter for damage class 
+     integer  :: icdi             ! loop counter for damage class
+     integer  :: i_landuse,i_pflu ! loop counter for land use class
 
      associate( rio_npatch_si         => this%rvars(ir_npatch_si)%int1d, &
           rio_cd_status_si            => this%rvars(ir_cd_status_si)%int1d, &
@@ -2932,18 +2939,14 @@ contains
           ! variables for fixed biogeography mode. These are currently used in restart even when this is off.
           do i_pft = 1,numpft
              sites(s)%use_this_pft(i_pft) = rio_use_this_pft_sift(io_idx_co_1st+i_pft-1)
-             sites(s)%area_pft(i_pft)     = rio_area_pft_sift(io_idx_co_1st+i_pft-1)
+             do i_landuse = 1, n_landuse_cats
+                i_pflu = i_landuse + (i_pft - 1) * n_landuse_cats
+                sites(s)%area_pft(i_pft, i_landuse)     = rio_area_pft_sift(io_idx_co_1st+i_pflu-1)
+             end do
           enddo
 
-          ! calculate the bareground area for the pft in no competition + fixed biogeo modes
-          if (hlm_use_nocomp .eq. itrue .and. hlm_use_fixed_biogeog .eq. itrue) then
-             if (area-sum(sites(s)%area_pft(1:numpft)) .gt. nearzero) then
-                sites(s)%area_pft(0) = area - sum(sites(s)%area_pft(1:numpft))
-             else
-                sites(s)%area_pft(0) = 0.0_r8
-             endif
-          endif
-
+          !! need to restart area_bareground
+          
           ! Mass balance and diagnostics across elements at the site level
           if(hlm_use_sp.eq.ifalse)then
              do el = 1, num_elements
