@@ -9,9 +9,9 @@ module EDMortalityFunctionsMod
    use FatesGlobals          , only : endrun => fates_endrun
    use FatesGlobals          , only : fates_log
    use EDPftvarcon           , only : EDPftvarcon_inst
-   use EDTypesMod            , only : ed_cohort_type
+   use FatesCohortMod        , only : fates_cohort_type
    use EDTypesMod            , only : ed_site_type
-   use EDTypesMod            , only : ed_patch_type
+   use EDParamsMod,            only : maxpft
    use FatesConstantsMod     , only : itrue,ifalse
    use FatesAllometryMod     , only : bleaf
    use FatesAllometryMod     , only : storage_fraction_of_target
@@ -48,22 +48,22 @@ module EDMortalityFunctionsMod
 
 contains
 
-
-
-  subroutine mortality_rates( cohort_in,bc_in,cmort,hmort,bmort,frmort,smort,asmort,dgmort )
+  subroutine mortality_rates( cohort_in,bc_in,btran_ft, mean_temp,             &
+      cmort,hmort,bmort, frmort,smort,asmort,dgmort )
 
     ! ============================================================================
     !  Calculate mortality rates from carbon storage, hydraulic cavitation, 
     !  background and freezing and size and age dependent senescence
     ! ============================================================================
     
-    use FatesConstantsMod,  only : tfrz => t_water_freeze_k_1atm
-    use FatesInterfaceTypesMod        , only : hlm_hio_ignore_val   
+    use FatesConstantsMod,  only : tfrz => t_water_freeze_k_1atm 
     use FatesConstantsMod,  only : fates_check_param_set
     use DamageMainMod,      only : GetDamageMortality
     
-    type (ed_cohort_type), intent(in) :: cohort_in 
+    type (fates_cohort_type), intent(in) :: cohort_in 
     type (bc_in_type), intent(in) :: bc_in
+    real(r8), intent(in)          :: btran_ft(maxpft) 
+    real(r8), intent(in)          :: mean_temp
     real(r8),intent(out) :: bmort ! background mortality : Fraction per year
     real(r8),intent(out) :: cmort  ! carbon starvation mortality
     real(r8),intent(out) :: hmort  ! hydraulic failure mortality
@@ -156,7 +156,7 @@ contains
              hmort = 0.0_r8
           endif
        else
-          if(cohort_in%patchptr%btran_ft(cohort_in%pft) <= hf_sm_threshold)then 
+          if(btran_ft(cohort_in%pft) <= hf_sm_threshold)then 
              hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
           else
              hmort = 0.0_r8
@@ -196,7 +196,7 @@ contains
        !           Eastern US carbon sink.  Glob. Change Biol., 12, 2370-2390,              
        !           doi: 10.1111/j.1365-2486.2006.01254.x                                    
 
-    temp_in_C = cohort_in%patchptr%tveg24%GetMean() - tfrz
+    temp_in_C = mean_temp - tfrz
     
        temp_dep_fraction  = max(0.0_r8, min(1.0_r8, 1.0_r8 - (temp_in_C - &
             EDPftvarcon_inst%freezetol(cohort_in%pft))/frost_mort_buffer) )
@@ -231,8 +231,9 @@ contains
 
  ! ============================================================================
 
- subroutine Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary, &
-         harvestable_forest_c, harvest_tag)
+ subroutine Mortality_Derivative( currentSite, currentCohort, bc_in, btran_ft, &
+      mean_temp, land_use_label, age_since_anthro_disturbance,       &
+      frac_site_primary, harvestable_forest_c, harvest_tag)
 
     !
     ! !DESCRIPTION:
@@ -245,9 +246,13 @@ contains
     !
     ! !ARGUMENTS    
     type(ed_site_type), intent(inout), target  :: currentSite
-    type(ed_cohort_type),intent(inout), target :: currentCohort
+    type(fates_cohort_type),intent(inout), target :: currentCohort
     type(bc_in_type), intent(in)               :: bc_in
-    real(r8), intent(in)                       :: frac_site_primary
+    real(r8),         intent(in)               :: btran_ft(maxpft)
+    real(r8),         intent(in)               :: mean_temp
+    integer,          intent(in)               :: land_use_label
+    real(r8),         intent(in)               :: age_since_anthro_disturbance
+    real(r8),         intent(in)               :: frac_site_primary
 
     real(r8), intent(in) :: harvestable_forest_c(:)   ! total carbon available for logging, kgC site-1
     integer, intent(out) :: harvest_tag(:)    ! tag to record the harvest status
@@ -274,7 +279,8 @@ contains
     
     ! Mortality for trees in the understorey. 
     !if trees are in the canopy, then their death is 'disturbance'. This probably needs a different terminology
-    call mortality_rates(currentCohort,bc_in,cmort,hmort,bmort,frmort,smort, asmort, dgmort)
+    call mortality_rates(currentCohort,bc_in,btran_ft, mean_temp,              &
+      cmort,hmort,bmort,frmort, smort, asmort, dgmort)
     call LoggingMortality_frac(ipft, currentCohort%dbh, currentCohort%canopy_layer, &
                                currentCohort%lmort_direct,                       &
                                currentCohort%lmort_collateral,                    &
@@ -283,8 +289,8 @@ contains
                                bc_in%hlm_harvest_rates, &
                                bc_in%hlm_harvest_catnames, &
                                bc_in%hlm_harvest_units, &
-                               currentCohort%patchptr%land_use_label, &
-                               currentCohort%patchptr%age_since_anthro_disturbance, &
+                               land_use_label, &
+                               age_since_anthro_disturbance, &
                                frac_site_primary, harvestable_forest_c, harvest_tag)
 
     if (currentCohort%canopy_layer > 1)then 
@@ -328,7 +334,7 @@ contains
    ! ============================================================================
 
    ! Arguments
-   type(ed_cohort_type),intent(in), target :: ccohort
+   type(fates_cohort_type),intent(in), target :: ccohort
 
    logical :: is_exempt ! if true, then treat all mortality from this cohort as non-disturbance-generating
 

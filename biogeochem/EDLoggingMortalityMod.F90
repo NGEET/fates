@@ -15,8 +15,8 @@ module EDLoggingMortalityMod
 
    use FatesConstantsMod , only : r8 => fates_r8
    use FatesConstantsMod , only : rsnbl_math_prec
-   use EDTypesMod        , only : ed_cohort_type
-   use EDTypesMod        , only : ed_patch_type
+   use FatesCohortMod    , only : fates_cohort_type
+   use FatesPatchMod     , only : fates_patch_type
    use EDTypesMod        , only : site_massbal_type
    use EDTypesMod        , only : site_fluxdiags_type
    use FatesLitterMod    , only : ncwd
@@ -25,9 +25,9 @@ module EDLoggingMortalityMod
    use FatesLitterMod    , only : adjust_SF_CWD_frac
    use EDTypesMod        , only : ed_site_type
    use EDTypesMod        , only : ed_resources_management_type
-   use EDTypesMod        , only : dtype_ilog
-   use EDTypesMod        , only : dtype_ifall
-   use EDTypesMod        , only : dtype_ifire
+   use FatesConstantsMod , only : dtype_ilog
+   use FatesConstantsMod , only : dtype_ifall
+   use FatesConstantsMod , only : dtype_ifire
    use EDPftvarcon       , only : EDPftvarcon_inst
    use EDPftvarcon       , only : GetDecompyFrac
    use PRTParametersMod  , only : prt_params
@@ -461,8 +461,8 @@ contains
      real(r8), intent(out) :: harvestable_forest_c(hlm_num_lu_harvest_cats)
 
      ! Local Variables
-     type(ed_patch_type), pointer  :: currentPatch
-     type(ed_cohort_type), pointer :: currentCohort
+     type(fates_patch_type), pointer  :: currentPatch
+     type(fates_cohort_type), pointer :: currentCohort
      real(r8) :: harvestable_patch_c     ! patch level total carbon available for harvest, kgC site-1
      real(r8) :: harvestable_cohort_c    ! cohort level total carbon available for harvest, kgC site-1
      real(r8) :: sapw_m      ! Biomass of sap wood
@@ -717,22 +717,21 @@ contains
       use SFParamsMod,       only : SF_val_cwd_frac
       use EDtypesMod,        only : area
       use EDtypesMod,        only : ed_site_type
-      use EDtypesMod,        only : ed_patch_type
-      use EDtypesMod,        only : ed_cohort_type
+      use FatesCohortMod,    only : fates_cohort_type
       use FatesConstantsMod, only : rsnbl_math_prec
       use FatesAllometryMod, only : carea_allom
 
 
       ! !ARGUMENTS:
       type(ed_site_type)  , intent(inout), target  :: currentSite 
-      type(ed_patch_type) , intent(inout), target  :: currentPatch
-      type(ed_patch_type) , intent(inout), target  :: newPatch
+      type(fates_patch_type) , intent(inout), target  :: currentPatch
+      type(fates_patch_type) , intent(inout), target  :: newPatch
       real(r8)            , intent(in)             :: patch_site_areadis
       type(bc_in_type)    , intent(in)             :: bc_in
 
 
       !LOCAL VARIABLES:
-      type(ed_cohort_type), pointer      :: currentCohort
+      type(fates_cohort_type), pointer      :: currentCohort
       type(site_massbal_type), pointer   :: site_mass
       type(site_fluxdiags_type), pointer :: flux_diags
       type(litter_type),pointer          :: new_litt

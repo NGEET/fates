@@ -9,6 +9,7 @@ module EDParamsMod
    use FatesParametersInterface, only : param_string_length
    use FatesGlobals        , only : fates_log
    use FatesGlobals        , only : endrun => fates_endrun
+   use FatesConstantsMod,    only : fates_unset_r8
 
    ! CIME Globals
    use shr_log_mod         , only : errMsg => shr_log_errMsg
@@ -85,6 +86,50 @@ module EDParamsMod
    ! empirical curvature parameters for ac, aj photosynthesis co-limitation, c3 and c4 plants respectively
    real(r8),protected,public  :: theta_cj_c3    ! Empirical curvature parameter for ac, aj photosynthesis co-limitation in c3 plants
    real(r8),protected,public  :: theta_cj_c4    ! Empirical curvature parameter for ac, aj photosynthesis co-limitation in c4 plants
+
+     ! Global identifier of how nutrients interact with the host land model
+  ! either they are fully coupled, or they generate uptake rates synthetically
+  ! in prescribed mode. In the latter, there is both NO mass removed from the HLM's soil
+  ! BGC N and P pools, and there is also none removed.
+
+   integer, public :: n_uptake_mode
+   integer, public :: p_uptake_mode
+
+   integer, parameter, public :: nclmax = 2                ! Maximum number of canopy layers
+  
+   ! parameters that govern the VAI (LAI+SAI) bins used in radiative transfer code
+   integer, parameter, public :: nlevleaf = 30   ! number of leaf+stem layers in each canopy layer
+
+   real(r8), public :: dinc_vai(nlevleaf)   = fates_unset_r8 ! VAI bin widths array
+   real(r8), public :: dlower_vai(nlevleaf) = fates_unset_r8 ! lower edges of VAI bins
+ 
+     ! TODO: we use this cp_maxSWb only because we have a static array q(size=2) of
+  ! land-ice abledo for vis and nir.  This should be a parameter, which would
+  ! get us on track to start using multi-spectral or hyper-spectral (RGK 02-2017)
+
+  integer, parameter, public :: maxSWb = 2      ! maximum number of broad-bands in the
+  ! shortwave spectrum cp_numSWb <= cp_maxSWb
+  ! this is just for scratch-array purposes
+  ! if cp_numSWb is larger than this value
+  ! simply bump this number up as needed
+
+integer, parameter, public :: ivis = 1        ! This is the array index for short-wave
+  ! radiation in the visible spectrum, as expected
+  ! in boundary condition files and parameter
+  ! files.  This will be compared with 
+  ! the HLM's expectation in FatesInterfaceMod
+integer, parameter, public :: inir = 2        ! This is the array index for short-wave
+  ! radiation in the near-infrared spectrum, as expected
+  ! in boundary condition files and parameter
+  ! files.  This will be compared with 
+  ! the HLM's expectation in FatesInterfaceMod
+
+integer, parameter, public :: ipar = ivis     ! The photosynthetically active band
+  ! can be approximated to be equal to the visible band
+
+
+
+integer, parameter, public :: maxpft = 16      ! maximum number of PFTs allowed
    
    real(r8),protected,public  :: q10_mr     ! Q10 for respiration rate (for soil fragmenation and plant respiration)    (unitless)
    real(r8),protected,public  :: q10_froz   ! Q10 for frozen-soil respiration rates (for soil fragmentation)            (unitless)

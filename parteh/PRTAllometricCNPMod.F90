@@ -61,11 +61,12 @@ module PRTAllometricCNPMod
   use FatesConstantsMod   , only : TRS_no_seedling_dyn
   use FatesConstantsMod   , only : min_max_dbh_for_trees
   use PRTParametersMod    , only : prt_params
-  use EDTypesMod          , only : leaves_on,leaves_off,leaves_shedding
-  use EDTypesMod        , only : p_uptake_mode
-  use EDTypesMod        , only : n_uptake_mode
-  use FatesConstantsMod , only : prescribed_p_uptake
-  use FatesConstantsMod , only : prescribed_n_uptake
+  use FatesConstantsMod   , only : leaves_on,leaves_off
+  use FatesConstantsMod   , only : leaves_shedding
+  use EDParamsMod         , only : p_uptake_mode
+  use EDParamsMod         , only : n_uptake_mode
+  use FatesConstantsMod   , only : prescribed_p_uptake
+  use FatesConstantsMod   , only : prescribed_n_uptake
   use EDPftvarcon, only : EDPftvarcon_inst
   use EDParamsMod       , only : regeneration_model
 
@@ -725,9 +726,6 @@ contains
   ! =====================================================================================
   
   subroutine CNPAdjustFRootTargets(this, target_c, target_dcdd)
-
-    use FatesInterfaceTypesMod        , only : hlm_day_of_year
-    use FatesInterfaceTypesMod        , only : hlm_current_year
 
     class(cnp_allom_prt_vartypes) :: this
     real(r8)                      :: target_c(:)
@@ -2556,7 +2554,5 @@ contains
      
    return
  end subroutine EstimateGrowthNC
-
-   
 
 end module PRTAllometricCNPMod
