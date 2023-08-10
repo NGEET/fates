@@ -743,9 +743,9 @@ contains
     enddo
 
 
-    ! Before we start messing with the patch areas, and before we start removing
-    ! trees, this is a good time to pass fragmentation litter fluxes and
-    ! plant-to-soil fluxes (such as efflux and fixation fluxes)
+    ! RGK: This call is unecessary for CLM coupling. I believe we
+    ! can remove it completely if/when this call is added in ELM to 
+    ! subroutine UpdateLitterFluxes(this,bounds_clump) in elmfates_interfaceMod.F90
 
     call FluxIntoLitterPools(currentsite, bc_in, bc_out)
 

@@ -731,12 +731,6 @@ contains
           flux_lig_si => bc_out%litt_flux_lig_p_si(:)
        end select
 
-       ! These lines are for testing and should be removed
-       ! when the fates bgc pathway PR is integrated
-       !end do
-       !return
-       !do el = 1, num_elements
-       
        currentPatch => csite%oldest_patch
        do while (associated(currentPatch))
 
