@@ -37,7 +37,7 @@ module FatesConstantsMod
   integer, parameter, public :: rangeland = 3
   integer, parameter, public :: pastureland = 4
   integer, parameter, public :: cropland = 5
-  logical, parameter, dimension(n_landuse_cats), public :: is_crop = [.false.,.false.,.false.,.false.,.true.]
+  logical, parameter, dimension(0:n_landuse_cats), public :: is_crop = [.false., .false.,.false.,.false.,.false.,.true.]
 
   ! Bareground nocomp land use label
   integer, parameter, public :: nocomp_bareground_land = 0  ! not a real land use type, only for labeling any bare-ground nocomp patches

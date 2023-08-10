@@ -24,6 +24,7 @@ module EDPhysiologyMod
   use FatesConstantsMod, only    : r8 => fates_r8
   use FatesConstantsMod, only    : nearzero
   use FatesConstantsMod, only    : nocomp_bareground
+  use FatesConstantsMod, only    : is_crop
   use EDPftvarcon      , only    : EDPftvarcon_inst
   use PRTParametersMod , only    : prt_params
   use EDPftvarcon      , only    : GetDecompyFrac
@@ -120,7 +121,8 @@ module EDPhysiologyMod
   use FatesParameterDerivedMod, only : param_derived
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use PRTInitParamsFatesMod, only : NewRecruitTotalStoichiometry
-  
+  use FatesInterfaceTypesMod    , only : hlm_use_luh
+
   implicit none
   private
 
@@ -2022,6 +2024,7 @@ contains
     real(r8) :: mass_demand ! Total mass demanded by the plant to achieve the stoichiometric targets
     ! of all the organs in the recruits. Used for both [kg per plant] and [kg per cohort]
     real(r8) :: stem_drop_fraction
+    logical  :: use_this_pft
 
     !----------------------------------------------------------------------
 
@@ -2031,13 +2034,27 @@ contains
 
     do ft = 1,numpft
 
-       ! The following if block is for the prescribed biogeography and/or nocomp modes.
+       ! The following if block is for the prescribed biogeography and/or nocomp modes and/or crop land use types
        ! Since currentSite%use_this_pft is a site-level quantity and thus only limits whether a given PFT
        ! is permitted on a given gridcell or not, it applies to the prescribed biogeography case only.
        ! If nocomp is enabled, then we must determine whether a given PFT is allowed on a given patch or not.
+       ! Whether or not nocomp or prescribed biogeography is enabled, if land use change is enabled, then we only want to
+       ! allow crop PFTs on patches with crop land use types
 
+       use_this_pft = .false.
        if(currentSite%use_this_pft(ft).eq.itrue &
             .and. ((hlm_use_nocomp .eq. ifalse) .or. (ft .eq. currentPatch%nocomp_pft_label)))then
+          use_this_pft = .true.
+       end if
+
+       if ((hlm_use_luh .eq. itrue) .and. (is_crop(currentPatch%land_use_label))) then
+          if ( EDPftvarcon_inst%crop_lu_pft_vector(currentPatch%land_use_label) .eq. ft ) then
+             use_this_pft = .true.
+          else
+             use_this_pft = .false.
+       end if
+
+       use_this_pft_if: if(use_this_pft) then
 
           temp_cohort%canopy_trim = init_recruit_trim
           temp_cohort%pft         = ft
@@ -2284,7 +2301,7 @@ contains
 
 
         endif any_recruits
-       endif !use_this_pft
+       endif use_this_pft_if
     enddo  !pft loop
 
     deallocate(temp_cohort, stat=istat, errmsg=smsg)
