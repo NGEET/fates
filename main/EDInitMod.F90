@@ -415,12 +415,17 @@ contains
                 ! where pft_areafrac_lu is the area of land in each HLM PFT and land use type (from surface dataset)
                 ! hlm_pft_map is the area of that land in each FATES PFT (from param file)
                 do i_landusetype = 1, n_landuse_cats
-                   do hlm_pft = 1,fates_hlm_num_natpfts
-                      do fates_pft = 1,numpft ! loop round all fates pfts for all hlm pfts
-                         sites(s)%area_pft(fates_pft,i_landusetype) = sites(s)%area_pft(fates_pft,i_landusetype) + &
-                              EDPftvarcon_inst%hlm_pft_map(fates_pft,hlm_pft) * bc_in(s)%pft_areafrac_lu(hlm_pft,i_landusetype)
-                      end do
-                   end do !hlm_pft                   
+                   if (.not. is_crop(i_landusetype)) then
+                      do hlm_pft = 1,fates_hlm_num_natpfts
+                         do fates_pft = 1,numpft ! loop round all fates pfts for all hlm pfts
+                            sites(s)%area_pft(fates_pft,i_landusetype) = sites(s)%area_pft(fates_pft,i_landusetype) + &
+                                 EDPftvarcon_inst%hlm_pft_map(fates_pft,hlm_pft) * bc_in(s)%pft_areafrac_lu(hlm_pft,i_landusetype)
+                         end do
+                      end do !hlm_pft
+                   else
+                      ! for crops, we need to use different logic because the bc_in(s)%pft_areafrac_lu() information only exists for natural PFTs
+                      sites(s)%area_pft(EDPftvarcon_inst%crop_lu_pft_vector(i_landusetype),i_landusetype) = 1._r8
+                   endif
                 end do
 
                 sites(s)%area_bareground = bc_in(s)%baregroundfrac * area

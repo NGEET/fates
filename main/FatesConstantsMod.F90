@@ -30,13 +30,14 @@ module FatesConstantsMod
   ! Integer equivalent of false (in case come compilers dont auto convert)
   integer, parameter, public :: ifalse = 0
 
-  ! Labels for patch disturbance history
+  ! Labels for patch land use type information
   integer, parameter, public :: n_landuse_cats = 5
   integer, parameter, public :: primaryland = 1
   integer, parameter, public :: secondaryland = 2
   integer, parameter, public :: rangeland = 3
   integer, parameter, public :: pastureland = 4
   integer, parameter, public :: cropland = 5
+  logical, parameter, dimension(n_landuse_cats), public :: is_crop = [.false.,.false.,.false.,.false.,.true.]
 
   ! Bareground nocomp land use label
   integer, parameter, public :: nocomp_bareground_land = 0  ! not a real land use type, only for labeling any bare-ground nocomp patches
