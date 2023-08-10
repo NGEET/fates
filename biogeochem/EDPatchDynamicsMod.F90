@@ -714,18 +714,18 @@ contains
                                ! correct boundary condition fields
                                nc%prt => null()
                                call InitPRTObject(nc%prt)
-                               call InitPRTBoundaryConditions(nc)
+                               call nc%InitPRTBoundaryConditions()
 
                                !  (Keeping as an example)
                                ! Allocate running mean functions
                                !allocate(nc%tveg_lpa)
                                !call nc%tveg_lpa%InitRMean(ema_lpa,init_value=new_patch%tveg_lpa%GetMean())
 
-                               call zero_cohort(nc)
+                               call nc%ZeroValues()
 
                                ! nc is the new cohort that goes in the disturbed patch (new_patch)... currentCohort
                                ! is the curent cohort that stays in the donor patch (currentPatch)
-                               call copy_cohort(currentCohort, nc)
+                               call currentCohort%Copy(nc)
 
                                !this is the case as the new patch probably doesn't have a closed canopy, and
                                ! even if it does, that will be sorted out in canopy_structure.
