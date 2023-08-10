@@ -38,6 +38,7 @@ module FatesParametersInterface
   character(len=*), parameter, public :: dimension_name_hlm_pftno = 'fates_hlm_pftno'
   character(len=*), parameter, public :: dimension_name_history_damage_bins = 'fates_history_damage_bins'
   character(len=*), parameter, public :: dimension_name_damage = 'fates_damage_class'
+  character(len=*), parameter, public :: dimension_name_landuse = 'fates_landuseclass'
   
   ! Dimensions in the host namespace:
   character(len=*), parameter, public :: dimension_name_host_allpfts = 'allpfts'
