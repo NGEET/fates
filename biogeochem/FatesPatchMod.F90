@@ -3,7 +3,8 @@ module FatesPatchMod
   use FatesConstantsMod,   only : r8 => fates_r8
   use FatesConstantsMod,   only : fates_unset_r8
   use FatesConstantsMod,   only : fates_unset_int
-  use FatesConstantsMod,   only : primaryforest, secondaryforest
+  use FatesConstantsMod,   only : primaryland, secondaryland
+  use FatesConstantsMod,   only : n_landuse_cats
   use FatesConstantsMod,   only : TRS_regeneration
   use FatesGlobals,        only : fates_log
   use FatesGlobals,        only : endrun => fates_endrun
@@ -592,7 +593,7 @@ module FatesPatchMod
 
       ! assign anthropgenic disturbance category and label
       this%land_use_label = label
-      if (label .eq. secondaryforest) then
+      if (label .eq. secondaryland) then
         this%age_since_anthro_disturbance = age
       else
         this%age_since_anthro_disturbance = fates_unset_r8

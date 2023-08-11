@@ -29,13 +29,13 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : site_fluxdiags_type
   use EDTypesMod           , only : min_patch_area
   use EDTypesMod           , only : min_patch_area_forced
-  use EDTypesMod           , only : dtype_ilandusechange
   use EDParamsMod          , only : nclmax
   use EDParamsMod          , only : regeneration_model
   use FatesInterfaceTypesMod, only : numpft
   use FatesConstantsMod     , only : dtype_ifall
   use FatesConstantsMod     , only : dtype_ilog
   use FatesConstantsMod     , only : dtype_ifire
+  use FatesConstantsMod     , only : dtype_ilandusechange
   use FatesConstantsMod    , only : ican_upper
   use PRTGenericMod        , only : num_elements
   use PRTGenericMod        , only : element_list
@@ -577,7 +577,7 @@ contains
                    allocate(new_patch)
 
                    call new_patch%Create(age, site_areadis, i_landusechange_receiverpatchlabel, i_nocomp_pft, &
-                                         hlm_numSWb, numpft, sites(s)%nlevsoil, hlm_current_tod,              &
+                                         hlm_numSWb, numpft, currentSite%nlevsoil, hlm_current_tod,              &
                                          regeneration_model)
 
                    ! Initialize the litter pools to zero, these
@@ -1157,8 +1157,8 @@ contains
                                      new_patch%shortest => nc
                                      nc%shorter => null()
                                   endif
-                                  nc%patchptr => new_patch
-                                  call insert_cohort(nc, new_patch%tallest, new_patch%shortest, &
+                                  !nc%patchptr => new_patch
+                                  call insert_cohort(new_patch, nc, new_patch%tallest, new_patch%shortest, &
                                        tnull, snull, storebigcohort, storesmallcohort)
 
                                   new_patch%tallest  => storebigcohort
@@ -1166,7 +1166,7 @@ contains
                                else
 
                                   ! Get rid of the new temporary cohort
-                                  call DeallocateCohort(nc)
+                                  call nc%FreeMemory()
                                   deallocate(nc, stat=istat, errmsg=smsg)
                                   if (istat/=0) then
                                      write(fates_log(),*) 'dealloc005: fail on deallocate(nc):'//trim(smsg)
@@ -2140,17 +2140,17 @@ contains
     use SFParamsMod,          only : SF_VAL_CWD_FRAC
     !
     ! !ARGUMENTS:
-    type(ed_site_type)  , intent(inout), target :: currentSite
-    type(ed_patch_type) , intent(inout), target :: currentPatch   ! Donor Patch
-    type(ed_patch_type) , intent(inout), target :: newPatch   ! New Patch
-    real(r8)            , intent(in)            :: patch_site_areadis ! Area being donated
-    type(bc_in_type)    , intent(in)            :: bc_in
-    logical             , intent(in)            :: clearing_matrix_element ! whether or not to clear vegetation
+    type(ed_site_type)     , intent(inout), target :: currentSite
+    type(fates_patch_type) , intent(inout), target :: currentPatch   ! Donor Patch
+    type(fates_patch_type) , intent(inout), target :: newPatch   ! New Patch
+    real(r8)               , intent(in)            :: patch_site_areadis ! Area being donated
+    type(bc_in_type)       , intent(in)            :: bc_in
+    logical                , intent(in)            :: clearing_matrix_element ! whether or not to clear vegetation
 
     !
     ! !LOCAL VARIABLES:
 
-    type(ed_cohort_type), pointer      :: currentCohort
+    type(fates_cohort_type), pointer      :: currentCohort
     type(litter_type), pointer         :: new_litt
     type(litter_type), pointer         :: curr_litt
     type(site_massbal_type), pointer   :: site_mass

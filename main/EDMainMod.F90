@@ -470,7 +470,7 @@ contains
              mean_temp = currentPatch%tveg24%GetMean()
              call Mortality_Derivative(currentSite, currentCohort, bc_in,      &
                currentPatch%btran_ft, mean_temp,                               &
-               currentPatch%anthro_disturbance_label,                          &
+               currentPatch%land_use_label,                                    &
                currentPatch%age_since_anthro_disturbance, frac_site_primary,   &
                  harvestable_forest_c, harvest_tag)
 
