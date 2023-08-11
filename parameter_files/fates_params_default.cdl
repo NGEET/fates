@@ -591,6 +591,9 @@ variables:
 	double fates_frag_cwd_frac(fates_NCWD) ;
 		fates_frag_cwd_frac:units = "fraction" ;
 		fates_frag_cwd_frac:long_name = "fraction of woody (bdead+bsw) biomass destined for CWD pool" ;
+	double fates_landuse_crop_lu_pft_vector(fates_landuseclass) ;
+		fates_landuse_crop_lu_pft_vector:units = "NA" ;
+		fates_landuse_crop_lu_pft_vector:long_name = "What FATES PFT index to use on a given crop land-use type? (dummy value of -999 for non-crop types)" ;
 	double fates_canopy_closure_thresh ;
 		fates_canopy_closure_thresh:units = "unitless" ;
 		fates_canopy_closure_thresh:long_name = "tree canopy coverage at which crown area allometry changes from savanna to forest value" ;
@@ -1436,6 +1439,8 @@ data:
  fates_frag_maxdecomp = 0.52, 0.383, 0.383, 0.19, 1, 999 ;
 
  fates_frag_cwd_frac = 0.045, 0.075, 0.21, 0.67 ;
+
+ fates_landuse_crop_lu_pft_vector = -999, -999, -999, -999, 11 ;
 
  fates_canopy_closure_thresh = 0.8 ;
 

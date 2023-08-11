@@ -86,6 +86,7 @@ module EDParamsMod
    real(r8),protected,allocatable,public :: ED_val_history_height_bin_edges(:)
    real(r8),protected,allocatable,public :: ED_val_history_coageclass_bin_edges(:)
    real(r8),protected,allocatable,public :: ED_val_history_damage_bin_edges(:)
+   real(r8),protected,allocatable,public :: crop_lu_pft_vector(:)
    
    ! Switch that defines the current pressure-volume and pressure-conductivity model
    ! to be used at each node (compartment/organ)
@@ -133,6 +134,7 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_history_height_bin_edges= "fates_history_height_bin_edges"
    character(len=param_string_length),parameter,public :: ED_name_history_coageclass_bin_edges = "fates_history_coageclass_bin_edges"
    character(len=param_string_length),parameter,public :: ED_name_history_damage_bin_edges = "fates_history_damage_bin_edges"
+   character(len=param_string_length),parameter,public :: ED_name_crop_lu_pft_vector = "fates_landuse_crop_lu_pft_vector"
 
    ! Hydraulics Control Parameters (ONLY RELEVANT WHEN USE_FATES_HYDR = TRUE)
    ! ----------------------------------------------------------------------------------------------
@@ -341,7 +343,7 @@ contains
     use FatesParametersInterface, only : dimension_name_history_size_bins, dimension_name_history_age_bins
     use FatesParametersInterface, only : dimension_name_history_height_bins, dimension_name_hydr_organs
     use FatesParametersInterface, only : dimension_name_history_coage_bins, dimension_name_history_damage_bins
-    use FatesParametersInterface, only : dimension_shape_scalar
+    use FatesParametersInterface, only : dimension_shape_scalar, dimension_name_landuse
 
 
     implicit none
@@ -355,6 +357,7 @@ contains
     character(len=param_string_length), parameter :: dim_names_coageclass(1) = (/dimension_name_history_coage_bins/)
     character(len=param_string_length), parameter :: dim_names_hydro_organs(1) = (/dimension_name_hydr_organs/)
     character(len=param_string_length), parameter :: dim_names_damageclass(1)= (/dimension_name_history_damage_bins/)
+    character(len=param_string_length), parameter :: dim_names_landuse(1)= (/dimension_name_landuse/)
     
     call FatesParamsInit()
 
@@ -557,6 +560,9 @@ contains
 
     call fates_params%RegisterParameter(name=ED_name_history_damage_bin_edges, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names_damageclass)
+
+    call fates_params%RegisterParameter(name=ED_name_crop_lu_pft_vector, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_landuse)
 
   end subroutine FatesRegisterParams
 
@@ -786,6 +792,9 @@ contains
 
     call fates_params%RetrieveParameterAllocate(name=ED_name_history_damage_bin_edges, &
          data=ED_val_history_damage_bin_edges)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_crop_lu_pft_vector, &
+         data=crop_lu_pft_vector)
 
     call fates_params%RetrieveParameterAllocate(name=ED_name_hydr_htftype_node, &
          data=hydr_htftype_real)

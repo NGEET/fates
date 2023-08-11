@@ -1984,7 +1984,7 @@ contains
     ! !USES:
     use FatesInterfaceTypesMod, only : hlm_use_ed_prescribed_phys
     use FatesLitterMod   , only : ncwd
-    
+    use EDParamsMod           , only : crop_lu_pft_vector     
     !
     ! !ARGUMENTS
     type(ed_site_type), intent(inout)  :: currentSite
@@ -2048,10 +2048,11 @@ contains
        end if
 
        if ((hlm_use_luh .eq. itrue) .and. (is_crop(currentPatch%land_use_label))) then
-          if ( EDPftvarcon_inst%crop_lu_pft_vector(currentPatch%land_use_label) .eq. ft ) then
+          if ( crop_lu_pft_vector(currentPatch%land_use_label) .eq. ft ) then
              use_this_pft = .true.
           else
              use_this_pft = .false.
+          end if
        end if
 
        use_this_pft_if: if(use_this_pft) then
