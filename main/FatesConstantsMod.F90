@@ -30,10 +30,56 @@ module FatesConstantsMod
   ! Integer equivalent of false (in case come compilers dont auto convert)
   integer, parameter, public :: ifalse = 0
 
+  ! the parameter file may determine that fewer
+  ! are used, but this helps allocate scratch
+  ! space and output arrays.
+
+  integer, parameter, public :: n_rad_stream_types = 2    ! The number of radiation streams used (direct/diffuse)
+
+  integer , parameter, public       :: N_DBH_BINS = 6  ! no. of dbh bins used when comparing patches
+  real(fates_r8), parameter, public :: patchfusion_dbhbin_loweredges(N_DBH_BINS) = &
+  (/0._fates_r8, 5._fates_r8, 20._fates_r8, 50._fates_r8, 100._fates_r8, 150._fates_r8/) ! array of bin lower edges for comparing patches
+
+
+  integer , parameter, public :: N_DIST_TYPES = 3 ! Disturbance Modes 1) tree-fall, 2) fire, 3) logging
+  integer , parameter, public :: dtype_ifall  = 1          ! index for naturally occuring tree-fall generated event
+  integer , parameter, public :: dtype_ifire  = 2          ! index for fire generated disturbance event
+  integer , parameter, public :: dtype_ilog   = 3          ! index for logging generated disturbance event
+
   ! Labels for patch disturbance history
   integer, parameter, public :: n_anthro_disturbance_categories = 2
   integer, parameter, public :: primaryforest = 1
   integer, parameter, public :: secondaryforest = 2
+
+
+  integer, parameter, public :: leaves_on  = 2  ! Flag specifying that a deciduous plant has leaves
+                                                ! and should be allocating to them as well
+  integer, parameter, public :: leaves_off = 1  ! Flag specifying that a deciduous plant has dropped
+                                                ! its leaves and should not be trying to allocate
+                                                ! towards any growth.
+  integer, parameter, public :: leaves_shedding = 3  ! Flag specifying that a deciduous plant has leaves
+                                                     ! but is shedding them (partial shedding). This plant
+                                                     ! should not allocate carbon towards growth or 
+                                                     ! reproduction.
+integer, parameter, public :: ihard_stress_decid = 1 ! If the PFT is stress (drought) deciduous,
+                                                     !  this flag is used to tell that the PFT
+                                                     !  is a "hard" deciduous (i.e., the plant
+                                                     !  has only two statuses, the plant either
+                                                     !  sheds all leaves when it's time, or seeks
+                                                     !  to flush the leaves back to allometry 
+                                                     !  when conditions improve.
+integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (drought) deciduous,
+                                                     !  this flag is used to tell that the PFT
+                                                     !  is a semi-deciduous (i.e., the plant
+                                                     !  can downregulate the amount of leaves
+                                                     !  relative to the allometry based on 
+                                                     !  soil moisture conditions. It can still
+                                                     !  shed all leaves if conditions are very
+                                                     !  dry.
+
+  integer, parameter, public :: ican_upper = 1  ! nominal index for the upper canopy
+  integer, parameter, public :: ican_ustory = 2 ! nominal index for diagnostics that refer to understory layers 
+                                                !  (all layers that are not the top canopy layer)
 
   ! Bareground label for no competition mode
   integer, parameter, public :: nocomp_bareground = 0

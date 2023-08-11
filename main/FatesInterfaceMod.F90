@@ -10,8 +10,8 @@ module FatesInterfaceMod
    ! ------------------------------------------------------------------------------------
 
    use EDTypesMod                , only : ed_site_type
-   use EDTypesMod                , only : dinc_vai
-   use EDTypesMod                , only : dlower_vai
+   use EDParamsMod                , only : dinc_vai
+   use EDParamsMod                , only : dlower_vai
    use EDParamsMod               , only : ED_val_vai_top_bin_width
    use EDParamsMod               , only : ED_val_vai_width_increase_factor
    use EDParamsMod               , only : ED_val_history_damage_bin_edges
@@ -20,18 +20,18 @@ module FatesInterfaceMod
    use EDParamsMod               , only : maxpatch_secondary
    use EDParamsMod               , only : max_cohort_per_patch
    use EDParamsMod               , only : regeneration_model
-   use EDTypesMod                , only : maxSWb
-   use EDTypesMod                , only : ivis
-   use EDTypesMod                , only : inir
-   use EDTypesMod                , only : nclmax
-   use EDTypesMod                , only : nlevleaf
-   use EDTypesMod                , only : maxpft
+   use EDParamsMod               , only : maxSWb
+   use EDParamsMod               , only : ivis
+   use EDParamsMod               , only : inir
+   use EDParamsMod               , only : nclmax
+   use EDParamsMod               , only : nlevleaf
+   use EDParamsMod               , only : maxpft
    use EDTypesMod                , only : do_fates_salinity
    use EDTypesMod                , only : numWaterMem
    use EDTypesMod                , only : numlevsoil_max
    use EDTypesMod                , only : ed_site_type
-   use EDTypesMod                , only : ed_patch_type
-   use EDTypesMod                , only : ed_cohort_type
+   use FatesPatchMod             , only : fates_patch_type
+   use FatesCohortMod            , only : fates_cohort_type
    use EDTypesMod                , only : area_inv
    use EDTypesMod                , only : num_vegtemp_mem
    use FatesConstantsMod         , only : r8 => fates_r8
@@ -65,8 +65,8 @@ module FatesInterfaceMod
    use EDParamsMod               , only : ED_val_history_height_bin_edges
    use EDParamsMod               , only : ED_val_history_coageclass_bin_edges
    use CLMFatesParamInterfaceMod , only : FatesReadParameters
-   use EDTypesMod                , only : p_uptake_mode
-   use EDTypesMod                , only : n_uptake_mode
+   use EDParamsMod                , only : p_uptake_mode
+   use EDParamsMod                , only : n_uptake_mode
    use EDTypesMod                , only : ed_site_type
    use FatesConstantsMod         , only : prescribed_p_uptake
    use FatesConstantsMod         , only : prescribed_n_uptake
@@ -107,6 +107,7 @@ module FatesInterfaceMod
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
    use shr_infnan_mod            , only : nan => shr_infnan_nan, assignment(=)
+   use shr_kind_mod              , only : SHR_KIND_CL
 
    ! Just use everything from FatesInterfaceTypesMod, this is
    ! its sister code
@@ -737,10 +738,10 @@ contains
 
       implicit none
       
-      logical,intent(in) :: use_fates    ! Is fates turned on?
-      integer,intent(in) :: surf_numpft  ! Number of PFTs in surface dataset
-      integer,intent(in) :: surf_numcft  ! Number of CFTs in surface dataset
-
+      logical,                    intent(in) :: use_fates    ! Is fates turned on?
+      integer,                    intent(in) :: surf_numpft  ! Number of PFTs in surface dataset
+      integer,                    intent(in) :: surf_numcft  ! Number of CFTs in surface dataset
+  
       integer :: fates_numpft  ! Number of PFTs tracked in FATES
       
       if (use_fates) then
@@ -1075,9 +1076,9 @@ contains
     
     subroutine fates_history_maps
        
-       use EDTypesMod, only : NFSC
-       use EDTypesMod, only : nclmax
-       use EDTypesMod, only : nlevleaf
+       use FatesLitterMod, only : NFSC
+       use EDParamsMod, only : nclmax
+       use EDParamsMod, only : nlevleaf
        use EDParamsMod, only : ED_val_history_sizeclass_bin_edges
        use EDParamsMod, only : ED_val_history_ageclass_bin_edges
        use EDParamsMod, only : ED_val_history_height_bin_edges
@@ -1960,8 +1961,8 @@ contains
      type(ed_site_type), intent(inout) :: sites(:)
      type(bc_in_type), intent(in)      :: bc_in(:)
      
-     type(ed_patch_type),  pointer :: cpatch
-     type(ed_cohort_type), pointer :: ccohort
+     type(fates_patch_type),  pointer :: cpatch
+     type(fates_cohort_type), pointer :: ccohort
      integer :: s, ifp, io_si, pft 
      real(r8) :: site_npp               ! Site level NPP gC/m2/year
      real(r8) :: new_seedling_layer_par ! seedling layer par in the current timestep
@@ -2081,7 +2082,7 @@ subroutine SeedlingParPatch(cpatch, &
   ! of those two (which should sum to unity).
 
   ! Arguments
-  type(ed_patch_type)   :: cpatch             ! the current patch
+  type(fates_patch_type)   :: cpatch             ! the current patch
   real(r8), intent(in)  :: atm_par            ! direct+diffuse PAR at canopy top [W/m2]
   real(r8), intent(out) :: seedling_par_high  ! High intensity PAR for seedlings [W/m2]
   real(r8), intent(out) :: par_high_frac      ! Area fraction with high intensity
