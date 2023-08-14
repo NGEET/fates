@@ -10,8 +10,9 @@ module EDSurfaceRadiationMod
 
 #include "shr_assert.h"
 
-  use EDTypesMod        , only : ed_patch_type, ed_site_type
-  use EDTypesMod        , only : maxpft
+  use EDTypesMod        , only : ed_site_type
+  use FatesPatchMod,      only : fates_patch_type
+  use EDParamsMod,        only : maxpft
   use FatesConstantsMod , only : r8 => fates_r8
   use FatesConstantsMod , only : itrue
   use FatesConstantsMod , only : pi_const
@@ -20,18 +21,19 @@ module EDSurfaceRadiationMod
   use FatesInterfaceTypesMod , only : bc_out_type
   use FatesInterfaceTypesMod , only : hlm_numSWb
   use FatesInterfaceTypesMod , only : numpft
-  use EDTypesMod        , only : maxSWb
-  use EDTypesMod        , only : nclmax
-  use EDTypesMod        , only : nlevleaf
+  use EDParamsMod        , only : maxSWb
+  use EDParamsMod        , only : nclmax
+  use EDParamsMod        , only : nlevleaf
   use EDTypesMod        , only : n_rad_stream_types
   use EDTypesMod        , only : idiffuse
   use EDTypesMod        , only : idirect
-  use EDTypesMod        , only : ivis
-  use EDTypesMod        , only : inir
-  use EDTypesMod        , only : ipar
+  use EDParamsMod        , only : ivis
+  use EDParamsMod        , only : inir
+  use EDParamsMod        , only : ipar
   use EDCanopyStructureMod, only: calc_areaindex
   use FatesGlobals      , only : fates_log
   use FatesGlobals, only      : endrun => fates_endrun
+  use EDPftvarcon,        only : EDPftvarcon_inst
 
   ! CIME globals
   use shr_log_mod       , only : errMsg => shr_log_errMsg
@@ -65,14 +67,8 @@ contains
 
   subroutine ED_Norman_Radiation (nsites, sites, bc_in, bc_out )
     !
-
     !
-    ! !USES:
-    use EDPftvarcon       , only : EDPftvarcon_inst
-    use EDtypesMod        , only : ed_patch_type
-    use EDTypesMod        , only : ed_site_type
-
-
+ 
     ! !ARGUMENTS:
 
     integer,            intent(in)            :: nsites
@@ -85,7 +81,7 @@ contains
     integer :: s                                   ! site loop counter
     integer :: ifp                                 ! patch loop counter
     integer :: ib                                  ! radiation broad band counter
-    type(ed_patch_type), pointer :: currentPatch   ! patch pointer
+    type(fates_patch_type), pointer :: currentPatch   ! patch pointer
 
     !-----------------------------------------------------------------------
     ! -------------------------------------------------------------------------------
@@ -194,16 +190,11 @@ contains
     !
     ! -----------------------------------------------------------------------------------
 
-    !
-    ! !USES:
-    use EDPftvarcon       , only : EDPftvarcon_inst
-    use EDtypesMod        , only : ed_patch_type
-
     ! -----------------------------------------------------------------------------------
     ! !ARGUMENTS:
     ! -----------------------------------------------------------------------------------
 
-    type(ed_patch_type), intent(inout), target :: currentPatch
+    type(fates_patch_type), intent(inout), target :: currentPatch
     real(r8), intent(inout) :: albd_parb_out(hlm_numSWb)
     real(r8), intent(inout) :: albi_parb_out(hlm_numSWb)
     real(r8), intent(inout) :: fabd_parb_out(hlm_numSWb)
@@ -265,7 +256,6 @@ contains
     integer  :: fp,iv,s      ! array indices
     integer  :: ib               ! waveband number
     real(r8) :: cosz             ! 0.001 <= coszen <= 1.000
-    real(r8) :: chil
     real(r8) :: gdir
 
 
@@ -363,11 +353,7 @@ contains
     cosz = max(0.001_r8, currentPatch%solar_zenith_angle ) !copied from previous radiation code...
     do ft = 1,numpft
        sb = (90._r8 - (acos(cosz)*180._r8/pi_const)) * (pi_const / 180._r8)
-       chil = xl(ft) !min(max(xl(ft), -0.4_r8), 0.6_r8 )
-       if ( abs(chil) <= 0.01_r8) then
-          chil  = 0.01_r8
-       end if
-       phi1b(ft) = 0.5_r8 - 0.633_r8*chil - 0.330_r8*chil*chil
+       phi1b(ft) = 0.5_r8 - 0.633_r8*xl(ft) - 0.330_r8*xl(ft)*xl(ft)
        phi2b(ft) = 0.877_r8 * (1._r8 - 2._r8*phi1b(ft)) !0 = horiz leaves, 1 - vert leaves.
        gdir = phi1b(ft) + phi2b(ft) * sin(sb)
        !how much direct light penetrates a singleunit of lai?
@@ -1131,7 +1117,7 @@ subroutine ED_SunShadeFracs(nsites, sites,bc_in,bc_out)
 
 
   ! locals
-  type (ed_patch_type),pointer :: cpatch   ! c"urrent" patch
+  type (fates_patch_type),pointer :: cpatch   ! c"urrent" patch
   real(r8)          :: sunlai
   real(r8)          :: shalai
   real(r8)          :: elai

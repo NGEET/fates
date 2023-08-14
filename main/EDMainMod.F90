@@ -56,7 +56,6 @@ module EDMainMod
   use EDPhysiologyMod          , only : GenerateDamageAndLitterFluxes
   use FatesSoilBGCFluxMod      , only : FluxIntoLitterPools
   use FatesSoilBGCFluxMod      , only : EffluxIntoLitterPools
-  use EDCohortDynamicsMod      , only : UpdateCohortBioPhysRates
   use FatesSoilBGCFluxMod      , only : PrepNutrientAquisitionBCs
   use FatesSoilBGCFluxMod      , only : PrepCH4BCs
   use SFMainMod                , only : fire_model
@@ -65,8 +64,8 @@ module EDMainMod
   use FatesLitterMod           , only : litter_type
   use FatesLitterMod           , only : ncwd
   use EDtypesMod               , only : ed_site_type
-  use EDtypesMod               , only : ed_patch_type
-  use EDtypesMod               , only : ed_cohort_type
+  use FatesPatchMod            , only : fates_patch_type
+  use FatesCohortMod           , only : fates_cohort_type
   use EDTypesMod               , only : AREA
   use EDTypesMod               , only : site_massbal_type
   use PRTGenericMod            , only : num_elements
@@ -150,7 +149,7 @@ contains
     type(bc_out_type)       , intent(inout)          :: bc_out
     !
     ! !LOCAL VARIABLES:
-    type(ed_patch_type), pointer :: currentPatch
+    type(fates_patch_type), pointer :: currentPatch
     integer :: el                ! Loop counter for variables 
     integer :: do_patch_dynamics ! for some modes, we turn off patch dynamics
 
@@ -178,7 +177,7 @@ contains
     call IsItLoggingTime(hlm_masterproc,currentSite)
 
     ! Call a routine that identifies if damage should occur
-    call IsItDamageTime(hlm_masterproc, currentSite)
+    call IsItDamageTime(hlm_masterproc)
  
     !**************************************************************************
     ! Fire, growth, biogeochemistry.
@@ -324,9 +323,6 @@ contains
     !
     ! !USES:
     use FatesInterfaceTypesMod, only : hlm_num_lu_harvest_cats
-    use FatesInterfaceTypesMod, only : nlevdamage
-    use FatesAllometryMod    , only : bleaf
-    use FatesAllometryMod    , only : carea_allom
     use PRTGenericMod        , only : leaf_organ
     use PRTGenericMod        , only : repro_organ
     use PRTGenericMod        , only : sapw_organ
@@ -335,16 +331,8 @@ contains
     use PRTGenericMod        , only : fnrt_organ
     use FatesInterfaceTypesMod, only : hlm_use_cohort_age_tracking
     use FatesConstantsMod, only : itrue
-    use EDCohortDynamicsMod   , only : zero_cohort, copy_cohort, insert_cohort
-    use EDCohortDynamicsMod   , only : DeallocateCohort
-    use FatesPlantHydraulicsMod, only : InitHydrCohort
-    use EDCohortDynamicsMod   , only : InitPRTObject
-    use EDCohortDynamicsMod   , only : InitPRTBoundaryConditions
     use FatesConstantsMod     , only : nearzero
     use EDCanopyStructureMod  , only : canopy_structure
-    use PRTLossFluxesMod      , only : PRTDamageRecoveryFluxes
-    use PRTGenericMod         , only : max_nleafage
-    use PRTGenericMod         , only : prt_global
     
     ! !ARGUMENTS:
 
@@ -355,11 +343,11 @@ contains
     !
     ! !LOCAL VARIABLES:
     type(site_massbal_type), pointer :: site_cmass
-    type(ed_patch_type)  , pointer :: currentPatch
-    type(ed_cohort_type) , pointer :: currentCohort
-    type(ed_cohort_type) , pointer :: nc
-    type(ed_cohort_type) , pointer :: storesmallcohort
-    type(ed_cohort_type) , pointer :: storebigcohort
+    type(fates_patch_type)  , pointer :: currentPatch
+    type(fates_cohort_type) , pointer :: currentCohort
+    type(fates_cohort_type) , pointer :: nc
+    type(fates_cohort_type) , pointer :: storesmallcohort
+    type(fates_cohort_type) , pointer :: storebigcohort
     
     integer :: snull
     integer :: tnull 
@@ -375,6 +363,7 @@ contains
     logical  :: is_drought            ! logical for if the plant (site) is in a drought state
     real(r8) :: delta_dbh             ! correction for dbh
     real(r8) :: delta_hite            ! correction for hite
+    real(r8) :: mean_temp
 
     logical  :: newly_recovered       ! If the current loop is dealing with a newly created cohort, which
                                       ! was created because it is a clone of the previous cohort in
@@ -478,8 +467,12 @@ contains
 
 
              ! Calculate the mortality derivatives
-             call Mortality_Derivative( currentSite, currentCohort, bc_in, frac_site_primary, &
-                 harvestable_forest_c, harvest_tag )
+             mean_temp = currentPatch%tveg24%GetMean()
+             call Mortality_Derivative(currentSite, currentCohort, bc_in,      &
+               currentPatch%btran_ft, mean_temp,                               &
+               currentPatch%land_use_label,                                    &
+               currentPatch%age_since_anthro_disturbance, frac_site_primary,   &
+                 harvestable_forest_c, harvest_tag)
 
              ! -----------------------------------------------------------------------------
              ! Apply Plant Allocation and Reactive Transport
@@ -534,11 +527,12 @@ contains
 
              ! Conduct Maintenance Turnover (parteh)
              if(debug) call currentCohort%prt%CheckMassConservation(ft,3)
-             if(any(currentSite%dstatus == [phen_dstat_moiston,phen_dstat_timeon])) then
+             if(any(currentSite%dstatus(ft) == [phen_dstat_moiston,phen_dstat_timeon])) then
                 is_drought = .false.
              else
                 is_drought = .true.
              end if
+
              call PRTMaintTurnover(currentCohort%prt,ft,is_drought)
              
              ! -----------------------------------------------------------------------------------
@@ -645,7 +639,7 @@ contains
           ! mass in the different leaf age classes. Following growth
           ! and turnover, these proportions won't change again. This
           ! routine is also called following fusion
-          call UpdateCohortBioPhysRates(currentCohort)
+          call currentCohort%UpdateCohortBioPhysRates()
 
           ! This cohort has grown, it is no longer "new"
           currentCohort%isnew = .false.
@@ -790,7 +784,7 @@ contains
     type(bc_out_type)  , intent(inout)    :: bc_out
     !
     ! !LOCAL VARIABLES:
-    type (ed_patch_type) , pointer :: currentPatch
+    type (fates_patch_type) , pointer :: currentPatch
     !-----------------------------------------------------------------------
     if(hlm_use_sp.eq.ifalse)then
       call canopy_spread(currentSite)
@@ -889,8 +883,8 @@ contains
     ! Also, the carbon pools are per site/gridcell, so that
     ! we can account for the changing areas of patches.
 
-    type(ed_patch_type)  , pointer :: currentPatch
-    type(ed_cohort_type) , pointer :: currentCohort
+    type(fates_patch_type)  , pointer :: currentPatch
+    type(fates_cohort_type) , pointer :: currentCohort
     type(litter_type), pointer     :: litt
     logical, parameter :: print_cohorts = .true.   ! Set to true if you want
                                                     ! to print cohort data
@@ -1046,8 +1040,8 @@ contains
     type(ed_site_type)      , intent(inout), target  :: currentSite
 
     ! Locals
-    type(ed_patch_type), pointer :: currentPatch
-    type(ed_cohort_type), pointer :: currentCohort
+    type(fates_patch_type), pointer :: currentPatch
+    type(fates_cohort_type), pointer :: currentCohort
 
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
