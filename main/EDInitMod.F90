@@ -546,6 +546,7 @@ contains
     integer  :: el
     real(r8) :: age !notional age of this patch
     integer  :: ageclass
+    real(r8) :: area_diff
 
     ! dummy locals
     real(r8) :: biomass_stock
