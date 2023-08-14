@@ -4,7 +4,7 @@ module FatesParametersInterface
   ! depend on any host modules.
 
   use FatesConstantsMod, only : r8 => fates_r8
-  use FatesGlobals, only : fates_log
+  use FatesGlobals, only : fates_log, fates_endrun
   
   implicit none
   private ! Modules are private by default
@@ -173,8 +173,6 @@ contains
   !-----------------------------------------------------------------------
   subroutine RetrieveParameter1D(this, name, data)
 
-    use abortutils, only : endrun
-
     implicit none
 
     class(fates_parameters_type), intent(inout) :: this
@@ -193,7 +191,7 @@ contains
        do d = 1, max_dimensions
           write(fates_log(), *) this%parameters(i)%dimension_names(d), ', ', this%parameters(i)%dimension_sizes(d)
        end do
-       call endrun(msg='size error retreiving 1d parameter.')
+       call fates_endrun(msg='size error retreiving 1d parameter.')
     end if
     data = this%parameters(i)%data(:, 1)
 
@@ -201,8 +199,6 @@ contains
 
   !-----------------------------------------------------------------------
   subroutine RetrieveParameter2D(this, name, data)
-
-    use abortutils, only : endrun
 
     implicit none
 
@@ -226,7 +222,7 @@ contains
        do d = 1, max_dimensions
           write(fates_log(), *) this%parameters(i)%dimension_names(d), ', ', this%parameters(i)%dimension_sizes(d)
        end do
-       call endrun(msg='size error retreiving 2d parameter.')
+       call fates_endrun(msg='size error retreiving 2d parameter.')
     end if
     data = this%parameters(i)%data
 
@@ -234,8 +230,6 @@ contains
 
   !-----------------------------------------------------------------------
   subroutine RetrieveParameter1DAllocate(this, name, data)
-
-    use abortutils, only : endrun
 
     implicit none
 
@@ -255,8 +249,6 @@ contains
 
   !-----------------------------------------------------------------------
   subroutine RetrieveParameter2DAllocate(this, name, data)
-
-    use abortutils, only : endrun
 
     implicit none
 
@@ -440,9 +432,7 @@ contains
   
   !-----------------------------------------------------------------------
   subroutine SetData1D(this, index, data)
-
-    use abortutils, only : endrun
-    
+  
     implicit none
     
     class(fates_parameters_type), intent(inout) :: this
@@ -461,7 +451,7 @@ contains
        do d = 1, max_dimensions
           write(fates_log(), *) this%parameters(index)%dimension_names(d), ', ', this%parameters(index)%dimension_sizes(d)
        end do
-       call endrun(msg='size error setting 1d parameter.')
+       call fates_endrun(msg='size error setting 1d parameter.')
     end if
 
     allocate(this%parameters(index)%data(size_dim_1, 1))

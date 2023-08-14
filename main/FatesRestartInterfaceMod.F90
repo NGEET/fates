@@ -11,21 +11,22 @@ module FatesRestartInterfaceMod
   use FatesConstantsMod,       only : primaryland
   use FatesConstantsMod,       only : nearzero
   use FatesConstantsMod,       only : n_landuse_cats
+  use FatesConstantsMod,       only : default_regeneration
+  use FatesConstantsMod,       only : TRS_regeneration
   use FatesGlobals,            only : fates_log
   use FatesGlobals,            only : endrun => fates_endrun
   use FatesIODimensionsMod,    only : fates_io_dimension_type
   use FatesIOVariableKindMod,  only : fates_io_variable_kind_type
   use FatesRestartVariableMod, only : fates_restart_variable_type
-  use FatesInterfaceTypesMod,       only : nlevcoage
-  use FatesInterfaceTypesMod,       only : bc_in_type
-  use FatesInterfaceTypesMod,       only : bc_out_type
-  use FatesInterfaceTypesMod,       only : hlm_use_planthydro
-  use FatesInterfaceTypesMod,       only : hlm_parteh_mode
-  use FatesInterfaceTypesMod,       only : hlm_use_sp
-  use FatesInterfaceTypesMod,       only : hlm_use_nocomp, hlm_use_fixed_biogeog
-  use FatesInterfaceTypesMod,       only : fates_maxElementsPerSite
-  use FatesInterfaceTypesMod, only : hlm_use_tree_damage
-  use EDCohortDynamicsMod,     only : UpdateCohortBioPhysRates
+  use FatesInterfaceTypesMod,  only : nlevcoage
+  use FatesInterfaceTypesMod,  only : bc_in_type
+  use FatesInterfaceTypesMod,  only : bc_out_type
+  use FatesInterfaceTypesMod,  only : hlm_use_planthydro
+  use FatesInterfaceTypesMod,  only : hlm_parteh_mode
+  use FatesInterfaceTypesMod,  only : hlm_use_sp
+  use FatesInterfaceTypesMod,  only : hlm_use_nocomp, hlm_use_fixed_biogeog
+  use FatesInterfaceTypesMod,  only : fates_maxElementsPerSite
+  use FatesInterfaceTypesMod,  only : hlm_use_tree_damage
   use FatesHydraulicsMemMod,   only : nshell
   use FatesHydraulicsMemMod,   only : n_hypool_ag
   use FatesHydraulicsMemMod,   only : n_hypool_troot
@@ -33,22 +34,21 @@ module FatesRestartInterfaceMod
   use FatesPlantHydraulicsMod, only : UpdatePlantPsiFTCFromTheta
   use PRTGenericMod,           only : prt_global
   use PRTGenericMod,           only : prt_cnp_flex_allom_hyp
-  use EDCohortDynamicsMod,     only : nan_cohort
-  use EDCohortDynamicsMod,     only : zero_cohort
   use EDCohortDynamicsMod,     only : InitPRTObject
-  use EDCohortDynamicsMod,     only : InitPRTBoundaryConditions
   use FatesPlantHydraulicsMod, only : InitHydrCohort
-  use FatesInterfaceTypesMod,       only : nlevsclass
+  use FatesInterfaceTypesMod,  only : nlevsclass
   use FatesInterfaceTypesMod,  only : nlevdamage
   use FatesLitterMod,          only : litter_type
-  use FatesLitterMod,          only : ncwd
+  use FatesLitterMod,          only : ncwd, nfsc
   use FatesLitterMod,          only : ndcmpy
-  use EDTypesMod,              only : nfsc, nlevleaf, area
+  use EDTypesMod,              only : area
+  use EDParamsMod,             only : nlevleaf
   use PRTGenericMod,           only : prt_global
   use PRTGenericMod,           only : num_elements
   use FatesRunningMeanMod,     only : rmean_type
   use FatesRunningMeanMod,     only : ema_lpa
-
+  use EDParamsMod,             only : regeneration_model
+  
   ! CIME GLOBALS
   use shr_log_mod       , only : errMsg => shr_log_errMsg
 
@@ -87,13 +87,12 @@ module FatesRestartInterfaceMod
 
   integer :: ir_npatch_si
   integer :: ir_cd_status_si
-  integer :: ir_dd_status_si
   integer :: ir_nchill_days_si
   integer :: ir_ncold_days_si
   integer :: ir_cleafondate_si
   integer :: ir_cleafoffdate_si
-  integer :: ir_dleafondate_si
-  integer :: ir_dleafoffdate_si
+  integer :: ir_cndaysleafon_si
+  integer :: ir_cndaysleafoff_si
   integer :: ir_phenmodeldate_si
   integer :: ir_acc_ni_si
   integer :: ir_gdd_si
@@ -159,15 +158,25 @@ module FatesRestartInterfaceMod
   ! Running Means
   integer :: ir_tveg24_pa
   integer :: ir_tveglpa_pa
+  integer :: ir_seedling_layer_par24_pa
+  integer :: ir_sdlng_emerg_smp_pa
+  integer :: ir_sdlng_mort_par_pa
+  integer :: ir_sdlng2sap_par_pa
+  integer :: ir_sdlng_mdd_pa
   integer :: ir_tveglongterm_pa
 
   !  (Keeping as an example)
   !!integer :: ir_tveglpa_co
   
+
+
   integer :: ir_ddbhdt_co
   integer :: ir_resp_tstep_co
   integer :: ir_pft_co
   integer :: ir_status_co
+  integer :: ir_efleaf_co
+  integer :: ir_effnrt_co
+  integer :: ir_efstem_co
   integer :: ir_isnew_co
 
   ! Litter
@@ -199,8 +208,15 @@ module FatesRestartInterfaceMod
   integer :: ir_litter_moisture_pa_nfsc
 
   ! Site level
+  integer :: ir_dd_status_sift
+  integer :: ir_dleafondate_sift
+  integer :: ir_dleafoffdate_sift
+  integer :: ir_dndaysleafon_sift
+  integer :: ir_dndaysleafoff_sift
+  integer :: ir_elong_factor_sift
+  integer :: ir_liqvolmem_siwmft
+  integer :: ir_smpmem_siwmft
   integer :: ir_recl2fr_sipfcl
-  integer :: ir_watermem_siwm
   integer :: ir_vegtempmem_sitm
   integer :: ir_seed_bank_sift
   integer :: ir_spread_si
@@ -256,7 +272,8 @@ module FatesRestartInterfaceMod
   integer :: ir_fmortcflux_usto_sicdsc
   integer :: ir_crownarea_cano_si
   integer :: ir_crownarea_usto_si
-
+  integer :: ir_emanpp_si
+  
 
   ! Hydraulic indices
   integer :: ir_hydro_th_ag_covec
@@ -642,10 +659,6 @@ contains
          long_name='status flag for cold deciduous plants', units='unitless', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cd_status_si )
 
-    call this%set_restart_var(vname='fates_drought_dec_status', vtype=site_int, &
-         long_name='status flag for drought deciduous plants', units='unitless', flushval = flushinvalid, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dd_status_si )
-
     call this%set_restart_var(vname='fates_chilling_days', vtype=site_int, &
          long_name='chilling day counter', units='unitless', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_nchill_days_si )
@@ -662,13 +675,13 @@ contains
          long_name='the model day last cold leaf off', units='absolute integer day', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cleafoffdate_si )
 
-    call this%set_restart_var(vname='fates_drought_leafondate', vtype=site_int, &
-         long_name='the model day of last drought based leaf-on', units='absolute integer day', flushval = flushinvalid, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dleafondate_si )
+    call this%set_restart_var(vname='fates_cold_ndaysleafon', vtype=site_int, &
+         long_name='number of days since leaf on (cold deciduous)', units='days', flushval = flushinvalid, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cndaysleafon_si )
 
-    call this%set_restart_var(vname='fates_drought_leafoffdate', vtype=site_int, &
-         long_name='the model day of last drought based leaf-off', units='absolute integer day', flushval = flushinvalid, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dleafoffdate_si )
+    call this%set_restart_var(vname='fates_cold_ndaysleafoff', vtype=site_int, &
+         long_name='number of days since leaf off (cold deciduous)', units='days', flushval = flushinvalid, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cndaysleafoff_si )
 
     call this%set_restart_var(vname='fates_phen_model_date', vtype=site_int, &
          long_name='integer model day used for phen timing', units='absolute integer day', flushval = flushinvalid, &
@@ -920,6 +933,18 @@ contains
     call this%set_restart_var(vname='fates_status_coh', vtype=cohort_int, &
          long_name='ed cohort - plant phenology status', units='unitless', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_status_co )
+
+    call this%set_restart_var(vname='fates_efleaf_coh', vtype=cohort_r8, &
+         long_name='ed cohort - leaf elongation factor', units='unitless', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_efleaf_co )
+
+    call this%set_restart_var(vname='fates_effnrt_coh', vtype=cohort_r8, &
+         long_name='ed cohort - fine-root elongation factor', units='unitless', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_effnrt_co )
+
+    call this%set_restart_var(vname='fates_efstem_coh', vtype=cohort_r8, &
+         long_name='ed cohort - stem elongation factor', units='unitless', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_efstem_co )
 
     call this%set_restart_var(vname='fates_isnew', vtype=cohort_int, &
          long_name='ed cohort - binary flag specifying if a plant has experienced a full day cycle', &
@@ -1189,15 +1214,45 @@ contains
     !
     ! site x time level vars
     !
+
+    call this%set_restart_var(vname='fates_drought_dec_status', vtype=cohort_int, &
+         long_name='status flag for drought deciduous plants', units='unitless', flushval = flushinvalid, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dd_status_sift )
+
+    call this%set_restart_var(vname='fates_drought_leafondate', vtype=cohort_int, &
+         long_name='the day of year for drought based leaf-on', units='day of year', flushval = flushinvalid, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dleafondate_sift )
+
+    call this%set_restart_var(vname='fates_drought_leafoffdate', vtype=cohort_int, &
+         long_name='the day of year for drought based leaf-off', units='day of year', flushval = flushinvalid, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dleafoffdate_sift )
+
+    call this%set_restart_var(vname='fates_drought_ndaysleafon', vtype=cohort_int, &
+         long_name='number of days since leaf on (drought deciduous)', units='days', flushval = flushinvalid, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dndaysleafon_sift )
+
+    call this%set_restart_var(vname='fates_drought_ndaysleafoff', vtype=cohort_int, &
+         long_name='number of days since leaf off (drought deciduous)', units='days', flushval = flushinvalid, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dndaysleafoff_sift )
+
+    call this%set_restart_var(vname='fates_elong_factor', vtype=cohort_r8, &
+         long_name='leaf elongation factor (0 - completely abscissed; 1 - completely flushed)', units='unitless', flushval = flushinvalid, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_elong_factor_sift )
+
     call this%set_restart_var(vname='fates_recruit_l2fr', vtype=cohort_r8, &
          long_name='site-level mean recruit l2frs, by pft x canopy layer', &
          units='-', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_recl2fr_sipfcl)
-    
-    call this%set_restart_var(vname='fates_water_memory', vtype=cohort_r8, &
+
+    call this%set_restart_var(vname='fates_liqvol_memory', vtype=cohort_r8, &
          long_name='last 10 days of volumetric soil water, by site x day-index', &
          units='m3/m3', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_watermem_siwm )
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_liqvolmem_siwmft )
+
+    call this%set_restart_var(vname='fates_smp_memory', vtype=cohort_r8, &
+         long_name='last 10 days of soil matric potential, by site x day-index', &
+         units='mm', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_smpmem_siwmft )
 
     call this%set_restart_var(vname='fates_vegtemp_memory', vtype=cohort_r8, &
          long_name='last 10 days of 24-hour vegetation temperature, by site x day-index', &
@@ -1405,10 +1460,39 @@ contains
          units='m2/ha/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_crownarea_usto_si)
 
+    call this%set_restart_var(vname='fates_emanpp', vtype=site_r8, &
+         long_name='smoothed NPP (exp. moving avg) at the site level (for fixation)', &
+         units='kg/m2/yr', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_emanpp_si)
+    
    call this%DefineRMeanRestartVar(vname='fates_tveg24patch',vtype=cohort_r8, &
         long_name='24-hour patch veg temp', &
         units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveg24_pa)
 
+   if ( regeneration_model == TRS_regeneration ) then
+      
+      call this%DefineRMeanRestartVar(vname='fates_seedling_layer_par24',vtype=cohort_r8, &
+           long_name='24-hour seedling layer PAR', &
+           units='W m2-1', initialize=initialize_variables,ivar=ivar, index = ir_seedling_layer_par24_pa)
+      
+      call this%DefineRMeanRestartVar(vname='fates_sdlng_emerg_smp',vtype=cohort_r8, &
+           long_name='seedling layer PAR on the seedling emergence timescale', &
+           units='mm suction', initialize=initialize_variables,ivar=ivar, index = ir_sdlng_emerg_smp_pa)
+      
+      call this%DefineRMeanRestartVar(vname='fates_sdlng_mort_par',vtype=cohort_r8, &
+           long_name='seedling layer PAR on the seedling mortality timescale', &
+           units='W m2-1', initialize=initialize_variables,ivar=ivar, index = ir_sdlng_mort_par_pa)
+      
+      call this%DefineRMeanRestartVar(vname='fates_sdlng2sap_par',vtype=cohort_r8, &
+           long_name='seedling layer PAR on the seedling to sapling transition timescale', &
+           units='W m2-1', initialize=initialize_variables,ivar=ivar, index = ir_sdlng2sap_par_pa)
+      
+      call this%DefineRMeanRestartVar(vname='fates_sdlng_mdd',vtype=cohort_r8, &
+           long_name='seedling moisture deficit days', &
+           units='mm days', initialize=initialize_variables,ivar=ivar, index = ir_sdlng_mdd_pa)
+
+   end if
+      
    call this%DefineRMeanRestartVar(vname='fates_tveglpapatch',vtype=cohort_r8, &
         long_name='running average (EMA) of patch veg temp for photo acclim', &
         units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveglpa_pa)
@@ -1817,10 +1901,10 @@ contains
    use FatesInterfaceTypesMod, only : fates_maxElementsPerPatch
    use FatesInterfaceTypesMod, only : numpft
    use EDTypesMod, only : ed_site_type
-   use EDTypesMod, only : ed_cohort_type
-   use EDTypesMod, only : ed_patch_type
-   use EDTypesMod, only : maxSWb
-   use EDTypesMod, only : nclmax
+   use FatesCohortMod, only : fates_cohort_type
+   use FatesPatchMod, only : fates_patch_type
+   use EDParamsMod, only : maxSWb
+   use EDParamsMod, only : nclmax
    use EDTypesMod, only : numWaterMem
    use EDTypesMod, only : num_vegtemp_mem
    use FatesInterfaceTypesMod, only : nlevdamage
@@ -1890,19 +1974,18 @@ contains
     integer  :: i_landuse,i_pflu ! loop counter for land use class
 
     type(fates_restart_variable_type) :: rvar
-    type(ed_patch_type),pointer  :: cpatch
-    type(ed_cohort_type),pointer :: ccohort
+    type(fates_patch_type),pointer  :: cpatch
+    type(fates_cohort_type),pointer :: ccohort
 
 
     associate( rio_npatch_si           => this%rvars(ir_npatch_si)%int1d, &
            rio_cd_status_si            => this%rvars(ir_cd_status_si)%int1d, &
-           rio_dd_status_si            => this%rvars(ir_dd_status_si)%int1d, &
            rio_nchill_days_si          => this%rvars(ir_nchill_days_si)%int1d, &
            rio_ncold_days_si           => this%rvars(ir_ncold_days_si)%int1d, &
            rio_cleafondate_si          => this%rvars(ir_cleafondate_si)%int1d, &
            rio_cleafoffdate_si         => this%rvars(ir_cleafoffdate_si)%int1d, &
-           rio_dleafondate_si          => this%rvars(ir_dleafondate_si)%int1d, &
-           rio_dleafoffdate_si         => this%rvars(ir_dleafoffdate_si)%int1d, &
+           rio_cndaysleafon_si         => this%rvars(ir_cndaysleafon_si)%int1d, &
+           rio_cndaysleafoff_si        => this%rvars(ir_cndaysleafoff_si)%int1d, &
            rio_phenmodeldate_si        => this%rvars(ir_phenmodeldate_si)%int1d, &
            rio_acc_ni_si               => this%rvars(ir_acc_ni_si)%r81d, &
            rio_gdd_si                  => this%rvars(ir_gdd_si)%r81d, &
@@ -1945,6 +2028,9 @@ contains
            rio_resp_tstep_co           => this%rvars(ir_resp_tstep_co)%r81d, &
            rio_pft_co                  => this%rvars(ir_pft_co)%int1d, &
            rio_status_co               => this%rvars(ir_status_co)%int1d, &
+           rio_efleaf_co               => this%rvars(ir_efleaf_co)%r81d, &
+           rio_effnrt_co               => this%rvars(ir_effnrt_co)%r81d, &
+           rio_efstem_co               => this%rvars(ir_efstem_co)%r81d, &
            rio_isnew_co                => this%rvars(ir_isnew_co)%int1d, &
            rio_gnd_alb_dif_pasb        => this%rvars(ir_gnd_alb_dif_pasb)%r81d, &
            rio_gnd_alb_dir_pasb        => this%rvars(ir_gnd_alb_dir_pasb)%r81d, &
@@ -1955,7 +2041,14 @@ contains
            rio_agesinceanthrodist_pa   => this%rvars(ir_agesinceanthrodist_pa)%r81d, &
            rio_nocomp_pft_label_pa     => this%rvars(ir_nocomp_pft_label_pa)%int1d, &
            rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
-           rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d, &
+           rio_dd_status_sift          => this%rvars(ir_dd_status_sift)%int1d, &
+           rio_dleafondate_sift        => this%rvars(ir_dleafondate_sift)%int1d, &
+           rio_dleafoffdate_sift       => this%rvars(ir_dleafoffdate_sift)%int1d, &
+           rio_dndaysleafon_sift       => this%rvars(ir_dndaysleafon_sift)%int1d, &
+           rio_dndaysleafoff_sift      => this%rvars(ir_dndaysleafoff_sift)%int1d, &
+           rio_elong_factor_sift       => this%rvars(ir_elong_factor_sift)%r81d, &
+           rio_liqvolmem_siwmft        => this%rvars(ir_liqvolmem_siwmft)%r81d, &
+           rio_smpmem_siwmft           => this%rvars(ir_smpmem_siwmft)%r81d, &
            rio_recl2fr_sipfcl          => this%rvars(ir_recl2fr_sipfcl)%r81d, &
            rio_vegtempmem_sitm         => this%rvars(ir_vegtempmem_sitm)%r81d, &
            rio_recrate_sift            => this%rvars(ir_recrate_sift)%r81d, &
@@ -1999,7 +2092,8 @@ contains
            rio_fmortcflux_cano_sicdsc  => this%rvars(ir_fmortcflux_cano_sicdsc)%r81d, &
            rio_fmortcflux_usto_sicdsc  => this%rvars(ir_fmortcflux_usto_sicdsc)%r81d, &
            rio_crownarea_cano_damage_si=> this%rvars(ir_crownarea_cano_si)%r81d, &
-           rio_crownarea_usto_damage_si=> this%rvars(ir_crownarea_usto_si)%r81d)
+           rio_crownarea_usto_damage_si=> this%rvars(ir_crownarea_usto_si)%r81d, &
+           rio_emanpp_si               => this%rvars(ir_emanpp_si)%r81d)
       
        totalCohorts = 0
 
@@ -2033,6 +2127,8 @@ contains
           io_idx_si_cacls= io_idx_co_1st
           io_idx_si_cdsc = io_idx_co_1st
           io_idx_si_cdpf = io_idx_co_1st
+          io_idx_si_scpf = io_idx_co_1st
+          io_idx_si_pft  = io_idx_co_1st
 
           ! recruitment rate
           do i_pft = 1,numpft
@@ -2051,6 +2147,38 @@ contains
           end do
 
           !! need to restart area_bareground
+
+          do i_scls = 1, nlevsclass
+             do i_pft = 1, numpft
+                rio_fmortrate_cano_siscpf(io_idx_si_scpf)  = sites(s)%fmort_rate_canopy(i_scls, i_pft)
+                rio_fmortrate_usto_siscpf(io_idx_si_scpf)  = sites(s)%fmort_rate_ustory(i_scls, i_pft)
+                rio_imortrate_siscpf(io_idx_si_scpf)       = sites(s)%imort_rate(i_scls, i_pft)
+                rio_fmortrate_crown_siscpf(io_idx_si_scpf) = sites(s)%fmort_rate_crown(i_scls, i_pft)
+                rio_fmortrate_cambi_siscpf(io_idx_si_scpf) = sites(s)%fmort_rate_cambial(i_scls, i_pft)
+                rio_termnindiv_cano_siscpf(io_idx_si_scpf) = sites(s)%term_nindivs_canopy(i_scls,i_pft)
+                rio_termnindiv_usto_siscpf(io_idx_si_scpf) = sites(s)%term_nindivs_ustory(i_scls,i_pft)
+                rio_growflx_fusion_siscpf(io_idx_si_scpf)  = sites(s)%growthflux_fusion(i_scls, i_pft)
+                rio_abg_term_flux_siscpf(io_idx_si_scpf) = sites(s)%term_abg_flux(i_scls, i_pft)
+                rio_abg_imort_flux_siscpf(io_idx_si_scpf) = sites(s)%imort_abg_flux(i_scls, i_pft)
+                rio_abg_fmort_flux_siscpf(io_idx_si_scpf) = sites(s)%fmort_abg_flux(i_scls, i_pft)
+                io_idx_si_scpf = io_idx_si_scpf + 1
+             end do
+          end do
+
+          do i_pft = 1, numpft
+             rio_termcflux_cano_sipft(io_idx_si_pft)  = sites(s)%term_carbonflux_canopy(i_pft)
+             rio_termcflux_usto_sipft(io_idx_si_pft)  = sites(s)%term_carbonflux_ustory(i_pft)
+             rio_fmortcflux_cano_sipft(io_idx_si_pft) = sites(s)%fmort_carbonflux_canopy(i_pft)
+             rio_fmortcflux_usto_sipft(io_idx_si_pft) = sites(s)%fmort_carbonflux_ustory(i_pft)
+             rio_imortcflux_sipft(io_idx_si_pft)      = sites(s)%imort_carbonflux(i_pft)
+             rio_dd_status_sift(io_idx_si_pft)     = sites(s)%dstatus(i_pft)
+             rio_dleafondate_sift(io_idx_si_pft)   = sites(s)%dleafondate(i_pft)
+             rio_dleafoffdate_sift(io_idx_si_pft)  = sites(s)%dleafoffdate(i_pft)
+             rio_dndaysleafon_sift(io_idx_si_pft)  = sites(s)%dndaysleafon(i_pft)
+             rio_dndaysleafoff_sift(io_idx_si_pft) = sites(s)%dndaysleafoff(i_pft)
+             rio_elong_factor_sift(io_idx_si_pft)  = sites(s)%elong_factor(i_pft)
+             io_idx_si_pft = io_idx_si_pft + 1
+          end do
 
           if(hlm_use_sp.eq.ifalse)then
              do el = 1, num_elements
@@ -2078,6 +2206,8 @@ contains
              end do
           end if
 
+
+
           ! canopy spread term
           rio_spread_si(io_idx_si)   = sites(s)%spread
 
@@ -2086,7 +2216,7 @@ contains
           ! new column, reset num patches
           patchespersite = 0
 
-          do while(associated(cpatch))
+          do_patch: do while(associated(cpatch))
 
              ! found patch, increment
              patchespersite = patchespersite + 1
@@ -2205,6 +2335,9 @@ contains
                 rio_resp_tstep_co(io_idx_co)   = ccohort%resp_tstep
                 rio_pft_co(io_idx_co)          = ccohort%pft
                 rio_status_co(io_idx_co)       = ccohort%status_coh
+                rio_efleaf_co(io_idx_co)       = ccohort%efleaf_coh
+                rio_effnrt_co(io_idx_co)       = ccohort%effnrt_coh
+                rio_efstem_co(io_idx_co)       = ccohort%efstem_coh
                 if ( ccohort%isnew ) then
                    rio_isnew_co(io_idx_co)     = new_cohort
                 else
@@ -2245,7 +2378,19 @@ contains
              call this%SetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
              call this%SetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
              call this%SetRMeanRestartVar(cpatch%tveg_longterm, ir_tveglongterm_pa, io_idx_co_1st)
-             
+
+             if ( regeneration_model == TRS_regeneration ) then
+                call this%SetRMeanRestartVar(cpatch%seedling_layer_par24, ir_seedling_layer_par24_pa, io_idx_co_1st)
+                call this%SetRMeanRestartVar(cpatch%sdlng_mort_par, ir_sdlng_mort_par_pa,io_idx_co_1st)
+                call this%SetRMeanRestartVar(cpatch%sdlng2sap_par, ir_sdlng2sap_par_pa,io_idx_co_1st)
+                io_idx_pa_pft  = io_idx_co_1st
+                do i_pft = 1, numpft
+                   call this%SetRMeanRestartVar(cpatch%sdlng_mdd(i_pft)%p, ir_sdlng_mdd_pa,io_idx_pa_pft) 
+                   call this%SetRMeanRestartVar(cpatch%sdlng_emerg_smp(i_pft)%p, ir_sdlng_emerg_smp_pa,io_idx_pa_pft)
+                   io_idx_pa_pft      = io_idx_pa_pft + 1
+                enddo
+             end if
+
              ! set cohorts per patch for IO
              rio_ncohort_pa( io_idx_co_1st )   = cohortsperpatch
 
@@ -2361,38 +2506,20 @@ contains
 
              cpatch => cpatch%younger
 
-          enddo ! cpatch do while
-
-          io_idx_si_scpf = io_idx_co_1st
+          enddo do_patch ! cpatch do while
 
           ! Fill the site level diagnostics arrays
           do i_scls = 1, nlevsclass
-             do i_pft = 1, numpft
 
-                rio_fmortrate_cano_siscpf(io_idx_si_scpf)  = sites(s)%fmort_rate_canopy(i_scls, i_pft)
-                rio_fmortrate_usto_siscpf(io_idx_si_scpf)  = sites(s)%fmort_rate_ustory(i_scls, i_pft)
-                rio_imortrate_siscpf(io_idx_si_scpf)       = sites(s)%imort_rate(i_scls, i_pft)
-                rio_fmortrate_crown_siscpf(io_idx_si_scpf) = sites(s)%fmort_rate_crown(i_scls, i_pft)
-                rio_fmortrate_cambi_siscpf(io_idx_si_scpf) = sites(s)%fmort_rate_cambial(i_scls, i_pft)
-                rio_termnindiv_cano_siscpf(io_idx_si_scpf) = sites(s)%term_nindivs_canopy(i_scls,i_pft)
-                rio_termnindiv_usto_siscpf(io_idx_si_scpf) = sites(s)%term_nindivs_ustory(i_scls,i_pft)
-                rio_growflx_fusion_siscpf(io_idx_si_scpf)  = sites(s)%growthflux_fusion(i_scls, i_pft)
-
-                rio_abg_term_flux_siscpf(io_idx_si_scpf) = sites(s)%term_abg_flux(i_scls, i_pft)
-                rio_abg_imort_flux_siscpf(io_idx_si_scpf) = sites(s)%imort_abg_flux(i_scls, i_pft)
-                rio_abg_fmort_flux_siscpf(io_idx_si_scpf) = sites(s)%fmort_abg_flux(i_scls, i_pft)
-
-                io_idx_si_scpf = io_idx_si_scpf + 1
-             end do
-
-              rio_demorate_sisc(io_idx_si_sc) = sites(s)%demotion_rate(i_scls)
+             rio_demorate_sisc(io_idx_si_sc) = sites(s)%demotion_rate(i_scls)
              rio_promrate_sisc(io_idx_si_sc) = sites(s)%promotion_rate(i_scls)
 
              io_idx_si_sc = io_idx_si_sc + 1
           end do
+          
           rio_termcarea_cano_si(io_idx_si)  = sites(s)%term_crownarea_canopy
           rio_termcarea_usto_si(io_idx_si)  = sites(s)%term_crownarea_ustory
-          
+          rio_emanpp_si(io_idx_si)          = sites(s)%ema_npp
 
           ! this only copies live portions of transitions - but that's ok because the mortality
           ! bit only needs to be added for history outputs
@@ -2426,31 +2553,24 @@ contains
           rio_democflux_si(io_idx_si)       = sites(s)%demotion_carbonflux
           rio_promcflux_si(io_idx_si)       = sites(s)%promotion_carbonflux
 
-          io_idx_si_pft = io_idx_co_1st
-          do i_pft = 1, numpft
-             rio_termcflux_cano_sipft(io_idx_si_pft)  = sites(s)%term_carbonflux_canopy(i_pft)
-             rio_termcflux_usto_sipft(io_idx_si_pft)  = sites(s)%term_carbonflux_ustory(i_pft)
-             rio_fmortcflux_cano_sipft(io_idx_si_pft) = sites(s)%fmort_carbonflux_canopy(i_pft)
-             rio_fmortcflux_usto_sipft(io_idx_si_pft) = sites(s)%fmort_carbonflux_ustory(i_pft)
-             rio_imortcflux_sipft(io_idx_si_pft)      = sites(s)%imort_carbonflux(i_pft)
-             io_idx_si_pft = io_idx_si_pft + 1
-          end do
-
           rio_imortcarea_si(io_idx_si)      = sites(s)%imort_crownarea
           rio_fmortcarea_cano_si(io_idx_si) = sites(s)%fmort_crownarea_canopy
           rio_fmortcarea_usto_si(io_idx_si) = sites(s)%fmort_crownarea_ustory
 
-          rio_cd_status_si(io_idx_si)    = sites(s)%cstatus
-          rio_dd_status_si(io_idx_si)    = sites(s)%dstatus
-          rio_nchill_days_si(io_idx_si)  = sites(s)%nchilldays
-          rio_ncold_days_si(io_idx_si)   = sites(s)%ncolddays
-          rio_cleafondate_si(io_idx_si)  = sites(s)%cleafondate
-          rio_cleafoffdate_si(io_idx_si) = sites(s)%cleafoffdate
-          rio_phenmodeldate_si(io_idx_si)= sites(s)%phen_model_date
-          rio_dleafondate_si(io_idx_si)  = sites(s)%dleafondate
-          rio_dleafoffdate_si(io_idx_si) = sites(s)%dleafoffdate
+          rio_cd_status_si(io_idx_si)     = sites(s)%cstatus
+          rio_nchill_days_si(io_idx_si)   = sites(s)%nchilldays
+          rio_ncold_days_si(io_idx_si)    = sites(s)%ncolddays
+          rio_cleafondate_si(io_idx_si)   = sites(s)%cleafondate
+          rio_cleafoffdate_si(io_idx_si)  = sites(s)%cleafoffdate
+          rio_cndaysleafon_si(io_idx_si)  = sites(s)%cndaysleafon
+          rio_cndaysleafoff_si(io_idx_si) = sites(s)%cndaysleafoff
+          rio_gdd_si(io_idx_si)           = sites(s)%grow_deg_days
+          rio_phenmodeldate_si(io_idx_si) = sites(s)%phen_model_date
+
+ 
+
+
           rio_acc_ni_si(io_idx_si)       = sites(s)%acc_NI
-          rio_gdd_si(io_idx_si)          = sites(s)%grow_deg_days
           rio_snow_depth_si(io_idx_si)   = sites(s)%snow_depth
 
           ! Accumulated trunk product
@@ -2467,8 +2587,11 @@ contains
           end do
           
           do i = 1,numWaterMem ! numWaterMem currently 10
-             rio_watermem_siwm( io_idx_si_wmem ) = sites(s)%water_memory(i)
-             io_idx_si_wmem = io_idx_si_wmem + 1
+             do i_pft=1,numpft
+                rio_liqvolmem_siwmft( io_idx_si_wmem ) = sites(s)%liqvol_memory(i,i_pft)
+                rio_smpmem_siwmft( io_idx_si_wmem ) = sites(s)%smp_memory(i,i_pft)
+                io_idx_si_wmem = io_idx_si_wmem + 1
+             end do
           end do
 
           do i = 1, num_vegtemp_mem
@@ -2523,18 +2646,15 @@ contains
      ! ---------------------------------------------------------------------------------
 
      use EDTypesMod,           only : ed_site_type
-     use EDTypesMod,           only : ed_cohort_type
-     use EDTypesMod,           only : ed_patch_type
-     use EDTypesMod,           only : maxSWb
+     use FatesCohortMod,           only : fates_cohort_type
+     use FatesPatchMod,           only : fates_patch_type
+     use EDParamsMod,          only : maxSWb, regeneration_model
      use FatesInterfaceTypesMod,    only : fates_maxElementsPerPatch
+     use FatesInterfaceTypesMod,    only : hlm_current_tod, hlm_numSWb, numpft
 
-     use EDTypesMod,           only : maxpft
      use EDTypesMod,           only : area
-     use EDPatchDynamicsMod,   only : zero_patch
      use EDInitMod,            only : zero_site
      use EDInitMod,            only : init_site_vars
-     use EDPatchDynamicsMod,   only : create_patch
-     use EDPftvarcon,          only : EDPftvarcon_inst
      use FatesAllometryMod,    only : h2d_allom
 
 
@@ -2548,9 +2668,9 @@ contains
 
      ! local variables
 
-     type(ed_patch_type) , pointer     :: newp
-     type(ed_cohort_type), pointer     :: new_cohort
-     type(ed_cohort_type), pointer     :: prev_cohort
+     type(fates_patch_type) , pointer     :: newp
+     type(fates_cohort_type), pointer     :: new_cohort
+     type(fates_cohort_type), pointer     :: prev_cohort
      integer                           :: cohortstatus
      integer                           :: s             ! site index
      integer                           :: idx_pa        ! local patch index
@@ -2601,7 +2721,9 @@ contains
              nocomp_pft = fates_unset_int
              ! the nocomp_pft label is set after patch creation has occured in 'get_restart_vectors'
              ! make new patch
-             call create_patch(sites(s), newp, fates_unset_r8, fates_unset_r8, primaryland, nocomp_pft )
+             call newp%Create(fates_unset_r8, fates_unset_r8, primaryland,   &
+               nocomp_pft, hlm_numSWb, numpft, sites(s)%nlevsoil,              &
+               hlm_current_tod, regeneration_model)
 
              ! Initialize the litter pools to zero, these
              ! pools will be populated by looping over the existing patches
@@ -2631,9 +2753,8 @@ contains
              do fto = 1, rio_ncohort_pa( io_idx_co_1st )
 
                 allocate(new_cohort)
-                call nan_cohort(new_cohort)
-                call zero_cohort(new_cohort)
-                new_cohort%patchptr => newp
+                call new_cohort%NanValues()
+                call new_cohort%ZeroValues()
 
                 ! If this is the first in the list, it is tallest
                 if (.not.associated(newp%tallest)) then
@@ -2723,10 +2844,10 @@ contains
    subroutine get_restart_vectors(this, nc, nsites, sites)
 
      use EDTypesMod, only : ed_site_type
-     use EDTypesMod, only : ed_cohort_type
-     use EDTypesMod, only : ed_patch_type
-     use EDTypesMod, only : maxSWb
-     use EDTypesMod, only : nclmax
+     use FatesCohortMod, only : fates_cohort_type
+     use FatesPatchMod, only : fates_patch_type
+     use EDParamsMod, only : maxSWb
+     use EDParamsMod, only : nclmax
      use FatesInterfaceTypesMod, only : numpft
      use FatesInterfaceTypesMod, only : fates_maxElementsPerPatch
      use EDTypesMod, only : numWaterMem
@@ -2743,11 +2864,11 @@ contains
      ! locals
      ! ----------------------------------------------------------------------------------
      ! LL pointers
-     type(ed_patch_type),pointer  :: cpatch      ! current patch
-     type(ed_cohort_type),pointer :: ccohort     ! current cohort
+     type(fates_patch_type),pointer  :: cpatch      ! current patch
+     type(fates_cohort_type),pointer :: ccohort     ! current cohort
      type(litter_type), pointer   :: litt        ! litter object on the current patch
      ! loop indices
-     integer :: s, i, j, k
+     integer :: s, i, j, k, pft                 
 
      ! ----------------------------------------------------------------------------------
      ! The following group of integers indicate the positional index (idx)
@@ -2803,13 +2924,12 @@ contains
 
      associate( rio_npatch_si         => this%rvars(ir_npatch_si)%int1d, &
           rio_cd_status_si            => this%rvars(ir_cd_status_si)%int1d, &
-          rio_dd_status_si            => this%rvars(ir_dd_status_si)%int1d, &
           rio_nchill_days_si          => this%rvars(ir_nchill_days_si)%int1d, &
           rio_ncold_days_si           => this%rvars(ir_ncold_days_si)%int1d, &
           rio_cleafondate_si          => this%rvars(ir_cleafondate_si)%int1d, &
           rio_cleafoffdate_si         => this%rvars(ir_cleafoffdate_si)%int1d, &
-          rio_dleafondate_si          => this%rvars(ir_dleafondate_si)%int1d, &
-          rio_dleafoffdate_si         => this%rvars(ir_dleafoffdate_si)%int1d, &
+          rio_cndaysleafon_si         => this%rvars(ir_cndaysleafon_si)%int1d, &
+          rio_cndaysleafoff_si        => this%rvars(ir_cndaysleafoff_si)%int1d, &
           rio_phenmodeldate_si        => this%rvars(ir_phenmodeldate_si)%int1d, &
           rio_acc_ni_si               => this%rvars(ir_acc_ni_si)%r81d, &
           rio_gdd_si                  => this%rvars(ir_gdd_si)%r81d, &
@@ -2852,6 +2972,9 @@ contains
           rio_resp_tstep_co           => this%rvars(ir_resp_tstep_co)%r81d, &
           rio_pft_co                  => this%rvars(ir_pft_co)%int1d, &
           rio_status_co               => this%rvars(ir_status_co)%int1d, &
+          rio_efleaf_co               => this%rvars(ir_efleaf_co)%r81d, &
+          rio_effnrt_co               => this%rvars(ir_effnrt_co)%r81d, &
+          rio_efstem_co               => this%rvars(ir_efstem_co)%r81d, &
           rio_isnew_co                => this%rvars(ir_isnew_co)%int1d, &
           rio_gnd_alb_dif_pasb        => this%rvars(ir_gnd_alb_dif_pasb)%r81d, &
           rio_gnd_alb_dir_pasb        => this%rvars(ir_gnd_alb_dir_pasb)%r81d, &
@@ -2862,8 +2985,15 @@ contains
           rio_agesinceanthrodist_pa   => this%rvars(ir_agesinceanthrodist_pa)%r81d, &
           rio_nocomp_pft_label_pa     => this%rvars(ir_nocomp_pft_label_pa)%int1d, &
           rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
+          rio_dd_status_sift          => this%rvars(ir_dd_status_sift)%int1d, &
+          rio_dleafondate_sift        => this%rvars(ir_dleafondate_sift)%int1d, &
+          rio_dleafoffdate_sift       => this%rvars(ir_dleafoffdate_sift)%int1d, &
+          rio_dndaysleafon_sift       => this%rvars(ir_dndaysleafon_sift)%int1d, &
+          rio_dndaysleafoff_sift      => this%rvars(ir_dndaysleafoff_sift)%int1d, &
+          rio_elong_factor_sift       => this%rvars(ir_elong_factor_sift)%r81d, &
+          rio_liqvolmem_siwmft        => this%rvars(ir_liqvolmem_siwmft)%r81d, &
+          rio_smpmem_siwmft           => this%rvars(ir_smpmem_siwmft)%r81d, &
           rio_recl2fr_sipfcl          => this%rvars(ir_recl2fr_sipfcl)%r81d, &
-          rio_watermem_siwm           => this%rvars(ir_watermem_siwm)%r81d, &
           rio_vegtempmem_sitm         => this%rvars(ir_vegtempmem_sitm)%r81d, &
           rio_recrate_sift            => this%rvars(ir_recrate_sift)%r81d, &
           rio_use_this_pft_sift       => this%rvars(ir_use_this_pft_sift)%int1d, &
@@ -2899,6 +3029,7 @@ contains
           rio_fmortcflux_usto_sicdsc  => this%rvars(ir_fmortcflux_usto_sicdsc)%r81d, &
           rio_crownarea_cano_damage_si=> this%rvars(ir_crownarea_cano_si)%r81d, &
           rio_crownarea_usto_damage_si=> this%rvars(ir_crownarea_usto_si)%r81d, &
+          rio_emanpp_si               => this%rvars(ir_emanpp_si)%r81d, &
           rio_imortcflux_sipft        => this%rvars(ir_imortcflux_sipft)%r81d, &
           rio_fmortcflux_cano_sipft   => this%rvars(ir_fmortcflux_cano_sipft)%r81d, &
           rio_fmortcflux_usto_sipft   => this%rvars(ir_fmortcflux_usto_sipft)%r81d, &
@@ -2930,6 +3061,8 @@ contains
           io_idx_si_cacls= io_idx_co_1st
           io_idx_si_cdsc = io_idx_co_1st
           io_idx_si_cdpf = io_idx_co_1st
+          io_idx_si_scpf = io_idx_co_1st
+          io_idx_si_pft = io_idx_co_1st
           
           ! read seed_bank info(site-level, but PFT-resolved)
           do i_pft = 1,numpft
@@ -2946,7 +3079,39 @@ contains
           enddo
 
           !! need to restart area_bareground
-          
+
+          do i_scls = 1,nlevsclass
+             do i_pft = 1, numpft
+                sites(s)%fmort_rate_canopy(i_scls, i_pft)  = rio_fmortrate_cano_siscpf(io_idx_si_scpf)
+                sites(s)%fmort_rate_ustory(i_scls, i_pft)  = rio_fmortrate_usto_siscpf(io_idx_si_scpf)
+                sites(s)%imort_rate(i_scls, i_pft)         = rio_imortrate_siscpf(io_idx_si_scpf)
+                sites(s)%fmort_rate_crown(i_scls, i_pft)   = rio_fmortrate_crown_siscpf(io_idx_si_scpf)
+                sites(s)%fmort_rate_cambial(i_scls, i_pft) = rio_fmortrate_cambi_siscpf(io_idx_si_scpf)
+                sites(s)%term_nindivs_canopy(i_scls,i_pft) = rio_termnindiv_cano_siscpf(io_idx_si_scpf)
+                sites(s)%term_nindivs_ustory(i_scls,i_pft) = rio_termnindiv_usto_siscpf(io_idx_si_scpf)
+                sites(s)%growthflux_fusion(i_scls, i_pft)  = rio_growflx_fusion_siscpf(io_idx_si_scpf)
+                sites(s)%term_abg_flux(i_scls,i_pft) = rio_abg_term_flux_siscpf(io_idx_si_scpf)
+                sites(s)%imort_abg_flux(i_scls,i_pft) = rio_abg_imort_flux_siscpf(io_idx_si_scpf)
+                sites(s)%fmort_abg_flux(i_scls,i_pft) = rio_abg_fmort_flux_siscpf(io_idx_si_scpf)
+                io_idx_si_scpf = io_idx_si_scpf + 1
+             end do
+          end do
+
+          do i_pft = 1, numpft
+             sites(s)%term_carbonflux_canopy(i_pft)   = rio_termcflux_cano_sipft(io_idx_si_pft)
+             sites(s)%term_carbonflux_ustory(i_pft)   = rio_termcflux_usto_sipft(io_idx_si_pft)
+             sites(s)%fmort_carbonflux_canopy(i_pft)  = rio_fmortcflux_cano_sipft(io_idx_si_pft)
+             sites(s)%fmort_carbonflux_ustory(i_pft)  = rio_fmortcflux_usto_sipft(io_idx_si_pft)
+             sites(s)%imort_carbonflux(i_pft)         = rio_imortcflux_sipft(io_idx_si_pft)
+             sites(s)%dstatus(i_pft)        = rio_dd_status_sift(io_idx_si_pft)
+             sites(s)%dleafondate(i_pft)    = rio_dleafondate_sift(io_idx_si_pft)
+             sites(s)%dleafoffdate(i_pft)   = rio_dleafoffdate_sift(io_idx_si_pft)
+             sites(s)%dndaysleafon(i_pft)   = rio_dndaysleafon_sift(io_idx_si_pft)
+             sites(s)%dndaysleafoff(i_pft)  = rio_dndaysleafoff_sift(io_idx_si_pft)
+             sites(s)%elong_factor(i_pft)   = rio_elong_factor_sift(io_idx_si_pft)
+             io_idx_si_pft = io_idx_si_pft + 1
+          end do
+
           ! Mass balance and diagnostics across elements at the site level
           if(hlm_use_sp.eq.ifalse)then
              do el = 1, num_elements
@@ -2979,7 +3144,7 @@ contains
           patchespersite = 0
 
           cpatch => sites(s)%oldest_patch
-          do while(associated(cpatch))
+          do_patch: do while(associated(cpatch))
 
              patchespersite = patchespersite + 1
 
@@ -3078,10 +3243,13 @@ contains
                 ccohort%resp_tstep   = rio_resp_tstep_co(io_idx_co)
                 ccohort%pft          = rio_pft_co(io_idx_co)
                 ccohort%status_coh   = rio_status_co(io_idx_co)
+                ccohort%efleaf_coh   = rio_efleaf_co(io_idx_co)
+                ccohort%effnrt_coh   = rio_effnrt_co(io_idx_co)
+                ccohort%efstem_coh   = rio_efstem_co(io_idx_co)
                 ccohort%isnew        = ( rio_isnew_co(io_idx_co) .eq. new_cohort )
 
-                call InitPRTBoundaryConditions(ccohort)
-                call UpdateCohortBioPhysRates(ccohort)
+                call ccohort%InitPRTBoundaryConditions()
+                call ccohort%UpdateCohortBioPhysRates()
 
                 ! Initialize Plant Hydraulics
 
@@ -3141,7 +3309,19 @@ contains
              call this%GetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
              call this%GetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
              call this%GetRMeanRestartVar(cpatch%tveg_longterm, ir_tveglongterm_pa, io_idx_co_1st)
-             
+
+             if ( regeneration_model == TRS_regeneration ) then
+                call this%GetRMeanRestartVar(cpatch%seedling_layer_par24, ir_seedling_layer_par24_pa, io_idx_co_1st)
+                call this%GetRMeanRestartVar(cpatch%sdlng_mort_par, ir_sdlng_mort_par_pa,io_idx_co_1st)
+                call this%GetRMeanRestartVar(cpatch%sdlng2sap_par, ir_sdlng2sap_par_pa,io_idx_co_1st)
+                io_idx_pa_pft  = io_idx_co_1st
+                do pft = 1, numpft 
+                   call this%GetRMeanRestartVar(cpatch%sdlng_mdd(pft)%p, ir_sdlng_mdd_pa,io_idx_pa_pft)
+                   call this%GetRMeanRestartVar(cpatch%sdlng_emerg_smp(pft)%p, ir_sdlng_emerg_smp_pa,io_idx_pa_pft)
+                   io_idx_pa_pft      = io_idx_pa_pft + 1
+                enddo
+             end if
+
              ! set cohorts per patch for IO
 
              if ( debug ) then
@@ -3248,8 +3428,7 @@ contains
              end if
 
              cpatch => cpatch%younger
-
-          enddo ! patch do while
+          enddo do_patch
 
           if(patchespersite .ne. rio_npatch_si(io_idx_si)) then
              write(fates_log(),*) 'Number of patches per site during retrieval does not match allocation'
@@ -3264,8 +3443,11 @@ contains
           end do
           
           do i = 1,numWaterMem
-             sites(s)%water_memory(i) = rio_watermem_siwm( io_idx_si_wmem )
-             io_idx_si_wmem = io_idx_si_wmem + 1
+             do i_pft=1,numpft
+                sites(s)%liqvol_memory(i,i_pft) = rio_liqvolmem_siwmft( io_idx_si_wmem )
+                sites(s)%smp_memory(i,i_pft) = rio_smpmem_siwmft( io_idx_si_wmem )
+                io_idx_si_wmem = io_idx_si_wmem + 1
+             end do
           end do
 
           do i = 1, num_vegtemp_mem
@@ -3303,30 +3485,11 @@ contains
 
           ! Fill the site level diagnostics arrays
           ! -----------------------------------------------------------------------------
-
-          io_idx_si_scpf = io_idx_co_1st
-
           do i_scls = 1,nlevsclass
-             do i_pft = 1, numpft
-                sites(s)%fmort_rate_canopy(i_scls, i_pft)  = rio_fmortrate_cano_siscpf(io_idx_si_scpf)
-                sites(s)%fmort_rate_ustory(i_scls, i_pft)  = rio_fmortrate_usto_siscpf(io_idx_si_scpf)
-                sites(s)%imort_rate(i_scls, i_pft)         = rio_imortrate_siscpf(io_idx_si_scpf)
-                sites(s)%fmort_rate_crown(i_scls, i_pft)   = rio_fmortrate_crown_siscpf(io_idx_si_scpf)
-                sites(s)%fmort_rate_cambial(i_scls, i_pft) = rio_fmortrate_cambi_siscpf(io_idx_si_scpf)
-                sites(s)%term_nindivs_canopy(i_scls,i_pft) = rio_termnindiv_cano_siscpf(io_idx_si_scpf)
-                sites(s)%term_nindivs_ustory(i_scls,i_pft) = rio_termnindiv_usto_siscpf(io_idx_si_scpf)
-                sites(s)%growthflux_fusion(i_scls, i_pft)  = rio_growflx_fusion_siscpf(io_idx_si_scpf)
-
-                sites(s)%term_abg_flux(i_scls,i_pft) = rio_abg_term_flux_siscpf(io_idx_si_scpf)
-                sites(s)%imort_abg_flux(i_scls,i_pft) = rio_abg_imort_flux_siscpf(io_idx_si_scpf)
-                sites(s)%fmort_abg_flux(i_scls,i_pft) = rio_abg_fmort_flux_siscpf(io_idx_si_scpf)
-
-                io_idx_si_scpf = io_idx_si_scpf + 1
-             end do
 
              sites(s)%demotion_rate(i_scls)  = rio_demorate_sisc(io_idx_si_sc)
              sites(s)%promotion_rate(i_scls) = rio_promrate_sisc(io_idx_si_sc)
-
+             
              io_idx_si_sc = io_idx_si_sc + 1
           end do
           
@@ -3352,41 +3515,34 @@ contains
 
              sites(s)%crownarea_canopy_damage = rio_crownarea_cano_damage_si(io_idx_si)
              sites(s)%crownarea_ustory_damage = rio_crownarea_usto_damage_si(io_idx_si)
-
+             
+             
           end if
 
+          sites(s)%ema_npp                 = rio_emanpp_si(io_idx_si)
           sites(s)%term_crownarea_canopy    = rio_termcarea_cano_si(io_idx_si)
           sites(s)%term_crownarea_ustory    = rio_termcarea_usto_si(io_idx_si)
-
           sites(s)%imort_crownarea          = rio_imortcarea_si(io_idx_si)
           sites(s)%fmort_crownarea_canopy  = rio_fmortcarea_cano_si(io_idx_si)
           sites(s)%fmort_crownarea_ustory  = rio_fmortcarea_usto_si(io_idx_si)
           sites(s)%demotion_carbonflux      = rio_democflux_si(io_idx_si)
           sites(s)%promotion_carbonflux     = rio_promcflux_si(io_idx_si)
 
-          io_idx_si_pft = io_idx_co_1st
-          do i_pft = 1, numpft
-             sites(s)%term_carbonflux_canopy(i_pft)   = rio_termcflux_cano_sipft(io_idx_si_pft)
-             sites(s)%term_carbonflux_ustory(i_pft)   = rio_termcflux_usto_sipft(io_idx_si_pft)
-             sites(s)%fmort_carbonflux_canopy(i_pft)  = rio_fmortcflux_cano_sipft(io_idx_si_pft)
-             sites(s)%fmort_carbonflux_ustory(i_pft)  = rio_fmortcflux_usto_sipft(io_idx_si_pft)
-             sites(s)%imort_carbonflux(i_pft)         = rio_imortcflux_sipft(io_idx_si_pft)
-             io_idx_si_pft = io_idx_si_pft + 1
-          end do
-
           ! Site level phenology status flags
 
           sites(s)%cstatus        = rio_cd_status_si(io_idx_si)
-          sites(s)%dstatus        = rio_dd_status_si(io_idx_si)
           sites(s)%nchilldays     = rio_nchill_days_si(io_idx_si)
           sites(s)%ncolddays      = rio_ncold_days_si(io_idx_si)
           sites(s)%cleafondate    = rio_cleafondate_si(io_idx_si)
           sites(s)%cleafoffdate   = rio_cleafoffdate_si(io_idx_si)
-          sites(s)%dleafondate    = rio_dleafondate_si(io_idx_si)
-          sites(s)%dleafoffdate   = rio_dleafoffdate_si(io_idx_si)
-          sites(s)%acc_NI         = rio_acc_ni_si(io_idx_si)
+          sites(s)%cndaysleafon   = rio_cndaysleafon_si(io_idx_si)
+          sites(s)%cndaysleafoff  = rio_cndaysleafoff_si(io_idx_si)
           sites(s)%grow_deg_days  = rio_gdd_si(io_idx_si)
           sites(s)%phen_model_date= rio_phenmodeldate_si(io_idx_si)
+
+         
+
+          sites(s)%acc_NI         = rio_acc_ni_si(io_idx_si)
           sites(s)%snow_depth     = rio_snow_depth_si(io_idx_si)
           sites(s)%resources_management%trunk_product_site = rio_trunk_product_si(io_idx_si)
 
@@ -3409,7 +3565,7 @@ contains
      ! -------------------------------------------------------------------------
 
      use EDTypesMod, only            : ed_site_type
-     use EDTypesMod, only            : ed_patch_type
+     use FatesPatchMod, only         : fates_patch_type
      use EDSurfaceRadiationMod, only : PatchNormanRadiation
      use FatesInterfaceTypesMod, only     : hlm_numSWb
 
@@ -3421,7 +3577,7 @@ contains
 
      ! locals
      ! ----------------------------------------------------------------------------------
-     type(ed_patch_type),pointer  :: currentPatch  ! current patch
+     type(fates_patch_type),pointer  :: currentPatch  ! current patch
      integer                      :: s             ! site counter
      integer                      :: ib            ! radiation band counter
      integer                      :: ifp           ! patch counter

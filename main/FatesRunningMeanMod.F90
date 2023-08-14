@@ -79,7 +79,6 @@ module FatesRunningMeanMod
      
   end type rmean_type
 
-
   logical, parameter :: debug = .true.
   
   character(len=*), parameter, private :: sourcefile = &
@@ -95,13 +94,20 @@ module FatesRunningMeanMod
   class(rmean_def_type), public, pointer :: ema_60day  ! Exponential moving average, 60 day
                                                        ! Updated daily
   class(rmean_def_type), public, pointer :: ema_storemem ! EMA used for smoothing N/C and P/C storage
-
+  class(rmean_def_type), public, pointer :: ema_sdlng_mort_par  ! EMA for seedling mort from light stress
+  class(rmean_def_type), public, pointer :: ema_sdlng2sap_par  ! EMA for seedling to sapling transition rates
+                                                               ! based in par
+  class(rmean_def_type), public, pointer :: ema_sdlng_emerg_h2o  ! EMA for moisture-based seedling emergence
+  class(rmean_def_type), public, pointer :: ema_sdlng_mdd  ! EMA for seedling moisture deficit days 
+  
+  
   ! If we want to have different running mean specs based on
   ! pft or other types of constants
   type, public :: rmean_arr_type
-     class(rmean_def_type), pointer :: p
+     class(rmean_type), pointer :: p
   end type rmean_arr_type
   
+
 contains
 
 
