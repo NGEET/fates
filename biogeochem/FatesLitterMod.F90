@@ -36,7 +36,6 @@ module FatesLitterMod
    use FatesConstantsMod, only : nearzero
    use FatesConstantsMod, only : calloc_abs_error
    use FatesConstantsMod, only : fates_unset_r8
-
    use FatesGlobals     , only : endrun => fates_endrun
    use FatesGlobals     , only : fates_log 
    use shr_log_mod      , only : errMsg => shr_log_errMsg
@@ -55,6 +54,16 @@ module FatesLitterMod
    integer, public, parameter :: ilabile     = 1   ! Array index for labile portion
    integer, public, parameter :: icellulose  = 2   ! Array index for cellulose portion
    integer, public, parameter :: ilignin     = 3   ! Array index for the lignin portion
+
+    ! SPITFIRE     
+
+  integer,  parameter, public :: NFSC                 = NCWD+2     ! number fuel size classes  (4 cwd size classes, leaf litter, and grass)
+  integer,  parameter, public :: tw_sf                = 1          ! array index of twig pool for spitfire
+  integer,  parameter, public :: lb_sf                = 3          ! array index of large branch pool for spitfire
+  integer,  parameter, public :: tr_sf                = 4          ! array index of dead trunk pool for spitfire
+  integer,  parameter, public :: dl_sf                = 5          ! array index of dead leaf pool for spitfire (dead grass and dead leaves)
+  integer,  parameter, public :: lg_sf                = 6          ! array index of live grass pool for spitfire
+
 
 
    type, public ::  litter_type
