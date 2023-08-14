@@ -101,6 +101,7 @@ module FatesConstantsMod
   real(fates_r8), parameter, public :: calloc_abs_error = 1.0e-9_fates_r8
   real(fates_r8), parameter, public :: area_error_1     = 1.0e-16_fates_r8 ! error tolerance for area checks (canopy, patch)
   real(fates_r8), parameter, public :: area_error_2     = 1.0e-12_fates_r8 ! error tolerance for tree lai checks
+  real(fates_r8), parameter, public :: area_error_3     = 10.e-9_fates_r8  ! error tolerance for area checks (canopy, patch)
 
   ! Rounding errors seem to hover around 1e-15 for the gnu compiler
   ! when not applying compiler directives for safe math.  An example

@@ -96,7 +96,7 @@ module EDPhysiologyMod
   use EDParamsMod           , only : sdlng_mort_par_timescale
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
   use FatesConstantsMod     , only : itrue,ifalse
-  use FatesConstantsMod     , only : calloc_abs_error
+  use FatesConstantsMod     , only : area_error_3
   use FatesConstantsMod     , only : years_per_day
   use FatesAllometryMod  , only : h_allom
   use FatesAllometryMod  , only : h2d_allom
@@ -1973,7 +1973,7 @@ contains
     !! carea_allom in SP mode after this point.
 
     if (abs(currentCohort%c_area - parea) > nearzero) then ! there is an error
-      if (abs(currentCohort%c_area - parea) < calloc_abs_error) then !correct this if it's a very small error
+      if (abs(currentCohort%c_area - parea) < area_error_3) then !correct this if it's a very small error
         oldcarea = currentCohort%c_area
         ! generate new cohort area
         currentCohort%c_area = currentCohort%c_area - (currentCohort%c_area - parea)
