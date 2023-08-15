@@ -8,7 +8,7 @@ module EDCanopyStructureMod
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : itrue, ifalse
   use FatesConstantsMod     , only : tinyr8
-  use FatesConstantsMod     , only : nearzero, area_error_1
+  use FatesConstantsMod     , only : nearzero, area_error_2
   use FatesConstantsMod     , only : rsnbl_math_prec
   use FatesConstantsMod     , only : nocomp_bareground
   use FatesGlobals          , only : fates_log
