@@ -3196,14 +3196,19 @@ contains
     ! !USES:
     !
     ! !ARGUMENTS:
-    type (ed_site_type), intent(inout)           :: currentSite
-    type (ed_patch_type), intent(inout), pointer :: newPatch
+    type (ed_site_type), intent(inout)              :: currentSite
+    type (fates_patch_type), intent(inout), pointer :: newPatch
 
     ! !LOCAL VARIABLES:
-    type (ed_patch_type), pointer :: currentPatch
+    type (fates_patch_type), pointer :: currentPatch
     integer                       :: insert_method   ! Temporary dev
     logical                       :: found_landuselabel_match
+    integer, parameter            :: unordered_lu_type = 1
+    integer, parameter            :: primaryland_oldest_type = 2
+    integer, parameter            :: numerical_order_lu_type = 3
+    integer, parameter            :: new_is_youngest_lu_type = 4
 
+    ! Temporary hardcoded value for development testing
     insert_method = 2
 
     ! Start from the youngest patch and work to oldest
@@ -3229,7 +3234,8 @@ contains
        ! If the current site youngest patch lutype doesn't match the new patch lutype
        ! work through the list until you find the matching type.  If a match is not
        ! found, the currentPatch will be unassociated once it hits the end of the list
-       if (insert_method .eq. 1) then
+       select case(insert_method)
+       case (unordered_lu_type) then
           ! Option 1 - order of lutype groups does not matter
           found_landuselabel_match = .false.
           do while(associated(currentPatch) .and. .not. found_landuselabel_match)
@@ -3257,7 +3263,7 @@ contains
              currentSite%oldest_patch%older   => newPatch
              currentSite%oldest_patch   => newPatch
           endif
-       elseif (insert_method .eq. 2) then
+       case (primaryland_oldest_type) then
           ! Option 2 - primaryland group must be on the oldest end
           found_landuselabel_match = .false.
           do while(associated(currentPatch) .and. .not. found_landuselabel_match)
@@ -3294,7 +3300,7 @@ contains
                 currentSite%youngest_patch => newPatch
              endif
           endif
-       elseif (insert_method .eq. 3) then
+       case (numerical_order_lu_type) then
           ! Option 3 - groups are numerically ordered with primaryland group starting at oldest end.
           ! If the youngest patch land use label number is greater than the new
           ! patch land use label number, the new patch must be inserted somewhere
@@ -3325,13 +3331,13 @@ contains
              currentSite%oldest_patch%older   => newPatch
              currentSite%oldest_patch   => newPatch
           endif
-       elseif (insert_method .eq. 4) then
+       case (new_is_youngest_lu_type) then
           ! Option 4 - always add the new patch as the youngest regardless of lutype match
           newPatch%older    => currentPatch
           newPatch%younger  => null()
           currentPatch%younger       => newPatch
           currentSite%youngest_patch => newPatch
-       end if
+       end select
     end if
 
 
