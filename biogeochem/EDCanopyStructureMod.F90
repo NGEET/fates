@@ -1389,7 +1389,7 @@ contains
                    call endrun(msg=errMsg(sourcefile, __LINE__))
                 end if
 
-                if (currentPatch%total_canopy_area - currentPatch%area > area_error_1) then
+                if (currentPatch%total_canopy_area - currentPatch%area > area_error_2) then
                    write(fates_log(),*) 'too much canopy in summary', s, &
                         currentPatch%nocomp_pft_label, currentPatch%total_canopy_area - currentPatch%area
                    call endrun(msg=errMsg(sourcefile, __LINE__))
