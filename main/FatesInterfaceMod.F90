@@ -388,7 +388,12 @@ contains
     fates%bc_out(s)%ar_site = 0.0_r8
     fates%bc_out(s)%hrv_deadstemc_to_prod10c = 0.0_r8
     fates%bc_out(s)%hrv_deadstemc_to_prod100c = 0.0_r8
-    
+
+    if (hlm_use_luh .gt. 0) then
+       fates%bc_in(s)%hlm_luh_states = 0.0_r8
+       fates%bc_in(s)%hlm_luh_transitions = 0.0_r8
+    end if
+
     return
   end subroutine zero_bcs
 
