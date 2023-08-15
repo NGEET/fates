@@ -85,7 +85,7 @@ def interp_args(argv):
     input_fname = "none"
     output_fname = "none"
     donor_pft_indices = -9
-    donot_pft_indices_str = ''
+    donor_pft_indices_str = ''
     histflag = True
     try:
         opts, args = getopt.getopt(argv, 'h',["fin=","fout=","pft-indices=","nohist"])
