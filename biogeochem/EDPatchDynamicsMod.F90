@@ -3203,143 +3203,152 @@ contains
     type (fates_patch_type), pointer :: currentPatch
     integer                       :: insert_method   ! Temporary dev
     logical                       :: found_landuselabel_match
-    integer, parameter            :: unordered_lu_type = 1
-    integer, parameter            :: primaryland_oldest_type = 2
-    integer, parameter            :: numerical_order_lu_type = 3
-    integer, parameter            :: new_is_youngest_lu_type = 4
+    integer, parameter            :: unordered_lul_groups= 1
+    integer, parameter            :: primaryland_oldest_group = 2
+    integer, parameter            :: numerical_order_lul_groups = 3
+    integer, parameter            :: age_order_only = 4
 
-    ! Temporary hardcoded value for development testing
-    insert_method = 2
+    ! Insert new patch case options:
+    ! Option 1: Group the landuse types together, but the group order doesn't matter
+    ! Option 2: Option 1, but primarylands are forced to be the oldest group
+    ! Option 3: Option 1, but groups are in numerical order according to land use label index integer
+    !           (i.e. primarylands=1, secondarylands=2, ..., croplands=5)
+    ! Option 4: Don't group the patches by land use label.  Simply add new patches to the youngest end.
 
-    ! Start from the youngest patch and work to oldest
+    ! Hardcode the default insertion method.  The options developed during FATES V1 land use are
+    ! currently being held for potential future usage.
+    insert_method = primaryland_oldest_group
+
+    ! Start from the youngest patch and work to oldest, regarless of insertion_method
     currentPatch => currentSite%youngest_patch
 
-    ! TODO: Test alternate methods
-    ! Insert new patch as the youngest patch in the group of patches with the same land use type.
-    ! On a given site, the patches are grouped together by land use type.
-    ! Option 1: The landuse type group order doesn't matter at all
-    ! Option 2: The order of the groups within the site doesn't matter, except that the older
-    ! Option 3: Abitrarily set the group order to numerical order with older being primaryland (similar to previous logic)
-    ! patch group are primarylands (similar to the previous logic)
-    ! Option 4: landuse type order doesn't matter, only age
-
+    ! For the three grouped cases, if the land use label of the youngest patch on the site
+    ! is a match to the new patch land use label, simply insert it as the new youngest.
+    ! This is applicable to the non-grouped option 4 method as well.
     if (currentPatch%land_use_label .eq. newPatch%land_use_label ) then
-       ! Regardless of method, if the land use type of the youngest patch on the site
-       ! is a match to the new patch land use type, simply insert it as the new youngest
        newPatch%older    => currentPatch
        newPatch%younger  => null()
        currentPatch%younger       => newPatch
        currentSite%youngest_patch => newPatch
     else
-       ! If the current site youngest patch lutype doesn't match the new patch lutype
-       ! work through the list until you find the matching type.  If a match is not
-       ! found, the currentPatch will be unassociated once it hits the end of the list
+
+       ! If the current site youngest patch land use label doesn't match the new patch
+       ! land use label then work through the list until you find the matching type.
+       ! Since we've just checked the youngest patch, move to the next patch and
+       ! initialize the match flag to false.
+       found_landuselabel_match = .false.
+       currentPatch => currentPatch%older
        select case(insert_method)
-       case (unordered_lu_type) then
-          ! Option 1 - order of lutype groups does not matter
-          found_landuselabel_match = .false.
+
+       ! Option 1 - order of land use label groups does not matter
+       case (unordered_lul_groups) then
+
           do while(associated(currentPatch) .and. .not. found_landuselabel_match)
-             currentPatch => currentPatch%older
-             if (associated(currentPatch)) then
-                if (currentPatch%land_use_label .eq. newPatch%land_use_label) then
-                   found_landuselabel_match = .true.
-                endif
-             endif
+            if (currentPatch%land_use_label .eq. newPatch%land_use_label) then
+               found_landuselabel_match = .true.
+            else
+               currentPatch => currentPatch%older
+            end if
           end do
+
+          ! In the case where we've found a land use label matching the new patch label,
+          ! insert the newPatch will as the youngest patch for that land use type.
           if (associated(currentPatch)) then
-             ! The case where we've found a patch type matching the new patch type.
-             ! In this case insert the newPatch will as the youngest patch for that
-             ! land use type.
-             newPatch%older    => currentPatch
-             newPatch%younger  => currentPatch%younger
+             newPatch%older             => currentPatch
+             newPatch%younger           => currentPatch%younger
              currentPatch%younger%older => newPatch
              currentPatch%younger       => newPatch
           else
-             ! The case in which we get to the end of the list and haven't found
-             ! a landuse type match.  If this is the case, simply add the new patch
-             ! to the end of the list
-             newPatch%older    => null()
-             newPatch%younger  => currentSite%oldest_patch
-             currentSite%oldest_patch%older   => newPatch
-             currentSite%oldest_patch   => newPatch
+             ! In the case in which we get to the end of the list and haven't found
+             ! a landuse label match simply add the new patch to the youngest end.
+             newPatch%older                     => currentSite%youngest_patch
+             newPatch%younger                   => null()
+             currentSite%youngest_patch%younger => newPatch
+             currentSite%youngest_patch         => newPatch
           endif
-       case (primaryland_oldest_type) then
-          ! Option 2 - primaryland group must be on the oldest end
-          found_landuselabel_match = .false.
+
+       ! Option 2 - primaryland group must be on the oldest end
+       case (primaryland_oldest_group) then
+
           do while(associated(currentPatch) .and. .not. found_landuselabel_match)
-             currentPatch => currentPatch%older
-             if (associated(currentPatch)) then
-                if (currentPatch%land_use_label .eq. newPatch%land_use_label) then
-                   found_landuselabel_match = .true.
-                endif
-             endif
-          end do
-          if (associated(currentPatch)) then
-             ! The case where we've found a patch type matching the new patch type.
-             ! In this case insert the newPatch will as the youngest patch for that
-             ! land use type.
-             newPatch%older    => currentPatch
-             newPatch%younger  => currentPatch%younger
-             currentPatch%younger%older => newPatch
-             currentPatch%younger       => newPatch
-          else
-             if (newPatch%land_use_label .eq. primaryland) then
-                ! The case in which we get to the end of the list and haven't found
-                ! a landuse type match.  If this is the case, add it to the oldest side
-                ! if primarland
-                newPatch%older    => null()
-                newPatch%younger  => currentSite%oldest_patch
-                currentSite%oldest_patch%older   => newPatch
-                currentSite%oldest_patch   => newPatch
+             if (currentPatch%land_use_label .eq. newPatch%land_use_label) then
+                found_landuselabel_match = .true.
              else
-                ! If the new patch land use type is not primary land and we are at the
-                ! oldest end of the list, add it to the beginning
-                newPatch%older    => currentSite%youngest_patch
-                newPatch%younger  => null()
+                currentPatch => currentPatch%older
+             end if
+          end do
+
+          ! In the case where we've found a land use label matching the new patch label,
+          ! insert the newPatch will as the youngest patch for that land use type.
+          if (associated(currentPatch)) then
+             newPatch%older             => currentPatch
+             newPatch%younger           => currentPatch%younger
+             currentPatch%younger%older => newPatch
+             currentPatch%younger       => newPatch
+          else
+             ! In the case in which we get to the end of the list and haven't found
+             ! a landuse label match.
+
+             ! If the new patch is primarylands add it to the oldest end of the list
+             if (newPatch%land_use_label .eq. primaryland) then
+                newPatch%older                 => null()
+                newPatch%younger               => currentSite%oldest_patch
+                currentSite%oldest_patch%older => newPatch
+                currentSite%oldest_patch       => newPatch
+             else
+                ! If the new patch land use type is not primaryland and we are at the
+                ! oldest end of the list, add it to the youngest end
+                newPatch%older                     => currentSite%youngest_patch
+                newPatch%younger                   => null()
                 currentSite%youngest_patch%younger => newPatch
-                currentSite%youngest_patch => newPatch
+                currentSite%youngest_patch         => newPatch
              endif
           endif
-       case (numerical_order_lu_type) then
-          ! Option 3 - groups are numerically ordered with primaryland group starting at oldest end.
-          ! If the youngest patch land use label number is greater than the new
+
+       ! Option 3 - groups are numerically ordered with primaryland group starting at oldest end.
+       case (numerical_order_lul_groups) then
+
+          ! If the youngest patch landuse label number is greater than the new
           ! patch land use label number, the new patch must be inserted somewhere
           ! in between oldest and youngest
-          found_landuselabel_match = .false.
           do while(associated(currentPatch) .and. .not. found_landuselabel_match)
-             currentPatch => currentPatch%older
-             if (associated(currentPatch)) then
-                if (newPatch%land_use_label .eq. currentPatch%land_use_label .or. &
-                    newPatch%land_use_label .gt. currentPatch%land_use_label) then
-                   found_landuselabel_match = .true.
-                endif
+             if (currentPatch%land_use_label .eq. newPatch%land_use_label .or. &
+                 currentPatch%land_use_label .lt. newPatch%land_use_label) then
+                found_landuselabel_match = .true.
+             else
+                currentPatch => currentPatch%older
              endif
           end do
+
+          ! In the case where we've found a landuse label matching the new patch label
+          ! insert the newPatch will as the youngest patch for that land use type.
           if (associated(currentPatch)) then
-             ! The case where we've found a patch type matching the new patch type.
-             ! In this case insert the newPatch will as the youngest patch for that
-             ! land use type.
+
              newPatch%older    => currentPatch
              newPatch%younger  => currentPatch%younger
              currentPatch%younger%older => newPatch
              currentPatch%younger       => newPatch
+
           else
+
              ! In the case were we get to the end, the new patch
              ! must be numerically the smallest, so put it at the oldest position
              newPatch%older    => null()
              newPatch%younger  => currentSite%oldest_patch
              currentSite%oldest_patch%older   => newPatch
              currentSite%oldest_patch   => newPatch
+
           endif
-       case (new_is_youngest_lu_type) then
-          ! Option 4 - always add the new patch as the youngest regardless of lutype match
-          newPatch%older    => currentPatch
-          newPatch%younger  => null()
-          currentPatch%younger       => newPatch
-          currentSite%youngest_patch => newPatch
+
+       ! Option 4 - always add the new patch as the youngest regardless of land use label
+       case (age_order_only) then
+          ! Set the current patch to the youngest patch
+          newPatch%older                     => currentSite%youngest_patch
+          newPatch%younger                   => null()
+          currentSite%youngest_patch%younger => newPatch
+          currentSite%youngest_patch         => newPatch
        end select
     end if
-
 
  end subroutine InsertPatch
 
