@@ -6,10 +6,10 @@
 
   <!-- To use this patch file run the following command: -->
 
-  <!--   Run `python ../tools/UpdateParamAPI.py -\-f archive/api25.3.0_032223_pr995.xml` -->
+  <!--   Run `python ../tools/UpdateParamAPI.py -\-f archive/api27.0.0_080923_luh2.xml` -->
 
   <!-- To update a different CDL parameter file, change the file listed the `base_file`. -->
-  <!-- This requires that said file is up to date with API 25.3. -->
+  <!-- This requires that said file is up to date with API 25.5. -->
 
   <!-- General xml file usage notes: -->
   <!-- Special mod types "variable_add": creates a new variable
@@ -22,7 +22,7 @@
 		 the variables -->
   <!-- -->
   
-  <base_file>archive/api25.4.0_042223_fates_params_default.cdl </base_file>
+  <base_file>archive/api25.5.0_080923_fates_params_default.cdl</base_file>
   <new_file>fates_params_default.cdl</new_file>
   <pft_list> 1,2,3,4,5,6,7,8,9,10,11,12 </pft_list>
   <mods>
