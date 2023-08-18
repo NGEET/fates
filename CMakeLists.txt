@@ -65,6 +65,7 @@ add_dependencies(fates csm_share)
 include_directories(${HLM_ROOT}/share/include)
 
 # This needs to be something we add dynamically
+# via some calls using cime
 set(NETCDF_C_DIR "/usr/local/Cellar/netcdf/4.9.2")
 set(NETCDF_FORTRAN_DIR "/usr/local/Cellar/netcdf-fortran/4.6.0")
 
