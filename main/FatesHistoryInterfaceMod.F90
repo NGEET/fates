@@ -12,7 +12,7 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : t_water_freeze_k_1atm
   use FatesGlobals             , only : fates_log
   use FatesGlobals             , only : endrun => fates_endrun
-  use EDParamsMod              , only : nclmax
+  use EDParamsMod              , only : nclmax, maxpft
   use FatesConstantsMod        , only : ican_upper
   use PRTGenericMod            , only : element_pos
   use PRTGenericMod            , only : num_elements
@@ -27,10 +27,10 @@ module FatesHistoryInterfaceMod
   use EDTypesMod               , only : num_vegtemp_mem
   use EDTypesMod               , only : site_massbal_type
   use PRTGenericMod            , only : element_list
-  use FatesConstantsMod        , only : N_DIST_TYPES, maxpft
-  use EDTypesMod               , only : dtype_ifall
-  use EDTypesMod               , only : dtype_ifire
-  use EDTypesMod               , only : dtype_ilog
+  use FatesConstantsMod        , only : N_DIST_TYPES
+  use FatesConstantsMod        , only : dtype_ifall
+  use FatesConstantsMod        , only : dtype_ifire
+  use FatesConstantsMod        , only : dtype_ilog
   use FatesIODimensionsMod     , only : fates_io_dimension_type
   use FatesIOVariableKindMod   , only : fates_io_variable_kind_type
   use FatesIOVariableKindMod   , only : site_int
@@ -76,9 +76,12 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : m2_per_ha
   use FatesConstantsMod        , only : ha_per_m2
   use FatesConstantsMod        , only : m_per_cm
+  use FatesConstantsMod        , only : m_per_mm
   use FatesConstantsMod        , only : sec_per_min
   use FatesConstantsMod        , only : umol_per_mol,mol_per_umol
   use FatesConstantsMod        , only : pa_per_mpa
+  use FatesConstantsMod        , only : dens_fresh_liquid_water
+  use FatesConstantsMod        , only : grav_earth
   use FatesLitterMod           , only : litter_type
   use FatesConstantsMod        , only : secondaryforest
 
@@ -243,13 +246,15 @@ module FatesHistoryInterfaceMod
   integer :: ih_litter_out_elem
   integer :: ih_seed_bank_elem
   integer :: ih_fates_fraction_si
+  integer :: ih_litter_in_si            ! carbon only
+  integer :: ih_litter_out_si           ! carbon only
+  integer :: ih_seed_bank_si            ! carbon only
+  integer :: ih_seeds_in_si             ! carbon only
+  integer :: ih_seeds_in_local_si       ! carbon only
+  integer :: ih_ungerm_seed_bank_si        ! carbon only
+  integer :: ih_seedling_pool_si    ! carbon only
   integer :: ih_ba_weighted_height_si
   integer :: ih_ca_weighted_height_si
-  integer :: ih_litter_in_si    ! carbon only
-  integer :: ih_litter_out_si   ! carbon only
-  integer :: ih_seed_bank_si    ! carbon only
-  integer :: ih_seeds_in_si     ! carbon only
-  
   integer :: ih_seeds_in_local_elem
   integer :: ih_seeds_in_extern_elem
   integer :: ih_seed_decay_elem
@@ -380,15 +385,11 @@ module FatesHistoryInterfaceMod
   integer :: ih_lai_si
  
   integer :: ih_site_cstatus_si
-  integer :: ih_site_dstatus_si
   integer :: ih_gdd_si
   integer :: ih_site_nchilldays_si
   integer :: ih_site_ncolddays_si
   integer :: ih_cleafoff_si
   integer :: ih_cleafon_si
-  integer :: ih_dleafoff_si
-  integer :: ih_dleafon_si
-  integer :: ih_meanliqvol_si
 
   integer :: ih_nesterov_fire_danger_si
   integer :: ih_fire_nignitions_si
@@ -579,6 +580,12 @@ module FatesHistoryInterfaceMod
   integer :: ih_gpp_sec_si_pft
   integer :: ih_npp_si_pft
   integer :: ih_npp_sec_si_pft
+  integer :: ih_site_dstatus_si_pft
+  integer :: ih_dleafoff_si_pft
+  integer :: ih_dleafon_si_pft
+  integer :: ih_meanliqvol_si_pft
+  integer :: ih_meansmp_si_pft
+  integer :: ih_elong_factor_si_pft
   integer :: ih_nocomp_pftpatchfraction_si_pft
   integer :: ih_nocomp_pftnpatches_si_pft
   integer :: ih_nocomp_pftburnedarea_si_pft
@@ -2258,7 +2265,10 @@ end subroutine flush_hvars
                hio_litter_in_si        => this%hvars(ih_litter_in_si)%r81d, &
                hio_litter_out_si       => this%hvars(ih_litter_out_si)%r81d, &
                hio_seed_bank_si        => this%hvars(ih_seed_bank_si)%r81d, &
+               hio_ungerm_seed_bank_si => this%hvars(ih_ungerm_seed_bank_si)%r81d, &
+               hio_seedling_pool_si    => this%hvars(ih_seedling_pool_si)%r81d, &
                hio_seeds_in_si         => this%hvars(ih_seeds_in_si)%r81d, &
+               hio_seeds_in_local_si   => this%hvars(ih_seeds_in_local_si)%r81d, &
                hio_litter_in_elem      => this%hvars(ih_litter_in_elem)%r82d, &
                hio_litter_out_elem     => this%hvars(ih_litter_out_elem)%r82d, &
                hio_seed_bank_elem      => this%hvars(ih_seed_bank_elem)%r82d, &
@@ -2471,22 +2481,24 @@ end subroutine flush_hvars
                hio_ddbh_canopy_si_scag              => this%hvars(ih_ddbh_canopy_si_scag)%r82d, &
                hio_ddbh_understory_si_scag          => this%hvars(ih_ddbh_understory_si_scag)%r82d, &
                hio_mortality_canopy_si_scag         => this%hvars(ih_mortality_canopy_si_scag)%r82d, &
-               hio_mortality_understory_si_scag     => this%hvars(ih_mortality_understory_si_scag)%r82d, &
-               hio_site_cstatus_si                  => this%hvars(ih_site_cstatus_si)%r81d, &
-               hio_site_dstatus_si                  => this%hvars(ih_site_dstatus_si)%r81d )
+               hio_mortality_understory_si_scag     => this%hvars(ih_mortality_understory_si_scag)%r82d )
 
     ! Split up the associate statement as the nag compiler has a limit on line continuation  
     associate( hio_gdd_si                           => this%hvars(ih_gdd_si)%r81d, &
                hio_site_ncolddays_si                => this%hvars(ih_site_ncolddays_si)%r81d, &
                hio_site_nchilldays_si               => this%hvars(ih_site_nchilldays_si)%r81d, &
+               hio_site_cstatus_si                  => this%hvars(ih_site_cstatus_si)%r81d, &
                hio_cleafoff_si                      => this%hvars(ih_cleafoff_si)%r81d, &
                hio_cleafon_si                       => this%hvars(ih_cleafon_si)%r81d, &
-               hio_dleafoff_si                      => this%hvars(ih_dleafoff_si)%r81d, &
-               hio_dleafon_si                       => this%hvars(ih_dleafon_si)%r81d, &
+               hio_site_dstatus_si_pft              => this%hvars(ih_site_dstatus_si_pft)%r82d, &
+               hio_dleafoff_si_pft                  => this%hvars(ih_dleafoff_si_pft)%r82d, &
+               hio_dleafon_si_pft                   => this%hvars(ih_dleafon_si_pft)%r82d, &
+               hio_meanliqvol_si_pft                => this%hvars(ih_meanliqvol_si_pft)%r82d, &
+               hio_meansmp_si_pft                   => this%hvars(ih_meansmp_si_pft)%r82d, &
+               hio_elong_factor_si_pft              => this%hvars(ih_elong_factor_si_pft)%r82d, &
                hio_tveg24                           => this%hvars(ih_tveg24_si)%r81d, &
                hio_tlongterm                           => this%hvars(ih_tlongterm_si)%r81d, &
                hio_tgrowth                          => this%hvars(ih_tgrowth_si)%r81d, &
-               hio_meanliqvol_si                    => this%hvars(ih_meanliqvol_si)%r81d, &
                hio_cbal_err_fates_si                => this%hvars(ih_cbal_err_fates_si)%r81d, &
                hio_err_fates_si                     => this%hvars(ih_err_fates_si)%r82d, &
                hio_lai_si                           => this%hvars(ih_lai_si)%r81d )
@@ -2559,10 +2571,8 @@ end subroutine flush_hvars
       ! Canopy spread index (0-1)
       hio_canopy_spread_si(io_si) = sites(s)%spread
 
-      ! Site statuses (stati?) for cold deciduous and drought
-      ! deciduous
-      hio_site_cstatus_si(io_si) = real(sites(s)%cstatus,r8)
-      hio_site_dstatus_si(io_si) = real(sites(s)%dstatus,r8)
+      ! Update the site status for cold deciduous (drought deciduous is now PFT dependent)
+      hio_site_cstatus_si(io_si)   = real(sites(s)%cstatus,r8)
 
       ! Number of chill days and cold days
       hio_site_nchilldays_si(io_si) = real(sites(s)%nchilldays,r8)
@@ -2571,17 +2581,34 @@ end subroutine flush_hvars
       ! Growing degree-days
       hio_gdd_si(io_si) = sites(s)%grow_deg_days
 
-      ! Model days elapsed since leaf on/off for cold- and drought-deciduous
+      ! Model days elapsed since leaf on/off for cold-deciduous
       hio_cleafoff_si(io_si) = real(sites(s)%phen_model_date - sites(s)%cleafoffdate,r8)
       hio_cleafon_si(io_si)  = real(sites(s)%phen_model_date - sites(s)%cleafondate,r8)
-      hio_dleafoff_si(io_si) = real(sites(s)%phen_model_date - sites(s)%dleafoffdate,r8)
-      hio_dleafon_si(io_si)  = real(sites(s)%phen_model_date - sites(s)%dleafondate,r8)
 
-      ! Mean liquid water content (m3/m3) used for drought phenology
-      if(model_day_int>numWaterMem)then
-         hio_meanliqvol_si(io_si) = &
-         sum(sites(s)%water_memory(1:numWaterMem))/real(numWaterMem,r8)
-      end if
+
+      ! Update drought deciduous information (now separated by PFT).
+      do i_pft = 1,numpft
+         ! Update the site-PFT status for drought deciduous
+         hio_site_dstatus_si_pft(io_si,i_pft) = real(sites(s)%dstatus(i_pft),r8)
+
+         ! Model days elapsed since leaf off/on for drought deciduous
+         hio_dleafoff_si_pft(io_si,i_pft)     = real(sites(s)%dndaysleafon (i_pft),r8)
+         hio_dleafon_si_pft(io_si,i_pft)      = real(sites(s)%dndaysleafoff(i_pft),r8)
+
+         ! Leaf elongation factor (0 means fully abscissed, 1 means fully flushed).
+         hio_elong_factor_si_pft(io_si,i_pft) = sites(s)%elong_factor(i_pft)
+
+         if(model_day_int>numWaterMem)then
+            ! Mean liquid water content (m3/m3) used for drought phenology
+            hio_meanliqvol_si_pft(io_si,i_pft) = &
+                 sum(sites(s)%liqvol_memory(1:numWaterMem,i_pft))/real(numWaterMem,r8)
+
+            ! Mean soil matric potential (Pa) used for drought phenology
+            hio_meansmp_si_pft(io_si,i_pft) = &
+                 sum(sites(s)%smp_memory(1:numWaterMem,i_pft))/real(numWaterMem,r8) &
+               * dens_fresh_liquid_water * grav_earth * m_per_mm
+         end if
+      end do
 
       ! track total wood product accumulation at the site level
       hio_woodproduct_si(io_si) = sites(s)%resources_management%trunk_product_site &
@@ -3973,7 +4000,10 @@ end subroutine flush_hvars
 
       hio_litter_out_si(io_si) = 0._r8
       hio_seed_bank_si(io_si)  = 0._r8
+      hio_ungerm_seed_bank_si(io_si)  = 0._r8
+      hio_seedling_pool_si(io_si)  = 0._r8
       hio_seeds_in_si(io_si)   = 0._r8
+      hio_seeds_in_local_si(io_si)   = 0._r8
 
       cpatch => sites(s)%oldest_patch
       do while(associated(cpatch))
@@ -3996,11 +4026,25 @@ end subroutine flush_hvars
          hio_seed_bank_si(io_si) = hio_seed_bank_si(io_si) + &
             (sum(litt%seed(:))+sum(litt%seed_germ(:))) * &
             area_frac
+        
+         ! Sum up total seed bank (just ungerminated)
+         hio_ungerm_seed_bank_si(io_si) = hio_ungerm_seed_bank_si(io_si) + &
+            sum(litt%seed(:)) * area_frac
+
+         ! Sum up total seedling pool  
+         hio_seedling_pool_si(io_si) = hio_seedling_pool_si(io_si) + &
+            sum(litt%seed_germ(:)) * area_frac
 
          ! Sum up the input flux into the seed bank (local and external)
          hio_seeds_in_si(io_si) = hio_seeds_in_si(io_si) + &
             (sum(litt%seed_in_local(:)) + sum(litt%seed_in_extern(:))) * &
             area_frac * days_per_sec
+        
+         hio_seeds_in_local_si(io_si) = hio_seeds_in_local_si(io_si) + &
+            sum(litt%seed_in_local(:)) * &
+            area_frac * days_per_sec
+
+
 
          cpatch => cpatch%younger
       end do
@@ -5340,13 +5384,6 @@ end subroutine update_history_hifrq
           upfreq=1, ivar=ivar, initialize=initialize_variables,                &
           index=ih_site_cstatus_si)
 
-    call this%set_history_var(vname='FATES_DROUGHT_STATUS',                    &
-          units='',                                                            &
-          long='site-level drought status, <2 too dry for leaves, >=2 not too dry', &
-          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
-          upfreq=1, ivar=ivar, initialize=initialize_variables,                &
-          index=ih_site_dstatus_si)
-
     call this%set_history_var(vname='FATES_GDD', units='degree_Celsius',       &
          long='site-level growing degree days', use_default='active',          &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
@@ -5375,26 +5412,6 @@ end subroutine update_history_hifrq
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_cleafon_si)
-
-    call this%set_history_var(vname='FATES_DAYSINCE_DROUGHTLEAFOFF',           &
-         units='days', long='site level days elapsed since drought leaf drop', &
-         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
-         index=ih_dleafoff_si)
-
-    call this%set_history_var(vname='FATES_DAYSINCE_DROUGHTLEAFON',            &
-         units='days',                                                         &
-         long='site-level days elapsed since drought leaf flush',              &
-         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
-         index=ih_dleafon_si)
-
-    call this%set_history_var(vname='FATES_MEANLIQVOL_DROUGHTPHEN',            &
-         units='m3 m-3',                                                       &
-         long='site-level mean liquid water volume for drought phenolgy',      &
-         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
-         index=ih_meanliqvol_si)
 
     call this%set_history_var(vname='FATES_CANOPY_SPREAD', units='',           &
          long='scaling factor (0-1) between tree basal area and canopy area',  &
@@ -5450,7 +5467,7 @@ end subroutine update_history_hifrq
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_gpp_si_pft)
 
-    call this%set_history_var(vname='FATES_NPP_PF', units='kg m-2 yr-1',       &
+    call this%set_history_var(vname='FATES_NPP_PF', units='kg m-2 s-1',       &
          long='total PFT-level NPP in kg carbon per m2 land area per second',  &
          use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
@@ -5492,6 +5509,48 @@ end subroutine update_history_hifrq
          use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_mortality_si_pft)
+
+    !MLO - Drought-deciduous phenology variables are now defined for each PFT.
+    call this%set_history_var(vname='FATES_DROUGHT_STATUS_PF',                     &
+          units='',                                                                &
+          long='PFT-level drought status, <2 too dry for leaves, >=2 not too dry', &
+          use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',    &
+          upfreq=1, ivar=ivar, initialize=initialize_variables,                    &
+          index=ih_site_dstatus_si_pft)
+
+    call this%set_history_var(vname='FATES_DAYSINCE_DROUGHTLEAFOFF_PF',           &
+         units='days', long='PFT-level days elapsed since drought leaf drop',     &
+         use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',    &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                    &
+         index=ih_dleafoff_si_pft)
+
+    call this%set_history_var(vname='FATES_DAYSINCE_DROUGHTLEAFON_PF',            &
+         units='days',                                                            &
+         long='PFT-level days elapsed since drought leaf flush',                  &
+         use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',    &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                    &
+         index=ih_dleafon_si_pft)
+
+    call this%set_history_var(vname='FATES_MEANLIQVOL_DROUGHTPHEN_PF',            &
+         units='m3 m-3',                                                          &
+         long='PFT-level mean liquid water volume for drought phenolgy',          &
+         use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',    &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                    &
+         index=ih_meanliqvol_si_pft)
+
+    call this%set_history_var(vname='FATES_MEANSMP_DROUGHTPHEN_PF',               &
+         units='Pa',                                                              &
+         long='PFT-level mean soil matric potential for drought phenology',       &
+         use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',    &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                    &
+         index=ih_meansmp_si_pft)
+
+    call this%set_history_var(vname='FATES_ELONG_FACTOR_PF',                      &
+         units='1',                                                               &
+         long='PFT-level mean elongation factor (partial flushing/abscission)',   &
+         use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',    &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                    &
+         index=ih_elong_factor_si_pft)
 
     nocomp_if: if (hlm_use_nocomp .eq. itrue) then
        call this%set_history_var(vname='FATES_NOCOMP_NPATCHES_PF', units='',      &
@@ -5769,12 +5828,30 @@ end subroutine update_history_hifrq
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_seed_bank_si)
+   
+    call this%set_history_var(vname='FATES_UNGERM_SEED_BANK', units='kg m-2',         &
+         long='ungerminated seed mass of all PFTs in kg carbon per m2 land area',     &
+         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+         index = ih_ungerm_seed_bank_si)
+
+    call this%set_history_var(vname='FATES_SEEDLING_POOL', units='kg m-2',         &
+         long='total seedling (ie germinated seeds) mass of all PFTs in kg carbon per m2 land area',     &
+         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+         index = ih_seedling_pool_si)
 
     call this%set_history_var(vname='FATES_SEEDS_IN', units='kg m-2 s-1',      &
          long='seed production rate in kg carbon per m2 second',               &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_seeds_in_si)
+
+    call this%set_history_var(vname='FATES_SEEDS_IN_LOCAL', units='kg m-2 s-1',      &
+         long='local seed production rate in kg carbon per m2 second',               &
+         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+         index = ih_seeds_in_local_si)
 
     call this%set_history_var(vname='FATES_LITTER_IN_EL', units='kg m-2 s-1',  &
          long='litter flux in in kg element per m2 per second',                &

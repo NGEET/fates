@@ -21,15 +21,14 @@ module EDTypesMod
   use FatesLitterMod,        only : ncwd, NFSC
   use FatesConstantsMod,     only : n_anthro_disturbance_categories
   use FatesConstantsMod,     only : days_per_year
+  use FatesRunningMeanMod,   only : rmean_type,rmean_arr_type
   use FatesConstantsMod,     only : fates_unset_r8
-  use FatesRunningMeanMod,   only : rmean_type
   use FatesInterfaceTypesMod,only : bc_in_type
   use FatesInterfaceTypesMod,only : bc_out_type
   use FatesInterfaceTypesMod,only : hlm_parteh_mode
   use FatesCohortMod,        only : fates_cohort_type
   use FatesPatchMod,         only : fates_patch_type
-  use EDParamsMod,           only : maxSWb, nclmax, nlevleaf
-  use FatesConstantsMod,     only : maxpft
+  use EDParamsMod,           only : maxSWb, nclmax, nlevleaf, maxpft
   use FatesConstantsMod,     only : n_dbh_bins, n_dist_types
   use shr_log_mod,           only : errMsg => shr_log_errMsg
 
@@ -83,11 +82,11 @@ module EDTypesMod
                                                                    ! The actual number of soil layers should not exceed this
 
 
+
+
   ! BIOLOGY/BIOGEOCHEMISTRY        
   integer , parameter, public :: num_vegtemp_mem      = 10         ! Window of time over which we track temp for cold sensecence (days)
-  integer , parameter, public :: dtype_ifall          = 1          ! index for naturally occuring tree-fall generated event
-  integer , parameter, public :: dtype_ifire          = 2          ! index for fire generated disturbance event
-  integer , parameter, public :: dtype_ilog           = 3          ! index for logging generated disturbance event
+
 
   ! Phenology status flag definitions (cold type is cstat, dry type is dstat)
 
@@ -100,11 +99,10 @@ module EDTypesMod
   integer, parameter, public :: phen_dstat_moistoff  = 1       ! Leaves off due to moisture avail  (drought phenology)
   integer, parameter, public :: phen_dstat_moiston   = 2       ! Leaves on due to moisture avail   (drought phenology)
   integer, parameter, public :: phen_dstat_timeon    = 3       ! Leaves on due to time exceedance  (drought phenology)
+  integer, parameter, public :: phen_dstat_pshed    = 4 ! Leaves partially abscissing       (drought phenology)
 
   ! PATCH FUSION 
   real(r8), parameter, public :: force_patchfuse_min_biomass = 0.005_r8   ! min biomass (kg / m2 patch area) below which to force-fuse patches
-  real(r8), parameter, public :: patchfusion_dbhbin_loweredges(N_DBH_BINS) = &
-       (/0._r8, 5._r8, 20._r8, 50._r8, 100._r8, 150._r8/)                 ! array of bin lower edges for comparing patches
   real(r8), parameter, public :: patch_fusion_tolerance_relaxation_increment = 1.1_r8 ! amount by which to increment patch fusion threshold
   real(r8), parameter, public :: max_age_of_second_oldest_patch = 200._r8 ! age in years above which to combine all patches
 
@@ -290,24 +288,32 @@ module EDTypesMod
                                                                !     400 days, leaves are dropped and flagged as non-cold region
                                                                ! 1 = this site is in a cold-state where leaves should have fallen
                                                                ! 2 = this site is in a warm-state where leaves are allowed to flush
-     integer  ::  dstatus                                      ! are leaves in this pixel on or off for drought decid
+     integer  ::  dstatus(maxpft)                              ! are leaves in this pixel on or off for drought decid
                                                                ! 0 = leaves off due to time exceedance
                                                                ! 1 = leaves off due to moisture avail
                                                                ! 2 = leaves on due to moisture avail
                                                                ! 3 = leaves on due to time exceedance
+                                                               ! 4 = leaves partially on (ED2-like phenology)
      integer  ::  nchilldays                                   ! num chilling days: (for botta gdd trheshold calculation)
      integer  ::  ncolddays                                    ! num cold days: (must exceed threshold to drop leaves)
      real(r8) ::  vegtemp_memory(num_vegtemp_mem)              ! record of last 10 days temperature for senescence model. deg C
      integer  ::  cleafondate                                  ! model date (day integer) of leaf on (cold):-
      integer  ::  cleafoffdate                                 ! model date (day integer) of leaf off (cold):-
-     integer  ::  dleafondate                                  ! model date (day integer) of leaf on drought:-
-     integer  ::  dleafoffdate                                 ! model date (day integer) of leaf off drought:-
+     integer  ::  cndaysleafon                                 ! number of days since leaf on period started (cold)
+     integer  ::  cndaysleafoff                                ! number of days since leaf off period started (cold)
+     integer  ::  dleafondate(maxpft)                          ! model date (day integer) of leaf on drought:-
+     integer  ::  dleafoffdate(maxpft)                         ! model date (day integer) of leaf off drought:-
+     integer  ::  dndaysleafon(maxpft)                         ! number of days since leaf on period started (drought)
+     integer  ::  dndaysleafoff(maxpft)                        ! number of days since leaf off period started (drought)
+     real(r8) ::  elong_factor(maxpft)                         ! Elongation factor (ED2-like phenology). This is zero when leaves are
+                                                               ! completely off, and one when they are completely flushed.
      integer  ::  phen_model_date                              ! current model date (day integer)
                                                                ! this date stays continuous when
                                                                ! in runs that are restarted, regardless of
                                                                ! the conditions of restart
 
-     real(r8) ::  water_memory(numWaterMem)                             ! last 10 days of soil moisture memory...
+     real(r8) ::  liqvol_memory(numWaterMem,maxpft)            ! last 10 days of soil liquid water volume (drought phenology)
+     real(r8) ::  smp_memory(numWaterMem,maxpft)               ! last 10 days of soil matric potential (drought phenology)
 
 
      ! FIRE

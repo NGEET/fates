@@ -30,4 +30,3 @@ list(APPEND clm_sources
   )
 
 sourcelist_to_parent(clm_sources)
-sourcelist_to_parent(fates_sources)

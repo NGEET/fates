@@ -38,7 +38,7 @@ module FATESPlantRespPhotosynthMod
   use FatesInterfaceTypesMod, only : hlm_parteh_mode
   use FatesInterfaceTypesMod, only : numpft
   use FatesInterfaceTypesMod, only : nleafage
-  use FatesConstantsMod, only : maxpft
+  use EDParamsMod,           only : maxpft
   use EDParamsMod,       only : nlevleaf
   use EDParamsMod,       only : nclmax
   use PRTGenericMod,     only : max_nleafage
@@ -124,10 +124,8 @@ contains
     ! a multi-layer canopy
     ! -----------------------------------------------------------------------------------
 
-
     ! !USES:
     use EDTypesMod        , only : ed_site_type
-    use FatesConstantsMod , only : maxpft
     use EDParamsMod       , only : dinc_vai
     use EDParamsMod       , only : dlower_vai
     use FatesInterfaceTypesMod , only : bc_in_type
@@ -411,8 +409,11 @@ contains
                       ft = currentCohort%pft
                       cl = currentCohort%canopy_layer
 
+                      ! MLO. Assuming target to be related to leaf biomass when leaves are fully
+                      ! flushed. But unsure whether this call is correct or not, shouldn't we get
+                      ! the target value directly from the bstore_allom?
                       call bleaf(currentCohort%dbh,currentCohort%pft,&
-                           currentCohort%crowndamage,currentCohort%canopy_trim,store_c_target)
+                           currentCohort%crowndamage,currentCohort%canopy_trim,1.0_r8,store_c_target)
                       !                     call bstore_allom(currentCohort%dbh,currentCohort%pft, &
                       !                                       currentCohort%canopy_trim,store_c_target)
 
@@ -2092,7 +2093,8 @@ subroutine LeafLayerMaintenanceRespiration_Ryan_1991(lnc_top, &
    ! Locals
    real(r8) :: lmr25   ! leaf layer: leaf maintenance respiration rate at 25C (umol CO2/m**2/s)
    real(r8) :: lmr25top  ! canopy top leaf maint resp rate at 25C for this pft (umol CO2/m**2/s)
-
+   integer :: c3c4_path_index    ! Index for which photosynthetic pathway
+   
    ! Parameter
    real(r8), parameter :: lmrha = 46390._r8    ! activation energy for lmr (J/mol)
    real(r8), parameter :: lmrhd = 150650._r8   ! deactivation energy for lmr (J/mol)
@@ -2108,7 +2110,10 @@ subroutine LeafLayerMaintenanceRespiration_Ryan_1991(lnc_top, &
    ! ----------------------------------------------------------------------------------
    lmr25 = lmr25top * nscaler
 
-   if (nint(EDPftvarcon_inst%c3psn(ft))  /=  1) then
+   ! photosynthetic pathway: 0. = c4, 1. = c3
+   c3c4_path_index = nint(EDPftvarcon_inst%c3psn(ft))
+   
+   if (c3c4_path_index == c3_path_index) then
       ! temperature sensitivity of C3 plants
       lmr = lmr25 * ft1_f(veg_tempk, lmrha) * &
            fth_f(veg_tempk, lmrhd, lmrse, lmrc)
@@ -2240,7 +2245,7 @@ subroutine LeafLayerBiophysicalRates( parsun_lsl, &
                                     ! (umol electrons/m**2/s)
    real(r8) :: co2_rcurve_islope25 ! leaf layer: Initial slope of CO2 response curve
                                     ! (C4 plants) at 25C
-
+   integer :: c3c4_path_index    ! Index for which photosynthetic pathway
 
    ! Parameters
    ! ---------------------------------------------------------------------------------
@@ -2303,14 +2308,19 @@ subroutine LeafLayerBiophysicalRates( parsun_lsl, &
       co2_rcurve_islope25 = co2_rcurve_islope25top_ft * nscaler
 
       ! Adjust for temperature
-      vcmax = vcmax25 * ft1_f(veg_tempk, vcmaxha) * fth_f(veg_tempk, vcmaxhd, vcmaxse, vcmaxc)
-      jmax  = jmax25 * ft1_f(veg_tempk, jmaxha) * fth_f(veg_tempk, jmaxhd, jmaxse, jmaxc)
+      ! photosynthetic pathway: 0. = c4, 1. = c3
+      c3c4_path_index = nint(EDPftvarcon_inst%c3psn(ft))
 
-      if (nint(EDPftvarcon_inst%c3psn(ft))  /=  1) then
+      if (c3c4_path_index == c3_path_index) then
+         vcmax = vcmax25 * ft1_f(veg_tempk, vcmaxha) * fth_f(veg_tempk, vcmaxhd, vcmaxse, vcmaxc)
+      else
          vcmax = vcmax25 * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8)
          vcmax = vcmax / (1._r8 + exp( 0.2_r8*((tfrz+15._r8)-veg_tempk ) ))
          vcmax = vcmax / (1._r8 + exp( 0.3_r8*(veg_tempk-(tfrz+40._r8)) ))
       end if
+
+      jmax  = jmax25 * ft1_f(veg_tempk, jmaxha) * fth_f(veg_tempk, jmaxhd, jmaxse, jmaxc)
+  
       !q10 response of product limited psn.
       co2_rcurve_islope = co2_rcurve_islope25 * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8)
    end if

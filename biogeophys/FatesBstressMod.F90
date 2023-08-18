@@ -7,7 +7,7 @@ module FatesBstressMod
    !
    use FatesConstantsMod , only : tfrz => t_water_freeze_k_1atm 
    use FatesConstantsMod , only : itrue,ifalse
-   use FatesConstantsMod,  only : maxpft
+   use EDParamsMod,        only : maxpft
    use EDTypesMod        , only : ed_site_type
    use FatesPatchMod,      only : fates_patch_type
    use FatesCohortMod    , only : fates_cohort_type

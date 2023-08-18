@@ -11,7 +11,7 @@ module EDMortalityFunctionsMod
    use EDPftvarcon           , only : EDPftvarcon_inst
    use FatesCohortMod        , only : fates_cohort_type
    use EDTypesMod            , only : ed_site_type
-   use FatesConstantsMod,      only : maxpft
+   use EDParamsMod,            only : maxpft
    use FatesConstantsMod     , only : itrue,ifalse
    use FatesAllometryMod     , only : bleaf
    use FatesAllometryMod     , only : storage_fraction_of_target
@@ -166,7 +166,13 @@ contains
        ! Carbon Starvation induced mortality.
        if ( cohort_in%dbh  >  0._r8 ) then
 
-          call bleaf(cohort_in%dbh,cohort_in%pft,cohort_in%crowndamage,cohort_in%canopy_trim,target_leaf_c)
+          ! We compare storage with leaf biomass if plant were fully flushed, otherwise
+          ! mortality would be underestimated for plants that lost all leaves and have no
+          ! storage to flush new ones.
+          ! MLO. Why isn't this comparing with storage allometry (i.e., accounting for
+          !      cushion)?
+          call bleaf(cohort_in%dbh,cohort_in%pft,cohort_in%crowndamage,cohort_in%canopy_trim, &
+               1.0_r8, target_leaf_c)
           store_c = cohort_in%prt%GetState(store_organ,carbon12_element)
 
           call storage_fraction_of_target(target_leaf_c, store_c, frac)

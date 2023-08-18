@@ -30,17 +30,21 @@ module FatesConstantsMod
   ! Integer equivalent of false (in case come compilers dont auto convert)
   integer, parameter, public :: ifalse = 0
 
-  integer , parameter, public :: N_DBH_BINS = 6  ! no. of dbh bins used when comparing patches
-
-  integer, parameter, public :: maxpft = 16               ! maximum number of PFTs allowed
   ! the parameter file may determine that fewer
   ! are used, but this helps allocate scratch
   ! space and output arrays.
 
   integer, parameter, public :: n_rad_stream_types = 2    ! The number of radiation streams used (direct/diffuse)
 
+  integer , parameter, public       :: N_DBH_BINS = 6  ! no. of dbh bins used when comparing patches
+  real(fates_r8), parameter, public :: patchfusion_dbhbin_loweredges(N_DBH_BINS) = &
+  (/0._fates_r8, 5._fates_r8, 20._fates_r8, 50._fates_r8, 100._fates_r8, 150._fates_r8/) ! array of bin lower edges for comparing patches
+
 
   integer , parameter, public :: N_DIST_TYPES = 3 ! Disturbance Modes 1) tree-fall, 2) fire, 3) logging
+  integer , parameter, public :: dtype_ifall  = 1          ! index for naturally occuring tree-fall generated event
+  integer , parameter, public :: dtype_ifire  = 2          ! index for fire generated disturbance event
+  integer , parameter, public :: dtype_ilog   = 3          ! index for logging generated disturbance event
 
   ! Labels for patch disturbance history
   integer, parameter, public :: n_anthro_disturbance_categories = 2
@@ -53,6 +57,25 @@ module FatesConstantsMod
   integer, parameter, public :: leaves_off = 1  ! Flag specifying that a deciduous plant has dropped
                                                 ! its leaves and should not be trying to allocate
                                                 ! towards any growth.
+  integer, parameter, public :: leaves_shedding = 3  ! Flag specifying that a deciduous plant has leaves
+                                                     ! but is shedding them (partial shedding). This plant
+                                                     ! should not allocate carbon towards growth or 
+                                                     ! reproduction.
+integer, parameter, public :: ihard_stress_decid = 1 ! If the PFT is stress (drought) deciduous,
+                                                     !  this flag is used to tell that the PFT
+                                                     !  is a "hard" deciduous (i.e., the plant
+                                                     !  has only two statuses, the plant either
+                                                     !  sheds all leaves when it's time, or seeks
+                                                     !  to flush the leaves back to allometry 
+                                                     !  when conditions improve.
+integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (drought) deciduous,
+                                                     !  this flag is used to tell that the PFT
+                                                     !  is a semi-deciduous (i.e., the plant
+                                                     !  can downregulate the amount of leaves
+                                                     !  relative to the allometry based on 
+                                                     !  soil moisture conditions. It can still
+                                                     !  shed all leaves if conditions are very
+                                                     !  dry.
 
   integer, parameter, public :: ican_upper = 1  ! nominal index for the upper canopy
   integer, parameter, public :: ican_ustory = 2 ! nominal index for diagnostics that refer to understory layers 
@@ -70,8 +93,24 @@ module FatesConstantsMod
   ! with the host model.
   integer, public, parameter :: prescribed_n_uptake = 1
   integer, public, parameter :: coupled_n_uptake    = 2
-
   integer, public, parameter :: coupled_np_comp_scaling = 1 ! This flag signals that at least 1 chemical element (ie N or P)
+  
+  !Flags specifying how tree regeneration works
+  
+  integer, public, parameter :: TRS_no_seedling_dyn = 3                          ! Constant defining the Tree Recruitment
+                                                                                 ! Scheme switch. This value turns on 
+                                                                                 ! size-based reproductive allocation 
+                                                                                 ! and allocation to non-seed 
+                                                                                 ! reproductive biomass, but does not turn 
+                                                                                 ! on seedling dynamics.
+  integer, public, parameter :: TRS_regeneration = 2                             ! Constant defining the Tree Recruitment
+                                                                                 ! Scheme switch. Turns on full TRS.
+  integer, public, parameter :: default_regeneration = 1                         ! Constant defining FATES's default 
+                                                                                 ! regeneration scheme switch.
+  real(fates_r8), public, parameter :: min_max_dbh_for_trees = 15._fates_r8      ! If pfts have a max dbh less 
+                                                                                 ! than this value FATES 
+                                                                                 ! will use the default regeneration scheme.
+                                                                                 ! Avoids TRS for shrubs / grasses.
 
   integer, public, parameter :: trivial_np_comp_scaling = 2 ! This flag definition indicates that either
                                                             ! nutrients are turned off in FATES, or, that the
@@ -169,6 +208,9 @@ module FatesConstantsMod
   ! Conversion factor: milimeters per meter
   real(fates_r8), parameter, public :: mm_per_m = 1.0E3_fates_r8
 
+  ! Conversion factor: millimeters per centimeter (ahb added this 7/7/2021)
+  real(fates_r8), parameter, public :: mm_per_cm = 10.0_fates_r8
+  
   ! Conversion factor: meters per centimeter
   real(fates_r8), parameter, public :: m_per_cm = 1.0E-2_fates_r8
 
@@ -198,12 +240,19 @@ module FatesConstantsMod
   ! Conversion: seconds per day
   real(fates_r8), parameter, public :: sec_per_day = 86400.0_fates_r8
 
+  ! Conversion: megajoules per joule
+  real(fates_r8), parameter, public :: megajoules_per_joule = 1.0E-6_fates_r8
+ 
+  
   ! Conversion: days per second
   real(fates_r8), parameter, public :: days_per_sec = 1.0_fates_r8/86400.0_fates_r8
 
   ! Conversion: days per year. assume HLM uses 365 day calendar.
   ! If we need to link to 365.25-day-calendared HLM, rewire to pass through interface
   real(fates_r8), parameter, public :: days_per_year = 365.00_fates_r8
+
+  ! Integer version of days per year.
+  integer, parameter, public :: ndays_per_year = nint(days_per_year)
 
   ! Conversion: years per day. assume HLM uses 365 day calendar.
   ! If we need to link to 365.25-day-calendared HLM, rewire to pass through interface
@@ -246,6 +295,10 @@ module FatesConstantsMod
 
   ! Pascals to megapascals
   real(fates_r8), parameter, public :: mpa_per_pa = 1.e-6_fates_r8
+
+  ! Conversion: megapascals per mm H2O suction
+  real(fates_r8), parameter, public :: mpa_per_mm_suction = dens_fresh_liquid_water * &
+                                       grav_earth * 1.0E-9_fates_r8
 
   ! For numerical inquiry
   real(fates_r8), parameter, public :: fates_huge = huge(g_per_kg)

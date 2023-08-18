@@ -1,7 +1,0 @@
-<test_suite_list>
-  <suite name="FATES">
-    <directory relative_to="here" label="radiation">
-      unit_testing/test/radiation_test
-    </directory>
-  </suite>
-</test_suite_list>
