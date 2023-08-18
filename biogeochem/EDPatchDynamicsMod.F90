@@ -2572,13 +2572,7 @@ contains
     end if
 
     ! We have no need for the dp pointer anymore, we have passed on it's legacy
-<<<<<<< HEAD
-    call dp%FreeMemory()
-||||||| de31624c
-    call dealloc_patch(dp)
-=======
     call dp%FreeMemory(regeneration_model, numpft)
->>>>>>> origin/main
     deallocate(dp, stat=istat, errmsg=smsg)
     if (istat/=0) then
        write(fates_log(),*) 'dealloc006: fail on deallocate(dp):'//trim(smsg)
