@@ -444,7 +444,7 @@ contains
     type (bc_in_type), intent(in)      :: bc_in
     !
     ! !LOCAL VARIABLES:
-    type (fates_patch_type) , pointer :: new_patch
+    type (fates_patch_type) , pointer :: newPatch
     ! type (fates_patch_type) , pointer :: new_patch_primary
     ! type (fates_patch_type) , pointer :: new_patch_secondary
     type (fates_patch_type) , pointer :: currentPatch
@@ -575,7 +575,7 @@ contains
                    ! create an empty patch, to absorb newly disturbed area
                    allocate(newPatch)
 
-                   call new_patch%Create(age, site_areadis, i_landusechange_receiverpatchlabel, i_nocomp_pft, &
+                   call newPatch%Create(age, site_areadis, i_landusechange_receiverpatchlabel, i_nocomp_pft, &
                                          hlm_numSWb, numpft, currentSite%nlevsoil, hlm_current_tod,              &
                                          regeneration_model)
 
@@ -684,16 +684,16 @@ contains
 
 
                             if ( regeneration_model == TRS_regeneration ) then
-                               call new_patch%seedling_layer_par24%CopyFromDonor(currentPatch%seedling_layer_par24)
-                               call new_patch%sdlng_mort_par%CopyFromDonor(currentPatch%sdlng_mort_par)
-                               call new_patch%sdlng2sap_par%CopyFromDonor(currentPatch%sdlng2sap_par)
+                               call newPatch%seedling_layer_par24%CopyFromDonor(currentPatch%seedling_layer_par24)
+                               call newPatch%sdlng_mort_par%CopyFromDonor(currentPatch%sdlng_mort_par)
+                               call newPatch%sdlng2sap_par%CopyFromDonor(currentPatch%sdlng2sap_par)
                                do pft = 1,numpft
-                                  call new_patch%sdlng_emerg_smp(pft)%p%CopyFromDonor(currentPatch%sdlng_emerg_smp(pft)%p)
-                                  call new_patch%sdlng_mdd(pft)%p%CopyFromDonor(currentPatch%sdlng_mdd(pft)%p)
+                                  call newPatch%sdlng_emerg_smp(pft)%p%CopyFromDonor(currentPatch%sdlng_emerg_smp(pft)%p)
+                                  call newPatch%sdlng_mdd(pft)%p%CopyFromDonor(currentPatch%sdlng_mdd(pft)%p)
                                enddo
                             end if
 
-                            call new_patch%tveg_longterm%CopyFromDonor(currentPatch%tveg_longterm)
+                            call newPatch%tveg_longterm%CopyFromDonor(currentPatch%tveg_longterm)
 
                             ! --------------------------------------------------------------------------
                             ! The newly formed patch from disturbance (newPatch), has now been given
@@ -1157,7 +1157,7 @@ contains
                                      nc%shorter => null()
                                   endif
                                   !nc%patchptr => new_patch
-                                  call insert_cohort(new_patch, nc, new_patch%tallest, new_patch%shortest, &
+                                  call insert_cohort(newPatch, nc, newPatch%tallest, newPatch%shortest, &
                                        tnull, snull, storebigcohort, storesmallcohort)
 
                                   newPatch%tallest  => storebigcohort
@@ -3259,7 +3259,7 @@ contains
        select case(insert_method)
 
        ! Option 1 - order of land use label groups does not matter
-       case (unordered_lul_groups) then
+       case (unordered_lul_groups)
 
           do while(associated(currentPatch) .and. .not. found_landuselabel_match)
             if (currentPatch%land_use_label .eq. newPatch%land_use_label) then
@@ -3286,7 +3286,7 @@ contains
           endif
 
        ! Option 2 - primaryland group must be on the oldest end
-       case (primaryland_oldest_group) then
+       case (primaryland_oldest_group)
 
           do while(associated(currentPatch) .and. .not. found_landuselabel_match)
              if (currentPatch%land_use_label .eq. newPatch%land_use_label) then
@@ -3324,7 +3324,7 @@ contains
           endif
 
        ! Option 3 - groups are numerically ordered with primaryland group starting at oldest end.
-       case (numerical_order_lul_groups) then
+       case (numerical_order_lul_groups)
 
           ! If the youngest patch landuse label number is greater than the new
           ! patch land use label number, the new patch must be inserted somewhere
@@ -3359,7 +3359,7 @@ contains
           endif
 
        ! Option 4 - always add the new patch as the youngest regardless of land use label
-       case (age_order_only) then
+       case (age_order_only)
           ! Set the current patch to the youngest patch
           newPatch%older                     => currentSite%youngest_patch
           newPatch%younger                   => null()
