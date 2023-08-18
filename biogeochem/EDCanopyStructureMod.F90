@@ -8,7 +8,7 @@ module EDCanopyStructureMod
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : itrue, ifalse
   use FatesConstantsMod     , only : tinyr8
-  use FatesConstantsMod     , only : nearzero, area_error_2
+  use FatesConstantsMod     , only : nearzero, area_error_1
   use FatesConstantsMod     , only : rsnbl_math_prec
   use FatesConstantsMod     , only : nocomp_bareground
   use FatesGlobals          , only : fates_log
@@ -1389,7 +1389,7 @@ contains
                    call endrun(msg=errMsg(sourcefile, __LINE__))
                 end if
 
-                if (currentPatch%total_canopy_area - currentPatch%area > area_error_2) then
+                if (currentPatch%total_canopy_area - currentPatch%area > area_error_1) then
                    write(fates_log(),*) 'too much canopy in summary', s, &
                         currentPatch%nocomp_pft_label, currentPatch%total_canopy_area - currentPatch%area
                    call endrun(msg=errMsg(sourcefile, __LINE__))
