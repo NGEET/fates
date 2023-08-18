@@ -3002,11 +3002,15 @@ contains
                       if (count_cycles .gt. 0) then
                          ! if we're having an incredibly hard time fusing patches because of their differing anthropogenic disturbance labels,
                          ! since the size is so small, let's sweep the problem under the rug and change the tiny patch's label to that of its younger sibling
+                         ! Note that given the grouping of landuse types in the linked list, this could result in very small patches
+
+                         ! being fused to much larger patches
+                         ! Set the donor patch label to match the reciever patch label to avoid an error
+                         ! due to a label check inside fuse_2_patches
+                         currentPatch%land_use_label = largestPatch%land_use_label
+
                          ! We also assigned the age since disturbance value to be the younger (donor) patch to avoid combining a valid
                          ! age with fates_unset_r8 (i.e. the age for primaryland) in the fuse_2_patches procedure
-                         ! Note that given the grouping of landuse types in the linked list, this could result in very small patches
-                         ! being fused to much larger patches
-                         currentPatch%land_use_label = largestPatch%land_use_label
                          currentPatch%age_since_anthro_disturbance = largestPatch%age_since_anthro_disturbance
                          call fuse_2_patches(currentSite, currentPatch, largestPatch)
                          gotfused = .true.
