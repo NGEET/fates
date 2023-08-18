@@ -2917,6 +2917,7 @@ contains
     type(fates_patch_type), pointer :: olderPatch
     type(fates_patch_type), pointer :: youngerPatch
     type(fates_patch_type), pointer :: patchpointer
+    type(fates_patch_type), pointer :: largestPatch
     integer, parameter           :: max_cycles = 10  ! After 10 loops through
                                                      ! You should had fused
     integer                      :: count_cycles
@@ -2925,16 +2926,21 @@ contains
 
     real(r8) areatot ! variable for checking whether the total patch area is wrong. 
     !---------------------------------------------------------------------
- 
+
+    ! Initialize the count cycles
     count_cycles = 0
 
+    ! Start at the youngest patch in the list and assume that the largest patch is this patch
     currentPatch => currentSite%youngest_patch
+    largestPatch => currentPatch
     do while(associated(currentPatch)) 
        lessthan_min_patcharea_if: if(currentPatch%area <= min_patch_area)then
-          
+
+          ! Initialize gotfused flag for both nocomp and all other cases
+          gotfused = .false.
+
           nocomp_if: if (hlm_use_nocomp .eq. itrue) then
 
-             gotfused = .false.
              patchpointer => currentSite%youngest_patch
              do while(associated(patchpointer))
                 if ( .not.associated(currentPatch,patchpointer) .and. &
@@ -2958,93 +2964,94 @@ contains
 
           else nocomp_if
 
-          ! Determine if the current patch is the youngest in the land use grouping
-          ! If the 'younger' patch is a different land use then the current is the youngest
-          ! per the InsertPatch subroutine.  That said it could also be the only patch and
-          ! also the oldest.  Should we handle that distinction?
-          current_patch_is_youngest_lutype = .false.
-          if (currentPatch%younger%land_use_label .ne. currentPatch%land_use_label) current_patch_is_youngest_lutype = .true.
+             ! Check to see if the current patch is the largest patch so far and update if it is
+             if (currentPatch%area .gt. largestPatch%area) then largestPatch => currentPatch
 
-          ! Even if the patch area is small, avoid fusing it into its neighbor
-          ! if it is the youngest of all patches. We do this in attempts to maintain
-          ! a discrete patch for very young patches
-          ! However, if the patch to be fused is excessivlely small, then fuse
-          ! at all costs.  If it is not fused, it will make
-          notyoungest_if: if ( .not. current_patch_is_youngest_lutype .or. &
-               currentPatch%area <= min_patch_area_forced ) then
-             
-             gotfused = .false.
+             ! Determine if the current patch is the youngest in the land use grouping
+             ! If the 'younger' patch has a different landuse label then the current is the youngest
+             ! per the InsertPatch subroutine.  That said it could also be the only patch and
+             ! also the oldest.  Should we handle that distinction?
+             current_patch_is_youngest_lutype = .false.
+             if (currentPatch%younger%land_use_label .ne. currentPatch%land_use_label) current_patch_is_youngest_lutype = .true.
 
-             associated_older_if: if(associated(currentPatch%older) )then
-                
-                if(debug) &
-                     write(fates_log(),*) 'fusing to older patch because this one is too small',&
-                     currentPatch%area, &
-                     currentPatch%older%area
-                
-                ! We set a pointer to this patch, because
-                ! it will be returned by the subroutine as de-referenced
-                
-                olderPatch => currentPatch%older
+             ! Even if the patch area is small, avoid fusing it into its neighbor
+             ! if it is the youngest of all patches. We do this in attempts to maintain
+             ! a discrete patch for very young patches.
+             ! However, if the patch to be fused is excessively small, then fuse at all costs.
+             notyoungest_if: if ( .not. current_patch_is_youngest_lutype .or. currentPatch%area <= min_patch_area_forced ) then
 
-                distlabel_1_if: if (currentPatch%land_use_label .eq. olderPatch%land_use_label) then
-                   
-                   call fuse_2_patches(currentSite, olderPatch, currentPatch)
-                
-                   ! The fusion process has updated the "older" pointer on currentPatch
-                   ! for us.
-                
-                   ! This logic checks to make sure that the younger patch is not the youngest
-                   ! patch. As mentioned earlier, we try not to fuse it.
-                   
-                   gotfused = .true.
-                else distlabel_1_if !i.e. anthro labels of two patches are not the same
-                   countcycles_if: if (count_cycles .gt. 0) then
-                      ! if we're having an incredibly hard time fusing patches because of their differing anthropogenic disturbance labels, 
-                      ! since the size is so small, let's sweep the problem under the rug and change the tiny patch's label to that of its older sibling
-                      ! and then allow them to fuse together. 
-                      ! We also assigned the age since disturbance value to be the younger (donor) patch to avoid combining a valid
-                      ! age with fates_unset_r8 (i.e. the age for primaryland) in the fuse_2_patches procedure
-                      ! Note that given the grouping of landuse types in the linked list, this could result in very small patches
-                      ! being fused to much larger patches
-                      currentPatch%land_use_label = olderPatch%land_use_label
-                      currentPatch%age_since_anthro_disturbance = olderPatch%age_since_anthro_disturbance
+                ! Determine if there is an older patch available
+                associated_older_if: if(associated(currentPatch%older)) then
+
+                   if(debug) &
+                        write(fates_log(),*) 'fusing to older patch because this one is too small',&
+                        currentPatch%area, &
+                        currentPatch%older%area
+
+                   olderPatch => currentPatch%older
+
+                   ! If the older patch has the same landuse label fuse the older (donor) patch into the current patch
+                   distlabel_1_if: if (currentPatch%land_use_label .eq. olderPatch%land_use_label) then
+
                       call fuse_2_patches(currentSite, olderPatch, currentPatch)
                       gotfused = .true.
-                   endif countcycles_if
-                endif distlabel_1_if
-             endif associated_older_if
-             
-             not_gotfused_if: if( .not. gotfused .and. associated(currentPatch%younger) ) then
-                
-                if(debug) &
-                     write(fates_log(),*) 'fusing to younger patch because oldest one is too small', &
-                     currentPatch%area
 
-                youngerPatch => currentPatch%younger
+                   else distlabel_1_if
 
-                distlabel_2_if: if (currentPatch%land_use_label .eq. youngerPatch% land_use_label) then
-                   
-                   call fuse_2_patches(currentSite, youngerPatch, currentPatch)
-                   
-                   ! The fusion process has updated the "younger" pointer on currentPatch
-                   gotfused = .true.
-                else distlabel_2_if
-                   if (count_cycles .gt. 0) then
-                      ! if we're having an incredibly hard time fusing patches because of their differing anthropogenic disturbance labels, 
-                      ! since the size is so small, let's sweep the problem under the rug and change the tiny patch's label to that of its younger sibling
-                      ! We also assigned the age since disturbance value to be the younger (donor) patch to avoid combining a valid
-                      ! age with fates_unset_r8 (i.e. the age for primaryland) in the fuse_2_patches procedure
-                      ! Note that given the grouping of landuse types in the linked list, this could result in very small patches
-                      ! being fused to much larger patches
-                      currentPatch%land_use_label = youngerPatch%land_use_label
-                      currentPatch%age_since_anthro_disturbance = youngerPatch%age_since_anthro_disturbance
+                      ! If we're having an incredibly hard time fusing patches because of their differing
+                      ! landuse labels (i.e. the count_cycles is more than zero), then fuse the current
+                      ! patch with the largest patch regardless of landuse label.
+                      countcycles_if: if (count_cycles .gt. 0) then
+
+                         ! Work through the rest of the list to find the largest patch
+                         do while (associated(olderPatch))
+                            if (olderPatch%area .gt. largestPatch%area) then largestPatch => olderPatch
+                            olderPatch => olderPatch%older
+                         end do
+
+                         ! Set the donor patch label to match the reciever patch label to avoid an error
+                         ! due to a label check inside fuse_2_patches
+                         currentPatch%land_use_label = largestPatch%land_use_label
+
+                         ! We also assign the age since disturbance value to be the younger (donor) patch to avoid combining a valid
+                         ! age with fates_unset_r8 (i.e. the age for primaryland) in the fuse_2_patches procedure
+                         currentPatch%age_since_anthro_disturbance = largestPatch%age_since_anthro_disturbance
+                         call fuse_2_patches(currentSite, currentPatch, largestPatch)
+                         gotfused = .true.
+                      endif countcycles_if
+                   endif distlabel_1_if
+                endif associated_older_if
+
+                not_gotfused_if: if( .not. gotfused .and. associated(currentPatch%younger) ) then
+
+                   if(debug) &
+                        write(fates_log(),*) 'fusing to younger patch because oldest one is too small', &
+                        currentPatch%area
+
+                   youngerPatch => currentPatch%younger
+
+                   distlabel_2_if: if (currentPatch%land_use_label .eq. youngerPatch% land_use_label) then
+
                       call fuse_2_patches(currentSite, youngerPatch, currentPatch)
+
+                      ! The fusion process has updated the "younger" pointer on currentPatch
                       gotfused = .true.
-                   endif ! count cycles
-                endif distlabel_2_if     ! anthro labels
-              endif not_gotfused_if ! has an older patch
-           endif notyoungest_if ! is not the youngest patch  
+                   else distlabel_2_if
+                      if (count_cycles .gt. 0) then
+                         ! if we're having an incredibly hard time fusing patches because of their differing anthropogenic disturbance labels,
+                         ! since the size is so small, let's sweep the problem under the rug and change the tiny patch's label to that of its younger sibling
+                         ! We also assigned the age since disturbance value to be the younger (donor) patch to avoid combining a valid
+                         ! age with fates_unset_r8 (i.e. the age for primaryland) in the fuse_2_patches procedure
+                         ! Note that given the grouping of landuse types in the linked list, this could result in very small patches
+                         ! being fused to much larger patches
+                         currentPatch%land_use_label = largestPatch%land_use_label
+                         currentPatch%age_since_anthro_disturbance = largestPatch%age_since_anthro_disturbance
+                         call fuse_2_patches(currentSite, currentPatch, largestPatch)
+                         gotfused = .true.
+                      endif ! count cycles
+                   endif distlabel_2_if     ! anthro labels
+                endif not_gotfused_if ! has an older patch
+             endif notyoungest_if ! is not the youngest patch
         endif nocomp_if
         endif lessthan_min_patcharea_if ! very small patch
 
