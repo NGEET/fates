@@ -725,22 +725,22 @@ contains
              end if  ! big error
           end if ! too much patch area
 	  
-	  ! we might have messed up patch area now - need to correct if SP mode
-	  if (hlm_use_sp .eq. itrue) then 
-	  newp => sites(s)%oldest_patch
-	  do while (associated(newp))
-	  	cohort => newp%tallest
-		do while (associated(cohort))
-			if (abs(cohort%c_area - newp%area) < area_error_3) then ! correct if it's a very small error
-				old_carea = cohort%c_area 
-				cohort%c_area = cohort%c_area - (cohort%c_area - newp%area)
-				cohort%n = cohort%n*(cohort%c_area/old_carea)
-			end if 
-	 		cohort => cohort%shorter
-		end do 
-	  	newp => newp%younger
-	  end do
-	  end if 
+          ! we might have messed up patch area now - need to correct if SP mode
+          if (hlm_use_sp .eq. itrue) then 
+            newp => sites(s)%oldest_patch
+            do while (associated(newp))
+              cohort => newp%tallest
+              do while (associated(cohort))
+                if (abs(cohort%c_area - newp%area) < area_error_3) then ! correct if it's a very small error
+                  old_carea = cohort%c_area 
+                  cohort%c_area = cohort%c_area - (cohort%c_area - newp%area)
+                  cohort%n = cohort%n*(cohort%c_area/old_carea)
+                end if 
+                cohort => cohort%shorter
+              end do 
+              newp => newp%younger
+            end do
+          end if 
 
           ! For carbon balance checks, we need to initialize the
           ! total carbon stock
