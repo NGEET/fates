@@ -2965,7 +2965,7 @@ contains
           else nocomp_if
 
              ! Check to see if the current patch is the largest patch so far and update if it is
-             if (currentPatch%area .gt. largestPatch%area) then largestPatch => currentPatch
+             if (currentPatch%area .gt. largestPatch%area) largestPatch => currentPatch
 
              ! Determine if the current patch is the youngest in the land use grouping
              ! If the 'younger' patch has a different landuse label then the current is the youngest
@@ -3005,7 +3005,7 @@ contains
 
                          ! Work through the rest of the list to find the largest patch
                          do while (associated(olderPatch))
-                            if (olderPatch%area .gt. largestPatch%area) then largestPatch => olderPatch
+                            if (olderPatch%area .gt. largestPatch%area) largestPatch => olderPatch
                             olderPatch => olderPatch%older
                          end do
 
