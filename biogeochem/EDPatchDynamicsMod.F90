@@ -2934,7 +2934,16 @@ contains
              ! per the InsertPatch subroutine.  That said it could also be the only patch and
              ! also the oldest.  Should we handle that distinction?
              current_patch_is_youngest_lutype = .false.
-             if (currentPatch%younger%land_use_label .ne. currentPatch%land_use_label) current_patch_is_youngest_lutype = .true.
+
+             ! Check if the current patch is already the youngest patch on the site
+             if (associated(currentPatch,currentSite%youngest_patch)) then
+                current_patch_is_youngest_lutype = .true.
+             else
+                ! Otherwise check to see if the younger patch is a different landuse label
+                if (currentPatch%younger%land_use_label .ne. currentPatch%land_use_label) then                    
+                   current_patch_is_youngest_lutype = .true.
+                end if
+             end if
 
              ! Even if the patch area is small, avoid fusing it into its neighbor
              ! if it is the youngest of all patches. We do this in attempts to maintain
@@ -2955,6 +2964,7 @@ contains
                    ! If the older patch has the same landuse label fuse the older (donor) patch into the current patch
                    distlabel_1_if: if (currentPatch%land_use_label .eq. olderPatch%land_use_label) then
 
+                      write(fates_log(),*) 'terminate: fused to older patch, same label: ', currentPatch%land_use_label, olderPatch%land_use_label
                       call fuse_2_patches(currentSite, olderPatch, currentPatch)
                       gotfused = .true.
 
@@ -2971,6 +2981,8 @@ contains
                             olderPatch => olderPatch%older
                          end do
 
+                         write(fates_log(),*) 'terminate: fuse to largest patch, diff label: ', currentPatch%land_use_label, largestPatch%land_use_label
+
                          ! Set the donor patch label to match the reciever patch label to avoid an error
                          ! due to a label check inside fuse_2_patches
                          currentPatch%land_use_label = largestPatch%land_use_label
@@ -2980,6 +2992,7 @@ contains
                          currentPatch%age_since_anthro_disturbance = largestPatch%age_since_anthro_disturbance
                          call fuse_2_patches(currentSite, currentPatch, largestPatch)
                          gotfused = .true.
+
                       endif countcycles_if
                    endif distlabel_1_if
                 endif associated_older_if
@@ -2994,19 +3007,22 @@ contains
 
                    distlabel_2_if: if (currentPatch%land_use_label .eq. youngerPatch% land_use_label) then
 
+                      write(fates_log(),*) 'terminate: fused to younger patch, same label: ', currentPatch%land_use_label, youngerPatch%land_use_label
                       call fuse_2_patches(currentSite, youngerPatch, currentPatch)
 
                       ! The fusion process has updated the "younger" pointer on currentPatch
                       gotfused = .true.
+
                    else distlabel_2_if
                       if (count_cycles .gt. 0) then
                          ! if we're having an incredibly hard time fusing patches because of their differing anthropogenic disturbance labels,
                          ! since the size is so small, let's sweep the problem under the rug and change the tiny patch's label to that of its younger sibling
                          ! Note that given the grouping of landuse types in the linked list, this could result in very small patches
-
                          ! being fused to much larger patches
+
                          ! Set the donor patch label to match the reciever patch label to avoid an error
                          ! due to a label check inside fuse_2_patches
+                         write(fates_log(),*) 'terminate: fuse to largest patch, diff label: ', currentPatch%land_use_label, largestPatch%land_use_label
                          currentPatch%land_use_label = largestPatch%land_use_label
 
                          ! We also assigned the age since disturbance value to be the younger (donor) patch to avoid combining a valid
@@ -3014,6 +3030,7 @@ contains
                          currentPatch%age_since_anthro_disturbance = largestPatch%age_since_anthro_disturbance
                          call fuse_2_patches(currentSite, currentPatch, largestPatch)
                          gotfused = .true.
+
                       endif ! count cycles
                    endif distlabel_2_if     ! anthro labels
                 endif not_gotfused_if ! has an older patch
