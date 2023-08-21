@@ -2964,7 +2964,9 @@ contains
                    ! If the older patch has the same landuse label fuse the older (donor) patch into the current patch
                    distlabel_1_if: if (currentPatch%land_use_label .eq. olderPatch%land_use_label) then
 
-                      write(fates_log(),*) 'terminate: fused to older patch, same label: ', currentPatch%land_use_label, olderPatch%land_use_label
+                      if(debug) &
+                           write(fates_log(),*) 'terminate: fused to older patch, same label: ', currentPatch%land_use_label, olderPatch%land_use_label
+
                       call fuse_2_patches(currentSite, olderPatch, currentPatch)
                       gotfused = .true.
 
@@ -2981,7 +2983,8 @@ contains
                             olderPatch => olderPatch%older
                          end do
 
-                         write(fates_log(),*) 'terminate: fuse to largest patch, diff label: ', currentPatch%land_use_label, largestPatch%land_use_label
+                         if(debug) &
+                            write(fates_log(),*) 'terminate: fuse to largest patch, diff label: ', currentPatch%land_use_label, largestPatch%land_use_label
 
                          ! Set the donor patch label to match the reciever patch label to avoid an error
                          ! due to a label check inside fuse_2_patches
@@ -3007,7 +3010,9 @@ contains
 
                    distlabel_2_if: if (currentPatch%land_use_label .eq. youngerPatch% land_use_label) then
 
-                      write(fates_log(),*) 'terminate: fused to younger patch, same label: ', currentPatch%land_use_label, youngerPatch%land_use_label
+                      if(debug) &
+                        write(fates_log(),*) 'terminate: fused to younger patch, same label: ', currentPatch%land_use_label, youngerPatch%land_use_label
+
                       call fuse_2_patches(currentSite, youngerPatch, currentPatch)
 
                       ! The fusion process has updated the "younger" pointer on currentPatch
@@ -3019,10 +3024,11 @@ contains
                          ! since the size is so small, let's sweep the problem under the rug and change the tiny patch's label to that of its younger sibling
                          ! Note that given the grouping of landuse types in the linked list, this could result in very small patches
                          ! being fused to much larger patches
+                         if(debug) &
+                            write(fates_log(),*) 'terminate: fuse to largest patch, diff label: ', currentPatch%land_use_label, largestPatch%land_use_label
 
                          ! Set the donor patch label to match the reciever patch label to avoid an error
                          ! due to a label check inside fuse_2_patches
-                         write(fates_log(),*) 'terminate: fuse to largest patch, diff label: ', currentPatch%land_use_label, largestPatch%land_use_label
                          currentPatch%land_use_label = largestPatch%land_use_label
 
                          ! We also assigned the age since disturbance value to be the younger (donor) patch to avoid combining a valid
