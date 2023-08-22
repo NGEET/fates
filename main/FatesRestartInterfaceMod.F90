@@ -26,7 +26,6 @@ module FatesRestartInterfaceMod
   use FatesInterfaceTypesMod,       only : hlm_use_nocomp, hlm_use_fixed_biogeog
   use FatesInterfaceTypesMod,       only : fates_maxElementsPerSite
   use FatesInterfaceTypesMod, only : hlm_use_tree_damage
-  use EDCohortDynamicsMod,     only : UpdateCohortBioPhysRates
   use FatesHydraulicsMemMod,   only : nshell
   use FatesHydraulicsMemMod,   only : n_hypool_ag
   use FatesHydraulicsMemMod,   only : n_hypool_troot
@@ -34,17 +33,15 @@ module FatesRestartInterfaceMod
   use FatesPlantHydraulicsMod, only : UpdatePlantPsiFTCFromTheta
   use PRTGenericMod,           only : prt_global
   use PRTGenericMod,           only : prt_cnp_flex_allom_hyp
-  use EDCohortDynamicsMod,     only : nan_cohort
-  use EDCohortDynamicsMod,     only : zero_cohort
   use EDCohortDynamicsMod,     only : InitPRTObject
-  use EDCohortDynamicsMod,     only : InitPRTBoundaryConditions
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesInterfaceTypesMod,       only : nlevsclass
   use FatesInterfaceTypesMod,  only : nlevdamage
   use FatesLitterMod,          only : litter_type
-  use FatesLitterMod,          only : ncwd
+  use FatesLitterMod,          only : ncwd, nfsc
   use FatesLitterMod,          only : ndcmpy
-  use EDTypesMod,              only : nfsc, nlevleaf, area
+  use EDTypesMod,              only : area
+  use EDParamsMod,             only : nlevleaf
   use PRTGenericMod,           only : prt_global
   use PRTGenericMod,           only : num_elements
   use FatesRunningMeanMod,     only : rmean_type
@@ -1903,13 +1900,12 @@ contains
    use FatesInterfaceTypesMod, only : fates_maxElementsPerPatch
    use FatesInterfaceTypesMod, only : numpft
    use EDTypesMod, only : ed_site_type
-   use EDTypesMod, only : ed_cohort_type
-   use EDTypesMod, only : ed_patch_type
-   use EDTypesMod, only : maxSWb
-   use EDTypesMod, only : nclmax
+   use FatesCohortMod, only : fates_cohort_type
+   use FatesPatchMod, only : fates_patch_type
+   use EDParamsMod, only : maxSWb
+   use EDParamsMod, only : nclmax
    use EDTypesMod, only : numWaterMem
    use EDTypesMod, only : num_vegtemp_mem
-   use EDTypesMod, only : maxpft
    use FatesInterfaceTypesMod, only : nlevdamage
 
     ! Arguments
@@ -1976,8 +1972,8 @@ contains
     integer  :: icdj             ! loop counter for damage
     
     type(fates_restart_variable_type) :: rvar
-    type(ed_patch_type),pointer  :: cpatch
-    type(ed_cohort_type),pointer :: ccohort
+    type(fates_patch_type),pointer  :: cpatch
+    type(fates_cohort_type),pointer :: ccohort
 
 
     associate( rio_npatch_si           => this%rvars(ir_npatch_si)%int1d, &
@@ -2643,18 +2639,15 @@ contains
      ! ---------------------------------------------------------------------------------
 
      use EDTypesMod,           only : ed_site_type
-     use EDTypesMod,           only : ed_cohort_type
-     use EDTypesMod,           only : ed_patch_type
-     use EDTypesMod,           only : maxSWb
+     use FatesCohortMod,           only : fates_cohort_type
+     use FatesPatchMod,           only : fates_patch_type
+     use EDParamsMod,          only : maxSWb, regeneration_model
      use FatesInterfaceTypesMod,    only : fates_maxElementsPerPatch
+     use FatesInterfaceTypesMod,    only : hlm_current_tod, hlm_numSWb, numpft
 
-     use EDTypesMod,           only : maxpft
      use EDTypesMod,           only : area
-     use EDPatchDynamicsMod,   only : zero_patch
      use EDInitMod,            only : zero_site
      use EDInitMod,            only : init_site_vars
-     use EDPatchDynamicsMod,   only : create_patch
-     use EDPftvarcon,          only : EDPftvarcon_inst
      use FatesAllometryMod,    only : h2d_allom
 
 
@@ -2668,9 +2661,9 @@ contains
 
      ! local variables
 
-     type(ed_patch_type) , pointer     :: newp
-     type(ed_cohort_type), pointer     :: new_cohort
-     type(ed_cohort_type), pointer     :: prev_cohort
+     type(fates_patch_type) , pointer     :: newp
+     type(fates_cohort_type), pointer     :: new_cohort
+     type(fates_cohort_type), pointer     :: prev_cohort
      integer                           :: cohortstatus
      integer                           :: s             ! site index
      integer                           :: idx_pa        ! local patch index
@@ -2721,7 +2714,9 @@ contains
              nocomp_pft = fates_unset_int
              ! the nocomp_pft label is set after patch creation has occured in 'get_restart_vectors'
              ! make new patch
-             call create_patch(sites(s), newp, fates_unset_r8, fates_unset_r8, primaryforest, nocomp_pft )
+             call newp%Create(fates_unset_r8, fates_unset_r8, primaryforest,   &
+               nocomp_pft, hlm_numSWb, numpft, sites(s)%nlevsoil,              &
+               hlm_current_tod, regeneration_model)
 
              ! Initialize the litter pools to zero, these
              ! pools will be populated by looping over the existing patches
@@ -2751,9 +2746,8 @@ contains
              do fto = 1, rio_ncohort_pa( io_idx_co_1st )
 
                 allocate(new_cohort)
-                call nan_cohort(new_cohort)
-                call zero_cohort(new_cohort)
-                new_cohort%patchptr => newp
+                call new_cohort%NanValues()
+                call new_cohort%ZeroValues()
 
                 ! If this is the first in the list, it is tallest
                 if (.not.associated(newp%tallest)) then
@@ -2843,14 +2837,13 @@ contains
    subroutine get_restart_vectors(this, nc, nsites, sites)
 
      use EDTypesMod, only : ed_site_type
-     use EDTypesMod, only : ed_cohort_type
-     use EDTypesMod, only : ed_patch_type
-     use EDTypesMod, only : maxSWb
-     use EDTypesMod, only : nclmax
+     use FatesCohortMod, only : fates_cohort_type
+     use FatesPatchMod, only : fates_patch_type
+     use EDParamsMod, only : maxSWb
+     use EDParamsMod, only : nclmax
      use FatesInterfaceTypesMod, only : numpft
      use FatesInterfaceTypesMod, only : fates_maxElementsPerPatch
      use EDTypesMod, only : numWaterMem
-     use EDTypesMod, only : maxpft
      use EDTypesMod, only : num_vegtemp_mem
      use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
      
@@ -2864,8 +2857,8 @@ contains
      ! locals
      ! ----------------------------------------------------------------------------------
      ! LL pointers
-     type(ed_patch_type),pointer  :: cpatch      ! current patch
-     type(ed_cohort_type),pointer :: ccohort     ! current cohort
+     type(fates_patch_type),pointer  :: cpatch      ! current patch
+     type(fates_cohort_type),pointer :: ccohort     ! current cohort
      type(litter_type), pointer   :: litt        ! litter object on the current patch
      ! loop indices
      integer :: s, i, j, k, pft                 
@@ -3251,8 +3244,8 @@ contains
                 ccohort%efstem_coh   = rio_efstem_co(io_idx_co)
                 ccohort%isnew        = ( rio_isnew_co(io_idx_co) .eq. new_cohort )
 
-                call InitPRTBoundaryConditions(ccohort)
-                call UpdateCohortBioPhysRates(ccohort)
+                call ccohort%InitPRTBoundaryConditions()
+                call ccohort%UpdateCohortBioPhysRates()
 
                 ! Initialize Plant Hydraulics
 
@@ -3568,7 +3561,7 @@ contains
      ! -------------------------------------------------------------------------
 
      use EDTypesMod, only            : ed_site_type
-     use EDTypesMod, only            : ed_patch_type
+     use FatesPatchMod, only         : fates_patch_type
      use EDSurfaceRadiationMod, only : PatchNormanRadiation
      use FatesInterfaceTypesMod, only     : hlm_numSWb
 
@@ -3580,7 +3573,7 @@ contains
 
      ! locals
      ! ----------------------------------------------------------------------------------
-     type(ed_patch_type),pointer  :: currentPatch  ! current patch
+     type(fates_patch_type),pointer  :: currentPatch  ! current patch
      integer                      :: s             ! site counter
      integer                      :: ib            ! radiation band counter
      integer                      :: ifp           ! patch counter

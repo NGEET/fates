@@ -52,11 +52,11 @@ module FatesPlantHydraulicsMod
   use EDParamsMod       , only : hydr_solver
 
   use EDTypesMod        , only : ed_site_type
-  use EDTypesMod        , only : ed_patch_type
-  use EDTypesMod        , only : ed_cohort_type
+  use FatesPatchMod     , only : fates_patch_type
+  use FatesCohortMod    , only : fates_cohort_type
   use EDTypesMod        , only : AREA_INV
   use EDTypesMod        , only : AREA
-  use EDTypesMod        , only : leaves_on
+  use FatesConstantsMod , only : leaves_on
 
   use FatesInterfaceTypesMod  , only : bc_in_type
   use FatesInterfaceTypesMod  , only : bc_out_type
@@ -252,7 +252,6 @@ module FatesPlantHydraulicsMod
   public :: InitHydrCohort
   public :: DeallocateHydrCohort
   public :: UpdateH2OVeg
-  public :: CopyCohortHydraulics
   public :: FuseCohortHydraulics
   public :: UpdateSizeDepPlantHydProps
   public :: UpdateSizeDepPlantHydStates
@@ -336,8 +335,8 @@ contains
     ! locals
     ! ----------------------------------------------------------------------------------
     ! LL pointers
-    type(ed_patch_type),pointer         :: cpatch      ! current patch
-    type(ed_cohort_type),pointer        :: ccohort     ! current cohort
+    type(fates_patch_type),pointer      :: cpatch      ! current patch
+    type(fates_cohort_type),pointer     :: ccohort     ! current cohort
     type(ed_cohort_hydr_type),pointer   :: ccohort_hydr
     type(ed_site_hydr_type),pointer     :: csite_hydr
     integer                             :: s           ! site loop counter
@@ -533,7 +532,7 @@ contains
 
     ! !ARGUMENTS:
     type(ed_site_type), intent(inout), target   :: site   ! current site pointer
-    type(ed_cohort_type), intent(inout), target :: cohort ! current cohort pointer
+    type(fates_cohort_type), intent(inout), target :: cohort ! current cohort pointer
     !
     ! !LOCAL VARIABLES:
     type(ed_site_hydr_type), pointer   :: csite_hydr
@@ -682,7 +681,7 @@ contains
     ! of total conductivity based on the relative water
     ! content
     ! Arguments
-    type(ed_cohort_type),intent(inout), target :: ccohort
+    type(fates_cohort_type),intent(inout), target :: ccohort
     type(ed_site_hydr_type),intent(in), target :: csite_hydr
 
     ! Locals
@@ -742,7 +741,7 @@ contains
     ! --------------------------------------------------------------------------------
 
     ! Arguments
-    type(ed_cohort_type), intent(inout) :: ccohort
+    type(fates_cohort_type), intent(inout) :: ccohort
     integer,intent(in)                  :: ft            ! plant functional type index
     real(r8), intent(in)                :: plant_height  ! [m]
     type(ed_site_hydr_type), intent(in) :: csite_hydr
@@ -845,7 +844,7 @@ contains
 
     ! ARGUMENTS:
     type(ed_site_type)     , intent(in)             :: currentSite ! Site stuff
-    type(ed_cohort_type)   , intent(inout)          :: ccohort     ! current cohort pointer
+    type(fates_cohort_type)   , intent(inout)          :: ccohort     ! current cohort pointer
     type(bc_in_type)       , intent(in)             :: bc_in       ! Boundary Conditions
 
     ! Locals
@@ -894,7 +893,7 @@ contains
     ! -----------------------------------------------------------------------------------
 
     ! Arguments
-    type(ed_cohort_type),intent(inout)  :: ccohort
+    type(fates_cohort_type),intent(inout)  :: ccohort
     type(ed_site_hydr_type),intent(in)  :: csite_hydr
 
     type(ed_cohort_hydr_type),pointer :: ccohort_hydr     ! Plant hydraulics structure
@@ -1096,7 +1095,7 @@ contains
 
     ! !ARGUMENTS:
     type(ed_site_type)    , intent(in)    :: currentSite ! Site stuff
-    type(ed_cohort_type)   , intent(inout) :: ccohort
+    type(fates_cohort_type)   , intent(inout) :: ccohort
     !
     ! !LOCAL VARIABLES:
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
@@ -1195,79 +1194,11 @@ end function constrain_water_contents
 
 ! =====================================================================================
 
-subroutine CopyCohortHydraulics(newCohort, oldCohort)
-
-  ! Arguments
-  type(ed_cohort_type), intent(inout), target :: newCohort
-  type(ed_cohort_type), intent(inout), target :: oldCohort
-
-  ! Locals
-  type(ed_cohort_hydr_type), pointer :: ncohort_hydr
-  type(ed_cohort_hydr_type), pointer :: ocohort_hydr
-
-
-  ncohort_hydr => newCohort%co_hydr
-  ocohort_hydr => oldCohort%co_hydr
-
-  ! Node heights
-  ncohort_hydr%z_node_ag             = ocohort_hydr%z_node_ag
-  ncohort_hydr%z_upper_ag            = ocohort_hydr%z_upper_ag
-  ncohort_hydr%z_lower_ag            = ocohort_hydr%z_lower_ag
-  ncohort_hydr%z_node_troot          = ocohort_hydr%z_node_troot
-
-  ! Compartment kmax's
-  ncohort_hydr%kmax_petiole_to_leaf  = ocohort_hydr%kmax_petiole_to_leaf
-  ncohort_hydr%kmax_stem_lower       = ocohort_hydr%kmax_stem_lower
-  ncohort_hydr%kmax_stem_upper       = ocohort_hydr%kmax_stem_upper
-  ncohort_hydr%kmax_troot_upper      = ocohort_hydr%kmax_troot_upper
-  ncohort_hydr%kmax_troot_lower      = ocohort_hydr%kmax_troot_lower
-  ncohort_hydr%kmax_aroot_upper      = ocohort_hydr%kmax_aroot_upper
-  ncohort_hydr%kmax_aroot_lower      = ocohort_hydr%kmax_aroot_lower
-  ncohort_hydr%kmax_aroot_radial_in  = ocohort_hydr%kmax_aroot_radial_in
-  ncohort_hydr%kmax_aroot_radial_out = ocohort_hydr%kmax_aroot_radial_out
-
-  ! Compartment volumes
-  ncohort_hydr%v_ag_init             = ocohort_hydr%v_ag_init
-  ncohort_hydr%v_ag                  = ocohort_hydr%v_ag
-  ncohort_hydr%v_troot_init          = ocohort_hydr%v_troot_init
-  ncohort_hydr%v_troot               = ocohort_hydr%v_troot
-  ncohort_hydr%v_aroot_layer_init    = ocohort_hydr%v_aroot_layer_init
-  ncohort_hydr%v_aroot_layer         = ocohort_hydr%v_aroot_layer
-  ncohort_hydr%l_aroot_layer         = ocohort_hydr%l_aroot_layer
-
-  ! State Variables
-  ncohort_hydr%th_ag                 = ocohort_hydr%th_ag
-  ncohort_hydr%th_troot              = ocohort_hydr%th_troot
-  ncohort_hydr%th_aroot              = ocohort_hydr%th_aroot
-  ncohort_hydr%psi_ag                = ocohort_hydr%psi_ag
-  ncohort_hydr%psi_troot             = ocohort_hydr%psi_troot
-  ncohort_hydr%psi_aroot             = ocohort_hydr%psi_aroot
-  ncohort_hydr%ftc_ag                = ocohort_hydr%ftc_ag
-  ncohort_hydr%ftc_troot             = ocohort_hydr%ftc_troot
-  ncohort_hydr%ftc_aroot             = ocohort_hydr%ftc_aroot
-
-  ! Other
-  ncohort_hydr%btran                 = ocohort_hydr%btran
-  ncohort_hydr%supsub_flag           = ocohort_hydr%supsub_flag
-  ncohort_hydr%iterh1                = ocohort_hydr%iterh1
-  ncohort_hydr%iterh2                = ocohort_hydr%iterh2
-  ncohort_hydr%iterlayer             = ocohort_hydr%iterlayer
-  ncohort_hydr%errh2o                = ocohort_hydr%errh2o
-
-
-  ! BC PLANT HYDRAULICS - flux terms
-  ncohort_hydr%qtop                  = ocohort_hydr%qtop
-
-  ncohort_hydr%is_newly_recruited    = ocohort_hydr%is_newly_recruited
-
-end subroutine CopyCohortHydraulics
-
-! =====================================================================================
 subroutine FuseCohortHydraulics(currentSite,currentCohort, nextCohort, bc_in, newn)
 
 
-  type(ed_cohort_type), intent(inout), target :: currentCohort ! current cohort
-  type(ed_cohort_type), intent(inout), target :: nextCohort    ! next (donor) cohort
+  type(fates_cohort_type), intent(inout), target :: currentCohort ! current cohort
+  type(fates_cohort_type), intent(inout), target :: nextCohort    ! next (donor) cohort
   type(ed_site_type), intent(inout), target :: currentSite    ! current site
 
   type(bc_in_type), intent(in)                :: bc_in
@@ -1372,7 +1303,7 @@ subroutine InitHydrCohort(currentSite,currentCohort)
 
   ! Arguments
   type(ed_site_type), target   :: currentSite
-  type(ed_cohort_type), target :: currentCohort
+  type(fates_cohort_type), target :: currentCohort
   type(ed_cohort_hydr_type), pointer :: ccohort_hydr
 
   if ( hlm_use_planthydro.eq.ifalse ) return
@@ -1388,7 +1319,7 @@ end subroutine InitHydrCohort
 subroutine DeallocateHydrCohort(currentCohort)
 
   ! Arguments
-  type(ed_cohort_type), target :: currentCohort
+  type(fates_cohort_type), target :: currentCohort
   type(ed_cohort_hydr_type), pointer :: ccohort_hydr
 
   if ( hlm_use_planthydro.eq.ifalse ) return
@@ -1776,8 +1707,8 @@ end subroutine HydrSiteColdStart
 
 
   ! Locals
-  type(ed_cohort_type), pointer :: currentCohort
-  type(ed_patch_type), pointer :: currentPatch
+  type(fates_cohort_type), pointer :: currentCohort
+  type(fates_patch_type), pointer :: currentPatch
   type(ed_cohort_hydr_type), pointer :: ccohort_hydr
   type(ed_site_hydr_type), pointer :: csite_hydr
   integer :: s
@@ -1859,8 +1790,8 @@ subroutine RecruitWUptake(nsites,sites,bc_in,dtime,recruitflag)
   logical, intent(out)                      :: recruitflag      !flag to check if there is newly recruited cohorts
 
   ! Locals
-  type(ed_cohort_type), pointer :: currentCohort
-  type(ed_patch_type), pointer :: currentPatch
+  type(fates_cohort_type), pointer :: currentCohort
+  type(fates_patch_type), pointer :: currentPatch
   type(ed_cohort_hydr_type), pointer :: ccohort_hydr
   type(ed_site_hydr_type), pointer :: csite_hydr
   integer :: s, j, ft
@@ -1925,7 +1856,7 @@ end subroutine RecruitWUptake
 
 !=====================================================================================
 
-subroutine ConstrainRecruitNumber(csite,ccohort, bc_in)
+subroutine ConstrainRecruitNumber(csite,ccohort, cpatch, bc_in, mean_temp)
 
   ! ---------------------------------------------------------------------------
   ! This subroutine constrains the number of plants so that there is enought water
@@ -1934,13 +1865,14 @@ subroutine ConstrainRecruitNumber(csite,ccohort, bc_in)
 
   ! Arguments
   type(ed_site_type), intent(inout), target     :: csite
-  type(ed_cohort_type) , intent(inout), target  :: ccohort
+  type(fates_cohort_type) , intent(inout), target  :: ccohort
+  type(fates_patch_type), intent(inout), target       :: cpatch
   type(bc_in_type)    , intent(in)              :: bc_in
+  real(r8),             intent(in)              :: mean_temp
 
   ! Locals
   type(ed_cohort_hydr_type), pointer :: ccohort_hydr
   type(ed_site_hydr_type), pointer :: csite_hydr
-  type(ed_patch_type), pointer :: cpatch
   real(r8) :: tmp1
   real(r8) :: watres_local              ! minum water content [m3/m3]
   real(r8) :: total_water               ! total water in rhizosphere at a specific layer (m^3 ha-1)
@@ -1956,7 +1888,6 @@ subroutine ConstrainRecruitNumber(csite,ccohort, bc_in)
   real(r8) :: leaf_m, store_m, sapw_m   ! Element mass in organ tissues
   real(r8) :: fnrt_m, struct_m, repro_m ! Element mass in organ tissues
 
-  cpatch => ccohort%patchptr
   csite_hydr => csite%si_hydr
   ccohort_hydr =>ccohort%co_hydr
   recruitw =  (sum(ccohort_hydr%th_ag(:)*ccohort_hydr%v_ag(:))    + &
@@ -1990,7 +1921,7 @@ subroutine ConstrainRecruitNumber(csite,ccohort, bc_in)
   end do
 
   ! Prevent recruitment when temperatures are freezing or below
-  if (cpatch%tveg24%GetMean() <= 273.15_r8) then
+  if (mean_temp <= 273.15_r8) then
      nmin = 0._r8
   end if
 
@@ -2060,8 +1991,8 @@ subroutine UpdateSizeDepRhizVolLenCon(currentSite, bc_in)
   !
   ! !LOCAL VARIABLES:
   type(ed_site_hydr_type), pointer :: csite_hydr
-  type(ed_patch_type)  , pointer :: cPatch
-  type(ed_cohort_type) , pointer :: cCohort
+  type(fates_patch_type)  , pointer :: cPatch
+  type(fates_cohort_type) , pointer :: cCohort
   type(ed_cohort_hydr_type), pointer :: ccohort_hydr
   real(r8)                       :: hksat_s                      ! hksat converted to units of 10^6sec
                                                                  ! which is equiv to       [kg m-1 s-1 MPa-1]
@@ -2197,8 +2128,8 @@ subroutine BTranForHLMDiagnosticsFromCohortHydr(nsites,sites,bc_out)
   integer                                 :: s
   integer                                 :: ifp
   real(r8)                                :: balive_patch
-  type(ed_patch_type),pointer             :: cpatch
-  type(ed_cohort_type),pointer            :: ccohort
+  type(fates_patch_type),pointer             :: cpatch
+  type(fates_cohort_type),pointer            :: ccohort
 
   do s = 1,nsites
 
@@ -2427,8 +2358,8 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
 
   !----------------------------------------------------------------------
 
-  type (ed_patch_type),  pointer     :: cpatch       ! current patch pointer
-  type (ed_cohort_type), pointer     :: ccohort      ! current cohort pointer
+  type (fates_patch_type),  pointer     :: cpatch       ! current patch pointer
+  type (fates_cohort_type), pointer     :: ccohort      ! current cohort pointer
   type(ed_site_hydr_type), pointer   :: csite_hydr    ! site hydraulics pointer
   type(ed_cohort_hydr_type), pointer :: ccohort_hydr ! cohort hydraulics pointer
 
@@ -2943,7 +2874,7 @@ subroutine UpdatePlantKmax(ccohort_hydr,ccohort,csite_hydr)
   ! Arguments
 
   type(ed_cohort_hydr_type),intent(inout),target :: ccohort_hydr
-  type(ed_cohort_type),intent(in),target         :: ccohort
+  type(fates_cohort_type),intent(in),target         :: ccohort
   type(ed_site_hydr_type),intent(in),target      :: csite_hydr
 
   ! Locals
@@ -3153,7 +3084,7 @@ subroutine OrderLayersForSolve1D(csite_hydr,cohort,cohort_hydr,ordered, kbg_laye
 
   ! Arguments (IN)
   type(ed_site_hydr_type), intent(in),target   :: csite_hydr
-  type(ed_cohort_type), intent(in),target      :: cohort
+  type(fates_cohort_type), intent(in),target      :: cohort
   type(ed_cohort_hydr_type),intent(in),target  :: cohort_hydr
 
 
@@ -3295,7 +3226,7 @@ subroutine ImTaylorSolve1D(slat, slon,recruitflag,csite_hydr,cohort,cohort_hydr,
   real(r8), intent(in)                         :: slat     ! latitidue of the site  
   real(r8), intent(in)                         :: slon     ! longitidue of the site 
   logical, intent(in)                          :: recruitflag
-  type(ed_cohort_type),intent(in),target       :: cohort
+  type(fates_cohort_type),intent(in),target       :: cohort
   type(ed_cohort_hydr_type),intent(inout),target  :: cohort_hydr
   type(ed_site_hydr_type), intent(in),target   :: csite_hydr
   real(r8), intent(in)                         :: dtime
@@ -3988,7 +3919,7 @@ subroutine Report1DError(cohort, csite_hydr, ilayer, z_node, v_node, &
   ! like, and then quits.
 
   ! Arguments (IN)
-   type(ed_cohort_type),intent(in),target      :: cohort
+   type(fates_cohort_type),intent(in),target      :: cohort
    type(ed_site_hydr_type),intent(in), target  :: csite_hydr
    integer, intent(in)                         :: ilayer           ! soil layer index of interest
    real(r8), intent(in)                        :: z_node(:)        ! elevation of nodes
@@ -4301,7 +4232,7 @@ subroutine AccumulateMortalityWaterStorage(csite,ccohort,delta_n)
   ! Arguments
 
    type(ed_site_type), intent(inout), target     :: csite
-   type(ed_cohort_type) , intent(inout), target  :: ccohort
+   type(fates_cohort_type) , intent(inout), target  :: ccohort
    real(r8), intent(in)                          :: delta_n ! Loss in number density
    ! for this cohort /ha/day
 
@@ -4345,8 +4276,8 @@ subroutine RecruitWaterStorage(nsites,sites,bc_out)
    type(bc_out_type), intent(inout)          :: bc_out(nsites)
 
    ! Locals
-   type(ed_cohort_type), pointer :: currentCohort
-   type(ed_patch_type), pointer :: currentPatch
+   type(fates_cohort_type), pointer :: currentCohort
+   type(fates_patch_type), pointer :: currentPatch
    type(ed_cohort_hydr_type), pointer :: ccohort_hydr
    type(ed_site_hydr_type), pointer :: csite_hydr
    integer :: s
@@ -4795,7 +4726,7 @@ subroutine MatSolve2D(csite_hydr,cohort,cohort_hydr, &
   ! -----------------------------------------------------------------------------------
    type(ed_site_hydr_type), intent(inout),target :: csite_hydr        ! ED csite_hydr structure
    type(ed_cohort_hydr_type), target            :: cohort_hydr
-   type(ed_cohort_type) , intent(inout), target :: cohort
+   type(fates_cohort_type) , intent(inout), target :: cohort
    real(r8),intent(in)                          :: tmx ! time interval to integrate over [s]
    real(r8),intent(in)                          :: qtop
    real(r8),intent(out) :: sapflow                   ! time integrated mass flux between transp-root and stem [kg]
@@ -5564,7 +5495,7 @@ subroutine PicardSolve2D(csite_hydr,cohort,cohort_hydr, &
   ! -----------------------------------------------------------------------------------
   type(ed_site_hydr_type), intent(inout),target :: csite_hydr        ! ED csite_hydr structure
   type(ed_cohort_hydr_type), target            :: cohort_hydr
-  type(ed_cohort_type) , intent(inout), target :: cohort
+  type(fates_cohort_type) , intent(inout), target :: cohort
   real(r8),intent(in)                          :: tmx ! time interval to integrate over [s]
   real(r8),intent(in)                          :: qtop
   integer                                      :: nnode !total number of nodes

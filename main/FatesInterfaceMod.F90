@@ -10,8 +10,8 @@ module FatesInterfaceMod
    ! ------------------------------------------------------------------------------------
 
    use EDTypesMod                , only : ed_site_type
-   use EDTypesMod                , only : dinc_vai
-   use EDTypesMod                , only : dlower_vai
+   use EDParamsMod                , only : dinc_vai
+   use EDParamsMod                , only : dlower_vai
    use EDParamsMod               , only : ED_val_vai_top_bin_width
    use EDParamsMod               , only : ED_val_vai_width_increase_factor
    use EDParamsMod               , only : ED_val_history_damage_bin_edges
@@ -20,18 +20,18 @@ module FatesInterfaceMod
    use EDParamsMod               , only : maxpatch_secondary
    use EDParamsMod               , only : max_cohort_per_patch
    use EDParamsMod               , only : regeneration_model
-   use EDTypesMod                , only : maxSWb
-   use EDTypesMod                , only : ivis
-   use EDTypesMod                , only : inir
-   use EDTypesMod                , only : nclmax
-   use EDTypesMod                , only : nlevleaf
-   use EDTypesMod                , only : maxpft
+   use EDParamsMod               , only : maxSWb
+   use EDParamsMod               , only : ivis
+   use EDParamsMod               , only : inir
+   use EDParamsMod               , only : nclmax
+   use EDParamsMod               , only : nlevleaf
+   use EDParamsMod               , only : maxpft
    use EDTypesMod                , only : do_fates_salinity
    use EDTypesMod                , only : numWaterMem
    use EDTypesMod                , only : numlevsoil_max
    use EDTypesMod                , only : ed_site_type
-   use EDTypesMod                , only : ed_patch_type
-   use EDTypesMod                , only : ed_cohort_type
+   use FatesPatchMod             , only : fates_patch_type
+   use FatesCohortMod            , only : fates_cohort_type
    use EDTypesMod                , only : area_inv
    use EDTypesMod                , only : num_vegtemp_mem
    use FatesConstantsMod         , only : r8 => fates_r8
@@ -40,6 +40,7 @@ module FatesInterfaceMod
    use FatesConstantsMod         , only : sec_per_day
    use FatesConstantsMod         , only : days_per_year
    use FatesConstantsMod         , only : TRS_regeneration
+   use FatesConstantsMod         , only : g_per_kg
    use FatesGlobals              , only : fates_global_verbose
    use FatesGlobals              , only : fates_log
    use FatesGlobals              , only : endrun => fates_endrun
@@ -64,8 +65,8 @@ module FatesInterfaceMod
    use EDParamsMod               , only : ED_val_history_height_bin_edges
    use EDParamsMod               , only : ED_val_history_coageclass_bin_edges
    use CLMFatesParamInterfaceMod , only : FatesReadParameters
-   use EDTypesMod                , only : p_uptake_mode
-   use EDTypesMod                , only : n_uptake_mode
+   use EDParamsMod                , only : p_uptake_mode
+   use EDParamsMod                , only : n_uptake_mode
    use EDTypesMod                , only : ed_site_type
    use FatesConstantsMod         , only : prescribed_p_uptake
    use FatesConstantsMod         , only : prescribed_n_uptake
@@ -106,6 +107,7 @@ module FatesInterfaceMod
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
    use shr_infnan_mod            , only : nan => shr_infnan_nan, assignment(=)
+   use shr_kind_mod              , only : SHR_KIND_CL
 
    ! Just use everything from FatesInterfaceTypesMod, this is
    ! its sister code
@@ -327,6 +329,12 @@ contains
        fates%bc_out(s)%litt_flux_cel_c_si(:) = 0._r8
        fates%bc_out(s)%litt_flux_lig_c_si(:) = 0._r8
        fates%bc_out(s)%litt_flux_lab_c_si(:) = 0._r8
+       ! Yes, zero out N flux arrays for c-only runs.
+       ! This is because we want these on (and zero)
+       ! with CLM. 
+       fates%bc_out(s)%litt_flux_cel_n_si(:) = 0._r8
+       fates%bc_out(s)%litt_flux_lig_n_si(:) = 0._r8
+       fates%bc_out(s)%litt_flux_lab_n_si(:) = 0._r8
     case(prt_cnp_flex_allom_hyp) 
        
        fates%bc_in(s)%plant_nh4_uptake_flux(:,:) = 0._r8
@@ -456,7 +464,6 @@ contains
          allocate(bc_in%plant_no3_uptake_flux(1,1))
          allocate(bc_in%plant_p_uptake_flux(1,1))
       end if
-
 
       allocate(bc_in%zi_sisl(0:nlevsoil_in))
       allocate(bc_in%dz_sisl(nlevsoil_in))
@@ -614,7 +621,7 @@ contains
 
       ! Include the bare-ground patch for these patch-level boundary conditions
       ! (it will always be zero for all of these)
-      if(hlm_use_ch4.eq.itrue) then
+      !if(hlm_use_ch4.eq.itrue) then
          allocate(bc_out%annavg_agnpp_pa(0:maxpatch_total));bc_out%annavg_agnpp_pa(:)=nan
          allocate(bc_out%annavg_bgnpp_pa(0:maxpatch_total));bc_out%annavg_bgnpp_pa(:)=nan
          allocate(bc_out%annsum_npp_pa(0:maxpatch_total));bc_out%annsum_npp_pa(:)=nan
@@ -626,9 +633,9 @@ contains
 
          ! Give the bare-ground root fractions a nominal fraction of unity over depth
          bc_out%rootfr_pa(0,1:nlevsoil_in)=1._r8/real(nlevsoil_in,r8)
-      end if
+      !end if
 
-      bc_out%ema_npp = -9999.9_r8
+      bc_out%ema_npp = nan
       
       ! Fates -> BGC fragmentation mass fluxes
       select case(hlm_parteh_mode) 
@@ -636,9 +643,13 @@ contains
          allocate(bc_out%litt_flux_cel_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lig_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lab_c_si(nlevdecomp_in))
+         ! Yes, allocate N flux arrays for c-only runs.
+         ! This is because we want these on (and zero)
+         ! with CLM. 
+         allocate(bc_out%litt_flux_cel_n_si(nlevdecomp_in))
+         allocate(bc_out%litt_flux_lig_n_si(nlevdecomp_in))
+         allocate(bc_out%litt_flux_lab_n_si(nlevdecomp_in))
       case(prt_cnp_flex_allom_hyp) 
-
-         
          allocate(bc_out%litt_flux_cel_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lig_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lab_c_si(nlevdecomp_in))
@@ -648,10 +659,8 @@ contains
          allocate(bc_out%litt_flux_cel_p_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lig_p_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lab_p_si(nlevdecomp_in))
-
          allocate(bc_out%source_nh4(nlevdecomp_in))
          allocate(bc_out%source_p(nlevdecomp_in))
-
       case default
          write(fates_log(), *) 'An unknown parteh hypothesis was passed'
          write(fates_log(), *) 'to the site level output boundary conditions'
@@ -729,10 +738,10 @@ contains
 
       implicit none
       
-      logical,intent(in) :: use_fates    ! Is fates turned on?
-      integer,intent(in) :: surf_numpft  ! Number of PFTs in surface dataset
-      integer,intent(in) :: surf_numcft  ! Number of CFTs in surface dataset
-
+      logical,                    intent(in) :: use_fates    ! Is fates turned on?
+      integer,                    intent(in) :: surf_numpft  ! Number of PFTs in surface dataset
+      integer,                    intent(in) :: surf_numcft  ! Number of CFTs in surface dataset
+  
       integer :: fates_numpft  ! Number of PFTs tracked in FATES
       
       if (use_fates) then
@@ -1067,9 +1076,9 @@ contains
     
     subroutine fates_history_maps
        
-       use EDTypesMod, only : NFSC
-       use EDTypesMod, only : nclmax
-       use EDTypesMod, only : nlevleaf
+       use FatesLitterMod, only : NFSC
+       use EDParamsMod, only : nclmax
+       use EDParamsMod, only : nlevleaf
        use EDParamsMod, only : ED_val_history_sizeclass_bin_edges
        use EDParamsMod, only : ED_val_history_ageclass_bin_edges
        use EDParamsMod, only : ED_val_history_height_bin_edges
@@ -1952,9 +1961,10 @@ contains
      type(ed_site_type), intent(inout) :: sites(:)
      type(bc_in_type), intent(in)      :: bc_in(:)
      
-     type(ed_patch_type),  pointer :: cpatch
-     type(ed_cohort_type), pointer :: ccohort
+     type(fates_patch_type),  pointer :: cpatch
+     type(fates_cohort_type), pointer :: ccohort
      integer :: s, ifp, io_si, pft 
+     real(r8) :: site_npp               ! Site level NPP gC/m2/year
      real(r8) :: new_seedling_layer_par ! seedling layer par in the current timestep
      real(r8) :: new_seedling_layer_smp ! seedling layer smp in the current timestep
      real(r8) :: new_seedling_mdd       ! seedling layer moisture deficit days in the current timestep
@@ -1964,10 +1974,12 @@ contains
      real(r8) :: seedling_par_low       ! lower intensity par for seedlings (par under the undergrowth) [W/m2]
      real(r8) :: par_low_frac           ! fraction of ground where PAR is low
      integer,parameter :: ipar = 1      ! solar radiation in the shortwave band (i.e. par)
+     real(r8), parameter :: ema_npp_tscale = 480._r8  ! 10 day (10*48 steps)
 
      do s = 1,size(sites,dim=1)
 
         ifp=0
+        site_npp = 0._r8
         cpatch => sites(s)%oldest_patch
         do while(associated(cpatch))
            if (cpatch%patchno .ne. 0) then
@@ -1975,8 +1987,6 @@ contains
            call cpatch%tveg24%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            call cpatch%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            call cpatch%tveg_longterm%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
-
-     
 
            ! Update the seedling layer par running means
            if ( regeneration_model == TRS_regeneration ) then
@@ -2023,15 +2033,29 @@ contains
               
            end if
 
-           !ccohort => cpatch%tallest
-           !do while (associated(ccohort))
-           !   call ccohort%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
-           !   ccohort => ccohort%shorter
-           !end do
+           ccohort => cpatch%tallest
+           do while (associated(ccohort))
+              !   call ccohort%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
+
+              ! [kgC/plant/yr] -> [gC/m2/s]
+              site_npp = site_npp + ccohort%npp_acc_hold * ccohort%n*area_inv * &
+                   g_per_kg * hlm_days_per_year / sec_per_day
+
+              ccohort => ccohort%shorter
+           end do
+
         end if
 
         cpatch => cpatch%younger
      enddo
+
+     ! Smoothed [gc/m2/yr]
+     if(sites(s)%ema_npp<-9000._r8)then
+        sites(s)%ema_npp = site_npp
+     else
+        sites(s)%ema_npp = (1._r8-1._r8/ema_npp_tscale)*sites(s)%ema_npp + (1._r8/ema_npp_tscale)*site_npp
+     end if
+
   end do
 
   return
@@ -2058,7 +2082,7 @@ subroutine SeedlingParPatch(cpatch, &
   ! of those two (which should sum to unity).
 
   ! Arguments
-  type(ed_patch_type)   :: cpatch             ! the current patch
+  type(fates_patch_type)   :: cpatch             ! the current patch
   real(r8), intent(in)  :: atm_par            ! direct+diffuse PAR at canopy top [W/m2]
   real(r8), intent(out) :: seedling_par_high  ! High intensity PAR for seedlings [W/m2]
   real(r8), intent(out) :: par_high_frac      ! Area fraction with high intensity
