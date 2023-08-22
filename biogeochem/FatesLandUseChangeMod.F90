@@ -288,7 +288,7 @@ contains
           luh_vector(primaryland) = 1._r8
        end if
        modified_flag = .true.
-       write(fates_log(),*) 'WARNING: land use state is all NaN; setting state as all primary forest.'
+       !write(fates_log(),*) 'WARNING: land use state is all NaN; setting state as all primary forest.' ! GL DIAG
     else if (any(isnan(luh_vector))) then
        if (any(.not. isnan(luh_vector))) then
           write(fates_log(),*) 'ERROR: land use vector has NaN'

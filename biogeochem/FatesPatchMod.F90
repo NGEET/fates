@@ -366,7 +366,10 @@ module FatesPatchMod
   
       ! DISTURBANCE 
       this%disturbance_rates(:)         = nan
-      this%fract_ldist_not_harvested    = nan 
+      this%fract_ldist_not_harvested    = nan
+
+      ! LAND USE
+      this%landuse_transition_rates(:)  = nan
 
       ! LITTER AND COARSE WOODY DEBRIS
       this%fragmentation_scaler(:)      = nan 
@@ -390,8 +393,8 @@ module FatesPatchMod
       this%scorch_ht(:)                 = nan 
       this%frac_burnt                   = nan
       this%tfc_ros                      = nan    
-      this%burnt_frac_litter(:)         = nan    
-  
+      this%burnt_frac_litter(:)         = nan
+
     end subroutine NanValues
 
     !===========================================================================
@@ -443,6 +446,9 @@ module FatesPatchMod
       ! DISTURBANCE 
       this%disturbance_rates(:)              = 0.0_r8 
       this%fract_ldist_not_harvested         = 0.0_r8
+
+      ! LAND USE
+      this%landuse_transition_rates(:)       = 0.0_r8
 
       ! LITTER AND COARSE WOODY DEBRIS
       this%fragmentation_scaler(:)           = 0.0_r8
