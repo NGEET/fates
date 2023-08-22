@@ -5479,7 +5479,7 @@ end subroutine update_history_hifrq
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_gpp_sec_si_pft)
 
-    call this%set_history_var(vname='FATES_NPP_SE_PF', units='kg m-2 yr-1',       &
+    call this%set_history_var(vname='FATES_NPP_SE_PF', units='kg m-2 s-1',       &
          long='total PFT-level NPP in kg carbon per m2 land area per second, secondary patches',  &
          use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
@@ -6473,7 +6473,7 @@ end subroutine update_history_hifrq
          index = ih_growth_resp_secondary_si)
 
     call this%set_history_var(vname='FATES_MAINT_RESP', units='kg m-2 s-1',    &
-         long='maintenance respiration in kg carbon per m2 land area per second, secondary patches', &
+         long='maintenance respiration in kg carbon per m2 land area per second', &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=2, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_maint_resp_si)
@@ -6485,7 +6485,7 @@ end subroutine update_history_hifrq
          index = ih_maint_resp_unreduced_si)
 
     call this%set_history_var(vname='FATES_MAINT_RESP_SECONDARY', units='kg m-2 s-1',    &
-         long='maintenance respiration in kg carbon per m2 land area per second', &
+         long='maintenance respiration in kg carbon per m2 land area per second, secondary patches', &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=2, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_maint_resp_secondary_si)
