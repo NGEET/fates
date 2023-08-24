@@ -2190,10 +2190,9 @@ subroutine DetermineGridCellNeighbors(neighbors,numg)
    type (neighbor_type), pointer :: current_neighbor
    type (neighbor_type), pointer :: another_neighbor
 
-   integer :: i, gi,gj   ! indices
-   integer :: ipft       ! pft index
-
-   integer :: ldsize ! ldomain size
+   integer :: i, gi,gj    ! indices
+   integer :: ier, mpierr ! error status
+   integer :: ipft        ! pft index
    integer, allocatable :: ncells_array(:), begg_array(:)
    real(r8), allocatable :: gclat(:), gclon(:)
 
