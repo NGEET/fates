@@ -18,11 +18,14 @@
 ### Checklist:
 <!--- Go over all the following points, and put an `x` in all the boxes that apply. -->
 <!--- If you're unsure about any of these, don't hesitate to ask. We're here to help! -->
-- [ ] My change requires a change to the documentation.
-- [ ] I have updated the in-code documentation .AND. (the [technical note](https://github.com/NGEET/fates-docs) .OR. the wiki) accordingly.
-- [ ] I have read the [**CONTRIBUTING**](https://github.com/NGEET/fates/blob/master/CONTRIBUTING.md) document.
+*If this is your first time contributing, please read the [**CONTRIBUTING**](https://github.com/NGEET/fates/blob/main/CONTRIBUTING.md) document.*
+
+All checklist items must be checked to enable merging this pull request:
+- [ ] I have updated the in-code documentation with descriptive comments
+- [ ] I have created an issue to update the [technical note](https://github.com/NGEET/fates-docs/issues/new/choose) / [user's guide](https://github.com/NGEET/fates-users-guide/issues/new/choose) as necessary
 - [ ] FATES PASS/FAIL regression tests were run
 - [ ] If answers were expected to change, evaluation was performed and provided
+
 
 
 ### Test Results:
@@ -30,13 +33,10 @@
 <!--- If changes to code are NOT expected to change answers, tests must -->
 <!--- be run against a baseline. -->
 
-CTSM (or) E3SM (specify which) test hash-tag:
-
-CTSM (or) E3SM (specify which) baseline hash-tag:
-
-FATES baseline hash-tag:
-
-Test Output:
+*CTSM (or) E3SM (specify which) test hash-tag:*
+*CTSM (or) E3SM (specify which) baseline hash-tag:*
+*FATES baseline hash-tag:*
+*Test Output:*
 
 <!--- paste in test results here -->
 
