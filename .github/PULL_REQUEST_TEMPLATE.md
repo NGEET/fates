@@ -22,7 +22,9 @@
 
 All checklist items must be checked to enable merging this pull request:
 - [ ] I have updated the in-code documentation with descriptive comments
-- [ ] I have created an issue to update the [technical note](https://github.com/NGEET/fates-docs/issues/new/choose) / [user's guide](https://github.com/NGEET/fates-users-guide/issues/new/choose) as necessary
+- One of the following two options:
+   - [ ] I have created an Issue or a Pull Request to update either the [technical note](https://github.com/NGEET/fates-docs/issues/new/choose) or the [user's guide](https://github.com/NGEET/fates-users-guide/issues/new/choose): (if checking this option, please paste the URL to the issue or PR for the documentation update here)
+   - [ ] This PR does not require any changes to any of the external documentation
 - [ ] FATES PASS/FAIL regression tests were run
 - [ ] If answers were expected to change, evaluation was performed and provided
 
