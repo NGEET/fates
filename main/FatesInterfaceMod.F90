@@ -2166,14 +2166,14 @@ end subroutine SeedlingParPatch
 
 ! ======================================================================================
       
-subroutine DetermineGridCellNeighbors(neighbors)
+subroutine DetermineGridCellNeighbors(neighbors,numg)
    
    ! This subroutine utilizes information from the decomposition and domain types to determine
    ! the set of grid cell neighbors within some maximum distance.  It records the distance for each
    ! neighbor for later use.  This should be called after decompInit_lnd and surf_get_grid
    ! as it relies on ldecomp and ldomain information.
 
-   use decompMod             , only : procinfo, get_proc_global
+   use decompMod             , only : procinfo
    use domainMod             , only : ldomain
    use spmdMod               , only : MPI_REAL8, MPI_INTEGER, mpicom, npes, masterproc, iam
    use perf_mod              , only : t_startf, t_stopf
@@ -2183,17 +2183,14 @@ subroutine DetermineGridCellNeighbors(neighbors)
    use EDPftvarcon           , only : EDPftvarcon_inst
 
    ! Arguments
-   type(neighborhood_type), intent(inout), pointer :: neighbors(:)
+   type(neighborhood_type), intent(inout), pointer :: neighbors(:)  ! land gridcell neighbor data structure
+   integer                , intent(in)             :: numg          ! number of land gridcells
 
    ! Local variables
    type (neighbor_type), pointer :: current_neighbor
    type (neighbor_type), pointer :: another_neighbor
 
    integer :: i, gi,gj   ! indices
-   integer :: numg       ! number of land gridcells
-   integer :: ngcheck    ! number of land gridcells, globally
-   integer :: numproc    ! number of processors, globally
-   integer :: ier,mpierr ! error code
    integer :: ipft       ! pft index
 
    integer :: ldsize ! ldomain size
@@ -2211,17 +2208,16 @@ subroutine DetermineGridCellNeighbors(neighbors)
 
 
    ! Allocate array neighbor type
-   call get_proc_global(ng=numg)
    allocate(neighbors(numg), stat=ier)
    neighbors(:)%neighbor_count = 0
 
-   allocate(gclat(numg))
+   allocate(gclat(numg), stat=ier)
    allocate(gclon(numg))
-   gclon = nan
-   gclat = nan
+   gclon(:) = nan
+   gclat(:) = nan
 
-   allocate(ncells_array(0:npes-1))
-   allocate(begg_array(0:npes-1))
+   allocate(ncells_array(0:npes-1), stat=ier)
+   allocate(begg_array(0:npes-1), stat=ier)
    ncells_array(:) = fates_unset_int
    begg_array(:) = fates_unset_int
 
