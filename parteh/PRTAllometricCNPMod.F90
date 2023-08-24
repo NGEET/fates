@@ -47,6 +47,7 @@ module PRTAllometricCNPMod
   use FatesConstantsMod   , only : calloc_abs_error
   use FatesConstantsMod   , only : rsnbl_math_prec
   use FatesConstantsMod   , only : years_per_day
+  use FatesConstantsMod   , only : mm_per_cm
   use FatesIntegratorsMod , only : RKF45
   use FatesIntegratorsMod , only : Euler
   use FatesConstantsMod   , only : calloc_abs_error
@@ -55,13 +56,21 @@ module PRTAllometricCNPMod
   use FatesConstantsMod   , only : fates_unset_r8
   use FatesConstantsMod   , only : fates_unset_int
   use FatesConstantsMod   , only : sec_per_day
+  use FatesConstantsMod   , only : TRS_regeneration
+  use FatesConstantsMod   , only : default_regeneration
+  use FatesConstantsMod   , only : TRS_no_seedling_dyn
+  use FatesConstantsMod   , only : min_max_dbh_for_trees
   use PRTParametersMod    , only : prt_params
-  use EDTypesMod          , only : leaves_on,leaves_off,leaves_shedding
-  use EDTypesMod        , only : p_uptake_mode
-  use EDTypesMod        , only : n_uptake_mode
-  use FatesConstantsMod , only : prescribed_p_uptake
-  use FatesConstantsMod , only : prescribed_n_uptake
+  use FatesConstantsMod   , only : leaves_on,leaves_off
+  use FatesConstantsMod   , only : leaves_shedding
+  use EDParamsMod         , only : p_uptake_mode
+  use EDParamsMod         , only : n_uptake_mode
+  use FatesConstantsMod   , only : prescribed_p_uptake
+  use FatesConstantsMod   , only : prescribed_n_uptake
   use EDPftvarcon, only : EDPftvarcon_inst
+  use EDParamsMod       , only : regeneration_model
+
+
   
   implicit none
   private
@@ -717,9 +726,6 @@ contains
   ! =====================================================================================
   
   subroutine CNPAdjustFRootTargets(this, target_c, target_dcdd)
-
-    use FatesInterfaceTypesMod        , only : hlm_day_of_year
-    use FatesInterfaceTypesMod        , only : hlm_current_year
 
     class(cnp_allom_prt_vartypes) :: this
     real(r8)                      :: target_c(:)
@@ -1479,13 +1485,40 @@ contains
     ! just different from the other pools. It is not based on proportionality,
     ! so its mask is set differently.  We (inefficiently) just included
     ! reproduction in the previous loop, but oh well, we over-write now.
+
+    ! If the TRS is switched off, or if the plant is a shrub or grass
+    ! then we use FATES's default reproductive allocation.
+    ! We designate a plant a shrub or grass if its dbh at maximum height
+    ! is less than 15 cm
+
+    if ( regeneration_model == default_regeneration .or. &
+         prt_params%allom_dbh_maxheight(ipft) < min_max_dbh_for_trees ) then
+
+       if (dbh <= prt_params%dbh_repro_threshold(ipft)) then
+          repro_c_frac = prt_params%seed_alloc(ipft)
+       else
+          repro_c_frac = prt_params%seed_alloc(ipft) + prt_params%seed_alloc_mature(ipft)
+       end if
     
-    if (dbh <= prt_params%dbh_repro_threshold(ipft)) then
-       repro_c_frac = prt_params%seed_alloc(ipft)
+    ! If the TRS is switched on (with or w/o seedling dynamics) then reproductive allocation is
+    ! a pft-specific function of dbh. This allows for the representation of different
+    ! reproductive schedules (Wenk and Falster, 2015)
+    else if ( any(regeneration_model == [TRS_regeneration, TRS_no_seedling_dyn]) .and. &
+                  prt_params%allom_dbh_maxheight(ipft) > min_max_dbh_for_trees ) then
+
+       repro_c_frac = prt_params%seed_alloc(ipft) * &
+       (exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm) / &
+       (1 + exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm)))
+
     else
-       repro_c_frac = prt_params%seed_alloc(ipft) + prt_params%seed_alloc_mature(ipft)
-    end if
-    
+       
+       write(fates_log(),*) 'unknown seed allocation and regeneration model, exiting'
+       write(fates_log(),*) 'regeneration_model: ',regeneration_model
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+       
+    end if ! regeneration switch 
+
+
     if(repro_c_frac>nearzero)then
        state_mask(repro_id)            = .true.
        n_mask_organs = n_mask_organs + 1
@@ -2297,15 +2330,35 @@ contains
         call bstore_allom(dbh,ipft,crown_damage,canopy_trim,store_c_target,store_dcdd_target)
 
         if (mask_repro) then
-           ! fraction of carbon going towards reproduction
-           if (dbh <= prt_params%dbh_repro_threshold(ipft)) then
-              repro_fraction = prt_params%seed_alloc(ipft)
+
+           ! If the TRS is switched off then we use FATES's default reproductive allocation.
+           if ( regeneration_model == default_regeneration .or. &
+                prt_params%allom_dbh_maxheight(ipft) < min_max_dbh_for_trees ) then ! The Tree Recruitment Scheme 
+                                                                             ! is only for trees
+              if (dbh <= prt_params%dbh_repro_threshold(ipft)) then
+                 repro_fraction = prt_params%seed_alloc(ipft)
+              else
+                 repro_fraction = prt_params%seed_alloc(ipft) + prt_params%seed_alloc_mature(ipft)
+              end if
+   
+           ! If the TRS is switched on (with or w/o seedling dynamics) then reproductive allocation is
+           ! a pft-specific function of dbh. This allows for the representation of different
+           ! reproductive schedules (Wenk and Falster, 2015)
+           else if ( any(regeneration_model == [TRS_regeneration, TRS_no_seedling_dyn]) .and. &
+                     prt_params%allom_dbh_maxheight(ipft) > min_max_dbh_for_trees ) then
+
+              repro_fraction = prt_params%seed_alloc(ipft) * &
+              (exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm) / &
+              (1 + exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm)))
            else
-              repro_fraction = prt_params%seed_alloc(ipft) + prt_params%seed_alloc_mature(ipft)
-           end if
-        else
+              write(fates_log(),*) 'unknown seed allocation and regeneration model, exiting'
+              write(fates_log(),*) 'regeneration_model: ',regeneration_model
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if ! regeneration switch 
+          
+        else ! mask repro
            repro_fraction = 0._r8
-        end if
+        end if !mask repro
 
         total_dcostdd = 0._r8
         if (mask_struct) then
@@ -2413,14 +2466,35 @@ contains
           pc_repro    => this%bc_in(acnp_bc_in_id_pc_repro)%rval)
      
      if(state_mask(repro_id)) then
-        if (dbh <= prt_params%dbh_repro_threshold(ipft)) then
-           repro_c_frac = prt_params%seed_alloc(ipft)
+        
+        ! If the TRS is switched off then we use FATES's default reproductive allocation.
+        if ( regeneration_model == default_regeneration .or. &
+             prt_params%allom_dbh_maxheight(ipft) < min_max_dbh_for_trees ) then ! The Tree Recruitment Scheme 
+                                                                                 ! is only for trees
+           if (dbh <= prt_params%dbh_repro_threshold(ipft)) then
+              repro_c_frac = prt_params%seed_alloc(ipft)
+           else
+              repro_c_frac = prt_params%seed_alloc(ipft) + prt_params%seed_alloc_mature(ipft)
+           end if
+   
+        ! If the TRS is switched on (with or w/o seedling dynamics) then reproductive allocation is
+        ! a pft-specific function of dbh. This allows for the representation of different
+        ! reproductive schedules (Wenk and Falster, 2015)
+        else if ( any(regeneration_model == [TRS_regeneration, TRS_no_seedling_dyn]) .and. &
+                  prt_params%allom_dbh_maxheight(ipft) > min_max_dbh_for_trees ) then
+
+           repro_c_frac = prt_params%seed_alloc(ipft) * &
+           (exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm) / &
+           (1 + exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm)))
         else
-           repro_c_frac = prt_params%seed_alloc(ipft) + prt_params%seed_alloc_mature(ipft)
-        end if
-     else
+           write(fates_log(),*) 'unknown seed allocation and regeneration model, exiting'
+           write(fates_log(),*) 'regeneration_model: ',regeneration_model
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if ! regeneration switch 
+
+     else ! state mask
         repro_c_frac = 0._r8
-     end if
+     end if ! state mask
         
      ! Estimate the total weight
      total_w = 0._r8
@@ -2480,7 +2554,5 @@ contains
      
    return
  end subroutine EstimateGrowthNC
-
-   
 
 end module PRTAllometricCNPMod

@@ -12,26 +12,26 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : t_water_freeze_k_1atm
   use FatesGlobals             , only : fates_log
   use FatesGlobals             , only : endrun => fates_endrun
-  use EDTypesMod               , only : nclmax
-  use EDTypesMod               , only : ican_upper
+  use EDParamsMod              , only : nclmax, maxpft
+  use FatesConstantsMod        , only : ican_upper
   use PRTGenericMod            , only : element_pos
   use PRTGenericMod            , only : num_elements
   use PRTGenericMod            , only : prt_cnp_flex_allom_hyp
   use EDTypesMod               , only : site_fluxdiags_type
   use EDtypesMod               , only : ed_site_type
-  use EDtypesMod               , only : ed_cohort_type
-  use EDtypesMod               , only : ed_patch_type
+  use FatesCohortMod           , only : fates_cohort_type
+  use FatesPatchMod            , only : fates_patch_type
   use EDtypesMod               , only : AREA
   use EDtypesMod               , only : AREA_INV
   use EDTypesMod               , only : numWaterMem
   use EDTypesMod               , only : num_vegtemp_mem
   use EDTypesMod               , only : site_massbal_type
   use PRTGenericMod            , only : element_list
-  use EDTypesMod               , only : N_DIST_TYPES
-  use EDTypesMod               , only : dtype_ifall
-  use EDTypesMod               , only : dtype_ifire
-  use EDTypesMod               , only : dtype_ilog
   use FatesIOVariableKindMod   , only : upfreq_hifr_multi
+  use FatesConstantsMod        , only : N_DIST_TYPES
+  use FatesConstantsMod        , only : dtype_ifall
+  use FatesConstantsMod        , only : dtype_ifire
+  use FatesConstantsMod        , only : dtype_ilog
   use FatesIODimensionsMod     , only : fates_io_dimension_type
   use FatesIOVariableKindMod   , only : fates_io_variable_kind_type
   use FatesIOVariableKindMod   , only : site_int
@@ -251,13 +251,15 @@ module FatesHistoryInterfaceMod
   integer :: ih_litter_out_elem
   integer :: ih_seed_bank_elem
   integer :: ih_fates_fraction_si
+  integer :: ih_litter_in_si            ! carbon only
+  integer :: ih_litter_out_si           ! carbon only
+  integer :: ih_seed_bank_si            ! carbon only
+  integer :: ih_seeds_in_si             ! carbon only
+  integer :: ih_seeds_in_local_si       ! carbon only
+  integer :: ih_ungerm_seed_bank_si        ! carbon only
+  integer :: ih_seedling_pool_si    ! carbon only
   integer :: ih_ba_weighted_height_si
   integer :: ih_ca_weighted_height_si
-  integer :: ih_litter_in_si    ! carbon only
-  integer :: ih_litter_out_si   ! carbon only
-  integer :: ih_seed_bank_si    ! carbon only
-  integer :: ih_seeds_in_si     ! carbon only
-  
   integer :: ih_seeds_in_local_elem
   integer :: ih_seeds_in_extern_elem
   integer :: ih_seed_decay_elem
@@ -1934,8 +1936,8 @@ end subroutine flush_hvars
     class(fates_history_interface_type) :: this
     type(ed_site_type), intent(in)      :: csite
 
-    type(ed_patch_type), pointer     :: cpatch
-    type(ed_cohort_type), pointer    :: ccohort
+    type(fates_patch_type), pointer     :: cpatch
+    type(fates_cohort_type), pointer    :: ccohort
     integer :: iclscpf  ! layer x size x pft class index
     integer :: iscpf    ! Size x pft class index
     integer :: io_si    ! site's global index in the history vector
@@ -2110,10 +2112,10 @@ end subroutine flush_hvars
     ! ---------------------------------------------------------------------------------
 
 
-    use EDtypesMod          , only : nfsc
+    use FatesLitterMod      , only : nfsc
     use FatesLitterMod      , only : ncwd
-    use EDtypesMod          , only : ican_upper
-    use EDtypesMod          , only : ican_ustory
+    use FatesConstantsMod   , only : ican_upper
+    use FatesConstantsMod   , only : ican_ustory
     use FatesSizeAgeTypeIndicesMod, only : get_sizeage_class_index
     use FatesSizeAgeTypeIndicesMod, only : get_sizeagepft_class_index
     use FatesSizeAgeTypeIndicesMod, only : get_agepft_class_index
@@ -2125,7 +2127,7 @@ end subroutine flush_hvars
     use FatesSizeAgeTypeIndicesMod, only : get_cdamagesizepft_class_index
     use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
     
-    use EDTypesMod                , only : nlevleaf
+    use EDParamsMod               , only : nlevleaf
     use EDParamsMod               , only : ED_val_history_height_bin_edges
     use FatesInterfaceTypesMod    , only : nlevdamage
     
@@ -2211,8 +2213,8 @@ end subroutine flush_hvars
     
     integer  :: return_code
     
-    type(ed_patch_type),pointer  :: cpatch
-    type(ed_cohort_type),pointer :: ccohort
+    type(fates_patch_type),pointer  :: cpatch
+    type(fates_cohort_type),pointer :: ccohort
 
     real(r8), parameter :: reallytalltrees = 1000.   ! some large number (m)
 
@@ -2265,7 +2267,10 @@ end subroutine flush_hvars
                hio_litter_in_si        => this%hvars(ih_litter_in_si)%r81d, &
                hio_litter_out_si       => this%hvars(ih_litter_out_si)%r81d, &
                hio_seed_bank_si        => this%hvars(ih_seed_bank_si)%r81d, &
+               hio_ungerm_seed_bank_si => this%hvars(ih_ungerm_seed_bank_si)%r81d, &
+               hio_seedling_pool_si    => this%hvars(ih_seedling_pool_si)%r81d, &
                hio_seeds_in_si         => this%hvars(ih_seeds_in_si)%r81d, &
+               hio_seeds_in_local_si   => this%hvars(ih_seeds_in_local_si)%r81d, &
                hio_litter_in_elem      => this%hvars(ih_litter_in_elem)%r82d, &
                hio_litter_out_elem     => this%hvars(ih_litter_out_elem)%r82d, &
                hio_seed_bank_elem      => this%hvars(ih_seed_bank_elem)%r82d, &
@@ -3997,7 +4002,10 @@ end subroutine flush_hvars
 
       hio_litter_out_si(io_si) = 0._r8
       hio_seed_bank_si(io_si)  = 0._r8
+      hio_ungerm_seed_bank_si(io_si)  = 0._r8
+      hio_seedling_pool_si(io_si)  = 0._r8
       hio_seeds_in_si(io_si)   = 0._r8
+      hio_seeds_in_local_si(io_si)   = 0._r8
 
       cpatch => sites(s)%oldest_patch
       do while(associated(cpatch))
@@ -4020,11 +4028,25 @@ end subroutine flush_hvars
          hio_seed_bank_si(io_si) = hio_seed_bank_si(io_si) + &
             (sum(litt%seed(:))+sum(litt%seed_germ(:))) * &
             area_frac
+        
+         ! Sum up total seed bank (just ungerminated)
+         hio_ungerm_seed_bank_si(io_si) = hio_ungerm_seed_bank_si(io_si) + &
+            sum(litt%seed(:)) * area_frac
+
+         ! Sum up total seedling pool  
+         hio_seedling_pool_si(io_si) = hio_seedling_pool_si(io_si) + &
+            sum(litt%seed_germ(:)) * area_frac
 
          ! Sum up the input flux into the seed bank (local and external)
          hio_seeds_in_si(io_si) = hio_seeds_in_si(io_si) + &
             (sum(litt%seed_in_local(:)) + sum(litt%seed_in_extern(:))) * &
             area_frac * days_per_sec
+        
+         hio_seeds_in_local_si(io_si) = hio_seeds_in_local_si(io_si) + &
+            sum(litt%seed_in_local(:)) * &
+            area_frac * days_per_sec
+
+
 
          cpatch => cpatch%younger
       end do
@@ -4357,11 +4379,10 @@ end subroutine flush_hvars
    return
   end subroutine update_history_dyn
 
-
+  ! ===============================================================================================
   
   subroutine update_history_hifrq_simple(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
 
-    use EDTypesMod          , only : nclmax, nlevleaf
     !
     ! Arguments
     class(fates_history_interface_type)                 :: this
@@ -4379,8 +4400,8 @@ end subroutine flush_hvars
     real(r8) :: site_area_veg_inv  ! inverse canopy area of the site (1/m2)
     real(r8) :: dt_tstep_inv        ! inverse timestep (1/sec)
     real(r8) :: n_perm2             ! number of plants per square meter
-    type(ed_patch_type),pointer  :: cpatch
-    type(ed_cohort_type),pointer :: ccohort
+    type(fates_patch_type),pointer  :: cpatch
+    type(fates_cohort_type),pointer :: ccohort
 
     associate( hio_gpp_si                   => this%hvars(ih_gpp_si)%r81d, &
          hio_gpp_secondary_si         => this%hvars(ih_gpp_secondary_si)%r81d, &
@@ -4567,7 +4588,6 @@ end subroutine flush_hvars
     ! much faster if the user is not using any of these diagnostics.
     ! ---------------------------------------------------------------------------------
 
-    use EDTypesMod          , only : nclmax, nlevleaf
     !
     ! Arguments
     class(fates_history_interface_type)                 :: this
@@ -4595,10 +4615,11 @@ end subroutine flush_hvars
     real(r8) :: site_area_veg_inv           ! 1/area of the site that is not bare-ground 
     integer  :: ipa2     ! patch incrementer
     integer :: cnlfpft_indx, cnlf_indx, ipft, ican, ileaf ! more iterators and indices
-    type(ed_patch_type),pointer  :: cpatch
-    type(ed_cohort_type),pointer :: ccohort
-    real(r8) :: dt_tstep_inv          ! Time step in frequency units (/s)
 
+    type(fates_patch_type),pointer  :: cpatch
+    type(fates_cohort_type),pointer :: ccohort
+    real(r8) :: dt_tstep_inv          ! Time step in frequency units (/s)
+    
     if(.not.hio_include_hifr_multi) return
     
     associate( hio_ar_si_scpf                      => this%hvars(ih_ar_si_scpf)%r82d, &
@@ -4966,8 +4987,6 @@ end subroutine flush_hvars
 
     use FatesHydraulicsMemMod, only : ed_cohort_hydr_type, nshell
     use FatesHydraulicsMemMod, only : ed_site_hydr_type
-    use EDTypesMod           , only : maxpft
-
 
     ! Arguments
     class(fates_history_interface_type)             :: this
@@ -5011,8 +5030,8 @@ end subroutine flush_hvars
     real(r8) :: psi              ! matric potential of soil layer
     real(r8) :: depth_frac       ! fraction of rhizosphere layer depth occupied by current soil layer
     character(2) :: fmt_char
-    type(ed_patch_type),pointer  :: cpatch
-    type(ed_cohort_type),pointer :: ccohort
+    type(fates_patch_type),pointer  :: cpatch
+    type(fates_cohort_type),pointer :: ccohort
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
     type(ed_site_hydr_type), pointer :: site_hydr
     real(r8) :: per_dt_tstep          ! Time step in frequency units (/s)
@@ -5577,7 +5596,7 @@ end subroutine flush_hvars
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_gpp_si_pft)
 
-    call this%set_history_var(vname='FATES_NPP_PF', units='kg m-2 yr-1',       &
+    call this%set_history_var(vname='FATES_NPP_PF', units='kg m-2 s-1',       &
          long='total PFT-level NPP in kg carbon per m2 land area per second',  &
          use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
@@ -5589,7 +5608,7 @@ end subroutine flush_hvars
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_gpp_sec_si_pft)
 
-    call this%set_history_var(vname='FATES_NPP_SE_PF', units='kg m-2 yr-1',       &
+    call this%set_history_var(vname='FATES_NPP_SE_PF', units='kg m-2 s-1',       &
          long='total PFT-level NPP in kg carbon per m2 land area per second, secondary patches',  &
          use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
@@ -5938,12 +5957,30 @@ end subroutine flush_hvars
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_seed_bank_si)
+   
+    call this%set_history_var(vname='FATES_UNGERM_SEED_BANK', units='kg m-2',         &
+         long='ungerminated seed mass of all PFTs in kg carbon per m2 land area',     &
+         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+         index = ih_ungerm_seed_bank_si)
+
+    call this%set_history_var(vname='FATES_SEEDLING_POOL', units='kg m-2',         &
+         long='total seedling (ie germinated seeds) mass of all PFTs in kg carbon per m2 land area',     &
+         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+         index = ih_seedling_pool_si)
 
     call this%set_history_var(vname='FATES_SEEDS_IN', units='kg m-2 s-1',      &
          long='seed production rate in kg carbon per m2 second',               &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_seeds_in_si)
+
+    call this%set_history_var(vname='FATES_SEEDS_IN_LOCAL', units='kg m-2 s-1',      &
+         long='local seed production rate in kg carbon per m2 second',               &
+         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+         index = ih_seeds_in_local_si)
 
     call this%set_history_var(vname='FATES_LITTER_IN_EL', units='kg m-2 s-1',  &
          long='litter flux in in kg element per m2 per second',                &
@@ -6565,7 +6602,7 @@ end subroutine flush_hvars
          index = ih_growth_resp_secondary_si)
 
     call this%set_history_var(vname='FATES_MAINT_RESP', units='kg m-2 s-1',    &
-         long='maintenance respiration in kg carbon per m2 land area per second, secondary patches', &
+         long='maintenance respiration in kg carbon per m2 land area per second', &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=2, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_maint_resp_si)
@@ -6577,7 +6614,7 @@ end subroutine flush_hvars
          index = ih_maint_resp_unreduced_si)
 
     call this%set_history_var(vname='FATES_MAINT_RESP_SECONDARY', units='kg m-2 s-1',    &
-         long='maintenance respiration in kg carbon per m2 land area per second', &
+         long='maintenance respiration in kg carbon per m2 land area per second, secondary patches', &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=2, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_maint_resp_secondary_si)

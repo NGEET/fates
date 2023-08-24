@@ -32,7 +32,7 @@ module PRTInitParamsFatesMod
   use FatesAllometryMod, only : set_root_fraction
   use PRTGenericMod, only : StorageNutrientTarget
   use EDTypesMod,          only : init_recruit_trim
-  use EDTypesMod,          only : ihard_stress_decid, isemi_stress_decid
+  use FatesConstantsMod,   only : ihard_stress_decid, isemi_stress_decid
   
   !
   ! !PUBLIC TYPES:
@@ -551,7 +551,7 @@ contains
     name = 'fates_trs_repro_alloc_b'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%repro_alloc_b)
-    
+
     name = 'fates_c2b'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%c2b)

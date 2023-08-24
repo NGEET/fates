@@ -10,8 +10,9 @@ module FatesRadiationDriveMod
 
 #include "shr_assert.h"
 
-  use EDTypesMod        , only : ed_patch_type, ed_site_type
-  use EDTypesMod        , only : maxpft
+  use EDTypesMod        , only : ed_site_type
+  use FatesPatchMod,      only : fates_patch_type
+  use EDParamsMod,        only : maxpft
   use FatesConstantsMod , only : r8 => fates_r8
   use FatesConstantsMod , only : fates_unset_r8
   use FatesConstantsMod , only : itrue
@@ -22,12 +23,6 @@ module FatesRadiationDriveMod
   use FatesInterfaceTypesMod , only : bc_out_type
   use FatesInterfaceTypesMod , only : hlm_numSWb
   use FatesInterfaceTypesMod , only : numpft
-  use EDTypesMod        , only : nclmax
-  use EDTypesMod        , only : dinc_vai,dlower_vai
-  use EDTypesMod        , only : nlevleaf
-  use EDCanopyStructureMod, only: calc_areaindex
-  use FatesGlobals      , only : fates_log
-  use FatesGlobals, only      : endrun => fates_endrun
   use FatesRadiationMemMod, only : num_rad_stream_types
   use FatesRadiationMemMod, only : idirect, idiffuse
   use FatesRadiationMemMod, only : num_swb, ivis, inir, ipar
@@ -39,7 +34,14 @@ module FatesRadiationDriveMod
   use FatesTwoStreamInterfaceMod, only : FatesPatchFSun
   use FatesTwoStreamInterfaceMod, only : CheckPatchRadiationBalance
   use FatesInterfaceTypesMod        , only : hlm_hio_ignore_val
-  
+  use EDParamsMod        , only : dinc_vai,dlower_vai
+  use EDParamsMod        , only : nclmax
+  use EDParamsMod        , only : nlevleaf
+  use EDCanopyStructureMod, only: calc_areaindex
+  use FatesGlobals      , only : fates_log
+  use FatesGlobals, only      : endrun => fates_endrun
+  use EDPftvarcon,        only : EDPftvarcon_inst
+
   ! CIME globals
   use shr_log_mod       , only : errMsg => shr_log_errMsg
 
@@ -70,12 +72,7 @@ contains
     ! rates (HLM side), and calculate absorbed leaf PAR for photosynthesis.
     
     !
-    ! !USES:
-    use EDPftvarcon       , only : EDPftvarcon_inst
-    use EDtypesMod        , only : ed_patch_type
-    use EDTypesMod        , only : ed_site_type
-
-
+ 
     ! !ARGUMENTS:
 
     integer,            intent(in)            :: nsites
@@ -88,7 +85,8 @@ contains
     integer :: s                                   ! site loop counter
     integer :: ifp                                 ! patch loop counter
     integer :: ib                                  ! radiation broad band counter
-    type(ed_patch_type), pointer :: currentPatch   ! patch pointer
+    type(fates_patch_type), pointer :: currentPatch   ! patch pointer
+
     !-----------------------------------------------------------------------
     ! -------------------------------------------------------------------------------
     ! TODO (mv, 2014-10-29) the filter here is different than below
@@ -248,16 +246,11 @@ contains
     !
     ! -----------------------------------------------------------------------------------
 
-    !
-    ! !USES:
-    use EDPftvarcon       , only : EDPftvarcon_inst
-    use EDtypesMod        , only : ed_patch_type
-
     ! -----------------------------------------------------------------------------------
     ! !ARGUMENTS:
     ! -----------------------------------------------------------------------------------
 
-    type(ed_patch_type), intent(inout), target :: currentPatch
+    type(fates_patch_type), intent(inout), target :: currentPatch
     real(r8), intent(inout) :: albd_parb_out(hlm_numSWb)
     real(r8), intent(inout) :: albi_parb_out(hlm_numSWb)
     real(r8), intent(inout) :: fabd_parb_out(hlm_numSWb)
@@ -1170,7 +1163,7 @@ subroutine FatesSunShadeFracs(nsites, sites,bc_in,bc_out)
   type(bc_out_type),intent(inout)         :: bc_out(nsites)
   
   ! locals
-  type (ed_patch_type),pointer :: cpatch   ! c"urrent" patch
+  type (fates_patch_type),pointer :: cpatch   ! c"urrent" patch
   real(r8)          :: sunlai
   real(r8)          :: shalai
   real(r8)          :: elai

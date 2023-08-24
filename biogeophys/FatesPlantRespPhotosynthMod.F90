@@ -38,12 +38,14 @@ module FATESPlantRespPhotosynthMod
   use FatesInterfaceTypesMod, only : hlm_parteh_mode
   use FatesInterfaceTypesMod, only : numpft
   use FatesInterfaceTypesMod, only : nleafage
-  use EDTypesMod,        only : maxpft
-  use EDTypesMod,        only : nlevleaf
-  use EDTypesMod,        only : nclmax
+  use EDParamsMod,           only : maxpft
+  use EDParamsMod,       only : nlevleaf
+  use EDParamsMod,       only : nclmax
   use PRTGenericMod,     only : max_nleafage
   use EDTypesMod,        only : do_fates_salinity
   use EDParamsMod,       only : q10_mr
+  use FatesPatchMod,     only : fates_patch_type
+  use FatesCohortMod,    only : fates_cohort_type
   use EDParamsMod,       only : maintresp_leaf_model
   use FatesConstantsMod, only : lmrmodel_ryan_1991
   use FatesConstantsMod, only : lmrmodel_atkin_etal_2017
@@ -127,16 +129,10 @@ contains
     ! a multi-layer canopy
     ! -----------------------------------------------------------------------------------
 
-
     ! !USES:
-
-    use FatesSynchronizedParamsMod , only : FatesSynchronizedParamsInst
-    use EDTypesMod        , only : ed_patch_type
-    use EDTypesMod        , only : ed_cohort_type
     use EDTypesMod        , only : ed_site_type
-    use EDTypesMod        , only : maxpft
-    use EDTypesMod        , only : dinc_vai
-    use EDTypesMod        , only : dlower_vai
+    use EDParamsMod       , only : dinc_vai
+    use EDParamsMod       , only : dlower_vai
     use FatesInterfaceTypesMod , only : bc_in_type
     use FatesInterfaceTypesMod , only : bc_out_type
     use EDCanopyStructureMod, only : calc_areaindex
@@ -165,8 +161,8 @@ contains
 
     ! LOCAL VARIABLES:
     ! -----------------------------------------------------------------------------------
-    type (ed_patch_type) , pointer :: currentPatch
-    type (ed_cohort_type), pointer :: currentCohort
+    type (fates_patch_type) , pointer :: currentPatch
+    type (fates_cohort_type), pointer :: currentCohort
 
     ! -----------------------------------------------------------------------------------
     ! These three arrays hold leaf-level biophysical rates that are calculated
@@ -1999,13 +1995,9 @@ subroutine UpdateCanopyNCanNRadPresent(currentPatch)
   ! profile).
   ! ---------------------------------------------------------------------------------
 
-
-   use EDTypesMod , only : ed_patch_type
-   use EDTypesMod , only : ed_cohort_type
-
    ! Arguments
-   type(ed_patch_type), target :: currentPatch
-   type(ed_cohort_type), pointer :: currentCohort
+   type(fates_patch_type), target :: currentPatch
+   type(fates_cohort_type), pointer :: currentCohort
 
    ! Locals
    integer :: cl  ! Canopy Layer Index
@@ -2206,8 +2198,7 @@ subroutine LeafLayerMaintenanceRespiration_Ryan_1991(lnc_top, &
    ! Locals
    real(r8) :: lmr25   ! leaf layer: leaf maintenance respiration rate at 25C (umol CO2/m**2/s)
    real(r8) :: lmr25top  ! canopy top leaf maint resp rate at 25C for this pft (umol CO2/m**2/s)
-
-   
+   integer :: c3c4_path_index    ! Index for which photosynthetic pathway
    
    ! Parameter
    real(r8), parameter :: lmrha = 46390._r8    ! activation energy for lmr (J/mol)
@@ -2226,7 +2217,10 @@ subroutine LeafLayerMaintenanceRespiration_Ryan_1991(lnc_top, &
    ! ----------------------------------------------------------------------------------
    lmr25 = lmr25top * nscaler
 
-   if (nint(EDPftvarcon_inst%c3psn(ft))  /=  1) then
+   ! photosynthetic pathway: 0. = c4, 1. = c3
+   c3c4_path_index = nint(EDPftvarcon_inst%c3psn(ft))
+   
+   if (c3c4_path_index == c3_path_index) then
       ! temperature sensitivity of C3 plants
       lmr = lmr25 * ft1_f(veg_tempk, lmrha) * &
            fth_f(veg_tempk, lmrhd, lmrse, lmrc)
@@ -2358,7 +2352,7 @@ subroutine LeafLayerBiophysicalRates( parsun_per_la, &
                                     ! (umol electrons/m**2/s)
    real(r8) :: co2_rcurve_islope25 ! leaf layer: Initial slope of CO2 response curve
                                     ! (C4 plants) at 25C
-
+   integer :: c3c4_path_index    ! Index for which photosynthetic pathway
 
    ! Parameters
    ! ---------------------------------------------------------------------------------
@@ -2421,14 +2415,19 @@ subroutine LeafLayerBiophysicalRates( parsun_per_la, &
       co2_rcurve_islope25 = co2_rcurve_islope25top_ft * nscaler
 
       ! Adjust for temperature
-      vcmax = vcmax25 * ft1_f(veg_tempk, vcmaxha) * fth_f(veg_tempk, vcmaxhd, vcmaxse, vcmaxc)
-      jmax  = jmax25 * ft1_f(veg_tempk, jmaxha) * fth_f(veg_tempk, jmaxhd, jmaxse, jmaxc)
+      ! photosynthetic pathway: 0. = c4, 1. = c3
+      c3c4_path_index = nint(EDPftvarcon_inst%c3psn(ft))
 
-      if (nint(EDPftvarcon_inst%c3psn(ft))  /=  1) then
+      if (c3c4_path_index == c3_path_index) then
+         vcmax = vcmax25 * ft1_f(veg_tempk, vcmaxha) * fth_f(veg_tempk, vcmaxhd, vcmaxse, vcmaxc)
+      else
          vcmax = vcmax25 * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8)
          vcmax = vcmax / (1._r8 + exp( 0.2_r8*((tfrz+15._r8)-veg_tempk ) ))
          vcmax = vcmax / (1._r8 + exp( 0.3_r8*(veg_tempk-(tfrz+40._r8)) ))
       end if
+
+      jmax  = jmax25 * ft1_f(veg_tempk, jmaxha) * fth_f(veg_tempk, jmaxhd, jmaxse, jmaxc)
+  
       !q10 response of product limited psn.
       co2_rcurve_islope = co2_rcurve_islope25 * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8)
    end if

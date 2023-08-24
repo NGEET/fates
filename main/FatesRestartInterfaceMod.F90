@@ -1,15 +1,17 @@
 module FatesRestartInterfaceMod
 
 
-  use FatesConstantsMod,       only : r8 => fates_r8
-  use FatesConstantsMod,       only : fates_avg_flag_length
-  use FatesConstantsMod,       only : fates_short_string_length
-  use FatesConstantsMod,       only : fates_long_string_length
-  use FatesConstantsMod,       only : itrue
-  use FatesConstantsMod,       only : ifalse
-  use FatesConstantsMod,       only : fates_unset_r8, fates_unset_int
-  use FatesConstantsMod,       only : primaryforest
-  use FatesConstantsMod,       only : nearzero
+  use FatesConstantsMod, only : r8 => fates_r8
+  use FatesConstantsMod, only : fates_avg_flag_length
+  use FatesConstantsMod, only : fates_short_string_length
+  use FatesConstantsMod, only : fates_long_string_length
+  use FatesConstantsMod, only : itrue
+  use FatesConstantsMod, only : ifalse
+  use FatesConstantsMod, only : fates_unset_r8, fates_unset_int
+  use FatesConstantsMod, only : primaryforest
+  use FatesConstantsMod, only : nearzero
+  use FatesConstantsMod, only : default_regeneration
+  use FatesConstantsMod, only : TRS_regeneration
   use FatesGlobals,            only : fates_log
   use FatesGlobals,            only : endrun => fates_endrun
   use FatesIODimensionsMod,    only : fates_io_dimension_type
@@ -24,7 +26,6 @@ module FatesRestartInterfaceMod
   use FatesInterfaceTypesMod,       only : hlm_use_nocomp, hlm_use_fixed_biogeog
   use FatesInterfaceTypesMod,       only : fates_maxElementsPerSite
   use FatesInterfaceTypesMod, only : hlm_use_tree_damage
-  use EDCohortDynamicsMod,     only : UpdateCohortBioPhysRates
   use FatesHydraulicsMemMod,   only : nshell
   use FatesHydraulicsMemMod,   only : n_hypool_ag
   use FatesHydraulicsMemMod,   only : n_hypool_troot
@@ -32,23 +33,23 @@ module FatesRestartInterfaceMod
   use FatesPlantHydraulicsMod, only : UpdatePlantPsiFTCFromTheta
   use PRTGenericMod,           only : prt_global
   use PRTGenericMod,           only : prt_cnp_flex_allom_hyp
-  use EDCohortDynamicsMod,     only : nan_cohort
-  use EDCohortDynamicsMod,     only : zero_cohort
   use EDCohortDynamicsMod,     only : InitPRTObject
-  use EDCohortDynamicsMod,     only : InitPRTBoundaryConditions
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesInterfaceTypesMod,       only : nlevsclass
   use FatesInterfaceTypesMod,  only : nlevdamage
   use FatesLitterMod,          only : litter_type
-  use FatesLitterMod,          only : ncwd
+  use FatesLitterMod,          only : ncwd, nfsc
   use FatesLitterMod,          only : ndcmpy
-  use EDTypesMod,              only : nfsc, nlevleaf, area
+  use EDTypesMod,              only : area
+  use EDParamsMod,             only : nlevleaf
   use PRTGenericMod,           only : prt_global
   use PRTGenericMod,           only : num_elements
   use FatesRunningMeanMod,     only : rmean_type
   use FatesRunningMeanMod,     only : ema_lpa
   use FatesRadiationMemMod,    only : num_swb,rad_solver,norman_solver
-  use TwoStreamMLPEMod, only : normalized_upper_boundary
+  use TwoStreamMLPEMod,        only : normalized_upper_boundary
+  use EDParamsMod,             only : regeneration_model
+
   
   ! CIME GLOBALS
   use shr_log_mod       , only : errMsg => shr_log_errMsg
@@ -159,11 +160,18 @@ module FatesRestartInterfaceMod
   ! Running Means
   integer :: ir_tveg24_pa
   integer :: ir_tveglpa_pa
+  integer :: ir_seedling_layer_par24_pa
+  integer :: ir_sdlng_emerg_smp_pa
+  integer :: ir_sdlng_mort_par_pa
+  integer :: ir_sdlng2sap_par_pa
+  integer :: ir_sdlng_mdd_pa
   integer :: ir_tveglongterm_pa
 
   !  (Keeping as an example)
   !!integer :: ir_tveglpa_co
   
+
+
   integer :: ir_ddbhdt_co
   integer :: ir_resp_tstep_co
   integer :: ir_pft_co
@@ -1463,6 +1471,30 @@ contains
         long_name='24-hour patch veg temp', &
         units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveg24_pa)
 
+   if ( regeneration_model == TRS_regeneration ) then
+      
+      call this%DefineRMeanRestartVar(vname='fates_seedling_layer_par24',vtype=cohort_r8, &
+           long_name='24-hour seedling layer PAR', &
+           units='W m2-1', initialize=initialize_variables,ivar=ivar, index = ir_seedling_layer_par24_pa)
+      
+      call this%DefineRMeanRestartVar(vname='fates_sdlng_emerg_smp',vtype=cohort_r8, &
+           long_name='seedling layer PAR on the seedling emergence timescale', &
+           units='mm suction', initialize=initialize_variables,ivar=ivar, index = ir_sdlng_emerg_smp_pa)
+      
+      call this%DefineRMeanRestartVar(vname='fates_sdlng_mort_par',vtype=cohort_r8, &
+           long_name='seedling layer PAR on the seedling mortality timescale', &
+           units='W m2-1', initialize=initialize_variables,ivar=ivar, index = ir_sdlng_mort_par_pa)
+      
+      call this%DefineRMeanRestartVar(vname='fates_sdlng2sap_par',vtype=cohort_r8, &
+           long_name='seedling layer PAR on the seedling to sapling transition timescale', &
+           units='W m2-1', initialize=initialize_variables,ivar=ivar, index = ir_sdlng2sap_par_pa)
+      
+      call this%DefineRMeanRestartVar(vname='fates_sdlng_mdd',vtype=cohort_r8, &
+           long_name='seedling moisture deficit days', &
+           units='mm days', initialize=initialize_variables,ivar=ivar, index = ir_sdlng_mdd_pa)
+
+   end if
+      
    call this%DefineRMeanRestartVar(vname='fates_tveglpapatch',vtype=cohort_r8, &
         long_name='running average (EMA) of patch veg temp for photo acclim', &
         units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveglpa_pa)
@@ -1871,9 +1903,9 @@ contains
    use FatesInterfaceTypesMod, only : fates_maxElementsPerPatch
    use FatesInterfaceTypesMod, only : numpft
    use EDTypesMod, only : ed_site_type
-   use EDTypesMod, only : ed_cohort_type
-   use EDTypesMod, only : ed_patch_type
-   use EDTypesMod, only : nclmax
+   use FatesCohortMod, only : fates_cohort_type
+   use FatesPatchMod, only : fates_patch_type
+   use EDParamsMod, only : nclmax
    use EDTypesMod, only : numWaterMem
    use EDTypesMod, only : num_vegtemp_mem
    use FatesInterfaceTypesMod, only : nlevdamage
@@ -1942,8 +1974,8 @@ contains
     integer  :: icdj             ! loop counter for damage
     
     type(fates_restart_variable_type) :: rvar
-    type(ed_patch_type),pointer  :: cpatch
-    type(ed_cohort_type),pointer :: ccohort
+    type(fates_patch_type),pointer  :: cpatch
+    type(fates_cohort_type),pointer :: ccohort
 
 
     associate( rio_npatch_si           => this%rvars(ir_npatch_si)%int1d, &
@@ -2341,7 +2373,19 @@ contains
              call this%SetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
              call this%SetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
              call this%SetRMeanRestartVar(cpatch%tveg_longterm, ir_tveglongterm_pa, io_idx_co_1st)
-             
+
+             if ( regeneration_model == TRS_regeneration ) then
+                call this%SetRMeanRestartVar(cpatch%seedling_layer_par24, ir_seedling_layer_par24_pa, io_idx_co_1st)
+                call this%SetRMeanRestartVar(cpatch%sdlng_mort_par, ir_sdlng_mort_par_pa,io_idx_co_1st)
+                call this%SetRMeanRestartVar(cpatch%sdlng2sap_par, ir_sdlng2sap_par_pa,io_idx_co_1st)
+                io_idx_pa_pft  = io_idx_co_1st
+                do i_pft = 1, numpft
+                   call this%SetRMeanRestartVar(cpatch%sdlng_mdd(i_pft)%p, ir_sdlng_mdd_pa,io_idx_pa_pft) 
+                   call this%SetRMeanRestartVar(cpatch%sdlng_emerg_smp(i_pft)%p, ir_sdlng_emerg_smp_pa,io_idx_pa_pft)
+                   io_idx_pa_pft      = io_idx_pa_pft + 1
+                enddo
+             end if
+
              ! set cohorts per patch for IO
              rio_ncohort_pa( io_idx_co_1st )   = cohortsperpatch
 
@@ -2596,19 +2640,16 @@ contains
      ! linked-list state structure.
      ! ---------------------------------------------------------------------------------
 
-     use EDTypesMod,           only : ed_site_type
-     use EDTypesMod,           only : ed_cohort_type
-     use EDTypesMod,           only : ed_patch_type
-     use FatesInterfaceTypesMod,    only : fates_maxElementsPerPatch
-
-     use EDTypesMod,           only : maxpft
-     use EDTypesMod,           only : area
-     use EDPatchDynamicsMod,   only : zero_patch
-     use EDInitMod,            only : zero_site
-     use EDInitMod,            only : init_site_vars
-     use EDPatchDynamicsMod,   only : create_patch
-     use EDPftvarcon,          only : EDPftvarcon_inst
-     use FatesAllometryMod,    only : h2d_allom
+     use EDTypesMod,             only : ed_site_type
+     use FatesCohortMod,         only : fates_cohort_type
+     use FatesPatchMod,          only : fates_patch_type
+     use EDParamsMod,            only : regeneration_model
+     use FatesInterfaceTypesMod, only : fates_maxElementsPerPatch
+     use FatesInterfaceTypesMod, only : hlm_current_tod, hlm_numSWb, numpft
+     use EDTypesMod,             only : area
+     use EDInitMod,              only : zero_site
+     use EDInitMod,              only : init_site_vars
+     use FatesAllometryMod,      only : h2d_allom
 
 
      ! !ARGUMENTS:
@@ -2621,9 +2662,9 @@ contains
 
      ! local variables
 
-     type(ed_patch_type) , pointer     :: newp
-     type(ed_cohort_type), pointer     :: new_cohort
-     type(ed_cohort_type), pointer     :: prev_cohort
+     type(fates_patch_type) , pointer     :: newp
+     type(fates_cohort_type), pointer     :: new_cohort
+     type(fates_cohort_type), pointer     :: prev_cohort
      integer                           :: cohortstatus
      integer                           :: s             ! site index
      integer                           :: idx_pa        ! local patch index
@@ -2674,7 +2715,9 @@ contains
              nocomp_pft = fates_unset_int
              ! the nocomp_pft label is set after patch creation has occured in 'get_restart_vectors'
              ! make new patch
-             call create_patch(sites(s), newp, fates_unset_r8, fates_unset_r8, primaryforest, nocomp_pft )
+             call newp%Create(fates_unset_r8, fates_unset_r8, primaryforest,   &
+               nocomp_pft, hlm_numSWb, numpft, sites(s)%nlevsoil,              &
+               hlm_current_tod, regeneration_model)
 
              ! Initialize the litter pools to zero, these
              ! pools will be populated by looping over the existing patches
@@ -2704,9 +2747,8 @@ contains
              do fto = 1, rio_ncohort_pa( io_idx_co_1st )
 
                 allocate(new_cohort)
-                call nan_cohort(new_cohort)
-                call zero_cohort(new_cohort)
-                new_cohort%patchptr => newp
+                call new_cohort%NanValues()
+                call new_cohort%ZeroValues()
 
                 ! If this is the first in the list, it is tallest
                 if (.not.associated(newp%tallest)) then
@@ -2796,9 +2838,9 @@ contains
    subroutine get_restart_vectors(this, nc, nsites, sites)
 
      use EDTypesMod, only : ed_site_type
-     use EDTypesMod, only : ed_cohort_type
-     use EDTypesMod, only : ed_patch_type
-     use EDTypesMod, only : nclmax
+     use FatesCohortMod, only : fates_cohort_type
+     use FatesPatchMod, only : fates_patch_type
+     use EDParamsMod, only : nclmax
      use FatesInterfaceTypesMod, only : numpft
      use FatesInterfaceTypesMod, only : fates_maxElementsPerPatch
      use EDTypesMod, only : numWaterMem
@@ -2815,11 +2857,11 @@ contains
      ! locals
      ! ----------------------------------------------------------------------------------
      ! LL pointers
-     type(ed_patch_type),pointer  :: cpatch      ! current patch
-     type(ed_cohort_type),pointer :: ccohort     ! current cohort
+     type(fates_patch_type),pointer  :: cpatch      ! current patch
+     type(fates_cohort_type),pointer :: ccohort     ! current cohort
      type(litter_type), pointer   :: litt        ! litter object on the current patch
      ! loop indices
-     integer :: s, i, j, k
+     integer :: s, i, j, k, pft                 
 
      ! ----------------------------------------------------------------------------------
      ! The following group of integers indicate the positional index (idx)
@@ -3202,8 +3244,8 @@ contains
                 ccohort%efstem_coh   = rio_efstem_co(io_idx_co)
                 ccohort%isnew        = ( rio_isnew_co(io_idx_co) .eq. new_cohort )
 
-                call InitPRTBoundaryConditions(ccohort)
-                call UpdateCohortBioPhysRates(ccohort)
+                call ccohort%InitPRTBoundaryConditions()
+                call ccohort%UpdateCohortBioPhysRates()
 
                 ! Initialize Plant Hydraulics
 
@@ -3263,7 +3305,19 @@ contains
              call this%GetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
              call this%GetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
              call this%GetRMeanRestartVar(cpatch%tveg_longterm, ir_tveglongterm_pa, io_idx_co_1st)
-             
+
+             if ( regeneration_model == TRS_regeneration ) then
+                call this%GetRMeanRestartVar(cpatch%seedling_layer_par24, ir_seedling_layer_par24_pa, io_idx_co_1st)
+                call this%GetRMeanRestartVar(cpatch%sdlng_mort_par, ir_sdlng_mort_par_pa,io_idx_co_1st)
+                call this%GetRMeanRestartVar(cpatch%sdlng2sap_par, ir_sdlng2sap_par_pa,io_idx_co_1st)
+                io_idx_pa_pft  = io_idx_co_1st
+                do pft = 1, numpft 
+                   call this%GetRMeanRestartVar(cpatch%sdlng_mdd(pft)%p, ir_sdlng_mdd_pa,io_idx_pa_pft)
+                   call this%GetRMeanRestartVar(cpatch%sdlng_emerg_smp(pft)%p, ir_sdlng_emerg_smp_pa,io_idx_pa_pft)
+                   io_idx_pa_pft      = io_idx_pa_pft + 1
+                enddo
+             end if
+
              ! set cohorts per patch for IO
 
              if ( debug ) then
@@ -3506,9 +3560,9 @@ contains
      ! called upon restart reads.
      ! -------------------------------------------------------------------------
 
-     use EDTypesMod, only             : ed_site_type
-     use EDTypesMod, only             : ed_patch_type
      use FatesRadiationDriveMod, only : PatchNormanRadiation
+     use EDTypesMod,             only : ed_site_type
+     use FatesPatchMod,          only : fates_patch_type
      use FatesInterfaceTypesMod, only : hlm_numSWb
 
      ! !ARGUMENTS:
@@ -3519,7 +3573,7 @@ contains
 
      ! locals
      ! ----------------------------------------------------------------------------------
-     type(ed_patch_type),pointer  :: currentPatch  ! current patch
+     type(fates_patch_type),pointer  :: currentPatch  ! current patch
      integer                      :: s             ! site counter
      integer                      :: ib            ! radiation band counter
      integer                      :: ifp           ! patch counter

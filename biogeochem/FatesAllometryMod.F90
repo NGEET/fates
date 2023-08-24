@@ -96,7 +96,7 @@ module FatesAllometryMod
   use FatesGlobals     , only : fates_log
   use FatesGlobals     , only : endrun => fates_endrun
   use FatesGlobals     , only : FatesWarn,N2S,A2S,I2S
-  use EDTypesMod       , only : nlevleaf, dinc_vai
+  use EDTypesMod       , only : nlevleaf
   use EDTypesMod       , only : nclmax
   use EDTypesMod       , only : dinc_vai
   use EDTypesMod       , only : dlower_vai
