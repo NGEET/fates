@@ -2128,7 +2128,7 @@ contains
  
    if (hlm_use_sp .eq. ifalse) then
       currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%crowndamage, &
-                                       currentCohort%canopy_trim, &
+                                       currentCohort%canopy_trim, currentCohort%efstem_coh, &
                                        currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
                                        canopy_layer_tlai, currentCohort%treelai , &
                                        currentCohort%vcmax25top,4)

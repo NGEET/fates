@@ -619,8 +619,7 @@ contains
          bc_out%rootfr_pa(0,1:nlevsoil_in)=1._r8/real(nlevsoil_in,r8)
       end if
 
-      bc_out%ema_npp = nan
-      
+      bc_out%ema_npp = -9999.9_r8
       
       ! Fates -> BGC fragmentation mass fluxes
       select case(hlm_parteh_mode) 
@@ -832,7 +831,7 @@ contains
          end if
          
          fates_maxElementsPerSite = max(fates_maxPatchesPerSite * fates_maxElementsPerPatch, &
-              numWatermem, num_vegtemp_mem, num_elements, nlevsclass*numpft)
+              numWatermem*numpft, num_vegtemp_mem, num_elements, nlevsclass*numpft)
 
          if(hlm_use_planthydro==itrue)then
             fates_maxElementsPerSite = max(fates_maxElementsPerSite, nshell*nlevsoi_hyd_max )
