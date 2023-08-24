@@ -111,7 +111,6 @@ module FatesPatchMod
     real(r8) :: c_lblayer                                   ! mean boundary layer conductance of all leaves in the patch [umol/m2/s]
     
     !TODO - can we delete these?
-    real(r8) :: layer_height_profile(nclmax,maxpft,nlevleaf)
     real(r8) :: psn_z(nclmax,maxpft,nlevleaf)
     real(r8) :: nrmlzd_parprof_pft_dir_z(n_rad_stream_types,nclmax,maxpft,nlevleaf)
     real(r8) :: nrmlzd_parprof_pft_dif_z(n_rad_stream_types,nclmax,maxpft,nlevleaf)
@@ -309,7 +308,6 @@ module FatesPatchMod
       this%ncan(:,:)                    = fates_unset_int
       this%c_stomata                    = nan 
       this%c_lblayer                    = nan
-      this%layer_height_profile(:,:,:)  = nan
       
       this%psn_z(:,:,:)                 = nan 
       this%nrmlzd_parprof_pft_dir_z(:,:,:,:) = nan
