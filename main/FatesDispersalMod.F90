@@ -222,10 +222,9 @@ contains
 
    ! Check if set dispersal flag is provided.  This should be provided during a check
    ! when the flag should be set to true after the global dispersal
+   setflag = .false.
    if (present(setdispersedflag)) then
       setflag = setdispersedflag
-   else
-      setflag = .false.
    end if
       
    ! If dispersal flag is true, regardless of the date, pass dispersed seeds to fates and reset flag
@@ -243,7 +242,6 @@ contains
             dispersal_date = GetCadenceDate()
          end if
       end if
-      
    end if
                                                                             
    end function IsItDispersalTime
