@@ -20,8 +20,12 @@
 *If this is your first time contributing, please read the [**CONTRIBUTING**](https://github.com/NGEET/fates/blob/main/CONTRIBUTING.md) document.*
 
 All checklist items must be checked to enable merging this pull request:
+
+*Contributor*
 - [ ] The in-code documentation has been updated with descriptive comments
 - [ ] The documentation has been assessed to determine if updates are necessary
+
+*Integrator*
 - [ ] FATES PASS/FAIL regression tests were run
 - [ ] Evaluation of test results for answer changes was performed and results provided
 
