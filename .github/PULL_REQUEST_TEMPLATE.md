@@ -41,8 +41,11 @@ All checklist items must be checked to enable merging this pull request:
 <!--- be run against a baseline. -->
 
 *CTSM (or) E3SM (specify which) test hash-tag:*
+
 *CTSM (or) E3SM (specify which) baseline hash-tag:*
+
 *FATES baseline hash-tag:*
+
 *Test Output:*
 
 <!--- paste in test results here -->
