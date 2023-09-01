@@ -35,9 +35,11 @@ module FatesDispersalMod
    ! Dispersal type
    type, public :: dispersal_type
    
-      real(r8), allocatable :: outgoing_local(:,:)    ! local gridcell array of outgoing seeds, gridcell x pft
-      real(r8), allocatable :: outgoing_global(:,:)   ! global accumulation array of outgoing seeds, gridcell x pft
-      real(r8), allocatable :: incoming_global(:,:)   ! 
+      real(r8), allocatable :: outgoing_local(:,:)    ! local buffer array of outgoing seeds, local gridcell x pft
+      real(r8), allocatable :: outgoing_global(:,:)   ! global accumulation buffer array of outgoing seeds, global gridcell x pft
+      real(r8), allocatable :: incoming_global(:,:)   ! local buffer array used to calculate incoming seeds based on nearest neighbors
+      real(r8), allocatable :: ncells_array(:)        ! local array with the number of gridcells per process for each rank index
+      real(r8), allocatable :: begg_array(:)          ! local array with the starting index of each gridcell for each rank index
            
       contains
       
@@ -59,31 +61,38 @@ contains
 
    ! ====================================================================================
 
-   subroutine init(this, numprocs, numpft)
+   subroutine init(this, numprocs, numgc_global, numgc_local, numpft)
       
       ! Use
       use EDPftvarcon           , only : EDPftvarcon_inst 
-      use FatesConstantsMod     , only : fates_check_param_set
+      use FatesConstantsMod     , only : fates_check_param_set, fates_unset_int
       use FatesInterfaceTypesMod, only : fates_dispersal_kernel_mode
       use FatesInterfaceTypesMod, only : fates_dispersal_kernel_none
       
       ! Arguments
       class(dispersal_type), intent(inout) :: this
-      integer, intent(in) ::  numprocs
-      integer, intent(in) ::  numpft
+
+      integer, intent(in) ::  numprocs      ! number of processors (across all nodes)
+      integer, intent(in) ::  numgc_global  ! number of gridcells across all processors
+      integer, intent(in) ::  numgc_local   ! number of gridcells on this processor
+      integer, intent(in) ::  numpft        ! number of FATES pfts
       
       ! Check if seed dispersal mode is 'turned on' by checking the parameter values
       ! This assumes we consistency in the parameter file across all pfts, i.e. either
       ! all 'on' or all 'off'
       if (fates_dispersal_kernel_mode .eq. fates_dispersal_kernel_none) return 
       
-      allocate(this%outgoing_local(numprocs,numpft))
-      allocate(this%outgoing_global(numprocs,numpft))
-      allocate(this%incoming_global(numprocs,numpft))
+      allocate(this%outgoing_local(numgc_local,numpft))
+      allocate(this%outgoing_global(numgc_global,numpft))
+      allocate(this%incoming_global(numgc_global,numpft))
+      allocate(this%ncells_array(0:numprocs-1))
+      allocate(this%begg_array(0:numprocs-1))
    
       this%outgoing_local(:,:) = 0._r8
       this%outgoing_global(:,:) = 0._r8
       this%incoming_global(:,:) = 0._r8
+      this%ncells_array(:) = fates_unset_int
+      this%begg_array(:) = fates_unset_int
       
       ! Set the dispersal date to the current date.  Dispersal will start at the end of
       ! current initial date

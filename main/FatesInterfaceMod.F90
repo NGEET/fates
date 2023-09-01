@@ -172,6 +172,8 @@ module FatesInterfaceMod
    public :: UpdateFatesRMeansTStep
    public :: InitTimeAveragingGlobals
    public :: DetermineGridCellNeighbors
+
+   logical :: debug = .false.  ! for debugging this module
    
 contains
 
@@ -2166,7 +2168,7 @@ end subroutine SeedlingParPatch
 
 ! ======================================================================================
       
-subroutine DetermineGridCellNeighbors(neighbors,numg)
+subroutine DetermineGridCellNeighbors(neighbors,seeds,numg)
    
    ! This subroutine utilizes information from the decomposition and domain types to determine
    ! the set of grid cell neighbors within some maximum distance.  It records the distance for each
@@ -2177,13 +2179,14 @@ subroutine DetermineGridCellNeighbors(neighbors,numg)
    use domainMod             , only : ldomain
    use spmdMod               , only : MPI_REAL8, MPI_INTEGER, mpicom, npes, masterproc, iam
    use perf_mod              , only : t_startf, t_stopf
-   use FatesDispersalMod     , only : neighborhood_type, neighbor_type, ProbabilityDensity
+   use FatesDispersalMod     , only : neighborhood_type, neighbor_type, ProbabilityDensity, dispersal_type
    use FatesUtilsMod         , only : GetNeighborDistance
    use FatesConstantsMod     , only : fates_unset_int
    use EDPftvarcon           , only : EDPftvarcon_inst
 
    ! Arguments
    type(neighborhood_type), intent(inout), pointer :: neighbors(:)  ! land gridcell neighbor data structure
+   type(dispersal_type),    intent(inout)          :: seeds         ! land gridcell neighbor data structure
    integer                , intent(in)             :: numg          ! number of land gridcells
 
    ! Local variables
@@ -2203,8 +2206,7 @@ subroutine DetermineGridCellNeighbors(neighbors,numg)
    ! Check if seed dispersal mode is 'turned on' by checking the parameter values
    if (fates_dispersal_kernel_mode .eq. fates_dispersal_kernel_none) return
 
-   if(hlm_is_restart .eq. itrue) write(fates_log(),*) 'gridcell initialization during restart'
-
+   if(debug .and. hlm_is_restart .eq. itrue) write(fates_log(),*) 'gridcell initialization during restart'
 
    ! Allocate array neighbor type
    allocate(neighbors(numg), stat=ier)
@@ -2215,25 +2217,25 @@ subroutine DetermineGridCellNeighbors(neighbors,numg)
    gclon(:) = nan
    gclat(:) = nan
 
-   allocate(ncells_array(0:npes-1), stat=ier)
-   allocate(begg_array(0:npes-1), stat=ier)
-   ncells_array(:) = fates_unset_int
-   begg_array(:) = fates_unset_int
+   !allocate(ncells_array(0:npes-1), stat=ier)
+   !allocate(begg_array(0:npes-1), stat=ier)
+   !ncells_array(:) = fates_unset_int
+   !begg_array(:) = fates_unset_int
 
    call t_startf('fates-seed-init-allgather')
 
    ! Gather the sizes of the ldomain that each mpi rank is passing
-   call MPI_Allgather(procinfo%ncells,1,MPI_INTEGER,ncells_array,1,MPI_INTEGER,mpicom,mpierr)
+   call MPI_Allgather(procinfo%ncells,1,MPI_INTEGER,seeds%ncells_array,1,MPI_INTEGER,mpicom,mpierr)
 
    ! Gather the starting index for each ldomain (reduce begging index by one for mpi rank conversion)
-   call MPI_Allgather(procinfo%begg-1,1,MPI_INTEGER,begg_array,1,MPI_INTEGER,mpicom,mpierr)
+   call MPI_Allgather(procinfo%begg-1,1,MPI_INTEGER,seeds%begg_array,1,MPI_INTEGER,mpicom,mpierr)
 
    ! Gather the domain information together into the neighbor type
    ! Note that MPI_Allgatherv is only gathering a subset of ldomain
-   call MPI_Allgatherv(ldomain%latc,procinfo%ncells,MPI_REAL8,gclat,ncells_array,begg_array,MPI_REAL8,mpicom,mpierr)
-   call MPI_Allgatherv(ldomain%lonc,procinfo%ncells,MPI_REAL8,gclon,ncells_array,begg_array,MPI_REAL8,mpicom,mpierr)
+   call MPI_Allgatherv(ldomain%latc,procinfo%ncells,MPI_REAL8,gclat,seeds%ncells_array,seeds%begg_array,MPI_REAL8,mpicom,mpierr)
+   call MPI_Allgatherv(ldomain%lonc,procinfo%ncells,MPI_REAL8,gclon,seeds%ncells_array,seeds%begg_array,MPI_REAL8,mpicom,mpierr)
 
-   if (iam==1) then
+   if (debug .and. iam .eq. 1) then
       write(fates_log(),*)'DGCN: ncells_array: ', ncells_array
       write(fates_log(),*)'DGCN: begg_array: ', begg_array
       write(fates_log(),*)'DGCN: sum(gclat):, sum(gclon): ', sum(gclat), sum(gclon)
