@@ -2479,9 +2479,6 @@ end subroutine flush_hvars
                hio_cwd_bg_out_si_cwdsc              => this%hvars(ih_cwd_bg_out_si_cwdsc)%r82d, &
                hio_crownarea_si_cnlf                => this%hvars(ih_crownarea_si_cnlf)%r82d, &
                hio_crownarea_si_can                 => this%hvars(ih_crownarea_si_can)%r82d, &
-               hio_nplant_si_scag                   => this%hvars(ih_nplant_si_scag)%r82d, &
-               hio_nplant_canopy_si_scag            => this%hvars(ih_nplant_canopy_si_scag)%r82d, &
-               hio_nplant_understory_si_scag        => this%hvars(ih_nplant_understory_si_scag)%r82d, &
                hio_ddbh_canopy_si_scag              => this%hvars(ih_ddbh_canopy_si_scag)%r82d, &
                hio_ddbh_understory_si_scag          => this%hvars(ih_ddbh_understory_si_scag)%r82d, &
                hio_mortality_canopy_si_scag         => this%hvars(ih_mortality_canopy_si_scag)%r82d, &
@@ -2505,6 +2502,9 @@ end subroutine flush_hvars
                hio_tgrowth                          => this%hvars(ih_tgrowth_si)%r81d, &
                hio_cbal_err_fates_si                => this%hvars(ih_cbal_err_fates_si)%r81d, &
                hio_err_fates_si                     => this%hvars(ih_err_fates_si)%r82d, &
+               hio_nplant_si_scag                   => this%hvars(ih_nplant_si_scag)%r82d, &
+               hio_nplant_canopy_si_scag            => this%hvars(ih_nplant_canopy_si_scag)%r82d, &
+               hio_nplant_understory_si_scag        => this%hvars(ih_nplant_understory_si_scag)%r82d, &
                hio_lai_si                           => this%hvars(ih_lai_si)%r81d )
 
    ! If we don't have dynamics turned on, we just abort these diagnostics

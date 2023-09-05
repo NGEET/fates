@@ -2196,7 +2196,6 @@ subroutine DetermineGridCellNeighbors(neighbors,seeds,numg)
    integer :: i, gi,gj    ! indices
    integer :: ier, mpierr ! error status
    integer :: ipft        ! pft index
-   integer, allocatable :: ncells_array(:), begg_array(:)
    real(r8), allocatable :: gclat(:), gclon(:)
 
    ! 5 deg = 785.8 km, 10 deg = 1569 km, 15deg = 2345 km assumes cartesian layout with diagonal distance
@@ -2217,11 +2216,6 @@ subroutine DetermineGridCellNeighbors(neighbors,seeds,numg)
    gclon(:) = nan
    gclat(:) = nan
 
-   !allocate(ncells_array(0:npes-1), stat=ier)
-   !allocate(begg_array(0:npes-1), stat=ier)
-   !ncells_array(:) = fates_unset_int
-   !begg_array(:) = fates_unset_int
-
    call t_startf('fates-seed-init-allgather')
 
    ! Gather the sizes of the ldomain that each mpi rank is passing
@@ -2236,8 +2230,8 @@ subroutine DetermineGridCellNeighbors(neighbors,seeds,numg)
    call MPI_Allgatherv(ldomain%lonc,procinfo%ncells,MPI_REAL8,gclon,seeds%ncells_array,seeds%begg_array,MPI_REAL8,mpicom,mpierr)
 
    if (debug .and. iam .eq. 1) then
-      write(fates_log(),*)'DGCN: ncells_array: ', ncells_array
-      write(fates_log(),*)'DGCN: begg_array: ', begg_array
+      write(fates_log(),*)'DGCN: ncells_array: ', seeds%ncells_array
+      write(fates_log(),*)'DGCN: begg_array: ', seeds%begg_array
       write(fates_log(),*)'DGCN: sum(gclat):, sum(gclon): ', sum(gclat), sum(gclon)
    end if
 
