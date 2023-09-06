@@ -298,4 +298,49 @@ contains
 
   end subroutine CheckLUHData
 
+
+  subroutine get_init_landuse_harvest_rate(bc_in, harvest_rate)
+
+    ! the purpose of this subroutine is, only under the case where we are transitioning from a spinup run that did not have land use
+    ! to a run that does, to apply the land-use changes needed to get to the state vector in a single daily instance. this is for
+    ! the hrvest rate from primary lands, i.e. the transition from primary to secondary lands. thus instead of using the harvest
+    ! dataset tself, it only uses the state vector for what land use compositoin we want to achieve, and log the forests accordingly.
+
+    ! !ARGUMENTS:
+    type(bc_in_type) , intent(in) :: bc_in
+    real(r8), intent(out) :: harvest_rate  ! [m2/ m2 / day]
+
+    ! LOCALS
+    real(r8) ::  state_vector(n_landuse_cats)  ! [m2/m2]
+    
+    call get_luh_statedata(bc_in, state_vector)
+
+    harvest_rate = state_vector(secondaryland)
+    
+  end subroutine get_init_landuse_harvest_rate
+
+  subroutine get_landuse_transition_rates(bc_in, landuse_transition_matrix)
+    
+    ! The purose of this subroutine is, only under the case where we are transitioning from a spinup run that did not have land use                                                 
+    ! to a run that does, to apply the land-use changes needed to get to the state vector in a single daily instance. this is for
+    ! the transitions other than harvest, i.e. from primary lands to all other categories aside from secondary lands. 
+
+    ! !ARGUMENTS:
+    type(bc_in_type) , intent(in) :: bc_in
+    real(r8), intent(inout) :: landuse_transition_matrix(n_landuse_cats, n_landuse_cats)  ! [m2/m2/day]
+
+    ! LOCALS
+    real(r8) ::  state_vector(n_landuse_cats)  ! [m2/m2]
+    integer  :: i
+
+    landuse_transition_matrix(:,:) = 0._r8
+    
+    call get_luh_statedata(bc_in, state_vector)
+
+    do i = secondaryland+1,n_landuse_cats
+       landuse_transition_matrix(1,i) = state_vector(i)
+    end do
+    
+  end subroutine get_landuse_transition_rates
+    
 end module FatesLandUseChangeMod

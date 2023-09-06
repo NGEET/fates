@@ -343,6 +343,8 @@ contains
     site_in%use_this_pft(:) = fates_unset_int
     site_in%area_by_age(:) = 0._r8
 
+    site_in%transition_landuse_from_off_to_on = .false.
+
   end subroutine zero_site
 
   ! ============================================================================

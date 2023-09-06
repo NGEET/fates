@@ -281,7 +281,7 @@ contains
     !if trees are in the canopy, then their death is 'disturbance'. This probably needs a different terminology
     call mortality_rates(currentCohort,bc_in,btran_ft, mean_temp,              &
       cmort,hmort,bmort,frmort, smort, asmort, dgmort)
-    call LoggingMortality_frac(ipft, currentCohort%dbh, currentCohort%canopy_layer, &
+    call LoggingMortality_frac(currentSite, bc_in, ipft, currentCohort%dbh, currentCohort%canopy_layer, &
                                currentCohort%lmort_direct,                       &
                                currentCohort%lmort_collateral,                    &
                                currentCohort%lmort_infra,                        &

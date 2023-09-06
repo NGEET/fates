@@ -426,6 +426,8 @@ module EDTypesMod
      real(r8) :: primary_land_patchfusion_error             ! error term in total area of primary patches associated with patch fusion [m2/m2/day]
      real(r8) :: landuse_transition_matrix(n_landuse_cats, n_landuse_cats) ! land use transition matrix as read in from HLM and aggregated to FATES land use types [m2/m2/year]
 
+     logical :: transition_landuse_from_off_to_on         ! special flag to use only when reading restarts, which triggers procedure to initialize land use
+
   end type ed_site_type
 
   ! Make public necessary subroutines and functions

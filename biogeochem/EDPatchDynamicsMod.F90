@@ -222,6 +222,14 @@ contains
     ! first calculate the fraction of the site that is primary land
     call get_frac_site_primary(site_in, frac_site_primary)
 
+    ! check status of transition_landuse_from_off_to_on flag, and do some error checking on it
+    if(site_in%transition_landuse_from_off_to_on) then
+       if (abs(frac_site_primary - 1._r8) .gt. fates_tiny) then
+          write(fates_log(),*) 'flag for transition_landuse_from_off_to_on is set to true but site is not entirely primaryland'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       endif
+    endif
+
     ! get available biomass for harvest for all patches
     call get_harvestable_carbon(site_in, bc_in%site_area, bc_in%hlm_harvest_catnames, harvestable_forest_c)
  
@@ -248,7 +256,8 @@ contains
           currentCohort%asmort = asmort
           currentCohort%dgmort = dgmort
           
-          call LoggingMortality_frac(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_layer, &
+          call LoggingMortality_frac(site_in, bc_in, currentCohort%pft, &
+                currentCohort%dbh, currentCohort%canopy_layer, &
                 lmort_direct,lmort_collateral,lmort_infra,l_degrad,&
                 bc_in%hlm_harvest_rates, &
                 bc_in%hlm_harvest_catnames, &
@@ -272,8 +281,12 @@ contains
 
     call get_harvest_debt(site_in, bc_in, harvest_tag)
 
-    call get_landuse_transition_rates(bc_in, landuse_transition_matrix)
-
+    if(.not. site_in%transition_landuse_from_off_to_on) then
+       call get_landuse_transition_rates(bc_in, landuse_transition_matrix)
+    else
+       call get_init_landuse_transition_rates(bc_in, landuse_transition_matrix)
+    endif
+    
     ! calculate total area in each landuse category
     current_fates_landuse_state_vector(:) = 0._r8
     currentPatch => site_in%oldest_patch
@@ -359,14 +372,18 @@ contains
             (currentPatch%area - currentPatch%total_canopy_area) .gt. fates_tiny ) then
           ! The canopy is NOT closed. 
 
-          if(bc_in%hlm_harvest_units == hlm_harvest_carbon) then
-             call get_harvest_rate_carbon (currentPatch%land_use_label, bc_in%hlm_harvest_catnames, &
-                   bc_in%hlm_harvest_rates, currentPatch%age_since_anthro_disturbance, harvestable_forest_c, &
-                   harvest_rate, harvest_tag)
+          if (.not. site_in%transition_landuse_from_off_to_on) then
+             if(bc_in%hlm_harvest_units == hlm_harvest_carbon) then
+                call get_harvest_rate_carbon (currentPatch%land_use_label, bc_in%hlm_harvest_catnames, &
+                     bc_in%hlm_harvest_rates, currentPatch%age_since_anthro_disturbance, harvestable_forest_c, &
+                     harvest_rate, harvest_tag)
+             else
+                call get_harvest_rate_area (currentPatch%land_use_label, bc_in%hlm_harvest_catnames, &
+                     bc_in%hlm_harvest_rates, frac_site_primary, currentPatch%age_since_anthro_disturbance, harvest_rate)
+             end if
           else
-             call get_harvest_rate_area (currentPatch%land_use_label, bc_in%hlm_harvest_catnames, &
-                  bc_in%hlm_harvest_rates, frac_site_primary, currentPatch%age_since_anthro_disturbance, harvest_rate)
-          end if
+             call get_init_landuse_harvest_rate(bc_in, harvest_rate)
+          endif
 
           currentPatch%disturbance_rates(dtype_ilog) = currentPatch%disturbance_rates(dtype_ilog) + &
                (currentPatch%area - currentPatch%total_canopy_area) * harvest_rate / currentPatch%area
@@ -436,7 +453,6 @@ contains
     use EDParamsMod          , only : ED_val_understorey_death, logging_coll_under_frac
     use EDCohortDynamicsMod  , only : terminate_cohorts
     use FatesConstantsMod    , only : rsnbl_math_prec
-    use FatesLandUseChangeMod, only : get_landuse_transition_rates
     use FatesLandUseChangeMod, only : get_landusechange_rules
     !
     ! !ARGUMENTS:

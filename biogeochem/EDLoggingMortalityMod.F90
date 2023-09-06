@@ -195,7 +195,7 @@ contains
 
    ! ======================================================================================
 
-   subroutine LoggingMortality_frac( pft_i, dbh, canopy_layer, lmort_direct, &
+   subroutine LoggingMortality_frac( currentSite, bc_in, pft_i, dbh, canopy_layer, lmort_direct, &
                                      lmort_collateral,lmort_infra, l_degrad, &
                                      hlm_harvest_rates, hlm_harvest_catnames, &
                                      hlm_harvest_units, &
@@ -203,7 +203,8 @@ contains
                                      frac_site_primary, harvestable_forest_c, &
                                      harvest_tag)
 
-      ! Arguments
+     ! Arguments
+      type(ed_site_type), intent(in), target :: currentSite     ! site structure    
       integer,  intent(in)  :: pft_i            ! pft index 
       real(r8), intent(in)  :: dbh              ! diameter at breast height (cm)
       integer,  intent(in)  :: canopy_layer     ! canopy layer of this cohort
@@ -239,109 +240,117 @@ contains
       ! todo: check outputs against the LUH2 carbon data
       ! todo: eventually set up distinct harvest practices, each with a set of input paramaeters
       ! todo: implement harvested carbon inputs
-      
-      if (logging_time) then 
 
-         ! Pass logging rates to cohort level 
-         
-         if (hlm_use_lu_harvest == ifalse) then
-            ! 0=use fates logging parameters directly when logging_time == .true.
-            ! this means harvest the whole cohort area
-            harvest_rate = 1._r8
-            
-         else if (hlm_use_lu_harvest == itrue .and. hlm_harvest_units == hlm_harvest_area_fraction) then
-            ! We are harvesting based on areal fraction, not carbon/biomass terms. 
-            ! 1=use area fraction from hlm
-            ! combine forest and non-forest fracs and then apply:
-            ! primary and secondary area fractions to the logging rates, which are fates parameters
-            
-            ! Definitions of the underlying harvest land category variables
-            ! these are hardcoded to match the LUH input data via landuse.timseries file (see dynHarvestMod)
-            ! these are fractions of vegetated area harvested, split into five land category variables
-            ! HARVEST_VH1 = harvest from primary forest
-            ! HARVEST_VH2 = harvest from primary non-forest
-            ! HARVEST_SH1 = harvest from secondary mature forest
-            ! HARVEST_SH2 = harvest from secondary young forest
-            ! HARVEST_SH3 = harvest from secondary non-forest (assume this is young for biomass)
+      if (.not. currentSite%transition_landuse_from_off_to_on) then
+         if (logging_time) then 
 
-            ! Get the area-based harvest rates based on info passed to FATES from the boundary condition
-            call get_harvest_rate_area (patch_land_use_label, hlm_harvest_catnames, &
-                 hlm_harvest_rates, frac_site_primary, secondary_age, harvest_rate)
+            ! Pass logging rates to cohort level 
 
-            ! For area-based harvest, harvest_tag shall always be 2 (not applicable).
-            harvest_tag = 2
-            cur_harvest_tag = 2
+            if (hlm_use_lu_harvest == ifalse) then
+               ! 0=use fates logging parameters directly when logging_time == .true.
+               ! this means harvest the whole cohort area
+               harvest_rate = 1._r8
 
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'Successfully Read Harvest Rate from HLM.', hlm_harvest_rates(:), harvest_rate
-            end if
+            else if (hlm_use_lu_harvest == itrue .and. hlm_harvest_units == hlm_harvest_area_fraction) then
+               ! We are harvesting based on areal fraction, not carbon/biomass terms. 
+               ! 1=use area fraction from hlm
+               ! combine forest and non-forest fracs and then apply:
+               ! primary and secondary area fractions to the logging rates, which are fates parameters
 
-         else if (hlm_use_lu_harvest == itrue .and. hlm_harvest_units == hlm_harvest_carbon) then
-            ! 2=use carbon from hlm
-            ! shall call another subroutine, which transfers biomass/carbon into fraction
+               ! Definitions of the underlying harvest land category variables
+               ! these are hardcoded to match the LUH input data via landuse.timseries file (see dynHarvestMod)
+               ! these are fractions of vegetated area harvested, split into five land category variables
+               ! HARVEST_VH1 = harvest from primary forest
+               ! HARVEST_VH2 = harvest from primary non-forest
+               ! HARVEST_SH1 = harvest from secondary mature forest
+               ! HARVEST_SH2 = harvest from secondary young forest
+               ! HARVEST_SH3 = harvest from secondary non-forest (assume this is young for biomass)
 
-            call get_harvest_rate_carbon (patch_land_use_label, hlm_harvest_catnames, &
-                  hlm_harvest_rates, secondary_age, harvestable_forest_c, &
-                  harvest_rate, harvest_tag, cur_harvest_tag)
+               ! Get the area-based harvest rates based on info passed to FATES from the boundary condition
+               call get_harvest_rate_area (patch_land_use_label, hlm_harvest_catnames, &
+                    hlm_harvest_rates, frac_site_primary, secondary_age, harvest_rate)
 
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'Successfully Read Harvest Rate from HLM.', hlm_harvest_rates(:), harvest_rate, harvestable_forest_c
-            end if
-            
-         endif
+               ! For area-based harvest, harvest_tag shall always be 2 (not applicable).
+               harvest_tag = 2
+               cur_harvest_tag = 2
 
-         ! transfer of area to secondary land is based on overall area affected, not just logged crown area
-         ! l_degrad accounts for the affected area between logged crowns
-         if(prt_params%woody(pft_i) == itrue)then ! only set logging rates for trees
-            if (cur_harvest_tag == 0) then
-               ! direct logging rates, based on dbh min and max criteria
-               if (dbh >= logging_dbhmin .and. .not. &
-                  ((logging_dbhmax < fates_check_param_set) .and. (dbh >= logging_dbhmax )) ) then
-                  ! the logic of the above line is a bit unintuitive but allows turning off the dbhmax comparison entirely.
-                  ! since there is an .and. .not. after the first conditional, the dbh:dbhmax comparison needs to be 
-                  ! the opposite of what would otherwise be expected...
-                  lmort_direct = harvest_rate * logging_direct_frac
+               if (fates_global_verbose()) then
+                  write(fates_log(), *) 'Successfully Read Harvest Rate from HLM.', hlm_harvest_rates(:), harvest_rate
+               end if
+
+            else if (hlm_use_lu_harvest == itrue .and. hlm_harvest_units == hlm_harvest_carbon) then
+               ! 2=use carbon from hlm
+               ! shall call another subroutine, which transfers biomass/carbon into fraction
+
+               call get_harvest_rate_carbon (patch_land_use_label, hlm_harvest_catnames, &
+                    hlm_harvest_rates, secondary_age, harvestable_forest_c, &
+                    harvest_rate, harvest_tag, cur_harvest_tag)
+
+               if (fates_global_verbose()) then
+                  write(fates_log(), *) 'Successfully Read Harvest Rate from HLM.', hlm_harvest_rates(:), harvest_rate, harvestable_forest_c
+               end if
+
+            endif
+
+            ! transfer of area to secondary land is based on overall area affected, not just logged crown area
+            ! l_degrad accounts for the affected area between logged crowns
+            if(prt_params%woody(pft_i) == itrue)then ! only set logging rates for trees
+               if (cur_harvest_tag == 0) then
+                  ! direct logging rates, based on dbh min and max criteria
+                  if (dbh >= logging_dbhmin .and. .not. &
+                       ((logging_dbhmax < fates_check_param_set) .and. (dbh >= logging_dbhmax )) ) then
+                     ! the logic of the above line is a bit unintuitive but allows turning off the dbhmax comparison entirely.
+                     ! since there is an .and. .not. after the first conditional, the dbh:dbhmax comparison needs to be 
+                     ! the opposite of what would otherwise be expected...
+                     lmort_direct = harvest_rate * logging_direct_frac
+                  else
+                     lmort_direct = 0.0_r8
+                  end if
                else
                   lmort_direct = 0.0_r8
                end if
-            else
-                lmort_direct = 0.0_r8
-            end if
 
-            ! infrastructure (roads, skid trails, etc) mortality rates
-            if (dbh >= logging_dbhmax_infra) then
-               lmort_infra      = 0.0_r8
-            else
+               ! infrastructure (roads, skid trails, etc) mortality rates
+               if (dbh >= logging_dbhmax_infra) then
+                  lmort_infra      = 0.0_r8
+               else
+                  lmort_infra      = harvest_rate * logging_mechanical_frac
+               end if
+
+               ! Collateral damage to smaller plants below the direct logging size threshold
+               ! will be applied via "understory_death" via the disturbance algorithm
+               if (canopy_layer .eq. 1) then
+                  lmort_collateral = harvest_rate * logging_collateral_frac
+               else
+                  lmort_collateral = 0._r8
+               endif
+
+            else  ! non-woody plants still killed by infrastructure
+               lmort_direct    = 0.0_r8
+               lmort_collateral = 0.0_r8
                lmort_infra      = harvest_rate * logging_mechanical_frac
             end if
 
-            ! Collateral damage to smaller plants below the direct logging size threshold
-            ! will be applied via "understory_death" via the disturbance algorithm
+            ! the area occupied by all plants in the canopy that aren't killed is still disturbed at the harvest rate
             if (canopy_layer .eq. 1) then
-               lmort_collateral = harvest_rate * logging_collateral_frac
+               l_degrad = harvest_rate - (lmort_direct + lmort_infra + lmort_collateral) ! fraction passed to 'degraded' forest.
             else
-               lmort_collateral = 0._r8
+               l_degrad = 0._r8
             endif
 
-         else  ! non-woody plants still killed by infrastructure
+         else 
             lmort_direct    = 0.0_r8
             lmort_collateral = 0.0_r8
-            lmort_infra      = harvest_rate * logging_mechanical_frac
+            lmort_infra      = 0.0_r8
+            l_degrad         = 0.0_r8
          end if
-
-         ! the area occupied by all plants in the canopy that aren't killed is still disturbed at the harvest rate
-         if (canopy_layer .eq. 1) then
-            l_degrad = harvest_rate - (lmort_direct + lmort_infra + lmort_collateral) ! fraction passed to 'degraded' forest.
-         else
-            l_degrad = 0._r8
-         endif
-         
-      else 
-         lmort_direct    = 0.0_r8
+      else
+         call get_init_landuse_harvest_rate(bc_in, harvest_rate)
+         lmort_direct     = harvest_rate
          lmort_collateral = 0.0_r8
          lmort_infra      = 0.0_r8
          l_degrad         = 0.0_r8
-      end if
+      endif
 
    end subroutine LoggingMortality_frac
 

@@ -25,6 +25,7 @@ module FatesRestartInterfaceMod
   use FatesInterfaceTypesMod,  only : hlm_parteh_mode
   use FatesInterfaceTypesMod,  only : hlm_use_sp
   use FatesInterfaceTypesMod,  only : hlm_use_nocomp, hlm_use_fixed_biogeog
+  use FatesInterfaceTypesMod,  only : hlm_use_luh
   use FatesInterfaceTypesMod,  only : fates_maxElementsPerSite
   use FatesInterfaceTypesMod,  only : hlm_use_tree_damage
   use FatesHydraulicsMemMod,   only : nshell
@@ -98,6 +99,7 @@ module FatesRestartInterfaceMod
   integer :: ir_gdd_si
   integer :: ir_snow_depth_si
   integer :: ir_trunk_product_si
+  integer :: ir_landuse_config_si
   integer :: ir_ncohort_pa
   integer :: ir_canopy_layer_co
   integer :: ir_canopy_layer_yesterday_co
@@ -704,6 +706,10 @@ contains
          units='kgC/m2', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_trunk_product_si )
 
+    call this%set_restart_var(vname='fates_landuse_config_site', vtype=site_r8, &
+         long_name='hlm_use_luh status of run that created this restart file', &
+         units='kgC/m2', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_landuse_config_si )
 
     ! -----------------------------------------------------------------------------------
     ! Variables stored within cohort vectors
@@ -1991,6 +1997,7 @@ contains
            rio_gdd_si                  => this%rvars(ir_gdd_si)%r81d, &
            rio_snow_depth_si           => this%rvars(ir_snow_depth_si)%r81d, &
            rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
+           rio_landuse_config_s        => this%rvars(ir_landuse_config_si)%int1d, &
            rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
            rio_fcansno_pa              => this%rvars(ir_fcansno_pa)%r81d, &
            rio_solar_zenith_flag_pa    => this%rvars(ir_solar_zenith_flag_pa)%int1d, &
@@ -2575,6 +2582,10 @@ contains
 
           ! Accumulated trunk product
           rio_trunk_product_si(io_idx_si) = sites(s)%resources_management%trunk_product_site
+
+          ! land use flag
+          rio_landuse_config_si(io_idx_si) = hlm_use_luh
+
           ! set numpatches for this column
 
           rio_npatch_si(io_idx_si)  = patchespersite
@@ -2935,6 +2946,7 @@ contains
           rio_gdd_si                  => this%rvars(ir_gdd_si)%r81d, &
           rio_snow_depth_si           => this%rvars(ir_snow_depth_si)%r81d, &
           rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
+          rio_landuse_config_si       => this%rvars(ir_landuse_config_si)%int1d, &
           rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
           rio_fcansno_pa              => this%rvars(ir_fcansno_pa)%r81d, &
           rio_solar_zenith_flag_pa    => this%rvars(ir_solar_zenith_flag_pa)%int1d, &
@@ -3545,6 +3557,12 @@ contains
           sites(s)%acc_NI         = rio_acc_ni_si(io_idx_si)
           sites(s)%snow_depth     = rio_snow_depth_si(io_idx_si)
           sites(s)%resources_management%trunk_product_site = rio_trunk_product_si(io_idx_si)
+
+          ! if needed, trigger the special procedure to initialize land use structure from a
+          ! restart run that did not include land use.
+          if (rio_landuse_config_si(io_idx_si) .eq. ifalse .and. hlm_use_luh .eq. itrue) then
+             sites(s)%transition_landuse_from_off_to_on = .true.
+          endif
 
        end do
 

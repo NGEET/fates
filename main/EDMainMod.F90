@@ -225,6 +225,11 @@ contains
        ! Integrate state variables from annual rates to daily timestep
        call ed_integrate_state_variables(currentSite, bc_in, bc_out )
 
+       ! at this point in the call sequence, if flag to transition_landuse_from_off_to_on was set, unset it as it is no longer needed
+       if(currentSite%transition_landuse_from_off_to_on) then
+          currentSite%transition_landuse_from_off_to_on = .false
+       endif
+       
     else
        ! ed_intergrate_state_variables is where the new cohort flag
        ! is set. This flag designates wether a cohort has
