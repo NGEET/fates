@@ -846,7 +846,7 @@ contains
       real(r8)                         :: stem_drop_fraction    ! fraction of stem to absciss when leaves absciss
       real(r8)                         :: fnrt_drop_fraction    ! fraction of fine roots to absciss when leaves absciss
       integer, parameter               :: recruitstatus = 0     ! whether the newly created cohorts are recruited or initialized
-
+      real(r8),parameter               :: zero_co_age = 0._r8   ! The age of a newly recruited cohort is zero
       !-------------------------------------------------------------------------------------
 
       patch_in%tallest  => null()
@@ -1083,7 +1083,7 @@ contains
             call prt%CheckInitialConditions()
 
             call create_cohort(site_in, patch_in, pft, cohort_n,               &
-               hite, 0.0_r8, dbh, prt, efleaf_coh,                             &
+               hite, zero_co_age, dbh, prt, efleaf_coh,                             &
                effnrt_coh, efstem_coh, leaf_status, recruitstatus,             &
                canopy_trim, c_area, 1, crown_damage, site_in%spread, bc_in)
 
