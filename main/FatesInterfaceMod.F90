@@ -173,7 +173,7 @@ module FatesInterfaceMod
    public :: InitTimeAveragingGlobals
    public :: DetermineGridCellNeighbors
 
-   logical :: debug = .false.  ! for debugging this module
+   logical :: debug = .true.  ! for debugging this module
    
 contains
 
@@ -2212,27 +2212,57 @@ subroutine DetermineGridCellNeighbors(neighbors,seeds,numg)
    neighbors(:)%neighbor_count = 0
 
    allocate(gclat(numg), stat=ier)
-   allocate(gclon(numg))
+   write(fates_log(),*)'DGCN: gclat alloc: ', ier
+   allocate(gclon(numg), stat=ier)
+   write(fates_log(),*)'DGCN: gclon alloc: ', ier
    gclon(:) = nan
    gclat(:) = nan
+
+   allocate(ncells_array(0:npes-1), stat=ier)
+   write(fates_log(),*)'DGCN: ncells alloc: ', ier
+   allocate(begg_array(0:npes-1), stat=ier)
+   write(fates_log(),*)'DGCN: begg alloc: ', ier
+   ncells_array(:) = fates_unset_int
+   begg_array(:) = fates_unset_int
 
    call t_startf('fates-seed-init-allgather')
 
    ! Gather the sizes of the ldomain that each mpi rank is passing
-   call MPI_Allgather(procinfo%ncells,1,MPI_INTEGER,seeds%ncells_array,1,MPI_INTEGER,mpicom,mpierr)
+   call MPI_Allgather(procinfo%ncells,1,MPI_INTEGER,ncells_array,1,MPI_INTEGER,mpicom,mpierr)
+   write(fates_log(),*)'DGCN: ncells mpierr: ', mpierr
 
    ! Gather the starting index for each ldomain (reduce begging index by one for mpi rank conversion)
-   call MPI_Allgather(procinfo%begg-1,1,MPI_INTEGER,seeds%begg_array,1,MPI_INTEGER,mpicom,mpierr)
+   call MPI_Allgather(procinfo%begg-1,1,MPI_INTEGER,begg_array,1,MPI_INTEGER,mpicom,mpierr)
+   write(fates_log(),*)'DGCN: begg mpierr: ', mpierr
+
+   if (debug .and. iam .eq. 1) then
+      write(fates_log(),*)'DGCN: ncells_array: ', ncells_array
+      write(fates_log(),*)'DGCN: begg_array: ', begg_array
+   end if
 
    ! Gather the domain information together into the neighbor type
    ! Note that MPI_Allgatherv is only gathering a subset of ldomain
-   call MPI_Allgatherv(ldomain%latc,procinfo%ncells,MPI_REAL8,gclat,seeds%ncells_array,seeds%begg_array,MPI_REAL8,mpicom,mpierr)
-   call MPI_Allgatherv(ldomain%lonc,procinfo%ncells,MPI_REAL8,gclon,seeds%ncells_array,seeds%begg_array,MPI_REAL8,mpicom,mpierr)
+   write(fates_log(),*)'DGCN: gathering latc'
+   call MPI_Allgatherv(ldomain%latc,procinfo%ncells,MPI_REAL8,gclat,ncells_array,begg_array,MPI_REAL8,mpicom,mpierr)
+   write(fates_log(),*)'DGCN: gathering lonc'
+   call MPI_Allgatherv(ldomain%lonc,procinfo%ncells,MPI_REAL8,gclon,ncells_array,begg_array,MPI_REAL8,mpicom,mpierr)
 
    if (debug .and. iam .eq. 1) then
-      write(fates_log(),*)'DGCN: ncells_array: ', seeds%ncells_array
-      write(fates_log(),*)'DGCN: begg_array: ', seeds%begg_array
+      write(fates_log(),*)'DGCN: ncells_array: ', ncells_array
+      write(fates_log(),*)'DGCN: begg_array: ', begg_array
       write(fates_log(),*)'DGCN: sum(gclat):, sum(gclon): ', sum(gclat), sum(gclon)
+   end if
+
+   ! Save number of cells and begging index arrays to dispersal type
+   write(fates_log(),*)'DGCN: save to seeds type'
+   write(fates_log(),*)'DGCN: seeds ncells alloc: ', allocated(seeds%ncells_array)
+   write(fates_log(),*)'DGCN: seeds begg alloc: ', allocated(seeds%begg_array)
+   seeds%ncells_array = ncells_array
+   seeds%begg_array = begg_array
+
+   if (debug .and. iam .eq. 1) then
+      write(fates_log(),*)'DGCN: seeds%ncells_array: ', seeds%ncells_array
+      write(fates_log(),*)'DGCN: seeds%begg_array: ', seeds%begg_array
    end if
 
    call t_stopf('fates-seed-init-allgather')

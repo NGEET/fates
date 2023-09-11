@@ -38,8 +38,8 @@ module FatesDispersalMod
       real(r8), allocatable :: outgoing_local(:,:)    ! local buffer array of outgoing seeds, local gridcell x pft
       real(r8), allocatable :: outgoing_global(:,:)   ! global accumulation buffer array of outgoing seeds, global gridcell x pft
       real(r8), allocatable :: incoming_global(:,:)   ! local buffer array used to calculate incoming seeds based on nearest neighbors
-      real(r8), allocatable :: ncells_array(:)        ! local array with the number of gridcells per process for each rank index
-      real(r8), allocatable :: begg_array(:)          ! local array with the starting index of each gridcell for each rank index
+      integer,  allocatable :: ncells_array(:)        ! local array with the number of gridcells per process for each rank index
+      integer,  allocatable :: begg_array(:)          ! local array with the starting index of each gridcell for each rank index
            
       contains
       
@@ -82,9 +82,9 @@ contains
       ! all 'on' or all 'off'
       if (fates_dispersal_kernel_mode .eq. fates_dispersal_kernel_none) return 
       
-      allocate(this%outgoing_local(numgc_local,numpft))
-      allocate(this%outgoing_global(numgc_global,numpft))
-      allocate(this%incoming_global(numgc_global,numpft))
+      allocate(this%outgoing_local(numpft,numgc_local))
+      allocate(this%outgoing_global(numpft,numgc_global))
+      allocate(this%incoming_global(numpft,numgc_global))
       allocate(this%ncells_array(0:numprocs-1))
       allocate(this%begg_array(0:numprocs-1))
    
@@ -240,6 +240,7 @@ contains
    ! If dispersal flag is false, check if it is time to disperse
    ! If it's time to disperse, check to see if the dispersal flag should be set true and last
    ! dispersal date updated
+   write(fates_log(),*) 'IIDTpre, dflag, sflag, cdate, ddate', IsItDispersalTime, dispersal_flag, setflag, GetCadenceDate(), dispersal_date
    if (dispersal_flag) then
       IsItDispersalTime = .true.
       dispersal_flag = .false.
@@ -252,6 +253,7 @@ contains
          end if
       end if
    end if
+   write(fates_log(),*) 'IIDTpst, dflag, sflag, cdate, ddate', IsItDispersalTime, dispersal_flag, setflag, GetCadenceDate(), dispersal_date
                                                                             
    end function IsItDispersalTime
    
