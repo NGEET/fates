@@ -16,8 +16,7 @@ module FatesInterfaceMod
    use EDParamsMod               , only : ED_val_vai_width_increase_factor
    use EDParamsMod               , only : ED_val_history_damage_bin_edges
    use EDParamsMod               , only : maxpatch_total
-   use EDParamsMod               , only : maxpatch_primaryland, maxpatch_secondaryland
-   use EDParamsMod               , only : maxpatch_pastureland, maxpatch_rangeland, maxpatch_cropland
+   use EDParamsMod               , only : maxpatches_bylanduse
    use EDParamsMod               , only : max_cohort_per_patch
    use EDParamsMod               , only : regeneration_model
    use EDParamsMod               , only : maxSWb
@@ -765,11 +764,8 @@ contains
             ! to hold all PFTs.  So create the same number of
             ! patches as the number of PFTs
 
-            maxpatch_primaryland   = fates_numpft
-            maxpatch_secondaryland = 0
-            maxpatch_pastureland = 0
-            maxpatch_rangeland = 0
-            maxpatch_cropland = 0
+            maxpatches_bylanduse(primaryland)   = fates_numpft
+            maxpatches_bylanduse(secondaryland:n_landuse_cats) = 0
             maxpatch_total     = fates_numpft
             
             ! If this is an SP run, we actually need enough patches on the
@@ -789,10 +785,8 @@ contains
             
             if(hlm_use_nocomp==itrue) then
 
-               maxpatch_primaryland = max(maxpatch_primaryland,fates_numpft)
-               maxpatch_total = maxpatch_primaryland + maxpatch_secondaryland + &
-                                maxpatch_pastureland + maxpatch_rangeland + &
-                                maxpatch_cropland
+               maxpatches_bylanduse(primaryland) = max(maxpatches_bylanduse(primaryland),fates_numpft)
+               maxpatch_total = sum(maxpatches_bylanduse(:))
 
                !if(maxpatch_primary<fates_numpft)then
                !   write(fates_log(),*) 'warning: lower number of patches than pfts'
