@@ -444,14 +444,7 @@ contains
 
                       cohort_elai = sum(cohort_layer_elai(1:currentCohort%nv))
                       cohort_esai = sum(cohort_layer_esai(1:currentCohort%nv))
-
-                      ! MLO. Assuming target to be related to leaf biomass when leaves are fully
-                      ! flushed. But unsure whether this call is correct or not, shouldn't we get
-                      ! the target value directly from the bstore_allom?
-                      call bleaf(currentCohort%dbh,currentCohort%pft,&
-                           currentCohort%crowndamage,currentCohort%canopy_trim,1.0_r8,store_c_target)
-                      !                     call bstore_allom(currentCohort%dbh,currentCohort%pft, &
-                      !                                       currentCohort%canopy_trim,store_c_target)
+                     
 
                    else
                       cohort_layer_elai(:)   = 0._r8
@@ -462,12 +455,14 @@ contains
                       cohort_esai = 0._r8
                    end if
 
-                   
+                   ! MLO. Assuming target to be related to leaf biomass when leaves are fully
+                   ! flushed. But unsure whether this call is correct or not, shouldn't we get
+                   ! the target value directly from the bstore_allom?
                    call bleaf(currentCohort%dbh,currentCohort%pft,&
-                        currentCohort%crowndamage,currentCohort%canopy_trim,store_c_target)
+                        currentCohort%crowndamage,currentCohort%canopy_trim,1.0_r8,store_c_target)
                    !                     call bstore_allom(currentCohort%dbh,currentCohort%pft, &
                    !                                       currentCohort%canopy_trim,store_c_target)
-
+                      
                    call storage_fraction_of_target(store_c_target, &
                         currentCohort%prt%GetState(store_organ, carbon12_element), &
                         frac)

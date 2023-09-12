@@ -47,6 +47,7 @@ module FatesHistoryInterfaceMod
   use FatesInterfaceTypesMod        , only : hlm_parteh_mode
   use EDParamsMod              , only : ED_val_comp_excln
   use EDParamsMod              , only : ED_val_phen_coldtemp
+  use EDParamsMod                   , only : nlevleaf
   use FatesInterfaceTypesMod        , only : nlevsclass, nlevage
   use FatesInterfaceTypesMod        , only : nlevheight
   use FatesInterfaceTypesMod        , only : bc_in_type
@@ -2127,7 +2128,6 @@ end subroutine flush_hvars
     use FatesSizeAgeTypeIndicesMod, only : get_cdamagesizepft_class_index
     use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
     
-    use EDParamsMod               , only : nlevleaf
     use EDParamsMod               , only : ED_val_history_height_bin_edges
     use FatesInterfaceTypesMod    , only : nlevdamage
     

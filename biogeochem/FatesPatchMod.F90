@@ -15,14 +15,15 @@ module FatesPatchMod
   use FatesLitterMod,      only : litter_type
   use PRTGenericMod,       only : num_elements
   use PRTGenericMod,       only : element_list
-  use EDParamsMod,         only : maxSWb, nlevleaf, nclmax, maxpft
+  use EDParamsMod,         only : nlevleaf, nclmax, maxpft
   use FatesConstantsMod,   only : n_dbh_bins, n_dist_types
-  use FatesConstantsMod,   only : n_rad_stream_types
   use FatesConstantsMod,   only : t_water_freeze_k_1atm
   use FatesRunningMeanMod, only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm
   use FatesRunningMeanMod, only : ema_sdlng_emerg_h2o, ema_sdlng_mort_par
   use FatesRunningMeanMod, only : ema_sdlng2sap_par, ema_sdlng_mdd
-
+  use TwoStreamMLPEMod,    only : twostream_type
+  use FatesRadiationMemMod,only : num_swb
+  use FatesRadiationMemMod,only : num_rad_stream_types
   use shr_infnan_mod,      only : nan => shr_infnan_nan, assignment(=)
   use shr_log_mod,         only : errMsg => shr_log_errMsg
 
@@ -112,8 +113,8 @@ module FatesPatchMod
     
     !TODO - can we delete these?
     real(r8) :: psn_z(nclmax,maxpft,nlevleaf)
-    real(r8) :: nrmlzd_parprof_pft_dir_z(n_rad_stream_types,nclmax,maxpft,nlevleaf)
-    real(r8) :: nrmlzd_parprof_pft_dif_z(n_rad_stream_types,nclmax,maxpft,nlevleaf)
+    real(r8) :: nrmlzd_parprof_pft_dir_z(num_rad_stream_types,nclmax,maxpft,nlevleaf)
+    real(r8) :: nrmlzd_parprof_pft_dif_z(num_rad_stream_types,nclmax,maxpft,nlevleaf)
 
     !---------------------------------------------------------------------------
 
@@ -122,8 +123,8 @@ module FatesPatchMod
     real(r8) :: fcansno                                   ! fraction of canopy covered in snow [0-1]
     logical  :: solar_zenith_flag                         ! integer flag specifying daylight (based on zenith angle)
     real(r8) :: solar_zenith_angle                        ! solar zenith angle [radians]
-    real(r8) :: gnd_alb_dif(maxSWb)                       ! ground albedo for diffuse rad, both bands [0-1]
-    real(r8) :: gnd_alb_dir(maxSWb)                       ! ground albedo for direct rad, both bands [0-1]
+    real(r8) :: gnd_alb_dif(num_swb)                       ! ground albedo for diffuse rad, both bands [0-1]
+    real(r8) :: gnd_alb_dir(num_swb)                       ! ground albedo for direct rad, both bands [0-1]
 
     ! organized by canopy layer, pft, and leaf layer
     real(r8) :: fabd_sun_z(nclmax,maxpft,nlevleaf)        ! sun fraction of direct light absorbed [0-1]
@@ -147,6 +148,10 @@ module FatesPatchMod
     real(r8), allocatable :: sabs_dir(:)                  ! fraction of incoming direct  radiation that is absorbed by the canopy
     real(r8), allocatable :: sabs_dif(:)                  ! fraction of incoming diffuse radiation that is absorbed by the canopy
 
+    ! Twostream data structures
+    type(twostream_type) :: twostr                        ! This holds all two-stream data for the patch
+   
+    
     !---------------------------------------------------------------------------
 
     ! ROOTS
@@ -565,9 +570,9 @@ module FatesPatchMod
       ! initialize litter
       call this%InitLitter(num_pft, num_levsoil)
 
-      new_patch%twostr%scelg => null()  ! The radiation module will check if this
-                                        ! is associated, since it is not, then it will
-                                        ! initialize and allocate
+      this%twostr%scelg => null()  ! The radiation module will check if this
+                                   ! is associated, since it is not, it will then
+                                   ! initialize and allocate
       
       ! assign known patch attributes 
       this%age       = age   

@@ -200,6 +200,8 @@ module FatesCohortMod
 
     !---------------------------------------------------------------------------
 
+    integer :: twostr_col  ! The column index in the two-stream solution that this cohort is part of
+    
     ! RESPIRATION COMPONENTS
     real(r8) :: rdark            ! dark respiration [kgC/indiv/s]
     real(r8) :: resp_g_tstep     ! growth respiration [kgC/indiv/timestep]

@@ -19,6 +19,7 @@ module EDCanopyStructureMod
   use EDCohortDynamicsMod   , only : InitPRTObject
   use FatesAllometryMod     , only : tree_lai
   use FatesAllometryMod     , only : tree_sai
+  use EDTypesMod            , only : ed_site_type
   use FatesAllometryMod     , only : VegAreaLayer
   use FatesPatchMod,          only : fates_patch_type
   use FatesCohortMod,         only : fates_cohort_type
