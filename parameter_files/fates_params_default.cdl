@@ -8,12 +8,12 @@ dimensions:
 	fates_history_size_bins = 13 ;
 	fates_hlm_pftno = 14 ;
 	fates_hydr_organs = 4 ;
-	fates_landuseclass = 5 ;
 	fates_leafage_class = 1 ;
 	fates_litterclass = 6 ;
 	fates_pft = 12 ;
 	fates_plant_organs = 4 ;
 	fates_string_length = 60 ;
+	fates_landuseclass = 5 ;
 variables:
 	double fates_history_ageclass_bin_edges(fates_history_age_bins) ;
 		fates_history_ageclass_bin_edges:units = "yr" ;
@@ -45,12 +45,12 @@ variables:
 	char fates_alloc_organ_name(fates_plant_organs, fates_string_length) ;
 		fates_alloc_organ_name:units = "unitless - string" ;
 		fates_alloc_organ_name:long_name = "Name of plant organs (with alloc_organ_id, must match PRTGenericMod.F90)" ;
+	char fates_landuseclass_name(fates_landuseclass, fates_string_length) ;
+		fates_landuseclass_name:units = "unitless - string" ;
+		fates_landuseclass_name:long_name = "Name of the land use classes, for variables associated with dimension fates_landuseclass" ;
 	char fates_litterclass_name(fates_litterclass, fates_string_length) ;
 		fates_litterclass_name:units = "unitless - string" ;
 		fates_litterclass_name:long_name = "Name of the litter classes, for variables associated with dimension fates_litterclass" ;
-	char fates_landuseclass_name(fates_landuseclass, fates_string_length) ;		 
-		fates_landuseclass_name:units = "unitless - string" ;
-		fates_landuseclass_name:long_name = "Name of the land use classes, for variables associated with dimension fates_landuseclass" ;
 	double fates_alloc_organ_priority(fates_plant_organs, fates_pft) ;
 		fates_alloc_organ_priority:units = "index" ;
 		fates_alloc_organ_priority:long_name = "Priority level for allocation, 1: replaces turnover from storage, 2: same priority as storage use/replacement, 3: ascending in order of least importance" ;
@@ -931,6 +931,13 @@ data:
   "sapwood",
   "structure" ;
 
+ fates_landuseclass_name =
+  "primaryland",
+  "secondaryland",
+  "rangeland",
+  "pastureland",
+  "cropland" ;
+
  fates_litterclass_name =
   "twig                                             ",
   "small branch                                     ",
@@ -938,13 +945,6 @@ data:
   "trunk                                            ",
   "dead leaves                                      ",
   "live grass                                       " ;
-
- fates_landuseclass_name =
-  "primaryland                                      ",
-  "secondaryland                                    ",
-  "rangeland                                        ",
-  "pastureland                                      ",
-  "cropland                                         " ;
 
  fates_alloc_organ_priority =
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
