@@ -16,7 +16,7 @@ module FatesInterfaceMod
    use EDParamsMod               , only : ED_val_vai_width_increase_factor
    use EDParamsMod               , only : ED_val_history_damage_bin_edges
    use EDParamsMod               , only : maxpatch_total
-   use EDParamsMod               , only : maxpatches_bylanduse
+   use EDParamsMod               , only : maxpatches_by_landuse
    use EDParamsMod               , only : max_cohort_per_patch
    use EDParamsMod               , only : regeneration_model
    use EDParamsMod               , only : maxSWb
@@ -40,6 +40,9 @@ module FatesInterfaceMod
    use FatesConstantsMod         , only : days_per_year
    use FatesConstantsMod         , only : TRS_regeneration
    use FatesConstantsMod         , only : g_per_kg
+   use FatesConstantsMod         , only : n_landuse_cats
+   use FatesConstantsMod         , only : primaryland
+   use FatesConstantsMod         , only : secondaryland
    use FatesGlobals              , only : fates_global_verbose
    use FatesGlobals              , only : fates_log
    use FatesGlobals              , only : endrun => fates_endrun
@@ -772,8 +775,8 @@ contains
             ! to hold all PFTs.  So create the same number of
             ! patches as the number of PFTs
 
-            maxpatches_bylanduse(primaryland)   = fates_numpft
-            maxpatches_bylanduse(secondaryland:n_landuse_cats) = 0
+            maxpatches_by_landuse(primaryland)   = fates_numpft
+            maxpatches_by_landuse(secondaryland:n_landuse_cats) = 0
             maxpatch_total     = fates_numpft
             
             ! If this is an SP run, we actually need enough patches on the
@@ -793,8 +796,8 @@ contains
             
             if(hlm_use_nocomp==itrue) then
 
-               maxpatches_bylanduse(primaryland) = max(maxpatches_bylanduse(primaryland),fates_numpft)
-               maxpatch_total = sum(maxpatches_bylanduse(:))
+               maxpatches_by_landuse(primaryland) = max(maxpatches_by_landuse(primaryland),fates_numpft)
+               maxpatch_total = sum(maxpatches_by_landuse(:))
 
                !if(maxpatch_primary<fates_numpft)then
                !   write(fates_log(),*) 'warning: lower number of patches than pfts'
@@ -1099,7 +1102,6 @@ contains
        use EDParamsMod, only : ED_val_history_ageclass_bin_edges
        use EDParamsMod, only : ED_val_history_height_bin_edges
        use EDParamsMod, only : ED_val_history_coageclass_bin_edges
-       use FatesConstantsMod, only : n_landuse_cats
 
        ! ------------------------------------------------------------------------------------------
        ! This subroutine allocates and populates the variables

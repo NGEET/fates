@@ -198,6 +198,7 @@ integer, parameter, public :: maxpft = 16      ! maximum number of PFTs allowed
    character(len=param_string_length),parameter,public :: ED_name_history_height_bin_edges= "fates_history_height_bin_edges"
    character(len=param_string_length),parameter,public :: ED_name_history_coageclass_bin_edges = "fates_history_coageclass_bin_edges"
    character(len=param_string_length),parameter,public :: ED_name_history_damage_bin_edges = "fates_history_damage_bin_edges"
+   character(len=param_string_length),parameter,public :: ED_name_maxpatches_by_landuse = "fates_maxpatches_by_landuse"
 
    ! Hydraulics Control Parameters (ONLY RELEVANT WHEN USE_FATES_HYDR = TRUE)
    ! ----------------------------------------------------------------------------------------------

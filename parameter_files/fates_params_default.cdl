@@ -672,9 +672,9 @@ variables:
 	double fates_frag_cwd_frac(fates_NCWD) ;
 		fates_frag_cwd_frac:units = "fraction" ;
 		fates_frag_cwd_frac:long_name = "fraction of woody (bdead+bsw) biomass destined for CWD pool" ;
-	double fates_maxpatches_bylanduse(fates_landuseclass) ;
-		fates_maxpatches_bylanduse:units = "count" ;
-		fates_maxpatches_bylanduse:long_name = "maximum number of patches per site on each land use type" ;
+	double fates_maxpatches_by_landuse(fates_landuseclass) ;
+		fates_maxpatches_by_landuse:units = "count" ;
+		fates_maxpatches_by_landuse:long_name = "maximum number of patches per site on each land use type" ;
 	double fates_canopy_closure_thresh ;
 		fates_canopy_closure_thresh:units = "unitless" ;
 		fates_canopy_closure_thresh:long_name = "tree canopy coverage at which crown area allometry changes from savanna to forest value" ;
@@ -1597,7 +1597,7 @@ data:
 
  fates_frag_cwd_frac = 0.045, 0.075, 0.21, 0.67 ;
 
- fates_maxpatches_bylanduse = 10, 4, 1, 1, 1 ;
+ fates_maxpatches_by_landuse = 10, 4, 1, 1, 1 ;
 
  fates_canopy_closure_thresh = 0.8 ;
 
