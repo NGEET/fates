@@ -12,7 +12,6 @@ module EDInitMod
   use FatesConstantsMod         , only : nearzero
   use FatesConstantsMod         , only : n_landuse_cats
   use FatesConstantsMod         , only : fates_unset_r8
-  use FatesConstantsMod         , only : primaryforest
   use FatesConstantsMod         , only : nearzero, area_error_4, area_error_3
   use FatesGlobals              , only : endrun => fates_endrun
   use EDParamsMod               , only : nclmax
@@ -560,7 +559,7 @@ contains
     integer  :: num_new_patches
     integer  :: nocomp_pft
     real(r8) :: newparea, newparea_withlanduse
-    real(r8) :: tota !check on area
+    real(r8) :: total !check on area
     real(r8) :: litt_init  !invalid for satphen, 0 otherwise
     real(r8) :: old_carea
     integer  :: is_first_patch
