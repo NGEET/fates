@@ -2238,8 +2238,10 @@ subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, &
    nscaler,   &
    ft,        &
    veg_tempk, &
+   dayl_factor, &
    tgrowth,   &
    lmr)
+
 
    use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
    use FatesConstantsMod, only : umolC_to_kgC
@@ -2251,6 +2253,7 @@ subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, &
    integer,  intent(in)  :: ft           ! (plant) Functional Type Index
    real(r8), intent(in)  :: nscaler      ! Scale for leaf nitrogen profile
    real(r8), intent(in)  :: veg_tempk    ! vegetation temperature  (degrees K)
+   real(r8), intent(in) :: dayl_factor       ! daylength scaling factor (0-1)
    real(r8), intent(in)  :: tgrowth      ! lagged vegetation temperature averaged over acclimation timescale (degrees K)
    real(r8), intent(out) :: lmr          ! Leaf Maintenance Respiration  (umol CO2/m**2/s)
 
