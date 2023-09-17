@@ -698,6 +698,7 @@ contains
                                  currentCohort%kp25top,              &  ! in
                                  nscaler,                            &  ! in
                                  bc_in(s)%t_veg_pa(ifp),             &  ! in
+                                 bc_in(s)%dayl_factor_pa(ifp),       & ! in
                                  currentPatch%tveg_lpa%GetMean(),    &  ! in
                                  currentPatch%tveg_longterm%GetMean(),&  ! in
                                  btran_eff,                          &  ! in
