@@ -102,9 +102,7 @@ module EDPatchDynamicsMod
   use SFParamsMod,            only : SF_VAL_CWD_FRAC
   use EDParamsMod,            only : logging_event_code
   use EDParamsMod,            only : logging_export_frac
-  use EDParamsMod,            only : maxpatch_primaryland, maxpatch_secondaryland
-  use EDParamsMod,            only : maxpatch_pastureland, maxpatch_rangeland, maxpatch_cropland
-  use EDParamsMod,            only : maxpatch_total
+  use EDParamsMod,            only : maxpatches_by_landuse
   use FatesRunningMeanMod,    only : ema_sdlng_mdd
   use FatesRunningMeanMod,    only : ema_sdlng_emerg_h2o, ema_sdlng_mort_par, ema_sdlng2sap_par
   use FatesRunningMeanMod,    only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm
@@ -2651,7 +2649,6 @@ contains
     integer  :: i_pftlabel  !nocomp pft iterator
     real(r8) :: primary_land_fraction_beforefusion,primary_land_fraction_afterfusion
     integer  :: pftlabelmin, pftlabelmax
-    real(r8) :: maxpatches(n_landuse_cats)
     !
     !---------------------------------------------------------------------
 
@@ -2663,30 +2660,6 @@ contains
     primary_land_fraction_afterfusion = 0._r8
 
     nopatches(1:n_landuse_cats) = 0
-
-    ! Its possible that, in nocomp modes, there are more categorically distinct patches than we allow as 
-    ! primary patches in non-nocomp mode.  So if this is the case, bump up the maximum number of primary patches
-    ! to let there be one for each type of nocomp PFT on the site.  this is likely to lead to problems
-    ! if anthropogenic disturance is enabled.
-    if (hlm_use_nocomp.eq.itrue) then
-       !!cdk this logic for how many patcehs to allow in nocomp will need to be changed
-       maxpatches(primaryland) = max(maxpatch_primaryland, sum(csite%use_this_pft))
-       maxpatches(cropland) = maxpatch_cropland
-       maxpatches(pastureland) = maxpatch_pastureland
-       maxpatches(rangeland) = maxpatch_rangeland
-       maxpatches(secondaryland) = maxpatch_total - maxpatches(primaryland) - maxpatches(cropland) - maxpatches(pastureland) - maxpatches(rangeland)
-       if (maxpatch_total .lt. maxpatches(primaryland)) then
-          write(fates_log(),*) 'too many PFTs and not enough patches for nocomp w/o fixed biogeog'
-          write(fates_log(),*) 'maxpatch_total,numpft',maxpatch_total,numpft, sum(csite%use_this_pft)
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       endif
-    else
-       maxpatches(primaryland) = maxpatch_primaryland
-       maxpatches(secondaryland) = maxpatch_secondaryland
-       maxpatches(cropland) = maxpatch_cropland
-       maxpatches(pastureland) = maxpatch_pastureland
-       maxpatches(rangeland) = maxpatch_rangeland
-    endif
 
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
@@ -2721,7 +2694,7 @@ contains
        iterate = 1
 
        !---------------------------------------------------------------------!
-       !  Keep doing this until nopatches <= maxpatch_total                  !
+       !  Keep doing this until nopatches <= maxpatches_by_landuse(i_lulabel)!
        !---------------------------------------------------------------------!
 
        iterate_eq_1_loop: do while(iterate == 1)
@@ -2858,10 +2831,10 @@ contains
                             ! a patch x patch loop, reset the patch fusion tolerance to the starting !
                             ! value so that any subsequent fusions in this loop are done with that   !
                             ! value. otherwise we can end up in a situation where we've loosened the !
-                            ! fusion tolerance to get nopatches <= maxpatch_total, but then,      !
+                            ! fusion tolerance to get nopatches <= maxpatches_by_landuse(i_lulabel), but then,      !
                             ! having accomplished that, we continue through all the patch x patch    !
                             ! combinations and then all the patches get fused, ending up with        !
-                            ! nopatches << maxpatch_total and losing all heterogeneity.           !
+                            ! nopatches << maxpatches_by_landuse(i_lulabel) and losing all heterogeneity.           !
                             !------------------------------------------------------------------------!
 
                             profiletol = ED_val_patch_fusion_tol
@@ -2897,7 +2870,7 @@ contains
              currentPatch => currentPatch%older
           enddo
 
-          if(nopatches(i_lulabel) > maxpatches(i_lulabel))then
+          if(nopatches(i_lulabel) > maxpatches_by_landuse(i_lulabel))then
              iterate = 1
              profiletol = profiletol * patch_fusion_tolerance_relaxation_increment
 
@@ -2920,7 +2893,7 @@ contains
              iterate = 0
           endif
 
-       enddo iterate_eq_1_loop ! iterate .eq. 1 ==> nopatches>maxpatch_total
+       enddo iterate_eq_1_loop ! iterate .eq. 1 ==> nopatches>maxpatches_by_landuse(i_lulabel)
 
     end do lulabel_loop
 

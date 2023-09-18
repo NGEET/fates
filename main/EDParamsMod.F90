@@ -10,6 +10,7 @@ module EDParamsMod
    use FatesGlobals        , only : fates_log
    use FatesGlobals        , only : endrun => fates_endrun
    use FatesConstantsMod,    only : fates_unset_r8
+   use FatesConstantsMod,    only : n_landuse_cats
 
    ! CIME Globals
    use shr_log_mod         , only : errMsg => shr_log_errMsg
@@ -199,6 +200,7 @@ integer, parameter, public :: maxpft = 16      ! maximum number of PFTs allowed
    character(len=param_string_length),parameter,public :: ED_name_history_coageclass_bin_edges = "fates_history_coageclass_bin_edges"
    character(len=param_string_length),parameter,public :: ED_name_history_damage_bin_edges = "fates_history_damage_bin_edges"
    character(len=param_string_length),parameter,public :: ED_name_crop_lu_pft_vector = "fates_landuse_crop_lu_pft_vector"
+   character(len=param_string_length),parameter,public :: ED_name_maxpatches_by_landuse = "fates_maxpatches_by_landuse"
 
    ! Hydraulics Control Parameters (ONLY RELEVANT WHEN USE_FATES_HYDR = TRUE)
    ! ----------------------------------------------------------------------------------------------
@@ -249,22 +251,9 @@ integer, parameter, public :: maxpft = 16      ! maximum number of PFTs allowed
    ! The number of patches specified in the parameter file may be over-written.
    ! For instance, in SP mode, we want the same number of primary patches as the number of PFTs
    ! in the fates parameter file, and zero secondary.
+   ! thus they are not protected here.
    
-   integer, public :: maxpatch_primaryland
-   character(len=param_string_length), parameter, public :: maxpatch_primaryland_name = "fates_maxpatch_primaryland"
-   
-   integer, public :: maxpatch_secondaryland
-   character(len=param_string_length), parameter, public :: maxpatch_secondaryland_name = "fates_maxpatch_secondaryland"
-
-   integer, public :: maxpatch_pastureland
-   character(len=param_string_length), parameter, public :: maxpatch_pastureland_name = "fates_maxpatch_pastureland"
-
-   integer, public :: maxpatch_rangeland
-   character(len=param_string_length), parameter, public :: maxpatch_rangeland_name = "fates_maxpatch_rangeland"
-
-   integer, public :: maxpatch_cropland
-   character(len=param_string_length), parameter, public :: maxpatch_cropland_name = "fates_maxpatch_cropland"
-
+   integer, public :: maxpatches_by_landuse(n_landuse_cats)
    integer, public :: maxpatch_total
 
    ! Maximum allowable cohorts per patch
@@ -370,11 +359,6 @@ contains
     stomatal_model                        = -9
     regeneration_model                    = -9
     stomatal_assim_model                  = -9
-    maxpatch_primaryland                  = -9
-    maxpatch_secondaryland                = -9
-    maxpatch_pastureland                  = -9
-    maxpatch_rangeland                    = -9
-    maxpatch_cropland                     = -9
     max_cohort_per_patch                  = -9
     hydr_kmax_rsurf1                      = nan
     hydr_kmax_rsurf2                      = nan
@@ -531,21 +515,6 @@ contains
     call fates_params%RegisterParameter(name=stomatal_assim_name, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=maxpatch_primaryland_name, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=maxpatch_secondaryland_name, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=maxpatch_pastureland_name, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=maxpatch_rangeland_name, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=maxpatch_cropland_name, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
     call fates_params%RegisterParameter(name=maxcohort_name, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
     
@@ -644,6 +613,9 @@ contains
     call fates_params%RegisterParameter(name=ED_name_crop_lu_pft_vector, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names_landuse)
 
+    call fates_params%RegisterParameter(name=ED_name_maxpatches_by_landuse, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_landuse)
+
   end subroutine FatesRegisterParams
 
   
@@ -651,6 +623,7 @@ contains
   subroutine FatesReceiveParams(fates_params)
     
     use FatesParametersInterface, only : fates_parameters_type, dimension_name_scalar
+    use FatesConstantsMod, only: primaryland, secondaryland, rangeland, pastureland, cropland
 
     implicit none
 
@@ -658,6 +631,7 @@ contains
 
     real(r8) :: tmpreal ! local real variable for changing type on read
     real(r8), allocatable :: hydr_htftype_real(:)
+    real(r8) :: tmp_vector_by_landuse(n_landuse_cats)  ! local real vector for changing type on read
     
     call fates_params%RetrieveParameter(name=ED_name_photo_temp_acclim_timescale, &
          data=photo_temp_acclim_timescale)
@@ -760,30 +734,6 @@ contains
     call fates_params%RetrieveParameter(name=stomatal_assim_name, &
          data=tmpreal)
     stomatal_assim_model = nint(tmpreal)
-
-    call fates_params%RetrieveParameter(name=maxpatch_primaryland_name, &
-         data=tmpreal)
-    maxpatch_primaryland = nint(tmpreal)
-
-    call fates_params%RetrieveParameter(name=maxpatch_secondaryland_name, &
-         data=tmpreal)
-    maxpatch_secondaryland = nint(tmpreal)
-
-    call fates_params%RetrieveParameter(name=maxpatch_pastureland_name, &
-         data=tmpreal)
-    maxpatch_pastureland = nint(tmpreal)
-
-    call fates_params%RetrieveParameter(name=maxpatch_rangeland_name, &
-         data=tmpreal)
-    maxpatch_rangeland = nint(tmpreal)
-
-    call fates_params%RetrieveParameter(name=maxpatch_cropland_name, &
-         data=tmpreal)
-    maxpatch_cropland = nint(tmpreal)
-
-    maxpatch_total = maxpatch_primaryland + maxpatch_secondaryland + &
-                     maxpatch_pastureland + maxpatch_rangeland + &
-                     maxpatch_cropland
     
     call fates_params%RetrieveParameter(name=maxcohort_name, &
          data=tmpreal)
@@ -889,6 +839,12 @@ contains
 
     call fates_params%RetrieveParameterAllocate(name=ED_name_crop_lu_pft_vector, &
          data=crop_lu_pft_vector)
+
+    call fates_params%RetrieveParameter(name=ED_name_maxpatches_by_landuse, &
+         data=tmp_vector_by_landuse)
+
+    maxpatches_by_landuse(:) = nint(tmp_vector_by_landuse(:))
+    maxpatch_total = sum(maxpatches_by_landuse(:))
 
     call fates_params%RetrieveParameterAllocate(name=ED_name_hydr_htftype_node, &
          data=hydr_htftype_real)
