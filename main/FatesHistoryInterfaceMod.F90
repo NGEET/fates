@@ -766,7 +766,7 @@ module FatesHistoryInterfaceMod
      integer, private :: levelcwd_index_, levelage_index_
      integer, private :: levcacls_index_, levcapf_index_
      integer, private :: levclscpf_index_
-     integer, private :: levlanduse_index_, levlulu_index_
+     integer, private :: levlanduse_index_, levlulu_index_, levlupft_index_
 
    contains
 
@@ -811,6 +811,7 @@ module FatesHistoryInterfaceMod
      procedure :: levclscpf_index
      procedure :: levlanduse_index
      procedure :: levlulu_index
+     procedure :: levlupft_index
      
      ! private work functions
      procedure, private :: define_history_vars
@@ -841,6 +842,7 @@ module FatesHistoryInterfaceMod
      procedure, private :: set_levclscpf_index
      procedure, private :: set_levlanduse_index
      procedure, private :: set_levlulu_index
+     procedure, private :: set_levlupft_index
      
      procedure, private :: set_levelem_index
      procedure, private :: set_levelpft_index
@@ -879,7 +881,7 @@ contains
     use FatesIODimensionsMod, only : levelem, levelpft
     use FatesIODimensionsMod, only : levelcwd, levelage, levclscpf
     use FatesIODimensionsMod, only : levcdpf, levcdsc, levcdam
-    use FatesIODimensionsMod, only : levlanduse, levlulu
+    use FatesIODimensionsMod, only : levlanduse, levlulu, levlupft
 
     implicit none
 
@@ -1029,6 +1031,11 @@ contains
     call this%dim_bounds(dim_count)%Init(levlulu, num_threads, &
          fates_bounds%lulu_begin, fates_bounds%lulu_end)
 
+    dim_count = dim_count + 1
+    call this%set_levlupft_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levlupft, num_threads, &
+         fates_bounds%lupft_begin, fates_bounds%lupft_end)
+
   end subroutine Init
 
   ! ======================================================================
@@ -1157,6 +1164,10 @@ contains
     call this%dim_bounds(index)%SetThreadBounds(thread_index, &
          thread_bounds%lulu_begin, thread_bounds%lulu_end)
 
+    index = this%levlupft_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+         thread_bounds%lupft_begin, thread_bounds%lupft_end)
+
   end subroutine SetThreadBoundsEach
 
   ! ===================================================================================
@@ -1172,7 +1183,7 @@ contains
     use FatesIOVariableKindMod, only : site_elem_r8, site_elpft_r8
     use FatesIOVariableKindMod, only : site_elcwd_r8, site_elage_r8, site_clscpf_r8
     use FatesIOVariableKindMod, only : site_cdpf_r8, site_cdsc_r8, site_cdam_r8
-    use FatesIOVariableKindMod, only : site_landuse_r8, site_lulu_r8
+    use FatesIOVariableKindMod, only : site_landuse_r8, site_lulu_r8, site_lupft_r8
     
    implicit none
 
@@ -1262,6 +1273,9 @@ contains
 
     call this%set_dim_indices(site_lulu_r8, 1, this%column_index())
     call this%set_dim_indices(site_lulu_r8, 2, this%levlulu_index())
+
+    call this%set_dim_indices(site_lupft_r8, 1, this%column_index())
+    call this%set_dim_indices(site_lupft_r8, 2, this%levlupft_index())
 
   end subroutine assemble_history_output_types
 
@@ -1706,6 +1720,21 @@ end function levcapf_index
 
    ! ======================================================================================
 
+   subroutine set_levlupft_index(this, index)
+     implicit none
+     class(fates_history_interface_type), intent(inout) :: this
+     integer, intent(in) :: index
+     this%levlupft_index_ = index
+   end subroutine set_levlupft_index
+
+   integer function levlupft_index(this)
+     implicit none
+     class(fates_history_interface_type), intent(in) :: this
+     levlupft_index = this%levlupft_index_
+   end function levlupft_index
+
+   ! ======================================================================================
+
    subroutine zero_site_hvars(this, currentSite, upfreq_in)
 
      ! This routine zero's a history diagnostic variable
@@ -1852,7 +1881,7 @@ end subroutine flush_hvars
     use FatesIOVariableKindMod, only : site_elem_r8, site_elpft_r8
     use FatesIOVariableKindMod, only : site_elcwd_r8, site_elage_r8, site_clscpf_r8
     use FatesIOVariableKindMod, only : site_cdpf_r8, site_cdsc_r8, site_cdam_r8
-    use FatesIOVariableKindMod, only : site_landuse_r8, site_lulu_r8
+    use FatesIOVariableKindMod, only : site_landuse_r8, site_lulu_r8, site_lupft_r8
     
     implicit none
 
@@ -1973,6 +2002,10 @@ end subroutine flush_hvars
     ! site x land use x land use class
     index = index + 1
     call this%dim_kinds(index)%Init(site_lulu_r8, 2)
+
+    ! site x land use x pft
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_lupft_r8, 2)
 
     ! FIXME(bja, 2016-10) assert(index == fates_history_num_dim_kinds)
   end subroutine init_dim_kinds_maps
@@ -5548,7 +5581,7 @@ end subroutine update_history_hifrq
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_gpp_sec_si_pft)
 
-    call this%set_history_var(vname='FATES_NPP_SE_PF', units='kg m-2 yr-1',       &
+    call this%set_history_var(vname='FATES_NPP_SE_PF', units='kg m-2 s-1',       &
          long='total PFT-level NPP in kg carbon per m2 land area per second, secondary patches',  &
          use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
@@ -6525,7 +6558,7 @@ end subroutine update_history_hifrq
          index = ih_growth_resp_secondary_si)
 
     call this%set_history_var(vname='FATES_MAINT_RESP', units='kg m-2 s-1',    &
-         long='maintenance respiration in kg carbon per m2 land area per second, secondary patches', &
+         long='maintenance respiration in kg carbon per m2 land area per second', &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=2, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_maint_resp_si)
@@ -6537,7 +6570,7 @@ end subroutine update_history_hifrq
          index = ih_maint_resp_unreduced_si)
 
     call this%set_history_var(vname='FATES_MAINT_RESP_SECONDARY', units='kg m-2 s-1',    &
-         long='maintenance respiration in kg carbon per m2 land area per second', &
+         long='maintenance respiration in kg carbon per m2 land area per second, secondary patches', &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=2, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_maint_resp_secondary_si)

@@ -34,6 +34,7 @@ module EDPhysiologyMod
   use FatesConstantsMod, only    : g_per_kg
   use FatesConstantsMod, only    : ndays_per_year
   use FatesConstantsMod, only    : nocomp_bareground
+  use FatesConstantsMod, only    : area_error_2
   use EDPftvarcon      , only    : EDPftvarcon_inst
   use PRTParametersMod , only    : prt_params
   use EDPftvarcon      , only    : GetDecompyFrac
@@ -98,7 +99,7 @@ module EDPhysiologyMod
   use EDParamsMod           , only : sdlng_mort_par_timescale
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
   use FatesConstantsMod     , only : itrue,ifalse
-  use FatesConstantsMod     , only : calloc_abs_error
+  use FatesConstantsMod     , only : area_error_3
   use FatesConstantsMod     , only : years_per_day
   use FatesAllometryMod  , only : h_allom
   use FatesAllometryMod  , only : h2d_allom
@@ -1933,7 +1934,7 @@ contains
     check_treelai = tree_lai(leaf_c, pft, c_area, cohort_n, canopy_layer,                &
          canopylai, vcmax25top)
 
-    if (abs(tlai - check_treelai) .gt. 1.0e-12) then !this is not as precise as nearzero
+    if (abs(tlai - check_treelai) > area_error_2) then !this is not as precise as nearzero
       write(fates_log(),*) 'error in validate treelai', tlai, check_treelai, tlai - check_treelai
       write(fates_log(),*) 'tree_lai inputs: ', pft, c_area, cohort_n,                   &
         canopy_layer, vcmax25top
@@ -1945,18 +1946,19 @@ contains
     ! the radiation routines.  Correct both the area and the 'n' to remove error, and don't use
     ! carea_allom in SP mode after this point.
 
-    if (abs(c_area - parea) .gt. nearzero) then ! there is an error
-      if (abs(c_area - parea) .lt. 10.e-9) then ! correct this if it's a very small error
+    if (abs(c_area - parea) > nearzero) then ! there is an error
+      if (abs(c_area - parea) < area_error_3) then ! correct this if it's a very small error
           oldcarea = c_area
           ! generate new cohort area
           c_area = c_area - (c_area - parea)
           cohort_n = cohort_n*(c_area/oldcarea)
-          if (abs(c_area-parea) .gt. nearzero) then
+          if (abs(c_area-parea) > nearzero) then
             write(fates_log(),*) 'SPassign, c_area still broken', c_area - parea, c_area - oldcarea
             call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
        else
           write(fates_log(),*) 'SPassign, big error in c_area', c_area - parea, pft
+          call endrun(msg=errMsg(sourcefile, __LINE__))
        end if ! still broken
     end if !small error
 

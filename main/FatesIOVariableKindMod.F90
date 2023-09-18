@@ -43,6 +43,7 @@ module FatesIOVariableKindMod
   character(*), parameter, public :: site_clscpf_r8 = 'SI_CLSCPF_R8'
   character(*), parameter, public :: site_landuse_r8 = 'SI_LANDUSE_R8'
   character(*), parameter, public :: site_lulu_r8 = 'SI_LULU_R8'
+  character(*), parameter, public :: site_lupft_r8 = 'SI_LUPFT_R8'
   
   ! Element, and multiplexed element dimensions
   character(*), parameter, public :: site_elem_r8  = 'SI_ELEM_R8'

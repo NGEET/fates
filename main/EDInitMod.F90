@@ -12,7 +12,7 @@ module EDInitMod
   use FatesConstantsMod         , only : nearzero
   use FatesConstantsMod         , only : n_landuse_cats
   use FatesConstantsMod         , only : fates_unset_r8
-  use FatesConstantsMod         , only : nearzero
+  use FatesConstantsMod         , only : nearzero, area_error_4, area_error_3
   use FatesGlobals              , only : endrun => fates_endrun
   use EDParamsMod               , only : nclmax
   use EDParamsMod               , only : regeneration_model
@@ -548,6 +548,7 @@ contains
     integer  :: el
     real(r8) :: age !notional age of this patch
     integer  :: ageclass
+    real(r8) :: area_diff
 
     ! dummy locals
     real(r8) :: biomass_stock
@@ -558,8 +559,9 @@ contains
     integer  :: num_new_patches
     integer  :: nocomp_pft
     real(r8) :: newparea, newparea_withlanduse
-    real(r8) :: tota !check on area
+    real(r8) :: total !check on area
     real(r8) :: litt_init  !invalid for satphen, 0 otherwise
+    real(r8) :: old_carea
     integer  :: is_first_patch
     ! integer  :: n_luh_states
     ! integer  :: luh_state_counter
@@ -571,6 +573,7 @@ contains
     type(ed_site_type),  pointer :: sitep
     type(fates_patch_type), pointer :: newppft(:)
     type(fates_patch_type), pointer :: newp
+    type(fates_cohort_type), pointer :: cohort
     type(fates_patch_type), pointer :: currentPatch
 
     ! List out some nominal patch values that are used for Near Bear Ground initializations
@@ -744,29 +747,47 @@ contains
           end do new_patch_nocomp_loop !no new patches
 
           !check if the total area adds to the same as site area
-          tota = 0.0_r8
+          total = 0.0_r8
           newp => sites(s)%oldest_patch
           do while (associated(newp))
-             tota=tota+newp%area
-             newp=>newp%younger
+             total = total + newp%area
+             newp => newp%younger
           end do
-
-          if(abs(tota-area).gt.nearzero*area)then
-             if(abs(tota-area).lt.1.0e-10_r8)then ! this is a precision error
-                if(sites(s)%oldest_patch%area.gt.(tota-area+nearzero))then
+         
+          area_diff = total - area
+          if (abs(area_diff) > nearzero) then
+             if (abs(area_diff) < area_error_4) then ! this is a precision error
+                if (sites(s)%oldest_patch%area > area_diff + nearzero) then
                    ! remove or add extra area
                    ! if the oldest patch has enough area, use that
-                   sites(s)%oldest_patch%area = sites(s)%oldest_patch%area - (tota-area)
-                   if(debug) write(fates_log(),*) 'fixing patch precision - oldest',s, tota-area
+                   sites(s)%oldest_patch%area = sites(s)%oldest_patch%area - area_diff
+                   if (debug) write(fates_log(),*) 'fixing patch precision - oldest', s, area_diff
                 else ! or otherwise take the area from the youngest patch.
-                   sites(s)%youngest_patch%area = sites(s)%oldest_patch%area - (tota-area)
-                   if(debug) write(fates_log(),*) 'fixing patch precision -youngest ',s, tota-area
-                endif
+                   sites(s)%youngest_patch%area = sites(s)%youngest_patch%area - area_diff
+                   if (debug) write(fates_log(),*) 'fixing patch precision -youngest ', s, area_diff
+                end if
              else !this is a big error not just a precision error.
-                write(fates_log(),*) 'issue with patch area in EDinit',tota-area,tota
+                write(fates_log(),*) 'issue with patch area in EDinit', area_diff, total
                 call endrun(msg=errMsg(sourcefile, __LINE__))
-             endif  ! big error
+             end if  ! big error
           end if ! too much patch area
+	  
+          ! we might have messed up patch area now - need to correct if SP mode
+          if (hlm_use_sp .eq. itrue) then 
+            newp => sites(s)%oldest_patch
+            do while (associated(newp))
+              cohort => newp%tallest
+              do while (associated(cohort))
+                if (abs(cohort%c_area - newp%area) < area_error_3) then ! correct if it's a very small error
+                  old_carea = cohort%c_area 
+                  cohort%c_area = cohort%c_area - (cohort%c_area - newp%area)
+                  cohort%n = cohort%n*(cohort%c_area/old_carea)
+                end if 
+                cohort => cohort%shorter
+              end do 
+              newp => newp%younger
+            end do
+          end if 
 
           ! For carbon balance checks, we need to initialize the
           ! total carbon stock
@@ -1100,8 +1121,10 @@ contains
          endif if_use_this_pft
       enddo pft_loop
 
-      call fuse_cohorts(site_in, patch_in,bc_in)
-      call sort_cohorts(patch_in)
+      if (hlm_use_sp == ifalse) then
+        call fuse_cohorts(site_in, patch_in,bc_in)
+        call sort_cohorts(patch_in)
+      end if 
 
    end subroutine init_cohorts
 

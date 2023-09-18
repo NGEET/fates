@@ -14,6 +14,7 @@ dimensions:
 	fates_pft = 12 ;
 	fates_plant_organs = 4 ;
 	fates_string_length = 60 ;
+	fates_landuseclass = 5 ;
 variables:
 	double fates_history_ageclass_bin_edges(fates_history_age_bins) ;
 		fates_history_ageclass_bin_edges:units = "yr" ;
@@ -45,6 +46,9 @@ variables:
 	char fates_alloc_organ_name(fates_plant_organs, fates_string_length) ;
 		fates_alloc_organ_name:units = "unitless - string" ;
 		fates_alloc_organ_name:long_name = "Name of plant organs (with alloc_organ_id, must match PRTGenericMod.F90)" ;
+	char fates_landuseclass_name(fates_landuseclass, fates_string_length) ;
+		fates_landuseclass_name:units = "unitless - string" ;
+		fates_landuseclass_name:long_name = "Name of the land use classes, for variables associated with dimension fates_landuseclass" ;
 	char fates_litterclass_name(fates_litterclass, fates_string_length) ;
 		fates_litterclass_name:units = "unitless - string" ;
 		fates_litterclass_name:long_name = "Name of the litter classes, for variables associated with dimension fates_litterclass" ;
@@ -678,6 +682,9 @@ variables:
 	double fates_landuse_grazing_rate(fates_landuseclass) ;
 		fates_landuse_grazing_rate:units = "1/day" ;
 		fates_landuse_grazing_rate:long_name = "fraction of leaf biomass consumed by grazers per day" ;
+	double fates_maxpatches_by_landuse(fates_landuseclass) ;
+		fates_maxpatches_by_landuse:units = "count" ;
+		fates_maxpatches_by_landuse:long_name = "maximum number of patches per site on each land use type" ;
 	double fates_canopy_closure_thresh ;
 		fates_canopy_closure_thresh:units = "unitless" ;
 		fates_canopy_closure_thresh:long_name = "tree canopy coverage at which crown area allometry changes from savanna to forest value" ;
@@ -837,21 +844,6 @@ variables:
 	double fates_maxcohort ;
 		fates_maxcohort:units = "count" ;
 		fates_maxcohort:long_name = "maximum number of cohorts per patch. Actual number of cohorts also depend on cohort fusion tolerances" ;
-	double fates_maxpatch_cropland ;
-		fates_maxpatch_cropland:units = "count" ;
-		fates_maxpatch_cropland:long_name = "maximum number of cropland patches per site" ;
-	double fates_maxpatch_pastureland ;
-		fates_maxpatch_pastureland:units = "count" ;
-		fates_maxpatch_pastureland:long_name = "maximum number of pastureland patches per site" ;
-	double fates_maxpatch_primaryland ;
-		fates_maxpatch_primaryland:units = "count" ;
-		fates_maxpatch_primaryland:long_name = "maximum number of primary vegetation patches per site" ;
-	double fates_maxpatch_rangeland ;
-		fates_maxpatch_rangeland:units = "count" ;
-		fates_maxpatch_rangeland:long_name = "maximum number of rangeland patches per site" ;
-	double fates_maxpatch_secondaryland ;
-		fates_maxpatch_secondaryland:units = "count" ;
-		fates_maxpatch_secondaryland:long_name = "maximum number of secondary vegetation patches per site" ;
 	double fates_mort_disturb_frac ;
 		fates_mort_disturb_frac:units = "fraction" ;
 		fates_mort_disturb_frac:long_name = "fraction of canopy mortality that results in disturbance (i.e. transfer of area from new to old patch)" ;
@@ -960,6 +952,13 @@ data:
   "fine root",
   "sapwood",
   "structure" ;
+
+ fates_landuseclass_name =
+  "primaryland",
+  "secondaryland",
+  "rangeland",
+  "pastureland",
+  "cropland" ;
 
  fates_litterclass_name =
   "twig                                             ",
@@ -1631,6 +1630,8 @@ data:
 
  fates_landuse_grazing_rate = 0.0, 0.0, 0.07, 0.07, 0.0 ;
 
+ fates_maxpatches_by_landuse = 10, 4, 1, 1, 1 ;
+
  fates_canopy_closure_thresh = 0.8 ;
 
  fates_cnp_eca_plant_escalar = 1.25e-05 ;
@@ -1736,16 +1737,6 @@ data:
  fates_maintresp_nonleaf_baserate = 2.525e-06 ;
 
  fates_maxcohort = 100 ;
-
- fates_maxpatch_cropland = 1 ;
-
- fates_maxpatch_pastureland = 1 ;
-
- fates_maxpatch_primaryland = 10 ;
-
- fates_maxpatch_rangeland = 1 ;
-
- fates_maxpatch_secondaryland = 4 ;
 
  fates_mort_disturb_frac = 1 ;
 

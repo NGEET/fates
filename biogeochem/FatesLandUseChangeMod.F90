@@ -137,7 +137,10 @@ contains
     ! the purpose of this is to define a ruleset for when to clear the vegetation in transitioning from one land use type to another
 
     logical, intent(out) :: clearing_matrix(n_landuse_cats,n_landuse_cats)
-    integer, parameter    :: ruleset = 1   ! ruleset to apply from table 1 of Ma et al (2020) https://doi.org/10.5194/gmd-13-3203-2020
+    
+    ! default value of ruleset 4 above means that plants are not cleared during land use change transitions to rangeland, whereas plants are
+    ! cleared in transitions to pasturelands and croplands.
+    integer, parameter    :: ruleset = 4   ! ruleset to apply from table 1 of Ma et al (2020) https://doi.org/10.5194/gmd-13-3203-2020
 
     ! clearing matrix applies from the donor to the receiver land use type of the newly-transferred patch area
     ! values of clearing matrix: false => do not clear; true => clear
@@ -148,18 +151,21 @@ contains
 
     case(1)
 
+       ! note that this ruleset isnt exactly what is in Ma et al. rulesets 1 and 2, because FATES does not make the distinction
+       ! between forested and non-forested lands from a land use/land cover perspective.
        clearing_matrix(:,cropland) = .true.
        clearing_matrix(:,pastureland) = .true.
-       clearing_matrix(pastureland,rangeland) = .true.
-       clearing_matrix(cropland,rangeland) = .true.
+       clearing_matrix(primaryland,rangeland) = .true.
+       clearing_matrix(secondaryland,rangeland) = .true.
 
     case(2)
 
+       ! see comment on number 1 above
        clearing_matrix(:,cropland) = .true.
-       clearing_matrix(rangeland,pastureland) = .true.
-       clearing_matrix(cropland,pastureland) = .true.
-       clearing_matrix(pastureland,rangeland) = .true.
-       clearing_matrix(cropland,rangeland) = .true.
+       clearing_matrix(primaryland,pastureland) = .true.
+       clearing_matrix(secondaryland,pastureland) = .true.
+       clearing_matrix(primaryland,rangeland) = .true.
+       clearing_matrix(secondaryland,rangeland) = .true.
 
     case(3)
 
@@ -289,7 +295,7 @@ contains
           luh_vector(primaryland) = 1._r8
        end if
        modified_flag = .true.
-       write(fates_log(),*) 'WARNING: land use state is all NaN; setting state as all primary forest.'
+       !write(fates_log(),*) 'WARNING: land use state is all NaN; setting state as all primary forest.' ! GL DIAG
     else if (any(isnan(luh_vector))) then
        if (any(.not. isnan(luh_vector))) then
           write(fates_log(),*) 'ERROR: land use vector has NaN'
