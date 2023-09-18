@@ -838,7 +838,9 @@ contains
          data=ED_val_history_damage_bin_edges)
 
     call fates_params%RetrieveParameterAllocate(name=ED_name_crop_lu_pft_vector, &
-         data=crop_lu_pft_vector)
+         data=tmp_vector_by_landuse)
+
+    crop_lu_pft_vector(:) = nint(tmp_vector_by_landuse(:))
 
     call fates_params%RetrieveParameter(name=ED_name_maxpatches_by_landuse, &
          data=tmp_vector_by_landuse)
