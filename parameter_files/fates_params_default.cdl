@@ -52,9 +52,6 @@ variables:
 	char fates_litterclass_name(fates_litterclass, fates_string_length) ;
 		fates_litterclass_name:units = "unitless - string" ;
 		fates_litterclass_name:long_name = "Name of the litter classes, for variables associated with dimension fates_litterclass" ;
-	char fates_landuseclass_name(fates_landuseclass, fates_string_length) ;		 
-		fates_landuseclass_name:units = "unitless - string" ;
-		fates_landuseclass_name:long_name = "Name of the land use classes, for variables associated with dimension fates_landuseclass" ;
 	double fates_alloc_organ_priority(fates_plant_organs, fates_pft) ;
 		fates_alloc_organ_priority:units = "index" ;
 		fates_alloc_organ_priority:long_name = "Priority level for allocation, 1: replaces turnover from storage, 2: same priority as storage use/replacement, 3: ascending in order of least importance" ;
@@ -952,13 +949,6 @@ data:
   "trunk                                            ",
   "dead leaves                                      ",
   "live grass                                       " ;
-
- fates_landuseclass_name =
-  "primaryland                                      ",
-  "secondaryland                                    ",
-  "rangeland                                        ",
-  "pastureland                                      ",
-  "cropland                                         " ;
 
  fates_alloc_organ_priority =
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
