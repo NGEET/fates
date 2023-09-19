@@ -2050,7 +2050,9 @@ contains
 
         
         r_0 = EDPftvarcon_inst%maintresp_leaf_atkin2017_baserate(ipft)
-        
+
+        ! jfn -  this should be prt_params%nitr_stoich_p1(ipft, prt_params%organ_param_id(leaf_organ))
+        ! but that was giving errors during compile
         lnc_top = prt_params%nitr_stoich_p1(ipft, 1) / prt_params%slatop(ipft)
 
         ! From LeafLayerMaintenanceRespiration_Atkin_etal_2017
