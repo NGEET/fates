@@ -32,7 +32,7 @@ from PyF90Utils import c8, ci, cchar, c8_arr, ci_arr, ccharnb
 
 font = {'family' : 'sans-serif',
         'weight' : 'normal',
-        'size'   : 12}
+        'size'   : 11}
 
 matplotlib.rc('font', **font)
 
@@ -103,8 +103,17 @@ class elem_type:
         self.r_abs = np.zeros([n_vai])
         #self.sunfrac = np.zeros([n_vai])
 
+class patch_type:
+    def __init__(self,ground_albedo_diff,ground_albedo_beam):
+        self.ground_albedo_beam = ground_albedo_diff
+        self.ground_albedo_beam = ground_albedo_beam
+        self.cohorts = []
+
+        # uses the form:
+        # patch.cohorts.append(cohort_type(n_vai,lai,sai))
+                 
 class cohort_type:
-    def __init__(self,n_vai,lai,sai):
+    def __init__(self,n_vai,area_frac,lai,sai,pft):
 
         self.n_vai = n_vai
         #self.avai = np.zeros([n_vai])
@@ -114,6 +123,7 @@ class cohort_type:
         self.rb_abs_leaf = np.zeros([n_vai])
         self.r_abs_stem = np.zeros([n_vai])
         self.sunfrac = np.zeros([n_vai])
+        self.pft = pft
         
 def main(argv):
 
@@ -148,13 +158,13 @@ def main(argv):
     if(False):
         ParallelElementPerturbDist()
 
-    if(True):
+    if(False):
         SunFracTests()
 
     if(True):
         SingleElementPerturbTest()
 
-    if(True):
+    if(False):
         SerialParallelCanopyTest()
 
     plt.show()
@@ -183,20 +193,21 @@ def SerialParallelCanopyTest():
         #self.n_vai = n_vai
         #self.avai = np.zeros([n_vai])
 
-    
+    # Five elements (cohorts), each take up 20% of the space
+    area_frac = 0.2
     serialc = []
-    serialc.append(cohort_type(100,cohort_lai[0],cohort_lai[0]*sai_frac))
-    serialc.append(cohort_type(100,cohort_lai[1],cohort_lai[1]*sai_frac))
-    serialc.append(cohort_type(100,cohort_lai[2],cohort_lai[2]*sai_frac))
-    serialc.append(cohort_type(100,cohort_lai[3],cohort_lai[3]*sai_frac))
-    serialc.append(cohort_type(100,cohort_lai[4],cohort_lai[4]*sai_frac))
+    serialc.append(cohort_type(100,area_frac,cohort_lai[0],cohort_lai[0]*sai_frac,pft))
+    serialc.append(cohort_type(100,area_frac,cohort_lai[1],cohort_lai[1]*sai_frac,pft))
+    serialc.append(cohort_type(100,area_frac,cohort_lai[2],cohort_lai[2]*sai_frac,pft))
+    serialc.append(cohort_type(100,area_frac,cohort_lai[3],cohort_lai[3]*sai_frac,pft))
+    serialc.append(cohort_type(100,area_frac,cohort_lai[4],cohort_lai[4]*sai_frac,pft))
 
     parallelc = []
-    parallelc.append(cohort_type(100,cohort_lai[0],cohort_lai[0]*sai_frac))
-    parallelc.append(cohort_type(100,cohort_lai[1],cohort_lai[1]*sai_frac))
-    parallelc.append(cohort_type(100,cohort_lai[2],cohort_lai[2]*sai_frac))
-    parallelc.append(cohort_type(100,cohort_lai[3],cohort_lai[3]*sai_frac))
-    parallelc.append(cohort_type(100,cohort_lai[4],cohort_lai[4]*sai_frac))
+    parallelc.append(cohort_type(100,area_frac,cohort_lai[0],cohort_lai[0]*sai_frac,pft))
+    parallelc.append(cohort_type(100,area_frac,cohort_lai[1],cohort_lai[1]*sai_frac,pft))
+    parallelc.append(cohort_type(100,area_frac,cohort_lai[2],cohort_lai[2]*sai_frac,pft))
+    parallelc.append(cohort_type(100,area_frac,cohort_lai[3],cohort_lai[3]*sai_frac,pft))
+    parallelc.append(cohort_type(100,area_frac,cohort_lai[4],cohort_lai[4]*sai_frac,pft))
     
     elems = []
     elems.append([])
@@ -683,11 +694,34 @@ def ParallelElementPerturbDist():
     plt.tight_layout()
     plt.show()
     dealloc_twostream_call()
+
     
 def SingleElementPerturbTest():
 
     
     # ===================================================================================
+    # In this test, we have a canopy that is constructed from a single cohort
+    # and therefore a single element. The cohort does not cover all of the ground
+    # so their is an air element in parallel with the leaf/stem element.
+
+    ground_albedo_diff = 0.1
+    ground_albedo_beam = 0.1
+    veg_frac_snow = 0.0
+    
+    patch = patch_type(ground_albedo_diff,ground_albedo_beam)
+
+    # Vegetation cohort
+    area_frac = 0.9
+    lai = 2.0
+    sai = 0.5
+    pft = 1
+    air_pft = 0
+    patch.cohorts.append(cohort_type(100,area_frac,lai,sai,pft))
+
+    # Open space (air)
+    patch.cohorts.append(cohort_type(100,1.0-area_frac,0.,0.,air_pft))
+
+    
     n_col    = 2
     n_layer  = 1
     iret = alloc_twostream_call(ci(n_layer),ci(n_col))
@@ -695,12 +729,9 @@ def SingleElementPerturbTest():
     ican = 1 # Single canopy layer
     icol = 1 # Single PFT
     pft  = 1 # Use PFT number 1
-    area = 0.9  # Assume only 90% of the ground is covered
-    lai  = 2.0  # LAI
-    sai  = 0.5  # SAI
     vai = lai+sai
-    iret = setup_canopy_call(c_int(1),c_int(1),c_int(pft),c_double(area),c_double(lai),c_double(sai))
-    iret = setup_canopy_call(c_int(1),c_int(2),c_int(0),c_double(1.0-area),c_double(0.0),c_double(0.0))
+    iret = setup_canopy_call(c_int(1),c_int(1),c_int(pft),c_double(area_frac),c_double(lai),c_double(sai))
+    iret = setup_canopy_call(c_int(1),c_int(2),c_int(0),c_double(1.0-area_frac),c_double(0.0),c_double(0.0))
 
     # Decide on a band:
 
@@ -718,14 +749,14 @@ def SingleElementPerturbTest():
 
     # Make parameter pertubations, bump up 50%
     pp_dict = {}
-    pp_dict['Kb'] = 0.66118239744  #74   #*1.5
-    pp_dict['Kd'] = 0.9063246621781269  #*1.5
-    pp_dict['om'] = 0.17819999999999997  #*1.5
-    pp_dict['betab'] = 0.48253004714288084  #*1.5
-    pp_dict['betad'] = 0.5999777777777778  #*1.5
+    pp_dict['Kb'] = 1.5*0.66118239744  #74   #*1.5
+    pp_dict['Kd'] = 1.5*0.9063246621781269  #*1.5
+    pp_dict['om'] = 1.5*0.17819999999999997  #*1.5
+    pp_dict['betab'] = 1.5*0.48253004714288084  #*1.5
+    pp_dict['betad'] = 1.5*0.5999777777777778  #*1.5
 
-    R_beam = 100.
-    R_diff = 100.
+    R_beam = 0.5
+    R_diff = 0.5
     cosz   = np.cos(0.0)
     n_vai  = 100
     vai_a  = np.linspace(0,vai,num=n_vai)
@@ -757,13 +788,10 @@ def SingleElementPerturbTest():
     cd_ffdiff_beam = c_double(-9.0)
     cd_ffdiff_diff = c_double(-9.0)
     
-    ground_albedo_diff = 0.1
-    ground_albedo_beam = 0.1
-    frac_snow = 0.0
-    
+   
     iret = grndsnow_albedo_call(c_int(ib),c_double(ground_albedo_diff),*ccharnb('albedo_grnd_diff'))
     iret = grndsnow_albedo_call(c_int(ib),c_double(ground_albedo_beam),*ccharnb('albedo_grnd_beam'))
-    iret = canopy_prep_call(c8(frac_snow))
+    iret = canopy_prep_call(c8(veg_frac_snow))
     iret = zenith_prep_call(c8(cosz))
 
     iret = solver_call(ci(ib),ci(normalized_boundary),c8(1.0),c8(1.0), \
@@ -798,7 +826,7 @@ def SingleElementPerturbTest():
     i = -1
     for key,val in pp_dict.items():
         i=i+1
-        iret = canopy_prep_call(c8(frac_snow))
+        iret = canopy_prep_call(c8(veg_frac_snow))
         iret = zenith_prep_call(c8(cosz))
         iret = forceparam_call(c_int(ican),c_int(icol),ci(ib),c_double(val),*ccharnb(key))
 
@@ -824,7 +852,7 @@ def SingleElementPerturbTest():
                 p_drdv_diff_up[iv-1] = (p_r_diff_up[iv]-p_r_diff_up[iv-1])/dv
 
 
-        fig1, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2,figsize=(9,7))
+        fig1, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2,figsize=(7.5,6.5))
 
         ap = ax1.plot(r_beam,vai_a,p_r_beam[:,i],vai_a)
         first_color = ap[0].get_color()
@@ -879,6 +907,7 @@ $\alpha_{{gb}} = ${9:.2f}""".format(band_name,R_beam,R_diff,cosz,cd_kb.value,cd_
                  verticalalignment='center', transform=ax4.transAxes,backgroundcolor=[1.0,1.0,1.0],fontsize=12,color=first_color)
         ax4.text(0.5,0.5,r"{0}={1:.2f}".format(key,val),color=last_color)
         plt.subplots_adjust(wspace=0.1, hspace=0.25)
+        plt.tight_layout()
         plt.show()
 
 

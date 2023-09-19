@@ -1078,12 +1078,9 @@ contains
     type(scelg_type),pointer :: scelgp   ! Pointer to the scelg data structure
     type(scelb_type),pointer :: scelbp   ! Pointer to the scelb data structure
 
-    ! Parameters for solving via LAPACK DGELS()
-    character(1),parameter :: trans = 'N'           ! Input matrix is not transposed
-    integer, parameter :: workmax = 100             ! Maximum iterations to minimize work
-    real(r8) :: work(workmax)                       ! Work array
-    integer  :: lwork                               ! Dimension of work array
+    ! Parameters for solving via LAPACK DGELS() and DGESV()
     integer :: info                                 ! Procedure diagnostic ouput
+
     ! Testing switch
     ! If true, then allow elements
     ! of different layers, but same row, to have priority

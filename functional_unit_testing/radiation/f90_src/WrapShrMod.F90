@@ -8,9 +8,12 @@ module shr_log_mod
    function shr_log_errMsg(source, line) result(ans)
      character(kind=c_char,len=*), intent(in) :: source
      integer(c_int), intent(in) :: line
+     character(kind=c_char,len=4) :: cline  ! character version of int
      character(kind=c_char,len=128) :: ans
+
+     write(cline,'(I4)') line
+     ans = "source: " // trim(source) // " line: "// trim(cline)
      
-     ans = "source: " // trim(source) // " line: "
    end function shr_log_errMsg
    
 end module shr_log_mod
