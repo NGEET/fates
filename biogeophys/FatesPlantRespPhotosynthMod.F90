@@ -2140,6 +2140,11 @@ subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, &
    use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
    use FatesConstantsMod, only : umolC_to_kgC
    use FatesConstantsMod, only : g_per_kg
+   use FatesConstantsMod, only : lmr_b
+   use FatesConstantsMod, only : lmr_c
+   use FatesConstantsMod, only : lmr_TrefC
+   use FatesConstantsMod, only : lmr_r_1
+   use FatesConstantsMod, only : lmr_r_2
    use EDPftvarcon      , only : EDPftvarcon_inst
 
    ! Arguments
@@ -2156,15 +2161,6 @@ subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, &
    real(r8) :: r_t_ref ! acclimated ref respiration rate (umol CO2/m**2/s)
    real(r8) :: lmr25top  ! canopy top leaf maint resp rate at 25C for this pft (umol CO2/m**2/s)
 
-   ! Parameters
-   ! values from Atkin et al., 2017 https://doi.org/10.1007/978-3-319-68703-2_6
-   ! and Heskel et al., 2016 https://doi.org/10.1073/pnas.1520282113
-   real(r8), parameter :: b = 0.1012_r8       ! (degrees C**-1)
-   real(r8), parameter :: c = -0.0005_r8      ! (degrees C**-2)
-   real(r8), parameter :: TrefC = 25._r8      ! (degrees C)
-   real(r8), parameter :: r_1 = 0.2061_r8     ! (umol CO2/m**2/s / (gN/(m2 leaf))) 
-   real(r8), parameter :: r_2 = -0.0402_r8    ! (umol CO2/m**2/s/degree C)
-
    ! parameter values of r_0 as listed in Atkin et al 2017: (umol CO2/m**2/s) 
    ! Broad-leaved trees  1.7560
    ! Needle-leaf trees   1.4995
@@ -2178,14 +2174,15 @@ subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, &
    ! r_0 currently put into the EDPftvarcon_inst%dev_arbitrary_pft
    ! all figs in Atkin et al 2017 stop at zero Celsius so we will assume acclimation is fixed below that
    r_0 = EDPftvarcon_inst%maintresp_leaf_atkin2017_baserate(ft)
-   r_t_ref = max( 0._r8, nscaler * (r_0 + r_1 * lnc_top + r_2 * max(0._r8, (tgrowth - tfrz) )) )
+   r_t_ref = max( 0._r8, nscaler * (r_0 + lmr_r_1 * lnc_top + lmr_r_2 * max(0._r8, (tgrowth - tfrz) )) )
    
    if (r_t_ref .eq. 0._r8) then
       warn_msg = 'Rdark is negative at this temperature and is capped at 0. tgrowth (C): '//trim(N2S(tgrowth-tfrz))//' pft: '//trim(I2S(ft))
       call FatesWarn(warn_msg,index=4)            
    end if
 
-   lmr = r_t_ref * exp(b * (veg_tempk - tfrz - TrefC) + c * ((veg_tempk-tfrz)**2 - TrefC**2))
+   lmr = r_t_ref * exp(lmr_b * (veg_tempk - tfrz - lmr_TrefC) + lmr_c * &
+        ((veg_tempk-tfrz)**2 - lmr_TrefC**2))
 
 end subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017
 
