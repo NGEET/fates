@@ -22,7 +22,7 @@ module FATESPlantRespPhotosynthMod
 
   use FatesGlobals,      only : endrun => fates_endrun
   use FatesGlobals,      only : fates_log
-  use FatesGlobals,      only : FatesWarn,N2S,A2S
+  use FatesGlobals,      only : FatesWarn,N2S,A2S,I2S
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesConstantsMod, only : itrue
   use FatesConstantsMod, only : nearzero
@@ -2181,11 +2181,8 @@ subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, &
    r_t_ref = max( 0._r8, nscaler * (r_0 + r_1 * lnc_top + r_2 * max(0._r8, (tgrowth - tfrz) )) )
    
    if (r_t_ref .eq. 0._r8) then
-      write(fates_log(),*) 'Rdark has is negative at this temperature and has'
-      write(fates_log(),*) 'therefore been capped at 0.'
-      write(fates_log(),*) 'See LeafLayerMaintenanceRespiration_Atkin_etal_2017'
-      write(fates_log(),*) 'tgrowth : ', tgrowth
-      write(fates_log(),*) 'pft      : ', ft
+      warn_msg = 'Rdark is negative at this temperature and is capped at 0. tgrowth (C): '//trim(N2S(tgrowth-tfrz))//' pft: '//trim(I2S(ft))
+      call FatesWarn(warn_msg,index=4)            
    end if
 
    lmr = r_t_ref * exp(b * (veg_tempk - tfrz - TrefC) + c * ((veg_tempk-tfrz)**2 - TrefC**2))
