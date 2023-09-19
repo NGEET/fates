@@ -14,7 +14,6 @@ dimensions:
 	fates_pft = 12 ;
 	fates_plant_organs = 4 ;
 	fates_string_length = 60 ;
-	fates_landuseclass = 5 ;
 variables:
 	double fates_history_ageclass_bin_edges(fates_history_age_bins) ;
 		fates_history_ageclass_bin_edges:units = "yr" ;
