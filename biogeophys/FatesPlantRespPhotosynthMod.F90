@@ -2178,7 +2178,15 @@ subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, &
    ! r_0 currently put into the EDPftvarcon_inst%dev_arbitrary_pft
    ! all figs in Atkin et al 2017 stop at zero Celsius so we will assume acclimation is fixed below that
    r_0 = EDPftvarcon_inst%maintresp_leaf_atkin2017_baserate(ft)
-   r_t_ref = nscaler * (r_0 + r_1 * lnc_top + r_2 * max(0._r8, (tgrowth - tfrz) ))
+   r_t_ref = max( 0._r8, nscaler * (r_0 + r_1 * lnc_top + r_2 * max(0._r8, (tgrowth - tfrz) )) )
+   
+   if (r_t_ref .eq. 0._r8) then
+      write(fates_log(),*) 'Rdark has is negative at this temperature and has'
+      write(fates_log(),*) 'therefore been capped at 0.'
+      write(fates_log(),*) 'See LeafLayerMaintenanceRespiration_Atkin_etal_2017'
+      write(fates_log(),*) 'tgrowth : ', tgrowth
+      write(fates_log(),*) 'pft      : ', ft
+   end if
 
    lmr = r_t_ref * exp(b * (veg_tempk - tfrz - TrefC) + c * ((veg_tempk-tfrz)**2 - TrefC**2))
 

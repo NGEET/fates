@@ -1717,12 +1717,13 @@ contains
      ! -----------------------------------------------------------------------------------
     use FatesConstantsMod  , only : fates_check_param_set
     use FatesConstantsMod  , only : itrue, ifalse
+    use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
     use EDParamsMod        , only : logging_mechanical_frac, logging_collateral_frac
     use EDParamsMod        , only : logging_direct_frac,logging_export_frac
     use EDParamsMod        , only : radiation_model
     use FatesInterfaceTypesMod, only : hlm_use_fixed_biogeog,hlm_use_sp, hlm_name
     use FatesInterfaceTypesMod, only : hlm_use_inventory_init
-
+    
      ! Argument
      logical, intent(in) :: is_master    ! Only log if this is the master proc
 
@@ -1738,6 +1739,17 @@ contains
 
      real(r8) :: sumarea    ! area of PFTs in nocomp mode.
 
+
+     ! Parameters - used to check lmr base rate  r_0 parameter 
+     ! values from Atkin et al., 2017 https://doi.org/10.1007/978-3-319-68703-2_6
+     ! and Heskel et al., 2016 https://doi.org/10.1073/pnas.1520282113
+     real(r8), parameter :: r_1 = 0.2061_r8     ! (umol CO2/m**2/s / (gN/(m2 leaf)))
+     real(r8), parameter :: r_2 = -0.0402_r8    ! (umol CO2/m**2/s/degree C)
+     real(r8) :: neg_lmr_temp ! temperature at which lmr would got negative 
+     real(r8) :: r_0 ! base respiartion rate, PFT-dependent
+     real(r8) :: lnc_top ! leaf nitrogen content at top of canopy
+     
+     
      npft = size(EDPftvarcon_inst%freezetol,1)
 
      if(.not.is_master) return
@@ -2030,6 +2042,33 @@ contains
         
      end do !ipft
 
+
+     ! Check the temperature at which Rdark would become negative for each PFT -
+     ! given their parameters
+     !------------------------------------------------------------------------------------
+     do ipft = 1,npft
+
+        
+        r_0 = EDPftvarcon_inst%maintresp_leaf_atkin2017_baserate(ipft)
+        
+        lnc_top = prt_params%nitr_stoich_p1(ipft, 1) / prt_params%slatop(ipft)
+
+        ! From LeafLayerMaintenanceRespiration_Atkin_etal_2017
+        ! r_t_ref = nscaler * (r_0 + r_1 * lnc_top + r_2 * max(0._r8, (tgrowth - tfrz) ))
+
+        ! find temperature at which whole term is negative
+        neg_lmr_temp = ( -1._r8 * (  r_0  + r_1 * lnc_top ) ) / r_2
+
+        write(fates_log(),*)  'PFT  ',  ipft
+        write(fates_log(),*)  'will have  negative Rdark at ', neg_lmr_temp, 'degrees C' 
+        write(fates_log(),*)  'with these values of slatop, nitrogen stoichiometry and' 
+        write(fates_log(),*)  'maintresp_leaf_atkin2017_baserate.'
+        write(fates_log(),*)  'See LeafLayerMaintenanceRespiration_Atkin_etal_2017 in '
+        write(fates_log(),*)  'FatesPlantRespPhotosynthMod'  
+     
+     end do ! ipft
+     
+     
 
 !!    ! Checks for HYDRO
 !!    if( hlm_use_planthydro == itrue ) then
