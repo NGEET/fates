@@ -265,20 +265,6 @@ module EDTypesMod
                                             ! which is used for fixation
 
      
-     
-     ! SP mode target PFT level variables
-     real(r8), allocatable :: sp_tlai(:)                      ! target TLAI per FATES pft
-     real(r8), allocatable :: sp_tsai(:)                      ! target TSAI per FATES pft
-     real(r8), allocatable :: sp_htop(:)                      ! target HTOP per FATES pft
-     
-     ! Mass Balance (allocation for each element)
-
-     type(site_massbal_type), pointer :: mass_balance(:)
-
-     ! Flux diagnostics (allocation for each element)
-
-     type(site_fluxdiags_type), pointer :: flux_diags(:)
-
      ! Two-stream scratch arrays
      real(r8), allocatable :: omega_2str(:,:)   ! This is the matrix that is inverted to solve
                                                 ! the linear system of equations in the two-stream
@@ -296,7 +282,20 @@ module EDTypesMod
                                                 ! need one array
 
      integer, allocatable :: ipiv_2str(:)       ! pivot indices for the lapack 2str solver
+
+     ! SP mode target PFT level variables
+     real(r8), allocatable :: sp_tlai(:)                      ! target TLAI per FATES pft
+     real(r8), allocatable :: sp_tsai(:)                      ! target TSAI per FATES pft
+     real(r8), allocatable :: sp_htop(:)                      ! target HTOP per FATES pft
      
+     ! Mass Balance (allocation for each element)
+
+     type(site_massbal_type), pointer :: mass_balance(:)
+
+     ! Flux diagnostics (allocation for each element)
+
+     type(site_fluxdiags_type), pointer :: flux_diags(:)
+
      ! PHENOLOGY 
      real(r8) ::  grow_deg_days                                ! Phenology growing degree days
      real(r8) ::  snow_depth                                   ! site-level snow depth (used for ELAI/TLAI calcs)

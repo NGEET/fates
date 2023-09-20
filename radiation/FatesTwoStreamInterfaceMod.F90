@@ -17,8 +17,10 @@ Module FatesTwoStreamInterfaceMod
   use FatesRadiationMemMod  , only : ivis, inir
   use FatesRadiationMemMod  , only : rho_snow,tau_snow
   use TwoStreamMLPEMod      , only : air_ft, AllocateRadParams, rad_params
-  use EDTypesMod            , only : ed_patch_type, ed_cohort_type, ed_site_type
-  use EDTypesMod            , only : nclmax
+  use FatesCohortMod        , only : fates_cohort_type
+  use FatesPatchMod         , only : fates_patch_type
+  use EDTypesMod            , only : ed_site_type
+  use EDParamsMod           , only : nclmax
   use TwoStreamMLPEMod      , only : twostream_type
   use TwoStreamMLPEMod      , only : ParamPrep
   use TwoStreamMLPEMod      , only : AllocateRadParams
@@ -46,11 +48,11 @@ contains
   subroutine FatesConstructRadElements(site,fcansno_pa,coszen_pa)
 
     type(ed_site_type)  :: site
-    type(ed_patch_type),pointer :: patch
+    type(fates_patch_type),pointer :: patch
     real(r8)                    :: fcansno_pa(:)
     real(r8)                    :: coszen_pa(:)
     
-    type(ed_cohort_type), pointer :: cohort
+    type(fates_cohort_type), pointer :: cohort
     integer :: n_col(nclmax) ! Number of parallel column elements per layer
     integer :: ican,ft,icol
     type(twostream_type), pointer :: twostr
@@ -84,7 +86,7 @@ contains
     !                                  ! cohorts.  THe objective is to reduce this.
     !integer, parameter  :: max_el_per_layer = 10
     !real(r8), parameter :: init_max_vai_diff_per_elem = 0.2_r8
-    !type(ed_cohort_type), pointer :: elem_co_ptrs(ncl*max_el_per_layer,100)
+    !type(fates_cohort_type), pointer :: elem_co_ptrs(ncl*max_el_per_layer,100)
 
     
     if(radiation_model.ne.twostr_solver)return
@@ -316,7 +318,7 @@ contains
           deallocate(site%taulambda_2str,site%ipiv_2str,site%omega_2str)
        end if
     else
-       allocate_stratch = .true.
+       allocate_scratch = .true.
     end if
 
     if(allocate_scratch)then
@@ -335,7 +337,7 @@ contains
   
   subroutine FatesPatchFSun(patch,fsun,laisun,laisha)
 
-    type(ed_patch_type) :: patch
+    type(fates_patch_type) :: patch
     real(r8)            :: fsun    ! Patch average sunlit fraction
     real(r8)            :: laisun  ! Patch average LAI of leaves in sun
     real(r8)            :: laisha  ! Patch average LAI of leaves in shade
@@ -386,13 +388,13 @@ contains
     ! absorbed radiation, then compare the amount absorbed
     ! to the fraction the solver calculated
 
-    type(ed_patch_type) :: patch
+    type(fates_patch_type) :: patch
     integer             :: ib      ! broadband index
     real(r8)            :: snow_depth
     real(r8)            :: fabd    ! Fraction of absorbed direct radiation by vegetation
     real(r8)            :: fabi    ! Fraction of absorbed indirect radiation by vegetation
     
-    type(ed_cohort_type), pointer :: cohort
+    type(fates_cohort_type), pointer :: cohort
     integer :: iv,ican,icol
     real(r8),dimension(50) :: cohort_vaitop
     real(r8),dimension(50) :: cohort_vaibot
@@ -465,8 +467,8 @@ contains
     ! over a specified interval of VAI (vegetation area index)
     ! VAI is exposed leaf + stem area index
 
-    type(ed_patch_type)  :: patch
-    type(ed_cohort_type) :: cohort
+    type(fates_patch_type)  :: patch
+    type(fates_cohort_type) :: cohort
     integer,intent(in)   :: ib
     real(r8),intent(in)  :: vaitop
     real(r8),intent(in)  :: vaibot
