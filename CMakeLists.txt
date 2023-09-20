@@ -88,4 +88,4 @@ link_directories(${CMAKE_CURRENT_BINARY_DIR})
 # has tests in it. However, it appears that the order needs to be done
 # carefully: for example, include_directories and link_directories needs to be
 # done before adding the tests themselves.
-add_subdirectory(${HLM_ROOT}/src/fates/biogeophys/test fates_biogeophys_test)
+add_subdirectory(${HLM_ROOT}/src/fates/biogeophys/test/solar_rad_test fates_biogeophys_test)

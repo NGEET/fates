@@ -17,12 +17,12 @@ from shutil import copy, rmtree
 def main(build_dir):
   
   # build the test
- # build_test(build_dir)
+   build_test(build_dir)
   
   # run the test
- # run_test("biogeophys/test/solar_rad_test", "FATES_rad_exe")
-  
-  plot_output()
+   #run_test("biogeophys/test/solar_rad_test", "FATES_rad_exe")
+   # 
+   # plot_output()
 
 def build_test(build_dir):
   
