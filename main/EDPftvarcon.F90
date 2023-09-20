@@ -2042,14 +2042,11 @@ contains
      ! given their parameters
      !------------------------------------------------------------------------------------
      do ipft = 1,npft
-
         
         r_0 = EDPftvarcon_inst%maintresp_leaf_atkin2017_baserate(ipft)
 
-        ! jfn -  this should be prt_params%nitr_stoich_p1(ipft, prt_params%organ_param_id(leaf_organ))
-        ! but that was giving errors during compile
-        lnc_top = prt_params%nitr_stoich_p1(ipft, 1) / prt_params%slatop(ipft)
-
+        lnc_top = prt_params%nitr_stoich_p1(ipft, prt_params%organ_param_id(leaf_organ))
+        
         ! From LeafLayerMaintenanceRespiration_Atkin_etal_2017
         ! r_t_ref = nscaler * (r_0 + r_1 * lnc_top + r_2 * max(0._r8, (tgrowth - tfrz) ))
 
