@@ -24,9 +24,9 @@ Module FatesTwoStreamInterfaceMod
   use TwoStreamMLPEMod      , only : AllocateRadParams
   use TwoStreamMLPEMod      , only : rel_err_thresh,area_err_thresh
   use EDPftvarcon           , only : EDPftvarcon_inst
-  use FatesRadiationMemMod  , only : rad_solver,twostr_solver
+  use FatesRadiationMemMod  , only : twostr_solver
   use FatesAllometryMod     , only : VegAreaLayer
-  
+  use EDParamsMod           , only : radiation_model
   
   implicit none
 
@@ -87,7 +87,7 @@ contains
     !type(ed_cohort_type), pointer :: elem_co_ptrs(ncl*max_el_per_layer,100)
 
     
-    if(rad_solver.ne.twostr_solver)return
+    if(radiation_model.ne.twostr_solver)return
 
     max_elements = -1
     ifp=0
@@ -301,6 +301,10 @@ contains
        patch => patch%younger
     end do
 
+    ! Re-evaluate the scratch space used for solving two-stream radiation
+    ! The scratch space needs to be 2x the number of computational elements
+    ! for the patch with the most elements.
+    
     if(allocated(site%taulambda_2str) .and. max_elements>0 )then
        n_scr = ubound(site%taulambda_2str,dim=1)
        allocate_scratch = .false.

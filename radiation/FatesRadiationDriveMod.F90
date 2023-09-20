@@ -29,7 +29,7 @@ module FatesRadiationDriveMod
   use FatesRadiationMemMod, only : alb_ice, rho_snow, tau_snow
   use FatesRadiationMemMod, only : norman_solver
   use FatesRadiationMemMod, only : twostr_solver
-  use FatesRadiationMemMod, only : rad_solver
+  use EDParamsMod, only          : radiation_model
   use TwoStreamMLPEMod, only : normalized_upper_boundary
   use FatesTwoStreamInterfaceMod, only : FatesPatchFSun
   use FatesTwoStreamInterfaceMod, only : CheckPatchRadiationBalance
@@ -127,7 +127,7 @@ contains
 
              ! RGK: The ZenithPrep should only be necessary if the flag is true
              ! Move and test this.
-             if(rad_solver.eq.twostr_solver) then
+             if(radiation_model.eq.twostr_solver) then
                 call currentPatch%twostr%CanopyPrep(bc_in(s)%fcansno_pa(ifp))
                 call currentPatch%twostr%ZenithPrep(bc_in(s)%coszen_pa(ifp))
              end if
@@ -152,7 +152,7 @@ contains
  
                 else
 
-                   if_solver: if(rad_solver.eq.norman_solver) then
+                   if_solver: if(radiation_model.eq.norman_solver) then
 
                       call PatchNormanRadiation (currentPatch, &
                            bc_out(s)%albd_parb(ifp,:), &   ! Surface Albedo direct
@@ -1220,7 +1220,7 @@ subroutine FatesSunShadeFracs(nsites, sites,bc_in,bc_out)
            cpatch%parprof_pft_dir_z(:,:,:) = 0._r8
            cpatch%parprof_pft_dif_z(:,:,:) = 0._r8
 
-           if_norm_twostr: if (rad_solver.eq.norman_solver) then
+           if_norm_twostr: if (radiation_model.eq.norman_solver) then
               
            ! Loop over patches to calculate laisun_z and laisha_z for each layer.
            ! Derive canopy laisun, laisha, and fsun from layer sums.

@@ -46,10 +46,10 @@ module FatesRestartInterfaceMod
   use PRTGenericMod,           only : num_elements
   use FatesRunningMeanMod,     only : rmean_type
   use FatesRunningMeanMod,     only : ema_lpa
-  use FatesRadiationMemMod,    only : num_swb,rad_solver,norman_solver
+  use FatesRadiationMemMod,    only : num_swb,norman_solver
   use TwoStreamMLPEMod,        only : normalized_upper_boundary
   use EDParamsMod,             only : regeneration_model
-
+  use EDParamsMod,             only : radiation_model
   
   ! CIME GLOBALS
   use shr_log_mod       , only : errMsg => shr_log_errMsg
@@ -3630,7 +3630,7 @@ contains
                  enddo
               else
 
-                 if_solver: if(rad_solver.eq.norman_solver) then
+                 if_solver: if(radiation_model.eq.norman_solver) then
                  
                     call PatchNormanRadiation (currentPatch, &
                          bc_out(s)%albd_parb(ifp,:), &

@@ -67,7 +67,7 @@ module FATESPlantRespPhotosynthMod
   use EDPftvarcon      , only : EDPftvarcon_inst
   use TemperatureType,   only : temperature_type
   use FatesRadiationMemMod, only : norman_solver,twostr_solver
-  use FatesRadiationMemMod, only : rad_solver
+  use EDParamsMod,          only : radiation_model
   use FatesRadiationMemMod, only : ipar
   use FatesTwoStreamInterfaceMod, only : FatesGetCohortAbsRad
   use FatesAllometryMod     , only : VegAreaLayer
@@ -495,8 +495,8 @@ contains
 
                          rate_mask_if: if ( .not.rate_mask_z(iv,ft,cl) .or. &
                               (hlm_use_planthydro.eq.itrue) .or. &
-                              (rad_solver .eq. twostr_solver ) .or. &
-                              (rad_solver .eq. norman_solver ) .or. &
+                              (radiation_model .eq. twostr_solver ) .or. &
+                              (radiation_model .eq. norman_solver ) .or. &
                               (nleafage > 1) .or. &
                               (hlm_parteh_mode .ne. prt_carbon_allom_hyp )   ) then
 
@@ -617,7 +617,7 @@ contains
                             ! fsun          = [m2 of sunlit leaves / m2 of total leaves]
                             ! ------------------------------------------------------------------
                             
-                            if_radsolver: if(rad_solver.eq.norman_solver) then
+                            if_radsolver: if(radiation_model.eq.norman_solver) then
 
                                laisun = currentPatch%elai_profile(cl,ft,iv)*currentPatch%f_sun(cl,ft,iv)
                                laisha = currentPatch%elai_profile(cl,ft,iv)*(1._r8-currentPatch%f_sun(cl,ft,iv))
