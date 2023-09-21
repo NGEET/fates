@@ -17,7 +17,8 @@
 # =======================================================================================
 
 import os
-from scipy.io import netcdf as nc
+#from scipy.io import netcdf as nc
+import scipy
 import argparse
 import shutil
 import tempfile
@@ -85,7 +86,7 @@ def main():
     try:
         shutil.copyfile(args.inputfname, tempfilename)
         #
-        ncfile = nc.netcdf_file(tempfilename, 'a')
+        ncfile = scipy.io.netcdf_file(tempfilename, 'a')
         #
         var = ncfile.variables[args.varname]
 
@@ -174,8 +175,8 @@ def main():
                     ### close the file that's open and start over.
                     ncfile.close()
                     os.remove(tempfilename)
-                    ncfile = nc.netcdf_file(tempfilename, 'w')
-                    ncfile_old = nc.netcdf_file(args.inputfname, 'r')
+                    ncfile = scipy.io.netcdf_file(tempfilename, 'w')
+                    ncfile_old = scipy.io.netcdf_file(args.inputfname, 'r')
                     #
                     try:
                         ncfile.history = ncfile_old.history

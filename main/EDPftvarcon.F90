@@ -8,6 +8,7 @@ module EDPftvarcon
   ! !USES:
 
   use FatesRadiationMemMod, only: num_swb,ivis,inir
+  use FatesRadiationMemMod, only: norman_solver,twostr_solver
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesConstantsMod, only : nearzero
   use FatesConstantsMod, only : itrue, ifalse
@@ -1743,7 +1744,7 @@ contains
 
      if(.not.is_master) return
 
-     if(radiation_model.ne.1) then
+     if(.not.any(radiation_model == [norman_solver,twostr_solver])) then
         write(fates_log(),*) 'The only available canopy radiation model'
         write(fates_log(),*) 'is the Norman scheme: fates_rad_model = 1'
         write(fates_log(),*) 'The two-stream scheme is not available yet'
