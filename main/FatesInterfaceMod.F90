@@ -948,13 +948,12 @@ contains
          
          ! Set the fates dispersal kernel mode if there are any seed dispersal parameters set.
          ! The validation of the parameter values is check in FatesCheckParams prior to this check.
-         ! This is currently hard coded.
+         ! This is currently hard coded, but could be added as a fates parameter file option,
+         ! particularly one that is pft dependent.
          if(any(EDPftvarcon_inst%seed_dispersal_pdf_scale .lt. fates_check_param_set)) then
             fates_dispersal_kernel_mode = fates_dispersal_kernel_exponential
             ! fates_dispersal_kernel_mode = fates_dispersal_kernel_exppower
             ! fates_dispersal_kernel_mode = fates_dispersal_kernel_logsech
-         else
-            fates_dispersal_kernel_mode = fates_dispersal_kernel_none
          end if
          
          ! Set the fates dispersal cadence if seed dispersal parameters are set.
@@ -2213,7 +2212,7 @@ subroutine DetermineGridCellNeighbors(neighbors,numg)
    real(r8) :: pdf
 
    ! Check if seed dispersal mode is 'turned on' by checking the parameter values
-   if (fates_dispersal_kernel_mode .eq. fates_dispersal_kernel_none) return
+   if (hlm_seeddisp_cadence .eq. fates_dispersal_cadence_none) return
 
    if(hlm_is_restart .eq. itrue) write(fates_log(),*) 'gridcell initialization during restart'
 

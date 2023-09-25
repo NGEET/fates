@@ -2039,8 +2039,8 @@ contains
     ! !USES:
     use EDTypesMod, only : area
     use EDTypesMod, only : homogenize_seed_pfts
-    use FatesInterfaceTypesMod, only : fates_dispersal_kernel_mode
-    use FatesInterfaceTypesMod, only : fates_dispersal_kernel_none
+    use FatesInterfaceTypesMod, only : hlm_seeddisp_cadence
+    use FatesInterfaceTypesMod, only : fates_dispersal_cadence_none
     !
     ! !ARGUMENTS
     type(ed_site_type), intent(inout), target  :: currentSite
@@ -2064,7 +2064,7 @@ contains
 
     ! If the dispersal kernel is not turned on, keep the dispersal fraction at zero
     site_disp_frac(:) = 0._r8
-    if (fates_dispersal_kernel_mode .ne. fates_dispersal_kernel_none) then
+    if (hlm_seeddisp_cadence .ne. fates_dispersal_cadence_none) then
       site_disp_frac(:) = EDPftvarcon_inst%seed_dispersal_fraction(:)
     end if
 

@@ -64,8 +64,8 @@ contains
       ! Use
       use EDPftvarcon           , only : EDPftvarcon_inst 
       use FatesConstantsMod     , only : fates_check_param_set
-      use FatesInterfaceTypesMod, only : fates_dispersal_kernel_mode
-      use FatesInterfaceTypesMod, only : fates_dispersal_kernel_none
+      use FatesInterfaceTypesMod, only : hlm_seeddisp_cadence
+      use FatesInterfaceTypesMod, only : fates_dispersal_cadence_none
       
       ! Arguments
       class(dispersal_type), intent(inout) :: this
@@ -75,7 +75,7 @@ contains
       ! Check if seed dispersal mode is 'turned on' by checking the parameter values
       ! This assumes we consistency in the parameter file across all pfts, i.e. either
       ! all 'on' or all 'off'
-      if (fates_dispersal_kernel_mode .eq. fates_dispersal_kernel_none) return 
+      if (hlm_seeddisp_cadence .eq. fates_dispersal_cadence_none) return
       
       allocate(this%outgoing_local(numprocs,numpft))
       allocate(this%outgoing_global(numprocs,numpft))
@@ -109,7 +109,7 @@ contains
       real(r8), intent(in)  :: dist ! distance
 
       ! Select the function to use based on the kernel mode
-      ! Note that fates_dispersal_kernel_none mode is checked prior to this call being made
+      ! Note that hlm_seeddisp_cadence is checked prior to this call being made
       select case(fates_dispersal_kernel_mode)
 
       case (fates_dispersal_kernel_exponential)
@@ -204,8 +204,8 @@ contains
    !       happen after WrapSeedGlobal, but can be threaded this takes place at the top of the 
    !       dynamics_driv call.
    
-   use FatesInterfaceTypesMod, only : fates_dispersal_kernel_mode
-   use FatesInterfaceTypesMod, only : fates_dispersal_kernel_none
+   use FatesInterfaceTypesMod, only : hlm_seeddisp_cadence
+   use FatesInterfaceTypesMod, only : fates_dispersal_cadence_none
       
    ! Arguments
    logical, optional :: setdispersedflag ! Has the global dispersal been completed?
@@ -218,7 +218,7 @@ contains
    
    ! Check if seed dispersal mode is 'turned on' by checking the parameter values
    ! If it is off, return false by default
-   if (fates_dispersal_kernel_mode .eq. fates_dispersal_kernel_none) return
+   if (hlm_seeddisp_cadence .eq. fates_dispersal_cadence_none) return
 
    ! Check if set dispersal flag is provided.  This should be provided during a check
    ! when the flag should be set to true after the global dispersal
