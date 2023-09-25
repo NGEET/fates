@@ -2298,7 +2298,7 @@ contains
                 rio_size_class_lasttimestep(io_idx_co) = ccohort%size_class_lasttimestep
                 rio_dbh_co(io_idx_co)          = ccohort%dbh
                 rio_coage_co(io_idx_co)        = ccohort%coage
-                rio_height_co(io_idx_co)       = ccohort%hite
+                rio_height_co(io_idx_co)       = ccohort%height
                 rio_g_sb_laweight_co(io_idx_co)= ccohort%g_sb_laweight
                 rio_nplant_co(io_idx_co)       = ccohort%n
                 rio_gpp_acc_co(io_idx_co)      = ccohort%gpp_acc
@@ -3210,7 +3210,7 @@ contains
                 ccohort%dbh          = rio_dbh_co(io_idx_co)
                 ccohort%coage        = rio_coage_co(io_idx_co)
                 ccohort%g_sb_laweight= rio_g_sb_laweight_co(io_idx_co)
-                ccohort%hite         = rio_height_co(io_idx_co)
+                ccohort%height       = rio_height_co(io_idx_co)
                 ccohort%n            = rio_nplant_co(io_idx_co)
                 ccohort%gpp_acc      = rio_gpp_acc_co(io_idx_co)
                 ccohort%npp_acc      = rio_npp_acc_co(io_idx_co)

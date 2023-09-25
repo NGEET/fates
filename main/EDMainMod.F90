@@ -359,10 +359,10 @@ contains
     integer  :: el                    ! Counter for element type (c,n,p,etc)
     real(r8) :: cohort_biomass_store  ! remembers the biomass in the cohort for balance checking
     real(r8) :: dbh_old               ! dbh of plant before daily PRT [cm]
-    real(r8) :: hite_old              ! height of plant before daily PRT [m]
+    real(r8) :: height_old            ! height of plant before daily PRT [m]
     logical  :: is_drought            ! logical for if the plant (site) is in a drought state
     real(r8) :: delta_dbh             ! correction for dbh
-    real(r8) :: delta_hite            ! correction for hite
+    real(r8) :: delta_height          ! correction for height
     real(r8) :: mean_temp
 
     logical  :: newly_recovered       ! If the current loop is dealing with a newly created cohort, which
@@ -555,10 +555,10 @@ contains
           ! If the current diameter of a plant is somehow less than what is consistent
           ! with what is allometrically consistent with the stuctural biomass, then
           ! correct the dbh to match.
-          call EvaluateAndCorrectDBH(currentCohort,delta_dbh,delta_hite)
+          call EvaluateAndCorrectDBH(currentCohort,delta_dbh,delta_height)
           
           ! We want to save these values for the newly recovered cohort as well
-          hite_old = currentCohort%hite
+          height_old = currentCohort%height
           dbh_old  = currentCohort%dbh
 
           ! -----------------------------------------------------------------------------
@@ -642,9 +642,9 @@ contains
           currentCohort%isnew = .false.
 
           ! Update the plant height (if it has grown)
-          call h_allom(currentCohort%dbh,ft,currentCohort%hite)
+          call h_allom(currentCohort%dbh,ft,currentCohort%height)
 
-          currentCohort%dhdt      = (currentCohort%hite-hite_old)/hlm_freq_day
+          currentCohort%dhdt      = (currentCohort%height-height_old)/hlm_freq_day
           currentCohort%ddbhdt    = (currentCohort%dbh-dbh_old)/hlm_freq_day
 
           ! Carbon assimilate has been spent at this point

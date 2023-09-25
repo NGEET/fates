@@ -83,7 +83,7 @@ module FatesCohortMod
     real(r8) :: n                       ! number of individuals in cohort per 'area' (10000m2 default) [/m2]
     real(r8) :: dbh                     ! diameter at breast height [cm]
     real(r8) :: coage                   ! age [years]
-    real(r8) :: hite                    ! height [m]
+    real(r8) :: height                  ! height [m]
     integer  :: indexnumber             ! unique number for each cohort (within clump?)
     integer  :: canopy_layer            ! canopy status of cohort [1 = canopy, 2 = understorey, etc.]
     real(r8) :: canopy_layer_yesterday  ! recent canopy status of cohort [1 = canopy, 2 = understorey, etc.]
@@ -345,7 +345,7 @@ module FatesCohortMod
       this%n                       = nan
       this%dbh                     = nan
       this%coage                   = nan 
-      this%hite                    = nan 
+      this%height                  = nan 
       this%indexnumber             = fates_unset_int
       this%canopy_layer            = fates_unset_int
       this%canopy_layer_yesterday  = nan  
@@ -532,7 +532,7 @@ module FatesCohortMod
    
     !===========================================================================
 
-    subroutine Create(this, prt, pft, nn, hite, coage, dbh, status,            &
+    subroutine Create(this, prt, pft, nn, height, coage, dbh, status,            &
       ctrim, carea, clayer, crowndamage, spread, can_tlai, elongf_leaf,        &
       elongf_fnrt, elongf_stem)
       !
@@ -547,7 +547,7 @@ module FatesCohortMod
       integer,                  intent(in)             :: clayer           ! canopy status of cohort [canopy/understory]
       integer,                  intent(in)             :: status           ! growth status of cohort [leaves on/off]
       real(r8),                 intent(in)             :: nn               ! number of individuals in cohort [/m2]
-      real(r8),                 intent(in)             :: hite             ! cohort height [m]
+      real(r8),                 intent(in)             :: height           ! cohort height [m]
       real(r8),                 intent(in)             :: coage            ! cohort age [yr]
       real(r8),                 intent(in)             :: dbh              ! cohort diameter at breat height [cm]
       real(r8),                 intent(in)             :: ctrim            ! fraction of the maximum leaf biomass 
@@ -572,7 +572,7 @@ module FatesCohortMod
       this%canopy_layer_yesterday = real(clayer, r8)
       this%status_coh   = status
       this%n            = nn
-      this%hite         = hite
+      this%height       = height
       this%dbh          = dbh
       this%coage        = coage
       this%canopy_trim  = ctrim
@@ -672,7 +672,7 @@ module FatesCohortMod
       copyCohort%n                       = this%n
       copyCohort%dbh                     = this%dbh
       copyCohort%coage                   = this%coage
-      copyCohort%hite                    = this%hite
+      copyCohort%height                  = this%height
       copyCohort%canopy_layer            = this%canopy_layer
       copyCohort%canopy_layer_yesterday  = this%canopy_layer_yesterday
       copyCohort%crowndamage             = this%crowndamage
@@ -1010,7 +1010,7 @@ module FatesCohortMod
       write(fates_log(),*) 'cohort%pft                    = ', this%pft
       write(fates_log(),*) 'cohort%n                      = ', this%n                         
       write(fates_log(),*) 'cohort%dbh                    = ', this%dbh                                        
-      write(fates_log(),*) 'cohort%hite                   = ', this%hite
+      write(fates_log(),*) 'cohort%height                 = ', this%height
       write(fates_log(),*) 'cohort%crowndamage            = ', this%crowndamage
       write(fates_log(),*) 'cohort%coage                  = ', this%coage
       write(fates_log(),*) 'cohort%l2fr                   = ', this%l2fr
