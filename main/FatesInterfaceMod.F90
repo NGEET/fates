@@ -959,13 +959,13 @@ contains
          
          ! Set the fates dispersal cadence if seed dispersal parameters are set.
          ! This could be a parameter value setting as well.  Currently hardcoded
-         if(any(EDPftvarcon_inst%seed_dispersal_pdf_scale .lt. fates_check_param_set)) then
-            fates_dispersal_cadence = fates_dispersal_cadence_daily
-            !fates_dispersal_cadence = fates_dispersal_cadence_monthly
-            ! fates_dispersal_cadence = fates_dispersal_cadence_yearly
-         else 
-            fates_dispersal_cadence = 0
-         end if
+         ! if(any(EDPftvarcon_inst%seed_dispersal_pdf_scale .lt. fates_check_param_set)) then
+         !    fates_dispersal_cadence = fates_dispersal_cadence_daily
+         !    !fates_dispersal_cadence = fates_dispersal_cadence_monthly
+         !    ! fates_dispersal_cadence = fates_dispersal_cadence_yearly
+         ! else
+         !    fates_dispersal_cadence = 0
+         ! end if
 
          ! Initialize Hydro globals 
          ! (like water retention functions)
@@ -1431,6 +1431,7 @@ contains
          hlm_use_vertsoilc = unset_int
          hlm_parteh_mode   = unset_int
          hlm_spitfire_mode = unset_int
+         hlm_seeddisp_cadence = unset_int
          hlm_sf_nofire_def = unset_int
          hlm_sf_scalar_lightning_def = unset_int
          hlm_sf_successful_ignitions_def = unset_int
@@ -1633,6 +1634,11 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_seeddisp_cadence .eq. unset_int) then
+            write(fates_log(), *) 'switch defining seed dispersal cadence is unset, hlm_seeddisp_cadence, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
          if(hlm_use_ch4 .eq. unset_int) then
             write(fates_log(), *) 'switch for the HLMs CH4 module unset: hlm_use_ch4, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1791,6 +1797,12 @@ contains
                hlm_parteh_mode = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_parteh_mode= ',ival,' to FATES'
+               end if
+
+            case('seeddisp_cadence')
+               hlm_seeddisp_cadence = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_seeddisp_cadence= ',ival,' to FATES'
                end if
 
             case('spitfire_mode')

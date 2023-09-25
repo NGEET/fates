@@ -94,6 +94,9 @@ module FatesInterfaceTypesMod
    integer, public :: hlm_parteh_mode   ! This flag signals which Plant Allocation and Reactive
                                                    ! Transport (exensible) Hypothesis (PARTEH) to use
 
+   integer, public :: hlm_seeddisp_cadence ! This flag signals at what cadence to disperse seeds across gridcells
+                                                   ! 0 => no seed dispersal
+                                                   ! 1, 2, 3 => daily, monthly, yearly dispersal
 
    integer, public :: hlm_use_ch4       ! This flag signals whether the methane model in ELM/CLM is
                                         ! active, and therefore whether or not boundary conditions
@@ -234,9 +237,7 @@ module FatesInterfaceTypesMod
    integer, parameter, public :: fates_dispersal_kernel_exppower = 2     ! exponential power (ExP) dispersal kernel
    integer, parameter, public :: fates_dispersal_kernel_logsech = 3      ! logistic-sech (LogS) dispersal kernel
 
-   integer, public :: fates_dispersal_cadence       ! Setting to denote how often seed dispersal should occur
-   
-   integer, parameter, public :: fates_dispersal_cadence_daily = 1    ! Disperse seeds daily   
+   integer, parameter, public :: fates_dispersal_cadence_daily = 1    ! Disperse seeds daily
    integer, parameter, public :: fates_dispersal_cadence_monthly = 2  ! Disperse seeds monthly
    integer, parameter, public :: fates_dispersal_cadence_yearly = 3   ! Disperse seeds yearly
    

@@ -250,17 +250,17 @@ contains
 
    integer function GetCadenceDate()
    
-   use FatesInterfaceTypesMod,      only : hlm_current_day, &
+   use FatesInterfaceTypesMod, only : hlm_current_day, &
                                       hlm_current_month, & 
                                       hlm_current_year, &
                                       hlm_current_date, &
-                                      fates_dispersal_cadence, &
+                                      hlm_seeddisp_cadence, &
                                       fates_dispersal_cadence_daily, &
                                       fates_dispersal_cadence_monthly, &
                                       fates_dispersal_cadence_yearly
 
    ! Select the date type to check against based on the dispersal candence
-   select case(fates_dispersal_cadence)
+   select case(hlm_seeddisp_cadence)
    case (fates_dispersal_cadence_daily)
       GetCadenceDate = hlm_current_day
    case (fates_dispersal_cadence_monthly)
@@ -268,7 +268,7 @@ contains
    case (fates_dispersal_cadence_yearly)
       GetCadenceDate = hlm_current_year
    case default
-      write(fates_log(),*) 'ERROR: An undefined dispersal cadence was specified: ', fates_dispersal_cadence
+      write(fates_log(),*) 'ERROR: An undefined dispersal cadence was specified: ', hlm_seeddisp_cadence
       call endrun(msg=errMsg(sourcefile, __LINE__))
    end select
                                       
