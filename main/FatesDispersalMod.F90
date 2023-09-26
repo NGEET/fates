@@ -28,7 +28,8 @@ module FatesDispersalMod
       type(neighbor_type), pointer :: first_neighbor => null()
       type(neighbor_type), pointer :: last_neighbor => null()
      
-      integer  :: neighbor_count   ! total neighbors near source
+      integer                :: neighbor_count   ! total neighbors near source
+      integer, allocatable  :: neighbor_indices(:) ! list of gridcell indices
 
    end type neighborhood_type
    
@@ -85,8 +86,10 @@ contains
       allocate(this%outgoing_local(numpft,numgc_local))
       allocate(this%outgoing_global(numpft,numgc_global))
       allocate(this%incoming_global(numpft,numgc_global))
-      allocate(this%ncells_array(0:numprocs-1))
-      allocate(this%begg_array(0:numprocs-1))
+      !allocate(this%ncells_array(0:numprocs-1))
+      !allocate(this%begg_array(0:numprocs-1))
+      allocate(this%begg_array(numprocs))
+      allocate(this%ncells_array(numprocs))
    
       this%outgoing_local(:,:) = 0._r8
       this%outgoing_global(:,:) = 0._r8
