@@ -173,7 +173,7 @@ module FatesInterfaceMod
    public :: InitTimeAveragingGlobals
    public :: DetermineGridCellNeighbors
 
-   logical :: debug = .false.  ! for debugging this module
+   logical :: debug = .true.  ! for debugging this module
    
 contains
 
@@ -2193,10 +2193,12 @@ subroutine DetermineGridCellNeighbors(neighbors,seeds,numg)
    type (neighbor_type), pointer :: current_neighbor
    type (neighbor_type), pointer :: another_neighbor
 
-   integer :: i, gi, gj, ni    ! indices
-   integer :: ier, mpierr ! error status
-   integer :: ipft        ! pft index
-   real(r8), allocatable :: gclat(:), gclon(:)
+   integer :: i, gi, gj, ni ! indices
+   integer :: ier, mpierr   ! error status
+   integer :: ipft          ! pft index
+
+   integer,  allocatable :: ncells_array(:), begg_array(:) ! number of cells and starting global grid cell index per process 
+   real(r8), allocatable :: gclat(:), gclon(:)             ! local array holding gridcell lat and lon
 
    ! 5 deg = 785.8 km, 10 deg = 1569 km, 15deg = 2345 km assumes cartesian layout with diagonal distance
    real(r8) :: g2g_dist ! grid cell distance (m)
@@ -2207,68 +2209,75 @@ subroutine DetermineGridCellNeighbors(neighbors,seeds,numg)
 
    if(debug .and. hlm_is_restart .eq. itrue) write(fates_log(),*) 'gridcell initialization during restart'
 
-   ! Allocate array neighbor type
+   if(debug) write(fates_log(),*)'DGCN: npes, numg: ', npes, numg
+
+   ! Allocate and initialize array neighbor type
    allocate(neighbors(numg), stat=ier)
    neighbors(:)%neighbor_count = 0
 
+   ! Allocate and initialize local lat and lon arrays
    allocate(gclat(numg), stat=ier)
-   !write(fates_log(),*)'DGCN: gclat alloc: ', ier
+   if(debug) write(fates_log(),*)'DGCN: gclat alloc: ', ier
+
    allocate(gclon(numg), stat=ier)
-   !write(fates_log(),*)'DGCN: gclon alloc: ', ier
+   if(debug) write(fates_log(),*)'DGCN: gclon alloc: ', ier
+
    gclon(:) = nan
    gclat(:) = nan
 
-   !allocate(ncells_array(0:npes-1), stat=ier)
-   allocate(ncells_array(npes), stat=ier)
-   !write(fates_log(),*)'DGCN: ncells alloc: ', ier
-   !allocate(begg_array(0:npes-1), stat=ier)
-   allocate(begg_array(npes), stat=ier)
-   !write(fates_log(),*)'DGCN: begg alloc: ', ier
+   ! Allocate and initialize MPI count and displacement values
+   allocate(ncells_array(0:npes-1), stat=ier)
+   !allocate(ncells_array(npes), stat=ier)
+   if(debug) write(fates_log(),*)'DGCN: ncells alloc: ', ier
+
+   allocate(begg_array(0:npes-1), stat=ier)
+   !allocate(begg_array(npes), stat=ier)
+   if(debug) write(fates_log(),*)'DGCN: begg alloc: ', ier
+
    ncells_array(:) = fates_unset_int
    begg_array(:) = fates_unset_int
 
    call t_startf('fates-seed-init-allgather')
 
+   if(debug) write(fates_log(),*)'DGCN: procinfo%begg: ', procinfo%begg
+   if(debug) write(fates_log(),*)'DGCN: procinfo%ncells: ', procinfo%ncells
+
    ! Gather the sizes of the ldomain that each mpi rank is passing
    call MPI_Allgather(procinfo%ncells,1,MPI_INTEGER,ncells_array,1,MPI_INTEGER,mpicom,mpierr)
-   !write(fates_log(),*)'DGCN: ncells mpierr: ', mpierr
+   if(debug) write(fates_log(),*)'DGCN: ncells mpierr: ', mpierr
 
    ! Gather the starting gridcell index for each ldomain 
    call MPI_Allgather(procinfo%begg,1,MPI_INTEGER,begg_array,1,MPI_INTEGER,mpicom,mpierr)
-   !write(fates_log(),*)'DGCN: begg mpierr: ', mpierr
+   if(debug) write(fates_log(),*)'DGCN: begg mpierr: ', mpierr
 
    ! reduce the begg_array displacements by one as MPI collectives expect zero indexed arrays
    begg_array = begg_array - 1
 
-   if (debug .and. iam .eq. 1) then
-      write(fates_log(),*)'DGCN: ncells_array: ', ncells_array
-      write(fates_log(),*)'DGCN: begg_array: ', begg_array
-      !write(fates_log(),*)'DGCN: size gindex: ', size(gindex_global), size(gindex_grc)
-      !write(fates_log(),*)'DGCN: gindex_global: ', gindex_global
-      !write(fates_log(),*)'DGCN: gindex_grc: ', gindex_grc
-   end if
+   if(debug) write(fates_log(),*)'DGCN: ncells_array: ' , ncells_array
+   if(debug) write(fates_log(),*)'DGCN: begg_array: '   , begg_array
+   if(debug) write(fates_log(),*)'DGCN: gindex_global: ', gindex_global
+   if(debug) write(fates_log(),*)'DGCN: gindex_grc: '   , gindex_grc
 
    ! Gather the domain information together into the neighbor type
    ! Note that MPI_Allgatherv is only gathering a subset of ldomain
-   !write(fates_log(),*)'DGCN: gathering latc'
+   if(debug) write(fates_log(),*)'DGCN: gathering latc'
    call MPI_Allgatherv(ldomain%latc,procinfo%ncells,MPI_REAL8,gclat,ncells_array,begg_array,MPI_REAL8,mpicom,mpierr)
-   !write(fates_log(),*)'DGCN: gathering lonc'
+
+   if(debug) write(fates_log(),*)'DGCN: gathering lonc'
    call MPI_Allgatherv(ldomain%lonc,procinfo%ncells,MPI_REAL8,gclon,ncells_array,begg_array,MPI_REAL8,mpicom,mpierr)
 
-   if (debug .and. iam .eq. 1) then
-      write(fates_log(),*)'DGCN: ncells_array: ', ncells_array
-      write(fates_log(),*)'DGCN: begg_array: ', begg_array
+   !if (debug .and. iam .eq. 1) then
       write(fates_log(),*)'DGCN: sum(gclat):, sum(gclon): ', sum(gclat), sum(gclon)
-   end if
+   !end if
 
    ! Save number of cells and begging index arrays to dispersal type
-   !write(fates_log(),*)'DGCN: save to seeds type'
-   !write(fates_log(),*)'DGCN: seeds ncells alloc: ', allocated(seeds%ncells_array)
-   !write(fates_log(),*)'DGCN: seeds begg alloc: ', allocated(seeds%begg_array)
+   if(debug) write(fates_log(),*)'DGCN: save to seeds type'
+   if(debug) write(fates_log(),*)'DGCN: seeds ncells alloc: ', allocated(seeds%ncells_array)
+   if(debug) write(fates_log(),*)'DGCN: seeds begg alloc: ', allocated(seeds%begg_array)
    seeds%ncells_array = ncells_array
    seeds%begg_array = begg_array
 
-   if (debug .and. iam .eq. 1) then
+   if (debug .and. iam .eq. 0) then
       write(fates_log(),*)'DGCN: seeds%ncells_array: ', seeds%ncells_array
       write(fates_log(),*)'DGCN: seeds%begg_array: ', seeds%begg_array
    end if
@@ -2277,7 +2286,7 @@ subroutine DetermineGridCellNeighbors(neighbors,seeds,numg)
 
    call t_startf('fates-seed-init-decomp')
 
-   write(fates_log(), *) 'DGCN: maxdist: ', EDPftvarcon_inst%seed_dispersal_max_dist
+   if(debug) write(fates_log(), *) 'DGCN: maxdist: ', EDPftvarcon_inst%seed_dispersal_max_dist
 
    ! Iterate through the grid cell indices and determine if any neighboring cells are in range
    gc_loop: do gi = 1,numg-1
@@ -2288,7 +2297,7 @@ subroutine DetermineGridCellNeighbors(neighbors,seeds,numg)
          ! Determine distance to old grid cells to the current one
          g2g_dist = GetNeighborDistance(gi,gj,gclat,gclon)
 
-         write(fates_log(), *) 'DGCN: gi,gj,g2g_dist: ', gi,gj,g2g_dist
+         if(debug) write(fates_log(), *) 'DGCN: gi,gj,g2g_dist: ', gi,gj,g2g_dist
 
          ! 
          dist_check: if (any(EDPftvarcon_inst%seed_dispersal_max_dist .gt. g2g_dist)) then
@@ -2361,11 +2370,13 @@ subroutine DetermineGridCellNeighbors(neighbors,seeds,numg)
          current_neighbor => current_neighbor%next_neighbor
       end do
 
-      write(fates_log(), *) 'DGCN: g, lat, lon: ', gi, gclat(gi), gclon(gi)
-      write(fates_log(), *) 'DGCN: g, ncount: ', gi, neighbors(gi)%neighbor_count
-      do i = 1,neighbors(gi)%neighbor_count
-         write(fates_log(), *) 'DGCN: g, gilist: ', gi, neighbors(gi)%neighbor_indices(i)
-      end do
+      if (debug .and. iam .eq. 0) then
+         write(fates_log(), *) 'DGCN: g, lat, lon: ', gi, gclat(gi), gclon(gi)
+         write(fates_log(), *) 'DGCN: g, ncount: ', gi, neighbors(gi)%neighbor_count
+         do i = 1,neighbors(gi)%neighbor_count
+            write(fates_log(), *) 'DGCN: g, gilist: ', gi, neighbors(gi)%neighbor_indices(i)
+         end do
+      end if
 
    end do
 
