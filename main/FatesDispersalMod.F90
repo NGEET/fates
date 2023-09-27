@@ -67,9 +67,7 @@ contains
       ! Use
       use EDPftvarcon           , only : EDPftvarcon_inst 
       use FatesConstantsMod     , only : fates_check_param_set, fates_unset_int
-      use FatesInterfaceTypesMod, only : hlm_seeddisp_cadence
-      use FatesInterfaceTypesMod, only : fates_dispersal_cadence_none
-      
+
       ! Arguments
       class(dispersal_type), intent(inout) :: this
 
@@ -78,16 +76,9 @@ contains
       integer, intent(in) ::  numgc_local   ! number of gridcells on this processor
       integer, intent(in) ::  numpft        ! number of FATES pfts
       
-      ! Check if seed dispersal mode is 'turned on' by checking the parameter values
-      ! This assumes we consistency in the parameter file across all pfts, i.e. either
-      ! all 'on' or all 'off'
-      if (hlm_seeddisp_cadence .eq. fates_dispersal_cadence_none) return
-      
       allocate(this%outgoing_local(numpft,numgc_local))
       allocate(this%outgoing_global(numpft,numgc_global))
       allocate(this%incoming_global(numpft,numgc_global))
-      !allocate(this%ncells_array(0:numprocs-1))
-      !allocate(this%begg_array(0:numprocs-1))
       allocate(this%begg_array(numprocs))
       allocate(this%ncells_array(numprocs))
    
@@ -216,9 +207,6 @@ contains
    !       happen after WrapSeedGlobal, but can be threaded this takes place at the top of the 
    !       dynamics_driv call.
    
-   use FatesInterfaceTypesMod, only : hlm_seeddisp_cadence
-   use FatesInterfaceTypesMod, only : fates_dispersal_cadence_none
-      
    ! Arguments
    logical, optional :: setdispersedflag ! Has the global dispersal been completed?
 
@@ -228,10 +216,6 @@ contains
    ! The default return value is false
    IsItDispersalTime = .false.
    
-   ! Check if seed dispersal mode is 'turned on' by checking the parameter values
-   ! If it is off, return false by default
-   if (hlm_seeddisp_cadence .eq. fates_dispersal_cadence_none) return
-
    ! Check if set dispersal flag is provided.  This should be provided during a check
    ! when the flag should be set to true after the global dispersal
    setflag = .false.

@@ -958,17 +958,7 @@ contains
             ! fates_dispersal_kernel_mode = fates_dispersal_kernel_logsech
          end if
          
-         ! Set the fates dispersal cadence if seed dispersal parameters are set.
-         ! This could be a parameter value setting as well.  Currently hardcoded
-         ! if(any(EDPftvarcon_inst%seed_dispersal_pdf_scale .lt. fates_check_param_set)) then
-         !    fates_dispersal_cadence = fates_dispersal_cadence_daily
-         !    !fates_dispersal_cadence = fates_dispersal_cadence_monthly
-         !    ! fates_dispersal_cadence = fates_dispersal_cadence_yearly
-         ! else
-         !    fates_dispersal_cadence = 0
-         ! end if
-
-         ! Initialize Hydro globals 
+         ! Initialize Hydro globals
          ! (like water retention functions)
          ! this needs to know the number of PFTs, which is
          ! determined in that call
@@ -2214,9 +2204,6 @@ subroutine DetermineGridCellNeighbors(neighbors,seeds,numg)
    ! 5 deg = 785.8 km, 10 deg = 1569 km, 15deg = 2345 km assumes cartesian layout with diagonal distance
    real(r8) :: g2g_dist ! grid cell distance (m)
    real(r8) :: pdf
-
-   ! Check if seed dispersal mode is 'turned on' by checking the parameter values
-   if (hlm_seeddisp_cadence .eq. fates_dispersal_cadence_none) return
 
    if(debug .and. hlm_is_restart .eq. itrue) write(fates_log(),*) 'gridcell initialization during restart'
 
