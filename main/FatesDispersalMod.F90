@@ -66,7 +66,7 @@ contains
       
       ! Use
       use EDPftvarcon           , only : EDPftvarcon_inst 
-      use FatesConstantsMod     , only : fates_check_param_set
+      use FatesConstantsMod     , only : fates_check_param_set, fates_unset_int
       use FatesInterfaceTypesMod, only : hlm_seeddisp_cadence
       use FatesInterfaceTypesMod, only : fates_dispersal_cadence_none
       
