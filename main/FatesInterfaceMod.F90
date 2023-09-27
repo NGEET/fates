@@ -173,7 +173,7 @@ module FatesInterfaceMod
    public :: InitTimeAveragingGlobals
    public :: DetermineGridCellNeighbors
 
-   logical :: debug = .true.  ! for debugging this module
+   logical :: debug = .false.  ! for debugging this module
    
 contains
 
@@ -2201,9 +2201,8 @@ subroutine DetermineGridCellNeighbors(neighbors,seeds,numg)
    integer,  allocatable :: ncells_array(:), begg_array(:) ! number of cells and starting global grid cell index per process 
    real(r8), allocatable :: gclat(:), gclon(:)             ! local array holding gridcell lat and lon
 
-   ! 5 deg = 785.8 km, 10 deg = 1569 km, 15deg = 2345 km assumes cartesian layout with diagonal distance
    real(r8) :: g2g_dist ! grid cell distance (m)
-   real(r8) :: pdf
+   real(r8) :: pdf      ! probability density function output
 
    if(debug .and. hlm_is_restart .eq. itrue) write(fates_log(),*) 'gridcell initialization during restart'
 
@@ -2225,11 +2224,9 @@ subroutine DetermineGridCellNeighbors(neighbors,seeds,numg)
 
    ! Allocate and initialize MPI count and displacement values
    allocate(ncells_array(0:npes-1), stat=ier)
-   !allocate(ncells_array(npes), stat=ier)
    if(debug) write(fates_log(),*)'DGCN: ncells alloc: ', ier
 
    allocate(begg_array(0:npes-1), stat=ier)
-   !allocate(begg_array(npes), stat=ier)
    if(debug) write(fates_log(),*)'DGCN: begg alloc: ', ier
 
    ncells_array(:) = fates_unset_int
@@ -2264,9 +2261,9 @@ subroutine DetermineGridCellNeighbors(neighbors,seeds,numg)
    if(debug) write(fates_log(),*)'DGCN: gathering lonc'
    call MPI_Allgatherv(ldomain%lonc,procinfo%ncells,MPI_REAL8,gclon,ncells_array,begg_array,MPI_REAL8,mpicom,mpierr)
 
-   !if (debug .and. iam .eq. 1) then
+   if (debug .and. iam .eq. 0) then
       write(fates_log(),*)'DGCN: sum(gclat):, sum(gclon): ', sum(gclat), sum(gclon)
-   !end if
+   end if
 
    ! Save number of cells and begging index arrays to dispersal type
    if(debug) write(fates_log(),*)'DGCN: save to seeds type'
