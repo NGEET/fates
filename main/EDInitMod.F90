@@ -61,6 +61,7 @@ module EDInitMod
   use FatesInterfaceTypesMod         , only : nlevage
 
   use FatesAllometryMod         , only : h2d_allom
+  use FatesAllometryMod         , only : h_allom
   use FatesAllometryMod         , only : bagw_allom
   use FatesAllometryMod         , only : bbgw_allom
   use FatesAllometryMod         , only : bleaf
@@ -845,12 +846,20 @@ contains
       real(r8)                         :: stem_drop_fraction    ! fraction of stem to absciss when leaves absciss
       real(r8)                         :: fnrt_drop_fraction    ! fraction of fine roots to absciss when leaves absciss
       integer, parameter               :: recruitstatus = 0     ! whether the newly created cohorts are recruited or initialized
-
+      real(r8),parameter               :: zero_co_age = 0._r8   ! The age of a newly recruited cohort is zero
       !-------------------------------------------------------------------------------------
 
       patch_in%tallest  => null()
       patch_in%shortest => null()
 
+      ! if any pfts are starting with large  size  then the whole  site needs a spread of 0
+      do pft = 1, numpft
+         if (EDPftvarcon_inst%initd(pft) < 0.0_r8) then   
+            site_in%spread = init_spread_inventory
+         end if
+      end do
+
+      
       ! Manage interactions of fixed biogeog (site level filter) and nocomp (patch level filter)
       ! Need to cover all potential biogeog x nocomp combinations
       ! 1. biogeog = false. nocomp = false: all PFTs on (DEFAULT)
@@ -980,8 +989,15 @@ contains
                   ! Calculate the leaf biomass from allometry
                   ! (calculates a maximum first, then applies canopy trim)
                   call bleaf(dbh, pft, crown_damage, canopy_trim, efleaf_coh,  &
-                     c_leaf)
+                       c_leaf)
 
+                  ! calculate crown area of the cohort
+                  call carea_allom(dbh, cohort_n, init_spread_inventory, pft, crown_damage,       &
+                       c_area)
+
+                  ! calculate height from diameter
+                  call h_allom(dbh, pft, hite)
+ 
                else
                   write(fates_log(),*) 'Negative fates_recruit_init_density can only be used in no comp mode'
                   call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1067,7 +1083,7 @@ contains
             call prt%CheckInitialConditions()
 
             call create_cohort(site_in, patch_in, pft, cohort_n,               &
-               hite, 0.0_r8, dbh, prt, efleaf_coh,                             &
+               hite, zero_co_age, dbh, prt, efleaf_coh,                             &
                effnrt_coh, efstem_coh, leaf_status, recruitstatus,             &
                canopy_trim, c_area, 1, crown_damage, site_in%spread, bc_in)
 
