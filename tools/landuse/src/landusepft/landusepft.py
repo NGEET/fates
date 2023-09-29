@@ -1,5 +1,6 @@
-#!/usr/bin/env python3
-
+def basicfunc():
+    val = "yup"
+    return val
 
 # Steps
 # - import clm landuse-pft data (1/4 degree)

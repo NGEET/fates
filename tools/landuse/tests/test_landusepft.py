@@ -1,7 +1,8 @@
-#!/usr/bin/env python3
+# import pytest
+from landusepft import landusepft
 
-import pytest
-import landusepft
+def test_TempFunc():
+    assert landusepft.basicfunc() == "yup"
 
 # Possible tests
 # - Check that import fails if argument is not given the appropriate landuse pft data
