@@ -200,7 +200,7 @@ contains
                               if(bc_out(s)%fabi_parb(ifp,ib)>1.0 .or. bc_out(s)%fabd_parb(ifp,ib)>1.0)then
                                  write(fates_log(),*) 'absorbed fraction > 1.0?'
                                  write(fates_log(),*) ifp,ib,bc_out(s)%fabi_parb(ifp,ib),bc_out(s)%fabd_parb(ifp,ib)
-                                 call twostr%Dump(ib,bc_in(s)%coszen_pa(ifp),lat=sites(s)%lat,lon=sites(s)%lon)
+                                 call twostr%Dump(ib,lat=sites(s)%lat,lon=sites(s)%lon)
                                  call endrun(msg=errMsg(sourcefile, __LINE__))
                               end if
                            end if

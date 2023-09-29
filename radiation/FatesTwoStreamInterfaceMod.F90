@@ -252,7 +252,8 @@ contains
                twostr%scelg(ican,1)%sai  = twostr%scelg(ican,1)%sai / area_ratio
 
                write(fates_log(),*) 'overfull areas'
-               call twostr%Dump(1,coszen_pa(ifp),lat=site%lat,lon=site%lon)
+               twostr%cosz = coszen_pa(ifp)
+               call twostr%Dump(1,lat=site%lat,lon=site%lon)
                call endrun(msg=errMsg(sourcefile, __LINE__))
             end if
 
