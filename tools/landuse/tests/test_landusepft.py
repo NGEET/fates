@@ -8,6 +8,22 @@ def test_posImportStaticLUH2File(static_file_location):
     static_variables = list(data.var())
     assert static_variables == ['ptbio', 'fstnf', 'carea', 'icwtr', 'ccode', 'lat_bounds', 'lon_bounds']
 
+def test_posImportLandusePFTFile(landusepft_file_location):
+    data = landusepft.ImportLandusePFTFile(landusepft_file_location)
+    landusepft_variables = list(data.var())
+    assert landusepft_variable == ['EDGEN',
+                                   'EDGEE',
+                                   'EDGES',
+                                   'EDGEW',
+                                   'LAT',
+                                   'LATIXY',
+                                   'LON',
+                                   'LONGXY',
+                                   'LANDMASK',
+                                   'LANDFRAC',
+                                   'AREA',
+                                   'PCT_NAT_PFT']
+
 # Negative test case for importing the LUH2 static data file
 # def test_negImportStaticLUH2File(mockluh2_file_location):
 #     with pytest.raises(ValueError) as exp:

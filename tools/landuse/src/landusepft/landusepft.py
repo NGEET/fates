@@ -4,6 +4,8 @@ def ImportStaticLUH2File(filename):
     dataset = xr.open_dataset(filename)
     return dataset
 
+
+
 # Steps
 # - import clm landuse-pft data (1/4 degree)
 # - import luh2 static data file (1/4 degree)
