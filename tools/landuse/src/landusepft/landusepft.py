@@ -4,7 +4,18 @@ def ImportStaticLUH2File(filename):
     dataset = xr.open_dataset(filename)
     return dataset
 
+def ImportLandusePFTFile(filename):
+    dataset = xr.open_dataset(filename)
+    return dataset
 
+def DefineMask(dataset):
+    mask = (1.-dataset.icwtr) / (1.-dataset.icwtr)
+    return mask
+
+def RenormalizeNoBareGround(dataset, mask):
+    percent = dataset.PCT_NAT_PFT.isel(natpft=slice(1,None))
+    percent = percent / percent * 100.0 * mask
+    return percent
 
 # Steps
 # - import clm landuse-pft data (1/4 degree)

@@ -1,4 +1,5 @@
 import pytest
+import numpy as np
 
 from landusepft import landusepft
 
@@ -8,10 +9,11 @@ def test_posImportStaticLUH2File(static_file_location):
     static_variables = list(data.var())
     assert static_variables == ['ptbio', 'fstnf', 'carea', 'icwtr', 'ccode', 'lat_bounds', 'lon_bounds']
 
+# Positive test case for importing landuse x pft data file
 def test_posImportLandusePFTFile(landusepft_file_location):
     data = landusepft.ImportLandusePFTFile(landusepft_file_location)
     landusepft_variables = list(data.var())
-    assert landusepft_variable == ['EDGEN',
+    assert landusepft_variables == ['EDGEN',
                                    'EDGEE',
                                    'EDGES',
                                    'EDGEW',
@@ -23,6 +25,33 @@ def test_posImportLandusePFTFile(landusepft_file_location):
                                    'LANDFRAC',
                                    'AREA',
                                    'PCT_NAT_PFT']
+
+
+# Define Mask function unit tests
+# - Is there a better way to simply test that the mask matches all gridcells?
+# - Should we test what happens when the wrong dataset is used (i.e. landuse x pft)?
+
+# Make sure that the generated mask makes sense in that a known gridcell is nan
+def test_posDefineMask(static_dataset):
+    maskoutput = landusepft.DefineMask(static_dataset)
+    assert np.isnan(maskoutput[0][0])
+
+# Make sure a known gridcell that should be land is not nan
+# TODO: change this to use sel indexing
+def test_negDefineMask(static_dataset):
+    maskoutput = landusepft.DefineMask(static_dataset)
+    assert not(np.isnan(maskoutput[360][850]))
+
+# Bare ground fraction removal unit test
+# Make sure that the pft fractions sum to 100% on a known land gridcell
+# TODO: this needs to take the mask as the input
+# This won't work because there is no lat/lon coordinate for the PCT_NAT_PFT dimensions
+# even though xarray recognizes that there technically are dimensions specified
+def test_posRenormalizeNoBareGround(landusepft_dataset):
+    percent = sum(landusepft_dataset.PCT_NAT_PFT.sel(lat=0.125, lon=20.125))
+    assert percent == 100.0
+
+# forest_pft_percent = fin_forestdata.PCT_NAT_PFT.isel(natpft=slice(1,None)) / fin_forestdata.PCT_NAT_PFT.isel(natpft=slice(1,None)).sum(dim='natpft') * 100. * landoceanmask
 
 # Negative test case for importing the LUH2 static data file
 # def test_negImportStaticLUH2File(mockluh2_file_location):
