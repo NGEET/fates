@@ -2,12 +2,15 @@ import xarray as xr
 
 def ImportStaticLUH2File(filename):
     dataset = xr.open_dataset(filename)
-    if 'icwtr' not in list(dataset.var()):
-        raise TypeError("incorrect LUH2 file, must be static file")
+    listcheck = ['ptbio', 'fstnf', 'carea', 'icwtr', 'ccode', 'lat_bounds', 'lon_bounds']
+    if list(dataset.var()) != listcheck:
+        raise TypeError("incorrect file, must be LUH2 static file")
     return dataset
 
 def ImportLandusePFTFile(filename):
     dataset = xr.open_dataset(filename)
+    if 'PCT_NAT_PFT' not in list(dataset.var()):
+        raise TypeError("incorrect file, must be CLM5 landuse file")
     return dataset
 
 def DefineMask(dataset):

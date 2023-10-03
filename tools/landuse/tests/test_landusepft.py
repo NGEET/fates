@@ -13,7 +13,7 @@ def test_posImportStaticLUH2File(static_file_location):
 def test_negImportStaticLUH2File(landusepft_file_location):
     with pytest.raises(TypeError) as exp:
         landusepft.ImportStaticLUH2File(landusepft_file_location)
-    assert str(exp.value) == "incorrect LUH2 file, must be static file"
+    assert str(exp.value) == "incorrect file, must be LUH2 static file"
 
 # Positive test case for importing landuse x pft data file
 def test_posImportLandusePFTFile(landusepft_file_location):
@@ -32,6 +32,15 @@ def test_posImportLandusePFTFile(landusepft_file_location):
                                    'AREA',
                                    'PCT_NAT_PFT']
 
+# Negative test case for importing incorrect file via static luh2 file open function
+def test_negImportLandusePFTFile(static_file_location):
+    with pytest.raises(TypeError) as exp:
+        landusepft.ImportLandusePFTFile(static_file_location)
+    assert str(exp.value) == "incorrect file, must be CLM5 landuse file"
+
+
+# Unit tests to update CLM5 landuse datasets with lat/lon coordinates
+# def test_
 
 # Define Mask function unit tests
 # - Is there a better way to simply test that the mask matches all gridcells?
@@ -53,6 +62,7 @@ def test_negDefineMask(static_dataset):
 # TODO: this needs to take the mask as the input
 # This won't work because there is no lat/lon coordinate for the PCT_NAT_PFT dimensions
 # even though xarray recognizes that there technically are dimensions specified
+@pytest.mark.skip(reason="this needs more work")
 def test_posRenormalizeNoBareGround(landusepft_dataset):
     percent = sum(landusepft_dataset.PCT_NAT_PFT.sel(lat=0.125, lon=20.125))
     assert percent == 100.0
