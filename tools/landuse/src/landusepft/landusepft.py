@@ -2,6 +2,8 @@ import xarray as xr
 
 def ImportStaticLUH2File(filename):
     dataset = xr.open_dataset(filename)
+    if 'icwtr' not in list(dataset.var()):
+        raise TypeError("incorrect LUH2 file, must be static file")
     return dataset
 
 def ImportLandusePFTFile(filename):
