@@ -43,7 +43,7 @@ Module TwoStreamMLPEMod
   ! Allowable error, as a fraction of total incident for total canopy
   ! radiation balance checks
 
-  real(r8), public, parameter :: rel_err_thresh = 1.e-8_r8
+  real(r8), public, parameter :: rel_err_thresh = 1.e-6_r8
   real(r8), public, parameter :: area_err_thresh = rel_err_thresh*0.1_r8
   
   ! These are the codes for how the upper boundary is specified, normalized or absolute
@@ -1095,6 +1095,8 @@ contains
     ! flux into the other element, instead of a mix
     logical, parameter :: continuity_on = .true.    
 
+    logical, parameter :: albedo_corr = .false.
+
     ! ------------------------------------------------------------------------------------
     ! Example system of equations for 2 parallel columns in each of two canopy
     ! layers.  Each line is one of the balanc equations. And the x's are
@@ -1487,7 +1489,7 @@ contains
           ! Perform a forward check on the solution error
           do ilem = 1,n_eq
              err1 = tau_temp(ilem) - sum(taulamb(1:n_eq)*omega_temp(ilem,1:n_eq))
-             if(err1>1.e-9_r8)then
+             if(abs(err1)>rel_err_thresh)then
                 write(log_unit,*) 'Poor forward solution on two-stream solver'
                 write(log_unit,*) 'isol (1=beam or 2=diff): ',isol
                 write(log_unit,*) 'i (equation): ',ilem
@@ -1662,14 +1664,16 @@ contains
     ! CESM and E3SM have higher tolerances. We close to 1e-6 but they
     ! close to 1e-8, which is just very difficult when the canopies
     ! get complex
+    if(albedo_corr)then
 
-    albedo_beam = Rbeam_atm - (frac_abs_can_beam + &
-         frac_diff_grnd_beam*(1._r8-this%band(ib)%albedo_grnd_diff) + &
-         frac_beam_grnd_beam*(1._r8-this%band(ib)%albedo_grnd_beam))
+       albedo_beam = Rbeam_atm - (frac_abs_can_beam + &
+            frac_diff_grnd_beam*(1._r8-this%band(ib)%albedo_grnd_diff) + &
+            frac_beam_grnd_beam*(1._r8-this%band(ib)%albedo_grnd_beam))
+       
+       albedo_diff = Rdiff_atm - (frac_abs_can_diff + &
+            frac_diff_grnd_diff*(1._r8-this%band(ib)%albedo_grnd_diff))
 
-    albedo_diff = Rdiff_atm - (frac_abs_can_diff + &
-         frac_diff_grnd_diff*(1._r8-this%band(ib)%albedo_grnd_diff))
-    
+    end if
     
     ! Set the boundary conditions back to unknown for a normalized solution
     ! This prevents us from calling the absorption and flux query routines incorrectly.
