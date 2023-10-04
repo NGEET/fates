@@ -17,11 +17,13 @@ def lupftsurf_file_location():
 @pytest.fixture(scope="module")
 def static_dataset(static_file_location):
     dataset = xr.open_dataset(static_file_location)
+    dataset = dataset.astype('float64')
     return dataset
 
 @pytest.fixture(scope="module")
 def landusepft_dataset(landusepft_file_location):
     dataset = xr.open_dataset(landusepft_file_location)
+    dataset = dataset.astype('float64',casting='safe')
     return dataset
 
 # @pytest.fixture(scope="module")

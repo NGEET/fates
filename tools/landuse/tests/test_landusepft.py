@@ -7,7 +7,13 @@ from landusepft import landusepft
 def test_posImportStaticLUH2File(static_file_location):
     data = landusepft.ImportStaticLUH2File(static_file_location)
     static_variables = list(data.var())
-    assert static_variables == ['ptbio', 'fstnf', 'carea', 'icwtr', 'ccode', 'lat_bounds', 'lon_bounds']
+    assert static_variables == ['ptbio',
+                                'fstnf',
+                                'carea',
+                                'icwtr',
+                                'ccode',
+                                'lat_bounds',
+                                'lon_bounds']
 
 # Negative test case for importing incorrect file via static luh2 file open function
 def test_negImportStaticLUH2File(landusepft_file_location):
@@ -87,6 +93,7 @@ def test_posRenormalizePFTs(landusepft_dataset):
     # Convert to a dataframe to stack lat and lon in one dimension
     # and drop the NaNs
     percent = percent.to_dataframe().dropna(how='all')
+    breakpoint()
 
     # Check that all the summations are unity
     assert (percent == 100.0)['PCT_NAT_PFT'].all()
