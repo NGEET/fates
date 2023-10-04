@@ -43,7 +43,7 @@ Module TwoStreamMLPEMod
   ! Allowable error, as a fraction of total incident for total canopy
   ! radiation balance checks
 
-  real(r8), public, parameter :: rel_err_thresh = 1.e-8_r8
+  real(r8), public, parameter :: rel_err_thresh = 1.e-6_r8
   real(r8), public, parameter :: area_err_thresh = rel_err_thresh*0.1_r8
   
   ! These are the codes for how the upper boundary is specified, normalized or absolute
@@ -204,7 +204,8 @@ Module TwoStreamMLPEMod
                                                 ! parameters on short sub-daily timesteps
      real(r8)                  :: frac_snow     ! Current mean snow-fraction of the canopy
      real(r8)                  :: frac_snow_old ! Previous mean snow-fraction of the canopy
-
+     real(r8)                  :: cosz          ! Current cosine of the zenith angle
+     
    contains
 
      procedure :: ZenithPrep     ! Update coefficients as zenith changes
@@ -586,13 +587,12 @@ contains
 
   ! ================================================================================================
   
-  subroutine Dump(this,ib,cosz,lat,lon)
+  subroutine Dump(this,ib,lat,lon)
 
     ! Dump out everything we know about these two-stream elements
 
     class(twostream_type) :: this
     integer,intent(in)    :: ib
-    real(r8),intent(in)   :: cosz
     real(r8),optional,intent(in)   :: lat
     real(r8),optional,intent(in)   :: lon
     integer  :: ican
@@ -604,7 +604,7 @@ contains
     write(log_unit,*) 'rdiff_atm: ',this%band(ib)%Rdiff_atm
     write(log_unit,*) 'alb grnd diff: ',this%band(ib)%albedo_grnd_diff
     write(log_unit,*) 'alb grnd beam: ',this%band(ib)%albedo_grnd_beam
-    write(log_unit,*) 'cosz: ',cosz
+    write(log_unit,*) 'cosz: ',this%cosz
     write(log_unit,*) 'snow fraction: ',this%frac_snow
     if(present(lat)) write(log_unit,*) 'lat: ',lat
     if(present(lon)) write(log_unit,*) 'lon: ',lon
@@ -878,6 +878,8 @@ contains
        
     cosz = max(0.001,cosz)
 
+    this%cosz = cosz
+    
     do_ican: do ican = 1,this%n_lyr
        do_ical: do icol = 1,this%n_col(ican)
 
@@ -1038,6 +1040,11 @@ contains
     real(r8) :: frac_beam_grnd_beam  ! fraction of beam radiation at ground resulting from of beam at canopy top [-]
     real(r8) :: frac_diff_grnd_beam  ! fraction of down diffuse radiation at ground resulting from beam at canopy top
     real(r8) :: frac_diff_grnd_diff  ! fraction of down diffuse radiation at ground resulting from down diffuse at canopy top [-]
+
+    ! These arrays are only used if we run in debug mode, and are
+    ! looking to report the error on the linear solution e = TAU - OMEGA*LAMBDA
+    real(r8),allocatable :: tau_temp(:)
+    real(r8),allocatable :: omega_temp(:,:)
     
     ! Two stream solution arrays
     ! Each of these are given generic names, because
@@ -1071,6 +1078,7 @@ contains
     real(r8) :: r_abs_stem          ! total absorbed by stems (dummy)
     real(r8) :: r_abs_snow          ! total absorbed by snow (dummy)
     real(r8) :: leaf_sun_frac       ! sunlit fraction of leaves (dummy)
+    real(r8) :: err1,err2
     real(r8) :: rel_err             ! radiation canopy balance conservation
                                     ! error, fraction of incident
 
@@ -1087,7 +1095,7 @@ contains
     ! flux into the other element, instead of a mix
     logical, parameter :: continuity_on = .true.    
 
-
+    logical, parameter :: albedo_corr = .true.
 
     ! ------------------------------------------------------------------------------------
     ! Example system of equations for 2 parallel columns in each of two canopy
@@ -1284,7 +1292,7 @@ contains
        end if
 
        omega(1:n_eq,1:n_eq) = 0._r8
-       taulamb(1:n_eq)          = 0._r8
+       taulamb(1:n_eq)      = 0._r8
        
        ! --------------------------------------------------------------------
        ! I. Flux equations with the atmospheric boundary
@@ -1459,26 +1467,43 @@ contains
 
        end do
 
-       !LAMBDA(1:n_eq) = TAU(1:n_eq)
-       ! Solution borrowed from Greg Lemieux's usage during FATES canopy trimming:
-       ! Compute the optimum size of the work array
+       ! dgesv will overwrite TAU with LAMBDA
+       ! ie, left side of TAU = OMEGA*LAMBDA
+       ! lets dave it temporarily
 
+       if(debug)then
+          allocate(tau_temp(n_eq),omega_temp(n_eq,n_eq))
+          tau_temp(1:n_eq) = taulamb(1:n_eq)
+          omega_temp(1:n_eq,1:n_eq) = omega(1:n_eq,1:n_eq) 
+       end if
 
+       ! Find the solution
        call dgesv(n_eq, 1, omega(1:n_eq,1:n_eq), n_eq, ipiv(1:n_eq),  taulamb(1:n_eq), n_eq, info)
-
-       !lwork = -1 ! Ask dgels to compute optimal number of entries for work
-       !call dgels(trans, n_eq, n_eq, 1, omega(1:n_eq,1:n_eq), n_eq, taulamb(1:n_eq), n_eq, work, lwork, info)
-       !lwork = int(work(1)) ! Pick the optimum.  TBD, can work(1) come back with greater than work size?
-
-       ! Compute the minimum of 2-norm of of the least squares fit to solve for X
-       ! Note that dgels returns the solution by overwriting the taulamb array.
-       ! The result has the form: X = [b; m]
-       !call dgels(trans, n_eq, n_eq, 1, omega(1:n_eq,1:n_eq), n_eq, taulamb(1:n_eq), n_eq, work, lwork, info)
 
        if(info.ne.0)then
           write(log_unit,*) 'Could not find a solution via dgesv'
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
+
+       if(debug)then
+          ! Perform a forward check on the solution error
+          do ilem = 1,n_eq
+             err1 = tau_temp(ilem) - sum(taulamb(1:n_eq)*omega_temp(ilem,1:n_eq))
+             if(abs(err1)>rel_err_thresh)then
+                write(log_unit,*) 'Poor forward solution on two-stream solver'
+                write(log_unit,*) 'isol (1=beam or 2=diff): ',isol
+                write(log_unit,*) 'i (equation): ',ilem
+                write(log_unit,*) 'band index (1=vis,2=nir): ',ib
+                write(log_unit,*) 'error (tau(i) - omega(i,:)*lambda(:)) ',err1
+                this%band(ib)%Rbeam_atm = 1._r8
+                this%band(ib)%Rdiff_atm = 1._r8
+                call this%Dump(ib)
+                call endrun(msg=errMsg(sourcefile, __LINE__))
+             end if
+          end do
+          deallocate(tau_temp,omega_temp)
+       end if
+       
 
        ! Save the solution terms
 
@@ -1611,22 +1636,13 @@ contains
     diff_err = Rdiff_atm - (albedo_diff + frac_abs_can_diff + &
          frac_diff_grnd_diff*(1._r8-this%band(ib)%albedo_grnd_diff))
     
-    !if( abs(rel_err) > rel_err_thresh ) then
-    if( rel_err.ne.rel_err) then
+    if( abs(rel_err) > rel_err_thresh ) then
        write(log_unit,*)"Total canopy flux balance not closing in TwoStrteamMLPEMod:Solve"
        write(log_unit,*)"Relative Error, delta/(Rbeam_atm+Rdiff_atm) :",rel_err
        write(log_unit,*)"Max Error: ",rel_err_thresh
        write(log_unit,*)"ib: ",ib
-       write(log_unit,*) beam_err,diff_err
-       write(log_unit,*)this%band(ib)%albedo_grnd_diff
-       write(log_unit,*) frac_diff_grnd_beam*(1._r8-this%band(ib)%albedo_grnd_diff) + &
-            frac_beam_grnd_beam*(1._r8-this%band(ib)%albedo_grnd_beam)
-       write(log_unit,*) frac_diff_grnd_diff*(1._r8-this%band(ib)%albedo_grnd_diff)
-       write(log_unit,*) albedo_beam,albedo_diff
-       write(log_unit,*) frac_abs_can_beam,frac_abs_can_diff
-       write(log_unit,*) frac_diff_grnd_beam,frac_beam_grnd_beam,frac_diff_grnd_diff
-       write(log_unit,*) "scattering coeff: ",(2*rad_params%om_leaf(ib,1)+0.5*rad_params%om_stem(ib,1))/2.5
-       write(log_unit,*) "Breakdown:",this%n_lyr
+       write(log_unit,*)"scattering coeff: ",(2*rad_params%om_leaf(ib,1)+0.5*rad_params%om_stem(ib,1))/2.5
+       write(log_unit,*)"Breakdown:",this%n_lyr
        do ican = 1,this%n_lyr
           do icol = 1,this%n_col(ican)
              scelgp => this%scelg(ican,icol)
@@ -1644,6 +1660,20 @@ contains
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
+    ! Re-cast the abledos so they are direct result of the components.
+    ! CESM and E3SM have higher tolerances. We close to 1e-6 but they
+    ! close to 1e-8, which is just very difficult when the canopies
+    ! get complex
+    if(albedo_corr)then
+
+       albedo_beam = Rbeam_atm - (frac_abs_can_beam + &
+            frac_diff_grnd_beam*(1._r8-this%band(ib)%albedo_grnd_diff) + &
+            frac_beam_grnd_beam*(1._r8-this%band(ib)%albedo_grnd_beam))
+       
+       albedo_diff = Rdiff_atm - (frac_abs_can_diff + &
+            frac_diff_grnd_diff*(1._r8-this%band(ib)%albedo_grnd_diff))
+
+    end if
     
     ! Set the boundary conditions back to unknown for a normalized solution
     ! This prevents us from calling the absorption and flux query routines incorrectly.

@@ -14,6 +14,7 @@ from datetime import datetime
 import argparse
 #from matplotlib.backends.backend_pdf import PdfPages
 import platform
+import xml.etree.ElementTree as ET
 import numpy as np
 import matplotlib
 import os
@@ -155,6 +156,9 @@ def main(argv):
     iret = param_prep_call(ci(n_pft))
 
     if(False):
+        TestCrash()
+    
+    if(False):
         ParallelElementPerturbDist()
 
     if(False):
@@ -167,7 +171,40 @@ def main(argv):
         SerialParallelCanopyTest()
 
     plt.show()
+
+def TestCrash():
+
+    # This is used to diagnose a specific failure.  This is probably
+    # reconstructed from the output dump of a failed solve.
+
+    xmlfile = "f45error_elements.xml"
+    xmlroot = ET.parse(xmlfile).getroot()
+    print("\nOpenend: "+xmlfile)
     
+    cosz = float(xmlroot.find('cosz').text.strip())
+    ib = int(xmlroot.find('band_id').text.strip())
+    #elem              = xmlroot.find('time_control')
+
+    # Iterate through canopy layers
+    areas = []
+    print("Loading Layers")
+    for can in xmlroot.iter('can'):
+        print("canopy layer: {}".format(int(can.attrib['id'].strip())))
+        # Iterate through elements in each layer
+        can_id = int(can.attrib['id'].strip())
+        for elem in can.iter('elem'):
+            elem_id = int(elem.attrib['id'].strip())
+            textlist = elem.text.split(',')
+            pft  = int(textlist[0].strip())
+            lai  = float(textlist[1].strip())
+            sai  = float(textlist[2].strip())
+            area = float(textlist[3].strip())
+
+            areas.append(area)
+
+    code.interact(local=dict(globals(), **locals()))
+
+            
 def SerialParallelCanopyTest():
 
 
