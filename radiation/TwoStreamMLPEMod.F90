@@ -1095,7 +1095,7 @@ contains
     ! flux into the other element, instead of a mix
     logical, parameter :: continuity_on = .true.    
 
-    logical, parameter :: albedo_corr = .false.
+    logical, parameter :: albedo_corr = .true.
 
     ! ------------------------------------------------------------------------------------
     ! Example system of equations for 2 parallel columns in each of two canopy
