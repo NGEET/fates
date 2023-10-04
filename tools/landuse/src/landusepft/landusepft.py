@@ -1,25 +1,44 @@
 import xarray as xr
 
+# Open the LUH2 static data file
 def ImportStaticLUH2File(filename):
     dataset = xr.open_dataset(filename)
     listcheck = ['ptbio', 'fstnf', 'carea', 'icwtr', 'ccode', 'lat_bounds', 'lon_bounds']
     if list(dataset.var()) != listcheck:
         raise TypeError("incorrect file, must be LUH2 static file")
+    dataset = dataset.astype('float64')
     return dataset
 
+# Open the CLM5 landuse x pft data file
 def ImportLandusePFTFile(filename):
     dataset = xr.open_dataset(filename)
     if 'PCT_NAT_PFT' not in list(dataset.var()):
         raise TypeError("incorrect file, must be CLM5 landuse file")
+    dataset = dataset.astype('float64')
     return dataset
 
-def DefineMask(dataset):
-    mask = (1.-dataset.icwtr) / (1.-dataset.icwtr)
-    return mask
+# Add lat/lon coordinates to the CLM5 landuse dataset
+# While the lat and lon are available as variables, they are
+# not defined as 'coords' in the imported dataset
+def AddLatLonCoordinates(dataset):
+    dataset['lon'] = dataset.lon * 0.25 - 180. + 1./8.
+    dataset['lat'] = dataset.lat * 0.25 - 90. + 1./8.
+    return dataset
 
-def RenormalizeNoBareGround(dataset, mask):
+# Define the land/ocean mask based on the ice/water data
+# from the LUH2 static data set
+def DefineMask(dataset):
+    try:
+        mask = (1.-dataset.icwtr) / (1.-dataset.icwtr)
+    except AttributeError:
+        raise AttributeError("incorrect dataset, must be static luh2 dataset")
+    else:
+        return mask
+
+def RenormalizePFTs(dataset):
     percent = dataset.PCT_NAT_PFT.isel(natpft=slice(1,None))
-    percent = percent / percent * 100.0 * mask
+    # percent = percent / percent * 100.0 * mask
+    percent = percent / percent.sum(dim='natpft') * 100.0
     return percent
 
 # Steps
