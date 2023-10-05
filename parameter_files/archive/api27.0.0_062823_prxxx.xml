@@ -1,0 +1,53 @@
+<?xml version="1.0"?>
+<all>
+  <!-- This parameter patch file updates the parameter file with the necessary changes -->
+  <!-- for PR XXX. This PR updates the allometry parameters for the default global PFTs -->
+
+
+  <!-- General xml file usage notes: -->
+  <!-- Special mod types "variable_add": creates a new variable
+		 "dimension_add": creates a new dimension
+		 "variable_del": removes a variable, must include attribute "name" 
+		 "variable_change": change values in the parameter, possibly including the name, and
+                          this must also come with a name attribute as well -->
+  <!-- To change a dimension. The easiest way to script this, is to delete the variables
+		 that use it, delete the dimension. Re-add it with the new size, and then re-add
+		 the variables -->
+  <!-- -->
+  
+  <base_file>archive/api.27.0.0_062823_fates_params_default.cdl </base_file>
+  <new_file>fates_params_default.cdl</new_file>
+  <pft_list> 1,2,3,4,5,6,7,8,9,10,11,12 </pft_list>
+  <mods>
+    <mod type="variable_change" name="fates_allom_agb1">
+      <val>0.0673, 0.13640117, 0.03930566, 0.26536947, 0.0673, 0.07286975, 0.06896, 0.06896, 0.06896, 0.01, 0.01, 0.01   </val>
+    </mod>
+    <mod type="variable_change" name="fates_allom_agb2">
+      <val>0.976, 0.94490413, 1.08733502, 0.83213205, 0.976, 1.03732112, 0.572, 0.572, 0.572, 0.572, 0.572, 0.572   </val>
+    </mod>
+    <mod type="variable_change" name="fates_allom_amode">
+      <val> 3, 3, 3, 3, 3, 3, 1, 1, 1, 1, 1, 1  </val>
+    </mod>
+    <mod type="variable_change" name="fates_allom_blca_expnt_diff">
+      <val> -0.12366731, -0.3447603, -0.31791391, -0.21568348, -0.12366731, -0.3521357, 0, 0, 0, 0, 0, 0  </val>
+    </mod>
+    <mod type="variable_change" name="fates_allom_d2h1">
+      <val> 78.40877039, 306.842667, 106.8745821, 104.3586841, 78.40877039, 29.69929379, 0.64, 0.64, 0.64, 0.64, 0.64, 0.64  </val>
+    </mod>
+    <mod type="variable_change" name="fates_allom_d2h2">
+      <val> 0.81243829, 0.75237703, 0.94713018, 1.11469727, 0.81243829, 1.12959569, 0.37, 0.37, 0.37, 0.37, 0.37, 0.37  </val>
+    </mod>
+    <mod type="variable_change" name="fates_allom_d2h3">
+      <val> 47.66661644, 196.6865691, 93.97904614, 160.6835089, 47.66661644, 25.12579143, -999.9, -999.9, -999.9, -999.9, -999.9, -999.9  </val>
+    </mod>
+    <mod type="variable_change" name="fates_allom_dbh_maxheight">
+      <val> 1000, 1000, 1000, 1000, 1000, 1000, 3, 3, 2, 0.35, 0.35, 0.3  </val>
+    </mod>
+    <mod type="variable_change" name="fates_allom_hmode">
+      <val> 5, 5, 5, 5, 5, 5, 1, 1, 1, 1, 1, 1  </val>
+    </mod>
+    <mod type="variable_change" name="fates_wood_density">
+      <val> 0.548327, 0.442350, 0.454845, 0.754336, 0.548327, 0.566452, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7  </val>
+    </mod>
+  </mods>
+</all>
