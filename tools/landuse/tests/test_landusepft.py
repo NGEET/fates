@@ -90,7 +90,6 @@ def test_neg_input_DefineMask(landusepft_dataset):
 
 # Bare ground fraction removal unit test
 # Make sure that the pft fractions sum to 100% on a known land gridcell
-# TODO: this needs to take the mask as the input
 def test_posRenormalizePFTs(landusepft_dataset,mock_mask):
     percent = landusepft.RenormalizePFTs(landusepft_dataset, mock_mask)
 
@@ -108,7 +107,6 @@ def test_posRenormalizePFTs(landusepft_dataset,mock_mask):
     # Check that all the summations are unity within a specific tolerance
     tolerance = 3.0e-16
     assert (abs(percent - 1.0) < tolerance).all().values.item()
-
 
 # @pytest.mark.skip(reason="this needs more work")
 # Negative test case for importing the LUH2 static data file
