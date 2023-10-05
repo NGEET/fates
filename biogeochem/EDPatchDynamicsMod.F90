@@ -270,7 +270,11 @@ contains
 
     call get_harvest_debt(site_in, bc_in, harvest_tag)
 
-    call get_landuse_transition_rates(bc_in, landuse_transition_matrix)
+    if ( hlm_use_luh .eq. itrue ) then
+       call get_landuse_transition_rates(bc_in, landuse_transition_matrix)
+    else
+       landuse_transition_matrix(:) = 0._r8
+    endif
 
     ! calculate total area in each landuse category
     current_fates_landuse_state_vector(:) = 0._r8
@@ -445,8 +449,6 @@ contains
     !
     ! !LOCAL VARIABLES:
     type (fates_patch_type) , pointer :: newPatch
-    ! type (fates_patch_type) , pointer :: new_patch_primary
-    ! type (fates_patch_type) , pointer :: new_patch_secondary
     type (fates_patch_type) , pointer :: currentPatch
     type (fates_cohort_type), pointer :: currentCohort
     type (fates_cohort_type), pointer :: nc
