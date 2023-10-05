@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <all>
   <!-- This parameter patch file updates the parameter file with the necessary changes -->
-  <!-- for PR XXX. This PR updates the allometry parameters for the default global PFTs -->
+  <!-- for PR  1093. This PR updates the allometry parameters for the default global PFTs -->
 
 
   <!-- General xml file usage notes: -->
