@@ -84,38 +84,36 @@ contains
     landuse_transition_matrix(:,:) = 0._r8
     urban_fraction = 0._r8
 
-    use_luh_if: if ( hlm_use_luh .eq. itrue ) then
+    ! Check the LUH data incoming to see if any of the transitions are NaN
+    temp_vector = bc_in%hlm_luh_transitions
+    call CheckLUHData(temp_vector,modified_flag)
+    if (.not. modified_flag) then
+       ! identify urban fraction so that it can be factored into the land use state output
+       urban_fraction = bc_in%hlm_luh_states(findloc(bc_in%hlm_luh_state_names,'urban',dim=1))
+    end if
 
-       ! Check the LUH data incoming to see if any of the transitions are NaN
-       temp_vector = bc_in%hlm_luh_transitions
-       call CheckLUHData(temp_vector,modified_flag)
-       if (.not. modified_flag) then
-          ! identify urban fraction so that it can be factored into the land use state output
-          urban_fraction = bc_in%hlm_luh_states(findloc(bc_in%hlm_luh_state_names,'urban',dim=1))
+    !!TODO: may need some logic here to ask whether or not ot perform land use change on this timestep. current code occurs every day.
+    !!If not doing transition every day, need to update units.
+
+    transitions_loop: do i_luh2_transitions = 1, hlm_num_luh2_transitions
+
+       ! transition names are written in form xxxxx_to_yyyyy where x and y are donor and receiver state names
+       transition_name = bc_in%hlm_luh_transition_names(i_luh2_transitions)
+       donor_name = transition_name(1:5)
+       receiver_name = transition_name(10:14)
+
+       ! Get the fates land use type index associated with the luh2 state types
+       i_donor= lumap%GetIndex(donor_name)
+       i_receiver = lumap%GetIndex(receiver_name)
+
+       ! Avoid transitions with 'urban' as those are handled seperately
+       if (.not.(i_donor .eq. fates_unset_int .or. i_receiver .eq. fates_unset_int)) then
+          landuse_transition_matrix(i_donor,i_receiver) = &
+               landuse_transition_matrix(i_donor,i_receiver) +  temp_vector(i_luh2_transitions) * years_per_day / (1._r8 - urban_fraction)
+
        end if
+    end do transitions_loop
 
-       !!TODO: may need some logic here to ask whether or not ot perform land use change on this timestep. current code occurs every day.
-       !!If not doing transition every day, need to update units.
-
-       transitions_loop: do i_luh2_transitions = 1, hlm_num_luh2_transitions
-
-          ! transition names are written in form xxxxx_to_yyyyy where x and y are donor and receiver state names
-          transition_name = bc_in%hlm_luh_transition_names(i_luh2_transitions)
-          donor_name = transition_name(1:5)
-          receiver_name = transition_name(10:14)
-
-          ! Get the fates land use type index associated with the luh2 state types
-          i_donor= lumap%GetIndex(donor_name)
-          i_receiver = lumap%GetIndex(receiver_name)
-
-          ! Avoid transitions with 'urban' as those are handled seperately
-          if (.not.(i_donor .eq. fates_unset_int .or. i_receiver .eq. fates_unset_int)) then
-             landuse_transition_matrix(i_donor,i_receiver) = &
-                  landuse_transition_matrix(i_donor,i_receiver) +  temp_vector(i_luh2_transitions) * years_per_day / (1._r8 - urban_fraction)
-
-          end if
-       end do transitions_loop
-    end if use_luh_if
   end subroutine get_landuse_transition_rates
 
   !----------------------------------------------------------------------------------------------------
