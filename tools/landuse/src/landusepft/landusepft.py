@@ -43,9 +43,9 @@ def RenormalizePFTs(dataset):
     percent = percent / percent.sum(dim='natpft')
 
     # Adjust the normalization to account for floating point errors
-    error = percent - 1.0
-    adjust = percent * error
-    percent = (percent - adjustment) * 100.0
+    # error = percent - 1.0
+    # adjust = percent * error
+    # percent = (percent - adjust) * 100.0
     return percent
 
 # Steps

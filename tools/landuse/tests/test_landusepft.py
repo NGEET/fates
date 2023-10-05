@@ -93,10 +93,11 @@ def test_posRenormalizePFTs(landusepft_dataset):
     # Convert to a dataframe to stack lat and lon in one dimension
     # and drop the NaNs
     percent = percent.to_dataframe().dropna(how='all')
-    breakpoint()
+    # breakpoint()
 
     # Check that all the summations are unity
-    assert (percent == 100.0)['PCT_NAT_PFT'].all()
+    tolerance = 3.0e-16
+    assert (abs(percent - 1.0) < tolerance).all().values.item()
 
 
 # @pytest.mark.skip(reason="this needs more work")
