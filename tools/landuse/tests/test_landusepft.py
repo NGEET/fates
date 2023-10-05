@@ -22,6 +22,7 @@ def test_negImportStaticLUH2File(landusepft_file_location):
     assert str(exp.value) == "incorrect file, must be LUH2 static file"
 
 # Positive test case for importing landuse x pft data file
+# TODO: parameterize this call to run all the landusepft files
 def test_posImportLandusePFTFile(landusepft_file_location):
     data = landusepft.ImportLandusePFTFile(landusepft_file_location)
     landusepft_variables = list(data.var())
@@ -58,16 +59,23 @@ def test_latlon_posAddLatLonCoordinates(landusepft_dataset):
 # to makes sure that the update is correct
 def test_latlonsum_posAddLatLonCoordinates(landusepft_dataset):
     dataset_modified = landusepft.AddLatLonCoordinates(landusepft_dataset)
-    assert sum(abs(dataset_modified.lon)) == 129600. and sum(abs(dataset_modified.lat)) == 32400.
+    assert (sum(abs(dataset_modified.lon)).values.item() == 129600.
+           and sum(abs(dataset_modified.lat)).values.item() == 32400.)
 
 # Define Mask function unit tests
 # - Is there a better way to simply test that the mask matches all gridcells?
 # - Should we test what happens when the wrong dataset is used (i.e. landuse x pft)?
+# - Should this test that the mask is truly one or zero everywhere?
 
 # Make sure that the generated mask makes sense in that a known gridcell is nan
 def test_posDefineMask(static_dataset):
     maskoutput = landusepft.DefineMask(static_dataset)
     assert np.isnan(maskoutput[0][0])
+
+# Make sure that the generated mask is equal to 1 where it isn't nan
+def test_pos_ones_DefineMask(static_dataset):
+    maskoutput = landusepft.DefineMask(static_dataset)
+    assert (maskoutput.to_dataframe().dropna() == 1.).all().values.item()
 
 # Make sure a known gridcell that should be land is not nan
 # TODO: change this to use sel indexing
@@ -83,19 +91,21 @@ def test_neg_input_DefineMask(landusepft_dataset):
 # Bare ground fraction removal unit test
 # Make sure that the pft fractions sum to 100% on a known land gridcell
 # TODO: this needs to take the mask as the input
-def test_posRenormalizePFTs(landusepft_dataset):
-    percent = landusepft.RenormalizePFTs(landusepft_dataset)
+def test_posRenormalizePFTs(landusepft_dataset,mock_mask):
+    percent = landusepft.RenormalizePFTs(landusepft_dataset, mock_mask)
 
     # Sum along the natpft dimension only.  Use min_count to avoid
     # NaNs from masking turning into zeros
     percent = percent.sum(dim='natpft',min_count=1)
 
     # Convert to a dataframe to stack lat and lon in one dimension
-    # and drop the NaNs
-    percent = percent.to_dataframe().dropna(how='all')
+    # and drop the NaNs.  Note that since percent is unassociated
+    # with a dataset we need to pass the name argument when converting
+    # to a dataframe.
+    percent = percent.to_dataframe(name="testpercent").dropna(how='all')
     # breakpoint()
 
-    # Check that all the summations are unity
+    # Check that all the summations are unity within a specific tolerance
     tolerance = 3.0e-16
     assert (abs(percent - 1.0) < tolerance).all().values.item()
 

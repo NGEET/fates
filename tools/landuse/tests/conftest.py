@@ -14,19 +14,21 @@ def landusepft_file_location():
 def lupftsurf_file_location():
     return 'tests/resources/CLM5_current_surf_deg025.nc'
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def static_dataset(static_file_location):
     dataset = xr.open_dataset(static_file_location)
     dataset = dataset.astype('float64')
     return dataset
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def landusepft_dataset(landusepft_file_location):
     dataset = xr.open_dataset(landusepft_file_location)
     dataset = dataset.astype('float64',casting='safe')
     return dataset
 
-# @pytest.fixture(scope="module")
-# def mock_mask(landusepft_file_location):
-#     mask = xr.open_dataset(landusepft_file_location)
-#     return mask
+@pytest.fixture(scope="function")
+def mock_mask(static_file_location):
+    dataset = xr.open_dataset(static_file_location)
+    # This is duplicative of the DefineMask function.  Should it simply be called?
+    mask = (1.-dataset.icwtr) / (1.-dataset.icwtr)
+    return mask
