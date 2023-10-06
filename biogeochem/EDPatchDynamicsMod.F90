@@ -273,7 +273,7 @@ contains
     if ( hlm_use_luh .eq. itrue ) then
        call get_landuse_transition_rates(bc_in, landuse_transition_matrix)
     else
-       landuse_transition_matrix(:) = 0._r8
+       landuse_transition_matrix(:,:) = 0._r8
     endif
 
     ! calculate total area in each landuse category
