@@ -279,12 +279,16 @@ contains
 
     call get_harvest_debt(site_in, bc_in, harvest_tag)
 
-    if(.not. site_in%transition_landuse_from_off_to_on) then
-       call get_landuse_transition_rates(bc_in, landuse_transition_matrix)
+    if ( hlm_use_luh .eq. itrue ) then
+       if(.not. site_in%transition_landuse_from_off_to_on) then
+          call get_landuse_transition_rates(bc_in, landuse_transition_matrix)
+       else
+          call get_init_landuse_transition_rates(bc_in, landuse_transition_matrix)
+       endif
     else
-       call get_init_landuse_transition_rates(bc_in, landuse_transition_matrix)
+       landuse_transition_matrix(:) = 0._r8
     endif
-    
+
     ! calculate total area in each landuse category
     current_fates_landuse_state_vector(:) = 0._r8
     currentPatch => site_in%oldest_patch
@@ -434,7 +438,9 @@ contains
   subroutine spawn_patches( currentSite, bc_in)
     !
     ! !DESCRIPTION:
-    ! In this subroutine, the following happens
+    ! In this subroutine, the following happens,
+    ! all of which within a complex loop structure of (from outermost to innermost loop),
+    ! nocomp-PFT, disturbance type, donor patch land use label, and receiver patch land use label:
     ! 1) the total area disturbed is calculated
     ! 2) a new patch is created
     ! 3) properties are averaged
@@ -459,8 +465,6 @@ contains
     !
     ! !LOCAL VARIABLES:
     type (fates_patch_type) , pointer :: newPatch
-    ! type (fates_patch_type) , pointer :: new_patch_primary
-    ! type (fates_patch_type) , pointer :: new_patch_secondary
     type (fates_patch_type) , pointer :: currentPatch
     type (fates_cohort_type), pointer :: currentCohort
     type (fates_cohort_type), pointer :: nc
@@ -528,29 +532,54 @@ contains
     ! If nocomp is not enabled, then this is not much of a loop, it only passes through once.
     nocomp_pft_loop: do i_nocomp_pft = min_nocomp_pft,max_nocomp_pft
 
+       ! we want at the second-outermost loop to go through all disturbance types, because we resolve each of these separately
        disturbance_type_loop: do i_disturbance_type = 1,N_DIST_TYPES
 
+          ! the next loop level is to go through patches that have a specific land-use type. the reason to do this is because the combination of
+          ! disturbance type and donor land-use type uniquly define the land-use type of the receiver patch.
           landuse_donortype_loop: do i_donorpatch_landuse_type = 1, n_landuse_cats
+
              ! figure out what land use label(s) the receiver patch for disturbance from patches with
-             ! this disturbance label and disturbance of this type will have, and set receiver label loop bounds accordingly
-             if ( i_disturbance_type .eq. dtype_ilog) then
-                start_receiver_lulabel = secondaryland
-                end_receiver_lulabel = secondaryland
-             else if ( i_disturbance_type .eq. dtype_ilandusechange) then
-                start_receiver_lulabel = 1  ! this could actually maybe be 2, as primaryland column of matrix should all be zeros, but leave as 1 for now
-                end_receiver_lulabel = n_landuse_cats
-             else
+             ! this disturbance label and disturbance of this type will have, and set receiver label loop bounds accordingly.
+
+             ! for fire and treefall disturbance, receiver land-use type is whatever the donor land-use type is.
+             ! for logging disturbance, receiver land-use type is always secondary lands
+             ! for land-use-change disturbance, we need to loop over all possible transition types for land-use-change from the current land-use type.
+
+             select case(i_disturbance_type)
+             case(dtype_ifire)
                 start_receiver_lulabel = i_donorpatch_landuse_type
                 end_receiver_lulabel = i_donorpatch_landuse_type
-             endif
+             case(dtype_ifall)
+                start_receiver_lulabel = i_donorpatch_landuse_type
+                end_receiver_lulabel = i_donorpatch_landuse_type
+             case(dtype_ilog)
+                start_receiver_lulabel = secondaryland
+                end_receiver_lulabel = secondaryland
+             case(dtype_ilandusechange)
+                start_receiver_lulabel = 1  ! this could actually maybe be 2, as primaryland column of matrix should all be zeros, but leave as 1 for now
+                end_receiver_lulabel = n_landuse_cats
+             case default
+                write(fates_log(),*) 'unknown disturbance mode?'
+                write(fates_log(),*) 'i_disturbance_type: ',i_disturbance_type
+                call endrun(msg=errMsg(sourcefile, __LINE__))
+             end select
 
+             ! next loop level is the set of possible receiver patch land use types.
+             ! for disturbance types other than land use change, this is sort of a dummy loop, per the above logic.
              landusechange_receiverpatchlabel_loop: do i_landusechange_receiverpatchlabel = start_receiver_lulabel, end_receiver_lulabel
 
-                ! calculate area of disturbed land, in this timestep, by summing contributions from each existing patch.
+                ! now we want to begin resolving all of the disturbance given the above categorical criteria of:
+                ! nocomp-PFT, disturbance type, donor patch land use label, and receiver patch land use label. All of the disturbed area that meets these
+                ! criteria (if any) will be put into a new patch whose area and properties are taken from one or more donor patches.
+
+                ! calculate area of disturbed land that meets the above criteria, in this timestep, by summing contributions from each existing patch.
                 currentPatch => currentSite%youngest_patch
 
+                ! this variable site_areadis holds all the newly disturbed area from all patches for all disturbance being resolved now.
                 site_areadis = 0.0_r8
 
+                ! loop over all patches to figure out the total patch area generated as a result of all disturbance being resolved now.
                 patchloop_areadis: do while(associated(currentPatch))
 
                    cp_nocomp_matches_1_if: if ( hlm_use_nocomp .eq. ifalse .or. &
@@ -617,10 +646,12 @@ contains
 
                 endif
 
-                ! loop round all the patches that contribute surviving indivduals and litter
+                ! we now have a new patch and know its area, but it is otherwise empty. Next, we
+                ! loop round all the patches that contribute surviving individuals and litter
                 ! pools to the new patch.  We only loop the pre-existing patches, so
-                ! quit the loop if the current patch is either null, or matches the
-                ! two new pointers.
+                ! quit the loop if the current patch is null, and ignore the patch if the patch's categorical variables do not
+                ! match those of the outermost set of loops (i.e. the patch's land-use label or nocomp-PFT label
+                ! are not what we are resolving right now).
 
                 currentPatch => currentSite%oldest_patch
                 patchloop: do while(associated(currentPatch))
@@ -631,7 +662,7 @@ contains
                       patchlabel_matches_lutype_if: if (currentPatch%land_use_label .eq. i_donorpatch_landuse_type) then
 
 
-                         ! This is the amount of patch area that is disturbed, and donated by the donor
+                         ! disturbance_rate is the fraction of the patch's area that is disturbed and donated
                          disturbance_rate = 0.0_r8
                          if ( i_disturbance_type .ne. dtype_ilandusechange) then
                             disturbance_rate = currentPatch%disturbance_rates(i_disturbance_type)
@@ -639,6 +670,7 @@ contains
                             disturbance_rate = currentPatch%landuse_transition_rates(i_landusechange_receiverpatchlabel)
                          endif
 
+                         ! patch_site_areadis is the absolute amount of the patch's area that is disturbed and donated
                          patch_site_areadis = currentPatch%area * disturbance_rate
                          
                          areadis_gt_zero_if: if ( patch_site_areadis > nearzero ) then
@@ -649,9 +681,9 @@ contains
                                call endrun(msg=errMsg(sourcefile, __LINE__))
                             end if
 
-                            ! for the case where the donating patch is not primary, if
+                            ! for the case where the donating patch is not primary, and
                             ! the current disturbance from this patch is non-anthropogenic,
-                            ! we need to average in the time-since-anthropogenic-disturbance
+                            ! then we need to average in the time-since-anthropogenic-disturbance
                             ! from the donor patch into that of the receiver patch
                             if ( currentPatch%land_use_label .gt. primaryland .and. &
                                  (i_disturbance_type .lt. dtype_ilog) ) then
@@ -722,11 +754,11 @@ contains
                             ! some litter from dead plants and pre-existing litter from the donor patches.
                             !
                             ! Next, we loop through the cohorts in the donor patch, copy them with
-                            ! area modified number density into the new-patch, and apply survivorship.
+                            ! area modified number density into the new patch, and apply survivorship.
                             ! -------------------------------------------------------------------------
 
                             currentCohort => currentPatch%shortest
-                            do while(associated(currentCohort))
+                            cohortloop: do while(associated(currentCohort))
 
                                allocate(nc)
                                if(hlm_use_planthydro.eq.itrue) call InitHydrCohort(CurrentSite,nc)
@@ -760,8 +792,11 @@ contains
                                store_c  = currentCohort%prt%GetState(store_organ, carbon12_element)
                                total_c  = sapw_c + struct_c + leaf_c + fnrt_c + store_c
 
+                               ! survivorship of plants in both the disturbed and undisturbed cohorts depends on what type of disturbance is happening.
+
                                disttype_case: select case(i_disturbance_type)
-                                  ! treefall mortality is the current disturbance
+
+                               ! treefall mortality is the current disturbance
                                case (dtype_ifall)
                                
                                   in_canopy_if_falldtype: if(currentCohort%canopy_layer == 1)then
@@ -790,7 +825,7 @@ contains
                                      nc%l_degrad         = nan
 
                                   else
-                                     ! small trees
+                                     ! understory trees
                                      woody_if_falldtype: if( prt_params%woody(currentCohort%pft) == itrue)then
 
 
@@ -883,7 +918,7 @@ contains
                                      endif woody_if_falldtype
                                   endif in_canopy_if_falldtype
 
-                                  ! Fire is the current disturbance
+                               ! Fire is the current disturbance
                                case (dtype_ifire)
 
                                   ! Number of members in the new patch, before we impose fire survivorship
@@ -908,6 +943,7 @@ contains
                                           total_c * g_per_kg * days_per_sec * ha_per_m2
 
                                   else
+                                     ! understory
                                      currentSite%fmort_rate_ustory(currentCohort%size_class, currentCohort%pft) = &
                                           currentSite%fmort_rate_ustory(currentCohort%size_class, currentCohort%pft) + &
                                           nc%n * currentCohort%fire_mort / hlm_freq_day
@@ -1012,7 +1048,7 @@ contains
 
 
 
-                                  ! Logging is the current disturbance
+                               ! Logging is the current disturbance
                                case (dtype_ilog)
 
                                   ! If this cohort is in the upper canopy. It generated
@@ -1139,7 +1175,7 @@ contains
 
                                   endif in_canopy_if_logdtype ! Select canopy layer
 
-
+                               ! Land use change is the current disturbance type
                                case (dtype_ilandusechange)
 
                                   ! Number of members in the new patch, before we impose LUC survivorship
@@ -1160,6 +1196,8 @@ contains
                                   call endrun(msg=errMsg(sourcefile, __LINE__))
                                end select disttype_case    ! Select disturbance mode
 
+                               ! if some plants in the new temporary cohort survived the transfer to the new patch,
+                               ! then put the cohort into the linked list.
                                cohort_n_gt_zero: if (nc%n > 0.0_r8) then
                                   storebigcohort   =>  newPatch%tallest
                                   storesmallcohort =>  newPatch%shortest
@@ -1184,9 +1222,9 @@ contains
 
                                   newPatch%tallest  => storebigcohort
                                   newPatch%shortest => storesmallcohort
-                               else
 
-                                  ! Get rid of the new temporary cohort
+                               else
+                                  ! sadly, no plants in the cohort survived. on the bright side, we can deallocate their memory.
                                   call nc%FreeMemory()
                                   deallocate(nc, stat=istat, errmsg=smsg)
                                   if (istat/=0) then
@@ -1196,7 +1234,8 @@ contains
                                endif cohort_n_gt_zero
 
                                currentCohort => currentCohort%taller
-                            enddo ! currentCohort
+                            enddo cohortloop
+
                             call sort_cohorts(currentPatch)
 
                             !update area of donor patch

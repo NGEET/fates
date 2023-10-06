@@ -398,9 +398,9 @@ contains
     fates%bc_out(s)%hrv_deadstemc_to_prod10c = 0.0_r8
     fates%bc_out(s)%hrv_deadstemc_to_prod100c = 0.0_r8
 
-    if (hlm_use_luh .gt. 0) then
-       fates%bc_in(s)%hlm_luh_states = 0.0_r8
-       fates%bc_in(s)%hlm_luh_transitions = 0.0_r8
+    if (hlm_use_luh .eq. itrue) then
+       fates%bc_in(s)%hlm_luh_states(:) = 0.0_r8
+       fates%bc_in(s)%hlm_luh_transitions(:) = 0.0_r8
     end if
 
     return
@@ -564,7 +564,7 @@ contains
       endif
 
       ! LUH2 state and transition data
-      if (hlm_use_luh .gt. 0) then
+      if (hlm_use_luh .eq. itrue) then
         allocate(bc_in%hlm_luh_states(num_luh2_states))
         allocate(bc_in%hlm_luh_state_names(num_luh2_states))
         allocate(bc_in%hlm_luh_transitions(num_luh2_transitions))
