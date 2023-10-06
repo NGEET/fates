@@ -2889,7 +2889,6 @@ contains
     type(fates_patch_type), pointer :: olderPatch
     type(fates_patch_type), pointer :: youngerPatch
     type(fates_patch_type), pointer :: patchpointer
-    type(fates_patch_type), pointer :: largestPatch
     integer, parameter           :: max_cycles = 10  ! After 10 loops through
                                                      ! You should had fused
     integer                      :: count_cycles
@@ -2977,7 +2976,7 @@ contains
                          ! since the size is so small, let's sweep the problem under the rug and change the tiny patch's label to that of its older sibling
                          ! and then allow them to fuse together.
                          currentPatch%land_use_label = olderPatch%land_use_label
-                         call fuse_2_patches(currentSite, currentPatch, largestPatch)
+                         call fuse_2_patches(currentSite, olderPatch, currentPatch)
                          gotfused = .true.
                       endif countcycles_if
                    endif distlabel_1_if
@@ -3004,7 +3003,7 @@ contains
                          ! if we're having an incredibly hard time fusing patches because of their differing anthropogenic disturbance labels,
                          ! since the size is so small, let's sweep the problem under the rug and change the tiny patch's label to that of its younger sibling
                          currentPatch%land_use_label = youngerPatch%land_use_label
-                         call fuse_2_patches(currentSite, currentPatch, largestPatch)
+                         call fuse_2_patches(currentSite, youngerPatch, currentPatch)
                          gotfused = .true.
                       endif ! count cycles
                    endif distlabel_2_if     ! anthro labels
