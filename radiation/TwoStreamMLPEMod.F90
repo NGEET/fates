@@ -1078,7 +1078,6 @@ contains
     real(r8) :: r_abs_stem          ! total absorbed by stems (dummy)
     real(r8) :: r_abs_snow          ! total absorbed by snow (dummy)
     real(r8) :: leaf_sun_frac       ! sunlit fraction of leaves (dummy)
-    real(r8) :: err1,err2
     real(r8) :: rel_err             ! radiation canopy balance conservation
                                     ! error, fraction of incident
 
@@ -1488,13 +1487,13 @@ contains
        if(debug)then
           ! Perform a forward check on the solution error
           do ilem = 1,n_eq
-             err1 = tau_temp(ilem) - sum(taulamb(1:n_eq)*omega_temp(ilem,1:n_eq))
-             if(abs(err1)>rel_err_thresh)then
+             rel_err = tau_temp(ilem) - sum(taulamb(1:n_eq)*omega_temp(ilem,1:n_eq))
+             if(abs(rel_err)>rel_err_thresh)then
                 write(log_unit,*) 'Poor forward solution on two-stream solver'
                 write(log_unit,*) 'isol (1=beam or 2=diff): ',isol
                 write(log_unit,*) 'i (equation): ',ilem
                 write(log_unit,*) 'band index (1=vis,2=nir): ',ib
-                write(log_unit,*) 'error (tau(i) - omega(i,:)*lambda(:)) ',err1
+                write(log_unit,*) 'error (tau(i) - omega(i,:)*lambda(:)) ',rel_err
                 this%band(ib)%Rbeam_atm = 1._r8
                 this%band(ib)%Rdiff_atm = 1._r8
                 call this%Dump(ib)
