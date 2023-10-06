@@ -2907,11 +2907,9 @@ contains
     do while(associated(currentPatch))
        lessthan_min_patcharea_if: if(currentPatch%area <= min_patch_area)then
 
-          ! Initialize gotfused flag for both nocomp and all other cases
-          gotfused = .false.
-
           nocomp_if: if (hlm_use_nocomp .eq. itrue) then
 
+             gotfused = .false.
              patchpointer => currentSite%youngest_patch
              do while(associated(patchpointer))
                 if ( .not.associated(currentPatch,patchpointer) .and. &
@@ -2938,17 +2936,23 @@ contains
              ! Even if the patch area is small, avoid fusing it into its neighbor
              ! if it is the youngest of all patches. We do this in attempts to maintain
              ! a discrete patch for very young patches.
-             ! However, if the patch to be fused is excessively small, then fuse at all costs.
+             ! However, if the patch to be fused is excessively small, then fuse
+             ! at all costs.
+
              notyoungest_if: if ( .not.associated(currentPatch,currentSite%youngest_patch) .or. &
                currentPatch%area <= min_patch_area_forced ) then
 
-                ! Determine if there is an older patch available
+                gotfused = .false.
+
                 associated_older_if: if(associated(currentPatch%older)) then
 
                    if(debug) &
                         write(fates_log(),*) 'fusing to older patch because this one is too small',&
                         currentPatch%area, &
                         currentPatch%older%area
+
+                   ! We set a pointer to this patch, because
+                   ! it will be returned by the subroutine as de-referenced
 
                    olderPatch => currentPatch%older
 
@@ -2965,14 +2969,14 @@ contains
 
                       ! This logic checks to make sure that the younger patch is not the youngest
                       ! patch. As mentioned earlier, we try not to fuse it.
-                      gotfused = .true.
 
+                      gotfused = .true.
                    else distlabel_1_if !i.e. anthro labels of two patches are not the same
                       countcycles_if: if (count_cycles .gt. 0) then
                          ! if we're having an incredibly hard time fusing patches because of their differing anthropogenic disturbance labels,
                          ! since the size is so small, let's sweep the problem under the rug and change the tiny patch's label to that of its older sibling
                          ! and then allow them to fuse together.
-                         currentPatch%anthro_disturbance_label = olderPatch%anthro_disturbance_label
+                         currentPatch%land_use_label = olderPatch%land_use_label
                          call fuse_2_patches(currentSite, currentPatch, largestPatch)
                          gotfused = .true.
                       endif countcycles_if
@@ -2992,13 +2996,14 @@ contains
                       call fuse_2_patches(currentSite, youngerPatch, currentPatch)
 
                       ! The fusion process has updated the "younger" pointer on currentPatch
+
                       gotfused = .true.
 
                    else distlabel_2_if
                       if (count_cycles .gt. 0) then
                          ! if we're having an incredibly hard time fusing patches because of their differing anthropogenic disturbance labels,
                          ! since the size is so small, let's sweep the problem under the rug and change the tiny patch's label to that of its younger sibling
-                         currentPatch%anthro_disturbance_label = youngerPatch%anthro_disturbance_label
+                         currentPatch%land_use_label = youngerPatch%land_use_label
                          call fuse_2_patches(currentSite, currentPatch, largestPatch)
                          gotfused = .true.
                       endif ! count cycles
