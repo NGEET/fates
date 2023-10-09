@@ -48,6 +48,8 @@ module FatesHistoryInterfaceMod
   use EDParamsMod              , only : ED_val_comp_excln
   use EDParamsMod              , only : ED_val_phen_coldtemp
   use EDParamsMod                   , only : nlevleaf
+  use EDParamsMod               , only : ED_val_history_height_bin_edges
+  use EDParamsMod               , only : ED_val_history_ageclass_bin_edges
   use FatesInterfaceTypesMod        , only : nlevsclass, nlevage
   use FatesInterfaceTypesMod        , only : nlevheight
   use FatesInterfaceTypesMod        , only : bc_in_type
@@ -56,7 +58,7 @@ module FatesHistoryInterfaceMod
   use FatesInterfaceTypesMod        , only : nlevcoage
   use FatesInterfaceTypesMod        , only : hlm_use_nocomp
   use FatesInterfaceTypesMod        , only : hlm_use_fixed_biogeog
-
+  use FatesRadiationMemMod          , only : ivis,inir
   use FatesInterfaceTypesMod        , only : hio_include_hifr_multi
   
   use FatesAllometryMod             , only : CrownDepth
@@ -98,6 +100,7 @@ module FatesHistoryInterfaceMod
   use PRTGenericMod            , only : prt_carbon_allom_hyp
   use PRTAllometricCNPMod      , only : stoich_max,stoich_growth_min
   use FatesSizeAgeTypeIndicesMod, only : get_layersizetype_class_index
+  use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
   
   implicit none
   private          ! By default everything is private
@@ -352,7 +355,11 @@ module FatesHistoryInterfaceMod
   integer :: ih_c_stomata_si
   integer :: ih_c_lblayer_si
   integer :: ih_rad_error_si
-
+  integer :: ih_vis_solve_err_age_si
+  integer :: ih_nir_solve_err_age_si
+  integer :: ih_vis_consv_err_age_si
+  integer :: ih_nir_consv_err_age_si
+  
   integer :: ih_fire_c_to_atm_si
 
 
@@ -2121,14 +2128,14 @@ end subroutine flush_hvars
     use FatesSizeAgeTypeIndicesMod, only : get_sizeagepft_class_index
     use FatesSizeAgeTypeIndicesMod, only : get_agepft_class_index
     use FatesSizeAgeTypeIndicesMod, only : get_agefuel_class_index
-    use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
+    
     use FatesSizeAgeTypeIndicesMod, only : get_height_index
     use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
     use FatesSizeAgeTypeIndicesMod, only : get_cdamagesize_class_index
     use FatesSizeAgeTypeIndicesMod, only : get_cdamagesizepft_class_index
     use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
     
-    use EDParamsMod               , only : ED_val_history_height_bin_edges
+    
     use FatesInterfaceTypesMod    , only : nlevdamage
     
     ! Arguments
@@ -4397,9 +4404,14 @@ end subroutine flush_hvars
     integer  :: s        ! The local site index
     integer  :: io_si     ! The site index of the IO array
     integer  :: ipa      ! patch bc index for the patch
+    integer  :: age_class  ! class age index
     real(r8) :: site_area_veg_inv  ! inverse canopy area of the site (1/m2)
+    real(r8) :: site_area_rad_inv   ! inverse canopy area of site for only
+                                    ! patches that called the solver
     real(r8) :: dt_tstep_inv        ! inverse timestep (1/sec)
     real(r8) :: n_perm2             ! number of plants per square meter
+    real(r8),allocatable :: age_area_rad_inv(:)
+    
     type(fates_patch_type),pointer  :: cpatch
     type(fates_cohort_type),pointer :: ccohort
 
@@ -4416,6 +4428,10 @@ end subroutine flush_hvars
          hio_c_stomata_si             => this%hvars(ih_c_stomata_si)%r81d, &
          hio_c_lblayer_si             => this%hvars(ih_c_lblayer_si)%r81d, &
          hio_rad_error_si             => this%hvars(ih_rad_error_si)%r81d, &
+         hio_vis_solve_err_age_si     => this%hvars(ih_vis_solve_err_age_si)%r82d, &
+         hio_nir_solve_err_age_si     => this%hvars(ih_nir_solve_err_age_si)%r82d, &
+         hio_vis_consv_err_age_si     => this%hvars(ih_vis_consv_err_age_si)%r82d, &
+         hio_nir_consv_err_age_si     => this%hvars(ih_nir_consv_err_age_si)%r82d, &
          hio_nep_si                   => this%hvars(ih_nep_si)%r81d, &
          hio_hr_si                    => this%hvars(ih_hr_si)%r81d, &
          hio_gpp_canopy_si            => this%hvars(ih_gpp_canopy_si)%r81d, &
@@ -4435,6 +4451,8 @@ end subroutine flush_hvars
 
       dt_tstep_inv = 1.0_r8/dt_tstep
 
+      allocate(age_area_rad_inv(size(ED_val_history_ageclass_bin_edges,1)+1))
+      
       do_sites: do s = 1,nsites
 
          call this%zero_site_hvars(sites(s), upfreq_in=2)
@@ -4444,13 +4462,56 @@ end subroutine flush_hvars
          hio_nep_si(io_si) = -bc_in(s)%tot_het_resp * kg_per_g
          hio_hr_si(io_si)  =  bc_in(s)%tot_het_resp * kg_per_g
 
+         ! Diagnostics that are only incremented if we called the radiation solver
+         ! We do not call the radiation solver if
+         ! a) there is no vegetation
+         ! b) there is no light! (ie cos(zenith) ~= 0)
+         age_area_rad_inv(:) = 0._r8
+         cpatch => sites(s)%oldest_patch
+         do while(associated(cpatch))
+            if( abs(cpatch%solve_err(ivis)-hlm_hio_ignore_val)>nearzero ) then
+               age_class = get_age_class_index(cpatch%age)
+               age_area_rad_inv(age_class) = age_area_rad_inv(age_class) + cpatch%total_canopy_area
+            end if
+            cpatch => cpatch%younger
+         end do
+         
+         do age_class = 1,size(ED_val_history_ageclass_bin_edges,1)
+            if( age_area_rad_inv(age_class) < nearzero) then
+               hio_vis_solve_err_age_si(io_si,age_class)    = hlm_hio_ignore_val
+               hio_nir_solve_err_age_si(io_si,age_class)    = hlm_hio_ignore_val
+               hio_vis_consv_err_age_si(io_si,age_class)    = hlm_hio_ignore_val
+               hio_nir_consv_err_age_si(io_si,age_class)    = hlm_hio_ignore_val
+            end if
+         end do
+            
+         cpatch => sites(s)%oldest_patch
+         do while(associated(cpatch))
+            if( abs(cpatch%solve_err(ivis)-hlm_hio_ignore_val)>nearzero ) then
+               age_class = get_age_class_index(cpatch%age)
+               hio_vis_solve_err_age_si(io_si,age_class) = hio_vis_solve_err_age_si(io_si,age_class) + &
+                    cpatch%solve_err(ivis) * cpatch%total_canopy_area/age_area_rad_inv(age_class)
+               hio_nir_solve_err_age_si(io_si,age_class) = hio_nir_solve_err_age_si(io_si,age_class) + &
+                    cpatch%solve_err(inir) * cpatch%total_canopy_area/age_area_rad_inv(age_class)
+               hio_vis_consv_err_age_si(io_si,age_class) = hio_vis_consv_err_age_si(io_si,age_class) + &
+                    cpatch%consv_err(ivis) * cpatch%total_canopy_area/age_area_rad_inv(age_class)
+               hio_nir_consv_err_age_si(io_si,age_class) = hio_nir_consv_err_age_si(io_si,age_class) + &
+                    cpatch%consv_err(inir) * cpatch%total_canopy_area/age_area_rad_inv(age_class)
+            end if
+            cpatch => cpatch%younger
+         end do
+
+         ! Diagnostics that are only relevant if there is vegetation present on this site
+         ! ie, non-zero canopy area
+
+
          site_area_veg_inv = 0._r8
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
             site_area_veg_inv = site_area_veg_inv + cpatch%total_canopy_area
             cpatch => cpatch%younger
          end do !patch loop
-
+         
          if_veg_area: if(site_area_veg_inv < nearzero) then
 
             hio_c_stomata_si(io_si) = hlm_hio_ignore_val
@@ -4480,6 +4541,8 @@ end subroutine flush_hvars
                hio_rad_error_si(io_si) = hio_rad_error_si(io_si) + &
                     cpatch%radiation_error * cpatch%total_canopy_area * site_area_veg_inv
 
+              
+               
                ! Only accumulate the instantaneous vegetation temperature for vegetated patches
                if (cpatch%patchno .ne. 0) then
                   hio_tveg(io_si) = hio_tveg(io_si) + &
@@ -4574,6 +4637,9 @@ end subroutine flush_hvars
             end do
          end if if_veg_area
       end do do_sites
+
+      deallocate(age_area_rad_inv)
+      
     end associate
     return
   end subroutine update_history_hifrq_simple
@@ -6540,6 +6606,26 @@ end subroutine flush_hvars
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,                 &
          ivar=ivar, initialize=initialize_variables, index = ih_rad_error_si)
 
+    call this%set_history_var(vname='FATES_VIS_SOLVE_ERROR_AGE', units='-',          &
+         long='mean two-stream solver error for VIS by patch age', use_default='active',            &
+         avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', upfreq=2,                 &
+         ivar=ivar, initialize=initialize_variables, index = ih_vis_solve_err_age_si)
+
+    call this%set_history_var(vname='FATES_NIR_SOLVE_ERROR_AGE', units='-',          &
+         long='mean two-stream solver error for NIR by patch age', use_default='active',            &
+         avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', upfreq=2,                 &
+         ivar=ivar, initialize=initialize_variables, index = ih_nir_solve_err_age_si)
+
+    call this%set_history_var(vname='FATES_VIS_CONSV_ERROR_AGE', units='-',          &
+         long='mean two-stream conservation error for VIS by patch age', use_default='active',            &
+         avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', upfreq=2,                 &
+         ivar=ivar, initialize=initialize_variables, index = ih_vis_consv_err_age_si)
+    
+    call this%set_history_var(vname='FATES_NIR_CONSV_ERROR_AGE', units='-',          &
+         long='mean two-stream conservation error for NIR by patch age', use_default='active',            &
+         avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', upfreq=2,                 &
+         ivar=ivar, initialize=initialize_variables, index = ih_nir_consv_err_age_si)
+    
     call this%set_history_var(vname='FATES_AR', units='gC/m^2/s',                 &
          long='autotrophic respiration', use_default='active',                  &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,   &

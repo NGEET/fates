@@ -157,6 +157,8 @@ contains
   subroutine WrapSolve(ib,boundary_type,Rbeam_atm,Rdiff_atm, &
        albedo_beam, & 
        albedo_diff, &
+       err_solve, &
+       err_consv, &
        frac_abs_can_beam, &
        frac_abs_can_diff, &
        frac_beam_grnd_beam, &
@@ -168,6 +170,8 @@ contains
 
     real(r8)  :: albedo_beam
     real(r8)  :: albedo_diff
+    real(r8)  :: err_solve
+    real(r8)  :: err_consv
     real(r8)  :: frac_abs_can_beam
     real(r8)  :: frac_abs_can_diff
     real(r8)  :: frac_beam_grnd_beam
@@ -186,7 +190,9 @@ contains
          omega, &
          ipiv, &
          albedo_beam, & 
-         albedo_diff, & 
+         albedo_diff, &
+         err_solve,   &
+         err_consv,   &
          frac_abs_can_beam, &
          frac_abs_can_diff, &
          frac_beam_grnd_beam, &

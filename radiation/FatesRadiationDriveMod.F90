@@ -125,6 +125,9 @@ contains
              currentPatch%gnd_alb_dir(1:hlm_numSWb) = bc_in(s)%albgr_dir_rb(1:hlm_numSWb)
              currentPatch%fcansno                   = bc_in(s)%fcansno_pa(ifp)
 
+             currentPatch%solve_err(:) = hlm_hio_ignore_val
+             currentPatch%consv_err(:) = hlm_hio_ignore_val
+             
              ! RGK: The ZenithPrep should only be necessary if the flag is true
              ! Move and test this.
              if(radiation_model.eq.twostr_solver) then
@@ -183,6 +186,8 @@ contains
                                 sites(s)%ipiv_2str,             &  ! inout (scratch)
                                 bc_out(s)%albd_parb(ifp,ib), &  ! out
                                 bc_out(s)%albi_parb(ifp,ib), &  ! out
+                                currentPatch%solve_err(ib),  &  ! out
+                                currentPatch%consv_err(ib),  &  ! out
                                 bc_out(s)%fabd_parb(ifp,ib), &  ! out
                                 bc_out(s)%fabi_parb(ifp,ib), &  ! out
                                 bc_out(s)%ftdd_parb(ifp,ib), &  ! out

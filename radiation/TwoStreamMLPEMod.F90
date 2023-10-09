@@ -994,7 +994,9 @@ contains
        omega,     &
        ipiv,      &
        albedo_beam, & 
-       albedo_diff, & 
+       albedo_diff, &
+       solve_err,   &
+       consv_err,   &
        frac_abs_can_beam, &
        frac_abs_can_diff, &
        frac_beam_grnd_beam, &
@@ -1035,6 +1037,17 @@ contains
     
     real(r8) :: albedo_beam    ! Mean albedo at canopy top generated from beam radiation [-]
     real(r8) :: albedo_diff    ! Mean albedo at canopy top generated from downwelling diffuse [-]
+
+    real(r8) :: solve_err ! This is the maximum error encountered when comparing the forward solution
+                          ! of the linear solution A*x, to the known b, in Ax=b. This is the maximum
+                          ! considering all equations, and both beam and diffuse boundaries. Units
+                          ! are a fraction relative to the boundary flux.
+
+    real(r8) :: consv_err ! This is the error that is returned when seeing if the
+                          ! total albedo matches the total absorbed by all cohorts and
+                          ! the soil absorbed radiation.  It is a fraction based
+                          ! on upper boundaries of 1 W/m2 for both beam and diffuse
+    
     real(r8) :: frac_abs_can_beam ! Fraction of incident beam radiation absorbed by the vegetation [-]
     real(r8) :: frac_abs_can_diff ! Fraction of incident diffuse radiation absorbed by the vegetation [-]
     real(r8) :: frac_beam_grnd_beam  ! fraction of beam radiation at ground resulting from of beam at canopy top [-]
@@ -1135,6 +1148,14 @@ contains
     ! upper canopy.
     ! --------------------------------------------------------------------------
 
+    if(debug)then
+       solve_err = 0._r8
+    else
+       solve_err = -unset_r8
+    end if
+    
+    consv_err = 0._r8
+    
     if((Rbeam_atm+Rdiff_atm)<nearzero)then
        write(log_unit,*)"No radiation"
        write(log_unit,*)"Two stream should not had been called"
@@ -1488,6 +1509,7 @@ contains
           ! Perform a forward check on the solution error
           do ilem = 1,n_eq
              rel_err = tau_temp(ilem) - sum(taulamb(1:n_eq)*omega_temp(ilem,1:n_eq))
+             solve_err = max(solve_err,abs(rel_err))
              if(abs(rel_err)>rel_err_thresh)then
                 write(log_unit,*) 'Poor forward solution on two-stream solver'
                 write(log_unit,*) 'isol (1=beam or 2=diff): ',isol
