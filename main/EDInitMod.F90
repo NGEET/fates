@@ -996,7 +996,7 @@ contains
                        c_area)
 
                   ! calculate height from diameter
-                  call h_allom(dbh, pft, hite)
+                  call h_allom(dbh, pft, height)
  
                else
                   write(fates_log(),*) 'Negative fates_recruit_init_density can only be used in no comp mode'
