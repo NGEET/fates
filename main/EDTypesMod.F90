@@ -99,7 +99,7 @@ module EDTypesMod
   integer, parameter, public :: phen_dstat_moistoff  = 1       ! Leaves off due to moisture avail  (drought phenology)
   integer, parameter, public :: phen_dstat_moiston   = 2       ! Leaves on due to moisture avail   (drought phenology)
   integer, parameter, public :: phen_dstat_timeon    = 3       ! Leaves on due to time exceedance  (drought phenology)
-  integer, parameter, public :: phen_dstat_pshed    = 4 ! Leaves partially abscissing       (drought phenology)
+  integer, parameter, public :: phen_dstat_pshed     = 4 ! Leaves partially abscissing       (drought phenology)
 
   ! PATCH FUSION 
   real(r8), parameter, public :: force_patchfuse_min_biomass = 0.005_r8   ! min biomass (kg / m2 patch area) below which to force-fuse patches
@@ -107,8 +107,8 @@ module EDTypesMod
   real(r8), parameter, public :: max_age_of_second_oldest_patch = 200._r8 ! age in years above which to combine all patches
 
   ! COHORT FUSION
-  real(r8), parameter, public :: HITEMAX              = 30.0_r8    ! max dbh value used in hgt profile comparison 
-  integer , parameter, public :: N_HITE_BINS          = 60         ! no. of hite bins used to distribute LAI
+  real(r8), parameter, public :: HEIGHTMAX           = 30.0_r8    ! max dbh value used in hgt profile comparison 
+  integer , parameter, public :: N_HEIGHT_BINS       = 60         ! no. of height bins used to distribute LAI
 
   ! COHORT TERMINATION
 

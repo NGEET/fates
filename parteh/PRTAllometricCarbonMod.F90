@@ -378,7 +378,7 @@ module PRTAllometricCarbonMod
     integer  :: nsteps                ! number of sub-steps
     integer  :: istep                 ! current substep index
     real(r8) :: totalC                ! total carbon allocated over alometric growth step
-    real(r8) :: hite_out              ! dummy height variable
+    real(r8) :: height_out            ! dummy height variable
 
     integer  :: i_var                 ! index for iterating state variables
     integer  :: i_age                 ! index for iterating leaf ages

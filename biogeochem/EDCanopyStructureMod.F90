@@ -317,7 +317,7 @@ contains
              if(currentCohort%canopy_layer .eq. 2)then
                 if (associated(currentCohort%taller)) then
                    if (currentCohort%taller%canopy_layer .eq. 1 ) then
-                      currentPatch%zstar = currentCohort%taller%hite
+                      currentPatch%zstar = currentCohort%taller%height
                    endif
                 endif
              endif
@@ -407,7 +407,7 @@ contains
                 ! to the understory.
                 ! ----------------------------------------------------------
 
-                currentCohort%excl_weight = 1._r8 / (currentCohort%hite**ED_val_comp_excln)
+                currentCohort%excl_weight = 1._r8 / (currentCohort%height**ED_val_comp_excln)
                 sumweights = sumweights + currentCohort%excl_weight
 
              else
@@ -428,7 +428,7 @@ contains
                 tied_size_with_neighbors = .false.
                 nextc => currentCohort%taller
                 do while (associated(nextc))
-                   if ( abs(nextc%hite - currentCohort%hite) < similar_height_tol ) then
+                   if ( abs(nextc%height - currentCohort%height) < similar_height_tol ) then
                       if( nextc%canopy_layer .eq. currentCohort%canopy_layer ) then
                          tied_size_with_neighbors = .true.
                          total_crownarea_of_tied_cohorts = &
@@ -451,7 +451,7 @@ contains
 
                    nextc => currentCohort%taller
                    do while (associated(nextc))
-                      if ( abs(nextc%hite - currentCohort%hite) < similar_height_tol ) then
+                      if ( abs(nextc%height - currentCohort%height) < similar_height_tol ) then
                          if (nextc%canopy_layer .eq. currentCohort%canopy_layer ) then
                             ! now we know the total crown area of all equal-sized,
                             ! equal-canopy-layer cohorts
@@ -891,7 +891,7 @@ contains
                    ! Stochastic case, as above (in demotion portion of code)
                    ! ------------------------------------------------------------------
 
-                   currentCohort%prom_weight = currentCohort%hite**ED_val_comp_excln
+                   currentCohort%prom_weight = currentCohort%height**ED_val_comp_excln
                    sumweights = sumweights + currentCohort%prom_weight
                 else
 
@@ -910,7 +910,7 @@ contains
                    tied_size_with_neighbors = .false.
                    nextc => currentCohort%shorter
                    do while (associated(nextc))
-                      if ( abs(nextc%hite - currentCohort%hite) < similar_height_tol ) then
+                      if ( abs(nextc%height - currentCohort%height) < similar_height_tol ) then
                          if( nextc%canopy_layer .eq. currentCohort%canopy_layer ) then
                             tied_size_with_neighbors = .true.
                             total_crownarea_of_tied_cohorts = &
@@ -932,7 +932,7 @@ contains
 
                       nextc => currentCohort%shorter
                       do while (associated(nextc))
-                         if ( abs(nextc%hite - currentCohort%hite) < similar_height_tol ) then
+                         if ( abs(nextc%height - currentCohort%height) < similar_height_tol ) then
                             if (nextc%canopy_layer .eq. currentCohort%canopy_layer ) then
                                ! now we know the total crown area of all equal-sized,
                                ! equal-canopy-layer cohorts
@@ -1499,7 +1499,7 @@ contains
 
     ! !USES:
 
-    use EDtypesMod           , only : area, hitemax, n_hite_bins
+    use EDtypesMod           , only : area, heightmax, n_height_bins
     use EDParamsMod,           only : dinc_vai, dlower_vai
 
     !
@@ -1517,14 +1517,14 @@ contains
     integer  :: iv                       ! Vertical leaf layer index
     integer  :: cl                       ! Canopy layer index
     real(r8) :: fraction_exposed         ! how much of this layer is not covered by snow?
-    real(r8) :: layer_top_hite           ! notional top height of this canopy layer (m)
-    real(r8) :: layer_bottom_hite        ! notional bottom height of this canopy layer (m)
-    real(r8) :: frac_canopy(N_HITE_BINS) ! amount of canopy in each height class
-    real(r8) :: minh(N_HITE_BINS)        ! minimum height in height class (m)
-    real(r8) :: maxh(N_HITE_BINS)        ! maximum height in height class (m)
+    real(r8) :: layer_top_height           ! notional top height of this canopy layer (m)
+    real(r8) :: layer_bottom_height        ! notional bottom height of this canopy layer (m)
+    real(r8) :: frac_canopy(N_HEIGHT_BINS) ! amount of canopy in each height class
+    real(r8) :: minh(N_HEIGHT_BINS)        ! minimum height in height class (m)
+    real(r8) :: maxh(N_HEIGHT_BINS)        ! maximum height in height class (m)
     real(r8) :: dh                       ! vertical detph of height class (m)
-    real(r8) :: min_chite                ! bottom of cohort canopy  (m)
-    real(r8) :: max_chite                ! top of cohort canopy      (m)
+    real(r8) :: min_cheight                ! bottom of cohort canopy  (m)
+    real(r8) :: max_cheight                ! top of cohort canopy      (m)
     real(r8) :: lai                      ! leaf area per canopy area
     real(r8) :: sai                      ! stem area per canopy area
 
@@ -1615,25 +1615,25 @@ contains
                 ! We calculate the absolute elevation of each layer to help determine if the layer
                 ! is obscured by snow.
 
-                layer_top_hite = currentCohort%hite - &
-                     ( real(iv-1,r8)/currentCohort%NV * currentCohort%hite *  &
+                layer_top_height = currentCohort%height - &
+                     ( real(iv-1,r8)/currentCohort%NV * currentCohort%height *  &
                      prt_params%crown_depth_frac(currentCohort%pft) )
 
-                layer_bottom_hite = currentCohort%hite - &
-                     ( real(iv,r8)/currentCohort%NV * currentCohort%hite * &
+                layer_bottom_height = currentCohort%height - &
+                     ( real(iv,r8)/currentCohort%NV * currentCohort%height * &
                      prt_params%crown_depth_frac(currentCohort%pft) )
 
                 fraction_exposed = 1.0_r8
-                if(currentSite%snow_depth  > layer_top_hite)then
+                if(currentSite%snow_depth  > layer_top_height)then
                    fraction_exposed = 0._r8
                 endif
-                if(currentSite%snow_depth < layer_bottom_hite)then
+                if(currentSite%snow_depth < layer_bottom_height)then
                    fraction_exposed = 1._r8
                 endif
-                if(currentSite%snow_depth >= layer_bottom_hite .and. &
-                     currentSite%snow_depth <= layer_top_hite) then !only partly hidden...
-                   fraction_exposed =  1._r8 - max(0._r8,(min(1.0_r8,(currentSite%snow_depth -layer_bottom_hite)/ &
-                        (layer_top_hite-layer_bottom_hite ))))
+                if(currentSite%snow_depth >= layer_bottom_height .and. &
+                     currentSite%snow_depth <= layer_top_height) then !only partly hidden...
+                   fraction_exposed =  1._r8 - max(0._r8,(min(1.0_r8,(currentSite%snow_depth -layer_bottom_height)/ &
+                        (layer_top_height-layer_bottom_height ))))
                 endif
 
                 if(iv==currentCohort%NV) then
@@ -1669,7 +1669,7 @@ contains
 
                 currentPatch%layer_height_profile(cl,ft,iv) = currentPatch%layer_height_profile(cl,ft,iv) + &
                      (remainder * fleaf * currentCohort%c_area/currentPatch%total_canopy_area * &
-                     (layer_top_hite+layer_bottom_hite)/2.0_r8) !average height of layer.
+                     (layer_top_height+layer_bottom_height)/2.0_r8) !average height of layer.
 
              end do
 
@@ -1850,7 +1850,7 @@ contains
              endif
 
              if (associated(currentPatch%tallest)) then
-                bc_out(s)%htop_pa(ifp) = currentPatch%tallest%hite
+                bc_out(s)%htop_pa(ifp) = currentPatch%tallest%height
              else
                 ! FIX(RF,040113) - should this be a parameter for the minimum possible vegetation height?
                 bc_out(s)%htop_pa(ifp) = 0.1_r8
@@ -1870,9 +1870,9 @@ contains
                    if (currentCohort%canopy_layer .eq. 1) then
                       weight = min(1.0_r8,currentCohort%c_area/currentPatch%total_canopy_area)
                       bc_out(s)%z0m_pa(ifp) = bc_out(s)%z0m_pa(ifp) + &
-                           EDPftvarcon_inst%z0mr(currentCohort%pft) * currentCohort%hite * weight
+                           EDPftvarcon_inst%z0mr(currentCohort%pft) * currentCohort%height * weight
                       bc_out(s)%displa_pa(ifp) = bc_out(s)%displa_pa(ifp) + &
-                           EDPftvarcon_inst%displar(currentCohort%pft) * currentCohort%hite * weight
+                           EDPftvarcon_inst%displar(currentCohort%pft) * currentCohort%height * weight
                    endif
                    currentCohort => currentCohort%taller
                 end do
