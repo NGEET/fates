@@ -1,4 +1,3 @@
-
 # Landuse x PFT script
 # Usage: python landusepft.py -s <luh2_static_file> \
 #                             -f <clm_luhforest_file> \
@@ -7,8 +6,40 @@
 #                             -s <clm_luhsurface_file> \
 #                             -O <output_file>
 
+import argparse, os, sys
+from landusepftmod import ImportStaticLUH2File, ImportLandusePFTFile
+from landusepftmod import AddLatLonCoordinates, DefineMask, RenormalizePFTs
+
 def main():
 
+    # Add argument parser - subfunction? Seperate common module?
+    args = CommandLineArgs()
+
+    # Open the files
+    ds_static  = ImportStaticLUH2File(args.luh2_static_file)
+    filelist = [args.clm_luhforest_file,
+                args.clm_luhpasture_file,
+                args.clm_luhother_file,
+                args.clm_surface_file]
+    ds_landusepfts = []
+    for filename in filelist:
+        ds_landusepfts.append(ImportLandusePFTFile(filename))
+
+    # CLM5 landuse adjustments
+    # Define the mask
+    mask = DefineMask(ds_static)
+
+    # Add lat/lon coordinates to the CLM5 landuse data
+    for dataset in ds_landusepfts:
+        AddLatLonCoordinates(dataset)
+
+    # Renormalize the PCT using the mask
+    percent = []
+    for dataset in ds_landusepfts:
+        percent.append(RenormalizePFTs(ds))
+
+    # Concatenate information
+    # regridding
 
 def CommandLineArgs():
 
