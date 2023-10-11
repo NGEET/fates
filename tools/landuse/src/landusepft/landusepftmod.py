@@ -31,8 +31,8 @@ def ImportLandusePFTFile(filename):
 # While the lat and lon are available as variables, they are
 # not defined as 'coords' in the imported dataset
 def AddLatLonCoordinates(dataset):
-    dataset['lon'] = dataset.lon * 0.25 - 180. + 1./8.
-    dataset['lat'] = dataset.lat * 0.25 - 90. + 1./8.
+    dataset['lon'] = dataset.LON
+    dataset['lat'] = dataset.LAT
     return dataset
 
 # Define the land/ocean mask based on the ice/water data
