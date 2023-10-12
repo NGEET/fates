@@ -51,7 +51,7 @@ def main():
 
     # Note that the list order is:
     # bareground, surface data, primary, pasture, rangeland (other)
-    ds_var_names = ['pct_brgnd','pct_csurf','pct_primr','pct_pastr','pct_range']
+    ds_var_names = ['frac_brgnd','frac_csurf','frac_primr','frac_pastr','frac_range']
     # ds_var_names = ['bareground','current_surface','primary','pasture','range']
 
     # Combine percent data arrays into a new dataset
@@ -61,7 +61,7 @@ def main():
 
     # Duplicate the 'primary' data array into a 'secondary' data array.  Eventually
     # this will contain different data from a future CLM landuse x pft update
-    ds_percent = ds_percent.merge(percent[2].to_dataset(name='pct_secnd'))
+    ds_percent = ds_percent.merge(percent[2].to_dataset(name='frac_secnd'))
 
     # Regrid dataset (if necessary)
     # TODO: add option to reuse weights file from luh2 code
