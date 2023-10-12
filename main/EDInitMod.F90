@@ -354,6 +354,7 @@ contains
     !
     ! !USES:
     use EDParamsMod, only : crop_lu_pft_vector
+    use EDParamsMod, only : maxpatches_by_landuse
     !
     ! !ARGUMENTS
 
@@ -383,6 +384,7 @@ contains
     integer  :: hlm_pft    ! used in fixed biogeog mode
     integer  :: fates_pft  ! used in fixed biogeog mode
     integer  :: i_landusetype
+    real(r8) :: temp_vec(numpft)  ! temporary vector
     !----------------------------------------------------------------------
 
 
@@ -486,13 +488,17 @@ contains
 
              endif use_fates_luh_if
 
+             ! handle some edge cases
              do i_landusetype = 1, n_landuse_cats
                 do ft =  1,numpft
+
+                   ! remove tiny patches to prevent numerical errors in terminate patches
                    if(sites(s)%area_pft(ft, i_landusetype).lt.0.01_r8.and.sites(s)%area_pft(ft, i_landusetype).gt.0.0_r8)then
                       if(debug) write(fates_log(),*)  'removing small pft patches',s,ft,i_landusetype,sites(s)%area_pft(ft, i_landusetype)
                       sites(s)%area_pft(ft, i_landusetype)=0.0_r8
-                      ! remove tiny patches to prevent numerical errors in terminate patches
                    endif
+
+                   ! if any areas are negative, then end run
                    if(sites(s)%area_pft(ft, i_landusetype).lt.0._r8)then
                       write(fates_log(),*) 'negative area',s,ft,i_landusetype,sites(s)%area_pft(ft, i_landusetype)
                       call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -500,9 +506,34 @@ contains
                 end do
              end do
 
+             ! if in nocomp mode, and the number of nocomp PFTs of a given land use type is greater than the maximum number of patches
+             ! allowed to be allocated for that land use type, then only keep the number of PFTs correspondign to the number of patches
+             ! allowed on that land use type, starting with the PFTs with greatest area coverage and working down
+             if (hlm_use_nocomp .eq. itrue) then
+                do i_landusetype = 1, n_landuse_cats
+                   ! count how many PFTs have areas greater than zero and compare to the number of patches allowed
+                   if (COUNT(sites(s)%area_pft(ft, i_landusetype) .gt. 0._r8) > maxpatches_by_landuse(i_landusetype)) then
+                      ! write current vector to log file
+                      if(debug) write(fates_log(),*)  'too many PFTs for LU type ', i_landusetype, i_landusetype,sites(s)%area_pft(:, i_landusetype)
+
+                      ! start from largest area, put that PFT's area into a temp vector, and then work down to successively smaller-area PFTs,
+                      ! at the end replace the original vector with the temp vector
+                      temp_vec(:) = 0._r8
+                      do i_pftcount = 1, maxpatches_by_landuse(i_landusetype)
+                         temp_vec(MAXLOC(sites(s)%area_pft(:, i_landusetype))) = &
+                              sites(s)%area_pft(MAXLOC(sites(s)%area_pft(:, i_landusetype)), i_landusetype)
+                         sites(s)%area_pft(MAXLOC(sites(s)%area_pft(:, i_landusetype)), i_landusetype) = 0._r8
+                      end do
+                      sites(s)%area_pft(:, i_landusetype) = temp_vec(:)
+
+                      ! write adjusted vector to log file
+                      if(debug) write(fates_log(),*)  'new PFT vector for LU type', i_landusetype, i_landusetype,sites(s)%area_pft(:, i_landusetype)
+                   endif
+                end do
+             end if
+
              ! re-normalize PFT area to ensure it sums to one for each (active) land use type
              ! for nocomp cases, track bare ground area as a separate quantity
-
              do i_landusetype = 1, n_landuse_cats
                 sumarea = sum(sites(s)%area_pft(1:numpft,i_landusetype))
                 do ft =  1,numpft
