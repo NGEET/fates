@@ -262,7 +262,8 @@ module FatesRestartInterfaceMod
   integer :: ir_rootlittin_flxdg
   integer :: ir_oldstock_mbal
   integer :: ir_errfates_mbal
-  integer :: ir_woodprod_mbal
+  integer :: ir_woodprod_harvest_mbal
+  integer :: ir_woodprod_landusechange_mbal
   integer :: ir_prt_base     ! Base index for all PRT variables
 
   ! Damage x damage or damage x size
@@ -1124,10 +1125,15 @@ contains
 
     end if
     
-    call this%RegisterCohortVector(symbol_base='fates_woodproduct', vtype=site_r8, &
-         long_name_base='Current wood product flux', &
+    call this%RegisterCohortVector(symbol_base='fates_woodproduct_harvest', vtype=cohort_r8, &
+         long_name_base='Current wood product flux from harvest', &
          units='kg/m2/day', veclength=num_elements, flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_woodprod_mbal)
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_woodprod_harvest_mbal)
+
+    call this%RegisterCohortVector(symbol_base='fates_woodproduct_landusechange', vtype=cohort_r8, &
+         long_name_base='Current wood product flux from land use change', &
+         units='kg/m2/day', veclength=num_elements, flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_woodprod_landusechange_mbal)
     
     ! Only register satellite phenology related restart variables if it is turned on!
 
@@ -2225,12 +2231,13 @@ contains
                 do i_pft=1,numpft
                    this%rvars(ir_leaflittin_flxdg+el-1)%r81d(io_idx_si_pft) = sites(s)%flux_diags(el)%leaf_litter_input(i_pft)
                    this%rvars(ir_rootlittin_flxdg+el-1)%r81d(io_idx_si_pft) = sites(s)%flux_diags(el)%root_litter_input(i_pft)
+                   this%rvars(ir_woodprod_harvest_mbal+el-1)%r81d(io_idx_si_pft) = sites(s)%mass_balance(el)%wood_product_harvest(i_pft)
+                   this%rvars(ir_woodprod_landusechange_mbal+el-1)%r81d(io_idx_si_pft) = sites(s)%mass_balance(el)%wood_product_landusechange(i_pft)
                    io_idx_si_pft = io_idx_si_pft + 1
                 end do
 
                 this%rvars(ir_oldstock_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%old_stock
                 this%rvars(ir_errfates_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%err_fates
-                this%rvars(ir_woodprod_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%wood_product
 
              end do
           end if
@@ -3177,12 +3184,13 @@ contains
                 do i_pft=1,numpft
                    sites(s)%flux_diags(el)%leaf_litter_input(i_pft) = this%rvars(ir_leaflittin_flxdg+el-1)%r81d(io_idx_si_pft)
                    sites(s)%flux_diags(el)%root_litter_input(i_pft) = this%rvars(ir_rootlittin_flxdg+el-1)%r81d(io_idx_si_pft)
+                   sites(s)%mass_balance(el)%wood_product_harvest(i_pft) = this%rvars(ir_woodprod_harvest_mbal+el-1)%r81d(io_idx_si_pft)
+                   sites(s)%mass_balance(el)%wood_product_landusechange(i_pft) = this%rvars(ir_woodprod_landusechange_mbal+el-1)%r81d(io_idx_si_pft)
                    io_idx_si_pft = io_idx_si_pft + 1
                 end do
 
                 sites(s)%mass_balance(el)%old_stock = this%rvars(ir_oldstock_mbal+el-1)%r81d(io_idx_si)
                 sites(s)%mass_balance(el)%err_fates = this%rvars(ir_errfates_mbal+el-1)%r81d(io_idx_si)
-                sites(s)%mass_balance(el)%wood_product = this%rvars(ir_woodprod_mbal+el-1)%r81d(io_idx_si)
              end do
           end if
           

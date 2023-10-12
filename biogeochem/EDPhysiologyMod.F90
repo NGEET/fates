@@ -3022,7 +3022,7 @@ contains
                   SF_val_CWD_frac_adj(c) * dead_n_dlogging * &
                   prt_params%allom_agb_frac(pft)
 
-             site_mass%wood_product = site_mass%wood_product + &
+             site_mass%wood_product_harvest(pft) = site_mass%wood_product_harvest(pft) + &
                   trunk_wood * currentPatch%area * logging_export_frac
 
              ! Add AG wood to litter from the non-exported fraction of wood

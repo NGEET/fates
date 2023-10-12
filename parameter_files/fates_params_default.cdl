@@ -342,6 +342,12 @@ variables:
 	double fates_hydro_vg_n_node(fates_hydr_organs, fates_pft) ;
 		fates_hydro_vg_n_node:units = "unitless" ;
 		fates_hydro_vg_n_node:long_name = "(used if hydr_htftype_node = 2),n in van Genuchten 1980 model, pore size distribution parameter" ;
+	double fates_landuse_harvest_pprod10(fates_pft) ;
+		fates_landuse_harvest_pprod10:units = "fraction" ;
+		fates_landuse_harvest_pprod10:long_name = "fraction of harvest wood product that goes to 10-year product pool (remainder goes to 100-year pool)" ;
+	double fates_landuse_landusechange_pprod10(fates_pft) ;
+		fates_landuse_landusechange_pprod10:units = "fraction" ;
+		fates_landuse_landusechange_pprod10:long_name = "fraction of land use change wood product that goes to 10-year product pool (remainder goes to 100-year pool)" ;
 	double fates_leaf_c3psn(fates_pft) ;
 		fates_leaf_c3psn:units = "flag" ;
 		fates_leaf_c3psn:long_name = "Photosynthetic pathway (1=c3, 0=c4)" ;
@@ -792,9 +798,6 @@ variables:
 	double fates_landuse_logging_mechanical_frac ;
 		fates_landuse_logging_mechanical_frac:units = "fraction" ;
 		fates_landuse_logging_mechanical_frac:long_name = "Fraction of stems killed due infrastructure an other mechanical means" ;
-	double fates_landuse_pprodharv10_forest_mean ;
-		fates_landuse_pprodharv10_forest_mean:units = "fraction" ;
-		fates_landuse_pprodharv10_forest_mean:long_name = "mean harvest mortality proportion of deadstem to 10-yr product (pprodharv10) of all woody PFT types" ;
 	double fates_leaf_photo_temp_acclim_thome_time ;
 		fates_leaf_photo_temp_acclim_thome_time:units = "years" ;
 		fates_leaf_photo_temp_acclim_thome_time:long_name = "Length of the window for the long-term (i.e. T_home in Kumarathunge et al 2019) exponential moving average (ema) of vegetation temperature used in photosynthesis temperature acclimation (used if fates_leaf_photo_tempsens_model = 2)" ;
@@ -1679,8 +1682,6 @@ data:
  fates_landuse_logging_export_frac = 0.8 ;
 
  fates_landuse_logging_mechanical_frac = 0.05 ;
-
- fates_landuse_pprodharv10_forest_mean = 0.8125 ;
 
  fates_leaf_photo_temp_acclim_thome_time = 30 ;
 

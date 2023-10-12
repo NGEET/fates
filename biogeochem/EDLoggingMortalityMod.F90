@@ -69,6 +69,7 @@ module EDLoggingMortalityMod
    use FatesConstantsMod , only : hlm_harvest_area_fraction
    use FatesConstantsMod , only : hlm_harvest_carbon
    use FatesConstantsMod, only : fates_check_param_set
+   use FatesInterfaceTypesMod , only : numpft
 
    implicit none
    private
@@ -992,7 +993,7 @@ contains
                   ag_wood * logging_export_frac
 
             ! This is for checking the total mass balance [kg/site/day]
-            site_mass%wood_product = site_mass%wood_product + &
+            site_mass%wood_product_harvest(pft) = site_mass%wood_product_harvest(pft) + &
                   ag_wood * logging_export_frac
 
             new_litt%ag_cwd(ncwd) = new_litt%ag_cwd(ncwd) + ag_wood * &
@@ -1122,6 +1123,7 @@ contains
       type(bc_out_type), intent(inout)          :: bc_out
   
       integer :: icode
+      integer :: i_pft
       real(r8) :: unit_trans_factor
   
 
@@ -1132,13 +1134,26 @@ contains
       ! Calculate the unit transfer factor (from kgC m-2 day-1 to gC m-2 s-1)
       unit_trans_factor = g_per_kg * days_per_sec
 
-      bc_out%hrv_deadstemc_to_prod10c = bc_out%hrv_deadstemc_to_prod10c + &
-          currentSite%mass_balance(element_pos(carbon12_element))%wood_product * &
-          AREA_INV * pprodharv10_forest_mean * unit_trans_factor
-      bc_out%hrv_deadstemc_to_prod100c = bc_out%hrv_deadstemc_to_prod100c + &
-          currentSite%mass_balance(element_pos(carbon12_element))%wood_product * &
-          AREA_INV * (1._r8 - pprodharv10_forest_mean) * unit_trans_factor  
-  
+      ! harvest-associated wood product pools
+      do i_pft = 1,numpft
+         bc_out%hrv_deadstemc_to_prod10c = bc_out%hrv_deadstemc_to_prod10c + &
+              currentSite%mass_balance(element_pos(carbon12_element))%wood_product_harvest(i_pft) * &
+              AREA_INV * harvest_pprod10(i_pft) * unit_trans_factor
+         bc_out%hrv_deadstemc_to_prod100c = bc_out%hrv_deadstemc_to_prod100c + &
+              currentSite%mass_balance(element_pos(carbon12_element))%wood_product_harvest(i_pft) * &
+              AREA_INV * (1._r8 - harvest_pprod10(i_pft)) * unit_trans_factor
+      end do
+
+      ! land-use-change-associated wood product pools
+      do i_pft = 1,numpft
+         bc_out%hrv_deadstemc_to_prod10c = bc_out%hrv_deadstemc_to_prod10c + &
+              currentSite%mass_balance(element_pos(carbon12_element))%wood_product_landusechange(i_pft) * &
+              AREA_INV * landusechange_pprod10(i_pft) * unit_trans_factor
+         bc_out%hrv_deadstemc_to_prod100c = bc_out%hrv_deadstemc_to_prod100c + &
+              currentSite%mass_balance(element_pos(carbon12_element))%wood_product_landusechange(i_pft) * &
+              AREA_INV * (1._r8 - landusechange_pprod10(i_pft)) * unit_trans_factor
+      end do
+
       return
 
    end subroutine UpdateHarvestC

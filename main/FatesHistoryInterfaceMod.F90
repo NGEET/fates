@@ -312,7 +312,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_fire_disturbance_rate_si
   integer :: ih_logging_disturbance_rate_si
   integer :: ih_fall_disturbance_rate_si
-  integer :: ih_harvest_carbonflux_si
+  integer :: ih_harvest_woodproduct_carbonflux_si
+  integer :: ih_landusechange_woodproduct_carbonflux_si
   integer :: ih_harvest_debt_si
   integer :: ih_harvest_debt_sec_si
 
@@ -2389,7 +2390,8 @@ end subroutine flush_hvars
                hio_fire_disturbance_rate_si      => this%hvars(ih_fire_disturbance_rate_si)%r81d, &
                hio_logging_disturbance_rate_si   => this%hvars(ih_logging_disturbance_rate_si)%r81d, &
                hio_fall_disturbance_rate_si      => this%hvars(ih_fall_disturbance_rate_si)%r81d, &
-               hio_harvest_carbonflux_si => this%hvars(ih_harvest_carbonflux_si)%r81d, &
+               hio_harvest_woodproduct_carbonflux_si => this%hvars(ih_harvest_woodproduct_carbonflux_si)%r81d, &
+               hio_landusechange_woodproduct_carbonflux_si => this%hvars(ih_woodproduct_carbonflux_si)%r81d, &
                hio_harvest_debt_si     => this%hvars(ih_harvest_debt_si)%r81d, &
                hio_harvest_debt_sec_si => this%hvars(ih_harvest_debt_sec_si)%r81d, &
                hio_gpp_si_scpf         => this%hvars(ih_gpp_si_scpf)%r82d, &
@@ -2759,8 +2761,10 @@ end subroutine flush_hvars
       hio_fall_disturbance_rate_si(io_si) = sum(sites(s)%disturbance_rates(dtype_ifall,1:n_landuse_cats,1:n_landuse_cats)) * &
            days_per_year
 
-      hio_harvest_carbonflux_si(io_si) = sites(s)%mass_balance(element_pos(carbon12_element))%wood_product * AREA_INV
-      
+      hio_harvest_woodproduct_carbonflux_si(io_si) = sum(sites(s)%mass_balance(element_pos(carbon12_element))%wood_product_harvest(1:numpft)) * AREA_INV
+
+      hio_landusechange_woodproduct_carbonflux_si(io_si) = sum(sites(s)%mass_balance(element_pos(carbon12_element))%wood_product_landusechange(1:numpft)) * AREA_INV
+
       ! Loop through patches to sum up diagonistics
       ipa = 0
       cpatch => sites(s)%oldest_patch
@@ -6444,12 +6448,19 @@ end subroutine update_history_hifrq
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_fall_disturbance_rate_si)
 
-    call this%set_history_var(vname='FATES_HARVEST_CARBON_FLUX',               &
+    call this%set_history_var(vname='FATES_HARVEST_WOODPROD_C_FLUX',           &
          units='kg m-2 yr-1',                                                  &
-         long='harvest carbon flux in kg carbon per m2 per year',              &
+         long='harvest-associated wood product carbon flux in kg carbon per m2 per year', &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
-         index = ih_harvest_carbonflux_si)
+         index = ih_harvest_woodproduct_carbonflux_si)
+
+    call this%set_history_var(vname='FATES_LANDUSECHANGE_WOODPROD_C_FLUX',     &
+         units='kg m-2 yr-1',                                                  &
+         long='land-use-change-associated wood product carbon flux in kg carbon per m2 per year', &
+         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+         index = ih_landusechange_woodproduct_carbonflux_si)
 
     ! Canopy Resistance
 

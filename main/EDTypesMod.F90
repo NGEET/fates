@@ -204,7 +204,10 @@ module EDTypesMod
 
      real(r8) :: frag_out         ! Litter and coarse woody debris fragmentation flux [kg/site/day]
 
-     real(r8) :: wood_product          ! Total mass exported as wood product [kg/site/day]
+     real(r8) :: wood_product_harvest(maxpft)    ! Total mass exported as wood product from wood harvest [kg/site/day]
+
+     real(r8) :: wood_product_landusechange(maxpft)    ! Total mass exported as wood product from land use change [kg/site/day]
+
      real(r8) :: burn_flux_to_atm      ! Total mass burned and exported to the atmosphere [kg/site/day]
 
      real(r8) :: flux_generic_in       ! Used for prescribed or artificial input fluxes
@@ -471,7 +474,8 @@ module EDTypesMod
       this%seed_in           = 0._r8
       this%seed_out          = 0._r8
       this%frag_out          = 0._r8
-      this%wood_product      = 0._r8
+      this%wood_product_harvest(:)        = 0._r8
+      this%wood_product_landusechange(:)  = 0._r8
       this%burn_flux_to_atm  = 0._r8
       this%flux_generic_in   = 0._r8
       this%flux_generic_out  = 0._r8

@@ -2633,7 +2633,7 @@ contains
                    trunk_product_site = trunk_product_site + &
                         woodproduct_mass
 
-                   site_mass%wood_product = site_mass%wood_product + &
+                   site_mass%wood_product_landusechange(pft) = site_mass%wood_product_landusechange(pft) + &
                         woodproduct_mass
                 endif
                 new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * donate_m2
