@@ -265,9 +265,14 @@ module EDPftvarcon
      real(r8), allocatable :: hydr_thetas_node(:,:) ! saturated water content (cm3/cm3)
 
      ! Table that maps HLM pfts to FATES pfts for fixed biogeography mode
-     ! The values are area fractions (NOT IMPLEMENTED)
+     ! The values are area fractions
      real(r8), allocatable :: hlm_pft_map(:,:)
 
+     ! Land-use and land-use change related PFT parameters
+     real(r8), allocatable :: harvest_pprod10(:)              ! fraction of harvest wood product that goes to 10-year product pool (remainder goes to 100-year pool)
+     real(r8), allocatable :: landusechange_frac_burned(:)    ! fraction of land use change-generated and not-exported material that is burned (the remainder goes to litter)
+     real(r8), allocatable :: landusechange_frac_exported(:)  ! fraction of land use change-generated wood material that is exported to wood product (the remainder is either burned or goes to litter)
+     real(r8), allocatable :: landusechange_pprod10(:)        ! fraction of land use change wood product that goes to 10-year product pool (remainder goes to 100-year pool)
 
    contains
      procedure, public :: Init => EDpftconInit
@@ -760,6 +765,22 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_landuse_harvest_pprod10'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_landuse_landusechange_frac_burned'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_landuse_landusechange_frac_exported'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_landuse_landusechange_pprod10'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
     name = 'fates_dev_arbitrary_pft'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -1203,6 +1224,22 @@ contains
     name = 'fates_hlm_pft_map'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%hlm_pft_map)
+
+    name = 'fates_landuse_harvest_pprod10'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%harvest_pprod10)
+
+    name = 'fates_landuse_landusechange_frac_burned'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%landusechange_frac_burned)
+
+    name = 'fates_landuse_landusechange_frac_exported'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%landusechange_frac_exported)
+
+    name = 'fates_landuse_landusechange_pprod10'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%landusechange_pprod10)
 
   end subroutine Receive_PFT
 

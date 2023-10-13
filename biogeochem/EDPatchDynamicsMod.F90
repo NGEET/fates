@@ -2458,10 +2458,6 @@ contains
                                      ! (note we are accumulating over the patch, but scale is site level)
     real(r8) :: woodproduct_mass     ! mass that ends up in wood products [kg]
 
-    ! the following two parameters are new to this logic.
-    real(r8), parameter :: burn_frac_landusetransition = 0.5_r8  ! what fraction of plant fines are burned during a land use transition?
-    real(r8), parameter :: woodproduct_frac_landusetransition = 0.5_r8  ! what fraction of trunk carbon is turned into wood products during a land use transition?
-
     !---------------------------------------------------------------------
 
     clear_veg_if: if (clearing_matrix_element) then
@@ -2550,10 +2546,10 @@ contains
 
              ! Contribution of dead trees to leaf litter
              donatable_mass = num_dead_trees * (leaf_m+repro_m) * &
-                  (1.0_r8-burn_frac_landusetransition)
+                  (1.0_r8-EDPftvarcon_inst%landusechange_frac_burned(pft))
 
              ! Contribution of dead trees to leaf burn-flux
-             burned_mass  = num_dead_trees * (leaf_m+repro_m) * burn_frac_landusetransition
+             burned_mass  = num_dead_trees * (leaf_m+repro_m) * EDPftvarcon_inst%landusechange_frac_burned(pft)
 
              do dcmpy=1,ndcmpy
                 dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
@@ -2583,7 +2579,7 @@ contains
              ! Track as diagnostic fluxes
              flux_diags%leaf_litter_input(pft) = &
                   flux_diags%leaf_litter_input(pft) + &
-                  num_dead_trees * (leaf_m+repro_m) * (1.0_r8-burn_frac_landusetransition)
+                  num_dead_trees * (leaf_m+repro_m) * (1.0_r8-EDPftvarcon_inst%landusechange_frac_burned(pft))
 
              flux_diags%root_litter_input(pft) = &
                   flux_diags%root_litter_input(pft) + &
@@ -2619,16 +2615,23 @@ contains
              do c = 1,ncwd
                 donatable_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem
                 if (c == 1 .or. c == 2) then  ! these pools can burn
-                   donatable_mass = donatable_mass * (1.0_r8-burn_frac_landusetransition)
+                   donatable_mass = donatable_mass * (1.0_r8-EDPftvarcon_inst%landusechange_frac_burned(pft))
                    burned_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem * &
-                        burn_frac_landusetransition
+                        EDPftvarcon_inst%landusechange_frac_burned(pft)
 
                    site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
-                else ! all other pools can end up as timber products but not burn
-                   donatable_mass = donatable_mass * (1.0_r8-woodproduct_frac_landusetransition)
+                else ! all other pools can end up as timber products or burn or go to litter
+                   donatable_mass = donatable_mass * (1.0_r8-EDPftvarcon_inst%landusechange_frac_exported(pft)) * &
+                        (1.0_r8-EDPftvarcon_inst%landusechange_frac_burned(pft))
+
+                   burned_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem * &
+                        (1.0_r8-EDPftvarcon_inst%landusechange_frac_exported(pft)) * &
+                        EDPftvarcon_inst%landusechange_frac_burned(pft)
 
                    woodproduct_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem * &
-                        woodproduct_frac_landusetransition
+                        EDPftvarcon_inst%landusechange_frac_exported(pft)
+
+                   site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
                    trunk_product_site = trunk_product_site + &
                         woodproduct_mass

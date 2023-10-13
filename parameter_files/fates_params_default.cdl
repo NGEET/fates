@@ -345,6 +345,12 @@ variables:
 	double fates_landuse_harvest_pprod10(fates_pft) ;
 		fates_landuse_harvest_pprod10:units = "fraction" ;
 		fates_landuse_harvest_pprod10:long_name = "fraction of harvest wood product that goes to 10-year product pool (remainder goes to 100-year pool)" ;
+	double fates_landuse_landusechange_frac_burned(fates_pft) ;
+		fates_landuse_landusechange_frac_burned:units = "fraction" ;
+		fates_landuse_landusechange_frac_burned:long_name = "fraction of land use change-generated and not-exported material that is burned (the remainder goes to litter)" ;
+	double fates_landuse_landusechange_frac_exported(fates_pft) ;
+		fates_landuse_landusechange_frac_exported:units = "fraction" ;
+		fates_landuse_landusechange_frac_exported:long_name = "fraction of land use change-generated wood material that is exported to wood product (the remainder is either burned or goes to litter)" ;
 	double fates_landuse_landusechange_pprod10(fates_pft) ;
 		fates_landuse_landusechange_pprod10:units = "fraction" ;
 		fates_landuse_landusechange_pprod10:long_name = "fraction of land use change wood product that goes to 10-year product pool (remainder goes to 100-year pool)" ;
@@ -1271,6 +1277,17 @@ data:
   2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
   2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
   2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ;
+
+ fates_landuse_harvest_pprod10 = 1, 0.75, 0.75, 0.75, 1, 0.75, 1, 1, 1, 1, 1, 1 ;
+
+ fates_landuse_landusechange_frac_burned = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
+    0.5, 0.5, 0.5, 0.5, 0.5 ;
+
+ fates_landuse_landusechange_frac_exported = 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 
+    0.2, 0.2, 0.2, 0, 0, 0 ;
+
+ fates_landuse_landusechange_pprod10 = 1, 0.75, 0.75, 0.75, 1, 0.75, 1, 1, 1, 
+    1, 1, 1 ;
 
  fates_leaf_c3psn = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 ;
 

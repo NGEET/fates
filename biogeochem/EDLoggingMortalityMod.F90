@@ -1116,7 +1116,6 @@ contains
       use PRTGenericMod          , only : element_pos
       use PRTGenericMod          , only : carbon12_element
       use FatesInterfaceTypesMod , only : bc_out_type
-      use EDParamsMod            , only : pprodharv10_forest_mean
   
       ! Arguments
       type(ed_site_type), intent(inout), target :: currentSite     ! site structure
@@ -1138,20 +1137,20 @@ contains
       do i_pft = 1,numpft
          bc_out%hrv_deadstemc_to_prod10c = bc_out%hrv_deadstemc_to_prod10c + &
               currentSite%mass_balance(element_pos(carbon12_element))%wood_product_harvest(i_pft) * &
-              AREA_INV * harvest_pprod10(i_pft) * unit_trans_factor
+              AREA_INV * EDPftvarcon_inst%harvest_pprod10(i_pft) * unit_trans_factor
          bc_out%hrv_deadstemc_to_prod100c = bc_out%hrv_deadstemc_to_prod100c + &
               currentSite%mass_balance(element_pos(carbon12_element))%wood_product_harvest(i_pft) * &
-              AREA_INV * (1._r8 - harvest_pprod10(i_pft)) * unit_trans_factor
+              AREA_INV * (1._r8 - EDPftvarcon_inst%harvest_pprod10(i_pft)) * unit_trans_factor
       end do
 
       ! land-use-change-associated wood product pools
       do i_pft = 1,numpft
          bc_out%hrv_deadstemc_to_prod10c = bc_out%hrv_deadstemc_to_prod10c + &
               currentSite%mass_balance(element_pos(carbon12_element))%wood_product_landusechange(i_pft) * &
-              AREA_INV * landusechange_pprod10(i_pft) * unit_trans_factor
+              AREA_INV * EDPftvarcon_inst%landusechange_pprod10(i_pft) * unit_trans_factor
          bc_out%hrv_deadstemc_to_prod100c = bc_out%hrv_deadstemc_to_prod100c + &
               currentSite%mass_balance(element_pos(carbon12_element))%wood_product_landusechange(i_pft) * &
-              AREA_INV * (1._r8 - landusechange_pprod10(i_pft)) * unit_trans_factor
+              AREA_INV * (1._r8 - EDPftvarcon_inst%landusechange_pprod10(i_pft)) * unit_trans_factor
       end do
 
       return
