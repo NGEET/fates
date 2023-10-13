@@ -2585,6 +2585,7 @@ contains
                             !-----------------------!
                             
                             tmpptr => currentPatch%older       
+                            if (currentPatch%land_use_label .eq. secondaryland) & 
                             write(fates_log(),*) 'fusepatches: calling fuse', tpp%land_use_label, currentPatch%land_use_label
                             call fuse_2_patches(csite, currentPatch, tpp)
                             call fuse_cohorts(csite,tpp, bc_in)
@@ -2715,12 +2716,8 @@ contains
     inv_sum_area = 1.0_r8/(dp%area + rp%area)
     
     rp%age = (dp%age * dp%area + rp%age * rp%area) * inv_sum_area
-    write(fates_log(),*) 'fuse2 pre: agesince: rp, dp:', rp%age_since_anthro_disturbance, dp%age_since_anthro_disturbance
-    write(fates_log(),*) 'fuse2 pre: area: rp, dp:', rp%area, dp%area
     rp%age_since_anthro_disturbance = (dp%age_since_anthro_disturbance * dp%area &
          + rp%age_since_anthro_disturbance * rp%area) * inv_sum_area
-    write(fates_log(),*) 'fuse2 pst: agesince: rp, dp:', rp%age_since_anthro_disturbance, dp%age_since_anthro_disturbance
-    write(fates_log(),*) 'fuse2 pst: area: rp, dp:', rp%area, dp%area
 
     rp%age_class = get_age_class_index(rp%age)
     
@@ -2966,6 +2963,7 @@ contains
                       if(debug) &
                            write(fates_log(),*) 'terminate: fused to older patch, same label: ', currentPatch%land_use_label, olderPatch%land_use_label
 
+                      if (olderPatch%land_use_label .eq. secondaryland) & 
                       write(fates_log(),*) 'terminate: distlabel_1: calling fuse: same', olderPatch%land_use_label, currentPatch%land_use_label
                       call fuse_2_patches(currentSite, olderPatch, currentPatch)
 
@@ -2981,8 +2979,10 @@ contains
                          ! if we're having an incredibly hard time fusing patches because of their differing anthropogenic disturbance labels,
                          ! since the size is so small, let's sweep the problem under the rug and change the tiny patch's label to that of its older sibling
                          ! and then allow them to fuse together.
-                         write(fates_log(),*) 'terminate: distlabel_1: calling fuse: diff', olderPatch%land_use_label, currentPatch%land_use_label
-                         write(fates_log(),*) 'terminate: agesince: rp, dp:', currentPatch%age_since_anthro_disturbance, olderPatch%age_since_anthro_disturbance
+                         if (olderPatch%land_use_label .eq. secondaryland) then
+                            write(fates_log(),*) 'terminate: distlabel_1: calling fuse: diff', olderPatch%land_use_label, currentPatch%land_use_label
+                            write(fates_log(),*) 'terminate: agesince: rp, dp:', currentPatch%age_since_anthro_disturbance, olderPatch%age_since_anthro_disturbance
+                         end if
                          currentPatch%land_use_label = olderPatch%land_use_label
                          currentPatch%age_since_anthro_disturbance = olderPatch%age_since_anthro_disturbance
                          call fuse_2_patches(currentSite, olderPatch, currentPatch)
@@ -3001,6 +3001,7 @@ contains
 
                    distlabel_2_if: if (currentPatch%land_use_label .eq. youngerPatch%land_use_label) then
 
+                      if (youngerPatch%land_use_label .eq. secondaryland) &
                       write(fates_log(),*) 'terminate: distlabel_2: calling fuse: same', youngerPatch%land_use_label, currentPatch%land_use_label
                       call fuse_2_patches(currentSite, youngerPatch, currentPatch)
 
@@ -3012,8 +3013,10 @@ contains
                       if (count_cycles .gt. 0) then
                          ! if we're having an incredibly hard time fusing patches because of their differing anthropogenic disturbance labels,
                          ! since the size is so small, let's sweep the problem under the rug and change the tiny patch's label to that of its younger sibling
-                         write(fates_log(),*) 'terminate: distlabel_2: calling fuse: diff', youngerPatch%land_use_label, currentPatch%land_use_label
-                         write(fates_log(),*) 'terminate: agesince: rp, dp:', currentPatch%age_since_anthro_disturbance,youngerPatch%age_since_anthro_disturbance
+                         if (youngerPatch%land_use_label .eq. secondaryland) then
+                            write(fates_log(),*) 'terminate: distlabel_2: calling fuse: diff', youngerPatch%land_use_label, currentPatch%land_use_label
+                            write(fates_log(),*) 'terminate: agesince: rp, dp:', currentPatch%age_since_anthro_disturbance,youngerPatch%age_since_anthro_disturbance
+                         end if
                          currentPatch%land_use_label = youngerPatch%land_use_label
                          currentPatch%age_since_anthro_disturbance = youngerPatch%age_since_anthro_disturbance
                          call fuse_2_patches(currentSite, youngerPatch, currentPatch)

@@ -2815,7 +2815,6 @@ end subroutine flush_hvars
                cpatch%area * AREA_INV
 
             ageclass_since_anthrodist = get_age_class_index(cpatch%age_since_anthro_disturbance)
-            write(fates_log(),*) 'hist: lul, agesince:', cpatch%land_use_label, cpatch%age_since_anthro_disturbance
 
             hio_agesince_anthrodist_si_age(io_si,ageclass_since_anthrodist) = &
                hio_agesince_anthrodist_si_age(io_si,ageclass_since_anthrodist)  &
