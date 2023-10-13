@@ -710,6 +710,11 @@ contains
                             case (dtype_ilog)
                                call logging_litter_fluxes(currentSite, currentPatch, &
                                     newPatch, patch_site_areadis,bc_in)
+
+                               ! if transitioning from primary to secondary, then may need to change nocomp pft, so tag as having transitioned LU
+                               if ( i_disturbance_type .eq. ilog .and. i_donorpatch_landuse_type .eq. primarylands) then
+                                  newPatch%changed_landuse_this_ts = .true.
+                               end if
                             case (dtype_ifire)
                                call fire_litter_fluxes(currentSite, currentPatch, &
                                     newPatch, patch_site_areadis,bc_in)
@@ -721,6 +726,7 @@ contains
                                     newPatch, patch_site_areadis,bc_in, &
                                     clearing_matrix(i_donorpatch_landuse_type,i_landusechange_receiverpatchlabel))
 
+                               ! if land use change, then may need to change nocomp pft, so tag as having transitioned LU
                                new_patch%changed_landuse_this_ts = .true.
                             case default
                                write(fates_log(),*) 'unknown disturbance mode?'
@@ -1430,6 +1436,13 @@ contains
           end if
 
        end do lu_loop
+    else
+       ! if not using a configuration where the changed_landuse_this_ts is relevant, loop through all patches and reset it
+       currentPatch => currentSite%oldest_patch
+       do while(associated(currentPatch))
+          currentPatch%changed_landuse_this_ts = .false.
+          currentPatch => currentPatch%younger
+       end do
     endif nocomp_and_luh_if
 
     !zero disturbance rate trackers on all patches
