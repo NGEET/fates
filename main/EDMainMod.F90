@@ -763,7 +763,7 @@ contains
   end subroutine ed_integrate_state_variables
 
   !-------------------------------------------------------------------------------!
-  subroutine ed_update_site( currentSite, bc_in, bc_out )
+  subroutine ed_update_site( currentSite, bc_in, bc_out, is_restart )
     !
     ! !DESCRIPTION:
     ! Calls routines to consolidate the ED growth process.
@@ -779,6 +779,7 @@ contains
     type(ed_site_type) , intent(inout), target :: currentSite
     type(bc_in_type)   , intent(in)       :: bc_in
     type(bc_out_type)  , intent(inout)    :: bc_out
+    logical,intent(in)                    :: is_restart ! is this called during restart read?
     !
     ! !LOCAL VARIABLES:
     type (fates_patch_type) , pointer :: currentPatch
@@ -789,7 +790,7 @@ contains
 
     call TotalBalanceCheck(currentSite,6)
 
-    if(hlm_use_sp.eq.ifalse)then
+    if(hlm_use_sp.eq.ifalse .and. (.not.is_restart) )then
        call canopy_structure(currentSite, bc_in)
     endif
 
@@ -803,22 +804,22 @@ contains
     currentPatch => currentSite%oldest_patch
     do while(associated(currentPatch))
 
-        ! Is termination really needed here?
-        ! Canopy_structure just called it several times! (rgk)
-        call terminate_cohorts(currentSite, currentPatch, 1, 11, bc_in)
-        call terminate_cohorts(currentSite, currentPatch, 2, 11, bc_in)
+       if(.not.is_restart)then
+          call terminate_cohorts(currentSite, currentPatch, 1, 11, bc_in)
+          call terminate_cohorts(currentSite, currentPatch, 2, 11, bc_in)
+       end if
 
-        ! This cohort count is used in the photosynthesis loop
-        call count_cohorts(currentPatch)
-
-        ! Update the total area of by patch age class array 
-        currentSite%area_by_age(currentPatch%age_class) = &
-             currentSite%area_by_age(currentPatch%age_class) + currentPatch%area
-        
-        currentPatch => currentPatch%younger
-
+       ! This cohort count is used in the photosynthesis loop
+       call count_cohorts(currentPatch)
+       
+       ! Update the total area of by patch age class array 
+       currentSite%area_by_age(currentPatch%age_class) = &
+            currentSite%area_by_age(currentPatch%age_class) + currentPatch%area
+       
+       currentPatch => currentPatch%younger
+       
     enddo
-
+    
     ! The HLMs need to know about nutrient demand, and/or
     ! root mass and affinities
     call PrepNutrientAquisitionBCs(currentSite,bc_in,bc_out)

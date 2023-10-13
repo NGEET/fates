@@ -140,7 +140,8 @@ module FatesRestartInterfaceMod
   integer :: ir_treesai_co
   integer :: ir_canopy_layer_tlai_pa
 
-
+  integer :: ir_nclp_pa
+  integer :: ir_zstar_pa
 
   !Logging
   integer :: ir_lmort_direct_co
@@ -1133,12 +1134,22 @@ contains
              long_name='stem area index of fates cohort', &
              units='m2/m2', flushval = flushzero, &
              hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_treesai_co )
+
          call this%set_restart_var(vname='fates_canopy_layer_tlai_pa', vtype=cohort_r8, &
              long_name='total patch level leaf area index of each fates canopy layer', &
              units='m2/m2', flushval = flushzero, &
              hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_canopy_layer_tlai_pa )
     end if
 
+    call this%set_restart_var(vname='fates_nclp_pa', vtype=cohort_r8, &
+             long_name='total number of canopy layers', &
+             units='-', flushval = flushzero, &
+             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_nclp_pa )
+
+    call this%set_restart_var(vname='fates_zstar_pa', vtype=cohort_r8, &
+             long_name='patch zstar', &
+             units='-', flushval = flushzero, &
+             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_zstar_pa )
 
     ! Only register hydraulics restart variables if it is turned on!
 
@@ -2402,6 +2413,8 @@ contains
                       ,io_idx_co,cohortsperpatch
              endif
 
+             this%rvars(ir_nclp_pa)%r81d(io_idx_co_1st) = cpatch%ncl_p
+             this%rvars(ir_zstar_pa)%r81d(io_idx_co_1st) = cpatch%zstar
 
              if(hlm_use_sp.eq.ifalse)then
 
@@ -3301,6 +3314,8 @@ contains
              cpatch%solar_zenith_flag  = ( rio_solar_zenith_flag_pa(io_idx_co_1st) .eq. itrue )
              cpatch%solar_zenith_angle = rio_solar_zenith_angle_pa(io_idx_co_1st)
 
+             cpatch%ncl_p = this%rvars(ir_nclp_pa)%r81d(io_idx_co_1st)
+             cpatch%zstar = this%rvars(ir_zstar_pa)%r81d(io_idx_co_1st)
 
              call this%GetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
              call this%GetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
