@@ -74,6 +74,7 @@ def main():
         ds_target['lat'] = ds_target.LATIXY.isel(lon=0)
         regridder = xe.Regridder(ds_percent, ds_target, "conservative")
         ds_regrid = regridder(ds_percent)
+        ds_regrid = ds_regrid.rename_dims(dims_dict={'lat':'lsmlat','lon':'lsmlon'})
         output_file = os.path.join(os.getcwd(),args.output)
         # rename the dimensions back to lsmlat/lsmlon?
     else:
