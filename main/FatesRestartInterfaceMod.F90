@@ -1141,7 +1141,7 @@ contains
              hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_canopy_layer_tlai_pa )
     end if
 
-    call this%set_restart_var(vname='fates_nclp_pa', vtype=cohort_r8, &
+    call this%set_restart_var(vname='fates_nclp_pa', vtype=cohort_int, &
              long_name='total number of canopy layers', &
              units='-', flushval = flushzero, &
              hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_nclp_pa )
@@ -2413,7 +2413,7 @@ contains
                       ,io_idx_co,cohortsperpatch
              endif
 
-             this%rvars(ir_nclp_pa)%r81d(io_idx_co_1st) = cpatch%ncl_p
+             this%rvars(ir_nclp_pa)%int1d(io_idx_co_1st) = cpatch%ncl_p
              this%rvars(ir_zstar_pa)%r81d(io_idx_co_1st) = cpatch%zstar
 
              if(hlm_use_sp.eq.ifalse)then
@@ -3314,7 +3314,7 @@ contains
              cpatch%solar_zenith_flag  = ( rio_solar_zenith_flag_pa(io_idx_co_1st) .eq. itrue )
              cpatch%solar_zenith_angle = rio_solar_zenith_angle_pa(io_idx_co_1st)
 
-             cpatch%ncl_p = this%rvars(ir_nclp_pa)%r81d(io_idx_co_1st)
+             cpatch%ncl_p = this%rvars(ir_nclp_pa)%int1d(io_idx_co_1st)
              cpatch%zstar = this%rvars(ir_zstar_pa)%r81d(io_idx_co_1st)
 
              call this%GetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
