@@ -164,10 +164,10 @@ def main(argv):
     if(False):
         SunFracTests()
 
-    if(True):
+    if(False):
         SingleElementPerturbTest()
 
-    if(False):
+    if(True):
         SerialParallelCanopyTest()
 
     plt.show()
@@ -225,10 +225,8 @@ def SerialParallelCanopyTest():
     iret = alloc_twostream_call(ci(n_layer),ci(n_col))
 
     #class cohort_type:
-    #def __init__(self,n_vai):
-        #self.n_vai = n_vai
-        #self.avai = np.zeros([n_vai])
-
+    #def __init__(self,n_vai,area_frac,lai,sai,pft)
+        
     # Five elements (cohorts), each take up 20% of the space
     area_frac = 0.2
     serialc = []
@@ -244,17 +242,17 @@ def SerialParallelCanopyTest():
     parallelc.append(cohort_type(100,area_frac,cohort_lai[2],cohort_lai[2]*sai_frac,pft))
     parallelc.append(cohort_type(100,area_frac,cohort_lai[3],cohort_lai[3]*sai_frac,pft))
     parallelc.append(cohort_type(100,area_frac,cohort_lai[4],cohort_lai[4]*sai_frac,pft))
+
+    # Setup serial canopy "s_elems"
     
-    elems = []
-    elems.append([])
-    elems.append([])
+    s_elems = []
+    s_elems.append([])
+    s_elems.append([])
     n_vai = 100
 
     dvai = 0.05
-    
     for i in range(n_layer):
         ican = i+1
-
         icol = 1
         area = np.sum(cohort_area[i:])
         if(i==0):
@@ -265,21 +263,20 @@ def SerialParallelCanopyTest():
         sai  = lai*sai_frac
 
         n_vai = int((lai+sai)/dvai)
-        elems[0].append(elem_type(n_vai))
+        s_elems[0].append(elem_type(n_vai))
         
-        
-        elems[0][-1].lai  = lai
-        elems[0][-1].sai  = sai
-        elems[0][-1].area = area
-        elems[0][-1].avai = np.linspace(0,lai+sai,num=n_vai)
+        s_elems[0][-1].lai  = lai
+        s_elems[0][-1].sai  = sai
+        s_elems[0][-1].area = area
+        s_elems[0][-1].avai = np.linspace(0,lai+sai,num=n_vai)
         iret = setup_canopy_call(c_int(ican),c_int(icol),c_int(pft),c_double(area),c_double(lai),c_double(sai))
 
         icol = 2
         area = 1-np.sum(cohort_area[i:])
-        elems[1].append(elem_type(1))
-        elems[1][-1].lai  = 0.0
-        elems[1][-1].sai  = 0.0
-        elems[1][-1].area = area
+        s_elems[1].append(elem_type(1))
+        s_elems[1][-1].lai  = 0.0
+        s_elems[1][-1].sai  = 0.0
+        s_elems[1][-1].area = area
         lai  = 0.0
         sai  = 0.0
         air_pft = 0
@@ -311,8 +308,8 @@ def SerialParallelCanopyTest():
     cd_ffdiff_diff = c_double(-9.0)
     
     
-    R_beam = 100.
-    R_diff = 100.
+    R_beam = 1.
+    R_diff = 1.
     cosz   = np.cos(0.0)
 
     ground_albedo_diff = 0.3
@@ -323,43 +320,37 @@ def SerialParallelCanopyTest():
     iret = grndsnow_albedo_call(c_int(visb),c_double(ground_albedo_beam),*ccharnb('albedo_grnd_beam'))
     iret = grndsnow_albedo_call(c_int(nirb),c_double(ground_albedo_diff),*ccharnb('albedo_grnd_diff'))
     iret = grndsnow_albedo_call(c_int(nirb),c_double(ground_albedo_beam),*ccharnb('albedo_grnd_beam'))
-    
     iret = canopy_prep_call(c8(frac_snow))
     iret = zenith_prep_call(c8(cosz))
-
-
-    
     iret = solver_call(ci(ib),ci(normalized_boundary),c8(1.0),c8(1.0), \
                        byref(cd_albedo_beam),byref(cd_albedo_diff), \
                        byref(cd_canabs_beam),byref(cd_canabs_diff), \
                        byref(cd_ffbeam_beam),byref(cd_ffdiff_beam),byref(cd_ffdiff_diff))
-
     iret = setdown_call(ci(ib),c8(R_beam),c8(R_diff))
-
     
     for i in range(n_layer):
         
         ican = i+1
         icol = 1
-        for iv in range(elems[0][i].n_vai):
-            iret = getintens_call(ci(ican),ci(icol),ci(ib),c8(elems[0][i].avai[iv]),byref(cd_r_diff_dn),byref(cd_r_diff_up),byref(cd_r_beam))
-            elems[0][i].r_dn[iv] = cd_r_diff_dn.value
-            elems[0][i].r_up[iv] = cd_r_diff_up.value
-            elems[0][i].r_b[iv] = cd_r_beam.value
+        for iv in range(s_elems[0][i].n_vai):
+            iret = getintens_call(ci(ican),ci(icol),ci(ib),c8(s_elems[0][i].avai[iv]),byref(cd_r_diff_dn),byref(cd_r_diff_up),byref(cd_r_beam))
+            s_elems[0][i].r_dn[iv] = cd_r_diff_dn.value
+            s_elems[0][i].r_up[iv] = cd_r_diff_up.value
+            s_elems[0][i].r_b[iv] = cd_r_beam.value
             if(iv>0):
-                elems[0][i].r_abs[iv-1] = (elems[0][i].r_dn[iv]-elems[0][i].r_dn[iv-1]) + \
-                    (elems[0][i].r_up[iv-1]-elems[0][i].r_up[iv]) + \
-                    (elems[0][i].r_b[iv]-elems[0][i].r_b[iv-1])
+                s_elems[0][i].r_abs[iv-1] = (s_elems[0][i].r_dn[iv]-s_elems[0][i].r_dn[iv-1]) + \
+                    (s_elems[0][i].r_up[iv-1]-s_elems[0][i].r_up[iv]) + \
+                    (s_elems[0][i].r_b[iv]-s_elems[0][i].r_b[iv-1])
 
-        for iv in range(elems[1][i].n_vai):
-            iret = getintens_call(ci(ican),ci(icol+1),ci(ib),c8(elems[1][i].avai[iv]),byref(cd_r_diff_dn),byref(cd_r_diff_up),byref(cd_r_beam))
-            elems[1][i].r_dn[iv] = cd_r_diff_dn.value
-            elems[1][i].r_up[iv] = cd_r_diff_up.value
-            elems[1][i].r_b[iv] = cd_r_beam.value
+        for iv in range(s_elems[1][i].n_vai):
+            iret = getintens_call(ci(ican),ci(icol+1),ci(ib),c8(s_elems[1][i].avai[iv]),byref(cd_r_diff_dn),byref(cd_r_diff_up),byref(cd_r_beam))
+            s_elems[1][i].r_dn[iv] = cd_r_diff_dn.value
+            s_elems[1][i].r_up[iv] = cd_r_diff_up.value
+            s_elems[1][i].r_b[iv] = cd_r_beam.value
             if(iv>0):
-                elems[1][i].r_abs[iv-1] = (elems[1][i].r_dn[iv]-elems[1][i].r_dn[iv-1]) + \
-                    (elems[1][i].r_up[iv-1]-elems[1][i].r_up[iv]) + \
-                    (elems[1][i].r_b[iv]-elems[1][i].r_b[iv-1])
+                s_elems[1][i].r_abs[iv-1] = (s_elems[1][i].r_dn[iv]-s_elems[1][i].r_dn[iv-1]) + \
+                    (s_elems[1][i].r_up[iv-1]-s_elems[1][i].r_up[iv]) + \
+                    (s_elems[1][i].r_b[iv]-s_elems[1][i].r_b[iv-1])
 
     # Lets get the absorbed radiation from the cohorts
     
@@ -420,7 +411,7 @@ def SerialParallelCanopyTest():
         maxlai          = np.max([maxlai,np.max(serialc[i].avai) ])
         max_sunfrac     = np.max([max_sunfrac,np.max(serialc[i].sunfrac)])
 
-    fig, axs = plt.subplots(ncols=n_cohorts,nrows=1,figsize=(9,5))
+    fig, axs = plt.subplots(ncols=n_cohorts,nrows=1,figsize=(6,3))
     ax1s = axs.reshape(-1)
     
     y0   = 0.1
@@ -451,7 +442,7 @@ def SerialParallelCanopyTest():
         x0 = x0+dx
         ic=ic+1
 
-    fig, axs = plt.subplots(ncols=n_cohorts,nrows=1,figsize=(9,5))
+    fig, axs = plt.subplots(ncols=n_cohorts,nrows=1,figsize=(6,3))
     ax1s = axs.reshape(-1)
     
     y0   = 0.1
@@ -488,9 +479,9 @@ def SerialParallelCanopyTest():
 
         
     if(True):
-        PlotRadMaps(elems,0,'Beam Radiation [W/m2]')
-        PlotRadMaps(elems,1,'Downwelling Diffuse Radiation [W/m2]')
-        PlotRadMaps(elems,2,'Upwelling Diffuse Radiation [W/m2]')
+        PlotRadMaps(s_elems,0,'Beam Radiation [W/m2]')
+        PlotRadMaps(s_elems,1,'Downwelling Diffuse Radiation [W/m2]')
+        PlotRadMaps(s_elems,2,'Upwelling Diffuse Radiation [W/m2]')
         
 
 def SunFracTests():
@@ -791,8 +782,8 @@ def SingleElementPerturbTest():
     pp_dict['betab'] = 1.5*0.48253004714288084  #*1.5
     pp_dict['betad'] = 1.5*0.5999777777777778  #*1.5
 
-    R_beam = 0.5
-    R_diff = 0.5
+    R_beam = 1.0
+    R_diff = 1.0
     cosz   = np.cos(0.0)
     n_vai  = 100
     vai_a  = np.linspace(0,vai,num=n_vai)
@@ -888,7 +879,7 @@ def SingleElementPerturbTest():
                 p_drdv_diff_up[iv-1] = (p_r_diff_up[iv]-p_r_diff_up[iv-1])/dv
 
 
-        fig1, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2,figsize=(7.5,6.5))
+        fig1, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2,figsize=(6.5,5.5))
 
         ap = ax1.plot(r_beam,vai_a,p_r_beam[:,i],vai_a)
         first_color = ap[0].get_color()
@@ -927,20 +918,17 @@ def SingleElementPerturbTest():
         
             
         param_str = r"""In-element Scattering Profiles
-
 Broad band: {0}
-$R_{{b,atm}} = ${1:.0f}
-$R_{{d,atm}} = ${2:.0f}
-$cos(\phi) = ${3:.2f}
-$K_b = ${4:.2f}
-$K_d = ${5:.2f} 
-$\omega = ${6:.2f} 
-$\beta_b = ${7:.2f}
-$\beta_d = ${8:.2f}
-$\alpha_{{gd}} = ${9:.2f}
-$\alpha_{{gb}} = ${9:.2f}""".format(band_name,R_beam,R_diff,cosz,cd_kb.value,cd_kd.value,cd_om.value,cd_betab.value,cd_betad.value,ground_albedo_diff,ground_albedo_beam)    
+$cos(\phi) = ${1:.2f}
+$K_b = ${2:.2f}
+$K_d = ${3:.2f} 
+$\omega = ${4:.2f} 
+$\beta_b = ${5:.2f}
+$\beta_d = ${6:.2f}
+$\alpha_{{gd}} = ${7:.2f}
+$\alpha_{{gb}} = ${8:.2f}""".format(band_name,cosz,cd_kb.value,cd_kd.value,cd_om.value,cd_betab.value,cd_betad.value,ground_albedo_diff,ground_albedo_beam)    
         ax4.text(0.1, 0.5, param_str, horizontalalignment='left', \
-                 verticalalignment='center', transform=ax4.transAxes,backgroundcolor=[1.0,1.0,1.0],fontsize=12,color=first_color)
+                 verticalalignment='center', transform=ax4.transAxes,backgroundcolor=[1.0,1.0,1.0],fontsize=11,color=first_color)
         ax4.text(0.5,0.5,r"{0}={1:.2f}".format(key,val),color=last_color)
         plt.subplots_adjust(wspace=0.1, hspace=0.25)
         plt.tight_layout()
@@ -955,13 +943,10 @@ $\alpha_{{gb}} = ${9:.2f}""".format(band_name,R_beam,R_diff,cosz,cd_kb.value,cd_
     
 def PlotRadMaps(elems,rtype,plt_title):    
         
-    fig, ax = plt.subplots(ncols=1,nrows=1,figsize=(8,8))
+    fig, ax = plt.subplots(ncols=1,nrows=1,figsize=(5,5))
 
     cmap = mpl.cm.Reds
-
-    #code.interact(local=dict(globals(), **locals()))
     n_layer = len(elems[0])
-
     total_vai = 0
     for i in range(n_layer):
         total_vai = total_vai + \
@@ -975,18 +960,14 @@ def PlotRadMaps(elems,rtype,plt_title):
     for i in range(n_layer):  
 
         # Vegetated
-        
         for iv in range(elems[0][i].n_vai-1):
-            #rel_intense = np.max([0,np.min([1.,elems[0][i].r_dn[iv]/R_diff])])
-            #rel_intense = np.max([0,np.min([R_diff,elems[0][i].r_dn[iv]])])
             if(rtype==0):
                 rel_intense = np.max([0,elems[0][i].r_b[iv]])
             elif(rtype==1):
                 rel_intense = np.max([0,elems[0][i].r_dn[iv]])
             elif(rtype==2):
                 rel_intense = np.max([0,elems[0][i].r_up[iv]])
-                
-                
+
             dvai = elems[0][i].avai[iv+1]-elems[0][i].avai[iv]
             rect.append(mpl.patches.Rectangle((0,(elems[0][i].avai[iv]+total_vai)),elems[0][i].area,dvai)) #,color = [rel_intense,0.5,0.5]))
             rcolor.append(rel_intense)
@@ -1021,7 +1002,7 @@ def PlotRadMaps(elems,rtype,plt_title):
     ax.set_xlabel('Ground Area Fraction')
     ax.set_title(plt_title)  #)
     plt.colorbar(im)
-
+    plt.show()
     
 def PlotRadLines():
     

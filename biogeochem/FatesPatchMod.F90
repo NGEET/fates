@@ -123,9 +123,12 @@ module FatesPatchMod
     real(r8) :: fcansno                                   ! fraction of canopy covered in snow [0-1]
     logical  :: solar_zenith_flag                         ! integer flag specifying daylight (based on zenith angle)
     real(r8) :: solar_zenith_angle                        ! solar zenith angle [radians]
-    real(r8) :: gnd_alb_dif(num_swb)                       ! ground albedo for diffuse rad, both bands [0-1]
-    real(r8) :: gnd_alb_dir(num_swb)                       ! ground albedo for direct rad, both bands [0-1]
-
+    real(r8) :: gnd_alb_dif(num_swb)                      ! ground albedo for diffuse rad, both bands [0-1]
+    real(r8) :: gnd_alb_dir(num_swb)                      ! ground albedo for direct rad, both bands [0-1]
+    real(r8) :: solve_err(num_swb)                        ! Error from linear system solver, fraction of unit forcing
+    real(r8) :: consv_err(num_swb)                        ! Error from albedo conservation check, fraction of unit forcing
+    
+    
     ! organized by canopy layer, pft, and leaf layer
     real(r8) :: fabd_sun_z(nclmax,maxpft,nlevleaf)        ! sun fraction of direct light absorbed [0-1]
     real(r8) :: fabd_sha_z(nclmax,maxpft,nlevleaf)        ! shade fraction of direct light absorbed [0-1]
