@@ -355,6 +355,10 @@ module FatesHistoryInterfaceMod
   integer :: ih_c_stomata_si
   integer :: ih_c_lblayer_si
   integer :: ih_rad_error_si
+  integer :: ih_vis_solve_err_si
+  integer :: ih_nir_solve_err_si
+  integer :: ih_vis_consv_err_si
+  integer :: ih_nir_consv_err_si
   integer :: ih_vis_solve_err_age_si
   integer :: ih_nir_solve_err_age_si
   integer :: ih_vis_consv_err_age_si
@@ -4410,6 +4414,7 @@ end subroutine flush_hvars
                                     ! patches that called the solver
     real(r8) :: dt_tstep_inv        ! inverse timestep (1/sec)
     real(r8) :: n_perm2             ! number of plants per square meter
+    real(r8) :: sum_area_rad        ! sum of patch canopy areas
     real(r8),allocatable :: age_area_rad_inv(:)
     
     type(fates_patch_type),pointer  :: cpatch
@@ -4428,6 +4433,10 @@ end subroutine flush_hvars
          hio_c_stomata_si             => this%hvars(ih_c_stomata_si)%r81d, &
          hio_c_lblayer_si             => this%hvars(ih_c_lblayer_si)%r81d, &
          hio_rad_error_si             => this%hvars(ih_rad_error_si)%r81d, &
+         hio_vis_solve_err_si     => this%hvars(ih_vis_solve_err_si)%r81d, &
+         hio_nir_solve_err_si     => this%hvars(ih_nir_solve_err_si)%r81d, &
+         hio_vis_consv_err_si     => this%hvars(ih_vis_consv_err_si)%r81d, &
+         hio_nir_consv_err_si     => this%hvars(ih_nir_consv_err_si)%r81d, &
          hio_vis_solve_err_age_si     => this%hvars(ih_vis_solve_err_age_si)%r82d, &
          hio_nir_solve_err_age_si     => this%hvars(ih_nir_solve_err_age_si)%r82d, &
          hio_vis_consv_err_age_si     => this%hvars(ih_vis_consv_err_age_si)%r82d, &
@@ -4469,6 +4478,11 @@ end subroutine flush_hvars
          age_area_rad_inv(:) = 0._r8
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
+            ! We initialize the solver error to the ignore value
+            ! in the radiation driver. It is only modified if the
+            ! solver was called. The solver will be called for NIR
+            ! if VIS is called, and likewise the same for conservation
+            ! error. So the check on VIS solve error will catch all.
             if( abs(cpatch%solve_err(ivis)-hlm_hio_ignore_val)>nearzero ) then
                age_class = get_age_class_index(cpatch%age)
                age_area_rad_inv(age_class) = age_area_rad_inv(age_class) + cpatch%total_canopy_area
@@ -4476,31 +4490,65 @@ end subroutine flush_hvars
             cpatch => cpatch%younger
          end do
          
-         do age_class = 1,size(ED_val_history_ageclass_bin_edges,1)
-            if( age_area_rad_inv(age_class) < nearzero) then
-               hio_vis_solve_err_age_si(io_si,age_class)    = hlm_hio_ignore_val
-               hio_nir_solve_err_age_si(io_si,age_class)    = hlm_hio_ignore_val
-               hio_vis_consv_err_age_si(io_si,age_class)    = hlm_hio_ignore_val
-               hio_nir_consv_err_age_si(io_si,age_class)    = hlm_hio_ignore_val
-            end if
-         end do
-            
-         cpatch => sites(s)%oldest_patch
-         do while(associated(cpatch))
-            if( abs(cpatch%solve_err(ivis)-hlm_hio_ignore_val)>nearzero ) then
-               age_class = get_age_class_index(cpatch%age)
-               hio_vis_solve_err_age_si(io_si,age_class) = hio_vis_solve_err_age_si(io_si,age_class) + &
-                    cpatch%solve_err(ivis) * cpatch%total_canopy_area/age_area_rad_inv(age_class)
-               hio_nir_solve_err_age_si(io_si,age_class) = hio_nir_solve_err_age_si(io_si,age_class) + &
-                    cpatch%solve_err(inir) * cpatch%total_canopy_area/age_area_rad_inv(age_class)
-               hio_vis_consv_err_age_si(io_si,age_class) = hio_vis_consv_err_age_si(io_si,age_class) + &
-                    cpatch%consv_err(ivis) * cpatch%total_canopy_area/age_area_rad_inv(age_class)
-               hio_nir_consv_err_age_si(io_si,age_class) = hio_nir_consv_err_age_si(io_si,age_class) + &
-                    cpatch%consv_err(inir) * cpatch%total_canopy_area/age_area_rad_inv(age_class)
-            end if
-            cpatch => cpatch%younger
-         end do
+         sum_area_rad = sum(age_area_rad_inv(:))
+         
+         if_anyrad: if(sum_area_rad<nearzero)then
+            hio_vis_solve_err_age_si(io_si,:)    = hlm_hio_ignore_val
+            hio_nir_solve_err_age_si(io_si,:)    = hlm_hio_ignore_val
+            hio_vis_consv_err_age_si(io_si,:)    = hlm_hio_ignore_val
+            hio_nir_consv_err_age_si(io_si,:)    = hlm_hio_ignore_val
+            hio_vis_solve_err_si(io_si)          = hlm_hio_ignore_val
+            hio_nir_solve_err_si(io_si)          = hlm_hio_ignore_val
+            hio_vis_consv_err_si(io_si)          = hlm_hio_ignore_val
+            hio_nir_consv_err_si(io_si)          = hlm_hio_ignore_val
+         else
 
+            do age_class = 1,size(ED_val_history_ageclass_bin_edges,1)
+               if( age_area_rad_inv(age_class) < nearzero) then
+                  hio_vis_solve_err_age_si(io_si,age_class)    = hlm_hio_ignore_val
+                  hio_nir_solve_err_age_si(io_si,age_class)    = hlm_hio_ignore_val
+                  hio_vis_consv_err_age_si(io_si,age_class)    = hlm_hio_ignore_val
+                  hio_nir_consv_err_age_si(io_si,age_class)    = hlm_hio_ignore_val
+               else
+                  hio_vis_solve_err_age_si(io_si,age_class)    = 0._r8
+                  hio_nir_solve_err_age_si(io_si,age_class)    = 0._r8
+                  hio_vis_consv_err_age_si(io_si,age_class)    = 0._r8
+                  hio_nir_consv_err_age_si(io_si,age_class)    = 0._r8
+               end if
+            end do
+            hio_vis_solve_err_si(io_si)          = 0._r8
+            hio_nir_solve_err_si(io_si)          = 0._r8
+            hio_vis_consv_err_si(io_si)          = 0._r8
+            hio_nir_consv_err_si(io_si)          = 0._r8
+
+            cpatch => sites(s)%oldest_patch
+            do while(associated(cpatch))
+               if( abs(cpatch%solve_err(ivis)-hlm_hio_ignore_val)>nearzero ) then
+                  age_class = get_age_class_index(cpatch%age)
+                  
+                  hio_vis_solve_err_age_si(io_si,age_class) = hio_vis_solve_err_age_si(io_si,age_class) + &
+                       cpatch%solve_err(ivis) * cpatch%total_canopy_area/age_area_rad_inv(age_class)
+                  hio_nir_solve_err_age_si(io_si,age_class) = hio_nir_solve_err_age_si(io_si,age_class) + &
+                       cpatch%solve_err(inir) * cpatch%total_canopy_area/age_area_rad_inv(age_class)
+                  hio_vis_consv_err_age_si(io_si,age_class) = hio_vis_consv_err_age_si(io_si,age_class) + &
+                       cpatch%consv_err(ivis) * cpatch%total_canopy_area/age_area_rad_inv(age_class)
+                  hio_nir_consv_err_age_si(io_si,age_class) = hio_nir_consv_err_age_si(io_si,age_class) + &
+                       cpatch%consv_err(inir) * cpatch%total_canopy_area/age_area_rad_inv(age_class)
+                  
+                  hio_vis_solve_err_si(io_si) = hio_vis_solve_err_si(io_si) + &
+                       cpatch%solve_err(ivis)*cpatch%total_canopy_area/sum(age_area_rad_inv(:))
+                  hio_nir_solve_err_si(io_si) = hio_nir_solve_err_si(io_si) + &
+                       cpatch%solve_err(inir)*cpatch%total_canopy_area/sum(age_area_rad_inv(:))
+                  hio_vis_consv_err_si(io_si) = hio_vis_consv_err_si(io_si) + &
+                       cpatch%consv_err(ivis)*cpatch%total_canopy_area/sum(age_area_rad_inv(:))
+                  hio_nir_consv_err_si(io_si) = hio_nir_consv_err_si(io_si) + &
+                       cpatch%consv_err(inir)*cpatch%total_canopy_area/sum(age_area_rad_inv(:))
+                  
+               end if
+               cpatch => cpatch%younger
+            end do
+         end if if_anyrad
+         
          ! Diagnostics that are only relevant if there is vegetation present on this site
          ! ie, non-zero canopy area
 
@@ -6605,6 +6653,26 @@ end subroutine flush_hvars
          long='radiation error in FATES RTM', use_default='active',            &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,                 &
          ivar=ivar, initialize=initialize_variables, index = ih_rad_error_si)
+
+    call this%set_history_var(vname='FATES_VIS_SOLVE_ERROR', units='-',          &
+         long='mean two-stream solver error for VIS', use_default='active',            &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,                 &
+         ivar=ivar, initialize=initialize_variables, index = ih_vis_solve_err_si)
+    
+    call this%set_history_var(vname='FATES_NIR_SOLVE_ERROR', units='-',          &
+         long='mean two-stream solver error for NIR', use_default='active',            &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,                 &
+         ivar=ivar, initialize=initialize_variables, index = ih_nir_solve_err_si)
+    
+    call this%set_history_var(vname='FATES_VIS_CONSV_ERROR', units='-',          &
+         long='mean two-stream conservation error for VIS', use_default='active',            &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,                 &
+         ivar=ivar, initialize=initialize_variables, index = ih_vis_consv_err_si)
+
+    call this%set_history_var(vname='FATES_NIR_CONSV_ERROR', units='-',          &
+         long='mean two-stream conservation error for NIR', use_default='active',            &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,                 &
+         ivar=ivar, initialize=initialize_variables, index = ih_nir_consv_err_si)
 
     call this%set_history_var(vname='FATES_VIS_SOLVE_ERROR_AGE', units='-',          &
          long='mean two-stream solver error for VIS by patch age', use_default='active',            &

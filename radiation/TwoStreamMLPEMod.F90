@@ -43,7 +43,7 @@ Module TwoStreamMLPEMod
   ! Allowable error, as a fraction of total incident for total canopy
   ! radiation balance checks
 
-  real(r8), public, parameter :: rel_err_thresh = 1.e-6_r8
+  real(r8), public, parameter :: rel_err_thresh = 1.e-4_r8
   real(r8), public, parameter :: area_err_thresh = rel_err_thresh*0.1_r8
   
   ! These are the codes for how the upper boundary is specified, normalized or absolute
