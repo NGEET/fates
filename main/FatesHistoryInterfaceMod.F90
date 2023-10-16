@@ -2823,10 +2823,7 @@ end subroutine flush_hvars
             hio_secondarylands_area_si_age(io_si,cpatch%age_class) = &
                hio_secondarylands_area_si_age(io_si,cpatch%age_class)  &
                + cpatch%area * AREA_INV
-         endif
 
-         ! Secondary forest mean LAI
-         if ( cpatch%land_use_label .eq. secondaryland ) then
             hio_lai_secondary_si(io_si) = hio_lai_secondary_si(io_si) &
                 + sum(cpatch%tlai_profile(:,:,:)) * cpatch%total_canopy_area
          end if
