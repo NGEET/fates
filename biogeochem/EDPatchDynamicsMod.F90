@@ -2585,8 +2585,6 @@ contains
                             !-----------------------!
                             
                             tmpptr => currentPatch%older       
-                            if (currentPatch%land_use_label .eq. secondaryland) & 
-                            write(fates_log(),*) 'fusepatches: calling fuse', tpp%land_use_label, currentPatch%land_use_label
                             call fuse_2_patches(csite, currentPatch, tpp)
                             call fuse_cohorts(csite,tpp, bc_in)
                             call sort_cohorts(tpp)
@@ -2963,8 +2961,6 @@ contains
                       if(debug) &
                            write(fates_log(),*) 'terminate: fused to older patch, same label: ', currentPatch%land_use_label, olderPatch%land_use_label
 
-                      if (olderPatch%land_use_label .eq. secondaryland) & 
-                      write(fates_log(),*) 'terminate: distlabel_1: calling fuse: same', olderPatch%land_use_label, currentPatch%land_use_label
                       call fuse_2_patches(currentSite, olderPatch, currentPatch)
 
                       ! The fusion process has updated the "older" pointer on currentPatch
@@ -2979,10 +2975,6 @@ contains
                          ! if we're having an incredibly hard time fusing patches because of their differing anthropogenic disturbance labels,
                          ! since the size is so small, let's sweep the problem under the rug and change the tiny patch's label to that of its older sibling
                          ! and then allow them to fuse together.
-                         if (olderPatch%land_use_label .eq. secondaryland) then
-                            write(fates_log(),*) 'terminate: distlabel_1: calling fuse: diff', olderPatch%land_use_label, currentPatch%land_use_label
-                            write(fates_log(),*) 'terminate: agesince: rp, dp:', currentPatch%age_since_anthro_disturbance, olderPatch%age_since_anthro_disturbance
-                         end if
                          currentPatch%land_use_label = olderPatch%land_use_label
                          currentPatch%age_since_anthro_disturbance = olderPatch%age_since_anthro_disturbance
                          call fuse_2_patches(currentSite, olderPatch, currentPatch)
@@ -3001,8 +2993,6 @@ contains
 
                    distlabel_2_if: if (currentPatch%land_use_label .eq. youngerPatch%land_use_label) then
 
-                      if (youngerPatch%land_use_label .eq. secondaryland) &
-                      write(fates_log(),*) 'terminate: distlabel_2: calling fuse: same', youngerPatch%land_use_label, currentPatch%land_use_label
                       call fuse_2_patches(currentSite, youngerPatch, currentPatch)
 
                       ! The fusion process has updated the "younger" pointer on currentPatch
@@ -3013,10 +3003,6 @@ contains
                       if (count_cycles .gt. 0) then
                          ! if we're having an incredibly hard time fusing patches because of their differing anthropogenic disturbance labels,
                          ! since the size is so small, let's sweep the problem under the rug and change the tiny patch's label to that of its younger sibling
-                         if (youngerPatch%land_use_label .eq. secondaryland) then
-                            write(fates_log(),*) 'terminate: distlabel_2: calling fuse: diff', youngerPatch%land_use_label, currentPatch%land_use_label
-                            write(fates_log(),*) 'terminate: agesince: rp, dp:', currentPatch%age_since_anthro_disturbance,youngerPatch%age_since_anthro_disturbance
-                         end if
                          currentPatch%land_use_label = youngerPatch%land_use_label
                          currentPatch%age_since_anthro_disturbance = youngerPatch%age_since_anthro_disturbance
                          call fuse_2_patches(currentSite, youngerPatch, currentPatch)
