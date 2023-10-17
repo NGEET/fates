@@ -26,11 +26,11 @@ Module TwoStreamMLPEMod
 
   use shr_log_mod   , only: errMsg => shr_log_errMsg
   use shr_sys_mod   , only: shr_sys_abort
-  
+  use FatesConstantsMod, only : r8 => fates_r8
+ 
   implicit none
   private
 
-  integer, parameter :: r8 = selected_real_kind(12)
   real(r8),parameter :: nearzero = 1.e-20_r8
   logical, parameter :: debug=.true.
   logical, parameter :: use_derivation1 = .true.
