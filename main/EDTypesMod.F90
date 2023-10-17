@@ -363,15 +363,15 @@ module EDTypesMod
      real(r8) :: fmort_crownarea_canopy                ! crownarea of canopy indivs killed due to fire per year. [m2/sec]
      real(r8) :: fmort_crownarea_ustory                ! crownarea of understory indivs killed due to fire per year [m2/sec] 
 
-     real(r8), allocatable :: term_nindivs_canopy(:,:) ! number of canopy individuals that were in cohorts which 
-                                                       ! were terminated this timestep, on size x pft
-     real(r8), allocatable :: term_nindivs_ustory(:,:) ! number of understory individuals that were in cohorts which 
-                                                       ! were terminated this timestep, on size x pft
+     real(r8), allocatable :: term_nindivs_canopy(:,:,:)   ! number of canopy individuals that were in cohorts which 
+                                                           ! were terminated this timestep, by termination type, size x pft
+     real(r8), allocatable :: term_nindivs_ustory(:,:,:)   ! number of understory individuals that were in cohorts which 
+                                                           ! were terminated this timestep, by termination type, size x pft
 
-     real(r8), allocatable :: term_carbonflux_canopy(:)  ! carbon flux from live to dead pools associated 
-                                                         ! with termination mortality, per canopy level. [kgC/ha/day]
-     real(r8), allocatable :: term_carbonflux_ustory(:)  ! carbon flux from live to dead pools associated 
-                                                         ! with termination mortality, per canopy level.  [kgC/ha/day]    
+     real(r8), allocatable :: term_carbonflux_canopy(:,:)  ! carbon flux from live to dead pools associated 
+                                                           ! with termination mortality, by termination type and per canopy level. [kgC/ha/day]
+     real(r8), allocatable :: term_carbonflux_ustory(:,:)  ! carbon flux from live to dead pools associated 
+                                                         ! with termination mortality, by termination type and per canopy level.  [kgC/ha/day]    
      real(r8), allocatable :: imort_carbonflux(:)        ! biomass of individuals killed due to impact mortality per year. [kgC/m2/sec]
      real(r8), allocatable :: fmort_carbonflux_canopy(:) ! biomass of canopy indivs killed due to fire per year. [gC/m2/sec]
      real(r8), allocatable :: fmort_carbonflux_ustory(:) ! biomass of understory indivs killed due to fire per year [gC/m2/sec] 
