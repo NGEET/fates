@@ -157,8 +157,6 @@ contains
   subroutine WrapSolve(ib,boundary_type,Rbeam_atm,Rdiff_atm, &
        albedo_beam, & 
        albedo_diff, &
-       err_solve, &
-       err_consv, &
        frac_abs_can_beam, &
        frac_abs_can_diff, &
        frac_beam_grnd_beam, &
