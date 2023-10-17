@@ -2595,7 +2595,7 @@ contains
        elai_layer,esai_layer,tlai_layer,tsai_layer)
 
     ! -----------------------------------------------------------------------------------
-    ! This routine returns the exposed leaf area (m2 of leaf) per m2 of
+    ! This routine returns the exposed leaf and stem areas (m2 of leaf and stem) per m2 of
     ! ground inside the crown, for the leaf-layer specified.
     ! -----------------------------------------------------------------------------------
 
