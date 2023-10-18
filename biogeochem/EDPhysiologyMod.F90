@@ -828,13 +828,13 @@ contains
                    if (currentCohort%canopy_trim > EDPftvarcon_inst%trim_limit(ipft)) then
 
                       ! keep trimming until none of the canopy is in negative carbon balance.
-                      if (currentCohort%hite > EDPftvarcon_inst%hgt_min(ipft)) then
+                      if (currentCohort%height > EDPftvarcon_inst%hgt_min(ipft)) then
                          currentCohort%canopy_trim = currentCohort%canopy_trim - &
                               EDPftvarcon_inst%trim_inc(ipft)
 
                          trimmed = .true.
 
-                      endif ! hite check
+                      endif ! height check
                    endif ! trim limit check
                 endif ! net uptake check
              endif ! leaf activity check
@@ -2007,7 +2007,7 @@ contains
       leaf_c, dbh, cohort_n, c_area)
 
     ! set allometric characteristics
-    currentCohort%hite = htop
+    currentCohort%height = htop
     currentCohort%dbh = dbh
     currentCohort%n = cohort_n
     currentCohort%c_area = c_area
@@ -2457,7 +2457,7 @@ contains
       integer                           :: element_id         ! element index consistent with definitions in PRTGenericMod
       integer                           :: iage               ! age loop counter for leaf age bins
       integer                           :: crowndamage        ! crown damage class of the cohort [1 = undamaged, >1 = damaged]  
-      real(r8)                          :: hite               ! new cohort height [m]
+      real(r8)                          :: height             ! new cohort height [m]
       real(r8)                          :: dbh                ! new cohort DBH [cm]
       real(r8)                          :: cohort_n           ! new cohort density 
       real(r8)                          :: l2fr               ! leaf to fineroot biomass ratio [0-1]
@@ -2503,14 +2503,14 @@ contains
             ((hlm_use_nocomp .eq. ifalse) .or.                                 &
             (ft .eq. currentPatch%nocomp_pft_label))) then
 
-            hite               = EDPftvarcon_inst%hgt_min(ft)
+            height             = EDPftvarcon_inst%hgt_min(ft)
             stem_drop_fraction = prt_params%phen_stem_drop_fraction(ft)
             fnrt_drop_fraction = prt_params%phen_fnrt_drop_fraction(ft)
             l2fr               = currentSite%rec_l2fr(ft, currentPatch%NCL_p)
             crowndamage        = 1 ! new recruits are undamaged
 
             ! calculate DBH from initial height 
-            call h2d_allom(hite, ft, dbh)
+            call h2d_allom(height, ft, dbh)
 
             ! default assumption is that leaves are on
             efleaf_coh  = 1.0_r8
@@ -2734,7 +2734,7 @@ contains
                call prt%CheckInitialConditions()
 
                call create_cohort(currentSite, currentPatch, ft, cohort_n,     &
-                  hite, 0.0_r8, dbh, prt, efleaf_coh, effnrt_coh, efstem_coh,  &
+                  height, 0.0_r8, dbh, prt, efleaf_coh, effnrt_coh, efstem_coh,  &
                   leaf_status, recruitstatus, init_recruit_trim, 0.0_r8,       &
                   currentPatch%NCL_p, crowndamage, currentSite%spread, bc_in)
 

@@ -1964,8 +1964,8 @@ contains
 
       call FatesReportPFTParams(masterproc)
       call FatesReportParams(masterproc)
-      call FatesCheckParams(masterproc)    ! Check general fates parameters
       call PRTDerivedParams()              ! Update PARTEH derived constants
+      call FatesCheckParams(masterproc)    ! Check general fates parameters
       call PRTCheckParams(masterproc)      ! Check PARTEH parameters
       call SpitFireCheckParams(masterproc)
       

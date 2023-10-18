@@ -2809,9 +2809,9 @@ end subroutine flush_hvars
                + ccohort%c_area * AREA_INV
 
             ! calculate leaf height distribution, assuming leaf area is evenly distributed thru crown depth
-            call CrownDepth(ccohort%hite,ft,crown_depth)
-            height_bin_max = get_height_index(ccohort%hite)
-            height_bin_min = get_height_index(ccohort%hite - crown_depth)
+            call CrownDepth(ccohort%height,ft,crown_depth)
+            height_bin_max = get_height_index(ccohort%height)
+            height_bin_min = get_height_index(ccohort%height - crown_depth)
             do i_heightbin = height_bin_min, height_bin_max
                binbottom = ED_val_history_height_bin_edges(i_heightbin)
                if (i_heightbin .eq. nlevheight) then
@@ -2820,8 +2820,8 @@ end subroutine flush_hvars
                   bintop = ED_val_history_height_bin_edges(i_heightbin+1)
                endif
                ! what fraction of a cohort's crown is in this height bin?
-               frac_canopy_in_bin = (min(bintop,ccohort%hite) - &
-                    max(binbottom,ccohort%hite-crown_depth)) / &
+               frac_canopy_in_bin = (min(bintop,ccohort%height) - &
+                    max(binbottom,ccohort%height-crown_depth)) / &
                     (crown_depth)
 
                hio_leaf_height_dist_si_height(io_si,i_heightbin) = &
@@ -3158,7 +3158,7 @@ end subroutine flush_hvars
                      ccohort%ddbhdt*ccohort%n / m2_per_ha * m_per_cm
 
                   hio_ba_weighted_height_si(io_si) = hio_ba_weighted_height_si(io_si) + &
-                       ccohort%hite * &
+                       ccohort%height * &
                        0.25_r8*pi_const*((dbh/100.0_r8)**2.0_r8)*ccohort%n / m2_per_ha
 
                end if
@@ -3486,7 +3486,7 @@ end subroutine flush_hvars
                   ccohort%canopy_layer_yesterday * ccohort%n / m2_per_ha
 
                   hio_ca_weighted_height_si(io_si) = hio_ca_weighted_height_si(io_si) + &
-                       ccohort%hite * ccohort%c_area / m2_per_ha
+                       ccohort%height * ccohort%c_area / m2_per_ha
                else canlayer
                   hio_nplant_understory_si_scag(io_si,iscag) = hio_nplant_understory_si_scag(io_si,iscag) + ccohort%n / m2_per_ha
                   hio_mortality_understory_si_scag(io_si,iscag) = hio_mortality_understory_si_scag(io_si,iscag) + &
