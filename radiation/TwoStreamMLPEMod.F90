@@ -96,6 +96,7 @@ Module TwoStreamMLPEMod
      ! Derived parameters
      real(r8), allocatable :: phi1(:)       ! intermediate term for kd and kb
      real(r8), allocatable :: phi2(:)       ! intermediate term for kd and kb
+     real(r8), allocatable :: avmu(:)       ! average "av" inverse optical depth "mu" per unit leaf and stem area
      real(r8), allocatable :: kd_leaf(:)    ! Mean optical depth per unit area leaves in diffuse
      real(r8), allocatable :: kd_stem(:)    ! Mean optical depth per unit area stems in diffuse
      real(r8), allocatable :: om_leaf(:,:)  ! Leaf scattering coefficient (band x pft)
@@ -338,6 +339,7 @@ contains
 
     allocate(rad_params%phi1(n_pft))
     allocate(rad_params%phi2(n_pft))
+    allocate(rad_params%avmu(n_pft))
     allocate(rad_params%kd_leaf(n_pft))
     allocate(rad_params%kd_stem(n_pft))
     allocate(rad_params%om_leaf(n_bands,n_pft))
@@ -641,7 +643,6 @@ contains
 
   subroutine ParamPrep()
 
-    real(r8) :: avmu   ! average inverse optical depth (see Eq 3.4 CLM50 tech man)
     integer  :: ft
     integer  :: nbands
     integer  :: numpft
@@ -674,13 +675,14 @@ contains
        ! There must be protections on xl to prevent div0 and other weirdness
        rad_params%phi1(ft) = 0.5_r8 - 0.633_r8*rad_params%xl(ft) - 0.330_r8*rad_params%xl(ft)*rad_params%xl(ft)
        rad_params%phi2(ft) = 0.877_r8 * (1._r8 - 2._r8*rad_params%phi1(ft)) !0 = horiz leaves, 1 - vert leaves.
-       
-       avmu = (1._r8/rad_params%phi2(ft))* &
+
+       ! Eq. 3.4 CLM50 Tech Man
+       rad_params%avmu(ft) = (1._r8/rad_params%phi2(ft))* &
             (1._r8-(rad_params%phi1(ft)/rad_params%phi2(ft))* &
             log((rad_params%phi2(ft)+rad_params%phi1(ft))/rad_params%phi1(ft)))
        
        do ib = 1, nbands
-          rad_params%Kd_leaf(ft) = rad_params%clumping_index(ft)/avmu
+          rad_params%Kd_leaf(ft) = rad_params%clumping_index(ft)/rad_params%avmu(ft)
           rad_params%Kd_stem(ft) = 1._r8  ! Isotropic assumption
           
           rad_params%om_leaf(ib,ft) = rad_params%rhol(ib,ft) + rad_params%taul(ib,ft)
@@ -856,7 +858,6 @@ contains
     integer :: ican  ! scattering element canopy layer index (top down)
     integer :: icol  ! scattering element column
     real(r8) :: asu  ! single scattering albedo
-    real(r8) :: avmu ! Average inverse diffuse optical depth per unit leaf area
     real(r8) :: gdir
     real(r8) :: tmp0,tmp1,tmp2
     real(r8) :: betab_veg  ! beam backscatter for vegetation (no snow)
@@ -906,12 +907,6 @@ contains
 
                scelg%Kb = min(kb_max,(scelg%lai*scelg%Kb_leaf + scelg%sai*1.0)/(scelg%lai+scelg%sai))
 
-               ! Eq. 3.4 CLM50 Tech Man
-               ! avmu is the average "av" inverse optical depth "mu" per unit leaf and stem area
-
-               avmu = (1._r8 - rad_params%phi1(ft)/rad_params%phi2(ft) * &
-                    log((rad_params%phi1(ft)+rad_params%phi2(ft))/rad_params%phi1(ft))) / rad_params%phi2(ft)
-
                ! Component terms for asu (single scatering albedo)
                tmp0 = gdir +  rad_params%phi2(ft) * cosz
                tmp1 =  rad_params%phi1(ft) * cosz
@@ -936,7 +931,7 @@ contains
 
                     asu = 0.5_r8 * gdir / tmp0 * tmp2
 
-                    betab_veg = (1._r8 + avmu*scelg%Kb) / (avmu*scelg%Kb) * asu
+                    betab_veg = (1._r8 + rad_params%avmu(ft)*scelg%Kb) / (rad_params%avmu(ft)*scelg%Kb) * asu
 
                     om_veg  =  (scelg%lai*rad_params%om_leaf(ib,ft) + &
                          scelg%sai*rad_params%om_stem(ib,ft))/(scelg%lai+scelg%sai)
@@ -950,7 +945,7 @@ contains
                     if(debug)then
                        if( .not.(scelb%betab==scelb%betab))then
                           write(log_unit,*)"Beam backscatter fraction is NaN"
-                          write(log_unit,*) betab_om,scelb%om,om_veg,this%frac_snow,betab_veg,asu,avmu,scelg%Kb
+                          write(log_unit,*) betab_om,scelb%om,om_veg,this%frac_snow,betab_veg,asu,rad_params%avmu(ft),scelg%Kb
                           call endrun(msg=errMsg(sourcefile, __LINE__))
                        end if
                     end if
