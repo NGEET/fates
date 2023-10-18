@@ -1358,7 +1358,7 @@ contains
                         end do do_icol
 
                         do ft = 1,numpft
-                           do iv = 1, nlevleaf
+                           do_iv: do iv = 1, nlevleaf
                               if(area_vlpfcl(iv,ft,cl)<nearzero) exit do_iv
                               cpatch%parprof_pft_dir_z(cl,ft,iv) = &
                                    cpatch%parprof_pft_dir_z(cl,ft,iv) / area_vlpfcl(iv,ft,cl)
@@ -1367,7 +1367,7 @@ contains
                               cpatch%f_sun(cl,ft,iv) = cpatch%f_sun(cl,ft,iv) / area_vlpfcl(iv,ft,cl)
                               cpatch%ed_parsun_z(cl,ft,iv) = cpatch%ed_parsun_z(cl,ft,iv) / area_vlpfcl(iv,ft,cl)
                               cpatch%ed_parsha_z(cl,ft,iv) = cpatch%ed_parsha_z(cl,ft,iv) / area_vlpfcl(iv,ft,cl)
-                           end do
+                           end do do_iv
                         end do
 
                      end do do_cl

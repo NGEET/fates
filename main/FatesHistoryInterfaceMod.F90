@@ -4714,7 +4714,8 @@ end subroutine flush_hvars
     integer  :: ipa2     ! patch incrementer
     integer :: clllpf_indx, cnlf_indx, ipft, ican, ileaf ! more iterators and indices
     real(r8) :: clllpf_area  ! area footprint (m2) for the current cl x ll x pft bin
-    real(r8) :: clpf_area    ! area footprint (m2) for the cl x pft bin (ie top ll bin)
+    real(r8) :: clll_area    ! area footprint (m2) for the cl x ll bin (ie adds up pfts in parallel)
+    real(r8) :: cl_area      ! total weight of all ll x pft bins in the canopy layer
     
     type(fates_patch_type),pointer  :: cpatch
     type(fates_cohort_type),pointer :: ccohort
