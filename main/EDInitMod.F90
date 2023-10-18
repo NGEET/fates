@@ -386,6 +386,7 @@ contains
     integer  :: fates_pft  ! used in fixed biogeog mode
     integer  :: i_landusetype
     real(r8) :: temp_vec(numpft)  ! temporary vector
+    integer  :: i_pftcount
     !----------------------------------------------------------------------
 
 
@@ -528,7 +529,7 @@ contains
              if (hlm_use_nocomp .eq. itrue) then
                 do i_landusetype = 1, n_landuse_cats
                    ! count how many PFTs have areas greater than zero and compare to the number of patches allowed
-                   if (COUNT(sites(s)%area_pft(ft, i_landusetype) .gt. 0._r8) > maxpatches_by_landuse(i_landusetype)) then
+                   if (COUNT(sites(s)%area_pft(:, i_landusetype) .gt. 0._r8) > maxpatches_by_landuse(i_landusetype)) then
                       ! write current vector to log file
                       if(debug) write(fates_log(),*)  'too many PFTs for LU type ', i_landusetype, i_landusetype,sites(s)%area_pft(:, i_landusetype)
 

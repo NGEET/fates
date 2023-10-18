@@ -29,7 +29,8 @@ module FatesLandUseChangeMod
   public :: get_landuse_transition_rates
   public :: get_landusechange_rules
   public :: get_luh_statedata
-
+  public :: get_init_landuse_transition_rates
+  public :: get_init_landuse_harvest_rate
 
   ! module data
   integer, parameter :: max_luh2_types_per_fates_lu_type = 5
@@ -323,7 +324,7 @@ contains
     
   end subroutine get_init_landuse_harvest_rate
 
-  subroutine get_landuse_transition_rates(bc_in, landuse_transition_matrix)
+  subroutine get_init_landuse_transition_rates(bc_in, landuse_transition_matrix)
     
     ! The purose of this subroutine is, only under the case where we are transitioning from a spinup run that did not have land use                                                 
     ! to a run that does, to apply the land-use changes needed to get to the state vector in a single daily instance. this is for
@@ -345,6 +346,6 @@ contains
        landuse_transition_matrix(1,i) = state_vector(i)
     end do
     
-  end subroutine get_landuse_transition_rates
+  end subroutine get_init_landuse_transition_rates
     
 end module FatesLandUseChangeMod

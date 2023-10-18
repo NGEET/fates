@@ -227,7 +227,7 @@ contains
 
        ! at this point in the call sequence, if flag to transition_landuse_from_off_to_on was set, unset it as it is no longer needed
        if(currentSite%transition_landuse_from_off_to_on) then
-          currentSite%transition_landuse_from_off_to_on = .false
+          currentSite%transition_landuse_from_off_to_on = .false.
        endif
        
     else

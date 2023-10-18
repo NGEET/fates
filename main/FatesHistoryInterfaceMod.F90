@@ -2391,7 +2391,7 @@ end subroutine flush_hvars
                hio_logging_disturbance_rate_si   => this%hvars(ih_logging_disturbance_rate_si)%r81d, &
                hio_fall_disturbance_rate_si      => this%hvars(ih_fall_disturbance_rate_si)%r81d, &
                hio_harvest_woodproduct_carbonflux_si => this%hvars(ih_harvest_woodproduct_carbonflux_si)%r81d, &
-               hio_landusechange_woodproduct_carbonflux_si => this%hvars(ih_woodproduct_carbonflux_si)%r81d, &
+               hio_landusechange_woodproduct_carbonflux_si => this%hvars(ih_landusechange_woodproduct_carbonflux_si)%r81d, &
                hio_harvest_debt_si     => this%hvars(ih_harvest_debt_si)%r81d, &
                hio_harvest_debt_sec_si => this%hvars(ih_harvest_debt_sec_si)%r81d, &
                hio_gpp_si_scpf         => this%hvars(ih_gpp_si_scpf)%r82d, &

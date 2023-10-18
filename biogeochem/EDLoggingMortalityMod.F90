@@ -70,7 +70,8 @@ module EDLoggingMortalityMod
    use FatesConstantsMod , only : hlm_harvest_carbon
    use FatesConstantsMod, only : fates_check_param_set
    use FatesInterfaceTypesMod , only : numpft
-
+   use FatesLandUseChangeMod, only : get_init_landuse_harvest_rate
+     
    implicit none
    private
 
@@ -205,7 +206,8 @@ contains
                                      harvest_tag)
 
      ! Arguments
-      type(ed_site_type), intent(in), target :: currentSite     ! site structure    
+      type(ed_site_type), intent(in), target :: currentSite     ! site structure
+      type(bc_in_type), intent(in) :: bc_in
       integer,  intent(in)  :: pft_i            ! pft index 
       real(r8), intent(in)  :: dbh              ! diameter at breast height (cm)
       integer,  intent(in)  :: canopy_layer     ! canopy layer of this cohort

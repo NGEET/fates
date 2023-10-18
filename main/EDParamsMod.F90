@@ -147,7 +147,6 @@ integer, parameter, public :: maxpft = 16      ! maximum number of PFTs allowed
    real(r8),protected,allocatable,public :: ED_val_history_height_bin_edges(:)
    real(r8),protected,allocatable,public :: ED_val_history_coageclass_bin_edges(:)
    real(r8),protected,allocatable,public :: ED_val_history_damage_bin_edges(:)
-   real(r8),protected,allocatable,public :: crop_lu_pft_vector(:)
    
    ! Switch that defines the current pressure-volume and pressure-conductivity model
    ! to be used at each node (compartment/organ)
@@ -255,6 +254,9 @@ integer, parameter, public :: maxpft = 16      ! maximum number of PFTs allowed
    
    integer, public :: maxpatches_by_landuse(n_landuse_cats)
    integer, public :: maxpatch_total
+
+   ! which crops can be grown on a given crop land use type
+   real(r8),protected,public :: crop_lu_pft_vector(n_landuse_cats)
 
    ! Maximum allowable cohorts per patch
    integer, protected, public :: max_cohort_per_patch
@@ -631,7 +633,7 @@ contains
 
     real(r8) :: tmpreal ! local real variable for changing type on read
     real(r8), allocatable :: hydr_htftype_real(:)
-    real(r8) :: tmp_vector_by_landuse(n_landuse_cats)  ! local real vector for changing type on read
+    real(r8), allocatable :: tmp_vector_by_landuse(:)  ! local real vector for changing type on read
     
     call fates_params%RetrieveParameter(name=ED_name_photo_temp_acclim_timescale, &
          data=photo_temp_acclim_timescale)
@@ -841,6 +843,7 @@ contains
          data=tmp_vector_by_landuse)
 
     crop_lu_pft_vector(:) = nint(tmp_vector_by_landuse(:))
+    deallocate(tmp_vector_by_landuse)
 
     call fates_params%RetrieveParameter(name=ED_name_maxpatches_by_landuse, &
          data=tmp_vector_by_landuse)

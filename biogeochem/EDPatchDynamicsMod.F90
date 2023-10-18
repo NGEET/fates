@@ -72,6 +72,7 @@ module EDPatchDynamicsMod
   use EDLoggingMortalityMod, only : get_harvest_rate_carbon
   use EDLoggingMortalityMod, only : get_harvestable_carbon
   use EDLoggingMortalityMod, only : get_harvest_debt
+  use FatesLandUseChangeMod, only : get_init_landuse_harvest_rate
   use EDParamsMod          , only : fates_mortality_disturbance_fraction
   use FatesAllometryMod    , only : carea_allom
   use FatesAllometryMod    , only : set_root_fraction
@@ -83,6 +84,7 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : primaryland, secondaryland, pastureland, rangeland, cropland
   use FatesConstantsMod    , only : n_landuse_cats
   use FatesLandUseChangeMod, only : get_landuse_transition_rates
+  use FatesLandUseChangeMod, only : get_init_landuse_transition_rates
   use FatesConstantsMod    , only : fates_unset_r8
   use FatesConstantsMod    , only : fates_unset_int
   use FatesConstantsMod    , only : hlm_harvest_carbon
@@ -498,7 +500,7 @@ contains
     real(r8) :: disturbance_rate             ! rate of disturbance being resolved [fraction of patch area / day]
     real(r8) :: oldarea                      ! old patch area prior to disturbance
     logical  :: clearing_matrix(n_landuse_cats,n_landuse_cats)  ! do we clear vegetation when transferring from one LU type to another?
-    type (ed_patch_type) , pointer :: buffer_patch, temp_patch
+    type (fates_patch_type) , pointer :: buffer_patch, temp_patch
     real(r8) :: nocomp_pft_area_vector(numpft)
     real(r8) :: nocomp_pft_area_vector_allocated(numpft)
     real(r8) :: fraction_to_keep
@@ -712,7 +714,7 @@ contains
                                     newPatch, patch_site_areadis,bc_in)
 
                                ! if transitioning from primary to secondary, then may need to change nocomp pft, so tag as having transitioned LU
-                               if ( i_disturbance_type .eq. ilog .and. i_donorpatch_landuse_type .eq. primarylands) then
+                               if ( i_disturbance_type .eq. dtype_ilog .and. i_donorpatch_landuse_type .eq. primaryland) then
                                   newPatch%changed_landuse_this_ts = .true.
                                end if
                             case (dtype_ifire)
@@ -727,7 +729,7 @@ contains
                                     clearing_matrix(i_donorpatch_landuse_type,i_landusechange_receiverpatchlabel))
 
                                ! if land use change, then may need to change nocomp pft, so tag as having transitioned LU
-                               new_patch%changed_landuse_this_ts = .true.
+                               newPatch%changed_landuse_this_ts = .true.
                             case default
                                write(fates_log(),*) 'unknown disturbance mode?'
                                write(fates_log(),*) 'i_disturbance_type: ',i_disturbance_type
@@ -1222,7 +1224,7 @@ contains
                                      newPatch%shortest => nc
                                      nc%shorter => null()
                                   endif
-                                  !nc%patchptr => new_patch
+
                                   call insert_cohort(newPatch, nc, newPatch%tallest, newPatch%shortest, &
                                        tnull, snull, storebigcohort, storesmallcohort)
 
@@ -1335,7 +1337,7 @@ contains
           end do
 
           ! create buffer patch to put all of the pieces carved off of other patches
-          buffer_patch%Create(0._r8, 0._r8, i_land_use_label, 0, &
+          call buffer_patch%Create(0._r8, 0._r8, i_land_use_label, 0, &
                hlm_numSWb, numpft, currentSite%nlevsoil, hlm_current_tod,              &
                regeneration_model)
 
@@ -1463,27 +1465,24 @@ contains
     ! !DESCRIPTION:
     !  Split a patch into two patches that are identical except in their areas
     !
-    ! !USES:
-    use EDCohortDynamicsMod  , only : zero_cohort, copy_cohort
-    !
     ! !ARGUMENTS:
     type(ed_site_type),intent(inout) :: currentSite
-    type(ed_patch_type) , intent(inout), target :: currentPatch   ! Donor Patch
-    type(ed_patch_type) , intent(inout), target :: new_patch      ! New Patch
+    type(fates_patch_type) , intent(inout), target :: currentPatch   ! Donor Patch
+    type(fates_patch_type) , intent(inout), target :: new_patch      ! New Patch
     real(r8), intent(in)    :: fraction_to_keep  ! fraction of currentPatch to keep, the rest goes to newpatch
     !
     ! !LOCAL VARIABLES:
     integer  :: el                           ! element loop index
-    type (ed_cohort_type), pointer :: nc
-    type (ed_cohort_type), pointer :: storesmallcohort
-    type (ed_cohort_type), pointer :: storebigcohort
-    type (ed_cohort_type), pointer :: currentCohort
+    type (fates_cohort_type), pointer :: nc
+    type (fates_cohort_type), pointer :: storesmallcohort
+    type (fates_cohort_type), pointer :: storebigcohort
+    type (fates_cohort_type), pointer :: currentCohort
     integer  :: tnull                        ! is there a tallest cohort?
     integer  :: snull                        ! is there a shortest cohort?
 
 
     ! first we need to make the new patch
-    new_patch%Create(0._r8, &
+    call new_patch%Create(0._r8, &
          currentPatch%area * (1._r8 - fraction_to_keep), currentPatch%land_use_label, currentPatch%nocomp_pft_label, &
          hlm_numSWb, numpft, currentSite%nlevsoil, hlm_current_tod,              &
          regeneration_model)
@@ -1533,11 +1532,11 @@ contains
        !allocate(nc%tveg_lpa)
        !call nc%tveg_lpa%InitRMean(ema_lpa,init_value=new_patch%tveg_lpa%GetMean())
 
-       call zero_cohort(nc)
+       call nc%ZeroValues()
 
        ! nc is the new cohort that goes in the disturbed patch (new_patch)... currentCohort
        ! is the curent cohort that stays in the donor patch (currentPatch)
-       call copy_cohort(currentCohort, nc)
+       call currentCohort%Copy(nc)
 
        ! Number of members in the new patch
        nc%n = currentCohort%n * fraction_to_keep
@@ -1562,8 +1561,8 @@ contains
           new_patch%shortest => nc
           nc%shorter => null()
        endif
-       nc%patchptr => new_patch
-       call insert_cohort(nc, new_patch%tallest, new_patch%shortest, &
+
+       call insert_cohort(new_patch, nc, new_patch%tallest, new_patch%shortest, &
             tnull, snull, storebigcohort, storesmallcohort)
 
        new_patch%tallest  => storebigcohort
@@ -3595,7 +3594,7 @@ contains
              ! In the case in which we get to the end of the list and haven't found
              ! a landuse label match.
 
-             ! If the new patch is primarylands add it to the oldest end of the list
+             ! If the new patch is primaryland add it to the oldest end of the list
              if (newPatch%land_use_label .eq. primaryland) then
                 newPatch%older                 => null()
                 newPatch%younger               => currentSite%oldest_patch
