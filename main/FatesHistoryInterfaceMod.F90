@@ -4755,14 +4755,14 @@ end subroutine flush_hvars
                hio_laisun_clllpf                   => this%hvars(ih_laisun_clllpf)%r82d, &
                hio_laisha_clllpf                   => this%hvars(ih_laisha_clllpf)%r82d, &
                hio_crownfrac_clllpf                => this%hvars(ih_crownfrac_clllpf)%r82d, &
-               hio_laisun_top_si_can               => this%hvars(ih_laisun_top_si_can)%r82d, &
-               hio_laisha_top_si_can               => this%hvars(ih_laisha_top_si_can)%r82d, &
                hio_parprof_dir_si_cnlf             => this%hvars(ih_parprof_dir_si_cnlf)%r82d, &
                hio_parprof_dif_si_cnlf             => this%hvars(ih_parprof_dif_si_cnlf)%r82d, &
                hio_parprof_dir_si_cnlfpft          => this%hvars(ih_parprof_dir_si_cnlfpft)%r82d, &
                hio_parprof_dif_si_cnlfpft          => this%hvars(ih_parprof_dif_si_cnlfpft)%r82d, &
                hio_parsun_si_can                   => this%hvars(ih_parsun_si_can)%r82d, &
-               hio_parsha_si_can                   => this%hvars(ih_parsha_si_can)%r82d  )
+               hio_parsha_si_can                   => this%hvars(ih_parsha_si_can)%r82d, &
+               hio_laisun_si_can                    => this%hvars(ih_laisun_si_can)%r82d, &
+               hio_laisha_si_can                    => this%hvars(ih_laisha_si_can)%r82d )
       
       ! Flush the relevant history variables
       call this%flush_hvars(nc,upfreq_in=upfreq_hifr_multi)
@@ -5080,10 +5080,14 @@ end subroutine flush_hvars
                hio_laisha_si_can(io_si,ican) = hlm_hio_ignore_val
                
             else
-               hio_parsun_si_can(io_si,ican) = hio_parsun_si_can(io_si,ican)/cl_area
-               hio_parsha_si_can(io_si,ican) = hio_parsha_si_can(io_si,ican)/cl_area
-               hio_laisun_si_can(io_si,ican) = hio_laisun_si_can(io_si,ican)/cl_area
-               hio_laisha_si_can(io_si,ican) = hio_laisha_si_can(io_si,ican)/cl_area
+               ! Since these are integrated metrics, ie absorbed over depth
+               ! and total leaf over depth, we just want to normalize by the
+               ! the area of the footprint.  The weightings they had
+               ! recieved were always in m2 (ie the footprint of the bin)
+               hio_parsun_si_can(io_si,ican) = hio_parsun_si_can(io_si,ican) * site_area_veg_inv
+               hio_parsha_si_can(io_si,ican) = hio_parsha_si_can(io_si,ican) * site_area_veg_inv
+               hio_laisun_si_can(io_si,ican) = hio_laisun_si_can(io_si,ican) * site_area_veg_inv
+               hio_laisha_si_can(io_si,ican) = hio_laisha_si_can(io_si,ican) * site_area_veg_inv
             end if
             
          end do do_ican2
@@ -7042,13 +7046,13 @@ end subroutine flush_hvars
             long='PAR absorbed by sunlit leaves in each canopy layer', &
             use_default='inactive', avgflag='A', vtype=site_can_r8,               &
             hlms='CLM:ALM', upfreq=upfreq_hifr_multi, ivar=ivar, initialize=initialize_variables, &
-            index = ih_parsun_top_si_can )
+            index = ih_parsun_si_can )
 
        call this%set_history_var(vname='FATES_PARSHA_CL', units='W m-2',        &
             long='PAR absorbed by shaded leaves in each canopy layer', &
             use_default='inactive', avgflag='A', vtype=site_can_r8,               &
             hlms='CLM:ALM', upfreq=upfreq_hifr_multi, ivar=ivar, initialize=initialize_variables, &
-            index = ih_parsha_top_si_can)
+            index = ih_parsha_si_can)
 
        call this%set_history_var(vname='FATES_LAISUN_CLLL', units='m2 m-2',     &
             long='LAI in the sun by each canopy and leaf layer',                  &
@@ -7086,17 +7090,17 @@ end subroutine flush_hvars
             hlms='CLM:ALM', upfreq=upfreq_hifr_multi, ivar=ivar, initialize=initialize_variables, &
             index = ih_parprof_dif_si_cnlfpft)
 
-       call this%set_history_var(vname='FATES_LAISUN_TOP_CL', units='m2 m-2',     &
-            long='LAI in the sun by the top leaf layer of each canopy layer',     &
+       call this%set_history_var(vname='FATES_LAISUN_CL', units='m2 m-2',     &
+            long='LAI of sunlit leaves by canopy layer',     &
             use_default='inactive', avgflag='A', vtype=site_can_r8,               &
             hlms='CLM:ALM', upfreq=upfreq_hifr_multi, ivar=ivar, initialize=initialize_variables, &
-            index = ih_laisun_top_si_can)
+            index = ih_laisun_si_can)
 
-       call this%set_history_var(vname='FATES_LAISHA_TOP_CL', units='m2 m-2',     &
-            long='LAI in the shade by the top leaf layer of each canopy layer',   &
+       call this%set_history_var(vname='FATES_LAISHA_CL', units='m2 m-2',     &
+            long='LAI of shaded leaves by canopy layer',   &
             use_default='inactive', avgflag='A', vtype=site_can_r8,               &
             hlms='CLM:ALM', upfreq=upfreq_hifr_multi, ivar=ivar, initialize=initialize_variables, &
-            index = ih_laisha_top_si_can)
+            index = ih_laisha_si_can)
 
        call this%set_history_var(vname='FATES_PARPROF_DIR_CLLL', units='W m-2',   &
             long='radiative profile of direct PAR through each canopy and leaf layer (averaged across PFTs)', &
