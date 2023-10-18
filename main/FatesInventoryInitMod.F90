@@ -16,7 +16,12 @@ module FatesInventoryInitMod
    ! See: https://github.com/EDmodel/ED2/blob/master/ED/src/io/ed_read_ed10_20_history.f90
    ! At the time of writing this ED2 is unlicensed, and only concepts were borrowed with no direct
    ! code copied.
-   !-----------------------------------------------------------------------------------------------
+   !
+   !
+   ! Update: Jessica Needham October 2023
+   ! As discussed in FATES issue #1062 we decided to remove columns not used in FATES from the
+   ! PSS and CSS files. 
+  !-----------------------------------------------------------------------------------------------
 
    ! CIME GLOBALS
 
@@ -744,14 +749,6 @@ contains
       ! trk	(integer)  LU type index (0 non-forest, 1 secondary, 2 primary
       ! age	(years)    Time since this patch was disturbed (created)
       ! area	(fraction) Fraction of the site occupied by this patch
-      ! water	(NA)       Water content of soil (NOT USED)
-      ! fsc	(kg/m2)    Fast Soil Carbon
-      ! stsc	(kg/m2)    Structural Soil Carbon
-      ! stsl	(kg/m2)    Structural Soil Lignin
-      ! ssc	(kg/m2)    Slow Soil Carbon
-      ! psc	(NA)       Passive Soil Carbon (NOT USED)
-      ! msn	(kg/m2)    Mineralized Soil Nitrogen
-      ! fsn     (kg/m2)    Fast Soil Nitrogen
       ! --------------------------------------------------------------------------------------------
 
       use FatesSizeAgeTypeIndicesMod, only: get_age_class_index
@@ -772,14 +769,6 @@ contains
       character(len=patchname_strlen)             :: p_name     ! unique string identifier of patch
       real(r8)                                    :: p_age      ! Patch age [years]
       real(r8)                                    :: p_area     ! Patch area [fraction]
-      real(r8)                                    :: p_water    ! Patch water (unused)
-      real(r8)                                    :: p_fsc      ! Patch fast soil carbon
-      real(r8)                                    :: p_stsc     ! Patch structural soil carbon
-      real(r8)                                    :: p_stsl     ! Patch structural soil lignins
-      real(r8)                                    :: p_ssc      ! Patch slow soil carbon
-      real(r8)                                    :: p_psc      ! Patch P soil carbon
-      real(r8)                                    :: p_msn      ! Patch mean soil nitrogen
-      real(r8)                                    :: p_fsn      ! Patch fast soil nitrogen
       integer                                     :: icwd       ! index for counting CWD pools
       integer                                     :: ipft       ! index for counting PFTs
       real(r8)                                    :: pftfrac    ! the inverse of the total number of PFTs
@@ -788,9 +777,7 @@ contains
             '(F5.2,2X,A4,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2)'
 
 
-      read(pss_file_unit,fmt=*,iostat=ios) p_time, p_name, p_trk, p_age, p_area, &
-            p_water,p_fsc, p_stsc, p_stsl, p_ssc, &
-            p_psc, p_msn, p_fsn
+      read(pss_file_unit,fmt=*,iostat=ios) p_time, p_name, p_trk, p_age, p_area
 
       if (ios/=0) return
 
@@ -798,9 +785,7 @@ contains
 
       if( debug_inv) then
          write(*,fmt=wr_fmt) &
-               p_time, p_name, p_trk, p_age, p_area, &
-               p_water,p_fsc, p_stsc, p_stsl, p_ssc, &
-               p_psc, p_msn, p_fsn
+               p_time, p_name, p_trk, p_age, p_area
       end if
 
       ! Fill in the patch's memory structures
@@ -859,12 +844,8 @@ contains
       ! patch	(string)   patch id string associated with this cohort
       ! index	(integer)  cohort index
       ! dbh	(cm)       diameter at breast height
-      ! height  (m)        height of the tree
-      ! pft      (integer)  the plant functional type index (must be consistent with param file)
+      ! pft     (integer)  the plant functional type index (must be consistent with param file)
       ! n 	(/m2)      The plant number density
-      ! bdead    (kgC/plant)The dead biomass per indiv of this cohort (NOT USED)
-      ! balive   (kgC/plant)The live biomass per indiv of this cohort (NOT USED)
-      ! avgRG    (cm/yr?)   Average Radial Growth (NOT USED)
       ! --------------------------------------------------------------------------------------------
 
       use FatesAllometryMod         , only : h_allom
@@ -895,12 +876,8 @@ contains
       character(len=patchname_strlen)             :: p_name        ! The patch associated with this cohort
       character(len=cohortname_strlen)            :: c_name        ! cohort index
       real(r8)                                    :: c_dbh         ! diameter at breast height (cm)
-      real(r8)                                    :: c_height      ! tree height (m)
       integer                                     :: c_pft         ! plant functional type index
       real(r8)                                    :: c_nplant      ! plant density (/m2)
-      real(r8)                                    :: c_bdead       ! dead biomass (kg)
-      real(r8)                                    :: c_balive      ! live biomass (kg)
-      real(r8)                                    :: c_avgRG       ! avg radial growth (NOT USED)
       real(r8)                                    :: site_spread   ! initial guess of site spread
                                                                    ! should be quickly re-calculated
       integer,parameter                           :: rstatus = 0   ! recruit status
@@ -938,13 +915,12 @@ contains
       integer,  parameter :: recruitstatus = 0
 
      
-      read(css_file_unit,fmt=*,iostat=ios) c_time, p_name, c_name, c_dbh, c_height, &
-            c_pft, c_nplant, c_bdead, c_balive, c_avgRG
+      read(css_file_unit,fmt=*,iostat=ios) c_time, p_name, c_name, c_dbh, &
+            c_pft, c_nplant
 
       if( debug_inv) then
          write(*,fmt=wr_fmt) &
-              c_time, p_name, c_name, c_dbh, c_height, &
-              c_pft, c_nplant, c_bdead, c_balive, c_avgRG
+              c_time, p_name, c_name, c_dbh, c_pft, c_nplant
       end if
 
       if (ios/=0) return
@@ -961,8 +937,7 @@ contains
       if(.not.matched_patch)then
          write(fates_log(), *) 'could not match a cohort with a patch'
          write(fates_log(),fmt=wr_fmt) &
-               c_time, p_name, c_name, c_dbh, c_height, &
-               c_pft, c_nplant, c_bdead, c_balive, c_avgRG
+               c_time, p_name, c_name, c_dbh, c_pft, c_nplant
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 
@@ -1215,6 +1190,7 @@ contains
        ! a recommended file type for restarting a run.
        ! The files will have a lat/long tag added to their name, and will be
        ! generated in the run folder.
+       ! JFN Oct 2023 - updated to get rid of unused ED columns      
        ! --------------------------------------------------------------------------------
 
        use shr_file_mod, only        : shr_file_getUnit
@@ -1267,8 +1243,8 @@ contains
        open(unit=pss_file_out,file=trim(pss_name_out), status='UNKNOWN',action='WRITE',form='FORMATTED')
        open(unit=css_file_out,file=trim(css_name_out), status='UNKNOWN',action='WRITE',form='FORMATTED')
 
-       write(pss_file_out,*) 'time patch trk age area water fsc stsc stsl ssc psc msn fsn'
-       write(css_file_out,*) 'time patch cohort dbh height pft nplant bdead alive Avgrg'
+       write(pss_file_out,*) 'time patch trk age area'
+       write(css_file_out,*) 'time patch cohort dbh pft nplant'
 
        ipatch=0
        currentpatch => currentSite%youngest_patch
