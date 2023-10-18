@@ -712,7 +712,9 @@ contains
 
              allocate(newp)
  
-             call create_patch(sites(s), newp, age, newparea, nocomp_bareground_land, nocomp_bareground)
+             call newp%Create(age, newparea, nocomp_bareground_land, nocomp_bareground,     &
+                           hlm_numSWb, numpft, sites(s)%nlevsoil, hlm_current_tod,      &
+                           regeneration_model)
 
              ! set poointers for first patch (or only patch, if nocomp is false)
              newp%patchno = 1

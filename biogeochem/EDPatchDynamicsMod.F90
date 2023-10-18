@@ -1425,7 +1425,7 @@ contains
              buffer_patch => null()
           else if (buffer_patch%area .lt. fates_tiny) then
              ! here we need to deallocate the buffer patch so that we don't get a memory leak/
-             call dealloc_patch(buffer_patch)
+             call buffer_patch%FreeMemory(regeneration_model, numpft)
              deallocate(buffer_patch, stat=istat, errmsg=smsg)
              if (istat/=0) then
                 write(fates_log(),*) 'dealloc: fail on deallocate(dp):'//trim(smsg)
@@ -1525,7 +1525,7 @@ contains
        ! correct boundary condition fields
        nc%prt => null()
        call InitPRTObject(nc%prt)
-       call InitPRTBoundaryConditions(nc)
+       call nc%InitPRTBoundaryConditions()
 
        !  (Keeping as an example)
        ! Allocate running mean functions
