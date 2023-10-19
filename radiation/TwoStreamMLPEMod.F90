@@ -372,7 +372,7 @@ contains
            scelb%B2d*scelb%lambda2_diff*exp(-scelb%a*vai))
 
       if(debug)then
-         if(r_diff_dn.ne.r_diff_dn)then
+         if(isnan(r_diff_dn))then
             write(log_unit,*)"GETRDN"
             write(log_unit,*)scelg%Kb
             write(log_unit,*)scelb%a
@@ -805,9 +805,11 @@ contains
                     scelb%betad = betad_om / scelb%om
 
                     if(debug)then
-                       if(scelb%betad /= scelb%betad)then
+                       if(isnan(scelb%betad))then
                           write(log_unit,*)"nans in canopy prep"
-                          write(log_unit,*) ib,ican,icol,ft,scelb%betad,scelb%om,lai,sai,this%frac_snow,om_snow(ib),vai,om_veg
+                          write(log_unit,*) ib,ican,icol,ft,
+                          write(log_unit,*) scelb%betad,scelb%om,lai,sai
+                          write(log_unit,*) this%frac_snow,om_snow(ib),vai,om_veg
                           write(log_unit,*)"TwoStreamMLPEMod.F90:CanopyPrep"
                           call endrun(msg=errMsg(sourcefile, __LINE__))
                        end if
