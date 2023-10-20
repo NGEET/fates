@@ -227,7 +227,6 @@ contains
    ! If dispersal flag is false, check if it is time to disperse
    ! If it's time to disperse, check to see if the dispersal flag should be set true and last
    ! dispersal date updated
-   write(fates_log(),*) 'IIDTpre, dflag, sflag, cdate, ddate', IsItDispersalTime, dispersal_flag, setflag, GetCadenceDate(), dispersal_date
    if (dispersal_flag) then
       IsItDispersalTime = .true.
       dispersal_flag = .false.
@@ -240,8 +239,7 @@ contains
          end if
       end if
    end if
-   write(fates_log(),*) 'IIDTpst, dflag, sflag, cdate, ddate', IsItDispersalTime, dispersal_flag, setflag, GetCadenceDate(), dispersal_date
-                                                                            
+
    end function IsItDispersalTime
    
    ! ====================================================================================
