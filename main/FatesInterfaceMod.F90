@@ -2176,7 +2176,7 @@ subroutine DetermineGridCellNeighbors(neighbors,seeds,numg)
    ! neighbor for later use.  This should be called after decompInit_lnd and surf_get_grid
    ! as it relies on ldecomp and ldomain information.
 
-   use decompMod             , only : procinfo, gindex_global, gindex_grc
+   use decompMod             , only : procinfo
    use domainMod             , only : ldomain
    use spmdMod               , only : MPI_REAL8, MPI_INTEGER, mpicom, npes, masterproc, iam
    use perf_mod              , only : t_startf, t_stopf
@@ -2250,8 +2250,6 @@ subroutine DetermineGridCellNeighbors(neighbors,seeds,numg)
 
    if(debug) write(fates_log(),*)'DGCN: ncells_array: ' , ncells_array
    if(debug) write(fates_log(),*)'DGCN: begg_array: '   , begg_array
-   if(debug) write(fates_log(),*)'DGCN: gindex_global: ', gindex_global
-   if(debug) write(fates_log(),*)'DGCN: gindex_grc: '   , gindex_grc
 
    ! Gather the domain information together into the neighbor type
    ! Note that MPI_Allgatherv is only gathering a subset of ldomain
