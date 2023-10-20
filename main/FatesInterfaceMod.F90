@@ -43,6 +43,7 @@ module FatesInterfaceMod
    use FatesConstantsMod         , only : n_landuse_cats
    use FatesConstantsMod         , only : primaryland
    use FatesConstantsMod         , only : secondaryland
+   use FatesConstantsMod         , only : n_crop_lu_types
    use FatesGlobals              , only : fates_global_verbose
    use FatesGlobals              , only : fates_log
    use FatesGlobals              , only : endrun => fates_endrun
@@ -557,7 +558,7 @@ contains
 
       if ( hlm_use_fixed_biogeog .eq. itrue) then
          if (hlm_use_luh .gt. 0 ) then
-            allocate(bc_in%pft_areafrac_lu(fates_hlm_num_natpfts,num_luh2_states))
+            allocate(bc_in%pft_areafrac_lu(fates_hlm_num_natpfts,num_luh2_states-n_crop_lu_types))
          else
             allocate(bc_in%pft_areafrac(surfpft_lb:surfpft_ub))
          endif

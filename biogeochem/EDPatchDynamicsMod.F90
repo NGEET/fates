@@ -83,6 +83,7 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : years_per_day
   use FatesConstantsMod    , only : nearzero
   use FatesConstantsMod    , only : primaryland, secondaryland, pastureland, rangeland, cropland
+  use FatesConstantsMod    , only : nocomp_bareground_land
   use FatesConstantsMod    , only : n_landuse_cats
   use FatesLandUseChangeMod, only : get_landuse_transition_rates
   use FatesLandUseChangeMod, only : get_init_landuse_transition_rates
@@ -298,9 +299,11 @@ contains
     current_fates_landuse_state_vector(:) = 0._r8
     currentPatch => site_in%oldest_patch
     do while (associated(currentPatch))
-       current_fates_landuse_state_vector(currentPatch%land_use_label) = &
-            current_fates_landuse_state_vector(currentPatch%land_use_label) + &
-            currentPatch%area/AREA
+       if (currentPatch%land_use_label .gt. nocomp_bareground_land) then
+          current_fates_landuse_state_vector(currentPatch%land_use_label) = &
+               current_fates_landuse_state_vector(currentPatch%land_use_label) + &
+               currentPatch%area/AREA
+       end if
        currentPatch => currentPatch%younger
     end do
 
@@ -331,8 +334,8 @@ contains
 
        dist_rate_ldist_notharvested = 0.0_r8
 
-       ! Avoid this calculation to avoid NaN due to division by zero result if luh is not used
-       if (hlm_use_luh .eq. itrue) then
+       ! Avoid this calculation to avoid NaN due to division by zero result if luh is not used or applying to bare ground
+       if (hlm_use_luh .eq. itrue .and. currentPatch%land_use_label .gt. nocomp_bareground_land) then
           currentPatch%landuse_transition_rates(1:n_landuse_cats) = min(1._r8, &
                landuse_transition_matrix(currentPatch%land_use_label,1:n_landuse_cats) / &
                current_fates_landuse_state_vector(currentPatch%land_use_label))
@@ -2712,6 +2715,7 @@ contains
     integer  :: i_pftlabel  !nocomp pft iterator
     real(r8) :: primary_land_fraction_beforefusion,primary_land_fraction_afterfusion
     integer  :: pftlabelmin, pftlabelmax
+    integer  :: num_bareground_patches
     !
     !---------------------------------------------------------------------
 
@@ -2723,20 +2727,29 @@ contains
     primary_land_fraction_afterfusion = 0._r8
 
     nopatches(1:n_landuse_cats) = 0
-
+    num_bareground_patches = 0
+    
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
-       nopatches(currentPatch%land_use_label) = &
-            nopatches(currentPatch%land_use_label) + 1
+       if ( currentPatch%land_use_label .gt. nocomp_bareground_land) then
+          nopatches(currentPatch%land_use_label) = &
+               nopatches(currentPatch%land_use_label) + 1
        
-       if (currentPatch%land_use_label .eq. primaryland) then
-          primary_land_fraction_beforefusion = primary_land_fraction_beforefusion + &
-               currentPatch%area * AREA_INV
+          if (currentPatch%land_use_label .eq. primaryland) then
+             primary_land_fraction_beforefusion = primary_land_fraction_beforefusion + &
+                  currentPatch%area * AREA_INV
+          endif
+       else
+          num_bareground_patches = num_bareground_patches + 1
        endif
-
        currentPatch => currentPatch%older
     enddo
 
+    if (num_bareground_patches .gt. 1 ) then
+       write(fates_log(),*) 'somehow there is more than one bare ground patch. this shouldnt have happened.'
+       call endrun(msg=errMsg(sourcefile, __LINE__))                
+    endif
+    
     pftlabelmin = 0
     if ( hlm_use_nocomp .eq. itrue ) then
        pftlabelmax = numpft

@@ -84,7 +84,7 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : grav_earth
   use FatesLitterMod           , only : litter_type
   use FatesConstantsMod        , only : secondaryland
-
+  use FatesConstantsMod        , only : nocomp_bareground_land
   use PRTGenericMod            , only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod            , only : struct_organ, store_organ, repro_organ
   use PRTGenericMod            , only : carbon12_element
@@ -2782,8 +2782,10 @@ end subroutine flush_hvars
          hio_area_si_age(io_si,cpatch%age_class) = hio_area_si_age(io_si,cpatch%age_class) &
             + cpatch%area * AREA_INV
 
-         hio_area_si_landuse(io_si, cpatch%land_use_label) = hio_area_si_landuse(io_si, cpatch%land_use_label)&
-              + cpatch%area * AREA_INV
+         if (cpatch%land_use_label .gt. nocomp_bareground_land) then ! ignore land use info on nocomp bareground (where landuse label = 0)
+            hio_area_si_landuse(io_si, cpatch%land_use_label) = hio_area_si_landuse(io_si, cpatch%land_use_label)&
+                 + cpatch%area * AREA_INV
+         end if
 
          ! 24hr veg temperature
          hio_tveg24(io_si) = hio_tveg24(io_si) + &

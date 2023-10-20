@@ -35,6 +35,7 @@ module EDPhysiologyMod
   use FatesConstantsMod, only    : g_per_kg
   use FatesConstantsMod, only    : ndays_per_year
   use FatesConstantsMod, only    : nocomp_bareground
+  use FatesConstantsMod, only    : nocomp_bareground_land
   use FatesConstantsMod, only    : is_crop
   use FatesConstantsMod, only    : area_error_2
   use EDPftvarcon      , only    : EDPftvarcon_inst
@@ -2497,13 +2498,15 @@ contains
           use_this_pft = .true.
        end if
 
-       if ((hlm_use_luh .eq. itrue) .and. (is_crop(currentPatch%land_use_label))) then
-          if ( crop_lu_pft_vector(currentPatch%land_use_label) .eq. ft ) then
-             use_this_pft = .true.
-          else
-             use_this_pft = .false.
+       if ( currentPatch%land_use_label .ne. nocomp_bareground_land ) then ! cdk
+          if ((hlm_use_luh .eq. itrue) .and. (is_crop(currentPatch%land_use_label))) then
+             if ( crop_lu_pft_vector(currentPatch%land_use_label) .eq. ft ) then
+                use_this_pft = .true.
+             else
+                use_this_pft = .false.
+             end if
           end if
-       end if
+       endif
 
        use_this_pft_if: if(use_this_pft) then
             hite               = EDPftvarcon_inst%hgt_min(ft)
