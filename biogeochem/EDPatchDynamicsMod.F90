@@ -43,6 +43,7 @@ module EDPatchDynamicsMod
   use FatesLitterMod       , only : dl_sf
   use FatesConstantsMod    , only : N_DIST_TYPES
   use EDTypesMod           , only : AREA_INV
+  use EDTypesMod           , only : dump_site
   use FatesConstantsMod    , only : rsnbl_math_prec
   use FatesConstantsMod    , only : fates_tiny
   use FatesConstantsMod    , only : nocomp_bareground
@@ -207,6 +208,7 @@ contains
     integer  :: i_dist
     integer  :: h_index
     real(r8) :: frac_site_primary
+    real(r8) :: frac_site_secondary
     real(r8) :: harvest_rate
     real(r8) :: tempsum
     real(r8) :: mean_temp
@@ -220,7 +222,7 @@ contains
     !----------------------------------------------------------------------------------------------
     
     ! first calculate the fraction of the site that is primary land
-    call get_frac_site_primary(site_in, frac_site_primary)
+    call get_frac_site_primary(site_in, frac_site_primary, frac_site_secondary)
 
     ! check status of transition_landuse_from_off_to_on flag, and do some error checking on it
     if(site_in%transition_landuse_from_off_to_on) then
@@ -265,6 +267,7 @@ contains
                 currentPatch%land_use_label, &
                 currentPatch%age_since_anthro_disturbance, &
                 frac_site_primary, &
+                frac_site_secondary, &
                 harvestable_forest_c, &
                 harvest_tag)
          
@@ -383,7 +386,8 @@ contains
                      harvest_rate, harvest_tag)
              else
                 call get_harvest_rate_area (currentPatch%land_use_label, bc_in%hlm_harvest_catnames, &
-                     bc_in%hlm_harvest_rates, frac_site_primary, currentPatch%age_since_anthro_disturbance, harvest_rate)
+                     bc_in%hlm_harvest_rates, frac_site_primary, frac_site_secondary, &
+                     currentPatch%age_since_anthro_disturbance, harvest_rate)
              end if
           else
              call get_init_landuse_harvest_rate(bc_in, harvest_rate)
@@ -1337,6 +1341,8 @@ contains
           end do
 
           ! create buffer patch to put all of the pieces carved off of other patches
+          allocate(buffer_patch)
+
           call buffer_patch%Create(0._r8, 0._r8, i_land_use_label, 0, &
                hlm_numSWb, numpft, currentSite%nlevsoil, hlm_current_tod,              &
                regeneration_model)
@@ -1367,6 +1373,8 @@ contains
                 elseif (fraction_to_keep .lt. (1._r8 - nearzero)) then
                    ! we have more patch are of this PFT than we want, but we do want to keep some of it.
                    ! we want to split the patch into two here. leave one patch as-is, and put the rest into the buffer patch.
+
+                   allocate(temp_patch)
                    call split_patch(currentSite, currentPatch, temp_patch, fraction_to_keep)
                    !
                    temp_patch%nocomp_pft_label = 0
@@ -1391,6 +1399,7 @@ contains
                 if (newp_area .lt. buffer_patch%area) then
 
                    ! split buffer patch in two, keeping the smaller buffer patch to put into new patches
+                   allocate(temp_patch)
                    call split_patch(currentSite, buffer_patch, temp_patch, newp_area/buffer_patch%area)
 
                    ! give the new patch the intended nocomp PFT label
@@ -3217,7 +3226,7 @@ contains
              if ( .not. gotfused ) then
                 !! somehow didn't find a patch to fuse with.
                 write(fates_log(),*) 'Warning. small nocomp patch wasnt able to find another patch to fuse with.', &
-                     currentPatch%nocomp_pft_label, currentPatch%land_use_label
+                     currentPatch%nocomp_pft_label, currentPatch%land_use_label, currentPatch%area
              endif
 
           else nocomp_if
@@ -3326,7 +3335,15 @@ contains
           write(fates_log(),*) 'is very very small. You can test your luck by'
           write(fates_log(),*) 'disabling the endrun statement following this message.'
           write(fates_log(),*) 'FATES may or may not continue to operate within error'
-          write(fates_log(),*) 'tolerances, but will generate another fail if it does not.' 
+          write(fates_log(),*) 'tolerances, but will generate another fail if it does not.'
+          write(fates_log(),*) 'otherwise, dumping some diagnostics.'
+          write(fates_log(),*) currentPatch%area, currentPatch%nocomp_pft_label, currentPatch%land_use_label
+          call dump_site(currentSite)
+          patchpointer => currentSite%youngest_patch
+          do while(associated(patchpointer))
+             write(fates_log(),*) patchpointer%area, patchpointer%nocomp_pft_label, patchpointer%land_use_label
+             patchpointer => patchpointer%older
+          end do
           call endrun(msg=errMsg(sourcefile, __LINE__))
           
           ! Note to user. If you DO decide to remove the end-run above this line
@@ -3464,11 +3481,11 @@ contains
 
   ! =====================================================================================
 
- subroutine get_frac_site_primary(site_in, frac_site_primary)
+ subroutine get_frac_site_primary(site_in, frac_site_primary, frac_site_secondary)
 
     !
     ! !DESCRIPTION:
-    !  Calculate how much of a site is primary land
+    !  Calculate how much of a site is primary land and secondary land
     !
     ! !USES:
     use EDTypesMod , only : ed_site_type
@@ -3476,6 +3493,7 @@ contains
     ! !ARGUMENTS:
     type(ed_site_type) , intent(in), target :: site_in
     real(r8)           , intent(out)        :: frac_site_primary
+    real(r8)           , intent(out)        :: frac_site_secondary
 
     ! !LOCAL VARIABLES:
     type (fates_patch_type), pointer :: currentPatch
@@ -3485,6 +3503,15 @@ contains
    do while (associated(currentPatch))   
       if (currentPatch%land_use_label .eq. primaryland) then
          frac_site_primary = frac_site_primary + currentPatch%area * AREA_INV
+      endif
+      currentPatch => currentPatch%younger
+   end do
+
+   frac_site_secondary = 0._r8
+   currentPatch => site_in%oldest_patch
+   do while (associated(currentPatch))
+      if (currentPatch%land_use_label .eq. secondaryland) then
+         frac_site_secondary = frac_site_secondary + currentPatch%area * AREA_INV
       endif
       currentPatch => currentPatch%younger
    end do

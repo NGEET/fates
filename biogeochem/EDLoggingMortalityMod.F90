@@ -202,7 +202,7 @@ contains
                                      hlm_harvest_rates, hlm_harvest_catnames, &
                                      hlm_harvest_units, &
                                      patch_land_use_label, secondary_age, &
-                                     frac_site_primary, harvestable_forest_c, &
+                                     frac_site_primary, frac_site_secondary, harvestable_forest_c, &
                                      harvest_tag)
 
      ! Arguments
@@ -219,6 +219,7 @@ contains
       real(r8), intent(in) :: harvestable_forest_c(:)  ! total harvestable forest carbon 
                                                        ! of all hlm harvest categories
       real(r8), intent(in) :: frac_site_primary
+      real(r8), intent(in) :: frac_site_secondary
       real(r8), intent(out) :: lmort_direct     ! direct (harvestable) mortality fraction
       real(r8), intent(out) :: lmort_collateral ! collateral damage mortality fraction
       real(r8), intent(out) :: lmort_infra      ! infrastructure mortality fraction
@@ -271,7 +272,7 @@ contains
 
                ! Get the area-based harvest rates based on info passed to FATES from the boundary condition
                call get_harvest_rate_area (patch_land_use_label, hlm_harvest_catnames, &
-                    hlm_harvest_rates, frac_site_primary, secondary_age, harvest_rate)
+                    hlm_harvest_rates, frac_site_primary, frac_site_secondary, secondary_age, harvest_rate)
 
                ! For area-based harvest, harvest_tag shall always be 2 (not applicable).
                harvest_tag = 2
@@ -361,7 +362,7 @@ contains
    ! ============================================================================
 
    subroutine get_harvest_rate_area (patch_land_use_label, hlm_harvest_catnames, hlm_harvest_rates, &
-                 frac_site_primary, secondary_age, harvest_rate)
+                 frac_site_primary, frac_site_secondary, secondary_age, harvest_rate)
 
 
      ! -------------------------------------------------------------------------------------------
@@ -376,6 +377,7 @@ contains
       integer, intent(in) :: patch_land_use_label    ! patch level land_use_label
       real(r8), intent(in) :: secondary_age     ! patch level age_since_anthro_disturbance
       real(r8), intent(in) :: frac_site_primary
+      real(r8), intent(in) :: frac_site_secondary
       real(r8), intent(out) :: harvest_rate
 
       ! Local Variables
@@ -414,13 +416,15 @@ contains
         else
            harvest_rate = 0._r8
         endif
-     else
-        if ((1._r8-frac_site_primary) .gt. fates_tiny) then
-           harvest_rate = min((harvest_rate / (1._r8-frac_site_primary)),&
-                (1._r8-frac_site_primary))
+     else if (patch_land_use_label .eq. secondaryland) then
+        if (frac_site_secondary .gt. fates_tiny) then
+           harvest_rate = min((harvest_rate / frac_site_secondary), frac_site_secondary)
         else
            harvest_rate = 0._r8
         endif
+     else
+        write(fates_log(),*) 'errror - trying to log from patches that are neither primary nor secondary'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
      endif
 
      ! calculate today's harvest rate

@@ -299,10 +299,6 @@ integer, parameter, public :: maxpft = 16      ! maximum number of PFTs allowed
                                                     ! leftovers will be left onsite as large CWD
    character(len=param_string_length),parameter,public :: logging_name_export_frac ="fates_landuse_logging_export_frac"   
 
-   real(r8),protected,public :: pprodharv10_forest_mean ! "mean harvest mortality proportion of deadstem to 10-yr 
-                                                        ! product pool (pprodharv10) of all woody PFT types
-   character(len=param_string_length),parameter,public :: logging_name_pprodharv10="fates_landuse_pprodharv10_forest_mean"
-
    real(r8),protected,public :: eca_plant_escalar  ! scaling factor for plant fine root biomass to 
                                                ! calculate nutrient carrier enzyme abundance (ECA)
 
@@ -376,7 +372,6 @@ contains
     logging_event_code                    = nan
     logging_dbhmax_infra                  = nan
     logging_export_frac                   = nan
-    pprodharv10_forest_mean               = nan
     eca_plant_escalar                     = nan
     q10_mr                                = nan
     q10_froz                              = nan
@@ -565,9 +560,6 @@ contains
     call fates_params%RegisterParameter(name=logging_name_export_frac, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=logging_name_pprodharv10, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
     call fates_params%RegisterParameter(name=eca_name_plant_escalar, dimension_shape=dimension_shape_scalar, & 
          dimension_names=dim_names_scalar)
 
@@ -633,8 +625,9 @@ contains
 
     real(r8) :: tmpreal ! local real variable for changing type on read
     real(r8), allocatable :: hydr_htftype_real(:)
-    real(r8), allocatable :: tmp_vector_by_landuse(:)  ! local real vector for changing type on read
-    
+    real(r8), allocatable :: tmp_vector_by_landuse1(:)  ! local real vector for changing type on read
+    real(r8), allocatable :: tmp_vector_by_landuse2(:)  ! local real vector for changing type on read
+
     call fates_params%RetrieveParameter(name=ED_name_photo_temp_acclim_timescale, &
          data=photo_temp_acclim_timescale)
 
@@ -787,9 +780,6 @@ contains
     call fates_params%RetrieveParameter(name=logging_name_export_frac, &
           data=logging_export_frac)
 
-    call fates_params%RetrieveParameter(name=logging_name_pprodharv10, &
-         data=pprodharv10_forest_mean)
-    
     call fates_params%RetrieveParameter(name=eca_name_plant_escalar, &
           data=eca_plant_escalar)
 
@@ -840,16 +830,17 @@ contains
          data=ED_val_history_damage_bin_edges)
 
     call fates_params%RetrieveParameterAllocate(name=ED_name_crop_lu_pft_vector, &
-         data=tmp_vector_by_landuse)
+         data=tmp_vector_by_landuse1)
 
-    crop_lu_pft_vector(:) = nint(tmp_vector_by_landuse(:))
-    deallocate(tmp_vector_by_landuse)
+    crop_lu_pft_vector(:) = nint(tmp_vector_by_landuse1(:))
+    deallocate(tmp_vector_by_landuse1)
 
-    call fates_params%RetrieveParameter(name=ED_name_maxpatches_by_landuse, &
-         data=tmp_vector_by_landuse)
+    call fates_params%RetrieveParameterAllocate(name=ED_name_maxpatches_by_landuse, &
+         data=tmp_vector_by_landuse2)
 
-    maxpatches_by_landuse(:) = nint(tmp_vector_by_landuse(:))
+    maxpatches_by_landuse(:) = nint(tmp_vector_by_landuse2(:))
     maxpatch_total = sum(maxpatches_by_landuse(:))
+    deallocate(tmp_vector_by_landuse2)
 
     call fates_params%RetrieveParameterAllocate(name=ED_name_hydr_htftype_node, &
          data=hydr_htftype_real)

@@ -769,15 +769,15 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_landuse_landusechange_frac_burned'
+    name = 'fates_landuse_luc_frac_burned'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_landuse_landusechange_frac_exported'
+    name = 'fates_landuse_luc_frac_exported'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_landuse_landusechange_pprod10'
+    name = 'fates_landuse_luc_pprod10'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
@@ -1229,15 +1229,15 @@ contains
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%harvest_pprod10)
 
-    name = 'fates_landuse_landusechange_frac_burned'
+    name = 'fates_landuse_luc_frac_burned'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%landusechange_frac_burned)
 
-    name = 'fates_landuse_landusechange_frac_exported'
+    name = 'fates_landuse_luc_frac_exported'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%landusechange_frac_exported)
 
-    name = 'fates_landuse_landusechange_pprod10'
+    name = 'fates_landuse_luc_pprod10'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%landusechange_pprod10)
 

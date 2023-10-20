@@ -263,7 +263,7 @@ contains
     ! check to ensure total area == 1, and correct if not
     if ( abs(sum(state_vector(:)) - 1._r8) .gt. nearzero ) then
        write(fates_log(),*) 'warning: sum(state_vector) = ', sum(state_vector(:))
-       state_vector = state_vector / sum(state_vector)
+       state_vector = state_vector(:) / sum(state_vector(:))
     end if
 
   end subroutine get_luh_statedata

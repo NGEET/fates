@@ -10,6 +10,8 @@ module EDInitMod
   use FatesConstantsMod         , only : fates_unset_int
   use FatesConstantsMod         , only : primaryland
   use FatesConstantsMod         , only : nearzero
+  use FatesConstantsMod         , only : rsnbl_math_prec
+  use FatesConstantsMod         , only : min_init_patch_size
   use FatesConstantsMod         , only : n_landuse_cats
   use FatesConstantsMod         , only : is_crop
   use FatesConstantsMod         , only : fates_unset_r8
@@ -100,7 +102,7 @@ module EDInitMod
   implicit none
   private
 
-  logical   ::  debug = .false.
+  logical   ::  debug = .true.
 
   integer :: istat           ! return status code
   character(len=255) :: smsg ! Message string for deallocation errors
@@ -475,12 +477,13 @@ contains
                       endif
                    end do
 
-                   sites(s)%area_bareground = bc_in(s)%baregroundfrac * area
+                   sites(s)%area_bareground = bc_in(s)%baregroundfrac
                 else
                    if ( all( isnan( bc_in(s)%pft_areafrac_lu (:,:) ))) then
                       ! if given all NaNs, then make everything bare ground
                       sites(s)%area_bareground = 1._r8
                       sites(s)%area_pft(:,:) = 0._r8
+                      sites(s)%area_pft(1,:) = 1._r8
                    else
                       ! if only some things are NaN but not all, then something terrible has probably happened. crash.
                       write(fates_log(),*) 'some but, not all, of the data in the PFT by LU matrix at this site is NaN.'
@@ -617,13 +620,13 @@ contains
     real(r8) :: seed_stock
     integer  :: n
     integer  :: start_patch
-    integer  :: num_new_patches
+    integer  :: num_nocomp_pfts
     integer  :: nocomp_pft
     real(r8) :: newparea, newparea_withlanduse
     real(r8) :: total !check on area
     real(r8) :: litt_init  !invalid for satphen, 0 otherwise
     real(r8) :: old_carea
-    integer  :: is_first_patch
+    logical  :: is_first_patch
     ! integer  :: n_luh_states
     ! integer  :: luh_state_counter
     real(r8) :: state_vector(n_landuse_cats)  ! [m2/m2]
@@ -682,9 +685,9 @@ contains
           sites(s)%spread     = init_spread_near_bare_ground
 
           if(hlm_use_nocomp.eq.itrue)then
-             num_new_patches = numpft
+             num_nocomp_pfts = numpft
           else !default
-             num_new_patches = 1
+             num_nocomp_pfts = 1
           end if !nocomp
 
           ! read in luh state data to determine initial land use types
@@ -704,10 +707,20 @@ contains
              state_vector(primaryland) = 1._r8
           endif
 
-          is_first_patch = itrue
+          ! confirm that state vector sums to 1.
+          if (abs(sum(state_vector(:))-1._r8) .gt. rsnbl_math_prec) then
+             write(fates_log(),*) 'error that the state vector must sum to 1, but doesnt'
+             write(fates_log(),*) 'sum(state_vector)', sum(state_vector)
+             write(fates_log(),*) state_vector
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          endif
+
+          is_first_patch = .true.
 
           ! first make a bare-ground patch if one is needed.
-          make_bareground_patch_if: if (hlm_use_nocomp.eq.itrue .and. hlm_use_fixed_biogeog .eq.itrue .and. sites(s)%area_bareground .gt. 0._r8) then
+          make_bareground_patch_if: if (hlm_use_nocomp.eq.itrue .and. hlm_use_fixed_biogeog .eq.itrue .and. &
+               (area*sites(s)%area_bareground) .gt. min_init_patch_size) then
+
              newparea = area * sites(s)%area_bareground
 
              allocate(newp)
@@ -722,7 +735,7 @@ contains
              newp%older   => null()
              sites(s)%youngest_patch => newp
              sites(s)%oldest_patch   => newp
-             is_first_patch = ifalse
+             is_first_patch = .false.
 
              ! Initialize the litter pools to zero, these
              ! pools will be populated by looping over the existing patches
@@ -744,9 +757,9 @@ contains
           endif
 
           ! now make one or more vegetated patches based on nocomp and land use logic
-          new_patch_nocomp_loop: do n = 1, num_new_patches
-             luh_state_loop: do i_lu_state = 1, end_landuse_idx
-                lu_state_present_if: if (state_vector(i_lu_state) .gt. nearzero) then
+          luh_state_loop: do i_lu_state = 1, end_landuse_idx
+             lu_state_present_if: if (state_vector(i_lu_state) .gt. rsnbl_math_prec) then
+                new_patch_nocomp_loop: do n = 1, num_nocomp_pfts
                    ! set the PFT index for patches if in nocomp mode.
                    if(hlm_use_nocomp.eq.itrue)then
                       nocomp_pft = n
@@ -762,32 +775,32 @@ contains
                       ! i.e. each grid cell is divided exactly into the number of FATES PFTs.
 
                       if(hlm_use_fixed_biogeog.eq.itrue)then
-                         newparea = sites(s)%area_pft(nocomp_pft,i_lu_state) * area / state_vector(i_lu_state)
+                         newparea = sites(s)%area_pft(nocomp_pft,i_lu_state) * area * state_vector(i_lu_state) &
+                              * (1._r8 - sites(s)%area_bareground)
                       else
-                         newparea = area / ( numpft * state_vector(i_lu_state))
+                         newparea = area * state_vector(i_lu_state) / numpft
                       end if
                    else  ! The default case is initialized w/ one patch with the area of the whole site.
-                      newparea = area / state_vector(i_lu_state)
+                      newparea = area * state_vector(i_lu_state)
                    end if  !nocomp mode
 
-                   ! for now, spread nocomp PFTs evenly across land use types
-                   new_patch_area_gt_zero: if(newparea.gt.0._r8)then ! Stop patches being initilialized when PFT not present in nocomop mode
+                   new_patch_area_gt_zero: if(newparea .gt. min_init_patch_size) then ! Stop patches being initilialized when PFT not present in nocomop mode
                       allocate(newp)
 
                       call newp%Create(age, newparea, i_lu_state, nocomp_pft,     &
                            hlm_numSWb, numpft, sites(s)%nlevsoil, hlm_current_tod,      &
                            regeneration_model)
 
-                      if(is_first_patch.eq.itrue)then !is this the first patch?
+                      if (is_first_patch) then !is this the first patch?
                          ! set poointers for first patch (or only patch, if nocomp is false)
                          newp%patchno = 1
                          newp%younger => null()
                          newp%older   => null()
                          sites(s)%youngest_patch => newp
                          sites(s)%oldest_patch   => newp
-                         is_first_patch = ifalse
+                         is_first_patch = .false.
                       else
-                         ! Set pointers for N>1 patches. Note this only happens when nocomp mode s on.
+                         ! Set pointers for N>1 patches. Note this only happens when nocomp mode is on, or land use is on.
                          ! The new patch is the 'youngest' one, arbitrarily.
                          newp%patchno = nocomp_pft + (i_lu_state-1) * numpft
                          newp%older     => sites(s)%youngest_patch
@@ -817,9 +830,9 @@ contains
                       call init_cohorts(sitep, newp, bc_in(s))
 
                    end if new_patch_area_gt_zero
-                end if lu_state_present_if
-             end do luh_state_loop
-          end do new_patch_nocomp_loop !no new patches
+                end do new_patch_nocomp_loop
+             end if lu_state_present_if
+          end do luh_state_loop
 
           !check if the total area adds to the same as site area
           total = 0.0_r8
@@ -832,22 +845,21 @@ contains
           area_diff = total - area
           if (abs(area_diff) > nearzero) then
              if (abs(area_diff) < area_error_4) then ! this is a precision error
-                if (sites(s)%oldest_patch%area > area_diff + nearzero) then
-                   ! remove or add extra area
-                   ! if the oldest patch has enough area, use that
-                   sites(s)%oldest_patch%area = sites(s)%oldest_patch%area - area_diff
-                   if (debug) write(fates_log(),*) 'fixing patch precision - oldest', s, area_diff
-                else ! or otherwise take the area from the youngest patch.
-                   sites(s)%youngest_patch%area = sites(s)%youngest_patch%area - area_diff
-                   if (debug) write(fates_log(),*) 'fixing patch precision -youngest ', s, area_diff
-                end if
+
+                ! adjust areas of all patches so that they add up to total area
+                newp => sites(s)%oldest_patch
+                do while (associated(newp))
+                   newp%area = newp%area * (area / total)
+                   newp => newp%younger
+                end do
+
              else !this is a big error not just a precision error.
                 write(fates_log(),*) 'issue with patch area in EDinit', area_diff, total
                 call endrun(msg=errMsg(sourcefile, __LINE__))
              end if  ! big error
           end if ! too much patch area
 	  
-          ! we might have messed up patch area now - need to correct if SP mode
+          ! we might have messed up crown areas now - need to correct if SP mode
           if (hlm_use_sp .eq. itrue) then 
             newp => sites(s)%oldest_patch
             do while (associated(newp))
