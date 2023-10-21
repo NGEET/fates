@@ -94,7 +94,7 @@ module EDInitMod
   use DamageMainMod,          only : undamaged_class
   use FatesInterfaceTypesMod    , only : hlm_num_luh2_transitions
   use FatesConstantsMod,      only : nocomp_bareground_land, nocomp_bareground
-  use EdtTypesMod, only : dump_site
+  use EdTypesMod, only : dump_site
 
   ! CIME GLOBALS
   use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -486,7 +486,7 @@ contains
                       sites(s)%area_pft(:,:) = 0._r8
                       sites(s)%area_pft(1,:) = 1._r8
                       write(fates_log(),*) 'Nan values for pftareafrac. dumping site info.'
-                      call dump_site(currentSite)
+                      call dump_site(sites(s))
                    else
                       ! if only some things are NaN but not all, then something terrible has probably happened. crash.
                       write(fates_log(),*) 'some but, not all, of the data in the PFT by LU matrix at this site is NaN.'
