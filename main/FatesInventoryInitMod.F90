@@ -843,6 +843,7 @@ contains
       ! time	(year)     year of measurement
       ! patch	(string)   patch id string associated with this cohort
       ! dbh	(cm)       diameter at breast height
+      ! height  (m)        height of vegetation in m. Currently not used. 
       ! pft     (integer)  the plant functional type index (must be consistent with param file)
       ! n 	(/m2)      The plant number density
       ! --------------------------------------------------------------------------------------------
@@ -874,6 +875,7 @@ contains
       real(r8)                                    :: c_time        ! Time patch was recorded
       character(len=patchname_strlen)             :: p_name        ! The patch associated with this cohort
       real(r8)                                    :: c_dbh         ! diameter at breast height (cm)
+      real(r8)                                    :: c_height      ! tree height (m)
       integer                                     :: c_pft         ! plant functional type index
       real(r8)                                    :: c_nplant      ! plant density (/m2)
       real(r8)                                    :: site_spread   ! initial guess of site spread
@@ -914,11 +916,11 @@ contains
 
      
       read(css_file_unit,fmt=*,iostat=ios) c_time, p_name, c_dbh, &
-            c_pft, c_nplant
+            c_height, c_pft, c_nplant
 
       if( debug_inv) then
          write(*,fmt=wr_fmt) &
-              c_time, p_name, c_dbh, c_pft, c_nplant
+              c_time, p_name, c_dbh, c_height, c_pft, c_nplant
       end if
 
       if (ios/=0) return
@@ -935,7 +937,7 @@ contains
       if(.not.matched_patch)then
          write(fates_log(), *) 'could not match a cohort with a patch'
          write(fates_log(),fmt=wr_fmt) &
-               c_time, p_name, c_dbh, c_pft, c_nplant
+               c_time, p_name, c_dbh, c_height, c_pft, c_nplant
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 
@@ -1242,7 +1244,7 @@ contains
        open(unit=css_file_out,file=trim(css_name_out), status='UNKNOWN',action='WRITE',form='FORMATTED')
 
        write(pss_file_out,*) 'time patch trk age area'
-       write(css_file_out,*) 'time patch cohort dbh pft nplant'
+       write(css_file_out,*) 'time patch cohort dbh height pft nplant'
 
        ipatch=0
        currentpatch => currentSite%youngest_patch

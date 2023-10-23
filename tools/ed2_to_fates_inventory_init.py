@@ -33,11 +33,11 @@ def main():
 
     # if cohort file delete unnecessary cohort columns
     elif filetype == 'css' :
-        keep_col = ['time', 'patch', 'dbh', 'pft', 'nplant']
+        keep_col = ['time', 'patch', 'dbh', 'height', 'pft', 'nplant']
         newds = dsin[keep_col]
         
     else :
-        print("type must be one of patch or cohort")
+        print("file type must be one of patch (pss) or cohort (css)")
 
 
     newds.to_csv(output_filename, index=False, sep=' ')    
