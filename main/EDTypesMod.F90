@@ -256,6 +256,9 @@ module EDTypesMod
      ! Total area of patches in each age bin [m2]
      real(r8), allocatable :: area_by_age(:)
 
+     ! Soil (heterotrophic) respiration from the host model [gC/m2/s]
+     real(r8) :: soil_het_resp 
+     
      ! Nutrient relevant 
      real(r8), allocatable :: rec_l2fr(:,:) ! A running mean of the l2fr's for the newly
                                             ! recruited, pft x canopy_layer

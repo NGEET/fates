@@ -307,6 +307,7 @@ contains
     site_in%imort_abg_flux(:,:) = 0._r8
     site_in%fmort_abg_flux(:,:) = 0._r8
 
+    site_in%soil_het_resp = 0._r8
 
     ! fusoin-induced growth flux of individuals
     site_in%growthflux_fusion(:,:) = 0._r8

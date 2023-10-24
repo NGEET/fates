@@ -64,6 +64,11 @@ contains
 
        ifp = 0
 
+       ! This is essentially a copy of the boundary condition
+       ! that fates holds on to, unmodified, used for restart
+       ! purposes
+       sites(s)%soil_het_resp = bc_in(s)%tot_het_resp
+       
        cpatch => sites(s)%oldest_patch
        do while (associated(cpatch))                 
           if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then

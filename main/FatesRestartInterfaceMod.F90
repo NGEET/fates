@@ -97,6 +97,8 @@ module FatesRestartInterfaceMod
   integer :: ir_gdd_si
   integer :: ir_snow_depth_si
   integer :: ir_trunk_product_si
+  integer :: ir_soil_het_resp_si
+  
   integer :: ir_ncohort_pa
   integer :: ir_canopy_layer_co
   integer :: ir_canopy_layer_yesterday_co
@@ -703,7 +705,11 @@ contains
          units='kgC/m2', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_trunk_product_si )
 
-
+    call this%set_restart_var(vname='fates_soil_het_resp_site', vtype=site_r8, &
+         long_name='Soil heterotrophic respiration', &
+         units='gC/m2/s', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_soil_het_resp_si)
+    
     ! -----------------------------------------------------------------------------------
     ! Variables stored within cohort vectors
     ! Note: Some of these are multi-dimensional variables in the patch/site dimension
@@ -1989,6 +1995,7 @@ contains
            rio_gdd_si                  => this%rvars(ir_gdd_si)%r81d, &
            rio_snow_depth_si           => this%rvars(ir_snow_depth_si)%r81d, &
            rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
+           rio_soil_het_resp_si        => this%rvars(ir_soil_het_resp_si)%r81d, &
            rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
            rio_fcansno_pa              => this%rvars(ir_fcansno_pa)%r81d, &
            rio_solar_zenith_flag_pa    => this%rvars(ir_solar_zenith_flag_pa)%int1d, &
@@ -2570,6 +2577,8 @@ contains
           rio_trunk_product_si(io_idx_si) = sites(s)%resources_management%trunk_product_site
           ! set numpatches for this column
 
+          rio_soil_het_resp_si(io_idx_si) = sites(s)%soil_het_resp
+
           rio_npatch_si(io_idx_si)  = patchespersite
 
           do i = 1,nclmax
@@ -2927,6 +2936,7 @@ contains
           rio_gdd_si                  => this%rvars(ir_gdd_si)%r81d, &
           rio_snow_depth_si           => this%rvars(ir_snow_depth_si)%r81d, &
           rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
+          rio_soil_het_resp_si        => this%rvars(ir_soil_het_resp_si)%r81d, &
           rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
           rio_fcansno_pa              => this%rvars(ir_fcansno_pa)%r81d, &
           rio_solar_zenith_flag_pa    => this%rvars(ir_solar_zenith_flag_pa)%int1d, &
@@ -3541,6 +3551,7 @@ contains
           sites(s)%acc_NI         = rio_acc_ni_si(io_idx_si)
           sites(s)%snow_depth     = rio_snow_depth_si(io_idx_si)
           sites(s)%resources_management%trunk_product_site = rio_trunk_product_si(io_idx_si)
+          sites(s)%soil_het_resp  = rio_soil_het_resp_si(io_idx_si)
 
        end do
 

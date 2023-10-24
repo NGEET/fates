@@ -4504,8 +4504,8 @@ end subroutine flush_hvars
 
          io_si  = sites(s)%h_gid
 
-         hio_nep_si(io_si) = -bc_in(s)%tot_het_resp * kg_per_g
-         hio_hr_si(io_si)  =  bc_in(s)%tot_het_resp * kg_per_g
+         hio_nep_si(io_si) = -sites(s)%soil_het_resp * kg_per_g
+         hio_hr_si(io_si)  =  sites(s)%soil_het_resp * kg_per_g
 
          ipa = 0
          
