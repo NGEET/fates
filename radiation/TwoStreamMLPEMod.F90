@@ -33,7 +33,6 @@ Module TwoStreamMLPEMod
 
   real(r8),parameter :: nearzero = 1.e-20_r8
   logical, parameter :: debug=.true.
-  logical, parameter :: use_derivation1 = .true.
   real(r8), parameter :: unset_r8 = 1.e-36_r8
   real(r8), parameter :: unset_int = -999
   integer, parameter :: twostr_vis = 1         ! Named index of visible shortwave radiation
@@ -135,14 +134,12 @@ Module TwoStreamMLPEMod
      ! Terms used in the final solution, also used for decomposing solution
      real(r8) :: Au      ! Compound intercept term
      real(r8) :: Ad      ! Compound intercept term
-     real(r8) :: B1u     ! Compound term w/ lambdas
-     real(r8) :: B2u     ! Compound term w/ lambdas
-     real(r8) :: B1d     ! Compound term w/ lambdas
-     real(r8) :: B2d     ! Compound term w/ lambdas
-     real(r8) :: lambda1_diff ! Compount term w/ B1d and B1u for diffuse forcing
-     real(r8) :: lambda2_diff ! Compound term w/ B2d and B2u for diffuse forcing
-     real(r8) :: lambda1_beam ! Compount term w/ B1d and B1u for beam forcing
-     real(r8) :: lambda2_beam ! Compound term w/ B2d and B2u for beam forcing
+     real(r8) :: B1      ! Compound term w/ lambdas (operates on e^{av})
+     real(r8) :: B2      ! Compound term w/ lambdas (operates on e^{-av})
+     real(r8) :: lambda1_diff ! Compount term w/ B for diffuse forcing
+     real(r8) :: lambda2_diff ! Compound term w/ B for diffuse forcing
+     real(r8) :: lambda1_beam ! Compount term w/ B for beam forcing
+     real(r8) :: lambda2_beam ! Compound term w/ B for beam forcing
      
      real(r8) :: a       ! Complex term operating on veg area index
      real(r8) :: om      ! scattering coefficient for media as a whole
@@ -358,18 +355,18 @@ contains
     integer,intent(in)    :: ib
     real(r8)              :: r_diff_dn
 
-    ! Rdn = Ad e−(Kbv) + Re + λ1 B1d e^(av) + λ2 B2d e^(−av)
+    ! Rdn = Ad e−(Kbv) + Re + λ1 B2 e^(av) + λ2 B1 e^(−av)
 
     associate(scelb => this%band(ib)%scelb(ican,icol), &
          scelg => this%scelg(ican,icol) )
 
       r_diff_dn = this%band(ib)%Rbeam_atm*( &
            scelb%Ad*exp(-scelg%Kb*vai) + &
-           scelb%B1d*scelb%lambda1_beam*exp(scelb%a*vai) + &
-           scelb%B2d*scelb%lambda2_beam*exp(-scelb%a*vai)) + &
+           scelb%B2*scelb%lambda1_beam*exp(scelb%a*vai) + &
+           scelb%B1*scelb%lambda2_beam*exp(-scelb%a*vai)) + &
            this%band(ib)%Rdiff_atm*( & 
-           scelb%B1d*scelb%lambda1_diff*exp(scelb%a*vai) + &
-           scelb%B2d*scelb%lambda2_diff*exp(-scelb%a*vai))
+           scelb%B2*scelb%lambda1_diff*exp(scelb%a*vai) + &
+           scelb%B1*scelb%lambda2_diff*exp(-scelb%a*vai))
 
       if(debug)then
          if(isnan(r_diff_dn))then
@@ -378,7 +375,7 @@ contains
             write(log_unit,*)scelb%a
             write(log_unit,*)vai
             write(log_unit,*)scelb%Ad
-            write(log_unit,*)scelb%B1d,scelb%B2d
+            write(log_unit,*)scelb%B1,scelb%B2
             write(log_unit,*)scelb%lambda1_beam,scelb%lambda2_beam
             write(log_unit,*)scelb%lambda1_diff,scelb%lambda2_diff
             write(log_unit,*)this%band(ib)%Rbeam_atm
@@ -401,18 +398,18 @@ contains
     integer,intent(in)    :: ib
     real(r8)              :: r_diff_up
 
-    ! Rup = Au e−(Kbv) + Re + λ1 B1u e^(av) + λ2 B2u e^(−av)
+    ! Rup = Au e−(Kbv) + Re + λ1 B1 e^(av) + λ2 B2 e^(−av)
 
     associate(scelb => this%band(ib)%scelb(ican,icol), &
          scelg => this%scelg(ican,icol) )
 
       r_diff_up = this%band(ib)%Rbeam_atm*( &
            scelb%Au*exp(-scelg%Kb*vai) + &
-           scelb%B1u*scelb%lambda1_beam*exp(scelb%a*vai) + &
-           scelb%B2u*scelb%lambda2_beam*exp(-scelb%a*vai)) + &
+           scelb%B1*scelb%lambda1_beam*exp(scelb%a*vai) + &
+           scelb%B2*scelb%lambda2_beam*exp(-scelb%a*vai)) + &
            this%band(ib)%Rdiff_atm*( & 
-           scelb%B1u*scelb%lambda1_diff*exp(scelb%a*vai) + &
-           scelb%B2u*scelb%lambda2_diff*exp(-scelb%a*vai)) 
+           scelb%B1*scelb%lambda1_diff*exp(scelb%a*vai) + &
+           scelb%B2*scelb%lambda2_diff*exp(-scelb%a*vai)) 
            
     end associate
   end function GetRdUp
@@ -444,8 +441,8 @@ contains
     ! which includes an assumption of the leaf/stem proportionality.
     ! ---------------------------------------------------------------------------
     ! Solution for radiative intensity of diffuse up and down at tai=v
-    ! Rup = Au e−(Kbv) + Re + λ1 B1u e^(av) + λ2 B2u e^(−av)
-    ! Rdn = Ad e−(Kbv) + Re + λ1 B1d e^(av) + λ2 B2d e^(−av)
+    ! Rup = Au e−(Kbv) + Re + λ1 B1 e^(av) + λ2 B2 e^(−av)
+    ! Rdn = Ad e−(Kbv) + Re + λ1 B2 e^(av) + λ2 B1 e^(−av)
     ! ---------------------------------------------------------------------------
 
     ! Arguments
@@ -807,7 +804,7 @@ contains
                     if(debug)then
                        if(isnan(scelb%betad))then
                           write(log_unit,*)"nans in canopy prep"
-                          write(log_unit,*) ib,ican,icol,ft,
+                          write(log_unit,*) ib,ican,icol,ft
                           write(log_unit,*) scelb%betad,scelb%om,lai,sai
                           write(log_unit,*) this%frac_snow,om_snow(ib),vai,om_veg
                           write(log_unit,*)"TwoStreamMLPEMod.F90:CanopyPrep"
@@ -1077,7 +1074,7 @@ contains
     integer :: n_eq  ! Total number of equations
 
     integer :: ilem_off ! Offset, or total number of elements above layer of interest
-    real(r8) :: b1,b2,a2,nu_sqrd,nu ! intermediate terms, see documentation
+    real(r8) :: b1,b2,a2,nu_sqrd    ! intermediate terms, see documentation
     real(r8) :: Rbeam_top           ! Mean beam radiation at top of layer      [W/m2]
     real(r8) :: Rbeam_bot           ! Mean beam radiation at bottom of layer   [W/m2]
     real(r8) :: vai                 ! Vegetation area index [m2 vegetation / m2 ground]
@@ -1193,71 +1190,32 @@ contains
 
           scelbp%a  = sqrt(a2)
 
-          b1 = (scelgp%Kd*(1._r8-scelbp%om)*(1._r8-2._r8*scelbp%betab)+scelgp%Kb) * &
+          b2 = -(scelgp%Kd*(1._r8-scelbp%om)*(1._r8-2._r8*scelbp%betab)+scelgp%Kb) * &
                scelbp%om*scelgp%Kb*scelbp%Rbeam0
-          b2 = (scelgp%Kd*(scelbp%om-1._r8-2._r8*scelbp%om*scelbp%betad) - &
+          
+          b1 = -(scelgp%Kd*(1._r8-scelbp%om+2._r8*scelbp%om*scelbp%betad) + &
                (1._r8-2._r8*scelbp%betab)*scelgp%Kb) * &
                scelbp%om*scelgp%Kb*scelbp%Rbeam0
-
-          if(use_derivation1) then
-
-             nu_sqrd = (1._r8-scelbp%om+2._r8*scelbp%om*scelbp%betad)/(1._r8-scelbp%om)
-
-             if(nu_sqrd<0._r8)then
-                write(log_unit,*)'nu_sqrd is less than zero'
-                call endrun(msg=errMsg(sourcefile, __LINE__))
-             end if
-
-             ! B_1 up term from documentation:
-             scelbp%B1u  = 0.5_r8*(1._r8+sqrt(nu_sqrd))
-
-             ! B_2 up term from documentation
-             scelbp%B2u = 0.5_r8*(1._r8-sqrt(nu_sqrd))
-
-             ! B_1 down term from documentation:
-             scelbp%B1d  = -0.5_r8*(1._r8-sqrt(nu_sqrd))
-
-             ! B_2 down term from documentation
-             scelbp%B2d = -0.5_r8*(1._r8+sqrt(nu_sqrd))
-
-             ! A_2 term from documentation
-             scelbp%Ad    = -0.5_r8*(b2-b1)/(scelbp%a*scelbp%a-scelgp%Kb*scelgp%Kb)   ! aka half b2 minus b1
-
-             ! A_1 term from documentation
-             scelbp%Au    = -0.5_r8*(b2+b1)/(scelbp%a*scelbp%a-scelgp%Kb*scelgp%Kb)   ! aka half b1 plus b2
-
-          else
-
-             nu_sqrd = (scelbp%om-1._r8)/(scelbp%om - 1._r8-2._r8*scelbp%om*scelbp%betad)
-
-             nu = (scelgp%Kd*(scelbp%om-1._r8))/scelbp%a
-
-             b1 = -b1
-
-             ! B 1 up term from documentation
-             !scelbp%B1u  = 0.5_r8*(1._r8-nu)
-             scelbp%B1u  = 0.5_r8*(1._r8-sqrt(nu_sqrd))
-
-             ! B_2 term from documentation
-             !scelbp%B2u = 0.5_r8*(1._r8+nu)
-             scelbp%B2u  = 0.5_r8*(1._r8+sqrt(nu_sqrd))
-
-             ! B 1 up term from documentation
-             !scelbp%B1d  = 0.5_r8*(1._r8+nu)
-             scelbp%B1d  = 0.5_r8*(1._r8+sqrt(nu_sqrd))
-
-             ! B_2 term from documentation
-             !scelbp%B2d = 0.5_r8*(1._r8-nu)
-             scelbp%B2d  = 0.5_r8*(1._r8-sqrt(nu_sqrd))
-
-             ! A_2 term from documentation
-             scelbp%Ad    = -0.5_r8*(b2+b1)/(scelbp%a*scelbp%a-scelgp%Kb*scelgp%Kb)   ! aka half b2 minus b1
-
-             ! A_1 term from documentation
-             scelbp%Au    = -0.5_r8*(b2-b1)/(scelbp%a*scelbp%a-scelgp%Kb*scelgp%Kb)   ! aka half b1 plus b2
-
-             
+          
+          nu_sqrd = (1._r8-scelbp%om)/(1._r8-scelbp%om+2._r8*scelbp%om*scelbp%betad)
+          
+          if(nu_sqrd<0._r8)then
+             write(log_unit,*)'nu_sqrd is less than zero'
+             call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
+          
+          ! B_1 term from documentation:
+          scelbp%B1  = 0.5_r8*(1._r8+sqrt(nu_sqrd))
+          
+          ! B_2 term from documentation
+          scelbp%B2 = 0.5_r8*(1._r8-sqrt(nu_sqrd))
+          
+          ! A_2 term from documentation
+          scelbp%Ad    = -0.5_r8*(b1+b2)/(scelbp%a*scelbp%a-scelgp%Kb*scelgp%Kb)   ! aka half b2 minus b1
+
+          ! A_1 term from documentation
+          scelbp%Au    = -0.5_r8*(b1-b2)/(scelbp%a*scelbp%a-scelgp%Kb*scelgp%Kb)   ! aka half b1 plus b2
+          
        end do
     end do
 
@@ -1326,8 +1284,8 @@ contains
           k1 = 2*(ilem-1)+1
           k2 = k1+1
           taulamb(qp)      =  this%band(ib)%Rdiff_atm - this%band(ib)%Rbeam_atm*scelbp%Ad
-          omega(qp,k1) =  scelbp%B1d
-          omega(qp,k2) =  scelbp%B2d
+          omega(qp,k1) =  scelbp%B2
+          omega(qp,k2) =  scelbp%B1
        end do
 
 
@@ -1367,8 +1325,8 @@ contains
                 ! This term is at v=0
 
                 taulamb(qp) = this%band(ib)%Rbeam_atm*this%band(ib)%scelb(ibot,jcol)%Ad
-                omega(qp,k1) = omega(qp,k1) - this%band(ib)%scelb(ibot,jcol)%B1d
-                omega(qp,k2) = omega(qp,k2) - this%band(ib)%scelb(ibot,jcol)%B2d
+                omega(qp,k1) = omega(qp,k1) - this%band(ib)%scelb(ibot,jcol)%B2
+                omega(qp,k2) = omega(qp,k2) - this%band(ib)%scelb(ibot,jcol)%B1
 
                 ! We need to include the terms from
                 ! all elements above the current element of interest
@@ -1385,8 +1343,8 @@ contains
                    vai = scelgp%lai + scelgp%sai
 
                    taulamb(qp) = taulamb(qp) - scelgp%area * this%band(ib)%Rbeam_atm*scelbp%Ad *exp(-scelgp%Kb*vai)
-                   omega(qp,k1) = omega(qp,k1) + scelgp%area * scelbp%B1d*exp(scelbp%a*vai)
-                   omega(qp,k2) = omega(qp,k2) + scelgp%area * scelbp%B2d*exp(-scelbp%a*vai)
+                   omega(qp,k1) = omega(qp,k1) + scelgp%area * scelbp%B2*exp(scelbp%a*vai)
+                   omega(qp,k2) = omega(qp,k2) + scelgp%area * scelbp%B1*exp(-scelbp%a*vai)
 
                 end do
 
@@ -1428,8 +1386,8 @@ contains
 
                 vai = scelgp%lai + scelgp%sai
                 taulamb(qp) = this%band(ib)%Rbeam_atm*scelbp%Au*exp(-scelgp%Kb*vai)
-                omega(qp,k1) = omega(qp,k1) - scelbp%B1u*exp(scelbp%a*vai)
-                omega(qp,k2) = omega(qp,k2) - scelbp%B2u*exp(-scelbp%a*vai)
+                omega(qp,k1) = omega(qp,k1) - scelbp%B1*exp(scelbp%a*vai)
+                omega(qp,k2) = omega(qp,k2) - scelbp%B2*exp(-scelbp%a*vai)
 
                 ! Terms for mean diffuse exiting lower elements (move out of this loop for efficiency)
                 do jcol = 1,this%n_col(ibot)
@@ -1440,8 +1398,8 @@ contains
                    scelbp => this%band(ib)%scelb(ibot,jcol)
 
                    taulamb(qp) = taulamb(qp) - this%band(ib)%Rbeam_atm*scelgp%area*scelbp%Au
-                   omega(qp,k1) = omega(qp,k1) + scelgp%area*scelbp%B1u
-                   omega(qp,k2) = omega(qp,k2) + scelgp%area*scelbp%B2u
+                   omega(qp,k1) = omega(qp,k1) + scelgp%area*scelbp%B1
+                   omega(qp,k2) = omega(qp,k2) + scelgp%area*scelbp%B2
                 end do
 
              end do
@@ -1476,11 +1434,11 @@ contains
                - this%band(ib)%albedo_grnd_diff*scelbp%Ad*exp(-scelgp%Kb*vai) &
                - this%band(ib)%albedo_grnd_beam*scelbp%Rbeam0*exp(-scelgp%Kb*vai))
 
-          omega(qp,k1) = omega(qp,k1) - scelbp%B1u*exp(scelbp%a*vai)
-          omega(qp,k2) = omega(qp,k2) - scelbp%B2u*exp(-scelbp%a*vai)
+          omega(qp,k1) = omega(qp,k1) - scelbp%B1*exp(scelbp%a*vai)
+          omega(qp,k2) = omega(qp,k2) - scelbp%B2*exp(-scelbp%a*vai)
 
-          omega(qp,k1) = omega(qp,k1) + this%band(ib)%albedo_grnd_diff*scelbp%B1d*exp(scelbp%a*vai)
-          omega(qp,k2) = omega(qp,k2) + this%band(ib)%albedo_grnd_diff*scelbp%B2d*exp(-scelbp%a*vai)
+          omega(qp,k1) = omega(qp,k1) + this%band(ib)%albedo_grnd_diff*scelbp%B2*exp(scelbp%a*vai)
+          omega(qp,k2) = omega(qp,k2) + this%band(ib)%albedo_grnd_diff*scelbp%B1*exp(-scelbp%a*vai)
 
        end do
 
@@ -1671,7 +1629,7 @@ contains
              write(log_unit,*)"    ",scelbp%om*(1.0-scelbp%betad)
              write(log_unit,*)"    ",scelbp%lambda1_beam,scelbp%lambda2_beam
              write(log_unit,*)"    ",scelbp%lambda1_diff,scelbp%lambda2_diff
-             write(log_unit,*)"AB TERMS: ",scelbp%Ad,scelbp%Au,scelbp%B1d,scelbp%B2d,scelbp%B2d,scelbp%B2u,scelbp%a
+             write(log_unit,*)"AB TERMS: ",scelbp%Ad,scelbp%Au,scelbp%B1,scelbp%B2,scelbp%a
              write(log_unit,*)"LAMBDA TERMS: ",scelbp%lambda1_diff,scelbp%lambda2_diff,scelbp%lambda1_beam,scelbp%lambda2_beam
           end do
        end do

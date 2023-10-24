@@ -164,10 +164,10 @@ def main(argv):
     if(False):
         SunFracTests()
 
-    if(False):
+    if(True):
         SingleElementPerturbTest()
 
-    if(True):
+    if(False):
         SerialParallelCanopyTest()
 
     plt.show()
