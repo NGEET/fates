@@ -1,0 +1,72 @@
+<?xml version="1.0"?>
+<all>
+  <!-- -->
+  <!-- This set of changes should update an existing parameter file from API 23 to API 24 -->
+  <!-- -->
+  <!-- Special mod types "variable_add": creates a new variable
+		 "dimension_add": creates a new dimension
+		 "variable_del": removes a variable, must include attribute "name" 
+		 "variable_change": change values in the parameter, possibly including the name, and
+                          this must also come with a name attribute as well -->
+  <!-- To change a dimension. The easiest way to script this, is to delete the variables
+		 that use it, delete the dimension. Re-add it with the new size, and then re-add
+		 the variables -->
+  <!-- -->
+  
+  <base_file>archive/api24.2.0_112822_fates_params_default.cdl</base_file>
+  <new_file>fates_params_default_api25_v2.cdl</new_file>
+  <pft_list> 1,2,3,4,5,6,7,8,9,10,11,12 </pft_list>
+  <mods>
+    <mod type="variable_del">
+      <na> fates_cnp_fnrt_adapt_tscale </na>
+    </mod>
+    <mod type="variable_del">
+      <na> fates_cnp_eca_vmax_nh4 </na>
+    </mod>
+    <mod type="variable_del">
+      <na> fates_cnp_rd_vmax_n </na>
+    </mod>
+    <mod type="variable_del">
+      <na> fates_cnp_eca_vmax_no3 </na>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_cnp_vmax_nh4 </na>
+      <di> fates_pft </di>
+      <un> gN/gC/s </un>
+      <ln> maximum (potential) uptake rate of NH4 per gC of fineroot biomass (see main/EDPftvarcon.F90 vmax_nh4 for usage)</ln>
+      <val> 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_cnp_vmax_no3 </na>
+      <di> fates_pft </di>
+      <un> gN/gC/s </un>
+      <ln> maximum (potential) uptake rate of NO3 per gC of fineroot biomass (see main/EDPftvarcon.F90 vmax_no3 for usage)</ln>
+      <val> 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9, 2.5e-9 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_cnp_pid_kd </na>
+      <di> fates_pft </di>
+      <un> unknown </un>
+      <ln> derivative constant of the PID controller on adaptive fine-root biomass </ln>
+      <val> 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_cnp_pid_ki </na>
+      <di> fates_pft </di>
+      <un> unknown </un>
+      <ln> integral constant of the PID controller on adaptive fine-root biomass </ln>
+      <val> 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 </val>
+    </mod>
+     <mod type="variable_add">
+      <na> fates_cnp_pid_kp </na>
+      <di> fates_pft </di>
+      <un> unknown </un>
+      <ln> proportional constant of the PID controller on adaptive fine-root biomass </ln>
+      <val> 5e-4, 5e-4, 5e-4, 5e-4, 5e-4, 5e-4, 5e-4, 5e-4, 5e-4, 5e-4, 5e-4, 5e-4  </val>
+    </mod>
+     <mod type="variable_change" name="fates_cnp_nfix1"> 
+       <ln> fractional surcharge added to maintenance respiration that drives symbiotic fixation </ln>
+       <un> fraction </un>
+     </mod>
+  </mods>
+</all>

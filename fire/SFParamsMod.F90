@@ -4,7 +4,7 @@ module SFParamsMod
    !
    use FatesConstantsMod , only: r8 => fates_r8
    use FatesConstantsMod , only: fates_check_param_set
-   use EDtypesMod        , only: NFSC
+   use FatesLitterMod    , only: NFSC
    use FatesLitterMod    , only: ncwd
    use FatesParametersInterface, only : param_string_length
    use FatesGlobals,   only : fates_log
@@ -52,8 +52,8 @@ module SFParamsMod
    character(len=param_string_length),parameter :: SF_name_durat_slope = "fates_fire_durat_slope"
    character(len=param_string_length),parameter :: SF_name_drying_ratio = "fates_fire_drying_ratio"
    character(len=param_string_length),parameter :: SF_name_fire_threshold = "fates_fire_threshold"
-   character(len=param_string_length),parameter :: SF_name_CWD_frac = "fates_CWD_frac"
-   character(len=param_string_length),parameter :: SF_name_max_decomp = "fates_max_decomp"
+   character(len=param_string_length),parameter :: SF_name_CWD_frac = "fates_frag_cwd_frac"
+   character(len=param_string_length),parameter :: SF_name_max_decomp = "fates_frag_maxdecomp"
    character(len=param_string_length),parameter :: SF_name_SAV = "fates_fire_SAV"
    character(len=param_string_length),parameter :: SF_name_FBD = "fates_fire_FBD"
    character(len=param_string_length),parameter :: SF_name_min_moisture = "fates_fire_min_moisture"
@@ -260,37 +260,37 @@ contains
     real(r8) :: tmp_real
     
 
-    call fates_params%RetreiveParameter(name=SF_name_fdi_a, &
+    call fates_params%RetrieveParameter(name=SF_name_fdi_a, &
          data=SF_val_fdi_a)
 
-    call fates_params%RetreiveParameter(name=SF_name_fdi_b, &
+    call fates_params%RetrieveParameter(name=SF_name_fdi_b, &
          data=SF_val_fdi_b)
 
-    call fates_params%RetreiveParameter(name=SF_name_fdi_alpha, &
+    call fates_params%RetrieveParameter(name=SF_name_fdi_alpha, &
          data=SF_val_fdi_alpha)
 
-    call fates_params%RetreiveParameter(name=SF_name_miner_total, &
+    call fates_params%RetrieveParameter(name=SF_name_miner_total, &
          data=SF_val_miner_total)
 
-    call fates_params%RetreiveParameter(name=SF_name_fuel_energy, &
+    call fates_params%RetrieveParameter(name=SF_name_fuel_energy, &
          data=SF_val_fuel_energy)
 
-    call fates_params%RetreiveParameter(name=SF_name_part_dens, &
+    call fates_params%RetrieveParameter(name=SF_name_part_dens, &
          data=SF_val_part_dens)
 
-    call fates_params%RetreiveParameter(name=SF_name_miner_damp, &
+    call fates_params%RetrieveParameter(name=SF_name_miner_damp, &
          data=SF_val_miner_damp)
 
-    call fates_params%RetreiveParameter(name=SF_name_max_durat, &
+    call fates_params%RetrieveParameter(name=SF_name_max_durat, &
          data=SF_val_max_durat)
 
-    call fates_params%RetreiveParameter(name=SF_name_durat_slope, &
+    call fates_params%RetrieveParameter(name=SF_name_durat_slope, &
          data=SF_val_durat_slope)
 
-    call fates_params%RetreiveParameter(name=SF_name_drying_ratio, &
+    call fates_params%RetrieveParameter(name=SF_name_drying_ratio, &
          data=SF_val_drying_ratio)
 
-    call fates_params%RetreiveParameter(name=SF_name_fire_threshold, &
+    call fates_params%RetrieveParameter(name=SF_name_fire_threshold, &
          data=SF_val_fire_threshold)
 
 
@@ -323,7 +323,7 @@ contains
 
     class(fates_parameters_type), intent(inout) :: fates_params
 
-    call fates_params%RetreiveParameter(name=SF_name_CWD_frac, &
+    call fates_params%RetrieveParameter(name=SF_name_CWD_frac, &
          data=SF_val_CWD_frac)
 
     
@@ -380,31 +380,31 @@ contains
     class(fates_parameters_type), intent(inout) :: fates_params
 
     
-    call fates_params%RetreiveParameter(name=SF_name_SAV, &
+    call fates_params%RetrieveParameter(name=SF_name_SAV, &
          data=SF_val_SAV)
 
-    call fates_params%RetreiveParameter(name=SF_name_FBD, &
+    call fates_params%RetrieveParameter(name=SF_name_FBD, &
          data=SF_val_FBD)
 
-    call fates_params%RetreiveParameter(name=SF_name_min_moisture, &
+    call fates_params%RetrieveParameter(name=SF_name_min_moisture, &
          data=SF_val_min_moisture)
 
-    call fates_params%RetreiveParameter(name=SF_name_mid_moisture, &
+    call fates_params%RetrieveParameter(name=SF_name_mid_moisture, &
          data=SF_val_mid_moisture)
 
-    call fates_params%RetreiveParameter(name=SF_name_low_moisture_Coeff, &
+    call fates_params%RetrieveParameter(name=SF_name_low_moisture_Coeff, &
          data=SF_val_low_moisture_Coeff)
 
-    call fates_params%RetreiveParameter(name=SF_name_low_moisture_Slope, &
+    call fates_params%RetrieveParameter(name=SF_name_low_moisture_Slope, &
          data=SF_val_low_moisture_Slope)
 
-    call fates_params%RetreiveParameter(name=SF_name_mid_moisture_Coeff, &
+    call fates_params%RetrieveParameter(name=SF_name_mid_moisture_Coeff, &
          data=SF_val_mid_moisture_Coeff)
 
-    call fates_params%RetreiveParameter(name=SF_name_mid_moisture_Slope, &
+    call fates_params%RetrieveParameter(name=SF_name_mid_moisture_Slope, &
          data=SF_val_mid_moisture_Slope)
 
-    call fates_params%RetreiveParameter(name=SF_name_max_decomp, &
+    call fates_params%RetrieveParameter(name=SF_name_max_decomp, &
          data=SF_val_max_decomp)
 
   end subroutine SpitFireReceiveNFSC

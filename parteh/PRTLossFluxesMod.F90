@@ -1,3 +1,4 @@
+
 module PRTLossFluxesMod
 
 
@@ -8,7 +9,6 @@ module PRTLossFluxesMod
   use PRTGenericMod, only : store_organ
   use PRTGenericMod, only : repro_organ
   use PRTGenericMod, only : struct_organ
-  use PRTGenericMod, only : carbon_elements_list
   use PRTGenericMod, only : carbon12_element
   use PRTGenericMod, only : carbon13_element
   use PRTGenericMod, only : carbon14_element
@@ -64,7 +64,9 @@ module PRTLossFluxesMod
   public :: PRTBurnLosses
   public :: PRTPhenologyFlush
   public :: PRTReproRelease
-
+  public :: PRTDamageLosses
+  public :: PRTDamageRecoveryFluxes
+  
 contains
 
 
@@ -104,15 +106,22 @@ contains
      real(r8)            :: sp_demand              ! nutrient demand for element
 
 
-     ! We currently only allow the flushing and drop of leaves.
-     ! If other organs should be desired (like seasonality of fine-roots)
-     ! those parameters and clauses need to be added
+     ! We currently  allow the flushing and drop of leaves and fine roots (always) and
+     ! sapwood and heartwood (non-woody PFTs only).
+     ! If other organs should be desired, those parameters and clauses need to be added
 
-     !if(organ_id .ne. leaf_organ) then
-     if(organ_id .ne. leaf_organ .AND. prt_params%woody(ipft) == itrue) then
-        write(fates_log(),*) 'Deciduous drop and re-flushing only allowed in leaves'
+     if( (.not. any(organ_id == [leaf_organ,fnrt_organ])) .and. &
+         prt_params%woody(ipft) == itrue ) then
+        write(fates_log(),*) '    When PFT is woody, deciduous drop and re-flushing are'
+        write(fates_log(),*) ' only allowed in leaves and fine roots:'
+        write(fates_log(),*) ''
+        write(fates_log(),*) ' PFT: ',ipft
+        write(fates_log(),*) ' Woody PFT: ',prt_params%woody(ipft) == itrue
+        write(fates_log(),*) ''
+        write(fates_log(),*) ''
         write(fates_log(),*) ' leaf_organ: ',leaf_organ
-        write(fates_log(),*) ' organ: ',organ_id
+        write(fates_log(),*) ' fnrt_organ: ',fnrt_organ
+        write(fates_log(),*) ' Attempted organ: ',organ_id
         write(fates_log(),*) 'Exiting'
         call endrun(msg=errMsg(__FILE__, __LINE__))
      end if
@@ -158,22 +167,10 @@ contains
           element_id = prt_global%state_descriptor(i_var)%element_id
           
           ! This will filter IN all carbon related variables
-          if( any(element_id == carbon_elements_list) ) then
+          if( element_id == carbon12_element ) then
              
-             ! No hypotheses exist for how to flush carbon isotopes
-             ! yet.  Please fill this in.
-             if(  (element_id == carbon13_element) .or. &
-                  (element_id == carbon14_element) )then
-                write(fates_log(),*) ' Phenology flushing routine does not know'
-                write(fates_log(),*) ' how to handle carbon isotopes. Please'
-                write(fates_log(),*) ' evaluate the code referenced in this message'
-                write(fates_log(),*) ' and provide a hypothesis.'
-                call endrun(msg=errMsg(__FILE__, __LINE__))
-             end if
-
              ! Get the variable id of the storage pool for this element (carbon12)
              i_store = prt_global%sp_organ_map(store_organ,element_id)
-
 
              do i_pos = 1,i_leaf_pos
                 
@@ -222,7 +219,7 @@ contains
           element_id = prt_global%state_descriptor(i_var)%element_id
           
           ! This will filter OUT all carbon related elements
-          if ( .not. any(element_id == carbon_elements_list)   ) then
+          if ( .not. (element_id == carbon12_element)  ) then
 
              ! Get the variable id of the storage pool for this element
              i_store = prt_global%sp_organ_map(store_organ,element_id)
@@ -335,7 +332,62 @@ contains
      end associate
   end subroutine PRTBurnLosses
     
+  ! =====================================================================================
 
+  subroutine PRTDamageLosses(prt, organ_id, mass_fraction)
+
+    ! ----------------------------------------------------------------------------------
+    ! This subroutine assumes that there is no re-translocation associated
+    ! with damage. There is only one destiny for damaged mass within
+    ! the organ, and that is outside the plant.  
+    ! It is also assumed that non PARTEH parts of the code (ie the damage-model)
+    ! will decide what to do with the damaged mass (i.e. sent it to the litter
+    ! pool, or.. other?)
+    ! ----------------------------------------------------------------------------------
+
+    class(prt_vartypes) :: prt
+    integer,intent(in)  :: organ_id
+    real(r8),intent(in) :: mass_fraction
+
+    integer             :: i_pos          ! position index
+    integer             :: i_var          ! index for the variable of interest 
+    integer             :: i_var_of_organ ! loop counter for all element in this organ
+    integer             :: element_id     ! Element id of the turnover pool
+    real(r8)            :: damaged_mass    ! Lost mass of each element, in each
+                                          ! position, in the organ of interest
+     
+    associate(organ_map => prt_global%organ_map)
+
+       ! This is the total number of state variables associated
+       ! with this particular organ
+
+       do i_var_of_organ = 1, organ_map(organ_id)%num_vars
+          
+          i_var = organ_map(organ_id)%var_id(i_var_of_organ)
+          
+          element_id = prt_global%state_descriptor(i_var)%element_id
+          
+          ! Loop over all of the coordinate ids
+          do i_pos = 1,prt_global%state_descriptor(i_var)%num_pos
+             
+             ! The mass that is leaving the plant
+             damaged_mass = mass_fraction * prt%variables(i_var)%val(i_pos)
+             
+             ! Track the amount of mass being lost (+ is amount lost)
+             prt%variables(i_var)%damaged(i_pos) = prt%variables(i_var)%damaged(i_pos) &
+                  + damaged_mass
+             
+             ! Update the state of the pool to reflect the mass lost
+             prt%variables(i_var)%val(i_pos)    = prt%variables(i_var)%val(i_pos) &
+                  - damaged_mass
+             
+          end do
+          
+       end do
+       
+     end associate
+  end subroutine PRTDamageLosses
+      
   ! =====================================================================================
 
 
@@ -419,30 +471,29 @@ contains
      real(r8),intent(in) :: mass_fraction ! The fraction of mass in this organ that should
                                           ! leave the indicated organ.
      
-     ! We currently only allow the flushing and drop of leaves.
-     ! If other organs should be desired (like seasonality of fine-roots)
-     ! those parameters and clauses need to be added
-     
-     !if(organ_id .ne. leaf_organ) then
-     if(organ_id .ne. leaf_organ .AND. prt_params%woody(ipft) == itrue) then
-        write(fates_log(),*) 'Deciduous drop and re-flushing only allowed in leaves'
+     ! We currently  allow the flushing and drop of leaves and fine roots (always) and
+     ! sapwood and heartwood (non-woody PFTs only).
+     ! If other organs should be desired, those parameters and clauses need to be added
+
+     if( (.not. any(organ_id == [leaf_organ,fnrt_organ])) .and. &
+         prt_params%woody(ipft) == itrue ) then
+        write(fates_log(),*) '    When PFT is woody, deciduous drop and re-flushing are'
+        write(fates_log(),*) ' only allowed in leaves and fine roots:'
+        write(fates_log(),*) ''
+        write(fates_log(),*) ' PFT: ',ipft
+        write(fates_log(),*) ' Woody PFT: ',prt_params%woody(ipft) == itrue
+        write(fates_log(),*) ''
+        write(fates_log(),*) ''
         write(fates_log(),*) ' leaf_organ: ',leaf_organ
-        write(fates_log(),*) ' organ: ',organ_id
+        write(fates_log(),*) ' fnrt_organ: ',fnrt_organ
+        write(fates_log(),*) ' Attempted organ: ',organ_id
         write(fates_log(),*) 'Exiting'
         call endrun(msg=errMsg(__FILE__, __LINE__))
      end if
 
      
-     if ( int(prt_params%turnover_retrans_mode(ipft)) == 1 ) then
-        call DeciduousTurnoverSimpleRetranslocation(prt,ipft,organ_id,mass_fraction)
-     else
-        write(fates_log(),*) 'A retranslocation mode was specified for deciduous drop'
-        write(fates_log(),*) 'that is unknown.'
-        write(fates_log(),*) 'turnover_retrans_mode= ',prt_params%turnover_retrans_mode(ipft)
-        write(fates_log(),*) 'pft = ',ipft
-        call endrun(msg=errMsg(__FILE__, __LINE__))
-     end if
-     
+     call DeciduousTurnoverSimpleRetranslocation(prt,ipft,organ_id,mass_fraction)
+          
      return
    end subroutine PRTDeciduousTurnover
    
@@ -517,8 +568,8 @@ contains
           if( prt_params%organ_param_id(organ_id) < 1 ) then
              retrans = 0._r8
           else
-             if ( any(element_id == carbon_elements_list) ) then
-                retrans = prt_params%turnover_carb_retrans(ipft,prt_params%organ_param_id(organ_id))
+             if ( element_id == carbon12_element ) then
+                retrans = 0._r8
              else if( element_id == nitrogen_element ) then
                 retrans = prt_params%turnover_nitr_retrans(ipft,prt_params%organ_param_id(organ_id))
              else if( element_id == phosphorus_element ) then
@@ -538,7 +589,7 @@ contains
           ! Loop over all of the coordinate ids
           do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos 
              
-           ! The mass that is leaving the plant
+             ! The mass that is leaving the plant
              turnover_mass = (1.0_r8 - retrans) * mass_fraction * prt%variables(i_var)%val(i_pos)
              
              ! The mass that is going towards storage
@@ -587,15 +638,8 @@ contains
       logical,intent(in)  :: is_drought  ! Is this plant/cohort operating in a drought
                                          ! stress context?
       
-      if ( int(prt_params%turnover_retrans_mode(ipft)) == 1 ) then
-         call MaintTurnoverSimpleRetranslocation(prt,ipft,is_drought)
-      else
-         write(fates_log(),*) 'A maintenance/retranslocation mode was specified'
-         write(fates_log(),*) 'that is unknown.'
-         write(fates_log(),*) 'turnover_retrans_mode= ',prt_params%turnover_retrans_mode(ipft)
-         write(fates_log(),*) 'pft = ',ipft
-         call endrun(msg=errMsg(__FILE__, __LINE__))
-      end if
+      call MaintTurnoverSimpleRetranslocation(prt,ipft,is_drought)
+      
       
       return
    end subroutine PRTMaintTurnover
@@ -728,8 +772,8 @@ contains
          if( prt_params%organ_param_id(organ_id) < 1 ) then
             retrans_frac = 0._r8
          else
-            if ( any(element_id == carbon_elements_list) ) then
-               retrans_frac = prt_params%turnover_carb_retrans(ipft,prt_params%organ_param_id(organ_id))
+            if ( element_id == carbon12_element ) then
+               retrans_frac = 0._r8
             else if( element_id == nitrogen_element ) then
                retrans_frac = prt_params%turnover_nitr_retrans(ipft,prt_params%organ_param_id(organ_id))
             else if( element_id == phosphorus_element ) then
@@ -811,6 +855,30 @@ contains
       return
    end subroutine MaintTurnoverSimpleRetranslocation
 
+   !----------------------------------------------------------------------------------------------
+   
+  subroutine PRTDamageRecoveryFluxes(prt, organ_id, mass_0, mass, cc_mass)
+
+    class(prt_vartypes) :: prt
+    integer,intent(in)  :: organ_id
+    real(r8),intent(in) :: mass_0
+    real(r8),intent(in) :: mass
+    real(r8),intent(in) :: cc_mass
+    
+    integer, parameter  :: icd = 1
+
+    ! Remove the amount that was copied from old cohort
+    prt%variables(organ_id)%net_alloc(icd) = prt%variables(organ_id)%net_alloc(icd) &
+         - (cc_mass - mass_0)
+    
+
+    ! Track the amount of mass being lost (+ is amount lost)
+    prt%variables(organ_id)%net_alloc(icd) = prt%variables(organ_id)%net_alloc(icd) &
+         + (mass - mass_0)
+
+    end subroutine PRTDamageRecoveryFluxes
+      
+  ! =====================================================================================
 
 
 

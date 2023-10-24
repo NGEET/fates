@@ -1,7 +1,8 @@
 module FatesHistoryVariableType
 
   use FatesConstantsMod, only : r8 => fates_r8
-  use FatesGlobals, only : fates_log 
+  use FatesGlobals, only : fates_log
+  use FatesGlobals          , only : endrun => fates_endrun
   use FatesIODimensionsMod, only   : fates_io_dimension_type
   use FatesIOVariableKindMod, only : fates_io_variable_kind_type
   use FatesIOVariableKindMod, only : site_r8, site_soil_r8, site_size_pft_r8
@@ -11,15 +12,21 @@ module FatesHistoryVariableType
   use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
   use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8
   use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8 
+  use FatesIOVariableKindMod, only : site_cdsc_r8, site_cdpf_r8
   use FatesIOVariableKindMod, only : site_elem_r8, site_elpft_r8
   use FatesIOVariableKindMod, only : site_elcwd_r8, site_elage_r8
-  use FatesIOVariableKindMod, only : iotype_index, site_agefuel_r8
+  use FatesIOVariableKindMod, only : iotype_index, site_agefuel_r8, site_clscpf_r8
+  use shr_log_mod           , only : errMsg => shr_log_errMsg
+  
 
   implicit none
   private        ! By default everything is private
 
   ! Make public necessary subroutines and functions
 
+  
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
 
   ! This type is instanteated in the HLM-FATES interface (clmfates_interfaceMod.F90)
 
@@ -161,6 +168,14 @@ contains
        allocate(this%r82d(lb1:ub1, lb2:ub2))
        this%r82d(:,:) = flushval
 
+    case(site_cdsc_r8)
+       allocate(this%r82d(lb1:ub1, lb2:ub2))
+       this%r82d(:,:) = flushval
+
+    case(site_cdpf_r8)
+       allocate(this%r82d(lb1:ub1, lb2:ub2))
+       this%r82d(:,:) = flushval
+   
     case(site_scag_r8)
        allocate(this%r82d(lb1:ub1, lb2:ub2))
        this%r82d(:,:) = flushval
@@ -193,11 +208,14 @@ contains
       allocate(this%r82d(lb1:ub1, lb2:ub2))
       this%r82d(:,:) = flushval
 
+   case(site_clscpf_r8)
+      allocate(this%r82d(lb1:ub1, lb2:ub2))
+      this%r82d(:,:) = flushval
+      
     case default
        write(fates_log(),*) 'Incompatible vtype passed to set_history_var'
        write(fates_log(),*) 'vtype = ',trim(vtype),' ?'
-       stop
-       ! end_run
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     end select
     
   end subroutine Init
@@ -298,6 +316,10 @@ contains
        this%r82d(lb1:ub1, lb2:ub2) = this%flushval
     case(site_cnlfpft_r8) 
        this%r82d(lb1:ub1, lb2:ub2) = this%flushval
+    case(site_cdsc_r8) 
+       this%r82d(lb1:ub1, lb2:ub2) = this%flushval
+    case(site_cdpf_r8) 
+       this%r82d(lb1:ub1, lb2:ub2) = this%flushval
     case(site_scag_r8) 
        this%r82d(lb1:ub1, lb2:ub2) = this%flushval
     case(site_scagpft_r8) 
@@ -314,10 +336,11 @@ contains
        this%r82d(lb1:ub1, lb2:ub2) = this%flushval
     case(site_agefuel_r8)
        this%r82d(lb1:ub1, lb2:ub2) = this%flushval
+    case(site_clscpf_r8)
+       this%r82d(lb1:ub1, lb2:ub2) = this%flushval
     case default
        write(fates_log(),*) 'fates history variable type undefined while flushing history variables'
-       stop
-       !end_run
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     end select
     
  end subroutine Flush

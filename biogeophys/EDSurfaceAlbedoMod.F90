@@ -10,28 +10,30 @@ module EDSurfaceRadiationMod
 
 #include "shr_assert.h"
 
-  use EDTypesMod        , only : ed_patch_type, ed_site_type
-  use EDTypesMod        , only : maxPatchesPerSite
-  use EDTypesMod        , only : maxpft
+  use EDTypesMod        , only : ed_site_type
+  use FatesPatchMod,      only : fates_patch_type
+  use EDParamsMod,        only : maxpft
   use FatesConstantsMod , only : r8 => fates_r8
   use FatesConstantsMod , only : itrue
   use FatesConstantsMod , only : pi_const
+  use FatesConstantsMod , only : nocomp_bareground
   use FatesInterfaceTypesMod , only : bc_in_type
   use FatesInterfaceTypesMod , only : bc_out_type
   use FatesInterfaceTypesMod , only : hlm_numSWb
   use FatesInterfaceTypesMod , only : numpft
-  use EDTypesMod        , only : maxSWb
-  use EDTypesMod        , only : nclmax
-  use EDTypesMod        , only : nlevleaf
+  use EDParamsMod        , only : maxSWb
+  use EDParamsMod        , only : nclmax
+  use EDParamsMod        , only : nlevleaf
   use EDTypesMod        , only : n_rad_stream_types
   use EDTypesMod        , only : idiffuse
   use EDTypesMod        , only : idirect
-  use EDTypesMod        , only : ivis
-  use EDTypesMod        , only : inir
-  use EDTypesMod        , only : ipar
+  use EDParamsMod        , only : ivis
+  use EDParamsMod        , only : inir
+  use EDParamsMod        , only : ipar
   use EDCanopyStructureMod, only: calc_areaindex
   use FatesGlobals      , only : fates_log
   use FatesGlobals, only      : endrun => fates_endrun
+  use EDPftvarcon,        only : EDPftvarcon_inst
 
   ! CIME globals
   use shr_log_mod       , only : errMsg => shr_log_errMsg
@@ -44,7 +46,8 @@ module EDSurfaceRadiationMod
   public :: ED_SunShadeFracs
 
   logical :: debug = .false.  ! for debugging this module
-
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
 
   !  real(r8), public  :: albice(maxSWb) = &       ! albedo land ice by waveband (1=vis, 2=nir)
   !       (/ 0.80_r8, 0.55_r8 /)
@@ -64,14 +67,8 @@ contains
 
   subroutine ED_Norman_Radiation (nsites, sites, bc_in, bc_out )
     !
-
     !
-    ! !USES:
-    use EDPftvarcon       , only : EDPftvarcon_inst
-    use EDtypesMod        , only : ed_patch_type
-    use EDTypesMod        , only : ed_site_type
-
-
+ 
     ! !ARGUMENTS:
 
     integer,            intent(in)            :: nsites
@@ -84,7 +81,7 @@ contains
     integer :: s                                   ! site loop counter
     integer :: ifp                                 ! patch loop counter
     integer :: ib                                  ! radiation broad band counter
-    type(ed_patch_type), pointer :: currentPatch   ! patch pointer
+    type(fates_patch_type), pointer :: currentPatch   ! patch pointer
 
     !-----------------------------------------------------------------------
     ! -------------------------------------------------------------------------------
@@ -100,7 +97,7 @@ contains
        ifp = 0
        currentpatch => sites(s)%oldest_patch
        do while (associated(currentpatch))
-          if(currentpatch%nocomp_pft_label.ne.0)then
+          if(currentpatch%nocomp_pft_label.ne.nocomp_bareground)then
              ! do not do albedo calculations for bare ground patch in SP mode
              ! and (more impotantly) do not iterate ifp or it will mess up the indexing wherein
              ! ifp=1 is the first vegetated patch.
@@ -193,16 +190,11 @@ contains
     !
     ! -----------------------------------------------------------------------------------
 
-    !
-    ! !USES:
-    use EDPftvarcon       , only : EDPftvarcon_inst
-    use EDtypesMod        , only : ed_patch_type
-
     ! -----------------------------------------------------------------------------------
     ! !ARGUMENTS:
     ! -----------------------------------------------------------------------------------
 
-    type(ed_patch_type), intent(inout), target :: currentPatch
+    type(fates_patch_type), intent(inout), target :: currentPatch
     real(r8), intent(inout) :: albd_parb_out(hlm_numSWb)
     real(r8), intent(inout) :: albi_parb_out(hlm_numSWb)
     real(r8), intent(inout) :: fabd_parb_out(hlm_numSWb)
@@ -264,7 +256,6 @@ contains
     integer  :: fp,iv,s      ! array indices
     integer  :: ib               ! waveband number
     real(r8) :: cosz             ! 0.001 <= coszen <= 1.000
-    real(r8) :: chil
     real(r8) :: gdir
 
 
@@ -362,11 +353,7 @@ contains
     cosz = max(0.001_r8, currentPatch%solar_zenith_angle ) !copied from previous radiation code...
     do ft = 1,numpft
        sb = (90._r8 - (acos(cosz)*180._r8/pi_const)) * (pi_const / 180._r8)
-       chil = xl(ft) !min(max(xl(ft), -0.4_r8), 0.6_r8 )
-       if ( abs(chil) <= 0.01_r8) then
-          chil  = 0.01_r8
-       end if
-       phi1b(ft) = 0.5_r8 - 0.633_r8*chil - 0.330_r8*chil*chil
+       phi1b(ft) = 0.5_r8 - 0.633_r8*xl(ft) - 0.330_r8*xl(ft)*xl(ft)
        phi2b(ft) = 0.877_r8 * (1._r8 - 2._r8*phi1b(ft)) !0 = horiz leaves, 1 - vert leaves.
        gdir = phi1b(ft) + phi2b(ft) * sin(sb)
        !how much direct light penetrates a singleunit of lai?
@@ -392,13 +379,16 @@ contains
              end do  !iv
           end do  !ft1
        end do  !L
-       if (sum(ftweight(1,:,1))<0.999_r8)then
-          write(fates_log(),*) 'canopy not full',ftweight(1,:,1)
-       endif
-       if (sum(ftweight(1,:,1))>1.0001_r8)then
-          write(fates_log(),*) 'canopy too full',ftweight(1,:,1)
-       endif
 
+       if(debug)then
+          if (sum(ftweight(1,:,1))<0.999_r8)then
+             write(fates_log(),*) 'canopy not full',ftweight(1,:,1)
+          endif
+          if (sum(ftweight(1,:,1))>1.0001_r8)then
+             write(fates_log(),*) 'canopy too full',ftweight(1,:,1)
+          endif
+       end if
+       
        do L = 1,currentPatch%NCL_p !start at the top canopy layer (1 is the top layer.)
 
           weighted_dir_tr(L)                 = 0.0_r8
@@ -450,11 +440,13 @@ contains
                       !where there is a partly empty leaf layer, some fluxes go straight through.
                       lai_change(L,ft,iv) = ftweight(L,ft,iv)-ftweight(L,ft,iv+1)
                    endif
-                   if (ftweight(L,ft,iv+1) - ftweight(L,ft,iv) > 1.e-10_r8)then
-                      write(fates_log(),*) 'lower layer has more coverage. This is wrong' , &
-                           ftweight(L,ft,iv),ftweight(L,ft,iv+1),ftweight(L,ft,iv+1)-ftweight(L,ft,iv)
-                   endif
-
+                   if(debug)then
+                      if (ftweight(L,ft,iv+1) - ftweight(L,ft,iv) > 1.e-10_r8)then
+                         write(fates_log(),*) 'lower layer has more coverage. This is wrong' , &
+                              ftweight(L,ft,iv),ftweight(L,ft,iv+1),ftweight(L,ft,iv+1)-ftweight(L,ft,iv)
+                      endif
+                   end if
+                   
                    !n.b. in theory lai_change could be calculated daily in the ED code.
                    !This is light coming striaght through the canopy.
                    if (L==1)then
@@ -981,26 +973,30 @@ contains
              error = abs(currentPatch%sabs_dir(ib) - (currentPatch%tr_soil_dir(ib) * &
                   (1.0_r8-currentPatch%gnd_alb_dir(ib) ) + &
                   currentPatch%tr_soil_dir_dif(ib) * (1.0_r8-currentPatch%gnd_alb_dif(ib)     )))
-             if ( abs(error) > 0.0001)then
-                write(fates_log(),*)'dir ground absorption error',error,currentPatch%sabs_dir(ib), &
-                     currentPatch%tr_soil_dir(ib)* &
-                     (1.0_r8-currentPatch%gnd_alb_dir(ib)  ),currentPatch%NCL_p,ib,sum(ftweight(1,1:numpft,1))
-                write(fates_log(),*) 'albedos',currentPatch%sabs_dir(ib) ,currentPatch%tr_soil_dir(ib), &
-                     (1.0_r8-currentPatch%gnd_alb_dir(ib)  )
 
-                do ft =1,3
-                   iv = currentPatch%nrad(1,ft) + 1
-                   write(fates_log(),*) 'abs soil fluxes', Abs_dir_z(ft,iv),Abs_dif_z(ft,iv)
-                end do
-
+             if(debug)then
+                if ( abs(error) > 0.0001)then
+                   write(fates_log(),*)'dir ground absorption error',error,currentPatch%sabs_dir(ib), &
+                        currentPatch%tr_soil_dir(ib)* &
+                        (1.0_r8-currentPatch%gnd_alb_dir(ib)  ),currentPatch%NCL_p,ib,sum(ftweight(1,1:numpft,1))
+                   write(fates_log(),*) 'albedos',currentPatch%sabs_dir(ib) ,currentPatch%tr_soil_dir(ib), &
+                        (1.0_r8-currentPatch%gnd_alb_dir(ib)  )
+                   do ft =1,numpft
+                      iv = currentPatch%nrad(1,ft) + 1
+                      write(fates_log(),*) 'abs soil fluxes', Abs_dir_z(ft,iv),Abs_dif_z(ft,iv)
+                   end do
+                end if
              end if
+             
           else
-             if ( abs(currentPatch%sabs_dif(ib)-(currentPatch%tr_soil_dif(ib) * &
-                  (1.0_r8-currentPatch%gnd_alb_dif(ib)  ))) > 0.0001_r8)then
-                write(fates_log(),*)'dif ground absorption error',currentPatch%sabs_dif(ib) , &
-                     (currentPatch%tr_soil_dif(ib)* &
-                     (1.0_r8-currentPatch%gnd_alb_dif(ib)  )),currentPatch%NCL_p,ib,sum(ftweight(1,1:numpft,1))
-             endif
+             if (debug) then
+                if ( abs(currentPatch%sabs_dif(ib)-(currentPatch%tr_soil_dif(ib) * &
+                     (1.0_r8-currentPatch%gnd_alb_dif(ib)  ))) > 0.0001_r8)then
+                   write(fates_log(),*)'dif ground absorption error',currentPatch%sabs_dif(ib) , &
+                        (currentPatch%tr_soil_dif(ib)* &
+                        (1.0_r8-currentPatch%gnd_alb_dif(ib)  )),currentPatch%NCL_p,ib,sum(ftweight(1,1:numpft,1))
+                endif
+             end if
           endif
 
           if (radtype == idirect)then
@@ -1044,16 +1040,18 @@ contains
                 ! to the complexity of this code, but where the system generates occasional errors, we
                 ! will deal with them for now.
              end if
+             
              if (abs(error)  >  0.15_r8)then
-                write(fates_log(),*) 'Large Dir Radn consvn error',error ,ib
-                write(fates_log(),*) 'diags', albd_parb_out(ib), ftdd_parb_out(ib), &
-                     ftid_parb_out(ib), fabd_parb_out(ib)
-                write(fates_log(),*) 'elai',currentpatch%elai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
-                write(fates_log(),*) 'esai',currentpatch%esai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
-                write(fates_log(),*) 'ftweight',ftweight(1,1:numpft,1:diag_nlevleaf)
-                write(fates_log(),*) 'cp',currentPatch%area, currentPatch%patchno
-                write(fates_log(),*) 'ground albedo diffuse (ib)', currentPatch%gnd_alb_dir(ib)
-
+                if(debug)then
+                   write(fates_log(),*) 'Large Dir Radn consvn error',error ,ib
+                   write(fates_log(),*) 'diags', albd_parb_out(ib), ftdd_parb_out(ib), &
+                        ftid_parb_out(ib), fabd_parb_out(ib)
+                   write(fates_log(),*) 'elai',currentpatch%elai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
+                   write(fates_log(),*) 'esai',currentpatch%esai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
+                   write(fates_log(),*) 'ftweight',ftweight(1,1:numpft,1:diag_nlevleaf)
+                   write(fates_log(),*) 'cp',currentPatch%area, currentPatch%patchno
+                   write(fates_log(),*) 'ground albedo diffuse (ib)', currentPatch%gnd_alb_dir(ib)
+                end if
                 albd_parb_out(ib) = albd_parb_out(ib) + error
              end if
           else
@@ -1063,20 +1061,21 @@ contains
              end if
 
              if (abs(error)  >  0.15_r8)then
-                write(fates_log(),*)  'lg Dif Radn consvn error',error ,ib
-                write(fates_log(),*) 'diags', albi_parb_out(ib), ftii_parb_out(ib), &
-                     fabi_parb_out(ib)
-                !write(fates_log(),*) 'lai_change',lai_change(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
-                !write(fates_log(),*) 'elai',currentpatch%elai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
-                !write(fates_log(),*) 'esai',currentpatch%esai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
-                !write(fates_log(),*) 'ftweight',ftweight(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
-                write(fates_log(),*) 'cp',currentPatch%area, currentPatch%patchno
-                write(fates_log(),*) 'ground albedo diffuse (ib)', currentPatch%gnd_alb_dir(ib)
-                !write(fates_log(),*) 'rhol',rhol(1:numpft,:)
-                !write(fates_log(),*) 'ftw',sum(ftweight(1,1:numpft,1)),ftweight(1,1:numpft,1)
-                !write(fates_log(),*) 'present',currentPatch%canopy_mask(1,1:numpft)
-                !write(fates_log(),*) 'CAP',currentPatch%canopy_area_profile(1,1:numpft,1)
-
+                if(debug)then
+                   write(fates_log(),*)  'lg Dif Radn consvn error',error ,ib
+                   write(fates_log(),*) 'diags', albi_parb_out(ib), ftii_parb_out(ib), &
+                        fabi_parb_out(ib)
+                   !write(fates_log(),*) 'lai_change',lai_change(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
+                   !write(fates_log(),*) 'elai',currentpatch%elai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
+                   !write(fates_log(),*) 'esai',currentpatch%esai_profile(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
+                   !write(fates_log(),*) 'ftweight',ftweight(currentpatch%ncl_p,1:numpft,1:diag_nlevleaf)
+                   write(fates_log(),*) 'cp',currentPatch%area, currentPatch%patchno
+                   write(fates_log(),*) 'ground albedo diffuse (ib)', currentPatch%gnd_alb_dir(ib)
+                   !write(fates_log(),*) 'rhol',rhol(1:numpft,:)
+                   !write(fates_log(),*) 'ftw',sum(ftweight(1,1:numpft,1)),ftweight(1,1:numpft,1)
+                   !write(fates_log(),*) 'present',currentPatch%canopy_mask(1,1:numpft)
+                   !write(fates_log(),*) 'CAP',currentPatch%canopy_area_profile(1,1:numpft,1)
+                end if
                 albi_parb_out(ib) = albi_parb_out(ib) + error
              end if
 
@@ -1088,10 +1087,12 @@ contains
                      (fabi_parb_out(ib)  + albi_parb_out(ib) + currentPatch%sabs_dif(ib))
              endif
 
-             if (abs(error)  >  0.00000001_r8)then
-                write(fates_log(),*)  'there is still error after correction',error ,ib
+             if(debug) then
+                if (abs(error)  >  0.00000001_r8)then
+                   write(fates_log(),*)  'there is still error after correction',error ,ib
+                end if
              end if
-
+             
           end if
        end do !hlm_numSWb
 
@@ -1116,7 +1117,7 @@ subroutine ED_SunShadeFracs(nsites, sites,bc_in,bc_out)
 
 
   ! locals
-  type (ed_patch_type),pointer :: cpatch   ! c"urrent" patch
+  type (fates_patch_type),pointer :: cpatch   ! c"urrent" patch
   real(r8)          :: sunlai
   real(r8)          :: shalai
   real(r8)          :: elai
@@ -1133,7 +1134,7 @@ subroutine ED_SunShadeFracs(nsites, sites,bc_in,bc_out)
      cpatch => sites(s)%oldest_patch
 
      do while (associated(cpatch))
-        if(cpatch%nocomp_pft_label.ne.0)then !only for veg patches
+        if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then !only for veg patches
            ! do not do albedo calculations for bare ground patch in SP mode
            ! and (more impotantly) do not iterate ifp or it will mess up the indexing wherein
            ! ifp=1 is the first vegetated patch.
@@ -1198,11 +1199,13 @@ subroutine ED_SunShadeFracs(nsites, sites,bc_in,bc_out)
               bc_out(s)%fsun_pa(ifp) = 0._r8
            endif
 
-           if(bc_out(s)%fsun_pa(ifp) > 1._r8)then
-              write(fates_log(),*) 'too much leaf area in profile',  bc_out(s)%fsun_pa(ifp), &
-                   sunlai,shalai
-           endif
-
+           if(debug)then
+              if(bc_out(s)%fsun_pa(ifp) > 1._r8)then
+                 write(fates_log(),*) 'too much leaf area in profile',  bc_out(s)%fsun_pa(ifp), &
+                      sunlai,shalai
+              endif
+           end if
+           
            elai = calc_areaindex(cpatch,'elai')
 
            bc_out(s)%laisun_pa(ifp) = elai*bc_out(s)%fsun_pa(ifp)

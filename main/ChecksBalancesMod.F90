@@ -3,8 +3,8 @@ module ChecksBalancesMod
    use shr_kind_mod,      only : r8 => shr_kind_r8
    use shr_const_mod,     only : SHR_CONST_CDAY
    use EDtypesMod,        only : ed_site_type
-   use EDTypesMod,        only : ed_patch_type
-   use EDTypesMod,        only : ed_cohort_type
+   use FatesPatchMod,     only : fates_patch_type
+   use FatesCohortMod,    only : fates_cohort_type
    use EDTypesMod,        only : AREA
    use EDTypesMod,        only : site_massbal_type
    use PRTGenericMod,     only : num_elements
@@ -15,7 +15,6 @@ module ChecksBalancesMod
    use FatesLitterMod,    only : litter_type
    use FatesLitterMod,    only : ncwd
    use FatesLitterMod,    only : ndcmpy
-   use PRTGenericMod,     only : all_carbon_elements
    use PRTGenericMod,     only : carbon12_element
    use PRTGenericMod,     only : leaf_organ
    use PRTGenericMod,     only : fnrt_organ
@@ -49,8 +48,8 @@ contains
      real(r8),intent(out)                    :: litter_stock   ! kg
      real(r8),intent(out)                    :: biomass_stock  ! kg
      real(r8),intent(out)                    :: seed_stock     ! kg
-     type(ed_patch_type), pointer            :: currentPatch
-     type(ed_cohort_type), pointer           :: currentCohort
+     type(fates_patch_type), pointer            :: currentPatch
+     type(fates_cohort_type), pointer           :: currentCohort
      real(r8)                                :: patch_biomass  ! kg
      real(r8)                                :: patch_seed     ! kg
      real(r8)                                :: patch_litter   ! kg
@@ -82,14 +81,14 @@ contains
       ! ---------------------------------------------------------------------------------
       ! Sum up the mass of the different stocks on a patch for each element
       ! ---------------------------------------------------------------------------------
-      type(ed_patch_type),intent(inout),target :: currentPatch
+      type(fates_patch_type),intent(inout),target :: currentPatch
       integer,intent(in)                       :: el
       real(r8),intent(out)                     :: live_stock
       real(r8),intent(out)                     :: seed_stock
       real(r8),intent(out)                     :: litter_stock
 
       type(litter_type), pointer            :: litt           ! litter object
-      type(ed_cohort_type), pointer         :: currentCohort
+      type(fates_cohort_type), pointer         :: currentCohort
       integer                               :: element_id
 
       litt => currentPatch%litter(el)
@@ -106,6 +105,7 @@ contains
       seed_stock = currentPatch%area * &
             (sum(litt%seed) + sum(litt%seed_germ))
 
+
       ! Total mass on living plants
       live_stock = 0._r8
       currentCohort => currentPatch%tallest
@@ -120,16 +120,6 @@ contains
                 * currentCohort%n
           currentCohort => currentCohort%shorter
       enddo !end cohort loop 
-      
-      
-      if(element_id.eq.carbon12_element) then
-         currentCohort => currentPatch%tallest
-         do while(associated(currentCohort))
-            live_stock = live_stock - &
-                 (currentCohort%resp_m_def*currentCohort%n)
-            currentCohort => currentCohort%shorter
-         enddo !end cohort loop 
-      end if
       
       return
   end subroutine PatchMassStock
@@ -157,7 +147,7 @@ contains
     type(bc_in_type), intent(in)               :: bc_in
     
     ! Local variables
-    type(ed_patch_type), pointer :: currentPatch
+    type(fates_patch_type), pointer :: currentPatch
     type(litter_type), pointer   :: litt    ! Litter object
     integer :: el                           ! Litter element loop index
     integer :: element_id                   ! parteh consistent litter index

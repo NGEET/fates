@@ -8,10 +8,11 @@ module EDBtranMod
   use EDPftvarcon       , only : EDPftvarcon_inst
   use FatesConstantsMod , only : tfrz => t_water_freeze_k_1atm 
   use FatesConstantsMod , only : itrue,ifalse,nearzero
-  use EDTypesMod        , only : ed_site_type,       &
-       ed_patch_type,      &
-       ed_cohort_type,     &
-       maxpft
+  use FatesConstantsMod , only : nocomp_bareground
+  use EDTypesMod        , only : ed_site_type
+  use FatesPatchMod,      only : fates_patch_type
+  use EDParamsMod,        only : maxpft
+  use FatesCohortMod,     only : fates_cohort_type
   use shr_kind_mod      , only : r8 => shr_kind_r8
   use FatesInterfaceTypesMod , only : bc_in_type, &
        bc_out_type, &
@@ -19,11 +20,16 @@ module EDBtranMod
   use FatesInterfaceTypesMod , only : hlm_use_planthydro
   use FatesGlobals      , only : fates_log
   use FatesAllometryMod , only : set_root_fraction
+  use shr_log_mod , only      : errMsg => shr_log_errMsg
+  use FatesGlobals,      only : endrun => fates_endrun
 
   !
   implicit none
   private
 
+
+  logical, parameter :: debug = .false.
+  
   public :: btran_ed
   public :: get_active_suction_layers
   public :: check_layer_water
@@ -104,8 +110,8 @@ contains
 
     !
     ! !LOCAL VARIABLES:
-    type(ed_patch_type),pointer             :: cpatch ! Current Patch Pointer
-    type(ed_cohort_type),pointer            :: ccohort ! Current cohort pointer
+    type(fates_patch_type),pointer             :: cpatch ! Current Patch Pointer
+    type(fates_cohort_type),pointer            :: ccohort ! Current cohort pointer
     integer  :: s                 ! site
     integer  :: j                 ! soil layer
     integer  :: ifp               ! patch vector index for the site
@@ -133,7 +139,7 @@ contains
        ifp = 0
        cpatch => sites(s)%oldest_patch
        do while (associated(cpatch))                 
-          if(cpatch%nocomp_pft_label.ne.0)then ! only for veg patches
+          if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then ! only for veg patches
              ifp=ifp+1
 
              ! THIS SHOULD REALLY BE A COHORT LOOP ONCE WE HAVE rootfr_ft FOR COHORTS (RGK)
@@ -231,10 +237,13 @@ contains
              temprootr = sum(bc_out(s)%rootr_pasl(ifp,1:bc_in(s)%nlevsoil))
 
              if(abs(1.0_r8-temprootr) > 1.0e-10_r8 .and. temprootr > 1.0e-10_r8)then
-                write(fates_log(),*) 'error with rootr in canopy fluxes',temprootr,sum_pftgs
+
+                if(debug) write(fates_log(),*) 'error with rootr in canopy fluxes',temprootr,sum_pftgs
+                
                 do j = 1,bc_in(s)%nlevsoil
                    bc_out(s)%rootr_pasl(ifp,j) = bc_out(s)%rootr_pasl(ifp,j)/temprootr
                 enddo
+                
              end if
           endif ! not bare ground              
           cpatch => cpatch%younger
