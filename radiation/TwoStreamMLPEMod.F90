@@ -831,7 +831,7 @@ contains
                     if(debug)then
                        if(isnan(scelb%betad))then
                           write(log_unit,*)"nans in canopy prep"
-                          write(log_unit,*) ib,ican,icol,ft,
+                          write(log_unit,*) ib,ican,icol,ft
                           write(log_unit,*) scelb%betad,scelb%om,lai,sai
                           write(log_unit,*) this%frac_snow,om_snow(ib),vai,om_veg
                           write(log_unit,*)"TwoStreamMLPEMod.F90:CanopyPrep"
