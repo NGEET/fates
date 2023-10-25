@@ -2097,7 +2097,7 @@ contains
 
     ! Alternative Hypothesis:
     ! crown depth from Poorter, Bongers & Bongers
-    ! crown_depth = exp(-1.169_r8)*cCohort%hite**1.098_r8   
+    ! crown_depth = exp(-1.169_r8)*cCohort%height**1.098_r8   
 
     ! Alternative Hypothesis:
     ! Original FATES crown depth heigh used for hydraulics
