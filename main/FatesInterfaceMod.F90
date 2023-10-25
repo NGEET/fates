@@ -2169,7 +2169,6 @@ end subroutine SeedlingParPatch
 
     character(len=32)  :: subname = 'FatesReadParameters'
     class(fates_parameters_type), allocatable :: fates_params
-    logical :: is_host_file
 
     if ( hlm_masterproc == itrue ) then
       write(fates_log(), *) 'FatesParametersInterface.F90::'//trim(subname)//' :: CLM reading ED/FATES '//' parameters '
@@ -2182,11 +2181,7 @@ end subroutine SeedlingParPatch
     call PRTRegisterParams(fates_params)     ! PRT mod, only operates on fates_params class
     call FatesSynchronizedParamsInst%RegisterParams(fates_params) !Synchronized params class in Synchronized params mod, only operates on fates_params class
 
-    is_host_file = .false.
-    call param_reader%Read(is_host_file, fates_params)
-
-    is_host_file = .true.
-    call param_reader%Read(is_host_file, fates_params)
+    call param_reader%Read(fates_params)
 
     call FatesReceiveParams(fates_params)
     call SpitFireReceiveParams(fates_params)

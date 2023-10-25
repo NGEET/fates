@@ -93,17 +93,17 @@ module FatesParametersInterface
   end type fates_param_reader_type
 
   abstract interface
-   subroutine Read_interface(this, is_host_file, fates_params )
+   subroutine Read_interface(this, fates_params )
     !
     ! !DESCRIPTION:
-    ! Read 'fates_params' parameters from appropriate filename given 'is_host_file'.
+    ! Read 'fates_params' parameters from (HLM-provided) storage. Note this ignores
+    ! the legacy parameter_type.sync_with_host setting.
     !
     ! USES
     import :: fates_param_reader_type
     import :: fates_parameters_type
     ! !ARGUMENTS:
     class(fates_param_reader_type) :: this
-    logical, intent(in) :: is_host_file
     class(fates_parameters_type), intent(inout) :: fates_params
     !-----------------------------------------------------------------------
 
