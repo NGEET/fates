@@ -1792,9 +1792,9 @@ contains
      if(.not.is_master) return
 
      if(.not.any(radiation_model == [norman_solver,twostr_solver])) then
-        write(fates_log(),*) 'The only available canopy radiation model'
-        write(fates_log(),*) 'is the Norman scheme: fates_rad_model = 1'
-        write(fates_log(),*) 'The two-stream scheme is not available yet'
+        write(fates_log(),*) 'The only available canopy radiation models'
+        write(fates_log(),*) 'are the Norman and Two-stream schemes, '
+        write(fates_log(),*) 'fates_rad_model = 1 or 2 ...'
         write(fates_log(),*) 'You specified fates_rad_model = ',radiation_model
         write(fates_log(),*) 'Aborting'
         call endrun(msg=errMsg(sourcefile, __LINE__))
