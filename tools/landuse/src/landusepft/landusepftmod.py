@@ -46,11 +46,11 @@ def DefineMask(dataset):
         return mask
 
 # Renormalize the pft percentages without the bareground
-def RenormalizePFTs(dataset, mask):
+def RenormalizePFTs(dataset):
     # Remove the bareground pft index from the dataset
     percent = dataset.PCT_NAT_PFT.isel(natpft=slice(1,None))
-    # Normalize and apply mask
-    percent = percent / percent.sum(dim='natpft') * mask
+    # Normalize
+    percent = percent / percent.sum(dim='natpft')
     return percent
 
 # Steps

@@ -90,8 +90,8 @@ def test_neg_input_DefineMask(landusepft_dataset):
 
 # Bare ground fraction removal unit test
 # Make sure that the pft fractions sum to 100% on a known land gridcell
-def test_posRenormalizePFTs(landusepft_dataset,mock_mask):
-    percent = landusepftmod.RenormalizePFTs(landusepft_dataset, mock_mask)
+def test_posRenormalizePFTs(landusepft_dataset):
+    percent = landusepftmod.RenormalizePFTs(landusepft_dataset)
 
     # Sum along the natpft dimension only.  Use min_count to avoid
     # NaNs from masking turning into zeros
