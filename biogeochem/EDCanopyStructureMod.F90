@@ -1584,7 +1584,7 @@ contains
 
                 call VegAreaLayer(currentCohort%treelai,     &
                      currentCohort%treesai,                  &
-                     currentCohort%hite,                     &
+                     currentCohort%height,                   &
                      iv,currentCohort%nv,currentCohort%pft,  &
                      currentSite%snow_depth,                    &
                      vai_top,vai_bot,                          &

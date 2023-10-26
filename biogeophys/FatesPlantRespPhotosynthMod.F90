@@ -431,7 +431,7 @@ contains
                       do iv = 1,currentCohort%nv
                          call VegAreaLayer(currentCohort%treelai, &
                               currentCohort%treesai,              &
-                              currentCohort%hite,                 &
+                              currentCohort%height,               &
                               iv,                                 &
                               currentCohort%nv,                   &
                               currentCohort%pft,                  &

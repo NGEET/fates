@@ -193,7 +193,7 @@ contains
             ! it will return the total plant LAIs and SAIs
             call VegAreaLayer(cohort%treelai, &
                               cohort%treesai, &
-                              cohort%hite,    &
+                              cohort%height,    &
                               0,                     &
                               cohort%nv,      &
                               cohort%pft,     &
@@ -413,7 +413,7 @@ contains
          do iv = 1,cohort%nv
             call VegAreaLayer(cohort%treelai, &
                  cohort%treesai,              &
-                 cohort%hite,                 &
+                 cohort%height,                 &
                  iv,                                 &
                  cohort%nv,                   &
                  cohort%pft,                  &
