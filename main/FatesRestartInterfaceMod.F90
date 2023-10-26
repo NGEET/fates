@@ -47,7 +47,7 @@ module FatesRestartInterfaceMod
   use PRTGenericMod,           only : num_elements
   use FatesRunningMeanMod,     only : rmean_type
   use FatesRunningMeanMod,     only : ema_lpa
-  use FatesRadiationMemMod,    only : num_swb,norman_solver
+  use FatesRadiationMemMod,    only : num_swb,norman_solver,twostr_solver
   use TwoStreamMLPEMod,        only : normalized_upper_boundary
   use EDParamsMod,             only : regeneration_model
   use EDParamsMod,             only : radiation_model
@@ -3655,7 +3655,8 @@ contains
                  enddo
               else
 
-                 if_solver: if(radiation_model.eq.norman_solver) then
+                 select case(radiation_model)
+                 case(norman_solver)
                  
                     call PatchNormanRadiation (currentPatch, &
                          bc_out(s)%albd_parb(ifp,:), &
@@ -3667,7 +3668,7 @@ contains
                          bc_out(s)%ftii_parb(ifp,:))
 
 
-                 else
+                 case(twostr_solver)
                     associate( twostr => currentPatch%twostr)
 
                       call twostr%CanopyPrep(currentPatch%fcansno)
@@ -3698,7 +3699,7 @@ contains
                       
                     end associate
                     
-                 end if if_solver
+                 end select
                     
               endif ! is there vegetation?
 

@@ -25,6 +25,7 @@ module EDCanopyStructureMod
   use FatesCohortMod,         only : fates_cohort_type
   use EDParamsMod            , only : nclmax
   use EDParamsMod            , only : nlevleaf
+  use EDParamsMod           , only : radiation_model
   use EDtypesMod            , only : AREA
   use EDLoggingMortalityMod , only : UpdateHarvestC
   use FatesGlobals          , only : endrun => fates_endrun
@@ -46,6 +47,7 @@ module EDCanopyStructureMod
   use PRTGenericMod,          only : carbon12_element
   use FatesAllometryMod     , only : VegAreaLayer
   use FatesTwoStreamInterfaceMod, only : FatesConstructRadElements
+  use FatesRadiationMemMod  , only : twostr_solver
   
   ! CIME Globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
@@ -1436,9 +1438,10 @@ contains
        end do !patch loop
 
        call leaf_area_profile(sites(s))
-
-       call FatesConstructRadElements(sites(s),bc_in(s)%fcansno_pa,bc_in(s)%coszen_pa)
        
+       if(radiation_model.eq.twostr_solver) then
+          call FatesConstructRadElements(sites(s),bc_in(s)%fcansno_pa,bc_in(s)%coszen_pa)
+       end if
        
     end do ! site loop
 
