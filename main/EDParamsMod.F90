@@ -812,7 +812,7 @@ contains
     call fates_params%RetrieveParameter(name=name_dev_arbitrary, &
          data=dev_arbitrary)
 
-    call fates_params%RetreiveParameter(name=fates_name_cg_strikes, &
+    call fates_params%RetrieveParameter(name=fates_name_cg_strikes, &
           data=cg_strikes)
 
     call fates_params%RetrieveParameter(name=damage_name_event_code, &
