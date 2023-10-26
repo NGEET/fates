@@ -196,7 +196,8 @@ module FatesPatchMod
     real(r8)              :: fuel_eff_moist          ! effective avearage fuel moisture content of the ground fuel 
                                                        ! (incl. live grasses. omits 1000hr fuels)
     real(r8)              :: litter_moisture(nfsc)   ! moisture of litter [m3/m3]
-    integer               ::  active_crown_fire_flg
+    real(r8)              :: canopy_bulk_density 
+
 
     ! fire spread
     real(r8)              :: ros_front               ! rate of forward  spread of fire [m/min]
@@ -205,6 +206,7 @@ module FatesPatchMod
     real(r8)              :: tau_l                   ! duration of lethal heating [min]
     real(r8)              :: fi                      ! average fire intensity of flaming front [kJ/m/s] or [kW/m]
     integer               :: fire                    ! is there a fire? [1=yes; 0=no]
+    integer               ::  active_crown_fire_flg
     real(r8)              :: fd                      ! fire duration [min]
 
     ! fire effects      

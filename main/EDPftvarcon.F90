@@ -831,11 +831,11 @@ contains
          data=this%crown_kill)
 
     name = 'fates_fire_active_crown_fire'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%active_crown_fire)
 
     name = 'fates_recruit_init_density'
-    call fates_params%RetreiveParameterAllocate(name=name, &
+    call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%initd)
 
     name = 'fates_recruit_seed_supplement'
@@ -1927,7 +1927,7 @@ contains
         ! xl must be between -0.4 and 0.6 according to Bonan (2019) doi:10.1017/9781107339217 pg. 238
         !-----------------------------------------------------------------------------------
         if (EDPftvarcon_inst%xl(ipft) < -0.4 .or. EDPftvarcon_inst%xl(ipft) > 0.6) then
-          write(fates_log(),*) 'fates_rad_leaf_xl for pft ', ipft, ' is outside the allowed range of -0.6 to 0.4'
+          write(fates_log(),*) 'fates_rad_leaf_xl for pft ', ipft, ' is outside the allowed range of -0.4 to 0.6'
           write(fates_log(),*) 'Aborting'
           call endrun(msg=errMsg(sourcefile, __LINE__))
         end if 
