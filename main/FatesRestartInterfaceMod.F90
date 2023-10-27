@@ -711,7 +711,7 @@ contains
          units='kgC/m2', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_trunk_product_si )
 
-    call this%set_restart_var(vname='fates_landuse_config_site', vtype=site_r8, &
+    call this%set_restart_var(vname='fates_landuse_config_site', vtype=site_int, &
          long_name='hlm_use_luh status of run that created this restart file', &
          units='kgC/m2', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_landuse_config_si )
