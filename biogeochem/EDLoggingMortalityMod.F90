@@ -445,6 +445,11 @@ contains
         end if
      end if
 
+     ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+     ! !!CDKCDK WARNING WARNING WARNING THIS NEEDS TO BE REVERTED. IT TURNS OFF LOGGING ENTIRELY.
+     harvest_rate = 0._r8
+     ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
    end subroutine get_harvest_rate_area
 
 
@@ -692,6 +697,11 @@ contains
            harvest_rate = harvest_rate / months_per_year
         end if
      end if
+
+     ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+     ! !!CDKCDK WARNING WARNING WARNING THIS NEEDS TO BE REVERTED. IT TURNS OFF LOGGING ENTIRELY.
+     harvest_rate = 0._r8
+     ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
    end subroutine get_harvest_rate_carbon
 

@@ -180,7 +180,7 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
   real(fates_r8), parameter, public :: nearzero = 1.0e-30_fates_r8
 
   ! minimum init patch size for initialization in nocomp and/or land-use cases
-  real(fates_r8), parameter, public :: min_init_patch_size = 1.0e-2_fates_r8
+  real(fates_r8), parameter, public :: min_init_patch_size = 1.0e-4_fates_r8
 
   ! Unit conversion constants:
 

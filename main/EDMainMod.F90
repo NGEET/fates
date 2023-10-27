@@ -292,6 +292,7 @@ contains
 
     ! make new patches from disturbed land
     if (do_patch_dynamics.eq.itrue ) then
+
        call spawn_patches(currentSite, bc_in)
 
        call TotalBalanceCheck(currentSite,3)

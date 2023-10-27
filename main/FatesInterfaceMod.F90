@@ -557,8 +557,8 @@ contains
       end if
 
       if ( hlm_use_fixed_biogeog .eq. itrue) then
-         if (hlm_use_luh .gt. 0 ) then
-            allocate(bc_in%pft_areafrac_lu(fates_hlm_num_natpfts,num_luh2_states-n_crop_lu_types))
+         if (hlm_use_luh .eq. itrue ) then
+            allocate(bc_in%pft_areafrac_lu(size( EDPftvarcon_inst%hlm_pft_map,2),num_luh2_states-n_crop_lu_types))
          else
             allocate(bc_in%pft_areafrac(surfpft_lb:surfpft_ub))
          endif
@@ -795,10 +795,6 @@ contains
             ! maxpatch_total does not include the bare ground (so add 1)
             
             fates_maxPatchesPerSite = max(surf_numpft+surf_numcft,maxpatch_total+1)
-
-            ! if this is nocomp with land use, track things differently.
-            ! we want the number of natpfts minus the bare ground PFT.
-            fates_hlm_num_natpfts = surf_numpft -1
 
          else
 

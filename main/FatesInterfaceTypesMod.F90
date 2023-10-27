@@ -226,9 +226,6 @@ module FatesInterfaceTypesMod
    ! the prior so that we can hold the LAI data
    integer, public :: fates_maxPatchesPerSite
 
-   ! the number of natural PFTs tracked by the host model; NOT INCLUDING EITHER CROPS OR BARE GROUND
-   integer, public :: fates_hlm_num_natpfts
-   
    integer, public :: max_comp_per_site         ! This is the maximum number of nutrient aquisition
                                                            ! competitors that will be generated on each site
    

@@ -65,7 +65,6 @@ module EDInitMod
   use FatesInterfaceTypesMod         , only : nlevdamage
   use FatesInterfaceTypesMod         , only : hlm_use_nocomp
   use FatesInterfaceTypesMod         , only : nlevage
-  use FatesInterfaceTypesMod         , only : fates_hlm_num_natpfts
   use FatesAllometryMod         , only : h2d_allom
   use FatesAllometryMod         , only : bagw_allom
   use FatesAllometryMod         , only : bbgw_allom
@@ -463,10 +462,10 @@ contains
                 ! hlm_pft_map is the area of that land in each FATES PFT (from param file)
 
                 ! first check for NaNs in bc_in(s)%pft_areafrac_lu. if so, make everything bare ground.
-                if ( .not. any( isnan( bc_in(s)%pft_areafrac_lu (:,:) ))) then
+                if ( .not. (any( isnan( bc_in(s)%pft_areafrac_lu (:,:) )) .or. isnan( bc_in(s)%baregroundfrac))) then
                    do i_landusetype = 1, n_landuse_cats
                       if (.not. is_crop(i_landusetype)) then
-                         do hlm_pft = 1,fates_hlm_num_natpfts
+                         do hlm_pft = 1,size( EDPftvarcon_inst%hlm_pft_map,2)
                             do fates_pft = 1,numpft ! loop round all fates pfts for all hlm pfts
                                sites(s)%area_pft(fates_pft,i_landusetype) = sites(s)%area_pft(fates_pft,i_landusetype) + &
                                     EDPftvarcon_inst%hlm_pft_map(fates_pft,hlm_pft) * bc_in(s)%pft_areafrac_lu(hlm_pft,i_landusetype)
@@ -480,19 +479,18 @@ contains
 
                    sites(s)%area_bareground = bc_in(s)%baregroundfrac
                 else
-                   if ( all( isnan( bc_in(s)%pft_areafrac_lu (:,:) ))) then
+                   !if ( all( isnan( bc_in(s)%pft_areafrac_lu (:,:))) .and. isnan(bc_in(s)%baregroundfrac)) then
                       ! if given all NaNs, then make everything bare ground
                       sites(s)%area_bareground = 1._r8
                       sites(s)%area_pft(:,:) = 0._r8
-                      sites(s)%area_pft(1,:) = 1._r8
                       write(fates_log(),*) 'Nan values for pftareafrac. dumping site info.'
                       call dump_site(sites(s))
-                   else
-                      ! if only some things are NaN but not all, then something terrible has probably happened. crash.
-                      write(fates_log(),*) 'some but, not all, of the data in the PFT by LU matrix at this site is NaN.'
-                      write(fates_log(),*) 'recommend checking the dataset to see what has happened.'
-                      call endrun(msg=errMsg(sourcefile, __LINE__))
-                   endif
+                   !else
+                   !   ! if only some things are NaN but not all, then something terrible has probably happened. crash.
+                   !   write(fates_log(),*) 'some but, not all, of the data in the PFT by LU matrix at this site is NaN.'
+                   !   write(fates_log(),*) 'recommend checking the dataset to see what has happened.'
+                   !   call endrun(msg=errMsg(sourcefile, __LINE__))
+                   !endif
                 endif
 
              else
@@ -516,7 +514,7 @@ contains
                 do ft =  1,numpft
 
                    ! remove tiny patches to prevent numerical errors in terminate patches
-                   if(sites(s)%area_pft(ft, i_landusetype).lt.0.01_r8.and.sites(s)%area_pft(ft, i_landusetype).gt.0.0_r8)then
+                   if(sites(s)%area_pft(ft, i_landusetype).lt.0.01_r8.and.sites(s)%area_pft(ft, i_landusetype).gt.nearzero)then
                       if(debug) write(fates_log(),*)  'removing small pft patches',s,ft,i_landusetype,sites(s)%area_pft(ft, i_landusetype)
                       sites(s)%area_pft(ft, i_landusetype)=0.0_r8
                    endif
@@ -537,7 +535,7 @@ contains
                    ! count how many PFTs have areas greater than zero and compare to the number of patches allowed
                    if (COUNT(sites(s)%area_pft(:, i_landusetype) .gt. 0._r8) > maxpatches_by_landuse(i_landusetype)) then
                       ! write current vector to log file
-                      if(debug) write(fates_log(),*)  'too many PFTs for LU type ', i_landusetype, i_landusetype,sites(s)%area_pft(:, i_landusetype)
+                      if(debug) write(fates_log(),*)  'too many PFTs for LU type ', i_landusetype, sites(s)%area_pft(:, i_landusetype)
 
                       ! start from largest area, put that PFT's area into a temp vector, and then work down to successively smaller-area PFTs,
                       ! at the end replace the original vector with the temp vector
@@ -560,7 +558,7 @@ contains
              do i_landusetype = 1, n_landuse_cats
                 sumarea = sum(sites(s)%area_pft(1:numpft,i_landusetype))
                 do ft =  1,numpft
-                   if(sumarea.gt.0._r8)then
+                   if(sumarea.gt.nearzero)then
                       sites(s)%area_pft(ft, i_landusetype) = sites(s)%area_pft(ft, i_landusetype)/sumarea
                    else
                       ! if no PFT area in primary lands, set bare ground fraction to one.
@@ -616,6 +614,7 @@ contains
     real(r8) :: age !notional age of this patch
     integer  :: ageclass
     real(r8) :: area_diff
+    real(r8) :: area_error
 
     ! dummy locals
     real(r8) :: biomass_stock
@@ -677,6 +676,12 @@ contains
 
        ! state_vector(:) = 0._r8
 
+       if(hlm_use_nocomp.eq.itrue)then
+          num_nocomp_pfts = numpft
+       else !default
+          num_nocomp_pfts = 1
+       end if !nocomp
+
        sites_loop: do s = 1, nsites
           sites(s)%sp_tlai(:) = 0._r8
           sites(s)%sp_tsai(:) = 0._r8
@@ -686,12 +691,6 @@ contains
           ! It is likely that closed canopy forest inventories
           ! have smaller spread factors than bare ground (they are crowded)
           sites(s)%spread     = init_spread_near_bare_ground
-
-          if(hlm_use_nocomp.eq.itrue)then
-             num_nocomp_pfts = numpft
-          else !default
-             num_nocomp_pfts = 1
-          end if !nocomp
 
           ! read in luh state data to determine initial land use types
           if (hlm_use_luh .eq. itrue) then
@@ -720,37 +719,41 @@ contains
 
           is_first_patch = .true.
 
+          area_error = 0._r8
           ! first make a bare-ground patch if one is needed.
-          make_bareground_patch_if: if (hlm_use_nocomp.eq.itrue .and. hlm_use_fixed_biogeog .eq.itrue .and. &
-               (area*sites(s)%area_bareground) .gt. min_init_patch_size) then
+          make_bareground_patch_if: if (hlm_use_nocomp.eq.itrue .and. hlm_use_fixed_biogeog .eq.itrue) then
 
              newparea = area * sites(s)%area_bareground
-
-             allocate(newp)
+             if (newparea  .gt. min_init_patch_size) then
+                
+                allocate(newp)
  
-             call newp%Create(age, newparea, nocomp_bareground_land, nocomp_bareground,     &
-                           hlm_numSWb, numpft, sites(s)%nlevsoil, hlm_current_tod,      &
-                           regeneration_model)
+                call newp%Create(age, newparea, nocomp_bareground_land, nocomp_bareground,     &
+                     hlm_numSWb, numpft, sites(s)%nlevsoil, hlm_current_tod,      &
+                     regeneration_model)
 
-             ! set poointers for first patch (or only patch, if nocomp is false)
-             newp%patchno = 1
-             newp%younger => null()
-             newp%older   => null()
-             sites(s)%youngest_patch => newp
-             sites(s)%oldest_patch   => newp
-             is_first_patch = .false.
+                ! set poointers for first patch (or only patch, if nocomp is false)
+                newp%patchno = 1
+                newp%younger => null()
+                newp%older   => null()
+                sites(s)%youngest_patch => newp
+                sites(s)%oldest_patch   => newp
+                is_first_patch = .false.
 
-             ! Initialize the litter pools to zero, these
-             ! pools will be populated by looping over the existing patches
-             ! and transfering in mass
-             do el=1,num_elements
-                call newp%litter(el)%InitConditions(init_leaf_fines=0._r8, &
-                     init_root_fines=0._r8, &
-                     init_ag_cwd=0._r8, &
-                     init_bg_cwd=0._r8, &
-                     init_seed=0._r8,   &
-                     init_seed_germ=0._r8)
-             end do
+                ! Initialize the litter pools to zero, these
+                ! pools will be populated by looping over the existing patches
+                ! and transfering in mass
+                do el=1,num_elements
+                   call newp%litter(el)%InitConditions(init_leaf_fines=0._r8, &
+                        init_root_fines=0._r8, &
+                        init_ag_cwd=0._r8, &
+                        init_bg_cwd=0._r8, &
+                        init_seed=0._r8,   &
+                        init_seed_germ=0._r8)
+                end do
+             else
+                area_error = area_error + newparea
+             endif
           endif make_bareground_patch_if
 
           if (hlm_use_luh .eq. itrue) then
@@ -759,84 +762,97 @@ contains
              end_landuse_idx = 1
           endif
 
-          ! now make one or more vegetated patches based on nocomp and land use logic
-          luh_state_loop: do i_lu_state = 1, end_landuse_idx
-             lu_state_present_if: if (state_vector(i_lu_state) .gt. rsnbl_math_prec) then
-                new_patch_nocomp_loop: do n = 1, num_nocomp_pfts
-                   ! set the PFT index for patches if in nocomp mode.
-                   if(hlm_use_nocomp.eq.itrue)then
-                      nocomp_pft = n
-                   else
-                      nocomp_pft = fates_unset_int
-                   end if
-
-                   if(hlm_use_nocomp.eq.itrue)then
-                      ! In no competition mode, if we are using the fixed_biogeog filter
-                      ! then each PFT has the area dictated  by the surface dataset.
-
-                      ! If we are not using fixed biogeog model, each PFT gets the same area.
-                      ! i.e. each grid cell is divided exactly into the number of FATES PFTs.
-
-                      if(hlm_use_fixed_biogeog.eq.itrue)then
-                         newparea = sites(s)%area_pft(nocomp_pft,i_lu_state) * area * state_vector(i_lu_state) &
-                              * (1._r8 - sites(s)%area_bareground)
+          not_all_baregground_if: if ((1._r8 - sites(s)%area_bareground) .gt. nearzero) then
+             ! now make one or more vegetated patches based on nocomp and land use logic
+             luh_state_loop: do i_lu_state = 1, end_landuse_idx
+                lu_state_present_if: if (state_vector(i_lu_state) .gt. rsnbl_math_prec) then
+                   new_patch_nocomp_loop: do n = 1, num_nocomp_pfts
+                      ! set the PFT index for patches if in nocomp mode.
+                      if(hlm_use_nocomp.eq.itrue)then
+                         nocomp_pft = n
                       else
-                         newparea = area * state_vector(i_lu_state) / numpft
-                      end if
-                   else  ! The default case is initialized w/ one patch with the area of the whole site.
-                      newparea = area * state_vector(i_lu_state)
-                   end if  !nocomp mode
-
-                   new_patch_area_gt_zero: if(newparea .gt. min_init_patch_size) then ! Stop patches being initilialized when PFT not present in nocomop mode
-                      allocate(newp)
-
-                      call newp%Create(age, newparea, i_lu_state, nocomp_pft,     &
-                           hlm_numSWb, numpft, sites(s)%nlevsoil, hlm_current_tod,      &
-                           regeneration_model)
-
-                      if (is_first_patch) then !is this the first patch?
-                         ! set poointers for first patch (or only patch, if nocomp is false)
-                         newp%patchno = 1
-                         newp%younger => null()
-                         newp%older   => null()
-                         sites(s)%youngest_patch => newp
-                         sites(s)%oldest_patch   => newp
-                         is_first_patch = .false.
-                      else
-                         ! Set pointers for N>1 patches. Note this only happens when nocomp mode is on, or land use is on.
-                         ! The new patch is the 'youngest' one, arbitrarily.
-                         newp%patchno = nocomp_pft + (i_lu_state-1) * numpft
-                         newp%older     => sites(s)%youngest_patch
-                         newp%younger   => null()
-                         sites(s)%youngest_patch%younger => newp
-                         sites(s)%youngest_patch   => newp
+                         nocomp_pft = fates_unset_int
                       end if
 
-                      ! Initialize the litter pools to zero, these
-                      ! pools will be populated by looping over the existing patches
-                      ! and transfering in mass
-                      if(hlm_use_sp.eq.itrue)then
-                         litt_init = fates_unset_r8
+                      if(hlm_use_nocomp.eq.itrue)then
+                         ! In no competition mode, if we are using the fixed_biogeog filter
+                         ! then each PFT has the area dictated  by the surface dataset.
+
+                         ! If we are not using fixed biogeog model, each PFT gets the same area.
+                         ! i.e. each grid cell is divided exactly into the number of FATES PFTs.
+
+                         if(hlm_use_fixed_biogeog.eq.itrue)then
+                            newparea = sites(s)%area_pft(nocomp_pft,i_lu_state) * area * state_vector(i_lu_state) &
+                                 * (1._r8 - sites(s)%area_bareground)
+                         else
+                            newparea = area * state_vector(i_lu_state) / numpft
+                         end if
+                      else  ! The default case is initialized w/ one patch with the area of the whole site.
+                         newparea = area * state_vector(i_lu_state)
+                      end if  !nocomp mode
+
+                      new_patch_area_gt_zero: if(newparea .gt. min_init_patch_size) then ! Stop patches being initilialized when PFT not present in nocomop mode
+                         allocate(newp)
+
+                         call newp%Create(age, newparea, i_lu_state, nocomp_pft,     &
+                              hlm_numSWb, numpft, sites(s)%nlevsoil, hlm_current_tod,      &
+                              regeneration_model)
+
+                         if (is_first_patch) then !is this the first patch?
+                            ! set poointers for first patch (or only patch, if nocomp is false)
+                            newp%patchno = 1
+                            newp%younger => null()
+                            newp%older   => null()
+                            sites(s)%youngest_patch => newp
+                            sites(s)%oldest_patch   => newp
+                            is_first_patch = .false.
+                         else
+                            ! Set pointers for N>1 patches. Note this only happens when nocomp mode is on, or land use is on.
+                            ! The new patch is the 'youngest' one, arbitrarily.
+                            newp%patchno = nocomp_pft + (i_lu_state-1) * numpft
+                            newp%older     => sites(s)%youngest_patch
+                            newp%younger   => null()
+                            sites(s)%youngest_patch%younger => newp
+                            sites(s)%youngest_patch   => newp
+                         end if
+
+                         ! Initialize the litter pools to zero, these
+                         ! pools will be populated by looping over the existing patches
+                         ! and transfering in mass
+                         if(hlm_use_sp.eq.itrue)then
+                            litt_init = fates_unset_r8
+                         else
+                            litt_init = 0._r8
+                         end if
+                         do el=1,num_elements
+                            call newp%litter(el)%InitConditions(init_leaf_fines=litt_init, &
+                                 init_root_fines=litt_init, &
+                                 init_ag_cwd=litt_init, &
+                                 init_bg_cwd=litt_init, &
+                                 init_seed=litt_init,   &
+                                 init_seed_germ=litt_init)
+                         end do
+
+                         sitep => sites(s)
+                         call init_cohorts(sitep, newp, bc_in(s))
+
                       else
-                         litt_init = 0._r8
-                      end if
-                      do el=1,num_elements
-                         call newp%litter(el)%InitConditions(init_leaf_fines=litt_init, &
-                              init_root_fines=litt_init, &
-                              init_ag_cwd=litt_init, &
-                              init_bg_cwd=litt_init, &
-                              init_seed=litt_init,   &
-                              init_seed_germ=litt_init)
-                      end do
+                         area_error = area_error+ newparea
+                      end if new_patch_area_gt_zero
+                   end do new_patch_nocomp_loop
+                end if lu_state_present_if
+             end do luh_state_loop
+          end if not_all_baregground_if
 
-                      sitep => sites(s)
-                      call init_cohorts(sitep, newp, bc_in(s))
-
-                   end if new_patch_area_gt_zero
-                end do new_patch_nocomp_loop
-             end if lu_state_present_if
-          end do luh_state_loop
-
+          ! if we had to skip small patches above, resize things accordingly
+          if ( area_error .gt. nearzero) then
+             newp => sites(s)%oldest_patch
+             do while (associated(newp))
+                newp%area = newp%area * area/ (area - area_error)
+                newp => newp%younger
+             end do
+          endif
+          
           !check if the total area adds to the same as site area
           total = 0.0_r8
           newp => sites(s)%oldest_patch
@@ -929,6 +945,18 @@ contains
           call updateSizeDepRhizHydProps(sitep, bc_in(s))
        end do
     end if
+
+    ! check to make sure there are no very tiny patches
+    do s = 1, nsites
+       currentPatch => sites(s)%youngest_patch
+       do while(associated(currentPatch))
+          if (currentPatch%area .lt. min_init_patch_size) then
+             write(fates_log(),*) 'edinit somehow making tiny patches',currentPatch%land_use_label, currentPatch%nocomp_pft_label, currentPatch%area 
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+          currentPatch => currentPatch%older
+       end do
+    end do
 
     return
   end subroutine init_patches
