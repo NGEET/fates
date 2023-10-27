@@ -260,6 +260,10 @@ module FatesRestartInterfaceMod
   integer :: ir_woodprod_mbal
   integer :: ir_prt_base     ! Base index for all PRT variables
 
+  ! site-level input seed from dispersal
+  integer :: ir_seed_in_sift
+  integer :: ir_seed_out_sift
+
   ! Damage x damage or damage x size
   integer :: ir_imortrate_sicdpf
   integer :: ir_termnindiv_cano_sicdpf
@@ -1279,6 +1283,16 @@ contains
          units='0/1', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_area_pft_sift)
 
+    call this%set_restart_var(vname='fates_seed_in_site', vtype=cohort_r8, &
+         long_name='Site-level seed mass input from neighboring gridcells per pft', &
+         units='kg', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seed_in_sift )
+
+    call this%set_restart_var(vname='fates_seed_out_site', vtype=cohort_r8, &
+         long_name='Site-level seed mass output to neighboring gridcells per pft', &
+         units='kg', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seed_out_sift )
+
     call this%set_restart_var(vname='fates_fmortrate_canopy', vtype=cohort_r8, &
          long_name='fates diagnostics on fire mortality canopy', &
          units='indiv/ha/year', flushval = flushzero, &
@@ -2059,6 +2073,8 @@ contains
            rio_recrate_sift            => this%rvars(ir_recrate_sift)%r81d, &
            rio_use_this_pft_sift       => this%rvars(ir_use_this_pft_sift)%int1d, &
            rio_area_pft_sift           => this%rvars(ir_area_pft_sift)%r81d, &
+           rio_seed_in_sift            => this%rvars(ir_seed_in_sift)%r81d, &
+           rio_seed_out_sift            => this%rvars(ir_seed_out_sift)%r81d, &
            rio_fmortrate_cano_siscpf   => this%rvars(ir_fmortrate_cano_siscpf)%r81d, &
            rio_fmortrate_usto_siscpf   => this%rvars(ir_fmortrate_usto_siscpf)%r81d, &
            rio_imortrate_siscpf        => this%rvars(ir_imortrate_siscpf)%r81d, &
@@ -2177,6 +2193,8 @@ contains
              rio_dndaysleafon_sift(io_idx_si_pft)  = sites(s)%dndaysleafon(i_pft)
              rio_dndaysleafoff_sift(io_idx_si_pft) = sites(s)%dndaysleafoff(i_pft)
              rio_elong_factor_sift(io_idx_si_pft)  = sites(s)%elong_factor(i_pft)
+             rio_seed_in_sift(io_idx_si_pft)       = sites(s)%seed_in(i_pft)
+             rio_seed_out_sift(io_idx_si_pft)       = sites(s)%seed_out(i_pft)
              io_idx_si_pft = io_idx_si_pft + 1
           end do
 
@@ -3000,6 +3018,8 @@ contains
           rio_recrate_sift            => this%rvars(ir_recrate_sift)%r81d, &
           rio_use_this_pft_sift       => this%rvars(ir_use_this_pft_sift)%int1d, &
           rio_area_pft_sift           => this%rvars(ir_area_pft_sift)%r81d,&
+          rio_seed_in_sift            => this%rvars(ir_seed_in_sift)%r81d, &
+          rio_seed_out_sift            => this%rvars(ir_seed_out_sift)%r81d, &
           rio_fmortrate_cano_siscpf   => this%rvars(ir_fmortrate_cano_siscpf)%r81d, &
           rio_fmortrate_usto_siscpf   => this%rvars(ir_fmortrate_usto_siscpf)%r81d, &
           rio_imortrate_siscpf        => this%rvars(ir_imortrate_siscpf)%r81d, &
@@ -3115,6 +3135,8 @@ contains
              sites(s)%dndaysleafon(i_pft)   = rio_dndaysleafon_sift(io_idx_si_pft)
              sites(s)%dndaysleafoff(i_pft)  = rio_dndaysleafoff_sift(io_idx_si_pft)
              sites(s)%elong_factor(i_pft)   = rio_elong_factor_sift(io_idx_si_pft)
+             sites(s)%seed_in(i_pft)        = rio_seed_in_sift(io_idx_si_pft)
+             sites(s)%seed_out(i_pft)        = rio_seed_out_sift(io_idx_si_pft)
              io_idx_si_pft = io_idx_si_pft + 1
           end do
 

@@ -110,7 +110,11 @@ module EDPftvarcon
      real(r8), allocatable :: germination_rate(:)        ! Fraction of seed mass germinating per year (yr-1)
      real(r8), allocatable :: seed_decay_rate(:)         ! Fraction of seed mass (both germinated and
                                                          ! ungerminated), decaying per year    (yr-1)
-     
+     real(r8), allocatable :: seed_dispersal_pdf_scale(:)  ! Seed dispersal scale parameter, Bullock et al. (2017)
+     real(r8), allocatable :: seed_dispersal_pdf_shape(:)  ! Seed dispersal shape parameter, Bullock et al. (2017)
+     real(r8), allocatable :: seed_dispersal_max_dist(:) ! Maximum seed dispersal distance parameter (m)
+     real(r8), allocatable :: seed_dispersal_fraction(:) ! Fraction of seed rain to disperse, per pft
+
      real(r8), allocatable :: repro_frac_seed(:)         ! fraciton of reproductive carbon that is seed
      real(r8), allocatable :: a_emerg(:)                 ! mean fraction of seed bank emerging [day-1]
      real(r8), allocatable :: b_emerg(:)                 ! seedling emergence sensitivity to soil moisture
@@ -676,7 +680,23 @@ contains
     name = 'fates_frag_seed_decay_rate'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+         
+    name = 'fates_seed_dispersal_pdf_scale'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+         
+    name = 'fates_seed_dispersal_pdf_shape'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_seed_dispersal_max_dist'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)         
+
+    name = 'fates_seed_dispersal_fraction'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)         
+         
     name = 'fates_trim_limit'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -1116,6 +1136,22 @@ contains
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%seed_decay_rate)
 
+    name = 'fates_seed_dispersal_pdf_scale'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%seed_dispersal_pdf_scale)
+         
+    name = 'fates_seed_dispersal_pdf_shape'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%seed_dispersal_pdf_shape)
+
+    name = 'fates_seed_dispersal_max_dist'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%seed_dispersal_max_dist)
+         
+    name = 'fates_seed_dispersal_fraction'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%seed_dispersal_fraction)         
+              
     name = 'fates_trim_limit'
     call fates_params%RetrieveParameterAllocate(name=name, &
           data=this%trim_limit)
@@ -1651,6 +1687,10 @@ contains
         write(fates_log(),fmt0) 'jmaxse = ',EDPftvarcon_inst%jmaxse
         write(fates_log(),fmt0) 'germination_timescale = ',EDPftvarcon_inst%germination_rate
         write(fates_log(),fmt0) 'seed_decay_turnover = ',EDPftvarcon_inst%seed_decay_rate
+        write(fates_log(),fmt0) 'seed_dispersal_pdf_scale = ',EDPftvarcon_inst%seed_dispersal_pdf_scale
+        write(fates_log(),fmt0) 'seed_dispersal_pdf_shape = ',EDPftvarcon_inst%seed_dispersal_pdf_shape
+        write(fates_log(),fmt0) 'seed_dispersal_max_dist = ',EDPftvarcon_inst%seed_dispersal_max_dist
+        write(fates_log(),fmt0) 'seed_dispersal_fraction = ',EDPftvarcon_inst%seed_dispersal_fraction        
         write(fates_log(),fmt0) 'repro_frac_seed = ',EDPftvarcon_inst%repro_frac_seed
         write(fates_log(),fmt0) 'a_emerg = ',EDPftvarcon_inst%a_emerg
         write(fates_log(),fmt0) 'b_emerg = ',EDPftvarcon_inst%b_emerg
@@ -1883,6 +1923,68 @@ contains
           call endrun(msg=errMsg(sourcefile, __LINE__))
         end if 
 
+        ! Check that the seed dispersal parameters are all set if one of them is set
+        !-----------------------------------------------------------------------------------
+        if (( EDPftvarcon_inst%seed_dispersal_pdf_scale(ipft) < fates_check_param_set ) .and. &
+            (( EDPftvarcon_inst%seed_dispersal_max_dist(ipft) > fates_check_param_set  ) .or. &
+             (  EDPftvarcon_inst%seed_dispersal_pdf_shape(ipft) > fates_check_param_set  ) .or. &
+             (  EDPftvarcon_inst%seed_dispersal_fraction(ipft) > fates_check_param_set ))) then
+
+        write(fates_log(),*) 'Seed dispersal is on per fates_seed_dispersal_pdf_scale being set'
+        write(fates_log(),*) 'Please provide values for all other seed_dispersal parameters'
+        write(fates_log(),*) 'See Bullock et al. (2017) for reasonable values'
+        write(fates_log(),*) 'Aborting'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+
+        if (( EDPftvarcon_inst%seed_dispersal_pdf_shape(ipft) < fates_check_param_set ) .and. &
+            (( EDPftvarcon_inst%seed_dispersal_max_dist(ipft) > fates_check_param_set  ) .or. &
+             (  EDPftvarcon_inst%seed_dispersal_pdf_scale(ipft) > fates_check_param_set  ) .or. &
+             (  EDPftvarcon_inst%seed_dispersal_fraction(ipft) > fates_check_param_set ))) then
+
+        write(fates_log(),*) 'Seed dispersal is on per fates_seed_dispersal_pdf_shape being set'
+        write(fates_log(),*) 'Please provide values for all other seed_dispersal parameters'
+        write(fates_log(),*) 'See Bullock et al. (2017) for reasonable values'
+        write(fates_log(),*) 'Aborting'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+        
+        if (( EDPftvarcon_inst%seed_dispersal_max_dist(ipft) < fates_check_param_set ) .and. &
+            ((  EDPftvarcon_inst%seed_dispersal_pdf_shape(ipft) > fates_check_param_set  ) .or. &
+             (  EDPftvarcon_inst%seed_dispersal_pdf_scale(ipft) > fates_check_param_set  ) .or. &
+             (  EDPftvarcon_inst%seed_dispersal_fraction(ipft) > fates_check_param_set ))) then
+
+        write(fates_log(),*) 'Seed dispersal is on per seed_dispersal_max_dist being set'
+        write(fates_log(),*) 'Please provide values for all other seed_dispersal parameters'
+        write(fates_log(),*) 'See Bullock et al. (2017) for reasonable values'
+        write(fates_log(),*) 'Aborting'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+        
+        if (( EDPftvarcon_inst%seed_dispersal_fraction(ipft) < fates_check_param_set ) .and. &
+        ((  EDPftvarcon_inst%seed_dispersal_pdf_shape(ipft) > fates_check_param_set  ) .or. &
+         (  EDPftvarcon_inst%seed_dispersal_pdf_scale(ipft) > fates_check_param_set  ) .or. &
+         (  EDPftvarcon_inst%seed_dispersal_max_dist(ipft) > fates_check_param_set ))) then
+
+         write(fates_log(),*) 'Seed dispersal is on per seed_dispersal_fraction being set'
+         write(fates_log(),*) 'Please provide values for all other seed_dispersal parameters'
+         write(fates_log(),*) 'See Bullock et al. (2017) for reasonable values'
+         write(fates_log(),*) 'Aborting'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+        
+        ! Check that parameter ranges for the seed dispersal fraction make sense
+        !-----------------------------------------------------------------------------------
+        if (( EDPftvarcon_inst%seed_dispersal_fraction(ipft) < fates_check_param_set ) .and. &
+            ((  EDPftvarcon_inst%seed_dispersal_fraction(ipft) > 1.0_r8 ) .or. &
+             (  EDPftvarcon_inst%seed_dispersal_fraction(ipft) < 0.0_r8 ))) then
+
+        write(fates_log(),*) 'Seed dispersal is on per seed_dispersal_fraction being set'
+        write(fates_log(),*) 'Please make sure the fraction value is between 0 and 1'
+        write(fates_log(),*) 'Aborting'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+        
         ! Check that parameter ranges for age-dependent mortality make sense
         !-----------------------------------------------------------------------------------
         if ( ( EDPftvarcon_inst%mort_ip_age_senescence(ipft) < fates_check_param_set ) .and. &

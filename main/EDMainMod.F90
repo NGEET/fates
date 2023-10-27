@@ -45,7 +45,7 @@ module EDMainMod
   use EDPhysiologyMod          , only : satellite_phenology
   use EDPhysiologyMod          , only : recruitment
   use EDPhysiologyMod          , only : trim_canopy
-  use EDPhysiologyMod          , only : SeedIn
+  use EDPhysiologyMod          , only : SeedUpdate
   use EDPhysiologyMod          , only : ZeroAllocationRates
   use EDPhysiologyMod          , only : ZeroLitterFluxes
   use EDPhysiologyMod          , only : PreDisturbanceLitterFluxes
@@ -246,6 +246,8 @@ contains
 
           ! adds small cohort of each PFT
           call recruitment(currentSite, currentPatch, bc_in)
+          !YL --------------
+          ! call recruitment(currentSite, currentPatch, bc_in, bc_out)
 
           currentPatch => currentPatch%younger
        enddo
@@ -717,8 +719,8 @@ contains
     ! With growth and mortality rates now calculated we can determine the seed rain
     ! fluxes. However, because this is potentially a cross-patch mixing model
     ! we will calculate this as a group
-
-    call SeedIn(currentSite,bc_in)
+    
+    call SeedUpdate(currentSite)
 
     ! Calculate all other litter fluxes
     ! -----------------------------------------------------------------------------------
