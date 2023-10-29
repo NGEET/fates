@@ -104,6 +104,8 @@ module FatesRestartInterfaceMod
   integer :: ir_canopy_trim_co
   integer :: ir_l2fr_co
 
+  integer :: ir_year_net_up_co
+
   integer :: ir_cx_int_co
   integer :: ir_emadcxdt_co
   integer :: ir_cx0_co
@@ -1011,6 +1013,12 @@ contains
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_litter_moisture_pa_nfsc)
     end if
     
+
+    call this%RegisterCohortVector(symbol_base='fates_year_net_up', vtype=cohort_r8, &
+         long_name_base='yearly net uptake at leaf layers',  &
+         units='kg/m2/year', veclength=nlevleaf, flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_year_net_up_co )
+
     ! Site Level Diagnostics over multiple nutrients
 
 
@@ -2271,6 +2279,8 @@ contains
                    end do
                 end do
 
+                call this%SetCohortRealVector(ccohort%year_net_uptake,nlevleaf,ir_year_net_up_co,io_idx_co)
+
                 rio_l2fr_co(io_idx_co)         = ccohort%l2fr
                 
                 if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
@@ -3204,6 +3214,8 @@ contains
                 ccohort%crowndamage  = rio_crowndamage_co(io_idx_co)
                 ccohort%canopy_trim  = rio_canopy_trim_co(io_idx_co)
                 ccohort%l2fr         = rio_l2fr_co(io_idx_co)
+
+                call this%GetCohortRealVector(ccohort%year_net_uptake,nlevleaf,ir_year_net_up_co,io_idx_co)
 
                 if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
                    ccohort%cx_int       = this%rvars(ir_cx_int_co)%r81d(io_idx_co)

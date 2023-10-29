@@ -784,7 +784,8 @@ contains
     ! !LOCAL VARIABLES:
     type (fates_patch_type) , pointer :: currentPatch
     !-----------------------------------------------------------------------
-    if(hlm_use_sp.eq.ifalse)then
+
+    if(hlm_use_sp.eq.ifalse .and. (.not.is_restart))then
       call canopy_spread(currentSite)
     end if
 
@@ -831,10 +832,9 @@ contains
 
     ! FIX(RF,032414). This needs to be monthly, not annual
     ! If this is the second to last day of the year, then perform trimming
-    if( hlm_day_of_year == hlm_days_per_year-1) then
-
-     if(hlm_use_sp.eq.ifalse)then
-       call trim_canopy(currentSite)
+    if( hlm_day_of_year == hlm_days_per_year-1 .and. (.not.is_restart)) then
+       if(hlm_use_sp.eq.ifalse)then
+          call trim_canopy(currentSite)
      endif
     endif
 
