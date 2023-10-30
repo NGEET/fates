@@ -115,11 +115,6 @@ contains
     end do transitions_loop
 
 
-    ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    ! CDKCDK WARNING WARNING WARNING REVERT. THIS TURNS OFF ALL TRANSITIONS
-    landuse_transition_matrix(:,:) = 0._r8
-    ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    
   end subroutine get_landuse_transition_rates
 
   !----------------------------------------------------------------------------------------------------

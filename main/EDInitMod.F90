@@ -11,7 +11,7 @@ module EDInitMod
   use FatesConstantsMod         , only : primaryland
   use FatesConstantsMod         , only : nearzero
   use FatesConstantsMod         , only : rsnbl_math_prec
-  use FatesConstantsMod         , only : min_init_patch_size
+  use EDTypesMod                , only : min_patch_area_forced
   use FatesConstantsMod         , only : n_landuse_cats
   use FatesConstantsMod         , only : is_crop
   use FatesConstantsMod         , only : fates_unset_r8
@@ -102,7 +102,7 @@ module EDInitMod
   implicit none
   private
 
-  logical   ::  debug = .true.
+  logical   ::  debug = .false.
 
   integer :: istat           ! return status code
   character(len=255) :: smsg ! Message string for deallocation errors
@@ -724,7 +724,7 @@ contains
           make_bareground_patch_if: if (hlm_use_nocomp.eq.itrue .and. hlm_use_fixed_biogeog .eq.itrue) then
 
              newparea = area * sites(s)%area_bareground
-             if (newparea  .gt. min_init_patch_size) then
+             if (newparea  .gt. min_patch_area_forced) then
                 
                 allocate(newp)
  
@@ -765,7 +765,7 @@ contains
           not_all_baregground_if: if ((1._r8 - sites(s)%area_bareground) .gt. nearzero) then
              ! now make one or more vegetated patches based on nocomp and land use logic
              luh_state_loop: do i_lu_state = 1, end_landuse_idx
-                lu_state_present_if: if (state_vector(i_lu_state) .gt. rsnbl_math_prec) then
+                lu_state_present_if: if (state_vector(i_lu_state) .gt. nearzero) then
                    new_patch_nocomp_loop: do n = 1, num_nocomp_pfts
                       ! set the PFT index for patches if in nocomp mode.
                       if(hlm_use_nocomp.eq.itrue)then
@@ -791,7 +791,7 @@ contains
                          newparea = area * state_vector(i_lu_state)
                       end if  !nocomp mode
 
-                      new_patch_area_gt_zero: if(newparea .gt. min_init_patch_size) then ! Stop patches being initilialized when PFT not present in nocomop mode
+                      new_patch_area_gt_zero: if(newparea .gt. min_patch_area_forced) then ! Stop patches being initilialized when PFT not present in nocomop mode
                          allocate(newp)
 
                          call newp%Create(age, newparea, i_lu_state, nocomp_pft,     &
@@ -874,6 +874,17 @@ contains
 
              else !this is a big error not just a precision error.
                 write(fates_log(),*) 'issue with patch area in EDinit', area_diff, total
+                newp => sites(s)%oldest_patch
+                do while (associated(newp))
+                   write(fates_log(),*) newp%area, newp%nocomp_pft_label, newp%land_use_label
+                   newp => newp%younger
+                end do
+                write(fates_log(),*) 'state_vector', state_vector
+                write(fates_log(),*) 'area_error', area_error                
+                write(fates_log(),*) 'area_bareground', sites(s)%area_bareground
+                do i_lu_state = 1, end_landuse_idx
+                   write(fates_log(),*) 'sites(s)%area_pft(:,i_lu_state)',i_lu_state, sites(s)%area_pft(:,i_lu_state)
+                end do
                 call endrun(msg=errMsg(sourcefile, __LINE__))
              end if  ! big error
           end if ! too much patch area
@@ -950,7 +961,7 @@ contains
     do s = 1, nsites
        currentPatch => sites(s)%youngest_patch
        do while(associated(currentPatch))
-          if (currentPatch%area .lt. min_init_patch_size) then
+          if (currentPatch%area .lt. min_patch_area_forced) then
              write(fates_log(),*) 'edinit somehow making tiny patches',currentPatch%land_use_label, currentPatch%nocomp_pft_label, currentPatch%area 
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
