@@ -105,6 +105,7 @@ contains
       seed_stock = currentPatch%area * &
             (sum(litt%seed) + sum(litt%seed_germ))
 
+
       ! Total mass on living plants
       live_stock = 0._r8
       currentCohort => currentPatch%tallest

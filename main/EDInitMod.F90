@@ -208,12 +208,14 @@ contains
 
     ! Initialize the static soil
     ! arrays from the boundary (initial) condition
-
     site_in%zi_soil(:) = bc_in%zi_sisl(:)
     site_in%dz_soil(:) = bc_in%dz_sisl(:)
     site_in%z_soil(:)  = bc_in%z_sisl(:)
 
-    !
+    ! Seed dispersal
+    allocate(site_in%seed_in(1:numpft))
+    allocate(site_in%seed_out(1:numpft))
+
   end subroutine init_site_vars
 
   ! ============================================================================
@@ -338,6 +340,10 @@ contains
 
     ! canopy spread
     site_in%spread = 0._r8
+
+    ! Seed dispersal
+    site_in%seed_in(:) = 0.0_r8
+    site_in%seed_out(:) = 0.0_r8
 
     site_in%area_pft(:) = 0._r8
     site_in%use_this_pft(:) = fates_unset_int
@@ -823,7 +829,7 @@ contains
       real(r8)                         :: canopy_trim           ! fraction of the maximum leaf biomass that we are targeting [0-1]
       real(r8)                         :: cohort_n              ! cohort density
       real(r8)                         :: dbh                   ! cohort dbh [cm]
-      real(r8)                         :: hite                  ! cohort height [m]
+      real(r8)                         :: height                ! cohort height [m]
       real(r8)                         :: c_area                ! cohort crown area [m2]
       real(r8)                         :: c_agw                 ! above ground (non-leaf) biomass [kgC]
       real(r8)                         :: c_bgw                 ! below ground (non-fineroot) biomss [kgC]
@@ -953,21 +959,21 @@ contains
                   ! n.b. that this is the same as currentcohort%n = %initd(pft) &AREA
                   cohort_n = cohort_n*sum(site_in%use_this_pft)
                endif
-               hite = EDPftvarcon_inst%hgt_min(pft)
+               height = EDPftvarcon_inst%hgt_min(pft)
 
                ! h, dbh, leafc, n from SP values or from small initial size
                if (hlm_use_sp .eq. itrue) then
                   ! At this point, we do not know the bc_in values of tlai tsai and htop,
                   ! so this is initializing to an arbitrary value for the very first timestep.
                   ! Not sure if there's a way around this or not.
-                  hite = 0.5_r8
-                  call calculate_SP_properties(hite, 0.2_r8, 0.1_r8,         &
+                  height = 0.5_r8
+                  call calculate_SP_properties(height, 0.2_r8, 0.1_r8,         &
                      patch_in%area, pft, crown_damage, 1,                      &
                      EDPftvarcon_inst%vcmax25top(pft, 1), c_leaf, dbh,         &
                      cohort_n, c_area)
                else
                   ! calculate the plant diameter from height
-                  call h2d_allom(hite, pft, dbh)
+                  call h2d_allom(height, pft, dbh)
 
                   ! Calculate the leaf biomass from allometry
                   ! (calculates a maximum first, then applies canopy trim)
@@ -996,7 +1002,7 @@ contains
                        c_area)
 
                   ! calculate height from diameter
-                  call h_allom(dbh, pft, hite)
+                  call h_allom(dbh, pft, height)
  
                else
                   write(fates_log(),*) 'Negative fates_recruit_init_density can only be used in no comp mode'
@@ -1083,7 +1089,7 @@ contains
             call prt%CheckInitialConditions()
 
             call create_cohort(site_in, patch_in, pft, cohort_n,               &
-               hite, zero_co_age, dbh, prt, efleaf_coh,                             &
+               height, zero_co_age, dbh, prt, efleaf_coh,                      &
                effnrt_coh, efstem_coh, leaf_status, recruitstatus,             &
                canopy_trim, c_area, 1, crown_damage, site_in%spread, bc_in)
 
