@@ -957,13 +957,20 @@ contains
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 
-      if (c_dbh < 0._r8 .and. c_height < 0._r8) then
+      if (c_dbh < nearzero .and. c_height < nearzero) then
          write(fates_log(), *) 'inventory dbh: ', c_dbh
          write(fates_log(), *) 'and inventory height: ',c_height
-         write(fates_log(), *) 'are both zero. One must be positive.'
+         write(fates_log(), *) 'are both zero or negative. One must be positive.'
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 
+      if (c_dbh > nearzero .and. c_height > nearzero) then
+         write(fates_log(), *) 'inventory dbh: ', c_dbh
+         write(fates_log(), *) 'and inventory height: ',c_height
+         write(fates_log(), *) 'are both positive. One must be zero or negative.'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
+      
       if (c_dbh > abnormal_large_dbh ) then
          write(fates_log(), *) 'inventory dbh: ', c_nplant
          write(fates_log(), *) 'The inventory produced a cohort with very large diameter [cm]'
