@@ -423,8 +423,7 @@ contains
            harvest_rate = 0._r8
         endif
      else
-        write(fates_log(),*) 'errror - trying to log from patches that are neither primary nor secondary'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
+        harvest_rate = 0._r8
      endif
 
      ! calculate today's harvest rate

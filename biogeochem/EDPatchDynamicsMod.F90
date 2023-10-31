@@ -1365,7 +1365,24 @@ contains
              end do
              buffer_patch%tallest  => null()
              buffer_patch%shortest => null()
-          
+
+             ! Copy any means or timers from the original patch to the new patch
+             ! These values will inherit all info from the original patch
+             ! --------------------------------------------------------------------------
+             call buffer_patch%tveg24%CopyFromDonor(currentPatch%tveg24)
+             call buffer_patch%tveg_lpa%CopyFromDonor(currentPatch%tveg_lpa)
+             call buffer_patch%tveg_longterm%CopyFromDonor(currentPatch%tveg_longterm)
+
+             if ( regeneration_model == TRS_regeneration ) then
+                call buffer_patch%seedling_layer_par24%CopyFromDonor(currentPatch%seedling_layer_par24)
+                call buffer_patch%sdlng_mort_par%CopyFromDonor(currentPatch%sdlng_mort_par)
+                call buffer_patch%sdlng2sap_par%CopyFromDonor(currentPatch%sdlng2sap_par)
+                do pft = 1,numpft
+                   call buffer_patch%sdlng_emerg_smp(pft)%p%CopyFromDonor(currentPatch%sdlng_emerg_smp(pft)%p)
+                   call buffer_patch%sdlng_mdd(pft)%p%CopyFromDonor(currentPatch%sdlng_mdd(pft)%p)
+                enddo
+             end if
+                            
              currentPatch => currentSite%oldest_patch
              do while(associated(currentPatch))
                 if (currentPatch%changed_landuse_this_ts) then
@@ -1492,7 +1509,7 @@ contains
     type (fates_cohort_type), pointer :: currentCohort
     integer  :: tnull                        ! is there a tallest cohort?
     integer  :: snull                        ! is there a shortest cohort?
-
+    integer  :: pft
 
     ! first we need to make the new patch
     call new_patch%Create(0._r8, &
@@ -1521,6 +1538,16 @@ contains
     call new_patch%tveg_lpa%CopyFromDonor(currentPatch%tveg_lpa)
     call new_patch%tveg_longterm%CopyFromDonor(currentPatch%tveg_longterm)
 
+    if ( regeneration_model == TRS_regeneration ) then
+       call new_patch%seedling_layer_par24%CopyFromDonor(currentPatch%seedling_layer_par24)
+       call new_patch%sdlng_mort_par%CopyFromDonor(currentPatch%sdlng_mort_par)
+       call new_patch%sdlng2sap_par%CopyFromDonor(currentPatch%sdlng2sap_par)
+       do pft = 1,numpft
+          call new_patch%sdlng_emerg_smp(pft)%p%CopyFromDonor(currentPatch%sdlng_emerg_smp(pft)%p)
+          call new_patch%sdlng_mdd(pft)%p%CopyFromDonor(currentPatch%sdlng_mdd(pft)%p)
+       enddo
+    end if
+                            
     currentPatch%burnt_frac_litter(:) = 0._r8
     call TransLitterNewPatch( currentSite, currentPatch, new_patch, currentPatch%area * fraction_to_keep)
 

@@ -107,7 +107,8 @@ contains
        i_receiver = lumap%GetIndex(receiver_name)
 
        ! Avoid transitions with 'urban' as those are handled seperately
-       if (.not.(i_donor .eq. fates_unset_int .or. i_receiver .eq. fates_unset_int)) then
+       ! Also ignore diagonal elements of transition matrix.
+       if (.not.(i_donor .eq. fates_unset_int .or. i_receiver .eq. fates_unset_int .or. i_donor .eq. i_receiver)) then
           landuse_transition_matrix(i_donor,i_receiver) = &
                landuse_transition_matrix(i_donor,i_receiver) +  temp_vector(i_luh2_transitions) * years_per_day / (1._r8 - urban_fraction)
 
