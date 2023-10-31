@@ -54,7 +54,6 @@ module FatesHistoryInterfaceMod
   use FatesInterfaceTypesMod        , only : hlm_use_nocomp
   use FatesInterfaceTypesMod        , only : hlm_use_fixed_biogeog
   use FatesInterfaceTypesMod        , only : hlm_use_luh
-  use FatesLandUseChangeMod, only : get_landuse_transition_rates, get_init_landuse_transition_rates
   use FatesAllometryMod             , only : CrownDepth
   use FatesAllometryMod             , only : bstore_allom
   use FatesAllometryMod             , only : set_root_fraction
@@ -2325,8 +2324,6 @@ end subroutine flush_hvars
 
     integer :: tmp
 
-    real(r8) :: landuse_transition_matrix(n_landuse_cats,n_landuse_cats)
-
     associate( hio_npatches_si         => this%hvars(ih_npatches_si)%r81d, &
                hio_npatches_sec_si     => this%hvars(ih_npatches_sec_si)%r81d, &
                hio_ncohorts_si         => this%hvars(ih_ncohorts_si)%r81d, &
@@ -2756,19 +2753,10 @@ end subroutine flush_hvars
          end do
       end do
 
-      ! get the land sue transition matrix and output that to history. (mainly a sanity check, can maybe remove before integration)
-      if ( hlm_use_luh .eq. itrue ) then
-         if(.not. sites(s)%transition_landuse_from_off_to_on) then
-            call get_landuse_transition_rates(bc_in(s), landuse_transition_matrix)
-         else
-            call get_init_landuse_transition_rates(bc_in(s), landuse_transition_matrix)
-         endif
-      else
-         landuse_transition_matrix(:,:) = 0._r8
-      endif
+      ! get the land use transition matrix and output that to history. (mainly a sanity check, can maybe remove before integration)
       do i_dist = 1, n_landuse_cats
          do j_dist = 1, n_landuse_cats
-            hio_transition_matrix_si_lulu(io_si, i_dist+n_landuse_cats*(j_dist-1)) = landuse_transition_matrix(i_dist, j_dist)
+            hio_transition_matrix_si_lulu(io_si, i_dist+n_landuse_cats*(j_dist-1)) = sites(s)%landuse_transition_matrix(i_dist, j_dist)
          end do
       end do
       

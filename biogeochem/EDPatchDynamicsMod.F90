@@ -215,7 +215,6 @@ contains
     real(r8) :: mean_temp
     real(r8) :: harvestable_forest_c(hlm_num_lu_harvest_cats)
     integer  :: harvest_tag(hlm_num_lu_harvest_cats)
-    real(r8) :: landuse_transition_matrix(n_landuse_cats, n_landuse_cats)  ! [m2/m2/day]
     real(r8) :: current_fates_landuse_state_vector(n_landuse_cats)  ! [m2/m2]
     !----------------------------------------------------------------------------------------------
     ! Calculate Mortality Rates (these were previously calculated during growth derivatives)
@@ -287,12 +286,12 @@ contains
 
     if ( hlm_use_luh .eq. itrue ) then
        if(.not. site_in%transition_landuse_from_off_to_on) then
-          call get_landuse_transition_rates(bc_in, landuse_transition_matrix)
+          call get_landuse_transition_rates(bc_in, site_in%landuse_transition_matrix)
        else
-          call get_init_landuse_transition_rates(bc_in, landuse_transition_matrix)
+          call get_init_landuse_transition_rates(bc_in, site_in%landuse_transition_matrix)
        endif
     else
-       landuse_transition_matrix(:,:) = 0._r8
+       site_in%landuse_transition_matrix(:,:) = 0._r8
     endif
 
     ! calculate total area in each landuse category
@@ -337,7 +336,7 @@ contains
        ! Avoid this calculation to avoid NaN due to division by zero result if luh is not used or applying to bare ground
        if (hlm_use_luh .eq. itrue .and. currentPatch%land_use_label .gt. nocomp_bareground_land) then
           currentPatch%landuse_transition_rates(1:n_landuse_cats) = min(1._r8, &
-               landuse_transition_matrix(currentPatch%land_use_label,1:n_landuse_cats) / &
+               site_in%landuse_transition_matrix(currentPatch%land_use_label,1:n_landuse_cats) / &
                current_fates_landuse_state_vector(currentPatch%land_use_label))
        else
           currentPatch%landuse_transition_rates = 0.0_r8
