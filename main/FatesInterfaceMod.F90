@@ -70,8 +70,6 @@ module FatesInterfaceMod
    use SFParamsMod               , only : SpitFireRegisterParams, SpitFireReceiveParams
    use PRTInitParamsFATESMod     , only : PRTRegisterParams, PRTReceiveParams
    use FatesSynchronizedParamsMod, only : FatesSynchronizedParamsInst
-   ! TODO(jpalex): remove this direct reference to HLM code.
-   use CLMFatesParamInterfaceMod , only : HLM_FatesReadParameters => FatesReadParameters
    use EDParamsMod               , only : p_uptake_mode
    use EDParamsMod               , only : n_uptake_mode
    use EDTypesMod                , only : ed_site_type
@@ -750,21 +748,14 @@ contains
       logical,                    intent(in) :: use_fates    ! Is fates turned on?
       integer,                    intent(in) :: surf_numpft  ! Number of PFTs in surface dataset
       integer,                    intent(in) :: surf_numcft  ! Number of CFTs in surface dataset
-      ! TODO(jpalex): make non-optional once all HLMs pass it in.
-      class(fates_param_reader_type), optional, intent(in) :: param_reader ! HLM-provided param file reader
+      class(fates_param_reader_type), intent(in) :: param_reader ! HLM-provided param file reader
   
       integer :: fates_numpft  ! Number of PFTs tracked in FATES
       
       if (use_fates) then
          
          ! Self explanatory, read the fates parameter file
-         if (present(param_reader)) then
-           ! new, Fates-side.
-           call FatesReadParameters(param_reader)
-         else
-           ! old, HLM-side.
-           call HLM_FatesReadParameters()
-         end if
+         call FatesReadParameters(param_reader)
 
          fates_numpft = size(prt_params%wood_density,dim=1)
          
