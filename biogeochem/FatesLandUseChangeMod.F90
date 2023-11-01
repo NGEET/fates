@@ -16,6 +16,7 @@ module FatesLandUseChangeMod
   use FatesInterfaceTypesMod    , only : hlm_num_luh2_states
   use FatesInterfaceTypesMod    , only : hlm_num_luh2_transitions
   use EDTypesMod           , only : area_site => area
+  use FatesInterfaceTypesMod    , only : hlm_use_potentialveg
 
   ! CIME globals
   use shr_log_mod          , only : errMsg => shr_log_errMsg
@@ -84,37 +85,41 @@ contains
     landuse_transition_matrix(:,:) = 0._r8
     urban_fraction = 0._r8
 
-    ! Check the LUH data incoming to see if any of the transitions are NaN
-    temp_vector = bc_in%hlm_luh_transitions
-    call CheckLUHData(temp_vector,modified_flag)
-    if (.not. modified_flag) then
-       ! identify urban fraction so that it can be factored into the land use state output
-       urban_fraction = bc_in%hlm_luh_states(findloc(bc_in%hlm_luh_state_names,'urban',dim=1))
-    end if
+    ! if we are using potential veg only, then keep all transitions equal to zero.
+    if ( .not. hlm_use_potentialveg ) then
 
-    !!TODO: may need some logic here to ask whether or not ot perform land use change on this timestep. current code occurs every day.
-    !!If not doing transition every day, need to update units.
-
-    transitions_loop: do i_luh2_transitions = 1, hlm_num_luh2_transitions
-
-       ! transition names are written in form xxxxx_to_yyyyy where x and y are donor and receiver state names
-       transition_name = bc_in%hlm_luh_transition_names(i_luh2_transitions)
-       donor_name = transition_name(1:5)
-       receiver_name = transition_name(10:14)
-
-       ! Get the fates land use type index associated with the luh2 state types
-       i_donor= lumap%GetIndex(donor_name)
-       i_receiver = lumap%GetIndex(receiver_name)
-
-       ! Avoid transitions with 'urban' as those are handled seperately
-       ! Also ignore diagonal elements of transition matrix.
-       if (.not.(i_donor .eq. fates_unset_int .or. i_receiver .eq. fates_unset_int .or. i_donor .eq. i_receiver)) then
-          landuse_transition_matrix(i_donor,i_receiver) = &
-               landuse_transition_matrix(i_donor,i_receiver) +  temp_vector(i_luh2_transitions) * years_per_day / (1._r8 - urban_fraction)
-
+       ! Check the LUH data incoming to see if any of the transitions are NaN
+       temp_vector = bc_in%hlm_luh_transitions
+       call CheckLUHData(temp_vector,modified_flag)
+       if (.not. modified_flag) then
+          ! identify urban fraction so that it can be factored into the land use state output
+          urban_fraction = bc_in%hlm_luh_states(findloc(bc_in%hlm_luh_state_names,'urban',dim=1))
        end if
-    end do transitions_loop
 
+       !!TODO: may need some logic here to ask whether or not ot perform land use change on this timestep. current code occurs every day.
+       !!If not doing transition every day, need to update units.
+
+       transitions_loop: do i_luh2_transitions = 1, hlm_num_luh2_transitions
+
+          ! transition names are written in form xxxxx_to_yyyyy where x and y are donor and receiver state names
+          transition_name = bc_in%hlm_luh_transition_names(i_luh2_transitions)
+          donor_name = transition_name(1:5)
+          receiver_name = transition_name(10:14)
+
+          ! Get the fates land use type index associated with the luh2 state types
+          i_donor= lumap%GetIndex(donor_name)
+          i_receiver = lumap%GetIndex(receiver_name)
+
+          ! Avoid transitions with 'urban' as those are handled seperately
+          ! Also ignore diagonal elements of transition matrix.
+          if (.not.(i_donor .eq. fates_unset_int .or. i_receiver .eq. fates_unset_int .or. i_donor .eq. i_receiver)) then
+             landuse_transition_matrix(i_donor,i_receiver) = &
+                  landuse_transition_matrix(i_donor,i_receiver) +  temp_vector(i_luh2_transitions) * years_per_day / (1._r8 - urban_fraction)
+
+          end if
+       end do transitions_loop
+
+    end if
 
   end subroutine get_landuse_transition_rates
 
@@ -239,33 +244,37 @@ contains
     state_vector(:) = 0._r8
     urban_fraction = 0._r8
 
-    ! Check to see if the incoming state vector is NaN.
-    temp_vector = bc_in%hlm_luh_states
-    call CheckLUHData(temp_vector,modified_flag)
-    if (.not. modified_flag) then
-       ! identify urban fraction so that it can be factored into the land use state output
-       urban_fraction = bc_in%hlm_luh_states(findloc(bc_in%hlm_luh_state_names,'urban',dim=1))
-    end if
-
-    ! loop over all states and add up the ones that correspond to a given fates land use type
-    do i_luh2_states = 1, hlm_num_luh2_states
-
-       ! Get the luh2 state name and determine fates aggregated land use
-       ! type index from the state to lutype map
-       state_name = bc_in%hlm_luh_state_names(i_luh2_states)
-       ii = lumap%GetIndex(state_name)
-
-       ! Avoid 'urban' states whose indices have been given unset values
-       if (ii .ne. fates_unset_int) then
-          state_vector(ii) = state_vector(ii) + &
-               temp_vector(i_luh2_states) / (1._r8 - urban_fraction)
+    if ( .not. hlm_use_potentialveg ) then
+       ! Check to see if the incoming state vector is NaN.
+       temp_vector = bc_in%hlm_luh_states
+       call CheckLUHData(temp_vector,modified_flag)
+       if (.not. modified_flag) then
+          ! identify urban fraction so that it can be factored into the land use state output
+          urban_fraction = bc_in%hlm_luh_states(findloc(bc_in%hlm_luh_state_names,'urban',dim=1))
        end if
-    end do
 
-    ! check to ensure total area == 1, and correct if not
-    if ( abs(sum(state_vector(:)) - 1._r8) .gt. nearzero ) then
-       write(fates_log(),*) 'warning: sum(state_vector) = ', sum(state_vector(:))
-       state_vector = state_vector(:) / sum(state_vector(:))
+       ! loop over all states and add up the ones that correspond to a given fates land use type
+       do i_luh2_states = 1, hlm_num_luh2_states
+
+          ! Get the luh2 state name and determine fates aggregated land use
+          ! type index from the state to lutype map
+          state_name = bc_in%hlm_luh_state_names(i_luh2_states)
+          ii = lumap%GetIndex(state_name)
+
+          ! Avoid 'urban' states whose indices have been given unset values
+          if (ii .ne. fates_unset_int) then
+             state_vector(ii) = state_vector(ii) + &
+                  temp_vector(i_luh2_states) / (1._r8 - urban_fraction)
+          end if
+       end do
+
+       ! check to ensure total area == 1, and correct if not
+       if ( abs(sum(state_vector(:)) - 1._r8) .gt. nearzero ) then
+          write(fates_log(),*) 'warning: sum(state_vector) = ', sum(state_vector(:))
+          state_vector = state_vector(:) / sum(state_vector(:))
+       end if
+    else
+       state_vector(primaryland) = 1._r8
     end if
 
   end subroutine get_luh_statedata

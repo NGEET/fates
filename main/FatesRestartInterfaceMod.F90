@@ -25,7 +25,7 @@ module FatesRestartInterfaceMod
   use FatesInterfaceTypesMod,  only : hlm_parteh_mode
   use FatesInterfaceTypesMod,  only : hlm_use_sp
   use FatesInterfaceTypesMod,  only : hlm_use_nocomp, hlm_use_fixed_biogeog
-  use FatesInterfaceTypesMod,  only : hlm_use_luh
+  use FatesInterfaceTypesMod,  only : hlm_use_potentialveg
   use FatesInterfaceTypesMod,  only : fates_maxElementsPerSite
   use FatesInterfaceTypesMod,  only : hlm_use_tree_damage
   use FatesHydraulicsMemMod,   only : nshell
@@ -712,7 +712,7 @@ contains
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_trunk_product_si )
 
     call this%set_restart_var(vname='fates_landuse_config_site', vtype=site_int, &
-         long_name='hlm_use_luh status of run that created this restart file', &
+         long_name='hlm_use_potentialveg status of run that created this restart file', &
          units='kgC/m2', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_landuse_config_si )
 
@@ -2614,7 +2614,7 @@ contains
           rio_trunk_product_si(io_idx_si) = sites(s)%resources_management%trunk_product_site
 
           ! land use flag
-          rio_landuse_config_si(io_idx_si) = hlm_use_luh
+          rio_landuse_config_si(io_idx_si) = hlm_use_potentialveg
 
           ! set numpatches for this column
 
@@ -3605,7 +3605,7 @@ contains
 
           ! if needed, trigger the special procedure to initialize land use structure from a
           ! restart run that did not include land use.
-          if (rio_landuse_config_si(io_idx_si) .eq. ifalse .and. hlm_use_luh .eq. itrue) then
+          if (rio_landuse_config_si(io_idx_si) .eq. itrue .and. hlm_use_potentialveg .eq. ifalse) then
              sites(s)%transition_landuse_from_off_to_on = .true.
           endif
 

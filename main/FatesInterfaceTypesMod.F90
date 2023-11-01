@@ -121,6 +121,7 @@ module FatesInterfaceTypesMod
                                                          ! bc_in%hlm_harvest_rates and bc_in%hlm_harvest_catnames
 
    integer, public :: hlm_use_luh                   ! flag to signal whether or not to use luh2 drivers
+   integer, public :: hlm_use_potentialveg          ! flag to signal whether or not to use potential vegetation only
    integer, public :: hlm_num_luh2_states           ! number of land use state types provided in LUH2 forcing dataset
 
    integer, public :: hlm_num_luh2_transitions      ! number of land use transition types provided in LUH2 forcing dataset
