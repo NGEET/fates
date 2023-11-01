@@ -29,6 +29,7 @@ module FatesInventoryInitMod
    use FatesConstantsMod, only : r8 => fates_r8
    use FatesConstantsMod, only : pi_const
    use FatesConstantsMod, only : itrue
+   use FatesConstantsMod, only : nearzero
    use FatesGlobals     , only : endrun => fates_endrun
    use FatesGlobals     , only : fates_log
    use EDParamsMod      , only : regeneration_model
