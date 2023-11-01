@@ -11,9 +11,7 @@ module FatesInventoryInitMod
    !   site, or a small collection of sparse/irregularly spaced group of sites
    !
    ! Created: Ryan Knox June 2017
-   ! This code borrows heavily in concept from what is done in ED2.  We will also do our best to
-   ! maintain compatibility with the PSS/CSS file formats that were used in ED2.
-   ! See: https://github.com/EDmodel/ED2/blob/master/ED/src/io/ed_read_ed10_20_history.f90
+   ! This code borrows heavily in concept from what is done in ED2.  
    ! At the time of writing this ED2 is unlicensed, and only concepts were borrowed with no direct
    ! code copied.
    !
@@ -295,7 +293,7 @@ contains
 
 
             if( inv_format_list(invsite) == 1 ) then
-               call set_inventory_edpatch_type1(newpatch,pss_file_unit,ipa,ios,patch_name)
+               call set_inventory_patch_type1(newpatch,pss_file_unit,ipa,ios,patch_name)
             end if
 
             ! Add it to the site's patch list
@@ -384,7 +382,7 @@ contains
 
          invcohortloop: do
             if ( inv_format_list(invsite) == 1 ) then
-               call set_inventory_edcohort_type1(sites(s),bc_in(s),css_file_unit, &
+               call set_inventory_cohort_type1(sites(s),bc_in(s),css_file_unit, &
                      npatches, patch_pointer_vec,patch_name_vec, ios)
             end if
             if ( ios/=0 ) exit
@@ -621,8 +619,8 @@ contains
       !
       ! type            integer          We will accomodate different file format with different
       !                                  field values as the need arises. format 1 will read in
-      !                                  datasets via "set_inventory_edpatch_type1()",
-      !                                  "set_inventory_edcohort_type1()"
+      !                                  datasets via "set_inventory_patch_type1()",
+      !                                  "set_inventory_cohort_type1()"
       !
       ! latitude        float            The geographic latitude coordinate of the site
       ! longitude       float            The geogarphic longitude coordinate of the site
@@ -734,7 +732,7 @@ contains
 
    ! ==============================================================================================
 
-   subroutine set_inventory_edpatch_type1(newpatch,pss_file_unit,ipa,ios,patch_name)
+   subroutine set_inventory_patch_type1(newpatch,pss_file_unit,ipa,ios,patch_name)
 
       ! --------------------------------------------------------------------------------------------
       ! This subroutine reads in a line of an inventory patch file (pss)
@@ -823,12 +821,12 @@ contains
       end do
 
       return
-   end subroutine set_inventory_edpatch_type1
+   end subroutine set_inventory_patch_type1
 
 
    ! ==============================================================================================
 
-   subroutine set_inventory_edcohort_type1(csite,bc_in,css_file_unit,npatches, &
+   subroutine set_inventory_cohort_type1(csite,bc_in,css_file_unit,npatches, &
                                            patch_pointer_vec,patch_name_vec,ios)
 
       ! --------------------------------------------------------------------------------------------
@@ -842,8 +840,8 @@ contains
       ! FILE FORMAT:
       ! time	(year)     year of measurement
       ! patch	(string)   patch id string associated with this cohort
-      ! dbh	(cm)       diameter at breast height
-      ! height  (m)        height of vegetation in m. Currently not used. 
+      ! dbh	(cm)       diameter at breast height. Optional, set height to negative if used
+      ! height  (m)        height of vegetation in m. Optional, set dbh to negative if used
       ! pft     (integer)  the plant functional type index (must be consistent with param file)
       ! n 	(/m2)      The plant number density
       ! --------------------------------------------------------------------------------------------
@@ -912,6 +910,7 @@ contains
 
       real(r8), parameter :: abnormal_large_nplant = 1000.0_r8  ! Used to catch bad values
       real(r8), parameter :: abnormal_large_dbh    = 500.0_r8   ! I've never heard of a tree > 3m
+      real(r8), parameter :: abnormal_large_height = 500.0_r8   ! I've never heard of a tree > 500m tall
       integer,  parameter :: recruitstatus = 0
 
      
@@ -958,15 +957,29 @@ contains
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 
-      if (c_dbh <=0 ) then
+      if (c_dbh < nearzero .and. c_height < nearzero) then
          write(fates_log(), *) 'inventory dbh: ', c_dbh
-         write(fates_log(), *) 'The inventory produced a cohort with <= 0 dbh'
+         write(fates_log(), *) 'and inventory height: ',c_height
+         write(fates_log(), *) 'are both zero or negative. One must be positive.'
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 
+      if (c_dbh > nearzero .and. c_height > nearzero) then
+         write(fates_log(), *) 'inventory dbh: ', c_dbh
+         write(fates_log(), *) 'and inventory height: ',c_height
+         write(fates_log(), *) 'are both positive. One must be zero or negative.'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
+      
       if (c_dbh > abnormal_large_dbh ) then
          write(fates_log(), *) 'inventory dbh: ', c_nplant
          write(fates_log(), *) 'The inventory produced a cohort with very large diameter [cm]'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
+
+      if (c_height > abnormal_large_height ) then
+         write(fates_log(), *) 'inventory height: ', c_height
+         write(fates_log(), *) 'The inventory produced a cohort with very large height [m]'
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 
@@ -1005,10 +1018,17 @@ contains
          endif
 
          temp_cohort%n           = c_nplant * cpatch%area / real(ncohorts_to_create,r8)
-         temp_cohort%dbh         = c_dbh
+         
          temp_cohort%crowndamage = 1  ! assume undamaged 
 
-         call h_allom(c_dbh,temp_cohort%pft,temp_cohort%height)
+         if( c_dbh> 0._r8)then
+            temp_cohort%dbh         = c_dbh
+            call h_allom(c_dbh,temp_cohort%pft,temp_cohort%height)
+         else
+            temp_cohort%height  = c_height
+            call h2d_allom(c_height,temp_cohort%pft,temp_cohort%dbh)
+         end if
+            
          temp_cohort%canopy_trim = 1.0_r8
 
          ! Determine the phenology status and the elongation factors.
@@ -1177,7 +1197,7 @@ contains
       end do
 
       return
-    end subroutine set_inventory_edcohort_type1
+    end subroutine set_inventory_cohort_type1
 
    ! ====================================================================================
 
@@ -1185,9 +1205,7 @@ contains
 
        ! --------------------------------------------------------------------------------
        ! This subroutine writes the cohort/patch inventory type files in the "type 1"
-       ! format.  Note that for compatibility with ED2, we chose an old type that has
-       ! both extra unused fields and is missing fields from FATES. THis is not
-       ! a recommended file type for restarting a run.
+       ! format.
        ! The files will have a lat/long tag added to their name, and will be
        ! generated in the run folder.
        ! JFN Oct 2023 - updated to get rid of unused ED columns      
