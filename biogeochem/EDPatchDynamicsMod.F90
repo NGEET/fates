@@ -110,7 +110,7 @@ module EDPatchDynamicsMod
   use FatesRunningMeanMod,    only : ema_sdlng_mdd
   use FatesRunningMeanMod,    only : ema_sdlng_emerg_h2o, ema_sdlng_mort_par, ema_sdlng2sap_par
   use FatesRunningMeanMod,    only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm
-  
+
   ! CIME globals
   use shr_infnan_mod       , only : nan => shr_infnan_nan, assignment(=)
   use shr_log_mod          , only : errMsg => shr_log_errMsg
@@ -288,6 +288,7 @@ contains
        if(.not. site_in%transition_landuse_from_off_to_on) then
           call get_landuse_transition_rates(bc_in, site_in%landuse_transition_matrix)
        else
+          write(fates_log(),*) 'transitioning from potential vegetation to actual land use'
           call get_init_landuse_transition_rates(bc_in, site_in%landuse_transition_matrix)
        endif
     else

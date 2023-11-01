@@ -1891,7 +1891,7 @@ contains
                   write(fates_log(),*) 'Transfering hlm_use_luh = ',ival,' to FATES'
                end if
 
-            case('use_potentialveg')
+            case('use_fates_potentialveg')
                hlm_use_potentialveg = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_potentialveg = ',ival,' to FATES'
