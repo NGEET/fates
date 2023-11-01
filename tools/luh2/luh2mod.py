@@ -66,6 +66,9 @@ def PrepDataset(input_dataset,start=None,stop=None,merge_flag=False):
             # the start/stop is out of range
             input_dataset = input_dataset.sel(time=slice(years_since_start,years_since_stop))
 
+            # Save the timesince as a variable for future use
+            input_dataset["timesince"] = time_since
+
         # Correct the necessary variables for both datasets
         # We don't need to Prep the incoming dataset if it's being opened to merge
         if(not merge_flag):

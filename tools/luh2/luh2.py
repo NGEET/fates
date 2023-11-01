@@ -59,10 +59,12 @@ def main():
 
     # Add additional required variables for the host land model
     # Add 'YEAR' as a variable.
-    # This is an old requirement of the HLM and should simply be a copy of the `time` dimension
     # If we are merging, we might not need to do this, so check to see if its there already
+    # This is a requirement of the HLM dyn_subgrid module and should be the actual year.
+    # Note that the time variable from the LUH2 data is 'years since ...' so we need to
+    # add the input data year
     if (not "YEAR" in list(regrid_luh2.variables)):
-        regrid_luh2["YEAR"] = regrid_luh2.time
+        regrid_luh2["YEAR"] = regrid_luh2.time + regrid_luh2.timesince
         regrid_luh2["LONGXY"] = ds_regrid_target["LONGXY"] # TO DO: double check if this is strictly necessary
         regrid_luh2["LATIXY"] = ds_regrid_target["LATIXY"] # TO DO: double check if this is strictly necessary
 
