@@ -507,7 +507,7 @@ contains
     real(r8) :: disturbance_rate             ! rate of disturbance being resolved [fraction of patch area / day]
     real(r8) :: oldarea                      ! old patch area prior to disturbance
     logical  :: clearing_matrix(n_landuse_cats,n_landuse_cats)  ! do we clear vegetation when transferring from one LU type to another?
-    type (fates_patch_type) , pointer :: buffer_patch, temp_patch
+    type (fates_patch_type) , pointer :: buffer_patch, temp_patch, copyPatch, previousPatch
     real(r8) :: nocomp_pft_area_vector(numpft)
     real(r8) :: nocomp_pft_area_vector_allocated(numpft)
     real(r8) :: fraction_to_keep
@@ -1339,6 +1339,7 @@ contains
           do while(associated(currentPatch))
              if (currentPatch%changed_landuse_this_ts .and. currentPatch%land_use_label .eq. i_land_use_label) then
                 nocomp_pft_area_vector(currentPatch%nocomp_pft_label) = nocomp_pft_area_vector(currentPatch%nocomp_pft_label) + currentPatch%area
+                copyPatch => currentPatch
              end if
              currentPatch => currentPatch%younger
           end do
@@ -1369,17 +1370,17 @@ contains
              ! Copy any means or timers from the original patch to the new patch
              ! These values will inherit all info from the original patch
              ! --------------------------------------------------------------------------
-             call buffer_patch%tveg24%CopyFromDonor(currentPatch%tveg24)
-             call buffer_patch%tveg_lpa%CopyFromDonor(currentPatch%tveg_lpa)
-             call buffer_patch%tveg_longterm%CopyFromDonor(currentPatch%tveg_longterm)
+             call buffer_patch%tveg24%CopyFromDonor(copyPatch%tveg24)
+             call buffer_patch%tveg_lpa%CopyFromDonor(copyPatch%tveg_lpa)
+             call buffer_patch%tveg_longterm%CopyFromDonor(copyPatch%tveg_longterm)
 
              if ( regeneration_model == TRS_regeneration ) then
-                call buffer_patch%seedling_layer_par24%CopyFromDonor(currentPatch%seedling_layer_par24)
-                call buffer_patch%sdlng_mort_par%CopyFromDonor(currentPatch%sdlng_mort_par)
-                call buffer_patch%sdlng2sap_par%CopyFromDonor(currentPatch%sdlng2sap_par)
+                call buffer_patch%seedling_layer_par24%CopyFromDonor(copyPatch%seedling_layer_par24)
+                call buffer_patch%sdlng_mort_par%CopyFromDonor(copyPatch%sdlng_mort_par)
+                call buffer_patch%sdlng2sap_par%CopyFromDonor(copyPatch%sdlng2sap_par)
                 do pft = 1,numpft
-                   call buffer_patch%sdlng_emerg_smp(pft)%p%CopyFromDonor(currentPatch%sdlng_emerg_smp(pft)%p)
-                   call buffer_patch%sdlng_mdd(pft)%p%CopyFromDonor(currentPatch%sdlng_mdd(pft)%p)
+                   call buffer_patch%sdlng_emerg_smp(pft)%p%CopyFromDonor(copyPatch%sdlng_emerg_smp(pft)%p)
+                   call buffer_patch%sdlng_mdd(pft)%p%CopyFromDonor(copyPatch%sdlng_mdd(pft)%p)
                 enddo
              end if
                             
@@ -1390,7 +1391,9 @@ contains
                    if (fraction_to_keep .lt. nearzero) then
                       ! we don't want any patch area with this PFT idendity at all anymore. Fuse it into the buffer patch.
                       currentPatch%nocomp_pft_label = 0
+                      previousPatch => currentPatch%older 
                       call fuse_2_patches(currentSite, currentPatch, buffer_patch)
+                      currentPatch => previousPatch
                    elseif (fraction_to_keep .lt. (1._r8 - nearzero)) then
                       ! we have more patch are of this PFT than we want, but we do want to keep some of it.
                       ! we want to split the patch into two here. leave one patch as-is, and put the rest into the buffer patch.
