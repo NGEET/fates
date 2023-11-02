@@ -3606,6 +3606,7 @@ contains
           ! if needed, trigger the special procedure to initialize land use structure from a
           ! restart run that did not include land use.
           if (rio_landuse_config_si(io_idx_si) .eq. itrue .and. hlm_use_potentialveg .eq. ifalse) then
+             write(fates_log(),*), 'setting transition_landuse_from_off_to_on flag based on restart potentialveg value.'
              sites(s)%transition_landuse_from_off_to_on = .true.
           endif
 
