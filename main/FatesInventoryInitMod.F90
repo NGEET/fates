@@ -168,10 +168,12 @@ contains
       character(len=patchname_strlen), allocatable :: patch_name_vec(:)    ! vector of patch ID strings
       real(r8)                                     :: basal_area_postf     ! basal area before fusion (m2/ha)
       real(r8)                                     :: basal_area_pref      ! basal area after fusion (m2/ha)
-      real(r8)                                     :: min_patch_age
-      real(r8)                                     :: max_patch_age
-      real(r8)                                     :: min_cohort_dbh
-      real(r8)                                     :: max_cohort_dbh
+      real(r8)                                     :: n_pref
+      real(r8)                                     :: n_postf
+ !     real(r8)                                     :: min_patch_age
+!      real(r8)                                     :: max_patch_age
+!      real(r8)                                     :: min_cohort_dbh
+!     real(r8)                                     :: max_cohort_dbh
       
 
       ! I. Load the inventory list file, do some file handle checks
@@ -406,137 +408,139 @@ contains
          deallocate(patch_pointer_vec,patch_name_vec)
 
          
-         ! if all patches are identical in age and biomass then don't change the order of the LL
-         min_patch_age  = 0._r8
-         max_patch_age  = 0._r8
-         min_cohort_dbh = 100000._r8
-         max_cohort_dbh = 0._r8
+         ! ! if all patches are identical in age and biomass then don't change the order of the LL
+         ! min_patch_age  = 0._r8
+         ! max_patch_age  = 0._r8
+         ! min_cohort_dbh = 100000._r8
+         ! max_cohort_dbh = 0._r8
 
-         ! get min and max patch age and cohort dbh
-         currentpatch => sites(s)%youngest_patch
-         do while(associated(currentpatch))
+         ! ! get min and max patch age and cohort dbh
+         ! currentpatch => sites(s)%youngest_patch
+         ! do while(associated(currentpatch))
 
-            if ( currentpatch%age > max_patch_age ) then
-               max_patch_age = currentpatch%age
-            else if ( currentpatch%age <  min_patch_age ) then
-               min_patch_age = currentpatch%age
-            end if
+         !    if ( currentpatch%age > max_patch_age ) then
+         !       max_patch_age = currentpatch%age
+         !    else if ( currentpatch%age <  min_patch_age ) then
+         !       min_patch_age = currentpatch%age
+         !    end if
 
-            currentcohort => currentpatch%tallest
-            do while(associated(currentcohort))
+         !    currentcohort => currentpatch%tallest
+         !    do while(associated(currentcohort))
 
-               if ( currentcohort%dbh > max_cohort_dbh ) then
-                  max_cohort_dbh = currentcohort%dbh
-               else if ( currentcohort%dbh <  min_cohort_dbh ) then
-                  min_cohort_dbh = currentcohort%dbh
-               end if
+         !       if ( currentcohort%dbh > max_cohort_dbh ) then
+         !          max_cohort_dbh = currentcohort%dbh
+         !       else if ( currentcohort%dbh <  min_cohort_dbh ) then
+         !          min_cohort_dbh = currentcohort%dbh
+         !       end if
 
-               currentcohort => currentcohort%shorter
-            end do
-            currentPatch => currentpatch%older
-         enddo
+         !       currentcohort => currentcohort%shorter
+         !    end do
+         !    currentPatch => currentpatch%older
+         ! enddo
 
-         if  (debug_inv) then
-            write(fates_log(),*)  'min patch age', min_patch_age
-            write(fates_log(),*)  'max patch age', max_patch_age
-            write(fates_log(),*)  'min cohort dbh', min_cohort_dbh
-            write(fates_log(),*)  'max cohort dbh', max_cohort_dbh
-         end if
+         ! if  (debug_inv) then
+         !    write(fates_log(),*)  'min patch age', min_patch_age
+         !    write(fates_log(),*)  'max patch age', max_patch_age
+         !    write(fates_log(),*)  'min cohort dbh', min_cohort_dbh
+         !    write(fates_log(),*)  'max cohort dbh', max_cohort_dbh
+         ! end if
          
-         if ( min_patch_age .eq. max_patch_age .and. min_cohort_dbh .eq. max_cohort_dbh ) then
+         ! if ( min_patch_age .eq. max_patch_age .and. min_cohort_dbh .eq. max_cohort_dbh ) then
 
-            if(debug_inv)then
-               write(fates_log(), *) 'All patches and cohorts are identical'
-            end if
+         !    if(debug_inv)then
+         !       write(fates_log(), *) 'All patches and cohorts are identical'
+         !    end if
 
             
-            ! now that we've read in the patch and cohort info, check to see if there is any real age info
-         else if ( abs(sites(s)%youngest_patch%age - sites(s)%oldest_patch%age) <= nearzero .and. &
-              associated(sites(s)%youngest_patch%older) ) then
+         !    ! now that we've read in the patch and cohort info, check to see if there is any real age info
+         ! else if ( abs(sites(s)%youngest_patch%age - sites(s)%oldest_patch%age) <= nearzero .and. &
+         !      associated(sites(s)%youngest_patch%older) ) then
 
-            ! so there are at least two patches and the oldest and youngest are the same age.
-            ! this means that sorting by age wasn't very useful.  try sorting by total biomass instead
+         !    ! so there are at least two patches and the oldest and youngest are the same age.
+         !    ! this means that sorting by age wasn't very useful.  try sorting by total biomass instead
 
-            ! first calculate the biomass in each patch.  simplest way is to use the patch fusion criteria
-            currentpatch => sites(s)%youngest_patch
-            do while(associated(currentpatch))
-               call patch_pft_size_profile(currentPatch)
-               currentPatch => currentpatch%older
-            enddo
+         !    ! first calculate the biomass in each patch.  simplest way is to use the patch fusion criteria
+         !    currentpatch => sites(s)%youngest_patch
+         !    do while(associated(currentpatch))
+         !       call patch_pft_size_profile(currentPatch)
+         !       currentPatch => currentpatch%older
+         !    enddo
 
-            ! now we need to sort them.
-            ! first generate a new head of the linked list.
-            head_of_unsorted_patch_list => sites(s)%youngest_patch%older
+         !    ! now we need to sort them.
+         !    ! first generate a new head of the linked list.
+         !    head_of_unsorted_patch_list => sites(s)%youngest_patch%older
 
-            ! reset the site-level patch linked list, keeping only the youngest patch.
-            sites(s)%youngest_patch%older => null()
-            sites(s)%youngest_patch%younger => null()
-            sites(s)%oldest_patch   => sites(s)%youngest_patch
+         !    ! reset the site-level patch linked list, keeping only the youngest patch.
+         !    sites(s)%youngest_patch%older => null()
+         !    sites(s)%youngest_patch%younger => null()
+         !    sites(s)%oldest_patch   => sites(s)%youngest_patch
 
-            ! loop through each patch in the unsorted LL, peel it off,
-            ! and insert it into the new, sorted LL
-            do while(associated(head_of_unsorted_patch_list))
+         !    ! loop through each patch in the unsorted LL, peel it off,
+         !    ! and insert it into the new, sorted LL
+         !    do while(associated(head_of_unsorted_patch_list))
 
-               ! first keep track of the next patch in the old (unsorted) linked list
-               next_in_unsorted_patch_list => head_of_unsorted_patch_list%older
+         !       ! first keep track of the next patch in the old (unsorted) linked list
+         !       next_in_unsorted_patch_list => head_of_unsorted_patch_list%older
 
-               ! check the two end-cases
+         !       ! check the two end-cases
 
-               ! Youngest Patch
-               if(sum(head_of_unsorted_patch_list%pft_agb_profile(:,:)) <= &
-                    sum(sites(s)%youngest_patch%pft_agb_profile(:,:)))then
-                  head_of_unsorted_patch_list%older                  => sites(s)%youngest_patch
-                  head_of_unsorted_patch_list%younger                => null()
-                  sites(s)%youngest_patch%younger => head_of_unsorted_patch_list
-                  sites(s)%youngest_patch         => head_of_unsorted_patch_list
+         !       ! Youngest Patch
+         !       if(sum(head_of_unsorted_patch_list%pft_agb_profile(:,:)) <= &
+         !            sum(sites(s)%youngest_patch%pft_agb_profile(:,:)))then
+         !          head_of_unsorted_patch_list%older                  => sites(s)%youngest_patch
+         !          head_of_unsorted_patch_list%younger                => null()
+         !          sites(s)%youngest_patch%younger => head_of_unsorted_patch_list
+         !          sites(s)%youngest_patch         => head_of_unsorted_patch_list
 
-                  ! Oldest Patch
-               else if(sum(head_of_unsorted_patch_list%pft_agb_profile(:,:)) > &
-                    sum(sites(s)%oldest_patch%pft_agb_profile(:,:)))then
-                  head_of_unsorted_patch_list%older              => null()
-                  head_of_unsorted_patch_list%younger            => sites(s)%oldest_patch
-                  sites(s)%oldest_patch%older => head_of_unsorted_patch_list
-                  sites(s)%oldest_patch       => head_of_unsorted_patch_list
+         !          ! Oldest Patch
+         !       else if(sum(head_of_unsorted_patch_list%pft_agb_profile(:,:)) > &
+         !            sum(sites(s)%oldest_patch%pft_agb_profile(:,:)))then
+         !          head_of_unsorted_patch_list%older              => null()
+         !          head_of_unsorted_patch_list%younger            => sites(s)%oldest_patch
+         !          sites(s)%oldest_patch%older => head_of_unsorted_patch_list
+         !          sites(s)%oldest_patch       => head_of_unsorted_patch_list
 
-                  ! Somewhere in the middle
-               else
-                  currentpatch => sites(s)%youngest_patch
-                  do while(associated(currentpatch))
-                     olderpatch => currentpatch%older
-                     if(associated(currentpatch%older)) then
-                        if(sum(head_of_unsorted_patch_list%pft_agb_profile(:,:)) >= &
-                             sum(currentpatch%pft_agb_profile(:,:)) .and. &
-                             sum(head_of_unsorted_patch_list%pft_agb_profile(:,:)) < &
-                             sum(olderpatch%pft_agb_profile(:,:))) then
-                           ! Set the new patches pointers
-                           head_of_unsorted_patch_list%older   => currentpatch%older
-                           head_of_unsorted_patch_list%younger => currentpatch
-                           ! Fix the patch's older pointer
-                           currentpatch%older => head_of_unsorted_patch_list
-                           ! Fix the older patch's younger pointer
-                           olderpatch%younger => head_of_unsorted_patch_list
-                           ! Exit the loop once head sorted to avoid later re-sort
-                           exit
-                        end if
-                     end if
-                     currentPatch => olderpatch
-                  enddo
-               end if
+         !          ! Somewhere in the middle
+         !       else
+         !          currentpatch => sites(s)%youngest_patch
+         !          do while(associated(currentpatch))
+         !             olderpatch => currentpatch%older
+         !             if(associated(currentpatch%older)) then
+         !                if(sum(head_of_unsorted_patch_list%pft_agb_profile(:,:)) >= &
+         !                     sum(currentpatch%pft_agb_profile(:,:)) .and. &
+         !                     sum(head_of_unsorted_patch_list%pft_agb_profile(:,:)) < &
+         !                     sum(olderpatch%pft_agb_profile(:,:))) then
+         !                   ! Set the new patches pointers
+         !                   head_of_unsorted_patch_list%older   => currentpatch%older
+         !                   head_of_unsorted_patch_list%younger => currentpatch
+         !                   ! Fix the patch's older pointer
+         !                   currentpatch%older => head_of_unsorted_patch_list
+         !                   ! Fix the older patch's younger pointer
+         !                   olderpatch%younger => head_of_unsorted_patch_list
+         !                   ! Exit the loop once head sorted to avoid later re-sort
+         !                   exit
+         !                end if
+         !             end if
+         !             currentPatch => olderpatch
+         !          enddo
+         !       end if
 
-               ! now work through to the next element in the unsorted linked list
-               head_of_unsorted_patch_list => next_in_unsorted_patch_list
-            end do
-         endif
+         !       ! now work through to the next element in the unsorted linked list
+         !       head_of_unsorted_patch_list => next_in_unsorted_patch_list
+         !    end do
+         ! endif
 
          ! Report Basal Area (as a check on if things were read in)
          ! ------------------------------------------------------------------------------
          basal_area_pref = 0.0_r8
+         n_pref = 0.0_r8
          currentpatch => sites(s)%youngest_patch
          do while(associated(currentpatch))
             currentcohort => currentpatch%tallest
             do while(associated(currentcohort))
                basal_area_pref = basal_area_pref + &
-                     currentcohort%n*0.25*((currentcohort%dbh/100.0_r8)**2.0_r8)*pi_const
+                    currentcohort%n*0.25*((currentcohort%dbh/100.0_r8)**2.0_r8)*pi_const
+               n_pref = n_pref + currentcohort%n
                currentcohort => currentcohort%shorter
             end do
             currentPatch => currentpatch%older
@@ -546,6 +550,7 @@ contains
          write(fates_log(),*) 'Basal Area from inventory, BEFORE fusion'
          write(fates_log(),*) 'Lat: ',sites(s)%lat,' Lon: ',sites(s)%lon
          write(fates_log(),*) basal_area_pref,' [m2/ha]'
+         write(fates_log(),*) 'number of plants:  ', n_pref
          write(fates_log(),*) '-------------------------------------------------------'
                   
          ! Update the patch index numbers and fuse the cohorts in the patches
@@ -583,12 +588,14 @@ contains
          ! ----------------------------------------------------------------------------------------
          !call canopy_structure(sites(s),bc_in(s))
          basal_area_postf = 0.0_r8
+         n_postf = 0.0_r8
          currentpatch => sites(s)%youngest_patch
          do while(associated(currentpatch))
             currentcohort => currentpatch%tallest
             do while(associated(currentcohort))
                basal_area_postf = basal_area_postf + &
                      currentcohort%n*0.25*((currentcohort%dbh/100.0_r8)**2.0_r8)*pi_const
+               n_postf = n_postf + currentcohort%n
                currentcohort => currentcohort%shorter
             end do
             
@@ -601,6 +608,7 @@ contains
          write(fates_log(),*) 'Basal Area from inventory, AFTER fusion'
          write(fates_log(),*) 'Lat: ',sites(s)%lat,' Lon: ',sites(s)%lon
          write(fates_log(),*) basal_area_postf,' [m2/ha]'
+         write(fates_log(),*) 'jfn n  post f :', n_postf
          write(fates_log(),*) '-------------------------------------------------------'
 
          ! If this is flagged as true, the post-fusion inventory will be written to file
@@ -1077,9 +1085,11 @@ contains
          if( c_dbh> 0._r8)then
             temp_cohort%dbh         = c_dbh
             call h_allom(c_dbh,temp_cohort%pft,temp_cohort%height)
+            write(fates_log(),*) 'jfn - using dbh'
          else
             temp_cohort%height  = c_height
             call h2d_allom(c_height,temp_cohort%pft,temp_cohort%dbh)
+            write(fates_log(),*) 'jfn - using height'
          end if
             
          temp_cohort%canopy_trim = 1.0_r8
