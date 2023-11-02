@@ -127,7 +127,7 @@ module EDPatchDynamicsMod
   public :: check_patch_area
   public :: set_patchno
   private:: fuse_2_patches
-  public :: get_frac_site_primary
+  public :: get_current_landuse_statevector
 
   character(len=*), parameter, private :: sourcefile = &
         __FILE__
@@ -208,8 +208,6 @@ contains
     integer  :: threshold_sizeclass
     integer  :: i_dist
     integer  :: h_index
-    real(r8) :: frac_site_primary
-    real(r8) :: frac_site_secondary
     real(r8) :: harvest_rate
     real(r8) :: tempsum
     real(r8) :: mean_temp
@@ -222,12 +220,13 @@ contains
     !----------------------------------------------------------------------------------------------
     
     ! first calculate the fraction of the site that is primary land
-    call get_frac_site_primary(site_in, frac_site_primary, frac_site_secondary)
+    call get_current_landuse_statevector(site_in, current_fates_landuse_state_vector)
 
     ! check status of transition_landuse_from_off_to_on flag, and do some error checking on it
     if(site_in%transition_landuse_from_off_to_on) then
-       if (abs(frac_site_primary - 1._r8) .gt. fates_tiny) then
+       if (sum(current_fates_landuse_state_vector(secondaryland:cropland)) .gt. nearzero) then
           write(fates_log(),*) 'flag for transition_landuse_from_off_to_on is set to true but site is not entirely primaryland'
+          write(fates_log(), *) current_fates_landuse_state_vector
           call endrun(msg=errMsg(sourcefile, __LINE__))
        endif
     endif
@@ -266,8 +265,8 @@ contains
                 bc_in%hlm_harvest_units, &
                 currentPatch%land_use_label, &
                 currentPatch%age_since_anthro_disturbance, &
-                frac_site_primary, &
-                frac_site_secondary, &
+                current_fates_landuse_state_vector(primaryland), &
+                current_fates_landuse_state_vector(secondaryland), &
                 harvestable_forest_c, &
                 harvest_tag)
          
@@ -294,18 +293,6 @@ contains
     else
        site_in%landuse_transition_matrix(:,:) = 0._r8
     endif
-
-    ! calculate total area in each landuse category
-    current_fates_landuse_state_vector(:) = 0._r8
-    currentPatch => site_in%oldest_patch
-    do while (associated(currentPatch))
-       if (currentPatch%land_use_label .gt. nocomp_bareground_land) then
-          current_fates_landuse_state_vector(currentPatch%land_use_label) = &
-               current_fates_landuse_state_vector(currentPatch%land_use_label) + &
-               currentPatch%area/AREA
-       end if
-       currentPatch => currentPatch%younger
-    end do
 
     ! ---------------------------------------------------------------------------------------------
     ! Calculate Disturbance Rates based on the mortality rates just calculated
@@ -389,7 +376,8 @@ contains
                      harvest_rate, harvest_tag)
              else
                 call get_harvest_rate_area (currentPatch%land_use_label, bc_in%hlm_harvest_catnames, &
-                     bc_in%hlm_harvest_rates, frac_site_primary, frac_site_secondary, &
+                     bc_in%hlm_harvest_rates, current_fates_landuse_state_vector(primaryland), &
+                     current_fates_landuse_state_vector(secondaryland), &
                      currentPatch%age_since_anthro_disturbance, harvest_rate)
              end if
           else
@@ -2747,6 +2735,7 @@ contains
     real(r8) :: primary_land_fraction_beforefusion,primary_land_fraction_afterfusion
     integer  :: pftlabelmin, pftlabelmax
     integer  :: num_bareground_patches
+    integer  :: i
     !
     !---------------------------------------------------------------------
 
@@ -2994,6 +2983,17 @@ contains
                 write(fates_log(),*) 'profile tolerance is too big, this shouldnt happen.'
                 write(fates_log(),*) 'probably this means there are too many distinct categorical '
                 write(fates_log(),*) 'patch types for the maximum number of patches'
+                call dump_site(currentSite)
+                write(fates_log(),*) 'currentSite%area_bareground', currentSite%area_bareground
+                do i = 1, n_landuse_cats
+                   write(fates_log(),*) 'i, currentSite%area_pft(:,i)',i, currentSite%area_pft(:,i)
+                end do
+                tmpptr => currentSite%youngest_patch
+                do while(associated(tmpptr))
+                   write(fates_log(),*) tmpptr%area, tmpptr%nocomp_pft_label, tmpptr%land_use_label
+                   tmpptr => tmpptr%older
+                end do
+                
                 call endrun(msg=errMsg(sourcefile, __LINE__))                
              endif
           else
@@ -3529,42 +3529,37 @@ contains
 
   ! =====================================================================================
 
- subroutine get_frac_site_primary(site_in, frac_site_primary, frac_site_secondary)
+   subroutine get_current_landuse_statevector(site_in, current_state_vector)
 
-    !
-    ! !DESCRIPTION:
-    !  Calculate how much of a site is primary land and secondary land
-    !
-    ! !USES:
-    use EDTypesMod , only : ed_site_type
-    !
-    ! !ARGUMENTS:
-    type(ed_site_type) , intent(in), target :: site_in
-    real(r8)           , intent(out)        :: frac_site_primary
-    real(r8)           , intent(out)        :: frac_site_secondary
+     !
+     ! !DESCRIPTION:
+     !  Calculate how much of a site is each land use category.
+     !  this does not include bare ground when nocomp + fixed biogeography is on,
+     !  so will not sum to one in that case. otherwise it will sum to one.
+     !
+     ! !USES:
+     use EDTypesMod , only : ed_site_type
+     !
+     ! !ARGUMENTS:
+     type(ed_site_type) , intent(in), target :: site_in
+     real(r8)           , intent(out)        :: current_state_vector(n_landuse_cats)
 
-    ! !LOCAL VARIABLES:
-    type (fates_patch_type), pointer :: currentPatch
+     ! !LOCAL VARIABLES:
+     type (fates_patch_type), pointer :: currentPatch
 
-   frac_site_primary = 0._r8
-   currentPatch => site_in%oldest_patch
-   do while (associated(currentPatch))   
-      if (currentPatch%land_use_label .eq. primaryland) then
-         frac_site_primary = frac_site_primary + currentPatch%area * AREA_INV
-      endif
-      currentPatch => currentPatch%younger
-   end do
+     current_state_vector(:) = 0._r8
 
-   frac_site_secondary = 0._r8
-   currentPatch => site_in%oldest_patch
-   do while (associated(currentPatch))
-      if (currentPatch%land_use_label .eq. secondaryland) then
-         frac_site_secondary = frac_site_secondary + currentPatch%area * AREA_INV
-      endif
-      currentPatch => currentPatch%younger
-   end do
+     currentPatch => site_in%oldest_patch
+     do while (associated(currentPatch))
+        if (currentPatch%land_use_label .gt. nocomp_bareground_land) then
+           current_state_vector(currentPatch%land_use_label) = &
+                current_state_vector(currentPatch%land_use_label) + &
+                currentPatch%area/AREA
+        end if
+        currentPatch => currentPatch%younger
+     end do
 
- end subroutine get_frac_site_primary
+   end subroutine get_current_landuse_statevector
 
   ! =====================================================================================
 
