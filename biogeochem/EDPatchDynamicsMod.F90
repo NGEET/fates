@@ -497,7 +497,7 @@ contains
     logical  :: clearing_matrix(n_landuse_cats,n_landuse_cats)  ! do we clear vegetation when transferring from one LU type to another?
     type (fates_patch_type) , pointer :: buffer_patch, temp_patch, copyPatch, previousPatch
     real(r8) :: nocomp_pft_area_vector(numpft)
-    real(r8) :: nocomp_pft_area_vector_allocated(numpft)
+    real(r8) :: nocomp_pft_area_vector_filled(numpft)
     real(r8) :: fraction_to_keep
     integer  :: i_land_use_label
     integer  :: i_pft
@@ -1321,7 +1321,7 @@ contains
        lu_loop: do i_land_use_label = 1, n_landuse_cats
 
           nocomp_pft_area_vector(:) = 0._r8
-          nocomp_pft_area_vector_allocated(:) = 0._r8
+          nocomp_pft_area_vector_filled(:) = 0._r8
           
           currentPatch => currentSite%oldest_patch
           do while(associated(currentPatch))
@@ -1375,14 +1375,17 @@ contains
              currentPatch => currentSite%oldest_patch
              do while(associated(currentPatch))
                 if (currentPatch%changed_landuse_this_ts) then
+
+                   ! !!! CDKCDK I think this next line is wrong. Need to fix it. !!!!!!!!!!!!!!!!!!!!!!!
+
                    fraction_to_keep = currentSite%area_pft(currentPatch%nocomp_pft_label,i_land_use_label) * area / nocomp_pft_area_vector(currentPatch%nocomp_pft_label)
-                   if (fraction_to_keep .lt. nearzero) then
-                      ! we don't want any patch area with this PFT idendity at all anymore. Fuse it into the buffer patch.
+                   if (fraction_to_keep .le. nearzero) then
+                      ! we don't want any patch area with this PFT identity at all anymore. Fuse it into the buffer patch.
                       currentPatch%nocomp_pft_label = 0
                       previousPatch => currentPatch%older 
                       call fuse_2_patches(currentSite, currentPatch, buffer_patch)
                       currentPatch => previousPatch
-                   elseif (fraction_to_keep .lt. (1._r8 - nearzero)) then
+                   elseif (fraction_to_keep .le. (1._r8 - nearzero)) then
                       ! we have more patch are of this PFT than we want, but we do want to keep some of it.
                       ! we want to split the patch into two here. leave one patch as-is, and put the rest into the buffer patch.
 
@@ -1391,10 +1394,14 @@ contains
                       !
                       temp_patch%nocomp_pft_label = 0
                       call fuse_2_patches(currentSite, temp_patch, buffer_patch)
+                      !
+                      nocomp_pft_area_vector_filled(currentPatch%nocomp_pft_label) = &
+                           nocomp_pft_area_vector_filled(currentPatch%nocomp_pft_label) + currentPatch%area
+                      currentPatch%changed_landuse_this_ts = .false.
                    else
                       ! we want to keep all of this patch (and possibly more)
-                      nocomp_pft_area_vector_allocated(currentPatch%nocomp_pft_label) = &
-                           nocomp_pft_area_vector_allocated(currentPatch%nocomp_pft_label) + currentPatch%area
+                      nocomp_pft_area_vector_filled(currentPatch%nocomp_pft_label) = &
+                           nocomp_pft_area_vector_filled(currentPatch%nocomp_pft_label) + currentPatch%area
                       currentPatch%changed_landuse_this_ts = .false.
                    endif
                 end if
@@ -1404,9 +1411,9 @@ contains
              ! now we need to loop through the nocomp PFTs, and split the buffer patch into a set of patches to put back in the linked list
              nocomp_pft_loop_2: do i_pft = 1, numpft
                 !
-                if (nocomp_pft_area_vector_allocated(i_pft) .lt. currentSite%area_pft(i_pft,i_land_use_label) * sum(nocomp_pft_area_vector(:))) then
+                if (nocomp_pft_area_vector_filled(i_pft) .lt. currentSite%area_pft(i_pft,i_land_use_label) * sum(nocomp_pft_area_vector(:))) then
 
-                   newp_area = currentSite%area_pft(i_pft,i_land_use_label) * sum(nocomp_pft_area_vector(:)) - nocomp_pft_area_vector_allocated(i_pft)
+                   newp_area = currentSite%area_pft(i_pft,i_land_use_label) * sum(nocomp_pft_area_vector(:)) - nocomp_pft_area_vector_filled(i_pft)
 
                    if (newp_area .lt. buffer_patch%area) then
 
