@@ -86,7 +86,7 @@ contains
     urban_fraction = 0._r8
 
     ! if we are using potential veg only, then keep all transitions equal to zero.
-    if ( .not. hlm_use_potentialveg ) then
+    if (hlm_use_potentialveg .eq. ifalse) then
 
        ! Check the LUH data incoming to see if any of the transitions are NaN
        temp_vector = bc_in%hlm_luh_transitions
@@ -244,7 +244,7 @@ contains
     state_vector(:) = 0._r8
     urban_fraction = 0._r8
 
-    if ( .not. hlm_use_potentialveg ) then
+    if (hlm_use_potentialveg .eq. ifalse) then
        ! Check to see if the incoming state vector is NaN.
        temp_vector = bc_in%hlm_luh_states
        call CheckLUHData(temp_vector,modified_flag)
