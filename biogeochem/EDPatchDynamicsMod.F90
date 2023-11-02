@@ -3197,29 +3197,33 @@ contains
        call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
 
-    if(associated(youngerp))then
-       ! Update the younger patch's new older patch (because it isn't dp anymore)
-       youngerp%older => olderp
-    else
-       ! There was no younger patch than dp, so the head of the young order needs
-       ! to be set, and it is set as the patch older than dp.  That patch
-       ! already knows it's older patch (so no need to set or change it)
-       csite%youngest_patch => olderp
-       olderp%younger       => null()
-    end if
+    ! if neither youngerp nor olderp are associated, that means that the patch we are no longer tracking
+    ! is not part of the linked-list structure, and so no further action needs to be taken.
+    if(associated(youngerp) .or. associated(olderp))then
 
-    
-    if(associated(olderp))then
-       ! Update the older patch's new younger patch (becuase it isn't dp anymore)
-       olderp%younger => youngerp
-    else
-       ! There was no patch older than dp, so the head of the old patch order needs
-       ! to be set, and it is set as the patch younger than dp.  That patch already
-       ! knows it's younger patch, no need to set
-       csite%oldest_patch => youngerp
-       youngerp%older     => null()
-    end if
+       if(associated(youngerp))then
+          ! Update the younger patch's new older patch (because it isn't dp anymore)
+          youngerp%older => olderp
+       else
+          ! There was no younger patch than dp, so the head of the young order needs
+          ! to be set, and it is set as the patch older than dp.  That patch
+          ! already knows it's older patch (so no need to set or change it)
+          csite%youngest_patch => olderp
+          olderp%younger       => null()
+       end if
 
+
+       if(associated(olderp))then
+          ! Update the older patch's new younger patch (becuase it isn't dp anymore)
+          olderp%younger => youngerp
+       else
+          ! There was no patch older than dp, so the head of the old patch order needs
+          ! to be set, and it is set as the patch younger than dp.  That patch already
+          ! knows it's younger patch, no need to set
+          csite%oldest_patch => youngerp
+          youngerp%older     => null()
+       end if
+    end if
 
   end subroutine fuse_2_patches
 
