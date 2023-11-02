@@ -168,6 +168,11 @@ contains
       character(len=patchname_strlen), allocatable :: patch_name_vec(:)    ! vector of patch ID strings
       real(r8)                                     :: basal_area_postf     ! basal area before fusion (m2/ha)
       real(r8)                                     :: basal_area_pref      ! basal area after fusion (m2/ha)
+      real(r8)                                     :: min_patch_age
+      real(r8)                                     :: max_patch_age
+      real(r8)                                     :: min_cohort_dbh
+      real(r8)                                     :: max_cohort_dbh
+      
 
       ! I. Load the inventory list file, do some file handle checks
       ! ------------------------------------------------------------------------------------------
@@ -367,6 +372,7 @@ contains
             enddo
          end if
 
+         
          ! OPEN THE CSS FILE
          ! ---------------------------------------------------------------------------------------
          css_file_unit = shr_file_getUnit()
@@ -399,8 +405,53 @@ contains
 
          deallocate(patch_pointer_vec,patch_name_vec)
 
-         ! now that we've read in the patch and cohort info, check to see if there is any real age info
-         if ( abs(sites(s)%youngest_patch%age - sites(s)%oldest_patch%age) <= nearzero .and. &
+         
+         ! if all patches are identical in age and biomass then don't change the order of the LL
+         min_patch_age  = 0._r8
+         max_patch_age  = 0._r8
+         min_cohort_dbh = 100000._r8
+         max_cohort_dbh = 0._r8
+
+         ! get min and max patch age and cohort dbh
+         currentpatch => sites(s)%youngest_patch
+         do while(associated(currentpatch))
+
+            if ( currentpatch%age > max_patch_age ) then
+               max_patch_age = currentpatch%age
+            else if ( currentpatch%age <  min_patch_age ) then
+               min_patch_age = currentpatch%age
+            end if
+
+            currentcohort => currentpatch%tallest
+            do while(associated(currentcohort))
+
+               if ( currentcohort%dbh > max_cohort_dbh ) then
+                  max_cohort_dbh = currentcohort%dbh
+               else if ( currentcohort%dbh <  min_cohort_dbh ) then
+                  min_cohort_dbh = currentcohort%dbh
+               end if
+
+               currentcohort => currentcohort%shorter
+            end do
+            currentPatch => currentpatch%older
+         enddo
+
+         if  (debug_inv) then
+            write(fates_log(),*)  'min patch age', min_patch_age
+            write(fates_log(),*)  'max patch age', max_patch_age
+            write(fates_log(),*)  'min cohort dbh', min_cohort_dbh
+            write(fates_log(),*)  'max cohort dbh', max_cohort_dbh
+         end if
+         
+         if ( min_patch_age .eq. max_patch_age .and. min_cohort_dbh .eq. max_cohort_dbh ) then
+
+            if(debug_inv)then
+               write(fates_log(), *) 'All patches and cohorts are identical'
+            end if
+
+            
+            ! now that we've read in the patch and cohort info, check to see if there is any real age info
+         else if ( abs(sites(s)%youngest_patch%age - sites(s)%oldest_patch%age) <= nearzero .and. &
               associated(sites(s)%youngest_patch%older) ) then
 
             ! so there are at least two patches and the oldest and youngest are the same age.
@@ -501,6 +552,7 @@ contains
          ! ----------------------------------------------------------------------------------------
          ipa=1
          total_cohorts = 0
+
          currentpatch => sites(s)%youngest_patch
          do while(associated(currentpatch))
             currentpatch%patchno = ipa
