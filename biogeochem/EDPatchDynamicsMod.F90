@@ -1374,7 +1374,7 @@ contains
                             
              currentPatch => currentSite%oldest_patch
              do while(associated(currentPatch))
-                if (currentPatch%changed_landuse_this_ts) then
+                if (currentPatch%changed_landuse_this_ts .and. currentPatch%land_use_label .eq. i_land_use_label) then
 
                    fraction_to_keep = (currentSite%area_pft(currentPatch%nocomp_pft_label,i_land_use_label) * sum(nocomp_pft_area_vector(:)) &
                         - nocomp_pft_area_vector_filled(currentPatch%nocomp_pft_label)) / currentPatch%area
