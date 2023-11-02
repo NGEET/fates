@@ -1411,39 +1411,47 @@ contains
              ! now we need to loop through the nocomp PFTs, and split the buffer patch into a set of patches to put back in the linked list
              nocomp_pft_loop_2: do i_pft = 1, numpft
                 !
-                if (nocomp_pft_area_vector_filled(i_pft) .lt. currentSite%area_pft(i_pft,i_land_use_label) * sum(nocomp_pft_area_vector(:))) then
+                if ( currentSite%area_pft(i_pft,i_land_use_label) .gt. nearzero) then
+                   !
+                   if (nocomp_pft_area_vector_filled(i_pft) .lt. currentSite%area_pft(i_pft,i_land_use_label) * sum(nocomp_pft_area_vector(:))) then
+                      !
+                      newp_area = currentSite%area_pft(i_pft,i_land_use_label) * sum(nocomp_pft_area_vector(:)) - nocomp_pft_area_vector_filled(i_pft)
+                      !
+                      if (newp_area .lt. buffer_patch%area) then
 
-                   newp_area = currentSite%area_pft(i_pft,i_land_use_label) * sum(nocomp_pft_area_vector(:)) - nocomp_pft_area_vector_filled(i_pft)
+                         ! split buffer patch in two, keeping the smaller buffer patch to put into new patches
+                         allocate(temp_patch)
+                         call split_patch(currentSite, buffer_patch, temp_patch, newp_area/buffer_patch%area)
 
-                   if (newp_area .lt. buffer_patch%area) then
+                         ! give the new patch the intended nocomp PFT label
+                         temp_patch%nocomp_pft_label = i_pft
 
-                      ! split buffer patch in two, keeping the smaller buffer patch to put into new patches
-                      allocate(temp_patch)
-                      call split_patch(currentSite, buffer_patch, temp_patch, newp_area/buffer_patch%area)
+                         ! track that we have added this patch area
+                         nocomp_pft_area_vector_filled(i_pft) = nocomp_pft_area_vector_filled(i_pft) + temp_patch%area
 
-                      ! give the new patch the intended nocomp PFT label
-                      temp_patch%nocomp_pft_label = i_pft
+                         ! put the new patch into the linked list
+                         call InsertPatch(currentSite, temp_patch)
 
-                      ! put the new patch into the linked list
-                      call InsertPatch(currentSite, temp_patch)
+                         ! now that the patch that temp_patch points to is in the site linked list, we want to null temp_patch so that it can be
+                         ! refilled the next time through the loop.
+                         temp_patch => null()
 
-                      ! now that the patch that temp_patch points to is in the site linked list, we want to null temp_patch so that it can be
-                      ! refilled the next time through the loop.
-                      temp_patch => null()
-                   
-                   else
-                      ! give the buffer patch the intended nocomp PFT label
-                      buffer_patch%nocomp_pft_label = i_pft
+                      else
+                         ! give the buffer patch the intended nocomp PFT label
+                         buffer_patch%nocomp_pft_label = i_pft
 
-                      ! put the buffer patch directly into the linked list
-                      call InsertPatch(currentSite, buffer_patch)
+                         ! track that we have added this patch area
+                         nocomp_pft_area_vector_filled(i_pft) = nocomp_pft_area_vector_filled(i_pft) + buffer_patch%area
 
-                      buffer_patch_in_linked_list = .true.
-                   
+                         ! put the buffer patch directly into the linked list
+                         call InsertPatch(currentSite, buffer_patch)
+
+                         buffer_patch_in_linked_list = .true.
+
+                      end if
+
                    end if
-
                 end if
-
              end do nocomp_pft_loop_2
 
              ! now we want to make sure that either the buffer_patch either has zero area (presumably it was never used), in which case it should be deallocated,
@@ -1451,7 +1459,7 @@ contains
              ! if either of those, that means everything worked properly, if not, then something has gone wrong.
              if (buffer_patch_in_linked_list) then
                 buffer_patch => null()
-             else if (buffer_patch%area .lt. fates_tiny) then
+             else if (buffer_patch%area .lt. rsnbl_math_prec) then
                 ! here we need to deallocate the buffer patch so that we don't get a memory leak/
                 call buffer_patch%FreeMemory(regeneration_model, numpft)
                 deallocate(buffer_patch, stat=istat, errmsg=smsg)
