@@ -1195,7 +1195,7 @@ contains
        open(unit=css_file_out,file=trim(css_name_out), status='UNKNOWN',action='WRITE',form='FORMATTED')
 
        write(pss_file_out,*) 'time patch trk age area'
-       write(css_file_out,*) 'time patch cohort dbh height pft nplant'
+       write(css_file_out,*) 'time patch dbh height pft nplant'
 
        ipatch=0
        currentpatch => currentSite%youngest_patch
