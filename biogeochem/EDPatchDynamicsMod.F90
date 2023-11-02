@@ -1376,9 +1376,9 @@ contains
              do while(associated(currentPatch))
                 if (currentPatch%changed_landuse_this_ts) then
 
-                   ! !!! CDKCDK I think this next line is wrong. Need to fix it. !!!!!!!!!!!!!!!!!!!!!!!
-
-                   fraction_to_keep = currentSite%area_pft(currentPatch%nocomp_pft_label,i_land_use_label) * area / nocomp_pft_area_vector(currentPatch%nocomp_pft_label)
+                   fraction_to_keep = (currentSite%area_pft(currentPatch%nocomp_pft_label,i_land_use_label) * sum(nocomp_pft_area_vector(:)) &
+                        - nocomp_pft_area_vector_filled(currentPatch%nocomp_pft_label)) / currentPatch%area
+                   
                    if (fraction_to_keep .le. nearzero) then
                       ! we don't want any patch area with this PFT identity at all anymore. Fuse it into the buffer patch.
                       currentPatch%nocomp_pft_label = 0
