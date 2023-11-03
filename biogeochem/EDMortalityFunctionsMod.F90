@@ -48,7 +48,7 @@ module EDMortalityFunctionsMod
 
 contains
 
-  subroutine mortality_rates( cohort_in,bc_in,btran_ft, mean_temp,             &
+  subroutine mortality_rates( cohort_in,bc_in, btran_ft, mean_temp,             &
       cmort,hmort,bmort, frmort,smort,asmort,dgmort )
 
     ! ============================================================================
@@ -56,9 +56,10 @@ contains
     !  background and freezing and size and age dependent senescence
     ! ============================================================================
     
-    use FatesConstantsMod,  only : tfrz => t_water_freeze_k_1atm 
-    use FatesConstantsMod,  only : fates_check_param_set
-    use DamageMainMod,      only : GetDamageMortality
+    use FatesConstantsMod,      only : tfrz => t_water_freeze_k_1atm
+    use FatesConstantsMod,      only : fates_check_param_set
+    use DamageMainMod,          only : GetDamageMortality
+    use EDParamsmod,            only : tsoil_thresh_hmort
     
     type (fates_cohort_type), intent(in) :: cohort_in 
     type (bc_in_type), intent(in) :: bc_in
@@ -156,9 +157,12 @@ contains
              hmort = 0.0_r8
           endif
        else
-          if(btran_ft(cohort_in%pft) <= hf_sm_threshold)then 
+          if(btran_ft(cohort_in%pft) <= hf_sm_threshold .and. &
+               minval(bc_in%t_soisno_sl) - tfrz .ge. tsoil_thresh_hmort )then 
              hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
           else
+             write(fates_log(),*) 'jfn soil frozen - no hmort'
+             write(fates_log(),*) 'jfn min soil temp - ', minval(bc_in%t_soisno_sl) - tfrz
              hmort = 0.0_r8
           endif
        endif
