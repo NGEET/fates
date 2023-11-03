@@ -1,0 +1,7 @@
+<test_suite_list>
+  <suite name="fire">
+    <directory relative_to="here" label="fire_weather">
+      fire/test/fire_weather_test
+    </directory>
+  </suite>
+</test_suite_list>
