@@ -97,6 +97,7 @@ module FatesRestartInterfaceMod
   integer :: ir_gdd_si
   integer :: ir_snow_depth_si
   integer :: ir_trunk_product_si
+  
   integer :: ir_ncohort_pa
   integer :: ir_canopy_layer_co
   integer :: ir_canopy_layer_yesterday_co
