@@ -63,11 +63,10 @@ contains
     do s = 1, nsites
 
        ifp = 0
-
-       ! This is essentially a copy of the boundary condition
-       ! that fates holds on to, unmodified, used for restart
-       ! purposes
-       sites(s)%soil_het_resp = bc_in(s)%tot_het_resp
+       
+       ! Note: Do not attempt to accumulate or log any
+       ! heterotrophic respiration fluxes from the HLM here
+       ! It is likely this has not been calculated yet (ELM/CLM)
        
        cpatch => sites(s)%oldest_patch
        do while (associated(cpatch))                 
