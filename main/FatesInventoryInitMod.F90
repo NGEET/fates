@@ -168,9 +168,7 @@ contains
       character(len=patchname_strlen), allocatable :: patch_name_vec(:)    ! vector of patch ID strings
       real(r8)                                     :: basal_area_postf     ! basal area before fusion (m2/ha)
       real(r8)                                     :: basal_area_pref      ! basal area after fusion (m2/ha)
-      real(r8)                                     :: n_pref
-      real(r8)                                     :: n_postf
-
+    
       ! I. Load the inventory list file, do some file handle checks
       ! ------------------------------------------------------------------------------------------
 
@@ -405,14 +403,12 @@ contains
          ! Report Basal Area (as a check on if things were read in)
          ! ------------------------------------------------------------------------------
          basal_area_pref = 0.0_r8
-         n_pref = 0.0_r8
          currentpatch => sites(s)%youngest_patch
          do while(associated(currentpatch))
             currentcohort => currentpatch%tallest
             do while(associated(currentcohort))
                basal_area_pref = basal_area_pref + &
                     currentcohort%n*0.25*((currentcohort%dbh/100.0_r8)**2.0_r8)*pi_const
-               n_pref = n_pref + currentcohort%n
                currentcohort => currentcohort%shorter
             end do
             currentPatch => currentpatch%older
@@ -422,7 +418,6 @@ contains
          write(fates_log(),*) 'Basal Area from inventory, BEFORE fusion'
          write(fates_log(),*) 'Lat: ',sites(s)%lat,' Lon: ',sites(s)%lon
          write(fates_log(),*) basal_area_pref,' [m2/ha]'
-         write(fates_log(),*) 'number of plants:  ', n_pref
          write(fates_log(),*) '-------------------------------------------------------'
                   
          ! Update the patch index numbers and fuse the cohorts in the patches
@@ -460,14 +455,12 @@ contains
          ! ----------------------------------------------------------------------------------------
          !call canopy_structure(sites(s),bc_in(s))
          basal_area_postf = 0.0_r8
-         n_postf = 0.0_r8
          currentpatch => sites(s)%youngest_patch
          do while(associated(currentpatch))
             currentcohort => currentpatch%tallest
             do while(associated(currentcohort))
                basal_area_postf = basal_area_postf + &
                      currentcohort%n*0.25*((currentcohort%dbh/100.0_r8)**2.0_r8)*pi_const
-               n_postf = n_postf + currentcohort%n
                currentcohort => currentcohort%shorter
             end do
             
@@ -480,7 +473,6 @@ contains
          write(fates_log(),*) 'Basal Area from inventory, AFTER fusion'
          write(fates_log(),*) 'Lat: ',sites(s)%lat,' Lon: ',sites(s)%lon
          write(fates_log(),*) basal_area_postf,' [m2/ha]'
-         write(fates_log(),*) 'jfn n  post f :', n_postf
          write(fates_log(),*) '-------------------------------------------------------'
 
          ! If this is flagged as true, the post-fusion inventory will be written to file
