@@ -161,8 +161,6 @@ contains
                minval(bc_in%t_soisno_sl) - tfrz .ge. tsoil_thresh_hmort )then 
              hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
           else
-             write(fates_log(),*) 'jfn soil frozen - no hmort'
-             write(fates_log(),*) 'jfn min soil temp - ', minval(bc_in%t_soisno_sl) - tfrz
              hmort = 0.0_r8
           endif
        endif
