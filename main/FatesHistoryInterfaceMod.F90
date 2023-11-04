@@ -49,6 +49,7 @@ module FatesHistoryInterfaceMod
   use FatesInterfaceTypesMod        , only : nlevsclass, nlevage
   use FatesInterfaceTypesMod        , only : nlevheight
   use FatesInterfaceTypesMod        , only : bc_in_type
+  use FatesInterfaceTypesMod        , only : bc_out_type
   use FatesInterfaceTypesMod        , only : hlm_model_day
   use FatesInterfaceTypesMod        , only : nlevcoage
   use FatesInterfaceTypesMod        , only : hlm_use_nocomp
@@ -589,6 +590,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_nocomp_pftpatchfraction_si_pft
   integer :: ih_nocomp_pftnpatches_si_pft
   integer :: ih_nocomp_pftburnedarea_si_pft
+  integer :: ih_seeds_out_gc_si_pft
+  integer :: ih_seeds_in_gc_si_pft
 
   ! indices to (site x patch-age) variables
   integer :: ih_area_si_age
@@ -2135,7 +2138,6 @@ end subroutine flush_hvars
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
     type(bc_in_type)        , intent(in)            :: bc_in(nsites)
-    
     ! Locals
     type(litter_type), pointer         :: litt_c   ! Pointer to the carbon12 litter pool
     type(litter_type), pointer         :: litt     ! Generic pointer to any litter pool
@@ -2236,6 +2238,8 @@ end subroutine flush_hvars
                hio_nindivs_si_pft      => this%hvars(ih_nindivs_si_pft)%r82d, &
                hio_nindivs_sec_si_pft  => this%hvars(ih_nindivs_sec_si_pft)%r82d, &
                hio_recruitment_si_pft  => this%hvars(ih_recruitment_si_pft)%r82d, &
+               hio_seeds_out_gc_si_pft => this%hvars(ih_seeds_out_gc_si_pft)%r82d, &
+               hio_seeds_in_gc_si_pft  => this%hvars(ih_seeds_in_gc_si_pft)%r82d, &
                hio_mortality_si_pft    => this%hvars(ih_mortality_si_pft)%r82d, &
                hio_mortality_carbonflux_si_pft  => this%hvars(ih_mortality_carbonflux_si_pft)%r82d, &
                hio_cstarvmortality_carbonflux_si_pft  => this%hvars(ih_cstarvmortality_carbonflux_si_pft)%r82d, &
@@ -2475,9 +2479,6 @@ end subroutine flush_hvars
                hio_cwd_bg_out_si_cwdsc              => this%hvars(ih_cwd_bg_out_si_cwdsc)%r82d, &
                hio_crownarea_si_cnlf                => this%hvars(ih_crownarea_si_cnlf)%r82d, &
                hio_crownarea_si_can                 => this%hvars(ih_crownarea_si_can)%r82d, &
-               hio_nplant_si_scag                   => this%hvars(ih_nplant_si_scag)%r82d, &
-               hio_nplant_canopy_si_scag            => this%hvars(ih_nplant_canopy_si_scag)%r82d, &
-               hio_nplant_understory_si_scag        => this%hvars(ih_nplant_understory_si_scag)%r82d, &
                hio_ddbh_canopy_si_scag              => this%hvars(ih_ddbh_canopy_si_scag)%r82d, &
                hio_ddbh_understory_si_scag          => this%hvars(ih_ddbh_understory_si_scag)%r82d, &
                hio_mortality_canopy_si_scag         => this%hvars(ih_mortality_canopy_si_scag)%r82d, &
@@ -2501,6 +2502,9 @@ end subroutine flush_hvars
                hio_tgrowth                          => this%hvars(ih_tgrowth_si)%r81d, &
                hio_cbal_err_fates_si                => this%hvars(ih_cbal_err_fates_si)%r81d, &
                hio_err_fates_si                     => this%hvars(ih_err_fates_si)%r82d, &
+               hio_nplant_si_scag                   => this%hvars(ih_nplant_si_scag)%r82d, &
+               hio_nplant_canopy_si_scag            => this%hvars(ih_nplant_canopy_si_scag)%r82d, &
+               hio_nplant_understory_si_scag        => this%hvars(ih_nplant_understory_si_scag)%r82d, &
                hio_lai_si                           => this%hvars(ih_lai_si)%r81d )
 
    ! If we don't have dynamics turned on, we just abort these diagnostics
@@ -3959,7 +3963,12 @@ end subroutine flush_hvars
       
       ! pass the recruitment rate as a flux to the history, and then reset the recruitment buffer
       do i_pft = 1, numpft
+         ! pass the recruitment rate as a flux to the history, and then reset the recruitment buffer
          hio_recruitment_si_pft(io_si,i_pft) = sites(s)%recruitment_rate(i_pft) * days_per_year / m2_per_ha
+         
+         ! Gridcell output and inputs
+         hio_seeds_out_gc_si_pft(io_si,i_pft) = sites(s)%seed_out(i_pft)
+         hio_seeds_in_gc_si_pft(io_si,i_pft) = sites(s)%seed_in(i_pft)
       end do
       sites(s)%recruitment_rate(:) = 0._r8
 
@@ -5503,7 +5512,21 @@ end subroutine update_history_hifrq
          use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_recruitment_si_pft)
+         
+   call this%set_history_var(vname='FATES_SEEDS_IN_GRIDCELL_PF',                    &
+         units='kg',                                                      &
+         long='Site-level seed mass input from neighboring gridcells per pft',  &
+         use_default='inactive', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+         index=ih_seeds_in_gc_si_pft)
 
+   call this%set_history_var(vname='FATES_SEEDS_OUT_GRIDCELL_PF',                    &
+         units='kg',                                                      &
+         long='Site-level seed mass output to neighboring gridcells per pft',  &
+         use_default='inactive', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+         index=ih_seeds_out_gc_si_pft)
+         
     call this%set_history_var(vname='FATES_MORTALITY_PF', units='m-2 yr-1',    &
          long='PFT-level mortality rate in number of individuals per m2 land area per year', &
          use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &

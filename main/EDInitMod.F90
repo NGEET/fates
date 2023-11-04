@@ -208,12 +208,14 @@ contains
 
     ! Initialize the static soil
     ! arrays from the boundary (initial) condition
-
     site_in%zi_soil(:) = bc_in%zi_sisl(:)
     site_in%dz_soil(:) = bc_in%dz_sisl(:)
     site_in%z_soil(:)  = bc_in%z_sisl(:)
 
-    !
+    ! Seed dispersal
+    allocate(site_in%seed_in(1:numpft))
+    allocate(site_in%seed_out(1:numpft))
+
   end subroutine init_site_vars
 
   ! ============================================================================
@@ -338,6 +340,10 @@ contains
 
     ! canopy spread
     site_in%spread = 0._r8
+
+    ! Seed dispersal
+    site_in%seed_in(:) = 0.0_r8
+    site_in%seed_out(:) = 0.0_r8
 
     site_in%area_pft(:) = 0._r8
     site_in%use_this_pft(:) = fates_unset_int
