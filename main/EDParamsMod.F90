@@ -100,7 +100,7 @@ module EDParamsMod
    integer, parameter, public :: nclmax = 2                ! Maximum number of canopy layers
 
    ! parameters that govern the VAI (LAI+SAI) bins used in radiative transfer code
-   integer, parameter, public :: nlevleaf = 40   ! number of leaf+stem layers in each canopy layer
+   integer, parameter, public :: nlevleaf = 30   ! number of leaf+stem layers in each canopy layer
 
    real(r8), public :: dinc_vai(nlevleaf)   = fates_unset_r8 ! VAI bin widths array
    real(r8), public :: dlower_vai(nlevleaf) = fates_unset_r8 ! lower edges of VAI bins
