@@ -59,7 +59,7 @@ contains
     use FatesConstantsMod,      only : tfrz => t_water_freeze_k_1atm
     use FatesConstantsMod,      only : fates_check_param_set
     use DamageMainMod,          only : GetDamageMortality
-    use EDParamsmod,            only : tsoil_thresh_hmort
+    use EDParamsmod,            only : soil_tfrz_thresh
     
     type (fates_cohort_type), intent(in) :: cohort_in 
     type (bc_in_type), intent(in) :: bc_in
@@ -157,8 +157,8 @@ contains
              hmort = 0.0_r8
           endif
        else
-          if(btran_ft(cohort_in%pft) <= hf_sm_threshold .and. &
-               minval(bc_in%t_soisno_sl) - tfrz .ge. tsoil_thresh_hmort )then 
+          if( ( btran_ft(cohort_in%pft) <= hf_sm_threshold ) .and. &
+               ( ( minval(bc_in%t_soisno_sl) - tfrz ) >= soil_tfrz_thresh ) ) then 
              hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
           else
              hmort = 0.0_r8
