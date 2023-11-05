@@ -49,7 +49,7 @@ contains
     check_layer_water = .false.
 
     if ( h2o_liq_vol .gt. 0._r8 ) then
-       if ( tempk .gt. soil_tfrz_thresh) then
+       if ( tempk .gt. soil_tfrz_thresh + tfrz) then
           check_layer_water = .true.
        end if
     end if
