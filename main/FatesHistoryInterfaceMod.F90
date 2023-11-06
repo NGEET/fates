@@ -3047,20 +3047,6 @@ end subroutine flush_hvars
                   ccohort%c_area * AREA_INV
             end if
 
-            ! update pft-resolved NPP and GPP fluxes
-            hio_gpp_si_pft(io_si, ft) = hio_gpp_si_pft(io_si, ft) + &
-               ccohort%gpp_acc_hold * n_perm2 / days_per_year / sec_per_day
-
-            hio_npp_si_pft(io_si, ft) = hio_npp_si_pft(io_si, ft) + &
-               ccohort%npp_acc_hold * n_perm2 / days_per_year / sec_per_day
-
-            if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
-               hio_gpp_sec_si_pft(io_si, ft) = hio_gpp_sec_si_pft(io_si, ft) + &
-                  ccohort%gpp_acc_hold * n_perm2 / days_per_year / sec_per_day
-               hio_npp_sec_si_pft(io_si, ft) = hio_npp_sec_si_pft(io_si, ft) + &
-                  ccohort%npp_acc_hold * n_perm2 / days_per_year / sec_per_day
-            end if
-
             ! Site by Size-Class x PFT (SCPF)
             ! ------------------------------------------------------------------------
 
@@ -3070,6 +3056,20 @@ end subroutine flush_hvars
             ! have any meaning, otherwise they are just inialization values
             notnew: if( .not.(ccohort%isnew) ) then
 
+               ! update pft-resolved NPP and GPP fluxes
+               hio_gpp_si_pft(io_si, ft) = hio_gpp_si_pft(io_si, ft) + &
+                    ccohort%gpp_acc_hold * n_perm2 / days_per_year / sec_per_day
+
+               hio_npp_si_pft(io_si, ft) = hio_npp_si_pft(io_si, ft) + &
+                    ccohort%npp_acc_hold * n_perm2 / days_per_year / sec_per_day
+               
+               if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+                  hio_gpp_sec_si_pft(io_si, ft) = hio_gpp_sec_si_pft(io_si, ft) + &
+                       ccohort%gpp_acc_hold * n_perm2 / days_per_year / sec_per_day
+                  hio_npp_sec_si_pft(io_si, ft) = hio_npp_sec_si_pft(io_si, ft) + &
+                       ccohort%npp_acc_hold * n_perm2 / days_per_year / sec_per_day
+               end if
+               
                ! Turnover pools [kgC/day] * [day/yr] = [kgC/yr]
                sapw_m_turnover   = ccohort%prt%GetTurnover(sapw_organ, carbon12_element) * days_per_year
                store_m_turnover  = ccohort%prt%GetTurnover(store_organ, carbon12_element) * days_per_year
@@ -4509,7 +4509,7 @@ end subroutine flush_hvars
 
       do s = 1,nsites
 
-        call this%zero_site_hvars(sites(s), upfreq_in=2)
+         call this%zero_site_hvars(sites(s), upfreq_in=2)
 
          io_si  = sites(s)%h_gid
 

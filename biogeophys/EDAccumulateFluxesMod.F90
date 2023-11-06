@@ -63,7 +63,11 @@ contains
     do s = 1, nsites
 
        ifp = 0
-
+       
+       ! Note: Do not attempt to accumulate or log any
+       ! heterotrophic respiration fluxes from the HLM here
+       ! It is likely this has not been calculated yet (ELM/CLM)
+       
        cpatch => sites(s)%oldest_patch
        do while (associated(cpatch))                 
           if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then
