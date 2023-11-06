@@ -862,7 +862,13 @@ contains
     real(r8) :: betab_veg  ! beam backscatter for vegetation (no snow)
     real(r8) :: betab_om   ! multiplication of beam backscatter and reflectance
     real(r8) :: om_veg     ! scattering coefficient for vegetation (no snow)
-
+    real(r8) :: Kb_sing    ! the KB_leaf that would generate a singularity
+                           ! with the scelb%a parameter
+    real(r8), parameter :: Kb_stem = 1.0_r8
+    real(r8), parameter :: sing_tol = 0.001_r8 ! allowable difference between
+                                               ! the Kb_leaf that creates
+                                               ! a singularity and the actual
+    
     if( (cosz-1.0) > nearzero ) then
        write(log_unit,*)"The cosine of the zenith angle cannot exceed 1"
        write(log_unit,*)"cosz: ",cosz
@@ -896,16 +902,30 @@ contains
                !how much direct light penetrates a singleunit of lai?
                scelg%Kb_leaf = min(kb_max,rad_params%clumping_index(ft) * gdir / cosz)
 
-               !write(log_unit,*)"Kb_leaf: ",scelg%Kb_leaf,gdir , cosz
+               ! To avoid singularities, we need to make sure that Kb =/ a
+               ! If they are too similar, it will create a very large
+               ! term in the linear solution and generate solution errors
+               ! Lets identify the Kb_leaf that gives a singularity.
+               ! We don't need to include the min() function
+               ! a will never be that large.
+               !
+               ! kb = a = (lai*kb_leaf + sai*1)/(lai+sai)
+               ! (a*(lai+sai) - sai*kb_stem)/lai = Kb_sing
                
-
+               do_ib: do ib = 1,this%n_bands
+                  Kb_sing = (this%band(ib)%scelb(ican,icol)%a*(scelg%lai+scelg%sai) - scelg%sai*Kb_stem)/scelg%lai
+                  if(abs(scelg%Kb_leaf - Kb_sing)<sing_tol)then
+                     scelg%Kb_leaf = Kb_sing + sing_tol
+                  end if
+               end do do_ib
+               
                ! RGK: My sense is that snow should be adding optical depth
                !      but we don't have any precedent for that in the FATES
                !      code or old CLM. Re-view this.
                !!scelbp%Kb = this%frac_snow*k_snow + scelbp%Kb
 
-               scelg%Kb = min(kb_max,(scelg%lai*scelg%Kb_leaf + scelg%sai*1.0)/(scelg%lai+scelg%sai))
-
+               scelg%Kb = min(kb_max,(scelg%lai*scelg%Kb_leaf + scelg%sai*Kb_stem)/(scelg%lai+scelg%sai))
+               
                ! Component terms for asu (single scatering albedo)
                tmp0 = gdir +  rad_params%phi2(ft) * cosz
                tmp1 =  rad_params%phi1(ft) * cosz
@@ -1092,7 +1112,7 @@ contains
     type(scelg_type),pointer :: scelgp   ! Pointer to the scelg data structure
     type(scelb_type),pointer :: scelbp   ! Pointer to the scelb data structure
 
-    ! Parameters for solving via LAPACK DGELS() and DGESV()
+    ! Parameters for solving via LAPACK  DGESV() and DGESVXX()
     integer :: info                                 ! Procedure diagnostic ouput
 
     ! Testing switch
@@ -1188,6 +1208,9 @@ contains
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
 
+          ! We also have to avoid singularities, see Ad and Au below,
+          ! where a^2-Kb^2 is in the denominator
+          
           scelbp%a  = sqrt(a2)
 
           b2 = -(scelgp%Kd*(1._r8-scelbp%om)*(1._r8-2._r8*scelbp%betab)+scelgp%Kb) * &
@@ -1452,9 +1475,63 @@ contains
           omega_temp(1:n_eq,1:n_eq) = omega(1:n_eq,1:n_eq) 
        end if
 
+       ! the desired precision of the iterative algorithm is:
+       ! RNRM < SQRT(N)*XNRM*ANRM*EPS
+       ! eps is the machine precision of the real number type
+       ! ANRM is the "infinity-norm", ie the infinity norm is the abs() maximum row sum
+       ! XNRM is the abs() maximum value in that column
+       
+       
+       anrm = dlange( 'I', n, n, a, lda, work )
+       eps = dlamch('Epsilon' )
+       
+       
+       
        ! Find the solution
        call dgesv(n_eq, 1, omega(1:n_eq,1:n_eq), n_eq, ipiv(1:n_eq),  taulamb(1:n_eq), n_eq, info)
 
+       fact = 'E'
+       trans = 'T'
+       call dgesvxx(fact, &          ! character, describes approach, see LAPACK documentation
+                    trans, &         ! character, is this a transpose of the "A" array (omega)?
+                    n_eq,  &         ! int   number of equations (order)
+                    nrhs,  &         ! int   number of right hand side (for us its one, ie 1 vector of taulamb)
+                    omega(1:n_eq,1:n_eq), &   ! the "A" matrix
+                    n_eq,  &                  ! LDA
+                    af,    & ! double dimension( ldaf, * ) returns the factors L and U from the factorization A = P*L*U
+                    
+
+                    
+       dgesvxx	(	character 	FACT,
+character 	TRANS,
+integer 	N,
+integer 	NRHS,
+double precision, dimension( lda, * ) 	A,
+integer 	LDA,
+double precision, dimension( ldaf, * ) 	AF,
+integer 	LDAF,
+integer, dimension( * ) 	IPIV,
+character 	EQUED,
+double precision, dimension( * ) 	R,
+double precision, dimension( * ) 	C,
+double precision, dimension( ldb, * ) 	B,
+integer 	LDB,
+double precision, dimension( ldx , * ) 	X,
+integer 	LDX,
+double precision 	RCOND,
+double precision 	RPVGRW,
+double precision, dimension( * ) 	BERR,
+integer 	N_ERR_BNDS,
+double precision, dimension( nrhs, * ) 	ERR_BNDS_NORM,
+double precision, dimension( nrhs, * ) 	ERR_BNDS_COMP,
+integer 	NPARAMS,
+double precision, dimension( * ) 	PARAMS,
+double precision, dimension( * ) 	WORK,
+integer, dimension( * ) 	IWORK,
+integer 	INFO 
+)		
+
+       
        if(info.ne.0)then
           write(log_unit,*) 'Could not find a solution via dgesv'
           call endrun(msg=errMsg(sourcefile, __LINE__))
