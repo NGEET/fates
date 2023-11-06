@@ -270,8 +270,8 @@ contains
 
        ! check to ensure total area == 1, and correct if not
        if ( abs(sum(state_vector(:)) - 1._r8) .gt. nearzero ) then
-          write(fates_log(),*) 'warning: sum(state_vector) = ', sum(state_vector(:))
-          state_vector = state_vector(:) / sum(state_vector(:))
+          !write(fates_log(),*) 'warning: sum(state_vector) = ', sum(state_vector(:))
+          state_vector(:) = state_vector(:) / sum(state_vector(:))
        end if
     else
        state_vector(primaryland) = 1._r8
@@ -331,7 +331,9 @@ contains
     
     call get_luh_statedata(bc_in, state_vector)
 
-    harvest_rate = state_vector(secondaryland)
+    if ( state_vector(secondaryland) .gt. 0.01) then
+       harvest_rate = state_vector(secondaryland)
+    endif
     
   end subroutine get_init_landuse_harvest_rate
 
@@ -354,7 +356,9 @@ contains
     call get_luh_statedata(bc_in, state_vector)
 
     do i = secondaryland+1,n_landuse_cats
-       landuse_transition_matrix(1,i) = state_vector(i)
+       if ( state_vector(i) .gt. 0.01) then
+          landuse_transition_matrix(1,i) = state_vector(i)
+       end if
     end do
     
   end subroutine get_init_landuse_transition_rates

@@ -93,6 +93,7 @@ module EDInitMod
   use DamageMainMod,          only : undamaged_class
   use FatesInterfaceTypesMod    , only : hlm_num_luh2_transitions
   use FatesConstantsMod,      only : nocomp_bareground_land, nocomp_bareground
+  use FatesConstantsMod,      only : min_nocomp_pftfrac_perlanduse
   use EdTypesMod, only : dump_site
 
   ! CIME GLOBALS
@@ -514,8 +515,9 @@ contains
                 do ft =  1,numpft
 
                    ! remove tiny patches to prevent numerical errors in terminate patches
-                   if(sites(s)%area_pft(ft, i_landusetype).lt.0.01_r8.and.sites(s)%area_pft(ft, i_landusetype).gt.nearzero)then
-                      if(debug) write(fates_log(),*)  'removing small pft patches',s,ft,i_landusetype,sites(s)%area_pft(ft, i_landusetype)
+                   if (sites(s)%area_pft(ft, i_landusetype) .lt. min_nocomp_pftfrac_perlanduse &
+                        .and. sites(s)%area_pft(ft, i_landusetype) .gt. nearzero) then
+                      if(debug) write(fates_log(),*)  'removing small numbers in site%area_pft',s,ft,i_landusetype,sites(s)%area_pft(ft, i_landusetype)
                       sites(s)%area_pft(ft, i_landusetype)=0.0_r8
                    endif
 

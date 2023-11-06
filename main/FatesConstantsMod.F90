@@ -171,6 +171,9 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
   ! of magnitude of buffer error (ie instead of 1e-15)
   real(fates_r8), parameter, public :: rsnbl_math_prec = 1.0e-12_fates_r8
 
+  ! in nocomp simulations, what is the minimum PFT fraction for any given land use type?
+  real(fates_r8), parameter, public :: min_nocomp_pftfrac_perlanduse = 0.01_fates_r8
+
   ! This is the precision of 8byte reals (~1e-308)
   real(fates_r8), parameter, public :: tinyr8 = tiny(1.0_fates_r8)
 
