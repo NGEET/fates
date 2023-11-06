@@ -976,22 +976,22 @@ contains
              currentCohort%fraction_crown_burned = 0.0_r8
              if ( prt_params%woody(currentCohort%pft) == itrue) then !trees only
                 ! Flames lower than bottom of canopy. 
-                ! c%hite is height of cohort
+                ! c%height is height of cohort
 
-                call CrownDepth(currentCohort%hite,currentCohort%pft,crown_depth)
+                call CrownDepth(currentCohort%height,currentCohort%pft,crown_depth)
                 
                 if (currentPatch%Scorch_ht(currentCohort%pft) < &
-                     (currentCohort%hite-crown_depth)) then 
+                     (currentCohort%height-crown_depth)) then 
                    currentCohort%fraction_crown_burned = 0.0_r8
                 else
                    ! Flames part of way up canopy. 
                    ! Equation 17 in Thonicke et al. 2010. 
                    ! flames over bottom of canopy but not over top.
-                   if ((currentCohort%hite > 0.0_r8).and.(currentPatch%Scorch_ht(currentCohort%pft) >=  &
-                        (currentCohort%hite-crown_depth))) then 
+                   if ((currentCohort%height > 0.0_r8).and.(currentPatch%Scorch_ht(currentCohort%pft) >=  &
+                        (currentCohort%height-crown_depth))) then 
 
                         currentCohort%fraction_crown_burned = (currentPatch%Scorch_ht(currentCohort%pft) - &
-                             (currentCohort%hite - crown_depth))/crown_depth
+                             (currentCohort%height - crown_depth))/crown_depth
 
                    else 
                       ! Flames over top of canopy. 

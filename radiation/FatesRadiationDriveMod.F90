@@ -167,7 +167,8 @@ contains
 
                 else
 
-                   if_solver: if(radiation_model.eq.norman_solver) then
+                   select case(radiation_model)
+                   case(norman_solver)
 
                       call PatchNormanRadiation (currentPatch, &
                            bc_out(s)%albd_parb(ifp,:), &   ! Surface Albedo direct
@@ -178,9 +179,9 @@ contains
                            bc_out(s)%ftid_parb(ifp,:), &   ! Down diffuse flux below canopy per unit direct at top
                            bc_out(s)%ftii_parb(ifp,:))     ! Down diffuse flux below canopy per unit diffuse at top
 
-                   else
+                   case(twostr_solver)
 
-                      associate( twostr => currentPatch%twostr)
+                        associate( twostr => currentPatch%twostr)
 
                         !call twostr%CanopyPrep(bc_in(s)%fcansno_pa(ifp))
                         !call twostr%ZenithPrep(bc_in(s)%coszen_pa(ifp))
@@ -225,7 +226,8 @@ contains
                         end do
                       end associate
 
-                   end if if_solver
+                   end select
+                   
                 end if if_nrad
 
              endif if_zenith_flag

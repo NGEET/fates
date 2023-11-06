@@ -680,10 +680,34 @@ contains
        
        do ib = 1, nbands
           rad_params%Kd_leaf(ft) = rad_params%clumping_index(ft)/rad_params%avmu(ft)
-          rad_params%Kd_stem(ft) = 1._r8  ! Isotropic assumption
+          rad_params%Kd_stem(ft) = 1._r8 
           
           rad_params%om_leaf(ib,ft) = rad_params%rhol(ib,ft) + rad_params%taul(ib,ft)
           rad_params%om_stem(ib,ft) = rad_params%rhos(ib,ft) + rad_params%taus(ib,ft)
+
+          if( rad_params%om_leaf(ib,ft) > 0.99_r8 ) then
+             write(log_unit,*) "In: TwoStreamMLPEMod.F90:ParamPrep()"
+             write(log_unit,*) "An extremely high leaf scattering coefficient was generated:"
+             write(log_unit,*) "om = tau + rho"
+             write(log_unit,*) "band = ",ib
+             write(log_unit,*) "pft = ",ft
+             write(log_unit,*) "om_leaf = ",rad_params%om_leaf(ib,ft)
+             write(log_unit,*) "rhol = ",rad_params%rhol(ib,ft)
+             write(log_unit,*) "taul = ",rad_params%taul(ib,ft)
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+           if( rad_params%om_stem(ib,ft) > 0.99_r8 ) then
+             write(log_unit,*) "In: TwoStreamMLPEMod.F90:ParamPrep()"
+             write(log_unit,*) "An extremely high stem scattering coefficient was generated:"
+             write(log_unit,*) "om = tau + rho"
+             write(log_unit,*) "band = ",ib
+             write(log_unit,*) "pft = ",ft
+             write(log_unit,*) "om_stem = ",rad_params%om_stem(ib,ft)
+             write(log_unit,*) "rhos = ",rad_params%rhos(ib,ft)
+             write(log_unit,*) "taus = ",rad_params%taus(ib,ft)
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+          
        end do
        
     end do

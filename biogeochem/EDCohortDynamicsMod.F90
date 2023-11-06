@@ -157,7 +157,7 @@ Module EDCohortDynamicsMod
 contains
 
   !-------------------------------------------------------------------------------------!
-subroutine create_cohort(currentSite, patchptr, pft, nn, hite, coage, dbh,     &
+subroutine create_cohort(currentSite, patchptr, pft, nn, height, coage, dbh,     &
    prt, elongf_leaf, elongf_fnrt, elongf_stem, status, recruitstatus, ctrim,   &
    carea, clayer, crowndamage, spread, bc_in)
 
@@ -182,7 +182,7 @@ integer,                intent(in)             :: clayer        ! canopy status 
 integer,                intent(in)             :: status        ! growth status of plant [1=leaves off; 2=leaves on]
 integer,                intent(in)             :: recruitstatus ! recruit status of plant [1 = recruitment , 0 = other]                
 real(r8),               intent(in)             :: nn            ! number of individuals in cohort [/m2]
-real(r8),               intent(in)             :: hite          ! cohort height [m]
+real(r8),               intent(in)             :: height        ! cohort height [m]
 real(r8),               intent(in)             :: coage         ! cohort age [m]
 real(r8),               intent(in)             :: dbh           ! cohort diameter at breast height [cm]
 real(r8),               intent(in)             :: elongf_leaf   ! leaf elongation factor [fraction] - 0: fully abscissed; 1: fully flushed
@@ -206,7 +206,7 @@ integer                          :: nlevrhiz         ! number of rhizosphere lay
 
 ! create new cohort
 allocate(newCohort)
-call newCohort%Create(prt, pft, nn, hite, coage, dbh, status, ctrim, carea,              &
+call newCohort%Create(prt, pft, nn, height, coage, dbh, status, ctrim, carea,              &
    clayer, crowndamage, spread, patchptr%canopy_layer_tlai, elongf_leaf, elongf_fnrt,    &
    elongf_stem)
 
@@ -247,7 +247,7 @@ if (hlm_use_planthydro .eq. itrue) then
 
    ! This calculates node heights
    call UpdatePlantHydrNodes(newCohort, newCohort%pft, &
-    newCohort%hite,currentSite%si_hydr)
+    newCohort%height,currentSite%si_hydr)
 
    ! This calculates volumes and lengths
    call UpdatePlantHydrLenVol(newCohort,currentSite%si_hydr)
@@ -834,7 +834,7 @@ end subroutine create_cohort
                                       write(fates_log(),*) 'Cohort I, Cohort II'
                                       write(fates_log(),*) 'n:',currentCohort%n,nextc%n
                                       write(fates_log(),*) 'isnew:',currentCohort%isnew,nextc%isnew
-                                      write(fates_log(),*) 'hite:',currentCohort%hite,nextc%hite
+                                      write(fates_log(),*) 'height:',currentCohort%height,nextc%height
                                       write(fates_log(),*) 'coage:',currentCohort%coage,nextc%coage
                                       write(fates_log(),*) 'dbh:',currentCohort%dbh,nextc%dbh
                                       write(fates_log(),*) 'pft:',currentCohort%pft,nextc%pft
@@ -937,7 +937,7 @@ end subroutine create_cohort
                                             call ForceDBH( currentCohort%pft, currentCohort%crowndamage, & 
                                                  currentCohort%canopy_trim, &
                                                  currentCohort%efleaf_coh, currentCohort%efstem_coh, &
-                                                 currentCohort%dbh, currentCohort%hite, &
+                                                 currentCohort%dbh, currentCohort%height, &
                                                  bdead = currentCohort%prt%GetState(struct_organ,carbon12_element))
 
                                          end if
@@ -950,7 +950,7 @@ end subroutine create_cohort
                                       endif
 
                                       !
-                                      call h_allom(currentCohort%dbh,currentCohort%pft,currentCohort%hite)
+                                      call h_allom(currentCohort%dbh,currentCohort%pft,currentCohort%height)
                                       !
                                    case(conserve_dbh_and_number_not_crownarea)
                                       !
@@ -962,7 +962,7 @@ end subroutine create_cohort
                                       currentCohort%dbh         = (currentCohort%n*currentCohort%dbh         &
                                            + nextc%n*nextc%dbh)/newn
                                       !
-                                      call h_allom(currentCohort%dbh,currentCohort%pft,currentCohort%hite)
+                                      call h_allom(currentCohort%dbh,currentCohort%pft,currentCohort%height)
                                       !
                                       ! -----------------------------------------------------------------
                                       ! If fusion pushed structural biomass to be larger than
@@ -976,7 +976,7 @@ end subroutine create_cohort
                                          call ForceDBH( currentCohort%pft, currentCohort%crowndamage, & 
                                               currentCohort%canopy_trim, &
                                               currentCohort%efleaf_coh, currentCohort%efstem_coh, &
-                                              currentCohort%dbh, currentCohort%hite, &
+                                              currentCohort%dbh, currentCohort%height, &
                                               bdead = currentCohort%prt%GetState(struct_organ,carbon12_element))
 
                                       end if
@@ -1163,7 +1163,7 @@ end subroutine create_cohort
                                    endif
 
                                    ! At this point, nothing should be pointing to current Cohort
-                                   ! update hydraulics quantities that are functions of hite & biomasses
+                                   ! update hydraulics quantities that are functions of height & biomasses
                                    ! deallocate the hydro structure of nextc
                                    if (hlm_use_planthydro.eq.itrue) then
                                       call UpdateSizeDepPlantHydProps(currentSite,currentCohort, bc_in)
@@ -1358,7 +1358,7 @@ end subroutine create_cohort
     icohort => pcc ! assign address to icohort local name
     !place in the correct place in the linked list of heights
     !begin by finding cohort that is just taller than the new cohort
-    tsp = icohort%hite
+    tsp = icohort%height
 
     current => pshortest
     exitloop = 0
@@ -1366,7 +1366,7 @@ end subroutine create_cohort
     !taller than tree being considered and return its pointer
     if (associated(current)) then
        do while (associated(current).and.exitloop == 0)
-          if (current%hite < tsp) then
+          if (current%height < tsp) then
              current => current%taller
           else
              exitloop = 1
@@ -1471,7 +1471,7 @@ end subroutine create_cohort
   ! ===================================================================================
 
 
-  subroutine EvaluateAndCorrectDBH(currentCohort,delta_dbh,delta_hite)
+  subroutine EvaluateAndCorrectDBH(currentCohort,delta_dbh,delta_height)
 
     ! -----------------------------------------------------------------------------------
     ! If the current diameter of a plant is somehow less than what is allometrically
@@ -1482,7 +1482,7 @@ end subroutine create_cohort
     ! argument
     type(fates_cohort_type),intent(inout) :: currentCohort
     real(r8),intent(out)               :: delta_dbh
-    real(r8),intent(out)               :: delta_hite
+    real(r8),intent(out)               :: delta_height
 
     ! locals
     real(r8) :: dbh
@@ -1496,7 +1496,7 @@ end subroutine create_cohort
     real(r8) :: target_struct_c
     real(r8) :: target_leaf_c
     real(r8) :: struct_c
-    real(r8) :: hite_out
+    real(r8) :: height_out
     real(r8) :: leaf_c
     real(r8) :: crown_reduction
     real(r8) :: elongf_leaf
@@ -1510,7 +1510,7 @@ end subroutine create_cohort
     elongf_stem = currentCohort%efstem_coh
 
     delta_dbh   = 0._r8
-    delta_hite  = 0._r8
+    delta_height  = 0._r8
 
     if( prt_params%woody(currentCohort%pft) == itrue) then
 
@@ -1539,12 +1539,12 @@ end subroutine create_cohort
        if( (struct_c - target_struct_c ) > calloc_abs_error ) then
 
           call ForceDBH( ipft,icrowndamage,canopy_trim, elongf_leaf, elongf_stem, &
-               dbh, hite_out, bdead=struct_c)
+               dbh, height_out, bdead=struct_c)
 
           delta_dbh = dbh - currentCohort%dbh 
-          delta_hite = hite_out - currentCohort%hite
+          delta_height = height_out - currentCohort%height
           currentCohort%dbh  = dbh
-          currentCohort%hite = hite_out
+          currentCohort%height = height_out
        end if
 
     else
@@ -1557,11 +1557,11 @@ end subroutine create_cohort
 
        if( ( leaf_c - target_leaf_c ) > calloc_abs_error ) then
           call ForceDBH( ipft, icrowndamage, canopy_trim, elongf_leaf, elongf_stem, &
-               dbh, hite_out, bl=leaf_c )
+               dbh, height_out, bl=leaf_c )
           delta_dbh = dbh - currentCohort%dbh
-          delta_hite = hite_out - currentCohort%hite
+          delta_height = height_out - currentCohort%height
           currentCohort%dbh = dbh
-          currentCohort%hite = hite_out
+          currentCohort%height = height_out
        end if
 
     end if

@@ -25,6 +25,7 @@ module EDCanopyStructureMod
   use FatesCohortMod,         only : fates_cohort_type
   use EDParamsMod            , only : nclmax
   use EDParamsMod            , only : nlevleaf
+  use EDParamsMod           , only : radiation_model
   use EDtypesMod            , only : AREA
   use EDLoggingMortalityMod , only : UpdateHarvestC
   use FatesGlobals          , only : endrun => fates_endrun
@@ -46,6 +47,7 @@ module EDCanopyStructureMod
   use PRTGenericMod,          only : carbon12_element
   use FatesAllometryMod     , only : VegAreaLayer
   use FatesTwoStreamInterfaceMod, only : FatesConstructRadElements
+  use FatesRadiationMemMod  , only : twostr_solver
   
   ! CIME Globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
@@ -320,7 +322,7 @@ contains
              if(currentCohort%canopy_layer .eq. 2)then
                 if (associated(currentCohort%taller)) then
                    if (currentCohort%taller%canopy_layer .eq. 1 ) then
-                      currentPatch%zstar = currentCohort%taller%hite
+                      currentPatch%zstar = currentCohort%taller%height
                    endif
                 endif
              endif
@@ -410,7 +412,7 @@ contains
                 ! to the understory.
                 ! ----------------------------------------------------------
 
-                currentCohort%excl_weight = 1._r8 / (currentCohort%hite**ED_val_comp_excln)
+                currentCohort%excl_weight = 1._r8 / (currentCohort%height**ED_val_comp_excln)
                 sumweights = sumweights + currentCohort%excl_weight
 
              else
@@ -431,7 +433,7 @@ contains
                 tied_size_with_neighbors = .false.
                 nextc => currentCohort%taller
                 do while (associated(nextc))
-                   if ( abs(nextc%hite - currentCohort%hite) < similar_height_tol ) then
+                   if ( abs(nextc%height - currentCohort%height) < similar_height_tol ) then
                       if( nextc%canopy_layer .eq. currentCohort%canopy_layer ) then
                          tied_size_with_neighbors = .true.
                          total_crownarea_of_tied_cohorts = &
@@ -454,7 +456,7 @@ contains
 
                    nextc => currentCohort%taller
                    do while (associated(nextc))
-                      if ( abs(nextc%hite - currentCohort%hite) < similar_height_tol ) then
+                      if ( abs(nextc%height - currentCohort%height) < similar_height_tol ) then
                          if (nextc%canopy_layer .eq. currentCohort%canopy_layer ) then
                             ! now we know the total crown area of all equal-sized,
                             ! equal-canopy-layer cohorts
@@ -894,7 +896,7 @@ contains
                    ! Stochastic case, as above (in demotion portion of code)
                    ! ------------------------------------------------------------------
 
-                   currentCohort%prom_weight = currentCohort%hite**ED_val_comp_excln
+                   currentCohort%prom_weight = currentCohort%height**ED_val_comp_excln
                    sumweights = sumweights + currentCohort%prom_weight
                 else
 
@@ -913,7 +915,7 @@ contains
                    tied_size_with_neighbors = .false.
                    nextc => currentCohort%shorter
                    do while (associated(nextc))
-                      if ( abs(nextc%hite - currentCohort%hite) < similar_height_tol ) then
+                      if ( abs(nextc%height - currentCohort%height) < similar_height_tol ) then
                          if( nextc%canopy_layer .eq. currentCohort%canopy_layer ) then
                             tied_size_with_neighbors = .true.
                             total_crownarea_of_tied_cohorts = &
@@ -935,7 +937,7 @@ contains
 
                       nextc => currentCohort%shorter
                       do while (associated(nextc))
-                         if ( abs(nextc%hite - currentCohort%hite) < similar_height_tol ) then
+                         if ( abs(nextc%height - currentCohort%height) < similar_height_tol ) then
                             if (nextc%canopy_layer .eq. currentCohort%canopy_layer ) then
                                ! now we know the total crown area of all equal-sized,
                                ! equal-canopy-layer cohorts
@@ -1436,9 +1438,10 @@ contains
        end do !patch loop
 
        call leaf_area_profile(sites(s))
-
-       call FatesConstructRadElements(sites(s),bc_in(s)%fcansno_pa,bc_in(s)%coszen_pa)
        
+       if(radiation_model.eq.twostr_solver) then
+          call FatesConstructRadElements(sites(s),bc_in(s)%fcansno_pa,bc_in(s)%coszen_pa)
+       end if
        
     end do ! site loop
 
@@ -1501,7 +1504,7 @@ contains
 
     ! !USES:
 
-    use EDtypesMod           , only : area, hitemax, n_hite_bins
+    use EDtypesMod           , only : area, heightmax, n_height_bins
     use EDParamsMod,           only : dinc_vai, dlower_vai
 
     !
@@ -1519,16 +1522,16 @@ contains
     integer  :: iv                       ! Vertical leaf layer index
     integer  :: cl                       ! Canopy layer index
     real(r8) :: fraction_exposed         ! how much of this layer is not covered by snow?
-    real(r8) :: frac_canopy(N_HITE_BINS) ! amount of canopy in each height class
-    real(r8) :: minh(N_HITE_BINS)        ! minimum height in height class (m)
-    real(r8) :: maxh(N_HITE_BINS)        ! maximum height in height class (m)
+    real(r8) :: frac_canopy(N_HEIGHT_BINS) ! amount of canopy in each height class
+    real(r8) :: minh(N_HEIGHT_BINS)        ! minimum height in height class (m)
+    real(r8) :: maxh(N_HEIGHT_BINS)        ! maximum height in height class (m)
     real(r8) :: dh                       ! vertical detph of height class (m)
-    real(r8) :: min_chite                ! bottom of cohort canopy  (m)
-    real(r8) :: max_chite                ! top of cohort canopy      (m)
+    real(r8) :: min_cheight                ! bottom of cohort canopy  (m)
+    real(r8) :: max_cheight                ! top of cohort canopy      (m)
     real(r8) :: elai_layer,tlai_layer    ! leaf area per canopy area
     real(r8) :: esai_layer,tsai_layer    ! stem area per canopy area
     real(r8) :: vai_top,vai_bot          ! integrated top down veg area index at boundary of layer
-    
+
     !----------------------------------------------------------------------
 
 
@@ -1581,11 +1584,12 @@ contains
 
                 call VegAreaLayer(currentCohort%treelai,     &
                      currentCohort%treesai,                  &
-                     currentCohort%hite,                     &
+                     currentCohort%height,                   &
                      iv,currentCohort%nv,currentCohort%pft,  &
                      currentSite%snow_depth,                    &
                      vai_top,vai_bot,                          &
                      elai_layer,esai_layer,tlai_layer,tsai_layer)
+
 
                 currentPatch%tlai_profile(cl,ft,iv) = currentPatch%tlai_profile(cl,ft,iv) + &
                      tlai_layer * currentCohort%c_area/currentPatch%total_canopy_area
@@ -1782,7 +1786,7 @@ contains
              endif
 
              if (associated(currentPatch%tallest)) then
-                bc_out(s)%htop_pa(ifp) = currentPatch%tallest%hite
+                bc_out(s)%htop_pa(ifp) = currentPatch%tallest%height
              else
                 ! FIX(RF,040113) - should this be a parameter for the minimum possible vegetation height?
                 bc_out(s)%htop_pa(ifp) = 0.1_r8
@@ -1802,9 +1806,9 @@ contains
                    if (currentCohort%canopy_layer .eq. 1) then
                       weight = min(1.0_r8,currentCohort%c_area/currentPatch%total_canopy_area)
                       bc_out(s)%z0m_pa(ifp) = bc_out(s)%z0m_pa(ifp) + &
-                           EDPftvarcon_inst%z0mr(currentCohort%pft) * currentCohort%hite * weight
+                           EDPftvarcon_inst%z0mr(currentCohort%pft) * currentCohort%height * weight
                       bc_out(s)%displa_pa(ifp) = bc_out(s)%displa_pa(ifp) + &
-                           EDPftvarcon_inst%displar(currentCohort%pft) * currentCohort%hite * weight
+                           EDPftvarcon_inst%displar(currentCohort%pft) * currentCohort%height * weight
                    endif
                    currentCohort => currentCohort%taller
                 end do

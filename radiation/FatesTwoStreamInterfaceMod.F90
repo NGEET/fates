@@ -26,9 +26,7 @@ Module FatesTwoStreamInterfaceMod
   use TwoStreamMLPEMod      , only : AllocateRadParams
   use TwoStreamMLPEMod      , only : rel_err_thresh,area_err_thresh
   use EDPftvarcon           , only : EDPftvarcon_inst
-  use FatesRadiationMemMod  , only : twostr_solver
   use FatesAllometryMod     , only : VegAreaLayer
-  use EDParamsMod           , only : radiation_model
   
   implicit none
 
@@ -89,7 +87,7 @@ contains
     !type(fates_cohort_type), pointer :: elem_co_ptrs(ncl*max_el_per_layer,100)
 
     
-    if(radiation_model.ne.twostr_solver)return
+    
 
     max_elements = -1
     ifp=0
@@ -195,7 +193,7 @@ contains
             ! it will return the total plant LAIs and SAIs
             call VegAreaLayer(cohort%treelai, &
                               cohort%treesai, &
-                              cohort%hite,    &
+                              cohort%height,    &
                               0,                     &
                               cohort%nv,      &
                               cohort%pft,     &
@@ -415,7 +413,7 @@ contains
          do iv = 1,cohort%nv
             call VegAreaLayer(cohort%treelai, &
                  cohort%treesai,              &
-                 cohort%hite,                 &
+                 cohort%height,                 &
                  iv,                                 &
                  cohort%nv,                   &
                  cohort%pft,                  &
