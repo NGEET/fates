@@ -42,7 +42,7 @@ Module TwoStreamMLPEMod
   ! Allowable error, as a fraction of total incident for total canopy
   ! radiation balance checks
 
-  real(r8), public, parameter :: rel_err_thresh = 1.e-4_r8
+  real(r8), public, parameter :: rel_err_thresh = 1.e-6_r8
   real(r8), public, parameter :: area_err_thresh = rel_err_thresh*0.1_r8
   
   ! These are the codes for how the upper boundary is specified, normalized or absolute
@@ -889,7 +889,7 @@ contains
     real(r8) :: Kb_sing    ! the KB_leaf that would generate a singularity
                            ! with the scelb%a parameter
     real(r8), parameter :: Kb_stem = 1.0_r8
-    real(r8), parameter :: sing_tol = 0.001_r8 ! allowable difference between
+    real(r8), parameter :: sing_tol = 0.01_r8 ! allowable difference between
                                                ! the Kb_leaf that creates
                                                ! a singularity and the actual
     
@@ -936,12 +936,12 @@ contains
                ! kb = a = (lai*kb_leaf + sai*1)/(lai+sai)
                ! (a*(lai+sai) - sai*kb_stem)/lai = Kb_sing
                
-               do_ib: do ib = 1,this%n_bands
+               do_ib0: do ib = 1,this%n_bands
                   Kb_sing = (this%band(ib)%scelb(ican,icol)%a*(scelg%lai+scelg%sai) - scelg%sai*Kb_stem)/scelg%lai
                   if(abs(scelg%Kb_leaf - Kb_sing)<sing_tol)then
                      scelg%Kb_leaf = Kb_sing + sing_tol
                   end if
-               end do do_ib
+               end do do_ib0
                
                ! RGK: My sense is that snow should be adding optical depth
                !      but we don't have any precedent for that in the FATES
@@ -1505,56 +1505,8 @@ contains
        ! ANRM is the "infinity-norm", ie the infinity norm is the abs() maximum row sum
        ! XNRM is the abs() maximum value in that column
        
-       
-       anrm = dlange( 'I', n, n, a, lda, work )
-       eps = dlamch('Epsilon' )
-       
-       
-       
        ! Find the solution
        call dgesv(n_eq, 1, omega(1:n_eq,1:n_eq), n_eq, ipiv(1:n_eq),  taulamb(1:n_eq), n_eq, info)
-
-       fact = 'E'
-       trans = 'T'
-       call dgesvxx(fact, &          ! character, describes approach, see LAPACK documentation
-                    trans, &         ! character, is this a transpose of the "A" array (omega)?
-                    n_eq,  &         ! int   number of equations (order)
-                    nrhs,  &         ! int   number of right hand side (for us its one, ie 1 vector of taulamb)
-                    omega(1:n_eq,1:n_eq), &   ! the "A" matrix
-                    n_eq,  &                  ! LDA
-                    af,    & ! double dimension( ldaf, * ) returns the factors L and U from the factorization A = P*L*U
-                    
-
-                    
-       dgesvxx	(	character 	FACT,
-character 	TRANS,
-integer 	N,
-integer 	NRHS,
-double precision, dimension( lda, * ) 	A,
-integer 	LDA,
-double precision, dimension( ldaf, * ) 	AF,
-integer 	LDAF,
-integer, dimension( * ) 	IPIV,
-character 	EQUED,
-double precision, dimension( * ) 	R,
-double precision, dimension( * ) 	C,
-double precision, dimension( ldb, * ) 	B,
-integer 	LDB,
-double precision, dimension( ldx , * ) 	X,
-integer 	LDX,
-double precision 	RCOND,
-double precision 	RPVGRW,
-double precision, dimension( * ) 	BERR,
-integer 	N_ERR_BNDS,
-double precision, dimension( nrhs, * ) 	ERR_BNDS_NORM,
-double precision, dimension( nrhs, * ) 	ERR_BNDS_COMP,
-integer 	NPARAMS,
-double precision, dimension( * ) 	PARAMS,
-double precision, dimension( * ) 	WORK,
-integer, dimension( * ) 	IWORK,
-integer 	INFO 
-)		
-
        
        if(info.ne.0)then
           write(log_unit,*) 'Could not find a solution via dgesv'
