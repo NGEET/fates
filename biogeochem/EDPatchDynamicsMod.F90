@@ -503,7 +503,6 @@ contains
     integer  :: i_pft
     real(r8) :: newp_area
     logical  :: buffer_patch_in_linked_list
-    real(r8) :: tmp, tmp2
     integer  :: n_pfts_by_landuse
     integer  :: which_pft_allowed
 
@@ -1314,8 +1313,6 @@ contains
     end do nocomp_pft_loop
 
     nocomp_and_luh_if: if ( hlm_use_nocomp .eq. itrue .and. hlm_use_luh .eq. itrue ) then
-       ! CDK test  nocomp_and_luh_if: if ( .false. ) then
-
        ! disturbance has just happened, and now the nocomp PFT identities of the newly-disturbed patches
        ! need to be remapped to those associated with the new land use type.
 
@@ -1404,21 +1401,26 @@ contains
                       if (fraction_to_keep .le. nearzero) then
                          ! we don't want any patch area with this PFT identity at all anymore. Fuse it into the buffer patch.
                          currentPatch%nocomp_pft_label = 0
-                         previousPatch => currentPatch%older 
+                         previousPatch => currentPatch%older
+
                          call fuse_2_patches(currentSite, currentPatch, buffer_patch)
                          currentPatch => previousPatch
+
                       elseif (fraction_to_keep .lt. 1._r8) then
                          ! we have more patch are of this PFT than we want, but we do want to keep some of it.
                          ! we want to split the patch into two here. leave one patch as-is, and put the rest into the buffer patch.
 
                          allocate(temp_patch)
+
                          call split_patch(currentSite, currentPatch, temp_patch, fraction_to_keep)
                          !
                          temp_patch%nocomp_pft_label = 0
+
                          call fuse_2_patches(currentSite, temp_patch, buffer_patch)
                          !
                          nocomp_pft_area_vector_filled(currentPatch%nocomp_pft_label) = &
                               nocomp_pft_area_vector_filled(currentPatch%nocomp_pft_label) + currentPatch%area
+
                          currentPatch%changed_landuse_this_ts = .false.
                       else
                          ! we want to keep all of this patch (and possibly more)
@@ -1431,36 +1433,24 @@ contains
                 end do
 
                 ! at this point, lets check that the total patch area remaining to be relabelled equals what we think that it is.
-                tmp = 0._r8
-                tmp2 = 0._r8
-                currentPatch => currentSite%oldest_patch
-                do while(associated(currentPatch))
-                   tmp2 = tmp + currentPatch%area
-                   if (currentPatch%changed_landuse_this_ts .and. currentPatch%land_use_label .eq. i_land_use_label) then
-                      tmp = tmp + currentPatch%area
-                   end if
-                   currentPatch => currentPatch%younger
-                end do
-                if (abs(sum(nocomp_pft_area_vector(:)) - sum(nocomp_pft_area_vector_filled(:)) - tmp) .gt. rsnbl_math_prec) then
-                   write(fates_log(),*) 'midway through patch reallocation and things are already not adding up.'
+                if (abs(sum(nocomp_pft_area_vector(:)) - sum(nocomp_pft_area_vector_filled(:)) - buffer_patch%area) .gt. rsnbl_math_prec) then
+                   write(fates_log(),*) 'midway through patch reallocation and things are already not adding up.', i_land_use_label
                    write(fates_log(),*) currentSite%area_pft(:,i_land_use_label)
                    write(fates_log(),*) '-----'
                    write(fates_log(),*) nocomp_pft_area_vector_filled
                    write(fates_log(),*) '-----'
                    write(fates_log(),*) nocomp_pft_area_vector
                    write(fates_log(),*) '-----'
-                   write(fates_log(),*) tmp2, tmp2 + buffer_patch%area
                    write(fates_log(),*) buffer_patch%area, buffer_patch%land_use_label, buffer_patch%nocomp_pft_label
-                   write(fates_log(),*) tmp, sum(nocomp_pft_area_vector(:)) - sum(nocomp_pft_area_vector_filled(:)) - tmp
                    currentPatch => currentSite%oldest_patch
                    do while(associated(currentPatch))
                       write(fates_log(),*) currentPatch%area, currentPatch%land_use_label, currentPatch%nocomp_pft_label
                       currentPatch => currentPatch%younger
                    end do
+                   call dump_site(currentSite)
                    call endrun(msg=errMsg(sourcefile, __LINE__))
                 end if
 
-                
                 ! now we need to loop through the nocomp PFTs, and split the buffer patch into a set of patches to put back in the linked list
                 nocomp_pft_loop_2: do i_pft = 1, numpft
                    !
@@ -1469,40 +1459,42 @@ contains
                       if (nocomp_pft_area_vector_filled(i_pft) .lt. currentSite%area_pft(i_pft,i_land_use_label) * sum(nocomp_pft_area_vector(:))) then
                          !
                          newp_area = currentSite%area_pft(i_pft,i_land_use_label) * sum(nocomp_pft_area_vector(:)) - nocomp_pft_area_vector_filled(i_pft)
-                         !
-                         if (newp_area .lt. buffer_patch%area) then
+                         ! only bother doing this if the new new patch area needed is greater than some tiny amount
+                         if ( newp_area .gt. rsnbl_math_prec) then
+                            !
+                            if (buffer_patch%area - newp_area .gt. rsnbl_math_prec) then
 
-                            ! split buffer patch in two, keeping the smaller buffer patch to put into new patches
-                            allocate(temp_patch)
-                            call split_patch(currentSite, buffer_patch, temp_patch, newp_area/buffer_patch%area)
+                               ! split buffer patch in two, keeping the smaller buffer patch to put into new patches
+                               allocate(temp_patch)
 
-                            ! give the new patch the intended nocomp PFT label
-                            temp_patch%nocomp_pft_label = i_pft
+                               call split_patch(currentSite, buffer_patch, temp_patch, (1._r8 - newp_area/buffer_patch%area))
 
-                            ! track that we have added this patch area
-                            nocomp_pft_area_vector_filled(i_pft) = nocomp_pft_area_vector_filled(i_pft) + temp_patch%area
+                               ! give the new patch the intended nocomp PFT label
+                               temp_patch%nocomp_pft_label = i_pft
 
-                            ! put the new patch into the linked list
-                            call InsertPatch(currentSite, temp_patch)
+                               ! track that we have added this patch area
+                               nocomp_pft_area_vector_filled(i_pft) = nocomp_pft_area_vector_filled(i_pft) + temp_patch%area
 
-                            ! now that the patch that temp_patch points to is in the site linked list, we want to null temp_patch so that it can be
-                            ! refilled the next time through the loop.
-                            temp_patch => null()
+                               ! put the new patch into the linked list
+                               call InsertPatch(currentSite, temp_patch)
 
-                         else
-                            ! give the buffer patch the intended nocomp PFT label
-                            buffer_patch%nocomp_pft_label = i_pft
+                               ! now that the patch that temp_patch points to is in the site linked list, we want to null temp_patch so that it can be
+                               ! refilled the next time through the loop.
 
-                            ! track that we have added this patch area
-                            nocomp_pft_area_vector_filled(i_pft) = nocomp_pft_area_vector_filled(i_pft) + buffer_patch%area
+                            else
+                               ! give the buffer patch the intended nocomp PFT label
+                               buffer_patch%nocomp_pft_label = i_pft
 
-                            ! put the buffer patch directly into the linked list
-                            call InsertPatch(currentSite, buffer_patch)
+                               ! track that we have added this patch area
+                               nocomp_pft_area_vector_filled(i_pft) = nocomp_pft_area_vector_filled(i_pft) + buffer_patch%area
 
-                            buffer_patch_in_linked_list = .true.
+                               ! put the buffer patch directly into the linked list
+                               call InsertPatch(currentSite, buffer_patch)
 
+                               buffer_patch_in_linked_list = .true.
+
+                            end if
                          end if
-
                       end if
                    end if
                 end do nocomp_pft_loop_2
@@ -1523,6 +1515,7 @@ contains
                 else
                    write(fates_log(),*) 'Buffer patch still has area and it wasnt put into the linked list'
                    write(fates_log(),*) 'buffer_patch%area', buffer_patch%area
+                   write(fates_log(),*) sum(nocomp_pft_area_vector_filled(:)), sum(nocomp_pft_area_vector(:))
                    call endrun(msg=errMsg(sourcefile, __LINE__))
                 end if
 
