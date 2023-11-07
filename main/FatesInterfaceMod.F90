@@ -1975,7 +1975,7 @@ contains
 
    ! =====================================================================================
 
-   subroutine UpdateFatesRMeansTStep(sites,bc_in)
+   subroutine UpdateFatesRMeansTStep(sites,bc_in, bc_out)
 
      ! In this routine, we update any FATES buffers where
      ! we calculate running means. It is assumed that this buffer is updated
@@ -1983,6 +1983,7 @@ contains
 
      type(ed_site_type), intent(inout) :: sites(:)
      type(bc_in_type), intent(in)      :: bc_in(:)
+     type(bc_out_type), intent(inout)  :: bc_out(:)
      
      type(fates_patch_type),  pointer :: cpatch
      type(fates_cohort_type), pointer :: ccohort
@@ -2059,11 +2060,11 @@ contains
            ccohort => cpatch%tallest
            do while (associated(ccohort))
               !   call ccohort%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
-
-              ! [kgC/plant/yr] -> [gC/m2/s]
-              site_npp = site_npp + ccohort%npp_acc_hold * ccohort%n*area_inv * &
-                   g_per_kg * hlm_days_per_year / sec_per_day
-
+              if(.not.ccohort%isnew)then
+                 ! [kgC/plant/yr] -> [gC/m2/s]
+                 site_npp = site_npp + ccohort%npp_acc_hold * ccohort%n*area_inv * &
+                      g_per_kg * hlm_days_per_year / sec_per_day
+              end if
               ccohort => ccohort%shorter
            end do
 
@@ -2079,6 +2080,8 @@ contains
         sites(s)%ema_npp = (1._r8-1._r8/ema_npp_tscale)*sites(s)%ema_npp + (1._r8/ema_npp_tscale)*site_npp
      end if
 
+     bc_out(s)%ema_npp = sites(s)%ema_npp
+     
   end do
 
   return
