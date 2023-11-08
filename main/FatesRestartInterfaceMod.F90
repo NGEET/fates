@@ -1133,21 +1133,21 @@ contains
     
     ! Only register satellite phenology related restart variables if it is turned on!
 
-    if(hlm_use_sp .eq. itrue) then
-         call this%set_restart_var(vname='fates_cohort_area', vtype=cohort_r8, &
-             long_name='area of the fates cohort', &
-             units='m2', flushval = flushzero, &
-             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_c_area_co )
-         call this%set_restart_var(vname='fates_cohort_treelai', vtype=cohort_r8, &
-             long_name='leaf area index of fates cohort', &
-             units='m2/m2', flushval = flushzero, &
-             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_treelai_co )
-         call this%set_restart_var(vname='fates_cohort_treesai', vtype=cohort_r8, &
-             long_name='stem area index of fates cohort', &
-             units='m2/m2', flushval = flushzero, &
-             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_treesai_co )
-
-         call this%set_restart_var(vname='fates_canopy_layer_tlai_pa', vtype=cohort_r8, &
+    call this%set_restart_var(vname='fates_cohort_area', vtype=cohort_r8, &
+         long_name='area of the fates cohort', &
+         units='m2', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_c_area_co )
+    call this%set_restart_var(vname='fates_cohort_treelai', vtype=cohort_r8, &
+         long_name='leaf area index of fates cohort', &
+         units='m2/m2', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_treelai_co )
+    call this%set_restart_var(vname='fates_cohort_treesai', vtype=cohort_r8, &
+         long_name='stem area index of fates cohort', &
+         units='m2/m2', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_treesai_co )
+    
+    if(hlm_use_sp .eq. itrue)then
+       call this%set_restart_var(vname='fates_canopy_layer_tlai_pa', vtype=cohort_r8, &
              long_name='total patch level leaf area index of each fates canopy layer', &
              units='m2/m2', flushval = flushzero, &
              hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_canopy_layer_tlai_pa )
@@ -2376,12 +2376,10 @@ contains
                    rio_isnew_co(io_idx_co)     = old_cohort
                 endif
 
-                if (hlm_use_sp .eq. itrue) then
-                    this%rvars(ir_c_area_co)%r81d(io_idx_co) = ccohort%c_area
-                    this%rvars(ir_treelai_co)%r81d(io_idx_co) = ccohort%treelai
-                    this%rvars(ir_treesai_co)%r81d(io_idx_co) = ccohort%treesai
-                end if
-
+                this%rvars(ir_c_area_co)%r81d(io_idx_co) = ccohort%c_area
+                this%rvars(ir_treelai_co)%r81d(io_idx_co) = ccohort%treelai
+                this%rvars(ir_treesai_co)%r81d(io_idx_co) = ccohort%treesai
+                
                 if ( debug ) then
                    write(fates_log(),*) 'CLTV offsetNumCohorts II ',io_idx_co, &
                          cohortsperpatch
@@ -3314,12 +3312,10 @@ contains
                 !  (Keeping as an example)
                 !call this%GetRMeanRestartVar(ccohort%tveg_lpa, ir_tveglpa_co, io_idx_co)
                 
-                if (hlm_use_sp .eq. itrue) then
-                    ccohort%c_area = this%rvars(ir_c_area_co)%r81d(io_idx_co)
-                    ccohort%treelai = this%rvars(ir_treelai_co)%r81d(io_idx_co)
-                    ccohort%treesai = this%rvars(ir_treesai_co)%r81d(io_idx_co)
-                end if
-
+                ccohort%c_area = this%rvars(ir_c_area_co)%r81d(io_idx_co)
+                ccohort%treelai = this%rvars(ir_treelai_co)%r81d(io_idx_co)
+                ccohort%treesai = this%rvars(ir_treesai_co)%r81d(io_idx_co)
+                
                 io_idx_co = io_idx_co + 1
 
                 ccohort => ccohort%taller
