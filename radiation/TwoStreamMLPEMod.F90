@@ -1076,6 +1076,7 @@ contains
     real(r8) :: albedo_beam    ! Mean albedo at canopy top generated from beam radiation [-]
     real(r8) :: albedo_diff    ! Mean albedo at canopy top generated from downwelling diffuse [-]
 
+    real(r8) :: temp_err  ! Used to build the other error terms, a temp
     real(r8) :: solve_err ! This is the maximum error encountered when comparing the forward solution
                           ! of the linear solution A*x, to the known b, in Ax=b. This is the maximum
                           ! considering all equations, and both beam and diffuse boundaries. Units
@@ -1129,7 +1130,7 @@ contains
     real(r8) :: r_abs_stem          ! total absorbed by stems (dummy)
     real(r8) :: r_abs_snow          ! total absorbed by snow (dummy)
     real(r8) :: leaf_sun_frac       ! sunlit fraction of leaves (dummy)
-    real(r8) :: rel_err             ! radiation canopy balance conservation
+    real(r8) :: consv_err           ! radiation canopy balance conservation
                                     ! error, fraction of incident
 
     real(r8) :: beam_err,diff_err   ! error partitioned by beam and diffuse
@@ -1186,13 +1187,7 @@ contains
     ! upper canopy.
     ! --------------------------------------------------------------------------
 
-    if(debug)then
-       solve_err = 0._r8
-    else
-       solve_err = -unset_r8
-    end if
-    
-    consv_err = 0._r8
+    solve_err = 0._r8
     
     if((Rbeam_atm+Rdiff_atm)<nearzero)then
        write(log_unit,*)"No radiation"
@@ -1513,26 +1508,24 @@ contains
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
 
-       if(debug)then
-          ! Perform a forward check on the solution error
-          do ilem = 1,n_eq
-             rel_err = tau_temp(ilem) - sum(taulamb(1:n_eq)*omega_temp(ilem,1:n_eq))
-             solve_err = max(solve_err,abs(rel_err))
-             if(abs(rel_err)>rel_err_thresh)then
-                write(log_unit,*) 'Poor forward solution on two-stream solver'
-                write(log_unit,*) 'isol (1=beam or 2=diff): ',isol
-                write(log_unit,*) 'i (equation): ',ilem
-                write(log_unit,*) 'band index (1=vis,2=nir): ',ib
-                write(log_unit,*) 'error (tau(i) - omega(i,:)*lambda(:)) ',rel_err
-                this%band(ib)%Rbeam_atm = 1._r8
-                this%band(ib)%Rdiff_atm = 1._r8
-                call this%Dump(ib)
-                call endrun(msg=errMsg(sourcefile, __LINE__))
-             end if
-          end do
-          deallocate(tau_temp,omega_temp)
-       end if
-       
+       ! Perform a forward check on the solution error
+       do ilem = 1,n_eq
+          temp_err = tau_temp(ilem) - sum(taulamb(1:n_eq)*omega_temp(ilem,1:n_eq))
+          solve_err = max(solve_err,abs(temp_err))
+          if(abs(temp_err)>rel_err_thresh)then
+             write(log_unit,*) 'Poor forward solution on two-stream solver'
+             write(log_unit,*) 'isol (1=beam or 2=diff): ',isol
+             write(log_unit,*) 'i (equation): ',ilem
+             write(log_unit,*) 'band index (1=vis,2=nir): ',ib
+             write(log_unit,*) 'error (tau(i) - omega(i,:)*lambda(:)) ',temp_err
+             this%band(ib)%Rbeam_atm = 1._r8
+             this%band(ib)%Rdiff_atm = 1._r8
+             call this%Dump(ib)
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+       end do
+       deallocate(tau_temp,omega_temp)
+              
 
        ! Save the solution terms
 
@@ -1652,12 +1645,15 @@ contains
 
     ! Source = upwelling + canopy absorbed + ground absorbed
     
-    rel_err = ((Rbeam_atm + Rdiff_atm) - &
+    consv_err = ((Rbeam_atm + Rdiff_atm) - &
                (albedo_diff  + albedo_beam ) - & 
                (frac_abs_can_diff   + frac_abs_can_beam) - & 
                ((frac_diff_grnd_diff+frac_diff_grnd_beam)*(1._r8-this%band(ib)%albedo_grnd_diff)) - &
                (frac_beam_grnd_beam*(1._r8-this%band(ib)%albedo_grnd_beam)) ) / (Rbeam_atm + Rdiff_atm)
 
+    ! This is an error magnitude, not a bias
+    consv_err = abs(consv_err)
+    
     beam_err = Rbeam_atm - (albedo_beam + frac_abs_can_beam + &
          frac_diff_grnd_beam*(1._r8-this%band(ib)%albedo_grnd_diff) + &
          frac_beam_grnd_beam*(1._r8-this%band(ib)%albedo_grnd_beam))
@@ -1665,9 +1661,9 @@ contains
     diff_err = Rdiff_atm - (albedo_diff + frac_abs_can_diff + &
          frac_diff_grnd_diff*(1._r8-this%band(ib)%albedo_grnd_diff))
     
-    if( abs(rel_err) > rel_err_thresh ) then
+    if( consv_err > rel_err_thresh ) then
        write(log_unit,*)"Total canopy flux balance not closing in TwoStrteamMLPEMod:Solve"
-       write(log_unit,*)"Relative Error, delta/(Rbeam_atm+Rdiff_atm) :",rel_err
+       write(log_unit,*)"Relative Error, delta/(Rbeam_atm+Rdiff_atm) :",consv_err
        write(log_unit,*)"Max Error: ",rel_err_thresh
        write(log_unit,*)"ib: ",ib
        write(log_unit,*)"scattering coeff: ",(2*rad_params%om_leaf(ib,1)+0.5*rad_params%om_stem(ib,1))/2.5

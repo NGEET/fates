@@ -4411,7 +4411,7 @@ end subroutine flush_hvars
     real(r8) :: dt_tstep_inv        ! inverse timestep (1/sec)
     real(r8) :: n_perm2             ! number of plants per square meter
     real(r8) :: sum_area_rad        ! sum of patch canopy areas
-    real(r8),allocatable :: age_area_rad_inv(:)
+    real(r8),allocatable :: age_area_rad(:)
     
     type(fates_patch_type),pointer  :: cpatch
     type(fates_cohort_type),pointer :: ccohort
@@ -4456,7 +4456,7 @@ end subroutine flush_hvars
 
       dt_tstep_inv = 1.0_r8/dt_tstep
 
-      allocate(age_area_rad_inv(size(ED_val_history_ageclass_bin_edges,1)+1))
+      allocate(age_area_rad(size(ED_val_history_ageclass_bin_edges,1)+1))
       
       do_sites: do s = 1,nsites
 
@@ -4471,7 +4471,7 @@ end subroutine flush_hvars
          ! We do not call the radiation solver if
          ! a) there is no vegetation
          ! b) there is no light! (ie cos(zenith) ~= 0)
-         age_area_rad_inv(:) = 0._r8
+         age_area_rad(:) = 0._r8
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
             ! We initialize the solver error to the ignore value
@@ -4481,12 +4481,12 @@ end subroutine flush_hvars
             ! error. So the check on VIS solve error will catch all.
             if( abs(cpatch%solve_err(ivis)-hlm_hio_ignore_val)>nearzero ) then
                age_class = get_age_class_index(cpatch%age)
-               age_area_rad_inv(age_class) = age_area_rad_inv(age_class) + cpatch%total_canopy_area
+               age_area_rad(age_class) = age_area_rad(age_class) + cpatch%total_canopy_area
             end if
             cpatch => cpatch%younger
          end do
          
-         sum_area_rad = sum(age_area_rad_inv(:))
+         sum_area_rad = sum(age_area_rad(:))
          
          if_anyrad: if(sum_area_rad<nearzero)then
             hio_vis_solve_err_age_si(io_si,:)    = hlm_hio_ignore_val
@@ -4500,7 +4500,7 @@ end subroutine flush_hvars
          else
 
             do age_class = 1,size(ED_val_history_ageclass_bin_edges,1)
-               if( age_area_rad_inv(age_class) < nearzero) then
+               if( age_area_rad(age_class) < nearzero) then
                   hio_vis_solve_err_age_si(io_si,age_class)    = hlm_hio_ignore_val
                   hio_nir_solve_err_age_si(io_si,age_class)    = hlm_hio_ignore_val
                   hio_vis_consv_err_age_si(io_si,age_class)    = hlm_hio_ignore_val
@@ -4523,22 +4523,22 @@ end subroutine flush_hvars
                   age_class = get_age_class_index(cpatch%age)
                   
                   hio_vis_solve_err_age_si(io_si,age_class) = hio_vis_solve_err_age_si(io_si,age_class) + &
-                       cpatch%solve_err(ivis) * cpatch%total_canopy_area/age_area_rad_inv(age_class)
+                       cpatch%solve_err(ivis) * cpatch%total_canopy_area/age_area_rad(age_class)
                   hio_nir_solve_err_age_si(io_si,age_class) = hio_nir_solve_err_age_si(io_si,age_class) + &
-                       cpatch%solve_err(inir) * cpatch%total_canopy_area/age_area_rad_inv(age_class)
+                       cpatch%solve_err(inir) * cpatch%total_canopy_area/age_area_rad(age_class)
                   hio_vis_consv_err_age_si(io_si,age_class) = hio_vis_consv_err_age_si(io_si,age_class) + &
-                       cpatch%consv_err(ivis) * cpatch%total_canopy_area/age_area_rad_inv(age_class)
+                       cpatch%consv_err(ivis) * cpatch%total_canopy_area/age_area_rad(age_class)
                   hio_nir_consv_err_age_si(io_si,age_class) = hio_nir_consv_err_age_si(io_si,age_class) + &
-                       cpatch%consv_err(inir) * cpatch%total_canopy_area/age_area_rad_inv(age_class)
+                       cpatch%consv_err(inir) * cpatch%total_canopy_area/age_area_rad(age_class)
                   
                   hio_vis_solve_err_si(io_si) = hio_vis_solve_err_si(io_si) + &
-                       cpatch%solve_err(ivis)*cpatch%total_canopy_area/sum(age_area_rad_inv(:))
+                       cpatch%solve_err(ivis)*cpatch%total_canopy_area/sum(age_area_rad(:))
                   hio_nir_solve_err_si(io_si) = hio_nir_solve_err_si(io_si) + &
-                       cpatch%solve_err(inir)*cpatch%total_canopy_area/sum(age_area_rad_inv(:))
+                       cpatch%solve_err(inir)*cpatch%total_canopy_area/sum(age_area_rad(:))
                   hio_vis_consv_err_si(io_si) = hio_vis_consv_err_si(io_si) + &
-                       cpatch%consv_err(ivis)*cpatch%total_canopy_area/sum(age_area_rad_inv(:))
+                       cpatch%consv_err(ivis)*cpatch%total_canopy_area/sum(age_area_rad(:))
                   hio_nir_consv_err_si(io_si) = hio_nir_consv_err_si(io_si) + &
-                       cpatch%consv_err(inir)*cpatch%total_canopy_area/sum(age_area_rad_inv(:))
+                       cpatch%consv_err(inir)*cpatch%total_canopy_area/sum(age_area_rad(:))
                   
                end if
                cpatch => cpatch%younger
@@ -4681,7 +4681,7 @@ end subroutine flush_hvars
          end if if_veg_area
       end do do_sites
 
-      deallocate(age_area_rad_inv)
+      deallocate(age_area_rad)
       
     end associate
     return

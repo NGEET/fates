@@ -380,8 +380,10 @@ module FatesPatchMod
       this%scorch_ht(:)                 = nan 
       this%frac_burnt                   = nan
       this%tfc_ros                      = nan    
-      this%burnt_frac_litter(:)         = nan    
-  
+      this%burnt_frac_litter(:)         = nan
+      this%solve_err(:)                 = nan
+      this%convs_err(:)                 = nan
+      
     end subroutine NanValues
 
     !===========================================================================

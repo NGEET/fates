@@ -112,6 +112,9 @@ contains
           currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
           currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
 
+          currentPatch%solve_err(:)              = hlm_hio_ignore_val
+          currentPatch%consv_err(:)              = hlm_hio_ignore_val
+
           !cpatch%ed_parsun_z(ican,ipft,ileaf)
 
           if_notbareground: if(currentpatch%nocomp_pft_label.ne.nocomp_bareground)then
@@ -125,9 +128,7 @@ contains
              currentPatch%gnd_alb_dif(1:hlm_numSWb) = bc_in(s)%albgr_dif_rb(1:hlm_numSWb)
              currentPatch%gnd_alb_dir(1:hlm_numSWb) = bc_in(s)%albgr_dir_rb(1:hlm_numSWb)
              currentPatch%fcansno                   = bc_in(s)%fcansno_pa(ifp)
-             currentPatch%solve_err(:)              = hlm_hio_ignore_val
-             currentPatch%consv_err(:)              = hlm_hio_ignore_val
-
+             
              if(radiation_model.eq.twostr_solver) then
                 call currentPatch%twostr%CanopyPrep(bc_in(s)%fcansno_pa(ifp))
                 call currentPatch%twostr%ZenithPrep(bc_in(s)%coszen_pa(ifp))
