@@ -141,7 +141,7 @@ def CheckDataset(input_dataset):
 
     dsflag = False
     dsvars = list(input_dataset.variables)
-    if('primf' in dsvars or
+    if(any('primf' in subname for subname in dsvars) or
        any('irrig' in subname for subname in dsvars)):
         if ('primf_to_secdn' in dsvars):
             dstype = 'LUH2_transitions'
