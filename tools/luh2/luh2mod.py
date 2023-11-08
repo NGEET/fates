@@ -30,7 +30,7 @@ def PrepDataset(input_dataset,start=None,stop=None,merge_flag=False):
     # 'years since' style format.
     if(not(dstype in ('static','regrid'))):
 
-        if (dstype == 'LUH2'):
+        if ('LUH2' in dstype):
             # Get the units to determine the file time
             # It is expected that the units of time is 'years since ...'
             time_since_array = input_dataset.time.units.split()
@@ -80,7 +80,7 @@ def PrepDataset(input_dataset,start=None,stop=None,merge_flag=False):
 def PrepDataset_ESMF(input_dataset,dsflag,dstype):
 
     if (dsflag):
-        if(dstype == "LUH2"):
+        if("LUH2" in dstype):
             print("PrepDataset: LUH2")
             input_dataset = BoundsVariableFixLUH2(input_dataset)
         elif(dstype == "surface"):
@@ -142,15 +142,18 @@ def CheckDataset(input_dataset):
     dsflag = False
     dsvars = list(input_dataset.variables)
     if('primf' in dsvars or
-       'primf_to_secdn' in dsvars or
        any('irrig' in subname for subname in dsvars)):
-        dstype = 'LUH2'
+        if ('primf_to_secdn' in dsvars):
+            dstype = 'LUH2_transitions'
+        else:
+            dstype = 'LUH2'
+
         dsflag = True
-        print("LUH2")
+        # print("LUH2")
     elif('natpft' in dsvars):
         dstype = 'surface'
         dsflag = True
-        print("Surface")
+        # print("Surface")
     elif('icwtr' in dsvars):
         dstype = 'static'
         dsflag = True
