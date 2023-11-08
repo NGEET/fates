@@ -349,7 +349,7 @@ contains
             l_degrad         = 0.0_r8
          end if
       else
-         call get_init_landuse_harvest_rate(bc_in, harvest_rate)
+         call get_init_landuse_harvest_rate(bc_in, currentSite%min_allowed_landuse_fraction, harvest_rate)
          lmort_direct     = harvest_rate
          lmort_collateral = 0.0_r8
          lmort_infra      = 0.0_r8

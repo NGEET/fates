@@ -588,6 +588,18 @@ contains
        end do !site loop
     end if !restart
 
+    ! need to set the minimum amount of allowable land-use fraction on a given site. this is a function of the minimum allowable patch size,
+    ! and for nocomp simulations also the bare ground fraction and the minimum pft fraction for a given land-use type.
+    if (hlm_use_nocomp .eq. itrue ) then
+       if ( sites(s)%area_bareground .gt. nearzero) then
+          sites(s)%min_allowed_landuse_fraction =   min_patch_area_forced / (AREA * min_nocomp_pftfrac_perlanduse * (1._r8 - sites(s)%area_bareground))
+       else
+          ! if all bare ground, shouldn't matter. but make it one anyway to really ignore land use (which should all be NaNs anyway)
+          sites(s)%min_allowed_landuse_fraction = 1._r8
+       endif
+    else
+       sites(s)%min_allowed_landuse_fraction =  min_patch_area_forced / AREA
+    endif
     return
   end subroutine set_site_properties
 

@@ -285,9 +285,9 @@ contains
 
     if ( hlm_use_luh .eq. itrue ) then
        if(.not. site_in%transition_landuse_from_off_to_on) then
-          call get_landuse_transition_rates(bc_in, site_in%landuse_transition_matrix)
+          call get_landuse_transition_rates(bc_in, site_in%min_allowed_landuse_fraction, site_in%landuse_transition_matrix)
        else
-          call get_init_landuse_transition_rates(bc_in, site_in%landuse_transition_matrix)
+          call get_init_landuse_transition_rates(bc_in, site_in%min_allowed_landuse_fraction, site_in%landuse_transition_matrix)
        endif
     else
        site_in%landuse_transition_matrix(:,:) = 0._r8
@@ -380,7 +380,7 @@ contains
                      currentPatch%age_since_anthro_disturbance, harvest_rate)
              end if
           else
-             call get_init_landuse_harvest_rate(bc_in, harvest_rate)
+             call get_init_landuse_harvest_rate(bc_in, site_in%min_allowed_landuse_fraction, harvest_rate)
           endif
 
           currentPatch%disturbance_rates(dtype_ilog) = currentPatch%disturbance_rates(dtype_ilog) + &

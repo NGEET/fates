@@ -61,7 +61,7 @@ module FatesLandUseChangeMod
 contains
 
   ! ============================================================================
-  subroutine get_landuse_transition_rates(bc_in, landuse_transition_matrix)
+  subroutine get_landuse_transition_rates(bc_in, min_allowed_landuse_fraction, landuse_transition_matrix)
 
 
     ! The purpose of this routine is to ingest the land use transition rate information that the host model has read in from a dataset,
@@ -70,7 +70,8 @@ contains
 
     ! !ARGUMENTS:
     type(bc_in_type) , intent(in) :: bc_in
-    real(r8), intent(inout) :: landuse_transition_matrix(n_landuse_cats, n_landuse_cats)  ! [m2/m2/day]
+    real(r8), intent(in)          :: min_allowed_landuse_fraction
+    real(r8), intent(inout)       :: landuse_transition_matrix(n_landuse_cats, n_landuse_cats)  ! [m2/m2/day]
 
     ! !LOCAL VARIABLES:
     type(luh2_fates_lutype_map) :: lumap
@@ -80,6 +81,8 @@ contains
     real(r8) :: urban_fraction
     real(r8) :: temp_vector(hlm_num_luh2_transitions)
     logical  :: modified_flag
+    real(r8) :: state_vector(n_landuse_cats)  ! [m2/m2]
+    integer  :: i_lu
 
     ! zero the transition matrix and the urban fraction
     landuse_transition_matrix(:,:) = 0._r8
@@ -119,6 +122,13 @@ contains
           end if
        end do transitions_loop
 
+       ! zero all transitions where the state vector is less than the minimum allowed
+       call get_luh_statedata(bc_in, state_vector)
+       do i_lu = 1, n_landuse_cats
+          if ( state_vector(i_lu) .le. min_allowed_landuse_fraction) then
+             landuse_transition_matrix(:,i_lu) = 0._r8
+          end if
+       end do
     end if
 
   end subroutine get_landuse_transition_rates
@@ -315,7 +325,7 @@ contains
   end subroutine CheckLUHData
 
 
-  subroutine get_init_landuse_harvest_rate(bc_in, harvest_rate)
+  subroutine get_init_landuse_harvest_rate(bc_in, min_allowed_landuse_fraction, harvest_rate)
 
     ! the purpose of this subroutine is, only under the case where we are transitioning from a spinup run that did not have land use
     ! to a run that does, to apply the land-use changes needed to get to the state vector in a single daily instance. this is for
@@ -324,20 +334,21 @@ contains
 
     ! !ARGUMENTS:
     type(bc_in_type) , intent(in) :: bc_in
-    real(r8), intent(out) :: harvest_rate  ! [m2/ m2 / day]
+    real(r8), intent(in)          :: min_allowed_landuse_fraction
+    real(r8), intent(out)         :: harvest_rate  ! [m2/ m2 / day]
 
     ! LOCALS
     real(r8) ::  state_vector(n_landuse_cats)  ! [m2/m2]
     
     call get_luh_statedata(bc_in, state_vector)
 
-    if ( state_vector(secondaryland) .gt. 0.01) then
+    if ( state_vector(secondaryland) .gt. min_allowed_landuse_fraction) then
        harvest_rate = state_vector(secondaryland)
     endif
     
   end subroutine get_init_landuse_harvest_rate
 
-  subroutine get_init_landuse_transition_rates(bc_in, landuse_transition_matrix)
+  subroutine get_init_landuse_transition_rates(bc_in, min_allowed_landuse_fraction, landuse_transition_matrix)
     
     ! The purose of this subroutine is, only under the case where we are transitioning from a spinup run that did not have land use                                                 
     ! to a run that does, to apply the land-use changes needed to get to the state vector in a single daily instance. this is for
@@ -345,7 +356,8 @@ contains
 
     ! !ARGUMENTS:
     type(bc_in_type) , intent(in) :: bc_in
-    real(r8), intent(inout) :: landuse_transition_matrix(n_landuse_cats, n_landuse_cats)  ! [m2/m2/day]
+    real(r8), intent(in)          :: min_allowed_landuse_fraction
+    real(r8), intent(inout)       :: landuse_transition_matrix(n_landuse_cats, n_landuse_cats)  ! [m2/m2/day]
 
     ! LOCALS
     real(r8) ::  state_vector(n_landuse_cats)  ! [m2/m2]
@@ -356,7 +368,7 @@ contains
     call get_luh_statedata(bc_in, state_vector)
 
     do i = secondaryland+1,n_landuse_cats
-       if ( state_vector(i) .gt. 0.01) then
+       if ( state_vector(i) .gt. min_allowed_landuse_fraction) then
           landuse_transition_matrix(1,i) = state_vector(i)
        end if
     end do
