@@ -42,7 +42,7 @@ echo -e"storage status:\n"
 du -h ${OUTPUT_LOC}
 
 # Regrid the luh2 transitions data using the saved regridder weights file and merge into previous regrid output
-python luh2.py  -b ${START} -e ${END} -l ${TRANSITIONS} -s ${STATIC} -r ${REGRID_TARGET} -w ${REGRIDDER} \
+python luh2.py  -b ${START} -e ${END}-1 -l ${TRANSITIONS} -s ${STATIC} -r ${REGRID_TARGET} -w ${REGRIDDER} \
                 -m ${OUTPUT_LOC}/states_regrid.nc -o ${OUTPUT_LOC}/states_trans_regrid.nc
 echo -e"storage status:\n"
 du -h ${OUTPUT_LOC}

@@ -64,7 +64,7 @@ def main():
     # Note that the time variable from the LUH2 data is 'years since ...' so we need to
     # add the input data year
     if (not "YEAR" in list(regrid_luh2.variables)):
-        regrid_luh2["YEAR"] = regrid_luh2.time + regrid_luh2.timesince
+        regrid_luh2["YEAR"] = regrid_luh2.time + ds_luh2.timesince
         regrid_luh2["LONGXY"] = ds_regrid_target["LONGXY"] # TO DO: double check if this is strictly necessary
         regrid_luh2["LATIXY"] = ds_regrid_target["LATIXY"] # TO DO: double check if this is strictly necessary
 

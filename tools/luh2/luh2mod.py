@@ -202,7 +202,7 @@ def RegridLoop(ds_to_regrid, regridder):
     for i in range(varlen-1):
 
         # Skip time variable
-        if (ds_varnames[i] != "time"):
+        if (not "time" in ds_varnames[i]):
 
             # Only regrid variables that match the lat/lon shape.
             if (ds_to_regrid[ds_varnames[i]][0].shape == (ds_to_regrid.lat.shape[0], ds_to_regrid.lon.shape[0])):
