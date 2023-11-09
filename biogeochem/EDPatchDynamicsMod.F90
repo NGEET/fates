@@ -365,6 +365,7 @@ contains
 
        ! for non-closed-canopy areas subject to logging, add an additional increment of area disturbed
        ! equivalent to the fraction logged to account for transfer of interstitial ground area to new secondary lands
+       ! if ( (logging_time .or. site_in%transition_landuse_from_off_to_on) .and. &
        if ( logging_time .and. &
             (currentPatch%area - currentPatch%total_canopy_area) .gt. fates_tiny ) then
           ! The canopy is NOT closed. 
@@ -1394,7 +1395,7 @@ contains
                       fraction_to_keep = (currentSite%area_pft(currentPatch%nocomp_pft_label,i_land_use_label) * sum(nocomp_pft_area_vector(:)) &
                            - nocomp_pft_area_vector_filled(currentPatch%nocomp_pft_label)) / currentPatch%area
 
-                      if (fraction_to_keep .lt. (-1._r8 * nearzero)) then
+                      if (fraction_to_keep .lt. (-1._r8 * rsnbl_math_prec)) then
                          write(fates_log(),*) 'negative fraction_to_keep', fraction_to_keep
                          call endrun(msg=errMsg(sourcefile, __LINE__))
                       endif
