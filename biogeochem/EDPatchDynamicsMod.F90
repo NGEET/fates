@@ -1395,11 +1395,6 @@ contains
                       fraction_to_keep = (currentSite%area_pft(currentPatch%nocomp_pft_label,i_land_use_label) * sum(nocomp_pft_area_vector(:)) &
                            - nocomp_pft_area_vector_filled(currentPatch%nocomp_pft_label)) / currentPatch%area
 
-                      if (fraction_to_keep .lt. (-1._r8 * rsnbl_math_prec)) then
-                         write(fates_log(),*) 'negative fraction_to_keep', fraction_to_keep
-                         call endrun(msg=errMsg(sourcefile, __LINE__))
-                      endif
-
                       if (fraction_to_keep .le. nearzero) then
                          ! we don't want any patch area with this PFT identity at all anymore. Fuse it into the buffer patch.
                          currentPatch%nocomp_pft_label = 0
