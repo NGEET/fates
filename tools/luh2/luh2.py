@@ -72,6 +72,12 @@ def main():
     if (not 'lsmlat' in list(regrid_luh2.dims)):
         regrid_luh2 = regrid_luh2.rename_dims({'lat':'lsmlat','lon':'lsmlon'})
 
+    # Reapply the coordinate attributes.  This is a workaround for an xarray bug (#8047)
+    # Currently only need time
+    regrid_luh2.time.attrs = ds_luh2.time.attrs
+    regrid_luh2.lat.attrs = ds_luh2.lat.attrs
+    regrid_luh2.lon.attrs = ds_luh2.lon.attrs
+
     # Merge existing regrided luh2 file with merge input target
     # TO DO: check that the grid resolution 
     # We could do this with an append during the write phase instead of the merge
