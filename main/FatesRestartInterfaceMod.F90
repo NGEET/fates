@@ -99,6 +99,7 @@ module FatesRestartInterfaceMod
   integer :: ir_phenmodeldate_si
   integer :: ir_acc_ni_si
   integer :: ir_gdd_si
+  integer :: ir_min_allowed_landuse_fraction_si
   integer :: ir_snow_depth_si
   integer :: ir_trunk_product_si
   integer :: ir_landuse_config_si
@@ -701,6 +702,10 @@ contains
     call this%set_restart_var(vname='fates_gdd_site', vtype=site_r8, &
          long_name='growing degree days at each site', units='degC days', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_gdd_si )
+
+    call this%set_restart_var(vname='fates_min_allowed_landuse_fraction_site', vtype=site_r8, &
+         long_name='minimum allowed land use fraction at each site', units='degC days', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_min_allowed_landuse_fraction_si )
 
     call this%set_restart_var(vname='fates_snow_depth_site', vtype=site_r8, &
          long_name='average snow depth', units='m', flushval = flushzero, &
@@ -2011,6 +2016,7 @@ contains
            rio_phenmodeldate_si        => this%rvars(ir_phenmodeldate_si)%int1d, &
            rio_acc_ni_si               => this%rvars(ir_acc_ni_si)%r81d, &
            rio_gdd_si                  => this%rvars(ir_gdd_si)%r81d, &
+           rio_min_allowed_landuse_fraction_si                  => this%rvars(ir_min_allowed_landuse_fraction_si)%r81d, &
            rio_snow_depth_si           => this%rvars(ir_snow_depth_si)%r81d, &
            rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
            rio_landuse_config_s        => this%rvars(ir_landuse_config_si)%int1d, &
@@ -2602,6 +2608,7 @@ contains
           rio_cndaysleafon_si(io_idx_si)  = sites(s)%cndaysleafon
           rio_cndaysleafoff_si(io_idx_si) = sites(s)%cndaysleafoff
           rio_gdd_si(io_idx_si)           = sites(s)%grow_deg_days
+          rio_min_allowed_landuse_fraction_si(io_idx_si)           = sites(s)%min_allowed_landuse_fraction
           rio_phenmodeldate_si(io_idx_si) = sites(s)%phen_model_date
 
  
@@ -2976,6 +2983,7 @@ contains
           rio_phenmodeldate_si        => this%rvars(ir_phenmodeldate_si)%int1d, &
           rio_acc_ni_si               => this%rvars(ir_acc_ni_si)%r81d, &
           rio_gdd_si                  => this%rvars(ir_gdd_si)%r81d, &
+          rio_min_allowed_landuse_fraction_si                  => this%rvars(ir_min_allowed_landuse_fraction_si)%r81d, &
           rio_snow_depth_si           => this%rvars(ir_snow_depth_si)%r81d, &
           rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
           rio_landuse_config_si       => this%rvars(ir_landuse_config_si)%int1d, &
@@ -3595,6 +3603,7 @@ contains
           sites(s)%cndaysleafon   = rio_cndaysleafon_si(io_idx_si)
           sites(s)%cndaysleafoff  = rio_cndaysleafoff_si(io_idx_si)
           sites(s)%grow_deg_days  = rio_gdd_si(io_idx_si)
+          sites(s)%min_allowed_landuse_fraction  = rio_min_allowed_landuse_fraction_si(io_idx_si)
           sites(s)%phen_model_date= rio_phenmodeldate_si(io_idx_si)
 
          

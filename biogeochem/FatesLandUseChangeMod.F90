@@ -278,11 +278,17 @@ contains
           end if
        end do
 
-       ! check to ensure total area == 1, and correct if not
-       if ( abs(sum(state_vector(:)) - 1._r8) .gt. nearzero ) then
-          !write(fates_log(),*) 'warning: sum(state_vector) = ', sum(state_vector(:))
-          state_vector(:) = state_vector(:) / sum(state_vector(:))
-       end if
+       ! if all zeros, make all primary lands
+       if ( sum(state_vector(:)) .gt. nearzero ) then
+
+          ! check to ensure total area == 1, and correct if not
+          if ( abs(sum(state_vector(:)) - 1._r8) .gt. nearzero ) then
+             !write(fates_log(),*) 'warning: sum(state_vector) = ', sum(state_vector(:))
+             state_vector(:) = state_vector(:) / sum(state_vector(:))
+          end if
+       else
+          state_vector(primaryland) = 1._r8
+       endif
     else
        state_vector(primaryland) = 1._r8
     end if

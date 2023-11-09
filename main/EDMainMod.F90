@@ -314,7 +314,7 @@ contains
        call TotalBalanceCheck(currentSite,4)
 
        ! kill patches that are too small
-       call terminate_patches(currentSite)
+       call terminate_patches(currentSite, bc_in)
     end if
 
     call TotalBalanceCheck(currentSite,5)

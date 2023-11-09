@@ -86,6 +86,7 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : n_landuse_cats
   use FatesLandUseChangeMod, only : get_landuse_transition_rates
   use FatesLandUseChangeMod, only : get_init_landuse_transition_rates
+  use FatesLandUseChangeMod, only : get_luh_statedata
   use FatesConstantsMod    , only : fates_unset_r8
   use FatesConstantsMod    , only : fates_unset_int
   use FatesConstantsMod    , only : hlm_harvest_carbon
@@ -3317,7 +3318,7 @@ contains
 
   ! ============================================================================
 
-  subroutine terminate_patches(currentSite)
+  subroutine terminate_patches(currentSite, bc_in)
     !
     ! !DESCRIPTION:
     !  Terminate Patches if they  are too small                          
@@ -3325,6 +3326,7 @@ contains
     !
     ! !ARGUMENTS:
     type(ed_site_type), target, intent(inout) :: currentSite
+    type(bc_in_type), intent(in)               :: bc_in
     !
     ! !LOCAL VARIABLES:
     type(fates_patch_type), pointer :: currentPatch
@@ -3338,7 +3340,8 @@ contains
     logical                      :: current_patch_is_youngest_lutype
     integer                      :: i_landuse, i_pft
 
-    real(r8) areatot ! variable for checking whether the total patch area is wrong. 
+    real(r8) areatot ! variable for checking whether the total patch area is wrong.
+    real(r8) :: state_vector(n_landuse_cats)  ! [m2/m2] 
     !---------------------------------------------------------------------
 
     ! Initialize the count cycles
@@ -3491,6 +3494,11 @@ contains
              write(fates_log(),*) patchpointer%area, patchpointer%nocomp_pft_label, patchpointer%land_use_label
              patchpointer => patchpointer%older
           end do
+          call get_current_landuse_statevector(currentSite, state_vector)
+          write(fates_log(),*) 'current landuse state vector: ', state_vector
+          call get_luh_statedata(bc_in, state_vector)
+          write(fates_log(),*) 'driver data landuse state vector: ', state_vector
+          write(fates_log(),*) 'min_allowed_landuse_fraction: ', currentSite%min_allowed_landuse_fraction
           call endrun(msg=errMsg(sourcefile, __LINE__))
           
           ! Note to user. If you DO decide to remove the end-run above this line
