@@ -1759,6 +1759,9 @@ contains
     use EDParamsMod        , only : radiation_model
     use FatesInterfaceTypesMod, only : hlm_use_fixed_biogeog,hlm_use_sp, hlm_name
     use FatesInterfaceTypesMod, only : hlm_use_inventory_init
+    use FatesInterfaceTypesMod, only : hlm_use_nocomp
+    use EDParamsMod        , only : max_nocomp_pfts_by_landuse, maxpatches_by_landuse
+    use FatesConstantsMod  , only : n_landuse_cats
 
      ! Argument
      logical, intent(in) :: is_master    ! Only log if this is the master proc
@@ -1772,6 +1775,7 @@ contains
      integer :: norgans  ! size of the plant organ dimension
      integer  :: hlm_pft    ! used in fixed biogeog mode
      integer  :: fates_pft  ! used in fixed biogeog mode
+     integer  :: i_lu    ! land use index
 
      real(r8) :: sumarea    ! area of PFTs in nocomp mode.
 
@@ -2068,6 +2072,21 @@ contains
      end do !ipft
 
 
+     ! if nocomp is enabled, check to make sure the max number of nocomp PFTs per land use is
+     ! less than or equal to the max number of patches per land use.
+     if ( hlm_use_nocomp .eq. itrue ) then
+        do i_lu = 1, n_landuse_cats
+           if (max_nocomp_pfts_by_landuse(i_lu) .gt. maxpatches_by_landuse(i_lu)) then
+              write(fates_log(),*) 'The max number of nocomp PFTs must all be less than or equal to the number of patches, for a given land use type'
+              write(fates_log(),*) 'land use index:',i_lu
+              write(fates_log(),*) 'max_nocomp_pfts_by_landuse(i_lu):', max_nocomp_pfts_by_landuse(i_lu)
+              write(fates_log(),*) 'maxpatches_by_landuse(i_lu):', maxpatches_by_landuse(i_lu)
+              write(fates_log(),*) 'Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+        end do
+     endif
+     
 !!    ! Checks for HYDRO
 !!    if( hlm_use_planthydro == itrue ) then
 !!

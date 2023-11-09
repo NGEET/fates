@@ -200,6 +200,7 @@ integer, parameter, public :: maxpft = 16      ! maximum number of PFTs allowed
    character(len=param_string_length),parameter,public :: ED_name_history_damage_bin_edges = "fates_history_damage_bin_edges"
    character(len=param_string_length),parameter,public :: ED_name_crop_lu_pft_vector = "fates_landuse_crop_lu_pft_vector"
    character(len=param_string_length),parameter,public :: ED_name_maxpatches_by_landuse = "fates_maxpatches_by_landuse"
+   character(len=param_string_length),parameter,public :: ED_name_max_nocomp_pfts_by_landuse = "fates_max_nocomp_pfts_by_landuse"
 
    ! Hydraulics Control Parameters (ONLY RELEVANT WHEN USE_FATES_HYDR = TRUE)
    ! ----------------------------------------------------------------------------------------------
@@ -253,6 +254,7 @@ integer, parameter, public :: maxpft = 16      ! maximum number of PFTs allowed
    ! thus they are not protected here.
    
    integer, public :: maxpatches_by_landuse(n_landuse_cats)
+   integer, public :: max_nocomp_pfts_by_landuse(n_landuse_cats)
    integer, public :: maxpatch_total
 
    ! which crops can be grown on a given crop land use type
@@ -610,6 +612,9 @@ contains
     call fates_params%RegisterParameter(name=ED_name_maxpatches_by_landuse, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names_landuse)
 
+    call fates_params%RegisterParameter(name=ED_name_max_nocomp_pfts_by_landuse, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_landuse)
+
   end subroutine FatesRegisterParams
 
   
@@ -627,6 +632,7 @@ contains
     real(r8), allocatable :: hydr_htftype_real(:)
     real(r8), allocatable :: tmp_vector_by_landuse1(:)  ! local real vector for changing type on read
     real(r8), allocatable :: tmp_vector_by_landuse2(:)  ! local real vector for changing type on read
+    real(r8), allocatable :: tmp_vector_by_landuse3(:)  ! local real vector for changing type on read
 
     call fates_params%RetrieveParameter(name=ED_name_photo_temp_acclim_timescale, &
          data=photo_temp_acclim_timescale)
@@ -841,6 +847,12 @@ contains
     maxpatches_by_landuse(:) = nint(tmp_vector_by_landuse2(:))
     maxpatch_total = sum(maxpatches_by_landuse(:))
     deallocate(tmp_vector_by_landuse2)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_max_nocomp_pfts_by_landuse, &
+         data=tmp_vector_by_landuse3)
+
+    max_nocomp_pfts_by_landuse(:) = nint(tmp_vector_by_landuse3(:))
+    deallocate(tmp_vector_by_landuse3)
 
     call fates_params%RetrieveParameterAllocate(name=ED_name_hydr_htftype_node, &
          data=hydr_htftype_real)

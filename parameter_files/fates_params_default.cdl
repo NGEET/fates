@@ -687,6 +687,9 @@ variables:
 	double fates_landuse_crop_lu_pft_vector(fates_landuseclass) ;
 		fates_landuse_crop_lu_pft_vector:units = "NA" ;
 		fates_landuse_crop_lu_pft_vector:long_name = "What FATES PFT index to use on a given crop land-use type? (dummy value of -999 for non-crop types)" ;
+	double fates_max_nocomp_pfts_by_landuse(fates_landuseclass) ;
+		fates_max_nocomp_pfts_by_landuse:units = "count" ;
+		fates_max_nocomp_pfts_by_landuse:long_name = "maximum number of nocomp PFTs on each land use type (only used in nocomp mode)" ;
 	double fates_maxpatches_by_landuse(fates_landuseclass) ;
 		fates_maxpatches_by_landuse:units = "count" ;
 		fates_maxpatches_by_landuse:long_name = "maximum number of patches per site on each land use type" ;
@@ -1623,7 +1626,9 @@ data:
 
  fates_landuse_crop_lu_pft_vector = -999, -999, -999, -999, 11 ;
 
- fates_maxpatches_by_landuse = 10, 4, 1, 1, 1 ;
+ fates_max_nocomp_pfts_by_landuse = 4, 4, 2, 2, 1 ;
+
+ fates_maxpatches_by_landuse = 10, 6, 2, 2, 1 ;
 
  fates_canopy_closure_thresh = 0.8 ;
 
