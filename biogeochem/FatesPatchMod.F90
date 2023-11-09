@@ -382,7 +382,7 @@ module FatesPatchMod
       this%tfc_ros                      = nan    
       this%burnt_frac_litter(:)         = nan
       this%solve_err(:)                 = nan
-      this%convs_err(:)                 = nan
+      this%consv_err(:)                 = nan
       
     end subroutine NanValues
 

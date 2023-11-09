@@ -1081,12 +1081,9 @@ contains
                           ! of the linear solution A*x, to the known b, in Ax=b. This is the maximum
                           ! considering all equations, and both beam and diffuse boundaries. Units
                           ! are a fraction relative to the boundary flux.
-
-    real(r8) :: consv_err ! This is the error that is returned when seeing if the
-                          ! total albedo matches the total absorbed by all cohorts and
-                          ! the soil absorbed radiation.  It is a fraction based
-                          ! on upper boundaries of 1 W/m2 for both beam and diffuse
-    
+    real(r8) :: consv_err ! radiation canopy balance conservation
+                          ! error, fraction of incident
+     
     real(r8) :: frac_abs_can_beam ! Fraction of incident beam radiation absorbed by the vegetation [-]
     real(r8) :: frac_abs_can_diff ! Fraction of incident diffuse radiation absorbed by the vegetation [-]
     real(r8) :: frac_beam_grnd_beam  ! fraction of beam radiation at ground resulting from of beam at canopy top [-]
@@ -1130,8 +1127,7 @@ contains
     real(r8) :: r_abs_stem          ! total absorbed by stems (dummy)
     real(r8) :: r_abs_snow          ! total absorbed by snow (dummy)
     real(r8) :: leaf_sun_frac       ! sunlit fraction of leaves (dummy)
-    real(r8) :: consv_err           ! radiation canopy balance conservation
-                                    ! error, fraction of incident
+   
 
     real(r8) :: beam_err,diff_err   ! error partitioned by beam and diffuse
     type(scelg_type),pointer :: scelgp   ! Pointer to the scelg data structure
