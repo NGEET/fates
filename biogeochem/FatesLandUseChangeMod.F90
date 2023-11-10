@@ -125,7 +125,7 @@ contains
        ! zero all transitions where the state vector is less than the minimum allowed
        call get_luh_statedata(bc_in, state_vector)
        do i_lu = 1, n_landuse_cats
-          if ( state_vector(i_lu) .le. min_allowed_landuse_fraction .or. i_lu .eq. secondaryland) then !!!!!!!!!!!!!!!!!!!!!!!!!!!!!! CDK DEBUG
+          if ( state_vector(i_lu) .le. min_allowed_landuse_fraction ) then
              landuse_transition_matrix(:,i_lu) = 0._r8
           end if
        end do
@@ -352,8 +352,6 @@ contains
        harvest_rate = state_vector(secondaryland)
     endif
 
-!!!!!!!!!!!!!!!!!!!! CDKCDK
-    harvest_rate = 0._r8
   end subroutine get_init_landuse_harvest_rate
 
   subroutine get_init_landuse_transition_rates(bc_in, min_allowed_landuse_fraction, landuse_transition_matrix)

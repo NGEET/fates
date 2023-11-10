@@ -372,8 +372,7 @@ contains
 
        ! for non-closed-canopy areas subject to logging, add an additional increment of area disturbed
        ! equivalent to the fraction logged to account for transfer of interstitial ground area to new secondary lands
-       ! if ( (logging_time .or. site_in%transition_landuse_from_off_to_on) .and. &
-       if ( logging_time .and. &
+       if ( (logging_time .or. site_in%transition_landuse_from_off_to_on) .and. &
             (currentPatch%area - currentPatch%total_canopy_area) .gt. fates_tiny ) then
           ! The canopy is NOT closed. 
 
@@ -514,7 +513,7 @@ contains
     logical  :: buffer_patch_in_linked_list
     integer  :: n_pfts_by_landuse
     integer  :: which_pft_allowed
-
+    logical  :: buffer_patch_used
     !---------------------------------------------------------------------
 
     storesmallcohort => null() ! storage of the smallest cohort for insertion routine
@@ -1394,6 +1393,7 @@ contains
                       call buffer_patch%sdlng_mdd(pft)%p%CopyFromDonor(copyPatch%sdlng_mdd(pft)%p)
                    enddo
                 end if
+                buffer_patch_used = .false.
 
                 currentPatch => currentSite%oldest_patch
                 do while(associated(currentPatch))
@@ -1410,7 +1410,9 @@ contains
                          call fuse_2_patches(currentSite, currentPatch, buffer_patch)
                          currentPatch => previousPatch
 
-                      elseif (fraction_to_keep .lt. 1._r8) then
+                         buffer_patch_used = .true.
+
+                      elseif ( (1._r8 - fraction_to_keep) .gt. rsnbl_math_prec) then
                          ! we have more patch are of this PFT than we want, but we do want to keep some of it.
                          ! we want to split the patch into two here. leave one patch as-is, and put the rest into the buffer patch.
 
@@ -1426,6 +1428,8 @@ contains
                               nocomp_pft_area_vector_filled(currentPatch%nocomp_pft_label) + currentPatch%area
 
                          currentPatch%changed_landuse_this_ts = .false.
+
+                         buffer_patch_used = .true.
                       else
                          ! we want to keep all of this patch (and possibly more)
                          nocomp_pft_area_vector_filled(currentPatch%nocomp_pft_label) = &
@@ -1436,91 +1440,102 @@ contains
                    currentPatch => currentPatch%younger
                 end do
 
-                ! at this point, lets check that the total patch area remaining to be relabelled equals what we think that it is.
-                if (abs(sum(nocomp_pft_area_vector(:)) - sum(nocomp_pft_area_vector_filled(:)) - buffer_patch%area) .gt. rsnbl_math_prec) then
-                   write(fates_log(),*) 'midway through patch reallocation and things are already not adding up.', i_land_use_label
-                   write(fates_log(),*) currentSite%area_pft(:,i_land_use_label)
-                   write(fates_log(),*) '-----'
-                   write(fates_log(),*) nocomp_pft_area_vector_filled
-                   write(fates_log(),*) '-----'
-                   write(fates_log(),*) nocomp_pft_area_vector
-                   write(fates_log(),*) '-----'
-                   write(fates_log(),*) buffer_patch%area, buffer_patch%land_use_label, buffer_patch%nocomp_pft_label
-                   currentPatch => currentSite%oldest_patch
-                   do while(associated(currentPatch))
-                      write(fates_log(),*) currentPatch%area, currentPatch%land_use_label, currentPatch%nocomp_pft_label
-                      currentPatch => currentPatch%younger
-                   end do
-                   call dump_site(currentSite)
-                   call endrun(msg=errMsg(sourcefile, __LINE__))
-                end if
+                if ( buffer_patch_used ) then
+                   ! at this point, lets check that the total patch area remaining to be relabelled equals what we think that it is.
+                   if (abs(sum(nocomp_pft_area_vector(:)) - sum(nocomp_pft_area_vector_filled(:)) - buffer_patch%area) .gt. rsnbl_math_prec) then
+                      write(fates_log(),*) 'midway through patch reallocation and things are already not adding up.', i_land_use_label
+                      write(fates_log(),*) currentSite%area_pft(:,i_land_use_label)
+                      write(fates_log(),*) '-----'
+                      write(fates_log(),*) nocomp_pft_area_vector_filled
+                      write(fates_log(),*) '-----'
+                      write(fates_log(),*) nocomp_pft_area_vector
+                      write(fates_log(),*) '-----'
+                      write(fates_log(),*) buffer_patch%area, buffer_patch%land_use_label, buffer_patch%nocomp_pft_label
+                      write(fates_log(),*) sum(nocomp_pft_area_vector(:)),  sum(nocomp_pft_area_vector_filled(:)), buffer_patch%area
+                      currentPatch => currentSite%oldest_patch
+                      do while(associated(currentPatch))
+                         write(fates_log(),*) currentPatch%area, currentPatch%land_use_label, currentPatch%nocomp_pft_label
+                         currentPatch => currentPatch%younger
+                      end do
+                      call dump_site(currentSite)
+                      call endrun(msg=errMsg(sourcefile, __LINE__))
+                   end if
 
-                ! now we need to loop through the nocomp PFTs, and split the buffer patch into a set of patches to put back in the linked list
-                nocomp_pft_loop_2: do i_pft = 1, numpft
-                   !
-                   if ( currentSite%area_pft(i_pft,i_land_use_label) .gt. nearzero) then
+                   ! now we need to loop through the nocomp PFTs, and split the buffer patch into a set of patches to put back in the linked list
+                   nocomp_pft_loop_2: do i_pft = 1, numpft
                       !
-                      if (nocomp_pft_area_vector_filled(i_pft) .lt. currentSite%area_pft(i_pft,i_land_use_label) * sum(nocomp_pft_area_vector(:))) then
+                      if ( currentSite%area_pft(i_pft,i_land_use_label) .gt. nearzero) then
                          !
-                         newp_area = currentSite%area_pft(i_pft,i_land_use_label) * sum(nocomp_pft_area_vector(:)) - nocomp_pft_area_vector_filled(i_pft)
-                         ! only bother doing this if the new new patch area needed is greater than some tiny amount
-                         if ( newp_area .gt. rsnbl_math_prec) then
+                         if (nocomp_pft_area_vector_filled(i_pft) .lt. currentSite%area_pft(i_pft,i_land_use_label) * sum(nocomp_pft_area_vector(:))) then
                             !
-                            if (buffer_patch%area - newp_area .gt. rsnbl_math_prec) then
+                            newp_area = currentSite%area_pft(i_pft,i_land_use_label) * sum(nocomp_pft_area_vector(:)) - nocomp_pft_area_vector_filled(i_pft)
+                            ! only bother doing this if the new new patch area needed is greater than some tiny amount
+                            if ( newp_area .gt. rsnbl_math_prec) then
+                               !
+                               if (buffer_patch%area - newp_area .gt. rsnbl_math_prec) then
 
-                               ! split buffer patch in two, keeping the smaller buffer patch to put into new patches
-                               allocate(temp_patch)
+                                  ! split buffer patch in two, keeping the smaller buffer patch to put into new patches
+                                  allocate(temp_patch)
 
-                               call split_patch(currentSite, buffer_patch, temp_patch, (1._r8 - newp_area/buffer_patch%area))
+                                  call split_patch(currentSite, buffer_patch, temp_patch, (1._r8 - newp_area/buffer_patch%area))
 
-                               ! give the new patch the intended nocomp PFT label
-                               temp_patch%nocomp_pft_label = i_pft
+                                  ! give the new patch the intended nocomp PFT label
+                                  temp_patch%nocomp_pft_label = i_pft
 
-                               ! track that we have added this patch area
-                               nocomp_pft_area_vector_filled(i_pft) = nocomp_pft_area_vector_filled(i_pft) + temp_patch%area
+                                  ! track that we have added this patch area
+                                  nocomp_pft_area_vector_filled(i_pft) = nocomp_pft_area_vector_filled(i_pft) + temp_patch%area
 
-                               ! put the new patch into the linked list
-                               call InsertPatch(currentSite, temp_patch)
+                                  ! put the new patch into the linked list
+                                  call InsertPatch(currentSite, temp_patch)
 
-                               ! now that the patch that temp_patch points to is in the site linked list, we want to null temp_patch so that it can be
-                               ! refilled the next time through the loop.
+                                  ! now that the patch that temp_patch points to is in the site linked list, we want to null temp_patch so that it can be
+                                  ! refilled the next time through the loop.
 
-                            else
-                               ! give the buffer patch the intended nocomp PFT label
-                               buffer_patch%nocomp_pft_label = i_pft
+                               else
+                                  ! give the buffer patch the intended nocomp PFT label
+                                  buffer_patch%nocomp_pft_label = i_pft
 
-                               ! track that we have added this patch area
-                               nocomp_pft_area_vector_filled(i_pft) = nocomp_pft_area_vector_filled(i_pft) + buffer_patch%area
+                                  ! track that we have added this patch area
+                                  nocomp_pft_area_vector_filled(i_pft) = nocomp_pft_area_vector_filled(i_pft) + buffer_patch%area
 
-                               ! put the buffer patch directly into the linked list
-                               call InsertPatch(currentSite, buffer_patch)
+                                  ! put the buffer patch directly into the linked list
+                                  call InsertPatch(currentSite, buffer_patch)
 
-                               buffer_patch_in_linked_list = .true.
+                                  buffer_patch_in_linked_list = .true.
 
+                               end if
                             end if
                          end if
                       end if
-                   end if
-                end do nocomp_pft_loop_2
+                   end do nocomp_pft_loop_2
 
-                ! now we want to make sure that either the buffer_patch either has zero area (presumably it was never used), in which case it should be deallocated,
-                ! or else it does have area but it has been put into the site linked list, and so buffer patch should be nulled before next pass through outer loop.
-                ! if either of those, that means everything worked properly, if not, then something has gone wrong.
-                if (buffer_patch_in_linked_list) then
-                   buffer_patch => null()
-                else if (buffer_patch%area .lt. rsnbl_math_prec) then
-                   ! here we need to deallocate the buffer patch so that we don't get a memory leak/
+                   ! now we want to make sure that either the buffer_patch either has zero area (presumably it was never used), in which case it should be deallocated,
+                   ! or else it does have area but it has been put into the site linked list, and so buffer patch should be nulled before next pass through outer loop.
+                   ! if either of those, that means everything worked properly, if not, then something has gone wrong.
+                   if (buffer_patch_in_linked_list) then
+                      buffer_patch => null()
+                   else if (buffer_patch%area .lt. rsnbl_math_prec) then
+                      ! here we need to deallocate the buffer patch so that we don't get a memory leak/
+                      call buffer_patch%FreeMemory(regeneration_model, numpft)
+                      deallocate(buffer_patch, stat=istat, errmsg=smsg)
+                      if (istat/=0) then
+                         write(fates_log(),*) 'dealloc: fail on deallocate(dp):'//trim(smsg)
+                         call endrun(msg=errMsg(sourcefile, __LINE__))
+                      endif
+                   else
+                      write(fates_log(),*) 'Buffer patch still has area and it wasnt put into the linked list'
+                      write(fates_log(),*) 'buffer_patch%area', buffer_patch%area
+                      write(fates_log(),*) sum(nocomp_pft_area_vector_filled(:)), sum(nocomp_pft_area_vector(:))
+                      call endrun(msg=errMsg(sourcefile, __LINE__))
+                   end if
+                else
+                   ! buffer patch was never even used. deallocate.
                    call buffer_patch%FreeMemory(regeneration_model, numpft)
                    deallocate(buffer_patch, stat=istat, errmsg=smsg)
                    if (istat/=0) then
                       write(fates_log(),*) 'dealloc: fail on deallocate(dp):'//trim(smsg)
                       call endrun(msg=errMsg(sourcefile, __LINE__))
                    endif
-                else
-                   write(fates_log(),*) 'Buffer patch still has area and it wasnt put into the linked list'
-                   write(fates_log(),*) 'buffer_patch%area', buffer_patch%area
-                   write(fates_log(),*) sum(nocomp_pft_area_vector_filled(:)), sum(nocomp_pft_area_vector(:))
-                   call endrun(msg=errMsg(sourcefile, __LINE__))
                 end if
 
                 ! check that the area we have added is the same as the area we have taken away. if not, crash.

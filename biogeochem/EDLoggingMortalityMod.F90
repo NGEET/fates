@@ -350,10 +350,21 @@ contains
          end if
       else
          call get_init_landuse_harvest_rate(bc_in, currentSite%min_allowed_landuse_fraction, harvest_rate)
-         lmort_direct     = harvest_rate
-         lmort_collateral = 0.0_r8
-         lmort_infra      = 0.0_r8
-         l_degrad         = 0.0_r8
+         if(prt_params%woody(pft_i) == itrue)then
+            lmort_direct     = harvest_rate
+            lmort_collateral = 0.0_r8
+            lmort_infra      = 0.0_r8
+            l_degrad         = 0.0_r8
+         else
+            lmort_direct     = 0.0_r8
+            lmort_collateral = 0.0_r8
+            lmort_infra      = 0.0_r8
+            if (canopy_layer .eq. 1) then
+               l_degrad         = harvest_rate
+            else
+               l_degrad         = 0.0_r8
+            endif
+         endif
       endif
 
    end subroutine LoggingMortality_frac
