@@ -321,10 +321,15 @@ contains
 
        dist_rate_ldist_notharvested = 0.0_r8
 
+       ! transitin matrix has units of area transitioned per unit area of the whole gridcell per time;
+       ! need to change to area transitioned per unit area of that land-use type per time;
+       ! because the land use state vector sums to one minus area bareground, need to also divide by that
+       ! (or rather, multiply since it is in the denominator of the denominator)
        ! Avoid this calculation to avoid NaN due to division by zero result if luh is not used or applying to bare ground
        if (hlm_use_luh .eq. itrue .and. currentPatch%land_use_label .gt. nocomp_bareground_land) then
           currentPatch%landuse_transition_rates(1:n_landuse_cats) = min(1._r8, &
-               site_in%landuse_transition_matrix(currentPatch%land_use_label,1:n_landuse_cats) / &
+               site_in%landuse_transition_matrix(currentPatch%land_use_label,1:n_landuse_cats) &
+               * (1._r8 - site_in%area_bareground) / &
                current_fates_landuse_state_vector(currentPatch%land_use_label))
        else
           currentPatch%landuse_transition_rates = 0.0_r8
