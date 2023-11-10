@@ -611,13 +611,13 @@ contains
       allocate(bc_out%rssha_pa(maxpatch_total))
       
       ! Canopy Radiation
-      allocate(bc_out%albd_parb(maxpatch_total,hlm_numSWb))
-      allocate(bc_out%albi_parb(maxpatch_total,hlm_numSWb))
-      allocate(bc_out%fabd_parb(maxpatch_total,hlm_numSWb))
-      allocate(bc_out%fabi_parb(maxpatch_total,hlm_numSWb))
-      allocate(bc_out%ftdd_parb(maxpatch_total,hlm_numSWb))
-      allocate(bc_out%ftid_parb(maxpatch_total,hlm_numSWb))
-      allocate(bc_out%ftii_parb(maxpatch_total,hlm_numSWb))
+      allocate(bc_out%albd_parb(fates_maxPatchesPerSite,hlm_numSWb))
+      allocate(bc_out%albi_parb(fates_maxPatchesPerSite,hlm_numSWb))
+      allocate(bc_out%fabd_parb(fates_maxPatchesPerSite,hlm_numSWb))
+      allocate(bc_out%fabi_parb(fates_maxPatchesPerSite,hlm_numSWb))
+      allocate(bc_out%ftdd_parb(fates_maxPatchesPerSite,hlm_numSWb))
+      allocate(bc_out%ftid_parb(fates_maxPatchesPerSite,hlm_numSWb))
+      allocate(bc_out%ftii_parb(fates_maxPatchesPerSite,hlm_numSWb))
 
 
       ! We allocate the boundary conditions to the BGC
