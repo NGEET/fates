@@ -326,6 +326,8 @@ contains
        ! because the land use state vector sums to one minus area bareground, need to also divide by that
        ! (or rather, multiply since it is in the denominator of the denominator)
        ! Avoid this calculation to avoid NaN due to division by zero result if luh is not used or applying to bare ground
+       ! note that an alternative here might be to use what LUH thinks the state vector should be instead of what the FATES state vector is,
+       ! in order to not amplify small deviations between the two...
        if (hlm_use_luh .eq. itrue .and. currentPatch%land_use_label .gt. nocomp_bareground_land) then
           currentPatch%landuse_transition_rates(1:n_landuse_cats) = min(1._r8, &
                site_in%landuse_transition_matrix(currentPatch%land_use_label,1:n_landuse_cats) &
