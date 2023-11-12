@@ -1808,12 +1808,7 @@ contains
                   write(fates_log(),*) 'Transfering hlm_seeddisp_cadence= ',ival,' to FATES'
                end if
 
-            case('hist_dense_level')
-               hlm_hist_level_hifrq = ichar(cval(1))
-               hlm_hist_level_dynam = ichar(cval(2))
-               if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_hist_dense_level= ',cval,' to FATES'
-               end if
+           
                
                
             case('spitfire_mode')
@@ -1935,6 +1930,12 @@ contains
 
          if(present(cval))then
             select case (trim(tag))
+
+            case('hist_dense_level')
+               read(cval,'(I1,I1)') hlm_hist_level_hifrq,hlm_hist_level_dynam
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_hist_dense_level= ',trim(cval)
+               end if
                
             case('hlm_name')
                hlm_name = trim(cval)
