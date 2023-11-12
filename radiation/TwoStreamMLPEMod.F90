@@ -745,7 +745,8 @@ contains
     real(r8) :: betad_veg  ! diffuse backscatter for vegetation (no snow)
     real(r8) :: betad_om   ! multiplication of diffuse backscatter and reflectance
     real(r8) :: area_check ! Checks to make sure each layer has 100% coverage
-
+    real(r8) :: a2         ! The "a" term squared
+    
     this%frac_snow = frac_snow
 
     if(.not.this%force_prep) then
@@ -837,6 +838,18 @@ contains
                     end if                    
                     
                  end if
+
+                 a2 = scelg%Kd*scelg%Kd*(1._r8-scelb%om)*(1._r8-scelb%om+2._r8*scelb%om*scelb%betad)
+                 if(a2<0._r8) then
+                    write(log_unit,*)'a^2 is less than zero'
+                    call endrun(msg=errMsg(sourcefile, __LINE__))
+                 end if
+                 
+                 ! We also have to avoid singularities, see Ad and Au below,
+                 ! where a^2-Kb^2 is in the denominator
+                 
+                 scelb%a  = sqrt(a2)
+                 
                end associate
             end do do_bands
           end associate
@@ -888,7 +901,9 @@ contains
     real(r8) :: om_veg     ! scattering coefficient for vegetation (no snow)
     real(r8) :: Kb_sing    ! the KB_leaf that would generate a singularity
                            ! with the scelb%a parameter
-    real(r8), parameter :: Kb_stem = 1.0_r8
+    real(r8) :: Kb_stem    ! actual optical depth of stem with not planar geometry effects
+                           ! usually the base value
+    real(r8), parameter :: Kb_stem_base = 1.0_r8
     real(r8), parameter :: sing_tol = 0.01_r8 ! allowable difference between
                                                ! the Kb_leaf that creates
                                                ! a singularity and the actual
@@ -923,6 +938,8 @@ contains
             else
                gdir = rad_params%phi1(ft) + rad_params%phi2(ft) * cosz
 
+               Kb_stem = Kb_stem_base
+               
                !how much direct light penetrates a singleunit of lai?
                scelg%Kb_leaf = min(kb_max,rad_params%clumping_index(ft) * gdir / cosz)
 
@@ -933,15 +950,25 @@ contains
                ! We don't need to include the min() function
                ! a will never be that large.
                !
-               ! kb = a = (lai*kb_leaf + sai*1)/(lai+sai)
+               ! kb = a = (lai*kb_leaf + sai*kb_stem)/(lai+sai)
                ! (a*(lai+sai) - sai*kb_stem)/lai = Kb_sing
-               
-               do_ib0: do ib = 1,this%n_bands
-                  Kb_sing = (this%band(ib)%scelb(ican,icol)%a*(scelg%lai+scelg%sai) - scelg%sai*Kb_stem)/scelg%lai
-                  if(abs(scelg%Kb_leaf - Kb_sing)<sing_tol)then
-                     scelg%Kb_leaf = Kb_sing + sing_tol
-                  end if
-               end do do_ib0
+               ! or.. adjust stem Kb?
+               ! (a*(lai+sai) - lai*kb_leaf)/sai = kb_stem_sing
+               if(scelg%lai>nearzero) then
+                  do ib = 1,this%n_bands
+                     Kb_sing = (this%band(ib)%scelb(ican,icol)%a*(scelg%lai+scelg%sai) - scelg%sai*Kb_stem)/scelg%lai
+                     if(abs(scelg%Kb_leaf - Kb_sing)<sing_tol)then
+                        scelg%Kb_leaf = Kb_sing + sing_tol
+                     end if
+                  end do
+               else
+                  do ib = 1,this%n_bands
+                     Kb_sing = this%band(ib)%scelb(ican,icol)%a
+                     if(abs(Kb_stem - Kb_sing)<sing_tol)then
+                        Kb_stem = Kb_sing + sing_tol
+                     end if
+                  end do
+               end if
                
                ! RGK: My sense is that snow should be adding optical depth
                !      but we don't have any precedent for that in the FATES
@@ -1116,7 +1143,7 @@ contains
     integer :: n_eq  ! Total number of equations
 
     integer :: ilem_off ! Offset, or total number of elements above layer of interest
-    real(r8) :: b1,b2,a2,nu_sqrd    ! intermediate terms, see documentation
+    real(r8) :: b1,b2,nu_sqrd    ! intermediate terms, see documentation
     real(r8) :: Rbeam_top           ! Mean beam radiation at top of layer      [W/m2]
     real(r8) :: Rbeam_bot           ! Mean beam radiation at bottom of layer   [W/m2]
     real(r8) :: vai                 ! Vegetation area index [m2 vegetation / m2 ground]
@@ -1215,18 +1242,6 @@ contains
 
           scelgp => this%scelg(ican,icol)
           scelbp => this%band(ib)%scelb(ican,icol)
-
-          a2 = scelgp%Kd*scelgp%Kd*(scelbp%om-1._r8)*(scelbp%om-1._r8-2._r8*scelbp%om*scelbp%betad)
-
-          if(a2<0._r8) then
-             write(log_unit,*)'a^2 is less than zero'
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          end if
-
-          ! We also have to avoid singularities, see Ad and Au below,
-          ! where a^2-Kb^2 is in the denominator
-          
-          scelbp%a  = sqrt(a2)
 
           b2 = -(scelgp%Kd*(1._r8-scelbp%om)*(1._r8-2._r8*scelbp%betab)+scelgp%Kb) * &
                scelbp%om*scelgp%Kb*scelbp%Rbeam0
