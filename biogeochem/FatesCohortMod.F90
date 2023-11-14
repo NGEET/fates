@@ -476,13 +476,18 @@ module FatesCohortMod
       this%size_class_lasttimestep = 0
       this%gpp_tstep               = 0._r8
       this%gpp_acc                 = 0._r8
-      this%gpp_acc_hold            = 0._r8
       this%npp_tstep               = 0._r8
       this%npp_acc                 = 0._r8
-      this%npp_acc_hold            = 0._r8
       this%resp_tstep              = 0._r8
       this%resp_acc                = 0._r8
-      this%resp_acc_hold           = 0._r8
+
+      ! do not zero these, they are not built
+      ! so more appropriate to leave unzerod
+      ! to prevent uninitialized use
+      ! this%gpp_acc_hold            = nan
+      ! this%npp_acc_hold            = nan
+      ! this%resp_acc_hold           = nan
+      
       this%c13disc_clm             = 0._r8
       this%c13disc_acc             = 0._r8
    

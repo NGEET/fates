@@ -256,6 +256,7 @@ module EDTypesMod
      ! Total area of patches in each age bin [m2]
      real(r8), allocatable :: area_by_age(:)
 
+     
      ! Nutrient relevant 
      real(r8), allocatable :: rec_l2fr(:,:) ! A running mean of the l2fr's for the newly
                                             ! recruited, pft x canopy_layer
@@ -419,6 +420,10 @@ module EDTypesMod
      
      ! Canopy Spread
      real(r8) ::  spread                                          ! dynamic canopy allometric term [unitless]
+
+     ! Seed dispersal
+      real(r8), allocatable :: seed_out(:)                               ! amount of seed leaving the site [kg/site/day]
+      real(r8), allocatable :: seed_in(:)                                ! amount of seed dispersed into the site from neighbouring cells  [kg/site/day]
 
      ! site-level variables to keep track of the disturbance rates, both actual and "potential"
      real(r8) :: disturbance_rates_primary_to_primary(N_DIST_TYPES)      ! actual disturbance rates from primary patches to primary patches [m2/m2/day]
