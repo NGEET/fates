@@ -2391,38 +2391,38 @@ end subroutine DetermineGridCellNeighbors
 
 ! ======================================================================================
      
-  !-----------------------------------------------------------------------
-  ! TODO(jpalex): this belongs in FatesParametersInterface.F90, but would require
-  ! untangling the dependencies of the *RegisterParams methods below.
-  subroutine FatesReadParameters(param_reader)
-    implicit none
-   
-    class(fates_param_reader_type), intent(in) :: param_reader ! HLM-provided param file reader
+!-----------------------------------------------------------------------
+! TODO(jpalex): this belongs in FatesParametersInterface.F90, but would require
+! untangling the dependencies of the *RegisterParams methods below.
+subroutine FatesReadParameters(param_reader)
+  implicit none
+  
+  class(fates_param_reader_type), intent(in) :: param_reader ! HLM-provided param file reader
 
-    character(len=32)  :: subname = 'FatesReadParameters'
-    class(fates_parameters_type), allocatable :: fates_params
+  character(len=32)  :: subname = 'FatesReadParameters'
+  class(fates_parameters_type), allocatable :: fates_params
 
-    if ( hlm_masterproc == itrue ) then
-      write(fates_log(), *) 'FatesParametersInterface.F90::'//trim(subname)//' :: CLM reading ED/FATES '//' parameters '
-    end if
+  if ( hlm_masterproc == itrue ) then
+    write(fates_log(), *) 'FatesParametersInterface.F90::'//trim(subname)//' :: CLM reading ED/FATES '//' parameters '
+  end if
 
-    allocate(fates_params)
-    call fates_params%Init()   ! fates_params class, in FatesParameterInterfaceMod
-    call FatesRegisterParams(fates_params)  !EDParamsMod, only operates on fates_params class
-    call SpitFireRegisterParams(fates_params) !SpitFire Mod, only operates of fates_params class
-    call PRTRegisterParams(fates_params)     ! PRT mod, only operates on fates_params class
-    call FatesSynchronizedParamsInst%RegisterParams(fates_params) !Synchronized params class in Synchronized params mod, only operates on fates_params class
+  allocate(fates_params)
+  call fates_params%Init()   ! fates_params class, in FatesParameterInterfaceMod
+  call FatesRegisterParams(fates_params)  !EDParamsMod, only operates on fates_params class
+  call SpitFireRegisterParams(fates_params) !SpitFire Mod, only operates of fates_params class
+  call PRTRegisterParams(fates_params)     ! PRT mod, only operates on fates_params class
+  call FatesSynchronizedParamsInst%RegisterParams(fates_params) !Synchronized params class in Synchronized params mod, only operates on fates_params class
 
-    call param_reader%Read(fates_params)
+  call param_reader%Read(fates_params)
 
-    call FatesReceiveParams(fates_params)
-    call SpitFireReceiveParams(fates_params)
-    call PRTReceiveParams(fates_params)
-    call FatesSynchronizedParamsInst%ReceiveParams(fates_params)
+  call FatesReceiveParams(fates_params)
+  call SpitFireReceiveParams(fates_params)
+  call PRTReceiveParams(fates_params)
+  call FatesSynchronizedParamsInst%ReceiveParams(fates_params)
 
-    call fates_params%Destroy()
-    deallocate(fates_params)
+  call fates_params%Destroy()
+  deallocate(fates_params)
 
  end subroutine FatesReadParameters
- 
+
 end module FatesInterfaceMod
