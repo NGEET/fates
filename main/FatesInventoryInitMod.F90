@@ -858,7 +858,7 @@ contains
       ! patch	(string)   patch id string associated with this cohort
       ! index	(integer)  cohort index
       ! dbh	(cm)       diameter at breast height
-      ! height   (m)        height of the tree
+      ! height  (m)        height of the tree
       ! pft      (integer)  the plant functional type index (must be consistent with param file)
       ! n 	(/m2)      The plant number density
       ! bdead    (kgC/plant)The dead biomass per indiv of this cohort (NOT USED)
@@ -1032,7 +1032,7 @@ contains
          temp_cohort%dbh         = c_dbh
          temp_cohort%crowndamage = 1  ! assume undamaged 
 
-         call h_allom(c_dbh,temp_cohort%pft,temp_cohort%hite)
+         call h_allom(c_dbh,temp_cohort%pft,temp_cohort%height)
          temp_cohort%canopy_trim = 1.0_r8
 
          ! Determine the phenology status and the elongation factors.
@@ -1189,7 +1189,7 @@ contains
 
          call prt_obj%CheckInitialConditions()
 
-         call create_cohort(csite, cpatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, &
+         call create_cohort(csite, cpatch, temp_cohort%pft, temp_cohort%n, temp_cohort%height, &
               temp_cohort%coage, temp_cohort%dbh, &
               prt_obj, temp_cohort%efleaf_coh, temp_cohort%effnrt_coh, &
               temp_cohort%efstem_coh, temp_cohort%status_coh, rstatus, &
@@ -1267,7 +1267,7 @@ contains
        open(unit=css_file_out,file=trim(css_name_out), status='UNKNOWN',action='WRITE',form='FORMATTED')
 
        write(pss_file_out,*) 'time patch trk age area water fsc stsc stsl ssc psc msn fsn'
-       write(css_file_out,*) 'time patch cohort dbh hite pft nplant bdead alive Avgrg'
+       write(css_file_out,*) 'time patch cohort dbh height pft nplant bdead alive Avgrg'
 
        ipatch=0
        currentpatch => currentSite%youngest_patch
