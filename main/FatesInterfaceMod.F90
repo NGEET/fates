@@ -64,9 +64,14 @@ module FatesInterfaceMod
    use EDParamsMod               , only : ED_val_history_ageclass_bin_edges
    use EDParamsMod               , only : ED_val_history_height_bin_edges
    use EDParamsMod               , only : ED_val_history_coageclass_bin_edges
-   use CLMFatesParamInterfaceMod , only : FatesReadParameters
-   use EDParamsMod                , only : p_uptake_mode
-   use EDParamsMod                , only : n_uptake_mode
+   use FatesParametersInterface  , only : fates_param_reader_type
+   use FatesParametersInterface  , only : fates_parameters_type
+   use EDParamsMod               , only : FatesRegisterParams, FatesReceiveParams
+   use SFParamsMod               , only : SpitFireRegisterParams, SpitFireReceiveParams
+   use PRTInitParamsFATESMod     , only : PRTRegisterParams, PRTReceiveParams
+   use FatesSynchronizedParamsMod, only : FatesSynchronizedParamsInst
+   use EDParamsMod               , only : p_uptake_mode
+   use EDParamsMod               , only : n_uptake_mode
    use EDTypesMod                , only : ed_site_type
    use FatesConstantsMod         , only : prescribed_p_uptake
    use FatesConstantsMod         , only : prescribed_n_uptake
@@ -171,6 +176,8 @@ module FatesInterfaceMod
    public :: set_bcs
    public :: UpdateFatesRMeansTStep
    public :: InitTimeAveragingGlobals
+
+   private :: FatesReadParameters
    public :: DetermineGridCellNeighbors
 
    logical :: debug = .false.  ! for debugging this module
@@ -727,7 +734,7 @@ contains
 
     ! ===================================================================================
     
-    subroutine SetFatesGlobalElements1(use_fates,surf_numpft,surf_numcft)
+    subroutine SetFatesGlobalElements1(use_fates,surf_numpft,surf_numcft,param_reader)
 
        ! --------------------------------------------------------------------------------
        !
@@ -741,13 +748,14 @@ contains
       logical,                    intent(in) :: use_fates    ! Is fates turned on?
       integer,                    intent(in) :: surf_numpft  ! Number of PFTs in surface dataset
       integer,                    intent(in) :: surf_numcft  ! Number of CFTs in surface dataset
+      class(fates_param_reader_type), intent(in) :: param_reader ! HLM-provided param file reader
   
       integer :: fates_numpft  ! Number of PFTs tracked in FATES
       
       if (use_fates) then
          
          ! Self explanatory, read the fates parameter file
-         call FatesReadParameters()
+         call FatesReadParameters(param_reader)
 
          fates_numpft = size(prt_params%wood_density,dim=1)
          
@@ -2380,5 +2388,41 @@ subroutine DetermineGridCellNeighbors(neighbors,seeds,numg)
    call t_stopf('fates-seed-init-decomp')
 
 end subroutine DetermineGridCellNeighbors
-      
- end module FatesInterfaceMod
+
+! ======================================================================================
+     
+!-----------------------------------------------------------------------
+! TODO(jpalex): this belongs in FatesParametersInterface.F90, but would require
+! untangling the dependencies of the *RegisterParams methods below.
+subroutine FatesReadParameters(param_reader)
+  implicit none
+  
+  class(fates_param_reader_type), intent(in) :: param_reader ! HLM-provided param file reader
+
+  character(len=32)  :: subname = 'FatesReadParameters'
+  class(fates_parameters_type), allocatable :: fates_params
+
+  if ( hlm_masterproc == itrue ) then
+    write(fates_log(), *) 'FatesParametersInterface.F90::'//trim(subname)//' :: CLM reading ED/FATES '//' parameters '
+  end if
+
+  allocate(fates_params)
+  call fates_params%Init()   ! fates_params class, in FatesParameterInterfaceMod
+  call FatesRegisterParams(fates_params)  !EDParamsMod, only operates on fates_params class
+  call SpitFireRegisterParams(fates_params) !SpitFire Mod, only operates of fates_params class
+  call PRTRegisterParams(fates_params)     ! PRT mod, only operates on fates_params class
+  call FatesSynchronizedParamsInst%RegisterParams(fates_params) !Synchronized params class in Synchronized params mod, only operates on fates_params class
+
+  call param_reader%Read(fates_params)
+
+  call FatesReceiveParams(fates_params)
+  call SpitFireReceiveParams(fates_params)
+  call PRTReceiveParams(fates_params)
+  call FatesSynchronizedParamsInst%ReceiveParams(fates_params)
+
+  call fates_params%Destroy()
+  deallocate(fates_params)
+
+ end subroutine FatesReadParameters
+
+end module FatesInterfaceMod
