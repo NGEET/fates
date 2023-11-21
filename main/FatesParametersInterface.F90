@@ -83,6 +83,35 @@ module FatesParametersInterface
      
   end type fates_parameters_type
 
+  ! Abstract class (to be implemented by host land models) to read in
+  ! parameter values.
+  type, abstract, public :: fates_param_reader_type
+   contains
+     ! Public functions
+     procedure(Read_interface), public, deferred :: Read
+
+  end type fates_param_reader_type
+
+  abstract interface
+   subroutine Read_interface(this, fates_params )
+    !
+    ! !DESCRIPTION:
+    ! Read 'fates_params' parameters from (HLM-provided) storage. Note this ignores
+    ! the legacy parameter_type.sync_with_host setting.
+    !
+    ! USES
+    import :: fates_param_reader_type
+    import :: fates_parameters_type
+    ! !ARGUMENTS:
+    class(fates_param_reader_type) :: this
+    class(fates_parameters_type), intent(inout) :: fates_params
+    !-----------------------------------------------------------------------
+
+    end subroutine Read_interface
+
+  !-----------------------------------------------------------------------
+  end interface
+
 contains
 
   !-----------------------------------------------------------------------

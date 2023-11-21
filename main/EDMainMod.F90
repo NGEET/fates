@@ -765,7 +765,7 @@ contains
   end subroutine ed_integrate_state_variables
 
   !-------------------------------------------------------------------------------!
-  subroutine ed_update_site( currentSite, bc_in, bc_out )
+  subroutine ed_update_site( currentSite, bc_in, bc_out, is_restarting )
     !
     ! !DESCRIPTION:
     ! Calls routines to consolidate the ED growth process.
@@ -781,17 +781,19 @@ contains
     type(ed_site_type) , intent(inout), target :: currentSite
     type(bc_in_type)   , intent(in)       :: bc_in
     type(bc_out_type)  , intent(inout)    :: bc_out
+    logical,intent(in)                    :: is_restarting ! is this called during restart read?
     !
     ! !LOCAL VARIABLES:
     type (fates_patch_type) , pointer :: currentPatch
     !-----------------------------------------------------------------------
-    if(hlm_use_sp.eq.ifalse)then
+
+    if(hlm_use_sp.eq.ifalse .and. (.not.is_restarting))then
       call canopy_spread(currentSite)
     end if
 
     call TotalBalanceCheck(currentSite,6)
 
-    if(hlm_use_sp.eq.ifalse)then
+    if(hlm_use_sp.eq.ifalse .and. (.not.is_restarting) )then
        call canopy_structure(currentSite, bc_in)
     endif
 
@@ -805,22 +807,22 @@ contains
     currentPatch => currentSite%oldest_patch
     do while(associated(currentPatch))
 
-        ! Is termination really needed here?
-        ! Canopy_structure just called it several times! (rgk)
-        call terminate_cohorts(currentSite, currentPatch, 1, 11, bc_in)
-        call terminate_cohorts(currentSite, currentPatch, 2, 11, bc_in)
+       if(.not.is_restarting)then
+          call terminate_cohorts(currentSite, currentPatch, 1, 11, bc_in)
+          call terminate_cohorts(currentSite, currentPatch, 2, 11, bc_in)
+       end if
 
-        ! This cohort count is used in the photosynthesis loop
-        call count_cohorts(currentPatch)
-
-        ! Update the total area of by patch age class array 
-        currentSite%area_by_age(currentPatch%age_class) = &
-             currentSite%area_by_age(currentPatch%age_class) + currentPatch%area
-        
-        currentPatch => currentPatch%younger
-
+       ! This cohort count is used in the photosynthesis loop
+       call count_cohorts(currentPatch)
+       
+       ! Update the total area of by patch age class array 
+       currentSite%area_by_age(currentPatch%age_class) = &
+            currentSite%area_by_age(currentPatch%age_class) + currentPatch%area
+       
+       currentPatch => currentPatch%younger
+       
     enddo
-
+    
     ! The HLMs need to know about nutrient demand, and/or
     ! root mass and affinities
     call PrepNutrientAquisitionBCs(currentSite,bc_in,bc_out)
@@ -832,10 +834,9 @@ contains
 
     ! FIX(RF,032414). This needs to be monthly, not annual
     ! If this is the second to last day of the year, then perform trimming
-    if( hlm_day_of_year == hlm_days_per_year-1) then
-
-     if(hlm_use_sp.eq.ifalse)then
-        call trim_canopy(currentSite)
+    if( hlm_day_of_year == hlm_days_per_year-1 .and. (.not.is_restarting)) then
+       if(hlm_use_sp.eq.ifalse)then
+          call trim_canopy(currentSite)
      endif
     endif
 
