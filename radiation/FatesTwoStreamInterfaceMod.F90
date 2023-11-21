@@ -234,16 +234,14 @@ contains
             ! If the layer is overfull, remove some from area from
             ! the first element that is 10x larger than the threshold
 
-            if_overfull: if( (1._r8-canopy_frac(ican))<-area_err_thresh ) then
-
+            if_overfull: if( (canopy_frac(ican)-1._r8)>area_err_thresh ) then
                do icol = 1,n_col(ican)
-                  if(twostr%scelg(ican,icol)%area > 10._r8*(1._r8-canopy_frac(ican)))then
-                     
-                     area_ratio = (twostr%scelg(ican,icol)%area + (1._r8-canopy_frac(ican)))/twostr%scelg(ican,icol)%area
-                     
+                  if(twostr%scelg(ican,icol)%area > 10._r8*(canopy_frac(ican)-1._r8))then
+                      area_ratio = (twostr%scelg(ican,icol)%area + (1._r8-canopy_frac(ican)))/twostr%scelg(ican,icol)%area
                      twostr%scelg(ican,icol)%area = twostr%scelg(ican,icol)%area * area_ratio
                      twostr%scelg(ican,icol)%lai  = twostr%scelg(ican,icol)%lai / area_ratio
                      twostr%scelg(ican,icol)%sai  = twostr%scelg(ican,icol)%sai / area_ratio
+                     canopy_frac(ican) = 1.0_r8
                      exit if_overfull
                   end if
                end do
