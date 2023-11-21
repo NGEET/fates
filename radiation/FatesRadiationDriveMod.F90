@@ -1206,9 +1206,6 @@ contains
           cpatch%ed_parsha_z(:,:,:) = 0._r8
           cpatch%parprof_pft_dir_z(:,:,:) = 0._r8
           cpatch%parprof_pft_dif_z(:,:,:) = 0._r8
-          bc_out(s)%fsun_pa(ifp) = 0._r8
-          bc_out(s)%laisun_pa(ifp) = 0._r8
-          bc_out(s)%laisha_pa(ifp) = calc_areaindex(cpatch,'elai')
 
           if_notbareground:if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then !only for veg patches
              ! do not do albedo calculations for bare ground patch in SP mode
@@ -1216,6 +1213,10 @@ contains
              ! ifp=1 is the first vegetated patch.
              ifp=ifp+1
 
+             bc_out(s)%fsun_pa(ifp) = 0._r8
+             bc_out(s)%laisun_pa(ifp) = 0._r8
+             bc_out(s)%laisha_pa(ifp) = calc_areaindex(cpatch,'elai')
+             
              ! If there is no sun out, we have a trivial solution
              if_zenithflag: if(cpatch%solar_zenith_flag ) then
 

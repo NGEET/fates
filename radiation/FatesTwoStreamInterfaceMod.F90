@@ -232,54 +232,30 @@ contains
             end if
 
             ! If the layer is overfull, remove some from area from
-            ! the first element
-            ! THIS DOES HELP IMPROVE ENERGY CONSERVATION ON THE
-            ! ELEMENT VERSUS TOTAL AREA CHECK, BUT JUST PASSES
-            ! ERROR TO THE CHECK OF ENERGY CONSERVATION WITH
-            ! FATES COHORTS... THE SOLUTION IS TO HAVE
-            ! HIGHER PRECISION ON 
-            if( (1._r8-canopy_frac(ican))<-area_err_thresh ) then
+            ! the first element that is 10x larger than the threshold
 
-               !twostr%scelg(ican,1)%area = &
-               !     twostr%scelg(ican,1)%area + (1._r8-canopy_frac(ican))
-               !new_area = twostr%scelg(ican,1)%area + (1._r8-canopy_frac(ican))
-               area_ratio = (twostr%scelg(ican,1)%area + (1._r8-canopy_frac(ican)))/twostr%scelg(ican,1)%area
+            if_overfull: if( (1._r8-canopy_frac(ican))<-area_err_thresh ) then
 
-               twostr%scelg(ican,1)%area = twostr%scelg(ican,1)%area * area_ratio
-               twostr%scelg(ican,1)%lai  = twostr%scelg(ican,1)%lai / area_ratio
-               twostr%scelg(ican,1)%sai  = twostr%scelg(ican,1)%sai / area_ratio
-
-               write(fates_log(),*) 'overfull areas'
-               twostr%cosz = coszen_pa(ifp)
-               call twostr%Dump(1,lat=site%lat,lon=site%lon)
-               call endrun(msg=errMsg(sourcefile, __LINE__))
-            end if
+               do icol = 1,n_col(ican)
+                  if(twostr%scelg(ican,icol)%area > 10._r8*(1._r8-canopy_frac(ican)))then
+                     
+                     area_ratio = (twostr%scelg(ican,icol)%area + (1._r8-canopy_frac(ican)))/twostr%scelg(ican,icol)%area
+                     
+                     twostr%scelg(ican,icol)%area = twostr%scelg(ican,icol)%area * area_ratio
+                     twostr%scelg(ican,icol)%lai  = twostr%scelg(ican,icol)%lai / area_ratio
+                     twostr%scelg(ican,icol)%sai  = twostr%scelg(ican,icol)%sai / area_ratio
+                     exit if_overfull
+                  end if
+               end do
+               
+               !write(fates_log(),*) 'overfull areas'
+               !twostr%cosz = coszen_pa(ifp)
+               !     call twostr%Dump(1,lat=site%lat,lon=site%lon)
+               !     call endrun(msg=errMsg(sourcefile, __LINE__))
+            end if if_overfull
 
          end do
 
-         ! Go ahead an temporarily squeeze crown areas
-         
-         cohort => patch%tallest
-         do while (associated(cohort))
-            ican = cohort%canopy_layer
-            icol = cohort%twostr_col
-            if( (cohort%c_area/patch%total_canopy_area - twostr%scelg(ican,icol)%area) > nearzero) then
-
-               !v_ratio = twostr%scelg(ican,icol)%area / (cohort%c_area/patch%total_canopy_area)
-               !c_area_new = patch%total_canopy_area*twostr%scelg(ican,icol)%area
-
-               area_ratio = (patch%total_canopy_area*twostr%scelg(ican,icol)%area) / cohort%c_area
-
-               cohort%c_area = cohort%c_area * area_ratio
-               cohort%treelai = cohort%treelai / area_ratio
-               cohort%treesai = cohort%treesai / area_ratio
-               
-            end if
-            
-            cohort => cohort%shorter
-         enddo
-
-         
          twostr%n_col(1:patch%ncl_p) = n_col(1:patch%ncl_p)
 
          ! Set up some non-element parameters
