@@ -2169,10 +2169,12 @@ end subroutine flush_hvars
     integer  :: el           ! Loop index for elements
     integer  :: model_day_int ! Integer model day since simulation start
     integer  :: ageclass_since_anthrodist  ! what is the equivalent age class for
-                                           ! time-since-anthropogenic-disturbance of secondary forest
-    integer :: i_term_mort_type_cstarv ! Jenny add comment here
-    integer :: i_term_mort_type_canlev !
-    integer :: n_term_mort_types !
+    ! time-since-anthropogenic-disturbance of secondary forest
+    
+    ! Descriptions for the following 3 variables might not be quite right - Jenny K.
+    integer :: i_term_mort_type_cstarv ! index for carbon starvation-related termination mortality
+    integer :: i_term_mort_type_canlev ! index for termination mortality type by canopy level
+    integer :: n_term_mort_types ! number of termination mortality types
     
     real(r8) :: store_max   ! The target nutrient mass for storage element of interest [kg]
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
@@ -3795,7 +3797,7 @@ end subroutine flush_hvars
             !
             ! termination mortality. sum of canopy and understory indices
             ! move carbon starvation-related termination mortality to the carbon starvation mortality type and only consider
-            ! the otehr two types of termination mortality here.
+            ! the other two types of termination mortality here.
             hio_m6_si_scpf(io_si,i_scpf) = (sum(sites(s)%term_nindivs_canopy(i_term_mort_type_canlev:n_term_mort_types,i_scls,i_pft)) + &
                sum(sites(s)%term_nindivs_ustory(i_term_mort_type_canlev:n_term_mort_types,i_scls,i_pft))) *              &
                days_per_year / m2_per_ha
