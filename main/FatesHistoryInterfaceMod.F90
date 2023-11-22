@@ -2170,7 +2170,10 @@ end subroutine flush_hvars
     integer  :: model_day_int ! Integer model day since simulation start
     integer  :: ageclass_since_anthrodist  ! what is the equivalent age class for
                                            ! time-since-anthropogenic-disturbance of secondary forest
-
+    integer :: i_term_mort_type_cstarv ! Jenny add comment here
+    integer :: i_term_mort_type_canlev !
+    integer :: n_term_mort_types !
+    
     real(r8) :: store_max   ! The target nutrient mass for storage element of interest [kg]
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
     real(r8) :: dbh         ! diameter ("at breast height")
@@ -3803,12 +3806,12 @@ end subroutine flush_hvars
                days_per_year / m2_per_ha
             !
             ! add the carbon starvation-related termination mortality to the carbon starvation diagnostics
-            hio_m3_si_scpf(io_si,scpf) = hio_m3_si_scpf(io_si,scpf) +                               &
+            hio_m3_si_scpf(io_si,i_scpf) = hio_m3_si_scpf(io_si,i_scpf) +                               &
                  (sites(s)%term_nindivs_canopy(i_term_mort_type_cstarv,i_scls,i_pft) +              &
                  sites(s)%term_nindivs_ustory(i_term_mort_type_cstarv,i_scls,i_pft)) *              &
                  days_per_year / m2_per_ha
             !
-            hio_m3_si_scls(io_si,scls) = hio_m3_si_scls(io_si,scls) +                               &
+            hio_m3_si_scls(io_si,i_scls) = hio_m3_si_scls(io_si,i_scls) +                               &
                  (sites(s)%term_nindivs_canopy(i_term_mort_type_cstarv,i_scls,i_pft) +              &
                  sites(s)%term_nindivs_ustory(i_term_mort_type_cstarv,i_scls,i_pft)) *              &
                  days_per_year / m2_per_ha
