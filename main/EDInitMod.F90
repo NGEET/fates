@@ -130,8 +130,8 @@ contains
     integer :: el
 
     !
-    allocate(site_in%term_nindivs_canopy(1:nlevsclass,1:numpft))
-    allocate(site_in%term_nindivs_ustory(1:nlevsclass,1:numpft))
+    allocate(site_in%term_nindivs_canopy(1:n_term_mort_types,1:nlevsclass,1:numpft))
+    allocate(site_in%term_nindivs_ustory(1:n_term_mort_types,1:nlevsclass,1:numpft))
     allocate(site_in%demotion_rate(1:nlevsclass))
     allocate(site_in%promotion_rate(1:nlevsclass))
     allocate(site_in%imort_rate(1:nlevsclass,1:numpft))
