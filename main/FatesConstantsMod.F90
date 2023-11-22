@@ -334,5 +334,10 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
 
   real(fates_r8), parameter, public :: lmr_r_2 = -0.0402_fates_r8    ! (umol CO2/m**2/s/degree C)
   
-  
+  ! some integers related to termination mortality
+  integer, parameter, public :: n_term_mort_types = 3
+  integer, parameter, public :: i_term_mort_type_cstarv = 1
+  integer, parameter, public :: i_term_mort_type_canlev = 2
+  integer, parameter, public :: i_term_mort_type_numdens = 3
+
 end module FatesConstantsMod

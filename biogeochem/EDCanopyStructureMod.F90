@@ -43,6 +43,7 @@ module EDCanopyStructureMod
   use PRTGenericMod,          only : struct_organ
   use PRTGenericMod,          only : SetState
   use PRTGenericMod,          only : carbon12_element
+  use FatesConstantsMod,      only : i_term_mort_type_canlev
 
   ! CIME Globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
@@ -736,7 +737,7 @@ contains
              if(currentCohort%canopy_layer>nclmax )then
                 ! put the litter from the terminated cohorts
                 ! straight into the fragmenting pools
-                call terminate_cohort(currentSite,currentPatch,currentCohort,bc_in)
+                call terminate_cohort(currentSite,currentPatch,currentCohort,bc_in,i_term_mort_type_canlev)
                 deallocate(currentCohort, stat=istat, errmsg=smsg)
                 if (istat/=0) then
                    write(fates_log(),*) 'dealloc012: fail on deallocate(currentCohort):'//trim(smsg)
