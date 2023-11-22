@@ -365,7 +365,7 @@ contains
              ccohort_hydr => ccohort%co_hydr
 
              ! This calculates node heights
-             call UpdatePlantHydrNodes(ccohort,ccohort%pft,ccohort%hite, &
+             call UpdatePlantHydrNodes(ccohort,ccohort%pft,ccohort%height, &
                   sites(s)%si_hydr)
 
              ! This calculates volumes and lengths
@@ -862,7 +862,7 @@ contains
     call SavePreviousCompartmentVolumes(ccohort_hydr)
 
     ! This updates all of the z_node positions
-    call UpdatePlantHydrNodes(ccohort,ft,ccohort%hite,currentSite%si_hydr)
+    call UpdatePlantHydrNodes(ccohort,ft,ccohort%height,currentSite%si_hydr)
 
     ! This updates plant compartment volumes, lengths and
     ! maximum conductances. Make sure for already
@@ -1004,11 +1004,11 @@ contains
     a_sapwood = a_sapwood_target  ! * sapw_c / sapw_c_target
 
     ! alternative cross section calculation
-    ! a_sapwood    = a_leaf_tot / ( 0.001_r8 + 0.025_r8 * ccohort%hite ) * 1.e-4_r8
+    ! a_sapwood    = a_leaf_tot / ( 0.001_r8 + 0.025_r8 * ccohort%height ) * 1.e-4_r8
 
-    !call CrownDepth(ccohort%hite,ft,crown_depth)
-    crown_depth  = min(ccohort%hite,0.1_r8)
-    z_stem       = ccohort%hite - crown_depth
+    !call CrownDepth(ccohort%height,ft,crown_depth)
+    crown_depth  = min(ccohort%height,0.1_r8)
+    z_stem       = ccohort%height - crown_depth
     v_sapwood    = a_sapwood * z_stem    ! + 0.333_r8*a_sapwood*crown_depth
 
     ! Junyan changed the following code to calculate the above ground node volume
@@ -1228,7 +1228,7 @@ subroutine FuseCohortHydraulics(currentSite,currentCohort, nextCohort, bc_in, ne
    call SavePreviousCompartmentVolumes(ccohort_hydr)
 
    ! This updates all of the z_node positions
-   call UpdatePlantHydrNodes(currentCohort,ft,currentCohort%hite,csite_hydr)
+   call UpdatePlantHydrNodes(currentCohort,ft,currentCohort%height,csite_hydr)
 
    ! This updates plant compartment volumes, lengths and
    ! maximum conductances. Make sure for already
