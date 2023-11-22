@@ -61,7 +61,7 @@ module FatesLandUseChangeMod
 contains
 
   ! ============================================================================
-  subroutine get_landuse_transition_rates(bc_in, min_allowed_landuse_fraction, landuse_transition_matrix)
+  subroutine get_landuse_transition_rates(bc_in, min_allowed_landuse_fraction, landuse_transition_matrix, landuse_vector_gt_min)
 
 
     ! The purpose of this routine is to ingest the land use transition rate information that the host model has read in from a dataset,
@@ -72,6 +72,7 @@ contains
     type(bc_in_type) , intent(in) :: bc_in
     real(r8), intent(in)          :: min_allowed_landuse_fraction
     real(r8), intent(inout)       :: landuse_transition_matrix(n_landuse_cats, n_landuse_cats)  ! [m2/m2/day]
+    logical,  intent(inout)       :: landuse_vector_gt_min(n_landuse_cats)
 
     ! !LOCAL VARIABLES:
     type(luh2_fates_lutype_map) :: lumap
@@ -122,11 +123,17 @@ contains
           end if
        end do transitions_loop
 
-       ! zero all transitions where the state vector is less than the minimum allowed
+       ! zero all transitions where the state vector is less than the minimum allowed,
+       ! and otherwise if this is the first timestep where the minimum was exceeded,
+       ! then apply all transitions from primary to this type and reset the flag
        call get_luh_statedata(bc_in, state_vector)
-       do i_lu = 1, n_landuse_cats
+       do i_lu = secondaryland +1, n_landuse_cats
           if ( state_vector(i_lu) .le. min_allowed_landuse_fraction ) then
              landuse_transition_matrix(:,i_lu) = 0._r8
+          else if (.not. landuse_vector_gt_min(i_lu) ) then
+             landuse_transition_matrix(:,i_lu) = 0._r8
+             landuse_transition_matrix(primaryland,i_lu) = state_vector(i_lu)
+             landuse_vector_gt_min(i_lu) = .true.
           end if
        end do
     end if
@@ -331,7 +338,7 @@ contains
   end subroutine CheckLUHData
 
 
-  subroutine get_init_landuse_harvest_rate(bc_in, min_allowed_landuse_fraction, harvest_rate)
+  subroutine get_init_landuse_harvest_rate(bc_in, min_allowed_landuse_fraction, harvest_rate, landuse_vector_gt_min)
 
     ! the purpose of this subroutine is, only under the case where we are transitioning from a spinup run that did not have land use
     ! to a run that does, to apply the land-use changes needed to get to the state vector in a single daily instance. this is for
@@ -342,19 +349,23 @@ contains
     type(bc_in_type) , intent(in) :: bc_in
     real(r8), intent(in)          :: min_allowed_landuse_fraction
     real(r8), intent(out)         :: harvest_rate  ! [m2/ m2 / day]
+    logical,  intent(inout)       :: landuse_vector_gt_min(n_landuse_cats)
 
     ! LOCALS
     real(r8) ::  state_vector(n_landuse_cats)  ! [m2/m2]
     
     call get_luh_statedata(bc_in, state_vector)
 
+    ! only do this if the state vector exceeds the minimum viable patch size, and if so, note that in the
+    ! landuse_vector_gt_min flag (which will be coming in as .false. because of the use_potentialveg logic).
     if ( state_vector(secondaryland) .gt. min_allowed_landuse_fraction) then
        harvest_rate = state_vector(secondaryland)
+       landuse_vector_gt_min(secondaryland) = .true.
     endif
 
   end subroutine get_init_landuse_harvest_rate
 
-  subroutine get_init_landuse_transition_rates(bc_in, min_allowed_landuse_fraction, landuse_transition_matrix)
+  subroutine get_init_landuse_transition_rates(bc_in, min_allowed_landuse_fraction, landuse_transition_matrix, landuse_vector_gt_min)
     
     ! The purose of this subroutine is, only under the case where we are transitioning from a spinup run that did not have land use                                                 
     ! to a run that does, to apply the land-use changes needed to get to the state vector in a single daily instance. this is for
@@ -364,6 +375,7 @@ contains
     type(bc_in_type) , intent(in) :: bc_in
     real(r8), intent(in)          :: min_allowed_landuse_fraction
     real(r8), intent(inout)       :: landuse_transition_matrix(n_landuse_cats, n_landuse_cats)  ! [m2/m2/day]
+    logical,  intent(inout)       :: landuse_vector_gt_min(n_landuse_cats)
 
     ! LOCALS
     real(r8) ::  state_vector(n_landuse_cats)  ! [m2/m2]
@@ -373,9 +385,12 @@ contains
     
     call get_luh_statedata(bc_in, state_vector)
 
+    ! only do this if the state vector exceeds the minimum viable patch size, and if so, note that in the
+    ! landuse_vector_gt_min flag (which will be coming in as .false. because of the use_potentialveg logic).
     do i = secondaryland+1,n_landuse_cats
        if ( state_vector(i) .gt. min_allowed_landuse_fraction) then
           landuse_transition_matrix(1,i) = state_vector(i)
+          landuse_vector_gt_min(i) = .true.
        end if
     end do
     

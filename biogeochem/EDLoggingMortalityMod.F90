@@ -28,6 +28,7 @@ module EDLoggingMortalityMod
    use FatesConstantsMod , only : dtype_ilog
    use FatesConstantsMod , only : dtype_ifall
    use FatesConstantsMod , only : dtype_ifire
+   use FatesConstantsMod , only : n_landuse_cats
    use EDPftvarcon       , only : EDPftvarcon_inst
    use EDPftvarcon       , only : GetDecompyFrac
    use PRTParametersMod  , only : prt_params
@@ -71,6 +72,7 @@ module EDLoggingMortalityMod
    use FatesConstantsMod, only : fates_check_param_set
    use FatesInterfaceTypesMod , only : numpft
    use FatesLandUseChangeMod, only : get_init_landuse_harvest_rate
+   use FatesLandUseChangeMod, only : get_luh_statedata
      
    implicit none
    private
@@ -206,7 +208,7 @@ contains
                                      harvest_tag)
 
      ! Arguments
-      type(ed_site_type), intent(in), target :: currentSite     ! site structure
+      type(ed_site_type), intent(inout), target :: currentSite     ! site structure
       type(bc_in_type), intent(in) :: bc_in
       integer,  intent(in)  :: pft_i            ! pft index 
       real(r8), intent(in)  :: dbh              ! diameter at breast height (cm)
@@ -237,6 +239,7 @@ contains
       ! Local variables
       integer :: cur_harvest_tag ! the harvest tag of the cohort today
       real(r8) :: harvest_rate ! the final harvest rate to apply to this cohort today
+      real(r8) :: state_vector(n_landuse_cats)
 
       ! todo: probably lower the dbhmin default value to 30 cm
       ! todo: change the default logging_event_code to 1 september (-244)
@@ -296,6 +299,15 @@ contains
 
             endif
 
+            ! if the total intended area of secondary lands are less than what we can consider without having too-small patches,
+            ! or if that was the case until just now, then there is special logic
+            call get_luh_statedata(bc_in, state_vector)
+            if (state_vector(secondaryland) .le. currentSite%min_allowed_landuse_fraction) then
+               harvest_rate = 0._r8
+            else if (.not. currentSite%landuse_vector_gt_min(secondaryland)) then
+               harvest_rate = state_vector(secondaryland)
+            end if
+
             ! transfer of area to secondary land is based on overall area affected, not just logged crown area
             ! l_degrad accounts for the affected area between logged crowns
             if(prt_params%woody(pft_i) == itrue)then ! only set logging rates for trees
@@ -349,7 +361,8 @@ contains
             l_degrad         = 0.0_r8
          end if
       else
-         call get_init_landuse_harvest_rate(bc_in, currentSite%min_allowed_landuse_fraction, harvest_rate)
+         call get_init_landuse_harvest_rate(bc_in, currentSite%min_allowed_landuse_fraction, &
+              harvest_rate, currentSite%landuse_vector_gt_min)
          if(prt_params%woody(pft_i) == itrue)then
             lmort_direct     = harvest_rate
             lmort_collateral = 0.0_r8

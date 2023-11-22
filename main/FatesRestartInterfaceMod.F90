@@ -100,6 +100,7 @@ module FatesRestartInterfaceMod
   integer :: ir_acc_ni_si
   integer :: ir_gdd_si
   integer :: ir_min_allowed_landuse_fraction_si
+  integer :: ir_landuse_vector_gt_min_si
   integer :: ir_area_bareground_si
   integer :: ir_snow_depth_si
   integer :: ir_trunk_product_si
@@ -707,6 +708,10 @@ contains
     call this%set_restart_var(vname='fates_min_allowed_landuse_fraction_site', vtype=site_r8, &
          long_name='minimum allowed land use fraction at each site', units='degC days', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_min_allowed_landuse_fraction_si )
+
+    call this%set_restart_var(vname='fates_landuse_vector_gt_min_site', vtype=cohort_int, &
+         long_name='minimum allowed land use fraction at each site', units='degC days', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_landuse_vector_gt_min_si )
 
     call this%set_restart_var(vname='fates_area_bareground_site', vtype=site_r8, &
          long_name='minimum allowed land use fraction at each site', units='degC days', flushval = flushzero, &
@@ -1980,6 +1985,7 @@ contains
     integer  :: io_idx_si_vtmem ! indices for veg-temp memory at site
     integer  :: io_idx_pa_ncl   ! each canopy layer within each patch
     integer  :: io_idx_si_luludi ! site-level lu x lu x ndist index
+    integer  :: io_idx_si_lu   ! site-level lu index
 
     ! Some counters (for checking mostly)
     integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
@@ -2022,6 +2028,7 @@ contains
            rio_acc_ni_si               => this%rvars(ir_acc_ni_si)%r81d, &
            rio_gdd_si                  => this%rvars(ir_gdd_si)%r81d, &
            rio_min_allowed_landuse_fraction_si  => this%rvars(ir_min_allowed_landuse_fraction_si)%r81d, &
+           rio_landuse_vector_gt_min_si  => this%rvars(ir_landuse_vector_gt_min_si)%int1d, &
            rio_area_bareground_si      => this%rvars(ir_area_bareground_si)%r81d, &
            rio_snow_depth_si           => this%rvars(ir_snow_depth_si)%r81d, &
            rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
@@ -2167,6 +2174,7 @@ contains
           io_idx_si_scpf = io_idx_co_1st
           io_idx_si_pft  = io_idx_co_1st
           io_idx_si_luludi  = io_idx_co_1st
+          io_idx_si_lu   = io_idx_co_1st
 
           ! recruitment rate
           do i_pft = 1,numpft
@@ -2185,6 +2193,15 @@ contains
           end do
 
           rio_min_allowed_landuse_fraction_si(io_idx_si)   = sites(s)%min_allowed_landuse_fraction
+          do i_landuse = 1, n_landuse_cats
+             if ( sites(s)%landuse_vector_gt_min(i_landuse)) then
+                rio_landuse_vector_gt_min_si(io_idx_si_lu)   = itrue
+             else
+                rio_landuse_vector_gt_min_si(io_idx_si_lu)   = ifalse
+             endif
+             io_idx_si_lu = io_idx_si_lu + 1
+          end do
+
           rio_area_bareground_si(io_idx_si)           = sites(s)%area_bareground
 
           do i_scls = 1, nlevsclass
@@ -2956,6 +2973,7 @@ contains
      
      integer  :: io_idx_pa_ncl   ! each canopy layer within each patch
      integer  :: io_idx_si_luludi ! site-level lu x lu x ndist index
+     integer  :: io_idx_si_lu   ! site-level lu x lu x ndist index
 
      ! Some counters (for checking mostly)
      integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
@@ -2990,6 +3008,7 @@ contains
           rio_acc_ni_si               => this%rvars(ir_acc_ni_si)%r81d, &
           rio_gdd_si                  => this%rvars(ir_gdd_si)%r81d, &
           rio_min_allowed_landuse_fraction_si                  => this%rvars(ir_min_allowed_landuse_fraction_si)%r81d, &
+          rio_landuse_vector_gt_min_si               => this%rvars(ir_landuse_vector_gt_min_si)%int1d, &
           rio_area_bareground_si                  => this%rvars(ir_area_bareground_si)%r81d, &
           rio_snow_depth_si           => this%rvars(ir_snow_depth_si)%r81d, &
           rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
@@ -3124,6 +3143,7 @@ contains
           io_idx_si_scpf = io_idx_co_1st
           io_idx_si_pft = io_idx_co_1st
           io_idx_si_luludi  = io_idx_co_1st
+          io_idx_si_lu  = io_idx_co_1st
 
           ! read seed_bank info(site-level, but PFT-resolved)
           do i_pft = 1,numpft
@@ -3140,6 +3160,14 @@ contains
           enddo
 
           sites(s)%min_allowed_landuse_fraction  = rio_min_allowed_landuse_fraction_si(io_idx_si)
+          do i_landuse = 1, n_landuse_cats
+             if ( rio_landuse_vector_gt_min_si(io_idx_si_lu) .eq. itrue ) then
+                sites(s)%landuse_vector_gt_min(i_landuse)  = .true.
+             else
+                sites(s)%landuse_vector_gt_min(i_landuse)  = .false.
+             endif
+             io_idx_si_lu = io_idx_si_lu + 1
+          end do
           sites(s)%area_bareground  = rio_area_bareground_si(io_idx_si)
 
           do i_scls = 1,nlevsclass

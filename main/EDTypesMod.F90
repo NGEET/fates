@@ -430,6 +430,7 @@ module EDTypesMod
      real(r8) :: landuse_transition_matrix(n_landuse_cats, n_landuse_cats) ! land use transition matrix as read in from HLM and aggregated to FATES land use types [m2/m2/year]
 
      real(r8) :: min_allowed_landuse_fraction             ! minimum amount of land-use type below which the resulting patches would be too small [m2/m2]
+     logical, allocatable :: landuse_vector_gt_min(:)     ! is the land use state vector for each land use type greater than the minimum below which we ignore?
      logical :: transition_landuse_from_off_to_on         ! special flag to use only when reading restarts, which triggers procedure to initialize land use
 
   end type ed_site_type

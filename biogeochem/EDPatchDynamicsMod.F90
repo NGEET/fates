@@ -214,6 +214,7 @@ contains
     real(r8) :: harvestable_forest_c(hlm_num_lu_harvest_cats)
     integer  :: harvest_tag(hlm_num_lu_harvest_cats)
     real(r8) :: current_fates_landuse_state_vector(n_landuse_cats)  ! [m2/m2]
+    real(r8) :: state_vector(n_landuse_cats)
     real(r8), parameter :: max_daily_disturbance_rate = 0.999_r8
     !----------------------------------------------------------------------------------------------
     ! Calculate Mortality Rates (these were previously calculated during growth derivatives)
@@ -286,9 +287,11 @@ contains
 
     if ( hlm_use_luh .eq. itrue ) then
        if(.not. site_in%transition_landuse_from_off_to_on) then
-          call get_landuse_transition_rates(bc_in, site_in%min_allowed_landuse_fraction, site_in%landuse_transition_matrix)
+          call get_landuse_transition_rates(bc_in, site_in%min_allowed_landuse_fraction, &
+               site_in%landuse_transition_matrix, site_in%landuse_vector_gt_min)
        else
-          call get_init_landuse_transition_rates(bc_in, site_in%min_allowed_landuse_fraction, site_in%landuse_transition_matrix)
+          call get_init_landuse_transition_rates(bc_in, site_in%min_allowed_landuse_fraction, &
+               site_in%landuse_transition_matrix, site_in%landuse_vector_gt_min)
        endif
     else
        site_in%landuse_transition_matrix(:,:) = 0._r8
@@ -311,6 +314,8 @@ contains
        end do
        currentPatch => currentPatch%younger
     end do
+
+    call get_luh_statedata(bc_in, state_vector)
 
     currentPatch => site_in%oldest_patch
     do while (associated(currentPatch))   
@@ -387,8 +392,17 @@ contains
                      current_fates_landuse_state_vector(secondaryland), &
                      currentPatch%age_since_anthro_disturbance, harvest_rate)
              end if
+
+             ! if the total intended area of secondary lands are less than what we can consider without having too-small patches,
+             ! or if that was the case until just now, then there is special logic
+             if (state_vector(secondaryland) .le. site_in%min_allowed_landuse_fraction) then
+                harvest_rate = 0._r8
+             else if (.not. site_in%landuse_vector_gt_min(secondaryland)) then
+                harvest_rate = state_vector(secondaryland)
+             end if
           else
-             call get_init_landuse_harvest_rate(bc_in, site_in%min_allowed_landuse_fraction, harvest_rate)
+             call get_init_landuse_harvest_rate(bc_in, site_in%min_allowed_landuse_fraction, &
+                  harvest_rate, site_in%landuse_vector_gt_min)
           endif
 
           currentPatch%disturbance_rates(dtype_ilog) = currentPatch%disturbance_rates(dtype_ilog) + &
@@ -434,7 +448,12 @@ contains
 
        currentPatch => currentPatch%younger
 
-    enddo !patch loop 
+    enddo !patch loop
+
+    ! if the area of secondary land has just exceeded the minimum below which we ignore things, set the flag to keep track of that.
+    if ( (state_vector(secondaryland) .gt. site_in%min_allowed_landuse_fraction) .and. (.not. site_in%landuse_vector_gt_min(secondaryland)) ) then
+       site_in%landuse_vector_gt_min(secondaryland) = .true.
+    end if
 
   end subroutine disturbance_rates
 

@@ -192,7 +192,7 @@ contains
     allocate(site_in%z_soil(site_in%nlevsoil))
 
     allocate(site_in%area_pft(1:numpft,1:n_landuse_cats))  
-    
+    allocate(site_in%landuse_vector_gt_min(1:n_landuse_cats))
 
     allocate(site_in%use_this_pft(1:numpft))
     allocate(site_in%area_by_age(1:nlevage))
@@ -716,6 +716,16 @@ contains
              ! categories based on which states are zero
              n_active_landuse_cats = n_landuse_cats
              call get_luh_statedata(bc_in(s), state_vector)
+
+             ! if the land use state vector is greater than the minimum value, set landuse_vector_gt_min flag to true
+             ! otherwise set to false.
+             do i_lu_state = 1, n_landuse_cats
+                if (state_vector(i_lu_state) .gt. sites(s)%min_allowed_landuse_fraction) then
+                   sites(s)%landuse_vector_gt_min(i_lu_state) = .true.
+                else
+                   sites(s)%landuse_vector_gt_min(i_lu_state) = .false.
+                end if
+             end do
 
           else
              ! If LUH2 data is not being used, we initialize with primarylands,
