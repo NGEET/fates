@@ -1563,7 +1563,7 @@ contains
        ! area, ie not plants at all...
        ! ------------------------------------------------------------------------------
 
-       if (currentPatch%total_canopy_area > nearzero ) then
+       if_any_canopy_area: if (currentPatch%total_canopy_area > nearzero ) then
 
           call UpdatePatchLAI(currentPatch)
 
@@ -1709,18 +1709,11 @@ contains
           currentPatch%canopy_mask(:,:) = 0
           do cl = 1,currentPatch%NCL_p
              do ft = 1,numpft
-                do_leaflayer: do  iv = 1, currentPatch%nrad(cl,ft)
-                   if(currentPatch%canopy_area_profile(cl,ft,iv) > 0._r8)then
-                      currentPatch%canopy_mask(cl,ft) = 1
-                      exit do_leaflayer
-                   else
-                      exit do_leaflayer
-                   endif
-                end do do_leaflayer !iv
-             enddo !ft
-          enddo ! loop over cl
+                if(currentPatch%canopy_area_profile(cl,ft,1) > nearzero) currentPatch%canopy_mask(cl,ft) = 1
+             end do
+          end do
 
-       end if
+       end if if_any_canopy_area
 
        currentPatch => currentPatch%younger
 
