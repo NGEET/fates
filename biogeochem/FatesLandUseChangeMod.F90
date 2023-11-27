@@ -126,11 +126,12 @@ contains
        ! zero all transitions where the state vector is less than the minimum allowed,
        ! and otherwise if this is the first timestep where the minimum was exceeded,
        ! then apply all transitions from primary to this type and reset the flag
+       ! note that the flag resetting should not happen for secondary lands, as this is handled in the logging logic
        call get_luh_statedata(bc_in, state_vector)
-       do i_lu = secondaryland +1, n_landuse_cats
+       do i_lu = secondaryland, n_landuse_cats
           if ( state_vector(i_lu) .le. min_allowed_landuse_fraction ) then
              landuse_transition_matrix(:,i_lu) = 0._r8
-          else if (.not. landuse_vector_gt_min(i_lu) ) then
+          else if ((.not. landuse_vector_gt_min(i_lu)) .and. (i_lu .ne. secondaryland)) then
              landuse_transition_matrix(:,i_lu) = 0._r8
              landuse_transition_matrix(primaryland,i_lu) = state_vector(i_lu)
              landuse_vector_gt_min(i_lu) = .true.
@@ -389,7 +390,7 @@ contains
     ! landuse_vector_gt_min flag (which will be coming in as .false. because of the use_potentialveg logic).
     do i = secondaryland+1,n_landuse_cats
        if ( state_vector(i) .gt. min_allowed_landuse_fraction) then
-          landuse_transition_matrix(1,i) = state_vector(i)
+          landuse_transition_matrix(primaryland,i) = state_vector(i)
           landuse_vector_gt_min(i) = .true.
        end if
     end do

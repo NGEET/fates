@@ -3536,6 +3536,7 @@ contains
           call get_luh_statedata(bc_in, state_vector)
           write(fates_log(),*) 'driver data landuse state vector: ', state_vector
           write(fates_log(),*) 'min_allowed_landuse_fraction: ', currentSite%min_allowed_landuse_fraction
+          write(fates_log(),*) 'landuse_vector_gt_min: ', currentSite%landuse_vector_gt_min
           call endrun(msg=errMsg(sourcefile, __LINE__))
           
           ! Note to user. If you DO decide to remove the end-run above this line
