@@ -758,23 +758,46 @@ contains
                       ! a sum over layers.
                       ! ---------------------------------------------------------------
                       nv = currentCohort%nv
-                      call ScaleLeafLayerFluxToCohort(nv,                                    & !in
-                           currentPatch%psn_z(cl,ft,1:nv),        & !in
-                           lmr_z(1:nv,ft,cl),                     & !in
-                           rs_z(1:nv,ft,cl),                      & !in
-                           !currentPatch%elai_profile(cl,ft,1:nv), & !in
-                           cohort_layer_elai(1:nv),                 & !in
-                           c13disc_z(cl, ft, 1:nv),               & !in
-                           currentCohort%c_area,                  & !in
-                           currentCohort%n,                       & !in
-                           bc_in(s)%rb_pa(ifp),                   & !in
-                           maintresp_reduction_factor,            & !in
-                           currentCohort%g_sb_laweight,           & !out
-                           currentCohort%gpp_tstep,               & !out
-                           currentCohort%rdark,                   & !out
-                           currentCohort%c13disc_clm,             & !out
-                           cohort_eleaf_area)                       !out
 
+                      ! Temporary bypass to preserve B4B behavior
+                      if(radiation_model.eq.norman_solver) then
+                      
+                         call ScaleLeafLayerFluxToCohort(nv,                                    & !in
+                              currentPatch%psn_z(cl,ft,1:nv),        & !in
+                              lmr_z(1:nv,ft,cl),                     & !in
+                              rs_z(1:nv,ft,cl),                      & !in
+                              currentPatch%elai_profile(cl,ft,1:nv), & !in
+                              c13disc_z(cl, ft, 1:nv),               & !in
+                              currentCohort%c_area,                  & !in
+                              currentCohort%n,                       & !in
+                              bc_in(s)%rb_pa(ifp),                   & !in
+                              maintresp_reduction_factor,            & !in
+                              currentCohort%g_sb_laweight,           & !out
+                              currentCohort%gpp_tstep,               & !out
+                              currentCohort%rdark,                   & !out
+                              currentCohort%c13disc_clm,             & !out
+                              cohort_eleaf_area)                       !out
+                         
+                      else
+                         
+                          call ScaleLeafLayerFluxToCohort(nv,                                    & !in
+                              currentPatch%psn_z(cl,ft,1:nv),        & !in
+                              lmr_z(1:nv,ft,cl),                     & !in
+                              rs_z(1:nv,ft,cl),                      & !in
+                              cohort_layer_elai(1:nv),               & !in
+                              c13disc_z(cl, ft, 1:nv),               & !in
+                              currentCohort%c_area,                  & !in
+                              currentCohort%n,                       & !in
+                              bc_in(s)%rb_pa(ifp),                   & !in
+                              maintresp_reduction_factor,            & !in
+                              currentCohort%g_sb_laweight,           & !out
+                              currentCohort%gpp_tstep,               & !out
+                              currentCohort%rdark,                   & !out
+                              currentCohort%c13disc_clm,             & !out
+                              cohort_eleaf_area)                       !out
+                      end if
+
+                         
                       ! Net Uptake does not need to be scaled, just transfer directly
                       currentCohort%ts_net_uptake(1:nv) = anet_av_z(1:nv,ft,cl) * umolC_to_kgC
 
