@@ -43,7 +43,7 @@ def main():
 
     # Renormalize the PCT_NAT_PFT for each dataset using the mask
     for data_array in ds_landusepfts:
-        percent.append(RenormalizePFTs(data_array, mask_static))
+        percent.append(RenormalizePFTs(data_array))
 
     # Calculate the primary and secondary PFT fractions as the forest
     # and nonforest-weighted averages of the forest and other PFT datasets.
@@ -72,7 +72,7 @@ def main():
         ds_target = ds_target.rename_dims(dims_dict={'lsmlat':'lat','lsmlon':'lon'})
         ds_target['lon'] = ds_target.LONGXY.isel(lat=0)
         ds_target['lat'] = ds_target.LATIXY.isel(lon=0)
-        regridder = xe.Regridder(ds_percent, ds_target, "conservative")
+        regridder = xe.Regridder(ds_percent, ds_target, "conservative_normed")
         ds_regrid = regridder(ds_percent)
         ds_regrid = ds_regrid.rename_dims(dims_dict={'lat':'lsmlat','lon':'lsmlon'})
         output_file = os.path.join(os.getcwd(),args.output)
