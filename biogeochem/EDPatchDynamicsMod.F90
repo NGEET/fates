@@ -216,6 +216,7 @@ contains
     real(r8) :: current_fates_landuse_state_vector(n_landuse_cats)  ! [m2/m2]
     real(r8) :: state_vector(n_landuse_cats)
     real(r8), parameter :: max_daily_disturbance_rate = 0.999_r8
+    logical  :: site_secondaryland_first_exceeding_min
     !----------------------------------------------------------------------------------------------
     ! Calculate Mortality Rates (these were previously calculated during growth derivatives)
     ! And the same rates in understory plants have already been applied to %dndt
@@ -315,7 +316,10 @@ contains
        currentPatch => currentPatch%younger
     end do
 
+    ! get some info needed to determine whether or not to apply land use change
     call get_luh_statedata(bc_in, state_vector)
+    site_secondaryland_first_exceeding_min =  (state_vector(secondaryland) .gt. site_in%min_allowed_landuse_fraction) &
+         .and. (.not. site_in%landuse_vector_gt_min(secondaryland))
 
     currentPatch => site_in%oldest_patch
     do while (associated(currentPatch))   
@@ -377,7 +381,7 @@ contains
 
        ! for non-closed-canopy areas subject to logging, add an additional increment of area disturbed
        ! equivalent to the fraction logged to account for transfer of interstitial ground area to new secondary lands
-       if ( (logging_time .or. site_in%transition_landuse_from_off_to_on) .and. &
+       if ( (logging_time .or. site_in%transition_landuse_from_off_to_on .or. site_secondaryland_first_exceeding_min) .and. &
             (currentPatch%area - currentPatch%total_canopy_area) .gt. fates_tiny ) then
           ! The canopy is NOT closed. 
 
