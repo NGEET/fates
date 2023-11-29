@@ -122,15 +122,19 @@ contains
     class(luh2_fates_lutype_map) :: this
     character(len=5), intent(in) :: state_name
     integer :: landuse_category
+    integer :: index
 
-    landuse_category = this%landuse_categories(findloc(this%state_names,state_name,dim=1))
+    index = findloc(this%state_names,state_name,dim=1)
 
     ! Check that the result from the landuse_categories is not zero, which indicates that no
     ! match was found.
-    if (landuse_category .eq. 0) then
+    if (index .eq. 0) then
        write(fates_log(),*) 'The input state name from the HLM does not match the FATES landuse state name options'
        write(fates_log(),*) 'input state name: ', state_name
+       write(fates_log(),*) 'state name options: ', this%state_names
        call endrun(msg=errMsg(sourcefile, __LINE__))
+    else
+       landuse_category = this%landuse_categories(index)
     end if
 
   end function GetLUCategoryFromStateName
