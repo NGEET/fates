@@ -912,6 +912,17 @@ contains
           end if
        end if
 
+   case(2) ! for non-woody monocot (e.g. grass), we set bsap equal to bagw                                                                                                           
+           ! as they do not have secondary growth                                                                                                                                                 
+       call h_allom(d,ipft,h,dhdd)
+       call bagw_allom(d,ipft,bagw,dbagwdd)
+       
+       bsap = bagw
+
+       if(present(dbsapdd))then
+          dbsapdd = dbagwdd
+       end if
+
     case DEFAULT
        write(fates_log(),*) 'An undefined sapwood allometry was specified: ', &
             prt_params%allom_smode(ipft)
@@ -1073,11 +1084,20 @@ contains
       select case(int(prt_params%allom_amode(ipft)))
       case(1) ! Saldariagga mass allometry originally calculated bdead directly.
               ! we assume proportionality between bdead and bagw
-       
-         bdead = bagw/agb_fraction 
-         if(present(dbagwdd) .and. present(dbdeaddd))then
-            dbdeaddd = dbagwdd/agb_fraction
-         end if
+        if(bsap == bagw .and. agb_fraction == 1.0_r8)then
+           bdead = bagw + bbgw - bsap  !instead assiging 0 directly we still do the calculation                                                                                                                                           !just to be consistent with case (2,3) for grass PFT                   
+           if(present(dbdeaddd) .and. present(dbagwdd) .and. &
+              present(dbbgwdd)  .and. present(dbsapdd) )then
+              dbdeaddd = dbagwdd+dbbgwdd-dbsapdd
+           end if
+        else
+           bdead = bagw/agb_fraction 
+           
+           if(present(dbagwdd) .and. present(dbdeaddd))then
+              dbdeaddd = dbagwdd/agb_fraction
+           end if
+        end if
+
          
       case(2,3)
          
