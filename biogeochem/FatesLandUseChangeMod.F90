@@ -125,6 +125,14 @@ contains
 
     landuse_category = this%landuse_categories(findloc(this%state_names,state_name,dim=1))
 
+    ! Check that the result from the landuse_categories is not zero, which indicates that no
+    ! match was found.
+    if (landuse_category .eq. 0) then
+       write(fates_log(),*) 'The input state name from the HLM does not match the FATES landuse state name options'
+       write(fates_log(),*) 'input state name: ', state_name
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
+
   end function GetLUCategoryFromStateName
 
   !----------------------------------------------------------------------------------------------------
