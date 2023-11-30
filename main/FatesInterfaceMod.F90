@@ -1908,6 +1908,19 @@ contains
                   write(fates_log(),*) 'Transfering hlm_use_inventory_init= ',ival,' to FATES'
                end if
 
+            case('hist_hifrq_dense_level')
+               hlm_hist_level_hifrq = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_hist_level_hifrq= ',ival,' to FATES'
+               end if
+               
+            case('hist_dynam_dense_level')
+               hlm_hist_level_dynam = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_hist_level_dynam= ',ival,' to FATES'
+               end if
+
+               
             case default
                write(fates_log(), *) 'fates NL tag not recognized:',trim(tag)
                !! call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1931,11 +1944,7 @@ contains
          if(present(cval))then
             select case (trim(tag))
 
-            case('hist_dense_level')
-               read(cval,'(I1,I1)') hlm_hist_level_hifrq,hlm_hist_level_dynam
-               if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_hist_dense_level= ',trim(cval)
-               end if
+          
                
             case('hlm_name')
                hlm_name = trim(cval)
