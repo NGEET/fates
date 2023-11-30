@@ -3161,7 +3161,7 @@ end subroutine flush_hvars
                hio_npp_si_pft(io_si, ft) = hio_npp_si_pft(io_si, ft) + &
                     ccohort%npp_acc_hold * n_perm2 / days_per_year / sec_per_day
                
-               if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+               if ( cpatch%land_use_label .eq. secondaryland ) then
                   hio_gpp_sec_si_pft(io_si, ft) = hio_gpp_sec_si_pft(io_si, ft) + &
                        ccohort%gpp_acc_hold * n_perm2 / days_per_year / sec_per_day
                   hio_npp_sec_si_pft(io_si, ft) = hio_npp_sec_si_pft(io_si, ft) + &
