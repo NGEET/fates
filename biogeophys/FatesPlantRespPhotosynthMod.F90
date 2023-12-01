@@ -545,9 +545,7 @@ contains
                             kn = decay_coeff_kn(ft,currentCohort%vcmax25top)
 
                             ! Scale for leaf nitrogen profile
-                            !nscaler = exp(-kn * cumulative_lai)
-
-                            nscaler = 1.0_r8
+                            nscaler = exp(-kn * cumulative_lai)
                             
                             ! Leaf maintenance respiration to match the base rate used in CN
                             ! but with the new temperature functions for C3 and C4 plants.
