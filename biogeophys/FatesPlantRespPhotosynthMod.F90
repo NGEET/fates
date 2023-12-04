@@ -114,7 +114,8 @@ module FATESPlantRespPhotosynthMod
   ! is to use anet
   integer, parameter :: net_assim_model = 1
   integer, parameter :: gross_assim_model = 2
-  
+
+  logical, parameter :: preserve_b4b = .true.
   
 contains
 
@@ -271,12 +272,12 @@ contains
     real(r8) :: rd_abs_leaf, rb_abs_leaf, r_abs_stem, r_abs_snow, rb_abs, rd_abs
     real(r8) :: fsun
     real(r8) :: par_per_sunla, par_per_shala ! PAR per sunlit and shaded leaf area [W/m2 leaf]
-    real(r8),dimension(50) :: cohort_vaitop
-    real(r8),dimension(50) :: cohort_vaibot
-    real(r8),dimension(50) :: cohort_layer_elai
-    real(r8),dimension(50) :: cohort_layer_esai
-    real(r8),dimension(50) :: cohort_layer_tlai
-    real(r8),dimension(50) :: cohort_layer_tsai
+    real(r8),dimension(75) :: cohort_vaitop
+    real(r8),dimension(75) :: cohort_vaibot
+    real(r8),dimension(75) :: cohort_layer_elai
+    real(r8),dimension(75) :: cohort_layer_esai
+    real(r8),dimension(75) :: cohort_layer_tlai
+    real(r8),dimension(75) :: cohort_layer_tsai
     real(r8)               :: cohort_elai
     real(r8)               :: cohort_esai
     real(r8)               :: elai_layer
@@ -491,7 +492,7 @@ contains
                          rate_mask_if: if ( .not.rate_mask_z(iv,ft,cl) .or. &
                               (hlm_use_planthydro.eq.itrue) .or. &
                               (radiation_model .eq. twostr_solver ) .or. &
-                              (radiation_model .eq. norman_solver ) .or. &
+                              !(radiation_model .eq. norman_solver ) .or. &
                               (nleafage > 1) .or. &
                               (hlm_parteh_mode .ne. prt_carbon_allom_hyp )   ) then
 
@@ -614,36 +615,44 @@ contains
 
                                laisun = currentPatch%elai_profile(cl,ft,iv)*currentPatch%f_sun(cl,ft,iv)
                                laisha = currentPatch%elai_profile(cl,ft,iv)*(1._r8-currentPatch%f_sun(cl,ft,iv))
-
-                               if(((laisun*currentPatch%canopy_area_profile(cl,ft,iv)) >nearzero) .and. &
-                                   (currentPatch%ed_parsun_z(cl,ft,iv)>nearzero)) then
-
-                                  ! laisun:      m2 of exposed leaf, per m2 of crown. If this is the lowest layer
-                                  !              for the pft/canopy group, than the m2 per crown is probably not
-                                  !              as large as the layer above.
-                                  ! ed_parsun_z: this is W/m2 ground times the canopy_area_profile, which is the
-                                  !              fraction of m2 of ground in the crown per m2 ground in the
-                                  !              total canopy area. This results in W/m2 of total canopy.
-                                  
-                                  par_per_sunla = currentPatch%ed_parsun_z(cl,ft,iv) / &
-                                       (laisun*currentPatch%canopy_area_profile(cl,ft,iv))
-                                  
-                               else
-                                  par_per_sunla = 0._r8
-                               end if
                                
-                               if(((laisha*currentPatch%canopy_area_profile(cl,ft,iv)) >nearzero) .and. &
-                                    (currentPatch%ed_parsha_z(cl,ft,iv)>nearzero)) then
+                               if_nonnzero_lai: if((laisun+laisha)>0._r8) then
+                               
+                                  if(((laisun*currentPatch%canopy_area_profile(cl,ft,iv)) >0.0000000001_r8)) then ! .and. &
+                                     !(currentPatch%ed_parsun_z(cl,ft,iv)>nearzero)) then
+                                     
+                                     ! laisun:      m2 of exposed leaf, per m2 of crown. If this is the lowest layer
+                                     !              for the pft/canopy group, than the m2 per crown is probably not
+                                     !              as large as the layer above.
+                                     ! ed_parsun_z: this is W/m2 ground times the canopy_area_profile, which is the
+                                     !              fraction of m2 of ground in the crown per m2 ground in the
+                                     !              total canopy area. This results in W/m2 of total canopy.
+                                     
+                                     par_per_sunla = currentPatch%ed_parsun_z(cl,ft,iv) / &
+                                          (laisun*currentPatch%canopy_area_profile(cl,ft,iv))
+                                  else
+                                     par_per_sunla = 0._r8
+                                  end if
+                                  
+                                  !!if(((laisha*currentPatch%canopy_area_profile(cl,ft,iv)) >nearzero) .and. &
+                                  !!     (currentPatch%ed_parsha_z(cl,ft,iv)>nearzero)) then
+                                  
                                   par_per_shala = currentPatch%ed_parsha_z(cl,ft,iv) / &
                                        (laisha*currentPatch%canopy_area_profile(cl,ft,iv))
+                                  elai_layer = currentPatch%elai_profile(cl,ft,iv)
+                                  
                                else
+
+                                  par_per_sunla = 0._r8
                                   par_per_shala = 0._r8
-                               end if
-                               
+                                  elai_layer = 0._r8
+                                  
+                               end if if_nonnzero_lai
+                                  
                                fsun = currentPatch%f_sun(cl,ft,iv)
-                               elai_layer = currentPatch%elai_profile(cl,ft,iv)
                                
-                            else
+                               
+                            else    ! Two-stream
                                
                                if(cohort_layer_elai(iv) > nearzero .and. currentPatch%solar_zenith_flag) then
                                   
@@ -1027,39 +1036,94 @@ contains
                 ! The value here was integrated over each cohort x leaf layer
                 ! and was weighted by m2 of effective leaf area for each layer
 
-                if(patch_la>nearzero) then
+                preserve_b4b: if(preserve_b4b) then
 
-                   ! Normalize the leaf-area weighted canopy conductance
-                   ! The denominator is the total effective leaf area in the canopy,
-                   ! units of [m/s]*[m2] / [m2] = [m/s]
-                   !g_sb_leaves = g_sb_leaves / (elai*currentPatch%total_canopy_area)
-
-                   g_sb_leaves = g_sb_leaves / max(0.1_r8*currentPatch%total_canopy_area,patch_la)
+                   patch_la = patch_la / currentPatch%total_canopy_area
                    
-                   if( g_sb_leaves > (1._r8/rsmax0) ) then
-
-                      ! Combined mean leaf resistance is the inverse of mean leaf conductance
-                      r_sb_leaves  = 1.0_r8/g_sb_leaves
-
-                      if (r_sb_leaves<bc_in(s)%rb_pa(ifp)) then
-                         write(fates_log(),*) 'Combined canopy resistance was somehow smaller than'
-                         write(fates_log(),*) 'its boundary layer resistance component'
-                         write(fates_log(),*) 'r_sb_leaves [s/m]: ',r_sb_leaves
-                         write(fates_log(),*) 'bc_in(s)%rb_pa(ifp) [s/m]: ',bc_in(s)%rb_pa(ifp)
-                         call endrun(msg=errMsg(sourcefile, __LINE__))
+                   if_zerolai1: if(patch_la>tiny(patch_la)) then
+                      
+                      elai       = calc_areaindex(currentPatch,'elai')
+                      g_sb_leaves = g_sb_leaves / (elai*currentPatch%total_canopy_area)
+                      
+                      if( g_sb_leaves > (1._r8/rsmax0) ) then
+                         
+                         ! Combined mean leaf resistance is the inverse of mean leaf conductance
+                         r_sb_leaves  = 1.0_r8/g_sb_leaves
+                         
+                         if (r_sb_leaves<bc_in(s)%rb_pa(ifp)) then
+                            write(fates_log(),*) 'Combined canopy resistance was somehow smaller than'
+                            write(fates_log(),*) 'its boundary layer resistance component'
+                            write(fates_log(),*) 'r_sb_leaves [s/m]: ',r_sb_leaves
+                            write(fates_log(),*) 'bc_in(s)%rb_pa(ifp) [s/m]: ',bc_in(s)%rb_pa(ifp)
+                            call endrun(msg=errMsg(sourcefile, __LINE__))
+                         end if
+                         
+                         ! Mean leaf stomatal resistance for all patch leaves
+                         r_stomata = (r_sb_leaves - bc_in(s)%rb_pa(ifp))
+                         
+                      else
+                         
+                         ! Here we prevent super high resistances
+                         ! and use a nominal value when conductance is low
+                         r_stomata = rsmax0
+                         
                       end if
-
-                      ! Mean leaf stomatal resistance for all patch leaves
-                      r_stomata = (r_sb_leaves - bc_in(s)%rb_pa(ifp))
-
+                      
+                      ! This will be multiplied by scaled by effective LAI in the host model
+                      ! when it comes time to calculate a flux rate per unit ground
+                      bc_out(s)%rssun_pa(ifp) = r_stomata
+                      bc_out(s)%rssha_pa(ifp) = r_stomata
+                      
+                      ! This value is used for diagnostics, the molar form of conductance
+                      ! is what is used in the field usually, so we track that form
+                      currentPatch%c_stomata  = cf / r_stomata
+                      
                    else
 
-                      ! Here we prevent super high resistances
-                      ! and use a nominal value when conductance is low
-                      r_stomata = rsmax0
-
-                   end if
-
+                      ! But this will prevent it from using an unintialized value
+                      bc_out(s)%rssun_pa(ifp) = rsmax0
+                      bc_out(s)%rssha_pa(ifp) = rsmax0
+                      
+                      ! This value is used for diagnostics, the molar form of conductance
+                      ! is what is used in the field usually, so we track that form
+                      currentPatch%c_stomata  = cf / rsmax0
+                      
+                   end if if_zerolai1
+                      
+                else  ! if preserve_b4b 
+                   
+                   if_zerolai: if(patch_la>nearzero) then
+                      
+                      ! Normalize the leaf-area weighted canopy conductance
+                      ! The denominator is the total effective leaf area in the canopy,
+                      ! units of [m/s]*[m2] / [m2] = [m/s]
+                      
+                      g_sb_leaves = g_sb_leaves / max(0.1_r8*currentPatch%total_canopy_area,patch_la)
+                      
+                      if( g_sb_leaves > (1._r8/rsmax0) ) then
+                         
+                         ! Combined mean leaf resistance is the inverse of mean leaf conductance
+                         r_sb_leaves  = 1.0_r8/g_sb_leaves
+                         
+                         if (r_sb_leaves<bc_in(s)%rb_pa(ifp)) then
+                            write(fates_log(),*) 'Combined canopy resistance was somehow smaller than'
+                            write(fates_log(),*) 'its boundary layer resistance component'
+                            write(fates_log(),*) 'r_sb_leaves [s/m]: ',r_sb_leaves
+                            write(fates_log(),*) 'bc_in(s)%rb_pa(ifp) [s/m]: ',bc_in(s)%rb_pa(ifp)
+                            call endrun(msg=errMsg(sourcefile, __LINE__))
+                         end if
+                         
+                         ! Mean leaf stomatal resistance for all patch leaves
+                         r_stomata = (r_sb_leaves - bc_in(s)%rb_pa(ifp))
+                         
+                      else
+                         
+                         ! Here we prevent super high resistances
+                         ! and use a nominal value when conductance is low
+                         r_stomata = rsmax0
+                         
+                      end if
+                      
                    ! This will be multiplied by scaled by effective LAI in the host model
                    ! when it comes time to calculate a flux rate per unit ground
                    bc_out(s)%rssun_pa(ifp) = r_stomata
@@ -1079,14 +1143,15 @@ contains
                    ! is what is used in the field usually, so we track that form
                    currentPatch%c_stomata  = cf / rsmax0
 
-                end if
+                end if if_zerolai
 
-                ! This value is used for diagnostics, the molar form of conductance
-                ! is what is used in the field usually, so we track that form
-                currentPatch%c_lblayer = cf / bc_in(s)%rb_pa(ifp)
+             end if preserve_b4b
+                
+             ! This value is used for diagnostics, the molar form of conductance
+             ! is what is used in the field usually, so we track that form
+             currentPatch%c_lblayer = cf / bc_in(s)%rb_pa(ifp)
 
-             end if if_filter2
-
+             
           end if ! not bare ground patch
           currentPatch => currentPatch%younger
        end do
@@ -1335,7 +1400,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
 
      ! Is there leaf area? - (NV can be larger than 0 with only stem area if deciduous)
      
-     if_leafarea: if ( elai_lsl > 0._r8 ) then
+     if_leafarea: if (elai_lsl > 0._r8 ) then
 
         !Loop aroun shaded and unshaded leaves
         psn_out     = 0._r8    ! psn is accumulated across sun and shaded leaves.
