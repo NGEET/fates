@@ -19,6 +19,7 @@ module EDCanopyStructureMod
   use EDCohortDynamicsMod   , only : InitPRTObject
   use FatesAllometryMod     , only : tree_lai
   use FatesAllometryMod     , only : tree_sai
+  use FatesAllometryMod     , only : CrownDepth
   use EDtypesMod            , only : ed_site_type
   use FatesPatchMod,          only : fates_patch_type
   use FatesCohortMod,         only : fates_cohort_type
@@ -1527,6 +1528,7 @@ contains
     real(r8) :: max_cheight                ! top of cohort canopy      (m)
     real(r8) :: lai                      ! leaf area per canopy area
     real(r8) :: sai                      ! stem area per canopy area
+    real(r8) :: crown_depth              ! Current cohort's crown depth
 
     !----------------------------------------------------------------------
 
@@ -1603,6 +1605,13 @@ contains
              end if
 
 
+             !---~---
+             !   Find current crown depth using the allometric function.
+             !---~---
+             call CrownDepth(currentCohort%height,currentCohort%pft,crown_depth)
+             !---~---
+
+
              ! --------------------------------------------------------------------------
              ! Whole layers.  Make a weighted average of the leaf area in each layer
              ! before dividing it by the total area. Fill up layer for whole layers.
@@ -1616,12 +1625,10 @@ contains
                 ! is obscured by snow.
 
                 layer_top_height = currentCohort%height - &
-                     ( real(iv-1,r8)/currentCohort%NV * currentCohort%height *  &
-                     prt_params%crown_depth_frac(currentCohort%pft) )
+                     ( real(iv-1,r8)/currentCohort%NV * crown_depth )
 
                 layer_bottom_height = currentCohort%height - &
-                     ( real(iv,r8)/currentCohort%NV * currentCohort%height * &
-                     prt_params%crown_depth_frac(currentCohort%pft) )
+                     ( real(iv,r8)/currentCohort%NV * crown_depth )
 
                 fraction_exposed = 1.0_r8
                 if(currentSite%snow_depth  > layer_top_height)then
