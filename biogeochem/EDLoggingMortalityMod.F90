@@ -240,6 +240,7 @@ contains
       integer :: cur_harvest_tag ! the harvest tag of the cohort today
       real(r8) :: harvest_rate ! the final harvest rate to apply to this cohort today
       real(r8) :: state_vector(n_landuse_cats)
+      logical  :: site_secondaryland_first_exceeding_min
 
       ! todo: probably lower the dbhmin default value to 30 cm
       ! todo: change the default logging_event_code to 1 september (-244)
@@ -248,8 +249,22 @@ contains
       ! todo: eventually set up distinct harvest practices, each with a set of input paramaeters
       ! todo: implement harvested carbon inputs
 
+      call get_luh_statedata(bc_in, state_vector)
+      site_secondaryland_first_exceeding_min =  (state_vector(secondaryland) .gt. currentSite%min_allowed_landuse_fraction) &
+           .and. (.not. currentSite%landuse_vector_gt_min(secondaryland))
+
       if (.not. currentSite%transition_landuse_from_off_to_on) then
-         if (logging_time) then 
+         if (site_secondaryland_first_exceeding_min) then
+
+            ! if the total intended area of secondary lands are less than what we can consider without having too-small patches,
+            ! or if that was the case until just now, then there is special logic
+            harvest_rate = state_vector(secondaryland) / sum(state_vector(:))
+            write(fates_log(), *) 'applying state_vector(secondaryland) to plants.', pft_i
+
+            ! For area-based harvest, harvest_tag shall always be 2 (not applicable).
+            harvest_tag = 2
+            cur_harvest_tag = 2
+         elseif (logging_time) then 
 
             ! Pass logging rates to cohort level 
 
@@ -299,67 +314,59 @@ contains
 
             endif
 
-            ! if the total intended area of secondary lands are less than what we can consider without having too-small patches,
-            ! or if that was the case until just now, then there is special logic
-            call get_luh_statedata(bc_in, state_vector)
-            if (state_vector(secondaryland) .le. currentSite%min_allowed_landuse_fraction) then
-               harvest_rate = 0._r8
-            else if (.not. currentSite%landuse_vector_gt_min(secondaryland)) then
-               harvest_rate = state_vector(secondaryland)
-            end if
+         else
+            harvest_rate = 0._r8
+            ! For area-based harvest, harvest_tag shall always be 2 (not applicable).
+            harvest_tag = 2
+            cur_harvest_tag = 2
+         endif
 
-            ! transfer of area to secondary land is based on overall area affected, not just logged crown area
-            ! l_degrad accounts for the affected area between logged crowns
-            if(prt_params%woody(pft_i) == itrue)then ! only set logging rates for trees
-               if (cur_harvest_tag == 0) then
-                  ! direct logging rates, based on dbh min and max criteria
-                  if (dbh >= logging_dbhmin .and. .not. &
-                       ((logging_dbhmax < fates_check_param_set) .and. (dbh >= logging_dbhmax )) ) then
-                     ! the logic of the above line is a bit unintuitive but allows turning off the dbhmax comparison entirely.
-                     ! since there is an .and. .not. after the first conditional, the dbh:dbhmax comparison needs to be 
-                     ! the opposite of what would otherwise be expected...
-                     lmort_direct = harvest_rate * logging_direct_frac
-                  else
-                     lmort_direct = 0.0_r8
-                  end if
+         ! transfer of area to secondary land is based on overall area affected, not just logged crown area
+         ! l_degrad accounts for the affected area between logged crowns
+         if(prt_params%woody(pft_i) == itrue)then ! only set logging rates for trees
+            if (cur_harvest_tag == 0) then
+               ! direct logging rates, based on dbh min and max criteria
+               if (dbh >= logging_dbhmin .and. .not. &
+                    ((logging_dbhmax < fates_check_param_set) .and. (dbh >= logging_dbhmax )) ) then
+                  ! the logic of the above line is a bit unintuitive but allows turning off the dbhmax comparison entirely.
+                  ! since there is an .and. .not. after the first conditional, the dbh:dbhmax comparison needs to be 
+                  ! the opposite of what would otherwise be expected...
+                  lmort_direct = harvest_rate * logging_direct_frac
                else
                   lmort_direct = 0.0_r8
                end if
+            else
+               lmort_direct = 0.0_r8
+            end if
 
-               ! infrastructure (roads, skid trails, etc) mortality rates
-               if (dbh >= logging_dbhmax_infra) then
-                  lmort_infra      = 0.0_r8
-               else
-                  lmort_infra      = harvest_rate * logging_mechanical_frac
-               end if
-
-               ! Collateral damage to smaller plants below the direct logging size threshold
-               ! will be applied via "understory_death" via the disturbance algorithm
-               if (canopy_layer .eq. 1) then
-                  lmort_collateral = harvest_rate * logging_collateral_frac
-               else
-                  lmort_collateral = 0._r8
-               endif
-
-            else  ! non-woody plants still killed by infrastructure
-               lmort_direct    = 0.0_r8
-               lmort_collateral = 0.0_r8
+            ! infrastructure (roads, skid trails, etc) mortality rates
+            if (dbh >= logging_dbhmax_infra) then
+               lmort_infra      = 0.0_r8
+            else
                lmort_infra      = harvest_rate * logging_mechanical_frac
             end if
 
-            ! the area occupied by all plants in the canopy that aren't killed is still disturbed at the harvest rate
+            ! Collateral damage to smaller plants below the direct logging size threshold
+            ! will be applied via "understory_death" via the disturbance algorithm
             if (canopy_layer .eq. 1) then
-               l_degrad = harvest_rate - (lmort_direct + lmort_infra + lmort_collateral) ! fraction passed to 'degraded' forest.
+               lmort_collateral = harvest_rate * logging_collateral_frac
             else
-               l_degrad = 0._r8
+               lmort_collateral = 0._r8
             endif
 
-         else 
+         else  ! non-woody plants still killed by infrastructure
             lmort_direct    = 0.0_r8
             lmort_collateral = 0.0_r8
-            lmort_infra      = 0.0_r8
-            l_degrad         = 0.0_r8
+            lmort_infra      = harvest_rate * logging_mechanical_frac
          end if
+
+         ! the area occupied by all plants in the canopy that aren't killed is still disturbed at the harvest rate
+         if (canopy_layer .eq. 1) then
+            l_degrad = harvest_rate - (lmort_direct + lmort_infra + lmort_collateral) ! fraction passed to 'degraded' forest.
+         else
+            l_degrad = 0._r8
+         endif
+
       else
          call get_init_landuse_harvest_rate(bc_in, currentSite%min_allowed_landuse_fraction, &
               harvest_rate, currentSite%landuse_vector_gt_min)

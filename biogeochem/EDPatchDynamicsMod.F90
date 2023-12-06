@@ -401,8 +401,10 @@ contains
              ! or if that was the case until just now, then there is special logic
              if (state_vector(secondaryland) .le. site_in%min_allowed_landuse_fraction) then
                 harvest_rate = 0._r8
-             else if (.not. site_in%landuse_vector_gt_min(secondaryland)) then
-                harvest_rate = state_vector(secondaryland)
+             else if (currentPatch%land_use_label .eq. primaryland .and. .not. site_in%landuse_vector_gt_min(secondaryland)) then
+                harvest_rate = state_vector(secondaryland) / sum(state_vector(:))
+             else
+                harvest_rate = 0._r8
              end if
           else
              call get_init_landuse_harvest_rate(bc_in, site_in%min_allowed_landuse_fraction, &
@@ -457,6 +459,14 @@ contains
     ! if the area of secondary land has just exceeded the minimum below which we ignore things, set the flag to keep track of that.
     if ( (state_vector(secondaryland) .gt. site_in%min_allowed_landuse_fraction) .and. (.not. site_in%landuse_vector_gt_min(secondaryland)) ) then
        site_in%landuse_vector_gt_min(secondaryland) = .true.
+       write(fates_log(),*) 'setting site_in%landuse_vector_gt_min(secondaryland) = .true.'
+
+       currentPatch => site_in%oldest_patch
+       do while (associated(currentPatch))
+          write(fates_log(),*) 'cpatch area, LU, distrates(ilog): ', currentPatch%area, currentPatch%land_use_label, currentPatch%nocomp_pft_label, currentPatch%disturbance_rates(dtype_ilog), currentPatch%area - currentPatch%total_canopy_area
+          currentPatch => currentPatch%younger
+       end do
+
     end if
 
   end subroutine disturbance_rates
@@ -3537,10 +3547,14 @@ contains
           end do
           call get_current_landuse_statevector(currentSite, state_vector)
           write(fates_log(),*) 'current landuse state vector: ', state_vector
+          write(fates_log(),*) 'current landuse state vector (not including bare gruond): ', state_vector/(1._r8-currentSite%area_bareground)
           call get_luh_statedata(bc_in, state_vector)
           write(fates_log(),*) 'driver data landuse state vector: ', state_vector
           write(fates_log(),*) 'min_allowed_landuse_fraction: ', currentSite%min_allowed_landuse_fraction
           write(fates_log(),*) 'landuse_vector_gt_min: ', currentSite%landuse_vector_gt_min
+          do i_landuse = 1, n_landuse_cats
+             write(fates_log(),*) 'trans matrix from: ', i_landuse, currentSite%landuse_transition_matrix(i_landuse,:)
+          end do
           call endrun(msg=errMsg(sourcefile, __LINE__))
           
           ! Note to user. If you DO decide to remove the end-run above this line
