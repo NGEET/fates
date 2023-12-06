@@ -3392,7 +3392,7 @@ end subroutine flush_hvars
                   hio_trimming_canopy_si_scls(io_si,scls) = hio_trimming_canopy_si_scls(io_si,scls) + &
                      ccohort%n * ccohort%canopy_trim / m2_per_ha
                   hio_crown_area_canopy_si_scls(io_si,scls) = hio_crown_area_canopy_si_scls(io_si,scls) + &
-                     ccohort%c_area / m2_per_ha
+                     ccohort%c_area * AREA_INV
                   hio_gpp_canopy_si_scpf(io_si,scpf) = hio_gpp_canopy_si_scpf(io_si,scpf) +  &
                      n_perm2*ccohort%gpp_acc_hold / days_per_year / sec_per_day
                   hio_ar_canopy_si_scpf(io_si,scpf) = hio_ar_canopy_si_scpf(io_si,scpf) + &
@@ -3543,7 +3543,7 @@ end subroutine flush_hvars
                   hio_trimming_understory_si_scls(io_si,scls) = hio_trimming_understory_si_scls(io_si,scls) + &
                      ccohort%n * ccohort%canopy_trim / m2_per_ha
                   hio_crown_area_understory_si_scls(io_si,scls) = hio_crown_area_understory_si_scls(io_si,scls) + &
-                     ccohort%c_area / m2_per_ha
+                     ccohort%c_area * AREA_INV
                   hio_gpp_understory_si_scpf(io_si,scpf)      = hio_gpp_understory_si_scpf(io_si,scpf)      + &
                      n_perm2*ccohort%gpp_acc_hold / days_per_year / sec_per_day
                   hio_ar_understory_si_scpf(io_si,scpf)      = hio_ar_understory_si_scpf(io_si,scpf)      + &
