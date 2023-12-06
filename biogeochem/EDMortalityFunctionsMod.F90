@@ -107,7 +107,7 @@ contains
     ! the future we could accelerate senescence to avoid mortality. Note that both drought 
     ! deciduous and cold deciduous are considered here to be consistent with the idea that
     ! plants without leaves cannot die of hydraulic failure.
-    is_decid_dormant = 
+    is_decid_dormant =                                                            & !
        ( prt_params%stress_decid(cohort_in%pft) == ihard_stress_decid .or.        & ! Drought deciduous
          prt_params%stress_decid(cohort_in%pft) == isemi_stress_decid .or.        & ! Semi-deciduous
          prt_params%season_decid(cohort_in%pft) == itrue                  ) .and. & ! Cold deciduous
