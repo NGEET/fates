@@ -13,6 +13,9 @@ module EDMortalityFunctionsMod
    use EDTypesMod            , only : ed_site_type
    use EDParamsMod,            only : maxpft
    use FatesConstantsMod     , only : itrue,ifalse
+   use FatesConstantsMod     , only : ihard_stress_decid
+   use FatesConstantsMod     , only : isemi_stress_decid
+   use FatesConstantsMod     , only : leaves_off
    use FatesAllometryMod     , only : bleaf
    use FatesAllometryMod     , only : storage_fraction_of_target
    use FatesInterfaceTypesMod     , only : bc_in_type
@@ -25,6 +28,7 @@ module EDMortalityFunctionsMod
 
    use PRTGenericMod,          only : carbon12_element
    use PRTGenericMod,          only : store_organ
+   use PRTParametersMod      , only : prt_params
    use shr_log_mod           , only : errMsg => shr_log_errMsg
    
    implicit none
@@ -89,14 +93,27 @@ contains
     real(r8) :: min_fmc_ar         ! minimum fraction of maximum conductivity for absorbing root
     real(r8) :: min_fmc            ! minimum fraction of maximum conductivity for whole plant
     real(r8) :: flc                ! fractional loss of conductivity 
+    logical  :: is_decid_dormant   ! Flag to signal that the cohort is deciduous and dormant
+
+
     real(r8), parameter :: frost_mort_buffer = 5.0_r8  ! 5deg buffer for freezing mortality
     logical, parameter :: test_zero_mortality = .false. ! Developer test which
                                                         ! may help to debug carbon imbalances
                                                         ! and the like
 
+    ! Check if the PFT is deciduous and leaves are completely abscised.  If this is the case,
+    ! we prevent hydraulic failure mortality to occur as plants are leafless. For now, 
+    ! semi-deciduous plants with senescing leaves may still die of hydraulic failure, but in
+    ! the future we could accelerate senescence to avoid mortality. Note that both drought 
+    ! deciduous and cold deciduous are considered here to be consistent with the idea that
+    ! plants without leaves cannot die of hydraulic failure.
+    is_decid_dormant = 
+       ( prt_params%stress_decid(cohort_in%pft) == ihard_stress_decid .or.        & ! Drought deciduous
+         prt_params%stress_decid(cohort_in%pft) == isemi_stress_decid .or.        & ! Semi-deciduous
+         prt_params%season_decid(cohort_in%pft) == itrue                  ) .and. & ! Cold deciduous
+       ( cohort_in%status_coh == leaves_off )                                     ! ! Fully abscised
     
-    
-   ! Size Dependent Senescence
+    ! Size Dependent Senescence
     ! rate (r) and inflection point (ip) define the increase in mortality rate with dbh
     mort_r_size_senescence = EDPftvarcon_inst%mort_r_size_senescence(cohort_in%pft)
     mort_ip_size_senescence = EDPftvarcon_inst%mort_ip_size_senescence(cohort_in%pft)
@@ -139,29 +156,35 @@ contains
        bmort = EDPftvarcon_inst%bmort(cohort_in%pft)
 
        ! Proxy for hydraulic failure induced mortality. 
-       hf_sm_threshold = EDPftvarcon_inst%hf_sm_threshold(cohort_in%pft)
-       hf_flc_threshold = EDPftvarcon_inst%hf_flc_threshold(cohort_in%pft)
-       if(hlm_use_planthydro.eq.itrue)then
-          !note the flc is set as the fraction of max conductivity in hydro
-          min_fmc_ag = minval(cohort_in%co_hydr%ftc_ag(:))
-          min_fmc_tr = cohort_in%co_hydr%ftc_troot
-          min_fmc_ar = minval(cohort_in%co_hydr%ftc_aroot(:))
-          min_fmc = min(min_fmc_ag, min_fmc_tr)
-          min_fmc = min(min_fmc, min_fmc_ar)
-          flc = 1.0_r8-min_fmc
-          if(flc >= hf_flc_threshold .and. hf_flc_threshold < 1.0_r8 )then 
-             hmort = (flc-hf_flc_threshold)/(1.0_r8-hf_flc_threshold) * &
-                  EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
-          else
-             hmort = 0.0_r8
-          endif
+       ! This is only applied on plants that have leaves. Deciduous plants in the 
+       ! "leaves off" season cannot die of hydraulic failure.
+       decid_check: if (is_decid_dormant) then
+          hmort = 0.0_r8
        else
-          if(btran_ft(cohort_in%pft) <= hf_sm_threshold)then 
-             hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
+          hf_sm_threshold = EDPftvarcon_inst%hf_sm_threshold(cohort_in%pft)
+          hf_flc_threshold = EDPftvarcon_inst%hf_flc_threshold(cohort_in%pft)
+          if(hlm_use_planthydro.eq.itrue)then
+             !note the flc is set as the fraction of max conductivity in hydro
+             min_fmc_ag = minval(cohort_in%co_hydr%ftc_ag(:))
+             min_fmc_tr = cohort_in%co_hydr%ftc_troot
+             min_fmc_ar = minval(cohort_in%co_hydr%ftc_aroot(:))
+             min_fmc = min(min_fmc_ag, min_fmc_tr)
+             min_fmc = min(min_fmc, min_fmc_ar)
+             flc = 1.0_r8-min_fmc
+             if(flc >= hf_flc_threshold .and. hf_flc_threshold < 1.0_r8 )then 
+                hmort = (flc-hf_flc_threshold)/(1.0_r8-hf_flc_threshold) * &
+                     EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
+             else
+                hmort = 0.0_r8
+             endif
           else
-             hmort = 0.0_r8
+             if(btran_ft(cohort_in%pft) <= hf_sm_threshold)then 
+                hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
+             else
+                hmort = 0.0_r8
+             endif
           endif
-       endif
+       end if decid_check
 
        ! Carbon Starvation induced mortality.
        if ( cohort_in%dbh  >  0._r8 ) then
