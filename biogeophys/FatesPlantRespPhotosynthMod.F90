@@ -341,7 +341,7 @@ contains
        ifp = 0
        currentpatch => sites(s)%oldest_patch
        do while (associated(currentpatch))
-          if(currentpatch%nocomp_pft_label.ne.nocomp_bareground)then
+          if_notbare: if(currentpatch%nocomp_pft_label.ne.nocomp_bareground)then
              ifp   = ifp+1
              NCL_p = currentPatch%NCL_p
 
@@ -492,7 +492,6 @@ contains
                          rate_mask_if: if ( .not.rate_mask_z(iv,ft,cl) .or. &
                               (hlm_use_planthydro.eq.itrue) .or. &
                               (radiation_model .eq. twostr_solver ) .or. &
-                              !(radiation_model .eq. norman_solver ) .or. &
                               (nleafage > 1) .or. &
                               (hlm_parteh_mode .ne. prt_carbon_allom_hyp )   ) then
 
@@ -838,12 +837,12 @@ contains
                    fnrt_c   = currentCohort%prt%GetState(fnrt_organ, carbon12_element)
 
                    if (hlm_use_tree_damage .eq. itrue) then
-
+                      
                       ! Crown damage currenly only reduces the aboveground portion of 
                       ! sapwood. Therefore we calculate the aboveground and the belowground portion 
                       ! sapwood for use in stem respiration. 
                       call GetCrownReduction(currentCohort%crowndamage, crown_reduction)
-
+                      
                    else
                       crown_reduction = 0.0_r8
                    end if
@@ -1036,8 +1035,8 @@ contains
                 ! The value here was integrated over each cohort x leaf layer
                 ! and was weighted by m2 of effective leaf area for each layer
 
-                preserve_b4b: if(preserve_b4b) then
-
+                if_preserve_b4b: if(preserve_b4b) then
+                   
                    patch_la = patch_la / currentPatch%total_canopy_area
                    
                    if_zerolai1: if(patch_la>tiny(patch_la)) then
@@ -1078,7 +1077,7 @@ contains
                       ! is what is used in the field usually, so we track that form
                       currentPatch%c_stomata  = cf / r_stomata
                       
-                   else
+                   else  !if_zerolai1
 
                       ! But this will prevent it from using an unintialized value
                       bc_out(s)%rssun_pa(ifp) = rsmax0
@@ -1124,38 +1123,38 @@ contains
                          
                       end if
                       
-                   ! This will be multiplied by scaled by effective LAI in the host model
-                   ! when it comes time to calculate a flux rate per unit ground
-                   bc_out(s)%rssun_pa(ifp) = r_stomata
-                   bc_out(s)%rssha_pa(ifp) = r_stomata
+                      ! This will be multiplied by scaled by effective LAI in the host model
+                      ! when it comes time to calculate a flux rate per unit ground
+                      bc_out(s)%rssun_pa(ifp) = r_stomata
+                      bc_out(s)%rssha_pa(ifp) = r_stomata
+                      
+                      ! This value is used for diagnostics, the molar form of conductance
+                      ! is what is used in the field usually, so we track that form
+                      currentPatch%c_stomata  = cf / r_stomata
+                      
+                   else  ! if_zerolai
 
-                   ! This value is used for diagnostics, the molar form of conductance
-                   ! is what is used in the field usually, so we track that form
-                   currentPatch%c_stomata  = cf / r_stomata
-
-                else
-
-                   ! But this will prevent it from using an unintialized value
-                   bc_out(s)%rssun_pa(ifp) = rsmax0
-                   bc_out(s)%rssha_pa(ifp) = rsmax0
-
-                   ! This value is used for diagnostics, the molar form of conductance
-                   ! is what is used in the field usually, so we track that form
-                   currentPatch%c_stomata  = cf / rsmax0
-
-                end if if_zerolai
-
-             end if preserve_b4b
+                      ! But this will prevent it from using an unintialized value
+                      bc_out(s)%rssun_pa(ifp) = rsmax0
+                      bc_out(s)%rssha_pa(ifp) = rsmax0
+                      
+                      ! This value is used for diagnostics, the molar form of conductance
+                      ! is what is used in the field usually, so we track that form
+                      currentPatch%c_stomata  = cf / rsmax0
+                      
+                   end if if_zerolai
+                   
+                end if if_preserve_b4b
                 
-             ! This value is used for diagnostics, the molar form of conductance
-             ! is what is used in the field usually, so we track that form
-             currentPatch%c_lblayer = cf / bc_in(s)%rb_pa(ifp)
-
+                ! This value is used for diagnostics, the molar form of conductance
+                ! is what is used in the field usually, so we track that form
+                currentPatch%c_lblayer = cf / bc_in(s)%rb_pa(ifp)
+                
              
-          end if ! not bare ground patch
-          currentPatch => currentPatch%younger
-       end do
-
+             end if if_filter2 ! not bare ground patch
+             currentPatch => currentPatch%younger
+          end do
+          
        deallocate(rootfr_ft)
 
     end do !site loop
