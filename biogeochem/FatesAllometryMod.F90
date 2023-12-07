@@ -1508,9 +1508,11 @@ contains
     return
   end subroutine dh2blmax_2pwr
 
+
   ! ===========================================================================
 
-  subroutine dh2blmax_3pwr(d,h,dhdd,p1,p2,p3,slatop,c2b,dbh_maxh,blmax,dblmaxdd)
+
+  subroutine dh2blmax_3pwr(d,h,dhdd,p1,p2,p3,slatop,dbh_maxh,c2b,blmax,dblmaxdd)
      !--------------------------------------------------------------------------
      !
      !     This function calculates the maximum leaf biomass from reference 
@@ -1544,8 +1546,8 @@ contains
      ! p2       -- Parameter 2 (power, or log-slope)  [     --]
      ! p3       -- Parameter 3 (power, or log-slope)  [     --]
      ! slatop   -- Top-of-canopy specific leaf area   [  m2/gC]
-     ! c2b      -- Carbon to biomass multiplier ~ 2   [ kg/kgC]
      ! dbh_maxh -- DBH at maximum height              [     cm]
+     ! c2b      -- Carbon to biomass multiplier ~ 2   [ kg/kgC]
      !
      ! ------------------
      !  Output arguments
