@@ -2628,10 +2628,10 @@ contains
     integer, parameter :: layer_height_method = layer_height_const_depth
     
 
-    logical, parameter :: old_method = .true.
+    logical, parameter :: preserve_b4b = .true.
 
 
-    if(old_method) then
+    if_preserve_b4b: if(preserve_b4b) then
 
        if( (tree_lai+tree_sai) > nearzero)then
 
@@ -2695,7 +2695,7 @@ contains
        
        return
        
-    end if
+    end if if_preserve_b4b
 
     
     tree_vai = tree_lai + tree_sai
