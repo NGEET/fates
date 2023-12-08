@@ -92,6 +92,7 @@ module FatesAllometryMod
   use FatesConstantsMod, only : calloc_abs_error
   use FatesConstantsMod, only : fates_unset_r8
   use FatesConstantsMod, only : itrue
+  use FatesConstantsMod, only : nearzero
   use shr_log_mod      , only : errMsg => shr_log_errMsg
   use FatesGlobals     , only : fates_log
   use FatesGlobals     , only : endrun => fates_endrun
@@ -2591,8 +2592,7 @@ contains
   ! =========================================================================
 
   subroutine VegAreaLayer(tree_lai,tree_sai,tree_height,iv,nv,pft,snow_depth, & 
-       vai_top,vai_bot, & 
-       elai_layer,esai_layer,tlai_layer,tsai_layer)
+       vai_top,vai_bot, elai_layer,esai_layer,tlai_layer,tsai_layer)
 
     ! -----------------------------------------------------------------------------------
     ! This routine returns the exposed leaf and stem areas (m2 of leaf and stem) per m2 of
@@ -2621,13 +2621,86 @@ contains
     real(r8) :: layer_top_height ! Physical height of the layer top relative to ground [m]
     real(r8) :: layer_bot_height ! Physical height of the layer bottom relative to ground [m]
     real(r8) :: tlai,tsai        ! temporary total area indices [m2/m2]
+    real(r8) :: fleaf            ! fraction of biomass in layer that is leaf
+    real(r8) :: remainder        ! old-method: remainder of biomass in last bin
     integer, parameter :: layer_height_const_depth = 1 ! constant physical depth assumption
     integer, parameter :: layer_height_const_lad   = 2 ! constant leaf area depth assumption
     integer, parameter :: layer_height_method = layer_height_const_depth
+    
 
+    logical, parameter :: old_method = .true.
+
+
+    if(old_method) then
+
+       if( (tree_lai+tree_sai) > nearzero)then
+
+          ! lai = tree_lai * currentCohort%c_area/currentPatch%total_canopy_area
+          ! sai = tree_sai * currentCohort%c_area/currentPatch%total_canopy_area
+          
+          ! See issue: https://github.com/NGEET/fates/issues/899
+          ! fleaf = currentCohort%treelai / (currentCohort%treelai + currentCohort%treesai)
+          fleaf = tree_lai / (tree_lai+tree_sai)
+       else
+          fleaf = 0._r8
+       endif
+
+       if(iv==0)then  ! Whole plant (not just specific layer)
+          
+          layer_top_height = tree_height
+          layer_bot_height = tree_height - ( tree_height * prt_params%crown_depth_frac(pft) )
+
+       else
+          
+          layer_top_height = tree_height - ( real(iv-1,r8)/nv * tree_height *  &
+               prt_params%crown_depth_frac(pft) )
+          
+          layer_bot_height = tree_height - ( real(iv,r8)/nv * tree_height * &
+               prt_params%crown_depth_frac(pft) )
+       end if
+
+       fraction_exposed = 1.0_r8
+       if(snow_depth  > layer_top_height)then
+          fraction_exposed = 0._r8
+       endif
+       if(snow_depth < layer_bot_height)then
+          fraction_exposed = 1._r8
+       endif
+       if(snow_depth >= layer_bot_height .and. &
+            snow_depth <= layer_top_height) then !only partly hidden...
+          fraction_exposed =  1._r8 - max(0._r8,(min(1.0_r8,(snow_depth -layer_bot_height)/ &
+               (layer_top_height-layer_bot_height ))))
+       endif
+
+       if(iv==0) then
+          remainder = tree_lai+tree_sai
+       elseif(iv==nv) then
+          remainder = (tree_lai + tree_sai) - &
+               (dlower_vai(iv) - dinc_vai(iv))
+          if(remainder > dinc_vai(iv) )then
+             write(fates_log(), *)'ED: issue with remainder', &
+                  tree_lai,tree_sai,dinc_vai(iv), & 
+                  nv,remainder
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          endif
+       else
+          remainder = dinc_vai(iv)
+       end if
+       
+       if(present(tlai_layer)) tlai_layer = remainder * fleaf  !* currentCohort%c_area/currentPatch%total_canopy_area
+       if(present(tsai_layer)) tsai_layer = remainder * (1._r8-fleaf) !* currentCohort%c_area/currentPatch%total_canopy_area
+       elai_layer = fraction_exposed * remainder * fleaf
+       esai_layer = fraction_exposed * remainder * (1._r8-fleaf)
+
+       
+       return
+       
+    end if
+
+    
     tree_vai = tree_lai + tree_sai
 
-    if(tree_vai>0._r8)then
+    if_any_vai: if(tree_vai>0._r8)then
 
        if(iv==0)then
           vai_top = 0.0
@@ -2686,7 +2759,7 @@ contains
        vai_bot = 0._r8
        vai_top = 0._r8
 
-    end if
+    end if if_any_vai
 
 
     return

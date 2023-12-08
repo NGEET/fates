@@ -140,20 +140,28 @@ contains
                 ! Note (RGK-MLO): Investigate twilight mechanics for
                 ! non-zero diffuse radiation when cosz<=0
 
-                bc_out(s)%albd_parb(ifp,:)            = 1._r8
-                bc_out(s)%albi_parb(ifp,:)            = 1._r8
-                bc_out(s)%fabi_parb(ifp,:)            = 0._r8
-                bc_out(s)%fabd_parb(ifp,:)            = 0._r8
-                bc_out(s)%ftdd_parb(ifp,:)            = 0._r8
-                bc_out(s)%ftid_parb(ifp,:)            = 0._r8
-                bc_out(s)%ftii_parb(ifp,:)            = 0._r8
+                ! Temporarily turn off to preserve b4b
+                
+                !!bc_out(s)%albd_parb(ifp,:)            = 1._r8
+                !!bc_out(s)%albi_parb(ifp,:)            = 1._r8
+                !!bc_out(s)%fabi_parb(ifp,:)            = 0._r8
+                !!bc_out(s)%fabd_parb(ifp,:)            = 0._r8
+                !!bc_out(s)%ftdd_parb(ifp,:)            = 0._r8
+                !!bc_out(s)%ftid_parb(ifp,:)            = 0._r8
+                !!bc_out(s)%ftii_parb(ifp,:)            = 0._r8
 
              else
 
+                bc_out(s)%albd_parb(ifp,:)            = 0._r8  ! output HLM
+                bc_out(s)%albi_parb(ifp,:)            = 0._r8  ! output HLM
+                bc_out(s)%fabi_parb(ifp,:)            = 0._r8  ! output HLM
+                bc_out(s)%fabd_parb(ifp,:)            = 0._r8  ! output HLM
+                bc_out(s)%ftdd_parb(ifp,:)            = 1._r8 ! output HLM
+                bc_out(s)%ftid_parb(ifp,:)            = 1._r8 ! output HLM
+                bc_out(s)%ftii_parb(ifp,:)            = 1._r8 ! output HLM
+
                 if_nrad: if (maxval(currentPatch%nrad(1,:))==0)then
                    ! there are no leaf layers in this patch. it is effectively bare ground.
-                   ! no radiation is absorbed
-
                    currentPatch%radiation_error = 0.0_r8
 
                    do ib = 1,hlm_numSWb
