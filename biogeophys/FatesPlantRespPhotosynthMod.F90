@@ -282,7 +282,7 @@ contains
     real(r8)               :: cohort_esai
     real(r8)               :: elai_layer
     real(r8)               :: laisun,laisha
-    
+    real(r8)               :: elai
     ! -----------------------------------------------------------------------------------
     ! Keeping these two definitions in case they need to be added later
     !
@@ -414,6 +414,7 @@ contains
                 ! ------------------------------------------------------------------------
                 rate_mask_z(:,1:numpft,:) = .false.
 
+                if(currentPatch%countcohorts > 0.0)then
                 currentCohort => currentPatch%tallest
                 do_cohort_drive: do while (associated(currentCohort)) ! Cohort loop
 
@@ -1031,6 +1032,8 @@ contains
                    currentCohort => currentCohort%shorter
                 enddo do_cohort_drive
 
+             end if
+
                 ! Normalize canopy total conductance by the effective LAI
                 ! The value here was integrated over each cohort x leaf layer
                 ! and was weighted by m2 of effective leaf area for each layer
@@ -1149,14 +1152,16 @@ contains
                 ! This value is used for diagnostics, the molar form of conductance
                 ! is what is used in the field usually, so we track that form
                 currentPatch%c_lblayer = cf / bc_in(s)%rb_pa(ifp)
-                
-             
-             end if if_filter2 ! not bare ground patch
-             currentPatch => currentPatch%younger
-          end do
-          
-       deallocate(rootfr_ft)
 
+             end if if_filter2 ! not bare ground patch
+       
+          end if if_notbare
+
+          currentPatch => currentPatch%younger
+       end do
+       
+       deallocate(rootfr_ft)
+       
     end do !site loop
 
   end associate
