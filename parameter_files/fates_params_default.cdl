@@ -433,7 +433,7 @@ variables:
 		fates_mort_scalar_hydrfailure:long_name = "maximum mortality rate from hydraulic failure" ;
 	double fates_mort_upthresh_cstarvation(fates_pft) ;
 		fates_mort_upthresh_cstarvation:units = "unitless" ;
-		fates_mort_upthresh_cstarvation:long_name = "threshold for storage biomass (relative to target leaf biomass) above which carbon starvation is zero" ;
+		fates_mort_upthresh_cstarvation:long_name = "If threshold for storage biomass (relative to target leaf biomass) above which carbon starvation is zero" ;
 	double fates_nonhydro_smpsc(fates_pft) ;
 		fates_nonhydro_smpsc:units = "mm" ;
 		fates_nonhydro_smpsc:long_name = "Soil water potential at full stomatal closure" ;
@@ -821,6 +821,9 @@ variables:
 	double fates_maxpatch_secondary ;
 		fates_maxpatch_secondary:units = "count" ;
 		fates_maxpatch_secondary:long_name = "maximum number of secondary vegetation patches per site" ;
+	double fates_mort_cstarvation_model ;
+		fates_mort_cstarvation_model:units = "unitless" ;
+		fates_mort_cstarvation_model:long_name = "carbon starvation method. In both cases mortality is scaled with carbon storage relative to leaf biomass. (1) linear function; (2) exponential" ;
 	double fates_mort_disturb_frac ;
 		fates_mort_disturb_frac:units = "fraction" ;
 		fates_mort_disturb_frac:long_name = "fraction of canopy mortality that results in disturbance (i.e. transfer of area from new to old patch)" ;
@@ -1690,6 +1693,8 @@ data:
  fates_maxpatch_primary = 10 ;
 
  fates_maxpatch_secondary = 4 ;
+
+ fates_mort_cstarvation_model = 1 ;
 
  fates_mort_disturb_frac = 1 ;
 

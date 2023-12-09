@@ -49,7 +49,11 @@ module EDParamsMod
                                                       ! 1=non-acclimating, 2=Kumarathunge et al., 2019
 
    integer,protected, public :: radiation_model       ! Switch betrween Norman (1) and Two-stream (2) radiation models
-   
+
+   integer,protected, public :: mort_cstarvation_model ! Switch for carbon starvation mortality:
+                                                       ! 1 -- Linear model
+                                                       ! 2 -- Exponential model
+
    real(r8),protected, public :: fates_mortality_disturbance_fraction ! the fraction of canopy mortality that results in disturbance
    real(r8),protected, public :: ED_val_comp_excln                    ! weighting factor for canopy layer exclusion and promotion
    real(r8),protected, public :: ED_val_vai_top_bin_width             ! width in VAI units of uppermost leaf+stem layer scattering element
@@ -163,6 +167,7 @@ integer, parameter, public :: maxpft = 16      ! maximum number of PFTs allowed
    character(len=param_string_length),parameter,public :: name_radiation_model = "fates_rad_model"
    character(len=param_string_length),parameter,public :: ED_name_hydr_htftype_node = "fates_hydro_htftype_node"
    character(len=param_string_length),parameter,public :: ED_name_mort_disturb_frac = "fates_mort_disturb_frac"
+   character(len=param_string_length),parameter,public :: ED_name_mort_cstarvation_model = "fates_mort_cstarvation_model"
    character(len=param_string_length),parameter,public :: ED_name_comp_excln = "fates_comp_excln"
    character(len=param_string_length),parameter,public :: ED_name_vai_top_bin_width = "fates_vai_top_bin_width"
    character(len=param_string_length),parameter,public :: ED_name_vai_width_increase_factor = "fates_vai_width_increase_factor"
@@ -337,6 +342,7 @@ contains
     maintresp_leaf_model                  = -9
     radiation_model                       = -9
     fates_mortality_disturbance_fraction  = nan
+    mort_cstarvation_model                = -9
     ED_val_comp_excln                     = nan
     ED_val_vai_top_bin_width              = nan
     ED_val_vai_width_increase_factor      = nan
@@ -448,6 +454,9 @@ contains
          dimension_names=dim_names_scalar)
     
     call fates_params%RegisterParameter(name=ED_name_mort_disturb_frac, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+    
+    call fates_params%RegisterParameter(name=ED_name_mort_cstarvation_model, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=ED_name_comp_excln, dimension_shape=dimension_shape_scalar, &
@@ -664,6 +673,10 @@ contains
     
     call fates_params%RetrieveParameter(name=ED_name_mort_disturb_frac, &
           data=fates_mortality_disturbance_fraction)
+    
+    call fates_params%RetrieveParameter(name=ED_name_mort_cstarvation_model, &
+         data=tmpreal)
+    mort_cstarvation_model = nint(tmpreal)
 
     call fates_params%RetrieveParameter(name=ED_name_comp_excln, &
          data=ED_val_comp_excln)

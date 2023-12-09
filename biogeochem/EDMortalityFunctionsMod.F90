@@ -12,7 +12,10 @@ module EDMortalityFunctionsMod
    use FatesCohortMod        , only : fates_cohort_type
    use EDTypesMod            , only : ed_site_type
    use EDParamsMod,            only : maxpft
+   use EDParamsMod           , only : mort_cstarvation_model
    use FatesConstantsMod     , only : itrue,ifalse
+   use FatesConstantsMod     , only : cstarvation_model_lin
+   use FatesConstantsMod     , only : cstarvation_model_exp
    use FatesAllometryMod     , only : bleaf
    use FatesAllometryMod     , only : storage_fraction_of_target
    use FatesInterfaceTypesMod     , only : bc_in_type
@@ -89,11 +92,12 @@ contains
     real(r8) :: min_fmc_ar         ! minimum fraction of maximum conductivity for absorbing root
     real(r8) :: min_fmc            ! minimum fraction of maximum conductivity for whole plant
     real(r8) :: flc                ! fractional loss of conductivity 
+    real(r8) :: k_cstarvation      ! exponential decay factor for carbon starvation.
     real(r8), parameter :: frost_mort_buffer = 5.0_r8  ! 5deg buffer for freezing mortality
     logical, parameter :: test_zero_mortality = .false. ! Developer test which
                                                         ! may help to debug carbon imbalances
                                                         ! and the like
-
+    real(r8), parameter :: mort_nearzero = 1.0e-12_r8 ! Minimum mortality below which it is assumed zero
     
     
    ! Size Dependent Senescence
@@ -169,20 +173,38 @@ contains
           ! We compare storage with leaf biomass if plant were fully flushed, otherwise
           ! mortality would be underestimated for plants that lost all leaves and have no
           ! storage to flush new ones.
-          ! MLO. Why isn't this comparing with storage allometry (i.e., accounting for
-          !      cushion)?
           call bleaf(cohort_in%dbh,cohort_in%pft,cohort_in%crowndamage,cohort_in%canopy_trim, &
                1.0_r8, target_leaf_c)
           store_c = cohort_in%prt%GetState(store_organ,carbon12_element)
-
           call storage_fraction_of_target(target_leaf_c, store_c, frac)
-          if( frac .lt. 1._r8) then
-             cmort = max(0.0_r8,EDPftvarcon_inst%mort_scalar_cstarvation(cohort_in%pft) * &
-                  (1.0_r8 - frac))
-          else
-             cmort = 0.0_r8
-          endif
 
+          ! Select the mortality model.
+          select case (mort_cstarvation_model)
+          case (cstarvation_model_lin)
+             ! Linear model, with maximum mortality occurring when frac = 0
+             cmort = EDPftvarcon_inst%mort_scalar_cstarvation(cohort_in%pft) * &
+                max(0.0_r8, (EDPftvarcon_inst%mort_upthresh_cstarvation(cohort_in%pft)-frac) / &
+                            EDPftvarcon_inst%mort_upthresh_cstarvation(cohort_in%pft) )
+
+          case (cstarvation_model_exp)
+             ! Exponential model. 
+             ! First we find the decay factor based on the upper threshold and base 
+             ! mortality
+             k_cstarvation = &
+                log(EDPftvarcon_inst%mort_scalar_cstarvation(cohort_in%pft)/mort_nearzero) / &
+                EDPftvarcon_inst%mort_upthresh_cstarvation(cohort_in%pft)
+             if (frac > EDPftvarcon_inst%mort_upthresh_cstarvation(cohort_in%pft)) then
+                ! Mortality is near zero, assume it is zero
+                cmort = 0.0_r8
+             else
+                cmort = EDPftvarcon_inst%mort_scalar_cstarvation(cohort_in%pft) * &
+                        exp(-k_cstarvation * frac)
+             end if
+          case default
+              write(fates_log(),*) &
+                 'Invalid carbon starvation model (',mort_cstarvation_model,').'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+          end select
     
        else
           write(fates_log(),*) 'dbh problem in mortality_rates', &
