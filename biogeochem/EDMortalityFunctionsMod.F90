@@ -16,6 +16,7 @@ module EDMortalityFunctionsMod
    use FatesConstantsMod     , only : itrue,ifalse
    use FatesConstantsMod     , only : cstarvation_model_lin
    use FatesConstantsMod     , only : cstarvation_model_exp
+   use FatesConstantsMod     , only : nearzero
    use FatesAllometryMod     , only : bleaf
    use FatesAllometryMod     , only : storage_fraction_of_target
    use FatesInterfaceTypesMod     , only : bc_in_type
@@ -92,12 +93,10 @@ contains
     real(r8) :: min_fmc_ar         ! minimum fraction of maximum conductivity for absorbing root
     real(r8) :: min_fmc            ! minimum fraction of maximum conductivity for whole plant
     real(r8) :: flc                ! fractional loss of conductivity 
-    real(r8) :: k_cstarvation      ! exponential decay factor for carbon starvation.
     real(r8), parameter :: frost_mort_buffer = 5.0_r8  ! 5deg buffer for freezing mortality
     logical, parameter :: test_zero_mortality = .false. ! Developer test which
                                                         ! may help to debug carbon imbalances
                                                         ! and the like
-    real(r8), parameter :: mort_nearzero = 1.0e-12_r8 ! Minimum mortality below which it is assumed zero
     
     
    ! Size Dependent Senescence
@@ -187,18 +186,12 @@ contains
                             EDPftvarcon_inst%mort_upthresh_cstarvation(cohort_in%pft) )
 
           case (cstarvation_model_exp)
-             ! Exponential model. 
-             ! First we find the decay factor based on the upper threshold and base 
-             ! mortality
-             k_cstarvation = &
-                log(EDPftvarcon_inst%mort_scalar_cstarvation(cohort_in%pft)/mort_nearzero) / &
-                EDPftvarcon_inst%mort_upthresh_cstarvation(cohort_in%pft)
-             if (frac > EDPftvarcon_inst%mort_upthresh_cstarvation(cohort_in%pft)) then
-                ! Mortality is near zero, assume it is zero
+             ! Exponential model.  The upper threshold really is the e-folding factor for
+             ! frac. We also make sure the mortality is set to zero when tiny.
+             cmort = EDPftvarcon_inst%mort_scalar_cstarvation(cohort_in%pft) * &
+                     exp(- frac / EDPftvarcon_inst%mort_upthresh_cstarvation(cohort_in%pft))
+             if (cmort <= nearzero) then
                 cmort = 0.0_r8
-             else
-                cmort = EDPftvarcon_inst%mort_scalar_cstarvation(cohort_in%pft) * &
-                        exp(-k_cstarvation * frac)
              end if
           case default
               write(fates_log(),*) &

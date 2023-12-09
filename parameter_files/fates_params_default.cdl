@@ -433,7 +433,7 @@ variables:
 		fates_mort_scalar_hydrfailure:long_name = "maximum mortality rate from hydraulic failure" ;
 	double fates_mort_upthresh_cstarvation(fates_pft) ;
 		fates_mort_upthresh_cstarvation:units = "unitless" ;
-		fates_mort_upthresh_cstarvation:long_name = "If threshold for storage biomass (relative to target leaf biomass) above which carbon starvation is zero" ;
+		fates_mort_upthresh_cstarvation:long_name = "It depends on fates_mort_cstarvation_model: 1. upper threshold for storage biomass (relative to leaf biomass) above CS mortality is zero. 2. storage biomass (relative to leaf biomass) at which CS mortality decays to e^-1 of the maximum" ;
 	double fates_nonhydro_smpsc(fates_pft) ;
 		fates_nonhydro_smpsc:units = "mm" ;
 		fates_nonhydro_smpsc:long_name = "Soil water potential at full stomatal closure" ;
