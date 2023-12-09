@@ -794,6 +794,10 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_turnover_leaf_ustory'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     return
   end subroutine PRTRegisterPFTLeafAge
 
@@ -873,6 +877,10 @@ contains
      name = 'fates_turnover_leaf'
      call fates_params%RetrieveParameterAllocate(name=name, &
           data=prt_params%leaf_long)
+
+     name = 'fates_turnover_leaf_ustory'
+     call fates_params%RetrieveParameterAllocate(name=name, &
+          data=prt_params%leaf_long_ustory)
 
      return
   end subroutine PRTReceivePFTLeafAge
@@ -1005,6 +1013,7 @@ contains
         write(fates_log(),fmt0) 'slatop = ',prt_params%slatop
         write(fates_log(),fmt0) 'allom_sai_scaler = ',prt_params%allom_sai_scaler
         write(fates_log(),fmt0) 'leaf_long = ',prt_params%leaf_long
+        write(fates_log(),fmt0) 'leaf_long_ustory = ',prt_params%leaf_long_ustory
         write(fates_log(),fmt0) 'grperc = ',prt_params%grperc
         write(fates_log(),fmt0) 'c2b = ',prt_params%c2b
         write(fates_log(),fmt0) 'branch_turnover = ',prt_params%branch_long
