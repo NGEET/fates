@@ -1709,7 +1709,7 @@ contains
           currentPatch%canopy_mask(:,:) = 0
           do cl = 1,currentPatch%NCL_p
              do ft = 1,numpft
-                if(currentPatch%canopy_area_profile(cl,ft,1) > nearzero) currentPatch%canopy_mask(cl,ft) = 1
+                if(currentPatch%canopy_area_profile(cl,ft,1) > 0._r8 ) currentPatch%canopy_mask(cl,ft) = 1
              end do
           end do
 

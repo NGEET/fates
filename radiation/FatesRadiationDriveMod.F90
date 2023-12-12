@@ -56,7 +56,8 @@ module FatesRadiationDriveMod
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
 
-
+  logical :: preserve_b4b = .true.
+  
 contains
 
   subroutine FatesNormalizedCanopyRadiation(nsites, sites, bc_in, bc_out )
@@ -101,28 +102,28 @@ contains
        currentpatch => sites(s)%oldest_patch
        do while (associated(currentpatch))
 
-          ! Zero diagnostics
-          currentPatch%f_sun      (:,:,:) = 0._r8
-          currentPatch%fabd_sun_z (:,:,:) = 0._r8
-          currentPatch%fabd_sha_z (:,:,:) = 0._r8
-          currentPatch%fabi_sun_z (:,:,:) = 0._r8
-          currentPatch%fabi_sha_z (:,:,:) = 0._r8
-          currentPatch%fabd       (:)     = 0._r8
-          currentPatch%fabi       (:)     = 0._r8
-          currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
-          currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
-
-          currentPatch%solve_err(:)              = hlm_hio_ignore_val
-          currentPatch%consv_err(:)              = hlm_hio_ignore_val
-
-          !cpatch%ed_parsun_z(ican,ipft,ileaf)
-
+          ! do not do albedo calculations for bare ground patch in SP mode
+          ! and (more impotantly) do not iterate ifp or it will mess up the indexing wherein
+          ! ifp=1 is the first vegetated patch.
+          
           if_notbareground: if(currentpatch%nocomp_pft_label.ne.nocomp_bareground)then
-             ! do not do albedo calculations for bare ground patch in SP mode
-             ! and (more impotantly) do not iterate ifp or it will mess up the indexing wherein
-             ! ifp=1 is the first vegetated patch.
-             ifp = ifp+1
 
+             ipf = ipf+1
+             
+             ! Zero diagnostics
+             currentPatch%f_sun      (:,:,:) = 0._r8
+             currentPatch%fabd_sun_z (:,:,:) = 0._r8
+             currentPatch%fabd_sha_z (:,:,:) = 0._r8
+             currentPatch%fabi_sun_z (:,:,:) = 0._r8
+             currentPatch%fabi_sha_z (:,:,:) = 0._r8
+             currentPatch%fabd       (:)     = 0._r8
+             currentPatch%fabi       (:)     = 0._r8
+             currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
+             currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
+             
+             currentPatch%solve_err(:)              = hlm_hio_ignore_val
+             currentPatch%consv_err(:)              = hlm_hio_ignore_val
+             
              currentPatch%solar_zenith_flag         = bc_in(s)%filter_vegzen_pa(ifp)
              currentPatch%solar_zenith_angle        = bc_in(s)%coszen_pa(ifp)
              currentPatch%gnd_alb_dif(1:hlm_numSWb) = bc_in(s)%albgr_dif_rb(1:hlm_numSWb)
@@ -141,15 +142,15 @@ contains
                 ! non-zero diffuse radiation when cosz<=0
 
                 ! Temporarily turn off to preserve b4b
-                
-                !!bc_out(s)%albd_parb(ifp,:)            = 1._r8
-                !!bc_out(s)%albi_parb(ifp,:)            = 1._r8
-                !!bc_out(s)%fabi_parb(ifp,:)            = 0._r8
-                !!bc_out(s)%fabd_parb(ifp,:)            = 0._r8
-                !!bc_out(s)%ftdd_parb(ifp,:)            = 0._r8
-                !!bc_out(s)%ftid_parb(ifp,:)            = 0._r8
-                !!bc_out(s)%ftii_parb(ifp,:)            = 0._r8
-
+                if (.not.preserve_b4b) then
+                   bc_out(s)%albd_parb(ifp,:)            = 1._r8
+                   bc_out(s)%albi_parb(ifp,:)            = 1._r8
+                   bc_out(s)%fabi_parb(ifp,:)            = 0._r8
+                   bc_out(s)%fabd_parb(ifp,:)            = 0._r8
+                   bc_out(s)%ftdd_parb(ifp,:)            = 0._r8
+                   bc_out(s)%ftid_parb(ifp,:)            = 0._r8
+                   bc_out(s)%ftii_parb(ifp,:)            = 0._r8
+                end if
              else
 
                 bc_out(s)%albd_parb(ifp,:)            = 0._r8  ! output HLM
