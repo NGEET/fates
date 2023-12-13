@@ -3606,7 +3606,7 @@ contains
      ! called upon restart reads.
      ! -------------------------------------------------------------------------
 
-     use FatesRadiationDriveMod, only : PatchNormanRadiation
+     use FatesNormanRadMod, only : PatchNormanRadiation
      use EDTypesMod,             only : ed_site_type
      use FatesPatchMod,          only : fates_patch_type
      use FatesInterfaceTypesMod, only : hlm_numSWb

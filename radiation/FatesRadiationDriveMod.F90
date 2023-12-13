@@ -41,7 +41,7 @@ module FatesRadiationDriveMod
   use FatesGlobals      , only : fates_log
   use FatesGlobals, only      : endrun => fates_endrun
   use EDPftvarcon,        only : EDPftvarcon_inst
-  use FatesNormanRadMod   only : PatchNormanRadiation
+  use FatesNormanRadMod,  only : PatchNormanRadiation
   
   ! CIME globals
   use shr_log_mod       , only : errMsg => shr_log_errMsg
@@ -108,7 +108,7 @@ contains
           
           if_notbareground: if(currentpatch%nocomp_pft_label.ne.nocomp_bareground)then
 
-             ipf = ipf+1
+             ifp = ifp+1
              
              ! Zero diagnostics
              currentPatch%f_sun      (:,:,:) = 0._r8
