@@ -678,18 +678,12 @@ module FatesHistoryInterfaceMod
   ! indices to (site x [canopy layer x leaf layer]) variables
   integer :: ih_parsun_z_si_cnlf
   integer :: ih_parsha_z_si_cnlf
-  integer :: ih_laisun_z_si_cnlf
-  integer :: ih_laisha_z_si_cnlf
   integer :: ih_ts_net_uptake_si_cnlf
   integer :: ih_crownarea_si_cnlf
-  integer :: ih_parprof_dir_si_cnlf
-  integer :: ih_parprof_dif_si_cnlf
 
   ! indices to (site x [canopy layer x leaf layer x pft]) variables
   integer :: ih_parsun_z_si_cnlfpft
   integer :: ih_parsha_z_si_cnlfpft
-  integer :: ih_laisun_z_si_cnlfpft
-  integer :: ih_laisha_z_si_cnlfpft
   integer :: ih_parprof_dir_si_cnlfpft
   integer :: ih_parprof_dif_si_cnlfpft
 
@@ -719,8 +713,6 @@ module FatesHistoryInterfaceMod
   ! indices to (site x canopy layer) variables
   integer :: ih_parsun_top_si_can
   integer :: ih_parsha_top_si_can
-  integer :: ih_laisun_top_si_can
-  integer :: ih_laisha_top_si_can
   integer :: ih_crownarea_si_can
 
   ! indices to (patch age x fuel size class) variables
@@ -4375,7 +4367,7 @@ end subroutine flush_hvars
    return
   end subroutine update_history_dyn
 
-  subroutine update_history_hifrq_multi(this,nc,nsites,sites,bc_in,dt_tstep)
+  subroutine update_history_hifrq_multi(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
       !
     ! Arguments
     class(fates_history_interface_type)                 :: this
@@ -4383,6 +4375,7 @@ end subroutine flush_hvars
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
     type(bc_in_type)        , intent(in)            :: bc_in(nsites)
+    type(bc_out_type)       , intent(in)            :: bc_out(nsites)
     real(r8)                , intent(in)            :: dt_tstep
 
     ! This is just a dummy file for compatibility
@@ -4391,7 +4384,7 @@ end subroutine flush_hvars
   end subroutine update_history_hifrq_multi
 
   
-  subroutine update_history_hifrq_simple(this,nc,nsites,sites,bc_in,dt_tstep)
+  subroutine update_history_hifrq_simple(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
 
     ! ---------------------------------------------------------------------------------
     ! This is the call to update the history IO arrays that are expected to only change
@@ -4406,6 +4399,7 @@ end subroutine flush_hvars
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
     type(bc_in_type)        , intent(in)            :: bc_in(nsites)
+    type(bc_out_type)       , intent(in)            :: bc_out(nsites)
     real(r8)                , intent(in)            :: dt_tstep
 
     ! Locals
@@ -4428,7 +4422,8 @@ end subroutine flush_hvars
     type(fates_patch_type),pointer  :: cpatch
     type(fates_cohort_type),pointer :: ccohort
     real(r8) :: per_dt_tstep          ! Time step in frequency units (/s)
-
+    real(r8) :: clllpf_area
+    
     associate( hio_gpp_si         => this%hvars(ih_gpp_si)%r81d, &
                hio_gpp_secondary_si   => this%hvars(ih_gpp_secondary_si)%r81d, &
                hio_npp_si         => this%hvars(ih_npp_si)%r81d, &
@@ -4480,14 +4475,6 @@ end subroutine flush_hvars
                hio_ts_net_uptake_si_cnlf => this%hvars(ih_ts_net_uptake_si_cnlf)%r82d, &
                hio_parsun_z_si_cnlfpft  => this%hvars(ih_parsun_z_si_cnlfpft)%r82d, &
                hio_parsha_z_si_cnlfpft  => this%hvars(ih_parsha_z_si_cnlfpft)%r82d, &
-               hio_laisun_z_si_cnlf     => this%hvars(ih_laisun_z_si_cnlf)%r82d, &
-               hio_laisha_z_si_cnlf     => this%hvars(ih_laisha_z_si_cnlf)%r82d, &
-               hio_laisun_z_si_cnlfpft  => this%hvars(ih_laisun_z_si_cnlfpft)%r82d, &
-               hio_laisha_z_si_cnlfpft  => this%hvars(ih_laisha_z_si_cnlfpft)%r82d, &
-               hio_laisun_top_si_can     => this%hvars(ih_laisun_top_si_can)%r82d, &
-               hio_laisha_top_si_can     => this%hvars(ih_laisha_top_si_can)%r82d, &
-               hio_parprof_dir_si_cnlf  => this%hvars(ih_parprof_dir_si_cnlf)%r82d, &
-               hio_parprof_dif_si_cnlf  => this%hvars(ih_parprof_dif_si_cnlf)%r82d, &
                hio_parprof_dir_si_cnlfpft  => this%hvars(ih_parprof_dir_si_cnlfpft)%r82d, &
                hio_parprof_dif_si_cnlfpft  => this%hvars(ih_parprof_dif_si_cnlfpft)%r82d, &
                hio_parsun_top_si_can     => this%hvars(ih_parsun_top_si_can)%r82d, &
@@ -4722,18 +4709,14 @@ end subroutine flush_hvars
                      ! calculate where we are on multiplexed dimensions
                      cnlfpft_indx = ileaf + (ican-1) * nlevleaf + (ipft-1) * nlevleaf * nclmax
                      cnlf_indx = ileaf + (ican-1) * nlevleaf
+
+                     clllpf_area = cpatch%canopy_area_profile(ican,ipft,ileaf)*cpatch%total_canopy_area
                      !
                      ! first do all the canopy x leaf x pft calculations
                      hio_parsun_z_si_cnlfpft(io_si,cnlfpft_indx) = hio_parsun_z_si_cnlfpft(io_si,cnlfpft_indx) + &
                           cpatch%ed_parsun_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
                      hio_parsha_z_si_cnlfpft(io_si,cnlfpft_indx) = hio_parsha_z_si_cnlfpft(io_si,cnlfpft_indx) + &
                           cpatch%ed_parsha_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
-                     !
-                     hio_laisun_z_si_cnlfpft(io_si,cnlfpft_indx) = hio_laisun_z_si_cnlfpft(io_si,cnlfpft_indx) + &
-                          cpatch%ed_laisun_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
-                     hio_laisha_z_si_cnlfpft(io_si,cnlfpft_indx) = hio_laisha_z_si_cnlfpft(io_si,cnlfpft_indx) + &
-                          cpatch%ed_laisha_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
-
                      !
                      hio_parprof_dir_si_cnlfpft(io_si,cnlfpft_indx) = hio_parprof_dir_si_cnlfpft(io_si,cnlfpft_indx) + &
                           cpatch%parprof_pft_dir_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
@@ -4745,12 +4728,6 @@ end subroutine flush_hvars
                           cpatch%ed_parsun_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
                      hio_parsha_z_si_cnlf(io_si,cnlf_indx) = hio_parsha_z_si_cnlf(io_si,cnlf_indx) + &
                           cpatch%ed_parsha_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
-                     !
-                     hio_laisun_z_si_cnlf(io_si,cnlf_indx) = hio_laisun_z_si_cnlf(io_si,cnlf_indx) + &
-                          cpatch%ed_laisun_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
-                     hio_laisha_z_si_cnlf(io_si,cnlf_indx) = hio_laisha_z_si_cnlf(io_si,cnlf_indx) + &
-                          cpatch%ed_laisha_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
-                     !
 
                   end do
                   !
@@ -4759,28 +4736,9 @@ end subroutine flush_hvars
                        cpatch%ed_parsun_z(ican,ipft,1) * cpatch%area * AREA_INV
                   hio_parsha_top_si_can(io_si,ican) = hio_parsha_top_si_can(io_si,ican) + &
                        cpatch%ed_parsha_z(ican,ipft,1) * cpatch%area * AREA_INV
-                  !
-                  hio_laisun_top_si_can(io_si,ican) = hio_laisun_top_si_can(io_si,ican) + &
-                       cpatch%ed_laisun_z(ican,ipft,1) * cpatch%area * AREA_INV
-                  hio_laisha_top_si_can(io_si,ican) = hio_laisha_top_si_can(io_si,ican) + &
-                       cpatch%ed_laisha_z(ican,ipft,1) * cpatch%area * AREA_INV
-                  !
+
 
                   !
-               end do
-            end do
-
-            ! PFT-mean radiation profiles
-            do ican = 1, cpatch%ncl_p
-               do ileaf = 1, maxval(cpatch%nrad(ican,:))
-
-                  ! calculate where we are on multiplexed dimensions
-                  cnlf_indx = ileaf + (ican-1) * nlevleaf
-                  !
-                  hio_parprof_dir_si_cnlf(io_si,cnlf_indx) = hio_parprof_dir_si_cnlf(io_si,cnlf_indx) + &
-                       cpatch%parprof_dir_z(ican,ileaf) * cpatch%area * AREA_INV
-                  hio_parprof_dif_si_cnlf(io_si,cnlf_indx) = hio_parprof_dif_si_cnlf(io_si,cnlf_indx) + &
-                       cpatch%parprof_dif_z(ican,ileaf) * cpatch%area * AREA_INV
                end do
             end do
 
@@ -6595,42 +6553,6 @@ end subroutine flush_hvars
          hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
          index = ih_parsha_top_si_can)
 
-    call this%set_history_var(vname='FATES_LAISUN_Z_CLLL', units='m2 m-2',     &
-         long='LAI in the sun by each canopy and leaf layer',                  &
-         use_default='inactive', avgflag='A', vtype=site_cnlf_r8,              &
-         hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
-         index = ih_laisun_z_si_cnlf)
-
-    call this%set_history_var(vname='FATES_LAISHA_Z_CLLL', units='m2 m-2',     &
-         long='LAI in the shade by each canopy and leaf layer',                &
-         use_default='inactive', avgflag='A', vtype=site_cnlf_r8,              &
-         hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
-         index = ih_laisha_z_si_cnlf)
-
-    call this%set_history_var(vname='FATES_LAISUN_Z_CLLLPF', units='m2 m-2',   &
-         long='LAI in the sun by each canopy, leaf, and PFT', &
-         use_default='inactive', avgflag='A', vtype=site_cnlfpft_r8,           &
-         hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
-         index = ih_laisun_z_si_cnlfpft)
-
-    call this%set_history_var(vname='FATES_LAISHA_Z_CLLLPF', units='m2 m-2',   &
-         long='LAI in the shade by each canopy, leaf, and PFT',                &
-         use_default='inactive', avgflag='A', vtype=site_cnlfpft_r8,           &
-         hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
-         index = ih_laisha_z_si_cnlfpft)
-
-    call this%set_history_var(vname='FATES_LAISUN_TOP_CL', units='m2 m-2',     &
-         long='LAI in the sun by the top leaf layer of each canopy layer',     &
-         use_default='inactive', avgflag='A', vtype=site_can_r8,               &
-         hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
-         index = ih_laisun_top_si_can)
-
-    call this%set_history_var(vname='FATES_LAISHA_TOP_CL', units='m2 m-2',     &
-         long='LAI in the shade by the top leaf layer of each canopy layer',   &
-         use_default='inactive', avgflag='A', vtype=site_can_r8,               &
-         hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
-         index = ih_laisha_top_si_can)
-
     call this%set_history_var(vname='FATES_PARPROF_DIR_CLLLPF', units='W m-2', &
          long='radiative profile of direct PAR through each canopy, leaf, and PFT', &
          use_default='inactive', avgflag='A', vtype=site_cnlfpft_r8,           &
@@ -6642,18 +6564,6 @@ end subroutine flush_hvars
          use_default='inactive', avgflag='A', vtype=site_cnlfpft_r8,           &
          hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
          index = ih_parprof_dif_si_cnlfpft)
-
-    call this%set_history_var(vname='FATES_PARPROF_DIR_CLLL', units='W m-2',   &
-         long='radiative profile of direct PAR through each canopy and leaf layer (averaged across PFTs)', &
-         use_default='inactive', avgflag='A', vtype=site_cnlf_r8,              &
-         hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
-         index = ih_parprof_dir_si_cnlf)
-
-    call this%set_history_var(vname='FATES_PARPROF_DIF_CLLL', units='W m-2',   &
-         long='radiative profile of diffuse PAR through each canopy and leaf layer (averaged across PFTs)', &
-         use_default='inactive', avgflag='A', vtype=site_cnlf_r8,              &
-         hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
-         index = ih_parprof_dif_si_cnlf)
 
     !!! canopy-resolved fluxes and structure
 
