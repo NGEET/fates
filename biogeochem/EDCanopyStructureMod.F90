@@ -1807,13 +1807,27 @@ contains
           !      canopy_area_profile for these layers is not >0 for layers in ncan ...
           !      Leaving this for the time being.
           ! --------------------------------------------------------------------------
+          
           currentPatch%canopy_mask(:,:) = 0
-          do cl = 1,currentPatch%NCL_p
-             do ft = 1,numpft
-                if(currentPatch%canopy_area_profile(cl,ft,1) > 0._r8 ) currentPatch%canopy_mask(cl,ft) = 1
+          if(preserve_b4b) then
+             do cl = 1,currentPatch%NCL_p
+                do ft = 1,numpft
+                   do  iv = 1, currentPatch%nrad(cl,ft)
+                      if(currentPatch%canopy_area_profile(cl,ft,iv) > 0._r8)then
+                         currentPatch%canopy_mask(cl,ft) = 1
+                      endif
+                   end do !iv
+                end do
              end do
-          end do
+          else
+             do cl = 1,currentPatch%NCL_p
+                do ft = 1,numpft
+                   if(currentPatch%canopy_area_profile(cl,ft,1) > 0._r8 ) currentPatch%canopy_mask(cl,ft) = 1
+                end do
+             end do
+          end if
 
+             
        end if if_any_canopy_area
 
        currentPatch => currentPatch%younger
