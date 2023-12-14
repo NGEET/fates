@@ -95,7 +95,7 @@ module EDInitMod
   private
 
   logical   ::  debug = .false.
-
+  logical, parameter :: preserve_b4b = .true.
   integer :: istat           ! return status code
   character(len=255) :: smsg ! Message string for deallocation errors
   character(len=*), parameter, private :: sourcefile = &
@@ -602,7 +602,7 @@ contains
              call SiteMassStock(sites(s),el,sites(s)%mass_balance(el)%old_stock, &
                   biomass_stock,litter_stock,seed_stock)
           end do
-          call set_patchno(sites(s))
+          if(.not.preserve_b4b) call set_patchno(sites(s))
        enddo
        
     else
