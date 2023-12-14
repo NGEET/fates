@@ -15,7 +15,8 @@ module FatesLandUseChangeMod
   use FatesInterfaceTypesMod    , only : hlm_use_luh
   use FatesInterfaceTypesMod    , only : hlm_num_luh2_states
   use FatesInterfaceTypesMod    , only : hlm_num_luh2_transitions
-  use EDTypesMod           , only : area_site => area
+  use FatesUtilsMod             , only : FindIndex
+  use EDTypesMod                , only : area_site => area
 
   ! CIME globals
   use shr_log_mod          , only : errMsg => shr_log_errMsg
@@ -72,7 +73,7 @@ contains
 
     ! !LOCAL VARIABLES:
     type(luh2_fates_lutype_map) :: lumap
-    integer :: i_donor, i_receiver, i_luh2_transitions, i_luh2_states
+    integer :: i_donor, i_receiver, i_luh2_transitions, i_luh2_states, i_urban
     character(5) :: donor_name, receiver_name
     character(14) :: transition_name
     real(r8) :: urban_fraction
@@ -88,7 +89,7 @@ contains
     call CheckLUHData(temp_vector,modified_flag)
     if (.not. modified_flag) then
        ! identify urban fraction so that it can be factored into the land use state output
-       urban_fraction = bc_in%hlm_luh_states(findloc(bc_in%hlm_luh_state_names,'urban',dim=1))
+       urban_fraction = bc_in%hlm_luh_states(FindIndex(bc_in%hlm_luh_state_names,'urban'))
     end if
 
     !!TODO: may need some logic here to ask whether or not ot perform land use change on this timestep. current code occurs every day.
@@ -122,19 +123,19 @@ contains
     class(luh2_fates_lutype_map) :: this
     character(len=5), intent(in) :: state_name
     integer :: landuse_category
-    integer :: index
+    integer :: index_statename
 
-    index = findloc(this%state_names,state_name,dim=1)
+    index_statename = FindIndex(this%state_names,state_name)
 
     ! Check that the result from the landuse_categories is not zero, which indicates that no
     ! match was found.
-    if (index .eq. 0) then
+    if (index_statename .eq. 0) then
        write(fates_log(),*) 'The input state name from the HLM does not match the FATES landuse state name options'
        write(fates_log(),*) 'input state name: ', state_name
        write(fates_log(),*) 'state name options: ', this%state_names
        call endrun(msg=errMsg(sourcefile, __LINE__))
     else
-       landuse_category = this%landuse_categories(index)
+       landuse_category = this%landuse_categories(index_statename)
     end if
 
   end function GetLUCategoryFromStateName
@@ -253,7 +254,7 @@ contains
     call CheckLUHData(temp_vector,modified_flag)
     if (.not. modified_flag) then
        ! identify urban fraction so that it can be factored into the land use state output
-       urban_fraction = bc_in%hlm_luh_states(findloc(bc_in%hlm_luh_state_names,'urban',dim=1))
+       urban_fraction = bc_in%hlm_luh_states(FindIndex(bc_in%hlm_luh_state_names,'urban'))
     end if
 
     ! loop over all states and add up the ones that correspond to a given fates land use type
