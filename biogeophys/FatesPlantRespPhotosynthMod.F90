@@ -613,9 +613,14 @@ contains
 
                                  if_radsolver: if(radiation_model.eq.norman_solver) then
 
-                                    laisun = currentPatch%elai_profile(cl,ft,iv)*currentPatch%f_sun(cl,ft,iv)
-                                    laisha = currentPatch%elai_profile(cl,ft,iv)*(1._r8-currentPatch%f_sun(cl,ft,iv))
-
+                                    if(preserve_b4b) then
+                                       laisun = currentPatch%ed_laisun_z(cl,ft,iv)
+                                       laisha = currentPatch%ed_laisha_z(cl,ft,iv)
+                                    else
+                                       laisun = currentPatch%elai_profile(cl,ft,iv)*currentPatch%f_sun(cl,ft,iv)
+                                       laisha = currentPatch%elai_profile(cl,ft,iv)*(1._r8-currentPatch%f_sun(cl,ft,iv))
+                                    end if
+                                    
                                     if_nonnzero_lai: if((laisun+laisha)>0._r8) then
 
                                        if(((laisun*currentPatch%canopy_area_profile(cl,ft,iv)) >0.0000000001_r8)) then ! .and. &

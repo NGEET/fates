@@ -297,7 +297,8 @@ contains
              ! Initialize diagnostics
              cpatch%ed_parsun_z(:,:,:) = 0._r8
              cpatch%ed_parsha_z(:,:,:) = 0._r8
-
+             cpatch%ed_laisun_z(:,:,:) = 0._r8
+             cpatch%ed_laisha_z(:,:,:) = 0._r8
              cpatch%parprof_pft_dir_z(:,:,:) = 0._r8
              cpatch%parprof_pft_dif_z(:,:,:) = 0._r8
 
@@ -331,6 +332,13 @@ contains
                                  cpatch%f_sun(cl,ft,iv)
                             shalai = shalai + cpatch%elai_profile(cl,ft,iv) * &
                                  (1._r8 - cpatch%f_sun(cl,ft,iv))
+
+                            cpatch%ed_laisun_z(CL,ft,iv) = cpatch%elai_profile(CL,ft,iv) * &
+                                 cpatch%f_sun(CL,ft,iv)
+
+                            cpatch%ed_laisha_z(CL,ft,iv) = cpatch%elai_profile(CL,ft,iv) * &
+                                 (1._r8 - cpatch%f_sun(CL,ft,iv))
+                            
                          end do
                       end if
                    end do

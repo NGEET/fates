@@ -138,7 +138,10 @@ module FatesPatchMod
     real(r8) :: ed_parsun_z(nclmax,maxpft,nlevleaf)       ! PAR absorbed in the sun [W/m2]   
     real(r8) :: ed_parsha_z(nclmax,maxpft,nlevleaf)       ! PAR absorbed in the shade [W/m2]
     real(r8) :: f_sun(nclmax,maxpft,nlevleaf)             ! fraction of leaves in the sun [0-1]
+    real(r8) :: ed_laisun_z(nclmax,maxpft,nlevleaf)
+    real(r8) :: ed_laisha_z(nclmax,maxpft,nlevleaf)
 
+    
     ! radiation profiles for comparison against observations
     real(r8) :: parprof_pft_dir_z(nclmax,maxpft,nlevleaf) ! direct-beam PAR profile through canopy, by canopy, PFT, leaf level [W/m2]
     real(r8) :: parprof_pft_dif_z(nclmax,maxpft,nlevleaf) ! diffuse     PAR profile through canopy, by canopy, PFT, leaf level [W/m2]
@@ -332,7 +335,9 @@ module FatesPatchMod
       this%fabd_sun_z(:,:,:)            = nan 
       this%fabd_sha_z(:,:,:)            = nan 
       this%fabi_sun_z(:,:,:)            = nan 
-      this%fabi_sha_z(:,:,:)            = nan  
+      this%fabi_sha_z(:,:,:)            = nan
+      this%ed_laisun_z(:,:,:)           = nan 
+      this%ed_laisha_z(:,:,:)           = nan 
       this%ed_parsun_z(:,:,:)           = nan 
       this%ed_parsha_z(:,:,:)           = nan 
       this%f_sun(:,:,:)                 = nan
@@ -417,7 +422,9 @@ module FatesPatchMod
       this%fabi_sun_z(:,:,:)                 = 0.0_r8 
       this%fabi_sha_z(:,:,:)                 = 0.0_r8  
       this%ed_parsun_z(:,:,:)                = 0.0_r8 
-      this%ed_parsha_z(:,:,:)                = 0.0_r8 
+      this%ed_parsha_z(:,:,:)                = 0.0_r8
+      this%ed_laisun_z(:,:,:)           = 0._r8
+      this%ed_laisha_z(:,:,:)           = 0._r8
       this%f_sun                             = 0.0_r8
       this%tr_soil_dir_dif(:)                = 0.0_r8
       this%fab(:)                            = 0.0_r8
