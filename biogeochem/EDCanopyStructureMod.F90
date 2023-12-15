@@ -1569,7 +1569,7 @@ contains
 
           call UpdatePatchLAI(currentPatch)
 
-          currentPatch%nrad(:,:) = currentPatch%ncan(:,:)
+          !currentPatch%nrad(:,:) = currentPatch%ncan(:,:)
           
           ! -----------------------------------------------------------------------------
           ! Standard canopy layering model.
