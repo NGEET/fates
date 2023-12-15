@@ -609,6 +609,10 @@ contains
                                  ! par_per_sunla = [W absorbed beam+diffuse radiation / m2 of sunlit leaves]
                                  ! par_per_shala = [W absorbed diffuse radiation / m2 of shaded leaves]
                                  ! fsun          = [m2 of sunlit leaves / m2 of total leaves]
+                                 ! laisun:      m2 of exposed leaf, per m2 of crown. If this is the lowest layer
+                                 !              for the pft/canopy group, than the m2 per crown is probably not
+                                 !              as large as the layer above.
+                                 ! elai_layer: the exposed lai of the layer per m2 of crown (should be laisun+laisha)
                                  ! ------------------------------------------------------------------
 
                                  if_radsolver: if(radiation_model.eq.norman_solver) then
@@ -616,47 +620,43 @@ contains
                                     if(preserve_b4b) then
                                        laisun = currentPatch%ed_laisun_z(cl,ft,iv)
                                        laisha = currentPatch%ed_laisha_z(cl,ft,iv)
+                                       elai_layer = laisun + laisha
                                     else
                                        laisun = currentPatch%elai_profile(cl,ft,iv)*currentPatch%f_sun(cl,ft,iv)
                                        laisha = currentPatch%elai_profile(cl,ft,iv)*(1._r8-currentPatch%f_sun(cl,ft,iv))
+                                       elai_layer = currentPatch%elai_profile(cl,ft,iv)
                                     end if
                                     
-                                    if_nonnzero_lai: if((laisun+laisha)>0._r8) then
+                                    if(currentPatch%ed_parsun_z(cl,ft,iv)<=0._r8) then
 
-                                       if(((laisun*currentPatch%canopy_area_profile(cl,ft,iv)) >0.0000000001_r8)) then ! .and. &
-                                          !(currentPatch%ed_parsun_z(cl,ft,iv)>nearzero)) then
-
-                                          ! laisun:      m2 of exposed leaf, per m2 of crown. If this is the lowest layer
-                                          !              for the pft/canopy group, than the m2 per crown is probably not
-                                          !              as large as the layer above.
-                                          ! ed_parsun_z: this is W/m2 ground times the canopy_area_profile, which is the
-                                          !              fraction of m2 of ground in the crown per m2 ground in the
-                                          !              total canopy area. This results in W/m2 of total canopy.
-
-                                          par_per_sunla = currentPatch%ed_parsun_z(cl,ft,iv) / &
-                                               (laisun*currentPatch%canopy_area_profile(cl,ft,iv))
-                                       else
-                                          par_per_sunla = 0._r8
-                                       end if
-
-                                       !!if(((laisha*currentPatch%canopy_area_profile(cl,ft,iv)) >nearzero) .and. &
-                                       !!     (currentPatch%ed_parsha_z(cl,ft,iv)>nearzero)) then
-
-                                       par_per_shala = currentPatch%ed_parsha_z(cl,ft,iv) / &
-                                            (laisha*currentPatch%canopy_area_profile(cl,ft,iv))
-                                       elai_layer = currentPatch%elai_profile(cl,ft,iv)
-
+                                       ! This is just a dummy, won't be used
+                                       par_per_sunla = currentPatch%ed_parsun_z(cl,ft,iv)
+                                       par_per_shala = currentPatch%ed_parsha_z(cl,ft,iv)
+                                       
                                     else
 
-                                       par_per_sunla = 0._r8
-                                       par_per_shala = 0._r8
-                                       elai_layer = 0._r8
+                                       ! laisun:      m2 of exposed leaf, per m2 of crown. If this is the lowest layer
+                                       !              for the pft/canopy group, than the m2 per crown is probably not
+                                       !              as large as the layer above.
+                                       ! ed_parsun_z: this is W/m2 ground times the canopy_area_profile, which is the
+                                       !              fraction of m2 of ground in the crown per m2 ground in the
+                                       !              total canopy area. This results in W/m2 of total canopy.
+                                       !if(((laisun*currentPatch%canopy_area_profile(cl,ft,iv)) >0.0000000001_r8)) then
+                                          par_per_sunla = currentPatch%ed_parsun_z(cl,ft,iv) / &
+                                               (laisun*currentPatch%canopy_area_profile(cl,ft,iv))
+                                       !else
+                                          !par_per_sunla = 0._r8                                                                            
+                                       !end if
+                                       
+                                       par_per_shala = currentPatch%ed_parsha_z(cl,ft,iv) / &
+                                            (laisha*currentPatch%canopy_area_profile(cl,ft,iv))
+                                       
 
-                                    end if if_nonnzero_lai
+                                       
+                                    end if
 
                                     fsun = currentPatch%f_sun(cl,ft,iv)
-
-
+                                    
                                  else    ! Two-stream
 
                                     if(cohort_layer_elai(iv) > nearzero .and. currentPatch%solar_zenith_flag) then
@@ -722,6 +722,7 @@ contains
                                  call LeafLayerPhotosynthesis(fsun,       &  ! in
                                       par_per_sunla,                      &  ! in
                                       par_per_shala,                      &  ! in
+                                      laisun*currentPatch%canopy_area_profile(cl,ft,iv), &
                                       elai_layer,                         &  ! in
                                       ft,                                 &  ! in
                                       vcmax_z,                            &  ! in
@@ -1191,6 +1192,7 @@ contains
   subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
        parsun_lsl,        &  ! in
        parsha_lsl,        &  ! in
+       elaisun_lsl,        &  !
        elai_lsl,          &  ! in
        ft,                &  ! in
        vcmax,             &  ! in
@@ -1242,7 +1244,8 @@ contains
     real(r8), intent(in) :: co2_rcurve_islope ! initial slope of CO2 response curve (C4 plants)
     real(r8), intent(in) :: veg_tempk         ! vegetation temperature
     real(r8), intent(in) :: veg_esat          ! saturation vapor pressure at veg_tempk (Pa)
-
+    real(r8), intent(in) :: elaisun_lsl
+    
     ! Important Note on the following gas pressures.  This photosynthesis scheme will iteratively
     ! solve for the co2 partial pressure at the leaf surface (ie in the stomata). The reference
     ! point for these input values are NOT within that boundary layer that separates the stomata from
@@ -1364,9 +1367,24 @@ contains
       else ! day time (a little bit more complicated ...)
 
          ! Is there leaf area? - (NV can be larger than 0 with only stem area if deciduous)
+         ! RGK: moved the trivial outcome to the top for clarity...
+         
+         if_leafarea: if (.not.(elai_lsl > 0._r8) ) then
 
-         if_leafarea: if (elai_lsl > 0._r8 ) then
+	    ! No leaf area. This layer is present only because of stems.
+            ! Net assimilation is zero, not negative because there are
+	    ! no leaves to even respire
+	    ! (leaves are off, or have reduced to 0)
 
+            psn_out     = 0._r8
+            anet_av_out = 0._r8
+
+	    rstoma_out  = min(rsmax0,cf/(stem_cuticle_loss_frac*stomatal_intercept(ft)))
+            c13disc_z = 0.0_r8
+            
+         else
+
+            
             !Loop aroun shaded and unshaded leaves
             psn_out     = 0._r8    ! psn is accumulated across sun and shaded leaves.
             rstoma_out  = 0._r8    ! 1/rs is accumulated across sun and shaded leaves.
@@ -1384,7 +1402,11 @@ contains
                ! (von Caemmerer) and Farquhar 1980
 
                if(sunsha == 1)then !sunlit
-                  qabs = parsun_lsl * 0.5_r8 * (1._r8 - fnps) *  4.6_r8
+                  if( elaisun_lsl >0.0000000001_r8) then
+                     qabs = parsun_lsl * 0.5_r8 * (1._r8 - fnps) *  4.6_r8
+                  else
+                     qabs = 0._r8
+                  end if
                else
                   qabs = parsha_lsl * 0.5_r8 * (1._r8 - fnps) *  4.6_r8
                end if
@@ -1434,7 +1456,11 @@ contains
 
                      ! C4: RuBP-limited photosynthesis
                      if(sunsha == 1)then !sunlit
-                        aj = quant_eff(c3c4_path_index) * parsun_lsl * 4.6_r8
+                        if( elaisun_lsl >0.0000000001_r8) then
+                           aj = quant_eff(c3c4_path_index) * parsun_lsl * 4.6_r8
+                        else
+                           aj = 0._r8
+                        end if
                      else
                         aj = quant_eff(c3c4_path_index) * parsha_lsl * 4.6_r8
                      end if
@@ -1590,20 +1616,6 @@ contains
             else
                rstoma_out = 1._r8/gstoma
             end if
-
-
-         else
-
-            ! No leaf area. This layer is present only because of stems.
-            ! Net assimilation is zero, not negative because there are
-            ! no leaves to even respire
-            ! (leaves are off, or have reduced to 0)
-
-            psn_out     = 0._r8
-            anet_av_out = 0._r8
-
-            rstoma_out  = min(rsmax0,cf/(stem_cuticle_loss_frac*stomatal_intercept(ft)))
-            c13disc_z = 0.0_r8
 
          end if if_leafarea !is there leaf area?
 
