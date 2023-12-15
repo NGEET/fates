@@ -8,12 +8,12 @@ dimensions:
 	fates_history_size_bins = 13 ;
 	fates_hlm_pftno = 14 ;
 	fates_hydr_organs = 4 ;
-	fates_landuseclass = 5 ;
 	fates_leafage_class = 1 ;
 	fates_litterclass = 6 ;
 	fates_pft = 12 ;
 	fates_plant_organs = 4 ;
 	fates_string_length = 60 ;
+	fates_landuseclass = 5 ;
 variables:
 	double fates_history_ageclass_bin_edges(fates_history_age_bins) ;
 		fates_history_ageclass_bin_edges:units = "yr" ;
@@ -1597,7 +1597,7 @@ data:
 
  fates_frag_cwd_frac = 0.045, 0.075, 0.21, 0.67 ;
 
- fates_maxpatches_by_landuse = 10, 4, 1, 1, 1 ;
+ fates_maxpatches_by_landuse = 9, 4, 1, 1, 1 ;
 
  fates_canopy_closure_thresh = 0.8 ;
 
