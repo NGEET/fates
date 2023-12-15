@@ -136,8 +136,6 @@ contains
       integer,  intent(in) :: gi,gj           ! indices of gridcells
       real(r8), intent(in) :: latc(:),lonc(:) ! lat/lon of gridcells
       real(r8) :: gcd
-    
-      ! write(fates_log(),*)'neighborhood: size ldomain latc/lonc: ', size(ldomain%latc), size(ldomain%lonc)
       
       gcd = GreatCircleDist(lonc(gi),lonc(gj), &
                             latc(gi),latc(gj))
@@ -171,7 +169,7 @@ contains
       array_index = 0
 
       ! Loop throught the array and compare strings
-      do i = 1, len(input_string_array)
+      do i = 1, size(input_string_array)
          if (trim(input_string_array(i)) .eq. trim(string_to_match)) then
             array_index = i
          end if
