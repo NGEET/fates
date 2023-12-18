@@ -607,9 +607,6 @@ contains
     call fates_params%RegisterParameter(name=ED_name_history_height_bin_edges, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names_height)
 
-    call fates_params%RegisterParameter(name=fates_name_active_crown_fire, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-    
     call fates_params%RegisterParameter(name=fates_name_cg_strikes, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
     
@@ -816,10 +813,6 @@ contains
     
     call fates_params%RetrieveParameter(name=name_dev_arbitrary, &
          data=dev_arbitrary)
-
-    call fates_params%RetrieveParameter(name=fates_name_active_crown_fire, & 
-          data=tmpreal)
-    active_crown_fire = (abs(tmpreal-1.0_r8)<nearzero)
 
     call fates_params%RetrieveParameter(name=fates_name_cg_strikes, &
           data=cg_strikes)

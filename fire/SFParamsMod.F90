@@ -19,8 +19,8 @@ module SFParamsMod
    ! this is what the user can use for the actual values
    !
 
-   real(r8),protected, public :: SF_val_fdi_a
-   real(r8),protected, public :: SF_val_fdi_b
+   real(r8), public :: SF_val_fdi_a
+   real(r8), public :: SF_val_fdi_b
    real(r8),protected, public :: SF_val_fdi_alpha
    real(r8),protected, public :: SF_val_miner_total
    real(r8),protected, public :: SF_val_fuel_energy
@@ -40,6 +40,7 @@ module SFParamsMod
    real(r8),protected, public :: SF_val_low_moisture_Slope(NFSC)
    real(r8),protected, public :: SF_val_mid_moisture_Coeff(NFSC)
    real(r8),protected, public :: SF_val_mid_moisture_Slope(NFSC)
+   real(r8),parameter, public :: min_precip_thresh = 3.0_r8 ! threshold for precipitation above which to 0.0 NI
 
    character(len=param_string_length),parameter :: SF_name_fdi_a = "fates_fire_fdi_a"
    character(len=param_string_length),parameter :: SF_name_fdi_b = "fates_fire_fdi_b"

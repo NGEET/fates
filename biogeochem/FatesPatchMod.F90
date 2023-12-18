@@ -196,6 +196,8 @@ module FatesPatchMod
     real(r8)              :: fuel_eff_moist          ! effective avearage fuel moisture content of the ground fuel 
                                                        ! (incl. live grasses. omits 1000hr fuels)
     real(r8)              :: litter_moisture(nfsc)   ! moisture of litter [m3/m3]
+    real(r8)              :: canopy_bulk_density 
+
 
     ! fire spread
     real(r8)              :: ros_front               ! rate of forward  spread of fire [m/min]
@@ -204,6 +206,7 @@ module FatesPatchMod
     real(r8)              :: tau_l                   ! duration of lethal heating [min]
     real(r8)              :: fi                      ! average fire intensity of flaming front [kJ/m/s] or [kW/m]
     integer               :: fire                    ! is there a fire? [1=yes; 0=no]
+    integer               ::  active_crown_fire_flg
     real(r8)              :: fd                      ! fire duration [min]
 
     ! fire effects      
@@ -382,9 +385,11 @@ module FatesPatchMod
       this%tau_l                        = nan
       this%fi                           = nan 
       this%fire                         = fates_unset_int
+      this%active_crown_fire_flg        = fates_unset_int
       this%fd                           = nan 
       this%scorch_ht(:)                 = nan 
       this%frac_burnt                   = nan
+      this%canopy_bulk_density          = nan 
       this%tfc_ros                      = nan    
       this%burnt_frac_litter(:)         = nan    
   
@@ -459,7 +464,8 @@ module FatesPatchMod
       this%fi                                = 0.0_r8
       this%fd                                = 0.0_r8
       this%scorch_ht(:)                      = 0.0_r8  
-      this%frac_burnt                        = 0.0_r8  
+      this%frac_burnt                        = 0.0_r8
+      this%canopy_bulk_density               = 0.0_r8  
       this%tfc_ros                           = 0.0_r8
       this%burnt_frac_litter(:)              = 0.0_r8
 
@@ -732,6 +738,7 @@ module FatesPatchMod
       write(fates_log(),*) 'pa%c_stomata          = ',this%c_stomata
       write(fates_log(),*) 'pa%c_lblayer          = ',this%c_lblayer
       write(fates_log(),*) 'pa%disturbance_rates  = ',this%disturbance_rates(:)
+      write(fates_log(),*) 'pa%active_crown_fire_flg = ', this%active_crown_fire_flg
       write(fates_log(),*) 'pa%anthro_disturbance_label = ',this%anthro_disturbance_label
       write(fates_log(),*) '----------------------------------------'
 

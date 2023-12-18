@@ -50,9 +50,9 @@ module EDPftvarcon
      real(r8), allocatable :: z0mr(:)                ! ratio of roughness length of vegetation to height (-)
      real(r8), allocatable :: displar(:)             ! ratio of displacement height to canopy top height
      real(r8), allocatable :: bark_scaler(:)         ! scaler from dbh to bark thickness. For fire model.
-     real(r8), allocatable :: crown_kill(:)          ! scaler on fire death. For fire model.
-     real(r8), allocatable :: initd(:)               ! initial seedling density
-
+     real(r8), allocatable :: crown_kill(:)          ! crown resistance to fire. (1 = none) For fire model.
+     real(r8), allocatable :: active_crown_fire(:)   ! Is plant susceptible to active crown fire?
+     real(r8), allocatable :: initd(:)               ! initial seedling density 
      real(r8), allocatable :: seed_suppl(:)          ! seeds that come from outside the gridbox.
      real(r8), allocatable :: bb_slope(:)            ! ball berry slope parameter
      real(r8), allocatable :: medlyn_slope(:)        ! Medlyn slope parameter KPa^0.5
@@ -382,6 +382,10 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_fire_crown_kill'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_fire_active_crown_fire'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -825,6 +829,10 @@ contains
     name = 'fates_fire_crown_kill'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%crown_kill)
+
+    name = 'fates_fire_active_crown_fire'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%active_crown_fire)
 
     name = 'fates_recruit_init_density'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -1651,6 +1659,7 @@ contains
         write(fates_log(),fmt0) 'displar = ',EDPftvarcon_inst%displar
         write(fates_log(),fmt0) 'bark_scaler = ',EDPftvarcon_inst%bark_scaler
         write(fates_log(),fmt0) 'crown_kill = ',EDPftvarcon_inst%crown_kill
+        write(fates_log(),fmt0) 'active_crown_fire = ',EDPftvarcon_inst%active_crown_fire
         write(fates_log(),fmt0) 'initd = ',EDPftvarcon_inst%initd
         write(fates_log(),fmt0) 'seed_suppl = ',EDPftvarcon_inst%seed_suppl
         write(fates_log(),fmt0) 'bb_slope = ',EDPftvarcon_inst%bb_slope
@@ -1918,7 +1927,7 @@ contains
         ! xl must be between -0.4 and 0.6 according to Bonan (2019) doi:10.1017/9781107339217 pg. 238
         !-----------------------------------------------------------------------------------
         if (EDPftvarcon_inst%xl(ipft) < -0.4 .or. EDPftvarcon_inst%xl(ipft) > 0.6) then
-          write(fates_log(),*) 'fates_rad_leaf_xl for pft ', ipft, ' is outside the allowed range of -0.6 to 0.4'
+          write(fates_log(),*) 'fates_rad_leaf_xl for pft ', ipft, ' is outside the allowed range of -0.4 to 0.6'
           write(fates_log(),*) 'Aborting'
           call endrun(msg=errMsg(sourcefile, __LINE__))
         end if 
