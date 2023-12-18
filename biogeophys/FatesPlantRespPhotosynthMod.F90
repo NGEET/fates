@@ -280,7 +280,6 @@ contains
     real(r8),dimension(75) :: cohort_layer_tsai
     real(r8)               :: cohort_elai
     real(r8)               :: cohort_esai
-    real(r8)               :: elai_layer
     real(r8)               :: laisun,laisha
     real(r8)               :: canopy_area
     real(r8)               :: elai
@@ -613,7 +612,6 @@ contains
                                  ! laisun:      m2 of exposed leaf, per m2 of crown. If this is the lowest layer
                                  !              for the pft/canopy group, than the m2 per crown is probably not
                                  !              as large as the layer above.
-                                 ! elai_layer: the exposed lai of the layer per m2 of crown (should be laisun+laisha)
                                  ! ------------------------------------------------------------------
 
                                  if_radsolver: if(radiation_model.eq.norman_solver) then
@@ -645,12 +643,12 @@ contains
                                        laisun = (fsun*cohort_layer_elai(iv))
                                        laisha = ((1._r8 - fsun)*cohort_layer_elai(iv))
                                        if(fsun>nearzero) then
-                                          par_per_sunla = (rd_abs_leaf*fsun + rb_abs_leaf) / laisun
+                                          par_per_sunla = (rd_abs_leaf*fsun + rb_abs_leaf)! / laisun
                                        else
                                           par_per_sunla = 0._r8
                                        end if
-                                       par_per_shala = rd_abs_leaf*(1._r8-fsun) / laisha
-                                       canopy_area = currentPatch%canopy_area_profile(cl,ft,iv)
+                                       par_per_shala = rd_abs_leaf*(1._r8-fsun) !/ laisha
+                                       canopy_area = 1._r8 !currentPatch%canopy_area_profile(cl,ft,iv)
                                        
                                     else
 
@@ -658,12 +656,10 @@ contains
                                        par_per_shala = 0._r8
                                        laisun = (fsun*cohort_layer_elai(iv))
                                        laisha = ((1._r8 - fsun)*cohort_layer_elai(iv))
-                                       canopy_area = currentPatch%canopy_area_profile(cl,ft,iv)
+                                       canopy_area = 1._r8 !currentPatch%canopy_area_profile(cl,ft,iv)
                                        fsun = 0.5_r8 !avoid div0, should have no impact
                                        
                                     end if
-
-                                    elai_layer = cohort_layer_elai(iv)
 
                                  end if if_radsolver
 
