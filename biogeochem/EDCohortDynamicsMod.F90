@@ -429,7 +429,7 @@ end subroutine create_cohort
          ! Outside the maximum canopy layer
          if (currentCohort%canopy_layer > nclmax ) then
            terminate = itrue
-           termination_type = i_term_mort_type_cstarv
+           termination_type = i_term_mort_type_canlev
            if ( debug ) then
              write(fates_log(),*) 'terminating cohorts 2', currentCohort%canopy_layer,currentCohort%pft,call_index
            endif
