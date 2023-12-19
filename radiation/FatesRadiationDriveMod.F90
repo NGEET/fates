@@ -163,13 +163,13 @@ contains
 
                 if_nrad: if (maxval(currentPatch%nrad(1,:))==0)then
                    ! there are no leaf layers in this patch. it is effectively bare ground.
+                   bc_out(s)%fabd_parb(ifp,:) = 0.0_r8
+                   bc_out(s)%fabi_parb(ifp,:) = 0.0_r8
                    currentPatch%radiation_error = 0.0_r8
 
                    do ib = 1,hlm_numSWb
                       bc_out(s)%albd_parb(ifp,ib) = bc_in(s)%albgr_dir_rb(ib)
                       bc_out(s)%albi_parb(ifp,ib) = bc_in(s)%albgr_dif_rb(ib)
-                      bc_out(s)%fabd_parb(ifp,ib) = 0.0_r8
-                      bc_out(s)%fabi_parb(ifp,ib) = 0.0_r8
                       bc_out(s)%ftdd_parb(ifp,ib) = 1.0_r8
                       bc_out(s)%ftid_parb(ifp,ib) = 0.0_r8
                       bc_out(s)%ftii_parb(ifp,ib) = 1.0_r8
@@ -328,11 +328,6 @@ contains
                          shalai = shalai + sum(cpatch%elai_profile(cl,ft,1:cpatch%nrad(cl,ft)))
                       else
                          do iv = 1,cpatch%nrad(cl,ft)
-                            sunlai = sunlai + cpatch%elai_profile(cl,ft,iv) * &
-                                 cpatch%f_sun(cl,ft,iv)
-                            shalai = shalai + cpatch%elai_profile(cl,ft,iv) * &
-                                 (1._r8 - cpatch%f_sun(cl,ft,iv))
-
                             cpatch%ed_laisun_z(CL,ft,iv) = cpatch%elai_profile(CL,ft,iv) * &
                                  cpatch%f_sun(CL,ft,iv)
 
@@ -340,6 +335,11 @@ contains
                                  (1._r8 - cpatch%f_sun(CL,ft,iv))
                             
                          end do
+
+                         !needed for the VOC emissions, etc.
+                         sunlai = sunlai + sum(cpatch%ed_laisun_z(CL,ft,1:cpatch%nrad(CL,ft)))
+                         shalai = shalai + sum(cpatch%ed_laisha_z(CL,ft,1:cpatch%nrad(CL,ft)))
+                         
                       end if
                    end do
                 end do
