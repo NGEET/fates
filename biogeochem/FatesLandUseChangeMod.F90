@@ -318,7 +318,7 @@ contains
 
   !----------------------------------------------------------------------------------------------------
 
-  subroutine fates_grazing(prt, ft, land_use_label, hite)
+  subroutine fates_grazing(prt, ft, land_use_label, height)
 
     use PRTGenericMod,    only : leaf_organ
     use PRTGenericMod,    only : prt_vartypes
@@ -329,7 +329,7 @@ contains
     class(prt_vartypes), intent(inout), pointer :: prt
     integer, intent(in)  :: ft
     integer, intent(in)  :: land_use-label
-    real(r8), intent(in) :: hite
+    real(r8), intent(in) :: height
 
     real(r8) :: grazing_rate    ! rate of grazing (or browsing) of leaf tissue [day -1]
 
@@ -338,7 +338,7 @@ contains
     if ( grazing_rate .gt. 0._r8) then
        if (woody(ft)) then
           grazing_rate = grazing_rate * &
-               max(0._r8, min(1._r8, (fates_landuse_grazing_maxheight - hite*fates_allom_crown_depth_frac(ft)/(hite - hite*fates_allom_crown_depth_frac(ft)))))
+               max(0._r8, min(1._r8, (fates_landuse_grazing_maxheight - height*fates_allom_crown_depth_frac(ft)/(height - height*fates_allom_crown_depth_frac(ft)))))
        endif
 
        call PRTHerbivoryLosses(prt, leaf_organ, grazing_rate)

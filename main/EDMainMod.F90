@@ -525,7 +525,7 @@ contains
                   AREA_INV * currentCohort%n / hlm_days_per_year / sec_per_day
 
              ! allow herbivores to graze
-             call fates_grazing(currentCohort%prt, ft, currentPatch%land_use_label, currentCohort%hite)
+             call fates_grazing(currentCohort%prt, ft, currentPatch%land_use_label, currentCohort%height)
 
              ! Conduct Maintenance Turnover (parteh)
              if(debug) call currentCohort%prt%CheckMassConservation(ft,3)
