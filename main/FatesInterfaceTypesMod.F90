@@ -94,6 +94,9 @@ module FatesInterfaceTypesMod
    integer, public :: hlm_parteh_mode   ! This flag signals which Plant Allocation and Reactive
                                                    ! Transport (exensible) Hypothesis (PARTEH) to use
 
+   integer, public :: hlm_seeddisp_cadence ! This flag signals at what cadence to disperse seeds across gridcells
+                                                   ! 0 => no seed dispersal
+                                                   ! 1, 2, 3 => daily, monthly, yearly dispersal
 
    integer, public :: hlm_use_ch4       ! This flag signals whether the methane model in ELM/CLM is
                                         ! active, and therefore whether or not boundary conditions
@@ -196,6 +199,7 @@ module FatesInterfaceTypesMod
 
   integer, public ::  hlm_use_sp                                    !  Flag to use FATES satellite phenology (LAI) mode
                                                                     !  1 = TRUE, 0 = FALSE
+
    ! -------------------------------------------------------------------------------------
    ! Parameters that are dictated by FATES and known to be required knowledge
    !  needed by the HLMs
@@ -229,6 +233,18 @@ module FatesInterfaceTypesMod
 
    integer, public :: max_comp_per_site         ! This is the maximum number of nutrient aquisition
                                                            ! competitors that will be generated on each site
+   
+   
+   integer, public :: fates_dispersal_kernel_mode   ! Flag to signal the type of kernel used for grid cell seed dispersal
+
+   integer, parameter, public :: fates_dispersal_kernel_exponential = 1  ! exponential dispersal kernel
+   integer, parameter, public :: fates_dispersal_kernel_exppower = 2     ! exponential power (ExP) dispersal kernel
+   integer, parameter, public :: fates_dispersal_kernel_logsech = 3      ! logistic-sech (LogS) dispersal kernel
+
+   integer, parameter, public :: fates_dispersal_cadence_none = 0     ! no dispersal (use seed rain only)
+   integer, parameter, public :: fates_dispersal_cadence_daily = 1    ! Disperse seeds daily
+   integer, parameter, public :: fates_dispersal_cadence_monthly = 2  ! Disperse seeds monthly
+   integer, parameter, public :: fates_dispersal_cadence_yearly = 3   ! Disperse seeds yearly
    
    ! -------------------------------------------------------------------------------------
    ! These vectors are used for history output mapping
@@ -530,7 +546,7 @@ module FatesInterfaceTypesMod
       real(r8),allocatable :: hksat_sisl(:)        ! hydraulic conductivity at saturation (mm H2O /s)
       real(r8),allocatable :: h2o_liq_sisl(:)      ! Liquid water mass in each layer (kg/m2)
       real(r8) :: smpmin_si                        ! restriction for min of soil potential (mm)
-      
+
       ! Land use
       ! ---------------------------------------------------------------------------------
       real(r8),allocatable :: hlm_harvest_rates(:)    ! annual harvest rate per cat from hlm for a site
@@ -742,7 +758,6 @@ module FatesInterfaceTypesMod
                                                        ! small fluxes for various reasons
                                                        ! [mm H2O/s]
 
-
       ! FATES LULCC
       real(r8) :: hrv_deadstemc_to_prod10c   ! Harvested C flux to 10-yr wood product pool [Site-Level, gC m-2 s-1]
       real(r8) :: hrv_deadstemc_to_prod100c  ! Harvested C flux to 100-yr wood product pool [Site-Level, gC m-2 s-1]
@@ -786,12 +801,9 @@ module FatesInterfaceTypesMod
 
    end type bc_pconst_type
   
-
-
  contains
-   
-   ! ====================================================================================
-   
-   
-    
+       
+    ! ======================================================================================
+      
+       
   end module FatesInterfaceTypesMod

@@ -112,6 +112,8 @@ module FatesRestartInterfaceMod
   integer :: ir_canopy_trim_co
   integer :: ir_l2fr_co
 
+  integer :: ir_year_net_up_co
+
   integer :: ir_cx_int_co
   integer :: ir_emadcxdt_co
   integer :: ir_cx0_co
@@ -148,7 +150,8 @@ module FatesRestartInterfaceMod
   integer :: ir_treesai_co
   integer :: ir_canopy_layer_tlai_pa
 
-
+  integer :: ir_nclp_pa
+  integer :: ir_zstar_pa
 
   !Logging
   integer :: ir_lmort_direct_co
@@ -268,6 +271,10 @@ module FatesRestartInterfaceMod
   integer :: ir_woodprod_harvest_mbal
   integer :: ir_woodprod_landusechange_mbal
   integer :: ir_prt_base     ! Base index for all PRT variables
+
+  ! site-level input seed from dispersal
+  integer :: ir_seed_in_sift
+  integer :: ir_seed_out_sift
 
   ! Damage x damage or damage x size
   integer :: ir_imortrate_sicdpf
@@ -1037,6 +1044,12 @@ contains
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_litter_moisture_pa_nfsc)
     end if
     
+
+    call this%RegisterCohortVector(symbol_base='fates_year_net_up', vtype=cohort_r8, &
+         long_name_base='yearly net uptake at leaf layers',  &
+         units='kg/m2/year', veclength=nlevleaf, flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_year_net_up_co )
+
     ! Site Level Diagnostics over multiple nutrients
 
 
@@ -1152,25 +1165,35 @@ contains
     
     ! Only register satellite phenology related restart variables if it is turned on!
 
-    if(hlm_use_sp .eq. itrue) then
-         call this%set_restart_var(vname='fates_cohort_area', vtype=cohort_r8, &
-             long_name='area of the fates cohort', &
-             units='m2', flushval = flushzero, &
-             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_c_area_co )
-         call this%set_restart_var(vname='fates_cohort_treelai', vtype=cohort_r8, &
-             long_name='leaf area index of fates cohort', &
-             units='m2/m2', flushval = flushzero, &
-             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_treelai_co )
-         call this%set_restart_var(vname='fates_cohort_treesai', vtype=cohort_r8, &
-             long_name='stem area index of fates cohort', &
-             units='m2/m2', flushval = flushzero, &
-             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_treesai_co )
-         call this%set_restart_var(vname='fates_canopy_layer_tlai_pa', vtype=cohort_r8, &
+    call this%set_restart_var(vname='fates_cohort_area', vtype=cohort_r8, &
+         long_name='area of the fates cohort', &
+         units='m2', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_c_area_co )
+    call this%set_restart_var(vname='fates_cohort_treelai', vtype=cohort_r8, &
+         long_name='leaf area index of fates cohort', &
+         units='m2/m2', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_treelai_co )
+    call this%set_restart_var(vname='fates_cohort_treesai', vtype=cohort_r8, &
+         long_name='stem area index of fates cohort', &
+         units='m2/m2', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_treesai_co )
+    
+    if(hlm_use_sp .eq. itrue)then
+       call this%set_restart_var(vname='fates_canopy_layer_tlai_pa', vtype=cohort_r8, &
              long_name='total patch level leaf area index of each fates canopy layer', &
              units='m2/m2', flushval = flushzero, &
              hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_canopy_layer_tlai_pa )
     end if
 
+    call this%set_restart_var(vname='fates_nclp_pa', vtype=cohort_int, &
+             long_name='total number of canopy layers', &
+             units='-', flushval = flushzero, &
+             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_nclp_pa )
+
+    call this%set_restart_var(vname='fates_zstar_pa', vtype=cohort_r8, &
+             long_name='patch zstar', &
+             units='-', flushval = flushzero, &
+             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_zstar_pa )
 
     ! Only register hydraulics restart variables if it is turned on!
 
@@ -1304,6 +1327,16 @@ contains
          long_name='in fixed biogeog mode, what is pft area in gridcell?', &
          units='0/1', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_area_pft_sift)
+
+    call this%set_restart_var(vname='fates_seed_in_site', vtype=cohort_r8, &
+         long_name='Site-level seed mass input from neighboring gridcells per pft', &
+         units='kg', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seed_in_sift )
+
+    call this%set_restart_var(vname='fates_seed_out_site', vtype=cohort_r8, &
+         long_name='Site-level seed mass output to neighboring gridcells per pft', &
+         units='kg', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_seed_out_sift )
 
     call this%set_restart_var(vname='fates_fmortrate_canopy', vtype=cohort_r8, &
          long_name='fates diagnostics on fire mortality canopy', &
@@ -2096,6 +2129,8 @@ contains
            rio_recrate_sift            => this%rvars(ir_recrate_sift)%r81d, &
            rio_use_this_pft_sift       => this%rvars(ir_use_this_pft_sift)%int1d, &
            rio_area_pft_sift           => this%rvars(ir_area_pft_sift)%r81d, &
+           rio_seed_in_sift            => this%rvars(ir_seed_in_sift)%r81d, &
+           rio_seed_out_sift            => this%rvars(ir_seed_out_sift)%r81d, &
            rio_fmortrate_cano_siscpf   => this%rvars(ir_fmortrate_cano_siscpf)%r81d, &
            rio_fmortrate_usto_siscpf   => this%rvars(ir_fmortrate_usto_siscpf)%r81d, &
            rio_imortrate_siscpf        => this%rvars(ir_imortrate_siscpf)%r81d, &
@@ -2233,6 +2268,8 @@ contains
              rio_dndaysleafon_sift(io_idx_si_pft)  = sites(s)%dndaysleafon(i_pft)
              rio_dndaysleafoff_sift(io_idx_si_pft) = sites(s)%dndaysleafoff(i_pft)
              rio_elong_factor_sift(io_idx_si_pft)  = sites(s)%elong_factor(i_pft)
+             rio_seed_in_sift(io_idx_si_pft)       = sites(s)%seed_in(i_pft)
+             rio_seed_out_sift(io_idx_si_pft)       = sites(s)%seed_out(i_pft)
              io_idx_si_pft = io_idx_si_pft + 1
           end do
 
@@ -2334,6 +2371,8 @@ contains
                    end do
                 end do
 
+                call this%SetCohortRealVector(ccohort%year_net_uptake,nlevleaf,ir_year_net_up_co,io_idx_co)
+
                 rio_l2fr_co(io_idx_co)         = ccohort%l2fr
                 
                 if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
@@ -2372,7 +2411,7 @@ contains
                 rio_size_class_lasttimestep(io_idx_co) = ccohort%size_class_lasttimestep
                 rio_dbh_co(io_idx_co)          = ccohort%dbh
                 rio_coage_co(io_idx_co)        = ccohort%coage
-                rio_height_co(io_idx_co)       = ccohort%hite
+                rio_height_co(io_idx_co)       = ccohort%height
                 rio_g_sb_laweight_co(io_idx_co)= ccohort%g_sb_laweight
                 rio_nplant_co(io_idx_co)       = ccohort%n
                 rio_gpp_acc_co(io_idx_co)      = ccohort%gpp_acc
@@ -2411,12 +2450,10 @@ contains
                    rio_isnew_co(io_idx_co)     = old_cohort
                 endif
 
-                if (hlm_use_sp .eq. itrue) then
-                    this%rvars(ir_c_area_co)%r81d(io_idx_co) = ccohort%c_area
-                    this%rvars(ir_treelai_co)%r81d(io_idx_co) = ccohort%treelai
-                    this%rvars(ir_treesai_co)%r81d(io_idx_co) = ccohort%treesai
-                end if
-
+                this%rvars(ir_c_area_co)%r81d(io_idx_co) = ccohort%c_area
+                this%rvars(ir_treelai_co)%r81d(io_idx_co) = ccohort%treelai
+                this%rvars(ir_treesai_co)%r81d(io_idx_co) = ccohort%treesai
+                
                 if ( debug ) then
                    write(fates_log(),*) 'CLTV offsetNumCohorts II ',io_idx_co, &
                          cohortsperpatch
@@ -2476,6 +2513,8 @@ contains
                       ,io_idx_co,cohortsperpatch
              endif
 
+             this%rvars(ir_nclp_pa)%int1d(io_idx_co_1st) = cpatch%ncl_p
+             this%rvars(ir_zstar_pa)%r81d(io_idx_co_1st) = cpatch%zstar
 
              if(hlm_use_sp.eq.ifalse)then
 
@@ -3076,6 +3115,8 @@ contains
           rio_recrate_sift            => this%rvars(ir_recrate_sift)%r81d, &
           rio_use_this_pft_sift       => this%rvars(ir_use_this_pft_sift)%int1d, &
           rio_area_pft_sift           => this%rvars(ir_area_pft_sift)%r81d,&
+          rio_seed_in_sift            => this%rvars(ir_seed_in_sift)%r81d, &
+          rio_seed_out_sift            => this%rvars(ir_seed_out_sift)%r81d, &
           rio_fmortrate_cano_siscpf   => this%rvars(ir_fmortrate_cano_siscpf)%r81d, &
           rio_fmortrate_usto_siscpf   => this%rvars(ir_fmortrate_usto_siscpf)%r81d, &
           rio_imortrate_siscpf        => this%rvars(ir_imortrate_siscpf)%r81d, &
@@ -3199,6 +3240,8 @@ contains
              sites(s)%dndaysleafon(i_pft)   = rio_dndaysleafon_sift(io_idx_si_pft)
              sites(s)%dndaysleafoff(i_pft)  = rio_dndaysleafoff_sift(io_idx_si_pft)
              sites(s)%elong_factor(i_pft)   = rio_elong_factor_sift(io_idx_si_pft)
+             sites(s)%seed_in(i_pft)        = rio_seed_in_sift(io_idx_si_pft)
+             sites(s)%seed_out(i_pft)        = rio_seed_out_sift(io_idx_si_pft)
              io_idx_si_pft = io_idx_si_pft + 1
           end do
 
@@ -3297,6 +3340,8 @@ contains
                 ccohort%canopy_trim  = rio_canopy_trim_co(io_idx_co)
                 ccohort%l2fr         = rio_l2fr_co(io_idx_co)
 
+                call this%GetCohortRealVector(ccohort%year_net_uptake,nlevleaf,ir_year_net_up_co,io_idx_co)
+
                 if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
                    ccohort%cx_int       = this%rvars(ir_cx_int_co)%r81d(io_idx_co)
                    ccohort%ema_dcxdt    = this%rvars(ir_emadcxdt_co)%r81d(io_idx_co)
@@ -3315,7 +3360,7 @@ contains
                 ccohort%dbh          = rio_dbh_co(io_idx_co)
                 ccohort%coage        = rio_coage_co(io_idx_co)
                 ccohort%g_sb_laweight= rio_g_sb_laweight_co(io_idx_co)
-                ccohort%hite         = rio_height_co(io_idx_co)
+                ccohort%height       = rio_height_co(io_idx_co)
                 ccohort%n            = rio_nplant_co(io_idx_co)
                 ccohort%gpp_acc      = rio_gpp_acc_co(io_idx_co)
                 ccohort%npp_acc      = rio_npp_acc_co(io_idx_co)
@@ -3372,12 +3417,10 @@ contains
                 !  (Keeping as an example)
                 !call this%GetRMeanRestartVar(ccohort%tveg_lpa, ir_tveglpa_co, io_idx_co)
                 
-                if (hlm_use_sp .eq. itrue) then
-                    ccohort%c_area = this%rvars(ir_c_area_co)%r81d(io_idx_co)
-                    ccohort%treelai = this%rvars(ir_treelai_co)%r81d(io_idx_co)
-                    ccohort%treesai = this%rvars(ir_treesai_co)%r81d(io_idx_co)
-                end if
-
+                ccohort%c_area = this%rvars(ir_c_area_co)%r81d(io_idx_co)
+                ccohort%treelai = this%rvars(ir_treelai_co)%r81d(io_idx_co)
+                ccohort%treesai = this%rvars(ir_treesai_co)%r81d(io_idx_co)
+                
                 io_idx_co = io_idx_co + 1
 
                 ccohort => ccohort%taller
@@ -3406,6 +3449,8 @@ contains
              cpatch%solar_zenith_flag  = ( rio_solar_zenith_flag_pa(io_idx_co_1st) .eq. itrue )
              cpatch%solar_zenith_angle = rio_solar_zenith_angle_pa(io_idx_co_1st)
 
+             cpatch%ncl_p = this%rvars(ir_nclp_pa)%int1d(io_idx_co_1st)
+             cpatch%zstar = this%rvars(ir_zstar_pa)%r81d(io_idx_co_1st)
 
              call this%GetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
              call this%GetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)

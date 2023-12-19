@@ -321,10 +321,29 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
   real(fates_r8), parameter, public :: fates_huge = huge(g_per_kg)
 
   real(fates_r8), parameter, public :: fates_tiny = tiny(g_per_kg)
+  
+  ! Geodesy constants (WGS 84)
+  real(fates_r8), parameter, public :: earth_radius_eq = 6378137.0_fates_r8                       ! equitorial radius, earth [m]
+  real(fates_r8), parameter, public :: earth_flattening = 1.0_fates_r8 / 298.257223563_fates_r8  ! flattening [non-dimensional]
+  
 
   ! Geometric Constants
 
   ! PI
   real(fates_r8), parameter, public :: pi_const = 3.14159265359_fates_r8
+  real(fates_r8), parameter, public :: rad_per_deg = pi_const/180.0_fates_r8
 
+  ! Rdark constants from Atkin et al., 2017 https://doi.org/10.1007/978-3-319-68703-2_6
+  ! and Heskel et al., 2016 https://doi.org/10.1073/pnas.1520282113
+  real(fates_r8), parameter, public :: lmr_b = 0.1012_fates_r8       ! (degrees C**-1)
+
+  real(fates_r8), parameter, public :: lmr_c = -0.0005_fates_r8      ! (degrees C**-2)
+
+  real(fates_r8), parameter, public :: lmr_TrefC = 25._fates_r8      ! (degrees C)
+
+  real(fates_r8), parameter, public :: lmr_r_1 = 0.2061_fates_r8     ! (umol CO2/m**2/s / (gN/(m2 leaf))) 
+
+  real(fates_r8), parameter, public :: lmr_r_2 = -0.0402_fates_r8    ! (umol CO2/m**2/s/degree C)
+  
+  
 end module FatesConstantsMod

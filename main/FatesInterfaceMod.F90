@@ -67,9 +67,14 @@ module FatesInterfaceMod
    use EDParamsMod               , only : ED_val_history_ageclass_bin_edges
    use EDParamsMod               , only : ED_val_history_height_bin_edges
    use EDParamsMod               , only : ED_val_history_coageclass_bin_edges
-   use CLMFatesParamInterfaceMod , only : FatesReadParameters
-   use EDParamsMod                , only : p_uptake_mode
-   use EDParamsMod                , only : n_uptake_mode
+   use FatesParametersInterface  , only : fates_param_reader_type
+   use FatesParametersInterface  , only : fates_parameters_type
+   use EDParamsMod               , only : FatesRegisterParams, FatesReceiveParams
+   use SFParamsMod               , only : SpitFireRegisterParams, SpitFireReceiveParams
+   use PRTInitParamsFATESMod     , only : PRTRegisterParams, PRTReceiveParams
+   use FatesSynchronizedParamsMod, only : FatesSynchronizedParamsInst
+   use EDParamsMod               , only : p_uptake_mode
+   use EDParamsMod               , only : n_uptake_mode
    use EDTypesMod                , only : ed_site_type
    use FatesConstantsMod         , only : prescribed_p_uptake
    use FatesConstantsMod         , only : prescribed_n_uptake
@@ -156,8 +161,6 @@ module FatesInterfaceMod
 
    end type fates_interface_type
    
-   
-
    character(len=*), parameter :: sourcefile = &
         __FILE__
 
@@ -176,6 +179,11 @@ module FatesInterfaceMod
    public :: set_bcs
    public :: UpdateFatesRMeansTStep
    public :: InitTimeAveragingGlobals
+
+   private :: FatesReadParameters
+   public :: DetermineGridCellNeighbors
+
+   logical :: debug = .false.  ! for debugging this module
    
 contains
 
@@ -752,7 +760,7 @@ contains
 
     ! ===================================================================================
     
-    subroutine SetFatesGlobalElements1(use_fates,surf_numpft,surf_numcft)
+    subroutine SetFatesGlobalElements1(use_fates,surf_numpft,surf_numcft,param_reader)
 
        ! --------------------------------------------------------------------------------
        !
@@ -760,20 +768,20 @@ contains
        !
        ! spmode,biogeog and nocomp mode flags have been passed prior to this call
        ! --------------------------------------------------------------------------------
-
-
+      
       implicit none
       
       logical,                    intent(in) :: use_fates    ! Is fates turned on?
       integer,                    intent(in) :: surf_numpft  ! Number of PFTs in surface dataset
       integer,                    intent(in) :: surf_numcft  ! Number of CFTs in surface dataset
+      class(fates_param_reader_type), intent(in) :: param_reader ! HLM-provided param file reader
   
       integer :: fates_numpft  ! Number of PFTs tracked in FATES
       
       if (use_fates) then
          
          ! Self explanatory, read the fates parameter file
-         call FatesReadParameters()
+         call FatesReadParameters(param_reader)
 
          fates_numpft = size(prt_params%wood_density,dim=1)
          
@@ -831,6 +839,8 @@ contains
       ! This is the second FATES routine that is called.
       !
       ! --------------------------------------------------------------------------------
+
+      use FatesConstantsMod,      only : fates_check_param_set
 
       logical,intent(in) :: use_fates    ! Is fates turned on?
       integer :: i
@@ -972,8 +982,18 @@ contains
                call endrun(msg=errMsg(sourcefile, __LINE__))
             end if
          end do
-
-         ! Initialize Hydro globals 
+         
+         ! Set the fates dispersal kernel mode if there are any seed dispersal parameters set.
+         ! The validation of the parameter values is check in FatesCheckParams prior to this check.
+         ! This is currently hard coded, but could be added as a fates parameter file option,
+         ! particularly one that is pft dependent.
+         if(any(EDPftvarcon_inst%seed_dispersal_pdf_scale .lt. fates_check_param_set)) then
+            fates_dispersal_kernel_mode = fates_dispersal_kernel_exponential
+            ! fates_dispersal_kernel_mode = fates_dispersal_kernel_exppower
+            ! fates_dispersal_kernel_mode = fates_dispersal_kernel_logsech
+         end if
+         
+         ! Initialize Hydro globals
          ! (like water retention functions)
          ! this needs to know the number of PFTs, which is
          ! determined in that call
@@ -1444,6 +1464,7 @@ contains
          hlm_use_vertsoilc = unset_int
          hlm_parteh_mode   = unset_int
          hlm_spitfire_mode = unset_int
+         hlm_seeddisp_cadence = unset_int
          hlm_sf_nofire_def = unset_int
          hlm_sf_scalar_lightning_def = unset_int
          hlm_sf_successful_ignitions_def = unset_int
@@ -1658,6 +1679,11 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_seeddisp_cadence .eq. unset_int) then
+            write(fates_log(), *) 'switch defining seed dispersal cadence is unset, hlm_seeddisp_cadence, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
          if(hlm_use_ch4 .eq. unset_int) then
             write(fates_log(), *) 'switch for the HLMs CH4 module unset: hlm_use_ch4, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1816,6 +1842,12 @@ contains
                hlm_parteh_mode = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_parteh_mode= ',ival,' to FATES'
+               end if
+
+            case('seeddisp_cadence')
+               hlm_seeddisp_cadence = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_seeddisp_cadence= ',ival,' to FATES'
                end if
 
             case('spitfire_mode')
@@ -2010,8 +2042,8 @@ contains
 
       call FatesReportPFTParams(masterproc)
       call FatesReportParams(masterproc)
-      call FatesCheckParams(masterproc)    ! Check general fates parameters
       call PRTDerivedParams()              ! Update PARTEH derived constants
+      call FatesCheckParams(masterproc)    ! Check general fates parameters
       call PRTCheckParams(masterproc)      ! Check PARTEH parameters
       call SpitFireCheckParams(masterproc)
       
@@ -2022,7 +2054,7 @@ contains
 
    ! =====================================================================================
 
-   subroutine UpdateFatesRMeansTStep(sites,bc_in)
+   subroutine UpdateFatesRMeansTStep(sites,bc_in, bc_out)
 
      ! In this routine, we update any FATES buffers where
      ! we calculate running means. It is assumed that this buffer is updated
@@ -2030,6 +2062,7 @@ contains
 
      type(ed_site_type), intent(inout) :: sites(:)
      type(bc_in_type), intent(in)      :: bc_in(:)
+     type(bc_out_type), intent(inout)  :: bc_out(:)
      
      type(fates_patch_type),  pointer :: cpatch
      type(fates_cohort_type), pointer :: ccohort
@@ -2106,11 +2139,11 @@ contains
            ccohort => cpatch%tallest
            do while (associated(ccohort))
               !   call ccohort%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
-
-              ! [kgC/plant/yr] -> [gC/m2/s]
-              site_npp = site_npp + ccohort%npp_acc_hold * ccohort%n*area_inv * &
-                   g_per_kg * hlm_days_per_year / sec_per_day
-
+              if(.not.ccohort%isnew)then
+                 ! [kgC/plant/yr] -> [gC/m2/s]
+                 site_npp = site_npp + ccohort%npp_acc_hold * ccohort%n*area_inv * &
+                      g_per_kg * hlm_days_per_year / sec_per_day
+              end if
               ccohort => ccohort%shorter
            end do
 
@@ -2126,6 +2159,8 @@ contains
         sites(s)%ema_npp = (1._r8-1._r8/ema_npp_tscale)*sites(s)%ema_npp + (1._r8/ema_npp_tscale)*site_npp
      end if
 
+     bc_out(s)%ema_npp = sites(s)%ema_npp
+     
   end do
 
   return
@@ -2195,7 +2230,7 @@ subroutine SeedlingParPatch(cpatch, &
      ! If we do have more than one layer, then we need to figure out
      ! the average of light on the exposed ground under the veg
      ! Since we are working up through the canopy layers from the ground,
-     ! set the par_high to the previous par_low value and update 
+     ! set the par_high to the previous par_low value and update
      ! the par_low to the new cl_par value
      if(cl .lt. cpatch%NCL_p) then
         seedling_par_high = seedling_par_low
@@ -2210,7 +2245,254 @@ subroutine SeedlingParPatch(cpatch, &
   end do
 
   return
+
 end subroutine SeedlingParPatch
 
+! ======================================================================================
+      
+subroutine DetermineGridCellNeighbors(neighbors,seeds,numg)
+   
+   ! This subroutine utilizes information from the decomposition and domain types to determine
+   ! the set of grid cell neighbors within some maximum distance.  It records the distance for each
+   ! neighbor for later use.  This should be called after decompInit_lnd and surf_get_grid
+   ! as it relies on ldecomp and ldomain information.
+
+   use decompMod             , only : procinfo
+   use domainMod             , only : ldomain
+   use spmdMod               , only : MPI_REAL8, MPI_INTEGER, mpicom, npes, masterproc, iam
+   use perf_mod              , only : t_startf, t_stopf
+   use FatesDispersalMod     , only : neighborhood_type, neighbor_type, ProbabilityDensity, dispersal_type
+   use FatesUtilsMod         , only : GetNeighborDistance
+   use FatesConstantsMod     , only : fates_unset_int
+   use EDPftvarcon           , only : EDPftvarcon_inst
+
+   ! Arguments
+   type(neighborhood_type), intent(inout), pointer :: neighbors(:)  ! land gridcell neighbor data structure
+   type(dispersal_type),    intent(inout)          :: seeds         ! land gridcell neighbor data structure
+   integer                , intent(in)             :: numg          ! number of land gridcells
+
+   ! Local variables
+   type (neighbor_type), pointer :: current_neighbor
+   type (neighbor_type), pointer :: another_neighbor
+
+   integer :: i, gi, gj, ni ! indices
+   integer :: ier, mpierr   ! error status
+   integer :: ipft          ! pft index
+
+   integer,  allocatable :: ncells_array(:), begg_array(:) ! number of cells and starting global grid cell index per process 
+   real(r8), allocatable :: gclat(:), gclon(:)             ! local array holding gridcell lat and lon
+
+   real(r8) :: g2g_dist ! grid cell distance (m)
+   real(r8) :: pdf      ! probability density function output
+
+   if(debug .and. hlm_is_restart .eq. itrue) write(fates_log(),*) 'gridcell initialization during restart'
+
+   if(debug) write(fates_log(),*)'DGCN: npes, numg: ', npes, numg
+
+   ! Allocate and initialize array neighbor type
+   allocate(neighbors(numg), stat=ier)
+   neighbors(:)%neighbor_count = 0
+
+   ! Allocate and initialize local lat and lon arrays
+   allocate(gclat(numg), stat=ier)
+   if(debug) write(fates_log(),*)'DGCN: gclat alloc: ', ier
+
+   allocate(gclon(numg), stat=ier)
+   if(debug) write(fates_log(),*)'DGCN: gclon alloc: ', ier
+
+   gclon(:) = nan
+   gclat(:) = nan
+
+   ! Allocate and initialize MPI count and displacement values
+   allocate(ncells_array(0:npes-1), stat=ier)
+   if(debug) write(fates_log(),*)'DGCN: ncells alloc: ', ier
+
+   allocate(begg_array(0:npes-1), stat=ier)
+   if(debug) write(fates_log(),*)'DGCN: begg alloc: ', ier
+
+   ncells_array(:) = fates_unset_int
+   begg_array(:) = fates_unset_int
+
+   call t_startf('fates-seed-init-allgather')
+
+   if(debug) write(fates_log(),*)'DGCN: procinfo%begg: ', procinfo%begg
+   if(debug) write(fates_log(),*)'DGCN: procinfo%ncells: ', procinfo%ncells
+
+   ! Gather the sizes of the ldomain that each mpi rank is passing
+   call MPI_Allgather(procinfo%ncells,1,MPI_INTEGER,ncells_array,1,MPI_INTEGER,mpicom,mpierr)
+   if(debug) write(fates_log(),*)'DGCN: ncells mpierr: ', mpierr
+
+   ! Gather the starting gridcell index for each ldomain 
+   call MPI_Allgather(procinfo%begg,1,MPI_INTEGER,begg_array,1,MPI_INTEGER,mpicom,mpierr)
+   if(debug) write(fates_log(),*)'DGCN: begg mpierr: ', mpierr
+
+   ! reduce the begg_array displacements by one as MPI collectives expect zero indexed arrays
+   begg_array = begg_array - 1
+
+   if(debug) write(fates_log(),*)'DGCN: ncells_array: ' , ncells_array
+   if(debug) write(fates_log(),*)'DGCN: begg_array: '   , begg_array
+
+   ! Gather the domain information together into the neighbor type
+   ! Note that MPI_Allgatherv is only gathering a subset of ldomain
+   if(debug) write(fates_log(),*)'DGCN: gathering latc'
+   call MPI_Allgatherv(ldomain%latc,procinfo%ncells,MPI_REAL8,gclat,ncells_array,begg_array,MPI_REAL8,mpicom,mpierr)
+
+   if(debug) write(fates_log(),*)'DGCN: gathering lonc'
+   call MPI_Allgatherv(ldomain%lonc,procinfo%ncells,MPI_REAL8,gclon,ncells_array,begg_array,MPI_REAL8,mpicom,mpierr)
+
+   if (debug .and. iam .eq. 0) then
+      write(fates_log(),*)'DGCN: sum(gclat):, sum(gclon): ', sum(gclat), sum(gclon)
+   end if
+
+   ! Save number of cells and begging index arrays to dispersal type
+   if(debug) write(fates_log(),*)'DGCN: save to seeds type'
+   if(debug) write(fates_log(),*)'DGCN: seeds ncells alloc: ', allocated(seeds%ncells_array)
+   if(debug) write(fates_log(),*)'DGCN: seeds begg alloc: ', allocated(seeds%begg_array)
+   seeds%ncells_array = ncells_array
+   seeds%begg_array = begg_array
+
+   if (debug .and. iam .eq. 0) then
+      write(fates_log(),*)'DGCN: seeds%ncells_array: ', seeds%ncells_array
+      write(fates_log(),*)'DGCN: seeds%begg_array: ', seeds%begg_array
+   end if
+
+   call t_stopf('fates-seed-init-allgather')
+
+   call t_startf('fates-seed-init-decomp')
+
+   if(debug) write(fates_log(), *) 'DGCN: maxdist: ', EDPftvarcon_inst%seed_dispersal_max_dist
+
+   ! Iterate through the grid cell indices and determine if any neighboring cells are in range
+   gc_loop: do gi = 1,numg-1
+
+      ! Seach forward through all indices for neighbors to current grid cell index
+      neighbor_search: do gj = gi+1,numg
+
+         ! Determine distance to old grid cells to the current one
+         g2g_dist = GetNeighborDistance(gi,gj,gclat,gclon)
+
+         if(debug) write(fates_log(), *) 'DGCN: gi,gj,g2g_dist: ', gi,gj,g2g_dist
+
+         ! 
+         dist_check: if (any(EDPftvarcon_inst%seed_dispersal_max_dist .gt. g2g_dist)) then
+
+            ! Add neighbor index to current grid cell index list
+            allocate(current_neighbor)
+            current_neighbor%next_neighbor => null()
+
+            current_neighbor%gindex = gj
+
+            current_neighbor%gc_dist = g2g_dist
+
+            allocate(current_neighbor%density_prob(numpft))
+
+            do ipft = 1, numpft
+               call ProbabilityDensity(pdf, ipft, g2g_dist)
+               current_neighbor%density_prob(ipft) = pdf
+            end do
+
+            if (associated(neighbors(gi)%first_neighbor)) then
+              neighbors(gi)%last_neighbor%next_neighbor => current_neighbor
+              neighbors(gi)%last_neighbor => current_neighbor
+            else
+              neighbors(gi)%first_neighbor => current_neighbor
+              neighbors(gi)%last_neighbor => current_neighbor
+            end if
+
+            neighbors(gi)%neighbor_count = neighbors(gi)%neighbor_count + 1
+
+            ! Add current grid cell index to the neighbor's list as well
+            allocate(another_neighbor)
+            another_neighbor%next_neighbor => null()
+
+            another_neighbor%gindex = gi
+
+            another_neighbor%gc_dist = current_neighbor%gc_dist
+            allocate(another_neighbor%density_prob(numpft))
+            do ipft = 1, numpft
+               another_neighbor%density_prob(ipft) = current_neighbor%density_prob(ipft)
+            end do
+
+            if (associated(neighbors(gj)%first_neighbor)) then
+              neighbors(gj)%last_neighbor%next_neighbor => another_neighbor
+              neighbors(gj)%last_neighbor => another_neighbor
+            else
+              neighbors(gj)%first_neighbor => another_neighbor
+              neighbors(gj)%last_neighbor => another_neighbor
+            end if
+
+            neighbors(gj)%neighbor_count = neighbors(gj)%neighbor_count + 1
+
+         end if dist_check
+      end do neighbor_search
+   end do gc_loop
+
+   ! Loop through the list and populate the grid cell index array for each gridcell
+   do gi = 1,numg
+
+      ! Start at the first neighbor of each neighborhood list
+      current_neighbor => neighbors(gi)%first_neighbor
+
+      ! Allocate an array to hold the gridcell indices in each neighborhood
+      allocate(neighbors(gi)%neighbor_indices(neighbors(gi)%neighbor_count))
+
+      ! Walk through the neighborhood linked list and populate the array
+      ni = 1
+      do while (associated(current_neighbor))
+         neighbors(gi)%neighbor_indices(ni) = current_neighbor%gindex
+         ni = ni + 1
+         current_neighbor => current_neighbor%next_neighbor
+      end do
+
+      if (debug .and. iam .eq. 0) then
+         write(fates_log(), *) 'DGCN: g, lat, lon: ', gi, gclat(gi), gclon(gi)
+         write(fates_log(), *) 'DGCN: g, ncount: ', gi, neighbors(gi)%neighbor_count
+         do i = 1,neighbors(gi)%neighbor_count
+            write(fates_log(), *) 'DGCN: g, gilist: ', gi, neighbors(gi)%neighbor_indices(i)
+         end do
+      end if
+
+   end do
+
+
+   call t_stopf('fates-seed-init-decomp')
+
+end subroutine DetermineGridCellNeighbors
+
+! ======================================================================================
+     
+!-----------------------------------------------------------------------
+! TODO(jpalex): this belongs in FatesParametersInterface.F90, but would require
+! untangling the dependencies of the *RegisterParams methods below.
+subroutine FatesReadParameters(param_reader)
+  implicit none
+  
+  class(fates_param_reader_type), intent(in) :: param_reader ! HLM-provided param file reader
+
+  character(len=32)  :: subname = 'FatesReadParameters'
+  class(fates_parameters_type), allocatable :: fates_params
+
+  if ( hlm_masterproc == itrue ) then
+    write(fates_log(), *) 'FatesParametersInterface.F90::'//trim(subname)//' :: CLM reading ED/FATES '//' parameters '
+  end if
+
+  allocate(fates_params)
+  call fates_params%Init()   ! fates_params class, in FatesParameterInterfaceMod
+  call FatesRegisterParams(fates_params)  !EDParamsMod, only operates on fates_params class
+  call SpitFireRegisterParams(fates_params) !SpitFire Mod, only operates of fates_params class
+  call PRTRegisterParams(fates_params)     ! PRT mod, only operates on fates_params class
+  call FatesSynchronizedParamsInst%RegisterParams(fates_params) !Synchronized params class in Synchronized params mod, only operates on fates_params class
+
+  call param_reader%Read(fates_params)
+
+  call FatesReceiveParams(fates_params)
+  call SpitFireReceiveParams(fates_params)
+  call PRTReceiveParams(fates_params)
+  call FatesSynchronizedParamsInst%ReceiveParams(fates_params)
+
+  call fates_params%Destroy()
+  deallocate(fates_params)
+
+ end subroutine FatesReadParameters
 
 end module FatesInterfaceMod

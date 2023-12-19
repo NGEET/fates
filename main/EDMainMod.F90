@@ -45,7 +45,7 @@ module EDMainMod
   use EDPhysiologyMod          , only : satellite_phenology
   use EDPhysiologyMod          , only : recruitment
   use EDPhysiologyMod          , only : trim_canopy
-  use EDPhysiologyMod          , only : SeedIn
+  use EDPhysiologyMod          , only : SeedUpdate
   use EDPhysiologyMod          , only : ZeroAllocationRates
   use EDPhysiologyMod          , only : ZeroLitterFluxes
   use EDPhysiologyMod          , only : PreDisturbanceLitterFluxes
@@ -252,6 +252,8 @@ contains
 
           ! adds small cohort of each PFT
           call recruitment(currentSite, currentPatch, bc_in)
+          !YL --------------
+          ! call recruitment(currentSite, currentPatch, bc_in, bc_out)
 
           currentPatch => currentPatch%younger
        enddo
@@ -366,10 +368,10 @@ contains
     integer  :: el                    ! Counter for element type (c,n,p,etc)
     real(r8) :: cohort_biomass_store  ! remembers the biomass in the cohort for balance checking
     real(r8) :: dbh_old               ! dbh of plant before daily PRT [cm]
-    real(r8) :: hite_old              ! height of plant before daily PRT [m]
+    real(r8) :: height_old            ! height of plant before daily PRT [m]
     logical  :: is_drought            ! logical for if the plant (site) is in a drought state
     real(r8) :: delta_dbh             ! correction for dbh
-    real(r8) :: delta_hite            ! correction for hite
+    real(r8) :: delta_height          ! correction for height
     real(r8) :: mean_temp
 
     logical  :: newly_recovered       ! If the current loop is dealing with a newly created cohort, which
@@ -562,10 +564,10 @@ contains
           ! If the current diameter of a plant is somehow less than what is consistent
           ! with what is allometrically consistent with the stuctural biomass, then
           ! correct the dbh to match.
-          call EvaluateAndCorrectDBH(currentCohort,delta_dbh,delta_hite)
+          call EvaluateAndCorrectDBH(currentCohort,delta_dbh,delta_height)
           
           ! We want to save these values for the newly recovered cohort as well
-          hite_old = currentCohort%hite
+          height_old = currentCohort%height
           dbh_old  = currentCohort%dbh
 
           ! -----------------------------------------------------------------------------
@@ -649,9 +651,9 @@ contains
           currentCohort%isnew = .false.
 
           ! Update the plant height (if it has grown)
-          call h_allom(currentCohort%dbh,ft,currentCohort%hite)
+          call h_allom(currentCohort%dbh,ft,currentCohort%height)
 
-          currentCohort%dhdt      = (currentCohort%hite-hite_old)/hlm_freq_day
+          currentCohort%dhdt      = (currentCohort%height-height_old)/hlm_freq_day
           currentCohort%ddbhdt    = (currentCohort%dbh-dbh_old)/hlm_freq_day
 
           ! Carbon assimilate has been spent at this point
@@ -724,8 +726,8 @@ contains
     ! With growth and mortality rates now calculated we can determine the seed rain
     ! fluxes. However, because this is potentially a cross-patch mixing model
     ! we will calculate this as a group
-
-    call SeedIn(currentSite,bc_in)
+    
+    call SeedUpdate(currentSite)
 
     ! Calculate all other litter fluxes
     ! -----------------------------------------------------------------------------------
@@ -770,7 +772,7 @@ contains
   end subroutine ed_integrate_state_variables
 
   !-------------------------------------------------------------------------------!
-  subroutine ed_update_site( currentSite, bc_in, bc_out )
+  subroutine ed_update_site( currentSite, bc_in, bc_out, is_restarting )
     !
     ! !DESCRIPTION:
     ! Calls routines to consolidate the ED growth process.
@@ -786,17 +788,19 @@ contains
     type(ed_site_type) , intent(inout), target :: currentSite
     type(bc_in_type)   , intent(in)       :: bc_in
     type(bc_out_type)  , intent(inout)    :: bc_out
+    logical,intent(in)                    :: is_restarting ! is this called during restart read?
     !
     ! !LOCAL VARIABLES:
     type (fates_patch_type) , pointer :: currentPatch
     !-----------------------------------------------------------------------
-    if(hlm_use_sp.eq.ifalse)then
+
+    if(hlm_use_sp.eq.ifalse .and. (.not.is_restarting))then
       call canopy_spread(currentSite)
     end if
 
     call TotalBalanceCheck(currentSite,6)
 
-    if(hlm_use_sp.eq.ifalse)then
+    if(hlm_use_sp.eq.ifalse .and. (.not.is_restarting) )then
        call canopy_structure(currentSite, bc_in)
     endif
 
@@ -810,22 +814,22 @@ contains
     currentPatch => currentSite%oldest_patch
     do while(associated(currentPatch))
 
-        ! Is termination really needed here?
-        ! Canopy_structure just called it several times! (rgk)
-        call terminate_cohorts(currentSite, currentPatch, 1, 11, bc_in)
-        call terminate_cohorts(currentSite, currentPatch, 2, 11, bc_in)
+       if(.not.is_restarting)then
+          call terminate_cohorts(currentSite, currentPatch, 1, 11, bc_in)
+          call terminate_cohorts(currentSite, currentPatch, 2, 11, bc_in)
+       end if
 
-        ! This cohort count is used in the photosynthesis loop
-        call count_cohorts(currentPatch)
-
-        ! Update the total area of by patch age class array 
-        currentSite%area_by_age(currentPatch%age_class) = &
-             currentSite%area_by_age(currentPatch%age_class) + currentPatch%area
-        
-        currentPatch => currentPatch%younger
-
+       ! This cohort count is used in the photosynthesis loop
+       call count_cohorts(currentPatch)
+       
+       ! Update the total area of by patch age class array 
+       currentSite%area_by_age(currentPatch%age_class) = &
+            currentSite%area_by_age(currentPatch%age_class) + currentPatch%area
+       
+       currentPatch => currentPatch%younger
+       
     enddo
-
+    
     ! The HLMs need to know about nutrient demand, and/or
     ! root mass and affinities
     call PrepNutrientAquisitionBCs(currentSite,bc_in,bc_out)
@@ -837,10 +841,9 @@ contains
 
     ! FIX(RF,032414). This needs to be monthly, not annual
     ! If this is the second to last day of the year, then perform trimming
-    if( hlm_day_of_year == hlm_days_per_year-1) then
-
-     if(hlm_use_sp.eq.ifalse)then
-       call trim_canopy(currentSite)
+    if( hlm_day_of_year == hlm_days_per_year-1 .and. (.not.is_restarting)) then
+       if(hlm_use_sp.eq.ifalse)then
+          call trim_canopy(currentSite)
      endif
     endif
 
