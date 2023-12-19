@@ -123,6 +123,11 @@ module FatesInterfaceTypesMod
                                                          ! harvest_rates in dynHarvestMod
                                                          ! bc_in%hlm_harvest_rates and bc_in%hlm_harvest_catnames
 
+   integer, public :: hlm_use_luh                   ! flag to signal whether or not to use luh2 drivers
+   integer, public :: hlm_num_luh2_states           ! number of land use state types provided in LUH2 forcing dataset
+
+   integer, public :: hlm_num_luh2_transitions      ! number of land use transition types provided in LUH2 forcing dataset
+
 
    integer, public :: hlm_sf_nofire_def               ! Definition of a no-fire case for hlm_spitfire_mode
    integer, public :: hlm_sf_scalar_lightning_def     ! Definition of a scalar-lightning case for hlm_spitfire_mode
@@ -258,6 +263,7 @@ module FatesInterfaceTypesMod
    real(r8), public, allocatable :: fates_hdim_levage(:)           ! patch age lower bound dimension
    real(r8), public, allocatable :: fates_hdim_levheight(:)        ! height lower bound dimension
    integer , public, allocatable :: fates_hdim_levpft(:)           ! plant pft dimension
+   integer , public, allocatable :: fates_hdim_levlanduse(:)       ! land use label dimension
    integer , public, allocatable :: fates_hdim_levfuel(:)          ! fire fuel size class (fsc) dimension
    integer , public, allocatable :: fates_hdim_levcwdsc(:)         ! cwd class dimension
    integer , public, allocatable :: fates_hdim_levcan(:)           ! canopy-layer dimension 
@@ -543,8 +549,12 @@ module FatesInterfaceTypesMod
       ! Land use
       ! ---------------------------------------------------------------------------------
       real(r8),allocatable :: hlm_harvest_rates(:)    ! annual harvest rate per cat from hlm for a site
-
       character(len=64), allocatable :: hlm_harvest_catnames(:)  ! names of hlm_harvest d1
+      real(r8),allocatable :: hlm_luh_states(:)
+      character(len=64),allocatable :: hlm_luh_state_names(:)
+      real(r8),allocatable :: hlm_luh_transitions(:)
+      character(len=64),allocatable :: hlm_luh_transition_names(:)
+
 
       integer :: hlm_harvest_units  ! what units are the harvest rates specified in? [area vs carbon]
     

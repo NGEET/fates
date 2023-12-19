@@ -71,7 +71,7 @@ module FatesInventoryInitMod
    use PRTGenericMod,       only : nitrogen_element
    use PRTGenericMod,       only : phosphorus_element
    use PRTGenericMod,       only : SetState
-   use FatesConstantsMod,   only : primaryforest
+   use FatesConstantsMod,   only : primaryland
    use FatesRunningMeanMod, only : ema_lpa
    use PRTGenericMod,       only : StorageNutrientTarget
    use FatesConstantsMod,   only : fates_unset_int
@@ -284,14 +284,13 @@ contains
             age_init            = 0.0_r8
             area_init           = 0.0_r8
             allocate(newpatch)
-            call newpatch%Create(age_init, area_init, primaryforest,           &
+            call newpatch%Create(age_init, area_init, primaryland,           &
                fates_unset_int, hlm_numSWb, numpft, sites(s)%nlevsoil,         &
                hlm_current_tod, regeneration_model)
 
             newpatch%patchno = ipa
             newpatch%younger => null()
             newpatch%older   => null()
-
 
             if( inv_format_list(invsite) == 1 ) then
                call set_inventory_patch_type1(newpatch,pss_file_unit,ipa,ios,patch_name)

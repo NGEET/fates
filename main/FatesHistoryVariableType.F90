@@ -16,6 +16,7 @@ module FatesHistoryVariableType
   use FatesIOVariableKindMod, only : site_elem_r8, site_elpft_r8
   use FatesIOVariableKindMod, only : site_elcwd_r8, site_elage_r8
   use FatesIOVariableKindMod, only : iotype_index, site_agefuel_r8, site_clscpf_r8
+  use FatesIOVariableKindMod, only : site_landuse_r8, site_lulu_r8
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   
 
@@ -31,7 +32,7 @@ module FatesHistoryVariableType
   ! This type is instanteated in the HLM-FATES interface (clmfates_interfaceMod.F90)
 
   type, public :: fates_history_variable_type
-     character(len=32)    :: vname
+     character(len=40)    :: vname
      character(len=24)    :: units
      character(len=128)   :: long
      character(len=24)    :: use_default ! States whether a variable should be turned
@@ -208,6 +209,14 @@ contains
       allocate(this%r82d(lb1:ub1, lb2:ub2))
       this%r82d(:,:) = flushval
 
+   case(site_landuse_r8)
+      allocate(this%r82d(lb1:ub1, lb2:ub2))
+      this%r82d(:,:) = flushval
+
+   case(site_lulu_r8)
+      allocate(this%r82d(lb1:ub1, lb2:ub2))
+      this%r82d(:,:) = flushval
+
    case(site_clscpf_r8)
       allocate(this%r82d(lb1:ub1, lb2:ub2))
       this%r82d(:,:) = flushval
@@ -338,6 +347,11 @@ contains
        this%r82d(lb1:ub1, lb2:ub2) = this%flushval
     case(site_clscpf_r8)
        this%r82d(lb1:ub1, lb2:ub2) = this%flushval
+   case(site_landuse_r8)
+       this%r82d(lb1:ub1, lb2:ub2) = this%flushval
+   case(site_lulu_r8)
+       this%r82d(lb1:ub1, lb2:ub2) = this%flushval
+
     case default
        write(fates_log(),*) 'fates history variable type undefined while flushing history variables'
        call endrun(msg=errMsg(sourcefile, __LINE__))
