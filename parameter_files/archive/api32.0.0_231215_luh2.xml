@@ -41,7 +41,7 @@
        <di> fates_landuseclass </di>
        <un> count </un>
        <ln> maximum number of patches per site on each land use type </ln>
-       <val> 10, 4, 1, 1, 1 </val>
+       <val> 9, 4, 1, 1, 1 </val>
     </mod>
     <mod type="variable_add">
        <na> fates_landuseclass_name </na>
