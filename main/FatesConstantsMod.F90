@@ -39,15 +39,19 @@ module FatesConstantsMod
   (/0._fates_r8, 5._fates_r8, 20._fates_r8, 50._fates_r8, 100._fates_r8, 150._fates_r8/) ! array of bin lower edges for comparing patches
 
 
-  integer , parameter, public :: N_DIST_TYPES = 3 ! Disturbance Modes 1) tree-fall, 2) fire, 3) logging
+  integer , parameter, public :: N_DIST_TYPES = 4          ! Disturbance Modes 1) tree-fall, 2) fire, 3) logging, 4) land-use change
   integer , parameter, public :: dtype_ifall  = 1          ! index for naturally occuring tree-fall generated event
   integer , parameter, public :: dtype_ifire  = 2          ! index for fire generated disturbance event
   integer , parameter, public :: dtype_ilog   = 3          ! index for logging generated disturbance event
+  integer , parameter, public :: dtype_ilandusechange = 4  ! index for land use change disturbance (not including logging)
 
   ! Labels for patch disturbance history
-  integer, parameter, public :: n_anthro_disturbance_categories = 2
-  integer, parameter, public :: primaryforest = 1
-  integer, parameter, public :: secondaryforest = 2
+  integer, parameter, public :: n_landuse_cats = 5
+  integer, parameter, public :: primaryland = 1
+  integer, parameter, public :: secondaryland = 2
+  integer, parameter, public :: rangeland = 3
+  integer, parameter, public :: pastureland = 4
+  integer, parameter, public :: cropland = 5
 
 
   integer, parameter, public :: leaves_on  = 2  ! Flag specifying that a deciduous plant has leaves

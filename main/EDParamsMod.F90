@@ -10,6 +10,7 @@ module EDParamsMod
    use FatesGlobals        , only : fates_log
    use FatesGlobals        , only : endrun => fates_endrun
    use FatesConstantsMod,    only : fates_unset_r8
+   use FatesConstantsMod,    only : n_landuse_cats
 
    ! CIME Globals
    use shr_log_mod         , only : errMsg => shr_log_errMsg
@@ -199,6 +200,7 @@ integer, parameter, public :: maxpft = 16      ! maximum number of PFTs allowed
    character(len=param_string_length),parameter,public :: ED_name_history_height_bin_edges= "fates_history_height_bin_edges"
    character(len=param_string_length),parameter,public :: ED_name_history_coageclass_bin_edges = "fates_history_coageclass_bin_edges"
    character(len=param_string_length),parameter,public :: ED_name_history_damage_bin_edges = "fates_history_damage_bin_edges"
+   character(len=param_string_length),parameter,public :: ED_name_maxpatches_by_landuse = "fates_maxpatches_by_landuse"
 
    ! Hydraulics Control Parameters (ONLY RELEVANT WHEN USE_FATES_HYDR = TRUE)
    ! ----------------------------------------------------------------------------------------------
@@ -249,13 +251,9 @@ integer, parameter, public :: maxpft = 16      ! maximum number of PFTs allowed
    ! The number of patches specified in the parameter file may be over-written.
    ! For instance, in SP mode, we want the same number of primary patches as the number of PFTs
    ! in the fates parameter file, and zero secondary.
+   ! thus they are not protected here.
    
-   integer, public :: maxpatch_primary
-   character(len=param_string_length), parameter, public :: maxpatch_primary_name = "fates_maxpatch_primary"
-   
-   integer, public :: maxpatch_secondary
-   character(len=param_string_length), parameter, public :: maxpatch_secondary_name = "fates_maxpatch_secondary"
-
+   integer, public :: maxpatches_by_landuse(n_landuse_cats)
    integer, public :: maxpatch_total
 
    ! Maximum allowable cohorts per patch
@@ -361,8 +359,6 @@ contains
     stomatal_model                        = -9
     regeneration_model                    = -9
     stomatal_assim_model                  = -9
-    maxpatch_primary                      = -9
-    maxpatch_secondary                    = -9
     max_cohort_per_patch                  = -9
     hydr_kmax_rsurf1                      = nan
     hydr_kmax_rsurf2                      = nan
@@ -399,7 +395,7 @@ contains
     use FatesParametersInterface, only : dimension_name_history_size_bins, dimension_name_history_age_bins
     use FatesParametersInterface, only : dimension_name_history_height_bins, dimension_name_hydr_organs
     use FatesParametersInterface, only : dimension_name_history_coage_bins, dimension_name_history_damage_bins
-    use FatesParametersInterface, only : dimension_shape_scalar
+    use FatesParametersInterface, only : dimension_shape_scalar, dimension_name_landuse
 
 
     implicit none
@@ -413,6 +409,7 @@ contains
     character(len=param_string_length), parameter :: dim_names_coageclass(1) = (/dimension_name_history_coage_bins/)
     character(len=param_string_length), parameter :: dim_names_hydro_organs(1) = (/dimension_name_hydr_organs/)
     character(len=param_string_length), parameter :: dim_names_damageclass(1)= (/dimension_name_history_damage_bins/)
+    character(len=param_string_length), parameter :: dim_names_landuse(1)= (/dimension_name_landuse/)
     
     call FatesParamsInit()
 
@@ -518,12 +515,6 @@ contains
     call fates_params%RegisterParameter(name=stomatal_assim_name, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=maxpatch_primary_name, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=maxpatch_secondary_name, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
     call fates_params%RegisterParameter(name=maxcohort_name, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
     
@@ -619,6 +610,9 @@ contains
     call fates_params%RegisterParameter(name=ED_name_history_damage_bin_edges, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names_damageclass)
 
+    call fates_params%RegisterParameter(name=ED_name_maxpatches_by_landuse, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_landuse)
+
   end subroutine FatesRegisterParams
 
   
@@ -626,6 +620,7 @@ contains
   subroutine FatesReceiveParams(fates_params)
     
     use FatesParametersInterface, only : fates_parameters_type, dimension_name_scalar
+    use FatesConstantsMod, only: primaryland, secondaryland, rangeland, pastureland, cropland
 
     implicit none
 
@@ -633,6 +628,7 @@ contains
 
     real(r8) :: tmpreal ! local real variable for changing type on read
     real(r8), allocatable :: hydr_htftype_real(:)
+    real(r8) :: tmp_vector_by_landuse(n_landuse_cats)  ! local real vector for changing type on read
     
     call fates_params%RetrieveParameter(name=ED_name_photo_temp_acclim_timescale, &
          data=photo_temp_acclim_timescale)
@@ -735,16 +731,6 @@ contains
     call fates_params%RetrieveParameter(name=stomatal_assim_name, &
          data=tmpreal)
     stomatal_assim_model = nint(tmpreal)
-
-    call fates_params%RetrieveParameter(name=maxpatch_primary_name, &
-         data=tmpreal)
-    maxpatch_primary = nint(tmpreal)
-
-    call fates_params%RetrieveParameter(name=maxpatch_secondary_name, &
-         data=tmpreal)
-    maxpatch_secondary = nint(tmpreal)
-
-    maxpatch_total = maxpatch_primary+maxpatch_secondary
     
     call fates_params%RetrieveParameter(name=maxcohort_name, &
          data=tmpreal)
@@ -847,6 +833,12 @@ contains
 
     call fates_params%RetrieveParameterAllocate(name=ED_name_history_damage_bin_edges, &
          data=ED_val_history_damage_bin_edges)
+
+    call fates_params%RetrieveParameter(name=ED_name_maxpatches_by_landuse, &
+         data=tmp_vector_by_landuse)
+
+    maxpatches_by_landuse(:) = nint(tmp_vector_by_landuse(:))
+    maxpatch_total = sum(maxpatches_by_landuse(:))
 
     call fates_params%RetrieveParameterAllocate(name=ED_name_hydr_htftype_node, &
          data=hydr_htftype_real)

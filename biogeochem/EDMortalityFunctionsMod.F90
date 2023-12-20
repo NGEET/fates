@@ -234,7 +234,7 @@ contains
  ! ============================================================================
 
  subroutine Mortality_Derivative( currentSite, currentCohort, bc_in, btran_ft, &
-      mean_temp, anthro_disturbance_label, age_since_anthro_disturbance,       &
+      mean_temp, land_use_label, age_since_anthro_disturbance,       &
       frac_site_primary, harvestable_forest_c, harvest_tag)
 
     !
@@ -252,7 +252,7 @@ contains
     type(bc_in_type), intent(in)               :: bc_in
     real(r8),         intent(in)               :: btran_ft(maxpft)
     real(r8),         intent(in)               :: mean_temp
-    integer,          intent(in)               :: anthro_disturbance_label
+    integer,          intent(in)               :: land_use_label
     real(r8),         intent(in)               :: age_since_anthro_disturbance
     real(r8),         intent(in)               :: frac_site_primary
 
@@ -291,7 +291,7 @@ contains
                                bc_in%hlm_harvest_rates, &
                                bc_in%hlm_harvest_catnames, &
                                bc_in%hlm_harvest_units, &
-                               anthro_disturbance_label, &
+                               land_use_label, &
                                age_since_anthro_disturbance, &
                                frac_site_primary, harvestable_forest_c, harvest_tag)
 

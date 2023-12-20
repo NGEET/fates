@@ -74,7 +74,7 @@ module EDMainMod
   use EDTypesMod               , only : phen_dstat_moiston
   use EDTypesMod               , only : phen_dstat_timeon
   use FatesConstantsMod        , only : itrue,ifalse
-  use FatesConstantsMod        , only : primaryforest, secondaryforest
+  use FatesConstantsMod        , only : primaryland, secondaryland
   use FatesConstantsMod        , only : nearzero
   use FatesConstantsMod        , only : m2_per_ha
   use FatesConstantsMod        , only : sec_per_day
@@ -439,7 +439,7 @@ contains
        endif
 
        ! add age increment to secondary forest patches as well
-       if (currentPatch%anthro_disturbance_label .eq. secondaryforest) then
+       if (currentPatch%land_use_label .ne. primaryland) then
           currentPatch%age_since_anthro_disturbance = &
                currentPatch%age_since_anthro_disturbance + hlm_freq_day
        endif
@@ -472,7 +472,7 @@ contains
              mean_temp = currentPatch%tveg24%GetMean()
              call Mortality_Derivative(currentSite, currentCohort, bc_in,      &
                currentPatch%btran_ft, mean_temp,                               &
-               currentPatch%anthro_disturbance_label,                          &
+               currentPatch%land_use_label,                                    &
                currentPatch%age_since_anthro_disturbance, frac_site_primary,   &
                  harvestable_forest_c, harvest_tag)
 
@@ -969,7 +969,7 @@ contains
                 write(fates_log(),*) 'BG CWD (by layer): ', sum(litt%bg_cwd,dim=1)
                 write(fates_log(),*) 'leaf litter:',sum(litt%leaf_fines)
                 write(fates_log(),*) 'root litter (by layer): ',sum(litt%root_fines,dim=1)
-                write(fates_log(),*) 'anthro_disturbance_label: ',currentPatch%anthro_disturbance_label
+                write(fates_log(),*) 'land_use_label: ',currentPatch%land_use_label
                 write(fates_log(),*) 'use_this_pft: ', currentSite%use_this_pft(:)
                 if(print_cohorts)then
                     write(fates_log(),*) '---- Biomass by cohort and organ -----'

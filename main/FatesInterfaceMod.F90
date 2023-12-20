@@ -16,8 +16,7 @@ module FatesInterfaceMod
    use EDParamsMod               , only : ED_val_vai_width_increase_factor
    use EDParamsMod               , only : ED_val_history_damage_bin_edges
    use EDParamsMod               , only : maxpatch_total
-   use EDParamsMod               , only : maxpatch_primary
-   use EDParamsMod               , only : maxpatch_secondary
+   use EDParamsMod               , only : maxpatches_by_landuse
    use EDParamsMod               , only : max_cohort_per_patch
    use FatesRadiationMemMod      , only : num_swb,ivis,inir
    use EDParamsMod               , only : regeneration_model
@@ -39,6 +38,9 @@ module FatesInterfaceMod
    use FatesConstantsMod         , only : days_per_year
    use FatesConstantsMod         , only : TRS_regeneration
    use FatesConstantsMod         , only : g_per_kg
+   use FatesConstantsMod         , only : n_landuse_cats
+   use FatesConstantsMod         , only : primaryland
+   use FatesConstantsMod         , only : secondaryland
    use FatesGlobals              , only : fates_global_verbose
    use FatesGlobals              , only : fates_log
    use FatesGlobals              , only : endrun => fates_endrun
@@ -403,12 +405,18 @@ contains
     fates%bc_out(s)%hrv_deadstemc_to_prod10c = 0.0_r8
     fates%bc_out(s)%hrv_deadstemc_to_prod100c = 0.0_r8
 
+    if (hlm_use_luh .eq. itrue) then
+       fates%bc_in(s)%hlm_luh_states(:) = 0.0_r8
+       fates%bc_in(s)%hlm_luh_transitions(:) = 0.0_r8
+    end if
+
     return
   end subroutine zero_bcs
 
   ! ===========================================================================
 
-   subroutine allocate_bcin(bc_in, nlevsoil_in, nlevdecomp_in, num_lu_harvest_cats,natpft_lb,natpft_ub)
+  subroutine allocate_bcin(bc_in, nlevsoil_in, nlevdecomp_in, num_lu_harvest_cats, num_luh2_states, &
+       num_luh2_transitions, natpft_lb,natpft_ub)
       
       ! ---------------------------------------------------------------------------------
       ! Allocate and Initialze the FATES boundary condition vectors
@@ -419,6 +427,8 @@ contains
       integer,intent(in)              :: nlevsoil_in
       integer,intent(in)              :: nlevdecomp_in
       integer,intent(in)              :: num_lu_harvest_cats
+      integer,intent(in)              :: num_luh2_states
+      integer,intent(in)              :: num_luh2_transitions
       integer,intent(in)              :: natpft_lb,natpft_ub ! dimension bounds of the array holding surface file pft data
       
       ! Allocate input boundaries
@@ -553,6 +563,14 @@ contains
       end if
 
       allocate(bc_in%pft_areafrac(natpft_lb:natpft_ub))
+
+      ! LUH2 state and transition data
+      if (hlm_use_luh .eq. itrue) then
+        allocate(bc_in%hlm_luh_states(num_luh2_states))
+        allocate(bc_in%hlm_luh_state_names(num_luh2_states))
+        allocate(bc_in%hlm_luh_transitions(num_luh2_transitions))
+        allocate(bc_in%hlm_luh_transition_names(num_luh2_transitions))
+      end if
 
       ! Variables for SP mode. 
       if(hlm_use_sp.eq.itrue) then
@@ -764,8 +782,8 @@ contains
             ! to hold all PFTs.  So create the same number of
             ! patches as the number of PFTs
 
-            maxpatch_primary   = fates_numpft
-            maxpatch_secondary = 0
+            maxpatches_by_landuse(primaryland)   = fates_numpft
+            maxpatches_by_landuse(secondaryland:n_landuse_cats) = 0
             maxpatch_total     = fates_numpft
             
             ! If this is an SP run, we actually need enough patches on the
@@ -780,13 +798,14 @@ contains
          else
 
             ! If we are using fixed biogeography or no-comp then we
-            ! can also apply those constraints to maxpatch_primary and secondary
+            ! can also apply those constraints to maxpatch_primaryland and secondary
             ! and that value will match fates_maxPatchesPerSite
             
             if(hlm_use_nocomp==itrue) then
 
-               maxpatch_primary = max(maxpatch_primary,fates_numpft)
-               maxpatch_total = maxpatch_primary + maxpatch_secondary
+               maxpatches_by_landuse(primaryland) = max(maxpatches_by_landuse(primaryland),fates_numpft)
+               maxpatch_total = sum(maxpatches_by_landuse(:))
+
                !if(maxpatch_primary<fates_numpft)then
                !   write(fates_log(),*) 'warning: lower number of patches than pfts'
                !   write(fates_log(),*) 'this may become a problem in nocomp mode'
@@ -1123,11 +1142,13 @@ contains
        integer :: iheight
        integer :: icoage
        integer :: iel
+       integer :: ilu
 
        allocate( fates_hdim_levsclass(1:nlevsclass   ))
        allocate( fates_hdim_pfmap_levscpf(1:nlevsclass*numpft))
        allocate( fates_hdim_scmap_levscpf(1:nlevsclass*numpft))
        allocate( fates_hdim_levpft(1:numpft   ))
+       allocate( fates_hdim_levlanduse(1:n_landuse_cats))
        allocate( fates_hdim_levfuel(1:NFSC   ))
        allocate( fates_hdim_levcwdsc(1:NCWD   ))
        allocate( fates_hdim_levage(1:nlevage   ))
@@ -1194,6 +1215,11 @@ contains
        ! make canopy array
        do ican = 1,nclmax
           fates_hdim_levcan(ican) = ican
+       end do
+
+       ! make land use label array
+       do ilu = 1, n_landuse_cats
+          fates_hdim_levlanduse(ilu) = ilu
        end do
 
        ! Make an element array, each index is the PARTEH global identifier index
@@ -1437,6 +1463,8 @@ contains
          hlm_use_planthydro = unset_int
          hlm_use_lu_harvest   = unset_int
          hlm_num_lu_harvest_cats   = unset_int
+         hlm_num_luh2_states       = unset_int
+         hlm_num_luh2_transitions  = unset_int
          hlm_use_cohort_age_tracking = unset_int
          hlm_use_logging   = unset_int
          hlm_use_ed_st3    = unset_int
@@ -1490,6 +1518,16 @@ contains
 
          if ( (hlm_num_lu_harvest_cats .lt. 0) ) then
             write(fates_log(), *) 'The FATES number of hlm harvest cats must be >= 0, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if ( (hlm_num_luh2_states .lt. 0) ) then
+            write(fates_log(), *) 'The FATES number of hlm luh state cats must be >= 0, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if ( (hlm_num_luh2_transitions .lt. 0) ) then
+            write(fates_log(), *) 'The FATES number of hlm luh state transition cats must be >= 0, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
@@ -1868,6 +1906,24 @@ contains
                hlm_num_lu_harvest_cats = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_num_lu_harvest_cats= ',ival,' to FATES'
+               end if
+
+            case('use_luh2')
+               hlm_use_luh = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_luh = ',ival,' to FATES'
+               end if
+
+            case('num_luh2_states')
+               hlm_num_luh2_states = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_num_luh2_states= ',ival,' to FATES'
+               end if
+
+            case('num_luh2_transitions')
+               hlm_num_luh2_transitions = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_num_luh2_transitions= ',ival,' to FATES'
                end if
 
             case('use_cohort_age_tracking')
