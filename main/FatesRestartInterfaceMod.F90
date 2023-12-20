@@ -3678,8 +3678,7 @@ contains
            currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
            currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
 
-           currentPatch%solve_err(:) = hlm_hio_ignore_val
-           currentPatch%consv_err(:) = hlm_hio_ignore_val
+           currentPatch%consv_err(:) = 0._r8
            
            ! -----------------------------------------------------------
            ! When calling norman radiation from the short-timestep

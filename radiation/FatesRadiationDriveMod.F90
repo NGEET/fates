@@ -121,7 +121,6 @@ contains
              currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
              currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
              
-             currentPatch%solve_err(:)              = hlm_hio_ignore_val
              currentPatch%consv_err(:)              = hlm_hio_ignore_val
              
              currentPatch%solar_zenith_flag         = bc_in(s)%filter_vegzen_pa(ifp)
@@ -209,7 +208,6 @@ contains
                                 sites(s)%ipiv_2str,             &  ! inout (scratch)
                                 bc_out(s)%albd_parb(ifp,ib), &  ! out
                                 bc_out(s)%albi_parb(ifp,ib), &  ! out
-                                currentPatch%solve_err(ib),  &  ! out
                                 currentPatch%consv_err(ib),  &  ! out
                                 bc_out(s)%fabd_parb(ifp,ib), &  ! out
                                 bc_out(s)%fabi_parb(ifp,ib), &  ! out

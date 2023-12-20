@@ -1060,7 +1060,6 @@ contains
        ipiv,      &
        albedo_beam, & 
        albedo_diff, &
-       solve_err,   &
        consv_err,   &
        frac_abs_can_beam, &
        frac_abs_can_diff, &
@@ -1104,10 +1103,6 @@ contains
     real(r8) :: albedo_diff    ! Mean albedo at canopy top generated from downwelling diffuse [-]
 
     real(r8) :: temp_err  ! Used to build the other error terms, a temp
-    real(r8) :: solve_err ! This is the maximum error encountered when comparing the forward solution
-                          ! of the linear solution A*x, to the known b, in Ax=b. This is the maximum
-                          ! considering all equations, and both beam and diffuse boundaries. Units
-                          ! are a fraction relative to the boundary flux.
     real(r8) :: consv_err ! radiation canopy balance conservation
                           ! error, fraction of incident
      
@@ -1210,8 +1205,6 @@ contains
     ! upper canopy.
     ! --------------------------------------------------------------------------
 
-    solve_err = 0._r8
-    
     if((Rbeam_atm+Rdiff_atm)<nearzero)then
        write(log_unit,*)"No radiation"
        write(log_unit,*)"Two stream should not had been called"
@@ -1522,7 +1515,6 @@ contains
        ! Perform a forward check on the solution error
        do ilem = 1,n_eq
           temp_err = tau_temp(ilem) - sum(taulamb(1:n_eq)*omega_temp(ilem,1:n_eq))
-          solve_err = max(solve_err,abs(temp_err))
           if(abs(temp_err)>rel_err_thresh)then
              write(log_unit,*) 'Poor forward solution on two-stream solver'
              write(log_unit,*) 'isol (1=beam or 2=diff): ',isol

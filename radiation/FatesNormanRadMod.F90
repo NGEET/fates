@@ -478,8 +478,8 @@ contains
        end do!L
 
        ! Zero out the radiation error for the current patch before conducting the conservation check
-       currentPatch%radiation_error = 0.0_r8
-
+       currentPatch%radiation_error = 0._r8
+       
        do ib = 1,hlm_numSWb
           Dif_dn(:,:,:) = 0.00_r8
           Dif_up(:,:,:) = 0.00_r8
