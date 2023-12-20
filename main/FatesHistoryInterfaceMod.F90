@@ -84,7 +84,7 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : dens_fresh_liquid_water
   use FatesConstantsMod        , only : grav_earth
   use FatesLitterMod           , only : litter_type
-  use FatesConstantsMod        , only : secondaryforest
+  use FatesConstantsMod        , only : secondaryland
 
   use PRTGenericMod            , only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod            , only : struct_organ, store_organ, repro_organ
@@ -308,13 +308,11 @@ module FatesHistoryInterfaceMod
   integer :: ih_growth_resp_secondary_si
 
   integer :: ih_primaryland_fusion_error_si
-  integer :: ih_disturbance_rate_p2p_si
-  integer :: ih_disturbance_rate_p2s_si
-  integer :: ih_disturbance_rate_s2s_si
+  integer :: ih_area_si_landuse
+  integer :: ih_disturbance_rate_si_lulu
   integer :: ih_fire_disturbance_rate_si
   integer :: ih_logging_disturbance_rate_si
   integer :: ih_fall_disturbance_rate_si
-  integer :: ih_potential_disturbance_rate_si
   integer :: ih_harvest_carbonflux_si
   integer :: ih_harvest_debt_si
   integer :: ih_harvest_debt_sec_si
@@ -606,7 +604,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_c_stomata_si_age
   integer :: ih_c_lblayer_si_age
   integer :: ih_agesince_anthrodist_si_age
-  integer :: ih_secondaryforest_area_si_age
+  integer :: ih_secondarylands_area_si_age
   integer :: ih_area_burnt_si_age
   ! integer :: ih_fire_rate_of_spread_front_si_age
   integer :: ih_fire_intensity_si_age
@@ -678,12 +676,26 @@ module FatesHistoryInterfaceMod
   ! indices to (site x [canopy layer x leaf layer]) variables
   integer :: ih_parsun_z_si_cnlf
   integer :: ih_parsha_z_si_cnlf
+  integer :: ih_laisun_z_si_cnlf
+  integer :: ih_laisha_z_si_cnlf
+  integer :: ih_fabd_sun_si_cnlf
+  integer :: ih_fabd_sha_si_cnlf
+  integer :: ih_fabi_sun_si_cnlf
+  integer :: ih_fabi_sha_si_cnlf
   integer :: ih_ts_net_uptake_si_cnlf
   integer :: ih_crownarea_si_cnlf
+  integer :: ih_parprof_dir_si_cnlf
+  integer :: ih_parprof_dif_si_cnlf
 
   ! indices to (site x [canopy layer x leaf layer x pft]) variables
   integer :: ih_parsun_z_si_cnlfpft
   integer :: ih_parsha_z_si_cnlfpft
+  integer :: ih_laisun_z_si_cnlfpft
+  integer :: ih_laisha_z_si_cnlfpft
+  integer :: ih_fabd_sun_si_cnlfpft
+  integer :: ih_fabd_sha_si_cnlfpft
+  integer :: ih_fabi_sun_si_cnlfpft
+  integer :: ih_fabi_sha_si_cnlfpft
   integer :: ih_parprof_dir_si_cnlfpft
   integer :: ih_parprof_dif_si_cnlfpft
 
@@ -713,6 +725,12 @@ module FatesHistoryInterfaceMod
   ! indices to (site x canopy layer) variables
   integer :: ih_parsun_top_si_can
   integer :: ih_parsha_top_si_can
+  integer :: ih_laisun_top_si_can
+  integer :: ih_laisha_top_si_can
+  integer :: ih_fabd_sun_top_si_can
+  integer :: ih_fabd_sha_top_si_can
+  integer :: ih_fabi_sun_top_si_can
+  integer :: ih_fabi_sha_top_si_can
   integer :: ih_crownarea_si_can
 
   ! indices to (patch age x fuel size class) variables
@@ -751,6 +769,7 @@ module FatesHistoryInterfaceMod
      integer, private :: levelcwd_index_, levelage_index_
      integer, private :: levcacls_index_, levcapf_index_
      integer, private :: levclscpf_index_
+     integer, private :: levlanduse_index_, levlulu_index_, levlupft_index_
 
    contains
 
@@ -760,8 +779,7 @@ module FatesHistoryInterfaceMod
      procedure :: assemble_history_output_types
 
      procedure :: update_history_dyn
-     procedure :: update_history_hifrq_simple
-     procedure :: update_history_hifrq_multi
+     procedure :: update_history_hifrq
      procedure :: update_history_hydraulics
      procedure :: update_history_nutrflux
      
@@ -794,6 +812,9 @@ module FatesHistoryInterfaceMod
      procedure :: levelage_index
      procedure :: levagefuel_index
      procedure :: levclscpf_index
+     procedure :: levlanduse_index
+     procedure :: levlulu_index
+     procedure :: levlupft_index
      
      ! private work functions
      procedure, private :: define_history_vars
@@ -822,6 +843,9 @@ module FatesHistoryInterfaceMod
      procedure, private :: set_levheight_index
      procedure, private :: set_levagefuel_index
      procedure, private :: set_levclscpf_index
+     procedure, private :: set_levlanduse_index
+     procedure, private :: set_levlulu_index
+     procedure, private :: set_levlupft_index
      
      procedure, private :: set_levelem_index
      procedure, private :: set_levelpft_index
@@ -860,6 +884,7 @@ contains
     use FatesIODimensionsMod, only : levelem, levelpft
     use FatesIODimensionsMod, only : levelcwd, levelage, levclscpf
     use FatesIODimensionsMod, only : levcdpf, levcdsc, levcdam
+    use FatesIODimensionsMod, only : levlanduse, levlulu, levlupft
 
     implicit none
 
@@ -999,6 +1024,21 @@ contains
     call this%dim_bounds(dim_count)%Init(levclscpf, num_threads, &
          fates_bounds%clscpf_begin, fates_bounds%clscpf_end)
     
+    dim_count = dim_count + 1
+    call this%set_levlanduse_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levlanduse, num_threads, &
+         fates_bounds%landuse_begin, fates_bounds%landuse_end)
+
+    dim_count = dim_count + 1
+    call this%set_levlulu_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levlulu, num_threads, &
+         fates_bounds%lulu_begin, fates_bounds%lulu_end)
+
+    dim_count = dim_count + 1
+    call this%set_levlupft_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levlupft, num_threads, &
+         fates_bounds%lupft_begin, fates_bounds%lupft_end)
+
   end subroutine Init
 
   ! ======================================================================
@@ -1119,6 +1159,18 @@ contains
     call this%dim_bounds(index)%SetThreadBounds(thread_index, &
          thread_bounds%clscpf_begin, thread_bounds%clscpf_end)
 
+    index = this%levlanduse_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+         thread_bounds%landuse_begin, thread_bounds%landuse_end)
+
+    index = this%levlulu_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+         thread_bounds%lulu_begin, thread_bounds%lulu_end)
+
+    index = this%levlupft_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+         thread_bounds%lupft_begin, thread_bounds%lupft_end)
+
   end subroutine SetThreadBoundsEach
 
   ! ===================================================================================
@@ -1134,6 +1186,7 @@ contains
     use FatesIOVariableKindMod, only : site_elem_r8, site_elpft_r8
     use FatesIOVariableKindMod, only : site_elcwd_r8, site_elage_r8, site_clscpf_r8
     use FatesIOVariableKindMod, only : site_cdpf_r8, site_cdsc_r8, site_cdam_r8
+    use FatesIOVariableKindMod, only : site_landuse_r8, site_lulu_r8, site_lupft_r8
     
    implicit none
 
@@ -1217,7 +1270,16 @@ contains
 
     call this%set_dim_indices(site_clscpf_r8, 1, this%column_index())
     call this%set_dim_indices(site_clscpf_r8, 2, this%levclscpf_index())
-    
+
+    call this%set_dim_indices(site_landuse_r8, 1, this%column_index())
+    call this%set_dim_indices(site_landuse_r8, 2, this%levlanduse_index())
+
+    call this%set_dim_indices(site_lulu_r8, 1, this%column_index())
+    call this%set_dim_indices(site_lulu_r8, 2, this%levlulu_index())
+
+    call this%set_dim_indices(site_lupft_r8, 1, this%column_index())
+    call this%set_dim_indices(site_lupft_r8, 2, this%levlupft_index())
+
   end subroutine assemble_history_output_types
 
   ! ===================================================================================
@@ -1631,6 +1693,51 @@ end function levcapf_index
 
    ! ======================================================================================
 
+   subroutine set_levlanduse_index(this, index)
+     implicit none
+     class(fates_history_interface_type), intent(inout) :: this
+     integer, intent(in) :: index
+     this%levlanduse_index_ = index
+   end subroutine set_levlanduse_index
+
+   integer function levlanduse_index(this)
+     implicit none
+     class(fates_history_interface_type), intent(in) :: this
+     levlanduse_index = this%levlanduse_index_
+   end function levlanduse_index
+
+   ! ======================================================================================
+
+   subroutine set_levlulu_index(this, index)
+     implicit none
+     class(fates_history_interface_type), intent(inout) :: this
+     integer, intent(in) :: index
+     this%levlulu_index_ = index
+   end subroutine set_levlulu_index
+
+   integer function levlulu_index(this)
+     implicit none
+     class(fates_history_interface_type), intent(in) :: this
+     levlulu_index = this%levlulu_index_
+   end function levlulu_index
+
+   ! ======================================================================================
+
+   subroutine set_levlupft_index(this, index)
+     implicit none
+     class(fates_history_interface_type), intent(inout) :: this
+     integer, intent(in) :: index
+     this%levlupft_index_ = index
+   end subroutine set_levlupft_index
+
+   integer function levlupft_index(this)
+     implicit none
+     class(fates_history_interface_type), intent(in) :: this
+     levlupft_index = this%levlupft_index_
+   end function levlupft_index
+
+   ! ======================================================================================
+
    subroutine zero_site_hvars(this, currentSite, upfreq_in)
 
      ! This routine zero's a history diagnostic variable
@@ -1777,6 +1884,7 @@ end subroutine flush_hvars
     use FatesIOVariableKindMod, only : site_elem_r8, site_elpft_r8
     use FatesIOVariableKindMod, only : site_elcwd_r8, site_elage_r8, site_clscpf_r8
     use FatesIOVariableKindMod, only : site_cdpf_r8, site_cdsc_r8, site_cdam_r8
+    use FatesIOVariableKindMod, only : site_landuse_r8, site_lulu_r8, site_lupft_r8
     
     implicit none
 
@@ -1889,6 +1997,18 @@ end subroutine flush_hvars
     ! site x age x fuel size class
     index = index + 1
     call this%dim_kinds(index)%Init(site_clscpf_r8, 2)
+
+    ! site x land use class
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_landuse_r8, 2)
+
+    ! site x land use x land use class
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_lulu_r8, 2)
+
+    ! site x land use x pft
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_lupft_r8, 2)
 
     ! FIXME(bja, 2016-10) assert(index == fates_history_num_dim_kinds)
   end subroutine init_dim_kinds_maps
@@ -2098,6 +2218,7 @@ end subroutine flush_hvars
     use FatesLitterMod      , only : ncwd
     use FatesConstantsMod   , only : ican_upper
     use FatesConstantsMod   , only : ican_ustory
+    use FatesConstantsMod   , only : n_landuse_cats
     use FatesSizeAgeTypeIndicesMod, only : get_sizeage_class_index
     use FatesSizeAgeTypeIndicesMod, only : get_sizeagepft_class_index
     use FatesSizeAgeTypeIndicesMod, only : get_agepft_class_index
@@ -2193,6 +2314,7 @@ end subroutine flush_hvars
     real(r8) :: storec_understory_scpf(numpft*nlevsclass)
     
     integer  :: return_code
+    integer  :: i_dist, j_dist
     
     type(fates_patch_type),pointer  :: cpatch
     type(fates_cohort_type),pointer :: ccohort
@@ -2267,13 +2389,10 @@ end subroutine flush_hvars
                hio_canopy_biomass_si   => this%hvars(ih_canopy_biomass_si)%r81d, &
                hio_understory_biomass_si   => this%hvars(ih_understory_biomass_si)%r81d, &
                hio_primaryland_fusion_error_si    => this%hvars(ih_primaryland_fusion_error_si)%r81d, &
-               hio_disturbance_rate_p2p_si       => this%hvars(ih_disturbance_rate_p2p_si)%r81d, &
-               hio_disturbance_rate_p2s_si       => this%hvars(ih_disturbance_rate_p2s_si)%r81d, &
-               hio_disturbance_rate_s2s_si       => this%hvars(ih_disturbance_rate_s2s_si)%r81d, &
+               hio_disturbance_rate_si_lulu      => this%hvars(ih_disturbance_rate_si_lulu)%r82d, &
                hio_fire_disturbance_rate_si      => this%hvars(ih_fire_disturbance_rate_si)%r81d, &
                hio_logging_disturbance_rate_si   => this%hvars(ih_logging_disturbance_rate_si)%r81d, &
                hio_fall_disturbance_rate_si      => this%hvars(ih_fall_disturbance_rate_si)%r81d, &
-               hio_potential_disturbance_rate_si => this%hvars(ih_potential_disturbance_rate_si)%r81d, &
                hio_harvest_carbonflux_si => this%hvars(ih_harvest_carbonflux_si)%r81d, &
                hio_harvest_debt_si     => this%hvars(ih_harvest_debt_si)%r81d, &
                hio_harvest_debt_sec_si => this%hvars(ih_harvest_debt_sec_si)%r81d, &
@@ -2430,6 +2549,7 @@ end subroutine flush_hvars
                hio_yesterdaycanopylevel_canopy_si_scls     => this%hvars(ih_yesterdaycanopylevel_canopy_si_scls)%r82d, &
                hio_yesterdaycanopylevel_understory_si_scls => this%hvars(ih_yesterdaycanopylevel_understory_si_scls)%r82d, &
                hio_area_si_age         => this%hvars(ih_area_si_age)%r82d, &
+               hio_area_si_landuse     => this%hvars(ih_area_si_landuse)%r82d, &
                hio_lai_si_age          => this%hvars(ih_lai_si_age)%r82d, &
                hio_lai_secondary_si          => this%hvars(ih_lai_secondary_si)%r81d, &
                hio_canopy_area_si_age  => this%hvars(ih_canopy_area_si_age)%r82d, &
@@ -2441,7 +2561,7 @@ end subroutine flush_hvars
                hio_biomass_secondary_forest_si    => this%hvars(ih_biomass_secondary_forest_si)%r81d, &
                hio_woodproduct_si                 => this%hvars(ih_woodproduct_si)%r81d, &
                hio_agesince_anthrodist_si_age     => this%hvars(ih_agesince_anthrodist_si_age)%r82d, &
-               hio_secondaryforest_area_si_age    => this%hvars(ih_secondaryforest_area_si_age)%r82d, &
+               hio_secondarylands_area_si_age    => this%hvars(ih_secondarylands_area_si_age)%r82d, &
                hio_area_burnt_si_age              => this%hvars(ih_area_burnt_si_age)%r82d, &
                ! hio_fire_rate_of_spread_front_si_age  => this%hvars(ih_fire_rate_of_spread_front_si_age)%r82d, &
                hio_fire_intensity_si_age          => this%hvars(ih_fire_intensity_si_age)%r82d, &
@@ -2624,27 +2744,24 @@ end subroutine flush_hvars
       ! error in primary lands from patch fusion [m2 m-2 day-1] -> [m2 m-2 yr-1]
       hio_primaryland_fusion_error_si(io_si) = sites(s)%primary_land_patchfusion_error * days_per_year
 
-      ! output site-level disturbance rates [m2 m-2 day-1] -> [m2 m-2 yr-1]
-      hio_disturbance_rate_p2p_si(io_si) = sum(sites(s)%disturbance_rates_primary_to_primary(1:N_DIST_TYPES)) * days_per_year
-      hio_disturbance_rate_p2s_si(io_si) = sum(sites(s)%disturbance_rates_primary_to_secondary(1:N_DIST_TYPES)) * days_per_year
-      hio_disturbance_rate_s2s_si(io_si) = sum(sites(s)%disturbance_rates_secondary_to_secondary(1:N_DIST_TYPES)) * days_per_year
+      ! roll up disturbance rates in land-use x land-use array into a single dimension
+      do i_dist = 1, n_landuse_cats
+         do j_dist = 1, n_landuse_cats
+            hio_disturbance_rate_si_lulu(io_si, i_dist+n_landuse_cats*(j_dist-1)) = sum(sites(s)%disturbance_rates(1:n_dist_types,i_dist, j_dist)) * &
+                 days_per_year
+         end do
+      end do
 
-      hio_fire_disturbance_rate_si(io_si) = (sites(s)%disturbance_rates_primary_to_primary(dtype_ifire) + &
-         sites(s)%disturbance_rates_primary_to_secondary(dtype_ifire) +        &
-         sites(s)%disturbance_rates_secondary_to_secondary(dtype_ifire)) *     &
-         days_per_year
+      ! output site-level disturbance rates [m2 m-2 day-1] -> [m2 m-2 yr-1] - TO DO rework this
 
-      hio_logging_disturbance_rate_si(io_si) = (sites(s)%disturbance_rates_primary_to_primary(dtype_ilog) + &
-         sites(s)%disturbance_rates_primary_to_secondary(dtype_ilog) +         &
-         sites(s)%disturbance_rates_secondary_to_secondary(dtype_ilog)) *      &
-         days_per_year
+      hio_fire_disturbance_rate_si(io_si) = sum(sites(s)%disturbance_rates(dtype_ifire,1:n_landuse_cats,1:n_landuse_cats)) * &
+          days_per_year
 
-      hio_fall_disturbance_rate_si(io_si) = (sites(s)%disturbance_rates_primary_to_primary(dtype_ifall) + &
-         sites(s)%disturbance_rates_primary_to_secondary(dtype_ifall) +     &
-         sites(s)%disturbance_rates_secondary_to_secondary(dtype_ifall)) *  &
-         days_per_year
+      hio_logging_disturbance_rate_si(io_si) = sum(sites(s)%disturbance_rates(dtype_ilog,1:n_landuse_cats,1:n_landuse_cats)) * &
+           days_per_year
 
-      hio_potential_disturbance_rate_si(io_si) = sum(sites(s)%potential_disturbance_rates(1:N_DIST_TYPES)) * days_per_year
+      hio_fall_disturbance_rate_si(io_si) = sum(sites(s)%disturbance_rates(dtype_ifall,1:n_landuse_cats,1:n_landuse_cats)) * &
+           days_per_year
 
       hio_harvest_carbonflux_si(io_si) = sites(s)%mass_balance(element_pos(carbon12_element))%wood_product * AREA_INV
       
@@ -2655,7 +2772,7 @@ end subroutine flush_hvars
 
          ! Increment the number of patches per site
          hio_npatches_si(io_si) = hio_npatches_si(io_si) + 1._r8
-         if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+         if ( cpatch%land_use_label .eq. secondaryland ) then
             hio_npatches_sec_si(io_si) = hio_npatches_sec_si(io_si) + 1._r8
          end if
 
@@ -2664,6 +2781,9 @@ end subroutine flush_hvars
          ! Increment the fractional area in each age class bin
          hio_area_si_age(io_si,cpatch%age_class) = hio_area_si_age(io_si,cpatch%age_class) &
             + cpatch%area * AREA_INV
+
+         hio_area_si_landuse(io_si, cpatch%land_use_label) = hio_area_si_landuse(io_si, cpatch%land_use_label)&
+              + cpatch%area * AREA_INV
 
          ! 24hr veg temperature
          hio_tveg24(io_si) = hio_tveg24(io_si) + &
@@ -2694,7 +2814,7 @@ end subroutine flush_hvars
          endif
 
          ! some diagnostics on secondary forest area and its age distribution
-         if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+         if ( cpatch%land_use_label .eq. secondaryland ) then
             hio_fraction_secondary_forest_si(io_si) = hio_fraction_secondary_forest_si(io_si) + &
                cpatch%area * AREA_INV
 
@@ -2704,13 +2824,10 @@ end subroutine flush_hvars
                hio_agesince_anthrodist_si_age(io_si,ageclass_since_anthrodist)  &
                + cpatch%area * AREA_INV
 
-            hio_secondaryforest_area_si_age(io_si,cpatch%age_class) = &
-               hio_secondaryforest_area_si_age(io_si,cpatch%age_class)  &
+            hio_secondarylands_area_si_age(io_si,cpatch%age_class) = &
+               hio_secondarylands_area_si_age(io_si,cpatch%age_class)  &
                + cpatch%area * AREA_INV
-         endif
 
-         ! Secondary forest mean LAI
-         if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
             hio_lai_secondary_si(io_si) = hio_lai_secondary_si(io_si) &
                 + sum(cpatch%tlai_profile(:,:,:)) * cpatch%total_canopy_area
          end if
@@ -2780,7 +2897,7 @@ end subroutine flush_hvars
             ! Increment the number of cohorts per site
             hio_ncohorts_si(io_si) = hio_ncohorts_si(io_si) + 1._r8
 
-            if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+            if ( cpatch%land_use_label .eq. secondaryland ) then
                hio_ncohorts_sec_si(io_si) = hio_ncohorts_sec_si(io_si) + 1._r8
             end if
 
@@ -2896,7 +3013,7 @@ end subroutine flush_hvars
                   hio_nindivs_si_pft(io_si,ft) = hio_nindivs_si_pft(io_si,ft) + &
                      ccohort%n * AREA_INV
 
-                  if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+                  if ( cpatch%land_use_label .eq. secondaryland ) then
                      hio_nindivs_sec_si_pft(io_si,ft) = hio_nindivs_sec_si_pft(io_si,ft) + &
                         ccohort%n * AREA_INV
                   end if
@@ -2904,7 +3021,7 @@ end subroutine flush_hvars
                   hio_biomass_si_pft(io_si, ft) = hio_biomass_si_pft(io_si, ft) + &
                      (ccohort%n * AREA_INV) * total_m
 
-                  if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+                  if ( cpatch%land_use_label .eq. secondaryland ) then
                      hio_biomass_sec_si_pft(io_si, ft) = hio_biomass_sec_si_pft(io_si, ft) + &
                         (ccohort%n * AREA_INV) * total_m
                   end if
@@ -2914,7 +3031,7 @@ end subroutine flush_hvars
                      + total_m * ccohort%n * AREA_INV
 
                   ! track the total biomass on all secondary lands
-                  if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+                  if ( cpatch%land_use_label .eq. secondaryland ) then
                      hio_biomass_secondary_forest_si(io_si) = hio_biomass_secondary_forest_si(io_si) + &
                      total_m * ccohort%n * AREA_INV
                   endif
@@ -3044,7 +3161,7 @@ end subroutine flush_hvars
                hio_npp_si_pft(io_si, ft) = hio_npp_si_pft(io_si, ft) + &
                     ccohort%npp_acc_hold * n_perm2 / days_per_year / sec_per_day
                
-               if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+               if ( cpatch%land_use_label .eq. secondaryland ) then
                   hio_gpp_sec_si_pft(io_si, ft) = hio_gpp_sec_si_pft(io_si, ft) + &
                        ccohort%gpp_acc_hold * n_perm2 / days_per_year / sec_per_day
                   hio_npp_sec_si_pft(io_si, ft) = hio_npp_sec_si_pft(io_si, ft) + &
@@ -3185,7 +3302,7 @@ end subroutine flush_hvars
                hio_m9_si_scls(io_si,scls) = hio_m9_si_scls(io_si,scls) + ccohort%smort*ccohort%n / m2_per_ha
 
                ! Examine secondary forest mortality and mortality rates
-               if(cpatch%anthro_disturbance_label .eq. secondaryforest) then
+               if(cpatch%land_use_label .eq. secondaryland) then
 
                   if (hlm_use_cohort_age_tracking .eq.itrue) then
                      hio_m10_sec_si_scls(io_si,scls) = hio_m10_sec_si_scls(io_si,scls) +  &
@@ -3497,7 +3614,7 @@ end subroutine flush_hvars
                   hio_m3_mortality_understory_si_scpf(io_si,scpf) = hio_m3_mortality_understory_si_scpf(io_si,scpf) + &
                        ccohort%cmort * ccohort%n / m2_per_ha
 
-                  if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+                  if ( cpatch%land_use_label .eq. secondaryland ) then
                      hio_mortality_canopy_secondary_si_scls(io_si,scls) = hio_mortality_canopy_secondary_si_scls(io_si,scls) + &
                         (ccohort%bmort + ccohort%hmort + ccohort%cmort +   &
                      ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha + &
@@ -3817,7 +3934,7 @@ end subroutine flush_hvars
                sites(s)%fmort_rate_canopy(i_scls, i_pft) / m2_per_ha
 
             ! Shijie: Think about how to add later?
-            !if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+            !if ( cpatch%land_use_label .eq. secondaryland ) then
             !   hio_mortality_canopy_secondary_si_scls(io_si,i_scls) = hio_mortality_canopy_secondary_si_scls(io_si,i_scls) + &
             !      sites(s)%term_nindivs_canopy(i_scls,i_pft) * days_per_year / m2_per_ha
             !end if
@@ -4367,24 +4484,7 @@ end subroutine flush_hvars
    return
   end subroutine update_history_dyn
 
-  subroutine update_history_hifrq_multi(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
-      !
-    ! Arguments
-    class(fates_history_interface_type)                 :: this
-    integer                 , intent(in)            :: nc   ! clump index
-    integer                 , intent(in)            :: nsites
-    type(ed_site_type)      , intent(inout), target :: sites(nsites)
-    type(bc_in_type)        , intent(in)            :: bc_in(nsites)
-    type(bc_out_type)       , intent(in)            :: bc_out(nsites)
-    real(r8)                , intent(in)            :: dt_tstep
-
-    ! This is just a dummy file for compatibility
-    
-    return
-  end subroutine update_history_hifrq_multi
-
-  
-  subroutine update_history_hifrq_simple(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
+  subroutine update_history_hifrq(this,nc,nsites,sites,bc_in,dt_tstep)
 
     ! ---------------------------------------------------------------------------------
     ! This is the call to update the history IO arrays that are expected to only change
@@ -4399,7 +4499,6 @@ end subroutine flush_hvars
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
     type(bc_in_type)        , intent(in)            :: bc_in(nsites)
-    type(bc_out_type)       , intent(in)            :: bc_out(nsites)
     real(r8)                , intent(in)            :: dt_tstep
 
     ! Locals
@@ -4422,8 +4521,7 @@ end subroutine flush_hvars
     type(fates_patch_type),pointer  :: cpatch
     type(fates_cohort_type),pointer :: ccohort
     real(r8) :: per_dt_tstep          ! Time step in frequency units (/s)
-    real(r8) :: clllpf_area
-    
+
     associate( hio_gpp_si         => this%hvars(ih_gpp_si)%r81d, &
                hio_gpp_secondary_si   => this%hvars(ih_gpp_secondary_si)%r81d, &
                hio_npp_si         => this%hvars(ih_npp_si)%r81d, &
@@ -4475,8 +4573,28 @@ end subroutine flush_hvars
                hio_ts_net_uptake_si_cnlf => this%hvars(ih_ts_net_uptake_si_cnlf)%r82d, &
                hio_parsun_z_si_cnlfpft  => this%hvars(ih_parsun_z_si_cnlfpft)%r82d, &
                hio_parsha_z_si_cnlfpft  => this%hvars(ih_parsha_z_si_cnlfpft)%r82d, &
+               hio_laisun_z_si_cnlf     => this%hvars(ih_laisun_z_si_cnlf)%r82d, &
+               hio_laisha_z_si_cnlf     => this%hvars(ih_laisha_z_si_cnlf)%r82d, &
+               hio_laisun_z_si_cnlfpft  => this%hvars(ih_laisun_z_si_cnlfpft)%r82d, &
+               hio_laisha_z_si_cnlfpft  => this%hvars(ih_laisha_z_si_cnlfpft)%r82d, &
+               hio_laisun_top_si_can     => this%hvars(ih_laisun_top_si_can)%r82d, &
+               hio_laisha_top_si_can     => this%hvars(ih_laisha_top_si_can)%r82d, &
+               hio_fabd_sun_si_cnlfpft  => this%hvars(ih_fabd_sun_si_cnlfpft)%r82d, &
+               hio_fabd_sha_si_cnlfpft  => this%hvars(ih_fabd_sha_si_cnlfpft)%r82d, &
+               hio_fabi_sun_si_cnlfpft  => this%hvars(ih_fabi_sun_si_cnlfpft)%r82d, &
+               hio_fabi_sha_si_cnlfpft  => this%hvars(ih_fabi_sha_si_cnlfpft)%r82d, &
+               hio_fabd_sun_si_cnlf  => this%hvars(ih_fabd_sun_si_cnlf)%r82d, &
+               hio_fabd_sha_si_cnlf  => this%hvars(ih_fabd_sha_si_cnlf)%r82d, &
+               hio_fabi_sun_si_cnlf  => this%hvars(ih_fabi_sun_si_cnlf)%r82d, &
+               hio_fabi_sha_si_cnlf  => this%hvars(ih_fabi_sha_si_cnlf)%r82d, &
+               hio_parprof_dir_si_cnlf  => this%hvars(ih_parprof_dir_si_cnlf)%r82d, &
+               hio_parprof_dif_si_cnlf  => this%hvars(ih_parprof_dif_si_cnlf)%r82d, &
                hio_parprof_dir_si_cnlfpft  => this%hvars(ih_parprof_dir_si_cnlfpft)%r82d, &
                hio_parprof_dif_si_cnlfpft  => this%hvars(ih_parprof_dif_si_cnlfpft)%r82d, &
+               hio_fabd_sun_top_si_can  => this%hvars(ih_fabd_sun_top_si_can)%r82d, &
+               hio_fabd_sha_top_si_can  => this%hvars(ih_fabd_sha_top_si_can)%r82d, &
+               hio_fabi_sun_top_si_can  => this%hvars(ih_fabi_sun_top_si_can)%r82d, &
+               hio_fabi_sha_top_si_can  => this%hvars(ih_fabi_sha_top_si_can)%r82d, &
                hio_parsun_top_si_can     => this%hvars(ih_parsun_top_si_can)%r82d, &
                hio_parsha_top_si_can     => this%hvars(ih_parsha_top_si_can)%r82d, &
                hio_maint_resp_unreduced_si  => this%hvars(ih_maint_resp_unreduced_si)%r81d, &
@@ -4574,7 +4692,7 @@ end subroutine flush_hvars
                         ccohort%resp_m_unreduced * n_perm2 * per_dt_tstep
 
                   ! Secondary forest only
-                  if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+                  if ( cpatch%land_use_label .eq. secondaryland ) then
                       hio_npp_secondary_si(io_si) = hio_npp_secondary_si(io_si) + &
                             npp * n_perm2 * per_dt_tstep
                       hio_gpp_secondary_si(io_si) = hio_gpp_secondary_si(io_si) + &
@@ -4709,14 +4827,26 @@ end subroutine flush_hvars
                      ! calculate where we are on multiplexed dimensions
                      cnlfpft_indx = ileaf + (ican-1) * nlevleaf + (ipft-1) * nlevleaf * nclmax
                      cnlf_indx = ileaf + (ican-1) * nlevleaf
-
-                     clllpf_area = cpatch%canopy_area_profile(ican,ipft,ileaf)*cpatch%total_canopy_area
                      !
                      ! first do all the canopy x leaf x pft calculations
                      hio_parsun_z_si_cnlfpft(io_si,cnlfpft_indx) = hio_parsun_z_si_cnlfpft(io_si,cnlfpft_indx) + &
                           cpatch%ed_parsun_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
                      hio_parsha_z_si_cnlfpft(io_si,cnlfpft_indx) = hio_parsha_z_si_cnlfpft(io_si,cnlfpft_indx) + &
                           cpatch%ed_parsha_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
+                     !
+                     hio_laisun_z_si_cnlfpft(io_si,cnlfpft_indx) = hio_laisun_z_si_cnlfpft(io_si,cnlfpft_indx) + &
+                          cpatch%ed_laisun_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
+                     hio_laisha_z_si_cnlfpft(io_si,cnlfpft_indx) = hio_laisha_z_si_cnlfpft(io_si,cnlfpft_indx) + &
+                          cpatch%ed_laisha_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
+                     !
+                     hio_fabd_sun_si_cnlfpft(io_si,cnlfpft_indx) = hio_fabd_sun_si_cnlfpft(io_si,cnlfpft_indx) + &
+                          cpatch%fabd_sun_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
+                     hio_fabd_sha_si_cnlfpft(io_si,cnlfpft_indx) = hio_fabd_sha_si_cnlfpft(io_si,cnlfpft_indx) + &
+                          cpatch%fabd_sha_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
+                     hio_fabi_sun_si_cnlfpft(io_si,cnlfpft_indx) = hio_fabi_sun_si_cnlfpft(io_si,cnlfpft_indx) + &
+                          cpatch%fabi_sun_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
+                     hio_fabi_sha_si_cnlfpft(io_si,cnlfpft_indx) = hio_fabi_sha_si_cnlfpft(io_si,cnlfpft_indx) + &
+                          cpatch%fabi_sha_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
                      !
                      hio_parprof_dir_si_cnlfpft(io_si,cnlfpft_indx) = hio_parprof_dir_si_cnlfpft(io_si,cnlfpft_indx) + &
                           cpatch%parprof_pft_dir_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
@@ -4728,6 +4858,20 @@ end subroutine flush_hvars
                           cpatch%ed_parsun_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
                      hio_parsha_z_si_cnlf(io_si,cnlf_indx) = hio_parsha_z_si_cnlf(io_si,cnlf_indx) + &
                           cpatch%ed_parsha_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
+                     !
+                     hio_laisun_z_si_cnlf(io_si,cnlf_indx) = hio_laisun_z_si_cnlf(io_si,cnlf_indx) + &
+                          cpatch%ed_laisun_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
+                     hio_laisha_z_si_cnlf(io_si,cnlf_indx) = hio_laisha_z_si_cnlf(io_si,cnlf_indx) + &
+                          cpatch%ed_laisha_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
+                     !
+                     hio_fabd_sun_si_cnlf(io_si,cnlf_indx) = hio_fabd_sun_si_cnlf(io_si,cnlf_indx) + &
+                          cpatch%fabd_sun_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
+                     hio_fabd_sha_si_cnlf(io_si,cnlf_indx) = hio_fabd_sha_si_cnlf(io_si,cnlf_indx) + &
+                          cpatch%fabd_sha_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
+                     hio_fabi_sun_si_cnlf(io_si,cnlf_indx) = hio_fabi_sun_si_cnlf(io_si,cnlf_indx) + &
+                          cpatch%fabi_sun_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
+                     hio_fabi_sha_si_cnlf(io_si,cnlf_indx) = hio_fabi_sha_si_cnlf(io_si,cnlf_indx) + &
+                          cpatch%fabi_sha_z(ican,ipft,ileaf) * cpatch%area * AREA_INV
 
                   end do
                   !
@@ -4736,9 +4880,35 @@ end subroutine flush_hvars
                        cpatch%ed_parsun_z(ican,ipft,1) * cpatch%area * AREA_INV
                   hio_parsha_top_si_can(io_si,ican) = hio_parsha_top_si_can(io_si,ican) + &
                        cpatch%ed_parsha_z(ican,ipft,1) * cpatch%area * AREA_INV
-
-
                   !
+                  hio_laisun_top_si_can(io_si,ican) = hio_laisun_top_si_can(io_si,ican) + &
+                       cpatch%ed_laisun_z(ican,ipft,1) * cpatch%area * AREA_INV
+                  hio_laisha_top_si_can(io_si,ican) = hio_laisha_top_si_can(io_si,ican) + &
+                       cpatch%ed_laisha_z(ican,ipft,1) * cpatch%area * AREA_INV
+                  !
+                  hio_fabd_sun_top_si_can(io_si,ican) = hio_fabd_sun_top_si_can(io_si,ican) + &
+                       cpatch%fabd_sun_z(ican,ipft,1) * cpatch%area * AREA_INV
+                  hio_fabd_sha_top_si_can(io_si,ican) = hio_fabd_sha_top_si_can(io_si,ican) + &
+                       cpatch%fabd_sha_z(ican,ipft,1) * cpatch%area * AREA_INV
+                  hio_fabi_sun_top_si_can(io_si,ican) = hio_fabi_sun_top_si_can(io_si,ican) + &
+                       cpatch%fabi_sun_z(ican,ipft,1) * cpatch%area * AREA_INV
+                  hio_fabi_sha_top_si_can(io_si,ican) = hio_fabi_sha_top_si_can(io_si,ican) + &
+                       cpatch%fabi_sha_z(ican,ipft,1) * cpatch%area * AREA_INV
+                  !
+               end do
+            end do
+
+            ! PFT-mean radiation profiles
+            do ican = 1, cpatch%ncl_p
+               do ileaf = 1, maxval(cpatch%nrad(ican,:))
+
+                  ! calculate where we are on multiplexed dimensions
+                  cnlf_indx = ileaf + (ican-1) * nlevleaf
+                  !
+                  hio_parprof_dir_si_cnlf(io_si,cnlf_indx) = hio_parprof_dir_si_cnlf(io_si,cnlf_indx) + &
+                       cpatch%parprof_dir_z(ican,ileaf) * cpatch%area * AREA_INV
+                  hio_parprof_dif_si_cnlf(io_si,cnlf_indx) = hio_parprof_dif_si_cnlf(io_si,cnlf_indx) + &
+                       cpatch%parprof_dif_z(ican,ileaf) * cpatch%area * AREA_INV
                end do
             end do
 
@@ -4782,11 +4952,8 @@ end subroutine flush_hvars
 
    end associate
 
- end subroutine update_history_hifrq_simple
+end subroutine update_history_hifrq
 
-
-
- 
   ! =====================================================================================
 
   subroutine update_history_hydraulics(this,nc,nsites,sites,bc_in,dt_tstep)
@@ -5211,6 +5378,7 @@ end subroutine flush_hvars
     use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8
     use FatesIOVariableKindMod, only : site_elem_r8, site_elpft_r8, site_clscpf_r8
     use FatesIOVariableKindMod, only : site_elcwd_r8, site_elage_r8
+    use FatesIOVariableKindMod, only : site_landuse_r8, site_lulu_r8
 
 
     implicit none
@@ -5591,6 +5759,17 @@ end subroutine flush_hvars
          hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
          index=ih_biomass_si_age)
 
+    ! land use type resolved variables
+    call this%set_history_var(vname='FATES_PATCHAREA_LU', units='m2 m-2',      &
+         long='patch area by land use type', use_default='active',  &
+         avgflag='A', vtype=site_landuse_r8, hlms='CLM:ALM', upfreq=1, ivar=ivar,  &
+         initialize=initialize_variables, index=ih_area_si_landuse)
+
+    call this%set_history_var(vname='FATES_DISTURBANCE_RATE_MATRIX_LULU', units='m2 m-2 yr-1',      &
+         long='disturbance rates by land use type x land use type matrix', use_default='active',  &
+         avgflag='A', vtype=site_lulu_r8, hlms='CLM:ALM', upfreq=1, ivar=ivar,  &
+         initialize=initialize_variables, index=ih_disturbance_rate_si_lulu)
+
     ! Secondary forest area and age diagnostics
 
     call this%set_history_var(vname='FATES_SECONDARY_FOREST_FRACTION',         &
@@ -5624,7 +5803,7 @@ end subroutine flush_hvars
          long='secondary forest patch area age distribution since any kind of disturbance', &
          use_default='inactive', avgflag='A', vtype=site_age_r8,               &
          hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
-         index=ih_secondaryforest_area_si_age)
+         index=ih_secondarylands_area_si_age)
 
     ! Fire Variables
 
@@ -6267,27 +6446,6 @@ end subroutine flush_hvars
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_primaryland_fusion_error_si)
 
-    call this%set_history_var(vname='FATES_DISTURBANCE_RATE_P2P',              &
-         units='m2 m-2 yr-1',                                                  &
-         long='disturbance rate from primary to primary lands',                &
-         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
-         index = ih_disturbance_rate_p2p_si)
-
-    call this%set_history_var(vname='FATES_DISTURBANCE_RATE_P2S',              &
-         units='m2 m-2 yr-1',                                                  &
-         long='disturbance rate from primary to secondary lands',              &
-         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
-         index = ih_disturbance_rate_p2s_si )
-
-    call this%set_history_var(vname='FATES_DISTURBANCE_RATE_S2S',              &
-         units='m2 m-2 yr-1',                                                  &
-         long='disturbance rate from secondary to secondary lands',            &
-         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
-         index = ih_disturbance_rate_s2s_si)
-
     call this%set_history_var(vname='FATES_DISTURBANCE_RATE_FIRE',             &
          units='m2 m-2 yr-1', long='disturbance rate from fire',               &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
@@ -6305,13 +6463,6 @@ end subroutine flush_hvars
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_fall_disturbance_rate_si)
-
-    call this%set_history_var(vname='FATES_DISTURBANCE_RATE_POTENTIAL',        &
-         units='m2 m-2 yr-1',                                                  &
-         long='potential (i.e., including unresolved) disturbance rate',       &
-         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
-         index = ih_potential_disturbance_rate_si)
 
     call this%set_history_var(vname='FATES_HARVEST_CARBON_FLUX',               &
          units='kg m-2 yr-1',                                                  &
@@ -6553,6 +6704,90 @@ end subroutine flush_hvars
          hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
          index = ih_parsha_top_si_can)
 
+    call this%set_history_var(vname='FATES_LAISUN_Z_CLLL', units='m2 m-2',     &
+         long='LAI in the sun by each canopy and leaf layer',                  &
+         use_default='inactive', avgflag='A', vtype=site_cnlf_r8,              &
+         hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
+         index = ih_laisun_z_si_cnlf)
+
+    call this%set_history_var(vname='FATES_LAISHA_Z_CLLL', units='m2 m-2',     &
+         long='LAI in the shade by each canopy and leaf layer',                &
+         use_default='inactive', avgflag='A', vtype=site_cnlf_r8,              &
+         hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
+         index = ih_laisha_z_si_cnlf)
+
+    call this%set_history_var(vname='FATES_LAISUN_Z_CLLLPF', units='m2 m-2',   &
+         long='LAI in the sun by each canopy, leaf, and PFT', &
+         use_default='inactive', avgflag='A', vtype=site_cnlfpft_r8,           &
+         hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
+         index = ih_laisun_z_si_cnlfpft)
+
+    call this%set_history_var(vname='FATES_LAISHA_Z_CLLLPF', units='m2 m-2',   &
+         long='LAI in the shade by each canopy, leaf, and PFT',                &
+         use_default='inactive', avgflag='A', vtype=site_cnlfpft_r8,           &
+         hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
+         index = ih_laisha_z_si_cnlfpft)
+
+    call this%set_history_var(vname='FATES_LAISUN_TOP_CL', units='m2 m-2',     &
+         long='LAI in the sun by the top leaf layer of each canopy layer',     &
+         use_default='inactive', avgflag='A', vtype=site_can_r8,               &
+         hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
+         index = ih_laisun_top_si_can)
+
+    call this%set_history_var(vname='FATES_LAISHA_TOP_CL', units='m2 m-2',     &
+         long='LAI in the shade by the top leaf layer of each canopy layer',   &
+         use_default='inactive', avgflag='A', vtype=site_can_r8,               &
+         hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
+         index = ih_laisha_top_si_can)
+
+    call this%set_history_var(vname='FATES_FABD_SUN_CLLLPF', units='1',        &
+         long='sun fraction of direct light absorbed by each canopy, leaf, and PFT', &
+         use_default='inactive', avgflag='A', vtype=site_cnlfpft_r8,           &
+         hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
+         index = ih_fabd_sun_si_cnlfpft)
+
+    call this%set_history_var(vname='FATES_FABD_SHA_CLLLPF', units='1',        &
+         long='shade fraction of direct light absorbed by each canopy, leaf, and PFT', &
+         use_default='inactive', avgflag='A', vtype=site_cnlfpft_r8,           &
+         hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
+         index = ih_fabd_sha_si_cnlfpft)
+
+    call this%set_history_var(vname='FATES_FABI_SUN_CLLLPF', units='1',        &
+         long='sun fraction of indirect light absorbed by each canopy, leaf, and PFT', &
+         use_default='inactive', avgflag='A', vtype=site_cnlfpft_r8,           &
+         hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
+         index = ih_fabi_sun_si_cnlfpft)
+
+    call this%set_history_var(vname='FATES_FABI_SHA_CLLLPF', units='1',        &
+         long='shade fraction of indirect light absorbed by each canopy, leaf, and PFT', &
+         use_default='inactive', avgflag='A', vtype=site_cnlfpft_r8,           &
+         hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
+         index = ih_fabi_sha_si_cnlfpft)
+
+    call this%set_history_var(vname='FATES_FABD_SUN_CLLL', units='1',          &
+         long='sun fraction of direct light absorbed by each canopy and leaf layer', &
+         use_default='inactive', avgflag='A', vtype=site_cnlf_r8,              &
+         hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
+         index = ih_fabd_sun_si_cnlf)
+
+    call this%set_history_var(vname='FATES_FABD_SHA_CLLL', units='1',          &
+         long='shade fraction of direct light absorbed by each canopy and leaf layer', &
+         use_default='inactive', avgflag='A', vtype=site_cnlf_r8,              &
+         hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
+         index = ih_fabd_sha_si_cnlf)
+
+    call this%set_history_var(vname='FATES_FABI_SUN_CLLL', units='1',          &
+         long='sun fraction of indirect light absorbed by each canopy and leaf layer', &
+         use_default='inactive', avgflag='A', vtype=site_cnlf_r8,              &
+         hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
+         index = ih_fabi_sun_si_cnlf)
+
+    call this%set_history_var(vname='FATES_FABI_SHA_CLLL', units='1',          &
+         long='shade fraction of indirect light absorbed by each canopy and leaf layer', &
+         use_default='inactive', avgflag='A', vtype=site_cnlf_r8,              &
+         hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
+         index = ih_fabi_sha_si_cnlf)
+
     call this%set_history_var(vname='FATES_PARPROF_DIR_CLLLPF', units='W m-2', &
          long='radiative profile of direct PAR through each canopy, leaf, and PFT', &
          use_default='inactive', avgflag='A', vtype=site_cnlfpft_r8,           &
@@ -6564,6 +6799,42 @@ end subroutine flush_hvars
          use_default='inactive', avgflag='A', vtype=site_cnlfpft_r8,           &
          hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
          index = ih_parprof_dif_si_cnlfpft)
+
+    call this%set_history_var(vname='FATES_PARPROF_DIR_CLLL', units='W m-2',   &
+         long='radiative profile of direct PAR through each canopy and leaf layer (averaged across PFTs)', &
+         use_default='inactive', avgflag='A', vtype=site_cnlf_r8,              &
+         hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
+         index = ih_parprof_dir_si_cnlf)
+
+    call this%set_history_var(vname='FATES_PARPROF_DIF_CLLL', units='W m-2',   &
+         long='radiative profile of diffuse PAR through each canopy and leaf layer (averaged across PFTs)', &
+         use_default='inactive', avgflag='A', vtype=site_cnlf_r8,              &
+         hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
+         index = ih_parprof_dif_si_cnlf)
+
+    call this%set_history_var(vname='FATES_FABD_SUN_TOPLF_CL', units='1',      &
+         long='sun fraction of direct light absorbed by the top leaf layer of each canopy layer', &
+         use_default='inactive', avgflag='A', vtype=site_can_r8,               &
+         hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
+         index = ih_fabd_sun_top_si_can)
+
+    call this%set_history_var(vname='FATES_FABD_SHA_TOPLF_CL', units='1',      &
+         long='shade fraction of direct light absorbed by the top leaf layer of each canopy layer', &
+         use_default='inactive', avgflag='A', vtype=site_can_r8,               &
+         hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
+         index = ih_fabd_sha_top_si_can)
+
+    call this%set_history_var(vname='FATES_FABI_SUN_TOPLF_CL', units='1',      &
+         long='sun fraction of indirect light absorbed by the top leaf layer of each canopy layer', &
+         use_default='inactive', avgflag='A', vtype=site_can_r8,               &
+         hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
+         index = ih_fabi_sun_top_si_can)
+
+    call this%set_history_var(vname='FATES_FABI_SHA_TOPLF_CL', units='1',      &
+         long='shade fraction of indirect light absorbed by the top leaf layer of each canopy layer', &
+         use_default='inactive', avgflag='A', vtype=site_can_r8,               &
+         hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
+         index = ih_fabi_sha_top_si_can)
 
     !!! canopy-resolved fluxes and structure
 
