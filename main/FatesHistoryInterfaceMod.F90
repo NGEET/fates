@@ -2171,9 +2171,8 @@ end subroutine flush_hvars
     integer  :: ageclass_since_anthrodist  ! what is the equivalent age class for
     ! time-since-anthropogenic-disturbance of secondary forest
     
-    ! Descriptions for the following 3 variables might not be quite right - Jenny K.
-    integer :: i_term_mort_type_cstarv ! index for carbon starvation-related termination mortality
-    integer :: i_term_mort_type_canlev ! index for termination mortality type by canopy level
+    integer :: i_term_mort_type_cstarv ! index for carbon starvation termination mortality
+    integer :: i_term_mort_type_canlev ! index for termination mortality due to being pushed out of lowest canopy level
     integer :: n_term_mort_types ! number of termination mortality types
     
     real(r8) :: store_max   ! The target nutrient mass for storage element of interest [kg]
