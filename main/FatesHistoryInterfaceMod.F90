@@ -2132,6 +2132,11 @@ end subroutine flush_hvars
     use EDParamsMod               , only : nlevleaf
     use EDParamsMod               , only : ED_val_history_height_bin_edges
     use FatesInterfaceTypesMod    , only : nlevdamage
+
+    use FatesConstantsMod,      only : n_term_mort_types
+    use FatesConstantsMod,      only : i_term_mort_type_cstarv
+    use FatesConstantsMod,      only : i_term_mort_type_canlev
+    use FatesConstantsMod,      only : i_term_mort_type_numdens
     
     ! Arguments
     class(fates_history_interface_type)             :: this
@@ -2170,10 +2175,7 @@ end subroutine flush_hvars
     integer  :: model_day_int ! Integer model day since simulation start
     integer  :: ageclass_since_anthrodist  ! what is the equivalent age class for
     ! time-since-anthropogenic-disturbance of secondary forest
-    
-    integer :: i_term_mort_type_cstarv ! index for carbon starvation termination mortality
-    integer :: i_term_mort_type_canlev ! index for termination mortality due to being pushed out of lowest canopy level
-    integer :: n_term_mort_types ! number of termination mortality types
+
     
     real(r8) :: store_max   ! The target nutrient mass for storage element of interest [kg]
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
@@ -3797,6 +3799,7 @@ end subroutine flush_hvars
             ! termination mortality. sum of canopy and understory indices
             ! move carbon starvation-related termination mortality to the carbon starvation mortality type and only consider
             ! the other two types of termination mortality here.
+
             hio_m6_si_scpf(io_si,i_scpf) = (sum(sites(s)%term_nindivs_canopy(i_term_mort_type_canlev:n_term_mort_types,i_scls,i_pft)) + &
                sum(sites(s)%term_nindivs_ustory(i_term_mort_type_canlev:n_term_mort_types,i_scls,i_pft))) *              &
                days_per_year / m2_per_ha
@@ -3816,8 +3819,27 @@ end subroutine flush_hvars
                  (sites(s)%term_nindivs_canopy(i_term_mort_type_cstarv,i_scls,i_pft) +              &
                  sites(s)%term_nindivs_ustory(i_term_mort_type_cstarv,i_scls,i_pft)) *              &
                  days_per_year / m2_per_ha
+
+
+            ! add c-starve termination mortality to canopy and understory M3 mortality (N/m^2/yr)
+            hio_m3_mortality_canopy_si_scpf(io_si,i_scpf) = hio_m3_mortality_canopy_si_scpf(io_si,i_scpf) + &
+                 (sites(s)%term_nindivs_canopy(i_term_mort_type_cstarv,i_scls,i_pft) *              &
+                 days_per_year / m2_per_ha
+
+            hio_m3_mortality_ustory_si_scpf(io_si,i_scpf) = hio_m3_mortality_ustory_si_scpf(io_si,i_scpf) + &
+                 (sites(s)%term_nindivs_ustory(i_term_mort_type_cstarv,i_scls,i_pft) *              &
+                 days_per_year / m2_per_ha
+
+            hio_m3_mortality_canopy_si_scls(io_si,i_scls) = hio_m3_mortality_canopy_si_scls(io_si,i_scls) + &
+                 (sites(s)%term_nindivs_canopy(i_term_mort_type_cstarv,i_scls,i_pft) *              &
+                 days_per_year / m2_per_ha
+
+            hio_m3_mortality_ustory_si_scls(io_si,scls) = hio_m3_mortality_ustory_si_scls(io_si,scls) + &
+                 (sites(s)%term_nindivs_ustory(i_term_mort_type_cstarv,i_scls,i_pft) *              &
+                 days_per_year / m2_per_ha
+            
             !
-            ! add termination mortality to canopy and understory mortality
+            ! add termination mortality to canopy and understory mortality (N/m^2/yr)
             hio_mortality_canopy_si_scls(io_si,i_scls) = hio_mortality_canopy_si_scls(io_si,i_scls) + &
                sum(sites(s)%term_nindivs_canopy(:,i_scls,i_pft)) * days_per_year / m2_per_ha
 
@@ -3830,7 +3852,7 @@ end subroutine flush_hvars
             hio_mortality_understory_si_scpf(io_si,i_scpf) = hio_mortality_understory_si_scpf(io_si,i_scpf) + &
                sum(sites(s)%term_nindivs_ustory(:,i_scls,i_pft)) * days_per_year / m2_per_ha
 
-            !
+                        !
             ! imort on its own
             hio_m4_si_scpf(io_si,i_scpf) = sites(s)%imort_rate(i_scls, i_pft) / m2_per_ha
             hio_m4_si_scls(io_si,i_scls) = hio_m4_si_scls(io_si,i_scls) + sites(s)%imort_rate(i_scls, i_pft) / m2_per_ha
@@ -7219,14 +7241,14 @@ end subroutine update_history_hifrq
           initialize=initialize_variables, index = ih_mortality_canopy_si_scpf)
 
     call this%set_history_var(vname='FATES_M3_MORTALITY_CANOPY_SZPF',          &
-          units = 'N/ha/yr',                                                   &
+          units = 'm-2 yr-1',                                                   &
           long='C starvation mortality of canopy plants by pft/size',          &
           use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_m3_mortality_canopy_si_scpf )
 
     call this%set_history_var(vname='FATES_M3_MORTALITY_USTORY_SZPF',          &
-          units = 'N/ha/yr',                                                   &
+          units = 'm-2 yr-1',                                                   &
           long='C starvation mortality of understory plants by pft/size',      &
           use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
@@ -7497,14 +7519,14 @@ end subroutine update_history_hifrq
           initialize=initialize_variables, index = ih_nplant_understory_si_scls)
 
     call this%set_history_var(vname='FATES_M3_MORTALITY_CANOPY_SZ',            &
-          units = 'N/ha/yr',                                                   &
+          units = 'm-2 yr-1',                                                   &
           long='C starvation mortality of canopy plants by size',              &
           use_default='inactive', avgflag='A', vtype=site_size_r8,             &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_m3_mortality_canopy_si_scls )
 
     call this%set_history_var(vname='FATES_M3_MORTALITY_USTORY_SZ',            &
-          units = 'N/ha/yr',                                                   &
+          units = 'm-2 yr-1',                                                   &
           long='C starvation mortality of understory plants by size',          &
           use_default='inactive', avgflag='A', vtype=site_size_r8,             &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
