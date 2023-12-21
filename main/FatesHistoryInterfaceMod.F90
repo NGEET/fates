@@ -3823,20 +3823,16 @@ end subroutine flush_hvars
 
             ! add c-starve termination mortality to canopy and understory M3 mortality (N/m^2/yr)
             hio_m3_mortality_canopy_si_scpf(io_si,i_scpf) = hio_m3_mortality_canopy_si_scpf(io_si,i_scpf) + &
-                 (sites(s)%term_nindivs_canopy(i_term_mort_type_cstarv,i_scls,i_pft) *              &
-                 days_per_year / m2_per_ha
+                 (sites(s)%term_nindivs_canopy(i_term_mort_type_cstarv,i_scls,i_pft) * days_per_year / m2_per_ha
 
             hio_m3_mortality_ustory_si_scpf(io_si,i_scpf) = hio_m3_mortality_ustory_si_scpf(io_si,i_scpf) + &
-                 (sites(s)%term_nindivs_ustory(i_term_mort_type_cstarv,i_scls,i_pft) *              &
-                 days_per_year / m2_per_ha
+                 (sites(s)%term_nindivs_ustory(i_term_mort_type_cstarv,i_scls,i_pft) * days_per_year / m2_per_ha
 
             hio_m3_mortality_canopy_si_scls(io_si,i_scls) = hio_m3_mortality_canopy_si_scls(io_si,i_scls) + &
-                 (sites(s)%term_nindivs_canopy(i_term_mort_type_cstarv,i_scls,i_pft) *              &
-                 days_per_year / m2_per_ha
+                 (sites(s)%term_nindivs_canopy(i_term_mort_type_cstarv,i_scls,i_pft) * days_per_year / m2_per_ha
 
-            hio_m3_mortality_ustory_si_scls(io_si,scls) = hio_m3_mortality_ustory_si_scls(io_si,scls) + &
-                 (sites(s)%term_nindivs_ustory(i_term_mort_type_cstarv,i_scls,i_pft) *              &
-                 days_per_year / m2_per_ha
+            hio_m3_mortality_ustory_si_scls(io_si,i_scls) = hio_m3_mortality_ustory_si_scls(io_si,i_scls) + &
+                 (sites(s)%term_nindivs_ustory(i_term_mort_type_cstarv,i_scls,i_pft) * days_per_year / m2_per_ha
             
             !
             ! add termination mortality to canopy and understory mortality (N/m^2/yr)
