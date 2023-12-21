@@ -121,7 +121,7 @@ contains
              currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
              currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
              
-             currentPatch%consv_err(:)              = hlm_hio_ignore_val
+             currentPatch%rad_error(:)              = hlm_hio_ignore_val
              
              currentPatch%solar_zenith_flag         = bc_in(s)%filter_vegzen_pa(ifp)
              currentPatch%solar_zenith_angle        = bc_in(s)%coszen_pa(ifp)
@@ -164,7 +164,7 @@ contains
                    ! there are no leaf layers in this patch. it is effectively bare ground.
                    bc_out(s)%fabd_parb(ifp,:) = 0.0_r8
                    bc_out(s)%fabi_parb(ifp,:) = 0.0_r8
-                   currentPatch%radiation_error = 0.0_r8
+                   currentPatch%rad_error(:)  = 0.0_r8
 
                    do ib = 1,hlm_numSWb
                       bc_out(s)%albd_parb(ifp,ib) = bc_in(s)%albgr_dir_rb(ib)
@@ -208,7 +208,7 @@ contains
                                 sites(s)%ipiv_2str,             &  ! inout (scratch)
                                 bc_out(s)%albd_parb(ifp,ib), &  ! out
                                 bc_out(s)%albi_parb(ifp,ib), &  ! out
-                                currentPatch%consv_err(ib),  &  ! out
+                                currentPatch%rad_error(ib),  &  ! out
                                 bc_out(s)%fabd_parb(ifp,ib), &  ! out
                                 bc_out(s)%fabi_parb(ifp,ib), &  ! out
                                 bc_out(s)%ftdd_parb(ifp,ib), &  ! out
@@ -385,9 +385,11 @@ contains
                 end do !cl
                 
                 ! Convert normalized radiation error units from fraction of radiation to W/m2
-                cpatch%radiation_error = cpatch%radiation_error * (bc_in(s)%solad_parb(ifp,ipar) + &
-                     bc_in(s)%solai_parb(ifp,ipar))
-
+                do ib = 1,num_swb
+                   cpatch%rad_error(ib) = cpatch%rad_error(ib) * &
+                        (bc_in(s)%solad_parb(ifp,ib) + bc_in(s)%solai_parb(ifp,ib))
+                end do
+                
                 ! output the actual PAR profiles through the canopy for diagnostic purposes
                 do cl = 1, cpatch%ncl_p
                    do ft = 1,numpft

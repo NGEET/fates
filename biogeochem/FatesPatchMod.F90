@@ -121,7 +121,7 @@ module FatesPatchMod
     !---------------------------------------------------------------------------
 
     ! RADIATION
-    real(r8) :: radiation_error                           ! radiation error [W/m2] 
+    real(r8) :: rad_error(num_swb)                        ! radiation consv error by band [W/m2]
     real(r8) :: fcansno                                   ! fraction of canopy covered in snow [0-1]
     logical  :: solar_zenith_flag                         ! integer flag specifying daylight (based on zenith angle)
     real(r8) :: solar_zenith_angle                        ! solar zenith angle [radians]
@@ -155,7 +155,7 @@ module FatesPatchMod
     real(r8), allocatable :: sabs_dif(:)                  ! fraction of incoming diffuse radiation that is absorbed by the canopy
 
     ! Twostream data structures
-    type(twostream_type) :: twostr                        ! This holds all two-stream data for the patch
+    class(twostream_type),pointer :: twostr                        ! This holds all two-stream data and procedures
    
     
     !---------------------------------------------------------------------------
@@ -327,7 +327,7 @@ module FatesPatchMod
       this%nrmlzd_parprof_pft_dif_z(:,:,:,:) = nan
 
       ! RADIATION
-      this%radiation_error              = nan 
+      this%rad_error(:)                 = nan
       this%fcansno                      = nan 
       this%solar_zenith_flag            = .false. 
       this%solar_zenith_angle           = nan 
@@ -418,7 +418,7 @@ module FatesPatchMod
       this%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0.0_r8
 
       ! RADIATION
-      this%radiation_error                   = 0.0_r8
+      this%rad_error(:)                      = 0.0_r8
       this%fabd_sun_z(:,:,:)                 = 0.0_r8 
       this%fabd_sha_z(:,:,:)                 = 0.0_r8 
       this%fabi_sun_z(:,:,:)                 = 0.0_r8 

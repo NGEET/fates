@@ -3678,7 +3678,7 @@ contains
            currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
            currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
 
-           currentPatch%consv_err(:) = 0._r8
+           currentPatch%rad_error(:) = 0._r8
            
            ! -----------------------------------------------------------
            ! When calling norman radiation from the short-timestep
@@ -3745,8 +3745,7 @@ contains
                               sites(s)%ipiv_2str,          &  ! inout (scratch)
                               bc_out(s)%albd_parb(ifp,ib), &  ! out
                               bc_out(s)%albi_parb(ifp,ib), &  ! out
-                              currentPatch%solve_err(ib),  &  ! out
-                              currentPatch%consv_err(ib),  &  ! out
+                              currentPatch%rad_error(ib),  &  ! out
                               bc_out(s)%fabd_parb(ifp,ib), &  ! out
                               bc_out(s)%fabi_parb(ifp,ib), &  ! out
                               bc_out(s)%ftdd_parb(ifp,ib), &  ! out

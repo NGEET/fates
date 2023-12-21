@@ -477,10 +477,10 @@ contains
           end do!ft
        end do!L
 
-       ! Zero out the radiation error for the current patch before conducting the conservation check
-       currentPatch%radiation_error = 0._r8
-       
        do ib = 1,hlm_numSWb
+
+          currentPatch%rad_error(ib) = 0._r8
+          
           Dif_dn(:,:,:) = 0.00_r8
           Dif_up(:,:,:) = 0.00_r8
           do L = 1, currentPatch%NCL_p !work down from the top of the canopy.
@@ -899,8 +899,9 @@ contains
           if ( (currentPatch%total_canopy_area / currentPatch%area) .gt. tolerance ) then
              ! normalize rad error by the veg-covered fraction of the patch because that is
              ! the only part that this code applies to
-             currentPatch%radiation_error = currentPatch%radiation_error + error &
+             currentPatch%rad_error(ib) = currentPatch%rad_error(ib) + error &
                   * currentPatch%total_canopy_area / currentPatch%area
+
           endif
 
           lai_reduction(:) = 0.0_r8
