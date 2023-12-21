@@ -3825,13 +3825,13 @@ end subroutine flush_hvars
             hio_m3_mortality_canopy_si_scpf(io_si,i_scpf) = hio_m3_mortality_canopy_si_scpf(io_si,i_scpf) + &
                  sites(s)%term_nindivs_canopy(i_term_mort_type_cstarv,i_scls,i_pft) * days_per_year / m2_per_ha
 
-            hio_m3_mortality_ustory_si_scpf(io_si,i_scpf) = hio_m3_mortality_ustory_si_scpf(io_si,i_scpf) + &
+            hio_m3_mortality_understory_si_scpf(io_si,i_scpf) = hio_m3_mortality_understory_si_scpf(io_si,i_scpf) + &
                  sites(s)%term_nindivs_ustory(i_term_mort_type_cstarv,i_scls,i_pft) * days_per_year / m2_per_ha
 
             hio_m3_mortality_canopy_si_scls(io_si,i_scls) = hio_m3_mortality_canopy_si_scls(io_si,i_scls) + &
                  sites(s)%term_nindivs_canopy(i_term_mort_type_cstarv,i_scls,i_pft) * days_per_year / m2_per_ha
 
-            hio_m3_mortality_ustory_si_scls(io_si,i_scls) = hio_m3_mortality_ustory_si_scls(io_si,i_scls) + &
+            hio_m3_mortality_understory_si_scls(io_si,i_scls) = hio_m3_mortality_understory_si_scls(io_si,i_scls) + &
                  sites(s)%term_nindivs_ustory(i_term_mort_type_cstarv,i_scls,i_pft) * days_per_year / m2_per_ha
             
             !
