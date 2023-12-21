@@ -503,6 +503,12 @@ end subroutine create_cohort
    
    !----------------------------------------------------------------------
 
+   ! check termination_type; it should not be 0
+   if (termination_type == 0) then
+      write(fates_log(),*) 'termination_type=0'
+      call endrun(msg=errMsg(sourcefile, __LINE__))
+   endif
+   
    leaf_c  = currentCohort%prt%GetState(leaf_organ, carbon12_element)
    store_c = currentCohort%prt%GetState(store_organ, carbon12_element)
    sapw_c  = currentCohort%prt%GetState(sapw_organ, carbon12_element)
