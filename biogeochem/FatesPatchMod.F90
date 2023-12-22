@@ -155,7 +155,7 @@ module FatesPatchMod
     real(r8), allocatable :: sabs_dif(:)                  ! fraction of incoming diffuse radiation that is absorbed by the canopy
 
     ! Twostream data structures
-    class(twostream_type),pointer :: twostr                        ! This holds all two-stream data and procedures
+    type(twostream_type) :: twostr                        ! This holds all two-stream data and procedures
    
     
     !---------------------------------------------------------------------------

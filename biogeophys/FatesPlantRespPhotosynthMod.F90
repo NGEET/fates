@@ -654,8 +654,8 @@ contains
 
                                        par_per_sunla = 0._r8
                                        par_per_shala = 0._r8
-                                       laisun = (fsun*cohort_layer_elai(iv))
-                                       laisha = ((1._r8 - fsun)*cohort_layer_elai(iv))
+                                       laisun = 0.5_r8*cohort_layer_elai(iv)
+                                       laisha = 0.5_r8*cohort_layer_elai(iv)
                                        canopy_area = 1._r8 !currentPatch%canopy_area_profile(cl,ft,iv)
                                        fsun = 0.5_r8 !avoid div0, should have no impact
                                        
