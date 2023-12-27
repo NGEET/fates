@@ -45,7 +45,6 @@ module EDCanopyStructureMod
   use PRTGenericMod,          only : struct_organ
   use PRTGenericMod,          only : SetState
   use PRTGenericMod,          only : carbon12_element
-  use FatesAllometryMod     , only : VegAreaLayer
   use FatesTwoStreamInterfaceMod, only : FatesConstructRadElements
   use FatesRadiationMemMod  , only : twostr_solver
   
