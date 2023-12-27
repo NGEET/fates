@@ -1015,7 +1015,8 @@ contains
                   ! Normalize canopy total conductance by the effective LAI
                   ! The value here was integrated over each cohort x leaf layer
                   ! and was weighted by m2 of effective leaf area for each layer
-
+                  ! preserve_b4b will be removed soon. This is kept here to prevent
+                  ! round off errors in the baseline tests for the two-stream code (RGK 12-27-23) 
                   if(preserve_b4b) then
                      patch_la = patch_la/ currentPatch%total_canopy_area
                   end if
@@ -1029,7 +1030,8 @@ contains
                      ! Normalize the leaf-area weighted canopy conductance
                      ! The denominator is the total effective leaf area in the canopy,
                      ! units of [m/s]*[m2] / [m2] = [m/s]
-
+                     ! preserve_b4b will be removed soon. This is kept here to prevent
+                     ! round off errors in the baseline tests for the two-stream code (RGK 12-27-23) 
                      if_preserve_b4b3: if(preserve_b4b) then
                         elai     = calc_areaindex(currentPatch,'elai')
                         g_sb_leaves = g_sb_leaves / (elai*currentPatch%total_canopy_area)
@@ -2433,7 +2435,6 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
     vcmaxc = fth25_f(vcmaxhd, vcmaxse)
     jmaxc  = fth25_f(jmaxhd, jmaxse)
 
-    !!if ( parsun_per_la <= nearzero) then           ! night time [preserve_b4b]
     if(parsun_per_la <= 0._r8) then
        vcmax             = 0._r8
        jmax              = 0._r8

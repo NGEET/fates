@@ -141,6 +141,8 @@ contains
                 ! non-zero diffuse radiation when cosz<=0
 
                 ! Temporarily turn off to preserve b4b
+                ! preserve_b4b will be removed soon. This is kept here to prevent
+                ! round off errors in the baseline tests for the two-stream code (RGK 12-27-23) 
                 if (.not.preserve_b4b) then
                    bc_out(s)%albd_parb(ifp,:)            = 1._r8
                    bc_out(s)%albi_parb(ifp,:)            = 1._r8
@@ -302,6 +304,8 @@ contains
 
              bc_out(s)%fsun_pa(ifp) = 0._r8
 
+             ! preserve_b4b will be removed soon. This is kept here to prevent
+             ! round off errors in the baseline tests for the two-stream code (RGK 12-27-23)
              if(.not.preserve_b4b)then
                 bc_out(s)%laisun_pa(ifp) = 0._r8
                 bc_out(s)%laisha_pa(ifp) = calc_areaindex(cpatch,'elai')
@@ -320,6 +324,8 @@ contains
                 
                 do cl = 1, cpatch%ncl_p
                    do ft = 1,numpft
+                      ! preserve_b4b will be removed soon. This is kept here to prevent
+                      ! round off errors in the baseline tests for the two-stream code (RGK 12-27-23)
                       if(.not.preserve_b4b) then
                          sunlai = sunlai + sum(cpatch%elai_profile(cl,ft,1:cpatch%nrad(cl,ft)) * &
                               cpatch%f_sun(cl,ft,1:cpatch%nrad(cl,ft)))
@@ -341,7 +347,8 @@ contains
                       end if
                    end do
                 end do
-
+                ! preserve_b4b will be removed soon. This is kept here to prevent
+                ! round off errors in the baseline tests for the two-stream code (RGK 12-27-23)
                 if(.not.preserve_b4b)then
                    shalai = shalai-sunlai
                 end if

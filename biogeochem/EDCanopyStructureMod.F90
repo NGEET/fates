@@ -1586,6 +1586,8 @@ contains
              ! How much of each tree is stem area index? Assuming that there is
              ! This may indeed be zero if there is a sensecent grass
              ! ----------------------------------------------------------------
+             ! preserve_b4b will be removed soon. This is kept here to prevent
+             ! round off errors in the baseline tests for the two-stream code (RGK 12-27-23)
              if_preserve_b4b: if(preserve_b4b) then
                 lai = currentCohort%treelai * currentCohort%c_area/currentPatch%total_canopy_area
                 sai = currentCohort%treesai * currentCohort%c_area/currentPatch%total_canopy_area
@@ -1809,6 +1811,8 @@ contains
           ! --------------------------------------------------------------------------
           
           currentPatch%canopy_mask(:,:) = 0
+          ! preserve_b4b will be removed soon. This is kept here to prevent
+          ! round off errors in the baseline tests for the two-stream code (RGK 12-27-23)
           if(preserve_b4b) then
              do cl = 1,currentPatch%NCL_p
                 do ft = 1,numpft
