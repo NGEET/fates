@@ -1788,7 +1788,7 @@ subroutine quadratic_f (a, b, c, r1, r2)
   ! Press WH, Teukolsky SA, Vetterling WT, Flannery BP. 1992. Numerical Recipes
   !    in Fortran77: The Art of Scientific Computing. 2nd edn. Cambridge 
   !    University Press, Cambridge UK, ISBN 0-521-43064-X.
-  !    Available at: http://numerical.recipes/oldverswitcher.html
+  !    Available at: http://numerical.recipes/oldverswitcher.html, section 5.6.
   !
   ! !REVISION HISTORY:
   ! 4/5/10: Adapted from /home/bonan/ecm/psn/An_gs_iterative.f90 by Keith Oleson
