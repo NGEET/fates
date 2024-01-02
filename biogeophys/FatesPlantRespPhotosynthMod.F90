@@ -1784,8 +1784,11 @@ subroutine quadratic_f (a, b, c, r1, r2)
   !==============================================================================!
   !----------------- Solve quadratic equation for its two roots -----------------!
   !==============================================================================!
-  ! Solution from Press et al (1986) Numerical Recipes: The Art of Scientific
-  ! Computing (Cambridge University Press, Cambridge), pp. 145.
+  ! This solution is mostly derived from:
+  ! Press WH, Teukolsky SA, Vetterling WT, Flannery BP. 1992. Numerical Recipes
+  !    in Fortran77: The Art of Scientific Computing. 2nd edn. Cambridge 
+  !    University Press, Cambridge UK, ISBN 0-521-43064-X.
+  !    Available at: http://numerical.recipes/oldverswitcher.html
   !
   ! !REVISION HISTORY:
   ! 4/5/10: Adapted from /home/bonan/ecm/psn/An_gs_iterative.f90 by Keith Oleson
