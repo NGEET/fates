@@ -2231,7 +2231,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
     real(r8), intent(in)  :: lnc_top      ! Leaf nitrogen content per unit area at canopy top [gN/m2]
     real(r8), intent(in)  :: nscaler      ! Scale for leaf nitrogen profile
     integer,  intent(in)  :: ft           ! (plant) Functional Type Index
-    real(r8)              :: veg_tempk    ! vegetation temperature
+    real(r8), intent(in)  :: veg_tempk    ! vegetation temperature
     real(r8), intent(out) :: lmr          ! Leaf Maintenance Respiration  (umol CO2/m**2/s)
 
     ! Locals
