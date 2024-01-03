@@ -15,10 +15,14 @@ import sys
 import getopt
 import code  # For development: code.interact(local=locals())
 from datetime import datetime
-#from scipy.io import netcdf
-import scipy
 #import matplotlib.pyplot as plt
+# Newer versions of scipy have dropped the netcdf module and
+# netcdf functions are part of the io parent module
+try:
+    from scipy import io as nc
 
+except:
+    from scipy.io import netcdf as nc
 
 # =======================================================================================
 # Parameters
@@ -148,9 +152,9 @@ def main(argv):
     num_pft_out = len(donor_pft_indices)
 
     # Open the netcdf files
-    fp_out = scipy.io.netcdf_file(output_fname, 'w')
+    fp_out = nc.netcdf_file(output_fname, 'w')
 
-    fp_in  = scipy.io.netcdf_file(input_fname, 'r')
+    fp_in  = nc.netcdf_file(input_fname, 'r')
 
     for key, value in sorted(fp_in.dimensions.items()):
         if(key==pft_dim_name):
