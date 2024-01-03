@@ -113,7 +113,6 @@ module FatesPatchMod
     real(r8) :: c_stomata                                   ! mean stomatal conductance of all leaves in the patch   [umol/m2/s]
     real(r8) :: c_lblayer                                   ! mean boundary layer conductance of all leaves in the patch [umol/m2/s]
     
-    !TODO - can we delete these?
     real(r8) :: psn_z(nclmax,maxpft,nlevleaf)
     real(r8) :: nrmlzd_parprof_pft_dir_z(num_rad_stream_types,nclmax,maxpft,nlevleaf)
     real(r8) :: nrmlzd_parprof_pft_dif_z(num_rad_stream_types,nclmax,maxpft,nlevleaf)
