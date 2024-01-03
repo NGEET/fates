@@ -2246,8 +2246,6 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
     real(r8), parameter :: lmrc = 1.15912391_r8 ! scaling factor for high
     ! temperature inhibition (25 C = 1.0)
 
-    !veg_tempk = 27._r8+271._r8
-
     lmr25top = EDPftvarcon_inst%maintresp_leaf_ryan1991_baserate(ft) * (1.5_r8 ** ((25._r8 - 20._r8)/10._r8))
     lmr25top = lmr25top * lnc_top / (umolC_to_kgC * g_per_kg)
 
