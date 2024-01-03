@@ -51,16 +51,6 @@ module FatesIOVariableKindMod
   character(*), parameter, public :: site_elcwd_r8 = 'SI_ELEMCWD_R8'
   character(*), parameter, public :: site_elage_r8 = 'SI_ELEMAGE_R8'
 
-
-  integer, parameter, public :: upfreq_dyn = 1         ! dynamics variables
-  integer, parameter, public :: upfreq_hifr = 2        ! high frequency variables
-  !integer, parameter, public :: upfreq_dyn_multi = 3  ! dynamics multi-dimension
-  integer, parameter, public :: upfreq_hydr = 4        ! Hydro variables
-  integer, parameter, public :: upfreq_nutr = 5
-  integer, parameter, public :: upfreq_hifr_multi = 6   ! high frequency multi-dim
-
-  
-  
   ! NOTE(RGK, 2016) %active is not used yet. Was intended as a check on the HLM->FATES
   ! control parameter passing to ensure all active dimension types received all
   ! dimensioning specifications from the host, but we currently arent using those
