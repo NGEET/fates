@@ -47,7 +47,6 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : fates_tiny
   use FatesConstantsMod    , only : nocomp_bareground
   use FatesInterfaceTypesMod    , only : hlm_use_planthydro
-  use FatesInterfaceTypesMod    , only : hlm_numSWb
   use FatesInterfaceTypesMod    , only : bc_in_type
   use FatesInterfaceTypesMod    , only : numpft
   use FatesInterfaceTypesMod    , only : hlm_stepsize
@@ -106,6 +105,7 @@ module EDPatchDynamicsMod
   use FatesRunningMeanMod,    only : ema_sdlng_mdd
   use FatesRunningMeanMod,    only : ema_sdlng_emerg_h2o, ema_sdlng_mort_par, ema_sdlng2sap_par
   use FatesRunningMeanMod,    only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm
+  use FatesRadiationMemMod,   only : num_swb
   
   ! CIME globals
   use shr_infnan_mod       , only : nan => shr_infnan_nan, assignment(=)
@@ -603,7 +603,7 @@ contains
                    allocate(newPatch)
 
                    call newPatch%Create(age, site_areadis, i_landusechange_receiverpatchlabel, i_nocomp_pft, &
-                                         hlm_numSWb, numpft, currentSite%nlevsoil, hlm_current_tod,              &
+                                         num_swb, numpft, currentSite%nlevsoil, hlm_current_tod,              &
                                          regeneration_model)
 
                    ! Initialize the litter pools to zero, these

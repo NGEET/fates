@@ -21,7 +21,6 @@ module FatesRadiationDriveMod
   use FatesConstantsMod , only : nearzero
   use FatesInterfaceTypesMod , only : bc_in_type
   use FatesInterfaceTypesMod , only : bc_out_type
-  use FatesInterfaceTypesMod , only : hlm_numSWb
   use FatesInterfaceTypesMod , only : numpft
   use FatesRadiationMemMod, only : num_rad_stream_types
   use FatesRadiationMemMod, only : idirect, idiffuse
@@ -125,8 +124,8 @@ contains
              
              currentPatch%solar_zenith_flag         = bc_in(s)%filter_vegzen_pa(ifp)
              currentPatch%solar_zenith_angle        = bc_in(s)%coszen_pa(ifp)
-             currentPatch%gnd_alb_dif(1:hlm_numSWb) = bc_in(s)%albgr_dif_rb(1:hlm_numSWb)
-             currentPatch%gnd_alb_dir(1:hlm_numSWb) = bc_in(s)%albgr_dir_rb(1:hlm_numSWb)
+             currentPatch%gnd_alb_dif(1:num_swb) = bc_in(s)%albgr_dif_rb(1:num_swb)
+             currentPatch%gnd_alb_dir(1:num_swb) = bc_in(s)%albgr_dir_rb(1:num_swb)
              currentPatch%fcansno                   = bc_in(s)%fcansno_pa(ifp)
              
              if(radiation_model.eq.twostr_solver) then
@@ -168,7 +167,7 @@ contains
                    bc_out(s)%fabi_parb(ifp,:) = 0.0_r8
                    currentPatch%rad_error(:)  = 0.0_r8
 
-                   do ib = 1,hlm_numSWb
+                   do ib = 1,num_swb
                       bc_out(s)%albd_parb(ifp,ib) = bc_in(s)%albgr_dir_rb(ib)
                       bc_out(s)%albi_parb(ifp,ib) = bc_in(s)%albgr_dif_rb(ib)
                       bc_out(s)%ftdd_parb(ifp,ib) = 1.0_r8
@@ -197,7 +196,7 @@ contains
                         !call twostr%CanopyPrep(bc_in(s)%fcansno_pa(ifp))
                         !call twostr%ZenithPrep(bc_in(s)%coszen_pa(ifp))
 
-                        do ib = 1,hlm_numSWb
+                        do ib = 1,num_swb
 
                            twostr%band(ib)%albedo_grnd_diff = bc_in(s)%albgr_dif_rb(ib)
                            twostr%band(ib)%albedo_grnd_beam = bc_in(s)%albgr_dir_rb(ib)
@@ -422,7 +421,7 @@ contains
                    
                    ! Two-stream 
                    ! -----------------------------------------------------------
-                   do ib = 1,hlm_numSWb
+                   do ib = 1,num_swb
                       cpatch%twostr%band(ib)%Rbeam_atm = bc_in(s)%solad_parb(ifp,ib)
                       cpatch%twostr%band(ib)%Rdiff_atm = bc_in(s)%solai_parb(ifp,ib)
                    end do

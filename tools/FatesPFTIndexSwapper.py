@@ -15,7 +15,7 @@ import sys
 import getopt
 import code  # For development: code.interact(local=locals())
 from datetime import datetime
-#import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 # Newer versions of scipy have dropped the netcdf module and
 # netcdf functions are part of the io parent module
 try:

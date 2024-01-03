@@ -13,7 +13,8 @@ Module FatesTwoStreamInterfaceMod
   use FatesGlobals          , only : fates_log
   use FatesGlobals          , only : endrun => fates_endrun
   use shr_infnan_mod        , only : nan => shr_infnan_nan, assignment(=)
-  use FatesInterfaceTypesMod, only : numpft,hlm_numSWb
+  use FatesInterfaceTypesMod, only : numpft
+  use FatesRadiationMemMod  , only : num_swb
   use FatesRadiationMemMod  , only : ivis, inir
   use FatesRadiationMemMod  , only : rho_snow,tau_snow
   use TwoStreamMLPEMod      , only : air_ft, AllocateRadParams, rad_params
@@ -509,10 +510,10 @@ contains
 
     integer :: ft,ib  ! loop indices
 
-    call AllocateRadParams(numpft,hlm_numSWb)
+    call AllocateRadParams(numpft,num_swb)
 
     do ft = 1,numpft
-       do ib = 1,hlm_numSWb
+       do ib = 1,num_swb
 
           rad_params%rhol(ib,ft) = EDPftvarcon_inst%rhol(ft,ib)
           rad_params%rhos(ib,ft) = EDPftvarcon_inst%rhos(ft,ib)

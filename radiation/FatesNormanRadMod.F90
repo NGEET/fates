@@ -10,30 +10,26 @@ module FatesNormanRadMod
 
 #include "shr_assert.h"
 
-  use EDTypesMod        , only : ed_site_type
-  use FatesPatchMod,      only : fates_patch_type
-  use EDParamsMod,        only : maxpft
-  use FatesConstantsMod , only : r8 => fates_r8
-  use FatesConstantsMod , only : itrue
-  use FatesConstantsMod , only : pi_const
-  use FatesConstantsMod , only : nocomp_bareground
+  use EDTypesMod             , only : ed_site_type
+  use FatesPatchMod          , only : fates_patch_type
+  use EDParamsMod            , only : maxpft
+  use FatesConstantsMod      , only : r8 => fates_r8
+  use FatesConstantsMod      , only : itrue
+  use FatesConstantsMod      , only : pi_const
+  use FatesConstantsMod      , only : nocomp_bareground
   use FatesInterfaceTypesMod , only : bc_in_type
   use FatesInterfaceTypesMod , only : bc_out_type
-  use FatesInterfaceTypesMod , only : hlm_numSWb
   use FatesInterfaceTypesMod , only : numpft
-  use EDParamsMod        , only : maxSWb
-  use EDParamsMod        , only : nclmax
-  use EDParamsMod        , only : nlevleaf
-  use EDTypesMod        , only : n_rad_stream_types
-  use EDTypesMod        , only : idiffuse
-  use EDTypesMod        , only : idirect
-  use EDParamsMod        , only : ivis
-  use EDParamsMod        , only : inir
-  use EDParamsMod        , only : ipar
-  use EDCanopyStructureMod, only: calc_areaindex
-  use FatesGlobals      , only : fates_log
-  use FatesGlobals, only      : endrun => fates_endrun
-  use EDPftvarcon,        only : EDPftvarcon_inst
+  use EDParamsMod            , only : nclmax
+  use EDParamsMod            , only : nlevleaf
+  use FatesRadiationMemMod   , only : num_swb
+  use FatesRadiationMemMod   , only : num_rad_stream_types
+  use FatesRadiationmemMod   , only : idirect, idiffuse
+  use FatesRadiationMemMod   , only : ivis, inir, ipar
+  use EDCanopyStructureMod   , only : calc_areaindex
+  use FatesGlobals           , only : fates_log
+  use FatesGlobals           , only : endrun => fates_endrun
+  use EDPftvarcon            , only : EDPftvarcon_inst
 
   ! CIME globals
   use shr_log_mod       , only : errMsg => shr_log_errMsg
@@ -47,7 +43,7 @@ module FatesNormanRadMod
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
 
-  !  real(r8), public  :: albice(maxSWb) = &       ! albedo land ice by waveband (1=vis, 2=nir)
+  !  real(r8), public  :: albice(num_swb) = &       ! albedo land ice by waveband (1=vis, 2=nir)
   !       (/ 0.80_r8, 0.55_r8 /)
 
   !parameters of canopy snow reflectance model.
@@ -55,11 +51,11 @@ module FatesNormanRadMod
   ! and so they are stored here for now in common with the ice parameters above.
   ! in principle these could be moved to the parameter file.
 
-  real(r8), public  :: albice(maxSWb) = &       ! albedo land ice by waveband (1=vis, 2=nir)
+  real(r8), public  :: albice(num_swb) = &       ! albedo land ice by waveband (1=vis, 2=nir)
        (/ 0.80_r8, 0.55_r8 /)
-  real(r8), public  :: rho_snow(maxSWb) = &       ! albedo land ice by waveband (1=vis, 2=nir)
+  real(r8), public  :: rho_snow(num_swb) = &       ! albedo land ice by waveband (1=vis, 2=nir)
        (/ 0.80_r8, 0.55_r8 /)
-  real(r8), public  :: tau_snow(maxSWb) = &       ! albedo land ice by waveband (1=vis, 2=nir)
+  real(r8), public  :: tau_snow(num_swb) = &       ! albedo land ice by waveband (1=vis, 2=nir)
        (/ 0.01_r8, 0.01_r8 /)
 contains
 
@@ -83,13 +79,13 @@ contains
     ! -----------------------------------------------------------------------------------
 
     type(fates_patch_type), intent(inout), target :: currentPatch
-    real(r8), intent(inout) :: albd_parb_out(hlm_numSWb)
-    real(r8), intent(inout) :: albi_parb_out(hlm_numSWb)
-    real(r8), intent(inout) :: fabd_parb_out(hlm_numSWb)
-    real(r8), intent(inout) :: fabi_parb_out(hlm_numSWb)
-    real(r8), intent(inout) :: ftdd_parb_out(hlm_numSWb)
-    real(r8), intent(inout) :: ftid_parb_out(hlm_numSWb)
-    real(r8), intent(inout) :: ftii_parb_out(hlm_numSWb)
+    real(r8), intent(inout) :: albd_parb_out(num_swb)
+    real(r8), intent(inout) :: albi_parb_out(num_swb)
+    real(r8), intent(inout) :: fabd_parb_out(num_swb)
+    real(r8), intent(inout) :: fabi_parb_out(num_swb)
+    real(r8), intent(inout) :: ftdd_parb_out(num_swb)
+    real(r8), intent(inout) :: ftid_parb_out(num_swb)
+    real(r8), intent(inout) :: ftii_parb_out(num_swb)
 
     ! Locals
     ! -----------------------------------------------------------------------------------
@@ -106,25 +102,25 @@ contains
     real(r8) :: tr_dif_z(nclmax,maxpft,nlevleaf)         ! Exponential transmittance of diffuse radiation through a single layer
     real(r8) :: weighted_dir_tr(nclmax)
     real(r8) :: weighted_fsun(nclmax)
-    real(r8) :: weighted_dif_ratio(nclmax,maxSWb)
+    real(r8) :: weighted_dif_ratio(nclmax,num_swb)
     real(r8) :: weighted_dif_down(nclmax)
     real(r8) :: weighted_dif_up(nclmax)
-    real(r8) :: refl_dif(nclmax,maxpft,nlevleaf,maxSWb)  ! Term for diffuse radiation reflected by laye
-    real(r8) :: tran_dif(nclmax,maxpft,nlevleaf,maxSWb)  ! Term for diffuse radiation transmitted by layer
-    real(r8) :: dif_ratio(nclmax,maxpft,nlevleaf,maxSWb) ! Ratio of upward to forward diffuse fluxes
+    real(r8) :: refl_dif(nclmax,maxpft,nlevleaf,num_swb)  ! Term for diffuse radiation reflected by laye
+    real(r8) :: tran_dif(nclmax,maxpft,nlevleaf,num_swb)  ! Term for diffuse radiation transmitted by layer
+    real(r8) :: dif_ratio(nclmax,maxpft,nlevleaf,num_swb) ! Ratio of upward to forward diffuse fluxes
     real(r8) :: Dif_dn(nclmax,maxpft,nlevleaf)           ! Forward diffuse flux onto canopy layer J (W/m**2 ground area)
     real(r8) :: Dif_up(nclmax,maxpft,nlevleaf)           ! Upward diffuse flux above canopy layer J (W/m**2 ground area)
     real(r8) :: lai_change(nclmax,maxpft,nlevleaf)       ! Forward diffuse flux onto canopy layer J (W/m**2 ground area)
 
     real(r8) :: frac_lai                                ! Fraction of lai in each layer
     real(r8) :: frac_sai                                ! Fraction of sai in each layer
-    real(r8) :: f_abs(nclmax,maxpft,nlevleaf,maxSWb)    ! Fraction of light absorbed by surfaces.
-    real(r8) :: rho_layer(nclmax,maxpft,nlevleaf,maxSWb)! Weighted verage reflectance of layer
-    real(r8) :: tau_layer(nclmax,maxpft,nlevleaf,maxSWb)! Weighted average transmittance of layer
-    real(r8) :: f_abs_leaf(nclmax,maxpft,nlevleaf,maxSWb)
+    real(r8) :: f_abs(nclmax,maxpft,nlevleaf,num_swb)    ! Fraction of light absorbed by surfaces.
+    real(r8) :: rho_layer(nclmax,maxpft,nlevleaf,num_swb)! Weighted verage reflectance of layer
+    real(r8) :: tau_layer(nclmax,maxpft,nlevleaf,num_swb)! Weighted average transmittance of layer
+    real(r8) :: f_abs_leaf(nclmax,maxpft,nlevleaf,num_swb)
     real(r8) :: Abs_dir_z(maxpft,nlevleaf)
     real(r8) :: Abs_dif_z(maxpft,nlevleaf)
-    real(r8) :: abs_rad(maxSWb)                               !radiation absorbed by soil
+    real(r8) :: abs_rad(num_swb)                               !radiation absorbed by soil
     real(r8) :: tr_soili                                      ! Radiation transmitted to the soil surface.
     real(r8) :: tr_soild                                      ! Radiation transmitted to the soil surface.
     real(r8) :: phi1b(maxpft)                                 ! Radiation transmitted to the soil surface.
@@ -147,8 +143,8 @@ contains
     real(r8) :: gdir
 
 
-    real(r8), parameter :: forc_dir(n_rad_stream_types) = (/ 1.0_r8, 0.0_r8 /)   ! These are binary switches used
-    real(r8), parameter :: forc_dif(n_rad_stream_types) = (/ 0.0_r8, 1.0_r8 /)   ! to turn off and on radiation streams
+    real(r8), parameter :: forc_dir(num_rad_stream_types) = (/ 1.0_r8, 0.0_r8 /)   ! These are binary switches used
+    real(r8), parameter :: forc_dif(num_rad_stream_types) = (/ 0.0_r8, 1.0_r8 /)   ! to turn off and on radiation streams
 
 
 
@@ -180,13 +176,13 @@ contains
 
     ! Initialize the ouput arrays
     ! ---------------------------------------------------------------------------------
-    albd_parb_out(1:hlm_numSWb) = 0.0_r8
-    albi_parb_out(1:hlm_numSWb) = 0.0_r8
-    fabd_parb_out(1:hlm_numSWb) = 0.0_r8
-    fabi_parb_out(1:hlm_numSWb) = 0.0_r8
-    ftdd_parb_out(1:hlm_numSWb) = 1.0_r8
-    ftid_parb_out(1:hlm_numSWb) = 1.0_r8
-    ftii_parb_out(1:hlm_numSWb) = 1.0_r8
+    albd_parb_out(1:num_swb) = 0.0_r8
+    albi_parb_out(1:num_swb) = 0.0_r8
+    fabd_parb_out(1:num_swb) = 0.0_r8
+    fabi_parb_out(1:num_swb) = 0.0_r8
+    ftdd_parb_out(1:num_swb) = 1.0_r8
+    ftid_parb_out(1:num_swb) = 1.0_r8
+    ftii_parb_out(1:num_swb) = 1.0_r8
 
     ! Is this pft/canopy layer combination present in this patch?
     rho_layer(:,:,:,:)=0.0_r8
@@ -210,7 +206,7 @@ contains
                frac_sai = 1.0_r8 - frac_lai
 
                ! layer level reflectance qualities
-               do ib = 1,hlm_numSWb !vis, nir
+               do ib = 1,num_swb !vis, nir
 
                    rho_layer(L,ft,iv,ib)=frac_lai*rhol(ft,ib)+frac_sai*rhos(ft,ib)
                    tau_layer(L,ft,iv,ib)=frac_lai*taul(ft,ib)+frac_sai*taus(ft,ib)
@@ -252,7 +248,7 @@ contains
 
 
     !do this once for one unit of diffuse, and once for one unit of direct radiation
-    do radtype = 1, n_rad_stream_types
+    do radtype = 1, num_rad_stream_types
 
        ! Extract information that needs to be provided by ED into local array.
        ! RGK: NOT SURE WHY WE NEED FTWEIGHT ...
@@ -281,7 +277,7 @@ contains
 
           weighted_dir_tr(L)                 = 0.0_r8
           weighted_fsun(L)                   = 0._r8
-          weighted_dif_ratio(L,1:hlm_numSWb) = 0._r8
+          weighted_dif_ratio(L,1:num_swb) = 0._r8
 
           !Each canopy layer (canopy, understorey) has multiple 'parallel' pft's
 
@@ -432,7 +428,7 @@ contains
                 ! Iterative solution do scattering
                 !==============================================================================!
 
-                do ib = 1,hlm_numSWb !vis, nir
+                do ib = 1,num_swb !vis, nir
                    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
                    ! Leaf scattering coefficient and terms do diffuse radiation reflected
                    ! and transmitted by a layer
@@ -472,12 +468,12 @@ contains
                    weighted_dif_ratio(L,ib) = weighted_dif_ratio(L,ib) + &
                         dif_ratio(L,ft,1,ib) * ftweight(L,ft,1)
                    !instance where the first layer ftweight is used a proxy for the whole column. FTWA
-                end do!hlm_numSWb
+                end do!num_swb
              endif ! currentPatch%canopy_mask
           end do!ft
        end do!L
 
-       do ib = 1,hlm_numSWb
+       do ib = 1,num_swb
 
           currentPatch%rad_error(ib) = 0._r8
           
@@ -983,7 +979,7 @@ contains
              end if
              
           end if
-       end do !hlm_numSWb
+       end do !num_swb
 
     enddo ! rad-type
 

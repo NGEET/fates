@@ -28,7 +28,7 @@ module EDTypesMod
   use FatesInterfaceTypesMod,only : hlm_parteh_mode
   use FatesCohortMod,        only : fates_cohort_type
   use FatesPatchMod,         only : fates_patch_type
-  use EDParamsMod,           only : maxSWb, nclmax, nlevleaf, maxpft
+  use EDParamsMod,           only : nclmax, nlevleaf, maxpft
   use FatesConstantsMod,     only : n_dbh_bins, n_dist_types
   use shr_log_mod,           only : errMsg => shr_log_errMsg
 

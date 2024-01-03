@@ -2706,7 +2706,7 @@ contains
      use FatesPatchMod,          only : fates_patch_type
      use EDParamsMod,            only : regeneration_model
      use FatesInterfaceTypesMod, only : fates_maxElementsPerPatch
-     use FatesInterfaceTypesMod, only : hlm_current_tod, hlm_numSWb, numpft
+     use FatesInterfaceTypesMod, only : hlm_current_tod, numpft
      use EDTypesMod,             only : area
      use EDInitMod,              only : zero_site
      use EDInitMod,              only : init_site_vars
@@ -2777,7 +2777,7 @@ contains
              ! the nocomp_pft label is set after patch creation has occured in 'get_restart_vectors'
              ! make new patch
              call newp%Create(fates_unset_r8, fates_unset_r8, primaryland,   &
-               nocomp_pft, hlm_numSWb, numpft, sites(s)%nlevsoil,              &
+               nocomp_pft, num_swb, numpft, sites(s)%nlevsoil,              &
                hlm_current_tod, regeneration_model)
 
              ! Initialize the litter pools to zero, these
@@ -3644,7 +3644,6 @@ contains
      use FatesNormanRadMod, only : PatchNormanRadiation
      use EDTypesMod,             only : ed_site_type
      use FatesPatchMod,          only : fates_patch_type
-     use FatesInterfaceTypesMod, only : hlm_numSWb
 
      ! !ARGUMENTS:
      class(fates_restart_interface_type) , intent(inout) :: this
@@ -3703,7 +3702,7 @@ contains
                  ! no radiation is absorbed
                  bc_out(s)%fabd_parb(ifp,:) = 0.0_r8
                  bc_out(s)%fabi_parb(ifp,:) = 0.0_r8
-                 do ib = 1,hlm_numSWb
+                 do ib = 1,num_swb
 
                     bc_out(s)%albd_parb(ifp,ib) = currentPatch%gnd_alb_dir(ib)
                     bc_out(s)%albi_parb(ifp,ib) = currentPatch%gnd_alb_dif(ib)
@@ -3732,7 +3731,7 @@ contains
                       call twostr%CanopyPrep(currentPatch%fcansno)
                       call twostr%ZenithPrep(currentPatch%solar_zenith_angle)
                       
-                      do ib = 1,hlm_numSWb
+                      do ib = 1,num_swb
                          
                          twostr%band(ib)%albedo_grnd_diff = currentPatch%gnd_alb_dif(ib)
                          twostr%band(ib)%albedo_grnd_beam = currentPatch%gnd_alb_dir(ib)
