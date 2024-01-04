@@ -11,9 +11,8 @@ Module FatesRadiationMemMod
   ! For now, this module also holds relevant data for Norman radiation
   ! ---------------------------------------------------------------------------
 
-  integer, parameter :: r8 = selected_real_kind(12)
-
-
+  use FatesConstantsMod, only : r8 => fates_r8
+  
   integer, parameter, public :: norman_solver = 1
   integer, parameter, public :: twostr_solver = 2
 

@@ -1,4 +1,4 @@
-Module FatesTwoStreamInterfaceMod
+Module FatesTwoStreamUtilsMod
 
   ! This module holds routines that are specific to connecting FATES with
   ! the two-stream radiation module. These routines are used to
@@ -531,4 +531,4 @@ contains
   end subroutine TransferRadParams
 
 
-end Module FatesTwoStreamInterfaceMod
+end Module FatesTwoStreamUtilsMod

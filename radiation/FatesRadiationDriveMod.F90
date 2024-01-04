@@ -30,8 +30,8 @@ module FatesRadiationDriveMod
   use FatesRadiationMemMod, only : twostr_solver
   use EDParamsMod, only          : radiation_model
   use TwoStreamMLPEMod, only : normalized_upper_boundary
-  use FatesTwoStreamInterfaceMod, only : FatesPatchFSun
-  use FatesTwoStreamInterfaceMod, only : CheckPatchRadiationBalance
+  use FatesTwoStreamUtilsMod, only : FatesPatchFSun
+  use FatesTwoStreamUtilsMod, only : CheckPatchRadiationBalance
   use FatesInterfaceTypesMod        , only : hlm_hio_ignore_val
   use EDParamsMod        , only : dinc_vai,dlower_vai
   use EDParamsMod        , only : nclmax

@@ -803,15 +803,6 @@ contains
                               forc_dir(radtype) * tr_dir_z(L,ft,iv)
                          currentPatch%nrmlzd_parprof_pft_dif_z(radtype,L,ft,iv) = &
                               Dif_dn(L,ft,iv) + Dif_up(L,ft,iv)
-                         !
-                         !currentPatch%nrmlzd_parprof_dir_z(radtype,L,iv) = &
-                         !     currentPatch%nrmlzd_parprof_dir_z(radtype,L,iv) + &
-                         !     (forc_dir(radtype) * tr_dir_z(L,ft,iv)) * &
-                         !     (ftweight(L,ft,iv) / sum(ftweight(L,1:numpft,iv)))
-                         !currentPatch%nrmlzd_parprof_dif_z(radtype,L,iv) = &
-                         !     currentPatch%nrmlzd_parprof_dif_z(radtype,L,iv) + &
-                         !     (Dif_dn(L,ft,iv) + Dif_up(L,ft,iv)) * &
-                         !     (ftweight(L,ft,iv) / sum(ftweight(L,1:numpft,iv)))
                       end do
                    end if ! ib = visible
                 end if ! present
