@@ -59,16 +59,24 @@ def main():
 
     # Add additional required variables for the host land model
     # Add 'YEAR' as a variable.
-    # This is an old requirement of the HLM and should simply be a copy of the `time` dimension
     # If we are merging, we might not need to do this, so check to see if its there already
+    # This is a requirement of the HLM dyn_subgrid module and should be the actual year.
+    # Note that the time variable from the LUH2 data is 'years since ...' so we need to
+    # add the input data year
     if (not "YEAR" in list(regrid_luh2.variables)):
-        regrid_luh2["YEAR"] = regrid_luh2.time
+        regrid_luh2["YEAR"] = regrid_luh2.time + ds_luh2.timesince
         regrid_luh2["LONGXY"] = ds_regrid_target["LONGXY"] # TO DO: double check if this is strictly necessary
         regrid_luh2["LATIXY"] = ds_regrid_target["LATIXY"] # TO DO: double check if this is strictly necessary
 
     # Rename the dimensions for the output.  This needs to happen after the "LONGXY/LATIXY" assignment
     if (not 'lsmlat' in list(regrid_luh2.dims)):
         regrid_luh2 = regrid_luh2.rename_dims({'lat':'lsmlat','lon':'lsmlon'})
+
+    # Reapply the coordinate attributes.  This is a workaround for an xarray bug (#8047)
+    # Currently only need time
+    regrid_luh2.time.attrs = ds_luh2.time.attrs
+    regrid_luh2.lat.attrs = ds_luh2.lat.attrs
+    regrid_luh2.lon.attrs = ds_luh2.lon.attrs
 
     # Merge existing regrided luh2 file with merge input target
     # TO DO: check that the grid resolution 
