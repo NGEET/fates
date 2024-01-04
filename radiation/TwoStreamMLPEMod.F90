@@ -222,7 +222,7 @@ Module TwoStreamMLPEMod
 
   end type twostream_type
 
-  public :: ParamPrep
+  public :: RadParamPrep
   public :: AllocateRadParams
   public :: TwoStreamLogInit
   
@@ -638,7 +638,7 @@ contains
 
   ! ================================================================================================
 
-  subroutine ParamPrep()
+  subroutine RadParamPrep()
 
     integer  :: ft
     integer  :: nbands
@@ -686,7 +686,7 @@ contains
           rad_params%om_stem(ib,ft) = rad_params%rhos(ib,ft) + rad_params%taus(ib,ft)
 
           if( rad_params%om_leaf(ib,ft) > 0.99_r8 ) then
-             write(log_unit,*) "In: TwoStreamMLPEMod.F90:ParamPrep()"
+             write(log_unit,*) "In: TwoStreamMLPEMod.F90:RadParamPrep()"
              write(log_unit,*) "An extremely high leaf scattering coefficient was generated:"
              write(log_unit,*) "om = tau + rho"
              write(log_unit,*) "band = ",ib
@@ -697,7 +697,7 @@ contains
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
            if( rad_params%om_stem(ib,ft) > 0.99_r8 ) then
-             write(log_unit,*) "In: TwoStreamMLPEMod.F90:ParamPrep()"
+             write(log_unit,*) "In: TwoStreamMLPEMod.F90:RadParamPrep()"
              write(log_unit,*) "An extremely high stem scattering coefficient was generated:"
              write(log_unit,*) "om = tau + rho"
              write(log_unit,*) "band = ",ib
@@ -713,7 +713,7 @@ contains
     end do
 
     return
-  end subroutine ParamPrep
+  end subroutine RadParamPrep
 
   ! ================================================================================================
 

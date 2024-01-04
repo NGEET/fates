@@ -23,7 +23,7 @@ Module FatesTwoStreamUtilsMod
   use EDTypesMod            , only : ed_site_type
   use EDParamsMod           , only : nclmax
   use TwoStreamMLPEMod      , only : twostream_type
-  use TwoStreamMLPEMod      , only : ParamPrep
+  use TwoStreamMLPEMod      , only : RadParamPrep
   use TwoStreamMLPEMod      , only : AllocateRadParams
   use TwoStreamMLPEMod      , only : rel_err_thresh,area_err_thresh
   use EDPftvarcon           , only : EDPftvarcon_inst
@@ -525,7 +525,7 @@ contains
        rad_params%clumping_index(ft) = EDPftvarcon_inst%clumping_index(ft)
     end do
 
-    call ParamPrep()
+    call RadParamPrep()
 
     return
   end subroutine TransferRadParams
