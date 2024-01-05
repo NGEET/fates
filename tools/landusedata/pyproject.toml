@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "landusepft"
+name = "landusedata"
 version = "0.0.0"
 
 [tool.setuptools]
