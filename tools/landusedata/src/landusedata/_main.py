@@ -7,15 +7,28 @@ import argparse
 # This is something we also want to be testable with pytest
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="FATES landuse data tool")
-    parser.add_argument('--output')
-    # output_group_argument = parser.add_mutually_exclusive_group(required=True)
-    # output_group_argument.add_argument("--luh2_timeseries", help="LUH2 timeseries data file")
-    # output_group_argument.add_argument("--landuse_pft", help="landuse by pft static file")
 
+    parser = argparse.ArgumentParser(description="FATES landuse data tool")
+
+    # The user should input the landuse_data_output_type.  Do this to simply
+    # avoid determining what they want from the inputs.
+    parser.add_argument('landuse_type', choices=['luh2','lupft'],
+                        help="landuse data file output type to be created, either luh2 timeseries or landuse x pft static mapping")
+
+    # The user needs to input specific file locations
+    # Make these grouped based on the landuse_type choice?
+    #
+    # Let the user override the output?
+    #
+    # Let the user truncate the timeseries data
+
+    # Parse the arguments
     args = parser.parse_args(argv)
 
-    print(f"data type is {args.output}")
+    # Temporary output for testing
+    print(f"data type is {args.landuse_type}")
+
+    return 0
 
 # Gaurd against import time side effects
 if __name__ == '__main__':
