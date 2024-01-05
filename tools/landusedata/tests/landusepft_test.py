@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 
-from landusepft import landusepftmod
+from landusedata import landusepftmod
 
 # Postive test case for importing LUH2 static data file
 def test_posImportStaticLUH2File(static_file_location):
