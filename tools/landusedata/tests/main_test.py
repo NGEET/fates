@@ -11,7 +11,7 @@ def test_main(capsys):
     """
     main(['luh2'])
     out, err = capsys.readouterr()
-    assert out == 'data type is luh2\n'
+    assert out == 'calling luh2 code\n'
     assert err == ''
 
 # This test only catches the system exit. 
@@ -19,7 +19,8 @@ def test_main_neg(capsys):
     """
     Negative case testing for choice input
 
-    This only tests the system exit.  Testing the ArgumentError is a little tricky to catch.
+    This only tests the system exit. Testing the ArgumentError
+    is a little tricky to catch as it is upstream of SystemExit.
     """
     with pytest.raises(SystemExit) as exp:
         main(['notallowed'])

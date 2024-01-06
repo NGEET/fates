@@ -25,8 +25,11 @@ def main(argv=None):
     # Parse the arguments
     args = parser.parse_args(argv)
 
-    # Temporary output for testing
-    print(f"data type is {args.landuse_type}")
+    # Depending on the landuse_type, call the appropriate module
+    if args.landuse_type == 'luh2':
+        print("calling luh2 code")
+    elif args.landuse_type == 'lupft':
+        print("calling lupft code")
 
     return 0
 
