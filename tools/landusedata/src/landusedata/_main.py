@@ -24,33 +24,29 @@ def main(argv=None):
     lupft_parser.set_defaults(func=lupftprint)
 
     # LUH2 subparser arguments
-    luh2_parser.add_argument('regrid_target_file',
+    luh2_parser.add_argument('regridder_target_file',
                              help='target surface data file with desired grid resolution')
     luh2_parser.add_argument('luh2_file',
                              help = "full path of luh2 raw states file")
-    luh2_parser.add_argument("-s", "--luh2_static_file",
-                        required=True,
-                        help = "luh2 static data file")
-    luh2_parser.add_argument("-r","--regridder_target_file",
-                        required=True,
-                        help = "target file with desired resolution to regrid luh2 data to")
+    luh2_parser.add_argument("luh2_static_file",
+                             help = "luh2 static data file")
     luh2_parser.add_argument("-w", "--regridder_weights",
-                        default = 'regridder.nc',
-                        help = "filename of regridder weights to write to or reuse (if -m option used)")
+                             default = 'regridder.nc',
+                             help = "filename of regridder weights to write to or reuse (if -m option used)")
     luh2_parser.add_argument("-b","--begin",
-                        type = int,
-                        default = None,
-                        help = "beginning of date range of interest")
+                             type = int,
+                             default = None,
+                             help = "beginning of date range of interest")
     luh2_parser.add_argument("-e","--end",
-                        type = int,
-                        default = None,
-                        help = "ending of date range to slice")
+                             type = int,
+                             default = None,
+                             help = "ending of date range to slice")
     luh2_parser.add_argument("-o","--output",
-                        default = 'LUH2_timeseries.nc',
-                        help = "output filename")
+                             default = 'LUH2_timeseries.nc',
+                             help = "output filename")
     luh2_parser.add_argument("-m", "--luh2_merge_file",
-                        default = None,
-                        help = "previous luh2 output filename to merge into current run output")
+                             default = None,
+                             help = "previous luh2 output filename to merge into current run output")
 
     # Landuse x pft subparser arguments
     lupft_parser.add_argument('regrid_target_file',
