@@ -41,7 +41,6 @@ def main(args):
 
     # Note that the list order is:
     # bareground, surface data, primary, pasture, rangeland (other)
-    # ds_var_names = ['frac_brgnd','frac_csurf','frac_primr','frac_pastr','frac_range']
     ds_var_names = ['frac_brgnd','frac_csurf','frac_primr','frac_pastr','frac_range']
 
     # Prepare the target dataset
@@ -53,8 +52,7 @@ def main(args):
     # Create an output dataset to contain individually regridded landuse percent datasets
     ds_output = xr.Dataset()
 
-    # TODO: this needs to be reworked since the different variables need to have their
-    # own datasets with their own respective masks
+    # Loop through percentage list and regrid each entry
     for index,data_array in enumerate(percent):
 
         # Get the name for the new variable
@@ -72,7 +70,6 @@ def main(args):
         print('Regridding {}'.format(varname))
         regridder = xe.Regridder(ds_percent, ds_target, "conservative_normed")
         ds_regrid = regridder(ds_percent)
-        # ds_regrid = ds_regrid.rename_dims(dims_dict={'lat':'lsmlat','lon':'lsmlon'})
         output_file = os.path.join(os.getcwd(),args.output)
 
         # Append the new dataset to the output dataset.  Drop mask to avoid conflicts.
@@ -83,6 +80,8 @@ def main(args):
     # Duplicate the 'primary' data array into a 'secondary' data array.  Eventually
     # this will contain different data from a future CLM landuse x pft update
     ds_output['frac_secnd'] = ds_output.frac_primr.copy(deep=True)
+
+    # ds_regrid = ds_regrid.rename_dims(dims_dict={'lat':'lsmlat','lon':'lsmlon'})
 
     # Output dataset to netcdf file
     print('Writing fates landuse x pft dataset to file')
