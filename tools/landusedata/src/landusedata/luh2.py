@@ -13,12 +13,7 @@ def luh2print(args):
     print("calling luh2 code: {},{}".format(args.regrid_target_file,args.luh2_state_file))
 
 # Add version checking here in case environment.yml not used
-def main():
-
-    # Add argument parser - subfunction? Seperate common module?
-    # input_files and range should be the only arguments
-    # Allow variable input files (state and/or transitions and/or management)
-    args = CommandLineArgs()
+def main(args):
 
     # Import and prep the LUH2 datasets and regrid target
     ds_luh2 = ImportData(args.luh2_file,args.begin,args.end)
@@ -95,56 +90,6 @@ def main():
     output_file = os.path.join(os.getcwd(),args.output)
     print("generating output: {}".format(output_file))
     regrid_luh2.to_netcdf(output_file)
-
-def CommandLineArgs():
-
-    parser = argparse.ArgumentParser(description="placeholder desc")
-
-    # Required input luh2 datafile
-    # TO DO: using the checking function to report back if invalid file input
-    parser.add_argument("-l","--luh2_file",
-                        required=True,
-                        help = "luh2 raw states, transitions, or management data file")
-
-    # Required static luh2 data to get the ice/water fraction for masking
-    parser.add_argument("-s", "--luh2_static_file",
-                        required=True,
-                        help = "luh2 static data file")
-
-    # File to use as regridder target (e.g. a surface dataset)
-    parser.add_argument("-r","--regridder_target_file",
-                        required=True,
-                        help = "target file with desired resolution to regrid luh2 data to")
-
-    # Filename to use or save for the regridder weights
-    parser.add_argument("-w", "--regridder_weights",
-                        default = 'regridder.nc',
-                        help = "filename of regridder weights to write to or reuse (if -m option used)")
-
-    # Optional input to subset the time range of the data
-    # TODO: add support for parsing the input and checking against the allowable date range
-    parser.add_argument("-b","--begin",
-                        type = int,
-                        default = None,
-                        help = "beginning of date range of interest")
-    parser.add_argument("-e","--end",
-                        type = int,
-                        default = None,
-                        help = "ending of date range to slice")
-
-    # Optional output argument
-    parser.add_argument("-o","--output",
-                        default = 'LUH2_timeseries.nc',
-                        help = "output filename")
-
-    # Optional merge argument to enable merging of other files
-    parser.add_argument("-m", "--luh2_merge_file",
-                        default = None,
-                        help = "previous luh2 output filename to merge into current run output")
-
-    args = parser.parse_args()
-
-    return(args)
 
 if __name__ == "__main__":
     main()

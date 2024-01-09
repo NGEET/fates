@@ -1,6 +1,7 @@
 import argparse
 
 from landusedata.luh2 import luh2print
+from landusedata.luh2 import main as luh2main
 from landusedata.landusepft import lupftprint
 
 def main(argv=None):
@@ -20,7 +21,7 @@ def main(argv=None):
                                          help='generate landuse x pft static data map output')
 
     # Set the default called function for the subparser command
-    luh2_parser.set_defaults(func=luh2print)
+    luh2_parser.set_defaults(func=luh2main)
     lupft_parser.set_defaults(func=lupftprint)
 
     # LUH2 subparser arguments
@@ -60,12 +61,7 @@ def main(argv=None):
     # Call the default function for the given command
     args.func(args)
 
-    # Depending on the landuse_type, call the appropriate module
-    # if args.landuse_type == 'luh2':
-    #     print("calling luh2 code")
-    # elif args.landuse_type == 'lupft':
-    #     print("calling lupft code")
-
+    # Return successful completion
     return 0
 
 # Gaurd against import time side effects
