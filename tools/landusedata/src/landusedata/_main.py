@@ -1,8 +1,7 @@
 import argparse
 
-from landusedata.luh2 import luh2print
 from landusedata.luh2 import main as luh2main
-from landusedata.landusepft import lupftprint
+from landusedata.landusepft import main as lupftmain
 
 def main(argv=None):
 
@@ -22,7 +21,7 @@ def main(argv=None):
 
     # Set the default called function for the subparser command
     luh2_parser.set_defaults(func=luh2main)
-    lupft_parser.set_defaults(func=lupftprint)
+    lupft_parser.set_defaults(func=lupftmain)
 
     # LUH2 subparser arguments
     luh2_parser.add_argument('regridder_target_file',
@@ -52,8 +51,19 @@ def main(argv=None):
     # Landuse x pft subparser arguments
     lupft_parser.add_argument('regrid_target_file',
                              help='target surface data file with desired grid resolution')
-    lupft_parser.add_argument('lupft_surf_file',
-                         help = "full path of the CLM landuse x pft surface data file")
+    lupft_parser.add_argument('luh2_static_file',
+                             help = "luh2 static data file")
+    lupft_parser.add_argument('clm_luhforest_file',
+                              help = "CLM5_current_luhforest_deg025.nc")
+    lupft_parser.add_argument('clm_luhpasture_file',
+                              help = "CLM5_current_luhpasture_deg025.nc")
+    lupft_parser.add_argument('clm_luhother_file',
+                              help = "CLM5_current_luhother_deg025.nc")
+    lupft_parser.add_argument('clm_surface_file',
+                              help = "CLM5_current_surf_deg025.nc")
+    lupft_parser.add_argument("-O","--output",
+                              default = 'fates_landuse_pft_map.nc',
+                              help = "output filename")
 
     # Parse the arguments
     args = parser.parse_args(argv)

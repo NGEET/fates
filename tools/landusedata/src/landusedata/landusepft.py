@@ -16,10 +16,7 @@ from landusedata.landusepftmod import AddLatLonCoordinates, DefineMask, Renormal
 def lupftprint():
     print("calling lupft code")
 
-def main():
-
-    # Add argument parser - subfunction? Seperate common module?
-    args = CommandLineArgs()
+def main(args):
 
     # Open the files
     ds_static  = ImportStaticLUH2File(args.luh2_static_file)
@@ -87,43 +84,6 @@ def main():
     # Output dataset to netcdf file
     print('Writing fates landuse x pft dataset to file')
     ds_regrid.to_netcdf(output_file)
-
-def CommandLineArgs():
-
-    parser = argparse.ArgumentParser(description="placeholder desc")
-
-    # Required static luh2 data to get the ice/water fraction for masking
-    parser.add_argument("-c", "--luh2_static_file",
-                        required=True,
-                        help = "luh2 static data file")
-
-    parser.add_argument("-f", "--clm_luhforest_file",
-                        required=True,
-                        help = "CLM5_current_luhforest_deg025.nc")
-
-    parser.add_argument("-p", "--clm_luhpasture_file",
-                        required=True,
-                        help = "CLM5_current_luhpasture_deg025.nc")
-
-    parser.add_argument("-o", "--clm_luhother_file",
-                        required=True,
-                        help = "CLM5_current_luhother_deg025.nc")
-
-    parser.add_argument("-s", "--clm_surface_file",
-                        required=True,
-                        help = "CLM5_current_surf_deg025.nc")
-
-    # Optional output argument
-    parser.add_argument("-O","--output",
-                        default = 'fates_landuse_pft_map.nc',
-                        help = "output filename")
-
-    parser.add_argument("-r", "--regrid_target_file",
-                        help = "CLM surface data file")
-
-    args = parser.parse_args()
-
-    return(args)
 
 if __name__ == "__main__":
     main()
