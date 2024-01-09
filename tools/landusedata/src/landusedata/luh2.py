@@ -5,8 +5,12 @@
 #                       -r <regrid-targetfile> -w <regridder-output> -o <outputfile>
 
 import argparse, os, sys
-from luh2mod import ImportData, SetMaskLUH2, SetMaskSurfData
-from luh2mod import RegridConservative, RegridLoop, CorrectStateSum
+from landusedata.luh2mod import ImportData, SetMaskLUH2, SetMaskSurfData
+from landusedata.luh2mod import RegridConservative, RegridLoop, CorrectStateSum
+
+# Temporary print functions
+def luh2print(args):
+    print("calling luh2 code: {},{}".format(args.regrid_target_file,args.luh2_state_file))
 
 # Add version checking here in case environment.yml not used
 def main():
