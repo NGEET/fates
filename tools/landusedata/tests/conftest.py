@@ -3,6 +3,10 @@ import pytest
 import xarray as xr
 
 @pytest.fixture(scope="module")
+def target_file_location():
+    return 'tests/resources/surfdata_4x5.nc'
+
+@pytest.fixture(scope="module")
 def static_file_location():
     return 'tests/resources/staticData_quarterdeg.nc'
 
@@ -17,6 +21,12 @@ def lupftsurf_file_location():
 @pytest.fixture(scope="function")
 def static_dataset(static_file_location):
     dataset = xr.open_dataset(static_file_location)
+    dataset = dataset.astype('float64')
+    return dataset
+
+@pytest.fixture(scope="function")
+def target_dataset(target_file_location):
+    dataset = xr.open_dataset(target_file_location)
     dataset = dataset.astype('float64')
     return dataset
 
