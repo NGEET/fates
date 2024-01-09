@@ -12,10 +12,6 @@ import xesmf as xe
 from landusedata.landusepftmod import ImportStaticLUH2File, ImportLandusePFTFile
 from landusedata.landusepftmod import AddLatLonCoordinates, DefineMask, RenormalizePFTs
 
-# Temporary print statement for testing
-def lupftprint():
-    print("calling lupft code")
-
 def main(args):
 
     # Open the files
