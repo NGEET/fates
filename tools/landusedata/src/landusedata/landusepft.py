@@ -1,11 +1,3 @@
-# Landuse x PFT script
-# Usage: python landusepft.py -s <luh2_static_file> \
-#                             -f <clm_luhforest_file> \
-#                             -p <clm_luhpasture_file> \
-#                             -o <clm_luhother_file> \
-#                             -s <clm_luhsurface_file> \
-#                             -O <output_file>
-
 import argparse, os, sys
 import xarray as xr
 import xesmf as xe
@@ -49,7 +41,6 @@ def main(args):
     # Note that the list order is:
     # bareground, surface data, primary, pasture, rangeland (other)
     ds_var_names = ['frac_brgnd','frac_csurf','frac_primr','frac_pastr','frac_range']
-    # ds_var_names = ['bareground','current_surface','primary','pasture','range']
 
     # Combine percent data arrays into a new dataset
     ds_percent = xr.Dataset()

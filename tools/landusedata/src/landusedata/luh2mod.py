@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import re, sys
 import numpy as np
 import xarray as xr

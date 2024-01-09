@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-
-# LUH2 python script
-# Usage: python luh2.py -l <raw-luh2-datafile> -s <luh2-static-datafile> \
-#                       -r <regrid-targetfile> -w <regridder-output> -o <outputfile>
-
 import argparse, os, sys
 from landusedata.luh2mod import ImportData, SetMaskLUH2, SetMaskSurfData
 from landusedata.luh2mod import RegridConservative, RegridLoop, CorrectStateSum
