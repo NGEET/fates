@@ -1,7 +1,7 @@
 import pytest
 
-# from landusedata import luh2mod
-from landusedata import landusepftmod as luh2mod
+from landusedata import luh2mod
+# from landusedata import landusepft as luh2mod
 
 # Postive test case for importing LUH2 static data file
 def test_posImportStaticLUH2File(static_file_location):

@@ -1,18 +1,5 @@
 import xarray as xr
 
-# Open the LUH2 static data file
-def ImportStaticLUH2File(filename):
-    dataset = xr.open_dataset(filename)
-
-    # Check to see if the imported dataset has correct variables
-    listcheck = ['ptbio', 'fstnf', 'carea', 'icwtr', 'ccode', 'lat_bounds', 'lon_bounds']
-    if list(dataset.var()) != listcheck:
-        raise TypeError("incorrect file, must be LUH2 static file")
-
-    # Convert all data from single to double precision
-    dataset = dataset.astype('float64')
-    return dataset
-
 # Open the CLM5 landuse x pft data file
 def ImportLandusePFTFile(filename):
     dataset = xr.open_dataset(filename)
