@@ -41,37 +41,52 @@ def main(args):
 
     # Note that the list order is:
     # bareground, surface data, primary, pasture, rangeland (other)
+    # ds_var_names = ['frac_brgnd','frac_csurf','frac_primr','frac_pastr','frac_range']
     ds_var_names = ['frac_brgnd','frac_csurf','frac_primr','frac_pastr','frac_range']
 
-    # Combine percent data arrays into a new dataset
-    ds_percent = xr.Dataset()
+    # Prepare the target dataset
+    ds_target = xr.open_dataset(args.regrid_target_file)
+    ds_target = ds_target.rename_dims(dims_dict={'lsmlat':'lat','lsmlon':'lon'})
+    ds_target['lon'] = ds_target.LONGXY.isel(lat=0)
+    ds_target['lat'] = ds_target.LATIXY.isel(lon=0)
+
+    # Create an output dataset to contain individually regridded landuse percent datasets
+    ds_output = xr.Dataset()
+
+    # TODO: this needs to be reworked since the different variables need to have their
+    # own datasets with their own respective masks
     for index,data_array in enumerate(percent):
-        ds_percent = ds_percent.merge(data_array.to_dataset(name=ds_var_names[index]))
+
+        # Get the name for the new variable
+        varname = ds_var_names[index]
+
+        # Convert current percent data array into temporary dataset
+        ds_percent = data_array.to_dataset(name=varname)
+
+        # Apply mask for the current dataset
+        # TODO: this is a placeholder mask, needs update
+        if (varname != 'frac_brgnd'):
+            ds_percent['mask'] = xr.where(ds_percent[varname].sum(dim='natpft') == 0.,0,1)
+
+        # Regrid current dataset
+        print('Regridding {}'.format(varname))
+        regridder = xe.Regridder(ds_percent, ds_target, "conservative_normed")
+        ds_regrid = regridder(ds_percent)
+        # ds_regrid = ds_regrid.rename_dims(dims_dict={'lat':'lsmlat','lon':'lsmlon'})
+        output_file = os.path.join(os.getcwd(),args.output)
+
+        # Append the new dataset to the output dataset.  Drop mask to avoid conflicts.
+        if (varname != 'frac_brgnd'):
+            ds_regrid = ds_regrid.drop_vars(['mask'])
+        ds_output = ds_output.merge(ds_regrid)
 
     # Duplicate the 'primary' data array into a 'secondary' data array.  Eventually
     # this will contain different data from a future CLM landuse x pft update
-    ds_percent = ds_percent.merge(percent[2].to_dataset(name='frac_secnd'))
-
-    # Regrid dataset (if necessary)
-    # TODO: add option to reuse weights file from luh2 code
-    if (not isinstance(args.regrid_target_file,type(None))):
-        print('Regridding')
-        ds_target = xr.open_dataset(args.regrid_target_file)
-        # TODO: reuse (and refactor as necessary) code from luh2 data tool
-        ds_target = ds_target.rename_dims(dims_dict={'lsmlat':'lat','lsmlon':'lon'})
-        ds_target['lon'] = ds_target.LONGXY.isel(lat=0)
-        ds_target['lat'] = ds_target.LATIXY.isel(lon=0)
-        regridder = xe.Regridder(ds_percent, ds_target, "conservative_normed")
-        ds_regrid = regridder(ds_percent)
-        ds_regrid = ds_regrid.rename_dims(dims_dict={'lat':'lsmlat','lon':'lsmlon'})
-        output_file = os.path.join(os.getcwd(),args.output)
-        # rename the dimensions back to lsmlat/lsmlon?
-    else:
-        ds_regrid = ds_percent
+    ds_output['frac_secnd'] = ds_output.frac_primr.copy(deep=True)
 
     # Output dataset to netcdf file
     print('Writing fates landuse x pft dataset to file')
-    ds_regrid.to_netcdf(output_file)
+    ds_output.to_netcdf(output_file)
 
 if __name__ == "__main__":
     main()
