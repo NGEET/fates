@@ -1,6 +1,19 @@
-import xarray
+import xarray as xr
 
-def RegridTargetPrep(regrid_target):
+def ImportRegridTarget(filename):
+    dataset = xr.open_dataset(filename)
+
+    # Check the file type
+    dim_list = list(dataset.dims)
+    if ('lsmlat' in list(dataset.dims)) != True:
+        raise TypeError("incorrect file, must be surface dataset")
+
+    # Prepare the the regrid dataset
+    dataset = _RegridTargetPrep(dataset)
+
+    return dataset
+
+def _RegridTargetPrep(regrid_target):
     """
     Rename the CLM surface data file regrid target lat/lon dimensions
 

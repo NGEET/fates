@@ -5,7 +5,7 @@ import xarray as xr
 from landusedata.luh2mod import ImportLUH2StaticFile
 from landusedata.luh2mod import ImportLUH2TimeSeries
 
-from landusedata.utils import RegridTargetPrep
+from landusedata.utils import ImportRegridTarget
 
 from landusedata.luh2mod import SetMaskLUH2, SetMaskSurfData
 from landusedata.luh2mod import RegridConservative, RegridLoop, CorrectStateSum
@@ -16,10 +16,6 @@ def main(args):
     # Import and prep the LUH2 datasets and regrid target
     ds_luh2 = ImportLUH2TimeSeries(args.luh2_file,args.begin,args.end)
 
-    # Import and prep the regrid target surface dataset
-    ds_regrid_target = xr.open_dataset(args.regrid_target_file)
-    ds_regrid_target = RegridTargetPrep(ds_regrid_target)
-
     # Import the LUH2 static data to use for masking
     ds_luh2_static = ImportLUH2StaticFile(args.luh2_static_file)
 
@@ -29,6 +25,9 @@ def main(args):
     # Mask all LUH2 input data using the ice/water fraction for the LUH2 static data
     ds_luh2 = SetMaskLUH2(ds_luh2, ds_luh2_static)
     ds_luh2_static = SetMaskLUH2(ds_luh2_static, ds_luh2_static)
+
+    # Import and prep the regrid target surface dataset
+    ds_regrid_target = ImportRegridTarget(args.regrid_target_file)
 
     # Mask the regrid target
     ds_regrid_target = SetMaskSurfData(ds_regrid_target)

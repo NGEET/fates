@@ -4,7 +4,8 @@ import xesmf as xe
 from landusedata.landusepftmod import ImportLandusePFTFile
 from landusedata.landusepftmod import AddLatLonCoordinates, DefineMask, RenormalizePFTs
 from landusedata.luh2mod import ImportLUH2StaticFile
-from landusedata.utils import RegridTargetPrep
+
+from landusedata.utils import ImportRegridTarget
 
 def main(args):
 
@@ -45,8 +46,7 @@ def main(args):
     ds_var_names = ['frac_brgnd','frac_csurf','frac_primr','frac_pastr','frac_range']
 
     # Open and prepare the target dataset
-    ds_target = xr.open_dataset(args.regrid_target_file)
-    ds_target = RegridTargetPrep(ds_target)
+    ds_target = ImportRegridTarget(args.regrid_target_file)
 
     # Create an output dataset to contain individually regridded landuse percent datasets
     ds_output = xr.Dataset()
