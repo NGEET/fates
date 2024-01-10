@@ -1,16 +1,27 @@
 import argparse, os, sys
-from landusedata.luh2mod import ImportData, SetMaskLUH2, SetMaskSurfData
+
+import xarray as xr
+
+from landusedata.luh2mod import ImportLUH2StaticFile
+from landusedata.luh2mod import ImportLUH2TimeSeries
+
+from landusedata.utils import RegridTargetPrep
+
+from landusedata.luh2mod import SetMaskLUH2, SetMaskSurfData
 from landusedata.luh2mod import RegridConservative, RegridLoop, CorrectStateSum
 
 # Add version checking here in case environment.yml not used
 def main(args):
 
     # Import and prep the LUH2 datasets and regrid target
-    ds_luh2 = ImportData(args.luh2_file,args.begin,args.end)
-    ds_regrid_target = ImportData(args.regridder_target_file,args.begin,args.end)
+    ds_luh2 = ImportLUH2TimeSeries(args.luh2_file,args.begin,args.end)
+
+    # Import and prep the regrid target surface dataset
+    ds_regrid_target = xr.open_dataset(args.regrid_target_file)
+    ds_regrid_target = RegridTargetPrep(ds_regrid_target)
 
     # Import the LUH2 static data to use for masking
-    ds_luh2_static = ImportData(args.luh2_static_file)
+    ds_luh2_static = ImportLUH2StaticFile(args.luh2_static_file)
 
     # Create new variable where the ice water fraction is inverted w
     ds_luh2_static["landfrac"] = 1 - ds_luh2_static.icwtr

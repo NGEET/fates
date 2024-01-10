@@ -3,13 +3,13 @@ import xarray as xr
 import xesmf as xe
 from landusedata.landusepftmod import ImportLandusePFTFile
 from landusedata.landusepftmod import AddLatLonCoordinates, DefineMask, RenormalizePFTs
-from landusedata.luh2mod import ImportStaticLUH2File
+from landusedata.luh2mod import ImportLUH2StaticFile
 from landusedata.utils import RegridTargetPrep
 
 def main(args):
 
     # Open the files
-    ds_static  = ImportStaticLUH2File(args.luh2_static_file)
+    ds_static  = ImportLUH2StaticFile(args.luh2_static_file)
     filelist = [args.clm_surface_file,
                 args.clm_luhforest_file,
                 args.clm_luhpasture_file,
@@ -44,7 +44,7 @@ def main(args):
     # bareground, surface data, primary, pasture, rangeland (other)
     ds_var_names = ['frac_brgnd','frac_csurf','frac_primr','frac_pastr','frac_range']
 
-    # Prepare the target dataset
+    # Open and prepare the target dataset
     ds_target = xr.open_dataset(args.regrid_target_file)
     ds_target = RegridTargetPrep(ds_target)
 

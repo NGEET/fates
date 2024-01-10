@@ -24,7 +24,7 @@ def main(argv=None):
     lupft_parser.set_defaults(func=lupftmain)
 
     # LUH2 subparser arguments
-    luh2_parser.add_argument('regridder_target_file',
+    luh2_parser.add_argument('regrid_target_file',
                              help='target surface data file with desired grid resolution')
     luh2_parser.add_argument('luh2_file',
                              help = "full path of luh2 raw states file")

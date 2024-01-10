@@ -6,7 +6,7 @@ import xesmf as xe
 from landusedata.utils import RegridTargetPrep
 
 # Open the LUH2 static data file
-def ImportStaticLUH2File(filename):
+def ImportLUH2StaticFile(filename):
     dataset = xr.open_dataset(filename)
 
     # Check to see if the imported dataset has correct variables
@@ -20,7 +20,7 @@ def ImportStaticLUH2File(filename):
 
 
 # Import luh2 or surface data sets
-def ImportData(input_file,start=None,stop=None,merge_flag=False):
+def ImportLUH2TimeSeries(input_file,start=None,stop=None,merge_flag=False):
 
     # Open files
     # Set decode_times to false as the luh2 raw data is outside the range
