@@ -2,13 +2,12 @@ import argparse, os, sys
 
 import xarray as xr
 
-from landusedata.luh2mod import ImportLUH2StaticFile
-from landusedata.luh2mod import ImportLUH2TimeSeries
+from landusedata.luh2mod import ImportLUH2StaticFile, ImportLUH2TimeSeries
+from landusedata.luh2mod import SetMaskLUH2, SetMaskSurfData, CorrectStateSum
 
 from landusedata.utils import ImportRegridTarget
 
-from landusedata.luh2mod import SetMaskLUH2, SetMaskSurfData
-from landusedata.luh2mod import RegridConservative, RegridLoop, CorrectStateSum
+from landusedata.regrid import RegridConservative, RegridLoop
 
 # Add version checking here in case environment.yml not used
 def main(args):
