@@ -108,7 +108,7 @@ module FatesInterfaceMod
    use FatesHistoryInterfaceMod  , only : fates_hist
    use FatesHydraulicsMemMod     , only : nshell
    use FatesHydraulicsMemMod     , only : nlevsoi_hyd_max
-   use FatesTwoStreamInterfaceMod, only : TransferRadParams
+   use FatesTwoStreamUtilsMod, only : TransferRadParams
    
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg

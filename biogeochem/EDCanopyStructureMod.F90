@@ -45,7 +45,7 @@ module EDCanopyStructureMod
   use PRTGenericMod,          only : struct_organ
   use PRTGenericMod,          only : SetState
   use PRTGenericMod,          only : carbon12_element
-  use FatesTwoStreamInterfaceMod, only : FatesConstructRadElements
+  use FatesTwoStreamUtilsMod, only : FatesConstructRadElements
   use FatesRadiationMemMod  , only : twostr_solver
   
   ! CIME Globals

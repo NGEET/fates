@@ -877,7 +877,7 @@ contains
 
   ! ================================================================================================
 
-  subroutine ZenithPrep(this,cosz)
+  subroutine ZenithPrep(this,cosz_in)
 
     ! Pre-process things that change with the zenith angle
     ! i.e. the beam optical properties
@@ -889,8 +889,9 @@ contains
 
     class(twostream_type) :: this
     integer               :: ib      ! band index, matches indexing of rad_params
-    real(r8)              :: cosz    ! Cosine of the zenith angle
+    real(r8),intent(in)   :: cosz_in ! Un-protected cosine of the zenith angle
 
+    real(r8) :: cosz ! the near-zero protected cosz
     integer :: ican  ! scattering element canopy layer index (top down)
     integer :: icol  ! scattering element column
     real(r8) :: asu  ! single scattering albedo
@@ -908,12 +909,12 @@ contains
                                                ! the Kb_leaf that creates
                                                ! a singularity and the actual
     
-    if( (cosz-1.0) > nearzero ) then
+    if( (cosz_in-1.0) > nearzero ) then
        write(log_unit,*)"The cosine of the zenith angle cannot exceed 1"
        write(log_unit,*)"cosz: ",cosz
        write(log_unit,*)"TwoStreamMLPEMod.F90:ZenithPrep"
        call endrun(msg=errMsg(sourcefile, __LINE__))
-    elseif(cosz<0._r8)then
+    elseif(cosz_in<0._r8)then
        write(log_unit,*)"The cosine of the zenith angle should not be less than zero"
        write(log_unit,*)"It can be exactly zero, but not less than"
        write(log_unit,*)"cosz: ",cosz
@@ -921,7 +922,7 @@ contains
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
        
-    cosz = max(0.001,cosz)
+    cosz = max(0.001,cosz_in)
 
     this%cosz = cosz
     

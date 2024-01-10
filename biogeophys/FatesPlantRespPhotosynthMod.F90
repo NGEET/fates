@@ -69,7 +69,7 @@ module FATESPlantRespPhotosynthMod
   use FatesRadiationMemMod, only : norman_solver,twostr_solver
   use EDParamsMod,          only : radiation_model
   use FatesRadiationMemMod, only : ipar
-  use FatesTwoStreamInterfaceMod, only : FatesGetCohortAbsRad
+  use FatesTwoStreamUtilsMod, only : FatesGetCohortAbsRad
   use FatesAllometryMod     , only : VegAreaLayer
 
   ! CIME Globals
