@@ -3,6 +3,8 @@ import numpy as np
 import xarray as xr
 import xesmf as xe
 
+from landusedata.utils import RegridTargetPrep
+
 # Open the LUH2 static data file
 def ImportStaticLUH2File(filename):
     dataset = xr.open_dataset(filename)
@@ -97,7 +99,7 @@ def PrepDataset_ESMF(input_dataset,dsflag,dstype):
             input_dataset = BoundsVariableFixLUH2(input_dataset)
         elif(dstype == "surface"):
             print("PrepDataset: SurfData")
-            input_dataset = DimensionFixSurfData(input_dataset)
+            input_dataset = RegridTargetPrep(input_dataset)
         print("data set updated for xESMF\n")
 
     return(input_dataset)

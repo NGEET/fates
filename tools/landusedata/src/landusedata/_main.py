@@ -68,7 +68,7 @@ def main(argv=None):
     # Parse the arguments
     args = parser.parse_args(argv)
 
-    # Call the default function for the given command
+    # Call the default function for the given subcommand
     args.func(args)
 
     # Return successful completion
