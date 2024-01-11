@@ -18,7 +18,7 @@ def ImportLUH2StaticFile(filename):
 
 
 # Import luh2 or surface data sets
-def ImportLUH2TimeSeries(input_file,start=None,stop=None,merge_flag=False):
+def ImportLUH2TimeSeries(input_file,start=None,stop=None):
 
     # Open files
     # Set decode_times to false as the luh2 raw data is outside the range
@@ -27,12 +27,12 @@ def ImportLUH2TimeSeries(input_file,start=None,stop=None,merge_flag=False):
     print("Input file dataset opened: {}".format(input_file))
 
     # Prep the input data for use
-    datasetout = PrepDataset(datasetout,start,stop,merge_flag)
+    datasetout = PrepDataset(datasetout,start,stop)
 
     return(datasetout)
 
 # Prepare the input_file to be used for regridding
-def PrepDataset(input_dataset,start=None,stop=None,merge_flag=False):
+def PrepDataset(input_dataset,start=None,stop=None):
 
     # Use the maximum span if start and stop are not present
     # This assumes that the luh2 raw data will always use a
@@ -77,9 +77,7 @@ def PrepDataset(input_dataset,start=None,stop=None,merge_flag=False):
     input_dataset["timesince"] = time_since
 
     # Correct the necessary variables for both datasets
-    # We don't need to Prep the incoming dataset if it's being opened to merge
-    if(not merge_flag):
-        input_dataset = _BoundsVariableFixLUH2(input_dataset)
+    input_dataset = _BoundsVariableFixLUH2(input_dataset)
 
     return(input_dataset)
 

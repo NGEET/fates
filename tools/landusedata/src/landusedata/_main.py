@@ -26,13 +26,17 @@ def main(argv=None):
     # LUH2 subparser arguments
     luh2_parser.add_argument('regrid_target_file',
                              help='target surface data file with desired grid resolution')
-    luh2_parser.add_argument('luh2_file',
-                             help = "full path of luh2 raw states file")
     luh2_parser.add_argument("luh2_static_file",
                              help = "luh2 static data file")
+    luh2_parser.add_argument('luh2_states_file',
+                             help = "full path of luh2 raw states file")
+    luh2_parser.add_argument('luh2_transitions_file',
+                             help = "full path of luh2 raw transitions file")
+    luh2_parser.add_argument('luh2_management_file',
+                             help = "full path of luh2 raw management file")
     luh2_parser.add_argument("-w", "--regridder_weights",
                              default = 'regridder.nc',
-                             help = "filename of regridder weights to write to or reuse (if -m option used)")
+                             help = "filename of regridder weights to save")
     luh2_parser.add_argument("-b","--begin",
                              type = int,
                              default = None,
@@ -44,9 +48,6 @@ def main(argv=None):
     luh2_parser.add_argument("-o","--output",
                              default = 'LUH2_timeseries.nc',
                              help = "output filename")
-    luh2_parser.add_argument("-m", "--luh2_merge_file",
-                             default = None,
-                             help = "previous luh2 output filename to merge into current run output")
 
     # Landuse x pft subparser arguments
     lupft_parser.add_argument('regrid_target_file',

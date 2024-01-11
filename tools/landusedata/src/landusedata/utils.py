@@ -26,3 +26,7 @@ def _RegridTargetPrep(regrid_target):
     regrid_target['lat'] = regrid_target.LATIXY.isel(lon=0)
 
     return regrid_target
+
+# TODO: add the follow common functions
+# - write to files
+# - read dataset into list of datasets

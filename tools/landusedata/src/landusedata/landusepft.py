@@ -71,11 +71,13 @@ def main(args):
         print('Regridding {}'.format(varname))
         regridder = xe.Regridder(ds_percent, ds_target, "conservative_normed")
         ds_regrid = regridder(ds_percent)
-        output_file = os.path.join(os.getcwd(),args.output)
 
-        # Append the new dataset to the output dataset.  Drop mask to avoid conflicts.
+        # Drop mask to avoid conflicts when merging
         if (varname != 'frac_brgnd'):
+            # There is no mask currently on the bareground
             ds_regrid = ds_regrid.drop_vars(['mask'])
+
+        # Append the new dataset to the output dataset
         ds_output = ds_output.merge(ds_regrid)
 
     # Duplicate the 'primary' data array into a 'secondary' data array.  Eventually
@@ -86,6 +88,7 @@ def main(args):
 
     # Output dataset to netcdf file
     print('Writing fates landuse x pft dataset to file')
+    output_file = os.path.join(os.getcwd(),args.output)
     ds_output.to_netcdf(output_file)
 
 if __name__ == "__main__":

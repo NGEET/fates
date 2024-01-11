@@ -42,6 +42,4 @@ def RenormalizePFTs(dataset):
 
 # Steps
 # - concatenate all this information together (including mask)
-# - add/adjust lat/lon names and time input for regridding
 # - regrid using luh2mod.py tooling
-
