@@ -67,7 +67,7 @@ def main(args):
         # Note that the time variable from the LUH2 data is 'years since ...' so we need to
         # add the input data year
         if (not "YEAR" in list(regrid_luh2.variables)):
-            regrid_luh2["YEAR"] = regrid_luh2.time + ds_luh2.timesince
+            regrid_luh2["YEAR"] = regrid_luh2.time + dataset.timesince
             regrid_luh2["LONGXY"] = ds_regrid_target["LONGXY"] # TO DO: double check if this is strictly necessary
             regrid_luh2["LATIXY"] = ds_regrid_target["LATIXY"] # TO DO: double check if this is strictly necessary
 
@@ -77,9 +77,9 @@ def main(args):
 
                 # Reapply the coordinate attributes.  This is a workaround for an xarray bug (#8047)
                 # Currently only need time
-                regrid_luh2.time.attrs = ds_luh2.time.attrs
-                regrid_luh2.lat.attrs = ds_luh2.lat.attrs
-                regrid_luh2.lon.attrs = ds_luh2.lon.attrs
+                regrid_luh2.time.attrs = dataset.time.attrs
+                regrid_luh2.lat.attrs = dataset.lat.attrs
+                regrid_luh2.lon.attrs = dataset.lon.attrs
 
                 # Merge previous regrided luh2 file with merge input target
                 # TO DO: check that the grid resolution matches
