@@ -54,6 +54,7 @@ module FatesHistoryInterfaceMod
   use FatesInterfaceTypesMod        , only : nlevcoage
   use FatesInterfaceTypesMod        , only : hlm_use_nocomp
   use FatesInterfaceTypesMod        , only : hlm_use_fixed_biogeog
+  use FatesInterfaceTypesMod        , only : hlm_use_luh
   use FatesAllometryMod             , only : CrownDepth
   use FatesAllometryMod             , only : bstore_allom
   use FatesAllometryMod             , only : set_root_fraction
@@ -85,7 +86,7 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : grav_earth
   use FatesLitterMod           , only : litter_type
   use FatesConstantsMod        , only : secondaryland
-
+  use FatesConstantsMod        , only : nocomp_bareground_land
   use PRTGenericMod            , only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod            , only : struct_organ, store_organ, repro_organ
   use PRTGenericMod            , only : carbon12_element
@@ -310,10 +311,12 @@ module FatesHistoryInterfaceMod
   integer :: ih_primaryland_fusion_error_si
   integer :: ih_area_si_landuse
   integer :: ih_disturbance_rate_si_lulu
+  integer :: ih_transition_matrix_si_lulu
   integer :: ih_fire_disturbance_rate_si
   integer :: ih_logging_disturbance_rate_si
   integer :: ih_fall_disturbance_rate_si
-  integer :: ih_harvest_carbonflux_si
+  integer :: ih_harvest_woodproduct_carbonflux_si
+  integer :: ih_landusechange_woodproduct_carbonflux_si
   integer :: ih_harvest_debt_si
   integer :: ih_harvest_debt_sec_si
 
@@ -2390,10 +2393,12 @@ end subroutine flush_hvars
                hio_understory_biomass_si   => this%hvars(ih_understory_biomass_si)%r81d, &
                hio_primaryland_fusion_error_si    => this%hvars(ih_primaryland_fusion_error_si)%r81d, &
                hio_disturbance_rate_si_lulu      => this%hvars(ih_disturbance_rate_si_lulu)%r82d, &
+               hio_transition_matrix_si_lulu      => this%hvars(ih_transition_matrix_si_lulu)%r82d, &
                hio_fire_disturbance_rate_si      => this%hvars(ih_fire_disturbance_rate_si)%r81d, &
                hio_logging_disturbance_rate_si   => this%hvars(ih_logging_disturbance_rate_si)%r81d, &
                hio_fall_disturbance_rate_si      => this%hvars(ih_fall_disturbance_rate_si)%r81d, &
-               hio_harvest_carbonflux_si => this%hvars(ih_harvest_carbonflux_si)%r81d, &
+               hio_harvest_woodproduct_carbonflux_si => this%hvars(ih_harvest_woodproduct_carbonflux_si)%r81d, &
+               hio_landusechange_woodproduct_carbonflux_si => this%hvars(ih_landusechange_woodproduct_carbonflux_si)%r81d, &
                hio_harvest_debt_si     => this%hvars(ih_harvest_debt_si)%r81d, &
                hio_harvest_debt_sec_si => this%hvars(ih_harvest_debt_sec_si)%r81d, &
                hio_gpp_si_scpf         => this%hvars(ih_gpp_si_scpf)%r82d, &
@@ -2752,6 +2757,13 @@ end subroutine flush_hvars
          end do
       end do
 
+      ! get the land use transition matrix and output that to history. (mainly a sanity check, can maybe remove before integration)
+      do i_dist = 1, n_landuse_cats
+         do j_dist = 1, n_landuse_cats
+            hio_transition_matrix_si_lulu(io_si, i_dist+n_landuse_cats*(j_dist-1)) = sites(s)%landuse_transition_matrix(i_dist, j_dist)
+         end do
+      end do
+      
       ! output site-level disturbance rates [m2 m-2 day-1] -> [m2 m-2 yr-1] - TO DO rework this
 
       hio_fire_disturbance_rate_si(io_si) = sum(sites(s)%disturbance_rates(dtype_ifire,1:n_landuse_cats,1:n_landuse_cats)) * &
@@ -2763,8 +2775,10 @@ end subroutine flush_hvars
       hio_fall_disturbance_rate_si(io_si) = sum(sites(s)%disturbance_rates(dtype_ifall,1:n_landuse_cats,1:n_landuse_cats)) * &
            days_per_year
 
-      hio_harvest_carbonflux_si(io_si) = sites(s)%mass_balance(element_pos(carbon12_element))%wood_product * AREA_INV
-      
+      hio_harvest_woodproduct_carbonflux_si(io_si) = sum(sites(s)%mass_balance(element_pos(carbon12_element))%wood_product_harvest(1:numpft)) * AREA_INV
+
+      hio_landusechange_woodproduct_carbonflux_si(io_si) = sum(sites(s)%mass_balance(element_pos(carbon12_element))%wood_product_landusechange(1:numpft)) * AREA_INV
+
       ! Loop through patches to sum up diagonistics
       ipa = 0
       cpatch => sites(s)%oldest_patch
@@ -2782,8 +2796,10 @@ end subroutine flush_hvars
          hio_area_si_age(io_si,cpatch%age_class) = hio_area_si_age(io_si,cpatch%age_class) &
             + cpatch%area * AREA_INV
 
-         hio_area_si_landuse(io_si, cpatch%land_use_label) = hio_area_si_landuse(io_si, cpatch%land_use_label)&
-              + cpatch%area * AREA_INV
+         if (cpatch%land_use_label .gt. nocomp_bareground_land) then ! ignore land use info on nocomp bareground (where landuse label = 0)
+            hio_area_si_landuse(io_si, cpatch%land_use_label) = hio_area_si_landuse(io_si, cpatch%land_use_label)&
+                 + cpatch%area * AREA_INV
+         end if
 
          ! 24hr veg temperature
          hio_tveg24(io_si) = hio_tveg24(io_si) + &
@@ -4622,7 +4638,7 @@ end subroutine flush_hvars
          ! Calculate the site-level total vegetated area (i.e. non-bareground)
          site_area_veg = area
          if (hlm_use_nocomp .eq. itrue .and. hlm_use_fixed_biogeog .eq. itrue) then
-            site_area_veg = area - sites(s)%area_pft(0)
+            site_area_veg = area - sites(s)%area_bareground * area
          end if
 
          cpatch => sites(s)%oldest_patch
@@ -5770,6 +5786,11 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_lulu_r8, hlms='CLM:ALM', upfreq=1, ivar=ivar,  &
          initialize=initialize_variables, index=ih_disturbance_rate_si_lulu)
 
+    call this%set_history_var(vname='FATES_TRANSITION_MATRIX_LULU', units='m2 m-2 yr-1',      &
+         long='land use transition matrix', use_default='active',  &
+         avgflag='A', vtype=site_lulu_r8, hlms='CLM:ALM', upfreq=1, ivar=ivar,  &
+         initialize=initialize_variables, index=ih_transition_matrix_si_lulu)
+
     ! Secondary forest area and age diagnostics
 
     call this%set_history_var(vname='FATES_SECONDARY_FOREST_FRACTION',         &
@@ -6464,12 +6485,19 @@ end subroutine update_history_hifrq
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_fall_disturbance_rate_si)
 
-    call this%set_history_var(vname='FATES_HARVEST_CARBON_FLUX',               &
+    call this%set_history_var(vname='FATES_HARVEST_WOODPROD_C_FLUX',           &
          units='kg m-2 yr-1',                                                  &
-         long='harvest carbon flux in kg carbon per m2 per year',              &
+         long='harvest-associated wood product carbon flux in kg carbon per m2 per year', &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
-         index = ih_harvest_carbonflux_si)
+         index = ih_harvest_woodproduct_carbonflux_si)
+
+    call this%set_history_var(vname='FATES_LANDUSECHANGE_WOODPROD_C_FLUX',     &
+         units='kg m-2 yr-1',                                                  &
+         long='land-use-change-associated wood product carbon flux in kg carbon per m2 per year', &
+         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+         index = ih_landusechange_woodproduct_carbonflux_si)
 
     ! Canopy Resistance
 

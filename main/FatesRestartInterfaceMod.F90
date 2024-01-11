@@ -10,6 +10,7 @@ module FatesRestartInterfaceMod
   use FatesConstantsMod,       only : fates_unset_r8, fates_unset_int
   use FatesConstantsMod,       only : primaryland
   use FatesConstantsMod,       only : nearzero
+  use FatesConstantsMod,       only : n_landuse_cats
   use FatesConstantsMod,       only : default_regeneration
   use FatesConstantsMod,       only : TRS_regeneration
   use FatesGlobals,            only : fates_log
@@ -24,6 +25,7 @@ module FatesRestartInterfaceMod
   use FatesInterfaceTypesMod,  only : hlm_parteh_mode
   use FatesInterfaceTypesMod,  only : hlm_use_sp
   use FatesInterfaceTypesMod,  only : hlm_use_nocomp, hlm_use_fixed_biogeog
+  use FatesInterfaceTypesMod,  only : hlm_use_potentialveg
   use FatesInterfaceTypesMod,  only : fates_maxElementsPerSite
   use FatesInterfaceTypesMod,  only : hlm_use_tree_damage
   use FatesHydraulicsMemMod,   only : nshell
@@ -97,9 +99,12 @@ module FatesRestartInterfaceMod
   integer :: ir_phenmodeldate_si
   integer :: ir_acc_ni_si
   integer :: ir_gdd_si
+  integer :: ir_min_allowed_landuse_fraction_si
+  integer :: ir_landuse_vector_gt_min_si
+  integer :: ir_area_bareground_si
   integer :: ir_snow_depth_si
   integer :: ir_trunk_product_si
-  
+  integer :: ir_landuse_config_si
   integer :: ir_ncohort_pa
   integer :: ir_canopy_layer_co
   integer :: ir_canopy_layer_yesterday_co
@@ -263,7 +268,8 @@ module FatesRestartInterfaceMod
   integer :: ir_rootlittin_flxdg
   integer :: ir_oldstock_mbal
   integer :: ir_errfates_mbal
-  integer :: ir_woodprod_mbal
+  integer :: ir_woodprod_harvest_mbal
+  integer :: ir_woodprod_landusechange_mbal
   integer :: ir_prt_base     ! Base index for all PRT variables
 
   ! site-level input seed from dispersal
@@ -706,6 +712,18 @@ contains
          long_name='growing degree days at each site', units='degC days', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_gdd_si )
 
+    call this%set_restart_var(vname='fates_min_allowed_landuse_fraction_site', vtype=site_r8, &
+         long_name='minimum allowed land use fraction at each site', units='degC days', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_min_allowed_landuse_fraction_si )
+
+    call this%set_restart_var(vname='fates_landuse_vector_gt_min_site', vtype=cohort_int, &
+         long_name='minimum allowed land use fraction at each site', units='degC days', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_landuse_vector_gt_min_si )
+
+    call this%set_restart_var(vname='fates_area_bareground_site', vtype=site_r8, &
+         long_name='minimum allowed land use fraction at each site', units='degC days', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_area_bareground_si )
+
     call this%set_restart_var(vname='fates_snow_depth_site', vtype=site_r8, &
          long_name='average snow depth', units='m', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_snow_depth_si )
@@ -714,6 +732,11 @@ contains
          long_name='Accumulate trunk product flux at site', &
          units='kgC/m2', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_trunk_product_si )
+
+    call this%set_restart_var(vname='fates_landuse_config_site', vtype=site_int, &
+         long_name='hlm_use_potentialveg status of run that created this restart file', &
+         units='kgC/m2', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_landuse_config_si )
 
     ! -----------------------------------------------------------------------------------
     ! Variables stored within cohort vectors
@@ -1130,10 +1153,15 @@ contains
 
     end if
     
-    call this%RegisterCohortVector(symbol_base='fates_woodproduct', vtype=site_r8, &
-         long_name_base='Current wood product flux', &
+    call this%RegisterCohortVector(symbol_base='fates_woodproduct_harvest', vtype=cohort_r8, &
+         long_name_base='Current wood product flux from harvest', &
          units='kg/m2/day', veclength=num_elements, flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_woodprod_mbal)
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_woodprod_harvest_mbal)
+
+    call this%RegisterCohortVector(symbol_base='fates_woodproduct_landusechange', vtype=cohort_r8, &
+         long_name_base='Current wood product flux from land use change', &
+         units='kg/m2/day', veclength=num_elements, flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_woodprod_landusechange_mbal)
     
     ! Only register satellite phenology related restart variables if it is turned on!
 
@@ -1990,6 +2018,7 @@ contains
     integer  :: io_idx_si_vtmem ! indices for veg-temp memory at site
     integer  :: io_idx_pa_ncl   ! each canopy layer within each patch
     integer  :: io_idx_si_luludi ! site-level lu x lu x ndist index
+    integer  :: io_idx_si_lu   ! site-level lu index
 
     ! Some counters (for checking mostly)
     integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
@@ -2012,6 +2041,7 @@ contains
     integer  :: i_cdam           ! loop counter for damage
     integer  :: icdi             ! loop counter for damage
     integer  :: icdj             ! loop counter for damage
+    integer  :: i_landuse,i_pflu ! loop counter for land use class
     integer  :: i_lu_donor, i_lu_receiver, i_dist ! loop counters for land use and disturbance
     
     type(fates_restart_variable_type) :: rvar
@@ -2030,8 +2060,12 @@ contains
            rio_phenmodeldate_si        => this%rvars(ir_phenmodeldate_si)%int1d, &
            rio_acc_ni_si               => this%rvars(ir_acc_ni_si)%r81d, &
            rio_gdd_si                  => this%rvars(ir_gdd_si)%r81d, &
+           rio_min_allowed_landuse_fraction_si  => this%rvars(ir_min_allowed_landuse_fraction_si)%r81d, &
+           rio_landuse_vector_gt_min_si  => this%rvars(ir_landuse_vector_gt_min_si)%int1d, &
+           rio_area_bareground_si      => this%rvars(ir_area_bareground_si)%r81d, &
            rio_snow_depth_si           => this%rvars(ir_snow_depth_si)%r81d, &
            rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
+           rio_landuse_config_s        => this%rvars(ir_landuse_config_si)%int1d, &
            rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
            rio_fcansno_pa              => this%rvars(ir_fcansno_pa)%r81d, &
            rio_solar_zenith_flag_pa    => this%rvars(ir_solar_zenith_flag_pa)%int1d, &
@@ -2124,6 +2158,7 @@ contains
            rio_abg_fmort_flux_siscpf => this%rvars(ir_abg_fmort_flux_siscpf)%r81d, &
            rio_abg_term_flux_siscpf  => this%rvars(ir_abg_term_flux_siscpf)%r81d, &
            rio_disturbance_rates_siluludi => this%rvars(ir_disturbance_rates_siluludi)%r81d, &
+           rio_landuse_config_si       => this%rvars(ir_landuse_config_si)%int1d, &
 
            rio_imortrate_sicdpf        => this%rvars(ir_imortrate_sicdpf)%r81d, &
            rio_imortcflux_sicdsc       => this%rvars(ir_imortcflux_sicdsc)%r81d, &
@@ -2174,6 +2209,7 @@ contains
           io_idx_si_scpf = io_idx_co_1st
           io_idx_si_pft  = io_idx_co_1st
           io_idx_si_luludi  = io_idx_co_1st
+          io_idx_si_lu   = io_idx_co_1st
 
           ! recruitment rate
           do i_pft = 1,numpft
@@ -2185,8 +2221,23 @@ contains
           end do
 
           do i_pft = 1,numpft
-             rio_area_pft_sift(io_idx_co_1st+i_pft-1)      = sites(s)%area_pft(i_pft)
+              do i_landuse = 1, n_landuse_cats
+                i_pflu = i_landuse + (i_pft - 1) * n_landuse_cats
+                rio_area_pft_sift(io_idx_co_1st+i_pflu-1)      = sites(s)%area_pft(i_pft, i_landuse)
+             end do
           end do
+
+          rio_min_allowed_landuse_fraction_si(io_idx_si)   = sites(s)%min_allowed_landuse_fraction
+          do i_landuse = 1, n_landuse_cats
+             if ( sites(s)%landuse_vector_gt_min(i_landuse)) then
+                rio_landuse_vector_gt_min_si(io_idx_si_lu)   = itrue
+             else
+                rio_landuse_vector_gt_min_si(io_idx_si_lu)   = ifalse
+             endif
+             io_idx_si_lu = io_idx_si_lu + 1
+          end do
+
+          rio_area_bareground_si(io_idx_si)           = sites(s)%area_bareground
 
           do i_scls = 1, nlevsclass
              do i_pft = 1, numpft
@@ -2248,12 +2299,13 @@ contains
                 do i_pft=1,numpft
                    this%rvars(ir_leaflittin_flxdg+el-1)%r81d(io_idx_si_pft) = sites(s)%flux_diags(el)%leaf_litter_input(i_pft)
                    this%rvars(ir_rootlittin_flxdg+el-1)%r81d(io_idx_si_pft) = sites(s)%flux_diags(el)%root_litter_input(i_pft)
+                   this%rvars(ir_woodprod_harvest_mbal+el-1)%r81d(io_idx_si_pft) = sites(s)%mass_balance(el)%wood_product_harvest(i_pft)
+                   this%rvars(ir_woodprod_landusechange_mbal+el-1)%r81d(io_idx_si_pft) = sites(s)%mass_balance(el)%wood_product_landusechange(i_pft)
                    io_idx_si_pft = io_idx_si_pft + 1
                 end do
 
                 this%rvars(ir_oldstock_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%old_stock
                 this%rvars(ir_errfates_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%err_fates
-                this%rvars(ir_woodprod_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%wood_product
 
              end do
           end if
@@ -2629,6 +2681,10 @@ contains
 
           ! Accumulated trunk product
           rio_trunk_product_si(io_idx_si) = sites(s)%resources_management%trunk_product_site
+
+          ! land use flag
+          rio_landuse_config_si(io_idx_si) = hlm_use_potentialveg
+
           ! set numpatches for this column
 
           rio_npatch_si(io_idx_si)  = patchespersite
@@ -2956,6 +3012,7 @@ contains
      
      integer  :: io_idx_pa_ncl   ! each canopy layer within each patch
      integer  :: io_idx_si_luludi ! site-level lu x lu x ndist index
+     integer  :: io_idx_si_lu   ! site-level lu x lu x ndist index
 
      ! Some counters (for checking mostly)
      integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
@@ -2975,6 +3032,7 @@ contains
      integer  :: i_cdam           ! loop counter for damage class
      integer  :: icdj             ! loop counter for damage class
      integer  :: icdi             ! loop counter for damage class 
+     integer  :: i_landuse,i_pflu ! loop counter for land use class
      integer  :: i_lu_donor, i_lu_receiver, i_dist ! loop counters for land use and disturbance    
 
      associate( rio_npatch_si         => this%rvars(ir_npatch_si)%int1d, &
@@ -2988,8 +3046,12 @@ contains
           rio_phenmodeldate_si        => this%rvars(ir_phenmodeldate_si)%int1d, &
           rio_acc_ni_si               => this%rvars(ir_acc_ni_si)%r81d, &
           rio_gdd_si                  => this%rvars(ir_gdd_si)%r81d, &
+          rio_min_allowed_landuse_fraction_si                  => this%rvars(ir_min_allowed_landuse_fraction_si)%r81d, &
+          rio_landuse_vector_gt_min_si               => this%rvars(ir_landuse_vector_gt_min_si)%int1d, &
+          rio_area_bareground_si                  => this%rvars(ir_area_bareground_si)%r81d, &
           rio_snow_depth_si           => this%rvars(ir_snow_depth_si)%r81d, &
           rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
+          rio_landuse_config_si       => this%rvars(ir_landuse_config_si)%int1d, &
           rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
           rio_fcansno_pa              => this%rvars(ir_fcansno_pa)%r81d, &
           rio_solar_zenith_flag_pa    => this%rvars(ir_solar_zenith_flag_pa)%int1d, &
@@ -3122,6 +3184,7 @@ contains
           io_idx_si_scpf = io_idx_co_1st
           io_idx_si_pft = io_idx_co_1st
           io_idx_si_luludi  = io_idx_co_1st
+          io_idx_si_lu  = io_idx_co_1st
 
           ! read seed_bank info(site-level, but PFT-resolved)
           do i_pft = 1,numpft
@@ -3131,17 +3194,22 @@ contains
           ! variables for fixed biogeography mode. These are currently used in restart even when this is off.
           do i_pft = 1,numpft
              sites(s)%use_this_pft(i_pft) = rio_use_this_pft_sift(io_idx_co_1st+i_pft-1)
-             sites(s)%area_pft(i_pft)     = rio_area_pft_sift(io_idx_co_1st+i_pft-1)
+             do i_landuse = 1, n_landuse_cats
+                i_pflu = i_landuse + (i_pft - 1) * n_landuse_cats
+                sites(s)%area_pft(i_pft, i_landuse)     = rio_area_pft_sift(io_idx_co_1st+i_pflu-1)
+             end do
           enddo
 
-          ! calculate the bareground area for the pft in no competition + fixed biogeo modes
-          if (hlm_use_nocomp .eq. itrue .and. hlm_use_fixed_biogeog .eq. itrue) then
-             if (area-sum(sites(s)%area_pft(1:numpft)) .gt. nearzero) then
-                sites(s)%area_pft(0) = area - sum(sites(s)%area_pft(1:numpft))
+          sites(s)%min_allowed_landuse_fraction  = rio_min_allowed_landuse_fraction_si(io_idx_si)
+          do i_landuse = 1, n_landuse_cats
+             if ( rio_landuse_vector_gt_min_si(io_idx_si_lu) .eq. itrue ) then
+                sites(s)%landuse_vector_gt_min(i_landuse)  = .true.
              else
-                sites(s)%area_pft(0) = 0.0_r8
+                sites(s)%landuse_vector_gt_min(i_landuse)  = .false.
              endif
-          endif
+             io_idx_si_lu = io_idx_si_lu + 1
+          end do
+          sites(s)%area_bareground  = rio_area_bareground_si(io_idx_si)
 
           do i_scls = 1,nlevsclass
              do i_pft = 1, numpft
@@ -3204,12 +3272,13 @@ contains
                 do i_pft=1,numpft
                    sites(s)%flux_diags(el)%leaf_litter_input(i_pft) = this%rvars(ir_leaflittin_flxdg+el-1)%r81d(io_idx_si_pft)
                    sites(s)%flux_diags(el)%root_litter_input(i_pft) = this%rvars(ir_rootlittin_flxdg+el-1)%r81d(io_idx_si_pft)
+                   sites(s)%mass_balance(el)%wood_product_harvest(i_pft) = this%rvars(ir_woodprod_harvest_mbal+el-1)%r81d(io_idx_si_pft)
+                   sites(s)%mass_balance(el)%wood_product_landusechange(i_pft) = this%rvars(ir_woodprod_landusechange_mbal+el-1)%r81d(io_idx_si_pft)
                    io_idx_si_pft = io_idx_si_pft + 1
                 end do
 
                 sites(s)%mass_balance(el)%old_stock = this%rvars(ir_oldstock_mbal+el-1)%r81d(io_idx_si)
                 sites(s)%mass_balance(el)%err_fates = this%rvars(ir_errfates_mbal+el-1)%r81d(io_idx_si)
-                sites(s)%mass_balance(el)%wood_product = this%rvars(ir_woodprod_mbal+el-1)%r81d(io_idx_si)
              end do
           end if
           
@@ -3622,6 +3691,12 @@ contains
           sites(s)%acc_NI         = rio_acc_ni_si(io_idx_si)
           sites(s)%snow_depth     = rio_snow_depth_si(io_idx_si)
           sites(s)%resources_management%trunk_product_site = rio_trunk_product_si(io_idx_si)
+
+          ! if needed, trigger the special procedure to initialize land use structure from a
+          ! restart run that did not include land use.
+          if (rio_landuse_config_si(io_idx_si) .eq. itrue .and. hlm_use_potentialveg .eq. ifalse) then
+             sites(s)%transition_landuse_from_off_to_on = .true.
+          endif
 
        end do
 
