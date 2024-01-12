@@ -71,27 +71,27 @@ def main(args):
             regrid_luh2["LONGXY"] = ds_regrid_target["LONGXY"] # TO DO: double check if this is strictly necessary
             regrid_luh2["LATIXY"] = ds_regrid_target["LATIXY"] # TO DO: double check if this is strictly necessary
 
-            # Rename the dimensions for the output.  This needs to happen after the "LONGXY/LATIXY" assignment
-            if (not 'lsmlat' in list(regrid_luh2.dims)):
-                regrid_luh2 = regrid_luh2.rename_dims({'lat':'lsmlat','lon':'lsmlon'})
+        # Rename the dimensions for the output.  This needs to happen after the "LONGXY/LATIXY" assignment
+        if (not 'lsmlat' in list(regrid_luh2.dims)):
+            regrid_luh2 = regrid_luh2.rename_dims({'lat':'lsmlat','lon':'lsmlon'})
 
-                # Reapply the coordinate attributes.  This is a workaround for an xarray bug (#8047)
-                # Currently only need time
-                regrid_luh2.time.attrs = dataset.time.attrs
-                regrid_luh2.lat.attrs = dataset.lat.attrs
-                regrid_luh2.lon.attrs = dataset.lon.attrs
+        # Reapply the coordinate attributes.  This is a workaround for an xarray bug (#8047)
+        # Currently only need time
+        regrid_luh2.time.attrs = dataset.time.attrs
+        regrid_luh2.lat.attrs = dataset.lat.attrs
+        regrid_luh2.lon.attrs = dataset.lon.attrs
 
-                # Merge previous regrided luh2 file with merge input target
-                # TO DO: check that the grid resolution matches
-                # We could do this with an append during the write phase instead of the merge
-                # What is the performance impact of writing to disk between dataset regrids
-                # versus holding the output in memory?
-                ds_output = ds_output.merge(regrid_luh2)
+        # Merge previous regrided luh2 file with merge input target
+        # TO DO: check that the grid resolution matches
+        # We could do this with an append during the write phase instead of the merge
+        # What is the performance impact of writing to disk between dataset regrids
+        # versus holding the output in memory?
+        ds_output = ds_output.merge(regrid_luh2)
 
-                # If regrid_reuse is False, change it to True for the next loop so that
-                # the previously generated weights file is reused
-                if (not(regrid_reuse)):
-                    regrid_reuse = True
+        # If regrid_reuse is False, change it to True for the next loop so that
+        # the previously generated weights file is reused
+        if (not(regrid_reuse)):
+            regrid_reuse = True
 
     # Write the files
     # TO DO: add check to handle if the user enters the full path
