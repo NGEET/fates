@@ -27,7 +27,8 @@ Module TwoStreamMLPEMod
   use shr_log_mod   , only: errMsg => shr_log_errMsg
   use shr_sys_mod   , only: shr_sys_abort
   use FatesConstantsMod, only : r8 => fates_r8
- 
+  use shr_infnan_mod, only : shr_infnan_isnan
+  
   implicit none
   private
 
@@ -369,7 +370,9 @@ contains
            scelb%B1*scelb%lambda2_diff*exp(-scelb%a*vai))
 
       if(debug)then
-         if(isnan(r_diff_dn))then
+         ! if(isnan(r_diff_dn))then  !RGK: NVHPC HAS A BUG IN THIS INTRINSIC (01-2024)
+         ! if(r_diff_dn /= r_diff_dn) then
+         if(shr_infnan_isnan(r_diff_dn)) then
             write(log_unit,*)"GETRDN"
             write(log_unit,*)scelg%Kb
             write(log_unit,*)scelb%a
@@ -827,7 +830,9 @@ contains
                     scelb%betad = betad_om / scelb%om
 
                     if(debug)then
-                       if(isnan(scelb%betad))then
+                       !if(isnan(scelb%betad))then !RGK: NVHPC HAS A BUG IN THIS INTRINSIC (01-2024)
+                       !if(scelb%betad /= scelb%betad) then
+                       if(shr_infnan_isnan(scelb%betad))then
                           write(log_unit,*)"nans in canopy prep"
                           write(log_unit,*) ib,ican,icol,ft
                           write(log_unit,*) scelb%betad,scelb%om,lai,sai
