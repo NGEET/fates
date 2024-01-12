@@ -31,7 +31,7 @@ import code  # For development: code.interact(local=dict(globals(), **locals()))
 try:
     from scipy import io as nc
 
-except:
+except ImportError:
     from scipy.io import netcdf as nc
 
     

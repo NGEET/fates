@@ -13,7 +13,7 @@ import xml.etree.ElementTree as et
 try:
     from scipy import io as nc
 
-except:
+except ImportError:
     from scipy.io import netcdf as nc
 	 
 debug = True
