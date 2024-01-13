@@ -18,7 +18,7 @@ def main(args):
                 args.luh2_management_file]
     ds_luh2 = []
     for filename in filelist:
-        ds_luh2.append(ImportLUH2TimeSeries(filename))
+        ds_luh2.append(ImportLUH2TimeSeries(filename,start=args.begin,stop=args.end))
 
     # Import the LUH2 static data to use for masking
     ds_luh2_static = ImportLUH2StaticFile(args.luh2_static_file)
