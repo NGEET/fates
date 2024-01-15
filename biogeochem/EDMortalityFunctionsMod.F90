@@ -169,36 +169,44 @@ contains
        ! Carbon Starvation induced mortality.
        if ( cohort_in%dbh  >  0._r8 ) then
 
-          ! We compare storage with leaf biomass if plant were fully flushed, otherwise
-          ! mortality would be underestimated for plants that lost all leaves and have no
-          ! storage to flush new ones.
+          ! Find the current ratio between storage biomass and leaf biomass, which will be
+          ! used to define carbon starvation mortality.  The reference leaf biomass is 
+          ! always for when plants are fully flushed (but accounting for damage and 
+          ! trimming).
           call bleaf(cohort_in%dbh,cohort_in%pft,cohort_in%crowndamage,cohort_in%canopy_trim, &
                1.0_r8, target_leaf_c)
           store_c = cohort_in%prt%GetState(store_organ,carbon12_element)
           call storage_fraction_of_target(target_leaf_c, store_c, frac)
 
-          ! Select the mortality model.
+          ! Select the carbon starvation mortality model (linear or exponential)s.
           select case (mort_cstarvation_model)
           case (cstarvation_model_lin)
-             ! Linear model, with maximum mortality occurring when frac = 0
+             ! Linear model. Carbon starvation mortality will be zero when fraction of
+             ! storage is greater than or equal to mort_upthresh_cstarvation, and will
+             ! increase to the maximum mortality (mort_scalar_cstarvation) when frac = 0.
              cmort = EDPftvarcon_inst%mort_scalar_cstarvation(cohort_in%pft) * &
                 max(0.0_r8, (EDPftvarcon_inst%mort_upthresh_cstarvation(cohort_in%pft)-frac) / &
                             EDPftvarcon_inst%mort_upthresh_cstarvation(cohort_in%pft) )
 
           case (cstarvation_model_exp)
-             ! Exponential model.  The upper threshold really is the e-folding factor for
-             ! frac. We also make sure the mortality is set to zero when tiny.
+             ! Exponential model.  Maximum carbon starvation mortality 
+             ! (mort_scalar_cstarvation) occurs when frac=0. Parameter 
+             ! mort_upthresh_cstarvation controls the the e-folding factor for frac. The
+             ! smaller the mort_upthresh_cstarvation, the faster the mortality will decay.
              cmort = EDPftvarcon_inst%mort_scalar_cstarvation(cohort_in%pft) * &
                      exp(- frac / EDPftvarcon_inst%mort_upthresh_cstarvation(cohort_in%pft))
-             if (cmort <= nearzero) then
-                cmort = 0.0_r8
-             end if
+
           case default
               write(fates_log(),*) &
                  'Invalid carbon starvation model (',mort_cstarvation_model,').'
               call endrun(msg=errMsg(sourcefile, __LINE__))
           end select
-    
+
+          ! Make sure the mortality is set to zero when tiny.
+          if (cmort <= nearzero) then
+             cmort = 0.0_r8
+          end if
+
        else
           write(fates_log(),*) 'dbh problem in mortality_rates', &
                cohort_in%dbh,cohort_in%pft,cohort_in%n,cohort_in%canopy_layer
