@@ -106,33 +106,7 @@ module EDParamsMod
    real(r8), public :: dinc_vai(nlevleaf)   = fates_unset_r8 ! VAI bin widths array
    real(r8), public :: dlower_vai(nlevleaf) = fates_unset_r8 ! lower edges of VAI bins
  
-     ! TODO: we use this cp_maxSWb only because we have a static array q(size=2) of
-  ! land-ice abledo for vis and nir.  This should be a parameter, which would
-  ! get us on track to start using multi-spectral or hyper-spectral (RGK 02-2017)
-
-  integer, parameter, public :: maxSWb = 2      ! maximum number of broad-bands in the
-  ! shortwave spectrum cp_numSWb <= cp_maxSWb
-  ! this is just for scratch-array purposes
-  ! if cp_numSWb is larger than this value
-  ! simply bump this number up as needed
-
-integer, parameter, public :: ivis = 1        ! This is the array index for short-wave
-  ! radiation in the visible spectrum, as expected
-  ! in boundary condition files and parameter
-  ! files.  This will be compared with 
-  ! the HLM's expectation in FatesInterfaceMod
-integer, parameter, public :: inir = 2        ! This is the array index for short-wave
-  ! radiation in the near-infrared spectrum, as expected
-  ! in boundary condition files and parameter
-  ! files.  This will be compared with 
-  ! the HLM's expectation in FatesInterfaceMod
-
-integer, parameter, public :: ipar = ivis     ! The photosynthetically active band
-  ! can be approximated to be equal to the visible band
-
-
-
-integer, parameter, public :: maxpft = 16      ! maximum number of PFTs allowed
+   integer, parameter, public :: maxpft = 16      ! maximum number of PFTs allowed
    
    real(r8),protected,public  :: q10_mr     ! Q10 for respiration rate (for soil fragmenation and plant respiration)    (unitless)
    real(r8),protected,public  :: q10_froz   ! Q10 for frozen-soil respiration rates (for soil fragmentation)            (unitless)

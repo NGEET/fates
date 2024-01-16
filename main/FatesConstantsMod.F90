@@ -34,8 +34,6 @@ module FatesConstantsMod
   ! are used, but this helps allocate scratch
   ! space and output arrays.
 
-  integer, parameter, public :: n_rad_stream_types = 2    ! The number of radiation streams used (direct/diffuse)
-
   integer , parameter, public       :: N_DBH_BINS = 6  ! no. of dbh bins used when comparing patches
   real(fates_r8), parameter, public :: patchfusion_dbhbin_loweredges(N_DBH_BINS) = &
   (/0._fates_r8, 5._fates_r8, 20._fates_r8, 50._fates_r8, 100._fates_r8, 150._fates_r8/) ! array of bin lower edges for comparing patches
