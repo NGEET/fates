@@ -21,9 +21,6 @@ def main(args):
     for filename in filelist:
         ds_landusepfts.append(ImportLandusePFTFile(filename))
 
-    # Define the landuse mask based on the static luh2 file
-    mask_static = DefineMask(ds_static)
-
     # Add lat/lon coordinates to the CLM5 landuse data
     for dataset in ds_landusepfts:
         AddLatLonCoordinates(dataset)
@@ -63,9 +60,16 @@ def main(args):
         ds_percent = data_array.to_dataset(name=varname)
 
         # Apply mask for the current dataset
-        # TODO: this is a placeholder mask, needs update
+        # The bareground fraction doesn't need a mask
+        # Only the primary + secondary forest data needs to have the icewater
+        # mask applied
         if (varname != 'frac_brgnd'):
-            ds_percent['mask'] = xr.where(ds_percent[varname].sum(dim='natpft') == 0.,0,1)
+            mask_zeropercent = xr.where(ds_percent[varname].sum(dim='natpft') == 0.,0,1)
+            if (varname == 'frac_primr'):
+                mask_icwtr = xr.where(ds_static.icwtr != 0., 1, 0)
+                ds_percent['mask'] = mask_icwtr * mask_zeropercent
+            else:
+                ds_percent['mask'] = mask_zeropercent
 
         # Regrid current dataset
         print('Regridding {}'.format(varname))
