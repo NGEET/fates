@@ -51,7 +51,6 @@ module FatesIOVariableKindMod
   character(*), parameter, public :: site_elcwd_r8 = 'SI_ELEMCWD_R8'
   character(*), parameter, public :: site_elage_r8 = 'SI_ELEMAGE_R8'
 
-
   ! NOTE(RGK, 2016) %active is not used yet. Was intended as a check on the HLM->FATES
   ! control parameter passing to ensure all active dimension types received all
   ! dimensioning specifications from the host, but we currently arent using those

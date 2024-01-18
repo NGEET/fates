@@ -14,6 +14,7 @@ module FatesHistoryInterfaceMod
   use FatesGlobals             , only : endrun => fates_endrun
   use EDParamsMod              , only : nclmax, maxpft
   use FatesConstantsMod        , only : ican_upper
+  use FatesRadiationMemMod     , only : num_swb
   use PRTGenericMod            , only : element_pos
   use PRTGenericMod            , only : num_elements
   use PRTGenericMod            , only : prt_cnp_flex_allom_hyp
@@ -685,8 +686,6 @@ module FatesHistoryInterfaceMod
   integer :: ih_fabi_sha_si_cnlf
   integer :: ih_ts_net_uptake_si_cnlf
   integer :: ih_crownarea_si_cnlf
-  integer :: ih_parprof_dir_si_cnlf
-  integer :: ih_parprof_dif_si_cnlf
 
   ! indices to (site x [canopy layer x leaf layer x pft]) variables
   integer :: ih_parsun_z_si_cnlfpft
@@ -4633,8 +4632,6 @@ end subroutine flush_hvars
                hio_fabd_sha_si_cnlf  => this%hvars(ih_fabd_sha_si_cnlf)%r82d, &
                hio_fabi_sun_si_cnlf  => this%hvars(ih_fabi_sun_si_cnlf)%r82d, &
                hio_fabi_sha_si_cnlf  => this%hvars(ih_fabi_sha_si_cnlf)%r82d, &
-               hio_parprof_dir_si_cnlf  => this%hvars(ih_parprof_dir_si_cnlf)%r82d, &
-               hio_parprof_dif_si_cnlf  => this%hvars(ih_parprof_dif_si_cnlf)%r82d, &
                hio_parprof_dir_si_cnlfpft  => this%hvars(ih_parprof_dir_si_cnlfpft)%r82d, &
                hio_parprof_dif_si_cnlfpft  => this%hvars(ih_parprof_dif_si_cnlfpft)%r82d, &
                hio_fabd_sun_top_si_can  => this%hvars(ih_fabd_sun_top_si_can)%r82d, &
@@ -4696,7 +4693,7 @@ end subroutine flush_hvars
                  cpatch%c_lblayer * cpatch%total_canopy_area * mol_per_umol
 
             hio_rad_error_si(io_si) = hio_rad_error_si(io_si) + &
-                 cpatch%radiation_error * cpatch%area * AREA_INV
+                 max(abs(cpatch%rad_error(1)),abs(cpatch%rad_error(2))) * cpatch%area * AREA_INV
                  
            ! Only accumulate the instantaneous vegetation temperature for vegetated patches
            if (cpatch%patchno .ne. 0) then
@@ -4941,20 +4938,6 @@ end subroutine flush_hvars
                   hio_fabi_sha_top_si_can(io_si,ican) = hio_fabi_sha_top_si_can(io_si,ican) + &
                        cpatch%fabi_sha_z(ican,ipft,1) * cpatch%area * AREA_INV
                   !
-               end do
-            end do
-
-            ! PFT-mean radiation profiles
-            do ican = 1, cpatch%ncl_p
-               do ileaf = 1, maxval(cpatch%nrad(ican,:))
-
-                  ! calculate where we are on multiplexed dimensions
-                  cnlf_indx = ileaf + (ican-1) * nlevleaf
-                  !
-                  hio_parprof_dir_si_cnlf(io_si,cnlf_indx) = hio_parprof_dir_si_cnlf(io_si,cnlf_indx) + &
-                       cpatch%parprof_dir_z(ican,ileaf) * cpatch%area * AREA_INV
-                  hio_parprof_dif_si_cnlf(io_si,cnlf_indx) = hio_parprof_dif_si_cnlf(io_si,cnlf_indx) + &
-                       cpatch%parprof_dif_z(ican,ileaf) * cpatch%area * AREA_INV
                end do
             end do
 
@@ -6845,18 +6828,6 @@ end subroutine update_history_hifrq
          use_default='inactive', avgflag='A', vtype=site_cnlfpft_r8,           &
          hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
          index = ih_parprof_dif_si_cnlfpft)
-
-    call this%set_history_var(vname='FATES_PARPROF_DIR_CLLL', units='W m-2',   &
-         long='radiative profile of direct PAR through each canopy and leaf layer (averaged across PFTs)', &
-         use_default='inactive', avgflag='A', vtype=site_cnlf_r8,              &
-         hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
-         index = ih_parprof_dir_si_cnlf)
-
-    call this%set_history_var(vname='FATES_PARPROF_DIF_CLLL', units='W m-2',   &
-         long='radiative profile of diffuse PAR through each canopy and leaf layer (averaged across PFTs)', &
-         use_default='inactive', avgflag='A', vtype=site_cnlf_r8,              &
-         hlms='CLM:ALM', upfreq=2, ivar=ivar, initialize=initialize_variables, &
-         index = ih_parprof_dif_si_cnlf)
 
     call this%set_history_var(vname='FATES_FABD_SUN_TOPLF_CL', units='1',      &
          long='sun fraction of direct light absorbed by the top leaf layer of each canopy layer', &

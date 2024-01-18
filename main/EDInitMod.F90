@@ -19,7 +19,6 @@ module EDInitMod
   use FatesGlobals              , only : fates_log
   use FatesInterfaceTypesMod    , only : hlm_is_restart
   use FatesInterfaceTypesMod    , only : hlm_current_tod
-  use FatesInterfaceTypesMod    , only : hlm_numSWb
   use EDPftvarcon               , only : EDPftvarcon_inst
   use PRTParametersMod          , only : prt_params
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
@@ -28,6 +27,7 @@ module EDInitMod
   use EDPhysiologyMod           , only : calculate_sp_properties
   use ChecksBalancesMod         , only : SiteMassStock
   use FatesInterfaceTypesMod    , only : hlm_day_of_year
+  use FatesRadiationMemMod      , only : num_swb
   use EDTypesMod                , only : ed_site_type
   use FatesPatchMod             , only : fates_patch_type
   use FatesCohortMod            , only : fates_cohort_type
@@ -100,7 +100,6 @@ module EDInitMod
   private
 
   logical   ::  debug = .false.
-
   integer :: istat           ! return status code
   character(len=255) :: smsg ! Message string for deallocation errors
   character(len=*), parameter, private :: sourcefile = &
@@ -611,8 +610,9 @@ contains
              call SiteMassStock(sites(s),el,sites(s)%mass_balance(el)%old_stock, &
                   biomass_stock,litter_stock,seed_stock)
           end do
+          call set_patchno(sites(s))
        enddo
-
+       
     else
 
        ! state_vector(:) = 0._r8
@@ -701,8 +701,8 @@ contains
                    new_patch_area_gt_zero: if(newparea_withlanduse.gt.0._r8)then ! Stop patches being initilialized when PFT not present in nocomop mode
                       allocate(newp)
 
-                      call newp%Create(age, newparea_withlanduse, i_lu_state, nocomp_pft,     &
-                           hlm_numSWb, numpft, sites(s)%nlevsoil, hlm_current_tod,      &
+                      call newp%Create(age, newparea_withlanduse, i_lu_state, nocomp_pft, &
+                           num_swb, numpft, sites(s)%nlevsoil, hlm_current_tod, &
                            regeneration_model)
 
                       if(is_first_patch.eq.itrue)then !is this the first patch?
