@@ -27,6 +27,17 @@ def _RegridTargetPrep(regrid_target):
 
     return regrid_target
 
+# Define the land/ocean mask based on the ice/water data
+# from the LUH2 static data set
+def DefineStaticMask(dataset):
+    try:
+        mask = xr.where(dataset.icwtr != 0, 1, 0)
+        # mask = (1.-dataset.icwtr) / (1.-dataset.icwtr)
+    except AttributeError:
+        raise AttributeError("incorrect dataset, must be static luh2 dataset")
+    else:
+        return mask
+
 # TODO: add the follow common functions
 # - write to files
 # - read dataset into list of datasets

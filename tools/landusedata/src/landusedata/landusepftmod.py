@@ -22,16 +22,6 @@ def AddLatLonCoordinates(dataset):
     dataset['lat'] = dataset.LAT
     return dataset
 
-# Define the land/ocean mask based on the ice/water data
-# from the LUH2 static data set
-def DefineMask(dataset):
-    try:
-        mask = (1.-dataset.icwtr) / (1.-dataset.icwtr)
-    except AttributeError:
-        raise AttributeError("incorrect dataset, must be static luh2 dataset")
-    else:
-        return mask
-
 # Renormalize the pft percentages without the bareground
 def RenormalizePFTs(dataset):
     # Remove the bareground pft index from the dataset
@@ -39,7 +29,3 @@ def RenormalizePFTs(dataset):
     # Normalize
     percent = percent / percent.sum(dim='natpft')
     return percent
-
-# Steps
-# - concatenate all this information together (including mask)
-# - regrid using luh2mod.py tooling
