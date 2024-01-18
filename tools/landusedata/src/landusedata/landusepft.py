@@ -22,11 +22,14 @@ def main(args):
     for dataset in ds_landusepfts:
         AddLatLonCoordinates(dataset)
 
+    # Define static luh2 ice/water mask
+    mask_icwtr = DefineStaticMask(ds_static)
+
     # Calculate the bareground percentage after initializing data array list
     # Normalize the percentages
     percent = []
     percent_bareground = ds_landusepfts[0].PCT_NAT_PFT.isel(natpft=0)
-    percent_bareground = (percent_bareground / 100.0) * mask_static
+    percent_bareground = (percent_bareground / 100.0) * mask_icwtr
     percent.append(percent_bareground)
 
     # Renormalize the PCT_NAT_PFT for each dataset using the mask
@@ -36,9 +39,6 @@ def main(args):
     # Calculate the primary and secondary PFT fractions as the forest
     # and nonforest-weighted averages of the forest and other PFT datasets.
     percent[2] = ds_static.fstnf * percent[2] + (1. - ds_static.fstnf) * percent[-1]
-
-    # Define static luh2 ice/water mask
-    mask_icwtr = DefineStaticMask(ds_static)
 
     # Note that the list order is:
     # bareground, surface data, primary, pasture, rangeland (other)
@@ -63,15 +63,10 @@ def main(args):
         ds_percent = data_array.to_dataset(name=varname)
 
         # Apply mask for the current dataset
-        # The bareground fraction doesn't need a mask
-        # Only the primary + secondary forest data needs to have the icewater
-        # mask applied
+        ds_percent['mask'] = mask_icwtr
         if (varname != 'frac_brgnd'):
             mask_zeropercent = xr.where(ds_percent[varname].sum(dim='natpft') == 0.,0,1)
-            if (varname == 'frac_primr'):
-                ds_percent['mask'] = mask_icwtr * mask_zeropercent
-            else:
-                ds_percent['mask'] = mask_zeropercent
+            ds_percent['mask'] = ds_percent.mask * mask_zeropercent
 
         # Regrid current dataset
         print('Regridding {}'.format(varname))

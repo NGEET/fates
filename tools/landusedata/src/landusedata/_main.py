@@ -62,7 +62,7 @@ def main(argv=None):
                               help = "CLM5_current_luhother_deg025.nc")
     lupft_parser.add_argument('clm_surface_file',
                               help = "CLM5_current_surf_deg025.nc")
-    lupft_parser.add_argument("-O","--output",
+    lupft_parser.add_argument("-o","--output",
                               default = 'fates_landuse_pft_map.nc',
                               help = "output filename")
 
