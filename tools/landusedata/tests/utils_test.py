@@ -22,3 +22,8 @@ def test_negImportRegridTarget(landusepft_file_location):
     with pytest.raises(TypeError) as exp:
         utils.ImportRegridTarget(landusepft_file_location)
     assert str(exp.value) == "incorrect file, must be surface dataset"
+
+def test_negSetMaskRegridTarget(landusepft_dataset):
+    with pytest.raises(AttributeError) as exp:
+        maskoutput = utils.SetMaskRegridTarget(landusepft_dataset)
+    assert str(exp.value) == "incorrect dataset, must be CLM surface dataset"

@@ -3,9 +3,9 @@ import argparse, os, sys
 import xarray as xr
 
 from landusedata.luh2mod import ImportLUH2StaticFile, ImportLUH2TimeSeries
-from landusedata.luh2mod import SetMaskLUH2, SetMaskSurfData, CorrectStateSum
+from landusedata.luh2mod import SetMaskLUH2, CorrectStateSum
 
-from landusedata.utils import ImportRegridTarget
+from landusedata.utils import ImportRegridTarget, SetMaskRegridTarget
 
 from landusedata.regrid import RegridConservative, RegridLoop
 
@@ -35,7 +35,7 @@ def main(args):
     ds_regrid_target = ImportRegridTarget(args.regrid_target_file)
 
     # Mask the regrid target
-    ds_regrid_target = SetMaskSurfData(ds_regrid_target)
+    ds_regrid_target = SetMaskRegridTarget(ds_regrid_target)
 
     # Create an output dataset to contain individually regridded landuse percent datasets
     ds_output = xr.Dataset()

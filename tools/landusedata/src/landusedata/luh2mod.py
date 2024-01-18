@@ -106,12 +106,6 @@ def SetMaskLUH2(input_dataset,static_data_set):
     input_dataset["mask"] = (static_data_set.icwtr != 1)
     return(input_dataset)
 
-# Surface dataset specific masking sub-function
-def SetMaskSurfData(input_dataset):
-    # Instead of passing the label_to_mask, loop through this for all labels?
-    input_dataset["mask"] = input_dataset["PCT_NATVEG"] > 0
-    return(input_dataset)
-
 # Temporary: Add minor correction factor to assure states sum to one
 def CorrectStateSum(input_dataset):
 

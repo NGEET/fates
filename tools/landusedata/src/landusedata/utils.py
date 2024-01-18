@@ -38,6 +38,16 @@ def DefineStaticMask(dataset):
     else:
         return mask
 
+# Surface dataset specific masking sub-function
+# TODO: this needs a unit test
+def SetMaskRegridTarget(dataset):
+    try:
+        dataset["mask"] = xr.where(dataset.PCT_NATVEG > 0, 1, 0)
+    except AttributeError:
+        raise AttributeError("incorrect dataset, must be CLM surface dataset")
+    else:
+        return(dataset)
+
 # TODO: add the follow common functions
 # - write to files
 # - read dataset into list of datasets

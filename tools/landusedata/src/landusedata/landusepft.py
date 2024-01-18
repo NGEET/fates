@@ -3,11 +3,11 @@ import xarray as xr
 import xesmf as xe
 
 from landusedata.landusepftmod import ImportLandusePFTFile
-from landusedata.landusepftmod import AddLatLonCoordinates, DefineMask, RenormalizePFTs
+from landusedata.landusepftmod import AddLatLonCoordinates, RenormalizePFTs
 
 from landusedata.luh2mod import ImportLUH2StaticFile
 
-from landusedata.utils import ImportRegridTarget
+from landusedata.utils import ImportRegridTarget, SetMaskRegridTarget, DefineStaticMask
 
 def main(args):
 
@@ -46,6 +46,9 @@ def main(args):
 
     # Open and prepare the target dataset
     ds_target = ImportRegridTarget(args.regrid_target_file)
+
+    # Set the mask for the regrid target
+    ds_target = SetMaskRegridTarget(ds_target)
 
     # Create an output dataset to contain individually regridded landuse percent datasets
     ds_output = xr.Dataset()
