@@ -40,6 +40,9 @@ def main(args):
     # and nonforest-weighted averages of the forest and other PFT datasets.
     percent[2] = ds_static.fstnf * percent[2] + (1. - ds_static.fstnf) * percent[-1]
 
+    # Define static luh2 ice/water mask
+    mask_icwtr = DefineStaticMask(ds_static)
+
     # Note that the list order is:
     # bareground, surface data, primary, pasture, rangeland (other)
     ds_var_names = ['frac_brgnd','frac_csurf','frac_primr','frac_pastr','frac_range']
@@ -69,7 +72,6 @@ def main(args):
         if (varname != 'frac_brgnd'):
             mask_zeropercent = xr.where(ds_percent[varname].sum(dim='natpft') == 0.,0,1)
             if (varname == 'frac_primr'):
-                mask_icwtr = xr.where(ds_static.icwtr != 0., 1, 0)
                 ds_percent['mask'] = mask_icwtr * mask_zeropercent
             else:
                 ds_percent['mask'] = mask_zeropercent

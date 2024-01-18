@@ -31,7 +31,7 @@ def _RegridTargetPrep(regrid_target):
 # from the LUH2 static data set
 def DefineStaticMask(dataset):
     try:
-        mask = xr.where(dataset.icwtr != 0, 1, 0)
+        mask = xr.where(dataset.icwtr != 1, 1, 0)
         # mask = (1.-dataset.icwtr) / (1.-dataset.icwtr)
     except AttributeError:
         raise AttributeError("incorrect dataset, must be static luh2 dataset")

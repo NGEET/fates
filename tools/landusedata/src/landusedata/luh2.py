@@ -5,7 +5,7 @@ import xarray as xr
 from landusedata.luh2mod import ImportLUH2StaticFile, ImportLUH2TimeSeries
 from landusedata.luh2mod import SetMaskLUH2, CorrectStateSum
 
-from landusedata.utils import ImportRegridTarget, SetMaskRegridTarget
+from landusedata.utils import ImportRegridTarget, SetMaskRegridTarget, DefineStaticMask
 
 from landusedata.regrid import RegridConservative, RegridLoop
 
@@ -26,10 +26,13 @@ def main(args):
     # Create new variable where the ice water fraction is inverted w
     ds_luh2_static["landfrac"] = 1 - ds_luh2_static.icwtr
 
+    # Define static luh2 ice/water mask
+    mask_icwtr = DefineStaticMask(ds_luh2_static)
+
     # Mask all LUH2 input data using the ice/water fraction for the LUH2 static data
-    ds_luh2_static = SetMaskLUH2(ds_luh2_static, ds_luh2_static)
+    ds_luh2_static['mask'] = mask_icwtr
     for dataset in ds_luh2:
-        dataset = SetMaskLUH2(dataset, ds_luh2_static)
+        dataset['mask'] = mask_icwtr
 
     # Import and prep the regrid target surface dataset
     ds_regrid_target = ImportRegridTarget(args.regrid_target_file)

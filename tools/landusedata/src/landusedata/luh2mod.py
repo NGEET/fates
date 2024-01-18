@@ -99,13 +99,6 @@ def _BoundsVariableFixLUH2(input_dataset):
 
     return(input_dataset)
 
-# LUH2 specific masking sub-function
-def SetMaskLUH2(input_dataset,static_data_set):
-
-    # Mask the luh2 data where the ice/water fraction is unity (i.e. fully ice covered gridcell)
-    input_dataset["mask"] = (static_data_set.icwtr != 1)
-    return(input_dataset)
-
 # Temporary: Add minor correction factor to assure states sum to one
 def CorrectStateSum(input_dataset):
 
