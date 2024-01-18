@@ -39,7 +39,6 @@ def DefineStaticMask(dataset):
         return mask
 
 # Surface dataset specific masking sub-function
-# TODO: this needs a unit test
 def SetMaskRegridTarget(dataset):
     try:
         dataset["mask"] = xr.where(dataset.PCT_NATVEG > 0, 1, 0)
