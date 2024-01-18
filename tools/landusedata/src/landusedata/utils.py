@@ -27,6 +27,19 @@ def _RegridTargetPrep(regrid_target):
 
     return regrid_target
 
+# Open the LUH2 static data file
+def ImportLUH2StaticFile(filename):
+    dataset = xr.open_dataset(filename)
+
+    # Check to see if the imported dataset has correct variables
+    listcheck = ['ptbio', 'fstnf', 'carea', 'icwtr', 'ccode', 'lat_bounds', 'lon_bounds']
+    if list(dataset.var()) != listcheck:
+        raise TypeError("incorrect file, must be LUH2 static file")
+
+    # Convert all data from single to double precision
+    dataset = dataset.astype('float64')
+    return dataset
+
 # Define the land/ocean mask based on the ice/water data
 # from the LUH2 static data set
 def DefineStaticMask(dataset):

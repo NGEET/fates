@@ -2,12 +2,9 @@ import argparse, os, sys
 import xarray as xr
 import xesmf as xe
 
-from landusedata.landusepftmod import ImportLandusePFTFile
-from landusedata.landusepftmod import AddLatLonCoordinates, RenormalizePFTs
-
-from landusedata.luh2mod import ImportLUH2StaticFile
-
-from landusedata.utils import ImportRegridTarget, SetMaskRegridTarget, DefineStaticMask
+from landusedata.landusepftmod import ImportLandusePFTFile, AddLatLonCoordinates, RenormalizePFTs
+from landusedata.utils import ImportLUH2StaticFile, ImportRegridTarget
+from landusedata.utils import SetMaskRegridTarget, DefineStaticMask
 
 def main(args):
 

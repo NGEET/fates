@@ -3,20 +3,6 @@ import numpy as np
 import xarray as xr
 import xesmf as xe
 
-# Open the LUH2 static data file
-def ImportLUH2StaticFile(filename):
-    dataset = xr.open_dataset(filename)
-
-    # Check to see if the imported dataset has correct variables
-    listcheck = ['ptbio', 'fstnf', 'carea', 'icwtr', 'ccode', 'lat_bounds', 'lon_bounds']
-    if list(dataset.var()) != listcheck:
-        raise TypeError("incorrect file, must be LUH2 static file")
-
-    # Convert all data from single to double precision
-    dataset = dataset.astype('float64')
-    return dataset
-
-
 # Import luh2 or surface data sets
 def ImportLUH2TimeSeries(input_file,start=None,stop=None):
 
