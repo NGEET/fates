@@ -6927,7 +6927,7 @@ end subroutine update_history_hifrq
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_cstarvmortality_carbonflux_si_pft)
 
-    call this%set_history_var(vname='FATES_MORTALITY_CSTARV_CONT_CFLUX_PF', units='kg m-2 s-1',    &
+    call this%set_history_var(vname='FATES_MORT_CSTARV_CONT_CFLUX_PF', units='kg m-2 s-1',    &
          long='PFT-level flux of biomass carbon from live to dead pool from carbon starvation mortality (Continuous-only, without termination)', &
          use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
