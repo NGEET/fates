@@ -125,9 +125,11 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
   
   integer, public :: fates_np_comp_scaling = fates_unset_int
 
-  real(fates_r8), parameter, public :: secondary_age_threshold = 94._fates_r8 ! less than this value is young secondary land
+  real(fates_r8), parameter, public :: secondary_age_threshold = 10._fates_r8 ! less than this value is young secondary land
                                                             ! based on average age of global
                                                             ! secondary 1900s land in hurtt-2011
+                                                            ! here revise to the age threshold for
+                                                            ! logging cycle of IFM/ARR site simulations
 
   ! integer labels for specifying harvest units
   integer, parameter, public :: photosynth_acclim_model_none = 1
