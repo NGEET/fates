@@ -447,7 +447,7 @@ contains
 
      !ARGUMENTS
      real(r8), intent(in)               :: dbh !dbh of cohort [cm]
-     integer,  intent(in)               :: ncwd !number of cwd pools
+     integer, intent(in)                :: ncwd !number of cwd pools
      real(r8), intent(in)               :: SF_val_CWD_frac(:) !fates parameter specifying the
                                                               !fraction of struct + sapw going
                                                               !to each CWD class

@@ -5777,14 +5777,14 @@ end subroutine update_history_hifrq
     call this%set_history_var(vname='FATES_SECONDAREA_ANTHRODIST_AP',          &
          units='m2 m-2',                                                       &
          long='secondary forest patch area age distribution since anthropgenic disturbance', &
-         use_default='inactive', avgflag='A', vtype=site_age_r8,               &
+         use_default='active', avgflag='A', vtype=site_age_r8,               &
          hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
          index=ih_agesince_anthrodist_si_age)
 
     call this%set_history_var(vname='FATES_SECONDAREA_DIST_AP',                &
          units='m2 m-2',                                                       &
          long='secondary forest patch area age distribution since any kind of disturbance', &
-         use_default='inactive', avgflag='A', vtype=site_age_r8,               &
+         use_default='active', avgflag='A', vtype=site_age_r8,               &
          hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
          index=ih_secondarylands_area_si_age)
 
