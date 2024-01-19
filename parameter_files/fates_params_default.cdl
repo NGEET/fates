@@ -473,7 +473,7 @@ variables:
 		fates_phen_stem_drop_fraction:long_name = "fraction of stems to drop for non-woody species during drought/cold" ;
 	double fates_phen_stress_decid(fates_pft) ;
 		fates_phen_stress_decid:units = "logical flag" ;
-		fates_phen_stress_decid:long_name = "Binary flag for stress-deciduous leaf habit" ;
+		fates_phen_stress_decid:long_name = "Flag for stress/drought-deciduous leaf habit. 0 - not stress deciduous; 1 - default drought deciduous (two target states only, fully flushed or fully abscised); 2 - semi-deciduous" ;
 	double fates_prescribed_npp_canopy(fates_pft) ;
 		fates_prescribed_npp_canopy:units = "kgC / m^2 / yr" ;
 		fates_prescribed_npp_canopy:long_name = "NPP per unit crown area of canopy trees for prescribed physiology mode" ;
